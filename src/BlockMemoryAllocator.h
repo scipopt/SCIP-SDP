@@ -90,9 +90,12 @@ public:
   }
   void destroy(pointer p) { p->~value_type(); }
 
-private:
+  template<typename S> friend inline bool operator==(const BlockMemoryAllocator<S>& left, const BlockMemoryAllocator<S>& right);
+  template<typename S> friend inline bool operator!=(const BlockMemoryAllocator<S>& left, const BlockMemoryAllocator<S>& right);
+
   void operator=(const BlockMemoryAllocator&);
-  
+
+ private:
   SCIP* scip_;
 };
 
