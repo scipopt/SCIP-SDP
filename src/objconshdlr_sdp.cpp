@@ -330,8 +330,12 @@ SCIP_RETCODE separate_curr_sol(
 
    if (SCIPisCutEfficacious(scip, sol, row) )
    {
-      SCIP_CALL( SCIPaddCut(scip, sol, row, FALSE) );
-      *result = SCIP_SEPARATED;
+      SCIP_Bool infeasible;
+      SCIP_CALL( SCIPaddCut(scip, sol, row, FALSE, &infeasible) );
+      if ( infeasible )
+         *result = SCIP_CUTOFF;
+      else
+         *result = SCIP_SEPARATED;
       SCIP_CALL( SCIPresetConsAge(scip, conss) );
    }
 
@@ -1004,13 +1008,19 @@ SCIP_RETCODE ObjConshdlrSdp::scip_enfolp(
 
       SCIP_CALL( SCIPflushRowExtensions(scip, row) );
      
-      SCIPaddCut(scip, NULL, row, FALSE);
-      SCIPaddPoolCut(scip, row); 
+      SCIP_Bool infeasible;
+      SCIPaddCut(scip, NULL, row, FALSE, &infeasible);
 
-      SCIP_CALL( SCIPresetConsAge(scip, conss[i]) );
-      *result = SCIP_SEPARATED;
-      separated = TRUE;
+      if ( infeasible )
+         *result = SCIP_CUTOFF;
+      else
+      {
+         SCIPaddPoolCut(scip, row); 
 
+         SCIP_CALL( SCIPresetConsAge(scip, conss[i]) );
+         *result = SCIP_SEPARATED;
+         separated = TRUE;
+      }
       SCIP_CALL( SCIPreleaseRow(scip, &row) );
       SCIPfreeBufferArray(scip, &coeff);
    }
