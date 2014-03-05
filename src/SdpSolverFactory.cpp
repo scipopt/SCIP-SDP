@@ -34,6 +34,8 @@
 #include "DsdpInterface.h"
 #endif
 
+#include <cassert>
+
 SdpInterface* SdpSolverFactory::createSdpSolver(SCIP* scip, const std::string& name)
 {
 #ifdef USE_DSDP
