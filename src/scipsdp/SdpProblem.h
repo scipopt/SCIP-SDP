@@ -36,6 +36,7 @@
 #include "scip/type_lp.h"               // for SCIP_ROW
 #include "scip/type_retcode.h"          // for SCIP_RETCODE
 #include "scip/type_scip.h"             // for SCIP
+
 class SdpCone;  // lines 10-10
 class SdpVarMapper;  // lines 11-11
 
@@ -89,13 +90,14 @@ class SdpProblem
    SCIP_Real* vals,                  /**<coefficients of variables in constraint*/
    SCIP_Real* ubs                    /**upper bound of variable<*/);
    
-   /**adds bound for variables*/
+   /** adds bound for variables */
    SCIP_RETCODE addbound(
-   int *position,                     /**<position where bound constraint is added*/
-   double rhs,                        /**<rhs of variable*/
-   int lininds,                       /**<variable index*/
-   double linvals,                    /**<coefficient of variable*/
-   SdpVarMapper* varmapper            /**<varmapper class object*/);
+      int*               position,           /**< position where bound constraint is added */
+      double             rhs,                /**< rhs of variable */
+      int                lininds,            /**< variable index */
+      double             linvals,            /**< coefficient of variable */
+      SdpVarMapper*      varmapper           /**< varmapper class object */
+      );
    
    /**adding lp data out of scip to the vector ding->for_matind, ding->for_block, ding->for_constraint, ding->for_vals*/
    SCIP_RETCODE get_rows_data(
