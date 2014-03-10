@@ -23,65 +23,70 @@
 #/*                                                                           */
 #/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#This Makefile is partly copied from the TSP-Example from SCIP.
-#SCIP is distributed under the terms of the ZIB Academic Licence. This license 
-#is available through SCIP or email to scip@zib.de.
-
 #@file    Makefile
 #@brief   Makefile for C++ SDP-Interface for SCIP
 #@author  Sonja Mars, Lars Schewe
+
+#-----------------------------------------------------------------------------
+# own variables
+#-----------------------------------------------------------------------------
+
+SDPS		=	none
+
+GCCWARN		+= 	-Wextra
+
+#-----------------------------------------------------------------------------
+# include default project Makefile from SCIP
+#-----------------------------------------------------------------------------
+
+include $(SCIPDIR)/make/make.project
+
+# possibly load local makefile
+-include make.local
 
 
 #-----------------------------------------------------------------------------
 # paths
 #-----------------------------------------------------------------------------
 
-include make.local
+LDFLAGS 	+= 	-lobjscip -llapack -lblas
 
-#-----------------------------------------------------------------------------
-# include default project Makefile from SCIP
-#-----------------------------------------------------------------------------
-include $(SCIPDIR)/make/make.project
-
-LDFLAGS += -lobjscip 
-FLAGS += -Wall -Wextra -Wno-unused-parameter
-
-ifeq ($(USE_DSDP), true)
-LDFLAGS+= -L$(DSDP_LIB_DIR) -ldsdp -llapack -lblas
-FLAGS += -I$(DSDP_INCLUDE_DIR) -DUSE_DSDP
+ifeq ($(SDPS),dsdp)
+LDFLAGS		+= 	-L$(DSDP_LIB_DIR) -ldsdp
+FLAGS 		+= 	-I$(DSDP_INCLUDE_DIR) -DUSE_DSDP
 endif
 
-include make.project.override
 
 #-----------------------------------------------------------------------------
-# Main Program
+# main program
 #-----------------------------------------------------------------------------
 
-MAINNAME	=	main
+MAINNAME=	scipsdp
 MAINOBJ	=	main.o \
-            objrelax_sdp.o \
-            objconshdlr_sdp.o \
-            objreader_sdpa.o \
-            SdpVarMapper.o \
-            SdpCone.o \
-            ScipStreamBuffer.o \
-            SdpProblem.o \
-            SdpSolverFactory.o
+		objrelax_sdp.o \
+		objconshdlr_sdp.o \
+		objreader_sdpa.o \
+		SdpVarMapper.o \
+		SdpCone.o \
+		ScipStreamBuffer.o \
+		SdpProblem.o \
+		SdpSolverFactory.o
 
-ifeq ($(USE_DSDP), true)
-MAINOBJ += DsdpInterface.o
+ifeq ($(SDPS), dsdp)
+MAINOBJ 	+= 	DsdpInterface.o
 endif
 
 MAINSRC		=	$(addprefix $(SRCDIR)/,$(MAINOBJ:.o=.cpp))
 MAINDEP		=	$(SRCDIR)/depend.cppmain.$(OPT)
 
-MAIN		=	$(MAINNAME)-w
-MAINFILE	=	$(BINDIR)/$(MAIN)
+# @todo possibly add LPS
+MAINFILE	=	$(BINDIR)/$(MAINNAME).$(BASE).$(SDPS)$(EXEEXTENSION)
 MAINSHORTLINK	=	$(BINDIR)/$(MAINNAME)
 MAINOBJFILES	=	$(addprefix $(OBJDIR)/,$(MAINOBJ))
 
+
 #-----------------------------------------------------------------------------
-# Rules
+# rules
 #-----------------------------------------------------------------------------
 
 ifeq ($(VERBOSE),false)
@@ -97,7 +102,7 @@ lint:		$(MAINSRC)
 		$(SHELL) -ec 'for i in $^; \
 			do \
 			echo $$i; \
-			$(LINT) lint/$(MAINNAME).lnt +os\(lint.out\) -u -zero \
+			$(LINT) $(SCIPDIR)/lint/scip.lnt +os\(lint.out\) -u -zero \
 			$(FLAGS) -UNDEBUG -UWITH_READLINE -UROUNDING_FE $$i; \
 			done'
 
@@ -110,10 +115,14 @@ $(MAINSHORTLINK):	$(MAINFILE)
 		cd $(dir $@) && ln -s $(notdir $(MAINFILE)) $(notdir $@)
 
 $(OBJDIR):
-		@-mkdir -p $(OBJDIR)
+	-@test -d $(OBJDIR) || { \
+	echo "-> Creating $(OBJDIR) directory"; \
+	mkdir -p $(OBJDIR); }
 
 $(BINDIR):
-		@-mkdir -p $(BINDIR)
+	-@test -d $(BINDIR) || { \
+	echo "-> Creating $(BINDIR) directory"; \
+	mkdir -p $(BINDIR); }
 
 .PHONY: clean
 clean:
@@ -131,7 +140,7 @@ depend:		$(SCIPDIR)
 
 -include	$(MAINDEP)
 
-$(MAINFILE):	$(BINDIR) $(OBJDIR) $(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(MAINOBJFILES)
+$(MAINFILE):	$(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(MAINOBJFILES) | $(OBJDIR) $(BINDIR)
 		@echo "-> linking $@"
 		$(LINKCXX) $(MAINOBJFILES) \
 		$(LINKCXX_L)$(SCIPDIR)/lib $(LINKCXX_l)$(SCIPLIB)$(LINKLIBSUFFIX) \
@@ -144,6 +153,7 @@ $(OBJDIR)/%.o:	$(SRCDIR)/%.c
 		$(CC) $(FLAGS) $(OFLAGS) $(BINOFLAGS) $(CFLAGS) -c $< $(CC_o)$@
 
 $(OBJDIR)/%.o:	$(SRCDIR)/%.cpp
+		@echo $(OBJDIR)
 		@echo "-> compiling $@"
 		$(CXX) $(FLAGS) $(OFLAGS) $(BINOFLAGS) $(CXXFLAGS) -c $< $(CXX_o)$@
 
