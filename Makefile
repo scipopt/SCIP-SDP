@@ -31,6 +31,7 @@
 # own variables
 #-----------------------------------------------------------------------------
 
+SCIPSDPVERSION	=	1.0
 SDPS		=	none
 
 GCCWARN		+= 	-Wextra
