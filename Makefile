@@ -63,18 +63,18 @@ endif
 #-----------------------------------------------------------------------------
 
 MAINNAME=	scipsdp
-MAINOBJ	=	main.o \
-		objrelax_sdp.o \
-		objconshdlr_sdp.o \
-		objreader_sdpa.o \
-		SdpVarMapper.o \
-		SdpCone.o \
-		ScipStreamBuffer.o \
-		SdpProblem.o \
-		SdpSolverFactory.o
+MAINOBJ	=	scipsdp/main.o \
+		scipsdp/objrelax_sdp.o \
+		scipsdp/objconshdlr_sdp.o \
+		scipsdp/objreader_sdpa.o \
+		scipsdp/SdpVarMapper.o \
+		scipsdp/SdpCone.o \
+		scipsdp/ScipStreamBuffer.o \
+		scipsdp/SdpProblem.o \
+		scipsdp/SdpSolverFactory.o
 
 ifeq ($(SDPS), dsdp)
-MAINOBJ 	+= 	DsdpInterface.o
+MAINOBJ 	+= 	scipsdp/DsdpInterface.o
 endif
 
 MAINSRC		=	$(addprefix $(SRCDIR)/,$(MAINOBJ:.o=.cpp))
@@ -154,7 +154,6 @@ $(OBJDIR)/%.o:	$(SRCDIR)/%.c
 		$(CC) $(FLAGS) $(OFLAGS) $(BINOFLAGS) $(CFLAGS) -c $< $(CC_o)$@
 
 $(OBJDIR)/%.o:	$(SRCDIR)/%.cpp
-		@echo $(OBJDIR)
 		@echo "-> compiling $@"
 		$(CXX) $(FLAGS) $(OFLAGS) $(BINOFLAGS) $(CXXFLAGS) -c $< $(CXX_o)$@
 
