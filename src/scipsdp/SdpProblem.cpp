@@ -44,16 +44,17 @@
 #include "scip/type_cons.h"             // for SCIP_CONS, SCIP_CONSHDLR
 #include "scip/type_var.h"              // for SCIP_VAR
 
-/**Method for adding linear constraints to the structure we need for dsdp
- *the arrays for_* will later be added to dsdp as lp cone*/
+/** Method for adding linear constraints to the structure we need for dsdp
+ *  the arrays for_* will later be added to dsdp as lp cone */
 SCIP_RETCODE SdpProblem::addconstraint(
-   SdpVarMapper* varmapper,         /**<varmapper class data*/
-   int *position,                    /**<diagonal-position where constraint should be added*/
-   double rhs,                       /**<rhs of constraint*/
-   int* lininds,                     /**<indices of variables in constraint*/
-   int nlininds,                     /**<number of variables in constraint*/
-   SCIP_Real* vals,                  /**<coefficients of variables in constraint*/
-   SCIP_Real* ubs                    /**upper bound of variable<*/)
+   SdpVarMapper*         varmapper,          /**< varmapper class data */
+   int*                  position,           /**< diagonal-position where constraint should be added */
+   double                rhs,                /**< rhs of constraint */
+   int*                  lininds,            /**< indices of variables in constraint */
+   int                   nlininds,           /**< number of variables in constraint */
+   SCIP_Real*            vals,               /**< coefficients of variables in constraint */
+   SCIP_Real*            ubs                 /**< upper bound of variable */
+   )
 {
    bool increase_position = FALSE;
    int nmat = 0;
@@ -111,16 +112,12 @@ SCIP_RETCODE SdpProblem::addconstraint(
             {
                for_matind_.push_back(*position);
                for_constraint_.push_back(0);
-               for_vals_.push_back(vals[k]*ubs[k]);
+               for_vals_.push_back(vals[k] * ubs[k]);
             }
          }
          else //the rhs was not zero to it is possible that an enty exists
          {
-            if (SCIPisEQ(scip_, ubs[k], 0.0))
-            {
-               //do nothing
-            }
-            else  //the variable is fixed, so we have to do something
+            if ( ! SCIPisEQ(scip_, ubs[k], 0.0))  // the variable is fixed, so we have to do something
             {
                if (something_over == TRUE) //maybe there is nothing left from our inequality, only to something, if anything is left
                {
@@ -283,14 +280,12 @@ SdpProblem::SdpProblem(SCIP* scip, SdpVarMapper* varmapper) :
    int        nrows;
    SCIP_CALL_ABORT( SCIPgetLPRowsData(scip, &rows, &nrows) );
 
-
    SCIPdebugMessage("nrows: %d  ncols: %d  \n", nrows, ncols);
 
    //write lp data in vectors of sdpproblem
    //A_0 is u and -l in the linear block and A_i
    //LP
    SCIP_CALL_ABORT( get_rows_data(varmapper, rows, nrows, &position));
-
 
    for (int i = 0; i < varmapper->get_sdp_nvars(); i++)
    {
@@ -391,6 +386,3 @@ int SdpProblem::get_lp_nnz() const
 {
    return for_matind_.size();
 }
-
-
-
