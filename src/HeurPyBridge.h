@@ -1,15 +1,25 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /*                                                                           */
-/*                  This file is part of the program and library             */
-/*         SCIP --- Solving Constraint Integer Programs                      */
+/*                  This file is part of the                                 */
+/*      SDP-Package for SCIP: a solving framework for                        */
+/*                            mixed-integer semidefinite programms           */
 /*                                                                           */
-/*    Copyright (C) 2002-2012 Konrad-Zuse-Zentrum                            */
-/*                            fuer Informationstechnik Berlin                */
+/* Copyright (C) 2011-2014 Discrete Optimization, TU Darmstadt               */
+/*                         EDOM, FAU Erlangen-Nürnberg                       */
 /*                                                                           */
-/*  SCIP is distributed under the terms of the ZIB Academic License.         */
+/* This program is free software; you can redistribute it and/or             */
+/* modify it under the terms of the GNU Lesser General Public License        */
+/* as published by the Free Software Foundation; either version 3            */
+/* of the License, or (at your option) any later version.                    */
 /*                                                                           */
-/*  You should have received a copy of the ZIB Academic License              */
-/*  along with SCIP; see the file COPYING. If not email to scip@zib.de.      */
+/* This program is distributed in the hope that it will be useful,           */
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of            */
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             */
+/* GNU Lesser General Public License for more details.                       */
+/*                                                                           */
+/* You should have received a copy of the GNU Lesser General Public License  */
+/* along with this program; if not, write to the Free Software               */
+/* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.*/
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 

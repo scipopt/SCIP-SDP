@@ -4,7 +4,7 @@
 /*      SDP-Package for SCIP: a solving framework for                        */
 /*                            mixed-integer semidefinite programms           */
 /*                                                                           */
-/* Copyright (C) 2011-2012 Discrete Optimization, TU Darmstadt               */
+/* Copyright (C) 2011-2014 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or             */
