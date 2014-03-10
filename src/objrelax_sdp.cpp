@@ -48,14 +48,15 @@
 
 /**check if variable bounds are fulfilled*/
 SCIP_RETCODE check_bounds(
-   SCIP* scip,           /**<SCIP data structure*/
-   int nvars,            /**<number of variables*/
-   SCIP_VAR** var,       /**<variables*/
-   SCIP_SOL* scipsol,    /**<solution of scip-type to check bounds for*/
-   bool *sol_is_feas     /**<pointer to store if solution is feasible*/)
+   SCIP*                 scip,               /**< SCIP data structure */
+   int                   nvars,              /**< number of variables */
+   SCIP_VAR**            var,                /**< variables */
+   SCIP_SOL*             scipsol,            /**< solution of scip-type to check bounds for */
+   bool*                 sol_is_feas         /**< pointer to store if solution is feasible */
+   )
 {
    *sol_is_feas = TRUE;
-   for(int v = 0; v < nvars; ++v )
+   for (int v = 0; v < nvars; ++v )
    {
       const SCIP_Real solval = SCIPgetSolVal(scip, scipsol, var[v]);
 
