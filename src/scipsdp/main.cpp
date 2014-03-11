@@ -52,7 +52,7 @@ SCIP_RETCODE runSCIP(
 
    SCIP_CALL( SCIPcreate(&scip) );
    SCIPprintVersion(scip, NULL);
-   
+
    //include new plugins
    SCIP_CALL( SCIPincludeObjReader(scip, new ObjReaderSDPA(scip), TRUE) );
 
@@ -60,19 +60,19 @@ SCIP_RETCODE runSCIP(
 
    SCIP_CALL( SCIPincludeObjRelax(scip, new ObjRelaxSdp(scip), TRUE) );
 
-   
+
    const char* name = "sdpsolver";
    const char * 	desc = "which sdpsolver should be called";
 
    SCIP_PARAMDATA* 	paramdata = NULL;
 
-   SCIP_CALL( SCIPaddStringParam	(scip, name, desc, NULL, FALSE, "dsdp" , NULL, paramdata)	);	
+   SCIP_CALL( SCIPaddStringParam	(scip, name, desc, NULL, FALSE, "dsdp" , NULL, paramdata)	);
 
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
-   
-   SCIP_CALL(SCIPsetIntParam(scip,"relaxing/SDPRelax/freq",0));
-   
+
+   SCIP_CALL(SCIPsetIntParam(scip,"relaxing/SDPRelax/freq",1));
+
 
    /**********************************
     * Process command line arguments *
@@ -80,24 +80,24 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPsetIntParam(scip, "display/verblevel", 5) );
 
    //Turn off lp relaxations
-   SCIP_CALL( SCIPsetIntParam(scip, "lp/solvefreq", 1) );
+   SCIP_CALL( SCIPsetIntParam(scip, "lp/solvefreq", -1) );
 
    //Do some stuff to be numerically stable
    SCIP_CALL( SCIPsetRealParam(scip, "numerics/epsilon", 1e-6) );
    SCIP_CALL( SCIPsetRealParam(scip, "numerics/feastol", 1e-4) );
-   
+
    SCIP_CALL( SCIPsetStringParam(scip, "sdpsolver", "dsdp") );
-   
+
    //parameters for separation
    SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprows", FALSE) );
    SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprowsroot", FALSE) );
    SCIP_CALL( SCIPsetIntParam(scip, "lp/rowagelimit", 10) );
-   
+
    //# maximum age a cut can reach before it is deleted from the global cut pool, or -1 to keep all cuts
    //# [type: int, range: [-1,2147483647], default: 100]
    SCIP_CALL( SCIPsetIntParam(scip, "separating/cutagelimit", 10));
-   
-   
+
+
    SCIP_CALL( SCIPsetIntParam(scip, "separating/maxrounds", 20));
 
    //Parameters for node selection
@@ -107,11 +107,11 @@ SCIP_RETCODE runSCIP(
       SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/stdpriority", 1000000));
       SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/maxplungedepth", 0));
       SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight",0));
-       
+
       SCIP_CALL( SCIPsetIntParam(scip, "branching/pscost/priority",-2000000));
       SCIP_CALL( SCIPsetIntParam(scip, "branching/relpscost/priority",-2000000));
    }
-   
+
    //turn off int-obj
    SCIP_CALL( SCIPsetIntParam(scip, "separating/intobj/freq", -1));
 
@@ -121,8 +121,8 @@ SCIP_RETCODE runSCIP(
       SCIP_CALL( SCIPreadParams(scip,argv[2]));
    }
 
- 
-   
+
+
 
    printf("\n read problem\n");
    printf("============\n");
