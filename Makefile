@@ -40,10 +40,10 @@ GCCWARN		+= 	-Wextra
 # include default project Makefile from SCIP
 #-----------------------------------------------------------------------------
 
-include $(SCIPDIR)/make/make.project
-
 # possibly load local makefile
 -include make.local
+
+include $(SCIPDIR)/make/make.project
 
 
 #-----------------------------------------------------------------------------
