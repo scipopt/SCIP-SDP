@@ -25,7 +25,7 @@
 
 /**@file   objreader_sdpa.cpp
  * @brief  Reader for SDPA-files
- * @author Jakob Schelbert, Sonja Mars
+ * @author Jakob Schelbert, Sonja Mars, Tristan Gally
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
@@ -103,8 +103,8 @@ namespace scip
       int numlpblocks;                    //Number of LP-blocks
       int alllpblocksize;                 //Size of all LP-blocks added
 
-      std::vector<int, BlockMemoryAllocator<int> > blockpattern = 
-         std::vector<int, BlockMemoryAllocator<int> >(BlockMemoryAllocator<int>(scip));      //Vector with the sizes of all blocks
+      std::vector<int, BlockMemoryAllocator<int> > blockpattern =
+      std::vector<int, BlockMemoryAllocator<int> >(BlockMemoryAllocator<int>(scip));      //Vector with the sizes of all blocks
       std::vector<double> object;         //Objectivevector
       std::vector<SDPBlock> blockstruct;	//Blockstructure
       LPBlock LPData;                     //LP Data
@@ -127,7 +127,7 @@ namespace scip
 
       if( !file )
          return SCIP_READERROR;
-      file.clear(); 
+      file.clear();
 
       // drop comments
       char fst_col('"');
@@ -178,7 +178,7 @@ namespace scip
             blockstruct.push_back(SDPBlock(0));
             lp_block_num[j] = numlpblocks;
             lp_block_size[numlpblocks] = abs(blockpattern[j]);
-            
+
          }
          else
          {
@@ -210,87 +210,102 @@ namespace scip
       LPData.numrows = alllpblocksize;
 
       std::vector<int> for_indices;
+      std::string commentline;
 
       // read data
-      while(file.peek() != '*' && !file.eof())
+      while(!file.eof())
       {
-         int var_index, block_index; // block id
-         int row_index, col_index; // position in matrix
-         double val;
-         drop_space(file);
+      	if(file.peek() == '*') // comment
+      	{
+      		std::getline(file, commentline);
+      		if (commentline.find("*INT") == 0) // if current line starts with *INT then go to Integer definitions
+      		{
+      			drop_space(file); // drop \newline
+      			break;
+      		}
+      		else // usual comment line
+      		{
+      			drop_rest_line(file);
+      			drop_space(file);
+      		}
+      	}
+      	else
+      	{
+      		int var_index, block_index; // block id
+      		int row_index, col_index; // position in matrix
+      		double val;
+      		drop_space(file);
 
-         file >> var_index;
-         drop_space(file);
-         file >> block_index;
-         drop_space(file);
-         file >> row_index;
-         drop_space(file);
-         file >> col_index;
-         drop_space(file);
-         file >> val;
+      		file >> var_index;
+      		drop_space(file);
+      		file >> block_index;
+      		drop_space(file);
+      		file >> row_index;
+      		drop_space(file);
+      		file >> col_index;
+      		drop_space(file);
+      		file >> val;
 
-         if (SCIPisEQ(scip, val, 0.0))
-         {
-            continue;
-         }
-         
-         //sdp-block
-         if (!blockislp[block_index - 1])
-         {
-            int row_leq_col = FALSE;
-            if (row_index <= col_index)
-            {
-               row_leq_col = TRUE;
-            }
-            else
-            {
-               if (row_leq_col) 
-               {
-                  return SCIP_ERROR;
-               }
-               int save_row = row_index;
-               row_index = col_index;
-               col_index = save_row;
-            }
-         
-            if (var_index == 0)
-            {
-               blockstruct[block_index - 1].constcolumns.push_back(col_index);
-               blockstruct[block_index - 1].constrows.push_back(row_index);
-               blockstruct[block_index - 1].constvalues.push_back(val);
-               blockstruct[block_index - 1].constnum_nonzeros++;
-            }
-            else
-            {
-               blockstruct[block_index - 1].columns.push_back(col_index);
-               blockstruct[block_index - 1].rows.push_back(row_index);
-               blockstruct[block_index - 1].values.push_back(val);
-               blockstruct[block_index - 1].variables.push_back(var_index);
-               blockstruct[block_index - 1].num_nonzeros++;
-            }
-         }
-         //lp-block
-         else if (blockislp[block_index - 1])
-         {
-            assert(row_index == col_index);
-            new_row_index = (row_index - 1) + (lp_block_num[block_index - 1] - 1) * lp_block_size[lp_block_num[block_index - 1] - 1];
-            LPData.rows[new_row_index].data.push_back(std::make_pair(var_index, val));
-            SCIPdebugMessage("block_index: %d, row: %d, var: %d, val: %g\n", block_index, new_row_index, var_index,val );
+      		if (SCIPisEQ(scip, val, 0.0))
+      		{
+      			drop_rest_line(file);
+      			drop_space(file);
+      			continue;
+      		}
 
-         }
+      		//sdp-block
+      		if (!blockislp[block_index - 1])
+      		{
+      			int row_leq_col = FALSE;
+      			if (row_index <= col_index)
+      			{
+      				row_leq_col = TRUE;
+      			}
+      			else
+      			{
+      				if (row_leq_col)
+      				{
+      					return SCIP_ERROR;
+      				}
+      				int save_row = row_index;
+      				row_index = col_index;
+      				col_index = save_row;
+      			}
 
-         drop_rest_line(file);
-         drop_space(file);
+      			if (var_index == 0)
+      			{
+      				blockstruct[block_index - 1].constcolumns.push_back(col_index);
+      				blockstruct[block_index - 1].constrows.push_back(row_index);
+      				blockstruct[block_index - 1].constvalues.push_back(val);
+      				blockstruct[block_index - 1].constnum_nonzeros++;
+      			}
+      			else
+      			{
+      				blockstruct[block_index - 1].columns.push_back(col_index);
+      				blockstruct[block_index - 1].rows.push_back(row_index);
+      				blockstruct[block_index - 1].values.push_back(val);
+      				blockstruct[block_index - 1].variables.push_back(var_index);
+      				blockstruct[block_index - 1].num_nonzeros++;
+      			}
+      		}
+      		//lp-block
+      		else if (blockislp[block_index - 1])
+      		{
+      			assert(row_index == col_index);
+      			new_row_index = (row_index - 1) + (lp_block_num[block_index - 1] - 1) * lp_block_size[lp_block_num[block_index - 1] - 1];
+      			LPData.rows[new_row_index].data.push_back(std::make_pair(var_index, val));
+      			SCIPdebugMessage("block_index: %d, row: %d, var: %d, val: %g\n", block_index, new_row_index, var_index,val );
+
+      		}
+
+      		drop_rest_line(file);
+      		drop_space(file);
+      	}
       }
 
       //read integer variables
       intvars = std::vector<int>(numvars, 0);
 
-      if (file.peek() == '*')
-      {
-         drop_rest_line(file);
-         drop_space(file);
-      }
       while(file.peek() == '*')
       {
          int index;
@@ -343,33 +358,33 @@ namespace scip
       /*********************************/
       /* create SDP and LP constraints */
       /*********************************/
- 
+
       lp_block_already_done = FALSE;
       for (int bindex = 0; bindex < numblocks; ++bindex)
       {
          if (!blockislp[bindex])
          {
-            
+
             SCIPdebugMessage("Begin construction of SDP constraint for block %d.\n", bindex);
-            
+
             int blocksize = blockpattern[bindex];
             int nnz = blockstruct[bindex].num_nonzeros;
             int const_nnz = blockstruct[bindex].constnum_nonzeros;
-            
+
             SCIP_VAR ** vars;
             int * col;
             int * row;
             double* vals;
-            
+
             int * const_col;
             int * const_row;
             double* const_vals;
-            
+
             SCIP_CALL(SCIPallocBlockMemoryArray(scip, &vars, blockstruct[bindex].num_nonzeros));
             SCIP_CALL(SCIPallocBlockMemoryArray(scip, &col, blockstruct[bindex].num_nonzeros));
             SCIP_CALL(SCIPallocBlockMemoryArray(scip, &row, blockstruct[bindex].num_nonzeros));
             SCIP_CALL(SCIPallocBlockMemoryArray(scip, &vals, blockstruct[bindex].num_nonzeros));
-            
+
             SCIP_CALL(SCIPallocBlockMemoryArray(scip, &const_col, blockstruct[bindex].constnum_nonzeros));
             SCIP_CALL(SCIPallocBlockMemoryArray(scip, &const_row, blockstruct[bindex].constnum_nonzeros));
             SCIP_CALL(SCIPallocBlockMemoryArray(scip, &const_vals, blockstruct[bindex].constnum_nonzeros));
@@ -385,7 +400,7 @@ namespace scip
                }
             }
             const_nnz = idx;
-            
+
             idx = 0;
             for (int k = 0; k < nnz; ++k)
             {
@@ -399,7 +414,7 @@ namespace scip
                }
             }
             nnz = idx;
-            
+
             SdpCone sdpcone(scip, blocksize, vars, col, row, vals, nnz, const_col, const_row, const_vals, const_nnz);
 
             SCIP_CONS* sdpcon;
@@ -416,7 +431,7 @@ namespace scip
          else
          {
             //construct lp-block only once
-            if (!lp_block_already_done) 
+            if (!lp_block_already_done)
             {
                lp_block_already_done = TRUE;
                SCIPdebugMessage("Begin construction of LP (block %d).\n", bindex);
@@ -480,15 +495,15 @@ namespace scip
             count_nvars_notfixed++;
          }
       }
-   
+
       SCIP_Longint num_nodes = SCIPgetNNodes (scip);
-      int depth = SCIPgetDepth(scip); 	
+      int depth = SCIPgetDepth(scip);
       std::string s;
       std::stringstream out;
       out << num_nodes;
       s = out.str();
-              
-                       
+
+
       std::string filename ("Files/test_" );
       filename.append(s);
       filename.append("_depth_");
@@ -498,14 +513,14 @@ namespace scip
       filename.append(s);
       filename.append(".dat-s");
 
-     
+
       std::ofstream fs(filename.c_str());
       //write nvars and nblocks
       fs << count_nvars_notfixed << std::endl;
       //we write the lp data in one lp-block, therefore we have one more block, than sdpcones
       fs << problemdata->get_nsdpcones() + 1  << std::endl;
 
-      
+
       SCIP_VAR** fixed_vars;
       int n_fixed_vars = varmapper->get_nfixed();
       SCIP_CALL(SCIPallocBufferArray(scip, &fixed_vars, n_fixed_vars));
@@ -513,12 +528,12 @@ namespace scip
       SCIP_CALL(SCIPallocBufferArray(scip, &fixed_values, n_fixed_vars));
       int* blocksizes;
       SCIP_CALL(SCIPallocBufferArray(scip, &blocksizes, problemdata->get_nsdpcones()));
-      
+
       int count = 0;
-      
-      for (int i = 0; i < SCIPgetNVars(scip); ++i) 
+
+      for (int i = 0; i < SCIPgetNVars(scip); ++i)
       {
-         if (varmapper->get_sdp_index(vars[i]) == -1 ) 
+         if (varmapper->get_sdp_index(vars[i]) == -1 )
          {
             fixed_vars[count] = vars[i];
             fixed_values[count] = SCIPvarGetUbLocal(vars[i]);
@@ -526,26 +541,26 @@ namespace scip
             assert (SCIPvarGetUbLocal(vars[i]) == SCIPvarGetLbLocal(vars[i]));
          }
       }
-      
+
       std::vector <int> row;
       std::vector <int> col;
       std::vector <double> val;
       std::vector <int> block;
       std::vector <int> var;
-      
+
       int save_ctr = 0;
-      
-      //SDP-blocks       
-      for (int i = 0 ; i < problemdata->get_nsdpcones(); ++i) 
+
+      //SDP-blocks
+      for (int i = 0 ; i < problemdata->get_nsdpcones(); ++i)
       {
          SdpCone* sdpcone = problemdata->get_sdpcone(i);
          //A_0
-         if (sdpcone->get_const_nnz() > 0 || varmapper->get_nfixed() > 0) 
+         if (sdpcone->get_const_nnz() > 0 || varmapper->get_nfixed() > 0)
          {
-            for ( SdpCone::RhsIterator it = sdpcone->rhs_begin(fixed_vars, n_fixed_vars, fixed_values); it != sdpcone->rhs_end(); ++it) 
+            for ( SdpCone::RhsIterator it = sdpcone->rhs_begin(fixed_vars, n_fixed_vars, fixed_values); it != sdpcone->rhs_end(); ++it)
             {
                SdpCone::element el = *it;
-               if (el.val != 0) 
+               if (el.val != 0)
                {
                   var.push_back(0);
                   block.push_back(i + 1);
@@ -555,12 +570,12 @@ namespace scip
                }
             }
          }
-   
+
          //A_i i!=0
-         for ( SdpCone::LhsIterator it = sdpcone->lhs_begin(fixed_vars, n_fixed_vars); it != sdpcone->lhs_end(); ++it) 
+         for ( SdpCone::LhsIterator it = sdpcone->lhs_begin(fixed_vars, n_fixed_vars); it != sdpcone->lhs_end(); ++it)
          {
             SdpCone::element el = *it;
-            if (el.val != 0) 
+            if (el.val != 0)
             {
                var.push_back(varmapper->get_sdp_index(sdpcone->get_var(el.vidx)) + 1);
                block.push_back(i + 1);
@@ -569,49 +584,49 @@ namespace scip
                val.push_back(el.val);
             }
          }
-         
+
          //we need a array that tells us, if a there is an entry for a specific row
          int* found;
-         SCIP_CALL(SCIPallocBufferArray(scip, &found, sdpcone->get_blocksize())); 
-         for (int k = 0; k < sdpcone->get_blocksize(); ++k) 
+         SCIP_CALL(SCIPallocBufferArray(scip, &found, sdpcone->get_blocksize()));
+         for (int k = 0; k < sdpcone->get_blocksize(); ++k)
          {
             found[k] = 0;
          }
-         
-         for (int j = 0; j < sdpcone->get_blocksize(); ++j) 
+
+         for (int j = 0; j < sdpcone->get_blocksize(); ++j)
          {
-            for (unsigned int k = save_ctr ; k < row.size(); ++k) 
+            for (unsigned int k = save_ctr ; k < row.size(); ++k)
             {
-               if (row[k] == j || col[k] == j) 
+               if (row[k] == j || col[k] == j)
                {
                   found[j] = 1;
                   break;
                }
             }
-         }      
-         
+         }
+
          int num_not_deleted = 0;
-         for (int j = 0; j < sdpcone->get_blocksize(); ++j) 
+         for (int j = 0; j < sdpcone->get_blocksize(); ++j)
          {
             num_not_deleted += found[j];
          }
 
-          
+
          blocksizes[i] = num_not_deleted + 1;
-          
+
          int sum_del = 0;
-         
+
          int row_and_col_to_del = sdpcone->get_blocksize() + 5;
-          
-         if (num_not_deleted != sdpcone->get_blocksize()) 
+
+         if (num_not_deleted != sdpcone->get_blocksize())
          {
-            for (int j = 0; j < sdpcone->get_blocksize(); ++j) 
+            for (int j = 0; j < sdpcone->get_blocksize(); ++j)
             {
-               if (found[j] == 0) 
+               if (found[j] == 0)
                {
                   row_and_col_to_del = j - sum_del;
                   sum_del++;
-                  for (unsigned int k = save_ctr; k < row.size(); k++) 
+                  for (unsigned int k = save_ctr; k < row.size(); k++)
                   {
                      if (row[k] >= row_and_col_to_del)
                      {
@@ -625,19 +640,19 @@ namespace scip
                }
             }
          }
-         
+
          save_ctr = col.size();
          SCIPfreeBufferArray(scip, &found);
       }
-      
+
       //write blocksizes
-      for (int i = 0; i < problemdata->get_nsdpcones(); ++i) 
+      for (int i = 0; i < problemdata->get_nsdpcones(); ++i)
       {
          fs << blocksizes[i] << " ";
       }
-      
+
       fs << -problemdata->get_size_lpblock() << std::endl;
-      
+
       //write objective
       for (int i = 0; i < nvars; ++i)
       {
@@ -648,40 +663,40 @@ namespace scip
          }
       }
       fs << std::endl;
-      
+
       //now write sdp-data
-      for (unsigned int i = 0; i < row.size(); ++i) 
+      for (unsigned int i = 0; i < row.size(); ++i)
       {
          fs << var[i] << " " << block[i] << " " << col[i]+1 << " " << row[i]+1 << " " << val[i] << std::endl;
       }
-      
+
       SCIPfreeBufferArray(scip, &blocksizes);
       SCIPfreeBufferArray(scip, &fixed_vars);
       SCIPfreeBufferArray(scip, &fixed_values);
-      
+
       const int* cons = problemdata->get_for_constraint();
       const double* vals = problemdata->get_for_vals();
       const int* matind = problemdata->get_for_matind();
-      
-      //write lp-block      
+
+      //write lp-block
       int lp_block_number = problemdata->get_nsdpcones() + 1;
-      
-      for (int i = 0;  i < problemdata->get_for_vals_size(); ++i) 
+
+      for (int i = 0;  i < problemdata->get_for_vals_size(); ++i)
       {
-         if (vals[i] != 0) 
+         if (vals[i] != 0)
          {
-            if (cons[i] == 0) 
+            if (cons[i] == 0)
             {
                fs << cons[i] << " " << lp_block_number << " " << matind[i] + 1 << " " << matind[i] + 1 << " " << -vals[i]<< std::endl;
             }
-            else 
+            else
             {
                fs << cons[i] << " " << lp_block_number << " " << matind[i] + 1 << " " << matind[i] + 1 << " " << vals[i]<< std::endl;
             }
          }
       }
       fs << std::endl;
-      
+
       fs.close();
       return SCIP_OKAY;
    }
