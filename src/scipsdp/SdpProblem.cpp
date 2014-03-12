@@ -36,13 +36,13 @@
 
 #include "SdpVarMapper.h"               // for SdpVarMapper
 #include "objconshdlr_sdp.h"            // for getSdpCone
-#include "scip/pub_cons.h"              // for SCIPconsGetHdlr, etc
-#include "scip/pub_lp.h"                // for SCIPcolGetVar, etc
-#include "scip/pub_message.h"           // for SCIPdebugMessage
-#include "scip/pub_var.h"               // for SCIPvarGetUbLocal, etc
+//#include "scip/pub_cons.h"              // for SCIPconsGetHdlr, etc
+//#include "scip/pub_lp.h"                // for SCIPcolGetVar, etc
+//#include "scip/pub_message.h"           // for SCIPdebugMessage
+//#include "scip/pub_var.h"               // for SCIPvarGetUbLocal, etc
 #include "scip/scip.h"                  // for SCIPisEQ, SCIPinfinity, etc
-#include "scip/type_cons.h"             // for SCIP_CONS, SCIP_CONSHDLR
-#include "scip/type_var.h"              // for SCIP_VAR
+//#include "scip/type_cons.h"             // for SCIP_CONS, SCIP_CONSHDLR
+//#include "scip/type_var.h"              // for SCIP_VAR
 
 /** Method for adding linear constraints to the structure we need for dsdp
  *  the arrays for_* will later be added to dsdp as lp cone */

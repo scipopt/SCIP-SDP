@@ -36,17 +36,17 @@
 #include "SdpCone.h"                    // for SdpCone
 #include "config.h"                     // for F77_FUNC
 #include "scip/cons_linear.h"           // for SCIPcreateConsLinear
-#include "scip/pub_cons.h"              // for SCIPconsGetData, etc
-#include "scip/pub_message.h"           // for SCIPdebugMessage, etc
-#include "scip/pub_var.h"               // for SCIPvarGetCol, etc
+//#include "scip/pub_cons.h"              // for SCIPconsGetData, etc
+//#include "scip/pub_message.h"           // for SCIPdebugMessage, etc
+//#include "scip/pub_var.h"               // for SCIPvarGetCol, etc
 #include "scip/scip.h"                  // for SCIPallocBufferArray, etc
-#include "scip/type_lp.h"               // for SCIP_COL, SCIP_ROW
-#include "scip/type_var.h"              // for SCIP_VAR
+//#include "scip/type_lp.h"               // for SCIP_COL, SCIP_ROW
+//#include "scip/type_var.h"              // for SCIP_VAR
 
 /** struct with consdata*/
 struct SCIP_ConsData
 {
-   SdpCone *sdpcone; 
+   SdpCone *sdpcone;
 };
 
 
@@ -58,7 +58,7 @@ void F77_FUNC(dgemv, DGEMV)(char* TRANS, int* M, int* N, double* ALPHA, double* 
 /** call matrix-multipication,
  *@note all memory must be allocated outside
  */
-static 
+static
 SCIP_RETCODE Blas_DGEMV(
    int num_rows,                /**<numer of rows in matrix*/
    int num_cols,                /**<numver of cols in matrix*/
@@ -99,7 +99,7 @@ void F77_FUNC(dsyevr, DSYEVR)( char* JOBZ, char* RANGE, char* UPLO,
 }
 
 /**computes the i-th eigenvalue, where 1 is the smallest and n the largest*/
-static 
+static
 SCIP_RETCODE computeIthEigenvalue(
    SCIP* scip,               /**<SCIP data structure*/
    bool computeeigenvectors, /**<should also the eigenvectors be computed*/
@@ -225,7 +225,7 @@ SCIP_RETCODE cut_using_eigenvector(
 
    SCIP_CALL(sdpcone->get_constant_matrix(const_matrix));
    SCIP_CALL(Blas_DGEMV(blocksize, blocksize, 1.0, const_matrix, eigenvector, 0.0, output_vector));
-   
+
    for (int j = 0; j < blocksize; ++j)
    {
       *lhs += eigenvector[j] * output_vector[j];
@@ -326,7 +326,7 @@ SCIP_RETCODE separate_curr_sol(
 
    SCIP_ROW* row;
    SCIP_CALL( SCIPcreateRowCons(scip, &row, conshdlr, "sepa_eig_sdp", len, cols, rcoeff, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
-   
+
 
    if (SCIPisCutEfficacious(scip, sol, row) )
    {
@@ -366,10 +366,10 @@ SCIP_RETCODE trivial_approx(
       //this approximates the sdpcone using the constraints that all diagonal entries must be >=0
       int blocksize;
       SCIP_CALL( getSdpCone(scip, conss[i], &sdpcone ) );
-      
+
       blocksize = sdpcone->get_blocksize();
       rhs = SCIPinfinity(scip);
-      
+
       double* matrix;
       SCIP_CALL(SCIPallocBufferArray(scip, &matrix, blocksize * blocksize));
       SCIP_CALL(sdpcone->get_constant_matrix(matrix));
@@ -447,75 +447,75 @@ SCIP_RETCODE trivial_ineq_from_rhs(
       int* const_row;
       SCIP_CALL(SCIPallocBufferArray(scip, &const_row, data->sdpcone->get_const_nnz()));
       int count = 0;
-      for ( SdpCone::RhsIterator it = data->sdpcone->rhs_begin(NULL, 0, NULL); it != data->sdpcone->rhs_end(); ++it) 
+      for ( SdpCone::RhsIterator it = data->sdpcone->rhs_begin(NULL, 0, NULL); it != data->sdpcone->rhs_end(); ++it)
       {
          SdpCone::element el = *it;
-         if (el.col != el.row && (count == 0 || el.row != const_row[count - 1])) 
+         if (el.col != el.row && (count == 0 || el.row != const_row[count - 1]))
          {
             const_row[count] = el.row;
             count++;
          }
       }
 
-      
+
       int** diag_var;
       SCIP_CALL(SCIPallocBufferArray(scip, &diag_var, count));
       int* len_diag_var;
       SCIP_CALL(SCIPallocBufferArray(scip, &len_diag_var, count));
-      for (int j = 0; j < count; ++j) 
+      for (int j = 0; j < count; ++j)
       {
          len_diag_var[j] = 0;
          SCIP_CALL(SCIPallocBufferArray(scip, &diag_var[j], data->sdpcone->get_nvars()));
       }
-      
-      for ( SdpCone::LhsIterator it = data->sdpcone->lhs_begin(NULL, 0); it != data->sdpcone->lhs_end(); ++it) 
+
+      for ( SdpCone::LhsIterator it = data->sdpcone->lhs_begin(NULL, 0); it != data->sdpcone->lhs_end(); ++it)
       {
             SdpCone::element el = *it;
 
-         for (int j = 0; j < count; ++j) 
+         for (int j = 0; j < count; ++j)
          {
-            if (const_row[j] == el.row && const_row[j] == el.col && (len_diag_var[j] == 0 || el.vidx != diag_var[j][len_diag_var[j] - 1])) 
+            if (const_row[j] == el.row && const_row[j] == el.col && (len_diag_var[j] == 0 || el.vidx != diag_var[j][len_diag_var[j] - 1]))
             {
                len_diag_var[j]++;
                diag_var[j][len_diag_var[j] - 1] = el.vidx;
 
-            }  
+            }
          }
       }
-      
+
       SCIP_VAR** vars;
       SCIP_Real* vals;
-      
-      for (int j = 0; j < count; ++j) 
+
+      for (int j = 0; j < count; ++j)
       {
          if(len_diag_var[j] > 0)
          {
             SCIP_CALL(SCIPallocBufferArray(scip, &vals, len_diag_var[j]));
-            SCIP_CALL(SCIPallocBufferArray(scip, &vars, len_diag_var[j]));   
+            SCIP_CALL(SCIPallocBufferArray(scip, &vars, len_diag_var[j]));
 
-            for (int k = 0; k < len_diag_var[j]; ++k) 
+            for (int k = 0; k < len_diag_var[j]; ++k)
             {
                vars[k] = data->sdpcone->get_var(diag_var[j][k]);
                vals[k] = 1.0;
             }
-      
-      
+
+
             //add new linear cons
             SCIP_CONS* cons;
 
             SCIP_CALL(SCIPcreateConsLinear(scip, &cons, "sum_diag_geq_1", len_diag_var[j], vars, vals, 1.0, SCIPinfinity(scip), TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE));
-            
+
             SCIP_CALL(SCIPaddCons(scip, cons));
             SCIP_CALL(SCIPreleaseCons(scip, &cons));
 
-      
+
             //adds linear constraint, for summe_j diag_var[j] >=1
             (*naddconss)++;
             SCIPfreeBufferArray(scip, &vars);
             SCIPfreeBufferArray(scip, &vals);
          }
       }
-      for (int j = 0; j < count; ++j) 
+      for (int j = 0; j < count; ++j)
       {
         SCIPfreeBufferArray(scip, &diag_var[j]);
       }
@@ -563,30 +563,30 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
          SCIP_CALL(SCIPallocBufferArray(scip, &vars, nvars));
          SCIP_CALL(SCIPallocBufferArray(scip, &coeffs, nnz));
          SCIP_CALL(SCIPallocBufferArray(scip, &rhs, const_nnz));
-         for (int j = 0; j < nvars; ++j) 
+         for (int j = 0; j < nvars; ++j)
          {
             vars[j] = data->sdpcone->get_var(j);
          }
          //lhs-iterator
          int count = 0;
-         
-         for ( SdpCone::LhsIterator it = data->sdpcone->lhs_begin(NULL, 0); it != data->sdpcone->lhs_end(); ++it) 
+
+         for ( SdpCone::LhsIterator it = data->sdpcone->lhs_begin(NULL, 0); it != data->sdpcone->lhs_end(); ++it)
          {
             SdpCone::element el = *it;
             coeffs[count] = el.val;
             count++;
          }
-         
+
          //rhs-iterator
          count = 0;
-         for ( SdpCone::RhsIterator it = data->sdpcone->rhs_begin(NULL, 0, NULL); it != data->sdpcone->rhs_end(); ++it) 
+         for ( SdpCone::RhsIterator it = data->sdpcone->rhs_begin(NULL, 0, NULL); it != data->sdpcone->rhs_end(); ++it)
          {
             SdpCone::element el = *it;
             rhs[count] = -el.val;
             count++;
          }
          assert(count <= 1);
-        
+
          //add new linear cons
          SCIP_CONS* cons;
 
@@ -594,17 +594,17 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
 
          SCIP_CALL(SCIPaddCons(scip, cons));
          SCIP_CALL(SCIPreleaseCons(scip, &cons));
-         
+
          (*naddconss)++;
-         
+
          //delete old 1x1 sdpcone
          SCIP_CALL(SCIPdelCons(scip, conss[i]));
          (*ndelconss)++;
-         
+
          SCIPfreeBufferArray(scip, &vars);
          SCIPfreeBufferArray(scip, &coeffs);
          SCIPfreeBufferArray(scip, &rhs);
-      
+
       }
    }
 
@@ -613,7 +613,7 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
 
 /**<presolve routine that looks through the data and eliminates fixed or deleted or aggregated or negated variables (the SDP-solver cannot handle them)*/
 static
-SCIP_RETCODE fix_vars(   
+SCIP_RETCODE fix_vars(
    SCIP*             scip,    /**<SCIP data structure*/
    SCIP_CONS**       conss,   /**<array with constraints to check*/
    int               nconss,  /**<number of constraints to check*/
@@ -634,7 +634,7 @@ SCIP_RETCODE fix_vars(
       SCIP_CONSDATA* data = SCIPconsGetData(conss[i]);
       data->sdpcone->fix_vars();
    }
-   
+
    return SCIP_OKAY;
 }
 
@@ -706,7 +706,7 @@ SCIP_RETCODE ObjConshdlrSdp::scip_lock(
       for (int j = 0; j < shrunk_blocksize; ++j)
       {
          if (matrix[j * shrunk_blocksize + j] < 0)
-         {  
+         {
             only_pos = FALSE;
             save_j = j;
             break;
@@ -838,16 +838,16 @@ SCIP_RETCODE ObjConshdlrSdp::scip_presol(
 {
    assert(result != NULL);
    *result = SCIP_DIDNOTRUN;
-     
+
    if (nrounds == 0)
    {
       SCIP_CALL(trivial_approx(scip, conss, nconss, naddconss, result));
    }
-     
+
    SCIP_CALL(move_1x1_blocks_to_lp(scip, conss, nconss, naddconss, ndelconss, result));
-   
+
    SCIP_CALL(fix_vars(scip, conss, nconss, result));
-   
+
    if (nrounds == 0)
    {
       SCIP_CALL(trivial_ineq_from_rhs(scip, conss, nconss, naddconss, result));
@@ -948,8 +948,8 @@ SCIP_RETCODE ObjConshdlrSdp::scip_enfops(
       {
          lhs = floor(lhs);
       }
-      
-      
+
+
       SCIPfreeBufferArray(scip, &coeff);
 
    }
@@ -969,7 +969,7 @@ SCIP_RETCODE ObjConshdlrSdp::scip_enfolp(
    SCIP_RESULT*       result              /**< pointer to store the result of the enforcing call */
    )
 {
-   
+
    bool all_feasible = TRUE;
    bool separated = FALSE;
    for (int i = 0; i < nconss; ++i)
@@ -988,7 +988,7 @@ SCIP_RETCODE ObjConshdlrSdp::scip_enfolp(
       SCIP_Real lhs = 0.0;
       SCIP_Real* coeff = NULL;
       SCIP_CALL( SCIPallocBufferArray(scip, &coeff, nvars) );
-      
+
       SCIP_CALL(cut_using_eigenvector(NULL, scip, sdpcone, coeff, &lhs));
 
       if (*result == !SCIP_INFEASIBLE)
@@ -1007,7 +1007,7 @@ SCIP_RETCODE ObjConshdlrSdp::scip_enfolp(
       }
 
       SCIP_CALL( SCIPflushRowExtensions(scip, row) );
-     
+
       SCIP_Bool infeasible;
       SCIPaddCut(scip, NULL, row, FALSE, &infeasible);
 
@@ -1015,7 +1015,7 @@ SCIP_RETCODE ObjConshdlrSdp::scip_enfolp(
          *result = SCIP_CUTOFF;
       else
       {
-         SCIPaddPoolCut(scip, row); 
+         SCIPaddPoolCut(scip, row);
 
          SCIP_CALL( SCIPresetConsAge(scip, conss[i]) );
          *result = SCIP_SEPARATED;
@@ -1149,7 +1149,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
 
    /* create constraint data */
    SCIP_CALL( SCIPallocMemory(scip, &consdata) );
-   
+
    consdata->sdpcone = new SdpCone(sdpcone);
 
 

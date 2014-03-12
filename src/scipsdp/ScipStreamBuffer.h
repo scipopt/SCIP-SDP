@@ -34,8 +34,9 @@
 #include <streambuf>                    // for streamsize, streambuf
 
 #include <cstddef>                      // for size_t
-#include "scip/pub_fileio.h"            // for SCIP_FILE
-#include "scip/type_scip.h"             // for SCIP
+//#include "scip/pub_fileio.h"            // for SCIP_FILE
+//#include "scip/type_scip.h"             // for SCIP
+#include "scip/scip.h"
 
 class ScipStreamBuffer : public std::streambuf
 {
@@ -43,13 +44,13 @@ class ScipStreamBuffer : public std::streambuf
    ScipStreamBuffer(SCIP* scip, SCIP_FILE* file, bool close_on_exit);
 
    ~ScipStreamBuffer();
-   
+
  private:
    /// the underflow function is responsible for the refilling of the buffer
    virtual int underflow();
 
    virtual std::streamsize xsgetn(char *dest, std::streamsize request);
-   
+
    SCIP* scip_;
    SCIP_FILE* file_;
    char* g_buffer_; /// pointer to the get-buffer

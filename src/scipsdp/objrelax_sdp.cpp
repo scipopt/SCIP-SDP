@@ -37,13 +37,13 @@
 #include "SdpSolverFactory.h"
 #include "SdpProblem.h"                 // for SdpProblem
 #include "SdpVarMapper.h"               // for SdpVarMapper
-#include "scip/pub_lp.h"                // for SCIPcolGetVar
-#include "scip/pub_message.h"           // for SCIPdebugMessage
-#include "scip/pub_var.h"               // for SCIPvarGetObj, etc
+//#include "scip/pub_lp.h"                // for SCIPcolGetVar
+//#include "scip/pub_message.h"           // for SCIPdebugMessage
+//#include "scip/pub_var.h"               // for SCIPvarGetObj, etc
 #include "scip/scip.h"                  // for SCIPfreeBufferArray, etc
-#include "scip/type_lp.h"               // for SCIP_COL, SCIP_LP
-#include "scip/type_sol.h"              // for SCIP_SOL
-#include "scip/type_var.h"              // for SCIP_VAR
+//#include "scip/type_lp.h"               // for SCIP_COL, SCIP_LP
+//#include "scip/type_sol.h"              // for SCIP_SOL
+//#include "scip/type_var.h"              // for SCIP_VAR
 
 
 /**check if variable bounds are fulfilled*/
@@ -73,7 +73,7 @@ SCIP_RETCODE check_bounds(
 
 
 /**call solve*/
-static 
+static
 SCIP_RETCODE calc_relax(
    SdpInterface* sdpsolver,           /**<sdpsolver class object*/
    SdpProblem* problemdata,           /**<data structure with problem-data of a specific node*/
@@ -90,7 +90,7 @@ SCIP_RETCODE calc_relax(
    int solutiontype;
    double *sol_for_scip;
    SCIP_CALL( SCIPallocBufferArray(scip, &sol_for_scip, nvars));
-   
+
 
    SCIP_CALL( sdpsolver->sdp_solve(varmapper, &status, &solutiontype, sol_for_scip) );
 
@@ -112,7 +112,7 @@ SCIP_RETCODE calc_relax(
       if (!varmapper->get_intsfixed())
       {  //we don't know anything about the problem status, so we solve again with a penalty formulation, that is able to find a feasible point if there is one
          SCIP_CALL( sdpsolver->again_with_penalty(result, lowerbound, varmapper, problemdata) );
-         
+
          SCIPfreeBufferArray(scip, &sol_for_scip);
          return SCIP_OKAY;
       }
@@ -150,7 +150,7 @@ SCIP_RETCODE calc_relax(
       SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
       SCIP_Bool stored;
       SCIP_CALL( SCIPsetSolVals (scip, scipsol, nvars, vars, sol_for_scip) );
-      
+
       SCIP_CALL(check_bounds(scip, nvars, vars, scipsol, &sol_is_feas));
 
       if (sol_is_feas == 1)
@@ -164,7 +164,7 @@ SCIP_RETCODE calc_relax(
          SCIP_CALL( SCIPseparateSol (scip, scipsol, FALSE, FALSE, &delayed, &cutoff_forsep) );
          SCIP_CALL( SCIPtrySol(scip, scipsol, FALSE, TRUE, TRUE, TRUE, &stored) );
 
-         SCIP_COL** cols; 
+         SCIP_COL** cols;
          int ncols;
          SCIP_CALL( SCIPgetLPColsData(scip, &cols, &ncols) );
 
@@ -221,7 +221,7 @@ SCIP_RETCODE calc_relax(
    if ( (status == 'c') && (solutiontype == 1 || solutiontype == 2))
    {
       //DSDP is not converged and the solution it produced was not feasible.
-      
+
 
       if (varmapper->get_intsfixed())
       {
@@ -233,7 +233,7 @@ SCIP_RETCODE calc_relax(
       {
          *result = SCIP_DIDNOTRUN;
          //we are not converged, so we can't trust the infeasible or unbounded result, therefore we return didnotrun
-         
+
          SCIPfreeBufferArray(scip, &sol_for_scip);
 
          return SCIP_OKAY;
@@ -247,7 +247,7 @@ namespace scip
 {
    /**constructor*/
    ObjRelaxSdp::ObjRelaxSdp(SCIP* scip)
-      : ObjRelax(scip, "SDPRelax", "Relaxator for SDP bounds", 1, 1) 
+      : ObjRelax(scip, "SDPRelax", "Relaxator for SDP bounds", 1, 1)
    {
    }
 
@@ -269,7 +269,7 @@ namespace scip
          return SCIP_OKAY;
       }
 
-      //very important to call flusLP 
+      //very important to call flusLP
       SCIP_CALL( SCIPflushLP(scip) );
 
       SdpVarMapper* varmapper;
@@ -278,25 +278,25 @@ namespace scip
 
       SdpProblem* problemdata;
       problemdata = new SdpProblem(scip, varmapper);
-     
+
       //it is possible to call this function for writing the problem of every node in sdpa-format to a file per node
       //SCIP_CALL(write_sdpafile(scip, problemdata, varmapper));
 
-      
-      int nlprows; 
+
+      int nlprows;
       nlprows = SCIPgetNCuts(scip) + SCIPgetNLPRows(scip);
 
       if ( (nlprows == 0) && (problemdata->get_nsdpcones() == 0) )
       {
          //if there are no constraints, there is nothing to do
          *result = SCIP_DIDNOTRUN;
-         SCIP_CALL(varmapper->exit());  
+         SCIP_CALL(varmapper->exit());
          delete varmapper;
          delete problemdata;
          return SCIP_OKAY;
       }
-      
-      
+
+
 
       SdpInterface *sdpsolver;
       char* value;
@@ -346,15 +346,15 @@ namespace scip
          SCIPfreeBufferArray(scip, &ubs);
          delete sdpsolver;
          delete problemdata;
-         SCIP_CALL(varmapper->exit());  
+         SCIP_CALL(varmapper->exit());
          delete varmapper;
-         
+
          return SCIP_OKAY;
       }
 
       SCIP_CALL( calc_relax(sdpsolver, problemdata, scip, result, lowerbound, varmapper));
 
-      SCIP_CALL(varmapper->exit());    
+      SCIP_CALL(varmapper->exit());
       delete varmapper;
       delete sdpsolver;
       delete problemdata;

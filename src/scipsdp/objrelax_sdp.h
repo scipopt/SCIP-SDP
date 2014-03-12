@@ -34,11 +34,12 @@
 #define __SCIP_OBJRELAXSDP_H__
 
 #include "objscip/objrelax.h"           // for ObjRelax
-#include "scip/def.h"                   // for SCIP_Real
-#include "scip/type_relax.h"            // for SCIP_RELAX
-#include "scip/type_result.h"           // for SCIP_RESULT
-#include "scip/type_retcode.h"          // for SCIP_RETCODE
-#include "scip/type_scip.h"             // for SCIP
+//#include "scip/def.h"                   // for SCIP_Real
+//#include "scip/type_relax.h"            // for SCIP_RELAX
+//#include "scip/type_result.h"           // for SCIP_RESULT
+//#include "scip/type_retcode.h"          // for SCIP_RETCODE
+//#include "scip/type_scip.h"             // for SCIP
+#include "scip/scip.h"
 
 namespace scip
 {
@@ -82,7 +83,7 @@ namespace scip
          SCIP_RESULT*       result              /**< pointer to store the result of the relaxation call */
          );
 
-  
+
    };
 
 } /* namespace scip */

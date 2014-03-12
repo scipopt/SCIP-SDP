@@ -34,10 +34,11 @@
 #include "SdpInterface.h"
 
 #include "dsdpbasictypes.h"             // for DSDP, DSDP_C
-#include "scip/def.h"                   // for SCIP_Real
-#include "scip/type_result.h"           // for SCIP_RESULT
-#include "scip/type_retcode.h"          // for SCIP_RETCODE
-#include "scip/type_scip.h"             // for SCIP
+//#include "scip/def.h"                   // for SCIP_Real
+//#include "scip/type_result.h"           // for SCIP_RESULT
+//#include "scip/type_retcode.h"          // for SCIP_RETCODE
+//#include "scip/type_scip.h"             // for SCIP
+#include "scip/scip.h"
 
 class SdpProblem;
 class SdpVarMapper;

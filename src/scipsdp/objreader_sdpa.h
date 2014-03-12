@@ -36,10 +36,11 @@
 #include <utility>                      // for pair
 #include <vector>                       // for vector
 #include "objscip/objreader.h"          // for ObjReader
-#include "scip/type_reader.h"           // for SCIP_READER
-#include "scip/type_result.h"           // for SCIP_RESULT
-#include "scip/type_retcode.h"          // for SCIP_RETCODE
-#include "scip/type_scip.h"             // for SCIP
+//#include "scip/type_reader.h"           // for SCIP_READER
+//#include "scip/type_result.h"           // for SCIP_RESULT
+//#include "scip/type_retcode.h"          // for SCIP_RETCODE
+//#include "scip/type_scip.h"             // for SCIP
+#include "scip/scip.h"
 
 class SdpProblem;
 class SdpVarMapper;
@@ -112,7 +113,7 @@ namespace scip
          );
 
    };
-   
+
    /** writes the current problem in sdpa-format to a file*/
    SCIP_RETCODE write_sdpafile(
       SCIP*             scip,                /**< SCIP data structure */

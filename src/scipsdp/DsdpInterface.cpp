@@ -37,13 +37,13 @@
 #include "SdpProblem.h"                 // for SdpProblem
 #include "SdpVarMapper.h"               // for SdpVarMapper
 #include "blockmemshell/memory.h"       // for BMSallocMemoryArray
-#include "scip/type_prop.h"             // for SCIP_PROP, etc
-#include "scip/pub_message.h"           // for SCIPerrorMessage, etc
-#include "scip/pub_tree.h"              // for SCIPnodeGetLowerbound, etc
-#include "scip/pub_var.h"               // for SCIPvarGetUbLocal, etc
+//#include "scip/type_prop.h"             // for SCIP_PROP, etc
+//#include "scip/pub_message.h"           // for SCIPerrorMessage, etc
+//#include "scip/pub_tree.h"              // for SCIPnodeGetLowerbound, etc
+//#include "scip/pub_var.h"               // for SCIPvarGetUbLocal, etc
 #include "scip/scip.h"                  // for SCIPgetNVars, etc
-#include "scip/type_tree.h"             // for SCIP_NODE
-#include "scip/type_var.h"              // for SCIP_VAR
+//#include "scip/type_tree.h"             // for SCIP_NODE
+//#include "scip/type_var.h"              // for SCIP_VAR
 
 /**Method to convert a info, which will be returned by DSDP into an SCIP return-code*/
 #define INFO_TO_SCIPCALL(x)   do                                \
@@ -269,8 +269,8 @@ static SCIP_RETCODE convert_sol(
          sol_for_scip[i] = SCIPvarGetUbLocal(vars[i]);
       }
    }
-  
-   
+
+
    DSDPFREE(&sol, &info);
    return SCIP_OKAY;
 }
@@ -289,7 +289,7 @@ SCIP_RETCODE transform_data(
    SdpVarMapper* varmapper  /**<varmapper class object*/
 )
 {
-   int nsdpcones = problemdata->get_nsdpcones(); 
+   int nsdpcones = problemdata->get_nsdpcones();
 
    int info;
    SdpCone* sdpcone;
@@ -298,42 +298,42 @@ SCIP_RETCODE transform_data(
    {
       len_of_arrays += problemdata->get_sdpcone(i)->get_nnz() + problemdata->get_sdpcone(i)->get_const_nnz();
    }
-   
+
    DSDPCALLOC2(blocksizes, int, (problemdata->get_nsdpcones() + 1), &info);
    INFO_TO_SCIPCALL(info);
    DSDPCALLOC2(conetypes, char, (problemdata->get_nsdpcones() + 1), &info);
    INFO_TO_SCIPCALL(info);
-   
+
    int* matind_tmp;
    int* block_tmp;
    int* constraint_tmp;
    double* vals_tmp;
    int* row_tmp;
    int* col_tmp;
-   
-   SCIP_CALL(SCIPallocBufferArray(scip, &matind_tmp, len_of_arrays));  
+
+   SCIP_CALL(SCIPallocBufferArray(scip, &matind_tmp, len_of_arrays));
    SCIP_CALL(SCIPallocBufferArray(scip, &vals_tmp, len_of_arrays));
    SCIP_CALL(SCIPallocBufferArray(scip, &block_tmp, len_of_arrays));
    SCIP_CALL(SCIPallocBufferArray(scip, &constraint_tmp, len_of_arrays));
-   SCIP_CALL(SCIPallocBufferArray(scip, &row_tmp, len_of_arrays));  
-   SCIP_CALL(SCIPallocBufferArray(scip, &col_tmp, len_of_arrays));  
-   
+   SCIP_CALL(SCIPallocBufferArray(scip, &row_tmp, len_of_arrays));
+   SCIP_CALL(SCIPallocBufferArray(scip, &col_tmp, len_of_arrays));
+
    (*conetypes)[nsdpcones] = 'L';
    (*blocksizes)[nsdpcones] = problemdata->get_size_lpblock();
 
-   
+
    SCIP_VAR** vars = SCIPgetVars(scip);
    SCIP_VAR** fixed_vars;
    int n_fixed_vars = varmapper->get_nfixed();
    SCIP_CALL(SCIPallocBufferArray(scip, &fixed_vars, n_fixed_vars));
    double* fixed_values;
    SCIP_CALL(SCIPallocBufferArray(scip, &fixed_values, n_fixed_vars));
-   
+
    int count = 0;
-   
-   for (int i = 0; i < SCIPgetNVars(scip); ++i) 
+
+   for (int i = 0; i < SCIPgetNVars(scip); ++i)
    {
-      if (varmapper->get_sdp_index(vars[i]) == -1 ) 
+      if (varmapper->get_sdp_index(vars[i]) == -1 )
       {
          fixed_vars[count] = vars[i];
          fixed_values[count] = SCIPvarGetUbLocal(vars[i]);
@@ -341,23 +341,23 @@ SCIP_RETCODE transform_data(
          assert (SCIPvarGetUbLocal(vars[i]) == SCIPvarGetLbLocal(vars[i]));
 
       }
-   }   
-   
+   }
+
    count = 0;
       int save_ctr = 0;
 
    for (int i = 0; i < nsdpcones; ++i)
    {
       (*blocksizes)[i] = problemdata->get_sdpcone(i)->get_blocksize();
-      (*conetypes)[i] = 'S';    
+      (*conetypes)[i] = 'S';
 
       sdpcone = problemdata->get_sdpcone(i);
-  
+
       //A_0 for SDP
-      for ( SdpCone::RhsIterator it = sdpcone->rhs_begin(fixed_vars, n_fixed_vars, fixed_values); it != sdpcone->rhs_end(); ++it) 
+      for ( SdpCone::RhsIterator it = sdpcone->rhs_begin(fixed_vars, n_fixed_vars, fixed_values); it != sdpcone->rhs_end(); ++it)
       {
          SdpCone::element el = *it;
-         if (el.val != 0) 
+         if (el.val != 0)
          {
             matind_tmp[count] = el.eidx;
             row_tmp[count] =  el.row;
@@ -371,10 +371,10 @@ SCIP_RETCODE transform_data(
             count++;
          }
       }
-      
+
       //all A_i, i=1,...n for SDP
 
-      for ( SdpCone::LhsIterator it = sdpcone->lhs_begin(fixed_vars, n_fixed_vars); it != sdpcone->lhs_end(); ++it) 
+      for ( SdpCone::LhsIterator it = sdpcone->lhs_begin(fixed_vars, n_fixed_vars); it != sdpcone->lhs_end(); ++it)
       {
          SdpCone::element el = *it;
          SCIP_VAR* var = sdpcone->get_var(el.vidx);
@@ -392,47 +392,47 @@ SCIP_RETCODE transform_data(
       }
 
       int* found;
-      SCIP_CALL(SCIPallocBufferArray(scip, &found, sdpcone->get_blocksize())); 
-      for (int k = 0; k < sdpcone->get_blocksize(); ++k) 
+      SCIP_CALL(SCIPallocBufferArray(scip, &found, sdpcone->get_blocksize()));
+      for (int k = 0; k < sdpcone->get_blocksize(); ++k)
       {
          found[k] = 0;
       }
-      
-      for (int j = 0; j < sdpcone->get_blocksize(); ++j) 
+
+      for (int j = 0; j < sdpcone->get_blocksize(); ++j)
       {
-         for (int k = save_ctr ; k < count; ++k) 
+         for (int k = save_ctr ; k < count; ++k)
          {
-            if (row_tmp[k] == j || col_tmp[k] == j) 
+            if (row_tmp[k] == j || col_tmp[k] == j)
             {
                found[j] = 1;
                break;
             }
          }
-      }      
-      
-      
+      }
+
+
       int num_not_deleted = 0;
-      for (int j = 0; j < sdpcone->get_blocksize(); ++j) 
+      for (int j = 0; j < sdpcone->get_blocksize(); ++j)
       {
          num_not_deleted += found[j];
       }
 
-       
+
       (*blocksizes)[i] = num_not_deleted;
-       
+
       int sum_del = 0;
-      
+
       int row_and_col_to_del = sdpcone->get_blocksize() + 5;
-       
-      if (num_not_deleted != sdpcone->get_blocksize()) 
+
+      if (num_not_deleted != sdpcone->get_blocksize())
       {
-         for (int j = 0; j < sdpcone->get_blocksize(); ++j) 
+         for (int j = 0; j < sdpcone->get_blocksize(); ++j)
          {
-            if (found[j] == 0) 
+            if (found[j] == 0)
             {
                row_and_col_to_del = j - sum_del;
                sum_del++;
-               for (int k = save_ctr; k < count; k++) 
+               for (int k = save_ctr; k < count; k++)
                {
                   if (row_tmp[k] >= row_and_col_to_del)
                   {
@@ -447,15 +447,15 @@ SCIP_RETCODE transform_data(
          }
       }
       save_ctr = count;
-      SCIPfreeBufferArray(scip, &found); 
+      SCIPfreeBufferArray(scip, &found);
    }
-   
+
 
    SCIPfreeBufferArray(scip, &fixed_vars);
    SCIPfreeBufferArray(scip, &fixed_values);
-   
 
-   
+
+
    len_of_arrays = count + problemdata->get_lp_nnz();
    DSDPCALLOC2(matind, int, len_of_arrays + 1, &info);
    INFO_TO_SCIPCALL(info);
@@ -465,13 +465,13 @@ SCIP_RETCODE transform_data(
    INFO_TO_SCIPCALL(info);
    DSDPCALLOC2(constraint, int, len_of_arrays + 1, &info);
    INFO_TO_SCIPCALL(info);
-   
+
    int sdp_count = 0;
    //insert sdp-block
-   for (int i = 0; i < count; ++i) 
+   for (int i = 0; i < count; ++i)
    {
       if (vals_tmp[i] != 0.0) //In vals_tmp I wrote explicit 0.0, so its ok to compare with it
-      { 
+      {
          (*matind)[sdp_count] = (row_tmp[i] * (row_tmp[i] + 1) / 2 + col_tmp[i]);//matind_tmp[i];
          assert ( (*matind)[sdp_count] >= 0);
          (*block)[sdp_count] = block_tmp[i];
@@ -483,12 +483,12 @@ SCIP_RETCODE transform_data(
    const int* for_mat = problemdata->get_for_matind();
    const int* cons = problemdata->get_for_constraint();
    const double* values = problemdata->get_for_vals();
-   
+
 
    count = sdp_count;
    //   insert lp-block
-   for (int i = 0; i < problemdata->get_for_matind_size(); ++i) 
-   {      
+   for (int i = 0; i < problemdata->get_for_matind_size(); ++i)
+   {
       if (values[i] != 0.0) //In values I wrote explicit 0.0, so its ok to compare with it
       {
          (*matind)[count] = for_mat[i];
@@ -499,16 +499,16 @@ SCIP_RETCODE transform_data(
          count++;
       }
    }
-   
-   
+
+
    len_of_arrays = count;
-   
+
    (*block)[len_of_arrays] = nsdpcones + 2;
    (*constraint)[len_of_arrays] = (varmapper->get_sdp_nvars() + 2);
    (*matind)[len_of_arrays] = 10000000;
    (*nnz)[len_of_arrays] = 0.0;
    qusort(*block, *constraint, *matind, *nnz, 0, len_of_arrays - 1);
-   
+
 
    SCIPfreeBufferArray(scip, &vals_tmp);
    SCIPfreeBufferArray(scip, &matind_tmp);
@@ -537,8 +537,8 @@ SCIP_RETCODE DsdpInterface::put_data_in(
    int* block;
    int nblocks = problemdata->get_nsdpcones();
    int n;
-   
-   
+
+
    SCIP_CALL(transform_data(scip_, problemdata, &block, &matind_ , &constraint, &nnz_, &blocksizes, &conetypes,varmapper));
 
    const int nvars = SCIPgetNVars(scip_);
@@ -560,10 +560,10 @@ SCIP_RETCODE DsdpInterface::put_data_in(
 
    SDPCone dsdp_sdpcone = 0;
    LPCone lpcone = 0;
- 
+
    int spot, ijnnz, nzmats, np, sdpnmax, stat1;
    int sspot;
-   
+
    SCIPdebugMessage("  Blocksize(linear): %d\n", blocksizes[nblocks]);
    if (nblocks > 0)
    {
@@ -649,7 +649,7 @@ SCIP_RETCODE DsdpInterface::put_data_in(
          }
 
       }
-      
+
       else if (conetypes[j] == 'L')
       {
          info = DSDPCreateLPCone(dsdp_, &lpcone);
@@ -721,7 +721,7 @@ SCIP_RETCODE DsdpInterface::put_data_in(
 
    DSDPFREE(&constraint, &info);
    INFO_TO_SCIPCALL(info);
-    
+
    DSDPFREE(&block, &info);
    INFO_TO_SCIPCALL(info);
 
@@ -905,7 +905,7 @@ SCIP_RETCODE DsdpInterface::again_with_penalty(
    int solutiontype;
 
    DSDPUsePenalty(dsdp_, 1);
-   
+
    SCIP_CALL(put_data_in(problemdata, varmapper));
 
    if (varmapper->get_intsfixed() != 0)

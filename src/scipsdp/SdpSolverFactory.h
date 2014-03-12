@@ -32,7 +32,8 @@
 #define SDPSOLVERFACTORY_H
 
 #include <string>
-#include "scip/type_scip.h"
+//#include "scip/type_scip.h"
+#include "scip/scip.h"
 
 class SdpInterface;
 

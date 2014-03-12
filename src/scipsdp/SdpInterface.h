@@ -31,9 +31,10 @@
 #ifndef SDPINTERFACE_H
 #define SDPINTERFACE_H
 
-#include "scip/def.h"                   // for SCIP_Real
-#include "scip/type_result.h"           // for SCIP_RESULT
-#include "scip/type_retcode.h"          // for SCIP_RETCODE
+//#include "scip/def.h"                   // for SCIP_Real
+//#include "scip/type_result.h"           // for SCIP_RESULT
+//#include "scip/type_retcode.h"          // for SCIP_RETCODE
+#include "scip/scip.h"
 
 class SdpProblem;
 class SdpVarMapper;
@@ -45,9 +46,9 @@ class SdpInterface
 
    /**method that puts all the data into the solver object*/
    virtual SCIP_RETCODE put_data_in(
-      SdpProblem* problemdata,        /**<problemdata class object*/ 
+      SdpProblem* problemdata,        /**<problemdata class object*/
       SdpVarMapper* varmapper         /**<varmapper class object*/ ) = 0;
-   
+
    /**calls dsdps solving routine and analyses the output*/
    virtual SCIP_RETCODE sdp_solve(
       SdpVarMapper* varmapper,   /**<varmapper class object*/

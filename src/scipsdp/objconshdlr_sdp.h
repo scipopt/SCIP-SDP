@@ -33,12 +33,13 @@
 
 
 #include "objscip/objconshdlr.h"        // for ObjConshdlr
-#include "scip/def.h"                   // for SCIP_Bool, FALSE, TRUE
-#include "scip/type_cons.h"             // for SCIP_CONS, SCIP_CONSHDLR, etc
-#include "scip/type_result.h"           // for SCIP_RESULT
-#include "scip/type_retcode.h"          // for SCIP_RETCODE
-#include "scip/type_scip.h"             // for SCIP
-#include "scip/type_sol.h"              // for SCIP_SOL
+//#include "scip/def.h"                   // for SCIP_Bool, FALSE, TRUE
+//#include "scip/type_cons.h"             // for SCIP_CONS, SCIP_CONSHDLR, etc
+//#include "scip/type_result.h"           // for SCIP_RESULT
+//#include "scip/type_retcode.h"          // for SCIP_RETCODE
+//#include "scip/type_scip.h"             // for SCIP
+//#include "scip/type_sol.h"              // for SCIP_SOL
+#include "scip/scip.h"
 class SdpCone;  // lines 20-20
 
 /** C++ wrapper object for sdp-constraint handlers */

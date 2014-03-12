@@ -33,7 +33,7 @@
 #include <cstdio>                       // for EOF
 #include <algorithm>                    // for min
 #include <cstring>                      // for memcpy
-#include "scip/def.h"                   // for SCIP_CALL_ABORT
+//#include "scip/def.h"                   // for SCIP_CALL_ABORT
 #include "scip/scip.h"                  // for SCIPallocBufferArray, etc
 
 #define SCIPSTREAMBUFFERSIZE 256
@@ -52,7 +52,7 @@ ScipStreamBuffer::~ScipStreamBuffer()
    scip_ = NULL;
    g_buffer_= NULL;
    g_buffer_size_ = 0;
-   
+
    if (close_on_exit_)
    {
       SCIPfclose(file_);
@@ -61,7 +61,7 @@ ScipStreamBuffer::~ScipStreamBuffer()
 
 int ScipStreamBuffer::underflow()
 {
-   if (gptr() < egptr()) 
+   if (gptr() < egptr())
    {
       // still unused chars in the buffer
       // just return
@@ -70,7 +70,7 @@ int ScipStreamBuffer::underflow()
 
    // refill the buffer
    int nresult = SCIPfread(g_buffer_, 1, g_buffer_size_, file_);
-      
+
    if (nresult <= 0) /// we read nothing => bad
    {
       return EOF;
@@ -78,14 +78,14 @@ int ScipStreamBuffer::underflow()
 
    // set up buffer, we read nresult bytes, that's where our new end is
    setg(g_buffer_, g_buffer_, g_buffer_ + nresult);
-      
+
    return *gptr();
 }
 
 std::streamsize ScipStreamBuffer::xsgetn(char *dest, std::streamsize request)
 {
    int ndone = 0;
-      
+
    while (request != 0)
    {
       if (!in_avail())

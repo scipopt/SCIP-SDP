@@ -33,10 +33,11 @@
 
 #include <iterator>
 
-#include "scip/type_var.h"
-#include "scip/type_retcode.h"
-#include "scip/type_scip.h"
-#include "scip/type_sol.h"
+//#include "scip/type_var.h"
+//#include "scip/type_retcode.h"
+//#include "scip/type_scip.h"
+//#include "scip/type_sol.h"
+#include "scip/scip.h"
 
 class SdpCone
 {
@@ -83,7 +84,7 @@ public:
 
    /**writes a product of constraint matrix with vector vector into out*/
    SCIP_RETCODE form_inner_prod_with_constraint_matrix(int vidx, double* vector, double* out) const;
-   
+
    /**calculates sum_i A_i x_i for a given solution x_i*/
    SCIP_RETCODE assemble_matrix_from_solution(double* matrix, SCIP_SOL* sol) const;
 
@@ -107,15 +108,15 @@ public:
 
    /**returns the number of nonzeros in the constant matrix*/
    int get_const_nnz() const;
-   
+
    /**returns the number of fixed variables in the sdpcone*/
    int get_sdpcone_nfixed();
 
-   /**takes the scip_vars and writes their postion into the array n_fixed_vars*/      
+   /**takes the scip_vars and writes their postion into the array n_fixed_vars*/
    SCIP_RETCODE transform_vars_to_pos(SCIP* scip, SCIP_VAR** fixed_vars, int* n_fixed_vars);
 
    /**
-    * representation of cone elements for outside view 
+    * representation of cone elements for outside view
     */
    struct element
    {
@@ -129,17 +130,17 @@ public:
    /**
     * Iterator class for elements of the left hand side
     */
-   class LhsIterator : public std::iterator<std::input_iterator_tag, 
+   class LhsIterator : public std::iterator<std::input_iterator_tag,
                                             const SdpCone::element>
    {
    public:
 
-      /** 
+      /**
        * Constructor for valid lhs iterator
        */
       LhsIterator(SdpCone* c, int n_fixed_vars);
 
-      /** 
+      /**
        * constructs an iterator which is already at end
        */
       LhsIterator();
@@ -153,7 +154,7 @@ public:
       const SdpCone::element* operator->() const;
       bool operator==(const LhsIterator& other);
       bool operator!=(const LhsIterator& other);
- 
+
    private:
       SdpCone* sdpcone_; /// back pointer to owning SdpCone
       int vpos_; /// position in the variable array
@@ -170,20 +171,20 @@ public:
    /**
     * Iterator class for elements of the right hand side
     */
-   class RhsIterator : public std::iterator<std::input_iterator_tag, 
+   class RhsIterator : public std::iterator<std::input_iterator_tag,
                                             const SdpCone::element>
    {
    public:
-      /** 
+      /**
        * Constructor for valid rhs iterator (including fixings)
        */
       RhsIterator(SdpCone* c, int n_fixed_vars, double* fixed_values);
 
-      /** 
+      /**
        * constructs an iterator which is already at end
        */
       RhsIterator();
-   
+
       ~RhsIterator();
 
       /**
@@ -214,9 +215,9 @@ public:
 
 
 private:
-   /** 
+   /**
     * @internal helper function to convert input into CSR
-    * 
+    *
     * @param vars variable array
     * @param col column array
     * @param row row array
@@ -227,7 +228,7 @@ private:
       int* col,
       int* row,
       double* vals);
-      
+
    void sort_const(int* const_col, int* const_row, double* const_vals);
 
 
@@ -250,7 +251,7 @@ private:
    int * const_row_;    /**<rows, where the nonzero entries of the rhs are located*/
    double* const_vals_; /**<nonzero entries of the constant matrix*/
    int const_nnz_;      /**<numer of nonzero entries in the constant matrix*/
-   
+
    int* pos_fixed_vars_;
    int sdpcone_nfixed_ ;
 };

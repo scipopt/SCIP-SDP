@@ -32,11 +32,11 @@
 
 #include <cassert>                     // for assert
 
-#include "scip/def.h"                   // for FALSE, SCIP_CALL, SCIP_Real, etc
-#include "scip/pub_message.h"           // for SCIPdebugMessage
-#include "scip/type_prop.h"
-#include "scip/type_lp.h"
-#include "scip/pub_var.h"               // for SCIPvarGetName, etc
+//#include "scip/def.h"                   // for FALSE, SCIP_CALL, SCIP_Real, etc
+//#include "scip/pub_message.h"           // for SCIPdebugMessage
+//#include "scip/type_prop.h"
+//#include "scip/type_lp.h"
+//#include "scip/pub_var.h"               // for SCIPvarGetName, etc
 #include "scip/scip.h"                  // for SCIPinfinity, SCIPisEQ, etc
 
 /**constructor, initializes private members*/
