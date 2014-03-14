@@ -1,0 +1,55 @@
+SCIP-SDP version 2.0
+==================
+
+fixed bugs:
+
+data structures:
+
+features:
+
+performance improvements:
+
+interface:
+
+parameters:
+
+core:
+
+Makefile:
+- creates extra directory sdpi for SDP-Interface
+
+misc:
+
+
+
+
+SCIP-SDP version 1.1
+==================
+
+fixed bugs:
+- input-file may now have comment-lines between LP-block-lines
+- value 0 in the last LP-block-line no longer causes an infinite loop
+- friends-declaration in BlockMemoryAllocator.cpp
+- added missing cassert to SDPSolverFactory.cpp
+- added missing newlines at the end of BlockMemoryAllocator.h and config.h
+
+data structures:
+
+features:
+
+performance improvements:
+
+interface:
+
+parameters:
+- in standard configuration SDP-Relaxations are now called instead of Eigenvalue-Cuts
+
+core:
+- added SCIP 3.1.0 support by adding an additional parameter to SCIPaddCut
+
+Makefile:
+- SCIP-SDP is now started via ./bin/scipsdp instead of ./bin/main
+- additional option of SDPS=dsdp when calling make instead of $(USE_DSDP) = true
+
+misc:
+- added Doxygen-Documentation
