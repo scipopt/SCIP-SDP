@@ -1102,10 +1102,14 @@ SCIP_Bool SCIPsdpiIsOptimal(
 
    if (*reason == DSDP_CONVERGED)
    {
+      DSDPFREE(&reason, &dsdperrorcode);
+      DSDP_ERRORCODE_TO_SCIPCALL(dsdperrorcode);
       return TRUE;
    }
    else
    {
+      DSDPFREE(&reason, &dsdperrorcode);
+      DSDP_ERRORCODE_TO_SCIPCALL(dsdperrorcode);
       return FALSE;
    }
 }
@@ -1125,10 +1129,14 @@ SCIP_Bool SCIPsdpiIsObjlimExc(
 
    if (*reason == DSDP_UPPERBOUND)
    {
+      DSDPFREE(&reason, &dsdperrorcode);
+      DSDP_ERRORCODE_TO_SCIPCALL(dsdperrorcode);
       return TRUE;
    }
    else
    {
+      DSDPFREE(&reason, &dsdperrorcode);
+      DSDP_ERRORCODE_TO_SCIPCALL(dsdperrorcode);
       return FALSE;
    }
 }
@@ -1148,10 +1156,14 @@ SCIP_Bool SCIPsdpiIsIterlimExc(
 
    if (*reason == DSDP_MAX_IT)
    {
+      DSDPFREE(&reason, &dsdperrorcode);
+      DSDP_ERRORCODE_TO_SCIPCALL(dsdperrorcode);
       return TRUE;
    }
    else
    {
+      DSDPFREE(&reason, &dsdperrorcode);
+      DSDP_ERRORCODE_TO_SCIPCALL(dsdperrorcode);
       return FALSE;
    }
 }
