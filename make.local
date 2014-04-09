@@ -23,8 +23,6 @@
 #/*                                                                           */
 #/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-SCIPDIR         =     .../scip-3.1.0
-
 USE_DSDP = true
 DSDP_INCLUDE_DIR = ../dsdp/include
 DSDP_LIB_DIR =     ../dsdp/lib
