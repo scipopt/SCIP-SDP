@@ -24,7 +24,7 @@
  *
  *   \f{eqnarray*}{
  *   	  \min & & b^T y \\
- *      \text{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i \succeq 0 \quad \forall i \leq m \\
+ *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i \succeq 0 \quad \forall i \leq m \\
  *      & & Dy \geq d \\
  *      & & l \leq y \leq u
  *   \f}
