@@ -64,7 +64,7 @@ endif
 
 MAINNAME=	scipsdp
 MAINOBJ	=	scipsdp/main.o \
-		scipsdp/objrelax_sdp.o \
+		scipsdp/relax_sdp.o \
 		scipsdp/objconshdlr_sdp.o \
 		scipsdp/objreader_sdpa.o \
 		scipsdp/SdpVarMapper.o \

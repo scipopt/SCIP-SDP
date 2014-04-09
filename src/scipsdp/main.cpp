@@ -34,7 +34,7 @@
 #include "objscip/objscipdefplugins.h"
 
 #include "objconshdlr_sdp.h"
-#include "objrelax_sdp.h"
+#include "relax_sdp.h"
 #include "objreader_sdpa.h"
 
 using namespace scip;
@@ -58,7 +58,7 @@ SCIP_RETCODE runSCIP(
 
    SCIP_CALL( SCIPincludeObjConshdlr(scip, new ObjConshdlrSdp(scip), TRUE) );
 
-   SCIP_CALL( SCIPincludeObjRelax(scip, new ObjRelaxSdp(scip), TRUE) );
+   SCIP_CALL( SCIPincludeRelaxSDP(scip) );
 
 
    const char* name = "sdpsolver";
