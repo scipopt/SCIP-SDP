@@ -1,11 +1,12 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /*                                                                           */
-/*                  This file is part of the                                 */
-/*      SDP-Package for SCIP: a solving framework for                        */
-/*                            mixed-integer semidefinite programms           */
+/* This file is part of SCIPSDP - a solving framework for mixed-integer      */
+/* semidefinite programms based on SCIP.                                     */
 /*                                                                           */
-/* Copyright (C) 2011-2014 Discrete Optimization, TU Darmstadt               */
+/* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
+/*               2014      Discrete Optimization, TU Darmstadt               */
+/*                                                                           */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or             */
 /* modify it under the terms of the GNU Lesser General Public License        */
@@ -21,15 +22,22 @@
 /* along with this program; if not, write to the Free Software               */
 /* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.*/
 /*                                                                           */
+/*                                                                           */
+/* Based on SCIP - Solving Constraint Integer Programs                       */
+/* Copyright (C) 2002-2014 Zuse Institute Berlin                             */
+/* SCIP is distributed under the terms of the SCIP Academic Licence,         */
+/* see file COPYING in the SCIP distribution.                                */
+/*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   objrelax_sdp.cpp
- * @brief  relaxator for solving sdps
+/**@file   relax_sdp.h
+ * @ingroup RELAXATORS
+ * @brief  SDP relaxator
  * @author Sonja Mars
+ * @author Tristan Gally
  */
 
-
-#include "objrelax_sdp.h"
+#include "relax_sdp.h"
 
 #include <cassert>                      // for assert
 #include <cstdio>                       // for NULL, printf
@@ -37,16 +45,27 @@
 #include "SdpSolverFactory.h"
 #include "SdpProblem.h"                 // for SdpProblem
 #include "SdpVarMapper.h"               // for SdpVarMapper
-//#include "scip/pub_lp.h"                // for SCIPcolGetVar
-//#include "scip/pub_message.h"           // for SCIPdebugMessage
-//#include "scip/pub_var.h"               // for SCIPvarGetObj, etc
-#include "scip/scip.h"                  // for SCIPfreeBufferArray, etc
-//#include "scip/type_lp.h"               // for SCIP_COL, SCIP_LP
-//#include "scip/type_sol.h"              // for SCIP_SOL
-//#include "scip/type_var.h"              // for SCIP_VAR
 
 
-/**check if variable bounds are fulfilled*/
+
+#define RELAX_NAME             "SDP"
+#define RELAX_DESC             "SDP relaxator"
+#define RELAX_PRIORITY         1
+#define RELAX_FREQ             1
+
+/*
+ * Data structures
+ */
+
+/** relaxator data */
+struct SCIP_RelaxData
+{
+};
+
+
+
+/** check if variable bounds are fulfilled */
+static
 SCIP_RETCODE check_bounds(
    SCIP*                 scip,               /**< SCIP data structure */
    int                   nvars,              /**< number of variables */
@@ -242,24 +261,10 @@ SCIP_RETCODE calc_relax(
    return SCIP_ERROR; //Cannot be reached
 }
 
-
-namespace scip
+/** execution method of relaxator */
+static
+SCIP_DECL_RELAXEXEC(relaxExecSDP)
 {
-   /**constructor*/
-   ObjRelaxSdp::ObjRelaxSdp(SCIP* scip)
-      : ObjRelax(scip, "SDPRelax", "Relaxator for SDP bounds", 1, 1)
-   {
-   }
-
-   /**execution method of relaxator*/
-   SCIP_RETCODE ObjRelaxSdp::scip_exec(
-      SCIP*              scip,       /**< SCIP data structure */
-      SCIP_RELAX*        relax,      /**< the relaxator itself */
-      SCIP_Real*         lowerbound, /**< pointer to store a lowerbound for the current node */
-      SCIP_RESULT*       result      /**< pointer to store the result of the relaxation call */
-      )
-   {
-
       //construct the lp and make sure, that everything is where it should be
       SCIP_Bool cutoff;
       SCIP_CALL( SCIPconstructLP(scip, &cutoff) );
@@ -361,4 +366,28 @@ namespace scip
 
       return SCIP_OKAY;
    }
-}//namespace scip
+
+
+/*
+ * relaxator specific interface methods
+ */
+
+/** creates the SDP relaxator and includes it in SCIP */
+SCIP_RETCODE SCIPincludeRelaxSDP(
+   SCIP*                 scip                /**< SCIP data structure */
+   )
+{
+   SCIP_RELAXDATA* relaxdata = NULL;
+   SCIP_RELAX* relax = NULL;
+
+   /* create SDP relaxator data */
+
+   /* include relaxator */
+   SCIP_CALL( SCIPincludeRelaxBasic(scip, &relax, RELAX_NAME, RELAX_DESC, RELAX_PRIORITY, RELAX_FREQ,
+         relaxExecSDP, relaxdata) );
+   assert( relax != NULL );
+
+   /* add xyz relaxator parameters */
+
+   return SCIP_OKAY;
+}
