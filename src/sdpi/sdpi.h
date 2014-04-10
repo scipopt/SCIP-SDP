@@ -97,8 +97,6 @@ void* SCIPsdpiGetSolverPointer(
 EXTERN
 SCIP_RETCODE SCIPsdpiCreate(
    SCIP_SDPI**           sdpi,               /**< pointer to an SDP interface structure */
-   int                   nvars,              /**< number of variables (needed in DSDP to create solver) */
-   int                   nblocks,            /**< number of SDP-blocks (needed in DSDP to create SDPCone) */
    SCIP_MESSAGEHDLR*     messagehdlr,         /**< message handler to use for printing messages, or NULL */
    BMS_BLKMEM*           blkmem              /**< block memory */
    );

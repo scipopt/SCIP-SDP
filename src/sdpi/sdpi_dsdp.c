@@ -52,16 +52,6 @@
                        }                                                                                      \
                        while( FALSE )
 
-#define DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode) do                \
-{                                                                          \
-   if(dsdperrorcode!=0)                                                    \
-    {                                                                      \
-      SCIPerrorMessage("DSDP-Error <%d> during memory allocation\n", dsdperrorcode); \
-      return SCIP_NOMEMORY;                                                   \
-    }                                                                      \
-}                                                                          \
-while(FALSE)
-
 #define IS_POSINF(x) ((x) >= SCIP_DEFAULT_INFINITY)
 #define IS_NEGINF(x) ((x) <= -SCIP_DEFAULT_INFINITY)
 
@@ -74,24 +64,33 @@ struct SCIP_SDPi
    SCIP_MESSAGEHDLR*     messagehdlr;        /**< messagehandler to printing messages, or NULL */
    BMS_BLKMEM*           blkmem;             /**< block memory */
    int                   sdpid;              /**< identifier for debug-messages */
-   int*                  dsdpconstind;       /**< indices for constant SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
-   int                   dsdpconstindlength; /**< length of dsdpconstind */
-   double*               dsdpconstval;       /**< non-zero values for constant SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
-   int                   dsdpconstvallength; /**< length of dsdpconstval */
-   int*                  dsdpind;            /**< indices for SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
-   int                   dsdpindlength;      /**< length of dsdpind */
-   double*               dsdpval;            /**< non-zero values for SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
-   int                   dsdpvallength;      /**< length of dsdpval */
-   int*                  dsdplpbegcol;       /**< starting-indices for all columns in LP, needs to be stored for DSDP during solving and be freed only afterwards */
-   int                   dsdplpbegcollength; /**< length of dsdplpbegcol */
-   int*                  dsdplprowind;       /**< row indices in LP, needs to be stored for DSDP during solving and be freed only afterwards */
-   int                   dsdplprowindlength; /**< length of dsdplprowind */
-   double*               dsdplpval;          /**< nonzeroes in LP, needs to be stored for DSDP during solving and be freed only afterwards */
-   int                   dsdplpvallength;    /**< length of dsdplpval */
+   int                   nvars;              /**< number of variables */
+   SCIP_Real*            obj;                /**< objective function values of variables */
+   SCIP_Real*            lb;                 /**< lower bounds of variables */
+   SCIP_Real*            ub;                 /**< upper bounds of variables */
+   int                   nsdpblocks;         /**< number of SDP-blocks */
+   int*                  sdpblocksizes;      /**< sizes of the SDP-blocks */
+   int                   sdpconstnnonz;      /**< number of nonzero elements in the constant matrices of the SDP-Blocks */
+   int*                  sdpconstbegblock;   /**< start index of each block in sdpconstval-array */
+   int*                  sdpconstrowind;     /**< row-index for each entry in sdpconstval-array */
+   int*                  sdpconstcolind;     /**< column-index for each entry in sdpconstval-array */
+   SCIP_Real*            sdpconstval;        /**< values of entries of constant matrices in SDP-Block */
+   int                   sdpnnonz;           /**< number of nonzero elements in the SDP-constraint matrix */
+   int*                  sdpbegvarblock;     /**< entry j*nvars + i is the start index of matrix \f A_i^j \f in sdpval,
+                                              *   particularly entry i*nvars gives the starting point of block j */
+   int*                  sdprowind;          /**< row-index for each entry in sdpval-array */
+   int*                  sdpcolind;          /**< column-index for each entry in sdpval-array */
+   SCIP_Real*            sdpval;             /**< values of SDP-constraint matrix entries */
+   int                   nlpcons;            /**< number of LP-constraints */
+   SCIP_Real*            lprhs;              /**< right hand sides of LP rows */
+   int                   lpnnonz;            /**< number of nonzero elements in the LP-constraint matrix */
+   int*                  lprowind;           /**< row-index for each entry in lpval-array (going from 1 to nlpcons) */
+   int*                  lpcolind;           /**< column-index for each entry in lpval-array (going from 1 to nvars) */
+   SCIP_Real*            lpval;               /**< values of LP-constraint matrix entries */
+
 };
 
 static int nextsdpid     =  1;               /**< used to give ids to the generated sdps for debugging messages */
-static int dsdperrorcode =  0;               /**< used to save dsdp error codes, will convert them to SCIP ERROR CODES if != 0 */
 
 
 /*
@@ -152,7 +151,6 @@ const char* SCIPsdpiGetSolverDesc(
  *  therefore only recommended if you really know what you are
  *  doing. In general, it returns a pointer to the SDP solver object.
  */
-EXTERN
 void* SCIPsdpiGetSolverPointer(
    SCIP_SDPI*            sdpi                 /**< pointer to an SDP interface structure */
    )
@@ -171,11 +169,8 @@ void* SCIPsdpiGetSolverPointer(
 /**@{ */
 
 /** creates an SDP problem object */
-EXTERN
 SCIP_RETCODE SCIPsdpiCreate(
    SCIP_SDPI**           sdpi,               /**< pointer to an SDP interface structure */
-   int                   nvars,              /**< number of variables (needed in DSDP to create solver) */
-   int                   nblocks,            /**< number of SDP-blocks (needed in DSDP to create SDPCone) */
    SCIP_MESSAGEHDLR*     messagehdlr,         /**< message handler to use for printing messages, or NULL */
    BMS_BLKMEM*           blkmem              /**< block memory */
    )
@@ -185,16 +180,18 @@ SCIP_RETCODE SCIPsdpiCreate(
    LPCone newlpcone;
    BCone newbcone;
 
+   /* these will be properly initialized only immediatly prior to solving because DSDP and the SDPCone need information about the number
+    * of variables and sdpblocks during creation */
+   newdsdp=0;
+   newsdpcone=0;
+   newlpcone=0;
+   newbcone=0;
+
    SCIPdebugMessage("Calling SCIPsdpiCreate (%d)\n",nextsdpid);
 
-   assert(sdpi != NULL);
+   assert ( sdpi != NULL );
 
-   SCIP_ALLOC(BMSallocMemory(sdpi));
-
-   DSDP_CALLM(DSDPCreate(nvars, &newdsdp));
-   DSDP_CALLM(DSDPCreateSDPCone(newdsdp, nblocks, &newsdpcone));
-   DSDP_CALLM(DSDPCreateLPCone(newdsdp, &newlpcone));
-   DSDP_CALLM(DSDPCreateBCone(newdsdp, &newbcone));
+   BMSallocBlockMemory(blkmem, sdpi);
 
    (*sdpi)->messagehdlr = messagehdlr;
    (*sdpi)->blkmem = blkmem;
@@ -208,7 +205,6 @@ SCIP_RETCODE SCIPsdpiCreate(
 }
 
 /** deletes an SDP problem object */
-EXTERN
 SCIP_RETCODE SCIPsdpiFree(
    SCIP_SDPI**           sdpi                /**< pointer to an SDP interface structure */
    )
@@ -219,19 +215,29 @@ SCIP_RETCODE SCIPsdpiFree(
 
    DSDP_CALL(DSDPDestroy((*sdpi)->dsdp));
 
-   /*these arrays were used to give information to DSDP and were needed during solving, so they may only be freed now*/
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->dsdpconstind), (*sdpi)->dsdpconstindlength);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->dsdpconstval), (*sdpi)->dsdpconstvallength);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->dsdpind), (*sdpi)->dsdpindlength);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->dsdpval), (*sdpi)->dsdpvallength);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->dsdplpbegcol), (*sdpi)->dsdplpbegcollength);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->dsdplprowind), (*sdpi)->dsdplprowindlength);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->dsdplpval), (*sdpi)->dsdplpvallength);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->obj), (*sdpi)->nvars);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lb), (*sdpi)->nvars);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->ub), (*sdpi)->nvars);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpblocksizes), (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstbegblock), (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstrowind), (*sdpi)->sdpconstnnonz);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstcolind), (*sdpi)->sdpconstnnonz);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstval), (*sdpi)->sdpconstnnonz);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpbegvarblock), (*sdpi)->nvars * (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdprowind), (*sdpi)->sdpnnonz);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpcolind), (*sdpi)->sdpnnonz);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpval), (*sdpi)->sdpnnonz);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lprhs), (*sdpi)->nlpcons);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lprowind), (*sdpi)->lpnnonz);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lpcolind), (*sdpi)->lpnnonz);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lpval), (*sdpi)->lpnnonz);
 
-   BMSfreeMemory(sdpi);
+   BMSfreeBlockMemory((*sdpi)->blkmem, sdpi);
 
    return SCIP_OKAY;
 }
+
+/**@} */
 
 
 /*
@@ -245,7 +251,6 @@ SCIP_RETCODE SCIPsdpiFree(
  *
  *  @note as the SDP-constraint matrices are symmetric, only the upper triangular part of them must be specified
  */
-EXTERN
 SCIP_RETCODE SCIPsdpiLoadSDP(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   nvars,              /**< number of variables */
@@ -260,10 +265,10 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    const int*            sdpconstcolind,     /**< column-index for each entry in sdpconstval-array */
    const SCIP_Real*      sdpconstval,        /**< values of entries of constant matrices in SDP-Block */
    int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint matrix */
-   const int*            sdpbegvarblock, /**< entry j*nvars + i is the start index of matrix \f A_i^j \f in sdpval,
-                                              *   particularly entry i*nvars gives the starting point of block j */
-   const int*            sdprowind,          /**< row-index for each entry in sdpval-array */
-   const int*            sdpcolind,          /**< column-index for each entry in sdpval-array */
+   const int*            sdpbegvarblock,     /**< entry j*nvars + i is the start index of matrix \f A_i^j \f in sdpval,
+                                              *   particularly entry j*nvars gives the starting point of block j (with numbering starting at 0) */
+   const int*            sdprowind,          /**< row-index for each entry in sdpval-array (going from 1 to the blocksize of that block)*/
+   const int*            sdpcolind,          /**< column-index for each entry in sdpval-array (going from 1 to the blocksize of that block)*/
    const SCIP_Real*      sdpval,             /**< values of SDP-constraint matrix entries */
    int                   nlpcons,            /**< number of LP-constraints */
    const SCIP_Real*      lprhs,              /**< right hand sides of LP rows */
@@ -273,185 +278,97 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    const SCIP_Real*      lpval               /**< values of LP-constraint matrix entries */
    )
 {
-   int* nblocks;
    int i;
 
-   SCIPdebugMessage("Calling SCIPsdpiLoadColSDP (%d)\n", sdpi->sdpid);
+   /* copy all inputs into the corresponding sdpi-parameters to later put them into DSDP prior to solving when the final
+    * number of blocks and variables are known
+    */
 
-   SCIP_ALLOC( BMSallocMemory(&nblocks) );
-   DSDP_CALL(SDPConeCheckM(sdpi->sdpcone, nvars)); /*check if the right number of variables has been set when initializing the SDP Cone */
-   DSDP_CALL(SDPConeGetNumberOfBlocks(sdpi->sdpcone, nblocks)); /*get the number of SDP-Blocks that has been set when initializing the SDP Cone */
-   assert( *nblocks == nsdpblocks ); /*check if the right number of SDP-blocks has been set */
-
-   DSDP_CALLM(BConeAllocateBounds(sdpi->bcone,2*nvars)); /*allocate memory for lower and upper bounds */
-
+   sdpi->nvars = nvars;
+   BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), nvars);
    for (i = 0; i < nvars; i++)
    {
-      DSDP_CALL(dsdperrorcode = DSDPSetDualObjective(sdpi->dsdp, i+1, -1 * obj[i])); /*insert objective value, DSDP counts from 1 to n instead of 0 to n-1, *(-1) because DSDP maximizes instead of minimizing */
-      DSDP_CALL(BConeSetLowerBound(sdpi->bcone, i+1, lb[i])); /*insert lower bound, DSDP counts from 1 to n instead of 0 to n-1 and sets the lower bound to -1* (last argument) */
-      DSDP_CALL(BConeSetUpperBound(sdpi->bcone, i+1, ub[i])); /*insert upper bound, DSDP counts from 1 to n instead of 0 to n-1 */
+      (sdpi->obj)[i] = obj[i];
    }
-
-
-#ifdef SCIP_DEBUG
-   SCIPdebugMessage("ATTENTION: BConeView shows the WRONG sign for the lower bound!\n");
-   BConeView(sdpi->bcone);
-#endif
-
-
-   for(i = 0; i < nsdpblocks; i++)
+   BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), nvars);
+   for (i = 0; i < nvars; i++)
    {
-      DSDP_CALL(SDPConeSetBlockSize(sdpi->sdpcone, i, sdpblocksizes[i])); /*set the blocksizes (blocks are counted from 0 to m-1) */
+      (sdpi->lb)[i] = lb[i];
    }
-
-   /*start inserting the constant matrix*/
-   if ( nsdpblocks > 0 && sdpconstnnonz > 0 )
+   BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), nvars);
+   for (i = 0; i < nvars; i++)
    {
-      int block;
-      /*allocate memory*/
-      /*This needs to be one long array, because DSDP uses it for solving, so all nonzeros have to be in it, and it may not be freed before the problem is solved. */
-
-      /*indices given to DSDP, for this the elements in the lower triangular part of the matrix are labeled from 0 to n*(n+1)/2 -1 */
-      BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->dsdpconstind), sdpconstnnonz);
-      sdpi->dsdpconstindlength = sdpconstnnonz;
-      /*values given to DSDP, for this the original values are mutliplied by -1 because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
-      BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->dsdpconstval), sdpconstnnonz);
-      sdpi->dsdpconstvallength = sdpconstnnonz;
-
-      for(block = 0; block < nsdpblocks; block++)
-      {
-         int blocknnonz;   /*number of nonzeroes in the constant matrix for the current block */
-
-         if ( block == nsdpblocks - 1 )
-            blocknnonz = sdpconstnnonz - sdpconstbegblock[block];
-         else
-            blocknnonz = sdpconstbegblock[block + 1] - sdpconstbegblock[block];
-
-         for(i = 0; i < blocknnonz; i++)
-         {
-            (sdpi->dsdpconstind)[sdpconstbegblock[block] + i] = compLowerTriangPos(sdpconstrowind[sdpconstbegblock[block] + i], sdpconstcolind[sdpconstbegblock[block] + i]);
-            (sdpi->dsdpconstval)[sdpconstbegblock[block] + i] = -1 * sdpconstval[sdpconstbegblock[block] + i]; /* *(-1) because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
-         }
-
-         DSDP_CALL(SDPConeSetASparseVecMat(sdpi->sdpcone, block, 0, sdpblocksizes[block], 1, 0, (sdpi->dsdpconstind) + sdpconstbegblock[block],
-            (sdpi->dsdpconstval) + sdpconstbegblock[block], blocknnonz));   /*constant matrix is given as variable 0 */
-      }
+      (sdpi->ub)[i] = ub[i];
    }
-   /*start inserting the other SDP-Constraint-Matrices */
-   if(nsdpblocks > 0 && sdpnnonz > 0)
+   sdpi->nsdpblocks = nsdpblocks;
+   BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpblocksizes), nsdpblocks);
+   for (i = 0; i < nsdpblocks; i++)
    {
-      int block;
-      int var;
-      int k;
-
-      /*allocate memory */
-      /*This needs to be one long array, because DSDP uses it for solving so all nonzeros have to be in it and it may not be freed before the problem is solved. The distinct blocks/variables
-       *(for the i,j-parts) are then given by dsdpind + sdpbegvarblock[nvars * block + var], which gives a pointer to the first array-element belonging to this block and then the number of
-       *elements in this block is given to DSDP for iterating over it */
-
-      /*indices given to DSDP, for this the elements in the lower triangular part of the matrix are labeled from 0 to n*(n+1)/2 -1 */
-      BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->dsdpind), sdpnnonz);
-      sdpi->dsdpindlength = sdpnnonz;
-      /*values given to DSDP, these will be multiplied by -1 because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
-      BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->dsdpval), sdpnnonz);
-      sdpi->dsdpvallength = sdpnnonz;
-
-      for(block = 0; block < nsdpblocks; block++)
-      {
-         for(var = 0; var < nvars; var++)
-         {
-            int aij_nnonz; /* number of nonzeroes in Matrix Aij (current block and current variable) */
-            if ( block == nsdpblocks - 1 && var == nvars - 1 )
-               aij_nnonz = sdpnnonz - sdpbegvarblock[nvars * block + var];
-            else
-               aij_nnonz = sdpbegvarblock[nvars * block + var + 1] - sdpbegvarblock[nvars * block + var];
-
-            for (k = 0; k < aij_nnonz; k++)
-            {
-               (sdpi->dsdpind)[sdpbegvarblock[nvars * block +var] + k] = compLowerTriangPos(sdprowind[sdpbegvarblock[nvars * block +var] + k],
-                     sdpcolind[sdpbegvarblock[nvars * block +var] + k]);
-               (sdpi->dsdpval)[sdpbegvarblock[nvars * block +var] + k] = -1 * sdpval[sdpbegvarblock[nvars * block +var] + k];  /* *(-1) because in DSDP -1* (sum A_i^j y_i - A_0) should be
-                                                                                                                                * positive semidefinite */
-            }
-            DSDP_CALL(SDPConeSetASparseVecMat(sdpi->sdpcone, block, var + 1, sdpblocksizes[block], 1, 0, (sdpi->dsdpind) + sdpbegvarblock[nvars * block + var],
-               (sdpi->dsdpval) + sdpbegvarblock[nvars * block + var], aij_nnonz)); /* var+1 is needed because DSDP indexes the vars from 1 to nvars (var 0 is the constant matrix) */
-         }
-      }
-      #ifdef SCIP_DEBUG
-      SDPConeView2(sdpi->sdpcone);
-      #endif
+      (sdpi->sdpblocksizes)[i] = sdpblocksizes[i];
    }
-
-   /*start inserting the LP constraints */
-   if(nlpcons > 0 && lpnnonz > 0)
+   sdpi->sdpconstnnonz = sdpconstnnonz;
+   BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstbegblock), nsdpblocks);
+   for (i = 0; i < nsdpblocks; i++)
    {
-      int* sortedlpcolind;
-      int ind = 0;
-      int column;
-      int constraint;
-
-      /*memory allocation */
-      /*these arrays are needed in DSDP during solving, so the may only be freed afterwards */
-
-      /*lpbegcol[i] gives the number of nonzeroes in column 0 (right hand side) till i-1 (i going from 1 till n, with extra entries 0 (always 0) and n+1 (always lpcons + lpnnonz)) */
-      BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->dsdplpbegcol), nvars + 2);
-      sdpi->dsdplpbegcollength = nvars+2;
-      /*dsdplprowind saves the row indices of the LP for DSDP */
-      BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->dsdplprowind), nlpcons + lpnnonz); /*length is lpnnonz + nlpcons, because right hand sides are also included in the vector */
-      sdpi->dsdplprowindlength = nlpcons + lpnnonz;
-      /*values given to DSDP, extra value is needed for multiplying with -1, because DSDP wants <= instead of >= */
-      BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->dsdplpval), nlpcons + lpnnonz); /*length is lpnnonz + nlpcons, because right hand sides are also included in the vector */
-      sdpi->dsdplpvallength = nlpcons + lpnnonz;
-
-      /*compute lpbegcol */
-
-      /*to compute lpbegcol the column indices need to be sorted, for this they need to be copied into a non-constant array */
-      SCIP_ALLOC(BMSallocMemoryArray(&sortedlpcolind, lpnnonz));
-
-      for(i = 0; i < lpnnonz; i++)
-      {
-         sortedlpcolind[i] = lpcolind[i];
-         sdpi->dsdplprowind[nlpcons + i] = lprowind[i] - 1;  /*the first nlpcons entries will be used for the right hand sides, so the matrix-entries are copied in the later ones, rowindices in DSDP start at 0 instead of 1 */
-         sdpi->dsdplpval[nlpcons + i] = -1 * lpval[i];   /*the first nlpcons entries will be used for the right hand sides, so the matrix-entries are copied in the later ones, *(-1) is needed, because
-                                                          *DSDP wants <= instead of >= */
-      }
-
-      SCIPsortIntIntReal(sortedlpcolind, sdpi->dsdplprowind + nlpcons, sdpi->dsdplpval + nlpcons, lpnnonz); /* all three arrays should now be sorted by non-decreasing column-indizes, for dsdplprowind and dsdplpval
-      the sorting starts at position nlpcons (the first index is shifted by nlpcons), because the earlier entries are still empty and will only later be used for the right hand sides */
-
-
-      (sdpi->dsdplpbegcol)[0]=0;
-      (sdpi->dsdplpbegcol)[1]=nlpcons; /*the first nlpcons indices are used to save the right hand sides */
-
-      for(column = 1; column < nvars + 1; column++) /*columns are indexed 1 to nvars */
-      {
-         (sdpi->dsdplpbegcol)[column+1]=(sdpi->dsdplpbegcol)[column];  /*each new column can't start before the last one */
-         while(ind < lpnnonz && sortedlpcolind[ind] == column) /* traverse the sortedlpcolind-array */
-         {
-            (sdpi->dsdplpbegcol)[column+1]++;   /*for each element with (lpcolind = current column) an additional entry in dsdplpval is needed, so the next column starts one spot later */
-            ind++;
-         }
-      }
-      assert((sdpi->dsdplpbegcol)[nvars+1] == lpnnonz + nlpcons);
-
-      BMSfreeMemoryArray(&sortedlpcolind); /*this was only needed to sort the column indices and compute dsdplpbegcol */
-
-      for(column = 1; column < nvars + 1; column++)
-      {
-         SCIPsortIntReal(sdpi->dsdplprowind + (sdpi->dsdplpbegcol)[column], sdpi->dsdplpval + (sdpi->dsdplpbegcol)[column], (sdpi->dsdplpbegcol)[column+1] - (sdpi->dsdplpbegcol)[column]);
-         /*sort all the entries belonging to the same column by their row numbers */
-      }
-
-      for(constraint = 0; constraint < nlpcons; constraint++)
-      {
-         (sdpi->dsdplprowind)[constraint] = constraint; /*the row index of each constraint is the index of the constraint */
-         (sdpi->dsdplpval)[constraint] = -1 * lprhs[constraint]; /*insert rhs values, *(-1) is needed, because DSDP wants <= instead of >= */
-      }
-
-      DSDP_CALL(LPConeSetData(sdpi->lpcone, nlpcons, (sdpi->dsdplpbegcol), (sdpi->dsdplprowind), (sdpi->dsdplpval)));
-      #ifdef SCIP_DEBUG
-      LPConeView(sdpi->lpcone);
-      #endif
+      (sdpi->sdpconstbegblock)[i] = sdpconstbegblock[i];
+   }
+   BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrowind), sdpconstnnonz);
+   for (i = 0; i < sdpconstnnonz; i++)
+   {
+      (sdpi->sdpconstrowind)[i] = sdpconstrowind[i];
+   }
+   BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcolind), sdpconstnnonz);
+   for (i = 0; i < sdpconstnnonz; i++)
+   {
+      (sdpi->sdpconstcolind)[i] = sdpconstcolind[i];
+   }
+   BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval), sdpconstnnonz);
+   for (i = 0; i < sdpconstnnonz; i++)
+   {
+      (sdpi->sdpconstval)[i] = sdpconstval[i];
+   }
+   sdpi->sdpnnonz = sdpnnonz;
+   BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpbegvarblock), nvars * nsdpblocks);
+   for (i = 0; i < nvars * nsdpblocks; i++)
+   {
+      (sdpi->sdpbegvarblock)[i] = sdpbegvarblock[i];
+   }
+   BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprowind), sdpnnonz);
+   for (i = 0; i < sdpnnonz; i++)
+   {
+      (sdpi->sdprowind)[i] = sdprowind[i];
+   }
+   BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcolind), sdpnnonz);
+   for (i = 0; i < sdpnnonz; i++)
+   {
+      (sdpi->sdpcolind)[i] = sdpcolind[i];
+   }
+   BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpnnonz);
+   for (i = 0; i < sdpnnonz; i++)
+   {
+      (sdpi->sdpval)[i] = sdpval[i];
+   }
+   sdpi->nlpcons = nlpcons;
+   BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), nlpcons);
+   for (i = 0; i < nlpcons; i++)
+   {
+      (sdpi->lprhs)[i] = lprhs[i];
+   }
+   sdpi->lpnnonz = lpnnonz;
+   BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprowind), lpnnonz);
+   for (i = 0; i < lpnnonz; i++)
+   {
+      (sdpi->lprowind)[i] = lprowind[i];
+   }
+   BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcolind), lpnnonz);
+   for (i = 0; i < lpnnonz; i++)
+   {
+      (sdpi->lpcolind)[i] = lpcolind[i];
+   }
+   BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), lpnnonz);
+   for (i = 0; i < lpnnonz; i++)
+   {
+      (sdpi->lpval)[i] = lpval[i];
    }
 
    return SCIP_OKAY;
@@ -461,7 +378,6 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
  *
  *  @note as \f A_i^j \f is symmetric, only the lower triangular part of it must be specified
  */
-EXTERN
 SCIP_RETCODE SCIPsdpiAddSDPBlock(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   dim,                /**< dimension of the matrices \f A_i^j \f */
@@ -480,7 +396,6 @@ SCIP_RETCODE SCIPsdpiAddSDPBlock(
 }
 
 /** deletes a SDP-Block */
-EXTERN
 SCIP_RETCODE SCIPsdpiDelSDPBlock(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   block              /**< index of the SDP-Block that should be deleted */
@@ -494,7 +409,6 @@ SCIP_RETCODE SCIPsdpiDelSDPBlock(
  *
  *  @note ind array is not checked for duplicates, problems may appear if indeces are added more than once
  */
-EXTERN
 SCIP_RETCODE SCIPsdpiAddVars(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   nvars,              /**< number of variables to be added */
@@ -519,7 +433,6 @@ SCIP_RETCODE SCIPsdpiAddVars(
 }
 
 /** deletes all variables in the given range from SDP */
-EXTERN
 SCIP_RETCODE SCIPsdpiDelVars(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   firstvar,           /**< first variable to be deleted */
@@ -531,7 +444,6 @@ SCIP_RETCODE SCIPsdpiDelVars(
 }
 
 /** deletes variables from SCIP_SDPI; the new position of a variable must not be greater that its old position */
-EXTERN
 SCIP_RETCODE SCIPsdpiDelColset(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int*                  dstat               /**< deletion status of variables
@@ -547,7 +459,6 @@ SCIP_RETCODE SCIPsdpiDelColset(
  *
  *  @note ind array is not checked for duplicates, problems may appear if indeces are added more than once
  */
-EXTERN
 SCIP_RETCODE SCIPsdpiAddLPRows(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   nrows,              /**< number of rows to be added */
@@ -564,7 +475,6 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
 }
 
 /** deletes all rows in the given range from LP-Block */
-EXTERN
 SCIP_RETCODE SCIPsdpiDelLPRows(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   firstrow,           /**< first row to be deleted */
@@ -576,7 +486,6 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
 }
 
 /** deletes LP rows from SCIP_SDPI; the new position of a row must not be greater that its old position */
-EXTERN
 SCIP_RETCODE SCIPsdpiDelLPRowset(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int*                  dstat               /**< deletion status of LP rows
@@ -589,7 +498,6 @@ SCIP_RETCODE SCIPsdpiDelLPRowset(
 }
 
 /** clears the whole SDP */
-EXTERN
 SCIP_RETCODE SCIPsdpiClear(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
@@ -599,7 +507,6 @@ SCIP_RETCODE SCIPsdpiClear(
 }
 
 /** changes lower and upper bounds of variables */
-EXTERN
 SCIP_RETCODE SCIPsdpiChgBounds(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   nvars,              /**< number of variables to change bounds for */
@@ -613,7 +520,6 @@ SCIP_RETCODE SCIPsdpiChgBounds(
 }
 
 /** changes right hand sides of LP rows */
-EXTERN
 SCIP_RETCODE SCIPsdpiChgLPRhSides(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   nrows,              /**< number of LP rows to change right hand sides for */
@@ -626,7 +532,6 @@ SCIP_RETCODE SCIPsdpiChgLPRhSides(
 }
 
 /** changes a single coefficient in LP constraint matrix */
-EXTERN
 SCIP_RETCODE SCIPsdpiChgLPCoef(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   row,                /**< row number of LP-coefficient to change */
@@ -639,7 +544,6 @@ SCIP_RETCODE SCIPsdpiChgLPCoef(
 }
 
 /** changes objective values of variables in the SDP */
-EXTERN
 SCIP_RETCODE SCIPsdpiChgObj(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   ncols,              /**< number of variables to change objective value for */
@@ -652,7 +556,6 @@ SCIP_RETCODE SCIPsdpiChgObj(
 }
 
 /** changes a single coefficient in constant matrix of given SDP-Block */
-EXTERN
 SCIP_RETCODE SCIPsdpiChgSDPConstCoeff(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   block,              /**< block index */
@@ -666,7 +569,6 @@ SCIP_RETCODE SCIPsdpiChgSDPConstCoeff(
 }
 
 /** changes a single coefficient in a constraint matrix of given SDP-Block */
-EXTERN
 SCIP_RETCODE SCIPsdpiChgSDPCoeff(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   block,              /**< block index */
@@ -692,7 +594,6 @@ SCIP_RETCODE SCIPsdpiChgSDPCoeff(
  *         return dimension
  */
 /** gets the number of LP-rows in the SDP */
-EXTERN
 SCIP_RETCODE SCIPsdpiGetNLPRows(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int*                  nlprows             /**< pointer to store the number of rows */
@@ -703,7 +604,6 @@ SCIP_RETCODE SCIPsdpiGetNLPRows(
 }
 
 /** gets the number of SDP-Blocks in the SDP */
-EXTERN
 SCIP_RETCODE SCIPsdpiGetNSDPBlocks(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int*                  nsdpblocks          /**< pointer to store the number of rows */
@@ -714,7 +614,6 @@ SCIP_RETCODE SCIPsdpiGetNSDPBlocks(
 }
 
 /** gets the number of variables in the SDP */
-EXTERN
 SCIP_RETCODE SCIPsdpiGetNVars(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int*                  nvars               /**< pointer to store the number of variables */
@@ -725,7 +624,6 @@ SCIP_RETCODE SCIPsdpiGetNVars(
 }
 
 /** gets the number of nonzero elements in the SDP constraint matrices */
-EXTERN
 SCIP_RETCODE SCIPsdpiGetSDPNNonz(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int*                  nnonz               /**< pointer to store the number of nonzeros in the SDP constraint matrcies */
@@ -736,7 +634,6 @@ SCIP_RETCODE SCIPsdpiGetSDPNNonz(
 }
 
 /** gets the number of nonzero elements in the constant matrices of the SDP-Blocks */
-EXTERN
 SCIP_RETCODE SCIPsdpiGetConstNNonz(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int*                  nnonz               /**< pointer to store the number of nonzeros in the constant matrices of the SDP-Blocks */
@@ -747,7 +644,6 @@ SCIP_RETCODE SCIPsdpiGetConstNNonz(
 }
 
 /** gets the number of nonzero elements in the LP Matrix */
-EXTERN
 SCIP_RETCODE SCIPsdpiGetLPNNonz(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int*                  nnonz               /**< pointer to store the number of nonzeros in the LP Matrix */
@@ -761,7 +657,6 @@ SCIP_RETCODE SCIPsdpiGetLPNNonz(
  *  Either both, lb and ub, have to be NULL, or both have to be non-NULL,
  *  either sdpnnonz, sdpbegblock, sdprowind, sdpcolind and sdpval have to be NULL, or all of them have to be non-NULL, the same is true for the lp-part.
  */
-EXTERN
 SCIP_RETCODE SCIPsdpiGetVarInfos(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   firstvar,           /**< first variable to extract information for */
@@ -787,7 +682,6 @@ SCIP_RETCODE SCIPsdpiGetVarInfos(
  *  rhs can be null,
  *  either nnonz, begrow, colind, and val have to be NULL, or all of them have to be non-NULL.
  */
-EXTERN
 SCIP_RETCODE SCIPsdpiGetLPRows(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   firstrow,           /**< first LP row to get from SDP */
@@ -806,7 +700,6 @@ SCIP_RETCODE SCIPsdpiGetLPRows(
 /** gets a number SDP blocks; the arrays have to be large enough to store all values.
  *  either constnnonz, constbegblock, constrow, constcolind, and constval have to be NULL, or all of them have to be non-NULL, same for the non-constant parts.
  */
-EXTERN
 SCIP_RETCODE SCIPsdpiGetSDPBlocks(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   firstblock,         /**< first SDP block to get from SDP */
@@ -829,7 +722,6 @@ SCIP_RETCODE SCIPsdpiGetSDPBlocks(
 }
 
 /** gets objective coefficients from SDP problem object */
-EXTERN
 SCIP_RETCODE SCIPsdpiGetObj(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   firstvar,           /**< first variable to get objective coefficient for */
@@ -842,7 +734,6 @@ SCIP_RETCODE SCIPsdpiGetObj(
 }
 
 /** gets current variable bounds from SDP problem object */
-EXTERN
 SCIP_RETCODE SCIPsdpiGetBounds(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   firstvar,           /**< first variable to get bounds for */
@@ -856,7 +747,6 @@ SCIP_RETCODE SCIPsdpiGetBounds(
 }
 
 /** gets current right hand sides from SDP problem object */
-EXTERN
 SCIP_RETCODE SCIPsdpiGetRhSides(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   firstrow,           /**< first row to get sides for */
@@ -869,7 +759,6 @@ SCIP_RETCODE SCIPsdpiGetRhSides(
 }
 
 /** gets a single coefficient of LP constraint matrix */
-EXTERN
 SCIP_RETCODE SCIPsdpiGetLPCoef(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   row,                /**< row number of coefficient */
@@ -882,7 +771,6 @@ SCIP_RETCODE SCIPsdpiGetLPCoef(
 }
 
 /** gets a single coefficient of constant SDP constraint matrix */
-EXTERN
 SCIP_RETCODE SCIPsdpiGetSDPConstCoef(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   block,              /**< block index of coefficient */
@@ -896,7 +784,6 @@ SCIP_RETCODE SCIPsdpiGetSDPConstCoef(
 }
 
 /** gets a single coefficient of SDP constraint matrix */
-EXTERN
 SCIP_RETCODE SCIPsdpiGetSDPCoef(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   block,              /**< block index of coefficient */
@@ -928,17 +815,217 @@ SCIP_RETCODE SCIPsdpiSolve(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
+   int* dsdpconstind;         /* indices for constant SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
+   double* dsdpconstval;      /* non-zero values for constant SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
+   int* dsdpind;              /* indices for SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
+   double* dsdpval;          /* non-zero values for SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
+   int* dsdplpbegcol;         /* starting-indices for all columns in LP, needs to be stored for DSDP during solving and be freed only afterwards */
+   int* dsdplprowind;         /* row indices in LP, needs to be stored for DSDP during solving and be freed only afterwards */
+   double* dsdplpval;         /* nonzeroes in LP, needs to be stored for DSDP during solving and be freed only afterwards */
+   int i;
+   int ind;
+
 #ifdef SCIP_DEBUG
-   DSDPTerminationReason* reason;
+   DSDPTerminationReason* reason; /* this will later be used to check if DSDP converged */
    BMSallocBlockMemory(sdpi->blkmem, &reason);
 #endif
 
-   SCIPdebugMessage("Calling SCIPsdpiSolve for SDP (%d) \n", sdpi->sdpid);
+   /* insert data */
 
+   SCIPdebugMessage("Inserting Data into DSDP for SDP (%d) \n", sdpi->sdpid);
+
+   DSDP_CALLM(DSDPCreate(sdpi->nvars, &(sdpi->dsdp)));
+   DSDP_CALLM(DSDPCreateSDPCone(sdpi->dsdp, sdpi->nsdpblocks, &(sdpi->sdpcone)));
+   DSDP_CALLM(DSDPCreateLPCone(sdpi->dsdp, &(sdpi->lpcone)));
+   DSDP_CALLM(DSDPCreateBCone(sdpi->dsdp, &(sdpi->bcone)));
+
+   DSDP_CALLM(BConeAllocateBounds(sdpi->bcone,2*sdpi->nvars)); /*allocate memory for lower and upper bounds */
+
+   for (i = 0; i < sdpi->nvars; i++)
+   {
+      DSDP_CALL(DSDPSetDualObjective(sdpi->dsdp, i+1, -1 * sdpi->obj[i])); /*insert objective value, DSDP counts from 1 to n instead of 0 to n-1,
+                                                                                               * *(-1) because DSDP maximizes instead of minimizing */
+      DSDP_CALL(BConeSetLowerBound(sdpi->bcone, i+1, sdpi->lb[i])); /*insert lower bound, DSDP counts from 1 to n instead of 0 to n-1 */
+      DSDP_CALL(BConeSetUpperBound(sdpi->bcone, i+1, sdpi->ub[i])); /*insert upper bound, DSDP counts from 1 to n instead of 0 to n-1 */
+   }
+
+#ifdef SCIP_DEBUG
+   SCIPdebugMessage("ATTENTION: BConeView shows the WRONG sign for the lower bound!\n");
+   BConeView(sdpi->bcone);
+#endif
+
+
+   for(i = 0; i < sdpi->nsdpblocks; i++)
+   {
+      DSDP_CALL(SDPConeSetBlockSize(sdpi->sdpcone, i, sdpi->sdpblocksizes[i])); /*set the blocksizes (blocks are counted from 0 to m-1) */
+   }
+
+
+   /*start inserting the constant matrix*/
+   if ( sdpi->nsdpblocks > 0 && sdpi->sdpconstnnonz > 0 )
+   {
+      int block;
+      /*allocate memory*/
+      /*This needs to be one long array, because DSDP uses it for solving, so all nonzeros have to be in it, and it may not be freed before the problem is solved. */
+
+      /*indices given to DSDP, for this the elements in the lower triangular part of the matrix are labeled from 0 to n*(n+1)/2 -1 */
+      BMSallocBlockMemoryArray(sdpi->blkmem, &dsdpconstind, sdpi->sdpconstnnonz);
+      /*values given to DSDP, for this the original values are mutliplied by -1 because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
+      BMSallocBlockMemoryArray(sdpi->blkmem, &dsdpconstval, sdpi->sdpconstnnonz);
+
+      for(block = 0; block < sdpi->nsdpblocks; block++)
+      {
+         int blocknnonz;   /*number of nonzeroes in the constant matrix for the current block */
+
+         if ( block == sdpi->nsdpblocks - 1 )
+            blocknnonz = sdpi->sdpconstnnonz - sdpi->sdpconstbegblock[block];
+         else
+            blocknnonz = sdpi->sdpconstbegblock[block + 1] - sdpi->sdpconstbegblock[block]; /* difference between first index of next block and first index of current block
+                                                                                             * gives the number of non-zeroes in the current block */
+
+         for(i = 0; i < blocknnonz; i++)
+         {
+            ind = sdpi->sdpconstbegblock[block] + i; /* compute the current position in the nonzero-arrays */
+            dsdpconstind[ind] = compLowerTriangPos(sdpi->sdpconstrowind[ind], sdpi->sdpconstcolind[ind]);
+            dsdpconstval[ind] = -1 * sdpi->sdpconstval[ind]; /* *(-1) because in DSDP -1* (sum A_i^j y_i - A_0^j)
+                                                                * should be positive semidefinite */
+         }
+
+         DSDP_CALL(SDPConeSetASparseVecMat(sdpi->sdpcone, block, 0, sdpi->sdpblocksizes[block], 1, 0, dsdpconstind + sdpi->sdpconstbegblock[block],
+            dsdpconstval + sdpi->sdpconstbegblock[block], blocknnonz));   /* constant matrix is given as variable 0, the arrays are shifted to the first element of this block
+                                                                           * by adding sdpi->sdpconstbegblock[block] */
+      }
+   }
+
+
+   /*start inserting the other SDP-Constraint-Matrices */
+   if(sdpi->nsdpblocks > 0 && sdpi->sdpnnonz > 0)
+   {
+      int block;
+      int var;
+      int k;
+
+      /*allocate memory */
+      /*This needs to be one long array, because DSDP uses it for solving so all nonzeros have to be in it and it may not be freed before the problem is solved. The distinct blocks/variables
+       *(for the i,j-parts) are then given by dsdpind + sdpbegvarblock[nvars * block + var], which gives a pointer to the first array-element belonging to this block and then the number of
+       *elements in this block is given to DSDP for iterating over it */
+
+      /*indices given to DSDP, for this the elements in the lower triangular part of the matrix are labeled from 0 to n*(n+1)/2 -1 */
+      BMSallocBlockMemoryArray(sdpi->blkmem, &dsdpind, sdpi->sdpnnonz);
+      /*values given to DSDP, these will be multiplied by -1 because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
+      BMSallocBlockMemoryArray(sdpi->blkmem, &dsdpval, sdpi->sdpnnonz);
+
+      for(block = 0; block < sdpi->nsdpblocks; block++)
+      {
+         for(var = 0; var < sdpi->nvars; var++)
+         {
+            int aij_nnonz; /* number of nonzeroes in Matrix Aij (current block and current variable) */
+            ind = sdpi->nvars * block + var; /* compute current position in the sdpbegvarblock-array */
+            if ( ind == (sdpi->nsdpblocks * sdpi->nvars) - 1 )
+               aij_nnonz = sdpi->sdpnnonz - sdpi->sdpbegvarblock[ind];
+            else
+               aij_nnonz = sdpi->sdpbegvarblock[ind + 1] - sdpi->sdpbegvarblock[ind];
+
+            for (k = 0; k < aij_nnonz; k++)
+            {
+               ind = sdpi->sdpbegvarblock[sdpi->nvars * block +var] + k; /* compute current position in the nonzero-arrays */
+               dsdpind[ind] = compLowerTriangPos(sdpi->sdprowind[ind], sdpi->sdpcolind[ind]);
+               dsdpval[ind] = -1 * sdpi->sdpval[ind];  /* *(-1) because in DSDP -1* (sum A_i^j y_i - A_0)
+                                                                                                                                                * should be positive semidefinite */
+            }
+            DSDP_CALL(SDPConeSetASparseVecMat(sdpi->sdpcone, block, var + 1, sdpi->sdpblocksizes[block], 1, 0, dsdpind + sdpi->sdpbegvarblock[sdpi->nvars * block + var],
+               dsdpval + sdpi->sdpbegvarblock[sdpi->nvars * block + var], aij_nnonz)); /* var+1 is needed because DSDP indexes the vars from 1 to nvars (var 0 is the constant matrix), adding
+                                                         * sdpi->sdpbegvarblock[sdpi->nvars * block + var] shifts the arrays to the first nonzero belonging to this block and this variable */
+         }
+      }
+      #ifdef SCIP_DEBUG
+      SDPConeView2(sdpi->sdpcone);
+      #endif
+   }
+
+
+   /*start inserting the LP constraints */
+   if(sdpi->nlpcons > 0 && sdpi->lpnnonz > 0)
+   {
+      int* sortedlpcolind;
+      int column;
+      int constraint;
+
+      /*memory allocation */
+
+      /*these arrays are needed in DSDP during solving, so they may only be freed afterwards */
+      /*lpbegcol[i] gives the number of nonzeroes in column 0 (right hand side) till i-1 (i going from 1 till n, with extra entries 0 (always 0) and n+1 (always lpcons + lpnnonz)) */
+      BMSallocBlockMemoryArray(sdpi->blkmem, &dsdplpbegcol, sdpi->nvars + 2);
+      /*dsdplprowind saves the row indices of the LP for DSDP */
+      BMSallocBlockMemoryArray(sdpi->blkmem, &dsdplprowind, sdpi->nlpcons + sdpi->lpnnonz); /*length is lpnnonz + nlpcons, because right hand sides are also included in the vector */
+      /*values given to DSDP */
+      BMSallocBlockMemoryArray(sdpi->blkmem, &dsdplpval, sdpi->nlpcons + sdpi->lpnnonz); /*length is lpnnonz + nlpcons, because right hand sides are also included in the vector */
+
+      /*compute lpbegcol */
+
+      /*to compute lpbegcol the column indices need to be sorted, for this they need to be copied into a non-constant array */
+      SCIP_ALLOC(BMSallocMemoryArray(&sortedlpcolind, sdpi->lpnnonz));
+
+      for(i = 0; i < sdpi->lpnnonz; i++)
+      {
+         sortedlpcolind[i] = sdpi->lpcolind[i];
+         dsdplprowind[sdpi->nlpcons + i] = sdpi->lprowind[i] - 1;  /*the first nlpcons entries will be used for the right hand sides, so the matrix-entries are copied in the later ones, rowindices in DSDP start at 0 instead of 1 */
+         dsdplpval[sdpi->nlpcons + i] = -1 * sdpi->lpval[i];   /*the first nlpcons entries will be used for the right hand sides, so the matrix-entries are copied in the later ones, *(-1) is needed, because
+                                                          *DSDP wants <= instead of >= */
+      }
+
+      SCIPsortIntIntReal(sortedlpcolind, dsdplprowind + sdpi->nlpcons, dsdplpval + sdpi->nlpcons, sdpi->lpnnonz); /* all three arrays should now be sorted by non-decreasing column-indizes, for dsdplprowind and dsdplpval
+      the sorting starts at position nlpcons (the first index is shifted by nlpcons), because the earlier entries are still empty and will only later be used for the right hand sides */
+
+      dsdplpbegcol[0]=0;
+      dsdplpbegcol[1]=sdpi->nlpcons; /*the first nlpcons indices are used to save the right hand sides */
+      ind=0; /* this will be used for traversing the sortedlpcolind-array */
+
+      for(column = 1; column < sdpi->nvars + 1; column++) /*columns are indexed 1 to nvars */
+      {
+         dsdplpbegcol[column+1]=dsdplpbegcol[column];  /*each new column can't start before the last one */
+         while(ind < sdpi->lpnnonz && sortedlpcolind[ind] == column) /* look at all indices whose column index matches the current column */
+         {
+            dsdplpbegcol[column+1]++;   /*for each element with (lpcolind = current column) an additional entry in dsdplpval is needed, so the next column starts one spot later */
+            ind++;
+         }
+      }
+      assert(dsdplpbegcol[sdpi->nvars+1] == sdpi->lpnnonz + sdpi->nlpcons);
+
+      BMSfreeMemoryArray(&sortedlpcolind); /*this was only needed to sort the column indices and compute dsdplpbegcol */
+
+      for(column = 1; column < sdpi->nvars + 1; column++)
+      {
+         SCIPsortIntReal(dsdplprowind + dsdplpbegcol[column], dsdplpval + dsdplpbegcol[column], dsdplpbegcol[column+1] - dsdplpbegcol[column]);
+         /*sort all the entries belonging to the same column by their row numbers */
+      }
+
+      for(constraint = 0; constraint < sdpi->nlpcons; constraint++)
+      {
+         dsdplprowind[constraint] = constraint; /*the row index of each constraint is the index of the constraint */
+         dsdplpval[constraint] = -1 * sdpi->lprhs[constraint]; /*insert rhs values, *(-1) is needed, because DSDP wants <= instead of >= */
+      }
+
+      DSDP_CALL(LPConeSetData(sdpi->lpcone, sdpi->nlpcons, dsdplpbegcol, dsdplprowind, dsdplpval));
+      #ifdef SCIP_DEBUG
+      LPConeView(sdpi->lpcone);
+      #endif
+   }
+
+   SCIPdebugMessage("Calling DSDP-Solve for SDP (%d) \n", sdpi->sdpid);
    DSDP_CALLM(DSDPSetup(sdpi->dsdp));
    DSDP_CALL(DSDPSolve(sdpi->dsdp));
 
    DSDP_CALL(DSDPComputeX(sdpi->dsdp)); /*computes X and determines feasibility and unboundedness of the solution */
+
+   /*these arrays were used to give information to DSDP and were needed during solving and for computing X, so they may only be freed now*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &dsdpconstind, sdpi->sdpconstnnonz);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &dsdpconstval, sdpi->sdpconstnnonz);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &dsdpind, sdpi->sdpnnonz);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &dsdpval, sdpi->sdpnnonz);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &dsdplpbegcol, sdpi->nvars +2);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &dsdplprowind, sdpi->nlpcons + sdpi->lpnnonz);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &dsdplpval, sdpi->nlpcons + sdpi->lpnnonz);
 
 #ifdef SCIP_DEBUG
    DSDP_CALL(DSDPStopReason(sdpi->dsdp, reason));
@@ -1045,7 +1132,7 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
          break;
 
       case DSDP_UNBOUNDED:
-         *primalfeasible = TRUE;
+         *primalfeasible = FALSE;
          *dualfeasible = TRUE;
          BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
          break;
@@ -1058,6 +1145,7 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
 
       default: /* should only include DSDP_PDUNKNOWN */
          BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
+         SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible");
          SCIPABORT();
          return SCIP_ERROR;
    }
@@ -1092,7 +1180,6 @@ SCIP_Bool SCIPsdpiIsPrimalUnbounded(
 }
 
 /** returns TRUE iff SDP is proven to be primal infeasible */
-EXTERN
 SCIP_Bool SCIPsdpiIsPrimalInfeasible(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
@@ -1173,7 +1260,6 @@ SCIP_Bool SCIPsdpiIsOptimal(
 }
 
 /** returns TRUE iff the objective limit was reached */
-EXTERN
 SCIP_Bool SCIPsdpiIsObjlimExc(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
@@ -1196,7 +1282,6 @@ SCIP_Bool SCIPsdpiIsObjlimExc(
 }
 
 /** returns TRUE iff the iteration limit was reached */
-EXTERN
 SCIP_Bool SCIPsdpiIsIterlimExc(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
@@ -1219,7 +1304,6 @@ SCIP_Bool SCIPsdpiIsIterlimExc(
 }
 
 /** returns TRUE iff the time limit was reached */
-EXTERN
 SCIP_Bool SCIPsdpiIsTimelimExc(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
@@ -1229,7 +1313,6 @@ SCIP_Bool SCIPsdpiIsTimelimExc(
 }
 
 /** returns the internal solution status of the solver */
-EXTERN
 int SCIPsdpiGetInternalStatus(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
@@ -1239,7 +1322,6 @@ int SCIPsdpiGetInternalStatus(
 }
 
 /** tries to reset the internal status of the SDP solver in order to ignore an instability of the last solving call */
-EXTERN
 SCIP_RETCODE SCIPsdpiIgnoreInstability(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_Bool*            success             /**< pointer to store, whether the instability could be ignored */
@@ -1250,7 +1332,6 @@ SCIP_RETCODE SCIPsdpiIgnoreInstability(
 }
 
 /** gets objective value of solution */
-EXTERN
 SCIP_RETCODE SCIPsdpiGetObjval(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_Real*            objval              /**< stores the objective value */
@@ -1283,7 +1364,6 @@ SCIP_RETCODE SCIPsdpiGetSol(
 }
 
 /** gets the number of SDP iterations of the last solve call */
-EXTERN
 SCIP_RETCODE SCIPsdpiGetIterations(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int*                  iterations          /**< pointer to store the number of iterations of the last solve call */
@@ -1298,7 +1378,6 @@ SCIP_RETCODE SCIPsdpiGetIterations(
  *  Such information is usually only available, if also a (maybe not optimal) solution is available.
  *  The SDPI should return SCIP_INVALID for *quality, if the requested quantity is not available.
  */
-EXTERN
 SCIP_RETCODE SCIPsdpiGetRealSolQuality(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_SDPSOLQUALITY    qualityindicator,   /**< indicates which quality should be returned */
@@ -1322,7 +1401,6 @@ SCIP_RETCODE SCIPsdpiGetRealSolQuality(
 /**@{ */
 
 /** stores SDPi state (like solve status since last data manipulation) into sdpistate object */
-EXTERN
 SCIP_RETCODE SCIPsdpiGetState(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    BMS_BLKMEM*           blkmem,             /**< block memory */
@@ -1336,7 +1414,6 @@ SCIP_RETCODE SCIPsdpiGetState(
 /** loads SDPi state into solver; note that the SDP might have been extended with additional
  *  columns and rows since the state was stored with SCIPsdpiGetState()
  */
-EXTERN
 SCIP_RETCODE SCIPsdpiSetState(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    BMS_BLKMEM*           blkmem,             /**< block memory */
@@ -1348,7 +1425,6 @@ SCIP_RETCODE SCIPsdpiSetState(
 }
 
 /** clears current SDPi state (like basis information) of the solver */
-EXTERN
 SCIP_RETCODE SCIPsdpiClearState(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
@@ -1358,7 +1434,6 @@ SCIP_RETCODE SCIPsdpiClearState(
 }
 
 /** frees SDPi state information */
-EXTERN
 SCIP_RETCODE SCIPsdpiFreeState(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    BMS_BLKMEM*           blkmem,             /**< block memory */
@@ -1370,7 +1445,6 @@ SCIP_RETCODE SCIPsdpiFreeState(
 }
 
 /** reads SDPi state from a file */
-EXTERN
 SCIP_RETCODE SCIPsdpiReadState(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    const char*           fname               /**< file name */
@@ -1381,7 +1455,6 @@ SCIP_RETCODE SCIPsdpiReadState(
 }
 
 /** writes SDPi state to a file */
-EXTERN
 SCIP_RETCODE SCIPsdpiWriteState(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    const char*           fname               /**< file name */
@@ -1402,7 +1475,6 @@ SCIP_RETCODE SCIPsdpiWriteState(
 /**@{ */
 
 /** gets integer parameter of SDP */
-EXTERN
 SCIP_RETCODE SCIPsdpiGetIntpar(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_SDPPARAM         type,               /**< parameter number */
@@ -1414,7 +1486,6 @@ SCIP_RETCODE SCIPsdpiGetIntpar(
 }
 
 /** sets integer parameter of SDP */
-EXTERN
 SCIP_RETCODE SCIPsdpiSetIntpar(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_SDPPARAM         type,               /**< parameter number */
@@ -1426,7 +1497,6 @@ SCIP_RETCODE SCIPsdpiSetIntpar(
 }
 
 /** gets floating point parameter of SDP */
-EXTERN
 SCIP_RETCODE SCIPsdpiGetRealpar(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_SDPPARAM         type,               /**< parameter number */
@@ -1438,7 +1508,6 @@ SCIP_RETCODE SCIPsdpiGetRealpar(
 }
 
 /** sets floating point parameter of SDP */
-EXTERN
 SCIP_RETCODE SCIPsdpiSetRealpar(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_SDPPARAM         type,               /**< parameter number */
@@ -1462,7 +1531,6 @@ SCIP_RETCODE SCIPsdpiSetRealpar(
 /**@{ */
 
 /** returns value treated as infinity in the SDP solver */
-EXTERN
 SCIP_Real SCIPsdpiInfinity(
    SCIP_SDPI*           sdpi                 /**< SDP interface structure */
    )
@@ -1472,7 +1540,6 @@ SCIP_Real SCIPsdpiInfinity(
 }
 
 /** checks if given value is treated as infinity in the SDP solver */
-EXTERN
 SCIP_Bool SCIPsdpiIsInfinity(
    SCIP_SDPI*           sdpi,               /**< SDP interface structure */
    SCIP_Real            val                 /**< value to be checked for infinity */
@@ -1494,7 +1561,6 @@ SCIP_Bool SCIPsdpiIsInfinity(
 /**@{ */
 
 /** reads SDP from a file */
-EXTERN
 SCIP_RETCODE SCIPsdpiReadSDP(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    const char*           fname               /**< file name */
@@ -1505,7 +1571,6 @@ SCIP_RETCODE SCIPsdpiReadSDP(
 }
 
 /** writes SDP to a file */
-EXTERN
 SCIP_RETCODE SCIPsdpiWriteSDP(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    const char*           fname               /**< file name */
