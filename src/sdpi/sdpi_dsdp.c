@@ -72,14 +72,22 @@ struct SCIP_SDPi
    LPCone                lpcone;             /**< lpcone-object to add lp-constraints to */
    BCone                 bcone;              /**< bcone-object to add variable bounds to */
    SCIP_MESSAGEHDLR*     messagehdlr;        /**< messagehandler to printing messages, or NULL */
+   BMS_BLKMEM*           blkmem;             /**< block memory */
    int                   sdpid;              /**< identifier for debug-messages */
    int*                  dsdpconstind;       /**< indices for constant SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
+   int                   dsdpconstindlength; /**< length of dsdpconstind */
    double*               dsdpconstval;       /**< non-zero values for constant SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
+   int                   dsdpconstvallength; /**< length of dsdpconstval */
    int*                  dsdpind;            /**< indices for SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
+   int                   dsdpindlength;      /**< length of dsdpind */
    double*               dsdpval;            /**< non-zero values for SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
+   int                   dsdpvallength;      /**< length of dsdpval */
    int*                  dsdplpbegcol;       /**< starting-indices for all columns in LP, needs to be stored for DSDP during solving and be freed only afterwards */
+   int                   dsdplpbegcollength; /**< length of dsdplpbegcol */
    int*                  dsdplprowind;       /**< row indices in LP, needs to be stored for DSDP during solving and be freed only afterwards */
+   int                   dsdplprowindlength; /**< length of dsdplprowind */
    double*               dsdplpval;          /**< nonzeroes in LP, needs to be stored for DSDP during solving and be freed only afterwards */
+   int                   dsdplpvallength;    /**< length of dsdplpval */
 };
 
 static int nextsdpid     =  1;               /**< used to give ids to the generated sdps for debugging messages */
@@ -168,7 +176,8 @@ SCIP_RETCODE SCIPsdpiCreate(
    SCIP_SDPI**           sdpi,               /**< pointer to an SDP interface structure */
    int                   nvars,              /**< number of variables (needed in DSDP to create solver) */
    int                   nblocks,            /**< number of SDP-blocks (needed in DSDP to create SDPCone) */
-   SCIP_MESSAGEHDLR*     messagehdlr         /**< message handler to use for printing messages, or NULL */
+   SCIP_MESSAGEHDLR*     messagehdlr,         /**< message handler to use for printing messages, or NULL */
+   BMS_BLKMEM*           blkmem              /**< block memory */
    )
 {
    DSDP newdsdp;
@@ -188,6 +197,7 @@ SCIP_RETCODE SCIPsdpiCreate(
    DSDP_CALLM(DSDPCreateBCone(newdsdp, &newbcone));
 
    (*sdpi)->messagehdlr = messagehdlr;
+   (*sdpi)->blkmem = blkmem;
    (*sdpi)->dsdp = newdsdp;
    (*sdpi)->sdpcone = newsdpcone;
    (*sdpi)->lpcone = newlpcone;
@@ -210,26 +220,13 @@ SCIP_RETCODE SCIPsdpiFree(
    DSDP_CALL(DSDPDestroy((*sdpi)->dsdp));
 
    /*these arrays were used to give information to DSDP and were needed during solving, so they may only be freed now*/
-   DSDPFREE(&((*sdpi)->dsdpconstind), &dsdperrorcode);
-   DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
-
-   DSDPFREE(&((*sdpi)->dsdpconstval), &dsdperrorcode);
-   DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
-
-   DSDPFREE(&((*sdpi)->dsdpind), &dsdperrorcode);
-   DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
-
-   DSDPFREE(&((*sdpi)->dsdpval), &dsdperrorcode);
-   DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
-
-   DSDPFREE(&((*sdpi)->dsdplpbegcol), &dsdperrorcode);
-   DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
-
-   DSDPFREE(&((*sdpi)->dsdplprowind), &dsdperrorcode);
-   DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
-
-   DSDPFREE(&((*sdpi)->dsdplpval), &dsdperrorcode);
-   DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->dsdpconstind), (*sdpi)->dsdpconstindlength);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->dsdpconstval), (*sdpi)->dsdpconstvallength);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->dsdpind), (*sdpi)->dsdpindlength);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->dsdpval), (*sdpi)->dsdpvallength);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->dsdplpbegcol), (*sdpi)->dsdplpbegcollength);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->dsdplprowind), (*sdpi)->dsdplprowindlength);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->dsdplpval), (*sdpi)->dsdplpvallength);
 
    BMSfreeMemory(sdpi);
 
@@ -315,11 +312,11 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
       /*This needs to be one long array, because DSDP uses it for solving, so all nonzeros have to be in it, and it may not be freed before the problem is solved. */
 
       /*indices given to DSDP, for this the elements in the lower triangular part of the matrix are labeled from 0 to n*(n+1)/2 -1 */
-      DSDPCALLOC2(&(sdpi->dsdpconstind), int, sdpconstnnonz, &dsdperrorcode);
-      DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+      BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->dsdpconstind), sdpconstnnonz);
+      sdpi->dsdpconstindlength = sdpconstnnonz;
       /*values given to DSDP, for this the original values are mutliplied by -1 because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
-      DSDPCALLOC2(&(sdpi->dsdpconstval), double, sdpconstnnonz, &dsdperrorcode);
-      DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+      BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->dsdpconstval), sdpconstnnonz);
+      sdpi->dsdpconstvallength = sdpconstnnonz;
 
       for(block = 0; block < nsdpblocks; block++)
       {
@@ -353,11 +350,11 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
        *elements in this block is given to DSDP for iterating over it */
 
       /*indices given to DSDP, for this the elements in the lower triangular part of the matrix are labeled from 0 to n*(n+1)/2 -1 */
-      DSDPCALLOC2(&(sdpi->dsdpind), int, sdpnnonz, &dsdperrorcode);
-      DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+      BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->dsdpind), sdpnnonz);
+      sdpi->dsdpindlength = sdpnnonz;
       /*values given to DSDP, these will be multiplied by -1 because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
-      DSDPCALLOC2(&(sdpi->dsdpval), double, sdpnnonz, &dsdperrorcode);
-      DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+      BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->dsdpval), sdpnnonz);
+      sdpi->dsdpvallength = sdpnnonz;
 
       for(block = 0; block < nsdpblocks; block++)
       {
@@ -397,14 +394,14 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
       /*these arrays are needed in DSDP during solving, so the may only be freed afterwards */
 
       /*lpbegcol[i] gives the number of nonzeroes in column 0 (right hand side) till i-1 (i going from 1 till n, with extra entries 0 (always 0) and n+1 (always lpcons + lpnnonz)) */
-      DSDPCALLOC2(&(sdpi->dsdplpbegcol), int, nvars + 2, &dsdperrorcode);
-      DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+      BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->dsdplpbegcol), nvars + 2);
+      sdpi->dsdplpbegcollength = nvars+2;
       /*dsdplprowind saves the row indices of the LP for DSDP */
-      DSDPCALLOC2(&(sdpi->dsdplprowind), int, nlpcons + lpnnonz, &dsdperrorcode);
-      DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+      BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->dsdplprowind), nlpcons + lpnnonz); /*length is lpnnonz + nlpcons, because right hand sides are also included in the vector */
+      sdpi->dsdplprowindlength = nlpcons + lpnnonz;
       /*values given to DSDP, extra value is needed for multiplying with -1, because DSDP wants <= instead of >= */
-      DSDPCALLOC2(&(sdpi->dsdplpval), double, nlpcons + lpnnonz, &dsdperrorcode); /*length is lpnnonz + nlpcons, because right hand sides are also included in the vector */
-      DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+      BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->dsdplpval), nlpcons + lpnnonz); /*length is lpnnonz + nlpcons, because right hand sides are also included in the vector */
+      sdpi->dsdplpvallength = nlpcons + lpnnonz;
 
       /*compute lpbegcol */
 
@@ -933,8 +930,7 @@ SCIP_RETCODE SCIPsdpiSolve(
 {
 #ifdef SCIP_DEBUG
    DSDPTerminationReason* reason;
-   DSDPCALLOC1(&reason, DSDPTerminationReason, &dsdperrorcode);
-   DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+   BMSallocBlockMemory(sdpi->blkmem, &reason);
 #endif
 
    SCIPdebugMessage("Calling SCIPsdpiSolve for SDP (%d) \n", sdpi->sdpid);
@@ -951,44 +947,54 @@ SCIP_RETCODE SCIPsdpiSolve(
    {
       case DSDP_CONVERGED:
          SCIPdebugMessage("DSDP converged!\n");
+         BMSfreeBlockMemory(sdpi->blkmem, &reason);
          break;
 
       case DSDP_INFEASIBLE_START:
          SCIPdebugMessage("DSDP started with an infeasible point!\n");
+         BMSfreeBlockMemory(sdpi->blkmem, &reason);
          break;
 
       case DSDP_SMALL_STEPS:
          SCIPdebugMessage("Short step lengths created by numerical difficulties prevented progress in DSDP!\n");
+         BMSfreeBlockMemory(sdpi->blkmem, &reason);
          break;
 
       case DSDP_INDEFINITE_SCHUR_MATRIX:
          SCIPdebugMessage("Schur Matrix in DSDP was indefinite but should have been positive semidefinite!\n");
+         BMSfreeBlockMemory(sdpi->blkmem, &reason);
          break;
 
       case DSDP_MAX_IT:
          SCIPdebugMessage("DSDP reached maximum number of iterations!\n");
+         BMSfreeBlockMemory(sdpi->blkmem, &reason);
          break;
 
       case DSDP_NUMERICAL_ERROR:
          SCIPdebugMessage("A numerical error occured in DSDP!\n");
+         BMSfreeBlockMemory(sdpi->blkmem, &reason);
          break;
 
       case DSDP_UPPERBOUND:
          SCIPdebugMessage("Dual objective value in DSDP reached upper bound.\n");
+         BMSfreeBlockMemory(sdpi->blkmem, &reason);
          break;
 
       case DSDP_USER_TERMINATION:
          SCIPdebugMessage("DSDP didn't stop solving, did you?\n");
+         BMSfreeBlockMemory(sdpi->blkmem, &reason);
          break;
 
       case CONTINUE_ITERATING:
          SCIPdebugMessage("DSDP wants to continue iterating but somehow was stopped!\n");
+         BMSfreeBlockMemory(sdpi->blkmem, &reason);
          SCIPABORT();
          return SCIP_ERROR;
          break;
 
       default:
          SCIPdebugMessage("Unknown stopping reason in DSDP!\n");
+         BMSfreeBlockMemory(sdpi->blkmem, &reason);
          SCIPABORT();
          return SCIP_ERROR;
          break;
@@ -1027,8 +1033,7 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
 {
    DSDPSolutionType* pdfeasible;
 
-   DSDPCALLOC1(&pdfeasible, DSDPSolutionType, &dsdperrorcode);
-   DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+   BMSallocBlockMemory(sdpi->blkmem, &pdfeasible);
    DSDP_CALL(DSDPGetSolutionType(sdpi->dsdp, pdfeasible));
 
    switch ( *pdfeasible)
@@ -1036,25 +1041,26 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
       case DSDP_PDFEASIBLE:
          *primalfeasible = TRUE;
          *dualfeasible = TRUE;
+         BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
          break;
 
       case DSDP_UNBOUNDED:
          *primalfeasible = TRUE;
          *dualfeasible = TRUE;
+         BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
          break;
 
       case DSDP_INFEASIBLE:
          *primalfeasible = TRUE;
          *dualfeasible = FALSE;
+         BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
          break;
 
       default: /* should only include DSDP_PDUNKNOWN */
+         BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
          SCIPABORT();
          return SCIP_ERROR;
    }
-
-   DSDPFREE(&pdfeasible, &dsdperrorcode);
-   DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
 
    return SCIP_OKAY;
 }
@@ -1065,24 +1071,22 @@ SCIP_Bool SCIPsdpiIsPrimalUnbounded(
    )
 {
    DSDPSolutionType* pdfeasible;
-   DSDPCALLOC1(&pdfeasible, DSDPSolutionType, &dsdperrorcode);
-   DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+   BMSallocBlockMemory(sdpi->blkmem, &pdfeasible);
    DSDP_CALL(DSDPGetSolutionType(sdpi->dsdp, pdfeasible));
    if (*pdfeasible == DSDP_PDUNKNOWN)
    {
       SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible");
+      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
       return SCIP_ERROR;
    }
    else if (*pdfeasible == DSDP_INFEASIBLE)
    {
-      DSDPFREE(&pdfeasible, &dsdperrorcode);
-      DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
       return TRUE;
    }
    else
    {
-      DSDPFREE(&pdfeasible, &dsdperrorcode);
-      DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
       return FALSE;
    }
 }
@@ -1094,24 +1098,22 @@ SCIP_Bool SCIPsdpiIsPrimalInfeasible(
    )
 {
    DSDPSolutionType* pdfeasible;
-   DSDPCALLOC1(&pdfeasible, DSDPSolutionType, &dsdperrorcode);
-   DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+   BMSallocBlockMemory(sdpi->blkmem, &pdfeasible);
    DSDP_CALL(DSDPGetSolutionType(sdpi->dsdp, pdfeasible));
    if (*pdfeasible == DSDP_PDUNKNOWN)
    {
+      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
       SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible");
       return SCIP_ERROR;
    }
    else if (*pdfeasible == DSDP_UNBOUNDED)
    {
-      DSDPFREE(&pdfeasible, &dsdperrorcode);
-      DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
       return TRUE;
    }
    else
    {
-      DSDPFREE(&pdfeasible, &dsdperrorcode);
-      DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
       return FALSE;
    }
 }
@@ -1154,21 +1156,18 @@ SCIP_Bool SCIPsdpiIsOptimal(
    )
 {
    DSDPTerminationReason* reason;
-   DSDPCALLOC1(&reason, DSDPTerminationReason, &dsdperrorcode);
-   DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+   BMSallocBlockMemory(sdpi->blkmem, &reason);
 
    DSDP_CALL(DSDPStopReason(sdpi->dsdp, reason));
 
    if (*reason == DSDP_CONVERGED)
    {
-      DSDPFREE(&reason, &dsdperrorcode);
-      DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+      BMSfreeBlockMemory(sdpi->blkmem, &reason);
       return TRUE;
    }
    else
    {
-      DSDPFREE(&reason, &dsdperrorcode);
-      DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+      BMSfreeBlockMemory(sdpi->blkmem, &reason);
       return FALSE;
    }
 }
@@ -1180,21 +1179,18 @@ SCIP_Bool SCIPsdpiIsObjlimExc(
    )
 {
    DSDPTerminationReason* reason;
-   DSDPCALLOC1(&reason, DSDPTerminationReason, &dsdperrorcode);
-   DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+   BMSallocBlockMemory(sdpi->blkmem, &reason);
 
    SCIP_CALL(DSDPStopReason(sdpi->dsdp, reason));
 
    if (*reason == DSDP_UPPERBOUND)
    {
-      DSDPFREE(&reason, &dsdperrorcode);
-      DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+      BMSfreeBlockMemory(sdpi->blkmem, &reason);
       return TRUE;
    }
    else
    {
-      DSDPFREE(&reason, &dsdperrorcode);
-      DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+      BMSfreeBlockMemory(sdpi->blkmem, &reason);
       return FALSE;
    }
 }
@@ -1206,21 +1202,18 @@ SCIP_Bool SCIPsdpiIsIterlimExc(
    )
 {
    DSDPTerminationReason* reason;
-   DSDPCALLOC1(&reason, DSDPTerminationReason, &dsdperrorcode);
-   DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+   BMSallocBlockMemory(sdpi->blkmem, &reason);
 
    DSDP_CALL(DSDPStopReason(sdpi->dsdp, reason));
 
    if (*reason == DSDP_MAX_IT)
    {
-      DSDPFREE(&reason, &dsdperrorcode);
-      DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+      BMSfreeBlockMemory(sdpi->blkmem, &reason);
       return TRUE;
    }
    else
    {
-      DSDPFREE(&reason, &dsdperrorcode);
-      DSDP_ERRORCODE_TO_SCIPCALL_MEMORY(dsdperrorcode);
+      BMSfreeBlockMemory(sdpi->blkmem, &reason);
       return FALSE;
    }
 }
