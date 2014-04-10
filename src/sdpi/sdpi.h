@@ -139,8 +139,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    const int*            sdpconstcolind,     /**< column-index for each entry in sdpconstval-array */
    const SCIP_Real*      sdpconstval,        /**< values of entries of constant matrices in SDP-Block */
    int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint matrix */
-   const int*            sdpbegvareachblock, /**< entry j*nvars + i is the start index of matrix \f A_i^j \f in sdpval, particularly entry i*nvars gives the starting point of block j, if a variable isn't used in a block,
-                                                  it's value should equal that of the next variable that is used*/
+   const int*            sdpbegvarblock,     /**< entry j*nvars + i is the start index of matrix \f A_i^j \f in sdpval, particularly entry i*nvars gives the starting point of block j */
    const int*            sdprowind,          /**< row-index for each entry in sdpval-array */
    const int*            sdpcolind,          /**< column-index for each entry in sdpval-array */
    const SCIP_Real*      sdpval,             /**< values of SDP-constraint matrix entries */
