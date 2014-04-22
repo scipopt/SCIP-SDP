@@ -298,12 +298,9 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    )
 {
    int i;
-   int* col;
-   int* row;
+   int col;
+   int row;
    SCIPdebugMessage("Calling SCIPsdpiLoadSDP (%d)\n",nextsdpid);
-
-   BMSallocBlockMemory(sdpi->blkmem, &col);
-   BMSallocBlockMemory(sdpi->blkmem, &row);
 
    /* copy all inputs into the corresponding sdpi-parameters to later put them into DSDP prior to solving when the final
     * number of blocks and variables are known
@@ -342,11 +339,11 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval), sdpconstnnonz);
    for (i = 0; i < sdpconstnnonz; i++)
    {
-      *row = sdpconstrowind[i];
-      *col = sdpconstcolind[i];
-      checkIfLowerTriang(row, col);
-      (sdpi->sdpconstrowind)[i] = *row;
-      (sdpi->sdpconstcolind)[i] = *col;
+      row = sdpconstrowind[i];
+      col = sdpconstcolind[i];
+      checkIfLowerTriang(&row, &col);
+      (sdpi->sdpconstrowind)[i] = row;
+      (sdpi->sdpconstcolind)[i] = col;
       (sdpi->sdpconstval)[i] = sdpconstval[i];
    }
 
@@ -363,11 +360,11 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpnnonz);
    for (i = 0; i < sdpnnonz; i++)
    {
-      *row = sdprowind[i];
-      *col = sdpcolind[i];
-      checkIfLowerTriang(row, col);
-      (sdpi->sdprowind)[i] = *row;
-      (sdpi->sdpcolind)[i] = *col;
+      row = sdprowind[i];
+      col = sdpcolind[i];
+      checkIfLowerTriang(&row, &col);
+      (sdpi->sdprowind)[i] = row;
+      (sdpi->sdpcolind)[i] = col;
       (sdpi->sdpval)[i] = sdpval[i];
    }
 
@@ -392,8 +389,6 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    }
 
    sdpi->solved = FALSE;
-   BMSfreeBlockMemory(sdpi->blkmem, &col);
-   BMSfreeBlockMemory(sdpi->blkmem, &row);
 
    return SCIP_OKAY;
 }
@@ -417,12 +412,9 @@ SCIP_RETCODE SCIPsdpiAddSDPBlock(
    )
 {
    int i;
-   int* row;
-   int* col;
+   int row;
+   int col;
    SCIPdebugMessage("Adding a block to SDP %d\n",nextsdpid);
-
-   BMSallocBlockMemory(sdpi->blkmem, &row);
-   BMSallocBlockMemory(sdpi->blkmem, &col);
 
    BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpi->nsdpblocks, sdpi->nsdpblocks + 1);
    (sdpi->sdpblocksizes)[sdpi->nsdpblocks] = blocksize; /* new SDP-Block will be added as the last block of the new SDP */
@@ -438,11 +430,11 @@ SCIP_RETCODE SCIPsdpiAddSDPBlock(
    {
       assert ( constrowind[i] <= blocksize );
       assert ( constcolind[i] <= blocksize );
-      *row = constrowind[i];
-      *col = constcolind[i];
-      checkIfLowerTriang(row, col);
-      (sdpi->sdpconstrowind)[sdpi->sdpconstnnonz + i] = *row;
-      (sdpi->sdpconstcolind)[sdpi->sdpconstnnonz + i] = *col;
+      row = constrowind[i];
+      col = constcolind[i];
+      checkIfLowerTriang(&row, &col);
+      (sdpi->sdpconstrowind)[sdpi->sdpconstnnonz + i] = row;
+      (sdpi->sdpconstcolind)[sdpi->sdpconstnnonz + i] = col;
       (sdpi->sdpconstval)[sdpi->sdpconstnnonz + i] = constval[i];
    }
 
@@ -460,20 +452,17 @@ SCIP_RETCODE SCIPsdpiAddSDPBlock(
    {
       assert ( rowind[i] <= blocksize );
       assert ( colind[i] <= blocksize );
-      *row = rowind[i];
-      *col = colind[i];
-      checkIfLowerTriang(row, col);
-      (sdpi->sdprowind)[sdpi->sdpnnonz + i] = *row;
-      (sdpi->sdpcolind)[sdpi->sdpnnonz + i] = *col;
+      row = rowind[i];
+      col = colind[i];
+      checkIfLowerTriang(&row, &col);
+      (sdpi->sdprowind)[sdpi->sdpnnonz + i] = row;
+      (sdpi->sdpcolind)[sdpi->sdpnnonz + i] = col;
       (sdpi->sdpval)[sdpi->sdpnnonz + i] = val[i];
    }
 
    sdpi->nsdpblocks++;
    sdpi->sdpconstnnonz = sdpi->sdpconstnnonz + constnnonz;
    sdpi->sdpnnonz = sdpi->sdpnnonz + nnonz;
-
-   BMSfreeBlockMemory(sdpi->blkmem, &row);
-   BMSfreeBlockMemory(sdpi->blkmem, &col);
 
    sdpi->solved = FALSE;
    return SCIP_OKAY;
@@ -622,12 +611,10 @@ SCIP_RETCODE SCIPsdpiAddVars(
 
    if (sdpnnonz > 0)
    {
-      int* row;
-      int* col;
+      int row;
+      int col;
       int* begblockold; /* these are the old starting indices of the blocks (only for the first variable in that block), with extra entry equal to spdnnonz */
 
-      BMSallocBlockMemory(sdpi->blkmem, &row);
-      BMSallocBlockMemory(sdpi->blkmem, &col);
       BMSallocBlockMemoryArray(sdpi->blkmem, &begblockold, sdpi->nsdpblocks + 1);
 
       begblockold[sdpi->nsdpblocks] = sdpi->sdpnnonz; /* often begblockold[block+1] is needed, so this extra entry removes some additional if-clauses */
@@ -687,18 +674,16 @@ SCIP_RETCODE SCIPsdpiAddVars(
             /* insert the new values for this block, they are inserted where the first new variable for the specific block starts */
             assert ( sdprowind[sdpbegvarblock[block * nvars]+i] <= sdpi->sdpblocksizes[block] );
             assert ( sdpcolind[sdpbegvarblock[block * nvars]+i] <= sdpi->sdpblocksizes[block] ); /* the row and column indices shouldn't exceed blocksizes */
-            *row = sdprowind[sdpbegvarblock[block * nvars]+i];
-            *col = sdpcolind[sdpbegvarblock[block * nvars]+i];
-            checkIfLowerTriang(row, col);
-            sdpi->sdprowind[sdpi->sdpbegvarblock[block * (sdpi->nvars + nvars) + sdpi->nvars]+i] = *row;
-            sdpi->sdpcolind[sdpi->sdpbegvarblock[block * (sdpi->nvars + nvars) + sdpi->nvars]+i] = *col;
+            row = sdprowind[sdpbegvarblock[block * nvars]+i];
+            col = sdpcolind[sdpbegvarblock[block * nvars]+i];
+            checkIfLowerTriang(&row, &col);
+            sdpi->sdprowind[sdpi->sdpbegvarblock[block * (sdpi->nvars + nvars) + sdpi->nvars]+i] = row;
+            sdpi->sdpcolind[sdpi->sdpbegvarblock[block * (sdpi->nvars + nvars) + sdpi->nvars]+i] = col;
             sdpi->sdpval[sdpi->sdpbegvarblock[block * (sdpi->nvars + nvars) + sdpi->nvars]+i] = sdpval[sdpbegvarblock[block * nvars]+i];
          }
       }
 
       BMSfreeBlockMemoryArray(sdpi->blkmem, &begblockold, sdpi->nsdpblocks);
-      BMSfreeBlockMemory(sdpi->blkmem, &row);
-      BMSfreeBlockMemory(sdpi->blkmem, &col);
 
       sdpi->sdpnnonz = sdpi->sdpnnonz + sdpnnonz;
    }
@@ -1259,8 +1244,8 @@ SCIP_RETCODE SCIPsdpiChgSDPConstCoeff(
 {
    int i;
    int lastiterationindex;
-   int* row;
-   int* col;
+   int row;
+   int col;
    SCIP_Bool found;
 
    SCIPdebugMessage("Changing a SDP coefficient in block %d of SDP %d.\n", block, sdpi->sdpid);
@@ -1272,11 +1257,9 @@ SCIP_RETCODE SCIPsdpiChgSDPConstCoeff(
    assert ( colind > 0 );
    assert ( colind <= sdpi->sdpblocksizes[block - 1] );
 
-   BMSallocBlockMemory(sdpi->blkmem, &row);
-   BMSallocBlockMemory(sdpi->blkmem, &col);
-   *row = rowind;
-   *col = colind;
-   checkIfLowerTriang(row, col); /* make sure that this is a lower triangular position, otherwise it could happen that an upper
+   row = rowind;
+   col = colind;
+   checkIfLowerTriang(&row, &col); /* make sure that this is a lower triangular position, otherwise it could happen that an upper
                                   * triangular position is added if the same entry is already filled in the lower triangular part */
 
    /* check if that entry already exists */
@@ -1291,7 +1274,7 @@ SCIP_RETCODE SCIPsdpiChgSDPConstCoeff(
    }
    for (i = sdpi->sdpconstbegblock[block - 1]; i < lastiterationindex; i++)
    {
-      if (sdpi->sdpconstrowind[i] == *row && sdpi->sdpconstcolind[i] == *col)
+      if (sdpi->sdpconstrowind[i] == row && sdpi->sdpconstcolind[i] == col)
       {
          found = TRUE;
          break;
@@ -1320,8 +1303,8 @@ SCIP_RETCODE SCIPsdpiChgSDPConstCoeff(
       }
 
       /* insert the new entries at the right position (namely what was originally the first position of the next block [again there's an index shift]) */
-      sdpi->sdpconstrowind[sdpi->sdpconstbegblock[block]] = *row;
-      sdpi->sdpconstcolind[sdpi->sdpconstbegblock[block]] = *col;
+      sdpi->sdpconstrowind[sdpi->sdpconstbegblock[block]] = row;
+      sdpi->sdpconstcolind[sdpi->sdpconstbegblock[block]] = col;
       sdpi->sdpconstval[sdpi->sdpconstbegblock[block]] = newval;
 
       /* update other information */
@@ -1332,9 +1315,6 @@ SCIP_RETCODE SCIPsdpiChgSDPConstCoeff(
       sdpi->sdpconstnnonz = sdpi->sdpconstnnonz + 1;
 
    }
-
-   BMSfreeBlockMemory(sdpi->blkmem, &row);
-   BMSfreeBlockMemory(sdpi->blkmem, &col);
 
    sdpi->solved = FALSE;
    return SCIP_OKAY;
@@ -1353,8 +1333,8 @@ SCIP_RETCODE SCIPsdpiChgSDPCoeff(
    int i;
    int lastiterationindex;
    SCIP_Bool found;
-   int* row;
-   int* col;
+   int row;
+   int col;
 
    SCIPdebugMessage("Changing a Coefficient of Matrix A_%d^%d in SDP %d\n", var, block, sdpi->sdpid);
 
@@ -1367,11 +1347,9 @@ SCIP_RETCODE SCIPsdpiChgSDPCoeff(
    assert ( colind > 0 );
    assert ( colind <= sdpi->sdpblocksizes[block - 1] );
 
-   BMSallocBlockMemory(sdpi->blkmem, &row);
-   BMSallocBlockMemory(sdpi->blkmem, &col);
-   *row = rowind;
-   *col = colind;
-   checkIfLowerTriang(row, col); /* make sure that this is a lower triangular position, otherwise it could happen that an upper
+   row = rowind;
+   col = colind;
+   checkIfLowerTriang(&row, &col); /* make sure that this is a lower triangular position, otherwise it could happen that an upper
                                   * triangular position is added if the same entry is already filled in the lower triangular part */
 
    /* check if that entry already exists */
@@ -1386,7 +1364,7 @@ SCIP_RETCODE SCIPsdpiChgSDPCoeff(
    }
    for (i = sdpi->sdpbegvarblock[(block - 1) * sdpi->nvars + (var - 1)]; i < lastiterationindex; i++)
    {
-      if (sdpi->sdprowind[i] == *row && sdpi->sdpcolind[i] == *col)
+      if (sdpi->sdprowind[i] == row && sdpi->sdpcolind[i] == col)
       {
          found = TRUE;
          break;
@@ -1415,8 +1393,8 @@ SCIP_RETCODE SCIPsdpiChgSDPCoeff(
       }
 
       /* insert the new entries at the right position (namely what was originally the first position of the next block [again there's an index shift]) */
-      sdpi->sdprowind[sdpi->sdpbegvarblock[(block - 1)*sdpi->nvars + var]] = *row;
-      sdpi->sdpcolind[sdpi->sdpbegvarblock[(block - 1)*sdpi->nvars + var]] = *col;
+      sdpi->sdprowind[sdpi->sdpbegvarblock[(block - 1)*sdpi->nvars + var]] = row;
+      sdpi->sdpcolind[sdpi->sdpbegvarblock[(block - 1)*sdpi->nvars + var]] = col;
       sdpi->sdpval[sdpi->sdpbegvarblock[(block - 1)*sdpi->nvars + var]] = newval;
 
       /* update other information */
@@ -1427,9 +1405,6 @@ SCIP_RETCODE SCIPsdpiChgSDPCoeff(
       sdpi->sdpnnonz = sdpi->sdpnnonz + 1;
 
    }
-
-   BMSfreeBlockMemory(sdpi->blkmem, &row);
-   BMSfreeBlockMemory(sdpi->blkmem, &col);
 
    sdpi->solved = FALSE;
    return SCIP_OKAY;
@@ -1989,8 +1964,8 @@ SCIP_RETCODE SCIPsdpiGetSDPConstCoef(
 {
    int i;
    int lastiterationindex;
-   int* row;
-   int* col;
+   int row;
+   int col;
 
    assert ( block > 0 );
    assert ( block <= sdpi->nsdpblocks );
@@ -1999,11 +1974,9 @@ SCIP_RETCODE SCIPsdpiGetSDPConstCoef(
    assert ( colind > 0 );
    assert ( colind <= sdpi->sdpblocksizes[block - 1] ); /* indexshift again */
 
-   BMSallocBlockMemory(sdpi->blkmem, &row);
-   BMSallocBlockMemory(sdpi->blkmem, &col);
-   *row = rowind;
-   *col = colind;
-   checkIfLowerTriang(row, col); /* Because the matrices are symmetric it doesn't matter if a position in the upper or lower triangular
+   row = rowind;
+   col = colind;
+   checkIfLowerTriang(&row, &col); /* Because the matrices are symmetric it doesn't matter if a position in the upper or lower triangular
                                   * was given, but only positions in the lower triangular path are saved in the corresponding arrays */
 
    /* search for the entry */
@@ -2017,20 +1990,14 @@ SCIP_RETCODE SCIPsdpiGetSDPConstCoef(
    }
    for (i = sdpi->sdpconstbegblock[block - 1]; i < lastiterationindex; i++) /* indexshift */
    {
-      if (sdpi->sdpconstcolind[i] == *col && sdpi->sdpconstrowind[i] == *row)
+      if (sdpi->sdpconstcolind[i] == col && sdpi->sdpconstrowind[i] == row)
       {
          *val = sdpi->sdpconstval[i];
-         BMSfreeBlockMemory(sdpi->blkmem, &row);
-         BMSfreeBlockMemory(sdpi->blkmem, &col);
          return SCIP_OKAY;
       }
    }
 
    /* if this is reached no corresponding entry in the LP-constraints was found */
-
-   BMSfreeBlockMemory(sdpi->blkmem, &row);
-   BMSfreeBlockMemory(sdpi->blkmem, &col);
-
    SCIPerrorMessage("In SCIPsdpiGetSDPConstCoef no entry for the given column = %d and row = %d was found.", colind, rowind);
    SCIPABORT();
    return SCIP_ERROR;
@@ -2048,8 +2015,8 @@ SCIP_RETCODE SCIPsdpiGetSDPCoef(
 {
    int i;
    int lastiterationindex;
-   int* row;
-   int* col;
+   int row;
+   int col;
 
    assert ( block > 0 );
    assert ( block <= sdpi->nsdpblocks );
@@ -2060,11 +2027,9 @@ SCIP_RETCODE SCIPsdpiGetSDPCoef(
    assert ( colind > 0 );
    assert ( colind <= sdpi->sdpblocksizes[block - 1] ); /* indexshift again */
 
-   BMSallocBlockMemory(sdpi->blkmem, &row);
-   BMSallocBlockMemory(sdpi->blkmem, &col);
-   *row = rowind;
-   *col = colind;
-   checkIfLowerTriang(row, col); /* Because the matrices are symmetric it doesn't matter if a position in the upper or lower triangular
+   row = rowind;
+   col = colind;
+   checkIfLowerTriang(&row, &col); /* Because the matrices are symmetric it doesn't matter if a position in the upper or lower triangular
                                   * was given, but only positions in the lower triangular path are saved in the corresponding arrays */
 
    /* search for the entry */
@@ -2078,20 +2043,14 @@ SCIP_RETCODE SCIPsdpiGetSDPCoef(
    }
    for (i = sdpi->sdpbegvarblock[(block - 1) * sdpi->nvars + var - 1]; i < lastiterationindex; i++) /* indexshift */
    {
-      if (sdpi->sdpcolind[i] == *col && sdpi->sdprowind[i] == *row)
+      if (sdpi->sdpcolind[i] == col && sdpi->sdprowind[i] == row)
       {
          *val = sdpi->sdpval[i];
-         BMSfreeBlockMemory(sdpi->blkmem, &row);
-         BMSfreeBlockMemory(sdpi->blkmem, &col);
          return SCIP_OKAY;
       }
    }
 
    /* if this is reached no corresponding entry in the LP-constraints was found */
-
-   BMSfreeBlockMemory(sdpi->blkmem, &row);
-   BMSfreeBlockMemory(sdpi->blkmem, &col);
-
    SCIPerrorMessage("In SCIPsdpiGetSDPConstCoef no entry for the given column=%d and row=%d was found.", colind, rowind);
    SCIPABORT();
    return SCIP_ERROR;
