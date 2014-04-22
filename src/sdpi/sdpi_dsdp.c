@@ -842,7 +842,6 @@ SCIP_RETCODE SCIPsdpiDelVars(
          }
       }
    }
-   /* TODO: perhaps delete blocks where the last entry was deleted? */
    BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpbegvarblock), sdpi->nvars * sdpi->nsdpblocks, (sdpi->nvars - deletedvars) * sdpi->nsdpblocks);
 
    sdpi->sdpnnonz = sdpi->sdpnnonz - deletedsdpnonz[sdpi->nsdpblocks - 1];
@@ -894,6 +893,12 @@ SCIP_RETCODE SCIPsdpiDelVars(
    sdpi->nvars = sdpi->nvars - deletedvars;
 
    sdpi->solved = FALSE;
+
+   /* at this point there could be checked if any SDP-blocks or LP-rows have become empty (no variables left), but this isn't done,
+    * because then the indices of alle blocks/rows behind it would change, possibly creating problems if the user wanted to insert
+    * variables into them (or even the deleted block/row) afterwards
+    */
+
    return SCIP_OKAY;
 }
 
@@ -2119,6 +2124,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    double* dsdplpval;         /* nonzeroes in LP, needs to be stored for DSDP during solving and be freed only afterwards */
    int i;
    int ind;
+   int block;
 
 #ifdef SCIP_DEBUG
    DSDPTerminationReason* reason; /* this will later be used to check if DSDP converged */
@@ -2154,19 +2160,10 @@ SCIP_RETCODE SCIPsdpiSolve(
    BConeView(sdpi->bcone);
 #endif
 
-   /* TODO: perhaps sort the SDP-arrays ahead of inserting as this might help the running time of DSDP */
-
-
-   for(i = 0; i < sdpi->nsdpblocks; i++)
-   {
-      DSDP_CALL(SDPConeSetBlockSize(sdpi->sdpcone, i, sdpi->sdpblocksizes[i])); /*set the blocksizes (blocks are counted from 0 to m-1) */
-   }
-
-
    /*start inserting the constant matrix*/
    if ( sdpi->nsdpblocks > 0 && sdpi->sdpconstnnonz > 0 )
    {
-      int block;
+
       /*allocate memory*/
       /*This needs to be one long array, because DSDP uses it for solving, so all nonzeros have to be in it, and it may not be freed before the problem is solved. */
 
@@ -2174,6 +2171,11 @@ SCIP_RETCODE SCIPsdpiSolve(
       BMSallocBlockMemoryArray(sdpi->blkmem, &dsdpconstind, sdpi->sdpconstnnonz);
       /*values given to DSDP, for this the original values are mutliplied by -1 because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
       BMSallocBlockMemoryArray(sdpi->blkmem, &dsdpconstval, sdpi->sdpconstnnonz);
+
+      for(i = 0; i < sdpi->nsdpblocks; i++)
+      {
+         DSDP_CALL(SDPConeSetBlockSize(sdpi->sdpcone, i, sdpi->sdpblocksizes[i])); /*set the blocksizes (blocks are counted from 0 to m-1) */
+      }
 
       for(block = 0; block < sdpi->nsdpblocks; block++)
       {
@@ -2193,6 +2195,9 @@ SCIP_RETCODE SCIPsdpiSolve(
                                                                 * should be positive semidefinite */
          }
 
+         /* sort the arrays for this Matrix (by non decreasing indices) as this might help the solving time of DSDP */
+         SCIPsortIntReal(dsdpconstind + sdpi->sdpconstbegblock[block], dsdpconstval + sdpi->sdpconstbegblock[block], blocknnonz);
+
          DSDP_CALL(SDPConeSetASparseVecMat(sdpi->sdpcone, block, 0, sdpi->sdpblocksizes[block], 1, 0, dsdpconstind + sdpi->sdpconstbegblock[block],
             dsdpconstval + sdpi->sdpconstbegblock[block], blocknnonz));   /* constant matrix is given as variable 0, the arrays are shifted to the first element of this block
                                                                            * by adding sdpi->sdpconstbegblock[block] */
@@ -2203,7 +2208,6 @@ SCIP_RETCODE SCIPsdpiSolve(
    /*start inserting the other SDP-Constraint-Matrices */
    if(sdpi->nsdpblocks > 0 && sdpi->sdpnnonz > 0)
    {
-      int block;
       int var;
       int k;
 
@@ -2232,9 +2236,12 @@ SCIP_RETCODE SCIPsdpiSolve(
             {
                ind = sdpi->sdpbegvarblock[sdpi->nvars * block +var] + k; /* compute current position in the nonzero-arrays */
                dsdpind[ind] = compLowerTriangPos(sdpi->sdprowind[ind], sdpi->sdpcolind[ind]);
-               dsdpval[ind] = -1 * sdpi->sdpval[ind];  /* *(-1) because in DSDP -1* (sum A_i^j y_i - A_0)
-                                                                                                                                                * should be positive semidefinite */
+               dsdpval[ind] = -1 * sdpi->sdpval[ind];  /* *(-1) because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
             }
+
+            /* sort the arrays for this Matrix (by non decreasing indices) as this might help the solving time of DSDP */
+            SCIPsortIntReal(dsdpind + sdpi->sdpbegvarblock[sdpi->nvars * block + var], dsdpval + sdpi->sdpbegvarblock[sdpi->nvars * block + var], aij_nnonz);
+
             DSDP_CALL(SDPConeSetASparseVecMat(sdpi->sdpcone, block, var + 1, sdpi->sdpblocksizes[block], 1, 0, dsdpind + sdpi->sdpbegvarblock[sdpi->nvars * block + var],
                dsdpval + sdpi->sdpbegvarblock[sdpi->nvars * block + var], aij_nnonz)); /* var+1 is needed because DSDP indexes the vars from 1 to nvars (var 0 is the constant matrix), adding
                                                          * sdpi->sdpbegvarblock[sdpi->nvars * block + var] shifts the arrays to the first nonzero belonging to this block and this variable */
