@@ -321,9 +321,6 @@ SCIP_RETCODE SCIPsdpiChgSDPCoeff(
 /**@name Data Accessing Methods */
 /**@{ */
 
-/* @todo: # rows -> SDP constraints
- *         return dimension
- */
 /** gets the number of LP-rows in the SDP */
 EXTERN
 SCIP_RETCODE SCIPsdpiGetNLPRows(
@@ -471,8 +468,8 @@ EXTERN
 SCIP_RETCODE SCIPsdpiGetSDPConstCoef(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   block,              /**< block index of coefficient  (index between 1 and nsdpblocks) */
-   int                   row,                /**< row number of coefficient (index between 1 and corresponding blocksize) */
-   int                   col,                /**< column number of coefficient (index between 1 and corresponding blocksize) */
+   int                   rowind,             /**< row number of coefficient (index between 1 and corresponding blocksize) */
+   int                   colind,             /**< column number of coefficient (index between 1 and corresponding blocksize) */
    SCIP_Real*            val                 /**< pointer to store the value of the coefficient */
    );
 
@@ -482,8 +479,8 @@ SCIP_RETCODE SCIPsdpiGetSDPCoef(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   block,              /**< block index of coefficient  (index between 1 and nsdpblocks) */
    int                   var,                /**< variable index of coefficient, meaning the i in \f A_i^j \f, in val-array, or NULL */
-   int                   row,                /**< row number of coefficient (index between 1 and corresponding blocksize) */
-   int                   col,                /**< column number of coefficient (index between 1 and corresponding blocksize) */
+   int                   rowind,             /**< row number of coefficient (index between 1 and corresponding blocksize) */
+   int                   colind,             /**< column number of coefficient (index between 1 and corresponding blocksize) */
    SCIP_Real*            val                 /**< pointer to store the value of the coefficient */
    );
 
