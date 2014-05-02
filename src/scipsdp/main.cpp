@@ -60,7 +60,6 @@ SCIP_RETCODE runSCIP(
 
    SCIP_CALL( SCIPincludeRelaxSDP(scip) );
 
-
    const char* name = "sdpsolver";
    const char * 	desc = "which sdpsolver should be called";
 
@@ -71,16 +70,15 @@ SCIP_RETCODE runSCIP(
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
 
-   SCIP_CALL(SCIPsetIntParam(scip,"relaxing/SDPRelax/freq",1));
-
 
    /**********************************
     * Process command line arguments *
     **********************************/
    SCIP_CALL( SCIPsetIntParam(scip, "display/verblevel", 5) );
 
-   //Turn off lp relaxations
+   //Choose between LP and SDP relaxations
    SCIP_CALL( SCIPsetIntParam(scip, "lp/solvefreq", -1) );
+   //SCIP_CALL(SCIPsetIntParam(scip,"relaxing/SDPRelax/freq",1)); doesn't seem to work right now, needs to be set in relax_sdp
 
    //Do some stuff to be numerically stable
    SCIP_CALL( SCIPsetRealParam(scip, "numerics/epsilon", 1e-6) );
@@ -101,16 +99,16 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPsetIntParam(scip, "separating/maxrounds", 20));
 
    //Parameters for node selection
-   int relaxfreq;
+/*   int relaxfreq;
    SCIP_CALL(SCIPgetIntParam(scip, "relaxing/SDPRelax/freq", &relaxfreq));
-   if (relaxfreq==1) {
+   if (relaxfreq==1) {                                                           also doesn't work, see line 81*/
       SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/stdpriority", 1000000));
       SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/maxplungedepth", 0));
       SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight",0));
 
       SCIP_CALL( SCIPsetIntParam(scip, "branching/pscost/priority",-2000000));
       SCIP_CALL( SCIPsetIntParam(scip, "branching/relpscost/priority",-2000000));
-   }
+  // }
 
    //turn off int-obj
    SCIP_CALL( SCIPsetIntParam(scip, "separating/intobj/freq", -1));

@@ -422,6 +422,7 @@ SCIP_RETCODE trivial_approx(
    return SCIP_OKAY;
 }
 
+/* not clear if this is really true for all SDPs */
 /**presolve-routine that adds some constraints for approximation of the sdpcone, if there is an entry on the right hand side there must be a corresponding diagonal entry*/
 static
 SCIP_RETCODE trivial_ineq_from_rhs(
@@ -850,7 +851,8 @@ SCIP_RETCODE ObjConshdlrSdp::scip_presol(
 
    if (nrounds == 0)
    {
-      SCIP_CALL(trivial_ineq_from_rhs(scip, conss, nconss, naddconss, result));
+      SCIP_CALL(trivial_ineq_from_rhs(scip, conss, nconss, naddconss, result));  /*TODO: could be activated for some problem classes
+      but doesn't seem to work in the general case */
    }
    return SCIP_OKAY;
 }

@@ -24,7 +24,9 @@
 #include "sdpi/sdpi.h"
 #include "dsdp5.h"                           /* for DSDPUsePenalty, etc */
 #include "dsdpmem.h"                         /* for DSDPCALLOC2, DSDPFREE */
-#include "scip/scip.h"
+#include "blockmemshell/memory.h"            /* for memory allocation */
+#include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
+#include "scip/pub_misc.h"                   /* for sorting */
 
 /* calls a DSDP-Function and transforms the return-code to a SCIP_ERROR if needed */
 #define DSDP_CALL(x)   do                                                                                     \
@@ -100,7 +102,8 @@ struct SCIP_SDPi
 };
 
 static int nextsdpid     =  1;               /**< used to give ids to the generated sdps for debugging messages */
-
+static double epsilon    = 1e-6;             /**< this is used for checking if primal and dual objective are equal */
+static double feastol    = 1e-4;             /**< this is used for checking if a solution is feasible */
 
 /*
  * Local Functions
@@ -138,6 +141,64 @@ static void checkIfLowerTriang(
       *i = *j;
       *j = temp;
    }
+}
+
+/** This function checks feasibility (currently only LP-inequalities and only dual solution) and will be called if DSDP returns "primal-dual-unknown" */
+static SCIP_Bool checkFeasibility(
+   SCIP_SDPI*            sdpi               /**< pointer to an SDP interface structure */
+   )
+{
+   int i;
+   int ind;
+   SCIP_Real rhs;
+   SCIP_Real lhs;
+   int nnonz;
+   int* rowind;
+   int* colind;
+   SCIP_Real* val;
+   SCIP_Real* sol;
+
+   CHECK_IF_SOLVED(sdpi);
+
+   BMSallocBlockMemoryArray(sdpi->blkmem, &rowind, sdpi->nvars);
+   BMSallocBlockMemoryArray(sdpi->blkmem, &colind, sdpi->nvars);
+   BMSallocBlockMemoryArray(sdpi->blkmem, &val, sdpi->nvars);
+   BMSallocBlockMemoryArray(sdpi->blkmem, &sol, sdpi->nvars);
+
+   DSDP_CALL(DSDPGetY(sdpi->dsdp, sol, sdpi->nvars)); /* get the optimal solution */
+
+   for (i = 1; i <= sdpi->nlpcons; i++)
+   {
+      SCIPsdpiGetLPRows(sdpi, i, i, &rhs, sdpi->nvars, &nnonz, rowind, colind, val);   /* get the next LPRow */
+
+      lhs = 0; /* reset the left hand side */
+
+      for (ind = 0; ind < nnonz; ind++)
+      {
+         assert ( rowind != NULL );
+         assert ( rowind[ind] == i );
+         lhs = lhs + val[ind] * sol[colind[ind]]; /* multiply the LP-coefficient with the value of the corresponding variable and
+                                                   * summarize these for the left hand side value */
+      }
+
+      if (lhs + feastol < rhs)   /* this LP-inequality is violated */
+      {
+         BMSfreeBlockMemoryArray(sdpi->blkmem, &rowind, sdpi->nvars);
+         BMSfreeBlockMemoryArray(sdpi->blkmem, &colind, sdpi->nvars);
+         BMSfreeBlockMemoryArray(sdpi->blkmem, &val, sdpi->nvars);
+         BMSfreeBlockMemoryArray(sdpi->blkmem, &sol, sdpi->nvars);
+         return FALSE;
+      }
+   }
+
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &rowind, sdpi->nvars);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &colind, sdpi->nvars);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &val, sdpi->nvars);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &sol, sdpi->nvars);
+
+   return TRUE; /* all tests were passed, so this solution has to be feasible */
+
+   /* TODO: also check bounds and SDP-block and primal solution (possibly splitting this into checkDualFeasibility and checkPrimalFeasibility) */
 }
 
 /*
@@ -232,7 +293,10 @@ SCIP_RETCODE SCIPsdpiFree(
    assert ( sdpi != NULL );
    assert ( *sdpi != NULL );
 
+   if (((*sdpi)->dsdp) != NULL)
+   {
    DSDP_CALL(DSDPDestroy((*sdpi)->dsdp));
+   }
 
    BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->obj), (*sdpi)->nvars);
    BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lb), (*sdpi)->nvars);
@@ -277,7 +341,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    const SCIP_Real*      lb,                 /**< lower bounds of variables */
    const SCIP_Real*      ub,                 /**< upper bounds of variables */
    int                   nsdpblocks,         /**< number of SDP-blocks */
-   int*                  sdpblocksizes,      /**< sizes of the SDP-blocks */
+   const int*            sdpblocksizes,      /**< sizes of the SDP-blocks */
    int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks */
    const int*            sdpconstbegblock,   /**< start index of each block in sdpconstval-array */
    const int*            sdpconstrowind,     /**< row-index for each entry in sdpconstval-array */
@@ -300,7 +364,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    int i;
    int col;
    int row;
-   SCIPdebugMessage("Calling SCIPsdpiLoadSDP (%d)\n",nextsdpid);
+   SCIPdebugMessage("Calling SCIPsdpiLoadSDP (%d)\n",sdpi->sdpid);
 
    /* copy all inputs into the corresponding sdpi-parameters to later put them into DSDP prior to solving when the final
     * number of blocks and variables are known
@@ -1704,7 +1768,7 @@ SCIP_RETCODE SCIPsdpiGetLPRows(
          }
       }
 
-      if (firstrowind > -1) /* if this is still 0 there are no nonzeroes for the given rows */
+      if (firstrowind > -1) /* if this is still -1 there are no nonzeroes for the given rows */
       {
          /* now find the last occurence of one of the rows (as these are sorted all in between also belong to these rows) */
          while (i < sdpi->lpnnonz && sdpi->lprowind[i] <= lastrow)
@@ -2110,8 +2174,14 @@ SCIP_RETCODE SCIPsdpiSolve(
    {
       DSDP_CALL(DSDPSetDualObjective(sdpi->dsdp, i+1, -1 * sdpi->obj[i])); /*insert objective value, DSDP counts from 1 to n instead of 0 to n-1,
                                                                                                * *(-1) because DSDP maximizes instead of minimizing */
-      DSDP_CALL(BConeSetLowerBound(sdpi->bcone, i+1, sdpi->lb[i])); /*insert lower bound, DSDP counts from 1 to n instead of 0 to n-1 */
-      DSDP_CALL(BConeSetUpperBound(sdpi->bcone, i+1, sdpi->ub[i])); /*insert upper bound, DSDP counts from 1 to n instead of 0 to n-1 */
+      if (!SCIPsdpiIsInfinity(sdpi, sdpi->lb[i]))
+      {
+         DSDP_CALL(BConeSetLowerBound(sdpi->bcone, i+1, sdpi->lb[i])); /*insert lower bound, DSDP counts from 1 to n instead of 0 to n-1 */
+      }
+      if (!SCIPsdpiIsInfinity(sdpi, sdpi->ub[i]))
+      {
+         DSDP_CALL(BConeSetUpperBound(sdpi->bcone, i+1, sdpi->ub[i])); /*insert upper bound, DSDP counts from 1 to n instead of 0 to n-1 */
+      }
    }
 
 #ifdef SCIP_DEBUG
@@ -2245,7 +2315,6 @@ SCIP_RETCODE SCIPsdpiSolve(
       SCIPsortIntIntReal(sortedlpcolind, dsdplprowind + sdpi->nlpcons, dsdplpval + sdpi->nlpcons, sdpi->lpnnonz); /* all three arrays should now be sorted by non-decreasing column-indizes, for dsdplprowind and dsdplpval
       the sorting starts at position nlpcons (the first index is shifted by nlpcons), because the earlier entries are still empty and will only later be used for the right hand sides */
 
-
       dsdplpbegcol[0]=0;
       dsdplpbegcol[1]=sdpi->nlpcons; /*the first nlpcons indices are used to save the right hand sides */
       ind=0; /* this will be used for traversing the sortedlpcolind-array */
@@ -2282,6 +2351,10 @@ SCIP_RETCODE SCIPsdpiSolve(
    }
 
    SCIPdebugMessage("Calling DSDP-Solve for SDP (%d) \n", sdpi->sdpid);
+
+   DSDP_CALL(DSDPSetGapTolerance(sdpi->dsdp, 1e-3)); /* set DSDP's tolerance */
+
+
    DSDP_CALLM(DSDPSetup(sdpi->dsdp));
    DSDP_CALL(DSDPSolve(sdpi->dsdp));
 
@@ -2300,7 +2373,7 @@ SCIP_RETCODE SCIPsdpiSolve(
 #ifdef SCIP_DEBUG
    DSDP_CALL(DSDPStopReason(sdpi->dsdp, reason));
 
-   switch ( *reason )
+   switch ( *reason ) /* TODO: perhaps also check for feasibility and call the penalty-method here in that case */
    {
       case DSDP_CONVERGED:
          SCIPdebugMessage("DSDP converged!\n");
@@ -2329,6 +2402,7 @@ SCIP_RETCODE SCIPsdpiSolve(
 
       case DSDP_NUMERICAL_ERROR:
          SCIPdebugMessage("A numerical error occured in DSDP!\n");
+         printf("Numerical Trouble in DSDP! \n");
          BMSfreeBlockMemory(sdpi->blkmem, &reason);
          break;
 
@@ -2343,19 +2417,16 @@ SCIP_RETCODE SCIPsdpiSolve(
          break;
 
       case CONTINUE_ITERATING:
-         SCIPerrorMessage("DSDP wants to continue iterating but somehow was stopped!\n");
+         SCIPdebugMessage("DSDP wants to continue iterating but somehow was stopped!\n");
          BMSfreeBlockMemory(sdpi->blkmem, &reason);
-         SCIPABORT();
-         return SCIP_ERROR;
          break;
 
       default:
-         SCIPerrorMessage("Unknown stopping reason in DSDP!\n");
+         SCIPdebugMessage("Unknown stopping reason in DSDP!\n");
          BMSfreeBlockMemory(sdpi->blkmem, &reason);
-         SCIPABORT();
-         return SCIP_ERROR;
          break;
    }
+
 #endif
 
    return SCIP_OKAY;
@@ -2416,7 +2487,7 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
 
       default: /* should only include DSDP_PDUNKNOWN */
          BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
-         SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible");
+         SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible\n");
          SCIPABORT();
          return SCIP_ERROR;
    }
@@ -2437,10 +2508,17 @@ SCIP_Bool SCIPsdpiIsPrimalUnbounded(
    DSDP_CALL(DSDPGetSolutionType(sdpi->dsdp, pdfeasible));
    if (*pdfeasible == DSDP_PDUNKNOWN)
    {
-      SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible");
-      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
-      SCIPABORT();
-      return SCIP_ERROR;
+      if (!checkFeasibility(sdpi)){
+         SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible, but the dual solution actually isn't feasible\n");
+         BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
+         return TRUE;
+      }
+      else
+      {
+         SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible, but the dual solution actually is feasible\n");
+         BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
+         return FALSE;
+      }
    }
    else if (*pdfeasible == DSDP_INFEASIBLE)
    {
@@ -2544,9 +2622,30 @@ SCIP_Bool SCIPsdpiIsOptimal(
    }
    else
    {
+      double* pobj;
+      double* dobj;
+
       BMSfreeBlockMemory(sdpi->blkmem, &reason);
-      return FALSE;
+
+      /* if it didn't converge check the optimality gap */
+      BMSallocBlockMemory(sdpi->blkmem, &pobj);
+      BMSallocBlockMemory(sdpi->blkmem, &dobj);
+
+      DSDP_CALL(DSDPGetPObjective(sdpi->dsdp, pobj));
+      DSDP_CALL(DSDPGetDObjective(sdpi->dsdp, dobj));
+
+      if (((abs(*pobj - *dobj))/ *dobj) < epsilon)
+      {
+         BMSfreeBlockMemory(sdpi->blkmem, &pobj);
+         BMSfreeBlockMemory(sdpi->blkmem, &dobj);
+         return TRUE;
+      }
+      else
+      {
+         return FALSE;
+      }
    }
+/* TODO: also check for primal feasibility, as this is also needed for optimality */
 }
 
 /** returns TRUE iff the objective limit was reached */
@@ -2560,7 +2659,7 @@ SCIP_Bool SCIPsdpiIsObjlimExc(
 
    BMSallocBlockMemory(sdpi->blkmem, &reason);
 
-   SCIP_CALL(DSDPStopReason(sdpi->dsdp, reason));
+   DSDP_CALL(DSDPStopReason(sdpi->dsdp, reason));
 
    if (*reason == DSDP_UPPERBOUND)
    {

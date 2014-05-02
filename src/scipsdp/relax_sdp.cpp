@@ -37,14 +37,16 @@
  * @author Tristan Gally
  */
 
+#define SCIP_DEBUG
+
 #include "relax_sdp.h"
 
 #include <cassert>                      // for assert
 #include <cstdio>                       // for NULL, printf
-#include "SdpInterface.h"               // for SdpInterface
-#include "SdpSolverFactory.h"
 #include "SdpProblem.h"                 // for SdpProblem
 #include "SdpVarMapper.h"               // for SdpVarMapper
+#include "sdpi/sdpi.h"                  // for SDP-Interface
+#include "SdpCone.h"                    // for Iterators
 
 
 
@@ -71,7 +73,7 @@ SCIP_RETCODE check_bounds(
    int                   nvars,              /**< number of variables */
    SCIP_VAR**            var,                /**< variables */
    SCIP_SOL*             scipsol,            /**< solution of scip-type to check bounds for */
-   bool*                 sol_is_feas         /**< pointer to store if solution is feasible */
+   SCIP_Bool*            sol_is_feas         /**< pointer to store if solution is feasible */
    )
 {
    *sol_is_feas = TRUE;
@@ -89,172 +91,557 @@ SCIP_RETCODE check_bounds(
    return SCIP_OKAY;
 }
 
+/** removes all indices j from an SDP block for which both row j and column j are completely empty/zero (for this all entries of sdpval
+ * really need to be nonzero, because these will not be checked) */
+static
+SCIP_RETCODE removeEmptyRowCols(
+   BMS_BLKMEM*           blkmem,             /**< block memory */
+   const int             block,              /**< index of the SDP-block this is called for */
+   const int             oldblocksize,       /**< old block size of the SDP-block */
+   int*                  newblocksize,       /**< block size after removing redundant indices */
+   const int             blockstartind,      /**< starting index of the block in the sdp-nonzero arrays */
+   const int             nextblockstartind,  /**< starting index of the next block in the sdp-nonzero arrays */
+   int*                  sdprowind,          /**< row-indices of the sdp-nonzeroes */
+   int*                  sdpcolind           /**< column-indices of the sdp-nonzeroes */
+   )
+{
+   int i;
+   int j;
+   int* deleted; /* if deleted[i - 1] = -1, row and column i are both empty and will thus be deleted, otherwise this gives the number of
+                  * indices before the current one that were deleted and therefore the number of positions this index needs to be shifted*/
+   int ndeleted; /* after the for-queue below this will give the total number of indices that will be deleted (this is also used to
+                  * compute the positive entries of the deleted-array) */
 
+   /* compute the deleted array */
+   BMSallocBlockMemoryArray(blkmem, &deleted, oldblocksize);
+   ndeleted = 0;
+
+   for (i = 1; i <= oldblocksize; i++)
+   {
+      for (j = blockstartind; j < nextblockstartind; j++)
+      {
+         if (sdprowind[j] == i || sdpcolind[j] == i)
+         {
+            deleted[i - 1] = ndeleted;
+            break;
+         }
+         if (j == nextblockstartind - 1) /* this is the last index for the inner for-queue, so if some index wasn't found until now
+                                          * it will be deleted */
+         {
+            deleted[i - 1] = -1;
+            ndeleted++;
+            SCIPdebugMessage("deleted the following index in block %d becase of empty row & col: %d\n", block, i);
+         }
+      }
+   }
+
+   /* now shift all row- & column-indices according to the deleted-array */
+   for (i = blockstartind; i < nextblockstartind; i++)
+   {
+      assert ( deleted[sdprowind[i] - 1] > -1 );
+      sdprowind[i] = sdprowind[i] - deleted[sdprowind[i] - 1]; /* index shift, because deleted starts at 0 while row/col numbers start at 1*/
+
+      assert ( deleted[sdpcolind[i] - 1] > -1 );
+      sdpcolind[i] = sdpcolind[i] - deleted[sdpcolind[i] - 1];
+   }
+
+   SCIPdebugMessage("number of deleted indices in block %d because of empty rows & cols: %d\n", block, ndeleted);
+   /* finally update the blocksize */
+   *newblocksize = oldblocksize - ndeleted;
+
+   BMSfreeBlockMemoryArray(blkmem, &deleted, oldblocksize);
+
+   return SCIP_OKAY;
+}
+
+/** inserts all the data into the corresponding SDP Interface */
+static
+SCIP_RETCODE putDataInInterface(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   BMS_BLKMEM*           blkmem,             /**< block memory */
+   SdpProblem*           problemdata,        /**< data structure with problem-data of a specific node */
+   SdpVarMapper*         varmapper           /**< data about fixed variables */
+   )
+{
+   int i;
+   int nvars;
+   SCIP_VAR ** vars;
+   SdpCone* sdpcone;
+   int ind;
+   int newblocksize;
+   SCIP_VAR** fixedvars;
+   int nfixedvars;
+   double* fixedvalues;
+   SdpCone::element el;
+   SCIP_VAR* var;
+   SCIP_Real* sdpvar; /* this could as well be int, but SCIP only knows SCIPsortRealRealIntInt, but not IntRealIntInt or IntIntIntReal */
+   int endindex;
+   int lastindforvar;
+   const int* formatind;
+   const int* forconstraint;
+   const SCIP_Real* forvals;
+   SCIP_Real* obj;
+   SCIP_Real* lb;
+   SCIP_Real* ub;
+   int nsdpblocks;
+   int* sdpblocksizes;
+   int sdpconstnnonz;
+   int* sdpconstbegblock;
+   int* sdpconstrowind;
+   int* sdpconstcolind;
+   SCIP_Real* sdpconstval;
+   int sdpnnonz;
+   int* sdpbegvarblock;
+   int* sdprowind;
+   int* sdpcolind;
+   SCIP_Real* sdpval;
+   int nlpcons;
+   SCIP_Real* lprhs;
+   int lpnnonz;
+   int* lprowind;
+   int* lpcolind;
+   SCIP_Real* lpval;
+
+   nsdpblocks = problemdata->get_nsdpcones();
+   nvars = varmapper->get_sdp_nvars();
+   vars = SCIPgetVars(scip);
+
+   /* prepare arrays of objective values and bounds */
+   BMSallocBlockMemoryArray(blkmem, &obj, nvars);
+   BMSallocBlockMemoryArray(blkmem, &lb, nvars);
+   BMSallocBlockMemoryArray(blkmem, &ub, nvars);
+   for (i = 0; i < nvars; i++)
+   {
+      obj[i] = SCIPvarGetObj(vars[i]);
+      lb[i] = -1 * SCIPsdpiInfinity(sdpi); /* this should be changed after SdpProblem was changed to add bounds instead of converting them to LP cons */
+      ub[i] = SCIPsdpiInfinity(sdpi); /* "---------------------------------------------------------------------------------------------------------" */
+   }
+
+   /* get SDPBlocksizes */
+   BMSallocBlockMemoryArray(blkmem, &sdpblocksizes, nsdpblocks);
+
+   for (i = 0; i < nsdpblocks; i++)
+   {
+      sdpblocksizes[i] = problemdata->get_sdpcone(i)->get_blocksize();
+   }
+
+   /* get all fixed variables */
+   ind = 0;
+   nfixedvars = varmapper->get_nfixed();
+   BMSallocBlockMemoryArray(blkmem, &fixedvars, nfixedvars);
+   BMSallocBlockMemoryArray(blkmem, &fixedvalues, nfixedvars);
+   for (i = 0; i < SCIPgetNVars(scip); i++)
+   {
+      if (varmapper->get_sdp_index(vars[i]) == -1 )
+      {
+         fixedvars[ind] = vars[i];
+         fixedvalues[ind] = SCIPvarGetUbLocal(vars[i]);
+         ind++;
+         assert ( SCIPisEQ(scip, SCIPvarGetUbLocal(vars[i]), SCIPvarGetLbLocal(vars[i])) );
+      }
+   }
+
+   /* compute SDPconstbegblock and SDPconstnnonz and SDPbegvarblock (only the begblock part) and SDPnnonz
+    * these need to be computed now to know how much space to allocate for the other arrays
+    * for this the Iterator is needed, because these numbers depend on the number of nnonz of fixed variables */
+   BMSallocBlockMemoryArray(blkmem, &sdpconstbegblock, nsdpblocks);
+   BMSallocBlockMemoryArray(blkmem, &sdpbegvarblock, nsdpblocks * nvars);
+
+   /* the constant part */
+   ind = 0;
+
+   for (i = 0; i < nsdpblocks; i++)
+   {
+      sdpconstbegblock[i] = ind;
+
+      sdpcone = problemdata->get_sdpcone(i);
+
+      for (SdpCone::RhsIterator it = sdpcone->rhs_begin(fixedvars, nfixedvars, fixedvalues); it != sdpcone->rhs_end(); ++it)
+      {
+         ind++;
+      }
+   }
+
+   sdpconstnnonz = ind;
+
+   /* the non-constant part */
+   ind = 0;
+
+   for (i = 0; i < nsdpblocks; i++)
+   {
+      sdpbegvarblock[i * nvars] = ind;
+
+      sdpcone = problemdata->get_sdpcone(i);
+
+      for (SdpCone::LhsIterator it = sdpcone->lhs_begin(fixedvars, nfixedvars); it != sdpcone->lhs_end(); ++it)
+      {
+         ind++;
+      }
+   }
+
+   sdpnnonz = ind;
+
+
+   /* prepare sdpconst-arrays */
+   BMSallocBlockMemoryArray(blkmem, &sdpconstrowind, sdpconstnnonz);
+   BMSallocBlockMemoryArray(blkmem, &sdpconstcolind, sdpconstnnonz);
+   BMSallocBlockMemoryArray(blkmem, &sdpconstval, sdpconstnnonz);
+   ind = 0;
+
+   for (i = 0; i < nsdpblocks; i++)
+   {
+      sdpcone = problemdata->get_sdpcone(i);
+
+      for (SdpCone::RhsIterator it = sdpcone->rhs_begin(fixedvars, nfixedvars, fixedvalues); it != sdpcone->rhs_end(); ++it)
+      {
+         el = *it;
+         sdpconstrowind[ind] = el.row + 1; /* index shift */
+         sdpconstcolind[ind] = el.col + 1; /* index shift */
+         sdpconstval[ind] = -1 * el.val; /* these are saved in SDPCone with the same sign as the other nonzeroes to be able to combine
+                                          * them for fixed variables, but the interface assumes that -A_0 is added to the SDP-Blocks */
+         ind++;
+      }
+
+      if (i < nsdpblocks - 1)
+      {
+         assert ( sdpconstbegblock[i+1] == ind );
+      }
+      else
+      {
+         assert ( sdpconstnnonz == ind );
+      }
+
+   }
+
+   /* prepare sdp-arrays */
+   BMSallocBlockMemoryArray(blkmem, &sdprowind, sdpnnonz);
+   BMSallocBlockMemoryArray(blkmem, &sdpcolind, sdpnnonz);
+   BMSallocBlockMemoryArray(blkmem, &sdpval, sdpnnonz);
+   BMSallocBlockMemoryArray(blkmem, &sdpvar, sdpnnonz); /* in this array the variables for the entries will be stored, later this will
+                                                         * be used to compute the sdpbegvarblock-array */
+
+   ind = 0;
+
+   for (i = 0; i < nsdpblocks; i++)
+   {
+      int j;
+
+      sdpcone = problemdata->get_sdpcone(i);
+
+      for (SdpCone::LhsIterator it = sdpcone->lhs_begin(fixedvars, nfixedvars); it != sdpcone->lhs_end(); ++it)
+      {
+         el = *it;
+         var = sdpcone->get_var(el.vidx);
+         sdprowind[ind] = el.row + 1; /* index shift */
+         sdpcolind[ind] = el.col + 1; /* index shift */
+         sdpval[ind] = el.val;
+         sdpvar[ind] = varmapper->get_sdp_index(var) + 1;
+         ind++;
+      }
+
+      if (i < nsdpblocks - 1)
+      {
+         assert ( sdpbegvarblock[(i+1) * nvars] == ind );
+      }
+      else
+      {
+         assert ( sdpnnonz == ind );
+      }
+
+      /* now sort all entries belonging to this block by their variables to compute the remaining entries of sdpbegvarblock */
+      if (i < nsdpblocks - 1)
+      {
+         endindex = sdpbegvarblock[(i+1) * nvars];
+      }
+      else
+      {
+         endindex = sdpnnonz;
+      }
+
+      SCIPsortRealRealIntInt(sdpvar + sdpbegvarblock[i*nvars], sdpval + sdpbegvarblock[i*nvars], sdpcolind + sdpbegvarblock[i*nvars],
+                                sdprowind + sdpbegvarblock[i*nvars], endindex - sdpbegvarblock[i * nvars]); /* + sdpbegvarblock[i*nvars] makes sure that sorting
+                                                                                                             * starts at the beginning of this block */
+      lastindforvar = sdpbegvarblock[i*nvars];
+      for (j = 1; j <= nvars; j++)
+      {
+         while (lastindforvar < endindex && sdpvar[lastindforvar] == j) /* get the first index that doesn't belong to this variable */
+         {
+            lastindforvar++;
+         }
+         if (j < nvars)
+         {
+            sdpbegvarblock[i * nvars + (j - 1) + 1] = lastindforvar;       /* set the remaining sdbegvarblock entries equal to the computed values */
+         }
+         else
+         {
+            assert (lastindforvar == endindex );
+         }
+      }
+
+      /* remove all empty rows and columns to get a non-empty strict interior for the interior-point-SDP-Solver */
+      removeEmptyRowCols(blkmem, i, sdpblocksizes[i], &newblocksize, sdpbegvarblock[i * nvars], endindex, sdprowind, sdpcolind);
+   }
+
+   BMSfreeBlockMemoryArray(blkmem, &sdpvar, sdpnnonz);
+
+
+   /* prepare LP arrays */
+   nlpcons = problemdata->get_size_lpblock();
+
+   BMSallocBlockMemoryArray(blkmem, &lprowind, problemdata->get_for_matind_size()); /* this is the worst case length if all right hand sides are zero,
+                                                                                  * otherwise the last (number of rhs-nonzeroes) entries will stay empty */
+   BMSallocBlockMemoryArray(blkmem, &lpcolind, problemdata->get_for_matind_size());
+   BMSallocBlockMemoryArray(blkmem, &lpval, problemdata->get_for_matind_size());
+   BMSallocBlockMemoryArray(blkmem, &formatind, problemdata->get_for_matind_size());
+   BMSallocBlockMemoryArray(blkmem, &forconstraint, problemdata->get_for_matind_size());
+   BMSallocBlockMemoryArray(blkmem, &forvals, problemdata->get_for_matind_size());
+   BMSallocBlockMemoryArray(blkmem, &lprhs, nlpcons);
+
+   /*  partition the nonzeroes into right hand sides and "traditional" nonzeroes */
+   formatind = problemdata->get_for_matind();
+   forconstraint = problemdata->get_for_constraint();
+   forvals = problemdata->get_for_vals();
+
+   ind = 0;
+   for (i = 0; i < problemdata->get_for_matind_size(); i++)
+   {
+      if (forconstraint[i] == 0) /* this means it's a right hand side */
+      {
+         lprhs[formatind[i]] = -1 * forvals[i]; /* in SDPCone these are saved as lhs-nonzeroes with negative sign and variable 0, but
+                                                 * the interface expects them as right hand sides, so the multiplication with -1 needs
+                                                 * to be reversed */
+      }
+      else /* this means it's a "real" nonzero */
+      {
+         lprowind[ind] = formatind[i] + 1; /* these start at 0 in SDPCone but should start at 1 for the Interface */
+         lpcolind[ind] = forconstraint[i];
+         lpval[ind] = forvals[i];
+         ind++;
+      }
+   }
+
+   lpnnonz = ind;
+
+   /* the arrays used for determining whether the entries are rhs or nonzeroes can now be freed */
+   BMSfreeBlockMemoryArray(blkmem, &formatind, problemdata->get_for_matind_size());
+   BMSfreeBlockMemoryArray(blkmem, &forconstraint, problemdata->get_for_matind_size());
+   BMSfreeBlockMemoryArray(blkmem, &forvals, problemdata->get_for_matind_size());
+
+   SCIP_CALL(SCIPsdpiLoadSDP(sdpi, nvars, (const SCIP_Real*) obj, (const SCIP_Real*) lb, (const SCIP_Real*) ub, nsdpblocks,
+                            (const int*) sdpblocksizes, sdpconstnnonz, (const int*) sdpconstbegblock, (const int*) sdpconstrowind,
+                            (const int*) sdpconstcolind, (const SCIP_Real*) sdpconstval, sdpnnonz, (const int*) sdpbegvarblock,
+                            (const int*) sdprowind, (const int*) sdpcolind, (const SCIP_Real*) sdpval, nlpcons,
+                            (const SCIP_Real*) lprhs, lpnnonz, (const int*) lprowind, (const int*) lpcolind,
+                            (const SCIP_Real*) lpval));
+
+   BMSfreeBlockMemoryArray(blkmem, &obj, nvars);
+   BMSfreeBlockMemoryArray(blkmem, &lb, nvars);
+   BMSfreeBlockMemoryArray(blkmem, &ub, nvars);
+   BMSfreeBlockMemoryArray(blkmem, &sdpblocksizes, nsdpblocks);
+   BMSfreeBlockMemoryArray(blkmem, &sdpconstbegblock, nsdpblocks);
+   BMSfreeBlockMemoryArray(blkmem, &sdpconstrowind, sdpconstnnonz);
+   BMSfreeBlockMemoryArray(blkmem, &sdpconstcolind, sdpconstnnonz);
+   BMSfreeBlockMemoryArray(blkmem, &sdpconstval, sdpconstnnonz);
+   BMSfreeBlockMemoryArray(blkmem, &sdpbegvarblock, nsdpblocks * nvars);
+   BMSfreeBlockMemoryArray(blkmem, &sdprowind, sdpnnonz);
+   BMSfreeBlockMemoryArray(blkmem, &sdpcolind, sdpnnonz);
+   BMSfreeBlockMemoryArray(blkmem, &sdpval, sdpnnonz);
+   BMSfreeBlockMemoryArray(blkmem, &lprhs, nlpcons);
+   BMSfreeBlockMemoryArray(blkmem, &lprowind, problemdata->get_for_matind_size());
+   BMSfreeBlockMemoryArray(blkmem, &lpcolind, problemdata->get_for_matind_size());
+   BMSfreeBlockMemoryArray(blkmem, &lpval, problemdata->get_for_matind_size());
+
+   return SCIP_OKAY;
+}
+
+/** gets the solution from sdpi and adds the fixed variables to the solution of the SDP Solver and transforms it to the variable indices used in SCIP */
+static
+SCIP_RETCODE getTransformedSol(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   BMS_BLKMEM*           blkmem,             /**< block memory */
+   SdpVarMapper*         varmapper,          /**< data about fixed variables */
+   SCIP_Real*            solforscip,         /**< the solution indexed by SCIP variable indices */
+   SCIP_Real*            objforscip          /**< the objective value including the fixed variables */
+   )
+{
+   int nsdpvars;
+   SCIP_Real* sdpsol;
+   SCIP_Real sdpobj;
+   SCIP_VAR** vars;
+   int nvars;
+   int ind;
+   int i;
+
+   SCIPsdpiGetNVars(sdpi, &nsdpvars);
+   BMSallocBlockMemoryArray(blkmem, &sdpsol, nsdpvars);
+
+   SCIP_CALL(SCIPsdpiGetSol(sdpi, &sdpobj, sdpsol, nsdpvars)); /* get both the objective and the solution from the SDP solver */
+
+   *objforscip = sdpobj; /* initialize the objective with that of the SDP, later the objective parts of the fixed variables will be added to this */
+
+   vars = SCIPgetVars (scip);
+   nvars = SCIPgetNVars(scip);
+
+   for (i = 0; i < nvars; i++)
+   {
+      ind = varmapper->get_sdp_index(vars[i]);
+      if (ind == -1)
+      {
+         solforscip[i] = SCIPvarGetUbLocal(vars[i]); /* this variable was fixed, so it es equal to its upper bound (which equals the lower bound */
+         *objforscip = *objforscip + solforscip[i] * SCIPvarGetObj(vars[i]); /* add this fixed variables contribution to the objective value */
+      }
+      else
+      {
+         solforscip[i] = sdpsol[ind]; /* get the value of the corresponding variable in the SDP */
+         /* nothing needs to be done here with the objective value, because it was already initialized with the value from the SDP solver */
+      }
+   }
+
+   return SCIP_OKAY;
+}
 
 /** call solve */
 static
 SCIP_RETCODE calc_relax(
-   SdpInterface*         sdpsolver,          /**< sdpsolver class object */
+   SCIP_SDPI*            sdpi,               /**< SDP-Interface structure */
    SdpProblem*           problemdata,        /**< data structure with problem-data of a specific node */
    SCIP*                 scip,               /**< SCIP data structure */
+   BMS_BLKMEM*           blkmem,             /**< block memory */
    SCIP_RESULT*          result,             /**< pointer to store result of relaxation process */
    SCIP_Real*            lowerbound,         /**< pointer to store lowerbound */
    SdpVarMapper*         varmapper           /**< varmapper class data */
    )
 {
    SCIP_VAR** vars;
+   int nvars;
+   SCIP_Real* solforscip;
+   SCIP_Real objforscip;
+   int i;
+
+   nvars = SCIPgetNVars(scip);
    vars = SCIPgetVars (scip);
-   const int nvars = SCIPgetNVars(scip);
-   char status;
-   int solutiontype;
-   double *sol_for_scip;
 
-   SCIP_CALL( SCIPallocBufferArray(scip, &sol_for_scip, nvars));
-   SCIP_CALL( sdpsolver->sdp_solve(varmapper, &status, &solutiontype, sol_for_scip) );
+   BMSallocBlockMemoryArray(blkmem, &solforscip, nvars);
 
-   double obj_val = 0;
-   for (int i = 0; i < nvars; i++)
+   SCIP_CALL(SCIPsdpiSolve(sdpi));
+
+   SCIP_CALL(getTransformedSol(scip, sdpi, blkmem, varmapper, solforscip, &objforscip));
+
+   assert(solforscip != NULL);
+
+#ifdef SCIP_DEBUG /* print the optimal solution */
+   SCIPdebugMessage("optimal solution: objective = %f, ", objforscip);
+   SCIPdebugMessage("dual feasible: %d, ", SCIPsdpiIsDualFeasible(sdpi));
+   SCIPdebugMessage("primal feasible: %d, ", SCIPsdpiIsPrimalFeasible(sdpi));
+   for (i = 0; i < nvars; i++)
    {
-      if (sol_for_scip[i] != 0)
-      {
-         obj_val += sol_for_scip[i] * SCIPvarGetObj(vars[i]);
-      }
-
+      SCIPdebugMessage("y_%d = %f, ", i, solforscip[i]);
    }
+   SCIPdebugMessage("\n");
+#endif
 
-   bool go_on_and_try = FALSE;
-   assert(sol_for_scip != NULL);
-
-   if ((status == 'c') && (solutiontype == 3) )
+   if (SCIPsdpiIsOptimal(sdpi))
    {
-      if (! varmapper->get_intsfixed())
-      {  //we don't know anything about the problem status, so we solve again with a penalty formulation, that is able to find a feasible point if there is one
-         SCIP_CALL( sdpsolver->again_with_penalty(result, lowerbound, varmapper, problemdata) );
-
-         SCIPfreeBufferArray(scip, &sol_for_scip);
+      if (SCIPsdpiIsDualInfeasible(sdpi))
+      {
+         *result = SCIP_CUTOFF;
+         BMSfreeBlockMemoryArray(blkmem, &solforscip, nvars);
          return SCIP_OKAY;
       }
-      else
-      {
-         //if all ints are fixed, we want to check feasbility and maybe use the solution
-         go_on_and_try = TRUE;
-      }
 
-   }
-
-   if ( (status == 's') && (solutiontype == 2) )
-   {
-      *result = SCIP_SUCCESS;
-      *lowerbound = SCIPinfinity(scip);
-      SCIPfreeBufferArray(scip, &sol_for_scip);
-      return SCIP_OKAY;
-   }
-
-   if ( (status == 's') && (solutiontype == 1) )
-   {
-      *result = SCIP_CUTOFF;
-      SCIPfreeBufferArray(scip, &sol_for_scip);
-      return SCIP_OKAY;
-   }
-
-   if ((solutiontype == 0) || ((status == 's') && (solutiontype == 3)) || (go_on_and_try) )
-   {
-      bool sol_is_feas = TRUE;
-      //create a scip_sol object and set the values
-      SCIP_SOL* scipsol;
-      SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
-      SCIP_Bool stored;
-      SCIP_CALL( SCIPsetSolVals (scip, scipsol, nvars, vars, sol_for_scip) );
-
-      SCIP_CALL(check_bounds(scip, nvars, vars, scipsol, &sol_is_feas));
-
-      if (sol_is_feas == 1)
-      {
-         *lowerbound = obj_val;
-
-
-         SCIP_Bool  delayed;
-         SCIP_Bool  cutoff_forsep;
-
-         SCIP_CALL( SCIPseparateSol (scip, scipsol, FALSE, FALSE, &delayed, &cutoff_forsep) );
-         SCIP_CALL( SCIPtrySol(scip, scipsol, FALSE, TRUE, TRUE, TRUE, &stored) );
-
-         SCIP_COL** cols;
-         int ncols;
-         SCIP_CALL( SCIPgetLPColsData(scip, &cols, &ncols) );
-
-         for (int i = 0; i < ncols; i++)
-         {
-            SCIP_CALL(SCIPsetRelaxSolVal(scip, SCIPcolGetVar(cols[i]), SCIPgetSolVal(scip, scipsol, SCIPcolGetVar(cols[i]))));
-         }
-
-         SCIP_CALL(SCIPmarkRelaxSolValid(scip));
-         SCIP_CALL(SCIPfreeSol(scip, &scipsol));
-      }
-
-      int ncuts = SCIPgetNCuts(scip);
-
-
-      if ( (status == 's') && (solutiontype == 0) )
-      {
-         if (sol_is_feas == 0)
-         {
-
-            SCIP_CALL( sdpsolver->again_with_penalty(result, lowerbound, varmapper, problemdata) );
-
-            SCIPfreeBufferArray(scip, &sol_for_scip);
-            return SCIP_OKAY;
-         }
-      }
-
-      if (SCIPgetNIntVars(scip) == 0 && SCIPgetNBinVars(scip) == 0) //there are no integer and binary vars, we are done
+      else if (SCIPsdpiIsDualUnbounded(sdpi))
       {
          *result = SCIP_SUCCESS;
+         *lowerbound = SCIPinfinity(scip);
+         BMSfreeBlockMemoryArray(blkmem, &solforscip, nvars);
+         return SCIP_OKAY;
       }
-      else
+
+      else if (SCIPsdpiIsPrimalFeasible(sdpi) && SCIPsdpiIsDualFeasible(sdpi))
       {
-         if (ncuts == 0)
+         SCIP_SOL* scipsol;
+         SCIP_Bool solisfeas;
+         SCIP_Bool stored;
+         SCIP_COL** cols;
+         int ncols;
+
+         SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
+         SCIP_CALL( SCIPsetSolVals (scip, scipsol, nvars, vars, solforscip) );
+         SCIP_CALL(check_bounds(scip, nvars, vars, scipsol, &solisfeas));
+
+         if (solisfeas)
          {
-            *result = SCIP_SUCCESS;
+            *lowerbound = objforscip;
+
+
+            SCIP_Bool  delayed;
+            SCIP_Bool  cutoff_forsep;
+
+            SCIP_CALL( SCIPseparateSol (scip, scipsol, FALSE, FALSE, &delayed, &cutoff_forsep) );
+            SCIP_CALL( SCIPtrySol(scip, scipsol, FALSE, TRUE, TRUE, TRUE, &stored) );
+
+            SCIP_CALL( SCIPgetLPColsData(scip, &cols, &ncols) );
+
+            for (i = 0; i < ncols; i++)
+            {
+               SCIP_CALL(SCIPsetRelaxSolVal(scip, SCIPcolGetVar(cols[i]), SCIPgetSolVal(scip, scipsol, SCIPcolGetVar(cols[i]))));
+            }
+
+            SCIP_CALL(SCIPmarkRelaxSolValid(scip));
+            SCIP_CALL(SCIPfreeSol(scip, &scipsol));
+
+            int ncuts = SCIPgetNCuts(scip);
+
+            if (SCIPgetNIntVars(scip) == 0 && SCIPgetNBinVars(scip) == 0) /* there are no integer and binary vars, we are done */
+            {
+               *result = SCIP_SUCCESS;
+            }
+            else
+            {
+               if (ncuts == 0)
+               {
+                  *result = SCIP_SUCCESS;
+               }
+               else
+               {
+                  *result = SCIP_SEPARATED;
+               }
+            }
+
+            for (i = 0; i < nvars; i++)
+            {
+               if (!SCIPisIntegral(scip, solforscip[i]) && SCIPvarIsIntegral(vars[i]) && (SCIPvarGetLbLocal(vars[i]) != SCIPvarGetUbLocal(vars[i])))
+               {
+                  SCIP_CALL( SCIPaddExternBranchCand(scip, vars[i], 10000, solforscip[i]) );
+               }
+            }
+
+            BMSfreeBlockMemoryArray(blkmem, &solforscip, nvars);
+
+            return SCIP_OKAY;
          }
          else
          {
-            *result = SCIP_SEPARATED;
+            /* TODO could try to solve again with penalty function */
+            SCIPerrorMessage("The SDP solver said the solution was feasible, but SCIP says it isn't.");
+            BMSfreeBlockMemoryArray(blkmem, &solforscip, nvars);
+            SCIPABORT();
+            return SCIP_ERROR;
          }
       }
-
-      for (int i = 0; i < nvars; i++)
-      {
-         if (!SCIPisIntegral(scip, sol_for_scip[i]) && SCIPvarIsIntegral(vars[i]) && (SCIPvarGetLbLocal(vars[i]) != SCIPvarGetUbLocal(vars[i])))
-            SCIP_CALL( SCIPaddExternBranchCand(scip, vars[i], 10000, sol_for_scip[i]) );
-      }
-
-      SCIPfreeBufferArray(scip, &sol_for_scip);
-
-      return SCIP_OKAY;
    }
-   if ( (status == 'c') && (solutiontype == 1 || solutiontype == 2))
+   else
    {
-      //DSDP is not converged and the solution it produced was not feasible.
-
-
-      if (varmapper->get_intsfixed())
-      {
-         *result = SCIP_CUTOFF;
-         SCIPfreeBufferArray(scip, &sol_for_scip);
-         return SCIP_OKAY;
-      }
-      else
-      {
-         *result = SCIP_DIDNOTRUN;
-         //we are not converged, so we can't trust the infeasible or unbounded result, therefore we return didnotrun
-
-         SCIPfreeBufferArray(scip, &sol_for_scip);
-
-         return SCIP_OKAY;
-      }
+      /* TODO could try to solve again with penalty function */
+      SCIPerrorMessage("The SDP solver didn't converge.");
+      BMSfreeBlockMemoryArray(blkmem, &solforscip, nvars);
+      SCIPABORT();
+      return SCIP_ERROR; /* or SCIP_DIDNOTRUND ?, could also think about returning SCIP_CUTOFF if it was unfeasible and didn't converge */
    }
-   return SCIP_ERROR; //Cannot be reached
+
+   return SCIP_ERROR; /*can't be reached */
 }
 
 /** execution method of relaxator */
@@ -296,12 +683,11 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
       return SCIP_OKAY;
    }
 
-   SdpInterface* sdpsolver;
-   char* value;
-   SCIP_CALL(SCIPgetStringParam(scip, "sdpsolver", &value));
-   sdpsolver = SdpSolverFactory::createSdpSolver(scip, "dsdp");
+   SCIP_SDPI* sdpi;
+   BMS_BLKMEM* blkmem = BMScreateBlockMemory(8, 0.5); // 0.5 für garbage collector sinnvoller Wert ??????????????????????????????????
+   SCIP_CALL(SCIPsdpiCreate(&sdpi, NULL, blkmem));
 
-   SCIP_CALL( sdpsolver->put_data_in(problemdata, varmapper) );
+   SCIP_CALL( putDataInInterface(scip, sdpi, blkmem, problemdata, varmapper) );
 
    if (varmapper->get_allfixed())
    {
@@ -341,7 +727,8 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
          *result = SCIP_CUTOFF;
       }
       SCIPfreeBufferArray(scip, &ubs);
-      delete sdpsolver;
+      SCIPsdpiFree(&sdpi);
+      BMSdestroyBlockMemory(&blkmem);
       delete problemdata;
       SCIP_CALL(varmapper->exit());
       delete varmapper;
@@ -349,11 +736,16 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
       return SCIP_OKAY;
    }
 
-   SCIP_CALL( calc_relax(sdpsolver, problemdata, scip, result, lowerbound, varmapper));
+   SCIP_CALL( calc_relax(sdpi, problemdata, scip, blkmem, result, lowerbound, varmapper));
 
    SCIP_CALL(varmapper->exit());
+
    delete varmapper;
-   delete sdpsolver;
+
+   SCIPsdpiFree(&sdpi);
+
+   BMSdestroyBlockMemory(&blkmem);
+
    delete problemdata;
 
    return SCIP_OKAY;

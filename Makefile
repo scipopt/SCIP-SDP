@@ -25,7 +25,7 @@
 
 #@file    Makefile
 #@brief   Makefile for C++ SDP-Interface for SCIP
-#@author  Sonja Mars, Lars Schewe
+#@author  Sonja Mars, Lars Schewe, Marc Pfetsch, Tristan Gally
 
 #-----------------------------------------------------------------------------
 # own variables
@@ -70,11 +70,10 @@ MAINOBJ	=	scipsdp/main.o \
 		scipsdp/SdpVarMapper.o \
 		scipsdp/SdpCone.o \
 		scipsdp/ScipStreamBuffer.o \
-		scipsdp/SdpProblem.o \
-		scipsdp/SdpSolverFactory.o
+		scipsdp/SdpProblem.o 
 
 ifeq ($(SDPS), dsdp)
-MAINOBJ 	+= 	scipsdp/DsdpInterface.o
+MAINOBJ 	+= 	sdpi/sdpi_dsdp.o
 endif
 
 MAINSRC		=	$(addprefix $(SRCDIR)/,$(MAINOBJ:.o=.cpp))

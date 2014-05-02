@@ -131,7 +131,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    const SCIP_Real*      lb,                 /**< lower bounds of variables */
    const SCIP_Real*      ub,                 /**< upper bounds of variables */
    int                   nsdpblocks,         /**< number of SDP-blocks */
-   int*                  sdpblocksizes,      /**< sizes of the SDP-blocks */
+   const int*            sdpblocksizes,      /**< sizes of the SDP-blocks */
    int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks */
    const int*            sdpconstbegblock,   /**< start index of each block in sdpconstval-array */
    const int*            sdpconstrowind,     /**< row-index for each entry in sdpconstval-array */
@@ -156,18 +156,18 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
  */
 EXTERN
 SCIP_RETCODE SCIPsdpiAddSDPBlock(
-      SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-      int                   blocksize,          /**< dimension of the matrices \f A_i^j \f */
-      int                   constnnonz,         /**< sum of non-zeroes in the lower triagonal parts of \f A_0^j \f */
-      const int*            constrowind,        /**< the row-indices of the non-zero entries of \f A_i^0 \f */
-      const int*            constcolind,        /**< the column-indices of the non-zero entries of \f A_i^0 \f */
-      const SCIP_Real*      constval,           /**< the values of \f A_i^0 \f as specified by constbegrow and constcolind */
-      int                   nnonz,              /**< sum of non-zeroes in the lower triagonal parts of the \f A_i^j \f */
-      const int*            begvar,             /**< start index of the matrix \f A_i^j \f for each i */
-      const int*            rowind,             /**< the row-indices of the non-zero entries of \f A_i^j \f */
-      const int*            colind,             /**< the column-indices of the non-zero entries of \f A_i^j \f */
-      const SCIP_Real*      val                 /**< the values of of \f A_i^j \f as specified by begvar, rowind and colind */
-      );
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   int                   blocksize,          /**< dimension of the matrices \f A_i^j \f */
+   int                   constnnonz,         /**< sum of non-zeroes in the lower triagonal parts of \f A_0^j \f */
+   const int*            constrowind,        /**< the row-indices of the non-zero entries of \f A_i^0 \f */
+   const int*            constcolind,        /**< the column-indices of the non-zero entries of \f A_i^0 \f */
+   const SCIP_Real*      constval,           /**< the values of \f A_i^0 \f as specified by constbegrow and constcolind */
+   int                   nnonz,              /**< sum of non-zeroes in the lower triagonal parts of the \f A_i^j \f */
+   const int*            begvar,             /**< start index of the matrix \f A_i^j \f for each i */
+   const int*            rowind,             /**< the row-indices of the non-zero entries of \f A_i^j \f */
+   const int*            colind,             /**< the column-indices of the non-zero entries of \f A_i^j \f */
+   const SCIP_Real*      val                 /**< the values of of \f A_i^j \f as specified by begvar, rowind and colind */
+   );
 
 /** deletes a SDP-Block */
 EXTERN
@@ -567,6 +567,13 @@ SCIP_Bool SCIPsdpiIsDualFeasible(
 /** returns TRUE iff SDP was solved to optimality */
 EXTERN
 SCIP_Bool SCIPsdpiIsOptimal(
+   SCIP_SDPI*            sdpi                /**< SDP interface structure */
+   );
+
+/** returns TRUE iff SDP was solved to optimality or some other status was reached,
+ * that is still acceptable inside a Branch & Bound framework */
+EXTERN
+SCIP_Bool SCIPsdpiIsAcceptable(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    );
 
