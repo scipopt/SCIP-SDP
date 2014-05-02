@@ -28,6 +28,8 @@
  * @author Jakob Schelbert, Sonja Mars, Tristan Gally
  */
 
+#define SCIP_DEBUG
+
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 #include "objreader_sdpa.h"
 
@@ -79,6 +81,22 @@ namespace
 namespace scip
 {
 
+   /** function for removing comments in between the variable & block definitions */
+   static
+   SCIP_RETCODE dropComments(
+      std::istream*       file                /* the file instance that is read */
+      )
+   {
+      char fst_col('"');
+      fst_col = (*file).peek();
+      while (fst_col == '"' || fst_col == '*')
+      {
+         drop_rest_line(*file);
+         fst_col = (*file).peek();
+      }
+      return SCIP_OKAY;
+   }
+
 
    /** problem reading method of reader
     *
@@ -129,19 +147,14 @@ namespace scip
          return SCIP_READERROR;
       file.clear();
 
-      // drop comments
-      char fst_col('"');
-      fst_col = file.peek();
-      while (fst_col == '"' || fst_col == '*')
-      {
-         drop_rest_line(file);
-         fst_col = file.peek();
-      }
+      SCIP_CALL(dropComments(&file));
 
       //  read numvar
       drop_space(file);
       file >> numvars;
       drop_rest_line(file);
+
+      SCIP_CALL(dropComments(&file));
 
       // read numblocks
       drop_space(file);
@@ -152,6 +165,8 @@ namespace scip
       numlpblocks = 0;
       numsdpblocks = 0;
       alllpblocksize = 0;
+
+      SCIP_CALL(dropComments(&file));
 
       // read block pattern
       blockpattern = std::vector<int, BlockMemoryAllocator<int> >(numblocks, 0, BlockMemoryAllocator<int>(scip));
@@ -188,10 +203,13 @@ namespace scip
 
       assert(numblocks == numsdpblocks + numlpblocks);
 
-      // read objective
-      object = std::vector<double>(numvars, 0.0);
       drop_rest_line(file);
       drop_space(file);
+
+      SCIP_CALL(dropComments(&file));
+
+      // read objective
+      object = std::vector<double>(numvars, 0.0);
       for (int i = 0; i < numvars; ++i)
       {
          file >> object[i];
@@ -225,8 +243,7 @@ namespace scip
       		}
       		else // usual comment line
       		{
-      			drop_rest_line(file);
-      			drop_space(file);
+      		   drop_space(file);
       		}
       	}
       	else
@@ -287,6 +304,7 @@ namespace scip
       				blockstruct[block_index - 1].variables.push_back(var_index);
       				blockstruct[block_index - 1].num_nonzeros++;
       			}
+               SCIPdebugMessage("SDP entry: block_index: %d, row: %d, col: %d, var: %d, val: %g\n", block_index, row_index, col_index, var_index,val );
       		}
       		//lp-block
       		else if (blockislp[block_index - 1])
@@ -294,7 +312,7 @@ namespace scip
       			assert(row_index == col_index);
       			new_row_index = (row_index - 1) + (lp_block_num[block_index - 1] - 1) * lp_block_size[lp_block_num[block_index - 1] - 1];
       			LPData.rows[new_row_index].data.push_back(std::make_pair(var_index, val));
-      			SCIPdebugMessage("block_index: %d, row: %d, var: %d, val: %g\n", block_index, new_row_index, var_index,val );
+      			SCIPdebugMessage("LP entry: block_index: %d, row: %d, var: %d, val: %g\n", block_index, new_row_index, var_index,val );
 
       		}
 
