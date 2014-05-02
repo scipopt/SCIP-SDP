@@ -173,7 +173,6 @@ SCIP_RETCODE putDataInInterface(
    SCIP_VAR** fixedvars;
    int nfixedvars;
    double* fixedvalues;
-   SdpCone::element el;
    SCIP_VAR* var;
    SCIP_Real* sdpvar; /* this could as well be int, but SCIP only knows SCIPsortRealRealIntInt, but not IntRealIntInt or IntIntIntReal */
    int endindex;
@@ -243,8 +242,8 @@ SCIP_RETCODE putDataInInterface(
    /* compute SDPconstbegblock and SDPconstnnonz and SDPbegvarblock (only the begblock part) and SDPnnonz
     * these need to be computed now to know how much space to allocate for the other arrays
     * for this the Iterator is needed, because these numbers depend on the number of nnonz of fixed variables */
-   SCIPallocBlockMemoryArray(scip, &sdpconstbegblock, nsdpblocks);
-   SCIPallocBlockMemoryArray(scip, &sdpbegvarblock, nsdpblocks * nvars);
+   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &sdpconstbegblock, nsdpblocks));
+   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &sdpbegvarblock, nsdpblocks * nvars));
 
    /* the constant part */
    ind = 0;
@@ -277,9 +276,9 @@ SCIP_RETCODE putDataInInterface(
    sdpnnonz = ind;
 
    /* prepare sdpconst-arrays */
-   SCIPallocBlockMemoryArray(scip, &sdpconstrowind, sdpconstnnonz);
-   SCIPallocBlockMemoryArray(scip, &sdpconstcolind, sdpconstnnonz);
-   SCIPallocBlockMemoryArray(scip, &sdpconstval, sdpconstnnonz);
+   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &sdpconstrowind, sdpconstnnonz));
+   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &sdpconstcolind, sdpconstnnonz));
+   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &sdpconstval, sdpconstnnonz));
    ind = 0;
 
    for (i = 0; i < nsdpblocks; i++)
@@ -299,11 +298,11 @@ SCIP_RETCODE putDataInInterface(
    }
 
    /* prepare sdp-arrays */
-   SCIPallocBlockMemoryArray(scip, &sdprowind, sdpnnonz);
-   SCIPallocBlockMemoryArray(scip, &sdpcolind, sdpnnonz);
-   SCIPallocBlockMemoryArray(scip, &sdpval, sdpnnonz);
-   SCIPallocBlockMemoryArray(scip, &sdpvar, sdpnnonz); /* in this array the variables for the entries will be stored, later this will
-                                                         * be used to compute the sdpbegvarblock-array */
+   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &sdprowind, sdpnnonz));
+   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &sdpcolind, sdpnnonz));
+   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &sdpval, sdpnnonz));
+   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &sdpvar, sdpnnonz)); /* in this array the variables for the entries will be stored, later this will
+                                                                   * be used to compute the sdpbegvarblock-array */
 
    ind = 0;
 
@@ -313,11 +312,10 @@ SCIP_RETCODE putDataInInterface(
 
       for (SdpCone::LhsIterator it = sdpcone->lhs_begin(fixedvars, nfixedvars); it != sdpcone->lhs_end(); ++it)
       {
-         el = *it;
-         var = sdpcone->get_var(el.vidx);
-         sdprowind[ind] = el.row + 1; /* index shift */
-         sdpcolind[ind] = el.col + 1; /* index shift */
-         sdpval[ind] = el.val;
+         var = sdpcone->get_var(it->vidx);
+         sdprowind[ind] = it->row + 1; /* index shift */
+         sdpcolind[ind] = it->col + 1; /* index shift */
+         sdpval[ind] = it->val;
          sdpvar[ind] = varmapper->get_sdp_index(var) + 1;
          ind++;
       }

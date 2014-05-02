@@ -1,11 +1,12 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /*                                                                           */
-/*                  This file is part of the                                 */
-/*      SDP-Package for SCIP: a solving framework for                        */
-/*                            mixed-integer semidefinite programms           */
+/* This file is part of SCIPSDP - a solving framework for mixed-integer      */
+/* semidefinite programms based on SCIP.                                     */
 /*                                                                           */
-/* Copyright (C) 2011-2014 Discrete Optimization, TU Darmstadt               */
+/* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
+/*               2014      Discrete Optimization, TU Darmstadt               */
+/*                                                                           */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or             */
 /* modify it under the terms of the GNU Lesser General Public License        */
@@ -21,6 +22,12 @@
 /* along with this program; if not, write to the Free Software               */
 /* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.*/
 /*                                                                           */
+/*                                                                           */
+/* Based on SCIP - Solving Constraint Integer Programs                       */
+/* Copyright (C) 2002-2014 Zuse Institute Berlin                             */
+/* SCIP is distributed under the terms of the SCIP Academic Licence,         */
+/* see file COPYING in the SCIP distribution.                                */
+/*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   BlockMemoryAllocator.cpp
@@ -33,7 +40,7 @@
 
 /**
  * direct implementation of the Allocator interface
- * 
+ *
  */
 template <class T> class BlockMemoryAllocator
 {
@@ -45,16 +52,16 @@ public:
   typedef const value_type& const_reference;
   typedef std::size_t       size_type;
   typedef std::ptrdiff_t    difference_type;
-  
-  template <class U> 
+
+  template <class U>
   struct rebind { typedef BlockMemoryAllocator<U> other; };
 
  BlockMemoryAllocator(SCIP* scip) : scip_(scip) {}
 
  BlockMemoryAllocator(const BlockMemoryAllocator& other) : scip_(other.scip_) {}
-  template <class U> 
+  template <class U>
      BlockMemoryAllocator(const BlockMemoryAllocator<U>& other) : scip_(other.scip_) {}
-  ~BlockMemoryAllocator() 
+  ~BlockMemoryAllocator()
   {
      scip_ = NULL;
   }
@@ -62,11 +69,11 @@ public:
   pointer address(reference x) const { return &x; }
 
   const_pointer address(const_reference x) const
-  { 
+  {
     return x;
   }
 
-  pointer allocate(size_type n, const_pointer = 0) 
+  pointer allocate(size_type n, const_pointer = 0)
   {
      void* p;
      SCIP_CALL_ABORT(SCIPallocBlockMemorySize(scip_, &p, n * sizeof(T)));
@@ -76,17 +83,17 @@ public:
      return static_cast<pointer>(p);
   }
 
-  void deallocate(pointer p, size_type n) 
-  { 
+  void deallocate(pointer p, size_type n)
+  {
      SCIPfreeBlockMemorySize(scip_, &p, n * sizeof(T));
   }
 
-  size_type max_size() const { 
+  size_type max_size() const {
     return static_cast<size_type>(-1) / sizeof(T);
   }
 
-  void construct(pointer p, const value_type& x) { 
-     new(p) value_type(x); 
+  void construct(pointer p, const value_type& x) {
+     new(p) value_type(x);
   }
   void destroy(pointer p) { p->~value_type(); }
 
@@ -108,19 +115,19 @@ template<> class BlockMemoryAllocator<void>
   typedef void*       pointer;
   typedef const void* const_pointer;
 
-  template <class U> 
+  template <class U>
   struct rebind { typedef BlockMemoryAllocator<U> other; };
 };
 
 
 template <class T>
-inline bool operator==(const BlockMemoryAllocator<T>& left, 
+inline bool operator==(const BlockMemoryAllocator<T>& left,
                        const BlockMemoryAllocator<T>& right) {
    return left.scip_ == right.scip_;
 }
 
 template <class T>
-inline bool operator!=(const BlockMemoryAllocator<T>& left, 
+inline bool operator!=(const BlockMemoryAllocator<T>& left,
                        const BlockMemoryAllocator<T>& right) {
    return !(left == right);
 }
