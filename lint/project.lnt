@@ -1,0 +1,47 @@
+//-----------------------------------------------------------------
+// Lint settings
+//-----------------------------------------------------------------
+
+-zero         // set exit code to 0
+
+// declare Bitset.h to be a library
++libh(Bitset.h)
+
+// ----------------------------------------------------------------
+//    My error messages
+// ----------------------------------------------------------------
+
+-e537       // Repeated include file
+-e1712      // allow to omit default constructs
+-e717       // allow do ... while (0) constructs (appears in SCIP_CALL(...))
+-e1702      // operator 'Name' is both an ordinary function 'String' and a member function 'String'
+-e1725      // class member is a reference
+
+-e866       // Unusual use of 'SYM' in argument to sizeof
+
+-sem(COLORPROB::init,initializer)
+
+
+-esym(578,scip)           // Declaration of symbol hides symbol
+
+-emacro(506,debugMessage) // Constant value Boolean
+-emacro(681,debugMessage) // Loop is not entered
+-emacro(506,debugPrintf) // Constant value Boolean
+-emacro(681,debugPrintf) // Loop is not entered
+-emacro(506,SCIPdebugMessage) // Constant value Boolean
+-emacro(681,SCIPdebugMessage) // Loop is not entered
+-emacro(506,SCIPdebugPrintf) // Constant value Boolean
+-emacro(681,SCIPdebugPrintf) // Loop is not entered
+-emacro(506,SCIPdebugCheckRow) // Constant value Boolean
+-emacro(506,SCIPdebugCheckImplic) // Constant value Boolean
+-emacro(506,assert)           // Constant value Boolean
+
+-esym(534,times)
+
+-efile(1725,keyCmp.hpp)      // class name 'symbol' is a reference
+-efile(1013,/usr/include/boost/unordered/detail/allocator_helpers.hpp) // Symbol 'destroy' not a member of class ''
+
+// settings that just reduce output, but might discover correct errors:
+// -e613       // Possible use of null pointer (usually not correct)
+// -e666       // Expression with side effects passed to macro 'assert'
+// -w2         // turn off informational messages
