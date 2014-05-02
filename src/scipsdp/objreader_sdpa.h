@@ -76,7 +76,7 @@ namespace scip
    class LPBlock
    {
    public:
-      LPBlock () { }
+      LPBlock(): numrows(0) { }
       ~LPBlock() {}
 
       int numrows;
