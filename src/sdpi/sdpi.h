@@ -21,15 +21,13 @@
  *
  * This file specifies a generic SDP solver interface used by SCIP to create, modify, and solve semidefinite programs of
  * the (dual) form
- *
  *   \f{eqnarray*}{
  *   	  \min & & b^T y \\
- *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i \succeq 0 \quad \forall i \leq m \\
+ *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i \succeq 0 \quad \forall i = 1, \ldots, m \\
  *      & & Dy \geq d \\
  *      & & l \leq y \leq u
  *   \f}
- *
- * for symmetric matrices \f A_j^i \in S_{k_i} \f and a matrix \f D \in \mathbb{R}^{k_0 \times n} \f and query information about the solution.
+ * for symmetric matrices \f$ A_j^i \in S_{k_i} \f$, a \f$(k_0 \times n)\f$-matrix \f$D\f$, and query information about the solution.
  *
  * Although it includes a few SCIP header files, e.g., because it uses SCIP's return codes, it can be used independently of
  * any SCIP instance.
