@@ -22,13 +22,15 @@
 
 #include <assert.h>
 #include "sdpi/sdpi.h"
-#include "dsdp5.h"                           /* for DSDPUsePenalty, etc */
-#include "dsdpmem.h"                         /* for DSDPCALLOC2, DSDPFREE */
-#include "blockmemshell/memory.h"            /* for memory allocation */
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
+#include "blockmemshell/memory.h"            /* for memory allocation */
 
-/* calls a DSDP-Function and transforms the return-code to a SCIP_ERROR if needed */
+#include "dsdp5.h"                           /* for DSDPUsePenalty, etc */
+#include "dsdpmem.h"                         /* for DSDPCALLOC2, DSDPFREE */
+
+
+/** calls a DSDP-Function and transforms the return-code to a SCIP_ERROR if needed */
 #define DSDP_CALL(x)   do                                                                                     \
                        {                                                                                      \
                           int _dsdperrorcode_;                                                                \
@@ -41,7 +43,7 @@
                        }                                                                                      \
                        while( FALSE )
 
-/* same as DSDP_CALL, but this will be used for initialization methods with memory allocation and return a SCIP_NOMEMORY if an error is produced */
+/** same as DSDP_CALL, but this will be used for initialization methods with memory allocation and return a SCIP_NOMEMORY if an error is produced */
 #define DSDP_CALLM(x)   do                                                                                     \
                        {                                                                                      \
                           int _dsdperrorcode_;                                                                \
@@ -54,7 +56,7 @@
                        }                                                                                      \
                        while( FALSE )
 
-/* this will be called in all functions that want to access solution information to check if the problem was solved since the last change of the problem */
+/** this will be called in all functions that want to access solution information to check if the problem was solved since the last change of the problem */
 #define CHECK_IF_SOLVED(sdpi)  do                                                                             \
                         {                                                                                     \
                            if (!(sdpi->solved))                                                               \
@@ -66,12 +68,13 @@
                         }                                                                                     \
                         while( FALSE )
 
+/** data for SDP interface */
 struct SCIP_SDPi
 {
    DSDP                  dsdp;               /**< solver-object */
-   SDPCone               sdpcone;            /**< sdpcone-object to add sdp-constraints to */
-   LPCone                lpcone;             /**< lpcone-object to add lp-constraints to */
-   BCone                 bcone;              /**< bcone-object to add variable bounds to */
+   SDPCone               sdpcone;            /**< sdpcone-object of DSDP for handling SDP-constraints */
+   LPCone                lpcone;             /**< lpcone-object of DSDP for handling LP-constraints */
+   BCone                 bcone;              /**< bcone-object of DSDP for handling variable bounds */
    SCIP_MESSAGEHDLR*     messagehdlr;        /**< messagehandler to printing messages, or NULL */
    BMS_BLKMEM*           blkmem;             /**< block memory */
    int                   sdpid;              /**< identifier for debug-messages */
@@ -86,9 +89,9 @@ struct SCIP_SDPi
    int*                  sdpconstrowind;     /**< row-index for each entry in sdpconstval-array */
    int*                  sdpconstcolind;     /**< column-index for each entry in sdpconstval-array */
    SCIP_Real*            sdpconstval;        /**< values of entries of constant matrices in SDP-Block */
-   int                   sdpnnonz;           /**< number of nonzero elements in the SDP-constraint matrix */
+   int                   sdpnnonz;           /**< number of nonzero elements in the SDP-constraint matrices */
    int*                  sdpbegvarblock;     /**< entry j*nvars + i is the start index of matrix \f A_i^j \f in sdpval,
-                                              *   particularly entry i*nvars gives the starting point of block j */
+                                              *   particularly entry j * nvars gives the starting point of block j */
    int*                  sdprowind;          /**< row-index for each entry in sdpval-array */
    int*                  sdpcolind;          /**< column-index for each entry in sdpval-array */
    SCIP_Real*            sdpval;             /**< values of SDP-constraint matrix entries */
