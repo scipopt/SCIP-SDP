@@ -96,13 +96,17 @@ endif
 .PHONY: all
 all:            $(SCIPDIR) $(MAINFILE) $(MAINSHORTLINK)
 
+.PHONY: tags
+tags:
+		rm -f TAGS; ctags -e src/*/*.c src/*/*.cpp src/*/*.h $(SCIPDIR)/src/*/*.c $(SCIPDIR)/src/*/*.h;
+
 .PHONY: lint
 lint:		$(MAINSRC)
 		-rm -f lint.out
 		$(SHELL) -ec 'for i in $^; \
 			do \
 			echo $$i; \
-			$(LINT) $(SCIPDIR)/lint/scip.lnt +os\(lint.out\) -u -zero \
+			$(LINT) -i lint co-gcc.lnt +os\(lint.out\) -u -zero \
 			$(FLAGS) -UNDEBUG -UWITH_READLINE -UROUNDING_FE $$i; \
 			done'
 
