@@ -78,7 +78,7 @@ SCIP_RETCODE runSCIP(
 
    //Choose between LP and SDP relaxations
    SCIP_CALL( SCIPsetIntParam(scip, "lp/solvefreq", -1) );
-   //SCIP_CALL(SCIPsetIntParam(scip,"relaxing/SDPRelax/freq",1)); doesn't seem to work right now, needs to be set in relax_sdp
+   SCIP_CALL( SCIPsetIntParam(scip,"relaxing/SDP/freq", 1) );
 
    //Do some stuff to be numerically stable
    SCIP_CALL( SCIPsetRealParam(scip, "numerics/epsilon", 1e-6) );
@@ -104,7 +104,7 @@ SCIP_RETCODE runSCIP(
    if (relaxfreq==1) {                                                           also doesn't work, see line 81*/
       SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/stdpriority", 1000000));
       SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/maxplungedepth", 0));
-      SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight",0));
+      SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight", 0.0));
 
       SCIP_CALL( SCIPsetIntParam(scip, "branching/pscost/priority",-2000000));
       SCIP_CALL( SCIPsetIntParam(scip, "branching/relpscost/priority",-2000000));
@@ -161,9 +161,8 @@ SCIP_RETCODE runSCIP(
    else
    {
       SCIP_CALL( SCIPprintBestSol(scip, solfile, FALSE) );
-
+      fclose(solfile);
    }
-   fclose(solfile);
 
    /********************
     * Deinitialization *
