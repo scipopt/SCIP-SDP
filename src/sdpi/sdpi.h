@@ -38,13 +38,17 @@
  *
  * This file specifies a generic SDP solver interface used by SCIP to create, modify, and solve semidefinite programs of
  * the (dual) form
+ *
  *   \f{eqnarray*}{
  *   	  \min & & b^T y \\
- *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i \succeq 0 \quad \forall i = 1, \ldots, m \\
+ *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i \succeq 0 \quad \forall i \leq m \\
  *      & & Dy \geq d \\
  *      & & l \leq y \leq u
  *   \f}
- * for symmetric matrices \f$ A_j^i \in S_{k_i} \f$, a \f$(k_0 \times n)\f$-matrix \f$D\f$, and query information about the solution.
+ *
+ * for symmetric matrices \f A_j^i \in S_{k_i} \f and a matrix \f D \in \mathbb{R}^{k_0 \times n} \f and query information about the solution.
+ *
+ * All indexing (rows, columns, blocks and variables) starts at 0.
  *
  * Although it includes a few SCIP header files, e.g., because it uses SCIP's return codes, it can be used independently of
  * any SCIP instance.
@@ -146,23 +150,24 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    const SCIP_Real*      lb,                 /**< lower bounds of variables */
    const SCIP_Real*      ub,                 /**< upper bounds of variables */
    int                   nsdpblocks,         /**< number of SDP-blocks */
-   const int*            sdpblocksizes,      /**< sizes of the SDP-blocks */
+   const int*            sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
    int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks */
-   const int*            sdpconstbegblock,   /**< start index of each block in sdpconstval-array */
-   const int*            sdpconstrowind,     /**< row-index for each entry in sdpconstval-array */
-   const int*            sdpconstcolind,     /**< column-index for each entry in sdpconstval-array */
-   const SCIP_Real*      sdpconstval,        /**< values of entries of constant matrices in SDP-Block */
+   const int*            sdpconstbegblock,   /**< start index of each block in sdpconstval-array (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
+   const int*            sdpconstrowind,     /**< row-index for each entry in sdpconstval-array (may be NULL if sdpconstnnonz = 0) */
+   const int*            sdpconstcolind,     /**< column-index for each entry in sdpconstval-array (may be NULL if sdpconstnnonz = 0) */
+   const SCIP_Real*      sdpconstval,        /**< values of entries of constant matrices in SDP-Block (may be NULL if sdpconstnnonz = 0) */
    int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint matrix */
-   const int*            sdpbegvarblock,     /**< entry j*nvars + i is the start index of matrix \f A_i^j \f in sdpval, particularly entry i*nvars gives the starting point of block j */
-   const int*            sdprowind,          /**< row-index for each entry in sdpval-array */
-   const int*            sdpcolind,          /**< column-index for each entry in sdpval-array */
-   const SCIP_Real*      sdpval,             /**< values of SDP-constraint matrix entries */
+   const int*            sdpbegvarblock,     /**< entry j*nvars + i is the start index of matrix \f A_i^j \f in sdpval, particularly entry i*nvars gives the starting point of block j
+                                              *   (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
+   const int*            sdprowind,          /**< row-index for each entry in sdpval-array (may be NULL if sdpnnonz = 0) */
+   const int*            sdpcolind,          /**< column-index for each entry in sdpval-array (may be NULL if sdpnnonz = 0) */
+   const SCIP_Real*      sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
    int                   nlpcons,            /**< number of LP-constraints */
-   const SCIP_Real*      lprhs,              /**< right hand sides of LP rows */
+   const SCIP_Real*      lprhs,              /**< right hand sides of LP rows (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
-   const int*            lprowind,           /**< row-index for each entry in lpval-array (going from 1 to nlpcons) */
-   const int*            lpcolind,           /**< column-index for each entry in lpval-array (going from 1 to nvars) */
-   const SCIP_Real*      lpval               /**< values of LP-constraint matrix entries */
+   const int*            lprowind,           /**< row-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
+   const int*            lpcolind,           /**< column-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
+   const SCIP_Real*      lpval               /**< values of LP-constraint matrix entries (may be NULL if lpnnonz = 0) */
    );
 
 /** adds another SDP-Block to the problem
@@ -174,21 +179,21 @@ SCIP_RETCODE SCIPsdpiAddSDPBlock(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   blocksize,          /**< dimension of the matrices \f A_i^j \f */
    int                   constnnonz,         /**< sum of non-zeroes in the lower triagonal parts of \f A_0^j \f */
-   const int*            constrowind,        /**< the row-indices of the non-zero entries of \f A_i^0 \f */
-   const int*            constcolind,        /**< the column-indices of the non-zero entries of \f A_i^0 \f */
-   const SCIP_Real*      constval,           /**< the values of \f A_i^0 \f as specified by constbegrow and constcolind */
+   const int*            constrowind,        /**< the row-indices of the non-zero entries of \f A_i^0 \f (may be NULL if constnnonz = 0) */
+   const int*            constcolind,        /**< the column-indices of the non-zero entries of \f A_i^0 \f (may be NULL if constnnonz = 0) */
+   const SCIP_Real*      constval,           /**< the values of \f A_i^0 \f as specified by constbegrow and constcolind (may be NULL if constnnonz = 0) */
    int                   nnonz,              /**< sum of non-zeroes in the lower triagonal parts of the \f A_i^j \f */
    const int*            begvar,             /**< start index of the matrix \f A_i^j \f for each i */
-   const int*            rowind,             /**< the row-indices of the non-zero entries of \f A_i^j \f */
-   const int*            colind,             /**< the column-indices of the non-zero entries of \f A_i^j \f */
-   const SCIP_Real*      val                 /**< the values of of \f A_i^j \f as specified by begvar, rowind and colind */
+   const int*            rowind,             /**< the row-indices of the non-zero entries of \f A_i^j \f (may be NULL if nnonz = 0) */
+   const int*            colind,             /**< the column-indices of the non-zero entries of \f A_i^j \f (may be NULL if nnonz = 0) */
+   const SCIP_Real*      val                 /**< the values of of \f A_i^j \f as specified by begvar, rowind and colind (may be NULL if nnonz = 0) */
    );
 
 /** deletes a SDP-Block */
 EXTERN
 SCIP_RETCODE SCIPsdpiDelSDPBlock(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   int                   block              /**< index of the SDP-Block (indexing starting at 1) that should be deleted */
+   int                   block              /**< index of the SDP-Block that should be deleted */
    );
 
 /** adds additional variables to the SDP
@@ -217,8 +222,8 @@ SCIP_RETCODE SCIPsdpiAddVars(
 EXTERN
 SCIP_RETCODE SCIPsdpiDelVars(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   int                   firstvar,           /**< first variable to be deleted, indexing starts at 1 */
-   int                   lastvar             /**< last variable to be deleted, indexing starts at 1 */
+   int                   firstvar,           /**< first variable to be deleted */
+   int                   lastvar             /**< last variable to be deleted */
    );
 
 /** deletes variables from SCIP_SDPI; the new position of a variable must not be greater that its old position */
@@ -240,8 +245,8 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
    int                   nrows,              /**< number of rows to be added */
    const SCIP_Real*      rhs,                /**< right hand sides of new rows */
    int                   nnonz,              /**< number of nonzero elements to be added to the LP constraint matrix */
-   const int*            rowind,             /**< row indices of constraint matrix entries, going from 1 to nrows, these will be changed to nlpcons + i */
-   const int*            colind,             /**< column indices of constraint matrix entries, going from 1 to nvars */
+   const int*            rowind,             /**< row indices of constraint matrix entries, going from 0 to nrows - 1, these will be changed to nlpcons + i */
+   const int*            colind,             /**< column/variable indices of constraint matrix entries */
    const SCIP_Real*      val                 /**< values of constraint matrix entries */
    );
 
@@ -249,8 +254,8 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
 EXTERN
 SCIP_RETCODE SCIPsdpiDelLPRows(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   int                   firstrow,           /**< first row to be deleted, index between 1 and nlpcons */
-   int                   lastrow             /**< last row to be deleted, index between 1 and nlpcons */
+   int                   firstrow,           /**< first row to be deleted */
+   int                   lastrow             /**< last row to be deleted */
    );
 
 /** deletes LP rows from SCIP_SDPI; the new position of a row must not be greater that its old position */
@@ -273,7 +278,7 @@ EXTERN
 SCIP_RETCODE SCIPsdpiChgBounds(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   nvars,              /**< number of variables to change bounds for */
-   const int*            ind,                /**< variables indices between 1 and nvars */
+   const int*            ind,                /**< variables indices */
    const SCIP_Real*      lb,                 /**< values for the new lower bounds */
    const SCIP_Real*      ub                  /**< values for the new upper bounds */
    );
@@ -283,7 +288,7 @@ EXTERN
 SCIP_RETCODE SCIPsdpiChgLPRhSides(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   nrows,              /**< number of LP rows to change right hand sides for */
-   const int*            ind,                /**< row indices between 1 and nlpcons */
+   const int*            ind,                /**< row indices */
    const SCIP_Real*      rhs                 /**< new values for right hand sides */
    );
 
@@ -291,8 +296,8 @@ SCIP_RETCODE SCIPsdpiChgLPRhSides(
 EXTERN
 SCIP_RETCODE SCIPsdpiChgLPCoef(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   int                   row,                /**< row number of LP-coefficient to change, index between 1 and nlpcons */
-   int                   col,                /**< column number of LP-coefficient to change, index between 1 and nvars */
+   int                   row,                /**< row number of LP-coefficient to change */
+   int                   col,                /**< column number of LP-coefficient to chang */
    SCIP_Real             newval              /**< new value of LP-coefficient */
    );
 
@@ -301,7 +306,7 @@ EXTERN
 SCIP_RETCODE SCIPsdpiChgObj(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   ncols,              /**< number of variables to change objective value for */
-   int*                  ind,                /**< variable indices to change objective value for, indexing starts at 1 */
+   int*                  ind,                /**< variable indices to change objective value for */
    SCIP_Real*            obj                 /**< new objective values for variables */
    );
 
@@ -309,9 +314,9 @@ SCIP_RETCODE SCIPsdpiChgObj(
 EXTERN
 SCIP_RETCODE SCIPsdpiChgSDPConstCoeff(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   int                   block,              /**< block index between 1 and nsdpblocks */
-   int                   rowind,             /**< row index between 1 and corresponding sdpblocksize */
-   int                   colind,             /**< column index between 1 and corresponding sdpblocksize*/
+   int                   block,              /**< block index */
+   int                   rowind,             /**< row index */
+   int                   colind,             /**< column index */
    const SCIP_Real      newval               /**< new value of given entry of constant matrix in given SDP-Block */
    );
 
@@ -319,11 +324,11 @@ SCIP_RETCODE SCIPsdpiChgSDPConstCoeff(
 EXTERN
 SCIP_RETCODE SCIPsdpiChgSDPCoeff(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   int                   block,              /**< block index between 1 and nsdpblocks */
-   int                   var,                /**< variable index between 1 and nvars */
-   int                   rowind,             /**< row index between 1 and corresponding blocksize */
-   int                   colind,             /**< column index between 1 and corresponding blocksize */
-   const SCIP_Real      newval              /**< new value of given entry of the give constraint matrix in specified SDP-Block */
+   int                   block,              /**< block index */
+   int                   var,                /**< variable index */
+   int                   rowind,             /**< row index */
+   int                   colind,             /**< column index */
+   const SCIP_Real      newval              /**< new value of given entry of the given constraint matrix in specified SDP-Block */
    );
 
 
@@ -361,7 +366,7 @@ SCIP_RETCODE SCIPsdpiGetNVars(
 EXTERN
 SCIP_RETCODE SCIPsdpiGetSDPNNonz(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   int*                  nnonz               /**< pointer to store the number of nonzeros in the SDP constraint matrcies */
+   int*                  nnonz               /**< pointer to store the number of nonzeros in the SDP constraint matrices */
    );
 
 /** gets the number of nonzero elements in the constant matrices of the SDP-Blocks */
@@ -381,21 +386,23 @@ SCIP_RETCODE SCIPsdpiGetLPNNonz(
 /** gets columns from SDP problem object; the arrays have to be large enough to store all values;
  *  Either both, lb and ub, have to be NULL, or both have to be non-NULL,
  *  either sdparraylength, sdpnnonz, sdpbegblock, sdprowind, sdpcolind and sdpval have to be NULL, or all of them have to be non-NULL, the same is true for the lp-part.
+ *  returns all information if the arrays were long enough or overwrites sdparraylength or lparraylength with the lentgh needed to store the information.
  */
 EXTERN
 SCIP_RETCODE SCIPsdpiGetVarInfos(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   int                   firstvar,           /**< first variable to extract information for (between 1 and numvars) */
-   int                   lastvar,            /**< last variable to extract information for (between 1 and numvars) */
+   int                   firstvar,           /**< first variable to extract information for */
+   int                   lastvar,            /**< last variable to extract information for */
+   SCIP_Real*            obj,                /**< buffer to store objective in, or NULL */
    SCIP_Real*            lb,                 /**< buffer to store the lower bound vector, or NULL */
    SCIP_Real*            ub,                 /**< buffer to store the upper bound vector, or NULL */
-   int                   sdparraylength,     /**< length of sdparrays, if this is less than sdpnnonz an error will be returned */
+   int*                  sdparraylength,     /**< pointer to length of sdparrays, if this is less than sdpnnonz the needed length will be returned */
    int*                  sdpnnonz,           /**< pointer to store the number of nonzero elements for the given variables in thesdp-constraints returned, or NULL */
    int*                  sdpbegvarblock,     /**< buffer to store start index of each block in sdpval-array (length (lastvar-firstvar + 1) * nblocks), or NULL */
    int*                  sdprowind,          /**< buffer to store row indices of sdp constraint matrix entries, or NULL */
    int*                  sdpcolind,          /**< buffer to store column indices of sdp constraint matrix entries, or NULL */
    SCIP_Real*            sdpval,             /**< buffer to store values of sdp constraint matrix entries, or NULL */
-   int                   lparraylength,      /**< length of lparrays, if this is less than lpnnonz an error will be returned */
+   int*                  lparraylength,      /**< pointer to length of lparrays, if this is less than lpnnonz the needed length will be returned */
    int*                  lpnnonz,            /**< pointer to store the number of nonzero elements of the lp-constraints returned, or NULL */
    int*                  lprowind,           /**< buffer to store row indices of lp constraint matrix entries, or NULL */
    int*                  lpcolind,           /**< buffer to store column indices of lp constraint matrix entries (these will refer to the original variable indices), or NULL */
@@ -405,14 +412,15 @@ SCIP_RETCODE SCIPsdpiGetVarInfos(
 /** gets LP rows from SDP problem object; the arrays have to be large enough to store all values.
  *  rhs can be null,
  *  either nnonz, begrow, colind, and val have to be NULL, or all of them have to be non-NULL.
+ *  This will either return all wanted information or overwrite arraylength by the needed length to give this information.
  */
 EXTERN
 SCIP_RETCODE SCIPsdpiGetLPRows(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   int                   firstrow,           /**< first LP row to get from SDP (index between 1 and nlpcons) */
-   int                   lastrow,            /**< last LP row to get from SDP (index between 1 and nlpcons) */
+   int                   firstrow,           /**< first LP row to get from SDP */
+   int                   lastrow,            /**< last LP row to get from SDP */
    SCIP_Real*            rhs,                /**< buffer to store right hand side vector, or NULL */
-   int                   arraylength,        /**< length of the rowind and colind arrays, if this is less than nnonz an ERROR will be returned */
+   int*                  arraylength,        /**< pointer to length of the rowind and colind arrays, if this is less than nnonz it will be overwritten by nnonz */
    int*                  nnonz,              /**< pointer to store the number of nonzero elements returned, or NULL */
    int*                  rowind,             /**< buffer to store row indices of constraint matrix entries, or NULL */
    int*                  colind,             /**< buffer to store column indices of constraint matrix entries, or NULL */
@@ -421,19 +429,20 @@ SCIP_RETCODE SCIPsdpiGetLPRows(
 
 /** gets a number SDP blocks; the arrays have to be large enough to store all values.
  *  either constnnonz, constbegblock, constrow, constcolind, and constval have to be NULL, or all of them have to be non-NULL, same for the non-constant parts.
+ *  This will either return the wanted information or overwrite constarraylength or arraylength by the length needed to store these informations.
  */
 EXTERN
 SCIP_RETCODE SCIPsdpiGetSDPBlocks(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   int                   firstblock,         /**< first SDP block to get from SDP (index between 1 and nblocks) */
-   int                   lastblock,          /**< last SDP block to get from SDP (index between 1 and nblocks) */
-   int                   constarraylength,   /**< how many elements can be stored in the const arrays, if this is less than constnnonz an error will be thrown */
+   int                   firstblock,         /**< first SDP block to get from SDP */
+   int                   lastblock,          /**< last SDP block to get from SDP */
+   int*                  constarraylength,   /**< pointer to the length of the const arrays, if this is less than constnnonz this will be overwritten by it */
    int*                  constnnonz,         /**< pointer to store the number of nonzero elements returned for the constant part, or NULL */
    int*                  constbegblock,      /**< buffer to store the start indices of the different blocks in the constval-array, or NULL */
    int*                  constrowind,        /**< buffer to store row indices of entries of constant matrices, or NULL */
    int*                  constcolind,        /**< buffer to store column indices of entries of constant matrices, or NULL */
    SCIP_Real*            constval,           /**< buffer to store values of entries of constant matrices, or NULL */
-   int                   arraylength,        /**< how many elements can be stored in the arrays, if this is less than nnonz an error will be thrown */
+   int*                  arraylength,        /**< pointer to the length of the sdp-arrays, if this is less than sdpnnonz this will be overwritten by it */
    int*                  nnonz,              /**< pointer to store the number of nonzero elements returned, or NULL */
    int*                  begvarblock,        /**< buffer to store the start indices of the different block/var-combinations in the val-array, or NULL */
    int*                  rowind,             /**< buffer to store row indices of constraint matrix entries, or NULL */
@@ -445,8 +454,8 @@ SCIP_RETCODE SCIPsdpiGetSDPBlocks(
 EXTERN
 SCIP_RETCODE SCIPsdpiGetObj(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   int                   firstvar,           /**< first variable to get objective coefficient for (index between 1 and nvars) */
-   int                   lastvar,            /**< last variable to get objective coefficient for (index between 1 and nvars) */
+   int                   firstvar,           /**< first variable to get objective coefficient for */
+   int                   lastvar,            /**< last variable to get objective coefficient for */
    SCIP_Real*            vals                /**< array to store objective coefficients */
    );
 
@@ -454,8 +463,8 @@ SCIP_RETCODE SCIPsdpiGetObj(
 EXTERN
 SCIP_RETCODE SCIPsdpiGetBounds(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   int                   firstvar,           /**< first variable to get bounds for (index between 1 and nvars) */
-   int                   lastvar,            /**< last variable to get bounds for (index between 1 and nvars) */
+   int                   firstvar,           /**< first variable to get bounds for */
+   int                   lastvar,            /**< last variable to get bounds for */
    SCIP_Real*            lbs,                /**< array to store lower bound values, or NULL */
    SCIP_Real*            ubs                 /**< array to store upper bound values, or NULL */
    );
@@ -464,8 +473,8 @@ SCIP_RETCODE SCIPsdpiGetBounds(
 EXTERN
 SCIP_RETCODE SCIPsdpiGetRhSides(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   int                   firstrow,           /**< first row to get sides for (index between 1 and nlpcons) */
-   int                   lastrow,            /**< last row to get sides for  (index between 1 and nlpcons)*/
+   int                   firstrow,           /**< first row to get sides for */
+   int                   lastrow,            /**< last row to get sides for */
    SCIP_Real*            rhss                /**< array to store right hand side values */
    );
 
@@ -473,8 +482,8 @@ SCIP_RETCODE SCIPsdpiGetRhSides(
 EXTERN
 SCIP_RETCODE SCIPsdpiGetLPCoef(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   int                   row,                /**< row number of coefficient (index between 1 and nlpcons) */
-   int                   col,                /**< column number of coefficient (index between 1 and nvars) */
+   int                   row,                /**< row number of coefficient */
+   int                   col,                /**< column number of coefficient */
    SCIP_Real*            val                 /**< pointer to store the value of the coefficient */
    );
 
@@ -482,9 +491,9 @@ SCIP_RETCODE SCIPsdpiGetLPCoef(
 EXTERN
 SCIP_RETCODE SCIPsdpiGetSDPConstCoef(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   int                   block,              /**< block index of coefficient  (index between 1 and nsdpblocks) */
-   int                   rowind,             /**< row number of coefficient (index between 1 and corresponding blocksize) */
-   int                   colind,             /**< column number of coefficient (index between 1 and corresponding blocksize) */
+   int                   block,              /**< block index of coefficient */
+   int                   rowind,             /**< row number of coefficient */
+   int                   colind,             /**< column number of coefficient */
    SCIP_Real*            val                 /**< pointer to store the value of the coefficient */
    );
 
@@ -492,10 +501,10 @@ SCIP_RETCODE SCIPsdpiGetSDPConstCoef(
 EXTERN
 SCIP_RETCODE SCIPsdpiGetSDPCoef(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   int                   block,              /**< block index of coefficient  (index between 1 and nsdpblocks) */
+   int                   block,              /**< block index of coefficient */
    int                   var,                /**< variable index of coefficient, meaning the i in \f A_i^j \f, in val-array, or NULL */
-   int                   rowind,             /**< row number of coefficient (index between 1 and corresponding blocksize) */
-   int                   colind,             /**< column number of coefficient (index between 1 and corresponding blocksize) */
+   int                   rowind,             /**< row number of coefficient */
+   int                   colind,             /**< column number of coefficient */
    SCIP_Real*            val                 /**< pointer to store the value of the coefficient */
    );
 
@@ -543,6 +552,24 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
    SCIP_Bool*            dualfeasible        /**< stores dual feasibility status */
    );
 
+/** returns TRUE iff SDP is proven to have a primal unbounded ray (but not necessary a primal feasible point);
+ *  this does not necessarily mean, that the solver knows and can return the primal ray
+ *  this is not implemented for all Solvers, will always return false (and a debug message) if it isn't
+ */
+EXTERN
+SCIP_Bool SCIPsdpiExistsPrimalRay(
+   SCIP_SDPI*            sdpi                /**< SDP interface structure */
+   );
+
+/** returns TRUE iff SDP is proven to have a primal unbounded ray (but not necessary a primal feasible point),
+ *  and the solver knows and can return the primal ray
+ *  this is not implemented for all Solvers, will always return false (and a debug message) if it isn't
+ */
+EXTERN
+SCIP_Bool SCIPsdpiHasPrimalRay(
+   SCIP_SDPI*            sdpi                /**< SDP interface structure */
+   );
+
 /** returns TRUE iff SDP is proven to be primal unbounded */
 EXTERN
 SCIP_Bool SCIPsdpiIsPrimalUnbounded(
@@ -558,6 +585,24 @@ SCIP_Bool SCIPsdpiIsPrimalInfeasible(
 /** returns TRUE iff SDP is proven to be primal feasible */
 EXTERN
 SCIP_Bool SCIPsdpiIsPrimalFeasible(
+   SCIP_SDPI*            sdpi                /**< SDP interface structure */
+   );
+
+/** returns TRUE iff SDP is proven to have a dual unbounded ray (but not necessary a dual feasible point);
+ *  this does not necessarily mean, that the solver knows and can return the dual ray
+ *  this is not implemented for all Solvers, will always return false (and a debug message) if it isn't
+ */
+EXTERN
+SCIP_Bool SCIPsdpiExistsDualRay(
+   SCIP_SDPI*            sdpi                /**< SDP interface structure */
+   );
+
+/** returns TRUE iff SDP is proven to have a dual unbounded ray (but not necessary a dual feasible point),
+ *  and the solver knows and can return the dual ray
+ *  this is not implemented for all Solvers, will always return false (and a debug message) if it isn't
+ */
+EXTERN
+SCIP_Bool SCIPsdpiHasDualRay(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    );
 
@@ -579,16 +624,9 @@ SCIP_Bool SCIPsdpiIsDualFeasible(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    );
 
-/** returns TRUE iff SDP was solved to optimality */
+/** returns TRUE iff the solver converged */
 EXTERN
-SCIP_Bool SCIPsdpiIsOptimal(
-   SCIP_SDPI*            sdpi                /**< SDP interface structure */
-   );
-
-/** returns TRUE iff SDP was solved to optimality or some other status was reached,
- * that is still acceptable inside a Branch & Bound framework */
-EXTERN
-SCIP_Bool SCIPsdpiIsAcceptable(
+SCIP_Bool SCIPsdpiIsConverged(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    );
 
@@ -610,9 +648,30 @@ SCIP_Bool SCIPsdpiIsTimelimExc(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    );
 
-/** returns the internal solution status of the solver */
+/** returns the internal solution status of the solver, which has the following meaning:
+ *  0: converged
+ *  1: infeasible start
+ *  2: numerical problems
+ *  3: objective limit reached
+ *  4: iteration limit reached
+ *  5: time limit reached
+ *  6: user termination
+ *  7: other */
 EXTERN
 int SCIPsdpiGetInternalStatus(
+   SCIP_SDPI*            sdpi                /**< SDP interface structure */
+   );
+
+/** returns TRUE iff SDP was solved to optimality, meaning the solver converged and returned primal and dual feasible solutions */
+EXTERN
+SCIP_Bool SCIPsdpiIsOptimal(
+   SCIP_SDPI*            sdpi                /**< SDP interface structure */
+   );
+
+/** returns TRUE iff SDP was solved to optimality or some other status was reached,
+ * that is still acceptable inside a Branch & Bound framework */
+EXTERN
+SCIP_Bool SCIPsdpiIsAcceptable(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    );
 
@@ -630,7 +689,7 @@ SCIP_RETCODE SCIPsdpiGetObjval(
    SCIP_Real*            objval              /**< stores the objective value */
    );
 
-/** gets dual solution vector for feasible SDPs */
+/** gets dual solution vector for feasible SDPs, if dualsollength isn't equal to the number of variables this will return an error */
 EXTERN
 SCIP_RETCODE SCIPsdpiGetSol(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
@@ -666,100 +725,6 @@ SCIP_RETCODE SCIPsdpiGetRealSolQuality(
 /*
  * SDPi State Methods
  */
-
-/**@name SDPi State Methods */
-/**@{ */
-
-/** stores SDPi state (like solve status since last data manipulation) into sdpistate object */
-EXTERN
-SCIP_RETCODE SCIPsdpiGetState(
-   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   BMS_BLKMEM*           blkmem,             /**< block memory */
-   SCIP_SDPISTATE**      sdpistate           /**< pointer to SDPi state information (like solve status since last data manipulation) */
-   );
-
-/** loads SDPi state into solver; note that the SDP might have been extended with additional
- *  columns and rows since the state was stored with SCIPsdpiGetState()
- */
-EXTERN
-SCIP_RETCODE SCIPsdpiSetState(
-   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   BMS_BLKMEM*           blkmem,             /**< block memory */
-   SCIP_SDPISTATE*       sdpistate           /**< SDPi state information */
-   );
-
-/** clears current SDPi state (like basis information) of the solver */
-EXTERN
-SCIP_RETCODE SCIPsdpiClearState(
-   SCIP_SDPI*            sdpi                /**< SDP interface structure */
-   );
-
-/** frees SDPi state information */
-EXTERN
-SCIP_RETCODE SCIPsdpiFreeState(
-   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   BMS_BLKMEM*           blkmem,             /**< block memory */
-   SCIP_SDPISTATE**      sdpistate           /**< pointer to SDPi state information */
-   );
-
-/** reads SDPi state from a file */
-EXTERN
-SCIP_RETCODE SCIPsdpiReadState(
-   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   const char*           fname               /**< file name */
-   );
-
-/** writes SDPi state to a file */
-EXTERN
-SCIP_RETCODE SCIPsdpiWriteState(
-   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   const char*           fname               /**< file name */
-   );
-
-/**@} */
-
-
-/*
- * Parameter Methods
- */
-
-/**@name Parameter Methods */
-/**@{ */
-
-/** gets integer parameter of SDP */
-EXTERN
-SCIP_RETCODE SCIPsdpiGetIntpar(
-   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_SDPPARAM         type,               /**< parameter number */
-   int*                  ival                /**< buffer to store the parameter value */
-   );
-
-/** sets integer parameter of SDP */
-EXTERN
-SCIP_RETCODE SCIPsdpiSetIntpar(
-   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_SDPPARAM         type,               /**< parameter number */
-   int                   ival                /**< parameter value */
-   );
-
-/** gets floating point parameter of SDP */
-EXTERN
-SCIP_RETCODE SCIPsdpiGetRealpar(
-   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_SDPPARAM         type,               /**< parameter number */
-   SCIP_Real*            dval                /**< buffer to store the parameter value */
-   );
-
-/** sets floating point parameter of SDP */
-EXTERN
-SCIP_RETCODE SCIPsdpiSetRealpar(
-   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_SDPPARAM         type,               /**< parameter number */
-   SCIP_Real             dval                /**< parameter value */
-   );
-
-/**@} */
-
 
 
 
