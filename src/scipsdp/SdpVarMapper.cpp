@@ -128,18 +128,18 @@ SCIP_RETCODE SdpVarMapper::exit()
    return SCIP_OKAY;
 }
 
-/**return the maximum index of a variable in sdp*/
+/** return the number of variables in the sdp*/
 int SdpVarMapper::get_sdp_nvars()
 {
    return sdp_nvars_;
 }
 
-/**return the maximum index of a variable in sdp*/
+/** are all variables fixed? */
 bool SdpVarMapper::get_allfixed()
 {
    return allfixed_;
 }
-/**return the maximum index of a variable in sdp*/
+/**are all integer variables fixed ? */
 bool SdpVarMapper::get_intsfixed()
 {
    return intsfixed_;
@@ -154,6 +154,7 @@ int SdpVarMapper::get_nfixed()
 /**converts a scip var into a sdp-index*/
 int SdpVarMapper::get_sdp_index(SCIP_VAR* var /**<SCIP variable to be converted*/)
 {
+   assert (var != NULL );
    return name_index_map_[SCIPvarGetName(var)];
 }
 

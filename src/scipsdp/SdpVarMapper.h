@@ -41,9 +41,7 @@
 #include <vector>
 #include <map>
 #include <string>
-//#include "scip/type_scip.h"
-//#include "scip/type_retcode.h"
-//#include "scip/type_var.h"
+
 #include "scip/scip.h"
 
 /**class for mapping scip variables and sdp indices*/

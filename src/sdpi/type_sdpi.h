@@ -63,7 +63,6 @@ enum SCIP_SDPSolQuality
 typedef enum SCIP_SDPSolQuality SCIP_SDPSOLQUALITY;
 
 typedef struct SCIP_SDPi SCIP_SDPI;                 /**< solver dependent SDP interface */
-typedef struct SCIP_SDPiState SCIP_SDPISTATE;       /**< complete SDP state (i.e. basis information) */
 typedef struct SCIP_SDPiNorms SCIP_SDPINORMS;       /**< SDP pricing norms information */
 
 #ifdef __cplusplus

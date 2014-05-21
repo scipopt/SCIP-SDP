@@ -35,7 +35,7 @@
  * @author Jakob Schelbert, Sonja Mars, Tristan Gally
  */
 
-#define SCIP_DEBUG
+//#define SCIP_DEBUG
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 #include "objreader_sdpa.h"
@@ -46,18 +46,14 @@
 #include <cstdlib>                     // for abs
 #include <istream>                      // for istream, etc
 #include <string>                       // for getline, string
+
 #include "BlockMemoryAllocator.h"       // for BlockMemoryAllocator
 #include "ScipStreamBuffer.h"           // for ScipStreamBuffer
 #include "SdpCone.h"                    // for SdpCone
 #include "objconshdlr_sdp.h"            // for SCIPcreateConsSdp
+
 #include "scip/cons_linear.h"           // for SCIPaddCoefLinear, etc
-//#include "scip/def.h"                   // for SCIP_CALL, FALSE, TRUE
-//#include "scip/pub_fileio.h"            // for SCIPfopen, SCIP_FILE
-//#include "scip/pub_message.h"           // for SCIPdebugMessage
-//#include "scip/pub_misc.h"              // for SCIPsnprintf
 #include "scip/scip.h"                  // for SCIPinfinity, etc
-//#include "scip/type_cons.h"             // for SCIP_CONS
-//#include "scip/type_var.h"              // for SCIP_VAR, etc
 
 #include "SdpProblem.h"
 #include "SdpVarMapper.h"

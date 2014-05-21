@@ -39,10 +39,7 @@
 #define SDPPROBLEM_H
 
 #include <vector>                       // for vector
-//#include "scip/def.h"                   // for SCIP_Real
-//#include "scip/type_lp.h"               // for SCIP_ROW
-//#include "scip/type_retcode.h"          // for SCIP_RETCODE
-//#include "scip/type_scip.h"             // for SCIP
+
 #include "scip/scip.h"
 
 class SdpCone;  // lines 10-10

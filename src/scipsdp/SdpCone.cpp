@@ -38,18 +38,9 @@
 #include "SdpCone.h"
 
 #include <cassert>                      // for assert
-#include <cmath>                        // for fabs
-#include <cstdio>                       // for NULL, printf
 #include <algorithm>                    // for swap, max, sort, unique
-//#include "scip/def.h"                   // for SCIP_CALL, SCIP_CALL_ABORT, etc
-//#include "scip/type_set.h"              // for SCIP_STAGE, etc
-//#include "scip/type_var.h"              // for SCIP_VAR, etc
-//#include "scip/type_lp.h"               // for SCIP_BOUNDTYPE, etc
-//#include "scip/type_prop.h"             // for SCIP_PROP, etc
-//#include "scip/pub_var.h"               // for SCIPvarGetProbvar, etc
-#include "scip/scip.h"                  // for SCIPallocMemoryArray, etc
 
-//#include "scip/struct_var.h"
+#include "scip/scip.h"                  // for SCIPallocMemoryArray, etc
 
 
 /** compare variables with less than*/

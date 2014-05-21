@@ -43,13 +43,8 @@
 
 #include "SdpVarMapper.h"               // for SdpVarMapper
 #include "objconshdlr_sdp.h"            // for getSdpCone
-//#include "scip/pub_cons.h"              // for SCIPconsGetHdlr, etc
-//#include "scip/pub_lp.h"                // for SCIPcolGetVar, etc
-//#include "scip/pub_message.h"           // for SCIPdebugMessage
-//#include "scip/pub_var.h"               // for SCIPvarGetUbLocal, etc
+
 #include "scip/scip.h"                  // for SCIPisEQ, SCIPinfinity, etc
-//#include "scip/type_cons.h"             // for SCIP_CONS, SCIP_CONSHDLR
-//#include "scip/type_var.h"              // for SCIP_VAR
 
 /** Method for adding linear constraints to the structure we need for dsdp
  *  the arrays for_* will later be added to dsdp as lp cone */
@@ -119,7 +114,7 @@ SCIP_RETCODE SdpProblem::addconstraint(
             {
                for_matind_.push_back(*position);
                for_constraint_.push_back(0);
-               for_vals_.push_back(vals[k] * ubs[k]);
+               for_vals_.push_back(vals[k] * ubs[k]); //TODO: if rhs = 0 but two vars are fixed this could create multiple constant entries...
             }
          }
          else //the rhs was not zero to it is possible that an enty exists
@@ -127,7 +122,7 @@ SCIP_RETCODE SdpProblem::addconstraint(
             if ( ! SCIPisEQ(scip_, ubs[k], 0.0))  // the variable is fixed, so we have to do something
             {
                if (something_over == TRUE) //maybe there is nothing left from our inequality, only to something, if anything is left
-               {
+               { //TODO: shouldn't also be checked if the problem is feasible if all variables in the constraint are fixed ?!?
                   //the rhs has another sign so do +=
                   for_vals_[remember_size] += vals[k] * ubs[k];
                }
@@ -144,12 +139,13 @@ SCIP_RETCODE SdpProblem::addconstraint(
       }
    }
 
-   if (something_over &&  remember_size >= 0 && SCIPisEQ(scip_, for_vals_[remember_size], 0.0) )
+   //this makes sure, that if the right hand side is later changed to 0, it can later be skipped, but as all rhs should be set anyways, this is no longer needed
+/*   if (something_over &&  remember_size >= 0 && SCIPisEQ(scip_, for_vals_[remember_size], 0.0) )
    {
       for_vals_[remember_size] = 0.0;
       for_matind_[remember_size] = -1;
       for_constraint_[remember_size] = -1;
-   }
+   }*/
    if (increase_position)
    {
       (*position)++;
@@ -294,7 +290,7 @@ SdpProblem::SdpProblem(SCIP* scip, SdpVarMapper* varmapper) :
    //LP
    SCIP_CALL_ABORT( get_rows_data(varmapper, rows, nrows, &position));
 
-   for (int i = 0; i < varmapper->get_sdp_nvars(); i++)
+/*   for (int i = 0; i < varmapper->get_sdp_nvars(); i++)
    {
 
       const SCIP_Real ub = SCIPvarGetUbLocal(varmapper->get_scip_var(i));
@@ -306,24 +302,22 @@ SdpProblem::SdpProblem(SCIP* scip, SdpVarMapper* varmapper) :
       {
          double rhs = -lb;
          double linvals = 1.0;
-         addbound(&position, rhs, i, linvals, varmapper);
+         //addbound(&position, rhs, i, linvals, varmapper);  //TODO: change this to give bounds to the interface instead of only LP constraints the -1 on the rhs then probably is no longer needed as its reversed anyways in relax_sdp, think about why a -1 on the nonzeroes for the lower bound isn't needed but instead on the rhs (makes sense for DSDP but is done anyways in the interface)
       }
       if (SCIPisLT(scip, ub, SCIPinfinity(scip) ) )
       {
          double rhs = ub;
          double linvals = - 1.0;
-         addbound(&position, rhs, i, linvals, varmapper);
+         //addbound(&position, rhs, i, linvals, varmapper);  //TODO: "-------------------"
       }
-   }
+   }*/
    size_lpblock_ = position;
 
    SCIP_CALL_ABORT(SCIPallocBlockMemoryArray(scip, &sdpcones_, nsdpcones_));
    int count = 0;
-   SdpCone* tmp_sdpcone;
    //get all the sdp constraints and add them to the sdpdata
    for (int i = 0; i < nconss; i++)
    {
-      tmp_sdpcone = NULL;
       assert(conss[i] != NULL);
 
       hdlr = SCIPconsGetHdlr(conss[i]);
@@ -342,6 +336,7 @@ SdpProblem::SdpProblem(SCIP* scip, SdpVarMapper* varmapper) :
 
 SdpProblem::~SdpProblem()
 {
+   SCIPfreeBlockMemoryArray(scip_, &sdpcones_, nsdpcones_);
 }
 
 SdpCone* SdpProblem::SdpProblem::get_sdpcone(int i) const

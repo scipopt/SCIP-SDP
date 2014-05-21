@@ -38,17 +38,14 @@
 #include "objconshdlr_sdp.h"
 
 #include <cassert>                      // for assert
-#include <cmath>                        // for floor
+//#include <cmath>                        // for floor //TODO: lint says it's not needed
 #include <cstring>                      // for NULL, strcmp
+
 #include "SdpCone.h"                    // for SdpCone
 #include "config.h"                     // for F77_FUNC
+
 #include "scip/cons_linear.h"           // for SCIPcreateConsLinear
-//#include "scip/pub_cons.h"              // for SCIPconsGetData, etc
-//#include "scip/pub_message.h"           // for SCIPdebugMessage, etc
-//#include "scip/pub_var.h"               // for SCIPvarGetCol, etc
 #include "scip/scip.h"                  // for SCIPallocBufferArray, etc
-//#include "scip/type_lp.h"               // for SCIP_COL, SCIP_ROW
-//#include "scip/type_var.h"              // for SCIP_VAR
 
 /** struct with consdata*/
 struct SCIP_ConsData
@@ -288,6 +285,8 @@ SCIP_RETCODE cons_check(
    SCIPfreeBufferArray(scip, &matrix);
    SCIPfreeBufferArray(scip, &eigenvalues);
 
+   // TODO: checkintegrality ?!?, checklprows ?!?, printreason ?!?
+
    return SCIP_OKAY;
 }
 
@@ -429,7 +428,7 @@ SCIP_RETCODE trivial_approx(
    return SCIP_OKAY;
 }
 
-/* not clear if this is really true for all SDPs */
+/* not clear if this is really true for all SDPs, probably only works if A_i and A_0 are all semidefinite (or at least have positive diagonal entries) and all variables appearing in the SDP constraint are integer, then sum_{A_i_kk >0} 1*y_i >= 1 is feasible, because it means that (sum A_i)_kk > 0 because all diagonal entries are positive (they can't cancel each other) and at least one variable needs to be >=1 becaue this is equal to >0 for integers */
 /**presolve-routine that adds some constraints for approximation of the sdpcone, if there is an entry on the right hand side there must be a corresponding diagonal entry*/
 static
 SCIP_RETCODE trivial_ineq_from_rhs(
@@ -640,7 +639,7 @@ SCIP_RETCODE fix_vars(
          continue;
 
       SCIP_CONSDATA* data = SCIPconsGetData(conss[i]);
-      data->sdpcone->fix_vars();
+      SCIP_CALL(data->sdpcone->fix_vars());
    }
 
    return SCIP_OKAY;
@@ -958,6 +957,8 @@ SCIP_RETCODE ObjConshdlrSdp::scip_enfops(
          lhs = floor(lhs);
       }
 
+      // TODO: this if does nothing
+
 
       SCIPfreeBufferArray(scip, &coeff);
 
@@ -1018,13 +1019,13 @@ SCIP_RETCODE ObjConshdlrSdp::scip_enfolp(
       SCIP_CALL( SCIPflushRowExtensions(scip, row) );
 
       SCIP_Bool infeasible;
-      SCIPaddCut(scip, NULL, row, FALSE, &infeasible);
+      SCIP_CALL(SCIPaddCut(scip, NULL, row, FALSE, &infeasible));
 
       if ( infeasible )
          *result = SCIP_CUTOFF;
       else
       {
-         SCIPaddPoolCut(scip, row);
+         SCIP_CALL(SCIPaddPoolCut(scip, row));
 
          SCIP_CALL( SCIPresetConsAge(scip, conss[i]) );
          *result = SCIP_SEPARATED;

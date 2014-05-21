@@ -40,10 +40,6 @@
 
 #include <iterator>
 
-//#include "scip/type_var.h"
-//#include "scip/type_retcode.h"
-//#include "scip/type_scip.h"
-//#include "scip/type_sol.h"
 #include "scip/scip.h"
 
 class SdpCone

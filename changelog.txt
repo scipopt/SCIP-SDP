@@ -2,6 +2,7 @@ SCIP-SDP version 2.0
 ==================
 
 fixed bugs:
+- if DSDP didn't converge but produced primal and dual feasible solutions, these are no longe automatically accepted but are checked for optimality
 
 data structures:
 
@@ -10,10 +11,12 @@ features:
 performance improvements:
 
 interface:
+- added a more modular SDP-Interface and removed direct DSDP-reverences from the SCIPSDP-core-code
 
 parameters:
 
 core:
+- bounds from SCIP are no longer transformed into LP-rows but are given to the SDP Solver as bounds
 
 Makefile:
 - creates extra directory sdpi for SDP-Interface

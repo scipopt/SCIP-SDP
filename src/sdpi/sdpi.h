@@ -410,8 +410,8 @@ SCIP_RETCODE SCIPsdpiGetVarInfos(
    );
 
 /** gets LP rows from SDP problem object; the arrays have to be large enough to store all values.
- *  rhs can be null,
- *  either nnonz, begrow, colind, and val have to be NULL, or all of them have to be non-NULL.
+ *  rhs can be null, otherwise it should contain an entry for each row that should be returned,
+ *  either nnonz, rowind, colind, and val have to be NULL and *arraylength needs to be 0, or all of them have to be non-NULL.
  *  This will either return all wanted information or overwrite arraylength by the needed length to give this information.
  */
 EXTERN
