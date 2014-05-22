@@ -74,6 +74,7 @@ SCIP_RETCODE SdpProblem::addconstraint(
          for_constraint_.push_back(nmat);
          remember_size = for_vals_.size() - 1;
          something_over = TRUE;
+         increase_position = TRUE; // an entry for this position is added, so the position has to be increased
       }
    }
    else  //there are fixed variables
@@ -90,6 +91,7 @@ SCIP_RETCODE SdpProblem::addconstraint(
                for_constraint_.push_back(nmat);
                remember_size = for_vals_.size() - 1;
                something_over = TRUE;
+               increase_position = TRUE; // an entry for this position is added, so the position has to be increased
             }
             break;//stop if we found one variable for every equality
          }
@@ -115,6 +117,7 @@ SCIP_RETCODE SdpProblem::addconstraint(
                for_matind_.push_back(*position);
                for_constraint_.push_back(0);
                for_vals_.push_back(vals[k] * ubs[k]); //TODO: if rhs = 0 but two vars are fixed this could create multiple constant entries...
+               increase_position = TRUE; // an entry for this position is added, so the position has to be increased
             }
          }
          else //the rhs was not zero to it is possible that an enty exists
