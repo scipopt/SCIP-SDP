@@ -363,7 +363,7 @@ SCIP_RETCODE SdpCone::fix_vars()
    for (int j = 0; j < nvars_; ++j)
    {
       if ( (SCIPvarGetStatus(SCIPvarGetProbvar(uvars_[j])) == SCIP_VARSTATUS_FIXED) || (SCIPvarGetStatus(SCIPvarGetProbvar(uvars_[j])) == SCIP_VARSTATUS_AGGREGATED) )
-      {
+      { // TODO: could also check for LB=UB (but not yet fixed by scip), or is that impossible at this time ????
          how_many_deleted++; //number of deleted and aggregated vars
          deleted_nz = deleted_nz + vbeg_[j + 1] - vbeg_[j];
       }
@@ -1273,18 +1273,16 @@ SdpCone::RhsIterator& SdpCone::RhsIterator::operator++()
       return *this;
    }
 
-   int crow = -1;
-   int ccol = -1;
+   int crow;
+   int ccol;
    double val = 0.0;
 
    bool stop = FALSE;
-   //look for rows
-   for (int k = 0; k < sdpcone_->blocksize_; k++)
-   {//look for cols
-      for (int j = k; j < sdpcone_->blocksize_; j++)
+   //look for cols
+   for (ccol = 0; ccol < sdpcone_->blocksize_; ccol++)
+   {//look for rows
+      for (crow = ccol; crow < sdpcone_->blocksize_; crow++)
       {
-         crow = j; //row and cols are swaped
-         ccol = k;
          val = 0.0;
 
          if (pos_ != -1 && (crow == sdpcone_->const_col_[pos_] - 1) && (ccol == sdpcone_->const_row_[pos_] - 1))
