@@ -563,6 +563,12 @@ SCIP_Bool SCIPsdpiWasSolved(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    );
 
+/** returns true if the solver could determine whether or not the problem is feasible */
+EXTERN
+SCIP_Bool SCIPsdpiFeasibilityKnown(
+   SCIP_SDPI*            sdpi                /**< SDP interface structure */
+   );
+
 /** gets information about primal and dual feasibility of the current SDP solution */
 EXTERN
 SCIP_RETCODE SCIPsdpiGetSolFeasibility(

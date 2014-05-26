@@ -32,7 +32,7 @@
 
 /**@file   objconshdlr_sdp.cpp
  * @brief  constraint handler for sdp-constraints
- * @author Sonja Mars, Lars Schewe
+ * @author Sonja Mars, Lars Schewe, Tristan Gally
  */
 
 #include "objconshdlr_sdp.h"
@@ -250,19 +250,16 @@ SCIP_RETCODE cut_using_eigenvector(
    return SCIP_OKAY;
 }
 
-static
 SCIP_RETCODE cons_check(
    SCIP*              scip,               /**< SCIP data structure */
-   SCIP_CONSHDLR*     conshdlr,           /**< the constraint handler itself */
-   SCIP_CONS*         conss,              /**< array of constraints to process */
+   SdpCone*           sdpcone,            /**< sdpcone to check positive semidefiniteness for */
    SCIP_SOL*          sol,                /**< the solution to check feasibility for */
    SCIP_Bool          checkintegrality,   /**< has integrality to be checked? */
    SCIP_Bool          checklprows,        /**< have current LP rows to be checked? */
    SCIP_Bool          printreason,        /**< should the reason for the violation be printed? */
-   SCIP_RESULT*       result              /**< pointer to store the result of the feasibility checking call */)
+   SCIP_RESULT*       result              /**< pointer to store the result of the feasibility checking call */
+   )
 {
-   SdpCone* sdpcone;
-   SCIP_CALL( getSdpCone(scip, conss, &sdpcone ) );
    SCIP_Real* eigenvalues = NULL;
    SCIP_Real* matrix = NULL;
    int blocksize = sdpcone->get_blocksize();
@@ -906,10 +903,12 @@ SCIP_RETCODE ObjConshdlrSdp::scip_check(
    SCIP_RESULT*       result              /**< pointer to store the result of the feasibility checking call */
    )
 {
+   SdpCone* sdpcone;
 
    for (int i = 0; i < nconss; ++i)
    {
-      SCIP_CALL(cons_check(scip, conshdlr, conss[i], sol, checkintegrality, checklprows, printreason, result));
+      SCIP_CALL(getSdpCone(scip, conss[i], &sdpcone));
+      SCIP_CALL(cons_check(scip, sdpcone, sol, checkintegrality, checklprows, printreason, result));
       if (*result == SCIP_INFEASIBLE)
       {
          return SCIP_OKAY;
@@ -932,6 +931,7 @@ SCIP_RETCODE ObjConshdlrSdp::scip_enfops(
    SCIP_RESULT*       result              /**< pointer to store the result of the enforcing call */
    )
 {
+   SdpCone* sdpcone;
    if (objinfeasible)
    {
       *result = SCIP_DIDNOTRUN;
@@ -939,12 +939,8 @@ SCIP_RETCODE ObjConshdlrSdp::scip_enfops(
    }
    for (int i = 0; i < nconss; ++i)
    {
-
-      SCIP_CALL( cons_check(scip, conshdlr, conss[i], NULL, 0, 0, 0, result) );
-
-
-      SdpCone* sdpcone;
-      SCIP_CALL( getSdpCone(scip, conss[i], &sdpcone ) );
+      SCIP_CALL(getSdpCone(scip, conss[i], &sdpcone));
+      SCIP_CALL( cons_check(scip, sdpcone, NULL, 0, 0, 0, result) );
 
       SCIP_Real lhs = 0.0;
       SCIP_Real* coeff = NULL;
@@ -979,19 +975,19 @@ SCIP_RETCODE ObjConshdlrSdp::scip_enfolp(
    SCIP_RESULT*       result              /**< pointer to store the result of the enforcing call */
    )
 {
-
+   SdpCone* sdpcone;
    bool all_feasible = TRUE;
    bool separated = FALSE;
    for (int i = 0; i < nconss; ++i)
    {
-      SCIP_CALL( cons_check(scip, conshdlr, conss[i], NULL, 0, 0, 0, result) );
+      SCIP_CALL( getSdpCone(scip, conss[i], &sdpcone ) );
+      SCIP_CALL( cons_check(scip, sdpcone, NULL, 0, 0, 0, result) );
       if (*result == SCIP_FEASIBLE)
       {
          continue;
       }
       all_feasible = FALSE;
-      SdpCone  *sdpcone;
-      SCIP_CALL( getSdpCone(scip, conss[i], &sdpcone ) );
+
       int nvars = sdpcone->get_nvars();
 
 

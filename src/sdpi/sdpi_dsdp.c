@@ -161,14 +161,15 @@ static void checkIfLowerTriang(
    }
 }
 
-/** This function checks feasibility (currently only LP-inequalities and only dual solution) and will be called if DSDP returns "primal-dual-unknown" */
+/*
+* This function checks feasibility (currently only LP-inequalities and only dual solution) and will be called if DSDP returns "primal-dual-unknown"
 static SCIP_Bool solIsDualFeasible(
-   SCIP_SDPI*            sdpi               /**< pointer to an SDP interface structure */
+   SCIP_SDPI*            sdpi               *< pointer to an SDP interface structure
    )
 {
    int i;
    int ind;
-   SCIP_Real rhs;
+   SCIP_Real* rhs;
    SCIP_Real lhs;
    int nnonz;
    int* rowind;
@@ -180,35 +181,37 @@ static SCIP_Bool solIsDualFeasible(
 
    CHECK_IF_SOLVED(sdpi);
 
+   BMSallocBlockMemoryArray(sdpi->blkmem, &rhs, 1);
    BMSallocBlockMemoryArray(sdpi->blkmem, &rowind, sdpi->nvars);
    BMSallocBlockMemoryArray(sdpi->blkmem, &colind, sdpi->nvars);
    BMSallocBlockMemoryArray(sdpi->blkmem, &val, sdpi->nvars);
    BMSallocBlockMemoryArray(sdpi->blkmem, &sol, sdpi->nvars);
 
-   DSDP_CALL(DSDPGetY(sdpi->dsdp, sol, sdpi->nvars)); /* get the optimal solution */
+   DSDP_CALL(DSDPGetY(sdpi->dsdp, sol, sdpi->nvars));  get the optimal solution
 
    assert ( sol != NULL );
 
    for (i = 0; i < sdpi->nlpcons; i++)
    {
       int length = sdpi->nvars;
-      SCIPsdpiGetLPRows(sdpi, i, i, &rhs, &length, &nnonz, rowind, colind, val);   /* get the next LPRow */
+      SCIPsdpiGetLPRows(sdpi, i, i, rhs, &length, &nnonz, rowind, colind, val);    get the next LPRow
 
       assert ( rowind != NULL );
       assert ( colind != NULL );
       assert ( val != NULL );
 
-      lhs = 0; /* reset the left hand side */
+      lhs = 0;  reset the left hand side
 
       for (ind = 0; ind < nnonz; ind++)
       {
-         assert ( rowind[ind] == i ); /* TODO: sometimes rowind seems to become NULL when transferred from GetLPRows to here */
-         lhs = lhs + val[ind] * sol[colind[ind]]; /* multiply the LP-coefficient with the value of the corresponding variable and
-                                                   * summarize these for the left hand side value */
+         assert ( rowind[ind] == i );
+         lhs = lhs + val[ind] * sol[colind[ind]];  multiply the LP-coefficient with the value of the corresponding variable and
+                                                   * summarize these for the left hand side value
       }
 
-      if (lhs + feastol < rhs)   /* this LP-inequality is violated */
+      if (lhs + feastol < *rhs)    this LP-inequality is violated
       {
+         BMSfreeBlockMemoryArray(sdpi->blkmem, &rhs, 1);
          BMSfreeBlockMemoryArray(sdpi->blkmem, &rowind, sdpi->nvars);
          BMSfreeBlockMemoryArray(sdpi->blkmem, &colind, sdpi->nvars);
          BMSfreeBlockMemoryArray(sdpi->blkmem, &val, sdpi->nvars);
@@ -217,15 +220,16 @@ static SCIP_Bool solIsDualFeasible(
       }
    }
 
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &rhs, 1);
    BMSfreeBlockMemoryArray(sdpi->blkmem, &rowind, sdpi->nvars);
    BMSfreeBlockMemoryArray(sdpi->blkmem, &colind, sdpi->nvars);
    BMSfreeBlockMemoryArray(sdpi->blkmem, &val, sdpi->nvars);
    BMSfreeBlockMemoryArray(sdpi->blkmem, &sol, sdpi->nvars);
 
-   return TRUE; /* all tests were passed, so this solution has to be feasible */
+   return TRUE;  all tests were passed, so this solution has to be feasible
 
-   /* TODO: also check bounds and SDP-block and primal solution (possibly splitting this into checkDualFeasibility and checkPrimalFeasibility) */
-}
+    TODO: also check bounds and SDP-block and primal solution (possibly splitting this into checkDualFeasibility and checkPrimalFeasibility)
+}*/
 
 /*
  * Miscellaneous Methods
@@ -2685,7 +2689,6 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
 
       case DSDP_NUMERICAL_ERROR:
          SCIPdebugMessage("A numerical error occured in DSDP!\n");
-         printf("Numerical Trouble in DSDP! \n");
          BMSfreeBlockMemory(sdpi->blkmem, &reason);
          break;
 
@@ -2733,6 +2736,30 @@ SCIP_Bool SCIPsdpiWasSolved(
 {
    assert ( sdpi != NULL );
    return sdpi->solved;
+}
+
+/** returns true if the solver could determine whether or not the problem is feasible */
+SCIP_Bool SCIPsdpiFeasibilityKnown(
+   SCIP_SDPI*            sdpi                /**< SDP interface structure */
+   )
+{
+   DSDPSolutionType* pdfeasible;
+
+   assert ( sdpi != NULL );
+   CHECK_IF_SOLVED(sdpi);
+
+   BMSallocBlockMemory(sdpi->blkmem, &pdfeasible);
+   DSDP_CALL(DSDPGetSolutionType(sdpi->dsdp, pdfeasible));
+   if (*pdfeasible == DSDP_PDUNKNOWN)
+   {
+      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
+      return FALSE;
+   }
+   else
+   {
+      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
+      return TRUE;
+   }
 }
 
 /** gets information about primal and dual feasibility of the current SDP solution */
@@ -2823,17 +2850,10 @@ SCIP_Bool SCIPsdpiIsPrimalUnbounded(
    DSDP_CALL(DSDPGetSolutionType(sdpi->dsdp, pdfeasible));
    if (*pdfeasible == DSDP_PDUNKNOWN)
    {
-      if (!solIsDualFeasible(sdpi)){
-         SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible, but the dual solution actually isn't feasible\n");
-         BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
-         return TRUE;
-      }
-      else
-      {
-         SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible, but the dual solution actually is feasible\n");
-         BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
-         return FALSE;
-      }
+      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
+      SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible");
+      SCIPABORT();
+      return SCIP_ERROR;
    }
    else if (*pdfeasible == DSDP_INFEASIBLE)
    {
@@ -3119,7 +3139,7 @@ SCIP_Bool SCIPsdpiIsAcceptable(
       DSDP_CALL(DSDPGetPObjective(sdpi->dsdp, pobj));
       DSDP_CALL(DSDPGetDObjective(sdpi->dsdp, dobj));
 
-      if ((((abs(*pobj - *dobj))/ *dobj) < epsilon) && solIsDualFeasible(sdpi))
+      if ((((abs(*pobj - *dobj))/ *dobj) < epsilon))
       {
          BMSfreeBlockMemory(sdpi->blkmem, &pobj);
          BMSfreeBlockMemory(sdpi->blkmem, &dobj);

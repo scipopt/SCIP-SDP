@@ -32,7 +32,7 @@
 
 /**@file   objconshdlr_sdp.h
  * @brief  constrainthandler for SDPs
- * @author Sonja Mars, Lars Schewe
+ * @author Sonja Mars, Lars Schewe, Tristan Gally
  */
 
 #ifndef __SCIP_OBJCONSHDLR_SDP_H__
@@ -122,7 +122,6 @@ class ObjConshdlrSdp : public scip::ObjConshdlr
       int                nlockspos,          /**< no. of times, the roundings should be locked for the constraint */
       int                nlocksneg           /**< no. of times, the roundings should be locked for the constraint's negation */
       ) ;
-
 
    /** presolving initialization method of constraint handler (called when presolving is about to begin)
     *
@@ -389,7 +388,8 @@ class ObjConshdlrSdp : public scip::ObjConshdlr
 SCIP_RETCODE getSdpCone(
    SCIP* scip,             /**<SCIP data structure*/
    SCIP_CONS* conss,       /**<constraint to get data for*/
-   SdpCone** sdpcone       /**<output: pointer to the cone*/);
+   SdpCone** sdpcone       /**<output: pointer to the cone*/
+   );
 
 
 
@@ -399,7 +399,18 @@ SCIP_RETCODE SCIPcreateConsSdp(
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
    const char*           name,               /**< name of constraint */
    const SdpCone&        sdpcone             /**< the sdpcone*/
+   );
 
+/** checks feasibility for a single SDP-Cone */
+EXTERN
+SCIP_RETCODE cons_check(
+   SCIP*              scip,               /**< SCIP data structure */
+   SdpCone*           sdpcone,            /**< sdpcone to check positive semidefiniteness for */
+   SCIP_SOL*          sol,                /**< the solution to check feasibility for */
+   SCIP_Bool          checkintegrality,   /**< has integrality to be checked? */
+   SCIP_Bool          checklprows,        /**< have current LP rows to be checked? */
+   SCIP_Bool          printreason,        /**< should the reason for the violation be printed? */
+   SCIP_RESULT*       result              /**< pointer to store the result of the feasibility checking call */
    );
 
 #endif
