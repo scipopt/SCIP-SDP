@@ -23,6 +23,7 @@ parameters:
 
 core:
 - added SCIP 3.1.0 support by adding an additional parameter to SCIPaddCut
+- in the old version, if DSDP had problems while solving, DSDP was called again with a penalty-only-formulation, if this showed, that the problem is feasible, the relaxation from the parent-node was copied, now DSDP is called again with a penalty formulation that also includes the real objective in the hope solve the relaxation with a more stable approach
 
 Makefile:
 - SCIP-SDP is now started via ./bin/scipsdp instead of ./bin/main

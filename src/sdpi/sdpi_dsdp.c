@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#define SCIP_DEBUG
+//#define SCIP_DEBUG
 
 /**@file   sdpi_dsdp.c
  * @brief  interface for dsdp
@@ -191,8 +191,8 @@ static SCIP_Bool solIsDualFeasible(
 
    for (i = 0; i < sdpi->nlpcons; i++)
    {
-      int* nvars = &(sdpi->nvars);
-      SCIPsdpiGetLPRows(sdpi, i, i, &rhs, nvars, &nnonz, rowind, colind, val);   /* get the next LPRow */
+      int length = sdpi->nvars;
+      SCIPsdpiGetLPRows(sdpi, i, i, &rhs, &length, &nnonz, rowind, colind, val);   /* get the next LPRow */
 
       assert ( rowind != NULL );
       assert ( colind != NULL );
@@ -202,7 +202,7 @@ static SCIP_Bool solIsDualFeasible(
 
       for (ind = 0; ind < nnonz; ind++)
       {
-         assert ( rowind[ind] == i );
+         assert ( rowind[ind] == i ); /* TODO: sometimes rowind seems to become NULL when transferred from GetLPRows to here */
          lhs = lhs + val[ind] * sol[colind[ind]]; /* multiply the LP-coefficient with the value of the corresponding variable and
                                                    * summarize these for the left hand side value */
       }
@@ -494,7 +494,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
       row = sdpconstrowind[i];
       col = sdpconstcolind[i];
       checkIfLowerTriang(&row, &col);
-      (sdpi->sdpconstrowind)[i] = row; /* TODO: could these be saved by their DSDP-indices already ? */
+      (sdpi->sdpconstrowind)[i] = row; /* TODO: could these be saved with their DSDP-indices already ? */
       (sdpi->sdpconstcolind)[i] = col;
       (sdpi->sdpconstval)[i] = sdpconstval[i];
    }
@@ -2344,6 +2344,24 @@ SCIP_RETCODE SCIPsdpiSolve(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
+   return SCIPsdpiSolvePenalty(sdpi, 0, TRUE);
+}
+
+/** solves the following penalty formulation of the SDP:
+ *      \f{eqnarray*}{
+ *      \min & & b^T y + \Gamma r \\
+ *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathbb{I} \succeq 0 \quad \forall i \leq m \\
+ *      & & Dy \geq d \\
+ *      & & l \leq y \leq u}
+ *   \f
+ *   alternatively withObj can be to false to set \f b \f to false and only check for feasibility (if the optimal
+ *   objective value is bigger than 0 the problem is infeasible, otherwise it's feasible) */
+SCIP_RETCODE SCIPsdpiSolvePenalty(
+      SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+      SCIP_Real             penaltyParam,       /**< the penalty parameter \f \Gamma \f above, needs to be >= 0 */
+      SCIP_Bool             withObj             /**< if this is false, the objective is set to 0 */
+   )
+{
    int* dsdpconstind;         /* indices for constant SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
    double* dsdpconstval;      /* non-zero values for constant SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
    int* dsdpind;              /* indices for SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
@@ -2363,6 +2381,7 @@ SCIP_RETCODE SCIPsdpiSolve(
 #endif
 
    assert ( sdpi != NULL );
+   assert ( penaltyParam >= 0 );
 
    /* insert data */
 
@@ -2382,8 +2401,15 @@ SCIP_RETCODE SCIPsdpiSolve(
 
    for (i = 0; i < sdpi->nvars; i++)
    {
-      DSDP_CALL(DSDPSetDualObjective(sdpi->dsdp, i+1, -1 * sdpi->obj[i])); /*insert objective value, DSDP counts from 1 to n instead of 0 to n-1,
-                                                                                               * *(-1) because DSDP maximizes instead of minimizing */
+      if (withObj)
+      {
+         DSDP_CALL(DSDPSetDualObjective(sdpi->dsdp, i+1, -1 * sdpi->obj[i])); /* insert objective value, DSDP counts from 1 to n instead of 0 to n-1,
+                                                                                  * *(-1) because DSDP maximizes instead of minimizing */
+      }
+      else
+      {
+         DSDP_CALL(DSDPSetDualObjective(sdpi->dsdp, i+1, 0));
+      }
       if (!SCIPsdpiIsInfinity(sdpi, sdpi->lb[i]))
       {
          DSDP_CALL(BConeSetLowerBound(sdpi->bcone, i+1, sdpi->lb[i])); /*insert lower bound, DSDP counts from 1 to n instead of 0 to n-1 */
@@ -2535,8 +2561,6 @@ SCIP_RETCODE SCIPsdpiSolve(
 
       for(i = 0; i < sdpi->lpnnonz; i++)
       {
-         if (sdpi->lpcolind[i] < 0)
-            printf("\n\n\nlpnnonu = %d, lpcolind[%d] = %d \n\n\n", sdpi->lpnnonz, i, sdpi->lpcolind[i]);
          assert ( sdpi->lpcolind[i] >= 0 );
          assert ( sdpi->lpcolind[i] < sdpi->nvars );
          sortedlpcolind[i] = sdpi->lpcolind[i];
@@ -2594,6 +2618,13 @@ SCIP_RETCODE SCIPsdpiSolve(
 
    DSDP_CALL(DSDPSetGapTolerance(sdpi->dsdp, 1e-3)); /* set DSDP's tolerance */
 
+
+   /* set the penalty parameter */
+   if (penaltyParam != 0) /* in sdpiSolve this is called with an exact 0 */
+   {
+      DSDPSetPenaltyParameter(sdpi->dsdp, penaltyParam);
+      DSDPUsePenalty(sdpi->dsdp, 1);
+   }
 
    DSDP_CALLM(DSDPSetup(sdpi->dsdp));
    DSDP_CALL(DSDPSolve(sdpi->dsdp));
@@ -3078,6 +3109,8 @@ SCIP_Bool SCIPsdpiIsAcceptable(
    {
       double* pobj;
       double* dobj;
+
+      printf("Numerical Trouble in DSDP!\n");
 
       /* if it didn't converge check the optimality gap */
       BMSallocBlockMemory(sdpi->blkmem, &pobj);

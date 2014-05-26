@@ -526,6 +526,25 @@ EXTERN
 SCIP_RETCODE SCIPsdpiSolve(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    );
+
+/** solves the following penalty formulation of the SDP:
+ *      \f{eqnarray*}{
+ *      \min & & b^T y + \Gamma r \\
+ *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathbb{I} \succeq 0 \quad \forall i \leq m \\
+ *      & & Dy \geq d \\
+ *      & & l \leq y \leq u}
+ *   \f
+ *   alternatively withObj can be to false to set \f b \f to false and only check for feasibility (if the optimal
+ *   objective value is bigger than 0 the problem is infeasible, otherwise it's feasible) */
+EXTERN
+SCIP_RETCODE SCIPsdpiSolvePenalty(
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   SCIP_Real             gamma,              /**< the penalty parameter above, needs to be >= 0 */
+   SCIP_Bool             withObj             /**< if this is false, the objective is set to 0 */
+   );
+
+
+
 /**@} */
 
 

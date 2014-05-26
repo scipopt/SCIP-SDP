@@ -38,7 +38,7 @@
  */
 
 
-#define SCIP_DEBUG
+//#define SCIP_DEBUG
 
 #include "relax_sdp.h"
 
@@ -196,7 +196,7 @@ SCIP_RETCODE putDataInInterface(
    SdpCone::element el;
    SCIP_Real* sdpvar; /* this could as well be int, but SCIP only knows SCIPsortRealRealIntInt, but not IntRealIntInt or IntIntIntReal */
    int endindex;
-   int lastindforvar;
+   int nextindaftervar;
    int formatindsize;
    const int* formatind;
    const int* forconstraint;
@@ -364,6 +364,7 @@ SCIP_RETCODE putDataInInterface(
          sdpcolind[ind] = el.col;
          sdpval[ind] = el.val;
          sdpvar[ind] = varmapper->get_sdp_index(sdpcone->get_var(el.vidx));
+         //printf("sdpvar[%d]= %f, varstatus = %d, bounds: [%f, %f]\n", ind, sdpvar[ind], SCIPvarGetStatus(sdpcone->get_var(el.vidx)), SCIPvarGetLbLocal(sdpcone->get_var(el.vidx)), SCIPvarGetUbLocal(sdpcone->get_var(el.vidx))); TODO: remove completely
          ind++;
       }
 
@@ -389,20 +390,23 @@ SCIP_RETCODE putDataInInterface(
       SCIPsortRealRealIntInt(sdpvar + sdpbegvarblock[i*nvars], sdpval + sdpbegvarblock[i*nvars], sdpcolind + sdpbegvarblock[i*nvars],
                                 sdprowind + sdpbegvarblock[i*nvars], endindex - sdpbegvarblock[i * nvars]); /* + sdpbegvarblock[i*nvars] makes sure that sorting
                                                                                                              * starts at the beginning of this block */
-      lastindforvar = sdpbegvarblock[i*nvars];
+
+      assert ( sdpvar[sdpbegvarblock[i*nvars]] >= 0 );
+
+      nextindaftervar = sdpbegvarblock[i*nvars];
       for (j = 0; j < nvars; j++)
       {
-         while (lastindforvar < endindex && sdpvar[lastindforvar] == j) /* get the first index that doesn't belong to this variable */
+         while (nextindaftervar < endindex && sdpvar[nextindaftervar] == j) /* get the first index that doesn't belong to this variable */
          {
-            lastindforvar++;
+            nextindaftervar++;
          }
          if (j < nvars - 1)
          {
-            sdpbegvarblock[i * nvars + j + 1] = lastindforvar;       /* set the remaining sdbegvarblock entries equal to the computed values */
+            sdpbegvarblock[i * nvars + j + 1] = nextindaftervar;       /* set the remaining sdbegvarblock entries equal to the computed values */
          }
          else
          {
-            assert (lastindforvar == endindex );
+            assert (nextindaftervar == endindex );
          }
       }
 
@@ -414,7 +418,6 @@ SCIP_RETCODE putDataInInterface(
    SCIPfreeBlockMemoryArray(scip, &fixedvars, nfixedvars);
    SCIPfreeBlockMemoryArray(scip, &fixedvalues, nfixedvars);
 
-
    /* prepare LP arrays */
    nlpcons = problemdata->get_size_lpblock();
    formatindsize = problemdata->get_for_matind_size();
@@ -423,10 +426,8 @@ SCIP_RETCODE putDataInInterface(
                                                                                   * otherwise the last (number of rhs-nonzeroes) entries will stay empty */
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &lpcolind, formatindsize));
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &lpval, formatindsize));
-   //SCIP_CALL(SCIPallocBlockMemoryArray(scip, &formatind, formatindsize));
-   //SCIP_CALL(SCIPallocBlockMemoryArray(scip, &forconstraint, formatindsize));
-   //SCIP_CALL(SCIPallocBlockMemoryArray(scip, &forvals, formatindsize)); TODO: dies sind die Übeltäter
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &lprhs, nlpcons));
+
 
    /* initialize rhs with zero TODO: change this if not only nonzeroes are saved in SDPProblem */
    for (i = 0; i < nlpcons; i++)
@@ -438,6 +439,7 @@ SCIP_RETCODE putDataInInterface(
    formatind = problemdata->get_for_matind();
    forconstraint = problemdata->get_for_constraint();
    forvals = problemdata->get_for_vals();
+
 
    ind = 0;
    for (i = 0; i < formatindsize; i++)
@@ -457,12 +459,8 @@ SCIP_RETCODE putDataInInterface(
       }
    }
 
-   lpnnonz = ind;
 
-   /* the arrays used for determining whether the entries are rhs or nonzeroes can now be freed */
-   //SCIPfreeBlockMemoryArray(scip, &formatind, formatindsize);
-   //SCIPfreeBlockMemoryArray(scip, &forconstraint, formatindsize);
-   //SCIPfreeBlockMemoryArray(scip, &forvals, formatindsize); TODO: dies sind die Übeltäter
+   lpnnonz = ind;
 
    SCIP_CALL(SCIPsdpiLoadSDP(sdpi, nvars, (const SCIP_Real*) obj, (const SCIP_Real*) lb, (const SCIP_Real*) ub, nsdpblocks,
                             (const int*) sdpblocksizes, sdpconstnnonz, (const int*) sdpconstbegblock, (const int*) sdpconstrowind,
@@ -542,17 +540,62 @@ SCIP_RETCODE getTransformedSol(
       }
    }
 
+   SCIPfreeBlockMemoryArray(scip, &sdpsol, nsdpvars);
+
    return SCIP_OKAY;
 }
 
-/** call solve */
+/** checks the feasibility of the problem if the solver returned some ambigous solution by calling it again with a
+ *  formulation that only has the LP-part as constraints and tries to minimize the minimal eigenvalue of the SDP-constraint */
+static
+SCIP_Bool relaxIsFeasible(
+      SCIP_SDPI*            sdpi,               /**< SDP-Interface structure */
+      SCIP*                 scip                /**< SCIP data structure */
+   )
+{
+   SCIP_Real obj;
+
+   assert ( sdpi != NULL );
+   assert ( scip != NULL );
+
+   SCIP_CALL(SCIPsdpiSolvePenalty(sdpi, 1.0, FALSE));
+
+   SCIP_CALL(SCIPsdpiGetObjval(sdpi, &obj));
+
+   if (SCIPsdpiIsAcceptable(sdpi))
+   {
+      if (SCIPsdpiIsDualFeasible(sdpi) && SCIPisLE(scip, obj, 0.0)) /* if it is feasible and the objective is no bigger than zero, then
+                                                               * there is a solution which is actually positive semidefinite */
+      {
+         SCIPdebugMessage("Verified that a problem is feasible with a penalty-only-formulation.\n");
+         return TRUE;
+      }
+      else if (SCIPsdpiIsDualFeasible(sdpi) || SCIPsdpiIsDualInfeasible(sdpi)) /* because of the else the first part means that the
+                                                               * objective is bigger than 0, so it is feasible with regards to
+                                                               * the LP-part, but there is no positive semidefinite solution */
+      {
+         SCIPdebugMessage("Verified that a problem is infeasible with a penalty-only-formulation.\n");
+         return FALSE;
+      }
+      SCIPerrorMessage("Can't decide if a subproblem is feasible !"); /* can't be reached */
+      SCIPABORT();
+      return SCIP_ERROR;
+   }
+   SCIPerrorMessage("Even when using a penalty-only-formulation the SDP-Solver didn't converge !");
+   SCIPABORT();
+   return SCIP_ERROR;
+}
+
+/** calculate relaxation and process the relaxation results, may call itself recursively once to try again
+ *  with a penalty formulation (or more often if the penalty formulation turns out to be unbounded) */
 static
 SCIP_RETCODE calc_relax(
-   SCIP_SDPI*            sdpi,               /**< SDP-Interface structure */
-   SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_RESULT*          result,             /**< pointer to store result of relaxation process */
-   SCIP_Real*            lowerbound,         /**< pointer to store lowerbound */
-   SdpVarMapper*         varmapper           /**< varmapper class data */
+      SCIP_SDPI*            sdpi,               /**< SDP-Interface structure */
+      SCIP*                 scip,               /**< SCIP data structure */
+      SCIP_RESULT*          result,             /**< pointer to store result of relaxation process */
+      SCIP_Real*            lowerbound,         /**< pointer to store lowerbound */
+      SdpVarMapper*         varmapper,          /**< varmapper class data */
+      SCIP_Real             penaltyparam        /**< parameter for penalty formulation, if 0 the normal SDP is solved */
    )
 {
    SCIP_VAR** vars;
@@ -561,16 +604,26 @@ SCIP_RETCODE calc_relax(
    SCIP_Real objforscip;
    int i;
 
+   assert ( sdpi != NULL );
+   assert ( scip != NULL );
+   assert ( result != NULL );
+   assert ( lowerbound != NULL );
+   assert ( varmapper != NULL );
+   assert ( penaltyparam >= 0.0 );
+
    nvars = SCIPgetNVars(scip);
    vars = SCIPgetVars (scip);
 
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &solforscip, nvars));
 
-   SCIP_CALL(SCIPsdpiSolve(sdpi));
-
-   SCIP_CALL(getTransformedSol(scip, sdpi, varmapper, solforscip, &objforscip));
-
-   assert(solforscip != NULL);
+   if (penaltyparam == 0)
+   {
+      SCIP_CALL(SCIPsdpiSolve(sdpi));
+   }
+   else
+   {
+      SCIP_CALL(SCIPsdpiSolvePenalty(sdpi, penaltyparam, TRUE));
+   }
 
 #ifdef SCIP_DEBUG /* print the optimal solution */
    SCIPdebugMessage("optimal solution: objective = %f, ", objforscip);
@@ -583,106 +636,204 @@ SCIP_RETCODE calc_relax(
    SCIPdebugMessage("\n");
 #endif
 
+   SCIP_CALL(getTransformedSol(scip, sdpi, varmapper, solforscip, &objforscip));
+
+   assert(solforscip != NULL);
+
    if (SCIPsdpiIsAcceptable(sdpi))
-   {
-      if (SCIPsdpiIsDualInfeasible(sdpi))
       {
-         *result = SCIP_CUTOFF;
-         SCIPfreeBlockMemoryArray(scip, &solforscip, nvars);
-         return SCIP_OKAY;
-      }
-
-      else if (SCIPsdpiIsDualUnbounded(sdpi))
-      {
-         *result = SCIP_SUCCESS;
-         *lowerbound = SCIPinfinity(scip);
-         SCIPfreeBlockMemoryArray(scip, &solforscip, nvars);
-         return SCIP_OKAY;
-      }
-
-      else if (SCIPsdpiIsPrimalFeasible(sdpi) && SCIPsdpiIsDualFeasible(sdpi))
-      {
-         SCIP_SOL* scipsol;
-         SCIP_Bool solisfeas;
-         SCIP_Bool stored;
-         SCIP_COL** cols;
-         int ncols;
-
-         SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
-         SCIP_CALL( SCIPsetSolVals (scip, scipsol, nvars, vars, solforscip) );
-         SCIP_CALL(check_bounds(scip, nvars, vars, scipsol, &solisfeas));
-
-         if (solisfeas)
+         if (SCIPsdpiIsDualInfeasible(sdpi))
          {
-            *lowerbound = objforscip;
+            *result = SCIP_CUTOFF;
+            SCIPfreeBlockMemoryArray(scip, &solforscip, nvars);
+            return SCIP_OKAY;
+         }
 
-
-            SCIP_Bool  delayed;
-            SCIP_Bool  cutoff_forsep;
-
-            SCIP_CALL( SCIPseparateSol (scip, scipsol, FALSE, FALSE, &delayed, &cutoff_forsep) );
-            SCIP_CALL( SCIPtrySol(scip, scipsol, FALSE, TRUE, TRUE, TRUE, &stored) );
-
-            SCIP_CALL( SCIPgetLPColsData(scip, &cols, &ncols) );
-
-            for (i = 0; i < ncols; i++)
-            {
-               SCIP_CALL(SCIPsetRelaxSolVal(scip, SCIPcolGetVar(cols[i]), SCIPgetSolVal(scip, scipsol, SCIPcolGetVar(cols[i]))));
-            }
-
-            SCIP_CALL(SCIPmarkRelaxSolValid(scip));
-            SCIP_CALL(SCIPfreeSol(scip, &scipsol));
-
-            int ncuts = SCIPgetNCuts(scip);
-
-            if (SCIPgetNIntVars(scip) == 0 && SCIPgetNBinVars(scip) == 0) /* there are no integer and binary vars, we are done */
+         else if (SCIPsdpiIsDualUnbounded(sdpi))
+         {
+            if (penaltyparam == 0 || SCIPsdpiIsInfinity(sdpi, penaltyparam))
             {
                *result = SCIP_SUCCESS;
+               *lowerbound = SCIPinfinity(scip);
+               SCIPfreeBlockMemoryArray(scip, &solforscip, nvars);
+               return SCIP_OKAY;
             }
             else
             {
-               if (ncuts == 0)
+               /* this might be unbounded because of a too low penalty param */
+               SCIPfreeBlockMemoryArray(scip, &solforscip, nvars);
+               SCIPdebugMessage("calc_relax is called again with penaltyparameter %f because of unboundedness!\n", 2 * penaltyparam);
+               SCIP_CALL(calc_relax(sdpi, scip, result, lowerbound, varmapper, 2 * penaltyparam));
+
+               return SCIP_OKAY;
+            }
+         }
+
+         else if (SCIPsdpiIsPrimalFeasible(sdpi) && SCIPsdpiIsDualFeasible(sdpi))
+         {
+            SCIP_SOL* scipsol;
+            SCIP_Bool solisfeas;
+            SCIP_Bool stored;
+            SCIP_COL** cols;
+            int ncols;
+
+            SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
+            SCIP_CALL( SCIPsetSolVals (scip, scipsol, nvars, vars, solforscip) );
+            SCIP_CALL(check_bounds(scip, nvars, vars, scipsol, &solisfeas));
+
+            if (solisfeas) /* TODO: very important to check SDP here for penalty formulation !!! */
+            {
+               *lowerbound = objforscip;
+
+
+               SCIP_Bool  delayed;
+               SCIP_Bool  cutoff_forsep;
+
+               SCIP_CALL( SCIPseparateSol (scip, scipsol, FALSE, FALSE, &delayed, &cutoff_forsep) );
+               SCIP_CALL( SCIPtrySol(scip, scipsol, FALSE, TRUE, TRUE, TRUE, &stored) );
+
+               SCIP_CALL( SCIPgetLPColsData(scip, &cols, &ncols) );
+
+               for (i = 0; i < ncols; i++)
+               {
+                  SCIP_CALL(SCIPsetRelaxSolVal(scip, SCIPcolGetVar(cols[i]), SCIPgetSolVal(scip, scipsol, SCIPcolGetVar(cols[i]))));
+               }
+
+               SCIP_CALL(SCIPmarkRelaxSolValid(scip));
+               SCIP_CALL(SCIPfreeSol(scip, &scipsol));
+
+               int ncuts = SCIPgetNCuts(scip);
+
+               if (SCIPgetNIntVars(scip) == 0 && SCIPgetNBinVars(scip) == 0) /* there are no integer and binary vars, we are done */
                {
                   *result = SCIP_SUCCESS;
                }
                else
                {
-                  *result = SCIP_SEPARATED;
+                  if (ncuts == 0)
+                  {
+                     *result = SCIP_SUCCESS;
+                  }
+                  else
+                  {
+                     *result = SCIP_SEPARATED;
+                  }
                }
-            }
 
-            for (i = 0; i < nvars; i++)
-            {
-               if (!SCIPisIntegral(scip, solforscip[i]) && SCIPvarIsIntegral(vars[i]) && (SCIPvarGetLbLocal(vars[i]) != SCIPvarGetUbLocal(vars[i])))
+               for (i = 0; i < nvars; i++)
                {
-                  SCIP_CALL( SCIPaddExternBranchCand(scip, vars[i], 10000.0, solforscip[i]) );
+                  if (!SCIPisIntegral(scip, solforscip[i]) && SCIPvarIsIntegral(vars[i]) && (SCIPvarGetLbLocal(vars[i]) != SCIPvarGetUbLocal(vars[i])))
+                  {
+                     SCIP_CALL( SCIPaddExternBranchCand(scip, vars[i], 10000.0, solforscip[i]) );
+                  }
+               }
+
+               SCIPfreeBlockMemoryArray(scip, &solforscip, nvars);
+
+               return SCIP_OKAY;
+            }
+            else
+            {
+               SCIPfreeBlockMemoryArray(scip, &solforscip, nvars);
+               if (penaltyparam != 0 && !(SCIPsdpiIsInfinity(sdpi, penaltyparam)))
+               {
+                  /* the penalty parameter was too small to create a feasible solution */
+                  SCIPdebugMessage("calc_relax is called again with penaltyparameter %f because of infeasibility!\n", 2 * penaltyparam);
+                  SCIP_CALL(calc_relax(sdpi, scip, result, lowerbound, varmapper, 2 * penaltyparam));
+
+                  return SCIP_OKAY;
+               }
+               else if (penaltyparam != 0 && SCIPsdpiIsInfinity(sdpi, penaltyparam))
+               {
+                  /* a penalty-only-formulation showed, that the problem is feasible, but we weren't able to produce a feasible solution,
+                   * so we reuse the relaxation result of the parent node (if one exists)*/
+                  SCIP_NODE* node = SCIPnodeGetParent(SCIPgetCurrentNode(scip));
+                  if (!node)
+                  {
+                     *result = SCIP_SUSPENDED;
+                     return SCIP_OKAY;
+                  }
+                  else
+                  {
+                     *lowerbound = SCIPnodeGetLowerbound(node);
+                     *result = SCIP_SUCCESS;
+                     SCIP_CALL( SCIPupdateLocalLowerbound(scip, *lowerbound) );
+                     return SCIP_OKAY;
+                  }
+               }
+               else
+               {
+                  /* check for feasibility via penalty-only-formulation */
+                  if (relaxIsFeasible(sdpi, scip))
+                  {
+                     /* try again with penalty formulation */
+                     SCIP_CALL(calc_relax(sdpi, scip, result, lowerbound, varmapper, 50.0)); /* TODO: think about penalty parameter */
+
+                     return SCIP_OKAY;
+                  }
+                  else
+                  {
+                     /* penalty-only-formulation showed, that the problem is infeasible */
+                     *result = SCIP_CUTOFF;
+                     SCIPfreeBlockMemoryArray(scip, &solforscip, nvars);
+                     return SCIP_OKAY;
+                  }
                }
             }
-
-            SCIPfreeBlockMemoryArray(scip, &solforscip, nvars);
+         }
+      }
+      else
+      {
+         SCIPfreeBlockMemoryArray(scip, &solforscip, nvars);
+         if (penaltyparam != 0 && !(SCIPsdpiIsInfinity(sdpi, penaltyparam)))
+         {
+            /* the penalty parameter was too small to make DSDP more stable */
+            SCIPdebugMessage("calc_relax is called again with penaltyparameter %f because of non-convergence!\n", 2 * penaltyparam);
+            SCIP_CALL(calc_relax(sdpi, scip, result, lowerbound, varmapper, 2 * penaltyparam));
 
             return SCIP_OKAY;
          }
+         else if (penaltyparam != 0 && SCIPsdpiIsInfinity(sdpi, penaltyparam))
+         {
+            /* a penalty-only-formulation showed, that the problem is feasible, but we weren't able to produce a feasible solution,
+             * so we reuse the relaxation result of the parent node (if one exists)*/
+            SCIP_NODE* node = SCIPnodeGetParent(SCIPgetCurrentNode(scip));
+            if (!node)
+            {
+               *result = SCIP_SUSPENDED;
+               return SCIP_OKAY;
+            }
+            else
+            {
+               *lowerbound = SCIPnodeGetLowerbound(node);
+               *result = SCIP_SUCCESS;
+               SCIP_CALL( SCIPupdateLocalLowerbound(scip, *lowerbound) );
+               return SCIP_OKAY;
+            }
+         }
          else
          {
-            /* TODO could try to solve again with penalty function */
-            SCIPerrorMessage("The SDP solver said the solution was feasible, but SCIP says it isn't.");
-            SCIPfreeBlockMemoryArray(scip, &solforscip, nvars);
-            SCIPABORT();
-            return SCIP_ERROR;
+            /* check for feasibility via penalty-only-formulation */
+            if (relaxIsFeasible(sdpi, scip))
+            {
+               /* try again with penalty formulation */
+               SCIP_CALL(calc_relax(sdpi, scip, result, lowerbound, varmapper, 50.0)); /* TODO: think about penalty parameter */
+
+               return SCIP_OKAY;
+            }
+            else
+            {
+               /* penalty-only-formulation showed, that the problem is infeasible */
+               *result = SCIP_CUTOFF;
+               SCIPfreeBlockMemoryArray(scip, &solforscip, nvars);
+               return SCIP_OKAY;
+            }
          }
       }
-   }
-   else
-   {
-      /* TODO could try to solve again with penalty function */
-      SCIPerrorMessage("The SDP solver didn't converge.");
-      SCIPfreeBlockMemoryArray(scip, &solforscip, nvars);
-      SCIPABORT();
-      return SCIP_ERROR; /* or SCIP_DIDNOTRUND ?, could also think about returning SCIP_CUTOFF if it was unfeasible and didn't converge */
-   }
-   return SCIP_ERROR; /* can't be reached */
+
+      return SCIP_ERROR; /* can't be reached */
 }
+
 
 /** execution method of relaxator */
 static
@@ -723,12 +874,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
       return SCIP_OKAY;
    }
 
-   SCIP_SDPI* sdpi;
-   BMS_BLKMEM* blkmem = SCIPblkmem(scip);
-   SCIP_CALL(SCIPsdpiCreate(&sdpi, NULL, blkmem));
-
-   SCIP_CALL( putDataInInterface(scip, sdpi,problemdata, varmapper) );
-
    if (varmapper->get_allfixed())
    {
       // if all variables, really all, are fixed, I can't solve an sdp, because there is no interior point in this case, result is success and I'm separating the solution (the upper or lower bounds on a variable
@@ -768,7 +913,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
          *result = SCIP_CUTOFF;
       }
       SCIPfreeBlockMemoryArray(scip, &ubs, nvars);
-      SCIP_CALL(SCIPsdpiFree(&sdpi));
       delete problemdata;
       SCIP_CALL(varmapper->exit());
       delete varmapper;
@@ -776,7 +920,13 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
       return SCIP_OKAY;
    }
 
-   SCIP_CALL( calc_relax(sdpi, scip, result, lowerbound, varmapper));
+   SCIP_SDPI* sdpi;
+   BMS_BLKMEM* blkmem = SCIPblkmem(scip);
+   SCIP_CALL(SCIPsdpiCreate(&sdpi, NULL, blkmem));
+
+   SCIP_CALL( putDataInInterface(scip, sdpi,problemdata, varmapper) );
+
+   SCIP_CALL( calc_relax(sdpi, scip, result, lowerbound, varmapper, 0.0));
 
    SCIP_CALL(varmapper->exit());
 
@@ -785,6 +935,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
    SCIP_CALL(SCIPsdpiFree(&sdpi));
 
    delete problemdata;
+
 
    return SCIP_OKAY;
 }
