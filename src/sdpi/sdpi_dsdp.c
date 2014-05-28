@@ -122,7 +122,7 @@ struct SCIP_SDPi
 
 static int nextsdpid     =  1;               /**< used to give ids to the generated sdps for debugging messages */
 static double epsilon    = 1e-6;             /**< this is used for checking if primal and dual objective are equal */
-static double feastol    = 1e-4;             /**< this is used for checking if a solution is feasible */
+//static double feastol    = 1e-4;             /**< this is used for checking if a solution is feasible */
 
 /*
  * Local Functions
@@ -3129,6 +3129,7 @@ SCIP_Bool SCIPsdpiIsAcceptable(
    {
       double* pobj;
       double* dobj;
+      double gap;
 
       printf("Numerical Trouble in DSDP!\n");
 
@@ -3139,7 +3140,9 @@ SCIP_Bool SCIPsdpiIsAcceptable(
       DSDP_CALL(DSDPGetPObjective(sdpi->dsdp, pobj));
       DSDP_CALL(DSDPGetDObjective(sdpi->dsdp, dobj));
 
-      if ((((abs(*pobj - *dobj))/ *dobj) < epsilon))
+      gap = abs(*pobj - *dobj);
+
+      if ((gap < epsilon) || ((gap / (0.5 * (abs(*pobj) + abs(*dobj)))) < epsilon)) /* this is the duality gap used in SDPA */
       {
          BMSfreeBlockMemory(sdpi->blkmem, &pobj);
          BMSfreeBlockMemory(sdpi->blkmem, &dobj);
