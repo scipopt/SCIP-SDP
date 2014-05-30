@@ -1017,6 +1017,9 @@ void SdpCone::compress_representation(SCIP_VAR** vars,
 
 SCIP_RETCODE SdpCone::get_shrunk_constraint_matrix(double* matrix, int* actual_size, int vidx) const
 {
+   assert( matrix != 0 );
+   assert( actual_size != 0 );
+
    // alloc array to store row/col sparsity pattern
    int* pattern;
 
