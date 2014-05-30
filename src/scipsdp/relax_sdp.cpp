@@ -513,25 +513,30 @@ SCIP_RETCODE getTransformedSol(
    assert ( solforscip != NULL );
    assert ( objforscip != NULL );
 
-   SCIP_CALL(SCIPsdpiGetNVars(sdpi, &nsdpvars));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &sdpsol, nsdpvars));
+   SCIP_CALL( SCIPsdpiGetNVars(sdpi, &nsdpvars) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &sdpsol, nsdpvars) );
 
-   SCIP_CALL(SCIPsdpiGetSol(sdpi, &sdpobj, sdpsol, nsdpvars)); /* get both the objective and the solution from the SDP solver */
+   SCIP_CALL( SCIPsdpiGetSol(sdpi, &sdpobj, sdpsol, nsdpvars) ); /* get both the objective and the solution from the SDP solver */
 
    *objforscip = sdpobj; /* initialize the objective with that of the SDP, later the objective parts of the fixed variables will be added to this */
 
    nvars = SCIPgetNVars(scip);
    vars = SCIPgetVars (scip);
 
-   for (i = 0; i < nvars; i++)
+   for (i = 0; i < nvars; ++i)
    {
-      ind = varmapper->get_sdp_index(vars[i]);
-      if (ind == -1)
-      {
-         assert (SCIPisEQ(scip, SCIPvarGetLbLocal(vars[i]), SCIPvarGetUbLocal(vars[i])));
+      SCIP_VAR* var = vars[i];
+      assert( var != 0 );
 
-         solforscip[i] = SCIPvarGetUbLocal(vars[i]); /* this variable was fixed, so it is equal to its upper bound (which equals the lower bound) */
-         *objforscip = *objforscip + solforscip[i] * SCIPvarGetObj(vars[i]); /* add this fixed variables contribution to the objective value */
+      ind = varmapper->get_sdp_index(var);
+      if ( ind == -1 )
+      {
+         assert (SCIPisEQ(scip, SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var)));
+
+         solforscip[i] = SCIPvarGetUbLocal(var); /* this variable was fixed, so it is equal to its upper bound (which equals the lower bound) */
+         SCIP_Real obj = SCIPvarGetObj(var);
+         if ( ! SCIPisZero(scip, solforscip[i]) && ! SCIPisZero(scip, obj) )
+            *objforscip += solforscip[i] * obj; /* add this fixed variables contribution to the objective value */
       }
       else
       {
@@ -548,9 +553,10 @@ SCIP_RETCODE getTransformedSol(
 /** checks the feasibility of the problem if the solver returned some ambigous solution by calling it again with a
  *  formulation that only has the LP-part as constraints and tries to minimize the minimal eigenvalue of the SDP-constraint */
 static
-SCIP_Bool relaxIsFeasible(
-      SCIP_SDPI*            sdpi,               /**< SDP-Interface structure */
-      SCIP*                 scip                /**< SCIP data structure */
+SCIP_RETCODE relaxIsFeasible(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_SDPI*            sdpi,               /**< SDP-Interface structure */
+   bool&                 feasible            /**< whether we obtained a feasible solution */
    )
 {
    SCIP_Real obj;
@@ -558,50 +564,57 @@ SCIP_Bool relaxIsFeasible(
    assert ( sdpi != NULL );
    assert ( scip != NULL );
 
-   SCIP_CALL(SCIPsdpiSolvePenalty(sdpi, 1.0, FALSE));
+   /* solve with penalty without objective */
+   SCIP_CALL( SCIPsdpiSolvePenalty(sdpi, 1.0, FALSE) );
 
-   SCIP_CALL(SCIPsdpiGetObjval(sdpi, &obj));
+   SCIP_CALL( SCIPsdpiGetObjval(sdpi, &obj) );
 
-   if (SCIPsdpiIsAcceptable(sdpi))
+   if ( SCIPsdpiIsAcceptable(sdpi) )
    {
-      if (SCIPsdpiIsDualFeasible(sdpi) && SCIPisLE(scip, obj, 0.0)) /* if it is feasible and the objective is no bigger than zero, then
-                                                               * there is a solution which is actually positive semidefinite */
+      /* if solution is feasible and objective is <= 0, then there is a solution which is actually psd */
+      if ( SCIPsdpiIsDualFeasible(sdpi) && SCIPisLE(scip, obj, 0.0) )
       {
          SCIPdebugMessage("Verified that a problem is feasible with a penalty-only-formulation.\n");
-         return TRUE;
+         feasible = true;
       }
-      else if (SCIPsdpiIsDualFeasible(sdpi) || SCIPsdpiIsDualInfeasible(sdpi)) /* because of the else the first part means that the
-                                                               * objective is bigger than 0, so it is feasible with regards to
-                                                               * the LP-part, but there is no positive semidefinite solution */
+      /* Now the objective > 0, so it is feasible w.r.t. the LP-part, but there is no psd solution. */
+      else if ( SCIPsdpiIsDualFeasible(sdpi) || SCIPsdpiIsDualInfeasible(sdpi) )
       {
          SCIPdebugMessage("Verified that a problem is infeasible with a penalty-only-formulation.\n");
-         return FALSE;
+         feasible = false;
       }
-      SCIPerrorMessage("Can't decide if a subproblem is feasible !"); /* can't be reached */
+      else
+      {
+         SCIPerrorMessage("Cannot decide whether subproblem is feasible!"); /* can't be reached */
+         SCIPABORT();
+         return SCIP_ERROR;
+      }
+   }
+   else
+   {
+      SCIPerrorMessage("Even when using a penalty-only-formulation the SDP-Solver didnot converge!");
       SCIPABORT();
       return SCIP_ERROR;
    }
-   SCIPerrorMessage("Even when using a penalty-only-formulation the SDP-Solver didn't converge !");
-   SCIPABORT();
-   return SCIP_ERROR;
+
+   return SCIP_OKAY;
 }
 
 /** calculate relaxation and process the relaxation results, may call itself recursively once to try again
  *  with a penalty formulation (or more often if the penalty formulation turns out to be unbounded) */
 static
 SCIP_RETCODE calc_relax(
-      SCIP_SDPI*            sdpi,               /**< SDP-Interface structure */
-      SCIP*                 scip,               /**< SCIP data structure */
-      SCIP_RESULT*          result,             /**< pointer to store result of relaxation process */
-      SCIP_Real*            lowerbound,         /**< pointer to store lowerbound */
-      SdpProblem*           problemdata,        /**< data structure with problem-data of a specific node */
-      SdpVarMapper*         varmapper,          /**< varmapper class data */
-      SCIP_Real             penaltyparam        /**< parameter for penalty formulation, if 0 the normal SDP is solved */
+   SCIP_SDPI*            sdpi,               /**< SDP-Interface structure */
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_RESULT*          result,             /**< pointer to store result of relaxation process */
+   SCIP_Real*            lowerbound,         /**< pointer to store lowerbound */
+   SdpProblem*           problemdata,        /**< data structure with problem-data of a specific node */
+   SdpVarMapper*         varmapper,          /**< varmapper class data */
+   SCIP_Real             penaltyparam        /**< parameter for penalty formulation, if 0 the normal SDP is solved */
    )
 {
    SCIP_VAR** vars;
    int nvars;
-   SCIP_Real* solforscip;
    SCIP_Real objforscip;
    int i;
 
@@ -613,11 +626,10 @@ SCIP_RETCODE calc_relax(
    assert ( penaltyparam >= 0.0 );
 
    nvars = SCIPgetNVars(scip);
+   assert( nvars > 0 );
    vars = SCIPgetVars (scip);
 
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &solforscip, nvars));
-
-   if (penaltyparam == 0)
+   if ( penaltyparam == 0.0 )
    {
       SCIP_CALL(SCIPsdpiSolve(sdpi));
    }
@@ -630,220 +642,208 @@ SCIP_RETCODE calc_relax(
    SCIPdebugMessage("optimal solution: objective = %f, ", objforscip);
    SCIPdebugMessage("dual feasible: %d, ", SCIPsdpiIsDualFeasible(sdpi));
    SCIPdebugMessage("primal feasible: %d, ", SCIPsdpiIsPrimalFeasible(sdpi));
-   for (i = 0; i < nvars; i++)
+   for (i = 0; i < nvars; ++i)
    {
       SCIPdebugMessage("y_%d = %f, ", i, solforscip[i]);
    }
    SCIPdebugMessage("\n");
 #endif
 
-   SCIP_CALL(getTransformedSol(scip, sdpi, varmapper, solforscip, &objforscip));
-
-   assert(solforscip != NULL);
-
-   if (SCIPsdpiIsAcceptable(sdpi) && SCIPsdpiFeasibilityKnown(sdpi))
+   if ( SCIPsdpiIsAcceptable(sdpi) && SCIPsdpiFeasibilityKnown(sdpi) )
+   {
+      if ( SCIPsdpiIsDualInfeasible(sdpi) )
       {
-         if (SCIPsdpiIsDualInfeasible(sdpi))
-         {
-            *result = SCIP_CUTOFF;
-            SCIPfreeBlockMemoryArray(scip, &solforscip, nvars);
-            return SCIP_OKAY;
-         }
-
-         else if (SCIPsdpiIsDualUnbounded(sdpi))
-         {
-            if (penaltyparam == 0 || SCIPsdpiIsInfinity(sdpi, penaltyparam))
-            {
-               *result = SCIP_SUCCESS;
-               *lowerbound = SCIPinfinity(scip);
-               SCIPfreeBlockMemoryArray(scip, &solforscip, nvars);
-               return SCIP_OKAY;
-            }
-            else
-            {
-               /* this might be unbounded because of a too low penalty param */
-               SCIPfreeBlockMemoryArray(scip, &solforscip, nvars);
-               SCIPdebugMessage("calc_relax is called again with penaltyparameter %f because of unboundedness!\n", 2 * penaltyparam);
-               SCIP_CALL(calc_relax(sdpi, scip, result, lowerbound, problemdata, varmapper, 2 * penaltyparam));
-
-               return SCIP_OKAY;
-            }
-         }
-
-         else if (SCIPsdpiIsPrimalFeasible(sdpi) && SCIPsdpiIsDualFeasible(sdpi))
-         {
-            SCIP_SOL* scipsol;
-            SCIP_RESULT conefeas;
-            SCIP_Bool solisfeas;
-            SCIP_Bool stored;
-            SCIP_COL** cols;
-            int ncols;
-
-            SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
-            SCIP_CALL( SCIPsetSolVals (scip, scipsol, nvars, vars, solforscip) );
-
-            /* check if the solution really is feasible */
-            solisfeas = TRUE;
-            for (i = 0; i < problemdata->get_nsdpcones(); i++)
-            {
-               SCIP_CALL( cons_check(scip, problemdata->get_sdpcone(i), scipsol, FALSE, TRUE, FALSE, &conefeas) );
-               if (conefeas == SCIP_INFEASIBLE)
-               {
-                  solisfeas = FALSE;
-                  break;
-               }
-            }
-
-            if (solisfeas)
-            {
-               *lowerbound = objforscip;
-
-
-               SCIP_Bool  delayed;
-               SCIP_Bool  cutoff_forsep;
-
-               SCIP_CALL( SCIPseparateSol (scip, scipsol, FALSE, FALSE, &delayed, &cutoff_forsep) );
-               SCIP_CALL( SCIPtrySol(scip, scipsol, FALSE, TRUE, TRUE, TRUE, &stored) );
-
-               SCIP_CALL( SCIPgetLPColsData(scip, &cols, &ncols) );
-
-               for (i = 0; i < ncols; i++)
-               {
-                  SCIP_CALL(SCIPsetRelaxSolVal(scip, SCIPcolGetVar(cols[i]), SCIPgetSolVal(scip, scipsol, SCIPcolGetVar(cols[i]))));
-               }
-
-               SCIP_CALL(SCIPmarkRelaxSolValid(scip));
-               SCIP_CALL(SCIPfreeSol(scip, &scipsol));
-
-               int ncuts = SCIPgetNCuts(scip);
-
-               if (SCIPgetNIntVars(scip) == 0 && SCIPgetNBinVars(scip) == 0) /* there are no integer and binary vars, we are done */
-               {
-                  *result = SCIP_SUCCESS;
-               }
-               else
-               {
-                  if (ncuts == 0)
-                  {
-                     *result = SCIP_SUCCESS;
-                  }
-                  else
-                  {
-                     *result = SCIP_SEPARATED;
-                  }
-               }
-
-               for (i = 0; i < nvars; i++)
-               {
-                  if (!SCIPisIntegral(scip, solforscip[i]) && SCIPvarIsIntegral(vars[i]) && (SCIPvarGetLbLocal(vars[i]) != SCIPvarGetUbLocal(vars[i])))
-                  {
-                     SCIP_CALL( SCIPaddExternBranchCand(scip, vars[i], 10000.0, solforscip[i]) );
-                  }
-               }
-
-               SCIPfreeBlockMemoryArray(scip, &solforscip, nvars);
-
-               return SCIP_OKAY;
-            }
-            else
-            {
-               SCIPfreeBlockMemoryArray(scip, &solforscip, nvars);
-               SCIP_CALL(SCIPfreeSol(scip, &scipsol));
-               if (penaltyparam != 0 && !(SCIPsdpiIsInfinity(sdpi, penaltyparam)))
-               {
-                  /* the penalty parameter was too small to create a feasible solution */
-                  SCIPdebugMessage("calc_relax is called again with penaltyparameter %f because of infeasibility!\n", 2 * penaltyparam);
-                  SCIP_CALL(calc_relax(sdpi, scip, result, lowerbound, problemdata, varmapper, 2 * penaltyparam));
-
-                  return SCIP_OKAY;
-               }
-               else if (SCIPsdpiIsInfinity(sdpi, penaltyparam))
-               {
-                  /* a penalty-only-formulation showed, that the problem is feasible, but we weren't able to produce a feasible solution,
-                   * so we reuse the relaxation result of the parent node (if one exists)*/
-                  SCIP_NODE* node = SCIPnodeGetParent(SCIPgetCurrentNode(scip));
-                  if (!node)
-                  {
-                     *result = SCIP_SUSPENDED;
-                     return SCIP_OKAY;
-                  }
-                  else
-                  {
-                     *lowerbound = SCIPnodeGetLowerbound(node);
-                     *result = SCIP_SUCCESS;
-                     SCIP_CALL( SCIPupdateLocalLowerbound(scip, *lowerbound) );
-                     return SCIP_OKAY;
-                  }
-               }
-               else
-               {
-                  /* check for feasibility via penalty-only-formulation */
-                  if (relaxIsFeasible(sdpi, scip))
-                  {
-                     /* try again with penalty formulation */
-                     SCIP_CALL(calc_relax(sdpi, scip, result, lowerbound, problemdata, varmapper, 50.0)); /* TODO: think about penalty parameter */
-
-                     return SCIP_OKAY;
-                  }
-                  else
-                  {
-                     /* penalty-only-formulation showed, that the problem is infeasible */
-                     *result = SCIP_CUTOFF;
-                     return SCIP_OKAY;
-                  }
-               }
-            }
-         }
+         *result = SCIP_CUTOFF;
+         /* ?????????? lowerbound */
+         return SCIP_OKAY;
       }
-      else /* the solver either didn't converge or couldn't determine whether or not the problem is feasible */
+      else if ( SCIPsdpiIsDualUnbounded(sdpi) )
       {
-         SCIPfreeBlockMemoryArray(scip, &solforscip, nvars);
-         if (penaltyparam != 0 && !(SCIPsdpiIsInfinity(sdpi, penaltyparam)))
+         if ( penaltyparam == 0 || SCIPsdpiIsInfinity(sdpi, penaltyparam) )
          {
-            /* the penalty parameter was too small to make DSDP more stable */
-            SCIPdebugMessage("calc_relax is called again with penaltyparameter %f because of non-convergence!\n", 2 * penaltyparam);
-            SCIP_CALL(calc_relax(sdpi, scip, result, lowerbound, problemdata, varmapper, 2 * penaltyparam));
-
+            *result = SCIP_SUCCESS;
+            *lowerbound = SCIPinfinity(scip);
             return SCIP_OKAY;
-         }
-         else if (SCIPsdpiIsInfinity(sdpi, penaltyparam))
-         {
-            /* a penalty-only-formulation showed, that the problem is feasible, but we weren't able to produce a feasible solution,
-             * so we reuse the relaxation result of the parent node (if one exists)*/
-            SCIP_NODE* node = SCIPnodeGetParent(SCIPgetCurrentNode(scip));
-            if (!node)
-            {
-               *result = SCIP_SUSPENDED;
-               return SCIP_OKAY;
-            }
-            else
-            {
-               *lowerbound = SCIPnodeGetLowerbound(node);
-               *result = SCIP_SUCCESS;
-               SCIP_CALL( SCIPupdateLocalLowerbound(scip, *lowerbound) );
-               return SCIP_OKAY;
-            }
          }
          else
          {
-            /* check for feasibility via penalty-only-formulation */
-            if (relaxIsFeasible(sdpi, scip))
-            {
-               /* try again with penalty formulation */
-               SCIP_CALL(calc_relax(sdpi, scip, result, lowerbound, problemdata, varmapper, 50.0)); /* TODO: think about penalty parameter */
+            /* the problem might be unbounded because of a too small penalty param */
+            SCIPdebugMessage("calc_relax is called again with penaltyparameter %f because of unboundedness!\n", 2 * penaltyparam);
 
-               return SCIP_OKAY;
+            /* recursive call - return result from there */
+            SCIP_CALL( calc_relax(sdpi, scip, result, lowerbound, problemdata, varmapper, 2 * penaltyparam) );
+
+            return SCIP_OKAY;
+         }
+      }
+      else if ( SCIPsdpiIsPrimalFeasible(sdpi) && SCIPsdpiIsDualFeasible(sdpi) )
+      {
+         SCIP_SOL* scipsol;
+         SCIP_RESULT conefeas;
+         SCIP_Real* solforscip;
+         SCIP_Bool solisfeas = TRUE;
+         SCIP_COL** cols;
+         int ncols;
+
+         /* get solution w.r.t. to SCIP variables */
+         SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
+         SCIP_CALL( getTransformedSol(scip, sdpi, varmapper, solforscip, &objforscip) );
+
+         /* create SCIP solution */
+         SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
+         SCIP_CALL( SCIPsetSolVals(scip, scipsol, nvars, vars, solforscip) );
+
+         /* check if the solution really is feasible */
+         for (i = 0; i < problemdata->get_nsdpcones(); ++i)
+         {
+            SCIP_CALL( cons_check(scip, problemdata->get_sdpcone(i), scipsol, FALSE, TRUE, FALSE, &conefeas) );
+            if ( conefeas == SCIP_INFEASIBLE )
+            {
+               solisfeas = FALSE;
+               break;
+            }
+         }
+
+         if ( solisfeas )
+         {
+            SCIP_Bool  delayed;
+            SCIP_Bool  cutoff_forsep;
+            SCIP_Bool stored;
+
+            *lowerbound = objforscip;
+
+            /* test whether solution is primal feasible */
+            SCIP_CALL( SCIPtrySol(scip, scipsol, FALSE, TRUE, TRUE, TRUE, &stored) );
+
+            /* copy solution */
+            SCIP_CALL( SCIPgetLPColsData(scip, &cols, &ncols) );
+            for (i = 0; i < ncols; i++)
+            {
+               SCIP_CALL( SCIPsetRelaxSolVal(scip, SCIPcolGetVar(cols[i]), SCIPgetSolVal(scip, scipsol, SCIPcolGetVar(cols[i]))) );
+            }
+
+            SCIP_CALL( SCIPmarkRelaxSolValid(scip) );
+            *result = SCIP_SUCCESS;
+
+            /* there are no integer and binary vars, we are done */
+            if ( SCIPgetNIntVars(scip) > 0 || SCIPgetNBinVars(scip) > 0 ) /* ????????? replace by integrality test within getTransformedSol() */
+            {
+               int oldncuts = SCIPgetNCuts(scip);
+
+               /* ????????????? Should this be called from relaxator ?? */
+               SCIP_CALL( SCIPseparateSol(scip, scipsol, FALSE, FALSE, &delayed, &cutoff_forsep) );
+
+               if ( SCIPgetNCuts(scip) > oldncuts )
+                  *result = SCIP_SEPARATED;
+
+               for (i = 0; i < nvars; ++i)
+               {
+                  SCIP_VAR* var = vars[i];
+                  if ( SCIPvarIsIntegral(var) && ! SCIPisIntegral(scip, solforscip[i]) && ! SCIPisEQ(scip, SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var)) )
+                  {
+                     /* @todo Check for better score or make it parameter/define */
+                     SCIP_CALL( SCIPaddExternBranchCand(scip, var, 10000.0, solforscip[i]) );
+                  }
+               }
+            }
+            SCIPfreeBufferArray(scip, &solforscip);
+            SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
+         }
+         else
+         {    /* solver return feasible solution, but check for psd failed */
+            SCIPfreeBufferArray(scip, &solforscip);
+
+            /* ??????????? check for finite upper bound -> parameter */
+            if (penaltyparam != 0 && ! SCIPsdpiIsInfinity(sdpi, penaltyparam) )
+            {
+               /* the penalty parameter was too small to create a feasible solution */
+               SCIPdebugMessage("calc_relax is called again with penaltyparameter %f because of infeasibility!\n", 2.0 * penaltyparam);
+
+               /* recursive call */
+               SCIP_CALL(calc_relax(sdpi, scip, result, lowerbound, problemdata, varmapper, 2.0 * penaltyparam));
+            }
+            else if ( SCIPsdpiIsInfinity(sdpi, penaltyparam) )
+            {  /* A penalty-only-formulation showed that the problem is feasible, but we weren't able to produce a feasible solution. */
+
+               /* We try to reuse the relaxation result of the parent node (if one exists): */
+               SCIP_NODE* node = SCIPnodeGetParent(SCIPgetCurrentNode(scip));
+               if ( node != 0 )
+               {
+                  *result = SCIP_SUSPENDED;
+                  return SCIP_OKAY;
+               }
+               assert( node != 0 );
+
+               *lowerbound = SCIPnodeGetLowerbound(node);
+               *result = SCIP_SUCCESS;
+               SCIP_CALL( SCIPupdateLocalLowerbound(scip, *lowerbound) );
             }
             else
-            {
-               /* penalty-only-formulation showed, that the problem is infeasible */
-               *result = SCIP_CUTOFF;
-               return SCIP_OKAY;
+            {  /* The penalty parameter is 0, so we try with positive value (without original objective). */
+               bool feasible;
+               SCIP_CALL( relaxIsFeasible(scip, sdpi, feasible) );
+
+               if ( feasible )
+               {
+                  /* try again with penalty formulation */
+                  SCIP_CALL( calc_relax(sdpi, scip, result, lowerbound, problemdata, varmapper, 50.0) ); /* TODO: think about penalty parameter */
+               }
+               else
+               {
+                  /* penalty-only-formulation showed, that the problem is infeasible */
+                  *result = SCIP_CUTOFF;
+               }
             }
          }
       }
 
-      return SCIP_ERROR; /* can't be reached */
+      return SCIP_OKAY;
+   }
+
+
+   /* the solver either didnot converge or couldnot determine whether the problem is feasible */
+   if ( penaltyparam != 0 && ! SCIPsdpiIsInfinity(sdpi, penaltyparam) )
+   {
+      /* the penalty parameter was too small to make DSDP more stable */
+      SCIPdebugMessage("calc_relax is called again with penaltyparameter %f because of non-convergence!\n", 2 * penaltyparam);
+      SCIP_CALL(calc_relax(sdpi, scip, result, lowerbound, problemdata, varmapper, 2 * penaltyparam));
+
+      return SCIP_OKAY;
+   }
+   else if ( SCIPsdpiIsInfinity(sdpi, penaltyparam) )
+   {
+      /* A penalty-only-formulation showed that the problem is feasible, but no feasible solution could be produced,
+       * so we reuse the relaxation result of the parent node (if one exists) */
+      SCIP_NODE* node = SCIPnodeGetParent(SCIPgetCurrentNode(scip));
+      if ( node == 0 )
+      {
+         *result = SCIP_SUSPENDED;
+         return SCIP_OKAY;
+      }
+      assert( node != 0 );
+
+      *lowerbound = SCIPnodeGetLowerbound(node);
+      *result = SCIP_SUCCESS;
+      SCIP_CALL( SCIPupdateLocalLowerbound(scip, *lowerbound) );
+      return SCIP_OKAY;
+   }
+
+   /* check for feasibility via penalty-only-formulation */
+   bool feasible;
+   SCIP_CALL( relaxIsFeasible(scip, sdpi, feasible) );
+
+   if ( feasible )
+   {
+      /* try again with penalty formulation */
+      SCIP_CALL(calc_relax(sdpi, scip, result, lowerbound, problemdata, varmapper, 50.0)); /* TODO: think about penalty parameter */
+   }
+   else
+   {
+      /* penalty-only-formulation showed, that the problem is infeasible */
+      *result = SCIP_CUTOFF;
+   }
+
+   return SCIP_OKAY;
 }
 
 
