@@ -438,6 +438,7 @@ SCIP_RETCODE trivial_ineq_from_rhs(
 {
    for (int i = 0; i < nconss; ++i)
    {
+      /* ?????? turn this code into an assert ??????? */
       SCIP_CONSHDLR* hdlr;
       hdlr = SCIPconsGetHdlr(conss[i]);
       assert(hdlr != NULL);
@@ -545,6 +546,7 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
 {
    for (int i = 0; i < nconss; ++i)
    {
+      /* ?????? turn this code into an assert ??????? */
       SCIP_CONSHDLR* hdlr;
       hdlr = SCIPconsGetHdlr(conss[i]);
       assert(hdlr != NULL);
@@ -615,28 +617,32 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
    return SCIP_OKAY;
 }
 
-/**<presolve routine that looks through the data and eliminates fixed or deleted or aggregated or negated variables (the SDP-solver cannot handle them)*/
+/** presolve routine that looks through the data and eliminates fixed or deleted or aggregated or negated variables
+ *
+ *  SDP-solver often have problems with fixed variables.
+ */
 static
 SCIP_RETCODE fix_vars(
-   SCIP*             scip,    /**<SCIP data structure*/
-   SCIP_CONS**       conss,   /**<array with constraints to check*/
-   int               nconss,  /**<number of constraints to check*/
-   SCIP_RESULT*      result   /**<pointer to store the result*/
+   SCIP*             scip,    /**< SCIP data structure */
+   SCIP_CONS**       conss,   /**< array with constraints to check */
+   int               nconss,  /**< number of constraints to check */
+   SCIP_RESULT*      result   /**< pointer to store the result */
    )
 {
    for (int i = 0; i < nconss; ++i)
    {
-      SCIP_CONSHDLR* hdlr;
-      hdlr = SCIPconsGetHdlr(conss[i]);
-      assert(hdlr != NULL);
+      /* ?????? turn this code into an assert ??????? */
+      SCIP_CONSHDLR* conshdlr;
+      conshdlr = SCIPconsGetHdlr(conss[i]);
+      assert( conshdlr != NULL );
       const char* hdlrName;
-      hdlrName = SCIPconshdlrGetName(hdlr);
+      hdlrName = SCIPconshdlrGetName(conshdlr);
 
       if ( strcmp(hdlrName, "SDP") != 0)
          continue;
 
       SCIP_CONSDATA* data = SCIPconsGetData(conss[i]);
-      SCIP_CALL(data->sdpcone->fix_vars());
+      SCIP_CALL( data->sdpcone->fix_vars() );
    }
 
    return SCIP_OKAY;
@@ -659,7 +665,7 @@ SCIP_RETCODE ObjConshdlrSdp::scip_init(
    {
       for (int i = 0; i < nconss; ++i)
       {
-
+         /* ?????? turn this code into an assert ??????? */
          SCIP_CONSHDLR* hdlr;
          hdlr = SCIPconsGetHdlr(conss[i]);
          assert(hdlr != NULL);
@@ -679,7 +685,7 @@ SCIP_RETCODE ObjConshdlrSdp::scip_init(
 }
 
 
-/** locks variables in sdpcone up and down if necessary*/
+/** locks variables in sdpcone up and down if necessary */
 SCIP_RETCODE ObjConshdlrSdp::scip_lock(
    SCIP*              scip,               /**< SCIP data structure */
    SCIP_CONSHDLR*     conshdlr,           /**< the constraint handler itself */
@@ -689,7 +695,8 @@ SCIP_RETCODE ObjConshdlrSdp::scip_lock(
    )
 {
    SdpCone* sdpcone;
-   SCIP_CALL(getSdpCone(scip, cons, &sdpcone ));
+
+   SCIP_CALL( getSdpCone(scip, cons, &sdpcone) );
 
    SCIP_Real* matrix = NULL;
    int blocksize = sdpcone->get_blocksize();
@@ -697,84 +704,79 @@ SCIP_RETCODE ObjConshdlrSdp::scip_lock(
 
    int nvars = sdpcone->get_nvars();
 
-   for ( int i = 0; i < nvars; ++i)
+   for (int i = 0; i < nvars; ++i)
    {
       int shrunk_blocksize;
-      bool has_lock = FALSE;
+      bool has_lock = false;
 
-      SCIP_CALL(sdpcone->get_shrunk_constraint_matrix(matrix, &shrunk_blocksize, i));
+      SCIP_CALL( sdpcone->get_shrunk_constraint_matrix(matrix, &shrunk_blocksize, i) );
 
-      bool only_neg = TRUE;
-      bool only_pos = TRUE;
-      int save_j = 0;
-      for (int j = 0; j < shrunk_blocksize; ++j)
+      /* ?????????? */
+      if ( shrunk_blocksize == 0 )
+         continue;
+
+      /* determine whether matrix contains only positive/negative entries */
+      bool only_neg = true;
+      bool only_pos = true;
+      for(int j = 0; j < shrunk_blocksize; ++j)
       {
-         if (matrix[j * shrunk_blocksize + j] < 0)
+         if ( SCIPisNegative(scip, matrix[j * shrunk_blocksize + j]) )
          {
-            only_pos = FALSE;
-            save_j = j;
-            break;
-         }
-      }
-
-      if (!only_pos && save_j > 0)
-      {
-         only_neg = FALSE;
-      }
-
-      if(only_neg && !only_pos)
-      {
-         for(int j = 0; j < shrunk_blocksize; ++j)
-         {
-            if (matrix[j * shrunk_blocksize + j] > 0)
-            {
-               only_neg = FALSE;
+            only_pos = false;
+            if ( ! only_neg )
                break;
-            }
+         }
+
+         if ( SCIPisPositive(scip, matrix[j * shrunk_blocksize + j]) )
+         {
+            only_neg = false;
+            if ( ! only_pos )
+               break;
          }
       }
 
-
-      if(only_neg)
+      /* up lock, if only negative entries */
+      if ( only_neg )
       {
-         //up lock
          SCIP_CALL( SCIPaddVarLocks(scip, sdpcone->get_var(i), nlocksneg, nlockspos) );
-         has_lock = TRUE;
+         has_lock = true;
       }
 
-      if (only_pos)
+      /* down lock, if only positive entries */
+      if ( only_pos )
       {
-         //down lock
          SCIP_CALL( SCIPaddVarLocks(scip, sdpcone->get_var(i), nlockspos, nlocksneg) );
-         has_lock = TRUE;
+         has_lock = true;
       }
 
-
-      if (!only_pos && !only_neg)
+      /* treate mixed cases */
+      if ( ! only_pos && ! only_neg)
       {
          double eigenvalue;
-         SCIP_CALL( computeIthEigenvalue(scip, FALSE, shrunk_blocksize, matrix, 1, &eigenvalue, NULL) );
-         if (SCIPisLT(scip, eigenvalue, 0.0))
+         SCIP_CALL( computeIthEigenvalue(scip, false, shrunk_blocksize, matrix, 1, &eigenvalue, NULL) );
+         if ( SCIPisNegative(scip, eigenvalue) )
          {
-            //if the smallest eigenvalue is negative, we lock the varialbe upwards, because increasing the variable will make everything more negative, decreasing the variable will make everything more feasible
+            /* if the smallest eigenvalue is negative, we lock the variable upwards, because increasing the variable
+             * will make everything more negative, decreasing the variable will make everything more feasible */
             SCIP_CALL( SCIPaddVarLocks(scip, sdpcone->get_var(i), nlocksneg, nlockspos) );
-            has_lock = TRUE;
+            has_lock = true;
          }
 
-
-         SCIP_CALL( computeIthEigenvalue(scip, FALSE, shrunk_blocksize, matrix, shrunk_blocksize, &eigenvalue, NULL) );
-         if (SCIPisGT(scip, eigenvalue, 0.0))
+         SCIP_CALL( computeIthEigenvalue(scip, false, shrunk_blocksize, matrix, shrunk_blocksize, &eigenvalue, NULL) );
+         if ( SCIPisPositive(scip, eigenvalue) )
          {
-            //if the biggest eigenvalue is positive, we lock the variable downwards, because, increasing is ok, but decreasing can probably make the problem infeasible
+            /* if the biggest eigenvalue is positive, we lock the variable downwards, because, increasing is ok, but
+             * decreasing can probably make the problem infeasible */
             SCIP_CALL( SCIPaddVarLocks(scip, sdpcone->get_var(i), nlockspos, nlocksneg) );
-            has_lock = TRUE;
+            has_lock = true;
          }
       }
 
-      assert(has_lock); //this can only be reached, if 0 is a eigenvector, which is not possible
+      assert( has_lock ); // this can fail, if 0 is a eigenvector, which is not possible
    }
 
    SCIPfreeBufferArray(scip, &matrix);
+
    return SCIP_OKAY;
 }
 
@@ -790,6 +792,7 @@ SCIP_RETCODE ObjConshdlrSdp::scip_initpre(
 
    for (int j = 0; j < nconss; ++j)
    {
+      /* ?????? turn this code into an assert ??????? */
       SCIP_CONSHDLR* hdlr;
       hdlr = SCIPconsGetHdlr(conss[j]);
       assert(hdlr != NULL);
@@ -840,23 +843,25 @@ SCIP_RETCODE ObjConshdlrSdp::scip_presol(
    SCIP_RESULT*       result              /**< pointer to store the result of the presolving call */
    )
 {
-   assert(result != NULL);
+   assert( result != 0 );
+
    *result = SCIP_DIDNOTRUN;
 
-   if (nrounds == 0)
+   if ( nrounds == 0 )
    {
-      SCIP_CALL(trivial_approx(scip, conss, nconss, naddconss, result));
+      SCIP_CALL( trivial_approx(scip, conss, nconss, naddconss, result) );
    }
 
-   SCIP_CALL(move_1x1_blocks_to_lp(scip, conss, nconss, naddconss, ndelconss, result));
+   SCIP_CALL( move_1x1_blocks_to_lp(scip, conss, nconss, naddconss, ndelconss, result) );
 
-   SCIP_CALL(fix_vars(scip, conss, nconss, result));
+   SCIP_CALL( fix_vars(scip, conss, nconss, result) );
 
-   if (nrounds == 0)
+   if ( nrounds == 0 )
    {
-      SCIP_CALL(trivial_ineq_from_rhs(scip, conss, nconss, naddconss, result));  /*TODO: could be activated for some problem classes
+      SCIP_CALL( trivial_ineq_from_rhs(scip, conss, nconss, naddconss, result) );  /*TODO: could be activated for some problem classes
       but doesn't seem to work in the general case */
    }
+
    return SCIP_OKAY;
 }
 
