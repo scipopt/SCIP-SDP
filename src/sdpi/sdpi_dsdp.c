@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-//#define SCIP_DEBUG
+/* #define SCIP_DEBUG */
 
 /**@file   sdpi_dsdp.c
  * @brief  interface for dsdp
@@ -2620,7 +2620,8 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
 
    SCIPdebugMessage("Calling DSDP-Solve for SDP (%d) \n", sdpi->sdpid);
 
-   DSDP_CALL(DSDPSetGapTolerance(sdpi->dsdp, 1e-3)); /* set DSDP's tolerance */
+   DSDP_CALL(DSDPSetGapTolerance(sdpi->dsdp, 1e-3));  /* set DSDP's tolerance for duality gap */
+   DSDP_CALL(DSDPSetRTolerance(sdpi->dsdp, 1e-6));    /* set DSDP's tolerance for the psd-constraints */
 
 
    /* set the penalty parameter */
@@ -3254,7 +3255,7 @@ SCIP_Real SCIPsdpiInfinity(
    SCIP_SDPI*           sdpi                 /**< SDP interface structure */
    )
 {
-   return 10000000; /* DSDP has implicit bounds of +- 10⁷ for y */
+   return 1E+20; /* default infinity from SCIP */
 }
 
 /** checks if given value is treated as infinity in the SDP solver */
@@ -3263,7 +3264,24 @@ SCIP_Bool SCIPsdpiIsInfinity(
    SCIP_Real            val                 /**< value to be checked for infinity */
    )
 {
-   return ((val <= -10000000) || (val >= 10000000));
+   return ((val <= -SCIPsdpiInfinity(sdpi)) || (val >= SCIPsdpiInfinity(sdpi)));
+}
+
+/** returns highest penalty parameter to be used */
+SCIP_Real SCIPsdpiMaxPenParam(
+   SCIP_SDPI*           sdpi                 /**< SDP interface structure */
+   )
+{
+   return 1E+10;  /* DSDP will start with penalty param 10^10 if called normally */
+}
+
+/** checks if given value is greater or equal to the highest penalty parameter to be used */
+SCIP_Bool SCIPsdpiIsGEMaxPenParam(
+   SCIP_SDPI*           sdpi,               /**< SDP interface structure */
+   SCIP_Real            val                 /**< value to be compared to maximum penalty parameter */
+   )
+{
+   return ((val <= -SCIPsdpiMaxPenParam(sdpi)) || (val >= SCIPsdpiMaxPenParam(sdpi)));
 }
 
 /**@} */

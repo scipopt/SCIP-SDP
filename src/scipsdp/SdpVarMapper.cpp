@@ -52,7 +52,7 @@ SdpVarMapper::SdpVarMapper(SCIP* scip): sdp_nvars_(0), allfixed_(FALSE), intsfix
 }
 
 
-/**init-function of the SsdpVarMapper class,
+/**init-function of the SdpVarMapper class,
  *@note must be called by the user for initialise the values of the map and the vectors, maps variable names to the index the variable has for calling sdp, -1 if variable is fixed
  */
 SCIP_RETCODE SdpVarMapper::init()

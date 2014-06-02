@@ -35,6 +35,8 @@
  * @author Sonja Mars, Lars Schewe, Tristan Gally
  */
 
+//#define SCIP_DEBUG
+
 #include "objconshdlr_sdp.h"
 
 #include <cassert>                      // for assert
@@ -278,6 +280,14 @@ SCIP_RETCODE cons_check(
    check_value = (-eigenvalues[0]) / (1 + max_rhs);
 
    *result = SCIPisLE(scip, check_value, 0.0) ? SCIP_FEASIBLE : SCIP_INFEASIBLE;
+
+#ifdef SCIP_DEBUG
+   if( *result == SCIP_INFEASIBLE)
+   {
+      SCIPdebugMessage("In cons_check a matrix was found not to be sdp because of eigenvalue = %f, dimacs error norm = %f \n",
+            eigenvalues[0], check_value);
+   }
+#endif
 
    SCIPfreeBufferArray(scip, &matrix);
    SCIPfreeBufferArray(scip, &eigenvalues);
