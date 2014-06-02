@@ -501,7 +501,8 @@ SCIP_RETCODE getTransformedSol(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SdpVarMapper*         varmapper,          /**< data about fixed variables */
    SCIP_Real*            solforscip,         /**< the solution indexed by SCIP variable indices */
-   SCIP_Real*            objforscip          /**< the objective value including the fixed variables */
+   SCIP_Real*            objforscip,         /**< the objective value including the fixed variables */
+   SCIP_Bool*            allint              /**< do all variables that should be integer have integer values */
    )
 {
    int nsdpvars;
@@ -517,6 +518,7 @@ SCIP_RETCODE getTransformedSol(
    assert ( varmapper != NULL );
    assert ( solforscip != NULL );
    assert ( objforscip != NULL );
+   assert ( allint != NULL );
 
    SCIP_CALL( SCIPsdpiGetNVars(sdpi, &nsdpvars) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &sdpsol, nsdpvars) );
@@ -524,6 +526,7 @@ SCIP_RETCODE getTransformedSol(
    SCIP_CALL( SCIPsdpiGetSol(sdpi, &sdpobj, sdpsol, nsdpvars) ); /* get both the objective and the solution from the SDP solver */
 
    *objforscip = sdpobj; /* initialize the objective with that of the SDP, later the objective parts of the fixed variables will be added to this */
+   *allint = TRUE; /* initialize this as true until a variable is found that is non-integer but should be */
 
    nvars = SCIPgetNVars(scip);
    vars = SCIPgetVars (scip);
@@ -546,6 +549,8 @@ SCIP_RETCODE getTransformedSol(
       else
       {
          solforscip[i] = sdpsol[ind]; /* get the value of the corresponding variable in the SDP */
+         if( *allint && SCIPvarIsIntegral(var) && !(SCIPisIntegral(scip, sdpsol[ind])) )
+            *allint = FALSE;   /* a variable that should be integral but isnot was found, so allint is set to false */
          /* nothing needs to be done here with the objective value, because it was already initialized with the value from the SDP solver */
       }
    }
@@ -705,12 +710,13 @@ SCIP_RETCODE calc_relax(
          SCIP_SOL* scipsol;
          SCIP_RESULT conefeas;
          SCIP_Bool solisfeas = TRUE;
+         SCIP_Bool allint;
          SCIP_COL** cols;
          int ncols;
 
          /* get solution w.r.t. SCIP variables */
          SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
-         SCIP_CALL( getTransformedSol(scip, sdpi, varmapper, solforscip, &objforscip) );
+         SCIP_CALL( getTransformedSol(scip, sdpi, varmapper, solforscip, &objforscip, &allint) );
 
          /* create SCIP solution */
          SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
@@ -753,8 +759,8 @@ SCIP_RETCODE calc_relax(
             SCIP_CALL( SCIPmarkRelaxSolValid(scip) );
             *result = SCIP_SUCCESS;
 
-            /* there are no integer and binary vars, we are done */
-            if ( SCIPgetNIntVars(scip) > 0 || SCIPgetNBinVars(scip) > 0 ) /* ????????? replace by integrality test within getTransformedSol() */
+            /* if all int and binary vars are integral, nothing else needs to be done */
+            if ( ! allint )
             {
                int oldncuts = SCIPgetNCuts(scip);
 
