@@ -110,8 +110,12 @@ SCIP_RETCODE removeEmptyRowCols(
    int*                  newblocksize,       /**< block size after removing redundant indices */
    const int             blockstartind,      /**< starting index of the block in the sdp-nonzero arrays */
    const int             nextblockstartind,  /**< starting index of the next block in the sdp-nonzero arrays */
+   const int             constblockstartind, /**< starting index of the block in the constant sdp-nonzero arrays */
+   const int             constnextblstartind,/**< starting index of the next block in the sdp-nonzero arrays */
    int*                  sdprowind,          /**< row-indices of the sdp-nonzeroes */
-   int*                  sdpcolind           /**< column-indices of the sdp-nonzeroes */
+   int*                  sdpcolind,          /**< column-indices of the sdp-nonzeroes */
+   int*                  sdpconstrowind,     /**< row-indices of the sdp-const-nonzeroes */
+   int*                  sdpconstcolind      /**< column-indices of the sdp-const-nonzeroes */
    )
 {
    int i;
@@ -136,6 +140,8 @@ SCIP_RETCODE removeEmptyRowCols(
 
    for (i = 0; i < oldblocksize; i++)
    {
+      deleted[i] = -1; /* initialize this with -1, it will be overwritten if the index is found */
+      /* go over the sdp-arrays */
       for (j = blockstartind; j < nextblockstartind; j++)
       {
          if (sdprowind[j] == i || sdpcolind[j] == i)
@@ -144,15 +150,27 @@ SCIP_RETCODE removeEmptyRowCols(
                                      * for shifting is saved */
             break;
          }
-         if (j == nextblockstartind - 1) /* this is the last index for the inner for-queue, so if some index wasn't found until now
-                                          * it will be deleted */
+      }
+      /* if nothing was found in the sdp-arrays go over the sdp-const arrays */
+      if (deleted[i] == -1)
+      {
+         for (j = constblockstartind; j < constnextblstartind; j++)
          {
-            deleted[i] = -1;
-            ndeleted++;
-#ifdef SCIP_MORE_DEBUG
-            SCIPdebugMessage("deleted the following index in block %d becase of empty row & col: %d\n", block, i);
-#endif
+            if (sdpconstrowind[j] == i || sdpconstcolind[j] == i)
+            {
+               deleted[i] = ndeleted;  /* there exists an entry for this index, so it will not be deleted, but the number of positions
+                                        * for shifting is saved */
+               break;
+            }
          }
+      }
+      /* the index wasn't found in the arrays, so it can be deleted */
+      if (deleted[i] == -1)
+      {
+         ndeleted++;
+#ifdef SCIP_MORE_DEBUG
+      SCIPdebugMessage("deleted the following index in block %d becase of empty row & col: %d\n", block, i);
+#endif
       }
    }
 
@@ -166,6 +184,14 @@ SCIP_RETCODE removeEmptyRowCols(
 
          assert ( deleted[sdpcolind[j]] > -1 );
          sdpcolind[j] = sdpcolind[j] - deleted[sdpcolind[j]];
+      }
+      for (j = constblockstartind; j < constnextblstartind; j++)
+      {
+         assert ( deleted[sdpconstrowind[j]] > -1 );
+         sdpconstrowind[j] = sdpconstrowind[j] - deleted[sdpconstrowind[j]];
+
+         assert ( deleted[sdpconstcolind[j]] > -1 );
+         sdpconstcolind[j] = sdpconstcolind[j] - deleted[sdpconstcolind[j]];
       }
    }
 
@@ -201,6 +227,7 @@ SCIP_RETCODE putDataInInterface(
    SdpCone::element el;
    SCIP_Real* sdpvar; /* this could as well be int, but SCIP only knows SCIPsortRealRealIntInt, but not IntRealIntInt or IntIntIntReal */
    int endindex;
+   int constendindex;
    int nextindaftervar;
    int formatindsize;
    const int* formatind;
@@ -386,10 +413,12 @@ SCIP_RETCODE putDataInInterface(
       if (i < nsdpblocks - 1)
       {
          endindex = sdpbegvarblock[(i+1) * nvars];
+         constendindex = sdpconstbegblock[i+1];
       }
       else
       {
          endindex = sdpnnonz;
+         constendindex = sdpconstnnonz;
       }
 
       SCIPsortRealRealIntInt(sdpvar + sdpbegvarblock[i*nvars], sdpval + sdpbegvarblock[i*nvars], sdpcolind + sdpbegvarblock[i*nvars],
@@ -415,8 +444,11 @@ SCIP_RETCODE putDataInInterface(
          }
       }
 
+      printf("col=%d, row=%d \n", sdpcolind[0], sdprowind[0]);
       /* remove all empty rows and columns */
-      SCIP_CALL(removeEmptyRowCols(scip, i, sdpblocksizes[i], &newblocksize, sdpbegvarblock[i * nvars], endindex, sdprowind, sdpcolind));
+      SCIP_CALL(removeEmptyRowCols(scip, i, sdpblocksizes[i], &newblocksize, sdpbegvarblock[i * nvars], endindex,
+            sdpconstbegblock[i], constendindex, sdprowind, sdpcolind, sdpconstrowind, sdpconstcolind));
+      printf("col=%d, row=%d \n", sdpcolind[0], sdprowind[0]);
    }
 
    SCIPfreeBlockMemoryArray(scip, &sdpvar, sdpnnonz);
@@ -651,9 +683,10 @@ SCIP_RETCODE calc_relax(
 #ifdef SCIP_MORE_DEBUG /* print the optimal solution */
    SCIP_Real objforscip;
    SCIP_Real* solforscip;
+   SCIP_Bool allint;
 
    SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
-   SCIP_CALL( getTransformedSol(scip, sdpi, varmapper, solforscip, &objforscip) );
+   SCIP_CALL( getTransformedSol(scip, sdpi, varmapper, solforscip, &objforscip, &allint) );
 
    SCIPdebugMessage("optimal solution: objective = %f, ", objforscip);
    if( SCIPsdpiFeasibilityKnown(sdpi) )
@@ -706,11 +739,11 @@ SCIP_RETCODE calc_relax(
 #ifndef SCIP_MORE_DEBUG
          SCIP_Real objforscip;
          SCIP_Real* solforscip;
+         SCIP_Bool allint;
 #endif
          SCIP_SOL* scipsol;
          SCIP_RESULT conefeas;
          SCIP_Bool solisfeas = TRUE;
-         SCIP_Bool allint;
          SCIP_COL** cols;
          int ncols;
 
