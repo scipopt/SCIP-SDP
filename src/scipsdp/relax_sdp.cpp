@@ -317,6 +317,8 @@ SCIP_RETCODE putDataInInterface(
 
       sdpcone = problemdata->get_sdpcone(i);
 
+      sdpcone->fix_vars(); //TODO: is this the right place to call it ?!?!?!?!?
+
       for (SdpCone::RhsIterator it = sdpcone->rhs_begin(fixedvars, nfixedvars, fixedvalues); it != sdpcone->rhs_end(); ++it)
       {
          ind++;
@@ -396,7 +398,6 @@ SCIP_RETCODE putDataInInterface(
          sdpcolind[ind] = el.col;
          sdpval[ind] = el.val;
          sdpvar[ind] = varmapper->get_sdp_index(sdpcone->get_var(el.vidx));
-         //printf("sdpvar[%d]= %f, varstatus = %d, bounds(global): [%f, %f], bounds(local): [%f, %f]\n", ind, sdpvar[ind], SCIPvarGetStatus(sdpcone->get_var(el.vidx)), SCIPvarGetLbGlobal(sdpcone->get_var(el.vidx)), SCIPvarGetUbGlobal(sdpcone->get_var(el.vidx)), SCIPvarGetLbLocal(sdpcone->get_var(el.vidx)), SCIPvarGetUbLocal(sdpcone->get_var(el.vidx))); //TODO: remove completely
          ind++;
       }
 

@@ -362,8 +362,8 @@ SCIP_RETCODE SdpCone::fix_vars()
    int deleted_nz = 0;
    for (int j = 0; j < nvars_; ++j)
    {
-      if ( (SCIPvarGetStatus(SCIPvarGetProbvar(uvars_[j])) == SCIP_VARSTATUS_FIXED) || (SCIPvarGetStatus(SCIPvarGetProbvar(uvars_[j])) == SCIP_VARSTATUS_AGGREGATED) )
-      { // TODO: could also check for LB=UB (but not yet fixed by scip), or is that impossible at this time ????
+      if ( (SCIPvarGetStatus(SCIPvarGetProbvar(uvars_[j])) == SCIP_VARSTATUS_FIXED) || (SCIPvarGetStatus(SCIPvarGetProbvar(uvars_[j])) == SCIP_VARSTATUS_AGGREGATED) || SCIPisEQ(scip_, SCIPvarGetLbLocal(SCIPvarGetProbvar(uvars_[j])),SCIPvarGetUbLocal(SCIPvarGetProbvar(uvars_[j]))) )
+      {
          how_many_deleted++; //number of deleted and aggregated vars
          deleted_nz = deleted_nz + vbeg_[j + 1] - vbeg_[j];
       }
@@ -422,7 +422,7 @@ SCIP_RETCODE SdpCone::fix_vars()
          }
          int save_position = -1;
 
-         assert( SCIPisEQ(scip_, SCIPvarGetLbGlobal(temp_prob_var), SCIPvarGetUbGlobal(temp_prob_var)) );
+         assert( SCIPisEQ(scip_, SCIPvarGetLbLocal(temp_prob_var), SCIPvarGetUbLocal(temp_prob_var)) );
 
          SCIP_Real constant = 0;
          SCIP_Real scalar = 1;
@@ -436,7 +436,7 @@ SCIP_RETCODE SdpCone::fix_vars()
             {
                val = -1;
             }
-            if (status == SCIP_VARSTATUS_FIXED)
+            if (status == SCIP_VARSTATUS_FIXED || (SCIPisEQ(scip_, SCIPvarGetLbLocal(temp_prob_var), SCIPvarGetUbLocal(temp_prob_var)) && status == SCIP_VARSTATUS_COLUMN))
             {
                val = -vals_[k] * SCIPvarGetLbGlobal(temp_prob_var);
             }
@@ -528,7 +528,7 @@ SCIP_RETCODE SdpCone::fix_vars()
 
    for (int k = 0; k < nvars_; ++k)
    {
-      if ((SCIPvarGetStatus(SCIPvarGetProbvar(uvars_[k])) != SCIP_VARSTATUS_FIXED) && (SCIPvarGetStatus(SCIPvarGetProbvar(uvars_[k])) != SCIP_VARSTATUS_AGGREGATED))
+      if ((SCIPvarGetStatus(SCIPvarGetProbvar(uvars_[k])) != SCIP_VARSTATUS_FIXED) && (SCIPvarGetStatus(SCIPvarGetProbvar(uvars_[k])) != SCIP_VARSTATUS_AGGREGATED) && ! SCIPisEQ(scip_, SCIPvarGetLbLocal(SCIPvarGetProbvar(uvars_[k])),SCIPvarGetUbLocal(SCIPvarGetProbvar(uvars_[k]))))
       {
          new_vars[count_vars] = uvars_[k];
          new_vbeg[count_vars] = vbeg_[k] - no_more_there;
