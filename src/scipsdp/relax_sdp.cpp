@@ -39,7 +39,7 @@
 
 
 #define SCIP_DEBUG
-//#define SCIP_MORE_DEBUG /* shows number of deleted empty cols/rows and complete solution for every relaxation */
+#define SCIP_MORE_DEBUG /* shows number of deleted empty cols/rows and complete solution for every relaxation */
 
 #include "relax_sdp.h"
 
@@ -448,6 +448,7 @@ SCIP_RETCODE putDataInInterface(
       /* remove all empty rows and columns */
       SCIP_CALL(removeEmptyRowCols(scip, i, sdpblocksizes[i], &newblocksize, sdpbegvarblock[i * nvars], endindex,
             sdpconstbegblock[i], constendindex, sdprowind, sdpcolind, sdpconstrowind, sdpconstcolind));
+      sdpblocksizes[i] = newblocksize;
    }
 
    SCIPfreeBlockMemoryArray(scip, &sdpvar, sdpnnonz);
