@@ -39,7 +39,7 @@
 
 
 #define SCIP_DEBUG
-#define SCIP_MORE_DEBUG /* shows number of deleted empty cols/rows and complete solution for every relaxation */
+#define SCIP_MORE_DEBUG /* shows number of deleted empty cols/rows and complete solution for every relaxation and variable status & bounds */
 
 #include "relax_sdp.h"
 
@@ -316,8 +316,6 @@ SCIP_RETCODE putDataInInterface(
       sdpconstbegblock[i] = ind;
 
       sdpcone = problemdata->get_sdpcone(i);
-
-      sdpcone->fix_vars(); //TODO: is this the right place to call it ?!?!?!?!?
 
       for (SdpCone::RhsIterator it = sdpcone->rhs_begin(fixedvars, nfixedvars, fixedvalues); it != sdpcone->rhs_end(); ++it)
       {
@@ -646,14 +644,14 @@ SCIP_RETCODE relaxIsFeasible(
  *  with a penalty formulation (or more often if the penalty formulation turns out to be unbounded) */
 static
 SCIP_RETCODE calc_relax(
-   SCIP_SDPI*            sdpi,               /**< SDP-Interface structure */
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_RESULT*          result,             /**< pointer to store result of relaxation process */
-   SCIP_Real*            lowerbound,         /**< pointer to store lowerbound */
+   SCIP_SDPI*            sdpi,               /**< SDP-Interface structure */
    SdpProblem*           problemdata,        /**< data structure with problem-data of a specific node */
    SdpVarMapper*         varmapper,          /**< varmapper class data */
    SCIP_Bool             withpenalty,        /**< should a penalty formulation be used */
-   SCIP_Real             penaltyparam        /**< parameter for penalty formulation, if 0 the normal SDP is solved */
+   SCIP_Real             penaltyparam,       /**< parameter for penalty formulation, if 0 the normal SDP is solved */
+   SCIP_RESULT*          result,             /**< pointer to store result of relaxation process */
+   SCIP_Real*            lowerbound         /**< pointer to store lowerbound */
    )
 {
    SCIP_VAR** vars;
@@ -729,7 +727,7 @@ SCIP_RETCODE calc_relax(
             SCIPdebugMessage("calc_relax is called again with penaltyparameter %f because of unboundedness!\n", 10 * penaltyparam);
 
             /* recursive call - return result from there */
-            SCIP_CALL( calc_relax(sdpi, scip, result, lowerbound, problemdata, varmapper, TRUE, 10 * penaltyparam) );
+            SCIP_CALL( calc_relax(scip, sdpi, problemdata, varmapper, TRUE, 10 * penaltyparam, result, lowerbound) );
 
             return SCIP_OKAY;
          }
@@ -827,7 +825,7 @@ SCIP_RETCODE calc_relax(
                SCIPdebugMessage("calc_relax is called again with penaltyparameter %f because the solution of the penalty problem was infeasible in the original problem!\n", 2.0 * penaltyparam);
 
                /* recursive call */
-               SCIP_CALL(calc_relax(sdpi, scip, result, lowerbound, problemdata, varmapper, TRUE, 10.0 * penaltyparam));
+               SCIP_CALL(calc_relax(scip, sdpi, problemdata, varmapper, TRUE, 10.0 * penaltyparam, result, lowerbound));
             }
             else
             {   /* A penalty-only-formulation showed that the problem is feasible, but we weren't able to produce a feasible solution. */
@@ -857,7 +855,7 @@ SCIP_RETCODE calc_relax(
    {
       /* the penalty parameter was too small to make the SDP solver more stable */
       SCIPdebugMessage("calc_relax is called again with penaltyparameter %f because of non-convergence!\n", 10 * penaltyparam);
-      SCIP_CALL(calc_relax(sdpi, scip, result, lowerbound, problemdata, varmapper, TRUE, 10 * penaltyparam));
+      SCIP_CALL(calc_relax(scip, sdpi, problemdata, varmapper, TRUE, 10 * penaltyparam, result, lowerbound));
 
       return SCIP_OKAY;
    }
@@ -889,7 +887,7 @@ SCIP_RETCODE calc_relax(
    if ( feasible )
    {
       /* try again with penalty formulation */
-      SCIP_CALL(calc_relax(sdpi, scip, result, lowerbound, problemdata, varmapper, TRUE, 1.0)); /* TODO: think about penalty parameter */
+      SCIP_CALL(calc_relax(scip, sdpi, problemdata, varmapper, TRUE, 1.0, result, lowerbound)); /* TODO: think about penalty parameter */
    }
    else
    {
@@ -926,6 +924,15 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
 
    // it is possible to call this function for writing the problem of every node in sdpa-format to a file per node
    // SCIP_CALL(write_sdpafile(scip, problemdata, varmapper));
+
+#ifdef SCIP_MORE_DEBUG
+   SCIP_VAR** varsfordebug = SCIPgetVars(scip);
+   const int nvarsfordebug = SCIPgetNVars(scip);
+   for (int i = 0; i < nvarsfordebug; i++)
+   {
+      SCIPdebugMessage("variable %d: status = %u, bounds = [%f, %f] \n", i, SCIPvarGetStatus(varsfordebug[i]), SCIPvarGetLbLocal(varsfordebug[i]), SCIPvarGetUbLocal(varsfordebug[i]));
+   }
+#endif
 
    int nlprows;
    nlprows = SCIPgetNCuts(scip) + SCIPgetNLPRows(scip);
@@ -992,7 +999,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
 
    SCIP_CALL( putDataInInterface(scip, sdpi,problemdata, varmapper) );
 
-   SCIP_CALL( calc_relax(sdpi, scip, result, lowerbound, problemdata, varmapper, FALSE, 0.0));
+   SCIP_CALL( calc_relax(scip, sdpi, problemdata, varmapper, FALSE, 0.0, result, lowerbound));
 
    SCIP_CALL(varmapper->exit());
 
