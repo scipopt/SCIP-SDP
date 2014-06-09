@@ -58,6 +58,10 @@ FLAGS 		+= 	-I$(DSDP_INCLUDE_DIR) -DUSE_DSDP
 endif
 
 
+SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
+			$(OBJDIR)/sdpi
+
+
 #-----------------------------------------------------------------------------
 # main program
 #-----------------------------------------------------------------------------
@@ -115,13 +119,14 @@ doc:
 		cd doc; $(DOXY) $(MAINNAME).dxy
 
 $(MAINSHORTLINK):	$(MAINFILE)
-		@rm -f $@
-		cd $(dir $@) && ln -s $(notdir $(MAINFILE)) $(notdir $@)
+	@rm -f $@
+	cd $(dir $@) && ln -s $(notdir $(MAINFILE)) $(notdir $@)
 
 $(OBJDIR):
-	-@test -d $(OBJDIR) || { \
-	echo "-> Creating $(OBJDIR) directory"; \
-	mkdir -p $(OBJDIR); }
+	@mkdir -p $(OBJDIR);
+
+$(SDPOBJSUBDIRS):	| $(OBJDIR)
+	@-mkdir -p $(SDPOBJSUBDIRS);
 
 $(BINDIR):
 	-@test -d $(BINDIR) || { \
@@ -144,7 +149,7 @@ depend:		$(SCIPDIR)
 
 -include	$(MAINDEP)
 
-$(MAINFILE):	$(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(MAINOBJFILES) | $(OBJDIR) $(BINDIR)
+$(MAINFILE):	$(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(MAINOBJFILES) | $(SDPOBJSUBDIRS) $(BINDIR)
 		@echo "-> linking $@"
 		$(LINKCXX) $(MAINOBJFILES) \
 		$(LINKCXX_L)$(SCIPDIR)/lib $(LINKCXX_l)$(SCIPLIB)$(LINKLIBSUFFIX) \
@@ -152,11 +157,11 @@ $(MAINFILE):	$(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(MAINOBJFILES) | $(OBJ
                 $(OFLAGS) $(LPSLDFLAGS) \
 		$(LDFLAGS) $(LINKCXX_o)$@
 
-$(OBJDIR)/%.o:	$(SRCDIR)/%.c
+$(OBJDIR)/%.o:	$(SRCDIR)/%.c | $(SDPOBJSUBDIRS)
 		@echo "-> compiling $@"
 		$(CC) $(FLAGS) $(OFLAGS) $(BINOFLAGS) $(CFLAGS) -c $< $(CC_o)$@
 
-$(OBJDIR)/%.o:	$(SRCDIR)/%.cpp
+$(OBJDIR)/%.o:	$(SRCDIR)/%.cpp | $(SDPOBJSUBDIRS)
 		@echo "-> compiling $@"
 		$(CXX) $(FLAGS) $(OFLAGS) $(BINOFLAGS) $(CXXFLAGS) -c $< $(CXX_o)$@
 
