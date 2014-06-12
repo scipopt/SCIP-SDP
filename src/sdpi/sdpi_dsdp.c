@@ -30,7 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* #define SCIP_DEBUG */
+#define SCIP_DEBUG
+#define SCIP_MORE_DEBUG
 
 /**@file   sdpi_dsdp.c
  * @brief  interface for dsdp
@@ -2424,7 +2425,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
       }
    }
 
-#ifdef SCIP_DEBUG
+#ifdef SCIP_MORE_DEBUG
    SCIPdebugMessage("ATTENTION: BConeView shows the WRONG sign for the lower bound!\n");
    BConeView(sdpi->bcone);
 #endif
@@ -2529,7 +2530,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
                                                          * sdpi->sdpbegvarblock[sdpi->nvars * block + var] shifts the arrays to the first nonzero belonging to this block and this variable */
          }
       }
-      #ifdef SCIP_DEBUG
+      #ifdef SCIP_MORE_DEBUG
       SDPConeView2(sdpi->sdpcone);
       #endif
    }
@@ -2613,7 +2614,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
       }
 
       DSDP_CALL(LPConeSetData(sdpi->lpcone, sdpi->nlpcons, dsdplpbegcol, dsdplprowind, dsdplpval));
-      #ifdef SCIP_DEBUG
+      #ifdef SCIP_MORE_DEBUG
       LPConeView(sdpi->lpcone);
       #endif
    }
@@ -2837,7 +2838,8 @@ SCIP_Bool SCIPsdpiHasPrimalRay(
    return FALSE;
 }
 
-/** returns TRUE iff SDP is proven to be primal unbounded */
+/** returns TRUE iff SDP is proven to be primal unbounded
+ *  returns FALSE with a debug-message if the solver couldnot determine feasibility */
 SCIP_Bool SCIPsdpiIsPrimalUnbounded(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
@@ -2852,9 +2854,11 @@ SCIP_Bool SCIPsdpiIsPrimalUnbounded(
    if (*pdfeasible == DSDP_PDUNKNOWN)
    {
       BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
-      SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible");
+/*      SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible");
       SCIPABORT();
-      return SCIP_ERROR;
+      return SCIP_ERROR;*/
+      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible");
+      return FALSE;
    }
    else if (*pdfeasible == DSDP_INFEASIBLE)
    {
@@ -2868,7 +2872,8 @@ SCIP_Bool SCIPsdpiIsPrimalUnbounded(
    }
 }
 
-/** returns TRUE iff SDP is proven to be primal infeasible */
+/** returns TRUE iff SDP is proven to be primal infeasible
+ *  returns FALSE with a debug-message if the solver couldnot determine feasibility */
 SCIP_Bool SCIPsdpiIsPrimalInfeasible(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
@@ -2883,9 +2888,11 @@ SCIP_Bool SCIPsdpiIsPrimalInfeasible(
    if (*pdfeasible == DSDP_PDUNKNOWN)
    {
       BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
-      SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible");
+/*      SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible");
       SCIPABORT();
-      return SCIP_ERROR;
+      return SCIP_ERROR;*/
+      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible");
+      return FALSE;
    }
    else if (*pdfeasible == DSDP_UNBOUNDED)
    {
@@ -2899,12 +2906,35 @@ SCIP_Bool SCIPsdpiIsPrimalInfeasible(
    }
 }
 
-/** returns TRUE iff SDP is proven to be primal feasible */
+/** returns TRUE iff SDP is proven to be primal feasible
+ *  returns FALSE with a debug-message if the solver couldnot determine feasibility */
 SCIP_Bool SCIPsdpiIsPrimalFeasible(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   return !SCIPsdpiIsPrimalInfeasible(sdpi);
+   DSDPSolutionType* pdfeasible;
+
+   assert ( sdpi != NULL );
+   CHECK_IF_SOLVED(sdpi);
+
+   BMSallocBlockMemory(sdpi->blkmem, &pdfeasible);
+   DSDP_CALL(DSDPGetSolutionType(sdpi->dsdp, pdfeasible));
+   if (*pdfeasible == DSDP_PDUNKNOWN)
+   {
+      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
+      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible");
+      return FALSE;
+   }
+   else if (*pdfeasible == DSDP_UNBOUNDED)
+   {
+      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
+      return FALSE;
+   }
+   else
+   {
+      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
+      return TRUE;
+   }
 }
 
 /** returns TRUE iff SDP is proven to have a dual unbounded ray (but not necessary a dual feasible point);
@@ -2933,28 +2963,97 @@ SCIP_Bool SCIPsdpiHasDualRay(
    return FALSE;
 }
 
-/** returns TRUE iff SDP is proven to be dual unbounded */
+/** returns TRUE iff SDP is proven to be dual unbounded
+ *  returns FALSE with a debug-message if the solver couldnot determine feasibility */
 SCIP_Bool SCIPsdpiIsDualUnbounded(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   return SCIPsdpiIsPrimalInfeasible(sdpi);
+   DSDPSolutionType* pdfeasible;
+
+   assert ( sdpi != NULL );
+   CHECK_IF_SOLVED(sdpi);
+
+   BMSallocBlockMemory(sdpi->blkmem, &pdfeasible);
+   DSDP_CALL(DSDPGetSolutionType(sdpi->dsdp, pdfeasible));
+   if (*pdfeasible == DSDP_PDUNKNOWN)
+   {
+      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
+      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible");
+      return FALSE;
+   }
+   else if (*pdfeasible == DSDP_UNBOUNDED)
+   {
+      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
+      return TRUE;
+   }
+   else
+   {
+      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
+      return FALSE;
+   }
 }
 
-/** returns TRUE iff SDP is proven to be dual infeasible */
+/** returns TRUE iff SDP is proven to be dual infeasible
+ *  returns FALSE with a debug-message if the solver couldnot determine feasibility */
 SCIP_Bool SCIPsdpiIsDualInfeasible(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   return SCIPsdpiIsPrimalUnbounded(sdpi);
+   DSDPSolutionType* pdfeasible;
+
+   assert ( sdpi != NULL );
+   CHECK_IF_SOLVED(sdpi);
+
+   BMSallocBlockMemory(sdpi->blkmem, &pdfeasible);
+   DSDP_CALL(DSDPGetSolutionType(sdpi->dsdp, pdfeasible));
+   if (*pdfeasible == DSDP_PDUNKNOWN)
+   {
+      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
+      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible");
+      return FALSE;
+   }
+   else if (*pdfeasible == DSDP_INFEASIBLE)
+   {
+      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
+      return TRUE;
+   }
+   else
+   {
+      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
+      return FALSE;
+   }
 }
 
-/** returns TRUE iff SDP is proven to be dual feasible */
+/** returns TRUE iff SDP is proven to be dual feasible
+ *  returns FALSE with a debug-message if the solver couldnot determine feasibility */
 SCIP_Bool SCIPsdpiIsDualFeasible(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   return !SCIPsdpiIsPrimalUnbounded(sdpi);
+   DSDPSolutionType* pdfeasible;
+
+   assert ( sdpi != NULL );
+   CHECK_IF_SOLVED(sdpi);
+
+   BMSallocBlockMemory(sdpi->blkmem, &pdfeasible);
+   DSDP_CALL(DSDPGetSolutionType(sdpi->dsdp, pdfeasible));
+   if (*pdfeasible == DSDP_PDUNKNOWN)
+   {
+      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
+      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible");
+      return FALSE;
+   }
+   else if (*pdfeasible == DSDP_INFEASIBLE)
+   {
+      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
+      return FALSE;
+   }
+   else
+   {
+      BMSfreeBlockMemory(sdpi->blkmem, &pdfeasible);
+      return TRUE;
+   }
 }
 
 /** returns TRUE iff the solver converged */
