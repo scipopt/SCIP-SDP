@@ -32,8 +32,10 @@
 
 /**@file   SdpCone.cpp
  * @brief  Class, where the sdp-data is stored
- * @author Sonja Mars, Lars Schewe
+ * @author Sonja Mars, Lars Schewe, Tristan Gally
  */
+
+#define SCIP_DEBUG
 
 #include "SdpCone.h"
 
@@ -366,6 +368,9 @@ SCIP_RETCODE SdpCone::fix_vars()
       {
          how_many_deleted++; //number of deleted and aggregated vars
          deleted_nz = deleted_nz + vbeg_[j + 1] - vbeg_[j];
+#ifdef SCIP_DEBUG
+         SCIPdebugMessage("variable %s has been fixed to value %f with varstatus %d \n", SCIPvarGetName(SCIPvarGetProbvar(uvars_[j])), SCIPvarGetLbLocal(SCIPvarGetProbvar(uvars_[j])), SCIPvarGetStatus(SCIPvarGetProbvar(uvars_[j])));
+#endif
       }
    }
 
@@ -411,8 +416,8 @@ SCIP_RETCODE SdpCone::fix_vars()
 
       SCIP_VAR* temp_prob_var = SCIPvarGetProbvar (uvars_[i]);
 
-      if (SCIPvarGetProbindex(temp_prob_var) == -1)
-      {
+      if (SCIPvarGetProbindex(temp_prob_var) == -1 || SCIPisEQ(scip_, SCIPvarGetLbLocal(temp_prob_var), SCIPvarGetUbLocal(temp_prob_var)))
+      {  // TODO: latter part seems to cause problems
          SCIP_VARSTATUS status;
          status = SCIPvarGetStatus(uvars_[i]);
 
@@ -436,14 +441,18 @@ SCIP_RETCODE SdpCone::fix_vars()
             {
                val = -1;
             }
-            if (status == SCIP_VARSTATUS_FIXED || (SCIPisEQ(scip_, SCIPvarGetLbLocal(temp_prob_var), SCIPvarGetUbLocal(temp_prob_var)) && status == SCIP_VARSTATUS_COLUMN))
+            if (status == SCIP_VARSTATUS_FIXED )
             {
-               val = -vals_[k] * SCIPvarGetLbGlobal(temp_prob_var);
+               val = -vals_[k] * SCIPvarGetLbLocal(temp_prob_var);
+            }
+
+            if (SCIPisEQ(scip_, SCIPvarGetLbLocal(temp_prob_var), SCIPvarGetUbLocal(temp_prob_var)) && status == SCIP_VARSTATUS_COLUMN)
+            {  //no need to tell SCIP that something needs to be fixed, because at this point SCIP would only change bounds accordingly, which it already has
+               val = -vals_[k] * SCIPvarGetLbLocal(temp_prob_var);
             }
 
             if (status == SCIP_VARSTATUS_AGGREGATED)
             {
-
                SCIP_CALL(SCIPgetProbvarSum(scip_, &var, &scalar, &constant));
                val = constant;
             }
@@ -474,7 +483,6 @@ SCIP_RETCODE SdpCone::fix_vars()
             }
             if (status == SCIP_VARSTATUS_AGGREGATED)
             {
-
                aggr_row[count_nnz_aggr] = row_[k];
                aggr_col[count_nnz_aggr] = col_[k];
                aggr_vals[count_nnz_aggr] = vals_[k] / scalar;
@@ -540,39 +548,43 @@ SCIP_RETCODE SdpCone::fix_vars()
             new_vals[count_all] = vals_[l];
             count_all++;
          }
-      } else
+
+         // look for other variables that are aggregated to this one (only needs to be done if it isn't deleted)
+         for (int i = 0; i < count_aggr; ++i)
+         {
+            if (aggr_vars[i] == uvars_[k])
+            {
+               save_position = -1;
+               for (int j = aggr_vbeg[i]; j < aggr_vbeg[i + 1]; ++j)
+               {
+                  for (int l = new_vbeg[count_vars]; l < count_all; ++l)
+                  {
+                     if (new_row[l] == aggr_row[j] && new_col[l] == aggr_col[j])
+                     {
+                        //there is already an entry at this position of the matrix for this variable
+                        save_position = l;
+                     }
+                  }
+                  if (save_position == -1)
+                  {   //no entry at this postion
+                     new_col[count_all] = aggr_col[j];
+                     new_row[count_all] = aggr_row[j];
+                     new_vals[count_all] = aggr_vals[j];
+                     count_all++;
+                  }
+                  else
+                  {
+                     new_vals[save_position] += aggr_vals[j];
+                  }
+                  new_vbeg[count_vars] = count_all;
+               }
+            }
+         }
+      }
+      else
       {
          no_more_there += vbeg_[k + 1] - vbeg_[k];
          SCIP_CALL(SCIPreleaseVar(scip_, &uvars_[k] ));
-
-      }
-      for (int i = 0; i < count_aggr; ++i)
-      {
-         if (aggr_vars[i] == uvars_[k])
-         {
-            for (int j = aggr_vbeg[i]; j < aggr_vbeg[i + 1]; ++j)
-            {
-               for (int l = new_vbeg[count_vars]; l < new_vbeg[count_vars]; ++l)
-               {
-                  if (new_row[l] == aggr_row[j] && new_col[l] == aggr_col[j])
-                  {
-                     //there is already an entry at this position of the matrix for this variable
-                     save_position = l;
-                  }
-               }
-               if (save_position == -1)
-               {   //no entry at this postion
-                  new_col[count_all] = aggr_col[j];
-                  new_row[count_all] = aggr_row[j];
-                  new_vals[count_all] = aggr_vals[j];
-                  count_all++;
-               } else
-               {
-                  new_vals[save_position] += aggr_vals[j];
-               }
-               new_vbeg[count_vars] = count_all;
-            }
-         }
       }
    }
 
@@ -1372,7 +1384,7 @@ SdpCone::LhsIterator::LhsIterator(SdpCone* c, int n_fixed_vars) : sdpcone_(c), v
          {
             ++i;
 
-            if (i >= n_fixed_vars_ || (i != -1  && sdpcone_->pos_fixed_vars_[i] != i))
+            if (i >= n_fixed_vars_ || (i != -1  && sdpcone_->pos_fixed_vars_[i] != i)) // this works for the first unfixed, because they are entered in pos_fixed with ascending index, so if the first vars are fixed then var 0 is in pos_fixed[0], var[1] in pos_fixed[1], ...
             {
                epos_ = sdpcone_->vbeg_[i];
                vpos_ = i;
