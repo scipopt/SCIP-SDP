@@ -317,6 +317,8 @@ SCIP_RETCODE putDataInInterface(
 
       sdpcone = problemdata->get_sdpcone(i);
 
+      sdpcone->fix_vars(); //TODO: is this the right place to call it ?!?!?!?!?
+
       for (SdpCone::RhsIterator it = sdpcone->rhs_begin(fixedvars, nfixedvars, fixedvalues); it != sdpcone->rhs_end(); ++it)
       {
          ind++;
@@ -596,6 +598,7 @@ static
 SCIP_RETCODE relaxIsFeasible(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_SDPI*            sdpi,               /**< SDP-Interface structure */
+   bool&                 success,            /**< could feasibility be determined */
    bool&                 feasible            /**< whether we obtained a feasible solution */
    )
 {
@@ -615,26 +618,28 @@ SCIP_RETCODE relaxIsFeasible(
       if ( SCIPsdpiIsDualFeasible(sdpi) && SCIPisLE(scip, obj, 0.0) )
       {
          SCIPdebugMessage("Verified that a problem is feasible with a penalty-only-formulation.\n");
+         success = true;
          feasible = true;
       }
-      /* Now the objective > 0, so it is feasible w.r.t. the LP-part, but there is no psd solution. */
+      /* Now the objective is > 0, so it is feasible w.r.t. the LP-part, but there is no psd solution. */
       else if ( SCIPsdpiIsDualFeasible(sdpi) || SCIPsdpiIsDualInfeasible(sdpi) )
       {
          SCIPdebugMessage("Verified that a problem is infeasible with a penalty-only-formulation.\n");
+         success = true;
          feasible = false;
       }
       else
       {
-         SCIPerrorMessage("Cannot decide whether subproblem is feasible!"); /* can't be reached */
-         SCIPABORT();
-         return SCIP_ERROR;
+         SCIPdebugMessage("Even when using a penalty-only-formulation the SDP-Solver couldnot decide whether subproblem is feasible!");
+         success = false;
+         feasible = false;
       }
    }
    else
    {
       SCIPerrorMessage("Even when using a penalty-only-formulation the SDP-Solver didnot converge!");
-      SCIPABORT();
-      return SCIP_ERROR;
+      success= false;
+      feasible = false;
    }
 
    return SCIP_OKAY;
@@ -881,18 +886,40 @@ SCIP_RETCODE calc_relax(
    /* because of earlier ifs and returns this is only done if penaltyparam == 0 and the solver didnont converge */
 
    /* check for feasibility via penalty-only-formulation */
+   bool success;
    bool feasible;
-   SCIP_CALL( relaxIsFeasible(scip, sdpi, feasible) );
+   SCIP_CALL( relaxIsFeasible(scip, sdpi, success, feasible) );
 
-   if ( feasible )
+   if ( success )
    {
-      /* try again with penalty formulation */
-      SCIP_CALL(calc_relax(scip, sdpi, problemdata, varmapper, TRUE, 1.0, result, lowerbound)); /* TODO: think about penalty parameter */
+      if ( feasible )
+      {
+         /* try again with penalty formulation */
+         SCIP_CALL(calc_relax(scip, sdpi, problemdata, varmapper, TRUE, 1.0, result, lowerbound)); /* TODO: think about penalty parameter */
+      }
+      else
+      {
+         /* penalty-only-formulation showed, that the problem is infeasible */
+         *result = SCIP_CUTOFF;
+      }
    }
    else
    {
-      /* penalty-only-formulation showed, that the problem is infeasible */
-      *result = SCIP_CUTOFF;
+      /* even with penalty-only-formulation the solver didnot converge or couldn't determine feasibility,
+      * so we reuse the relaxation result of the parent node (if one exists) */
+      SCIP_NODE* node = SCIPnodeGetParent(SCIPgetCurrentNode(scip));
+      if ( node == 0 )
+      {
+         *result = SCIP_SUSPENDED;
+         SCIPdebugMessage("The problem was shown to be feasible by a penalty formulation, but no solution was found, as there is no parent node the relaxation is suspended. \n");
+         return SCIP_OKAY;
+      }
+
+      *lowerbound = SCIPnodeGetLowerbound(node);
+      *result = SCIP_SUCCESS;
+      SCIP_CALL( SCIPupdateLocalLowerbound(scip, *lowerbound) );
+      SCIPdebugMessage("The problem was shown to be feasible by a penalty formulation, but no solution was found, so the relaxation result from the parent node was copied. \n");
+      return SCIP_OKAY;
    }
 
    return SCIP_OKAY;
