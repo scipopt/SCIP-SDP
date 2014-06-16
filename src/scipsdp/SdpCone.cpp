@@ -466,13 +466,13 @@ SCIP_RETCODE SdpCone::fix_vars()
                   save_position = j;
                }
             }
-            if (save_position == -1)
+            if (save_position == -1 && !SCIPisEQ(scip_, val, 0))
             {
                new_const_col[new_const_nnz] = col_[k];
                new_const_row[new_const_nnz] = row_[k];
                new_const_vals[new_const_nnz] = val;
                new_const_nnz++;
-            } else
+            } else if (save_position > -1)
             {
                new_const_vals[save_position] += val;
             }
