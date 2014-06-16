@@ -12,9 +12,8 @@ DSDP 5.8 (http://www.mcs.anl.gov/hs/software/DSDP/).
 Build SDP-Plugin
 ----------------
 Now you are able to install the SDP-Plugin. It uses the SCIP-Makefiles for 
-building. After unpacking the files you just have to change the file make.local.
-There you need to specify the path to the scip-installation and the path to the 
-dsdp-installation. 
+building. After unpacking the files you just have to change the file make.local to
+set your DSDP directory and set the variable SCIPDIR to the place of your SCIP-directoy.
 In the file make.project.override you can set additional options, for example 
 you can change the compiler using
 CC=clang
@@ -46,7 +45,8 @@ lp/solvefreq=-1
 relaxing/SDPRelax/freq=1
 -------------------------
 
-The first one tells scip how often LPs are solved. -1 means never, 0 solves a
+The first one tells scip how often LPs are solved, using eigenvectore-cuts to 
+produce a positive semidefinite solution. -1 means never, 0 solves a
 LP-relaxation only in the root node, 1 solves it in every node and every other 
 positive integer defines the depth in which LPs are solved.The same numbers can 
 be used for definig the SDP-solving-frequency, which is the second parameter.
