@@ -54,7 +54,7 @@ LDFLAGS 	+= 	-lobjscip -llapack -lblas
 
 ifeq ($(SDPS),dsdp)
 LDFLAGS		+= 	-L$(DSDP_LIB_DIR) -ldsdp
-FLAGS 		+= 	-I$(DSDP_INCLUDE_DIR) -DUSE_DSDP
+FLAGS 		+= 	-I$(DSDP_INCLUDE_DIR)
 endif
 
 ifeq ($(SDPS),sdpa)
@@ -80,7 +80,7 @@ MAINOBJ	=	scipsdp/main.o \
 		scipsdp/ScipStreamBuffer.o \
 		scipsdp/SdpProblem.o 
 
-ifeq ($(SDPS), dsdp)
+ifeq ($(SDPS),dsdp)
 MAINOBJ 	+= 	sdpi/sdpi_dsdp.o
 endif
 
