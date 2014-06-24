@@ -26,3 +26,8 @@
 USE_DSDP = true
 DSDP_INCLUDE_DIR = ../dsdp/include
 DSDP_LIB_DIR =     ../dsdp/lib
+
+SDPA_INCLUDE_DIR = ../sdpa
+SDPA_LIB_DIR =     ../sdpa
+
+SCIPDIR     =     ../scip-git

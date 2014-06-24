@@ -57,6 +57,10 @@ LDFLAGS		+= 	-L$(DSDP_LIB_DIR) -ldsdp
 FLAGS 		+= 	-I$(DSDP_INCLUDE_DIR) -DUSE_DSDP
 endif
 
+ifeq ($(SDPS),sdpa)
+LDFLAGS		+= 	-L$(SDPA_LIB_DIR) -lsdpa -ldmumps_seq -lpthread
+FLAGS 		+= 	-I$(SDPA_INCLUDE_DIR)
+endif
 
 SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
 			$(OBJDIR)/sdpi
@@ -78,6 +82,10 @@ MAINOBJ	=	scipsdp/main.o \
 
 ifeq ($(SDPS), dsdp)
 MAINOBJ 	+= 	sdpi/sdpi_dsdp.o
+endif
+
+ifeq ($(SDPS),sdpa)
+MAINOBJ 	+= 	sdpi/sdpi_sdpa.o
 endif
 
 MAINSRC		=	$(addprefix $(SRCDIR)/,$(MAINOBJ:.o=.cpp))
