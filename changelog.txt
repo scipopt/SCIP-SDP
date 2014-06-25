@@ -12,6 +12,7 @@ performance improvements:
 
 interface:
 - added a more modular SDP-Interface and removed direct DSDP-reverences from the SCIPSDP-core-code
+- added interface to SDPA
 
 parameters:
 
