@@ -2632,8 +2632,8 @@ SCIP_Bool SCIPsdpiIsIterlimExc(
    CHECK_IF_SOLVED(sdpi);
 
    status = sdpi->sdpa->getPhaseValue();
-  /* assert(!(status == SDPA::noINFO || status == SDPA::pFEAS || status == SDPA::dFEAS || status == SDPA::pdFEAS)
-      || sdpi->sdpa->getIteration() >= sdpi->sdpa->getMaxIteration());*/ //
+   assert(!(status == SDPA::noINFO || status == SDPA::pFEAS || status == SDPA::dFEAS || status == SDPA::pdFEAS)
+      || sdpi->sdpa->getIteration() >= sdpi->sdpa->getParameterMaxIteration());
    return (status == SDPA::noINFO || status == SDPA::pFEAS || status == SDPA::dFEAS || status == SDPA::pdFEAS);
 }
 
