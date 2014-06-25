@@ -30,6 +30,9 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#define SCIP_DEBUG
+#define SCIP_MORE_DEBUG
+
 /**@file   sdpi_sdpa.cpp
  * @brief  interface for SDPA
  * @author Tristan Gally
@@ -97,7 +100,7 @@ static int nextsdpid     =  1;               /**< used to give ids to the genera
  * Local Functions
  */
 
-/** For given row and column (i,j) checks if i <= j, so that i and j give a position in the lower triangular part,
+/** For given row and column (i,j) checks if i <= j, so that i and j give a position in the upper triangular part,
  *  otherwise i and j will be switched. This function will be called whenever a position in a symmetric matrix is given,
  *  to prevent problems if position (i,j) is given but later (j,i) should be changed.
  */
@@ -2218,7 +2221,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   return SCIPsdpiSolvePenalty(sdpi, 0, TRUE);
+   return SCIPsdpiSolvePenalty(sdpi, 0.0, TRUE);
 }
 
 /** solves the following penalty formulation of the SDP:
@@ -2362,22 +2365,20 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    }
 
    /* add lower bounds on variables */
-   /**@todo only add finite bounds */
    for( i = 0; i < sdpi->nvars; i++ )
    {
       int pos = sdpi->nlpcons + i + 1;
       sdpa->inputElement(i + 1, sdpi->nsdpblocks + 1, pos, pos, 1.0, checkinput);
-      if( sdpi->lb[i] != 0.0 )
+      if( sdpi->lb[i] != 0.0 && !(SCIPsdpiIsInfinity(sdpi, sdpi->lb[i])))
          sdpa->inputElement(0, sdpi->nsdpblocks + 1, pos, pos, sdpi->lb[i], checkinput);
    }
 
    /* add upper bounds on variables */
-   /**@todo only add finite bounds */
    for( i = 0; i < sdpi->nvars; i++ )
    {
       int pos = sdpi->nlpcons + sdpi->nvars + i + 1;
       sdpa->inputElement(i + 1, sdpi->nsdpblocks + 1, pos, pos, -1.0, checkinput);
-      if( sdpi->ub[i] != 0.0 )
+      if( sdpi->ub[i] != 0.0 && !(SCIPsdpiIsInfinity(sdpi, sdpi->ub[i])))
          sdpa->inputElement(0, sdpi->nsdpblocks + 1, pos, pos, -sdpi->ub[i], checkinput);
    }
 
@@ -2442,7 +2443,7 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
    return SCIP_OKAY;
 }
 
-/** returns TRUE iff SDP is proven to have a primal unbounded ray (but not necessary a primal feasible point);
+/** returns TRUE iff SDP is proven to have a primal unbounded ray (but not necessarily a primal feasible point);
  *  this does not necessarily mean, that the solver knows and can return the primal ray
  *  this is not implemented for all Solvers, always returns false (and a debug message) if it isn't
  */
@@ -2456,7 +2457,7 @@ SCIP_Bool SCIPsdpiExistsPrimalRay(
 }
 
 
-/** returns TRUE iff SDP is proven to have a primal unbounded ray (but not necessary a primal feasible point),
+/** returns TRUE iff SDP is proven to have a primal unbounded ray (but not necessarily a primal feasible point),
  *  and the solver knows and can return the primal ray
  *  this is not implemented for all Solvers, always returns false (and a debug message) if it isn't
  */
@@ -2517,7 +2518,7 @@ SCIP_Bool SCIPsdpiIsPrimalFeasible(
    return (status == SDPA::pFEAS || status == SDPA::pdFEAS || status == SDPA::pFEAS_dINF || status == SDPA::pdOPT);
 }
 
-/** returns TRUE iff SDP is proven to have a dual unbounded ray (but not necessary a dual feasible point);
+/** returns TRUE iff SDP is proven to have a dual unbounded ray (but not necessarily a dual feasible point);
  *  this does not necessarily mean, that the solver knows and can return the dual ray
  *  this is not implemented for all Solvers, will always return false (and a debug message) if it isn't
  */
@@ -2530,7 +2531,7 @@ SCIP_Bool SCIPsdpiExistsDualRay(
    return FALSE;
 }
 
-/** returns TRUE iff SDP is proven to have a dual unbounded ray (but not necessary a dual feasible point),
+/** returns TRUE iff SDP is proven to have a dual unbounded ray (but not necessarily a dual feasible point),
  *  and the solver knows and can return the dual ray
  *  this is not implemented for all Solvers, will always return false (and a debug message) if it isn't
  */
@@ -2631,8 +2632,8 @@ SCIP_Bool SCIPsdpiIsIterlimExc(
    CHECK_IF_SOLVED(sdpi);
 
    status = sdpi->sdpa->getPhaseValue();
-   assert(!(status == SDPA::noINFO || status == SDPA::pFEAS || status == SDPA::dFEAS || status == SDPA::pdFEAS)
-      || sdpi->sdpa->getIteration() >= sdpi->sdpa->getParameterMaxIteration());
+  /* assert(!(status == SDPA::noINFO || status == SDPA::pFEAS || status == SDPA::dFEAS || status == SDPA::pdFEAS)
+      || sdpi->sdpa->getIteration() >= sdpi->sdpa->getMaxIteration());*/ //
    return (status == SDPA::noINFO || status == SDPA::pFEAS || status == SDPA::dFEAS || status == SDPA::pdFEAS);
 }
 
