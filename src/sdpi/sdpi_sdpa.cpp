@@ -2418,12 +2418,21 @@ SCIP_Bool SCIPsdpiWasSolved(
    return sdpi->solved;
 }
 
-/** returns true if the solver could determine whether or not the problem is feasible */
+/** returns true if the solver could determine whether or not the problem is feasible, so it returns true if the
+ *  solver knows that the problem is feasible/infeasible/unbounded, it returns false if the solver doesn't know
+ *  anything about the feasibility status and thus the functions IsPrimalFeasible etc. shouldn't be used */
 SCIP_Bool SCIPsdpiFeasibilityKnown(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   return SCIPsdpiIsPrimalFeasible(sdpi);
+   SDPA::PhaseType status;
+
+   assert(sdpi != NULL);
+   assert(sdpi->sdpa != NULL);
+   CHECK_IF_SOLVED(sdpi);
+
+   status = sdpi->sdpa->getPhaseValue();
+   return (status != SDPA::noINFO);
 }
 
 /** gets information about primal and dual feasibility of the current SDP solution */

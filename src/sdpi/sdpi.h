@@ -563,7 +563,9 @@ SCIP_Bool SCIPsdpiWasSolved(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    );
 
-/** returns true if the solver could determine whether or not the problem is feasible */
+/** returns true if the solver could determine whether or not the problem is feasible, so it returns true if the
+ *  solver knows that the problem is feasible/infeasible/unbounded, it returns false if the solver doesn't know
+ *  anything about the feasibility status and thus the functions IsPrimalFeasible etc. shouldn't be used */
 EXTERN
 SCIP_Bool SCIPsdpiFeasibilityKnown(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
