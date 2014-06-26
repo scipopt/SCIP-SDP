@@ -90,8 +90,8 @@ struct SCIP_SDPi
 {
    DSDP                  dsdp;               /**< solver-object */
    SDPCone               sdpcone;            /**< sdpcone-object of DSDP for handling SDP-constraints */
-   LPCone                lpcone;             /**< lpcone-lpcone-object of DSDP for handling LP-constraints */
-   BCone                 bcone;              /**< bcone-object to add variable bounds to */
+   LPCone                lpcone;             /**< lpcone-object of DSDP for handling LP-constraints */
+   BCone                 bcone;              /**< bcone-object of DSDP to add variable bounds to */
    SCIP_MESSAGEHDLR*     messagehdlr;        /**< messagehandler to printing messages, or NULL */
    BMS_BLKMEM*           blkmem;             /**< block memory */
    int                   sdpid;              /**< identifier for debug-messages */
@@ -123,7 +123,6 @@ struct SCIP_SDPi
 
 static int nextsdpid     =  1;               /**< used to give ids to the generated sdps for debugging messages */
 static double epsilon    = 1e-6;             /**< this is used for checking if primal and dual objective are equal */
-//static double feastol    = 1e-4;             /**< this is used for checking if a solution is feasible */
 
 /*
  * Local Functions
@@ -148,7 +147,7 @@ static int compLowerTriangPos(
  * triangular part, otherwise i and j will be switched. This function will be called whenever a position in a symmetric matrix
  * is given, to prevent problems if position (i,j) is given but later (j,i) should be changed.
  */
-static void checkIfLowerTriang(
+static void ensureLowerTriangular(
   int*                   i,                  /**< row index */
   int*                   j                   /**< column index */
   )
@@ -498,7 +497,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    {
       row = sdpconstrowind[i];
       col = sdpconstcolind[i];
-      checkIfLowerTriang(&row, &col);
+      ensureLowerTriangular(&row, &col);
       (sdpi->sdpconstrowind)[i] = row; /* TODO: could these be saved with their DSDP-indices already ? */
       (sdpi->sdpconstcolind)[i] = col;
       (sdpi->sdpconstval)[i] = sdpconstval[i];
@@ -513,7 +512,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    {
       row = sdprowind[i];
       col = sdpcolind[i];
-      checkIfLowerTriang(&row, &col);
+      ensureLowerTriangular(&row, &col);
       (sdpi->sdprowind)[i] = row;
       (sdpi->sdpcolind)[i] = col;
       (sdpi->sdpval)[i] = sdpval[i];
@@ -597,7 +596,7 @@ SCIP_RETCODE SCIPsdpiAddSDPBlock(
 
       row = constrowind[i];
       col = constcolind[i];
-      checkIfLowerTriang(&row, &col);
+      ensureLowerTriangular(&row, &col);
 
       (sdpi->sdpconstrowind)[sdpi->sdpconstnnonz + i] = row;
       (sdpi->sdpconstcolind)[sdpi->sdpconstnnonz + i] = col;
@@ -624,7 +623,7 @@ SCIP_RETCODE SCIPsdpiAddSDPBlock(
 
       row = rowind[i];
       col = colind[i];
-      checkIfLowerTriang(&row, &col);
+      ensureLowerTriangular(&row, &col);
 
       (sdpi->sdprowind)[sdpi->sdpnnonz + i] = row;
       (sdpi->sdpcolind)[sdpi->sdpnnonz + i] = col;
@@ -860,7 +859,7 @@ SCIP_RETCODE SCIPsdpiAddVars(
             row = sdprowind[sdpbegvarblock[block * nvars]+i];
             col = sdpcolind[sdpbegvarblock[block * nvars]+i];
 
-            checkIfLowerTriang(&row, &col);
+            ensureLowerTriangular(&row, &col);
 
             sdpi->sdprowind[sdpi->sdpbegvarblock[block * (sdpi->nvars + nvars) + sdpi->nvars]+i] = row;
             sdpi->sdpcolind[sdpi->sdpbegvarblock[block * (sdpi->nvars + nvars) + sdpi->nvars]+i] = col;
@@ -1488,7 +1487,7 @@ SCIP_RETCODE SCIPsdpiChgSDPConstCoeff(
 
    row = rowind; /* pointers are needed to give these to the function checking if this is a position in the lower triangular part */
    col = colind;
-   checkIfLowerTriang(&row, &col); /* make sure that this is a lower triangular position, otherwise it could happen that an upper
+   ensureLowerTriangular(&row, &col); /* make sure that this is a lower triangular position, otherwise it could happen that an upper
                                   * triangular position is added if the same entry is already filled in the lower triangular part */
 
    /* check if that entry already exists */
@@ -1580,7 +1579,7 @@ SCIP_RETCODE SCIPsdpiChgSDPCoeff(
 
    row = rowind;
    col = colind;
-   checkIfLowerTriang(&row, &col); /* make sure that this is a lower triangular position, otherwise it could happen that an upper
+   ensureLowerTriangular(&row, &col); /* make sure that this is a lower triangular position, otherwise it could happen that an upper
                                     * triangular position is added if the same entry is already filled in the lower triangular part */
 
    /* check if that entry already exists */
@@ -2251,7 +2250,7 @@ SCIP_RETCODE SCIPsdpiGetSDPConstCoef(
 
    row = rowind;
    col = colind;
-   checkIfLowerTriang(&row, &col); /* Because the matrices are symmetric it doesn't matter if a position in the upper or lower triangular
+   ensureLowerTriangular(&row, &col); /* Because the matrices are symmetric it doesn't matter if a position in the upper or lower triangular
                                     * was given, but only positions in the lower triangular path are saved in the corresponding arrays */
 
    /* search for the entry */
@@ -2305,7 +2304,7 @@ SCIP_RETCODE SCIPsdpiGetSDPCoef(
 
    row = rowind;
    col = colind;
-   checkIfLowerTriang(&row, &col); /* Because the matrices are symmetric it doesn't matter if a position in the upper or lower triangular
+   ensureLowerTriangular(&row, &col); /* Because the matrices are symmetric it doesn't matter if a position in the upper or lower triangular
                                     * was given, but only positions in the lower triangular path are saved in the corresponding arrays */
 
    /* search for the entry */
@@ -2349,7 +2348,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   return SCIPsdpiSolvePenalty(sdpi, 0, TRUE);
+   return SCIPsdpiSolvePenalty(sdpi, 0.0, TRUE);
 }
 
 /** solves the following penalty formulation of the SDP:
@@ -2386,7 +2385,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
 #endif
 
    assert ( sdpi != NULL );
-   assert ( penaltyParam >= 0 );
+   assert ( penaltyParam >= 0.0 );
 
    /* insert data */
 
@@ -2401,8 +2400,6 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    DSDP_CALLM(DSDPCreateSDPCone(sdpi->dsdp, sdpi->nsdpblocks, &(sdpi->sdpcone)));
    DSDP_CALLM(DSDPCreateLPCone(sdpi->dsdp, &(sdpi->lpcone)));
    DSDP_CALLM(DSDPCreateBCone(sdpi->dsdp, &(sdpi->bcone)));
-
-   /*DSDP_CALLM(BConeAllocateBounds(sdpi->bcone,2*sdpi->nvars));  // could optionally be used to set precise memory for bounds */
 
    for (i = 0; i < sdpi->nvars; i++)
    {
@@ -2626,7 +2623,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
 
 
    /* set the penalty parameter */
-   if (penaltyParam != 0) /* in sdpiSolve this is called with an exact 0 */
+   if (penaltyParam != 0.0) /* in sdpiSolve this is called with an exact 0 */
    {
       DSDPSetPenaltyParameter(sdpi->dsdp, penaltyParam);
       DSDPUsePenalty(sdpi->dsdp, 1);
@@ -2740,7 +2737,9 @@ SCIP_Bool SCIPsdpiWasSolved(
    return sdpi->solved;
 }
 
-/** returns true if the solver could determine whether or not the problem is feasible */
+/** returns true if the solver could determine whether or not the problem is feasible, so it returns true if the
+ *  solver knows that the problem is feasible/infeasible/unbounded, it returns false if the solver doesn't know
+ *  anything about the feasibility status and thus the functions IsPrimalFeasible etc. shouldn't be used */
 SCIP_Bool SCIPsdpiFeasibilityKnown(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )

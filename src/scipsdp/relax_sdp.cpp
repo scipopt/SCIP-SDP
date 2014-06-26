@@ -699,7 +699,7 @@ SCIP_RETCODE calc_relax(
    }
    else
    {
-      SCIPdebugMessage("DSDP returned primaldualunknown ! ");
+      SCIPdebugMessage("The solver could not determine feasibility ! ");
    }
    for (i = 0; i < nvars; ++i)
    {
