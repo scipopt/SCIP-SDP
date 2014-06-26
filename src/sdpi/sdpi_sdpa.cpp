@@ -2278,6 +2278,9 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    SDPA::printSDPAVersion(stdout);
    sdpa->printParameters(stdout);
 
+   /**@todo count finite bounds when adding, changing, deleting variables */
+   sdpi->nvarbounds = 2 * sdpi->nvars;
+
    /* initialize block structure */
    sdpa->inputConstraintNumber(sdpi->nvars);
    sdpa->inputBlockNumber(sdpi->nlpcons + sdpi->nvarbounds > 0 ? sdpi->nsdpblocks + 1 : sdpi->nsdpblocks);
@@ -2286,8 +2289,6 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
       sdpa->inputBlockSize(i + 1, sdpi->sdpblocksizes[i]);
       sdpa->inputBlockType(i + 1, SDPA::SDP);
    }
-   /**@todo count finite bounds when adding, changing, deleting variables */
-   sdpi->nvarbounds = 2 * sdpi->nvars;
    if( sdpi->nlpcons + sdpi->nvarbounds > 0 )
    {
       sdpa->inputBlockSize(sdpi->nsdpblocks + 1, -(sdpi->nlpcons + sdpi->nvarbounds));
@@ -2354,7 +2355,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
       assert(sdpi->lpcolind[i] >= 0);
       assert(sdpi->lpcolind[i] < sdpi->nvars);
       if( sdpi->lpval[i] != 0.0 )
-         sdpa->inputElement(sdpi->sdpcolind[i] + 1, sdpi->nsdpblocks + 1, sdpi->lprowind[i] + 1, sdpi->lprowind[i] + 1, sdpi->lpval[i], checkinput);
+         sdpa->inputElement(sdpi->lpcolind[i] + 1, sdpi->nsdpblocks + 1, sdpi->lprowind[i] + 1, sdpi->lprowind[i] + 1, sdpi->lpval[i], checkinput);
    }
 
    /* add LP right-hand sides */
