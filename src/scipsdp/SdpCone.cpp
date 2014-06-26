@@ -369,7 +369,7 @@ SCIP_RETCODE SdpCone::fix_vars()
          how_many_deleted++; //number of deleted and aggregated vars
          deleted_nz = deleted_nz + vbeg_[j + 1] - vbeg_[j];
 #ifdef SCIP_DEBUG
-         SCIPdebugMessage("variable %s has been fixed to value %f with varstatus %d \n", SCIPvarGetName(SCIPvarGetProbvar(uvars_[j])), SCIPvarGetLbLocal(SCIPvarGetProbvar(uvars_[j])), SCIPvarGetStatus(SCIPvarGetProbvar(uvars_[j])));
+         SCIPdebugMessage("variable %s has been fixed to value %f with varstatus %u \n", SCIPvarGetName(SCIPvarGetProbvar(uvars_[j])), SCIPvarGetLbLocal(SCIPvarGetProbvar(uvars_[j])), SCIPvarGetStatus(SCIPvarGetProbvar(uvars_[j])));
 #endif
       }
    }
@@ -1191,6 +1191,7 @@ SdpCone::RhsIterator::RhsIterator(SdpCone* c, int n_fixed_vars, double* fixed_va
    if (sdpcone_->const_nnz_ == 0 && n_fixed_vars_ == 0)
    {
       end_ = TRUE;
+      return;
    }
    else if (sdpcone_->const_nnz_ == 0 && n_fixed_vars_ != 0)
    {
@@ -1211,7 +1212,7 @@ SdpCone::RhsIterator::RhsIterator(SdpCone* c, int n_fixed_vars, double* fixed_va
          ccol = k;
          val = 0.0;
 
-         if (pos_ != -1 && (crow == sdpcone_->const_col_[pos_] - 1) && (ccol == sdpcone_->const_row_[pos_] - 1))
+         if (pos_ != -1 && (crow == sdpcone_->const_col_[pos_] - 1) && (ccol == sdpcone_->const_row_[pos_] - 1)) // because it was checked that there is a nonzero, the check pos_ < const_nonzeroes isn't needed
          {
             val = -sdpcone_->const_vals_[pos_];
             pos_++;
