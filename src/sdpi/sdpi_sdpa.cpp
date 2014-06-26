@@ -2384,7 +2384,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    }
 
    sdpa->initializeUpperTriangle();
-   sdpa->initializeSolve();
+
 
 #ifdef SCIP_MORE_DEBUG
    /* if necessary, dump input data and initial point */
@@ -2393,6 +2393,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
 #endif
 
    SCIPdebugMessage("Calling SDPA solve for SDP (%d)\n", sdpi->sdpid);
+   sdpa->initializeSolve();
    sdpa->solve();
    sdpi->solved = TRUE;
 
