@@ -189,6 +189,7 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->sdpid = nextsdpid++;
 
    (*sdpi)->nvars = 0;
+   (*sdpi)->nvarbounds = 0;
    (*sdpi)->nsdpblocks = 0;
    (*sdpi)->sdpconstnnonz = 0;
    (*sdpi)->sdpnnonz = 0;
@@ -346,12 +347,17 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
 
    sdpi->nvars = nvars;
    sdpi->nsdpblocks = nsdpblocks;
+   sdpi->nvarbounds = 0;  /* reset this counter, it will be computed while inserting the bounds */
 
    for (i = 0; i < nvars; i++)
    {
       (sdpi->obj)[i] = obj[i];
       (sdpi->lb)[i] = lb[i];
+      if (!(SCIPsdpiIsInfinity(sdpi, lb[i])))
+         sdpi->nvarbounds++;
       (sdpi->ub)[i] = ub[i];
+      if (!(SCIPsdpiIsInfinity(sdpi, ub[i])))
+         sdpi->nvarbounds++;
    }
 
    for (i = 0; i < nsdpblocks; i++)
@@ -664,7 +670,11 @@ SCIP_RETCODE SCIPsdpiAddVars(
    {
       sdpi->obj[sdpi->nvars + i] = obj[i];
       sdpi->lb[sdpi->nvars + i] = lb[i];
+      if (!(SCIPsdpiIsInfinity(sdpi, lb[i])))
+         sdpi->nvarbounds++;
       sdpi->ub[sdpi->nvars + i] = ub[i];
+      if (!(SCIPsdpiIsInfinity(sdpi, ub[i])))
+         sdpi->nvarbounds++;
    }
 
    if (sdpnnonz > 0)
@@ -814,6 +824,15 @@ SCIP_RETCODE SCIPsdpiDelVars(
          deletedsdpnonz[block] = deletedsdpnonz[block-1] + sdpi->sdpbegvarblock[block * sdpi->nvars + lastvar + 1]
                                                                              - sdpi->sdpbegvarblock[block * sdpi->nvars + firstvar];
       }
+   }
+
+   /* update the number of varbounds */
+   for (i=firstvar; i <= lastvar; i++)
+   {
+      if (!(SCIPsdpiIsInfinity(sdpi, sdpi->lb[i])))
+         sdpi->nvarbounds--;
+      if (!(SCIPsdpiIsInfinity(sdpi, sdpi->ub[i])))
+         sdpi->nvarbounds--;
    }
 
    for (i=lastvar + 1; i < sdpi->nvars; i++)
@@ -1186,6 +1205,7 @@ SCIP_RETCODE SCIPsdpiClear(
    BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz);
 
    sdpi->nvars = 0;
+   sdpi->nvarbounds = 0;
    sdpi->nsdpblocks = 0;
    sdpi->sdpconstnnonz = 0;
    sdpi->sdpnnonz = 0;
@@ -1219,6 +1239,18 @@ SCIP_RETCODE SCIPsdpiChgBounds(
    {
       assert ( ind[i] >= 0 );
       assert ( ind[i] < sdpi->nvars );
+
+      /* update number of variable bounds */
+      if (!(SCIPsdpiIsInfinity(sdpi, sdpi->lb[ind[i]])))
+         sdpi->nvarbounds--;
+      if (!(SCIPsdpiIsInfinity(sdpi, sdpi->ub[ind[i]])))
+         sdpi->nvarbounds--;
+      if (!(SCIPsdpiIsInfinity(sdpi, lb[i])))
+         sdpi->nvarbounds++;
+      if (!(SCIPsdpiIsInfinity(sdpi, ub[i])))
+         sdpi->nvarbounds++;
+
+      /* change bounds */
       sdpi->lb[ind[i]] = lb[i];
       sdpi->ub[ind[i]] = ub[i];
    }
@@ -2278,9 +2310,6 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    SDPA::printSDPAVersion(stdout);
    sdpa->printParameters(stdout);
 
-   /**@todo count finite bounds when adding, changing, deleting variables */
-   sdpi->nvarbounds = 2 * sdpi->nvars;
-
    /* initialize block structure */
    sdpa->inputConstraintNumber(sdpi->nvars);
    sdpa->inputBlockNumber(sdpi->nlpcons + sdpi->nvarbounds > 0 ? sdpi->nsdpblocks + 1 : sdpi->nsdpblocks);
@@ -2365,26 +2394,38 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
          sdpa->inputElement(0, sdpi->nsdpblocks + 1, i + 1, i + 1, sdpi->lprhs[i], checkinput);
    }
 
+   int pos = sdpi->nlpcons + 1;
+
    /* add lower bounds on variables */
    for( i = 0; i < sdpi->nvars; i++ )
    {
-      int pos = sdpi->nlpcons + i + 1;
-      sdpa->inputElement(i + 1, sdpi->nsdpblocks + 1, pos, pos, 1.0, checkinput);
-      if( sdpi->lb[i] != 0.0 && !(SCIPsdpiIsInfinity(sdpi, sdpi->lb[i])))
-         sdpa->inputElement(0, sdpi->nsdpblocks + 1, pos, pos, sdpi->lb[i], checkinput);
+      if (!(SCIPsdpiIsInfinity(sdpi, sdpi->lb[i])))
+      {
+         assert ( pos <= sdpi->nlpcons + sdpi->nvarbounds );
+         sdpa->inputElement(i + 1, sdpi->nsdpblocks + 1, pos, pos, 1.0, checkinput);
+         if( sdpi->lb[i] != 0.0 )
+            sdpa->inputElement(0, sdpi->nsdpblocks + 1, pos, pos, sdpi->lb[i], checkinput);
+         ++pos;
+      }
    }
 
    /* add upper bounds on variables */
    for( i = 0; i < sdpi->nvars; i++ )
    {
-      int pos = sdpi->nlpcons + sdpi->nvars + i + 1;
-      sdpa->inputElement(i + 1, sdpi->nsdpblocks + 1, pos, pos, -1.0, checkinput);
-      if( sdpi->ub[i] != 0.0 && !(SCIPsdpiIsInfinity(sdpi, sdpi->ub[i])))
-         sdpa->inputElement(0, sdpi->nsdpblocks + 1, pos, pos, -sdpi->ub[i], checkinput);
+      if (!(SCIPsdpiIsInfinity(sdpi, sdpi->ub[i])))
+      {
+         assert ( pos <= sdpi->nlpcons + sdpi->nvarbounds );
+         sdpa->inputElement(i + 1, sdpi->nsdpblocks + 1, pos, pos, -1.0, checkinput);
+         if( sdpi->ub[i] != 0.0 )
+            sdpa->inputElement(0, sdpi->nsdpblocks + 1, pos, pos, -sdpi->ub[i], checkinput);
+         ++pos;
+      }
    }
 
-   sdpa->initializeUpperTriangle();
+   assert ( pos == sdpi->nlpcons + sdpi->nvarbounds + 1 );
 
+   sdpa->initializeUpperTriangle();
+   sdpa->initializeSolve();
 
 #ifdef SCIP_MORE_DEBUG
    /* if necessary, dump input data and initial point */
@@ -2393,7 +2434,6 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
 #endif
 
    SCIPdebugMessage("Calling SDPA solve for SDP (%d)\n", sdpi->sdpid);
-   sdpa->initializeSolve();
    sdpa->solve();
    sdpi->solved = TRUE;
 
