@@ -40,7 +40,8 @@
 #include "objscip/objscip.h"
 #include "objscip/objscipdefplugins.h"
 
-#include "objconshdlr_sdp.h"
+#include "cons_sdp.h"
+//#include "objconshdlr_sdp.h"
 #include "relax_sdp.h"
 #include "objreader_sdpa.h"
 
@@ -63,7 +64,8 @@ SCIP_RETCODE runSCIP(
    //include new plugins
    SCIP_CALL( SCIPincludeObjReader(scip, new ObjReaderSDPA(scip), TRUE) );
 
-   SCIP_CALL( SCIPincludeObjConshdlr(scip, new ObjConshdlrSdp(scip), TRUE) );
+   // SCIP_CALL( SCIPincludeObjConshdlr(scip, new ObjConshdlrSdp(scip), TRUE) );
+   SCIP_CALL( SCIPincludeConshdlrSdp(scip) );
 
    SCIP_CALL( SCIPincludeRelaxSDP(scip) );
 

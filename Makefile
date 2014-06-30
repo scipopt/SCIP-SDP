@@ -73,8 +73,8 @@ SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
 MAINNAME=	scipsdp
 MAINOBJ	=	scipsdp/main.o \
 		scipsdp/relax_sdp.o \
-		scipsdp/objconshdlr_sdp.o \
 		scipsdp/objreader_sdpa.o \
+		scipsdp/cons_sdp.o \
 		scipsdp/SdpVarMapper.o \
 		scipsdp/SdpCone.o \
 		scipsdp/ScipStreamBuffer.o \

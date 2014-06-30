@@ -50,7 +50,7 @@
 #include "SdpVarMapper.h"               // for SdpVarMapper
 #include "sdpi/sdpi.h"                  // for SDP-Interface
 #include "SdpCone.h"                    // for Iterators
-#include "objconshdlr_sdp.h"          // for cons_check
+#include "cons_sdp.h"                   // for cons_check
 
 #define RELAX_NAME             "SDP"
 #define RELAX_DESC             "SDP relaxator"
@@ -764,7 +764,7 @@ SCIP_RETCODE calc_relax(
 
             for (i = 0; i < problemdata->get_nsdpcones(); ++i)
             {
-               SCIP_CALL( cons_check(scip, problemdata->get_sdpcone(i), scipsol, FALSE, TRUE, FALSE, &conefeas) );
+               SCIP_CALL( consCheckSdp(scip, problemdata->get_sdpcone(i), scipsol, FALSE, TRUE, FALSE, &conefeas) );
                if ( conefeas == SCIP_INFEASIBLE )
                {
                   solisfeas = FALSE;
