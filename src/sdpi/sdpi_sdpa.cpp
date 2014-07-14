@@ -2383,6 +2383,8 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
       }
    }
 
+   SCIPdebugMessage("   -> building LP-block (%d)\n", sdpi->sdpid);
+
    /* add LP nonzeros */
    for( i = 0; i < sdpi->lpnnonz; i++ )
    {
@@ -2391,14 +2393,20 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
       assert(sdpi->lpcolind[i] >= 0);
       assert(sdpi->lpcolind[i] < sdpi->nvars);
       if( sdpi->lpval[i] != 0.0 )
+      {
          sdpa->inputElement(sdpi->lpcolind[i] + 1, sdpi->nsdpblocks + 1, sdpi->lprowind[i] + 1, sdpi->lprowind[i] + 1, sdpi->lpval[i], checkinput);
+         SCIPdebugMessage("         -> adding nonzero %g at (%d,%d) for variable %d (%d)\n", sdpi->lpval[i], sdpi->lprowind[i] + 1, sdpi->lprowind[i] + 1, sdpi->lpcolind[i] + 1, sdpi->sdpid);
+      }
    }
 
    /* add LP right-hand sides */
    for( i = 0; i < sdpi->nlpcons; i++ )
    {
       if( sdpi->lprhs[i] != 0.0 )
+         {
          sdpa->inputElement(0, sdpi->nsdpblocks + 1, i + 1, i + 1, sdpi->lprhs[i], checkinput);
+         SCIPdebugMessage("         -> adding LP-rhs %g at (%d,%d) (%d)\n", sdpi->lprhs[i], i + 1, i + 1, sdpi->sdpid);
+         }
    }
 
    int pos = sdpi->nlpcons + 1;
@@ -2411,7 +2419,12 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
          assert ( pos <= sdpi->nlpcons + sdpi->nvarbounds );
          sdpa->inputElement(i + 1, sdpi->nsdpblocks + 1, pos, pos, 1.0, checkinput);
          if( sdpi->lb[i] != 0.0 )
+         {
             sdpa->inputElement(0, sdpi->nsdpblocks + 1, pos, pos, sdpi->lb[i], checkinput);
+            SCIPdebugMessage("         -> adding lower bound %g at (%d,%d) for variable %d (%d)\n", sdpi->lb[i], pos, pos, i + 1, sdpi->sdpid);
+         }
+         else
+            SCIPdebugMessage("         -> adding lower bound 0 at (%d,%d) for variable %d (%d)\n", pos, pos, i + 1, sdpi->sdpid);
          ++pos;
       }
    }
@@ -2424,7 +2437,12 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
          assert ( pos <= sdpi->nlpcons + sdpi->nvarbounds );
          sdpa->inputElement(i + 1, sdpi->nsdpblocks + 1, pos, pos, -1.0, checkinput);
          if( sdpi->ub[i] != 0.0 )
+         {
             sdpa->inputElement(0, sdpi->nsdpblocks + 1, pos, pos, -sdpi->ub[i], checkinput);
+            SCIPdebugMessage("         -> adding upper bound %g at (%d,%d) for variable %d (%d)\n", sdpi->ub[i], pos, pos, i + 1, sdpi->sdpid);
+         }
+         else
+            SCIPdebugMessage("         -> adding upper bound 0 at (%d,%d) for variable %d (%d)\n", pos, pos, i + 1, sdpi->sdpid);
          ++pos;
       }
    }
@@ -2660,7 +2678,7 @@ SCIP_Bool SCIPsdpiIsConverged(
    CHECK_IF_SOLVED(sdpi);
 
    status = sdpi->sdpa->getPhaseValue();
-   return (status == SDPA::pdOPT);
+   return (status != SDPA::noINFO);
 }
 
 /** returns TRUE iff the objective limit was reached */
