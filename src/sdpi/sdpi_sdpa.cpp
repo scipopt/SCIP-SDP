@@ -2378,7 +2378,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
          assert(sdpi->sdpconstrowind[i] < sdpi->sdpblocksizes[b]);
          assert(sdpi->sdpconstcolind[i] >= 0);
          assert(sdpi->sdpconstcolind[i] < sdpi->sdpblocksizes[b]);
-         SCIPdebugMessage("         -> adding nonzero %g at (%d,%d) (%d)\n", sdpi->sdpval[i], sdpi->sdprowind[i] + 1, sdpi->sdpcolind[i] + 1, sdpi->sdpid);
+         SCIPdebugMessage("         -> adding nonzero %g at (%d,%d) (%d)\n", sdpi->sdpconstval[i], sdpi->sdpconstrowind[i] + 1, sdpi->sdpconstcolind[i] + 1, sdpi->sdpid);
          sdpa->inputElement(0, b + 1, sdpi->sdpconstrowind[i] + 1, sdpi->sdpconstcolind[i] + 1, sdpi->sdpconstval[i], checkinput);
       }
    }
