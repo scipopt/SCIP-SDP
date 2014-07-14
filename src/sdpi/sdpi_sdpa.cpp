@@ -2307,6 +2307,13 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
 
    /**@todo make this dependent on the SCIP_SDPPAR_SDPINFO parameter */
    sdpa->setDisplay(stdout);
+
+   FILE *fpOut;
+   fpOut = fopen("output.tmp","w");
+   if (fpOut == NULL) exit(-1);
+   sdpa->setResultFile(fpOut);
+   sdpa->setInitPoint(true);
+
    SDPA::printSDPAVersion(stdout);
    sdpa->printParameters(stdout);
 
