@@ -48,12 +48,20 @@ extern "C" {
 #endif
 */
 
-class SdpCone;  // lines 20-20
-
 /** creates the handler for sdp constraints and includes it in SCIP */
 EXTERN
 SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP*                 scip                /**< SCIP data structure */
+   );
+
+/** sort given arrays by nondecreasing rows and then cols */
+EXTERN
+SCIP_RETCODE SCIPconsSDPsortRowsCols(
+   int*                  row,                /** array of row indices, will be returned in nondecreasing order */
+   int*                  col,                /** array of col indices, for equal rows this will be the tiebreaker */
+   SCIP_Real*            val,                /** this will be returned in the order of row and col */
+   int                   maxrow,             /** maximum value in the row array (values should go from 0 to maxrow */
+   int                   length              /** length of the arrays that should be sorted */
    );
 
 /** method for creating sdp constraints */
@@ -62,28 +70,94 @@ SCIP_RETCODE SCIPcreateConsSdp(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
    const char*           name,               /**< name of constraint */
-   const SdpCone&        sdpcone             /**< the sdpcone */
-   /* @todo pass C-style information instead of cone */
+   int                   nvars,              /**< number of variables in this SDP constraint */
+   int                   nnonz,              /**< number of nonzeroes in this SDP constraint */
+   int                   blocksize,          /**< size of this SDP-block */
+   int*                  begvar,             /**< first index belonging to variable i in the col/row/val-arrays */
+   int*                  col,                /**< column indices of the nonzeroes */
+   int*                  row,                /**< row indices of the nonzeroes */
+   SCIP_Real*            val,                /**< values of the nonzeroes */
+   SCIP_Var**            vars,               /**< SCIP_Variables present in this SDP constraint, ordered by their begvar-indices */
+   int                   constnnonz,         /**< number of nonzeroes in the constant part of this SDP constraint */
+   int*                  constcol,           /**< column indices of the constant nonzeroes */
+   int*                  constrow,           /**< row indices of the constant nonzeroes */
+   SCIP_Real*            constval            /**< values of the constant nonzeroes */
    );
 
-/** gets (a pointer to) the sdpcone of a sdp-constraint */
+/** get the data belonging to a single SDP-constraint
+ *  in arraylength the length of the nvarnonz, col, row and val arrays has to be given, if it is not sufficient for the data that
+ *  needs to be inserted, a debug message will be thrown and this variable will be set to the needed length */
 EXTERN
-SCIP_RETCODE getSdpCone(
+SCIP_RETCODE SCIPconsSdpGetData(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            conss,              /**< constraint to get data for */
-   SdpCone**             sdpcone             /**< output: pointer to the cone */
+   SCIP_CONS*            cons,               /**< SDP constraint to get data of */
+   int*                  nvars,              /**< number of variables in this SDP constraint */
+   int*                  nnonz,              /**< number of nonzeroes in this SDP constraint */
+   int*                  blocksize,          /**< size of this SDP-block */
+   int*                  arraylength,        /**< length of the given nvarnonz, col, row and val arrays, if this is too short this will return the needed length*/
+   int*                  nvarnonz,           /**< number of nonzeros for each variable, also length of the arrays col/row/val are pointing to */
+   int**                 col,                /**< pointers to column indices of the nonzeroes for each variable */
+   int**                 row,                /**< pointers to row indices of the nonzeroes for each variable */
+   SCIP_Real**           val,                /**< pointers to values of the nonzeroes for each variable */
+   SdpVarmapper*         varmapper,          /**< varmapper mapping the variables to positions in the sdp-arrays and vice versa */
+   int*                  constnnonz,         /**< number of nonzeroes in the constant part of this SDP constraint */
+   int**                 constcol,           /**< pointer to column indices of the constant nonzeroes */
+   int**                 constrow,           /**< pointer to row indices of the constant nonzeroes */
+   SCIP_Real**           constval            /**< pointer to values of the constant nonzeroes */
+   );
+
+/** gets the number of nonzeroes and constant nonzeroes for this SDP constraint */
+EXTERN
+SCIP_RETCODE SCIPconsSdpGetNNonz(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons,               /**< SDP constraint to get data of */
+   int*                  nnonz,              /**< number of nonzeroes in this SDP constraint */
+   int*                  constnnonz         /**< number of nonzeroes in the constant part of this SDP constraint */
+   );
+
+/** gets the full constraint Matrix \f A_j \f for a given variable j */
+SCIP_RETCODE SCIPconsSdpGetFullAj(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons,               /**< SDP constraint to get data of */
+   int                   j,                  /**< the variable j to get the corresponding matrix \f A_j \f for */
+   SCIP_Real*            Aj                  /**< pointer to store the full matrix \f A_j \f */
+   );
+
+/** gives an n*n-long array with the full constant matrix */
+EXTERN
+SCIP_RETCODE SCIPconsSdpGetFullConstMatrix(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons,               /**< SDP constraint to get data of */
+   SCIP_Real*            mat                 /**< pointer to store the full constant matrix */
+   );
+
+/** gives an 0.5*n*(n+1)-long array with the lower triangular part of the constant matrix indexed by compLowerTriangPos */
+SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons,               /**< SDP constraint to get data of */
+   SCIP_Real*            mat                 /**< pointer to store the lower triangular part of the constant matrix */
    );
 
 /** checks feasibility for a single SDP-Cone */
 EXTERN
 SCIP_RETCODE consCheckSdp(
    SCIP*                 scip,               /**< SCIP data structure */
-   SdpCone*              sdpcone,            /**< sdpcone to check positive semidefiniteness for */
+   SCIP_CONS*           cons,               /**< the constraint for which the Matrix should be assembled */
    SCIP_SOL*             sol,                /**< the solution to check feasibility for */
    SCIP_Bool             checkintegrality,   /**< has integrality to be checked? */
    SCIP_Bool             checklprows,        /**< have current LP rows to be checked? */
    SCIP_Bool             printreason,        /**< should the reason for the violation be printed? */
    SCIP_RESULT*          result              /**< pointer to store the result of the feasibility checking call */
+   );
+
+/** sort given arrays by nondecreasing rows and then cols */
+EXTERN
+SCIP_RETCODE sortRowsCols(
+   int*                  row,                /** array of row indices, will be returned in nondecreasing order */
+   int*                  col,                /** array of col indices, for equal rows this will be the tiebreaker */
+   SCIP_Real*            val,                /** this will be returned in the order of row and col */
+   int                   maxrow,             /** maximum value in the row array (values should go from 0 to maxrow */
+   int                   length              /** length of the arrays that should be sorted */
    );
 
 /*
