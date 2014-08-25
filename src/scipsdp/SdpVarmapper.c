@@ -30,8 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   SdpVarmapper.h
- * @brief  class that maps scip variables to sdp indices (the SCIP variables are given sdp indices in the order in which they were inserted)
+/**@file   SdpVarmapper.c
+ * @brief  class that maps SCIP variables to SDP indices (the SCIP variables are given SDP indices in the order in which they were inserted)
  * @author Tristan Gally
  */
 
@@ -53,13 +53,13 @@ struct Sdpvarmapper
 SCIP_RETCODE SdpVarmapperCreate(
    SCIP*                 scip,              /**< SCIP data structure */
    SdpVarmapper*         varmapper          /**< Pointer to the Varmapper that should be created */
-      )
+   )
 {
    assert ( scip != NULL );
    assert ( varmapper != NULL );
 
-   SCIP_CALL(SCIPallocBlockMemory(scip, &varmapper));
-   SCIP_CALL(SCIPhashmapCreate(&varmapper->sciptosdp, SCIPblkmem(scip), 0));
+   SCIP_CALL( SCIPallocBlockMemory(scip, &varmapper) );
+   SCIP_CALL( SCIPhashmapCreate(&varmapper->sciptosdp, SCIPblkmem(scip), 0) );
    varmapper->nvars = 0;
 
    return SCIP_OKAY;
@@ -68,8 +68,8 @@ SCIP_RETCODE SdpVarmapperCreate(
 /** frees the SDP Varmapper */
 SCIP_RETCODE SdpVarmapperFree(
    SCIP*                 scip,              /**< SCIP data structure */
-   SdpVarmapper*         varmapper          /**< Pointer to the Varmapper that should be freed */
-      )
+   SdpVarmapper**        varmapper          /**< Pointer to the Varmapper that should be freed */
+   )
 {
    int i;
 
@@ -79,12 +79,12 @@ SCIP_RETCODE SdpVarmapperFree(
    /* release all vars */
    for (i = 0; i < varmapper->nvars; i++)
    {
-      SCIP_CALL(SCIPreleaseVar(scip, &vars[i]));
+      SCIP_CALL( SCIPreleaseVar(scip, &vars[i]) );
    }
 
-   SCIP_CALL(SCIPhashmapFree(&varmapper->sciptosdp));
-   SCIPfreeBlockMemoryArray(scip, &varmapper->sdptoscip, varmapper->nvars);
-   SCIPfreeBlockMemory(scip, &varmapper);
+   SCIP_CALL( SCIPhashmapFree(&(*varmapper)->sciptosdp) );
+   SCIPfreeBlockMemoryArray(scip, &(*varmapper)->sdptoscip, (*varmapper)->nvars);
+   SCIPfreeBlockMemory(scip, varmapper);
 
    return SCIP_OKAY;
 }
@@ -108,7 +108,7 @@ SCIP_RETCODE SdpVarmapperAddVars(
 
    for (i = 0; i < nvars; i++)
    {
-      if (!(SCIPhashmapExists(varmapper->sciptosdp, vars[i]))) /* make sure, that there are no duplicates in the lists */
+      if ( ! (SCIPhashmapExists(varmapper->sciptosdp, vars[i])) ) /* make sure, that there are no duplicates in the lists */
       {
          sdptoscip[varmapper->nvars] = vars[i];
          SCIP_CALL(SCIPhashmapInsert(varmapper->sciptosdp, vars[i], (void*) varmapper->nvars));
@@ -138,7 +138,7 @@ SCIP_RETCODE SdpVarmapperInsertVar(
    assert ( pos >= 0 );
    assert ( pos <= varmapper->nvars );
 
-   if (!(SCIPhashmapExists(varmapper->sciptosdp, var))) /* make sure, that there are no duplicates in the lists */
+   if ( ! (SCIPhashmapExists(varmapper->sciptosdp, var)) ) /* make sure, that there are no duplicates in the lists */
    {
       if ( pos == varmapper->nvars )   /* add it to the end */
       {
@@ -175,7 +175,7 @@ int SdpVarmapperGetNVars(
    return varmapper->nvars;
 }
 
-/** is this SCIP variable included in the varmapper? */
+/** Is the given SCIP variable included in the varmapper? */
 SCIP_Bool SdpVarmapperExistsSCIPvar(
    SdpVarmapper*         varmapper,         /**< Varmapper to get variable index for */
    SCIP_VAR*             var                /**< SCIP variables to get sdp index for */
@@ -206,8 +206,7 @@ SCIP_VAR* SdpVarmapperGetSCIPvar(
    )
 {
    assert ( varmapper != NULL );
-   assert ( ind >= 0 );
-   assert ( ind < varmapper->nvars );
+   assert ( 0 <= ind && ind < varmapper->nvars );
 
    return varmapper->sdptoscip[i];
 }
@@ -225,8 +224,7 @@ SCIP_RETCODE SdpVarmapperRemoveSdpIndex(
 
    assert ( scip != NULL );
    assert ( varmapper != NULL );
-   assert ( ind >= 0 );
-   assert ( ind < varmapper->nvars );
+   assert ( 0 <= ind && ind < varmapper->nvars );
 
    var = varmapper->sdptoscip[ind];
 
@@ -238,7 +236,7 @@ SCIP_RETCODE SdpVarmapperRemoveSdpIndex(
    for (i = ind + 1; i < varmapper->nvars; i++)
    {
       varmapper->sdptoscip[i - 1] = varmapper->sdptoscip[i];
-      SCIP_CALL( SCIPhashmapSetImage (varmapper->sciptosdp, varmapper->sdptoscip[i - 1], i - 1) );
+      SCIP_CALL( SCIPhashmapSetImage(varmapper->sciptosdp, varmapper->sdptoscip[i - 1], i - 1) );
    }
 
    /* reallocate memory */
@@ -263,7 +261,7 @@ SCIP_RETCODE SdpVarmapperTransform(
 
    for (k = 0; k < varmapper->nvars; ++k)
    {
-      SCIP_CALL(SCIPgetTransformedVar(scip, sdptoscip[k], &var));
+      SCIP_CALL(SCIPgetTransformedVar(scip, varmapper->sdptoscip[k], &var));
       SCIP_CALL(SCIPcaptureVar(scip, var));
 
       SCIP_CALL(SCIPhashmapRemove(varmapper->sciptosdp, sdptoscip[k]));
@@ -302,4 +300,6 @@ SCIP_RETCODE SdpVarmapperClone(
       newmapper->sdptoscip[i] = oldmapper->sdptoscip[i];
       SCIP_CALL(SCIPhashmapInsert(newmapper->sciptosdp, oldmapper->sdptoscip[i], (void*) i));
    }
+
+   return SCIP_OKAY;
 }

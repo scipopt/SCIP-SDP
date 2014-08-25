@@ -188,7 +188,7 @@ SCIP_RETCODE putSdpDataInInterface(
    SCIP_VAR ** blockvars;
    SCIP_CONS** conss;
    int ncons;
-   int ind;
+   int ind = 0;
    int newblocksize;
    /*SCIP_Real* sdpvar; /* this could as well be int, but SCIP only knows SCIPsortRealRealIntInt, but not IntRealIntInt or IntIntIntReal */
    int sdpvar;
@@ -233,9 +233,9 @@ SCIP_RETCODE putSdpDataInInterface(
 
    for (i = 0; i < nvars; i++)
    {
-         obj[i] = SCIPvarGetObj(vars[i]);
-         lb[i] = SCIPvarGetLbLocal(vars[i]);
-         ub[i] = SCIPvarGetUbLocal(vars[i]);
+      obj[i] = SCIPvarGetObj(vars[i]);
+      lb[i] = SCIPvarGetLbLocal(vars[i]);
+      ub[i] = SCIPvarGetUbLocal(vars[i]);
    }
 
    ncons = SCIPgetNConss(scip);
@@ -278,7 +278,7 @@ SCIP_RETCODE putSdpDataInInterface(
    ind = 0; /* index of the current sdp block in the complete sdp */
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &blockvars, nvars));
 
-   for (i=0; i < ncons; i++)
+   for (i = 0; i < ncons; i++)
    {
       conshdlr = SCIPconsGetHdlr(conss[i]);
       assert( conshdlr != NULL );
@@ -289,9 +289,12 @@ SCIP_RETCODE putSdpDataInInterface(
       {
          varind = 0;
 
+         /* ?????????????????? */
          SCIPconsSdpGetData(scip, conss[i], &blocknvars, &blocknnonz, &sdpblocksizes[i], &nvars, nvarnonz, &col[ind * nvars],
             &row[ind * nvars], &val[ind * nvars], blockvars, &sdpconstnnonz, &nvars, &constcol[ind],
             &constrow[ind], &constval[ind]);
+
+         /* ??????????????? loop over variables in constraint ! */
 
          /* update the variable indices of the current block to the global variable indices */
          for (j = 0; j < nvars; j++)
@@ -300,6 +303,8 @@ SCIP_RETCODE putSdpDataInInterface(
             {
                nblockvarnonz[ind * nvars + j] = nvarnonz[varind]; /* take the value given by the constraint */
                varind++;
+               SCIPallocMEm...
+                  col...
             }
             else                                /* this variable does not exist in this block */
                nblockvarnonz[ind * nvars + j] = 0; /* then there are no nonzeros for this variable in this block */
@@ -313,10 +318,10 @@ SCIP_RETCODE putSdpDataInInterface(
    SCIPfreeBlockMemoryArray(scip, &blockvars, nvars);
    SCIPfreeBlockMemoryArray(scip, &nvarnonz, nvars);
 
-   SCIP_CALL(SCIPsdpiLoadSDP(sdpi, nvars, (const SCIP_Real*) obj, (const SCIP_Real*) lb, (const SCIP_Real*) ub, nsdpblocks,
+   SCIP_CALL(SCIPsdpiLoadSDP(sdpi, nvars,  obj,  lb,  ub, nsdpblocks,
                             (const int*) sdpblocksizes, sdpconstnnonz, (const int*) sdpconstbegblock, (const int*) sdpconstrowind,
-                            (const int*) sdpconstcolind, (const SCIP_Real*) sdpconstval, sdpnnonz, (const int*) sdpbegvarblock,
-                            (const int*) sdprowind, (const int*) sdpcolind, (const SCIP_Real*) sdpval, 0,
+                            (const int*) sdpconstcolind,  sdpconstval, sdpnnonz, (const int*) sdpbegvarblock,
+                            (const int*) sdprowind, (const int*) sdpcolind,  sdpval, 0,
                             NULL, 0, NULL, NULL, NULL)); /* insert the SDP part, add an empty LP part */
 
    SCIPfreeBlockMemoryArray(scip, &obj, nvars);
@@ -445,7 +450,7 @@ SCIP_RETCODE putLpDataInInterface(
    SCIP_CALL(SCIPsdpiDelLPRows(sdpi, 0, nrowssdpi - 1));
 
    /* add the LP-block to the sdpi */
-   SCIP_CALL(SCIPsdpiAddLPRows(sdpi, ncons, (const SCIP_Real*)rhs, nnonz, (const int*)rowind, (const int*)colind, (const SCIP_Real*)val));
+   SCIP_CALL(SCIPsdpiAddLPRows(sdpi, ncons, rhs, nnonz, (const int*)rowind, (const int*)colind, val));
 
    /* free the remaining arrays */
    SCIPfreeBlockMemoryArray(scip, &rhs, ncons);

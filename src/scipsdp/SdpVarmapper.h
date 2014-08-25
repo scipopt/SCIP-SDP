@@ -31,7 +31,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   SdpVarmapper.h
- * @brief  class that maps scip variables to sdp indices (the SCIP variables are given sdp indices in the order in which they were inserted)
+ * @brief  class that maps SCIP variables to SDP indices (the SCIP variables are given SDP indices in the order in which they were inserted)
  * @author Tristan Gally
  */
 
@@ -52,14 +52,14 @@ EXTERN
 SCIP_RETCODE SdpVarmapperCreate(
    SCIP*                 scip,              /**< SCIP data structure */
    SdpVarmapper*         varmapper          /**< Pointer to the Varmapper that should be created */
-      );
+   );
 
 /** frees the SDP Varmapper */
 EXTERN
 SCIP_RETCODE SdpVarmapperFree(
    SCIP*                 scip,              /**< SCIP data structure */
-   SdpVarmapper*         varmapper          /**< Pointer to the Varmapper that should be freed */
-      );
+   SdpVarmapper**        varmapper          /**< Pointer to the Varmapper that should be freed */
+   );
 
 /** adds the given variables (if not already existant) to the end of the Varmapper */
 EXTERN
@@ -85,7 +85,7 @@ int SdpVarmapperGetNVars(
    SdpVarmapper*         varmapper          /**< Varmapper to get number of variables for */
    );
 
-/** is this SCIP variable included in the varmapper? */
+/** Is the given SCIP variable included in the varmapper? */
 EXTERN
 SCIP_Bool SdpVarmapperExistsSCIPvar(
    SdpVarmapper*         varmapper,         /**< Varmapper to get variable index for */
