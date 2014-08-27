@@ -1135,7 +1135,7 @@ SCIP_RETCODE multiaggrVars(
                           SdpVarmapperGetSdpIndex(globalvarmapper, SdpVarmapperGetSCIPvar(varmapper, aggrconsind)) < aggrglobalind)
                      aggrconsind++;
 
-                  assert (SdpVarmapperGetSdpIndex(globalvarmapper, SdpVarmapperGetSCIPvar(varmapper, aggrconsind)) > aggrglobalind); /* = would be the if-part*/
+                  assert( SdpVarmapperGetSdpIndex(globalvarmapper, SdpVarmapperGetSCIPvar(varmapper, aggrconsind)) > aggrglobalind ); /* = would be the if-part*/
 
                   SdpVarmapperInsertVar(scip, varmapper, aggrvars[aggrind], aggrconsind);
 
@@ -1164,9 +1164,9 @@ SCIP_RETCODE multiaggrVars(
                         consdata->nvarnonz[aggrconsind] = naggrnonz;
                         for (i = 0; i < naggrnonz; i++)
                         {
-                           consdata->row[aggrconsind][i] = savedrow[i];
-                           consdata->col[aggrconsind][i] = savedcol[i];
-                           consdata->val[aggrconsind][i] = savedval[i];
+                           consdata->row[aggrconsind][i] = scalars[aggrind] * savedrow[i];
+                           consdata->col[aggrconsind][i] = scalars[aggrind] * savedcol[i];
+                           consdata->val[aggrconsind][i] = scalars[aggrind] * savedval[i];
                         }
                      }
                      else
@@ -1194,9 +1194,9 @@ SCIP_RETCODE multiaggrVars(
                         consdata->nvarnonz[aggrconsind] = naggrnonz;
                         for (i = 0; i < naggrnonz; i++)
                         {
-                           consdata->row[aggrconsind][i] = savedrow[i];
-                           consdata->col[aggrconsind][i] = savedcol[i];
-                           consdata->val[aggrconsind][i] = savedval[i];
+                           consdata->row[aggrconsind][i] = scalars[aggrind] * savedrow[i];
+                           consdata->col[aggrconsind][i] = scalars[aggrind] * savedcol[i];
+                           consdata->val[aggrconsind][i] = scalars[aggrind] * savedval[i];
                         }
                      }
                      nleftshifts--;
