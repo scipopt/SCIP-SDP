@@ -189,12 +189,6 @@ SCIP_RETCODE putSdpDataInInterface(
    SCIP_CONS** conss;
    int ncons;
    int ind = 0;
-   int newblocksize;
-   /*SCIP_Real* sdpvar; /* this could as well be int, but SCIP only knows SCIPsortRealRealIntInt, but not IntRealIntInt or IntIntIntReal */
-   int sdpvar;
-   int endindex;
-   int constendindex;
-   int nextindaftervar;
    SCIP_Real* obj;
    SCIP_Real* lb;
    SCIP_Real* ub;
@@ -208,14 +202,12 @@ SCIP_RETCODE putSdpDataInInterface(
    int** row;
    int** col;
    SCIP_Real** val;
+   int** blockcol;
+   int** blockrow;
+   int** blockval;
    SCIP_CONSHDLR* conshdlr;
    int blocknnonz;
-   int blockconstnnonz;
-   int startind;
-   int startindconst;
    int varind;
-   int arraylength;
-   int constarraylength;
    int blocknvars;
    int nblockvarnonz;
    int nvarnonz;
@@ -258,9 +250,9 @@ SCIP_RETCODE putSdpDataInInterface(
       {
          nsdpblocks++;
 
-         SCIP_CALL(SCIPconsSdpGetNNonz(scip, conss[i], &blocknnonz, &constblocknnonz));
+         SCIP_CALL(SCIPconsSdpGetNNonz(scip, conss[i], &blocknnonz, &sdpconstnnonz));
          sdpnnonz += blocknnonz;
-         constsdpnnonz += constblocknnonz;
+         sdpconstnnonz += constblocknnonz;
       }
    }
 
@@ -270,6 +262,9 @@ SCIP_RETCODE putSdpDataInInterface(
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &col, nvars * nsdpblocks));
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &row, nvars * nsdpblocks));
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &val, nvars * nsdpblocks));
+   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &blockcol, nvars));
+   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &blockrow, nvars));
+   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &blockval, nvars));
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &constcol, nsdpblocks));
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &constrow, nsdpblocks));
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &constval, nsdpblocks));
@@ -290,9 +285,11 @@ SCIP_RETCODE putSdpDataInInterface(
          varind = 0;
 
          /* ?????????????????? */
-         SCIPconsSdpGetData(scip, conss[i], &blocknvars, &blocknnonz, &sdpblocksizes[i], &nvars, nvarnonz, &col[ind * nvars],
-            &row[ind * nvars], &val[ind * nvars], blockvars, &sdpconstnnonz, &nvars, &constcol[ind],
-            &constrow[ind], &constval[ind]);
+         SCIPconsSdpGetData(scip, conss[i], &blocknvars, &blocknnonz, &sdpblocksizes[i], &nvars, nvarnonz, &blockcol,
+            &blockrow, &blockval, blockvars, &sdpconstnnonz, &constcol[ind], &constrow[ind], &constval[ind]);
+
+         /* nvars would have been overwritten if the space in the given arrays hadn't been sufficient */
+         assert ( nvars == SCIPgetNVars(scip) );
 
          /* ??????????????? loop over variables in constraint ! */
 
@@ -302,9 +299,10 @@ SCIP_RETCODE putSdpDataInInterface(
             if ( vars[j] == blockvars[varind])  /* this variable does exist in this block */
             {
                nblockvarnonz[ind * nvars + j] = nvarnonz[varind]; /* take the value given by the constraint */
+               col[ind * nvars + j] = blockcol[varind];
+               row[ind * nvars + j] = blockrow[varind];
+               val[ind * nvars + j] = blockval[varind];
                varind++;
-               SCIPallocMEm...
-                  col...
             }
             else                                /* this variable does not exist in this block */
                nblockvarnonz[ind * nvars + j] = 0; /* then there are no nonzeros for this variable in this block */
@@ -328,9 +326,12 @@ SCIP_RETCODE putSdpDataInInterface(
    SCIPfreeBlockMemoryArray(scip, &lb, nvars);
    SCIPfreeBlockMemoryArray(scip, &ub, nvars);
    SCIPfreeBlockMemoryArray(scip, &sdpblocksizes, nsdpblocks);
+   SCIPfreeBlockMemoryArray(scip, &constval, nsdpblocks);
    SCIPfreeBlockMemoryArray(scip, &constrow, nsdpblocks);
-   SCIPfreeBlockMemoryArray(scip, &sdpconstcolind, nsdpblocks);
-   SCIPfreeBlockMemoryArray(scip, &sdpconstval, nsdpblocks);
+   SCIPfreeBlockMemoryArray(scip, &constcol, nsdpblocks);
+   SCIPfreeBlockMemoryArray(scip, &blockval, nvars);
+   SCIPfreeBlockMemoryArray(scip, &blockrow, nvars);
+   SCIPfreeBlockMemoryArray(scip, &blockcol, nvars);
    SCIPfreeBlockMemoryArray(scip, &nblockvarnonz, nsdpblocks * nvars);
    SCIPfreeBlockMemoryArray(scip, &row, nsdpblocks * nvars);
    SCIPfreeBlockMemoryArray(scip, &col, nsdpblocks * nvars);
@@ -1021,9 +1022,9 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
    for (i = 0; i < nvars; i++)
    {
       indsforsdpi[i] = i;
-      obj[i] = SCIPvarGetObj[vars[i]];
-      lb[i] = SCIPvarGetLbLocal[vars[i]];
-      ub[i] = SCIPvarGetUbLocal[vars[i]];
+      obj[i] = SCIPvarGetObj(vars[i]);
+      lb[i] = SCIPvarGetLbLocal(vars[i]);
+      ub[i] = SCIPvarGetUbLocal(vars[i]);
    }
 
    SCIP_CALL(SCIPsdpiChgObj(sdpi, nvars, indsforsdpi, obj));

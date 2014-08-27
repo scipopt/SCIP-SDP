@@ -553,7 +553,7 @@ SCIP_RETCODE separateSol(
       if ( SCIPisZero(scip, coeff[j]) )
          continue;
 
-      vars[len] = SCIPvarGetProbvar(sdpcone->get_var(j))); /* ?????????????? */
+      vars[len] = SCIPvarGetProbvar(sdpcone->get_var(j)); /* ?????????????? */
       vals[len] = coeff[j];
       ++len;
    }
@@ -946,7 +946,7 @@ SCIP_RETCODE fixVars(
       {
          SCIP_VAR* var;
 
-         var = SCIPvarGetProbvar(SdpVarmapper(&(consdata->varmapper), j);
+         var = SCIPvarGetProbvar(SdpVarmapper(&(consdata->varmapper), j));
 
          /* check if the variable is fixed in SCIP */
          if ( SCIPvarGetStatus(var) == SCIP_VARSTATUS_FIXED )
