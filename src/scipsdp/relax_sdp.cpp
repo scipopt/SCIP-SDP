@@ -199,18 +199,20 @@ SCIP_RETCODE putSdpDataInInterface(
    int* constcol;
    SCIP_Real* constval;
    int sdpnnonz;
+   int constnnonzcounter;
    int** row;
    int** col;
    SCIP_Real** val;
    int** blockcol;
    int** blockrow;
-   int** blockval;
+   SCIP_Real** blockval;
    SCIP_CONSHDLR* conshdlr;
    int blocknnonz;
    int varind;
    int blocknvars;
-   int nblockvarnonz;
-   int nvarnonz;
+   int* nblockvarnonz;
+   int* nvarnonz;
+   int* nconstblocknonz;
 
    assert ( scip != NULL );
    assert ( sdpi != NULL );
@@ -250,15 +252,16 @@ SCIP_RETCODE putSdpDataInInterface(
       {
          nsdpblocks++;
 
-         SCIP_CALL(SCIPconsSdpGetNNonz(scip, conss[i], &blocknnonz, &sdpconstnnonz));
+         SCIP_CALL(SCIPconsSdpGetNNonz(scip, conss[i], &blocknnonz, &constnnonzcounter));
          sdpnnonz += blocknnonz;
-         sdpconstnnonz += constblocknnonz;
+         sdpconstnnonz += constnnonzcounter;
       }
    }
 
    /* create the sdp- and sdpconst-arrays */
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &nvarnonz, vars));
+   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &nvarnonz, nvars));
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &nblockvarnonz, nvars * nsdpblocks));
+   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &nconstblocknonz, nsdpblocks));
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &col, nvars * nsdpblocks));
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &row, nvars * nsdpblocks));
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &val, nvars * nsdpblocks));
@@ -285,8 +288,8 @@ SCIP_RETCODE putSdpDataInInterface(
          varind = 0;
 
          /* ?????????????????? */
-         SCIPconsSdpGetData(scip, conss[i], &blocknvars, &blocknnonz, &sdpblocksizes[i], &nvars, nvarnonz, &blockcol,
-            &blockrow, &blockval, blockvars, &sdpconstnnonz, &constcol[ind], &constrow[ind], &constval[ind]);
+         SCIPconsSdpGetData(scip, conss[i], &blocknvars, &blocknnonz, &sdpblocksizes[i], &nvars, nvarnonz, blockcol,
+            blockrow, blockval, blockvars, &(nconstblocknonz[ind]), &(constcol[ind]), &(constrow[ind]), &(constval[ind]));
 
          /* nvars would have been overwritten if the space in the given arrays hadn't been sufficient */
          assert ( nvars == SCIPgetNVars(scip) );
@@ -317,9 +320,9 @@ SCIP_RETCODE putSdpDataInInterface(
    SCIPfreeBlockMemoryArray(scip, &nvarnonz, nvars);
 
    SCIP_CALL(SCIPsdpiLoadSDP(sdpi, nvars,  obj,  lb,  ub, nsdpblocks,
-                            (const int*) sdpblocksizes, sdpconstnnonz, (const int*) sdpconstbegblock, (const int*) sdpconstrowind,
-                            (const int*) sdpconstcolind,  sdpconstval, sdpnnonz, (const int*) sdpbegvarblock,
-                            (const int*) sdprowind, (const int*) sdpcolind,  sdpval, 0,
+                            sdpblocksizes, sdpconstnnonz, nconstblocknonz , constrow,
+                            constcol, constval, sdpnnonz, nblockvarnonz,
+                            row, col,  val, 0,
                             NULL, 0, NULL, NULL, NULL)); /* insert the SDP part, add an empty LP part */
 
    SCIPfreeBlockMemoryArray(scip, &obj, nvars);
@@ -332,6 +335,7 @@ SCIP_RETCODE putSdpDataInInterface(
    SCIPfreeBlockMemoryArray(scip, &blockval, nvars);
    SCIPfreeBlockMemoryArray(scip, &blockrow, nvars);
    SCIPfreeBlockMemoryArray(scip, &blockcol, nvars);
+   SCIPfreeBlockMemoryArray(scip, &nconstblocknonz, nsdpblocks);
    SCIPfreeBlockMemoryArray(scip, &nblockvarnonz, nsdpblocks * nvars);
    SCIPfreeBlockMemoryArray(scip, &row, nsdpblocks * nvars);
    SCIPfreeBlockMemoryArray(scip, &col, nsdpblocks * nvars);
@@ -1027,8 +1031,8 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
       ub[i] = SCIPvarGetUbLocal(vars[i]);
    }
 
-   SCIP_CALL(SCIPsdpiChgObj(sdpi, nvars, indsforsdpi, obj));
-   SCIP_CALL(SCIPsdpiChgBounds(sdpi, nvars, indsforsdpi, lb, ub));
+   SCIP_CALL(SCIPsdpiChgObj(relaxdata->sdpi, nvars, indsforsdpi, obj));
+   SCIP_CALL(SCIPsdpiChgBounds(relaxdata->sdpi, nvars, indsforsdpi, lb, ub));
 
    SCIPfreeBlockMemoryArray(scip, &indsforsdpi, nvars);
    SCIPfreeBlockMemoryArray(scip, &obj, nvars);
