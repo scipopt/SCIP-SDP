@@ -149,22 +149,27 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    const SCIP_Real*      ub,                 /**< upper bounds of variables */
    int                   nsdpblocks,         /**< number of SDP-blocks */
    const int*            sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
+   const int*            sdpnblockvars,      /**< number of variables in each SDP block (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
    int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks */
-   const int*            sdpconstbegblock,   /**< start index of each block in sdpconstval-array (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
-   const int*            sdpconstrowind,     /**< row-index for each entry in sdpconstval-array (may be NULL if sdpconstnnonz = 0) */
-   const int*            sdpconstcolind,     /**< column-index for each entry in sdpconstval-array (may be NULL if sdpconstnnonz = 0) */
-   const SCIP_Real*      sdpconstval,        /**< values of entries of constant matrices in SDP-Block (may be NULL if sdpconstnnonz = 0) */
-   int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint matrix */
-   const int*            sdpbegvarblock,     /**< entry j*nvars + i is the start index of matrix \f A_i^j \f in sdpval, particularly entry i*nvars gives the starting point of block j
-                                              *   (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
-   const int*            sdprowind,          /**< row-index for each entry in sdpval-array (may be NULL if sdpnnonz = 0) */
-   const int*            sdpcolind,          /**< column-index for each entry in sdpval-array (may be NULL if sdpnnonz = 0) */
-   const SCIP_Real*      sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
+   const int*            sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
+                                                  *  number of entries  of sdpconst row/col/val [i] */
+   int const* const*     sdpconstrow,        /**< pointer to row-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
+   const int**           sdpconstcol,        /**< pointer to column-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
+   const SCIP_Real**     sdpconstval,        /**< pointer to values of entries of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
+   int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint matrices */
+   int**                 sdpnblockvarnonz,   /**< sdpnblockvarnonz[i][j] gives the number of nonzeros for the j-th variable (not necessarly
+                                               *  variable j) in the i-th block, this is also the length of row/col/val[i][j] */
+   int**                 sdpvar,             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
+                                               *  in the i-th block */
+   int***                sdprow,             /**< pointer to the row-indices for each block and variable in this block, so row[i][j][k] gives
+                                               *  the k-th nonzero of the j-th variable (not necessarly variable j) in the i-th block */
+   int***                sdpcol,             /**< pointer to the column-indices for each block and variable in this block */
+   SCIP_Real***          sdpval,             /**< pointer to the values of the nonzeros for each block and variable in this block */
    int                   nlpcons,            /**< number of LP-constraints */
    const SCIP_Real*      lprhs,              /**< right hand sides of LP rows (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
-   const int*            lprowind,           /**< row-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
-   const int*            lpcolind,           /**< column-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
+   const int*            lprow,              /**< row-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
+   const int*            lpcol,              /**< column-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
    const SCIP_Real*      lpval               /**< values of LP-constraint matrix entries (may be NULL if lpnnonz = 0) */
    );
 
@@ -243,8 +248,9 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
    int                   nrows,              /**< number of rows to be added */
    const SCIP_Real*      rhs,                /**< right hand sides of new rows */
    int                   nnonz,              /**< number of nonzero elements to be added to the LP constraint matrix */
-   const int*            rowind,             /**< row indices of constraint matrix entries, going from 0 to nrows - 1, these will be changed to nlpcons + i */
-   const int*            colind,             /**< column/variable indices of constraint matrix entries */
+   const int*            row,                /**< row indices of constraint matrix entries, going from 0 to nrows - 1, these will be changed
+                                                *  to nlpcons + i */
+   const int*            col,                /**< column/variable indices of constraint matrix entries */
    const SCIP_Real*      val                 /**< values of constraint matrix entries */
    );
 
@@ -532,7 +538,7 @@ SCIP_RETCODE SCIPsdpiSolve(
  *      & & Dy \geq d \\
  *      & & l \leq y \leq u}
  *   \f
- *   alternatively withObj can be to false to set \f b \f to false and only check for feasibility (if the optimal
+ *   alternatively withObj can be to false to set \f b \f to zero and only check for feasibility (if the optimal
  *   objective value is bigger than 0 the problem is infeasible, otherwise it's feasible) */
 EXTERN
 SCIP_RETCODE SCIPsdpiSolvePenalty(

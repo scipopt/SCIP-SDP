@@ -49,7 +49,7 @@
 #include "scip/pub_misc.h"                   /* for sorting */
 
 /* calls a DSDP-Function and transforms the return-code to a SCIP_ERROR if needed */
-#define DSDP_CALL(x)   do                                                                                     \
+#define DSDP_CALL(x)  do                                                                                     \
                        {                                                                                      \
                           int _dsdperrorcode_;                                                                \
                           if ( (_dsdperrorcode_ = (x)) != 0 )                                                 \
@@ -62,7 +62,7 @@
                        while( FALSE )
 
 /* same as DSDP_CALL, but this will be used for initialization methods with memory allocation and return a SCIP_NOMEMORY if an error is produced */
-#define DSDP_CALLM(x)   do                                                                                     \
+#define DSDP_CALLM(x) do                                                                                     \
                        {                                                                                      \
                           int _dsdperrorcode_;                                                                \
                           if ( (_dsdperrorcode_ = (x)) != 0 )                                                 \
@@ -74,10 +74,21 @@
                        }                                                                                      \
                        while( FALSE )
 
+/* Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY */
+#define BMS_CALL(x)   do                                                                                      \
+                       {                                                                                      \
+                          if( NULL == (x) )                                                                   \
+                          {                                                                                   \
+                             SCIPerrorMessage("No memory in function call\n");                                \
+                             return SCIP_NOMEMORY;                                                            \
+                          }                                                                                   \
+                       }                                                                                      \
+                       while( FALSE )
+
 /* this will be called in all functions that want to access solution information to check if the problem was solved since the last change of the problem */
-#define CHECK_IF_SOLVED(sdpisolver)  do                                                                             \
+#define CHECK_IF_SOLVED(sdpisolver)  do                                                                       \
                         {                                                                                     \
-                           if (!(sdpisolver->solved))                                                               \
+                           if (!(sdpisolver->solved))                                                         \
                            {                                                                                  \
                               SCIPerrorMessage("Tried to access solution information ahead of solving! \n");  \
                               SCIPABORT();                                                                    \
@@ -88,12 +99,20 @@
 
 struct SCIP_SDPiSolver
 {
+   SCIP_MESSAGEHDLR*     messagehdlr;        /**< messagehandler to printing messages, or NULL */
+   BMS_BLKMEM*           blkmem;             /**< block memory */
    DSDP                  dsdp;               /**< solver-object */
    SDPCone               sdpcone;            /**< sdpcone-object of DSDP for handling SDP-constraints */
    LPCone                lpcone;             /**< lpcone-object of DSDP for handling LP-constraints */
    BCone                 bcone;              /**< bcone-object of DSDP to add variable bounds to */
-   SCIP_MESSAGEHDLR*     messagehdlr;        /**< messagehandler to printing messages, or NULL */
-   BMS_BLKMEM*           blkmem;             /**< block memory */
+   int                   nvars;              /**< number of input variables */
+   int                   nactivevars;        /**< number of variables present in DSDP (nvars minus the number of variables with lb=ub) */
+   int*                  inputtodsdpmapper;  /**< entry i gives the index of input variable i in dsdp (starting from 1) or
+                                               *  -j (j=1, 2, ..., nvars - nactivevars) if the variable is fixed, the value and objective value of
+                                               *  this fixed variable can be found in entry j-1 of fixedval/obj */
+   int*                  dsdptoinputmapper;  /**< entry i gives the original index of the (i+1)-th variable in dsdp (indices go from 0 to nactivevars-1) */
+   int*                  fixedval;           /**< entry i gives the lower and upper bound of the i-th fixed variable */
+   int*                  fixedobj;           /**< entry i gives the objective value of the i-th fixed variable */
    SCIP_Bool             solved;             /**< was the SDP solved since the problem was last changed */
    int                   sdpcounter;         /**< used for debug messages */
 };
@@ -118,24 +137,22 @@ static int compLowerTriangPos(
    return i*(i+1)/2 + j;
 }
 
+#ifndef NDEBUG
 /**
- * For given row and column (i,j) checks if i >= j, so that i and j give a position in the lower
- * triangular part, otherwise i and j will be switched. This function will be called whenever a position in a symmetric matrix
- * is given, to prevent problems if position (i,j) is given but later (j,i) should be changed.
- */
-static void ensureLowerTriangular(
-  int*                   i,                  /**< row index */
-  int*                   j                   /**< column index */
-  )
+ * Test if a lower bound lb really is smaller than an upper bound ub, meaning that lb <= ub - epsilon */
+static
+SCIP_Bool isFixed(
+   SCIP_Real             lb,                 /**< lower bound */
+   SCIP_Real             ub                  /**< upper bound */
+   )
 {
-   if ( *i < *j )
-   {
-      int temp;
-      temp = *i;
-      *i = *j;
-      *j = temp;
-   }
+   assert( lb < ub + epsilon );
+
+   return ( REALABS(ub-lb) <= epsilon);
 }
+#else
+#define isFixed(lb,ub,epsilon) (REALABS(ub-lb) <= epsilon)
+#endif
 
 /*
  * Miscellaneous Methods
@@ -217,7 +234,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
 
    SCIPdebugMessage("Calling SCIPsdpiCreate (%d)\n",nextsdpid);
 
-   BMSallocBlockMemory(blkmem, sdpisolver);
+   BMS_CALL(BMSallocBlockMemory(blkmem, sdpisolver));
 
    (*sdpisolver)->messagehdlr = messagehdlr;
    (*sdpisolver)->blkmem = blkmem;
@@ -225,6 +242,10 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->sdpcone = newsdpcone;
    (*sdpisolver)->lpcone = newlpcone;
    (*sdpisolver)->bcone = newbcone;
+   (*sdpisolver)->nvars = 0;
+   (*sdpisolver)->nactivevars = 0;
+   (*sdpisolver)->inputtodsdpmapper = NULL;
+   (*sdpisolver)->dsdptoinputmapper = NULL;
    (*sdpisolver)->solved = FALSE;
    (*sdpisolver)->sdpcounter = 0;
 
@@ -244,6 +265,12 @@ SCIP_RETCODE SCIPsdpiSolverFree(
    DSDP_CALL(DSDPDestroy((*sdpisolver)->dsdp));
    }
 
+   if ((*sdpisolver)->nvars > 0)
+      BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, (*sdpisolver)->inputtodsdpmapper, (*sdpisolver)->nvars);
+
+   if ((*sdpisolver)->nactivevars > 0)
+      BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, (*sdpisolver)->dsdptoinputmapper, (*sdpisolver)->nvars);
+
    BMSfreeBlockMemory((*sdpisolver)->blkmem, sdpisolver);
 
    return SCIP_OKAY;
@@ -259,7 +286,7 @@ SCIP_RETCODE SCIPsdpiSolverFree(
 /**@name Solving Methods */
 /**@{ */
 
-/** solves the SDP */
+/** inserts the SDP, taking care of fixed variables (lb=ub), then solves the SDP */
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
    int                   nvars,              /**< number of variables */
@@ -268,6 +295,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    const SCIP_Real*      ub,                 /**< upper bounds of variables */
    int                   nsdpblocks,         /**< number of SDP-blocks */
    const int*            sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
+   int*                  sdpnblockvars,      /**< number of variables that exist in each block */
    int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks */
    const int*            sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
                                                 *  number of entries  of sdpconst row/col/val [i] */
@@ -275,11 +303,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    const int**          sdpconstcol,        /**< pointers to column-indices for each block */
    const SCIP_Real**     sdpconstval,        /**< pointers to the values of the nonzeros for each block */
    int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint matrix */
-   int*                  sdpnblockvarnonz,   /**< entry i * nvars + j gives the number of nonzeros for block i and variable j, this is exactly
-                                               *  the number of entries of sdp row/col/val [i * nvars + j] */
-   const int**          sdprow,             /**< pointer to the row-indices for each block and variable */
-   const int**          sdpcol,             /**< pointer to the column-indices for each block and variable */
-   const SCIP_Real**     sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
+   int**                 sdpnblockvarnonz,   /**< entry [i][j] gives the number of nonzeros for block i and variable j, this is exactly
+                                               *  the number of entries of sdp row/col/val [i][j] */
+   int**                 sdpvar,             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
+                                               *  in the i-th block */
+   const int***         sdprow,             /**< pointer to the row-indices for each block and variable */
+   const int***         sdpcol,             /**< pointer to the column-indices for each block and variable */
+   const SCIP_Real***    sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
    int                   nlpcons,            /**< number of LP-constraints */
    const SCIP_Real*      lprhs,              /**< right hand sides of LP rows (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
@@ -288,11 +318,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    const SCIP_Real*      lpval               /**< values of LP-constraint matrix entries (may be NULL if lpnnonz = 0) */
    )
 {
-   return SCIP_CALL(SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpconstnnonz, sdpconstnblocknonz, sdpconstrow,
-         sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdprow, sdpcol, sdpval, nlpcons, lprhs, lpnnonz, lprowind, lpcolind, lpval));
+   return SCIP_CALL(SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars,
+         sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
+         nlpcons, lprhs, lpnnonz, lprowind, lpcolind, lpval));
 }
 
-/** solves the following penalty formulation of the SDP:
+/** inserts the SDP, taking care of fixed variables (lb=ub), then solves the following penalty formulation of the SDP:
  *      \f{eqnarray*}{
  *      \min & & b^T y + \Gamma r \\
  *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathbb{I} \succeq 0 \quad \forall i \leq m \\
@@ -311,6 +342,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    const SCIP_Real*      ub,                 /**< upper bounds of variables */
    int                   nsdpblocks,         /**< number of SDP-blocks */
    const int*            sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
+   int*                  sdpnblockvars,      /**< number of variables that exist in each block */
    int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks */
    const int*            sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
                                                 *  number of entries  of sdpconst row/col/val [i] */
@@ -318,11 +350,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    const int**          sdpconstcol,        /**< pointers to column-indices for each block */
    const SCIP_Real**     sdpconstval,        /**< pointers to the values of the nonzeros for each block */
    int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint matrix */
-   int*                  sdpnblockvarnonz,   /**< entry i * nvars + j gives the number of nonzeros for block i and variable j, this is exactly
-                                               *  the number of entries of sdp row/col/val [i * nvars + j] */
-   const int**          sdprow,             /**< pointer to the row-indices for each block and variable */
-   const int**          sdpcol,             /**< pointer to the column-indices for each block and variable */
-   const SCIP_Real**     sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
+   int**                 sdpnblockvarnonz,   /**< entry [i][j] gives the number of nonzeros for block i and variable j, this is exactly
+                                               *  the number of entries of sdp row/col/val [i][j] */
+   int**                 sdpvar,             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
+                                               *  in the i-th block */
+   const int***         sdprow,             /**< pointer to the row-indices for each block and variable */
+   const int***         sdpcol,             /**< pointer to the column-indices for each block and variable */
+   const SCIP_Real***    sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
    int                   nlpcons,            /**< number of LP-constraints */
    const SCIP_Real*      lprhs,              /**< right hand sides of LP rows (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
@@ -345,6 +379,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int aij_nnonz;
    int blocknnonz;
    int startind;
+   int** fixedind; /* these two arrays will save the fixed nonzeros for each block for later adding them to the constant arrays */
+   int** fixedval; /* "----------------------------------------------------------------------------------------" */
+   int* nfixednonz;
+   int nmergednonz; /* counts how many fixed and constant nonzeros were merge, this is the number of spots the constant nonzero-arrays can
+                     * be shrinked later */
+   int totalnfixednonz; /* sum of fixed nonzeros over all blocks */
+   int nfixedvars;
 
 #ifdef SCIP_DEBUG
    DSDPTerminationReason* reason; /* this will later be used to check if DSDP converged */
@@ -352,6 +393,45 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    assert ( sdpisolver != NULL );
    assert ( penaltyParam >= 0.0 );
+
+   /* initialize varmapper with fixed variables */
+   sdpisolver->nvars = nvars;
+   sdpisolver->nactivevars = 0;
+   nfixedvars = 0;
+   BMS_CALL(BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->varmapper), nvars));
+
+   for (i = 0; i < nvars; i++)
+   {
+      if (isFixed(lb[i], ub[i]))
+      {
+         nfixedvars++;
+         sdpisolver->inputtodsdpmapper[i] = -nfixedvars;
+         sdpisolver->fixedobj = obj[nfixedvars - 1];
+         sdpisolver->fixedval = lb[nfixedvars - 1]; /* if lb=ub, than this is the value the variable will have in every solution */
+      }
+      else
+      {
+         sdpisolver->dsdptoinputmapper[sdpisolver->nactivars] = i;
+         sdpisolver->nactivevars++;
+         sdpisolver->inputtodsdpmapper[i] = sdpisolver->nactivevars;
+      }
+   }
+
+   assert ( sdpisolver->nactivevars + nfixedvars == sdpisolver->nvars );
+
+   /* if there are fixed variables, prepare arrays to save fixed nonzeros for later adding them to the constant nonzeros */
+   if (sdpisolver->nactivevars < sdpisolver->nvars)
+   {
+      BMS_CALL(BMSallocBlockMemoryArray(sdpisolver->blkmem, &fixedind, nsdpblocks));
+      BMS_CALL(BMSallocBlockMemoryArray(sdpisolver->blkmem, &fixedval, nsdpblocks));
+
+      for (i = 0; i < nsdpblocks; i++)
+      {
+         nfixednonz[block] = 0;
+         BMS_CALL(BMSallocBlockMemoryArray(sdpisolver->blkmem, &(fixedind[block]), sdpnnonz));
+         BMS_CALL(BMSallocBlockMemoryArray(sdpisolver->blkmem, &(fixedval[block]), sdpnnonz));
+      }
+   }
 
    /* insert data */
 
@@ -362,29 +442,31 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       DSDP_CALL(DSDPDestroy(sdpisolver->dsdp)); /* if there already exists a DSDP-instance, destroy the old one */
    }
 
-   DSDP_CALLM(DSDPCreate(nvars, &(sdpisolver->dsdp)));
+   DSDP_CALLM(DSDPCreate(sdpisolver->nactivevars, &(sdpisolver->dsdp)));
    DSDP_CALLM(DSDPCreateSDPCone(sdpisolver->dsdp, nsdpblocks, &(sdpisolver->sdpcone)));
    DSDP_CALLM(DSDPCreateLPCone(sdpisolver->dsdp, &(sdpisolver->lpcone)));
    DSDP_CALLM(DSDPCreateBCone(sdpisolver->dsdp, &(sdpisolver->bcone)));
 
-   for (i = 0; i < nvars; i++)
+   for (i = 0; i < sdpisolver->nactivevars; i++)
    {
       if (withObj)
       {
-         DSDP_CALL(DSDPSetDualObjective(sdpisolver->dsdp, i+1, -1 * obj[i])); /* insert objective value, DSDP counts from 1 to n instead of 0 to n-1,
-                                                                                  * *(-1) because DSDP maximizes instead of minimizing */
+         DSDP_CALL(DSDPSetDualObjective(sdpisolver->dsdp, i+1, -1 * obj[sdpisolver->dsdptoinputmapper])); /* insert objective value, DSDP counts
+                                                           * from 1 to n instead of 0 to n-1, *(-1) because DSDP maximizes instead of minimizing */
       }
       else
       {
          DSDP_CALL(DSDPSetDualObjective(sdpisolver->dsdp, i+1, 0));
       }
-      if (!SCIPsdpiSolverIsInfinity(sdpisolver, lb[i]))
+      if (!SCIPsdpiSolverIsInfinity(sdpisolver, lb[sdpisolver->dsdptoinputmapper]))
       {
-         DSDP_CALL(BConeSetLowerBound(sdpisolver->bcone, i+1, lb[i])); /*insert lower bound, DSDP counts from 1 to n instead of 0 to n-1 */
+         DSDP_CALL(BConeSetLowerBound(sdpisolver->bcone, i+1, lb[sdpisolver->dsdptoinputmapper])); /* insert lower bound, DSDP counts from 1 to n
+                                                                                                    * instead of 0 to n-1 */
       }
-      if (!SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->ub[i]))
+      if (!SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->ub[sdpisolver->dsdptoinputmapper]))
       {
-         DSDP_CALL(BConeSetUpperBound(sdpisolver->bcone, i+1, ub[i])); /*insert upper bound, DSDP counts from 1 to n instead of 0 to n-1 */
+         DSDP_CALL(BConeSetUpperBound(sdpisolver->bcone, i+1, ub[sdpisolver->dsdptoinputmapper])); /* insert upper bound, DSDP counts from 1 to n
+                                                                                                    * instead of 0 to n-1 */
       }
    }
 
@@ -399,48 +481,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       DSDP_CALL(SDPConeSetBlockSize(sdpisolver->sdpcone, i, sdpblocksizes[i])); /*set the blocksizes (blocks are counted from 0 to m-1) */
    }
 
-   /* start inserting the constant matrix */
-   if ( sdpconstnnonz > 0 )
-   {
-      assert ( nsdpblocks > 0 );
-      assert ( sdpconstbegblock != NULL );
-      assert ( sdpconstcolind != NULL );
-      assert ( sdpconstrowind != NULL );
-      assert ( sdpconstval != NULL );
 
-      /*allocate memory*/
-      /* DSDP uses these for solving, so they may not be freed before the problem is solved. */
-
-      /* indices given to DSDP, for this the elements in the lower triangular part of the matrix are labeled from 0 to n*(n+1)/2 -1 */
-      BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpconstind, sdpconstnnonz);
-      /* values given to DSDP, for this the original values are mutliplied by -1 because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
-      BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpconstval, sdpconstnnonz);
-
-      ind = 0;
-
-      for(block = 0; block < nsdpblocks; block++)
-      {
-         startind = ind; /* starting index of this block in the dsdpconst arrays */
-
-         for(i = 0; i < sdpconstnblocknonz[block]; i++)
-         {
-            dsdpconstind[ind] = compLowerTriangPos(sdpconstrow[block][i], sdpconstcol[block][i]);
-            dsdpconstval[ind] = -1 * sdpconstval[ind]; /* *(-1) because in DSDP -1* (sum A_i^j y_i - A_0^j)
-                                                                * should be positive semidefinite */
-            ind++;
-         }
-
-         /* sort the arrays for this Matrix (by non decreasing indices) as this might help the solving time of DSDP */
-         SCIPsortIntReal(dsdpconstind + startind, dsdpconstval + startind, sdpconstnblocknonz[block]);
-
-         DSDP_CALL(SDPConeSetASparseVecMat(sdpisolver->sdpcone, block, 0, sdpblocksizes[block], 1, 0, dsdpconstind + startind[block],
-            dsdpconstval + startind, blocknnonz));   /* constant matrix is given as variable 0, the arrays are shifted to the first element of this block
-                                                      * by adding sdpisolver->sdpconstbegblock[block] */
-      }
-   }
-
-
-   /*start inserting the other SDP-Constraint-Matrices */
+   /*start inserting the non-constant SDP-Constraint-Matrices */
    if(sdpnnonz > 0)
    {
       int var;
@@ -454,41 +496,249 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       /*allocate memory */
       /*This needs to be one long array, because DSDP uses it for solving so all nonzeros have to be in it and it may not be freed before the problem is solved. The distinct blocks/variables
-       *(for the i,j-parts) are then given by dsdpind + sdpbegvarblock[nvars * block + var], which gives a pointer to the first array-element belonging to this block and then the number of
+       *(for the i,j-parts) are then given by dsdpind + startind, which gives a pointer to the first array-element belonging to this block and then the number of
        *elements in this block is given to DSDP for iterating over it */
 
       /*indices given to DSDP, for this the elements in the lower triangular part of the matrix are labeled from 0 to n*(n+1)/2 -1 */
-      BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpind, sdpnnonz);
+      BMS_CALL(BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpind, sdpnnonz));
       /*values given to DSDP, these will be multiplied by -1 because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
-      BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpval, sdpnnonz);
+      BMS_CALL(BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpval, sdpnnonz));
 
       ind = 0; /* this will be used for iterating over the nonzeroes */
 
       for(block = 0; block < nsdpblocks; block++)
       {
-         for(var = 0; var < nvars; var++)
+         for(var = 0; var < sdpnblockvars[block]; var++)
          {
-            startind = ind;
-
-            for (k = 0; k < sdpnblockvarnonz[block * nvars + var]; k++)
+            if (sdpi->inputtosdpmapper[sdpvar[block][var]] > -1)
             {
-               dsdpind[ind] = compLowerTriangPos(sdprow[k], sdpcol[k]);
-               dsdpval[ind] = -1 * sdpval[k];  /* *(-1) because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
-               ind++;
+               /* this variable isn't fixed, so add it to the dsdp arrays for this block/var combination */
+               startind = ind;
+
+               for (k = 0; k < sdpnblockvarnonz[block][var]; k++)
+               {
+                  dsdpind[ind] = compLowerTriangPos(sdprow[block][var][k], sdpcol[block][var][k]);
+                  dsdpval[ind] = -1 * sdpval[block][var][k];  /* *(-1) because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
+                  ind++;
+               }
+
+               /* sort the arrays for this Matrix (by non decreasing indices) as this might help the solving time of DSDP */
+               SCIPsortIntReal(dsdpind + startind, dsdpval + startind, sdpnblockvarnonz[block][var]);
+
+               DSDP_CALL(SDPConeSetASparseVecMat(sdpisolver->sdpcone, block, sdpisolver->inputtodsdpmapper[sdpvar[block][var]], sdpblocksizes[block], 1.0, 0, dsdpind + startind,
+                  dsdpval + startind, sdpnblockvarnonz[block][var])); /* the inputtosdpsolver already adds the +1 shift needed for dsdp, adding startind shifts
+                                                                       * the arrays to the first nonzero belonging to this block and this variable */
             }
-
-            /* sort the arrays for this Matrix (by non decreasing indices) as this might help the solving time of DSDP */
-            SCIPsortIntReal(dsdpind + startind, dsdpval + startind, sdpnblockvarnonz[block * nvars + var]);
-
-            DSDP_CALL(SDPConeSetASparseVecMat(sdpisolver->sdpcone, block, var + 1, sdpblocksizes[block], 1, 0, dsdpind + startind,
-               dsdpval + startind, sdpnblockvarnonz[block * nvars + var])); /* var+1 is needed because DSDP indexes the vars from 1 to nvars (var 0 is the constant matrix), adding
-                                                                             * sdpisolver->sdpbegvarblock[sdpisolver->nvars * block + var] shifts the arrays to the first nonzero belonging
-                                                                             *  to this block and this variable */
+            else
+            {
+               /* this variable is fixed, so save its nonzeros for later adding them to the constant part */
+               for (k = 0; k < sdpnblockvarnonz[block][var]; k++)
+               {
+                  fixedind[block][nfixednonz[block]] = compLowerTriangPos(sdprow[block][var][k], sdpcol[block][var][k]);
+                  fixedval[block][nfixednonz[block]] = -1 * sdpval[block][var][k] * lb[sdpvar[block][var]]; /* multiplication with -1 because of +A_i but -A_0 */
+                  nfixednonz[block]++;
+               }
+            }
          }
       }
       #ifdef SCIP_MORE_DEBUG
       SDPConeView2(sdpisolver->sdpcone);
       #endif
+   }
+
+   nmergednonz = 0;
+   totalnfixednonz = 0;
+
+   if (sdpisolver->nactivevars < sdpisolver->nvars)
+   {
+      for (block = 0; block < nsdpblocks; block++)
+      {
+         /* shrink the fixed arrays and sort the fixed nonzeros to make it easier to find corresponding entries for the constant nonzeros */
+         BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(fixedind[block]), sdpnnonz, nfixednonz[block]));
+         BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(fixedval[block]), sdpnnonz, nfixednonz[block]));
+         SCIPsortIntReal(fixedind[block], fixedval[block], nfixednonz[block]);
+      }
+
+      /* compute the total number of fixed variables */
+      for (block = 0; block < nsdpblocks; block++)
+         totalnfixednonz += nfixednonz[block];
+   }
+
+   /* start inserting the constant matrix */
+   if ( sdpconstnnonz > 0 || totalnfixednonz > 0)
+   {
+
+#ifndef NDEBUG
+      if (sdpconstnnonz > 0)
+      {
+         assert ( nsdpblocks > 0 );
+         assert ( sdpconstbegblock != NULL );
+         assert ( sdpconstcolind != NULL );
+         assert ( sdpconstrowind != NULL );
+         assert ( sdpconstval != NULL );
+      }
+#endif
+
+      /*allocate memory*/
+
+      /* DSDP uses these for solving, so they may not be freed before the problem is solved. */
+
+      /* this is the worst case length if all fixed nonzeros create new entries, otherwise they will shrinked later */
+
+      /* indices given to DSDP, for this the elements in the lower triangular part of the matrix are labeled from 0 to n*(n+1)/2 -1 */
+      BMS_CALL(BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpconstind, sdpconstnnonz + totalnfixednonz));
+      /* values given to DSDP, for this the original values are mutliplied by -1 because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
+      BMS_CALL(BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpconstval, sdpconstnnonz + totalnfixednonz));
+
+      ind = 0;
+
+      for(block = 0; block < nsdpblocks; block++)
+      {
+         startind = ind; /* starting index of this block in the dsdpconst arrays */
+
+         if (nfixednonz[block] == 0)
+         {
+            /* just insert the constant-nonzeros */
+            for(i = 0; i < sdpconstnblocknonz[block]; i++)
+            {
+               dsdpconstind[ind] = compLowerTriangPos(sdpconstrow[block][i], sdpconstcol[block][i]);
+               dsdpconstval[ind] = -1 * sdpconstval[block][i]; /* *(-1) because in DSDP -1* (sum A_i^j y_i - A_0^j)
+                                                                * should be positive semidefinite */
+               ind++;
+            }
+
+            /* sort the arrays for this Matrix (by non decreasing indices) as this might help the solving time of DSDP */
+            SCIPsortIntReal(dsdpconstind + startind, dsdpconstval + startind, sdpconstnblocknonz[block]);
+
+         }
+         else
+         {
+            int* dsdpindtemp;
+            SCIP_Real* dsdpvaltemp;
+            int constind;
+            int fixedarrayind;
+
+            /* the constant and fixed nonzero arrays need to be merged */
+
+            /* compute the dsdpindices for the constant nonzeros and copy them into a temporary array to sort them */
+            BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpindtemp, sdpconstnblocknonz[block]));
+            BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpvaltemp, sdpconstnblocknonz[block]));
+
+            for(i = 0; i < sdpconstnblocknonz[block]; i++)
+            {
+               dsdpindtemp[i] = compLowerTriangPos(sdpconstrow[block][i], sdpconstcol[block][i]);
+               dsdpvaltemp[i] = sdpconstval[block][i];
+            }
+
+            SCIPsortIntReal(dsdpindtemp, dsdpvaltemp, sdpconstnblocknonz[block]);
+
+            constind = 0; /* this will be used to traverse the temporary arrays */
+            fixedarrayind = 0; /* this will be used to traverse the fixed-nonzeros arrays */
+
+            /* as both arrays are sorted, traverse them simultanously, always adding the current entry with the lower index of either array to the
+             * dsdparrays (if they both have the same index, we have found entries that need to be merged) */
+            while (constind < sdpconstnblocknonz[block] && fixedarrayind < nfixednonz[block])
+            {
+               if (dsdpindtemp[constind] < fixedind[block][fixedarrayind])
+               {
+                  /* for this index only a constant nonzero exists, so add it to the dsdp arrays */
+                  dsdpconstind[ind] = dsdpindtemp[constind];
+                  dsdpconstval[ind] = -1 * dsdpvaltemp[constind]; /* times -1 because for DSDP A_0 - sum A_i should be psd */
+                  ind++;
+                  constind++;
+               }
+
+               else if (dsdpindtemp[constind] > fixedind[block][fixedarrayind])
+               {
+                  /* for this index only a fixed nonzero exists, so add it to the dsdp arrays */
+                  dsdpconstind[ind] = fixedind[block][fixedarrayind];
+                  dsdpconstval[ind] = -1 * fixedval[block][fixedarrayind]; /* times -1 because for DSDP A_0 - sum A_i should be psd */
+                  fixedarrayind++;
+
+                  /* if multiple variables were fixed, there might be duplicate entries in the fixed arrays for the same index,
+                   * these should be combined */
+                  while (fixedarrayind < nfixednonz[block] && fixedind[block][fixedarrayind] == dsdpconstind[ind])
+                  {
+                     dsdpconstval[ind] += -1 * fixedval[block][fixedarrayind]; /* times -1 because for DSDP A_0 - sum A_i should be psd */
+                     fixedarrayind++;
+                     nmergednonz++;
+                  }
+
+                  ind++;
+               }
+               else
+               {
+                  /* for both of them an entry exists, so they need to be added together
+                   * we first copy the constant entry, then look for fixed nonzeros (as there might be more than one, see above) */
+                  dsdpconstind[ind] = dsdpindtemp[constind];
+                  dsdpconstval[ind] = -1 * dsdpvaltemp[constind]; /* times -1 because for DSDP A_0 - sum A_i should be psd */
+                  constind++;
+
+                  while (fixedarrayind < nfixednonz[block] && fixedind[block][fixedarrayind] == dsdpconstind[ind])
+                  {
+                     dsdpconstval[ind] += -1 * fixedval[block][fixedarrayind]; /* times -1 because for DSDP A_0 - sum A_i should be psd */
+                     fixedarrayind++;
+                     nmergednonz++;
+                  }
+
+                  ind++;
+               }
+            }
+
+            /* copy the remaining entries of the not yet finished array into the dsdp arrays (at most one of the two while-queues will be non-empty) */
+            while (constind < sdpconstnblocknonz[block])
+            {
+               dsdpconstind[ind] = dsdpindtemp[constind];
+               dsdpconstval[ind] = -1 * dsdpvaltemp[constind]; /* times -1 because for DSDP A_0 - sum A_i should be psd */
+               ind++;
+               constind++;
+            }
+            while (fixedarrayind < nfixednonz[block])
+            {
+               dsdpconstind[ind] = fixedind[block][fixedarrayind];
+               dsdpconstval[ind] = -1 * fixedval[block][fixedarrayind]; /* times -1 because for DSDP A_0 - sum A_i should be psd */
+               fixedarrayind++;
+
+               /* if multiple variables were fixed, there might be duplicate entries in the fixed arrays for the same index,
+                * these should be combined */
+               while (fixedarrayind < nfixednonz[block] && fixedind[block][fixedarrayind] == dsdpconstind[ind])
+               {
+                  dsdpconstval[ind] += -1 * fixedval[block][fixedarrayind]; /* times -1 because for DSDP A_0 - sum A_i should be psd */
+                  fixedarrayind++;
+                  nmergednonz++;
+               }
+
+               ind++;
+            }
+
+            /* these arrays were only needed to merge the fixed nonzeros in the constant ones, they can now be freed */
+            BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpindtemp, sdpconstnblocknonz[block]);
+            BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpvaltemp, sdpconstnblocknonz[block]);
+
+            /* as the nonzeros were already inserted in a sorted order into the dsdp arrays, they don't need to be sorted again in this case */
+         }
+
+         DSDP_CALL(SDPConeSetASparseVecMat(sdpisolver->sdpcone, block, 0, sdpblocksizes[block], 1.0, 0, dsdpconstind + startind,
+            dsdpconstval + startind, ind - startind));   /* constant matrix is given as variable 0, the arrays are shifted to the first element of this block
+                                                          * by adding startind, ind - startind gives the number of elements for this block */
+      }
+   }
+
+   if (sdpisolver->nactivevars < sdpisolver->nvars)
+   {
+      /* free the fixednonz-arrays that were only needed to save fixed nonzeros for adding them to the constant nonzeros */
+      for (block = 0; block < nsdpblocks; block++)
+      {
+         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &(fixedind[block]), nfixednonz[block]);
+         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &(fixedval[block]), nfixednonz[block]);
+      }
+
+      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &fixedind, nsdpblocks);
+      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &fixedval, nsdpblocks);
+
+      /* shrink the constant arrays according to the number of fixed nonzeros that were merged into constant ones */
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdpconstind, sdpconstnnonz + totalnfixednonz, sdpconstnnonz + totalnfixednonz - nmergednonz));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdpconstval, sdpconstnnonz + totalnfixednonz, sdpconstnnonz + totalnfixednonz - nmergednonz));
    }
 
 
@@ -509,16 +759,16 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       /* these arrays are needed in DSDP during solving, so they may only be freed afterwards */
       /* dsdplpbegcol[i] gives the number of nonzeroes in column 0 (right hand side) till i-1 (i going from 1 till n, with extra entries 0 (always 0) and n+1 (always lpcons + lpnnonz)) */
-      BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpbegcol, nvars + 2);
+      BMS_CALL(BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpbegcol, nvars + 2));
       /* dsdplprowind saves the row indices of the LP for DSDP */
-      BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprowind, nlpcons + lpnnonz); /*length is lpnnonz + nlpcons, because right hand sides are also included in the vector */
+      BMS_CALL(BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprowind, nlpcons + lpnnonz)); /*length is lpnnonz + nlpcons, because right hand sides are also included in the vector */
       /* values given to DSDP */
-      BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, nlpcons + lpnnonz); /*length is lpnnonz + nlpcons, because right hand sides are also included in the vector */
+      BMS_CALL(BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, nlpcons + lpnnonz)); /*length is lpnnonz + nlpcons, because right hand sides are also included in the vector */
 
       /* compute lpbegcol */
 
       /* to compute lpbegcol the column indices need to be sorted, for this they are copied in an extra array */
-      BMSallocBlockMemoryArray(sdpisolver->blkmem, &sortedlpcolind, lpnnonz);
+      BMS_CALL(BMSallocBlockMemoryArray(sdpisolver->blkmem, &sortedlpcolind, lpnnonz));
 
       for(i = 0; i < lpnnonz; i++)
       {
@@ -615,7 +865,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
 #ifdef SCIP_DEBUG
-   BMSallocBlockMemory(sdpisolver->blkmem, &reason);
+   BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &reason));
    DSDP_CALL(DSDPStopReason(sdpisolver->dsdp, reason));
 
    switch ( *reason ) /* TODO: perhaps also check for feasibility and call the penalty-method here in that case */
@@ -708,7 +958,7 @@ SCIP_Bool SCIPsdpiSolverFeasibilityKnown(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
-   BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible);
+   BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpisolver->dsdp, pdfeasible));
    if (*pdfeasible == DSDP_PDUNKNOWN)
    {
@@ -736,7 +986,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
    assert ( dualfeasible != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
-   BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible);
+   BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpisolver->dsdp, pdfeasible));
 
    switch ( *pdfeasible)
@@ -807,7 +1057,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
-   BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible);
+   BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpisolver->dsdp, pdfeasible));
    if (*pdfeasible == DSDP_PDUNKNOWN)
    {
@@ -841,7 +1091,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
-   BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible);
+   BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpisolver->dsdp, pdfeasible));
    if (*pdfeasible == DSDP_PDUNKNOWN)
    {
@@ -875,7 +1125,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
-   BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible);
+   BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpisolver->dsdp, pdfeasible));
    if (*pdfeasible == DSDP_PDUNKNOWN)
    {
@@ -932,7 +1182,7 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
-   BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible);
+   BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpisolver->dsdp, pdfeasible));
    if (*pdfeasible == DSDP_PDUNKNOWN)
    {
@@ -963,7 +1213,7 @@ SCIP_Bool SCIPsdpiSolverIsDualInfeasible(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
-   BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible);
+   BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpisolver->dsdp, pdfeasible));
    if (*pdfeasible == DSDP_PDUNKNOWN)
    {
@@ -994,7 +1244,7 @@ SCIP_Bool SCIPsdpiSolverIsDualFeasible(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
-   BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible);
+   BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpisolver->dsdp, pdfeasible));
    if (*pdfeasible == DSDP_PDUNKNOWN)
    {
@@ -1024,7 +1274,7 @@ SCIP_Bool SCIPsdpiSolverIsConverged(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
-   BMSallocBlockMemory(sdpisolver->blkmem, &reason);
+   BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &reason));
 
    DSDP_CALL(DSDPStopReason(sdpisolver->dsdp, reason));
 
@@ -1050,7 +1300,7 @@ SCIP_Bool SCIPsdpiSolverIsObjlimExc(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
-   BMSallocBlockMemory(sdpisolver->blkmem, &reason);
+   BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &reason));
 
    DSDP_CALL(DSDPStopReason(sdpisolver->dsdp, reason));
 
@@ -1076,7 +1326,7 @@ SCIP_Bool SCIPsdpiSolverIsIterlimExc(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
-   BMSallocBlockMemory(sdpisolver->blkmem, &reason);
+   BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &reason));
 
    DSDP_CALL(DSDPStopReason(sdpisolver->dsdp, reason));
 
@@ -1111,7 +1361,7 @@ int SCIPsdpiSolverGetInternalStatus(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
-   BMSallocBlockMemory(sdpisolver->blkmem, &reason);
+   BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &reason));
 
    DSDP_CALL(DSDPStopReason(sdpisolver->dsdp, reason));
 
@@ -1192,8 +1442,8 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
       printf("Numerical Trouble in DSDP!\n");
 
       /* if it didn't converge check the optimality gap */
-      BMSallocBlockMemory(sdpisolver->blkmem, &pobj);
-      BMSallocBlockMemory(sdpisolver->blkmem, &dobj);
+      BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &pobj));
+      BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &dobj));
 
       DSDP_CALL(DSDPGetPObjective(sdpisolver->dsdp, pobj));
       DSDP_CALL(DSDPGetDObjective(sdpisolver->dsdp, dobj));
@@ -1232,12 +1482,21 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    SCIP_Real*            objval              /**< stores the objective value */
    )
 {
+   int v;
+
    assert ( sdpisolver != NULL );
    assert ( objval != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
    DSDP_CALL(DSDPGetDObjective(sdpisolver->dsdp, objval));
    *objval = -1*(*objval); /*DSDP maximizes instead of minimizing, so the objective values were multiplied by -1 when inserted */
+
+   /* as we didn't add the fixed (lb = ub) variables to dsdp, we have to add their contributions to the objective by hand */
+   for (v = 0; v < sdpisolver->nvars - sdpisolver->nactivevars; v++)
+   {
+      if (sdpisolver->inputtodsdpmapper[v] == -1)
+         *objval += sdpisolver->fixedobj[v] * sdpisolver->fixedval[v];
+   }
 
    return SCIP_OKAY;
 }
@@ -1247,9 +1506,12 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
    SCIP_Real*            objval,             /**< stores the objective value, may be NULL if not needed */
    SCIP_Real*            dualsol,            /**< dual solution vector, may be NULL if not needed */
-   int                   dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL */
+   int*                  dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
+                                               *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
    )
 {
+   int dsdpsol;
+
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
@@ -1257,12 +1519,36 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
    {
       DSDP_CALL(DSDPGetDObjective(sdpisolver->dsdp, objval));
       *objval *= -1; /*DSDP maximizes instead of minimizing, so the objective values were multiplied by -1 when inserted */
+
+      /* as we didn't add the fixed (lb = ub) variables to dsdp, we have to add their contributions to the objective by hand */
+      for (v = 0; v < sdpisolver->nvars - sdpisolver->nactivevars; v++)
+      {
+         if (sdpisolver->inputtodsdpmapper[v] == -1)
+            *objval += sdpisolver->fixedobj[v] * sdpisolver->fixedval[v];
+      }
    }
 
    if (dualsollength > 0)
    {
       assert(dualsol != NULL);
-      DSDP_CALL(DSDPGetY(sdpisolver->dsdp, dualsol, dualsollength)); /*last entry needs to be the number of variables, will return an error otherwise */
+      if (*dualsollength < sdpisolver->nvars)
+      {
+         SCIPdebugMessage("The given array in SCIPsdpiSolverGetSol only had length %d, but %d was needed", *dualsollength, sdpisolver->nvars);
+         *dualsollength = sdpisolver->nvars;
+      }
+
+      BMS_CALL(BMSallocBlockMemoryArray(sdpisolver->blkmem, dsdpsol, sdpisolver->nactivevars));
+      DSDP_CALL(DSDPGetY(sdpisolver->dsdp, dsdpsol, sdpisolver->nactivevars)); /*last entry needs to be the number of variables, will return an error otherwise */
+
+      /* insert the entries into dualsol, for non-fixed vars we copy those from dsdp, the rest are the saved entries from inserting (they equal lb=ub) */
+      for (v = 0; v < sdpisolver->nvars; v++)
+      {
+         if (sdpisolver->inputtodsdpmapper[v] > -1)
+            dualsol[v] = dsdpsol[sdpisolver->inputtodsdpmapper - 1]; /* minus one because the inputtosdpmapper gives the dsdp indices which start at one,
+                                                                      * but the array starts at 0 */
+         else
+            dualsol[v] = sdpisolver->fixedval[(-1 * sdpisolver->inputtodsdpmapper) - 1]; /* this is the value that was saved when inserting, as this variable has lb=ub */
+      }
    }
    return SCIP_OKAY;
 }

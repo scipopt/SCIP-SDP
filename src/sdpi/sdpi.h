@@ -143,7 +143,7 @@ SCIP_RETCODE SCIPsdpiSolverFree(
 /**@name Solving Methods */
 /**@{ */
 
-/** loads an SDP and immediatly solves it */
+/** inserts the SDP, taking care of fixed variables (lb=ub), then solves the SDP */
 EXTERN
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
@@ -153,6 +153,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    const SCIP_Real*      ub,                 /**< upper bounds of variables */
    int                   nsdpblocks,         /**< number of SDP-blocks */
    const int*            sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
+   int*                  sdpnblockvars,      /**< number of variables that exist in each block */
    int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks */
    const int*            sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
                                                 *  number of entries  of sdpconst row/col/val [i] */
@@ -160,11 +161,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    const int**          sdpconstcol,        /**< pointers to column-indices for each block */
    const SCIP_Real**     sdpconstval,        /**< pointers to the values of the nonzeros for each block */
    int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint matrix */
-   int*                  sdpnblockvarnonz,   /**< entry i * nvars + j gives the number of nonzeros for block i and variable j, this is exactly
-                                               *  the number of entries of sdp row/col/val [i * nvars + j] */
-   const int**          sdprow,             /**< pointer to the row-indices for each block and variable */
-   const int**          sdpcol,             /**< pointer to the column-indices for each block and variable */
-   const SCIP_Real**     sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
+   int**                 sdpnblockvarnonz,   /**< entry [i][j] gives the number of nonzeros for block i and variable j, this is exactly
+                                               *  the number of entries of sdp row/col/val [i][j] */
+   int**                 sdpvar,             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
+                                               *  in the i-th block */
+   const int***         sdprow,             /**< pointer to the row-indices for each block and variable */
+   const int***         sdpcol,             /**< pointer to the column-indices for each block and variable */
+   const SCIP_Real***    sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
    int                   nlpcons,            /**< number of LP-constraints */
    const SCIP_Real*      lprhs,              /**< right hand sides of LP rows (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
@@ -173,7 +176,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    const SCIP_Real*      lpval               /**< values of LP-constraint matrix entries (may be NULL if lpnnonz = 0) */
    );
 
-/** loads a SDP solves the following penalty formulation of the SDP:
+/** inserts the SDP, taking care of fixed variables (lb=ub), then solves the following penalty formulation of the SDP:
  *      \f{eqnarray*}{
  *      \min & & b^T y + \Gamma r \\
  *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathbb{I} \succeq 0 \quad \forall i \leq m \\
@@ -196,6 +199,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    const SCIP_Real*      ub,                 /**< upper bounds of variables */
    int                   nsdpblocks,         /**< number of SDP-blocks */
    const int*            sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
+   int*                  sdpnblockvars,      /**< number of variables that exist in each block */
    int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks */
    const int*            sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
                                                 *  number of entries  of sdpconst row/col/val [i] */
@@ -203,11 +207,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    const int**          sdpconstcol,        /**< pointers to column-indices for each block */
    const SCIP_Real**     sdpconstval,        /**< pointers to the values of the nonzeros for each block */
    int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint matrix */
-   int*                  sdpnblockvarnonz,   /**< entry i * nvars + j gives the number of nonzeros for block i and variable j, this is exactly
-                                               *  the number of entries of sdp row/col/val [i * nvars + j] */
-   const int**          sdprow,             /**< pointer to the row-indices for each block and variable */
-   const int**          sdpcol,             /**< pointer to the column-indices for each block and variable */
-   const SCIP_Real**     sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
+   int**                 sdpnblockvarnonz,   /**< entry [i][j] gives the number of nonzeros for block i and variable j, this is exactly
+                                               *  the number of entries of sdp row/col/val [i][j] */
+   int**                 sdpvar,             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
+                                               *  in the i-th block */
+   const int***         sdprow,             /**< pointer to the row-indices for each block and variable */
+   const int***         sdpcol,             /**< pointer to the column-indices for each block and variable */
+   const SCIP_Real***    sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
    int                   nlpcons,            /**< number of LP-constraints */
    const SCIP_Real*      lprhs,              /**< right hand sides of LP rows (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
@@ -398,10 +404,11 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
 /** gets dual solution vector for feasible SDPs, if dualsollength isn't equal to the number of variables this will return an error */
 EXTERN
 SCIP_RETCODE SCIPsdpiSolverGetSol(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
    SCIP_Real*            objval,             /**< stores the objective value, may be NULL if not needed */
    SCIP_Real*            dualsol,            /**< dual solution vector, may be NULL if not needed */
-   int                   dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL */
+   int*                  dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
+                                               *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
    );
 
 /** gets the number of SDP iterations of the last solve call */

@@ -48,73 +48,59 @@
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
 
+/* Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY */
+#define BMS_CALL(x)   do                                                                                      \
+                       {                                                                                      \
+                          if( NULL == (x) )                                                                   \
+                          {                                                                                   \
+                             SCIPerrorMessage("No memory in function call\n");                                \
+                             return SCIP_NOMEMORY;                                                            \
+                          }                                                                                   \
+                       }                                                                                      \
+                       while( FALSE )
+
 struct SCIP_SDPi
 {
    SCIP_SDPISOLVER*      sdpisolver;         /**< pointer to the interface for the SDP Solver */
    SCIP_MESSAGEHDLR*     messagehdlr;        /**< messagehandler to printing messages, or NULL */
    BMS_BLKMEM*           blkmem;             /**< block memory */
    int                   nvars;              /**< number of variables */
-   int                   nvarsorig;          /**< number of variables in original problem */
    SCIP_Real*            obj;                /**< objective function values of variables */
-   SCIP_Real*            objorig;            /**< objective function values of variables in original problem */
    SCIP_Real*            lb;                 /**< lower bounds of variables */
-   SCIP_Real*            lborig;             /**< lower bounds of variables in original problem */
    SCIP_Real*            ub;                 /**< upper bounds of variables */
-   SCIP_Real*            uborig;             /**< upper bounds of variables in original problem */
    int                   nsdpblocks;         /**< number of SDP-blocks */
-   int                   nsdpblocksorig;     /**< number of SDP-blocks in original problem */
    int*                  sdpblocksizes;      /**< sizes of the SDP-blocks */
-   int*                  sdpblocksizesorig;  /**< sizes of the SDP-blocks in original problem */
+   int*                  sdpnblockvars;      /**< number of variables in each SDP-block */
 
    /* constant SDP data: */
    int                   sdpconstnnonz;      /**< number of nonzero elements in the constant matrices of the SDP-Blocks */
-   int                   sdpconstnnonzorig;  /**< number of nonzero elements in the constant matrices of the SDP-Blocks in original problem */
    int*                  sdpconstnblocknonz; /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
                                                *  number of entries  of sdpconst row/col/val [i] */
-   int*                  sdpconstnblocknonzorig;/**< number of nonzeros for each variable in the constant part of the original problem,
-                                                     *  also the i-th entry gives the number of entries  of sdpconst row/col/val orig [i] */
    int**                 sdpconstrow;        /**< pointers to row-indices for each block */
-   int**                 sdpconstroworig;    /**< pointers to row-indices for each block in the original problem */
    int**                 sdpconstcol;        /**< pointers to column-indices for each block */
-   int**                 sdpconstcolorig;    /**< pointers to column-indices for each block in the original problem */
    SCIP_Real**           sdpconstval;        /**< pointers to the values of the nonzeros for each block */
-   SCIP_Real**           sdpconstvalorig;    /**< pointers to the values of the nonzeros for each block in the original problem */
 
    /* non-constant SDP data: */
    int                   sdpnnonz;           /**< number of nonzero elements in the SDP-constraint matrices */
-   int                   sdpnnonzorig;       /**< number of nonzero elements in the SDP-constraint matrices in original problem */
-   int*                  sdpnblockvarnonz;   /**< entry i * nvars + j gives the number of nonzeros for block i and variable j, this is exactly
-                                               *  the number of entries of sdp row/col/val [i * nvars + j] */
-   int*                  sdpnblockvarnonzorig;/**< entry i * nvars + j gives the number of nonzeros for block i and variable j in the original
-                                                *  problem, this is exactly the number of entries of sdp row/col/val orig[i * nvars + j] */
-   int**                 sdprow;             /**< pointer to the row-indices for each block and variable */
-   int**                 sdproworig;         /**< pointer to the row-indices for each block and variable in the original problem */
-   int**                 sdpcol;             /**< pointer to the column-indices for each block and variable */
-   int**                 sdpcolorig;         /**< pointer to the column-indices for each block and variable in the original problem */
-   SCIP_Real**           sdpval;             /**< pointer to the values of the nonzeros for each block and variable */
-   SCIP_Real**           sdpvalorig;         /**< pointer to the values of the nonzeros for each block and variable in the original problem */
+   int**                 sdpnblockvarnonz;   /**< sdpnblockvarnonz[i][j] gives the number of nonzeros for the j-th variable (not necessarly
+                                               *  variable j) in the i-th block, this is also the length of row/col/val[i][j] */
+   int**                 sdpvar;             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
+                                               *  in the i-th block */
+   int***                sdprow;             /**< pointer to the row-indices for each block and variable in this block, so row[i][j][k] gives
+                                               *  the k-th nonzero of the j-th variable (not necessarly variable j) in the i-th block */
+   int***                sdpcol;             /**< pointer to the column-indices for each block and variable in this block */
+   SCIP_Real***          sdpval;             /**< pointer to the values of the nonzeros for each block and variable in this block */
 
    /* lp data: */
    int                   nlpcons;            /**< number of LP-constraints */
-   int                   nlpconsorig;        /**< number of LP-constraints in original problem */
    SCIP_Real*            lprhs;              /**< right hand sides of LP rows */
-   SCIP_Real*            lprhsorig;          /**< right hand sides of LP rows in original problem */
    int                   lpnnonz;            /**< number of nonzero elements in the LP-constraint matrix */
-   int                   lpnnonzorig;        /**< number of nonzero elements in the LP-constraint matrix in original problem */
-   int*                  lprowind;           /**< row-index for each entry in lpval-array */
-   int*                  lprowindorig;       /**< row-index for each entry in lpval-array in original problem */
-   int*                  lpcolind;           /**< column-index for each entry in lpval-array */
-   int*                  lpcolindorig;       /**< column-index for each entry in lpval-array in original problem */
+   int*                  lprow;              /**< row-index for each entry in lpval-array */
+   int*                  lpcol;              /**< column-index for each entry in lpval-array */
    SCIP_Real*            lpval;               /**< values of LP-constraint matrix entries */
-   SCIP_Real*            lpvalorig;           /**< values of LP-constraint matrix entries in original problem */
 
    /* other data */
    int                   sdpid;              /**< counter for the number of SDPs solved */
-   int*                  sdptoinputmapper;   /**< entry i gives the original index of the i-th variable of the current sdp */
-   int*                  inputtosdpmapper;   /**< entry i gives the current sdp index of the i-th input variable (or -1 if it is fixed) */
-   SCIP_Real*            fixedvals;          /**< values the variables are fixed to, this is indexed by original variables */
-   SCIP_Bool*            varstochgfixing;    /**< entry i is TRUE, if variable i is fixed and should be unfixed or is unfixed and should be fixed */
-   SCIP_Bool             fixingstodo;        /**< TRUE if any entry of varstochgfixing is TRUE, FALSE if no fixings or unfixings have to be done */
 };
 
 static double epsilon    = 1e-6;             /**< this is used for checking if primal and dual objective are equal */
@@ -141,467 +127,6 @@ void ensureLowerTriangular(
       *i = *j;
       *j = temp;
    }
-}
-
-
-#ifndef NDEBUG
-/**
- * Test if a lower bound lb really is smaller than an upper bound ub, meaning that lb <= ub - epsilon */
-static
-SCIP_Bool isFixed(
-   SCIP_Real             lb,                 /**< lower bound */
-   SCIP_Real             ub                  /**< upper bound */
-   )
-{
-   assert( lb < ub + epsilon );
-
-   return ( REALABS(ub-lb) <= epsilon);
-}
-#else
-#define isFixed(lb,ub,epsilon) (REALABS(ub-lb) <= epsilon)
-#endif
-
-
-/** fix and unfix variables according to the varstochgfixing-array */
-static
-SCIP_RETCODE performFixing(
-   SCIP_SDPI*            sdpi                 /**< pointer to an SDP interface structure */
-   )
-{
-   int i;
-   int var;
-   int block;
-   int ind;
-   int sdpind;
-   int begvarblockind;
-   int endindex;
-   int nfixedvars;   /* this is a net value, if it is negative than more were unfixed than fixed */
-   int nfixedsdpnonz;
-   int nblockfixedsdpnonz; /* number of fixed or unfixed nonzeros */
-   int nfixedlpnonz;
-   int naddedblocknonz;
-   int naddedlpnonz;
-   int nblockvarnonz;
-   int nleftshiftsvars; /* how many spots do the variable-arrays have to be moved to the left */
-   int nleftshiftsdpnonz; /* "-----------------" sdpnonzero-arrays "------------------------" */
-   int nleftshiftconstnonz; /* "----------------" sdpconstnonzero-arrays "------------------" */
-   int nleftshiftsdparrays; /* "--------------" sdpbegvarblock-array "--------------------" */
-   int nleftshiftlp; /* "-----------------------" lpnonz-array "----------------------------" */
-   int nrightshiftsvarsdone; /* how many spots have the variable-arrays already moved to the right */
-   int nrightshiftsdpnonzdone; /* "-------------------" sdpnonzero-arrays "----------------------" */
-   int nrightshiftconstnonzdone; /* "-----------------" sdpconstnonzero-arrays "-----------------" */
-   int nrigthshiftsdparraysdone; /* "---------------" sdpbegvarblock-array "-------------------" */
-   int sdpind;
-   int* colstoadd;   /* these arrays are used to change the const array after fixing/unfixing variables, each fixing/unfixing of a variable leads to
-                      * a change in the value of an entry of the constmatrix, these are saved here to then check if this entry exists and should be
-                      * changed, or if a new nonzero entry needs to be created, both fixings and unfixings are saved togehter, they only differ in the
-                      * sign of the values */
-   int* rowstoadd;
-   SCIP_Real* valstoadd;
-   int vararraylength;
-   int sdpnonzarraylength;
-   int sdpconstarraylength;
-   int sdparraylength;
-   int lastactivesdpvar;
-   int nblockvarnonz;
-   int newind;
-   SCIP_Bool resetshift;
-   SCIP_Bool fixedvar;
-   SCIP_Bool unfixedvar;
-
-
-   assert ( sdpi != NULL );
-
-   /* check if there is anything to do */
-   if (!(sdpi->fixingstodo))
-      return SCIP_OKAY;
-
-   nfixedvars = 0;
-   nfixedsdpnonz = 0;
-   nleftshiftvar = 0;
-   nleftshiftsdpnonz = 0;
-   nleftshiftconstnonz = 0;
-   nleftshiftsdparrays = 0;
-   nleftshiftlp = 0;
-   nrightshiftvardone = 0;
-   nrightshiftsdpnonzdone = 0;
-   nrightshiftconstnonzdone = 0;
-   nrigthshiftsdparraysdone = 0;
-   vararraylength = sdpi->nvars;
-   sdpnonzarraylength = sdpi->sdpnnonz;
-   sdpconstarraylength = sdpi->sdpconstnnonz;
-   lastactivesdpvar = -1;
-   naddedlpnonz = 0;
-   fixedvar = FALSE;
-   unfixedvar = FALSE;
-
-   /* add/remove obj/lb/ub etc. */
-   for (var = 0; var < sdpi->nvarsorig; var++)
-   {
-      if (sdpi->varstochgfixing[var])
-      {
-         /* the status of this variable changes */
-
-         if (sdpi->inputtosdpmapper[var] != -1)
-         {
-            /* this variable was active, so it will now be fixed */
-
-            fixedvar = TRUE; /* remember that a variable was fixed */
-
-            assert ( !(IsFixed(sdpi->lborig[var], sdpi->uborig[var]) ) );
-
-            nfixedvars++;
-            nleftshiftvar++;
-            fixedvars[var] = sdpi->lb[var];
-         }
-         else
-         {
-            /* this variable was fixed, so it will now become active again */
-
-            unfixedvar = TRUE; /* remember that a variable was unfixed */
-
-            if (nleftshiftvar >= 1)
-            {
-               /* because of earlier fixings there is an empty spot in the arrays where this can be inserted */
-
-               assert ( !(IsFixed(sdpi->lborig[var], sdpi->uborig[var])) );
-
-               sdpi->obj[lastactivesdpvar + 1] = sdpi->objorig[var];
-               sdpi->lb[lastactivesdpvar + 1] = sdpi->lborig[var];
-               sdpi->ub[lastactivesdpvar + 1] = sdpi->uborig[var];
-
-               /* one of the empty spots was taken */
-               nleftshiftvar--;
-               nfixedvars--;
-               lastactivesdpvar++; /* another spot in the sdp arrays was taken */
-            }
-            else
-            {
-               assert ( !(IsFixed(sdpi->lborig[var], sdpi->uborig[var])) );
-
-               /* increase the length of the arrays */
-               BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), arraylength, arraylength + 1);
-               BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), arraylength, arraylength + 1);
-               BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), arraylength, arraylength + 1);
-               arraylength++;
-
-               /* shift all later variables in the arrays to the right */
-               for (i = arraylength; i > lastactivesdpvar; i--)   /* going downwards to not overwrite later entries */
-               {
-                  sdpi->obj[i + 1] = sdpi->obj[i];
-                  sdpi->lb[i + 1] = sdpi->lb[i];
-                  sdpi->ub[i + 1] = sdpi->ub[i];
-               }
-
-               nrightshiftvardone++;
-               nfixedvars--;
-
-               sdpi->obj[lastactivesdpvar + 1] = sdpi->objorig[var];
-               sdpi->lb[lastactivesdpvar + 1] = sdpi->lborig[var];
-               sdpi->ub[lastactivesdpvar + 1] = sdpi->uborig[var];
-
-               lastactivesdpvar++; /* another spot in the sdp arrays was taken */
-            }
-         }
-      }
-      else if (sdpi->inputtosdpmapper[var] != -1 && nleftshiftvars > 0)
-      {
-         /* this variable was active and stays active, so its entries have to be shifted according to fixings already done */
-
-         lastactivesdpvar = sdpi->inputtosdpmapper[var] - nleftshiftvars  + nrightshiftvarsdone; /* because of the rightshifts after insertig unfixed
-                                                                                                  * variables both the current and the target position
-                                                                                                  * are moved that many positions to the right, the target
-                                                                                                  * position is then redurced by the number of leftshifts
-                                                                                                  * that are still to be done*/
-
-         sdpi->obj[lastactivesdpvar] = sdpi->obj[lastactivesdpvar + nleftshiftvars];
-         sdpi->lb[lastactivesdpvar] = sdpi->lb[lastactivesdpvar + nleftshiftvars];
-         sdpi->ub[lastactivesdpvar] = sdpi->ub[lastactivesdpvar + nleftshiftvars];
-      }
-      else if (sdpi->inputtosdpmapper[var] != -1)
-      {
-         /* this variable was active and stays active */
-         lastactivesdpvar = sdpi->inputtosdpmapper[var];
-      }
-      /* the else case would be is fixed and stays fixed, in this case nothing has to be done */
-   }
-
-   /* shrink the arrays according to the number of fixings (for the added entries they were already enlarge, so we only need to substract) */
-   if (nleftshiftvars > 0)
-   {
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), arraylength, arraylength - nleftshiftvars);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), arraylength, arraylength - nleftshiftvars);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), arraylength, arraylength - nleftshiftvars);
-      arraylength -= leftshiftvars; // TODO: is this used again ?!? or is updating meaningless
-   }
-
-   /* prepare arrays to save the fixed/unfixed nonzeros to add them to the constant part */
-   BMSallocBlockMemoryArray(sdpi->blkmem, &colstoadd, sdpi->sdpnnonzorig);
-   BMSallocBlockMemoryArray(sdpi->blkmem, &rowstoadd, sdpi->sdpnnonzorig);
-   BMSallocBlockMemoryArray(sdpi->blkmem, &valstoadd, sdpi->sdpnnonzorig);
-
-   lastactivesdpvar = -1;
-
-   /* SDP nonzeros */
-   for (block = 0; block < sdpi->nsdpblocksorig; block++)
-   {
-
-      nblockfixedsdpnonz = 0;
-      nblockaddednonz = 0;
-
-      for (var = 0; var < sdpi->nvarsorig; var++)
-      {
-         if (sdpi->varstochgfixing[var])
-         {
-            /* the status of this variable changes */
-            if (sdpi->inputtosdpmapper[var] != -1)
-            {
-               /* this variable was active, so it will now be fixed */
-
-               sdpind = sdpi->inputtosdpmapper[var];
-
-               /* copy the nonzeros to the toadd arrays */
-               sdparrayind = block * sdpi->nvars + sdpind - nleftshiftsdparrays + nrigthshiftsdparraysdone;
-               for (i = 0; i < sdpi->sdpnblockvarnonz[sdparrayind]; i++)
-               {
-                  colstoadd[nblockfixedsdpnonz] = sdpi->sdpcolind[i];
-                  rowstoadd[nblockfixedsdpnonz] = sdpi->sdprowind[i];
-                  valstoadd[nblockfixedsdpnonz] = -sdpi->sdpval[i] * sdpi->lborig[i]; /* minus because of +A_i but -A_0 */
-               }
-
-               nleftshiftsdparrays++;
-            }
-            else
-            {
-               /* this variable was fixed, so it will now become active again */
-               sdparrayind = block * sdpi->nvarsorig + var;
-               newind = block * sdpi->nvars + lastactivesdpvar - nleftshiftsdparrays + nrigthshiftsdparraysdone; /* the new index for the sdp arrays */
-               lastactivesdpvar++; /* another spot in the sdp-arrays has to be taken */
-
-               if (nleftshiftsdparrays == 0)
-               {
-                  /* add another entry to the sdp arrays */
-                  BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz), sdparraylength, sdparraylength + 1);
-                  BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->col), sdparraylength, sdparraylength + 1);
-                  BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->row), sdparraylength, sdparraylength + 1);
-                  BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->val), sdparraylength, sdparraylength + 1);
-                  sdparraylength++;
-
-                  /* move all later entries one spot to the right */
-                  for (i = sdparraylength - 1; i > newind; i--) /* going down to not overwrite something not yet used */
-                  {
-                     sdpi->sdpnblockvarnonz[i + 1] = sdpi->sdpnblockvarnonz[i];
-                     sdpi->col[i + 1] = sdpi->col[i];
-                     sdpi->row[i + 1] = sdpi->row[i];
-                     sdpi->val[i + 1] = sdpi->val[i];
-                  }
-               }
-               else
-                  nleftshiftsdparrays--; /* one of the empty spots is used, so the rest is shifted one spot less */
-
-               /* allocate memory for the nonzeros */
-               BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->col[newind]), sdpi->sdpnblockvarnonz[sdparrayind]);
-               BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->row[newind]), sdpi->sdpnblockvarnonz[sdparrayind]);
-               BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->val[newind]), sdpi->sdpnblockvarnonz[sdparrayind]);
-
-               /* copy the nonzero-entries to the new sdp arrays(just copying the pointers is not sufficient, because we want to be able to
-                * change these entries without changing the original ones) and their negative values to the toadd arrays, to substract them
-                * from the constant part */
-               sdpi->sdpnblockvarnonz[newind] = sdpi->sdpnblockvarnonzorig[sdparrayind];
-               for (i = 0; i < sdpi->sdpnblockvarnonzorig[sdparrayind]; i++)
-               {
-                  sdpi->sdpcol[newind][i] = sdpi->sdpcolorig[sdparrayind][i];
-                  colstoadd[nblockfixedsdpnonz] = sdpi->sdpcolorig[sdparrayind][i];
-                  sdpi->sdprow[newind][i] = sdpi->sdproworig[sdparrayind][i];
-                  rowstoadd[nblockfixedsdpnonz] = sdpi->sdproworig[sdparrayind][i];
-                  sdpi->sdpval[newind][i] = sdpi->sdpvalorig[sdparrayind][i];
-                  valstoadd[nblockfixedsdpnonz] = +sdpi->sdpvalorig[sdparrayind][i] * sdpi->fixedvals[var]; /* plus = minus * minus because of +A_i but -A_0
-                                                                                                             * and we want to decrease the corresponding
-                                                                                                             * entry as it is moved to A_i */
-                  nblockfixedsdponz++;
-               }
-            }
-         }
-         else if (sdpi->inputtosdpmapper[var] != -1 && nleftshiftsdpnonz > 0)
-         {
-            /* this variable was active and stays active, so the array-entries have to be shifted according to the fixings */
-
-            sdpind = sdpi->inputtosdpmapper[var];
-
-            sdpi->sdpnblockvarnonz[sdpind - nleftshiftsdparrays + nrightshiftsbegvarblockdone] = sdpi->sdpnblockvarnonz[sdpind + nrightshiftsbegvarblockdone];
-            sdpi->sdpcol[sdpind - nleftshiftsdparrays + nrightshiftsbegvarblockdone] = sdpi->sdpcol[sdpind + nrightshiftsbegvarblockdone];
-            sdpi->sdprow[sdpind - nleftshiftsdparrays + nrightshiftsbegvarblockdone] = sdpi->sdprow[sdpind + nrightshiftsbegvarblockdone];
-            sdpi->sdpval[sdpind - nleftshiftsdparrays + nrightshiftsbegvarblockdone] = sdpi->sdpval[sdpind + nrightshiftsbegvarblockdone];
-
-            lastactivesdpvar = sdpind - nleftshiftsdparrays + nrightshiftsbegvarblockdone;
-         }
-         else if (sdpi->inputtosdpmapper[var] != -1)
-         {
-            /* this variable was active and stays active, so the array-entries have to be shifted according to the fixings */
-            lastactivesdpvar = sdpi->inputtosdpmapper[var];
-         }
-      }
-
-      /* add the fixed/unfixed nonzeros and shift the constant nonzeros*/
-      if (nblockfixedsdpnonz > 0)
-      {
-         SCIP_CALL( SdpVarfixerMergeArrays(sdpi->blkmem, rowstoadd, colstoadd, valstoadd, nblockfixedsdpnonz, FALSE, 1.0, sdpi->sdpconstrow[block],
-                    sdpi->sdpconstcol[block], sdpi->sdpconstval[block], &(sdpi->sdpconstnblocknonz[block])) );
-      }
-   }
-
-   /* free the arrays used to save the fixed/unfixed nonzeros to add them to the constant part */
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &colstoadd, sdpi->sdpnnonzorig);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &rowstoadd, sdpi->sdpnnonzorig);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &valstoadd, sdpi->sdpnnonzorig);
-
-   /* shrink the sdp arrays if possible */
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol), sdparraylength, sdparraylength - nleftshiftsdparrays);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow), sdparraylength, sdparraylength - nleftshiftsdparrays);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdparraylength, sdparraylength - nleftshiftsdparrays);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz), sdparraylength, sdparraylength - nleftshiftsdparrays);
-
-   /* compute the new number of total nonzeros */
-   sdpi->sdpnnonz = 0;
-   sdpi->sdpconstnnonz = 0;
-
-   for (block = 0; block < sdpi->nsdpblocks; block++)
-   {
-      sdpi->sdpconstnnonz += sdpi->sdpconstnblocknonz[block];
-      for (var = 0; var < sdpi->nvars; var++)
-         sdpi->sdpnnonz += sdpi->sdpnblockvarnonz[block * sdpi->nvars + var];
-   }
-
-
-   /* LP nonzeros */
-
-   /*remove the fixed ones */
-   if (fixedvar)
-   {
-      for (i = 0; i < sdpi->lpnnonz; i++)
-      {
-         if (sdpi->varstochgfixing[sdpi->lpcolind[i]])
-         {
-            /* remove this entry and decrease the rhs */
-            nleftshiftlp++;
-            sdpi->lprhs[sdpi->lprowind[i]] -= sdpi->lpval[i];
-         }
-         else if (nleftshiftlp > 0)
-         {
-            /* shift according to fixings */
-            sdpi->lprowind[i - nleftshiftlp] = sdpi->lprowind[i];
-            sdpi->lpcolind[i - nleftshiftlp] = sdpi->lpcolind[i];
-            sdpi->lpval[i - nleftsthiftlp] = sdpi->lpval[i];
-         }
-      }
-   }
-
-   /* add the lp entries of unfixed variables */
-
-   /* allocate memory for the insertions, this will be adjusted again later */
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcolind), sdpi->lpnnonz, sdpi->lpnnonzorig - nleftshiftlp);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprowind), sdpi->lpnnonz, sdpi->lpnnonzorig - nleftshiftlp);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, sdpi->lpnnonzorig - nleftshiftlp);
-
-   /* iterate over all original lp nonzeros to find those belonging to unfixed vars */
-   if (unfixedvar)
-   {
-      for (i = 0; i < sdpi->lpnnonzorig; i++)
-      {
-         if (sdpi->varstochgfixing[sdpi->lpcolindori[i]] && sdpi->inputtosdpmapper[sdpi->lpcolindori[i]] == -1)
-         {
-            /* this lp nonzero has to be unfixed */
-            sdpi->lprowind[sdpi->lpnnonz - nleftshiftlp + naddedlpnonz] = sdpi->lprowindorig[i];
-            sdpi->lpcolind[sdpi->lpnnonz - nleftshiftlp + naddedlpnonz] = sdpi->lpcolindorig[i];
-            sdpi->lpval[sdpi->lpnnonz - nleftshiftlp + naddedlpnonz] = sdpi->lpval[i];
-            naddedlpnonz++;
-         }
-      }
-   }
-
-   /* adjust lp-arraylength */
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcolind), sdpi->lpnnonzorig - nleftshiftlp, sdpi->lpnnonz - nleftshiftlp + naddedlpnonz);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprowind), sdpi->lpnnonzorig - nleftshiftlp, sdpi->lpnnonz - nleftshiftlp + naddedlpnonz);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonzorig - nleftshiftlp, sdpi->lpnnonz - nleftshiftlp + naddedlpnonz);
-
-   sdpi->lpnnonz = sdpi->lpnnonz - nleftshiftlp + naddedlpnonz;
-
-   /* update the varmappers and set varstochgfixing to false as the fixings are done*/
-   nleftshiftvars = 0;
-   nrightshiftvarsdone = 0;
-   arraylength = sdpi->nvars;
-   lastactivesdpvar = -1;
-
-   for (var = 0; var < sdpi->nvarsorig; var++)
-   {
-      if (sdpi->varstochgfixing[var])
-      {
-         /* the status of this variable changes */
-         if (sdpi->inputtosdpmapper[var] != -1)
-         {
-            /* this variable was active, so it will now be fixed */
-            nleftshiftvar++;
-
-            sdpi->inputtosdpmapper[var] = -1;
-         }
-         else
-         {
-            /* this variable was fixed, so it will now become active again */
-            if (nleftshiftvars >= 1)
-            {
-               /* because of earlier fixing there are enough empty spots to insert this variable into sdptoinputmapper */
-               sdpi->sdptoinputmapper[lastactivesdpvar + 1] = var;
-               sdpi->inputtosdpmapper[var] = lastactivesdpvar + 1;
-
-               /* one of the empty spots was taken */
-               nleftshiftvar--;
-               lastactivesdpvar++; /* another position in the sdp-arrays was filled */
-            }
-            else
-            {
-               BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdptoinputmapper), arraylength, arraylength + 1);
-               arraylength++;
-
-               /* move all entries behind this one spot to the right */
-               for (i = arraylength; i > lastactivesdpvar; i--)   /* this has to go downwards to not overwrite folowind entries */
-               {
-                  sdpi->sdptoinputmapper[i + 1] = lastactivesdpvar[i];
-               }
-
-               sdpi->sdptoinputmapper[lastactivesdpvar + 1] = var;;
-               sdpi->inputtosdpmapper[var] = lastactivesdpvar + 1;
-
-               lastactivesdpvar++;
-            }
-         }
-      }
-      else if (sdpi->inputtosdpmapper[var] != -1 && nleftshiftvars > 0)
-      {
-         lastactivesdpvar = sdpi->inputtosdpmapper[var] - nleftshiftvars + nrightshiftvarsdone;
-
-         /* this variable was active and stays active, so its entries have to be shifted according to fixings already done */
-         sdpi->sdptoinputmapper[lastactivesdpvar] = sdpi->sdptoinputmapper[lastactivevar + nleftshiftvars];
-         sdpi->inputtosdpmapper[var] = lastactivesdpvar;
-      }
-      else if (sdpi->inputtosdpmapper[var] != -1)
-      {
-         /* this variable was active and stays active */
-         lastactivesdpvar = sdpi->inputtosdpmapper[var];
-      }
-
-      sdpi->varstochgfixing[var] = FALSE;
-   }
-
-   /* shrink the size of the sdptoinputmapper */
-   if (nleftshiftvars > 0)
-   {
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdptoinputmapper), arraylength, arraylength - nleftshiftvars);
-      arraylength -= nleftshiftvars;
-   }
-
-   sdpi->fixingstodo = FALSE;
-   sdpi->nvars -= nfixedvars;
-   assert ( sdpi->nvars == arraylength );
 }
 
 
@@ -664,62 +189,36 @@ SCIP_RETCODE SCIPsdpiCreate(
 
    SCIPdebugMessage("Calling SCIPsdpiCreate (%d)\n",nextsdpid);
 
-   BMSallocBlockMemory(blkmem, sdpi);
+   BMS_CALL(BMSallocBlockMemory(blkmem, sdpi));
 
    (*sdpi)->messagehdlr = messagehdlr;
    (*sdpi)->blkmem = blkmem;
    (*sdpi)->sdpid = 1;
    (*sdpi)->nvars = 0;
-   (*sdpi)->nvarsorig = 0;
    (*sdpi)->nsdpblocks = 0;
-   (*sdpi)->nsdpblocksorig = 0;
    (*sdpi)->sdpconstnnonz = 0;
-   (*sdpi)->sdpconstnnonzorig = 0;
    (*sdpi)->sdpnnonz = 0;
-   (*sdpi)->sdpnnonzorig = 0;
    (*sdpi)->nlpcons = 0;
-   (*sdpi)->nlpconsorig = 0;
    (*sdpi)->lpnnonz = 0;
-   (*sdpi)->lpnnonzorig = 0;
 
    (*sdpi)->obj = NULL;
-   (*sdpi)->objorig = NULL;
    (*sdpi)->lb = NULL;
-   (*sdpi)->lborig = NULL;
    (*sdpi)->ub = NULL;
-   (*sdpi)->uborig = NULL;
    (*sdpi)->sdpblocksizes = NULL;
-   (*sdpi)->sdpblocksizesorig = NULL;
+   (*sdpi)->sdpnblockvars = NULL;
    (*sdpi)->sdpconstnblocknonz = NULL;
-   (*sdpi)->sdpconstnblocknonzorig = NULL;
    (*sdpi)->sdpconstrow = NULL;
-   (*sdpi)->sdpconstroworig = NULL;
    (*sdpi)->sdpconstcol = NULL;
-   (*sdpi)->sdpconstcolorig = NULL;
    (*sdpi)->sdpconstval = NULL;
-   (*sdpi)->sdpconstvalorig = NULL;
    (*sdpi)->sdpnblockvarnonz = NULL;
-   (*sdpi)->sdpnblockvarnonzorig = NULL;
+   (*sdpi)->sdpvar = NULL;
    (*sdpi)->sdprow = NULL;
-   (*sdpi)->sdproworig = NULL;
    (*sdpi)->sdpcol = NULL;
-   (*sdpi)->sdpcolorig = NULL;
    (*sdpi)->sdpval = NULL;
-   (*sdpi)->sdpvalorig = NULL;
    (*sdpi)->lprhs = NULL;
-   (*sdpi)->lprhsorig = NULL;
-   (*sdpi)->lprowind = NULL;
-   (*sdpi)->lprowindorig = NULL;
-   (*sdpi)->lpcolind = NULL;
-   (*sdpi)->lpcolindorig = NULL;
+   (*sdpi)->lprow = NULL;
+   (*sdpi)->lpcol = NULL;
    (*sdpi)->lpval = NULL;
-   (*sdpi)->lpvalorig = NULL;
-
-   (*sdpi)->sdptoinputmapper = NULL;
-   (*sdpi)->inputtosdpmapper = NULL;
-   (*sdpi)->fixedvals = NULL;
-   (*sdpi)->varstochgfixing = NULL;
-   (*sdpi)->fixingstodo = FALSE;
 
    return SCIP_OKAY;
 }
@@ -737,79 +236,44 @@ SCIP_RETCODE SCIPsdpiFree(
    assert ( sdpi != NULL );
    assert ( *sdpi != NULL );
 
-   if (((*sdpi)->dsdp) != NULL)
-   {
-   DSDP_CALL(DSDPDestroy((*sdpi)->dsdp));
-   }
+   /* free the LP part */
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lpval), (*sdpi)->lpnnonz);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lpcolind), (*sdpi)->lpnnonz);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lprowind), (*sdpi)->lpnnonz);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lprhs), (*sdpi)->nlpcons);
 
    /* free the individual nonzeros */
    for (i = 0; i < (*sdpi)->nsdpblocks; i++)
    {
-      BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstcol[i]), (*sdpi)->sdpconstnblocknonz[i]);
-      BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstrow[i]), (*sdpi)->sdpconstnblocknonz[i]);
+      BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpind[i]), (*sdpi)->nblockvars[i]);
+      BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpnblockvarnonz[i]), (*sdpi)->nblockvars[i]);
       BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstval[i]), (*sdpi)->sdpconstnblocknonz[i]);
+      BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstrow[i]), (*sdpi)->sdpconstnblocknonz[i]);
+      BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstcol[i]), (*sdpi)->sdpconstnblocknonz[i]);
 
       for (j = 0; j < (*sdpi)->nvars; j++)
       {
-         pos = i * (*sdpi)->nvars + j;
-         BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpcol[pos]), (*sdpi)->sdpnblockvarnonz[pos]);
-         BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdprow[pos]), (*sdpi)->sdpnblockvarnonz[pos]);
-         BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpval[pos]), (*sdpi)->sdpnblockvarnonz[pos]);
+         BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpval[i][j]), (*sdpi)->sdpnblockvarnonz[i][j]);
+         BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdprow[i][j]), (*sdpi)->sdpnblockvarnonz[i][j]);
+         BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpcol[i][j]), (*sdpi)->sdpnblockvarnonz[i][j]);
       }
    }
 
-   /* and the same again for the original arrays */
-   for (i = 0; i < (*sdpi)->nsdpblocksorig; i++)
-      {
-         BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstcolorig[i]), (*sdpi)->sdpconstnblocknonzorig[i]);
-         BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstroworig[i]), (*sdpi)->sdpconstnblocknonzorig[i]);
-         BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstvalorig[i]), (*sdpi)->sdpconstnblocknonzorig[i]);
-
-         for (j = 0; j < (*sdpi)->nvarsorig; j++)
-         {
-            pos = i * (*sdpi)->nvarsorig + j;
-            BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpcolorig[pos]), (*sdpi)->sdpnblockvarnonzorig[pos]);
-            BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdproworig[pos]), (*sdpi)->sdpnblockvarnonzorig[pos]);
-            BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpvalorig[pos]), (*sdpi)->sdpnblockvarnonzorig[pos]);
-         }
-      }
-
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->obj), (*sdpi)->nvars);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->objorig), (*sdpi)->nvarsorig);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lb), (*sdpi)->nvars);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lborig), (*sdpi)->nvarsorig);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->ub), (*sdpi)->nvars);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->uborig), (*sdpi)->nvarsorig);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpblocksizes), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpblocksizesorig), (*sdpi)->nsdpblocksorig);
+   /* free the rest */
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpnblockvarnonz), (*sdpi)->nsdpblocks);
    BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstnblocknonz), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstnblocknonzorig), (*sdpi)->nsdpblocksorig);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstrow), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstroworig), (*sdpi)->nsdpblocksorig);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstcol), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstcolorig), (*sdpi)->nsdpblocksorig);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstval), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstvalorig), (*sdpi)->nsdpblocksorig);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpnblockvarnonz), (*sdpi)->nvars * (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpnblockvarnonzorig), (*sdpi)->nvarsorig * (*sdpi)->nsdpblocksorig);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdprow), (*sdpi)->nvars * (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdproworig), (*sdpi)->nvarsorig * (*sdpi)->nsdpblocksorig);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpcol), (*sdpi)->nvars * (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpcolorig), (*sdpi)->nvarsorig * (*sdpi)->nsdpblocksorig);
    BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpval),(*sdpi)->nvars * (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpvalorig), (*sdpi)->nvarsorig * (*sdpi)->nsdpblocksorig);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lprhs), (*sdpi)->nlpcons);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lprhsorig), (*sdpi)->nlpconsorig);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lprowind), (*sdpi)->lpnnonz);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lprowindorig), (*sdpi)->lpnnonzorig);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lpcolind), (*sdpi)->lpnnonz);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lpcolindorig), (*sdpi)->lpnnonzorig);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lpval), (*sdpi)->lpnnonz);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lpvalorig), (*sdpi)->lpnnonzorig);
-
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdptoinputmapper), (*sdpi)->nvars);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->inputtosdpmapper), (*sdpi)->nvarsorig);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->varstochgfixing), (*sdpi)->nvarsorig);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpcol), (*sdpi)->nvars * (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdprow), (*sdpi)->nvars * (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpvar), (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstval), (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstcol), (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstrow), (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpnblockvars), (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpblocksizes), (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->ub), (*sdpi)->nvars);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lb), (*sdpi)->nvars);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->obj), (*sdpi)->nvars);
 
    BMSfreeBlockMemory((*sdpi)->blkmem, sdpi);
 
@@ -838,32 +302,34 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    const SCIP_Real*      ub,                 /**< upper bounds of variables */
    int                   nsdpblocks,         /**< number of SDP-blocks */
    const int*            sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
+   const int*            sdpnblockvars,      /**< number of variables in each SDP block (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
    int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks */
    const int*            sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
                                                   *  number of entries  of sdpconst row/col/val [i] */
    int const* const*     sdpconstrow,        /**< pointer to row-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
    const int**           sdpconstcol,        /**< pointer to column-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
    const SCIP_Real**     sdpconstval,        /**< pointer to values of entries of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
-   int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint matrix */
-   int*                  sdpnblockvarnonz,   /**< entry i * nvars + j gives the number of nonzeros for block i and variable j, this is exactly
-                                                  *  the number of entries of sdp row/col/val [i * nvars + j] */
-   const int**           sdprow,             /**< pointer to row indices for each block and variable (may be NULL if sdpnnonz = 0) */
-   const int**           sdpcol,             /**< pointer to column indices for each block and variable (may be NULL if sdpnnonz = 0) */
-   const SCIP_Real*      sdpval,             /**< pointer to values of nonzeros for each block and variable (may be NULL if sdpnnonz = 0) */
+   int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint matrices */
+   int**                 sdpnblockvarnonz,   /**< sdpnblockvarnonz[i][j] gives the number of nonzeros for the j-th variable (not necessarly
+                                               *  variable j) in the i-th block, this is also the length of row/col/val[i][j] */
+   int**                 sdpvar,             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
+                                               *  in the i-th block */
+   int***                sdprow,             /**< pointer to the row-indices for each block and variable in this block, so row[i][j][k] gives
+                                               *  the k-th nonzero of the j-th variable (not necessarly variable j) in the i-th block */
+   int***                sdpcol,             /**< pointer to the column-indices for each block and variable in this block */
+   SCIP_Real***          sdpval,             /**< pointer to the values of the nonzeros for each block and variable in this block */
    int                   nlpcons,            /**< number of LP-constraints */
    const SCIP_Real*      lprhs,              /**< right hand sides of LP rows (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
-   const int*            lprowind,           /**< row-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
-   const int*            lpcolind,           /**< column-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
+   const int*            lprow,              /**< row-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
+   const int*            lpcol,              /**< column-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
    const SCIP_Real*      lpval               /**< values of LP-constraint matrix entries (may be NULL if lpnnonz = 0) */
    )
 {
    int i;
    int col;
    int row;
-   int nfixedvars;
-   int nfixednonz;
-   int var;
+   int v;
    int block;
    int endindex;
    int naddednonz;
@@ -886,353 +352,200 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
 #ifdef SCIP_DEBUG
    if (sdpconstnnonz > 0 || sdpnnonz > 0 || nsdpblocks > 0)
    {
+      assert ( sdpblocksizes != NULL );
+      assert ( nsdpvars != NULL );
       assert ( nsdpblocks > 0 );
-      assert ( sdpconstbegblock != NULL );
-      assert ( sdpbegvarblock != NULL );
+      assert ( sdpconstnblocknonz != NULL );
+      assert ( sdpnblockvarnonz != NULL );
 
       if (sdpconstnnonz > 0)
       {
-         assert ( sdpconstrowind != NULL );
-         assert ( sdpconstcolind != NULL );
+         assert ( sdpconstrow != NULL );
+         assert ( sdpconstcol != NULL );
          assert ( sdpconstval != NULL );
+
+         for (i = 0; i < nsdpblocks; i++)
+         {
+            if (sdpconstnblocknonz[i] > 0)
+            {
+               assert ( sdpconstrow[i] != NULL );
+               assert ( sdpconstcol[i] != NULL );
+               assert ( sdpconstval[i] != NULL );
+            }
+         }
       }
 
       if (sdpnnonz > 0)
       {
-         assert ( sdprowind != NULL );
-         assert ( sdpcolind != NULL );
+         assert ( sdprow != NULL );
+         assert ( sdpcol != NULL );
          assert ( sdpval != NULL );
+
+         for ( i = 0; i < nsdpblocks; i++ )
+         {
+            assert ( sdpcol[i] != NULL );
+            assert ( sdprow[i] != NULL );
+            assert ( sdpval[i] != NULL );
+
+            for ( v = 0; v < nvars; v++)
+            {
+               if (sdpnblockvarnonz[i][v] > 0)
+               {
+                  assert ( sdpcol[i][v] != NULL );
+                  assert ( sdprow[i][v] != NULL );
+                  assert ( sdpval[i][v] != NULL );
+               }
+            }
+         }
       }
    }
 #endif
 
    assert ( nlpcons == 0 || lprhs != NULL );
-   assert ( lpnnonz == 0 || lprowind != NULL );
-   assert ( lpnnonz == 0 || lpcolind != NULL );
+   assert ( lpnnonz == 0 || lprow != NULL );
+   assert ( lpnnonz == 0 || lpcol != NULL );
    assert ( lpnnonz == 0 || lpval != NULL );
 
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), sdpi->nvars, nvars);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->objorig), sdpi->nvarsorig, nvars);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), sdpi->nvars, nvars);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lborig), sdpi->nvarsorig, nvars);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), sdpi->nvars, nvars);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->uborig), sdpi->nvarsorig, nvars);
+   /* memory allocation */
 
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdptoinputmapper), sdpi->nvars, nvars);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->inputtosdpmapper), sdpi->nvarsorig, nvars);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->varstochgfixing), sdpi->nvarsorig, nvars);
-
-   /* initialize varstochgfixing with FALSE */
-   for (i = 0; i < nvars; i++)
+   /* first free the old sdp-arrays */
+   for (block = sdpi->nsdpblocks - 1; block >= 0; block--)
    {
-      sdpi->varstochgfixing[i] = FALSE;
+      for (v = sdpi->sdpnblockvars[block] - 1; v >= 0; v--)
+      {
+         BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[block][v]), sdpi->sdpnblockvarnonz[block][v]);
+         BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[block][v]), sdpi->sdpnblockvarnonz[block][v]);
+         BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[block][v]), sdpi->sdpnblockvarnonz[block][v]);
+      }
+
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[block]), sdpi->sdpnblockvars[block]);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[block]), sdpi->sdpnblockvars[block]);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[block]), sdpi->sdpnblockvars[block]);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval[block]), sdpi->sdpconstnblocknonz [block]);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow[block]), sdpi->sdpconstnblocknonz [block]);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol[block]), sdpi->sdpconstnblocknonz [block]);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz[i]), sdpi->nblockvars);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpvar[block]), sdpi->sdpnblockvars[block]);
    }
 
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpi->nsdpblocks, nsdpblocks);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpblocksizesorig), sdpi->nsdpblocksorig, nsdpblocks);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstnblocknonz), sdpi->nsdpblocks, nsdpblocks);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstnblocknonzorig), sdpi->nsdpblocksorig, nsdpblocks);
+   for (i = sdpi->nsdpblocks - 1; i >= 0; i--)
 
-   nfixedvars = 0;
 
-   /* set obj, lb, ub, check if they need to be fixed and set the varmapper arrays */
-   for (i = 0; i < nvars; i++)
-   {
+   /* allocate new memory */
 
-      if ( !(IsFixed(lb[i], ub[i])))
-      {
-         (sdpi->obj)[i - nfixedvars] = obj[i];
-         (sdpi->objorig)[i] = obj[i];
-         (sdpi->lb)[i - nfixedvars] = lb[i];
-         (sdpi->lborig)[i] = lb[i];
-         (sdpi->ub)[i - nfixedvars] = ub[i];
-         (sdpi->uborig)[i] = ub[i];
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), sdpi->nvars, nvars));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), sdpi->nvars, nvars));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), sdpi->nvars, nvars));
 
-         sdpi->sdptoinputmapper[i - nfixedvars] = i;
-         sdpi->inputtosdpmapper[i] = i - nfixedvars;
-      }
-      else
-      {
-         /* this variable should be fixed */
-         sdpi->varstochgfixing[i] = TRUE;
-
-         (sdpi->objorig)[i] = obj[i];
-         (sdpi->lborig)[i] = lb[i];
-         (sdpi->uborig)[i] = ub[i];
-
-         nfixedvars++;
-
-         for (block = 0; block < nsdpblocks; block++)
-         {
-            nfixednonz += sdpnblockvarnonz[block * nsdpblocks + i];
-         }
-
-         sdpi->inputtosdpmapper[i] = -1;
-      }
-   }
-
-   /* shrink the initialized arrays according to the number of fixed variables */
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), nvars, nvars - nfixedvars);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), nvars, nvars - nfixedvars);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), nvars, nvars - nfixedvars);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdptoinputmapper), nvars, nvars - nfixedvars);
-
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpi->nsdpblocks, nsdpblocks));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvars), sdpi->nsdpblocks, nsdpblocks));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstnblocknonz), sdpi->nsdpblocks, nsdpblocks));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz), sdpi->nsdpblocks, nsdpblocks));
    for (i = 0; i < nsdpblocks; i++)
    {
-      (sdpi->sdpblocksizes)[i] = sdpblocksizes[i];
-      (sdpi->sdpblocksizesorig)[i] = sdpblocksizes[i];
-      (sdpi->sdpconstnblocknonz)[i] = sdpconstnblocknonz[i];
+      BMS_CALL(BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz[i]), nblockvars));
    }
 
-   /* prepare the sdpnblockvarnonz arrays */
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz), sdpi->nvars * sdpi->nsdpblocks, (nvars - nfixedvars) * nsdpblocks);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonzorig), sdpi->nvarsorig * sdpi->nsdpblocksorig, nvars * nsdpblocks);
+   /* allocate memory for the sdp arrays */
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol), sdpi->nsdpblocks, nsdpblocks));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow), sdpi->nsdpblocks, nsdpblocks));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval), sdpi->nsdpblocks, nsdpblocks));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpvar), sdpi->nsdpblocks, nsdpblocks));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol), sdpi->nsdpblocks, nsdpblocks));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow), sdpi->nsdpblocks, nsdpblocks));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpi->nsdpblocks, nsdpblocks));
 
    for (block = 0; block < nsdpblocks; block++)
    {
-      for (var = 0; var < nvars; var++)
+      BMS_CALL(BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol[block]), sdpconstnblocknonz[block]));
+      BMS_CALL(BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow[block]), sdpconstnblocknonz[block]));
+      BMS_CALL(BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval[block]), sdpconstnblocknonz[block]));
+      BMS_CALL(BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpvar[block]), sdpnblockvars[block]));
+      BMS_CALL(BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[block]), sdpnblockvars[block]));
+      BMS_CALL(BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[block]), sdpnblockvars[block]));
+      BMS_CALL(BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[block]), sdpnblockvars[block]));
+
+      for (v = 0; v < sdpi->sdpnblockvarnonz[block]; v++)
       {
-         sdpi->sdpnblockvarnonzorig[block * nvars + var] = sdpnblockvarnonz[block * nvars + var];
-         if (! sdpi->varstochgfixing[var])
-            sdpi->sdpnblockvarnonz[block * sdpi->nvars + sdpi->inputtosdpmapper[var]] = sdpnblockvarnonz[block * nvars + var];
+         BMS_CALL(BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[block][v]), sdpnblockvarnonz[block][v]));
+         BMS_CALL(BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[block][v]), sdpnblockvarnonz[block][v]));
+         BMS_CALL(BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[block][v]), sdpnblockvarnonz[block][v]));
       }
    }
 
-   /* sdp nonzeroes */
+   /* allocate memory for the LP part */
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons, nlpcons));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz, lpnnonz));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz, lpnnonz));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, lpnnonz));
 
-   /* free all old nonzero arrays */
-   for (block = 0; block < sdpi->nsdpblocks; block++)
-   {
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow[block]), sdpi->sdpconstnblocknonz[block]);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol[block]), sdpi->sdpconstnblocknonz[block]);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval[block]), sdpi->sdpconstnblocknonz[block]);
-      for (var = 0; var < sdpi->nvars; var++)
-      {
-         BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[block][var]), sdpi->sdpnblockvarnonz[block * sdpi->nvars + var]);
-         BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[block][var]), sdpi->sdpnblockvarnonz[block * sdpi->nvars + var]);
-         BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[block][var]), sdpi->sdpnblockvarnonz[block * sdpi->nvars + var]);
-      }
-   }
-   for (block = 0; block < sdpi->nsdpblocksorig; block++)
-   {
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstroworig[block]), sdpi->sdpconstnblocknonzorig[block]);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcolorig[block]), sdpi->sdpconstnblocknonzorig[block]);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstvalorig[block]), sdpi->sdpconstnblocknonzorig[block]);
-      for (var = 0; var < sdpi->nvarsorig; var++)
-      {
-         BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdproworig[block][var]), sdpi->sdpnblockvarnonzorig[block * sdpi->nvarsorig + var]);
-         BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcolorig[block][var]), sdpi->sdpnblockvarnonzorig[block * sdpi->nvarsorig + var]);
-         BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpvalorig[block][var]), sdpi->sdpnblockvarnonzorig[block * sdpi->nvarsorig + var]);
-      }
-   }
-
-   /* allocate the memory for the constant pointer arrays */
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow), sdpi->nsdpblocks, nsdpblocks);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstroworig), sdpi->nsdpblocks, nsdpblocks);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol), sdpi->nsdpblocks, nsdpblocks);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcolorig), sdpi->nsdpblocks, nsdpblocks);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval), sdpi->nsdpblocks, nsdpblocks);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstvalorig), sdpi->nsdpblocks, nsdpblocks);
-
-   /* allocate the memory for the non-constant pointer arrays */
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow), sdpi->nsdpblocks * sdpi->nvar, nsdpblocks * (nvars-nfixedvars));
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdproworig), sdpi->nsdpblocksorig * sdpi->nvarsorig, nsdpblocks * nvars);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol), sdpi->nsdpblocks * sdpi->nvar, nsdpblocks * (nvars-nfixedvars));
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcolorig), sdpi->nsdpblocksorig * sdpi->nvarsorig, nsdpblocks * nvars);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpi->nsdpblocks * sdpi->nvar, nsdpblocks * (nvars-nfixedvars));
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpvalorig), sdpi->nsdpblocksorig * sdpi->nvarsorig, nsdpblocks * nvars);
-
-   /* allocate the memory for the nonzero arrays */
-   for (block = 0; block < nsdpblocks; block++)
-   {
-      BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow[block]), sdpconstnblocknonz[block]);
-      BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol[block]), sdpconstnblocknonz[block]);
-      BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval[block]), sdpconstnblocknonz[block]);
-      for (var = 0; var < nvars; var++)
-      {
-         BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[block * nvars + var]), sdpnblockvarnonz[block * nvars + var]);
-         BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[block * nvars + var]), sdpnblockvarnonz[block * nvars + var]);
-         BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[block * nvars + var]), sdpnblockvarnonz[block * nvars + var]);
-      }
-   }
-   for (block = 0; block < nsdpblocks; block++)
-   {
-      BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstroworig[block]), sdpconstnblocknonz[block]);
-      BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcolorig[block]), sdpconstnblocknonz[block]);
-      BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstvalorig[block]), sdpconstnblocknonz[block]);
-      for (var = 0; var < nvars - nfixedvars; var++)
-      {
-         BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdproworig[block * nvars + var]), sdpnblockvarnonz[block * nvars + var]);
-         BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcolorig[block * nvars + var]), sdpnblockvarnonz[block * nvars + var]);
-         BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpvalorig[block * nvars + var]), sdpnblockvarnonz[block * nvars + var]);
-      }
-   }
-
-
-   sdpi->nvars = nvars - nfixedvars;
-   sdpi->nvarsorig = nvars;
+   /* set the general information */
+   sdpi->nvars = nvars;
    sdpi->nsdpblocks = nsdpblocks;
-   sdpi->nsdpblocksorig = nsdpblocks;
 
-   /* insert the constant nonzeroes */
+   for (v = 0; v < nvars; v++)
+   {
+      (sdpi->obj)[v] = obj[v];
+      (sdpi->lb)[v] = lb[v];
+      (sdpi->ub)[v] = ub[v];
+   }
+
+   /* insert sdp nonzeroes and some general sdp information */
+   sdpi->sdpconstnnonz = sdpconstnnonz;
+   sdpi->sdpnnonz = sdpnnonz;
+
    for (block = 0; block < nsdpblocks; block++)
    {
+      (sdpi->sdpblocksizes)[block] = sdpblocksizes[block];
+      (sdpi->sdpnblockvars)[block] = sdpnblockvars[block];
+
+      (sdpi->sdpconstnblocknonz)[block] = sdpconstnblocknonz[block];
+
+      /* insert the constant nonzeros */
       for (i = 0; i < sdpconstnblocknonz[block]; i++)
       {
+         assert ( sdpconstcol[block][i] < blocksize[block] );
+         assert ( sdpconstrow[block][i] < blocksize[block] );
+
          sdpi->sdpconstcol[block][i] = sdpconstcol[block][i];
-         sdpi->sdpconstcolorig[block][i] = sdpconstcol[block][i];
          sdpi->sdpconstrow[block][i] = sdpconstrow[block][i];
-         sdpi->sdpconstroworig[block][i] = sdpconstrow[block][i];
          sdpi->sdpconstval[block][i] = sdpconstval[block][i];
-         sdpi->sdpconstvalorig[block][i] = sdpconstval[block][i];
       }
-   }
 
-   /* allocate memory for nonzeroes that need to be fixed */
-   BMSallocBlockMemoryArray(sdpi->blkmem, &colstoadd, nfixednonz);
-   BMSallocBlockMemoryArray(sdpi->blkmem, &rowstoadd, nfixednonz);
-   BMSallocBlockMemoryArray(sdpi->blkmem, &valstoadd, nfixednonz);
-
-   naddednonz = 0;
-
-   /* insert the sdp-nonzeroes (constant and non-constant) and add the fixed ones to the const-arrays */
-   for (block = 0; block < nsdpblocks; block++)
-   {
-      for (var = 0; var < nvars; var++)
+      for (v = 0; v < sdpnblockvars[block]; v++)
       {
-         if (sdpi->varstochgfixing[var])
+         sdpi->sdpnblockvarnonz[block][var] = sdpnblockvarnonz[block][var];
+
+         /* insert the non-constant nonzeros */
+         for (i = 0; i < sdpnblockvarnonz[block][var]; i++)
          {
-            assert ( IsFixed(lb[var], ub[var]));
+            assert ( sdpcol[block][var][i] < blocksize[block] );
+            assert ( sdprow[block][var][i] < blocksize[block] );
 
-            /* save the nonzeroes that need to be fixed in the toadd-arrays */
-            for (i = 0; i < sdpnblockvarnonz[block * nvars + var]; i++)
-            {
-               row = sdprow[block * nvars + var][i];
-               col = sdpcol[block * nvars + var][i];
-               ensureLowerTriangular(&row, &col);
-
-               sdpi->sdpcolorig[block * nvars + var][i] = col;
-               colstoadd[nblockfixednonz] = col;
-               sdpi->sdprowindorig[block * nvars + var] = row;
-               rowstoadd[nblockfixednonz] = row;
-               sdpi->sdpvalorig[block * nvars + var] = sdpval[i];
-               valstoadd[nblockfixednonz] = -sdpval[i] * lborig[var]; /* this is the final contribution to the constant array, there
-                                                                       * is no need to remember the variable that caused this entry
-                                                                       * any longer, the minus comes from the fact that we have +A_i but -A_0 */
-               nblockfixednonz++;
-            }
-         }
-         else
-         {
-            assert ( !IsFixed(lb[var], ub[var]) );
-
-            /* insert the sdp nonzeroes for this variable and block */
-            for (i = 0; i < sdpnblockvarnonz[block * nvars + var]; i++)
-            {
-               row = sdprow[block * nvars + var][i];
-               col = sdpcol[block * nvars + var][i];
-               ensureLowerTriangular(&row, &col);
-
-               sdpi->sdpcol[block * (nvars-nfixedvar) + var][i] = col;
-               sdpi->sdpcolindorig[block * nvars + var][i] = col;
-               sdpi->sdprowind[block * (nvars-nfixedvar) + var][i] = row;
-               sdpi->sdprowindorig[block * nvars + var][i] = row;
-               sdpi->sdpval[block * (nvars-nfixedvar) + var][i] = sdpval[block * nvars + var][i];
-               sdpi->sdpvalorig[block * nvars + var][i] = sdpval[block * nvars + var][i];
-            }
+            sdpi->sdpcol[block][var][i] = sdpcol[block][var][i];
+            sdpi->sdprow[block][var][i] = sdprow[block][var][i];
+            sdpi->sdpval[block][var][i] = sdpval[block][var][i];
          }
       }
-
-      /* after they have all been assembled, finally take care of the fixed nonzeroes */
-      if (nblockfixednonz > 0 )
-      {
-         SdpVarfixerMergeArrays(sdpi->blkmem, rowstoadd, colstoadd, valstoadd, nblockfixednonz, FALSE, 1.0, sdpi->sdpconstrow[block], sdpi->sdpconstcol[block],
-                                sdpi->sdpconstval[block], &sdpi->sdpconstnblocknonz[block]);
-      }
    }
-
-   /* free the memory for nonzeroes that need to be fixed */
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &colstoadd, nfixednonz);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &rowstoadd, nfixednonz);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &valstoadd, nfixednonz);
-
-   /* compute sdpnnonz and sdpconstnnonz */
-   sdpi->sdpnnonzorig = sdpnnonz;
-   sdpi->sdpconstnnonzorig = sdpconstnnonz;
-
-   sdpi->sdpnnonz = 0;
-   sdpi->sdpconstnnonz = 0;
-
-   for (block = 0; block < sdpi->nsdpblocks; block++)
-   {
-      sdpi->sdpconstnnonz += sdpi->sdpconstnblocknonz[block];
-      for (var = 0; var < sdpi->nvars; var++)
-         sdpi->sdpnblockvarnonz[block * sdpi->nvars + var];
-   }
-
 
    /* LP part */
-
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons, nlpcons);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhsorig), sdpi->nlpconsorig, nlpcons);
+   sdpi->lpnnonz = lpnnonz;
    sdpi->nlpcons = nlpcons;
-   sdpi->nlpconsorig = nlpcons;
 
    for (i = 0; i < nlpcons; i++)
    {
-      (sdpi->lprhs)[i] = lprhs[i];
-      (sdpi->lprhsorig)[i] = lprhs[i];
+      sdpi->lprhs[i] = lprhs[i];
    }
-
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprowind), sdpi->lpnnonz, lpnnonz);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprowindorig), sdpi->lpnnonzorig, lpnnonz);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcolind), sdpi->lpnnonz, lpnnonz);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcolindorig), sdpi->lpnnonzorig, lpnnonz);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, lpnnonz);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpvalorig), sdpi->lpnnonzorig, lpnnonz);
-   sdpi->lpnnonzorig = lpnnonz;
-
-   nfixedlpnonz = 0;
 
    for (i = 0; i < lpnnonz; i++)
    {
-      assert ( lpcolind[i] < nvars );
-      if (sdpi->varstochgfixing[lpcolind[i]])
-      {
-         nfixedlpnonz++;
+      assert ( lprow[i] < nlpcons );
+      assert ( lpcol[i] < nvars );
 
-         (sdpi->lprowindorig)[i] = lprowind[i];
-         (sdpi->lpcolindorig)[i] = lpcolind[i];
-         (sdpi->lpvalorig)[i] = lpval[i];
-
-         /* substract this value from this rows rhs */
-         (sdpi->lprhs)[i] -= lpval[i] * lb[i];
-      }
-      else
-      {
-         (sdpi->lprowindorig)[i] = lprowind[i];
-         (sdpi->lpcolindorig)[i] = lpcolind[i];
-         (sdpi->lpvalorig)[i] = lpval[i];
-
-         /* shift the entries by the number of fixedlpnonzeroes in front of them */
-         (sdpi->lprowind)[i - nfixedlpnonz] = lprowind[i];
-         (sdpi->lpcolind)[i - nfixedlpnonz] = lpcolind[i];
-         (sdpi->lpval)[i - nfixedlpnonz] = lpval[i];
-      }
+      sdpi->lprow[i] = lprow[i];
+      sdpi->lpcol[i] = lpcol[i];
    }
-
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprowind), lpnnonz, lpnnonz - nfixedlpnonz);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcolind), lpnnonz, lpnnonz - nfixedlpnonz);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), lpnnonz, lpnnonz - nfixedlpnonz);
-   sdpi->lpnnonz = lpnnonz - nfixedlpnonz;
-
-   /* as all fixing have been performed, reset varstochgfixing to FALSE */
-   for (i = 0; i < nvars; i++)
-   {
-      sdpi->varstochgfixing[i] = FALSE;
-   }
-
-   sdpi->fixingstodo = FALSE;
 
    sdpi->solved = FALSE;
 
@@ -1273,15 +586,15 @@ SCIP_RETCODE SCIPsdpiAddSDPBlock(
    assert ( nnonz == 0 || colind != NULL );
    assert ( nnonz == 0 || val != NULL );
 
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpi->nsdpblocks, sdpi->nsdpblocks + 1);
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpi->nsdpblocks, sdpi->nsdpblocks + 1));
    (sdpi->sdpblocksizes)[sdpi->nsdpblocks] = blocksize; /* new SDP-Block will be added as the last block of the new SDP */
 
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstbegblock), sdpi->nsdpblocks, sdpi->nsdpblocks + 1);
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstbegblock), sdpi->nsdpblocks, sdpi->nsdpblocks + 1));
    (sdpi->sdpconstbegblock)[sdpi->nsdpblocks] = sdpi->sdpconstnnonz; /* new SDP-Block starts after all the old ones in the arrays */
 
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrowind), sdpi->sdpconstnnonz, sdpi->sdpconstnnonz + constnnonz);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcolind), sdpi->sdpconstnnonz, sdpi->sdpconstnnonz + constnnonz);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval), sdpi->sdpconstnnonz, sdpi->sdpconstnnonz + constnnonz);
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrowind), sdpi->sdpconstnnonz, sdpi->sdpconstnnonz + constnnonz));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcolind), sdpi->sdpconstnnonz, sdpi->sdpconstnnonz + constnnonz));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval), sdpi->sdpconstnnonz, sdpi->sdpconstnnonz + constnnonz));
 
    for (i = 0; i < constnnonz; i++)
    {
@@ -1299,16 +612,16 @@ SCIP_RETCODE SCIPsdpiAddSDPBlock(
       (sdpi->sdpconstval)[sdpi->sdpconstnnonz + i] = constval[i];
    }
 
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpbegvarblock), sdpi->nsdpblocks * sdpi->nvars, (sdpi->nsdpblocks + 1) * sdpi->nvars);
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpbegvarblock), sdpi->nsdpblocks * sdpi->nvars, (sdpi->nsdpblocks + 1) * sdpi->nvars));
    for (i = 0; i < sdpi->nvars; i++)
    {
       /* new SDP-Block starts after all the old ones in the arrays */
       (sdpi->sdpbegvarblock)[(sdpi->nsdpblocks * sdpi->nvars) + i] = sdpi->sdpnnonz + begvar[i];
    }
 
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprowind), sdpi->sdpnnonz, sdpi->sdpnnonz + nnonz);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcolind), sdpi->sdpnnonz, sdpi->sdpnnonz + nnonz);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpi->sdpnnonz, sdpi->sdpnnonz + nnonz);
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprowind), sdpi->sdpnnonz, sdpi->sdpnnonz + nnonz));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcolind), sdpi->sdpnnonz, sdpi->sdpnnonz + nnonz));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpi->sdpnnonz, sdpi->sdpnnonz + nnonz));
 
    for (i = 0; i < nnonz; i++)
    {
@@ -1362,15 +675,15 @@ SCIP_RETCODE SCIPsdpiDelSDPBlock(
       deletednnonz = sdpi->sdpnnonz - sdpi->sdpbegvarblock[block * sdpi->nvars]; /* sdpbegvarblock[block*nvars] gives the first index of the deleted block */
       newsdpnnonz = sdpi->sdpnnonz - deletednnonz;
 
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpi->nsdpblocks, sdpi->nsdpblocks - 1);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstbegblock), sdpi->nsdpblocks, sdpi->nsdpblocks - 1);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpbegvarblock), sdpi->nvars * sdpi->nsdpblocks, sdpi->nvars * (sdpi->nsdpblocks - 1));
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrowind), sdpi->sdpconstnnonz, newsdpconstnnonz);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcolind), sdpi->sdpconstnnonz, newsdpconstnnonz);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval), sdpi->sdpconstnnonz, newsdpconstnnonz);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprowind), sdpi->sdpnnonz, newsdpnnonz);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcolind), sdpi->sdpnnonz, newsdpnnonz);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpi->sdpnnonz, newsdpnnonz);
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpi->nsdpblocks, sdpi->nsdpblocks - 1));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstbegblock), sdpi->nsdpblocks, sdpi->nsdpblocks - 1));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpbegvarblock), sdpi->nvars * sdpi->nsdpblocks, sdpi->nvars * (sdpi->nsdpblocks - 1)));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrowind), sdpi->sdpconstnnonz, newsdpconstnnonz));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcolind), sdpi->sdpconstnnonz, newsdpconstnnonz));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval), sdpi->sdpconstnnonz, newsdpconstnnonz));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprowind), sdpi->sdpnnonz, newsdpnnonz));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcolind), sdpi->sdpnnonz, newsdpnnonz));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpi->sdpnnonz, newsdpnnonz));
 
       sdpi->nsdpblocks--;
       sdpi->sdpconstnnonz = sdpi->sdpconstnnonz - deletedconstnnonz;
@@ -1400,9 +713,9 @@ SCIP_RETCODE SCIPsdpiDelSDPBlock(
                                                                                                                                         * deleted block */
          }
       }
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpi->nsdpblocks, sdpi->nsdpblocks - 1);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstbegblock), sdpi->nsdpblocks, sdpi->nsdpblocks - 1);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpbegvarblock), sdpi->nvars * sdpi->nsdpblocks, sdpi->nvars * (sdpi->nsdpblocks - 1));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpi->nsdpblocks, sdpi->nsdpblocks - 1));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstbegblock), sdpi->nsdpblocks, sdpi->nsdpblocks - 1));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpbegvarblock), sdpi->nvars * sdpi->nsdpblocks, sdpi->nvars * (sdpi->nsdpblocks - 1)));
 
       /* shift all nonzeroes to the left by a number of spots equal to the number of nonzeroes in the deleted block */
       for (i = sdpi->sdpconstbegblock[block + 1]; i<sdpi->sdpconstnnonz; i++)
@@ -1412,9 +725,9 @@ SCIP_RETCODE SCIPsdpiDelSDPBlock(
          sdpi->sdpconstval[i - deletedconstnnonz] = sdpi->sdpconstval[i];
       }
 
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrowind), sdpi->sdpconstnnonz, newsdpconstnnonz);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcolind), sdpi->sdpconstnnonz, newsdpconstnnonz);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval), sdpi->sdpconstnnonz, newsdpconstnnonz);
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrowind), sdpi->sdpconstnnonz, newsdpconstnnonz));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcolind), sdpi->sdpconstnnonz, newsdpconstnnonz));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval), sdpi->sdpconstnnonz, newsdpconstnnonz));
 
       for (i = sdpi->sdpbegvarblock[(block + 1) * sdpi->nvars]; i < sdpi->sdpnnonz; i++)
       {
@@ -1423,9 +736,9 @@ SCIP_RETCODE SCIPsdpiDelSDPBlock(
          sdpi->sdpval[i - deletednnonz] = sdpi->sdpval[i];
       }
 
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprowind), sdpi->sdpnnonz, newsdpnnonz);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcolind), sdpi->sdpnnonz, newsdpnnonz);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpi->sdpnnonz, newsdpnnonz);
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprowind), sdpi->sdpnnonz, newsdpnnonz));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcolind), sdpi->sdpnnonz, newsdpnnonz));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpi->sdpnnonz, newsdpnnonz));
 
       sdpi->nsdpblocks--;
       sdpi->sdpconstnnonz = sdpi->sdpconstnnonz - deletedconstnnonz;
@@ -1473,11 +786,12 @@ SCIP_RETCODE SCIPsdpiAddVars(
    assert ( sdpnnonz == 0 || sdpval != NULL );
    assert ( lpnnonz == 0 || lprowind != NULL );
    assert ( lpnnonz == 0 || lpcolind != NULL );
+   sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
    assert ( lpnnonz == 0 || lpval != NULL );
 
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), sdpi->nvars, sdpi->nvars + nvars);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), sdpi->nvars, sdpi->nvars + nvars);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), sdpi->nvars, sdpi->nvars + nvars);
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), sdpi->nvars, sdpi->nvars + nvars));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), sdpi->nvars, sdpi->nvars + nvars));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), sdpi->nvars, sdpi->nvars + nvars));
 
    for (i = 0; i < nvars; i++)
    {
@@ -1492,11 +806,11 @@ SCIP_RETCODE SCIPsdpiAddVars(
       int col;
       int* begblockold; /* these are the old starting indices of the blocks (only for the first variable in that block), with extra entry equal to spdnnonz */
 
-      BMSallocBlockMemoryArray(sdpi->blkmem, &begblockold, sdpi->nsdpblocks + 1);
+      BMS_CALL(BMSallocBlockMemoryArray(sdpi->blkmem, &begblockold, sdpi->nsdpblocks + 1));
 
       begblockold[sdpi->nsdpblocks] = sdpi->sdpnnonz; /* often begblockold[block+1] is needed, so this extra entry removes some additional if-clauses */
 
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpbegvarblock), sdpi->nvars * sdpi->nsdpblocks, (sdpi->nvars + nvars) * sdpi->nsdpblocks);
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpbegvarblock), sdpi->nvars * sdpi->nsdpblocks, (sdpi->nvars + nvars) * sdpi->nsdpblocks));
 
       for (block = sdpi->nsdpblocks - 1; block > -1; block--)
       {
@@ -1520,9 +834,9 @@ SCIP_RETCODE SCIPsdpiAddVars(
          }
       }
 
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprowind), sdpi->sdpnnonz, sdpi->sdpnnonz + sdpnnonz);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcolind), sdpi->sdpnnonz, sdpi->sdpnnonz + sdpnnonz);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpi->sdpnnonz, sdpi->sdpnnonz + sdpnnonz);
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprowind), sdpi->sdpnnonz, sdpi->sdpnnonz + sdpnnonz));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcolind), sdpi->sdpnnonz, sdpi->sdpnnonz + sdpnnonz));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpi->sdpnnonz, sdpi->sdpnnonz + sdpnnonz));
 
       /* now insert the nonzero-entries at the right positions of the arrays */
       for (block=sdpi->nsdpblocks - 1; block > -1; block--)
@@ -1570,9 +884,9 @@ SCIP_RETCODE SCIPsdpiAddVars(
 
    if (lpnnonz > 0)
    {
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprowind), sdpi->lpnnonz, sdpi->lpnnonz + lpnnonz);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcolind), sdpi->lpnnonz, sdpi->lpnnonz + lpnnonz);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, sdpi->lpnnonz + lpnnonz);
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprowind), sdpi->lpnnonz, sdpi->lpnnonz + lpnnonz));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcolind), sdpi->lpnnonz, sdpi->lpnnonz + lpnnonz));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, sdpi->lpnnonz + lpnnonz));
 
       for (i = 0; i < lpnnonz; i++)
       {
@@ -1619,7 +933,7 @@ SCIP_RETCODE SCIPsdpiDelVars(
 
    deletedvars = lastvar - firstvar + 1;
 
-   BMSallocBlockMemoryArray(sdpi->blkmem, &deletedsdpnonz, sdpi->nsdpblocks);
+   BMS_CALL(BMSallocBlockMemoryArray(sdpi->blkmem, &deletedsdpnonz, sdpi->nsdpblocks));
    deletedsdpnonz[0] = sdpi->sdpbegvarblock[lastvar + 1] - sdpi->sdpbegvarblock[firstvar]; /* begvarblock[lastvar] gives the first index of the first
                                                                                             * non-deleted block */
    for (block = 1; block < sdpi->nsdpblocks; block++)
@@ -1639,19 +953,19 @@ SCIP_RETCODE SCIPsdpiDelVars(
    {
       sdpi->obj[i - deletedvars] = sdpi->obj[i];
    }
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), sdpi->nvars, sdpi->nvars - deletedvars);
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), sdpi->nvars, sdpi->nvars - deletedvars));
 
    for (i=lastvar + 1; i < sdpi->nvars; i++)
    {
       sdpi->lb[i - deletedvars] = sdpi->lb[i];
    }
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), sdpi->nvars, sdpi->nvars - deletedvars);
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), sdpi->nvars, sdpi->nvars - deletedvars));
 
    for (i=lastvar + 1; i < sdpi->nvars; i++)
    {
       sdpi->ub[i - deletedvars] = sdpi->ub[i];
    }
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), sdpi->nvars, sdpi->nvars - deletedvars);
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), sdpi->nvars, sdpi->nvars - deletedvars));
 
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
@@ -1687,9 +1001,9 @@ SCIP_RETCODE SCIPsdpiDelVars(
       }
    }
 
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprowind), sdpi->sdpnnonz, sdpi->sdpnnonz - deletedsdpnonz[sdpi->nsdpblocks - 1]);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcolind), sdpi->sdpnnonz, sdpi->sdpnnonz - deletedsdpnonz[sdpi->nsdpblocks - 1]);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpi->sdpnnonz, sdpi->sdpnnonz - deletedsdpnonz[sdpi->nsdpblocks - 1]);
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprowind), sdpi->sdpnnonz, sdpi->sdpnnonz - deletedsdpnonz[sdpi->nsdpblocks - 1]));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcolind), sdpi->sdpnnonz, sdpi->sdpnnonz - deletedsdpnonz[sdpi->nsdpblocks - 1]));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpi->sdpnnonz, sdpi->sdpnnonz - deletedsdpnonz[sdpi->nsdpblocks - 1]));
 
    /* sdpbegvarblock should be updated last to still be able to find the variables which should be moved or deleted */
    for (block = 0; block < sdpi->nsdpblocks; block++)
@@ -1710,7 +1024,7 @@ SCIP_RETCODE SCIPsdpiDelVars(
          }
       }
    }
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpbegvarblock), sdpi->nvars * sdpi->nsdpblocks, (sdpi->nvars - deletedvars) * sdpi->nsdpblocks);
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpbegvarblock), sdpi->nvars * sdpi->nsdpblocks, (sdpi->nvars - deletedvars) * sdpi->nsdpblocks));
 
    sdpi->sdpnnonz = sdpi->sdpnnonz - deletedsdpnonz[sdpi->nsdpblocks - 1];
 
@@ -1752,9 +1066,9 @@ SCIP_RETCODE SCIPsdpiDelVars(
          sdpi->lpval[i - deletedlpnonz] = sdpi->lpval[i];
       }
 
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcolind), sdpi->lpnnonz, sdpi->lpnnonz - deletedlpnonz);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprowind), sdpi->lpnnonz, sdpi->lpnnonz - deletedlpnonz);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, sdpi->lpnnonz - deletedlpnonz);
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcolind), sdpi->lpnnonz, sdpi->lpnnonz - deletedlpnonz));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprowind), sdpi->lpnnonz, sdpi->lpnnonz - deletedlpnonz));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, sdpi->lpnnonz - deletedlpnonz));
 
       sdpi->lpnnonz = sdpi->lpnnonz - deletedlpnonz;
    }
@@ -1818,8 +1132,9 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
    int                   nrows,              /**< number of rows to be added */
    const SCIP_Real*      rhs,                /**< right hand sides of new rows */
    int                   nnonz,              /**< number of nonzero elements to be added to the LP constraint matrix */
-   const int*            rowind,             /**< row indices of constraint matrix entries, going from 0 to nrows - 1, these will be changed to nlpcons + i */
-   const int*            colind,             /**< column indices of constraint matrix entries */
+   const int*            row,                /**< row indices of constraint matrix entries, going from 0 to nrows - 1, these will be changed
+                                                *  to nlpcons + i */
+   const int*            col,                /**< column indices of constraint matrix entries */
    const SCIP_Real*      val                 /**< values of constraint matrix entries */
    )
 {
@@ -1829,28 +1144,28 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
 
    assert ( sdpi != NULL );
    assert ( rhs != NULL );
-   assert ( rowind != NULL );
-   assert ( colind != NULL );
+   assert ( row != NULL );
+   assert ( col != NULL );
    assert ( val != NULL );
 
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons, sdpi->nlpcons + nrows);
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons, sdpi->nlpcons + nrows));
    for (i=0; i < nrows; i++)
    {
       sdpi->lprhs[sdpi->nlpcons + i] = rhs[i];
    }
 
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprowind), sdpi->lpnnonz, sdpi->lpnnonz + nnonz);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcolind), sdpi->lpnnonz, sdpi->lpnnonz + nnonz);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, sdpi->lpnnonz + nnonz);
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz, sdpi->lpnnonz + nnonz));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz, sdpi->lpnnonz + nnonz));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, sdpi->lpnnonz + nnonz));
 
    for (i=0; i < nnonz; i++)
    {
       assert ( rowind[i] < nrows );
-      sdpi->lprowind[sdpi->lpnnonz + i] = rowind[i] + sdpi->nlpcons; /* the new rows are added at the end, so the row indices are increased by the old
-                                                                      * number of LP-constraints */
+      sdpi->lprow[sdpi->lpnnonz + i] = row[i] + sdpi->nlpcons; /* the new rows are added at the end, so the row indices are increased by the old
+                                                                * number of LP-constraints */
 
-      assert ( colind[i] < sdpi->nvars ); /* only existing vars should be added to the LP-constraints */
-      sdpi->lpcolind[sdpi->lpnnonz + i] = colind[i];
+      assert ( col[i] < sdpi->nvars ); /* only existing vars should be added to the LP-constraints */
+      sdpi->lpcol[sdpi->lpnnonz + i] = col[i];
 
       sdpi->lpval[sdpi->lpnnonz + i] = val[i];
    }
@@ -1883,6 +1198,26 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
    assert ( firstrow <= lastrow );
    assert ( lastrow < sdpi->nlpcons );
 
+   /* shorten the procedure if the whole LP-part is to be deleted */
+   if (firstrow == 0 && lastrow == sdpi->nlpcons - 1)
+   {
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz);
+
+      sdpi->lprhs = NULL;
+      sdpi->lpcol = NULL;
+      sdpi->lprow = NULL;
+      sdpi->lpval = NULL;
+
+      sdpi->nlpcons = 0;
+      sdpi->lpnnonz = 0;
+      sdpi->solved = FALSE;
+
+      return SCIP_OKAY;
+   }
+
    deletedrows = lastrow - firstrow + 1;
    deletednonz = 0;
 
@@ -1891,16 +1226,16 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
    {
       sdpi->lprhs[i - deletedrows] = sdpi->lprhs[i];
    }
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons, sdpi->nlpcons - deletedrows);
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons, sdpi->nlpcons - deletedrows));
 
    /* for deleting and reordering the lpnonzeroes, the arrays first have to be sorted to have the rows to be deleted together */
-   SCIPsortIntIntReal(sdpi->lprowind, sdpi->lpcolind, sdpi->lpval, sdpi->lpnnonz); /* sort all arrays by non-decreasing row indices */
+   SCIPsortIntIntReal(sdpi->lprow, sdpi->lpcol, sdpi->lpval, sdpi->lpnnonz); /* sort all arrays by non-decreasing row indices */
 
    firstrowind = -1;
    /*iterate over the lprowind array to find the first index belonging to a row that should be deleted */
    for (i = 0; i < sdpi->lpnnonz; i++)
    {
-      if (sdpi->lprowind[i] >= firstrow && sdpi->lprowind[i] <= lastrow) /* the and part makes sure that there actually were some nonzeroes in these rows */
+      if (sdpi->lprow[i] >= firstrow && sdpi->lprow[i] <= lastrow) /* the and part makes sure that there actually were some nonzeroes in these rows */
       {
          firstrowind = i;
          lastrowind = i;
@@ -1912,7 +1247,7 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
    if (firstrowind > -1) /* if this is still 0 there are no nonzeroes for the given rows */
    {
       /* now find the last occurence of one of the rows (as these are sorted all in between also belong to deleted rows and will be removed) */
-      while (i < sdpi->lpnnonz && sdpi->lprowind[i] <= lastrow)
+      while (i < sdpi->lpnnonz && sdpi->lprow[i] <= lastrow)
       {
          lastrowind++;
          i++;
@@ -1922,16 +1257,16 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
       /* finally shift all LP-array-entries after the deleted rows */
       for (i = lastrowind + 1; i < sdpi->lpnnonz; i++)
       {
-         sdpi->lpcolind[i - deletednonz] = sdpi->lpcolind[i];
-         sdpi->lprowind[i - deletednonz] = sdpi->lprowind[i] - deletedrows; /* all rowindices after the deleted ones have to be lowered to still have ongoing
-                                                                             * indices from 0 to nlpcons-1 */
+         sdpi->lpcol[i - deletednonz] = sdpi->lpcol[i];
+         sdpi->lprow[i - deletednonz] = sdpi->lprow[i] - deletedrows; /* all rowindices after the deleted ones have to be lowered to still have ongoing
+                                                                       * indices from 0 to nlpcons-1 */
          sdpi->lpval[i - deletednonz] = sdpi->lpval[i];
       }
    }
 
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcolind), sdpi->lpnnonz, sdpi->lpnnonz - deletednonz);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprowind), sdpi->lpnnonz, sdpi->lpnnonz - deletednonz);
-   BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, sdpi->lpnnonz - deletednonz);
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz, sdpi->lpnnonz - deletednonz));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz, sdpi->lpnnonz - deletednonz));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, sdpi->lpnnonz - deletednonz));
    sdpi->nlpcons = sdpi->nlpcons - deletedrows;
    sdpi->lpnnonz = sdpi->lpnnonz - deletednonz;
 
@@ -2113,9 +1448,9 @@ SCIP_RETCODE SCIPsdpiChgLPCoef(
    {
       SCIPdebugMessage("An LP Coefficient in row %d and colum %d of SDP %d didn't exist so far or was zero, it is now added.\n", row, col, sdpi->sdpid);
 
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprowind), sdpi->lpnnonz, sdpi->lpnnonz + 1);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcolind), sdpi->lpnnonz, sdpi->lpnnonz + 1);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, sdpi->lpnnonz + 1);
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprowind), sdpi->lpnnonz, sdpi->lpnnonz + 1));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcolind), sdpi->lpnnonz, sdpi->lpnnonz + 1));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, sdpi->lpnnonz + 1));
 
       sdpi->lprowind[sdpi->lpnnonz] = row;
       sdpi->lpcolind[sdpi->lpnnonz] = col;
@@ -2214,9 +1549,9 @@ SCIP_RETCODE SCIPsdpiChgSDPConstCoeff(
       SCIPdebugMessage("A constant SDP Coefficient in row %d and colum %d of block %d of SDP %d didn't exist so far or was zero, it is now added.\n",
             rowind, colind, block, sdpi->sdpid);
 
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrowind), sdpi->sdpconstnnonz, sdpi->sdpconstnnonz + 1);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcolind), sdpi->sdpconstnnonz, sdpi->sdpconstnnonz + 1);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval), sdpi->sdpconstnnonz, sdpi->sdpconstnnonz + 1);
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrowind), sdpi->sdpconstnnonz, sdpi->sdpconstnnonz + 1));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcolind), sdpi->sdpconstnnonz, sdpi->sdpconstnnonz + 1));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval), sdpi->sdpconstnnonz, sdpi->sdpconstnnonz + 1));
 
       /* move all sdpconstnonzeroes of later blocks one space in the arrays to be able to insert this one at the right position */
       for (i = sdpi->sdpconstnnonz - 1; i >= sdpi->sdpconstbegblock[block + 1]; i--)
@@ -2306,9 +1641,9 @@ SCIP_RETCODE SCIPsdpiChgSDPCoeff(
       SCIPdebugMessage("A SDP Coefficient in row %d and colum %d of of Matrix A_%d^%d of SDP %d didn't exist so far or was zero, it is now added.\n",
             rowind, colind, var, block, sdpi->sdpid);
 
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprowind), sdpi->sdpnnonz, sdpi->sdpnnonz + 1);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcolind), sdpi->sdpnnonz, sdpi->sdpnnonz + 1);
-      BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpi->sdpnnonz, sdpi->sdpnnonz + 1);
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprowind), sdpi->sdpnnonz, sdpi->sdpnnonz + 1));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcolind), sdpi->sdpnnonz, sdpi->sdpnnonz + 1));
+      BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpi->sdpnnonz, sdpi->sdpnnonz + 1));
 
       /* move all sdpnonzeroes of later blocks and vars one space in the arrays to be able to insert this one at the right position */
       for (i = sdpi->sdpnnonz - 1; i >= sdpi->sdpbegvarblock[block * sdpi->nvars + var + 1]; i--)
@@ -3052,9 +2387,10 @@ SCIP_RETCODE SCIPsdpiSolve(
    /* remove empty rows/cols TODO*/
 
    return SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub, sdpi->nsdpblocks, sdpi->sdpblocksizes,
-                                            sdpi->sdpconstnnonz, sdpi->sdpconstnblocknonz, sdpi->sdpconstrowind, sdpi->sdpconstcolind,
-                                            sdpi->sdpconstval, sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdprowind, sdpi->sdpcolind,
-                                            sdpi->sdpval, sdpi->nlpcons, sdpi->lprhs, sdpi->lpnnonz, sdpi->lprowind, sdpi->lpcolind, sdpi->lpval);
+                                            sdpi->sdpnblockvars, sdpi->sdpconstnnonz, sdpi->sdpconstnblocknonz, sdpi->sdpconstrow,
+                                            sdpi->sdpconstcol,sdpi->sdpconstval, sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar,
+                                            sdpi->sdprow, sdpi->sdpcol, sdpi->sdpval, sdpi->nlpcons, sdpi->lprhs, sdpi->lpnnonz,
+                                            sdpi->lprow, sdpi->lpcol, sdpi->lpval);
 }
 
 /** solves the following penalty formulation of the SDP:
@@ -3064,7 +2400,7 @@ SCIP_RETCODE SCIPsdpiSolve(
  *      & & Dy \geq d \\
  *      & & l \leq y \leq u}
  *   \f
- *   alternatively withObj can be to false to set \f b \f to false and only check for feasibility (if the optimal
+ *   alternatively withObj can be to false to set \f b \f to zero and only check for feasibility (if the optimal
  *   objective value is bigger than 0 the problem is infeasible, otherwise it's feasible) */
 SCIP_RETCODE SCIPsdpiSolvePenalty(
       SCIP_SDPI*            sdpi,               /**< SDP interface structure */
@@ -3083,9 +2419,9 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    if (SCIPsdpiSolverKnowsPenalty())
    {
       return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, penaltyParam, withObj, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
-                                                    sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpconstnnonz, sdpi->sdpconstnblocknonz,
-                                                    sdpi->sdpconstrowind, sdpi->sdpconstcolind, sdpi->sdpconstval, sdpi->sdpnnonz,
-                                                    sdpi->sdpnblockvarnonz, sdpi->sdprowind, sdpi->sdpcolind, sdpi->sdpval, sdpi->nlpcons,
+                                                    sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpi->sdpconstnnonz,
+                                                    sdpi->sdpconstnblocknonz, sdpi->sdpconstrowind, sdpi->sdpconstcolind, sdpi->sdpconstval, sdpi->sdpnnonz,
+                                                    sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprowind, sdpi->sdpcolind, sdpi->sdpval, sdpi->nlpcons,
                                                     sdpi->lprhs, sdpi->lpnnonz, sdpi->lprowind, sdpi->lpcolind, sdpi->lpval);
    }
    else
@@ -3129,7 +2465,7 @@ SCIP_Bool SCIPsdpiFeasibilityKnown(
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
 
-   BMSallocBlockMemory(sdpi->blkmem, &pdfeasible);
+   BMS_CALL(BMSallocBlockMemory(sdpi->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpi->dsdp, pdfeasible));
    if (*pdfeasible == DSDP_PDUNKNOWN)
    {
@@ -3157,7 +2493,7 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
    assert ( dualfeasible != NULL );
    CHECK_IF_SOLVED(sdpi);
 
-   BMSallocBlockMemory(sdpi->blkmem, &pdfeasible);
+   BMS_CALL(BMSallocBlockMemory(sdpi->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpi->dsdp, pdfeasible));
 
    switch ( *pdfeasible)
@@ -3228,7 +2564,7 @@ SCIP_Bool SCIPsdpiIsPrimalUnbounded(
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
 
-   BMSallocBlockMemory(sdpi->blkmem, &pdfeasible);
+   BMS_CALL(BMSallocBlockMemory(sdpi->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpi->dsdp, pdfeasible));
    if (*pdfeasible == DSDP_PDUNKNOWN)
    {
@@ -3262,7 +2598,7 @@ SCIP_Bool SCIPsdpiIsPrimalInfeasible(
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
 
-   BMSallocBlockMemory(sdpi->blkmem, &pdfeasible);
+   BMS_CALL(BMSallocBlockMemory(sdpi->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpi->dsdp, pdfeasible));
    if (*pdfeasible == DSDP_PDUNKNOWN)
    {
@@ -3296,7 +2632,7 @@ SCIP_Bool SCIPsdpiIsPrimalFeasible(
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
 
-   BMSallocBlockMemory(sdpi->blkmem, &pdfeasible);
+   BMS_CALL(BMSallocBlockMemory(sdpi->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpi->dsdp, pdfeasible));
    if (*pdfeasible == DSDP_PDUNKNOWN)
    {
@@ -3353,7 +2689,7 @@ SCIP_Bool SCIPsdpiIsDualUnbounded(
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
 
-   BMSallocBlockMemory(sdpi->blkmem, &pdfeasible);
+   BMS_CALL(BMSallocBlockMemory(sdpi->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpi->dsdp, pdfeasible));
    if (*pdfeasible == DSDP_PDUNKNOWN)
    {
@@ -3384,7 +2720,7 @@ SCIP_Bool SCIPsdpiIsDualInfeasible(
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
 
-   BMSallocBlockMemory(sdpi->blkmem, &pdfeasible);
+   BMS_CALL(BMSallocBlockMemory(sdpi->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpi->dsdp, pdfeasible));
    if (*pdfeasible == DSDP_PDUNKNOWN)
    {
@@ -3415,7 +2751,7 @@ SCIP_Bool SCIPsdpiIsDualFeasible(
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
 
-   BMSallocBlockMemory(sdpi->blkmem, &pdfeasible);
+   BMS_CALL(BMSallocBlockMemory(sdpi->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpi->dsdp, pdfeasible));
    if (*pdfeasible == DSDP_PDUNKNOWN)
    {
@@ -3445,7 +2781,7 @@ SCIP_Bool SCIPsdpiIsConverged(
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
 
-   BMSallocBlockMemory(sdpi->blkmem, &reason);
+   BMS_CALL(BMSallocBlockMemory(sdpi->blkmem, &reason));
 
    DSDP_CALL(DSDPStopReason(sdpi->dsdp, reason));
 
@@ -3471,7 +2807,7 @@ SCIP_Bool SCIPsdpiIsObjlimExc(
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
 
-   BMSallocBlockMemory(sdpi->blkmem, &reason);
+   BMS_CALL(BMSallocBlockMemory(sdpi->blkmem, &reason));
 
    DSDP_CALL(DSDPStopReason(sdpi->dsdp, reason));
 
@@ -3497,7 +2833,7 @@ SCIP_Bool SCIPsdpiIsIterlimExc(
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
 
-   BMSallocBlockMemory(sdpi->blkmem, &reason);
+   BMS_CALL(BMSallocBlockMemory(sdpi->blkmem, &reason));
 
    DSDP_CALL(DSDPStopReason(sdpi->dsdp, reason));
 
@@ -3532,7 +2868,7 @@ int SCIPsdpiGetInternalStatus(
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
 
-   BMSallocBlockMemory(sdpi->blkmem, &reason);
+   BMS_CALL(BMSallocBlockMemory(sdpi->blkmem, &reason));
 
    DSDP_CALL(DSDPStopReason(sdpi->dsdp, reason));
 
@@ -3613,8 +2949,8 @@ SCIP_Bool SCIPsdpiIsAcceptable(
       printf("Numerical Trouble in DSDP!\n");
 
       /* if it didn't converge check the optimality gap */
-      BMSallocBlockMemory(sdpi->blkmem, &pobj);
-      BMSallocBlockMemory(sdpi->blkmem, &dobj);
+      BMS_CALL(BMSallocBlockMemory(sdpi->blkmem, &pobj));
+      BMS_CALL(BMSallocBlockMemory(sdpi->blkmem, &dobj));
 
       DSDP_CALL(DSDPGetPObjective(sdpi->dsdp, pobj));
       DSDP_CALL(DSDPGetDObjective(sdpi->dsdp, dobj));

@@ -44,14 +44,14 @@
 
 /** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY */
  #define BMS_CALL(x) do \
-270  { \
-271  if( NULL == (x) ) \
-272  { \
-273  SCIPerrorMessage("No memory in function call\n"); \
-274  return SCIP_NOMEMORY; \
-275  } \
-276  } \
-277  while( FALSE )
+  { \
+  if( NULL == (x) ) \
+  { \
+  SCIPerrorMessage("No memory in function call\n"); \
+  return SCIP_NOMEMORY; \
+  } \
+  } \
+  while( FALSE )
 
 /**
  * sort the given row, col and val arrays first by non-decreasing row-indices, than for those by identical row-indices by non-increasing val-indices
