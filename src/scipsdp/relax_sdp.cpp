@@ -66,6 +66,7 @@
 struct SCIP_RelaxData
 {
    SCIP_SDPI*            sdpi;               /* general SDP Interface that is given the data to presolve the SDP and give it so a solver specific interface */
+   SdpVarmapper*         varmapper;          /* maps SCIP variables to their global SDP indices and vice versa */
 };
 
 /** removes all indices j from an SDP block for which both row j and column j are completely empty/zero (for this all entries of sdpval
@@ -178,7 +179,8 @@ SCIP_RETCODE removeEmptySdpRowCols( //TODO: move this to sdpi and also check for
 static
 SCIP_RETCODE putSdpDataInInterface(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_SDPI*            sdpi                /**< SDP interface structure */
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   SdpVarmapper*         varmapper           /**< maps SCIP variables to their global SDP indices and vice versa */
    )
 {
    int i;
@@ -200,19 +202,20 @@ SCIP_RETCODE putSdpDataInInterface(
    SCIP_Real* constval;
    int sdpnnonz;
    int constnnonzcounter;
-   int** row;
-   int** col;
-   SCIP_Real** val;
+   int*** row;
+   int*** col;
+   SCIP_Real*** val;
    int** blockcol;
    int** blockrow;
    SCIP_Real** blockval;
    SCIP_CONSHDLR* conshdlr;
    int blocknnonz;
    int varind;
-   int blocknvars;
-   int* nblockvarnonz;
+   int* nblockvars;
+   int** nblockvarnonz;
    int* nvarnonz;
    int* nconstblocknonz;
+   int* sdpvar;
 
    assert ( scip != NULL );
    assert ( sdpi != NULL );
@@ -259,18 +262,16 @@ SCIP_RETCODE putSdpDataInInterface(
    }
 
    /* create the sdp- and sdpconst-arrays */
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &nvarnonz, nvars));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &nblockvarnonz, nvars * nsdpblocks));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &nconstblocknonz, nsdpblocks));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &col, nvars * nsdpblocks));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &row, nvars * nsdpblocks));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &val, nvars * nsdpblocks));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &blockcol, nvars));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &blockrow, nvars));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &blockval, nvars));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &constcol, nsdpblocks));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &constrow, nsdpblocks));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &constval, nsdpblocks));
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &nblockvarnonz, nvars * nsdpblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &nconstblocknonz, nsdpblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &col, nvars * nsdpblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &row, nvars * nsdpblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &val, nvars * nsdpblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &constcol, nsdpblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &constrow, nsdpblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &constval, nsdpblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &nblockvars, nsdpblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &sdpvar, nsdpblocks) );
 
    /* get the SDP-data */
    ind = 0; /* index of the current sdp block in the complete sdp */
@@ -287,21 +288,17 @@ SCIP_RETCODE putSdpDataInInterface(
       {
          varind = 0;
 
-         SCIPconsSdpGetData(scip, conss[i], &blocknvars, &blocknnonz, &sdpblocksizes[i], &nvars, nvarnonz, blockcol,
-            blockrow, blockval, blockvars, &(nconstblocknonz[ind]), &(constcol[ind]), &(constrow[ind]), &(constval[ind]));
+         SCIPconsSdpGetData(scip, conss[i], &nblockvars[ind], &blocknnonz, &sdpblocksizes[ind], &nvars, &(nblockvarnonz[ind]), &(col[ind]),
+            &(row[ind]), &(val[ind]), blockvars, &(nconstblocknonz[ind]), &(constcol[ind]), &(constrow[ind]), &(constval[ind]));
 
          /* nvars would have been overwritten if the space in the given arrays hadn't been sufficient */
          assert ( nvars == SCIPgetNVars(scip) );
 
-         /* ??????????????? loop over variables in constraint ! */
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpvar[i]), blockvars));
+
+         /* get global variable indices */
          for (j = 0; j < blocknvars; j++)
-         {
-            set varind according to varmapper
-         }
-         nblockvarnonz[i] = &nvarnonz;
-         col[i] = &blockcol;
-         row[i] = &blockrow;
-         val[i] = &blockval;
+            sdpvar[i][j] = SdpVarmapperGetSdpIndex(varmapper, blockvars[j]);
 
          /* update the variable indices of the current block to the global variable indices */
          for (j = 0; j < nvars; j++)
@@ -322,20 +319,29 @@ SCIP_RETCODE putSdpDataInInterface(
       }
    }
 
+   /* free the memory that is no longer needed */
    SCIPfreeBlockMemoryArray(scip, &conss, ncons);
    SCIPfreeBlockMemoryArray(scip, &blockvars, nvars);
-   SCIPfreeBlockMemoryArray(scip, &nvarnonz, nvars);
 
    SCIP_CALL(SCIPsdpiLoadSDP(sdpi, nvars,  obj,  lb,  ub, nsdpblocks,
-                            sdpblocksizes, sdpconstnnonz, nconstblocknonz , constrow,
-                            constcol, constval, sdpnnonz, nblockvarnonz,
+                            sdpblocksizes, nblockvars, sdpconstnnonz, nconstblocknonz, constrow,
+                            constcol, constval, sdpnnonz, nblockvarnonz, sdpvar,
                             row, col,  val, 0,
                             NULL, 0, NULL, NULL, NULL)); /* insert the SDP part, add an empty LP part */
 
+   /* free the remaining memory */
    SCIPfreeBlockMemoryArray(scip, &obj, nvars);
    SCIPfreeBlockMemoryArray(scip, &lb, nvars);
    SCIPfreeBlockMemoryArray(scip, &ub, nvars);
    SCIPfreeBlockMemoryArray(scip, &sdpblocksizes, nsdpblocks);
+
+   for (i = 0; i < nsdpblocks; i++)
+   {
+      SCIPfreeBlockMemoryArray(scip, &sdpvar, nblockvars[i]);
+   }
+
+   SCIPfreeBlockMemoryArray(scip, &sdpvar, nsdpblocks);
+   SCIPfreeBlockMemoryArray(scip, &nblockvars, nsdpblocks);
    SCIPfreeBlockMemoryArray(scip, &constval, nsdpblocks);
    SCIPfreeBlockMemoryArray(scip, &constrow, nsdpblocks);
    SCIPfreeBlockMemoryArray(scip, &constcol, nsdpblocks);
@@ -418,7 +424,7 @@ SCIP_RETCODE putLpDataInInterface(
       sciprhs = SCIProwGetRhs(rows[i])- SCIProwGetConstant(rows[i]);
 
       /* add row >= lhs if lhs is finite */
-      if (! (SCIPsdpiIsInfinity(sdpi, sciplhs))) /* TODO: this will also ignore lhs=+infty which renders the problem infeasible, can this happen/is this caught elsewhre ? */
+      if (sciplhs > -SCIPsdpiInfinity(sdpi))
       {
          for (j = 0; j < blocknnonz; j++)
          {
@@ -432,7 +438,7 @@ SCIP_RETCODE putLpDataInInterface(
       }
 
       /* add -row >= -rhs if rhs is finite */
-      if (! (SCIPsdpiIsInfinity(sdpi, sciprhs))) /* TODO: this will also ignore rhs=-infty which renders the problem infeasible, can this happen/is this caught elsewhre ? */
+      if (sciprhs < SCIPsdpiInfinity(sdpi))
       {
          for (j = 0; j < blocknnonz; j++)
          {
@@ -941,22 +947,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &conss, ncons));
    conss = SCIPgetConss(scip);
 
-   SdpVarmapper* varmapper;
-
-   for (i=0; i < ncons; i++)
-   {
-      conshdlr = SCIPconsGetHdlr(conss[i]);
-      assert( conshdlr != NULL );
-      const char* hdlrName;
-      hdlrName = SCIPconshdlrGetName(conshdlr);
-
-      if ( strcmp(hdlrName, "SDP") == 0)
-      {
-         varmapper = &((SCIPconshdlrGetData(conshdlr))->varmapper);
-         break;
-      }
-   }
-
    // it is possible to call this function for writing the problem of every node in sdpa-format to a file per node
    // SCIP_CALL(write_sdpafile(scip, problemdata, varmapper));
 
@@ -1052,25 +1042,11 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
    SCIPfreeBlockMemoryArray(scip, &ub, nvars);
    SCIPfreeBlockMemoryArray(scip, &vars, nvars);
 
-   SCIP_CALL( putLpDataInInterface(scip, relaxdata->sdpi, varmapper) );
+   SCIP_CALL( putLpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper) );
 
 
-   SCIP_CALL( calc_relax(scip, relaxdata->sdpi, varmapper, FALSE, 0.0, result, lowerbound));
+   SCIP_CALL( calc_relax(scip, relaxdata->sdpi, relaxdata->varmapper, FALSE, 0.0, result, lowerbound));
 
-
-   return SCIP_OKAY;
-}
-
-/** this method is called after presolving is finished, at this point the SDP Interface is initialized and gets the SDP information from the constraints */
-static
-SCIP_DECL_RELAXINIT(relaxInitSolSDP)
-{
-   SCIP_RELAXDATA* relaxdata;
-
-   assert ( relax != NULL );
-
-   relaxdata = SCIPrelaxGetData(relax);
-   SCIP_CALL(putSdpDataInInterface(scip, relaxdata->sdpi));
 
    return SCIP_OKAY;
 }
@@ -1079,6 +1055,44 @@ SCIP_DECL_RELAXINIT(relaxInitSolSDP)
 /*
  * relaxator specific interface methods
  */
+
+/** this method is called after presolving is finished, at this point the varmapper is prepared and the SDP Interface is initialized and gets
+ *  the SDP information from the constraints */
+static
+SCIP_DECL_RELAXINIT(relaxInitSolSDP)
+{
+   SCIP_RELAXDATA* relaxdata;
+
+   assert ( relax != NULL );
+
+   SCIPallocBlockMemory(scip, &relaxdata);
+
+   nvars = SCIPgetNVars(scip);
+   SCIP_CALL(SCIPallocBufferArray(scip, &vars, nvars));
+   vars = SCIPgetVars(scip);
+
+   SdpVarmapperCreate(scip, relaxdata->varmapper);
+   SdpVarmapperAddVars(scip, relaxdata->varmapper, nvars, vars);
+
+   SCIPfreeBufferArray(scip, &vars);
+
+   SCIP_CALL(putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper));
+
+   SCIPrelaxSetData(relax, relaxdata);
+
+   return SCIP_OKAY;
+}
+
+/** copy method for sdp relaxation handler (called when SCIP copies plugins) */
+static
+SCIP_DECL_RELAXCOPY(relaxCopySDP)
+{
+   SCIP_RELAXDATA* sourcedata;
+   SCIP_RELAXDATA* targetdata;
+
+   // TODO
+   return SCIP_OKAY;
+}
 
 /** creates the SDP relaxator and includes it in SCIP */
 SCIP_RETCODE SCIPincludeRelaxSDP(
@@ -1117,6 +1131,7 @@ SCIP_RELAXDATA* relaxdata;
 relaxdata = SCIPrelaxGetData(relax);
 assert(relaxdata != NULL);
 
+SCIP_CALL( SdpVarmapperFree(scip, relaxdata->varmapper) );
 SCIPfreeMemory(scip, &relaxdata);
 SCIPrelaxSetData(relax, NULL);
 

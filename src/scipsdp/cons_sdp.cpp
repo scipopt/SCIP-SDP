@@ -69,6 +69,7 @@
 
 #define CONSHDLR_PROP_TIMING       SCIP_PROPTIMING_BEFORELP
 
+
 /** constraint data for sdp constraints */
 struct SCIP_ConsData
 {
@@ -79,18 +80,17 @@ struct SCIP_ConsData
    int**                 col;                /**< pointers to the column indices of the nonzeroes for each variable */
    int**                 row;                /**< pointers to the row indices of the nonzeroes for each variable */
    SCIP_Real**           val;                /**< pointers to the values of the nonzeroes for each variable*/
-   //SCIP_Var**            vars;               /**< SCIP_Variables present in this SDP constraint, ordered by their begvar-indices */
-   SdpVarmapper*         varmapper;          /**< maps SCIP_Variables to their position in begvar (if they are present in this constraint) and vice versa */
+   SCIP_Var**            vars;               /**< SCIP_Variables present in this SDP constraint, ordered by their begvar-indices */
    int                   constnnonz;         /**< number of nonzeroes in the constant part of this SDP constraint */
    int*                  constcol;           /**< column indices of the constant nonzeroes */
    int*                  constrow;           /**< row indices of the constant nonzeroes */
    SCIP_Real*            constval;           /**< values of the constant nonzeroes */
 };
 
-struct SCIP_ConshdlrData
-{
-   SdpVarmapper          varmapper;          /**< maps SCIP variables to their global SDP indices and vice versa */
-};
+static int neigvalcuts = 0; /* this is used to give the eigenvalue-cuts distinguishable names */
+static int neigveccuts = 0; /* this is used to give the eigenvector-cuts distinguishable names */
+static int ndiaggezerocuts = 0; /* this is used to give the diagGEzero-cuts distinguishable names */
+static int ndiagdomcuts = 0; /* this is used to give the diagDominant-cuts distinguishable names */
 
 
 extern "C" {
@@ -210,7 +210,6 @@ SCIP_RETCODE computeIthEigenvalue(
    double VU = 1e20;
    int ISUPPZ[2];
 
-   /* @todo Can NULL be passed via eigenvector? */
    F77_FUNC(dsyevr, DSYEVR)( &JOBZ, &RANGE, &UPLO,
       &N, A, &LDA,
       &VL, &VU,
@@ -520,7 +519,7 @@ static
 SCIP_RETCODE separateSol(
    SCIP*              scip,               /**< SCIP data structure */
    SCIP_CONSHDLR*     conshdlr,           /**< the constraint handler itself */
-   SCIP_CONS*         conss,              /**< array of constraints to process */
+   SCIP_CONS*         cons,               /**< constraint to process */
    SCIP_SOL*          sol,                /**< primal solution that should be separated */
    SCIP_RESULT*       result              /**< pointer to store the result of the separation call */
    )
@@ -529,6 +528,7 @@ SCIP_RETCODE separateSol(
    SCIP_Real lhs = 0.0;
    SCIP_Real* coeff = NULL;
    int nvars;
+   char* cutname;
 
    assert( cons != NULL );
 
@@ -538,7 +538,7 @@ SCIP_RETCODE separateSol(
    nvars = consdata->nvars;
    SCIP_CALL( SCIPallocBufferArray(scip, &coeff, nvars ) );
 
-   SCIP_CALL( cutUsingEigenvector(scip, sdpcone, sol, coeff, &lhs) );
+   SCIP_CALL( cutUsingEigenvector(scip, cons, sol, coeff, &lhs) );
 
    SCIP_VAR** vars = NULL;
    SCIP_Real* vals = NULL;
@@ -553,13 +553,15 @@ SCIP_RETCODE separateSol(
       if ( SCIPisZero(scip, coeff[j]) )
          continue;
 
-      vars[len] = SCIPvarGetProbvar(sdpcone->get_var(j)); /* ?????????????? */
+      vars[len] = SCIPvarGetProbvar(consdata->vars[j]);
       vals[len] = coeff[j];
       ++len;
    }
 
    SCIP_ROW* row;
-   SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, "sepa_eig_sdp", lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &cutname, 255));
+   cutname = SCIPsnprintf(cutname, 255, "sepa_eig_sdp_%d", ++neigvalcuts);
+   SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname , lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
    SCIP_CALL( SCIPaddVarsToRow(scip, row, len, vars, vals) );
 
    if ( SCIPisCutEfficacious(scip, sol, row) )
@@ -570,10 +572,11 @@ SCIP_RETCODE separateSol(
          *result = SCIP_CUTOFF;
       else
          *result = SCIP_SEPARATED;
-      SCIP_CALL( SCIPresetConsAge(scip, conss) );
+      SCIP_CALL( SCIPresetConsAge(scip, cons) );
    }
 
    SCIP_CALL( SCIPreleaseRow(scip, &row) );
+   SCIPfreeBufferArray(scip, &cutname);
 
    SCIPfreeBufferArray(scip, &vals);
    SCIPfreeBufferArray(scip, &vars);
@@ -601,6 +604,7 @@ SCIP_RETCODE diagGEzero(
    int k;
    int c;
    SCIP_Real rhs = SCIPinfinity(scip);
+   char* cutname;
 
    for (c = 0; c < nconss; ++c)
    {
@@ -648,21 +652,15 @@ SCIP_RETCODE diagGEzero(
          }
       }
 
-      /* get the corresponding SCIP variables */
-      SCIP_VAR** vars;
-      SCIP_CALL( SCIPallocBufferArray(scip, &vars, nvars) );
-
-      for (int j = 0; j < nvars; ++j)
-      {
-         vars[j] = SdpVarmapperGetSCIPvar(consdata->varmapper, j);
-      }
+      SCIP_CALL( SCIPallocBufferArray(scip, &cutname, 255));
 
       /* add the LP-cuts to SCIP */
       for (int k = 0; k < blocksize; ++k)
       {
          SCIP_CONS* cons;
+         cutname = SCIPsnprintf(cutname, 255, "diag_ge_zero_%d", ++ndiaggezerocuts);
 
-         SCIP_CALL(SCIPcreateConsLinear(scip, &cons, "cl", consdata->nvars, vars, cons_array + k * consdata->nvars, lhs_array[k], rhs,
+         SCIP_CALL(SCIPcreateConsLinear(scip, &cons, cutname, consdata->nvars, consdata->vars, cons_array + k * consdata->nvars, lhs_array[k], rhs,
                TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE));
 
          SCIP_CALL( SCIPaddCons(scip, cons) );
@@ -670,6 +668,7 @@ SCIP_RETCODE diagGEzero(
          ++(*naddconss);
       }
 
+      SCIPfreeBufferArray(scip, &cutname);
       SCIPfreeBufferArray(scip, &vars);
       SCIPfreeBufferArray(scip, &matrix);
       SCIPfreeBlockMemoryArray(scip, &cons_array, blocksize * nvars);
@@ -703,6 +702,7 @@ SCIP_RETCODE diagDominant(
    int var;
    int endindex;
    SCIP_CONS* cons;
+   char* cutname;
 
    assert ( scip != NULL );
    assert ( conss != NULL );
@@ -760,8 +760,7 @@ SCIP_RETCODE diagDominant(
       /* find all variables with corresponding diagonal entries */
       for (var = 0; var < nvars; var++)
       {
-         endindex = (var == nvars - 1) ? consdata->nnonz : consdata->begvar[var + 1];
-         for (j = 0; j < nvarnonz[var]; j++)
+         for (j = 0; j < consdata->nvarnonz[var]; j++)
          {
             if ( consdata->col[var][j] == consdata->row[var][j] )
             {
@@ -773,6 +772,7 @@ SCIP_RETCODE diagDominant(
 
       SCIP_VAR** vars;
       SCIP_Real* vals;
+      SCIP_CALL( SCIPallocBufferArray(scip, &cutname, 255));
 
       for (j = 0; j < blocksize; ++j)
       {
@@ -784,12 +784,14 @@ SCIP_RETCODE diagDominant(
             /* get the corresponding SCIP variables and set all coefficients to 1 */
             for (var = 0; var < ndiagvars[j]; ++var)
             {
-               vars[var] = SdpVarmapperGetSCIPvar(&(consdata->varmapper), diagvars[j][var]);
+               vars[var] = consdata->vars[diagvars[j][var]];
                vals[var] = 1.0;
             }
 
+            cutname = SCIPsnprintf(cutname, 255, "diag_dom_%d", ++ndiagdomcuts);
+
             /* add the linear constraint sum_j 1.0 * diagvars[j] >= 1.0 */
-            SCIP_CALL(SCIPcreateConsLinear(scip, &cons, "sum_diag_geq_1", ndiagvars[j], vars, vals, 1.0, SCIPinfinity(scip), TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE));
+            SCIP_CALL(SCIPcreateConsLinear(scip, &cons, cutname , ndiagvars[j], vars, vals, 1.0, SCIPinfinity(scip), TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE));
             SCIP_CALL(SCIPaddCons(scip, cons));
             SCIP_CALL(SCIPreleaseCons(scip, &cons));
             (*naddconss)++;
@@ -800,6 +802,7 @@ SCIP_RETCODE diagDominant(
          }
       }
 
+      SCIPfreeBufferArray(scip, &cutname);
       SCIPfreeBufferArray(scip, &diagvars);
       SCIPfreeBufferArray(scip, &ndiagvars);
       SCIPfreeBufferArray(scip, &nonzerorows);
@@ -860,7 +863,7 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
             {
                assert ( consdata->col[var][j] == 0 && consdata->row[var][j] == 0 ); /* if the block is size one, all entries should have row and col equal to 0 */
                coeffs[count] = consdata->val[var][j];
-               vars[count] = SdpVarmapperGetSCIPvar(&(consdata->varmapper), var);
+               vars[count] = consdata->vars[var];
                count++;
             }
          }
@@ -918,6 +921,7 @@ SCIP_RETCODE fixVars(
    int nleftshifts;
    int c;
    int j;
+   int oldnvars;
 
    assert ( scip != NULL );
    assert ( conss != NULL );
@@ -926,7 +930,7 @@ SCIP_RETCODE fixVars(
    for (c = 0; c < nconss; ++c)
    {
       conshdlr = SCIPconsGetHdlr(conss[c]);
-      assert( conshdlr != NULL );;
+      assert( conshdlr != NULL );
 
       assert ( strcmp(SCIPconshdlrGetName(conshdlr), "SDP") == 0);
 
@@ -942,6 +946,8 @@ SCIP_RETCODE fixVars(
       nfixedvars = 0;
       nfixednonz = 0;
 
+      oldnvars = consdata->nvars;
+
       for (j = 0; j < consdata->nvars; j++)
       {
          SCIP_VAR* var;
@@ -953,31 +959,35 @@ SCIP_RETCODE fixVars(
          {
             assert ( SCIPisEQ(scip, SCIPvarGetLbGlobal(var), SCIPvarGetUbGlobal(var)) );
 
-            for (i = 0; i < consdata->nvarnonz[i]; i++)
+            /* the nonzeros are saved to later be inserted into the constant part (this is only done after all nonzeros of fixed variables have been
+             * assembled, because we need to sort the constant nonzeros and loop over them, which we only want to do once and not once for each fixed
+             * variable) */
+            for (i = 0; i < consdata->nvarnonz[var]; i++)
             {
-               savedcol[nfixednonz] = consdata->col[i];
-               savedrow[nfixednonz] = consdata->row[i];
-               savedval[nfixednonz] = -consdata->val[i] * SCIPvarGetLbGlobal(var);
-               /* this is the final value to add, we no longer have to remember from which variable this comes, minus because we have +A_i but -A_0 */;
+               savedcol[nfixednonz] = consdata->col[var][i];
+               savedrow[nfixednonz] = consdata->row[var][i];
+               savedval[nfixednonz] = -consdata->val[var][i] * SCIPvarGetLbGlobal(var);
+               /* this is the final value to add, we no longer have to remember from which variable this comes, minus because we have +A_i but -A_0 */
                nfixednonz++;
+               consdata->nnonz--;
             }
-            nfixedvars++;
-         }
-         /* if it isn't fixed shift the row/col/val/nvarnonz entries */
-         else if ( nfixedvars > 0 )
-         {
-            consdata->col[j - nfixedvars] = consdata->col[j];
-            consdata->row[j - nfixedvars] = consdata->row[j];
-            consdata->val[j - nfixedvars] = consdata->val[j];
-            consdata->nvarnonz[j - nfixedvars] = consdata->nvarnonz[j];
+            /* as the variables don't need to be sorted, we just put the last variable into the empty spot and decrease sizes by one (at the end) */
+            consdata->col[j] = consdata->col[consdata->nvars - 1];
+            consdata->row[j] = consdata->row[consdata->nvars - 1];
+            consdata->val[j] = consdata->val[consdata->nvars - 1];
+            consdata->nvarnonz[j] = consdata->nvarnonz[consdata->nvars - 1];
+            consdata->vars[j] = consdata->vars[consdata->nvars - 1];
+            consdata->nvars--;
+            j--; /* we need to check again if the variable we just shifted to this position also needs to be fixed */
          }
       }
 
       /* free memory for the sdp-arrays equal to the number of fixed variables */
-      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->col), consdata->nvars, consdata->nvars - nfixedvars) );
-      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->row), consdata->nvars, consdata->nvars - nfixedvars) );
-      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->val), consdata->nvars, consdata->nvars - nfixedvars) );
-      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->nvarnonz), consdata->nvars, consdata->nvars - nfixedvars) );
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->col), oldnvars, consdata->nvars) );
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->row), oldnvars, consdata->nvars) );
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->val), oldnvars, consdata->nvars) );
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->nvarnonz), oldnvars, consdata->nvars) );
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->vars), oldnvars, consdata->nvars) );
 
       /* insert the fixed variables into the constant arrays */
       SCIP_CALL( SdpVarfixerMergeArrays(SCIPblkmem(scip), savedrow, savedcol, savedval, nfixednonz, FALSE, 1.0, consdata->constrow, consdata->constcol,
@@ -987,16 +997,6 @@ SCIP_RETCODE fixVars(
       SCIPfreeBlockMemoryArray(scip, &savedval, consdata->nnonz);
       SCIPfreeBlockMemoryArray(scip, &savedrow, consdata->nnonz);
       SCIPfreeBlockMemoryArray(scip, &savedcol, consdata->nnonz);
-
-      consdata->nvars -= nfixedvars;
-
-      /* remove all fixed variables from the varmapper */
-      for (j = 0; j < consdata->nvars; j++)
-      {
-         /* check if the variable is fixed in SCIP */
-         if (SCIPvarGetStatus(SCIPvarGetProbvar(SdpVarmapper(&(consdata->varmapper), j))) == SCIP_VARSTATUS_FIXED)
-            SCIP_CALL( SdpVarmapperRemoveSdpIndex(scip, consdata->varmapper, j) );
-      }
    }
 
    return SCIP_OKAY;
@@ -1030,7 +1030,6 @@ SCIP_RETCODE multiaggrVars(
    int naggrvars;
    SCIP_Real constant;
    int requiredsize;
-   int nvars;
    int globalnvars;
    int aggrind;
    int aggrconsind;
@@ -1043,6 +1042,7 @@ SCIP_RETCODE multiaggrVars(
    int nleftshifts;
    int posleftshiftsdone;  /* all variables after this position still need to be move nfestshifts positions to the left */
    int naggrnonz;
+   int vararraylength;
 
    assert ( scip != NULL );
    assert ( conss != NULL );
@@ -1056,14 +1056,12 @@ SCIP_RETCODE multiaggrVars(
       assert( strcmp(SCIPconshdlrGetName(conshdlr), "SDP") == 0 );
 
       consdata = SCIPconsGetData(conss[block]);
-      varmapper = &(consdata->varmapper); /* gets indices of variables in current block */
-      globalvarmapper = &(SCIPconshdlrGetData(conshdlr)->varmapper); /* gets indices of variables in the whole sdp */
       globalnvars = SCIPgetNVars(scip);
-      nvars = consdata->nvars;
+      vararraylength = consdata->nvars;
       nremovedvars = 0;
       nleftshifts = 0;
 
-      for (var = 0; var < nvars; var++)
+      for (var = 0; var < consdata->nvars; var++)
       {
          if (SCIPvarGetStatus(SdpVarmapper(varmapper, var)) == SCIP_VARSTATUS_AGGREGATED ||
              SCIPvarGetStatus(SdpVarmapper(varmapper, var)) == SCIP_VARSTATUS_MULTAGGR)
@@ -1076,7 +1074,8 @@ SCIP_RETCODE multiaggrVars(
 
             /* get the variables this var was aggregated to */
             SCIP_CALL(SCIPgetProbvarLinearSum(scip, aggrvars, scalars, &naggrvars, globalnvars, &constant, &requiredsize, TRUE));
-            assert( requiredsize <= globalnvars );
+            assert( requiredsize <= globalnvars ); /* requiredsize is the number of empty spots in aggrvars needed, globalnvars is the number
+                                                    * of spots we provided */
 
             /* save the nonzeroes of the (multi)aggregated var */
             SCIP_CALL(SCIPallocBlockMemoryArray(scip, &savedcol, consdata->nvarnonz[var]));
@@ -1099,26 +1098,32 @@ SCIP_RETCODE multiaggrVars(
              * only needs to be done once and not for each variable this is multiaggregated to) */
             SdpVarfixerSortRowsCols(savedrow, savedcol, savedval, naggrnonz);
 
-            nremovedvars++;
-            nleftshifts++;
-            /* remove the variable from the varmapper */
-            SCIP_CALL( SdpVarmapperRemoveSdpIndex(scip, consdata->varmapper, var) );
+            /* fill the empty spot of the (mutli-)aggregated variable with the last variable of this constraint (as they don't have to be sorted) */
+            consdata->col[var] = consdata->col[consdata->nvars - 1];
+            consdata->row[var] = consdata->row[consdata->nvars - 1];
+            consdata->val[var] = consdata->val[consdata->nvars - 1];
+            consdata->nvarnonz[var] = consdata->nvarnonz[consdata->nvars - 1];
+            consdata->vars[var] = consdata->vars[consdata->nvars - 1];
+            consdata->nvars--;
+            var--; /* we need to check again if the variable we just shifted to this position also needs to be (multi-)aggregated */
 
             /* iterate over all variables this was aggregated to and insert the corresponding nonzeroes */
             for (aggrind = 0; aggrind < naggrvars; aggrind++)
             {
-
-               /* check if the variable allready exists in this block */
-               if (SdpVarmapperExistsSCIPvar(varmapper, aggrvars[aggrind]))
+               /* check if the variable already exists in this block */
+               aggrconsind = -1;
+               for (i = 0; i < consdata->nvars; i++)
                {
-                  /* get the variable index in the current constraint */
-                  aggrconsind = SdpVarmapperGetSdpIndex(varmapper, aggrvars[aggrind]);
+                  if (consdata->vars[i] == aggrvars[aggrind])
+                  {
+                     aggrconsind = i;
+                     break;
+                  }
+               }
 
-                  /* if the index is bigger than posleftshiftsdone we have to add nleftshifts, because the array-entries weren't yet shifted (but the
-                   * varmapper was already updated) */
-                  if (aggrconsind > posleftshiftsdone)
-                     aggrconsind += nleftshifts;
-
+               if (aggrconsind > -1)
+               {
+                  /* if the varialbe to aggregate to is already part of this sdp-constraint, just add the nonzeros of the old variable to it */
                   SCIP_CALL( SdpVarfixerMergeArrays(SCIPblkmem(scip), savedrow, savedcol, savedval, naggrnonz, TRUE, scalars[aggrind],
                              consdata->row[aggrconsind], consdata->col[aggrconsind], consdata->val[aggrconsind], &(consdata->nvarnonz[aggrconsind])) );
                }
@@ -1126,112 +1131,34 @@ SCIP_RETCODE multiaggrVars(
                {
                   /* the variable has to be added to this constraint */
 
-                  /* find the right position to insert this variable, to not have to rearrange later when combining with other blocks */
-                  aggrglobalind = SdpVarmapperGetSdpIndex(globalvarmapper, aggrvars[aggrind]);
-                  aggrconsind = 0;
-
-                  /* find the right index, such that all variables before it have a lower global SDP-index and all behind have a higher one */
-                  while (aggrconsind < consdata->nvars - nremovedvars &&
-                          SdpVarmapperGetSdpIndex(globalvarmapper, SdpVarmapperGetSCIPvar(varmapper, aggrconsind)) < aggrglobalind)
-                     aggrconsind++;
-
-                  assert( SdpVarmapperGetSdpIndex(globalvarmapper, SdpVarmapperGetSCIPvar(varmapper, aggrconsind)) > aggrglobalind ); /* = would be the if-part*/
-
-                  SdpVarmapperInsertVar(scip, varmapper, aggrvars[aggrind], aggrconsind);
-
-                  /* check if there is an empty spot in the sdp-arrays to insert the new variable */
-                  if (nleftshifts > 0)
+                  /* check if we have to enlarge the arrays */
+                  if (consdata->nvars == vararraylength)
                   {
-                     if (aggrconsind <= posleftshiftsdone + 1)
-                     {
-                        /* if the position where the new variable should be inserted is located ahead of the empty spots, all in between have to be
-                         * shifted one position to the right, also if it should be inserted immediatly after last variable ahead of the empty spots,
-                         * we may immediatly insert it at the first position of the empty spots */
-                        for (i = posleftshiftsdone; i >= aggrconsind; i--)
-                        {
-                           consdata->row[i + 1] = consdata->row[i];
-                           consdata->col[i + 1] = consdata->col[i];
-                           consdata->val[i + 1] = consdata->val[i];
-                           consdata->nvarnonz[i + 1] = consdata->nvarnonz[i];
-                        }
-
-                        /* allocate memory for the nonzeros */
-                        SCIP_CALL( SCIPallocBlockMemoryArray(scip, consdata->row[aggrconsind], naggrnonz) );
-                        SCIP_CALL( SCIPallocBlockMemoryArray(scip, consdata->col[aggrconsind], naggrnonz) );
-                        SCIP_CALL( SCIPallocBlockMemoryArray(scip, consdata->val[aggrconsind], naggrnonz) );
-
-                        /* add the new entries and nonzeros to the arrays */
-                        consdata->nvarnonz[aggrconsind] = naggrnonz;
-                        for (i = 0; i < naggrnonz; i++)
-                        {
-                           consdata->row[aggrconsind][i] = scalars[aggrind] * savedrow[i];
-                           consdata->col[aggrconsind][i] = scalars[aggrind] * savedcol[i];
-                           consdata->val[aggrconsind][i] = scalars[aggrind] * savedval[i];
-                        }
-                     }
-                     else
-                     {
-                        /* it should be inserted after at least one variable that hasn't been shifted yet, so we have to move all of these at least
-                         * one position, if we have to move them already, we might as well move them to their right position in the hope that we
-                         * don't have to move them again (if we do have to move them again, we have to touch them again either way) */
-                        for (i = nposleftshiftsdone; i < aggrconsind; i++)
-                        {
-                           consdata->row[i] = consdata->row[i + nleftshifts];
-                           consdata->col[i] = consdata->col[i + nleftshifts];
-                           consdata->val[i] = consdata->val[i + nleftshifts];
-                           consdata->nvarnonz[i] = consdata->nvarnonz[i + nleftshifts];
-                        }
-
-                        /* remember, that we have moved these */
-                        nposleftshiftsdone = aggrconsind;
-
-                        /* allocate memory for the nonzeros */
-                        SCIP_CALL( SCIPallocBlockMemoryArray(scip, consdata->row[aggrconsind], naggrnonz) );
-                        SCIP_CALL( SCIPallocBlockMemoryArray(scip, consdata->col[aggrconsind], naggrnonz) );
-                        SCIP_CALL( SCIPallocBlockMemoryArray(scip, consdata->val[aggrconsind], naggrnonz) );
-
-                        /* add the new entries and nonzeros to the arrays */
-                        consdata->nvarnonz[aggrconsind] = naggrnonz;
-                        for (i = 0; i < naggrnonz; i++)
-                        {
-                           consdata->row[aggrconsind][i] = scalars[aggrind] * savedrow[i];
-                           consdata->col[aggrconsind][i] = scalars[aggrind] * savedcol[i];
-                           consdata->val[aggrconsind][i] = scalars[aggrind] * savedval[i];
-                        }
-                     }
-                     nleftshifts--;
+                     SCIP_CALL( BMSreallocBlockMemoryArray(scip, consdata->col, vararraylength, globalnvars) );
+                     SCIP_CALL( BMSreallocBlockMemoryArray(scip, consdata->row, vararraylength, globalnvars) );
+                     SCIP_CALL( BMSreallocBlockMemoryArray(scip, consdata->val, vararraylength, globalnvars) );
+                     SCIP_CALL( BMSreallocBlockMemoryArray(scip, consdata->nvarnonz, vararraylength, globalnvars) );
+                     SCIP_CALL( BMSreallocBlockMemoryArray(scip, consdata->vars, vararraylength, globalnvars) );
+                     vararraylength = globalnvars; /* we don't want to enlarge this by one for every variable added, so we immediately set it to the
+                                                    * maximum possible size */
                   }
-                  else
-                  {
-                     /* we have to enlarge the arrays and move all in between one position to the right */
-                     SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->nvarnonz), consdata->nvars, consdata->nvars + 1));
-                     //TODO: could go for length of globalvarmapper to only have to do this once (then we need to save this e.g. as a bool),
-                     //but that also increases the likelyhood of actually having to move the data
-                     SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->col), consdata->nvars, consdata->nvars + 1));
-                     SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->row), consdata->nvars, consdata->nvars + 1));
-                     SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->val), consdata->nvars, consdata->nvars + 1));
 
-                     /* allocate memory for the nonzeros */
-                     SCIP_CALL( SCIPallocBlockMemoryArray(scip, consdata->row[aggrconsind], naggrnonz) );
-                     SCIP_CALL( SCIPallocBlockMemoryArray(scip, consdata->col[aggrconsind], naggrnonz) );
-                     SCIP_CALL( SCIPallocBlockMemoryArray(scip, consdata->val[aggrconsind], naggrnonz) );
+                  /* we insert this variable at the last position, as the ordering doesn't matter */
+                  consdata->vars[consdata->nvars] = aggrvars[aggrind];
+                  consdata->nvarnonz[consdata->nvars] = naggrnonz; /* as there were no nonzeros thus far, the number of nonzeros equals the number
+                                                                    * of nonzeros of the aggregated variable */
 
-                     /* add the new entries and nonzeros to the arrays */
-                     consdata->nvarnonz[aggrconsind] = naggrnonz;
-                     for (i = 0; i < naggrnonz; i++)
-                     {
-                        consdata->row[aggrconsind][i] = savedrow[i];
-                        consdata->col[aggrconsind][i] = savedcol[i];
-                        consdata->val[aggrconsind][i] = savedval[i];
-                     }
-                  }
-                  nremovedvars--;
+                  /* as there were no nonzeros thus far, we can just duplicate the saved arrays to get the nonzeros for the new variable */
+                  SCIP_CALL( BMSduplicateBlockMemoryArray(scip, &(consdata->col[consdata->nvars]), savedcol, naggrnonz) );
+                  SCIP_CALL( BMSduplicateBlockMemoryArray(scip, &(consdata->row[consdata->nvars]), savedcol, naggrnonz) );
+                  SCIP_CALL( BMSduplicateBlockMemoryArray(scip, &(consdata->val[consdata->nvars]), savedcol, naggrnonz) );
                }
             }
 
+            /* merge the aggregated nonzeros into the constant arrays */
             SCIP_CALL( SdpVarfixerMergeArrays(SCIPblkmem(scip), savedrow, savedcol, savedval, naggrnonz, TRUE, constant,
-                                              consdata->constrow[aggrconsind], consdata->constcol[aggrconsind],
-                                              consdata->constval[aggrconsind], &(consdata->constnnonz)) );
+                                              consdata->constrow, consdata->constcol,
+                                              consdata->constval, &(consdata->constnnonz)) );
 
             /* free all arrays that are no longer needed */
             SCIPfreeBlockMemoryArray(scip, &savedcol, nvarnonz);
@@ -1240,17 +1167,19 @@ SCIP_RETCODE multiaggrVars(
             SCIPfreeBlockMemoryArray(scip, &aggrvars, globalnvars);
             SCIPfreeBlockMemoryArray(scip, &scalars, globalnvars);
          }
-         else if (nleftshifts > 0 && var > posleftshiftsdone)
-         {
-            /* move the entries in all sdp-arrays */
-            consdata->col[var - nfixedvars] = consdata->col[var];
-            consdata->row[var - nfixedvars] = consdata->row[var];
-            consdata->val[var - nfixedvars] = consdata->val[var];
-            consdata->nvarnonz[var - nfixedvars] = consdata->nvarnonz[var];
-         }
       }
 
-      consdata->nvars = consdata->nvars - nfixedvars;
+      /* shrink the variable arrays if the were enlarged too much */
+      assert ( consdata->nvars <= vararraylength );
+      if (consdata->nvars < vararraylength)
+      {
+         SCIP_CALL( BMSreallocBlockMemoryArray(scip, consdata->col, vararraylength, consdata->nvars) );
+         SCIP_CALL( BMSreallocBlockMemoryArray(scip, consdata->row, vararraylength, consdata->nvars) );
+         SCIP_CALL( BMSreallocBlockMemoryArray(scip, consdata->val, vararraylength, consdata->nvars) );
+         SCIP_CALL( BMSreallocBlockMemoryArray(scip, consdata->nvarnonz, vararraylength, consdata->nvars) );
+         SCIP_CALL( BMSreallocBlockMemoryArray(scip, consdata->vars, vararraylength, consdata->nvars) );
+      }
+
 
       /* recompute sdpnnonz */
       consdata->sdpnnonz = 0;
@@ -1277,7 +1206,6 @@ SCIP_DECL_CONSINIT(consInitSdp)
 
    for (i = 0; i < nconss; ++i)
    {
-      /* ?????? turn this code into an assert ??????? */
       SCIP_CONSHDLR* hdlr;
       hdlr = SCIPconsGetHdlr(conss[i]);
       assert(hdlr != NULL);
@@ -1323,7 +1251,7 @@ SCIP_DECL_CONSLOCK(consLockSdp)
       {
          /* as the lowest eigenvalue is negative, the matrix is not positive semidefinite, so adding more of it can remove positive
           * semidefiniteness of the SDP-matrix */
-         SCIP_CALL( SCIPaddVarLocks(scip, SdpVarmapperGetSCIPvar(varmapper, var), nlocksneg, nlockspos) );
+         SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[var], nlocksneg, nlockspos) );
       }
 
       /* compute the biggest eigenvalue */
@@ -1332,7 +1260,7 @@ SCIP_DECL_CONSLOCK(consLockSdp)
       {
          /* as the biggest eigenvalue is positive, the matrix is not negative semidefinite, so substracting more of it can remove positive
           * semidefiniteness of the SDP-matrix */
-         SCIP_CALL( SCIPaddVarLocks(scip, SdpVarmapperGetSCIPvar(varmapper, var), nlockspos, nlocksneg) );
+         SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[var], nlockspos, nlocksneg) );
       }
    }
 
@@ -1346,28 +1274,11 @@ SCIP_DECL_CONSLOCK(consLockSdp)
 static
 SCIP_DECL_CONSEXITPRE(consExitpreSdp)
 {
-   int nvars;
-   SCIP_Var** vars;
-   SCIP_ConshdlrData conshdlrdata;
-
    assert ( scip != NULL );
-   assert ( conshdlr != NULL );
-
-   nvars = SCIPgetNVars(scip);
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &vars, nvars));
-   vars = SCIPgetVars(scip);
-
-   SCIP_CALL(SCIPallocBlockMemory(scip, &conshdlrdata));
-
-   SdpVarmapperCreate(scip, conshdlrdata->varmapper);
-   SdpVarmapperAddVars(scip, conshdlrdata->varmapper, nvars, vars);
-
-   SCIPconshdlrSetData(conshdlr, conshdlrdata);
+   assert ( conss != NULL );
 
    SCIP_CALL(fixVars(scip, conss, nconss));
    SCIP_CALL(multiaggrVars(scip, conss, nconss));
-
-   SCIPfreeBlockMemoryArray(scip, &vars, nvars);
 
    return SCIP_OKAY;
 }
@@ -1404,50 +1315,49 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 static
 SCIP_DECL_CONSTRANS(consTransSdp)
 {
-   SCIP_CONSDATA* sourcedata = NULL;
-   SCIP_CONSDATA* targetdata = NULL;
-   SdpVarmapper targetmapper;
+   SCIP_CONSDATA* sourcedata;
+   SCIP_CONSDATA* targetdata;
    int i;
+   int j;
 
    sourcedata = SCIPconsGetData(sourcecons);
    assert( sourcedata != NULL );
 
    SCIP_CALL( SCIPallocMemory(scip, &targetdata) );
-   // TODO: copy complete arrays instead of pointers
+
+   /* copy some general data */
    targetdata->nvars = sourcedata->nvars;
    targetdata->nnonz = sourcedata->nnonz;
    targetdata->blocksize = sourcedata->blocksize;
 
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->begvar), sourcedata->nvars));
-   for (i = 0; i < sourcedata->nvars; i++)
-      targetdata->begvar[i] = sourcedata->begvar[i];
+   SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->nvarnonz), sourcedata->nvarnonz, sourcedata->nvars) );
 
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->col), sourcedata->nnonz));
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->row), sourcedata->nnonz));
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->val), sourcedata->nnonz));
-   for (i = 0; i < sourcedata->nnonz; i++)
+   /* copy the non-constant nonzeros */
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->col), sourcedata->nvars) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->row), sourcedata->nvars) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->val), sourcedata->nvars) );
+
+   for (i = 0; i < sourcedata->nvars; i++)
    {
-      targetdata->col[i] = sourcedata->col[i];
-      targetdata->row[i] = sourcedata->row[i];
-      targetdata->val[i] = sourcedata->val[i];
+      SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->col[i]), sourcedata->col[i], sourcedata->nvarnonz[i]) );
+      SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->row[i]), sourcedata->row[i], sourcedata->nvarnonz[i]) );
+      SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->val[i]), sourcedata->val[i], sourcedata->nvarnonz[i]) );
    }
 
-   SCIP_CALL( SCIPallocBlockMemory(scip, &newmapper));
-   SCIP_CALL(SdpVarmapperClone(scip, &(sourcedata->varmapper), &newmapper));
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->vars), sourcedata->nvars));
 
+   /* copy & transform the vars array */
+   for (i = 0; i < sourcedata->nvars; i++)
+   {
+      targetdata->vars[i] = SCIPvarGetTransVar(sourcedata->vars[i]);
+   }
+
+   /* copy the constant nonzeros */
    targetdata->constnnonz = sourcedata->constnnonz;
 
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->constcol), sourcedata->constnnonz));
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->constrow), sourcedata->constnnonz));
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->constval), sourcedata->constnnonz));
-   for (i = 0; i < sourcedata->nnonz; i++)
-   {
-      targetdata->constcol[i] = sourcedata->constcol[i];
-      targetdata->constrow[i] = sourcedata->constrow[i];
-      targetdata->constval[i] = sourcedata->constval[i];
-   }
-   assert( targetdata != NULL );
-
+   SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->constcol), sourcedata->constcol, sourcedata->constnnonz));
+   SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->constrow), sourcedata->constrow, sourcedata->constnnonz));
+   SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->constval), sourcedata->constval, sourcedata->constnnonz));
 
    /* create target constraint */
    SCIP_CALL( SCIPcreateCons(scip, targetcons, SCIPconsGetName(sourcecons), conshdlr, targetdata,
@@ -1524,6 +1434,8 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
    SCIP_CONSDATA* consdata;
    bool all_feasible = TRUE;
    bool separated = FALSE;
+   char* cutname;
+
    for (int i = 0; i < nconss; ++i)
    {
       consdata = SCIPconsGetData(conss[i]);
@@ -1549,13 +1461,14 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
       }
       SCIP_ROW* row;
       SCIP_Real rhs = SCIPinfinity(scip); //local modifiable, removable
-
-      SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, "eigenvectorcut_enfolp", lhs, rhs, FALSE, FALSE, TRUE) );
+      SCIP_CALL (SCIPallocBufferArray(scip, &cutname, 255));
+      SCIPsnprintf(var_name, 255, "eigenvectorcut_enfolp_%d", ++neigveccuts);
+      SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname , lhs, rhs, FALSE, FALSE, TRUE) );
       SCIP_CALL( SCIPcacheRowExtensions(scip, row) );
 
       for (int j = 0; j < nvars; ++j)
       {
-         SCIP_CALL( SCIPaddVarToRow(scip, row, SdpVarmapperGetSCIPvar(consdata->varmapper, j), coeff[j]) );
+         SCIP_CALL( SCIPaddVarToRow(scip, row, consdata->vars[j], coeff[j]) );
       }
 
       SCIP_CALL( SCIPflushRowExtensions(scip, row) );
@@ -1574,6 +1487,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
          separated = TRUE;
       }
       SCIP_CALL( SCIPreleaseRow(scip, &row) );
+      SCIPfreeBufferArray(scip, &cutname);
       SCIPfreeBufferArray(scip, &coeff);
    }
    if (all_feasible)
@@ -1647,6 +1561,7 @@ SCIP_DECL_CONSDELETE(consDeleteSdp)
       SCIPfreeBlockMemoryArray(scip, &consdata->row[i], consdata->nvarnonz[i]);
       SCIPfreeBlockMemoryArray(scip, &consdata->val[i], consdata->nvarnonz[i]);
    }
+   SCIPfreeBlockMemoryArray(scip, &consdata->vars, consdata->nvars);
    SCIPfreeBlockMemoryArray(scip, &consdata->col, consdata->nvars);
    SCIPfreeBlockMemoryArray(scip, &consdata->row, consdata->nvars);
    SCIPfreeBlockMemoryArray(scip, &consdata->val, consdata->nvars);
@@ -1654,7 +1569,6 @@ SCIP_DECL_CONSDELETE(consDeleteSdp)
    SCIPfreeBlockMemoryArray(scip, &consdata->constcol, consdata->nnonz);
    SCIPfreeBlockMemoryArray(scip, &consdata->constrow, consdata->nnonz);
    SCIPfreeBlockMemoryArray(scip, &consdata->constval, consdata->nnonz);
-   SdpVarmapperFree(scip, consdata->varmapper);
    SCIPfreeMemory(scip, consdata);
    return SCIP_OKAY;
 }
@@ -1703,7 +1617,7 @@ SCIP_RETCODE SCIPconsSdpGetData(
    int**                 col,                /**< pointers to column indices of the nonzeroes for each variable */
    int**                 row,                /**< pointers to row indices of the nonzeroes for each variable */
    SCIP_Real**           val,                /**< pointers to values of the nonzeroes for each variable */
-   SdpVarmapper*         varmapper,          /**< varmapper mapping the variables to positions in the sdp-arrays and vice versa */
+   SCIP_Var**            vars,               /**< the SCIP variables present in this constraint, indexing equals indices in col/row/val */
    int*                  constnnonz,         /**< number of nonzeroes in the constant part of this SDP constraint */
    int**                 constcol,           /**< pointer to column indices of the constant nonzeroes */
    int**                 constrow,           /**< pointer to row indices of the constant nonzeroes */
@@ -1725,7 +1639,7 @@ SCIP_RETCODE SCIPconsSdpGetData(
    assert ( col != NULL );
    assert ( row != NULL );
    assert ( val != NULL );
-   assert ( varmapper != NULL );
+   assert ( vars != NULL );
    assert ( constnnonz != NULL );
    assert ( constarraylength != NULL );
    assert ( constcol != NULL );
@@ -1740,7 +1654,7 @@ SCIP_RETCODE SCIPconsSdpGetData(
    *constnnonz = consdata->constnnonz;
    *blocksize = consdata->blocksize;
 
-   varmapper = &(consdata->varmapper);
+   vars = consdata->vars;
 
    /* check that the sdp-arrays are long enough to store the information */
    if (arraylength < consdata->nvars)
@@ -1940,6 +1854,8 @@ SCIP_RETCODE SCIPcreateConsSdp(
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->constcol, nnonz) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->constrow, nnonz) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->constval, nnonz) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->vars, nvars));
+
    for (i = 0; i < nvars; i++)
    {
       assert ( nvarnonz[i] >= 0 );
@@ -1977,8 +1893,9 @@ SCIP_RETCODE SCIPcreateConsSdp(
       consdata->constval[i] = constval[i];
    }
 
-   SdpVarmapperCreate(scip, consdata->varmapper);
-   SdpVarmapperAddVars(scip, consdata->varmapper, nvars, vars);
+   for (i = 0; i < nvars; i++)
+      consdata->vars[i] = vars[i];
+
 
    /* create constraint */
    SCIP_CALL( SCIPcreateCons(scip, cons, name, conshdlr, consdata, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) );

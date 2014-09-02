@@ -99,7 +99,7 @@ SCIP_RETCODE SCIPconsSdpGetData(
    int**                 col,                /**< pointers to column indices of the nonzeroes for each variable */
    int**                 row,                /**< pointers to row indices of the nonzeroes for each variable */
    SCIP_Real**           val,                /**< pointers to values of the nonzeroes for each variable */
-   SdpVarmapper*         varmapper,          /**< varmapper mapping the variables to positions in the sdp-arrays and vice versa */
+   SCIP_Var**            vars,               /**< the SCIP variables present in this constraint, indexing equals indices in col/row/val */
    int*                  constnnonz,         /**< number of nonzeroes in the constant part of this SDP constraint */
    int**                 constcol,           /**< pointer to column indices of the constant nonzeroes */
    int**                 constrow,           /**< pointer to row indices of the constant nonzeroes */
