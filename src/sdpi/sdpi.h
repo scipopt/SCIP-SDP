@@ -143,7 +143,13 @@ SCIP_RETCODE SCIPsdpiSolverFree(
 /**@name Solving Methods */
 /**@{ */
 
-/** inserts the SDP, taking care of fixed variables (lb=ub), then solves the SDP */
+/** inserts the SDP, then solves the SDP, for the non-constant SDP- and the LP-part the original arrays before fixings should be given, for the
+ *  constant SDP-part the arrays AFTER fixings should be given, in addition to that an array needs to be given, that for every block and every row/col
+ *  index within that block either has value -1, meaning that this index should be deleted, or a non-negative integer stating the number of indices
+ *  before it that are to be deleated, meaning that this index will be decreased by that number, in addition to that the total number of deleted
+ *  indices for each block should be given
+ *
+ *  attention: depending on the solver, the given lp arrays might get sorted in their original position */
 EXTERN
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
@@ -154,12 +160,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int                   nsdpblocks,         /**< number of SDP-blocks */
    const int*            sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
    int*                  sdpnblockvars,      /**< number of variables that exist in each block */
-   int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks */
+   int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks AFTER FIXINGS*/
    const int*            sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
-                                                *  number of entries  of sdpconst row/col/val [i] */
-   const int**          sdpconstrow,        /**< pointers to row-indices for each block */
-   const int**          sdpconstcol,        /**< pointers to column-indices for each block */
-   const SCIP_Real**     sdpconstval,        /**< pointers to the values of the nonzeros for each block */
+                                                *  number of entries  of sdpconst row/col/val [i] AFTER FIXINGS*/
+   const int**          sdpconstrow,        /**< pointers to row-indices for each block  AFTER FIXINGS*/
+   const int**          sdpconstcol,        /**< pointers to column-indices for each block AFTER FIXINGS */
+   const SCIP_Real**     sdpconstval,        /**< pointers to the values of the nonzeros for each block AFTER FIXINGS */
    int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint matrix */
    int**                 sdpnblockvarnonz,   /**< entry [i][j] gives the number of nonzeros for block i and variable j, this is exactly
                                                *  the number of entries of sdp row/col/val [i][j] */
@@ -168,26 +174,37 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    const int***         sdprow,             /**< pointer to the row-indices for each block and variable */
    const int***         sdpcol,             /**< pointer to the column-indices for each block and variable */
    const SCIP_Real***    sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
+   int**                 indchanges,         /**< this returns the changes needed to be done to the indices, if indchange[block][nonz]=-1, then
+                                               *  the index can be removed, otherwise it gives the number of indices removed before this, i.e.
+                                               *  the value to decrease this index by, this array should have memory allocated in the size
+                                               *  sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
+   int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
    int                   nlpcons,            /**< number of LP-constraints */
    const SCIP_Real*      lprhs,              /**< right hand sides of LP rows (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
-   const int*            lprowind,           /**< row-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
-   const int*            lpcolind,           /**< column-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
-   const SCIP_Real*      lpval               /**< values of LP-constraint matrix entries (may be NULL if lpnnonz = 0) */
+   int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
+   int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
+   SCIP_Real*            lpval               /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
    );
 
-/** inserts the SDP, taking care of fixed variables (lb=ub), then solves the following penalty formulation of the SDP:
+/** inserts the SDP, then solves the following penalty formulation of the SDP:
  *      \f{eqnarray*}{
  *      \min & & b^T y + \Gamma r \\
  *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathbb{I} \succeq 0 \quad \forall i \leq m \\
  *      & & Dy \geq d \\
  *      & & l \leq y \leq u}
- *   \f
- *   alternatively withObj can be to false to set \f b \f to false and only check for feasibility (if the optimal
- *   objective value is bigger than 0 the problem is infeasible, otherwise it's feasible)
+ *  \f
+ *  alternatively withObj can be to false to set \f b \f to false and only check for feasibility (if the optimal
+ *  objective value is bigger than 0 the problem is infeasible, otherwise it's feasible)
+ *  For the non-constant SDP- and the LP-part the original arrays before fixings should be given, for the constant SDP-part the arrays AFTER fixings
+ *  should be given, in addition to that an array needs to be given, that for every block and every row/col index within that block either has value
+ *  -1, meaning that this index should be deleted, or a non-negative integer stating the number of indices before it that are to be deleated,
+ *  meaning that this index will be decreased by that number, in addition to that the total number of deleted indices for each block should be given.
  *
- *   attention: this only works for some solvers, check with SCIPsdpiKnowsPenalty first, otherwise this returns an error (in that case you should form
- *   the penalty formulation yourself and pass it via LoadAndSolve */
+ *  attention: this only works for some solvers, check with SCIPsdpiKnowsPenalty first, otherwise this returns an error (in that case you should form
+ *  the penalty formulation yourself and pass it via LoadAndSolve
+ *
+ *  attention: depending on the solver, the given lp arrays might get sorted in their original position */
 EXTERN
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
@@ -200,12 +217,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int                   nsdpblocks,         /**< number of SDP-blocks */
    const int*            sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
    int*                  sdpnblockvars,      /**< number of variables that exist in each block */
-   int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks */
+   int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks AFTER FIXINGS */
    const int*            sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
-                                                *  number of entries  of sdpconst row/col/val [i] */
-   const int**          sdpconstrow,        /**< pointers to row-indices for each block */
-   const int**          sdpconstcol,        /**< pointers to column-indices for each block */
-   const SCIP_Real**     sdpconstval,        /**< pointers to the values of the nonzeros for each block */
+                                                *  number of entries  of sdpconst row/col/val [i] AFTER FIXINGS */
+   const int**          sdpconstrow,        /**< pointers to row-indices for each block AFTER FIXINGS */
+   const int**          sdpconstcol,        /**< pointers to column-indices for each block AFTER FIXINGS */
+   const SCIP_Real**     sdpconstval,        /**< pointers to the values of the nonzeros for each block AFTER FIXINGS */
    int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint matrix */
    int**                 sdpnblockvarnonz,   /**< entry [i][j] gives the number of nonzeros for block i and variable j, this is exactly
                                                *  the number of entries of sdp row/col/val [i][j] */
@@ -214,12 +231,17 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    const int***         sdprow,             /**< pointer to the row-indices for each block and variable */
    const int***         sdpcol,             /**< pointer to the column-indices for each block and variable */
    const SCIP_Real***    sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
+   int**                 indchanges,         /**< this returns the changes needed to be done to the indices, if indchange[block][nonz]=-1, then
+                                               *  the index can be removed, otherwise it gives the number of indices removed before this, i.e.
+                                               *  the value to decrease this index by, this array should have memory allocated in the size
+                                               *  sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
+   int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
    int                   nlpcons,            /**< number of LP-constraints */
    const SCIP_Real*      lprhs,              /**< right hand sides of LP rows (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
-   const int*            lprowind,           /**< row-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
-   const int*            lpcolind,           /**< column-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
-   const SCIP_Real*      lpval               /**< values of LP-constraint matrix entries (may be NULL if lpnnonz = 0) */
+   int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
+   int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
+   SCIP_Real*            lpval               /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
 );
 
 
@@ -361,6 +383,7 @@ SCIP_Bool SCIPsdpiSolverIsTimelimExc(
    );
 
 /** returns the internal solution status of the solver, which has the following meaning:
+ * -1: solver wasn't started
  *  0: converged
  *  1: infeasible start
  *  2: numerical problems

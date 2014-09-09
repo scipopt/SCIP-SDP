@@ -45,7 +45,7 @@ extern "C" {
 #endif
 
 /**
- * sort the given row, col and val arrays first by non-decreasing row-indices, than for those by identical row-indices by non-increasing val-indices
+ * sort the given row, col and val arrays first by non-decreasing row-indices, than for those by identical row-indices by non-increasing col-indices
  */
 EXTERN
 void SdpVarfixerSortRowCol(
@@ -56,9 +56,10 @@ void SdpVarfixerSortRowCol(
    )
 
 /**
- * Merges two three-tuple-arrays together. The original arrays will be mulitplied with scalar and then merged into the target arrays. If there
- * is already an entry for a row/col combination, these two entries will be combined (their values added together), if they cancel each other out
- * the nonzero entry will be removed.
+ * Merges two three-tuple-arrays together. The original arrays (which may have multiple entries for the same row and col) will be mulitplied with
+ * scalar and then merged into the target arrays (which may not have multiple entries for the same row and col). If there is already an entry for
+ * a row/col combination, these two entries will be combined (their values added together), if they cancel each other out the nonzero entry will
+ *  be removed. If you think of the matrices described by the two arrays, this is a matrix addition (but only working on the nonzeros for efficiency).
  */
 EXTERN
 SCIP_RETCODE SdpVarfixerMergeArrays(
@@ -71,7 +72,31 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
    SCIP_Real             scalar,             /** scalar that the original nonzero-values will be multiplied with before merging */
    int*                  targetrow,          /** row-index-array the original array will be merged into */
    int*                  targetcol,          /** column-index-array the original array will be merged into */
-   SCIP_real*            targetval,          /** nonzero-values-array the original array will be merged into */
+   SCIP_Real*            targetval,          /** nonzero-values-array the original array will be merged into */
+   int*                  targetlength        /** length of the target arrays the original arrays will be merged into, this will be updated to the
+                                               * new length after the mergings */
+   );
+
+/**
+ * Merges two three-tuple-arrays together. If there are multiple entries for a row/col combination, these will be combined (their values added
+ * together), if they cancel each other out the nonzero entry will be removed. The first arrays are assumed to have unique row/col-combinations, the
+ * second entries may have duplicated of the same row/col-combination. In constrast to MergeArrays, here the combined arrays will be inserted in
+ * the new targetarrays, and not overwrite one of the old arrays.
+ */
+EXTERN
+SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
+   BMS_BLKMEM*           blkmem,             /**< block memory */
+   int*                  firstrow,           /** first row-index-array that is going to be merged */
+   int*                  firstcol,           /** first column-index-array that is going to be merged */
+   SCIP_Real*            firstval,           /** first nonzero-values-array that is going to be merged */
+   int                   firstlength,        /** length of the first arrays */
+   int*                  secondrow,          /** second row-index-array that is going to be merged */
+   int*                  secondcol,          /** second column-index-array that is going to be merged */
+   SCIP_real*            secondval,          /** second nonzero-values-array that is going to be merged */
+   int                   secondlength,       /** length of the second arrays */
+   int*                  targetrow,          /** row-index-array the original arrays will be merged into */
+   int*                  targetcol,          /** column-index-array the original arrays will be merged into */
+   SCIP_real*            targetval,          /** nonzero-values-array the original arrays will be merged into */
    int*                  targetlength        /** length of the target arrays the original arrays will be merged into, this will be updated to the
                                                * new length after the mergings */
    );
