@@ -42,11 +42,10 @@
 
 #include "scip/scip.h"
 
-/*
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-*/
 
 /** creates the handler for sdp constraints and includes it in SCIP */
 EXTERN
@@ -64,8 +63,7 @@ SCIP_RETCODE SCIPconsSDPsortRowsCols(
    int                   length              /** length of the arrays that should be sorted */
    );
 
-/** method for creating sdp constraints */
-EXTERN
+/**creates an sdp-constraint*/
 SCIP_RETCODE SCIPcreateConsSdp(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
@@ -73,10 +71,10 @@ SCIP_RETCODE SCIPcreateConsSdp(
    int                   nvars,              /**< number of variables in this SDP constraint */
    int                   nnonz,              /**< number of nonzeroes in this SDP constraint */
    int                   blocksize,          /**< size of this SDP-block */
-   int*                  begvar,             /**< first index belonging to variable i in the col/row/val-arrays */
-   int*                  col,                /**< column indices of the nonzeroes */
-   int*                  row,                /**< row indices of the nonzeroes */
-   SCIP_Real*            val,                /**< values of the nonzeroes */
+   int*                  nvarnonz,           /**< number of nonzeros for each variable, also length of the arrays col/row/val point to */
+   int**                 col,                /**< pointer to column indices of the nonzeros for each variable */
+   int**                 row,                /**< pointer to row indices of the nonzeros for each variable */
+   SCIP_Real**           val,                /**< pointer to values of the nonzeroes for each variable */
    SCIP_Var**            vars,               /**< SCIP_Variables present in this SDP constraint, ordered by their begvar-indices */
    int                   constnnonz,         /**< number of nonzeroes in the constant part of this SDP constraint */
    int*                  constcol,           /**< column indices of the constant nonzeroes */
@@ -101,9 +99,9 @@ SCIP_RETCODE SCIPconsSdpGetData(
    SCIP_Real**           val,                /**< pointers to values of the nonzeroes for each variable */
    SCIP_Var**            vars,               /**< the SCIP variables present in this constraint, indexing equals indices in col/row/val */
    int*                  constnnonz,         /**< number of nonzeroes in the constant part of this SDP constraint */
-   int**                 constcol,           /**< pointer to column indices of the constant nonzeroes */
-   int**                 constrow,           /**< pointer to row indices of the constant nonzeroes */
-   SCIP_Real**           constval            /**< pointer to values of the constant nonzeroes */
+   int*                  constcol,           /**< pointer to column indices of the constant nonzeroes */
+   int*                  constrow,           /**< pointer to row indices of the constant nonzeroes */
+   SCIP_Real*            constval            /**< pointer to values of the constant nonzeroes */
    );
 
 /** gets the number of nonzeroes and constant nonzeroes for this SDP constraint */
@@ -138,17 +136,17 @@ SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
    SCIP_Real*            mat                 /**< pointer to store the lower triangular part of the constant matrix */
    );
 
-/** checks feasibility for a single SDP-Cone */
+/** checks feasibility for a single SDP-Cone
 EXTERN
 SCIP_RETCODE consCheckSdp(
-   SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*           cons,               /**< the constraint for which the Matrix should be assembled */
-   SCIP_SOL*             sol,                /**< the solution to check feasibility for */
-   SCIP_Bool             checkintegrality,   /**< has integrality to be checked? */
-   SCIP_Bool             checklprows,        /**< have current LP rows to be checked? */
-   SCIP_Bool             printreason,        /**< should the reason for the violation be printed? */
-   SCIP_RESULT*          result              /**< pointer to store the result of the feasibility checking call */
-   );
+   SCIP*                 scip,               *< SCIP data structure
+   SCIP_CONS*           cons,               *< the constraint for which the Matrix should be assembled
+   SCIP_SOL*             sol,                *< the solution to check feasibility for
+   SCIP_Bool             checkintegrality,   *< has integrality to be checked?
+   SCIP_Bool             checklprows,        *< have current LP rows to be checked?
+   SCIP_Bool             printreason,        *< should the reason for the violation be printed?
+   SCIP_RESULT*          result              *< pointer to store the result of the feasibility checking call
+   );*/
 
 /** sort given arrays by nondecreasing rows and then cols */
 EXTERN

@@ -39,7 +39,7 @@
 #define __SDPVARMAPPER_H__
 
 #include "scip/scip.h"
-#include "scip/type_misc.h"
+#include "scip/type_misc.h" /* for SCIP Hashmap */
 #include "SdpVarmapper.h"
 
 struct Sdpvarmapper

@@ -64,8 +64,6 @@
 #include "blockmemshell/memory.h"
 #include "scip/type_retcode.h"
 
-#include "type_sdpi.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -105,7 +103,7 @@ SCIP_Bool SCIPsdpiSolverKnowsPenalty(
  */
 EXTERN
 void* SCIPsdpiSolverGetSolverPointer(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /**@} */
@@ -131,7 +129,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
 /** deletes an SDP problem object */
 EXTERN
 SCIP_RETCODE SCIPsdpiSolverFree(
-   SCIP_SDPISOLVER**     sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER**     sdpisolver           /**< SDP interface solver structure */
    );
 
 /**@} */
@@ -154,33 +152,33 @@ EXTERN
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
    int                   nvars,              /**< number of variables */
-   const SCIP_Real*      obj,                /**< objective function values of variables */
-   const SCIP_Real*      lb,                 /**< lower bounds of variables */
-   const SCIP_Real*      ub,                 /**< upper bounds of variables */
+   SCIP_Real*            obj,                /**< objective function values of variables */
+   SCIP_Real*            lb,                 /**< lower bounds of variables */
+   SCIP_Real*            ub,                 /**< upper bounds of variables */
    int                   nsdpblocks,         /**< number of SDP-blocks */
-   const int*            sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
+   int*                  sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
    int*                  sdpnblockvars,      /**< number of variables that exist in each block */
    int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks AFTER FIXINGS*/
-   const int*            sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
+   int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
                                                 *  number of entries  of sdpconst row/col/val [i] AFTER FIXINGS*/
-   const int**          sdpconstrow,        /**< pointers to row-indices for each block  AFTER FIXINGS*/
-   const int**          sdpconstcol,        /**< pointers to column-indices for each block AFTER FIXINGS */
-   const SCIP_Real**     sdpconstval,        /**< pointers to the values of the nonzeros for each block AFTER FIXINGS */
+   int**                 sdpconstrow,        /**< pointers to row-indices for each block  AFTER FIXINGS*/
+   int**                 sdpconstcol,        /**< pointers to column-indices for each block AFTER FIXINGS */
+   SCIP_Real**           sdpconstval,        /**< pointers to the values of the nonzeros for each block AFTER FIXINGS */
    int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint matrix */
    int**                 sdpnblockvarnonz,   /**< entry [i][j] gives the number of nonzeros for block i and variable j, this is exactly
                                                *  the number of entries of sdp row/col/val [i][j] */
    int**                 sdpvar,             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
                                                *  in the i-th block */
-   const int***         sdprow,             /**< pointer to the row-indices for each block and variable */
-   const int***         sdpcol,             /**< pointer to the column-indices for each block and variable */
-   const SCIP_Real***    sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
+   int***                sdprow,             /**< pointer to the row-indices for each block and variable */
+   int***                sdpcol,             /**< pointer to the column-indices for each block and variable */
+   SCIP_Real***          sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
    int**                 indchanges,         /**< this returns the changes needed to be done to the indices, if indchange[block][nonz]=-1, then
                                                *  the index can be removed, otherwise it gives the number of indices removed before this, i.e.
                                                *  the value to decrease this index by, this array should have memory allocated in the size
                                                *  sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
    int                   nlpcons,            /**< number of LP-constraints */
-   const SCIP_Real*      lprhs,              /**< right hand sides of LP rows (may be NULL if nlpcons = 0) */
+   SCIP_Real*            lprhs,              /**< right hand sides of LP rows (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
@@ -211,33 +209,33 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_Real             gamma,              /**< the penalty parameter above, needs to be >= 0 */
    SCIP_Bool             withObj,            /**< if this is false, the objective is set to 0 */
    int                   nvars,              /**< number of variables */
-   const SCIP_Real*      obj,                /**< objective function values of variables */
-   const SCIP_Real*      lb,                 /**< lower bounds of variables */
-   const SCIP_Real*      ub,                 /**< upper bounds of variables */
+   SCIP_Real*            obj,                /**< objective function values of variables */
+   SCIP_Real*            lb,                 /**< lower bounds of variables */
+   SCIP_Real*            ub,                 /**< upper bounds of variables */
    int                   nsdpblocks,         /**< number of SDP-blocks */
-   const int*            sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
+   int*                  sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
    int*                  sdpnblockvars,      /**< number of variables that exist in each block */
    int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks AFTER FIXINGS */
-   const int*            sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
+   int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
                                                 *  number of entries  of sdpconst row/col/val [i] AFTER FIXINGS */
-   const int**          sdpconstrow,        /**< pointers to row-indices for each block AFTER FIXINGS */
-   const int**          sdpconstcol,        /**< pointers to column-indices for each block AFTER FIXINGS */
-   const SCIP_Real**     sdpconstval,        /**< pointers to the values of the nonzeros for each block AFTER FIXINGS */
+   int**                 sdpconstrow,        /**< pointers to row-indices for each block AFTER FIXINGS */
+   int**                 sdpconstcol,        /**< pointers to column-indices for each block AFTER FIXINGS */
+   SCIP_Real**           sdpconstval,        /**< pointers to the values of the nonzeros for each block AFTER FIXINGS */
    int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint matrix */
    int**                 sdpnblockvarnonz,   /**< entry [i][j] gives the number of nonzeros for block i and variable j, this is exactly
                                                *  the number of entries of sdp row/col/val [i][j] */
    int**                 sdpvar,             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
                                                *  in the i-th block */
-   const int***         sdprow,             /**< pointer to the row-indices for each block and variable */
-   const int***         sdpcol,             /**< pointer to the column-indices for each block and variable */
-   const SCIP_Real***    sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
+   int***                sdprow,             /**< pointer to the row-indices for each block and variable */
+   int***                sdpcol,             /**< pointer to the column-indices for each block and variable */
+   SCIP_Real***          sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
    int**                 indchanges,         /**< this returns the changes needed to be done to the indices, if indchange[block][nonz]=-1, then
                                                *  the index can be removed, otherwise it gives the number of indices removed before this, i.e.
                                                *  the value to decrease this index by, this array should have memory allocated in the size
                                                *  sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
    int                   nlpcons,            /**< number of LP-constraints */
-   const SCIP_Real*      lprhs,              /**< right hand sides of LP rows (may be NULL if nlpcons = 0) */
+   SCIP_Real*            lprhs,              /**< right hand sides of LP rows (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
@@ -261,7 +259,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 /** returns whether a solve method was called after the last modification of the SDP */
 EXTERN
 SCIP_Bool SCIPsdpiSolverWasSolved(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /** returns true if the solver could determine whether or not the problem is feasible, so it returns true if the
@@ -269,7 +267,7 @@ SCIP_Bool SCIPsdpiSolverWasSolved(
  *  anything about the feasibility status and thus the functions IsPrimalFeasible etc. shouldn't be used */
 EXTERN
 SCIP_Bool SCIPsdpiSolverFeasibilityKnown(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /** gets information about primal and dual feasibility of the current SDP solution */
@@ -286,7 +284,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
  */
 EXTERN
 SCIP_Bool SCIPsdpiSolverExistsPrimalRay(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /** returns TRUE iff SDP is proven to have a primal unbounded ray (but not necessary a primal feasible point),
@@ -295,28 +293,28 @@ SCIP_Bool SCIPsdpiSolverExistsPrimalRay(
  */
 EXTERN
 SCIP_Bool SCIPsdpiSolverHasPrimalRay(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /** returns TRUE iff SDP is proven to be primal unbounded
  *  returns FALSE with a debug-message if the solver couldnot determine feasibility */
 EXTERN
 SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /** returns TRUE iff SDP is proven to be primal infeasible
  *  returns FALSE with a debug-message if the solver couldnot determine feasibility */
 EXTERN
 SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /** returns TRUE iff SDP is proven to be primal feasible
  *  returns FALSE with a debug-message if the solver couldnot determine feasibility */
 EXTERN
 SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /** returns TRUE iff SDP is proven to have a dual unbounded ray (but not necessary a dual feasible point);
@@ -325,7 +323,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
  */
 EXTERN
 SCIP_Bool SCIPsdpiSolverExistsDualRay(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /** returns TRUE iff SDP is proven to have a dual unbounded ray (but not necessary a dual feasible point),
@@ -334,52 +332,52 @@ SCIP_Bool SCIPsdpiSolverExistsDualRay(
  */
 EXTERN
 SCIP_Bool SCIPsdpiSolverHasDualRay(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /** returns TRUE iff SDP is proven to be dual unbounded
  *  returns FALSE with a debug-message if the solver couldnot determine feasibility */
 EXTERN
 SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /** returns TRUE iff SDP is proven to be dual infeasible
  *  returns FALSE with a debug-message if the solver couldnot determine feasibility */
 EXTERN
 SCIP_Bool SCIPsdpiSolverIsDualInfeasible(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /** returns TRUE iff SDP is proven to be dual feasible
  *  returns FALSE with a debug-message if the solver couldnot determine feasibility */
 EXTERN
 SCIP_Bool SCIPsdpiSolverIsDualFeasible(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /** returns TRUE iff the solver converged */
 EXTERN
 SCIP_Bool SCIPsdpiSolverIsConverged(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /** returns TRUE iff the objective limit was reached */
 EXTERN
 SCIP_Bool SCIPsdpiSolverIsObjlimExc(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /** returns TRUE iff the iteration limit was reached */
 EXTERN
 SCIP_Bool SCIPsdpiSolverIsIterlimExc(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /** returns TRUE iff the time limit was reached */
 EXTERN
 SCIP_Bool SCIPsdpiSolverIsTimelimExc(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /** returns the internal solution status of the solver, which has the following meaning:
@@ -394,20 +392,20 @@ SCIP_Bool SCIPsdpiSolverIsTimelimExc(
  *  7: other */
 EXTERN
 int SCIPsdpiSolverGetInternalStatus(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /** returns TRUE iff SDP was solved to optimality, meaning the solver converged and returned primal and dual feasible solutions */
 EXTERN
 SCIP_Bool SCIPsdpiSolverIsOptimal(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /** returns TRUE iff SDP was solved to optimality or some other status was reached,
  * that is still acceptable inside a Branch & Bound framework */
 EXTERN
 SCIP_Bool SCIPsdpiSolverIsAcceptable(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /** tries to reset the internal status of the SDP solver in order to ignore an instability of the last solving call */
@@ -424,7 +422,8 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    SCIP_Real*            objval              /**< stores the objective value */
    );
 
-/** gets dual solution vector for feasible SDPs, if dualsollength isn't equal to the number of variables this will return an error */
+/** gets dual solution vector for feasible SDPs, if dualsollength isn't equal to the number of variables this will return , the needed length and
+ *  a debug message */
 EXTERN
 SCIP_RETCODE SCIPsdpiSolverGetSol(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
@@ -439,18 +438,6 @@ EXTERN
 SCIP_RETCODE SCIPsdpiSolverGetIterations(
    SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
    int*                  iterations          /**< pointer to store the number of iterations of the last solve call */
-   );
-
-/** gets information about the quality of an SDP solution
- *
- *  Such information is usually only available, if also a (maybe not optimal) solution is available.
- *  The SDPI should return SCIP_INVALID for *quality, if the requested quantity is not available.
- */
-EXTERN
-SCIP_RETCODE SCIPsdpiSolverGetRealSolQuality(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
-   SCIP_SDPSOLQUALITY    qualityindicator,   /**< indicates which quality should be returned */
-   SCIP_Real*            quality             /**< pointer to store quality number */
    );
 
 /**@} */
@@ -474,27 +461,27 @@ SCIP_RETCODE SCIPsdpiSolverGetRealSolQuality(
 /** returns value treated as infinity in the SDP solver */
 EXTERN
 SCIP_Real SCIPsdpiSolverInfinity(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /** checks if given value is treated as infinity in the SDP solver */
 EXTERN
 SCIP_Bool SCIPsdpiSolverIsInfinity(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
-   SCIP_Real            val                 /**< value to be checked for infinity */
+   SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
+   SCIP_Real             val                 /**< value to be checked for infinity */
    );
 
 /** returns highest penalty parameter to be used */
 EXTERN
 SCIP_Real SCIPsdpiSolverMaxPenParam(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
    );
 
 /** checks if given value is greater or equal to the highest penalty parameter to be used */
 EXTERN
 SCIP_Bool SCIPsdpiSolverIsGEMaxPenParam(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< SDP interface solver structure */
-   SCIP_Real            val                 /**< value to be compared to maximum penalty parameter */
+   SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
+   SCIP_Real             val                 /**< value to be compared to maximum penalty parameter */
    );
 
 /**@} */

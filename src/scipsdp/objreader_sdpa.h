@@ -118,12 +118,6 @@ namespace scip
 
    };
 
-   /** writes the current problem in sdpa-format to a file*/
-   SCIP_RETCODE write_sdpafile(
-      SCIP*             scip,                /**< SCIP data structure */
-      SdpProblem*       problemdata,         /**< node specific problem data */
-      SdpVarMapper*     varmapper            /**<varmapper class object*/
-      );
 } /* namespace scip */
 
 

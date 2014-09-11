@@ -69,112 +69,6 @@ struct SCIP_RelaxData
    SdpVarmapper*         varmapper;          /* maps SCIP variables to their global SDP indices and vice versa */
 };
 
-/** removes all indices j from an SDP block for which both row j and column j are completely empty/zero (for this all entries of sdpval
- *  really need to be nonzero, because these will not be checked) */
-static
-SCIP_RETCODE removeEmptySdpRowCols( //TODO: move this to sdpi and also check for empty lp rows (or add another function to do this)
-   SCIP*                 scip,               /**< SCIP instance */
-   const int             block,              /**< index of the SDP-block this is called for */
-   const int             oldblocksize,       /**< old block size of the SDP-block */
-   int*                  newblocksize,       /**< block size after removing redundant indices */
-   const int             blockstartind,      /**< starting index of the block in the sdp-nonzero arrays */
-   const int             nextblockstartind,  /**< starting index of the next block in the sdp-nonzero arrays */
-   const int             constblockstartind, /**< starting index of the block in the constant sdp-nonzero arrays */
-   const int             constnextblstartind,/**< starting index of the next block in the sdp-nonzero arrays */
-   int*                  sdprowind,          /**< row-indices of the sdp-nonzeroes */
-   int*                  sdpcolind,          /**< column-indices of the sdp-nonzeroes */
-   int*                  sdpconstrowind,     /**< row-indices of the sdp-const-nonzeroes */
-   int*                  sdpconstcolind      /**< column-indices of the sdp-const-nonzeroes */
-   )
-{
-   int i;
-   int j;
-   int* deleted; /* if deleted[i] = -1, row and column i are both empty and will thus be deleted, otherwise this gives the number of
-                  * indices before the current one that were deleted and therefore the number of positions this index needs to be shifted */
-   int ndeleted; /* after the for-queue below this will give the total number of indices that will be deleted (this is also used to
-                  * compute the positive entries of the deleted-array) */
-
-   assert ( scip != NULL );
-   assert ( block >= 0 );
-   assert ( oldblocksize >= 0 );
-   assert ( newblocksize != NULL );
-   assert ( blockstartind >= 0 );
-   assert ( nextblockstartind >= blockstartind );
-   assert ( sdprowind != NULL );
-   assert ( sdpcolind != NULL );
-
-   /* compute the deleted-array */
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &deleted, oldblocksize));
-   ndeleted = 0;
-
-   for (i = 0; i < oldblocksize; i++)
-   {
-      deleted[i] = -1; /* initialize this with -1, it will be overwritten if the index is found */
-      /* go over the sdp-arrays */
-      for (j = blockstartind; j < nextblockstartind; j++)
-      {
-         if (sdprowind[j] == i || sdpcolind[j] == i)
-         {
-            deleted[i] = ndeleted;  /* there exists an entry for this index, so it will not be deleted, but the number of positions
-                                     * for shifting is saved */
-            break;
-         }
-      }
-      /* if nothing was found in the sdp-arrays go over the sdp-const arrays */
-      if (deleted[i] == -1)
-      {
-         for (j = constblockstartind; j < constnextblstartind; j++)
-         {
-            if (sdpconstrowind[j] == i || sdpconstcolind[j] == i)
-            {
-               deleted[i] = ndeleted;  /* there exists an entry for this index, so it will not be deleted, but the number of positions
-                                        * for shifting is saved */
-               break;
-            }
-         }
-      }
-      /* the index wasn't found in the arrays, so it can be deleted */
-      if (deleted[i] == -1)
-      {
-         ndeleted++;
-#ifdef SCIP_MORE_DEBUG
-      SCIPdebugMessage("deleted the following index in block %d becase of empty row & col: %d\n", block, i);
-#endif
-      }
-   }
-
-   /* now shift all row- & column-indices according to the deleted-array, if at least one index was deleted */
-   if (ndeleted > 0)
-   {
-      for (j = blockstartind; j < nextblockstartind; j++)
-      {
-         assert ( deleted[sdprowind[j]] > -1 );
-         sdprowind[j] = sdprowind[j] - deleted[sdprowind[j]];
-
-         assert ( deleted[sdpcolind[j]] > -1 );
-         sdpcolind[j] = sdpcolind[j] - deleted[sdpcolind[j]];
-      }
-      for (j = constblockstartind; j < constnextblstartind; j++)
-      {
-         assert ( deleted[sdpconstrowind[j]] > -1 );
-         sdpconstrowind[j] = sdpconstrowind[j] - deleted[sdpconstrowind[j]];
-
-         assert ( deleted[sdpconstcolind[j]] > -1 );
-         sdpconstcolind[j] = sdpconstcolind[j] - deleted[sdpconstcolind[j]];
-      }
-   }
-
-#ifdef SCIP_MORE_DEBUG
-   SCIPdebugMessage("number of deleted indices in block %d because of empty rows & cols: %d\n", block, ndeleted);
-#endif
-   /* finally update the blocksize */
-   *newblocksize = oldblocksize - ndeleted;
-
-   SCIPfreeBlockMemoryArray(scip, &deleted, oldblocksize);
-
-   return SCIP_OKAY;
-}
-
 /** inserts all the SDP data into the corresponding SDP Interface */
 static
 SCIP_RETCODE putSdpDataInInterface(
@@ -197,9 +91,9 @@ SCIP_RETCODE putSdpDataInInterface(
    int nsdpblocks;
    int* sdpblocksizes;
    int sdpconstnnonz;
-   int* constrow;
-   int* constcol;
-   SCIP_Real* constval;
+   int** constrow;
+   int** constcol;
+   SCIP_Real** constval;
    int sdpnnonz;
    int constnnonzcounter;
    int*** row;
@@ -215,7 +109,7 @@ SCIP_RETCODE putSdpDataInInterface(
    int** nblockvarnonz;
    int* nvarnonz;
    int* nconstblocknonz;
-   int* sdpvar;
+   int** sdpvar;
 
    assert ( scip != NULL );
    assert ( sdpi != NULL );
@@ -236,7 +130,7 @@ SCIP_RETCODE putSdpDataInInterface(
    }
 
    nconss = SCIPgetNConss(scip);
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &conss, ncons));
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conss, nconss)) ;
    conss = SCIPgetConss(scip);
 
    /* count the number of sdpblocks and compute the number of nonzeros */
@@ -244,7 +138,7 @@ SCIP_RETCODE putSdpDataInInterface(
    sdpnnonz = 0;
    sdpconstnnonz = 0;
 
-   for (i=0; i < ncons; i++)
+   for (i=0; i < nconss; i++)
    {
       conshdlr = SCIPconsGetHdlr(conss[i]);
       assert( conshdlr != NULL );
@@ -288,39 +182,24 @@ SCIP_RETCODE putSdpDataInInterface(
       {
          varind = 0;
 
-         SCIPconsSdpGetData(scip, conss[i], &nblockvars[ind], &blocknnonz, &sdpblocksizes[ind], &nvars, &(nblockvarnonz[ind]), &(col[ind]),
-            &(row[ind]), &(val[ind]), blockvars, &(nconstblocknonz[ind]), &(constcol[ind]), &(constrow[ind]), &(constval[ind]));
+         SCIPconsSdpGetData(scip, conss[i], &nblockvars[ind], &blocknnonz, &sdpblocksizes[ind], &nvars, nblockvarnonz[ind], col[ind],
+            row[ind], val[ind], blockvars, &nconstblocknonz[ind], constcol[ind], constrow[ind], constval[ind]);
 
          /* nvars would have been overwritten if the space in the given arrays hadn't been sufficient */
          assert ( nvars == SCIPgetNVars(scip) );
 
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpvar[i]), blockvars));
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &sdpvar[i], nblockvars[ind]));
 
          /* get global variable indices */
-         for (j = 0; j < blocknvars; j++)
+         for (j = 0; j < nblockvars[ind]; j++)
             sdpvar[i][j] = SdpVarmapperGetSdpIndex(varmapper, blockvars[j]);
-
-         /* update the variable indices of the current block to the global variable indices */
-         for (j = 0; j < nvars; j++)
-         {
-            if ( vars[j] == blockvars[varind])  /* this variable does exist in this block */
-            {
-               nblockvarnonz[ind * nvars + j] = nvarnonz[varind]; /* take the value given by the constraint */
-               col[ind * nvars + j] = blockcol[varind];
-               row[ind * nvars + j] = blockrow[varind];
-               val[ind * nvars + j] = blockval[varind];
-               varind++;
-            }
-            else                                /* this variable does not exist in this block */
-               nblockvarnonz[ind * nvars + j] = 0; /* then there are no nonzeros for this variable in this block */
-         }
 
          ind++;
       }
    }
 
    /* free the memory that is no longer needed */
-   SCIPfreeBlockMemoryArray(scip, &conss, ncons);
+   SCIPfreeBlockMemoryArray(scip, &conss, nconss);
    SCIPfreeBlockMemoryArray(scip, &blockvars, nvars);
 
    SCIP_CALL(SCIPsdpiLoadSDP(sdpi, nvars,  obj,  lb,  ub, nsdpblocks,
@@ -510,7 +389,7 @@ SCIP_RETCODE getTransformedSol(
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &sdpsol, nsdpvars) );
    sdpsollength = nsdpvars;
 
-   SCIP_CALL( SCIPsdpiGetSol(sdpi, &sdpobj, sdpsol, &sdpsollength) ); /* get both the objective and the solution from the SDP solver */
+   SCIP_CALL( SCIPsdpiGetSol(sdpi, &sdpobj, sdpsol, sdpsollength) ); /* get both the objective and the solution from the SDP solver */
 
    assert ( nsdpvars == sdpsollength ); /* if this isn't true any longer, the getSol-Call was unsuccessfull, because the given array wasn't long enough,
                                          * but this can't happen, because the array has enough space for all sdp variables */
@@ -918,7 +797,6 @@ static
 SCIP_DECL_RELAXEXEC(relaxExecSDP)
 {
    SCIP_Cons** conss;
-   SCIP_CONSHDLR* conshdlr;
    SCIP_RELAXDATA* relaxdata;
    int ncons;
    int i;
@@ -959,9 +837,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
    }
 #endif
 
-   int nlprows;
-   nlprows = SCIPgetNCuts(scip) + SCIPgetNLPRows(scip);
-
    if ( ncons == 0 )
    {
       //if there are no constraints, there is nothing to do
@@ -973,8 +848,8 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
    {
       // if all variables, really all, are fixed, I can't solve an sdp, because there is no interior point in this case, result is success and I'm separating the solution (the upper or lower bounds on a variable)
       SCIPdebugMessage("EVERYTHING IS FIXED\n");
-      SCIP_VAR** vars = SCIPgetVars(scip);
-      const int nvars = SCIPgetNVars(scip);
+      vars = SCIPgetVars(scip);
+      nvars = SCIPgetNVars(scip);
 
       SCIP_Real* ubs;
       SCIP_CALL(SCIPallocBlockMemoryArray(scip, &ubs, nvars));
@@ -1062,13 +937,15 @@ static
 SCIP_DECL_RELAXINIT(relaxInitSolSDP)
 {
    SCIP_RELAXDATA* relaxdata;
+   int nvars;
+   SCIP_VAR** vars;
 
    assert ( relax != NULL );
 
-   SCIPallocBlockMemory(scip, &relaxdata);
+   SCIP_CALL( SCIPallocBlockMemory(scip, &relaxdata) );
 
    nvars = SCIPgetNVars(scip);
-   SCIP_CALL(SCIPallocBufferArray(scip, &vars, nvars));
+   SCIP_CALL( SCIPallocBufferArray(scip, &vars, nvars));
    vars = SCIPgetVars(scip);
 
    SdpVarmapperCreate(scip, relaxdata->varmapper);
@@ -1090,37 +967,15 @@ SCIP_DECL_RELAXCOPY(relaxCopySDP)
    SCIP_RELAXDATA* sourcedata;
    SCIP_RELAXDATA* targetdata;
 
-   // TODO
-   return SCIP_OKAY;
-}
+   SCIP_CALL ( SCIPallocBlockMemory(scip, &targetdata) );
 
-/** creates the SDP relaxator and includes it in SCIP */
-SCIP_RETCODE SCIPincludeRelaxSDP(
-   SCIP*                 scip                /**< SCIP data structure */
-   )
-{
-   SCIP_RELAXDATA* relaxdata;
-   SCIP_RELAX* relax;
-   SCIP_SDPI sdpi;
+   sourcedata = SCIPrelaxGetData(relax);
 
-   assert ( scip != NULL );
-
-   /* create SDP relaxator data */
-   SCIP_CALL(SCIPallocBlockMemory(scip, &relaxdata));
-   SCIP_CALL(SCIPallocBlockMemory(scip, &sdpi));
-   SCIP_CALL(SCIPsdpiCreate(sdpi, NULL, SCIPblkmem(scip)));
-
-   relaxdata->sdpi = sdpi;
-
-   /* include relaxator */
-   SCIP_CALL( SCIPincludeRelaxBasic(scip, &relax, RELAX_NAME, RELAX_DESC, RELAX_PRIORITY, RELAX_FREQ,
-         relaxExecSDP, relaxdata) );
-   assert( relax != NULL );
-
-   /* add xyz relaxator parameters */
+   //TODO: copying (needs a copy method for the sdpi_general), or is this only needed for local (i.e. in every node) heuristics ?
 
    return SCIP_OKAY;
 }
+
 
 /** free the relaxator's data */
 static
@@ -1131,10 +986,39 @@ SCIP_RELAXDATA* relaxdata;
 relaxdata = SCIPrelaxGetData(relax);
 assert(relaxdata != NULL);
 
-SCIP_CALL( SdpVarmapperFree(scip, relaxdata->varmapper) );
+SCIP_CALL( SdpVarmapperFree(scip, &(relaxdata->varmapper)) );
 SCIPfreeMemory(scip, &relaxdata);
 SCIPrelaxSetData(relax, NULL);
 
 return SCIP_OKAY;
 }
 
+/** creates the SDP relaxator and includes it in SCIP */
+SCIP_RETCODE SCIPincludeRelaxSDP(
+   SCIP*                 scip                /**< SCIP data structure */
+   )
+{
+   SCIP_RELAXDATA* relaxdata;
+   SCIP_RELAX* relax;
+   SCIP_SDPI* sdpi;
+
+   assert ( scip != NULL );
+
+   /* create SDP relaxator data */
+   SCIP_CALL(SCIPallocBlockMemory(scip, &relaxdata));
+   SCIP_CALL(SCIPallocBlockMemory(scip, &sdpi));
+   SCIP_CALL(SCIPsdpiCreate(&sdpi, NULL, SCIPblkmem(scip)));
+
+   relaxdata->sdpi = sdpi;
+
+   /* include relaxator */
+   SCIP_CALL( SCIPincludeRelaxBasic(scip, &relax, RELAX_NAME, RELAX_DESC, RELAX_PRIORITY, RELAX_FREQ,
+         relaxExecSDP, relaxdata) );
+   assert( relax != NULL );
+
+   /* include additional callbacks */
+   SCIP_CALL( SCIPsetRelaxInitsol(scip, relax, relaxInitSolSDP) );
+   SCIP_CALL( SCIPsetRelaxFree(scip, relax, relaxFreeSDP) );
+
+   return SCIP_OKAY;
+}

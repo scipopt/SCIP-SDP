@@ -49,8 +49,7 @@
 
 #include "BlockMemoryAllocator.h"       // for BlockMemoryAllocator
 #include "ScipStreamBuffer.h"           // for ScipStreamBuffer
-#include "SdpCone.h"                    // for SdpCone
-#include "objconshdlr_sdp.h"            // for SCIPcreateConsSdp
+#include "scipsdp/cons_sdp.h"                   // for SCIPcreateConsSdp
 
 #include "scip/cons_linear.h"           // for SCIPaddCoefLinear, etc
 #include "scip/scip.h"                  // for SCIPinfinity, etc
@@ -410,7 +409,6 @@ namespace scip
             int** rowpointer;
             SCIP_Real** valpointer;
             SCIP_Var** vars;
-            int v;
             int constnnonz;
             int* constcol;
             int* constrow;
@@ -454,11 +452,11 @@ namespace scip
             constnnonz = ind;
 
             ind = 0;
-            for (k = 0; k < nnz; ++k)
+            for (k = 0; k < nnonz; ++k)
             {
                if (blockstruct[bindex].values[k] > 10e-6 || blockstruct[bindex].values[k] < -10e-6)
                {
-                  varind[idnd] = VariablesX[blockstruct[bindex].variables[k] - 1];
+                  varind[ind] = blockstruct[bindex].variables[k] - 1;
                   col[ind] = blockstruct[bindex].columns[k];
                   row[ind] = blockstruct[bindex].rows[k];
                   val[ind] = blockstruct[bindex].values[k];
@@ -577,228 +575,5 @@ namespace scip
       return SCIP_OKAY;
    }
 
-   /** method for writing a problem in a sdpa-file, for example the problem in a branching node with all node specific variable fixing*/
-   SCIP_RETCODE write_sdpafile(
-      SCIP*             scip,                /**< SCIP data structure */
-      SdpProblem*       problemdata,         /**< node specific problem data */
-      SdpVarMapper*     varmapper            /**<varmapper class object*/
-   )
-   {
-      int nvars = SCIPgetNVars(scip);
-      SCIP_VAR** vars = SCIPgetVars(scip);
-      int count_nvars_notfixed = 0;
-      for (int i = 0; i < nvars; ++i)
-      {
-         //if variable is not fixed
-         if (varmapper->get_sdp_index(vars[i]) != -1)
-         {
-            count_nvars_notfixed++;
-         }
-      }
-
-      SCIP_Longint num_nodes = SCIPgetNNodes (scip);
-      int depth = SCIPgetDepth(scip);
-      std::string s;
-      std::stringstream out;
-      out << num_nodes;
-      s = out.str();
-
-
-      std::string filename ("Files/test_" );
-      filename.append(s);
-      filename.append("_depth_");
-      std::stringstream ding;
-      ding << depth;
-      s = ding.str();
-      filename.append(s);
-      filename.append(".dat-s");
-
-
-      std::ofstream fs(filename.c_str());
-      //write nvars and nblocks
-      fs << count_nvars_notfixed << std::endl;
-      //we write the lp data in one lp-block, therefore we have one more block, than sdpcones
-      fs << problemdata->get_nsdpcones() + 1  << std::endl;
-
-
-      SCIP_VAR** fixed_vars;
-      int n_fixed_vars = varmapper->get_nfixed();
-      SCIP_CALL(SCIPallocBufferArray(scip, &fixed_vars, n_fixed_vars));
-      double* fixed_values;
-      SCIP_CALL(SCIPallocBufferArray(scip, &fixed_values, n_fixed_vars));
-      int* blocksizes;
-      SCIP_CALL(SCIPallocBufferArray(scip, &blocksizes, problemdata->get_nsdpcones()));
-
-      int count = 0;
-
-      for (int i = 0; i < SCIPgetNVars(scip); ++i)
-      {
-         if (varmapper->get_sdp_index(vars[i]) == -1 )
-         {
-            fixed_vars[count] = vars[i];
-            fixed_values[count] = SCIPvarGetUbLocal(vars[i]);
-            count++;
-            assert (SCIPvarGetUbLocal(vars[i]) == SCIPvarGetLbLocal(vars[i]));
-         }
-      }
-
-      std::vector <int> row;
-      std::vector <int> col;
-      std::vector <double> val;
-      std::vector <int> block;
-      std::vector <int> var;
-
-      int save_ctr = 0;
-
-      //SDP-blocks
-      for (int i = 0 ; i < problemdata->get_nsdpcones(); ++i)
-      {
-         SdpCone* sdpcone = problemdata->get_sdpcone(i);
-         //A_0
-         if (sdpcone->get_const_nnz() > 0 || varmapper->get_nfixed() > 0)
-         {
-            for ( SdpCone::RhsIterator it = sdpcone->rhs_begin(fixed_vars, n_fixed_vars, fixed_values); it != sdpcone->rhs_end(); ++it)
-            {
-               SdpCone::element el = *it;
-               if (el.val != 0)
-               {
-                  var.push_back(0);
-                  block.push_back(i + 1);
-                  col.push_back(el.col + 1);
-                  row.push_back(el.row + 1);
-                  val.push_back(-el.val);
-               }
-            }
-         }
-
-         //A_i i!=0
-         for ( SdpCone::LhsIterator it = sdpcone->lhs_begin(fixed_vars, n_fixed_vars); it != sdpcone->lhs_end(); ++it)
-         {
-            SdpCone::element el = *it;
-            if (el.val != 0)
-            {
-               var.push_back(varmapper->get_sdp_index(sdpcone->get_var(el.vidx)) + 1);
-               block.push_back(i + 1);
-               col.push_back(el.col + 1);
-               row.push_back(el.row + 1);
-               val.push_back(el.val);
-            }
-         }
-
-         //we need a array that tells us, if a there is an entry for a specific row
-         int* found;
-         SCIP_CALL(SCIPallocBufferArray(scip, &found, sdpcone->get_blocksize()));
-         for (int k = 0; k < sdpcone->get_blocksize(); ++k)
-         {
-            found[k] = 0;
-         }
-
-         for (int j = 0; j < sdpcone->get_blocksize(); ++j)
-         {
-            for (unsigned int k = save_ctr ; k < row.size(); ++k)
-            {
-               if (row[k] == j || col[k] == j)
-               {
-                  found[j] = 1;
-                  break;
-               }
-            }
-         }
-
-         int num_not_deleted = 0;
-         for (int j = 0; j < sdpcone->get_blocksize(); ++j)
-         {
-            num_not_deleted += found[j];
-         }
-
-
-         blocksizes[i] = num_not_deleted + 1;
-
-         int sum_del = 0;
-
-         int row_and_col_to_del = sdpcone->get_blocksize() + 5;
-
-         if (num_not_deleted != sdpcone->get_blocksize())
-         {
-            for (int j = 0; j < sdpcone->get_blocksize(); ++j)
-            {
-               if (found[j] == 0)
-               {
-                  row_and_col_to_del = j - sum_del;
-                  sum_del++;
-                  for (unsigned int k = save_ctr; k < row.size(); k++)
-                  {
-                     if (row[k] >= row_and_col_to_del)
-                     {
-                        row[k] = row[k] - 1;
-                     }
-                     if (col[k] >= row_and_col_to_del)
-                     {
-                        col[k] = col[k] - 1;
-                     }
-                  }
-               }
-            }
-         }
-
-         save_ctr = col.size();
-         SCIPfreeBufferArray(scip, &found);
-      }
-
-      //write blocksizes
-      for (int i = 0; i < problemdata->get_nsdpcones(); ++i)
-      {
-         fs << blocksizes[i] << " ";
-      }
-
-      fs << -problemdata->get_size_lpblock() << std::endl;
-
-      //write objective
-      for (int i = 0; i < nvars; ++i)
-      {
-         //if variable is not fixed
-         if (varmapper->get_sdp_index(vars[i]) != -1)
-         {
-            fs << SCIPvarGetObj(vars[i]) << " ";
-         }
-      }
-      fs << std::endl;
-
-      //now write sdp-data
-      for (unsigned int i = 0; i < row.size(); ++i)
-      {
-         fs << var[i] << " " << block[i] << " " << col[i]+1 << " " << row[i]+1 << " " << val[i] << std::endl;
-      }
-
-      SCIPfreeBufferArray(scip, &blocksizes);
-      SCIPfreeBufferArray(scip, &fixed_vars);
-      SCIPfreeBufferArray(scip, &fixed_values);
-
-      const int* cons = problemdata->get_for_constraint();
-      const double* vals = problemdata->get_for_vals();
-      const int* matind = problemdata->get_for_matind();
-
-      //write lp-block
-      int lp_block_number = problemdata->get_nsdpcones() + 1;
-
-      for (int i = 0;  i < problemdata->get_for_vals_size(); ++i)
-      {
-         if (vals[i] != 0)
-         {
-            if (cons[i] == 0)
-            {
-               fs << cons[i] << " " << lp_block_number << " " << matind[i] + 1 << " " << matind[i] + 1 << " " << -vals[i]<< std::endl;
-            }
-            else
-            {
-               fs << cons[i] << " " << lp_block_number << " " << matind[i] + 1 << " " << matind[i] + 1 << " " << vals[i]<< std::endl;
-            }
-         }
-      }
-      fs << std::endl;
-
-      fs.close();
-      return SCIP_OKAY;
-   }
 }//end of namespace scip
-
+}//obviously too much, but compiler said there was a } missing, now it says syntax error

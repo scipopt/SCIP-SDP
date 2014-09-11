@@ -54,19 +54,21 @@
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
-#ifndef __SCIP_SDPI_H__
-#define __SCIP_SDPI_H__
+#ifndef __SCIP_SDPI_GENERAL_H__
+#define __SCIP_SDPI_GENERAL_H__
 
 
 #include "scip/def.h"
 #include "blockmemshell/memory.h"
 #include "scip/type_retcode.h"
 
-#include "type_sdpi.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+
+
+typedef struct SCIP_SDPi SCIP_SDPI;                 /**< solver independent SDP interface */
 
 /*
  * Miscellaneous Methods
@@ -153,7 +155,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks */
    const int*            sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
                                                   *  number of entries  of sdpconst row/col/val [i] */
-   int const* const*     sdpconstrow,        /**< pointer to row-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
+   int const**           sdpconstrow,        /**< pointer to row-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
    const int**           sdpconstcol,        /**< pointer to column-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
    const SCIP_Real**     sdpconstval,        /**< pointer to values of entries of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
    int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint matrices */
@@ -726,13 +728,15 @@ SCIP_RETCODE SCIPsdpiGetObjval(
    SCIP_Real*            objval              /**< stores the objective value */
    );
 
-/** gets dual solution vector for feasible SDPs, if dualsollength isn't equal to the number of variables this will return an error */
+/** gets dual solution vector for feasible SDPs, if dualsollength isn't equal to the number of variables this will return , the needed length and
+ *  a debug message */
 EXTERN
 SCIP_RETCODE SCIPsdpiGetSol(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_Real*            objval,             /**< stores the objective value, may be NULL if not needed */
    SCIP_Real*            dualsol,            /**< dual solution vector, may be NULL if not needed */
-   int                   dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL */
+   int*                  dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
+                                               *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
    );
 
 /** gets the number of SDP iterations of the last solve call */
@@ -740,18 +744,6 @@ EXTERN
 SCIP_RETCODE SCIPsdpiGetIterations(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int*                  iterations          /**< pointer to store the number of iterations of the last solve call */
-   );
-
-/** gets information about the quality of an SDP solution
- *
- *  Such information is usually only available, if also a (maybe not optimal) solution is available.
- *  The SDPI should return SCIP_INVALID for *quality, if the requested quantity is not available.
- */
-EXTERN
-SCIP_RETCODE SCIPsdpiGetRealSolQuality(
-   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_SDPSOLQUALITY    qualityindicator,   /**< indicates which quality should be returned */
-   SCIP_Real*            quality             /**< pointer to store quality number */
    );
 
 /**@} */

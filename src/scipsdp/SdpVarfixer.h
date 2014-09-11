@@ -35,8 +35,10 @@
  * @author Tristan Gally
  */
 
-#ifndef __SDPVARMAPPER_H__
-#define __SDPVARMAPPER_H__
+/* somehow doesn't seem to work
+#ifndef __SDPVARFIXER_H__
+#define __SDPVARFIXER_H__
+*/
 
 #include "scip/type_misc.h"
 
@@ -51,9 +53,9 @@ EXTERN
 void SdpVarfixerSortRowCol(
    int*                  row,                /* row indices */
    int*                  col,                /* column indices */
-   int*                  val,                /* values */
+   SCIP_Real*            val,                /* values */
    int                   length              /* length of the given arrays */
-   )
+   );
 
 /**
  * Merges two three-tuple-arrays together. The original arrays (which may have multiple entries for the same row and col) will be mulitplied with
@@ -92,11 +94,11 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
    int                   firstlength,        /** length of the first arrays */
    int*                  secondrow,          /** second row-index-array that is going to be merged */
    int*                  secondcol,          /** second column-index-array that is going to be merged */
-   SCIP_real*            secondval,          /** second nonzero-values-array that is going to be merged */
+   SCIP_Real*            secondval,          /** second nonzero-values-array that is going to be merged */
    int                   secondlength,       /** length of the second arrays */
    int*                  targetrow,          /** row-index-array the original arrays will be merged into */
    int*                  targetcol,          /** column-index-array the original arrays will be merged into */
-   SCIP_real*            targetval,          /** nonzero-values-array the original arrays will be merged into */
+   SCIP_Real*            targetval,          /** nonzero-values-array the original arrays will be merged into */
    int*                  targetlength        /** length of the target arrays the original arrays will be merged into, this will be updated to the
                                                * new length after the mergings */
    );

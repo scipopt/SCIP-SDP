@@ -35,11 +35,14 @@
  * @author Tristan Gally
  */
 
+/* somehow doesn't seem to work
 #ifndef __SDPVARMAPPER_H__
 #define __SDPVARMAPPER_H__
+*/
 
 #include "scip/type_misc.h"
 #include "scip/def.h"
+#include "scip/pub_misc.h" /* for sorting */
 #include "SdpVarfixer.h"
 
 static double epsilon    = 1e-6; /**< only values bigger than this are counted as nonzeros */
@@ -61,7 +64,7 @@ static double epsilon    = 1e-6; /**< only values bigger than this are counted a
 void SdpVarfixerSortRowCol(
    int*                  row,                /* row indices */
    int*                  col,                /* column indices */
-   int*                  val,                /* values */
+   SCIP_Real*            val,                /* values */
    int                   length              /* length of the given arrays */
    )
 {
@@ -120,7 +123,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
    assert ( originrow != NULL );
    assert ( origincol != NULL );
    assert ( originval != NULL );
-   assert ( origlength >= 0 );
+   assert ( originlength >= 0 );
    assert ( targetrow != NULL );
    assert ( targetcol != NULL );
    assert ( targetval != NULL );
@@ -128,16 +131,16 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
    assert ( *targetlength >= 0 );
 
    /* sort the target and origin arrays first by row and then by col to make searching for entries easier */
-   SdpVarfixerSortRowCol(targetrow, targetcol, targetval, targetlength);
+   SdpVarfixerSortRowCol(targetrow, targetcol, targetval, *targetlength);
 
    if (! (originsorted))
       SdpVarfixerSortRowCol(originrow, origincol, originval, originlength);
 
    /* allocate memory for the maximum possible size of the target arrays, they will be decreased again afterwards after the number
     * of added nonzeros is known */
-   BMS_CALL(BMSreallocBlockMemoryArray(blkmem, &targetrow, targetlength, targetlength + originlength));
-   BMS_CALL(BMSreallocBlockMemoryArray(blkmem, &targetcol, targetlength, targetlength + originlength));
-   BMS_CALL(BMSreallocBlockMemoryArray(blkmem, &targetval, targetlength, targetlength + originlength));
+   BMS_CALL(BMSreallocBlockMemoryArray(blkmem, &targetrow, *targetlength, *targetlength + originlength));
+   BMS_CALL(BMSreallocBlockMemoryArray(blkmem, &targetcol, *targetlength, *targetlength + originlength));
+   BMS_CALL(BMSreallocBlockMemoryArray(blkmem, &targetval, *targetlength, *targetlength + originlength));
 
    ind = 0; /* this will be used to traverse the nonzeros of the target arrays */
    naddednonz = 0;
@@ -149,7 +152,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
        * we find an entry that is not < as the current entry in the origin arrays according to this sorting, if this has equal row/col,
        * we have found the entry we have to edit, if it is >, then we know, that there is no identical entry, and we can just add a new
        * entry for this row and col */
-      while (ind < targetlength && (targetrow[ind] < originrow[i] || (targetrow[ind] == originrow[i] && targetcol[ind] < origincol[i])))
+      while (ind < *targetlength && (targetrow[ind] < originrow[i] || (targetrow[ind] == originrow[i] && targetcol[ind] < origincol[i])))
       {
          /* shift the target nonzeros to the left if needed */
          if (nleftshifts > 0)
@@ -161,7 +164,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
          ind++;
       }
 
-      if (ind < targetlength && (targetrow[ind] == originrow[i] && targetcol[ind] == origincol[i]))
+      if (ind < *targetlength && (targetrow[ind] == originrow[i] && targetcol[ind] == origincol[i]))
       {
          /* add to the old entry */
 
@@ -181,10 +184,10 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
             i++;
          }
 
-         if (REALABS(sdpi->sdpconstval[ind - nleftshiftconstnonz]) < epsilon)
+         if (REALABS(targetval[ind - nleftshifts]) < epsilon)
          {
             /* the nonzero became zero */
-            nleftshiftconstnonz++;
+            nleftshifts++;
          }
          ind++; /* as we already added all origin-entries belonging to this row/col and also shifted the entry, we can continue with the next one */
       }
@@ -199,7 +202,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
          else
          {
             /* add it to the end */
-            insertionpos = targetlength + naddednonz;
+            insertionpos = *targetlength + naddednonz;
             naddednonz++;
          }
 
@@ -239,11 +242,11 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
    }
 
    /* shrink the targetarrays to the size that is really needed */
-   BMS_CALL(BMSreallocBlockMemoryArray(blkmem, &targetrow + originlength, targetlength, targetlength + naddednonz - nleftshifts));
-   BMS_CALL(BMSreallocBlockMemoryArray(blkmem, &targetcol + originlength, targetlength, targetlength + naddednonz - nleftshifts));
-   BMS_CALL(BMSreallocBlockMemoryArray(blkmem, &targetval + originlength, targetlength, targetlength + naddednonz - nleftshifts));
+   BMS_CALL(BMSreallocBlockMemoryArray(blkmem, &targetrow + originlength, *targetlength, *targetlength + naddednonz - nleftshifts));
+   BMS_CALL(BMSreallocBlockMemoryArray(blkmem, &targetcol + originlength, *targetlength, *targetlength + naddednonz - nleftshifts));
+   BMS_CALL(BMSreallocBlockMemoryArray(blkmem, &targetval + originlength, *targetlength, *targetlength + naddednonz - nleftshifts));
 
-   *targetlength = *targetlength + nadednonz - nleftshifts;
+   *targetlength = *targetlength + naddednonz - nleftshifts;
 
    return SCIP_OKAY;
 }
@@ -274,8 +277,6 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
                                                * new length after the mergings */
    )
 {
-   int i;
-   int targetarraylength;
    int firstind;
    int secondind;
    int targetind;
@@ -289,17 +290,17 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
    assert ( secondrow != NULL );
    assert ( secondcol != NULL );
    assert ( secondval != NULL );
-   assert ( seconsdlength >= 0 );
+   assert ( secondlength >= 0 );
    assert ( targetrow != NULL );
    assert ( targetcol != NULL );
    assert ( targetval != NULL );
-   assert ( targetlength >= 0 );
+   assert ( *targetlength >= 0 );
 
    /* sort both arrays by non-decreasing row and then col indices to make comparisons easier */
    SdpVarfixerSortRowCol(firstrow, firstcol, firstval, firstlength);
    SdpVarfixerSortRowCol(secondrow, secondcol, secondval, secondlength);
 
-   arraylength == *targetlength;
+   arraylength = *targetlength;
 
    /* as both arrays are sorted, traverse them simultanously, always adding the current entry with the lower index of either array to the
     * target arrays (if they both have the same index, we have found entries that need to be merged) */
