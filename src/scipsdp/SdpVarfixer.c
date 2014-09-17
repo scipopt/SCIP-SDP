@@ -94,7 +94,8 @@ void SdpVarfixerSortRowCol(
  * Merges two three-tuple-arrays together. The original arrays (which may have multiple entries for the same row and col) will be mulitplied with
  * scalar and then merged into the target arrays (which may not have multiple entries for the same row and col). If there is already an entry for
  * a row/col combination, these two entries will be combined (their values added together), if they cancel each other out the nonzero entry will
- *  be removed. If you think of the matrices described by the two arrays, this is a matrix addition (but only working on the nonzeros for efficiency).
+ * be removed. If you think of the matrices described by the two arrays, this is a matrix addition (but only working on the nonzeros for efficiency).
+ * The target arrays need to be long enough, otherwise targetlength returns the needed amount an a corresponding debug message will be thrown.
  */
 SCIP_RETCODE SdpVarfixerMergeArrays(
    BMS_BLKMEM*           blkmem,             /**< block memory */
@@ -107,8 +108,10 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
    int*                  targetrow,          /** row-index-array the original array will be merged into */
    int*                  targetcol,          /** column-index-array the original array will be merged into */
    SCIP_Real*            targetval,          /** nonzero-values-array the original array will be merged into */
-   int*                  targetlength        /** length of the target arrays the original arrays will be merged into, this will be updated to the
+   int*                  targetlength,       /** length of the target arrays the original arrays will be merged into, this will be updated to the
                                                * new length after the mergings */
+   int                   targetmemory        /** amount of memory allocated for targetrow, -col, -val, if this isn't sufficient targetlength will
+                                               * return the needed amount and a corresponding debug message will be thrown */
    )
 {
    int ind;
@@ -118,6 +121,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
    int naddednonz; /* this gives the number of nonzeros that were added to the end of the arrays (this does NOT include those that were added in
                        the middle of the arrays be decreasing the number of leftshifts) */
    int insertionpos;
+   SCIP_Bool debugmsg; /* should a debug message about insufficient length be thrown */
 
    assert ( blkmem != NULL );
    assert ( originrow != NULL );
@@ -136,14 +140,10 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
    if (! (originsorted))
       SdpVarfixerSortRowCol(originrow, origincol, originval, originlength);
 
-   /* allocate memory for the maximum possible size of the target arrays, they will be decreased again afterwards after the number
-    * of added nonzeros is known */
-   BMS_CALL(BMSreallocBlockMemoryArray(blkmem, &targetrow, *targetlength, *targetlength + originlength));
-   BMS_CALL(BMSreallocBlockMemoryArray(blkmem, &targetcol, *targetlength, *targetlength + originlength));
-   BMS_CALL(BMSreallocBlockMemoryArray(blkmem, &targetval, *targetlength, *targetlength + originlength));
-
    ind = 0; /* this will be used to traverse the nonzeros of the target arrays */
    naddednonz = 0;
+   nleftshifts = 0;
+   debugmsg = FALSE;
 
    /* iterate over all nonzeroes */
    for (i = 0; i < originlength; i++)
@@ -206,45 +206,49 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
             naddednonz++;
          }
 
-         /* add the nonzero to the computed position */
-         targetrow[insertionpos] = originrow[i];
-         targetcol[insertionpos] = origincol[i];
-         targetval[insertionpos] = originval[i];
-
-         /* there could be multiple entries to add with identical row and col, so look for further ones in the next entries until there are no more */
-         while (i + 1 < originlength && originrow[i + 1] == targetrow[insertionpos] && origincol[i + 1] == targetcol[insertionpos])
+         if (insertionpos < targetmemory)
          {
-            targetval[insertionpos] += originval[i + 1];
-            i++;
-         }
+            /* add the nonzero to the computed position */
+            targetrow[insertionpos] = originrow[i];
+            targetcol[insertionpos] = origincol[i];
+            targetval[insertionpos] = originval[i];
 
-         /* if there were indeed multiple entries, check if they did cancel each other out, in that case remove the entry */
-         if (REALABS(targetval[insertionpos]) < epsilon)
-         {
-            /* depending on where this actually zero nonzero was added, either add another leftshift to overwrite it or decrease the number of addednonz */
-            if (insertionpos <= ind)
-               nleftshifts++;
-            else
-               naddednonz--;
+            /* there could be multiple entries to add with identical row and col, so look for further ones in the next entries until there are no more */
+            while (i + 1 < originlength && originrow[i + 1] == targetrow[insertionpos] && origincol[i + 1] == targetcol[insertionpos])
+            {
+               targetval[insertionpos] += originval[i + 1];
+               i++;
+            }
+
+            /* if there were indeed multiple entries, check if they did cancel each other out, in that case remove the entry */
+            if (REALABS(targetval[insertionpos]) < epsilon)
+            {
+               /* depending on where this actually zero nonzero was added, either add another leftshift to overwrite it or decrease the number of addednonz */
+               if (insertionpos <= ind)
+                  nleftshifts++;
+               else
+                  naddednonz--;
+            }
          }
+         else
+            debugmsg = TRUE;
       }
    }
    /* shift the remaining constnonzeros */
    if (nleftshifts > 0)
    {
-      while (ind < originlength)
+      while (ind < *targetlength + naddednonz && ind < targetmemory)
       {
          targetrow[ind - nleftshifts] = targetrow[ind];
-         targetcol[ind - nleftshifts] = targetrow[ind];
-         targetval[ind - nleftshifts] = targetrow[ind];
+         targetcol[ind - nleftshifts] = targetcol[ind];
+         targetval[ind - nleftshifts] = targetval[ind];
          ind++;
       }
    }
 
-   /* shrink the targetarrays to the size that is really needed */
-   BMS_CALL(BMSreallocBlockMemoryArray(blkmem, &targetrow + originlength, *targetlength, *targetlength + naddednonz - nleftshifts));
-   BMS_CALL(BMSreallocBlockMemoryArray(blkmem, &targetcol + originlength, *targetlength, *targetlength + naddednonz - nleftshifts));
-   BMS_CALL(BMSreallocBlockMemoryArray(blkmem, &targetval + originlength, *targetlength, *targetlength + naddednonz - nleftshifts));
+   if (debugmsg)
+      SCIPdebugMessage("insufficient memory given for SdpVarfixerMergeArrays, targetmemorys had length %d, would have needed up to %d\n",
+                                    targetmemory, *targetlength + naddednonz);
 
    *targetlength = *targetlength + naddednonz - nleftshifts;
 
@@ -256,8 +260,8 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
  * Merges two three-tuple-arrays together. If there are multiple entries for a row/col combination, these will be combined (their values added
  * together), if they cancel each other out the nonzero entry will be removed. The first arrays are assumed to have unique row/col-combinations, the
  * second entries may have duplicated of the same row/col-combination. In constrast to MergeArrays, here the combined arrays will be inserted in
- * the new targetarrays, and not overwrite one of the old arrays. The target arrays should have memory allocated equal to targetlength, this will
- * be reallocated to the needed length according to the returned value of targetlength during this call
+ * the new targetarrays, and not overwrite one of the old arrays. Targetlength should give the length of the target arrays, if this is not sufficient, the needed length is returned there and a debugMessage is
+ * thrown.
  */
 EXTERN
 SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
@@ -280,7 +284,7 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
    int firstind;
    int secondind;
    int targetind;
-   int arraylength;
+   SCIP_Bool debugmsg; /* should we throw a debug message about insufficient memory */
 
    assert ( blkmem != NULL );
    assert ( firstrow != NULL );
@@ -296,11 +300,11 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
    assert ( targetval != NULL );
    assert ( *targetlength >= 0 );
 
+   debugmsg = FALSE;
+
    /* sort both arrays by non-decreasing row and then col indices to make comparisons easier */
    SdpVarfixerSortRowCol(firstrow, firstcol, firstval, firstlength);
    SdpVarfixerSortRowCol(secondrow, secondcol, secondval, secondlength);
-
-   arraylength = *targetlength;
 
    /* as both arrays are sorted, traverse them simultanously, always adding the current entry with the lower index of either array to the
     * target arrays (if they both have the same index, we have found entries that need to be merged) */
@@ -310,52 +314,60 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
 
    while (firstind < firstlength && secondind < secondlength)
    {
-      /* if there isn't another spot in the target array, enlarge it (but do so only once, increasing it by the biggest possible length, later
-       * decreasing it, if we allocated too much space) */
-      if (targetind == arraylength)
-      {
-         BMS_CALL( BMSreallocBlockMemoryArray(blkmem, &(targetrow), arraylength, arraylength + firstlength + secondlength) );
-         BMS_CALL( BMSreallocBlockMemoryArray(blkmem, &(targetcol), arraylength, arraylength + firstlength + secondlength) );
-         BMS_CALL( BMSreallocBlockMemoryArray(blkmem, &(targetval), arraylength, arraylength + firstlength + secondlength) );
-         arraylength = arraylength + firstlength + secondlength;
-      }
       /* if the next entry of the first arrays comes before the next entry of the second arrays according to the row then col sorting, then we can
        * insert the next entry of the first arrays, as there can't be an entry in the second arrays for the same row/col-combination */
       if (firstrow[firstind] < secondrow[secondind] || (firstrow[firstind] == secondrow[secondind] && firstcol[firstind] < secondcol[secondind]))
       {
-         targetrow[targetind] = firstrow[firstind];
-         targetcol[targetind] = firstcol[firstind];
-         targetval[targetind] = firstval[firstind];
+         if (targetind < *targetlength)
+         {
+            targetrow[targetind] = firstrow[firstind];
+            targetcol[targetind] = firstcol[firstind];
+            targetval[targetind] = firstval[firstind];
+         }
+         else
+            debugmsg = TRUE;
+
          targetind++;
          firstind++;
       }
       /* if the next entry of the second array comes first, we insert it */
       else if (firstrow[firstind] > secondrow[secondind] || (firstrow[firstind] == secondrow[secondind] && firstcol[firstind] > secondcol[secondind]))
       {
-         targetrow[targetind] = secondrow[secondind];
-         targetcol[targetind] = secondcol[secondind];
-         targetval[targetind] = secondval[secondind];
+         if (targetind < *targetlength)
+         {
+            targetrow[targetind] = secondrow[secondind];
+            targetcol[targetind] = secondcol[secondind];
+            targetval[targetind] = secondval[secondind];
+         }
+         else
+            debugmsg = TRUE;
          secondind++;
 
          /* as the second arrays may have duplicate entries, we have to check the next entry, if it has the same row/col combination, if yes, then we
           * add it's value to the created entry in the target entries and continue */
          while (secondind < secondlength && (secondrow[secondind] == targetrow[targetind] && secondcol[secondind] == targetcol[targetind]))
          {
-            targetval[targetind] += secondval[secondind];
+            if (targetind < *targetlength)
+               targetval[targetind] += secondval[secondind];
             secondind++;
          }
 
          /* if we combined multiple fixed nonzeros, it is possible that they cancelled each other out, in that case, we shouldn't add a nonzero to the
           * target arrays */
-         if (REALABS(targetval[targetind]) >= epsilon)
+         if (targetind >= *targetlength || REALABS(targetval[targetind]) >= epsilon)
             targetind++;
       }
       /* if the next entries of both arrays are equal according to the row then col sorting, then they need to be combined */
       else
       {
-         targetrow[targetind] = firstrow[firstind];
-         targetcol[targetind] = firstcol[firstind];
-         targetval[targetind] = firstval[firstind] + secondval[secondind];
+         if (targetind < *targetlength)
+         {
+            targetrow[targetind] = firstrow[firstind];
+            targetcol[targetind] = firstcol[firstind];
+            targetval[targetind] = firstval[firstind] + secondval[secondind];
+         }
+         else
+            debugmsg = TRUE;
          firstind++;
          secondind++;
 
@@ -363,13 +375,14 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
           * add it's value to the created entry in the target entries and continue */
          while (secondind < secondlength && (secondrow[secondind] == targetrow[targetind] && secondcol[secondind] == targetcol[targetind]))
          {
-            targetval[targetind] += secondval[secondind];
+            if (targetind < *targetlength)
+               targetval[targetind] += secondval[secondind];
             secondind++;
          }
 
          /* if we combined multiple entires, it is possible that they cancelled each other out, in that case, we shouldn't add a nonzero to the
           * target arrays */
-         if (REALABS(targetval[targetind]) >= epsilon)
+         if (targetind >= *targetlength || REALABS(targetval[targetind]) >= epsilon)
             targetind++;
       }
    }
@@ -378,67 +391,52 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
     * queues are exactly the same as the corresponding if-case in the above while-queue (+ checking for the length of the target arrays) */
    while (firstind < firstlength)
    {
-      /* if there isn't another spot in the target array, enlarge it (but do so only once, increasing it by the biggest possible length, later
-       * decreasing it, if we allocated too much space) */
-      if (targetind == arraylength)
+      if (targetind < *targetlength)
       {
-         BMS_CALL( BMSreallocBlockMemoryArray(blkmem, &(targetrow), arraylength, arraylength + firstlength + secondlength) );
-         BMS_CALL( BMSreallocBlockMemoryArray(blkmem, &(targetcol), arraylength, arraylength + firstlength + secondlength) );
-         BMS_CALL( BMSreallocBlockMemoryArray(blkmem, &(targetval), arraylength, arraylength + firstlength + secondlength) );
-         arraylength = arraylength + firstlength + secondlength;
+         targetrow[targetind] = firstrow[firstind];
+         targetcol[targetind] = firstcol[firstind];
+         targetval[targetind] = firstval[firstind];
       }
-      /* as the second arrays may have duplicate entries, we have to check the next entry, if it has the same row/col combination, if yes, then we
-       * add it's value to the created entry in the target entries and continue */
-      while (secondind < secondlength && (secondrow[secondind] == targetrow[targetind] && secondcol[secondind] == targetcol[targetind]))
-      {
-         targetval[targetind] += secondval[secondind];
-         secondind++;
-      }
-
-      /* if we combined multiple fixed nonzeros, it is possible that the cancelled each other out, in that case, we shouldn't add a nonzero to the
-       * target arrays */
-      if (REALABS(targetval[targetind]) >= epsilon)
-         targetind++;
+      else
+         debugmsg = TRUE;
+      firstind++;
+      targetind++;
    }
 
    while (secondind < secondlength)
    {
-      /* if there isn't another spot in the target array, enlarge it (but do so only once, increasing it by the biggest possible length, later
-       * decreasing it, if we allocated too much space) */
-      if (targetind == arraylength)
+      if (targetind < *targetlength)
       {
-         BMS_CALL( BMSreallocBlockMemoryArray(blkmem, &(targetrow), arraylength, arraylength + firstlength + secondlength) );
-         BMS_CALL( BMSreallocBlockMemoryArray(blkmem, &(targetcol), arraylength, arraylength + firstlength + secondlength) );
-         BMS_CALL( BMSreallocBlockMemoryArray(blkmem, &(targetval), arraylength, arraylength + firstlength + secondlength) );
-         arraylength = arraylength + firstlength + secondlength;
+         targetrow[targetind] = secondrow[secondind];
+         targetcol[targetind] = secondcol[secondind];
+         targetval[targetind] = secondval[secondind];
       }
-      targetrow[targetind] = secondrow[secondind];
-      targetcol[targetind] = secondcol[secondind];
-      targetval[targetind] = secondval[secondind];
+      else
+         debugmsg = TRUE;
       secondind++;
 
       /* as the second arrays may have duplicate entries, we have to check the next entry, if it has the same row/col combination, if yes, then we
        * add it's value to the created entry in the target entries and continue */
       while (secondind < secondlength && (secondrow[secondind] == targetrow[targetind] && secondcol[secondind] == targetcol[targetind]))
       {
-         targetval[targetind] += secondval[secondind];
+         if (targetind < *targetlength)
+            targetval[targetind] += secondval[secondind];
          secondind++;
       }
 
       /* if we combined multiple fixed nonzeros, it is possible that they cancelled each other out, in that case, we shouldn't add a nonzero to the
        * target arrays */
-      if (REALABS(targetval[targetind]) >= epsilon)
+      if (targetind >= *targetlength || REALABS(targetval[targetind]) >= epsilon)
          targetind++;
    }
 
-   /* shrink the targetarrays */
-   if (arraylength != targetind)
+   if (debugmsg)
    {
-      BMS_CALL( BMSreallocBlockMemoryArray(blkmem, &(targetrow), arraylength, targetind) );
-      BMS_CALL( BMSreallocBlockMemoryArray(blkmem, &(targetcol), arraylength, targetind) );
-      BMS_CALL( BMSreallocBlockMemoryArray(blkmem, &(targetval), arraylength, targetind) );
-      *targetlength = targetind;
+      SCIPdebugMessage("Insufficient arraylength in SdpVarfixerMergeArraysIntoNew, given targetarray-length was %d, would have needed %d",
+                                  *targetlength, targetind);
    }
+
+   *targetlength = targetind;
 
    return SCIP_OKAY;
 }

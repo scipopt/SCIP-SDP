@@ -169,7 +169,8 @@ SCIP_Bool isFixed(
 /**
  * Computes the constant Matrix after all variables with lb=ub have been fixed and their nonzeros were moved to the constant part. The five variables
  * other than sdpi are used to return the matrix, the size of sdpconstnblocknonz and the first pointers of sdpconst row/col/val should be equal to
- * sdpi->nsdpblocks, memory for sdpconst row/col/val [i] will be allocated here
+ * sdpi->nsdpblocks, the size of sdpconst row/col/val [i] needs to be sufficient, otherwise the needed length will be returned in sdpconstnblocknonz
+ * and a debug message will be thrown
  */
 static
 SCIP_RETCODE compConstMatAfterFixings(
@@ -189,6 +190,7 @@ SCIP_RETCODE compConstMatAfterFixings(
    int** fixedrows;
    int** fixedcols;
    SCIP_Real** fixedvals;
+   int sdpconstlength;
 
    assert ( sdpi != NULL );
    assert ( sdpconstnnonz != NULL );
@@ -205,8 +207,7 @@ SCIP_RETCODE compConstMatAfterFixings(
    }
 #endif
 
-   /* allocate memory for the nonzeros that need to be fixed, as this is only temporarly needed, we allocate as much as theoretically possible,
-    * also do so for sdpconst row/col/val [i], this will be shrinked again later */
+   /* allocate memory for the nonzeros that need to be fixed, as this is only temporarly needed, we allocate as much as theoretically possible */
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &nfixednonz, sdpi->nsdpblocks) );
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &fixedrows, sdpi->nsdpblocks) );
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &fixedcols, sdpi->nsdpblocks) );
@@ -224,10 +225,6 @@ SCIP_RETCODE compConstMatAfterFixings(
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(fixedrows[block]), nfixednonz[block]) );
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(fixedcols[block]), nfixednonz[block]) );
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(fixedvals[block]), nfixednonz[block]) );
-
-      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpi->sdpconstnblocknonz[block] + nfixednonz[block]) );
-      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpi->sdpconstnblocknonz[block] + nfixednonz[block]) );
-      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpi->sdpconstnblocknonz[block] + nfixednonz[block]) );
 
       /* set nfixednonz to 0 to use it for indexing later (at the end of the next for-block it will again have the same value) */
       nfixednonz[block] = 0;
@@ -2602,19 +2599,32 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    assert ( sdpi != NULL );
    assert ( penaltyParam >= 0.0 );
 
-   /* allocate memory for computing the constant matrix after fixings and finding empty rows and columns */
-   BMS_CALL (BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstnblocknonz, sdpi->nsdpblocks) );
-   BMS_CALL (BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstrow, sdpi->nsdpblocks) );
-   BMS_CALL (BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstcol, sdpi->nsdpblocks) );
-   BMS_CALL (BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstval, sdpi->nsdpblocks) );
-   BMS_CALL (BMSallocBlockMemoryArray(sdpi->blkmem, &indchanges, sdpi->nsdpblocks) );
-   BMS_CALL (BMSallocBlockMemoryArray(sdpi->blkmem, &nremovedinds, sdpi->nsdpblocks) );
+   /* allocate memory for computing the constant matrix after fixings and finding empty rows and columns, this is as much as might possibly be
+    * needed, this will be shrinked again before solving */
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstnblocknonz, sdpi->nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstrow, sdpi->nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstcol, sdpi->nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstval, sdpi->nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &indchanges, sdpi->nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &nremovedinds, sdpi->nsdpblocks) );
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
-      BMS_CALL (BMSallocBlockMemoryArray(sdpi->blkmem, &(indchanges[block]), sdpi->sdpblocksizes[block]) );
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(indchanges[block]), sdpi->sdpblocksizes[block]) );
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) );
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) );
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) );
    }
 
    SCIP_CALL (compConstMatAfterFixings(sdpi, &sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval) );
+
+   /* shrink the constant arrays after the number of fixed nonzeros is known */
+   for (block = 0; block < sdpi->nsdpblocks; block++)
+   {
+      assert ( sdpconstnblocknonz[block] <= sdpi->sdpnnonz + sdpi->sdpconstnnonz );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) );
+   }
 
    SCIP_CALL (findEmptyRowColsSDP(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges, nremovedinds) );
 

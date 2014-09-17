@@ -169,6 +169,8 @@ SCIP_RETCODE putSdpDataInInterface(
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &nblockvars, nsdpblocks) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &sdpvar, nsdpblocks) );
 
+   printf("nblockvars = %p = %p = scip\n", nblockvars, scip);
+
    /* get the SDP-data */
    ind = 0; /* index of the current sdp block in the complete sdp */
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &blockvars, nvars));
@@ -186,9 +188,12 @@ SCIP_RETCODE putSdpDataInInterface(
          /* allocate memory for the constant nonzeros */
          SCIP_CALL( SCIPconsSdpGetNNonz(scip, conss[i], NULL, &constlength) );
          nconstblocknonz[ind] = constlength;
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(constcol[ind]), constlength) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(constrow[ind]), constlength) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(constval[ind]), constlength) );
+         if (constlength > 0)
+         {
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(constcol[ind]), constlength) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(constrow[ind]), constlength) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(constval[ind]), constlength) );
+         }
 
          /* get the data */
          SCIPconsSdpGetData(scip, conss[i], &nblockvars[ind], &blocknnonz, &sdpblocksizes[ind], &nvars, nblockvarnonz[ind], col[ind],
@@ -223,10 +228,13 @@ SCIP_RETCODE putSdpDataInInterface(
 
    for (i = 0; i < nsdpblocks; i++)
    {
-      SCIPfreeBlockMemoryArray(scip, &(constval[i]), constlength);
-      SCIPfreeBlockMemoryArray(scip, &(constrow[i]), constlength);
-      SCIPfreeBlockMemoryArray(scip, &(constcol[i]), constlength);
-      SCIPfreeBlockMemoryArray(scip, &sdpvar, nblockvars[i]);
+      SCIPfreeBlockMemoryArray(scip, &sdpvar[i], nblockvars[i]);
+      if (constlength > 0)
+      {
+         SCIPfreeBlockMemoryArray(scip, &(constval[i]), nconstblocknonz[ind]);
+         SCIPfreeBlockMemoryArray(scip, &(constrow[i]), nconstblocknonz[ind]);
+         SCIPfreeBlockMemoryArray(scip, &(constcol[i]), nconstblocknonz[ind]);
+      }
    }
 
    SCIPfreeBlockMemoryArray(scip, &sdpvar, nsdpblocks);

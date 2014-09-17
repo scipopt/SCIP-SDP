@@ -926,8 +926,9 @@ SCIP_RETCODE fixVars(
    int* savedrow;
    SCIP_Real* savedval;
    int c;
-   int j;
+   int v;
    int oldnvars;
+   int arraylength;
 
    assert ( scip != NULL );
    assert ( conss != NULL );
@@ -953,11 +954,11 @@ SCIP_RETCODE fixVars(
 
       oldnvars = consdata->nvars;
 
-      for (j = 0; j < consdata->nvars; j++)
+      for (v = 0; v < consdata->nvars; v++)
       {
          SCIP_VAR* var;
 
-         var = SCIPvarGetProbvar(consdata->vars[j]);
+         var = SCIPvarGetProbvar(consdata->vars[v]);
 
          /* check if the variable is fixed in SCIP */
          if ( SCIPvarGetStatus(var) == SCIP_VARSTATUS_FIXED )
@@ -967,23 +968,23 @@ SCIP_RETCODE fixVars(
             /* the nonzeros are saved to later be inserted into the constant part (this is only done after all nonzeros of fixed variables have been
              * assembled, because we need to sort the constant nonzeros and loop over them, which we only want to do once and not once for each fixed
              * variable) */
-            for (i = 0; i < consdata->nvarnonz[j]; i++)
+            for (i = 0; i < consdata->nvarnonz[v]; i++)
             {
-               savedcol[nfixednonz] = consdata->col[j][i];
-               savedrow[nfixednonz] = consdata->row[j][i];
-               savedval[nfixednonz] = -consdata->val[j][i] * SCIPvarGetLbGlobal(var);
+               savedcol[nfixednonz] = consdata->col[v][i];
+               savedrow[nfixednonz] = consdata->row[v][i];
+               savedval[nfixednonz] = -consdata->val[v][i] * SCIPvarGetLbGlobal(var);
                /* this is the final value to add, we no longer have to remember from which variable this comes, minus because we have +A_i but -A_0 */
                nfixednonz++;
                consdata->nnonz--;
             }
             /* as the variables don't need to be sorted, we just put the last variable into the empty spot and decrease sizes by one (at the end) */
-            consdata->col[j] = consdata->col[consdata->nvars - 1];
-            consdata->row[j] = consdata->row[consdata->nvars - 1];
-            consdata->val[j] = consdata->val[consdata->nvars - 1];
-            consdata->nvarnonz[j] = consdata->nvarnonz[consdata->nvars - 1];
-            consdata->vars[j] = consdata->vars[consdata->nvars - 1];
+            consdata->col[v] = consdata->col[consdata->nvars - 1];
+            consdata->row[v] = consdata->row[consdata->nvars - 1];
+            consdata->val[v] = consdata->val[consdata->nvars - 1];
+            consdata->nvarnonz[v] = consdata->nvarnonz[consdata->nvars - 1];
+            consdata->vars[v] = consdata->vars[consdata->nvars - 1];
             consdata->nvars--;
-            j--; /* we need to check again if the variable we just shifted to this position also needs to be fixed */
+            v--; /* we need to check again if the variable we just shifted to this position also needs to be fixed */
          }
       }
 
@@ -997,10 +998,21 @@ SCIP_RETCODE fixVars(
          SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->vars), oldnvars, consdata->nvars) );
       }
 
+      /* allocate the maximally needed memory */
+      arraylength = consdata->constnnonz + nfixednonz;
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constcol), consdata->constnnonz, arraylength) );
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constrow), consdata->constnnonz, arraylength) );
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constval), consdata->constnnonz, arraylength) );
 
       /* insert the fixed variables into the constant arrays */
       SCIP_CALL( SdpVarfixerMergeArrays(SCIPblkmem(scip), savedrow, savedcol, savedval, nfixednonz, FALSE, 1.0, consdata->constrow, consdata->constcol,
-            consdata->constval, &(consdata->constnnonz)) );
+            consdata->constval, &(consdata->constnnonz), arraylength) );
+
+      /* shrink the arrays if nonzeros could be combined */
+      assert ( consdata->constnnonz <= arraylength );
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constcol), arraylength, consdata->constnnonz) );
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constrow), arraylength, consdata->constnnonz) );
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constval), arraylength, consdata->constnnonz) );
 
       /* free the saved arrays */
       SCIPfreeBlockMemoryArray(scip, &savedval, consdata->nnonz);
@@ -1037,6 +1049,7 @@ SCIP_RETCODE multiaggrVars(
    int aggrconsind;
    int naggrnonz;
    int vararraylength;
+   int aggrtargetlength;
 
    assert ( scip != NULL );
    assert ( conss != NULL );
@@ -1116,8 +1129,22 @@ SCIP_RETCODE multiaggrVars(
                if (aggrconsind > -1)
                {
                   /* if the varialbe to aggregate to is already part of this sdp-constraint, just add the nonzeros of the old variable to it */
+
+                  /* resize the arrays to the maximally needed length */
+                  aggrtargetlength = consdata->nvarnonz[aggrconsind] + naggrnonz;
+                  SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->row[aggrconsind]), consdata->nvarnonz[aggrconsind], aggrtargetlength) );
+                  SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->col[aggrconsind]), consdata->nvarnonz[aggrconsind], aggrtargetlength) );
+                  SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->val[aggrconsind]), consdata->nvarnonz[aggrconsind], aggrtargetlength) );
+
                   SCIP_CALL( SdpVarfixerMergeArrays(SCIPblkmem(scip), savedrow, savedcol, savedval, naggrnonz, TRUE, scalars[aggrind],
-                             consdata->row[aggrconsind], consdata->col[aggrconsind], consdata->val[aggrconsind], &(consdata->nvarnonz[aggrconsind])) );
+                             consdata->row[aggrconsind], consdata->col[aggrconsind], consdata->val[aggrconsind], &(consdata->nvarnonz[aggrconsind]),
+                             aggrtargetlength) );
+
+                  /* shrink them again if nonzeros could be combined */
+                  assert ( consdata->nvarnonz[aggrconsind] <= aggrtargetlength );
+                  SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->row[aggrconsind]), aggrtargetlength, consdata->nvarnonz[aggrconsind]) );
+                  SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->col[aggrconsind]), aggrtargetlength, consdata->nvarnonz[aggrconsind]) );
+                  SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->val[aggrconsind]), aggrtargetlength, consdata->nvarnonz[aggrconsind]) );
                }
                else
                {
@@ -1150,9 +1177,20 @@ SCIP_RETCODE multiaggrVars(
             }
 
             /* merge the aggregated nonzeros into the constant arrays */
-            SCIP_CALL( SdpVarfixerMergeArrays(SCIPblkmem(scip), savedrow, savedcol, savedval, naggrnonz, TRUE, constant,
-                                              consdata->constrow, consdata->constcol,
-                                              consdata->constval, &(consdata->constnnonz)) );
+
+            /* reallocate the constant arrays to the maximally needed size */
+            aggrtargetlength = consdata->constnnonz + naggrnonz;
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constrow), consdata->constnnonz, aggrtargetlength) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constcol), consdata->constnnonz, aggrtargetlength) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constval), consdata->constnnonz, aggrtargetlength) );
+
+            SCIP_CALL( SdpVarfixerMergeArrays(SCIPblkmem(scip), savedrow, savedcol, savedval, naggrnonz, TRUE, constant, consdata->constrow,
+                                               consdata->constcol, consdata->constval, &(consdata->constnnonz), aggrtargetlength) );
+
+            /* shrink the arrays again if nonzeros could be combined */
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constrow), aggrtargetlength, consdata->constnnonz) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constcol), aggrtargetlength, consdata->constnnonz) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constval), aggrtargetlength, consdata->constnnonz) );
 
             /* free all arrays that are no longer needed */
             SCIPfreeBlockMemoryArray(scip, &savedval, consdata->nvarnonz[var]);

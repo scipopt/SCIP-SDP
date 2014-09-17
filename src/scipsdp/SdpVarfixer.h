@@ -61,22 +61,24 @@ void SdpVarfixerSortRowCol(
  * Merges two three-tuple-arrays together. The original arrays (which may have multiple entries for the same row and col) will be mulitplied with
  * scalar and then merged into the target arrays (which may not have multiple entries for the same row and col). If there is already an entry for
  * a row/col combination, these two entries will be combined (their values added together), if they cancel each other out the nonzero entry will
- *  be removed. If you think of the matrices described by the two arrays, this is a matrix addition (but only working on the nonzeros for efficiency).
+ * be removed. If you think of the matrices described by the two arrays, this is a matrix addition (but only working on the nonzeros for efficiency).
+ * The target arrays need to be long enough, otherwise targetlength returns the needed amount an a corresponding debug message will be thrown.
  */
-EXTERN
 SCIP_RETCODE SdpVarfixerMergeArrays(
    BMS_BLKMEM*           blkmem,             /**< block memory */
    int*                  originrow,          /** original row-index-array that is going to be merged */
    int*                  origincol,          /** original column-index-array that is going to be merged */
    SCIP_Real*            originval,          /** original nonzero-values-array that is going to be merged */
-   int                   origlength,         /** length of the original arrays */
+   int                   originlength,       /** length of the original arrays */
    SCIP_Bool             originsorted,       /** are the origin arrays already sorted by non-decreasing row and in case of ties col */
    SCIP_Real             scalar,             /** scalar that the original nonzero-values will be multiplied with before merging */
    int*                  targetrow,          /** row-index-array the original array will be merged into */
    int*                  targetcol,          /** column-index-array the original array will be merged into */
    SCIP_Real*            targetval,          /** nonzero-values-array the original array will be merged into */
-   int*                  targetlength        /** length of the target arrays the original arrays will be merged into, this will be updated to the
+   int*                  targetlength,       /** length of the target arrays the original arrays will be merged into, this will be updated to the
                                                * new length after the mergings */
+   int                   targetmemory        /** amount of memory allocated for targetrow, -col, -val, if this isn't sufficient targetlength will
+                                               * return the needed amount and a corresponding debug message will be thrown */
    );
 
 /**
@@ -84,6 +86,8 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
  * together), if they cancel each other out the nonzero entry will be removed. The first arrays are assumed to have unique row/col-combinations, the
  * second entries may have duplicated of the same row/col-combination. In constrast to MergeArrays, here the combined arrays will be inserted in
  * the new targetarrays, and not overwrite one of the old arrays.
+ * targetlength should give the length of the target arrays, if this is not sufficient, the needed length is returned there and a debugMessage is
+ * thrown
  */
 EXTERN
 SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
