@@ -2312,7 +2312,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    fpOut = fopen("output.tmp","w");
    if (fpOut == NULL) exit(-1);
    sdpa->setResultFile(fpOut);
-   sdpa->setInitPoint(true);
+   sdpa->setInitPoint(true); /* move this to solving */
 
    SDPA::printSDPAVersion(stdout);
    sdpa->printParameters(stdout);
@@ -2448,7 +2448,6 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    }
 
    assert ( pos == sdpi->nlpcons + sdpi->nvarbounds + 1 );
-
    sdpa->initializeUpperTriangle();
    sdpa->initializeSolve();
 
@@ -2858,21 +2857,6 @@ SCIP_RETCODE SCIPsdpiGetIterations(
 
    *iterations = sdpi->sdpa->getIteration();
    return SCIP_OKAY;
-}
-
-/** gets information about the quality of an SDP solution
- *
- *  Such information is usually only available, if also a (maybe not optimal) solution is available.
- *  The SDPI should return SCIP_INVALID for *quality, if the requested quantity is not available.
- */
-SCIP_RETCODE SCIPsdpiGetRealSolQuality(
-   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_SDPSOLQUALITY    qualityindicator,   /**< indicates which quality should be returned */
-   SCIP_Real*            quality             /**< pointer to store quality number */
-   )
-{
-   SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_ERROR;
 }
 
 /**@} */

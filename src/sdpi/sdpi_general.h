@@ -146,18 +146,18 @@ EXTERN
 SCIP_RETCODE SCIPsdpiLoadSDP(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   nvars,              /**< number of variables */
-   const SCIP_Real*      obj,                /**< objective function values of variables */
-   const SCIP_Real*      lb,                 /**< lower bounds of variables */
-   const SCIP_Real*      ub,                 /**< upper bounds of variables */
+   SCIP_Real*            obj,                /**< objective function values of variables */
+   SCIP_Real*            lb,                 /**< lower bounds of variables */
+   SCIP_Real*            ub,                 /**< upper bounds of variables */
    int                   nsdpblocks,         /**< number of SDP-blocks */
-   const int*            sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
-   const int*            sdpnblockvars,      /**< number of variables in each SDP block (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
+   int*                  sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
+   int*                  sdpnblockvars,      /**< number of variables in each SDP block (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
    int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks */
-   const int*            sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
+   int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
                                                   *  number of entries  of sdpconst row/col/val [i] */
-   int const**           sdpconstrow,        /**< pointer to row-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
-   const int**           sdpconstcol,        /**< pointer to column-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
-   const SCIP_Real**     sdpconstval,        /**< pointer to values of entries of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
+   int**                 sdpconstrow,        /**< pointer to row-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
+   int**                 sdpconstcol,        /**< pointer to column-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
+   SCIP_Real**           sdpconstval,        /**< pointer to values of entries of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
    int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint matrices */
    int**                 sdpnblockvarnonz,   /**< sdpnblockvarnonz[i][j] gives the number of nonzeros for the j-th variable (not necessarly
                                                *  variable j) in the i-th block, this is also the length of row/col/val[i][j] */
@@ -168,11 +168,11 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    int***                sdpcol,             /**< pointer to the column-indices for each block and variable in this block */
    SCIP_Real***          sdpval,             /**< pointer to the values of the nonzeros for each block and variable in this block */
    int                   nlpcons,            /**< number of LP-constraints */
-   const SCIP_Real*      lprhs,              /**< right hand sides of LP rows (may be NULL if nlpcons = 0) */
+   SCIP_Real*            lprhs,              /**< right hand sides of LP rows (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
-   const int*            lprow,              /**< row-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
-   const int*            lpcol,              /**< column-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
-   const SCIP_Real*      lpval               /**< values of LP-constraint matrix entries (may be NULL if lpnnonz = 0) */
+   int*                  lprow,              /**< row-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
+   int*                  lpcol,              /**< column-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
+   SCIP_Real*            lpval               /**< values of LP-constraint matrix entries (may be NULL if lpnnonz = 0) */
    );
 
 /** adds another SDP-Block to the problem

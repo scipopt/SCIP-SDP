@@ -55,9 +55,9 @@
 #include "scip/scip.h"                  // for SCIPinfinity, etc
 
 #include "SdpProblem.h"
-#include "SdpVarMapper.h"
-#include <fstream>
-#include <sstream>
+//#include "SdpVarMapper.h"
+//#include <fstream>
+//#include <sstream>
 
 namespace
 {
@@ -82,6 +82,8 @@ namespace
 
 namespace scip
 {
+
+   static double epsilon    = 1e-6;             /**< this is used for checking if primal and dual objective are equal */
 
    /** function for removing comments in between the variable & block definitions */
    static
@@ -122,7 +124,7 @@ namespace scip
       int numsdpblocks;                   //Number of SDP-blocks
       int numlpblocks;                    //Number of LP-blocks
       int alllpblocksize;                 //Size of all LP-blocks added
-      int** nblockvarnonz;                /* nblockvarnonz[i][j] gives the number of nonzeros in block i for variable j */
+      int* nvarnonz;                     /* nblockvarnonz[i] gives the number of nonzeros for variable i */
 
       std::vector<int, BlockMemoryAllocator<int> > blockpattern =
       std::vector<int, BlockMemoryAllocator<int> >(BlockMemoryAllocator<int>(scip));      //Vector with the sizes of all blocks
@@ -199,9 +201,7 @@ namespace scip
 
          }
          else
-         {
             printf("Blocklength 0 seems a bit odd, don't you think!\n");
-         }
       }
 
       assert(numblocks == numsdpblocks + numlpblocks);
@@ -210,17 +210,6 @@ namespace scip
       drop_space(file);
 
       SCIP_CALL(dropComments(&file));
-
-      /* allocate memory for nblockvarnonz & initialize it with zero */
-      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &nblockvarnonz, numsdpblocks));
-      for (int i = 0; i < numsdpblocks; i++)
-      {
-         SCIP_CALL(SCIPallocBlockMemoryArray(scip, &nblockvarnonz[i], numvars));
-         for (int j = 0; j < numvars; j++)
-         {
-            nblockvarnonz[i][j] = 0;
-         }
-      }
 
       // read objective
       object = std::vector<double>(numvars, 0.0);
@@ -287,17 +276,8 @@ namespace scip
       		//sdp-block
       		if (!blockislp[block_index - 1])
       		{
-      			int row_leq_col = FALSE;
-      			if (row_index <= col_index)
+      			if (row_index < col_index)
       			{
-      				row_leq_col = TRUE;
-      			}
-      			else
-      			{
-      				if (row_leq_col)
-      				{
-      					return SCIP_ERROR;
-      				}
       				int save_row = row_index;
       				row_index = col_index;
       				col_index = save_row;
@@ -317,7 +297,6 @@ namespace scip
       				blockstruct[block_index - 1].values.push_back(val);
       				blockstruct[block_index - 1].variables.push_back(var_index);
       				blockstruct[block_index - 1].num_nonzeros++;
-      				nblockvarnonz[block_index - 1][var_index - 1]++;
       			}
                SCIPdebugMessage("SDP entry: block_index: %d, row: %d, col: %d, var: %d, val: %g\n", block_index, row_index, col_index, var_index,val );
       		}
@@ -328,7 +307,6 @@ namespace scip
       			new_row_index = (row_index - 1) + (lp_block_num[block_index - 1] - 1) * lp_block_size[lp_block_num[block_index - 1] - 1];
       			LPData.rows[new_row_index].data.push_back(std::make_pair(var_index, val));
       			SCIPdebugMessage("LP entry: block_index: %d, row: %d, var: %d, val: %g\n", block_index, new_row_index, var_index,val );
-
       		}
 
       		drop_rest_line(file);
@@ -401,7 +379,6 @@ namespace scip
             int nnonz;
             int blocksize;
             int* varind; /* this is used to sort the nonzeroes by variable-indices and check which variables are actually included in this block */
-            int* begvar;
             int* col;
             int* row;
             SCIP_Real* val;
@@ -423,7 +400,7 @@ namespace scip
 
             blocksize = blockpattern[bindex];
             nnonz = blockstruct[bindex].num_nonzeros;
-            constnnonz = blockstruct[bindex].constnum_nonzeros;
+            ind = 0;
 
             /* allocate memory */
             SCIP_CALL( SCIPallocBlockMemoryArray(scip, &varind, blockstruct[bindex].num_nonzeros) );
@@ -439,26 +416,33 @@ namespace scip
             SCIP_CALL( SCIPallocBlockMemoryArray(scip, &constrow, blockstruct[bindex].constnum_nonzeros) );
             SCIP_CALL( SCIPallocBlockMemoryArray(scip, &constval, blockstruct[bindex].constnum_nonzeros) );
 
+            /* allocate memory for nblockvarnonz & initialize it with zero */
+            SCIP_CALL(SCIPallocBlockMemoryArray(scip, &nvarnonz, numvars));
+            for (int i = 0; i < numvars; i++)
+               nvarnonz[i] = 0;
+
+            /* prepare the constant arrays */
             for (k = 0; k < blockstruct[bindex].constnum_nonzeros; ++k)
             {
-               if (blockstruct[bindex].constvalues[k] > 10e-6 || blockstruct[bindex].constvalues[k] < -10e-6)
+               if (blockstruct[bindex].constvalues[k] > epsilon || blockstruct[bindex].constvalues[k] < -epsilon)
                {
-                  constcol[ind] = blockstruct[bindex].constcolumns[k];
-                  constrow[ind] = blockstruct[bindex].constrows[k];
+                  constcol[ind] = blockstruct[bindex].constcolumns[k] - 1; /* the sdpa format counts from 1 to blocksize, we want to start from 0 */
+                  constrow[ind] = blockstruct[bindex].constrows[k] - 1;
                   constval[ind] = blockstruct[bindex].constvalues[k];
                   ind++;
                }
             }
             constnnonz = ind;
 
+            /* prepare the non-constant arrays */
             ind = 0;
             for (k = 0; k < nnonz; ++k)
             {
-               if (blockstruct[bindex].values[k] > 10e-6 || blockstruct[bindex].values[k] < -10e-6)
+               if (blockstruct[bindex].values[k] > epsilon || blockstruct[bindex].values[k] < -epsilon)
                {
                   varind[ind] = blockstruct[bindex].variables[k] - 1;
-                  col[ind] = blockstruct[bindex].columns[k];
-                  row[ind] = blockstruct[bindex].rows[k];
+                  col[ind] = blockstruct[bindex].columns[k] - 1;
+                  row[ind] = blockstruct[bindex].rows[k] - 1;
                   val[ind] = blockstruct[bindex].values[k];
                   ind++;
                }
@@ -478,6 +462,7 @@ namespace scip
                {
                   nextindaftervar++;
                   varused = TRUE;
+                  nvarnonz[ind]++;
                }
                if (varused)
                {
@@ -491,40 +476,34 @@ namespace scip
 
             assert (nextindaftervar == nnonz);
 
-            /* this was only needed to compute the begvar and vars arrays */
+            /* this was only needed to compute the vars arrays */
             SCIPfreeBlockMemoryArray(scip, &varind, blockstruct[bindex].num_nonzeros);
 
             nvars = ind;
-            assert ( vars[ind] == VariablesX[numvars - 1] || begvar[ind] == nnonz ); /* if the last variable was used, this was asserted inside the for loop, otherwise
-                                                                                      * this couldn't be asserted there, because there wasn't clear yet, whether another
-                                                                                      * variable follows, so this should be asserted here in that case */
 
             SCIP_CONS* sdpcon;
             char       sdpcon_name[255];
             SCIPsnprintf(sdpcon_name, 255, "SDP-Constraint-%d", bindex);
-            SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcon, sdpcon_name, nvars, nnonz, blocksize, nblockvarnonz[bindex], colpointer, rowpointer, valpointer, vars, constnnonz,
+            SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcon, sdpcon_name, nvars, nnonz, blocksize, nvarnonz, colpointer, rowpointer, valpointer, vars, constnnonz,
                                          constcol, constrow, constval) );
             SCIP_CALL( SCIPaddCons(scip, sdpcon) );
 
             SCIP_CALL( SCIPreleaseCons(scip, &sdpcon) );
 
             /* free the used arrays */
-            SCIPfreeBlockMemoryArray(scip, &begvar, numvars);
-            SCIPfreeBlockMemoryArray(scip, &col, blockstruct[bindex].num_nonzeros);
-            SCIPfreeBlockMemoryArray(scip, &row, blockstruct[bindex].num_nonzeros);
-            SCIPfreeBlockMemoryArray(scip, &val, blockstruct[bindex].num_nonzeros);
-            SCIPfreeBlockMemoryArray(scip, &colpointer, numvars);
-            SCIPfreeBlockMemoryArray(scip, &rowpointer, numvars);
-            SCIPfreeBlockMemoryArray(scip, &valpointer, numvars);
-
-            SCIPfreeBlockMemoryArray(scip, &vars, numvars);
-
-            SCIPfreeBlockMemoryArray(scip, &constcol, blockstruct[bindex].constnum_nonzeros);
-            SCIPfreeBlockMemoryArray(scip, &constrow, blockstruct[bindex].constnum_nonzeros);
+            SCIPfreeBlockMemoryArray(scip, &nvarnonz, numvars);
             SCIPfreeBlockMemoryArray(scip, &constval, blockstruct[bindex].constnum_nonzeros);
+            SCIPfreeBlockMemoryArray(scip, &constrow, blockstruct[bindex].constnum_nonzeros);
+            SCIPfreeBlockMemoryArray(scip, &constcol, blockstruct[bindex].constnum_nonzeros);
+            SCIPfreeBlockMemoryArray(scip, &vars, numvars);
+            SCIPfreeBlockMemoryArray(scip, &valpointer, numvars);
+            SCIPfreeBlockMemoryArray(scip, &rowpointer, numvars);
+            SCIPfreeBlockMemoryArray(scip, &colpointer, numvars);
+            SCIPfreeBlockMemoryArray(scip, &val, blockstruct[bindex].num_nonzeros);
+            SCIPfreeBlockMemoryArray(scip, &row, blockstruct[bindex].num_nonzeros);
+            SCIPfreeBlockMemoryArray(scip, &col, blockstruct[bindex].num_nonzeros);
 
             SCIPdebugMessage("Construction of SDP constraint for block %d completed.\n", bindex);
-
          }
          else
          {
@@ -576,4 +555,3 @@ namespace scip
    }
 
 }//end of namespace scip
-}//obviously too much, but compiler said there was a } missing, now it says syntax error

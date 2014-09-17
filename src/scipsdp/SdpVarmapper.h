@@ -45,15 +45,14 @@
 extern "C" {
 #endif
 
-struct Sdpvarmapper{};
-
 typedef struct Sdpvarmapper SdpVarmapper;
 
 /** creates the SDP Varmapper */
 EXTERN
 SCIP_RETCODE SdpVarmapperCreate(
-   SCIP*                 scip,              /**< SCIP data structure */
-   SdpVarmapper*         varmapper          /**< Pointer to the Varmapper that should be created */
+   SCIP*                 scip,               /**< SCIP data structure */
+   SdpVarmapper**        varmapper,          /**< Pointer to the Varmapper that should be created */
+   int                   size                /**< initial size of the sciptosdp-hashmap */
    );
 
 /** frees the SDP Varmapper */
@@ -130,8 +129,6 @@ SCIP_RETCODE SdpVarmapperClone(
    SdpVarmapper*         oldmapper,         /**< Pointer to the Varmapper that should be cloned */
    SdpVarmapper*         newmapper          /**< Pointer to the Varmapper that should become a clone of the other one */
    );
-
-typedef struct Sdpvarmapper SdpVarmapper;   /**< Varmapper structure */
 
 #ifdef __cplusplus
 }

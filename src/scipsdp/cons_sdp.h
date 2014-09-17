@@ -83,8 +83,9 @@ SCIP_RETCODE SCIPcreateConsSdp(
    );
 
 /** get the data belonging to a single SDP-constraint
- *  in arraylength the length of the nvarnonz, col, row and val arrays has to be given, if it is not sufficient for the data that
- *  needs to be inserted, a debug message will be thrown and this variable will be set to the needed length */
+ *  in arraylength the length of the nvarnonz, col, row and val arrays has to be given, if it is not sufficient to store all block-pointers that
+ *  need to be inserted, a debug message will be thrown and this variable will be set to the needed length
+ *  constnnonz should give the length of the const arrays, if it is too short it will also give the needed number and a debug message is thrown */
 EXTERN
 SCIP_RETCODE SCIPconsSdpGetData(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -98,7 +99,7 @@ SCIP_RETCODE SCIPconsSdpGetData(
    int**                 row,                /**< pointers to row indices of the nonzeroes for each variable */
    SCIP_Real**           val,                /**< pointers to values of the nonzeroes for each variable */
    SCIP_Var**            vars,               /**< the SCIP variables present in this constraint, indexing equals indices in col/row/val */
-   int*                  constnnonz,         /**< number of nonzeroes in the constant part of this SDP constraint */
+   int*                  constnnonz,         /**< number of nonzeroes in the constant part of this SDP constraint, also length of the const arrays */
    int*                  constcol,           /**< pointer to column indices of the constant nonzeroes */
    int*                  constrow,           /**< pointer to row indices of the constant nonzeroes */
    SCIP_Real*            constval            /**< pointer to values of the constant nonzeroes */
@@ -136,32 +137,20 @@ SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
    SCIP_Real*            mat                 /**< pointer to store the lower triangular part of the constant matrix */
    );
 
-/** checks feasibility for a single SDP-Cone
-EXTERN
-SCIP_RETCODE consCheckSdp(
-   SCIP*                 scip,               *< SCIP data structure
-   SCIP_CONS*           cons,               *< the constraint for which the Matrix should be assembled
-   SCIP_SOL*             sol,                *< the solution to check feasibility for
-   SCIP_Bool             checkintegrality,   *< has integrality to be checked?
-   SCIP_Bool             checklprows,        *< have current LP rows to be checked?
-   SCIP_Bool             printreason,        *< should the reason for the violation be printed?
-   SCIP_RESULT*          result              *< pointer to store the result of the feasibility checking call
-   );*/
-
-/** sort given arrays by nondecreasing rows and then cols */
-EXTERN
-SCIP_RETCODE sortRowsCols(
-   int*                  row,                /** array of row indices, will be returned in nondecreasing order */
-   int*                  col,                /** array of col indices, for equal rows this will be the tiebreaker */
-   SCIP_Real*            val,                /** this will be returned in the order of row and col */
-   int                   maxrow,             /** maximum value in the row array (values should go from 0 to maxrow */
-   int                   length              /** length of the arrays that should be sorted */
+/** checks feasibility for a single SDP-Cone */
+SCIP_RETCODE SCIPconsSdpCheckSdpCons(
+   SCIP*                scip,               /**< SCIP data structure */
+   SCIP_CONS*           cons,               /**< the constraint for which the Matrix should be assembled */
+   SCIP_SOL*            sol,                /**< the solution to check feasibility for */
+   SCIP_Bool            checkintegrality,   /**< has integrality to be checked? */
+   SCIP_Bool            checklprows,        /**< have current LP rows to be checked? */
+   SCIP_Bool            printreason,        /**< should the reason for the violation be printed? */
+   SCIP_RESULT*         result              /**< pointer to store the result of the feasibility checking call */
    );
 
-/*
 #ifdef __cplusplus
 }
 #endif
-*/
+
 
 #endif

@@ -40,7 +40,7 @@
 #include "objscip/objscip.h"
 #include "objscip/objscipdefplugins.h"
 
-#include "cons_sdp.h"
+#include "scipsdp/cons_sdp.h"
 //#include "objconshdlr_sdp.h"
 #include "relax_sdp.h"
 #include "objreader_sdpa.h"
