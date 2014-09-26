@@ -25,7 +25,7 @@
 
 #@file    Makefile
 #@brief   Makefile for C++ SDP-Interface for SCIP
-#@author  Sonja Mars, Lars Schewe, Marc Pfetsch, Tristan Gally
+#@author  Sonja Mars, Lars Schewe, Marc Pfetsch, Tristan Gally, Ambros Gleixner
 
 #-----------------------------------------------------------------------------
 # own variables
@@ -58,8 +58,8 @@ FLAGS 		+= 	-I$(DSDP_INCLUDE_DIR)
 endif
 
 ifeq ($(SDPS),sdpa)
-LDFLAGS		+= 	-L$(SDPA_LIB_DIR) -lsdpa -ldmumps_seq -lpthread
-FLAGS 		+= 	-I$(SDPA_INCLUDE_DIR)
+LDFLAGS         +=      -L$(SDPA_LIB_DIR) -lsdpa $(SDPA_LDFLAGS)
+FLAGS           +=      -I$(SDPA_INCLUDE_DIR) $(SDPA_FLAGS)
 endif
 
 SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
@@ -75,10 +75,10 @@ MAINOBJ	=	scipsdp/main.o \
 		scipsdp/relax_sdp.o \
 		scipsdp/objreader_sdpa.o \
 		scipsdp/cons_sdp.o \
-		scipsdp/SdpVarMapper.o \
-		scipsdp/SdpCone.o \
+		scipsdp/SdpVarmapper.o \
+		scipsdp/SdpVarfixer.o \
 		scipsdp/ScipStreamBuffer.o \
-		scipsdp/SdpProblem.o 
+		sdpi/sdpi_general.o
 
 ifeq ($(SDPS),dsdp)
 MAINOBJ 	+= 	sdpi/sdpi_dsdp.o
