@@ -169,6 +169,9 @@ SCIP_RETCODE putSdpDataInInterface(
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &nblockvars, nsdpblocks) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &sdpvar, nsdpblocks) );
 
+   for (i = 0; i < nsdpblocks; i++)
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(nblockvarnonz[i]), nvars) );
+
    printf("nblockvars = %p = %p = scip\n", nblockvars, scip);
 
    /* get the SDP-data */
@@ -203,11 +206,11 @@ SCIP_RETCODE putSdpDataInInterface(
          assert ( nvars == SCIPgetNVars(scip) );
          assert ( nconstblocknonz[ind] <= constlength);
 
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpvar[i]), nblockvars[ind]));
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpvar[ind]), nblockvars[ind]));
 
          /* get global variable indices */
          for (j = 0; j < nblockvars[ind]; j++)
-            sdpvar[i][j] = SdpVarmapperGetSdpIndex(varmapper, blockvars[j]);
+            sdpvar[ind][j] = SdpVarmapperGetSdpIndex(varmapper, blockvars[j]);
 
          ind++;
       }
@@ -228,7 +231,8 @@ SCIP_RETCODE putSdpDataInInterface(
 
    for (i = 0; i < nsdpblocks; i++)
    {
-      SCIPfreeBlockMemoryArray(scip, &sdpvar[i], nblockvars[i]);
+      SCIPfreeBlockMemoryArray(scip, &(sdpvar[i]), nblockvars[i]);
+      SCIPfreeBlockMemoryArray(scip, &(nblockvarnonz[i]), nvars);
       if (constlength > 0)
       {
          SCIPfreeBlockMemoryArray(scip, &(constval[i]), nconstblocknonz[ind]);
@@ -381,77 +385,6 @@ SCIP_RETCODE putLpDataInInterface(
    return SCIP_OKAY;
 }
 
-/** gets the solution from sdpi and adds the fixed variables to the solution of the SDP Solver and transforms it to the variable indices used in SCIP */
-static
-SCIP_RETCODE getTransformedSol(
-   SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SdpVarmapper*         varmapper,          /**< data about fixed variables */
-   SCIP_Real*            solforscip,         /**< the solution indexed by SCIP variable indices */
-   SCIP_Real*            objforscip,         /**< the objective value including the fixed variables */
-   SCIP_Bool*            allint              /**< do all variables that should be integer have integer values */
-   )
-{
-   int nsdpvars;
-   SCIP_Real* sdpsol;
-   SCIP_Real sdpobj;
-   SCIP_VAR** vars;
-   int nvars;
-   int ind;
-   int i;
-   int sdpsollength;
-
-   assert ( scip != NULL );
-   assert ( sdpi != NULL );
-   assert ( varmapper != NULL );
-   assert ( solforscip != NULL );
-   assert ( objforscip != NULL );
-   assert ( allint != NULL );
-
-   SCIP_CALL( SCIPsdpiGetNVars(sdpi, &nsdpvars) );
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &sdpsol, nsdpvars) );
-   sdpsollength = nsdpvars;
-
-   SCIP_CALL( SCIPsdpiGetSol(sdpi, &sdpobj, sdpsol, &sdpsollength) ); /* get both the objective and the solution from the SDP solver */
-
-   assert ( nsdpvars == sdpsollength ); /* if this isn't true any longer, the getSol-Call was unsuccessfull, because the given array wasn't long enough,
-                                         * but this can't happen, because the array has enough space for all sdp variables */
-
-   *objforscip = sdpobj; /* initialize the objective with that of the SDP, later the objective parts of the fixed variables will be added to this */
-   *allint = TRUE; /* initialize this as true until a variable is found that is non-integer but should be */
-
-   nvars = SCIPgetNVars(scip);
-   vars = SCIPgetVars (scip);
-
-   for (i = 0; i < nvars; ++i)
-   {
-      SCIP_VAR* var = vars[i];
-      assert( var != 0 );
-
-      ind = SdpVarmapperGetSdpIndex(varmapper, var);
-      if ( ind == -1 )
-      {
-         assert (SCIPisEQ(scip, SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var)));
-
-         solforscip[i] = SCIPvarGetUbLocal(var); /* this variable was fixed, so it is equal to its upper bound (which equals the lower bound) */
-         SCIP_Real obj = SCIPvarGetObj(var);
-         if ( ! SCIPisZero(scip, solforscip[i]) && ! SCIPisZero(scip, obj) )
-            *objforscip += solforscip[i] * obj; /* add this fixed variable's contribution to the objective value */
-      }
-      else
-      {
-         solforscip[i] = sdpsol[ind]; /* get the value of the corresponding variable in the SDP */
-         if( *allint && SCIPvarIsIntegral(var) && !(SCIPisIntegral(scip, sdpsol[ind])) )
-            *allint = FALSE;   /* a variable that should be integral but isnot was found, so allint is set to false */
-         /* nothing needs to be done here with the objective value, because it was already initialized with the value from the SDP solver */
-      }
-   }
-
-   SCIPfreeBlockMemoryArray(scip, &sdpsol, nsdpvars);
-
-   return SCIP_OKAY;
-}
-
 /** checks the feasibility of the problem if the solver returned some ambigous solution by calling it again with a
  *  formulation that only has the LP-part as constraints and tries to minimize the minimal eigenvalue of the SDP-constraint */
 static
@@ -521,6 +454,7 @@ SCIP_RETCODE calc_relax(
    SCIP_VAR** vars;
    int nvars;
    int i;
+   int v;
    SCIP_CONS** conss;
    int nconss;
 
@@ -548,9 +482,14 @@ SCIP_RETCODE calc_relax(
    SCIP_Real objforscip;
    SCIP_Real* solforscip;
    SCIP_Bool allint;
+   int sollength;
 
    SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
-   SCIP_CALL( getTransformedSol(scip, sdpi, varmapper, solforscip, &objforscip, &allint) );
+   sollength = nvars;
+   SCIP_CALL( SCIPsdpiGetSol(sdpi, &objforscip, solforscip, &sollength) ); /* get both the objective and the solution from the SDP solver */
+
+   assert ( sollength == nvars ); /* if this isn't true any longer, the getSol-Call was unsuccessfull, because the given array wasn't long enough,
+                                   * but this can't happen, because the array has enough space for all sdp variables */
 
    SCIPdebugMessage("optimal solution: objective = %f, ", objforscip);
    if( SCIPsdpiFeasibilityKnown(sdpi) )
@@ -612,7 +551,22 @@ SCIP_RETCODE calc_relax(
 
          /* get solution w.r.t. SCIP variables */
          SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
-         SCIP_CALL( getTransformedSol(scip, sdpi, varmapper, solforscip, &objforscip, &allint) );
+         sollength = nvars;
+         SCIP_CALL( SCIPsdpiGetSol(sdpi, &objforscip, solforscip, &sollength) ); /* get both the objective and the solution from the SDP solver */
+
+         assert ( sollength == nvars ); /* if this isn't true any longer, the getSol-Call was unsuccessfull, because the given array wasn't long enough,
+                                         * but this can't happen, because the array has enough space for all sdp variables */
+
+         /* check if the solution is integral */
+         allint = TRUE;
+         for (v = 0; v < nvars; v++)
+         {
+            if (SCIPvarIsIntegral(SdpVarmapperGetSCIPvar(varmapper, v)) && ! (SCIPisIntegral(scip, solforscip[v])))
+            {
+               allint = FALSE;
+               break;
+            }
+         }
 
          /* create SCIP solution */
          SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );

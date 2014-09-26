@@ -60,7 +60,7 @@
 #define CONSHDLR_SEPAFREQ             1 /**< frequency for separating cuts; zero means to separate only in the root node */
 #define CONSHDLR_PROPFREQ            -1 /**< frequency for propagating domains; zero means only preprocessing propagation */
 #define CONSHDLR_EAGERFREQ          100 /**< frequency for using all instead of only the useful constraints in separation,
-                                         *   propagation and enforcement, -1 for no eager evaluations, 0 for first only */
+                                          *   propagation and enforcement, -1 for no eager evaluations, 0 for first only */
 #define CONSHDLR_MAXPREROUNDS        -1 /**< maximal number of presolving rounds the constraint handler participates in (-1: no limit) */
 #define CONSHDLR_DELAYSEPA        FALSE /**< should separation method be delayed, if other separators found cuts? */
 #define CONSHDLR_DELAYPROP        FALSE /**< should propagation method be delayed, if other propagators found reductions? */
@@ -68,6 +68,9 @@
 #define CONSHDLR_NEEDSCONS         TRUE /**< should the constraint handler be skipped, if no constraints are available? */
 
 #define CONSHDLR_PROP_TIMING       SCIP_PROPTIMING_BEFORELP
+
+/* transforms a double (that should be integer, but might be off by some numerical error) to an integer by adding an epsilon and rounding down */
+#define DOUBLETOINT(x) ((int) x + 1e-6)
 
 
 /** constraint data for sdp constraints */
@@ -79,7 +82,7 @@ struct SCIP_ConsData
    int*                  nvarnonz;           /**< length of the arrays pointed to by col/row/val, number of nonzeros for each variable */
    int**                 col;                /**< pointers to the column indices of the nonzeroes for each variable */
    int**                 row;                /**< pointers to the row indices of the nonzeroes for each variable */
-   SCIP_Real**           val;                /**< pointers to the values of the nonzeroes for each variable*/
+   SCIP_Real**           val;                /**< pointers to the values of the nonzeroes for each variable */
    SCIP_Var**            vars;               /**< SCIP_Variables present in this SDP constraint, ordered by their begvar-indices */
    int                   constnnonz;         /**< number of nonzeroes in the constant part of this SDP constraint */
    int*                  constcol;           /**< column indices of the constant nonzeroes */
@@ -87,7 +90,6 @@ struct SCIP_ConsData
    SCIP_Real*            constval;           /**< values of the constant nonzeroes */
 };
 
-static int neigvalcuts = 0; /* this is used to give the eigenvalue-cuts distinguishable names */
 static int neigveccuts = 0; /* this is used to give the eigenvector-cuts distinguishable names */
 static int ndiaggezerocuts = 0; /* this is used to give the diagGEzero-cuts distinguishable names */
 static int ndiagdomcuts = 0; /* this is used to give the diagDominant-cuts distinguishable names */
@@ -178,10 +180,19 @@ SCIP_RETCODE computeIthEigenvalue(
    double  WSIZE;
    int     WISIZE;
 
+   assert ( scip != NULL );
+   assert ( n >= 0 );
+   assert ( A != NULL );
+   assert ( 0 < i && i <= n );
+   assert ( eigenvalue != NULL );
+   assert ( ( ! geteigenvectors) || eigenvector != NULL );
+
+
    // standard LAPACK workspace query
    LWORK = -1;
    LIWORK = -1;
 
+   /* this computes the internally needed memory and returns this as (the first entries of [the 1x1 arrays]) WSIZE and WISIZE */
    F77_FUNC(dsyevr, DSYEVR)( &JOBZ, &RANGE, &UPLO,
       &N, NULL, &LDA,
       NULL, NULL,
@@ -198,7 +209,7 @@ SCIP_RETCODE computeIthEigenvalue(
    }
 
    // allocate workspace
-   LWORK = (int) WSIZE + 1;
+   LWORK = DOUBLETOINT(WSIZE); //was (int)WSIZE+1
    LIWORK = WISIZE;
 
    SCIP_CALL( SCIPallocBufferArray(scip, &WORK, LWORK) );
@@ -314,7 +325,7 @@ SCIP_RETCODE computeSdpMatrix(
    nvars = consdata->nvars;
 
    /* initialize the matrix with 0 */
-   for (i = 0; i < 0.5 * nvars * (nvars + 1); i++)
+   for (i = 0; i < DOUBLETOINT(0.5 * nvars * (nvars + 1)); i++)
       matrix[i] = 0.0;
 
    /* add the non-constant-part */
@@ -431,14 +442,14 @@ SCIP_RETCODE cutUsingEigenvector(
    blocksize = consdata->blocksize;
 
    SCIP_CALL( SCIPallocBufferArray(scip, &eigenvalues, blocksize) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, 0.5 * blocksize * (blocksize+1) ));
-   SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize ));
-   SCIP_CALL( SCIPallocBufferArray(scip, &fullconstmatrix, blocksize * blocksize));
+   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, DOUBLETOINT(0.5 * blocksize * (blocksize+1)) ) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize ) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &fullconstmatrix, blocksize * blocksize) );
    SCIP_CALL( SCIPallocBufferArray(scip, &eigenvector, blocksize) );
    SCIP_CALL( SCIPallocBufferArray(scip, &output_vector, blocksize) );
 
    /* compute the matrix \f$ \sum_j A_j y_j \f$ */
-   SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix));
+   SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix) );
 
    /* expand it because LAPACK wants the full matrix instead of the lower triangular part */
    SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
@@ -486,23 +497,22 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    consdata = SCIPconsGetData(cons);
    blocksize = consdata->blocksize;
 
-   SCIP_Real* eigenvalues = NULL;
+   SCIP_Real eigenvalue;
    SCIP_Real* matrix = NULL;
    SCIP_Real* fullmatrix = NULL;
 
-   SCIP_CALL( SCIPallocBufferArray(scip, &eigenvalues, blocksize) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, 0.5 * blocksize * (blocksize+1)) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, DOUBLETOINT(0.5 * blocksize * (blocksize+1))) );
    SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize) );
 
    SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix) );
    SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
 
-   SCIP_CALL( computeIthEigenvalue(scip, FALSE, blocksize, fullmatrix, 1, eigenvalues, NULL) );
+   SCIP_CALL( computeIthEigenvalue(scip, FALSE, blocksize, fullmatrix, 1, &eigenvalue, NULL) );
 
    //we are going to use one of the dimacs error norms for checking feasiblity.
    //we use the second one: err=max{0, -lambda_min(x)/(1+maximumentry of rhs}
 
-   check_value = (-eigenvalues[0]) / (1.0 + getMaxConstEntry(cons));
+   check_value = (-eigenvalue) / (1.0 + getMaxConstEntry(cons));
 
    if ( SCIPisLE(scip, check_value, 0.0) )
       *result = SCIP_FEASIBLE;
@@ -512,14 +522,13 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
       if ( printreason )
       {
          SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
-         SCIPinfoMessage(scip, NULL, "non psd matrix (eigenvalue %f, dimacs error norm = %f).\n", eigenvalues[0], check_value);
+         SCIPinfoMessage(scip, NULL, "non psd matrix (eigenvalue %f, dimacs error norm = %f).\n", eigenvalue, check_value);
       }
    }
 
    SCIPfreeBufferArray(scip, &fullmatrix);
    SCIPfreeBufferArray(scip, &matrix);
-   SCIPfreeBufferArray(scip, &eigenvalues);
-
+//TODO: checkintegrality, checklprows?
    return SCIP_OKAY;
 }
 
@@ -570,7 +579,7 @@ SCIP_RETCODE separateSol(
 
    SCIP_ROW* row;
    SCIP_CALL( SCIPallocBufferArray(scip, &cutname, 255) );
-   snprintfreturn = SCIPsnprintf(cutname, 255, "sepa_eig_sdp_%d", ++neigvalcuts);
+   snprintfreturn = SCIPsnprintf(cutname, 255, "sepa_eig_sdp_%d", ++neigveccuts);
    assert ( snprintfreturn < 256 ); /* it returns the number of positions that would have been needed, if that is more than 255, it failed */
    SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname , lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
    SCIP_CALL( SCIPaddVarsToRow(scip, row, len, vars, vals) );
@@ -636,7 +645,7 @@ SCIP_RETCODE diagGEzero(
       rhs = SCIPinfinity(scip);
 
       SCIP_Real* matrix;
-      SCIP_CALL(SCIPallocBufferArray(scip, &matrix, 0.5 * blocksize * (blocksize+1)));
+      SCIP_CALL(SCIPallocBufferArray(scip, &matrix, DOUBLETOINT(0.5 * blocksize * (blocksize+1))));
       SCIP_CALL(SCIPconsSdpGetLowerTriangConstMatrix(scip, conss[c], matrix));
 
       SCIP_Real* cons_array;
@@ -1286,13 +1295,23 @@ SCIP_DECL_CONSLOCK(consLockSdp)
          SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[var], nlocksneg, nlockspos) );
       }
 
-      /* compute the biggest eigenvalue */
-      SCIP_CALL( computeIthEigenvalue(scip, FALSE, blocksize, Aj, blocksize, &eigenvalue, NULL) );
+      /* if the smallest eigenvalue is already positive, we don't need to compute the biggest one */
       if ( SCIPisPositive(scip, eigenvalue) )
       {
-         /* as the biggest eigenvalue is positive, the matrix is not negative semidefinite, so substracting more of it can remove positive
+         /* as an eigenvalue is positive, the matrix is not negative semidefinite, so substracting more of it can remove positive
           * semidefiniteness of the SDP-matrix */
          SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[var], nlockspos, nlocksneg) );
+      }
+      else
+      {
+         /* compute the biggest eigenvalue */
+         SCIP_CALL( computeIthEigenvalue(scip, FALSE, blocksize, Aj, blocksize, &eigenvalue, NULL) );
+         if ( SCIPisPositive(scip, eigenvalue) )
+         {
+            /* as the biggest eigenvalue is positive, the matrix is not negative semidefinite, so substracting more of it can remove positive
+             * semidefiniteness of the SDP-matrix */
+            SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[var], nlockspos, nlocksneg) );
+         }
       }
    }
 
@@ -1435,7 +1454,7 @@ SCIP_DECL_CONSENFOPS(consEnfopsSdp)
       consdata = SCIPconsGetData(conss[i]);
       nvars = consdata->nvars;
       SCIP_CALL( SCIPallocBufferArray(scip, &coeff, nvars) );
-      SCIP_CALL(cutUsingEigenvector(scip, conss[i], NULL, coeff, &lhs));
+      SCIP_CALL(cutUsingEigenvector(scip, conss[i], NULL, coeff, &lhs));   /* TODO: is this added anywhere? enfops doesn't allow for cuts to be added */
 
       if (*result != SCIP_INFEASIBLE)
       {
@@ -1452,7 +1471,7 @@ SCIP_DECL_CONSENFOPS(consEnfopsSdp)
 
 /** constraint enforcing method of constraint handler for LP solutions
  *
- *  enforce lp solution method, must be implemented, but there is no lp in the sdp-case, so returns SCIP_ERROR.
+ *  enforce lp solution method, if some block is not psd an eigenvector cut is added.
  */
 static
 SCIP_DECL_CONSENFOLP(consEnfolpSdp)
@@ -1474,7 +1493,6 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
       all_feasible = FALSE;
 
       int nvars = consdata->nvars;
-
 
       SCIP_Real lhs = 0.0;
       SCIP_Real* coeff = NULL;

@@ -108,14 +108,21 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPsetIntParam(scip, "separating/maxrounds", 20));
 
    //Parameters for node selection
-/*   int relaxfreq;
-   SCIP_CALL(SCIPgetIntParam(scip, "relaxing/SDPRelax/freq", &relaxfreq));
-   if (relaxfreq==1) {                                                           also doesn't work, see line 81*/
+      /* Because in the SDP-world there are no warmstarts as for LPs, the main advantage for DFS (that the change in the
+       * problem is minimal and therefore the Simplex can continue with the current Basis) is lost and best first search, which
+       * provably needs the least number of nodes (see the Dissertation of Tobias Achterberg, the node selection rule with
+       * the least number of nodes, allways has to be a best first search), is the optimal choice
+       */
       SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/stdpriority", 1000000));
       SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/maxplungedepth", 0));
       SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight", 0.0));
 
-      SCIP_CALL( SCIPsetIntParam(scip, "branching/pscost/priority",-2000000));
+      /*
+       * this leaves Inference-Branching (branching of the variable which led to the most fixings of other variables in
+       * the past) [priority 1000] and pseudocost (branching on the variable which led to the least decrease in the objective
+       * in the past) [priority 2000] as the ones with the highest priority
+       */
+      //SCIP_CALL( SCIPsetIntParam(scip, "branching/pscost/priority",-2000000));
       SCIP_CALL( SCIPsetIntParam(scip, "branching/relpscost/priority",-2000000));
   // }
 

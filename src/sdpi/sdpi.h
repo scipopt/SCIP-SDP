@@ -192,8 +192,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *      & & Dy \geq d \\
  *      & & l \leq y \leq u}
  *  \f
- *  alternatively withObj can be to false to set \f b \f to false and only check for feasibility (if the optimal
- *  objective value is bigger than 0 the problem is infeasible, otherwise it's feasible)
+ *  alternatively withObj can be set to false to set \f b \f to false and only check for feasibility (if the optimal objective value is
+ *  bigger than 0 the problem is infeasible, otherwise it's feasible)
  *  For the non-constant SDP- and the LP-part the original arrays before fixings should be given, for the constant SDP-part the arrays AFTER fixings
  *  should be given, in addition to that an array needs to be given, that for every block and every row/col index within that block either has value
  *  -1, meaning that this index should be deleted, or a non-negative integer stating the number of indices before it that are to be deleated,

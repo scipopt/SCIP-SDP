@@ -106,13 +106,16 @@ SCIP_RETCODE SdpVarmapperAddVars(
                              * should reallocate later */
    int allocsize;
 
+   if (nvars == 0)
+      return SCIP_OKAY;
+
    assert ( scip != NULL );
    assert ( varmapper != NULL );
    assert ( nvars >= 0 );
    assert ( vars != NULL );
 
    allocsize = varmapper->nvars + nvars;
-   SCIP_CALL(SCIPreallocBlockMemoryArray(scip, &varmapper->sdptoscip, varmapper->nvars, allocsize));
+   SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(varmapper->sdptoscip), varmapper->nvars, allocsize) );
 
    reallocneeded = FALSE;
 

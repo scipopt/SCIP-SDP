@@ -163,7 +163,7 @@ SCIP_Bool isFixed(
    return ( REALABS(ub-lb) <= epsilon);
 }
 #else
-#define isFixed(lb,ub,epsilon) (REALABS(ub-lb) <= epsilon)
+#define isFixed(sdpi, v) (REALABS(sdpi->ub[v] - sdpi->lb[v]) <= epsilon)
 #endif
 
 /**
@@ -190,7 +190,6 @@ SCIP_RETCODE compConstMatAfterFixings(
    int** fixedrows;
    int** fixedcols;
    SCIP_Real** fixedvals;
-   int sdpconstlength;
 
    assert ( sdpi != NULL );
    assert ( sdpconstnnonz != NULL );
@@ -847,10 +846,10 @@ SCIP_RETCODE SCIPsdpiDelSDPBlock(
    int movingblock;
    int var;
    //int i;
-   int deletedconstnnonz;
-   int newsdpconstnnonz;
-   int deletednnonz;
-   int newsdpnnonz;
+   //int deletedconstnnonz;
+   //int newsdpconstnnonz;
+   //int deletednnonz;
+   //int newsdpnnonz;
 
    //SCIPdebugMessage("Deleting block %d from SDP %d\n",block, nextsdpid);
 
