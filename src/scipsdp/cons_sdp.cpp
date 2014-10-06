@@ -70,7 +70,7 @@
 #define CONSHDLR_PROP_TIMING       SCIP_PROPTIMING_BEFORELP
 
 /* transforms a double (that should be integer, but might be off by some numerical error) to an integer by adding an epsilon and rounding down */
-#define DOUBLETOINT(x) ((int) x + 1e-6)
+#define DOUBLETOINT(x) ((int) x + 0.5)
 
 
 /** constraint data for sdp constraints */
@@ -112,7 +112,7 @@ static
 SCIP_RETCODE Blas_DGEMV(
    int                   nrows,              /**< number of rows in matrix */
    int                   ncols,              /**< number of cols in matrix */
-   SCIP_Real             alpha,              /**< scaling parameter */
+   double                alpha,              /**< scaling parameter */
    double*               matrix,             /**< the matrix we want to multiply */
    double*               vector,             /**< vector we want to multiply with the matrix */
    double                beta,               /**< scaling parameter */
@@ -328,7 +328,7 @@ SCIP_RETCODE computeSdpMatrix(
    nvars = consdata->nvars;
 
    /* initialize the matrix with 0 */
-   for (i = 0; i < DOUBLETOINT(0.5 * nvars * (nvars + 1)); i++)
+   for (i = 0; i < (nvars * (nvars + 1))/2; i++)
       matrix[i] = 0.0;
 
    /* add the non-constant-part */
@@ -445,7 +445,7 @@ SCIP_RETCODE cutUsingEigenvector(
    blocksize = consdata->blocksize;
 
    SCIP_CALL( SCIPallocBufferArray(scip, &eigenvalues, blocksize) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, DOUBLETOINT(0.5 * blocksize * (blocksize+1)) ) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1))/2 ) );
    SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize ) );
    SCIP_CALL( SCIPallocBufferArray(scip, &fullconstmatrix, blocksize * blocksize) );
    SCIP_CALL( SCIPallocBufferArray(scip, &eigenvector, blocksize) );
@@ -504,7 +504,7 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    SCIP_Real* matrix = NULL;
    SCIP_Real* fullmatrix = NULL;
 
-   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, DOUBLETOINT(0.5 * blocksize * (blocksize+1))) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1)) / 2) );
    SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize) );
 
    SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix) );
@@ -650,7 +650,7 @@ SCIP_RETCODE diagGEzero(
       rhs = SCIPinfinity(scip);
 
       SCIP_Real* matrix;
-      SCIP_CALL(SCIPallocBufferArray(scip, &matrix, DOUBLETOINT(0.5 * blocksize * (blocksize+1))));
+      SCIP_CALL(SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1)) / 2));
       SCIP_CALL(SCIPconsSdpGetLowerTriangConstMatrix(scip, conss[c], matrix));
 
       SCIP_Real* cons_array;
