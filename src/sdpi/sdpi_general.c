@@ -114,9 +114,8 @@ struct SCIP_SDPi
    /* other data */
    int                   solved;             /**< was the problem solved since the last change */
    int                   sdpid;              /**< counter for the number of SDPs solved */
+   SCIP_Real             epsilon             /**< this is used for checking if primal and dual objective are equal */
 };
-
-static double epsilon    = 1e-6;             /**< this is used for checking if primal and dual objective are equal */
 
 /*
  * Local Functions
@@ -158,19 +157,19 @@ SCIP_Bool isFixed(
    lb = sdpi->lb[v];
    ub = sdpi->ub[v];
 
-   assert( lb < ub + epsilon );
+   assert( lb < ub + sdpi->epsilon );
 
-   return ( REALABS(ub-lb) <= epsilon);
+   return ( REALABS(ub-lb) <= sdpi->epsilon);
 }
 #else
-#define isFixed(sdpi, v) (REALABS(sdpi->ub[v] - sdpi->lb[v]) <= epsilon)
+#define isFixed(sdpi, v) (REALABS(sdpi->ub[v] - sdpi->lb[v]) <= sdpi->epsilon)
 #endif
 
 /**
  * Computes the constant Matrix after all variables with lb=ub have been fixed and their nonzeros were moved to the constant part. The five variables
  * other than sdpi are used to return the matrix, the size of sdpconstnblocknonz and the first pointers of sdpconst row/col/val should be equal to
- * sdpi->nsdpblocks, the size of sdpconst row/col/val [i] needs to be sufficient, otherwise the needed length will be returned in sdpconstnblocknonz
- * and a debug message will be thrown
+ * sdpi->nsdpblocks, the size of sdpconst row/col/val [i], which is given in sdpconstblocknnonz, needs to be sufficient, otherwise the needed length
+ * will be returned in sdpconstnblocknonz and a debug message will be thrown
  */
 static
 SCIP_RETCODE compConstMatAfterFixings(
@@ -278,7 +277,7 @@ SCIP_RETCODE compConstMatAfterFixings(
 /**
  * this takes the sdpi and the computed constant matrix after fixings as input and checks for empty rows and columns in each block, which should be
  * removed to not harm the slater condition, this is returned as a 2d-array, where each block and each row/col index (which is the same because of
- * symmetrie) either has value -1, then the index is to be removed, or gives a number (the number of indices deleted before it) by which this index
+ * symmetry) either has value -1, then the index is to be removed, or gives a number (the number of indices deleted before it) by which this index
  * is to be decreased
  */
 static
@@ -312,7 +311,7 @@ SCIP_RETCODE findEmptyRowColsSDP(
     * index is still needed, it will later be set to the number of rows/cols deleted earlier */
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
-      /* the number of indices already found in this block, saved for prematurly stopping the loops */
+      /* the number of indices already found in this block, saved for prematurely stopping the loops */
       nfoundinds = 0;
       for (v = 0; v < sdpi->sdpnblockvars[block]; v++)
       {
@@ -320,7 +319,7 @@ SCIP_RETCODE findEmptyRowColsSDP(
          {
             for (i = 0; i < sdpi->sdpnblockvarnonz[block][v]; i++)
             {
-               assert ( REALABS(sdpi->sdpval[block][v][i]) > epsilon); /* this should really be a nonzero */
+               assert ( REALABS(sdpi->sdpval[block][v][i]) > sdpi->epsilon); /* this should really be a nonzero */
                if (indchanges[block][sdpi->sdprow[block][v][i]] == -1)
                {
                   indchanges[block][sdpi->sdprow[block][v][i]] = 1;
@@ -344,7 +343,7 @@ SCIP_RETCODE findEmptyRowColsSDP(
          /* if some indices haven't been found yet, look in the constant part for them */
          for (i = 0; i < sdpconstnblocknonz[block]; i++)
          {
-            assert ( REALABS(sdpconstval[block][i]) > epsilon); /* this should really be a nonzero */
+            assert ( REALABS(sdpconstval[block][i]) > sdpi->epsilon); /* this should really be a nonzero */
             if (indchanges[block][sdpconstrow[block][i]] == -1)
             {
                indchanges[block][sdpconstrow[block][i]] = 1;
@@ -471,6 +470,8 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->lprow = NULL;
    (*sdpi)->lpcol = NULL;
    (*sdpi)->lpval = NULL;
+
+   (*sdpi)->epsilon = 1e-6;
 
    return SCIP_OKAY;
 }
@@ -1350,11 +1351,11 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
 
    for (i=0; i < nnonz; i++)
    {
-      assert ( row[i] < nrows );
+      assert ( 0 <= row[i] && row[i] < nrows );
       sdpi->lprow[sdpi->lpnnonz + i] = row[i] + sdpi->nlpcons; /* the new rows are added at the end, so the row indices are increased by the old
                                                                 * number of LP-constraints */
 
-      assert ( col[i] < sdpi->nvars ); /* only existing vars should be added to the LP-constraints */
+      assert ( 0 <= col[i] && col[i] < sdpi->nvars ); /* only existing vars should be added to the LP-constraints */
       sdpi->lpcol[sdpi->lpnnonz + i] = col[i];
 
       sdpi->lpval[sdpi->lpnnonz + i] = val[i];
@@ -2627,7 +2628,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
 
    SCIP_CALL (findEmptyRowColsSDP(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges, nremovedinds) );
 
-   if (SCIPsdpiSolverKnowsPenalty() || penaltyParam < epsilon)
+   if (SCIPsdpiSolverKnowsPenalty() || penaltyParam < sdpi->epsilon)
    {
       SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, penaltyParam, withObj, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
                                                        sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpi->sdpconstnnonz,

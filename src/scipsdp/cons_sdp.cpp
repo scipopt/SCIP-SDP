@@ -90,11 +90,14 @@ struct SCIP_ConsData
    SCIP_Real*            constval;           /**< values of the constant nonzeroes */
 };
 
-static int neigveccuts = 0; /* this is used to give the eigenvector-cuts distinguishable names */
-static int ndiaggezerocuts = 0; /* this is used to give the diagGEzero-cuts distinguishable names */
-static int ndiagdomcuts = 0; /* this is used to give the diagDominant-cuts distinguishable names */
-static int n1x1blocks = 0; /* this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
-
+/** SDP constraint handler data */
+struct SCIP_ConshdlrData
+{
+	int neigveccuts; /* this is used to give the eigenvector-cuts distinguishable names */
+	int ndiaggezerocuts; /* this is used to give the diagGEzero-cuts distinguishable names */
+	int ndiagdomcuts; /* this is used to give the diagDominant-cuts distinguishable names */
+	int n1x1blocks; /* this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
+};
 
 extern "C" {
 /** BLAS Fortran subroutine DGEMV */
@@ -543,6 +546,7 @@ SCIP_RETCODE separateSol(
    )
 {
    SCIP_CONSDATA* consdata;
+   SCIP_CONSHDLRDATA* conshdlrdata;
    SCIP_Real lhs = 0.0;
    SCIP_Real* coeff = NULL;
    int nvars;
@@ -578,11 +582,12 @@ SCIP_RETCODE separateSol(
    }
 
    SCIP_ROW* row;
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
    SCIP_CALL( SCIPallocBufferArray(scip, &cutname, 255) );
-   snprintfreturn = SCIPsnprintf(cutname, 255, "sepa_eig_sdp_%d", ++neigveccuts);
+   snprintfreturn = SCIPsnprintf(cutname, 255, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
    assert ( snprintfreturn < 256 ); /* it returns the number of positions that would have been needed, if that is more than 255, it failed */
    SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname , lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
-   SCIP_CALL( SCIPaddVarsToRow(scip, row, len, vars, vals) );
+   SCIP_CALL( SCIPaddVarsToRow(scip, row, len, vars, vals)  );
 
    if ( SCIPisCutEfficacious(scip, sol, row) )
    {
@@ -680,7 +685,10 @@ SCIP_RETCODE diagGEzero(
       for (k = 0; k < blocksize; ++k)
       {
          SCIP_CONS* cons;
-         snprintfreturn = SCIPsnprintf(cutname, 255, "diag_ge_zero_%d", ++ndiaggezerocuts);
+         SCIP_CONSHDLRDATA* conshdlrdata;
+
+         conshdlrdata = SCIPconshdlrGetData(conshdlr);
+         snprintfreturn = SCIPsnprintf(cutname, 255, "diag_ge_zero_%d", ++(conshdlrdata->ndiaggezerocuts));
          assert ( snprintfreturn < 256 ); /* this is the number of positions needed, we gave 255 */
 
          SCIP_CALL(SCIPcreateConsLinear(scip, &cons, cutname, consdata->nvars, consdata->vars, cons_array + k * consdata->nvars, lhs_array[k], rhs,
@@ -723,6 +731,7 @@ SCIP_RETCODE diagDominant(
    int nvars;
    int var;
    SCIP_CONS* cons;
+   SCIP_CONSHDLRDATA* conshdlrdata;
    char* cutname;
    int snprintfreturn;
 
@@ -808,7 +817,8 @@ SCIP_RETCODE diagDominant(
                vals[var] = 1.0;
             }
 
-            snprintfreturn = SCIPsnprintf(cutname, 255, "diag_dom_%d", ++ndiagdomcuts);
+            conshdlrdata = SCIPconshdlrGetData(conshdlr);
+            snprintfreturn = SCIPsnprintf(cutname, 255, "diag_dom_%d", ++(conshdlrdata->ndiagdomcuts));
             assert ( snprintfreturn < 256 ); /* the return is the number of spots needed, we gave 255 */
 
             /* add the linear constraint sum_j 1.0 * diagvars[j] >= 1.0 */
@@ -843,6 +853,8 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
    )
 {
    SCIP_CONSHDLR* hdlr;
+   SCIP_CONS* cons;
+   SCIP_CONSHDLRDATA* conshdlrdata;
    int nnonz;
    SCIP_VAR** vars;
    SCIP_Real* coeffs;
@@ -894,9 +906,9 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
          rhs = (consdata->constnnonz == 1) ? consdata->constval[0] : 0.0; /* if this one entry is not 0, than this is the rhs, otherwise it's 0 */
 
          //add new linear cons
-         SCIP_CONS* cons;
+         conshdlrdata = SCIPconshdlrGetData(hdlr);
          SCIP_CALL( SCIPallocBufferArray(scip, &cutname, 255) );
-         snprintfreturn = SCIPsnprintf(cutname, 255, "1x1block_%d", ++n1x1blocks);
+         snprintfreturn = SCIPsnprintf(cutname, 255, "1x1block_%d", ++(conshdlrdata->n1x1blocks));
          assert ( snprintfreturn < 256 ); /* the return is the number of spots needed, we gave 255 */
 
          SCIP_CALL(SCIPcreateConsLinear(scip, &cons, cutname, consdata->nvars, vars, coeffs, rhs, SCIPinfinity(scip),
@@ -1231,6 +1243,23 @@ SCIP_RETCODE multiaggrVars(
    return SCIP_OKAY;
 }
 
+/** informs constraint handler that the presolving process is being started */
+static
+SCIP_DECL_CONSINITPRE(consInitpreSdp)
+{
+	SCIP_CONSHDLRDATA* conshdlrdata;
+
+	conshdlrdata = SCIPconshdlrGetData(conshdlr);
+
+	conshdlrdata->neigveccuts = 0; /* this is used to give the eigenvector-cuts distinguishable names */
+	conshdlrdata->ndiaggezerocuts = 0; /* this is used to give the diagGEzero-cuts distinguishable names */
+	conshdlrdata->ndiagdomcuts = 0; /* this is used to give the diagDominant-cuts distinguishable names */
+	conshdlrdata->n1x1blocks = 0; /* this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
+
+	return SCIP_OKAY;
+}
+
+
 
 /** after the problem is transformed swap all variables in this constraint for the transformed ones */
 static
@@ -1477,6 +1506,7 @@ static
 SCIP_DECL_CONSENFOLP(consEnfolpSdp)
 {
    SCIP_CONSDATA* consdata;
+   SCIP_CONSHDLRDATA* conshdlrdata;
    bool all_feasible = TRUE;
    bool separated = FALSE;
    char* cutname;
@@ -1506,8 +1536,9 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
       }
       SCIP_ROW* row;
       SCIP_Real rhs = SCIPinfinity(scip); //local modifiable, removable
-      SCIP_CALL (SCIPallocBufferArray(scip, &cutname, 255) );
-      snprintfreturn = SCIPsnprintf(cutname, 255, "eigenvectorcut_enfolp_%d", ++neigveccuts);
+      conshdlrdata = SCIPconshdlrGetData(conshdlr);
+      SCIP_CALL( SCIPallocBufferArray(scip, &cutname, 255) );
+      snprintfreturn = SCIPsnprintf(cutname, 255, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
       assert ( snprintfreturn < 256 ); /* this is the number of spots needed, we gave 255 */
       SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname , lhs, rhs, FALSE, FALSE, TRUE) );
       SCIP_CALL( SCIPcacheRowExtensions(scip, row) );
@@ -1707,6 +1738,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    /* set non-fundamental callbacks via specific setter functions */
    SCIP_CALL( SCIPsetConshdlrDelete(scip, conshdlr, consDeleteSdp) );
    SCIP_CALL( SCIPsetConshdlrInit(scip, conshdlr, consInitSdp) );
+   SCIP_CALL( SCIPsetConshdlrInitpre(scip, conshdlr,consInitpreSdp) );
    SCIP_CALL( SCIPsetConshdlrExitpre(scip, conshdlr, consExitpreSdp) );
    SCIP_CALL( SCIPsetConshdlrPresol(scip, conshdlr, consPresolSdp, CONSHDLR_MAXPREROUNDS, CONSHDLR_DELAYPRESOL) );
    SCIP_CALL( SCIPsetConshdlrSepa(scip, conshdlr, consSepalpSdp, consSepasolSdp, CONSHDLR_SEPAFREQ,

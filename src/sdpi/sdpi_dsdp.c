@@ -117,9 +117,8 @@ struct SCIP_SDPiSolver
                                                *  LP constraints without active variables l */
    SCIP_Bool             solved;             /**< was the SDP solved since the problem was last changed */
    int                   sdpcounter;         /**< used for debug messages */
+   SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
 };
-
-static double epsilon    = 1e-6;             /**< this is used for checking if primal and dual objective are equal */
 
 /*
  * Local Functions
@@ -145,16 +144,17 @@ int compLowerTriangPos(
  * Test if a lower bound lb is not smaller than an upper bound ub, meaning that lb > ub - epsilon */
 static
 SCIP_Bool isFixed(
+   SCIP_SDPISOLVER*      sdpisolver,          /**< pointer to an SDP interface solver structure */
    SCIP_Real             lb,                 /**< lower bound */
    SCIP_Real             ub                  /**< upper bound */
    )
 {
-   assert( lb < ub + epsilon );
+   assert( lb < ub + sdpisolver->epsilon );
 
-   return ( REALABS(ub-lb) <= epsilon);
+   return ( REALABS(ub-lb) <= sdpisolver->epsilon);
 }
 #else
-#define isFixed(lb,ub) (REALABS(ub-lb) <= epsilon)
+#define isFixed(lb,ub) (REALABS(ub-lb) <= sdpisolver->epsilon)
 #endif
 
 /**
@@ -164,7 +164,7 @@ static
 void sortColRow(
    int*                  row,                /* row indices */
    int*                  col,                /* column indices */
-   SCIP_Real*                  val,                /* values */
+   SCIP_Real*            val,                /* values */
    int                   length              /* length of the given arrays */
    )
 {
@@ -287,6 +287,8 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->solved = FALSE;
    (*sdpisolver)->sdpcounter = 0;
    (*sdpisolver)->infeasible = FALSE;
+
+   (*sdpisolver)->epsilon = 1e-6;
 
    return SCIP_OKAY;
 }
@@ -476,7 +478,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* find the fixed variables */
    for (i = 0; i < nvars; i++)
    {
-      if (isFixed(lb[i], ub[i]))
+      if (isFixed(sdpisolver, lb[i], ub[i]))
       {
          nfixedvars++;
          sdpisolver->inputtodsdpmapper[i] = -nfixedvars;
@@ -733,7 +735,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                /* if there were no active nonzeros, we don't need the lp row, we only check if the rhs is positive (then we have 0 >= rhs > 0 which
                 * renders the SDP infeasible) [but actually we test rhs < 0 because dsdp works with <= in the lp part, so we already multiplied
                 * everything with -1] */
-               if (dsdplpval[lastrow - nshifts] < -epsilon)
+               if (dsdplpval[lastrow - nshifts] < -(sdpisolver->epsilon))
                {
                   sdpisolver->infeasible = TRUE;
                   return SCIP_OKAY; /* we know the problem is infeasible, so we don't have to solve it */
@@ -747,7 +749,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             for (j = lastrow + 1; j < lprow[i]; j++)
             {
                /* as these rows didn't have any nonzeros, they can surely be eliminated, we just check again if rhs > 0 [< 0 for dsdp] */
-               if (lprhs[j] < -epsilon)
+               if (lprhs[j] < -(sdpisolver->epsilon))
                {
                   sdpisolver->infeasible = TRUE;
                   return SCIP_OKAY; /* we know the problem is infeasible, so we don't have to solve it */
@@ -758,7 +760,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
             /* now we initialize the new row */
             lastrow = lprow[i];
-            if (isFixed(lb[lpcol[i]], ub[lpcol[i]]))
+            if (isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]]))
             {
                /* we don't know yet if it is active, so we set the bool to false and compute the rhs, then continue checking the rest of the nonzeros
                 * in the next iterations */
@@ -777,7 +779,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          else
          {
             /* as the row index didn't increase, we have another nonzero for the row we are currently handling */
-            if (isFixed(lb[lpcol[i]], ub[lpcol[i]]))
+            if (isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]]))
             {
                /* we just add the fixed value to the rhs, this doesn't change anything about the activity status */
                dsdplpval[lastrow - nshifts] += lpval[i]; /* + = - * - because of rhs - lhs and <= instead of >= */
@@ -814,7 +816,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                dsdplpbegcol[j] = nlpcons + i - nshifts; /* the nonzeros only start after the rhs, the are shifted nshift positions to the left */
 
             /* add the nonzero, if it isn't fixed, otherwise note the needed shift for the rest */
-            if (isFixed(lb[lpcol[i]], ub[lpcol[i]]))
+            if (isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]]))
                nshifts++;
             else
             {
@@ -1539,7 +1541,7 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
 
       gap = abs(*pobj - *dobj);
 
-      if ((gap < epsilon) || ((gap / (0.5 * (abs(*pobj) + abs(*dobj)))) < epsilon)) /* this is the duality gap used in SDPA */
+      if ((gap < sdpisolver->epsilon) || ((gap / (0.5 * (abs(*pobj) + abs(*dobj)))) < sdpisolver->epsilon)) /* this is the duality gap used in SDPA */
       {
          BMSfreeBlockMemory(sdpisolver->blkmem, &pobj);
          BMSfreeBlockMemory(sdpisolver->blkmem, &dobj);
