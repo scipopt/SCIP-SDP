@@ -83,7 +83,7 @@ struct SCIP_ConsData
    int**                 col;                /**< pointers to the column indices of the nonzeroes for each variable */
    int**                 row;                /**< pointers to the row indices of the nonzeroes for each variable */
    SCIP_Real**           val;                /**< pointers to the values of the nonzeroes for each variable */
-   SCIP_Var**            vars;               /**< SCIP_Variables present in this SDP constraint, ordered by their begvar-indices */
+   SCIP_VAR**            vars;               /**< SCIP_VARiables present in this SDP constraint, ordered by their begvar-indices */
    int                   constnnonz;         /**< number of nonzeroes in the constant part of this SDP constraint */
    int*                  constcol;           /**< column indices of the constant nonzeroes */
    int*                  constrow;           /**< row indices of the constant nonzeroes */
@@ -1765,7 +1765,7 @@ SCIP_RETCODE SCIPconsSdpGetData(
    int**                 col,                /**< pointers to column indices of the nonzeroes for each variable */
    int**                 row,                /**< pointers to row indices of the nonzeroes for each variable */
    SCIP_Real**           val,                /**< pointers to values of the nonzeroes for each variable */
-   SCIP_Var**            vars,               /**< the SCIP variables present in this constraint, indexing equals indices in col/row/val */
+   SCIP_VAR**            vars,               /**< the SCIP variables present in this constraint, indexing equals indices in col/row/val */
    int*                  constnnonz,         /**< number of nonzeroes in the constant part of this SDP constraint, also length of the const arrays */
    int*                  constcol,           /**< pointer to column indices of the constant nonzeroes */
    int*                  constrow,           /**< pointer to row indices of the constant nonzeroes */
@@ -1961,7 +1961,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
    int**                 col,                /**< pointer to column indices of the nonzeros for each variable */
    int**                 row,                /**< pointer to row indices of the nonzeros for each variable */
    SCIP_Real**           val,                /**< pointer to values of the nonzeroes for each variable */
-   SCIP_Var**            vars,               /**< SCIP_Variables present in this SDP constraint, ordered by their begvar-indices */
+   SCIP_VAR**            vars,               /**< SCIP_VARiables present in this SDP constraint, ordered by their begvar-indices */
    int                   constnnonz,         /**< number of nonzeroes in the constant part of this SDP constraint */
    int*                  constcol,           /**< column indices of the constant nonzeroes */
    int*                  constrow,           /**< row indices of the constant nonzeroes */
