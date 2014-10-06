@@ -113,8 +113,10 @@ struct SCIP_SDPiSolver
    int*                  dsdptoinputmapper;  /**< entry i gives the original index of the (i+1)-th variable in dsdp (indices go from 0 to nactivevars-1) */
    SCIP_Real*            fixedvarsval;       /**< entry i gives the lower and upper bound of the i-th fixed variable */
    SCIP_Real*            fixedvarsobj;       /**< entry i gives the objective value of the i-th fixed variable */
+#ifndef NDEBUG
    SCIP_Bool             infeasible;         /**< this is set to true if the problem is found infeasible during insertion/presolving (if there are
                                                *  LP constraints without active variables l */
+#endif
    SCIP_Bool             solved;             /**< was the SDP solved since the problem was last changed */
    int                   sdpcounter;         /**< used for debug messages */
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
@@ -286,7 +288,9 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->fixedvarsobj = NULL;
    (*sdpisolver)->solved = FALSE;
    (*sdpisolver)->sdpcounter = 0;
+#ifndef NDEBUG
    (*sdpisolver)->infeasible = FALSE;
+#endif
 
    (*sdpisolver)->epsilon = 1e-6;
 
@@ -468,7 +472,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->nvars = nvars;
    sdpisolver->nactivevars = 0;
    nfixedvars = 0;
+#ifndef NDEBUG
    sdpisolver->infeasible = FALSE;
+#endif
 
    /* allocate memory for inputtosdpmapper and the fixed variable information, for the latter this will later be shrinked if the needed size is known */
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtodsdpmapper), sdpisolver->nvars, nvars) );
@@ -732,14 +738,16 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             /* first we check if the last row (which is now finished) can be deleted */
             if ( ! rowactive)
             {
+#ifndef NDEBUG
                /* if there were no active nonzeros, we don't need the lp row, we only check if the rhs is positive (then we have 0 >= rhs > 0 which
                 * renders the SDP infeasible) [but actually we test rhs < 0 because dsdp works with <= in the lp part, so we already multiplied
-                * everything with -1] */
+                * everything with -1], this is only done in Debug mode as this should normally be taken care of by SCIP itself */
                if (dsdplpval[lastrow - nshifts] < -(sdpisolver->epsilon))
                {
                   sdpisolver->infeasible = TRUE;
                   return SCIP_OKAY; /* we know the problem is infeasible, so we don't have to solve it */
                }
+#endif
 
                rowshifts[lprow[i]] = -1;
                nshifts++;
@@ -748,12 +756,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             /* we check if there were any rows in between without any nonzeros (if this is just the next row, the for-queue is empty) */
             for (j = lastrow + 1; j < lprow[i]; j++)
             {
+#ifndef NDEBUG
                /* as these rows didn't have any nonzeros, they can surely be eliminated, we just check again if rhs > 0 [< 0 for dsdp] */
                if (lprhs[j] < -(sdpisolver->epsilon))
                {
                   sdpisolver->infeasible = TRUE;
                   return SCIP_OKAY; /* we know the problem is infeasible, so we don't have to solve it */
                }
+#endif
                rowshifts[j] = -1;
                nshifts++;
             }
@@ -976,8 +986,13 @@ SCIP_Bool SCIPsdpiSolverFeasibilityKnown(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
+#ifndef NDEBUG
    if (sdpisolver->infeasible)
+   {
+      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
       return TRUE;
+   }
+#endif
 
    BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpisolver->dsdp, pdfeasible));
@@ -1007,12 +1022,14 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
    assert ( dualfeasible != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
+#ifndef NDEBUG
    if (sdpisolver->infeasible)
    {
       SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
       *primalfeasible = FALSE;
       *dualfeasible = FALSE;
    }
+#endif
 
    BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpisolver->dsdp, pdfeasible));
@@ -1085,11 +1102,13 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
+#ifndef NDEBUG
    if (sdpisolver->infeasible)
    {
       SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
       return FALSE;
    }
+#endif
 
    BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpisolver->dsdp, pdfeasible));
@@ -1125,11 +1144,13 @@ SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
+#ifndef NDEBUG
    if (sdpisolver->infeasible)
    {
       SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
       return FALSE;
    }
+#endif
 
    BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpisolver->dsdp, pdfeasible));
@@ -1165,11 +1186,13 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
+#ifndef NDEBUG
    if (sdpisolver->infeasible)
    {
       SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
       return FALSE;
    }
+#endif
 
    BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpisolver->dsdp, pdfeasible));
@@ -1228,11 +1251,13 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
+#ifndef NDEBUG
    if (sdpisolver->infeasible)
    {
       SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
       return FALSE;
    }
+#endif
 
    BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpisolver->dsdp, pdfeasible));
@@ -1265,8 +1290,13 @@ SCIP_Bool SCIPsdpiSolverIsDualInfeasible(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
+#ifndef NDEBUG
    if (sdpisolver->infeasible)
+   {
+      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
       return TRUE;
+   }
+#endif
 
    BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpisolver->dsdp, pdfeasible));
@@ -1299,8 +1329,13 @@ SCIP_Bool SCIPsdpiSolverIsDualFeasible(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
+#ifndef NDEBUG
    if (sdpisolver->infeasible)
+   {
+      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
       return FALSE;
+   }
+#endif
 
    BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &pdfeasible));
    DSDP_CALL(DSDPGetSolutionType(sdpisolver->dsdp, pdfeasible));
@@ -1332,11 +1367,13 @@ SCIP_Bool SCIPsdpiSolverIsConverged(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
+#ifndef NDEBUG
    if (sdpisolver->infeasible)
    {
       SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
       return TRUE;
    }
+#endif
 
    BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &reason));
 
@@ -1364,11 +1401,13 @@ SCIP_Bool SCIPsdpiSolverIsObjlimExc(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
+#ifndef NDEBUG
    if (sdpisolver->infeasible)
    {
       SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
       return FALSE;
    }
+#endif
 
    BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &reason));
 
@@ -1396,11 +1435,13 @@ SCIP_Bool SCIPsdpiSolverIsIterlimExc(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
+#ifndef NDEBUG
    if (sdpisolver->infeasible)
    {
       SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
       return FALSE;
    }
+#endif
 
    BMS_CALL(BMSallocBlockMemory(sdpisolver->blkmem, &reason));
 
@@ -1437,11 +1478,13 @@ int SCIPsdpiSolverGetInternalStatus(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
+#ifndef NDEBUG
    if (sdpisolver->infeasible)
    {
       SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
       return -1;
    }
+#endif
 
    if (sdpisolver->dsdp == NULL)
       return -1;
@@ -1514,13 +1557,15 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
 {
+#ifndef NDEBUG
    if (sdpisolver->infeasible)
    {
       SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return FALSE;
+      return TRUE;
    }
+#endif
 
-   if (SCIPsdpiSolverIsConverged(sdpisolver) || sdpisolver->infeasible)
+   if (SCIPsdpiSolverIsConverged(sdpisolver))
    {
       return TRUE;
    }
@@ -1579,11 +1624,13 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    assert ( objval != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
+#ifndef NDEBUG
    if (sdpisolver->infeasible)
    {
       SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving, so no solution exists.");
       return SCIP_OKAY;
    }
+#endif
 
    DSDP_CALL(DSDPGetDObjective(sdpisolver->dsdp, objval));
    *objval = -1*(*objval); /*DSDP maximizes instead of minimizing, so the objective values were multiplied by -1 when inserted */
@@ -1614,11 +1661,13 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
+#ifndef NDEBUG
    if (sdpisolver->infeasible)
    {
       SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving, so no solution exists.");
       return SCIP_OKAY;
    }
+#endif
 
    if ( objval != NULL )
    {
@@ -1668,11 +1717,13 @@ SCIP_RETCODE SCIPsdpiSolverGetIterations(
    assert ( sdpisolver != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
+#ifndef NDEBUG
    if (sdpisolver->infeasible)
    {
       SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving, so no solution exists.");
       return SCIP_OKAY;
    }
+#endif
 
    DSDP_CALL(DSDPGetIts(sdpisolver->dsdp, iterations));
    return SCIP_OKAY;
