@@ -215,7 +215,7 @@ const char* SCIPsdpiSolverGetSolverDesc(
 }
 
 /** Does the solver have a way to solve a penalty formulation on its own or must one be provided */
-SCIP_Bool SCIPsdpiSolverKnowsPenalty(
+const SCIP_Bool SCIPsdpiSolverKnowsPenalty(
    void
    )
 {
