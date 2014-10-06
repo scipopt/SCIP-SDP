@@ -99,9 +99,6 @@ SCIP_RETCODE putSdpDataInInterface(
    int*** row;
    int*** col;
    SCIP_Real*** val;
-   int** blockcol;
-   int** blockrow;
-   SCIP_Real** blockval;
    SCIP_CONSHDLR* conshdlr;
    int blocknnonz;
    int* nblockvars;
@@ -246,9 +243,6 @@ SCIP_RETCODE putSdpDataInInterface(
    SCIPfreeBlockMemoryArray(scip, &constval, nsdpblocks);
    SCIPfreeBlockMemoryArray(scip, &constrow, nsdpblocks);
    SCIPfreeBlockMemoryArray(scip, &constcol, nsdpblocks);
-   SCIPfreeBlockMemoryArray(scip, &blockval, nvars);
-   SCIPfreeBlockMemoryArray(scip, &blockrow, nvars);
-   SCIPfreeBlockMemoryArray(scip, &blockcol, nvars);
    SCIPfreeBlockMemoryArray(scip, &nconstblocknonz, nsdpblocks);
    SCIPfreeBlockMemoryArray(scip, &nblockvarnonz, nsdpblocks);
    SCIPfreeBlockMemoryArray(scip, &row, nsdpblocks);

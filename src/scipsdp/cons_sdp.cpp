@@ -638,10 +638,11 @@ SCIP_RETCODE diagGEzero(
       SCIP_CONSHDLR* conshdlr;
       conshdlr = SCIPconsGetHdlr(conss[c]);
       assert( conshdlr != NULL );
+#ifndef NDEBUG
       const char* conshdlrName;
       conshdlrName = SCIPconshdlrGetName(conshdlr);
-
       assert ( strcmp(conshdlrName, "SDP") == 0);
+#endif
 
       consdata = SCIPconsGetData(conss[c]);
 
@@ -742,13 +743,8 @@ SCIP_RETCODE diagDominant(
 
    for (i = 0; i < nconss; ++i)
    {
-      SCIP_CONSHDLR* conshdlr;
-      conshdlr = SCIPconsGetHdlr(conss[i]);
-      assert( conshdlr != NULL );
-      const char* conshdlrName;
-      conshdlrName = SCIPconshdlrGetName(conshdlr);
-
-      assert ( strcmp(conshdlrName, "SDP") == 0);
+      assert( conss[i] != NULL );
+      assert ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[i])), "SDP") == 0);
 
       SCIP_CONSDATA* consdata = SCIPconsGetData(conss[i]);
       assert( consdata != NULL );
@@ -817,7 +813,7 @@ SCIP_RETCODE diagDominant(
                vals[var] = 1.0;
             }
 
-            conshdlrdata = SCIPconshdlrGetData(conshdlr);
+            conshdlrdata = SCIPconshdlrGetData(SCIPconsGetHdlr(conss[i]));
             snprintfreturn = SCIPsnprintf(cutname, 255, "diag_dom_%d", ++(conshdlrdata->ndiagdomcuts));
             assert ( snprintfreturn < 256 ); /* the return is the number of spots needed, we gave 255 */
 
@@ -871,10 +867,12 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
    {
       hdlr = SCIPconsGetHdlr(conss[i]);
       assert(hdlr != NULL);
+
+#ifndef NDEBUG
       const char* hdlrName;
       hdlrName = SCIPconshdlrGetName(hdlr);
-
       assert ( strcmp(hdlrName, "SDP") == 0);
+#endif
 
       SCIP_CONSDATA* consdata = SCIPconsGetData(conss[i]);
 
@@ -939,7 +937,6 @@ SCIP_RETCODE fixVars(
    int                   nconss              /**< number of constraints to check */
    )
 {
-   SCIP_CONSHDLR* conshdlr;
    SCIP_CONSDATA* consdata;
    int i;
    int nfixednonz;
@@ -957,10 +954,8 @@ SCIP_RETCODE fixVars(
 
    for (c = 0; c < nconss; ++c)
    {
-      conshdlr = SCIPconsGetHdlr(conss[c]);
-      assert( conshdlr != NULL );
-
-      assert ( strcmp(SCIPconshdlrGetName(conshdlr), "SDP") == 0);
+      assert( conss[c] != NULL );
+      assert ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") == 0);
 
       consdata = SCIPconsGetData(conss[c]);
       assert( consdata != NULL );
@@ -1052,7 +1047,6 @@ SCIP_RETCODE multiaggrVars(
    int               nconss  /**< number of constraints to check */
    )
 {
-   SCIP_CONSHDLR* conshdlr;
    SCIP_CONSDATA* consdata;
    int block;
    int var;
@@ -1078,10 +1072,8 @@ SCIP_RETCODE multiaggrVars(
 
    for (block = 0; block < nconss; ++block)
    {
-      conshdlr = SCIPconsGetHdlr(conss[block]);
-      assert( conshdlr != NULL );
-
-      assert( strcmp(SCIPconshdlrGetName(conshdlr), "SDP") == 0 );
+      assert( conss[block] != NULL );
+      assert( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[block])), "SDP") == 0 );
 
       consdata = SCIPconsGetData(conss[block]);
       globalnvars = SCIPgetNVars(scip);
@@ -1275,13 +1267,8 @@ SCIP_DECL_CONSINIT(consInitSdp)
 
    for (i = 0; i < nconss; ++i)
    {
-      SCIP_CONSHDLR* hdlr;
-      hdlr = SCIPconsGetHdlr(conss[i]);
-      assert(hdlr != NULL);
-      const char* hdlrName;
-      hdlrName = SCIPconshdlrGetName(hdlr);
-
-      assert ( strcmp(hdlrName, "SDP") == 0);
+      assert(conss[i] != NULL);
+      assert ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[i])), "SDP") == 0);
 
       consdata = SCIPconsGetData(conss[i]);
 

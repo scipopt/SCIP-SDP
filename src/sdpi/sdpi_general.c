@@ -114,7 +114,7 @@ struct SCIP_SDPi
    /* other data */
    int                   solved;             /**< was the problem solved since the last change */
    int                   sdpid;              /**< counter for the number of SDPs solved */
-   SCIP_Real             epsilon             /**< this is used for checking if primal and dual objective are equal */
+   SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
 };
 
 /*
@@ -696,7 +696,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
 
    for (block = 0; block < nsdpblocks; block++)
    {
-      BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz[i]), sdpnblockvarnonz[i], sdpnblockvars[block]));
+      BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz[block]), sdpnblockvarnonz[block], sdpnblockvars[block]));
 
       BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol[block]), sdpconstcol[block], sdpconstnblocknonz[block]));
       BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow[block]), sdpconstrow[block], sdpconstnblocknonz[block]));

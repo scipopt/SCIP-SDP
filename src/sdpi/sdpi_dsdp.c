@@ -156,7 +156,7 @@ SCIP_Bool isFixed(
    return ( REALABS(ub-lb) <= sdpisolver->epsilon);
 }
 #else
-#define isFixed(lb,ub) (REALABS(ub-lb) <= sdpisolver->epsilon)
+#define isFixed(sdpisolver,lb,ub) (REALABS(ub-lb) <= sdpisolver->epsilon)
 #endif
 
 /**
