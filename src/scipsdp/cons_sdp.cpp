@@ -1241,7 +1241,11 @@ SCIP_DECL_CONSINITPRE(consInitpreSdp)
 {
 	SCIP_CONSHDLRDATA* conshdlrdata;
 
+	assert ( conshdlr != NULL );
+
 	conshdlrdata = SCIPconshdlrGetData(conshdlr);
+
+	assert ( conshdlrdata != NULL );
 
 	conshdlrdata->neigveccuts = 0; /* this is used to give the eigenvector-cuts distinguishable names */
 	conshdlrdata->ndiaggezerocuts = 0; /* this is used to give the diagGEzero-cuts distinguishable names */
@@ -1628,6 +1632,21 @@ SCIP_DECL_CONSDELETE(consDeleteSdp)
    return SCIP_OKAY;
 }
 
+/** free method of sdp constrainthandler */
+static
+SCIP_DECL_CONSFREE(consFreeSdp)
+{
+SCIP_CONSHDLRDATA* conshdlrdata;
+conshdlrdata = SCIPconshdlrGetData(conshdlr);
+
+assert(conshdlrdata != NULL);
+
+SCIPfreeMemory(scip, &conshdlrdata);
+SCIPconshdlrSetData(conshdlr, NULL);
+
+return SCIP_OKAY;
+}
+
 /* print a SDP constraint */
 static
 SCIP_DECL_CONSPRINT(consPrintSdp)
@@ -1712,18 +1731,23 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    )
 {
    SCIP_CONSHDLR* conshdlr;
+   SCIP_CONSHDLRDATA* conshdlrdata;
 
    assert( scip != 0 );
+
+   /* allocate memory for the conshdlrdata */
+   SCIP_CALL( SCIPallocMemory(scip, &conshdlrdata) );
 
    /* include constraint handler */
    SCIP_CALL( SCIPincludeConshdlrBasic(scip, &conshdlr, CONSHDLR_NAME, CONSHDLR_DESC,
          CONSHDLR_ENFOPRIORITY, CONSHDLR_CHECKPRIORITY, CONSHDLR_EAGERFREQ, CONSHDLR_NEEDSCONS,
-         consEnfolpSdp, consEnfopsSdp, consCheckSdp, consLockSdp, 0) );
+         consEnfolpSdp, consEnfopsSdp, consCheckSdp, consLockSdp, conshdlrdata) );
 
    assert( conshdlr != NULL );
 
    /* set non-fundamental callbacks via specific setter functions */
    SCIP_CALL( SCIPsetConshdlrDelete(scip, conshdlr, consDeleteSdp) );
+   SCIP_CALL( SCIPsetConshdlrFree(scip, conshdlr, consFreeSdp) );
    SCIP_CALL( SCIPsetConshdlrInit(scip, conshdlr, consInitSdp) );
    SCIP_CALL( SCIPsetConshdlrInitpre(scip, conshdlr,consInitpreSdp) );
    SCIP_CALL( SCIPsetConshdlrExitpre(scip, conshdlr, consExitpreSdp) );
