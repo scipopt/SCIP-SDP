@@ -1900,6 +1900,9 @@ SCIP_RETCODE SCIPconsSdpGetFullAj(
 
    assert ( j < consdata->nvars );
 
+   for (i = 0; i < blocksize * blocksize; i++)
+      Aj[i] = 0;
+
    for (i = 0; i < consdata->nvarnonz[j]; i++)
    {
       Aj[consdata->col[j][i] * blocksize + consdata->row[j][i]] = consdata->val[j][i];
