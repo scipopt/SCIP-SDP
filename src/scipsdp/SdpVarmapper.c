@@ -65,6 +65,7 @@ SCIP_RETCODE SdpVarmapperCreate(
    SCIP_CALL( SCIPallocBlockMemory(scip, varmapper) );
    SCIP_CALL( SCIPhashmapCreate(&((*varmapper)->sciptosdp), SCIPblkmem(scip), size) );
    (*varmapper)->nvars = 0;
+   (*varmapper)->sdptoscip = NULL;
 
    return SCIP_OKAY;
 }
@@ -115,6 +116,7 @@ SCIP_RETCODE SdpVarmapperAddVars(
    assert ( vars != NULL );
 
    allocsize = varmapper->nvars + nvars;
+   printf("realloc %d -> %d \n", varmapper->nvars, allocsize);
    SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(varmapper->sdptoscip), varmapper->nvars, allocsize) );
 
    reallocneeded = FALSE;

@@ -47,10 +47,8 @@
 #include <cstdio>                       // for NULL, printf
 #include <cstring>                      // for NULL, strcmp
 
-#include "SdpProblem.h"                 // for SdpProblem
-#include "SdpVarmapper.h"               // for SdpVarMapper
+#include "SdpVarmapper.h"               // for SdpVarmapper
 #include "sdpi/sdpi_general.h"          // for SDP-Interface
-#include "SdpCone.h"                    // for Iterators
 #include "scipsdp/cons_sdp.h"           // for cons_check
 
 #define RELAX_NAME             "SDP"
