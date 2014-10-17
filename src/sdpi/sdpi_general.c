@@ -71,6 +71,16 @@
                         }                                                                                     \
                         while( FALSE )
 
+/* duplicate an array that might be null (in that case null is returned, otherwise BMSduplicateMemory is called) */
+#define DUPLICATE_ARRAY_NULL(blkmem, source, target, size) do                                                  \
+                        {                                                                                     \
+                           if (size > 0)                                                                      \
+                              BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, source, target, size) );         \
+                           else                                                                               \
+                              target = NULL;                                                                  \
+                        }                                                                                     \
+                        while( FALSE )
+
 struct SCIP_SDPi
 {
    SCIP_SDPISOLVER*      sdpisolver;         /**< pointer to the interface for the SDP Solver */
@@ -545,6 +555,7 @@ SCIP_RETCODE SCIPsdpiFree(
 /** copies SDP data into SDP solver
  *
  *  @note as the SDP-constraint matrices are symmetric, only the upper triangular part of them must be specified
+ *  @note there must be at least one variable, the SDP- and/or LP-part may be empty
  */
 SCIP_RETCODE SCIPsdpiLoadSDP(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
@@ -585,7 +596,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    SCIPdebugMessage("Calling SCIPsdpiLoadSDP (%d)\n",sdpi->sdpid);
 
    assert ( sdpi != NULL );
-   assert ( nvars >= 0 );
+   assert ( nvars > 0 );
    assert ( obj != NULL );
    assert ( lb != NULL );
    assert ( ub != NULL );
@@ -680,9 +691,9 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), obj, nvars));
    BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), lb, nvars));
    BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), ub, nvars));
-   BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpblocksizes, nsdpblocks));
-   BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvars), sdpnblockvars, nsdpblocks));
-   BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstnblocknonz), sdpconstnblocknonz, nsdpblocks));
+   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpblocksizes, nsdpblocks);
+   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpnblockvars), sdpnblockvars, nsdpblocks);
+   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpconstnblocknonz), sdpconstnblocknonz, nsdpblocks);
 
    /* allocate memory for the sdp arrays & duplicate them */
    BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz), sdpi->nsdpblocks, nsdpblocks));
@@ -696,13 +707,13 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
 
    for (block = 0; block < nsdpblocks; block++)
    {
-      BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz[block]), sdpnblockvarnonz[block], sdpnblockvars[block]));
+      DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpnblockvarnonz[block]), sdpnblockvarnonz[block], sdpnblockvars[block]);
 
-      BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol[block]), sdpconstcol[block], sdpconstnblocknonz[block]));
-      BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow[block]), sdpconstrow[block], sdpconstnblocknonz[block]));
-      BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval[block]), sdpconstval[block], sdpconstnblocknonz[block]));
+      DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpconstcol[block]), sdpconstcol[block], sdpconstnblocknonz[block]);
+      DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpconstrow[block]), sdpconstrow[block], sdpconstnblocknonz[block]);
+      DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpconstval[block]), sdpconstval[block], sdpconstnblocknonz[block]);
 
-      BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpvar[block]), sdpvar, sdpnblockvars[block]));
+      DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpvar[block]), sdpvar, sdpnblockvars[block]);
 
       BMS_CALL(BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[block]), sdpnblockvars[block]));
       BMS_CALL(BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[block]), sdpnblockvars[block]));
@@ -710,9 +721,9 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
 
       for (v = 0; v < sdpi->sdpnblockvars[block]; v++)
       {
-         BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[block][v]), sdpcol[block][v], sdpnblockvarnonz[block][v]));
-         BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[block][v]), sdprow[block][v], sdpnblockvarnonz[block][v]));
-         BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[block][v]), sdpval[block][v], sdpnblockvarnonz[block][v]));
+         DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpcol[block][v]), sdpcol[block][v], sdpnblockvarnonz[block][v]);
+         DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdprow[block][v]), sdprow[block][v], sdpnblockvarnonz[block][v]);
+         DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpval[block][v]), sdpval[block][v], sdpnblockvarnonz[block][v]);
       }
    }
 
@@ -722,10 +733,10 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz);
    BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz);
 
-   BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), lprhs, nlpcons));
-   BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), lprow, lpnnonz));
-   BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), lpcol, lpnnonz));
-   BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), lpval, lpnnonz));
+   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->lprhs), lprhs, nlpcons);
+   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->lprow), lprow, lpnnonz);
+   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->lpcol), lpcol, lpnnonz);
+   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->lpval), lpval, lpnnonz);
 
    /* set the general information */
    sdpi->nvars = nvars;
