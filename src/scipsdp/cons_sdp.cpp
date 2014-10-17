@@ -1615,18 +1615,18 @@ SCIP_DECL_CONSDELETE(consDeleteSdp)
 
    for (i = 0; i < (*consdata)->nvars; i++)
    {
-      SCIPfreeBlockMemoryArray(scip, &(*consdata)->col[i], (*consdata)->nvarnonz[i]);
-      SCIPfreeBlockMemoryArray(scip, &(*consdata)->row[i], (*consdata)->nvarnonz[i]);
-      SCIPfreeBlockMemoryArray(scip, &(*consdata)->val[i], (*consdata)->nvarnonz[i]);
+      SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->col[i], (*consdata)->nvarnonz[i]);
+      SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->row[i], (*consdata)->nvarnonz[i]);
+      SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->val[i], (*consdata)->nvarnonz[i]);
    }
-   SCIPfreeBlockMemoryArray(scip, &(*consdata)->vars, (*consdata)->nvars);
-   SCIPfreeBlockMemoryArray(scip, &(*consdata)->col, (*consdata)->nvars);
-   SCIPfreeBlockMemoryArray(scip, &(*consdata)->row, (*consdata)->nvars);
-   SCIPfreeBlockMemoryArray(scip, &(*consdata)->val, (*consdata)->nvars);
-   SCIPfreeBlockMemoryArray(scip, &(*consdata)->nvarnonz, (*consdata)->nvars);
-   SCIPfreeBlockMemoryArray(scip, &(*consdata)->constcol, (*consdata)->nnonz);
-   SCIPfreeBlockMemoryArray(scip, &(*consdata)->constrow, (*consdata)->nnonz);
-   SCIPfreeBlockMemoryArray(scip, &(*consdata)->constval, (*consdata)->nnonz);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->vars, (*consdata)->nvars);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->col, (*consdata)->nvars);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->row, (*consdata)->nvars);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->val, (*consdata)->nvars);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->nvarnonz, (*consdata)->nvars);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->constcol, (*consdata)->nnonz);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->constrow, (*consdata)->nnonz);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->constval, (*consdata)->nnonz);
    SCIPfreeMemory(scip, consdata);
 
    return SCIP_OKAY;

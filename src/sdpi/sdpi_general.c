@@ -272,14 +272,14 @@ SCIP_RETCODE compConstMatAfterFixings(
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
 
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(fixedvals[block]), nfixednonz[block]);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(fixedcols[block]), nfixednonz[block]);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(fixedrows[block]), nfixednonz[block]);
+      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(fixedvals[block]), nfixednonz[block]);
+      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(fixedcols[block]), nfixednonz[block]);
+      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(fixedrows[block]), nfixednonz[block]);
    }
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &fixedvals, sdpi->nsdpblocks);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &fixedcols, sdpi->nsdpblocks);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &fixedrows, sdpi->nsdpblocks);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &nfixednonz, sdpi->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &fixedvals, sdpi->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &fixedcols, sdpi->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &fixedrows, sdpi->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &nfixednonz, sdpi->nsdpblocks);
 
    return SCIP_OKAY;
 }
@@ -499,40 +499,40 @@ SCIP_RETCODE SCIPsdpiFree(
    assert ( *sdpi != NULL );
 
    /* free the LP part */
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lpval), (*sdpi)->lpnnonz);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lpcol), (*sdpi)->lpnnonz);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lprow), (*sdpi)->lpnnonz);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lprhs), (*sdpi)->nlpcons);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lpval), (*sdpi)->lpnnonz);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lpcol), (*sdpi)->lpnnonz);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lprow), (*sdpi)->lpnnonz);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lprhs), (*sdpi)->nlpcons);
 
    /* free the individual nonzeros */
    for (i = 0; i < (*sdpi)->nsdpblocks; i++)
    {
-      BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpvar[i]), (*sdpi)->sdpnblockvars[i]);
-      BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpnblockvarnonz[i]), (*sdpi)->sdpnblockvars[i]);
-      BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstval[i]), (*sdpi)->sdpconstnblocknonz[i]);
-      BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstrow[i]), (*sdpi)->sdpconstnblocknonz[i]);
-      BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstcol[i]), (*sdpi)->sdpconstnblocknonz[i]);
+      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpvar[i]), (*sdpi)->sdpnblockvars[i]);
+      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpnblockvarnonz[i]), (*sdpi)->sdpnblockvars[i]);
+      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstval[i]), (*sdpi)->sdpconstnblocknonz[i]);
+      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstrow[i]), (*sdpi)->sdpconstnblocknonz[i]);
+      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstcol[i]), (*sdpi)->sdpconstnblocknonz[i]);
 
       for (j = 0; j < (*sdpi)->nvars; j++)
       {
-         BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpval[i][j]), (*sdpi)->sdpnblockvarnonz[i][j]);
-         BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdprow[i][j]), (*sdpi)->sdpnblockvarnonz[i][j]);
-         BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpcol[i][j]), (*sdpi)->sdpnblockvarnonz[i][j]);
+         BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpval[i][j]), (*sdpi)->sdpnblockvarnonz[i][j]);
+         BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdprow[i][j]), (*sdpi)->sdpnblockvarnonz[i][j]);
+         BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpcol[i][j]), (*sdpi)->sdpnblockvarnonz[i][j]);
       }
    }
 
    /* free the rest */
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpnblockvarnonz), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstnblocknonz), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpval),(*sdpi)->nvars * (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpcol), (*sdpi)->nvars * (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdprow), (*sdpi)->nvars * (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpvar), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstval), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstcol), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpconstrow), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpnblockvars), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->sdpblocksizes), (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpnblockvarnonz), (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstnblocknonz), (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpval),(*sdpi)->nvars * (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpcol), (*sdpi)->nvars * (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdprow), (*sdpi)->nvars * (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpvar), (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstval), (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstcol), (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstrow), (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpnblockvars), (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpblocksizes), (*sdpi)->nsdpblocks);
    BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->ub), (*sdpi)->nvars);
    BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lb), (*sdpi)->nvars);
    BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->obj), (*sdpi)->nvars);
@@ -665,28 +665,28 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    {
       for (v = sdpi->sdpnblockvars[block] - 1; v >= 0; v--)
       {
-         BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[block][v]), sdpi->sdpnblockvarnonz[block][v]);
-         BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[block][v]), sdpi->sdpnblockvarnonz[block][v]);
-         BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[block][v]), sdpi->sdpnblockvarnonz[block][v]);
+         BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpval[block][v]), sdpi->sdpnblockvarnonz[block][v]);
+         BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdprow[block][v]), sdpi->sdpnblockvarnonz[block][v]);
+         BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpcol[block][v]), sdpi->sdpnblockvarnonz[block][v]);
       }
 
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[block]), sdpi->sdpnblockvars[block]);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[block]), sdpi->sdpnblockvars[block]);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[block]), sdpi->sdpnblockvars[block]);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval[block]), sdpi->sdpconstnblocknonz [block]);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow[block]), sdpi->sdpconstnblocknonz [block]);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol[block]), sdpi->sdpconstnblocknonz [block]);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz[i]), sdpi->sdpnblockvars[block]);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpvar[block]), sdpi->sdpnblockvars[block]);
+      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpval[block]), sdpi->sdpnblockvars[block]);
+      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdprow[block]), sdpi->sdpnblockvars[block]);
+      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpcol[block]), sdpi->sdpnblockvars[block]);
+      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpconstval[block]), sdpi->sdpconstnblocknonz [block]);
+      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpconstrow[block]), sdpi->sdpconstnblocknonz [block]);
+      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpconstcol[block]), sdpi->sdpconstnblocknonz [block]);
+      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpnblockvarnonz[i]), sdpi->sdpnblockvars[block]);
+      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpvar[block]), sdpi->sdpnblockvars[block]);
    }
 
    /* duplicate some arrays */
    BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), sdpi->nvars);
    BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), sdpi->nvars);
    BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), sdpi->nvars);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpi->nsdpblocks);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvars), sdpi->nsdpblocks);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstnblocknonz), sdpi->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpi->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpnblockvars), sdpi->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpconstnblocknonz), sdpi->nsdpblocks);
 
    BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), obj, nvars));
    BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), lb, nvars));
@@ -728,10 +728,10 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    }
 
    /* realloc and duplicate arrays for the LP part */
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz);
+   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons);
+   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz);
+   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz);
+   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz);
 
    DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->lprhs), lprhs, nlpcons);
    DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->lprow), lprow, lpnnonz);

@@ -230,34 +230,34 @@ SCIP_RETCODE putSdpDataInInterface(
 
    for (i = 0; i < nsdpblocks; i++)
    {
-      SCIPfreeBlockMemoryArray(scip, &(sdpvar[i]), nblockvars[i]);
-      SCIPfreeBlockMemoryArray(scip, &val[i], nvars);
-      SCIPfreeBlockMemoryArray(scip, &row[i], nvars);
-      SCIPfreeBlockMemoryArray(scip, &col[i], nvars);
-      SCIPfreeBlockMemoryArray(scip, &(nblockvarnonz[i]), nvars);
+      SCIPfreeBlockMemoryArrayNull(scip, &(sdpvar[i]), nblockvars[i]);
+      SCIPfreeBlockMemoryArrayNull(scip, &val[i], nvars);
+      SCIPfreeBlockMemoryArrayNull(scip, &row[i], nvars);
+      SCIPfreeBlockMemoryArrayNull(scip, &col[i], nvars);
+      SCIPfreeBlockMemoryArrayNull(scip, &(nblockvarnonz[i]), nvars);
       if (constlength > 0)
       {
-         SCIPfreeBlockMemoryArray(scip, &(constval[i]), nconstblocknonz[ind]);
-         SCIPfreeBlockMemoryArray(scip, &(constrow[i]), nconstblocknonz[ind]);
-         SCIPfreeBlockMemoryArray(scip, &(constcol[i]), nconstblocknonz[ind]);
+         SCIPfreeBlockMemoryArrayNull(scip, &(constval[i]), nconstblocknonz[ind]);
+         SCIPfreeBlockMemoryArrayNull(scip, &(constrow[i]), nconstblocknonz[ind]);
+         SCIPfreeBlockMemoryArrayNull(scip, &(constcol[i]), nconstblocknonz[ind]);
       }
    }
 
-   SCIPfreeBlockMemoryArray(scip, &sdpvar, nsdpblocks);
-   SCIPfreeBlockMemoryArray(scip, &nblockvars, nsdpblocks);
-   SCIPfreeBlockMemoryArray(scip, &constval, nsdpblocks);
-   SCIPfreeBlockMemoryArray(scip, &constrow, nsdpblocks);
-   SCIPfreeBlockMemoryArray(scip, &constcol, nsdpblocks);
-   SCIPfreeBlockMemoryArray(scip, &nconstblocknonz, nsdpblocks);
-   SCIPfreeBlockMemoryArray(scip, &nblockvarnonz, nsdpblocks);
-   SCIPfreeBlockMemoryArray(scip, &row, nsdpblocks);
-   SCIPfreeBlockMemoryArray(scip, &col, nsdpblocks);
-   SCIPfreeBlockMemoryArray(scip, &val, sdpnnonz);
-   SCIPfreeBlockMemoryArray(scip, &sdpblocksizes, nsdpblocks);
+   SCIPfreeBlockMemoryArrayNull(scip, &sdpvar, nsdpblocks);
+   SCIPfreeBlockMemoryArrayNull(scip, &nblockvars, nsdpblocks);
+   SCIPfreeBlockMemoryArrayNull(scip, &constval, nsdpblocks);
+   SCIPfreeBlockMemoryArrayNull(scip, &constrow, nsdpblocks);
+   SCIPfreeBlockMemoryArrayNull(scip, &constcol, nsdpblocks);
+   SCIPfreeBlockMemoryArrayNull(scip, &nconstblocknonz, nsdpblocks);
+   SCIPfreeBlockMemoryArrayNull(scip, &nblockvarnonz, nsdpblocks);
+   SCIPfreeBlockMemoryArrayNull(scip, &row, nsdpblocks);
+   SCIPfreeBlockMemoryArrayNull(scip, &col, nsdpblocks);
+   SCIPfreeBlockMemoryArrayNull(scip, &val, sdpnnonz);
+   SCIPfreeBlockMemoryArrayNull(scip, &sdpblocksizes, nsdpblocks);
    SCIPfreeBlockMemoryArray(scip, &obj, nvars);
    SCIPfreeBlockMemoryArray(scip, &lb, nvars);
    SCIPfreeBlockMemoryArray(scip, &ub, nvars);
-   SCIPfreeBlockMemoryArray(scip, &sdpblocksizes, nsdpblocks);
+   SCIPfreeBlockMemoryArrayNull(scip, &sdpblocksizes, nsdpblocks);
 
    return SCIP_OKAY;
 }
