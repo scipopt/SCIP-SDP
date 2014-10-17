@@ -165,9 +165,12 @@ SCIP_RETCODE putSdpDataInInterface(
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &sdpvar, nsdpblocks) );
 
    for (i = 0; i < nsdpblocks; i++)
+   {
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(nblockvarnonz[i]), nvars) );
-
-   printf("nblockvars = %p = %p = scip\n", nblockvars, scip);
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &col[i], nvars) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &row[i], nvars) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &val[i], nvars) );
+   }
 
    /* get the SDP-data */
    ind = 0; /* index of the current sdp block in the complete sdp */
@@ -177,12 +180,13 @@ SCIP_RETCODE putSdpDataInInterface(
    {
       conshdlr = SCIPconsGetHdlr(conss[i]);
       assert( conshdlr != NULL );
-      assert( ind < nsdpblocks );
       const char* hdlrName;
       hdlrName = SCIPconshdlrGetName(conshdlr);
 
       if ( strcmp(hdlrName, "SDP") == 0)
       {
+         assert( ind < nsdpblocks );
+
          /* allocate memory for the constant nonzeros */
          SCIP_CALL( SCIPconsSdpGetNNonz(scip, conss[i], NULL, &constlength) );
          nconstblocknonz[ind] = constlength;
@@ -227,6 +231,9 @@ SCIP_RETCODE putSdpDataInInterface(
    for (i = 0; i < nsdpblocks; i++)
    {
       SCIPfreeBlockMemoryArray(scip, &(sdpvar[i]), nblockvars[i]);
+      SCIPfreeBlockMemoryArray(scip, &val[i], nvars);
+      SCIPfreeBlockMemoryArray(scip, &row[i], nvars);
+      SCIPfreeBlockMemoryArray(scip, &col[i], nvars);
       SCIPfreeBlockMemoryArray(scip, &(nblockvarnonz[i]), nvars);
       if (constlength > 0)
       {

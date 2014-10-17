@@ -628,7 +628,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
             assert ( sdprow[i] != NULL );
             assert ( sdpval[i] != NULL );
 
-            for ( v = 0; v < nvars; v++)
+            for ( v = 0; v < sdpnblockvars[i]; v++)
             {
                if (sdpnblockvarnonz[i][v] > 0)
                {

@@ -1810,7 +1810,8 @@ SCIP_RETCODE SCIPconsSdpGetData(
    *nnonz = consdata->nnonz;
    *blocksize = consdata->blocksize;
 
-   vars = consdata->vars;
+   for (i = 0; i < consdata->nvars; i++)
+      vars[i] = consdata->vars[i];
 
    /* check that the sdp-arrays are long enough to store the information */
    if (*arraylength < consdata->nvars)
