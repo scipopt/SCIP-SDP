@@ -288,6 +288,10 @@ SCIP_RETCODE putLpDataInInterface(
    SCIP_Real sciplhs;
    SCIP_Real sciprhs;
    int nrowssdpi;
+   SCIP_VAR** vars;
+   SCIP_Real* lb;
+   SCIP_Real* ub;
+   int* inds;
 
    assert ( scip != NULL );
    assert ( sdpi != NULL );
@@ -370,7 +374,8 @@ SCIP_RETCODE putLpDataInInterface(
 
    /* delete the old LP-block from the sdpi */
    SCIP_CALL(SCIPsdpiGetNLPRows(sdpi, &nrowssdpi));
-   SCIP_CALL(SCIPsdpiDelLPRows(sdpi, 0, nrowssdpi - 1));
+   if (nrowssdpi > 0)
+      SCIP_CALL(SCIPsdpiDelLPRows(sdpi, 0, nrowssdpi - 1));
 
    /* add the LP-block to the sdpi */
    SCIP_CALL(SCIPsdpiAddLPRows(sdpi, nconss, rhs, nnonz, (const int*)rowind, (const int*)colind, val));
@@ -380,6 +385,36 @@ SCIP_RETCODE putLpDataInInterface(
    SCIPfreeBlockMemoryArray(scip, &rowind, nnonz);
    SCIPfreeBlockMemoryArray(scip, &colind, nnonz);
    SCIPfreeBlockMemoryArray(scip, &val, nnonz);
+
+   /* update the bounds */
+
+   /* get the variables */
+   nvars = SCIPgetNVars(scip);
+   assert ( nvars > 0 );
+   vars = SCIPgetVars(scip);
+   assert ( vars != NULL );
+
+   /* prepare arrays of bounds */
+   SCIP_CALL( SCIPallocBufferArray(scip, &lb, nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &ub, nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &inds, nvars) );
+
+   /* get new bounds */
+   for (i = 0; i < nvars; i++)
+   {
+      assert ( vars[i] != NULL );
+      lb[i] = SCIPvarGetLbLocal(vars[i]);
+      ub[i] = SCIPvarGetUbLocal(vars[i]);
+      inds[i] = 1; /* we want to change all bounds */
+   }
+
+   /* inform interface */
+   SCIP_CALL( SCIPsdpiChgBounds(sdpi, nvars, inds, lb, ub) );
+
+   /* free the bounds-arrays */
+   SCIPfreeBufferArray(scip, &inds);
+   SCIPfreeBufferArray(scip, &ub);
+   SCIPfreeBufferArray(scip, &lb);
 
    return SCIP_OKAY;
 }
@@ -867,14 +902,14 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
 
    /* update objective and bounds and lp data */
    nvars= SCIPgetNVars(scip);
+   assert ( nvars > 0 );
+   vars= SCIPgetVars(scip);
+   assert ( vars != NULL );
 
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &indsforsdpi, nvars));
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &obj, nvars));
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &lb, nvars));
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &ub, nvars));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &vars, nvars));
-
-   vars = SCIPgetVars(scip);
 
    for (i = 0; i < nvars; i++)
    {
@@ -891,7 +926,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
    SCIPfreeBlockMemoryArray(scip, &obj, nvars);
    SCIPfreeBlockMemoryArray(scip, &lb, nvars);
    SCIPfreeBlockMemoryArray(scip, &ub, nvars);
-   SCIPfreeBlockMemoryArray(scip, &vars, nvars);
 
    SCIP_CALL( putLpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper) );
 
@@ -920,7 +954,6 @@ SCIP_DECL_RELAXINIT(relaxInitSolSDP)
 
    relaxdata = SCIPrelaxGetData(relax);
    nvars = SCIPgetNVars(scip);
-   SCIP_CALL( SCIPallocBufferArray(scip, &vars, nvars) );
    vars = SCIPgetVars(scip);
 
    SdpVarmapperCreate(scip, &(relaxdata->varmapper), ceil(1.33 * nvars)); /* all SCIPvars will be added to this list, and 3/4 seems like a good
@@ -930,8 +963,6 @@ SCIP_DECL_RELAXINIT(relaxInitSolSDP)
    SCIP_CALL(putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper));
 
    SCIPrelaxSetData(relax, relaxdata);
-
-   SCIPfreeBufferArray(scip, &vars);
 
    return SCIP_OKAY;
 }

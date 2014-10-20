@@ -164,6 +164,8 @@ SCIP_Bool isFixed(
    int lb;
    int ub;
 
+   assert ( v < sdpi->nvars );
+
    lb = sdpi->lb[v];
    ub = sdpi->ub[v];
 
@@ -713,7 +715,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
       DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpconstrow[block]), sdpconstrow[block], sdpconstnblocknonz[block]);
       DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpconstval[block]), sdpconstval[block], sdpconstnblocknonz[block]);
 
-      DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpvar[block]), sdpvar, sdpnblockvars[block]);
+      DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpvar[block]), sdpvar[block], sdpnblockvars[block]);
 
       BMS_CALL(BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[block]), sdpnblockvars[block]));
       BMS_CALL(BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[block]), sdpnblockvars[block]));
@@ -1578,7 +1580,7 @@ SCIP_RETCODE SCIPsdpiChgBounds(
       sdpi->ub[ind[i]] = ub[i];
    }
 
-   //sdpi->solved = FALSE;
+   sdpi->solved = FALSE;
 
    return SCIP_OKAY;
 }
