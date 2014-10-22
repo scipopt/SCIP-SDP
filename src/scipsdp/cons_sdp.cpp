@@ -335,7 +335,7 @@ SCIP_RETCODE computeSdpMatrix(
    for (i = 0; i < nvars; i++)
    {
       yval = SCIPgetSolVal(scip, y, consdata->vars[i]);
-      for (ind = 0; i < consdata->nvarnonz[i]; i++)
+      for (ind = 0; ind < consdata->nvarnonz[i]; ind++)
          matrix[compLowerTriangPos(consdata->row[i][ind], consdata->col[i][ind])] += yval * consdata->val[i][ind];
    }
 
@@ -470,7 +470,7 @@ SCIP_RETCODE cutUsingEigenvector(
 
    /* compute \f$ v^T A_j v \f$ for eigenvector v and each matrix \f$ A_j \f$ to get the coefficients of the LP cut */
    for (j = 0; j < consdata->nvars; ++j)
-      multiplyConstraintMatrix(cons, j, eigenvector, &coeff[j]);
+      SCIP_CALL( multiplyConstraintMatrix(cons, j, eigenvector, &coeff[j]) );
 
    SCIPfreeBufferArray(scip, &output_vector);
    SCIPfreeBufferArray(scip, &eigenvector);
@@ -1571,7 +1571,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
    {
       if( !SCIPisRelEQ(scip, SCIPvarGetLbLocal(vars[i]), SCIPvarGetUbLocal(vars[i])) && SCIPvarIsIntegral(vars[i]))
       {
-         SCIP_CALL( SCIPaddExternBranchCand(scip, vars[i], 10000, SCIP_INVALID) );
+         SCIP_CALL( SCIPaddExternBranchCand(scip, vars[i], 10000.0, SCIP_INVALID) );
          count++;
       }
    }

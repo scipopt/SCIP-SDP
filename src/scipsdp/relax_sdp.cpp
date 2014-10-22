@@ -198,8 +198,8 @@ SCIP_RETCODE putSdpDataInInterface(
          }
 
          /* get the data */
-         SCIPconsSdpGetData(scip, conss[i], &nblockvars[ind], &blocknnonz, &sdpblocksizes[ind], &nvars, nblockvarnonz[ind], col[ind],
-            row[ind], val[ind], blockvars, &nconstblocknonz[ind], constcol[ind], constrow[ind], constval[ind]);
+         SCIP_CALL(SCIPconsSdpGetData(scip, conss[i], &nblockvars[ind], &blocknnonz, &sdpblocksizes[ind], &nvars, nblockvarnonz[ind], col[ind],
+            row[ind], val[ind], blockvars, &nconstblocknonz[ind], constcol[ind], constrow[ind], constval[ind]));
 
          /* nvars and nconstblocknonz[ind] would have been overwritten if the space in the given arrays hadn't been sufficient */
          assert ( nvars == SCIPgetNVars(scip) );
@@ -956,9 +956,9 @@ SCIP_DECL_RELAXINIT(relaxInitSolSDP)
    nvars = SCIPgetNVars(scip);
    vars = SCIPgetVars(scip);
 
-   SdpVarmapperCreate(scip, &(relaxdata->varmapper), ceil(1.33 * nvars)); /* all SCIPvars will be added to this list, and 3/4 seems like a good
-                                                                           * load factor (java uses this factor) */
-   SdpVarmapperAddVars(scip, relaxdata->varmapper, nvars, vars);
+   SCIP_CALL( SdpVarmapperCreate(scip, &(relaxdata->varmapper), ceil(1.33 * nvars)) ); /* all SCIPvars will be added to this list, and 3/4 seems
+                                                                                        * like a good load factor (java uses this factor) */
+   SCIP_CALL( SdpVarmapperAddVars(scip, relaxdata->varmapper, nvars, vars) );
 
    SCIP_CALL(putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper));
 

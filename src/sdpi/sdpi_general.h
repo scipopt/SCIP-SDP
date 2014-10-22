@@ -97,7 +97,7 @@ const char* SCIPsdpiGetSolverDesc(
  */
 EXTERN
 void* SCIPsdpiGetSolverPointer(
-   SCIP_SDPI*            sdpi                 /**< pointer to an SDP interface structure */
+   void
    );
 
 /**@} */

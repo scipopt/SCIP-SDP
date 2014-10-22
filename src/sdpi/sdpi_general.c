@@ -161,10 +161,13 @@ SCIP_Bool isFixed(
    int                   v                   /**< global index of the variable to check this for */
    )
 {
-   int lb;
-   int ub;
+   SCIP_Real lb;
+   SCIP_Real ub;
 
+   assert ( sdpi != NULL );
    assert ( v < sdpi->nvars );
+   assert ( sdpi->lb != NULL );
+   assert ( sdpi->ub != NULL );
 
    lb = sdpi->lb[v];
    ub = sdpi->ub[v];
@@ -423,7 +426,7 @@ const char* SCIPsdpiGetSolverDesc(
  *  doing. In general, it returns a pointer to the SDP solver object.
  */
 void* SCIPsdpiGetSolverPointer(
-   SCIP_SDPI*            sdpi                 /**< pointer to an SDP interface structure */
+   void
    )
 {
    return SCIPsdpiSolverGetSolverPointer;
@@ -662,7 +665,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
 
    /* memory allocation */
 
-   /* first free the old sdp-arrays */
+   /* first free the old arrays */
    for (block = sdpi->nsdpblocks - 1; block >= 0; block--)
    {
       for (v = sdpi->sdpnblockvars[block] - 1; v >= 0; v--)
@@ -678,18 +681,18 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
       BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpconstval[block]), sdpi->sdpconstnblocknonz [block]);
       BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpconstrow[block]), sdpi->sdpconstnblocknonz [block]);
       BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpconstcol[block]), sdpi->sdpconstnblocknonz [block]);
-      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpnblockvarnonz[i]), sdpi->sdpnblockvars[block]);
+      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpnblockvarnonz[block]), sdpi->sdpnblockvars[block]);
       BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpvar[block]), sdpi->sdpnblockvars[block]);
    }
 
-   /* duplicate some arrays */
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), sdpi->nvars);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), sdpi->nvars);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), sdpi->nvars);
+   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->obj), sdpi->nvars);
+   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lb), sdpi->nvars);
+   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->ub), sdpi->nvars);
    BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpi->nsdpblocks);
    BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpnblockvars), sdpi->nsdpblocks);
    BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpconstnblocknonz), sdpi->nsdpblocks);
 
+   /* duplicate some arrays */
    BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), obj, nvars));
    BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), lb, nvars));
    BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), ub, nvars));

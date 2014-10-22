@@ -312,8 +312,8 @@ SCIP_RETCODE SdpVarmapperClone(
    newmapper->nvars = nvars;
 
    /* allocate memory */
-   SCIPallocBlockMemory(scip, &newmapper);
-   SCIPallocBlockMemoryArray(scip, &newmapper->sdptoscip, nvars);
+   SCIP_CALL( SCIPallocBlockMemory(scip, &newmapper) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &newmapper->sdptoscip, nvars) );
 
    /* copy entries */
    for (i = 0; i < nvars; i++)

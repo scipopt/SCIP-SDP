@@ -43,7 +43,7 @@
 #include <cassert>                     // for assert
 #include <cctype>                      // for isspace
 #include <cstdio>                      // for printf
-#include <cstdlib>                     // for abs
+#include <cstdlib>                     // for abs                      <- lint says this needs an include guard
 #include <istream>                      // for istream, etc
 #include <string>                       // for getline, string
 
@@ -54,8 +54,6 @@
 #include "scip/cons_linear.h"           // for SCIPaddCoefLinear, etc
 #include "scip/scip.h"                  // for SCIPinfinity, etc
 
-#include "SdpProblem.h"
-//#include "SdpVarMapper.h"
 //#include <fstream>
 //#include <sstream>
 

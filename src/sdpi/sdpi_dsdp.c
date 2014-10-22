@@ -537,12 +537,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    {
       if (withObj)
       {
-         DSDP_CALL(DSDPSetDualObjective(sdpisolver->dsdp, i+1, -1 * obj[sdpisolver->dsdptoinputmapper[i]])); /* insert objective value, DSDP counts
+         DSDP_CALL(DSDPSetDualObjective(sdpisolver->dsdp, i+1, -1.0 * obj[sdpisolver->dsdptoinputmapper[i]])); /* insert objective value, DSDP counts
                                                            * from 1 to n instead of 0 to n-1, *(-1) because DSDP maximizes instead of minimizing */
       }
       else
       {
-         DSDP_CALL(DSDPSetDualObjective(sdpisolver->dsdp, i+1, 0));
+         DSDP_CALL(DSDPSetDualObjective(sdpisolver->dsdp, i+1, 0.0));
       }
       if (!SCIPsdpiSolverIsInfinity(sdpisolver, lb[sdpisolver->dsdptoinputmapper[i]]))
       {
@@ -630,7 +630,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
    /* start inserting the constant matrix */
-   if ( sdpconstnnonz > 0 || totalnfixednonz > 0)
+   if ( sdpconstnnonz > 0 )
    {
 
 #ifndef NDEBUG
@@ -723,6 +723,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       SCIPsortIntIntReal(lprow, lpcol, lpval, lpnnonz);
 
       /* iterate over all nonzeros to see if any rows can be deleted, and add the rhs for all rows that weren't removed */
+      nshifts = 0;
       lastrow = -1;
       rowactive = TRUE; /* this is just a technical start point to not need another check in the if below, we don't want to do anything for row -1 */
 
@@ -1068,7 +1069,6 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
  *  this does not necessarily mean, that the solver knows and can return the primal ray
  *  this is not implemented for all Solvers, always returns false (and a debug message) if it isn't
  */
-EXTERN
 SCIP_Bool SCIPsdpiSolverExistsPrimalRay(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
@@ -1082,7 +1082,6 @@ SCIP_Bool SCIPsdpiSolverExistsPrimalRay(
  *  and the solver knows and can return the primal ray
  *  this is not implemented for all Solvers, always returns false (and a debug message) if it isn't
  */
-EXTERN
 SCIP_Bool SCIPsdpiSolverHasPrimalRay(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
@@ -1218,7 +1217,6 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
  *  this does not necessarily mean, that the solver knows and can return the dual ray
  *  this is not implemented for all Solvers, will always return false (and a debug message) if it isn't
  */
-EXTERN
 SCIP_Bool SCIPsdpiSolverExistsDualRay(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
@@ -1231,7 +1229,6 @@ SCIP_Bool SCIPsdpiSolverExistsDualRay(
  *  and the solver knows and can return the dual ray
  *  this is not implemented for all Solvers, will always return false (and a debug message) if it isn't
  */
-EXTERN
 SCIP_Bool SCIPsdpiSolverHasDualRay(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
