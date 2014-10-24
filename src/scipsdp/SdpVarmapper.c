@@ -60,7 +60,13 @@ SCIP_RETCODE SdpVarmapperCreate(
 {
    assert ( scip != NULL );
    assert ( varmapper != NULL );
-   assert ( size > 0 );
+   assert ( size >= 0 );
+
+   if (size == 0)
+   {
+      SCIPdebugMessage("SdpVarmapperCreate called for size 0!\n");
+      return SCIP_OKAY;
+   }
 
    SCIP_CALL( SCIPallocBlockMemory(scip, varmapper) );
    SCIP_CALL( SCIPhashmapCreate(&((*varmapper)->sciptosdp), SCIPblkmem(scip), size) );
@@ -131,7 +137,7 @@ SCIP_RETCODE SdpVarmapperAddVars(
       }
       else
       {
-         SCIPdebugMessage("variable %s was not added to the varmapper as it was allready part of it \n", SCIPvarGetName(vars[i]));
+         SCIPdebugMessage("variable %s was not added to the varmapper as it was already part of it \n", SCIPvarGetName(vars[i]));
          reallocneeded = TRUE;
       }
    }
@@ -143,7 +149,7 @@ SCIP_RETCODE SdpVarmapperAddVars(
    return SCIP_OKAY;
 }
 
-/** adds the given variable (if not already existant) to the Varmapper at the given position */
+/** adds the given variable (if not already existent) to the Varmapper at the given position */
 SCIP_RETCODE SdpVarmapperInsertVar(
    SCIP*                 scip,               /**< SCIP data structure */
    SdpVarmapper*         varmapper,          /**< Varmapper to add variables to */
@@ -181,7 +187,7 @@ SCIP_RETCODE SdpVarmapperInsertVar(
       }
    }
    else
-      SCIPdebugMessage("variable %s was not added to the varmapper as it was allready part of it \n", SCIPvarGetName(var));
+      SCIPdebugMessage("variable %s was not added to the varmapper as it was already part of it \n", SCIPvarGetName(var));
 
    return SCIP_OKAY;
 }

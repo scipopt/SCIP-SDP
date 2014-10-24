@@ -318,6 +318,7 @@ SCIP_RETCODE computeSdpMatrix(
    int i;
    int ind;
    int nvars;
+   int blocksize;
    SCIP_Real yval;
 
    assert ( cons != NULL );
@@ -326,9 +327,10 @@ SCIP_RETCODE computeSdpMatrix(
 
    consdata = SCIPconsGetData(cons);
    nvars = consdata->nvars;
+   blocksize = consdata->blocksize;
 
    /* initialize the matrix with 0 */
-   for (i = 0; i < (nvars * (nvars + 1))/2; i++)
+   for (i = 0; i < (blocksize * (blocksize + 1))/2; i++)
       matrix[i] = 0.0;
 
    /* add the non-constant-part */

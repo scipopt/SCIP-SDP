@@ -59,7 +59,7 @@ static double epsilon    = 1e-6; /**< only values bigger than this are counted a
   while( FALSE )
 
 /**
- * sort the given row, col and val arrays first by non-decreasing row-indices, than for those by identical row-indices by non-increasing col-indices
+ * sort the given row, col and val arrays first by non-decreasing row-indices, than for those with identical row-indices by non-increasing col-indices
  */
 void SdpVarfixerSortRowCol(
    int*                  row,                /* row indices */
