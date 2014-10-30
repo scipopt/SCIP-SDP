@@ -502,7 +502,6 @@ SCIP_RETCODE calc_relax(
    nvars = SCIPgetNVars(scip);
    assert( nvars > 0 );
    vars = SCIPgetVars (scip);
-
    if ( withpenalty )
    {
       SCIP_CALL(SCIPsdpiSolvePenalty(sdpi, penaltyparam, TRUE));
@@ -511,7 +510,6 @@ SCIP_RETCODE calc_relax(
    {
       SCIP_CALL(SCIPsdpiSolve(sdpi));
    }
-
 #ifdef SCIP_MORE_DEBUG /* print the optimal solution */
    SCIP_Real objforscip;
    SCIP_Real* solforscip;
@@ -543,7 +541,6 @@ SCIP_RETCODE calc_relax(
 
    SCIPfreeBufferArray(scip, &solforscip);
 #endif
-
    if ( SCIPsdpiIsAcceptable(sdpi) && SCIPsdpiFeasibilityKnown(sdpi) )
    {
       if ( SCIPsdpiIsDualInfeasible(sdpi) )
@@ -929,9 +926,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
 
    SCIP_CALL( putLpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper) );
 
-
    SCIP_CALL( calc_relax(scip, relaxdata->sdpi, relaxdata->varmapper, FALSE, 0.0, result, lowerbound));
-
 
    return SCIP_OKAY;
 }

@@ -2635,7 +2635,6 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    }
 
    SCIP_CALL (compConstMatAfterFixings(sdpi, &sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval) );
-
    /* shrink the constant arrays after the number of fixed nonzeros is known */
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {

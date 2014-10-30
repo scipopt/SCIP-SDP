@@ -398,11 +398,11 @@ SCIP_Real getMaxConstEntry(
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
 
-   /* initialize max with the absolute value of the first entry of the constant matrix */
-   max = REALABS(consdata->constval[0]);
+   /* initialize max with zero (this is used if there is no constant-matrix) */
+   max = 0.0;
 
-   /* iterate over the remaining arrays, updating max if a higher absolute value is found */
-   for (i = 1; i < consdata->constnnonz; i++)
+   /* iterate over the entries of the constant matrix, updating max if a higher absolute value is found */
+   for (i = 0; i < consdata->constnnonz; i++)
    {
       if ( REALABS(consdata->constval[i]) > max)
          max = REALABS(consdata->constval[i]);
