@@ -298,6 +298,7 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
    assert ( targetrow != NULL );
    assert ( targetcol != NULL );
    assert ( targetval != NULL );
+   assert ( targetlength != NULL );
    assert ( *targetlength >= 0 );
 
    debugmsg = FALSE;

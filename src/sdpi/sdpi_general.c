@@ -2636,6 +2636,11 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) );
    }
 
+   /* initialize the sdpconstnblocknonz */
+   for (block = 0; block < sdpi->nsdpblocks; block++)
+      sdpconstnblocknonz[block] = sdpi->sdpnnonz + sdpi->sdpconstnnonz;
+
+
    SCIP_CALL (compConstMatAfterFixings(sdpi, &sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval) );
 
    /* shrink the constant arrays after the number of fixed nonzeros is known */
