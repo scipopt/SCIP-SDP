@@ -556,6 +556,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    {
       int v;
       int k;
+      int blockvar;
 
       assert ( nsdpblocks > 0 );
       assert ( sdpnblockvarnonz != NULL );
@@ -584,28 +585,41 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          for(i = 0; i < sdpisolver->nactivevars; i++)
          {
             /* we iterate over all non-fixed variables, so add them to the dsdp arrays for this block/var combination */
-            v = sdpisolver->dsdptoinputmapper[i];
-            startind = ind;
 
-            for (k = 0; k < sdpnblockvarnonz[block][v]; k++)
+            v = sdpisolver->dsdptoinputmapper[i];
+
+            /* find the position of variable v in this block */
+            blockvar = -1;
+            for (k = 0; k < sdpnblockvars[block]; k++)
             {
-               assert ( indchanges[block][sdprow[block][v][k]] > -1 && indchanges[block][sdpcol[block][v][k]] > -1 ); /* rows and cols with
-                                                                                                      * active nonzeros should not be removed */
-               dsdpind[ind] = compLowerTriangPos(sdprow[block][v][k] - indchanges[block][sdprow[block][v][k]],
-                                                 sdpcol[block][v][k] - indchanges[block][sdpcol[block][v][k]]); /* substract the number of
-                                                 * removed indices before the row and col to get the indices after fixings */
-               dsdpval[ind] = -1 * sdpval[block][v][k];  /* *(-1) because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
-               ind++;
+               if (v == sdpvar[block][k])
+                  blockvar = k;
             }
 
-            /* sort the arrays for this Matrix (by non decreasing indices) as this might help the solving time of DSDP */
-            SCIPsortIntReal(dsdpind + startind, dsdpval + startind, sdpnblockvarnonz[block][v]);
+            startind = ind;
 
-            DSDP_CALL(SDPConeSetASparseVecMat(sdpisolver->sdpcone, block, sdpisolver->inputtodsdpmapper[sdpvar[block][v]], sdpblocksizes[block],
-                      1.0, 0, dsdpind + startind,dsdpval + startind, sdpnblockvarnonz[block][v])); /* the inputtosdpsolver already adds the +1 shift
-                                                                                                    * needed for dsdp, adding startind shifts the
-                                                                                                    * arrays to the first nonzero belonging to this
-                                                                                                    * block and this variable */
+            if (blockvar > -1) /* the variable exists in this block */
+            {
+               for (k = 0; k < sdpnblockvarnonz[block][blockvar]; k++) //<- wants to be the array corresponding to variable v instead of v-th variable of this block
+               {
+                  assert ( indchanges[block][sdprow[block][blockvar][k]] > -1 && indchanges[block][sdpcol[block][blockvar][k]] > -1 ); /* rows and cols with
+                                                                                                      * active nonzeros should not be removed */
+                  dsdpind[ind] = compLowerTriangPos(sdprow[block][blockvar][k] - indchanges[block][sdprow[block][blockvar][k]],
+                                                    sdpcol[block][blockvar][k] - indchanges[block][sdpcol[block][blockvar][k]]); /* substract the number of
+                                                    * removed indices before the row and col to get the indices after fixings */
+                  dsdpval[ind] = -1 * sdpval[block][blockvar][k];  /* *(-1) because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
+                  ind++;
+               }
+
+               /* sort the arrays for this Matrix (by non decreasing indices) as this might help the solving time of DSDP */
+               SCIPsortIntReal(dsdpind + startind, dsdpval + startind, sdpnblockvarnonz[block][blockvar]);
+
+               DSDP_CALL(SDPConeSetASparseVecMat(sdpisolver->sdpcone, block, i + 1, sdpblocksizes[block],
+                         1.0, 0, dsdpind + startind,dsdpval + startind, sdpnblockvarnonz[block][blockvar])); /* i + 1 because DSDP starts counting the variables
+                                                                                                              * at 1, adding startind shifts the
+                                                                                                              * arrays to the first nonzero belonging to this
+                                                                                                              * block and this variable */
+            }
          }
       }
    }
@@ -656,11 +670,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          /* sort the arrays for this Matrix (by non decreasing indices) as this might help the solving time of DSDP */
          SCIPsortIntReal(dsdpconstind + startind, dsdpconstval + startind, sdpconstnblocknonz[block]);
 
+         DSDP_CALL(SDPConeSetASparseVecMat(sdpisolver->sdpcone, block, 0, sdpblocksizes[block], 1.0, 0, dsdpconstind + startind,
+                     dsdpconstval + startind, ind - startind));   /* constant matrix is given as variable 0, the arrays are shifted to the first element of this block
+                                                                   * by adding startind, ind - startind gives the number of elements for this block */
+
       }
 
-      DSDP_CALL(SDPConeSetASparseVecMat(sdpisolver->sdpcone, block, 0, sdpblocksizes[block], 1.0, 0, dsdpconstind + startind,
-            dsdpconstval + startind, ind - startind));   /* constant matrix is given as variable 0, the arrays are shifted to the first element of this block
-                                                          * by adding startind, ind - startind gives the number of elements for this block */
    }
 
 #ifdef SCIP_MORE_DEBUG
