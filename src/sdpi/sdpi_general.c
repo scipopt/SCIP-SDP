@@ -456,6 +456,8 @@ SCIP_RETCODE SCIPsdpiCreate(
 
    BMS_CALL(BMSallocBlockMemory(blkmem, sdpi));
 
+   SCIP_CALL( SCIPsdpiSolverCreate(&((*sdpi)->sdpisolver), messagehdlr, blkmem) );
+
    (*sdpi)->messagehdlr = messagehdlr;
    (*sdpi)->blkmem = blkmem;
    (*sdpi)->sdpid = 1;
