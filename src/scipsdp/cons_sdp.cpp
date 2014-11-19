@@ -653,8 +653,8 @@ SCIP_RETCODE diagGEzero(
       rhs = SCIPinfinity(scip);
 
       SCIP_Real* matrix;
-      SCIP_CALL(SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1)) / 2));
-      SCIP_CALL(SCIPconsSdpGetLowerTriangConstMatrix(scip, conss[c], matrix));
+      SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1)) / 2) );
+      SCIP_CALL( SCIPconsSdpGetLowerTriangConstMatrix(scip, conss[c], matrix) );
 
       SCIP_Real* cons_array;
       SCIP_Real* lhs_array;
@@ -745,11 +745,11 @@ SCIP_RETCODE diagDominant(
 
    for (i = 0; i < nconss; ++i)
    {
-      assert( conss[i] != NULL );
-      assert ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[i])), "SDP") == 0);
+      assert ( conss[i] != NULL );
+      assert ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[i])), "SDP") == 0 );
 
       SCIP_CONSDATA* consdata = SCIPconsGetData(conss[i]);
-      assert( consdata != NULL );
+      assert ( consdata != NULL );
 
       blocksize = consdata->blocksize;
       nvars = consdata->nvars;
@@ -891,6 +891,8 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
 
          for (var = 0; var < nvars; var++)
          {
+            assert ( consdata->nvarnonz[var] <= 1 ); /* in a 1x1 block there may be at most one entry per variable */
+
             for (j = 0; j < consdata->nvarnonz[var]; j++)
             {
                assert ( consdata->col[var][j] == 0 && consdata->row[var][j] == 0 ); /* if the block is size one, all entries should have row and col equal to 0 */
@@ -924,8 +926,8 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
          (*ndelconss)++;
 
          SCIPfreeBufferArray(scip, &cutname);
-         SCIPfreeBufferArray(scip, &vars);
          SCIPfreeBufferArray(scip, &coeffs);
+         SCIPfreeBufferArray(scip, &vars);
       }
    }
    return SCIP_OKAY;
@@ -956,11 +958,11 @@ SCIP_RETCODE fixVars(
 
    for (c = 0; c < nconss; ++c)
    {
-      assert( conss[c] != NULL );
+      assert ( conss[c] != NULL );
       assert ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") == 0);
 
       consdata = SCIPconsGetData(conss[c]);
-      assert( consdata != NULL );
+      assert ( consdata != NULL );
 
       /* allocate memory to save nonzeros that need to be fixed */
       SCIP_CALL(SCIPallocBlockMemoryArray(scip, &savedcol, consdata->nnonz));
@@ -1026,8 +1028,9 @@ SCIP_RETCODE fixVars(
       SCIP_CALL( SdpVarfixerMergeArrays(SCIPblkmem(scip), savedrow, savedcol, savedval, nfixednonz, FALSE, 1.0, consdata->constrow, consdata->constcol,
             consdata->constval, &(consdata->constnnonz), arraylength) );
 
+      assert ( consdata->constnnonz <= arraylength ); /* the allocated memory should always be sufficient */
+
       /* shrink the arrays if nonzeros could be combined */
-      assert ( consdata->constnnonz <= arraylength );
       SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constcol), arraylength, consdata->constnnonz) );
       SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constrow), arraylength, consdata->constnnonz) );
       SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constval), arraylength, consdata->constnnonz) );
@@ -1089,6 +1092,7 @@ SCIP_RETCODE multiaggrVars(
             SCIP_CALL(SCIPallocBlockMemoryArray(scip, &aggrvars, globalnvars));
             SCIP_CALL(SCIPallocBlockMemoryArray(scip, &scalars, globalnvars));
 
+            /* this is how they should be initialized before calling SCIPgetProbvarLinearSum */
             aggrvars[0] = consdata->vars[var];
             naggrvars = 1;
 
@@ -1951,12 +1955,19 @@ SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
 {
    SCIP_CONSDATA* consdata;
    int i;
+   int blocksize;
 
    assert ( scip != NULL );
    assert ( cons != NULL );
    assert ( mat != NULL );
 
    consdata = SCIPconsGetData(cons);
+
+   blocksize = consdata->blocksize;
+
+   /* initialize the matrix with 0 */
+   for (i = 0; i < (blocksize * (blocksize + 1)) / 2; i++)
+      mat[i] = 0.0;
 
    for (i = 0; i < consdata->constnnonz; i++)
    {

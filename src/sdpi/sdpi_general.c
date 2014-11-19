@@ -1410,9 +1410,10 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
    if (firstrow == 0 && lastrow == sdpi->nlpcons - 1)
    {
       BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz);
       BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz);
+
 
       sdpi->lprhs = NULL;
       sdpi->lpcol = NULL;
@@ -2626,6 +2627,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstval, sdpi->nsdpblocks) );
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &indchanges, sdpi->nsdpblocks) );
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &nremovedinds, sdpi->nsdpblocks) );
+
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(indchanges[block]), sdpi->sdpblocksizes[block]) );
@@ -2635,6 +2637,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    }
 
    SCIP_CALL (compConstMatAfterFixings(sdpi, &sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval) );
+
    /* shrink the constant arrays after the number of fixed nonzeros is known */
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
@@ -2661,7 +2664,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
       return SCIP_ERROR;
    }
 
-   /* empty the memory allocated here and in CompConstMatAfterFixings */
+   /* empty the memory allocated here */
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
       BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpconstnblocknonz[block]);

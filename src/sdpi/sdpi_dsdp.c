@@ -456,10 +456,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int ind;
    int block;
    int startind;
-   int** fixedind; /* these two arrays will save the fixed nonzeros for each block for later adding them to the constant arrays */
-   int** fixedval; /* "----------------------------------------------------------------------------------------" */
-   int* nfixednonz;
-   int totalnfixednonz; /* sum of fixed nonzeros over all blocks */
    int nfixedvars;
 
 #ifdef SCIP_DEBUG
@@ -504,20 +500,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* shrink the fixedvars arrays to the right size */
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsobj), nvars, nfixedvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), nvars, nfixedvars) );
-
-   /* if there are fixed variables, prepare arrays to save fixed nonzeros for later adding them to the constant nonzeros */
-   if (sdpisolver->nactivevars < sdpisolver->nvars)
-   {
-      BMS_CALL(BMSallocBlockMemoryArray(sdpisolver->blkmem, &fixedind, nsdpblocks));
-      BMS_CALL(BMSallocBlockMemoryArray(sdpisolver->blkmem, &fixedval, nsdpblocks));
-
-      for (i = 0; i < nsdpblocks; i++)
-      {
-         nfixednonz[block] = 0;
-         BMS_CALL(BMSallocBlockMemoryArray(sdpisolver->blkmem, &(fixedind[block]), sdpnnonz));
-         BMS_CALL(BMSallocBlockMemoryArray(sdpisolver->blkmem, &(fixedval[block]), sdpnnonz));
-      }
-   }
 
    /* insert data */
 
