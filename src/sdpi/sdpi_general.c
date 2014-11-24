@@ -264,6 +264,7 @@ SCIP_RETCODE compConstMatAfterFixings(
    }
 
    /* compute the constant matrix */
+   *sdpconstnnonz = 0;
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
       SCIP_CALL( SdpVarfixerMergeArraysIntoNew(sdpi->blkmem, sdpi->sdpconstrow[block], sdpi->sdpconstcol[block], sdpi->sdpconstval[block],
@@ -2642,7 +2643,6 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    for (block = 0; block < sdpi->nsdpblocks; block++)
       sdpconstnblocknonz[block] = sdpi->sdpnnonz + sdpi->sdpconstnnonz;
 
-
    SCIP_CALL (compConstMatAfterFixings(sdpi, &sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval) );
 
    /* shrink the constant arrays after the number of fixed nonzeros is known */
@@ -2659,8 +2659,8 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    if (SCIPsdpiSolverKnowsPenalty() || penaltyParam < sdpi->epsilon)
    {
       SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, penaltyParam, withObj, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
-                                                       sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpi->sdpconstnnonz,
-                                                       sdpi->sdpconstnblocknonz, sdpi->sdpconstrow, sdpi->sdpconstcol, sdpi->sdpconstval,
+                                                       sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
+                                                       sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                                                        sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                                                        sdpi->sdpval, indchanges, nremovedinds, sdpi->nlpcons, sdpi->lprhs, sdpi->lpnnonz,
                                                        sdpi->lprow, sdpi->lpcol, sdpi->lpval) );
