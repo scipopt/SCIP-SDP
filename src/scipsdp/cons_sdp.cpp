@@ -555,7 +555,8 @@ SCIP_RETCODE separateSol(
    char* cutname;
    int snprintfreturn;
 
-   assert( cons != NULL );
+   assert ( cons != NULL );
+   assert ( sol != NULL );
 
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );

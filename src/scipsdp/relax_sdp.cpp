@@ -301,7 +301,6 @@ SCIP_RETCODE putLpDataInInterface(
 
    nvars = SCIPgetNVars(scip); /* or get these from the varmapper, depending on how it is done in the SDP-part */
 
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &rows, SCIPgetNLPRows(scip)) );
    SCIP_CALL_ABORT( SCIPgetLPRowsData(scip, &rows, &nrows) );
 
    SCIPdebugMessage("inserting %d LPRows into the interface \n", nrows);
@@ -364,7 +363,6 @@ SCIP_RETCODE putLpDataInInterface(
    }
 
    /* these arrays are no longer needed */
-   SCIPfreeBlockMemoryArray(scip, &rows, nrows);
    SCIPfreeBlockMemoryArray(scip, &rowvals, nvars);
    SCIPfreeBlockMemoryArray(scip, &rowcols, nvars);
 
@@ -657,7 +655,7 @@ SCIP_RETCODE calc_relax(
                int oldncuts = SCIPgetNCuts(scip);
 
                /* ????????????? Should this be called from relaxator ?? */
-               SCIP_CALL( SCIPseparateSol(scip, scipsol, FALSE, FALSE, &delayed, &cutoff_forsep) );
+               //SCIP_CALL( SCIPseparateSol(scip, scipsol, FALSE, FALSE, &delayed, &cutoff_forsep) );
 
                if ( SCIPgetNCuts(scip) > oldncuts )
                   *result = SCIP_SEPARATED;
