@@ -825,8 +825,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
              * the starting values for all variable in between to the same value (as we also set the entry for the found variable, this for-queue
              * will always have at least one index in the index set */
             for (j = nextcol; j <= lpcol[i]; j++)
-               dsdplpbegcol[sdpisolver->inputtodsdpmapper[j]] = nlpcons + i - nshifts; /* the nonzeros only start after the rhs, they are shifted nshift positions to the left,
-                                                            * the index j+1 has to be set as dsdplpbegcol[0] */
+            {
+               if (sdpisolver->inputtodsdpmapper[j] != -1)
+               {
+                  assert ( ! (isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]])) );
+                  dsdplpbegcol[sdpisolver->inputtodsdpmapper[j]] = nlpcons + i - nshifts; /* the nonzeros only start after the rhs, they are shifted nshift positions to the left,
+                                                                                           * the index j+1 has to be set as dsdplpbegcol[0] */
+               }
+            }
 
             nextcol = j;
          }
@@ -841,7 +847,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             dsdplpval[i + nlpcons - nshifts] = -lpval[i]; /* - because dsdp wants <= instead of >= constraints */
          }
       }
-      dsdplpbegcol[nvars + 1] = nlpcons + lpnnonz - nshifts; /* the length of the dsdplp arrays */
+      dsdplpbegcol[sdpisolver->nactivevars + 1] = nlpcons + lpnnonz - nshifts; /* the length of the dsdplp arrays */
 
       /* free the memory for the rowshifts-array */
       BMSfreeBlockMemoryArray(sdpisolver->blkmem, &rowshifts, nlpcons);

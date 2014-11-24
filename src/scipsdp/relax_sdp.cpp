@@ -126,7 +126,6 @@ SCIP_RETCODE putSdpDataInInterface(
    }
 
    nconss = SCIPgetNConss(scip);
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conss, nconss)) ;
    conss = SCIPgetConss(scip);
 
    /* count the number of sdpblocks and compute the number of nonzeros */
@@ -218,7 +217,6 @@ SCIP_RETCODE putSdpDataInInterface(
    }
 
    /* free the memory that is no longer needed */
-   SCIPfreeBlockMemoryArray(scip, &conss, nconss);
    SCIPfreeBlockMemoryArray(scip, &blockvars, nvars);
 
    SCIP_CALL(SCIPsdpiLoadSDP(sdpi, nvars,  obj,  lb,  ub, nsdpblocks,
@@ -608,7 +606,6 @@ SCIP_RETCODE calc_relax(
             SCIP_RESULT conefeas;
 
             nconss = SCIPgetNConss(scip);
-            SCIP_CALL(SCIPallocBlockMemoryArray(scip, &conss, nconss));
             conss = SCIPgetConss(scip);
 
             for (i = 0; i < nconss; ++i)
@@ -620,7 +617,6 @@ SCIP_RETCODE calc_relax(
                   break;
                }
             }
-            SCIPfreeBlockMemoryArray(scip, &conss, nconss);
          }
 
          /* this was initialized as true [and thus is always true if called without a penalty formulation], for a penalty formulation
@@ -826,7 +822,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
 
    /* get varmapper */
    nconss = SCIPgetNConss(scip);
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &conss, nconss));
    conss = SCIPgetConss(scip);
 
    // it is possible to call this function for writing the problem of every node in sdpa-format to a file per node
