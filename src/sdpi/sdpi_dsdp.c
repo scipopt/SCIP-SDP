@@ -504,7 +504,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* insert data */
 
-   SCIPdebugMessage("Inserting Data into DSDP for SDP (%d) \n", sdpisolver->sdpcounter);
+   SCIPdebugMessage("Inserting Data into DSDP for SDP (%d) \n", ++sdpisolver->sdpcounter);
 
    if (sdpisolver->dsdp != NULL)
    {
@@ -772,8 +772,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                /* we don't know yet if it is active, so we set the bool to false and compute the rhs, then continue checking the rest of the nonzeros
                 * in the next iterations */
                rowactive = FALSE;
-               dsdplpval[lastrow - nshifts] = -lprhs[lastrow] + lpval[i]; /* the rhs is multiplied by -1 as dsdp wants <= instead of >=, the + for
-                                                                              * lpval comes because of this and rhs - lhs, so - * - = + */
+               dsdplpval[lastrow - nshifts] = -lprhs[lastrow] + lb[lpcol[i]] * lpval[i]; /* the rhs is multiplied by -1 as dsdp wants <= instead of >=, the + for
+                                                                                          * lpval comes because of this and rhs - lhs, so - * - = + */
             }
             else
             {
@@ -789,7 +789,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             if (isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]]))
             {
                /* we just add the fixed value to the rhs, this doesn't change anything about the activity status */
-               dsdplpval[lastrow - nshifts] += lpval[i]; /* + = - * - because of rhs - lhs and <= instead of >= */
+               dsdplpval[lastrow - nshifts] += lb[lpcol[i]] * lpval[i]; /* + = - * - because of rhs - lhs and <= instead of >= */
             }
             else
             {
@@ -826,7 +826,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
              * will always have at least one index in the index set */
             for (j = nextcol; j <= lpcol[i]; j++)
             {
-               if (sdpisolver->inputtodsdpmapper[j] != -1)
+               if (sdpisolver->inputtodsdpmapper[j] >= 0)
                {
                   assert ( ! (isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]])) );
                   dsdplpbegcol[sdpisolver->inputtodsdpmapper[j]] = nlpcons + i - nshifts; /* the nonzeros only start after the rhs, they are shifted nshift positions to the left,
@@ -1643,10 +1643,10 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    *objval = -1*(*objval); /*DSDP maximizes instead of minimizing, so the objective values were multiplied by -1 when inserted */
 
    /* as we didn't add the fixed (lb = ub) variables to dsdp, we have to add their contributions to the objective by hand */
-   for (v = 0; v < sdpisolver->nvars - sdpisolver->nactivevars; v++)
+   for (v = 0; v < sdpisolver->nvars; v++)
    {
-      if (sdpisolver->inputtodsdpmapper[v] == -1)
-         *objval += sdpisolver->fixedvarsobj[v] * sdpisolver->fixedvarsval[v];
+      if (sdpisolver->inputtodsdpmapper[v] < 0)
+         *objval += sdpisolver->fixedvarsobj[-sdpisolver->inputtodsdpmapper[v] - 1] * sdpisolver->fixedvarsval[-sdpisolver->inputtodsdpmapper[v] - 1];
    }
 
    return SCIP_OKAY;
@@ -1679,13 +1679,13 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
    if ( objval != NULL )
    {
       DSDP_CALL(DSDPGetDObjective(sdpisolver->dsdp, objval));
-      *objval *= -1; /*DSDP maximizes instead of minimizing, so the objective values were multiplied by -1 when inserted */
+      *objval *= -1; /* DSDP maximizes instead of minimizing, so the objective values were multiplied by -1 when inserted */
 
       /* as we didn't add the fixed (lb = ub) variables to dsdp, we have to add their contributions to the objective by hand */
-      for (v = 0; v < sdpisolver->nvars - sdpisolver->nactivevars; v++)
+      for (v = 0; v < sdpisolver->nvars; v++)
       {
-         if (sdpisolver->inputtodsdpmapper[v] == -1)
-            *objval += sdpisolver->fixedvarsobj[v] * sdpisolver->fixedvarsval[v];
+         if (sdpisolver->inputtodsdpmapper[v] < 0)
+            *objval += sdpisolver->fixedvarsobj[-sdpisolver->inputtodsdpmapper[v] - 1] * sdpisolver->fixedvarsval[-sdpisolver->inputtodsdpmapper[v] - 1];
       }
    }
 
