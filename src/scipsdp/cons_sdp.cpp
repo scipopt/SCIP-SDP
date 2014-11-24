@@ -459,7 +459,7 @@ SCIP_RETCODE cutUsingEigenvector(
    /* expand it because LAPACK wants the full matrix instead of the lower triangular part */
    SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
 
-   SCIP_CALL( computeIthEigenvalue(scip, TRUE, blocksize, matrix, 1, eigenvalues, eigenvector) );
+   SCIP_CALL( computeIthEigenvalue(scip, TRUE, blocksize, fullmatrix, 1, eigenvalues, eigenvector) );
 
    /* get full constant matrix */
    SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, cons, fullconstmatrix) );
