@@ -308,7 +308,10 @@ SCIP_RETCODE putLpDataInInterface(
    /* compute the total number of LP nonzeroes in SCIP */
    scipnnonz = 0;
    for (i = 0; i < nrows; i++)
+   {
+      assert ( rows[i] != NULL );
       scipnnonz += SCIProwGetNNonz(rows[i]);
+   }
 
    /* allocate memory */
    /* the arrays need to be twice the size of those given be scipped because of the lack of left-hand-sides (which means rows could be duplicated, with
@@ -317,8 +320,6 @@ SCIP_RETCODE putLpDataInInterface(
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &rowind, 2 * scipnnonz));
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &colind, 2 * scipnnonz));
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &val, 2 * scipnnonz));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &rowvals, nvars));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &rowcols, nvars));
 
    /* insert the nonzeroes */
    nnonz = 0; /* this is recomputed for the sdpi, because of the possible duplication of non-zeroes for lhs and rhs */
@@ -330,8 +331,8 @@ SCIP_RETCODE putLpDataInInterface(
 
       rowvals = SCIProwGetVals(rows[i]);
       rowcols = SCIProwGetCols(rows[i]);
-      sciplhs = SCIProwGetLhs(rows[i])- SCIProwGetConstant(rows[i]);
-      sciprhs = SCIProwGetRhs(rows[i])- SCIProwGetConstant(rows[i]);
+      sciplhs = SCIProwGetLhs(rows[i]) - SCIProwGetConstant(rows[i]);
+      sciprhs = SCIProwGetRhs(rows[i]) - SCIProwGetConstant(rows[i]);
 
       /* add row >= lhs if lhs is finite */
       if (sciplhs > -SCIPsdpiInfinity(sdpi))
@@ -361,10 +362,6 @@ SCIP_RETCODE putLpDataInInterface(
          nconss++;
       }
    }
-
-   /* these arrays are no longer needed */
-   SCIPfreeBlockMemoryArray(scip, &rowvals, nvars);
-   SCIPfreeBlockMemoryArray(scip, &rowcols, nvars);
 
    /* reallocate some arrays depending on the number of lpnnonz and lhs/rhs */
    SCIP_CALL(SCIPreallocBlockMemoryArray(scip, &rhs, 2 * nrows, nconss));
