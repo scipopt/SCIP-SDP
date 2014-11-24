@@ -689,7 +689,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       int* rowshifts;
       int nshifts;
       int lastrow;
-      int lastcol;
+      int nextcol;
       int nremovedlpcons;
       SCIP_Real rowactive;
 
@@ -802,6 +802,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       nremovedlpcons = nshifts;
 
+      /* set the values in dsdplprow for the right hand sides of the active lp constraints */
+      for (i = 0; i < nlpcons - nshifts; i++)
+         dsdplprow[i] = i;
+
 
       /* now add the nonzeros */
 
@@ -809,28 +813,32 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sortColRow(lprow, lpcol, lpval, lpnnonz);
 
       /* iterate over all nonzeros to add the active ones to the dsdp arrays and compute dsdplpbegcol */
-      lastcol = -1;
+      nextcol = 0;
       dsdplpbegcol[0] = 0;
       dsdplpbegcol[1] = nlpcons - nshifts; /* the number of LP-constraints that will be given to dsdp */
       for (i = 0; i < lpnnonz; i++)
       {
-         if (sdpisolver->inputtodsdpmapper[lpcol[i]] > lastcol)
+         /* if a new variable starts, set the corresponding dsdplpbegcol-entry */
+         if (lpcol[i] >= nextcol)
          {
             /* set the dsdplpbegcol entries, as there might be active variables which appear only in the sdp but not the lp-part, we also have to set
              * the starting values for all variable in between to the same value (as we also set the entry for the found variable, this for-queue
              * will always have at least one index in the index set */
-            for (j = lastcol + 1; j <= sdpisolver->inputtodsdpmapper[lpcol[i]]; j++)
-               dsdplpbegcol[j] = nlpcons + i - nshifts; /* the nonzeros only start after the rhs, the are shifted nshift positions to the left */
+            for (j = nextcol; j <= lpcol[i]; j++)
+               dsdplpbegcol[sdpisolver->inputtodsdpmapper[j]] = nlpcons + i - nshifts; /* the nonzeros only start after the rhs, they are shifted nshift positions to the left,
+                                                            * the index j+1 has to be set as dsdplpbegcol[0] */
 
-            /* add the nonzero, if it isn't fixed, otherwise note the needed shift for the rest */
-            if (isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]]))
-               nshifts++;
-            else
-            {
-               dsdplprow[i - nshifts] = lprow[i] - rowshifts[lprow[i]]; /* the index is adjusted for deleted lp rows, also rows are numbered
-                                                                         * 0,...,nlpcons-1 in DSDP, as they are here */
-               dsdplpval[i - nshifts] = -lpval[i]; /* - because dsdp wants <= instead of >= constraints */
-            }
+            nextcol = j;
+         }
+         /* add the nonzero, if it isn't fixed, otherwise note the needed shift for the rest */
+         if (isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]]))
+            nshifts++;
+         else
+         {
+            dsdplprow[i + nlpcons - nshifts] = lprow[i] - rowshifts[lprow[i]]; /* the index is adjusted for deleted lp rows, also rows are numbered
+                                                                                * 0,...,nlpcons-1 in DSDP, as they are here, nlpcons is added to the index
+                                                                                * as the first nlpcons entries correspond to the right hand sides */
+            dsdplpval[i + nlpcons - nshifts] = -lpval[i]; /* - because dsdp wants <= instead of >= constraints */
          }
       }
       dsdplpbegcol[nvars + 1] = nlpcons + lpnnonz - nshifts; /* the length of the dsdplp arrays */
