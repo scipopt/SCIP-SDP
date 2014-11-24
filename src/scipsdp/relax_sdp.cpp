@@ -105,6 +105,8 @@ SCIP_RETCODE putSdpDataInInterface(
    int constlength;
    int** sdpvar;
 
+   SCIPdebugMessage("Putting SDP Data in general interface! \n");
+
    assert ( scip != NULL );
    assert ( sdpi != NULL );
 
@@ -405,7 +407,7 @@ SCIP_RETCODE putLpDataInInterface(
       assert ( vars[i] != NULL );
       lb[i] = SCIPvarGetLbLocal(vars[i]);
       ub[i] = SCIPvarGetUbLocal(vars[i]);
-      inds[i] = 1; /* we want to change all bounds */
+      inds[i] = i; /* we want to change all bounds, so all indices are included in inds */
    }
 
    /* inform interface */
@@ -491,6 +493,8 @@ SCIP_RETCODE calc_relax(
    int v;
    SCIP_CONS** conss;
    int nconss;
+
+   SCIPdebugMessage("calc_relax called\n");
 
    assert ( sdpi != NULL );
    assert ( scip != NULL );
@@ -811,9 +815,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
    int nvars;
    SCIP_VAR** vars;
    int* indsforsdpi;
-   SCIP_Real* obj;
-   SCIP_Real* lb;
-   SCIP_Real* ub;
 
    // construct the lp and make sure, that everything is where it should be
    SCIP_Bool cutoff;
@@ -897,33 +898,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
 
    relaxdata = SCIPrelaxGetData(relax);
 
-   /* update objective and bounds and lp data */
-   nvars= SCIPgetNVars(scip);
-   assert ( nvars > 0 );
-   vars= SCIPgetVars(scip);
-   assert ( vars != NULL );
-
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &indsforsdpi, nvars));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &obj, nvars));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &lb, nvars));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &ub, nvars));
-
-   for (i = 0; i < nvars; i++)
-   {
-      indsforsdpi[i] = i;
-      obj[i] = SCIPvarGetObj(vars[i]);
-      lb[i] = SCIPvarGetLbLocal(vars[i]);
-      ub[i] = SCIPvarGetUbLocal(vars[i]);
-   }
-
-   SCIP_CALL(SCIPsdpiChgObj(relaxdata->sdpi, nvars, indsforsdpi, obj));
-   SCIP_CALL(SCIPsdpiChgBounds(relaxdata->sdpi, nvars, indsforsdpi, lb, ub));
-
-   SCIPfreeBlockMemoryArray(scip, &indsforsdpi, nvars);
-   SCIPfreeBlockMemoryArray(scip, &obj, nvars);
-   SCIPfreeBlockMemoryArray(scip, &lb, nvars);
-   SCIPfreeBlockMemoryArray(scip, &ub, nvars);
-
+   /* update LP Data in Interface */
    SCIP_CALL( putLpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper) );
 
    SCIP_CALL( calc_relax(scip, relaxdata->sdpi, relaxdata->varmapper, FALSE, 0.0, result, lowerbound));
