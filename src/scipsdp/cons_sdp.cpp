@@ -949,7 +949,6 @@ SCIP_RETCODE fixVars(
    int* savedcol;
    int* savedrow;
    SCIP_Real* savedval;
-   int savedlength;
    int c;
    int v;
    int oldnvars;
@@ -968,10 +967,9 @@ SCIP_RETCODE fixVars(
       assert ( consdata != NULL );
 
       /* allocate memory to save nonzeros that need to be fixed */
-      savedlength = consdata->nnonz;
-      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &savedcol, savedlength));
-      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &savedrow, savedlength));
-      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &savedval, savedlength));
+      SCIP_CALL(SCIPallocBufferArray(scip, &savedcol, consdata->nnonz));
+      SCIP_CALL(SCIPallocBufferArray(scip, &savedrow, consdata->nnonz));
+      SCIP_CALL(SCIPallocBufferArray(scip, &savedval, consdata->nnonz));
 
       /* initialize this with zero for each block */
       nfixednonz = 0;
@@ -1040,9 +1038,9 @@ SCIP_RETCODE fixVars(
       SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constval), arraylength, consdata->constnnonz) );
 
       /* free the saved arrays */
-      SCIPfreeBlockMemoryArray(scip, &savedval, savedlength);
-      SCIPfreeBlockMemoryArray(scip, &savedrow, savedlength);
-      SCIPfreeBlockMemoryArray(scip, &savedcol, savedlength);
+      SCIPfreeBufferArray(scip, &savedval);
+      SCIPfreeBufferArray(scip, &savedrow);
+      SCIPfreeBufferArray(scip, &savedcol);
    }
 
    return SCIP_OKAY;
@@ -1093,8 +1091,8 @@ SCIP_RETCODE multiaggrVars(
          if (SCIPvarGetStatus(consdata->vars[var]) == SCIP_VARSTATUS_AGGREGATED ||
              SCIPvarGetStatus(consdata->vars[var]) == SCIP_VARSTATUS_MULTAGGR)
          {
-            SCIP_CALL(SCIPallocBlockMemoryArray(scip, &aggrvars, globalnvars));
-            SCIP_CALL(SCIPallocBlockMemoryArray(scip, &scalars, globalnvars));
+            SCIP_CALL(SCIPallocBufferArray(scip, &aggrvars, globalnvars));
+            SCIP_CALL(SCIPallocBufferArray(scip, &scalars, globalnvars));
 
             /* this is how they should be initialized before calling SCIPgetProbvarLinearSum */
             aggrvars[0] = consdata->vars[var];
@@ -1106,9 +1104,9 @@ SCIP_RETCODE multiaggrVars(
                                                     * of spots we provided */
 
             /* save the nonzeroes of the (multi)aggregated var */
-            SCIP_CALL(SCIPallocBlockMemoryArray(scip, &savedcol, consdata->nvarnonz[var]));
-            SCIP_CALL(SCIPallocBlockMemoryArray(scip, &savedrow, consdata->nvarnonz[var]));
-            SCIP_CALL(SCIPallocBlockMemoryArray(scip, &savedval, consdata->nvarnonz[var]));
+            SCIP_CALL(SCIPallocBufferArray(scip, &savedcol, consdata->nvarnonz[var]));
+            SCIP_CALL(SCIPallocBufferArray(scip, &savedrow, consdata->nvarnonz[var]));
+            SCIP_CALL(SCIPallocBufferArray(scip, &savedval, consdata->nvarnonz[var]));
 
             naggrnonz = 0;
 
@@ -1192,8 +1190,16 @@ SCIP_RETCODE multiaggrVars(
 
                   /* as there were no nonzeros thus far, we can just duplicate the saved arrays to get the nonzeros for the new variable */
                   SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(consdata->col[consdata->nvars]), savedcol, naggrnonz) );
-                  SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(consdata->row[consdata->nvars]), savedcol, naggrnonz) );
-                  SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(consdata->val[consdata->nvars]), savedcol, naggrnonz) );
+                  SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(consdata->row[consdata->nvars]), savedrow, naggrnonz) );
+                  if (scalars[aggrind] == 1.0)  /* in this case we can also duplicate the values */
+                     SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(consdata->val[consdata->nvars]), savedval, naggrnonz) );
+                  else  /* we have to multiply all entries by scalar before inserting them */
+                  {
+                     SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(consdata->val[consdata->nvars]), naggrnonz) );
+
+                     for (i = 0; i < naggrnonz; i++)
+                        consdata->val[consdata->nvars][i] = scalars[aggrind] * savedval[i];
+                  }
 
                   consdata->nvars++;
                }
@@ -1216,11 +1222,11 @@ SCIP_RETCODE multiaggrVars(
             SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constval), aggrtargetlength, consdata->constnnonz) );
 
             /* free all arrays that are no longer needed */
-            SCIPfreeBlockMemoryArray(scip, &savedval, consdata->nvarnonz[var]);
-            SCIPfreeBlockMemoryArray(scip, &savedrow, consdata->nvarnonz[var]);
-            SCIPfreeBlockMemoryArray(scip, &savedcol, consdata->nvarnonz[var]);
-            SCIPfreeBlockMemoryArray(scip, &scalars, globalnvars);
-            SCIPfreeBlockMemoryArray(scip, &aggrvars, globalnvars);
+            SCIPfreeBufferArray(scip, &savedval);
+            SCIPfreeBufferArray(scip, &savedrow);
+            SCIPfreeBufferArray(scip, &savedcol);
+            SCIPfreeBufferArray(scip, &scalars);
+            SCIPfreeBufferArray(scip, &aggrvars);
          }
       }
 
