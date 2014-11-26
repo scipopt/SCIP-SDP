@@ -381,6 +381,7 @@ SCIP_RETCODE findEmptyRowColsSDP(
       {
          if (indchanges[block][i] == -1)
          {
+            SCIPdebugMessage("empty row and col %d were removed from block %d of SDP %d\n", i, block, sdpi->sdpid);
             /* this index wasn't found (indchanges was initialized with 0), so it can be removed */
             nremovedinds[block]++;
          }

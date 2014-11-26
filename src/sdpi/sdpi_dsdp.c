@@ -545,9 +545,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
 
    /* set blocksizes */
-   for(i = 0; i < nsdpblocks; i++)
+   for(block = 0; i < nsdpblocks; i++)
    {
-      DSDP_CALL(SDPConeSetBlockSize(sdpisolver->sdpcone, i, sdpblocksizes[i] - nremovedinds[i])); /* (blocks are counted from 0 to m-1) */
+      DSDP_CALL(SDPConeSetBlockSize(sdpisolver->sdpcone, i, sdpblocksizes[block] - nremovedinds[block])); /* (blocks are counted from 0 to m-1) */
    }
 
 
@@ -614,7 +614,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                /* sort the arrays for this Matrix (by non decreasing indices) as this might help the solving time of DSDP */
                SCIPsortIntReal(dsdpind + startind, dsdpval + startind, sdpnblockvarnonz[block][blockvar]);
 
-               DSDP_CALL(SDPConeSetASparseVecMat(sdpisolver->sdpcone, block, i + 1, sdpblocksizes[block],
+               DSDP_CALL(SDPConeSetASparseVecMat(sdpisolver->sdpcone, block, i + 1, sdpblocksizes[block] - nremovedinds[block],
                          1.0, 0, dsdpind + startind,dsdpval + startind, sdpnblockvarnonz[block][blockvar])); /* i + 1 because DSDP starts counting the variables
                                                                                                               * at 1, adding startind shifts the
                                                                                                               * arrays to the first nonzero belonging to this
@@ -670,7 +670,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          /* sort the arrays for this Matrix (by non decreasing indices) as this might help the solving time of DSDP */
          SCIPsortIntReal(dsdpconstind + startind, dsdpconstval + startind, sdpconstnblocknonz[block]);
 
-         DSDP_CALL(SDPConeSetASparseVecMat(sdpisolver->sdpcone, block, 0, sdpblocksizes[block], 1.0, 0, dsdpconstind + startind,
+         DSDP_CALL(SDPConeSetASparseVecMat(sdpisolver->sdpcone, block, 0, sdpblocksizes[block] - nremovedinds[block], 1.0, 0, dsdpconstind + startind,
                      dsdpconstval + startind, ind - startind));   /* constant matrix is given as variable 0, the arrays are shifted to the first element of this block
                                                                    * by adding startind, ind - startind gives the number of elements for this block */
 

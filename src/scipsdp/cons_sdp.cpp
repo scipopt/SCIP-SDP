@@ -37,6 +37,8 @@
  * @author Tristan Gally
  */
 
+#define SCIP_DEBUG
+
 #include "cons_sdp.h"
 
 #include <cassert>                      // for assert
@@ -1230,7 +1232,7 @@ SCIP_RETCODE multiaggrVars(
          }
       }
 
-      /* shrink the variable arrays if they were enlarged too much */
+      /* shrink the variable arrays if they were enlarged too much (or more vars were removed than added) */
       assert ( consdata->nvars <= vararraylength );
       if (consdata->nvars < vararraylength)
       {
@@ -1287,8 +1289,8 @@ SCIP_DECL_CONSINIT(consInitSdp)
 
    for (i = 0; i < nconss; ++i)
    {
-      assert(conss[i] != NULL);
-      assert ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[i])), "SDP") == 0);
+      assert ( conss[i] != NULL );
+      assert ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[i])), "SDP") == 0 );
 
       consdata = SCIPconsGetData(conss[i]);
 
@@ -1316,7 +1318,7 @@ SCIP_DECL_CONSLOCK(consLockSdp)
    blocksize = consdata->blocksize;
    nvars = consdata->nvars;
 
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &Aj, blocksize * blocksize));
+   SCIP_CALL(SCIPallocBufferArray(scip, &Aj, blocksize * blocksize));
 
    for (var = 0; var < nvars; var++)
    {
@@ -1351,7 +1353,7 @@ SCIP_DECL_CONSLOCK(consLockSdp)
       }
    }
 
-   SCIPfreeBlockMemoryArray(scip, &Aj, blocksize * blocksize);
+   SCIPfreeBufferArray(scip, &Aj);
 
    return SCIP_OKAY;
 }
@@ -1377,8 +1379,8 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 {
    assert( result != 0 );
 
-   if ( nrounds == 0 )
-      SCIP_CALL( diagGEzero(scip, conss, nconss, naddconss) );
+   //if ( nrounds == 0 )
+      //SCIP_CALL( diagGEzero(scip, conss, nconss, naddconss) );
 
    SCIP_CALL( move_1x1_blocks_to_lp(scip, conss, nconss, naddconss, ndelconss) );
 
@@ -1386,8 +1388,8 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 
    if ( nrounds == 0 )
    {
-      SCIP_CALL( diagDominant(scip, conss, nconss, naddconss) ); /*TODO: could be activated for some problem classes
-      but doesn't seem to work in the general case */
+      //SCIP_CALL( diagDominant(scip, conss, nconss, naddconss) ); /*TODO: could be activated for some problem classes
+      //but doesn't seem to work in the general case */
    }
 
    *result = SCIP_SUCCESS;
@@ -1476,13 +1478,15 @@ SCIP_DECL_CONSENFOPS(consEnfopsSdp)
    int nvars;
    SCIP_Real* coeff;
    SCIP_Real lhs;
+   int i;
 
    if (objinfeasible)
    {
+      SCIPdebugMessage("-> pseudo solution is objective infeasible, return.\n");
       *result = SCIP_DIDNOTRUN;
       return SCIP_OKAY;
    }
-   for (int i = 0; i < nconss; ++i)
+   for (i = 0; i < nconss; ++i)
    {
       SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], NULL, 0, 0, 0, result) );
 
