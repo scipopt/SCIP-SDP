@@ -746,8 +746,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                }
 #endif
 
-               rowshifts[lprow[i]] = -1;
+               rowshifts[lastrow] = -1;
                nshifts++;
+               SCIPdebugMessage("empty LP-row %d has been removed from SDP %d\n", lastrow, sdpisolver->sdpcounter);
             }
 
             /* we check if there were any rows in between without any nonzeros (if this is just the next row, the for-queue is empty) */
@@ -755,7 +756,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             {
 #ifndef NDEBUG
                /* as these rows didn't have any nonzeros, they can surely be eliminated, we just check again if rhs > 0 [< 0 for dsdp] */
-               if (lprhs[j] < -(sdpisolver->epsilon))
+               if (lprhs[j - nshifts] < -(sdpisolver->epsilon))
                {
                   sdpisolver->infeasible = TRUE;
                   return SCIP_OKAY; /* we know the problem is infeasible, so we don't have to solve it */
@@ -763,6 +764,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
                rowshifts[j] = -1;
                nshifts++;
+               SCIPdebugMessage("empty LP-row %d has been removed from SDP %d\n", j, sdpisolver->sdpcounter);
             }
 
             /* now we initialize the new row */
@@ -798,6 +800,44 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                rowshifts[lprow[i]] = nshifts;
             }
          }
+      }
+
+      /* check once more if the last row can be removed (this isn't included in the for queue is the check only happens when the first element of
+       * the next row has been found */
+
+      /* first we check if the last row (which is now finished) can be deleted */
+      if ( ! rowactive)
+      {
+#ifndef NDEBUG
+         /* if there were no active nonzeros, we don't need the lp row, we only check if the rhs is positive (then we have 0 >= rhs > 0 which
+          * renders the SDP infeasible) [but actually we test rhs < 0 because dsdp works with <= in the lp part, so we already multiplied
+          * everything with -1], this is only done in Debug mode as this should normally be taken care of by SCIP itself */
+         if (dsdplpval[lastrow - nshifts] < -(sdpisolver->epsilon))
+         {
+            sdpisolver->infeasible = TRUE;
+            return SCIP_OKAY; /* we know the problem is infeasible, so we don't have to solve it */
+         }
+#endif
+
+         rowshifts[lastrow] = -1;
+         nshifts++;
+         SCIPdebugMessage("empty LP-row %d has been removed from SDP %d\n", lastrow, sdpisolver->sdpcounter);
+      }
+
+      /* we check if there were any rows in between without any nonzeros (if this is just the next row, the for-queue is empty) */
+      for (j = lastrow + 1; j < lprow[i]; j++)
+      {
+#ifndef NDEBUG
+         /* as these rows didn't have any nonzeros, they can surely be eliminated, we just check again if rhs > 0 [< 0 for dsdp] */
+         if (lprhs[j - nshifts] < -(sdpisolver->epsilon))
+         {
+            sdpisolver->infeasible = TRUE;
+            return SCIP_OKAY; /* we know the problem is infeasible, so we don't have to solve it */
+         }
+#endif
+         rowshifts[j] = -1;
+         nshifts++;
+         SCIPdebugMessage("empty LP-row %d has been removed from SDP %d\n", j, sdpisolver->sdpcounter);
       }
 
       nremovedlpcons = nshifts;
