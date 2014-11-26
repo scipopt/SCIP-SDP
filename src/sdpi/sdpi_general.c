@@ -2619,6 +2619,8 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    int** indchanges;
    int* nremovedinds;
 
+   SCIPdebugMessage("Forwarding SDP %d to solver!\n", sdpi->sdpid++);
+
    assert ( sdpi != NULL );
    assert ( penaltyParam >= 0.0 );
 
@@ -2972,7 +2974,7 @@ SCIP_RETCODE SCIPsdpiGetSol(
    SCIP_Real*            objval,             /**< stores the objective value, may be NULL if not needed */
    SCIP_Real*            dualsol,            /**< dual solution vector, may be NULL if not needed */
    int*                  dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
-                                               *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
+                                               *  of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
    )
 {
    assert ( sdpi != NULL );

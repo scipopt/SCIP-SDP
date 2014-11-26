@@ -623,8 +623,6 @@ SCIP_RETCODE calc_relax(
           * the sdp-constraint was checked because this was relaxed during solving */
          if ( solisfeas )
          {
-            SCIP_Bool delayed;
-            SCIP_Bool cutoff_forsep;
             SCIP_Bool stored;
 
             *lowerbound = objforscip;
@@ -805,7 +803,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
    int i;
    int nvars;
    SCIP_VAR** vars;
-   int* indsforsdpi;
 
    // construct the lp and make sure, that everything is where it should be
    SCIP_Bool cutoff;

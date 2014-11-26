@@ -619,7 +619,7 @@ SCIP_RETCODE separateSol(
 static
 SCIP_RETCODE diagGEzero(
    SCIP*             scip,       /**< SCIP data structure */
-   SCIP_CONS**       conss,      /**< array of constraitns */
+   SCIP_CONS**       conss,      /**< array of constraints */
    int               nconss,     /**< number of constraints */
    int*              naddconss   /**< pointer to store how many constraints were added */
    )
@@ -632,9 +632,12 @@ SCIP_RETCODE diagGEzero(
    int j;
    int k;
    int c;
-   SCIP_Real rhs = SCIPinfinity(scip);
+   SCIP_Real rhs;
    char* cutname;
    int snprintfreturn;
+   SCIP_Real* matrix;
+   SCIP_Real* cons_array;
+   SCIP_Real* lhs_array;
 
    for (c = 0; c < nconss; ++c)
    {
@@ -653,12 +656,10 @@ SCIP_RETCODE diagGEzero(
       nvars = consdata->nvars;
       rhs = SCIPinfinity(scip);
 
-      SCIP_Real* matrix;
+
       SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1)) / 2) );
       SCIP_CALL( SCIPconsSdpGetLowerTriangConstMatrix(scip, conss[c], matrix) );
 
-      SCIP_Real* cons_array;
-      SCIP_Real* lhs_array;
       SCIP_CALL( SCIPallocBufferArray(scip, &cons_array, blocksize * nvars) );
       SCIP_CALL( SCIPallocBufferArray(scip, &lhs_array, blocksize) );
 
@@ -718,7 +719,7 @@ SCIP_RETCODE diagGEzero(
  * not clear if this is really true for all SDPs, probably only works if A_i and A_0 are all semidefinite (or for A_0 at least
  * have positive diagonal entries) and all variables appearing in the SDP constraint are integer, then sum_{A_i_kk >0}
  * 1*y_i >= 1 is feasible, because it means that (sum A_i)_kk > 0 because all diagonal entries are positive (they can't
- * cancel each other) and at least one variable needs to be >=1 becaue this is equal to >0 for integers
+ * cancel each other) and at least one variable needs to be >=1 because this is equal to >0 for integers
  */
 static
 SCIP_RETCODE diagDominant(
@@ -738,6 +739,8 @@ SCIP_RETCODE diagDominant(
    SCIP_CONSHDLRDATA* conshdlrdata;
    char* cutname;
    int snprintfreturn;
+   int** diagvars;
+   int* ndiagvars;
 
    assert ( scip != NULL );
    assert ( conss != NULL );
@@ -773,9 +776,7 @@ SCIP_RETCODE diagDominant(
 
       /* diagvars[i] is an array with all variables with a diagonal entry (i,i) in the corresponding matrix, if nonzerorows[i] is true or NULL otherwise
        * the outer array goes over all rows to ease the access, but only for those that are really needed memory will be allocated */
-      int** diagvars;
       SCIP_CALL( SCIPallocBufferArray(scip, &diagvars, blocksize) );
-      int* ndiagvars;
       SCIP_CALL( SCIPallocBufferArray(scip, &ndiagvars, blocksize) );
       for (j = 0; j < blocksize; ++j)
       {
@@ -948,6 +949,7 @@ SCIP_RETCODE fixVars(
    int* savedcol;
    int* savedrow;
    SCIP_Real* savedval;
+   int savedlength;
    int c;
    int v;
    int oldnvars;
@@ -966,9 +968,10 @@ SCIP_RETCODE fixVars(
       assert ( consdata != NULL );
 
       /* allocate memory to save nonzeros that need to be fixed */
-      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &savedcol, consdata->nnonz));
-      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &savedrow, consdata->nnonz));
-      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &savedval, consdata->nnonz));
+      savedlength = consdata->nnonz;
+      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &savedcol, savedlength));
+      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &savedrow, savedlength));
+      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &savedval, savedlength));
 
       /* initialize this with zero for each block */
       nfixednonz = 0;
@@ -1037,9 +1040,9 @@ SCIP_RETCODE fixVars(
       SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constval), arraylength, consdata->constnnonz) );
 
       /* free the saved arrays */
-      SCIPfreeBlockMemoryArray(scip, &savedval, consdata->nnonz);
-      SCIPfreeBlockMemoryArray(scip, &savedrow, consdata->nnonz);
-      SCIPfreeBlockMemoryArray(scip, &savedcol, consdata->nnonz);
+      SCIPfreeBlockMemoryArray(scip, &savedval, savedlength);
+      SCIPfreeBlockMemoryArray(scip, &savedrow, savedlength);
+      SCIPfreeBlockMemoryArray(scip, &savedcol, savedlength);
    }
 
    return SCIP_OKAY;
