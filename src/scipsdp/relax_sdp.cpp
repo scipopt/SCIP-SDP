@@ -39,7 +39,8 @@
 
 
 #define SCIP_DEBUG
-#define SCIP_MORE_DEBUG /* shows number of deleted empty cols/rows and complete solution for every relaxation and variable status & bounds */
+#define SCIP_MORE_DEBUG /* shows number of deleted empty cols/rows and complete solution for every relaxation and variable status & bounds as well
+                         * as all constraints in the beginning*/
 
 #include "relax_sdp.h"
 
@@ -114,9 +115,9 @@ SCIP_RETCODE putSdpDataInInterface(
    nvars = SCIPgetNVars(scip);
 
    /* prepare arrays of objective values and bounds */
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &obj, nvars));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &lb, nvars));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &ub, nvars));
+   SCIP_CALL(SCIPallocBufferArray(scip, &obj, nvars));
+   SCIP_CALL(SCIPallocBufferArray(scip, &lb, nvars));
+   SCIP_CALL(SCIPallocBufferArray(scip, &ub, nvars));
 
    for (i = 0; i < nvars; i++)
    {
@@ -133,14 +134,16 @@ SCIP_RETCODE putSdpDataInInterface(
    sdpnnonz = 0;
    sdpconstnnonz = 0;
 
-   for (i=0; i < nconss; i++)
+   for (i = 0; i < nconss; i++)
    {
       conshdlr = SCIPconsGetHdlr(conss[i]);
       assert( conshdlr != NULL );
       const char* hdlrName;
       hdlrName = SCIPconshdlrGetName(conshdlr);
 
-      SCIP_CALL( SCIPprintCons(scip, conss[i], NULL) ); // TODO: remove
+#ifdef SCIP_MORE_DEBUG
+      SCIP_CALL( SCIPprintCons(scip, conss[i], NULL) );
+#endif
 
       if ( strcmp(hdlrName, "SDP") == 0)
       {
@@ -153,29 +156,29 @@ SCIP_RETCODE putSdpDataInInterface(
    }
 
    /* create the sdp- and sdpconst-arrays */
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &sdpblocksizes, nsdpblocks) );
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &nblockvarnonz, nsdpblocks) );
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &nconstblocknonz, nsdpblocks) );
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &col, nsdpblocks) );
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &row, nsdpblocks) );
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &val, nsdpblocks) );
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &constcol, nsdpblocks) );
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &constrow, nsdpblocks) );
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &constval, nsdpblocks) );
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &nblockvars, nsdpblocks) );
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &sdpvar, nsdpblocks) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &sdpblocksizes, nsdpblocks) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &nblockvarnonz, nsdpblocks) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &nconstblocknonz, nsdpblocks) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &col, nsdpblocks) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &row, nsdpblocks) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &val, nsdpblocks) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &constcol, nsdpblocks) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &constrow, nsdpblocks) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &constval, nsdpblocks) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &nblockvars, nsdpblocks) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &sdpvar, nsdpblocks) );
 
    for (i = 0; i < nsdpblocks; i++)
    {
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(nblockvarnonz[i]), nvars) );
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &col[i], nvars) );
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &row[i], nvars) );
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &val[i], nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &(nblockvarnonz[i]), nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &col[i], nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &row[i], nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &val[i], nvars) );
    }
 
    /* get the SDP-data */
    ind = 0; /* index of the current sdp block in the complete sdp */
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &blockvars, nvars));
+   SCIP_CALL(SCIPallocBufferArray(scip, &blockvars, nvars));
 
    for (i = 0; i < nconss; i++)
    {
@@ -193,9 +196,9 @@ SCIP_RETCODE putSdpDataInInterface(
          nconstblocknonz[ind] = constlength;
          if (constlength > 0)
          {
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(constcol[ind]), constlength) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(constrow[ind]), constlength) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(constval[ind]), constlength) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &(constcol[ind]), constlength) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &(constrow[ind]), constlength) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &(constval[ind]), constlength) );
          }
 
          /* get the data */
@@ -206,7 +209,7 @@ SCIP_RETCODE putSdpDataInInterface(
          assert ( nvars == SCIPgetNVars(scip) );
          assert ( nconstblocknonz[ind] <= constlength);
 
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpvar[ind]), nblockvars[ind]));
+         SCIP_CALL( SCIPallocBufferArray(scip, &(sdpvar[ind]), nblockvars[ind]) );
 
          /* get global variable indices */
          for (j = 0; j < nblockvars[ind]; j++)
@@ -217,7 +220,7 @@ SCIP_RETCODE putSdpDataInInterface(
    }
 
    /* free the memory that is no longer needed */
-   SCIPfreeBlockMemoryArray(scip, &blockvars, nvars);
+   SCIPfreeBufferArray(scip, &blockvars);
 
    SCIP_CALL(SCIPsdpiLoadSDP(sdpi, nvars,  obj,  lb,  ub, nsdpblocks,
                             sdpblocksizes, nblockvars, sdpconstnnonz, nconstblocknonz, constrow,
@@ -230,34 +233,33 @@ SCIP_RETCODE putSdpDataInInterface(
 
    for (i = 0; i < nsdpblocks; i++)
    {
-      SCIPfreeBlockMemoryArrayNull(scip, &(sdpvar[i]), nblockvars[i]);
-      SCIPfreeBlockMemoryArrayNull(scip, &val[i], nvars);
-      SCIPfreeBlockMemoryArrayNull(scip, &row[i], nvars);
-      SCIPfreeBlockMemoryArrayNull(scip, &col[i], nvars);
-      SCIPfreeBlockMemoryArrayNull(scip, &(nblockvarnonz[i]), nvars);
+      SCIPfreeBufferArrayNull(scip, &(sdpvar[i]));
+      SCIPfreeBufferArrayNull(scip, &val[i]);
+      SCIPfreeBufferArrayNull(scip, &row[i]);
+      SCIPfreeBufferArrayNull(scip, &col[i]);
+      SCIPfreeBufferArrayNull(scip, &(nblockvarnonz[i]));
       if (constlength > 0)
       {
-         SCIPfreeBlockMemoryArrayNull(scip, &(constval[i]), nconstblocknonz[ind]);
-         SCIPfreeBlockMemoryArrayNull(scip, &(constrow[i]), nconstblocknonz[ind]);
-         SCIPfreeBlockMemoryArrayNull(scip, &(constcol[i]), nconstblocknonz[ind]);
+         SCIPfreeBufferArrayNull(scip, &(constval[i]));
+         SCIPfreeBufferArrayNull(scip, &(constrow[i]));
+         SCIPfreeBufferArrayNull(scip, &(constcol[i]));
       }
    }
 
-   SCIPfreeBlockMemoryArrayNull(scip, &sdpvar, nsdpblocks);
-   SCIPfreeBlockMemoryArrayNull(scip, &nblockvars, nsdpblocks);
-   SCIPfreeBlockMemoryArrayNull(scip, &constval, nsdpblocks);
-   SCIPfreeBlockMemoryArrayNull(scip, &constrow, nsdpblocks);
-   SCIPfreeBlockMemoryArrayNull(scip, &constcol, nsdpblocks);
-   SCIPfreeBlockMemoryArrayNull(scip, &nconstblocknonz, nsdpblocks);
-   SCIPfreeBlockMemoryArrayNull(scip, &nblockvarnonz, nsdpblocks);
-   SCIPfreeBlockMemoryArrayNull(scip, &row, nsdpblocks);
-   SCIPfreeBlockMemoryArrayNull(scip, &col, nsdpblocks);
-   SCIPfreeBlockMemoryArrayNull(scip, &val, sdpnnonz);
-   SCIPfreeBlockMemoryArrayNull(scip, &sdpblocksizes, nsdpblocks);
-   SCIPfreeBlockMemoryArray(scip, &obj, nvars);
-   SCIPfreeBlockMemoryArray(scip, &lb, nvars);
-   SCIPfreeBlockMemoryArray(scip, &ub, nvars);
-   SCIPfreeBlockMemoryArrayNull(scip, &sdpblocksizes, nsdpblocks);
+   SCIPfreeBufferArrayNull(scip, &sdpvar);
+   SCIPfreeBufferArrayNull(scip, &nblockvars);
+   SCIPfreeBufferArrayNull(scip, &constval);
+   SCIPfreeBufferArrayNull(scip, &constrow);
+   SCIPfreeBufferArrayNull(scip, &constcol);
+   SCIPfreeBufferArrayNull(scip, &val);
+   SCIPfreeBufferArrayNull(scip, &row);
+   SCIPfreeBufferArrayNull(scip, &col);
+   SCIPfreeBufferArrayNull(scip, &nconstblocknonz);
+   SCIPfreeBufferArrayNull(scip, &nblockvarnonz);
+   SCIPfreeBufferArrayNull(scip, &sdpblocksizes);
+   SCIPfreeBufferArray(scip, &ub);
+   SCIPfreeBufferArray(scip, &lb);
+   SCIPfreeBufferArray(scip, &obj);
 
    return SCIP_OKAY;
 }
@@ -644,7 +646,6 @@ SCIP_RETCODE calc_relax(
             if ( ! allint )
             {
                int oldncuts = SCIPgetNCuts(scip);
-
                /* ????????????? Should this be called from relaxator ?? */
                //SCIP_CALL( SCIPseparateSol(scip, scipsol, FALSE, FALSE, &delayed, &cutoff_forsep) );
 
@@ -667,7 +668,6 @@ SCIP_RETCODE calc_relax(
          else
          {    /* solver returned feasible solution to relaxed problem with penalty formulation, but check for psd failed */
             SCIPfreeBufferArray(scip, &solforscip);
-
             if (! SCIPsdpiIsGEMaxPenParam(sdpi, penaltyparam) )
             {
                /* the penalty parameter was too small to create a feasible solution */
@@ -678,7 +678,6 @@ SCIP_RETCODE calc_relax(
             }
             else
             {   /* A penalty-only-formulation showed that the problem is feasible, but we weren't able to produce a feasible solution. */
-
                /* We try to reuse the relaxation result of the parent node (if one exists): */
                SCIP_NODE* node = SCIPnodeGetParent(SCIPgetCurrentNode(scip));
                if ( node == 0 )
