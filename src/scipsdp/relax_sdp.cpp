@@ -284,7 +284,7 @@ SCIP_RETCODE putLpDataInInterface(
    SCIP_Real* val;
    SCIP_ROW** rows;
    int nrows;
-   int blocknnonz;
+   int rownnonz;
    SCIP_Real* rowvals;
    SCIP_COL** rowcols;
    SCIP_Real sciplhs;
@@ -315,7 +315,7 @@ SCIP_RETCODE putLpDataInInterface(
 
    /* allocate memory */
    /* the arrays need to be twice the size of those given be scipped because of the lack of left-hand-sides (which means rows could be duplicated, with
-    * one constraint for the lhs and one for the rhs), these will be reallocated to the right size later */
+    * one constraint for the lhs and one for the rhs) */
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &rhs, 2 * nrows));
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &rowind, 2 * scipnnonz));
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &colind, 2 * scipnnonz));
@@ -327,7 +327,7 @@ SCIP_RETCODE putLpDataInInterface(
 
    for (i = 0; i < nrows; i++)
    {
-      blocknnonz = SCIProwGetNNonz(rows[i]);
+      rownnonz = SCIProwGetNNonz(rows[i]);
 
       rowvals = SCIProwGetVals(rows[i]);
       rowcols = SCIProwGetCols(rows[i]);
@@ -337,7 +337,7 @@ SCIP_RETCODE putLpDataInInterface(
       /* add row >= lhs if lhs is finite */
       if (sciplhs > -SCIPsdpiInfinity(sdpi))
       {
-         for (j = 0; j < blocknnonz; j++)
+         for (j = 0; j < rownnonz; j++)
          {
             colind[nnonz] = SdpVarmapperGetSdpIndex(varmapper, SCIPcolGetVar(rowcols[j]));
             rowind[nnonz] = nconss;
@@ -351,7 +351,7 @@ SCIP_RETCODE putLpDataInInterface(
       /* add -row >= -rhs if rhs is finite */
       if (sciprhs < SCIPsdpiInfinity(sdpi))
       {
-         for (j = 0; j < blocknnonz; j++)
+         for (j = 0; j < rownnonz; j++)
          {
             colind[nnonz] = SdpVarmapperGetSdpIndex(varmapper, SCIPcolGetVar(rowcols[j]));
             rowind[nnonz] = nconss;
@@ -363,12 +363,6 @@ SCIP_RETCODE putLpDataInInterface(
       }
    }
 
-   /* reallocate some arrays depending on the number of lpnnonz and lhs/rhs */
-   SCIP_CALL(SCIPreallocBlockMemoryArray(scip, &rhs, 2 * nrows, nconss));
-   SCIP_CALL(SCIPreallocBlockMemoryArray(scip, &rowind, 2 * scipnnonz, nnonz));
-   SCIP_CALL(SCIPreallocBlockMemoryArray(scip, &colind, 2 * scipnnonz, nnonz));
-   SCIP_CALL(SCIPreallocBlockMemoryArray(scip, &val, 2 * scipnnonz, nnonz));
-
    /* delete the old LP-block from the sdpi */
    SCIP_CALL(SCIPsdpiGetNLPRows(sdpi, &nrowssdpi));
    if (nrowssdpi > 0)
@@ -378,10 +372,10 @@ SCIP_RETCODE putLpDataInInterface(
    SCIP_CALL(SCIPsdpiAddLPRows(sdpi, nconss, rhs, nnonz, (const int*)rowind, (const int*)colind, val));
 
    /* free the remaining arrays */
-   SCIPfreeBlockMemoryArray(scip, &rhs, nconss);
-   SCIPfreeBlockMemoryArray(scip, &rowind, nnonz);
-   SCIPfreeBlockMemoryArray(scip, &colind, nnonz);
-   SCIPfreeBlockMemoryArray(scip, &val, nnonz);
+   SCIPfreeBufferArray(scip, &val);
+   SCIPfreeBufferArray(scip, &colind);
+   SCIPfreeBufferArray(scip, &rowind);
+   SCIPfreeBufferArray(scip, &rhs);
 
    /* update the bounds */
 
