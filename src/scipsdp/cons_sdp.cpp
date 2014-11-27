@@ -38,7 +38,7 @@
  */
 
 #define SCIP_DEBUG
-#define SCIP_MORE_DEBUG /* shows all cuts added */
+//#define SCIP_MORE_DEBUG /* shows all cuts added */
 
 #include "cons_sdp.h"
 
@@ -1556,8 +1556,10 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
    bool separated = FALSE;
    char* cutname;
    int snprintfreturn;
+   int i;
+   int j;
 
-   for (int i = 0; i < nconss; ++i)
+   for (i = 0; i < nconss; ++i)
    {
       consdata = SCIPconsGetData(conss[i]);
       SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], NULL, 0, 0, 0, result) );
@@ -1573,7 +1575,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
       SCIP_Real* coeff = NULL;
       SCIP_CALL( SCIPallocBufferArray(scip, &coeff, nvars) );
 
-      SCIP_CALL(cutUsingEigenvector(scip, conss[i], NULL, coeff, &lhs));
+      SCIP_CALL( cutUsingEigenvector(scip, conss[i], NULL, coeff, &lhs) );
 
       if (*result == !SCIP_INFEASIBLE)
       {
@@ -1588,12 +1590,20 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
       SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname , lhs, rhs, FALSE, FALSE, TRUE) );
       SCIP_CALL( SCIPcacheRowExtensions(scip, row) );
 
-      for (int j = 0; j < nvars; ++j)
+      for (j = 0; j < nvars; ++j)
       {
          SCIP_CALL( SCIPaddVarToRow(scip, row, consdata->vars[j], coeff[j]) );
       }
 
       SCIP_CALL( SCIPflushRowExtensions(scip, row) );
+
+#ifdef SCIP_MORE_DEBUG
+         SCIPdebugMessage("Added cut %s: ", cutname);
+         SCIPdebugMessage("%f <= ", lhs);
+         for (i = 0; i < nvars; i++)
+            SCIPdebugMessage("+ (%f)*%s", coeff[i], SCIPvarGetName(vars[i]));
+         SCIPdebugMessage("\n");
+#endif
 
       SCIP_Bool infeasible;
       SCIP_CALL(SCIPaddCut(scip, NULL, row, FALSE, &infeasible));
@@ -1669,18 +1679,18 @@ SCIP_DECL_CONSDELETE(consDeleteSdp)
 
    for (i = 0; i < (*consdata)->nvars; i++)
    {
-      SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->col[i], (*consdata)->nvarnonz[i]);
-      SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->row[i], (*consdata)->nvarnonz[i]);
       SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->val[i], (*consdata)->nvarnonz[i]);
+      SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->row[i], (*consdata)->nvarnonz[i]);
+      SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->col[i], (*consdata)->nvarnonz[i]);
    }
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->vars, (*consdata)->nvars);
-   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->col, (*consdata)->nvars);
-   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->row, (*consdata)->nvars);
-   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->val, (*consdata)->nvars);
-   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->nvarnonz, (*consdata)->nvars);
-   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->constcol, (*consdata)->nnonz);
-   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->constrow, (*consdata)->nnonz);
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->constval, (*consdata)->nnonz);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->constrow, (*consdata)->nnonz);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->constcol, (*consdata)->nnonz);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->val, (*consdata)->nvars);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->row, (*consdata)->nvars);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->col, (*consdata)->nvars);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->nvarnonz, (*consdata)->nvars);
    SCIPfreeMemory(scip, consdata);
 
    return SCIP_OKAY;
@@ -1879,6 +1889,7 @@ SCIP_RETCODE SCIPconsSdpGetData(
       for (i = 0; i < consdata->nvars; i++)
       {
          nvarnonz[i] = consdata->nvarnonz[i];
+         /* set the pointers for each variable */
          col[i] = consdata->col[i];
          row[i] = consdata->row[i];
          val[i] = consdata->val[i];
@@ -2125,4 +2136,4 @@ SCIP_RETCODE SCIPcreateConsSdp(
 
    return SCIP_OKAY;
 }
-} //TODO: these two brackets are obviously too much, if a remove them the compiler says } missing, now it gives a warning for syntax error for both
+} //TODO: The second bracket is obviously too much, if I remove it the compiler says expected } at end of input, now it gives a warning for syntax error
