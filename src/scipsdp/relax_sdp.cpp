@@ -316,10 +316,10 @@ SCIP_RETCODE putLpDataInInterface(
    /* allocate memory */
    /* the arrays need to be twice the size of those given be scipped because of the lack of left-hand-sides (which means rows could be duplicated, with
     * one constraint for the lhs and one for the rhs) */
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &rhs, 2 * nrows));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &rowind, 2 * scipnnonz));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &colind, 2 * scipnnonz));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &val, 2 * scipnnonz));
+   SCIP_CALL(SCIPallocBufferArray(scip, &rhs, 2 * nrows));
+   SCIP_CALL(SCIPallocBufferArray(scip, &rowind, 2 * scipnnonz));
+   SCIP_CALL(SCIPallocBufferArray(scip, &colind, 2 * scipnnonz));
+   SCIP_CALL(SCIPallocBufferArray(scip, &val, 2 * scipnnonz));
 
    /* insert the nonzeroes */
    nnonz = 0; /* this is recomputed for the sdpi, because of the possible duplication of non-zeroes for lhs and rhs */
