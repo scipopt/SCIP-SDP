@@ -38,6 +38,7 @@
  */
 
 #define SCIP_DEBUG
+#define SCIP_MORE_DEBUG /* shows all cuts added */
 
 #include "cons_sdp.h"
 
@@ -551,11 +552,12 @@ SCIP_RETCODE separateSol(
 {
    SCIP_CONSDATA* consdata;
    SCIP_CONSHDLRDATA* conshdlrdata;
-   SCIP_Real lhs = 0.0;
+   SCIP_Real lhs;
    SCIP_Real* coeff = NULL;
    int nvars;
    char* cutname;
    int snprintfreturn;
+   int j;
 
    assert ( cons != NULL );
    assert ( sol != NULL );
@@ -565,6 +567,7 @@ SCIP_RETCODE separateSol(
 
    nvars = consdata->nvars;
    SCIP_CALL( SCIPallocBufferArray(scip, &coeff, nvars ) );
+   lhs = 0;
 
    SCIP_CALL( cutUsingEigenvector(scip, cons, sol, coeff, &lhs) );
 
@@ -576,7 +579,7 @@ SCIP_RETCODE separateSol(
 
    int len = 0;
 
-   for (int j = 0; j < nvars; ++j)
+   for (j = 0; j < nvars; ++j)
    {
       if ( SCIPisZero(scip, coeff[j]) )
          continue;
@@ -596,6 +599,14 @@ SCIP_RETCODE separateSol(
 
    if ( SCIPisCutEfficacious(scip, sol, row) )
    {
+#ifdef SCIP_MORE_DEBUG
+         SCIPdebugMessage("Added cut %s: ", cutname);
+         SCIPdebugMessage("%f <= ", lhs);
+         for (j = 0; j < nvars; j++)
+            SCIPdebugMessage("+ (%f)*%s", vals[j], SCIPvarGetName(vars[j]));
+         SCIPdebugMessage("\n");
+#endif
+
       SCIP_Bool infeasible;
       SCIP_CALL( SCIPaddCut(scip, sol, row, FALSE, &infeasible) );
       if ( infeasible )
@@ -697,6 +708,14 @@ SCIP_RETCODE diagGEzero(
          conshdlrdata = SCIPconshdlrGetData(conshdlr);
          snprintfreturn = SCIPsnprintf(cutname, 255, "diag_ge_zero_%d", ++(conshdlrdata->ndiaggezerocuts));
          assert ( snprintfreturn < 256 ); /* this is the number of positions needed, we gave 255 */
+
+#ifdef SCIP_MORE_DEBUG
+         SCIPdebugMessage("Added lp-constraint %s: ", cutname);
+         SCIPdebugMessage("%f <= ", lhs_array[k]);
+         for (i = 0; i < consdata->nvars; i++)
+            SCIPdebugMessage("+ (%f)*x_%d", cons_array[k * consdata->nvars + i], i);
+         SCIPdebugMessage("\n");
+#endif
 
          SCIP_CALL(SCIPcreateConsLinear(scip, &cons, cutname, consdata->nvars, consdata->vars, cons_array + k * consdata->nvars, lhs_array[k], rhs,
                TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE));
@@ -823,6 +842,14 @@ SCIP_RETCODE diagDominant(
             snprintfreturn = SCIPsnprintf(cutname, 255, "diag_dom_%d", ++(conshdlrdata->ndiagdomcuts));
             assert ( snprintfreturn < 256 ); /* the return is the number of spots needed, we gave 255 */
 
+#ifdef SCIP_MORE_DEBUG
+         SCIPdebugMessage("Added lp-constraint %s: ", cutname);
+         SCIPdebugMessage("1 <= ");
+         for (i = 0; i < ndiagvars[j]; i++)
+            SCIPdebugMessage("+ (%f)*%s", vals[i], SCIPvarGetName(vars[i]));
+         SCIPdebugMessage("\n");
+#endif
+
             /* add the linear constraint sum_j 1.0 * diagvars[j] >= 1.0 */
             SCIP_CALL(SCIPcreateConsLinear(scip, &cons, cutname , ndiagvars[j], vars, vals, 1.0, SCIPinfinity(scip), TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE));
             SCIP_CALL(SCIPaddCons(scip, cons));
@@ -890,7 +917,7 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
          SCIP_CALL(SCIPallocBufferArray(scip, &vars, nvars));
          SCIP_CALL(SCIPallocBufferArray(scip, &coeffs, nnonz));
 
-         // get all lhs-entries
+         /* get all lhs-entries */
          count = 0;
 
          for (var = 0; var < nvars; var++)
@@ -906,16 +933,23 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
             }
          }
 
-         //get rhs
+         /* get rhs */
          assert ( consdata->constnnonz <= 1 ); /* the 1x1 constant matrix may only have one entry */
 
          rhs = (consdata->constnnonz == 1) ? consdata->constval[0] : 0.0; /* if this one entry is not 0, than this is the rhs, otherwise it's 0 */
 
-         //add new linear cons
+         /* add new linear cons */
          conshdlrdata = SCIPconshdlrGetData(hdlr);
          SCIP_CALL( SCIPallocBufferArray(scip, &cutname, 255) );
          snprintfreturn = SCIPsnprintf(cutname, 255, "1x1block_%d", ++(conshdlrdata->n1x1blocks));
          assert ( snprintfreturn < 256 ); /* the return is the number of spots needed, we gave 255 */
+
+#ifdef SCIP_MORE_DEBUG
+         SCIPdebugMessage("Added lp-constraint %s: ", cutname);
+         for (i = 0; i < consdata->nvars; i++)
+            SCIPdebugMessage("+ (%f)*%s", coeffs[i], SCIPvarGetName(vars[i]));
+         SCIPdebugMessage(" <= %f \n", rhs);
+#endif
 
          SCIP_CALL(SCIPcreateConsLinear(scip, &cons, cutname, consdata->nvars, vars, coeffs, rhs, SCIPinfinity(scip),
                TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE));
@@ -1379,8 +1413,8 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 {
    assert( result != 0 );
 
-   //if ( nrounds == 0 )
-      //SCIP_CALL( diagGEzero(scip, conss, nconss, naddconss) );
+   if ( nrounds == 0 )
+      SCIP_CALL( diagGEzero(scip, conss, nconss, naddconss) );
 
    SCIP_CALL( move_1x1_blocks_to_lp(scip, conss, nconss, naddconss, ndelconss) );
 
