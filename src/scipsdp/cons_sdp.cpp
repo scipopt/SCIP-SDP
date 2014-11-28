@@ -38,7 +38,7 @@
  */
 
 #define SCIP_DEBUG
-//#define SCIP_MORE_DEBUG /* shows all cuts added */
+#define SCIP_MORE_DEBUG /* shows all cuts added */
 
 #include "cons_sdp.h"
 
@@ -602,7 +602,7 @@ SCIP_RETCODE separateSol(
 #ifdef SCIP_MORE_DEBUG
          SCIPdebugMessage("Added cut %s: ", cutname);
          SCIPdebugMessage("%f <= ", lhs);
-         for (j = 0; j < nvars; j++)
+         for (j = 0; j < len; j++)
             SCIPdebugMessage("+ (%f)*%s", vals[j], SCIPvarGetName(vars[j]));
          SCIPdebugMessage("\n");
 #endif
@@ -670,7 +670,7 @@ SCIP_RETCODE diagGEzero(
       rhs = SCIPinfinity(scip);
 
 
-      SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1)) / 2) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize + 1)) / 2) );
       SCIP_CALL( SCIPconsSdpGetLowerTriangConstMatrix(scip, conss[c], matrix) );
 
       SCIP_CALL( SCIPallocBufferArray(scip, &cons_array, blocksize * nvars) );
@@ -713,7 +713,7 @@ SCIP_RETCODE diagGEzero(
          SCIPdebugMessage("Added lp-constraint %s: ", cutname);
          SCIPdebugMessage("%f <= ", lhs_array[k]);
          for (i = 0; i < consdata->nvars; i++)
-            SCIPdebugMessage("+ (%f)*x_%d", cons_array[k * consdata->nvars + i], i);
+            SCIPdebugMessage("+ (%f)*%s", cons_array[k * consdata->nvars + i], SCIPvarGetName(consdata->vars[i]));
          SCIPdebugMessage("\n");
 #endif
 
@@ -1413,8 +1413,8 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 {
    assert( result != 0 );
 
-   //if ( nrounds == 0 )
-      //SCIP_CALL( diagGEzero(scip, conss, nconss, naddconss) );
+   if ( nrounds == 0 )
+      SCIP_CALL( diagGEzero(scip, conss, nconss, naddconss) );
 
    SCIP_CALL( move_1x1_blocks_to_lp(scip, conss, nconss, naddconss, ndelconss) );
 
@@ -1601,7 +1601,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
          SCIPdebugMessage("Added cut %s: ", cutname);
          SCIPdebugMessage("%f <= ", lhs);
          for (i = 0; i < nvars; i++)
-            SCIPdebugMessage("+ (%f)*%s", coeff[i], SCIPvarGetName(vars[i]));
+            SCIPdebugMessage("+ (%f)*%s", coeff[i], SCIPvarGetName(consdata->vars[i]));
          SCIPdebugMessage("\n");
 #endif
 
@@ -2030,7 +2030,7 @@ SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
 
    for (i = 0; i < consdata->constnnonz; i++)
    {
-      mat[compLowerTriangPos(consdata->constcol[i], consdata->constrow[i])] = consdata->constval[i];
+      mat[compLowerTriangPos(consdata->constrow[i], consdata->constcol[i])] = consdata->constval[i];
    }
 
    return SCIP_OKAY;

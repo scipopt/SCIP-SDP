@@ -822,7 +822,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
    const int nvarsfordebug = SCIPgetNVars(scip);
    for (i = 0; i < nvarsfordebug; i++)
    {
-      SCIPdebugMessage("variable %d: status = %u, bounds = [%f, %f] \n", i, SCIPvarGetStatus(varsfordebug[i]), SCIPvarGetLbLocal(varsfordebug[i]), SCIPvarGetUbLocal(varsfordebug[i]));
+      SCIPdebugMessage("variable %d: status = %u, integral = %u, bounds = [%f, %f] \n", i, SCIPvarGetStatus(varsfordebug[i]), SCIPvarIsIntegral(varsfordebug[i]), SCIPvarGetLbLocal(varsfordebug[i]), SCIPvarGetUbLocal(varsfordebug[i]));
    }
 #endif
 
