@@ -410,7 +410,7 @@ SCIP_RETCODE putLpDataInInterface(
    return SCIP_OKAY;
 }
 
-/** checks the feasibility of the problem if the solver returned some ambigous solution by calling it again with a
+/** checks the feasibility of the problem if the solver returned some ambiguous solution by calling it again with a
  *  formulation that only has the LP-part as constraints and tries to minimize the minimal eigenvalue of the SDP-constraint */
 static
 SCIP_RETCODE relaxIsFeasible(
@@ -665,7 +665,7 @@ SCIP_RETCODE calc_relax(
             if (! SCIPsdpiIsGEMaxPenParam(sdpi, penaltyparam) )
             {
                /* the penalty parameter was too small to create a feasible solution */
-               SCIPdebugMessage("calc_relax is called again with penaltyparameter %f because the solution of the penalty problem was infeasible in the original problem!\n", 2.0 * penaltyparam);
+               SCIPdebugMessage("calc_relax is called again with penaltyparameter %f because the solution of the penalty problem was infeasible in the original problem!\n", 10.0 * penaltyparam);
 
                /* recursive call */
                SCIP_CALL(calc_relax(scip, sdpi, varmapper, TRUE, 10.0 * penaltyparam, result, lowerbound));
@@ -696,8 +696,8 @@ SCIP_RETCODE calc_relax(
    if ( withpenalty && (! SCIPsdpiIsGEMaxPenParam(sdpi, penaltyparam)) )
    {
       /* the penalty parameter was too small to make the SDP solver more stable */
-      SCIPdebugMessage("calc_relax is called again with penaltyparameter %f because of non-convergence!\n", 10 * penaltyparam);
-      SCIP_CALL(calc_relax(scip, sdpi, varmapper, TRUE, 10 * penaltyparam, result, lowerbound));
+      SCIPdebugMessage("calc_relax is called again with penaltyparameter %f because of non-convergence!\n", 10.0 * penaltyparam);
+      SCIP_CALL(calc_relax(scip, sdpi, varmapper, TRUE, 10.0 * penaltyparam, result, lowerbound));
 
       return SCIP_OKAY;
    }
@@ -910,7 +910,7 @@ SCIP_DECL_RELAXINIT(relaxInitSolSDP)
                                                                                         * like a good load factor (java uses this factor) */
    SCIP_CALL( SdpVarmapperAddVars(scip, relaxdata->varmapper, nvars, vars) );
 
-   SCIP_CALL(putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper));
+   SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper) );
 
    SCIPrelaxSetData(relax, relaxdata);
 
@@ -962,8 +962,8 @@ SCIP_RETCODE SCIPincludeRelaxSDP(
    assert ( scip != NULL );
 
    /* create SDP relaxator data */
-   SCIP_CALL(SCIPallocBlockMemory(scip, &relaxdata));
-   SCIP_CALL(SCIPsdpiCreate(&sdpi, NULL, SCIPblkmem(scip)));
+   SCIP_CALL( SCIPallocBlockMemory(scip, &relaxdata) );
+   SCIP_CALL( SCIPsdpiCreate(&sdpi, NULL, SCIPblkmem(scip)) );
 
    relaxdata->sdpi = sdpi;
 

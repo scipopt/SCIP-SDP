@@ -59,7 +59,7 @@ static double epsilon    = 1e-6; /**< only values bigger than this are counted a
   while( FALSE )
 
 /**
- * sort the given row, col and val arrays first by non-decreasing row-indices, than for those with identical row-indices by non-increasing col-indices
+ * sort the given row, col and val arrays first by non-decreasing row-indices, then for those with identical row-indices by non-increasing col-indices
  */
 void SdpVarfixerSortRowCol(
    int*                  row,                /* row indices */
@@ -118,8 +118,8 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
    int i;
    int nleftshifts; /* if some nonzeros of the target arrays get deleted, this saves the number of spots the following entries have to be moved
                      * to the left */
-   int naddednonz; /* this gives the number of nonzeros that were added to the end of the arrays (this does NOT include those that were added in
-                       the middle of the arrays be decreasing the number of leftshifts) */
+   int naddednonz;  /* this gives the number of nonzeros that were added to the end of the arrays (this does NOT include those that were added in
+                     * the middle of the arrays by decreasing the number of leftshifts) */
    int insertionpos;
    SCIP_Bool debugmsg; /* should a debug message about insufficient length be thrown */
 
@@ -174,7 +174,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
             targetrow[ind - nleftshifts] = targetrow[ind];
             targetcol[ind - nleftshifts] = targetcol[ind];
          }
-         targetval[ind - nleftshifts] += scalar * originval[i];
+         targetval[ind - nleftshifts] = targetval[ind] + scalar * originval[i];
 
          /* there could be multiple entries to add with identical row and col, so look for further ones in the next entries until there
           * are no more */
@@ -230,7 +230,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
                   naddednonz--;
             }
          }
-         else
+         else  /* the memory was not sufficient, so we will throw a debug message, we only wait until we know the final needed size */
             debugmsg = TRUE;
       }
    }
@@ -259,9 +259,9 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
 /**
  * Merges two three-tuple-arrays together. If there are multiple entries for a row/col combination, these will be combined (their values added
  * together), if they cancel each other out the nonzero entry will be removed. The first arrays are assumed to have unique row/col-combinations, the
- * second entries may have duplicates of the same row/col-combination. In constrast to MergeArrays, here the combined arrays will be inserted in
- * the new targetarrays, and not overwrite one of the old arrays. Targetlength should give the length of the target arrays, if this is not sufficient, the needed length is returned there and a debugMessage is
- * thrown.
+ * second arrays may have duplicates of the same row/col-combination. In constrast to MergeArrays, here the combined arrays will be inserted in
+ * the new targetarrays, and not overwrite one of the old arrays. Targetlength should give the length of the target arrays, if this is not sufficient,
+ * the needed length is returned there and a debugMessage is thrown.
  */
 EXTERN
 SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
@@ -354,7 +354,7 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
          }
 
          /* if we combined multiple fixed nonzeros, it is possible that they cancelled each other out, in that case, we shouldn't add a nonzero to the
-          * target arrays */
+          * target arrays (if the array was too short we didn't compute the entry, but we add it, as we want to get an upper bound on the needed size) */
          if (targetind >= *targetlength || REALABS(targetval[targetind]) >= epsilon)
             targetind++;
       }
@@ -381,8 +381,8 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
             secondind++;
          }
 
-         /* if we combined multiple entires, it is possible that they cancelled each other out, in that case, we shouldn't add a nonzero to the
-          * target arrays */
+         /* as we combined multiple entires, it is possible that they cancelled each other out, in that case, we shouldn't add a nonzero to the
+          * target arrays (if the array was too short we didn't compute the entry, but we add it, as we want to get an upper bound on the needed size) */
          if (targetind >= *targetlength || REALABS(targetval[targetind]) >= epsilon)
             targetind++;
       }
