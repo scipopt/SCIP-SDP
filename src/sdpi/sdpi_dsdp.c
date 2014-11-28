@@ -824,11 +824,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          SCIPdebugMessage("empty LP-row %d has been removed from SDP %d\n", lastrow, sdpisolver->sdpcounter);
       }
 
-      /* we check if there were any rows in between without any nonzeros (if this is just the next row, the for-queue is empty) */
-      for (j = lastrow + 1; j < lprow[i]; j++)
+      /* we check if there are any rows left */
+      for (j = lastrow + 1; j < nlpcons; j++)
       {
 #ifndef NDEBUG
-         /* as these rows didn't have any nonzeros, they can surely be eliminated, we just check again if rhs > 0 [< 0 for dsdp] */
+         /* as there are no nonzeros left for these rows, they can surely be eliminated, we just check again if rhs > 0 [< 0 for dsdp] */
          if (lprhs[j - nshifts] < -(sdpisolver->epsilon))
          {
             sdpisolver->infeasible = TRUE;
