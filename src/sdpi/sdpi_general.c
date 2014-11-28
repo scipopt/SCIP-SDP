@@ -324,7 +324,7 @@ SCIP_RETCODE findEmptyRowColsSDP(
    }
 
    /* iterate over all active nonzeros, setting the values of indchange for their row and col to 1 (this is an intermediate value to save, that the
-    * index is still needed, it will later be set to the number of rows/cols deleted earlier */
+    * index is still needed, it will later be set to the number of rows/cols deleted earlier) */
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
       /* the number of indices already found in this block, saved for prematurely stopping the loops */
@@ -535,9 +535,9 @@ SCIP_RETCODE SCIPsdpiFree(
    /* free the rest */
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpnblockvarnonz), (*sdpi)->nsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstnblocknonz), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpval),(*sdpi)->nvars * (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpcol), (*sdpi)->nvars * (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdprow), (*sdpi)->nvars * (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpval), (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpcol), (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdprow), (*sdpi)->nsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpvar), (*sdpi)->nsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstval), (*sdpi)->nsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstcol), (*sdpi)->nsdpblocks);
