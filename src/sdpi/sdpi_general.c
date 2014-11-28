@@ -1347,7 +1347,7 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
    const SCIP_Real*      rhs,                /**< right hand sides of new rows */
    int                   nnonz,              /**< number of nonzero elements to be added to the LP constraint matrix */
    const int*            row,                /**< row indices of constraint matrix entries, going from 0 to nrows - 1, these will be changed
-                                                *  to nlpcons + i */
+                                               *  to nlpcons + i */
    const int*            col,                /**< column indices of constraint matrix entries */
    const SCIP_Real*      val                 /**< values of constraint matrix entries */
    )
@@ -1358,21 +1358,22 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
 
    assert ( sdpi != NULL );
    assert ( rhs != NULL );
+   assert ( nnonz >= 0 );
    assert ( row != NULL );
    assert ( col != NULL );
    assert ( val != NULL );
 
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons, sdpi->nlpcons + nrows));
-   for (i=0; i < nrows; i++)
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons, sdpi->nlpcons + nrows) );
+   for (i = 0; i < nrows; i++)
    {
       sdpi->lprhs[sdpi->nlpcons + i] = rhs[i];
    }
 
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz, sdpi->lpnnonz + nnonz));
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz, sdpi->lpnnonz + nnonz));
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, sdpi->lpnnonz + nnonz));
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz, sdpi->lpnnonz + nnonz) );
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz, sdpi->lpnnonz + nnonz) );
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, sdpi->lpnnonz + nnonz) );
 
-   for (i=0; i < nnonz; i++)
+   for (i = 0; i < nnonz; i++)
    {
       assert ( 0 <= row[i] && row[i] < nrows );
       sdpi->lprow[sdpi->lpnnonz + i] = row[i] + sdpi->nlpcons; /* the new rows are added at the end, so the row indices are increased by the old
@@ -1386,6 +1387,8 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
 
    sdpi->nlpcons = sdpi->nlpcons + nrows;
    sdpi->lpnnonz = sdpi->lpnnonz + nnonz;
+
+   sdpi->solved = FALSE;
 
    return SCIP_OKAY;
 }
@@ -1417,7 +1420,6 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
       BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz);
       BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz);
       BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz);
-
 
       sdpi->lprhs = NULL;
       sdpi->lpcol = NULL;
@@ -2603,7 +2605,7 @@ SCIP_RETCODE SCIPsdpiSolve(
  *      & & Dy \geq d \\
  *      & & l \leq y \leq u}
  *   \f
- *   alternatively withObj can be to false to set \f b \f to zero and only check for feasibility (if the optimal
+ *   alternatively withObj can be set to false to set \f b \f to zero and only check for feasibility (if the optimal
  *   objective value is bigger than 0 the problem is infeasible, otherwise it's feasible) */
 SCIP_RETCODE SCIPsdpiSolvePenalty(
       SCIP_SDPI*            sdpi,               /**< SDP interface structure */
@@ -2642,7 +2644,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) );
    }
 
-   /* initialize the sdpconstnblocknonz */
+   /* initialize sdpconstnblocknonz */
    for (block = 0; block < sdpi->nsdpblocks; block++)
       sdpconstnblocknonz[block] = sdpi->sdpnnonz + sdpi->sdpconstnnonz;
 
@@ -2651,7 +2653,8 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    /* shrink the constant arrays after the number of fixed nonzeros is known */
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
-      assert ( sdpconstnblocknonz[block] <= sdpi->sdpnnonz + sdpi->sdpconstnnonz );
+      assert ( sdpconstnblocknonz[block] <= sdpi->sdpnnonz + sdpi->sdpconstnnonz ); /* otherwise the memory wasn't sufficient,
+                                                                                     * but we allocated more than enough */
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) );
@@ -2711,6 +2714,7 @@ SCIP_Bool SCIPsdpiWasSolved(
    )
 {
    assert ( sdpi != NULL );
+   CHECK_IF_SOLVED(sdpi);
 
    return sdpi->solved;
 }

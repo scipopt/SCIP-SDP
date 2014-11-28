@@ -99,7 +99,7 @@
 
 struct SCIP_SDPiSolver
 {
-   SCIP_MESSAGEHDLR*     messagehdlr;        /**< messagehandler to printing messages, or NULL */
+   SCIP_MESSAGEHDLR*     messagehdlr;        /**< messagehandler for printing messages, or NULL */
    BMS_BLKMEM*           blkmem;             /**< block memory */
    DSDP                  dsdp;               /**< solver-object */
    SDPCone               sdpcone;            /**< sdpcone-object of DSDP for handling SDP-constraints */
@@ -160,7 +160,7 @@ SCIP_Bool isFixed(
 #endif
 
 /**
- * sort the given row, col and val arrays first by non-decreasing col-indices, than for those by identical col-indices by non-increasing row-indices
+ * sort the given row, col and val arrays first by non-decreasing col-indices, than for those with identical col-indices by non-increasing row-indices
  */
 static
 void sortColRow(
@@ -314,7 +314,7 @@ SCIP_RETCODE SCIPsdpiSolverFree(
       BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->inputtodsdpmapper, (*sdpisolver)->nvars);
 
    if ((*sdpisolver)->nactivevars > 0)
-      BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->dsdptoinputmapper, (*sdpisolver)->nvars);
+      BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->dsdptoinputmapper, (*sdpisolver)->nactivevars);
 
    if ((*sdpisolver)->nvars > (*sdpisolver)->nactivevars)
    {
@@ -393,7 +393,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *      & & Dy \geq d \\
  *      & & l \leq y \leq u}
  *  \f
- *  alternatively withObj can be to false to set \f b \f to false and only check for feasibility (if the optimal
+ *  alternatively withObj can be to set false to set \f b \f to false and only check for feasibility (if the optimal
  *  objective value is bigger than 0 the problem is infeasible, otherwise it's feasible)
  *  For the non-constant SDP- and the LP-part the original arrays before fixings should be given, for the constant SDP-part the arrays AFTER fixings
  *  should be given, in addition to that an array needs to be given, that for every block and every row/col index within that block either has value
@@ -498,9 +498,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    assert ( sdpisolver->nactivevars + nfixedvars == sdpisolver->nvars );
 
-   /* shrink the fixedvars arrays to the right size */
+   /* shrink the fixedvars and dsdptoinputmapper arrays to the right size */
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsobj), nvars, nfixedvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), nvars, nfixedvars) );
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->dsdptoinputmapper), nvars, sdpisolver->nactivevars) );
 
    /* insert data */
 
