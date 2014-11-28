@@ -374,7 +374,7 @@ SCIP_RETCODE multiplyConstraintMatrix(
    /* initialize the product with 0 */
    *vAv = 0.0;
 
-   for (i = 0; i < consdata->nvarnonz[i]; i++)
+   for (i = 0; i < consdata->nvarnonz[j]; i++)
    {
       if (consdata->col[j][i] == consdata->row[j][i])
          *vAv += v[consdata->col[j][i]] * consdata->val[j][i] * v[consdata->row[j][i]];
@@ -1413,8 +1413,8 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 {
    assert( result != 0 );
 
-   if ( nrounds == 0 )
-      SCIP_CALL( diagGEzero(scip, conss, nconss, naddconss) );
+   //if ( nrounds == 0 )
+      //SCIP_CALL( diagGEzero(scip, conss, nconss, naddconss) );
 
    SCIP_CALL( move_1x1_blocks_to_lp(scip, conss, nconss, naddconss, ndelconss) );
 
