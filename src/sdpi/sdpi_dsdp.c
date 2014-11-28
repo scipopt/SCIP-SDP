@@ -474,7 +474,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* allocate memory for inputtosdpmapper, dsdptoinputmapper and the fixed variable information, for the latter this will later be shrinked if the needed size is known */
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtodsdpmapper), sdpisolver->nvars, nvars) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->dsdptoinputmapper), sdpisolver->nvars, nvars) );
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->dsdptoinputmapper), sdpisolver->nactivevars, nvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsobj), sdpisolver->nvars - sdpisolver->nactivevars, nvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), sdpisolver->nvars - sdpisolver->nactivevars, nvars) );
 
@@ -570,20 +570,20 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       assert ( nremovedinds != NULL );
 
       /*allocate memory */
-      /*This needs to be one long array, because DSDP uses it for solving so all nonzeros have to be in it and it may not be freed before the problem is solved. The distinct blocks/variables
-       *(for the i,j-parts) are then given by dsdpind + startind, which gives a pointer to the first array-element belonging to this block and then the number of
-       *elements in this block is given to DSDP for iterating over it */
+      /*This needs to be one long array, because DSDP uses it for solving so all nonzeros have to be in it and it may not be freed before the
+       * problem is solved. The distinct blocks/variables (for the i,j-parts) are then given by dsdpind + startind, which gives a pointer to the
+       * first array-element belonging to this block and then the number of elements in this block is given to DSDP for iterating over it */
 
       /*indices given to DSDP, for this the elements in the lower triangular part of the matrix are labeled from 0 to n*(n+1)/2 -1 */
-      BMS_CALL(BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpind, sdpnnonz));
+      BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpind, sdpnnonz) );
       /*values given to DSDP, these will be multiplied by -1 because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
-      BMS_CALL(BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpval, sdpnnonz));
+      BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpval, sdpnnonz) );
 
       ind = 0; /* this will be used for iterating over the nonzeroes */
 
-      for(block = 0; block < nsdpblocks; block++)
+      for (block = 0; block < nsdpblocks; block++)
       {
-         for(i = 0; i < sdpisolver->nactivevars; i++)
+         for (i = 0; i < sdpisolver->nactivevars; i++)
          {
             /* we iterate over all non-fixed variables, so add them to the dsdp arrays for this block/var combination */
 
@@ -594,17 +594,20 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             for (k = 0; k < sdpnblockvars[block]; k++)
             {
                if (v == sdpvar[block][k])
+               {
                   blockvar = k;
+                  break;
+               }
             }
 
             startind = ind;
 
             if (blockvar > -1) /* the variable exists in this block */
             {
-               for (k = 0; k < sdpnblockvarnonz[block][blockvar]; k++) //<- wants to be the array corresponding to variable v instead of v-th variable of this block
+               for (k = 0; k < sdpnblockvarnonz[block][blockvar]; k++)
                {
                   assert ( indchanges[block][sdprow[block][blockvar][k]] > -1 && indchanges[block][sdpcol[block][blockvar][k]] > -1 ); /* rows and cols with
-                                                                                                      * active nonzeros should not be removed */
+                                                                                                                  * active nonzeros should not be removed */
                   dsdpind[ind] = compLowerTriangPos(sdprow[block][blockvar][k] - indchanges[block][sdprow[block][blockvar][k]],
                                                     sdpcol[block][blockvar][k] - indchanges[block][sdpcol[block][blockvar][k]]); /* substract the number of
                                                     * removed indices before the row and col to get the indices after fixings */
@@ -628,17 +631,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* start inserting the constant matrix */
    if ( sdpconstnnonz > 0 )
    {
-
-#ifndef NDEBUG
-      if (sdpconstnnonz > 0)
-      {
          assert ( nsdpblocks > 0 );
          assert ( sdpconstnblocknonz!= NULL );
          assert ( sdpconstcol != NULL );
          assert ( sdpconstrow != NULL );
          assert ( sdpconstval != NULL );
-      }
-#endif
 
       /*allocate memory*/
 
@@ -803,7 +800,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          }
       }
 
-      /* check once more if the last row can be removed (this isn't included in the for queue is the check only happens when the first element of
+      /* check once more if the last row can be removed (this isn't included in the for queue as the check only happens when the first element of
        * the next row has been found */
 
       /* first we check if the last row (which is now finished) can be deleted */
@@ -864,7 +861,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          {
             /* set the dsdplpbegcol entries, as there might be active variables which appear only in the sdp but not the lp-part, we also have to set
              * the starting values for all variable in between to the same value (as we also set the entry for the found variable, this for-queue
-             * will always have at least one index in the index set */
+             * will always have at least one index in the index set) */
             for (j = nextcol; j <= lpcol[i]; j++)
             {
                if (sdpisolver->inputtodsdpmapper[j] >= 0)
@@ -875,7 +872,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                }
             }
 
-            nextcol = j;
+            nextcol = j; /* this also equals lpcol[i]+1 */
          }
          /* add the nonzero, if it isn't fixed, otherwise note the needed shift for the rest */
          if (isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]]))
@@ -927,21 +924,21 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /*these arrays were used to give information to DSDP and were needed during solving and for computing X, so they may only be freed now*/
    if ( sdpconstnnonz > 0 )
    {
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpconstind, sdpconstnnonz);
       BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpconstval, sdpconstnnonz);
+      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpconstind, sdpconstnnonz);
    }
 
    if ( sdpnnonz > 0 )
    {
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpind, sdpnnonz);
       BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpval, sdpnnonz);
+      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpind, sdpnnonz);
    }
 
    if(nlpcons > 0 || lpnnonz > 0)
    {
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplpbegcol, sdpisolver->nactivevars + 2);
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, dsdplparraylength);
       BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, dsdplparraylength);
+      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, dsdplparraylength);
+      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplpbegcol, sdpisolver->nactivevars + 2);
    }
 
 #ifdef SCIP_DEBUG
