@@ -558,6 +558,8 @@ SCIP_RETCODE separateSol(
    char* cutname;
    int snprintfreturn;
    int j;
+   SCIP_COL** cols;
+   SCIP_Real* vals;
 
    assert ( cons != NULL );
    assert ( sol != NULL );
@@ -571,10 +573,7 @@ SCIP_RETCODE separateSol(
 
    SCIP_CALL( cutUsingEigenvector(scip, cons, sol, coeff, &lhs) );
 
-   SCIP_VAR** vars = NULL;
-   SCIP_Real* vals = NULL;
-
-   SCIP_CALL( SCIPallocBufferArray(scip, &vars, nvars ) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &cols, nvars ) );
    SCIP_CALL( SCIPallocBufferArray(scip, &vals, nvars ) );
 
    int len = 0;
@@ -584,7 +583,7 @@ SCIP_RETCODE separateSol(
       if ( SCIPisZero(scip, coeff[j]) )
          continue;
 
-      vars[len] = SCIPvarGetProbvar(consdata->vars[j]);
+      cols[len] = SCIPvarGetCol(SCIPvarGetProbvar(consdata->vars[j]));
       vals[len] = coeff[j];
       ++len;
    }
@@ -594,8 +593,7 @@ SCIP_RETCODE separateSol(
    SCIP_CALL( SCIPallocBufferArray(scip, &cutname, 255) );
    snprintfreturn = SCIPsnprintf(cutname, 255, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
    assert ( snprintfreturn < 256 ); /* it returns the number of positions that would have been needed, if that is more than 255, it failed */
-   SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname , lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
-   SCIP_CALL( SCIPaddVarsToRow(scip, row, len, vars, vals)  );
+   SCIP_CALL( SCIPcreateRowCons(scip, &row, conshdlr, cutname , len, cols, vals, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
 
    if ( SCIPisCutEfficacious(scip, sol, row) )
    {
@@ -603,7 +601,7 @@ SCIP_RETCODE separateSol(
          SCIPdebugMessage("Added cut %s: ", cutname);
          SCIPdebugMessage("%f <= ", lhs);
          for (j = 0; j < len; j++)
-            SCIPdebugMessage("+ (%f)*%s", vals[j], SCIPvarGetName(vars[j]));
+            SCIPdebugMessage("+ (%f)*%s", vals[j], SCIPvarGetName(SCIPcolGetVar(cols[j])));
          SCIPdebugMessage("\n");
 #endif
 
@@ -620,7 +618,7 @@ SCIP_RETCODE separateSol(
    SCIPfreeBufferArray(scip, &cutname);
 
    SCIPfreeBufferArray(scip, &vals);
-   SCIPfreeBufferArray(scip, &vars);
+   SCIPfreeBufferArray(scip, &cols);
    SCIPfreeBufferArray(scip, &coeff);
 
    return SCIP_OKAY;
