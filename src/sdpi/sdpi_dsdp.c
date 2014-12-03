@@ -465,9 +465,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert ( sdpisolver != NULL );
    assert ( penaltyParam >= 0.0 );
 
-   sdpisolver->nvars = nvars;
-   sdpisolver->nactivevars = 0;
-   nfixedvars = 0;
 #ifndef NDEBUG
    sdpisolver->infeasible = FALSE;
 #endif
@@ -477,6 +474,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->dsdptoinputmapper), sdpisolver->nactivevars, nvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsobj), sdpisolver->nvars - sdpisolver->nactivevars, nvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), sdpisolver->nvars - sdpisolver->nactivevars, nvars) );
+
+   sdpisolver->nvars = nvars;
+   sdpisolver->nactivevars = 0;
+   nfixedvars = 0;
 
    /* find the fixed variables */
    for (i = 0; i < nvars; i++)

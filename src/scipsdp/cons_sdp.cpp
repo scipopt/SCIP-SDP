@@ -1629,7 +1629,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
    SCIP_VAR** vars;
    vars = SCIPgetVars(scip);
    int count = 0;
-   for (int i = 0; i < SCIPgetNVars(scip); ++i)
+   for (i = 0; i < SCIPgetNVars(scip); ++i)
    {
       if( !SCIPisRelEQ(scip, SCIPvarGetLbLocal(vars[i]), SCIPvarGetUbLocal(vars[i])) && SCIPvarIsIntegral(vars[i]))
       {
@@ -1646,8 +1646,10 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
 static
 SCIP_DECL_CONSSEPASOL(consSepasolSdp)
 {
+   int i;
+
    *result = SCIP_DIDNOTFIND;
-   for (int i = 0; i < nusefulconss; ++i)
+   for (i = 0; i < nusefulconss; ++i)
       SCIP_CALL(separateSol(scip, conshdlr, conss[i], sol, result));
 
    return SCIP_OKAY;
@@ -1659,8 +1661,10 @@ SCIP_DECL_CONSSEPASOL(consSepasolSdp)
 static
 SCIP_DECL_CONSSEPALP(consSepalpSdp)
 {
+   int i;
+
    *result = SCIP_DIDNOTFIND;
-   for (int i = 0; i < nusefulconss; ++i)
+   for (i = 0; i < nusefulconss; ++i)
       SCIP_CALL(separateSol(scip, conshdlr, conss[i], NULL, result));
 
    return SCIP_OKAY;
@@ -1861,12 +1865,13 @@ SCIP_RETCODE SCIPconsSdpGetData(
    assert ( val != NULL );
    assert ( vars != NULL );
    assert ( constnnonz != NULL );
-   assert ( constcol != NULL );
-   assert ( constrow != NULL );
-   assert ( constval != NULL );
 
    consdata = SCIPconsGetData(cons);
    name = SCIPconsGetName(cons);
+
+   assert ( consdata->constnnonz == 0 || ( constcol != NULL && constrow != NULL && constval != NULL ) );
+
+
 
    *nvars = consdata->nvars;
    *nnonz = consdata->nnonz;
