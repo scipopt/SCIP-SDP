@@ -325,7 +325,6 @@ SCIP_RETCODE computeSdpMatrix(
    SCIP_Real yval;
 
    assert ( cons != NULL );
-   assert ( y != NULL );
    assert ( matrix != NULL );
 
    consdata = SCIPconsGetData(cons);
