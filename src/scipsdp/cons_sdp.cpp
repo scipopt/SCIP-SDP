@@ -1692,7 +1692,7 @@ SCIP_DECL_CONSDELETE(consDeleteSdp)
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->row, (*consdata)->nvars);
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->col, (*consdata)->nvars);
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->nvarnonz, (*consdata)->nvars);
-   SCIPfreeMemory(scip, consdata);
+   SCIPfreeBlockMemory(scip, consdata);
 
    return SCIP_OKAY;
 }
