@@ -936,15 +936,17 @@ SCIP_DECL_RELAXCOPY(relaxCopySDP)
 
 /** free the relaxator's data */
 static
-SCIP_DECL_RELAXFREE(relaxFreeSDP)
+SCIP_DECL_RELAXEXIT(relaxExitSDP)
 {
 SCIP_RELAXDATA* relaxdata;
+
+SCIPdebugMessage("Exiting Relaxation Handler \n");
 
 relaxdata = SCIPrelaxGetData(relax);
 assert(relaxdata != NULL);
 
 SCIP_CALL( SdpVarmapperFree(scip, &(relaxdata->varmapper)) );
-SCIPfreeMemory(scip, &relaxdata);
+SCIPfreeBlockMemory(scip, &relaxdata);
 SCIPrelaxSetData(relax, NULL);
 
 return SCIP_OKAY;
@@ -974,7 +976,7 @@ SCIP_RETCODE SCIPincludeRelaxSDP(
 
    /* include additional callbacks */
    SCIP_CALL( SCIPsetRelaxInitsol(scip, relax, relaxInitSolSDP) );
-   SCIP_CALL( SCIPsetRelaxFree(scip, relax, relaxFreeSDP) );
+   SCIP_CALL( SCIPsetRelaxExit(scip, relax, relaxExitSDP) );
 
    return SCIP_OKAY;
 }

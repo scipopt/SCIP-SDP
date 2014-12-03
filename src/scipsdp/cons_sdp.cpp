@@ -1033,6 +1033,7 @@ SCIP_RETCODE fixVars(
                consdata->nnonz--;
             }
             /* as the variables don't need to be sorted, we just put the last variable into the empty spot and decrease sizes by one (at the end) */
+            SCIP_CALL( SCIPreleaseVar(scip, &(consdata->vars[v])) );
             consdata->col[v] = consdata->col[consdata->nvars - 1];
             consdata->row[v] = consdata->row[consdata->nvars - 1];
             consdata->val[v] = consdata->val[consdata->nvars - 1];
@@ -1158,6 +1159,7 @@ SCIP_RETCODE multiaggrVars(
             SdpVarfixerSortRowCol(savedrow, savedcol, savedval, naggrnonz);
 
             /* fill the empty spot of the (mutli-)aggregated variable with the last variable of this constraint (as they don't have to be sorted) */
+            SCIP_CALL( SCIPreleaseVar(scip, &consdata->vars[var]) );
             consdata->col[var] = consdata->col[consdata->nvars - 1];
             consdata->row[var] = consdata->row[consdata->nvars - 1];
             consdata->val[var] = consdata->val[consdata->nvars - 1];
@@ -1217,6 +1219,7 @@ SCIP_RETCODE multiaggrVars(
                   }
 
                   /* we insert this variable at the last position, as the ordering doesn't matter */
+                  SCIP_CALL( SCIPcaptureVar(scip, aggrvars[aggrind]) );
                   consdata->vars[consdata->nvars] = aggrvars[aggrind];
                   consdata->nvarnonz[consdata->nvars] = naggrnonz; /* as there were no nonzeros thus far, the number of nonzeros equals the number
                                                                     * of nonzeros of the aggregated variable */
@@ -1328,7 +1331,9 @@ SCIP_DECL_CONSINIT(consInitSdp)
       for (v = 0; v < consdata->nvars; v++)
       {
          SCIP_CALL( SCIPgetTransformedVar(scip, consdata->vars[v], &var) );
+         SCIP_CALL( SCIPreleaseVar(scip, &consdata->vars[v]) );
          consdata->vars[v] = var;
+         SCIP_CALL( SCIPcaptureVar(scip, consdata->vars[v]) );
       }
    }
    return SCIP_OKAY;
@@ -1465,7 +1470,10 @@ SCIP_DECL_CONSTRANS(consTransSdp)
 
    /* copy & transform the vars array */
    for (i = 0; i < sourcedata->nvars; i++)
+   {
       targetdata->vars[i] = SCIPvarGetTransVar(sourcedata->vars[i]);
+      SCIP_CALL(SCIPcaptureVar(scip, targetdata->vars[i]));
+   }
 
    /* copy the constant nonzeros */
    targetdata->constnnonz = sourcedata->constnnonz;
@@ -1676,6 +1684,8 @@ SCIP_DECL_CONSDELETE(consDeleteSdp)
 {
    int i;
 
+   SCIPdebugMessage("deleting %s \n", SCIPconsGetName(cons));
+
    assert(consdata != NULL);
 
    for (i = 0; i < (*consdata)->nvars; i++)
@@ -1684,6 +1694,11 @@ SCIP_DECL_CONSDELETE(consDeleteSdp)
       SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->row[i], (*consdata)->nvarnonz[i]);
       SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->col[i], (*consdata)->nvarnonz[i]);
    }
+
+   /* release all variables */
+   for (i = 0; i < (*consdata)->nvars; i++)
+      SCIP_CALL( SCIPreleaseVar(scip, &((*consdata)->vars[i])) );
+
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->vars, (*consdata)->nvars);
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->constval, (*consdata)->nnonz);
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->constrow, (*consdata)->nnonz);
@@ -2129,7 +2144,10 @@ SCIP_RETCODE SCIPcreateConsSdp(
    }
 
    for (i = 0; i < nvars; i++)
+      {
       consdata->vars[i] = vars[i];
+      SCIP_CALL( SCIPcaptureVar(scip, consdata->vars[i]) );
+      }
 
 
    /* create constraint */
