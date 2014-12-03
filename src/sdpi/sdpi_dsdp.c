@@ -305,7 +305,7 @@ SCIP_RETCODE SCIPsdpiSolverFree(
    assert ( sdpisolver != NULL );
    assert ( *sdpisolver != NULL );
 
-   SCIPdebugMessage("Freeing SDPISolver %d\n", (*sdpisolver)->sdpcounter);
+   SCIPdebugMessage("Freeing SDPISolver \n");
 
    if (((*sdpisolver)->dsdp) != NULL)
    {

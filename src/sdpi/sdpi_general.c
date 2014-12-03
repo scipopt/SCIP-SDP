@@ -503,7 +503,7 @@ SCIP_RETCODE SCIPsdpiFree(
    int i;
    int j;
 
-   SCIPdebugMessage("Calling SCIPsdpiFree (%d)\n",(*sdpi)->sdpid);
+   SCIPdebugMessage("Calling SCIPsdpiFree \n");
    assert ( sdpi != NULL );
    assert ( *sdpi != NULL );
 
@@ -516,7 +516,7 @@ SCIP_RETCODE SCIPsdpiFree(
    /* free the individual nonzeros */
    for (i = 0; i < (*sdpi)->nsdpblocks; i++)
    {
-      for (j = 0; j < (*sdpi)->nvars; j++)
+      for (j = 0; j < (*sdpi)->sdpnblockvars[i]; j++)
       {
          BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpval[i][j]), (*sdpi)->sdpnblockvarnonz[i][j]);
          BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdprow[i][j]), (*sdpi)->sdpnblockvarnonz[i][j]);
