@@ -946,6 +946,7 @@ relaxdata = SCIPrelaxGetData(relax);
 assert(relaxdata != NULL);
 
 SCIP_CALL( SdpVarmapperFree(scip, &(relaxdata->varmapper)) );
+SCIP_CALL( SCIPsdpiFree(&(relaxdata->sdpi)) );
 SCIPfreeBlockMemory(scip, &relaxdata);
 SCIPrelaxSetData(relax, NULL);
 

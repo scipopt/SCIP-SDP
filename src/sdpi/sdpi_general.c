@@ -548,6 +548,9 @@ SCIP_RETCODE SCIPsdpiFree(
    BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lb), (*sdpi)->nvars);
    BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->obj), (*sdpi)->nvars);
 
+   /* free the solver */
+   SCIP_CALL( SCIPsdpiSolverFree(&((*sdpi)->sdpisolver)) );
+
    BMSfreeBlockMemory((*sdpi)->blkmem, sdpi);
 
    return SCIP_OKAY;
@@ -2661,7 +2664,6 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    }
 
    SCIP_CALL (findEmptyRowColsSDP(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges, nremovedinds) );
-
    if (SCIPsdpiSolverKnowsPenalty() || penaltyParam < sdpi->epsilon)
    {
       SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, penaltyParam, withObj, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,

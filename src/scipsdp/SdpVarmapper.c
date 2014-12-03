@@ -84,6 +84,8 @@ SCIP_RETCODE SdpVarmapperFree(
 {
    int i;
 
+   SCIPdebugMessage("Freeing SdpVarmapper \n");
+
    assert ( scip != NULL );
    assert ( varmapper != NULL );
 
