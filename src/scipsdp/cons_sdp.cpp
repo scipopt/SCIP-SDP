@@ -561,7 +561,6 @@ SCIP_RETCODE separateSol(
    SCIP_Real* vals;
 
    assert ( cons != NULL );
-   assert ( sol != NULL );
 
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
@@ -1605,11 +1604,10 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
 #ifdef SCIP_MORE_DEBUG
          SCIPdebugMessage("Added cut %s: ", cutname);
          SCIPdebugMessage("%f <= ", lhs);
-         for (i = 0; i < nvars; i++)
-            SCIPdebugMessage("+ (%f)*%s", coeff[i], SCIPvarGetName(consdata->vars[i]));
+         for (j = 0; j < nvars; j++)
+            SCIPdebugMessage("+ (%f)*%s", coeff[j], SCIPvarGetName(consdata->vars[i]));
          SCIPdebugMessage("\n");
 #endif
-
       SCIP_Bool infeasible;
       SCIP_CALL(SCIPaddCut(scip, NULL, row, FALSE, &infeasible));
 
@@ -1684,11 +1682,11 @@ SCIP_DECL_CONSDELETE(consDeleteSdp)
 {
    int i;
 
-/*   SCIPdebugMessage("deleting %s \n", SCIPconsGetName(cons));
+   SCIPdebugMessage("deleting %s \n", SCIPconsGetName(cons));
 
    assert(consdata != NULL);
 
-   for (i = 0; i < (*consdata)->nvars; i++)
+ /*  for (i = 0; i < (*consdata)->nvars; i++)
    {
       SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->val[i], (*consdata)->nvarnonz[i]);
       SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->row[i], (*consdata)->nvarnonz[i]);
