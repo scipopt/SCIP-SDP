@@ -133,7 +133,7 @@ SCIP_RETCODE SdpVarmapperAddVars(
       if ( ! (SCIPhashmapExists(varmapper->sciptosdp, vars[i])) ) /* make sure, that there are no duplicates in the lists */
       {
          varmapper->sdptoscip[varmapper->nvars] = vars[i];
-         SCIP_CALL(SCIPhashmapInsert(varmapper->sciptosdp, vars[i], (void*) varmapper->nvars));
+         SCIP_CALL(SCIPhashmapInsert(varmapper->sciptosdp, (void*) vars[i], (void*) (size_t) varmapper->nvars));
          varmapper->nvars++;
          SCIP_CALL(SCIPcaptureVar(scip, vars[i]));
       }
@@ -181,11 +181,11 @@ SCIP_RETCODE SdpVarmapperInsertVar(
          for (i = varmapper->nvars - 1; i >= pos; i--)
          {
             varmapper->sdptoscip[i + 1] = varmapper->sdptoscip[i];
-            SCIP_CALL(SCIPhashmapSetImage(varmapper->sciptosdp, varmapper->sdptoscip[i + 1], (void*) (i + 1)));
+            SCIP_CALL(SCIPhashmapSetImage(varmapper->sciptosdp, varmapper->sdptoscip[i + 1], (void*) (size_t) (i + 1)));
          }
 
          varmapper->sdptoscip[pos] = var;
-         SCIP_CALL(SCIPhashmapInsert(varmapper->sciptosdp, var, (void*) pos));
+         SCIP_CALL(SCIPhashmapInsert(varmapper->sciptosdp, var, (void*) (size_t) pos));
          varmapper->nvars++;
       }
    }
@@ -226,7 +226,7 @@ int SdpVarmapperGetSdpIndex(
    assert ( varmapper != NULL );
    assert ( var != NULL );
 
-   return (int) SCIPhashmapGetImage(varmapper->sciptosdp, var);
+   return (int) (size_t) SCIPhashmapGetImage(varmapper->sciptosdp, (void*) var);
 }
 
 /** gets the corresponding SCIP variable for the given sdp variable index */
@@ -266,7 +266,7 @@ SCIP_RETCODE SdpVarmapperRemoveSdpIndex(
    for (i = ind + 1; i < varmapper->nvars; i++)
    {
       varmapper->sdptoscip[i - 1] = varmapper->sdptoscip[i];
-      SCIP_CALL( SCIPhashmapSetImage(varmapper->sciptosdp, varmapper->sdptoscip[i - 1], i - 1) );
+      SCIP_CALL( SCIPhashmapSetImage(varmapper->sciptosdp, varmapper->sdptoscip[i - 1], (void*) (size_t) (i - 1)) );
    }
 
    /* reallocate memory */
@@ -295,7 +295,7 @@ SCIP_RETCODE SdpVarmapperTransform(
       SCIP_CALL(SCIPcaptureVar(scip, var));
 
       SCIP_CALL(SCIPhashmapRemove(varmapper->sciptosdp, varmapper->sdptoscip[k]));
-      SCIP_CALL(SCIPhashmapInsert(varmapper->sciptosdp, var, (void*) k));
+      SCIP_CALL(SCIPhashmapInsert(varmapper->sciptosdp, var, (void*) (size_t) k));
 
       SCIP_CALL(SCIPreleaseVar(scip, &varmapper->sdptoscip[k]));
 
@@ -328,7 +328,7 @@ SCIP_RETCODE SdpVarmapperClone(
    for (i = 0; i < nvars; i++)
    {
       newmapper->sdptoscip[i] = oldmapper->sdptoscip[i];
-      SCIP_CALL(SCIPhashmapInsert(newmapper->sciptosdp, oldmapper->sdptoscip[i], (void*) i));
+      SCIP_CALL(SCIPhashmapInsert(newmapper->sciptosdp, oldmapper->sdptoscip[i], (void*) (size_t) i));
    }
 
    return SCIP_OKAY;
