@@ -71,30 +71,33 @@ SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
 #-----------------------------------------------------------------------------
 
 MAINNAME=	scipsdp
-MAINOBJ	=	scipsdp/main.o \
+MAINCOBJ=	scipsdp/SdpVarmapper.o \
+		scipsdp/SdpVarfixer.o \
+		sdpi/sdpi_general.o
+
+MAINCCOBJ=	scipsdp/main.o \
 		scipsdp/relax_sdp.o \
 		scipsdp/objreader_sdpa.o \
 		scipsdp/cons_sdp.o \
-		scipsdp/SdpVarmapper.o \
-		scipsdp/SdpVarfixer.o \
-		scipsdp/ScipStreamBuffer.o \
-		sdpi/sdpi_general.o
+		scipsdp/ScipStreamBuffer.o
 
 ifeq ($(SDPS),dsdp)
-MAINOBJ 	+= 	sdpi/sdpi_dsdp.o
+MAINCOBJ 	+= 	sdpi/sdpi_dsdp.o
 endif
 
 ifeq ($(SDPS),sdpa)
-MAINOBJ 	+= 	sdpi/sdpi_sdpa.o
+MAINCOBJ 	+= 	sdpi/sdpi_sdpa.o
 endif
 
-MAINSRC		=	$(addprefix $(SRCDIR)/,$(MAINOBJ:.o=.cpp))
+MAINCSRC	=	$(addprefix $(SRCDIR)/,$(MAINCOBJ:.o=.c))
+MAINCCSRC	=	$(addprefix $(SRCDIR)/,$(MAINCCOBJ:.o=.cpp))
 MAINDEP		=	$(SRCDIR)/depend.cppmain.$(OPT)
 
 # @todo possibly add LPS
 MAINFILE	=	$(BINDIR)/$(MAINNAME).$(BASE).$(SDPS)$(EXEEXTENSION)
 MAINSHORTLINK	=	$(BINDIR)/$(MAINNAME)
-MAINOBJFILES	=	$(addprefix $(OBJDIR)/,$(MAINOBJ))
+MAINCOBJFILES	=	$(addprefix $(OBJDIR)/,$(MAINCOBJ))
+MAINCCOBJFILES	=	$(addprefix $(OBJDIR)/,$(MAINCCOBJ))
 
 
 #-----------------------------------------------------------------------------
@@ -102,7 +105,7 @@ MAINOBJFILES	=	$(addprefix $(OBJDIR)/,$(MAINOBJ))
 #-----------------------------------------------------------------------------
 
 ifeq ($(VERBOSE),false)
-.SILENT:	$(MAINFILE) $(MAINOBJFILES) $(MAINSHORTLINK)
+.SILENT:	$(MAINFILE) $(MAINCOBJFILES) $(MAINCCOBJFILES) $(MAINSHORTLINK)
 endif
 
 .PHONY: all
@@ -113,7 +116,7 @@ tags:
 		rm -f TAGS; ctags -e src/*/*.c src/*/*.cpp src/*/*.h $(SCIPDIR)/src/*/*.c $(SCIPDIR)/src/*/*.h;
 
 .PHONY: lint
-lint:		$(MAINSRC)
+lint:		$(MAINCSRC) $(MAINCCSRC)
 		-rm -f lint.out
 		$(SHELL) -ec 'for i in $^; \
 			do \
@@ -144,22 +147,29 @@ $(BINDIR):
 .PHONY: clean
 clean:
 ifneq ($(OBJDIR),)
-		-rm -f $(OBJDIR)/*.o
+		-rm -f $(OBJDIR)/scipsdp/*.o
+		-rm -f $(OBJDIR)/sdpi/*.o
+		-rmdir $(OBJDIR)/scipsdp
+		-rmdir $(OBJDIR)/sdpi
 		-rmdir $(OBJDIR)
 endif
 		-rm -f $(MAINFILE)
 
 .PHONY: depend
 depend:		$(SCIPDIR)
-		$(SHELL) -ec '$(DCXX) $(FLAGS) $(DFLAGS) $(MAINSRC) \
-		| sed '\''s|^\([0-9A-Za-z\_]\{1,\}\)\.o *: *$(SRCDIR)/\([0-9A-Za-z\_]*\).cpp|$$\(OBJDIR\)/\2.o: $(SRCDIR)/\2.cpp|g'\'' \
+		$(SHELL) -ec '$(DCXX) $(FLAGS) $(DFLAGS) $(MAINCCSRC) \
+		| sed '\''s|^\([0-9A-Za-z\_]\{1,\}\)\.o *: *$(SRCDIR)/scipsdp/\([0-9A-Za-z\_]*\).cpp|$$\(OBJDIR\)/\2.o: $(SRCDIR)/scipsdp/\2.cpp|g'\'' \
 		>$(MAINDEP)'
+		$(SHELL) -ec '$(DCXX) $(FLAGS) $(DFLAGS) $(MAINCSRC) \
+		| sed '\''s|^\([0-9A-Za-z\_]\{1,\}\)\.o *: *$(SRCDIR)/scipsdp/\([0-9A-Za-z\_]*\).c|$$\(OBJDIR\)/\2.o: $(SRCDIR)/scipsdp/\2.c|g'\'' \
+		| sed '\''s|^\([0-9A-Za-z\_]\{1,\}\)\.o *: *$(SRCDIR)/sdpi/\([0-9A-Za-z\_]*\).c|$$\(OBJDIR\)/\2.o: $(SRCDIR)/sdpi/\2.c|g'\'' \
+		>>$(MAINDEP)'
 
 -include	$(MAINDEP)
 
-$(MAINFILE):	$(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(MAINOBJFILES) | $(SDPOBJSUBDIRS) $(BINDIR)
+$(MAINFILE):	$(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(MAINCOBJFILES) $(MAINCCOBJFILES) | $(SDPOBJSUBDIRS) $(BINDIR)
 		@echo "-> linking $@"
-		$(LINKCXX) $(MAINOBJFILES) \
+		$(LINKCXX) $(MAINCOBJFILES) $(MAINCCOBJFILES) \
 		$(LINKCXX_L)$(SCIPDIR)/lib $(LINKCXX_l)$(SCIPLIB)$(LINKLIBSUFFIX) \
                 $(LINKCXX_l)$(OBJSCIPLIB)$(LINKLIBSUFFIX) $(LINKCXX_l)$(LPILIB)$(LINKLIBSUFFIX) $(LINKCXX_l)$(NLPILIB)$(LINKLIBSUFFIX) \
                 $(OFLAGS) $(LPSLDFLAGS) \
