@@ -757,7 +757,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             {
 #ifndef NDEBUG
                /* as these rows didn't have any nonzeros, they can surely be eliminated, we just check again if rhs > 0 [< 0 for dsdp] */
-               if (lprhs[j - nshifts] < -(sdpisolver->epsilon))
+               if (lprhs[j] < -(sdpisolver->epsilon))
                {
                   sdpisolver->infeasible = TRUE;
                   return SCIP_OKAY; /* we know the problem is infeasible, so we don't have to solve it */
