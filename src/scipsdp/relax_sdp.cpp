@@ -39,8 +39,7 @@
 
 
 #define SCIP_DEBUG
-#define SCIP_MORE_DEBUG /* shows number of deleted empty cols/rows and complete solution for every relaxation and variable status & bounds as well
-                         * as all constraints in the beginning*/
+#define SCIP_MORE_DEBUG /* shows number of deleted empty cols/rows and complete solution for every relaxation and variable status & bounds as well as all constraints in the beginning*/
 
 #include "relax_sdp.h"
 
@@ -503,6 +502,7 @@ SCIP_RETCODE calc_relax(
    {
       SCIP_CALL(SCIPsdpiSolve(sdpi));
    }
+
 #ifdef SCIP_MORE_DEBUG /* print the optimal solution */
    SCIP_Real objforscip;
    SCIP_Real* solforscip;
@@ -534,6 +534,7 @@ SCIP_RETCODE calc_relax(
 
    SCIPfreeBufferArray(scip, &solforscip);
 #endif
+
    if ( SCIPsdpiIsAcceptable(sdpi) && SCIPsdpiFeasibilityKnown(sdpi) )
    {
       if ( SCIPsdpiIsDualInfeasible(sdpi) )
@@ -572,13 +573,14 @@ SCIP_RETCODE calc_relax(
          SCIP_Bool solisfeas = TRUE;
          SCIP_COL** cols;
          int ncols;
+         int slength;
 
          /* get solution w.r.t. SCIP variables */
          SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
-         sollength = nvars;
-         SCIP_CALL( SCIPsdpiGetSol(sdpi, &objforscip, solforscip, &sollength) ); /* get both the objective and the solution from the SDP solver */
+         slength = nvars;
+         SCIP_CALL( SCIPsdpiGetSol(sdpi, &objforscip, solforscip, &slength) ); /* get both the objective and the solution from the SDP solver */
 
-         assert ( sollength == nvars ); /* if this isn't true any longer, the getSol-Call was unsuccessfull, because the given array wasn't long enough,
+         assert ( slength == nvars ); /* if this isn't true any longer, the getSol-Call was unsuccessfull, because the given array wasn't long enough,
                                          * but this can't happen, because the array has enough space for all sdp variables */
 
          /* check if the solution is integral */
@@ -938,19 +940,19 @@ SCIP_DECL_RELAXCOPY(relaxCopySDP)
 static
 SCIP_DECL_RELAXEXIT(relaxExitSDP)
 {
-SCIP_RELAXDATA* relaxdata;
+   SCIP_RELAXDATA* relaxdata;
 
-SCIPdebugMessage("Exiting Relaxation Handler \n");
+   SCIPdebugMessage("Exiting Relaxation Handler \n");
 
-relaxdata = SCIPrelaxGetData(relax);
-assert(relaxdata != NULL);
+   relaxdata = SCIPrelaxGetData(relax);
+   assert(relaxdata != NULL);
 
-SCIP_CALL( SdpVarmapperFree(scip, &(relaxdata->varmapper)) );
-SCIP_CALL( SCIPsdpiFree(&(relaxdata->sdpi)) );
-SCIPfreeBlockMemory(scip, &relaxdata);
-SCIPrelaxSetData(relax, NULL);
+   SCIP_CALL( SdpVarmapperFree(scip, &(relaxdata->varmapper)) );
+   SCIP_CALL( SCIPsdpiFree(&(relaxdata->sdpi)) );
+   SCIPfreeBlockMemory(scip, &relaxdata);
+   SCIPrelaxSetData(relax, NULL);
 
-return SCIP_OKAY;
+   return SCIP_OKAY;
 }
 
 /** creates the SDP relaxator and includes it in SCIP */
