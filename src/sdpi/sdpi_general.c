@@ -410,7 +410,7 @@ const char* SCIPsdpiGetSolverName(
    void
    )
 {
-   return SCIPsdpiSolverGetSolverName;
+   return SCIPsdpiSolverGetSolverName();
 }
 
 /** gets description of SDP solver (developer, webpage, ...) */
@@ -418,7 +418,7 @@ const char* SCIPsdpiGetSolverDesc(
    void
    )
 {
-   return SCIPsdpiSolverGetSolverDesc;
+   return SCIPsdpiSolverGetSolverDesc();
 }
 
 /** gets pointer for SDP solver - use only with great care
@@ -428,10 +428,10 @@ const char* SCIPsdpiGetSolverDesc(
  *  doing. In general, it returns a pointer to the SDP solver object.
  */
 void* SCIPsdpiGetSolverPointer(
-   void
+   SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   return SCIPsdpiSolverGetSolverPointer;
+   return SCIPsdpiSolverGetSolverPointer(sdpi->sdpisolver);
 }
 
 /**@} */

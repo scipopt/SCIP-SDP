@@ -622,11 +622,29 @@ SCIP_RETCODE calc_relax(
          if ( solisfeas )
          {
             SCIP_Bool stored;
+            SCIP_Bool allfeas;
 
             *lowerbound = objforscip;
 
-            /* test whether solution is feasible */
-            SCIP_CALL( SCIPtrySol(scip, scipsol, FALSE, TRUE, TRUE, TRUE, &stored) );
+            if (allint) /* if the solution is integer, we might have found new best solution for the MISDP */
+            {
+               SCIP_CALL( SCIPcheckSol(scip, scipsol, TRUE, FALSE, FALSE, FALSE, &allfeas) ); /* is this really needed ? */
+               if (allfeas)
+               {
+                  SCIP_CALL( SCIPtrySol(scip, scipsol, TRUE, FALSE, FALSE, FALSE, &stored) );
+                  if (stored)
+                     SCIPdebugMessage("feasible solution for MISDP found, cut node off, solution is new best solution \n");
+                  else
+                     SCIPdebugMessage("feasible solution for MISDP found, cut node off, solution is worse than earlier one \n");
+
+                  SCIPfreeBufferArray(scip, &solforscip);
+                  SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
+
+                  *result = SCIP_CUTOFF;
+                  return SCIP_OKAY;
+               }
+               SCIPdebugMessage("WARNING!!! Found a solution that is feasible for SDP and integrality, but infeasible for SCIP, this will probably not properly get enforced ! \n");
+            }
 
             /* copy solution */
             SCIP_CALL( SCIPgetLPColsData(scip, &cols, &ncols) );
@@ -792,7 +810,6 @@ SCIP_Bool allVarsFixed(
 static
 SCIP_DECL_RELAXEXEC(relaxExecSDP)
 {
-   SCIP_Cons** conss;
    SCIP_RELAXDATA* relaxdata;
    int nconss;
    int i;
@@ -814,7 +831,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
 
    /* get varmapper */
    nconss = SCIPgetNConss(scip);
-   conss = SCIPgetConss(scip);
 
    // it is possible to call this function for writing the problem of every node in sdpa-format to a file per node
    // SCIP_CALL(write_sdpafile(scip, problemdata, varmapper));
@@ -867,7 +883,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
 
       if (stored == 1)
       {
-         *result = SCIP_SUCCESS;
+         *result = SCIP_CUTOFF;
       }
       else
       {
@@ -918,8 +934,8 @@ SCIP_DECL_RELAXINIT(relaxInitSolSDP)
 
    return SCIP_OKAY;
 }
-
-/** copy method for sdp relaxation handler (called when SCIP copies plugins) */
+/*
+* copy method for sdp relaxation handler (called when SCIP copies plugins)
 static
 SCIP_DECL_RELAXCOPY(relaxCopySDP)
 {
@@ -933,7 +949,7 @@ SCIP_DECL_RELAXCOPY(relaxCopySDP)
    //TODO: copying (needs a copy method for the sdpi_general), or is this only needed for local (i.e. in every node) heuristics ?
 
    return SCIP_OKAY;
-}
+}*/
 
 
 /** free the relaxator's data */

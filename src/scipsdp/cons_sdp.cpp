@@ -729,24 +729,25 @@ SCIP_RETCODE diagGEzero(
 
    return SCIP_OKAY;
 }
+/*
 
-/** presolve-routine that adds some constraints for approximation of the sdpcone, if there is an entry (i,j) in the constant
+* presolve-routine that adds some constraints for approximation of the sdpcone, if there is an entry (i,j) in the constant
  *  matrix, than some variable k with \f (A_k)_{ii} \f needs to be >0 because sdp-matrices are diagonal-dominant (and the same for j)
  *
  * not clear if this is really true for all SDPs, probably only works if A_i and A_0 are all semidefinite (or for A_0 at least
  * have positive diagonal entries) and all variables appearing in the SDP constraint are integer, then sum_{A_i_kk >0}
  * 1*y_i >= 1 is feasible, because it means that (sum A_i)_kk > 0 because all diagonal entries are positive (they can't
  * cancel each other) and at least one variable needs to be >=1 because this is equal to >0 for integers
- */
+
 static
 SCIP_RETCODE diagDominant(
-   SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS**           conss,              /**< array of constraints */
-   int                   nconss,             /**< number of constraints */
-   int*                  naddconss           /**< pointer to store how many constraints were added */
+   SCIP*                 scip,               *< SCIP data structure
+   SCIP_CONS**           conss,              *< array of constraints
+   int                   nconss,             *< number of constraints
+   int*                  naddconss           *< pointer to store how many constraints were added
    )
 {
-   SCIP_Bool* nonzerorows; /* entry i will be 1 if there is an entry \f (A_0)_ij \f for some \f j \neq i \f */
+   SCIP_Bool* nonzerorows;  entry i will be 1 if there is an entry \f (A_0)_ij \f for some \f j \neq i \f
    int blocksize;
    int i;
    int j;
@@ -776,11 +777,11 @@ SCIP_RETCODE diagDominant(
       nvars = consdata->nvars;
       SCIP_CALL( SCIPallocBufferArray(scip, &nonzerorows, blocksize) );
 
-      /* initialize nonzerorows with FALSE */
+       initialize nonzerorows with FALSE
       for (j = 0; j < blocksize; j++)
          nonzerorows[j] = FALSE;
 
-      /* iterate over all nonzeroes of the constant matrix and set all corresponding rows/cols to true */
+       iterate over all nonzeroes of the constant matrix and set all corresponding rows/cols to true
       for (j = 0; j < consdata->constnnonz; j++)
       {
          if ( consdata->constcol[j] != consdata->constrow[j] )
@@ -791,8 +792,8 @@ SCIP_RETCODE diagDominant(
          }
       }
 
-      /* diagvars[i] is an array with all variables with a diagonal entry (i,i) in the corresponding matrix, if nonzerorows[i] is true or NULL otherwise
-       * the outer array goes over all rows to ease the access, but only for those that are really needed memory will be allocated */
+       diagvars[i] is an array with all variables with a diagonal entry (i,i) in the corresponding matrix, if nonzerorows[i] is true or NULL otherwise
+       * the outer array goes over all rows to ease the access, but only for those that are really needed memory will be allocated
       SCIP_CALL( SCIPallocBufferArray(scip, &diagvars, blocksize) );
       SCIP_CALL( SCIPallocBufferArray(scip, &ndiagvars, blocksize) );
       for (j = 0; j < blocksize; ++j)
@@ -802,7 +803,7 @@ SCIP_RETCODE diagDominant(
             SCIP_CALL( SCIPallocBufferArray(scip, &(diagvars[j]), nvars) );
       }
 
-      /* find all variables with corresponding diagonal entries for a row with nonzero non-diagonal constant entry */
+       find all variables with corresponding diagonal entries for a row with nonzero non-diagonal constant entry
       for (var = 0; var < nvars; var++)
       {
          for (j = 0; j < consdata->nvarnonz[var]; j++)
@@ -827,7 +828,7 @@ SCIP_RETCODE diagDominant(
             SCIP_CALL( SCIPallocBufferArray(scip, &vals, ndiagvars[j]) );
             SCIP_CALL( SCIPallocBufferArray(scip, &vars, ndiagvars[j]) );
 
-            /* get the corresponding SCIP variables and set all coefficients to 1 */
+             get the corresponding SCIP variables and set all coefficients to 1
             for (var = 0; var < ndiagvars[j]; ++var)
             {
                vars[var] = consdata->vars[diagvars[j][var]];
@@ -836,7 +837,7 @@ SCIP_RETCODE diagDominant(
 
             conshdlrdata = SCIPconshdlrGetData(SCIPconsGetHdlr(conss[i]));
             snprintfreturn = SCIPsnprintf(cutname, 255, "diag_dom_%d", ++(conshdlrdata->ndiagdomcuts));
-            assert ( snprintfreturn < 256 ); /* the return is the number of spots needed, we gave 255 */
+            assert ( snprintfreturn < 256 );  the return is the number of spots needed, we gave 255
 
 #ifdef SCIP_MORE_DEBUG
          SCIPinfoMessage(scip, NULL, "Added lp-constraint %s: ", cutname);
@@ -846,7 +847,7 @@ SCIP_RETCODE diagDominant(
          SCIPinfoMessage(scip, NULL, "\n");
 #endif
 
-            /* add the linear constraint sum_j 1.0 * diagvars[j] >= 1.0 */
+             add the linear constraint sum_j 1.0 * diagvars[j] >= 1.0
             SCIP_CALL(SCIPcreateConsLinear(scip, &cons, cutname , ndiagvars[j], vars, vals, 1.0, SCIPinfinity(scip), TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE));
             SCIP_CALL(SCIPaddCons(scip, cons));
             SCIP_CALL(SCIPreleaseCons(scip, &cons));
@@ -866,6 +867,7 @@ SCIP_RETCODE diagDominant(
 
    return SCIP_OKAY;
 }
+*/
 
 /** detects if there are blocks with size one and transfers them to lp-rows */
 static
