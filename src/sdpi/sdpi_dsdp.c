@@ -692,7 +692,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       int lastrow;
       int nextcol;
       int nremovedlpcons;
-      SCIP_Real rowactive;
+      SCIP_Bool rowactive;
+      SCIP_Bool morethanbound;
+      int nonzind;
+      SCIP_Real nonzval;
 
       assert ( nlpcons > 0 );
       assert ( lprhs != NULL );
@@ -719,10 +722,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* first sort the arrays by rows to check for empty constraints */
       SCIPsortIntIntReal(lprow, lpcol, lpval, lpnnonz);
 
-      /* iterate over all nonzeros to see if any rows can be deleted, and add the rhs for all rows that weren't removed */
+      /* iterate over all nonzeros to see if any rows can be deleted (as there are no active nonzeroes, in which case it can be completely removed,
+       * or only one, in which case it can be moved to the bounds, if it is sharper than the original ones), and add the rhs for all rows that
+       * weren't removed */
       nshifts = 0;
       lastrow = -1;
       rowactive = TRUE; /* this is just a technical start point to not need another check in the if below, we don't want to do anything for row -1 */
+      morethanbound = TRUE;
 
       for (i = 0; i < lpnnonz; i++)
       {
@@ -752,7 +758,51 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                SCIPdebugMessage("empty LP-row %d has been removed from SDP %d\n", lastrow, sdpisolver->sdpcounter);
             }
 
-            /* we check if there were any rows in between without any nonzeros (if this is just the next row, the for-queue is empty) */
+            /* if there was only a signle nonzero, than we can remove the row and check if this sharpens the bounds */
+            if (rowactive && (! morethanbound) )
+            {
+               assert ( 0 < sdpisolver->inputtodsdpmapper[nonzind] && sdpisolver->inputtodsdpmapper[nonzind] <= sdpisolver->nactivevars );
+               assert ( abs(nonzval) > sdpisolver->epsilon );
+               if (nonzval < 0) /* we have to compare with the upper bound */
+               {
+                  if ((-dsdplpval[lastrow - nshifts] / nonzval) < ub[nonzind]) /* this bound is sharper than the original one, the - is because
+                                                                                * we already changed the sign for DSDP */
+                  {
+                     DSDP_CALL(BConeSetUpperBound(sdpisolver->bcone, sdpisolver->inputtodsdpmapper[nonzind],
+                           dsdplpval[lastrow - nshifts] / nonzval));
+                     SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
+                           "(originally %f)\n", lastrow, sdpisolver->sdpcounter, nonzind, dsdplpval[lastrow - nshifts] / nonzval,
+                           ub[sdpisolver->inputtodsdpmapper[nonzind]]);
+                  }
+                  else
+                  {
+                     SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, new upper bound of variable %d of %f wasn't sharp enough\n",
+                           lastrow, sdpisolver->sdpcounter, nonzind, dsdplpval[lastrow - nshifts] / nonzval);
+                  }
+               }
+               else /* we have to compare with the lower bound */
+               {
+                  if ((-dsdplpval[lastrow - nshifts] / nonzval) > ub[nonzind]) /* this bound is sharper than the original one, the - is because
+                                                                                * we already changed the sign for DSDP */
+                  {
+                     DSDP_CALL(BConeSetLowerBound(sdpisolver->bcone, sdpisolver->inputtodsdpmapper[nonzind],
+                           dsdplpval[lastrow - nshifts] / nonzval));
+                     SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
+                           "(originally %f)\n", lastrow, sdpisolver->sdpcounter, nonzind, dsdplpval[lastrow - nshifts] / nonzval,
+                           lb[sdpisolver->inputtodsdpmapper[nonzind]]);
+                  }
+                  else
+                  {
+                     SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, lower bound of variable %d of %f wasn't sharp enough\n",
+                           lastrow, sdpisolver->sdpcounter, nonzind, dsdplpval[lastrow - nshifts] / nonzval);
+                  }
+               }
+               rowshifts[lastrow] = -1;
+               nshifts++;
+            }
+
+            /* we check if there were any rows in between without any nonzeros (if this is just the next row, the for-queue is empty), as these
+             * didn't have any nonzeros (otherwise the lastrow had changed), we don't need to check for bounds */
             for (j = lastrow + 1; j < lprow[i]; j++)
             {
 #ifndef NDEBUG
@@ -770,6 +820,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
             /* now we initialize the new row */
             lastrow = lprow[i];
+            morethanbound = FALSE;
             if (isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]]))
             {
                /* we don't know yet if it is active, so we set the bool to false and compute the rhs, then continue checking the rest of the nonzeros
@@ -780,10 +831,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             }
             else
             {
+               assert ( abs(lpval[i]) > sdpisolver->epsilon ); /* this is important, as we might later divide through this value if this is the only nonzero */
                /* we have found an active nonzero, so this row can't be deleted */
                rowshifts[lprow[i]] = nshifts;
                dsdplpval[lastrow - nshifts] = -lprhs[lastrow]; /* the rhs is multiplied by -1 as dsdp wants <= instead of >= */
                rowactive = TRUE;
+               /* these two will be used if this stays the single nonzero to compare with the bounds */
+               nonzind = lpcol[i];
+               nonzval = lpval[i];
             }
          }
          else
@@ -796,8 +851,17 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             }
             else
             {
+               assert ( abs(lpval[i]) > sdpisolver->epsilon ); /* this is important, as we might later divide through this value if this is the only nonzero */
                /* we found an active variable, so this will definitly stay active */
-               rowactive = TRUE;
+               if (rowactive)
+                  morethanbound = TRUE; /* as this is the second active nonzero this is a true LP row and not just a bound */
+               else
+               {
+                  rowactive = TRUE;
+                  /* these two will be used if this stays the single nonzero to compare with the bounds */
+                  nonzind = lpcol[i];
+                  nonzval = lpval[i];
+               }
                rowshifts[lprow[i]] = nshifts;
             }
          }
@@ -823,6 +887,35 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          rowshifts[lastrow] = -1;
          nshifts++;
          SCIPdebugMessage("empty LP-row %d has been removed from SDP %d\n", lastrow, sdpisolver->sdpcounter);
+      }
+
+      /* if there was only a signle nonzero, than we can remove the row and check if this sharpens the bounds */
+      if (rowactive && (! morethanbound) )
+      {
+         if (nonzval < 0) /* we have to compare with the upper bound */
+         {
+            if ((dsdplpval[lastrow - nshifts] / nonzval) < ub[nonzind]) /* this bound is sharper than the original one */
+            {
+               DSDP_CALL(BConeSetUpperBound(sdpisolver->bcone, sdpisolver->inputtodsdpmapper[nonzind],
+                     dsdplpval[lastrow - nshifts] / nonzval));
+               SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
+                     "(originally %f)\n", lastrow, sdpisolver->sdpcounter, nonzind, dsdplpval[lastrow - nshifts] / nonzval,
+                     ub[sdpisolver->inputtodsdpmapper[nonzind]]);
+            }
+         }
+         else /* we have to compare with the lower bound */
+         {
+            if ((dsdplpval[lastrow - nshifts] / nonzval) > ub[nonzind]) /* this bound is sharper than the original one */
+            {
+               DSDP_CALL(BConeSetLowerBound(sdpisolver->bcone, sdpisolver->inputtodsdpmapper[nonzind],
+                     dsdplpval[lastrow - nshifts] / nonzval));
+               SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
+                     "(originally %f)\n", lastrow, sdpisolver->sdpcounter, nonzind, dsdplpval[lastrow - nshifts] / nonzval,
+                     lb[sdpisolver->inputtodsdpmapper[nonzind]]);
+            }
+         }
+         rowshifts[lastrow] = -1;
+         nshifts++;
       }
 
       /* we check if there are any rows left */
@@ -877,8 +970,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
             nextcol = j; /* this also equals lpcol[i]+1 */
          }
-         /* add the nonzero, if it isn't fixed, otherwise note the needed shift for the rest */
-         if (isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]]))
+         /* add the nonzero, if it isn't fixed and the row isn't to be deleted (because it is only a variable bound), otherwise note the needed
+          * shift for the rest */
+         if (isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]]) || rowshifts[lprow[i]] == -1)
             nshifts++;
          else
          {
@@ -907,8 +1001,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    SCIPdebugMessage("Calling DSDP-Solve for SDP (%d) \n", sdpisolver->sdpcounter);
 
-   DSDP_CALL(DSDPSetGapTolerance(sdpisolver->dsdp, 1e-3));  /* set DSDP's tolerance for duality gap */
-   DSDP_CALL(DSDPSetRTolerance(sdpisolver->dsdp, 1e-6));    /* set DSDP's tolerance for the SDP-constraints */
+   DSDP_CALL(DSDPSetGapTolerance(sdpisolver->dsdp, 1e-6));  /* set DSDP's tolerance for duality gap */
+   DSDP_CALL(DSDPSetRTolerance(sdpisolver->dsdp, 1e-4));    /* set DSDP's tolerance for the SDP-constraints */
 
 
    /* set the penalty parameter */
