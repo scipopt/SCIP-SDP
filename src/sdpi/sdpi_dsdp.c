@@ -30,8 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#define SCIP_DEBUG
-#define SCIP_MORE_DEBUG
+//#define SCIP_DEBUG
+//#define SCIP_MORE_DEBUG
 
 /**@file   sdpi_dsdp.c
  * @brief  interface for dsdp
@@ -1025,7 +1025,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if (start != NULL)
    {
       for (i = 0; i < nvars; i++)
-         DSDPSetY0(sdpisolver->dsdp, i+1, start[i]); /* i+1 because DSDP starts counting at 0 */
+         {
+         if (sdpisolver->inputtodsdpmapper[i] > 0)
+            DSDPSetY0(sdpisolver->dsdp, sdpisolver->inputtodsdpmapper[i], start[i]);
+         }
    }
 
    /* start the solving process */
@@ -1038,21 +1041,21 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /*these arrays were used to give information to DSDP and were needed during solving and for computing X, so they may only be freed now*/
    if ( sdpconstnnonz > 0 )
    {
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpconstval, sdpconstnnonz);
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpconstind, sdpconstnnonz);
+      BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &dsdpconstval, sdpconstnnonz);
+      BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &dsdpconstind, sdpconstnnonz);
    }
 
    if ( sdpnnonz > 0 )
    {
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpval, sdpnnonz);
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpind, sdpnnonz);
+      BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &dsdpval, sdpnnonz);
+      BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &dsdpind, sdpnnonz);
    }
 
    if(nlpcons > 0 || lpnnonz > 0)
    {
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, dsdplparraylength);
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, dsdplparraylength);
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplpbegcol, sdpisolver->nactivevars + 2);
+      BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &dsdplpval, dsdplparraylength);
+      BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &dsdplprow, dsdplparraylength);
+      BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &dsdplpbegcol, sdpisolver->nactivevars + 2);
    }
 
 #ifdef SCIP_DEBUG

@@ -38,8 +38,8 @@
  */
 
 
-#define SCIP_DEBUG
-#define SCIP_MORE_DEBUG /* shows number of deleted empty cols/rows and complete solution for every relaxation and variable status & bounds as well as all constraints in the beginning*/
+//#define SCIP_DEBUG
+//#define SCIP_MORE_DEBUG /* shows number of deleted empty cols/rows and complete solution for every relaxation and variable status & bounds as well as all constraints in the beginning*/
 
 #include "relax_sdp.h"
 
@@ -50,6 +50,7 @@
 #include "SdpVarmapper.h"               // for SdpVarmapper
 #include "sdpi/sdpi_general.h"          // for SDP-Interface
 #include "scipsdp/cons_sdp.h"           // for cons_check
+#include "scipsdp/cons_savesdpsol.h"   // to save solutions for warmstarts
 
 #define RELAX_NAME             "SDP"
 #define RELAX_DESC             "SDP relaxator"
@@ -500,7 +501,52 @@ SCIP_RETCODE calc_relax(
    }
    else
    {
-      SCIP_CALL(SCIPsdpiSolve(sdpi, NULL));
+      if (!SCIPnodeGetParent(SCIPgetCurrentNode(scip)))
+         SCIP_CALL(SCIPsdpiSolve(sdpi, NULL)); /* we are in the root node, so there is no chance for a warmstart */
+      else
+      {
+         SCIP_NODE* node;
+         SCIP_CONSHDLR* conshdlr;
+         SCIP_Real* start;
+         int length;
+
+         /* find starting solution as optimal solution of parent node */
+
+         /* allocate memory */
+         SCIP_CALL( SCIPallocBufferArray(scip, &start, nvars) );
+
+         /* get corresponding node */
+         node = SCIPnodeGetParent(SCIPgetCurrentNode(scip));
+
+         /* get constraint handler */
+         conshdlr = SCIPfindConshdlr(scip, "Savesdpsol");
+         if ( conshdlr == NULL )
+         {
+            SCIPerrorMessage("Savesdpsol constraint handler not found\n");
+            return SCIP_PLUGINNOTFOUND;
+         }
+
+         /* get constraints */
+         conss = SCIPconshdlrGetConss(conshdlr);
+
+         assert ( conss != NULL );
+         assert ( conss[0] != NULL );
+
+         /* because of stickingtonode we should only have one constraint of this type */
+         //assert( SCIPconshdlrGetNConss(conshdlr) == 1 );
+
+         /* get the solution */
+         length = nvars;
+         SCIP_CALL( getStartingPoint(scip, conss[0], start, &length) );
+
+         /* make sure that the memory was sufficient (this has to be the case as length = nvars */
+         assert ( length <= nvars );
+
+         /* solve with given starting point */
+         SCIP_CALL(SCIPsdpiSolve(sdpi, start));
+
+         SCIPfreeBufferArray(scip, &start);
+      }
    }
 
 #ifdef SCIP_MORE_DEBUG /* print the optimal solution */
@@ -623,6 +669,7 @@ SCIP_RETCODE calc_relax(
          {
             SCIP_Bool stored;
             SCIP_Bool allfeas;
+            SCIP_CONS* cons;
 
             *lowerbound = objforscip;
 
@@ -652,6 +699,11 @@ SCIP_RETCODE calc_relax(
             {
                SCIP_CALL( SCIPsetRelaxSolVal(scip, SCIPcolGetVar(cols[i]), SCIPgetSolVal(scip, scipsol, SCIPcolGetVar(cols[i]))) );
             }
+
+            /* save solution */
+            SCIP_CALL( createConsSavesdpsol(scip, &cons, "saved relaxation sol", nvars, solforscip) );
+            SCIP_CALL( SCIPaddCons(scip, cons) );
+            SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
             SCIP_CALL( SCIPmarkRelaxSolValid(scip) );
             *result = SCIP_SUCCESS;
