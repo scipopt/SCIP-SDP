@@ -343,7 +343,8 @@ SCIP_RETCODE SCIPsdpiSolverFree(
  *  constant SDP-part the arrays AFTER fixings should be given, in addition to that an array needs to be given, that for every block and every row/col
  *  index within that block either has value -1, meaning that this index should be deleted, or a non-negative integer stating the number of indices
  *  before it that are to be deleated, meaning that this index will be decreased by that number, in addition to that the total number of deleted
- *  indices for each block should be given
+ *  indices for each block should be given, optionally an array start may be given with a starting point for the solver (if this is NULL then the
+ *  solver should start from scratch)
  *
  *  attention: the given lp arrays will be sorted in their original position */
 EXTERN
@@ -380,12 +381,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, will get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, will get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            lpval               /**< values of LP-constraint matrix entries, will get sorted (may be NULL if lpnnonz = 0) */
+   SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   SCIP_Real*            start               /**< NULL or a starting point for the solver, this should have length nvars */
    )
 {
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars,
            sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
-           indchanges, nremovedinds, nlpcons, lprhs, lpnnonz, lprow, lpcol, lpval);
+           indchanges, nremovedinds, nlpcons, lprhs, lpnnonz, lprow, lpcol, lpval, start);
 }
 
 /** inserts the SDP, then solves the following penalty formulation of the SDP:
@@ -401,6 +403,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *  should be given, in addition to that an array needs to be given, that for every block and every row/col index within that block either has value
  *  -1, meaning that this index should be deleted, or a non-negative integer stating the number of indices before it that are to be deleated,
  *  meaning that this index will be decreased by that number, in addition to that the total number of deleted indices for each block should be given.
+ *  As start optionally a starting point for the solver may be given, if it is NULL, the solver will start from scratch.
  *
  *  attention: this only works for some solvers, check with SCIPsdpiKnowsPenalty first, otherwise this returns an error (in that case you should form
  *  the penalty formulation yourself and pass it via LoadAndSolve
@@ -442,7 +445,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, will be sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, will be sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            lpval               /**< values of LP-constraint matrix entries, will be sorted (may be NULL if lpnnonz = 0) */
+   SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   SCIP_Real*            start               /**< NULL or a starting point for the solver, this should have length nvars */
 )
 {
    int* dsdpconstind;         /* indices for constant SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
@@ -786,7 +790,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                                                                                 * we already changed the sign for DSDP <= instead of >= */
                   {
                      DSDP_CALL(BConeSetLowerBound(sdpisolver->bcone, sdpisolver->inputtodsdpmapper[nonzind],
-                           -dsdplpval[lastrow - nshifts] / nonzval)); /* the - is because we already changed the sign for DSDPs <= instead of >=*/
+                           -dsdplpval[lastrow - nshifts] / nonzval)); /* the - is because we already changed the sign for DSDPs <= instead of >= */
                      SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
                            "(originally %f)\n", lastrow, sdpisolver->sdpcounter, nonzind, -dsdplpval[lastrow - nshifts] / nonzval,
                            lb[sdpisolver->inputtodsdpmapper[nonzind]]);
@@ -1017,6 +1021,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       DSDPUsePenalty(sdpisolver->dsdp, 1);
    }
 
+   /* set the starting solution */
+   if (start != NULL)
+   {
+      for (i = 0; i < nvars; i++)
+         DSDPSetY0(sdpisolver->dsdp, i+1, start[i]); /* i+1 because DSDP starts counting at 0 */
+   }
+
+   /* start the solving process */
    DSDP_CALLM(DSDPSetup(sdpisolver->dsdp));
    DSDP_CALL(DSDPSolve(sdpisolver->dsdp));
 

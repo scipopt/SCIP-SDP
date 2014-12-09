@@ -425,7 +425,7 @@ SCIP_RETCODE relaxIsFeasible(
    assert ( scip != NULL );
 
    /* solve with penalty without objective */
-   SCIP_CALL( SCIPsdpiSolvePenalty(sdpi, 1.0, FALSE) );
+   SCIP_CALL( SCIPsdpiSolvePenalty(sdpi, 1.0, FALSE, NULL) );
 
    SCIP_CALL( SCIPsdpiGetObjval(sdpi, &obj) );
 
@@ -496,11 +496,11 @@ SCIP_RETCODE calc_relax(
    vars = SCIPgetVars (scip);
    if ( withpenalty )
    {
-      SCIP_CALL(SCIPsdpiSolvePenalty(sdpi, penaltyparam, TRUE));
+      SCIP_CALL(SCIPsdpiSolvePenalty(sdpi, penaltyparam, TRUE, NULL));
    }
    else
    {
-      SCIP_CALL(SCIPsdpiSolve(sdpi));
+      SCIP_CALL(SCIPsdpiSolve(sdpi, NULL));
    }
 
 #ifdef SCIP_MORE_DEBUG /* print the optimal solution */

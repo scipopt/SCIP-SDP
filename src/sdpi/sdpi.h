@@ -145,7 +145,8 @@ SCIP_RETCODE SCIPsdpiSolverFree(
  *  constant SDP-part the arrays AFTER fixings should be given, in addition to that an array needs to be given, that for every block and every row/col
  *  index within that block either has value -1, meaning that this index should be deleted, or a non-negative integer stating the number of indices
  *  before it that are to be deleated, meaning that this index will be decreased by that number, in addition to that the total number of deleted
- *  indices for each block should be given
+ *  indices for each block should be given, optionally an array start may be given with a starting point for the solver (if this is NULL then the
+ *  solver should start from scratch)
  *
  *  attention: depending on the solver, the given lp arrays might get sorted in their original position */
 EXTERN
@@ -182,7 +183,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            lpval               /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   SCIP_Real*            start               /**< NULL or a starting point for the solver, this should have length nvars */
    );
 
 /** inserts the SDP, then solves the following penalty formulation of the SDP:
@@ -198,6 +200,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *  should be given, in addition to that an array needs to be given, that for every block and every row/col index within that block either has value
  *  -1, meaning that this index should be deleted, or a non-negative integer stating the number of indices before it that are to be deleated,
  *  meaning that this index will be decreased by that number, in addition to that the total number of deleted indices for each block should be given.
+ *  As start optionally a starting point for the solver may be given, if it is NULL, the solver will start from scratch.
  *
  *  attention: this only works for some solvers, check with SCIPsdpiKnowsPenalty first, otherwise this returns an error (in that case you should form
  *  the penalty formulation yourself and pass it via LoadAndSolve
@@ -239,7 +242,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            lpval               /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   SCIP_Real*            start               /**< NULL or a starting point for the solver, this should have length nvars */
 );
 
 

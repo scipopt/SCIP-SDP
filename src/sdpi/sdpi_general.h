@@ -528,10 +528,11 @@ SCIP_RETCODE SCIPsdpiGetSDPCoef(
 /**@name Solving Methods */
 /**@{ */
 
-/** solves the SDP */
+/** solves the SDP, as start optionally a starting point for the solver may be given, if it is NULL, the solver will start from scratch */
 EXTERN
 SCIP_RETCODE SCIPsdpiSolve(
-   SCIP_SDPI*            sdpi                /**< SDP interface structure */
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   SCIP_Real*            start               /**< NULL or a starting point for the solver, this should have length nvars */
    );
 
 /** solves the following penalty formulation of the SDP:
@@ -542,12 +543,14 @@ SCIP_RETCODE SCIPsdpiSolve(
  *      & & l \leq y \leq u}
  *   \f
  *   alternatively withObj can be to false to set \f b \f to zero and only check for feasibility (if the optimal
- *   objective value is bigger than 0 the problem is infeasible, otherwise it's feasible) */
+ *   objective value is bigger than 0 the problem is infeasible, otherwise it's feasible), as start optionally a
+ *   starting point for the solver may be given, if it is NULL, the solver will start from scratch */
 EXTERN
 SCIP_RETCODE SCIPsdpiSolvePenalty(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_Real             gamma,              /**< the penalty parameter above, needs to be >= 0 */
-   SCIP_Bool             withObj             /**< if this is false, the objective is set to 0 */
+   SCIP_Bool             withObj,            /**< if this is false, the objective is set to 0 */
+   SCIP_Real*            start               /**< NULL or a starting point for the solver, this should have length nvars */
    );
 
 
