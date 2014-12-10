@@ -41,6 +41,7 @@
 #include "objscip/objscipdefplugins.h"
 
 #include "scipsdp/cons_sdp.h"
+#include "scipsdp/cons_savesdpsol.h"
 //#include "objconshdlr_sdp.h"
 #include "relax_sdp.h"
 #include "objreader_sdpa.h"
@@ -66,6 +67,7 @@ SCIP_RETCODE runSCIP(
 
    // SCIP_CALL( SCIPincludeObjConshdlr(scip, new ObjConshdlrSdp(scip), TRUE) );
    SCIP_CALL( SCIPincludeConshdlrSdp(scip) );
+   SCIP_CALL( SCIPincludeConshdlrSavesdpsol(scip) );
 
    SCIP_CALL( SCIPincludeRelaxSDP(scip) );
 
