@@ -505,7 +505,6 @@ SCIP_RETCODE calc_relax(
          SCIP_CALL(SCIPsdpiSolve(sdpi, NULL)); /* we are in the root node, so there is no chance for a warmstart */
       else
       {
-         SCIP_NODE* node;
          SCIP_CONSHDLR* conshdlr;
          SCIP_Real* start;
          int length;
@@ -514,9 +513,6 @@ SCIP_RETCODE calc_relax(
 
          /* allocate memory */
          SCIP_CALL( SCIPallocBufferArray(scip, &start, nvars) );
-
-         /* get corresponding node */
-         node = SCIPnodeGetParent(SCIPgetCurrentNode(scip));
 
          /* get constraint handler */
          conshdlr = SCIPfindConshdlr(scip, "Savesdpsol");
@@ -541,6 +537,15 @@ SCIP_RETCODE calc_relax(
 
          /* make sure that the memory was sufficient (this has to be the case as length = nvars */
          assert ( length <= nvars );
+
+         /* check if start is still feasible for the variable bounds, otherwise round it */
+         for (i = 0; i < nvars; i++)
+         {
+            if (start[i] < SCIPvarGetLbLocal(SdpVarmapperGetSCIPvar(varmapper, i)))
+               start[i] = SCIPvarGetLbLocal(SdpVarmapperGetSCIPvar(varmapper, i));
+            else if (start[i] > SCIPvarGetUbLocal(SdpVarmapperGetSCIPvar(varmapper, i)))
+               start[i] = SCIPvarGetUbLocal(SdpVarmapperGetSCIPvar(varmapper, i));
+         }
 
          /* solve with given starting point */
          SCIP_CALL(SCIPsdpiSolve(sdpi, start));
