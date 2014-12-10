@@ -1021,6 +1021,8 @@ SCIP_RETCODE fixVars(
          {
             assert ( SCIPisEQ(scip, SCIPvarGetLbGlobal(var), SCIPvarGetUbGlobal(var)) );
 
+            SCIPdebugMessage("Globally fixing Variable %s to value %f !\n", SCIPvarGetName(var), SCIPvarGetLbGlobal(var));
+
             /* the nonzeros are saved to later be inserted into the constant part (this is only done after all nonzeros of fixed variables have been
              * assembled, because we need to sort the constant nonzeros and loop over them, which we only want to do once and not once for each fixed
              * variable) */
@@ -1132,11 +1134,21 @@ SCIP_RETCODE multiaggrVars(
             /* this is how they should be initialized before calling SCIPgetProbvarLinearSum */
             aggrvars[0] = consdata->vars[var];
             naggrvars = 1;
+            constant = 0;
 
             /* get the variables this var was aggregated to */
             SCIP_CALL(SCIPgetProbvarLinearSum(scip, aggrvars, scalars, &naggrvars, globalnvars, &constant, &requiredsize, TRUE));
             assert( requiredsize <= globalnvars ); /* requiredsize is the number of empty spots in aggrvars needed, globalnvars is the number
                                                     * of spots we provided */
+
+            /* Debugmessages for the (multi-)aggregation */
+            if (SCIPvarGetStatus(consdata->vars[var]) == SCIP_VARSTATUS_AGGREGATED)
+               SCIPdebugMessage("aggregating variable %s to ...", SCIPvarGetName(consdata->vars[var]));
+            else
+               SCIPdebugMessage("multiaggregating variable %s to ...", SCIPvarGetName(consdata->vars[var]));
+            for (i = 0; i < naggrvars; i++)
+               SCIPdebugMessage("+ (%f2) * %s ", scalars[i], SCIPvarGetName(aggrvars[i]));
+            SCIPdebugMessage("+ (%f2) \n", constant);
 
             /* save the nonzeroes of the (multi)aggregated var */
             SCIP_CALL(SCIPallocBufferArray(scip, &savedcol, consdata->nvarnonz[var]));
@@ -1232,13 +1244,24 @@ SCIP_RETCODE multiaggrVars(
                      SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(consdata->val[consdata->nvars]), savedval, naggrnonz) );
                   else  /* we have to multiply all entries by scalar before inserting them */
                   {
+                     SCIP_Real epsilon;
+
+                     SCIP_CALL( SCIPgetRealParam(scip, "numerics/epsilon", &epsilon) );
+
                      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(consdata->val[consdata->nvars]), naggrnonz) );
 
                      for (i = 0; i < naggrnonz; i++)
-                        consdata->val[consdata->nvars][i] = scalars[aggrind] * savedval[i];
+                        {
+
+                        if (scalars[aggrind] * savedval[i] >= epsilon) /* if both scalar and savedval are small this might become too small */
+                           consdata->val[consdata->nvars][i] = scalars[aggrind] * savedval[i];
+                        else
+                           consdata->nvarnonz[consdata->nvars]--;
+                        }
                   }
 
-                  consdata->nvars++;
+                  if (consdata->nvarnonz[consdata->nvars] > 0) /* if scalar and all savedvals were to small */
+                     consdata->nvars++;
                }
             }
 
@@ -1246,6 +1269,7 @@ SCIP_RETCODE multiaggrVars(
 
             /* reallocate the constant arrays to the maximally needed size */
             aggrtargetlength = consdata->constnnonz + naggrnonz;
+
             SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constrow), consdata->constnnonz, aggrtargetlength) );
             SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constcol), consdata->constnnonz, aggrtargetlength) );
             SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constval), consdata->constnnonz, aggrtargetlength) );

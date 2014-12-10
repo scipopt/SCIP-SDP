@@ -211,12 +211,12 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
             /* add the nonzero to the computed position */
             targetrow[insertionpos] = originrow[i];
             targetcol[insertionpos] = origincol[i];
-            targetval[insertionpos] = originval[i];
+            targetval[insertionpos] = scalar * originval[i];
 
             /* there could be multiple entries to add with identical row and col, so look for further ones in the next entries until there are no more */
             while (i + 1 < originlength && originrow[i + 1] == targetrow[insertionpos] && origincol[i + 1] == targetcol[insertionpos])
             {
-               targetval[insertionpos] += originval[i + 1];
+               targetval[insertionpos] += scalar * originval[i + 1];
                i++;
             }
 
