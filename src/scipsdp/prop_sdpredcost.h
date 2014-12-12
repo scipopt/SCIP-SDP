@@ -30,43 +30,23 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   relax_sdp.h
- * @ingroup RELAXATORS
- * @brief  SDP relaxator
- * @author Sonja Mars
+/**@file   prop_sdpredcost.h
+ * @brief  reduced cost fixing for SDPs
  * @author Tristan Gally
  */
 
-/*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
+#ifndef __SCIP_PROP_SDPREDCOST_H_
+#define __SCIP_PROP_SDPREDCOST_H_
 
-#ifndef __SCIP_RELAXSDP_H__
-#define __SCIP_RELAXSDP_H__
-
-#include "scip/scip.h"
-#include "sdpi/sdpi_general.h"          // for SDP-Interface
+#include <scip/scip.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/** creates the SDP relaxator and includes it in SCIP */
-EXTERN
-SCIP_RETCODE SCIPincludeRelaxSDP(
+/** creates the Sdpredcost propagator and includes it in SCIP */
+SCIP_RETCODE SCIPincludePropSdpredcost(
    SCIP*                 scip                /**< SCIP data structure */
-   );
-
-/** returns pointer to SDP Interface structure */
-EXTERN
-SCIP_SDPI* SCIPrelaxSdpGetSdpi(
-   SCIP_RELAX*           relax               /**< SDP relaxator to get sdpi for */
-   );
-
-/** returns optimal objective value of the current SDP relaxation, if the last SDP relaxation was successfully solved*/
-EXTERN
-SCIP_RETCODE SCIPrelaxSdpRelaxVal(
-   SCIP_RELAX*           relax,              /**< SDP relaxator to get objective value for */
-   SCIP_Bool*            success,            /**< was the last SDP relaxation solved successfully? */
-   SCIP_Real*            objval              /**< returns the optimal objective value of the SDP relaxation */
    );
 
 #ifdef __cplusplus

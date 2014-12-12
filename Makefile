@@ -73,6 +73,7 @@ SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
 MAINNAME=	scipsdp
 MAINCOBJ=	scipsdp/SdpVarmapper.o \
 		scipsdp/SdpVarfixer.o \
+		scipsdp/prop_sdpredcost.o \
 		sdpi/sdpi_general.o
 
 MAINCCOBJ=	scipsdp/main.o \

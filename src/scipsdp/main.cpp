@@ -40,10 +40,11 @@
 #include "objscip/objscip.h"
 #include "objscip/objscipdefplugins.h"
 
-#include "scipsdp/cons_sdp.h"
+#include "cons_sdp.h"
 //#include "objconshdlr_sdp.h"
 #include "relax_sdp.h"
 #include "objreader_sdpa.h"
+#include "prop_sdpredcost.h"
 
 using namespace scip;
 
@@ -68,6 +69,8 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPincludeConshdlrSdp(scip) );
 
    SCIP_CALL( SCIPincludeRelaxSDP(scip) );
+
+   SCIP_CALL( SCIPincludePropSdpredcost(scip) );
 
    const char* name = "sdpsolver";
    const char * 	desc = "which sdpsolver should be called";

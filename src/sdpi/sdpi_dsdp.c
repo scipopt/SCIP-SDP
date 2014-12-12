@@ -30,8 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#define SCIP_DEBUG
-#define SCIP_MORE_DEBUG
+//#define SCIP_DEBUG
+//#define SCIP_MORE_DEBUG
 
 /**@file   sdpi_dsdp.c
  * @brief  interface for dsdp
@@ -90,7 +90,7 @@
                         {                                                                                     \
                            if (!(sdpisolver->solved))                                                         \
                            {                                                                                  \
-                              SCIPerrorMessage("Tried to access solution information ahead of solving! \n");  \
+                              SCIPerrorMessage("Tried to access solution information for SDP %d ahead of solving! \n", sdpisolver->sdpcounter);  \
                               SCIPABORT();                                                                    \
                               return SCIP_ERROR;                                                              \
                            }                                                                                  \
@@ -1010,8 +1010,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    SCIPdebugMessage("Calling DSDP-Solve for SDP (%d) \n", sdpisolver->sdpcounter);
 
-   DSDP_CALL(DSDPSetGapTolerance(sdpisolver->dsdp, 1e-6));  /* set DSDP's tolerance for duality gap */
-   DSDP_CALL(DSDPSetRTolerance(sdpisolver->dsdp, 1e-4));    /* set DSDP's tolerance for the SDP-constraints */
+   //DSDP_CALL(DSDPSetGapTolerance(sdpisolver->dsdp, 1e-6));  /* set DSDP's tolerance for duality gap */
+   //DSDP_CALL(DSDPSetRTolerance(sdpisolver->dsdp, 1e-4));    /* set DSDP's tolerance for the SDP-constraints */
+   DSDP_CALL(DSDPSetGapTolerance(sdpisolver->dsdp, 1e-3));  /* set DSDP's tolerance for duality gap */
 
 
    /* set the penalty parameter */
@@ -1867,6 +1868,72 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
    return SCIP_OKAY;
 }
 
+/** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem, the last input should specify the length
+ *  of the arrays, if this is less than the number of variables, the needed length will be returned and a debug message thrown
+ *  note: if a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent primal variable */
+SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_Real*            lbvars,             /**< returns the variables corresponding to lower bounds in the dual problems */
+   SCIP_Real*            ubvars,             /**< returns the variables corresponding to upper bounds in the dual problems */
+   int*                  arraylength         /**< input: length of lbvars and ubvars
+                                                  output: number of elements inserted into lbvars/ubvars (or needed length if it wasn't sufficient) */
+   )
+{
+   double* lbvarsdsdp;
+   double* ubvarsdsdp;
+   int i;
+
+   assert ( sdpisolver != NULL );
+   assert ( lbvars != NULL );
+   assert ( ubvars != NULL );
+   assert ( arraylength != NULL );
+   assert ( *arraylength >= 0 );
+   CHECK_IF_SOLVED(sdpisolver);
+
+   /* check if the arrays are long enough */
+   if (arraylength < sdpisolver->nvars)
+   {
+      *arraylength = sdpisolver->nvars;
+      SCIPdebugMessage("Array of insufficient length given to SCIPsdpiSolverGetPrimalBoundVars, gave %d, needed %d\n", *arraylength,
+                                                                                                                       sdpisolver->nvars);
+      return SCIP_OKAY;
+   }
+
+   /* allocate memory for the arrays given to DSDP */
+   BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &lbvarsdsdp, sdpisolver->nactivevars) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &ubvarsdsdp, sdpisolver->nactivevars) );
+   //lbvarsdsdp = (double[]) malloc(sdpisolver->nactivevars * sizeof(double));
+   //ubvarsdsdp = (double[]) malloc(sdpisolver->nactivevars * sizeof(double));
+
+   /* get the values for the active variables from DSDP */
+   DSDP_CALL( BConeCopyX(sdpisolver->bcone, lbvarsdsdp, ubvarsdsdp, sdpisolver->nactivevars) );
+
+   /* copy them to the right spots of lbvars & ubvars */
+   for (i = 0; i < sdpisolver->nvars; i++)
+   {
+      if (sdpisolver->inputtodsdpmapper[i] < 0)
+      {
+         /* if the variable was fixed, it didn't exist in the relaxation, so we set the value to 0
+          * (as DSDP already uses this value for unbounded vars) */
+         lbvars[i] = 0;
+         ubvars[i] = 0;
+      }
+      else
+      {
+         lbvars[i] = lbvarsdsdp[sdpisolver->inputtodsdpmapper[i] - 1];
+         ubvars[i] = ubvarsdsdp[sdpisolver->inputtodsdpmapper[i] - 1];
+      }
+   }
+
+   /* free allocated memory */
+   //free(ubvarsdsdp);
+   //free(lbvarsdsdp);
+   BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &ubvarsdsdp, sdpisolver->nactivevars);
+   BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &lbvarsdsdp, sdpisolver->nactivevars);
+
+   return SCIP_OKAY;
+}
+
 /** gets the number of SDP iterations of the last solve call */
 SCIP_RETCODE SCIPsdpiSolverGetIterations(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
@@ -1874,6 +1941,7 @@ SCIP_RETCODE SCIPsdpiSolverGetIterations(
    )
 {
    assert ( sdpisolver != NULL );
+   assert ( iterations != NULL );
    CHECK_IF_SOLVED(sdpisolver);
 
 #ifndef NDEBUG

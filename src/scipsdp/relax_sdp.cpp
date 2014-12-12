@@ -38,8 +38,8 @@
  */
 
 
-#define SCIP_DEBUG
-#define SCIP_MORE_DEBUG /* shows number of deleted empty cols/rows and complete solution for every relaxation and variable status & bounds as well as all constraints in the beginning*/
+//#define SCIP_DEBUG
+//#define SCIP_MORE_DEBUG /* shows number of deleted empty cols/rows and complete solution for every relaxation and variable status & bounds as well as all constraints in the beginning*/
 
 #include "relax_sdp.h"
 
@@ -65,6 +65,8 @@ struct SCIP_RelaxData
 {
    SCIP_SDPI*            sdpi;               /* general SDP Interface that is given the data to presolve the SDP and give it so a solver specific interface */
    SdpVarmapper*         varmapper;          /* maps SCIP variables to their global SDP indices and vice versa */
+   SCIP_Real             ojbval;             /* objective value of the last SDP relaxation */
+   SCIP_Bool             origsolved;         /* solved original problem to optimality (not only a penalty formulation */
 };
 
 /** inserts all the SDP data into the corresponding SDP Interface */
@@ -467,12 +469,11 @@ SCIP_RETCODE relaxIsFeasible(
 static
 SCIP_RETCODE calc_relax(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_SDPI*            sdpi,               /**< SDP-Interface structure */
-   SdpVarmapper*         varmapper,          /**< varmapper class data */
+   SCIP_RELAXDATA*       relaxdata,          /**< data of the relaxator */
    SCIP_Bool             withpenalty,        /**< should a penalty formulation be used */
    SCIP_Real             penaltyparam,       /**< parameter for penalty formulation, if 0 the normal SDP is solved */
    SCIP_RESULT*          result,             /**< pointer to store result of relaxation process */
-   SCIP_Real*            lowerbound         /**< pointer to store lowerbound */
+   SCIP_Real*            lowerbound          /**< pointer to store lowerbound */
    )
 {
    SCIP_VAR** vars;
@@ -481,19 +482,25 @@ SCIP_RETCODE calc_relax(
    int v;
    SCIP_CONS** conss;
    int nconss;
+   SCIP_SDPI* sdpi;
+   SdpVarmapper* varmapper;
 
    SCIPdebugMessage("calc_relax called\n");
 
-   assert ( sdpi != NULL );
    assert ( scip != NULL );
    assert ( result != NULL );
    assert ( lowerbound != NULL );
-   assert ( varmapper != NULL );
    assert ( penaltyparam >= 0.0 );
 
    nvars = SCIPgetNVars(scip);
    assert( nvars > 0 );
    vars = SCIPgetVars (scip);
+
+   sdpi = relaxdata->sdpi;
+   assert ( sdpi != NULL );
+   varmapper = relaxdata->varmapper;
+   assert ( varmapper != NULL );
+
    if ( withpenalty )
    {
       SCIP_CALL(SCIPsdpiSolvePenalty(sdpi, penaltyparam, TRUE, NULL));
@@ -501,6 +508,13 @@ SCIP_RETCODE calc_relax(
    else
    {
       SCIP_CALL(SCIPsdpiSolve(sdpi, NULL));
+      if (SCIPsdpiIsAcceptable(sdpi))
+      {
+         SCIP_CALL( SCIPsdpiGetObjval(relaxdata->sdpi, &(relaxdata->ojbval)) );
+         relaxdata->origsolved = TRUE;
+      }
+      else
+         relaxdata->origsolved = FALSE;
    }
 
 #ifdef SCIP_MORE_DEBUG /* print the optimal solution */
@@ -528,7 +542,7 @@ SCIP_RETCODE calc_relax(
    }
    for (i = 0; i < nvars; ++i)
    {
-      SCIPdebugMessage("y_%d = %f, ", i, solforscip[i]);
+      SCIPinfoMessage(scip, NULL, "%s = %f, ", SCIPvarGetName(vars[i]), i, solforscip[i]);
    }
    SCIPdebugMessage("\n");
 
@@ -557,7 +571,7 @@ SCIP_RETCODE calc_relax(
             SCIPdebugMessage("calc_relax is called again with penaltyparameter %f because of unboundedness!\n", 10 * penaltyparam);
 
             /* recursive call - return result from there */
-            SCIP_CALL( calc_relax(scip, sdpi, varmapper, TRUE, 10 * penaltyparam, result, lowerbound) );
+            SCIP_CALL( calc_relax(scip, relaxdata, TRUE, 10 * penaltyparam, result, lowerbound) );
 
             return SCIP_OKAY;
          }
@@ -688,7 +702,7 @@ SCIP_RETCODE calc_relax(
                SCIPdebugMessage("calc_relax is called again with penaltyparameter %f because the solution of the penalty problem was infeasible in the original problem!\n", 10.0 * penaltyparam);
 
                /* recursive call */
-               SCIP_CALL(calc_relax(scip, sdpi, varmapper, TRUE, 10.0 * penaltyparam, result, lowerbound));
+               SCIP_CALL(calc_relax(scip, relaxdata, TRUE, 10.0 * penaltyparam, result, lowerbound));
             }
             else
             {   /* A penalty-only-formulation showed that the problem is feasible, but we weren't able to produce a feasible solution. */
@@ -717,7 +731,7 @@ SCIP_RETCODE calc_relax(
    {
       /* the penalty parameter was too small to make the SDP solver more stable */
       SCIPdebugMessage("calc_relax is called again with penaltyparameter %f because of non-convergence!\n", 10.0 * penaltyparam);
-      SCIP_CALL(calc_relax(scip, sdpi, varmapper, TRUE, 10.0 * penaltyparam, result, lowerbound));
+      SCIP_CALL(calc_relax(scip, relaxdata, TRUE, 10.0 * penaltyparam, result, lowerbound));
 
       return SCIP_OKAY;
    }
@@ -752,7 +766,7 @@ SCIP_RETCODE calc_relax(
       if ( feasible )
       {
          /* try again with penalty formulation */
-         SCIP_CALL(calc_relax(scip, sdpi, varmapper, TRUE, 1.0, result, lowerbound)); /* TODO: think about penalty parameter */
+         SCIP_CALL(calc_relax(scip, relaxdata, TRUE, 1.0, result, lowerbound)); /* TODO: think about penalty parameter */
       }
       else
       {
@@ -840,7 +854,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
    const int nvarsfordebug = SCIPgetNVars(scip);
    for (i = 0; i < nvarsfordebug; i++)
    {
-      SCIPdebugMessage("variable %d: status = %u, integral = %u, bounds = [%f, %f] \n", i, SCIPvarGetStatus(varsfordebug[i]), SCIPvarIsIntegral(varsfordebug[i]), SCIPvarGetLbLocal(varsfordebug[i]), SCIPvarGetUbLocal(varsfordebug[i]));
+      SCIPdebugMessage("variable %s: status = %u, integral = %u, bounds = [%f, %f] \n", SCIPvarGetName(varsfordebug[i]), SCIPvarGetStatus(varsfordebug[i]), SCIPvarIsIntegral(varsfordebug[i]), SCIPvarGetLbLocal(varsfordebug[i]), SCIPvarGetUbLocal(varsfordebug[i]));
    }
 #endif
 
@@ -899,7 +913,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
    /* update LP Data in Interface */
    SCIP_CALL( putLpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper) );
 
-   SCIP_CALL( calc_relax(scip, relaxdata->sdpi, relaxdata->varmapper, FALSE, 0.0, result, lowerbound));
+   SCIP_CALL( calc_relax(scip, relaxdata, FALSE, 0.0, result, lowerbound));
 
    return SCIP_OKAY;
 }
@@ -921,6 +935,9 @@ SCIP_DECL_RELAXINIT(relaxInitSolSDP)
    assert ( relax != NULL );
 
    relaxdata = SCIPrelaxGetData(relax);
+   relaxdata->ojbval = 0.0;
+   relaxdata->origsolved = FALSE;
+
    nvars = SCIPgetNVars(scip);
    vars = SCIPgetVars(scip);
 
@@ -996,6 +1013,42 @@ SCIP_RETCODE SCIPincludeRelaxSDP(
    /* include additional callbacks */
    SCIP_CALL( SCIPsetRelaxInitsol(scip, relax, relaxInitSolSDP) );
    SCIP_CALL( SCIPsetRelaxExit(scip, relax, relaxExitSDP) );
+
+   return SCIP_OKAY;
+}
+
+/* extern functions */
+
+/** returns pointer to SDP Interface structure */
+SCIP_SDPI* SCIPrelaxSdpGetSdpi(
+   SCIP_RELAX*           relax               /**< SDP relaxator to get sdpi for */
+   )
+{
+   SCIP_RELAXDATA* relaxdata;
+
+   assert ( relax != NULL );
+   relaxdata = SCIPrelaxGetData(relax);
+
+   return relaxdata->sdpi;
+}
+
+/** returns optimal objective value of the current SDP relaxation, if the last SDP relaxation was successfully solved*/
+SCIP_RETCODE SCIPrelaxSdpRelaxVal(
+   SCIP_RELAX*           relax,              /**< SDP relaxator to get objective value for */
+   SCIP_Bool*            success,            /**< was the last SDP relaxation solved successfully? */
+   SCIP_Real*            objval              /**< returns the optimal objective value of the SDP relaxation */
+   )
+{
+   SCIP_RELAXDATA* relaxdata;
+
+   assert ( relax != NULL );
+   assert ( success != NULL );
+   assert ( objval != NULL );
+
+   relaxdata = SCIPrelaxGetData(relax);
+
+   *success = relaxdata->origsolved;
+   *objval = relaxdata->ojbval;
 
    return SCIP_OKAY;
 }
