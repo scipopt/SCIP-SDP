@@ -35,7 +35,7 @@
  * @author Tristan Gally
  */
 
-#define SCIP_DEBUG
+//#define SCIP_DEBUG
 //#define SCIP_MORE_DEBUG
 
 #include "prop_sdpredcost.h"
@@ -140,8 +140,18 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    assert ( prop != NULL );
    assert ( result != NULL );
 
-   assert ( SCIPgetNRelaxs(scip) == 1 ); /* this should only include the SDP relaxation handler */
+   if (SCIPgetStage(scip) == SCIP_STAGE_PRESOLVING)
+   {
+      /* we can't run before the relaxator is properly initialized */
+      *result = SCIP_DIDNOTRUN;
+      return SCIP_OKAY;
+   }
+
+   //assert ( SCIPgetNRelaxs(scip) == 1 ); /* this should only include the SDP relaxation handler */
    relaxs = SCIPgetRelaxs(scip); /* get SDP relaxation handler */
+   if (SCIPgetNRelaxs(scip) > 1) // TODO: remove
+   {for (v=0; v < SCIPgetNRelaxs(scip); v++)
+      printf("relaxs[%d] = %s \n", v, SCIPrelaxGetName(relaxs[v]));}
    assert( SCIPrelaxSdpGetSdpi(relaxs[0]) != NULL );
 
    SCIP_CALL( SCIPrelaxSdpRelaxVal(relaxs[0], &sdpsolved, &relaxval) );
@@ -179,7 +189,7 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    }
 
    return SCIP_OKAY;
-};
+}
 
 /* free the propagator data */
 static

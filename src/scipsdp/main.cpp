@@ -82,6 +82,8 @@ SCIP_RETCODE runSCIP(
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
 
+   /* disenable subscips */
+   SCIP_CALL( SCIPsetSubscipsOff(scip, TRUE) );
 
    /**********************************
     * Process command line arguments *
@@ -180,6 +182,7 @@ SCIP_RETCODE runSCIP(
    else
    {
       SCIP_CALL( SCIPprintBestSol(scip, solfile, FALSE) );
+      SCIP_CALL( SCIPprintStatistics(scip, solfile));
       fclose(solfile);
    }
 
