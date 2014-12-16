@@ -806,6 +806,32 @@ SCIP_Bool SCIPsdpiIsGEMaxPenParam(
    SCIP_Real            val                 /**< value to be compared to maximum penalty parameter */
    );
 
+/** sets the value that should be used to check if the duality gap is sufficiently small and whether a variable should be fixed */
+EXTERN
+SCIP_RETCODE SCIPsdpiSetEpsilon(
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   SCIP_Real             epsilon             /**< the value to compare duality gap with and whether a variable should be fixed */
+   );
+
+/** gets the value that is used to check if the duality gap is sufficiently small and whether a variable should be fixed */
+EXTERN
+SCIP_Real SCIPsdpiGetEpsilon(
+   SCIP_SDPI*            sdpi                /**< SDP interface structure */
+   );
+
+/** sets the value that should be used to check positive semidefiniteness */
+EXTERN
+SCIP_RETCODE SCIPsdpiSetFeastol(
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   SCIP_Real             feastol             /**< the smallest eigenvalue of a positive semidefinite matrix must be at least -feastol */
+   );
+
+/** gets the value that is used to check positive semidefiniteness */
+EXTERN
+SCIP_Real SCIPsdpiGetFeastol(
+   SCIP_SDPI*            sdpi                /**< SDP interface structure */
+   );
+
 /**@} */
 
 

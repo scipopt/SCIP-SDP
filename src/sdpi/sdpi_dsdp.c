@@ -120,6 +120,7 @@ struct SCIP_SDPiSolver
    SCIP_Bool             solved;             /**< was the SDP solved since the problem was last changed */
    int                   sdpcounter;         /**< used for debug messages */
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
+   SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
 };
 
 /*
@@ -292,7 +293,8 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->infeasible = FALSE;
 #endif
 
-   (*sdpisolver)->epsilon = 1e-6;
+   (*sdpisolver)->epsilon = 1e-3;
+   (*sdpisolver)->feastol = 1e-6;
 
    return SCIP_OKAY;
 }
@@ -1010,9 +1012,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    SCIPdebugMessage("Calling DSDP-Solve for SDP (%d) \n", sdpisolver->sdpcounter);
 
-   //DSDP_CALL(DSDPSetGapTolerance(sdpisolver->dsdp, 1e-6));  /* set DSDP's tolerance for duality gap */
-   //DSDP_CALL(DSDPSetRTolerance(sdpisolver->dsdp, 1e-4));    /* set DSDP's tolerance for the SDP-constraints */
-   DSDP_CALL(DSDPSetGapTolerance(sdpisolver->dsdp, 1e-3));  /* set DSDP's tolerance for duality gap */
+   DSDP_CALL(DSDPSetGapTolerance(sdpisolver->dsdp, sdpisolver->epsilon));  /* set DSDP's tolerance for duality gap */
+   DSDP_CALL(DSDPSetRTolerance(sdpisolver->dsdp, sdpisolver->feastol));    /* set DSDP's tolerance for the SDP-constraints */
 
 
    /* set the penalty parameter */
@@ -2000,6 +2001,54 @@ SCIP_Bool SCIPsdpiSolverIsGEMaxPenParam(
    )
 {
    return ((val <= -SCIPsdpiSolverMaxPenParam(sdpisolver)) || (val >= SCIPsdpiSolverMaxPenParam(sdpisolver)));
+}
+
+/** sets the value that should be used to check if the duality gap is sufficiently small and whether a variable should be fixed */
+SCIP_RETCODE SCIPsdpiSolverSetEpsilon(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
+   SCIP_Real             epsilon             /**< the value to compare duality gap with and whether a variable should be fixed */
+   )
+{
+   assert ( sdpisolver != NULL );
+   assert ( epsilon > 0.0 );
+
+   sdpisolver->epsilon = epsilon;
+
+   return SCIP_OKAY;
+}
+
+/** gets the value that is used to check if the duality gap is sufficiently small and whether a variable should be fixed */
+SCIP_Real SCIPsdpiSolverGetEpsilon(
+   SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
+   )
+{
+   assert ( sdpisolver != NULL );
+
+   return sdpisolver->epsilon;
+}
+
+/** sets the value that should be used to check positive semidefiniteness */
+SCIP_RETCODE SCIPsdpiSolverSetFeastol(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
+   SCIP_Real             feastol             /**< the smallest eigenvalue of a positive semidefinite matrix must be at least -feastol */
+   )
+{
+   assert ( sdpisolver != NULL );
+   assert ( feastol > 0.0 );
+
+   sdpisolver->feastol;
+
+   return SCIP_OKAY;
+}
+
+/** gets the value that is used to check positive semidefiniteness */
+SCIP_Real SCIPsdpiSolverGetFeastol(
+   SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
+   )
+{
+   assert ( sdpisolver != NULL );
+
+   return sdpisolver->feastol;
 }
 
 /**@} */

@@ -83,6 +83,11 @@ SCIP_RETCODE sdpRedcostFixingBinary(
    SCIP_RESULT*          result              /* pointer to return result */
    )
 {
+#ifdef SCIP_DEBUG
+   SCIP_Real sdpepsilon;
+   SCIP_Real epsilon;
+#endif
+
    assert ( scip != NULL );
    assert ( prop != NULL );
    assert ( var != NULL );
@@ -101,7 +106,12 @@ SCIP_RETCODE sdpRedcostFixingBinary(
       SCIPchgVarUb(scip, var, 0.0);
       SCIPdebugMessage("Variable %s fixed to zero by reduced cost fixing ! \n", SCIPvarGetName(var));
       *result = SCIP_REDUCEDDOM;
-      assert ( SCIPisLE(scip, primalubval, cutoffbound - relaxval) ); /* if the variable should be fixed to both zero and one, something went wrong */
+#ifdef SCIP_DEBUG
+      SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDPRelax/sdpsolverepsilon", &sdpepsilon) );
+      SCIP_CALL( SCIPgetRealParam(scip, "numerics/epsilon", &epsilon) );
+      assert ( (primalubval <= cutoffbound - relaxval + epsilon) || (primalubval <= cutoffbound - relaxval + sdpepsilon) );
+      /* if the variable should be fixed to both zero and one, something went wrong */
+#endif
       return SCIP_OKAY;
    }
 
@@ -111,7 +121,6 @@ SCIP_RETCODE sdpRedcostFixingBinary(
       SCIPchgVarLb(scip, var, 1.0);
       SCIPdebugMessage("Variable %s fixed to one by reduced cost fixing ! \n", SCIPvarGetName(var));
       *result = SCIP_REDUCEDDOM;
-      assert ( SCIPisLE(scip, primallbval, cutoffbound - relaxval) ); /* if the variable should be fixed to both zero and one, something went wrong */
       return SCIP_OKAY;
    }
 
