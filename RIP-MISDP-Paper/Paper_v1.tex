@@ -1,7 +1,9 @@
 \documentclass{elsarticle}
+
 \usepackage{amsmath}
 \usepackage{amsthm}
 \usepackage{dsfont}
+
 \newtheorem{thm}{Theorem}
 \newdefinition{rmk}{Definition}
 
@@ -26,18 +28,22 @@
 
 
 \begin{document}
+
 \title{Computing exact restricted isometry constants via mixed integer semidefinite programming}
 \author[tud]{T. Gally}
 \ead{gally@mathematik.tu-darmstadt.de}
 \author[tud]{M. E. Pfetsch}
 \ead{pfetsch@mathematik.tu-darmstadt.de}
 \address[tud]{Technische Universit\"at Darmstadt, Dolivostra\ss e 15, 64293 Darmstadt, Germany}
+
 \begin{abstract}
 An important task in compressed sensing is finding the sparsest solution to an underdetermined system of linear equations. An important result is that, under certain conditions, this is equivalent to minimizing the 1-Norm and thus
 solving a linear program. One such condition is the restricted isometry property for which no efficient algorithms are known to compute the optimal constants, the so called restricted isometry constants. In this paper we propose a
 mixed integer semidefinite program for computing these constants. Numerical results are presented comparing this to ealier SDP relaxations for the same task.
 \end{abstract}
+
 \maketitle
+
 \section{Introduction}
 Finding the sparsest solution of an underdetermined system of linear equations is a problem that has been the subject of much recent research in compressed sensing. Given a matrix $A \in \R^{m \times n}$ with $m < n$ and 
 right-hand side $b \in \R^m$, we are interested in a solution of 
