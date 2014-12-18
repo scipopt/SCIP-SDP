@@ -125,22 +125,23 @@ with the non-convex quadratic optimization problem
  & \|x\|_0 \leq k. \nonumber
 \end{align}
 The corresponding maximization problem can be solved to compute $\beta_k$. In \cite{Asp07} the non-convex quadratic equality constraint $\|x\|_2^2 = 1$ is tackled by the technique of semidefinite lifting first introduced in \cite{GW95} 
-for the max-cut problem. The idea is to use a new matrix variable $X=xx^T$ for the quadratic terms, where the condition $X=xx^T$ is then enforced by the equivalent constraints $X \succeq 0$ and $\textbf{Rk}(X) = 1$, where 
-$X \succeq 0$ means that $X$ is symmetric and positive semidefinite. In the next step the non-convex rank constraint is then relaxed and the inequality $\|x\|_0 \leq k$ is substituted by the coarser constraint $1^T|X|1 \leq k$ to form
+for the max-cut problem. The idea is to use a new matrix variable $X=xx\T$ for the quadratic terms, where the condition $X=xx\T$ is then enforced by the equivalent constraints $X \succeq 0$ and $\textbf{Rk}(X) = 1$, where 
+$X \succeq 0$ means that $X$ is symmetric and positive semidefinite. In the next step the non-convex rank constraint is then relaxed and the inequality $\|x\|_0 \leq k$ is substituted by the coarser constraint $1\T|X|1 \leq k$ to form
 the relaxation
 \begin{align}\label{Asp07}
- \text{min} \quad & \textbf{Tr}(A^TAX) \nonumber \\
+ \text{min} \quad & \textbf{Tr}(A\T A X) \nonumber \\
  \text{s.t.} \quad & \textbf{Tr}(X) = 1 \nonumber \\
- & 1^T|X|1 \leq k \tag{Asp07} \\
+ & \ones\T|X|\ones \leq k \tag{Asp07} \\
  & X \succeq 0. \nonumber
 \end{align}
 
 In \cite{Asp08} instead the problem
 
 \begin{equation}\label{phi}
- \phi(\rho) = \max_{\|x\|_2 \leq 1} x^T \Sigma x - \rho \|x\|_0
+ \phi(\rho) = \max_{\|x\|_2 \leq 1} x\T \Sigma x - \rho \|x\|_0
 \end{equation}
-is tackled for a symmetric positive semidefinite matrix $\Sigma$, which for $\Sigma = A^TA$, by duality, gives an upper bound on $\beta_k$ via 
+is tackled for a symmetric positive semidefinite matrix $\Sigma$, which for
+$\Sigma = A\T A$, by duality, gives an upper bound on $\beta_k$ via 
 
 \begin{equation*}
  \beta_k^2 \leq \inf_{\rho \geq 0} \phi(\rho) + \rho k.
@@ -152,17 +153,19 @@ To solve (\ref{phi}) again the semidefinite lifting technique is used to compute
  & X \succeq 0 \tag{Asp08} \\
  & X \succeq P_i \succeq 0 \quad \forall i \leq n, \nonumber
 \end{align}
-for $B_i = b_ib_i^T - \rho I,$ where $b_i$ is the $i$-th column of a squareroot of $\Sigma$. To compute the parameter $\rho$, the authors of \cite{Asp07} propose to minimize over the interval
+for $B_i = b_ib_i\T - \rho I,$ where $b_i$ is the $i$-th column of a squareroot of $\Sigma$. To compute the parameter $\rho$, the authors of \cite{Asp07} propose to minimize over the interval
 \begin{equation*}
- \max_{i \notin I} (b_i^Tx)^2 \leq \rho \leq  \min_{i \in I} (b_i^Tx)^2
+ \max_{i \notin I} (b_i\T x)^2 \leq \rho \leq  \min_{i \in I} (b_i\T x)^2
 \end{equation*}
 the convex function
 \begin{equation*}
- \text{gap}(\rho) = \lambda_{\max} \left( \sum_{i=1}^n Y_i \right) - \sum_{i \in I} ((b_i^Tx)^2 - \rho),
+ \text{gap}(\rho) = \lambda_{\max} \left( \sum_{i=1}^n Y_i \right) -
+ \sum_{i \in I} ((b_i\T x)^2 - \rho),
 \end{equation*}
-where $I$ is a given sparsity pattern, found by some heuristic for example, $x$ the largest eigenvector of $\sum_{i \in I} b_i b_i^T$ and
+where $I$ is a given sparsity pattern, found by some heuristic for example, $x$ the largest eigenvector of $\sum_{i \in I} b_i b_i\T$ and
 \begin{equation*}
- Y_i = \begin{cases}\frac{B_ixx^TB_i}{x^TB_ix}, & \text{for } i \in I \\ \max\{0, \rho \frac{b_i^Tb_i - \rho}{\rho - (b_i^Tx)^2} \} \frac{(I-xx^T)b_ib_i^T(I-xx^T)}{\|(I-xx^T)b_i\|_2^2}, & \text{for } i \in I^c\end{cases}. 
+ Y_i = \begin{cases}\frac{B_ixx\T B_i}{x\T B_ix}, & \text{for } i \in I \\
+   \max\{0, \rho \frac{b_i\T b_i - \rho}{\rho - (b_i\T x)^2} \} \frac{(I-xx\T)b_ib_i\T(I-xx\T)}{\|(I-xx\T)b_i\|_2^2}, & \text{for } i \in I^c\end{cases}. 
  %x in the second case sill as above?
 \end{equation*}
 
@@ -176,7 +179,9 @@ In this section we want to compute the optimal constants $\alpha_k$ and $\beta_k
  & \|x\|_0 \leq k. \nonumber
 \end{align}
 
-For the non-convex quadratic equality constraint $\|x\|_2^2 = 1$ we will again use semidefinite lifting as $\|Ax\|_2^2 = x^TA^TAx = \textbf{Tr}(A^TAX)$ and $\textbf{Tr}(X) = \sum_{i=1}^n x_i^2$. 
+For the non-convex quadratic equality constraint $\|x\|_2^2 = 1$ we will
+again use semidefinite lifting as $\|Ax\|_2^2 = x\T A\T Ax =
+\textbf{Tr}(A\T A X)$ and $\textbf{Tr}(X) = \sum_{i=1}^n x_i^2$. 
 The cardinality-constraint in (\ref{QP}) can equivalently be written using binary variables $z_i$ as $-z_i \leq x_i \leq z_i$ and $\sum_{i=1}^n z_i \leq k$. We can thus rewrite (\ref{QP}) equivalently to
 % In this section we want to compute the optimal constants $\alpha_k$ and $\beta_k$ in (\ref{asymRIP}) using mixed integer semidefinite programming. A non-convex quadratic optimization problem to compute $\alpha_k$ can be formulated as
 % 
@@ -188,11 +193,13 @@ The cardinality-constraint in (\ref{QP}) can equivalently be written using binar
 % 
 % By switching $\text{min}$ for $\text{max}$ in (\ref{QP}) we also get a corresponding optimization problem to compute $\beta_k$ and therefore also $\gamma_k$ and $\delta_k$.
 % The cardinality-constraint in (\ref{QP}) can equivalently be written using binary variables $z_i$ as $-z_i \leq x_i \leq z_i$ and $\sum_{i=1}^n z_i \leq k$. For the non-convex quadratic equality constraint $\|x\|_2^2 = 1$ we will
-% use the technique of semidefinite lifting first introduced in \cite{GW95} for the max-cut problem. The idea is to use a new matrix variable $X=xx^T$ for the quadratic terms, where the condition $X=xx^T$ is then enforced by the 
-% equivalent constraints $X \succeq 0$ and $\textbf{Rk}(X) = 1$, where $X \succeq 0$ means that $X$ is symmetric and positive semidefinite. Using that $\|Ax\|_2^2 = x^TA^TAx = \textbf{Tr}(A^TAX)$ and 
+% use the technique of semidefinite lifting first introduced in \cite{GW95} for the max-cut problem. The idea is to use a new matrix variable $X=xx\T$ for the quadratic terms, where the condition $X=xx\T$ is then enforced by the 
+% equivalent constraints $X \succeq 0$ and $\textbf{Rk}(X) = 1$, where $X
+% \succeq 0$ means that $X$ is symmetric and positive semidefinite. Using
+% that $\|Ax\|_2^2 = x\T A\T Ax = \textbf{Tr}(A\T A X)$ and 
 % $\textbf{Tr}(X) = \sum_{i=1}^n x_i^2$, we can thus rewrite (\ref{QP}) equivalently to
 \begin{align}\label{Rk1MISDP}
- \text{min} \quad & \textbf{Tr}(A^TAX) \nonumber \\
+ \text{min} \quad & \textbf{Tr}(A\T A X) \nonumber \\
  \text{s.t.} \quad & \textbf{Tr}(X) = 1 \nonumber \\
  & -z_j \leq X_{ij} \leq z_j \quad \forall j \leq n \nonumber \\
  & \sum_{i=1}^n z_i \leq k \tag{Rk1MISDP} \\
@@ -203,7 +210,7 @@ The cardinality-constraint in (\ref{QP}) can equivalently be written using binar
 
 The next step would then be to relax the non-convex rank constraint again to arrive at the following relaxation which computes a lower bound on the optimal constant $\alpha_k$ in (\ref{asymRIP}):
 \begin{align}\label{MISDP}
- \text{min} \quad & \textbf{Tr}(A^TAX) \nonumber \\
+ \text{min} \quad & \textbf{Tr}(A\T A X) \nonumber \\
  \text{s.t.} \quad & \textbf{Tr}(X) = 1 \nonumber \\
  & -z_j \leq X_{ij} \leq z_j \quad \forall j \leq n \nonumber \\
  & \sum_{i=1}^n z_i \leq k \tag{MISDP} \\
@@ -236,14 +243,14 @@ solution to (\ref{MISDP}) with rank one.
  Let $\hat{X}, \hat{z}$ be an optimal solution to (\ref{MISDP}) (because of $\textbf{Tr}(X) = 1$ the problem is bounded and $X_{11} = 1, X_{ij} = 0 \ \forall i,j \neq 1, z_1 = 1, z_i = 0 \ \forall i \neq 0$ is always feasible)
  with $\sum_{i=1}^n z_i = \ell \leq k$. Define
  \begin{align}\label{Proj}
- \text{min} \quad & \textbf{Tr}(\tilde{A}^T\tilde{A}X) \nonumber \\
+ \text{min} \quad & \textbf{Tr}(\tilde{A}\T\tilde{A}X) \nonumber \\
  \text{s.t.} \quad & \textbf{Tr}(X) = 1 \tag{Proj} \\
  & X \succeq 0 , X \in S_\ell, \nonumber
  \end{align}
 where $\tilde{A} = (A_{i_1}, A_{i_2}, ..., A_{i_\ell})$ consists of those columns $\{{i_1}, {i_2}, ..., {i_\ell}\} =: T$ of $A$ for which $\hat{z}_{i_k} = 1$. \\
 Now let $\tilde{X}$ be the matrix consisting of those rows and columns 
 $i_k$ of $\hat{X}$ such that $\hat{z}_{i_k} = 1$. Then $\hat{X}$ is feasible for (\ref{Proj}) with the same objective value as the optimal solution $\hat{X}$ of (\ref{MISDP}), as we only removed zero rows and columns of $\hat{X}$ 
-and $(A^TA)\hat{X}$, which do not influence the trace or the positive semidefiniteness. \\
+and $(A\T A)\hat{X}$, which do not influence the trace or the positive semidefiniteness. \\
 On the other hand we can lift any optimal solution $\tilde{X}$ of (\ref{Proj}) to a feasible point for (\ref{MISDP}) with identical objective value by setting $\bar{z}_i$ to one if and only if $i \in T$
 and $\bar{X}_{i_j i_k} = \tilde{X}_{jk}$ if and only if $i_j, i_k \in T$ and $\bar{X}_{ij}=0$ otherwise. \\
 So the optimal objective values of (\ref{Proj}) and (\ref{MISDP}) agree and with this construction we also get that 
