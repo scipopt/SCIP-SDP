@@ -1,9 +1,29 @@
 \documentclass{elsarticle}
 \usepackage{amsmath}
 \usepackage{amsthm}
-\usepackage{amsfonts}
+\usepackage{dsfont}
 \newtheorem{thm}{Theorem}
 \newdefinition{rmk}{Definition}
+
+\DeclareMathOperator{\argmin}{argmin}
+\DeclareMathOperator{\argmax}{argmax}
+\DeclareMathOperator{\supp}{supp}
+
+\newcommand{\suchthat}{\,:\,}
+\newcommand{\abs}[1]{\lvert{#1}\rvert}
+\newcommand{\card}[1]{\lvert{#1}\rvert}
+\newcommand{\define}{\coloneqq}
+\newcommand{\norm}[1]{\lVert{#1}\rVert}
+\newcommand{\Norm}[2]{\lVert{#1}\rVert_{#2}}
+\newcommand{\skal}[2]{\langle{#1},{#2}\rangle}
+\newcommand{\order}[1]{O\left({#1}\right)}
+\newcommand{\T}{^{\top}}
+
+% sets
+\newcommand{\R}{\mathds{R}}
+\newcommand{\Z}{\mathds{Z}}
+\newcommand{\ones}{\mathds{1}}
+
 
 \begin{document}
 \title{Computing exact restricted isometry constants via mixed integer semidefinite programming}
@@ -19,8 +39,8 @@ mixed integer semidefinite program for computing these constants. Numerical resu
 \end{abstract}
 \maketitle
 \section{Introduction}
-Finding the sparsest solution of an underdetermined system of linear equations is a problem that has been the subject of much recent research in compressed sensing. Given a matrix $A \in \mathbb{R}^{m \times n}$ with $m < n$ and 
-right-hand side $b \in \mathbb{R}^m$, we are interested in a solution of 
+Finding the sparsest solution of an underdetermined system of linear equations is a problem that has been the subject of much recent research in compressed sensing. Given a matrix $A \in \R^{m \times n}$ with $m < n$ and 
+right-hand side $b \in \R^m$, we are interested in a solution of 
 \begin{align}\label{l0min}
  \text{min} \quad & \|x\|_0 \\
  \text{s.t.} \quad & Ax = b, \nonumber
@@ -52,8 +72,8 @@ In this section we will discuss some general results about the restricted isomet
 isometry property as in \cite{CT05}:
 
 \begin{rmk} \label{ripdef}
-The \emph{restricted isometry property (RIP)} of order $k$ holds for a matrix $A \in \mathbb{R}^{m \times n}$, if there exists a minimal \emph{restricted isometry constant} $\delta_k$, such that for all $x \in \Sigma_k := 
-\{x \in \mathbb{R}^n : \|x\|_0 \leq k \}$ we have
+The \emph{restricted isometry property (RIP)} of order $k$ holds for a matrix $A \in \R^{m \times n}$, if there exists a minimal \emph{restricted isometry constant} $\delta_k$, such that for all $x \in \Sigma_k := 
+\{x \in \R^n : \|x\|_0 \leq k \}$ we have
  \begin{equation}\label{rip}
   (1-\delta_k)\|x\|_2^2 \leq \|Ax\|_2^2 \leq (1+\delta_k)\|x\|_2^2.
  \end{equation}
@@ -63,7 +83,7 @@ The \emph{restricted isometry property (RIP)} of order $k$ holds for a matrix $A
  \cite{Can08}:
  
 \begin{thm} \label{RIPsqrt2}
- If $A$ satisfies $\delta_{2k} < \sqrt{2}-1$, then for every $x \in \mathbb{R}^n$
+ If $A$ satisfies $\delta_{2k} < \sqrt{2}-1$, then for every $x \in \R^n$
  \begin{equation*}\label{l1ErrorRIP}
   \|x^* - x \|_{\ell_1} \leq C \|x - x_k \|_{\ell_1},
  \end{equation*}
@@ -210,7 +230,7 @@ Now we will use this theorem on the projection of the feasible set of (\ref{MISD
 solution to (\ref{MISDP}) with rank one.
 
 \begin{thm}\label{Rk1thm}
- For every $A \in \mathbb{R}^{m \times n}$ and $k \geq 1$ there exists an optimal solution $X^*, z^*$ to (\ref{MISDP}) such that $\textbf{Rk}(X^*) = 1$. 
+ For every $A \in \R^{m \times n}$ and $k \geq 1$ there exists an optimal solution $X^*, z^*$ to (\ref{MISDP}) such that $\textbf{Rk}(X^*) = 1$. 
 \end{thm}
 \begin{proof}
  Let $\hat{X}, \hat{z}$ be an optimal solution to (\ref{MISDP}) (because of $\textbf{Tr}(X) = 1$ the problem is bounded and $X_{11} = 1, X_{ij} = 0 \ \forall i,j \neq 1, z_1 = 1, z_i = 0 \ \forall i \neq 0$ is always feasible)
@@ -228,7 +248,7 @@ On the other hand we can lift any optimal solution $\tilde{X}$ of (\ref{Proj}) t
 and $\bar{X}_{i_j i_k} = \tilde{X}_{jk}$ if and only if $i_j, i_k \in T$ and $\bar{X}_{ij}=0$ otherwise. \\
 So the optimal objective values of (\ref{Proj}) and (\ref{MISDP}) agree and with this construction we also get that 
 $\textbf{Rk}(\bar{X}) = \textbf{Rk}(\tilde{X})$, so it suffices to show that (\ref{Proj}) always allows for a solution of rank one.
-Let $\breve{X}$ be an extreme point of (\ref{Proj}) (as the set of optimal points of (\ref{Proj}) is a non-empty, convex, compact subset of $\mathbb{R}^{\ell(\ell+1)/2}$ such a point exists as a consequence of corollary 18.5.1 in
+Let $\breve{X}$ be an extreme point of (\ref{Proj}) (as the set of optimal points of (\ref{Proj}) is a non-empty, convex, compact subset of $\R^{\ell(\ell+1)/2}$ such a point exists as a consequence of corollary 18.5.1 in
 \cite{Roc70}) with corresponding face $F=\{\breve{X}\}$. Then using theorem \ref{patakiLemma} on (\ref{Proj}) with $\tilde{m} = 1$ LP-constraint gives
 \begin{equation*}
  \frac{1}{2}\textbf{Rk}(\breve{X})\cdot(\textbf{Rk}(\breve{X})+1) \leq \tilde{m} + \textbf{dim}(F) = 1 + 0 = 1.
