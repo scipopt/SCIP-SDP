@@ -63,11 +63,16 @@ established in \cite{DH01}, and have later been followed up for example by \cite
 \end{equation}
 that was first introduced in \cite{CT05}, if it holds for all $k$-sparse vectors $x$ for a sufficiently small restricted isometry constant $\delta_k$, then problems (\ref{l0min}) and (\ref{l1min}) have the same optimal solution. 
 Even tough it was shown in \cite{BDDW08}, that this condition holds for multiple classes of random matrices with probability exponentially going to one, in \cite{PT14} it was shown, that computing the optimal restricted isometry 
-constants in (\ref{RIPintro}) for a given matrix $A$ is again an $\mathcal{NP}$-hard task. \\
+constants in (\ref{RIPintro}) for a given matrix $A$ is again an
+$\mathcal{NP}$-hard task.
+
 In the past SDP-Relaxations were proposed in \cite{Asp07} and \cite{Asp08} to compute upper bounds on the values of the restricted isometry 
 constant, which could then be used to verify the equivalance between (\ref{l0min}) and (\ref{l1min}), but there could also be cases, where the results of those relaxations weren't sufficient, but the real constants would have been. 
 In this paper we will construct a mixed integer semidefinite program to compute the exact constants in (\ref{RIPintro}), to be able to verify in all cases if those sufficient conditions for the equivalence hold for a given matrix. 
-The main contribution of this paper is theorem \ref{Rk1thm}, which shows that the optimal solution of that MISDP indeed allows us to compute the exact restricted isometry constant.\\
+The main contribution of this paper is theorem \ref{Rk1thm}, which shows
+that the optimal solution of that MISDP indeed allows us to compute the
+exact restricted isometry constant.
+
 In the following we will start by introducing the restricted isometry property and corresponding results about the equivalence of (\ref{l0min}) and (\ref{l1min}). In the next section we will present the SDP-relaxations in \cite{Asp07} 
 and \cite{Asp08}.Afterwards we will construct a mixed integer semidefinite programme and show that it produces exact restricted isometry constants before presenting numerical results and comparisons with the SDP-Relaxations in 
 \cite{Asp07} and \cite{Asp08}.
@@ -116,7 +121,9 @@ If $A$ has restricted isometry ratio $\gamma_{2k} \leq 4 \sqrt{2} - 3 \approx 2.
 
 Again this result can be generalized to the case of imperfect data. One advantage of Defintion \ref{asymRIPdef} and Theorem \ref{asymRIPtheorem} is, that they are indifferent under scaling of the system of linear equations. If a system
 $Ax=b$ is scaled to $\lambda Ax = \lambda b$, then the condition of Theorem \ref{RIPsqrt2} might no longer be valid, while in Definition \ref{asymRIPdef} we can use $\tilde{\alpha_k} = \lambda \alpha_k, \tilde{\beta_k} = \lambda \beta_k$
-and therefore $\tilde{\gamma_k} = \lambda^2 \alpha_k^2 / \lambda^2 \beta_k^2 = \gamma_k$. \\
+and therefore $\tilde{\gamma_k} = \lambda^2 \alpha_k^2 / \lambda^2
+\beta_k^2 = \gamma_k$.
+
 In the following we will try to compute the optimal constants $\alpha_k$ and $\beta_k$ in (\ref{asymRIP}). These can then be used to compute either the restricted isometry ratio $\gamma_k := \beta_k^2 / \alpha_k^2$ or the restricted
 isometry constant $\delta_k = \text{max} \{ 1 - \alpha_k^2, \beta_k^2 - 1 \}$.
 
@@ -253,12 +260,19 @@ solution to (\ref{MISDP}) with rank one.
  \text{s.t.} \quad & \textbf{Tr}(X) = 1 \tag{Proj} \\
  & X \succeq 0 , X \in S_\ell, \nonumber
  \end{align}
-where $\tilde{A} = (A_{i_1}, A_{i_2}, ..., A_{i_\ell})$ consists of those columns $\{{i_1}, {i_2}, ..., {i_\ell}\} =: T$ of $A$ for which $\hat{z}_{i_k} = 1$. \\
+where $\tilde{A} = (A_{i_1}, A_{i_2}, ..., A_{i_\ell})$ consists of those
+columns $\{{i_1}, {i_2}, ..., {i_\ell}\} =: T$ of $A$ for which
+$\hat{z}_{i_k} = 1$.
+
 Now let $\tilde{X}$ be the matrix consisting of those rows and columns 
 $i_k$ of $\hat{X}$ such that $\hat{z}_{i_k} = 1$. Then $\hat{X}$ is feasible for (\ref{Proj}) with the same objective value as the optimal solution $\hat{X}$ of (\ref{MISDP}), as we only removed zero rows and columns of $\hat{X}$ 
-and $(A\T A)\hat{X}$, which do not influence the trace or the positive semidefiniteness. \\
+and $(A\T A)\hat{X}$, which do not influence the trace or the positive
+semidefiniteness.
+
 On the other hand we can lift any optimal solution $\tilde{X}$ of (\ref{Proj}) to a feasible point for (\ref{MISDP}) with identical objective value by setting $\bar{z}_i$ to one if and only if $i \in T$
-and $\bar{X}_{i_j i_k} = \tilde{X}_{jk}$ if and only if $i_j, i_k \in T$ and $\bar{X}_{ij}=0$ otherwise. \\
+and $\bar{X}_{i_j i_k} = \tilde{X}_{jk}$ if and only if $i_j, i_k \in T$
+and $\bar{X}_{ij}=0$ otherwise.
+
 So the optimal objective values of (\ref{Proj}) and (\ref{MISDP}) agree and with this construction we also get that 
 $\textbf{Rk}(\bar{X}) = \textbf{Rk}(\tilde{X})$, so it suffices to show that (\ref{Proj}) always allows for a solution of rank one.
 Let $\breve{X}$ be an extreme point of (\ref{Proj}) (as the set of optimal points of (\ref{Proj}) is a non-empty, convex, compact subset of $\R^{\ell(\ell+1)/2}$ such a point exists as a consequence of corollary 18.5.1 in
