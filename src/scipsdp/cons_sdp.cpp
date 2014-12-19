@@ -37,8 +37,8 @@
  * @author Tristan Gally
  */
 
-#define SCIP_DEBUG
-#define SCIP_MORE_DEBUG /* shows all cuts added */
+//#define SCIP_DEBUG
+//#define SCIP_MORE_DEBUG /* shows all cuts added */
 
 #include "cons_sdp.h"
 
@@ -521,7 +521,7 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
 
    check_value = (-eigenvalue) / (1.0 + getMaxConstEntry(cons));
 
-   if ( SCIPisLE(scip, check_value, 0.0) )
+   if ( SCIPisFeasLE(scip, check_value, 0.0) )
       *result = SCIP_FEASIBLE;
    else
    {
