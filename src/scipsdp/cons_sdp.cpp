@@ -709,12 +709,15 @@ SCIP_RETCODE diagGEzero(
          SCIPinfoMessage(scip, NULL, "Added lp-constraint %s: ", cutname);
          SCIPinfoMessage(scip, NULL, "%f <= ", lhs_array[k]);
          for (i = 0; i < consdata->nvars; i++)
-            SCIPinfoMessage(scip, NULL, "+ (%f)*%s", cons_array[k * consdata->nvars + i], SCIPvarGetName(consdata->vars[i]));
+         {
+            if ( ! SCIPisZero(scip, cons_array[k * consdata->nvars + i]) )
+               SCIPinfoMessage(scip, NULL, "+ (%f)*%s", cons_array[k * consdata->nvars + i], SCIPvarGetName(consdata->vars[i]));
+         }
          SCIPinfoMessage(scip, NULL, "\n");
 #endif
 
-         SCIP_CALL(SCIPcreateConsLinear(scip, &cons, cutname, consdata->nvars, consdata->vars, cons_array + k * consdata->nvars, lhs_array[k], rhs,
-               TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE));
+         SCIP_CALL( SCIPcreateConsLinear(scip, &cons, cutname, consdata->nvars, consdata->vars, cons_array + k * consdata->nvars, lhs_array[k], rhs,
+               TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
 
          SCIP_CALL( SCIPaddCons(scip, cons) );
          SCIP_CALL( SCIPreleaseCons(scip, &cons) );
