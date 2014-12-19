@@ -1896,7 +1896,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    CHECK_IF_SOLVED(sdpisolver);
 
    /* check if the arrays are long enough */
-   if (arraylength < sdpisolver->nvars)
+   if (*arraylength < sdpisolver->nvars)
    {
       *arraylength = sdpisolver->nvars;
       SCIPdebugMessage("Array of insufficient length given to SCIPsdpiSolverGetPrimalBoundVars, gave %d, needed %d\n", *arraylength,
@@ -2040,7 +2040,7 @@ SCIP_RETCODE SCIPsdpiSolverSetFeastol(
    assert ( sdpisolver != NULL );
    assert ( feastol > 0.0 );
 
-   sdpisolver->feastol;
+   sdpisolver->feastol = feastol;
 
    return SCIP_OKAY;
 }
