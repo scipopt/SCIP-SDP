@@ -48,21 +48,18 @@
 
 using namespace scip;
 
-/**run scip and set some parameters*/
+/** run scip and set some parameters*/
 static
 SCIP_RETCODE runSCIP(
    int argc,
-   char** argv)
+   char** argv
+   )
 {
-
-   printf("Starting solver.\n");
    SCIP* scip = NULL;
 
-
    SCIP_CALL( SCIPcreate(&scip) );
-   SCIPprintVersion(scip, NULL);
 
-   //include new plugins
+   /* include new plugins */
    SCIP_CALL( SCIPincludeObjReader(scip, new ObjReaderSDPA(scip), TRUE) );
 
    // SCIP_CALL( SCIPincludeObjConshdlr(scip, new ObjConshdlrSdp(scip), TRUE) );
@@ -72,119 +69,62 @@ SCIP_RETCODE runSCIP(
 
    SCIP_CALL( SCIPincludePropSdpredcost(scip) );
 
-   const char* name = "sdpsolver";
-   const char * 	desc = "which sdpsolver should be called";
-
-   SCIP_PARAMDATA* 	paramdata = NULL;
-
-   SCIP_CALL( SCIPaddStringParam	(scip, name, desc, NULL, FALSE, "dsdp" , NULL, paramdata)	);
+   /* add parameter for SDP solver */
+   SCIP_CALL( SCIPaddStringParam(scip, "sdpsolver", "SDP solver", 0, FALSE, "dsdp" , 0, 0) );
 
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
 
-   /* disenable subscips */
+   /* disable subscips */
    SCIP_CALL( SCIPsetSubscipsOff(scip, TRUE) );
 
-   /**********************************
-    * Process command line arguments *
-    **********************************/
+
+   /* change certain paramters: */
    SCIP_CALL( SCIPsetIntParam(scip, "display/verblevel", 5) );
 
-   //Choose between LP and SDP relaxations
+   /* Choose between LP and SDP relaxations */
    SCIP_CALL( SCIPsetIntParam(scip, "lp/solvefreq", -1) );
-   SCIP_CALL( SCIPsetIntParam(scip,"relaxing/SDP/freq", 1) );
+   SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", 1) );
 
-   //Do some stuff to be numerically stable
+   /* change epsilons for numerical stability */
    SCIP_CALL( SCIPsetRealParam(scip, "numerics/epsilon", 1e-6) );
    SCIP_CALL( SCIPsetRealParam(scip, "numerics/feastol", 1e-4) );
 
    SCIP_CALL( SCIPsetStringParam(scip, "sdpsolver", "dsdp") );
 
-   //parameters for separation
+   /* parameters for separation */
    SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprows", FALSE) );
    SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprowsroot", FALSE) );
    SCIP_CALL( SCIPsetIntParam(scip, "lp/rowagelimit", 10) );
 
-   //# maximum age a cut can reach before it is deleted from the global cut pool, or -1 to keep all cuts
-   //# [type: int, range: [-1,2147483647], default: 100]
-   SCIP_CALL( SCIPsetIntParam(scip, "separating/cutagelimit", 10));
+   /* maximum age a cut can reach before it is deleted from the global cut pool, or -1 to keep all cuts */
+   SCIP_CALL( SCIPsetIntParam(scip, "separating/cutagelimit", 10) );
 
+   SCIP_CALL( SCIPsetIntParam(scip, "separating/maxrounds", 20) );
 
-   SCIP_CALL( SCIPsetIntParam(scip, "separating/maxrounds", 20));
+   /* Parameters for node selection */
 
-   //Parameters for node selection
-      /* Because in the SDP-world there are no warmstarts as for LPs, the main advantage for DFS (that the change in the
-       * problem is minimal and therefore the Simplex can continue with the current Basis) is lost and best first search, which
-       * provably needs the least number of nodes (see the Dissertation of Tobias Achterberg, the node selection rule with
-       * the least number of nodes, allways has to be a best first search), is the optimal choice
-       */
-      SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/stdpriority", 1000000));
-      SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/maxplungedepth", 0));
-      SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight", 0.0));
+   /* Because in the SDP-world there are no warmstarts as for LPs, the main advantage for DFS (that the change in the
+    * problem is minimal and therefore the Simplex can continue with the current Basis) is lost and best first search, which
+    * provably needs the least number of nodes (see the Dissertation of Tobias Achterberg, the node selection rule with
+    * the least number of nodes, allways has to be a best first search), is the optimal choice
+    */
+   SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/stdpriority", 1000000) );
+   SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/maxplungedepth", 0) );
+   SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight", 0.0) );
 
-      /*
-       * this leaves Inference-Branching (branching of the variable which led to the most fixings of other variables in
-       * the past) [priority 1000] and pseudocost (branching on the variable which led to the least decrease in the objective
-       * in the past) [priority 2000] as the ones with the highest priority
-       */
-      //SCIP_CALL( SCIPsetIntParam(scip, "branching/pscost/priority",-2000000));
-      SCIP_CALL( SCIPsetIntParam(scip, "branching/relpscost/priority",-2000000));
-  // }
+   /* Leave Inference-Branching (branching of the variable which led to the most fixings of other variables in
+    * the past) [priority 1000] and pseudocost (branching on the variable which led to the least decrease in the objective
+    * in the past) [priority 2000] as the ones with the highest priority
+    */
+   //SCIP_CALL( SCIPsetIntParam(scip, "branching/pscost/priority",-2000000));
+   SCIP_CALL( SCIPsetIntParam(scip, "branching/relpscost/priority",-2000000) );
 
-   //turn off int-obj
-   SCIP_CALL( SCIPsetIntParam(scip, "separating/intobj/freq", -1));
+   /* turn off int-obj ????? */
+   SCIP_CALL( SCIPsetIntParam(scip, "separating/intobj/freq", -1) );
 
-   //read parameter file
-   if (argc > 2 )
-   {
-      SCIP_CALL( SCIPreadParams(scip,argv[2]));
-   }
-
-
-
-
-   printf("\n read problem\n");
-   printf("============\n");
-
-   if (argc > 1)
-   {
-      SCIP_CALL( SCIPreadProb(scip, argv[1], NULL) );
-   }
-   else
-   {
-      printf("Wrong call of main, not enough arguments. Call using: \
-      ./main instancefile.dat-s    or    ./main instancefile.dat-s parameterfile.set");
-   }
-
-   /* solve problem */
-   printf("\nsolve problem\n");
-   printf("=============\n");
-   SCIP_CALL( SCIPsolve(scip) );
-
-   SCIP_CALL( SCIPprintStatistics(scip, NULL));
-   printf("\nprimal solution:\n" );
-   printf("================\n\n");
-   SCIP_CALL( SCIPprintBestSol(scip, NULL, FALSE) );
-
-   FILE* solfile;
-   std::string solfilename = "Solution.sol";
-   if(argc > 1)
-   {
-      solfilename = std::string(argv[1]) + "_misdp.sol";
-   }
-
-
-   solfile = fopen(solfilename.c_str(), "w");
-   if( solfile == NULL )
-   {
-      SCIPerrorMessage("error creating file <%s>\n", solfilename.c_str());
-   }
-   else
-   {
-      SCIP_CALL( SCIPprintBestSol(scip, solfile, FALSE) );
-      SCIP_CALL( SCIPprintStatistics(scip, solfile));
-      fclose(solfile);
-   }
+   /* run interactive shell */
+   SCIP_CALL( SCIPprocessShellArguments(scip, argc, argv, "scip.set") );
 
    /********************
     * Deinitialization *
@@ -196,10 +136,11 @@ SCIP_RETCODE runSCIP(
    return SCIP_OKAY;
 }
 
-/**main function */
+/** main function */
 int main (
    int argc,
-   char** argv)
+   char** argv
+   )
 {
    SCIP_RETCODE retcode;
 
