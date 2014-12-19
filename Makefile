@@ -36,6 +36,22 @@ SDPS		=	none
 
 GCCWARN		+= 	-Wextra
 
+# check and testing parameters
+TIME     	=  	3600
+NODES           =       2100000000
+MEM		=	6144
+THREADS         =       1
+PERMUTE         =       0
+DISPFREQ	=	10000
+FEASTOL		=	default
+TEST		=	short
+SETTINGS        =       default
+CONTINUE	=	false
+LOCK		=	false
+VALGRIND	=	false
+CLIENTTMPDIR    =       /tmp
+OPTCOMMAND	=	optimize
+
 #-----------------------------------------------------------------------------
 # include default project Makefile from SCIP
 #-----------------------------------------------------------------------------
@@ -155,6 +171,27 @@ ifneq ($(OBJDIR),)
 		-rmdir $(OBJDIR)
 endif
 		-rm -f $(MAINFILE)
+
+#-----------------------------------------------------------------------------
+.PHONY: test
+test:
+		cd check; \
+		$(SHELL) ./check.sh $(TEST) $(MAINFILE) $(SETTINGS) $(notdir $(MAINFILE)) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(DISPFREQ) $(CONTINUE) $(LOCK) $(SCIPSDPVERSION) $(SDPS) $(VALGRIND) $(CLIENTTMPDIR) $(OPTCOMMAND);
+
+# include local targets
+-include make/local/make.targets
+
+.PHONY: testcluster
+testcluster:
+		cd check; \
+		$(SHELL) ./check_cluster.sh $(TEST) $(MAINFILE) $(SETTINGS) \
+		$(notdir $(MAINFILE)) $(TIME) $(NODES) $(MEM) \
+		$(THREADS) $(FEASTOL) $(LPS) $(DISPFREQ) $(CONTINUE) \
+		$(QUEUETYPE) $(QUEUE) $(PPN) $(CLIENTTMPDIR) \
+		$(NOWAITCLUSTER) $(EXCLUSIVE) $(PERMUTE) $(OPTCOMMAND);
+
+#-----------------------------------------------------------------------------
+
 
 .PHONY: depend
 depend:		$(SCIPDIR)
