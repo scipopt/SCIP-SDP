@@ -42,7 +42,11 @@
 
 #include "sdpi/sdpi.h"
 
+// turn of warning for DSDSP
+#pragma GCC diagnostic ignored "-Wstrict-prototypes"
 #include "dsdp5.h"                           /* for DSDPUsePenalty, etc */
+#pragma GCC diagnostic warning "-Wstrict-prototypes"
+
 
 #include "blockmemshell/memory.h"            /* for memory allocation */
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
