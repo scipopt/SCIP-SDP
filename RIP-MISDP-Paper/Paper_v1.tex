@@ -93,11 +93,20 @@ are equivalent; see Section~\ref{sec:RIP} for more details. There are
 several types of matrices~$A$ for which the RIP holds, for instance random
 matrices, see, e.g., Baraniuk et al.~\cite{BDDW08}. Although the RIP does
 not provide necessary conditions, it is still one of the major tools for
-establishing for $\ell_0$-$\ell_1$-equivalence. However, in~\cite{PT14} it
-was shown that computing the restricted isometry constants for a given
-matrix~$A$ and~$k$ is NP-hard.
+establishing for $\ell_0$-$\ell_1$-equivalence.
 
-One the other hand, d'Aspremont et al.~\cite{Asp07,Asp08} proposed several
+We note that recovery results can also be derived for the \emph{denoising}
+case, in which instead of~\eqref{l0min} one considers
+\begin{align}\label{l0minDenoising}
+  \min \quad & \Norm{x}{0} \tag{$P_0^\delta$}\\
+  \text{s.t.} \quad & \Norm{Ax - b}{2} \leq \delta, \nonumber
+\end{align}
+for some $\delta \geq 0$; the $\ell_1$-problem~\eqref{l1min} is changed
+similarly. For more details we again refer the reader to~\cite{FouR13}.
+
+However, one drawback of the RIP is that computing the restricted isometry
+constants for a given matrix~$A$ and~$k$ is NP-hard, see~\cite{PT14}. One
+the other hand, d'Aspremont et al.~\cite{Asp07,Asp08} proposed several
 semidefinite relaxations to compute upper bounds on the restricted isometry
 constants. Note that small upper bounds suffice to guarantee
 $\ell_0$-$\ell_1$-equivalence between~\eqref{l0min} and~\eqref{l1min}, but
