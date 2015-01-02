@@ -248,12 +248,15 @@ with the non-convex quadratic optimization problem
 \end{align}
 The corresponding maximization problem can be solved to compute $\beta_k^2$. In \cite{Asp07} the non-convex quadratic equality constraint $\Norm{x}{2}^2 = 1$ is tackled by the technique of semidefinite lifting first introduced in \cite{GW95} 
 for the max-cut problem. The idea is to use a new matrix variable $X=xx\T$ for the quadratic terms, where the condition $X=xx\T$ is then enforced by the equivalent constraints $X \succeq 0$ and $\Rk(X) = 1$, where 
-$X \succeq 0$ means that $X$ is symmetric and positive semidefinite. In the next step the non-convex rank constraint is then relaxed and the inequality $\Norm{x}{0} \leq k$ is substituted by the coarser constraint $1\T|X|1 \leq k$ to form
+$X \succeq 0$ means that $X$ is symmetric and positive semidefinite. In the
+next step the non-convex rank constraint is then relaxed and the inequality
+$\Norm{x}{0} \leq k$ is substituted by the coarser constraint $\ones\T
+\abs{X} \ones \leq k$ to form
 the relaxation
 \begin{align}\label{Asp07}
  \min \quad & \Tr(A\T A X) \nonumber \\
  \text{s.t.} \quad & \Tr(X) = 1 \nonumber \\
- & \ones\T|X|\ones \leq k \tag{A1} \\
+ & \ones\T \abs{X} \ones \leq k \tag{A1} \\
  & X \succeq 0. \nonumber
 \end{align}
 
