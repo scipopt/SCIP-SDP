@@ -58,16 +58,16 @@ equations is one key problem in compressed sensing and has been
 thoroughly investigated in recent years. Given a matrix $A \in \R^{m \times n}$ with $m < n$ and 
 right-hand side $b \in \R^m$, the problem is to compute
 \begin{align}\label{l0min}
- \min \quad & \|x\|_0 \tag{$P_0$}\\
+ \min \quad & \Norm{x}{0} \tag{$P_0$}\\
  \text{s.t.} \quad & Ax = b, \nonumber
 \end{align}
-where $\|x\|_0$ denotes the number of nonzero components of~$x$. This
+where $\Norm{x}{0}$ denotes the number of nonzero components of~$x$. This
 problem is \NP-hard, see for example the book by Garey and
 Johnson~\cite{GareyJohnson}. One key observation in compressed sensing is
 that a solution of~\eqref{l0min} can be found by solving the following
 convex optimization problem if certain conditions are fulfilled:
 \begin{align}\label{l1min}
- \min \quad & \|x\|_1 \tag{$P_1$}\\
+ \min \quad & \Norm{x}{1} \tag{$P_1$}\\
  \text{s.t.} \quad & Ax = b. \nonumber
 \end{align}
 In fact, this so-called \emph{basis pursuit} problem can be reformulated as
@@ -132,15 +132,15 @@ isometry property as in \cite{CT05}:
 
 \begin{rmk} \label{ripdef}
 The \emph{restricted isometry property (RIP)} of order $k$ holds for a matrix $A \in \R^{m \times n}$, if there exists a minimal \emph{restricted isometry constant} $\delta_k$, such that for all $x \in \Sigma_k := 
-\{x \in \R^n : \|x\|_0 \leq k \}$ we have
+\{x \in \R^n : \Norm{x}{0} \leq k \}$ we have
  \begin{equation}\label{rip}
-  (1-\delta_k)\|x\|_2^2 \leq \|Ax\|_2^2 \leq (1+\delta_k)\|x\|_2^2.
+  (1-\delta_k)\Norm{x}{2}^2 \leq \Norm{Ax}{2}^2 \leq (1+\delta_k) \Norm{x}{2}^2.
  \end{equation}
  \end{rmk}
  
  If the restricted isometry property holds for a sufficiently small restricted isometry constant, then the optimal solutions of (\ref{l0min}) and (\ref{l1min}) coincide. To show this, one needs estimates of the form
   \begin{equation}\label{l1ErrorRIP}
-  \|x^* - x \| \leq C \|x - x_k \|,
+  \Norm{x^* - x} \leq C \Norm{x - x_k},
  \end{equation}
  where $x^*$ is an optimal solution of (\ref{l1min}) with $b = Ax$ and $x_k$ is the best approximation of some vector $x \in \R^n$ with $k$-sparse vectors. If we get a result like (\ref{l1ErrorRIP}), and we know that the vector $x$, which in the 
  applications would be the sparse signal that needs to be recovered, is already $k$-sparse itself, then the best approximation of $x$ with $k$-sparse vectors is clearly $x$ itself. This means that the right-hand-side in 
@@ -153,18 +153,18 @@ The \emph{restricted isometry property (RIP)} of order $k$ holds for a matrix $A
 \begin{thm} \label{RIPsqrt2}
  If $A$ satisfies $\delta_{2k} < \sqrt{2}-1$, then for every $x \in \R^n$
  \begin{equation*}
-  \|x^* - x \|_{\ell_1} \leq C \|x - x_k \|_{\ell_1},
+  \Norm{x^* - x}{1} \leq C \Norm{x - x_k}{1},
  \end{equation*}
 where $x^*$ is an optimal solution for (\ref{l1min}) with right-hand side $b = Ax$, $x_k$ is the best approximation of $x$ with $k$-sparse vectors and $C$ is a constant depending only on $k$ and $\delta_{2k}$. If $x$ is $k$-sparse, 
 then the optimal solutions of (\ref{l0min}) and (\ref{l1min}) coincide.\end{thm}
 
 There are also many other results like Theorem \ref{RIPsqrt2}, for example in \cite{fou10} the condition was relaxed to $\delta_{2k} < 0.4652$ and in \cite{CWX10} it was shown for $\delta_k < 0.307$. Also all of these results can be
-generalized to the case where $\|Ax - b\|_{\ell_2} \leq \epsilon$. The restricted isometry property can also be formulated in an asymmetric way like in \cite{FL09}:
+generalized to the case where $\Norm{Ax - b}{2} \leq \epsilon$. The restricted isometry property can also be formulated in an asymmetric way like in \cite{FL09}:
 
 \begin{rmk} \label{asymRIPdef}
 The \emph{restricted isometry ratio} $\gamma_k$ is defined as $\gamma_k := \beta_k^2 / \alpha_k^2$, where $\alpha_k$ and $\beta_k$ are the largest and smallest constant satisfying
 \begin{equation}\label{asymRIP}
-   \alpha_k^2\|x\|_2^2 \leq \|Ax\|_2^2 \leq \beta_k^2\|x\|_2^2
+   \alpha_k^2 \Norm{x}{2}^2 \leq \Norm{Ax}{2}^2 \leq \beta_k^2 \Norm{x}{2}^2
 \end{equation}
 for all $x \in \Sigma_k$.
 \end{rmk}
@@ -193,13 +193,13 @@ In this section we will discuss two known SDP relaxations to compute an upper bo
 propose and will also be checked against in the section on numerical results. The idea of these two relaxations as well as the MISDP in the next section is that the optimal constant $\alpha_k^2$ in (\ref{asymRIP}) can be computed
 with the non-convex quadratic optimization problem
 \begin{align}\label{QP}
- \min \quad & \|Ax\|_2^2 \nonumber \\
- \text{s.t.} \quad & \|x\|_2^2 = 1 \tag{QP} \\
- & \|x\|_0 \leq k. \nonumber
+ \min \quad & \Norm{Ax}{2}^2 \nonumber \\
+ \text{s.t.} \quad & \Norm{x}{2}^2 = 1 \tag{QP} \\
+ & \Norm{x}{0} \leq k. \nonumber
 \end{align}
-The corresponding maximization problem can be solved to compute $\beta_k^2$. In \cite{Asp07} the non-convex quadratic equality constraint $\|x\|_2^2 = 1$ is tackled by the technique of semidefinite lifting first introduced in \cite{GW95} 
+The corresponding maximization problem can be solved to compute $\beta_k^2$. In \cite{Asp07} the non-convex quadratic equality constraint $\Norm{x}{2}^2 = 1$ is tackled by the technique of semidefinite lifting first introduced in \cite{GW95} 
 for the max-cut problem. The idea is to use a new matrix variable $X=xx\T$ for the quadratic terms, where the condition $X=xx\T$ is then enforced by the equivalent constraints $X \succeq 0$ and $\Rk(X) = 1$, where 
-$X \succeq 0$ means that $X$ is symmetric and positive semidefinite. In the next step the non-convex rank constraint is then relaxed and the inequality $\|x\|_0 \leq k$ is substituted by the coarser constraint $1\T|X|1 \leq k$ to form
+$X \succeq 0$ means that $X$ is symmetric and positive semidefinite. In the next step the non-convex rank constraint is then relaxed and the inequality $\Norm{x}{0} \leq k$ is substituted by the coarser constraint $1\T|X|1 \leq k$ to form
 the relaxation
 \begin{align}\label{Asp07}
  \min \quad & \Tr(A\T A X) \nonumber \\
@@ -211,7 +211,7 @@ the relaxation
 In \cite{Asp08} instead the problem
 
 \begin{equation}\label{phi}
- \phi(\rho) = \max_{\|x\|_2 \leq 1} x\T \Sigma x - \rho \|x\|_0,
+ \phi(\rho) = \max_{\Norm{x}{2} \leq 1} x\T \Sigma x - \rho \Norm{x}{0},
 \end{equation}
 originally stemming from sparse principal component analysis, is tackled for a symmetric positive semidefinite matrix $\Sigma$, which for
 $\Sigma = A\T A$, by duality, gives an upper bound on $\beta_k$ via 
@@ -244,7 +244,7 @@ A lower bound for $\alpha_k$ can be computed via
 \end{equation*}
 with 
 \begin{equation*}
- \psi(\rho) = \min_{\|x\|_2 \leq 1} x\T \Sigma x + \rho \|x\|_0.
+ \psi(\rho) = \min_{\Norm{x}{2} \leq 1} x\T \Sigma x + \rho \Norm{x}{0}.
 \end{equation*}
 In this case problem (\ref{Asp08}) has to be solved for $\Sigma = \alpha I - A\T A$, where $\alpha$ has to be big enough to make $\Sigma$ positive semidefinite again. If $\bar{\Psi}$ is the corresponding optimal solution, this implies
 a lower bound on $\alpha_k$ as
@@ -266,7 +266,7 @@ a lower bound on $\alpha_k$ as
 % where $I$ is a given sparsity pattern, found by some heuristic for example, $x$ the largest eigenvector of $\sum_{i \in I} b_i b_i\T$ and
 % \begin{equation*}
 %  Y_i = \begin{cases}\frac{B_ixx\T B_i}{x\T B_ix}, & \text{for } i \in I \\
-%    \max\{0, \rho \frac{b_i\T b_i - \rho}{\rho - (b_i\T x)^2} \} \frac{(I-xx\T)b_ib_i\T(I-xx\T)}{\|(I-xx\T)b_i\|_2^2}, & \text{for } i \in I^c\end{cases}. 
+%    \max\{0, \rho \frac{b_i\T b_i - \rho}{\rho - (b_i\T x)^2} \} \frac{(I-xx\T)b_ib_i\T(I-xx\T)}{\Norm{(I-xx\T)b_i}{2}^2}, & \text{for } i \in I^c\end{cases}. 
 %  %x in the second case sill as above?
 % \end{equation*}
 
@@ -276,29 +276,29 @@ a lower bound on $\alpha_k$ as
 
 In this section we want to compute the optimal constants $\alpha_k$ and $\beta_k$ in (\ref{asymRIP}) using mixed integer semidefinite programming. We will again start with the non-convex quadratic problem
 \begin{align}\label{QP2}
- \min \quad & \|Ax\|_2^2 \nonumber \\
- \text{s.t.} \quad & \|x\|_2^2 = 1 \tag{QP} \\
- & \|x\|_0 \leq k. \nonumber
+ \min \quad & \Norm{Ax}{2}^2 \nonumber \\
+ \text{s.t.} \quad & \Norm{x}{2}^2 = 1 \tag{QP} \\
+ & \Norm{x}{0} \leq k. \nonumber
 \end{align}
 
-For the non-convex quadratic equality constraint $\|x\|_2^2 = 1$ we will
-again use semidefinite lifting as $\|Ax\|_2^2 = x\T A\T Ax =
+For the non-convex quadratic equality constraint $\Norm{x}{2}^2 = 1$ we will
+again use semidefinite lifting as $\Norm{Ax}{2}^2 = x\T A\T Ax =
 \Tr(A\T A X)$ and $\Tr(X) = \sum_{i=1}^n x_i^2$. 
 The cardinality-constraint in (\ref{QP}) can equivalently be written using binary variables $z_i$ as $-z_i \leq x_i \leq z_i$ and $\sum_{i=1}^n z_i \leq k$. We can thus rewrite (\ref{QP}) equivalently to
 % In this section we want to compute the optimal constants $\alpha_k$ and $\beta_k$ in (\ref{asymRIP}) using mixed integer semidefinite programming. A non-convex quadratic optimization problem to compute $\alpha_k$ can be formulated as
 % 
 % \begin{align}\label{QP}
-%  \min \quad & \|Ax\|_2^2 \nonumber \\
-%  \text{s.t.} \quad & \|x\|_2^2 = 1 \tag{QP} \\
-%  & \|x\|_0 \leq k. \nonumber
+%  \min \quad & \Norm{Ax}{2}^2 \nonumber \\
+%  \text{s.t.} \quad & \Norm{x}{2}^2 = 1 \tag{QP} \\
+%  & \Norm{x}{0} \leq k. \nonumber
 % \end{align}
 % 
 % By switching $\min$ for $\max$ in (\ref{QP}) we also get a corresponding optimization problem to compute $\beta_k$ and therefore also $\gamma_k$ and $\delta_k$.
-% The cardinality-constraint in (\ref{QP}) can equivalently be written using binary variables $z_i$ as $-z_i \leq x_i \leq z_i$ and $\sum_{i=1}^n z_i \leq k$. For the non-convex quadratic equality constraint $\|x\|_2^2 = 1$ we will
+% The cardinality-constraint in (\ref{QP}) can equivalently be written using binary variables $z_i$ as $-z_i \leq x_i \leq z_i$ and $\sum_{i=1}^n z_i \leq k$. For the non-convex quadratic equality constraint $\Norm{x}{2}^2 = 1$ we will
 % use the technique of semidefinite lifting first introduced in \cite{GW95} for the max-cut problem. The idea is to use a new matrix variable $X=xx\T$ for the quadratic terms, where the condition $X=xx\T$ is then enforced by the 
 % equivalent constraints $X \succeq 0$ and $\Rk(X) = 1$, where $X
 % \succeq 0$ means that $X$ is symmetric and positive semidefinite. Using
-% that $\|Ax\|_2^2 = x\T A\T Ax = \Tr(A\T A X)$ and 
+% that $\Norm{Ax}{2}^2 = x\T A\T Ax = \Tr(A\T A X)$ and 
 % $\Tr(X) = \sum_{i=1}^n x_i^2$, we can thus rewrite (\ref{QP}) equivalently to
 \begin{align}\label{Rk1MISDP}
  \min \quad & \Tr(A\T A X) \nonumber \\
