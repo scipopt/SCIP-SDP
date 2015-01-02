@@ -18,6 +18,7 @@
 \newcommand{\abs}[1]{\lvert{#1}\rvert}
 \newcommand{\card}[1]{\lvert{#1}\rvert}
 \newcommand{\define}{\coloneqq}
+\newcommand{\enifed}{\eqqcolon}
 \newcommand{\norm}[1]{\lVert{#1}\rVert}
 \newcommand{\Norm}[2]{\lVert{#1}\rVert_{#2}}
 \newcommand{\skal}[2]{\langle{#1},{#2}\rangle}
@@ -230,7 +231,7 @@ use $\tilde{\alpha}_k = \lambda \alpha_k$, $\tilde{\beta}_k = \lambda
 
 In the following we will design an approach to compute the optimal
 constants $\alpha_k$ and $\beta_k$. These can then be used to compute
-either the restricted isometry ratio $\gamma_k := \beta_k^2 / \alpha_k^2$
+either the restricted isometry ratio $\gamma_k \define \beta_k^2 / \alpha_k^2$
 or the restricted isometry constant $\delta_k = \max \{ 1 - \alpha_k^2,\;
 \beta_k^2 - 1 \}$.
 
@@ -375,7 +376,7 @@ solutions of semidefinite programs and the dimension of corresponding faces, mea
 \begin{thm}\label{patakiLemma}
  Let $X \in F$, where $F$ is a face of
  \begin{equation*}
- P := \{X \in S_n : X \succeq 0, \Tr(A_i X) = b_i \ \forall i \leq m\}
+ P \define \{X \in S_n : X \succeq 0, \Tr(A_i X) = b_i \ \forall i \leq m\}
  \end{equation*}
  for symmetric matrices $A_i \in S_n, i \leq m$. Then
  \begin{equation*}
@@ -399,7 +400,7 @@ solution to (\ref{MISDP}) with rank one.
  & X \succeq 0 , X \in S_\ell, \nonumber
  \end{align}
 where $\tilde{A} = (A_{i_1}, A_{i_2}, ..., A_{i_\ell})$ consists of those
-columns $\{{i_1}, {i_2}, ..., {i_\ell}\} =: T$ of $A$ for which
+columns $\{{i_1}, {i_2}, ..., {i_\ell}\} \enifed T$ of $A$ for which
 $\hat{z}_{i_k} = 1$.
 
 Now let $\tilde{X}$ be the matrix consisting of those rows and columns 
