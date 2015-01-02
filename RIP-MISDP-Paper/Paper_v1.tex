@@ -58,7 +58,7 @@ equations is one key problem in compressed sensing and has been
 thoroughly investigated in recent years. Given a matrix $A \in \R^{m \times n}$ with $m < n$ and 
 right-hand side $b \in \R^m$, the problem is to compute
 \begin{align}\label{l0min}
- \text{min} \quad & \|x\|_0 \tag{$P_0$}\\
+ \min \quad & \|x\|_0 \tag{$P_0$}\\
  \text{s.t.} \quad & Ax = b, \nonumber
 \end{align}
 where $\|x\|_0$ denotes the number of nonzero components of~$x$. This
@@ -67,7 +67,7 @@ Johnson~\cite{GareyJohnson}. One key observation in compressed sensing is
 that a solution of~\eqref{l0min} can be found by solving the following
 convex optimization problem if certain conditions are fulfilled:
 \begin{align}\label{l1min}
- \text{min} \quad & \|x\|_1 \tag{$P_1$}\\
+ \min \quad & \|x\|_1 \tag{$P_1$}\\
  \text{s.t.} \quad & Ax = b. \nonumber
 \end{align}
 In fact, this so-called \emph{basis pursuit} problem can be reformulated as
@@ -171,7 +171,7 @@ for all $x \in \Sigma_k$.
 
 This is a generalization of Definition \ref{ripdef} in the form that if $A$ satisfies the restricted isometry property of order $k$ with restricted isometry constant $\delta_k$, then it has a restricted isometry constant of at most 
 $(1 - \delta_k) / (1 + \delta_k)$. Also in the other direction, if $A$ satisfies (\ref{asymRIP}) with constants $\alpha_k$ and $\beta_k$, then it will also satisfy (\ref{rip}) for 
-$\delta_k = \text{max} \{ 1 - \alpha_k^2, \beta_k^2 - 1 \}$. So $A$ satisfies definition \ref{asymRIPdef} if and only if it satisfies definition \ref{ripdef}, but as in (\ref{rip}) usually only one of the two inequalities will 
+$\delta_k = \max \{ 1 - \alpha_k^2, \beta_k^2 - 1 \}$. So $A$ satisfies definition \ref{asymRIPdef} if and only if it satisfies definition \ref{ripdef}, but as in (\ref{rip}) usually only one of the two inequalities will 
 be sharp in contrast to (\ref{asymRIP}), the asymmetric version will be more precise. For this definition a condition like Theorem \ref{RIPsqrt2} can again be shown like in \cite{FL09}:
 
 \begin{thm} \label{asymRIPtheorem}
@@ -184,7 +184,7 @@ and therefore $\tilde{\gamma_k} = \lambda^2 \alpha_k^2 / \lambda^2
 \beta_k^2 = \gamma_k$.
 
 In the following we will try to compute the optimal constants $\alpha_k$ and $\beta_k$ in (\ref{asymRIP}). These can then be used to compute either the restricted isometry ratio $\gamma_k := \beta_k^2 / \alpha_k^2$ or the restricted
-isometry constant $\delta_k = \text{max} \{ 1 - \alpha_k^2, \beta_k^2 - 1 \}$.
+isometry constant $\delta_k = \max \{ 1 - \alpha_k^2, \beta_k^2 - 1 \}$.
 
 \section{SDP relaxations}
 \label{sec:SDPrelax}
@@ -193,7 +193,7 @@ In this section we will discuss two known SDP relaxations to compute an upper bo
 propose and will also be checked against in the section on numerical results. The idea of these two relaxations as well as the MISDP in the next section is that the optimal constant $\alpha_k^2$ in (\ref{asymRIP}) can be computed
 with the non-convex quadratic optimization problem
 \begin{align}\label{QP}
- \text{min} \quad & \|Ax\|_2^2 \nonumber \\
+ \min \quad & \|Ax\|_2^2 \nonumber \\
  \text{s.t.} \quad & \|x\|_2^2 = 1 \tag{QP} \\
  & \|x\|_0 \leq k. \nonumber
 \end{align}
@@ -202,7 +202,7 @@ for the max-cut problem. The idea is to use a new matrix variable $X=xx\T$ for t
 $X \succeq 0$ means that $X$ is symmetric and positive semidefinite. In the next step the non-convex rank constraint is then relaxed and the inequality $\|x\|_0 \leq k$ is substituted by the coarser constraint $1\T|X|1 \leq k$ to form
 the relaxation
 \begin{align}\label{Asp07}
- \text{min} \quad & \Tr(A\T A X) \nonumber \\
+ \min \quad & \Tr(A\T A X) \nonumber \\
  \text{s.t.} \quad & \Tr(X) = 1 \nonumber \\
  & \ones\T|X|\ones \leq k \tag{A1} \\
  & X \succeq 0. \nonumber
@@ -222,17 +222,17 @@ $\Sigma = A\T A$, by duality, gives an upper bound on $\beta_k$ via
 
 As one way to solve (\ref{phi}) again the semidefinite lifting technique is used to compute an upper bound on $\phi$ via
 \begin{align}\label{Asp08}
- \text{max} \quad & \sum_{i=1}^n\Tr(P_iB_i) \nonumber \\
+ \max \quad & \sum_{i=1}^n\Tr(P_iB_i) \nonumber \\
  \text{s.t.} \quad & \Tr(X) = 1 \nonumber \\
  & X \succeq 0 \tag{A2-Primal} \\
  & X \succeq P_i \succeq 0 \quad \forall i \leq n, \nonumber
 \end{align}
- for $B_i = b_ib_i\T - \rho I,$ where $b_i$ is the $i$-th column of a squareroot of $\Sigma$. The corresponding dual problem can then be written as 
+for $B_i = b_ib_i\T - \rho I,$ where $b_i$ is the $i$-th column of a squareroot of $\Sigma$. The corresponding dual problem can then be written as 
  
- \begin{align}\label{Asp08Dual}
- \text{min} \quad & \lambda_\text{max}\left(\sum_{i=1}^n Y_i \right) \nonumber \\
- \text{s.t.} \quad & Y_i \succeq B_i \quad \forall i \leq n \tag{A2-Dual} \\
- & Y_i \succeq 0 \quad \ \ \forall i \leq n, \nonumber
+\begin{align}\label{Asp08Dual}
+  \min \quad & \lambda_{\max}\left(\sum_{i=1}^n Y_i \right) \nonumber \\
+  \text{s.t.} \quad & Y_i \succeq B_i \quad \forall i \leq n \tag{A2-Dual} \\
+  & Y_i \succeq 0 \quad \ \ \forall i \leq n, \nonumber
 \end{align}
 which only has half as many variables as (\ref{Asp08}) and one less linear and semidefinite constraint. Then (\ref{Asp08Dual}) can be solved for non-negative $\rho$, which should be smaller than $\Sigma_{11}$, because otherwise the
 optimal solution for (\ref{phi}) will always be $x=0$. 
@@ -276,7 +276,7 @@ a lower bound on $\alpha_k$ as
 
 In this section we want to compute the optimal constants $\alpha_k$ and $\beta_k$ in (\ref{asymRIP}) using mixed integer semidefinite programming. We will again start with the non-convex quadratic problem
 \begin{align}\label{QP2}
- \text{min} \quad & \|Ax\|_2^2 \nonumber \\
+ \min \quad & \|Ax\|_2^2 \nonumber \\
  \text{s.t.} \quad & \|x\|_2^2 = 1 \tag{QP} \\
  & \|x\|_0 \leq k. \nonumber
 \end{align}
@@ -288,12 +288,12 @@ The cardinality-constraint in (\ref{QP}) can equivalently be written using binar
 % In this section we want to compute the optimal constants $\alpha_k$ and $\beta_k$ in (\ref{asymRIP}) using mixed integer semidefinite programming. A non-convex quadratic optimization problem to compute $\alpha_k$ can be formulated as
 % 
 % \begin{align}\label{QP}
-%  \text{min} \quad & \|Ax\|_2^2 \nonumber \\
+%  \min \quad & \|Ax\|_2^2 \nonumber \\
 %  \text{s.t.} \quad & \|x\|_2^2 = 1 \tag{QP} \\
 %  & \|x\|_0 \leq k. \nonumber
 % \end{align}
 % 
-% By switching $\text{min}$ for $\text{max}$ in (\ref{QP}) we also get a corresponding optimization problem to compute $\beta_k$ and therefore also $\gamma_k$ and $\delta_k$.
+% By switching $\min$ for $\max$ in (\ref{QP}) we also get a corresponding optimization problem to compute $\beta_k$ and therefore also $\gamma_k$ and $\delta_k$.
 % The cardinality-constraint in (\ref{QP}) can equivalently be written using binary variables $z_i$ as $-z_i \leq x_i \leq z_i$ and $\sum_{i=1}^n z_i \leq k$. For the non-convex quadratic equality constraint $\|x\|_2^2 = 1$ we will
 % use the technique of semidefinite lifting first introduced in \cite{GW95} for the max-cut problem. The idea is to use a new matrix variable $X=xx\T$ for the quadratic terms, where the condition $X=xx\T$ is then enforced by the 
 % equivalent constraints $X \succeq 0$ and $\Rk(X) = 1$, where $X
@@ -301,7 +301,7 @@ The cardinality-constraint in (\ref{QP}) can equivalently be written using binar
 % that $\|Ax\|_2^2 = x\T A\T Ax = \Tr(A\T A X)$ and 
 % $\Tr(X) = \sum_{i=1}^n x_i^2$, we can thus rewrite (\ref{QP}) equivalently to
 \begin{align}\label{Rk1MISDP}
- \text{min} \quad & \Tr(A\T A X) \nonumber \\
+ \min \quad & \Tr(A\T A X) \nonumber \\
  \text{s.t.} \quad & \Tr(X) = 1 \nonumber \\
  & -z_j \leq X_{ij} \leq z_j \quad \forall j \leq n \nonumber \\
  & \sum_{i=1}^n z_i \leq k \tag{Rk1MISDP} \\
@@ -312,7 +312,7 @@ The cardinality-constraint in (\ref{QP}) can equivalently be written using binar
 
 The next step would then be to relax the non-convex rank constraint again to arrive at the following relaxation which computes a lower bound on the optimal constant $\alpha_k$ in (\ref{asymRIP}):
 \begin{align}\label{MISDP}
- \text{min} \quad & \Tr(A\T A X) \nonumber \\
+ \min \quad & \Tr(A\T A X) \nonumber \\
  \text{s.t.} \quad & \Tr(X) = 1 \nonumber \\
  & -z_j \leq X_{ij} \leq z_j \quad \forall j \leq n \nonumber \\
  & \sum_{i=1}^n z_i \leq k \tag{MISDP} \\
@@ -346,7 +346,7 @@ solution to (\ref{MISDP}) with rank one.
  so an optimal solution exists)
  with $\sum_{i=1}^n z_i = \ell \leq k$. Define
  \begin{align}\label{Proj}
- \text{min} \quad & \Tr(\tilde{A}\T\tilde{A}X) \nonumber \\
+ \min \quad & \Tr(\tilde{A}\T\tilde{A}X) \nonumber \\
  \text{s.t.} \quad & \Tr(X) = 1 \tag{Proj} \\
  & X \succeq 0 , X \in S_\ell, \nonumber
  \end{align}
