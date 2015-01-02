@@ -30,6 +30,9 @@
 \newcommand{\Z}{\mathds{Z}}
 \newcommand{\ones}{\mathds{1}}
 
+% other commands
+\newcommand{\NP}{\text{NP}}
+\newcommand{\comment}[1]{\marginpar{\raggedright\tiny {#1}}}
 
 \begin{document}
 
@@ -49,38 +52,80 @@ mixed integer semidefinite program for computing these constants. Numerical resu
 \maketitle
 
 \section{Introduction}
-Finding the sparsest solution of an underdetermined system of linear equations is a problem that has been the subject of much recent research in compressed sensing. Given a matrix $A \in \R^{m \times n}$ with $m < n$ and 
-right-hand side $b \in \R^m$, we are interested in a solution of 
+
+Finding a sparsest solution of an underdetermined system of linear
+equations is one key problem in compressed sensing and has been
+thoroughly investigated in recent years. Given a matrix $A \in \R^{m \times n}$ with $m < n$ and 
+right-hand side $b \in \R^m$, the problem is to compute
 \begin{align}\label{l0min}
- \text{min} \quad & \|x\|_0 \tag{$\ell_0$-min}\\
+ \text{min} \quad & \|x\|_0 \tag{$P_0$}\\
  \text{s.t.} \quad & Ax = b, \nonumber
 \end{align}
-where $\|x\|_0$ stands for the cardinality and thus the number of nonzero components of a vector $x$. As it is $\mathcal{NP}$-hard to solve (\ref{l0min}), see for example \cite{GareyJohnson}, we would like to solve the problem
+where $\|x\|_0$ denotes the number of nonzero components of~$x$. This
+problem is \NP-hard, see for example the book by Garey and
+Johnson~\cite{GareyJohnson}. One key observation in compressed sensing is
+that a solution of~\eqref{l0min} can be found by solving the following
+convex optimization problem if certain conditions are fulfilled:
 \begin{align}\label{l1min}
- \text{min} \quad & \|x\|_1 \tag{$\ell_1$-min}\\
- \text{s.t.} \quad & Ax = b \nonumber
+ \text{min} \quad & \|x\|_1 \tag{$P_1$}\\
+ \text{s.t.} \quad & Ax = b. \nonumber
 \end{align}
-instead, as this can be cast as an LP. Results in compressed sensing show, that there are many conditions which imply that the problems (\ref{l0min}) and (\ref{l1min}) are indeed equivalent. First results about this have been 
-established in \cite{DH01}, and have later been followed up for example by \cite{CRT05}, \cite{Zha08} or \cite{BCT11}. One such condition is the restricted isometry property
-\begin{equation}\label{RIPintro}
- (1-\delta_k)\|x\|_2^2 \leq \|Ax\|_2^2 \leq (1+\delta_k)\|x\|_2^2,
-\end{equation}
-that was first introduced in \cite{CT05}. If it holds for all $k$-sparse vectors $x$ for a sufficiently small restricted isometry constant $\delta_k$, then problems (\ref{l0min}) and (\ref{l1min}) have the same optimal solution. 
-Even though it was shown in \cite{BDDW08}, that this condition holds for multiple classes of random matrices with probability exponentially going to one, in \cite{PT14} it was shown, that computing the optimal restricted isometry 
-constants in (\ref{RIPintro}) for a given matrix $A$ is again an $\mathcal{NP}$-hard task.
+In fact, this so-called \emph{basis pursuit} problem can be reformulated as
+a linear program (LP) and efficient specialized solution algorithms are
+available both in theory and practice.\comment{Add references:
+  $\ell_1$-homotopy, SPGL1, Chen, Donoho, and Saunders, \dots}
 
-In the past SDP-Relaxations were proposed in \cite{Asp07} and \cite{Asp08} to compute upper bounds on the values of the restricted isometry 
-constant, which could then be used to verify the equivalance between (\ref{l0min}) and (\ref{l1min}), but there could also be cases, where the results of those relaxations weren't sufficient, but the real constants would have been. 
-In this paper we will construct a mixed integer semidefinite program to compute the exact constants in (\ref{RIPintro}), to be able to verify in all cases if those sufficient conditions for the equivalence hold for a given matrix. 
-The main contribution of this paper is theorem \ref{Rk1thm}, which shows
-that the optimal solution of this MISDP indeed allows us to compute the
-exact restricted isometry constant.
+Several conditions in compressed sensing imply that a solution
+of~\eqref{l0min} can be \emph{recovered} by solving \eqref{l1min}, in which
+case one speaks of $\ell_0$-$\ell_1$-\emph{equivalence}. First results in
+this direction were established by Chen, Donoho, and
+Saunders~\cite{CheDS99} and Donoho and Huo~\cite{DH01}, with many articles
+following. We therefore refer the reader to the excellent book by Foucart
+and Rauhut~\cite{FouR13} for further information.
 
-In the following we will start by introducing the restricted isometry property and corresponding results about the equivalence of (\ref{l0min}) and (\ref{l1min}). In the next section we will present the SDP-relaxations in \cite{Asp07} 
-and \cite{Asp08}.Afterwards we will construct a mixed integer semidefinite programme and show that it produces exact restricted isometry constants before presenting numerical results and comparisons with the SDP-Relaxations in 
+One important condition is the \emph{restricted isometry property} (RIP),
+which was first introduced by Cand\`es and Tao~\cite{CT05}. For each $k \in
+\{1, \dots, n\}$, the RIP involves a \emph{restricted isometry constant}
+$\delta_k$ depending on~$k$ and~$A$. If $\delta_k$ is sufficiently small
+and there exists $\tilde{x} \in \R^n$ with $A \tilde{x} = b$ and
+$\Norm{\tilde{x}}{0} \leq k$, then problems~\eqref{l0min} and~\eqref{l1min}
+are equivalent; see Section~\ref{sec:RIP} for more details. There are
+several types of matrices~$A$ for which the RIP holds, for instance random
+matrices, see, e.g., Baraniuk et al.~\cite{BDDW08}. Although the RIP does
+not provide necessary conditions, it is still one of the major tools for
+establishing for $\ell_0$-$\ell_1$-equivalence. However, in~\cite{PT14} it
+was shown that computing the restricted isometry constants for a given
+matrix~$A$ and~$k$ is NP-hard.
+
+One the other hand, d'Aspremont et al.~\cite{Asp07,Asp08} proposed several
+semidefinite relaxations to compute upper bounds on the restricted isometry
+constants. Note that small upper bounds suffice to guarantee
+$\ell_0$-$\ell_1$-equivalence between~\eqref{l0min} and~\eqref{l1min}, but
+there exist cases in which the bounds are too weak to give a guarantee.
+
+The goal of this paper is to compute optimal restricted isometry constants
+via a mixed integer semidefinite program (SDP). To this end, we will
+introduce an SDP with binary variables and a rank-1 constraint. In order to
+utilize this SDP, we will show that the rank constraint can be relaxed
+without changing the optimal value. Moreover, we discuss a solution
+methodology to solve the resulting mixed integer SDP. It will turn out that
+the resulting problems are quite hard to solve, even for matrices of
+smaller size. However, the results allow an evaluation of the SDP
+relaxations of d'Aspremont et al. Depending on the input matrices, these
+bounds can be quite tight or weak.
+
+In the following, we will start by introducing the restricted isometry
+property and corresponding results about the equivalence of~\eqref{l0min}
+and~\eqref{l1min} in Section~\ref{sec:RIP}. In Section~\ref{sec:SDPrelax},
+we will then review the SDP-relaxations of~\cite{Asp07}
+and~\cite{Asp08}. Afterwards we will construct a mixed integer semidefinite
+programme and show that it produces exact restricted isometry constants in
+Section~\ref{sec:MISDP}. Finally, in Section~\ref{sec:numerical_results},
+we present numerical results and comparisons with the SDP relaxations in
 \cite{Asp07} and \cite{Asp08}.
 
 \section{The restriced isometry property}
+\label{sec:RIP}
 
 In this section we will discuss some general results about the restricted isometry property and its relationship with the optimization problems (\ref{l0min}) and (\ref{l1min}). To start, we will properly define the restricted
 isometry property as in \cite{CT05}:
@@ -142,6 +187,7 @@ In the following we will try to compute the optimal constants $\alpha_k$ and $\b
 isometry constant $\delta_k = \text{max} \{ 1 - \alpha_k^2, \beta_k^2 - 1 \}$.
 
 \section{SDP relaxations}
+\label{sec:SDPrelax}
 
 In this section we will discuss two known SDP relaxations to compute an upper bound on the restricted isometry constant $\delta_k$ in (\ref{rip}), as they have some ideas in common with the mixed integer semidefinite program we want to 
 propose and will also be checked against in the section on numerical results. The idea of these two relaxations as well as the MISDP in the next section is that the optimal constant $\alpha_k^2$ in (\ref{asymRIP}) can be computed
@@ -226,6 +272,7 @@ a lower bound on $\alpha_k$ as
 
 
 \section{A MISDP for the restricted isometry property}
+\label{sec:MISDP}
 
 In this section we want to compute the optimal constants $\alpha_k$ and $\beta_k$ in (\ref{asymRIP}) using mixed integer semidefinite programming. We will again start with the non-convex quadratic problem
 \begin{align}\label{QP2}
@@ -331,6 +378,7 @@ have to agree and we can compute the optimal constant $\alpha_k$ for the RIP by 
 constant and the restricted isometry ratio by mixed integer semidefinite programming.
 
 \section{Numerical Results}
+\label{sec:numerical_results}
 
 For solving \ref{MISDP} we used the MISDP-Solver SCIP\_SDP originally developed in \cite{MS12} and \cite{Mar13}, which combines the branch-and-bound-framework of SCIP 3.1 \cite{SCIP} with interior-point-SDP-solvers, in this case 
 with the dual-scaling interior-point-solver DSDP 5.8 \cite{DSDP}. The code was overhauled and ported to C in contrast to the cited original version. The continuous SDPs were solved using the command-line version of DSDP. The testset
