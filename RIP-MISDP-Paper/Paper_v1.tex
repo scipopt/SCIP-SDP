@@ -5,12 +5,13 @@
 \usepackage{dsfont}
 \usepackage{booktabs}
 \usepackage{multirow}
+\usepackage{mathtools}
 
 \newtheorem{thm}{Theorem}
 \newdefinition{rmk}{Definition}
 
-\DeclareMathOperator{\argmin}{argmin}
-\DeclareMathOperator{\argmax}{argmax}
+\DeclareMathOperator*{\argmin}{argmin}
+\DeclareMathOperator*{\argmax}{argmax}
 \DeclareMathOperator{\supp}{supp}
 
 \newcommand{\suchthat}{\,:\,}
@@ -136,64 +137,102 @@ we present numerical results and comparisons with the SDP relaxations in
 \section{The restriced isometry property}
 \label{sec:RIP}
 
-In this section we will discuss some general results about the restricted isometry property and its relationship with the optimization problems (\ref{l0min}) and (\ref{l1min}). To start, we will properly define the restricted
-isometry property as in \cite{CT05}:
+In this section we will review some general results about the restricted
+isometry property and its relationship with the optimization problems
+(\ref{l0min}) and (\ref{l1min}). We start with the definition of the RIP as
+in \cite{CT05}:
 
-\begin{rmk} \label{ripdef}
-The \emph{restricted isometry property (RIP)} of order $k$ holds for a matrix $A \in \R^{m \times n}$, if there exists a minimal \emph{restricted isometry constant} $\delta_k$, such that for all $x \in \Sigma_k := 
-\{x \in \R^n : \Norm{x}{0} \leq k \}$ we have
- \begin{equation}\label{rip}
-  (1-\delta_k)\Norm{x}{2}^2 \leq \Norm{Ax}{2}^2 \leq (1+\delta_k) \Norm{x}{2}^2.
- \end{equation}
- \end{rmk}
- 
- If the restricted isometry property holds for a sufficiently small restricted isometry constant, then the optimal solutions of (\ref{l0min}) and (\ref{l1min}) coincide. To show this, one needs estimates of the form
-  \begin{equation}\label{l1ErrorRIP}
-  \Norm{x^* - x} \leq C \Norm{x - x_k},
- \end{equation}
- where $x^*$ is an optimal solution of (\ref{l1min}) with $b = Ax$ and $x_k$ is the best approximation of some vector $x \in \R^n$ with $k$-sparse vectors. If we get a result like (\ref{l1ErrorRIP}), and we know that the vector $x$, which in the 
- applications would be the sparse signal that needs to be recovered, is already $k$-sparse itself, then the best approximation of $x$ with $k$-sparse vectors is clearly $x$ itself. This means that the right-hand-side in 
- (\ref{l1ErrorRIP}) equals zero, and therefore the unique optimal solution of (\ref{l1min}) has to be $x$ again. Now (\ref{l1ErrorRIP}) not only holds for this $x$ exclusively, but for any $k$-sparse vector $y$ with $Ay=Ax=b$. And 
- because of $Ay=Ax=b$, we get the same problem in (\ref{l1min}) and therefore also the same solution $x^*$ which needs to equal $y$ because of (\ref{l1ErrorRIP}), so this means that there can only be a single vector $x$ with sparsity
- at most $k$ for which $Ax=b$ holds, which then also has to solve (\ref{l0min}), which gives us the equivalance of these two problems.
- 
- The best-known result of this type is probably the following from \cite{Can08}:
- 
-\begin{thm} \label{RIPsqrt2}
- If $A$ satisfies $\delta_{2k} < \sqrt{2}-1$, then for every $x \in \R^n$
- \begin{equation*}
-  \Norm{x^* - x}{1} \leq C \Norm{x - x_k}{1},
- \end{equation*}
-where $x^*$ is an optimal solution for (\ref{l1min}) with right-hand side $b = Ax$, $x_k$ is the best approximation of $x$ with $k$-sparse vectors and $C$ is a constant depending only on $k$ and $\delta_{2k}$. If $x$ is $k$-sparse, 
-then the optimal solutions of (\ref{l0min}) and (\ref{l1min}) coincide.\end{thm}
-
-There are also many other results like Theorem \ref{RIPsqrt2}, for example in \cite{fou10} the condition was relaxed to $\delta_{2k} < 0.4652$ and in \cite{CWX10} it was shown for $\delta_k < 0.307$. Also all of these results can be
-generalized to the case where $\Norm{Ax - b}{2} \leq \epsilon$. The restricted isometry property can also be formulated in an asymmetric way like in \cite{FL09}:
-
-\begin{rmk} \label{asymRIPdef}
-The \emph{restricted isometry ratio} $\gamma_k$ is defined as $\gamma_k := \beta_k^2 / \alpha_k^2$, where $\alpha_k$ and $\beta_k$ are the largest and smallest constant satisfying
-\begin{equation}\label{asymRIP}
-   \alpha_k^2 \Norm{x}{2}^2 \leq \Norm{Ax}{2}^2 \leq \beta_k^2 \Norm{x}{2}^2
-\end{equation}
-for all $x \in \Sigma_k$.
+\begin{rmk}\label{ripdef}
+  The \emph{restricted isometry property} (RIP) of order~$k$ holds for a
+  matrix $A \in \R^{m \times n}$ with constant~$\delta \geq 0$, if
+  \begin{equation}\label{rip}
+    (1 - \delta) \Norm{x}{2}^2 \leq \Norm{Ax}{2}^2 \leq (1+\delta) \Norm{x}{2}^2
+  \end{equation}
+  for all $x \in \Sigma_k \define \{x \in \R^n \suchthat \Norm{x}{0} \leq k\}$. The
+  smallest constant~$\delta$ such that~\eqref{rip} holds is called
+  \emph{restricted isometry constant} (RIC)~$\delta_k$.
 \end{rmk}
 
-This is a generalization of Definition \ref{ripdef} in the form that if $A$ satisfies the restricted isometry property of order $k$ with restricted isometry constant $\delta_k$, then it has a restricted isometry constant of at most 
-$(1 - \delta_k) / (1 + \delta_k)$. Also in the other direction, if $A$ satisfies (\ref{asymRIP}) with constants $\alpha_k$ and $\beta_k$, then it will also satisfy (\ref{rip}) for 
-$\delta_k = \max \{ 1 - \alpha_k^2, \beta_k^2 - 1 \}$. So $A$ satisfies definition \ref{asymRIPdef} if and only if it satisfies definition \ref{ripdef}, but as in (\ref{rip}) usually only one of the two inequalities will 
-be sharp in contrast to (\ref{asymRIP}), the asymmetric version will be more precise. For this definition a condition like Theorem \ref{RIPsqrt2} can again be shown like in \cite{FL09}:
+For this paper, it is useful to take an asymmetric viewpoint and
+distinguish between the lower and upper bounds in~\eqref{rip}, as was done
+in~\cite{FL09}:
 
-\begin{thm} \label{asymRIPtheorem}
-If $A$ has restricted isometry ratio $\gamma_{2k} \leq 4 \sqrt{2} - 3 \approx 2.6569$, then every $k$-sparse vector is exactly recovered by (\ref{l1min}). 
+\begin{rmk}\label{asymRIPdef}
+ The \emph{lower} and \emph{upper RIC} are defined as
+ \begin{align}
+   \alpha_k & \define \argmax_{\alpha \geq 0}\; \{ \alpha^2 \Norm{x}{2}^2
+   \leq \Norm{Ax}{2}^2,\; \text{ for all }x \in \Sigma_k\}\text{ and }\label{lowerRIP}\\
+   \beta_k & \define \argmin_{\beta \geq 1}\; \{ \Norm{Ax}{2}^2 \leq \beta^2
+   \Norm{x}{2}^2,\; \text{ for all }x \in \Sigma_k\},\label{upperRIP}
+ \end{align}
+ respectively. The \emph{restricted isometry ratio} (RIR) $\gamma_k$ is
+ defined as $\gamma_k \define \beta_k^2 / \alpha_k^2$.
+\end{rmk}
+
+\comment{Der ganze Absatz ist \"uberarbeitet, z.B.\ die RIR korrigiert
+  (statt $(1 - \delta_k)/(1 + \delta_k)$). Korrekt?}
+%
+Definition~\ref{asymRIPdef} is a generalization of Definition~\ref{ripdef}
+in the following sense: if the matrix~$A$ satisfies the RIP of order $k$
+with RIC $\delta_k$, then it has a RIR of at most $(1 + \delta_k) / (1 -
+\delta_k)$. Conversely, if $A$ has lower/upper RICs $\alpha_k$ and
+$\beta_k$, respectively, then it will also satisfy~\eqref{rip} for
+$\delta_k = \max \{1 - \alpha_k^2,\; \beta_k^2 - 1\}$. So $A$ has a small
+RIC if and only if it has a large lower and a small upper RIC. But since
+in~\eqref{rip} usually only one of the two inequalities will be sharp, the
+asymmetric version yields more information about~$A$.
+ 
+ % If the restricted isometry property holds for a sufficiently small restricted isometry constant, then the optimal solutions of (\ref{l0min}) and (\ref{l1min}) coincide. To show this, one needs estimates of the form
+ %  \begin{equation}\label{l1ErrorRIP}
+ %  \Norm{x^* - x} \leq C \Norm{x - x_k},
+ % \end{equation}
+ % where $x^*$ is an optimal solution of (\ref{l1min}) with $b = Ax$ and $x_k$ is the best approximation of some vector $x \in \R^n$ with $k$-sparse vectors. If we get a result like (\ref{l1ErrorRIP}), and we know that the vector $x$, which in the 
+ % applications would be the sparse signal that needs to be recovered, is already $k$-sparse itself, then the best approximation of $x$ with $k$-sparse vectors is clearly $x$ itself. This means that the right-hand-side in 
+ % (\ref{l1ErrorRIP}) equals zero, and therefore the unique optimal solution of (\ref{l1min}) has to be $x$ again. Now (\ref{l1ErrorRIP}) not only holds for this $x$ exclusively, but for any $k$-sparse vector $y$ with $Ay=Ax=b$. And 
+ % because of $Ay=Ax=b$, we get the same problem in (\ref{l1min}) and therefore also the same solution $x^*$ which needs to equal $y$ because of (\ref{l1ErrorRIP}), so this means that there can only be a single vector $x$ with sparsity
+ % at most $k$ for which $Ax=b$ holds, which then also has to solve (\ref{l0min}), which gives us the equivalance of these two problems.
+ 
+If the restricted isometry property holds for a sufficiently small
+restricted isometry constant, then the optimal solutions of~\eqref{l0min}
+and~\eqref{l1min} coincide.  The best-known result of this type is probably
+the following:
+ 
+\begin{thm}[Cand\'es~\cite{Can08}]\label{RIPsqrt2}
+  Let $A$ satisfy $\delta_{2k} < \sqrt{2}-1 \approx 0.4142$. If there
+  exists $\tilde{x} \in \R^n$ with $\Norm{\tilde{x}}{0} \leq k$ such that
+  $A\tilde{x} = b$, then the optimal solutions of~\eqref{l0min}
+  and~\eqref{l1min} coincide.
 \end{thm}
 
-Again this result can be generalized to the case of imperfect data. One advantage of Defintion \ref{asymRIPdef} and Theorem \ref{asymRIPtheorem} is, that they are indifferent under scaling of the system of linear equations. If a system
-$Ax=b$ is scaled to $\lambda Ax = \lambda b$, then the condition of Theorem \ref{RIPsqrt2} might no longer be valid, while in Definition \ref{asymRIPdef} we can use $\tilde{\alpha_k} = \lambda \alpha_k, \tilde{\beta_k} = \lambda \beta_k$
-and therefore $\tilde{\gamma_k} = \lambda^2 \alpha_k^2 / \lambda^2
-\beta_k^2 = \gamma_k$.
+There are also many other results similar to Theorem~\ref{RIPsqrt2}: For
+example, Foucart~\cite{fou10} relaxed the condition to $\delta_{2k} <
+0.4652$. Moreover, Cai et al.~\cite{CWX10} gave the condition $\delta_k <
+0.307$ for Theorem~\ref{RIPsqrt2} to hold. Note that all of these results
+can be generalized to the denoising case~\eqref{l0minDenoising}.
 
-In the following we will try to compute the optimal constants $\alpha_k$ and $\beta_k$ in (\ref{asymRIP}). These can then be used to compute either the restricted isometry ratio $\gamma_k := \beta_k^2 / \alpha_k^2$ or the restricted
-isometry constant $\delta_k = \max \{ 1 - \alpha_k^2, \beta_k^2 - 1 \}$.
+Similar results hold for the asymmetric case. For instance, we have:
+
+\begin{thm}[Foucart and Lai~\cite{FL09}]\label{asymRIPtheorem}
+  Let $A$ satisfy $\gamma_{2k} \leq 4 \sqrt{2} - 3 \approx 2.6569$. If
+  there exists $\tilde{x} \in \R^n$ with $\Norm{\tilde{x}}{0} \leq k$ such
+  that $A\tilde{x} = b$, then the optimal solutions of~\eqref{l0min}
+  and~\eqref{l1min} coincide.
+\end{thm}
+
+Again this result can be generalized to the denoising case. One advantage
+of Defintion~\ref{asymRIPdef} and Theorem~\ref{asymRIPtheorem} is that they
+are invariant under scaling of $Ax = b$. The condition of
+Theorem~\ref{RIPsqrt2} holding for~$A x = b$ might not hold for the scaled
+$\lambda Ax = \lambda b$. However, in Definition \ref{asymRIPdef}, we can
+use $\tilde{\alpha}_k = \lambda \alpha_k$, $\tilde{\beta}_k = \lambda
+\beta_k$, and therefore $\tilde{\gamma}_k = \lambda^2 \alpha_k^2 /
+\lambda^2 \beta_k^2 = \gamma_k$.
+
+In the following we will design an approach to compute the optimal
+constants $\alpha_k$ and $\beta_k$. These can then be used to compute
+either the restricted isometry ratio $\gamma_k := \beta_k^2 / \alpha_k^2$
+or the restricted isometry constant $\delta_k = \max \{ 1 - \alpha_k^2,\;
+\beta_k^2 - 1 \}$.
 
 \section{SDP relaxations}
 \label{sec:SDPrelax}
