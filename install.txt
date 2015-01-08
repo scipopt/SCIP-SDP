@@ -28,21 +28,26 @@ and everything should be built. The executable can be found in the bin
 directory. In addition to SDPS you can use the same options for the Makefile 
 as you can use building SCIP (i.e. make OPT=dbg, CPS=cpx)
 
-You can now use the SDP-Plugin in one of the following ways:
-./bin/scipsdp instancefile.dat-s
-or
-./bin/scipsdp instancefile.dat-s paramfile.set
+You can now use the SDP-Plugin by calling
 
-If you want to solve MISDPs "instancefile" should be a "dat-s"-file because SCIP 
-uses the file extension for deciding which reader to use. This data format is
-typical for SDPs, and most SDP-solvers can read it. We extended this format for
-Mixed-Integer SDPs. The format specifications can be found in the file 
-data_format.txt. Additionally you can define scip-parameters in a parameterfile,
-that is a "set"-file. How to define parameters is described on the scip-website.
-The most important parameters are 
+./bin/scipsdp
+
+to open a SCIP shell for solving MISDPs. You can now read a SDPA-File with added
+integrality constraints (for details about the format see data_format.txt) named 
+instancefile.dat-s by calling
+
+read instancefile.dat-s
+
+followed by 
+
+optimize
+
+as in the usual SCIP shell. Additionally you can define scip-parameters in a 
+parameterfile or via the shell. How to define parameters is described on the 
+scip-website. The most important new parameters are 
 _________________________
 lp/solvefreq=-1 
-relaxing/SDPRelax/freq=1
+relaxing/SDP/freq=1
 -------------------------
 
 The first one tells scip how often LPs are solved, using eigenvectore-cuts to 
