@@ -39,7 +39,8 @@
 
 
 //#define SCIP_DEBUG
-//#define SCIP_MORE_DEBUG /* shows number of deleted empty cols/rows and complete solution for every relaxation and variable status & bounds as well as all constraints in the beginning*/
+//#define SCIP_MORE_DEBUG /* displays complete solution for each relaxation */
+//#define SCIP_EVEN_MORE_DEBUG /* shows number of deleted empty cols/rows for every relaxation and variable status & bounds as well as all constraints in the beginning */
 
 #include "relax_sdp.h"
 
@@ -151,7 +152,7 @@ SCIP_RETCODE putSdpDataInInterface(
       const char* hdlrName;
       hdlrName = SCIPconshdlrGetName(conshdlr);
 
-#ifdef SCIP_MORE_DEBUG
+#ifdef SCIP_EVEN_MORE_DEBUG
       SCIP_CALL( SCIPprintCons(scip, conss[i], NULL) );
 #endif
 
@@ -694,8 +695,14 @@ SCIP_RETCODE calc_relax(
                   SCIP_VAR* var = vars[i];
                   if ( SCIPvarIsIntegral(var) && ! SCIPisIntegral(scip, solforscip[i]) && ! SCIPisEQ(scip, SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var)) )
                   {
-                     /* @todo Check for better score or make it parameter/define */
-                     SCIP_CALL( SCIPaddExternBranchCand(scip, var, 10000.0, solforscip[i]) );
+                     SCIP_Real frac;
+                     SCIP_Real inf;
+
+                     /* use current integer-infeasibility as score */
+                     frac = SCIPfrac(scip, solforscip[i]);
+                     inf = frac < 0.5 ? frac : 1 - frac;
+
+                     SCIP_CALL( SCIPaddExternBranchCand(scip, var, frac, solforscip[i]) );
                   }
                }
             }
@@ -858,7 +865,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
    // it is possible to call this function for writing the problem of every node in sdpa-format to a file per node
    // SCIP_CALL(write_sdpafile(scip, problemdata, varmapper));
 
-#ifdef SCIP_MORE_DEBUG
+#ifdef SCIP_EVEN_MORE_DEBUG
    SCIP_VAR** varsfordebug = SCIPgetVars(scip);
    const int nvarsfordebug = SCIPgetNVars(scip);
    for (i = 0; i < nvarsfordebug; i++)

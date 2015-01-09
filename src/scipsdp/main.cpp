@@ -113,12 +113,13 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/maxplungedepth", 0) );
    SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight", 0.0) );
 
-   /* Leave Inference-Branching (branching of the variable which led to the most fixings of other variables in
-    * the past) [priority 1000] and pseudocost (branching on the variable which led to the least decrease in the objective
-    * in the past) [priority 2000] as the ones with the highest priority
+   /* This theoretically leaves mostinf as the one with the highest priority, but this doesn't work properly for SDP (as do the SCIP implementations of mostinf
+    * or leastinf), and just chooses the external candidate with the highest priority, and these priorities are chosen by fractionality , so what is done in
+    * the end is a most infeasible branching
     */
    //SCIP_CALL( SCIPsetIntParam(scip, "branching/pscost/priority",-2000000));
    SCIP_CALL( SCIPsetIntParam(scip, "branching/relpscost/priority",-2000000) );
+   SCIP_CALL( SCIPsetIntParam(scip, "branching/mostinf/priority",2000000) );
 
    /* turn off int-obj ????? */
    SCIP_CALL( SCIPsetIntParam(scip, "separating/intobj/freq", -1) );
