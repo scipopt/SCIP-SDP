@@ -2596,10 +2596,11 @@ SCIP_RETCODE SCIPsdpiGetSDPCoef(
 /** solves the SDP, as start optionally a starting point for the solver may be given, if it is NULL, the solver will start from scratch */
 SCIP_RETCODE SCIPsdpiSolve(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_Real*            start               /**< NULL or a starting point for the solver, this should have length nvars */
+   SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
+   int*                  totalsdpiterations  /**< the number of sdpiterations needed will be added to the int this points to */
    )
 {
-   return SCIPsdpiSolvePenalty(sdpi, 0.0, TRUE, start);
+   return SCIPsdpiSolvePenalty(sdpi, 0.0, TRUE, start, totalsdpiterations);
 }
 
 /** solves the following penalty formulation of the SDP:
@@ -2616,7 +2617,8 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_Real             penaltyParam,       /**< the penalty parameter \f \Gamma \f above, needs to be >= 0 */
    SCIP_Bool             withObj,            /**< if this is false, the objective is set to 0 */
-   SCIP_Real*            start               /**< NULL or a starting point for the solver, this should have length nvars */
+   SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
+   int*                  totalsdpiterations  /**< the number of sdpiterations needed will be added to the int this points to */
    )
 {
    int block;
@@ -2627,6 +2629,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    SCIP_Real**  sdpconstval;
    int** indchanges;
    int* nremovedinds;
+   int newiterations;
 
    SCIPdebugMessage("Forwarding SDP %d to solver!\n", sdpi->sdpid++);
 
@@ -2698,6 +2701,10 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstnblocknonz, sdpi->nsdpblocks);
 
    sdpi->solved = TRUE;
+
+   /* add the iterations needed to solve this SDP */
+   SCIP_CALL( SCIPsdpiSolverGetIterations(sdpi->sdpisolver, &newiterations) );
+   *totalsdpiterations += newiterations;
 
    return SCIP_OKAY;
 }

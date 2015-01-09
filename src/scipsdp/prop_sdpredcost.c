@@ -135,7 +135,7 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    int v;
    int nvars;
    SCIP_VAR** vars;
-   SCIP_RELAX** relaxs;
+   SCIP_RELAX* relax;
    SCIP_RESULT varresult;
    SCIP_Real cutoffbound;
    SCIP_Real relaxval;
@@ -156,14 +156,12 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
       return SCIP_OKAY;
    }
 
-   //assert ( SCIPgetNRelaxs(scip) == 1 ); /* this should only include the SDP relaxation handler */
-   relaxs = SCIPgetRelaxs(scip); /* get SDP relaxation handler */
-   if (SCIPgetNRelaxs(scip) > 1) // TODO: remove
-   {for (v=0; v < SCIPgetNRelaxs(scip); v++)
-      printf("relaxs[%d] = %s \n", v, SCIPrelaxGetName(relaxs[v]));}
-   assert( SCIPrelaxSdpGetSdpi(relaxs[0]) != NULL );
+   relax = SCIPfindRelax(scip, "SDP");; /* get SDP relaxation handler */
 
-   SCIP_CALL( SCIPrelaxSdpRelaxVal(relaxs[0], &sdpsolved, &relaxval) );
+   assert ( relax != NULL );
+   assert ( SCIPrelaxSdpGetSdpi(relax) != NULL );
+
+   SCIP_CALL( SCIPrelaxSdpRelaxVal(relax, &sdpsolved, &relaxval) );
    if (sdpsolved == FALSE)
    {
       SCIPdebugMessage("Stopped propExecRedcost because SDP-relaxation wasn't properly solved ! \n ");
@@ -182,7 +180,7 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
 
    length = nvars;
 
-   SCIP_CALL(SCIPsdpiGetPrimalBoundVars(SCIPrelaxSdpGetSdpi(relaxs[0]), propdata->lbvarvals, propdata->ubvarvals, &length) );
+   SCIP_CALL(SCIPsdpiGetPrimalBoundVars(SCIPrelaxSdpGetSdpi(relax), propdata->lbvarvals, propdata->ubvarvals, &length) );
 
    assert ( length == nvars ); /* we should get exactly one value for lower and upper bound-variable per variable in scip */
 

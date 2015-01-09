@@ -532,7 +532,8 @@ SCIP_RETCODE SCIPsdpiGetSDPCoef(
 EXTERN
 SCIP_RETCODE SCIPsdpiSolve(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_Real*            start               /**< NULL or a starting point for the solver, this should have length nvars */
+   SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
+   int*                  totalsdpiterations  /**< the number of sdpiterations needed will be added to the int this points to */
    );
 
 /** solves the following penalty formulation of the SDP:
@@ -550,7 +551,8 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_Real             gamma,              /**< the penalty parameter above, needs to be >= 0 */
    SCIP_Bool             withObj,            /**< if this is false, the objective is set to 0 */
-   SCIP_Real*            start               /**< NULL or a starting point for the solver, this should have length nvars */
+   SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
+   int*                  totalsdpiterations  /**< the number of sdpiterations needed will be added to the int this points to */
    );
 
 

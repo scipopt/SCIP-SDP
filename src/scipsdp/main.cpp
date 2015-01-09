@@ -45,6 +45,8 @@
 #include "relax_sdp.h"
 #include "objreader_sdpa.h"
 #include "prop_sdpredcost.h"
+#include "disp_sdpiterations.h"
+#include "disp_sdpavgiterations.h"
 
 using namespace scip;
 
@@ -85,6 +87,10 @@ SCIP_RETCODE runSCIP(
    /* Choose between LP and SDP relaxations */
    SCIP_CALL( SCIPsetIntParam(scip, "lp/solvefreq", -1) );
    SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", 1) );
+   SCIP_CALL( SCIPincludeDispSdpiterations(scip) );
+   SCIP_CALL( SCIPincludeDispSdpavgiterations(scip) );
+   SCIP_CALL( SCIPsetIntParam(scip, "display/lpiterations/active", 0) );
+   SCIP_CALL( SCIPsetIntParam(scip, "display/lpavgiterations/active", 0) );
 
    /* change epsilons for numerical stability */
    SCIP_CALL( SCIPsetRealParam(scip, "numerics/epsilon", 1e-6) );

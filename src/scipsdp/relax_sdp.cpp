@@ -74,6 +74,8 @@ struct SCIP_RelaxData
    SCIP_Bool             origsolved;         /* solved original problem to optimality (not only a penalty formulation */
    SCIP_Real             sdpsolverepsilon;   /* the stopping criterion for the duality gap the sdpsolver should use */
    SCIP_Real             sdpsolverfeastol;   /* the feasibility tolerance the SDP solver should use for the SDP constraints */
+   int                   sdpiterations;      /* saves the total number of sdp-iterations */
+   int                   sdpcalls;           /* number of solved SDPs (used to compute average SDP iterations) */
 };
 
 /** inserts all the SDP data into the corresponding SDP Interface */
@@ -427,6 +429,7 @@ static
 SCIP_RETCODE relaxIsFeasible(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_SDPI*            sdpi,               /**< SDP-Interface structure */
+   SCIP_RELAXDATA*       relaxdata,          /**< pointer to the data of the SDP relaxator */
    bool&                 success,            /**< could feasibility be determined */
    bool&                 feasible            /**< whether we obtained a feasible solution */
    )
@@ -437,7 +440,7 @@ SCIP_RETCODE relaxIsFeasible(
    assert ( scip != NULL );
 
    /* solve with penalty without objective */
-   SCIP_CALL( SCIPsdpiSolvePenalty(sdpi, 1.0, FALSE, NULL) );
+   SCIP_CALL( SCIPsdpiSolvePenalty(sdpi, 1.0, FALSE, NULL, &(relaxdata->sdpiterations)) );
 
    SCIP_CALL( SCIPsdpiGetObjval(sdpi, &obj) );
 
@@ -513,11 +516,11 @@ SCIP_RETCODE calc_relax(
 
    if ( withpenalty )
    {
-      SCIP_CALL(SCIPsdpiSolvePenalty(sdpi, penaltyparam, TRUE, NULL));
+      SCIP_CALL( SCIPsdpiSolvePenalty(sdpi, penaltyparam, TRUE, NULL, &(relaxdata->sdpiterations)) );
    }
    else
    {
-      SCIP_CALL(SCIPsdpiSolve(sdpi, NULL));
+      SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, &(relaxdata->sdpiterations)) );
       if (SCIPsdpiIsAcceptable(sdpi))
       {
          SCIP_CALL( SCIPsdpiGetObjval(relaxdata->sdpi, &(relaxdata->ojbval)) );
@@ -775,7 +778,7 @@ SCIP_RETCODE calc_relax(
    /* check for feasibility via penalty-only-formulation */
    bool success;
    bool feasible;
-   SCIP_CALL( relaxIsFeasible(scip, sdpi, success, feasible) );
+   SCIP_CALL( relaxIsFeasible(scip, sdpi, relaxdata, success, feasible) );
 
    if ( success )
    {
@@ -930,6 +933,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
    SCIP_CALL( putLpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper) );
 
    SCIP_CALL( calc_relax(scip, relaxdata, FALSE, 0.0, result, lowerbound));
+   relaxdata->sdpcalls++;
 
    return SCIP_OKAY;
 }
@@ -955,6 +959,8 @@ SCIP_DECL_RELAXINIT(relaxInitSolSDP)
    relaxdata = SCIPrelaxGetData(relax);
    relaxdata->ojbval = 0.0;
    relaxdata->origsolved = FALSE;
+   relaxdata->sdpcalls = 0;
+   relaxdata->sdpiterations = 0;
 
    nvars = SCIPgetNVars(scip);
    vars = SCIPgetVars(scip);
@@ -1082,4 +1088,26 @@ SCIP_RETCODE SCIPrelaxSdpRelaxVal(
    *objval = relaxdata->ojbval;
 
    return SCIP_OKAY;
+}
+
+/** returns total number of SDP iterations */
+int SCIPrelaxSdpGetNIterations(
+   SCIP_RELAX*            relax               /**< SDP relaxator to get the iterations for */
+   )
+{
+   assert ( relax != NULL );
+   assert ( SCIPrelaxGetData(relax) != NULL );
+
+   return SCIPrelaxGetData(relax)->sdpiterations;
+}
+
+/** returns number of solved SDP relaxations */
+int SCIPrelaxSdpGetNSdpCalls(
+   SCIP_RELAX*            relax               /**< SDP relaxator to get the average iterations for */
+   )
+{
+   assert ( relax != NULL );
+   assert ( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->sdpcalls );
 }

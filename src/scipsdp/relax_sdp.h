@@ -69,6 +69,18 @@ SCIP_RETCODE SCIPrelaxSdpRelaxVal(
    SCIP_Real*            objval              /**< returns the optimal objective value of the SDP relaxation */
    );
 
+/** returns total number of SDP iterations */
+EXTERN
+int SCIPrelaxSdpGetNIterations(
+   SCIP_RELAX*            relax               /**< SDP relaxator to get the iterations for */
+   );
+
+/** returns number of solved SDP relaxations */
+EXTERN
+int SCIPrelaxSdpGetNSdpCalls(
+   SCIP_RELAX*            relax               /**< SDP relaxator to get the average iterations for */
+   );
+
 #ifdef __cplusplus
 }
 #endif
