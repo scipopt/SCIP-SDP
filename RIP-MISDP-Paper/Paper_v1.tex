@@ -74,8 +74,21 @@ convex optimization problem if certain conditions are fulfilled:
 \end{align}
 In fact, this so-called \emph{basis pursuit} problem can be reformulated as
 a linear program (LP) and efficient specialized solution algorithms are
-available both in theory and practice.\comment{Add references:
-  $\ell_1$-homotopy, SPGL1, Chen, Donoho, and Saunders, \dots}
+available both in theory and practice: as an extremely selected list
+consider the articles~\cite{BecBC11,CheDS99,OsbPT00,vdBF08}. For more
+information we refer the reader to~\cite{FouR13} and the practical
+comparison in~\cite{LorPT15}.
+% Note: do not write out author names to keep text short at this place.
+
+% long version:
+%
+% consider the articles by Chen et al.~\cite{CheDS99} (interior point
+% algorithm), Osbourne et al.~\cite{OsbPT00} and Malioutov et
+% al.~\cite{MalCW05} ($\ell_1$-homotopy), van den Berg et al.~\cite{vdBF08}
+% (SPGL1), and Becker et al.~\cite{BecBC11} (NESTA). More information can be
+% found in Foucart and Rauhut~\cite{FouR13} and the practical comparison
+% in~\cite{LorPT15}.
+
 
 Several conditions in compressed sensing imply that a solution
 of~\eqref{l0min} can be \emph{recovered} by solving \eqref{l1min}, in which
@@ -94,7 +107,7 @@ $\Norm{\tilde{x}}{0} \leq k$, then problems~\eqref{l0min} and~\eqref{l1min}
 are equivalent; see Section~\ref{sec:RIP} for more details. There are
 several types of matrices~$A$ for which the RIP holds, for instance random
 matrices, see, e.g., Baraniuk et al.~\cite{BDDW08}. Although the RIP does
-not provide necessary conditions, it is still one of the major tools for
+not provide necessary conditions, it is one of the major tools for
 establishing for $\ell_0$-$\ell_1$-equivalence.
 
 We note that recovery results can also be derived for the \emph{denoising}
