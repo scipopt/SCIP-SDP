@@ -886,6 +886,8 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
 
    if (allVarsFixed(scip))
    {
+      SCIP_Bool feasible;
+
       // if all variables, really all, are fixed, I can't solve an sdp, because there is no interior point in this case, result is success and I'm separating the solution (the upper or lower bounds on a variable)
       SCIPdebugMessage("EVERYTHING IS FIXED\n");
       vars = SCIPgetVars(scip);
@@ -912,9 +914,13 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
       SCIP_Bool stored ;
       SCIP_CALL( SCIPsetSolVals(scip, scipsol, nvars, vars, ubs) );
 
-      SCIP_CALL( SCIPtrySolFree(scip, &scipsol, FALSE, TRUE, TRUE, TRUE, &stored) );
+      /* check if the solution really is feasible */
+      SCIP_CALL( SCIPcheckSol(scip, scipsol, FALSE, TRUE, TRUE, TRUE, &feasible) );
 
-      if (stored == 1)
+      if (feasible)
+         SCIP_CALL( SCIPtrySolFree(scip, &scipsol, FALSE, FALSE, FALSE, FALSE, &stored) );
+
+      if (feasible && stored == 1)
       {
          *result = SCIP_CUTOFF;
       }
@@ -969,7 +975,8 @@ SCIP_DECL_RELAXINIT(relaxInitSolSDP)
                                                                                         * like a good load factor (java uses this factor) */
    SCIP_CALL( SdpVarmapperAddVars(scip, relaxdata->varmapper, nvars, vars) );
 
-   SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper) );
+   if (SCIPgetNVars(scip) > 0)
+      SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper) );
 
    /* set the parameters of the SDP-Solver */
    SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDPRelax/sdpsolverepsilon", &epsilon) );
