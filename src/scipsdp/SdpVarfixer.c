@@ -224,7 +224,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
             if (REALABS(targetval[insertionpos]) < epsilon)
             {
                /* depending on where this actually zero nonzero was added, either add another leftshift to overwrite it or decrease the number of addednonz */
-               if (insertionpos <= ind)
+               if (insertionpos < ind)
                   nleftshifts++;
                else
                   naddednonz--;
