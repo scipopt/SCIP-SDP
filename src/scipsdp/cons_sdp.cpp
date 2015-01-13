@@ -879,7 +879,8 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
    SCIP_CONS**           conss,              /**<array of constraints to check*/
    int                   nconss,             /**<number of constraints to check*/
    int*                  naddconss,          /**<pointer to store how many constraints were added*/
-   int*                  ndelconss           /**<pointer to store how many constraints were deleted*/
+   int*                  ndelconss          /**<pointer to store how many constraints were deleted*/
+   //SCIP_RESULT*          result              /**<pointer to store if this routine was successfull or if it detected infeasibility */
    )
 {
    SCIP_CONSHDLR* hdlr;
@@ -896,6 +897,8 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
    int var;
    char* cutname;
    int snprintfreturn;
+
+   //result = SCIP_SUCCESS;
 
    for (i = 0; i < nconss; ++i)
    {
@@ -939,11 +942,14 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
 
          rhs = (consdata->constnnonz == 1) ? consdata->constval[0] : 0.0; /* if this one entry is not 0, than this is the rhs, otherwise it's 0 */
 
-         /* add new linear cons */
-         conshdlrdata = SCIPconshdlrGetData(hdlr);
-         SCIP_CALL( SCIPallocBufferArray(scip, &cutname, 255) );
-         snprintfreturn = SCIPsnprintf(cutname, 255, "1x1block_%d", ++(conshdlrdata->n1x1blocks));
-         assert ( snprintfreturn < 256 ); /* the return is the number of spots needed, we gave 255 */
+/*          if there is more than one left-hand-side-entry, add a linear constraint, otherwise update the variable bound
+         if (count > 1)
+         {*/
+            /* add new linear cons */
+            conshdlrdata = SCIPconshdlrGetData(hdlr);
+            SCIP_CALL( SCIPallocBufferArray(scip, &cutname, 255) );
+            snprintfreturn = SCIPsnprintf(cutname, 255, "1x1block_%d", ++(conshdlrdata->n1x1blocks));
+            assert ( snprintfreturn < 256 ); /* the return is the number of spots needed, we gave 255 */
 
 #ifdef SCIP_MORE_DEBUG
          SCIPinfoMessage(scip, NULL, "Added lp-constraint %s: ", cutname);
@@ -952,15 +958,49 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
          SCIPinfoMessage(scip, NULL, " <= %f \n", rhs);
 #endif
 
-         SCIP_CALL(SCIPcreateConsLinear(scip, &cons, cutname, consdata->nvars, vars, coeffs, rhs, SCIPinfinity(scip),
-               TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE));
+            SCIP_CALL(SCIPcreateConsLinear(scip, &cons, cutname, consdata->nvars, vars, coeffs, rhs, SCIPinfinity(scip),
+                  TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE));
 
-         SCIP_CALL(SCIPaddCons(scip, cons));
-         SCIP_CALL(SCIPreleaseCons(scip, &cons));
+            SCIP_CALL(SCIPaddCons(scip, cons));
+            SCIP_CALL(SCIPreleaseCons(scip, &cons));
 
-         (*naddconss)++;
+            (*naddconss)++;
+/*         }
+         else
+         {
+             we compare this new variable with the current (local) bounds
+            if (coeffs[0] > 0.0)  we don't do an epsilon check here, because 10^(-21)*x >= 10^(-19) for epsilon = 10^(-20) would be infeasible then, even
+                                  * though it only says x >= 100
+            {
+                this gives a lower bound, if it is bigger than the current one, we need to update it
+               if (rhs / coeffs[0] > SCIPvarGetLbLocal(vars[0]))
+                  SCIPvarChgLbLocal(vars[0], SCIPblkmem(scip), scip->set, scip->stat, scip->lp, scip->branchcand, scip->eventqueue, rhs / coeffs[0]);
+            }
+            else if (coeffs[0] < 0.0)
+            {
+                this gives an upper bound, if it is lower than the current one, we need to update it
+               if (-rhs / coeffs[0] < SCIPvarGetUbLocal(vars[0]))
+                  SCIPvarChgUbLocal(vars[0], SCIPblkmem(scip), scip->set, scip->stat, scip->lp, scip->branchcand, scip->eventqueue, -rhs / coeffs[0]);
+            }
+            else
+            {
+               SCIPdebugMessage("Detected 1x1 SDP-block without any nonzero coefficients \n");
+               if (rhs > 0.0)
+               {
+                  SCIPdebugMessage("Detecteded infeasibility in 1x1 SDP-block without any nonzero coefficients but with strictly positive rhs\n");
+                  result = SCIP_CUTOFF;
+                   delete old 1x1 sdpcone
+                  SCIP_CALL(SCIPdelCons(scip, conss[i]));
+                  (*ndelconss)++;
 
-         //delete old 1x1 sdpcone
+                  SCIPfreeBufferArray(scip, &cutname);
+                  SCIPfreeBufferArray(scip, &coeffs);
+                  SCIPfreeBufferArray(scip, &vars);
+               }
+            }
+         }*/
+
+         /* delete old 1x1 sdpcone */
          SCIP_CALL(SCIPdelCons(scip, conss[i]));
          (*ndelconss)++;
 
@@ -1026,17 +1066,25 @@ SCIP_RETCODE fixVars(
 
             SCIPdebugMessage("Globally fixing Variable %s to value %f !\n", SCIPvarGetName(var), SCIPvarGetLbGlobal(var));
 
-            /* the nonzeros are saved to later be inserted into the constant part (this is only done after all nonzeros of fixed variables have been
-             * assembled, because we need to sort the constant nonzeros and loop over them, which we only want to do once and not once for each fixed
-             * variable) */
-            for (i = 0; i < consdata->nvarnonz[v]; i++)
+            if (SCIPisGT(scip, SCIPvarGetLbGlobal(var), 0.0))
             {
-               savedcol[nfixednonz] = consdata->col[v][i];
-               savedrow[nfixednonz] = consdata->row[v][i];
-               savedval[nfixednonz] = -consdata->val[v][i] * SCIPvarGetLbGlobal(var);
-               /* this is the final value to add, we no longer have to remember from which variable this comes, minus because we have +A_i but -A_0 */
-               nfixednonz++;
-               consdata->nnonz--;
+               /* the nonzeros are saved to later be inserted into the constant part (this is only done after all nonzeros of fixed variables have been
+                * assembled, because we need to sort the constant nonzeros and loop over them, which we only want to do once and not once for each fixed
+                * variable) */
+               for (i = 0; i < consdata->nvarnonz[v]; i++)
+               {
+                  savedcol[nfixednonz] = consdata->col[v][i];
+                  savedrow[nfixednonz] = consdata->row[v][i];
+                  savedval[nfixednonz] = -consdata->val[v][i] * SCIPvarGetLbGlobal(var);
+                  /* this is the final value to add, we no longer have to remember from which variable this comes, minus because we have +A_i but -A_0 */
+                  nfixednonz++;
+                  consdata->nnonz--;
+               }
+            }
+            else
+            {
+               /* if the variable is fixed to zero, the nonzeros will just vanish, so we only reduce the number of nonzeros */
+               consdata->nnonz -= consdata->nvarnonz[v];
             }
             /* as the variables don't need to be sorted, we just put the last variable into the empty spot and decrease sizes by one (at the end) */
             SCIP_CALL( SCIPreleaseVar(scip, &(consdata->vars[v])) );
@@ -1137,7 +1185,8 @@ SCIP_RETCODE multiaggrVars(
             /* this is how they should be initialized before calling SCIPgetProbvarLinearSum */
             aggrvars[0] = consdata->vars[var];
             naggrvars = 1;
-            constant = 0;
+            constant = 0.0;
+            scalars[0] = 1.0;
 
             /* get the variables this var was aggregated to */
             SCIP_CALL(SCIPgetProbvarLinearSum(scip, aggrvars, scalars, &naggrvars, globalnvars, &constant, &requiredsize, TRUE));
