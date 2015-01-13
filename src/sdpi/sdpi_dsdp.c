@@ -324,10 +324,10 @@ SCIP_RETCODE SCIPsdpiSolverFree(
    if ((*sdpisolver)->nactivevars > 0)
       BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->dsdptoinputmapper, (*sdpisolver)->nactivevars);
 
-   if ((*sdpisolver)->nvars > (*sdpisolver)->nactivevars)
+   if ((*sdpisolver)->nvars >= (*sdpisolver)->nactivevars)
    {
-      BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->fixedvarsobj, (*sdpisolver)->nvars - (*sdpisolver)->nactivevars);
-      BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->fixedvarsval, (*sdpisolver)->nvars - (*sdpisolver)->nactivevars);
+      BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->fixedvarsobj, (*sdpisolver)->nvars - (*sdpisolver)->nactivevars);
+      BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->fixedvarsval, (*sdpisolver)->nvars - (*sdpisolver)->nactivevars);
    }
 
    BMSfreeBlockMemory((*sdpisolver)->blkmem, sdpisolver);
