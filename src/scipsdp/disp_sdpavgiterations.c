@@ -171,7 +171,7 @@ SCIP_DECL_DISPOUTPUT(dispOutputSdpavgiterations)
    assert ( dispdata->relaxSDP != NULL );
 
    if (SCIPrelaxSdpGetNSdpCalls(dispdata->relaxSDP) == 0)
-      SCIPinfoMessage(scip, file, "  - ");
+      SCIPinfoMessage(scip, file, "      - ");
    else
       SCIPinfoMessage(scip, file, "%7.1f ", (double) SCIPrelaxSdpGetNIterations(dispdata->relaxSDP) / (double) SCIPrelaxSdpGetNSdpCalls(dispdata->relaxSDP) );
 
