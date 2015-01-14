@@ -72,12 +72,12 @@
                         while( FALSE )
 
 /* duplicate an array that might be null (in that case null is returned, otherwise BMSduplicateMemory is called) */
-#define DUPLICATE_ARRAY_NULL(blkmem, source, target, size) do                                                  \
+#define DUPLICATE_ARRAY_NULL(blkmem, target, source, size) do                                                  \
                         {                                                                                     \
                            if (size > 0)                                                                      \
-                              BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, source, target, size) );         \
+                              BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, target, source, size) );         \
                            else                                                                               \
-                              target = NULL;                                                                  \
+                              *target = NULL;                                                                  \
                         }                                                                                     \
                         while( FALSE )
 
@@ -220,11 +220,16 @@ SCIP_RETCODE compConstMatAfterFixings(
    }
 #endif
 
+   fixedrows = NULL;
+   fixedcols = NULL;
+   fixedvals = NULL;
+
    /* allocate memory for the nonzeros that need to be fixed, as this is only temporarly needed, we allocate as much as theoretically possible */
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &nfixednonz, sdpi->nsdpblocks) );
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &fixedrows, sdpi->nsdpblocks) );
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &fixedcols, sdpi->nsdpblocks) );
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &fixedvals, sdpi->nsdpblocks) );
+
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
       /* compute the number of fixed nonzeros in this block */
@@ -234,6 +239,10 @@ SCIP_RETCODE compConstMatAfterFixings(
          if (isFixed(sdpi, sdpi->sdpvar[block][v]))
             nfixednonz[block] += sdpi->sdpnblockvarnonz[block][v];
       }
+
+      fixedrows[block] = NULL;
+      fixedcols[block] = NULL;
+      fixedvals[block] = NULL;
 
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(fixedrows[block]), nfixednonz[block]) );
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(fixedcols[block]), nfixednonz[block]) );
@@ -2636,6 +2645,13 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    assert ( sdpi != NULL );
    assert ( penaltyParam >= 0.0 );
 
+   sdpconstnblocknonz = NULL;
+   sdpconstrow = NULL;
+   sdpconstcol = NULL;
+   sdpconstval = NULL;
+   indchanges = NULL;
+   nremovedinds = NULL;
+
    /* allocate memory for computing the constant matrix after fixings and finding empty rows and columns, this is as much as might possibly be
     * needed, this will be shrinked again before solving */
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstnblocknonz, sdpi->nsdpblocks) );
@@ -2647,6 +2663,10 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
 
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
+      sdpconstrow[block] = NULL;
+      sdpconstcol[block] = NULL;
+      sdpconstval[block] = NULL;
+      indchanges[block] = NULL;
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(indchanges[block]), sdpi->sdpblocksizes[block]) );
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) );
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) );

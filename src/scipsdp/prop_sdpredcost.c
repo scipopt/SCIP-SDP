@@ -65,6 +65,7 @@ struct SCIP_PropData
    /* these could also be freshly allocated for each node, but allocating them only once saves time */
    SCIP_Real* lbvarvals; /* array where the current values of the primal variables corresponding to dual lower variable-bounds are saved */
    SCIP_Real* ubvarvals; /* array where the current values of the primal variables corresponding to dual upper variable-bounds are saved */
+   int nvars; /* number of variables and therefore also length of lbvarvals and ubvarvals */
 };
 
 /** reduced cost fixing for binary variables, if the corresponding primal variable for the lower bound is bigger than the cutoff bound minus the
@@ -202,12 +203,18 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
 static
 SCIP_DECL_PROPFREE(propFreeSdpredcost)
 {
-SCIP_PROPDATA* propdata;
-propdata = SCIPpropGetData(prop);
-assert(propdata != NULL);
-SCIPfreeMemory(scip, &propdata); // TODO: must the two arrays inside be freed independantly?
-SCIPpropSetData(prop, NULL);
-return SCIP_OKAY;
+   SCIP_PROPDATA* propdata;
+
+   propdata = SCIPpropGetData(prop);
+   assert(propdata != NULL);
+
+   SCIPfreeBlockMemoryArray(scip, &(propdata->lbvarvals), propdata->nvars);
+   SCIPfreeBlockMemoryArray(scip, &(propdata->ubvarvals), propdata->nvars);
+   SCIPfreeMemory(scip, &propdata);
+
+   SCIPpropSetData(prop, NULL);
+
+   return SCIP_OKAY;
 }
 
 /* allocate memory for the primal variable values */
@@ -223,6 +230,7 @@ SCIP_DECL_PROPINITSOL(propInitsolSdpredcost)
 
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(propdata->lbvarvals), nvars) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(propdata->ubvarvals), nvars) );
+   propdata->nvars = nvars;
 
    return SCIP_OKAY;
 }

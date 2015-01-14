@@ -1767,25 +1767,25 @@ SCIP_DECL_CONSDELETE(consDeleteSdp)
 
    assert(consdata != NULL);
 
- /*  for (i = 0; i < (*consdata)->nvars; i++)
+   for (i = 0; i < (*consdata)->nvars; i++)
    {
       SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->val[i], (*consdata)->nvarnonz[i]);
       SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->row[i], (*consdata)->nvarnonz[i]);
       SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->col[i], (*consdata)->nvarnonz[i]);
-   }*/
+   }
 
    /* release all variables */
    for (i = 0; i < (*consdata)->nvars; i++)
       SCIP_CALL( SCIPreleaseVar(scip, &((*consdata)->vars[i])) );
 
-/*   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->vars, (*consdata)->nvars);
-   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->constval, (*consdata)->nnonz);
-   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->constrow, (*consdata)->nnonz);
-   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->constcol, (*consdata)->nnonz);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->vars, (*consdata)->nvars);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->constval, (*consdata)->constnnonz);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->constrow, (*consdata)->constnnonz);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->constcol, (*consdata)->constnnonz);
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->val, (*consdata)->nvars);
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->row, (*consdata)->nvars);
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->col, (*consdata)->nvars);
-   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->nvarnonz, (*consdata)->nvars);*/
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->nvarnonz, (*consdata)->nvars);
    SCIPfreeBlockMemory(scip, consdata);
 
    return SCIP_OKAY;
@@ -1795,15 +1795,15 @@ SCIP_DECL_CONSDELETE(consDeleteSdp)
 static
 SCIP_DECL_CONSFREE(consFreeSdp)
 {
-SCIP_CONSHDLRDATA* conshdlrdata;
-conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   SCIP_CONSHDLRDATA* conshdlrdata;
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
 
-assert(conshdlrdata != NULL);
+   assert(conshdlrdata != NULL);
 
-SCIPfreeMemory(scip, &conshdlrdata);
-SCIPconshdlrSetData(conshdlr, NULL);
+   SCIPfreeMemory(scip, &conshdlrdata);
+   SCIPconshdlrSetData(conshdlr, NULL);
 
-return SCIP_OKAY;
+   return SCIP_OKAY;
 }
 
 /* print a SDP constraint */
@@ -2009,13 +2009,20 @@ SCIP_RETCODE SCIPconsSdpGetData(
             constval[i] = consdata->constval[i];
          }
       }
-      *constnnonz = consdata->constnnonz;
    }
+   else
+   {
+      constcol = NULL;
+      constrow = NULL;
+      constval = NULL;
+   }
+
+   *constnnonz = consdata->constnnonz;
 
    return SCIP_OKAY;
 }
 
-/** gets the number of nonzeroes and constant nonzeroes for this SDP constraint, either nnonz oder constnnonz may be NULL */
+/** gets the number of nonzeroes and constant nonzeroes for this SDP constraint, either nnonz or constnnonz may be NULL */
 EXTERN
 SCIP_RETCODE SCIPconsSdpGetNNonz(
    SCIP*                 scip,               /**< SCIP data structure */

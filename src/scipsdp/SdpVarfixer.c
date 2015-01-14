@@ -99,9 +99,9 @@ void SdpVarfixerSortRowCol(
  */
 SCIP_RETCODE SdpVarfixerMergeArrays(
    BMS_BLKMEM*           blkmem,             /**< block memory */
-   int*                  originrow,          /** original row-index-array that is going to be merged */
-   int*                  origincol,          /** original column-index-array that is going to be merged */
-   SCIP_Real*            originval,          /** original nonzero-values-array that is going to be merged */
+   int*                  originrow,          /** original row-index-array that is going to be merged, may be NULL if originlength = NULL */
+   int*                  origincol,          /** original column-index-array that is going to be merged, may be NULL if originlength = NULL */
+   SCIP_Real*            originval,          /** original nonzero-values-array that is going to be merged, may be NULL if originlength = NULL */
    int                   originlength,       /** length of the original arrays */
    SCIP_Bool             originsorted,       /** are the origin arrays already sorted by non-decreasing row and in case of ties col */
    SCIP_Real             scalar,             /** scalar that the original nonzero-values will be multiplied with before merging */
@@ -124,10 +124,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
    SCIP_Bool debugmsg; /* should a debug message about insufficient length be thrown */
 
    assert ( blkmem != NULL );
-   assert ( originrow != NULL );
-   assert ( origincol != NULL );
-   assert ( originval != NULL );
-   assert ( originlength >= 0 );
+   assert ( originlength == 0 || (originlength > 0 && originrow != NULL && origincol != NULL && originval != NULL) );
    assert ( targetrow != NULL );
    assert ( targetcol != NULL );
    assert ( targetval != NULL );
@@ -234,7 +231,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
             debugmsg = TRUE;
       }
    }
-   /* shift the remaining constnonzeros */
+   /* shift the remaining entries of the target arrays */
    if (nleftshifts > 0)
    {
       while (ind < *targetlength + naddednonz && ind < targetmemory)
@@ -266,13 +263,13 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
 EXTERN
 SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
    BMS_BLKMEM*           blkmem,             /**< block memory */
-   int*                  firstrow,           /** first row-index-array that is going to be merged */
-   int*                  firstcol,           /** first column-index-array that is going to be merged */
-   SCIP_Real*            firstval,           /** first nonzero-values-array that is going to be merged */
+   int*                  firstrow,           /** first row-index-array that is going to be merged, may be NULL if firstlength = 0 */
+   int*                  firstcol,           /** first column-index-array that is going to be merged, may be NULL if firstlength = 0 */
+   SCIP_Real*            firstval,           /** first nonzero-values-array that is going to be merged, may be NULL if firstlength = 0 */
    int                   firstlength,        /** length of the first arrays */
-   int*                  secondrow,          /** second row-index-array that is going to be merged */
-   int*                  secondcol,          /** second column-index-array that is going to be merged */
-   SCIP_Real*            secondval,          /** second nonzero-values-array that is going to be merged */
+   int*                  secondrow,          /** second row-index-array that is going to be merged, may be NULL if secondlength = 0 */
+   int*                  secondcol,          /** second column-index-array that is going to be merged, may be NULL if secondlength = 0 */
+   SCIP_Real*            secondval,          /** second nonzero-values-array that is going to be merged, may be NULL if secondlength = 0 */
    int                   secondlength,       /** length of the second arrays */
    int*                  targetrow,          /** row-index-array the original arrays will be merged into */
    int*                  targetcol,          /** column-index-array the original arrays will be merged into */
@@ -287,14 +284,8 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
    SCIP_Bool debugmsg; /* should we throw a debug message about insufficient memory */
 
    assert ( blkmem != NULL );
-   assert ( firstrow != NULL );
-   assert ( firstcol != NULL );
-   assert ( firstval != NULL );
-   assert ( firstlength >= 0 );
-   assert ( secondrow != NULL );
-   assert ( secondcol != NULL );
-   assert ( secondval != NULL );
-   assert ( secondlength >= 0 );
+   assert ( firstlength == 0 || (firstlength > 0 && firstrow != NULL && firstcol != NULL && firstval != NULL ) );
+   assert ( secondlength == 0 || (secondlength > 0 && secondrow != NULL && secondcol != NULL && secondval != NULL ) );
    assert ( targetrow != NULL );
    assert ( targetcol != NULL );
    assert ( targetval != NULL );
