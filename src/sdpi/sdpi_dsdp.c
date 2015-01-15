@@ -772,7 +772,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             if (rowactive && (! morethanbound) )
             {
                assert ( 0 < sdpisolver->inputtodsdpmapper[nonzind] && sdpisolver->inputtodsdpmapper[nonzind] <= sdpisolver->nactivevars );
-               assert ( abs(nonzval) > sdpisolver->epsilon );
+               assert ( REALABS(nonzval) > sdpisolver->epsilon );
                if (nonzval < 0) /* we have to compare with the upper bound */
                {
                   if ((-dsdplpval[lastrow - nshifts] / nonzval) < ub[nonzind]) /* this bound is sharper than the original one, the - is because
@@ -842,7 +842,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             }
             else
             {
-               assert ( abs(lpval[i]) > sdpisolver->epsilon ); /* this is important, as we might later divide through this value if this is the only nonzero */
+               assert ( REALABS(lpval[i]) > sdpisolver->epsilon ); /* this is important, as we might later divide through this value if this is the only nonzero */
                /* we have found an active nonzero, so this row can't be deleted */
                rowshifts[lprow[i]] = nshifts;
                dsdplpval[lastrow - nshifts] = -lprhs[lastrow]; /* the rhs is multiplied by -1 as dsdp wants <= instead of >= */
@@ -862,7 +862,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             }
             else
             {
-               assert ( abs(lpval[i]) > sdpisolver->epsilon ); /* this is important, as we might later divide through this value if this is the only nonzero */
+               assert ( REALABS(lpval[i]) > sdpisolver->epsilon ); /* this is important, as we might later divide through this value if this is the only nonzero */
                /* we found an active variable, so this will definitly stay active */
                if (rowactive)
                   morethanbound = TRUE; /* as this is the second active nonzero this is a true LP row and not just a bound */
@@ -1749,9 +1749,9 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
       DSDP_CALL(DSDPGetPObjective(sdpisolver->dsdp, pobj));
       DSDP_CALL(DSDPGetDObjective(sdpisolver->dsdp, dobj));
 
-      gap = abs(*pobj - *dobj);
+      gap = REALABS(*pobj - *dobj);
 
-      if ((gap < sdpisolver->epsilon) || ((gap / (0.5 * (abs(*pobj) + abs(*dobj)))) < sdpisolver->epsilon)) /* this is the duality gap used in SDPA */
+      if ((gap < sdpisolver->epsilon) || ((gap / (0.5 * (REALABS(*pobj) + REALABS(*dobj)))) < sdpisolver->epsilon)) /* this is the duality gap used in SDPA */
       {
          BMSfreeBlockMemory(sdpisolver->blkmem, &pobj);
          BMSfreeBlockMemory(sdpisolver->blkmem, &dobj);
