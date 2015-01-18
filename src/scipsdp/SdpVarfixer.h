@@ -35,10 +35,8 @@
  * @author Tristan Gally
  */
 
-/* somehow doesn't seem to work
 #ifndef __SDPVARFIXER_H__
 #define __SDPVARFIXER_H__
-*/
 
 #include "scip/type_misc.h"
 
@@ -106,3 +104,9 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
    int*                  targetlength        /** length of the target arrays the original arrays will be merged into, this will be updated to the
                                                * new length after the mergings */
    );
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

@@ -47,7 +47,6 @@
 #include <cstring>                      // for NULL, strcmp
 
 #include "config.h"                     // for F77_FUNC
-#include "stdlib.h"                     /* for fabs */
 
 #include "scipsdp/SdpVarmapper.h"
 #include "scipsdp/SdpVarfixer.h"
@@ -2258,4 +2257,3 @@ SCIP_RETCODE SCIPcreateConsSdp(
 
    return SCIP_OKAY;
 }
-} //TODO: The second bracket is obviously too much, if I remove it the compiler says expected } at end of input, now it gives a warning for syntax error
