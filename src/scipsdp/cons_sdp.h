@@ -47,7 +47,7 @@
 extern "C" {
 #endif
 
-/** creates the handler for sdp constraints and includes it in SCIP */
+/** creates the handler for SDP constraints and includes it in SCIP */
 EXTERN
 SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP*                 scip                /**< SCIP data structure */
@@ -63,7 +63,7 @@ SCIP_RETCODE SCIPconsSDPsortRowsCols(
    int                   length              /** length of the arrays that should be sorted */
    );
 
-/**creates an sdp-constraint*/
+/** creates an SDP-constraint */
 SCIP_RETCODE SCIPcreateConsSdp(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
@@ -83,9 +83,11 @@ SCIP_RETCODE SCIPcreateConsSdp(
    );
 
 /** get the data belonging to a single SDP-constraint
- *  in arraylength the length of the nvarnonz, col, row and val arrays has to be given, if it is not sufficient to store all block-pointers that
- *  need to be inserted, a debug message will be thrown and this variable will be set to the needed length
- *  constnnonz should give the length of the const arrays, if it is too short it will also give the needed number and a debug message is thrown */
+ *
+ *  In arraylength the length of the nvarnonz, col, row and val arrays has to be given, if it is not sufficient to store all block-pointers that
+ *  need to be inserted, a debug message will be thrown and this variable will be set to the needed length.
+ *  constnnonz should give the length of the const arrays, if it is too short it will also give the needed number and a debug message is thrown.
+ */
 EXTERN
 SCIP_RETCODE SCIPconsSdpGetData(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -105,13 +107,16 @@ SCIP_RETCODE SCIPconsSdpGetData(
    SCIP_Real*            constval            /**< pointer to values of the constant nonzeroes */
    );
 
-/** gets the number of nonzeroes and constant nonzeroes for this SDP constraint */
+/** gets the number of nonzeroes and constant nonzeroes for this SDP constraint
+ *
+ *  Either nnonz or constnnonz may be NULL.
+ */
 EXTERN
 SCIP_RETCODE SCIPconsSdpGetNNonz(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< SDP constraint to get data of */
    int*                  nnonz,              /**< number of nonzeroes in this SDP constraint */
-   int*                  constnnonz         /**< number of nonzeroes in the constant part of this SDP constraint */
+   int*                  constnnonz          /**< number of nonzeroes in the constant part of this SDP constraint */
    );
 
 /** gets the full constraint Matrix \f A_j \f for a given variable j */
@@ -139,18 +144,17 @@ SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
 
 /** checks feasibility for a single SDP-Cone */
 SCIP_RETCODE SCIPconsSdpCheckSdpCons(
-   SCIP*                scip,               /**< SCIP data structure */
-   SCIP_CONS*           cons,               /**< the constraint for which the Matrix should be assembled */
-   SCIP_SOL*            sol,                /**< the solution to check feasibility for */
-   SCIP_Bool            checkintegrality,   /**< has integrality to be checked? */
-   SCIP_Bool            checklprows,        /**< have current LP rows to be checked? */
-   SCIP_Bool            printreason,        /**< should the reason for the violation be printed? */
-   SCIP_RESULT*         result              /**< pointer to store the result of the feasibility checking call */
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons,               /**< the constraint for which the Matrix should be assembled */
+   SCIP_SOL*             sol,                /**< the solution to check feasibility for */
+   SCIP_Bool             checkintegrality,   /**< has integrality to be checked? */
+   SCIP_Bool             checklprows,        /**< have current LP rows to be checked? */
+   SCIP_Bool             printreason,        /**< should the reason for the violation be printed? */
+   SCIP_RESULT*          result              /**< pointer to store the result of the feasibility checking call */
    );
 
 #ifdef __cplusplus
 }
 #endif
-
 
 #endif
