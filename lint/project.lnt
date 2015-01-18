@@ -4,9 +4,6 @@
 
 -zero         // set exit code to 0
 
-// declare Bitset.h to be a library
-+libh(Bitset.h)
-
 // ----------------------------------------------------------------
 //    My error messages
 // ----------------------------------------------------------------
@@ -19,16 +16,38 @@
 
 -e866       // Unusual use of 'SYM' in argument to sizeof
 
--sem(COLORPROB::init,initializer)
-
-
 -esym(578,scip)           // Declaration of symbol hides symbol
 
--emacro(506,debugMessage) // Constant value Boolean
--emacro(681,debugMessage) // Loop is not entered
--emacro(506,debugPrintf) // Constant value Boolean
--emacro(681,debugPrintf) // Loop is not entered
 -emacro(506,SCIPdebugMessage) // Constant value Boolean
+-emacro(681,SCIPdebugMessage) // Loop is not entered
+-emacro(506,SCIPdebugPrintf) // Constant value Boolean
+-emacro(681,SCIPdebugPrintf) // Loop is not entered
+
+-emacro(571,SCIPhashmapSetImage)   // Suspicious cast
+-emacro(679,SCIPhashmapSetImage)   // Suspicious Truncation
+
+-emacro(506,SCIPallocBlockMemoryArray)     // Constant value Boolean
+-emacro(571,SCIPreallocBlockMemoryArray)   // Suspicious cast
+-emacro(571,BMSreallocBlockMemoryArray)   // Suspicious cast
+-emacro(571,SCIPallocBlockMemoryArray)   // Suspicious cast
+-emacro(647,SCIPallocBlockMemoryArray)     // Suspicious truncation
+-emacro(647,SCIPfreeBlockMemoryArray)      // Suspicious truncation
+-emacro(647,SCIPfreeBlockMemoryArrayNull)  // Suspicious truncation
+-emacro(647,SCIPduplicateBlockMemoryArray) // Suspicious truncation
+-emacro(647,SCIPreallocBlockMemoryArray) // Suspicious truncation
+-emacro(732,SCIPfreeBlockMemoryArray)    // Loss of sign
+-emacro(737,SCIPallocBlockMemoryArray)     // Loss of sign in promotion
+-emacro(737,SCIPfreeBlockMemoryArray)     // Loss of sign in promotion
+-emacro(737,SCIPreallocBlockMemoryArray)   // Loss of sign in promotion
+-emacro(737,SCIPfreeBlockMemoryArrayNull)   // Loss of sign in promotion
+-emacro(737,BMSallocBlockMemoryArray)   // Loss of sign in promotion
+-emacro(737,BMSfreeBlockMemoryArrayNull)   // Loss of sign in promotion
+-emacro(737,SCIPduplicateBlockMemoryArray)   // Loss of sign in promotion
+-emacro(776,SCIPallocBlockMemoryArray)   // Suspicious truncation (addition)
+-emacro(776,SCIPfreeBlockMemoryArray)    // Suspicious truncation
+-emacro(776,SCIPreallocBlockMemoryArray)    // Suspicious truncation
+-emacro(747,SCIPallocBlockMemoryArray)    // Significant prototype coercion
+
 -emacro(681,SCIPdebugMessage) // Loop is not entered
 -emacro(506,SCIPdebugPrintf) // Constant value Boolean
 -emacro(681,SCIPdebugPrintf) // Loop is not entered
@@ -37,9 +56,6 @@
 -emacro(506,assert)           // Constant value Boolean
 
 -esym(534,times)
-
--efile(1725,keyCmp.hpp)      // class name 'symbol' is a reference
--efile(1013,/usr/include/boost/unordered/detail/allocator_helpers.hpp) // Symbol 'destroy' not a member of class ''
 
 // settings that just reduce output, but might discover correct errors:
 // -e613       // Possible use of null pointer (usually not correct)
