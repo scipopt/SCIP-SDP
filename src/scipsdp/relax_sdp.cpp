@@ -1050,7 +1050,10 @@ SCIP_RETCODE SCIPincludeRelaxSDP(
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDPRelax/sdpsolverepsilon", "the stopping criterion for the duality gap the sdpsolver should use",
       &(relaxdata->sdpsolverepsilon), TRUE, DEFAULT_SDPSOLVEREPSILON, 1e-20, 0.001, NULL, NULL) );
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDPRelax/sdpsolverfeastol", "the feasibility tolerance the SDP solver should use for the SDP constraints",
-      &(relaxdata->sdpsolverfeastol), TRUE, DEFAULT_SDPSOLVERFEASTOL, 1e-17, 0.001, NULL, NULL) );
+         &(relaxdata->sdpsolverfeastol), TRUE, DEFAULT_SDPSOLVERFEASTOL, 1e-17, 0.001, NULL, NULL) );
+
+   /* add description of SDP-solver */
+   SCIP_CALL( SCIPincludeExternalCodeInformation(scip, SCIPsdpiGetSolverName(), SCIPsdpiGetSolverDesc()) );
 
    return SCIP_OKAY;
 }
