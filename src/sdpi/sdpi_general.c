@@ -131,8 +131,7 @@ struct SCIP_SDPi
  * Local Functions
  */
 
-/**
- * For given row and column (i,j) checks if i >= j, so that i and j give a position in the lower
+/** For given row and column (i,j) checks if i >= j, so that i and j give a position in the lower
  * triangular part, otherwise i and j will be switched. This function will be called whenever a position in a symmetric matrix
  * is given, to prevent problems if position (i,j) is given but later (j,i) should be changed.
  */
@@ -152,9 +151,7 @@ void ensureLowerTriangular(
 }
 
 #ifndef NDEBUG
-/**
- * Test if for a given variable the lower bound is in an epsilon neighborhood of the upper bound
- */
+/** Test if for a given variable the lower bound is in an epsilon neighborhood of the upper bound */
 static
 SCIP_Bool isFixed(
    SCIP_SDPI*            sdpi,                /**< pointer to an SDP interface structure */
@@ -174,24 +171,25 @@ SCIP_Bool isFixed(
 
    assert( lb < ub + sdpi->epsilon );
 
-   return ( REALABS(ub-lb) <= sdpi->epsilon);
+   return ( REALABS(ub-lb) <= sdpi->epsilon );
 }
 #else
 #define isFixed(sdpi, v) (REALABS(sdpi->ub[v] - sdpi->lb[v]) <= sdpi->epsilon)
 #endif
 
-/**
- * Computes the constant Matrix after all variables with lb=ub have been fixed and their nonzeros were moved to the constant part. The five variables
- * other than sdpi are used to return the matrix, the size of sdpconstnblocknonz and the first pointers of sdpconst row/col/val should be equal to
- * sdpi->nsdpblocks, the size of sdpconst row/col/val [i], which is given in sdpconstblocknnonz, needs to be sufficient, otherwise the needed length
- * will be returned in sdpconstnblocknonz and a debug message will be thrown
+/** Computes the constant Matrix after all variables with lb=ub have been fixed and their nonzeros were moved to the constant part. The five variables
+ * other than sdpi are used to return the matrix.
+ *
+ * The size of sdpconstnblocknonz and the first pointers of sdpconst row/col/val should be equal to sdpi->nsdpblocks,
+ * the size of sdpconst row/col/val [i], which is given in sdpconstblocknnonz, needs to be sufficient, otherwise the
+ * needed length will be returned in sdpconstnblocknonz and a debug message will be thrown.
  */
 static
 SCIP_RETCODE compConstMatAfterFixings(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP interface structure */
    int*                  sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks */
    int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
-                                               *  number of entries  of sdpconst row/col/val [i] */
+                                              *   number of entries  of sdpconst row/col/val [i] */
    int**                 sdpconstrow,        /**< pointers to row-indices for each block */
    int**                 sdpconstcol,        /**< pointers to column-indices for each block */
    SCIP_Real**           sdpconstval         /**< pointers to the values of the nonzeros for each block */
@@ -282,11 +280,9 @@ SCIP_RETCODE compConstMatAfterFixings(
       *sdpconstnnonz += sdpconstnblocknonz[block];
    }
 
-
    /* free all memory */
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
-
       BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(fixedvals[block]), nfixednonz[block]);
       BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(fixedcols[block]), nfixednonz[block]);
       BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(fixedrows[block]), nfixednonz[block]);
@@ -299,24 +295,25 @@ SCIP_RETCODE compConstMatAfterFixings(
    return SCIP_OKAY;
 }
 
-/**
- * this takes the sdpi and the computed constant matrix after fixings as input and checks for empty rows and columns in each block, which should be
- * removed to not harm the slater condition, this is returned as a 2d-array, where each block and each row/col index (which is the same because of
- * symmetry) either has value -1, then the index is to be removed, or gives a number (the number of indices deleted before it) by which this index
- * is to be decreased
+/** This takes the sdpi and the computed constant matrix after fixings as input and checks for empty rows and columns in each block, which should be
+ *  removed to not harm the slater condition.
+ *
+ *  This is returned as a 2d-array, where each block and each row/col index (which is the same because of symmetry)
+ *  either has value -1, then the index is to be removed, or gives a number (the number of indices deleted before it) by
+ *  which this index is to be decreased.
  */
 static
 SCIP_RETCODE findEmptyRowColsSDP(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP interface structure */
    int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
-                                               *  number of entries  of sdpconst row/col/val [i] */
+                                              *   number of entries  of sdpconst row/col/val [i] */
    int**                 sdpconstrow,        /**< pointers to row-indices for each block */
    int**                 sdpconstcol,        /**< pointers to column-indices for each block */
    SCIP_Real**           sdpconstval,        /**< pointers to the values of the nonzeros for each block */
    int**                 indchanges,         /**< this returns the changes needed to be done to the indices, if indchange[block][nonz]=-1, then
-                                               *  the index can be removed, otherwise it gives the number of indices removed before this, i.e.
-                                               *  the value to decrease this index by, this array should have memory allocated in the size
-                                               *  sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
+                                              *   the index can be removed, otherwise it gives the number of indices removed before this, i.e.
+                                              *   the value to decrease this index by, this array should have memory allocated in the size
+                                              *   sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
    int*                  nremovedinds        /**< the number of rows/cols to be fixed for each block */
    )
 {
