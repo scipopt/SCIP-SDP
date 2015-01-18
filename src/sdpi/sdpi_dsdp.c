@@ -30,8 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-//#define SCIP_DEBUG
-//#define SCIP_MORE_DEBUG
+/* #define SCIP_DEBUG */
+/* #define SCIP_MORE_DEBUG */
 
 /**@file   sdpi_dsdp.c
  * @brief  interface for DSDP

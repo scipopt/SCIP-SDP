@@ -30,8 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-//#define SCIP_DEBUG
-//#define SCIP_MORE_DEBUG
+/* #define SCIP_DEBUG */
+/* #define SCIP_MORE_DEBUG */
 
 /**@file   sdpi_dsdp.c
  * @brief  interface for dsdp
@@ -609,7 +609,6 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    SCIP_Real*            lpval               /**< values of LP-constraint matrix entries (may be NULL if lpnnonz = 0) */
    )
 {
-   int i;
    int v;
    int block;
 
@@ -624,6 +623,8 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
 #ifdef SCIP_DEBUG
    if (sdpconstnnonz > 0 || sdpnnonz > 0 || nsdpblocks > 0)
    {
+      int i;
+
       assert ( sdpblocksizes != NULL );
       assert ( sdpnblockvars != NULL );
       assert ( nsdpblocks > 0 );
@@ -797,7 +798,7 @@ SCIP_RETCODE SCIPsdpiAddSDPBlock(
    int row;
    int col;
 
-   //SCIPdebugMessage("Adding a block to SDP %d\n",nextsdpid);
+   /* SCIPdebugMessage("Adding a block to SDP %d\n",nextsdpid); */
 
    assert ( sdpi != NULL );
    assert ( blocksize >= 0 );
