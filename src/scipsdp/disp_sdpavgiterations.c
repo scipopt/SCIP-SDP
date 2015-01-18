@@ -169,7 +169,7 @@ SCIP_DECL_DISPOUTPUT(dispOutputSdpavgiterations)
  * display column specific interface methods
  */
 
-/** creates the Sdpavgiterations display column and includes it in SCIP */
+/** creates the SDP-average-iterations display column and includes it in SCIP */
 SCIP_RETCODE SCIPincludeDispSdpavgiterations(
    SCIP*                 scip                /**< SCIP data structure */
    )
