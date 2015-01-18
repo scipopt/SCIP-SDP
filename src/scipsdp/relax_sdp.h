@@ -58,14 +58,14 @@ SCIP_RETCODE SCIPincludeRelaxSDP(
 /** returns pointer to SDP Interface structure */
 EXTERN
 SCIP_SDPI* SCIPrelaxSdpGetSdpi(
-   SCIP_RELAX*           relax               /**< SDP relaxator to get sdpi for */
+   SCIP_RELAX*           relax               /**< SDP relaxator to get SDPI for */
    );
 
-/** returns optimal objective value of the current SDP relaxation, if the last SDP relaxation was successfully solved*/
+/** returns optimal objective value of the current SDP relaxation, if the last SDP relaxation was successfully solved */
 EXTERN
 SCIP_RETCODE SCIPrelaxSdpRelaxVal(
    SCIP_RELAX*           relax,              /**< SDP relaxator to get objective value for */
-   SCIP_Bool*            success,            /**< was the last SDP relaxation solved successfully? */
+   SCIP_Bool*            success,            /**< pointer to store whether the last SDP relaxation solved successfully */
    SCIP_Real*            objval              /**< returns the optimal objective value of the SDP relaxation */
    );
 
@@ -78,7 +78,7 @@ int SCIPrelaxSdpGetNIterations(
 /** returns number of solved SDP relaxations */
 EXTERN
 int SCIPrelaxSdpGetNSdpCalls(
-   SCIP_RELAX*           relax               /**< SDP relaxator to get the average iterations for */
+   SCIP_RELAX*           relax               /**< SDP relaxator to get the number of calls for */
    );
 
 #ifdef __cplusplus
