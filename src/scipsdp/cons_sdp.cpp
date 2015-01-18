@@ -1937,7 +1937,6 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
  *  need to be inserted, a debug message will be thrown and this variable will be set to the needed length.
  *  constnnonz should give the length of the const arrays, if it is too short it will also give the needed number and a debug message is thrown.
  */
-EXTERN
 SCIP_RETCODE SCIPconsSdpGetData(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< SDP constraint to get data of */
@@ -2038,7 +2037,6 @@ SCIP_RETCODE SCIPconsSdpGetData(
  *
  *  Either nnonz or constnnonz may be NULL.
  */
-EXTERN
 SCIP_RETCODE SCIPconsSdpGetNNonz(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< SDP constraint to get data of */
@@ -2175,7 +2173,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
    )
 {
    SCIP_CONSHDLR* conshdlr;
-   SCIP_CONSDATA* consdata;
+   SCIP_CONSDATA* consdata = NULL;
    int i;
    int j;
 
