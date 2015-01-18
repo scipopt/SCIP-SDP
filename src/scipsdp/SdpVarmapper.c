@@ -306,7 +306,6 @@ SCIP_RETCODE SdpVarmapperTransform(
 }
 
 /** clones the varmapper in the second argument to the varmapper in the third argument */
-EXTERN
 SCIP_RETCODE SdpVarmapperClone(
    SCIP*                 scip,              /**< SCIP data structure */
    SdpVarmapper*         oldmapper,         /**< Pointer to the Varmapper that should be cloned */
