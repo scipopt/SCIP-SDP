@@ -15,7 +15,7 @@
 
 /**@file   type_sdpi.h
  * @brief  type definitions for specific SDP solvers interface
- * @author Tobias Achterberg
+ * @author Tristan Gally
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
