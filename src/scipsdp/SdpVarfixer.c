@@ -260,7 +260,6 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
  * the new targetarrays, and not overwrite one of the old arrays. Targetlength should give the length of the target arrays, if this is not sufficient,
  * the needed length is returned there and a debugMessage is thrown.
  */
-EXTERN
 SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
    BMS_BLKMEM*           blkmem,             /**< block memory */
    int*                  firstrow,           /** first row-index-array that is going to be merged, may be NULL if firstlength = 0 */
