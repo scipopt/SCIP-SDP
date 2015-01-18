@@ -35,11 +35,6 @@
  * @author Tristan Gally
  */
 
-/* somehow doesn't seem to work
-#ifndef __SDPVARMAPPER_H__
-#define __SDPVARMAPPER_H__
-*/
-
 #include "scip/type_misc.h"
 #include "scip/def.h"
 #include "scip/pub_misc.h" /* for sorting */
@@ -47,25 +42,14 @@
 
 static double epsilon    = 1e-6; /**< only values bigger than this are counted as nonzeros */
 
-/** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY */
- #define BMS_CALL(x) do \
-  { \
-  if( NULL == (x) ) \
-  { \
-  SCIPerrorMessage("No memory in function call\n"); \
-  return SCIP_NOMEMORY; \
-  } \
-  } \
-  while( FALSE )
-
-/**
- * sort the given row, col and val arrays first by non-decreasing row-indices, then for those with identical row-indices by non-increasing col-indices
+/** sort the given row, col and val arrays first by non-decreasing row-indices, then for those with identical
+ *  row-indices by non-increasing col-indices
  */
 void SdpVarfixerSortRowCol(
-   int*                  row,                /* row indices */
-   int*                  col,                /* column indices */
-   SCIP_Real*            val,                /* values */
-   int                   length              /* length of the given arrays */
+   int*                  row,                /**< row indices */
+   int*                  col,                /**< column indices */
+   SCIP_Real*            val,                /**< values */
+   int                   length              /**< length of the given arrays */
    )
 {
    int firstentry;
@@ -90,12 +74,13 @@ void SdpVarfixerSortRowCol(
    }
 }
 
-/**
- * Merges two three-tuple-arrays together. The original arrays (which may have multiple entries for the same row and col) will be mulitplied with
- * scalar and then merged into the target arrays (which may not have multiple entries for the same row and col). If there is already an entry for
- * a row/col combination, these two entries will be combined (their values added together), if they cancel each other out the nonzero entry will
- * be removed. If you think of the matrices described by the two arrays, this is a matrix addition (but only working on the nonzeros for efficiency).
- * The target arrays need to be long enough, otherwise targetlength returns the needed amount an a corresponding debug message will be thrown.
+/** Merges two three-tuple-arrays together.
+ *
+ *  The original arrays (which may have multiple entries for the same row and col) will be mulitplied with
+ *  scalar and then merged into the target arrays (which may not have multiple entries for the same row and col). If there is already an entry for
+ *  a row/col combination, these two entries will be combined (their values added together), if they cancel each other out the nonzero entry will
+ *  be removed. If you think of the matrices described by the two arrays, this is a matrix addition (but only working on the nonzeros for efficiency).
+ *  The target arrays need to be long enough, otherwise targetlength returns the needed amount an a corresponding debug message will be thrown.
  */
 SCIP_RETCODE SdpVarfixerMergeArrays(
    BMS_BLKMEM*           blkmem,             /**< block memory */
@@ -253,8 +238,9 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
 }
 
 
-/**
- * Merges two three-tuple-arrays together. If there are multiple entries for a row/col combination, these will be combined (their values added
+/** Merges two three-tuple-arrays together.
+ *
+ * If there are multiple entries for a row/col combination, these will be combined (their values added
  * together), if they cancel each other out the nonzero entry will be removed. The first arrays are assumed to have unique row/col-combinations, the
  * second arrays may have duplicates of the same row/col-combination. In constrast to MergeArrays, here the combined arrays will be inserted in
  * the new targetarrays, and not overwrite one of the old arrays. Targetlength should give the length of the target arrays, if this is not sufficient,
