@@ -31,17 +31,14 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   main.cpp
- * @brief  driver-file for solving MISDPs
+ * @brief  main file for solving MISDPs
  * @author Sonja Mars
+ * @author Tristan Gally
  */
-// standard library includes
-#include <string>
 
-#include "objscip/objscip.h"
 #include "objscip/objscipdefplugins.h"
 
 #include "cons_sdp.h"
-//#include "objconshdlr_sdp.h"
 #include "relax_sdp.h"
 #include "objreader_sdpa.h"
 #include "prop_sdpredcost.h"
@@ -50,11 +47,11 @@
 
 using namespace scip;
 
-/** run scip and set some parameters*/
+/** run scip and set some parameters */
 static
 SCIP_RETCODE runSCIP(
-   int argc,
-   char** argv
+   int                   argc,               /**< number of command line arguments */
+   char**                argv                /**< pointer to command line arguments */
    )
 {
    SCIP* scip = NULL;
@@ -63,12 +60,8 @@ SCIP_RETCODE runSCIP(
 
    /* include new plugins */
    SCIP_CALL( SCIPincludeObjReader(scip, new ObjReaderSDPA(scip), TRUE) );
-
-   // SCIP_CALL( SCIPincludeObjConshdlr(scip, new ObjConshdlrSdp(scip), TRUE) );
    SCIP_CALL( SCIPincludeConshdlrSdp(scip) );
-
    SCIP_CALL( SCIPincludeRelaxSDP(scip) );
-
    SCIP_CALL( SCIPincludePropSdpredcost(scip) );
 
    /* add parameter for SDP solver */
@@ -77,7 +70,7 @@ SCIP_RETCODE runSCIP(
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
 
-   /* disable subscips */
+   /* disable subscips - for the meantime */
    SCIP_CALL( SCIPsetSubscipsOff(scip, TRUE) );
 
 
@@ -120,7 +113,7 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight", 0.0) );
 
    /* This theoretically leaves mostinf as the one with the highest priority, but this doesn't work properly for SDP (as do the SCIP implementations of mostinf
-    * or leastinf), and just chooses the external candidate with the highest priority, and these priorities are chosen by fractionality , so what is done in
+    * or leastinf), and just chooses the external candidate with the highest priority, and these priorities are chosen by fractionality, so what is done in
     * the end is a most infeasible branching
     */
    //SCIP_CALL( SCIPsetIntParam(scip, "branching/pscost/priority",-2000000));
@@ -133,9 +126,7 @@ SCIP_RETCODE runSCIP(
    /* run interactive shell */
    SCIP_CALL( SCIPprocessShellArguments(scip, argc, argv, "scip.set") );
 
-   /********************
-    * Deinitialization *
-    ********************/
+   /* deinitialization */
    SCIP_CALL( SCIPfree(&scip) );
 
    BMScheckEmptyMemory();
@@ -145,8 +136,8 @@ SCIP_RETCODE runSCIP(
 
 /** main function */
 int main (
-   int argc,
-   char** argv
+   int                   argc,               /**< number of command line arguments */
+   char**                argv                /**< pointer to command line arguments */
    )
 {
    SCIP_RETCODE retcode;
