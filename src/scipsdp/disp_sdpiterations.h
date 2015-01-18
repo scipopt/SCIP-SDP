@@ -15,7 +15,7 @@
 
 /**@file   disp_sdpiterations.h
  * @ingroup DISPLAYS
- * @brief  sdp iterations display column
+ * @brief  SDP iterations display column
  * @author Tristan Gally
  */
 
@@ -31,7 +31,7 @@
 extern "C" {
 #endif
 
-/** creates the sdp-iterations display column and includes it in SCIP */
+/** creates the SDP-iterations display column and includes it in SCIP */
 EXTERN
 SCIP_RETCODE SCIPincludeDispSdpiterations(
    SCIP*                 scip                /**< SCIP data structure */
