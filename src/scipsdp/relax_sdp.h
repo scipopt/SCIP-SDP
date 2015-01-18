@@ -43,7 +43,7 @@
 #define __SCIP_RELAXSDP_H__
 
 #include "scip/scip.h"
-#include "sdpi/sdpi_general.h"          // for SDP-Interface
+#include "sdpi/sdpi_general.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -72,13 +72,13 @@ SCIP_RETCODE SCIPrelaxSdpRelaxVal(
 /** returns total number of SDP iterations */
 EXTERN
 int SCIPrelaxSdpGetNIterations(
-   SCIP_RELAX*            relax               /**< SDP relaxator to get the iterations for */
+   SCIP_RELAX*           relax               /**< SDP relaxator to get the iterations for */
    );
 
 /** returns number of solved SDP relaxations */
 EXTERN
 int SCIPrelaxSdpGetNSdpCalls(
-   SCIP_RELAX*            relax               /**< SDP relaxator to get the average iterations for */
+   SCIP_RELAX*           relax               /**< SDP relaxator to get the average iterations for */
    );
 
 #ifdef __cplusplus
