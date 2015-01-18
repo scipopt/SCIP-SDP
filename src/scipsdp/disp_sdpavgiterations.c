@@ -179,7 +179,7 @@ SCIP_RETCODE SCIPincludeDispSdpavgiterations(
    assert ( scip != NULL );
 
    /* create display column data */
-   SCIPallocMemory(scip, &dispdata);
+   SCIP_CALL( SCIPallocMemory(scip, &dispdata) );
 
    /* include display column */
    SCIP_CALL( SCIPincludeDisp(scip, DISP_NAME, DISP_DESC, DISP_HEADER, SCIP_DISPSTATUS_AUTO,
