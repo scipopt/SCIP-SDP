@@ -45,8 +45,7 @@
  *      & & Dy \geq d \\
  *      & & l \leq y \leq u
  *   \f}
- *
- * for symmetric matrices \f A_j^i \in S_{k_i} \f and a matrix \f D \in \mathbb{R}^{k_0 \times n} \f and query information about the solution.
+ * for symmetric matrices \f$ A_j^i \in S_{k_i} \f$ and a matrix \f$ D \in \mathds{R}^{k_0 \times n} \f$ and query information about the solution.
  *
  * All indexing (rows, columns, blocks and variables) starts at 0.
  *
@@ -196,11 +195,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *  The penalty formulation of the SDP is:
  *      \f{eqnarray*}{
  *      \min & & b^T y + \Gamma r \\
- *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathbb{I} \succeq 0 \quad \forall i \leq m \\
+ *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathds{I} \succeq 0 \quad \forall i \leq m \\
  *      & & Dy \geq d \\
- *      & & l \leq y \leq u.}
- *  \f
- *  Alternatively withObj can be set to false to set \f b \f to false and only check for feasibility (if the optimal objective value is
+ *      & & l \leq y \leq u.\f}
+ *  Alternatively withObj can be set to false to set \f$ b \f$ to false and only check for feasibility (if the optimal objective value is
  *  bigger than 0 the problem is infeasible, otherwise it's feasible).
  *  For the non-constant SDP- and the LP-part the original arrays before fixings should be given, for the constant SDP-part the arrays AFTER fixings
  *  should be given. In addition, an array needs to be given, that for every block and every row/col index within that block either has value

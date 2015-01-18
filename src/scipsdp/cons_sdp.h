@@ -56,11 +56,11 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
 /** sort given arrays by nondecreasing rows and then cols */
 EXTERN
 SCIP_RETCODE SCIPconsSDPsortRowsCols(
-   int*                  row,                /** array of row indices, will be returned in nondecreasing order */
-   int*                  col,                /** array of col indices, for equal rows this will be the tiebreaker */
-   SCIP_Real*            val,                /** this will be returned in the order of row and col */
-   int                   maxrow,             /** maximum value in the row array (values should go from 0 to maxrow */
-   int                   length              /** length of the arrays that should be sorted */
+   int*                  row,                /**< array of row indices, will be returned in nondecreasing order */
+   int*                  col,                /**< array of col indices, for equal rows this will be the tiebreaker */
+   SCIP_Real*            val,                /**< this will be returned in the order of row and col */
+   int                   maxrow,             /**< maximum value in the row array (values should go from 0 to maxrow */
+   int                   length              /**< length of the arrays that should be sorted */
    );
 
 /** creates an SDP-constraint */

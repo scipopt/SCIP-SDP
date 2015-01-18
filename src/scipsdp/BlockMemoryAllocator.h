@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   BlockMemoryAllocator.cpp
+/**@file   BlockMemoryAllocator.h
  * @brief  An STL allocator class using SCIP block memory
  * @author Lars Schewe
  */

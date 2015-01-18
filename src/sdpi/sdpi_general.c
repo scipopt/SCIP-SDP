@@ -778,20 +778,20 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
 
 /** adds another SDP-Block to the problem
  *
- *  @note as \f A_i^j \f is symmetric, only the lower triangular part of it must be specified
+ *  @note as \f$ A_i^j \f$ is symmetric, only the lower triangular part of it must be specified
  */
 SCIP_RETCODE SCIPsdpiAddSDPBlock(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   int                   blocksize,          /**< dimension of the matrices \f A_i^j \f */
-   int                   constnnonz,         /**< sum of non-zeroes in the lower triagonal parts of \f A_0^j \f */
-   const int*            constrowind,        /**< the row-indices of the non-zero entries of \f A_i^0 \f (may be NULL if constnnonz = 0) */
-   const int*            constcolind,        /**< the column-indices of the non-zero entries of \f A_i^0 \f (may be NULL if constnnonz = 0) */
-   const SCIP_Real*      constval,           /**< the values of \f A_i^0 \f as specified by constbegrow and constcolind (may be NULL if constnnonz = 0) */
-   int                   nnonz,              /**< sum of non-zeroes in the lower triagonal parts of the \f A_i^j \f */
-   const int*            begvar,             /**< start index of the matrix \f A_i^j \f for each i */
-   const int*            rowind,             /**< the row-indices of the non-zero entries of \f A_i^j \f (may be NULL if nnonz = 0) */
-   const int*            colind,             /**< the column-indices of the non-zero entries of \f A_i^j \f (may be NULL if nnonz = 0) */
-   const SCIP_Real*      val                 /**< the values of of \f A_i^j \f as specified by begvar, rowind and colind (may be NULL if nnonz = 0) */
+   int                   blocksize,          /**< dimension of the matrices \f$ A_i^j \f$ */
+   int                   constnnonz,         /**< sum of non-zeroes in the lower triagonal parts of \f$ A_0^j \f$ */
+   const int*            constrowind,        /**< the row-indices of the non-zero entries of \f$ A_i^0 \f$ (may be NULL if constnnonz = 0) */
+   const int*            constcolind,        /**< the column-indices of the non-zero entries of \f$ A_i^0 \f$ (may be NULL if constnnonz = 0) */
+   const SCIP_Real*      constval,           /**< the values of \f$ A_i^0 \f$ as specified by constbegrow and constcolind (may be NULL if constnnonz = 0) */
+   int                   nnonz,              /**< sum of non-zeroes in the lower triagonal parts of the \f$ A_i^j \f$ */
+   const int*            begvar,             /**< start index of the matrix \f$ A_i^j \f$ for each i */
+   const int*            rowind,             /**< the row-indices of the non-zero entries of \f$ A_i^j \f$ (may be NULL if nnonz = 0) */
+   const int*            colind,             /**< the column-indices of the non-zero entries of \f$ A_i^j \f$ (may be NULL if nnonz = 0) */
+   const SCIP_Real*      val                 /**< the values of of \f$ A_i^j \f$ as specified by begvar, rowind and colind (may be NULL if nnonz = 0) */
    )
 {
    int i;
@@ -2538,7 +2538,7 @@ SCIP_RETCODE SCIPsdpiGetSDPConstCoef(
 SCIP_RETCODE SCIPsdpiGetSDPCoef(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   block,              /**< block index of coefficient */
-   int                   var,                /**< variable index of coefficient, meaning the i in \f A_i^j \f */
+   int                   var,                /**< variable index of coefficient, meaning the i in \f$ A_i^j \f$ */
    int                   rowind,             /**< row number of coefficient */
    int                   colind,             /**< column number of coefficient */
    SCIP_Real*            val                 /**< pointer to store the value of the coefficient */
@@ -2613,16 +2613,15 @@ SCIP_RETCODE SCIPsdpiSolve(
 /** solves the following penalty formulation of the SDP:
  *      \f{eqnarray*}{
  *      \min & & b^T y + \Gamma r \\
- *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathbb{I} \succeq 0 \quad \forall i \leq m \\
+ *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathds{I} \succeq 0 \quad \forall i \leq m \\
  *      & & Dy \geq d \\
- *      & & l \leq y \leq u}
- *   \f
- *   alternatively withObj can be set to false to set \f b \f to zero and only check for feasibility (if the optimal
+ *      & & l \leq y \leq u\f}
+ *   alternatively withObj can be set to false to set \f$ b \f$ to zero and only check for feasibility (if the optimal
  *   objective value is bigger than 0 the problem is infeasible, otherwise it's feasible), as start optionally a
  *   starting point for the solver may be given, if it is NULL, the solver will start from scratch */
 SCIP_RETCODE SCIPsdpiSolvePenalty(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_Real             penaltyParam,       /**< the penalty parameter \f \Gamma \f above, needs to be >= 0 */
+   SCIP_Real             penaltyParam,       /**< the penalty parameter \f$ \Gamma \f$ above, needs to be >= 0 */
    SCIP_Bool             withObj,            /**< if this is false, the objective is set to 0 */
    SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
    int*                  totalsdpiterations  /**< the number of sdpiterations needed will be added to the int this points to */

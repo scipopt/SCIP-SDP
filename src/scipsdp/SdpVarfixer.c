@@ -84,19 +84,19 @@ void SdpVarfixerSortRowCol(
  */
 SCIP_RETCODE SdpVarfixerMergeArrays(
    BMS_BLKMEM*           blkmem,             /**< block memory */
-   int*                  originrow,          /** original row-index-array that is going to be merged, may be NULL if originlength = NULL */
-   int*                  origincol,          /** original column-index-array that is going to be merged, may be NULL if originlength = NULL */
-   SCIP_Real*            originval,          /** original nonzero-values-array that is going to be merged, may be NULL if originlength = NULL */
-   int                   originlength,       /** length of the original arrays */
-   SCIP_Bool             originsorted,       /** are the origin arrays already sorted by non-decreasing row and in case of ties col */
-   SCIP_Real             scalar,             /** scalar that the original nonzero-values will be multiplied with before merging */
-   int*                  targetrow,          /** row-index-array the original array will be merged into */
-   int*                  targetcol,          /** column-index-array the original array will be merged into */
-   SCIP_Real*            targetval,          /** nonzero-values-array the original array will be merged into */
-   int*                  targetlength,       /** length of the target arrays the original arrays will be merged into, this will be updated to the
-                                               * new length after the mergings */
-   int                   targetmemory        /** amount of memory allocated for targetrow, -col, -val, if this isn't sufficient targetlength will
-                                               * return the needed amount and a corresponding debug message will be thrown */
+   int*                  originrow,          /**< original row-index-array that is going to be merged, may be NULL if originlength = NULL */
+   int*                  origincol,          /**< original column-index-array that is going to be merged, may be NULL if originlength = NULL */
+   SCIP_Real*            originval,          /**< original nonzero-values-array that is going to be merged, may be NULL if originlength = NULL */
+   int                   originlength,       /**< length of the original arrays */
+   SCIP_Bool             originsorted,       /**< are the origin arrays already sorted by non-decreasing row and in case of ties col */
+   SCIP_Real             scalar,             /**< scalar that the original nonzero-values will be multiplied with before merging */
+   int*                  targetrow,          /**< row-index-array the original array will be merged into */
+   int*                  targetcol,          /**< column-index-array the original array will be merged into */
+   SCIP_Real*            targetval,          /**< nonzero-values-array the original array will be merged into */
+   int*                  targetlength,       /**< length of the target arrays the original arrays will be merged into, this will be updated to the
+                                              *   new length after the mergings */
+   int                   targetmemory        /**< amount of memory allocated for targetrow, -col, -val, if this isn't sufficient targetlength will
+                                               *  return the needed amount and a corresponding debug message will be thrown */
    )
 {
    int ind;
@@ -248,19 +248,19 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
  */
 SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
    BMS_BLKMEM*           blkmem,             /**< block memory */
-   int*                  firstrow,           /** first row-index-array that is going to be merged, may be NULL if firstlength = 0 */
-   int*                  firstcol,           /** first column-index-array that is going to be merged, may be NULL if firstlength = 0 */
-   SCIP_Real*            firstval,           /** first nonzero-values-array that is going to be merged, may be NULL if firstlength = 0 */
-   int                   firstlength,        /** length of the first arrays */
-   int*                  secondrow,          /** second row-index-array that is going to be merged, may be NULL if secondlength = 0 */
-   int*                  secondcol,          /** second column-index-array that is going to be merged, may be NULL if secondlength = 0 */
-   SCIP_Real*            secondval,          /** second nonzero-values-array that is going to be merged, may be NULL if secondlength = 0 */
-   int                   secondlength,       /** length of the second arrays */
-   int*                  targetrow,          /** row-index-array the original arrays will be merged into */
-   int*                  targetcol,          /** column-index-array the original arrays will be merged into */
-   SCIP_Real*            targetval,          /** nonzero-values-array the original arrays will be merged into */
-   int*                  targetlength        /** length of the target arrays the original arrays will be merged into, this will be updated to the
-                                               * new length after the mergings */
+   int*                  firstrow,           /**< first row-index-array that is going to be merged, may be NULL if firstlength = 0 */
+   int*                  firstcol,           /**< first column-index-array that is going to be merged, may be NULL if firstlength = 0 */
+   SCIP_Real*            firstval,           /**< first nonzero-values-array that is going to be merged, may be NULL if firstlength = 0 */
+   int                   firstlength,        /**< length of the first arrays */
+   int*                  secondrow,          /**< second row-index-array that is going to be merged, may be NULL if secondlength = 0 */
+   int*                  secondcol,          /**< second column-index-array that is going to be merged, may be NULL if secondlength = 0 */
+   SCIP_Real*            secondval,          /**< second nonzero-values-array that is going to be merged, may be NULL if secondlength = 0 */
+   int                   secondlength,       /**< length of the second arrays */
+   int*                  targetrow,          /**< row-index-array the original arrays will be merged into */
+   int*                  targetcol,          /**< column-index-array the original arrays will be merged into */
+   SCIP_Real*            targetval,          /**< nonzero-values-array the original arrays will be merged into */
+   int*                  targetlength        /**< length of the target arrays the original arrays will be merged into, this will be updated to the
+                                              *   new length after the mergings */
    )
 {
    int firstind;

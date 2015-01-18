@@ -302,7 +302,7 @@ SCIP_RETCODE expandSymMatrix(
    return SCIP_OKAY;
 }
 
-/** For a given vector \f y \f computes the SDP-Matrix \f \sum_{j=1}^m A_j y_j - A_0 \f for this SDP block.
+/** For a given vector \f$ y \f$ computes the SDP-Matrix \f$ \sum_{j=1}^m A_j y_j - A_0 \f$ for this SDP block.
  *
  *  The length of the matrix array needs to be (length of y) * (length of y + 1) /2, this will be indexed by compLowerTriangPos.
  */
@@ -350,10 +350,10 @@ SCIP_RETCODE computeSdpMatrix(
 /** For a given variable-index j and a Vector v computes \f$ v^T A_j v \f$. */
 static
 SCIP_RETCODE multiplyConstraintMatrix(
-   SCIP_CONS*            cons,               /**< the SDP constraint that includes the Matrix \f A_j \f */
+   SCIP_CONS*            cons,               /**< the SDP constraint that includes the Matrix \f$ A_j \f$ */
    int                   j,                  /**< variable-index of the matrix to multiply with */
    SCIP_Real*            v,                  /**< vector to multiply with */
-   SCIP_Real*            vAv                 /**< the resulting scalar \f v^T A_j v \f */
+   SCIP_Real*            vAv                 /**< the resulting scalar \f$ v^T A_j v \f$ */
    )
 {
    SCIP_CONSDATA* consdata;
@@ -388,7 +388,7 @@ SCIP_RETCODE multiplyConstraintMatrix(
 /** Get the maximum absolute value of an entry of the constant matrix. */
 static
 SCIP_Real getMaxConstEntry(
-   SCIP_CONS*            cons                /**< the SDP constraint that includes the Matrix \f A_j \f */
+   SCIP_CONS*            cons                /**< the SDP constraint that includes the Matrix \f$ A_j \f$ */
    )
 {
    SCIP_CONSDATA* consdata;
@@ -732,7 +732,7 @@ SCIP_RETCODE diagGEzero(
 
 #if 0
 /** presolve-routine that adds some constraints for approximation of the sdpcone, if there is an entry (i,j) in the constant
- *  matrix, than some variable k with \f (A_k)_{ii} \f needs to be >0 because sdp-matrices are diagonal-dominant (and the same for j)
+ *  matrix, than some variable k with \f$ (A_k)_{ii} \f$ needs to be >0 because sdp-matrices are diagonal-dominant (and the same for j)
  *
  *  Not clear if this is really true for all SDPs, probably only works if A_i and A_0 are all semidefinite (or for A_0 at least
  *  have positive diagonal entries) and all variables appearing in the SDP constraint are integer, then sum_{A_i_kk >0}
@@ -747,7 +747,7 @@ SCIP_RETCODE diagDominant(
    int*                  naddconss           /**< pointer to store how many constraints were added */
    )
 {
-   SCIP_Bool* nonzerorows;  /* entry i will be 1 if there is an entry \f (A_0)_ij \f for some \f j \neq i \f */
+   SCIP_Bool* nonzerorows;  /* entry i will be 1 if there is an entry (A_0)_ij \f$ for some \f$ j \neq i */
    int blocksize;
    int i;
    int j;
@@ -2061,12 +2061,12 @@ SCIP_RETCODE SCIPconsSdpGetNNonz(
    return SCIP_OKAY;
 }
 
-/** gets the full constraint Matrix \f A_j \f for a given variable j */
+/** gets the full constraint Matrix \f$ A_j \f$ for a given variable j */
 SCIP_RETCODE SCIPconsSdpGetFullAj(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< SDP constraint to get data of */
-   int                   j,                  /**< the variable j to get the corresponding matrix \f A_j \f for */
-   SCIP_Real*            Aj                  /**< pointer to store the full matrix \f A_j \f */
+   int                   j,                  /**< the variable j to get the corresponding matrix \f$ A_j \f$ for */
+   SCIP_Real*            Aj                  /**< pointer to store the full matrix \f$ A_j \f$ */
    )
 {
    SCIP_CONSDATA* consdata;
