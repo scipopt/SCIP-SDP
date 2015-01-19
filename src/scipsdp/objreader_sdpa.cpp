@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014      Discrete Optimization, TU Darmstadt               */
+/*               2014-2015 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or             */
@@ -24,7 +24,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2014 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2015 Zuse Institute Berlin                             */
 /* SCIP is distributed under the terms of the SCIP Academic Licence,         */
 /* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
@@ -36,6 +36,7 @@
  */
 
 //#define SCIP_DEBUG
+//#define SCIP_MORE_DEBUG
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 #include "objreader_sdpa.h"
@@ -484,6 +485,11 @@ namespace scip
             SCIPsnprintf(sdpcon_name, 255, "SDP-Constraint-%d", bindex);
             SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcon, sdpcon_name, nvars, nnonz, blocksize, nvarnonz, colpointer, rowpointer, valpointer, vars, constnnonz,
                                          constcol, constrow, constval) );
+
+#ifdef SCIP_MORE_DEBUG
+      SCIP_CALL( SCIPprintCons(scip, sdpcon, NULL) );
+#endif
+
             SCIP_CALL( SCIPaddCons(scip, sdpcon) );
 
             SCIP_CALL( SCIPreleaseCons(scip, &sdpcon) );
@@ -541,6 +547,9 @@ namespace scip
                         SCIP_CALL( SCIPaddCoefLinear(scip, LPcon, VariablesX[LPData.rows[row_i].data[var_i].first - 1], LPData.rows[row_i].data[var_i].second) );
                      }
                   }
+#ifdef SCIP_MORE_DEBUG
+                  SCIP_CALL( SCIPprintCons(scip, LPcon, NULL) );
+#endif
                   SCIP_CALL( SCIPreleaseCons(scip, &LPcon) );
                }
             }
