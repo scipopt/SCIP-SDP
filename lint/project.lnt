@@ -23,8 +23,10 @@
 -emacro(506,SCIPdebugPrintf) // Constant value Boolean
 -emacro(681,SCIPdebugPrintf) // Loop is not entered
 
--emacro(571,SCIPhashmapSetImage)   // Suspicious cast
--emacro(679,SCIPhashmapSetImage)   // Suspicious Truncation
+-ecall(571,SCIPhashmapSetImage)   // Suspicious cast
+-ecall(571,SCIPhashmapInsert)   // Suspicious cast
+-ecall(679,SCIPhashmapSetImage)   // Suspicious Truncation
+-ecall(776,SCIPhashmapSetImage)   // Possible truncation of addition
 
 -emacro(506,SCIPallocBlockMemoryArray)     // Constant value Boolean
 -emacro(571,SCIPreallocBlockMemoryArray)   // Suspicious cast
