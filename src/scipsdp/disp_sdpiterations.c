@@ -90,6 +90,7 @@ SCIP_DECL_DISPFREE(dispFreeSdpiterations)
 {
    SCIP_DISPDATA* dispdata;
 
+   assert( scip != NULL );
    assert( disp != NULL );
    dispdata = SCIPdispGetData(disp);
    assert( dispdata != NULL );

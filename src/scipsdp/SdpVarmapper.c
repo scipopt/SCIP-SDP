@@ -133,9 +133,9 @@ SCIP_RETCODE SdpVarmapperAddVars(
       if ( ! (SCIPhashmapExists(varmapper->sciptosdp, vars[i])) ) /* make sure, that there are no duplicates in the lists */
       {
          varmapper->sdptoscip[varmapper->nvars] = vars[i];
-         SCIP_CALL(SCIPhashmapInsert(varmapper->sciptosdp, (void*) vars[i], (void*) (size_t) varmapper->nvars));
+         SCIP_CALL( SCIPhashmapInsert(varmapper->sciptosdp, (void*) vars[i], (void*) (size_t) varmapper->nvars) );
          varmapper->nvars++;
-         SCIP_CALL(SCIPcaptureVar(scip, vars[i]));
+         SCIP_CALL( SCIPcaptureVar(scip, vars[i]) );
       }
       else
       {
@@ -145,8 +145,9 @@ SCIP_RETCODE SdpVarmapperAddVars(
    }
 
    if (reallocneeded)
-      SCIP_CALL(SCIPreallocBlockMemoryArray(scip, &(varmapper->sdptoscip), allocsize, varmapper->nvars));
-
+   {
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(varmapper->sdptoscip), allocsize, varmapper->nvars) );
+   }
 
    return SCIP_OKAY;
 }
@@ -180,7 +181,7 @@ SCIP_RETCODE SdpVarmapperInsertVar(
          /* move all variables after pos one spot to the right to make room for the new one */
          for (i = varmapper->nvars - 1; i >= pos; i--)
          {
-            varmapper->sdptoscip[i + 1] = varmapper->sdptoscip[i];
+            varmapper->sdptoscip[i + 1] = varmapper->sdptoscip[i]; /*lint !e679*/
             SCIP_CALL(SCIPhashmapSetImage(varmapper->sciptosdp, varmapper->sdptoscip[i + 1], (void*) (size_t) (i + 1)));
          }
 
