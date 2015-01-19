@@ -217,7 +217,7 @@ SCIP_RETCODE putSdpDataInInterface(
 
          /* nvars and nconstblocknonz[ind] would have been overwritten if the space in the given arrays hadn't been sufficient */
          assert( nvars == SCIPgetNVars(scip) );
-         assert( nconstblocknonz[ind] <= constlength);
+         assert( nconstblocknonz[ind] <= constlength );
 
          SCIP_CALL( SCIPallocBufferArray(scip, &(sdpvar[ind]), nblockvars[ind]) );
 
@@ -650,7 +650,7 @@ SCIP_RETCODE calc_relax(
 
             *lowerbound = objforscip;
 
-            if ( allint ) /* if the solution is integer, we might have found new best solution for the MISDP */
+            if ( allint ) /* if the solution is integer, we might have found a new best solution for the MISDP */
             {
                SCIP_CALL( SCIPcheckSol(scip, scipsol, TRUE, FALSE, FALSE, FALSE, &allfeas) ); /* is this really needed ? */
                if ( allfeas )
@@ -1051,7 +1051,7 @@ SCIP_RETCODE SCIPincludeRelaxSDP(
 
    /* add parameters for SDP-solver */
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDPRelax/sdpsolverepsilon", "the stopping criterion for the duality gap the sdpsolver should use",
-      &(relaxdata->sdpsolverepsilon), TRUE, DEFAULT_SDPSOLVEREPSILON, 1e-20, 0.001, NULL, NULL) );
+         &(relaxdata->sdpsolverepsilon), TRUE, DEFAULT_SDPSOLVEREPSILON, 1e-20, 0.001, NULL, NULL) );
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDPRelax/sdpsolverfeastol", "the feasibility tolerance the SDP solver should use for the SDP constraints",
          &(relaxdata->sdpsolverfeastol), TRUE, DEFAULT_SDPSOLVERFEASTOL, 1e-17, 0.001, NULL, NULL) );
 

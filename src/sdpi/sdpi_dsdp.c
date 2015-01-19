@@ -397,7 +397,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathds{I} \succeq 0 \quad \forall i \leq m \\
  *      & & Dy \geq d \\
  *      & & l \leq y \leq u.\f}
- *  Alternatively withObj can be set to false to set \f$ b \f$ to false and only check for feasibility (if the optimal objective value is
+ *  Alternatively withObj can be set to false to set \f$ b \f$ to 0 and only check for feasibility (if the optimal objective value is
  *  bigger than 0 the problem is infeasible, otherwise it's feasible).
  *  For the non-constant SDP- and the LP-part the original arrays before fixings should be given, for the constant SDP-part the arrays AFTER fixings
  *  should be given. In addition, an array needs to be given, that for every block and every row/col index within that block either has value
@@ -684,7 +684,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
 
    /* start inserting the LP constraints */
-   if (nlpcons > 0 || lpnnonz > 0)
+   if ( nlpcons > 0 || lpnnonz > 0 )
    {
       int* rowshifts;
       int nshifts;

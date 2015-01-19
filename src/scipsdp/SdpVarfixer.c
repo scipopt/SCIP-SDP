@@ -96,7 +96,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
    int*                  targetlength,       /**< length of the target arrays the original arrays will be merged into, this will be updated to the
                                               *   new length after the mergings */
    int                   targetmemory        /**< amount of memory allocated for targetrow, -col, -val, if this isn't sufficient targetlength will
-                                               *  return the needed amount and a corresponding debug message will be thrown */
+                                              *   return the needed amount and a corresponding debug message will be thrown */
    )
 {
    int ind;
