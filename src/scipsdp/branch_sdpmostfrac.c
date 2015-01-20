@@ -138,7 +138,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
 
    /* branch */
    SCIPdebugMessage("branching on variable %s with value %f and score %f\n", SCIPvarGetName(mostfracvar), mostfracval, mostfracscore);
-   SCIP_CALL( SCIPbranchVarVal   (scip, mostfracvar, mostfracval, NULL, NULL, NULL) );
+   SCIP_CALL( SCIPbranchVarVal(scip, mostfracvar, mostfracval, NULL, NULL, NULL) );
 
    *result = SCIP_BRANCHED;
 
