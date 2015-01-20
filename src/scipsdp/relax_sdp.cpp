@@ -695,13 +695,8 @@ SCIP_RETCODE calc_relax(
                   SCIP_VAR* var = vars[i];
                   if ( SCIPvarIsIntegral(var) && ! SCIPisIntegral(scip, solforscip[i]) && ! SCIPisEQ(scip, SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var)) )
                   {
-                     SCIP_Real frac;
-
-                     /* use current integer-infeasibility as score */
-                     frac = SCIPfrac(scip, solforscip[i]);
-                     // SCIP_Real inf = frac < 0.5 ? frac : 1 - frac;
-
-                     SCIP_CALL( SCIPaddExternBranchCand(scip, var, frac, solforscip[i]) );
+                     /* we don't set a true score, we will just let the heuristic decide */
+                     SCIP_CALL( SCIPaddExternBranchCand(scip, var, 10000, solforscip[i]) );
                   }
                }
             }

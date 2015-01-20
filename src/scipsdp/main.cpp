@@ -44,6 +44,7 @@
 #include "prop_sdpredcost.h"
 #include "disp_sdpiterations.h"
 #include "disp_sdpavgiterations.h"
+#include "branch_sdpmostfrac.h"
 
 using namespace scip;
 
@@ -63,6 +64,7 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPincludeConshdlrSdp(scip) );
    SCIP_CALL( SCIPincludeRelaxSDP(scip) );
    SCIP_CALL( SCIPincludePropSdpredcost(scip) );
+   SCIP_CALL( SCIPincludeBranchruleSdpmostfrac(scip) );
 
    /* add parameter for SDP solver */
    SCIP_CALL( SCIPaddStringParam(scip, "sdpsolver", "SDP solver", 0, FALSE, "dsdp" , 0, 0) );
@@ -111,14 +113,6 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/stdpriority", 1000000) );
    SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/maxplungedepth", 0) );
    SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight", 0.0) );
-
-   /* This theoretically leaves mostinf as the one with the highest priority, but this doesn't work properly for SDP (as do the SCIP implementations of mostinf
-    * or leastinf), and just chooses the external candidate with the highest priority, and these priorities are chosen by fractionality, so what is done in
-    * the end is a most infeasible branching
-    */
-   //SCIP_CALL( SCIPsetIntParam(scip, "branching/pscost/priority",-2000000));
-   SCIP_CALL( SCIPsetIntParam(scip, "branching/relpscost/priority",-2000000) );
-   SCIP_CALL( SCIPsetIntParam(scip, "branching/mostinf/priority",2000000) );
 
    /* turn off int-obj ????? */
    SCIP_CALL( SCIPsetIntParam(scip, "separating/intobj/freq", -1) );
