@@ -123,6 +123,9 @@ SCIP_RETCODE runSCIP(
    /* turn off int-obj ????? */
    SCIP_CALL( SCIPsetIntParam(scip, "separating/intobj/freq", -1) );
 
+   /* turn off one-opt, as it doesn't check for positive semidefinitness of the solutions */
+   SCIP_CALL( SCIPsetIntParam(scip, "heuristics/oneopt/freq", -1) );
+
    /* run interactive shell */
    SCIP_CALL( SCIPprocessShellArguments(scip, argc, argv, "scip.set") );
 
