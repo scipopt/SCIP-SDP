@@ -33,7 +33,7 @@
 #define SCIP_DEBUG
 #define SCIP_MORE_DEBUG
 
-/**@file   sdpi_sdpa.cpp
+/**@file   sdpisolver_sdpa.cpp
  * @brief  interface for SDPA
  * @author Tristan Gally
  * @author Ambros Gleixner
@@ -41,7 +41,7 @@
 
 #include <assert.h>
 
-#include "sdpi/sdpi.h"
+#include "sdpi/sdpisolver.h"
 
 #include "sdpa_call.h"                       /* SDPA callable library interface */
 

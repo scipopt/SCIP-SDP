@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   sdpi_general.h
+/**@file   sdpi.h
  * @brief  general interface methods for SDP-preprocessing (mainly fixing variables and removing empty rows/cols)
  * @author Tristan Gally
  *
@@ -53,8 +53,8 @@
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
-#ifndef __SCIP_SDPI_GENERAL_H__
-#define __SCIP_SDPI_GENERAL_H__
+#ifndef __SCIP_SDPI_H__
+#define __SCIP_SDPI_H__
 
 
 #include "scip/def.h"

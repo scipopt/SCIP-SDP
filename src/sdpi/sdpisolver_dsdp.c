@@ -33,14 +33,14 @@
 /* #define SCIP_DEBUG */
 /* #define SCIP_MORE_DEBUG */
 
-/**@file   sdpi_dsdp.c
+/**@file   sdpisolver_dsdp.c
  * @brief  interface for DSDP
  * @author Tristan Gally
  */
 
 #include <assert.h>
 
-#include "sdpi/sdpi.h"
+#include "sdpi/sdpisolver.h"
 
 /* turn off warning for DSDSP */
 #pragma GCC diagnostic ignored "-Wstrict-prototypes"

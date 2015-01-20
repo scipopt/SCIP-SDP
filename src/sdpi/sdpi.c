@@ -33,15 +33,15 @@
 /* #define SCIP_DEBUG */
 /* #define SCIP_MORE_DEBUG */
 
-/**@file   sdpi_dsdp.c
+/**@file   sdpi.c
  * @brief  interface for dsdp
  * @author Tristan Gally
  */
 
 #include <assert.h>
 
+#include "sdpi/sdpisolver.h"
 #include "sdpi/sdpi.h"
-#include "sdpi/sdpi_general.h"
 #include "scipsdp/SdpVarfixer.h"
 
 #include "blockmemshell/memory.h"            /* for memory allocation */

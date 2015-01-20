@@ -13,7 +13,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   sdpi_msk.c
+/**@file   sdpisolver_msk.c
  * @ingroup SDPIS
  * @brief  SDP interface for MOSEK
  * @author Bo Jensen
@@ -25,7 +25,7 @@
 #define MSKCONST const
 #include "mosek.h"
 
-#include "sdpi/sdpi.h"
+#include "sdpi/sdpisolver.h"
 #include "scip/bitencode.h"
 #include <string.h>
 

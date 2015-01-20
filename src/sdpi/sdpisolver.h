@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   sdpi.h
+/**@file   sdpisolver.h
  * @brief  interface methods for specific SDP solvers
  * @author Marc Pfetsch
  * @author Leif Naundorf
@@ -55,8 +55,8 @@
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
-#ifndef __SCIP_SDPI_H__
-#define __SCIP_SDPI_H__
+#ifndef __SCIP_SDPISOLVER_H__
+#define __SCIP_SDPISOLVER_H__
 
 
 #include "scip/def.h"
