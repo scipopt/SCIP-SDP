@@ -38,7 +38,7 @@
 #include "prop_sdpredcost.h"
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "relax_sdp.h"                       /* to get relaxation value */
-#include "sdpi/sdpi_general.h"               /* to get values of primal variables */
+#include "sdpi/sdpi.h"               /* to get values of primal variables */
 
 #include <string.h>
 #include <assert.h>

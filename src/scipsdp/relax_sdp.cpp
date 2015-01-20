@@ -48,7 +48,7 @@
 #include <cstring>                      // for NULL, strcmp
 
 #include "SdpVarmapper.h"               // for SdpVarmapper
-#include "sdpi/sdpi_general.h"          // for SDP-Interface
+#include "sdpi/sdpi.h"          // for SDP-Interface
 #include "scipsdp/cons_sdp.h"           // for cons_check
 
 

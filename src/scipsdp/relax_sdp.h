@@ -43,7 +43,7 @@
 #define __SCIP_RELAXSDP_H__
 
 #include "scip/scip.h"
-#include "sdpi/sdpi_general.h"
+#include "sdpi/sdpi.h"
 
 #ifdef __cplusplus
 extern "C" {

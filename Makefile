@@ -99,7 +99,7 @@ MAINCOBJ=	scipsdp/SdpVarmapper.o \
 		scipsdp/disp_sdpiterations.o \
 		scipsdp/disp_sdpavgiterations.o \
 		scipsdp/prop_sdpredcost.o \
-		sdpi/sdpi_general.o
+		sdpi/sdpi.o
 
 MAINCCOBJ=	scipsdp/main.o \
 		scipsdp/relax_sdp.o \
@@ -108,11 +108,11 @@ MAINCCOBJ=	scipsdp/main.o \
 		scipsdp/ScipStreamBuffer.o
 
 ifeq ($(SDPS),dsdp)
-MAINCOBJ 	+= 	sdpi/sdpi_dsdp.o
+MAINCOBJ 	+= 	sdpi/sdpisolver_dsdp.o
 endif
 
 ifeq ($(SDPS),sdpa)
-MAINCOBJ 	+= 	sdpi/sdpi_sdpa.o
+MAINCOBJ 	+= 	sdpi/sdpisolver_sdpa.o
 endif
 
 MAINCSRC	=	$(addprefix $(SRCDIR)/,$(MAINCOBJ:.o=.c))
