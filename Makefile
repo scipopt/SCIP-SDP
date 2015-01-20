@@ -99,6 +99,7 @@ MAINCOBJ=	scipsdp/SdpVarmapper.o \
 		scipsdp/disp_sdpiterations.o \
 		scipsdp/disp_sdpavgiterations.o \
 		scipsdp/prop_sdpredcost.o \
+		scipsdp/branch_sdpmostfrac.o \
 		sdpi/sdpi.o
 
 MAINCCOBJ=	scipsdp/main.o \
