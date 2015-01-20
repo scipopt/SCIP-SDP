@@ -55,10 +55,19 @@ SCIP_RETCODE SCIPincludeRelaxSDP(
    SCIP*                 scip                /**< SCIP data structure */
    );
 
-/** returns pointer to SDP Interface structure */
+/** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem
+ *
+ *  The last input should specify the length of the arrays. If this is less than the number of variables, the needed
+ *  length will be returned and a debug message thrown. Note: if a variable is either fixed or unbounded in the dual
+ *  problem, a zero will be returned for the non-existent primal variable.
+ */
 EXTERN
-SCIP_SDPI* SCIPrelaxSdpGetSdpi(
-   SCIP_RELAX*           relax               /**< SDP relaxator to get SDPI for */
+SCIP_RETCODE SCIPrelaxGetPrimalBoundVars(
+   SCIP_RELAX*           relax,              /**< SDP relaxator to information for */
+   SCIP_Real*            lbvars,             /**< returns the variables corresponding to lower bounds in the dual problems */
+   SCIP_Real*            ubvars,             /**< returns the variables corresponding to upper bounds in the dual problems */
+   int*                  arraylength         /**< input: length of lbvars and ubvars
+                                              *   output: number of elements inserted into lbvars/ubvars (or needed length if it wasn't sufficient) */
    );
 
 /** returns optimal objective value of the current SDP relaxation, if the last SDP relaxation was successfully solved */

@@ -156,7 +156,6 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
 
    relax = SCIPfindRelax(scip, "SDP"); /* get SDP relaxation handler */
    assert( relax != NULL );
-   assert( SCIPrelaxSdpGetSdpi(relax) != NULL );
 
    SCIP_CALL( SCIPrelaxSdpRelaxVal(relax, &sdpsolved, &relaxval) );
    if ( ! sdpsolved )
@@ -178,7 +177,7 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
 
    length = nvars;
 
-   SCIP_CALL( SCIPsdpiGetPrimalBoundVars(SCIPrelaxSdpGetSdpi(relax), propdata->lbvarvals, propdata->ubvarvals, &length) );
+   SCIP_CALL( SCIPrelaxGetPrimalBoundVars(relax, propdata->lbvarvals, propdata->ubvarvals, &length) );
 
    assert( length == nvars ); /* we should get exactly one value for lower and upper bound-variable per variable in scip */
 
