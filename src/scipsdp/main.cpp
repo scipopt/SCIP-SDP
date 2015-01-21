@@ -46,6 +46,7 @@
 #include "disp_sdpavgiterations.h"
 #include "branch_sdpmostfrac.h"
 #include "branch_sdpmostinf.h"
+#include "branch_sdpobjective.h"
 
 using namespace scip;
 
@@ -67,6 +68,7 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPincludePropSdpredcost(scip) );
    SCIP_CALL( SCIPincludeBranchruleSdpmostfrac(scip) );
    SCIP_CALL( SCIPincludeBranchruleSdpmostinf(scip) );
+   SCIP_CALL( SCIPincludeBranchruleSdpobjective(scip) );
 
    /* add parameter for SDP solver */
    SCIP_CALL( SCIPaddStringParam(scip, "sdpsolver", "SDP solver", 0, FALSE, "dsdp" , 0, 0) );
