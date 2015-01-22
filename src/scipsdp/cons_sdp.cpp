@@ -1926,6 +1926,61 @@ SCIP_DECL_CONSPRINT(consPrintSdp)
    return SCIP_OKAY;
 }
 
+/** constraint method of constraint handler which returns the variables (if possible) */
+static
+SCIP_DECL_CONSGETVARS(consGetVarsSdp)
+{
+   SCIP_CONSDATA* consdata;
+   int i;
+   int nvars;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+   assert( vars != NULL );
+   assert( success != NULL );
+   assert( varssize >= 0 );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+
+   nvars = consdata->nvars;
+
+   if (nvars > varssize)
+   {
+      SCIPdebugMessage("consGetVarsIndicator called for array of size %d, needed size %d.\n", varssize, nvars);
+      *success = FALSE;
+      return SCIP_OKAY;
+   }
+
+   for (i = 0; i < nvars; i++)
+   {
+      vars[i] = consdata->vars[i];
+   }
+
+   *success = TRUE;
+   return SCIP_OKAY;
+}
+
+/** constraint method of constraint handler which returns the number of variables (if possible) */
+static
+SCIP_DECL_CONSGETNVARS(consGetNVarsSdp)
+{
+   SCIP_CONSDATA* consdata;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+   assert( nvars != NULL );
+   assert( success != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+
+   *nvars = consdata->nvars;
+   *success = TRUE;
+
+   return SCIP_OKAY;
+}
+
 /** creates the handler for sdp constraints and includes it in SCIP */
 SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP*                 scip                /**< SCIP data structure */
@@ -1957,6 +2012,8 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          CONSHDLR_SEPAPRIORITY, CONSHDLR_DELAYSEPA) );
    SCIP_CALL( SCIPsetConshdlrTrans(scip, conshdlr, consTransSdp) );
    SCIP_CALL( SCIPsetConshdlrPrint(scip, conshdlr, consPrintSdp) );
+   SCIP_CALL( SCIPsetConshdlrGetVars(scip, conshdlr, consGetVarsSdp) );
+   SCIP_CALL( SCIPsetConshdlrGetNVars(scip, conshdlr, consGetNVarsSdp) );
 
    return SCIP_OKAY;
 }

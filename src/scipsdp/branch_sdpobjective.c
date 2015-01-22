@@ -122,7 +122,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
        */
       if ( SCIPisGT(scip, REALABS(SCIPvarGetObj(cands[i])), maxobjobj) ||
           (SCIPisEQ(scip, REALABS(SCIPvarGetObj(cands[i])), maxobjobj) && SCIPisGT(scip, candsscore[i], maxobjscore)) ||
-          (SCIPisEQ(scip, candsscore[i], maxobjscore) && SCIPfrac(scip, REALABS(SCIPvarGetObj(cands[i])) > maxobjobj)) ||
+          (SCIPisEQ(scip, candsscore[i], maxobjscore) && SCIPvarGetObj(cands[i]) > maxobjobj) ||
           (REALABS(SCIPvarGetObj(cands[i])) == maxobjobj && candsscore[i] > maxobjscore) )
       {
          maxobjvar = cands[i];
@@ -135,6 +135,147 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
    assert( maxobjobj >= 0 );
 
    /* if all candidates have objective zero, we look for other variables that are coupled with the candidates and check their objective values */
+   if ( SCIPisEQ(scip, maxobjobj, 0.0) )
+   {
+      int j;
+      int c;
+      int v;
+      int cand;
+      int candpos;
+      int nvars;
+      SCIP_VAR** vars;
+      int nconss;
+      SCIP_CONS** conss;
+      int nvarsincons;
+      SCIP_VAR** varsincons;
+      SCIP_Bool** coupledvars; /* is there a constraint coupling candidate i and variable j ? */
+      int** candsincons; /* candsincons[i] gives a list of all candidates (indexed as in cands) appearing in cons i */
+      int* ncandsincons; /* ncandsincons[i] gives the length of candsincons[i] */
+      SCIP_Real currentobj;
+      SCIP_Bool success;
+
+      SCIPdebugMessage("All branching candidates have objective 0.0, objective branching proceeds to check coupled variables, updated values for candidates: \n");
+
+      nvars = SCIPgetNVars(scip);
+      vars = SCIPgetVars(scip);
+      assert( vars != NULL );
+      nconss = SCIPgetNConss(scip);
+      conss = SCIPgetConss(scip);
+      assert( conss != NULL );
+
+      /* allocate memory to save the coupled variables and initialize the arrays */
+      SCIP_CALL( SCIPallocBufferArray(scip, &ncandsincons, nconss) );
+      for (i = 0; i < nconss; i++)
+         ncandsincons[i] = 0;
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &candsincons, nconss) );
+      for (i = 0; i < nconss; i++)
+      {
+         SCIP_CALL( SCIPallocBufferArray(scip, &(candsincons[i]), ncands) );
+      }
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &coupledvars, ncands) );
+      for (i = 0; i < ncands; i++)
+      {
+         SCIP_CALL( SCIPallocBufferArray(scip, &(coupledvars[i]), nvars) );
+         for (j = 0; j < nvars; j++)
+            coupledvars[i][j] = FALSE;
+      }
+      SCIP_CALL( SCIPallocBufferArray(scip, &varsincons, nvars) );
+
+      /* find all variables that are coupled to a candidate */
+      for (c = 0; c < nconss; c++)
+      {
+         /* first check which candidates appear in which constraints */
+         SCIP_CALL( SCIPgetConsNVars(scip, conss[c], &nvarsincons, &success) );
+         if ( ! success )
+            {
+            SCIPdebugMessage("couldn't get variable information from constraint %s, so ignoring it for computing coupled variables\n", SCIPconsGetName(conss[c]));
+            continue; /* if we can't get the variables of this constraint, we can't include variables coupled through this constraint */
+            }
+         assert( nvarsincons > 0 );
+         SCIPgetConsVars(scip, conss[c], varsincons, nvarsincons, &success);
+         assert( success ); /* we allocated enough memory */
+         assert( varsincons != NULL );
+         for (v = 0; v < nvarsincons; v++)
+         {
+            for (cand = 0; cand < ncands; cand++)
+            {
+               if ( varsincons[v] == cands[cand] )
+               {
+                  candsincons[c][ncandsincons[c]] = cand;
+                  ncandsincons[c]++;
+               }
+            }
+         }
+
+         /* now save which variables are coupled to each candidate by adding all those that appear in this constraint to all candidates appearing in this constraint */
+         for (candpos = 0; candpos < ncandsincons[c]; candpos++)
+         {
+            for (v = 0; v < nvarsincons; v++)
+            {
+               /* the coupledvars-index corresponding to a variable is its variable index - nvars, because we work on the transformed variables which
+                * have indices nvars to 2*nvars - 1, as their indices start after those of the original variables */
+               coupledvars[candsincons[c][candpos]][SCIPvarGetIndex(varsincons[v]) - nvars] = TRUE;
+            }
+         }
+      }
+
+      /* iterate over all variables and compute the total absolute objective of all coupled variables */
+      for (cand = 0; cand < ncands; cand++)
+      {
+         currentobj = 0.0;
+         for (v = 0; v < nvars; v++)
+         {
+            if (coupledvars[cand][v])
+               currentobj += REALABS(SCIPvarGetObj(vars[v]));
+         }
+
+         assert( SCIPisGE(scip, currentobj, 0.0) );
+
+#ifdef SCIP_DEBUG
+         printf("candidate %s, coupled with ", SCIPvarGetName(cands[cand]));
+         for (v = 0; v < nvars; v++)
+         {
+            if (coupledvars[cand][v])
+               printf("%s, ", SCIPvarGetName(vars[v]));
+         }
+         printf("total objective = %f, score = %f\n", currentobj, candsscore[cand]);
+
+#endif
+
+         /* a candidate is better than the current one if:
+          * - the total absolute objective is (epsilon-)bigger than before or
+          * - the total absolute objective is (epsilon-)equal and the score is (epsilon-)bigger or
+          * - the score is (epsilon-)equal and the total absolute objective is (less than epsilon) bigger
+          * - the total absolute objective is (exactly) equal and the score is (less than epsilon) bigger
+          */
+         if ( SCIPisGT(scip, currentobj, maxobjobj) ||
+             (SCIPisEQ(scip, currentobj, maxobjobj) && SCIPisGT(scip, candsscore[cand], maxobjscore)) ||
+             (SCIPisEQ(scip, candsscore[cand], maxobjscore) && currentobj > maxobjobj) ||
+             (currentobj == maxobjobj && candsscore[i] > maxobjscore) )
+         {
+            maxobjvar = cands[cand];
+            maxobjobj = currentobj;
+            maxobjval = candssol[cand];
+            maxobjscore = candsscore[cand];
+         }
+      }
+
+      /* free Memory */
+      SCIPfreeBufferArray(scip, &varsincons);
+      for (i = 0; i < ncands; i++)
+         {
+         SCIPfreeBufferArray(scip, &(coupledvars[i]));
+         }
+      SCIPfreeBufferArray(scip, &coupledvars);
+      for (i = 0; i < nconss; i++)
+         {
+         SCIPfreeBufferArray(scip, &(candsincons[i]));
+         }
+      SCIPfreeBufferArray(scip, &candsincons);
+      SCIPfreeBufferArray(scip, &ncandsincons);
+   }
 
    /* branch */
    SCIPdebugMessage("branching on variable %s with value %f, absolute objective %f and score %f\n", SCIPvarGetName(maxobjvar), maxobjval, maxobjobj, maxobjscore);
