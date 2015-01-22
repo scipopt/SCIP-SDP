@@ -149,10 +149,12 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
       int nvarsincons;
       SCIP_VAR** varsincons;
       SCIP_Bool** coupledvars; /* is there a constraint coupling candidate i and variable j ? */
+      SCIP_Bool** singlecoupledvars; /* is variable j coupled with candidate i AND with no other candidate */
       int** candsincons; /* candsincons[i] gives a list of all candidates (indexed as in cands) appearing in cons i */
       int* ncandsincons; /* ncandsincons[i] gives the length of candsincons[i] */
       SCIP_Real currentobj;
       SCIP_Bool success;
+      int coupledcand;
 
       SCIPdebugMessage("All branching candidates have objective 0.0, objective branching proceeds to check coupled variables, updated values for candidates: \n");
 
@@ -180,6 +182,13 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
          SCIP_CALL( SCIPallocBufferArray(scip, &(coupledvars[i]), nvars) );
          for (j = 0; j < nvars; j++)
             coupledvars[i][j] = FALSE;
+      }
+      SCIP_CALL( SCIPallocBufferArray(scip, &singlecoupledvars, ncands) );
+      for (i = 0; i < ncands; i++)
+      {
+         SCIP_CALL( SCIPallocBufferArray(scip, &(singlecoupledvars[i]), nvars) );
+         for (j = 0; j < nvars; j++)
+            singlecoupledvars[i][j] = FALSE;
       }
       SCIP_CALL( SCIPallocBufferArray(scip, &varsincons, nvars) );
 
@@ -221,13 +230,46 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
          }
       }
 
+      /* finally remove all variables, that are coupled to multiple candidates */
+      for (v = 0; v < nvars; v++)
+      {
+         /* we use coupledcand to save if we have already found a candidate this variable is coupled with (otherwise coupledcand = -1), if we find one, we set
+          * coupledcand to that index, to easily set the corresponding entry to TRUE if we don't find another candidate it is coupled with */
+         coupledcand = -1;
+         for (cand = 0; cand < ncands; cand++)
+         {
+            if ( coupledvars[cand][v] )
+            {
+               /* check if this is the first or the second found candidate for this variable */
+               if ( coupledcand == -1 )
+               {
+                  /* this is the first candidate this is coupled with, so it might be the only one and we save it to potentially later set singlecoupledvars
+                   * to true */
+                  coupledcand = cand;
+               }
+               else
+               {
+                  /* we found a second candidate, so this variable won't be taken into account for the branching rule, so we reset coupledcand to -1 to not set
+                   * the corresponding entry in singlecoupledvars to TRUE and continue with the next variable */
+                  coupledcand = -2;
+                  continue;
+               }
+            }
+         }
+         if ( coupledcand > -1 )
+         {
+            /* as we found exactly one candidate this variable is coupled with, we set the corresponding singlecoupledvars-entry to TRUE */
+            singlecoupledvars[coupledcand][v] = TRUE;
+         }
+      }
+
       /* iterate over all variables and compute the total absolute objective of all coupled variables */
       for (cand = 0; cand < ncands; cand++)
       {
          currentobj = 0.0;
          for (v = 0; v < nvars; v++)
          {
-            if (coupledvars[cand][v])
+            if (singlecoupledvars[cand][v])
                currentobj += REALABS(SCIPvarGetObj(vars[v]));
          }
 
@@ -240,7 +282,13 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
             if (coupledvars[cand][v])
                printf("%s, ", SCIPvarGetName(vars[v]));
          }
-         printf("total objective = %f, score = %f\n", currentobj, candsscore[cand]);
+         printf("out of those ");
+         for (v = 0; v < nvars; v++)
+         {
+            if (singlecoupledvars[cand][v])
+               printf("%s, ", SCIPvarGetName(vars[v]));
+         }
+         printf("are only coupled with this candidate, total objective = %f, score = %f\n", currentobj, candsscore[cand]);
 
 #endif
 
@@ -264,6 +312,11 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
 
       /* free Memory */
       SCIPfreeBufferArray(scip, &varsincons);
+      for (i = 0; i < ncands; i++)
+         {
+         SCIPfreeBufferArray(scip, &(singlecoupledvars[i]));
+         }
+      SCIPfreeBufferArray(scip, &singlecoupledvars);
       for (i = 0; i < ncands; i++)
          {
          SCIPfreeBufferArray(scip, &(coupledvars[i]));
