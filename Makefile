@@ -101,6 +101,8 @@ MAINCOBJ=	scipsdp/SdpVarmapper.o \
 		scipsdp/prop_sdpredcost.o \
 		scipsdp/branch_sdpmostfrac.o \
 		scipsdp/branch_sdpmostinf.o \
+		scipsdp/branch_sdpobjective.o \
+		scipsdp/branch_sdpinfobjective.o \
 		sdpi/sdpi.o
 
 MAINCCOBJ=	scipsdp/main.o \
