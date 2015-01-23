@@ -104,6 +104,8 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
     * score, so these return values are set to NULL */
    SCIPgetExternBranchCands(scip, &cands, &candssol, &candsscore, &ncands, NULL, NULL, NULL, NULL);
 
+   assert( ncands > 0 ); /* branchExecext should only be called if the list of extern branching candidate is non-empty */
+
 #ifdef SCIP_DEBUG
    printf("branching candidates for SDP-mostfrac:\n");
    for (i = 0; i < ncands; i++)

@@ -30,23 +30,23 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   branch_sdpobjective.c
- * @brief  highest absolute objective branching rule for SCIPSDP
+/**@file   branch_sdpinfobjective.c
+ * @brief  combined infeasibility and absolute objective branching rule for SCIPSDP
  * @author Tristan Gally
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
-//#define SCIP_DEBUG
+/* #define SCIP_DEBUG */
 
 #include <assert.h>
 
-#include "branch_sdpobjective.h"
+#include "branch_sdpinfobjective.h"
 
 
-#define BRANCHRULE_NAME            "sdpobjective"
-#define BRANCHRULE_DESC            "branch on variable with highest absolute objective of the SDP"
-#define BRANCHRULE_PRIORITY        7500000
+#define BRANCHRULE_NAME            "sdpinfobjective"
+#define BRANCHRULE_DESC            "branch on variable with highest product of fractionality/integral-infeasibility and absolute objective of the SDP"
+#define BRANCHRULE_PRIORITY        9000000
 #define BRANCHRULE_MAXDEPTH        -1
 #define BRANCHRULE_MAXBOUNDDIST    1.0
 
@@ -82,17 +82,19 @@ SCIP_DECL_BRANCHCOPY(branchCopyXyz)
 
 /** branching execution method for external candidates */
 static
-SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
+SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
 {
    int i;
    int ncands;
    SCIP_VAR** cands = NULL;
    SCIP_Real* candssol; /* solution values of all candidates */
    SCIP_Real* candsscore; /* scores of all candidates */
-   SCIP_VAR* maxobjvar = NULL; /* variable with currently highest absolute objective */
-   SCIP_Real maxobjobj; /* objective of the current candidate with highest absolute objective */
-   SCIP_Real maxobjval; /* value of the current candidate with highest absolute objective */
-   SCIP_Real maxobjscore; /* score of the current candidate with highest absolute objective */
+   SCIP_VAR* maxtargetvar = NULL; /* variable with currently highest target value, meaning product of integer infeasibility and absolute objective */
+   SCIP_Real maxtargettarget; /* target value of the current candidate with highest target value, meaning product of integer infeasibility and absolute objective */
+   SCIP_Real maxtargetval; /* value of the current candidate with highest target value, meaning product of integer infeasibility and absolute objective */
+   SCIP_Real maxtargetscore; /* score of the current candidate with highest target value, meaning product of integer infeasibility and absolute objective */
+   SCIP_Real currentfrac; /* fractionality of the current candidate */
+   SCIP_Real currenttarget; /* target value, meaning product of integer infeasibility and absolute objective, of the current candidate */
 
    assert( scip != NULL );
    assert( result != NULL );
@@ -107,37 +109,44 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
 
 #ifdef SCIP_DEBUG
    printf("branching candidates for SDP-objective:\n");
-   for (i = 0; i < ncands; i++)
-      printf("%s, value = %f, objective = %f, score = %f\n", SCIPvarGetName(cands[i]), candssol[i], SCIPvarGetObj(cands[i]), candsscore[i]);
 #endif
 
-   maxobjobj = -1.0;
+   maxtargettarget = -1.0;
 
-   /* iterate over all candidates and find the one with the highest absolute objective, use score as tiebreaker */
+   /* iterate over all candidates and find the one with the highest absolute objective times integral infeasibility, use score as tiebreaker */
    for (i = 0; i < ncands; i++)
    {
+      /* compute the infeasibility for the integrality constraint */
+      currentfrac = SCIPfrac(scip, candssol[i]);
+      currenttarget = (currentfrac <= 0.5) ? (currentfrac * REALABS(SCIPvarGetObj(cands[i]))) : ((1 - currentfrac) * REALABS(SCIPvarGetObj(cands[i])));
+
+#ifdef SCIP_DEBUG
+      printf("%s, value = %f, objective = %f, objective * integer infeasibility = %f, score = %f\n",
+            SCIPvarGetName(cands[i]), candssol[i], SCIPvarGetObj(cands[i]), currenttarget, candsscore[i]);
+#endif
+
       /* a candidate is better than the current one if:
-       * - the absolute objective is (epsilon-)bigger than before or
-       * - the absolute objective is (epsilon-)equal and the score is (epsilon-)bigger or
-       * - the score is (epsilon-)equal and the absolute objective is (less than epsilon) bigger
-       * - the absolute objective is (exactly) equal and the score is (less than epsilon) bigger
+       * - the absolute objective * integer infeasibility is (epsilon-)bigger than before or
+       * - the absolute objective * integer infeasibility is (epsilon-)equal and the score is (epsilon-)bigger or
+       * - the score is (epsilon-)equal and the absolute objective * integer infeasibility is (less than epsilon) bigger
+       * - the absolute objective * integer infeasibility is (exactly) equal and the score is (less than epsilon) bigger
        */
-      if ( SCIPisGT(scip, REALABS(SCIPvarGetObj(cands[i])), maxobjobj) ||
-          (SCIPisEQ(scip, REALABS(SCIPvarGetObj(cands[i])), maxobjobj) && SCIPisGT(scip, candsscore[i], maxobjscore)) ||
-          (SCIPisEQ(scip, candsscore[i], maxobjscore) && SCIPvarGetObj(cands[i]) > maxobjobj) ||
-          (REALABS(SCIPvarGetObj(cands[i])) == maxobjobj && candsscore[i] > maxobjscore) )
+      if ( SCIPisGT(scip, currenttarget, maxtargettarget) ||
+          (SCIPisEQ(scip, currenttarget, maxtargettarget) && SCIPisGT(scip, candsscore[i], maxtargetscore)) ||
+          (SCIPisEQ(scip, candsscore[i], maxtargetscore) && currenttarget > maxtargettarget) ||
+          (currenttarget == maxtargettarget && candsscore[i] > maxtargetscore) )
       {
-         maxobjvar = cands[i];
-         maxobjobj = REALABS(SCIPvarGetObj(cands[i]));
-         maxobjval = candssol[i];
-         maxobjscore = candsscore[i];
+         maxtargetvar = cands[i];
+         maxtargettarget = currenttarget;
+         maxtargetval = candssol[i];
+         maxtargetscore = candsscore[i];
       }
    }
 
-   assert( SCIPisGE(scip, maxobjobj, 0.0) );
+   assert( SCIPisGE(scip, maxtargettarget, 0.0) );
 
    /* if all candidates have objective zero, we look for other variables that are coupled with the candidates and check their objective values */
-   if ( SCIPisEQ(scip, maxobjobj, 0.0) )
+   if ( SCIPisEQ(scip, maxtargettarget, 0.0) )
    {
       int j;
       int c;
@@ -154,11 +163,12 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
       SCIP_Bool** singlecoupledvars; /* is variable j coupled with candidate i AND with no other candidate */
       int** candsincons; /* candsincons[i] gives a list of all candidates (indexed as in cands) appearing in cons i */
       int* ncandsincons; /* ncandsincons[i] gives the length of candsincons[i] */
-      SCIP_Real currentobj;
       SCIP_Bool success;
       int coupledcand;
+      SCIP_Real currentobj;
 
-      SCIPdebugMessage("All branching candidates have objective 0.0, objective branching proceeds to check coupled variables, updated values for candidates: \n");
+      SCIPdebugMessage("All branching candidates have objective 0.0, combined integral infeasibility and objective branching proceeds to check coupled "
+                       "variables, updated values for candidates: \n");
 
       nvars = SCIPgetNVars(scip);
       vars = SCIPgetVars(scip);
@@ -265,7 +275,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
          }
       }
 
-      /* iterate over all variables and compute the total absolute objective of all coupled variables */
+      /* iterate over all variables and compute the total absolute objective multiplied of all coupled variables */
       for (cand = 0; cand < ncands; cand++)
       {
          currentobj = 0.0;
@@ -274,6 +284,10 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
             if (singlecoupledvars[cand][v])
                currentobj += REALABS(SCIPvarGetObj(vars[v]));
          }
+
+         /* multiply it with the integral infeasibility of the candidate */
+         currentfrac = SCIPfrac(scip, candssol[cand]);
+         currenttarget = (currentfrac <= 0.5) ? (currentfrac * currentobj) : ((1 - currentfrac) * currentobj);
 
          assert( SCIPisGE(scip, currentobj, 0.0) );
 
@@ -290,25 +304,25 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
             if (singlecoupledvars[cand][v])
                printf("%s, ", SCIPvarGetName(vars[v]));
          }
-         printf("are only coupled with this candidate, total objective = %f, score = %f\n", currentobj, candsscore[cand]);
-
+         printf("are only coupled with this candidate, total objective = %f, integral infeasibility = %f, total objective * candidate's fractionality = %f, score = %f\n",
+               currentobj, (currentfrac <= 0.5) ? currentfrac : (1 - currentfrac), currenttarget, candsscore[cand]);
 #endif
 
          /* a candidate is better than the current one if:
-          * - the total absolute objective is (epsilon-)bigger than before or
-          * - the total absolute objective is (epsilon-)equal and the score is (epsilon-)bigger or
-          * - the score is (epsilon-)equal and the total absolute objective is (less than epsilon) bigger
-          * - the total absolute objective is (exactly) equal and the score is (less than epsilon) bigger
+          * - the total absolute objective times integral infeasibility is (epsilon-)bigger than before or
+          * - the total absolute objective times integral infeasibility is (epsilon-)equal and the score is (epsilon-)bigger or
+          * - the score is (epsilon-)equal and the total absolute objective times integral infeasibility is (less than epsilon) bigger
+          * - the total absolute objective times integral infeasibility is (exactly) equal and the score is (less than epsilon) bigger
           */
-         if ( SCIPisGT(scip, currentobj, maxobjobj) ||
-             (SCIPisEQ(scip, currentobj, maxobjobj) && SCIPisGT(scip, candsscore[cand], maxobjscore)) ||
-             (SCIPisEQ(scip, candsscore[cand], maxobjscore) && currentobj > maxobjobj) ||
-             (currentobj == maxobjobj && candsscore[i] > maxobjscore) )
+         if ( SCIPisGT(scip, currenttarget, maxtargettarget) ||
+             (SCIPisEQ(scip, currenttarget, maxtargettarget) && SCIPisGT(scip, candsscore[cand], maxtargetscore)) ||
+             (SCIPisEQ(scip, candsscore[cand], maxtargetscore) && currenttarget > maxtargettarget) ||
+             (currenttarget == maxtargettarget && candsscore[i] > maxtargetscore) )
          {
-            maxobjvar = cands[cand];
-            maxobjobj = currentobj;
-            maxobjval = candssol[cand];
-            maxobjscore = candsscore[cand];
+            maxtargetvar = cands[cand];
+            maxtargettarget = currenttarget;
+            maxtargetval = candssol[cand];
+            maxtargetscore = candsscore[cand];
          }
       }
 
@@ -333,8 +347,9 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
    }
 
    /* branch */
-   SCIPdebugMessage("branching on variable %s with value %f, absolute objective %f and score %f\n", SCIPvarGetName(maxobjvar), maxobjval, maxobjobj, maxobjscore);
-   SCIP_CALL( SCIPbranchVarVal(scip, maxobjvar, maxobjval, NULL, NULL, NULL) );
+   SCIPdebugMessage("branching on variable %s with value %f, absolute objective * integer infeasibility = %f and score %f\n",
+         SCIPvarGetName(maxtargetvar), maxtargetval, maxtargettarget, maxtargetscore);
+   SCIP_CALL( SCIPbranchVarVal(scip, maxtargetvar, maxtargetval, NULL, NULL, NULL) );
 
    *result = SCIP_BRANCHED;
 
@@ -346,7 +361,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
  */
 
 /** creates the SDP highest absolute objective rule and includes it in SCIP */
-SCIP_RETCODE SCIPincludeBranchruleSdpobjective(
+SCIP_RETCODE SCIPincludeBranchruleSdpinfobjective(
    SCIP*                 scip                /**< SCIP data structure */
 )
 {
@@ -366,7 +381,7 @@ SCIP_RETCODE SCIPincludeBranchruleSdpobjective(
 
    /* set non fundamental callbacks via setter functions */
    /* SCIP_CALL( SCIPsetBranchruleCopy(scip, branchrule, branchCopyXyz) ); */
-   SCIP_CALL( SCIPsetBranchruleExecExt(scip, branchrule, branchExecextSdpobjective) );
+   SCIP_CALL( SCIPsetBranchruleExecExt(scip, branchrule, branchExecextSdpinfobjective) );
 
    return SCIP_OKAY;
 }
