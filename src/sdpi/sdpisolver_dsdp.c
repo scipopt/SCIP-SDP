@@ -1701,6 +1701,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
    int v;
 
    assert( sdpisolver != NULL );
+   assert( dualsollength != NULL );
    CHECK_IF_SOLVED( sdpisolver );
 
 #ifndef NDEBUG

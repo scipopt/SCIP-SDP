@@ -3012,11 +3012,9 @@ SCIP_RETCODE SCIPsdpiGetSol(
                                                *  of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
    )
 {
-   assert ( sdpi != NULL );
-   assert ( objval != NULL );
-   assert ( dualsol != NULL );
-   assert ( dualsollength != NULL );
-   assert ( *dualsollength >= 0 );
+   assert( sdpi != NULL );
+   assert( dualsollength != NULL );
+   assert( *dualsollength == 0 || dualsol != NULL );
    CHECK_IF_SOLVED(sdpi);
 
    SCIP_CALL( SCIPsdpiSolverGetSol(sdpi->sdpisolver, objval, dualsol, dualsollength) );
