@@ -99,7 +99,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
    assert( scip != NULL );
    assert( result != NULL );
 
-   SCIPdebugMessage("Executing External Branching method of SDP-objective!\n");
+   SCIPdebugMessage("Executing External Branching method of SDP-integer-infeasibility-objective!\n");
 
    /* get the external candidates, as we use the score only as a tiebreaker, we aren't interested in the number of variables of different types with maximal
     * score, so these return values are set to NULL */
@@ -264,7 +264,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
                   /* we found a second candidate, so this variable won't be taken into account for the branching rule, so we reset coupledcand to -1 to not set
                    * the corresponding entry in singlecoupledvars to TRUE and continue with the next variable */
                   coupledcand = -2;
-                  continue;
+                  break;
                }
             }
          }
@@ -329,19 +329,19 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
       /* free Memory */
       SCIPfreeBufferArray(scip, &varsincons);
       for (i = 0; i < ncands; i++)
-         {
+      {
          SCIPfreeBufferArray(scip, &(singlecoupledvars[i]));
-         }
+      }
       SCIPfreeBufferArray(scip, &singlecoupledvars);
       for (i = 0; i < ncands; i++)
-         {
+      {
          SCIPfreeBufferArray(scip, &(coupledvars[i]));
-         }
+      }
       SCIPfreeBufferArray(scip, &coupledvars);
       for (i = 0; i < nconss; i++)
-         {
+      {
          SCIPfreeBufferArray(scip, &(candsincons[i]));
-         }
+      }
       SCIPfreeBufferArray(scip, &candsincons);
       SCIPfreeBufferArray(scip, &ncandsincons);
    }

@@ -251,10 +251,10 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
                }
                else
                {
-                  /* we found a second candidate, so this variable won't be taken into account for the branching rule, so we reset coupledcand to -1 to not set
+                  /* we found a second candidate, so this variable won't be taken into account for the branching rule, so we set coupledcand to -2 to not set
                    * the corresponding entry in singlecoupledvars to TRUE and continue with the next variable */
                   coupledcand = -2;
-                  continue;
+                  break;
                }
             }
          }
@@ -315,19 +315,19 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
       /* free Memory */
       SCIPfreeBufferArray(scip, &varsincons);
       for (i = 0; i < ncands; i++)
-         {
+      {
          SCIPfreeBufferArray(scip, &(singlecoupledvars[i]));
-         }
+      }
       SCIPfreeBufferArray(scip, &singlecoupledvars);
       for (i = 0; i < ncands; i++)
-         {
+      {
          SCIPfreeBufferArray(scip, &(coupledvars[i]));
-         }
+      }
       SCIPfreeBufferArray(scip, &coupledvars);
       for (i = 0; i < nconss; i++)
-         {
+      {
          SCIPfreeBufferArray(scip, &(candsincons[i]));
-         }
+      }
       SCIPfreeBufferArray(scip, &candsincons);
       SCIPfreeBufferArray(scip, &ncandsincons);
    }

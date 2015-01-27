@@ -103,6 +103,8 @@ MAINCOBJ=	scipsdp/SdpVarmapper.o \
 		scipsdp/branch_sdpmostinf.o \
 		scipsdp/branch_sdpobjective.o \
 		scipsdp/branch_sdpinfobjective.o \
+	   scipsdp/branch_cs.o \
+	   scipsdp/nodesel_prio.o \
 		sdpi/sdpi.o
 
 MAINCCOBJ=	scipsdp/main.o \
