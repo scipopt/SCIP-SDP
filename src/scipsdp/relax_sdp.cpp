@@ -37,9 +37,9 @@
  * @author Tristan Gally
  */
 
-//#define SCIP_DEBUG
-//#define SCIP_MORE_DEBUG /* displays complete solution for each relaxation */
-//#define SCIP_EVEN_MORE_DEBUG /* shows number of deleted empty cols/rows for every relaxation and variable status & bounds as well as all constraints in the beginning */
+/* #define SCIP_DEBUG */
+/* #define SCIP_MORE_DEBUG */ /* displays complete solution for each relaxation */
+/* #define SCIP_EVEN_MORE_DEBUG */ /* shows number of deleted empty cols/rows for every relaxation and variable status & bounds as well as all constraints in the beginning */
 
 #include "relax_sdp.h"
 
@@ -693,7 +693,7 @@ SCIP_RETCODE calc_relax(
                for (i = 0; i < nvars; ++i)
                {
                   SCIP_VAR* var = vars[i];
-                  if ( SCIPvarIsIntegral(var) && ! SCIPisIntegral(scip, solforscip[i]) && ! SCIPisEQ(scip, SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var)) )
+                  if ( SCIPvarIsIntegral(var) && ! SCIPisFeasIntegral(scip, solforscip[i]) && ! SCIPisEQ(scip, SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var)) )
                   {
                      /* we don't set a true score, we will just let the heuristic decide */
                      SCIP_CALL( SCIPaddExternBranchCand(scip, var, 10000, solforscip[i]) );
@@ -859,7 +859,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
 
    // it is possible to call this function for writing the problem of every node in sdpa-format to a file per node
    // SCIP_CALL(write_sdpafile(scip, problemdata, varmapper));
-
 #ifdef SCIP_EVEN_MORE_DEBUG
    SCIP_VAR** varsfordebug = SCIPgetVars(scip);
    const int nvarsfordebug = SCIPgetNVars(scip);
@@ -1107,6 +1106,38 @@ SCIP_RETCODE SCIPrelaxSdpRelaxVal(
 
    *success = relaxdata->origsolved;
    *objval = relaxdata->ojbval;
+
+   return SCIP_OKAY;
+}
+
+/** returns values of all variables in the solution of the current SDP relaxation, if the last SDP relaxation was successfully solved */
+SCIP_RETCODE SCIPrelaxSdpGetRelaxSol(
+   SCIP*                 scip,               /**< SCIP pointer */
+   SCIP_RELAX*           relax,              /**< SDP relaxator to get solution for */
+   SCIP_Bool*            success,            /**< pointer to store whether the last SDP relaxation solved successfully */
+   SCIP_Real*            solarray,           /**< array to insert the solution, this has to be at least length nvars */
+   int*                  sollength           /**< length of the solarray, if this is less than nvars, it will be overwritten with the needed length and a
+                                               *  debug message is thrown */
+   )
+{
+   SCIP_RELAXDATA* relaxdata;
+
+   assert( relax != NULL );
+   assert( success != NULL );
+   assert( solarray != NULL );
+
+   relaxdata = SCIPrelaxGetData(relax);
+   assert( relaxdata != NULL );
+
+   *success = relaxdata->origsolved;
+
+   if ( *sollength >= SCIPgetNVars(scip) )
+      SCIP_CALL( SCIPsdpiGetSol(relaxdata->sdpi, NULL, solarray, sollength) );
+   else
+   {
+      SCIPdebugMessage("Called SCIPrelaxSdpGetRelaxSol with an array that wasn't big enough, needed length %d, given %d!\n", SCIPgetNVars(scip), *sollength);
+      *sollength = SCIPgetNVars(scip);
+   }
 
    return SCIP_OKAY;
 }

@@ -78,6 +78,17 @@ SCIP_RETCODE SCIPrelaxSdpRelaxVal(
    SCIP_Real*            objval              /**< returns the optimal objective value of the SDP relaxation */
    );
 
+/** returns values of all variables in the solution of the current SDP relaxation, if the last SDP relaxation was successfully solved */
+EXTERN
+SCIP_RETCODE SCIPrelaxSdpGetRelaxSol(
+   SCIP*                 scip,               /**< SCIP pointer */
+   SCIP_RELAX*           relax,              /**< SDP relaxator to get solution for */
+   SCIP_Bool*            success,            /**< pointer to store whether the last SDP relaxation solved successfully */
+   SCIP_Real*            solarray,           /**< array to insert the solution, this has to be at least length nvars */
+   int*                  sollength           /**< length of the solarray, if this is less than nvars, it will be overwritten with the needed length and a
+                                               *  debug message is thrown */
+   );
+
 /** returns total number of SDP iterations */
 EXTERN
 int SCIPrelaxSdpGetNIterations(
