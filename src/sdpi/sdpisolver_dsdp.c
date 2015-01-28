@@ -126,6 +126,7 @@ struct SCIP_SDPiSolver
    int                   sdpcounter;         /**< used for debug messages */
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
+   SCIP_Real             objlimit;           /**< objective limit for SDP solver */
 };
 
 
@@ -288,6 +289,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
 
    (*sdpisolver)->epsilon = 1e-3;
    (*sdpisolver)->feastol = 1e-6;
+   (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
 
    return SCIP_OKAY;
 }
@@ -1023,6 +1025,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       DSDPUsePenalty(sdpisolver->dsdp, 1);
    }
 
+   /* set the objective bound */
+   if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
+      DSDPSetDualBound(sdpisolver->dsdp, sdpisolver->objlimit);
+
    /* set the starting solution */
    if (start != NULL)
    {
@@ -1626,7 +1632,8 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
       double dobj;
       double gap;
 
-      printf("Numerical Trouble in DSDP!\n");
+      if ( ! SCIPsdpiSolverIsObjlimExc(sdpisolver) )
+         printf("Numerical Trouble in DSDP!\n");
 
       /* if it didn't converge check the optimality gap */
       DSDP_CALL( DSDPGetPObjective(sdpisolver->dsdp, &pobj) );
@@ -1888,52 +1895,63 @@ SCIP_Bool SCIPsdpiSolverIsGEMaxPenParam(
    return ((val <= -SCIPsdpiSolverMaxPenParam(sdpisolver)) || (val >= SCIPsdpiSolverMaxPenParam(sdpisolver)));
 }
 
-/** sets the value that should be used to check if the duality gap is sufficiently small and whether a variable should be fixed */
-SCIP_RETCODE SCIPsdpiSolverSetEpsilon(
-   SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
-   SCIP_Real             epsilon             /**< the value to compare duality gap with and whether a variable should be fixed */
+/** gets floating point parameter of SDP */
+SCIP_RETCODE SCIPsdpiSolverGetRealpar(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_SDPPARAM         type,               /**< parameter number */
+   SCIP_Real*            dval                /**< buffer to store the parameter value */
    )
 {
    assert( sdpisolver != NULL );
-   assert( epsilon > 0.0 );
+   assert( dval != NULL );
 
-   sdpisolver->epsilon = epsilon;
+   switch( type )
+   {
+   case SCIP_SDPPAR_EPSILON:
+      *dval = sdpisolver->epsilon;
+      break;
+   case SCIP_SDPPAR_FEASTOL:
+      *dval = sdpisolver->feastol;
+      break;
+   case SCIP_SDPPAR_OBJLIMIT:
+      *dval = sdpisolver->objlimit;
+      break;
+   default:
+      return SCIP_PARAMETERUNKNOWN;
+   }
 
    return SCIP_OKAY;
 }
 
-/** gets the value that is used to check if the duality gap is sufficiently small and whether a variable should be fixed */
-SCIP_Real SCIPsdpiSolverGetEpsilon(
-   SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
+/** sets floating point parameter of SDP */
+SCIP_RETCODE SCIPsdpiSolverSetRealpar(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_SDPPARAM         type,               /**< parameter number */
+   SCIP_Real             dval                /**< parameter value */
    )
 {
    assert( sdpisolver != NULL );
 
-   return sdpisolver->epsilon;
-}
-
-/** sets the value that should be used to check positive semidefiniteness */
-SCIP_RETCODE SCIPsdpiSolverSetFeastol(
-   SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
-   SCIP_Real             feastol             /**< the smallest eigenvalue of a positive semidefinite matrix must be at least -feastol */
-   )
-{
-   assert( sdpisolver != NULL );
-   assert( feastol > 0.0 );
-
-   sdpisolver->feastol = feastol;
+   switch( type )
+   {
+   case SCIP_SDPPAR_EPSILON:
+      sdpisolver->epsilon = dval;
+      SCIPdebugMessage("Setting sdpisolver epsilon to %f.\n", dval);
+      break;
+   case SCIP_SDPPAR_FEASTOL:
+      sdpisolver->feastol = dval;
+      SCIPdebugMessage("Setting sdpisolver feastol to %f.\n", dval);
+      break;
+   case SCIP_SDPPAR_OBJLIMIT:
+      /* DSDP only allows to set a dual bound, but as we want to solve the dual problem in DSDP, we would need to set a primal bound, which doesn't exist in
+       * DSDP, so we can't do anything in this case. */
+      SCIPdebugMessage("Objective Limit not supported in DSDP. \n");
+      break;
+   default:
+      return SCIP_PARAMETERUNKNOWN;
+   }
 
    return SCIP_OKAY;
-}
-
-/** gets the value that is used to check positive semidefiniteness */
-SCIP_Real SCIPsdpiSolverGetFeastol(
-   SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
-   )
-{
-   assert( sdpisolver != NULL );
-
-   return sdpisolver->feastol;
 }
 
 /**@} */

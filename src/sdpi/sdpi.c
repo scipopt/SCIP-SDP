@@ -3113,52 +3113,62 @@ SCIP_Bool SCIPsdpiIsGEMaxPenParam(
    return ((val <= -SCIPsdpiMaxPenParam(sdpi)) || (val >= SCIPsdpiMaxPenParam(sdpi)));
 }
 
-/** sets the value that should be used to check if the duality gap is sufficiently small and whether a variable should be fixed */
-SCIP_RETCODE SCIPsdpiSetEpsilon(
+/** gets floating point parameter of SDP */
+SCIP_RETCODE SCIPsdpiGetRealpar(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_Real             epsilon             /**< the value to compare duality gap with and whether a variable should be fixed */
+   SCIP_LPPARAM          type,               /**< parameter number */
+   SCIP_Real*            dval                /**< buffer to store the parameter value */
    )
 {
-   assert ( sdpi != NULL );
-   assert ( epsilon > 0.0 );
+   assert( sdpi != NULL );
+   assert( sdpi->sdpisolver != NULL );
+   assert( dval != NULL );
 
-   SCIP_CALL( SCIPsdpiSolverSetEpsilon(sdpi->sdpisolver, epsilon) );
+   switch( type )
+   {
+   case SCIP_SDPPAR_EPSILON:
+      *dval = sdpi->epsilon;
+      break;
+   case SCIP_SDPPAR_FEASTOL:
+      SCIP_CALL( SCIPsdpiSolverGetRealpar(sdpi->sdpisolver, type, dval) );
+      break;
+   case SCIP_SDPPAR_OBJLIMIT:
+      SCIP_CALL( SCIPsdpiSolverGetRealpar(sdpi->sdpisolver, type, dval) );
+      break;
+   default:
+      return SCIP_PARAMETERUNKNOWN;
+   }
 
    return SCIP_OKAY;
 }
 
-/** gets the value that is used to check if the duality gap is sufficiently small and whether a variable should be fixed */
-SCIP_Real SCIPsdpiGetEpsilon(
-   SCIP_SDPI*            sdpi                /**< SDP interface structure */
-   )
-{
-   assert ( sdpi != NULL );
-
-   return SCIPsdpiSolverGetEpsilon(sdpi->sdpisolver);
-}
-
-/** sets the value that should be used to check positive semidefiniteness */
-SCIP_RETCODE SCIPsdpiSetFeastol(
+/** sets floating point parameter of SDP */
+SCIP_RETCODE SCIPsdpiSetRealpar(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_Real             feastol             /**< the smallest eigenvalue of a positive semidefinite matrix must be at least -feastol */
+   SCIP_SDPPARAM         type,               /**< parameter number */
+   SCIP_Real             dval                /**< parameter value */
    )
 {
-   assert ( sdpi != NULL );
-   assert ( feastol > 0.0 );
+   assert( sdpi != NULL );
+   assert( sdpi->sdpisolver != NULL );
 
-   SCIP_CALL( SCIPsdpiSolverSetFeastol(sdpi->sdpisolver, feastol) );
+   switch( type )
+   {
+   case SCIP_SDPPAR_EPSILON:
+      sdpi->epsilon = dval;
+      SCIP_CALL( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
+      break;
+   case SCIP_SDPPAR_FEASTOL:
+      SCIP_CALL( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
+      break;
+   case SCIP_SDPPAR_OBJLIMIT:
+      SCIP_CALL( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
+      break;
+   default:
+      return SCIP_PARAMETERUNKNOWN;
+   }
 
    return SCIP_OKAY;
-}
-
-/** gets the value that is used to check positive semidefiniteness */
-SCIP_Real SCIPsdpiGetFeastol(
-   SCIP_SDPI*            sdpi                /**< SDP interface structure */
-   )
-{
-   assert ( sdpi != NULL );
-
-   return SCIPsdpiSolverGetFeastol(sdpi->sdpisolver);
 }
 
 /**@} */

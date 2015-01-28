@@ -517,11 +517,26 @@ SCIP_RETCODE calc_relax(
    }
    else
    {
+      /* set the objective limit */
+      assert( SCIPgetUpperbound(scip) > -SCIPsdpiInfinity(sdpi) );
+      SCIP_CALL( SCIPsdpiSetRealpar(sdpi, SCIP_SDPPAR_OBJLIMIT, SCIPgetUpperbound(scip)) );
+
+      /* solve the problem */
       SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, &(relaxdata->sdpiterations)) );
+
+      /* remove the objective limit, as we don't want to use it for the penalty formulation if we run into numerical problems */
+      SCIP_CALL( SCIPsdpiSetRealpar(sdpi, SCIP_SDPPAR_OBJLIMIT, SCIPsdpiInfinity(sdpi)) );
+
       if ( SCIPsdpiIsAcceptable(sdpi) )
       {
          SCIP_CALL( SCIPsdpiGetObjval(relaxdata->sdpi, &(relaxdata->ojbval)) );
          relaxdata->origsolved = TRUE;
+      }
+      else if ( SCIPsdpiIsObjlimExc(sdpi) && ! withpenalty )
+      {
+         *result = SCIP_CUTOFF;
+         /* need to set lowerbound? */
+         return SCIP_OKAY;
       }
       else
          relaxdata->origsolved = FALSE;
@@ -970,10 +985,10 @@ SCIP_DECL_RELAXINIT(relaxInitSolSDP)
 
    /* set the parameters of the SDP-Solver */
    SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDPRelax/sdpsolverepsilon", &epsilon) );
-   SCIP_CALL( SCIPsdpiSetEpsilon(relaxdata->sdpi, epsilon) );
+   SCIP_CALL( SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_EPSILON, epsilon) );
 
    SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDPRelax/sdpsolverfeastol", &feastol) );
-   SCIP_CALL( SCIPsdpiSetFeastol(relaxdata->sdpi, feastol) );
+   SCIP_CALL( SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_FEASTOL, feastol) );
 
    return SCIP_OKAY;
 }

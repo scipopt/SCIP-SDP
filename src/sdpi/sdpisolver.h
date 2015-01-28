@@ -62,6 +62,7 @@
 #include "scip/def.h"
 #include "blockmemshell/memory.h"
 #include "scip/type_retcode.h"
+#include "sdpi/type_sdpi.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -517,30 +518,20 @@ SCIP_Bool SCIPsdpiSolverIsGEMaxPenParam(
    SCIP_Real             val                 /**< value to be compared to maximum penalty parameter */
    );
 
-/** sets the value that should be used to check if the duality gap is sufficiently small and whether a variable should be fixed */
+/** gets floating point parameter of SDP-Solver */
 EXTERN
-SCIP_RETCODE SCIPsdpiSolverSetEpsilon(
+SCIP_RETCODE SCIPsdpiSolverGetRealpar(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
-   SCIP_Real             epsilon             /**< the value to compare duality gap with and whether a variable should be fixed */
+   SCIP_SDPPARAM         type,               /**< parameter number */
+   SCIP_Real*            dval                /**< buffer to store the parameter value */
    );
 
-/** gets the value that is used to check if the duality gap is sufficiently small and whether a variable should be fixed */
+/** sets floating point parameter of SDP-Solver */
 EXTERN
-SCIP_Real SCIPsdpiSolverGetEpsilon(
-   SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
-   );
-
-/** sets the value that should be used to check positive semidefiniteness */
-EXTERN
-SCIP_RETCODE SCIPsdpiSolverSetFeastol(
+SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
-   SCIP_Real             feastol             /**< the smallest eigenvalue of a positive semidefinite matrix must be at least -feastol */
-   );
-
-/** gets the value that is used to check positive semidefiniteness */
-EXTERN
-SCIP_Real SCIPsdpiSolverGetFeastol(
-   SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
+   SCIP_SDPPARAM         type,               /**< parameter number */
+   SCIP_Real             dval                /**< parameter value */
    );
 
 /**@} */

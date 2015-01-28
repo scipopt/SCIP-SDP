@@ -60,14 +60,11 @@
 #include "scip/def.h"
 #include "blockmemshell/memory.h"
 #include "scip/type_retcode.h"
+#include "sdpi/type_sdpi.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-
-
-typedef struct SCIP_SDPi SCIP_SDPI;                 /**< solver independent SDP interface */
 
 /*
  * Miscellaneous Methods
@@ -783,53 +780,43 @@ SCIP_RETCODE SCIPsdpiGetIterations(
 /** returns value treated as infinity in the SDP solver */
 EXTERN
 SCIP_Real SCIPsdpiInfinity(
-   SCIP_SDPI*           sdpi                 /**< SDP interface structure */
+   SCIP_SDPI*            sdpi                /**< SDP interface structure */
    );
 
 /** checks if given value is treated as infinity in the SDP solver */
 EXTERN
 SCIP_Bool SCIPsdpiIsInfinity(
-   SCIP_SDPI*           sdpi,               /**< SDP interface structure */
-   SCIP_Real            val                 /**< value to be checked for infinity */
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   SCIP_Real             val                 /**< value to be checked for infinity */
    );
 
 /** returns highest penalty parameter to be used */
 EXTERN
 SCIP_Real SCIPsdpiMaxPenParam(
-   SCIP_SDPI*           sdpi                 /**< SDP interface structure */
+   SCIP_SDPI*            sdpi                /**< SDP interface structure */
    );
 
 /** checks if given value is greater or equal to the highest penalty parameter to be used */
 EXTERN
 SCIP_Bool SCIPsdpiIsGEMaxPenParam(
-   SCIP_SDPI*           sdpi,               /**< SDP interface structure */
-   SCIP_Real            val                 /**< value to be compared to maximum penalty parameter */
-   );
-
-/** sets the value that should be used to check if the duality gap is sufficiently small and whether a variable should be fixed */
-EXTERN
-SCIP_RETCODE SCIPsdpiSetEpsilon(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_Real             epsilon             /**< the value to compare duality gap with and whether a variable should be fixed */
+   SCIP_Real             val                 /**< value to be compared to maximum penalty parameter */
    );
 
-/** gets the value that is used to check if the duality gap is sufficiently small and whether a variable should be fixed */
+/** gets floating point parameter of SDP */
 EXTERN
-SCIP_Real SCIPsdpiGetEpsilon(
-   SCIP_SDPI*            sdpi                /**< SDP interface structure */
-   );
-
-/** sets the value that should be used to check positive semidefiniteness */
-EXTERN
-SCIP_RETCODE SCIPsdpiSetFeastol(
+SCIP_RETCODE SCIPsdpiGetRealpar(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_Real             feastol             /**< the smallest eigenvalue of a positive semidefinite matrix must be at least -feastol */
+   SCIP_LPPARAM          type,               /**< parameter number */
+   SCIP_Real*            dval                /**< buffer to store the parameter value */
    );
 
-/** gets the value that is used to check positive semidefiniteness */
+/** sets floating point parameter of SDP */
 EXTERN
-SCIP_Real SCIPsdpiGetFeastol(
-   SCIP_SDPI*            sdpi                /**< SDP interface structure */
+SCIP_RETCODE SCIPsdpiSetRealpar(
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   SCIP_SDPPARAM         type,               /**< parameter number */
+   SCIP_Real             dval                /**< parameter value */
    );
 
 /**@} */
