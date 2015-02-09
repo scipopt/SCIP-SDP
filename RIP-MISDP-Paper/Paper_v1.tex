@@ -150,8 +150,7 @@ smaller size. However, the results allow an evaluation of the SDP
 relaxations of d'Aspremont et al. Depending on the input matrices, these
 bounds can be quite tight or weak. This complements the theoretical
 approximation guarantees developed by d'Aspremont et
-al. in~\cite{AspBG14}.\comment{Also add reference to~\cite{AspBG14} in
-  Section~3.}
+al. in~\cite{AspBG14}.
 
 In the following, we will start by introducing the restricted isometry
 property and corresponding results about the equivalence of~\eqref{l0min}
@@ -312,14 +311,13 @@ Another SDP relaxation was proposed in \cite{Asp08}. There the problem
 \begin{equation}\label{phi}
  \phi(\rho) = \max_{\Norm{x}{2} \leq 1} x\T \Sigma x - \rho \Norm{x}{0},
 \end{equation}
-originally stemming from sparse principal component analysis, is tackled for a symmetric positive semidefinite matrix $\Sigma$, which for
-$\Sigma = A\T A$, by duality, gives an upper bound on $\beta_k$ via 
-
+originally stemming from sparse principal component analysis, is tackled for a symmetric positive semidefinite matrix $\Sigma$. For
+$\Sigma = A\T A$ we can use this to compute an upper bound on $\beta_k$ via Lagrange-relaxation as
 \begin{equation*}
- \beta_k^2 \leq \inf_{\rho \geq 0} \phi(\rho) + \rho k.
+\beta_k^2 = \max_{\|x\|_2 \leq 1, \|x\|_0 \leq k} x^TA^TAx \leq \inf_{\rho \geq 0} \max_{\|x\|_2\leq 1} x^TA^TAx - \rho (\|x\|_0-k) = \inf_{\rho \geq 0} \phi(\rho) + \rho k.
 \end{equation*}
 
-As one way to solve (\ref{phi}) again the semidefinite lifting technique is used to compute an upper bound on $\phi$ via
+As one way to solve (\ref{phi}) again the semidefinite lifting technique is used in \cite{Asp08} to compute an upper bound on $\phi$ via
 \begin{align}\label{Asp08}
  \max \quad & \sum_{i=1}^n\Tr(P_iB_i) \nonumber \\
  \text{s.t.} \quad & \Tr(X) = 1 \nonumber \\
@@ -327,7 +325,7 @@ As one way to solve (\ref{phi}) again the semidefinite lifting technique is used
  & X \succeq P_i \succeq 0 \quad \forall i \leq n, \nonumber
 \end{align}
 for $B_i = b_ib_i\T - \rho I,$ where $b_i$ is the $i$-th column of a squareroot of $\Sigma$. The corresponding dual problem can then be written as 
- 
+
 \begin{align}\label{Asp08Dual}
   \min \quad & \lambda_{\max}\left(\sum_{i=1}^n Y_i \right) \nonumber \\
   \text{s.t.} \quad & Y_i \succeq B_i \quad \forall i \leq n \tag{A2-Dual} \\
@@ -336,8 +334,7 @@ for $B_i = b_ib_i\T - \rho I,$ where $b_i$ is the $i$-th column of a squareroot 
 which only has half as many variables as (\ref{Asp08}) and one less linear and semidefinite constraint. Then (\ref{Asp08Dual}) can be solved for non-negative $\rho$, which should be smaller than $\Sigma_{11}$, because otherwise the
 optimal solution for (\ref{phi}) will always be $x=0$. 
 
-A lower bound for $\alpha_k$ can be computed via
-
+As mentioned in \cite{Asp08}, a lower bound for $\alpha_k$ can be computed via
 \begin{equation*}
  \alpha_k^2 \geq \sup_{\rho \geq 0} \psi(\rho) - \rho k,
 \end{equation*}
@@ -347,13 +344,13 @@ with
 \end{equation*}
 In this case problem (\ref{Asp08}) or equivalently (\ref{Asp08Dual}) has to be solved for $\Sigma = M I - A\T A$, where $M$ has to be big enough to make $\Sigma$ positive semidefinite again. If $\bar{\Psi}$ is the corresponding optimal solution, this implies
 a lower bound on $\alpha_k$ as
-
 \begin{equation*}
  \alpha_k^2 \geq \sup_{\rho \geq 0} (M - \bar{\Psi}) - \rho k.
 \end{equation*}
 
+In \cite{AspBG14} explicit bounds on the quality of the semidefinite relaxation where derived using randomization arguments.
  
-%To compute the parameter $\rho$, the authors of \cite{Asp07} propose to minimize over the interval
+%To compute the parameter $\rho$, the authors of \cite{Asp08} propose to minimize over the interval
 % \begin{equation*}
 %  \max_{i \notin I} (b_i\T x)^2 \leq \rho \leq  \min_{i \in I} (b_i\T x)^2
 % \end{equation*}
