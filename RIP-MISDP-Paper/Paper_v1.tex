@@ -26,8 +26,10 @@
 \newcommand{\T}{^{\top}}
 \newcommand{\Tr}{\text{Tr}}
 \newcommand{\Rk}{\text{Rk}}
+\newcommand{\vect}{\text{vec}}
 
 % sets
+\newcommand{\C}{\mathds{C}}
 \newcommand{\R}{\mathds{R}}
 \newcommand{\Z}{\mathds{Z}}
 \newcommand{\ones}{\mathds{1}}
@@ -137,7 +139,7 @@ the resulting problems are quite hard to solve, even for matrices of
 smaller size. However, the results allow an evaluation of the SDP
 relaxations of d'Aspremont et al. Depending on the input matrices, these
 bounds can be quite tight or weak. This complements the theoretical
-approximation guarantees developed in by d'Aspremont et
+approximation guarantees developed by d'Aspremont et
 al. in~\cite{AspBG14}.\comment{Also add reference to~\cite{AspBG14} in
   Section~3.}
 
@@ -165,9 +167,20 @@ in \cite{CT05}:
   \begin{equation}\label{rip}
     (1 - \delta) \Norm{x}{2}^2 \leq \Norm{Ax}{2}^2 \leq (1+\delta) \Norm{x}{2}^2
   \end{equation}
-  for all $x \in \Sigma_k \define \{x \in \R^n \suchthat \Norm{x}{0} \leq k\}$. The
-  smallest constant~$\delta$ such that~\eqref{rip} holds is called
-  \emph{restricted isometry constant} (RIC)~$\delta_k$.
+  for all $x \in \Sigma_k \define \{x \in \R^n \suchthat \Norm{x}{0} \leq k\}$.
+\end{definition}
+
+As the following results depend on the constant $\delta$ in (\ref{rip}) being
+small enough, we are generally interested in the smallest constant satisfying
+(\ref{rip}).
+
+\begin{definition}\label{ricdef}
+For a matrix $A \in \R^{m \times n}$ and order~$k$, the smallest constant in 
+(\ref{rip}), meaning
+\begin{equation}\label{ric}
+ \delta_k \define \argmin_{\delta \geq 0} \{(1 - \delta) \Norm{x}{2}^2 \leq \Norm{Ax}{2}^2 \leq (1+\delta) \Norm{x}{2}^2 ,\; \text{ for all }x \in \Sigma_k\},
+\end{equation}
+is called \emph{restricted isometry constant} (RIC).
 \end{definition}
 
 For this paper, it is useful to take an asymmetric viewpoint and
@@ -193,8 +206,11 @@ Definition~\ref{asymRIPdef} is a generalization of Definition~\ref{ripdef}
 in the following sense: if the matrix~$A$ satisfies the RIP of order $k$
 with RIC $\delta_k$, then it has a RIR of at most $(1 + \delta_k) / (1 -
 \delta_k)$. Conversely, if $A$ has lower/upper RICs $\alpha_k$ and
-$\beta_k$, respectively, then it will also satisfy~\eqref{rip} for
-$\delta_k = \max \{1 - \alpha_k^2,\; \beta_k^2 - 1\}$. So $A$ has a small
+$\beta_k$, respectively, then this implies a restricted isometry constant
+of $\delta_k = \max \{1 - \alpha_k^2,\; \beta_k^2 - 1\}$ in~\eqref{rip}.
+\comment{$\max \{1 - \alpha_k^2,\; \beta_k^2 - 1\}$ erf\"ullt RIP nicht nur,
+sondern ist auch das kleinste $\delta$, das es tut, weshalb die asym. wirklich
+st\"arker ist.} So $A$ has a small
 RIC if and only if it has a large lower and a small upper RIC. But since
 in~\eqref{rip} usually only one of the two inequalities will be sharp, the
 asymmetric version yields more information about~$A$.
@@ -223,7 +239,11 @@ the following:
 
 There are also many other results similar to Theorem~\ref{RIPsqrt2}: For
 example, Foucart~\cite{fou10} relaxed the condition to $\delta_{2k} <
-0.4652$. Moreover, Cai et al.~\cite{CWX10} gave the condition $\delta_k <
+0.4652$ and Foucart and Rauhut~\cite{FouR13} to $\delta_{2k} < 0.6246$.
+\comment{Ergebnis ist f\"ur $\C$, sollte aber auch f\"ur $\R$
+gelten, da man RIC \"uber $\C$ durch Aufspaltung in Real- und 
+Imagin\"arteil durch reelle RIC absch\"atzen k\"onnen sollte.}
+Moreover, Cai et al.~\cite{CWX10} gave the condition $\delta_k <
 0.307$ for Theorem~\ref{RIPsqrt2} to hold. Note that all of these results
 can be generalized to the denoising case~\eqref{l0minDenoising}.
 
@@ -255,7 +275,7 @@ or the restricted isometry constant $\delta_k = \max \{ 1 - \alpha_k^2,\;
 \label{sec:SDPrelax}
 
 In this section we will discuss two known SDP relaxations to compute an upper bound on the restricted isometry constant $\delta_k$ in (\ref{rip}), as they have some ideas in common with the mixed integer semidefinite program we want to 
-propose and will also be checked against in the section on numerical results. The idea of these two relaxations as well as the MISDP in the next section is that the optimal constant $\alpha_k^2$ in (\ref{asymRIP}) can be computed
+propose and will also be checked against in the section on numerical results. The idea of these two relaxations as well as the MISDP in the next section is that the optimal constant $\alpha_k^2$ in (\ref{lowerRIP}) can be computed
 with the non-convex quadratic optimization problem
 \begin{align}\label{QP}
  \min \quad & \Norm{Ax}{2}^2 \nonumber \\
@@ -264,11 +284,12 @@ with the non-convex quadratic optimization problem
 \end{align}
 The corresponding maximization problem can be solved to compute $\beta_k^2$. In \cite{Asp07} the non-convex quadratic equality constraint $\Norm{x}{2}^2 = 1$ is tackled by the technique of semidefinite lifting first introduced in \cite{GW95} 
 for the max-cut problem. The idea is to use a new matrix variable $X=xx\T$ for the quadratic terms, where the condition $X=xx\T$ is then enforced by the equivalent constraints $X \succeq 0$ and $\Rk(X) = 1$, where 
-$X \succeq 0$ means that $X$ is symmetric and positive semidefinite. In the
-next step the non-convex rank constraint is then relaxed and the inequality
-$\Norm{x}{0} \leq k$ is substituted by the coarser constraint $\ones\T
-\abs{X} \ones \leq k$ to form
-the relaxation
+$X \succeq 0$ means that $X$ is symmetric and positive semidefinite. The objective and the normalization-constraint can then be expressed in $X$ as  $\Norm{Ax}{2}^2 = x\T A\T Ax =
+\Tr(A\T A X)$ and $\Norm{x}{2}^2 = \sum_{i=1}^n x_i^2 = \Tr(X)$. In the
+next step the inequality $\Norm{x}{0} \leq k$ is then substituted by the coarser constraint $\ones\T
+\abs{X} \ones \leq k$, which follows from the fact that $\ones\T\abs{X} \ones = \Norm{\vect(X)}{1}\leq \sqrt{\Norm{\vect(X)}{0}} \Norm{\vect(X)}{2}$ and $\Norm{\vect(X)}{0}=\Norm{x}{0}^2$ in the rank 1 case, where $\vect(X)$ is a vector
+in $\R^{n^2}$ consisting of all entries of $X$. 
+Relaxing the non-convex Rank-constraint finally leads to the following relaxation:
 \begin{align}\label{Asp07}
  \min \quad & \Tr(A\T A X) \nonumber \\
  \text{s.t.} \quad & \Tr(X) = 1 \nonumber \\
@@ -276,7 +297,7 @@ the relaxation
  & X \succeq 0. \nonumber
 \end{align}
 
-In \cite{Asp08} instead the problem
+Another SDP relaxation was proposed in \cite{Asp08}. There the problem
 
 \begin{equation}\label{phi}
  \phi(\rho) = \max_{\Norm{x}{2} \leq 1} x\T \Sigma x - \rho \Norm{x}{0},
@@ -342,7 +363,7 @@ a lower bound on $\alpha_k$ as
 \section{A MISDP for the restricted isometry property}
 \label{sec:MISDP}
 
-In this section we want to compute the optimal constants $\alpha_k$ and $\beta_k$ in (\ref{asymRIP}) using mixed integer semidefinite programming. We will again start with the non-convex quadratic problem
+In this section we want to compute the optimal constants $\alpha_k$ and $\beta_k$ in (\ref{lowerRIP}) and (\ref{upperRIP}) using mixed integer semidefinite programming. We will again start with the non-convex quadratic problem
 \begin{align}\label{QP2}
  \min \quad & \Norm{Ax}{2}^2 \nonumber \\
  \text{s.t.} \quad & \Norm{x}{2}^2 = 1 \tag{QP} \\
@@ -350,8 +371,7 @@ In this section we want to compute the optimal constants $\alpha_k$ and $\beta_k
 \end{align}
 
 For the non-convex quadratic equality constraint $\Norm{x}{2}^2 = 1$ we will
-again use semidefinite lifting as $\Norm{Ax}{2}^2 = x\T A\T Ax =
-\Tr(A\T A X)$ and $\Tr(X) = \sum_{i=1}^n x_i^2$. 
+again use semidefinite lifting, introducing the new variable $X=xx\T$ like in the last section. 
 The cardinality-constraint in (\ref{QP}) can equivalently be written using binary variables $z_i$ as $-z_i \leq x_i \leq z_i$ and $\sum_{i=1}^n z_i \leq k$. We can thus rewrite (\ref{QP}) equivalently to
 % In this section we want to compute the optimal constants $\alpha_k$ and $\beta_k$ in (\ref{asymRIP}) using mixed integer semidefinite programming. A non-convex quadratic optimization problem to compute $\alpha_k$ can be formulated as
 % 
@@ -378,7 +398,7 @@ The cardinality-constraint in (\ref{QP}) can equivalently be written using binar
  & z \in \{0,1\}^n \nonumber
 \end{align}
 
-The next step would then be to relax the non-convex rank constraint again to arrive at the following relaxation which computes a lower bound on the optimal constant $\alpha_k$ in (\ref{asymRIP}):
+The next step would then be to relax the non-convex rank constraint again to arrive at the following relaxation which computes a lower bound on the optimal constant $\alpha_k$ in (\ref{lowerRIP}):
 \begin{align}\label{MISDP}
  \min \quad & \Tr(A\T A X) \nonumber \\
  \text{s.t.} \quad & \Tr(X) = 1 \nonumber \\
