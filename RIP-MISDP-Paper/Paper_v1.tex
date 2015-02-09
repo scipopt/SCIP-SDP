@@ -103,7 +103,7 @@ and Rauhut~\cite{FouR13} for further information.
 One important condition is the \emph{restricted isometry property} (RIP),
 which was first introduced by Cand\`es and Tao~\cite{CT05}. For each $k \in
 \{1, \dots, n\}$, the RIP involves a \emph{restricted isometry constant}
-$\delta_k$ depending on~$k$ and~$A$. If $\delta_k$ is sufficiently small
+$\delta_k$ bounding the $k$-sparse eigenvalues of $A$. If $\delta_k$ is sufficiently small
 and there exists $\tilde{x} \in \R^n$ with $A \tilde{x} = b$ and
 $\Norm{\tilde{x}}{0} \leq k$, then problems~\eqref{l0min} and~\eqref{l1min}
 are equivalent; see Section~\ref{sec:RIP} for more details. There are
@@ -122,12 +122,22 @@ for some $\delta \geq 0$; the $\ell_1$-problem~\eqref{l1min} is changed
 similarly. For more details we again refer the reader to~\cite{FouR13}.
 
 However, one drawback of the RIP is that computing the restricted isometry
-constants for a given matrix~$A$ and~$k$ is NP-hard, see~\cite{PT14}. One
+constants for a given matrix~$A$ and~$k$ is NP-hard, see~\cite{PT14}. On
 the other hand, d'Aspremont et al.~\cite{Asp07,Asp08} proposed several
 semidefinite relaxations to compute upper bounds on the restricted isometry
 constants. Note that small upper bounds suffice to guarantee
 $\ell_0$-$\ell_1$-equivalence between~\eqref{l0min} and~\eqref{l1min}, but
 there exist cases in which the bounds are too weak to give a guarantee.
+
+The relaxations in \cite{Asp07,Asp08} were originally derived for the deeply
+connected problem of sparse principal component analysis (SPCA). Principal
+component analysis (PCA) is about finding orthogonal directions maximizing the 
+variance given in matrix $A$. SPCA tries to fix the problem that the components
+of PCA usually consist of small contributions of all axes, which make the results
+hard to interpret, by enforcing sparsity on the components. SPCA was
+originally proposed by Zuo et al. in \cite{SPCA}, where a penalty term was added 
+to the objective. Other authors like Moghaddam et al. in \cite{sbSPCA} also proposed 
+computing a sparse maximal eigenvalue for SPCA, like it is done for the RIP.
 
 The goal of this paper is to compute optimal restricted isometry constants
 via a mixed integer semidefinite program (SDP). To this end, we will
