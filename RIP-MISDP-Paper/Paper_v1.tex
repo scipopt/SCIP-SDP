@@ -9,6 +9,7 @@
 
 \newtheorem{thm}{Theorem}
 \newdefinition{definition}{Definition}
+\newdefinition{rmk}{Remark}
 
 \DeclareMathOperator*{\argmin}{argmin}
 \DeclareMathOperator*{\argmax}{argmax}
@@ -293,7 +294,7 @@ with the non-convex quadratic optimization problem
 \end{align}
 The corresponding maximization problem can be solved to compute $\beta_k^2$. In \cite{Asp07} the non-convex quadratic equality constraint $\Norm{x}{2}^2 = 1$ is tackled by the technique of semidefinite lifting first introduced in \cite{GW95} 
 for the max-cut problem. The idea is to use a new matrix variable $X=xx\T$ for the quadratic terms, where the condition $X=xx\T$ is then enforced by the equivalent constraints $X \succeq 0$ and $\Rk(X) = 1$, where 
-$X \succeq 0$ means that $X$ is symmetric and positive semidefinite. The objective and the normalization-constraint can then be expressed in $X$ as  $\Norm{Ax}{2}^2 = x\T A\T Ax =
+$X \succeq 0$ means that $X$ is symmetric (shortly written \mbox{$X \in S_n$}) and positive semidefinite. The objective and the normalization-constraint can then be expressed in $X$ as  $\Norm{Ax}{2}^2 = x\T A\T Ax =
 \Tr(A\T A X)$ and $\Norm{x}{2}^2 = \sum_{i=1}^n x_i^2 = \Tr(X)$. In the
 next step the inequality $\Norm{x}{0} \leq k$ is then substituted by the coarser constraint $\ones\T
 \abs{X} \ones \leq k$, which follows from the fact that $\ones\T\abs{X} \ones = \Norm{\vect(X)}{1}\leq \sqrt{\Norm{\vect(X)}{0}} \Norm{\vect(X)}{2}$ and $\Norm{\vect(X)}{0}=\Norm{x}{0}^2$ in the rank 1 case, where $\vect(X)$ is a vector
@@ -322,14 +323,14 @@ As one way to solve (\ref{phi}) again the semidefinite lifting technique is used
  \max \quad & \sum_{i=1}^n\Tr(P_iB_i) \nonumber \\
  \text{s.t.} \quad & \Tr(X) = 1 \nonumber \\
  & X \succeq 0 \tag{A2-Primal} \\
- & X \succeq P_i \succeq 0 \quad \forall i \leq n, \nonumber
+ & X \succeq P_i \succeq 0 \quad \text{for } i = 1, ..., n, \nonumber
 \end{align}
 for $B_i = b_ib_i\T - \rho I,$ where $b_i$ is the $i$-th column of a squareroot of $\Sigma$. The corresponding dual problem can then be written as 
 
 \begin{align}\label{Asp08Dual}
   \min \quad & \lambda_{\max}\left(\sum_{i=1}^n Y_i \right) \nonumber \\
   \text{s.t.} \quad & Y_i \succeq B_i \quad \forall i \leq n \tag{A2-Dual} \\
-  & Y_i \succeq 0 \quad \ \ \forall i \leq n, \nonumber
+  & Y_i \succeq 0 \quad \ \ \text{for } i = 1, ..., n, \nonumber
 \end{align}
 which only has half as many variables as (\ref{Asp08}) and one less linear and semidefinite constraint. Then (\ref{Asp08Dual}) can be solved for non-negative $\rho$, which should be smaller than $\Sigma_{11}$, because otherwise the
 optimal solution for (\ref{phi}) will always be $x=0$. 
@@ -398,31 +399,34 @@ The cardinality-constraint in (\ref{QP}) can equivalently be written using binar
 \begin{align}\label{Rk1MISDP}
  \min \quad & \Tr(A\T A X) \nonumber \\
  \text{s.t.} \quad & \Tr(X) = 1 \nonumber \\
- & -z_j \leq X_{ij} \leq z_j \quad \forall j \leq n \nonumber \\
- & \sum_{i=1}^n z_i \leq k \tag{Rk1MISDP} \\
+ & -z_j \leq X_{ij} \leq z_j \quad \text{for } j = 1, ..., n \nonumber \\
+ & \sum_{i=1}^n z_i \leq k \tag{M1} \\
  & \Rk(X) = 1 \nonumber \\
  & X \succeq 0  \nonumber \\
- & z \in \{0,1\}^n \nonumber
+ & z \in \{0,1\}^n. \nonumber
 \end{align}
+\comment{test whether to use only diagonal inequalities $-z_j \leq X_{jj} \leq z_j$, or only those for $j$ (which are redundant in the SDP because of diagonal dominance) or all for $i$ and $j$ (which are even more redundant 
+because of symmetrie)}
 
 The next step would then be to relax the non-convex rank constraint again to arrive at the following relaxation which computes a lower bound on the optimal constant $\alpha_k$ in (\ref{lowerRIP}):
+
 \begin{align}\label{MISDP}
  \min \quad & \Tr(A\T A X) \nonumber \\
  \text{s.t.} \quad & \Tr(X) = 1 \nonumber \\
- & -z_j \leq X_{ij} \leq z_j \quad \forall j \leq n \nonumber \\
+ & -z_j \leq X_{ij} \leq z_j \quad \text{for } j = 1, ..., n \nonumber \\
  & \sum_{i=1}^n z_i \leq k \tag{MISDP} \\
  & X \succeq 0  \nonumber \\
  & z \in \{0,1\}^n \nonumber
 \end{align}
 
-In the following we want to show that (\ref{MISDP}) not only computes a lower bound but the exact value of $\alpha_k$. For this we will use results about the geometry of semidefinite programs to show that there always exists an 
-optimal solution to (\ref{MISDP}) with rank 1 so that the optimal objective values of (\ref{Rk1MISDP}) and (\ref{MISDP}) have to agree. We will use the following result from \cite{pat98} about the relationship between the rank of
-solutions of semidefinite programs and the dimension of corresponding faces, meaning a subset $F$ of the convex set $P$ such that $x \in F, y, z \in P$ and $x = 0.5y + 0.5z$ imply $y,z \in F$:
+In the following we will to show that (\ref{MISDP}) not only computes a lower bound but the exact value of $\alpha_k$. For this we will use results about the geometry of semidefinite programs to show that there always exists an 
+optimal solution to (\ref{MISDP}) with rank 1 so that the optimal objective values of (\ref{Rk1MISDP}) and (\ref{MISDP}) have to agree. We will use the following result by Pataki \cite{pat98} about the relationship between the rank of
+solutions of semidefinite programs and the dimension of corresponding faces, meaning a subset $F$ of the convex set $P$ such that \mbox{$x \in F, y, z \in P$} and $x = 0.5y + 0.5z$ imply $y,z \in F$:
 
 \begin{thm}\label{patakiLemma}
  Let $X \in F$, where $F$ is a face of
  \begin{equation*}
- P \define \{X \in S_n : X \succeq 0, \Tr(A_i X) = b_i \ \forall i \leq m\}
+ P \define \{X \in S_n : X \succeq 0, \Tr(A_i X) = b_i \ \text{for } i = 1, ..., m\}
  \end{equation*}
  for symmetric matrices $A_i \in S_n, i \leq m$. Then
  \begin{equation*}
@@ -437,29 +441,30 @@ solution to (\ref{MISDP}) with rank one.
  For every $A \in \R^{m \times n}$ and $k \geq 1$ there exists an optimal solution $X^*, z^*$ to (\ref{MISDP}) such that $\Rk(X^*) = 1$. 
 \end{thm}
 \begin{proof}
- Let $\hat{X}, \hat{z}$ be an optimal solution to (\ref{MISDP}) (because of $\Tr(X) = 1$ the problem is bounded and $X_{11} = 1, X_{ij} = 0 \ \forall i,j \neq 1, z_1 = 1, z_i = 0 \ \forall i \neq 0$ is always feasible for $k > 0$,
- so an optimal solution exists)
- with $\sum_{i=1}^n z_i = \ell \leq k$. Define
+ Let $\hat{X}, \hat{z}$ be an optimal solution to (\ref{MISDP}) with $\sum_{i=1}^n z_i = \ell \leq k$ 
+ (because of $\Tr(X) = 1$ the problem is bounded and $X_{11} = 1, X_{ij} = 0 \ \forall i,j \neq 1,$ \mbox{$z_1 = 1, z_i = 0 \ \forall i \neq 1$} is always feasible for $k > 0$, so an optimal solution exists).
+ Define
  \begin{align}\label{Proj}
- \min \quad & \Tr(\tilde{A}\T\tilde{A}X) \nonumber \\
- \text{s.t.} \quad & \Tr(X) = 1 \tag{Proj} \\
- & X \succeq 0 , X \in S_\ell, \nonumber
- \end{align}
+ \min \quad & \Tr(\tilde{A}\T\tilde{A}\tilde{X}) \nonumber \\
+ \text{s.t.} \quad & \Tr(\tilde{X}) = 1 \tag{Proj} \\
+ & \tilde{X} \succeq 0 , \tilde{X} \in S_\ell, \nonumber 
+ \end{align}\comment{$\tilde{X} \in S_\ell$ eigentlich in $\tilde{X} \succeq 0$ enthalten, aber betont halt Dimension, so drinnlassen oder \"andern?}
 where $\tilde{A} = (A_{i_1}, A_{i_2}, ..., A_{i_\ell})$ consists of those
 columns $\{{i_1}, {i_2}, ..., {i_\ell}\} \enifed T$ of $A$ for which
 $\hat{z}_{i_k} = 1$.
 
-Now let $\tilde{X}$ be the matrix consisting of those rows and columns 
-$i_k$ of $\hat{X}$ such that $\hat{z}_{i_k} = 1$. Then $\tilde{X}$ is feasible for (\ref{Proj}) with the same objective value as the optimal solution $\hat{X}$ of (\ref{MISDP}), as we only removed zero rows and columns of $\hat{X}$ 
+Now let $\bar{X}$ be the matrix consisting of those rows and columns 
+$i_k$ of $\hat{X}$ such that $\hat{z}_{i_k} = 1$. Then $\bar{X}$ is feasible for (\ref{Proj}) with the same objective value as the optimal solution $\hat{X}$ of (\ref{MISDP}), as we only removed zero rows and columns of $\hat{X}$ 
 and $(A\T A)\hat{X}$, which do not influence the trace or the positive
 semidefiniteness.
 
-On the other hand we can lift any optimal solution $\tilde{X}$ of (\ref{Proj}) to a feasible point for (\ref{MISDP}) with identical objective value by setting $\bar{z}_i$ to one if and only if $i \in T$
-and $\bar{X}_{i_j i_k} = \tilde{X}_{jk}$ if and only if $i_j, i_k \in T$
-and $\bar{X}_{ij}=0$ otherwise.
+On the other hand we can lift any optimal solution $\check{X}$ of (\ref{Proj}) to a feasible point for (\ref{MISDP}) with identical objective value by setting $\bar{z}_i$ to one if and only if $i \in T$
+and $X^{\prime}_{i_j i_k} = \check{X}_{jk}$ if and only if $i_j, i_k \in T$
+and $X^{\prime}_{ij}=0$ otherwise. This solution will then be feasible for (\ref{MISDP}), as $\Tr(\check{X}) = 1$ and $\check{X}\in S_\ell$ imply $0 \leq \check{X}_{jj} = X^{\prime}_{i_j i_j} \leq 1$ and therefore 
+$X^{\prime}_{ij} \leq z^{\prime}_j$ by diagonal dominance of semidefinite matrices.
 
 So the optimal objective values of (\ref{Proj}) and (\ref{MISDP}) agree and with this construction we also get that 
-$\Rk(\bar{X}) = \Rk(\tilde{X})$, so it suffices to show that (\ref{Proj}) always allows for a solution of rank one.
+$\Rk(X^{\prime}) = \Rk(\check{X})$, so it suffices to show that (\ref{Proj}) always allows for a solution of rank one.
 Let $\breve{X}$ be an extreme point of (\ref{Proj}) (as the set of optimal points of (\ref{Proj}) is a non-empty, convex, compact subset of $\R^{\ell(\ell+1)/2}$, such a point exists as a consequence of corollary 18.5.1 in
 \cite{Roc70}) with corresponding face $F=\{\breve{X}\}$. Then using theorem \ref{patakiLemma} on (\ref{Proj}) with $\tilde{m} = 1$ LP-constraint gives
 \begin{equation*}
@@ -471,6 +476,18 @@ As $\breve{X}=0$ is infeasible for $\Tr(X)=1$, we must have $\Rk(\breve{X}) = 1$
 As Theorem \ref{Rk1thm} tells us that (\ref{MISDP}) always has a solution of rank one and the rank-constraint was the only constraint we relaxed to get (\ref{MISDP}) from (\ref{QP}), this means that their optimal objective values 
 have to agree and we can compute the optimal constant $\alpha_k$ for the RIP by solving (\ref{MISDP}). As the same argumentation also holds for the maximization problem for $\beta_k$, this allows us to compute the restricted isometry
 constant and the restricted isometry ratio by mixed integer semidefinite programming.
+
+
+
+\begin{rmk}\label{Rk1rmk}
+Theorem \ref{Rk1thm} still holds if additional constraints are added fixing some of the binary variables $z_j$ to $0$ or $1$. In this case there will always exist an optimal solution to problem (\ref{MISDP}) with these added
+constraints with rank $1$, such that the optimal objective value of this problem will also equal that of (\ref{Rk1MISDP}) with the added constraints. This means in particular, that solving problem (\ref{MISDP}) using a 
+branch-and-bound-approach is the same as solving the original problem (\ref{Rk1MISDP}) with a branch-and-bound-code.
+\end{rmk}
+
+Theorem \ref{Rk1thm} and Remark \ref{Rk1rmk} do not guarantee that any found solution will have rank one, they only guarantee that there exists a rank one solution. But this isn't a problem for applications in the context of the RIP, 
+as we are here only interested in the optimal objective value, as this gives us the constant $\alpha_k$ or $\beta_k$ for the RIP. For other applications like the SPCA such an extreme solution can also be generated with an algorithm 
+proposed by Pataki in \cite{coneLP}.
 
 \section{Numerical Results}
 \label{sec:numerical_results}
