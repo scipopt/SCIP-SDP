@@ -453,13 +453,11 @@ where $\tilde{A} = (A_{i_1}, A_{i_2}, ..., A_{i_\ell})$ consists of those
 columns $\{{i_1}, {i_2}, ..., {i_\ell}\} \enifed T$ of $A$ for which
 $\hat{z}_{i_k} = 1$.
 
-Now let $\bar{X}$ be the matrix consisting of those rows and columns 
-$i_k$ of $\hat{X}$ such that $\hat{z}_{i_k} = 1$. Then $\bar{X}$ is feasible for (\ref{Proj}) with the same objective value as the optimal solution $\hat{X}$ of (\ref{MISDP}), as we only removed zero rows and columns of $\hat{X}$ 
-and $(A\T A)\hat{X}$, which do not influence the trace or the positive
-semidefiniteness.
+Now let $\bar{X}$ be the $\ell \times \ell$ matrix with all rows and columns outside of $T$ removed. Then $\bar{X}$ is feasible for (\ref{Proj}) with the same objective value as the optimal solution $\hat{X}$ of (\ref{MISDP}), 
+as we only removed zero rows and columns of $\hat{X}$ and $(A\T A)\hat{X}$, which do not influence the trace or the positive semidefiniteness.
 
-On the other hand we can lift any optimal solution $\check{X}$ of (\ref{Proj}) to a feasible point for (\ref{MISDP}) with identical objective value by setting $\bar{z}_i$ to one if and only if $i \in T$
-and $X^{\prime}_{i_j i_k} = \check{X}_{jk}$ if and only if $i_j, i_k \in T$
+On the other hand we can lift any optimal solution $\check{X}$ of (\ref{Proj}) to a feasible point for (\ref{MISDP}) with identical objective value by setting $z^{\prime}_i$ to one if and only if $i \in T$
+and $X^{\prime}_{i_{j_1} i_{j_2}} = \check{X}_{j_1j_2}$ if and only if $i_{j_1}, i_{j_2} \in T$
 and $X^{\prime}_{ij}=0$ otherwise. This solution will then be feasible for (\ref{MISDP}), as $\Tr(\check{X}) = 1$ and $\check{X}\in S_\ell$ imply $0 \leq \check{X}_{jj} = X^{\prime}_{i_j i_j} \leq 1$ and therefore 
 $X^{\prime}_{ij} \leq z^{\prime}_j$ by diagonal dominance of semidefinite matrices.
 
@@ -489,22 +487,37 @@ Theorem \ref{Rk1thm} and Remark \ref{Rk1rmk} do not guarantee that any found sol
 as we are here only interested in the optimal objective value, as this gives us the constant $\alpha_k$ or $\beta_k$ for the RIP. For other applications like the SPCA such an extreme solution can also be generated with an algorithm 
 proposed by Pataki in \cite{coneLP}.
 
+\section{Solving MISDPs}
+\label{sec:solving_misdps}
+
+For solving the mixed-integer semidefinite programs we used the MISDP-Solver SCIP\_SDP originally developed in \cite{MS12} and \cite{Mar13}, which combines the branch-and-bound-framework of SCIP 3.1 \cite{SCIP} with 
+interior-point SDP-solvers. An important property for semidefinite programs is the slater condition, that states that there is a strictly feasible point, in this case a positive definite matrix, for the primal and dual problem, 
+which is needed for strict duality \cite{alizadeh95, helmberghabil} and therefore an imposed precondition for most SDP-solvers. This will however usually be violated in a branch-and-bound-context, when variables get fixed and the
+variable bounds are added as linear constraints, which will then be transformed to diagonal entries of the semidefinite program. \comment{will man das ausf\"uhrlicher erkl\"aren oder eine Quelle daf\"ur zitieren (wenn man eine 
+findet) ? } To keep the slater condition intact, the code will remove all fixed variables from the SDP formulation, as well as removing zero-rows from the SDP-matrices, which might appear after fixing variables to zero. The 
+SCIP\_SDP-code also extracts some easy LP-conditions from the SDP-constraints, to use the presolving capabilities of SCIP for linear constraints. 
+
+The semidefinite problems appearing as relaxations are then solved using interior-point-methods, for details on 
+those see for example the books by Ye and Nesterov and Nemirovski \cite{yeip, neneip}. In this case the dual-scaling interior-point-solver DSDP 5.8 \cite{DSDP} was used. 
+Branching was always conducted on the binary variable with value closest to one, as a node-selection rule best first search was used, as it needs the smallest number of iteration to find the optimal solution \cite{achterbergphd}, 
+and unlike linear solvers warmstart-capabilities cannot be used to profit from the small changes of the problems in the breadth-first-search.
+
+%The code was overhauled and ported to C in contrast to the cited original version. 
+
 \section{Numerical Results}
 \label{sec:numerical_results}
 
-For solving \ref{MISDP} we used the MISDP-Solver SCIP\_SDP originally developed in \cite{MS12} and \cite{Mar13}, which combines the branch-and-bound-framework of SCIP 3.1 \cite{SCIP} with interior-point-SDP-solvers, in this case 
-with the dual-scaling interior-point-solver DSDP 5.8 \cite{DSDP}. The code was overhauled and ported to C in contrast to the cited original version. The continuous SDPs were solved using the command-line version of DSDP. The testset
-consisted of 14 matrices of seven different types, and for each matrix we computed
-the left- and right-hand restricted isometry constant $\alpha$ and $\beta$ using the problems (\ref{MISDP}), (\ref{Asp07}) and (\ref{Asp08Dual}). In the latter case we solved 15 SDPs for $\rho$ between $0$ and the maximum diagonal 
-entry of $A\T A$. The matrices were band matrices with band size three or five with entries within the band chosen uniformly in $\{0,1\}$, binary matrices with all entries chosen uniformly in $\{0,1\}$ as well as matrices with 
-entries chosen with distribution $\mathcal{N}(0,1)$ and rank one matrices $A = aa\T$, with $\mathcal{N}(0,1)$-distributed entries of $a$. In addition to these four kinds of matrices, we also used three more with theoretical results
-about their restricted isometry constants, namely matrices with $N(0, 1/m)$-distributed entries, with entries chosen uniformly in $\pm 1/\sqrt{m}$ and finaly with distribution
+For solving (\ref{MISDP}) we used the MISDP-Solver SCIP\_SDP presented in chapter \ref{sec:solving_misdps}. The continuous SDPs were solved using the command-line version of DSDP. The testset consisted of 14 matrices of seven 
+different types, and for each matrix we computed the left- and right-hand restricted isometry constant $\alpha$ and $\beta$ using the problems (\ref{MISDP}), (\ref{Asp07}) and (\ref{Asp08Dual}). In the latter case we solved 15 
+SDPs for $\rho$ between $0$ and the maximum diagonal entry of $A\T A$. The matrices were band matrices with band size three or five with entries within the band chosen uniformly in $\{0,1\}$, binary matrices with all entries chosen 
+uniformly in $\{0,1\}$ as well as matrices with entries chosen with distribution $\mathcal{N}(0,1)$ and rank one matrices $A = aa\T$, with $\mathcal{N}(0,1)$-distributed entries of $a$. In addition to these four kinds of matrices, 
+we also used three more with theoretical results about their restricted isometry constants, namely matrices with $N(0, 1/m)$-distributed entries, with entries chosen uniformly in $\pm 1/\sqrt{m}$ and finaly with distribution
 \begin{equation}\nonumber
 A_{ij} = \begin{cases} + \sqrt{3/m} & \text{with probability } \frac{1}{6} \\ 0 & \text{with probability } \frac{2}{3} \\ - \sqrt{3/m} & \text{with probability } \frac{1}{6}. \end{cases}
 \end{equation}
 For the latter three kinds of matrices it was shown in \cite{BDDW08}, that for $n \rightarrow \infty$, sufficiently small $k$ and given $\delta$ they satisfy the restricted isometry property (\ref{rip}) of order $k$ for this $\delta$
-with probability converging exponentially to one. But the needed proportion between $n$ and $k$ is so small that we can't expect the generated matrices in small dimensions to satisfy the RIP. For each type we randomly generated two
-matrices using MATLAB 8.3.0 \cite{MAT} with rows ranging from 15 to 30, columns from 25 to 40 and order $k$ between three and five.
+with probability converging exponentially to one. But the needed proportion between $n$ and $k$ is so small that we can't expect the generated matrices in small dimensions to satisfy the RIP. For each type we used \mbox{MATLAB 8.3.0 
+\cite{MAT}} to randomly generated nine matrices of three different sizes with rows ranging from 15 to 30, columns from 25 to 40 and order $k$ between three and five.
 
 The tests were performed on an Intel i7-4770 with 3.4 GHz. For each instance we set a time limit of one hour, if a problem didnot finish within this time, we counted 3600 seconds and used the dual bound as the result. In our test this
 only happened once for the right-hand-side of a $15 \times 30$ binary matrix with order $k=5$ in (\ref{MISDP}). 
@@ -603,9 +616,10 @@ should increase.
 \section{Conclusion}
 
 We have seen that exact restricted isometry constants can be computed not only via total enumeration but also by solving a mixed integer semidefinite program. Because of this exactness result, this new problem could drastically
-improve the bounds computed with the semidefinite relaxations proposed in \cite{Asp07} and \cite{Asp08}, but this came at the cost of a much higher complexity of computation. We could only solve these problems for relatively small
-instances, but this could change with sufficient advances in the area of mixed integer semidefinite programming, especially with the addition of special cutting planes, which proved to be the main enhancement needed to make mixed
-integer linear solvers as fast as they are today. Also special heuristics and branching rules could improve the performance of the branch-and-bound-algorithm and allow us to solve bigger instances of the proposed MISDP.
+improve the bounds computed with the semidefinite relaxations proposed in \cite{Asp07} and \cite{Asp08}, but this came at the cost of a much higher complexity of computation, at least in comparison to \cite{Asp07}. We could only 
+solve these problems for relatively small instances, but this could change with sufficient advances in the area of mixed integer semidefinite programming, especially with the addition of special cutting planes, which proved to be 
+the main enhancement needed to make mixed integer linear solvers as fast as they are today. Also special heuristics and branching rules could improve the performance of the branch-and-bound-algorithm and allow us to solve bigger 
+instances of the proposed MISDP.
 
 \section*{Acknowledgments}
 The authors would like to thank the German Research Foundation (DFG) for funding as parts of this research have been carried out within the Collaborative Research Center 805.
