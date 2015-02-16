@@ -33,37 +33,13 @@ extern "C" {
 /** SDP solver parameters */
 enum SCIP_SDPParam
 {
-   SCIP_SDPPAR_FROMSCRATCH    =  0,      /**< solver should start from scratch at next call? */
-   SCIP_SDPPAR_FASTMIP        =  1,      /**< fast mip setting of SDP solver */
-   SCIP_SDPPAR_SCALING        =  2,      /**< should SDP solver use scaling? */
-   SCIP_SDPPAR_PRESOLVING     =  3,      /**< should SDP solver use presolving? */
-   SCIP_SDPPAR_PRICING        =  4,      /**< pricing strategy */
-   SCIP_SDPPAR_SDPINFO        =  5,      /**< should SDP solver output information to the screen? */
-   SCIP_SDPPAR_FEASTOL        =  6,      /**< feasibility tolerance for primal variables and slacks */
-   SCIP_SDPPAR_DUALFEASTOL    =  7,      /**< feasibility tolerance for dual variables and reduced costs */
-   SCIP_SDPPAR_BARRIERCONVTOL =  8,      /**< convergence tolerance used in barrier algorithm */
-   SCIP_SDPPAR_LOBJLIM        =  9,      /**< lower objective limit */
-   SCIP_SDPPAR_UOBJLIM        = 10,      /**< upper objective limit */
-   SCIP_SDPPAR_SDPITLIM       = 11,      /**< SDP iteration limit */
-   SCIP_SDPPAR_SDPTILIM       = 12,      /**< SDP time limit */
-   SCIP_SDPPAR_MARKOWITZ      = 13,      /**< Markowitz tolerance */
-   SCIP_SDPPAR_ROWREPSWITCH   = 14,      /**< simplex algorithm shall use row representation of the basis
-                                          *   if number of rows divided by number of columns exceeds this value */
-   SCIP_SDPPAR_THREADS        = 15,      /**< number of threads used to solve the SDP */
-   SCIP_SDPPAR_CONDITIONLIMIT = 16       /**< maximum condition number of SDP basis counted as stable */
+   SCIP_SDPPAR_EPSILON       = 0,      /* convergence tolerance */
+   SCIP_SDPPAR_FEASTOL       = 1,      /* feasibility tolerance */
+   SCIP_SDPPAR_OBJLIMIT      = 2       /* objective limit, if the SDP solver computes a lower bound for the minimzation problem that is bigger than this, it may stop */
 };
 typedef enum SCIP_SDPParam SCIP_SDPPARAM;
 
-/** SDP solution quality quantities */
-enum SCIP_SDPSolQuality
-{
-   SCIP_SDPSOLQUALITY_ESTIMCONDITION,    /**< estimated condition number of (scaled) basis matrix (SCIP_Real) */
-   SCIP_SDPSOLQUALITY_EXACTCONDITION     /**< exact condition number of (scaled) basis matrix (SCIP_Real) */
-};
-typedef enum SCIP_SDPSolQuality SCIP_SDPSOLQUALITY;
-
 typedef struct SCIP_SDPi SCIP_SDPI;                 /**< solver independent SDP interface */
-typedef struct SCIP_SDPiNorms SCIP_SDPINORMS;       /**< SDP pricing norms information */
 
 #ifdef __cplusplus
 }
