@@ -499,16 +499,21 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    int blocksize;
    double check_value;
 
+   assert( scip != NULL );
+   assert( cons != NULL );
+   assert( sol != NULL );
+   assert( result != NULL );
+   assert( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(cons)), "SDP") == 0);
+
    consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
    blocksize = consdata->blocksize;
 
    SCIP_Real eigenvalue;
    SCIP_Real* matrix = NULL;
    SCIP_Real* fullmatrix = NULL;
-
    SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1)) / 2) );
    SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize) );
-
    SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix) );
    SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
 
