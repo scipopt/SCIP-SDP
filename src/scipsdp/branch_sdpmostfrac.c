@@ -112,7 +112,10 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
       printf("%s, value = %f, score = %f\n", SCIPvarGetName(cands[i]), candssol[i], candsscore[i]);
 #endif
 
-   mostfracfrac = -1;
+   mostfracfrac = -1.0;
+   mostfracscore = 0.0;
+   mostfracval = 0.0;
+   mostfracvar = NULL;
    /* iterate over all solution candidates to find the one with the highest fractionality */
    for (i = 0; i < ncands; i++)
    {

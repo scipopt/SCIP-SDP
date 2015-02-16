@@ -114,7 +114,10 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostinf)
       printf("%s, value = %f, score = %f\n", SCIPvarGetName(cands[i]), candssol[i], candsscore[i]);
 #endif
 
-   mostinfinf = -1;
+   mostinfinf = -1.0;
+   mostinfscore = 0.0;
+   mostinfval = 0.0;
+   mostinfvar = NULL;
    /* iterate over all solution candidates to find the one with the highest infeasibility */
    for (i = 0; i < ncands; i++)
    {

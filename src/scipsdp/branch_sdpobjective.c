@@ -37,7 +37,7 @@
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
-//#define SCIP_DEBUG
+/*#define SCIP_DEBUG */
 
 #include <assert.h>
 
@@ -46,7 +46,7 @@
 
 #define BRANCHRULE_NAME            "sdpobjective"
 #define BRANCHRULE_DESC            "branch on variable with highest absolute objective of the SDP"
-#define BRANCHRULE_PRIORITY        7500000
+#define BRANCHRULE_PRIORITY        0
 #define BRANCHRULE_MAXDEPTH        -1
 #define BRANCHRULE_MAXBOUNDDIST    1.0
 
@@ -112,6 +112,9 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
 #endif
 
    maxobjobj = -1.0;
+   maxobjscore = 0.0;
+   maxobjval = 0.0;
+   maxobjvar = NULL;
 
    /* iterate over all candidates and find the one with the highest absolute objective, use score as tiebreaker */
    for (i = 0; i < ncands; i++)
