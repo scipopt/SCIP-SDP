@@ -37,9 +37,9 @@
  * @author Tristan Gally
  */
 
-/* #define SCIP_DEBUG */
-/* #define SCIP_MORE_DEBUG */ /* displays complete solution for each relaxation */
-/* #define SCIP_EVEN_MORE_DEBUG */ /* shows number of deleted empty cols/rows for every relaxation and variable status & bounds as well as all constraints in the beginning */
+/* #define SCIP_DEBUG*/
+/* #define SCIP_MORE_DEBUG  *//* displays complete solution for each relaxation */
+/* #define SCIP_EVEN_MORE_DEBUG  *//* shows number of deleted empty cols/rows for every relaxation and variable status & bounds as well as all constraints in the beginning */
 
 #include "relax_sdp.h"
 
@@ -647,7 +647,8 @@ SCIP_RETCODE calc_relax(
 
             for (i = 0; i < nconss; ++i)
             {
-               SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], scipsol, FALSE, TRUE, FALSE, &conefeas) );
+               if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[i])), "SDP") == 0 ) /* as we only relax the SDP-constraints, we only check those */
+                  SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], scipsol, FALSE, TRUE, FALSE, &conefeas) );
                if ( conefeas == SCIP_INFEASIBLE )
                {
                   solisfeas = FALSE;
@@ -1024,8 +1025,10 @@ SCIP_DECL_RELAXEXIT(relaxExitSDP)
    relaxdata = SCIPrelaxGetData(relax);
    assert( relaxdata != NULL );
 
-   SCIP_CALL( SdpVarmapperFree(scip, &(relaxdata->varmapper)) );
-   SCIP_CALL( SCIPsdpiFree(&(relaxdata->sdpi)) );
+   if ( relaxdata->varmapper != NULL )
+      SCIP_CALL( SdpVarmapperFree(scip, &(relaxdata->varmapper)) );
+   if ( relaxdata->sdpi != NULL )
+      SCIP_CALL( SCIPsdpiFree(&(relaxdata->sdpi)) );
    SCIPfreeBlockMemory(scip, &relaxdata);
    SCIPrelaxSetData(relax, NULL);
 
