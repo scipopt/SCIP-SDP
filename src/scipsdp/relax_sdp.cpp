@@ -519,13 +519,13 @@ SCIP_RETCODE calc_relax(
    {
       /* set the objective limit */
       assert( SCIPgetUpperbound(scip) > -SCIPsdpiInfinity(sdpi) );
-      SCIP_CALL( SCIPsdpiSetRealpar(sdpi, SCIP_SDPPAR_OBJLIMIT, SCIPgetUpperbound(scip)) );
+      /*SCIP_CALL( SCIPsdpiSetRealpar(sdpi, SCIP_SDPPAR_OBJLIMIT, SCIPgetUpperbound(scip)) );*/
 
       /* solve the problem */
       SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, &(relaxdata->sdpiterations)) );
 
       /* remove the objective limit, as we don't want to use it for the penalty formulation if we run into numerical problems */
-      SCIP_CALL( SCIPsdpiSetRealpar(sdpi, SCIP_SDPPAR_OBJLIMIT, SCIPsdpiInfinity(sdpi)) );
+      /*SCIP_CALL( SCIPsdpiSetRealpar(sdpi, SCIP_SDPPAR_OBJLIMIT, SCIPsdpiInfinity(sdpi)) );*/
 
       if ( SCIPsdpiIsAcceptable(sdpi) )
       {

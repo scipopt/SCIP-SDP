@@ -30,8 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* #define SCIP_DEBUG */
-/* #define SCIP_MORE_DEBUG */
+/* #define SCIP_DEBUG*/
+/* #define SCIP_MORE_DEBUG*/
 
 /**@file   sdpisolver_dsdp.c
  * @brief  interface for DSDP
@@ -686,7 +686,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
 
    /* start inserting the LP constraints */
-   if ( nlpcons > 0 || lpnnonz > 0 )
+   if ( nlpcons > 0 || lpnnonz > 0 || ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
    {
       int* rowshifts;
       int nshifts;
@@ -697,6 +697,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       SCIP_Bool morethanbound;
       int nonzind;
       SCIP_Real nonzval;
+      int v;
+      int nvarsinobj;
 
       assert( nlpcons > 0 );
       assert( lprhs != NULL );
@@ -711,13 +713,21 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpbegcol, sdpisolver->nactivevars + 2) );
       /* dsdplprow saves the row indices of the LP for DSDP */
       /* worst-case length is lpnnonz + nlpcons, because right hand sides are also included in the vector, this will be
-       * shortened after the exact length after fixings is known */
-      BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, nlpcons + lpnnonz) );
+       * shortened after the exact length after fixings is known, in case we have an objective limit, this is increased by one entry for the right-hand-side
+       * and at most nvars entries for the nonzeros */
+      if ( SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
+         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, nlpcons + lpnnonz) );
+      else
+         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, (nlpcons + 1) + lpnnonz + nvars) );
 
       /* values given to DSDP */
       /* worst-case length is lpnnonz + nlpcons, because right hand sides are also included in the vector, this will be
-       * shortened after the exact length after fixings is known */
-      BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, nlpcons + lpnnonz) );
+       * shortened after the exact length after fixings is known, in case we have an objective limit, this is increased by one entry for the right-hand-side
+       * and at most nvars entries for the nonzeros */
+      if ( SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
+         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, nlpcons + lpnnonz) );
+      else
+         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, (nlpcons + 1) + lpnnonz + nvars) );
 
       /* array to save which rows can be deleted as they are empty, in that case rowshifts[rowind] = -1, otherwise it gives the
        * number of rowindices deleted before it, therefore the index should be decreased by that number */
@@ -733,7 +743,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       lastrow = -1;
       rowactive = TRUE; /* this is just a technical start point to not need another check in the if below, we don't want to do anything for row -1 */
       morethanbound = TRUE;
-
+      /* TODO: if the rhs is/becomes zero, add a shift to remove the entry */
       for (i = 0; i < lpnnonz; i++)
       {
          assert( 0 <= lpcol[i] && lpcol[i] < nvars );
@@ -778,7 +788,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                            -dsdplpval[lastrow - nshifts] / nonzval) ); /* the - is because we already changed the sign for DSDPs <= instead of >= */
                      SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
                         "(originally %f)\n", lastrow, sdpisolver->sdpcounter, nonzind, -dsdplpval[lastrow - nshifts] / nonzval,
-                        ub[sdpisolver->inputtodsdpmapper[nonzind]]);
+                        ub[sdpisolver->inputtodsdpmapper[nonzind]]); /* TODO: what to do, if this fixes a variable ? perhaps move this part to sdpi_general and do it before computing the new constant SDP-matrix */
                   }
                   else
                   {
@@ -852,7 +862,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          else
          {
             /* as the row index didn't increase, we have another nonzero for the row we are currently handling */
-            if (isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]]))
+            if ( isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]]) )
             {
                /* we just add the fixed value to the rhs, this doesn't change anything about the activity status */
                dsdplpval[lastrow - nshifts] += lb[lpcol[i]] * lpval[i]; /* + = - * - because of rhs - lhs and <= instead of >= */
@@ -949,8 +959,19 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       nremovedlpcons = nshifts;
 
+      /* if we have an objective limit, add it as the last lp constraint and compute the rhs-value */
+      if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
+         dsdplpval[nlpcons - nshifts] = sdpisolver->objlimit;
+      /* to compute the rhs-value, iterate over all variables, substracting the values of fixed
+       * variables */
+      for (v = 0; v < nvars; v++)
+      {
+         if ( isFixed(sdpisolver, lb[v], ub[v]) )
+            dsdplpval[nlpcons - nshifts] -= obj[v] * lb[v];
+      }
+
       /* set the values in dsdplprow for the right hand sides of the active lp constraints */
-      for (i = 0; i < nlpcons - nshifts; i++)
+      for (i = 0; i < (nlpcons + 1) - nshifts; i++)
          dsdplprow[i] = i;
 
 
@@ -962,7 +983,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* iterate over all nonzeros to add the active ones to the dsdp arrays and compute dsdplpbegcol */
       nextcol = 0;
       dsdplpbegcol[0] = 0;
-      dsdplpbegcol[1] = nlpcons - nshifts; /* the number of LP-constraints that will be given to dsdp */
+      nvarsinobj = 0;
+      dsdplpbegcol[1] = SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) ? nlpcons - nshifts : (nlpcons + 1) - nshifts; /* the number of LP-constraints that will be given to dsdp */
       for (i = 0; i < lpnnonz; i++)
       {
          /* if a new variable starts, set the corresponding dsdplpbegcol-entry */
@@ -976,9 +998,17 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                if (sdpisolver->inputtodsdpmapper[j] >= 0)
                {
                   assert( ! (isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]])) );
+                  /* add the entry to the objlimit-lp-constraint for the last variables */
+                  if ( (! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit)) && (j > 0) && (REALABS( obj[j - 1] ) > sdpisolver->epsilon))
+                  {
+                     dsdplprow[i + nvarsinobj + (nlpcons + 1) - nshifts] = nlpcons - nremovedlpcons;
+                     dsdplpval[i + nvarsinobj + (nlpcons + 1) - nshifts] = obj[j - 1];
+                     nvarsinobj++;
+                  }
                   /* the nonzeros only start after the rhs, they are shifted nshift positions to the left, the index j+1
                    * has to be set as dsdplpbegcol[0] */
-                  dsdplpbegcol[sdpisolver->inputtodsdpmapper[j]] = nlpcons + i - nshifts;
+                  dsdplpbegcol[sdpisolver->inputtodsdpmapper[j]] = SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) ?
+                        nlpcons + i - nshifts : (nlpcons + 1) + i +nvarsinobj - nshifts;
                }
             }
             nextcol = j; /* this also equals lpcol[i]+1 */
@@ -991,22 +1021,76 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          {
             /* the index is adjusted for deleted lp rows, also rows are numbered 0,...,nlpcons-1 in DSDP, as they are
              * here, nlpcons is added to the index as the first nlpcons entries correspond to the right hand sides */
-            dsdplprow[i + nlpcons - nshifts] = lprow[i] - rowshifts[lprow[i]];
-            dsdplpval[i + nlpcons - nshifts] = -lpval[i]; /* - because dsdp wants <= instead of >= constraints */
+            if ( SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
+            {
+               dsdplprow[i + nlpcons - nshifts] = lprow[i] - rowshifts[lprow[i]];
+               dsdplpval[i + nlpcons - nshifts] = -lpval[i]; /* - because dsdp wants <= instead of >= constraints */
+            }
+            else
+            {
+               dsdplprow[i + nvarsinobj + (nlpcons + 1) - nshifts] = lprow[i] - rowshifts[lprow[i]];
+               dsdplpval[i + nvarsinobj + (nlpcons + 1) - nshifts] = -lpval[i]; /* - because dsdp wants <= instead of >= constraints */
+            }
+
          }
       }
-      dsdplpbegcol[sdpisolver->nactivevars + 1] = nlpcons + lpnnonz - nshifts; /* the length of the dsdplp arrays */
+
+      /* set the begcol array for all remaining variables (that aren't part of the LP-part), and also set the objlimit-constraint-entries */
+      for (j = nextcol; j < nvars; j++)
+      {
+         if (sdpisolver->inputtodsdpmapper[j] >= 0)
+         {
+            assert( ! (isFixed(sdpisolver, lb[sdpisolver->inputtodsdpmapper[j]], ub[sdpisolver->inputtodsdpmapper[j]])) );
+            /* add the entry to the objlimit-lp-constraint for the last variables */
+            if ( (! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit)) && (j > 0) && (REALABS( obj[j] ) > sdpisolver->epsilon))
+            {
+               dsdplprow[(lpnnonz - 1) + nvarsinobj + (nlpcons + 1) - nshifts] = nlpcons - nremovedlpcons;
+               dsdplpval[(lpnnonz - 1) + nvarsinobj + (nlpcons + 1) - nshifts] = obj[j - 1];
+               nvarsinobj++;
+            }
+            /* the nonzeros only start after the rhs, they are shifted nshift positions to the left, the index j+1
+             * has to be set as dsdplpbegcol[0] */
+            dsdplpbegcol[sdpisolver->inputtodsdpmapper[j]] = SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) ?
+                                    nlpcons + i - nshifts : (nlpcons + 1) + i +nvarsinobj - nshifts;
+         }
+      }
+
+      /* add the entry to the objlimit-lp-constraint for the last variable (because in the for-queue it is only set for j-1 until nvars - 1 - 1 */
+      if (sdpisolver->inputtodsdpmapper[nvars - 1] >= 0)
+      {
+         if ( (! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit)) && (REALABS( obj[nvars - 1] ) > sdpisolver->epsilon))
+         {
+            dsdplprow[(lpnnonz - 1) + nvarsinobj + (nlpcons + 1) - nshifts] = nlpcons - nremovedlpcons;
+            dsdplpval[(lpnnonz - 1) + nvarsinobj + (nlpcons + 1) - nshifts] = obj[nvars - 1];
+            nvarsinobj++;
+         }
+      }
+
+      dsdplpbegcol[sdpisolver->nactivevars + 1] = SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) ?
+            nlpcons + i -nshifts : (nlpcons + 1) + i +nvarsinobj - nshifts; /* the length of the dsdplp arrays */
 
       /* free the memory for the rowshifts-array */
       BMSfreeBlockMemoryArray(sdpisolver->blkmem, &rowshifts, nlpcons);
 
       /* shrink the dsdplp-arrays */
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, nlpcons + lpnnonz, nlpcons + lpnnonz - nshifts) );
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, nlpcons + lpnnonz, nlpcons + lpnnonz - nshifts) );
-      dsdplparraylength = nlpcons + lpnnonz - nshifts;
+      if ( SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
+      {
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, nlpcons + lpnnonz, nlpcons + lpnnonz - nshifts) );
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, nlpcons + lpnnonz, nlpcons + lpnnonz - nshifts) );
+      }
+      else
+      {
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, (nlpcons + 1) + lpnnonz + nvars, (nlpcons + 1) + lpnnonz + nvarsinobj - nshifts) );
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, (nlpcons + 1) + lpnnonz + nvars, (nlpcons + 1) + lpnnonz + nvarsinobj - nshifts) );
+      }
+
+      dsdplparraylength = SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) ? (nlpcons + lpnnonz - nshifts) : ((nlpcons + 1) + lpnnonz + nvarsinobj - nshifts);
 
       /* add the arrays to dsdp */
-      DSDP_CALL( LPConeSetData(sdpisolver->lpcone, nlpcons - nremovedlpcons, dsdplpbegcol, dsdplprow, dsdplpval) );
+      if ( SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
+         DSDP_CALL( LPConeSetData(sdpisolver->lpcone, nlpcons - nremovedlpcons, dsdplpbegcol, dsdplprow, dsdplpval) );
+      else
+         DSDP_CALL( LPConeSetData(sdpisolver->lpcone, (nlpcons + 1) - nremovedlpcons, dsdplpbegcol, dsdplprow, dsdplpval) );
 #ifdef SCIP_MORE_DEBUG
       LPConeView(sdpisolver->lpcone);
 #endif
@@ -1024,10 +1108,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       DSDPSetPenaltyParameter(sdpisolver->dsdp, gamma);
       DSDPUsePenalty(sdpisolver->dsdp, 1);
    }
-
-   /* set the objective bound */
-   if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
-      DSDPSetDualBound(sdpisolver->dsdp, sdpisolver->objlimit);
 
    /* set the starting solution */
    if (start != NULL)
@@ -1945,7 +2025,8 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    case SCIP_SDPPAR_OBJLIMIT:
       /* DSDP only allows to set a dual bound, but as we want to solve the dual problem in DSDP, we would need to set a primal bound, which doesn't exist in
        * DSDP, so we can't do anything in this case. */
-      SCIPdebugMessage("Objective Limit not supported in DSDP. \n");
+      SCIPdebugMessage("Setting sdpisolver objlimit to %f.\n", dval);
+      sdpisolver->objlimit = dval;
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;
