@@ -12,8 +12,9 @@ DSDP 5.8 (http://www.mcs.anl.gov/hs/software/DSDP/).
 Build SDP-Plugin
 ----------------
 Now you are able to install the SDP-Plugin. It uses the SCIP-Makefiles for 
-building. After unpacking the files you just have to change the file make.local to
-set your DSDP directory and set the variable SCIPDIR to the place of your SCIP-directoy.
+building. After unpacking the files you just have to change the file make.local.
+There you need to specify the path to the scip-installation and the path to the 
+dsdp-installation. 
 In the file make.project.override you can set additional options, for example 
 you can change the compiler using
 CC=clang
@@ -28,30 +29,22 @@ and everything should be built. The executable can be found in the bin
 directory. In addition to SDPS you can use the same options for the Makefile 
 as you can use building SCIP (i.e. make OPT=dbg, CPS=cpx)
 
-You can now use the SDP-Plugin by calling
+You can now use the SDP-Plugin by starting the SCIP interactive shell using:
+./bin/scipsdp 
 
-./bin/scipsdp
-
-to open a SCIP shell for solving MISDPs. You can now read a SDPA-File with added
-integrality constraints (for details about the format see data_format.txt) named 
-instancefile.dat-s by calling
-
-read instancefile.dat-s
-
-followed by 
-
-optimize
-
-as in the usual SCIP shell. Additionally you can define scip-parameters in a 
-parameterfile or via the shell. How to define parameters is described on the 
-scip-website. The most important new parameters are 
+If you want to solve MISDPs you need to read a "dat-s"-file because SCIP 
+uses the file extension for deciding which reader to use. This data format is
+typical for SDPs, and most SDP-solvers can read it. We extended this format for
+Mixed-Integer SDPs. The format specifications can be found in the file 
+data_format.txt. Additionally you can define scip-parameters in a parameterfile,
+that is a "set"-file. How to define parameters is described on the scip-website.
+The most important parameters are 
 _________________________
 lp/solvefreq=-1 
-relaxing/SDP/freq=1
+relaxing/SDPRelax/freq=1
 -------------------------
 
-The first one tells scip how often LPs are solved, using eigenvectore-cuts to 
-produce a positive semidefinite solution. -1 means never, 0 solves a
+The first one tells scip how often LPs are solved. -1 means never, 0 solves a
 LP-relaxation only in the root node, 1 solves it in every node and every other 
 positive integer defines the depth in which LPs are solved.The same numbers can 
 be used for definig the SDP-solving-frequency, which is the second parameter.
