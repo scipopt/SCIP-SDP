@@ -1,0 +1,46 @@
+relaxing/SDP/freq
+
+frequency for calling SDP relaxation handler (-1: never, 0: only in root node), together with lp/solvefreq this can be used to decide between solving SDP relaxations and solving LPs with eigenvalue cuts
+
+relaxing/SDP/priority
+
+priority of SDP relaxation handler
+
+relaxing/SDP/advanced/sdpsolverepsilon
+
+stopping criterion on duality gap for sdp-solver
+
+relaxing/SDP/advanced/sdpsolverfeastol
+
+feasibility tolerance for sdp-solver
+
+branching/sdpinfobjective/maxbounddist
+branching/sdpinfobjective/maxdepth
+branching/sdpinfobjective/priority
+
+set maxbounddist (maximal relative distance from current node's dual bound to primal bound compared to best node's dual bound for applying branching rule (0.0: only on current best node, 1.0: on all nodes)), maxdepth (maximal depth level, up to which branching rule <sdpinfobjective> should be used (-1 for no limit)) and priority for branching on the branching candidate with highest 
+product of integer-infeasibility and absolute objective value
+
+branching/sdpmostfrac/maxbounddist
+branching/sdpmostfrac/maxdepth
+branching/sdpmostfrac/priority
+
+set maxbounddist (maximal relative distance from current node's dual bound to primal bound compared to best node's dual bound for applying branching rule (0.0: only on current best node, 1.0: on all nodes)), maxdepth (maximal depth level, up to which branching rule <sdpinfobjective> should be used (-1 for no limit)) and priority for branching on the branching candidate with highest fractional value
+
+branching/sdpmostinf/maxbounddist
+branching/sdpmostinf/maxdepth
+branching/sdpmostinf/priority
+
+set maxbounddist (maximal relative distance from current node's dual bound to primal bound compared to best node's dual bound for applying branching rule (0.0: only on current best node, 1.0: on all nodes)), maxdepth (maximal depth level, up to which branching rule <sdpinfobjective> should be used (-1 for no limit)) and priority for branching on the branching candidate with highest integer-infeasibility (meaning that an integer variable with value n.5 is preferred over all others)
+
+branching/sdpobjective/maxbounddist
+branching/sdpobjective/maxdepth
+branching/sdpobjective/priority
+
+set maxbounddist (maximal relative distance from current node's dual bound to primal bound compared to best node's dual bound for applying branching rule (0.0: only on current best node, 1.0: on all nodes)), maxdepth (maximal depth level, up to which branching rule <sdpinfobjective> should be used (-1 for no limit)) and priority for branching on the branching candidate with highest absolute objective
+
+constraints/SDP/propfreq
+constraints/SDP/sepafreq
+
+propagating and separating frequency for the SDP constraint handler
+
