@@ -558,7 +558,9 @@ SCIP_RETCODE separateSol(
    SCIP_Real* coeff = NULL;
    int nvars;
    char* cutname;
-   int snprintfreturn;
+#ifndef NDEBUG
+   int snprintfreturn; /* this is used to assert that the SCIP string concatenation works */
+#endif
    int j;
    SCIP_COL** cols;
    SCIP_Real* vals;
@@ -592,8 +594,12 @@ SCIP_RETCODE separateSol(
    assert( conshdlrdata != NULL );
 
    SCIP_CALL( SCIPallocBufferArray(scip, &cutname, 255) );
+#ifndef NDEBUG
    snprintfreturn = SCIPsnprintf(cutname, 255, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
    assert( snprintfreturn < 256 ); /* it returns the number of positions that would have been needed, if that is more than 255, it failed */
+#else
+   SCIPsnprintf(cutname, 255, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
+#endif
    SCIP_CALL( SCIPcreateRowCons(scip, &row, conshdlr, cutname , len, cols, vals, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
 
    if ( SCIPisCutEfficacious(scip, sol, row) )
@@ -645,7 +651,9 @@ SCIP_RETCODE diagGEzero(
    int c;
    SCIP_Real rhs;
    char* cutname;
-   int snprintfreturn;
+#ifndef NDEBUG
+   int snprintfreturn; /* used to check if sdnprintf worked */
+#endif
    SCIP_Real* matrix;
    SCIP_Real* cons_array;
    SCIP_Real* lhs_array;
@@ -704,8 +712,12 @@ SCIP_RETCODE diagGEzero(
          SCIP_CONSHDLRDATA* conshdlrdata;
 
          conshdlrdata = SCIPconshdlrGetData(conshdlr);
+#ifndef NDEBUG
          snprintfreturn = SCIPsnprintf(cutname, 255, "diag_ge_zero_%d", ++(conshdlrdata->ndiaggezerocuts));
          assert( snprintfreturn < 256 ); /* this is the number of positions needed, we gave 255 */
+#else
+         SCIPsnprintf(cutname, 255, "diag_ge_zero_%d", ++(conshdlrdata->ndiaggezerocuts));
+#endif
 
 #ifdef SCIP_MORE_DEBUG
          SCIPinfoMessage(scip, NULL, "Added lp-constraint %s: ", cutname);
@@ -761,7 +773,9 @@ SCIP_RETCODE diagDominant(
    SCIP_CONS* cons;
    SCIP_CONSHDLRDATA* conshdlrdata;
    char* cutname;
+#ifndef NDEBUG
    int snprintfreturn;
+#endif
    int** diagvars;
    int* ndiagvars;
 
@@ -843,8 +857,12 @@ SCIP_RETCODE diagDominant(
             }
 
             conshdlrdata = SCIPconshdlrGetData(SCIPconsGetHdlr(conss[i]));
+#ifndef NDEBUG
             snprintfreturn = SCIPsnprintf(cutname, 255, "diag_dom_%d", ++(conshdlrdata->ndiagdomcuts));
             assert( snprintfreturn < 256 );  /* the return is the number of spots needed, we gave 255 */
+#else
+            SCIPsnprintf(cutname, 255, "diag_dom_%d", ++(conshdlrdata->ndiagdomcuts));
+#endif
 
 #ifdef SCIP_MORE_DEBUG
             SCIPinfoMessage(scip, NULL, "Added lp-constraint %s: ", cutname);
@@ -900,7 +918,9 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
    int count;
    int var;
    char* cutname;
-   int snprintfreturn;
+#ifndef NDEBUG
+   int snprintfreturn; /* used to assert the return code of snprintf */
+#endif
 
    *result = SCIP_SUCCESS;
 
@@ -953,14 +973,18 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
             /* add new linear cons */
             conshdlrdata = SCIPconshdlrGetData(hdlr);
             SCIP_CALL( SCIPallocBufferArray(scip, &cutname, 255) );
+#ifndef NDEBUG
             snprintfreturn = SCIPsnprintf(cutname, 255, "1x1block_%d", ++(conshdlrdata->n1x1blocks));
             assert( snprintfreturn < 256 ); /* the return is the number of spots needed, we gave 255 */
+#else
+            SCIPsnprintf(cutname, 255, "1x1block_%d", ++(conshdlrdata->n1x1blocks));
+#endif
 
 #ifdef SCIP_MORE_DEBUG
-         SCIPinfoMessage(scip, NULL, "Added lp-constraint %s: ", cutname);
-         for (i = 0; i < consdata->nvars; i++)
-            SCIPinfoMessage(scip, NULL, "+ (%f)*%s", coeffs[i], SCIPvarGetName(vars[i]));
-         SCIPinfoMessage(scip, NULL, " <= %f \n", rhs);
+            SCIPinfoMessage(scip, NULL, "Added lp-constraint %s: ", cutname);
+            for (i = 0; i < consdata->nvars; i++)
+               SCIPinfoMessage(scip, NULL, "+ (%f)*%s", coeffs[i], SCIPvarGetName(vars[i]));
+            SCIPinfoMessage(scip, NULL, " <= %f \n", rhs);
 #endif
 
             SCIP_CALL( SCIPcreateConsLinear(scip, &cons, cutname, consdata->nvars, vars, coeffs, rhs, SCIPinfinity(scip),
@@ -1677,7 +1701,9 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
    SCIP_Bool all_feasible = TRUE;
    SCIP_Bool separated = FALSE;
    char* cutname;
-   int snprintfreturn;
+#ifndef NDEBUG
+   int snprintfreturn; /* used to check the return code of snprintf */
+#endif
    int i;
    int j;
 
@@ -1710,8 +1736,12 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
       conshdlrdata = SCIPconshdlrGetData(conshdlr);
 
       SCIP_CALL( SCIPallocBufferArray(scip, &cutname, 255) );
+#ifndef NDEBUG
       snprintfreturn = SCIPsnprintf(cutname, 255, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
       assert( snprintfreturn < 256 ); /* this is the number of spots needed, we gave 255 */
+#else
+      SCIPsnprintf(cutname, 255, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
+#endif
 
       SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname , lhs, rhs, FALSE, FALSE, TRUE) );
       SCIP_CALL( SCIPcacheRowExtensions(scip, row) );
