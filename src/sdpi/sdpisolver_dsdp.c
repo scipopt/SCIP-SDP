@@ -744,6 +744,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       lastrow = -1;
       rowactive = TRUE; /* this is just a technical start point to not need another check in the if below, we don't want to do anything for row -1 */
       morethanbound = TRUE;
+      nonzind = -1;
+      nonzval = -1.0;
+
       /* TODO: if the rhs is/becomes zero, add a shift to remove the entry */
       for (i = 0; i < lpnnonz; i++)
       {
