@@ -47,8 +47,8 @@
 
 #define NODESEL_NAME            "prio"
 #define NODESEL_DESC            "nodeselector that chooses candidate with highest priority (dual bound is used as tiebreaker)"
-#define NODESEL_STDPRIORITY     10000000
-#define NODESEL_MEMSAVEPRIORITY 10000000
+#define NODESEL_STDPRIORITY     0
+#define NODESEL_MEMSAVEPRIORITY 0
 #define HASHMAP_MAXLOADFACTOR   0.75 /**< if this factor is exceeded, the hashmap for the node priorities is enlarged */
 #define HASHMAP_INITIALSIZEFACTOR 100 /**< the initial size of the hashmap is this times the number of binary and integer variables */
 #define HASHMAP_ENLARGEFACTOR   2 /**< if the MAXLOADFACTOR of the hasmpa is exceeded, it is enlarged by this factor */
@@ -298,7 +298,7 @@ SCIP_DECL_NODESELCOMP(nodeselCompPrio)
       return +1;
    else
       return 0;
-   //TODO: check if Lowerbound should be smaller as well if maximizing instead of minimizing, but bfs-nodeselector doesn't check for objsense as well
+   /* TODO: check if Lowerbound should be smaller as well if maximizing instead of minimizing, but bfs-nodeselector doesn't check for objsense as well */
 }
 
 
