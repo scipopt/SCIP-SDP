@@ -46,7 +46,7 @@
 
 #define BRANCHRULE_NAME            "sdpinfobjective"
 #define BRANCHRULE_DESC            "branch on variable with highest product of fractionality/integral-infeasibility and absolute objective of the SDP"
-#define BRANCHRULE_PRIORITY        9000000
+#define BRANCHRULE_PRIORITY        0
 #define BRANCHRULE_MAXDEPTH        -1
 #define BRANCHRULE_MAXBOUNDDIST    1.0
 
@@ -112,6 +112,8 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
 #endif
 
    maxtargettarget = -1.0;
+   maxtargetscore = 0.0;
+   maxtargetval = 0.0;
 
    /* iterate over all candidates and find the one with the highest absolute objective times integral infeasibility, use score as tiebreaker */
    for (i = 0; i < ncands; i++)

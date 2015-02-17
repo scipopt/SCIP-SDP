@@ -117,7 +117,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostinf)
    mostinfinf = -1.0;
    mostinfscore = 0.0;
    mostinfval = 0.0;
-   mostinfvar = NULL;
+
    /* iterate over all solution candidates to find the one with the highest infeasibility */
    for (i = 0; i < ncands; i++)
    {

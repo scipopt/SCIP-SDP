@@ -114,7 +114,6 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
    maxobjobj = -1.0;
    maxobjscore = 0.0;
    maxobjval = 0.0;
-   maxobjvar = NULL;
 
    /* iterate over all candidates and find the one with the highest absolute objective, use score as tiebreaker */
    for (i = 0; i < ncands; i++)

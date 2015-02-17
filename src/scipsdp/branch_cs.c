@@ -152,6 +152,10 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextCs)
    conss = SCIPgetConss(scip);
    assert( conss != NULL );
 
+   bestobjobj = -1.0;
+   bestobjval = 0.0;
+   bestobjscore = 0.0;
+
    /* allocate memory to save the coupled variables and initialize the arrays */
    SCIP_CALL( SCIPallocBufferArray(scip, &nbinsincons, nconss) );
    for (i = 0; i < nconss; i++)
@@ -299,6 +303,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextCs)
    for (cand = 0; cand < ncands; cand++)
    {
       currentobj = 0.0;
+      diagval = -SCIPinfinity(scip);
       /* find the corresponding diagonal entry, which will be the only variable that is only coupled to this binary variable */
       for (v = 0; v < nvars; v++)
       {
@@ -311,6 +316,8 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextCs)
             break;
          }
       }
+
+      assert( ! SCIPisInfinity(scip, diagval) ); /* we have found a corresponding diagonal entry */
 
       /* generate the new solution, we ommitt the binary variables, as they don't influence the objective */
       for (v = nbinvars; v < nvars; v++)
