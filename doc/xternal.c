@@ -4,8 +4,9 @@
 /*      SDP-Package for SCIP: a solving framework for                        */
 /*                            mixed-integer semidefinite programms           */
 /*                                                                           */
-/* Copyright (C) 2011-2014 Discrete Optimization, TU Darmstadt               */
+/* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
+/*               2014-2015 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or             */
 /* modify it under the terms of the GNU Lesser General Public License        */
@@ -32,9 +33,9 @@
 
 /**@mainpage Overview
  *
- * @version 1.0
+ * @version 2.0
  * @author Sonja Mars, Lars Schewe, Tristan Gally, Marc Pfetsch
- * @date 2011-2014
+ * @date 2011-2015
  *
  * The SCIP-SDP-Package is a plug-in for the Software SCIP. It is able to solve Mixed-Integer SDPs using the
  * interior-point solver DSDP and SCIP as a branch and bound framework. It provides a lot of data handling, some
