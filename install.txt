@@ -19,14 +19,13 @@ you can change the compiler using
 CC=clang
 CXX=clang++
 
-Now you just use
+Now you just enter the directory and use
  
-cd SDP-Plugin
 make SDPS=dsdp
 
 and everything should be built. The executable can be found in the bin 
 directory. In addition to SDPS you can use the same options for the Makefile 
-as you can use building SCIP (i.e. make OPT=dbg, CPS=cpx), you may also create
+as you can use building SCIP (i.e. make OPT=dbg, LPS=cpx), you may also create
 a doxygen-documentation by calling i.e. make OPT=dbg SDPS=dsdp doc
 
 You can now use the SDP-Plugin by calling
