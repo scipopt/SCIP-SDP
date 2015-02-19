@@ -626,7 +626,7 @@ SCIP_RETCODE calc_relax(
          allint = TRUE;
          for (v = 0; v < nvars; v++)
          {
-            if ( SCIPvarIsIntegral(SdpVarmapperGetSCIPvar(varmapper, v)) && ! (SCIPisIntegral(scip, solforscip[v])) )
+            if ( SCIPvarIsIntegral(SdpVarmapperGetSCIPvar(varmapper, v)) && ! (SCIPisFeasIntegral(scip, solforscip[v])) )
             {
                allint = FALSE;
                break;
