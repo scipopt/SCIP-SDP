@@ -125,8 +125,8 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
        * - the score is (epsilon-)equal and the fractionality is (less than epsilon) bigger
        * - the fractionality is (exactly) equal and the score is (less than epsilon) bigger
        */
-      if ( SCIPisGT(scip, SCIPfrac(scip, candssol[i]), mostfracfrac) ||
-          (SCIPisEQ(scip, SCIPfrac(scip, candssol[i]), mostfracfrac) && SCIPisGT(scip, candsscore[i], mostfracscore)) ||
+      if ( SCIPisFeasGT(scip, SCIPfrac(scip, candssol[i]), mostfracfrac) ||
+          (SCIPisFeasEQ(scip, SCIPfrac(scip, candssol[i]), mostfracfrac) && SCIPisGT(scip, candsscore[i], mostfracscore)) ||
           (SCIPisEQ(scip, candsscore[i], mostfracscore) && SCIPfrac(scip, candssol[i]) > mostfracfrac) ||
           (SCIPfrac(scip, candssol[i]) == mostfracfrac && candsscore[i] > mostfracscore) )
       {
@@ -139,7 +139,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
    }
 
    assert( mostfracvar != NULL );
-   assert( SCIPisGT(scip, mostfracfrac, 0) ); /* otherwise all variables are fixed and there is nothing to branch */
+   assert( SCIPisFeasGT(scip, mostfracfrac, 0) ); /* otherwise all variables are fixed and there is nothing to branch */
 
    /* branch */
    SCIPdebugMessage("branching on variable %s with value %f and score %f\n", SCIPvarGetName(mostfracvar), mostfracval, mostfracscore);

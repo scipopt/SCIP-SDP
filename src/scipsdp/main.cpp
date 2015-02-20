@@ -99,7 +99,7 @@ SCIP_RETCODE runSCIP(
 
    /* change epsilons for numerical stability */
    SCIP_CALL( SCIPsetRealParam(scip, "numerics/epsilon", 1e-3) );
-   SCIP_CALL( SCIPsetRealParam(scip, "numerics/feastol", 1e-6) );
+   SCIP_CALL( SCIPsetRealParam(scip, "numerics/feastol", 1e-4) );
 
    SCIP_CALL( SCIPsetStringParam(scip, "sdpsolver", "dsdp") );
 

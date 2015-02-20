@@ -129,8 +129,8 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostinf)
        * - the score is (epsilon-)equal and the infeasibility is (less than epsilon) bigger
        * - the infeasibility is (exactly) equal and the score is (less than epsilon) bigger
        */
-      if ( SCIPisGT(scip, currentinf, mostinfinf) ||
-          (SCIPisEQ(scip, currentinf, mostinfinf) && SCIPisGT(scip, candsscore[i], mostinfscore)) ||
+      if ( SCIPisFeasGT(scip, currentinf, mostinfinf) ||
+          (SCIPisFeasEQ(scip, currentinf, mostinfinf) && SCIPisGT(scip, candsscore[i], mostinfscore)) ||
           (SCIPisEQ(scip, candsscore[i], mostinfscore) && currentinf > mostinfinf) ||
           (currentinf == mostinfinf && candsscore[i] > mostinfscore) )
       {
@@ -143,7 +143,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostinf)
    }
 
    assert( mostinfvar != NULL );
-   assert( SCIPisGT(scip, mostinfinf, 0) ); /* otherwise all variables are fixed and there is nothing to branch */
+   assert( SCIPisFeasGT(scip, mostinfinf, 0) ); /* otherwise all variables are fixed and there is nothing to branch */
 
    /* branch */
    SCIPdebugMessage("branching on variable %s with value %f and score %f\n", SCIPvarGetName(mostinfvar), mostinfval, mostinfscore);
