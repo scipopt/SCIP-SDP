@@ -90,6 +90,7 @@ struct SCIP_ConsData
    int*                  constcol;           /**< column indices of the constant nonzeroes */
    int*                  constrow;           /**< row indices of the constant nonzeroes */
    SCIP_Real*            constval;           /**< values of the constant nonzeroes */
+   SCIP_Real			    maxrhsentry;		   /**< maximum entry of constant matrix (needed for DIMACS error norm) */
 };
 
 /** SDP constraint handler data */
@@ -385,9 +386,11 @@ SCIP_RETCODE multiplyConstraintMatrix(
    return SCIP_OKAY;
 }
 
-/** Get the maximum absolute value of an entry of the constant matrix. */
+/** Set the maximum absolute value of an entry of the constant matrix.
+ *  This must be done before presolving, because otherwise this is influenced by variable fixings (which might lead
+ *  to solutions being feasible in presolving no longer being feasible afterwards) */
 static
-SCIP_Real getMaxConstEntry(
+SCIP_RETCODE setMaxRhsEntry(
    SCIP_CONS*            cons                /**< the SDP constraint that includes the Matrix \f$ A_j \f$ */
    )
 {
@@ -408,7 +411,9 @@ SCIP_Real getMaxConstEntry(
          max = REALABS(consdata->constval[i]);
    }
 
-   return max;
+   consdata->maxrhsentry = max;
+
+   return SCIP_OKAY;
 }
 
 
@@ -522,7 +527,7 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    // We are going to use one of the dimacs error norms for checking feasiblity.
    // We use the second one: err=max{0, -lambda_min(x)/(1+maximumentry of rhs}
 
-   check_value = (-eigenvalue) / (1.0 + getMaxConstEntry(cons));
+   check_value = (-eigenvalue) / (1.0 + consdata->maxrhsentry);
 
    if ( SCIPisFeasLE(scip, check_value, 0.0) )
       *result = SCIP_FEASIBLE;
@@ -2374,6 +2379,9 @@ SCIP_RETCODE SCIPcreateConsSdp(
 
    /* create constraint */
    SCIP_CALL( SCIPcreateCons(scip, cons, name, conshdlr, consdata, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) );
+
+   /* compute maximum rhs entry for later use in the DIMACS Error Norm */
+   SCIP_CALL( setMaxRhsEntry(*cons) );
 
    return SCIP_OKAY;
 }
