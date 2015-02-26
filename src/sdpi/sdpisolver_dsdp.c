@@ -975,8 +975,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
 
       /* set the values in dsdplprow for the right hand sides of the active lp constraints */
-      for (i = 0; i < (nlpcons + 1) - nshifts; i++)
+      for (i = 0; i < nlpcons - nshifts; i++)
          dsdplprow[i] = i;
+
+      /* set the additional value for the objective bound */
+      if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
+    	  dsdplprow[nlpcons - nshifts] = nlpcons - nshifts;
 
 
       /* now add the nonzeros */
