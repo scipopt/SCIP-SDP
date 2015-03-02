@@ -32,6 +32,7 @@
 -emacro(571,SCIPreallocBlockMemoryArray)   // Suspicious cast
 -emacro(571,BMSreallocBlockMemoryArray)   // Suspicious cast
 -emacro(571,SCIPallocBlockMemoryArray)   // Suspicious cast
+-emacro(571,BMSallocBlockMemoryArray)   // Suspicious cast
 -emacro(647,SCIPallocBlockMemoryArray)     // Suspicious truncation
 -emacro(647,SCIPfreeBlockMemoryArray)      // Suspicious truncation
 -emacro(647,SCIPfreeBlockMemoryArrayNull)  // Suspicious truncation
