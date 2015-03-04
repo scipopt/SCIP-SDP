@@ -506,7 +506,6 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
 
    assert( scip != NULL );
    assert( cons != NULL );
-   assert( sol != NULL );
    assert( result != NULL );
    assert( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(cons)), "SDP") == 0);
 
