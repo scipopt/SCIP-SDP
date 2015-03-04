@@ -533,11 +533,13 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    else
    {
       *result = SCIP_INFEASIBLE;
+#ifdef SCIP_DEBUG
       if ( printreason )
       {
          SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
          SCIPinfoMessage(scip, NULL, "non psd matrix (eigenvalue %f, dimacs error norm = %f).\n", eigenvalue, check_value);
       }
+#endif
    }
 
    SCIPfreeBufferArray(scip, &fullmatrix);
