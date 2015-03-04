@@ -1440,38 +1440,6 @@ SCIP_DECL_CONSINITPRE(consInitpreSdp)
    return SCIP_OKAY;
 }
 
-/** after the problem is transformed swap all variables in this constraint for the transformed ones */
-static
-SCIP_DECL_CONSINIT(consInitSdp)
-{
-   /* get transformed variables, if we are in the transformed problem */
-   SCIP_CONSDATA* consdata;
-   int i;
-   int v;
-   SCIP_VAR* var;
-
-   assert( SCIPisTransformed(scip) );
-
-   for (i = 0; i < nconss; ++i)
-   {
-      assert( conss[i] != NULL );
-      assert( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[i])), "SDP") == 0 );
-
-      consdata = SCIPconsGetData(conss[i]);
-      assert( consdata != NULL );
-
-      for (v = 0; v < consdata->nvars; v++)
-      {
-         SCIP_CALL( SCIPgetTransformedVar(scip, consdata->vars[v], &var) );
-         SCIP_CALL( SCIPreleaseVar(scip, &consdata->vars[v]) );
-         consdata->vars[v] = var;
-         SCIP_CALL( SCIPcaptureVar(scip, consdata->vars[v]) );
-      }
-   }
-
-   return SCIP_OKAY;
-}
-
 /** locks a variable up if the corresponding constraint matrix is not positive semidefinite, locks it down if it is not negative semidefinite */
 static
 SCIP_DECL_CONSLOCK(consLockSdp)
@@ -2048,7 +2016,6 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    /* set non-fundamental callbacks via specific setter functions */
    SCIP_CALL( SCIPsetConshdlrDelete(scip, conshdlr, consDeleteSdp) );
    SCIP_CALL( SCIPsetConshdlrFree(scip, conshdlr, consFreeSdp) );
-   SCIP_CALL( SCIPsetConshdlrInit(scip, conshdlr, consInitSdp) );
    SCIP_CALL( SCIPsetConshdlrInitpre(scip, conshdlr,consInitpreSdp) );
    SCIP_CALL( SCIPsetConshdlrExitpre(scip, conshdlr, consExitpreSdp) );
    SCIP_CALL( SCIPsetConshdlrPresol(scip, conshdlr, consPresolSdp, CONSHDLR_MAXPREROUNDS, CONSHDLR_DELAYPRESOL) );
