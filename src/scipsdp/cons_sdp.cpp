@@ -1468,6 +1468,7 @@ SCIP_DECL_CONSINIT(consInitSdp)
          SCIP_CALL( SCIPcaptureVar(scip, consdata->vars[v]) );
       }
    }
+
    return SCIP_OKAY;
 }
 
@@ -1610,6 +1611,9 @@ SCIP_DECL_CONSTRANS(consTransSdp)
    SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->constcol), sourcedata->constcol, sourcedata->constnnonz));
    SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->constrow), sourcedata->constrow, sourcedata->constnnonz));
    SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->constval), sourcedata->constval, sourcedata->constnnonz));
+
+   /* copy the maxrhsentry */
+   targetdata->maxrhsentry = sourcedata->maxrhsentry;
 
    /* create target constraint */
    SCIP_CALL( SCIPcreateCons(scip, targetcons, SCIPconsGetName(sourcecons), conshdlr, targetdata,
