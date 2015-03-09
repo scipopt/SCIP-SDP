@@ -37,8 +37,8 @@
  * @author Tristan Gally
  */
 
-//#define SCIP_DEBUG
-//#define SCIP_MORE_DEBUG /* shows all cuts added */
+// #define SCIP_DEBUG
+// #define SCIP_MORE_DEBUG /* shows all cuts added */
 
 #include "cons_sdp.h"
 
@@ -1067,12 +1067,202 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
    return SCIP_OKAY;
 }
 
-/** presolve routine that looks through the data and eliminates fixed variables */
+/** local function to perform (parts of) multiaggregation of a single variable within fixAndAggrVars */
 static
-SCIP_RETCODE fixVars(
+SCIP_RETCODE multiaggrVar(
+   SCIP*                scip,                /* SCIP pointer */
+   SCIP_CONS*           cons,                /* constraint to multiaggregate for */
+   int*                 v,                   /* position of the variable that gets (multi-)aggregated */
+   SCIP_VAR**           aggrvars,            /* variables this has to be (multi-)aggregated to */
+   SCIP_Real*           scalars,             /* scalar parts to multiply with for each variable this is aggregated to */
+   int                  naggrvars,           /* number of variables this is (multi-)aggregated to */
+   SCIP_Real            constant,            /* the constant part for the (multi-)aggregation */
+   int*                 savedcol,            /* array of columns for nonzeros that need to be added to the constant part */
+   int*                 savedrow,            /* array of rows for nonzeros that need to be added to the constant part */
+   SCIP_Real*           savedval,            /* array of values for nonzeros that need to be added to the constant part */
+   int*                 nfixednonz,          /* length of the arrays of saved nonzeros for the constant part */
+   int*                 vararraylength       /* length of the variable array */
+   )
+{
+   int i;
+   SCIP_CONSDATA* consdata;
+   int startind;
+   int aggrind;
+   int aggrtargetlength;
+   int globalnvars;
+   int aggrconsind;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+   assert( scalars != NULL );
+   assert( naggrvars > 0 );
+   assert( savedcol != NULL );
+   assert( savedrow != NULL );
+   assert( savedval != NULL );
+   assert( nfixednonz != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+
+   /* save the current nfixednonz-index, all entries starting from here will need to be added to the variables this is aggregated to */
+   startind = *nfixednonz;
+
+   if ( SCIPisEQ(scip, constant, 0.0) )
+   {
+      /* if there is no constant part, we just save the nonzeros to add them to the variables they are aggregated to, we do this to be able to remove
+       * the nonzero-arrays for this variable to be able to fill it with a newly inserted variable, as copying all variables, if we created an empty
+       * gap in the variable arrays, will be more time consuming then copying all variables (as we will usually have more variables than nonzeros per
+       * variable */
+      for (i = 0; i < consdata->nvarnonz[*v]; i++)
+      {
+         savedcol[*nfixednonz] = consdata->col[*v][i];
+         savedrow[*nfixednonz] = consdata->row[*v][i];
+         savedval[*nfixednonz] = consdata->val[*v][i];
+         (*nfixednonz)++;
+      }
+   }
+   else
+   {
+      for (i = 0; i < consdata->nvarnonz[*v]; i++)
+      {
+         savedcol[*nfixednonz] = consdata->col[*v][i] * constant;
+         savedrow[*nfixednonz] = consdata->row[*v][i] * constant;
+         savedval[*nfixednonz] = consdata->val[*v][i] * constant;
+         (*nfixednonz)++;
+      }
+   }
+   assert( *nfixednonz - startind == consdata->nvarnonz[*v] );
+
+   /* sort them by nondecreasing row and then col to make the search for already existing entries easier (this is done here, because it
+    * only needs to be done once and not for each variable this is multiaggregated to), we add startind to the pointers to only start where we started
+    * inserting, the number of elements added to the saved arrays for this variable is nfixednonz - startind */
+   SdpVarfixerSortRowCol(savedrow + startind, savedcol + startind, savedval + startind, *nfixednonz - startind);
+
+   /* fill the empty spot of the (mutli-)aggregated variable with the last variable of this constraint (as they don't have to be sorted) */
+   SCIP_CALL( SCIPreleaseVar(scip, &consdata->vars[*v]) );
+   consdata->col[*v] = consdata->col[consdata->nvars - 1];
+   consdata->row[*v] = consdata->row[consdata->nvars - 1];
+   consdata->val[*v] = consdata->val[consdata->nvars - 1];
+   consdata->nvarnonz[*v] = consdata->nvarnonz[consdata->nvars - 1];
+   consdata->vars[*v] = consdata->vars[consdata->nvars - 1];
+   (consdata->nvars)--;
+   (*v)--; /* we need to check again if the variable we just shifted to this position also needs to be (multi-)aggregated */
+
+   /* iterate over all variables this was aggregated to and insert the corresponding nonzeroes */
+   for (aggrind = 0; aggrind < naggrvars; aggrind++)
+   {
+      /* check if the variable already exists in this block */
+      aggrconsind = -1;
+      for (i = 0; i < consdata->nvars; i++)
+      {
+         if (consdata->vars[i] == aggrvars[aggrind])
+         {
+            aggrconsind = i;
+            break;
+         }
+      }
+
+      if ( aggrconsind > -1 )
+      {
+         /* if the varialbe to aggregate to is already part of this sdp-constraint, just add the nonzeros of the old variable to it */
+
+         /* resize the arrays to the maximally needed length */
+         aggrtargetlength = consdata->nvarnonz[aggrconsind] + *nfixednonz - startind;
+         SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->row[aggrconsind]), consdata->nvarnonz[aggrconsind], aggrtargetlength) );
+         SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->col[aggrconsind]), consdata->nvarnonz[aggrconsind], aggrtargetlength) );
+         SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->val[aggrconsind]), consdata->nvarnonz[aggrconsind], aggrtargetlength) );
+
+         if ( SCIPisEQ(scip, constant, 0.0) )
+         {
+            /* in this case we saved the original values in savedval/col/row, we add startind to the pointers to only add those from
+             * the current variable, the number of entries is the current position minus the position whre we started */
+            SCIP_CALL( SdpVarfixerMergeArrays(SCIPblkmem(scip), savedrow + startind, savedcol + startind, savedval + startind,
+                        *nfixednonz - startind, TRUE, scalars[aggrind], consdata->row[aggrconsind], consdata->col[aggrconsind],
+                        consdata->val[aggrconsind], &(consdata->nvarnonz[aggrconsind]), aggrtargetlength) );
+         }
+         else
+         {
+            /* in this case we saved the original values * constant, so we now have to divide by constant, we add startind to the pointers
+             * to only add those from the current variable, the number of entries is the current position minus the position whre we started */
+            SCIP_CALL( SdpVarfixerMergeArrays(SCIPblkmem(scip), savedrow + startind, savedcol + startind, savedval + startind,
+                        *nfixednonz - startind, TRUE, scalars[aggrind] / constant, consdata->row[aggrconsind], consdata->col[aggrconsind],
+                        consdata->val[aggrconsind], &(consdata->nvarnonz[aggrconsind]), aggrtargetlength) );
+         }
+
+         /* shrink them again if nonzeros could be combined */
+         assert( consdata->nvarnonz[aggrconsind] <= aggrtargetlength );
+         SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->row[aggrconsind]), aggrtargetlength, consdata->nvarnonz[aggrconsind]) );
+         SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->col[aggrconsind]), aggrtargetlength, consdata->nvarnonz[aggrconsind]) );
+         SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->val[aggrconsind]), aggrtargetlength, consdata->nvarnonz[aggrconsind]) );
+      }
+      else
+      {
+         /* the variable has to be added to this constraint */
+
+         /* check if we have to enlarge the arrays */
+         if (consdata->nvars == *vararraylength)
+         {
+            globalnvars = SCIPgetNVars(scip);
+
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->col, *vararraylength, globalnvars) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->row, *vararraylength, globalnvars) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->val, *vararraylength, globalnvars) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->nvarnonz, *vararraylength, globalnvars) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->vars, *vararraylength, globalnvars) );
+            *vararraylength = globalnvars; /* we don't want to enlarge this by one for every variable added, so we immediately set it to the
+                                            * maximum possible size */
+         }
+
+         /* we insert this variable at the last position, as the ordering doesn't matter */
+         SCIP_CALL( SCIPcaptureVar(scip, aggrvars[aggrind]) );
+         consdata->vars[consdata->nvars] = aggrvars[aggrind];
+         consdata->nvarnonz[consdata->nvars] = *nfixednonz - startind; /* as there were no nonzeros thus far, the number of nonzeros equals
+                                                                        * the number of nonzeros of the aggregated variable */
+
+         /* as there were no nonzeros thus far, we can just duplicate the saved arrays to get the nonzeros for the new variable */
+         SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(consdata->col[consdata->nvars]), savedcol + startind, *nfixednonz - startind) );
+         SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(consdata->row[consdata->nvars]), savedrow + startind, *nfixednonz - startind) );
+
+         if (scalars[aggrind] == constant)  /* in this case we can also duplicate the values */
+            SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(consdata->val[consdata->nvars]), savedval + startind, *nfixednonz - startind) );
+         else  /* we have to multiply all entries by scalar before inserting them */
+         {
+            SCIP_Real epsilon;
+
+            SCIP_CALL( SCIPgetRealParam(scip, "numerics/epsilon", &epsilon) );
+
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(consdata->val[consdata->nvars]), *nfixednonz - startind) );
+
+            for (i = 0; i < *nfixednonz - startind; i++)
+            {
+               if ( (scalars[i] / constant) * savedval[startind + i] >= epsilon ) /* if both scalar and savedval are small this might become too small */
+                  consdata->val[consdata->nvars][i] = (scalars[i] / constant) * savedval[startind + i];
+               else
+                  consdata->nvarnonz[consdata->nvars]--;
+            }
+         }
+
+         if (consdata->nvarnonz[consdata->nvars] > 0) /* if scalar and all savedvals were to small */
+            consdata->nvars++;
+      }
+   }
+
+   /* if the constant part is zero, we may delete the nonzero-entries from the saved arrays (by resetting the nfixednonz entry to where
+    * it started, so that these entries will be overwritten */
+   if ( SCIPisEQ(scip, constant, 0.0) )
+      *nfixednonz = startind;
+
+   return SCIP_OKAY;
+}
+
+
+/** presolve routine that looks through the data and handles fixed, (multi-)aggregated and negated variables */
+static
+SCIP_RETCODE fixAndAggrVars(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           conss,              /**< array with constraints to check */
-   int                   nconss              /**< number of constraints to check */
+   int                   nconss,             /**< number of constraints to check */
+   SCIP_Bool             aggregate           /**< do we want to (mutli-)aggregate variables ? */
    )
 {
    SCIP_CONSDATA* consdata;
@@ -1083,12 +1273,29 @@ SCIP_RETCODE fixVars(
    SCIP_Real* savedval;
    int c;
    int v;
-   int oldnvars;
    int arraylength;
+   SCIP_VAR* var;
+   SCIP_VAR** aggrvars;
+   SCIP_Real scalar;
+   SCIP_Real* scalars;
+   int naggrvars;
+   SCIP_Real constant;
+   int requiredsize;
+   int globalnvars;
+   int vararraylength;
+   SCIP_Bool negated;
+
+
+   /* loop over all variables once, add all fixed to savedrow/col/val, for all multiaggregated variables, if constant-scalar =!= 0, add
+    * constant-scalar * entry to savedrow/col/val and call mergeArrays for all aggrvars for savedrow[startindex of this var] and scalar/constant-scalar,
+    * if constant-scalar = 0, add 1*entry to savedrow/col/val, call mergeArrays for all aggrvars for savedrow[startindex of this var] and scalar and later
+    * reduze the saved size of savedrow/col/val by the number of nonzeros of the mutliagrregated variable to not add them to the constant part later */
 
    assert( scip != NULL );
    assert( conss != NULL );
    assert( nconss >= 0 );
+
+   SCIPdebugMessage("Calling fixAndAggrVars with aggregate = %d\n", aggregate);
 
    for (c = 0; c < nconss; ++c)
    {
@@ -1106,13 +1313,20 @@ SCIP_RETCODE fixVars(
       /* initialize this with zero for each block */
       nfixednonz = 0;
 
-      oldnvars = consdata->nvars;
+      vararraylength = consdata->nvars;
+      globalnvars = SCIPgetNVars(scip);
 
       for (v = 0; v < consdata->nvars; v++)
       {
-         SCIP_VAR* var;
-
-         var = SCIPvarGetProbvar(consdata->vars[v]);
+         negated = FALSE;
+         /* if the variable is negated, get the negation var */
+         if ( SCIPvarIsBinary(consdata->vars[v]) && SCIPvarIsNegated(consdata->vars[v]))
+         {
+            negated = TRUE;
+            var = SCIPvarGetNegationVar(consdata->vars[v]);
+         }
+         else
+            var = consdata->vars[v];
 
          /* check if the variable is fixed in SCIP */
          if ( SCIPvarGetStatus(var) == SCIP_VARSTATUS_FIXED )
@@ -1121,7 +1335,7 @@ SCIP_RETCODE fixVars(
 
             SCIPdebugMessage("Globally fixing Variable %s to value %f !\n", SCIPvarGetName(var), SCIPvarGetLbGlobal(var));
 
-            if (SCIPisGT(scip, SCIPvarGetLbGlobal(var), 0.0))
+            if ( ((! negated) && SCIPisGT(scip, SCIPvarGetLbGlobal(var), 0.0)) || (negated && SCIPisEQ(scip, SCIPvarGetLbGlobal(var), 0.0)) )
             {
                /* the nonzeros are saved to later be inserted into the constant part (this is only done after all nonzeros of fixed variables have been
                 * assembled, because we need to sort the constant nonzeros and loop over them, which we only want to do once and not once for each fixed
@@ -1130,8 +1344,12 @@ SCIP_RETCODE fixVars(
                {
                   savedcol[nfixednonz] = consdata->col[v][i];
                   savedrow[nfixednonz] = consdata->row[v][i];
-                  savedval[nfixednonz] = -consdata->val[v][i] * SCIPvarGetLbGlobal(var);
                   /* this is the final value to add, we no longer have to remember from which variable this comes, minus because we have +A_i but -A_0 */
+                  if ( ! negated )
+                     savedval[nfixednonz] = consdata->val[v][i] * SCIPvarGetLbGlobal(var);
+                  else
+                     savedval[nfixednonz] = consdata->val[v][i]; /* if it is the negation of a variable fixed to zero, this variable is fixed to one */
+
                   nfixednonz++;
                   consdata->nnonz--;
                }
@@ -1151,97 +1369,29 @@ SCIP_RETCODE fixVars(
             consdata->nvars--;
             v--; /* we need to check again if the variable we just shifted to this position also needs to be fixed */
          }
-      }
-
-      /* free memory for the sdp-arrays equal to the number of fixed variables */
-      if (consdata->nvars < oldnvars)
-      {
-         SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->col), oldnvars, consdata->nvars) );
-         SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->row), oldnvars, consdata->nvars) );
-         SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->val), oldnvars, consdata->nvars) );
-         SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->nvarnonz), oldnvars, consdata->nvars) );
-         SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->vars), oldnvars, consdata->nvars) );
-      }
-
-      /* allocate the maximally needed memory */
-      arraylength = consdata->constnnonz + nfixednonz;
-      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constcol), consdata->constnnonz, arraylength) );
-      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constrow), consdata->constnnonz, arraylength) );
-      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constval), consdata->constnnonz, arraylength) );
-
-      /* insert the fixed variables into the constant arrays */
-      SCIP_CALL( SdpVarfixerMergeArrays(SCIPblkmem(scip), savedrow, savedcol, savedval, nfixednonz, FALSE, 1.0, consdata->constrow, consdata->constcol,
-            consdata->constval, &(consdata->constnnonz), arraylength) );
-
-      assert( consdata->constnnonz <= arraylength ); /* the allocated memory should always be sufficient */
-
-      /* shrink the arrays if nonzeros could be combined */
-      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constcol), arraylength, consdata->constnnonz) );
-      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constrow), arraylength, consdata->constnnonz) );
-      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constval), arraylength, consdata->constnnonz) );
-
-      /* free the saved arrays */
-      SCIPfreeBufferArray(scip, &savedval);
-      SCIPfreeBufferArray(scip, &savedrow);
-      SCIPfreeBufferArray(scip, &savedcol);
-   }
-
-   return SCIP_OKAY;
-}
-
-/** presolve routine that looks through the data and handles aggregated and multiaggregated variables */
-static
-SCIP_RETCODE multiaggrVars(
-   SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS**           conss,              /**< array with constraints to check */
-   int                   nconss              /**< number of constraints to check */
-   )
-{
-   SCIP_CONSDATA* consdata;
-   int block;
-   int var;
-   int i;
-   int* savedcol;
-   int* savedrow;
-   SCIP_Real* savedval;
-   SCIP_VAR** aggrvars;
-   SCIP_Real* scalars;
-   int naggrvars;
-   SCIP_Real constant;
-   int requiredsize;
-   int globalnvars;
-   int aggrind;
-   int aggrconsind;
-   int naggrnonz;
-   int vararraylength;
-   int aggrtargetlength;
-
-   assert( scip != NULL );
-   assert( conss != NULL );
-   assert( nconss >= 0 );
-
-   for (block = 0; block < nconss; ++block)
-   {
-      assert( conss[block] != NULL );
-      assert( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[block])), "SDP") == 0 );
-
-      consdata = SCIPconsGetData(conss[block]);
-      globalnvars = SCIPgetNVars(scip);
-      vararraylength = consdata->nvars;
-
-      for (var = 0; var < consdata->nvars; var++)
-      {
-         if (SCIPvarGetStatus(consdata->vars[var]) == SCIP_VARSTATUS_AGGREGATED ||
-             SCIPvarGetStatus(consdata->vars[var]) == SCIP_VARSTATUS_MULTAGGR)
+         else if ( (SCIPvarGetStatus(var) == SCIP_VARSTATUS_AGGREGATED ||
+                   SCIPvarGetStatus(var) == SCIP_VARSTATUS_MULTAGGR)
+                  && aggregate )
          {
             SCIP_CALL( SCIPallocBufferArray(scip, &aggrvars, globalnvars) );
             SCIP_CALL( SCIPallocBufferArray(scip, &scalars, globalnvars) );
 
             /* this is how they should be initialized before calling SCIPgetProbvarLinearSum */
-            aggrvars[0] = consdata->vars[var];
-            naggrvars = 1;
-            constant = 0.0;
-            scalars[0] = 1.0;
+            if (! negated)
+            {
+               aggrvars[0] = consdata->vars[v];
+               naggrvars = 1;
+               constant = 0.0;
+               scalars[0] = 1.0;
+            }
+            else
+            {
+               /* if this variable is the negation of var, than we look for a representation of 1-var */
+               aggrvars[0] = consdata->vars[v];
+               naggrvars = 1;
+               constant = 1.0;
+               scalars[0] = -1.0;
+            }
 
             /* get the variables this var was aggregated to */
             SCIP_CALL( SCIPgetProbvarLinearSum(scip, aggrvars, scalars, &naggrvars, globalnvars, &constant, &requiredsize, TRUE) );
@@ -1250,155 +1400,32 @@ SCIP_RETCODE multiaggrVars(
 
             /* Debugmessages for the (multi-)aggregation */
 #ifndef NDEBUG
-            if ( SCIPvarGetStatus(consdata->vars[var]) == SCIP_VARSTATUS_AGGREGATED )
-               SCIPdebugMessage("aggregating variable %s to ...", SCIPvarGetName(consdata->vars[var]));
+            if ( SCIPvarGetStatus(consdata->vars[v]) == SCIP_VARSTATUS_AGGREGATED )
+               SCIPdebugMessage("aggregating variable %s to ...", SCIPvarGetName(var));
             else
-               SCIPdebugMessage("multiaggregating variable %s to ...", SCIPvarGetName(consdata->vars[var]));
+               SCIPdebugMessage("multiaggregating variable %s to ...", SCIPvarGetName(var));
             for (i = 0; i < naggrvars; i++)
-               SCIPdebugMessage("+ (%f2) * %s ", scalars[i], SCIPvarGetName(aggrvars[i]));
-            SCIPdebugMessage("+ (%f2) \n", constant);
+               printf("+ (%f2) * %s ", scalars[i], SCIPvarGetName(aggrvars[i]));
+            printf("+ (%f2) \n", constant);
 #endif
 
-            /* save the nonzeroes of the (multi)aggregated var */
-            SCIP_CALL( SCIPallocBufferArray(scip, &savedcol, consdata->nvarnonz[var]) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &savedrow, consdata->nvarnonz[var]) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &savedval, consdata->nvarnonz[var]) );
+            /* add the nonzeros to the saved-arrays for the constant part, remove the nonzeros for the old variables and add them to the variables this variable
+             * was (multi-)aggregated to */
+            SCIP_CALL( multiaggrVar(scip, conss[c], &v, aggrvars, scalars, naggrvars, constant, savedcol, savedrow, savedval, &nfixednonz, &vararraylength) );
 
-            naggrnonz = 0;
-            for (i = 0; i < consdata->nvarnonz[var]; i++)
-            {
-               savedcol[naggrnonz] = consdata->col[var][i];
-               savedrow[naggrnonz] = consdata->row[var][i];
-               savedval[naggrnonz] = consdata->val[var][i];
-               naggrnonz++;
-            }
-            assert( naggrnonz == consdata->nvarnonz[var] );
-
-            /* sort them by nondecreasing row and then col to make the search for already existing entries easier (this is done here, because it
-             * only needs to be done once and not for each variable this is multiaggregated to) */
-            SdpVarfixerSortRowCol(savedrow, savedcol, savedval, naggrnonz);
-
-            /* fill the empty spot of the (mutli-)aggregated variable with the last variable of this constraint (as they don't have to be sorted) */
-            SCIP_CALL( SCIPreleaseVar(scip, &consdata->vars[var]) );
-            consdata->col[var] = consdata->col[consdata->nvars - 1];
-            consdata->row[var] = consdata->row[consdata->nvars - 1];
-            consdata->val[var] = consdata->val[consdata->nvars - 1];
-            consdata->nvarnonz[var] = consdata->nvarnonz[consdata->nvars - 1];
-            consdata->vars[var] = consdata->vars[consdata->nvars - 1];
-            consdata->nvars--;
-            var--; /* we need to check again if the variable we just shifted to this position also needs to be (multi-)aggregated */
-
-            /* iterate over all variables this was aggregated to and insert the corresponding nonzeroes */
-            for (aggrind = 0; aggrind < naggrvars; aggrind++)
-            {
-               /* check if the variable already exists in this block */
-               aggrconsind = -1;
-               for (i = 0; i < consdata->nvars; i++)
-               {
-                  if (consdata->vars[i] == aggrvars[aggrind])
-                  {
-                     aggrconsind = i;
-                     break;
-                  }
-               }
-
-               if ( aggrconsind > -1 )
-               {
-                  /* if the varialbe to aggregate to is already part of this sdp-constraint, just add the nonzeros of the old variable to it */
-
-                  /* resize the arrays to the maximally needed length */
-                  aggrtargetlength = consdata->nvarnonz[aggrconsind] + naggrnonz;
-                  SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->row[aggrconsind]), consdata->nvarnonz[aggrconsind], aggrtargetlength) );
-                  SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->col[aggrconsind]), consdata->nvarnonz[aggrconsind], aggrtargetlength) );
-                  SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->val[aggrconsind]), consdata->nvarnonz[aggrconsind], aggrtargetlength) );
-
-                  SCIP_CALL( SdpVarfixerMergeArrays(SCIPblkmem(scip), savedrow, savedcol, savedval, naggrnonz, TRUE, scalars[aggrind],
-                             consdata->row[aggrconsind], consdata->col[aggrconsind], consdata->val[aggrconsind], &(consdata->nvarnonz[aggrconsind]),
-                             aggrtargetlength) );
-
-                  /* shrink them again if nonzeros could be combined */
-                  assert( consdata->nvarnonz[aggrconsind] <= aggrtargetlength );
-                  SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->row[aggrconsind]), aggrtargetlength, consdata->nvarnonz[aggrconsind]) );
-                  SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->col[aggrconsind]), aggrtargetlength, consdata->nvarnonz[aggrconsind]) );
-                  SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->val[aggrconsind]), aggrtargetlength, consdata->nvarnonz[aggrconsind]) );
-               }
-               else
-               {
-                  /* the variable has to be added to this constraint */
-
-                  /* check if we have to enlarge the arrays */
-                  if (consdata->nvars == vararraylength)
-                  {
-                     SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->col, vararraylength, globalnvars) );
-                     SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->row, vararraylength, globalnvars) );
-                     SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->val, vararraylength, globalnvars) );
-                     SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->nvarnonz, vararraylength, globalnvars) );
-                     SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->vars, vararraylength, globalnvars) );
-                     vararraylength = globalnvars; /* we don't want to enlarge this by one for every variable added, so we immediately set it to the
-                                                    * maximum possible size */
-                  }
-
-                  /* we insert this variable at the last position, as the ordering doesn't matter */
-                  SCIP_CALL( SCIPcaptureVar(scip, aggrvars[aggrind]) );
-                  consdata->vars[consdata->nvars] = aggrvars[aggrind];
-                  consdata->nvarnonz[consdata->nvars] = naggrnonz; /* as there were no nonzeros thus far, the number of nonzeros equals the number
-                                                                    * of nonzeros of the aggregated variable */
-
-                  /* as there were no nonzeros thus far, we can just duplicate the saved arrays to get the nonzeros for the new variable */
-                  SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(consdata->col[consdata->nvars]), savedcol, naggrnonz) );
-                  SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(consdata->row[consdata->nvars]), savedrow, naggrnonz) );
-                  if (scalars[aggrind] == 1.0)  /* in this case we can also duplicate the values */
-                  {
-                     SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(consdata->val[consdata->nvars]), savedval, naggrnonz) );
-                  }
-                  else  /* we have to multiply all entries by scalar before inserting them */
-                  {
-                     SCIP_Real epsilon;
-
-                     SCIP_CALL( SCIPgetRealParam(scip, "numerics/epsilon", &epsilon) );
-
-                     SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(consdata->val[consdata->nvars]), naggrnonz) );
-
-                     for (i = 0; i < naggrnonz; i++)
-                     {
-                        if (scalars[aggrind] * savedval[i] >= epsilon) /* if both scalar and savedval are small this might become too small */
-                           consdata->val[consdata->nvars][i] = scalars[aggrind] * savedval[i];
-                        else
-                           consdata->nvarnonz[consdata->nvars]--;
-                     }
-                  }
-
-                  if (consdata->nvarnonz[consdata->nvars] > 0) /* if scalar and all savedvals were to small */
-                     consdata->nvars++;
-               }
-            }
-
-            /* merge the aggregated nonzeros into the constant arrays (if there is a constant part) */
-            if ( SCIPisGT(scip, REALABS(constant), 0.0) )
-            {
-               /* reallocate the constant arrays to the maximally needed size */
-               aggrtargetlength = consdata->constnnonz + naggrnonz;
-
-               SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constrow), consdata->constnnonz, aggrtargetlength) );
-               SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constcol), consdata->constnnonz, aggrtargetlength) );
-               SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constval), consdata->constnnonz, aggrtargetlength) );
-
-               /* merge the constant part this was aggregated to, to the constant arrays, as we have +A_iy_i but -A_0, this needs to be multiplied by one */
-               SCIP_CALL( SdpVarfixerMergeArrays(SCIPblkmem(scip), savedrow, savedcol, savedval, naggrnonz, TRUE, -1.0 * constant, consdata->constrow,
-                                                 consdata->constcol, consdata->constval, &(consdata->constnnonz), aggrtargetlength) );
-
-               /* shrink the arrays again if nonzeros could be combined */
-               SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constrow), aggrtargetlength, consdata->constnnonz) );
-               SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constcol), aggrtargetlength, consdata->constnnonz) );
-               SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constval), aggrtargetlength, consdata->constnnonz) );
-            }
-
-            /* free all arrays that are no longer needed */
-            SCIPfreeBufferArray(scip, &savedval);
-            SCIPfreeBufferArray(scip, &savedrow);
-            SCIPfreeBufferArray(scip, &savedcol);
-            SCIPfreeBufferArray(scip, &scalars);
             SCIPfreeBufferArray(scip, &aggrvars);
+            SCIPfreeBufferArray(scip, &scalars);
+         }
+         else if ( negated && (SCIPvarGetStatus(var) == SCIP_VARSTATUS_LOOSE || SCIPvarGetStatus(var) == SCIP_VARSTATUS_COLUMN)
+                  && aggregate)
+         {
+             /* if var1 is the negation of var2, then this is equivalent to it being aggregated to -var2 + 1 = 1 - var2 */
+
+            SCIPdebugMessage("Changing variable %s to negation of variable %s !\n", SCIPvarGetName(consdata->vars[v]), SCIPvarGetName(var));
+
+            scalar = -1.0;
+
+            SCIP_CALL( multiaggrVar(scip, conss[c], &v, &var, &scalar, 1, 1.0, savedcol, savedrow, savedval, &nfixednonz, &vararraylength) );
          }
       }
 
@@ -1413,10 +1440,32 @@ SCIP_RETCODE multiaggrVars(
          SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->vars, vararraylength, consdata->nvars) );
       }
 
+      /* allocate the maximally needed memory for inserting the fixed variables into the constant part */
+      arraylength = consdata->constnnonz + nfixednonz;
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constcol), consdata->constnnonz, arraylength) );
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constrow), consdata->constnnonz, arraylength) );
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constval), consdata->constnnonz, arraylength) );
+
+      /* insert the fixed variables into the constant arrays, as we have +A_i but -A_0 we mutliply them by -1 */
+      SCIP_CALL( SdpVarfixerMergeArrays(SCIPblkmem(scip), savedrow, savedcol, savedval, nfixednonz, FALSE, -1.0, consdata->constrow, consdata->constcol,
+                consdata->constval, &(consdata->constnnonz), arraylength) );
+
+      assert( consdata->constnnonz <= arraylength ); /* the allocated memory should always be sufficient */
+
+      /* shrink the arrays if nonzeros could be combined */
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constcol), arraylength, consdata->constnnonz) );
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constrow), arraylength, consdata->constnnonz) );
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constval), arraylength, consdata->constnnonz) );
+
+      /* free the saved arrays */
+      SCIPfreeBufferArray(scip, &savedval);
+      SCIPfreeBufferArray(scip, &savedrow);
+      SCIPfreeBufferArray(scip, &savedcol);
+
       /* recompute sdpnnonz */
       consdata->nnonz = 0;
-      for (var = 0; var < consdata->nvars; var++)
-         consdata->nnonz += consdata->nvarnonz[var];
+      for (v = 0; v < consdata->nvars; v++)
+         consdata->nnonz += consdata->nvarnonz[v];
    }
 
    return SCIP_OKAY;
@@ -1504,8 +1553,7 @@ SCIP_DECL_CONSEXITPRE(consExitpreSdp)
    assert( scip != NULL );
    assert( conss != NULL );
 
-   SCIP_CALL( fixVars(scip, conss, nconss) );
-   SCIP_CALL( multiaggrVars(scip, conss, nconss) );
+   SCIP_CALL( fixAndAggrVars(scip, conss, nconss, TRUE) );
 
    return SCIP_OKAY;
 }
@@ -1523,7 +1571,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 
    SCIP_CALL( move_1x1_blocks_to_lp(scip, conss, nconss, naddconss, ndelconss, result) );
 
-   SCIP_CALL( fixVars(scip, conss, nconss) );
+   SCIP_CALL( fixAndAggrVars(scip, conss, nconss, FALSE) ); /* the FALSE means we only do fixings and not (multi-)aggregations or negations */
 
    if ( nrounds == 0 )
    {
