@@ -61,9 +61,10 @@
 namespace
 {
 
+/* drop spaces and all brackets that are allowed within the blocks in the sdpa format */
    inline void drop_space(std::istream& line)
    {
-      while(std::isspace(line.peek()))
+      while(std::isspace(line.peek()) || line.peek() == '(' || line.peek() == '{' || line.peek() == ')' || line.peek() == '}' || line.peek() == ',')
       {
          line.ignore(1);
       }
