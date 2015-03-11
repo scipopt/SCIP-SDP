@@ -1199,6 +1199,8 @@ SCIP_RETCODE multiaggrVar(
       {
          /* the variable has to be added to this constraint */
 
+         SCIPdebugMessage("adding variable %s to SDP constraint %s because of (multi-)aggregation\n", SCIPvarGetName(aggrvars[aggrind]), SCIPconsGetName(cons));
+
          /* check if we have to enlarge the arrays */
          if (consdata->nvars == *vararraylength)
          {
@@ -1216,15 +1218,21 @@ SCIP_RETCODE multiaggrVar(
          /* we insert this variable at the last position, as the ordering doesn't matter */
          SCIP_CALL( SCIPcaptureVar(scip, aggrvars[aggrind]) );
          consdata->vars[consdata->nvars] = aggrvars[aggrind];
-         consdata->nvarnonz[consdata->nvars] = *nfixednonz - startind; /* as there were no nonzeros thus far, the number of nonzeros equals
-                                                                        * the number of nonzeros of the aggregated variable */
 
          /* as there were no nonzeros thus far, we can just duplicate the saved arrays to get the nonzeros for the new variable */
          SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(consdata->col[consdata->nvars]), savedcol + startind, *nfixednonz - startind) );
          SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(consdata->row[consdata->nvars]), savedrow + startind, *nfixednonz - startind) );
 
-         if (scalars[aggrind] == constant)  /* in this case we can also duplicate the values */
+         /* if scalars[aggrind] = constant, we would multiply with 1, if constant = 0, we didn't divide by constant, so in these cases, we can just
+          * memcopy the array of nonzero-values */
+         /* TODO: only checking scalar and constant for feas-equality might lead to big differences, if the nonzeros they are multiplied with are big,
+          * e.g. scalar = 0, constant = 10^(-6), nonzero = 10^(10) leads to new nonzero of 10^4 instead of 0 */
+         if ( SCIPisEQ(scip, scalars[aggrind], constant) || SCIPisEQ(scip, constant, 0.0) )
+         {
             SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(consdata->val[consdata->nvars]), savedval + startind, *nfixednonz - startind) );
+            consdata->nvarnonz[consdata->nvars] = *nfixednonz - startind; /* as there were no nonzeros thus far, the number of nonzeros equals
+                                                                           * the number of nonzeros of the aggregated variable */
+         }
          else  /* we have to multiply all entries by scalar before inserting them */
          {
             SCIP_Real epsilon;
@@ -1233,12 +1241,15 @@ SCIP_RETCODE multiaggrVar(
 
             SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(consdata->val[consdata->nvars]), *nfixednonz - startind) );
 
+            consdata->nvarnonz[consdata->nvars] = 0;
+
             for (i = 0; i < *nfixednonz - startind; i++)
             {
                if ( (scalars[i] / constant) * savedval[startind + i] >= epsilon ) /* if both scalar and savedval are small this might become too small */
-                  consdata->val[consdata->nvars][i] = (scalars[i] / constant) * savedval[startind + i];
-               else
-                  consdata->nvarnonz[consdata->nvars]--;
+               {
+                  consdata->val[consdata->nvars][consdata->nvarnonz[consdata->nvars]] = (scalars[i] / constant) * savedval[startind + i];
+                  consdata->nvarnonz[consdata->nvars]++;
+               }
             }
          }
 
@@ -1399,11 +1410,11 @@ SCIP_RETCODE fixAndAggrVars(
                                                     * of spots we provided */
 
             /* Debugmessages for the (multi-)aggregation */
-#ifndef NDEBUG
+#ifdef SCIP_DEBUG
             if ( SCIPvarGetStatus(consdata->vars[v]) == SCIP_VARSTATUS_AGGREGATED )
-               SCIPdebugMessage("aggregating variable %s to ...", SCIPvarGetName(var));
+               SCIPdebugMessage("aggregating variable %s to ", SCIPvarGetName(var));
             else
-               SCIPdebugMessage("multiaggregating variable %s to ...", SCIPvarGetName(var));
+               SCIPdebugMessage("multiaggregating variable %s to ", SCIPvarGetName(var));
             for (i = 0; i < naggrvars; i++)
                printf("+ (%f2) * %s ", scalars[i], SCIPvarGetName(aggrvars[i]));
             printf("+ (%f2) \n", constant);
