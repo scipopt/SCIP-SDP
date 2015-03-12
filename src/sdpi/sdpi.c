@@ -574,7 +574,7 @@ SCIP_RETCODE SCIPsdpiFree(
 
 /** copies SDP data into SDP solver
  *
- *  @note as the SDP-constraint matrices are symmetric, only the upper triangular part of them must be specified
+ *  @note as the SDP-constraint matrices are symmetric, only the upper triangular part of them must be specified TODO: is it really upper or is it lower triangular ?
  *  @note there must be at least one variable, the SDP- and/or LP-part may be empty
  */
 SCIP_RETCODE SCIPsdpiLoadSDP(
@@ -2687,7 +2687,17 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    }
 
    SCIP_CALL (findEmptyRowColsSDP(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges, nremovedinds) );
-   if (SCIPsdpiSolverKnowsPenalty() || penaltyParam < sdpi->epsilon)
+
+   if (penaltyParam < sdpi->epsilon)
+   {
+         SCIP_CALL( SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
+                                               sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
+                                               sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
+                                               sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
+                                               sdpi->sdpval, indchanges, nremovedinds, sdpi->nlpcons, sdpi->lprhs, sdpi->lpnnonz,
+                                               sdpi->lprow, sdpi->lpcol, sdpi->lpval, start) );
+   }
+   else if ( SCIPsdpiSolverKnowsPenalty() )
    {
       SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, penaltyParam, withObj, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
                                                        sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,

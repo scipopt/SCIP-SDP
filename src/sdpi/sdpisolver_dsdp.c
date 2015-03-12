@@ -37,7 +37,9 @@
  * @brief  interface for DSDP
  * @author Tristan Gally
  */
-
+//TODO: change bound propagation from single active variable LP-constraints to GE/LE instead of >/<, check if they are compared to the current bound, not only original,
+// check if debugmessages work correctly (should be ub[i] instead of ub[inputtodsdpmapper] ????
+// check IsAcceptable and ObjLimitExceeded for use of objlimit )
 #include <assert.h>
 
 #include "sdpi/sdpisolver.h"
@@ -478,7 +480,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->infeasible = FALSE;
 #endif
 
-   /* allocate memory for inputtosdpmapper, dsdptoinputmapper and the fixed variable information, for the latter this will later be shrinked if the needed size is known */
+   /* allocate memory for inputtodsdpmapper, dsdptoinputmapper and the fixed variable information, for the latter this will later be shrinked if the needed size is known */
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtodsdpmapper), sdpisolver->nvars, nvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->dsdptoinputmapper), sdpisolver->nactivevars, nvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsobj), sdpisolver->nvars - sdpisolver->nactivevars, nvars) );
@@ -854,8 +856,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             {
                assert( REALABS(lpval[i]) > sdpisolver->epsilon ); /* this is important, as we might later divide through this value if this is the only nonzero */
 
-               /* we have found an active nonzero, so this row can't be deleted */
-               rowshifts[lprow[i]] = nshifts;
+               /* we have found an active nonzero, so this row at least needs to be checked with the bounds */
                dsdplpval[lastrow - nshifts] = -lprhs[lastrow]; /* the rhs is multiplied by -1 as dsdp wants <= instead of >= */
                rowactive = TRUE;
                /* these two will be used if this stays the single nonzero to compare with the bounds */
@@ -877,7 +878,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
                /* we found an active variable, so this will definitly stay active */
                if (rowactive)
+               {
                   morethanbound = TRUE; /* as this is the second active nonzero this is a true LP row and not just a bound */
+                  rowshifts[lprow[i]] = nshifts;
+               }
                else
                {
                   rowactive = TRUE;
@@ -885,7 +889,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                   nonzind = lpcol[i];
                   nonzval = lpval[i];
                }
-               rowshifts[lprow[i]] = nshifts;
             }
          }
       }
@@ -1120,8 +1123,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* set the starting solution */
    if (start != NULL)
    {
-      for (i = 0; i < nvars; i++)
-         DSDPSetY0(sdpisolver->dsdp, i+1, start[i]); /* i+1 because DSDP starts counting at 0 */
+      for (i = 1; i <= nactivevars; i++) /* we iterate over the variables in DSDP */
+         DSDPSetY0(sdpisolver->dsdp, i, start[sdpisolver->dsdptoinputmapper[i]]);
    }
 
    /* start the solving process */
@@ -1252,7 +1255,8 @@ SCIP_Bool SCIPsdpiSolverFeasibilityKnown(
    return TRUE;
 }
 
-/** gets information about primal and dual feasibility of the current SDP solution */
+/** gets information about primal and dual feasibility of the current SDP solution
+ *  only call this after SCIPsdpiSolverFeasibilityKnown returned true */
 SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
    SCIP_Bool*            primalfeasible,     /**< stores primal feasibility status */
@@ -1634,7 +1638,16 @@ SCIP_Bool SCIPsdpiSolverIsTimelimExc(
    return SCIP_ERROR;
 }
 
-/** returns the internal solution status of the solver */
+/** returns the internal solution status of the solver
+ *  -1: solver wasn't started
+ *  0: converged
+ *  1: infeasible start
+ *  2: numerical problems
+ *  3: objective limit reached
+ *  4: iteration limit reached
+ *  5: time limit reached
+ *  6: user termination
+ *  7: other */
 int SCIPsdpiSolverGetInternalStatus(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
@@ -1827,6 +1840,8 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
       {
          SCIPdebugMessage("The given array in SCIPsdpiSolverGetSol only had length %d, but %d was needed", *dualsollength, sdpisolver->nvars);
          *dualsollength = sdpisolver->nvars;
+
+         return SCIP_OKAY;
       }
 
       BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, sdpisolver->nactivevars) );
@@ -1837,7 +1852,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
       {
          if (sdpisolver->inputtodsdpmapper[v] > -1)
          {
-            /* minus one because the inputtosdpmapper gives the dsdp indices which start at one, but the array starts at 0 */
+            /* minus one because the inputtodsdpmapper gives the dsdp indices which start at one, but the array starts at 0 */
             dualsol[v] = dsdpsol[sdpisolver->inputtodsdpmapper[v] - 1];
          }
          else
@@ -1929,6 +1944,7 @@ SCIP_RETCODE SCIPsdpiSolverGetIterations(
    if ( sdpisolver->infeasible )
    {
       SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving, so no solution exists.");
+      *iterations = 0;
       return SCIP_OKAY;
    }
 #endif
