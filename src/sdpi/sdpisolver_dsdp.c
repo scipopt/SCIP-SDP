@@ -1123,7 +1123,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* set the starting solution */
    if (start != NULL)
    {
-      for (i = 1; i <= nactivevars; i++) /* we iterate over the variables in DSDP */
+      for (i = 1; i <= sdpisolver->nactivevars; i++) /* we iterate over the variables in DSDP */
          DSDPSetY0(sdpisolver->dsdp, i, start[sdpisolver->dsdptoinputmapper[i]]);
    }
 
