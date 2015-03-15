@@ -393,7 +393,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    else
    {
       /* we use this construction to allocate the memory for the SDPA object also via the blockmemshell */
-      sdpisolver->sdpa = static_cast<SDPA*>(BMSallocMemoryCPP(sizeof(SDPA)));
+      /* sdpisolver->sdpa = static_cast<SDPA*>(BMSallocMemoryCPP(sizeof(SDPA))); */
+      sdpisolver->sdpa = new SDPA();
    }
    assert( sdpisolver->sdpa != NULL );
 
