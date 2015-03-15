@@ -118,7 +118,7 @@ MAINCOBJ 	+= 	sdpi/sdpisolver_dsdp.o
 endif
 
 ifeq ($(SDPS),sdpa)
-MAINCOBJ 	+= 	sdpi/sdpisolver_sdpa.o
+MAINCCOBJ 	+= 	sdpi/sdpisolver_sdpa.o
 endif
 
 MAINCSRC	=	$(addprefix $(SRCDIR)/,$(MAINCOBJ:.o=.c))
