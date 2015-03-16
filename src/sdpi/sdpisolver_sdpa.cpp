@@ -800,11 +800,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 #ifdef SCIP_DEBUG
    sdpisolver->sdpa->setDisplay(stdout);
 
-   FILE *fpOut;
-   fpOut = fopen("output.tmp","w");
-   if (fpOut == NULL) exit(-1);
+   FILE* fpOut;
+   fpOut = fopen("output.tmp", "w");
+   if (fpOut == NULL)
+      exit(-1);
    sdpisolver->sdpa->setResultFile(fpOut);
    sdpisolver->sdpa->printParameters(stdout);
+   fclose(fpOut);
 #endif
 
    /* if we want to use a starting point we have to tell SDPA to allocate memory for it */
