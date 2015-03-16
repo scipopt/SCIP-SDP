@@ -825,7 +825,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    }
    if( lastrow - nshifts + sdpisolver->nvarbounds > 0 )
    {
-      sdpisolver->sdpa->inputBlockSize(nsdpblocks + 1, -(lastrow - nshifts + sdpisolver->nvarbounds > 0)); /* the last block is the lp block, the size has a negative sign */
+      sdpisolver->sdpa->inputBlockSize(nsdpblocks + 1, -(lastrow - nshifts + sdpisolver->nvarbounds)); /* the last block is the lp block, the size has a negative sign */
       sdpisolver->sdpa->inputBlockType(nsdpblocks + 1, SDPA::LP);
    }
    sdpisolver->sdpa->initializeUpperTriangleSpace();
