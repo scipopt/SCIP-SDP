@@ -892,7 +892,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
                   SCIPdebugMessage("         -> adding nonzero %g at (%d,%d) (%d)\n", sdpval[block][blockvar][k],
                         sdprow[block][blockvar][k] - indchanges[block][sdprow[block][blockvar][k]] + 1, sdpcol[block][blockvar][k] - indchanges[block][sdpcol[block][blockvar][k]] + 1,
                         sdpisolver->sdpcounter);
-                  sdpisolver->sdpa->inputElement(v + 1, block + 1, sdprow[block][blockvar][k] - indchanges[block][sdprow[block][blockvar][k]] + 1,
+                  sdpisolver->sdpa->inputElement(i + 1, block + 1, sdprow[block][blockvar][k] - indchanges[block][sdprow[block][blockvar][k]] + 1,
                         sdpcol[block][blockvar][k] - indchanges[block][sdpcol[block][blockvar][k]] + 1, sdpval[block][blockvar][k], checkinput);
                }
             }
@@ -1001,14 +1001,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
             /* the bound is added as the rhs and therefore variable zero, we multiply by -1 for <= */
             sdpisolver->sdpa->inputElement(0, nsdpblocks + 1, lastrow + 2 - nshifts + i, lastrow + 2 - nshifts + i, -sdpavarbounds[i], checkinput);
             SCIPdebugMessage("         -> adding upper bound %g at (%d,%d) for variable %d which became variable %d in SDPA (%d)\n",
-                  sdpavarbounds[i], lastrow + 2 - nshifts + i, lastrow + 2 - nshifts + i, sdpisolver->sdpatoinputmapper[sdpisolver->varboundpos[i]],
+                  sdpavarbounds[i], lastrow + 2 - nshifts + i, lastrow + 2 - nshifts + i, sdpisolver->sdpatoinputmapper[sdpisolver->varboundpos[i] - 1],
                   sdpisolver->varboundpos[i], sdpisolver->sdpcounter);
          }
          else
          {
             /* as the bound is zero, we don't need to add a right hand side */
             SCIPdebugMessage("         -> adding upper bound 0 at (%d,%d) for variable %d which became variable %d in SDPA (%d)\n",
-                  0, lastrow + 2 - nshifts + i, lastrow + 2 - nshifts + i, sdpisolver->sdpatoinputmapper[sdpisolver->varboundpos[i]],
+                  0, lastrow + 2 - nshifts + i, lastrow + 2 - nshifts + i, sdpisolver->sdpatoinputmapper[sdpisolver->varboundpos[i] - 1],
                   sdpisolver->varboundpos[i]);
          }
       }
@@ -1034,7 +1034,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    if (start != NULL)
    {
       for (i = 1; i <= sdpisolver->nactivevars; i++) /* we iterate over the variables in sdpa */
-         sdpisolver->sdpa->inputInitXVec(i, start[sdpisolver->sdpatoinputmapper[i]]);
+         sdpisolver->sdpa->inputInitXVec(i, start[sdpisolver->sdpatoinputmapper[i] - 1]);
    }
 
    /* set the objective limit */
@@ -1857,10 +1857,9 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
       /* insert the entries into dualsol, for non-fixed vars we copy those from sdpa, the rest are the saved entries from inserting (they equal lb=ub) */
       for (v = 0; v < sdpisolver->nvars; v++)
       {
-         if (sdpisolver->inputtosdpamapper[v] > -1)
+         if (sdpisolver->inputtosdpamapper[v] > 0)
          {
             /* minus one because the inputtosdpamapper gives the sdpa indices which start at one, but the array starts at 0 */
-            assert( sdpisolver->inputtosdpamapper[v] > 0 );
             dualsol[v] = sdpasol[sdpisolver->inputtosdpamapper[v] - 1];
          }
          else
@@ -1939,12 +1938,12 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
       if ( sdpisolver->varboundpos[i] < 0 )
       {
          /* this is a lower bound */
-         lbvars[sdpisolver->sdpatoinputmapper[-1 * sdpisolver->varboundpos[i]]] = X[nlpcons - sdpisolver->nvarbounds + i]; /* the first nlpcons entries correspond to lp-constraints */
+         lbvars[sdpisolver->sdpatoinputmapper[-1 * sdpisolver->varboundpos[i]] - 1] = X[nlpcons - sdpisolver->nvarbounds + i]; /* the first nlpcons entries correspond to lp-constraints */
       }
       else
       {
          /* this is an upper bound */
-         ubvars[sdpisolver->sdpatoinputmapper[+1 * sdpisolver->varboundpos[i]]] = X[nlpcons - sdpisolver->nvarbounds + i]; /* the first nlpcons entries correspond to lp-constraints */
+         ubvars[sdpisolver->sdpatoinputmapper[+1 * sdpisolver->varboundpos[i]] - 1] = X[nlpcons - sdpisolver->nvarbounds + i]; /* the first nlpcons entries correspond to lp-constraints */
       }
    }
 
