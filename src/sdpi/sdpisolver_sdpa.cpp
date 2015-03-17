@@ -30,8 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
- #define SCIP_DEBUG
-/* #define SCIP_MORE_DEBUG*/
+/* #define SCIP_DEBUG */
+/* #define SCIP_MORE_DEBUG */
 
 /**@file   sdpisolver_sdpa.cpp
  * @brief  interface for SDPA
@@ -121,7 +121,7 @@ SCIP_Bool isFixed(
 {
    assert( lb < ub + sdpisolver->epsilon );
 
-   return ( REALABS(ub-lb) <= sdpisolver->epsilon);
+   return ( REALABS(ub-lb) <= sdpisolver->epsilon );
 }
 #else
 #define isFixed(sdpisolver,lb,ub) (REALABS(ub-lb) <= sdpisolver->epsilon)
@@ -386,10 +386,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    /* insert data */
    SCIPdebugMessage("Inserting Data into SDPA for SDP (%d) \n", ++sdpisolver->sdpcounter);
 
-   if( sdpisolver->sdpa != NULL )
+   if( sdpisolver->sdpa != 0 )
    {
       /* if the SDPA solver has already been created, clear the current problem instance */
-      sdpisolver->sdpa->terminate();
+      //sdpisolver->sdpa->terminate();
+      delete sdpisolver->sdpa;
+      sdpisolver->sdpa = new SDPA();
    }
    else
    {
@@ -397,7 +399,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
       /* sdpisolver->sdpa = static_cast<SDPA*>(BMSallocMemoryCPP(sizeof(SDPA))); */
       sdpisolver->sdpa = new SDPA();
    }
-   assert( sdpisolver->sdpa != NULL );
+   assert( sdpisolver->sdpa != 0 );
 
    /* compute number of variable bounds and save them in sdpavarbounds */
    sdpisolver->nvarbounds = 0;
@@ -1063,7 +1065,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    SCIPdebugMessage("SDPA solving finished with status %s\n", phase_string);
 #endif
 
+#ifdef SCIP_DEBUG
    (void) fclose(fpOut);
+#endif
 
    return SCIP_OKAY;
 }
@@ -1770,7 +1774,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
 
 #ifndef NDEBUG
    SCIP_Real primalval = sdpisolver->sdpa->getDualObj();
-   SCIP_Real gap = (REALABS(*objval - primalval) / (0.5 * (REALABS(primalval) + REALABS(*objval)))) < sdpisolver->epsilon; /* duality gap used in SDPA */
+   SCIP_Real gap = (REALABS(*objval - primalval) / (0.5 * (REALABS(primalval) + REALABS(*objval)))); /* duality gap used in SDPA */
    if ( gap > sdpisolver->epsilon )
       SCIPdebugMessage("Attention: got objective value (before adding values of fixed variables) of %f in SCIPsdpiSolverGetObjval, "
             "but primal objective is %f with duality gap %f!\n", *objval, primalval, gap );
