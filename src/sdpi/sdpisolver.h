@@ -534,6 +534,22 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    SCIP_Real             dval                /**< parameter value */
    );
 
+/** gets integer parameter of SDP */
+EXTERN
+SCIP_RETCODE SCIPsdpiSolverGetIntpar(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_SDPPARAM         type,               /**< parameter number */
+   int*                  ival                /**< pointer to store the parameter value */
+   );
+
+/** sets integer parameter of SDP */
+EXTERN
+SCIP_RETCODE SCIPsdpiSolverSetIntpar(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_SDPPARAM         type,               /**< parameter number */
+   int                   ival                /**< parameter value */
+   );
+
 /**@} */
 
 

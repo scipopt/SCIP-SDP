@@ -1471,6 +1471,26 @@ SCIP_RETCODE SCIPsdpiSetRealpar(
    return SCIP_PARAMETERUNKNOWN;
 }
 
+/** gets integer parameter of SDP */
+SCIP_RETCODE SCIPsdpiSolverGetIntpar(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_SDPPARAM         type,               /**< parameter number */
+   int*                  ival                /**< parameter value */
+   )
+{
+   return SCIP_PARAMETERUNKNOWN;
+}
+
+/** sets integer parameter of SDP */
+SCIP_RETCODE SCIPsdpiSolverSetIntpar(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_SDPPARAM         type,               /**< parameter number */
+   int                   ival                /**< parameter value */
+   )
+{
+   return SCIP_PARAMETERUNKNOWN;
+}
+
 /**@} */
 
 /*

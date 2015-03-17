@@ -2064,6 +2064,50 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    return SCIP_OKAY;
 }
 
+/** gets integer parameter of SDP */
+SCIP_RETCODE SCIPsdpiSolverGetIntpar(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_SDPPARAM         type,               /**< parameter number */
+   int*                  ival                /**< parameter value */
+   )
+{
+   assert( sdpisolver != NULL );
+
+   switch( type )
+   {
+   case SCIP_SDPPAR_THREADS:
+      *ival = sdpisolver->threads;
+      SCIPdebugMessage("Getting sdpisolver number of threads: %d.\n", *ival);
+      break;
+   default:
+      return SCIP_PARAMETERUNKNOWN;
+   }
+
+   return SCIP_OKAY;
+}
+
+/** sets integer parameter of SDP */
+SCIP_RETCODE SCIPsdpiSolverSetIntpar(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_SDPPARAM         type,               /**< parameter number */
+   int                   ival                /**< parameter value */
+   )
+{
+   assert( sdpisolver != NULL );
+
+   switch( type )
+   {
+   case SCIP_SDPPAR_THREADS:
+      sdpisolver->threads = ival;
+      SCIPdebugMessage("Setting sdpisolver number of threads to %d.\n", ival);
+      break;
+   default:
+      return SCIP_PARAMETERUNKNOWN;
+   }
+
+   return SCIP_OKAY;
+}
+
 /**@} */
 
 
