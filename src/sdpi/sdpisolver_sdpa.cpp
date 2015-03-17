@@ -1603,7 +1603,10 @@ SCIP_Bool SCIPsdpiSolverIsIterlimExc(
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
    if ( phasetype == SDPA::noINFO || phasetype == SDPA::pFEAS || phasetype == SDPA::dFEAS || phasetype == SDPA::pdFEAS )
-      return TRUE;
+   {
+      if ( sdpisolver->sdpa->getParameterMaxIteration() == sdpisolver->sdpa->getIteration() )
+         return TRUE;
+   }
 
    return FALSE;
 }
