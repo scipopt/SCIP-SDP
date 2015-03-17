@@ -70,20 +70,43 @@ include $(SCIPDIR)/make/make.project
 
 
 #-----------------------------------------------------------------------------
-# paths
+# setting SDP solver
 #-----------------------------------------------------------------------------
 
 LDFLAGS 	+= 	-lobjscip -llapack -lblas
 
+SDPIOPTIONS	=
+SDPIINC		=
+SDPILIB		=
+SDPICSRC	=
+SDPICCSRC	=
+SDPICCOBJ	=
+
+SDPIOPTIONS	+=	dsdp
 ifeq ($(SDPS),dsdp)
-LDFLAGS		+= 	-L$(DSDP_LIB_DIR) -ldsdp
-FLAGS 		+= 	-I$(DSDP_INCLUDE_DIR)
+SDPILIB		= 	-L$(DSDP_LIB_DIR) -ldsdp
+SDPIINC		= 	-I$(DSDP_INCLUDE_DIR)
+SDPICSRC 	= 	src/sdpi/sdpisolver_dsdp.c
+SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_dsdp.o
 endif
 
+SDPIOPTIONS	+=	sdpa
 ifeq ($(SDPS),sdpa)
-LDFLAGS         +=      -L$(SDPA_LIB_DIR) -lsdpa $(SDPA_LDFLAGS)
-FLAGS           +=      -I$(SDPA_INCLUDE_DIR) $(SDPA_FLAGS)
+SDPILIB		=      -L$(SDPA_LIB_DIR) -lsdpa $(SDPA_LDFLAGS)
+SDPIINC		=      -I$(SDPA_INCLUDE_DIR) $(SDPA_FLAGS)
+SDPICCSRC 	= 	src/sdpi/sdpisolver_sdpa.cpp
+SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o
 endif
+
+SDPIOPTIONS	+=	none
+ifeq ($(SDPS),none)
+SDPILIB		=
+SDPIINC		=
+SDPICSRC 	= 	src/sdpi/sdpisolver_none.c
+SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_none.o
+endif
+
+#-----------------------------------------------------------------------------
 
 SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
 			$(OBJDIR)/sdpi
@@ -93,33 +116,26 @@ SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
 # main program
 #-----------------------------------------------------------------------------
 
-MAINNAME=	scipsdp
-MAINCOBJ=	scipsdp/SdpVarmapper.o \
-		scipsdp/SdpVarfixer.o \
-		scipsdp/disp_sdpiterations.o \
-		scipsdp/disp_sdpavgiterations.o \
-		scipsdp/prop_sdpredcost.o \
-		scipsdp/branch_sdpmostfrac.o \
-		scipsdp/branch_sdpmostinf.o \
-		scipsdp/branch_sdpobjective.o \
-		scipsdp/branch_sdpinfobjective.o \
-	   scipsdp/branch_cs.o \
-	   scipsdp/nodesel_prio.o \
-		sdpi/sdpi.o
+MAINNAME	=	scipsdp
+MAINCOBJ	=	scipsdp/SdpVarmapper.o \
+			scipsdp/SdpVarfixer.o \
+			scipsdp/disp_sdpiterations.o \
+			scipsdp/disp_sdpavgiterations.o \
+			scipsdp/prop_sdpredcost.o \
+			scipsdp/branch_sdpmostfrac.o \
+			scipsdp/branch_sdpmostinf.o \
+			scipsdp/branch_sdpobjective.o \
+			scipsdp/branch_sdpinfobjective.o \
+			scipsdp/branch_cs.o \
+	   		scipsdp/nodesel_prio.o \
+			sdpi/sdpi.o
 
-MAINCCOBJ=	scipsdp/main.o \
-		scipsdp/relax_sdp.o \
-		scipsdp/objreader_sdpa.o \
-		scipsdp/cons_sdp.o \
-		scipsdp/ScipStreamBuffer.o
+MAINCCOBJ	=	scipsdp/main.o \
+			scipsdp/relax_sdp.o \
+			scipsdp/objreader_sdpa.o \
+			scipsdp/cons_sdp.o \
+			scipsdp/ScipStreamBuffer.o
 
-ifeq ($(SDPS),dsdp)
-MAINCOBJ 	+= 	sdpi/sdpisolver_dsdp.o
-endif
-
-ifeq ($(SDPS),sdpa)
-MAINCCOBJ 	+= 	sdpi/sdpisolver_sdpa.o
-endif
 
 MAINCSRC	=	$(addprefix $(SRCDIR)/,$(MAINCOBJ:.o=.c))
 MAINCCSRC	=	$(addprefix $(SRCDIR)/,$(MAINCCOBJ:.o=.cpp))
@@ -137,18 +153,24 @@ MAINCCOBJFILES	=	$(addprefix $(OBJDIR)/,$(MAINCCOBJ))
 #-----------------------------------------------------------------------------
 
 ifeq ($(VERBOSE),false)
-.SILENT:	$(MAINFILE) $(MAINCOBJFILES) $(MAINCCOBJFILES) $(MAINSHORTLINK)
+.SILENT:	$(MAINFILE) $(MAINCOBJFILES) $(MAINCCOBJFILES) $(SDPIOBJ) $(MAINSHORTLINK)
 endif
 
 .PHONY: all
 all:            $(SCIPDIR) $(MAINFILE) $(MAINSHORTLINK)
+
+.PHONY: checkdefines
+checkdefines:
+ifeq ($(SDPIOBJ),)
+		$(error invalid SDP solver selected: SDPIS=$(SDPIS). Possible options are: $(SDPIOPTIONS))
+endif
 
 .PHONY: tags
 tags:
 		rm -f TAGS; ctags -e src/*/*.c src/*/*.cpp src/*/*.h $(SCIPDIR)/src/*/*.c $(SCIPDIR)/src/*/*.h;
 
 .PHONY: lint
-lint:		$(MAINCSRC) $(MAINCCSRC)
+lint:		$(MAINCSRC) $(MAINCCSRC) $(SDPICSRC) $(SDPICCSRC)
 		-rm -f lint.out
 		$(SHELL) -ec 'for i in $^; \
 			do \
@@ -179,11 +201,11 @@ $(BINDIR):
 .PHONY: clean
 clean:
 ifneq ($(OBJDIR),)
-		-rm -f $(OBJDIR)/scipsdp/*.o
-		-rm -f $(OBJDIR)/sdpi/*.o
-		-rmdir $(OBJDIR)/scipsdp
-		-rmdir $(OBJDIR)/sdpi
-		-rmdir $(OBJDIR)
+		@-rm -f $(OBJDIR)/scipsdp/*.o
+		@-rm -f $(OBJDIR)/sdpi/*.o
+		@-rmdir $(OBJDIR)/scipsdp
+	 	@-rmdir $(OBJDIR)/sdpi
+		@-rmdir $(OBJDIR)
 endif
 		-rm -f $(MAINFILE)
 
@@ -207,33 +229,32 @@ testcluster:
 
 #-----------------------------------------------------------------------------
 
-
 .PHONY: depend
 depend:		$(SCIPDIR)
-		$(SHELL) -ec '$(DCXX) $(FLAGS) $(DFLAGS) $(MAINCCSRC) \
+		$(SHELL) -ec '$(DCXX) $(FLAGS) $(DFLAGS) $(MAINCCSRC) $(SDPICCSRC) \
 		| sed '\''s|^\([0-9A-Za-z\_]\{1,\}\)\.o *: *$(SRCDIR)/scipsdp/\([0-9A-Za-z\_]*\).cpp|$$\(OBJDIR\)/\2.o: $(SRCDIR)/scipsdp/\2.cpp|g'\'' \
 		>$(MAINDEP)'
-		$(SHELL) -ec '$(DCXX) $(FLAGS) $(DFLAGS) $(MAINCSRC) \
+		$(SHELL) -ec '$(DCXX) $(FLAGS) $(DFLAGS) $(MAINCSRC) $(SDPICSRC) \
 		| sed '\''s|^\([0-9A-Za-z\_]\{1,\}\)\.o *: *$(SRCDIR)/scipsdp/\([0-9A-Za-z\_]*\).c|$$\(OBJDIR\)/\2.o: $(SRCDIR)/scipsdp/\2.c|g'\'' \
 		| sed '\''s|^\([0-9A-Za-z\_]\{1,\}\)\.o *: *$(SRCDIR)/sdpi/\([0-9A-Za-z\_]*\).c|$$\(OBJDIR\)/\2.o: $(SRCDIR)/sdpi/\2.c|g'\'' \
 		>>$(MAINDEP)'
 
 -include	$(MAINDEP)
 
-$(MAINFILE):	$(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(MAINCOBJFILES) $(MAINCCOBJFILES) | $(SDPOBJSUBDIRS) $(BINDIR)
+$(MAINFILE):	$(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(MAINCOBJFILES) $(MAINCCOBJFILES) $(SDPIOBJ) | $(SDPOBJSUBDIRS) $(BINDIR)
 		@echo "-> linking $@"
 		$(LINKCXX) $(MAINCOBJFILES) $(MAINCCOBJFILES) \
 		$(LINKCXX_L)$(SCIPDIR)/lib $(LINKCXX_l)$(SCIPLIB)$(LINKLIBSUFFIX) \
                 $(LINKCXX_l)$(OBJSCIPLIB)$(LINKLIBSUFFIX) $(LINKCXX_l)$(LPILIB)$(LINKLIBSUFFIX) $(LINKCXX_l)$(NLPILIB)$(LINKLIBSUFFIX) \
                 $(OFLAGS) $(LPSLDFLAGS) \
-		$(LDFLAGS) $(LINKCXX_o)$@
+		$(SDPIOBJ) $(SDPILIB) $(LDFLAGS) $(LINKCXX_o)$@
 
 $(OBJDIR)/%.o:	$(SRCDIR)/%.c | $(SDPOBJSUBDIRS)
 		@echo "-> compiling $@"
-		$(CC) $(FLAGS) $(OFLAGS) $(BINOFLAGS) $(CFLAGS) -c $< $(CC_o)$@
+		$(CC) $(FLAGS) $(OFLAGS) $(SDPIINC) $(BINOFLAGS) $(CFLAGS) -c $< $(CC_o)$@
 
 $(OBJDIR)/%.o:	$(SRCDIR)/%.cpp | $(SDPOBJSUBDIRS)
 		@echo "-> compiling $@"
-		$(CXX) $(FLAGS) $(OFLAGS) $(BINOFLAGS) $(CXXFLAGS) -c $< $(CXX_o)$@
+		$(CXX) $(FLAGS) $(OFLAGS) $(SDPIINC) $(BINOFLAGS) $(CXXFLAGS) -c $< $(CXX_o)$@
 
 #---- EOF --------------------------------------------------------------------
