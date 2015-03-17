@@ -936,7 +936,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    /* inserting LP nonzeros */
    for (i = 0; i < lpnnonz; i++)
    {
-      assert( 0 <= lprow[i] && lprow[i] < nvars );
+      assert( 0 <= lprow[i] && lprow[i] < nlpcons );
       assert( 0 <= lpcol[i] && lpcol[i] < nvars );
       assert( REALABS(lpval[i]) > sdpisolver->epsilon );
 
