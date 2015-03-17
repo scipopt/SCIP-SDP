@@ -112,7 +112,7 @@ void* SCIPsdpiGetSolverPointer(
 EXTERN
 SCIP_RETCODE SCIPsdpiCreate(
    SCIP_SDPI**           sdpi,               /**< pointer to an SDP interface structure */
-   SCIP_MESSAGEHDLR*     messagehdlr,         /**< message handler to use for printing messages, or NULL */
+   SCIP_MESSAGEHDLR*     messagehdlr,        /**< message handler to use for printing messages, or NULL */
    BMS_BLKMEM*           blkmem              /**< block memory */
    );
 
@@ -817,6 +817,22 @@ SCIP_RETCODE SCIPsdpiSetRealpar(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_SDPPARAM         type,               /**< parameter number */
    SCIP_Real             dval                /**< parameter value */
+   );
+
+/** gets integer parameter of SDP */
+EXTERN
+SCIP_RETCODE SCIPsdpiGetIntpar(
+   SCIP_SDPI*            sdpi,               /**< pointer to an SDP interface solver structure */
+   SCIP_SDPPARAM         type,               /**< parameter number */
+   int*                  ival                /**< pointer to store the parameter value */
+   );
+
+/** sets integer parameter of SDP */
+EXTERN
+SCIP_RETCODE SCIPsdpiSetIntpar(
+   SCIP_SDPI*            sdpi,               /**< pointer to an SDP interface solver structure */
+   SCIP_SDPPARAM         type,               /**< parameter number */
+   int                   ival                /**< parameter value */
    );
 
 /**@} */

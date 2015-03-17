@@ -3181,6 +3181,51 @@ SCIP_RETCODE SCIPsdpiSetRealpar(
    return SCIP_OKAY;
 }
 
+/** gets integer parameter of SDP */
+SCIP_RETCODE SCIPsdpiGetIntpar(
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   SCIP_SDPPARAM         type,               /**< parameter number */
+   int*                  ival                /**< pointer to store the parameter value */
+   )
+{
+   assert( sdpi != NULL );
+   assert( sdpi->sdpisolver != NULL );
+   assert( ival != NULL );
+
+   switch( type )
+   {
+   case SCIP_SDPPAR_THREADS:
+      SCIP_CALL( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, ival) );
+      break;
+   default:
+      return SCIP_PARAMETERUNKNOWN;
+   }
+
+   return SCIP_OKAY;
+}
+
+/** sets integer parameter of SDP */
+SCIP_RETCODE SCIPsdpiSetIntpar(
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   SCIP_SDPPARAM         type,               /**< parameter number */
+   int                   ival                /**< parameter value */
+   )
+{
+   assert( sdpi != NULL );
+   assert( sdpi->sdpisolver != NULL );
+
+   switch( type )
+   {
+   case SCIP_SDPPAR_THREADS:
+      SCIP_CALL( SCIPsdpiSolverSetIntpar(sdpi->sdpisolver, type, ival) );
+      break;
+   default:
+      return SCIP_PARAMETERUNKNOWN;
+   }
+
+   return SCIP_OKAY;
+}
+
 /**@} */
 
 
