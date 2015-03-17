@@ -15,9 +15,12 @@ tar --no-recursion --ignore-failed-read -cvzhf $NAME.tgz \
     --exclude="*~" \
     --exclude=".*" \
     $NAME/Makefile \
+    $NAME/make.local \
     $NAME/doc/scipsdp.dxy \
     $NAME/doc/xternal.c \
-    $NAME/src/*.c $NAME/src/*.cpp $NAME/src/*.h
+    $NAME/instances \
+    $NAME/src/scipsdp/*.c $NAME/src/scipsdp/*.cpp $NAME/src/scipsdp/*.h \
+    $NAME/src/sdpi/*.c $NAME/src/sdpi/*.cpp $NAME/src/sdpi/*.h
 
 echo ""
 echo "check version numbers in doc/scipsdp.dxy, doc/xternal.c, and Makefile:"
