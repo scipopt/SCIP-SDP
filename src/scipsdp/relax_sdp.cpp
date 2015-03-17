@@ -59,7 +59,7 @@
 
 #define DEFAULT_SDPSOLVEREPSILON    1e-3     /**< the stopping criterion for the duality gap the sdpsolver should use */
 #define DEFAULT_SDPSOLVERFEASTOL    1e-6     /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
-
+#define DEFAULT_THREADS             1        /**< number of threads used for SDP solving */
 
 /*
  * Data structures
@@ -75,6 +75,7 @@ struct SCIP_RelaxData
    SCIP_Real             sdpsolverepsilon;   /**< the stopping criterion for the duality gap the sdpsolver should use */
    SCIP_Real             sdpsolverfeastol;   /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
    int                   sdpiterations;      /**< saves the total number of sdp-iterations */
+   int                   threads;            /**< number of threads used for SDP solving */
    int                   sdpcalls;           /**< number of solved SDPs (used to compute average SDP iterations) */
 };
 
@@ -963,6 +964,7 @@ SCIP_DECL_RELAXINIT(relaxInitSolSDP)
    SCIP_VAR** vars;
    SCIP_Real epsilon;
    SCIP_Real feastol;
+   int threads;
 
    assert( relax != NULL );
 
@@ -990,6 +992,9 @@ SCIP_DECL_RELAXINIT(relaxInitSolSDP)
 
    SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolverfeastol", &feastol) );
    SCIP_CALL( SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_FEASTOL, feastol) );
+
+   SCIP_CALL( SCIPgetIntParam(scip, "relaxing/SDP/threads", &threads) );
+   SCIP_CALL( SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_THREADS, threads) );
 
    return SCIP_OKAY;
 }
@@ -1066,6 +1071,8 @@ SCIP_RETCODE SCIPincludeRelaxSDP(
          &(relaxdata->sdpsolverepsilon), TRUE, DEFAULT_SDPSOLVEREPSILON, 1e-20, 0.001, NULL, NULL) );
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/sdpsolverfeastol", "the feasibility tolerance the SDP solver should use for the SDP constraints",
          &(relaxdata->sdpsolverfeastol), TRUE, DEFAULT_SDPSOLVERFEASTOL, 1e-17, 0.001, NULL, NULL) );
+   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/threads", "number of threads used for SDP solving",
+         &(relaxdata->threads), TRUE, DEFAULT_THREADS, 1, INT_MAX, NULL, NULL) );
 
    /* add description of SDP-solver */
    SCIP_CALL( SCIPincludeExternalCodeInformation(scip, SCIPsdpiGetSolverName(), SCIPsdpiGetSolverDesc()) );
