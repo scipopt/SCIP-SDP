@@ -388,7 +388,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    if( sdpisolver->sdpa != NULL )
    {
       /* if the SDPA solver has already been created, clear the current problem instance */
-      /**@todo is there a more efficient way to do this? */
       sdpisolver->sdpa->terminate();
    }
    else
@@ -439,12 +438,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
       assert( 0 <= lpcol[i] && lpcol[i] < nvars );
       assert( 0 <= lprow[i] && lprow[i] < nlpcons );
 
-      if (lprow[i] > lastrow)
+      /* check if next row starts */
+      if ( lprow[i] > lastrow )
       {
-      /* the next row starts */
-
          /* first we check if the last row (which is now finished) can be deleted */
-         if ( ! rowactive)
+         if ( ! rowactive )
          {
 #ifndef NDEBUG
             /* if there were no active nonzeros, we don't need the lp row, we only check if the rhs is positive (then we have 0 >= rhs > 0 which
@@ -460,7 +458,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
             nshifts++;
          }
          /* if there was only a single nonzero, then we can remove the row and check if this sharpens the bounds */
-         else if (rowactive && (! morethanbound) )
+         else if ( rowactive && ! morethanbound )
          {
             assert( 0 < sdpisolver->inputtosdpamapper[nonzind] && sdpisolver->inputtosdpamapper[nonzind] <= sdpisolver->nactivevars );
             assert( REALABS(nonzval) > sdpisolver->epsilon );
@@ -473,7 +471,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
                   if ( SCIPsdpiSolverIsInfinity(sdpisolver, ub[nonzind]) )
                   {
                      /* we add a new variable bound */
-
                      SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, new upper bound of variable %d has been set to %f ",
                            lastrow, sdpisolver->sdpcounter, nonzind, sdpalprhs[lastrow - nshifts] / nonzval);
                      /* TODO: what to do, if this fixes a variable ? perhaps move this part to sdpi_general and do it before computing the new constant SDP-matrix */
@@ -601,7 +598,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
              * in the next iterations */
             rowactive = FALSE;
             /* the - for value * lpval comes from rhs - lhs */
-            sdpalprhs[lastrow - nshifts] =lprhs[lastrow] - lb[lpcol[i]] * lpval[i];
+            sdpalprhs[lastrow - nshifts] = lprhs[lastrow] - lb[lpcol[i]] * lpval[i];
          }
          else
          {
@@ -628,7 +625,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
             assert( REALABS(lpval[i]) > sdpisolver->epsilon ); /* this is important, as we might later divide through this value if this is the only nonzero */
 
             /* we found an active variable, so this will definitly stay active */
-            if (rowactive)
+            if ( rowactive )
             {
                morethanbound = TRUE; /* as this is the second active nonzero this is a true LP row and not just a bound */
                rowshifts[lprow[i]] = nshifts;
@@ -648,7 +645,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
     * the next row has been found */
 
    /* first we check if the last row (which is now finished) can be deleted */
-   if ( ! rowactive)
+   if ( ! rowactive )
    {
 #ifndef NDEBUG
       /* if there were no active nonzeros, we don't need the lp row, we only check if the rhs is positive (then we have 0 >= rhs > 0 which
@@ -664,7 +661,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
       nshifts++;
    }
    /* if there was only a single nonzero, then we can remove the row and check if this sharpens the bounds */
-   else if (rowactive && (! morethanbound) )
+   else if ( rowactive && ! morethanbound )
    {
       assert( 0 < sdpisolver->inputtosdpamapper[nonzind] && sdpisolver->inputtosdpamapper[nonzind] <= sdpisolver->nactivevars );
       assert( REALABS(nonzval) > sdpisolver->epsilon );
@@ -803,11 +800,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 
    FILE* fpOut;
    fpOut = fopen("output.tmp", "w");
-   if (fpOut == NULL)
+   if ( ! fpOut )
       exit(-1);
    sdpisolver->sdpa->setResultFile(fpOut);
    sdpisolver->sdpa->printParameters(stdout);
-   fclose(fpOut);
 #endif
 
    /* if we want to use a starting point we have to tell SDPA to allocate memory for it */
@@ -876,7 +872,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
                }
             }
 
-            if (blockvar > -1) /* the variable exists in this block */
+            if ( blockvar > -1)  /* the variable exists in this block */
             {
                for (k = 0; k < sdpnblockvarnonz[block][blockvar]; k++)
                {
@@ -912,7 +908,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 
       for (block = 0; block < nsdpblocks; block++)
       {
-
          SCIPdebugMessage("   -> building block %d (%d)\n", block + 1, sdpisolver->sdpcounter);
          for (k = 0; k < sdpconstnblocknonz[block]; k++)
          {
@@ -936,7 +931,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    }
 
 #ifdef SCIP_MORE_DEBUG
-   SDPConeView2(sdpisolver->sdpcone);
+   /*   SDPConeView2(sdpisolver->sdpcone); */
 #endif
 
    /* inserting LP nonzeros */
@@ -1741,6 +1736,8 @@ SCIP_RETCODE SCIPsdpiSolverIgnoreInstability(
    )
 {
    SCIPdebugMessage("Not implemented yet\n");
+
+   /* todo: change settings to stable */
    return SCIP_ERROR;
 }
 
@@ -1775,6 +1772,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
             "but primal objective is %f with duality gap %f!\n", *objval, primalval, gap );
 #endif
 
+   /* todo: compute this value when setting up fixed variables */
    /* as we didn't add the fixed (lb = ub) variables to sdpa, we have to add their contributions to the objective by hand */
    for (v = 0; v < sdpisolver->nvars; v++)
    {
@@ -1902,15 +1900,17 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
       return SCIP_OKAY;
    }
 
+   /* initialize the return-arrays with zero */
+   for (i = 0; i < sdpisolver->nvars; i++)
+   {
+      lbvars[i] = 0.0;
+      ubvars[i] = 0.0;
+   }
+
    /* if no variable bounds were added, we return the zero vector (we do this separately, because in this case there might be no LP-block) */
    if ( sdpisolver->nvarbounds == 0 )
    {
       SCIPdebugMessage("Asked for PrimalBoundVars, but there were no variable bounds in sdpa, returning zero vector !");
-      for (i = 0; i < sdpisolver->nvars; i++)
-      {
-         lbvars[i] = 0.0;
-         ubvars[i] = 0.0;
-      }
       return SCIP_OKAY;
    }
 
@@ -1920,13 +1920,6 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    assert( sdpisolver->sdpa->getBlockType(lpblockind) == SDPA::LP );
    nlpcons = -1 * sdpisolver->sdpa->getBlockSize(lpblockind); /* sdpa saves the sizes of LP blocks with a negative sign */
    X = sdpisolver->sdpa->getResultYMat(lpblockind);
-
-   /* initialize the return-arrays with zero */
-   for (i = 0; i < sdpisolver->nvars; i++)
-   {
-      lbvars[i] = 0.0;
-      ubvars[i] = 0.0;
-   }
 
    /* iterate over all variable bounds and insert the corresponding primal variables in the right positions of the return-arrays */
    for (i = 0; i < sdpisolver->nvarbounds; i++)
@@ -2006,7 +1999,7 @@ SCIP_Real SCIPsdpiSolverMaxPenParam(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to an SDP interface solver structure */
    )
 {
-   return 1E+10;  /* DSDP will start with penalty param 10^10 if called normally */
+   return 1E+10;  /* not yet implemented */
 }
 
 /** checks if given value is greater or equal to the highest penalty parameter to be used */
@@ -2148,8 +2141,11 @@ SCIP_RETCODE SCIPsdpiSolverWriteSDP(
    const char*           fname               /**< file name */
    )
 {
-   SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_LPERROR;
+   assert( fname != NULL );
+
+   sdpisolver->sdpa->writeInputSparse(const_cast<char*>(fname), const_cast<char*>("%8.3f"));
+
+   return SCIP_OKAY;
 }
 
 /**@} */
