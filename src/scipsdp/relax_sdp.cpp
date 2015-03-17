@@ -39,7 +39,7 @@
 
 /* #define SCIP_DEBUG*/
 /* #define SCIP_MORE_DEBUG  *//* displays complete solution for each relaxation */
-/* #define SCIP_EVEN_MORE_DEBUG  *//* shows number of deleted empty cols/rows for every relaxation and variable status & bounds as well as all constraints in the beginning */
+/* #define SCIP_EVEN_MORE_DEBUG */ /* shows number of deleted empty cols/rows for every relaxation and variable status & bounds as well as all constraints in the beginning */
 
 #include "relax_sdp.h"
 
@@ -157,6 +157,7 @@ SCIP_RETCODE putSdpDataInInterface(
 
 #ifdef SCIP_EVEN_MORE_DEBUG
       SCIP_CALL( SCIPprintCons(scip, conss[i], NULL) );
+      SCIPinfoMessage(scip, NULL, "\n");
 #endif
 
       if ( strcmp(hdlrName, "SDP") == 0 )
@@ -993,8 +994,17 @@ SCIP_DECL_RELAXINIT(relaxInitSolSDP)
    SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolverfeastol", &feastol) );
    SCIP_CALL( SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_FEASTOL, feastol) );
 
-   SCIP_CALL( SCIPgetIntParam(scip, "relaxing/SDP/threads", &threads) );
-   SCIP_CALL( SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_THREADS, threads) );
+   SCIP_RETCODE retcode = SCIPgetIntParam(scip, "relaxing/SDP/threads", &threads);
+   if ( retcode != SCIP_PARAMETERUNKNOWN )
+   {
+      SCIP_CALL( retcode );
+   }
+
+   retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_THREADS, threads);
+   if ( retcode != SCIP_PARAMETERUNKNOWN )
+   {
+      SCIP_CALL( retcode );
+   }
 
    return SCIP_OKAY;
 }
