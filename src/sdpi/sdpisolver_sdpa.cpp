@@ -102,6 +102,7 @@ struct SCIP_SDPiSolver
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
    SCIP_Real             objlimit;           /**< objective limit for SDP solver */
+   int                   threads;            /**< number of threads */
 };
 
 
@@ -1045,8 +1046,19 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    /* set the objective limit */
    if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
       sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
+   /* sdpisolver->sdpa->setParameterUpperBound(1e10); */
 
-   SCIPdebugMessage("Calling SDPA solve for SDP (%d)\n", sdpisolver->sdpcounter);
+   /* set number of threads */
+   char str[1024];
+   snprintf(str, 1024, "OMP_NUM_THREADS=%d", sdpisolver->threads);
+   int status = putenv(str);
+   if ( status )
+   {
+      SCIPdebugMessage("Setting the number of threads failed (%d, %d).\n", status, errno);
+      return SCIP_ERROR;
+   }
+
+   SCIPdebugMessage("Calling SDPA solve (SDP: %d, threads: %lld)\n", sdpisolver->sdpcounter, sdpisolver->sdpa->getNumThreads());
    sdpisolver->sdpa->solve();
    sdpisolver->solved = TRUE;
 
