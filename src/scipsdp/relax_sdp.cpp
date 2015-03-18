@@ -961,6 +961,7 @@ static
 SCIP_DECL_RELAXINIT(relaxInitSolSDP)
 {
    SCIP_RELAXDATA* relaxdata;
+   SCIP_RETCODE retcode;
    int nvars;
    SCIP_VAR** vars;
    SCIP_Real epsilon;
@@ -989,19 +990,40 @@ SCIP_DECL_RELAXINIT(relaxInitSolSDP)
 
    /* set the parameters of the SDP-Solver */
    SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolverepsilon", &epsilon) );
-   SCIP_CALL( SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_EPSILON, epsilon) );
-
-   SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolverfeastol", &feastol) );
-   SCIP_CALL( SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_FEASTOL, feastol) );
-
-   SCIP_RETCODE retcode = SCIPgetIntParam(scip, "relaxing/SDP/threads", &threads);
-   if ( retcode != SCIP_PARAMETERUNKNOWN )
+   retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_EPSILON, epsilon);
+   if ( retcode == SCIP_PARAMETERUNKNOWN )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
+         "SDP Solver <%s>: epsilon setting not available -- SCIP parameter has no effect\n",
+         SCIPsdpiGetSolverName());
+   }
+   else
    {
       SCIP_CALL( retcode );
    }
 
+   SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolverfeastol", &feastol) );
+   retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_FEASTOL, feastol);
+   if ( retcode == SCIP_PARAMETERUNKNOWN )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
+         "SDP Solver <%s>: feastol setting not available -- SCIP parameter has no effect\n",
+         SCIPsdpiGetSolverName());
+   }
+   else
+   {
+      SCIP_CALL( retcode );
+   }
+
+   SCIP_CALL( SCIPgetIntParam(scip, "relaxing/SDP/threads", &threads) );
    retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_THREADS, threads);
-   if ( retcode != SCIP_PARAMETERUNKNOWN )
+   if ( retcode == SCIP_PARAMETERUNKNOWN )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
+         "SDP Solver <%s>: threads setting not available -- SCIP parameter has no effect\n",
+         SCIPsdpiGetSolverName());
+   }
+   else
    {
       SCIP_CALL( retcode );
    }
