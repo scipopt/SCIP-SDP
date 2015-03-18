@@ -73,7 +73,7 @@ include $(SCIPDIR)/make/make.project
 # setting SDP solver
 #-----------------------------------------------------------------------------
 
-LDFLAGS 	+= 	-lobjscip -llapack -lblas
+LDFLAGS 	+= 	-lobjscip
 
 SDPIOPTIONS	=
 SDPIINC		=
@@ -84,7 +84,7 @@ SDPICCOBJ	=
 
 SDPIOPTIONS	+=	dsdp
 ifeq ($(SDPS),dsdp)
-SDPILIB		= 	-L$(DSDP_LIB_DIR) -ldsdp
+SDPILIB		= 	-L$(DSDP_LIB_DIR) -ldsdp -llapack -lblas
 SDPIINC		= 	-I$(DSDP_INCLUDE_DIR)
 SDPICSRC 	= 	src/sdpi/sdpisolver_dsdp.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_dsdp.o
@@ -92,7 +92,7 @@ endif
 
 SDPIOPTIONS	+=	sdpa
 ifeq ($(SDPS),sdpa)
-SDPILIB		=      -L$(SDPA_LIB_DIR) -lsdpa $(SDPA_LDFLAGS)
+SDPILIB		=      -L$(SDPA_LIB_DIR) -llapack -lsdpa $(SDPA_LDFLAGS)
 SDPIINC		=      -I$(SDPA_INCLUDE_DIR) $(SDPA_FLAGS)
 SDPICCSRC 	= 	src/sdpi/sdpisolver_sdpa.cpp
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o
@@ -231,10 +231,10 @@ testcluster:
 
 .PHONY: depend
 depend:		$(SCIPDIR)
-		$(SHELL) -ec '$(DCXX) $(FLAGS) $(DFLAGS) $(MAINCCSRC) $(SDPICCSRC) \
+		$(SHELL) -ec '$(DCXX) $(FLAGS) $(SDPIINC) $(DFLAGS) $(MAINCCSRC) $(SDPICCSRC) \
 		| sed '\''s|^\([0-9A-Za-z\_]\{1,\}\)\.o *: *$(SRCDIR)/scipsdp/\([0-9A-Za-z\_]*\).cpp|$$\(OBJDIR\)/\2.o: $(SRCDIR)/scipsdp/\2.cpp|g'\'' \
 		>$(MAINDEP)'
-		$(SHELL) -ec '$(DCXX) $(FLAGS) $(DFLAGS) $(MAINCSRC) $(SDPICSRC) \
+		$(SHELL) -ec '$(DCXX) $(FLAGS) $(SDPIINC) $(DFLAGS) $(MAINCSRC) $(SDPICSRC) \
 		| sed '\''s|^\([0-9A-Za-z\_]\{1,\}\)\.o *: *$(SRCDIR)/scipsdp/\([0-9A-Za-z\_]*\).c|$$\(OBJDIR\)/\2.o: $(SRCDIR)/scipsdp/\2.c|g'\'' \
 		| sed '\''s|^\([0-9A-Za-z\_]\{1,\}\)\.o *: *$(SRCDIR)/sdpi/\([0-9A-Za-z\_]*\).c|$$\(OBJDIR\)/\2.o: $(SRCDIR)/sdpi/\2.c|g'\'' \
 		>>$(MAINDEP)'
