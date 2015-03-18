@@ -81,6 +81,21 @@
                         }                                                                                     \
                         while( FALSE )
 
+#define SCIP_CALL_PARAM(x)   do                                                                               \
+                       {                                                                                      \
+                          SCIP_RETCODE _restat_;                                                              \
+                          if ( (_restat_ = (x)) != SCIP_OKAY )                                                \
+                          {                                                                                   \
+                             if ( _restat_ != SCIP_PARAMETERUNKNOWN )                                         \
+                             {                                                                                \
+                                SCIPerrorMessage("Error <%d> in function call\n", _restat_);                  \
+                                SCIPABORT();                                                                  \
+                             }                                                                                \
+                             return _restat_;                                                                 \
+                           }                                                                                  \
+                       }                                                                                      \
+                       while( FALSE )
+
 struct SCIP_SDPi
 {
    SCIP_SDPISOLVER*      sdpisolver;         /**< pointer to the interface for the SDP Solver */
@@ -125,6 +140,7 @@ struct SCIP_SDPi
    int                   solved;             /**< was the problem solved since the last change */
    int                   sdpid;              /**< counter for the number of SDPs solved */
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
+   SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
 };
 
 /*
@@ -3140,14 +3156,22 @@ SCIP_RETCODE SCIPsdpiGetRealpar(
       *dval = sdpi->epsilon;
       break;
    case SCIP_SDPPAR_FEASTOL:
-      SCIP_CALL( SCIPsdpiSolverGetRealpar(sdpi->sdpisolver, type, dval) );
+      *dval = sdpi->feastol;
       break;
    case SCIP_SDPPAR_OBJLIMIT:
-      SCIP_CALL( SCIPsdpiSolverGetRealpar(sdpi->sdpisolver, type, dval) );
+      SCIP_CALL_PARAM( SCIPsdpiSolverGetRealpar(sdpi->sdpisolver, type, dval) );
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;
    }
+
+#ifndef NDEBUG
+   {
+      SCIP_Real val;
+      SCIP_CALL_PARAM( SCIPsdpiSolverGetRealpar(sdpi->sdpisolver, type, &val) );
+      assert( REALABS(*dval - val) < sdpi->epsilon );
+   }
+#endif
 
    return SCIP_OKAY;
 }
@@ -3166,17 +3190,26 @@ SCIP_RETCODE SCIPsdpiSetRealpar(
    {
    case SCIP_SDPPAR_EPSILON:
       sdpi->epsilon = dval;
-      SCIP_CALL( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
+      SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
       break;
    case SCIP_SDPPAR_FEASTOL:
-      SCIP_CALL( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
+      sdpi->feastol = dval;
+      SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
       break;
    case SCIP_SDPPAR_OBJLIMIT:
-      SCIP_CALL( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
+      SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;
    }
+
+#ifndef NDEBUG
+   {
+      SCIP_Real val;
+      SCIP_CALL_PARAM( SCIPsdpiSolverGetRealpar(sdpi->sdpisolver, type, &val) );
+      assert( REALABS(dval - val) < sdpi->epsilon );
+   }
+#endif
 
    return SCIP_OKAY;
 }
@@ -3195,11 +3228,19 @@ SCIP_RETCODE SCIPsdpiGetIntpar(
    switch( type )
    {
    case SCIP_SDPPAR_THREADS:
-      SCIP_CALL( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, ival) );
+      SCIP_CALL_PARAM( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, ival) );
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;
    }
+
+#ifndef NDEBUG
+   {
+      int val;
+      SCIP_CALL_PARAM( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, &val) );
+      assert( *ival == val );
+   }
+#endif
 
    return SCIP_OKAY;
 }
@@ -3217,11 +3258,19 @@ SCIP_RETCODE SCIPsdpiSetIntpar(
    switch( type )
    {
    case SCIP_SDPPAR_THREADS:
-      SCIP_CALL( SCIPsdpiSolverSetIntpar(sdpi->sdpisolver, type, ival) );
+      SCIP_CALL_PARAM( SCIPsdpiSolverSetIntpar(sdpi->sdpisolver, type, ival) );
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;
    }
+
+#ifndef NDEBUG
+   {
+      int val;
+      SCIP_CALL_PARAM( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, &val) );
+      assert( ival == val);
+   }
+#endif
 
    return SCIP_OKAY;
 }
