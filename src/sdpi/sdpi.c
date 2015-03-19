@@ -442,9 +442,9 @@ SCIP_RETCODE computeLpRhsAfterFixings(
 
    assert( sdpi != NULL );
    assert( nactivelpcons != NULL );
-   assert( *nactivelpcons == 0 || lprhsafterfix != NULL );
-   assert( *nactivelpcons == 0 || rownactivevars != NULL );
-   assert( *nactivelpcons == 0 || fixingsfound != NULL );
+   assert( sdpi->nlpcons == 0 || lprhsafterfix != NULL );
+   assert( sdpi->nlpcons == 0 || rownactivevars != NULL );
+   assert( sdpi->nlpcons == 0 || fixingsfound != NULL );
 
    if ( sdpi->sdpid == 15 )
    {
@@ -475,9 +475,10 @@ SCIP_RETCODE computeLpRhsAfterFixings(
          {
             assert( 0 <= nonzind && nonzind < sdpi->nvars );
             nonzval = sdpi->lpval[nonzind];
+            assert( REALABS(nonzval) > sdpi->epsilon );
 
             /* we have to check if this is an improvement of the current bound */
-            if ( nonzval < 0 ) /* we have to compare with the upper bound */
+            if ( nonzval < 0.0 ) /* we have to compare with the upper bound */
             {
                if ( (lprhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzind] - sdpi->feastol )
                {
@@ -487,7 +488,7 @@ SCIP_RETCODE computeLpRhsAfterFixings(
                   sdpi->ub[nonzind] = lprhsafterfix[*nactivelpcons] / nonzval;
 
                   /* check this lead to a fixing of this variable */
-                  if ( REALABS( sdpi->lb[nonzind] - sdpi->ub[nonzind]) < sdpi->feastol )
+                  if ( REALABS(sdpi->lb[nonzind] - sdpi->ub[nonzind]) < sdpi->feastol )
                   {
                      *fixingsfound = TRUE;
                      SCIPdebugMessage("computeLpRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
@@ -506,7 +507,7 @@ SCIP_RETCODE computeLpRhsAfterFixings(
                   sdpi->lb[nonzind] = lprhsafterfix[*nactivelpcons] / nonzval;
 
                   /* check this lead to a fixing of this variable */
-                  if ( REALABS( sdpi->lb[nonzind] - sdpi->ub[nonzind]) < sdpi->feastol )
+                  if ( REALABS(sdpi->lb[nonzind] - sdpi->ub[nonzind]) < sdpi->feastol )
                   {
                      *fixingsfound = TRUE;
                      SCIPdebugMessage("computeLpRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
@@ -2904,7 +2905,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    }
    else
    {
-      SCIPerrorMessage("penalty formulation not yet supported for this solver");
+      SCIPerrorMessage("penalty formulation not yet supported for this solver\n");
       return SCIP_ERROR;
    }
 
