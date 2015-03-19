@@ -351,8 +351,7 @@ SCIP_RETCODE putLpDataInInterface(
             val[nnonz] = rowvals[j];
             nnonz++;
          }
-         rhs[nconss] = sciplhs;
-         nconss++;
+         rhs[nconss++] = sciplhs;
       }
 
       /* add -row >= -rhs if rhs is finite */
@@ -365,8 +364,7 @@ SCIP_RETCODE putLpDataInInterface(
             val[nnonz] = -rowvals[j];
             nnonz++;
          }
-         rhs[nconss] = -sciprhs;
-         nconss++;
+         rhs[nconss++] = -sciprhs;
       }
    }
 
