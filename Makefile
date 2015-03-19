@@ -92,7 +92,7 @@ endif
 
 SDPIOPTIONS	+=	sdpa
 ifeq ($(SDPS),sdpa)
-SDPILIB		=      -L$(SDPA_LIB_DIR) -llapack -lsdpa $(SDPA_LDFLAGS)
+SDPILIB		=      -L$(SDPA_LIB_DIR) -lsdpa $(SDPA_LDFLAGS)
 SDPIINC		=      -I$(SDPA_INCLUDE_DIR) $(SDPA_FLAGS)
 SDPICCSRC 	= 	src/sdpi/sdpisolver_sdpa.cpp
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o
