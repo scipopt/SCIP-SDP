@@ -337,7 +337,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 
    checkinput = FALSE;
 
-#ifndef NDEBUG
+#ifndef SCIP_DEBUG
    sdpisolver->infeasible = FALSE;
    checkinput = TRUE;
 #endif
@@ -416,9 +416,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
          (sdpisolver->nvarbounds)++;
       }
    }
-
-   /* initialize settings */
-   sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_DEFAULT);
 
    /* set settings */
    sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->epsilon);
@@ -515,10 +512,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 
                   /* rows and columns start with one in SDPA, so we have to add 1 to the indices */
                   SCIPdebugMessage("         -> adding nonzero %g at (%d,%d) (%d)\n", sdpval[block][blockvar][k],
-                        sdprow[block][blockvar][k] - indchanges[block][sdprow[block][blockvar][k]] + 1, sdpcol[block][blockvar][k] - indchanges[block][sdpcol[block][blockvar][k]] + 1,
-                        sdpisolver->sdpcounter);
+                     sdprow[block][blockvar][k] - indchanges[block][sdprow[block][blockvar][k]] + 1, sdpcol[block][blockvar][k] - indchanges[block][sdpcol[block][blockvar][k]] + 1,
+                     sdpisolver->sdpcounter);
                   sdpisolver->sdpa->inputElement(i + 1, block + 1, sdprow[block][blockvar][k] - indchanges[block][sdprow[block][blockvar][k]] + 1,
-                        sdpcol[block][blockvar][k] - indchanges[block][sdpcol[block][blockvar][k]] + 1, sdpval[block][blockvar][k], checkinput);
+                     sdpcol[block][blockvar][k] - indchanges[block][sdpcol[block][blockvar][k]] + 1, sdpval[block][blockvar][k], checkinput);
                }
             }
          }
@@ -547,6 +544,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 
             assert (0 <= sdpconstrow[block][k] && sdpconstrow[block][k] < sdpblocksizes[block]);
             assert (0 <= sdpconstcol[block][k] && sdpconstcol[block][k] < sdpblocksizes[block]);
+
+            //            assert( sdpconstrow[block][k] - indchanges[block][sdpconstrow[block][k]] + 1 <= sdpconstcol[block][k] - indchanges[block][sdpconstcol[block][k]] + 1 );
 
             /* rows and columns start with one in SDPA, so we have to add 1 to the indices, the constant matrix is given as variable 0 */
             SCIPdebugMessage("         -> adding constant nonzero %g at (%d,%d) (%d)\n", sdpconstval[block][k],
@@ -588,7 +587,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
          }
       }
    }
-
    assert( lpconsind == nlpcons ); /* this is equal, because we number from one to nlpcons in sdpa */
 
    /* inserting LP right-hand-sides */
@@ -601,6 +599,36 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
          sdpisolver->sdpa->inputElement(0, nsdpblocks + 1, i + 1, i + 1, lprhs[i], checkinput);
       }
    }
+
+#ifdef SCIP_DEBUG
+   lpconsind = 0;
+   lastrow = -1; /* this together means, that we start numbering the rows at one, like sdpa wants it */
+   for (i = 0; i < lpnnonz; i++)
+   {
+      assert( 0 <= lprow[i] ); /* we don't check against an upper bound as we only now the number of active lpcons, not all */
+      assert( 0 <= lpcol[i] && lpcol[i] < nvars );
+      assert( REALABS(lpval[i]) > sdpisolver->epsilon );
+
+      /* if the variable is active and the constraint is more than a bound, we add it */
+      if ( sdpisolver->inputtosdpamapper[lpcol[i]] > 0 )
+      {
+         printf("+ %f <x%d> ", lpval[i], lpcol[i]);
+    	 /* as this is an active variable, there should be at least one in the constraint */
+         assert( lprownactivevars[lprow[i]] > 0 );
+         if ( lprownactivevars[lprow[i]] > 1 )
+         {
+            if ( lprow[i] > lastrow )	/* we update the lpcons-counter */
+            {
+               printf(" >= %f\n", lprhs[lpconsind]);
+               lpconsind++;
+               lastrow = lprow[i];
+            }
+         }
+      }
+   }
+   printf(" >= %f\n", lprhs[lpconsind]);
+   assert( lpconsind == nlpcons ); /* this is equal, because we number from one to nlpcons in sdpa */
+#endif
 
    /* insert variable bounds, these are also added as LP-constraints and therefore diagonal entries of the LP block */
    for (i = 0; i < sdpisolver->nvarbounds; i++)
@@ -677,10 +705,17 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
          sdpisolver->sdpa->inputInitXVec(i, start[sdpisolver->sdpatoinputmapper[i] - 1]);
    }
 
+   /* initialize settings */
+   sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_UNSTABLE_BUT_FAST);
+   sdpisolver->sdpa->setParameterLowerBound(-1e20);
+
+   /* sdpisolver->sdpa->setParameterLambdaStar(1e5); */
+
    /* set the objective limit */
    if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
       sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
-   /* sdpisolver->sdpa->setParameterUpperBound(1e10); */
+   else
+      sdpisolver->sdpa->setParameterUpperBound(1e20);
 
    /* set number of threads */
    char str[1024];
@@ -694,20 +729,30 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 
    SCIPdebugMessage("Calling SDPA solve (SDP: %d, threads: %lld)\n", sdpisolver->sdpcounter, sdpisolver->sdpa->getNumThreads());
    sdpisolver->sdpa->solve();
+   sdpisolver->solved = TRUE;
 
    /* check whether problem has been stably solved */
-   SDPA::PhaseType phasetype = sdpisolver->sdpa->getPhaseValue();
-
-   if ( phasetype != SDPA::pdOPT )
+   if ( ! SCIPsdpiSolverIsAcceptable(sdpisolver) )
    {
       SCIPdebugMessage("Numerical troubles -- solving SDP %d again ...\n", sdpisolver->sdpcounter);
+      printf("Numerical troubles -- solving SDP %d again ...\n", sdpisolver->sdpcounter);
 
       /* initialize settings */
-      sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_STABLE_BUT_SLOW);
+      sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_DEFAULT);
       sdpisolver->sdpa->solve();
-   }
+      sdpisolver->solved = TRUE;
 
-   sdpisolver->solved = TRUE;
+      if ( ! SCIPsdpiSolverIsAcceptable(sdpisolver) )
+      {
+         SCIPdebugMessage("Numerical troubles -- solving SDP %d again^2 ...\n", sdpisolver->sdpcounter);
+         printf("Numerical troubles -- solving SDP %d again^2 ...\n", sdpisolver->sdpcounter);
+
+         /* initialize settings */
+         sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_STABLE_BUT_SLOW);
+         sdpisolver->sdpa->solve();
+         sdpisolver->solved = TRUE;
+      }
+   }
 
 #ifdef SCIP_DEBUG
    /* print the phase value , i.e. whether solving was successfull */
@@ -784,7 +829,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_Real*            start               /**< NULL or a starting point for the solver, this should have length nvars */
 ) //TODO: start needs to include X,y,Z for SDPA
 {
-   SCIPerrorMessage("SCIPsdpiSolverLoadAndSolveWithPenalty is not implemented for SDP\nDid you not try SCIPsdpiSolverKnowsPenalty() before calling it? ");
+   SCIPerrorMessage("SCIPsdpiSolverLoadAndSolveWithPenalty is not implemented for SDP\nDid you not try SCIPsdpiSolverKnowsPenalty() before calling it?\n");
    return SCIP_ERROR;
 }
 
@@ -1208,7 +1253,7 @@ SCIP_Bool SCIPsdpiSolverIsConverged(
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
-   if ( phasetype == SDPA::pdOPT || phasetype == SDPA::pdINF || phasetype == SDPA::pFEAS_dINF || phasetype == SDPA::pINF_dFEAS )
+   if ( phasetype == SDPA::pdOPT || phasetype == SDPA::pFEAS_dINF || phasetype == SDPA::pINF_dFEAS )
       return TRUE;
 
    return FALSE;
@@ -1372,8 +1417,6 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
       double pobj;
       double dobj;
       double gap;
-
-      printf("Numerical Trouble in SDPA!\n");
 
       /* if it didn't converge check the optimality gap */
       pobj = sdpisolver->sdpa->getDualObj();
