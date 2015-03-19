@@ -422,159 +422,165 @@ SCIP_RETCODE findEmptyRowColsSDP(
  *  may be removed and computes the LP-right-hand-sides after including all locally fixed variables
  *  for all constraints with at least two remaining active variables
  */
+static
 SCIP_RETCODE computeLpRhsAfterFixings(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP interface structure */
-   int*					 nactivelpcons,      /**< output: number of active LP-constraints */
-   SCIP_Real*			 lprhsafterfix,	   	 /**< output: first nlpcons (output) entries give right-hand sides of
-   	   	   	   	   	   	   	   	   	   	   	   *  		  active lp-constraints after fixing variables, these are
-   	   	   	   	   	   	   	   	   	   	   	   *  		  in the same relative order as before (with non-active rows
-   	   	   	   	   	   	   	   	   	   	   	   *  		  removed) */
-   int*					 rownactivevars,	 /**< output: number of active variable for every row */
-   SCIP_Bool*			 fixingsfound		 /**< output: return true, if a variable was fixed in this function */
+   int*			 nactivelpcons,      /**< output: number of active LP-constraints */
+   SCIP_Real*		 lprhsafterfix,	     /**< output: first nlpcons (output) entries give right-hand sides of
+                                              *  		  active lp-constraints after fixing variables, these are
+                                              *  		  in the same relative order as before (with non-active rows
+                                              *  		  removed) */
+   int*			 rownactivevars,     /**< output: number of active variable for every row */
+   SCIP_Bool*		 fixingsfound	     /**< output: return true, if a variable was fixed in this function */
    )
 {
-	int i;
-	int c;
-	int lastrow;
-	int nactiverows;
-	int nonzind;
+   int i;
+   int c;
+   int lastrow = -1;
+   int nonzind = -1;
+   int nonzval;
 
-	if ( *nlpcons == 0 )
-		return SCIP_OKAY;
-	if ( lpnnonz == 0 )
-	{
-		*nlpcons = 0;
-		return SCIP_OKAY;
-	}
+   assert( sdpi != NULL );
+   assert( nactivelpcons != NULL );
+   assert( *nactivelpcons == 0 || lprhsafterfix != NULL );
+   assert( *nactivelpcons == 0 || rownactivevars != NULL );
+   assert( *nactivelpcons == 0 || fixingsfound != NULL );
 
-	assert( sdpi != NULL );
-	assert( nactivelpcons != NULL );
-	assert( lprhsafterfix != NULL );
-	assert( rownactivevars != NULL );
-	assert( fixingsfound != NULL );
+   if ( sdpi->sdpid == 15 )
+   {
+      printf("Debug!\n");
+   }
 
-	/* initialize rownactivevars */
-	for (c = 0; c < nlpcons; v++)
-		rownactivevars[c] = 0;
-	nactivelpcons = 0;
+   if ( sdpi->nlpcons == 0 )
+      return SCIP_OKAY;
+   if ( sdpi->lpnnonz == 0 )
+   {
+      *nactivelpcons = 0;
+      return SCIP_OKAY;
+   }
 
-	for (i = 0; i < sdpi->lpnnonz; i++)
-	{
-		if (sdpi->lprow[i] > lastrow)
-		{
-			/* if the last row had at least two active variables, we keep the rhs-value */
-			if (rownactivevars[lastrow] > 1)
-				nactivelpcons++;
-			else if (rownactivevars[lastrow] == 1)
-			{
-				/* we have to check if this is an improvement of the current bound */
-				if ( sdpi->lpval[nonzind] < 0 ) /* we have to compare with the upper bound */
-				{
-				   if ( (lprhsafterfix[nactivelpcons] / nonzval) < sdpi->ub[nonzind] - sdpi->feastol )
-				   {
-					   /* this bound is sharper than the original one */
-				       SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
-				                  "(originally %f)\n", lastrow, sdpi->sdpid, nonzind, lprhsafterfix[nactivelpcons] / nonzval,
-				                  sdpi->ub[nonzind]);
-					   sdpi->ub[nonzind] = lprhsafterfix[nactivelpcons] / nonzval;
+   /* initialize rownactivevars */
+   for (c = 0; c < sdpi->nlpcons; c++)
+      rownactivevars[c] = 0;
+   *nactivelpcons = 0;
 
-					   /* check this lead to a fixing of this variable */
-					   if ( REALABS( sdpi->lb[nonzind] - sdpi->ub[nonzind]) < sdpi->feastol )
-					   {
-						   *fixingsfound = TRUE;
-						   SCIPdebugMessage("computeLpRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
-								   nonzind, sdpi->lb[nonzind], sdpi->sdpid);
-					   }
-				    }
-				}
-				else	/* we compare with the lower bound */
-				{
-				   if ( (lprhsafterfix[nactivelpcons] / nonzval) > sdpi->lb[nonzind] + sdpi->feastol )
-				   {
-					   /* this bound is sharper than the original one */
-				       SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
-				                  "(originally %f)\n", lastrow, sdpi->sdpid, nonzind, lprhsafterfix[nactivelpcons] / nonzval,
-				                  sdpi->lb[nonzind]);
-					   sdpi->lb[nonzind] = lprhsafterfix[nactivelpcons] / nonzval;
+   for (i = 0; i < sdpi->lpnnonz; i++)
+   {
+      if ( sdpi->lprow[i] > lastrow )
+      {
+         /* if the last row had at least two active variables, we keep the rhs-value */
+         if ( lastrow >= 0 && rownactivevars[lastrow] > 1 )
+            (*nactivelpcons)++;
+         else if ( lastrow >= 0 && rownactivevars[lastrow] == 1 )
+         {
+            assert( 0 <= nonzind && nonzind < sdpi->nvars );
+            nonzval = sdpi->lpval[nonzind];
 
-					   /* check this lead to a fixing of this variable */
-					   if ( REALABS( sdpi->lb[nonzind] - sdpi->ub[nonzind]) < sdpi->feastol )
-					   {
-						   *fixingsfound = TRUE;
-						   SCIPdebugMessage("computeLpRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
-								   nonzind, sdpi->lb[nonzind], sdpi->sdpid);
-					   }
-				    }
-				}
-			}
+            /* we have to check if this is an improvement of the current bound */
+            if ( nonzval < 0 ) /* we have to compare with the upper bound */
+            {
+               if ( (lprhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzind] - sdpi->feastol )
+               {
+                  /* this bound is sharper than the original one */
+                  SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
+                     "(originally %f)\n", lastrow, sdpi->sdpid, nonzind, lprhsafterfix[*nactivelpcons] / nonzval, sdpi->ub[nonzind]);
+                  sdpi->ub[nonzind] = lprhsafterfix[*nactivelpcons] / nonzval;
 
-			/* update lastrow */
-			lastrow = sdpi->lprow[i];
+                  /* check this lead to a fixing of this variable */
+                  if ( REALABS( sdpi->lb[nonzind] - sdpi->ub[nonzind]) < sdpi->feastol )
+                  {
+                     *fixingsfound = TRUE;
+                     SCIPdebugMessage("computeLpRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
+                        nonzind, sdpi->lb[nonzind], sdpi->sdpid);
+                  }
+               }
+            }
+            else	/* we compare with the lower bound */
+            {
+               if ( (lprhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzind] + sdpi->feastol )
+               {
+                  /* this bound is sharper than the original one */
+                  SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
+                     "(originally %f)\n", lastrow, sdpi->sdpid, nonzind, lprhsafterfix[*nactivelpcons] / nonzval,
+                     sdpi->lb[nonzind]);
+                  sdpi->lb[nonzind] = lprhsafterfix[*nactivelpcons] / nonzval;
 
-			/* start the rhs with the original value */
-			lprhsafterfix[nactiverows] = sdpi->lprhs[lastrow];
-		}
+                  /* check this lead to a fixing of this variable */
+                  if ( REALABS( sdpi->lb[nonzind] - sdpi->ub[nonzind]) < sdpi->feastol )
+                  {
+                     *fixingsfound = TRUE;
+                     SCIPdebugMessage("computeLpRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
+                        nonzind, sdpi->lb[nonzind], sdpi->sdpid);
+                  }
+               }
+            }
+         }
 
-		/* if the variable is active, we increase rownactivevars */
-		if ( ! isFixed(sdpi, sdpi->lpcol[i]) )
-		{
-			rownactivevars[lastrow]++;
-			nonzind = sdpi->lpcol[i];
-		}
-		else
-		{
-			/* otherwise we add the value (coefficient * value of fixed variable) to the rhs, the minus comes from +A_i but -A_0 */
-			lprhsafterfix[nactivelpcons] -= sdpi->lpval[i] * sdpi->lb[sdpi->lpcol[i]];
-		}
-	}
+         /* update lastrow */
+         lastrow = sdpi->lprow[i];
 
-	/* for the last row of the lp we have to check if it is active, as in the above for-queue we only do so when the next row start */
-	if (rownactivevars[lastrow] > 1)
-		nactivelpcons++;
-	else if (rownactivevars[lastrow] == 1)
-	{
-		/* we have to check if this is an improvement of the current bound */
-		if ( sdpi->lpval[nonzind] < 0 ) /* we have to compare with the upper bound */
-		{
-		   if ( (lprhsafterfix[nactivelpcons] / nonzval) < sdpi->ub[nonzind] - sdpi->feastol )
-		   {
-			   /* this bound is sharper than the original one */
-		       SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
-		                  "(originally %f)\n", lastrow, sdpi->sdpid, nonzind, lprhsafterfix[nactivelpcons] / nonzval,
-		                  sdpi->ub[nonzind]);
-			   sdpi->ub[nonzind] = lprhsafterfix[nactivelpcons] / nonzval;
+         /* start the rhs with the original value */
+         lprhsafterfix[*nactivelpcons] = sdpi->lprhs[lastrow];
+      }
 
-			   /* check this lead to a fixing of this variable */
-			   if ( REALABS( sdpi->lb[nonzind] - sdpi->ub[nonzind]) < sdpi->feastol )
-			   {
-				   *fixingsfound = TRUE;
-				   SCIPdebugMessage("computeLpRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
-						   nonzind, sdpi->lb[nonzind], sdpi->sdpid);
-			   }
-		    }
-		}
-		else	/* we compare with the lower bound */
-		{
-		   if ( (lprhsafterfix[nactivelpcons] / nonzval) > sdpi->lb[nonzind] + sdpi->feastol )
-		   {
-			   /* this bound is sharper than the original one */
-		       SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
-		                  "(originally %f)\n", lastrow, sdpi->sdpid, nonzind, lprhsafterfix[nactivelpcons] / nonzval,
-		                  sdpi->lb[nonzind]);
-			   sdpi->lb[nonzind] = lprhsafterfix[nactivelpcons] / nonzval;
+      /* if the variable is active, we increase rownactivevars */
+      if ( ! isFixed(sdpi, sdpi->lpcol[i]) )
+      {
+         rownactivevars[lastrow]++;
+         nonzind = sdpi->lpcol[i];
+      }
+      else
+      {
+         /* otherwise we add the value (coefficient * value of fixed variable) to the rhs, the minus comes from +A_i but -A_0 */
+         lprhsafterfix[*nactivelpcons] -= sdpi->lpval[i] * sdpi->lb[sdpi->lpcol[i]];
+      }
+   }
 
-			   /* check this lead to a fixing of this variable */
-			   if ( REALABS( sdpi->lb[nonzind] - sdpi->ub[nonzind]) < sdpi->feastol )
-			   {
-				   *fixingsfound = TRUE;
-				   SCIPdebugMessage("computeLpRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
-						   nonzind, sdpi->lb[nonzind], sdpi->sdpid);
-			   }
-		    }
-		}
-	}
+   /* for the last row of the lp we have to check if it is active, as in the above for-queue we only do so when the next row start */
+   if ( rownactivevars[lastrow] > 1 )
+      (*nactivelpcons)++;
+   else if ( rownactivevars[lastrow] == 1 )
+   {
+      /* we have to check if this is an improvement of the current bound */
+      if ( sdpi->lpval[nonzind] < 0 ) /* we have to compare with the upper bound */
+      {
+         if ( (lprhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzind] - sdpi->feastol )
+         {
+            /* this bound is sharper than the original one */
+            SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
+               "(originally %f)\n", lastrow, sdpi->sdpid, nonzind, lprhsafterfix[*nactivelpcons] / nonzval, sdpi->ub[nonzind]);
+            sdpi->ub[nonzind] = lprhsafterfix[*nactivelpcons] / nonzval;
 
-	return SCIP_OKAY;
+            /* check this lead to a fixing of this variable */
+            if ( REALABS( sdpi->lb[nonzind] - sdpi->ub[nonzind]) < sdpi->feastol )
+            {
+               *fixingsfound = TRUE;
+               SCIPdebugMessage("computeLpRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
+                  nonzind, sdpi->lb[nonzind], sdpi->sdpid);
+            }
+         }
+      }
+      else	/* we compare with the lower bound */
+      {
+         if ( (lprhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzind] + sdpi->feastol )
+         {
+            /* this bound is sharper than the original one */
+            SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
+               "(originally %f)\n", lastrow, sdpi->sdpid, nonzind, lprhsafterfix[*nactivelpcons] / nonzval, sdpi->lb[nonzind]);
+            sdpi->lb[nonzind] = lprhsafterfix[*nactivelpcons] / nonzval;
+
+            /* check this lead to a fixing of this variable */
+            if ( REALABS( sdpi->lb[nonzind] - sdpi->ub[nonzind]) < sdpi->feastol )
+            {
+               *fixingsfound = TRUE;
+               SCIPdebugMessage("computeLpRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
+                  nonzind, sdpi->lb[nonzind], sdpi->sdpid);
+            }
+         }
+      }
+   }
+
+   return SCIP_OKAY;
 }
 
 
@@ -2855,9 +2861,8 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
     * lp rows with a single active variable */
    do
    {
-	   fixingfound = FALSE;
-	   SCIP_CALL( computeLpRhsAfterFixings(sdpi, &nactivelpcons, lprhsafterfix, rownactivevars, &fixingsfound) );
-
+      fixingfound = FALSE;
+      SCIP_CALL( computeLpRhsAfterFixings(sdpi, &nactivelpcons, lprhsafterfix, rowsnactivevars, &fixingfound) );
    }
    while (fixingfound);
 
@@ -2882,20 +2887,20 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    if (penaltyParam < sdpi->epsilon)
    {
          SCIP_CALL( SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
-                                               sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
-                                               sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
-                                               sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-                                               sdpi->sdpval, indchanges, nremovedinds, nactivelpcons, lprhsafterfix, rownactivevars,
-                                               sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start) );
+               sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
+               sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
+               sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
+               sdpi->sdpval, indchanges, nremovedinds, nactivelpcons, lprhsafterfix, rowsnactivevars,
+               sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start) );
    }
    else if ( SCIPsdpiSolverKnowsPenalty() )
    {
       SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, penaltyParam, withObj, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
-                                                       sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
-                                                       sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
-                                                       sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-                                                       sdpi->sdpval, indchanges, nremovedinds, nactivelpcons, lprhsafterfix, rownactivevars,
-                                                       sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start) );
+            sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
+            sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
+            sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
+            sdpi->sdpval, indchanges, nremovedinds, nactivelpcons, lprhsafterfix, rowsnactivevars,
+            sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start) );
    }
    else
    {

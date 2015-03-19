@@ -316,20 +316,19 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
    SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
-   int*					 lprownactivevars,	 /**< number of active variables for each lp constraint */
+   int*			 lprownactivevars,   /**< number of active variables for each lp constraint */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            start               /**< NULL or a starting point for the solver, this should have length nvars */
-)//TODO: start needs to include X,y,Z for SDPA
+   )//TODO: start needs to include X,y,Z for SDPA
 {
+   SCIP_Real* sdpavarbounds;
    int i;
-   int j;
    int k;
    int block;
    int nfixedvars;
-   int pos;
    SCIP_Bool checkinput; /* should the input be checked for consistency in SDPA ? */
    int lpconsind;
    int lastrow;
@@ -450,7 +449,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
       sdpisolver->sdpa->inputBlockSize(block + 1, sdpblocksizes[block] - nremovedinds[block]); /* block+1 because SDPA starts counting at 1 */
       sdpisolver->sdpa->inputBlockType(block + 1, SDPA::SDP);
    }
-   if( lastrow + 1 - nshifts + sdpisolver->nvarbounds > 0 )
+   if( nlpcons + sdpisolver->nvarbounds > 0 )
    {
       sdpisolver->sdpa->inputBlockSize(nsdpblocks + 1, -(nlpcons + sdpisolver->nvarbounds)); /* the last block is the lp block, the size has a negative sign */
       sdpisolver->sdpa->inputBlockType(nsdpblocks + 1, SDPA::LP);
@@ -572,15 +571,17 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
       if ( sdpisolver->inputtosdpamapper[lpcol[i]] > 0 )
       {
     	 /* as this is an active variable, there should be at least one in the constraint */
-         assert( lprownactivevars[lprow[i]] > 0]);
+         assert( lprownactivevars[lprow[i]] > 0 );
          if ( lprownactivevars[lprow[i]] > 1 )
          {
-        	 if ( lprow[i] > lastrow )	/* we update the lpcons-counter */
-        		 lpconsind++;
+            if ( lprow[i] > lastrow )	/* we update the lpcons-counter */
+            {
+               lpconsind++;
+               lastrow = lprow[i];
+            }
 
-        	 SCIPdebugMessage("         -> adding nonzero %g at (%d,%d) for variable %d which became variable %d in SDPA (%d)\n",
-        	   lpval[i], lpconsind, lpconsind,
-               lpcol[i], sdpisolver->inputtosdpamapper[lpcol[i]], sdpisolver->sdpcounter);
+            SCIPdebugMessage("         -> adding nonzero %g at (%d,%d) for variable %d which became variable %d in SDPA (%d)\n",
+               lpval[i], lpconsind, lpconsind, lpcol[i], sdpisolver->inputtosdpamapper[lpcol[i]], sdpisolver->sdpcounter);
          	/* LP nonzeros are added as diagonal entries of the last block (coming after the last SDP-block, with blocks starting at 1, as are rows) */
             sdpisolver->sdpa->inputElement(sdpisolver->inputtosdpamapper[lpcol[i]], nsdpblocks + 1,
                lpconsind, lpconsind, lpval[i], checkinput);
@@ -593,12 +594,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    /* inserting LP right-hand-sides */
    for (i = 0; i < nlpcons; i++)
    {
-      if ( REALABS(sdpalprhs[i]) > sdpisolver->epsilon )
+      if ( REALABS(lprhs[i]) > sdpisolver->epsilon )
       {
-         SCIPdebugMessage("         -> adding rhs %g at (%d,%d) (%d)\n",
-               sdpalprhs[i], i+1, i+1, sdpisolver->sdpcounter);
+         SCIPdebugMessage("         -> adding rhs %g at (%d,%d) (%d)\n", lprhs[i], i+1, i+1, sdpisolver->sdpcounter);
          /* LP constraints are added as diagonal entries of the last block, right-hand-side is added as variable zero */
-         sdpisolver->sdpa->inputElement(0, nsdpblocks + 1, i + 1, i + 1, sdpalprhs[i], checkinput);
+         sdpisolver->sdpa->inputElement(0, nsdpblocks + 1, i + 1, i + 1, lprhs[i], checkinput);
       }
    }
 
