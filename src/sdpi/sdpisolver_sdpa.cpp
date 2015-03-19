@@ -424,7 +424,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    /* set settings */
    sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->epsilon);
    sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->feastol);
-   sdpisolver->sdpa->setParameterGammaStar(0.7);
 
 #ifdef SCIP_DEBUG
    sdpisolver->sdpa->setDisplay(stdout);
@@ -695,6 +694,19 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 
    SCIPdebugMessage("Calling SDPA solve (SDP: %d, threads: %lld)\n", sdpisolver->sdpcounter, sdpisolver->sdpa->getNumThreads());
    sdpisolver->sdpa->solve();
+
+   /* check whether problem has been stably solved */
+   SDPA::PhaseType phasetype = sdpisolver->sdpa->getPhaseValue();
+
+   if ( phasetype != SDPA::pdOPT )
+   {
+      SCIPdebugMessage("Numerical troubles -- solving SDP %d again ...\n", sdpisolver->sdpcounter);
+
+      /* initialize settings */
+      sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_STABLE_BUT_SLOW);
+      sdpisolver->sdpa->solve();
+   }
+
    sdpisolver->solved = TRUE;
 
 #ifdef SCIP_DEBUG
