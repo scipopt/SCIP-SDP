@@ -346,7 +346,9 @@ SCIP_RETCODE putLpDataInInterface(
       sciplhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
       sciprhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
 
+#if 0
       SCIP_CALL( SCIPprintRow(scip, row, NULL) );
+#endif
 
       /* add row >= lhs if lhs is finite */
       if ( sciplhs > -SCIPsdpiInfinity(sdpi) )
@@ -1115,7 +1117,7 @@ SCIP_RETCODE SCIPincludeRelaxSDP(
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/threads", "number of threads used for SDP solving",
          &(relaxdata->threads), TRUE, DEFAULT_THREADS, 1, INT_MAX, NULL, NULL) );
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/sdpinfo", "Should the SDP solver output information to the screen?",
-         &(relaxdata->sdpinfo), TRUE, TRUE, NULL, NULL) );
+         &(relaxdata->sdpinfo), TRUE, FALSE, NULL, NULL) );
 
    /* add description of SDP-solver */
    SCIP_CALL( SCIPincludeExternalCodeInformation(scip, SCIPsdpiGetSolverName(), SCIPsdpiGetSolverDesc()) );
