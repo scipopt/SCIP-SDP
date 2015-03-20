@@ -76,6 +76,7 @@ struct SCIP_RelaxData
    SCIP_Real             sdpsolverfeastol;   /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
    int                   sdpiterations;      /**< saves the total number of sdp-iterations */
    int                   threads;            /**< number of threads used for SDP solving */
+   SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    int                   sdpcalls;           /**< number of solved SDPs (used to compute average SDP iterations) */
 };
 
@@ -334,18 +335,25 @@ SCIP_RETCODE putLpDataInInterface(
 
    for (i = 0; i < nrows; i++)
    {
-      rownnonz = SCIProwGetNNonz(rows[i]);
+      SCIP_ROW* row;
 
-      rowvals = SCIProwGetVals(rows[i]);
-      rowcols = SCIProwGetCols(rows[i]);
-      sciplhs = SCIProwGetLhs(rows[i]) - SCIProwGetConstant(rows[i]);
-      sciprhs = SCIProwGetRhs(rows[i]) - SCIProwGetConstant(rows[i]);
+      row = rows[i];
+      assert( row != 0 );
+      rownnonz = SCIProwGetNNonz(row);
+
+      rowvals = SCIProwGetVals(row);
+      rowcols = SCIProwGetCols(row);
+      sciplhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
+      sciprhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
+
+      SCIP_CALL( SCIPprintRow(scip, row, NULL) );
 
       /* add row >= lhs if lhs is finite */
       if ( sciplhs > -SCIPsdpiInfinity(sdpi) )
       {
          for (j = 0; j < rownnonz; j++)
          {
+            assert( SCIPcolGetVar(rowcols[j]) != 0 );
             colind[nnonz] = SdpVarmapperGetSdpIndex(varmapper, SCIPcolGetVar(rowcols[j]));
             rowind[nnonz] = nconss;
             val[nnonz] = rowvals[j];
@@ -355,10 +363,11 @@ SCIP_RETCODE putLpDataInInterface(
       }
 
       /* add -row >= -rhs if rhs is finite */
-      if (sciprhs < SCIPsdpiInfinity(sdpi))
+      if ( sciprhs < SCIPsdpiInfinity(sdpi) )
       {
          for (j = 0; j < rownnonz; j++)
          {
+            assert( SCIPcolGetVar(rowcols[j]) != 0 );
             colind[nnonz] = SdpVarmapperGetSdpIndex(varmapper, SCIPcolGetVar(rowcols[j]));
             rowind[nnonz] = nconss;
             val[nnonz] = -rowvals[j];
@@ -510,6 +519,8 @@ SCIP_RETCODE calc_relax(
    assert( sdpi != NULL );
    varmapper = relaxdata->varmapper;
    assert( varmapper != NULL );
+
+   SCIP_CALL( SCIPsdpiSetIntpar(sdpi, SCIP_SDPPAR_SDPINFO, relaxdata->sdpinfo) );
 
    if ( withpenalty )
    {
@@ -1103,6 +1114,8 @@ SCIP_RETCODE SCIPincludeRelaxSDP(
          &(relaxdata->sdpsolverfeastol), TRUE, DEFAULT_SDPSOLVERFEASTOL, 1e-17, 0.001, NULL, NULL) );
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/threads", "number of threads used for SDP solving",
          &(relaxdata->threads), TRUE, DEFAULT_THREADS, 1, INT_MAX, NULL, NULL) );
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/sdpinfo", "Should the SDP solver output information to the screen?",
+         &(relaxdata->sdpinfo), TRUE, TRUE, NULL, NULL) );
 
    /* add description of SDP-solver */
    SCIP_CALL( SCIPincludeExternalCodeInformation(scip, SCIPsdpiGetSolverName(), SCIPsdpiGetSolverDesc()) );
