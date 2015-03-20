@@ -406,6 +406,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    }
    for (i = 0; i < sdpisolver->nactivevars; i++)
    {
+      assert( 0 <= sdpisolver->sdpatoinputmapper[i] && sdpisolver->sdpatoinputmapper[i] < nvars );
       if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, lb[sdpisolver->sdpatoinputmapper[i]]))
       {
          sdpavarbounds[sdpisolver->nvarbounds] = lb[sdpisolver->sdpatoinputmapper[i]];
