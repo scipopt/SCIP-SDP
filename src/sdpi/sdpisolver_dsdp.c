@@ -54,7 +54,7 @@
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
 
-/* Calls a DSDP-Function and transforms the return-code to a SCIP_ERROR if needed. */
+/* Calls a DSDP-Function and transforms the return-code to a SCIP_LPERROR if needed. */
 #define DSDP_CALL(x)  do                                                                                     \
                       {                                                                                      \
                          int _dsdperrorcode_;                                                                \
@@ -62,7 +62,7 @@
                          {                                                                                   \
                             SCIPerrorMessage("DSDP-Error <%d> in function call.\n", _dsdperrorcode_);        \
                             SCIPABORT();                                                                     \
-                            return SCIP_ERROR;                                                               \
+                            return SCIP_LPERROR;                                                               \
                          }                                                                                   \
                       }                                                                                      \
                       while( FALSE )
@@ -98,7 +98,7 @@
                          {                                                                                   \
                             SCIPerrorMessage("Tried to access solution information for SDP %d ahead of solving!\n", sdpisolver->sdpcounter);  \
                             SCIPABORT();                                                                     \
-                            return SCIP_ERROR;                                                               \
+                            return SCIP_LPERROR;                                                               \
                          }                                                                                   \
                       }                                                                                      \
                       while( FALSE )
@@ -129,6 +129,7 @@ struct SCIP_SDPiSolver
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
    SCIP_Real             objlimit;           /**< objective limit for SDP solver */
+   SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
 };
 
 
@@ -292,6 +293,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->epsilon = 1e-3;
    (*sdpisolver)->feastol = 1e-6;
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
+   (*sdpisolver)->sdpinfo = FALSE;
 
    return SCIP_OKAY;
 }
@@ -495,10 +497,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    {
       if ( isFixed(sdpisolver, lb[i], ub[i]) )
       {
+         sdpisolver->fixedvarsobj[nfixedvars] = obj[i];
+         sdpisolver->fixedvarsval[nfixedvars] = lb[i]; /* if lb=ub, then this is the value the variable will have in every solution */
          nfixedvars++;
          sdpisolver->inputtodsdpmapper[i] = -nfixedvars;
-         sdpisolver->fixedvarsobj[nfixedvars - 1] = obj[i];
-         sdpisolver->fixedvarsval[nfixedvars - 1] = lb[i]; /* if lb=ub, than this is the value the variable will have in every solution */
       }
       else
       {
@@ -1109,6 +1111,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    SCIPdebugMessage("Calling DSDP-Solve for SDP (%d) \n", sdpisolver->sdpcounter);
 
+   if ( sdpisolver->sdpinfo )
+   {
+      DSDP_CALL( DSDPPrintLogInfo(1) );
+   }
+   else
+   {
+      DSDP_CALL( DSDPPrintLogInfo(0) );
+   }
+
    DSDP_CALL( DSDPSetGapTolerance(sdpisolver->dsdp, sdpisolver->epsilon) );  /* set DSDP's tolerance for duality gap */
    DSDP_CALL( DSDPSetRTolerance(sdpisolver->dsdp, sdpisolver->feastol) );    /* set DSDP's tolerance for the SDP-constraints */
 
@@ -1301,7 +1312,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
    default: /* should only include DSDP_PDUNKNOWN */
       SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible\n");
       SCIPABORT();
-      return SCIP_ERROR;
+      return SCIP_LPERROR;
    }
 
    return SCIP_OKAY;
@@ -1357,7 +1368,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
    {
 /*      SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible");
       SCIPABORT();
-      return SCIP_ERROR;*/
+      return SCIP_LPERROR;*/
       SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible.");
       return FALSE;
    }
@@ -1391,7 +1402,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
    {
 /*      SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible");
       SCIPABORT();
-      return SCIP_ERROR;*/
+      return SCIP_LPERROR;*/
       SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible");
       return FALSE;
    }
@@ -1635,7 +1646,7 @@ SCIP_Bool SCIPsdpiSolverIsTimelimExc(
    )
 {
    SCIPdebugMessage("Not implemented in DSDP!\n");
-   return SCIP_ERROR;
+   return SCIP_LPERROR;
 }
 
 /** returns the internal solution status of the solver
@@ -1757,7 +1768,7 @@ SCIP_RETCODE SCIPsdpiSolverIgnoreInstability(
    )
 {
    SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_ERROR;
+   return SCIP_LPERROR;
 }
 
 /** gets objective value of solution */
@@ -2066,7 +2077,19 @@ SCIP_RETCODE SCIPsdpiSolverGetIntpar(
    int*                  ival                /**< parameter value */
    )
 {
-   return SCIP_PARAMETERUNKNOWN;
+   assert( sdpisolver != NULL );
+
+   switch( type )
+   {
+   case SCIP_SDPPAR_SDPINFO:
+      *ival = sdpisolver->sdpinfo;
+      SCIPdebugMessage("Getting sdpisolver information output (%d).\n", *ival);
+      break;
+   default:
+      return SCIP_PARAMETERUNKNOWN;
+   }
+
+   return SCIP_OKAY;
 }
 
 /** sets integer parameter of SDP */
@@ -2076,7 +2099,19 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
    int                   ival                /**< parameter value */
    )
 {
-   return SCIP_PARAMETERUNKNOWN;
+   assert( sdpisolver != NULL );
+
+   switch( type )
+   {
+   case SCIP_SDPPAR_SDPINFO:
+      sdpisolver->sdpinfo = ival;
+      SCIPdebugMessage("Setting sdpisolver information output (%d).\n", *ival);
+      break;
+   default:
+      return SCIP_PARAMETERUNKNOWN;
+   }
+
+   return SCIP_OKAY;
 }
 
 /**@} */
