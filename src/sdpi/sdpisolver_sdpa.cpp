@@ -71,7 +71,7 @@
                          {                                                                                   \
                             SCIPerrorMessage("Tried to access solution information for SDP %d ahead of solving!\n", sdpisolver->sdpcounter);  \
                             SCIPABORT();                                                                     \
-                            return SCIP_ERROR;                                                               \
+                            return SCIP_LPERROR;                                                               \
                          }                                                                                   \
                       }                                                                                      \
                       while( FALSE )
@@ -103,6 +103,7 @@ struct SCIP_SDPiSolver
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
    SCIP_Real             objlimit;           /**< objective limit for SDP solver */
    int                   threads;            /**< number of threads */
+   SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
 };
 
 
@@ -221,6 +222,8 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->epsilon = 1e-3;
    (*sdpisolver)->feastol = 1e-6;
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
+   (*sdpisolver)->threads = 1;
+   (*sdpisolver)->sdpinfo = FALSE;
 
    return SCIP_OKAY;
 }
@@ -357,10 +360,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    {
       if ( isFixed(sdpisolver, lb[i], ub[i]) )
       {
+         sdpisolver->fixedvarsobj[nfixedvars] = obj[i];
+         sdpisolver->fixedvarsval[nfixedvars] = lb[i]; /* if lb=ub, than this is the value the variable will have in every solution */
          nfixedvars++;
          sdpisolver->inputtosdpamapper[i] = -nfixedvars;
-         sdpisolver->fixedvarsobj[nfixedvars - 1] = obj[i];
-         sdpisolver->fixedvarsval[nfixedvars - 1] = lb[i]; /* if lb=ub, than this is the value the variable will have in every solution */
       }
       else
       {
@@ -379,7 +382,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    /* insert data */
    SCIPdebugMessage("Inserting Data into SDPA for SDP (%d) \n", ++sdpisolver->sdpcounter);
 
-   if( sdpisolver->sdpa != 0 )
+   if ( sdpisolver->sdpa != 0 )
    {
       /* if the SDPA solver has already been created, clear the current problem instance */
       //sdpisolver->sdpa->terminate();
@@ -421,11 +424,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->epsilon);
    sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->feastol);
 
-#ifdef SCIP_DEBUG
-   sdpisolver->sdpa->setDisplay(stdout);
+   if ( sdpisolver->sdpinfo )
+      sdpisolver->sdpa->setDisplay(stdout);
+   else
+      sdpisolver->sdpa->setDisplay(0);
 
-   FILE* fpOut;
-   fpOut = fopen("output.tmp", "w");
+#ifdef SCIP_DEBUG
+   FILE* fpOut = fopen("output.tmp", "w");
    if ( ! fpOut )
       exit(-1);
    sdpisolver->sdpa->setResultFile(fpOut);
@@ -439,16 +444,19 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    /* initialize blockstruct */
    sdpisolver->sdpa->inputConstraintNumber(sdpisolver->nactivevars);
    /* if there are any lp-cons/variable-bounds, we get an extra block for those, lastrow - nshifts is the number of lp constraints added */
+
    sdpisolver->sdpa->inputBlockNumber( (nlpcons + sdpisolver->nvarbounds > 0) ? nsdpblocks + 1 : nsdpblocks);
 
+   /* block+1 because SDPA starts counting at 1 */
    for (block = 0; block < nsdpblocks; block++)
    {
-      sdpisolver->sdpa->inputBlockSize(block + 1, sdpblocksizes[block] - nremovedinds[block]); /* block+1 because SDPA starts counting at 1 */
+      sdpisolver->sdpa->inputBlockSize(block + 1, sdpblocksizes[block] - nremovedinds[block]);
       sdpisolver->sdpa->inputBlockType(block + 1, SDPA::SDP);
    }
-   if( nlpcons + sdpisolver->nvarbounds > 0 )
+   if ( nlpcons + sdpisolver->nvarbounds > 0 )
    {
-      sdpisolver->sdpa->inputBlockSize(nsdpblocks + 1, -(nlpcons + sdpisolver->nvarbounds)); /* the last block is the lp block, the size has a negative sign */
+      /* the last block is the lp block, the size has a negative sign */
+      sdpisolver->sdpa->inputBlockSize(nsdpblocks + 1, -(nlpcons + sdpisolver->nvarbounds));
       sdpisolver->sdpa->inputBlockType(nsdpblocks + 1, SDPA::LP);
    }
    sdpisolver->sdpa->initializeUpperTriangleSpace();
@@ -511,11 +519,16 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
                   assert( 0 <= sdpcol[block][blockvar][k] && sdpcol[block][blockvar][k] < sdpblocksizes[block] );
 
                   /* rows and columns start with one in SDPA, so we have to add 1 to the indices */
-                  SCIPdebugMessage("         -> adding nonzero %g at (%d,%d) (%d)\n", sdpval[block][blockvar][k],
-                     sdprow[block][blockvar][k] - indchanges[block][sdprow[block][blockvar][k]] + 1, sdpcol[block][blockvar][k] - indchanges[block][sdpcol[block][blockvar][k]] + 1,
+                  SCIPdebugMessage("         -> adding nonzero %g at (%d,%d) (%d)\n",
+                     sdpval[block][blockvar][k],
+                     sdpcol[block][blockvar][k] - indchanges[block][sdpcol[block][blockvar][k]] + 1,
+                     sdprow[block][blockvar][k] - indchanges[block][sdprow[block][blockvar][k]] + 1,
                      sdpisolver->sdpcounter);
-                  sdpisolver->sdpa->inputElement(i + 1, block + 1, sdprow[block][blockvar][k] - indchanges[block][sdprow[block][blockvar][k]] + 1,
-                     sdpcol[block][blockvar][k] - indchanges[block][sdpcol[block][blockvar][k]] + 1, sdpval[block][blockvar][k], checkinput);
+
+                  sdpisolver->sdpa->inputElement(i + 1, block + 1,
+                     sdpcol[block][blockvar][k] - indchanges[block][sdpcol[block][blockvar][k]] + 1,
+                     sdprow[block][blockvar][k] - indchanges[block][sdprow[block][blockvar][k]] + 1,
+                     sdpval[block][blockvar][k], checkinput);
                }
             }
          }
@@ -545,14 +558,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
             assert (0 <= sdpconstrow[block][k] && sdpconstrow[block][k] < sdpblocksizes[block]);
             assert (0 <= sdpconstcol[block][k] && sdpconstcol[block][k] < sdpblocksizes[block]);
 
-            //            assert( sdpconstrow[block][k] - indchanges[block][sdpconstrow[block][k]] + 1 <= sdpconstcol[block][k] - indchanges[block][sdpconstcol[block][k]] + 1 );
-
             /* rows and columns start with one in SDPA, so we have to add 1 to the indices, the constant matrix is given as variable 0 */
             SCIPdebugMessage("         -> adding constant nonzero %g at (%d,%d) (%d)\n", sdpconstval[block][k],
-                  sdpconstrow[block][k] - indchanges[block][sdpconstrow[block][k]] + 1, sdpconstcol[block][k] - indchanges[block][sdpconstcol[block][k]] + 1,
-                  sdpisolver->sdpcounter);
-            sdpisolver->sdpa->inputElement(0, block + 1, sdpconstrow[block][k] - indchanges[block][sdpconstrow[block][k]] + 1,
-                  sdpconstcol[block][k] - indchanges[block][sdpconstcol[block][k]] + 1, sdpconstval[block][k], checkinput);
+               sdpconstcol[block][k] - indchanges[block][sdpconstcol[block][k]] + 1,
+               sdpconstrow[block][k] - indchanges[block][sdpconstrow[block][k]] + 1,
+               sdpisolver->sdpcounter);
+            sdpisolver->sdpa->inputElement(0, block + 1,
+               sdpconstcol[block][k] - indchanges[block][sdpconstcol[block][k]] + 1,
+               sdpconstrow[block][k] - indchanges[block][sdpconstrow[block][k]] + 1,
+               sdpconstval[block][k], checkinput);
          }
       }
    }
@@ -724,7 +738,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    if ( status )
    {
       SCIPdebugMessage("Setting the number of threads failed (%d, %d).\n", status, errno);
-      return SCIP_ERROR;
+      return SCIP_LPERROR;
    }
 
    SCIPdebugMessage("Calling SDPA solve (SDP: %d, threads: %lld)\n", sdpisolver->sdpcounter, sdpisolver->sdpa->getNumThreads());
@@ -830,7 +844,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 ) //TODO: start needs to include X,y,Z for SDPA
 {
    SCIPerrorMessage("SCIPsdpiSolverLoadAndSolveWithPenalty is not implemented for SDP\nDid you not try SCIPsdpiSolverKnowsPenalty() before calling it?\n");
-   return SCIP_ERROR;
+   return SCIP_LPERROR;
 }
 
 /**@} */
@@ -946,7 +960,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
    default: /* contains noInfo, pFeas, dFeas, pdInf */
       SCIPerrorMessage("SDPA doesn't know if primal and dual solutions are feasible\n");
       SCIPABORT();
-      return SCIP_ERROR;
+      return SCIP_LPERROR;
    }
 
    return SCIP_OKAY;
@@ -1322,7 +1336,7 @@ SCIP_Bool SCIPsdpiSolverIsTimelimExc(
    )
 {
    SCIPdebugMessage("Not implemented in SDPA!\n");
-   return SCIP_ERROR;
+   return SCIP_LPERROR;
 }
 
 /** returns the internal solution status of the solver, which has the following meaning:
@@ -1441,7 +1455,7 @@ SCIP_RETCODE SCIPsdpiSolverIgnoreInstability(
    SCIPdebugMessage("Not implemented yet\n");
 
    /* todo: change settings to stable */
-   return SCIP_ERROR;
+   return SCIP_LPERROR;
 }
 
 /** gets objective value of solution */
@@ -1789,6 +1803,10 @@ SCIP_RETCODE SCIPsdpiSolverGetIntpar(
       *ival = sdpisolver->threads;
       SCIPdebugMessage("Getting sdpisolver number of threads: %d.\n", *ival);
       break;
+   case SCIP_SDPPAR_SDPINFO:
+      *ival = sdpisolver->sdpinfo;
+      SCIPdebugMessage("Getting sdpisolver information output (%d).\n", *ival);
+      break;
    default:
       return SCIP_PARAMETERUNKNOWN;
    }
@@ -1810,6 +1828,10 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
    case SCIP_SDPPAR_THREADS:
       sdpisolver->threads = ival;
       SCIPdebugMessage("Setting sdpisolver number of threads to %d.\n", ival);
+      break;
+   case SCIP_SDPPAR_SDPINFO:
+      sdpisolver->sdpinfo = ival;
+      SCIPdebugMessage("Setting sdpisolver information output (%d).\n", ival);
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;
