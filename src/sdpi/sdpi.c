@@ -481,7 +481,7 @@ SCIP_RETCODE computeLpRhsAfterFixings(
             /* we have to check if this is an improvement of the current bound */
             if ( nonzval < 0.0 ) /* we have to compare with the upper bound */
             {
-               if ( (lprhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzind] - sdpi->feastol )
+               if ( (lprhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->feastol )
                {
                   /* this bound is sharper than the original one */
                   SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
@@ -493,7 +493,7 @@ SCIP_RETCODE computeLpRhsAfterFixings(
                   {
                      *fixingsfound = TRUE;
                      SCIPdebugMessage("computeLpRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
-                        nonzind, sdpi->lb[nonzcol], sdpi->sdpid);
+                        nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
                   }
                }
             }
