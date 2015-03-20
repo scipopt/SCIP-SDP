@@ -33,10 +33,11 @@ extern "C" {
 /** SDP solver parameters */
 enum SCIP_SDPParam
 {
-   SCIP_SDPPAR_EPSILON       = 0,      /* convergence tolerance */
-   SCIP_SDPPAR_FEASTOL       = 1,      /* feasibility tolerance */
-   SCIP_SDPPAR_OBJLIMIT      = 2,      /* objective limit, if the SDP solver computes a lower bound for the minimzation problem that is bigger than this, it may stop */
-   SCIP_SDPPAR_THREADS       = 3       /* numer of threads */
+   SCIP_SDPPAR_EPSILON       = 0,      /**< convergence tolerance */
+   SCIP_SDPPAR_FEASTOL       = 1,      /**< feasibility tolerance */
+   SCIP_SDPPAR_OBJLIMIT      = 2,      /**< objective limit, if the SDP solver computes a lower bound for the minimzation problem that is bigger than this, it may stop */
+   SCIP_SDPPAR_THREADS       = 3,      /**< numer of threads */
+   SCIP_SDPPAR_SDPINFO       = 4       /**< should the SDP solver output information to the screen? */
 };
 typedef enum SCIP_SDPParam SCIP_SDPPARAM;
 
