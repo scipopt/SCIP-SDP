@@ -30,8 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* #define SCIP_DEBUG */
-/* #define SCIP_MORE_DEBUG */
+ /*#define SCIP_DEBUG*/
+ /*#define SCIP_MORE_DEBUG*/
 
 /**@file   sdpisolver_dsdp.c
  * @brief  interface for DSDP
@@ -448,9 +448,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                                               *   sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
-   int					 noldlpcons,		 /**< number of LP-constraints including those with less than two active nonzeros */
+   int	                noldlpcons,		 /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
-   int*					 rownactivevars,	 /**< number of active variables for each lp constraint */
+   int*	                rownactivevars,	 /**< number of active variables for each lp constraint */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
@@ -698,7 +698,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 	   int* rowmapper;
 	   int pos;
 
-      assert( nlpcons > 0 );
+      assert( noldlpcons > 0 );
       assert( lprhs != NULL );
       assert( lpcol != NULL );
       assert( lprow != NULL );
@@ -804,7 +804,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #ifndef SCIP_NDEBUG
          /* if this is an active nonzero for the row, it should have at least one active var */
          else
-        	 assert( isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]]) || rownactivevars[lprow[i]] == 1 );
+            assert( isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]]) || rownactivevars[lprow[i]] == 1 );
 #endif
       }
 
@@ -813,7 +813,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          if (sdpisolver->inputtodsdpmapper[j] >= 0)
          {
-            assert( ! (isFixed(sdpisolver, lb[sdpisolver->inputtodsdpmapper[j]], ub[sdpisolver->inputtodsdpmapper[j]])) );
+            assert( ! (isFixed(sdpisolver, lb[j], ub[j])) );
             /* add the entry to the objlimit-lp-constraint for the last variables */
             if ( (! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit)) && (j > 0) && (REALABS( obj[j] ) > sdpisolver->epsilon))
             {
