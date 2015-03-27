@@ -2899,7 +2899,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
                sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-               sdpi->sdpval, indchanges, nremovedinds, nactivelpcons, lprhsafterfix, rowsnactivevars,
+               sdpi->sdpval, indchanges, nremovedinds, nactivelpcons, sdpi->nlpcons, lprhsafterfix, rowsnactivevars,
                sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start) );
    }
    else if ( SCIPsdpiSolverKnowsPenalty() )
@@ -2908,7 +2908,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
             sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
             sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-            sdpi->sdpval, indchanges, nremovedinds, nactivelpcons, lprhsafterfix, rowsnactivevars,
+            sdpi->sdpval, indchanges, nremovedinds, nactivelpcons, sdpi->nlpcons, lprhsafterfix, rowsnactivevars,
             sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start) );
    }
    else

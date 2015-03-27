@@ -30,8 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* #define SCIP_DEBUG*/
-/* #define SCIP_MORE_DEBUG*/
+/* #define SCIP_DEBUG */
+/* #define SCIP_MORE_DEBUG */
 
 /**@file   sdpisolver_dsdp.c
  * @brief  interface for DSDP
@@ -465,13 +465,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int* dsdplpbegcol = NULL;  /* starting-indices for all columns in LP, needs to be stored for DSDP during solving and be freed only afterwards */
    int* dsdplprow = NULL;     /* row indices in LP, needs to be stored for DSDP during solving and be freed only afterwards */
    double* dsdplpval = NULL;  /* nonzeroes in LP, needs to be stored for DSDP during solving and be freed only afterwards */
-   int dsdplparraylength;
    int i;
    int j;
    int ind;
    int block;
    int startind;
    int nfixedvars;
+   int dsdpnlpnonz;
 
 #ifdef SCIP_DEBUG
    DSDPTerminationReason reason; /* this will later be used to check if DSDP converged */
@@ -692,10 +692,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
 
    /* start inserting the LP constraints */
-   dsdplparraylength = 0;
    if ( nlpcons > 0 || lpnnonz > 0 || ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
    {
-	   int dsdpnlpnonz;
 	   int nextcol;
 	   int* rowmapper;
 	   int pos;
@@ -753,6 +751,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
     	  {
     		  dsdplprow[dsdpnlpnonz] = i;
     		  dsdplpval[dsdpnlpnonz] = -lprhs[i]; /* we multiply by -1 because DSDP wants <= instead of >= */
+    		  dsdpnlpnonz++;
     	  }
       }
 
@@ -797,14 +796,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          {
             /* the index is adjusted for deleted lp rows, also rows are numbered 0,...,nlpcons-1 in DSDP, as they are
              * here, nlpcons is added to the index as the first nlpcons entries correspond to the right hand sides */
-        	assert( rowmapper[i] > -1 );
+            assert( rowmapper[lprow[i]] > -1 );
             dsdplprow[dsdpnlpnonz] = rowmapper[lprow[i]];
             dsdplpval[dsdpnlpnonz] = -lpval[i]; /* - because dsdp wants <= instead of >= constraints */
+            dsdpnlpnonz++;
          }
 #ifndef SCIP_NDEBUG
          /* if this is an active nonzero for the row, it should have at least one active var */
          else
-        	 assert( isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]]) || rownactivevars[lprow[i]] == 1 )
+        	 assert( isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]]) || rownactivevars[lprow[i]] == 1 );
 #endif
       }
 
@@ -1844,7 +1844,7 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
    {
    case SCIP_SDPPAR_SDPINFO:
       sdpisolver->sdpinfo = ival;
-      SCIPdebugMessage("Setting sdpisolver information output (%d).\n", *ival);
+      SCIPdebugMessage("Setting sdpisolver information output (%d).\n", ival);
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;
