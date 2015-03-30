@@ -30,8 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* #define SCIP_DEBUG */
-/* #define SCIP_MORE_DEBUG */
+/* #define SCIP_DEBUG*/
+/* #define SCIP_MORE_DEBUG*/
 
 /**@file   sdpi.c
  * @brief  interface for dsdp
@@ -137,7 +137,8 @@ struct SCIP_SDPi
    SCIP_Real*            lpval;              /**< values of LP-constraint matrix entries */
 
    /* other data */
-   int                   solved;             /**< was the problem solved since the last change */
+   SCIP_Bool             solved;             /**< was the problem solved since the last change */
+   SCIP_Bool             infeasible;         /**< was infeasibility detected in presolving */
    int                   sdpid;              /**< counter for the number of SDPs solved */
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
@@ -185,7 +186,7 @@ SCIP_Bool isFixed(
    lb = sdpi->lb[v];
    ub = sdpi->ub[v];
 
-   assert( lb < ub + sdpi->epsilon );
+   assert( lb < ub + sdpi->epsilon || sdpi->infeasible );
 
    return ( REALABS(ub-lb) <= sdpi->epsilon );
 }
@@ -495,6 +496,13 @@ SCIP_RETCODE computeLpRhsAfterFixings(
                      SCIPdebugMessage("computeLpRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
                         nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
                   }
+                  /* check if this makes the problem infeasible */
+                  if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
+                  {
+                     sdpi->infeasible = TRUE;
+                     SCIPdebugMessage("We found an upper bound that is lower than the lower bound, so the problem is infeasible !\n");
+                     return SCIP_OKAY;
+                  }
                }
             }
             else	/* we compare with the lower bound */
@@ -512,6 +520,13 @@ SCIP_RETCODE computeLpRhsAfterFixings(
                      *fixingsfound = TRUE;
                      SCIPdebugMessage("computeLpRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
                         nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
+                  }
+                  /* check if this makes the problem infeasible */
+                  if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
+                  {
+                     sdpi->infeasible = TRUE;
+                     SCIPdebugMessage("We found a lower bound that is bigger than the upper bound, so the problem is infeasible !\n");
+                     return SCIP_OKAY;
                   }
                }
             }
@@ -555,12 +570,20 @@ SCIP_RETCODE computeLpRhsAfterFixings(
                "(originally %f)\n", lastrow, sdpi->sdpid, nonzcol, lprhsafterfix[*nactivelpcons] / nonzval, sdpi->ub[nonzcol]);
             sdpi->ub[nonzcol] = lprhsafterfix[*nactivelpcons] / nonzval;
 
-            /* check this lead to a fixing of this variable */
+            /* check if this lead to a fixing of this variable */
             if ( REALABS( sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->feastol )
             {
                *fixingsfound = TRUE;
                SCIPdebugMessage("computeLpRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
                   nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
+            }
+
+            /* check if this makes the problem infeasible */
+            if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
+            {
+               sdpi->infeasible = TRUE;
+               SCIPdebugMessage("We found an upper bound that is lower than the lower bound, so the problem is infeasible !\n");
+               return SCIP_OKAY;
             }
          }
       }
@@ -579,6 +602,13 @@ SCIP_RETCODE computeLpRhsAfterFixings(
                *fixingsfound = TRUE;
                SCIPdebugMessage("computeLpRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
                   nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
+            }
+            /* check if this makes the problem infeasible */
+            if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
+            {
+               sdpi->infeasible = TRUE;
+               SCIPdebugMessage("We found a lower bound that is bigger than the upper bound, so the problem is infeasible !\n");
+               return SCIP_OKAY;
             }
          }
       }
@@ -661,6 +691,7 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->nlpcons = 0;
    (*sdpi)->lpnnonz = 0;
    (*sdpi)->solved = FALSE;
+   (*sdpi)->infeasible = FALSE;
 
    (*sdpi)->obj = NULL;
    (*sdpi)->lb = NULL;
@@ -809,8 +840,6 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
 #ifdef SCIP_DEBUG
    if (sdpconstnnonz > 0 || sdpnnonz > 0 || nsdpblocks > 0)
    {
-      int i;
-
       assert ( sdpblocksizes != NULL );
       assert ( sdpnblockvars != NULL );
       assert ( nsdpblocks > 0 );
@@ -966,6 +995,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    sdpi->nlpcons = nlpcons;
 
    sdpi->solved = FALSE;
+   sdpi->infeasible = FALSE;
 
    return SCIP_OKAY;
 }
@@ -1590,6 +1620,7 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
    sdpi->lpnnonz = sdpi->lpnnonz + nnonz;
 
    sdpi->solved = FALSE;
+   sdpi->infeasible = FALSE;
 
    return SCIP_OKAY;
 }
@@ -1631,6 +1662,7 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
       sdpi->lpnnonz = 0;
 
       sdpi->solved = FALSE;
+      sdpi->infeasible = FALSE;
 
       return SCIP_OKAY;
    }
@@ -1688,6 +1720,7 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
    sdpi->lpnnonz = sdpi->lpnnonz - deletednonz;
 
    sdpi->solved = FALSE;
+   sdpi->infeasible = FALSE;
 
    return SCIP_OKAY;
 }
@@ -1726,6 +1759,7 @@ SCIP_RETCODE SCIPsdpiDelLPRowset(
    }
 
    sdpi->solved = FALSE;
+   sdpi->infeasible = FALSE;
 
    return SCIP_OKAY;
 }
@@ -2831,10 +2865,10 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    SCIP_Bool fixingfound;
    int nactivelpcons;
 
-   SCIPdebugMessage("Forwarding SDP %d to solver!\n", sdpi->sdpid++);
-
    assert ( sdpi != NULL );
    assert ( penaltyParam >= 0.0 );
+
+   SCIPdebugMessage("Forwarding SDP %d to solver!\n", sdpi->sdpid++);
 
    sdpconstnblocknonz = NULL;
    sdpconstrow = NULL;
@@ -2893,7 +2927,12 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
 
    SCIP_CALL (findEmptyRowColsSDP(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges, nremovedinds) );
 
-   if (penaltyParam < sdpi->epsilon)
+   if ( sdpi->infeasible )
+   {
+      SCIPdebugMessage("SDP %d not given to solver, as infeasibility was detected during presolving!\n", sdpi->sdpid++);
+      SCIP_CALL( SCIPsdpiSolverIncreaseCounter(sdpi->sdpisolver) );
+   }
+   else if (penaltyParam < sdpi->epsilon)
    {
          SCIP_CALL( SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
                sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
@@ -2937,8 +2976,11 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    sdpi->solved = TRUE;
 
    /* add the iterations needed to solve this SDP */
-   SCIP_CALL( SCIPsdpiSolverGetIterations(sdpi->sdpisolver, &newiterations) );
-   *totalsdpiterations += newiterations;
+   if ( ! sdpi->infeasible )
+   {
+      SCIP_CALL( SCIPsdpiSolverGetIterations(sdpi->sdpisolver, &newiterations) );
+      *totalsdpiterations += newiterations;
+   }
 
    return SCIP_OKAY;
 }
@@ -2975,6 +3017,9 @@ SCIP_Bool SCIPsdpiFeasibilityKnown(
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
 
+   if (sdpi->infeasible)
+      return TRUE;
+
    return SCIPsdpiSolverFeasibilityKnown(sdpi->sdpisolver);
 }
 
@@ -2987,6 +3032,13 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
 {
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
+
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, primal feasibility not available\n");
+      *dualfeasible = FALSE;
+      return SCIP_OKAY;
+   }
 
    SCIP_CALL( SCIPsdpiSolverGetSolFeasibility(sdpi->sdpisolver, primalfeasible, dualfeasible) );
 
@@ -3029,6 +3081,12 @@ SCIP_Bool SCIPsdpiIsPrimalUnbounded(
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
 
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, primal unboundedness not available\n");
+      return FALSE;
+   }
+
    return SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver);
 }
 
@@ -3041,6 +3099,12 @@ SCIP_Bool SCIPsdpiIsPrimalInfeasible(
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
 
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, primal feasibility not available\n");
+      return FALSE;
+   }
+
    return SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver);
 }
 
@@ -3052,6 +3116,12 @@ SCIP_Bool SCIPsdpiIsPrimalFeasible(
 {
    assert (sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
+
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, primal feasibility not available\n");
+      return FALSE;
+   }
 
    return SCIPsdpiSolverIsPrimalFeasible(sdpi->sdpisolver);
 }
@@ -3091,6 +3161,12 @@ SCIP_Bool SCIPsdpiIsDualUnbounded(
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
 
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, dual unboundedness not available\n");
+      return FALSE;
+   }
+
    return SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver);
 }
 
@@ -3102,6 +3178,12 @@ SCIP_Bool SCIPsdpiIsDualInfeasible(
 {
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
+
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing\n");
+      return TRUE;
+   }
 
    return SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver);
 }
@@ -3115,6 +3197,12 @@ SCIP_Bool SCIPsdpiIsDualFeasible(
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
 
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing\n");
+      return TRUE;
+   }
+
    return SCIPsdpiSolverIsDualFeasible(sdpi->sdpisolver);
 }
 
@@ -3125,6 +3213,12 @@ SCIP_Bool SCIPsdpiIsConverged(
 {
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
+
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, this counts as converged.\n");
+      return TRUE;
+   }
 
    return SCIPsdpiSolverIsConverged(sdpi->sdpisolver);
 }
@@ -3137,6 +3231,12 @@ SCIP_Bool SCIPsdpiIsObjlimExc(
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
 
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, no objective limit available.\n");
+      return FALSE;
+   }
+
    return SCIPsdpiSolverIsObjlimExc(sdpi->sdpisolver);
 }
 
@@ -3148,6 +3248,12 @@ SCIP_Bool SCIPsdpiIsIterlimExc(
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
 
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, no iteration limit available.\n");
+      return FALSE;
+   }
+
    return SCIPsdpiSolverIsIterlimExc(sdpi->sdpisolver);
 }
 
@@ -3156,7 +3262,7 @@ SCIP_Bool SCIPsdpiIsTimelimExc(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   SCIPdebugMessage("Not implemented in DSDP!\n");
+   SCIPdebugMessage("Not implemented!\n");
    return SCIP_LPERROR;
 }
 
@@ -3167,6 +3273,12 @@ int SCIPsdpiGetInternalStatus(
 {
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
+
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, no internal status available.\n");
+      return 0;
+   }
 
    return SCIPsdpiSolverGetInternalStatus(sdpi->sdpisolver);
 }
@@ -3179,6 +3291,12 @@ SCIP_Bool SCIPsdpiIsOptimal(
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
 
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, therefore there is no optimal solution.\n");
+      return FALSE;
+   }
+
    return SCIPsdpiSolverIsOptimal(sdpi->sdpisolver);
 }
 
@@ -3190,6 +3308,12 @@ SCIP_Bool SCIPsdpiIsAcceptable(
 {
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
+
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, this is acceptable in a B&B context.\n");
+      return TRUE;
+   }
 
    return SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver);
 }
@@ -3214,6 +3338,12 @@ SCIP_RETCODE SCIPsdpiGetObjval(
    assert ( objval != NULL );
    CHECK_IF_SOLVED(sdpi);
 
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, no objective value available.\n");
+      return SCIP_OKAY;
+   }
+
    SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, objval) );
 
    return SCIP_OKAY;
@@ -3233,6 +3363,12 @@ SCIP_RETCODE SCIPsdpiGetSol(
    assert( dualsollength != NULL );
    assert( *dualsollength == 0 || dualsol != NULL );
    CHECK_IF_SOLVED(sdpi);
+
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, no solution available.\n");
+      return SCIP_OKAY;
+   }
 
    SCIP_CALL( SCIPsdpiSolverGetSol(sdpi->sdpisolver, objval, dualsol, dualsollength) );
 
@@ -3257,6 +3393,12 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    assert ( *arraylength >= 0 );
    CHECK_IF_SOLVED(sdpi);
 
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, no primal variables available.\n");
+      return SCIP_OKAY;
+   }
+
    SCIPsdpiSolverGetPrimalBoundVars(sdpi->sdpisolver, lbvars, ubvars, arraylength);
 
    return SCIP_OKAY;
@@ -3270,6 +3412,12 @@ SCIP_RETCODE SCIPsdpiGetIterations(
 {
    assert ( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
+
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, no iterations needed.\n");
+      return 0;
+   }
 
    SCIP_CALL( SCIPsdpiSolverGetIterations(sdpi->sdpisolver, iterations) );
 

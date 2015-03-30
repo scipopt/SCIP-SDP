@@ -132,6 +132,12 @@ SCIP_RETCODE SCIPsdpiSolverFree(
    SCIP_SDPISOLVER**     sdpisolver          /**< SDP interface solver structure */
    );
 
+/** increases the SDP-Counter */
+EXTERN
+SCIP_RETCODE SCIPsdpiSolverIncreaseCounter(
+   SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
+   );
+
 /**@} */
 
 /*

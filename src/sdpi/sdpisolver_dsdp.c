@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
- /*#define SCIP_DEBUG*/
+/* #define SCIP_DEBUG*/
  /*#define SCIP_MORE_DEBUG*/
 
 /**@file   sdpisolver_dsdp.c
@@ -330,6 +330,18 @@ SCIP_RETCODE SCIPsdpiSolverFree(
    return SCIP_OKAY;
 }
 
+/** increases the SDP-Counter */
+SCIP_RETCODE SCIPsdpiSolverIncreaseCounter(
+   SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
+   )
+{
+   assert( sdpisolver != NULL );
+
+   sdpisolver->sdpcounter++;
+
+   return SCIP_OKAY;
+}
+
 /**@} */
 
 
@@ -473,6 +485,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int nfixedvars;
    int dsdpnlpnonz;
 
+   SCIPdebugMessage("Inserting Data into DSDP for SDP (%d) \n", ++sdpisolver->sdpcounter);
+
 #ifdef SCIP_DEBUG
    DSDPTerminationReason reason; /* this will later be used to check if DSDP converged */
 #endif
@@ -519,7 +533,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->dsdptoinputmapper), nvars, sdpisolver->nactivevars) );
 
    /* insert data */
-   SCIPdebugMessage("Inserting Data into DSDP for SDP (%d) \n", ++sdpisolver->sdpcounter);
 
    if ( sdpisolver->dsdp != NULL )
    {

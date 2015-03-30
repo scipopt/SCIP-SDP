@@ -266,6 +266,18 @@ SCIP_RETCODE SCIPsdpiSolverFree(
    return SCIP_OKAY;
 }
 
+/** increases the SDP-Counter */
+SCIP_RETCODE SCIPsdpiSolverIncreaseCounter(
+   SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
+   )
+{
+   assert( sdpisolver != NULL );
+
+   sdpisolver->sdpcounter++;
+
+   return SCIP_OKAY;
+}
+
 /**@} */
 
 
