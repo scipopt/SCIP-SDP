@@ -139,7 +139,6 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
    }
 
    assert( mostfracvar != NULL );
-   printf("mostfracfrac = %f\n", mostfracfrac);
    assert( SCIPisFeasGT(scip, mostfracfrac, 0) ); /* otherwise all variables are fixed and there is nothing to branch */
 
    /* branch */
