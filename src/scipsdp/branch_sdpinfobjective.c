@@ -119,7 +119,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
    for (i = 0; i < ncands; i++)
    {
       /* compute the infeasibility for the integrality constraint */
-      currentfrac = SCIPfrac(scip, candssol[i]);
+      currentfrac = SCIPfeasFrac(scip, candssol[i]);
       currenttarget = (currentfrac <= 0.5) ? (currentfrac * REALABS(SCIPvarGetObj(cands[i]))) : ((1 - currentfrac) * REALABS(SCIPvarGetObj(cands[i])));
 
 #ifdef SCIP_DEBUG
@@ -288,7 +288,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
          }
 
          /* multiply it with the integral infeasibility of the candidate */
-         currentfrac = SCIPfrac(scip, candssol[cand]);
+         currentfrac = SCIPfeasFrac(scip, candssol[cand]);
          currenttarget = (currentfrac <= 0.5) ? (currentfrac * currentobj) : ((1 - currentfrac) * currentobj);
 
          assert( SCIPisGE(scip, currentobj, 0.0) );

@@ -121,7 +121,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostinf)
    /* iterate over all solution candidates to find the one with the highest infeasibility */
    for (i = 0; i < ncands; i++)
    {
-      currentfrac = SCIPfrac(scip, candssol[i]);
+      currentfrac = SCIPfeasFrac(scip, candssol[i]);
       currentinf = (currentfrac <= 0.5) ? currentfrac : 1 - currentfrac;
       /* a candidate is better than the current one if:
        * - the infeasibility is (epsilon-)bigger than before or

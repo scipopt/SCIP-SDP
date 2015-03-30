@@ -125,13 +125,13 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
        * - the score is (epsilon-)equal and the fractionality is (less than epsilon) bigger
        * - the fractionality is (exactly) equal and the score is (less than epsilon) bigger
        */
-      if ( SCIPisFeasGT(scip, SCIPfrac(scip, candssol[i]), mostfracfrac) ||
-          (SCIPisFeasEQ(scip, SCIPfrac(scip, candssol[i]), mostfracfrac) && SCIPisGT(scip, candsscore[i], mostfracscore)) ||
-          (SCIPisEQ(scip, candsscore[i], mostfracscore) && SCIPfrac(scip, candssol[i]) > mostfracfrac) ||
-          (SCIPfrac(scip, candssol[i]) == mostfracfrac && candsscore[i] > mostfracscore) )
+      if ( SCIPisFeasGT(scip, SCIPfeasFrac(scip, candssol[i]), mostfracfrac) ||
+          (SCIPisFeasEQ(scip, SCIPfeasFrac(scip, candssol[i]), mostfracfrac) && SCIPisGT(scip, candsscore[i], mostfracscore)) ||
+          (SCIPisEQ(scip, candsscore[i], mostfracscore) && SCIPfeasFrac(scip, candssol[i]) > mostfracfrac) ||
+          (SCIPfeasFrac(scip, candssol[i]) == mostfracfrac && candsscore[i] > mostfracscore) )
       {
          /* update the current best candidate */
-         mostfracfrac = SCIPfrac(scip, candssol[i]);
+         mostfracfrac = SCIPfeasFrac(scip, candssol[i]);
          mostfracscore = candsscore[i];
          mostfracval = candssol[i];
          mostfracvar = cands[i];
@@ -139,6 +139,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
    }
 
    assert( mostfracvar != NULL );
+   printf("mostfracfrac = %f\n", mostfracfrac);
    assert( SCIPisFeasGT(scip, mostfracfrac, 0) ); /* otherwise all variables are fixed and there is nothing to branch */
 
    /* branch */
