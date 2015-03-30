@@ -1679,10 +1679,6 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
 static
 SCIP_DECL_CONSENFOPS(consEnfopsSdp)
 {
-   SCIP_CONSDATA* consdata;
-   int nvars;
-   SCIP_Real* coeff;
-   SCIP_Real lhs;
    int i;
 
    assert( scip != NULL );
@@ -1704,23 +1700,12 @@ SCIP_DECL_CONSENFOPS(consEnfopsSdp)
       if (*result == SCIP_INFEASIBLE)
       {
          /* if it is infeasible for one SDP constraint, it is infeasible for the whole problem */
-         SCIPdebugMessage("-> presudo solution infeasible for SDP-constraint %s, return.\n", SCIPconsGetName(conss[i]));
+         SCIPdebugMessage("-> pseudo solution infeasible for SDP-constraint %s, return.\n", SCIPconsGetName(conss[i]));
+         return SCIP_OKAY;
       }
-
-      lhs = 0.0;
-      consdata = SCIPconsGetData(conss[i]);
-      nvars = consdata->nvars;
-      SCIP_CALL( SCIPallocBufferArray(scip, &coeff, nvars) );
-      SCIP_CALL( cutUsingEigenvector(scip, conss[i], NULL, coeff, &lhs) );   /* TODO: is this added anywhere? enfops doesn't allow for cuts to be added */
-
-      /* ???????????????? */
-      if ( *result != SCIP_INFEASIBLE )
-         lhs = floor(lhs);
-
-      SCIPfreeBufferArray(scip, &coeff);
    }
 
-   SCIPdebugMessage("-> presudo solution feasible for all SDP-constraints.\n");
+   SCIPdebugMessage("-> pseudo solution feasible for all SDP-constraints.\n");
 
    return SCIP_OKAY;
 }
