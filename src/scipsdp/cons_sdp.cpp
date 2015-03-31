@@ -74,6 +74,13 @@
 /** transforms a double (that should be integer, but might be off by some numerical error) to an integer by adding an epsilon and rounding down */
 #define DOUBLETOINT(x) ((int) x + 0.5)
 
+/* if we are using openblas, the size of the integers need to be modified to be long long int */
+#ifdef OPENBLAS
+typedef long long int LAPACKINTTYPE;
+#else
+typedef int LAPACKINTTYPE;
+#endif
+
 
 /** constraint data for sdp constraints */
 struct SCIP_ConsData
@@ -104,7 +111,7 @@ struct SCIP_ConshdlrData
 
 extern "C" {
 /** BLAS Fortran subroutine DGEMV */
-void F77_FUNC(dgemv, DGEMV)(char* TRANS, int* M, int* N, double* ALPHA, double* A, int* LDA, double* X, int* INCX, double* BETA, double* Y, int* INCY);
+void F77_FUNC(dgemv, DGEMV)(char* TRANS, LAPACKINTTYPE* M, LAPACKINTTYPE* N, double* ALPHA, double* A, LAPACKINTTYPE* LDA, double* X, LAPACKINTTYPE* INCX, double* BETA, double* Y, LAPACKINTTYPE* INCY);
 }
 
 /** call matrix-vector multipication
@@ -113,8 +120,8 @@ void F77_FUNC(dgemv, DGEMV)(char* TRANS, int* M, int* N, double* ALPHA, double* 
  */
 static
 SCIP_RETCODE Blas_DGEMV(
-   int                   nrows,              /**< number of rows in matrix */
-   int                   ncols,              /**< number of cols in matrix */
+   LAPACKINTTYPE         nrows,              /**< number of rows in matrix */
+   LAPACKINTTYPE         ncols,              /**< number of cols in matrix */
    double                alpha,              /**< scaling parameter */
    double*               matrix,             /**< the matrix we want to multiply */
    double*               vector,             /**< vector we want to multiply with the matrix */
@@ -124,33 +131,34 @@ SCIP_RETCODE Blas_DGEMV(
 {
    /* store everything in local variables????????? */
    char TRANS = 'N';
-   int M = nrows;
-   int N = ncols;
+   LAPACKINTTYPE M = nrows;
+   LAPACKINTTYPE N = ncols;
    double ALPHA = alpha;
    double* A = matrix;
-   int LDA = nrows;
+   LAPACKINTTYPE LDA = nrows;
    double* X = vector;
-   int INCX = 1;
+   LAPACKINTTYPE INCX = 1;
    double BETA = beta;
    double* Y = result;
-   int INCY = 1;
+   LAPACKINTTYPE INCY = 1;
 
    F77_FUNC(dgemv, DGEMV)(&TRANS, &M, &N, &ALPHA, A, &LDA, X, &INCX, &BETA, Y, &INCY);
 
    return SCIP_OKAY;
 }
 
+
 extern "C" {
 /** LAPACK Fortran subroutine DSYEVR */
 void F77_FUNC(dsyevr, DSYEVR)(
    char* JOBZ, char* RANGE, char* UPLO,
-   int* N, double* A, int* LDA,
+   LAPACKINTTYPE* N, double* A, LAPACKINTTYPE* LDA,
    double* VL, double* VU,
-   int* IL, int* IU,
-   double* ABSTOL, int* M, double* W, double* Z,
-   int* LDZ, int* ISUPPZ, double* WORK,
-   int* LWORK, int* IWORK, int* LIWORK,
-   int* INFO );
+   LAPACKINTTYPE* IL, LAPACKINTTYPE* IU,
+   double* ABSTOL, LAPACKINTTYPE* M, double* W, double* Z,
+   LAPACKINTTYPE* LDZ, int* ISUPPZ, double* WORK,
+   LAPACKINTTYPE* LWORK, LAPACKINTTYPE* IWORK, LAPACKINTTYPE* LIWORK,
+   LAPACKINTTYPE* INFO );
 }
 
 /** computes the i-th eigenvalue, where 1 is the smallest and n the largest */
@@ -166,25 +174,25 @@ SCIP_RETCODE computeIthEigenvalue(
    )
 {
    /* store everything in local variables????????? */
-   int     N = n;
-   int     INFO;
-   char    JOBZ = geteigenvectors ? 'V' : 'N';
-   char    RANGE = 'I';
-   char    UPLO = 'L';
-   int     LDA  = N;
-   double* WORK;
-   int     LWORK;
-   int*    IWORK;
-   int     LIWORK;
+   LAPACKINTTYPE   N = n;
+   LAPACKINTTYPE   INFO;
+   char            JOBZ = geteigenvectors ? 'V' : 'N';
+   char            RANGE = 'I';
+   char            UPLO = 'L';
+   LAPACKINTTYPE   LDA  = n;
+   double*         WORK;
+   LAPACKINTTYPE   LWORK;
+   LAPACKINTTYPE*  IWORK;
+   LAPACKINTTYPE   LIWORK;
    //    int*    ISUPPZ;
-   double* WTMP;
-   double  ABSTOL = 0.0;
-   int     IL = i;
-   int     IU = i;
-   int     M = 1;
-   int     LDZ = LDA;
-   double  WSIZE;
-   int     WISIZE;
+   double*         WTMP;
+   double          ABSTOL = 0.0;
+   LAPACKINTTYPE   IL = i;
+   LAPACKINTTYPE   IU = i;
+   LAPACKINTTYPE   M = 1;
+   LAPACKINTTYPE   LDZ = n;
+   double          WSIZE;
+   LAPACKINTTYPE   WISIZE;
 
    assert( scip != NULL );
    assert( n >= 0 );
