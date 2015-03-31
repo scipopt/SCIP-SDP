@@ -695,7 +695,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
          /* constant matrix is given as variable 0, the arrays are shifted to the first element of this block by adding
           * startind, ind - startind gives the number of elements for this block */
-  printf("sdpblocksizes[block] - nremovedinds[block] [%d] = %d\n", block, sdpblocksizes[block] - nremovedinds[block]);
          DSDP_CALL( SDPConeSetASparseVecMat(sdpisolver->sdpcone, block, 0, sdpblocksizes[block] - nremovedinds[block], 1.0, 0, dsdpconstind + startind,
                dsdpconstval + startind, ind - startind));
       }
