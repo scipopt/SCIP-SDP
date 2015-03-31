@@ -31,7 +31,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /* #define SCIP_DEBUG*/
- /*#define SCIP_MORE_DEBUG*/
+/*#define SCIP_MORE_DEBUG*/
 
 /**@file   sdpisolver_dsdp.c
  * @brief  interface for DSDP
@@ -460,9 +460,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                                               *   sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
-   int	                noldlpcons,		 /**< number of LP-constraints including those with less than two active nonzeros */
+   int	                noldlpcons,		   /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
-   int*	                rownactivevars,	 /**< number of active variables for each lp constraint */
+   int*	                rownactivevars,	   /**< number of active variables for each lp constraint */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
@@ -573,9 +573,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
 
    /* set blocksizes */
-   for (block = 0; i < nsdpblocks; ++i)
+   for (block = 0; block < nsdpblocks; ++block)
    {
-      DSDP_CALL( SDPConeSetBlockSize(sdpisolver->sdpcone, i, sdpblocksizes[block] - nremovedinds[block]) ); /* (blocks are counted from 0 to m-1) */
+      DSDP_CALL( SDPConeSetBlockSize(sdpisolver->sdpcone, block, sdpblocksizes[block] - nremovedinds[block]) ); /* (blocks are counted from 0 to m-1) */
    }
 
    /* start inserting the non-constant SDP-Constraint-Matrices */
@@ -695,6 +695,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
          /* constant matrix is given as variable 0, the arrays are shifted to the first element of this block by adding
           * startind, ind - startind gives the number of elements for this block */
+  printf("sdpblocksizes[block] - nremovedinds[block] [%d] = %d\n", block, sdpblocksizes[block] - nremovedinds[block]);
          DSDP_CALL( SDPConeSetASparseVecMat(sdpisolver->sdpcone, block, 0, sdpblocksizes[block] - nremovedinds[block], 1.0, 0, dsdpconstind + startind,
                dsdpconstval + startind, ind - startind));
       }
