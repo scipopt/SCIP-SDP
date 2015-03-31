@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* #define SCIP_DEBUG*/
+/* #define SCIP_DEBUG */
 /* #define SCIP_MORE_DEBUG*/
 
 /**@file   sdpi.c
@@ -534,6 +534,18 @@ SCIP_RETCODE computeLpRhsAfterFixings(
                }
             }
          }
+         else
+         {
+            assert( rownactivevars[lastrow] == 0 );
+            /* we have a constraint 0 >= rhs, so rhs should be non-positive, otherwise the problem is infeasible */
+            if ( lprhsafterfix[*nactivelpcons] > sdpi->feastol )
+            {
+               sdpi->infeasible = TRUE;
+               SCIPdebugMessage("We found a constraint which with given fixings reads 0 >= rhs with rhs = %f > 0, so the current problem is infeasible !\n",
+                     lprhsafterfix[*nactivelpcons] );
+               return SCIP_OKAY;
+            }
+         }
 
          /* update lastrow for new row */
          lastrow = sdpi->lprow[i];
@@ -554,7 +566,6 @@ SCIP_RETCODE computeLpRhsAfterFixings(
          lprhsafterfix[*nactivelpcons] -= sdpi->lpval[i] * sdpi->lb[sdpi->lpcol[i]];
       }
    }
-
    /* for the last row of the lp we have to check if it is active, as in the above for-queue we only do so when the next row start */
    if ( rownactivevars[lastrow] > 1 )
       (*nactivelpcons)++;
@@ -614,6 +625,18 @@ SCIP_RETCODE computeLpRhsAfterFixings(
                return SCIP_OKAY;
             }
          }
+      }
+   }
+   else
+   {
+      assert( rownactivevars[lastrow] == 0 );
+      /* we have a constraint 0 >= rhs, so rhs should be non-positive, otherwise the problem is infeasible */
+      if ( lprhsafterfix[*nactivelpcons] > sdpi->feastol )
+      {
+         sdpi->infeasible = TRUE;
+         SCIPdebugMessage("We found a constraint which with given fixings reads 0 >= rhs with rhs = %f > 0, so the current problem is infeasible !\n",
+               lprhsafterfix[*nactivelpcons] );
+         return SCIP_OKAY;
       }
    }
 

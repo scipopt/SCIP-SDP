@@ -537,6 +537,7 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
       if ( printreason )
       {
          SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
+         SCIP_CALL( SCIPprintSol(scip, sol, NULL, FALSE) );
          SCIPinfoMessage(scip, NULL, "non psd matrix (eigenvalue %f, dimacs error norm = %f).\n", eigenvalue, check_value);
       }
 #endif
