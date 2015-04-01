@@ -536,7 +536,7 @@ SCIP_RETCODE computeLpRhsAfterFixings(
          }
          else
          {
-            assert( rownactivevars[lastrow] == 0 );
+            assert( lastrow == -1 || rownactivevars[lastrow] == 0 );
             /* we have a constraint 0 >= rhs, so rhs should be non-positive, otherwise the problem is infeasible */
             if ( lprhsafterfix[*nactivelpcons] > sdpi->feastol )
             {
