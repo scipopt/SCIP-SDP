@@ -37,9 +37,9 @@
  * @author Tristan Gally
  */
 
-/* #define SCIP_DEBUG*/
-/* #define SCIP_MORE_DEBUG  *//* displays complete solution for each relaxation */
-/* #define SCIP_EVEN_MORE_DEBUG */ /* shows number of deleted empty cols/rows for every relaxation and variable status & bounds as well as all constraints in the beginning */
+ //#define SCIP_DEBUG
+ //#define SCIP_MORE_DEBUG  /* displays complete solution for each relaxation */
+ //#define SCIP_EVEN_MORE_DEBUG  /* shows number of deleted empty cols/rows for every relaxation and variable status & bounds as well as all constraints in the beginning */
 
 #include "relax_sdp.h"
 
@@ -57,7 +57,7 @@
 #define RELAX_PRIORITY              1
 #define RELAX_FREQ                  1
 
-#define DEFAULT_SDPSOLVEREPSILON    1e-3     /**< the stopping criterion for the duality gap the sdpsolver should use */
+#define DEFAULT_SDPSOLVEREPSILON    1e-4     /**< the stopping criterion for the duality gap the sdpsolver should use */
 #define DEFAULT_SDPSOLVERFEASTOL    1e-6     /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
 #define DEFAULT_THREADS             1        /**< number of threads used for SDP solving */
 
@@ -78,6 +78,7 @@ struct SCIP_RelaxData
    int                   threads;            /**< number of threads used for SDP solving */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    int                   sdpcalls;           /**< number of solved SDPs (used to compute average SDP iterations) */
+   long int              lastsdpnode;        /**< number of the SCIP node the current SDP-solution belongs to */
 };
 
 /** inserts all the SDP data into the corresponding SDP Interface */
@@ -446,6 +447,7 @@ SCIP_RETCODE relaxIsFeasible(
 
    /* solve with penalty without objective */
    SCIP_CALL( SCIPsdpiSolvePenalty(sdpi, 1.0, FALSE, NULL, &(relaxdata->sdpiterations)) );
+   relaxdata->lastsdpnode = SCIPnodeGetNumber(SCIPgetCurrentNode(scip));
 
    SCIP_CALL( SCIPsdpiGetObjval(sdpi, &obj) );
 
@@ -524,9 +526,11 @@ SCIP_RETCODE calc_relax(
 
    SCIP_CALL( SCIPsdpiSetIntpar(sdpi, SCIP_SDPPAR_SDPINFO, relaxdata->sdpinfo) );
 
+
    if ( withpenalty )
    {
       SCIP_CALL( SCIPsdpiSolvePenalty(sdpi, penaltyparam, TRUE, NULL, &(relaxdata->sdpiterations)) );
+      relaxdata->lastsdpnode = SCIPnodeGetNumber(SCIPgetCurrentNode(scip));
    }
    else
    {
@@ -536,6 +540,7 @@ SCIP_RETCODE calc_relax(
 
       /* solve the problem */
       SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, &(relaxdata->sdpiterations)) );
+      relaxdata->lastsdpnode = SCIPnodeGetNumber(SCIPgetCurrentNode(scip));
 
       /* remove the objective limit, as we don't want to use it for the penalty formulation if we run into numerical problems */
       /* SCIP_CALL( SCIPsdpiSetRealpar(sdpi, SCIP_SDPPAR_OBJLIMIT, SCIPsdpiInfinity(sdpi)) ); */
@@ -580,7 +585,7 @@ SCIP_RETCODE calc_relax(
    }
    for (i = 0; i < nvars; ++i)
    {
-      SCIPinfoMessage(scip, NULL, "%s = %f, ", SCIPvarGetName(vars[i]), solforscip[i]);
+      printf("%s = %f, ", SCIPvarGetName(vars[i]), solforscip[i]);
    }
    SCIPdebugMessage("\n");
 
@@ -685,7 +690,7 @@ SCIP_RETCODE calc_relax(
                if ( allfeas )
                {
                   SCIP_CALL( SCIPtrySol(scip, scipsol, TRUE, FALSE, FALSE, FALSE, &stored) );
-                  if (stored)
+                  if (scipsol == SCIPgetBestSol(scip))
                      SCIPdebugMessage("feasible solution for MISDP found, cut node off, solution is new best solution \n");
                   else
                      SCIPdebugMessage("feasible solution for MISDP found, cut node off, solution is worse than earlier one \n");
@@ -1210,6 +1215,17 @@ SCIP_RETCODE SCIPrelaxSdpGetRelaxSol(
    }
 
    return SCIP_OKAY;
+}
+
+/** get the number of the SCIP-node to which the current SDP solution belongs */
+long int SCIPrelaxSdpGetSdpNode(
+   SCIP_RELAX*           relax               /**< SDP relaxator to get solution for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return SCIPrelaxGetData(relax)->lastsdpnode;
 }
 
 /** returns total number of SDP iterations */

@@ -89,6 +89,12 @@ SCIP_RETCODE SCIPrelaxSdpGetRelaxSol(
                                                *  debug message is thrown */
    );
 
+/** get the number of the SCIP-node to which the current SDP solution belongs */
+EXTERN
+long int SCIPrelaxSdpGetSdpNode(
+   SCIP_RELAX*           relax               /**< SDP relaxator to get solution for */
+   );
+
 /** returns total number of SDP iterations */
 EXTERN
 int SCIPrelaxSdpGetNIterations(

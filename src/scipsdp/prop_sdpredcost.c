@@ -104,10 +104,10 @@ SCIP_RETCODE sdpRedcostFixingBinary(
       SCIP_CALL( SCIPchgVarUb(scip, var, 0.0) );
       SCIPdebugMessage("Variable %s fixed to zero by reduced cost fixing ! \n", SCIPvarGetName(var));
 #ifdef SCIP_DEBUG
-      SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDPRelax/sdpsolverepsilon", &sdpepsilon) );
+      SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolverepsilon", &sdpepsilon) );
       SCIP_CALL( SCIPgetRealParam(scip, "numerics/epsilon", &epsilon) );
-      assert( (primalubval <= cutoffbound - relaxval + epsilon) || (primalubval <= cutoffbound - relaxval + sdpepsilon) );
-      /* if the variable should be fixed to both zero and one, something went wrong */
+      assert( SCIPisGE(scip, relaxval, cutoffbound) || SCIPisLE(scip, primalubval, cutoffbound - relaxval) || SCIPisLE(scip, primalubval, cutoffbound - relaxval) );
+      /* if the variable should be fixed to both zero and one, something went wrong (unless we are done anyways) */
 #endif
       *result = SCIP_REDUCEDDOM;
       return SCIP_OKAY;
@@ -156,6 +156,14 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
 
    relax = SCIPfindRelax(scip, "SDP"); /* get SDP relaxation handler */
    assert( relax != NULL );
+
+   /* we can only propagate for the last node for which the SDP was solved */
+   if ( SCIPrelaxSdpGetSdpNode(relax) != SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) )
+   {
+      SCIPdebugMessage("Stopped propExecRedcost because current SDP-relaxation doesn't belong to the node the propagator was called for!\n");
+      *result = SCIP_DIDNOTRUN;
+      return SCIP_OKAY;
+   }
 
    SCIP_CALL( SCIPrelaxSdpRelaxVal(relax, &sdpsolved, &relaxval) );
    if ( ! sdpsolved )
