@@ -587,7 +587,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             v = sdpisolver->sdpatoinputmapper[i];
 
 #ifdef SCIP_MORE_DEBUG
-            SCIPdebugMessage("      -> adding coefficient matrix for variable %d which becomes variable %d in SDPA (%d)\n", v, i, sdpisolver->sdpcounter);
+            SCIPdebugMessage("      -> adding coefficient matrix for variable %d which becomes variable %d in SDPA (%d)\n", v, i + 1, sdpisolver->sdpcounter);
 #endif
 
             /* find the position of variable v in this block */
@@ -634,7 +634,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          if ( gamma != 0.0 )
          {
 #ifdef SCIP_MORE_DEBUG
-            SCIPdebugMessage("      -> adding coefficient matrix for variable penalty variable r in SDPA (%d)\n", i, v, sdpisolver->sdpcounter);
+            SCIPdebugMessage("      -> adding coefficient matrix for penalty variable r in SDPA (%d)\n", sdpisolver->sdpcounter);
 #endif
             for (i = 0; i < sdpblocksizes[i] - nremovedinds[i]; i++)
             {
@@ -688,7 +688,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
    }
 
+#ifdef SCIP_MORE_DEBUG
+         SCIPdebugMessage("   -> building LP-block %d (%d)\n", nsdpblocks + 1, sdpisolver->sdpcounter);
+#endif
    /* inserting LP nonzeros */
+
    lpconsind = 0;
    lastrow = -1; /* this together means, that we start numbering the rows at one, like sdpa wants it */
    for (i = 0; i < lpnnonz; i++)
@@ -755,20 +759,21 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       assert( 0 <= lpcol[i] && lpcol[i] < nvars );
       assert( REALABS(lpval[i]) > sdpisolver->epsilon );
 
-      /* if the variable is active and the constraint is more than a bound, we add it */
+      /* if the variable is active and the constraint is more than a bound, we added it */
       if ( sdpisolver->inputtosdpamapper[lpcol[i]] > 0 )
       {
-         printf("+ %f <x%d> ", lpval[i], lpcol[i]);
-       /* as this is an active variable, there should be at least one in the constraint */
+         /* as this is an active variable, there should be at least one in the constraint */
          assert( lprownactivevars[lprow[i]] > 0 );
          if ( lprownactivevars[lprow[i]] > 1 )
          {
-            if ( lprow[i] > lastrow )  /* we update the lpcons-counter */
+            if ( lprow[i] > lastrow )  /* we updated the lpcons-counter */
             {
-               printf(" >= %f\n", lprhs[lpconsind]);
+               if (lastrow >= 0)
+                  printf(" >= %f\n", lprhs[lpconsind]);
                lpconsind++;
                lastrow = lprow[i];
             }
+            printf("+ %f <x%d> ", lpval[i], lpcol[i]);
          }
       }
    }
