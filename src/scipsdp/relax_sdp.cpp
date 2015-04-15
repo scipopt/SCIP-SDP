@@ -38,7 +38,7 @@
  */
 
  //#define SCIP_DEBUG
- //#define SCIP_MORE_DEBUG  /* displays complete solution for each relaxation */
+ // #define SCIP_MORE_DEBUG  /* displays complete solution for each relaxation */
  //#define SCIP_EVEN_MORE_DEBUG  /* shows number of deleted empty cols/rows for every relaxation and variable status & bounds as well as all constraints in the beginning */
 
 #include "relax_sdp.h"
@@ -57,8 +57,8 @@
 #define RELAX_PRIORITY              1
 #define RELAX_FREQ                  1
 
-#define DEFAULT_SDPSOLVEREPSILON    1e-4     /**< the stopping criterion for the duality gap the sdpsolver should use */
-#define DEFAULT_SDPSOLVERFEASTOL    1e-6     /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
+#define DEFAULT_SDPSOLVEREPSILON    1e-3     /**< the stopping criterion for the duality gap the sdpsolver should use */
+#define DEFAULT_SDPSOLVERFEASTOL    1e-4     /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
 #define DEFAULT_THREADS             1        /**< number of threads used for SDP solving */
 
 /*
@@ -592,18 +592,26 @@ SCIP_RETCODE calc_relax(
    SCIPfreeBufferArray(scip, &solforscip);
 #endif
 
-   if ( SCIPsdpiIsAcceptable(sdpi) && SCIPsdpiFeasibilityKnown(sdpi) )
+   if ( SCIPsdpiIsAcceptable(sdpi) && (SCIPsdpiFeasibilityKnown(sdpi) || SCIPsdpiIsObjlimExc(sdpi)) )
    {
       if ( SCIPsdpiIsDualInfeasible(sdpi) )
       {
+         SCIPdebugMessage("Node cut off due to infeasibility.");
          *result = SCIP_CUTOFF;
          /* need to set lowerbound? */
+         return SCIP_OKAY;
+      }
+      else if ( SCIPsdpiIsObjlimExc(sdpi) )
+      {
+         SCIPdebugMessage("Node cut off due to objective limit.");
+         *result = SCIP_CUTOFF;
          return SCIP_OKAY;
       }
       else if ( SCIPsdpiIsDualUnbounded(sdpi) )
       {
          if ( (! withpenalty) || SCIPsdpiIsGEMaxPenParam(sdpi, penaltyparam) )
          {
+            SCIPdebugMessage("Node unbounded.");
             *result = SCIP_SUCCESS;
             *lowerbound = -SCIPinfinity(scip);
             return SCIP_OKAY;
@@ -690,8 +698,8 @@ SCIP_RETCODE calc_relax(
                if ( allfeas )
                {
                   SCIP_CALL( SCIPtrySol(scip, scipsol, TRUE, FALSE, FALSE, FALSE, &stored) );
-                  if (scipsol == SCIPgetBestSol(scip))
-                     SCIPdebugMessage("feasible solution for MISDP found, cut node off, solution is new best solution \n");
+                  if (stored)
+                     SCIPdebugMessage("feasible solution for MISDP found, cut node off, solution is stored \n");
                   else
                      SCIPdebugMessage("feasible solution for MISDP found, cut node off, solution is worse than earlier one \n");
 
