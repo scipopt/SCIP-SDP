@@ -105,6 +105,7 @@ struct SCIP_SDPiSolver
    SCIP_Real             objlimit;           /**< objective limit for SDP solver */
    int                   threads;            /**< number of threads */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
+   SCIP_Bool             penalty;            /**< was the problem last solved using a penalty formulation */
 };
 
 
@@ -159,7 +160,7 @@ SCIP_Bool SCIPsdpiSolverKnowsPenalty(
    void
    )
 {
-   return FALSE;
+   return TRUE;
 }
 
 /** gets pointer for SDP solver - use only with great care
@@ -301,7 +302,6 @@ SCIP_RETCODE SCIPsdpiSolverIncreaseCounter(
  *
  *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
  */
-EXTERN
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
    int                   nvars,              /**< number of variables */
@@ -341,6 +341,73 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    SCIP_Real*            start               /**< NULL or a starting point for the solver, this should have length nvars */
    )//TODO: start needs to include X,y,Z for SDPA
 {
+   return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
+               sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
+               nremovedinds, nlpcons, noldlpcons, lprhs, lprownactivevars, lpnnonz, lprow, lpcol, lpval, start);
+}
+
+/** loads and solves an SDP using a penalty formulation
+ *
+ *  The penalty formulation of the SDP is:
+ *      \f{eqnarray*}{
+ *      \min & & b^T y + \Gamma r \\
+ *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathds{I} \succeq 0 \quad \forall i \leq m \\
+ *      & & Dy \geq d \\
+ *      & & l \leq y \leq u.\f}
+ *  Alternatively withObj can be set to false to set \f$ b \f$ to 0 and only check for feasibility (if the optimal objective value is
+ *  bigger than 0 the problem is infeasible, otherwise it's feasible).
+ *  For the non-constant SDP- and the LP-part the original arrays before fixings should be given, for the constant SDP-part the arrays AFTER fixings
+ *  should be given. In addition, an array needs to be given, that for every block and every row/col index within that block either has value
+ *  -1, meaning that this index should be deleted, or a non-negative integer stating the number of indices before it that are to be deleated,
+ *  meaning that this index will be decreased by that number. Moreover, the total number of deleted indices for each block should be given.
+ *  An optional starting point for the solver may be given; if it is NULL, the solver will start from scratch.
+ *
+ *  @warning This only works for some solvers, check with SCIPsdpiKnowsPenalty first, otherwise this returns an error (in which case you should form
+ *  the penalty formulation yourself and pass it via LoadAndSolve).
+ *
+ *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
+ */
+SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
+   SCIP_Real             gamma,              /**< the penalty parameter above, needs to be >= 0 */
+   SCIP_Bool             withObj,            /**< if this is false, the objective is set to 0 */
+   int                   nvars,              /**< number of variables */
+   SCIP_Real*            obj,                /**< objective function values of variables */
+   SCIP_Real*            lb,                 /**< lower bounds of variables */
+   SCIP_Real*            ub,                 /**< upper bounds of variables */
+   int                   nsdpblocks,         /**< number of SDP-blocks */
+   int*                  sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
+   int*                  sdpnblockvars,      /**< number of variables that exist in each block */
+   int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks AFTER FIXINGS */
+   int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
+                                              *   number of entries  of sdpconst row/col/val [i] AFTER FIXINGS */
+   int**                 sdpconstrow,        /**< pointers to row-indices for each block AFTER FIXINGS */
+   int**                 sdpconstcol,        /**< pointers to column-indices for each block AFTER FIXINGS */
+   SCIP_Real**           sdpconstval,        /**< pointers to the values of the nonzeros for each block AFTER FIXINGS */
+   int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint matrix */
+   int**                 sdpnblockvarnonz,   /**< entry [i][j] gives the number of nonzeros for block i and variable j, this is exactly
+                                              *   the number of entries of sdp row/col/val [i][j] */
+   int**                 sdpvar,             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
+                                              *   in the i-th block */
+   int***                sdprow,             /**< pointer to the row-indices for each block and variable */
+   int***                sdpcol,             /**< pointer to the column-indices for each block and variable */
+   SCIP_Real***          sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
+   int**                 indchanges,         /**< this returns the changes needed to be done to the indices, if indchange[block][nonz]=-1, then
+                                              *   the index can be removed, otherwise it gives the number of indices removed before this, i.e.
+                                              *   the value to decrease this index by, this array should have memory allocated in the size
+                                              *   sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
+   int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
+   int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
+   int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
+   SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
+   int*                  lprownactivevars,   /**< number of active variables for each lp constraint */
+   int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
+   int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
+   int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
+   SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   SCIP_Real*            start               /**< NULL or a starting point for the solver, this should have length nvars */
+) //TODO: start needs to include X,y,Z for SDPA
+{
    SCIP_Real* sdpavarbounds;
    int i;
    int k;
@@ -358,6 +425,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    sdpisolver->infeasible = FALSE;
    checkinput = TRUE;
 #endif
+
+   /* set the penalty flag accordingly */
+   sdpisolver->penalty = (gamma == 0.0) ? FALSE : TRUE;
 
    /* allocate memory for inputtosdpamapper, sdpatoinputmapper and the fixed variable information, for the latter this will later be shrinked if the needed size is known */
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtosdpamapper), sdpisolver->nvars, nvars) );
@@ -435,6 +505,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
       }
    }
 
+   /* if we use a penalty formulation, we need the constraint r >= 0 */
+   if ( gamma != 0.0 )
+      sdpisolver->nvarbounds++;
+
    if ( sdpisolver->sdpinfo )
       sdpisolver->sdpa->setDisplay(stdout);
    else
@@ -452,10 +526,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
       sdpisolver->sdpa->setInitPoint(true);
 
    /* initialize blockstruct */
-   sdpisolver->sdpa->inputConstraintNumber(sdpisolver->nactivevars);
-   /* if there are any lp-cons/variable-bounds, we get an extra block for those, lastrow - nshifts is the number of lp constraints added */
+   if ( gamma == 0.0 ) /* we initialize this with an exact 0.0 in Solve without penalty */
+      sdpisolver->sdpa->inputConstraintNumber(sdpisolver->nactivevars);
+   else
+      sdpisolver->sdpa->inputConstraintNumber(sdpisolver->nactivevars + 1); /* the additional variable is r which is multiplied with the identity matrix */
 
-   sdpisolver->sdpa->inputBlockNumber( (nlpcons + sdpisolver->nvarbounds > 0) ? nsdpblocks + 1 : nsdpblocks);
+   /* if there are any lp-cons/variable-bounds, we get an extra block for those, lastrow - nshifts is the number of lp constraints added */
+   sdpisolver->sdpa->inputBlockNumber((nlpcons + sdpisolver->nvarbounds > 0) ? nsdpblocks + 1 : nsdpblocks);
 
    /* block+1 because SDPA starts counting at 1 */
    for (block = 0; block < nsdpblocks; block++)
@@ -474,8 +551,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    /* set objective values */
    for (i = 0; i < sdpisolver->nactivevars; i++)
    {
-      /* insert objective value, SDPA counts from 1 to n instead of 0 to n-1 */
-      sdpisolver->sdpa->inputCVec(i + 1, obj[sdpisolver->sdpatoinputmapper[i]]);
+      if ( withObj )
+      {
+         /* insert objective value, SDPA counts from 1 to n instead of 0 to n-1 */
+         sdpisolver->sdpa->inputCVec(i + 1, obj[sdpisolver->sdpatoinputmapper[i]]);
+      }
+      if (gamma != 0.0)
+         sdpisolver->sdpa->inputCVec(sdpisolver->nactivevars + 1, gamma); /* set the objective of the additional var to gamma */
    }
 
    /* start inserting the non-constant SDP-Constraint-Matrices */
@@ -548,6 +630,21 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
                }
             }
          }
+         /* insert the identity matrix if we are using a penalty formulation */
+         if ( gamma != 0.0 )
+         {
+#ifdef SCIP_MORE_DEBUG
+            SCIPdebugMessage("      -> adding coefficient matrix for variable penalty variable r in SDPA (%d)\n", i, v, sdpisolver->sdpcounter);
+#endif
+            for (i = 0; i < sdpblocksizes[i] - nremovedinds[i]; i++)
+            {
+#ifdef SCIP_MORE_DEBUG
+                  SCIPdebugMessage("         -> adding nonzero 1.0 at (%d,%d) (%d)\n", i + 1, i + 1, sdpisolver->sdpcounter);
+#endif
+
+                  sdpisolver->sdpa->inputElement(sdpisolver->nactivevars + 1, block + 1, i + 1, i + 1, 1.0, checkinput);
+            }
+         }
       }
    }
 
@@ -603,20 +700,31 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
       /* if the variable is active and the constraint is more than a bound, we add it */
       if ( sdpisolver->inputtosdpamapper[lpcol[i]] > 0 )
       {
-    	 /* as this is an active variable, there should be at least one in the constraint */
+       /* as this is an active variable, there should be at least one in the constraint */
          assert( lprownactivevars[lprow[i]] > 0 );
          if ( lprownactivevars[lprow[i]] > 1 )
          {
-            if ( lprow[i] > lastrow )	/* we update the lpcons-counter */
+            if ( lprow[i] > lastrow )  /* we update the lpcons-counter */
             {
                lpconsind++;
                lastrow = lprow[i];
+               /* if we use a penalty formulation, add the r * Identity entry */
+               if ( gamma != 0.0 )
+               {
+#ifdef SCIP_MORE_DEBUG
+            SCIPdebugMessage("         -> adding nonzero 1.0 at (%d,%d) for penalty variable r in SDPA (%d)\n",
+               lpconsind, lpconsind, sdpisolver->sdpcounter);
+#endif
+                  /* LP nonzeros are added as diagonal entries of the last block (coming after the last SDP-block, with blocks starting at 1, as are rows), the
+                   * r-variable is variable nactivevars + 1 */
+                  sdpisolver->sdpa->inputElement(sdpisolver->nactivevars + 1, nsdpblocks + 1, lpconsind, lpconsind, 1.0, checkinput);
+               }
             }
 #ifdef SCIP_MORE_DEBUG
             SCIPdebugMessage("         -> adding nonzero %g at (%d,%d) for variable %d which became variable %d in SDPA (%d)\n",
                lpval[i], lpconsind, lpconsind, lpcol[i], sdpisolver->inputtosdpamapper[lpcol[i]], sdpisolver->sdpcounter);
 #endif
-         	/* LP nonzeros are added as diagonal entries of the last block (coming after the last SDP-block, with blocks starting at 1, as are rows) */
+            /* LP nonzeros are added as diagonal entries of the last block (coming after the last SDP-block, with blocks starting at 1, as are rows) */
             sdpisolver->sdpa->inputElement(sdpisolver->inputtosdpamapper[lpcol[i]], nsdpblocks + 1,
                lpconsind, lpconsind, lpval[i], checkinput);
          }
@@ -651,11 +759,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
       if ( sdpisolver->inputtosdpamapper[lpcol[i]] > 0 )
       {
          printf("+ %f <x%d> ", lpval[i], lpcol[i]);
-    	 /* as this is an active variable, there should be at least one in the constraint */
+       /* as this is an active variable, there should be at least one in the constraint */
          assert( lprownactivevars[lprow[i]] > 0 );
          if ( lprownactivevars[lprow[i]] > 1 )
          {
-            if ( lprow[i] > lastrow )	/* we update the lpcons-counter */
+            if ( lprow[i] > lastrow )  /* we update the lpcons-counter */
             {
                printf(" >= %f\n", lprhs[lpconsind]);
                lpconsind++;
@@ -668,8 +776,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    assert( lpconsind == nlpcons ); /* this is equal, because we number from one to nlpcons in sdpa */
 #endif
 
-   /* insert variable bounds, these are also added as LP-constraints and therefore diagonal entries of the LP block */
-   for (i = 0; i < sdpisolver->nvarbounds; i++)
+   /* insert variable bounds, these are also added as LP-constraints and therefore diagonal entries of the LP block
+    * if we work with the penalty formulation, we get an extra entry for r >= 0, but this we will add afterwards */
+   for (i = 0; i < ((gamma == 0.0) ? sdpisolver->nvarbounds : sdpisolver->nvarbounds - 1); i++)
    {
       assert( 0 < abs(sdpisolver->varboundpos[i]) && abs(sdpisolver->varboundpos[i] <= sdpisolver->nactivevars) ); /* the indices are already those for SDPA */
 
@@ -730,6 +839,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
       }
    }
 
+   if ( gamma != 0.0 )
+   {
+      /* we add the variable bound r >= 0 */
+      sdpisolver->sdpa->inputElement(sdpisolver->nactivevars + 1, nsdpblocks + 1, nlpcons + 1 + i, nlpcons + 1 + i, 1.0, checkinput);
+#ifdef SCIP_MORE_DEBUG
+      SCIPdebugMessage("         -> adding lower bound r >= 0 at (%d,%d)  in SDPA (%d)\n", nlpcons + 1 + i, nlpcons + 1 + i, sdpisolver->sdpcounter);
+#endif
+   }
+
    /* free the arrays used for counting and saving variable bounds and LP-right-hand-sides */
    BMSfreeBlockMemoryArray(sdpisolver->blkmem, &sdpavarbounds, 2 * sdpisolver->nactivevars);
 
@@ -747,12 +865,16 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    /* set the starting solution */
    if (start != NULL)
    {
+      //TODO: needs to be changed to y, Z and penalty formulation
       for (i = 1; i <= sdpisolver->nactivevars; i++) /* we iterate over the variables in sdpa */
          sdpisolver->sdpa->inputInitXVec(i, start[sdpisolver->sdpatoinputmapper[i] - 1]);
    }
 
    /* initialize settings */
-   sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_UNSTABLE_BUT_FAST);
+   if ( gamma == 0.0 )
+      sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_UNSTABLE_BUT_FAST);
+   else
+      sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_STABLE_BUT_SLOW); /* if we already had problems with this problem, there is no reason to try fast */
    sdpisolver->sdpa->setParameterLowerBound(-1e20);
    sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->epsilon);
    sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->feastol);
@@ -781,8 +903,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    sdpisolver->sdpa->solve();
    sdpisolver->solved = TRUE;
 
-   /* check whether problem has been stably solved */
-   if ( ! SCIPsdpiSolverIsAcceptable(sdpisolver) )
+   /* check whether problem has been stably solved, if it wasn't and we didn't yet run the stable parametersettings (for the penalty formulation we do so), try
+    * again with more stable parameters */
+   if ( (! SCIPsdpiSolverIsAcceptable(sdpisolver)) && gamma == 0.0 )
    {
       SCIPdebugMessage("Numerical troubles -- solving SDP %d again ...\n", sdpisolver->sdpcounter);
       printf("Numerical troubles -- solving SDP %d again ...\n", sdpisolver->sdpcounter);
@@ -801,7 +924,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 #endif
       sdpisolver->sdpa->solve();
       sdpisolver->solved = TRUE;
-
+      /* if we still didn't converge, set the parameters even more conservativly */
       if ( ! SCIPsdpiSolverIsAcceptable(sdpisolver) )
       {
          SCIPdebugMessage("Numerical troubles -- solving SDP %d again^2 ...\n", sdpisolver->sdpcounter);
@@ -836,72 +959,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 #endif
 
    return SCIP_OKAY;
-}
-
-/** loads and solves an SDP using a penalty formulation
- *
- *  The penalty formulation of the SDP is:
- *      \f{eqnarray*}{
- *      \min & & b^T y + \Gamma r \\
- *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathds{I} \succeq 0 \quad \forall i \leq m \\
- *      & & Dy \geq d \\
- *      & & l \leq y \leq u.\f}
- *  Alternatively withObj can be set to false to set \f$ b \f$ to 0 and only check for feasibility (if the optimal objective value is
- *  bigger than 0 the problem is infeasible, otherwise it's feasible).
- *  For the non-constant SDP- and the LP-part the original arrays before fixings should be given, for the constant SDP-part the arrays AFTER fixings
- *  should be given. In addition, an array needs to be given, that for every block and every row/col index within that block either has value
- *  -1, meaning that this index should be deleted, or a non-negative integer stating the number of indices before it that are to be deleated,
- *  meaning that this index will be decreased by that number. Moreover, the total number of deleted indices for each block should be given.
- *  An optional starting point for the solver may be given; if it is NULL, the solver will start from scratch.
- *
- *  @warning This only works for some solvers, check with SCIPsdpiKnowsPenalty first, otherwise this returns an error (in which case you should form
- *  the penalty formulation yourself and pass it via LoadAndSolve).
- *
- *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
- */
-SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
-   SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
-   SCIP_Real             gamma,              /**< the penalty parameter above, needs to be >= 0 */
-   SCIP_Bool             withObj,            /**< if this is false, the objective is set to 0 */
-   int                   nvars,              /**< number of variables */
-   SCIP_Real*            obj,                /**< objective function values of variables */
-   SCIP_Real*            lb,                 /**< lower bounds of variables */
-   SCIP_Real*            ub,                 /**< upper bounds of variables */
-   int                   nsdpblocks,         /**< number of SDP-blocks */
-   int*                  sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
-   int*                  sdpnblockvars,      /**< number of variables that exist in each block */
-   int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks AFTER FIXINGS */
-   int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
-                                              *   number of entries  of sdpconst row/col/val [i] AFTER FIXINGS */
-   int**                 sdpconstrow,        /**< pointers to row-indices for each block AFTER FIXINGS */
-   int**                 sdpconstcol,        /**< pointers to column-indices for each block AFTER FIXINGS */
-   SCIP_Real**           sdpconstval,        /**< pointers to the values of the nonzeros for each block AFTER FIXINGS */
-   int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint matrix */
-   int**                 sdpnblockvarnonz,   /**< entry [i][j] gives the number of nonzeros for block i and variable j, this is exactly
-                                              *   the number of entries of sdp row/col/val [i][j] */
-   int**                 sdpvar,             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
-                                              *   in the i-th block */
-   int***                sdprow,             /**< pointer to the row-indices for each block and variable */
-   int***                sdpcol,             /**< pointer to the column-indices for each block and variable */
-   SCIP_Real***          sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
-   int**                 indchanges,         /**< this returns the changes needed to be done to the indices, if indchange[block][nonz]=-1, then
-                                              *   the index can be removed, otherwise it gives the number of indices removed before this, i.e.
-                                              *   the value to decrease this index by, this array should have memory allocated in the size
-                                              *   sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
-   int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
-   int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
-   int					 noldlpcons,		 /**< number of LP-constraints including those with less than two active nonzeros */
-   SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
-   int*					 rownactivevars,	 /**< number of active variables for each lp constraint */
-   int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
-   int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            start               /**< NULL or a starting point for the solver, this should have length nvars */
-) //TODO: start needs to include X,y,Z for SDPA
-{
-   SCIPerrorMessage("SCIPsdpiSolverLoadAndSolveWithPenalty is not implemented for SDP\nDid you not try SCIPsdpiSolverKnowsPenalty() before calling it?\n");
-   return SCIP_LPERROR;
 }
 
 /**@} */
@@ -1701,8 +1758,9 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    X = sdpisolver->sdpa->getResultYMat(lpblockind);
 
    /* iterate over all variable bounds and insert the corresponding primal variables in the right positions of the return-arrays */
-   assert( sdpisolver->nvarbounds <= 2 * sdpisolver->nvars );
-   for (i = 0; i < sdpisolver->nvarbounds; i++)
+   assert( sdpisolver->nvarbounds <= 2 * sdpisolver->nvars || (sdpisolver->nvarbounds <= 2 * sdpisolver->nvars + 1 && sdpisolver->penalty ) );
+   /* if we solved a penalty formulation, the last variable bound belongs to the penalty variable, which we aren't interested in here */
+   for (i = 0; i < ((sdpisolver->penalty) ? sdpisolver->nvarbounds - 1 : sdpisolver->nvarbounds); i++)
    {
       if ( sdpisolver->varboundpos[i] < 0 )
       {
