@@ -30,8 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
- #define SCIP_DEBUG
-/* #define SCIP_MORE_DEBUG */ /* shows all added nonzero entries */
+/* #define SCIP_DEBUG*/
+/* #define SCIP_MORE_DEBUG  *//* shows all added nonzero entries */
 /* #define SCIP_DEBUG_PRINTTOFILE */ /* prints each problem inserted into SDPA to the file sdpa.dat-s and the starting point to sdpa.ini-s */
 
 /**@file   sdpisolver_sdpa.cpp
@@ -435,10 +435,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
       }
    }
 
-   /* set settings */
-   sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->epsilon);
-   sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->feastol);
-
    if ( sdpisolver->sdpinfo )
       sdpisolver->sdpa->setDisplay(stdout);
    else
@@ -449,7 +445,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    if ( ! fpOut )
       exit(-1);
    sdpisolver->sdpa->setResultFile(fpOut);
-   sdpisolver->sdpa->printParameters(stdout);
 #endif
 
    /* if we want to use a starting point we have to tell SDPA to allocate memory for it */
@@ -759,14 +754,18 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    /* initialize settings */
    sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_UNSTABLE_BUT_FAST);
    sdpisolver->sdpa->setParameterLowerBound(-1e20);
-
-   /* sdpisolver->sdpa->setParameterLambdaStar(1e5); */
-
+   sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->epsilon);
+   sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->feastol);
    /* set the objective limit */
    if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
       sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
    else
       sdpisolver->sdpa->setParameterUpperBound(1e20);
+#ifdef SCIP_MORE_DEBUG
+   sdpisolver->sdpa->printParameters(stdout);
+#endif
+
+   /* sdpisolver->sdpa->setParameterLambdaStar(1e5); */
 
    /* set number of threads */
    char str[1024];
@@ -790,6 +789,16 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 
       /* initialize settings */
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_DEFAULT);
+      sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->epsilon);
+      sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->feastol);
+      /* set the objective limit */
+      if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
+         sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
+      else
+         sdpisolver->sdpa->setParameterUpperBound(1e20);
+#ifdef SCIP_MORE_DEBUG
+   sdpisolver->sdpa->printParameters(stdout);
+#endif
       sdpisolver->sdpa->solve();
       sdpisolver->solved = TRUE;
 
@@ -800,6 +809,16 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 
          /* initialize settings */
          sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_STABLE_BUT_SLOW);
+         sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->epsilon);
+         sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->feastol);
+         /* set the objective limit */
+         if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
+            sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
+         else
+            sdpisolver->sdpa->setParameterUpperBound(1e20);
+#ifdef SCIP_MORE_DEBUG
+   sdpisolver->sdpa->printParameters(stdout);
+#endif
          sdpisolver->sdpa->solve();
          sdpisolver->solved = TRUE;
       }
@@ -809,7 +828,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    /* print the phase value , i.e. whether solving was successfull */
    char phase_string[15];
    sdpisolver->sdpa->getPhaseString((char*)phase_string);
-   SCIPdebugMessage("SDPA solving finished with status %s\n", phase_string);
+   SCIPdebugMessage("SDPA solving finished with status %s (primal and dual here are the same as in our formulation)\n", phase_string);
 #endif
 
 #ifdef SCIP_MORE_DEBUG
@@ -1305,7 +1324,7 @@ SCIP_Bool SCIPsdpiSolverIsConverged(
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
-   if ( phasetype == SDPA::pdOPT || phasetype == SDPA::pFEAS_dINF || phasetype == SDPA::pINF_dFEAS )
+   if ( phasetype == SDPA::pdOPT )
       return TRUE;
 
    return FALSE;
@@ -1462,7 +1481,9 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
-   if ( SCIPsdpiSolverIsConverged(sdpisolver) || phasetype == SDPA::dUNBD ) /* dUNBD means that the objective limit was reached */
+   /* we are happy if we converged, or we reached the objective limit (dUNBD) or we could show that our (dual, primal for SDPA) problem is
+    * infeasible [except for numerics] */
+   if ( SCIPsdpiSolverIsConverged(sdpisolver) || phasetype == SDPA::dUNBD || phasetype == SDPA::pINF_dFEAS)
       return TRUE;
    else
    {
