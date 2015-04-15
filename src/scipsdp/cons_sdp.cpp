@@ -37,8 +37,8 @@
  * @author Tristan Gally
  */
 
-// #define SCIP_DEBUG
-// #define SCIP_MORE_DEBUG /* shows all cuts added */
+/* #define SCIP_DEBUG*/
+/* #define SCIP_MORE_DEBUG *//* shows all cuts added */
 
 #include "cons_sdp.h"
 
@@ -1349,7 +1349,8 @@ SCIP_RETCODE fixAndAggrVars(
             var = consdata->vars[v];
 
          /* check if the variable is fixed in SCIP */
-         if ( SCIPvarGetStatus(var) == SCIP_VARSTATUS_FIXED )
+         // TODO: is the second allowed to happen if the variable has status aggregated? :TODO
+         if ( SCIPvarGetStatus(var) == SCIP_VARSTATUS_FIXED || SCIPisEQ(scip, SCIPvarGetLbGlobal(var), SCIPvarGetUbGlobal(var)))
          {
             assert( SCIPisEQ(scip, SCIPvarGetLbGlobal(var), SCIPvarGetUbGlobal(var)) );
 
