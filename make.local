@@ -30,8 +30,8 @@ USE_DSDP = true
 DSDP_INCLUDE_DIR = ../DSDP5.8/include
 DSDP_LIB_DIR =     ../DSDP5.8/lib
 
-SDPA_INCLUDE_DIR = ../sdpa
-SDPA_LIB_DIR =     ../sdpa
+SDPA_INCLUDE_DIR = ../sdpa/include
+SDPA_LIB_DIR =     ../sdpa/lib
 FLIBS =  -L/usr/lib/gcc/x86_64-redhat-linux6E/4.4.7 -L/usr/lib/gcc/x86_64-redhat-linux6E/4.4.7/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux6E/4.4.7/../../.. -lpthread -lgfortranbegin -lgfortran -lm -lgomp
 MUMPS_DIR       =       ../mumps/build
 SDPA_LDFLAGS    =       -L$(MUMPS_DIR)/lib -ldmumps -lmumps_common -lpord -L$(MUMPS_DIR)/libseq -lmpiseq $(FLIBS) # $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)
