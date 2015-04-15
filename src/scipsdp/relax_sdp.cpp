@@ -476,7 +476,7 @@ SCIP_RETCODE relaxIsFeasible(
    }
    else
    {
-      SCIPerrorMessage("Even when using a penalty-only-formulation the SDP-Solver didnot converge!");
+      SCIPdebugMessage("Even when using a penalty-only-formulation the SDP-Solver didnot converge!");
       success= false;
       feasible = false;
    }
