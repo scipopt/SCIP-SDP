@@ -587,7 +587,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             v = sdpisolver->sdpatoinputmapper[i];
 
 #ifdef SCIP_MORE_DEBUG
-            SCIPdebugMessage("      -> adding coefficient matrix for variable %d which becomes variable %d in SDPA (%d)\n", i, v, sdpisolver->sdpcounter);
+            SCIPdebugMessage("      -> adding coefficient matrix for variable %d which becomes variable %d in SDPA (%d)\n", v, i, sdpisolver->sdpcounter);
 #endif
 
             /* find the position of variable v in this block */
