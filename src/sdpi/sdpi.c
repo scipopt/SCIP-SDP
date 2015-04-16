@@ -313,7 +313,7 @@ SCIP_RETCODE compConstMatAfterFixings(
 }
 
 /** This takes the sdpi and the computed constant matrix after fixings as input and checks for empty rows and columns in each block, which should be
- *  removed to not harm the slater condition.
+ *  removed to not harm the slater condition. It also removes SDP blocks with no entries left, these are returned in blockindchanges and nremovedblocks
  *
  *  This is returned as a 2d-array, where each block and each row/col index (which is the same because of symmetry)
  *  either has value -1, then the index is to be removed, or gives a number (the number of indices deleted before it) by
@@ -331,7 +331,9 @@ SCIP_RETCODE findEmptyRowColsSDP(
                                               *   the index can be removed, otherwise it gives the number of indices removed before this, i.e.
                                               *   the value to decrease this index by, this array should have memory allocated in the size
                                               *   sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
-   int*                  nremovedinds        /**< the number of rows/cols to be fixed for each block */
+   int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
+   int*                  blockindchanges,    /**< index change for each block, system is the same as for indchanges */
+   int*                  nremovedblocks      /**< the number of blocks to be removed from the SDP */
    )
 {
    int block;
@@ -339,14 +341,25 @@ SCIP_RETCODE findEmptyRowColsSDP(
    int i;
    int nfoundinds;
 
+   assert( sdpi != NULL );
+   assert( sdpconstnblocknonz != NULL );
+   assert( sdpconstrow != NULL );
+   assert( sdpconstcol != NULL );
+   assert( sdpconstval != NULL );
+   assert( indchanges != NULL );
+   assert( nremovedinds != NULL );
+   assert( blockindchanges != NULL );
+   assert( nremovedblocks != NULL );
+
    /* initialize indchanges with -1 */
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
       for (i = 0; i < sdpi->sdpblocksizes[block]; i++)
          indchanges[block][i] = -1;
    }
+   *nremovedblocks = 0;
 
-   /* iterate over all active nonzeros, setting the values of indchange for their row and col to 1 (this is an intermediate value to save, that the
+   /* iterate over all active nonzeros, setting the values of indchange for their row and col to 1 (this is an intermediate value to save that the
     * index is still needed, it will later be set to the number of rows/cols deleted earlier) */
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
@@ -414,6 +427,16 @@ SCIP_RETCODE findEmptyRowColsSDP(
             indchanges[block][i] = nremovedinds[block];
          }
       }
+
+      /* check if the block became empty */
+      if ( nremovedinds[block] == sdpi->sdpblocksizes[block] )
+      {
+         SCIPdebugMessage("empty block %d detected in SDP %d, this will be removed", block, sdpi->sdpid);
+         blockindchanges[block] = -1;
+         (*nremovedblocks)++;
+      }
+      else
+         blockindchanges[block] = *nremovedblocks;
    }
 
    return SCIP_OKAY;
@@ -426,8 +449,8 @@ SCIP_RETCODE findEmptyRowColsSDP(
 static
 SCIP_RETCODE computeLpRhsAfterFixings(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP interface structure */
-   int*			 nactivelpcons,      /**< output: number of active LP-constraints */
-   SCIP_Real*		 lprhsafterfix,	     /**< output: first nlpcons (output) entries give right-hand sides of
+   int*                  nactivelpcons,      /**< output: number of active LP-constraints */
+   SCIP_Real*            lprhsafterfix,	   /**< output: first nlpcons (output) entries give right-hand sides of
                                               *  		  active lp-constraints after fixing variables, these are
                                               *  		  in the same relative order as before (with non-active rows
                                               *  		  removed) */
@@ -1737,6 +1760,8 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    int* rowsnactivevars;
    SCIP_Bool fixingfound;
    int nactivelpcons;
+   int* blockindchanges;
+   int nremovedblocks;
 
    assert ( sdpi != NULL );
    assert ( penaltyParam >= 0.0 );
@@ -1749,6 +1774,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    sdpconstval = NULL;
    indchanges = NULL;
    nremovedinds = NULL;
+   nremovedblocks = 0;
 
    /* allocate memory for computing the constant matrix after fixings and finding empty rows and columns, this is as much as might possibly be
     * needed, this will be shrinked again before solving */
@@ -1758,6 +1784,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstval, sdpi->nsdpblocks) );
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &indchanges, sdpi->nsdpblocks) );
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &nremovedinds, sdpi->nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &blockindchanges, sdpi->nsdpblocks) );
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &lprhsafterfix, sdpi->nlpcons) );
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &rowsnactivevars, sdpi->nlpcons) );
 
@@ -1798,7 +1825,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) );
    }
 
-   SCIP_CALL (findEmptyRowColsSDP(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges, nremovedinds) );
+   SCIP_CALL (findEmptyRowColsSDP(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges, nremovedinds, blockindchanges, &nremovedblocks) );
 
    if ( sdpi->infeasible )
    {
@@ -1811,7 +1838,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
                sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-               sdpi->sdpval, indchanges, nremovedinds, nactivelpcons, sdpi->nlpcons, lprhsafterfix, rowsnactivevars,
+               sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lprhsafterfix, rowsnactivevars,
                sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start) );
    }
    else if ( SCIPsdpiSolverKnowsPenalty() )
@@ -1820,7 +1847,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
             sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
             sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-            sdpi->sdpval, indchanges, nremovedinds, nactivelpcons, sdpi->nlpcons, lprhsafterfix, rowsnactivevars,
+            sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lprhsafterfix, rowsnactivevars,
             sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start) );
    }
    else
@@ -1839,6 +1866,7 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
    }
    BMSfreeBlockMemoryArray(sdpi->blkmem, &rowsnactivevars, sdpi->nlpcons);
    BMSfreeBlockMemoryArray(sdpi->blkmem, &lprhsafterfix, sdpi->nlpcons);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &blockindchanges, sdpi->nsdpblocks);
    BMSfreeBlockMemoryArray(sdpi->blkmem, &nremovedinds, sdpi->nsdpblocks);
    BMSfreeBlockMemoryArray(sdpi->blkmem, &indchanges, sdpi->nsdpblocks);
    BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstval, sdpi->nsdpblocks);

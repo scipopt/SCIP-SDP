@@ -330,6 +330,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
                                               *   the value to decrease this index by, this array should have memory allocated in the size
                                               *   sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
+   int*                  blockindchanges,    /**< block indizes will be modivied by these, see indchanges */
+   int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
    int					    noldlpcons,		   /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
@@ -343,7 +345,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 {
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
-               nremovedinds, nlpcons, noldlpcons, lprhs, lprownactivevars, lpnnonz, lprow, lpcol, lpval, start);
+               nremovedinds, blockindchanges, nremovedblocks, nlpcons, noldlpcons, lprhs, lprownactivevars, lpnnonz, lprow, lpcol, lpval, start);
 }
 
 /** loads and solves an SDP using a penalty formulation
@@ -397,6 +399,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                                               *   the value to decrease this index by, this array should have memory allocated in the size
                                               *   sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
+   int*                  blockindchanges,    /**< block indizes will be modivied by these, see indchanges */
+   int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
    int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
@@ -422,6 +426,37 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
 
    assert( sdpisolver != NULL );
+   assert( gamma > -1 * sdpisolver->epsilon );
+   assert( nvars > 0 );
+   assert( obj != NULL );
+   assert( lb != NULL );
+   assert( ub != NULL );
+   assert( nsdpblocks >= 0 );
+   assert( nsdpblocks == 0 || sdpblocksizes != NULL );
+   assert( nsdpblocks == 0 || sdpnblockvars != NULL );
+   assert( sdpconstnnonz >= 0 );
+   assert( nsdpblocks == 0 || sdpconstnblocknonz != NULL );
+   assert( nsdpblocks == 0 || sdpconstrow != NULL );
+   assert( nsdpblocks == 0 || sdpconstcol != NULL );
+   assert( nsdpblocks == 0 || sdpconstval != NULL );
+   assert( sdpnnonz >= 0 );
+   assert( nsdpblocks == 0 || sdpnblockvarnonz != NULL );
+   assert( nsdpblocks == 0 || sdpvar != NULL );
+   assert( nsdpblocks == 0 || sdprow != NULL );
+   assert( nsdpblocks == 0 || sdpcol != NULL );
+   assert( nsdpblocks == 0 || sdpval != NULL );
+   assert( nsdpblocks == 0 || indchanges != NULL );
+   assert( nsdpblocks == 0 || nremovedinds != NULL );
+   assert( nsdpblocks == 0 || blockindchanges != NULL );
+   assert( 0 <= nremovedblocks && nremovedblocks <= nsdpblocks );
+   assert( nlpcons >= 0 );
+   assert( noldlpcons >= nlpcons );
+   assert( lprhs != NULL );
+   assert( nlpcons == 0 || lprownactivevars != NULL );
+   assert( lpnnonz >= 0 );
+   assert( nlpcons == 0 || lprow != NULL );
+   assert( nlpcons == 0 || lpcol != NULL );
+   assert( nlpcons == 0 || lpval != NULL );
 
    checkinput = FALSE;
 
@@ -536,19 +571,26 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->sdpa->inputConstraintNumber(sdpisolver->nactivevars + 1); /* the additional variable is r which is multiplied with the identity matrix */
 
    /* if there are any lp-cons/variable-bounds, we get an extra block for those, lastrow - nshifts is the number of lp constraints added */
-   sdpisolver->sdpa->inputBlockNumber((nlpcons + sdpisolver->nvarbounds > 0) ? nsdpblocks + 1 : nsdpblocks);
+   sdpisolver->sdpa->inputBlockNumber((nlpcons + sdpisolver->nvarbounds > 0) ? nsdpblocks - nremovedblocks + 1 : nsdpblocks - nremovedblocks);
+   printf("blocknum = %d\n", (nlpcons + sdpisolver->nvarbounds > 0) ? nsdpblocks - nremovedblocks + 1 : nsdpblocks - nremovedblocks);
 
    /* block+1 because SDPA starts counting at 1 */
    for (block = 0; block < nsdpblocks; block++)
    {
-      sdpisolver->sdpa->inputBlockSize(block + 1, sdpblocksizes[block] - nremovedinds[block]);
-      sdpisolver->sdpa->inputBlockType(block + 1, SDPA::SDP);
+      if ( blockindchanges[block] >= 0 )
+      {
+         SCIPdebugMessage("adding block %d to SDPA as block %d with size %d\n",
+               block, block - blockindchanges[block] + 1, sdpblocksizes[block] - nremovedinds[block]);
+         sdpisolver->sdpa->inputBlockSize(block - blockindchanges[block] + 1, sdpblocksizes[block] - nremovedinds[block]);
+         sdpisolver->sdpa->inputBlockType(block - blockindchanges[block] + 1, SDPA::SDP);
+      }
    }
    if ( nlpcons + sdpisolver->nvarbounds > 0 )
    {
       /* the last block is the lp block, the size has a negative sign */
-      sdpisolver->sdpa->inputBlockSize(nsdpblocks + 1, -(nlpcons + sdpisolver->nvarbounds));
-      sdpisolver->sdpa->inputBlockType(nsdpblocks + 1, SDPA::LP);
+      sdpisolver->sdpa->inputBlockSize(nsdpblocks - nremovedblocks + 1, -(nlpcons + sdpisolver->nvarbounds));
+      sdpisolver->sdpa->inputBlockType(nsdpblocks - nremovedblocks + 1, SDPA::LP);
+      SCIPdebugMessage("adding LP block to SDPA as block %d with size %d\n", nsdpblocks - nremovedblocks + 1, -(nlpcons + sdpisolver->nvarbounds));
    }
    sdpisolver->sdpa->initializeUpperTriangleSpace();
 
@@ -584,8 +626,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       for (block = 0; block < nsdpblocks; block++)
       {
+         /* if the block has no entries, we skip it */
+         if ( blockindchanges[block] == -1 )
+            continue;
 #ifdef SCIP_MORE_DEBUG
-         SCIPdebugMessage("   -> building block %d (%d)\n", block + 1, sdpisolver->sdpcounter);
+         SCIPdebugMessage("   -> building block %d, which becomes block %d in SDPA (%d)\n", block, block - blockindchanges[block] + 1,sdpisolver->sdpcounter);
 #endif
          for (i = 0; i < sdpisolver->nactivevars; i++)
          {
@@ -629,7 +674,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                      sdpisolver->sdpcounter);
 #endif
 
-                  sdpisolver->sdpa->inputElement(i + 1, block + 1,
+                  sdpisolver->sdpa->inputElement(i + 1, block - blockindchanges[block] + 1,
                      sdpcol[block][blockvar][k] - indchanges[block][sdpcol[block][blockvar][k]] + 1,
                      sdprow[block][blockvar][k] - indchanges[block][sdprow[block][blockvar][k]] + 1,
                      sdpval[block][blockvar][k], checkinput);
@@ -648,7 +693,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                   SCIPdebugMessage("         -> adding nonzero 1.0 at (%d,%d) (%d)\n", i + 1, i + 1, sdpisolver->sdpcounter);
 #endif
 
-                  sdpisolver->sdpa->inputElement(sdpisolver->nactivevars + 1, block + 1, i + 1, i + 1, 1.0, checkinput);
+                  sdpisolver->sdpa->inputElement(sdpisolver->nactivevars + 1, block - blockindchanges[block] + 1, i + 1, i + 1, 1.0, checkinput);
             }
          }
       }
@@ -665,6 +710,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       for (block = 0; block < nsdpblocks; block++)
       {
+         if ( blockindchanges[block] == -1 )
+            continue;
 #ifdef SCIP_MORE_DEBUG
          SCIPdebugMessage("   -> building block %d (%d)\n", block + 1, sdpisolver->sdpcounter);
 #endif
@@ -686,7 +733,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                sdpconstrow[block][k] - indchanges[block][sdpconstrow[block][k]] + 1,
                sdpisolver->sdpcounter);
 #endif
-            sdpisolver->sdpa->inputElement(0, block + 1,
+            sdpisolver->sdpa->inputElement(0, block - blockindchanges[block] + 1,
                sdpconstcol[block][k] - indchanges[block][sdpconstcol[block][k]] + 1,
                sdpconstrow[block][k] - indchanges[block][sdpconstrow[block][k]] + 1,
                sdpconstval[block][k], checkinput);
@@ -751,7 +798,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          SCIPdebugMessage("         -> adding rhs %g at (%d,%d) (%d)\n", lprhs[i], i+1, i+1, sdpisolver->sdpcounter);
 #endif
          /* LP constraints are added as diagonal entries of the last block, right-hand-side is added as variable zero */
-         sdpisolver->sdpa->inputElement(0, nsdpblocks + 1, i + 1, i + 1, lprhs[i], checkinput);
+         sdpisolver->sdpa->inputElement(0, nsdpblocks - nremovedblocks + 1, i + 1, i + 1, lprhs[i], checkinput);
       }
    }
 
@@ -799,17 +846,17 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          /* add it as an lp-constraint for this variable (- because we saved -n for the lower bound), at the position
           * (nactivelpcons + 1) + varbound-index, because we have >= the variable has coefficient +1 */
-         sdpisolver->sdpa->inputElement(-sdpisolver->varboundpos[i], nsdpblocks + 1, nlpcons + 1 + i, nlpcons + 1 + i, 1.0, checkinput);
+         sdpisolver->sdpa->inputElement(-sdpisolver->varboundpos[i], nsdpblocks - nremovedblocks + 1, nlpcons + 1 + i, nlpcons + 1 + i, 1.0, checkinput);
 
          if ( REALABS(sdpavarbounds[i]) > sdpisolver->epsilon )
          {
             /* the bound is added as the rhs and therefore variable zero */
-            sdpisolver->sdpa->inputElement(0, nsdpblocks + 1, nlpcons + 1 + i, nlpcons + 1 + i, sdpavarbounds[i], checkinput);
 #ifdef SCIP_MORE_DEBUG
             SCIPdebugMessage("         -> adding lower bound %g at (%d,%d) for variable %d which became variable %d in SDPA (%d)\n",
                   sdpavarbounds[i], nlpcons + 1 + i, nlpcons + 1 + i, sdpisolver->sdpatoinputmapper[-sdpisolver->varboundpos[i] - 1],
                   -sdpisolver->varboundpos[i], sdpisolver->sdpcounter);
 #endif
+            sdpisolver->sdpa->inputElement(0, nsdpblocks - nremovedblocks + 1, nlpcons + 1 + i, nlpcons + 1 + i, sdpavarbounds[i], checkinput);
          }
          else
          {
@@ -827,17 +874,17 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
          /* add it as an lp-constraint for this variable, at the position nactivelpcons + varbound-index, because we have >= but we
           * want <= for the upper bound, we have to multiply by -1 and therefore the variable has coefficient -1 */
-         sdpisolver->sdpa->inputElement(sdpisolver->varboundpos[i], nsdpblocks + 1, nlpcons + 1 + i, nlpcons + 1 + i, -1.0, checkinput);
+         sdpisolver->sdpa->inputElement(sdpisolver->varboundpos[i], nsdpblocks - nremovedblocks + 1, nlpcons + 1 + i, nlpcons + 1 + i, -1.0, checkinput);
 
          if ( REALABS(sdpavarbounds[i]) > sdpisolver->epsilon )
          {
             /* the bound is added as the rhs and therefore variable zero, we multiply by -1 for <= */
-            sdpisolver->sdpa->inputElement(0, nsdpblocks + 1, nlpcons + 1 + i, nlpcons + 1 + i, -sdpavarbounds[i], checkinput);
 #ifdef SCIP_MORE_DEBUG
             SCIPdebugMessage("         -> adding upper bound %g at (%d,%d) for variable %d which became variable %d in SDPA (%d)\n",
                   sdpavarbounds[i], nlpcons + 1 + i, nlpcons + 1 + i, sdpisolver->sdpatoinputmapper[sdpisolver->varboundpos[i] - 1],
                   sdpisolver->varboundpos[i], sdpisolver->sdpcounter);
 #endif
+            sdpisolver->sdpa->inputElement(0, nsdpblocks - nremovedblocks + 1, nlpcons + 1 + i, nlpcons + 1 + i, -sdpavarbounds[i], checkinput);
          }
          else
          {
@@ -854,7 +901,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if ( gamma != 0.0 )
    {
       /* we add the variable bound r >= 0 */
-      sdpisolver->sdpa->inputElement(sdpisolver->nactivevars + 1, nsdpblocks + 1, nlpcons + 1 + i, nlpcons + 1 + i, 1.0, checkinput);
+      sdpisolver->sdpa->inputElement(sdpisolver->nactivevars + 1, nsdpblocks - nremovedblocks + 1, nlpcons + 1 + i, nlpcons + 1 + i, 1.0, checkinput);
 #ifdef SCIP_MORE_DEBUG
       SCIPdebugMessage("         -> adding lower bound r >= 0 at (%d,%d)  in SDPA (%d)\n", nlpcons + 1 + i, nlpcons + 1 + i, sdpisolver->sdpcounter);
 #endif
@@ -918,7 +965,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #ifdef SCIP_DEBUG
    /* print the phase value , i.e. whether solving was successfull */
    sdpisolver->sdpa->getPhaseString((char*)phase_string);
-   SCIPdebugMessage("SDPA solving finished with status %s (primal and dual here are the same as in our formulation)\n", phase_string);
+   SCIPdebugMessage("SDPA solving finished with status %s (primal and dual here are switched in contrast to our formulation)\n", phase_string);
 #endif
 
    /* check whether problem has been stably solved, if it wasn't and we didn't yet run the stable parametersettings (for the penalty formulation we do so), try
@@ -946,7 +993,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #ifdef SCIP_DEBUG
    /* print the phase value , i.e. whether solving was successfull */
    sdpisolver->sdpa->getPhaseString((char*)phase_string);
-   SCIPdebugMessage("SDPA solving finished with status %s (primal and dual here are the same as in our formulation)\n", phase_string);
+   SCIPdebugMessage("SDPA solving finished with status %s (primal and dual here are switched in contrast to our formulation)\n", phase_string);
 #endif
 
       /* if we still didn't converge, set the parameters even more conservativly */
@@ -973,7 +1020,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #ifdef SCIP_DEBUG
    /* print the phase value , i.e. whether solving was successfull */
    sdpisolver->sdpa->getPhaseString((char*)phase_string);
-   SCIPdebugMessage("SDPA solving finished with status %s (primal and dual here are the same as in our formulation)\n", phase_string);
+   SCIPdebugMessage("SDPA solving finished with status %s (primal and dual here are switched in constrast to our formulation)\n", phase_string);
 #endif
       }
    }
@@ -1078,21 +1125,21 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
       *dualfeasible = TRUE;
       break;
    case SDPA::pFEAS_dINF:
-      *primalfeasible = FALSE;
-      *dualfeasible = TRUE;
-      break;
-   case SDPA::pINF_dFEAS:
       *primalfeasible = TRUE;
       *dualfeasible = FALSE;
       break;
-   case SDPA::pUNBD:
+   case SDPA::pINF_dFEAS:
       *primalfeasible = FALSE;
       *dualfeasible = TRUE;
+      break;
+   case SDPA::pUNBD:
+      *primalfeasible = TRUE;
+      *dualfeasible = FALSE;
       SCIPdebugMessage("SDPA stopped because dual objective became smaller than lower bound\n");
       break;
    case SDPA::dUNBD:
-      *primalfeasible = TRUE;
-      *dualfeasible = FALSE;
+      *primalfeasible = FALSE;
+      *dualfeasible = TRUE;
       SCIPdebugMessage("SDPA stopped because primal objective became bigger than upper bound\n");
       break;
    default: /* contains noInfo, pFeas, dFeas, pdInf */
@@ -1152,14 +1199,14 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
-   if ( phasetype == SDPA::noINFO || phasetype == SDPA::dFEAS || phasetype == SDPA::pdINF )
+   if ( phasetype == SDPA::noINFO || phasetype == SDPA::pFEAS || phasetype == SDPA::pdINF )
    {
       SCIPdebugMessage("SDPA doesn't know if primal problem is unbounded");
       return FALSE;
    }
-   else if ( phasetype ==  SDPA::pINF_dFEAS )
+   else if ( phasetype ==  SDPA::pFEAS_dINF )
       return TRUE;
-   else if ( phasetype == SDPA::dUNBD )
+   else if ( phasetype == SDPA::pUNBD )
    {
       SCIPdebugMessage("SDPA was stopped because primal objective became bigger than upper bound");
       return TRUE;
@@ -1190,14 +1237,14 @@ SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
-   if ( phasetype == SDPA::noINFO || phasetype == SDPA::pFEAS || phasetype == SDPA::pdINF )
+   if ( phasetype == SDPA::noINFO || phasetype == SDPA::dFEAS || phasetype == SDPA::pdINF )
    {
       SCIPdebugMessage("SDPA doesn't know if primal problem is infeasible");
       return FALSE;
    }
-   else if ( phasetype ==  SDPA::pFEAS_dINF )
+   else if ( phasetype ==  SDPA::pINF_dFEAS )
       return TRUE;
-   else if ( phasetype == SDPA::pUNBD )
+   else if ( phasetype == SDPA::dUNBD )
    {
       SCIPdebugMessage("SDPA was stopped because dual objective became smaller than lower bound");
       return TRUE;
@@ -1228,14 +1275,14 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
-   if ( phasetype == SDPA::noINFO || phasetype == SDPA::pFEAS || phasetype == SDPA::pdINF )
+   if ( phasetype == SDPA::noINFO || phasetype == SDPA::dFEAS || phasetype == SDPA::pdINF )
    {
       SCIPdebugMessage("SDPA doesn't know if primal problem is feasible");
       return FALSE;
    }
-   else if ( phasetype ==  SDPA::pINF_dFEAS || phasetype == SDPA::pdOPT || phasetype == SDPA::dFEAS  || phasetype == SDPA::pdFEAS )
+   else if ( phasetype ==  SDPA::pFEAS_dINF || phasetype == SDPA::pdOPT || phasetype == SDPA::pFEAS  || phasetype == SDPA::pdFEAS )
       return TRUE;
-   else if ( phasetype == SDPA::pUNBD )
+   else if ( phasetype == SDPA::dUNBD )
    {
       SCIPdebugMessage("SDPA was stopped because dual objective became smaller than lower bound");
       return TRUE;
@@ -1292,14 +1339,14 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
-   if ( phasetype == SDPA::noINFO || phasetype == SDPA::pFEAS || phasetype == SDPA::pdINF )
+   if ( phasetype == SDPA::noINFO || phasetype == SDPA::dFEAS || phasetype == SDPA::pdINF )
    {
       SCIPdebugMessage("SDPA doesn't know if dual problem is unbounded");
       return FALSE;
    }
-   else if ( phasetype ==  SDPA::pFEAS_dINF )
+   else if ( phasetype ==  SDPA::pINF_dFEAS )
       return TRUE;
-   else if ( phasetype == SDPA::pUNBD )
+   else if ( phasetype == SDPA::dUNBD )
    {
       SCIPdebugMessage("SDPA was stopped because dual objective became smaller than lower bound");
       return TRUE;
@@ -1330,14 +1377,14 @@ SCIP_Bool SCIPsdpiSolverIsDualInfeasible(
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
-   if ( phasetype == SDPA::noINFO || phasetype == SDPA::dFEAS || phasetype == SDPA::pdINF )
+   if ( phasetype == SDPA::noINFO || phasetype == SDPA::pFEAS || phasetype == SDPA::pdINF )
    {
       SCIPdebugMessage("SDPA doesn't know if dual problem is infeasible");
       return FALSE;
    }
-   else if ( phasetype ==  SDPA::pINF_dFEAS )
+   else if ( phasetype ==  SDPA::pFEAS_dINF )
       return TRUE;
-   else if ( phasetype == SDPA::dUNBD )
+   else if ( phasetype == SDPA::pUNBD )
    {
       SCIPdebugMessage("SDPA was stopped because primal objective became bigger than upper bound");
       return TRUE;
@@ -1368,14 +1415,14 @@ SCIP_Bool SCIPsdpiSolverIsDualFeasible(
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
-   if ( phasetype == SDPA::noINFO || phasetype == SDPA::pFEAS || phasetype == SDPA::pdINF )
+   if ( phasetype == SDPA::noINFO || phasetype == SDPA::dFEAS || phasetype == SDPA::pdINF )
    {
       SCIPdebugMessage("SDPA doesn't know if primal problem is feasible");
       return FALSE;
    }
-   else if ( phasetype ==  SDPA::pFEAS_dINF || phasetype == SDPA::pdOPT || phasetype == SDPA::pFEAS  || phasetype == SDPA::pdFEAS )
+   else if ( phasetype ==  SDPA::pINF_dFEAS || phasetype == SDPA::pdOPT || phasetype == SDPA::dFEAS  || phasetype == SDPA::pdFEAS )
       return TRUE;
-   else if ( phasetype == SDPA::pUNBD )
+   else if ( phasetype == SDPA::dUNBD )
    {
       SCIPdebugMessage("SDPA was stopped because dual objective became smaller than lower bound");
       return TRUE;
@@ -1432,7 +1479,7 @@ SCIP_Bool SCIPsdpiSolverIsObjlimExc(
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
-   if ( phasetype == SDPA::dUNBD )
+   if ( phasetype == SDPA::pUNBD )
       return TRUE;
 
    return FALSE;
@@ -1514,11 +1561,11 @@ int SCIPsdpiSolverGetInternalStatus(
       return 0;
    if ( phasetype == SDPA::pdINF )
       return 1;
-   if ( phasetype == SDPA::dUNBD)
+   if ( phasetype == SDPA::pUNBD)
       return 3;
    if ( phasetype == SDPA::noINFO || phasetype == SDPA::pFEAS || phasetype == SDPA::dFEAS || phasetype == SDPA::pdFEAS )
       return 4;
-   else /* should include pUNBD */
+   else /* should include dUNBD */
       return 7;
 }
 
@@ -1562,9 +1609,9 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
-   /* we are happy if we converged, or we reached the objective limit (dUNBD) or we could show that our (dual, primal for SDPA) problem is
+   /* we are happy if we converged, or we reached the objective limit (pUNBD) or we could show that our problem is
     * infeasible [except for numerics], or unbounded */
-   if ( SCIPsdpiSolverIsConverged(sdpisolver) || phasetype == SDPA::dUNBD || phasetype == SDPA::pINF_dFEAS || phasetype == SDPA::pFEAS_dINF )
+   if ( SCIPsdpiSolverIsConverged(sdpisolver) || phasetype == SDPA::pUNBD || phasetype == SDPA::pINF_dFEAS || phasetype == SDPA::pFEAS_dINF )
       return TRUE;
    else
    {
