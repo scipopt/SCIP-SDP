@@ -417,6 +417,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int lpconsind;
    int lastrow;
 
+#ifdef SCIP_DEBUG
+   char phase_string[15];
+#endif
+
    assert( sdpisolver != NULL );
 
    checkinput = FALSE;
@@ -555,6 +559,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          /* insert objective value, SDPA counts from 1 to n instead of 0 to n-1 */
          sdpisolver->sdpa->inputCVec(i + 1, obj[sdpisolver->sdpatoinputmapper[i]]);
+         SCIPdebugMessage("inserting objective %f for variable %d which became variable %d in SDPA\n", obj[sdpisolver->sdpatoinputmapper[i]],
+               sdpisolver->sdpatoinputmapper[i], i+1);
       }
       if (gamma != 0.0)
          sdpisolver->sdpa->inputCVec(sdpisolver->nactivevars + 1, gamma); /* set the objective of the additional var to gamma */
@@ -636,7 +642,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #ifdef SCIP_MORE_DEBUG
             SCIPdebugMessage("      -> adding coefficient matrix for penalty variable r in SDPA (%d)\n", sdpisolver->sdpcounter);
 #endif
-            for (i = 0; i < sdpblocksizes[i] - nremovedinds[i]; i++)
+            for (i = 0; i < sdpblocksizes[block] - nremovedinds[block]; i++)
             {
 #ifdef SCIP_MORE_DEBUG
                   SCIPdebugMessage("         -> adding nonzero 1.0 at (%d,%d) (%d)\n", i + 1, i + 1, sdpisolver->sdpcounter);
@@ -768,7 +774,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          {
             if ( lprow[i] > lastrow )  /* we updated the lpcons-counter */
             {
-               if (lastrow >= 0)
+               if ( lastrow >= 0 )
                   printf(" >= %f\n", lprhs[lpconsind]);
                lpconsind++;
                lastrow = lprow[i];
@@ -777,7 +783,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          }
       }
    }
-   printf(" >= %f\n", lprhs[lpconsind]);
+   if ( lastrow >= 0 )
+      printf(" >= %f\n", lprhs[lpconsind]);
    assert( lpconsind == nlpcons ); /* this is equal, because we number from one to nlpcons in sdpa */
 #endif
 
@@ -908,6 +915,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->sdpa->solve();
    sdpisolver->solved = TRUE;
 
+#ifdef SCIP_DEBUG
+   /* print the phase value , i.e. whether solving was successfull */
+   sdpisolver->sdpa->getPhaseString((char*)phase_string);
+   SCIPdebugMessage("SDPA solving finished with status %s (primal and dual here are the same as in our formulation)\n", phase_string);
+#endif
+
    /* check whether problem has been stably solved, if it wasn't and we didn't yet run the stable parametersettings (for the penalty formulation we do so), try
     * again with more stable parameters */
    if ( (! SCIPsdpiSolverIsAcceptable(sdpisolver)) && gamma == 0.0 )
@@ -929,6 +942,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
       sdpisolver->sdpa->solve();
       sdpisolver->solved = TRUE;
+
+#ifdef SCIP_DEBUG
+   /* print the phase value , i.e. whether solving was successfull */
+   sdpisolver->sdpa->getPhaseString((char*)phase_string);
+   SCIPdebugMessage("SDPA solving finished with status %s (primal and dual here are the same as in our formulation)\n", phase_string);
+#endif
+
       /* if we still didn't converge, set the parameters even more conservativly */
       if ( ! SCIPsdpiSolverIsAcceptable(sdpisolver) )
       {
@@ -949,15 +969,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
          sdpisolver->sdpa->solve();
          sdpisolver->solved = TRUE;
-      }
-   }
 
 #ifdef SCIP_DEBUG
    /* print the phase value , i.e. whether solving was successfull */
-   char phase_string[15];
    sdpisolver->sdpa->getPhaseString((char*)phase_string);
    SCIPdebugMessage("SDPA solving finished with status %s (primal and dual here are the same as in our formulation)\n", phase_string);
 #endif
+      }
+   }
 
 #ifdef SCIP_MORE_DEBUG
    (void) fclose(fpOut);
