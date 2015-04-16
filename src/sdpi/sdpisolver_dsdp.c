@@ -30,8 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* #define SCIP_DEBUG*/
-/*#define SCIP_MORE_DEBUG*/
+//#define SCIP_DEBUG
+//#define SCIP_MORE_DEBUG
 
 /**@file   sdpisolver_dsdp.c
  * @brief  interface for DSDP
@@ -783,13 +783,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          if (lpcol[i] >= nextcol)
          {
             /* set the dsdplpbegcol entries, as there might be active variables which appear only in the sdp but not the lp-part, we also have to set
-             * the starting values for all variable in between to the same value (as we also set the entry for the found variable, this for-queue
+             * the starting values for all variables in between to the same value (as we also set the entry for the found variable, this for-queue
              * will always have at least one index in the index set) */
             for (j = nextcol; j <= lpcol[i]; j++)
             {
                if (sdpisolver->inputtodsdpmapper[j] >= 0)
                {
-                  assert( ! (isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]])) );
+                  assert( ! (isFixed(sdpisolver, lb[j], ub[j])) );
                   /* add the entry to the objlimit-lp-constraint for the last variables */
                   if ( (! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit)) && (j > 0) && (REALABS( obj[j - 1] ) > sdpisolver->epsilon))
                   {
