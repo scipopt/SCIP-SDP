@@ -48,54 +48,56 @@
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
 
+
 /* Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY */
 #define BMS_CALL(x)   do                                                                                      \
-                       {                                                                                      \
+                      {                                                                                       \
                           if( NULL == (x) )                                                                   \
                           {                                                                                   \
                              SCIPerrorMessage("No memory in function call\n");                                \
                              return SCIP_NOMEMORY;                                                            \
                           }                                                                                   \
-                       }                                                                                      \
-                       while( FALSE )
+                      }                                                                                       \
+                      while( FALSE )
 
 /* this will be called in all functions that want to access solution information to check if the problem was solved since the last change of the problem */
 #define CHECK_IF_SOLVED(sdpi)  do                                                                             \
-                        {                                                                                     \
-                           if (!(sdpi->solved))                                                               \
-                           {                                                                                  \
-                              SCIPerrorMessage("Tried to access solution information ahead of solving! \n");  \
-                              SCIPABORT();                                                                    \
-                              return SCIP_LPERROR;                                                              \
-                           }                                                                                  \
-                        }                                                                                     \
-                        while( FALSE )
+                      {                                                                                       \
+                         if ( ! (sdpi->solved) )                                                              \
+                         {                                                                                    \
+                            SCIPerrorMessage("Tried to access solution information ahead of solving! \n");    \
+                            SCIPABORT();                                                                      \
+                            return SCIP_LPERROR;                                                              \
+                         }                                                                                    \
+                      }                                                                                       \
+                      while( FALSE )
 
 /* duplicate an array that might be null (in that case null is returned, otherwise BMSduplicateMemory is called) */
-#define DUPLICATE_ARRAY_NULL(blkmem, target, source, size) do                                                  \
-                        {                                                                                     \
-                           if (size > 0)                                                                      \
-                              BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, target, source, size) );         \
-                           else                                                                               \
-                              *target = NULL;                                                                  \
-                        }                                                                                     \
-                        while( FALSE )
+#define DUPLICATE_ARRAY_NULL(blkmem, target, source, size) do                                                 \
+                      {                                                                                       \
+                         if (size > 0)                                                                        \
+                            BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, target, source, size) );           \
+                         else                                                                                 \
+                            *target = NULL;                                                                   \
+                      }                                                                                       \
+                      while( FALSE )
 
 #define SCIP_CALL_PARAM(x)   do                                                                               \
-                       {                                                                                      \
-                          SCIP_RETCODE _restat_;                                                              \
-                          if ( (_restat_ = (x)) != SCIP_OKAY )                                                \
-                          {                                                                                   \
-                             if ( _restat_ != SCIP_PARAMETERUNKNOWN )                                         \
-                             {                                                                                \
-                                SCIPerrorMessage("Error <%d> in function call\n", _restat_);                  \
-                                SCIPABORT();                                                                  \
-                             }                                                                                \
-                             return _restat_;                                                                 \
-                           }                                                                                  \
-                       }                                                                                      \
-                       while( FALSE )
+                      {                                                                                       \
+                         SCIP_RETCODE _restat_;                                                               \
+                         if ( (_restat_ = (x)) != SCIP_OKAY )                                                 \
+                         {                                                                                    \
+                            if ( _restat_ != SCIP_PARAMETERUNKNOWN )                                          \
+                            {                                                                                 \
+                               SCIPerrorMessage("Error <%d> in function call\n", _restat_);                   \
+                               SCIPABORT();                                                                   \
+                            }                                                                                 \
+                            return _restat_;                                                                  \
+                         }                                                                                    \
+                      }                                                                                       \
+                      while( FALSE )
 
+/** data for SDPI */
 struct SCIP_SDPi
 {
    SCIP_SDPISOLVER*      sdpisolver;         /**< pointer to the interface for the SDP Solver */
@@ -150,8 +152,8 @@ struct SCIP_SDPi
  */
 
 /** For given row and column (i,j) checks if i >= j, so that i and j give a position in the lower
- * triangular part, otherwise i and j will be switched. This function will be called whenever a position in a symmetric matrix
- * is given, to prevent problems if position (i,j) is given but later (j,i) should be changed.
+ *  triangular part, otherwise i and j will be switched. This function will be called whenever a position in a symmetric matrix
+ *  is given, to prevent problems if position (i,j) is given but later (j,i) should be changed.
  */
 static
 void ensureLowerTriangular(
@@ -172,7 +174,7 @@ void ensureLowerTriangular(
 /** Test if for a given variable the lower bound is in an epsilon neighborhood of the upper bound */
 static
 SCIP_Bool isFixed(
-   SCIP_SDPI*            sdpi,                /**< pointer to an SDP interface structure */
+   SCIP_SDPI*            sdpi,               /**< pointer to an SDP interface structure */
    int                   v                   /**< global index of the variable to check this for */
    )
 {
@@ -196,11 +198,11 @@ SCIP_Bool isFixed(
 #endif
 
 /** Computes the constant Matrix after all variables with lb=ub have been fixed and their nonzeros were moved to the constant part. The five variables
- * other than sdpi are used to return the matrix.
+ *  other than sdpi are used to return the matrix.
  *
- * The size of sdpconstnblocknonz and the first pointers of sdpconst row/col/val should be equal to sdpi->nsdpblocks,
- * the size of sdpconst row/col/val [i], which is given in sdpconstblocknnonz, needs to be sufficient, otherwise the
- * needed length will be returned in sdpconstnblocknonz and a debug message will be thrown.
+ *  The size of sdpconstnblocknonz and the first pointers of sdpconst row/col/val should be equal to sdpi->nsdpblocks,
+ *  the size of sdpconst row/col/val [i], which is given in sdpconstblocknnonz, needs to be sufficient, otherwise the
+ *  needed length will be returned in sdpconstnblocknonz and a debug message will be thrown.
  */
 static
 SCIP_RETCODE compConstMatAfterFixings(
@@ -451,7 +453,7 @@ static
 SCIP_RETCODE computeLpRhsAfterFixings(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP interface structure */
    int*                  nactivelpcons,      /**< output: number of active LP-constraints */
-   SCIP_Real*            lprhsafterfix,	   /**< output: first nlpcons (output) entries give right-hand sides of
+   SCIP_Real*            lprhsafterfix,	     /**< output: first nlpcons (output) entries give right-hand sides of
                                               *  		  active lp-constraints after fixing variables, these are
                                               *  		  in the same relative order as before (with non-active rows
                                               *  		  removed) */
@@ -1076,7 +1078,7 @@ SCIP_RETCODE SCIPsdpiAddSDPBlock(
 /** deletes a SDP-Block */
 SCIP_RETCODE SCIPsdpiDelSDPBlock(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   int                   block              /**< index of the SDP-Block (indexing starting at 1) that should be deleted */
+   int                   block               /**< index of the SDP-Block (indexing starting at 1) that should be deleted */
    )
 {
    SCIPdebugMessage("currently not implemented!\n");
@@ -1421,7 +1423,7 @@ SCIP_RETCODE SCIPsdpiChgSDPConstCoeff(
    int                   block,              /**< block index */
    int                   rowind,             /**< row index */
    int                   colind,             /**< column index*/
-   const SCIP_Real      newval               /**< new value of given entry of constant matrix in given SDP-Block */
+   const SCIP_Real       newval              /**< new value of given entry of constant matrix in given SDP-Block */
    )
 {
    SCIPdebugMessage("currently not implemented!\n");
@@ -1435,7 +1437,7 @@ SCIP_RETCODE SCIPsdpiChgSDPCoeff(
    int                   var,                /**< variable index */
    int                   rowind,             /**< row index between */
    int                   colind,             /**< column index between */
-   const SCIP_Real      newval              /**< new value of given entry of the give constraint matrix in specified SDP-Block */
+   const SCIP_Real       newval              /**< new value of given entry of the give constraint matrix in specified SDP-Block */
    )
 {
    SCIPdebugMessage("currently not implemented!\n");
