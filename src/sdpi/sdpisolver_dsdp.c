@@ -392,10 +392,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
                                               *   the value to decrease this index by, this array should have memory allocated in the size
                                               *   sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
+   int*                  blockindchanges,    /**< block indizes will be modivied by these, see indchanges */
+   int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
-   int					 noldlpcons,		 /**< number of LP-constraints including those with less than two active nonzeros */
+   int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
-   int*					 rownactivevars,	 /**< number of active variables for each lp constraint */
+   int*                  rownactivevars,     /**< number of active variables for each lp constraint */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
@@ -405,7 +407,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 {
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars,
            sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
-           indchanges, nremovedinds, nlpcons, noldlpcons, lprhs, rownactivevars, lpnnonz, lprow, lpcol, lpval, start);
+           indchanges, nremovedinds, blockindchanges, nremovedblocks, nlpcons, noldlpcons, lprhs, rownactivevars, lpnnonz, lprow, lpcol, lpval, start);
 }
 
 /** loads and solves an SDP using a penalty formulation
@@ -459,6 +461,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                                               *   the value to decrease this index by, this array should have memory allocated in the size
                                               *   sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
+   int*                  blockindchanges,    /**< block indizes will be modivied by these, see indchanges */
+   int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
    int	                noldlpcons,		   /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
