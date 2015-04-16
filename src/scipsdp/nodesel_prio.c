@@ -104,7 +104,8 @@ SCIP_RETCODE CheckHashmapSize(
          }
       }
 
-      SCIPhashmapFree(&(nodeseldata->nodeprios));
+      if ( nodeseldata->size > 0 )
+         SCIPhashmapFree(&(nodeseldata->nodeprios));
       nodeseldata->nodeprios = newhashmap;
 
       /* also enlarge the savedvals-array */
@@ -195,7 +196,8 @@ SCIP_DECL_NODESELINIT(nodeselInitPrio)
    assert( nodesel != NULL );
    nodeseldata = SCIPnodeselGetData(nodesel);
 
-   SCIPhashmapCreate(&(nodeseldata->nodeprios), SCIPblkmem(scip), HASHMAP_INITIALSIZEFACTOR * ( SCIPgetNBinVars(scip) + SCIPgetNIntVars(scip) ) );
+   if ( SCIPgetNBinVars(scip) + SCIPgetNIntVars(scip) > 0 )
+      SCIPhashmapCreate(&(nodeseldata->nodeprios), SCIPblkmem(scip), HASHMAP_INITIALSIZEFACTOR * ( SCIPgetNBinVars(scip) + SCIPgetNIntVars(scip) ) );
    nodeseldata->nnodes = 0;
    nodeseldata->size = HASHMAP_INITIALSIZEFACTOR * ( SCIPgetNBinVars(scip) + SCIPgetNIntVars(scip) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(nodeseldata->savedvals), nodeseldata->size) );
