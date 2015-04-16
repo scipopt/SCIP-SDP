@@ -97,7 +97,7 @@ struct SCIP_ConsData
    int*                  constcol;           /**< column indices of the constant nonzeroes */
    int*                  constrow;           /**< row indices of the constant nonzeroes */
    SCIP_Real*            constval;           /**< values of the constant nonzeroes */
-   SCIP_Real			    maxrhsentry;		   /**< maximum entry of constant matrix (needed for DIMACS error norm) */
+   SCIP_Real             maxrhsentry;        /**< maximum entry of constant matrix (needed for DIMACS error norm) */
 };
 
 /** SDP constraint handler data */
