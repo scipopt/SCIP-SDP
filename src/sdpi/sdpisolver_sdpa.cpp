@@ -1563,8 +1563,8 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
    /* we are happy if we converged, or we reached the objective limit (dUNBD) or we could show that our (dual, primal for SDPA) problem is
-    * infeasible [except for numerics] */
-   if ( SCIPsdpiSolverIsConverged(sdpisolver) || phasetype == SDPA::dUNBD || phasetype == SDPA::pINF_dFEAS)
+    * infeasible [except for numerics], or unbounded */
+   if ( SCIPsdpiSolverIsConverged(sdpisolver) || phasetype == SDPA::dUNBD || phasetype == SDPA::pINF_dFEAS || phasetype == SDPA::pFEAS_dINF )
       return TRUE;
    else
    {
