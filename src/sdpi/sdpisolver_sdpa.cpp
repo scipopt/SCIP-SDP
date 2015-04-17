@@ -1751,8 +1751,8 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
       }
 
       /* get the solution from sdpa */
-      assert( (gamma == 0.0 && sdpisolver->nactivevars == sdpisolver->sdpa->getConstraintNumber()) ||
-               sdpisolver->nactivevars + 1 == sdpisolver->sdpa->getConstraintNumber() ); /* in the second case we have r as an additional variable */
+      assert( ( sdpisolver->penalty && sdpisolver->nactivevars + 1 == sdpisolver->sdpa->getConstraintNumber()) ||
+               sdpisolver->nactivevars == sdpisolver->sdpa->getConstraintNumber() ); /* in the second case we have r as an additional variable */
       sdpasol = sdpisolver->sdpa->getResultXVec();
       /* insert the entries into dualsol, for non-fixed vars we copy those from sdpa, the rest are the saved entries from inserting (they equal lb=ub) */
       for (v = 0; v < sdpisolver->nvars; v++)
