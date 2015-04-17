@@ -572,7 +572,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* if there are any lp-cons/variable-bounds, we get an extra block for those, lastrow - nshifts is the number of lp constraints added */
    sdpisolver->sdpa->inputBlockNumber((nlpcons + sdpisolver->nvarbounds > 0) ? nsdpblocks - nremovedblocks + 1 : nsdpblocks - nremovedblocks);
-   printf("blocknum = %d\n", (nlpcons + sdpisolver->nvarbounds > 0) ? nsdpblocks - nremovedblocks + 1 : nsdpblocks - nremovedblocks);
 
    /* block+1 because SDPA starts counting at 1 */
    for (block = 0; block < nsdpblocks; block++)
@@ -601,8 +600,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          /* insert objective value, SDPA counts from 1 to n instead of 0 to n-1 */
          sdpisolver->sdpa->inputCVec(i + 1, obj[sdpisolver->sdpatoinputmapper[i]]);
+#ifdef SCIP_MORE_DEBUG
          SCIPdebugMessage("inserting objective %f for variable %d which became variable %d in SDPA\n", obj[sdpisolver->sdpatoinputmapper[i]],
                sdpisolver->sdpatoinputmapper[i], i+1);
+#endif
       }
       if (gamma != 0.0)
          sdpisolver->sdpa->inputCVec(sdpisolver->nactivevars + 1, gamma); /* set the objective of the additional var to gamma */
@@ -742,7 +743,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
 #ifdef SCIP_MORE_DEBUG
-         SCIPdebugMessage("   -> building LP-block %d (%d)\n", nsdpblocks + 1, sdpisolver->sdpcounter);
+         SCIPdebugMessage("   -> building LP-block %d (%d)\n", nsdpblocks - nremovedblocks + 1, sdpisolver->sdpcounter);
 #endif
    /* inserting LP nonzeros */
 
@@ -774,7 +775,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
                   /* LP nonzeros are added as diagonal entries of the last block (coming after the last SDP-block, with blocks starting at 1, as are rows), the
                    * r-variable is variable nactivevars + 1 */
-                  sdpisolver->sdpa->inputElement(sdpisolver->nactivevars + 1, nsdpblocks + 1, lpconsind, lpconsind, 1.0, checkinput);
+                  sdpisolver->sdpa->inputElement(sdpisolver->nactivevars + 1, nsdpblocks - nremovedblocks + 1, lpconsind, lpconsind, 1.0, checkinput);
                }
             }
 #ifdef SCIP_MORE_DEBUG
@@ -782,7 +783,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                lpval[i], lpconsind, lpconsind, lpcol[i], sdpisolver->inputtosdpamapper[lpcol[i]], sdpisolver->sdpcounter);
 #endif
             /* LP nonzeros are added as diagonal entries of the last block (coming after the last SDP-block, with blocks starting at 1, as are rows) */
-            sdpisolver->sdpa->inputElement(sdpisolver->inputtosdpamapper[lpcol[i]], nsdpblocks + 1,
+            sdpisolver->sdpa->inputElement(sdpisolver->inputtosdpamapper[lpcol[i]], nsdpblocks - nremovedblocks + 1,
                lpconsind, lpconsind, lpval[i], checkinput);
          }
       }
