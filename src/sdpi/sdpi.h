@@ -532,26 +532,6 @@ SCIP_RETCODE SCIPsdpiSolve(
    int*                  totalsdpiterations  /**< the number of sdpiterations needed will be added to the int this points to */
    );
 
-/** solves the following penalty formulation of the SDP:
- *      \f{eqnarray*}{
- *      \min & & b^T y + \Gamma r \\
- *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathds{I} \succeq 0 \quad \forall i \leq m \\
- *      & & Dy \geq d \\
- *      & & l \leq y \leq u\f}
- *   alternatively withObj can be to false to set \f$ b \f$ to zero and only check for feasibility (if the optimal
- *   objective value is bigger than 0 the problem is infeasible, otherwise it's feasible), as start optionally a
- *   starting point for the solver may be given, if it is NULL, the solver will start from scratch */
-EXTERN
-SCIP_RETCODE SCIPsdpiSolvePenalty(
-   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_Real             gamma,              /**< the penalty parameter above, needs to be >= 0 */
-   SCIP_Bool             withObj,            /**< if this is false, the objective is set to 0 */
-   SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
-   int*                  totalsdpiterations  /**< the number of sdpiterations needed will be added to the int this points to */
-   );
-
-
-
 /**@} */
 
 
@@ -567,6 +547,12 @@ SCIP_RETCODE SCIPsdpiSolvePenalty(
 /** returns whether a solve method was called after the last modification of the SDP */
 EXTERN
 SCIP_Bool SCIPsdpiWasSolved(
+   SCIP_SDPI*            sdpi                /**< SDP interface structure */
+   );
+
+/** returns whether the original problem was solved, if SCIPsdpiWasSolved = true and SCIPsdpiSolvedOrig = false, then a penalty formulation was solved */
+EXTERN
+SCIP_Bool SCIPsdpiSolvedOrig(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    );
 

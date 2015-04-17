@@ -345,7 +345,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 {
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
-               nremovedinds, blockindchanges, nremovedblocks, nlpcons, noldlpcons, lprhs, lprownactivevars, lpnnonz, lprow, lpcol, lpval, start);
+               nremovedinds, blockindchanges, nremovedblocks, nlpcons, noldlpcons, lprhs, lprownactivevars, lpnnonz, lprow, lpcol, lpval, start, NULL);
 }
 
 /** loads and solves an SDP using a penalty formulation
@@ -409,7 +409,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            start               /**< NULL or a starting point for the solver, this should have length nvars */
+   SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
+   SCIP_Bool*            feasorig            /**< is the solution to the penalty-formulation feasible for the original problem? (may be NULL if gamma = 0) */
 ) //TODO: start needs to include X,y,Z for SDPA
 {
    SCIP_Real* sdpavarbounds;
@@ -1029,6 +1030,18 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #ifdef SCIP_MORE_DEBUG
    (void) fclose(fpOut);
 #endif
+
+   /* if we solved a penalty formulation, check if the solution is feasible for the original problem (which is the case iff r < feastol) */
+   if ( gamma != 0.0 )
+   {
+      double sdpasol;
+
+      assert( (sdpisolver->nactivevars == sdpisolver->sdpa->getConstraintNumber()) ); /* in the second case we have r as an additional variable */
+      sdpasol = sdpisolver->sdpa->getResultXVec();
+
+      /* we get r as the last variable in SDPA */
+      *feasorig = (sdpasol[sdpisolver->nactivevars] < sdpisolver->feastol);
+   }
 
    return SCIP_OKAY;
 }
@@ -1751,7 +1764,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
       }
 
       /* get the solution from sdpa */
-      assert( ( sdpisolver->penalty && sdpisolver->nactivevars + 1 == sdpisolver->sdpa->getConstraintNumber()) ||
+      assert( (sdpisolver->penalty && sdpisolver->nactivevars + 1 == sdpisolver->sdpa->getConstraintNumber()) ||
                sdpisolver->nactivevars == sdpisolver->sdpa->getConstraintNumber() ); /* in the second case we have r as an additional variable */
       sdpasol = sdpisolver->sdpa->getResultXVec();
       /* insert the entries into dualsol, for non-fixed vars we copy those from sdpa, the rest are the saved entries from inserting (they equal lb=ub) */
