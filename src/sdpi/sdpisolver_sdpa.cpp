@@ -1034,7 +1034,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* if we solved a penalty formulation, check if the solution is feasible for the original problem (which is the case iff r < feastol) */
    if ( gamma != 0.0 )
    {
-      double sdpasol;
+      double* sdpasol;
 
       assert( (sdpisolver->nactivevars == sdpisolver->sdpa->getConstraintNumber()) ); /* in the second case we have r as an additional variable */
       sdpasol = sdpisolver->sdpa->getResultXVec();
