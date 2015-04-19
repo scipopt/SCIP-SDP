@@ -60,7 +60,8 @@ CLIENTTMPDIR    =       /tmp
 OPTCOMMAND	=	optimize
 SOFTLINKS	=
 MAKESOFTLINKS	=	true
-OPENBLAS	=	false
+OPENBLAS	=	true
+
 
 #-----------------------------------------------------------------------------
 # include default project Makefile from SCIP
@@ -103,7 +104,7 @@ SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_dsdp.o
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/dsdpinc
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libdsdp.$(STATICLIBEXT)
 SDPIINSTMSG	=	"  -> \"dsdpinc\" is the path to the DSDP \"include\" directory, e.g., \"<DSDP-path>/include\".\n"
-SDPIINSTMSG	+=	" -> \"libdsdp.*\" is the path to the DSDP library, e.g., \"<DSDP-path>/lib/libdsdp.a\""
+SDPIINSTMSG	+=	" -> \"libdsdp.*\" is the path to the DSDP library, e.g., \"<DSDP-path>/lib/libdsdp.$(STATICLIBEXT)\""
 endif
 
 SDPIOPTIONS	+=	sdpa
@@ -137,6 +138,11 @@ SDPIINC		=
 SDPICSRC 	= 	src/sdpi/sdpisolver_none.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_none.o
 endif
+
+# include install/uninstall targets
+-include make/make.install
+
+LINKSMARKERFILE	=	$(LIBDIR)/linkscreated.$(LPS)-$(LPSOPT).$(OSTYPE).$(ARCH).$(COMP)$(LINKLIBSUFFIX).$(ZIMPL)-$(ZIMPLOPT).$(IPOPT)-$(IPOPTOPT).$(GAMS)
 
 #-----------------------------------------------------------------------------
 
