@@ -43,7 +43,7 @@ SDPS		=	none
 
 GCCWARN		+= 	-Wextra
 
-# check and testing parameters
+# parameters
 TIME     	=  	3600
 NODES           =       2100000000
 MEM		=	6144
@@ -58,6 +58,9 @@ LOCK		=	false
 VALGRIND	=	false
 CLIENTTMPDIR    =       /tmp
 OPTCOMMAND	=	optimize
+SOFTLINKS	=
+MAKESOFTLINKS	=	true
+OPENBLAS	=	false
 
 #-----------------------------------------------------------------------------
 # include default project Makefile from SCIP
@@ -66,11 +69,20 @@ OPTCOMMAND	=	optimize
 # possibly load local makefile
 -include make.local
 
+# load SCIP project makefile
 include $(SCIPDIR)/make/make.project
+
+# save directory to be able to locate library files
+ifeq ($(OSTYPE),mingw)
+SCIPSDPDIR	=	./
+else
+SCIPSDPDIR	=	$(realpath .)
+endif
+SCIPSDPLIBDIR	=	lib
 
 
 #-----------------------------------------------------------------------------
-# setting SDP solver
+# settings for SDP solver
 #-----------------------------------------------------------------------------
 
 LDFLAGS 	+= 	-lobjscip
@@ -84,16 +96,36 @@ SDPICCOBJ	=
 
 SDPIOPTIONS	+=	dsdp
 ifeq ($(SDPS),dsdp)
-SDPILIB		= 	-L$(DSDP_LIB_DIR) -ldsdp -llapack -lblas
-SDPIINC		= 	-I$(DSDP_INCLUDE_DIR)
+SDPILIB		= 	-L$(SCIPSDPLIBDIR) -ldsdp -llapack -lblas
+SDPIINC		= 	-I$(SCIPSDPLIBDIR)/dsdpinc
 SDPICSRC 	= 	src/sdpi/sdpisolver_dsdp.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_dsdp.o
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/dsdpinc
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libdsdp.$(STATICLIBEXT)
+SDPIINSTMSG	=	"  -> \"dsdpinc\" is the path to the DSDP \"include\" directory, e.g., \"<DSDP-path>/include\".\n"
+SDPIINSTMSG	+=	" -> \"libdsdp.*\" is the path to the DSDP library, e.g., \"<DSDP-path>/lib/libdsdp.a\""
 endif
 
 SDPIOPTIONS	+=	sdpa
 ifeq ($(SDPS),sdpa)
-SDPILIB		=      -L$(SDPA_LIB_DIR) -lsdpa $(SDPA_LDFLAGS)
-SDPIINC		=      -I$(SDPA_INCLUDE_DIR) $(SDPA_FLAGS)
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/sdpainc
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libsdpa.$(STATICLIBEXT)
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libsdpa.$(SHAREDLIBEXT)
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libmumps
+ifeq ($(OPENBLAS),true)
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libopenblas.$(STATICLIBEXT)
+endif
+SDPIINSTMSG	=	"  -> \"sdpainc\" is the path to the SDPA \"include\" directory, e.g., \"<SDPA-path>/include\".\n"
+SDPIINSTMSG	+=	" -> \"libsdpa.*\" is the path to the SDPA library, e.g., \"<SDPA-path>/lib/libsdpa.a\".\n"
+SDPIINSTMSG	+=	" -> \"libmumps\" is the path to the Mumps directory, e.g., \"<SDPA-path>/mumps/build\"; \"libmumps/lib\" and \"libmumps/libseq\" should exist.\n"
+ifeq ($(OPENBLAS),true)
+SDPILIB		=      -L$(SCIPSDPLIBDIR) -lsdpa -L$(SCIPSDPLIBDIR)/libmumps/lib -ldmumps -lmumps_common -lpord -L$(SCIPSDPLIBDIR)/libmumps/libseq -lmpiseq \
+			-lgfortran -L$(SCIPSDPLIBDIR)/libopenblas.$(STATICLIBEXT)
+else
+SDPILIB		=      -L$(SCIPSDPLIBDIR) -lsdpa -L$(SCIPSDPLIBDIR)/libmumps/lib -ldmumps -lmumps_common -lpord -L$(SCIPSDPLIBDIR)/libmumps/libseq -lmpiseq \
+			-lgfortran -llapack -lblas
+endif
+SDPIINC		=      -I$(SCIPSDPLIBDIR)/sdpainc -I$(SCIPSDPLIBDIR)/libmumps/include
 SDPICCSRC 	= 	src/sdpi/sdpisolver_sdpa.cpp
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o
 endif
@@ -147,6 +179,10 @@ MAINSHORTLINK	=	$(BINDIR)/$(MAINNAME)
 MAINCOBJFILES	=	$(addprefix $(OBJDIR)/,$(MAINCOBJ))
 MAINCCOBJFILES	=	$(addprefix $(OBJDIR)/,$(MAINCCOBJ))
 
+ALLSRC		=	$(MAINCSRC) $(MAINCCSRC) $(SDPICSRC) $(SDPICCSRC)
+LINKSMARKERFILE	=	$(SCIPSDPLIBDIR)/linkscreated.$(SDPS).$(LPS)-$(LPSOPT).$(OSTYPE).$(ARCH).$(COMP)$(LINKLIBSUFFIX)
+LASTSETTINGS	=	$(OBJDIR)/make.lastsettings
+
 
 #-----------------------------------------------------------------------------
 # rules
@@ -164,6 +200,15 @@ checkdefines:
 ifeq ($(SDPIOBJ),)
 		$(error invalid SDP solver selected: SDPIS=$(SDPIS). Possible options are: $(SDPIOPTIONS))
 endif
+
+.PHONY: preprocess
+preprocess:     checkdefines
+		@$(SHELL) -ec 'if test ! -e $(LINKSMARKERFILE) ; \
+			then \
+				echo "-> generating necessary links" ; \
+				$(MAKE) -j1 $(LINKSMARKERFILE) ; \
+			fi'
+		@$(MAKE) touchexternal
 
 .PHONY: tags
 tags:
@@ -193,6 +238,9 @@ $(OBJDIR):
 $(SDPOBJSUBDIRS):	| $(OBJDIR)
 	@-mkdir -p $(SDPOBJSUBDIRS);
 
+$(SCIPSDPLIBDIR):
+		@-mkdir -p $(SCIPSDPLIBDIR)
+
 $(BINDIR):
 	-@test -d $(BINDIR) || { \
 	echo "-> Creating $(BINDIR) directory"; \
@@ -201,6 +249,7 @@ $(BINDIR):
 .PHONY: clean
 clean:
 ifneq ($(OBJDIR),)
+		@-rm -f $(LASTSETTINGS)
 		@-rm -f $(OBJDIR)/scipsdp/*.o
 		@-rm -f $(OBJDIR)/sdpi/*.o
 		@-rmdir $(OBJDIR)/scipsdp
@@ -210,10 +259,115 @@ endif
 		-rm -f $(MAINFILE)
 
 #-----------------------------------------------------------------------------
+-include $(LASTSETTINGS)
+
+.PHONY: touchexternal
+touchexternal:	$(SCIPSDPLIBDIR)
+ifneq ($(SHARED),$(LAST_SHARED))
+		@-touch $(ALLSRC)
+endif
+ifneq ($(USRFLAGS),$(LAST_USRFLAGS))
+		@-touch $(ALLSRC)
+endif
+ifneq ($(USROFLAGS),$(LAST_USROFLAGS))
+		@-touch $(ALLSRC)
+endif
+ifneq ($(USRCFLAGS),$(LAST_USRCFLAGS))
+		@-touch $(ALLSRC)
+endif
+ifneq ($(USRCXXFLAGS),$(LAST_USRCXXFLAGS))
+		@-touch $(ALLSRC)
+endif
+ifneq ($(USRLDFLAGS),$(LAST_USRLDFLAGS))
+		@-touch -c $(ALLSRC)
+endif
+ifneq ($(USRARFLAGS),$(LAST_USRARFLAGS))
+		@-touch -c $(ALLSRC)
+endif
+ifneq ($(NOBLKMEM),$(LAST_NOBLKMEM))
+		@-touch -c $(ALLSRC)
+endif
+ifneq ($(NOBUFMEM),$(LAST_NOBUFMEM))
+		@-touch -c $(ALLSRC)
+endif
+ifneq ($(NOBLKBUFMEM),$(LAST_NOBLKBUFMEM))
+		@-touch -c $(ALLSRC)
+endif
+		@-rm -f $(LASTSETTINGS)
+		@echo "LAST_PARASCIP=$(PARASCIP)" >> $(LASTSETTINGS)
+		@echo "LAST_SHARED=$(SHARED)" >> $(LASTSETTINGS)
+		@echo "LAST_USRFLAGS=$(USRFLAGS)" >> $(LASTSETTINGS)
+		@echo "LAST_USROFLAGS=$(USROFLAGS)" >> $(LASTSETTINGS)
+		@echo "LAST_USRCFLAGS=$(USRCFLAGS)" >> $(LASTSETTINGS)
+		@echo "LAST_USRCXXFLAGS=$(USRCXXFLAGS)" >> $(LASTSETTINGS)
+		@echo "LAST_USRLDFLAGS=$(USRLDFLAGS)" >> $(LASTSETTINGS)
+		@echo "LAST_USRARFLAGS=$(USRARFLAGS)" >> $(LASTSETTINGS)
+		@echo "LAST_USRDFLAGS=$(USRDFLAGS)" >> $(LASTSETTINGS)
+		@echo "LAST_NOBLKMEM=$(NOBLKMEM)" >> $(LASTSETTINGS)
+		@echo "LAST_NOBUFMEM=$(NOBUFMEM)" >> $(LASTSETTINGS)
+		@echo "LAST_NOBLKBUFMEM=$(NOBLKBUFMEM)" >> $(LASTSETTINGS)
+
+$(LINKSMARKERFILE):
+		@$(MAKE) links
+
+.PHONY: links
+links:		| $(SCIPSDPLIBDIR) echosoftlinks $(SOFTLINKS)
+		@rm -f $(LINKSMARKERFILE)
+		@echo "this is only a marker" > $(LINKSMARKERFILE)
+
+.PHONY: echosoftlinks
+echosoftlinks:
+		@echo
+		@echo "- Current settings: SDPS=$(SDPS) LPS=$(LPS) SUFFIX=$(LINKLIBSUFFIX) OSTYPE=$(OSTYPE) ARCH=$(ARCH) COMP=$(COMP)"
+		@echo
+		@echo "* SCIPSDP needs some softlinks to external programs, in particular, SDP-solvers."
+		@echo "* Please insert the paths to the corresponding directories/libraries below."
+		@echo "* The links will be installed in the 'lib' directory."
+		@echo "* For more information and if you experience problems see the INSTALL file."
+		@echo
+		@echo -e $(SDPIINSTMSG)
+
+.PHONY: $(SOFTLINKS)
+$(SOFTLINKS):
+ifeq ($(MAKESOFTLINKS), true)
+		@$(SHELL) -ec 'if test ! -e $@ ; \
+			then \
+				DIRNAME=`dirname $@` ; \
+				BASENAMEA=`basename $@ .$(STATICLIBEXT)` ; \
+				BASENAMESO=`basename $@ .$(SHAREDLIBEXT)` ; \
+				echo ; \
+				echo "- preparing missing soft-link \"$@\":" ; \
+				if test -e $$DIRNAME/$$BASENAMEA.$(SHAREDLIBEXT) ; \
+				then \
+					echo "* this soft-link is not necessarily needed since \"$$DIRNAME/$$BASENAMEA.$(SHAREDLIBEXT)\" already exists - press return to skip" ; \
+				fi ; \
+				if test -e $$DIRNAME/$$BASENAMESO.$(STATICLIBEXT) ; \
+				then \
+					echo "* this soft-link is not necessarily needed since \"$$DIRNAME/$$BASENAMESO.$(STATICLIBEXT)\" already exists - press return to skip" ; \
+				fi ; \
+				echo "> Enter soft-link target file or directory for \"$@\" (return if not needed): " ; \
+				echo -n "> " ; \
+				cd $$DIRNAME ; \
+				eval $(READ) TARGET ; \
+				cd $(SCIPSDPDIR) ; \
+				if test "$$TARGET" != "" ; \
+				then \
+					echo "-> creating softlink \"$@\" -> \"$$TARGET\"" ; \
+					rm -f $@ ; \
+					$(LN_s) $$TARGET $@ ; \
+				else \
+					echo "* skipped creation of softlink \"$@\". Call \"make links\" if needed later." ; \
+				fi ; \
+				echo ; \
+			fi'
+endif
+
+#-----------------------------------------------------------------------------
 .PHONY: test
 test:
 		cd check; \
-		$(SHELL) ./check.sh $(TEST) $(MAINFILE) $(SETTINGS) $(notdir $(MAINFILE)) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(DISPFREQ) $(CONTINUE) $(LOCK) $(SCIPSDPVERSION) $(SDPS) $(VALGRIND) $(CLIENTTMPDIR) $(OPTCOMMAND);
+		$(SHELL) ./check.sh $(TEST) $(MAINFILE) $(SETTINGS) $(notdir $(MAINFILE)) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) \
+		$(DISPFREQ) $(CONTINUE) $(LOCK) $(SCIPSDPVERSION) $(SDPS) $(VALGRIND) $(CLIENTTMPDIR) $(OPTCOMMAND);
 
 # include local targets
 -include make/local/make.targets
@@ -241,7 +395,7 @@ depend:		$(SCIPDIR)
 
 -include	$(MAINDEP)
 
-$(MAINFILE):	$(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(MAINCOBJFILES) $(MAINCCOBJFILES) $(SDPIOBJ) | $(SDPOBJSUBDIRS) $(BINDIR)
+$(MAINFILE):	preprocess $(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(MAINCOBJFILES) $(MAINCCOBJFILES) $(SDPIOBJ) | $(SDPOBJSUBDIRS) $(BINDIR)
 		@echo "-> linking $@"
 		$(LINKCXX) $(MAINCOBJFILES) $(MAINCCOBJFILES) \
 		$(LINKCXX_L)$(SCIPDIR)/lib $(LINKCXX_l)$(SCIPLIB)$(LINKLIBSUFFIX) \
