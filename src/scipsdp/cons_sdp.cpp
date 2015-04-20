@@ -466,7 +466,7 @@ SCIP_RETCODE cutUsingEigenvector(
    SCIP_CALL( SCIPallocBufferArray(scip, &eigenvector, blocksize) );
    SCIP_CALL( SCIPallocBufferArray(scip, &output_vector, blocksize) );
 
-   /* compute the matrix \f$ \sum_j A_j y_j \f$ */
+   /* compute the matrix \f$ \sum_j A_j y_j - A_0 \f$ */
    SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix) );
 
    /* expand it because LAPACK wants the full matrix instead of the lower triangular part */
@@ -1789,7 +1789,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
       SCIPinfoMessage(scip, NULL, "Added cut %s: ", cutname);
       SCIPinfoMessage(scip, NULL, "%f <= ", lhs);
       for (j = 0; j < nvars; j++)
-         SCIPinfoMessage(scip, NULL, "+ (%f)*%s", coeff[j], SCIPvarGetName(consdata->vars[i]));
+         SCIPinfoMessage(scip, NULL, "+ (%f)*%s", coeff[j], SCIPvarGetName(consdata->vars[j]));
       SCIPinfoMessage(scip, NULL, "\n");
 #endif
       SCIP_Bool infeasible;
@@ -2259,6 +2259,7 @@ SCIP_RETCODE SCIPconsSdpGetFullConstMatrix(
    SCIP_CONSDATA* consdata;
    int blocksize;
    int i;
+   int j;
 
    assert( scip != NULL );
    assert( cons != NULL );
@@ -2266,6 +2267,12 @@ SCIP_RETCODE SCIPconsSdpGetFullConstMatrix(
 
    consdata = SCIPconsGetData(cons);
    blocksize = consdata->blocksize;
+
+   for (i = 0; i < blocksize; i++)
+   {
+      for (j = 0; j < blocksize; j++)
+         mat[i * blocksize + j] = 0.0;
+   }
 
    for (i = 0; i < consdata->constnnonz; i++)
    {
