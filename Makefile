@@ -269,7 +269,7 @@ endif
 -include $(LASTSETTINGS)
 
 .PHONY: touchexternal
-touchexternal:	$(SCIPSDPLIBDIR)
+touchexternal:	$(SCIPSDPLIBDIR) $(OBJDIR)
 ifneq ($(SHARED),$(LAST_SHARED))
 		@-touch $(ALLSRC)
 endif
