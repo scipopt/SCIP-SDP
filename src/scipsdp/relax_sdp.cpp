@@ -1038,6 +1038,23 @@ long int SCIPrelaxSdpGetSdpNode(
    return SCIPrelaxGetData(relax)->lastsdpnode;
 }
 
+/** was the original problem solved for the last SDP-Node (or a penalty formulation) ? */
+SCIP_Bool SCIPrelaxSdpSolvedOrig(
+   SCIP_RELAX*           relax               /**< SDP relaxator to get solution for */
+   )
+{
+   SCIP_RELAXDATA* relaxdata;
+
+   assert( relax != NULL );
+
+   relaxdata = SCIPrelaxGetData(relax);
+
+   assert( relaxdata != NULL );
+   assert( relaxdata->sdpi != NULL );
+
+   return SCIPsdpiSolvedOrig(relaxdata->sdpi);
+}
+
 /** returns total number of SDP iterations */
 int SCIPrelaxSdpGetNIterations(
    SCIP_RELAX*            relax               /**< SDP relaxator to get the iterations for */

@@ -95,6 +95,12 @@ long int SCIPrelaxSdpGetSdpNode(
    SCIP_RELAX*           relax               /**< SDP relaxator to get solution for */
    );
 
+/** was the original problem solved for the last SDP-Node (or a penalty formulation) ? */
+EXTERN
+SCIP_Bool SCIPrelaxSdpSolvedOrig(
+   SCIP_RELAX*           relax               /**< SDP relaxator to get solution for */
+   );
+
 /** returns total number of SDP iterations */
 EXTERN
 int SCIPrelaxSdpGetNIterations(

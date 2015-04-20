@@ -165,6 +165,14 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
       return SCIP_OKAY;
    }
 
+   /* we can only propagate if the SDP in the last node was solved in its original formulation */
+   if ( ! SCIPrelaxSdpSolvedOrig(relax) )
+   {
+      SCIPdebugMessage("Stopped propExecRedcost because current SDP-relaxation was solved using a penalty formulation!\n");
+      *result = SCIP_DIDNOTRUN;
+      return SCIP_OKAY;
+   }
+
    SCIP_CALL( SCIPrelaxSdpRelaxVal(relax, &sdpsolved, &relaxval) );
    if ( ! sdpsolved )
    {
