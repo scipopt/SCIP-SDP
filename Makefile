@@ -99,8 +99,10 @@ SDPIOPTIONS	+=	dsdp
 ifeq ($(SDPS),dsdp)
 SDPILIB		= 	-L$(SCIPSDPLIBDIR) -ldsdp -llapack -lblas
 SDPIINC		= 	-I$(SCIPSDPLIBDIR)/dsdpinc
-SDPICSRC 	= 	src/sdpi/sdpisolver_dsdp.c
-SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_dsdp.o
+SDPICSRC 	= 	src/sdpi/sdpisolver_dsdp.c \
+					src/scipsdp/lapack_dsdp.c
+SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_dsdp.o \
+				$(OBJDIR)/scipsdp/lapack_dsdp.o
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/dsdpinc
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libdsdp.$(STATICLIBEXT)
 SDPIINSTMSG	=	"  -> \"dsdpinc\" is the path to the DSDP \"include\" directory, e.g., \"<DSDP-path>/include\".\n"
@@ -129,7 +131,9 @@ SDPILIB		=      -L$(SCIPSDPLIBDIR) -lsdpa -L$(SCIPSDPLIBDIR)/libmumps/lib -ldmum
 endif
 SDPIINC		=      -I$(SCIPSDPLIBDIR)/sdpainc -I$(SCIPSDPLIBDIR)/libmumps/include
 SDPICCSRC 	= 	src/sdpi/sdpisolver_sdpa.cpp
-SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o
+SDPICSRC		=	src/scipsdp/lapack_sdpa.c
+SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o \
+				$(OBJDIR)/scipsdp/lapack_sdpa.c
 endif
 
 SDPIOPTIONS	+=	none
@@ -157,28 +161,28 @@ SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
 
 MAINNAME	=	scipsdp
 MAINCOBJ	=	scipsdp/SdpVarmapper.o \
-			scipsdp/SdpVarfixer.o \
-			scipsdp/disp_sdpiterations.o \
-			scipsdp/disp_sdpavgiterations.o \
-			scipsdp/prop_sdpredcost.o \
-			scipsdp/branch_sdpmostfrac.o \
-			scipsdp/branch_sdpmostinf.o \
-			scipsdp/branch_sdpobjective.o \
-			scipsdp/branch_sdpinfobjective.o \
-			scipsdp/branch_cs.o \
+				scipsdp/SdpVarfixer.o \
+				scipsdp/disp_sdpiterations.o \
+				scipsdp/disp_sdpavgiterations.o \
+				scipsdp/prop_sdpredcost.o \
+				scipsdp/branch_sdpmostfrac.o \
+				scipsdp/branch_sdpmostinf.o \
+				scipsdp/branch_sdpobjective.o \
+				scipsdp/branch_sdpinfobjective.o \
+				scipsdp/branch_cs.o \
 	   		scipsdp/nodesel_prio.o \
-			sdpi/sdpi.o
+				sdpi/sdpi.o
 
-MAINCCOBJ	=	scipsdp/main.o \
-			scipsdp/relax_sdp.o \
-			scipsdp/objreader_sdpa.o \
-			scipsdp/cons_sdp.o \
-			scipsdp/ScipStreamBuffer.o
+MAINCCOBJ =	scipsdp/main.o \
+				scipsdp/relax_sdp.o \
+				scipsdp/objreader_sdpa.o \
+				scipsdp/cons_sdp.o \
+				scipsdp/ScipStreamBuffer.o
 
 
 MAINCSRC	=	$(addprefix $(SRCDIR)/,$(MAINCOBJ:.o=.c))
-MAINCCSRC	=	$(addprefix $(SRCDIR)/,$(MAINCCOBJ:.o=.cpp))
-MAINDEP		=	$(SRCDIR)/depend.cppmain.$(OPT)
+MAINCCSRC =	$(addprefix $(SRCDIR)/,$(MAINCCOBJ:.o=.cpp))
+MAINDEP =	$(SRCDIR)/depend.cppmain.$(OPT)
 
 # @todo possibly add LPS
 MAINFILE	=	$(BINDIR)/$(MAINNAME).$(BASE).$(SDPS)$(EXEEXTENSION)

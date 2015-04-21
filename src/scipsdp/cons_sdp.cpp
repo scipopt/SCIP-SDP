@@ -46,7 +46,7 @@
 //#include <cmath>                        // for floor //TODO: lint says it's not needed
 #include <cstring>                      // for NULL, strcmp
 
-#include "config.h"                     // for F77_FUNC
+#include "lapack.h"
 
 #include "scipsdp/SdpVarmapper.h"
 #include "scipsdp/SdpVarfixer.h"
@@ -73,13 +73,6 @@
 
 /** transforms a double (that should be integer, but might be off by some numerical error) to an integer by adding an epsilon and rounding down */
 #define DOUBLETOINT(x) ((int) x + 0.5)
-
-/* if we are using openblas, the size of the integers need to be modified to be long long int */
-#ifdef OPENBLAS
-typedef long long int LAPACKINTTYPE;
-#else
-typedef int LAPACKINTTYPE;
-#endif
 
 
 /** constraint data for sdp constraints */
@@ -108,158 +101,6 @@ struct SCIP_ConshdlrData
    int                   ndiagdomcuts;       /**< this is used to give the diagDominant-cuts distinguishable names */
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
 };
-
-extern "C" {
-/** BLAS Fortran subroutine DGEMV */
-void F77_FUNC(dgemv, DGEMV)(char* TRANS, LAPACKINTTYPE* M, LAPACKINTTYPE* N, double* ALPHA, double* A, LAPACKINTTYPE* LDA, double* X, LAPACKINTTYPE* INCX, double* BETA, double* Y, LAPACKINTTYPE* INCY);
-}
-
-/** call matrix-vector multipication
- *
- *  @note all memory must be allocated outside
- */
-static
-SCIP_RETCODE Blas_DGEMV(
-   LAPACKINTTYPE         nrows,              /**< number of rows in matrix */
-   LAPACKINTTYPE         ncols,              /**< number of cols in matrix */
-   double                alpha,              /**< scaling parameter */
-   double*               matrix,             /**< the matrix we want to multiply */
-   double*               vector,             /**< vector we want to multiply with the matrix */
-   double                beta,               /**< scaling parameter */
-   double*               result              /**< vector where the result is put in */
-   )
-{
-   /* store everything in local variables????????? */
-   char TRANS = 'N';
-   LAPACKINTTYPE M = nrows;
-   LAPACKINTTYPE N = ncols;
-   double ALPHA = alpha;
-   double* A = matrix;
-   LAPACKINTTYPE LDA = nrows;
-   double* X = vector;
-   LAPACKINTTYPE INCX = 1;
-   double BETA = beta;
-   double* Y = result;
-   LAPACKINTTYPE INCY = 1;
-
-   F77_FUNC(dgemv, DGEMV)(&TRANS, &M, &N, &ALPHA, A, &LDA, X, &INCX, &BETA, Y, &INCY);
-
-   return SCIP_OKAY;
-}
-
-
-extern "C" {
-/** LAPACK Fortran subroutine DSYEVR */
-void F77_FUNC(dsyevr, DSYEVR)(
-   char* JOBZ, char* RANGE, char* UPLO,
-   LAPACKINTTYPE* N, double* A, LAPACKINTTYPE* LDA,
-   double* VL, double* VU,
-   LAPACKINTTYPE* IL, LAPACKINTTYPE* IU,
-   double* ABSTOL, LAPACKINTTYPE* M, double* W, double* Z,
-   LAPACKINTTYPE* LDZ, int* ISUPPZ, double* WORK,
-   LAPACKINTTYPE* LWORK, LAPACKINTTYPE* IWORK, LAPACKINTTYPE* LIWORK,
-   LAPACKINTTYPE* INFO );
-}
-
-/** computes the i-th eigenvalue, where 1 is the smallest and n the largest */
-static
-SCIP_RETCODE computeIthEigenvalue(
-   SCIP*                 scip,               /**< SCIP data structure*/
-   SCIP_Bool             geteigenvectors,    /**< Should also the eigenvectors be computed? */
-   int                   n,                  /**< size of matrix */
-   double*               A,                  /**< matrix for which eigenvalues should be computed */
-   int                   i,                  /**< index of eigenvalue to be computed */
-   double*               eigenvalue,         /**< pointer to store eigenvalue */
-   double*               eigenvector         /**< pointer to array to store eigenvector */
-   )
-{
-   /* store everything in local variables????????? */
-   LAPACKINTTYPE   N = n;
-   LAPACKINTTYPE   INFO;
-   char            JOBZ = geteigenvectors ? 'V' : 'N';
-   char            RANGE = 'I';
-   char            UPLO = 'L';
-   LAPACKINTTYPE   LDA  = n;
-   double*         WORK;
-   LAPACKINTTYPE   LWORK;
-   LAPACKINTTYPE*  IWORK;
-   LAPACKINTTYPE   LIWORK;
-   //    int*    ISUPPZ;
-   double*         WTMP;
-   double          ABSTOL = 0.0;
-   LAPACKINTTYPE   IL = i;
-   LAPACKINTTYPE   IU = i;
-   LAPACKINTTYPE   M = 1;
-   LAPACKINTTYPE   LDZ = n;
-   double          WSIZE;
-   LAPACKINTTYPE   WISIZE;
-
-   assert( scip != NULL );
-   assert( n >= 0 );
-   assert( A != NULL );
-   assert( 0 < i && i <= n );
-   assert( eigenvalue != NULL );
-   assert( ( ! geteigenvectors) || eigenvector != NULL );
-
-
-   // standard LAPACK workspace query
-   LWORK = -1;
-   LIWORK = -1;
-
-   /* this computes the internally needed memory and returns this as (the first entries of [the 1x1 arrays]) WSIZE and WISIZE */
-   F77_FUNC(dsyevr, DSYEVR)( &JOBZ, &RANGE, &UPLO,
-      &N, NULL, &LDA,
-      NULL, NULL,
-      &IL, &IU,
-      &ABSTOL, &M, NULL, NULL,
-      &LDZ, NULL, &WSIZE,
-      &LWORK, &WISIZE, &LIWORK,
-      &INFO );
-
-   if ( INFO != 0 )
-   {
-      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d\n", INFO);
-      return SCIP_ERROR;
-   }
-
-   // allocate workspace
-   LWORK = DOUBLETOINT(WSIZE); //was (int)WSIZE+1
-   LIWORK = WISIZE;
-
-   SCIP_CALL( SCIPallocBufferArray(scip, &WORK, LWORK) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &IWORK, LIWORK) );
-
-   SCIP_CALL( SCIPallocBufferArray(scip, &WTMP, N) );
-
-   // call the function
-   double VL = -1e20;
-   double VU = 1e20;
-   int ISUPPZ[2];
-
-   F77_FUNC(dsyevr, DSYEVR)( &JOBZ, &RANGE, &UPLO,
-      &N, A, &LDA,
-      &VL, &VU,
-      &IL, &IU,
-      &ABSTOL, &M, WTMP, eigenvector,
-      &LDZ, ISUPPZ, WORK,
-      &LWORK, IWORK, &LIWORK,
-      &INFO );
-
-   if ( INFO != 0 )
-   {
-      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d\n", INFO);
-      return SCIP_ERROR;
-   }
-
-   // handle output
-   *eigenvalue = WTMP[0];
-
-   SCIPfreeBufferArray(scip, &WTMP);
-   SCIPfreeBufferArray(scip, &IWORK);
-   SCIPfreeBufferArray(scip, &WORK);
-
-   return SCIP_OKAY;
-}
 
 #ifndef NDEBUG
 /** for given row and column (i,j) computes the position in the lower triangular part, if
@@ -472,13 +313,13 @@ SCIP_RETCODE cutUsingEigenvector(
    /* expand it because LAPACK wants the full matrix instead of the lower triangular part */
    SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
 
-   SCIP_CALL( computeIthEigenvalue(scip, TRUE, blocksize, fullmatrix, 1, eigenvalues, eigenvector) );
+   SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPblkmem(scip), TRUE, blocksize, fullmatrix, 1, eigenvalues, eigenvector) );
 
    /* get full constant matrix */
    SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, cons, fullconstmatrix) );
 
    /* multiply eigenvector with constant matrix to get lhs (after multiplying again with eigenvector from the left) */
-   SCIP_CALL( Blas_DGEMV(blocksize, blocksize, 1.0, fullconstmatrix, eigenvector, 0.0, output_vector) );
+   SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullconstmatrix, eigenvector, output_vector) );
 
    for (j = 0; j < blocksize; ++j)
       *lhs += eigenvector[j] * output_vector[j];
@@ -529,7 +370,7 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix) );
    SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
 
-   SCIP_CALL( computeIthEigenvalue(scip, FALSE, blocksize, fullmatrix, 1, &eigenvalue, NULL) );
+   SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPblkmem(scip), FALSE, blocksize, fullmatrix, 1, &eigenvalue, NULL) );
 
    // We are going to use one of the dimacs error norms for checking feasiblity.
    // We use the second one: err=max{0, -lambda_min(x)/(1+maximumentry of rhs}
@@ -1534,7 +1375,7 @@ SCIP_DECL_CONSLOCK(consLockSdp)
       SCIP_CALL( SCIPconsSdpGetFullAj(scip, cons, var, Aj) );
 
       /* compute the smallest eigenvalue */
-      SCIP_CALL( computeIthEigenvalue(scip, FALSE, blocksize, Aj, 1, &eigenvalue, NULL) );
+      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPblkmem(scip), FALSE, blocksize, Aj, 1, &eigenvalue, NULL) );
       if ( SCIPisNegative(scip, eigenvalue) )
       {
          /* as the lowest eigenvalue is negative, the matrix is not positive semidefinite, so adding more of it can remove positive
@@ -1552,7 +1393,7 @@ SCIP_DECL_CONSLOCK(consLockSdp)
       else
       {
          /* compute the biggest eigenvalue */
-         SCIP_CALL( computeIthEigenvalue(scip, FALSE, blocksize, Aj, blocksize, &eigenvalue, NULL) );
+         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPblkmem(scip), FALSE, blocksize, Aj, blocksize, &eigenvalue, NULL) );
          if ( SCIPisPositive(scip, eigenvalue) )
          {
             /* as the biggest eigenvalue is positive, the matrix is not negative semidefinite, so substracting more of it can remove positive
