@@ -82,6 +82,7 @@
                       }                                                                                       \
                       while( FALSE )
 
+/* same as SCIP_CALL, but gives a SCIP_PARAMETERUNKNOWN error if it fails */
 #define SCIP_CALL_PARAM(x)   do                                                                               \
                       {                                                                                       \
                          SCIP_RETCODE _restat_;                                                               \
