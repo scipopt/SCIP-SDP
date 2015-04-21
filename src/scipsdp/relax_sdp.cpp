@@ -753,7 +753,9 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
       SCIP_CALL( SCIPcheckSol(scip, scipsol, FALSE, TRUE, TRUE, TRUE, &feasible) );
 
       if ( feasible )
+      {
          SCIP_CALL( SCIPtrySolFree(scip, &scipsol, FALSE, FALSE, FALSE, FALSE, &stored) );
+      }
 
       if (feasible && stored == 1)
          *result = SCIP_CUTOFF;
@@ -892,9 +894,13 @@ SCIP_DECL_RELAXEXIT(relaxExitSDP)
    assert( relaxdata != NULL );
 
    if ( relaxdata->varmapper != NULL )
+   {
       SCIP_CALL( SdpVarmapperFree(scip, &(relaxdata->varmapper)) );
+   }
    if ( relaxdata->sdpi != NULL )
+   {
       SCIP_CALL( SCIPsdpiFree(&(relaxdata->sdpi)) );
+   }
    SCIPfreeBlockMemory(scip, &relaxdata);
    SCIPrelaxSetData(relax, NULL);
 
