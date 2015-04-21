@@ -49,6 +49,7 @@
 #include "blockmemshell/memory.h"
 #include "scip/type_retcode.h"
 
+typedef long long int LAPACKINTTYPE;
 
 /* Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY */
 #define BMS_CALL(x)   do                                                                                      \
@@ -74,17 +75,17 @@
 /** LAPACK Fortran subroutine DSYEVR */
 void F77_FUNC(dsyevr, DSYEVR)(
    char* JOBZ, char* RANGE, char* UPLO,
-   long long int* N, double* A, long long int* LDA,
+   LAPACKINTTYPE* N, double* A, LAPACKINTTYPE* LDA,
    double* VL, double* VU,
-   long long int* IL, long long int* IU,
-   double* ABSTOL, long long int* M, double* W, double* Z,
-   long long int* LDZ, long long int* ISUPPZ, double* WORK,
-   long long int* LWORK, long long int* IWORK, long long int* LIWORK,
-   int* INFO );
+   LAPACKINTTYPE* IL, LAPACKINTTYPE* IU,
+   double* ABSTOL, LAPACKINTTYPE* M, double* W, double* Z,
+   LAPACKINTTYPE* LDZ, LAPACKINTTYPE* ISUPPZ, double* WORK,
+   LAPACKINTTYPE* LWORK, LAPACKINTTYPE* IWORK, LAPACKINTTYPE* LIWORK,
+   LAPACKINTTYPE* INFO );
 
 
 /** BLAS Fortran subroutine DGEMV */
-void F77_FUNC(dgemv, DGEMV)(char* TRANS, long long int* M, long long int* N, double* ALPHA, double* A, long long int* LDA, double* X, long long int* INCX, double* BETA, double* Y, long long int* INCY);
+void F77_FUNC(dgemv, DGEMV)(char* TRANS, LAPACKINTTYPE* M, LAPACKINTTYPE* N, double* ALPHA, double* A, LAPACKINTTYPE* LDA, double* X, LAPACKINTTYPE* INCX, double* BETA, double* Y, LAPACKINTTYPE* INCY);
 
 
 /**@} */
@@ -108,27 +109,27 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    SCIP_Real*            eigenvector         /**< pointer to array to store eigenvector */
    )
 {
-   long long int N;
-   int INFO;
+   LAPACKINTTYPE N;
+   LAPACKINTTYPE INFO;
    char JOBZ;
    char RANGE;
    char UPLO;
-   long long int LDA;
+   LAPACKINTTYPE LDA;
    double* WORK;
-   long long int LWORK;
-   long long int* IWORK;
-   long long int LIWORK;
+   LAPACKINTTYPE LWORK;
+   LAPACKINTTYPE* IWORK;
+   LAPACKINTTYPE LIWORK;
    double* WTMP;
    double ABSTOL;
-   long long int IL;
-   long long int IU;
-   long long int M;
-   long long int LDZ;
+   LAPACKINTTYPE IL;
+   LAPACKINTTYPE IU;
+   LAPACKINTTYPE M;
+   LAPACKINTTYPE LDZ;
    double WSIZE;
-   long long int WISIZE;
+   LAPACKINTTYPE WISIZE;
    double VL;
    double VU;
-   long long int* ISUPPZ;
+   LAPACKINTTYPE* ISUPPZ;
 
    assert( blkmem != NULL );
    assert( n > 0 );
@@ -162,7 +163,7 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
       &LWORK, &WISIZE, &LIWORK,
       &INFO );
 
-   if ( INFO != 0 )
+   if ( INFO != 0LL )
    {
       SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %lld\n", INFO);
       return SCIP_ERROR;
@@ -218,16 +219,16 @@ SCIP_RETCODE SCIPlapackMatrixVectorMult(
    )
 {
    char TRANS;
-   long long int M;
-   long long int N;
+   LAPACKINTTYPE M;
+   LAPACKINTTYPE N;
    double ALPHA;
    double* A;
-   long long int LDA;
+   LAPACKINTTYPE LDA;
    double* X;
-   long long int INCX;
+   LAPACKINTTYPE INCX;
    double BETA;
    double* Y;
-   long long int INCY;
+   LAPACKINTTYPE INCY;
 
    TRANS = 'N';
    M = nrows;
