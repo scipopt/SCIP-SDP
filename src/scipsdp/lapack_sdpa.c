@@ -80,11 +80,11 @@ void F77_FUNC(dsyevr, DSYEVR)(
    double* ABSTOL, long long int* M, double* W, double* Z,
    long long int* LDZ, long long int* ISUPPZ, double* WORK,
    long long int* LWORK, long long int* IWORK, long long int* LIWORK,
-   long long int* INFO );
+   int* INFO );
 
 
 /** BLAS Fortran subroutine DGEMV */
-void F77_FUNC(dgemv, DGEMV)(char* TRANS, int* M, int* N, double* ALPHA, double* A, int* LDA, double* X, int* INCX, double* BETA, double* Y, int* INCY);
+void F77_FUNC(dgemv, DGEMV)(char* TRANS, long long int* M, long long int* N, double* ALPHA, double* A, long long int* LDA, double* X, long long int* INCX, double* BETA, double* Y, long long int* INCY);
 
 
 /**@} */
@@ -109,7 +109,7 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    )
 {
    long long int N;
-   long long int INFO;
+   int INFO;
    char JOBZ;
    char RANGE;
    char UPLO;
@@ -149,8 +149,8 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    LDZ = n;
 
    /* standard LAPACK workspace query, to get the amount of needed memory */
-   LWORK = -1;
-   LIWORK = -1;
+   LWORK = -1LL;
+   LIWORK = -1LL;
 
    /* this computes the internally needed memory and returns this as (the first entries of [the 1x1 arrays]) WSIZE and WISIZE */
    F77_FUNC(dsyevr, DSYEVR)( &JOBZ, &RANGE, &UPLO,
@@ -164,7 +164,7 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
 
    if ( INFO != 0 )
    {
-      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d\n", INFO);
+      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %lld\n", INFO);
       return SCIP_ERROR;
    }
 
@@ -172,9 +172,9 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    LWORK = DOUBLETOINT(WSIZE);
    LIWORK = WISIZE;
 
-   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &WORK, LWORK) );
-   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &IWORK, LIWORK) );
-   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &WTMP, N) );
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &WORK, (int) LWORK) );
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &IWORK, (int) LIWORK) );
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &WTMP, (int) N) );
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &ISUPPZ, 2) );
 
    /* call the function */
@@ -201,9 +201,9 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
 
    /* free memory */
    BMSfreeBlockMemoryArray(blkmem, &ISUPPZ, 2);
-   BMSfreeBlockMemoryArray(blkmem, &WTMP, N);
-   BMSfreeBlockMemoryArray(blkmem, &IWORK, LIWORK);
-   BMSfreeBlockMemoryArray(blkmem, &WORK, LWORK);
+   BMSfreeBlockMemoryArray(blkmem, &WTMP, (int) N);
+   BMSfreeBlockMemoryArray(blkmem, &IWORK, (int) LIWORK);
+   BMSfreeBlockMemoryArray(blkmem, &WORK, (int) LWORK);
 
    return SCIP_OKAY;
 }
