@@ -917,6 +917,7 @@ SCIP_RETCODE SCIPincludeRelaxSDP(
    SCIP_CALL( SCIPsdpiCreate(&sdpi, NULL, SCIPblkmem(scip)) );
 
    relaxdata->sdpi = sdpi;
+   relaxdata->lastsdpnode = -1;
 
    /* include relaxator */
    SCIP_CALL( SCIPincludeRelaxBasic(scip, &relax, RELAX_NAME, RELAX_DESC, RELAX_PRIORITY, RELAX_FREQ,
