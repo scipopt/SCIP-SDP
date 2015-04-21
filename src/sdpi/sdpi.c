@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* #define SCIP_DEBUG */
+/* #define SCIP_DEBUG*/
 /* #define SCIP_MORE_DEBUG*/
 
 /**@file   sdpi.c
@@ -453,12 +453,12 @@ static
 SCIP_RETCODE computeLpRhsAfterFixings(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP interface structure */
    int*                  nactivelpcons,      /**< output: number of active LP-constraints */
-   SCIP_Real*            lprhsafterfix,	     /**< output: first nlpcons (output) entries give right-hand sides of
-                                              *  		  active lp-constraints after fixing variables, these are
-                                              *  		  in the same relative order as before (with non-active rows
-                                              *  		  removed) */
-   int*			 rownactivevars,     /**< output: number of active variable for every row */
-   SCIP_Bool*		 fixingsfound	     /**< output: return true, if a variable was fixed in this function */
+   SCIP_Real*            lprhsafterfix,      /**< output: first nlpcons (output) entries give right-hand sides of
+                                              *  		    active lp-constraints after fixing variables, these are
+                                              *  		    in the same relative order as before (with non-active rows
+                                              *  		    removed) */
+   int*                  rownactivevars,     /**< output: number of active variable for every row */
+   SCIP_Bool*            fixingsfound        /**< output: return true, if a variable was fixed in this function */
    )
 {
    int i;
@@ -474,6 +474,7 @@ SCIP_RETCODE computeLpRhsAfterFixings(
    assert( sdpi->nlpcons == 0 || rownactivevars != NULL );
    assert( sdpi->nlpcons == 0 || fixingsfound != NULL );
 
+   /* if there is no LP-part, there is nothing to do */
    if ( sdpi->nlpcons == 0 || sdpi->lpnnonz == 0 )
    {
       *nactivelpcons = 0;
@@ -518,7 +519,7 @@ SCIP_RETCODE computeLpRhsAfterFixings(
                      "(originally %f)\n", lastrow, sdpi->sdpid, nonzcol, lprhsafterfix[*nactivelpcons] / nonzval, sdpi->ub[nonzcol]);
                   sdpi->ub[nonzcol] = lprhsafterfix[*nactivelpcons] / nonzval;
 
-                  /* check this lead to a fixing of this variable */
+                  /* check if this leads to a fixing of this variable */
                   if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->feastol )
                   {
                      *fixingsfound = TRUE;
@@ -560,7 +561,7 @@ SCIP_RETCODE computeLpRhsAfterFixings(
                }
             }
          }
-         else
+         else if ( lastrow >= 0 ) /* because of earlier ifs we have rownactivevars = 0 */
          {
             assert( lastrow == -1 || rownactivevars[lastrow] == 0 );
             /* we have a constraint 0 >= rhs, so rhs should be non-positive, otherwise the problem is infeasible */
