@@ -85,6 +85,8 @@ SCIP_RETCODE runSCIP(
    /* disable subscips - for the meantime */
    SCIP_CALL( SCIPsetSubscipsOff(scip, TRUE) );
 
+   /* set clocktype to walltime to not add multiple threads together */
+   SCIP_CALL( SCIPsetIntParam(scip, "timing/clocktype", 2) );
 
    /* change certain paramters: */
    SCIP_CALL( SCIPsetIntParam(scip, "display/verblevel", 5) );
@@ -98,8 +100,8 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPsetIntParam(scip, "display/lpavgiterations/active", 0) );
 
    /* change epsilons for numerical stability */
-   SCIP_CALL( SCIPsetRealParam(scip, "numerics/epsilon", 1e-3) );
-   SCIP_CALL( SCIPsetRealParam(scip, "numerics/feastol", 1e-4) );
+   SCIP_CALL( SCIPsetRealParam(scip, "numerics/epsilon", 1e-4) );
+   SCIP_CALL( SCIPsetRealParam(scip, "numerics/feastol", 1e-3) );
 
    SCIP_CALL( SCIPsetStringParam(scip, "sdpsolver", "dsdp") );
 

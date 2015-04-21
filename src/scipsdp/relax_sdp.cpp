@@ -57,8 +57,8 @@
 #define RELAX_PRIORITY              1
 #define RELAX_FREQ                  1
 
-#define DEFAULT_SDPSOLVEREPSILON    1e-3     /**< the stopping criterion for the duality gap the sdpsolver should use */
-#define DEFAULT_SDPSOLVERFEASTOL    1e-4     /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
+#define DEFAULT_SDPSOLVEREPSILON    1e-4     /**< the stopping criterion for the duality gap the sdpsolver should use */
+#define DEFAULT_SDPSOLVERFEASTOL    1e-3     /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
 #define DEFAULT_THREADS             1        /**< number of threads used for SDP solving */
 
 /*
