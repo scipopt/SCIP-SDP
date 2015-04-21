@@ -124,7 +124,8 @@ SDPIINSTMSG	+=	" -> \"libmumps\" is the path to the Mumps directory, e.g., \"<SD
 ifeq ($(OPENBLAS),true)
 SDPIINSTMSG	+=	" -> \"libopenblas.$(SHAREDLIBEXT)\" is the openblas library.\n"
 SDPILIB		=      -L$(SCIPSDPLIBDIR) -lsdpa -L$(SCIPSDPLIBDIR)/libmumps/lib -ldmumps -lmumps_common -lpord -L$(SCIPSDPLIBDIR)/libmumps/libseq -lmpiseq \
-			-lgfortran $(SCIPSDPLIBDIR)/libopenblas.$(SHAREDLIBEXT) -lgomp -Wl,-rpath,$(SCIPSDPDIR)/$(SCIPSDPLIBDIR)
+			-lgfortran $(SCIPSDPLIBDIR)/libopenblas.$(SHAREDLIBEXT) -lgomp -Wl,-rpath,$(SCIPSDPDIR)/$(SCIPSDPLIBDIR) \
+			-lgfortran -L/lib/x86_64-linux-gnu -lpthread -lgomp
 else
 SDPILIB		=      -L$(SCIPSDPLIBDIR) -lsdpa -L$(SCIPSDPLIBDIR)/libmumps/lib -ldmumps -lmumps_common -lpord -L$(SCIPSDPLIBDIR)/libmumps/libseq -lmpiseq \
 			-lgfortran -llapack -lblas
@@ -133,7 +134,7 @@ SDPIINC		=      -I$(SCIPSDPLIBDIR)/sdpainc -I$(SCIPSDPLIBDIR)/libmumps/include
 SDPICCSRC 	= 	src/sdpi/sdpisolver_sdpa.cpp
 SDPICSRC		=	src/scipsdp/lapack_sdpa.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o \
-				$(OBJDIR)/scipsdp/lapack_sdpa.c
+				$(OBJDIR)/scipsdp/lapack_sdpa.o
 endif
 
 SDPIOPTIONS	+=	none
