@@ -797,6 +797,9 @@ SCIP_DECL_RELAXINIT(relaxInitSolSDP)
    assert( relax != NULL );
 
    relaxdata = SCIPrelaxGetData(relax);
+
+   assert( relaxdata != NULL );
+
    relaxdata->objval = 0.0;
    relaxdata->origsolved = FALSE;
    relaxdata->sdpcalls = 0;
