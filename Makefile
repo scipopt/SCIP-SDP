@@ -116,15 +116,15 @@ SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libsdpa.$(STATICLIBEXT)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libsdpa.$(SHAREDLIBEXT)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libmumps
 ifeq ($(OPENBLAS),true)
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libopenblas.$(SHAREDLIBEXT)
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libopenblas.$(SHAREDLIBEXT).0
 endif
 SDPIINSTMSG	=	"  -> \"sdpainc\" is the path to the SDPA \"include\" directory, e.g., \"<SDPA-path>/include\".\n"
 SDPIINSTMSG	+=	" -> \"libsdpa.*\" is the path to the SDPA library, e.g., \"<SDPA-path>/lib/libsdpa.a\".\n"
 SDPIINSTMSG	+=	" -> \"libmumps\" is the path to the Mumps directory, e.g., \"<SDPA-path>/mumps/build\"; \"libmumps/lib\" and \"libmumps/libseq\" should exist.\n"
 ifeq ($(OPENBLAS),true)
-SDPIINSTMSG	+=	" -> \"libopenblas.$(SHAREDLIBEXT)\" is the openblas library.\n"
-SDPILIB		=      -L$(SCIPSDPLIBDIR) -lsdpa -L$(SCIPSDPLIBDIR)/libmumps/lib -ldmumps -lmumps_common -lpord -L$(SCIPSDPLIBDIR)/libmumps/libseq -lmpiseq \
-			-lgfortran $(SCIPSDPLIBDIR)/libopenblas.$(SHAREDLIBEXT) -lgomp -Wl,-rpath,$(SCIPSDPDIR)/$(SCIPSDPLIBDIR) \
+SDPIINSTMSG	+=	" -> \"libopenblas.$(SHAREDLIBEXT).0\" is the openblas library.\n"
+SDPILIB		=      -L$(SCIPSDPLIBDIR) -lsdpa -L$(SCIPSDPLIBDIR)/libmumps -ldmumps -lmumps_common -lpord -L$(SCIPSDPLIBDIR)/libmumps/libseq -lmpiseq \
+			$(SCIPSDPLIBDIR)/libopenblas.$(SHAREDLIBEXT).0 -Wl,-rpath,$(SCIPSDPDIR)/$(SCIPSDPLIBDIR) \
 			-lgfortran -L/lib/x86_64-linux-gnu -lpthread -lgomp
 else
 SDPILIB		=      -L$(SCIPSDPLIBDIR) -lsdpa -L$(SCIPSDPLIBDIR)/libmumps/lib -ldmumps -lmumps_common -lpord -L$(SCIPSDPLIBDIR)/libmumps/libseq -lmpiseq \
