@@ -326,7 +326,9 @@ SCIP_RETCODE cutUsingEigenvector(
 
    /* compute \f$ v^T A_j v \f$ for eigenvector v and each matrix \f$ A_j \f$ to get the coefficients of the LP cut */
    for (j = 0; j < consdata->nvars; ++j)
+   {
       SCIP_CALL( multiplyConstraintMatrix(cons, j, eigenvector, &coeff[j]) );
+   }
 
    SCIPfreeBufferArray(scip, &output_vector);
    SCIPfreeBufferArray(scip, &eigenvector);
@@ -892,7 +894,7 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
                SCIPdebugMessage("Detected 1x1 SDP-block without any nonzero coefficients \n");
                if (SCIPisFeasGT(scip, rhs, 0.0))
                {
-                  SCIPdebugMessage("Detecteded infeasibility in 1x1 SDP-block without any nonzero coefficients but with strictly positive rhs\n");
+                  SCIPdebugMessage("Detected infeasibility in 1x1 SDP-block without any nonzero coefficients but with strictly positive rhs\n");
                   *result = SCIP_CUTOFF;
                   /* delete old 1x1 sdpcone */
                   SCIP_CALL(SCIPdelCons(scip, conss[i]));
