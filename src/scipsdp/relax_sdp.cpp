@@ -70,7 +70,7 @@ struct SCIP_RelaxData
 {
    SCIP_SDPI*            sdpi;               /**< general SDP Interface that is given the data to presolve the SDP and give it so a solver specific interface */
    SdpVarmapper*         varmapper;          /**< maps SCIP variables to their global SDP indices and vice versa */
-   SCIP_Real             ojbval;             /**< objective value of the last SDP relaxation */
+   SCIP_Real             objval;             /**< objective value of the last SDP relaxation */
    SCIP_Bool             origsolved;         /**< solved original problem to optimality (not only a penalty formulation */
    SCIP_Real             sdpsolverepsilon;   /**< the stopping criterion for the duality gap the sdpsolver should use */
    SCIP_Real             sdpsolverfeastol;   /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
@@ -797,7 +797,7 @@ SCIP_DECL_RELAXINIT(relaxInitSolSDP)
    assert( relax != NULL );
 
    relaxdata = SCIPrelaxGetData(relax);
-   relaxdata->ojbval = 0.0;
+   relaxdata->objval = 0.0;
    relaxdata->origsolved = FALSE;
    relaxdata->sdpcalls = 0;
    relaxdata->sdpiterations = 0;
@@ -990,7 +990,7 @@ SCIP_RETCODE SCIPrelaxSdpRelaxVal(
    assert( relaxdata != NULL );
 
    *success = relaxdata->origsolved;
-   *objval = relaxdata->ojbval;
+   *objval = relaxdata->objval;
 
    return SCIP_OKAY;
 }
