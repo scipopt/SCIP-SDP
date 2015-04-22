@@ -1505,27 +1505,8 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
 
    if ( SCIPsdpiSolverIsConverged(sdpisolver) )
       return TRUE;
-   else
-   {
-      double pobj;
-      double dobj;
-      double gap;
 
-      if ( ! SCIPsdpiSolverIsObjlimExc(sdpisolver) )
-         printf("Numerical Trouble in DSDP!\n");
-
-      /* if it didn't converge check the optimality gap */
-      DSDP_CALL( DSDPGetPObjective(sdpisolver->dsdp, &pobj) );
-      DSDP_CALL( DSDPGetDObjective(sdpisolver->dsdp, &dobj) );
-
-      gap = REALABS(pobj - dobj);
-
-      if ( (gap < sdpisolver->epsilon) || ((gap / (0.5 * (REALABS(pobj) + REALABS(dobj)))) < sdpisolver->epsilon) ) /* this is the duality gap used in SDPA */
-         return TRUE;
-   }
    return FALSE;
-
-/* TODO: also check for primal feasibility, as this is also needed for optimality */
 }
 
 /** tries to reset the internal status of the SDP solver in order to ignore an instability of the last solving call */

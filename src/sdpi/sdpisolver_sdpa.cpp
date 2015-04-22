@@ -1627,24 +1627,8 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
     * infeasible [except for numerics], or unbounded */
    if ( SCIPsdpiSolverIsConverged(sdpisolver) || phasetype == SDPA::pUNBD || phasetype == SDPA::pINF_dFEAS || phasetype == SDPA::pFEAS_dINF )
       return TRUE;
-   else
-   {
-      double pobj;
-      double dobj;
-      SCIP_Real gap;
 
-      /* if it didn't converge check the optimality gap */
-      pobj = sdpisolver->sdpa->getDualObj();
-      dobj = sdpisolver->sdpa->getPrimalObj();
-
-      gap = REALABS(pobj - dobj);
-
-      if ( (gap < sdpisolver->epsilon) || ((gap / (0.5 * (REALABS(pobj) + REALABS(dobj)))) < sdpisolver->epsilon) ) /* this is the duality gap used in SDPA */
-         return TRUE;
-   }
    return FALSE;
-
-/* TODO: also check for primal feasibility, as this is also needed for optimality */
 }
 
 /** tries to reset the internal status of the SDP solver in order to ignore an instability of the last solving call */
