@@ -1036,7 +1036,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    {
       double* sdpasol;
 
-      assert( (sdpisolver->nactivevars == sdpisolver->sdpa->getConstraintNumber()) ); /* in the second case we have r as an additional variable */
+      assert( (sdpisolver->nactivevars + 1 == sdpisolver->sdpa->getConstraintNumber()) ); /* in the second case we have r as an additional variable */
       sdpasol = sdpisolver->sdpa->getResultXVec();
 
       /* we get r as the last variable in SDPA */
