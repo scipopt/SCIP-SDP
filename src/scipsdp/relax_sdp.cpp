@@ -879,7 +879,7 @@ SCIP_DECL_RELAXCOPY(relaxCopySDP)
    return SCIP_OKAY;
 }*/
 
-/** free the relaxator's data */
+/** reset the relaxator's data */
 static
 SCIP_DECL_RELAXEXIT(relaxExitSDP)
 {
@@ -897,15 +897,37 @@ SCIP_DECL_RELAXEXIT(relaxExitSDP)
    {
       SCIP_CALL( SdpVarmapperFree(scip, &(relaxdata->varmapper)) );
    }
+
+   relaxdata->objval = 0.0;
+   relaxdata->origsolved = FALSE;
+   relaxdata->sdpiterations = 0;
+   relaxdata->sdpcalls = 0;
+   relaxdata->lastsdpnode = 0;
+
+   return SCIP_OKAY;
+}
+
+/** free the relaxator's data */
+static
+SCIP_DECL_RELAXFREE(relaxFreeSDP)
+{
+   SCIP_RELAXDATA* relaxdata;
+
+   relaxdata = SCIPrelaxGetData(relax);
+   assert(relaxdata != NULL);
+
    if ( relaxdata->sdpi != NULL )
    {
       SCIP_CALL( SCIPsdpiFree(&(relaxdata->sdpi)) );
    }
-   SCIPfreeBlockMemory(scip, &relaxdata);
+
+   SCIPfreeMemory(scip, &relaxdata);
+
    SCIPrelaxSetData(relax, NULL);
 
    return SCIP_OKAY;
 }
+
 
 /** creates the SDP relaxator and includes it in SCIP */
 SCIP_RETCODE SCIPincludeRelaxSDP(
@@ -919,7 +941,7 @@ SCIP_RETCODE SCIPincludeRelaxSDP(
    assert( scip != NULL );
 
    /* create SDP relaxator data */
-   SCIP_CALL( SCIPallocBlockMemory(scip, &relaxdata) );
+   SCIP_CALL( SCIPallocMemory(scip, &relaxdata) );
    SCIP_CALL( SCIPsdpiCreate(&sdpi, NULL, SCIPblkmem(scip)) );
 
    relaxdata->sdpi = sdpi;
@@ -933,6 +955,7 @@ SCIP_RETCODE SCIPincludeRelaxSDP(
    /* include additional callbacks */
    SCIP_CALL( SCIPsetRelaxInitsol(scip, relax, relaxInitSolSDP) );
    SCIP_CALL( SCIPsetRelaxExit(scip, relax, relaxExitSDP) );
+   SCIP_CALL( SCIPsetRelaxFree(scip, relax, relaxFreeSDP) );
 
    /* add parameters for SDP-solver */
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/sdpsolverepsilon", "the stopping criterion for the duality gap the sdpsolver should use",
