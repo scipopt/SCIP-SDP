@@ -67,7 +67,7 @@ SCIP_RETCODE runSCIP(
    /* include new plugins */
    SCIP_CALL( SCIPincludeObjReader(scip, new ObjReaderSDPA(scip), TRUE) );
    SCIP_CALL( SCIPincludeConshdlrSdp(scip) );
-   SCIP_CALL( SCIPincludeRelaxSDP(scip) );
+   SCIP_CALL( SCIPincludeRelaxSdp(scip) );
    SCIP_CALL( SCIPincludePropSdpredcost(scip) );
    SCIP_CALL( SCIPincludeBranchruleSdpmostfrac(scip) );
    SCIP_CALL( SCIPincludeBranchruleSdpmostinf(scip) );

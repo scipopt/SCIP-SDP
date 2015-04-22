@@ -677,7 +677,7 @@ SCIP_Bool allVarsFixed(
 
 /** execution method of relaxator */
 static
-SCIP_DECL_RELAXEXEC(relaxExecSDP)
+SCIP_DECL_RELAXEXEC(relaxExecSdp)
 {
    SCIP_RELAXDATA* relaxdata;
    int nconss;
@@ -786,7 +786,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSDP)
 /** this method is called after presolving is finished, at this point the varmapper is prepared and the SDP Interface is initialized and gets
  *  the SDP information from the constraints */
 static
-SCIP_DECL_RELAXINIT(relaxInitSolSDP)
+SCIP_DECL_RELAXINIT(relaxInitSolSdp)
 {
    SCIP_RELAXDATA* relaxdata;
    SCIP_RETCODE retcode;
@@ -865,7 +865,7 @@ SCIP_DECL_RELAXINIT(relaxInitSolSDP)
 /*
 * copy method for sdp relaxation handler (called when SCIP copies plugins)
 static
-SCIP_DECL_RELAXCOPY(relaxCopySDP)
+SCIP_DECL_RELAXCOPY(relaxCopySdp)
 {
    SCIP_RELAXDATA* sourcedata;
    SCIP_RELAXDATA* targetdata;
@@ -881,7 +881,7 @@ SCIP_DECL_RELAXCOPY(relaxCopySDP)
 
 /** reset the relaxator's data */
 static
-SCIP_DECL_RELAXEXIT(relaxExitSDP)
+SCIP_DECL_RELAXEXIT(relaxExitSdp)
 {
    SCIP_RELAXDATA* relaxdata;
 
@@ -909,7 +909,7 @@ SCIP_DECL_RELAXEXIT(relaxExitSDP)
 
 /** free the relaxator's data */
 static
-SCIP_DECL_RELAXFREE(relaxFreeSDP)
+SCIP_DECL_RELAXFREE(relaxFreeSdp)
 {
    SCIP_RELAXDATA* relaxdata;
 
@@ -930,7 +930,7 @@ SCIP_DECL_RELAXFREE(relaxFreeSDP)
 
 
 /** creates the SDP relaxator and includes it in SCIP */
-SCIP_RETCODE SCIPincludeRelaxSDP(
+SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP*                 scip                /**< SCIP data structure */
    )
 {
@@ -949,13 +949,13 @@ SCIP_RETCODE SCIPincludeRelaxSDP(
 
    /* include relaxator */
    SCIP_CALL( SCIPincludeRelaxBasic(scip, &relax, RELAX_NAME, RELAX_DESC, RELAX_PRIORITY, RELAX_FREQ,
-         relaxExecSDP, relaxdata) );
+         relaxExecSdp, relaxdata) );
    assert( relax != NULL );
 
    /* include additional callbacks */
-   SCIP_CALL( SCIPsetRelaxInitsol(scip, relax, relaxInitSolSDP) );
-   SCIP_CALL( SCIPsetRelaxExit(scip, relax, relaxExitSDP) );
-   SCIP_CALL( SCIPsetRelaxFree(scip, relax, relaxFreeSDP) );
+   SCIP_CALL( SCIPsetRelaxInitsol(scip, relax, relaxInitSolSdp) );
+   SCIP_CALL( SCIPsetRelaxExit(scip, relax, relaxExitSdp) );
+   SCIP_CALL( SCIPsetRelaxFree(scip, relax, relaxFreeSdp) );
 
    /* add parameters for SDP-solver */
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/sdpsolverepsilon", "the stopping criterion for the duality gap the sdpsolver should use",

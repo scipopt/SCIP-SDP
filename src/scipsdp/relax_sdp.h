@@ -51,7 +51,7 @@ extern "C" {
 
 /** creates the SDP relaxator and includes it in SCIP */
 EXTERN
-SCIP_RETCODE SCIPincludeRelaxSDP(
+SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP*                 scip                /**< SCIP data structure */
    );
 
