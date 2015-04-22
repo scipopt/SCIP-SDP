@@ -1583,7 +1583,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
                                               *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
    )
 {
-   SCIP_Real* dsdpsol;
+   double* dsdpsol;
    int v;
 
    assert( sdpisolver != NULL );

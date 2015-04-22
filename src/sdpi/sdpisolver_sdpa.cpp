@@ -1631,7 +1631,7 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
    {
       double pobj;
       double dobj;
-      double gap;
+      SCIP_Real gap;
 
       /* if it didn't converge check the optimality gap */
       pobj = sdpisolver->sdpa->getDualObj();
@@ -1801,7 +1801,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    )
 {
    int i;
-   SCIP_Real* X; /* block of primal solution matrix corresponding to the LP-part */
+   double* X; /* block of primal solution matrix corresponding to the LP-part */
    int lpblockind;
    int nlpcons;
 
