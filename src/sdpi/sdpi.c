@@ -833,6 +833,110 @@ SCIP_RETCODE SCIPsdpiFree(
    return SCIP_OKAY;
 }
 
+/** cloning method of the general SDP-Interface
+ *  @ note: the solver specific interface is created anew and not copied */
+SCIP_RETCODE SCIPsdpiClone(
+   SCIP_SDPI*            oldsdpi,            /**< pointer to the SDP interface structure that should be cloned */
+   SCIP_SDPI*            newsdpi             /**< pointer to an SDP interface structure to clone into */
+   )
+{
+   BMS_BLKMEM* blkmem;
+   int nvars;
+   int nsdpblocks;
+   int lpnnonz;
+   int b;
+   int v;
+
+   assert( oldsdpi != NULL );
+
+   SCIPdebugMessage("Cloning SDPI %d\n", oldsdpi->sdpid);
+
+   /* general data */
+   blkmem = oldsdpi->blkmem;
+   nvars = oldsdpi->nvars;
+   nsdpblocks = oldsdpi->nsdpblocks;
+   lpnnonz = oldsdpi->lpnnonz;
+
+   BMS_CALL( BMSallocBlockMemory(blkmem, &newsdpi) );
+
+   SCIP_CALL( SCIPsdpiSolverCreate(&(newsdpi->sdpisolver), oldsdpi->messagehdlr, oldsdpi->blkmem) ); /* create new SDP-Solver Interface */
+
+   newsdpi->messagehdlr = oldsdpi->messagehdlr;
+   newsdpi->blkmem = blkmem;
+   newsdpi->nvars = nvars;
+
+   BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->obj), oldsdpi->obj, nvars) );
+   BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->lb), oldsdpi->lb, nvars) );
+   BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->ub), oldsdpi->ub, nvars) );
+
+   newsdpi->nsdpblocks = nsdpblocks;
+
+   BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpblocksizes), oldsdpi->sdpblocksizes, nsdpblocks) );
+   BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpnblockvars), oldsdpi->sdpnblockvars, nsdpblocks) );
+
+   /* constant SDP data */
+   newsdpi->sdpconstnnonz = oldsdpi->sdpconstnnonz;
+
+   BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpconstnblocknonz), oldsdpi->sdpconstnblocknonz, nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpconstrow), nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpconstcol), nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpconstval), nsdpblocks) );
+
+   for (b = 0; b < nsdpblocks; b++)
+   {
+      BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpconstrow[b]), oldsdpi->sdpconstrow[b], oldsdpi->sdpconstnblocknonz[b]) );
+      BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpconstcol[b]), oldsdpi->sdpconstcol[b], oldsdpi->sdpconstnblocknonz[b]) );
+      BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpconstval[b]), oldsdpi->sdpconstval[b], oldsdpi->sdpconstnblocknonz[b]) );
+   }
+
+   /* SDP data */
+   newsdpi->sdpnnonz = oldsdpi->sdpnnonz;
+
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpnblockvarnonz), nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpvar), nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdprow), nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpcol), nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpval), nsdpblocks) );
+
+   for (b = 0; b < nsdpblocks; b++)
+   {
+      BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpnblockvarnonz[b]), oldsdpi->sdpnblockvarnonz[b], oldsdpi->sdpnblockvars[b]) );
+      BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpvar[b]), oldsdpi->sdpvar[b], oldsdpi->sdpnblockvars[b]) );
+
+      BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdprow[b]), oldsdpi->sdpnblockvars[b]) );
+      BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpcol[b]), oldsdpi->sdpnblockvars[b]) );
+      BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpval[b]), oldsdpi->sdpnblockvars[b]) );
+
+      for (v = 0; v < oldsdpi->sdpnblockvars[b]; v++)
+      {
+         BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdprow[b][v]), oldsdpi->sdprow[b][v], oldsdpi->sdpnblockvarnonz[b][v]) );
+         BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpcol[b][v]), oldsdpi->sdpcol[b][v], oldsdpi->sdpnblockvarnonz[b][v]) );
+         BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpval[b][v]), oldsdpi->sdpval[b][v], oldsdpi->sdpnblockvarnonz[b][v]) );
+      }
+   }
+
+   /* LP data */
+   newsdpi->nlpcons = oldsdpi->nlpcons;
+
+   BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->lprhs), oldsdpi->lprhs, oldsdpi->nlpcons) );
+
+   newsdpi->lpnnonz = lpnnonz;
+
+   BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->lprow), oldsdpi->lprow, lpnnonz) );
+   BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->lpcol), oldsdpi->lpcol, lpnnonz) );
+   BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->lpval), oldsdpi->lpval, lpnnonz) );
+
+   /* other data */
+   newsdpi->solved = FALSE; /* as we don't copy the sdpisolver, this needs to be set to false */
+   newsdpi->penalty = FALSE; /* all things about SDP-solutions are set to false as well, as we didn't solve the problem */
+   newsdpi->infeasible = FALSE;
+   newsdpi->sdpid = 1000000 + oldsdpi->sdpid; /* this is only used for debug output, setting it to this value should make it clear, that it is a new sdpi */
+   newsdpi->epsilon = oldsdpi->epsilon;
+   newsdpi->feastol = oldsdpi->feastol;
+
+   return SCIP_OKAY;
+}
+
 /**@} */
 
 
@@ -980,22 +1084,22 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpconstnblocknonz), sdpi->nsdpblocks);
 
    /* duplicate some arrays */
-   BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), obj, nvars));
-   BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), lb, nvars));
-   BMS_CALL(BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), ub, nvars));
+   BMS_CALL( BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), obj, nvars) );
+   BMS_CALL( BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), lb, nvars) );
+   BMS_CALL( BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), ub, nvars) );
    DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpblocksizes, nsdpblocks);
    DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpnblockvars), sdpnblockvars, nsdpblocks);
    DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpconstnblocknonz), sdpconstnblocknonz, nsdpblocks);
 
    /* allocate memory for the sdp arrays & duplicate them */
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz), sdpi->nsdpblocks, nsdpblocks));
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol), sdpi->nsdpblocks, nsdpblocks));
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow), sdpi->nsdpblocks, nsdpblocks));
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval), sdpi->nsdpblocks, nsdpblocks));
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpvar), sdpi->nsdpblocks, nsdpblocks));
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol), sdpi->nsdpblocks, nsdpblocks));
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow), sdpi->nsdpblocks, nsdpblocks));
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpi->nsdpblocks, nsdpblocks));
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz), sdpi->nsdpblocks, nsdpblocks) );
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol), sdpi->nsdpblocks, nsdpblocks) );
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow), sdpi->nsdpblocks, nsdpblocks) );
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval), sdpi->nsdpblocks, nsdpblocks) );
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpvar), sdpi->nsdpblocks, nsdpblocks) );
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol), sdpi->nsdpblocks, nsdpblocks) );
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow), sdpi->nsdpblocks, nsdpblocks) );
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpi->nsdpblocks, nsdpblocks) );
 
    for (block = 0; block < nsdpblocks; block++)
    {
@@ -1011,9 +1115,9 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
 
       DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpvar[block]), sdpvar[block], sdpnblockvars[block]);
 
-      BMS_CALL(BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[block]), sdpnblockvars[block]));
-      BMS_CALL(BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[block]), sdpnblockvars[block]));
-      BMS_CALL(BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[block]), sdpnblockvars[block]));
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[block]), sdpnblockvars[block]) );
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[block]), sdpnblockvars[block]) );
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[block]), sdpnblockvars[block]) );
 
       for (v = 0; v < sdpi->sdpnblockvars[block]; v++)
       {

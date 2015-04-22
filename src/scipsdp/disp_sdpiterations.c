@@ -71,18 +71,17 @@ struct SCIP_DispData
  */
 
 /** copy method for dialog plugins (called when SCIP copies plugins) */
-#if 0
 static
-SCIP_DECL_DISPCOPY(dispCopyXyz)
+SCIP_DECL_DISPCOPY(dispCopySdpiterations)
 {  /*lint --e{715}*/
-   SCIPerrorMessage("method of xyz display column not implemented yet\n");
-   SCIPABORT(); /*lint --e{527}*/
+   assert(scip != NULL);
+   assert(disp != NULL);
+
+   /* call inclusion method of dialog */
+   SCIP_CALL( SCIPincludeDispSdpiterations(scip) );
 
    return SCIP_OKAY;
 }
-#else
-#define dispCopyXyz NULL
-#endif
 
 /** destructor of display column to free user data (called when SCIP is exiting) */
 static
@@ -197,7 +196,7 @@ SCIP_RETCODE SCIPincludeDispSdpiterations(
 
    /* include display column */
    SCIP_CALL( SCIPincludeDisp(scip, DISP_NAME, DISP_DESC, DISP_HEADER, SCIP_DISPSTATUS_AUTO,
-         dispCopyXyz,
+         dispCopySdpiterations,
          dispFreeSdpiterations, dispInitXyz, dispExitXyz,
          dispInitsolSdpiterations, dispExitsolXyz, dispOutputSdpiterations,
          dispdata, DISP_WIDTH, DISP_PRIORITY, DISP_POSITION, DISP_STRIPLINE) );

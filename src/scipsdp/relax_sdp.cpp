@@ -862,22 +862,18 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
    return SCIP_OKAY;
 }
 
-/*
-* copy method for sdp relaxation handler (called when SCIP copies plugins)
+/* copy method for sdp relaxation handler (called when SCIP copies plugins) */
 static
 SCIP_DECL_RELAXCOPY(relaxCopySdp)
 {
-   SCIP_RELAXDATA* sourcedata;
-   SCIP_RELAXDATA* targetdata;
+   assert( scip != NULL );
+   assert( relax != NULL );
+   assert(strcmp(SCIPrelaxGetName(relax), RELAX_NAME) == 0);
 
-   SCIP_CALL ( SCIPallocBlockMemory(scip, &targetdata) );
-
-   sourcedata = SCIPrelaxGetData(relax);
-
-   //TODO: copying (needs a copy method for the sdpi_general), or is this only needed for local (i.e. in every node) heuristics ?
+   SCIPincludeRelaxSdp(scip);
 
    return SCIP_OKAY;
-}*/
+}
 
 /** reset the relaxator's data */
 static
@@ -956,6 +952,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPsetRelaxInitsol(scip, relax, relaxInitSolSdp) );
    SCIP_CALL( SCIPsetRelaxExit(scip, relax, relaxExitSdp) );
    SCIP_CALL( SCIPsetRelaxFree(scip, relax, relaxFreeSdp) );
+   SCIP_CALL( SCIPsetRelaxCopy(scip, relax, relaxCopySdp) );
 
    /* add parameters for SDP-solver */
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/sdpsolverepsilon", "the stopping criterion for the duality gap the sdpsolver should use",

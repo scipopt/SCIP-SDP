@@ -122,6 +122,14 @@ SCIP_RETCODE SCIPsdpiFree(
    SCIP_SDPI**           sdpi                /**< pointer to an SDP interface structure */
    );
 
+/** cloning method of the general SDP-Interface
+ *  @ note: the solver specific interface is created anew and not copied */
+EXTERN
+SCIP_RETCODE SCIPsdpiClone(
+   SCIP_SDPI*            oldsdpi,            /**< pointer to the SDP interface structure that should be cloned */
+   SCIP_SDPI*            newsdpi             /**< pointer to an SDP interface structure to clone into */
+   );
+
 /**@} */
 
 

@@ -1755,7 +1755,75 @@ SCIP_DECL_CONSFREE(consFreeSdp)
    return SCIP_OKAY;
 }
 
-/** print a SDP constraint */
+/** copy an SDP constraint handler */
+static
+SCIP_DECL_CONSHDLRCOPY(conshdlrCopySdp)
+{
+   assert(scip != NULL);
+   assert(conshdlr != NULL);
+   assert(strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0);
+
+   SCIP_CALL( SCIPincludeConshdlrSdp(scip) );
+
+   *valid = TRUE;
+
+   return SCIP_OKAY;
+}
+
+/** copy an SDP constraint*/
+static
+SCIP_DECL_CONSCOPY(consCopySdp)
+{
+   SCIP_CONSDATA* sourcedata;
+   SCIP_CONSDATA* targetdata;
+   SCIP_VAR* targetvar;
+   SCIP_Bool success;
+   int i;
+
+   assert( scip != NULL );
+   assert( sourcescip != NULL );
+   assert( sourcecons != NULL );
+   assert( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(sourcecons)), CONSHDLR_NAME) == 0 );
+
+   SCIPdebugMessage("Copying SDP constraint %s\n", SCIPconsGetName(sourcecons));
+
+   *valid = TRUE;
+
+   sourcedata = SCIPconsGetData(sourcecons);
+   assert( sourcedata != NULL );
+
+   /* we first create the new constraint with the old variables, to be able to multiaggregate and fix there without messing with the existing constraint */
+   SCIP_CALL( SCIPcreateConsSdp( scip, cons, name, sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize, sourcedata->nvarnonz,
+                                 sourcedata->col, sourcedata->row, sourcedata->val, sourcedata->vars, sourcedata->constnnonz,
+                                 sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
+
+   /* we need to fix and (mutli-)aggregate, as we can only map active variables to the subscip */
+   SCIP_CALL( fixAndAggrVars(scip, cons, 1, TRUE) );
+
+   targetdata = SCIPconsGetData(*cons);
+   assert( targetdata != NULL );
+
+   /* now we can iterate over all variables in the new constraint to map them to the subscip */
+   for (i = 0; i < targetdata->nvars; i++)
+   {
+      /* first we release the old variable, doing so at this point even if we want to work with it later is no problem, as the variable still
+       * exists in the original problem, so it can't be free yet */
+      SCIP_CALL( SCIPreleaseVar(scip, &(targetdata->vars[i])) );
+      /* get the corresponding variable in the subscip */
+      SCIP_CALL( SCIPgetVarCopy(sourcescip, scip, targetdata->vars[i], &targetvar, varmap, consmap, global, &success) );
+      if ( success )
+      {
+         targetdata->vars[i] = targetvar;
+         SCIP_CALL( SCIPcaptureVar(scip, targetdata->vars[i]) );
+      }
+      else
+         *valid = FALSE;
+   }
+
+   return SCIP_OKAY;
+}
+
+/** print an SDP constraint */
 static
 SCIP_DECL_CONSPRINT(consPrintSdp)
 {
@@ -1914,6 +1982,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    /* set non-fundamental callbacks via specific setter functions */
    SCIP_CALL( SCIPsetConshdlrDelete(scip, conshdlr, consDeleteSdp) );
    SCIP_CALL( SCIPsetConshdlrFree(scip, conshdlr, consFreeSdp) );
+   SCIP_CALL( SCIPsetConshdlrCopy(scip, conshdlr, conshdlrCopySdp, consCopySdp) );
    SCIP_CALL( SCIPsetConshdlrInitpre(scip, conshdlr,consInitpreSdp) );
    SCIP_CALL( SCIPsetConshdlrExitpre(scip, conshdlr, consExitpreSdp) );
    SCIP_CALL( SCIPsetConshdlrPresol(scip, conshdlr, consPresolSdp, CONSHDLR_MAXPREROUNDS, CONSHDLR_DELAYPRESOL) );

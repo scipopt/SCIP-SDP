@@ -40,6 +40,7 @@
 /*#define SCIP_DEBUG */
 
 #include <assert.h>
+#include <string.h>
 
 #include "branch_sdpobjective.h"
 
@@ -67,18 +68,18 @@
  */
 
 /** copy method for branchrule plugins (called when SCIP copies plugins) */
-#if 0
 static
-SCIP_DECL_BRANCHCOPY(branchCopyXyz)
+SCIP_DECL_BRANCHCOPY(branchCopySdpobjective)
 {  /*lint --e{715}*/
-   SCIPerrorMessage("method of xyz branching rule not implemented yet\n");
-   SCIPABORT(); /*lint --e{527}*/
+   assert(scip != NULL);
+   assert(branchrule != NULL);
+   assert(strcmp(SCIPbranchruleGetName(branchrule), BRANCHRULE_NAME) == 0);
+
+   /* call inclusion method of branchrule */
+   SCIP_CALL( SCIPincludeBranchruleSdpobjective(scip) );
 
    return SCIP_OKAY;
 }
-#else
-#define branchCopyXyz NULL
-#endif
 
 /** branching execution method for external candidates */
 static
@@ -367,7 +368,7 @@ SCIP_RETCODE SCIPincludeBranchruleSdpobjective(
    assert(branchrule != NULL);
 
    /* set non fundamental callbacks via setter functions */
-   /* SCIP_CALL( SCIPsetBranchruleCopy(scip, branchrule, branchCopyXyz) ); */
+   SCIP_CALL( SCIPsetBranchruleCopy(scip, branchrule, branchCopySdpobjective) );
    SCIP_CALL( SCIPsetBranchruleExecExt(scip, branchrule, branchExecextSdpobjective) );
 
    return SCIP_OKAY;
