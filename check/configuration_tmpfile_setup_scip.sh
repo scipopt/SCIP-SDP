@@ -76,7 +76,6 @@ echo set limits time $TIMELIMIT        >> $TMPFILE
 echo set limits nodes $NODELIMIT       >> $TMPFILE
 echo set limits memory $MEMLIMIT       >> $TMPFILE
 echo set lp advanced threads $THREADS  >> $TMPFILE
-echo set timing clocktype 1            >> $TMPFILE
 echo set display freq $DISPFREQ        >> $TMPFILE
 # avoid switching to dfs - better abort with memory error
 echo set memory savefac 1.0            >> $TMPFILE
