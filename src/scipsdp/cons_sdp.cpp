@@ -1775,9 +1775,9 @@ static
 SCIP_DECL_CONSCOPY(consCopySdp)
 {
    SCIP_CONSDATA* sourcedata;
-   SCIP_CONSDATA* targetdata;
-   SCIP_VAR* targetvar;
    SCIP_Bool success;
+   SCIP_VAR** targetvars;
+   SCIP_VAR* var;
    int i;
 
    assert( scip != NULL );
@@ -1789,36 +1789,38 @@ SCIP_DECL_CONSCOPY(consCopySdp)
 
    *valid = TRUE;
 
+   /* as we can only map active variables, we have to make sure, that the constraint contains no fixed or (multi-)aggregated vars, after
+    * exitpresolve (stage 6) this should always be the case, earlier than that we need to call fixAndAggrVars */
+   if ( SCIPgetStage(sourcescip)  <= SCIP_STAGE_EXITPRESOLVE )
+   {
+      SCIP_CALL( fixAndAggrVars(scip, &sourcecons, 1, TRUE) );
+   }
+
+
    sourcedata = SCIPconsGetData(sourcecons);
    assert( sourcedata != NULL );
 
-   /* we first create the new constraint with the old variables, to be able to multiaggregate and fix there without messing with the existing constraint */
-   SCIP_CALL( SCIPcreateConsSdp( scip, cons, name, sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize, sourcedata->nvarnonz,
-                                 sourcedata->col, sourcedata->row, sourcedata->val, sourcedata->vars, sourcedata->constnnonz,
-                                 sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &targetvars, sourcedata->nvars) );
 
-   /* we need to fix and (mutli-)aggregate, as we can only map active variables to the subscip */
-   SCIP_CALL( fixAndAggrVars(scip, cons, 1, TRUE) );
-
-   targetdata = SCIPconsGetData(*cons);
-   assert( targetdata != NULL );
-
-   /* now we can iterate over all variables in the new constraint to map them to the subscip */
-   for (i = 0; i < targetdata->nvars; i++)
+   /* map all variables in the constraint */
+   for (i = 0; i < sourcedata->nvars; i++)
    {
-      /* first we release the old variable, doing so at this point even if we want to work with it later is no problem, as the variable still
-       * exists in the original problem, so it can't be free yet */
-      SCIP_CALL( SCIPreleaseVar(scip, &(targetdata->vars[i])) );
-      /* get the corresponding variable in the subscip */
-      SCIP_CALL( SCIPgetVarCopy(sourcescip, scip, targetdata->vars[i], &targetvar, varmap, consmap, global, &success) );
+      SCIP_CALL( SCIPgetVarCopy(sourcescip, scip, sourcedata->vars[i], &var, varmap, consmap, global, &success) );
       if ( success )
       {
-         targetdata->vars[i] = targetvar;
-         SCIP_CALL( SCIPcaptureVar(scip, targetdata->vars[i]) );
+         targetvars[i] = var;
+         SCIP_CALL( SCIPcaptureVar(scip, targetvars[i]) );
       }
       else
          *valid = FALSE;
    }
+
+   /* create the new constraint */
+   SCIP_CALL( SCIPcreateConsSdp( scip, cons, name, sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize, sourcedata->nvarnonz,
+                                 sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
+                                 sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
+
+   SCIPfreeBufferArray(scip, &targetvars);
 
    return SCIP_OKAY;
 }
