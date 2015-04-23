@@ -580,7 +580,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* set blocksizes */
    for (block = 0; block < nsdpblocks; ++block)
    {
-      DSDP_CALL( SDPConeSetBlockSize(sdpisolver->sdpcone, block, sdpblocksizes[block] - nremovedinds[block]) ); /* (blocks are counted from 0 to m-1) */
+      /* only insert blocksizes for the blocks we didn't remove */
+      if ( blockindchanges[block] > -1 )
+      {
+         /* (blocks are counted from 0 to m-1) */
+         DSDP_CALL( SDPConeSetBlockSize(sdpisolver->sdpcone, block- blockindchanges[block], sdpblocksizes[block] - nremovedinds[block]) );
+      }
    }
 
    /* start inserting the non-constant SDP-Constraint-Matrices */
