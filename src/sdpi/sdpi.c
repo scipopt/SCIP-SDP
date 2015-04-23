@@ -1944,6 +1944,8 @@ SCIP_RETCODE SCIPsdpiSolve(
           feasorig = FALSE;
 
           /* if we didn't converge, first try to check feasibility with a penalty formulation */
+          SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penalty formulation\n", sdpi->sdpid);
+
           SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
                        sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
                        sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
@@ -1960,6 +1962,8 @@ SCIP_RETCODE SCIPsdpiSolve(
               * isn't unbounded (this can be caused by a too small penalty parameter) or the penalty parameter gets too large */
              do
              {
+                SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penaltyparameter %f\n", sdpi->sdpid, penaltyparam);
+
                 SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, penaltyparam, TRUE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
                       sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
                       sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
@@ -1984,11 +1988,13 @@ SCIP_RETCODE SCIPsdpiSolve(
           }
           else if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && ! feasorig )
           {
+             SCIPdebugMessage("Problem was found to be infeasible using a penalty formulation */");
              sdpi->infeasible = TRUE;
              sdpi->penalty = TRUE;
           }
           else
           {
+             SCIPdebugMessage("SDP-Solver couldnot solve that problem even after using a penalty formulation */");
              sdpi->solved = FALSE;
              sdpi->penalty = TRUE;
           }
