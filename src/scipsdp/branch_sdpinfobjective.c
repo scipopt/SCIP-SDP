@@ -47,7 +47,7 @@
 
 #define BRANCHRULE_NAME            "sdpinfobjective"
 #define BRANCHRULE_DESC            "branch on variable with highest product of fractionality/integral-infeasibility and absolute objective of the SDP"
-#define BRANCHRULE_PRIORITY        0
+#define BRANCHRULE_PRIORITY        -5000
 #define BRANCHRULE_MAXDEPTH        -1
 #define BRANCHRULE_MAXBOUNDDIST    1.0
 

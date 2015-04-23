@@ -72,7 +72,7 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPincludeBranchruleSdpmostfrac(scip) );
    SCIP_CALL( SCIPincludeBranchruleSdpmostinf(scip) );
    SCIP_CALL( SCIPincludeBranchruleSdpobjective(scip) );
-   SCIP_CALL( SCIPincludeBranchruleSdpinfobjective(scip) );
+   //SCIP_CALL( SCIPincludeBranchruleSdpinfobjective(scip) );
    //SCIP_CALL( SCIPincludeBranchruleCs(scip) );
    //SCIP_CALL( SCIPincludeNodeselPrio(scip) );
 
