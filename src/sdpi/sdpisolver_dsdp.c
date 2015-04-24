@@ -37,8 +37,7 @@
  * @brief  interface for DSDP
  * @author Tristan Gally
  */
-//TODO: change bound propagation from single active variable LP-constraints to GE/LE instead of >/<, check if they are compared to the current bound, not only original,
-// check if debugmessages work correctly (should be ub[i] instead of ub[inputtodsdpmapper] ????
+
 #include <assert.h>
 
 #include "sdpi/sdpisolver.h"
