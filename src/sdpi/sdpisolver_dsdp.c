@@ -956,7 +956,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #ifdef SCIP_DEBUG
    DSDP_CALL(DSDPStopReason(sdpisolver->dsdp, &reason));
 
-   switch ( reason ) /* TODO: perhaps also check for feasibility and call the penalty-method here in that case */
+   switch ( reason )
    {
    case DSDP_CONVERGED:
       SCIPdebugMessage("DSDP converged!\n");
