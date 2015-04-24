@@ -949,7 +949,7 @@ SCIP_RETCODE SCIPsdpiClone(
 
 /** copies SDP data into SDP solver
  *
- *  @note as the SDP-constraint matrices are symmetric, only the upper triangular part of them must be specified TODO: is it really upper or is it lower triangular ?
+ *  @note as the SDP-constraint matrices are symmetric, only the upper triangular part of them must be specified
  *  @note there must be at least one variable, the SDP- and/or LP-part may be empty
  */
 SCIP_RETCODE SCIPsdpiLoadSDP(
