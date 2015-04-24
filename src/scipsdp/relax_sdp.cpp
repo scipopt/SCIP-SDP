@@ -625,8 +625,6 @@ SCIP_RETCODE calc_relax(
          if ( ! allint )
          {
             int oldncuts = SCIPgetNCuts(scip);
-            /* ????????????? Should this be called from relaxator ?? */
-            //SCIP_CALL( SCIPseparateSol(scip, scipsol, FALSE, FALSE, &delayed, &cutoff_forsep) );
 
             if ( SCIPgetNCuts(scip) > oldncuts )
                *result = SCIP_SEPARATED;

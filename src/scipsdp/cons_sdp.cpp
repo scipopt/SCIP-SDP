@@ -1192,7 +1192,6 @@ SCIP_RETCODE fixAndAggrVars(
             var = consdata->vars[v];
 
          /* check if the variable is fixed in SCIP */
-         // TODO: is the second allowed to happen if the variable has status aggregated? :TODO
          if ( SCIPvarGetStatus(var) == SCIP_VARSTATUS_FIXED || SCIPisEQ(scip, SCIPvarGetLbGlobal(var), SCIPvarGetUbGlobal(var)))
          {
             assert( SCIPisEQ(scip, SCIPvarGetLbGlobal(var), SCIPvarGetUbGlobal(var)) );
