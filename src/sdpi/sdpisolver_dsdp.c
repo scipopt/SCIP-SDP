@@ -39,7 +39,6 @@
  */
 //TODO: change bound propagation from single active variable LP-constraints to GE/LE instead of >/<, check if they are compared to the current bound, not only original,
 // check if debugmessages work correctly (should be ub[i] instead of ub[inputtodsdpmapper] ????
-// check IsAcceptable and ObjLimitExceeded for use of objlimit )
 #include <assert.h>
 
 #include "sdpi/sdpisolver.h"
@@ -1391,23 +1390,7 @@ SCIP_Bool SCIPsdpiSolverIsObjlimExc(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
 {
-   DSDPTerminationReason reason;
-
-   assert( sdpisolver != NULL );
-   CHECK_IF_SOLVED( sdpisolver );
-
-#ifndef NDEBUG
-   if ( sdpisolver->infeasible )
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return FALSE;
-   }
-#endif
-
-   DSDP_CALL( DSDPStopReason(sdpisolver->dsdp, &reason) );
-
-   if ( reason == DSDP_UPPERBOUND )
-      return TRUE;
+   SCIPdebugMessage("Method not implemented for DSDP, as objective limit is given as an explicit LP-consraint ! \n");
 
    return FALSE;
 }
