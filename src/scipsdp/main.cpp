@@ -127,9 +127,6 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/maxplungedepth", 0) );
    SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight", 0.0) );
 
-   /* turn off int-obj ????? */
-   SCIP_CALL( SCIPsetIntParam(scip, "separating/intobj/freq", -1) );
-
    /* turn off one-opt, as it doesn't check for positive semidefinitness of the solutions */
    SCIP_CALL( SCIPsetIntParam(scip, "heuristics/oneopt/freq", -1) );
 
