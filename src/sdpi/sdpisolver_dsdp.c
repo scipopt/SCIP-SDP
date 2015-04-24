@@ -118,7 +118,7 @@ struct SCIP_SDPiSolver
                                                *  this fixed variable can be found in entry j-1 of fixedval/obj */
    int*                  dsdptoinputmapper;  /**< entry i gives the original index of the (i+1)-th variable in dsdp (indices go from 0 to nactivevars-1) */
    SCIP_Real*            fixedvarsval;       /**< entry i gives the lower and upper bound of the i-th fixed variable */
-   SCIP_Real*            fixedvarsobj;       /**< entry i gives the objective value of the i-th fixed variable */
+   SCIP_Real             fixedvarsobjcontr;  /**< total contribution to the objective of all fixed variables, computed as sum obj * val */
 #ifndef NDEBUG
    SCIP_Bool             infeasible;         /**< true if the problem is infeasible during insertion/presolving (if constraints without active variables present) */
 #endif
@@ -281,7 +281,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->inputtodsdpmapper = NULL;
    (*sdpisolver)->dsdptoinputmapper = NULL;
    (*sdpisolver)->fixedvarsval = NULL;
-   (*sdpisolver)->fixedvarsobj = NULL;
+   (*sdpisolver)->fixedvarsobjcontr = 0.0;
    (*sdpisolver)->solved = FALSE;
    (*sdpisolver)->sdpcounter = 0;
 #ifndef NDEBUG
@@ -318,10 +318,7 @@ SCIP_RETCODE SCIPsdpiSolverFree(
       BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->dsdptoinputmapper, (*sdpisolver)->nactivevars);
 
    if ( (*sdpisolver)->nvars >= (*sdpisolver)->nactivevars )
-   {
-      BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->fixedvarsobj, (*sdpisolver)->nvars - (*sdpisolver)->nactivevars);
       BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->fixedvarsval, (*sdpisolver)->nvars - (*sdpisolver)->nactivevars);
-   }
 
    BMSfreeBlockMemory((*sdpisolver)->blkmem, sdpisolver);
 
@@ -504,7 +501,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* allocate memory for inputtodsdpmapper, dsdptoinputmapper and the fixed variable information, for the latter this will later be shrinked if the needed size is known */
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtodsdpmapper), sdpisolver->nvars, nvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->dsdptoinputmapper), sdpisolver->nactivevars, nvars) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsobj), sdpisolver->nvars - sdpisolver->nactivevars, nvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), sdpisolver->nvars - sdpisolver->nactivevars, nvars) );
 
    sdpisolver->nvars = nvars;
@@ -512,13 +508,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    nfixedvars = 0;
 
    /* find the fixed variables */
+   sdpisolver->fixedvarsobjcontr = 0.0;
    for (i = 0; i < nvars; i++)
    {
       if ( isFixed(sdpisolver, lb[i], ub[i]) )
       {
          nfixedvars++;
          sdpisolver->inputtodsdpmapper[i] = -nfixedvars;
-         sdpisolver->fixedvarsobj[nfixedvars - 1] = obj[i];
+         sdpisolver->fixedvarsobjcontr += obj[i] * lb[i]; /* this is the value this variable contributes to the objective */
          sdpisolver->fixedvarsval[nfixedvars - 1] = lb[i]; /* if lb=ub, than this is the value the variable will have in every solution */
       }
       else
@@ -531,7 +528,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( sdpisolver->nactivevars + nfixedvars == sdpisolver->nvars );
 
    /* shrink the fixedvars and dsdptoinputmapper arrays to the right size */
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsobj), nvars, nfixedvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), nvars, nfixedvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->dsdptoinputmapper), nvars, sdpisolver->nactivevars) );
 
@@ -1538,8 +1534,6 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    SCIP_Real*            objval              /**< stores the objective value */
    )
 {
-   int v;
-
    assert( sdpisolver != NULL );
    assert( objval != NULL );
    CHECK_IF_SOLVED( sdpisolver );
@@ -1556,11 +1550,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    *objval = -1*(*objval); /*DSDP maximizes instead of minimizing, so the objective values were multiplied by -1 when inserted */
 
    /* as we didn't add the fixed (lb = ub) variables to dsdp, we have to add their contributions to the objective by hand */
-   for (v = 0; v < sdpisolver->nvars; v++)
-   {
-      if (sdpisolver->inputtodsdpmapper[v] < 0)
-         *objval += sdpisolver->fixedvarsobj[-sdpisolver->inputtodsdpmapper[v] - 1] * sdpisolver->fixedvarsval[-sdpisolver->inputtodsdpmapper[v] - 1];
-   }
+   *objval += sdpisolver->fixedvarsobjcontr;
 
    return SCIP_OKAY;
 }
@@ -1598,11 +1588,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
       *objval *= -1; /* DSDP maximizes instead of minimizing, so the objective values were multiplied by -1 when inserted */
 
       /* as we didn't add the fixed (lb = ub) variables to dsdp, we have to add their contributions to the objective by hand */
-      for (v = 0; v < sdpisolver->nvars; v++)
-      {
-         if (sdpisolver->inputtodsdpmapper[v] < 0)
-            *objval += sdpisolver->fixedvarsobj[-sdpisolver->inputtodsdpmapper[v] - 1] * sdpisolver->fixedvarsval[-sdpisolver->inputtodsdpmapper[v] - 1];
-      }
+      *objval += sdpisolver->fixedvarsobjcontr;
    }
 
    if ( *dualsollength > 0 )
