@@ -37,7 +37,7 @@
  * @author Tristan Gally
  */
 
-/* #define SCIP_DEBUG*/
+/*#define SCIP_DEBUG*/
 /* #define SCIP_MORE_DEBUG  *//* displays complete solution for each relaxation */
 /* #define SCIP_EVEN_MORE_DEBUG  *//* shows number of deleted empty cols/rows for every relaxation and variable status & bounds as well as all constraints in the beginning */
 
@@ -60,6 +60,7 @@
 #define DEFAULT_SDPSOLVEREPSILON    1e-4     /**< the stopping criterion for the duality gap the sdpsolver should use */
 #define DEFAULT_SDPSOLVERFEASTOL    1e-3     /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
 #define DEFAULT_THREADS             1        /**< number of threads used for SDP solving */
+#define DEFAULT_OBJLIMIT            FALSE    /**< should an objective limit be given to the SDP-Solver ? */
 
 /*
  * Data structures
@@ -77,6 +78,7 @@ struct SCIP_RelaxData
    int                   sdpiterations;      /**< saves the total number of sdp-iterations */
    int                   threads;            /**< number of threads used for SDP solving */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
+   SCIP_Bool             objlimit;           /**< Should an objective limit be given to the SDP solver? */
    int                   sdpcalls;           /**< number of solved SDPs (used to compute average SDP iterations) */
    long int              lastsdpnode;        /**< number of the SCIP node the current SDP-solution belongs to */
 };
@@ -466,16 +468,16 @@ SCIP_RETCODE calc_relax(
 
    SCIP_CALL( SCIPsdpiSetIntpar(sdpi, SCIP_SDPPAR_SDPINFO, relaxdata->sdpinfo) );
 
-   /* set the objective limit */
-   assert( SCIPgetUpperbound(scip) > -SCIPsdpiInfinity(sdpi) );
-   /* SCIP_CALL( SCIPsdpiSetRealpar(sdpi, SCIP_SDPPAR_OBJLIMIT, SCIPgetUpperbound(scip)) ); */
+   if ( relaxdata->objlimit )
+   {
+      /* set the objective limit */
+      assert( SCIPgetUpperbound(scip) > -SCIPsdpiInfinity(sdpi) );
+      SCIP_CALL( SCIPsdpiSetRealpar(sdpi, SCIP_SDPPAR_OBJLIMIT, SCIPgetUpperbound(scip)) );
+   }
 
    /* solve the problem */
    SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, &(relaxdata->sdpiterations)) );
    relaxdata->lastsdpnode = SCIPnodeGetNumber(SCIPgetCurrentNode(scip));
-
-   /* remove the objective limit, as we don't want to use it for the penalty formulation if we run into numerical problems */
-   /* SCIP_CALL( SCIPsdpiSetRealpar(sdpi, SCIP_SDPPAR_OBJLIMIT, SCIPsdpiInfinity(sdpi)) ); */
 
    if ( SCIPsdpiWasSolved(sdpi) && SCIPsdpiSolvedOrig(sdpi) )
       relaxdata->origsolved = TRUE;
@@ -963,6 +965,8 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          &(relaxdata->threads), TRUE, DEFAULT_THREADS, 1, INT_MAX, NULL, NULL) );
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/sdpinfo", "Should the SDP solver output information to the screen?",
          &(relaxdata->sdpinfo), TRUE, FALSE, NULL, NULL) );
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/objlimit", "Should an objective limit be given to the SDP-Solver?",
+         &(relaxdata->objlimit), TRUE, DEFAULT_OBJLIMIT, NULL, NULL) );
 
    /* add description of SDP-solver */
    SCIP_CALL( SCIPincludeExternalCodeInformation(scip, SCIPsdpiGetSolverName(), SCIPsdpiGetSolverDesc()) );
