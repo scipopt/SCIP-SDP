@@ -30,8 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-//#define SCIP_DEBUG
-//#define SCIP_MORE_DEBUG
+/*#define SCIP_DEBUG*/
+/*#define SCIP_MORE_DEBUG*/
 
 /**@file   sdpisolver_dsdp.c
  * @brief  interface for DSDP
@@ -490,11 +490,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int nfixedvars;
    int dsdpnlpnonz;
 
-   SCIPdebugMessage("Inserting Data into DSDP for SDP (%d) \n", ++sdpisolver->sdpcounter);
-
 #ifdef SCIP_DEBUG
    DSDPTerminationReason reason; /* this will later be used to check if DSDP converged */
 #endif
+
+   SCIPdebugMessage("Inserting Data into DSDP for SDP (%d) \n", ++sdpisolver->sdpcounter);
 
    assert( sdpisolver != NULL );
    assert( gamma >= 0.0 );
@@ -549,12 +549,18 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    DSDP_CALLM( DSDPCreateLPCone(sdpisolver->dsdp, &(sdpisolver->lpcone)) );
    DSDP_CALLM( DSDPCreateBCone(sdpisolver->dsdp, &(sdpisolver->bcone)) );
 
+#ifdef SCIP_MORE_DEBUG
+         printf("setting objective values for SDP %d:\n", sdpisolver->sdpcounter);
+#endif
    for (i = 0; i < sdpisolver->nactivevars; i++)
    {
       if ( withObj )
       {
          /* insert objective value, DSDP counts from 1 to n instead of 0 to n-1, *(-1) because DSDP maximizes instead of minimizing */
          DSDP_CALL( DSDPSetDualObjective(sdpisolver->dsdp, i+1, -1.0 * obj[sdpisolver->dsdptoinputmapper[i]]) );
+#ifdef SCIP_MORE_DEBUG
+         printf("var %d (was var %d): %f, ", i+1, sdpisolver->dsdptoinputmapper[i], obj[sdpisolver->dsdptoinputmapper[i]]);
+#endif
       }
       else
       {
@@ -573,6 +579,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
 #ifdef SCIP_MORE_DEBUG
+   printf("\n");
    SCIPdebugMessage("ATTENTION: BConeView shows the WRONG sign for the lower bound!\n");
    BConeView(sdpisolver->bcone);
 #endif
@@ -785,6 +792,17 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
     	  }
       }
 
+      /* add the right-hand-side for the objective bound */
+      if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
+      {
+         if (REALABS(sdpisolver->objlimit) > sdpisolver->epsilon )
+         {
+            dsdplprow[dsdpnlpnonz] = nlpcons; /* this is the last lp-constraint, as DSDP counts from 0 to nlpcons-1, this is number nlpcons */
+            dsdplpval[dsdpnlpnonz] = sdpisolver->objlimit; /* as we want <= upper bound, this is the correct type of inequality for DSDP */
+            dsdpnlpnonz++;
+         }
+      }
+
       /* now add the nonzeros */
 
       /* for this we have to sort the nonzeros by col first and then by row, as this is the sorting DSDP wants */
@@ -793,7 +811,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* iterate over all nonzeros to add the active ones to the dsdp arrays and compute dsdplpbegcol */
       nextcol = 0;
       dsdplpbegcol[0] = 0;
-      dsdplpbegcol[1] = dsdpnlpnonz; /* the number of LP-constraints that will be given to dsdp */
       for (i = 0; i < lpnnonz; i++)
       {
          /* if a new variable starts, set the corresponding dsdplpbegcol-entry */
@@ -807,16 +824,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                if (sdpisolver->inputtodsdpmapper[j] >= 0)
                {
                   assert( ! (isFixed(sdpisolver, lb[j], ub[j])) );
+                  dsdplpbegcol[sdpisolver->inputtodsdpmapper[j]] = dsdpnlpnonz;
+
                   /* add the entry to the objlimit-lp-constraint for the last variables */
-                  if ( (! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit)) && (j > 0) && (REALABS( obj[j - 1] ) > sdpisolver->epsilon))
+                  if ( (! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit)) && (REALABS( obj[j] ) > sdpisolver->epsilon))
                   {
                      dsdplprow[dsdpnlpnonz] = nlpcons;
-                     dsdplpval[dsdpnlpnonz] = obj[j - 1];
+                     dsdplpval[dsdpnlpnonz] = obj[j];
                      dsdpnlpnonz++;
                   }
-                  /* the nonzeros only start after the rhs, they are shifted nshift positions to the left, the index j+1
-                   * has to be set as dsdplpbegcol[0] */
-                  dsdplpbegcol[sdpisolver->inputtodsdpmapper[j]] = dsdpnlpnonz;
                }
             }
             nextcol = j; /* this also equals lpcol[i]+1 */
@@ -844,27 +860,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          if (sdpisolver->inputtodsdpmapper[j] >= 0)
          {
             assert( ! (isFixed(sdpisolver, lb[j], ub[j])) );
+            dsdplpbegcol[sdpisolver->inputtodsdpmapper[j]] = dsdpnlpnonz;
             /* add the entry to the objlimit-lp-constraint for the last variables */
-            if ( (! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit)) && (j > 0) && (REALABS( obj[j] ) > sdpisolver->epsilon))
+            if ( (! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit)) && (REALABS( obj[j] ) > sdpisolver->epsilon))
             {
                dsdplprow[dsdpnlpnonz] = nlpcons;
-               dsdplpval[dsdpnlpnonz] = obj[j - 1];
+               dsdplpval[dsdpnlpnonz] = obj[j];
                dsdpnlpnonz++;
             }
-            /* the nonzeros only start after the rhs, they are shifted nshift positions to the left, the index j+1
-             * has to be set as dsdplpbegcol[0] */
-            dsdplpbegcol[sdpisolver->inputtodsdpmapper[j]] = dsdpnlpnonz;
-         }
-      }
-
-      /* add the entry to the objlimit-lp-constraint for the last variable (because in the for-queue it is only set for j-1 until nvars - 1 - 1 */
-      if (sdpisolver->inputtodsdpmapper[nvars - 1] >= 0)
-      {
-         if ( (! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit)) && (REALABS( obj[nvars - 1] ) > sdpisolver->epsilon))
-         {
-            dsdplprow[dsdpnlpnonz] = nlpcons;
-            dsdplpval[dsdpnlpnonz] = obj[nvars - 1];
-            dsdpnlpnonz++;
          }
       }
 
@@ -874,14 +877,26 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       BMSfreeBlockMemoryArray(sdpisolver->blkmem, &rowmapper, noldlpcons);
 
       /* shrink the dsdplp-arrays */
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, nlpcons + lpnnonz, dsdpnlpnonz) );
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, nlpcons + lpnnonz, dsdpnlpnonz) );
+      if ( SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
+      {
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, nlpcons + lpnnonz, dsdpnlpnonz) );
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, nlpcons + lpnnonz, dsdpnlpnonz) );
+      }
+      else
+      {
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, (nlpcons + 1) + lpnnonz + nvars, dsdpnlpnonz) );
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, (nlpcons + 1) + lpnnonz + nvars, dsdpnlpnonz) );
+      }
 
       /* add the arrays to dsdp */
       if ( SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
+      {
          DSDP_CALL( LPConeSetData(sdpisolver->lpcone, nlpcons, dsdplpbegcol, dsdplprow, dsdplpval) );
+      }
       else
+      {
          DSDP_CALL( LPConeSetData(sdpisolver->lpcone, nlpcons + 1, dsdplpbegcol, dsdplprow, dsdplpval) );
+      }
 #ifdef SCIP_MORE_DEBUG
       LPConeView(sdpisolver->lpcone);
 #endif
@@ -892,21 +907,25 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    DSDP_CALL( DSDPSetGapTolerance(sdpisolver->dsdp, sdpisolver->epsilon) );  /* set DSDP's tolerance for duality gap */
    DSDP_CALL( DSDPSetRTolerance(sdpisolver->dsdp, sdpisolver->feastol) );    /* set DSDP's tolerance for the SDP-constraints */
    if ( sdpisolver-> sdpinfo )
+   {
       DSDP_CALL( DSDPSetStandardMonitor(sdpisolver->dsdp, 1) );   /* output DSDP information after every 1 iteration */
+   }
 
 
    /* set the penalty parameter */
    if ( gamma != 0.0 ) /* in sdpisolverSolve this is called with an exact 0 */
    {
-      DSDPSetPenaltyParameter(sdpisolver->dsdp, gamma);
-      DSDPUsePenalty(sdpisolver->dsdp, 1);
+      DSDP_CALL( DSDPSetPenaltyParameter(sdpisolver->dsdp, gamma) );
+      DSDP_CALL( DSDPUsePenalty(sdpisolver->dsdp, 1) );
    }
 
    /* set the starting solution */
    if (start != NULL)
    {
       for (i = 1; i <= sdpisolver->nactivevars; i++) /* we iterate over the variables in DSDP */
-         DSDPSetY0(sdpisolver->dsdp, i, start[sdpisolver->dsdptoinputmapper[i]]);
+      {
+         DSDP_CALL( DSDPSetY0(sdpisolver->dsdp, i, start[sdpisolver->dsdptoinputmapper[i]]) );
+      }
    }
 
    /* start the solving process */
@@ -987,7 +1006,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    {
       double rval;
 
-      SCIP_CALL( DSDPGetR(sdpisolver->dsdp, &rval) );
+      DSDP_CALL( DSDPGetR(sdpisolver->dsdp, &rval) );
       *feasorig = (rval < sdpisolver->feastol );
    }
 
