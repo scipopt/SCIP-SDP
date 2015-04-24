@@ -1390,7 +1390,7 @@ SCIP_Bool SCIPsdpiSolverIsObjlimExc(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
 {
-   SCIPdebugMessage("Method not implemented for DSDP, as objective limit is given as an explicit LP-consraint ! \n");
+   SCIPdebugMessage("Method not implemented for DSDP, as objective limit is given as an ordinary LP-constraint ! \n");
 
    return FALSE;
 }
