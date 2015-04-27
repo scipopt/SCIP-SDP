@@ -91,7 +91,7 @@ struct SCIP_SDPiSolver
                                                *  this fixed variable can be found in entry j-1 of fixedval/obj */
    int*                  sdpatoinputmapper;  /**< entry i gives the original index of the (i+1)-th variable in sdpa (indices go from 0 to nactivevars-1) */
    SCIP_Real*            fixedvarsval;       /**< entry i gives the lower and upper bound of the i-th fixed variable */
-   SCIP_Real*            fixedvarsobj;       /**< entry i gives the objective value of the i-th fixed variable */
+   SCIP_Real             fixedvarsobjcontr;  /**< total contribution to the objective of all fixed variables, computed as sum obj * val */
    int                   nvarbounds;         /**< number of variable bounds given to sdpa, length of sdpavarboundpos */
    int*                  varboundpos;        /**< maps position of variable bounds in the variable bound part of the LP-block in sdpa to the sdpa-indices
                                                *  of the corresponding variables, -n means lower bound of variable n, +n means upper bound */
@@ -212,7 +212,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->inputtosdpamapper = NULL;
    (*sdpisolver)->sdpatoinputmapper = NULL;
    (*sdpisolver)->fixedvarsval = NULL;
-   (*sdpisolver)->fixedvarsobj = NULL;
+   (*sdpisolver)->fixedvarsobjcontr = 0.0;
    (*sdpisolver)->nvarbounds = 0;
    (*sdpisolver)->varboundpos = NULL;
    (*sdpisolver)->solved = FALSE;
@@ -243,10 +243,7 @@ SCIP_RETCODE SCIPsdpiSolverFree(
    if (((*sdpisolver)->sdpa) != NULL)
    {
       /* free SDPA object using destructor and free memory via blockmemshell */
-      //(*sdpisolver)->sdpa->~SDPA();
       delete (*sdpisolver)->sdpa;
-      //(*sdpi)->sdpa.terminate(); //TODO which one to use?
-      //BMSfreeMemory(&((*sdpisolver)->sdpa));
    }
 
    BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->varboundpos, 2 * (*sdpisolver)->nvars);
@@ -258,10 +255,7 @@ SCIP_RETCODE SCIPsdpiSolverFree(
       BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->sdpatoinputmapper, (*sdpisolver)->nactivevars);
 
    if ( (*sdpisolver)->nvars >= (*sdpisolver)->nactivevars )
-   {
-      BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->fixedvarsobj, (*sdpisolver)->nvars - (*sdpisolver)->nactivevars);
       BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->fixedvarsval, (*sdpisolver)->nvars - (*sdpisolver)->nactivevars);
-   }
 
    BMSfreeBlockMemory((*sdpisolver)->blkmem, sdpisolver);
 
@@ -466,13 +460,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    checkinput = TRUE;
 #endif
 
+   SCIPdebugMessage("Inserting Data into SDPA for SDP (%d) \n", ++sdpisolver->sdpcounter);
+
    /* set the penalty flag accordingly */
    sdpisolver->penalty = (gamma == 0.0) ? FALSE : TRUE;
 
    /* allocate memory for inputtosdpamapper, sdpatoinputmapper and the fixed variable information, for the latter this will later be shrinked if the needed size is known */
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtosdpamapper), sdpisolver->nvars, nvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->sdpatoinputmapper), sdpisolver->nactivevars, nvars) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsobj), sdpisolver->nvars - sdpisolver->nactivevars, nvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), sdpisolver->nvars - sdpisolver->nactivevars, nvars) );
 
    sdpisolver->nvars = nvars;
@@ -480,32 +475,32 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    nfixedvars = 0;
 
    /* find the fixed variables */
+   sdpisolver->fixedvarsobjcontr = 0.0;
    for (i = 0; i < nvars; i++)
    {
       if ( isFixed(sdpisolver, lb[i], ub[i]) )
       {
-         sdpisolver->fixedvarsobj[nfixedvars] = obj[i];
+         sdpisolver->fixedvarsobjcontr += obj[i] * lb[i]; /* this is the value this fixed variable contributes to the objective */
          sdpisolver->fixedvarsval[nfixedvars] = lb[i]; /* if lb=ub, than this is the value the variable will have in every solution */
          nfixedvars++;
          sdpisolver->inputtosdpamapper[i] = -nfixedvars;
+         SCIPdebugMessage("Fixing variable %d locally for SDP %d in SDPA\n", i, sdpisolver->sdpcounter);
       }
       else
       {
          sdpisolver->sdpatoinputmapper[sdpisolver->nactivevars] = i;
          sdpisolver->nactivevars++;
          sdpisolver->inputtosdpamapper[i] = sdpisolver->nactivevars; /* sdpa starts counting at 1, so we do this after increasing nactivevars */
+         SCIPdebugMessage("Variable %d becomes variable %d for SDP %d in SDPA\n", i, sdpisolver->inputtosdpamapper[i], sdpisolver->sdpcounter);
       }
    }
    assert( sdpisolver->nactivevars + nfixedvars == sdpisolver->nvars );
 
    /* shrink the fixedvars and sdpatoinputmapper arrays to the right size */
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsobj), nvars, nfixedvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), nvars, nfixedvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->sdpatoinputmapper), nvars, sdpisolver->nactivevars) );
 
    /* insert data */
-   SCIPdebugMessage("Inserting Data into SDPA for SDP (%d) \n", ++sdpisolver->sdpcounter);
-
    if ( sdpisolver->sdpa != 0 )
    {
       /* if the SDPA solver has already been created, clear the current problem instance */
@@ -634,27 +629,18 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #ifdef SCIP_MORE_DEBUG
          SCIPdebugMessage("   -> building block %d, which becomes block %d in SDPA (%d)\n", block, block - blockindchanges[block] + 1,sdpisolver->sdpcounter);
 #endif
-         for (i = 0; i < sdpisolver->nactivevars; i++)
+         /* iterate over all variables in this block */
+         for (blockvar = 0; blockvar < sdpnblockvars[block]; blockvar++)
          {
-            /* we iterate over all non-fixed variables, so add them to sdpa for this block/var combination */
-            v = sdpisolver->sdpatoinputmapper[i];
+            v = sdpisolver->inputtosdpamapper[sdpvar[block][blockvar]];
 
 #ifdef SCIP_MORE_DEBUG
-            SCIPdebugMessage("      -> adding coefficient matrix for variable %d which becomes variable %d in SDPA (%d)\n", v, i + 1, sdpisolver->sdpcounter);
+            SCIPdebugMessage("      -> adding coefficient matrix for variable %d which becomes variable %d in SDPA (%d)\n",
+                             sdpvar[block][blockvar], v, sdpisolver->sdpcounter);
 #endif
 
-            /* find the position of variable v in this block */
-            blockvar = -1;
-            for (k = 0; k < sdpnblockvars[block]; k++)
-            {
-               if (v == sdpvar[block][k])
-               {
-                  blockvar = k;
-                  break;
-               }
-            }
-
-            if ( blockvar > -1)  /* the variable exists in this block */
+            /* check if the variable is active */
+            if ( v > -1 )
             {
                for (k = 0; k < sdpnblockvarnonz[block][blockvar]; k++)
                {
@@ -670,16 +656,16 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                   /* rows and columns start with one in SDPA, so we have to add 1 to the indices */
 #ifdef SCIP_MORE_DEBUG
                   SCIPdebugMessage("         -> adding nonzero %g at (%d,%d) (%d)\n",
-                     sdpval[block][blockvar][k],
-                     sdpcol[block][blockvar][k] - indchanges[block][sdpcol[block][blockvar][k]] + 1,
-                     sdprow[block][blockvar][k] - indchanges[block][sdprow[block][blockvar][k]] + 1,
-                     sdpisolver->sdpcounter);
+                        sdpval[block][blockvar][k],
+                        sdpcol[block][blockvar][k] - indchanges[block][sdpcol[block][blockvar][k]] + 1,
+                        sdprow[block][blockvar][k] - indchanges[block][sdprow[block][blockvar][k]] + 1,
+                        sdpisolver->sdpcounter);
 #endif
 
-                  sdpisolver->sdpa->inputElement(i + 1, block - blockindchanges[block] + 1,
-                     sdpcol[block][blockvar][k] - indchanges[block][sdpcol[block][blockvar][k]] + 1,
-                     sdprow[block][blockvar][k] - indchanges[block][sdprow[block][blockvar][k]] + 1,
-                     sdpval[block][blockvar][k], checkinput);
+                  sdpisolver->sdpa->inputElement(v, block - blockindchanges[block] + 1,
+                        sdpcol[block][blockvar][k] - indchanges[block][sdpcol[block][blockvar][k]] + 1,
+                        sdprow[block][blockvar][k] - indchanges[block][sdprow[block][blockvar][k]] + 1,
+                        sdpval[block][blockvar][k], checkinput);
                }
             }
          }
@@ -1649,8 +1635,6 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    SCIP_Real*            objval              /**< stores the objective value */
    )
 {
-   int v;
-
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL);
    assert( objval != NULL );
@@ -1674,13 +1658,8 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
             "but primal objective is %f with duality gap %f!\n", *objval, primalval, gap );
 #endif
 
-   /* todo: compute this value when setting up fixed variables */
    /* as we didn't add the fixed (lb = ub) variables to sdpa, we have to add their contributions to the objective by hand */
-   for (v = 0; v < sdpisolver->nvars; v++)
-   {
-      if (sdpisolver->inputtosdpamapper[v] < 0)
-         *objval += sdpisolver->fixedvarsobj[-sdpisolver->inputtosdpamapper[v] - 1] * sdpisolver->fixedvarsval[-sdpisolver->inputtosdpamapper[v] - 1];
-   }
+   *objval += sdpisolver->fixedvarsobjcontr;
 
    return SCIP_OKAY;
 }
@@ -1727,13 +1706,8 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
       }
 #endif
 
-      /* todo: compute this value when setting up fixed variables */
       /* as we didn't add the fixed (lb = ub) variables to sdpa, we have to add their contributions to the objective by hand */
-      for (v = 0; v < sdpisolver->nvars; v++)
-      {
-         if (sdpisolver->inputtosdpamapper[v] < 0)
-            *objval += sdpisolver->fixedvarsobj[-sdpisolver->inputtosdpamapper[v] - 1] * sdpisolver->fixedvarsval[-sdpisolver->inputtosdpamapper[v] - 1];
-      }
+      *objval += sdpisolver->fixedvarsobjcontr;
    }
 
    if ( *dualsollength > 0 )
