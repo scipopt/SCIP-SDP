@@ -517,12 +517,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          sdpisolver->inputtodsdpmapper[i] = -nfixedvars;
          sdpisolver->fixedvarsobjcontr += obj[i] * lb[i]; /* this is the value this variable contributes to the objective */
          sdpisolver->fixedvarsval[nfixedvars - 1] = lb[i]; /* if lb=ub, than this is the value the variable will have in every solution */
+         SCIPdebugMessage("Fixing variable %d locally for SDP %d in DSDP\n", i, sdpisolver->sdpcounter);
       }
       else
       {
          sdpisolver->dsdptoinputmapper[sdpisolver->nactivevars] = i;
          sdpisolver->nactivevars++;
          sdpisolver->inputtodsdpmapper[i] = sdpisolver->nactivevars; /* dsdp starts counting at 1, so we do this after increasing nactivevars */
+         SCIPdebugMessage("Variable %d becomes variable %d for SDP %d in DSDP\n", i, sdpisolver->inputtodsdpmapper[i], sdpisolver->sdpcounter);
       }
    }
    assert( sdpisolver->nactivevars + nfixedvars == sdpisolver->nvars );
