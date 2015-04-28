@@ -67,12 +67,6 @@ OPENBLAS	=	true
 # include default project Makefile from SCIP
 #-----------------------------------------------------------------------------
 
-# possibly load local makefile
--include make.local
-
-# load SCIP project makefile
-include $(SCIPDIR)/make/make.project
-
 # save directory to be able to locate library files
 ifeq ($(OSTYPE),mingw)
 SCIPSDPDIR	=	./
@@ -80,6 +74,11 @@ else
 SCIPSDPDIR	=	$(realpath .)
 endif
 SCIPSDPLIBDIR	=	lib
+
+SCIPDIR		= 	$(SCIPSDPDIR)/lib/scip
+
+# load SCIP project makefile
+include $(SCIPDIR)/make/make.project
 
 
 #-----------------------------------------------------------------------------
