@@ -726,7 +726,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
 
       // if all variables, really all, are fixed, we can't solve an sdp, because there is no interior point in this case,
       // result is success and solution is separated (the upper or lower bounds on a variable)
-      SCIPdebugMessage("EVERYTHING IS FIXED\n");
+
       vars = SCIPgetVars(scip);
       nvars = SCIPgetNVars(scip);
 
@@ -744,6 +744,8 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       if ( sense == -1 )
          *lowerbound *= -1;
 
+      SCIPdebugMessage("EVERYTHING IS FIXED, objective value = %f\n", *lowerbound);
+
       SCIP_SOL* scipsol;
       SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
       SCIP_Bool stored ;
@@ -755,6 +757,10 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       if ( feasible )
       {
          SCIP_CALL( SCIPtrySolFree(scip, &scipsol, FALSE, FALSE, FALSE, FALSE, &stored) );
+      }
+      else
+      {
+         SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
       }
 
       if (feasible && stored == 1)
