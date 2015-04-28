@@ -377,7 +377,11 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    // We are going to use one of the dimacs error norms for checking feasiblity.
    // We use the second one: err=max{0, -lambda_min(x)/(1+maximumentry of rhs}
 
+#ifdef DIMACS
    check_value = (-eigenvalue) / (1.0 + consdata->maxrhsentry);
+#else
+   check_value = -eigenvalue;
+#endif
 
    if ( SCIPisFeasLE(scip, check_value, 0.0) )
       *result = SCIP_FEASIBLE;
@@ -990,7 +994,7 @@ SCIP_RETCODE multiaggrVar(
     * inserting, the number of elements added to the saved arrays for this variable is nfixednonz - startind */
    SdpVarfixerSortRowCol(savedrow + startind, savedcol + startind, savedval + startind, *nfixednonz - startind);
 
-   /* fill the empty spot of the (mutli-)aggregated variable with the last variable of this constraint (as they don't have to be sorted) */
+   /* fill the empty spot of the (multi-)aggregated variable with the last variable of this constraint (as they don't have to be sorted) */
    SCIP_CALL( SCIPreleaseVar(scip, &consdata->vars[*v]) );
    consdata->col[*v] = consdata->col[consdata->nvars - 1];
    consdata->row[*v] = consdata->row[consdata->nvars - 1];
@@ -1599,7 +1603,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
 
       SCIP_CALL( SCIPallocBufferArray(scip, &coeff, nvars) );
       SCIP_CALL( cutUsingEigenvector(scip, conss[i], NULL, coeff, &lhs) );
-
+//TODO
       /* ????????????????????  */
       if ( *result != SCIP_INFEASIBLE )
       {
