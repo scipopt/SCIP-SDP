@@ -463,7 +463,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIPdebugMessage("Inserting Data into SDPA for SDP (%d) \n", ++sdpisolver->sdpcounter);
 
    /* set the penalty flag accordingly */
-   sdpisolver->penalty = (gamma == 0.0) ? FALSE : TRUE;
+   sdpisolver->penalty = (gamma < sdpisolver->epsilon) ? FALSE : TRUE;
 
    /* allocate memory for inputtosdpamapper, sdpatoinputmapper and the fixed variable information, for the latter this will later be shrinked if the needed size is known */
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtosdpamapper), sdpisolver->nvars, nvars) );
@@ -541,7 +541,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
    /* if we use a penalty formulation, we need the constraint r >= 0 */
-   if ( gamma != 0.0 )
+   if ( gamma >= sdpisolver->epsilon )
       sdpisolver->nvarbounds++;
 
    if ( sdpisolver->sdpinfo )
@@ -561,7 +561,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->sdpa->setInitPoint(true);
 
    /* initialize blockstruct */
-   if ( gamma == 0.0 ) /* we initialize this with an exact 0.0 in Solve without penalty */
+   if ( gamma < sdpisolver->epsilon ) /* we initialize this with an exact 0.0 in Solve without penalty */
       sdpisolver->sdpa->inputConstraintNumber(sdpisolver->nactivevars);
    else
       sdpisolver->sdpa->inputConstraintNumber(sdpisolver->nactivevars + 1); /* the additional variable is r which is multiplied with the identity matrix */
@@ -601,7 +601,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                sdpisolver->sdpatoinputmapper[i], i+1);
 #endif
       }
-      if (gamma != 0.0)
+      if ( gamma >= sdpisolver->epsilon )
          sdpisolver->sdpa->inputCVec(sdpisolver->nactivevars + 1, gamma); /* set the objective of the additional var to gamma */
    }
 
@@ -670,7 +670,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             }
          }
          /* insert the identity matrix if we are using a penalty formulation */
-         if ( gamma != 0.0 )
+         if ( gamma >= sdpisolver->epsilon )
          {
 #ifdef SCIP_MORE_DEBUG
             SCIPdebugMessage("      -> adding coefficient matrix for penalty variable r in SDPA (%d)\n", sdpisolver->sdpcounter);
@@ -754,7 +754,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                lpconsind++;
                lastrow = lprow[i];
                /* if we use a penalty formulation, add the r * Identity entry */
-               if ( gamma != 0.0 )
+               if ( gamma >= sdpisolver->epsilon )
                {
 #ifdef SCIP_MORE_DEBUG
             SCIPdebugMessage("         -> adding nonzero 1.0 at (%d,%d) for penalty variable r in SDPA (%d)\n",
@@ -825,7 +825,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* insert variable bounds, these are also added as LP-constraints and therefore diagonal entries of the LP block
     * if we work with the penalty formulation, we get an extra entry for r >= 0, but this we will add afterwards */
-   for (i = 0; i < ((gamma == 0.0) ? sdpisolver->nvarbounds : sdpisolver->nvarbounds - 1); i++)
+   for (i = 0; i < ((gamma < sdpisolver->epsilon) ? sdpisolver->nvarbounds : sdpisolver->nvarbounds - 1); i++)
    {
       assert( 0 < abs(sdpisolver->varboundpos[i]) && abs(sdpisolver->varboundpos[i] <= sdpisolver->nactivevars) ); /* the indices are already those for SDPA */
 
@@ -886,7 +886,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
    }
 
-   if ( gamma != 0.0 )
+   if ( gamma >= sdpisolver->epsilon )
    {
       /* we add the variable bound r >= 0 */
       sdpisolver->sdpa->inputElement(sdpisolver->nactivevars + 1, nsdpblocks - nremovedblocks + 1, nlpcons + 1 + i, nlpcons + 1 + i, 1.0, checkinput);
@@ -918,7 +918,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
    /* initialize settings */
-   if ( gamma == 0.0 )
+   if ( gamma < sdpisolver->epsilon )
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_UNSTABLE_BUT_FAST);
    else
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_STABLE_BUT_SLOW); /* if we already had problems with this problem, there is no reason to try fast */
@@ -958,7 +958,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* check whether problem has been stably solved, if it wasn't and we didn't yet run the stable parametersettings (for the penalty formulation we do so), try
     * again with more stable parameters */
-   if ( (! SCIPsdpiSolverIsAcceptable(sdpisolver)) && gamma == 0.0 )
+   if ( (! SCIPsdpiSolverIsAcceptable(sdpisolver)) && gamma < sdpisolver->epsilon )
    {
       SCIPdebugMessage("Numerical troubles -- solving SDP %d again ...\n", sdpisolver->sdpcounter);
       printf("Numerical troubles -- solving SDP %d again ...\n", sdpisolver->sdpcounter);
@@ -1018,7 +1018,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
 
    /* if we solved a penalty formulation, check if the solution is feasible for the original problem (which is the case iff r < feastol) */
-   if ( gamma != 0.0 )
+   if ( gamma >= sdpisolver->epsilon )
    {
       double* sdpasol;
 

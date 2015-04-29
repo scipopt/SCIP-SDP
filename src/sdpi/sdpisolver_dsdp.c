@@ -492,7 +492,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIPdebugMessage("Inserting Data into DSDP for SDP (%d) \n", ++sdpisolver->sdpcounter);
 
    assert( sdpisolver != NULL );
-   assert( gamma >= 0.0 );
+   assert( gamma > - sdpisolver->epsilon );
 
 #ifndef NDEBUG
    sdpisolver->infeasible = FALSE;
@@ -909,7 +909,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
 
    /* set the penalty parameter */
-   if ( gamma != 0.0 ) /* in sdpisolverSolve this is called with an exact 0 */
+   if ( gamma >= sdpisolver->epsilon ) /* in sdpisolverSolve this is called with an exact 0 */
    {
       DSDP_CALL( DSDPSetPenaltyParameter(sdpisolver->dsdp, gamma) );
       DSDP_CALL( DSDPUsePenalty(sdpisolver->dsdp, 1) );
@@ -998,7 +998,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 #endif
 
-   if (gamma != 0.0)
+   if ( gamma >= sdpisolver->epsilon )
    {
       double rval;
 
