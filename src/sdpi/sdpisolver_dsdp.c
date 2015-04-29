@@ -517,7 +517,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          sdpisolver->inputtodsdpmapper[i] = -nfixedvars;
          sdpisolver->fixedvarsobjcontr += obj[i] * lb[i]; /* this is the value this variable contributes to the objective */
          sdpisolver->fixedvarsval[nfixedvars - 1] = lb[i]; /* if lb=ub, than this is the value the variable will have in every solution */
-         SCIPdebugMessage("Fixing variable %d locally for SDP %d in DSDP\n", i, sdpisolver->sdpcounter);
+         SCIPdebugMessage("Fixing variable %d locally to %f for SDP %d in DSDP\n", i, lb[i], sdpisolver->sdpcounter);
       }
       else
       {
