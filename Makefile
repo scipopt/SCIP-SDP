@@ -113,7 +113,6 @@ ifeq ($(SDPS),sdpa)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/sdpainc
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libsdpa.$(STATICLIBEXT)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libsdpa.$(SHAREDLIBEXT)
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mumpsinc
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mumpslib
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mumpslibseq
 ifeq ($(OPENBLAS),true)
@@ -121,9 +120,8 @@ SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libopenblas.$(SHAREDLIBEXT).0
 endif
 SDPIINSTMSG	=	"  -> \"sdpainc\" is the path to the SDPA \"include\" directory, e.g., \"<SDPA-path>/include\".\n"
 SDPIINSTMSG	+=	" -> \"libsdpa.*\" is the path to the SDPA library, e.g., \"<SDPA-path>/lib/libsdpa.a\".\n"
-SDPIINSTMSG	+=	" -> \"mumpsinc\" is the path to the Mumps \"include\" directory, e.g., \"<SDPA-path>/mumps/build/include\".\n"
 SDPIINSTMSG	+=	" -> \"mumpslib\" is the path to the Mumps \"lib\" directory, e.g., \"<SDPA-path>/mumps/build/lib\".\n"
-SDPIINSTMSG	+=	" -> \"mumpsinc\" is the path to the Mumps \"libseq\" directory, e.g., \"<SDPA-path>/mumps/build/libseq\".\n"
+SDPIINSTMSG	+=	" -> \"mumpslibseq\" is the path to the Mumps \"libseq\" directory, e.g., \"<SDPA-path>/mumps/build/libseq\".\n"
 ifeq ($(OPENBLAS),true)
 SDPIINSTMSG	+=	" -> \"libopenblas.$(SHAREDLIBEXT).0\" is the openblas library.\n"
 SDPILIB		=      -L$(SCIPSDPLIBDIR) -lsdpa -L$(SCIPSDPLIBDIR)/mumpslib -ldmumps -lmumps_common -lpord -L$(SCIPSDPLIBDIR)/mumpslibseq -lmpiseq \
@@ -133,7 +131,7 @@ else
 SDPILIB		=      -L$(SCIPSDPLIBDIR) -lsdpa -L$(SCIPSDPLIBDIR)/mumpslip -ldmumps -lmumps_common -lpord -L$(SCIPSDPLIBDIR)/mumpslibseq -lmpiseq \
 			-lgfortran -llapack -lblas
 endif
-SDPIINC		=      -I$(SCIPSDPLIBDIR)/sdpainc -I$(SCIPSDPLIBDIR)/mumpsinc
+SDPIINC		=      -I$(SCIPSDPLIBDIR)/sdpainc
 SDPICCSRC 	= 	src/sdpi/sdpisolver_sdpa.cpp
 SDPICSRC		=	src/scipsdp/lapack_sdpa.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o \
@@ -142,10 +140,11 @@ endif
 
 SDPIOPTIONS	+=	none
 ifeq ($(SDPS),none)
-SDPILIB		=
-SDPIINC		=
-SDPICSRC 	= 	src/sdpi/sdpisolver_none.c
-SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_none.o
+SDPILIB		= 	-L$(SCIPSDPLIBDIR) -ldsdp -llapack -lblas
+SDPICSRC 	= 	src/sdpi/sdpisolver_none.c \
+					src/scipsdp/lapack_dsdp.c
+SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_none.o \
+				$(OBJDIR)/scipsdp/lapack_dsdp.o
 endif
 
 # include install/uninstall targets
