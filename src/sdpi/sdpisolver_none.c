@@ -145,7 +145,8 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    BMS_BLKMEM*           blkmem              /**< block memory */
    )
 {
-   errorMessage();
+   SCIPdebugMessage("Calling SCIPsdpiCreate \n");
+   SCIPdebugMessage("Note that currently no SDP-Solver is linked to the binary. Ensure <relaxing/SDP/freq = -1>. \n");
 
    return SCIP_OKAY;
 }
@@ -155,7 +156,7 @@ SCIP_RETCODE SCIPsdpiSolverFree(
    SCIP_SDPISOLVER**     sdpisolver          /**< pointer to an SDP interface solver structure */
    )
 {
-   errorMessage();
+   SCIPdebugMessage("Freeing SDPISolver\n");
 
    return SCIP_OKAY;
 }
