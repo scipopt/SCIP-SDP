@@ -37,7 +37,7 @@
  * @author Tristan Gally
  */
 
-/*#define SCIP_DEBUG*/
+/* #define SCIP_DEBUG*/
 /* #define SCIP_MORE_DEBUG  *//* displays complete solution for each relaxation */
 /* #define SCIP_EVEN_MORE_DEBUG  *//* shows number of deleted empty cols/rows for every relaxation and variable status & bounds as well as all constraints in the beginning */
 
@@ -242,7 +242,7 @@ SCIP_RETCODE putSdpDataInInterface(
                             sdpblocksizes, nblockvars, sdpconstnnonz, nconstblocknonz, constrow,
                             constcol, constval, sdpnnonz, nblockvarnonz, sdpvar,
                             row, col,  val, 0,
-                            NULL, 0, NULL, NULL, NULL)); /* insert the SDP part, add an empty LP part */
+                            NULL, NULL, 0, NULL, NULL, NULL)); /* insert the SDP part, add an empty LP part */
 
    /* free the remaining memory */
    for (i = 0; i < nsdpblocks; i++)
@@ -288,6 +288,7 @@ SCIP_RETCODE putLpDataInInterface(
    int nvars;
    int nconss;
    int scipnnonz;
+   SCIP_Real* lhs;
    SCIP_Real* rhs;
    int nnonz;
    int* rowind;
@@ -325,12 +326,11 @@ SCIP_RETCODE putLpDataInInterface(
    }
 
    /* allocate memory */
-   /* the arrays need to be twice the size of those given be scipped because of the lack of left-hand-sides (which means rows could be duplicated, with
-    * one constraint for the lhs and one for the rhs) */
-   SCIP_CALL( SCIPallocBufferArray(scip, &rhs, 2 * nrows) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &rowind, 2 * scipnnonz) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &colind, 2 * scipnnonz) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &val, 2 * scipnnonz) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &lhs, nrows) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &rhs, nrows) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &rowind, scipnnonz) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &colind, scipnnonz) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &val, scipnnonz) );
 
    /* insert the nonzeroes */
    nnonz = 0; /* this is recomputed for the sdpi, because of the possible duplication of non-zeroes for lhs and rhs */
@@ -349,37 +349,17 @@ SCIP_RETCODE putLpDataInInterface(
       sciplhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
       sciprhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
 
-#if 0
-      SCIP_CALL( SCIPprintRow(scip, row, NULL) );
-#endif
-
-      /* add row >= lhs if lhs is finite */
-      if ( sciplhs > -SCIPsdpiInfinity(sdpi) )
+      for (j = 0; j < rownnonz; j++)
       {
-         for (j = 0; j < rownnonz; j++)
-         {
-            assert( SCIPcolGetVar(rowcols[j]) != 0 );
-            colind[nnonz] = SdpVarmapperGetSdpIndex(varmapper, SCIPcolGetVar(rowcols[j]));
-            rowind[nnonz] = nconss;
-            val[nnonz] = rowvals[j];
-            nnonz++;
-         }
-         rhs[nconss++] = sciplhs;
+         assert( SCIPcolGetVar(rowcols[j]) != 0 );
+         colind[nnonz] = SdpVarmapperGetSdpIndex(varmapper, SCIPcolGetVar(rowcols[j]));
+         rowind[nnonz] = nconss;
+         val[nnonz] = rowvals[j];
+         nnonz++;
       }
-
-      /* add -row >= -rhs if rhs is finite */
-      if ( sciprhs < SCIPsdpiInfinity(sdpi) )
-      {
-         for (j = 0; j < rownnonz; j++)
-         {
-            assert( SCIPcolGetVar(rowcols[j]) != 0 );
-            colind[nnonz] = SdpVarmapperGetSdpIndex(varmapper, SCIPcolGetVar(rowcols[j]));
-            rowind[nnonz] = nconss;
-            val[nnonz] = -rowvals[j];
-            nnonz++;
-         }
-         rhs[nconss++] = -sciprhs;
-      }
+      lhs[nconss] = sciplhs;
+      rhs[nconss] = sciprhs;
+      nconss++;
    }
 
    /* delete the old LP-block from the sdpi */
@@ -390,13 +370,14 @@ SCIP_RETCODE putLpDataInInterface(
    }
 
    /* add the LP-block to the sdpi */
-   SCIP_CALL( SCIPsdpiAddLPRows(sdpi, nconss, rhs, nnonz, (const int*)rowind, (const int*)colind, val) );
+   SCIP_CALL( SCIPsdpiAddLPRows(sdpi, nconss, lhs, rhs, nnonz, (const int*)rowind, (const int*)colind, val) );
 
    /* free the remaining arrays */
    SCIPfreeBufferArray(scip, &val);
    SCIPfreeBufferArray(scip, &colind);
    SCIPfreeBufferArray(scip, &rowind);
    SCIPfreeBufferArray(scip, &rhs);
+   SCIPfreeBufferArray(scip, &lhs);
 
    /* update the bounds */
 

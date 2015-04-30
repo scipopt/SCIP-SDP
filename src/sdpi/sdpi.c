@@ -133,6 +133,7 @@ struct SCIP_SDPi
 
    /* lp data: */
    int                   nlpcons;            /**< number of LP-constraints */
+   SCIP_Real*            lplhs;              /**< left hand sides of LP rows */
    SCIP_Real*            lprhs;              /**< right hand sides of LP rows */
    int                   lpnnonz;            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow;              /**< row-index for each entry in lpval-array */
@@ -447,13 +448,17 @@ SCIP_RETCODE findEmptyRowColsSDP(
 }
 
 /** Computes the number of active variables for each constraint, thereby detecting constraints that
- *  may be removed and computes the LP-right-hand-sides after including all locally fixed variables
+ *  may be removed and computes the LP-left- and right-hand-sides after including all locally fixed variables
  *  for all constraints with at least two remaining active variables
  */
 static
-SCIP_RETCODE computeLpRhsAfterFixings(
+SCIP_RETCODE computeLpLhsRhsAfterFixings(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP interface structure */
    int*                  nactivelpcons,      /**< output: number of active LP-constraints */
+   SCIP_Real*            lplhsafterfix,      /**< output: first nlpcons (output) entries give left-hand sides of
+                                              *           active lp-constraints after fixing variables, these are
+                                              *           in the same relative order as before (with non-active rows
+                                              *           removed) */
    SCIP_Real*            lprhsafterfix,      /**< output: first nlpcons (output) entries give right-hand sides of
                                               *  		    active lp-constraints after fixing variables, these are
                                               *  		    in the same relative order as before (with non-active rows
@@ -471,6 +476,7 @@ SCIP_RETCODE computeLpRhsAfterFixings(
 
    assert( sdpi != NULL );
    assert( nactivelpcons != NULL );
+   assert( sdpi->nlpcons == 0 || lplhsafterfix != NULL );
    assert( sdpi->nlpcons == 0 || lprhsafterfix != NULL );
    assert( sdpi->nlpcons == 0 || rownactivevars != NULL );
    assert( sdpi->nlpcons == 0 || fixingsfound != NULL );
@@ -497,7 +503,7 @@ SCIP_RETCODE computeLpRhsAfterFixings(
       /* we reached a new row */
       if ( sdpi->lprow[i] > lastrow )
       {
-         /* if the last row had at least two active variables, we keep the rhs-value */
+         /* if the last row had at least two active variables, we keep the lhs- and rhs-value */
          if ( lastrow >= 0 && rownactivevars[lastrow] > 1 )
             (*nactivelpcons)++;
          else if ( lastrow >= 0 && rownactivevars[lastrow] == 1 )
@@ -508,12 +514,92 @@ SCIP_RETCODE computeLpRhsAfterFixings(
             assert( 0 <= nonzcol && nonzcol < sdpi->nvars );
 
             nonzval = sdpi->lpval[nonzind];
-            assert( REALABS(nonzval) > sdpi->epsilon );
+            assert( REALABS(nonzval) > sdpi->feastol );
 
             /* we have to check if this is an improvement of the current bound */
-            if ( nonzval < 0.0 ) /* we have to compare with the upper bound */
+            if ( nonzval < 0.0 ) /* we have to compare with the upper bound for lhs and lower bound for rhs */
             {
-               if ( (lprhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->feastol )
+               /* check for the left-hand-side */
+               if ( (lplhsafterfix[*nactivelpcons] > - SCIPsdpiInfinity(sdpi)) &&
+                    ((lplhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->feastol) )
+               {
+                  /* this bound is sharper than the original one */
+                  SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
+                     "(originally %f)\n", lastrow, sdpi->sdpid, nonzcol, lplhsafterfix[*nactivelpcons] / nonzval, sdpi->ub[nonzcol]);
+                  sdpi->ub[nonzcol] = lplhsafterfix[*nactivelpcons] / nonzval;
+
+                  /* check if this leads to a fixing of this variable */
+                  if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->feastol )
+                  {
+                     *fixingsfound = TRUE;
+                     SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
+                        nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
+                  }
+                  /* check if this makes the problem infeasible */
+                  if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
+                  {
+                     sdpi->infeasible = TRUE;
+                     SCIPdebugMessage("We found an upper bound %f that is lower than the lower bound %f for variable %d, so the problem is infeasible !\n",
+                           sdpi->ub[nonzcol], sdpi->lb[nonzcol], nonzcol);
+                     return SCIP_OKAY;
+                  }
+               }
+               /* check for the right-hand-side */
+               if ( (lprhsafterfix[*nactivelpcons] < SCIPsdpiInfinity(sdpi)) &&
+                    ((lprhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] - sdpi->feastol) )
+               {
+                  /* this bound is sharper than the original one */
+                  SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
+                     "(originally %f)\n", lastrow, sdpi->sdpid, nonzcol, lprhsafterfix[*nactivelpcons] / nonzval, sdpi->lb[nonzcol]);
+                  sdpi->lb[nonzcol] = lprhsafterfix[*nactivelpcons] / nonzval;
+
+                  /* check if this leads to a fixing of this variable */
+                  if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->feastol )
+                  {
+                     *fixingsfound = TRUE;
+                     SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
+                        nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
+                  }
+                  /* check if this makes the problem infeasible */
+                  if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
+                  {
+                     sdpi->infeasible = TRUE;
+                     SCIPdebugMessage("We found an upper bound %f that is lower than the lower bound %f for variable %d, so the problem is infeasible !\n",
+                           sdpi->ub[nonzcol], sdpi->lb[nonzcol], nonzcol);
+                     return SCIP_OKAY;
+                  }
+               }
+            }
+            else	/* we compare with the lower bound for lhs and upper bound for rhs */
+            {
+               /* check for the left-hand-side */
+               if ( (lplhsafterfix[*nactivelpcons] < SCIPsdpiInfinity(sdpi)) &&
+                    ((lplhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] + sdpi->feastol) )
+               {
+                  /* this bound is sharper than the original one */
+                  SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
+                     "(originally %f)\n", lastrow, sdpi->sdpid, nonzcol, lplhsafterfix[*nactivelpcons] / nonzval, sdpi->lb[nonzcol]);
+                  sdpi->lb[nonzcol] = lplhsafterfix[*nactivelpcons] / nonzval;
+
+                  /* check if this leads to a fixing of this variable */
+                  if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->feastol )
+                  {
+                     *fixingsfound = TRUE;
+                     SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
+                        nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
+                  }
+                  /* check if this makes the problem infeasible */
+                  if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
+                  {
+                     sdpi->infeasible = TRUE;
+                     SCIPdebugMessage("We found an upper bound %f that is lower than the lower bound %f for variable %d, so the problem is infeasible !\n",
+                           sdpi->ub[nonzcol], sdpi->lb[nonzcol], nonzcol);
+                     return SCIP_OKAY;
+                  }
+               }
+               /* check for the right-hand-side */
+               if ( (lprhsafterfix[*nactivelpcons] > - SCIPsdpiInfinity(sdpi)) &&
+                    ((lprhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->feastol) )
                {
                   /* this bound is sharper than the original one */
                   SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
@@ -524,39 +610,15 @@ SCIP_RETCODE computeLpRhsAfterFixings(
                   if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->feastol )
                   {
                      *fixingsfound = TRUE;
-                     SCIPdebugMessage("computeLpRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
+                     SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
                         nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
                   }
                   /* check if this makes the problem infeasible */
                   if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
                   {
                      sdpi->infeasible = TRUE;
-                     SCIPdebugMessage("We found an upper bound that is lower than the lower bound, so the problem is infeasible !\n");
-                     return SCIP_OKAY;
-                  }
-               }
-            }
-            else	/* we compare with the lower bound */
-            {
-               if ( (lprhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] + sdpi->feastol )
-               {
-                  /* this bound is sharper than the original one */
-                  SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
-                     "(originally %f)\n", lastrow, sdpi->sdpid, nonzcol, lprhsafterfix[*nactivelpcons] / nonzval, sdpi->lb[nonzcol]);
-                  sdpi->lb[nonzcol] = lprhsafterfix[*nactivelpcons] / nonzval;
-
-                  /* check if this leads to a fixing of this variable */
-                  if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->feastol )
-                  {
-                     *fixingsfound = TRUE;
-                     SCIPdebugMessage("computeLpRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
-                        nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
-                  }
-                  /* check if this makes the problem infeasible */
-                  if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
-                  {
-                     sdpi->infeasible = TRUE;
-                     SCIPdebugMessage("We found a lower bound that is bigger than the upper bound, so the problem is infeasible !\n");
+                     SCIPdebugMessage("We found an upper bound %f that is lower than the lower bound %f for variable %d, so the problem is infeasible !\n",
+                           sdpi->ub[nonzcol], sdpi->lb[nonzcol], nonzcol);
                      return SCIP_OKAY;
                   }
                }
@@ -565,12 +627,12 @@ SCIP_RETCODE computeLpRhsAfterFixings(
          else if ( lastrow >= 0 ) /* because of earlier ifs we have rownactivevars = 0 */
          {
             assert( lastrow == -1 || rownactivevars[lastrow] == 0 );
-            /* we have a constraint 0 >= rhs, so rhs should be non-positive, otherwise the problem is infeasible */
-            if ( lprhsafterfix[*nactivelpcons] > sdpi->feastol )
+            /* we have a constraint lhs <= 0 <= rhs, so lhs should be non-positive and rhs non-negative, otherwise the problem is infeasible */
+            if ( lplhsafterfix[*nactivelpcons] > sdpi->feastol || lprhsafterfix[*nactivelpcons] < -sdpi->feastol )
             {
                sdpi->infeasible = TRUE;
-               SCIPdebugMessage("We found a constraint which with given fixings reads 0 >= rhs with rhs = %f > 0, so the current problem is infeasible !\n",
-                     lprhsafterfix[*nactivelpcons] );
+               SCIPdebugMessage("We found a constraint which with given fixings reads %f <= 0 <= %f, so the current problem is infeasible !\n",
+                     lplhsafterfix[*nactivelpcons], lprhsafterfix[*nactivelpcons] );
                return SCIP_OKAY;
             }
          }
@@ -578,7 +640,8 @@ SCIP_RETCODE computeLpRhsAfterFixings(
          /* update lastrow for new row */
          lastrow = sdpi->lprow[i];
 
-         /* start the next rhs with the original value */
+         /* start the next lhr & rhs with the original value */
+         lplhsafterfix[*nactivelpcons] = sdpi->lplhs[lastrow];
          lprhsafterfix[*nactivelpcons] = sdpi->lprhs[lastrow];
       }
 
@@ -590,7 +653,8 @@ SCIP_RETCODE computeLpRhsAfterFixings(
       }
       else
       {
-         /* otherwise we add the value (coefficient * value of fixed variable) to the rhs, the minus comes from +A_i but -A_0 */
+         /* otherwise we add the value (coefficient * value of fixed variable) to the lhs and rhs, the minus comes from +A_i but -A_0 */
+         lplhsafterfix[*nactivelpcons] -= sdpi->lpval[i] * sdpi->lb[sdpi->lpcol[i]];
          lprhsafterfix[*nactivelpcons] -= sdpi->lpval[i] * sdpi->lb[sdpi->lpcol[i]];
       }
    }
@@ -599,27 +663,57 @@ SCIP_RETCODE computeLpRhsAfterFixings(
       (*nactivelpcons)++;
    else if ( rownactivevars[lastrow] == 1 )
    {
+      assert( 0 <= nonzind && nonzind < sdpi->lpnnonz );
+
       nonzcol = sdpi->lpcol[nonzind];
       assert( 0 <= nonzcol && nonzcol < sdpi->nvars );
 
+      nonzval = sdpi->lpval[nonzind];
+      assert( REALABS(nonzval) > sdpi->epsilon );
+
       /* we have to check if this is an improvement of the current bound */
-      if ( sdpi->lpval[nonzind] < 0 ) /* we have to compare with the upper bound */
+      if ( nonzval < 0.0 ) /* we have to compare with the upper bound for lhs and lower bound for rhs */
       {
-         if ( (lprhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->feastol )
+         /* check for the left-hand-side */
+         if ( (lplhsafterfix[*nactivelpcons] > SCIPsdpiInfinity(sdpi)) &&
+              ((lplhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->feastol) )
          {
             /* this bound is sharper than the original one */
             SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
-               "(originally %f)\n", lastrow, sdpi->sdpid, nonzcol, lprhsafterfix[*nactivelpcons] / nonzval, sdpi->ub[nonzcol]);
-            sdpi->ub[nonzcol] = lprhsafterfix[*nactivelpcons] / nonzval;
+               "(originally %f)\n", lastrow, sdpi->sdpid, nonzcol, lplhsafterfix[*nactivelpcons] / nonzval, sdpi->ub[nonzcol]);
+            sdpi->ub[nonzcol] = lplhsafterfix[*nactivelpcons] / nonzval;
 
-            /* check if this lead to a fixing of this variable */
-            if ( REALABS( sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->feastol )
+            /* check if this leads to a fixing of this variable */
+            if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->feastol )
             {
                *fixingsfound = TRUE;
-               SCIPdebugMessage("computeLpRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
+               SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
                   nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
             }
+            /* check if this makes the problem infeasible */
+            if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
+            {
+               sdpi->infeasible = TRUE;
+               SCIPdebugMessage("We found an upper bound that is lower than the lower bound, so the problem is infeasible !\n");
+               return SCIP_OKAY;
+            }
+         }
+         /* check for the right-hand-side */
+         if ( (lprhsafterfix[*nactivelpcons] < SCIPsdpiInfinity(sdpi)) &&
+              ((lprhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] - sdpi->feastol) )
+         {
+            /* this bound is sharper than the original one */
+            SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
+               "(originally %f)\n", lastrow, sdpi->sdpid, nonzcol, lprhsafterfix[*nactivelpcons] / nonzval, sdpi->lb[nonzcol]);
+            sdpi->lb[nonzcol] = lprhsafterfix[*nactivelpcons] / nonzval;
 
+            /* check if this leads to a fixing of this variable */
+            if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->feastol )
+            {
+               *fixingsfound = TRUE;
+               SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
+                  nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
+            }
             /* check if this makes the problem infeasible */
             if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
             {
@@ -629,20 +723,22 @@ SCIP_RETCODE computeLpRhsAfterFixings(
             }
          }
       }
-      else	/* we compare with the lower bound */
+      else  /* we compare with the lower bound for lhs and upper bound for rhs */
       {
-         if ( (lprhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] + sdpi->feastol )
+         /* check for the left-hand-side */
+         if ( (lplhsafterfix[*nactivelpcons] < SCIPsdpiInfinity(sdpi)) &&
+              ((lplhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] + sdpi->feastol) )
          {
             /* this bound is sharper than the original one */
-            SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
-               "(originally %f)\n", lastrow, sdpi->sdpid, nonzcol, lprhsafterfix[*nactivelpcons] / nonzval, sdpi->lb[nonzcol]);
-            sdpi->lb[nonzcol] = lprhsafterfix[*nactivelpcons] / nonzval;
+            SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
+               "(originally %f)\n", lastrow, sdpi->sdpid, nonzcol, lplhsafterfix[*nactivelpcons] / nonzval, sdpi->lb[nonzcol]);
+            sdpi->lb[nonzcol] = lplhsafterfix[*nactivelpcons] / nonzval;
 
-            /* check this lead to a fixing of this variable */
-            if ( REALABS( sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->feastol )
+            /* check if this leads to a fixing of this variable */
+            if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->feastol )
             {
                *fixingsfound = TRUE;
-               SCIPdebugMessage("computeLpRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
+               SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
                   nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
             }
             /* check if this makes the problem infeasible */
@@ -653,17 +749,41 @@ SCIP_RETCODE computeLpRhsAfterFixings(
                return SCIP_OKAY;
             }
          }
+         /* check for the right-hand-side */
+         if ( (lprhsafterfix[*nactivelpcons] > SCIPsdpiInfinity(sdpi)) &&
+              ((lprhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->feastol) )
+         {
+            /* this bound is sharper than the original one */
+            SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
+               "(originally %f)\n", lastrow, sdpi->sdpid, nonzcol, lprhsafterfix[*nactivelpcons] / nonzval, sdpi->ub[nonzcol]);
+            sdpi->ub[nonzcol] = lplhsafterfix[*nactivelpcons] / nonzval;
+
+            /* check if this leads to a fixing of this variable */
+            if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->feastol )
+            {
+               *fixingsfound = TRUE;
+               SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
+                  nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
+            }
+            /* check if this makes the problem infeasible */
+            if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
+            {
+               sdpi->infeasible = TRUE;
+               SCIPdebugMessage("We found an upper bound that is lower than the lower bound, so the problem is infeasible !\n");
+               return SCIP_OKAY;
+            }
+         }
       }
    }
    else
    {
-      assert( rownactivevars[lastrow] == 0 );
-      /* we have a constraint 0 >= rhs, so rhs should be non-positive, otherwise the problem is infeasible */
-      if ( lprhsafterfix[*nactivelpcons] > sdpi->feastol )
+      assert( lastrow == -1 || rownactivevars[lastrow] == 0 );
+      /* we have a constraint lhs <= 0 <= rhs, so lhs should be non-positive and rhs non-negative, otherwise the problem is infeasible */
+      if ( lplhsafterfix[*nactivelpcons] > sdpi->feastol || lprhsafterfix[*nactivelpcons] < -sdpi->feastol )
       {
          sdpi->infeasible = TRUE;
-         SCIPdebugMessage("We found a constraint which with given fixings reads 0 >= rhs with rhs = %f > 0, so the current problem is infeasible !\n",
-               lprhsafterfix[*nactivelpcons] );
+         SCIPdebugMessage("We found a constraint which with given fixings reads %f <= 0 <= %f, so the current problem is infeasible !\n",
+               lplhsafterfix[*nactivelpcons], lprhsafterfix[*nactivelpcons] );
          return SCIP_OKAY;
       }
    }
@@ -762,6 +882,7 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->sdprow = NULL;
    (*sdpi)->sdpcol = NULL;
    (*sdpi)->sdpval = NULL;
+   (*sdpi)->lplhs = NULL;
    (*sdpi)->lprhs = NULL;
    (*sdpi)->lprow = NULL;
    (*sdpi)->lpcol = NULL;
@@ -789,6 +910,7 @@ SCIP_RETCODE SCIPsdpiFree(
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lpcol), (*sdpi)->lpnnonz);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lprow), (*sdpi)->lpnnonz);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lprhs), (*sdpi)->nlpcons);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lplhs), (*sdpi)->nlpcons);
 
    /* free the individual nonzeros */
    for (i = 0; i < (*sdpi)->nsdpblocks; i++)
@@ -918,6 +1040,7 @@ SCIP_RETCODE SCIPsdpiClone(
    /* LP data */
    newsdpi->nlpcons = oldsdpi->nlpcons;
 
+   BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->lplhs), oldsdpi->lplhs, oldsdpi->nlpcons) );
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->lprhs), oldsdpi->lprhs, oldsdpi->nlpcons) );
 
    newsdpi->lpnnonz = lpnnonz;
@@ -977,6 +1100,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    int***                sdpcol,             /**< pointer to the column-indices for each block and variable in this block */
    SCIP_Real***          sdpval,             /**< pointer to the values of the nonzeros for each block and variable in this block */
    int                   nlpcons,            /**< number of LP-constraints */
+   SCIP_Real*            lplhs,              /**< left hand sides of LP rows (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right hand sides of LP rows (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
@@ -1048,6 +1172,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    }
 #endif
 
+   assert ( nlpcons == 0 || lplhs != NULL );
    assert ( nlpcons == 0 || lprhs != NULL );
    assert ( lpnnonz == 0 || lprow != NULL );
    assert ( lpnnonz == 0 || lpcol != NULL );
@@ -1136,7 +1261,9 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz);
    BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz);
    BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons);
+   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lplhs), sdpi->nlpcons);
 
+   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->lplhs), lplhs, nlpcons);
    DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->lprhs), lprhs, nlpcons);
    DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->lprow), lprow, lpnnonz);
    DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->lpcol), lpcol, lpnnonz);
@@ -1166,6 +1293,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
 SCIP_RETCODE SCIPsdpiAddLPRows(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   nrows,              /**< number of rows to be added */
+   const SCIP_Real*      lhs,                /**< left hand sides of new rows */
    const SCIP_Real*      rhs,                /**< right hand sides of new rows */
    int                   nnonz,              /**< number of nonzero elements to be added to the LP constraint matrix */
    const int*            row,                /**< row indices of constraint matrix entries, going from 0 to nrows - 1, these will be changed
@@ -1179,15 +1307,24 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
    SCIPdebugMessage("Adding %d LP-Constraints to SDP %d.\n", nrows, sdpi->sdpid);
 
    assert ( sdpi != NULL );
+
+   if ( nrows == 0 )
+      return SCIP_OKAY; /* nothing to do in this case */
+
+   assert ( lhs != NULL );
    assert ( rhs != NULL );
    assert ( nnonz >= 0 );
    assert ( row != NULL );
    assert ( col != NULL );
    assert ( val != NULL );
 
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lplhs), sdpi->nlpcons, sdpi->nlpcons + nrows) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons, sdpi->nlpcons + nrows) );
    for (i = 0; i < nrows; i++)
+   {
+      sdpi->lplhs[sdpi->nlpcons + i] = lhs[i];
       sdpi->lprhs[sdpi->nlpcons + i] = rhs[i];
+   }
 
    BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz, sdpi->lpnnonz + nnonz) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz, sdpi->lpnnonz + nnonz) );
@@ -1236,11 +1373,13 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
    /* shorten the procedure if the whole LP-part is to be deleted */
    if (firstrow == 0 && lastrow == sdpi->nlpcons - 1)
    {
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons);
       BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz);
       BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz);
       BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lplhs), sdpi->nlpcons);
 
+      sdpi->lplhs = NULL;
       sdpi->lprhs = NULL;
       sdpi->lpcol = NULL;
       sdpi->lprow = NULL;
@@ -1258,11 +1397,13 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
    deletedrows = lastrow - firstrow + 1;
    deletednonz = 0;
 
-   /* first delete the right-hand-sides */
+   /* first delete the left- and right-hand-sides */
    for (i = lastrow + 1; i < sdpi->nlpcons; i++) /* shift all rhs after the deleted rows */
    {
+      sdpi->lplhs[i - deletedrows] = sdpi->lplhs[i];
       sdpi->lprhs[i - deletedrows] = sdpi->lprhs[i];
    }
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lplhs), sdpi->nlpcons, sdpi->nlpcons - deletedrows));
    BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons, sdpi->nlpcons - deletedrows));
 
    /* for deleting and reordering the lpnonzeroes, the arrays first have to be sorted to have the rows to be deleted together */
@@ -1391,26 +1532,30 @@ SCIP_RETCODE SCIPsdpiChgBounds(
    return SCIP_OKAY;
 }
 
-/** changes right hand sides of LP rows */
-SCIP_RETCODE SCIPsdpiChgLPRhSides(
+/** changes left and right hand sides of LP rows */
+SCIP_RETCODE SCIPsdpiChgLPLhRhSides(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   nrows,              /**< number of LP rows to change right hand sides for */
    const int*            ind,                /**< row indices between 1 and nlpcons */
+   const SCIP_Real*      lhs,                /**< new values for left hand sides */
    const SCIP_Real*      rhs                 /**< new values for right hand sides */
    )
 {
    int i;
 
-   SCIPdebugMessage("Changing %d right hand sides of SDP %d\n", nrows, sdpi->sdpid);
+   SCIPdebugMessage("Changing %d left and right hand sides of SDP %d\n", nrows, sdpi->sdpid);
 
-   assert ( sdpi != NULL );
-   assert ( ind != NULL );
-   assert ( rhs != NULL );
+   assert( sdpi != NULL );
+   assert( 0 <= nrows && nrows <= sdpi->nlpcons );
+   assert( ind != NULL );
+   assert( lhs != NULL );
+   assert( rhs != NULL );
 
    for (i = 0; i < nrows; i++)
    {
       assert ( ind[i] >= 0 );
       assert ( ind[i] < sdpi->nlpcons );
+      sdpi->lplhs[ind[i]] = lhs[i];
       sdpi->lprhs[ind[i]] = rhs[i];
    }
 
@@ -1433,8 +1578,10 @@ SCIP_RETCODE SCIPsdpiGetNLPRows(
    int*                  nlprows             /**< pointer to store the number of rows */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
+
    *nlprows = sdpi->nlpcons;
+
    return SCIP_OKAY;
 }
 
@@ -1444,8 +1591,10 @@ SCIP_RETCODE SCIPsdpiGetNSDPBlocks(
    int*                  nsdpblocks          /**< pointer to store the number of rows */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
+
    *nsdpblocks = sdpi->nsdpblocks;
+
    return SCIP_OKAY;
 }
 
@@ -1455,9 +1604,9 @@ SCIP_RETCODE SCIPsdpiGetNVars(
    int*                  nvars               /**< pointer to store the number of variables */
    )
 {
-   assert ( sdpi != NULL );
-   *nvars = sdpi->nvars;
-   return SCIP_OKAY;
+   assert( sdpi != NULL );
+
+   *nvars = sdpi->nvars;   return SCIP_OKAY;
 }
 
 /** gets the number of nonzero elements in the SDP constraint matrices */
@@ -1466,8 +1615,10 @@ SCIP_RETCODE SCIPsdpiGetSDPNNonz(
    int*                  nnonz               /**< pointer to store the number of nonzeros in the SDP constraint matrcies */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
+
    *nnonz = sdpi->sdpnnonz;
+
    return SCIP_OKAY;
 }
 
@@ -1477,8 +1628,10 @@ SCIP_RETCODE SCIPsdpiGetConstNNonz(
    int*                  nnonz               /**< pointer to store the number of nonzeros in the constant matrices of the SDP-Blocks */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
+
    *nnonz = sdpi->sdpconstnnonz;
+
    return SCIP_OKAY;
 }
 
@@ -1488,8 +1641,10 @@ SCIP_RETCODE SCIPsdpiGetLPNNonz(
    int*                  nnonz               /**< pointer to store the number of nonzeros in the LP Matrix */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
+
    *nnonz = sdpi->lpnnonz;
+
    return SCIP_OKAY;
 }
 
@@ -1503,16 +1658,15 @@ SCIP_RETCODE SCIPsdpiGetObj(
 {
    int i;
 
-   assert ( sdpi != NULL );
-   assert ( firstvar >= 0 );
-   assert ( firstvar <= lastvar );
-   assert ( lastvar < sdpi->nvars);
-   assert ( vals != NULL );
+   assert( sdpi != NULL );
+   assert( firstvar >= 0 );
+   assert( firstvar <= lastvar );
+   assert( lastvar < sdpi->nvars);
+   assert( vals != NULL );
 
    for (i = 0; i < lastvar - firstvar + 1; i++)
-   {
       vals[i] = sdpi->obj[firstvar + i];
-   }
+
    return SCIP_OKAY;
 }
 
@@ -1527,24 +1681,42 @@ SCIP_RETCODE SCIPsdpiGetBounds(
 {
    int i;
 
-   assert ( sdpi != NULL );
-   assert ( firstvar >= 0 );
-   assert ( firstvar <= lastvar );
-   assert ( lastvar < sdpi->nvars);
-   assert ( lbs != NULL );
-   assert ( ubs != NULL );
+   assert( sdpi != NULL );
+   assert( firstvar >= 0 );
+   assert( firstvar <= lastvar );
+   assert( lastvar < sdpi->nvars);
+   assert( lbs != NULL );
+   assert( ubs != NULL );
 
    for (i = 0; i < lastvar - firstvar + 1; i++)
    {
       if (lbs != NULL)
-      {
          lbs[i] = sdpi->lb[firstvar + i];
-      }
       if (ubs != NULL)
-      {
          ubs[i] = sdpi->ub[firstvar + i];
-      }
    }
+   return SCIP_OKAY;
+}
+
+/** gets current left hand sides from SDP problem object */
+SCIP_RETCODE SCIPsdpiGetLhSides(
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   int                   firstrow,           /**< first row to get sides for */
+   int                   lastrow,            /**< last row to get sides for */
+   SCIP_Real*            lhss                /**< array to store left hand side values */
+   )
+{
+   int i;
+
+   assert( sdpi != NULL );
+   assert( firstrow >= 0 );
+   assert( firstrow <= lastrow );
+   assert( lastrow < sdpi->nlpcons);
+   assert( lhss != NULL );
+
+   for (i = 0; i < lastrow - firstrow + 1; i++)
+      lhss[firstrow + i] = sdpi->lplhs[i];
+
    return SCIP_OKAY;
 }
 
@@ -1558,15 +1730,14 @@ SCIP_RETCODE SCIPsdpiGetRhSides(
 {
    int i;
 
-   assert ( sdpi != NULL );
-   assert ( firstrow >= 0 );
-   assert ( firstrow <= lastrow );
-   assert ( lastrow < sdpi->nlpcons);
+   assert( sdpi != NULL );
+   assert( firstrow >= 0 );
+   assert( firstrow <= lastrow );
+   assert( lastrow < sdpi->nlpcons);
+   assert( rhss != NULL );
 
    for (i = 0; i < lastrow - firstrow + 1; i++)
-   {
       rhss[firstrow + i] = sdpi->lprhs[i];
-   }
 
    return SCIP_OKAY;
 }
@@ -1599,12 +1770,15 @@ SCIP_RETCODE SCIPsdpiSolve(
     int** indchanges;
     int* nremovedinds;
     int newiterations;
+    SCIP_Real* lplhsafterfix;
     SCIP_Real* lprhsafterfix;
     int* rowsnactivevars;
     SCIP_Bool fixingfound;
     int nactivelpcons;
     int* blockindchanges;
     int nremovedblocks;
+    SCIP_Bool equality;
+    int i;
 
     assert ( sdpi != NULL );
     assert ( totalsdpiterations != NULL );
@@ -1628,6 +1802,7 @@ SCIP_RETCODE SCIPsdpiSolve(
     BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &indchanges, sdpi->nsdpblocks) );
     BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &nremovedinds, sdpi->nsdpblocks) );
     BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &blockindchanges, sdpi->nsdpblocks) );
+    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &lplhsafterfix, sdpi->nlpcons) );
     BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &lprhsafterfix, sdpi->nlpcons) );
     BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &rowsnactivevars, sdpi->nlpcons) );
 
@@ -1643,14 +1818,31 @@ SCIP_RETCODE SCIPsdpiSolve(
        BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) );
     }
 
-    /* compute the lprhss, detect empty rows and check for additional variable fixings caused by boundchanges from
+    /* compute the lplphss and lprhss, detect empty rows and check for additional variable fixings caused by boundchanges from
      * lp rows with a single active variable */
     do
     {
        fixingfound = FALSE;
-       SCIP_CALL( computeLpRhsAfterFixings(sdpi, &nactivelpcons, lprhsafterfix, rowsnactivevars, &fixingfound) );
+       SCIP_CALL( computeLpLhsRhsAfterFixings(sdpi, &nactivelpcons, lplhsafterfix, lprhsafterfix, rowsnactivevars, &fixingfound) );
     }
     while (fixingfound);
+
+    /* check for equalities and infeasibilities */
+    equality = FALSE;
+    for (i = 0; i < nactivelpcons && (! sdpi->infeasible); i++)
+    {
+       if ( lprhsafterfix[i] - lplhsafterfix[i] < -sdpi->feastol )
+       {
+          SCIPdebugMessage("Problem found to be infeasible in sdpi.c, as we have an LP-constraint with lhs < rhs\n");
+          sdpi->infeasible = TRUE;
+       }
+       else if ( lprhsafterfix[i] - lplhsafterfix[i] < sdpi->feastol )
+       {
+          printf("Numerical problems, Slater condition doesn't hold because of local equality constraint");
+          SCIPdebugMessage("Immediately go to penalty formulation\n");
+          equality = TRUE;
+       }
+    }
 
     /* initialize sdpconstnblocknonz */
     for (block = 0; block < sdpi->nsdpblocks; block++)
@@ -1677,18 +1869,23 @@ SCIP_RETCODE SCIPsdpiSolve(
     }
     else
     {
-       SCIP_CALL( SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
+       /* we only try to solve it normally if there are no inequalities, otherwise the slater condition doesn't hold and we immediately
+        * go to the penalty formulation */
+       if ( ! equality )
+       {
+          SCIP_CALL( SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
                 sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
                 sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                 sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-                sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lprhsafterfix, rowsnactivevars,
-                sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start) );
+                sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
+                rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start) );
 
-       sdpi->penalty = FALSE;
-       sdpi->solved = TRUE;
+          sdpi->penalty = FALSE;
+          sdpi->solved = TRUE;
+       }
 
        /* if the solver didn't produce a satisfactory result, we have to try with penalty formulations */
-       if ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) )
+       if ( equality || (! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver)) )
        {
           SCIP_Real penaltyparam;
           SCIP_Bool feasorig;
@@ -1703,8 +1900,8 @@ SCIP_RETCODE SCIPsdpiSolve(
                        sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
                        sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                        sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-                       sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lprhsafterfix, rowsnactivevars,
-                       sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, &feasorig) );
+                       sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
+                       rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, &feasorig) );
 
           /* if the solver converged and the solution is feasible for our original problem, the problem is feasible and we can continue to search for an
            * optimal solution, if the solver converged but the solution isn't feasible for our original problem, the problem is infeasible, if we still
@@ -1721,8 +1918,8 @@ SCIP_RETCODE SCIPsdpiSolve(
                       sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
                       sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                       sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-                      sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lprhsafterfix, rowsnactivevars,
-                      sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, &feasorig) );
+                      sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
+                      rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, &feasorig) );
 
                 penaltyparam *= 10.0;
              }
@@ -1764,6 +1961,7 @@ SCIP_RETCODE SCIPsdpiSolve(
     }
     BMSfreeBlockMemoryArray(sdpi->blkmem, &rowsnactivevars, sdpi->nlpcons);
     BMSfreeBlockMemoryArray(sdpi->blkmem, &lprhsafterfix, sdpi->nlpcons);
+    BMSfreeBlockMemoryArray(sdpi->blkmem, &lplhsafterfix, sdpi->nlpcons);
     BMSfreeBlockMemoryArray(sdpi->blkmem, &blockindchanges, sdpi->nsdpblocks);
     BMSfreeBlockMemoryArray(sdpi->blkmem, &nremovedinds, sdpi->nsdpblocks);
     BMSfreeBlockMemoryArray(sdpi->blkmem, &indchanges, sdpi->nsdpblocks);

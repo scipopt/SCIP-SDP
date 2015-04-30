@@ -173,6 +173,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    int***                sdpcol,             /**< pointer to the column-indices for each block and variable in this block */
    SCIP_Real***          sdpval,             /**< pointer to the values of the nonzeros for each block and variable in this block */
    int                   nlpcons,            /**< number of LP-constraints */
+   SCIP_Real*            lplhs,              /**< left hand sides of LP rows (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right hand sides of LP rows (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
@@ -188,6 +189,7 @@ EXTERN
 SCIP_RETCODE SCIPsdpiAddLPRows(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   nrows,              /**< number of rows to be added */
+   const SCIP_Real*      lhs,                /**< left hand sides of new rows */
    const SCIP_Real*      rhs,                /**< right hand sides of new rows */
    int                   nnonz,              /**< number of nonzero elements to be added to the LP constraint matrix */
    const int*            row,                /**< row indices of constraint matrix entries, going from 0 to nrows - 1, these will be changed
@@ -229,12 +231,22 @@ SCIP_RETCODE SCIPsdpiChgBounds(
    const SCIP_Real*      ub                  /**< values for the new upper bounds */
    );
 
-/** changes right hand sides of LP rows */
+/** changes left hand sides of LP rows */
 EXTERN
-SCIP_RETCODE SCIPsdpiChgLPRhSides(
+SCIP_RETCODE SCIPsdpiChgLPLhSides(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   nrows,              /**< number of LP rows to change right hand sides for */
    const int*            ind,                /**< row indices */
+   const SCIP_Real*      lhs                 /**< new values for left hand sides */
+   );
+
+/** changes right hand sides of LP rows */
+EXTERN
+SCIP_RETCODE SCIPsdpiChgLPLhRhSides(
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   int                   nrows,              /**< number of LP rows to change right hand sides for */
+   const int*            ind,                /**< row indices */
+   const SCIP_Real*      lhs,                /**< new values for left hand sides */
    const SCIP_Real*      rhs                 /**< new values for right hand sides */
    );
 
@@ -305,6 +317,15 @@ SCIP_RETCODE SCIPsdpiGetBounds(
    int                   lastvar,            /**< last variable to get bounds for */
    SCIP_Real*            lbs,                /**< array to store lower bound values, or NULL */
    SCIP_Real*            ubs                 /**< array to store upper bound values, or NULL */
+   );
+
+/** gets current left hand sides from SDP problem object */
+EXTERN
+SCIP_RETCODE SCIPsdpiGetLhSides(
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   int                   firstrow,           /**< first row to get sides for */
+   int                   lastrow,            /**< last row to get sides for */
+   SCIP_Real*            lhss                /**< array to store left hand side values */
    );
 
 /** gets current right hand sides from SDP problem object */
