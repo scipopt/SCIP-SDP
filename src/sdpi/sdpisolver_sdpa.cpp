@@ -421,7 +421,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int nlpineqs;
    int pos;
    int newpos;
+#ifdef SCIP_DEBUG
    int ind;
+#endif
 
 #ifdef SCIP_DEBUG
    char phase_string[15];
