@@ -731,7 +731,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if ( nlpcons > 0 || lpnnonz > 0 || ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
    {
 	   int nextcol;
-	   int* rowmapper;
+	   int* rowmapper; /* maps the lhs- and rhs-inequalities of the old LP-cons to their constraint numbers in DSDP */
 	   int pos;
 	   int newpos;
 	   int nlpineqs;
