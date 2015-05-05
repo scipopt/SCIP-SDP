@@ -153,14 +153,6 @@ const char* SCIPsdpiSolverGetSolverDesc(
    return "Primal-dual Interior Point Solver for Semidefinite Programming developed by Katsuki Fujisawa et al. (sdpa.sourceforge.net)";
 }
 
-/** Does the solver have a way to solve a penalty formulation on its own or must one be provided? */
-SCIP_Bool SCIPsdpiSolverKnowsPenalty(
-   void
-   )
-{
-   return TRUE;
-}
-
 /** gets pointer for SDP solver - use only with great care
  *
  *  The behavior of this function depends on the solver and its use is

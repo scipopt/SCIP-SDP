@@ -89,12 +89,6 @@ const char* SCIPsdpiSolverGetSolverDesc(
    void
    );
 
-/** Does the solver have a way to solve a penalty formulation on its own or must one be provided? */
-EXTERN
-SCIP_Bool SCIPsdpiSolverKnowsPenalty(
-   void
-   );
-
 /** gets pointer for SDP solver - use only with great care
  *
  *  The behavior of this function depends on the solver and its use is
@@ -214,10 +208,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *      \f{eqnarray*}{
  *      \min & & b^T y + \Gamma r \\
  *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathds{I} \succeq 0 \quad \forall i \leq m \\
- *      & & Dy \geq d \\
- *      & & l \leq y \leq u.\f}
- *  Alternatively withObj can be set to false to set \f$ b \f$ to 0 and only check for feasibility (if the optimal objective value is
- *  bigger than 0 the problem is infeasible, otherwise it's feasible).
+ *      & & Dy + r \cdot \mathds{I} \geq d \\
+ *      & & l \leq y \leq u \\
+ *      & & r \geq 0.\f}
+ *  Alternatively withobj can be set to false to set \f$ b \f$ to 0 and only check for feasibility (if the optimal objective value is
+ *  bigger than 0 the problem is infeasible, otherwise it's feasible), and rbound can be set to false to remove the non-negativity condition on r.
  *  For the non-constant SDP- and the LP-part the original arrays before fixings should be given, for the constant SDP-part the arrays AFTER fixings
  *  should be given. In addition, an array needs to be given, that for every block and every row/col index within that block either has value
  *  -1, meaning that this index should be deleted, or a non-negative integer stating the number of indices before it that are to be deleated,
@@ -233,7 +228,8 @@ EXTERN
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
    SCIP_Real             gamma,              /**< the penalty parameter above, needs to be >= 0 */
-   SCIP_Bool             withObj,            /**< if this is false, the objective is set to 0 */
+   SCIP_Bool             withobj,            /**< if this is false, the objective is set to 0 */
+   SCIP_Bool             rbound,             /**< should r be non-negative ? */
    int                   nvars,              /**< number of variables */
    SCIP_Real*            obj,                /**< objective function values of variables */
    SCIP_Real*            lb,                 /**< lower bounds of variables */
