@@ -106,6 +106,7 @@ struct SCIP_SDPiSolver
    int                   threads;            /**< number of threads */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             penalty;            /**< was the problem last solved using a penalty formulation */
+   SCIP_Bool             rbound;             /**< was the penalty parameter bounded during the last solve call */
 };
 
 
@@ -351,7 +352,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    SCIP_Real*            start               /**< NULL or a starting point for the solver, this should have length nvars */
    )//TODO: start needs to include X,y,Z for SDPA
 {
-   return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
+   return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, FALSE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
                nremovedinds, blockindchanges, nremovedblocks, nlpcons, noldlpcons, lplhs, lprhs, lprownactivevars, lpnnonz, lprow, lpcol, lpval, start, NULL);
 }
@@ -362,10 +363,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *      \f{eqnarray*}{
  *      \min & & b^T y + \Gamma r \\
  *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathds{I} \succeq 0 \quad \forall i \leq m \\
- *      & & Dy \geq d \\
- *      & & l \leq y \leq u.\f}
- *  Alternatively withObj can be set to false to set \f$ b \f$ to 0 and only check for feasibility (if the optimal objective value is
- *  bigger than 0 the problem is infeasible, otherwise it's feasible).
+ *      & & Dy + r \cdot \mathds{I} \geq d \\
+ *      & & l \leq y \leq u \\
+ *      & & r \geq 0.\f}
+ *  Alternatively withobj can be set to false to set \f$ b \f$ to 0 and only check for feasibility (if the optimal objective value is
+ *  bigger than 0 the problem is infeasible, otherwise it's feasible), and rbound can be set to false to remove the non-negativity condition on r.
  *  For the non-constant SDP- and the LP-part the original arrays before fixings should be given, for the constant SDP-part the arrays AFTER fixings
  *  should be given. In addition, an array needs to be given, that for every block and every row/col index within that block either has value
  *  -1, meaning that this index should be deleted, or a non-negative integer stating the number of indices before it that are to be deleated,
@@ -380,7 +382,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
    SCIP_Real             gamma,              /**< the penalty parameter above, needs to be >= 0 */
-   SCIP_Bool             withObj,            /**< if this is false, the objective is set to 0 */
+   SCIP_Bool             withobj,            /**< if this is false, the objective is set to 0 */
+   SCIP_Bool             rbound,             /**< should r be non-negative ? */
    int                   nvars,              /**< number of variables */
    SCIP_Real*            obj,                /**< objective function values of variables */
    SCIP_Real*            lb,                 /**< lower bounds of variables */
@@ -490,8 +493,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    else
       SCIPdebugMessage("Inserting Data again into SDPA for SDP (%d) \n", sdpisolver->sdpcounter);
 
-   /* set the penalty flag accordingly */
+   /* set the penalty and rbound flags accordingly */
    sdpisolver->penalty = (gamma < sdpisolver->epsilon) ? FALSE : TRUE;
+   sdpisolver->rbound = rbound;
 
    /* allocate memory for inputtosdpamapper, sdpatoinputmapper and the fixed variable information, for the latter this will later be shrinked if the needed size is known */
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtosdpamapper), sdpisolver->nvars, nvars) );
@@ -603,7 +607,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
    /* if we use a penalty formulation, we need the constraint r >= 0 */
-   if ( gamma >= sdpisolver->epsilon )
+   if ( gamma >= sdpisolver->epsilon && rbound )
       sdpisolver->nvarbounds++;
 
    if ( sdpisolver->sdpinfo )
@@ -654,7 +658,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* set objective values */
    for (i = 0; i < sdpisolver->nactivevars; i++)
    {
-      if ( withObj )
+      if ( withobj )
       {
          /* insert objective value, SDPA counts from 1 to n instead of 0 to n-1 */
          sdpisolver->sdpa->inputCVec(i + 1, obj[sdpisolver->sdpatoinputmapper[i]]);
@@ -1004,7 +1008,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
    }
 
-   if ( gamma >= sdpisolver->epsilon )
+   if ( gamma >= sdpisolver->epsilon && rbound)
    {
       /* we add the variable bound r >= 0 */
       sdpisolver->sdpa->inputElement(sdpisolver->nactivevars + 1, nsdpblocks - nremovedblocks + 1, nlpineqs + 1 + i, nlpineqs + 1 + i, 1.0, checkinput);

@@ -32,6 +32,7 @@
 
 /* #define SCIP_DEBUG*/
 /* #define SCIP_MORE_DEBUG*/
+/*#define SCIP_DEBUG_SLATERCHECK*/
 
 /**@file   sdpi.c
  * @brief  interface for dsdp
@@ -1876,6 +1877,33 @@ SCIP_RETCODE SCIPsdpiSolve(
     }
     else
     {
+#ifdef SCIP_DEBUG_SLATERCHECK
+       /* if we have an equality, then there is no interior point */
+       if ( equality )
+          printf("Slater condition isn't fullfilled for SDP %d because of an equality\n", sdpi->sdpid);
+       else
+       {
+          SCIP_Real objval;
+          SCIP_Bool origfeas;
+
+          /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if we are
+           * still feasible for r < feastol, then we have an interior point with smallest eigenvalue > feastol, otherwise the slater condition is harmed */
+          SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
+                       sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
+                       sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
+                       sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
+                       sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
+                       rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, &origfeas) );
+
+          SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
+
+          if ( objval < - sdpi->feastol )
+             printf("Slater condition for SDP %d is fullfilled for dual problem with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);
+          else
+             printf("Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, expect numerical trouble.\n",
+                   sdpi->sdpid, -1.0 * objval);
+       }
+#endif
        /* we only try to solve it normally if there are no inequalities, otherwise the slater condition doesn't hold and we immediately
         * go to the penalty formulation */
        if ( ! equality )
@@ -1903,7 +1931,7 @@ SCIP_RETCODE SCIPsdpiSolve(
           /* if we didn't converge, first try to check feasibility with a penalty formulation */
           SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penalty formulation\n", sdpi->sdpid);
 
-          SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
+          SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, TRUE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
                        sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
                        sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                        sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
@@ -1921,7 +1949,7 @@ SCIP_RETCODE SCIPsdpiSolve(
              {
                 SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penaltyparameter %f\n", sdpi->sdpid, penaltyparam);
 
-                SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, penaltyparam, TRUE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
+                SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, penaltyparam, TRUE, TRUE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
                       sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
                       sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                       sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,

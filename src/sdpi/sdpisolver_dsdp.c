@@ -128,6 +128,7 @@ struct SCIP_SDPiSolver
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
    SCIP_Real             objlimit;           /**< objective limit for SDP solver */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
+   SCIP_Bool             penaltyworbound;    /**< Was a penalty formulation solved without bounding r ? */
 };
 
 
@@ -414,7 +415,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    SCIP_Real*            start               /**< NULL or a starting point for the solver, this should have length nvars */
    )
 {
-   return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars,
+   return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, TRUE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars,
            sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
            indchanges, nremovedinds, blockindchanges, nremovedblocks, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol,
            lpval, start, NULL);
@@ -426,10 +427,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *      \f{eqnarray*}{
  *      \min & & b^T y + \Gamma r \\
  *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathds{I} \succeq 0 \quad \forall i \leq m \\
- *      & & Dy \geq d \\
- *      & & l \leq y \leq u.\f}
- *  Alternatively withObj can be set to false to set \f$ b \f$ to 0 and only check for feasibility (if the optimal objective value is
- *  bigger than 0 the problem is infeasible, otherwise it's feasible).
+ *      & & Dy + r \cdot \mathds{I} \geq d \\
+ *      & & l \leq y \leq u \\
+ *      & & r \geq 0.\f}
+ *  Alternatively withobj can be set to false to set \f$ b \f$ to 0 and only check for feasibility (if the optimal objective value is
+ *  bigger than 0 the problem is infeasible, otherwise it's feasible), and rbound can be set to false to remove the non-negativity condition on r.
  *  For the non-constant SDP- and the LP-part the original arrays before fixings should be given, for the constant SDP-part the arrays AFTER fixings
  *  should be given. In addition, an array needs to be given, that for every block and every row/col index within that block either has value
  *  -1, meaning that this index should be deleted, or a non-negative integer stating the number of indices before it that are to be deleated,
@@ -444,7 +446,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
    SCIP_Real             gamma,              /**< the penalty parameter above, needs to be >= 0 */
-   SCIP_Bool             withObj,            /**< if this is false, the objective is set to 0 */
+   SCIP_Bool             withobj,            /**< if this is false, the objective is set to 0 */
+   SCIP_Bool             rbound,             /**< should r be non-negative ? */
    int                   nvars,              /**< number of variables */
    SCIP_Real*            obj,                /**< objective function values of variables */
    SCIP_Real*            lb,                 /**< lower bounds of variables */
@@ -500,10 +503,45 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int startind;
    int nfixedvars;
    int dsdpnlpnonz;
+   int nrnonz;
 
 #ifdef SCIP_DEBUG
    DSDPTerminationReason reason; /* this will later be used to check if DSDP converged */
 #endif
+
+   assert( sdpisolver != NULL );
+   assert( gamma > -1 * sdpisolver->epsilon );
+   assert( nvars > 0 );
+   assert( obj != NULL );
+   assert( lb != NULL );
+   assert( ub != NULL );
+   assert( nsdpblocks >= 0 );
+   assert( nsdpblocks == 0 || sdpblocksizes != NULL );
+   assert( nsdpblocks == 0 || sdpnblockvars != NULL );
+   assert( sdpconstnnonz >= 0 );
+   assert( nsdpblocks == 0 || sdpconstnblocknonz != NULL );
+   assert( nsdpblocks == 0 || sdpconstrow != NULL );
+   assert( nsdpblocks == 0 || sdpconstcol != NULL );
+   assert( nsdpblocks == 0 || sdpconstval != NULL );
+   assert( sdpnnonz >= 0 );
+   assert( nsdpblocks == 0 || sdpnblockvarnonz != NULL );
+   assert( nsdpblocks == 0 || sdpvar != NULL );
+   assert( nsdpblocks == 0 || sdprow != NULL );
+   assert( nsdpblocks == 0 || sdpcol != NULL );
+   assert( nsdpblocks == 0 || sdpval != NULL );
+   assert( nsdpblocks == 0 || indchanges != NULL );
+   assert( nsdpblocks == 0 || nremovedinds != NULL );
+   assert( nsdpblocks == 0 || blockindchanges != NULL );
+   assert( 0 <= nremovedblocks && nremovedblocks <= nsdpblocks );
+   assert( nlpcons >= 0 );
+   assert( noldlpcons >= nlpcons );
+   assert( nlpcons == 0 || lplhs != NULL );
+   assert( nlpcons == 0 || lprhs != NULL );
+   assert( nlpcons == 0 || rownactivevars != NULL );
+   assert( lpnnonz >= 0 );
+   assert( nlpcons == 0 || lprow != NULL );
+   assert( nlpcons == 0 || lpcol != NULL );
+   assert( nlpcons == 0 || lpval != NULL );
 
    /* only increase the counter if we don't use the penalty formulation to stay in line with the numbers in the general interface (where this is still the
     * same SDP) */
@@ -511,9 +549,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       SCIPdebugMessage("Inserting Data into DSDP for SDP (%d) \n", ++sdpisolver->sdpcounter);
    else
       SCIPdebugMessage("Inserting Data again into DSDP for SDP (%d) \n", sdpisolver->sdpcounter);
-
-   assert( sdpisolver != NULL );
-   assert( gamma > - sdpisolver->epsilon );
 
 #ifndef NDEBUG
    sdpisolver->infeasible = FALSE;
@@ -549,6 +584,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
    }
    assert( sdpisolver->nactivevars + nfixedvars == sdpisolver->nvars );
+   if ( gamma > sdpisolver->epsilon && (! rbound) )
+   {
+      SCIPdebugMessage("Variable %d is the slack variable for the explicit penalty formulation\n", sdpisolver->nactivevars + 1);
+   }
 
    /* shrink the fixedvars and dsdptoinputmapper arrays to the right size */
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), nvars, nfixedvars) );
@@ -561,7 +600,17 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       DSDP_CALL( DSDPDestroy(sdpisolver->dsdp) ); /* if there already exists a DSDP-instance, destroy the old one */
    }
 
-   DSDP_CALLM( DSDPCreate(sdpisolver->nactivevars, &(sdpisolver->dsdp)) );
+   /* in case we don't want to bound r, we can't use the penalty formulation in DSDP and have to give r explicitly */
+   if ( gamma > sdpisolver->epsilon && (! rbound) )
+   {
+      DSDP_CALLM( DSDPCreate(sdpisolver->nactivevars + 1, &(sdpisolver->dsdp)) );
+      sdpisolver->penaltyworbound = TRUE;
+   }
+   else
+   {
+      DSDP_CALLM( DSDPCreate(sdpisolver->nactivevars, &(sdpisolver->dsdp)) );
+      sdpisolver->penaltyworbound = FALSE;
+   }
    DSDP_CALLM( DSDPCreateSDPCone(sdpisolver->dsdp, nsdpblocks - nremovedblocks, &(sdpisolver->sdpcone)) );
    DSDP_CALLM( DSDPCreateLPCone(sdpisolver->dsdp, &(sdpisolver->lpcone)) );
    DSDP_CALLM( DSDPCreateBCone(sdpisolver->dsdp, &(sdpisolver->bcone)) );
@@ -571,7 +620,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
    for (i = 0; i < sdpisolver->nactivevars; i++)
    {
-      if ( withObj )
+      if ( withobj )
       {
          /* insert objective value, DSDP counts from 1 to n instead of 0 to n-1, *(-1) because DSDP maximizes instead of minimizing */
          DSDP_CALL( DSDPSetDualObjective(sdpisolver->dsdp, i+1, -1.0 * obj[sdpisolver->dsdptoinputmapper[i]]) );
@@ -593,6 +642,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          /* insert upper bound, DSDP counts from 1 to n instead of 0 to n-1 */
          DSDP_CALL(BConeSetUpperBound(sdpisolver->bcone, i+1, ub[sdpisolver->dsdptoinputmapper[i]]));
       }
+   }
+
+   /* insert the objective value for r if solving without rbound, it is variable nactivevars + 1 and the objective is multiplied by -1 as we maximize */
+   if ( gamma > sdpisolver->epsilon && (! rbound) )
+   {
+      DSDP_CALL( DSDPSetDualObjective(sdpisolver->dsdp, sdpisolver->nactivevars + 1, -1.0 * gamma) );
+#ifdef SCIP_MORE_DEBUG
+         printf("slack variable r: %f, ", gamma);
+#endif
    }
 
 #ifdef SCIP_MORE_DEBUG
@@ -619,25 +677,34 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       int k;
       int blockvar;
 
-      assert( nsdpblocks > 0 );
-      assert( sdpnblockvarnonz != NULL );
-      assert( sdpnblockvars != NULL );
-      assert( sdpcol != NULL );
-      assert( sdprow != NULL );
-      assert( sdpval != NULL );
-      assert( sdpvar != NULL );
-      assert( indchanges != NULL );
-      assert( nremovedinds != NULL );
+      nrnonz = 0;
 
       /* allocate memory */
       /* This needs to be one long array, because DSDP uses it for solving so all nonzeros have to be in it and it may not be freed before the
        * problem is solved. The distinct blocks/variables (for the i,j-parts) are then given by dsdpind + startind, which gives a pointer to the
        * first array-element belonging to this block and then the number of elements in this block is given to DSDP for iterating over it. */
 
-      /* indices given to DSDP, for this the elements in the lower triangular part of the matrix are labeled from 0 to n*(n+1)/2 -1 */
-      BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpind, sdpnnonz) );
-      /* values given to DSDP, these will be multiplied by -1 because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
-      BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpval, sdpnnonz) );
+      if ( gamma > sdpisolver->epsilon && (! rbound) )
+      {
+         /* we need to compute the total number of nonzeros for the slack variable r, which equals the total number of diagonal entries */
+         for (block = 0; block < nsdpblocks; block++)
+         {
+            nrnonz += sdpblocksizes[block] - nremovedinds[block];
+         }
+         assert( nrnonz >= 0 );
+
+         /* indices given to DSDP, for this the elements in the lower triangular part of the matrix are labeled from 0 to n*(n+1)/2 -1 */
+         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpind, sdpnnonz + nrnonz) );
+         /* values given to DSDP, these will be multiplied by -1 because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
+         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpval, sdpnnonz + nrnonz) );
+      }
+      else
+      {
+         /* indices given to DSDP, for this the elements in the lower triangular part of the matrix are labeled from 0 to n*(n+1)/2 -1 */
+         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpind, sdpnnonz) );
+         /* values given to DSDP, these will be multiplied by -1 because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
+         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpval, sdpnnonz) );
+      }
 
       ind = 0; /* this will be used for iterating over the nonzeroes */
 
@@ -671,7 +738,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                   /* substract the number of removed indices before the row and col to get the indices after fixings */
                   dsdpind[ind] = compLowerTriangPos(sdprow[block][blockvar][k] - indchanges[block][sdprow[block][blockvar][k]],
                                                     sdpcol[block][blockvar][k] - indchanges[block][sdpcol[block][blockvar][k]]);
-                  dsdpval[ind] = -1 * sdpval[block][blockvar][k];  /* *(-1) because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
+                  dsdpval[ind] = -1.0 * sdpval[block][blockvar][k];  /* *(-1) because in DSDP -1* (sum A_i^j y_i - A_0) should be positive semidefinite */
                   ind++;
                }
 
@@ -686,6 +753,27 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                      1.0, 0, dsdpind + startind,dsdpval + startind, sdpnblockvarnonz[block][blockvar]));
             }
          }
+      }
+      if ( gamma > sdpisolver->epsilon && (! rbound) )
+      {
+         startind = ind;
+         /* add r * Identity for each block */
+         for (block = 0; block < nsdpblocks; block++)
+         {
+            if ( blockindchanges[block] > -1)
+            {
+               for (i = 0; i < sdpblocksizes[block] - nremovedinds[block]; i++)
+               {
+                  dsdpind[ind] = compLowerTriangPos(i, i);
+                  dsdpval[ind] = -1.0; /* *(-1) because in DSDP -1* (sum A_i^j y_i - A_0 + r*I) should be positive semidefinite */
+                  ind++;
+               }
+               DSDP_CALL( SDPConeSetASparseVecMat(sdpisolver->sdpcone, block - blockindchanges[block], sdpisolver->nactivevars + 1,
+                     sdpblocksizes[block] - nremovedinds[block], 1.0, 0, dsdpind + ind - (sdpblocksizes[block] - nremovedinds[block]) ,
+                     dsdpval + ind - (sdpblocksizes[block] - nremovedinds[block]), sdpblocksizes[block] - nremovedinds[block]) );
+            }
+         }
+         assert( ind - startind == nrnonz );
       }
    }
 
@@ -753,6 +841,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 	   int pos;
 	   int newpos;
 	   int nlpineqs;
+	   SCIP_Bool* leqrows; /* is row i a <=-inequality (meaning we multiply with -1), only used in case of penalty-formulation with rbound = FALSE */
 
       assert( noldlpcons > 0 );
       assert( lprhs != NULL );
@@ -762,6 +851,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       /* allocate memory to save which lpconstraints are mapped to which index, entry 2i corresponds to the left hand side of row i, 2i+1 to the rhs */
       BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &rowmapper, 2*noldlpcons) );
+
+      /* allocate memory to save which constraints are <= constraints for later multiplying the coefficient of r by -1 */
+      if ( gamma > sdpisolver->epsilon && (! rbound) )
+      {
+         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &leqrows, noldlpcons) );
+      }
+      else
+         leqrows = NULL;
 
       /* compute the rowmapper and the number of inequalities we have to add to DSDP (as we have to split the ranged rows) */
       pos = 0;
@@ -773,6 +870,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
            if ( lplhs[newpos] > - SCIPsdpiSolverInfinity(sdpisolver) )
            {
               rowmapper[2*i] = pos;
+              if ( gamma > sdpisolver->epsilon && (! rbound) )
+                 leqrows[pos] = TRUE;
               pos++;
            }
            else
@@ -780,6 +879,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
            if ( lprhs[newpos] < SCIPsdpiSolverInfinity(sdpisolver) )
            {
               rowmapper[2*i + 1] = pos;
+              if ( gamma > sdpisolver->epsilon && (! rbound) )
+                 leqrows[pos] = FALSE;
               pos++;
            }
            else
@@ -801,25 +902,70 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* these arrays are needed in DSDP during solving, so they may only be freed afterwards */
       /* dsdplpbegcol[i] gives the number of nonzeros in column 0 (right hand side) till i-1 (i going from 1 till m, with extra entries 0 (always 0)
        * and m+1 (always lpcons + lpnnonz)) */
-      BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpbegcol, sdpisolver->nactivevars + 2) );
+      if ( gamma > sdpisolver->epsilon && (! rbound) )
+      {
+         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpbegcol, sdpisolver->nactivevars + 3) ); /* extra entry for r */
+      }
+      else
+      {
+         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpbegcol, sdpisolver->nactivevars + 2) );
+      }
       /* dsdplprow saves the row indices of the LP for DSDP */
       /* worst-case length is 2*lpnnonz + nlpineqs, because left- and right-hand-sides are also included in the vectorand we might have to duplicate the
        * non-zeros when splitting the ranged rows, this will be shortened after the exact length after fixings is known, in case we have an objective limit,
-       * this is increased by one entry for the right-hand-side and at most nvars entries for the nonzeros */
+       * this is increased by one entry for the right-hand-side and at most nvars entries for the nonzeros, in case of rbound = FALSE, where we have to add
+       * the entries for r ourselves, we have to add another nlpineqs for one entry for r for each active lp-constraint */
       if ( SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
-         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, nlpineqs + 2*lpnnonz) );
+      {
+         if ( gamma > sdpisolver->epsilon && (! rbound) )
+         {
+            BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, 2 * nlpineqs + 2*lpnnonz) );
+         }
+         else
+         {
+            BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, nlpineqs + 2*lpnnonz) );
+         }
+      }
       else
-         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, (nlpineqs + 1) + 2*lpnnonz + nvars) );
+      {
+         if ( gamma > sdpisolver->epsilon && (! rbound) )
+         {
+            BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, (nlpineqs + 1) + 2*lpnnonz + nvars + nlpineqs) );
+         }
+         else
+         {
+            BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, (nlpineqs + 1) + 2*lpnnonz + nvars) );
+         }
+      }
 
       /* values given to DSDP */
       /* dsdplprow saves the row indices of the LP for DSDP */
       /* worst-case length is 2*lpnnonz + nlpineqs, because left- and right-hand-sides are also included in the vectorand we might have to duplicate the
        * non-zeros when splitting the ranged rows, this will be shortened after the exact length after fixings is known, in case we have an objective limit,
-       * this is increased by one entry for the right-hand-side and at most nvars entries for the nonzeros */
+       * this is increased by one entry for the right-hand-side and at most nvars entries for the nonzeros, in case of rbound = FALSE, where we have to add
+       * the entries for r ourselves, we have to add another nlpineqs for one entry for r for each active lp-constraint */
       if ( SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
-         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, nlpineqs + 2*lpnnonz) );
+      {
+         if ( gamma > sdpisolver->epsilon && (! rbound) )
+         {
+            BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, 2 * nlpineqs + 2*lpnnonz) );
+         }
+         else
+         {
+            BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, nlpineqs + 2*lpnnonz) );
+         }
+      }
       else
-         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, (nlpineqs + 1) + 2*lpnnonz + nvars) );
+      {
+         if ( gamma > sdpisolver->epsilon && (! rbound) )
+         {
+            BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, (nlpineqs + 1) + 2*lpnnonz + nvars + nlpineqs) );
+         }
+         else
+         {
+            BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, (nlpineqs + 1) + 2*lpnnonz + nvars) );
+         }
+      }
 
       /* add all left- and right-hand-sides that are greater than zero (if their corresponding inequalities exist), the pos counter is increased for every
        * active row, to get the correct row numbers, the nonz-counter only if the lhs/rhs is unequal to zero and added to DSDP */
@@ -943,21 +1089,56 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       dsdplpbegcol[sdpisolver->nactivevars + 1] = dsdpnlpnonz;
 
+      /* add r * Identity if using a penalty formulation without a bound on r */
+      if ( gamma > sdpisolver->epsilon && (! rbound) )
+      {
+         for (i = 0; i < nlpineqs; i++)
+         {
+            dsdplprow[dsdpnlpnonz] = i;
+            dsdplpval[dsdpnlpnonz] = leqrows[i] ? -1.0 : 1.0; /* for a lhs we have to multiply by -1 to get a <=-constraint */
+            dsdpnlpnonz++;
+         }
+         dsdplpbegcol[sdpisolver->nactivevars + 2] = dsdpnlpnonz;
+      }
+
+      /* free the memory for the leqrows array */
+      if ( gamma > sdpisolver->epsilon && (! rbound) )
+      {
+         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &leqrows, noldlpcons);
+      }
+
       /* free the memory for the rowshifts-array */
       BMSfreeBlockMemoryArray(sdpisolver->blkmem, &rowmapper, 2*noldlpcons);
 
       /* shrink the dsdplp-arrays */
       if ( SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
       {
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, nlpineqs + 2*lpnnonz, dsdpnlpnonz) );
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, nlpineqs + 2*lpnnonz, dsdpnlpnonz) );
+         if ( gamma > sdpisolver->epsilon && (! rbound) )
+         {
+            BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, 2*nlpineqs + 2*lpnnonz, dsdpnlpnonz) );
+            BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, 2*nlpineqs + 2*lpnnonz, dsdpnlpnonz) );
+         }
+         else
+         {
+            BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, nlpineqs + 2*lpnnonz, dsdpnlpnonz) );
+            BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, nlpineqs + 2*lpnnonz, dsdpnlpnonz) );
+         }
       }
       else
       {
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, (nlpineqs + 1) + 2*lpnnonz + nvars, dsdpnlpnonz) );
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, (nlpineqs + 1) + 2*lpnnonz + nvars, dsdpnlpnonz) );
+         if ( gamma > sdpisolver->epsilon && (! rbound) )
+         {
+            BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, (nlpineqs + 1) + 2*lpnnonz + nvars + nlpineqs, dsdpnlpnonz) );
+            BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, (nlpineqs + 1) + 2*lpnnonz + nvars + nlpineqs, dsdpnlpnonz) );
+         }
+         else
+         {
+            BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, (nlpineqs + 1) + 2*lpnnonz + nvars, dsdpnlpnonz) );
+            BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, (nlpineqs + 1) + 2*lpnnonz + nvars, dsdpnlpnonz) );
+         }
       }
-      /* add the arrays to dsdp */
+      /* add the arrays to dsdp (in this case we need no additional if for the penalty version without bounds, as we already added the extra var,
+       * so DSDP knows, that there is an additional entry in dsdplpbegcol which then gives the higher number of nonzeros) */
       if ( SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
       {
          DSDP_CALL( LPConeSetData(sdpisolver->lpcone, nlpineqs, dsdplpbegcol, dsdplprow, dsdplpval) );
@@ -980,9 +1161,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       DSDP_CALL( DSDPSetStandardMonitor(sdpisolver->dsdp, 1) );   /* output DSDP information after every 1 iteration */
    }
 
-
-   /* set the penalty parameter */
-   if ( gamma >= sdpisolver->epsilon ) /* in sdpisolverSolve this is called with an exact 0 */
+   /* set the penalty parameter (only if rbound = TRUE, otherwise we had to add everything ourselves) */
+   if ( gamma >= sdpisolver->epsilon && rbound ) /* in sdpisolverSolve this is called with an exact 0 */
    {
       DSDP_CALL( DSDPSetPenaltyParameter(sdpisolver->dsdp, gamma) );
       DSDP_CALL( DSDPUsePenalty(sdpisolver->dsdp, 1) );
@@ -1013,15 +1193,30 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    if ( sdpnnonz > 0 )
    {
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpval, sdpnnonz);
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpind, sdpnnonz);
+      if ( gamma > sdpisolver->epsilon && (! rbound) )
+      {
+         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpval, sdpnnonz + nrnonz);
+         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpind, sdpnnonz + nrnonz);
+      }
+      else
+      {
+         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpval, sdpnnonz);
+         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpind, sdpnnonz);
+      }
    }
 
    if (nlpcons > 0 || lpnnonz > 0)
    {
       BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, dsdpnlpnonz);
       BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, dsdpnlpnonz);
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplpbegcol, sdpisolver->nactivevars + 2);
+      if ( gamma > sdpisolver->epsilon && (! rbound) )
+      {
+         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplpbegcol, sdpisolver->nactivevars + 3);
+      }
+      else
+      {
+         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplpbegcol, sdpisolver->nactivevars + 2);
+      }
    }
 
 #ifdef SCIP_DEBUG
