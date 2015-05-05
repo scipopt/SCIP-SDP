@@ -857,7 +857,7 @@ SCIP_RETCODE SCIPsdpiCreate(
 
    (*sdpi)->messagehdlr = messagehdlr;
    (*sdpi)->blkmem = blkmem;
-   (*sdpi)->sdpid = 0;
+   (*sdpi)->sdpid = 1;
    (*sdpi)->nvars = 0;
    (*sdpi)->nsdpblocks = 0;
    (*sdpi)->sdpconstnnonz = 0;
@@ -1112,7 +1112,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    int v;
    int block;
 
-   SCIPdebugMessage("Calling SCIPsdpiLoadSDP (%d)\n", ++sdpi->sdpid);
+   SCIPdebugMessage("Calling SCIPsdpiLoadSDP (%d)\n",sdpi->sdpid);
 
    assert ( sdpi != NULL );
    assert ( nvars > 0 );
@@ -1503,7 +1503,7 @@ SCIP_RETCODE SCIPsdpiClear(
    SCIPdebugMessage("Called SCIPsdpiClear in SDP %d.\n", sdpi->sdpid);
 
    /* we reset all counters */
-   sdpi->sdpid = 0;
+   sdpi->sdpid = 1;
    SCIPsdpiSolverResetCounter(sdpi->sdpisolver);
 
    return SCIP_OKAY;
@@ -1790,7 +1790,7 @@ SCIP_RETCODE SCIPsdpiSolve(
     assert ( sdpi != NULL );
     assert ( totalsdpiterations != NULL );
 
-    SCIPdebugMessage("Forwarding SDP %d to solver!\n", sdpi->sdpid);
+    SCIPdebugMessage("Forwarding SDP %d to solver!\n", sdpi->sdpid++);
 
     sdpconstnblocknonz = NULL;
     sdpconstrow = NULL;
