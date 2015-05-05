@@ -138,6 +138,12 @@ SCIP_RETCODE SCIPsdpiSolverIncreaseCounter(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
    );
 
+/** reset the SDP-Counter to zero */
+EXTERN
+SCIP_RETCODE SCIPsdpiSolverResetCounter(
+   SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
+   );
+
 /**@} */
 
 /*

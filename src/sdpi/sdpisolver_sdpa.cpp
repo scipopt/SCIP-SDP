@@ -274,6 +274,19 @@ SCIP_RETCODE SCIPsdpiSolverIncreaseCounter(
    return SCIP_OKAY;
 }
 
+/** reset the SDP-Counter to zero */
+SCIP_RETCODE SCIPsdpiSolverResetCounter(
+   SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
+   )
+{
+   assert( sdpisolver != NULL );
+
+   SCIPdebugMessage("Resetting counter of SDP-Interface from %d to 0.\n", sdpisolver->sdpcounter);
+   sdpisolver->sdpcounter = 0;
+
+   return SCIP_OKAY;
+}
+
 /**@} */
 
 
@@ -470,7 +483,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    checkinput = TRUE;
 #endif
 
-   SCIPdebugMessage("Inserting Data into SDPA for SDP (%d) \n", ++sdpisolver->sdpcounter);
+   /* only increase the counter if we don't use the penalty formulation to stay in line with the numbers in the general interface (where this is still the
+    * same SDP) */
+   if ( gamma < sdpisolver->epsilon )
+      SCIPdebugMessage("Inserting Data into SDPA for SDP (%d) \n", ++sdpisolver->sdpcounter);
+   else
+      SCIPdebugMessage("Inserting Data again into SDPA for SDP (%d) \n", sdpisolver->sdpcounter);
 
    /* set the penalty flag accordingly */
    sdpisolver->penalty = (gamma < sdpisolver->epsilon) ? FALSE : TRUE;

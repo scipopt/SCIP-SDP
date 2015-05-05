@@ -857,7 +857,7 @@ SCIP_RETCODE SCIPsdpiCreate(
 
    (*sdpi)->messagehdlr = messagehdlr;
    (*sdpi)->blkmem = blkmem;
-   (*sdpi)->sdpid = 1;
+   (*sdpi)->sdpid = 0;
    (*sdpi)->nvars = 0;
    (*sdpi)->nsdpblocks = 0;
    (*sdpi)->sdpconstnnonz = 0;
@@ -1112,7 +1112,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    int v;
    int block;
 
-   SCIPdebugMessage("Calling SCIPsdpiLoadSDP (%d)\n",sdpi->sdpid);
+   SCIPdebugMessage("Calling SCIPsdpiLoadSDP (%d)\n", ++sdpi->sdpid);
 
    assert ( sdpi != NULL );
    assert ( nvars > 0 );
@@ -1498,8 +1498,15 @@ SCIP_RETCODE SCIPsdpiClear(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   SCIPdebugMessage("currently not implemented!\n");
-   return SCIP_ERROR;
+   assert( sdpi != NULL );
+
+   SCIPdebugMessage("Called SCIPsdpiClear in SDP %d.\n", sdpi->sdpid);
+
+   /* we reset all counters */
+   sdpi->sdpid = 0;
+   SCIPsdpiSolverResetCounter(sdpi->sdpisolver);
+
+   return SCIP_OKAY;
 }
 
 /** changes lower and upper bounds of variables */
@@ -1783,7 +1790,7 @@ SCIP_RETCODE SCIPsdpiSolve(
     assert ( sdpi != NULL );
     assert ( totalsdpiterations != NULL );
 
-    SCIPdebugMessage("Forwarding SDP %d to solver!\n", sdpi->sdpid++);
+    SCIPdebugMessage("Forwarding SDP %d to solver!\n", sdpi->sdpid);
 
     sdpconstnblocknonz = NULL;
     sdpconstrow = NULL;

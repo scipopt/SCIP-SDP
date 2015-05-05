@@ -886,6 +886,7 @@ SCIP_DECL_RELAXEXIT(relaxExitSdp)
    relaxdata->sdpiterations = 0;
    relaxdata->sdpcalls = 0;
    relaxdata->lastsdpnode = 0;
+   SCIP_CALL( SCIPsdpiClear(relaxdata->sdpi) );
 
    return SCIP_OKAY;
 }
