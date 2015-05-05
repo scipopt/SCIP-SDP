@@ -1791,7 +1791,8 @@ SCIP_RETCODE SCIPsdpiSolve(
     assert ( sdpi != NULL );
     assert ( totalsdpiterations != NULL );
 
-    SCIPdebugMessage("Forwarding SDP %d to solver!\n", sdpi->sdpid++);
+    SCIPdebugMessage("Forwarding SDP %d to solver!\n", sdpi->sdpid);
+    sdpi->sdpid++;
 
     sdpconstnblocknonz = NULL;
     sdpconstrow = NULL;
