@@ -119,9 +119,6 @@ struct SCIP_SDPiSolver
    int*                  dsdptoinputmapper;  /**< entry i gives the original index of the (i+1)-th variable in dsdp (indices go from 0 to nactivevars-1) */
    SCIP_Real*            fixedvarsval;       /**< entry i gives the lower and upper bound of the i-th fixed variable */
    SCIP_Real             fixedvarsobjcontr;  /**< total contribution to the objective of all fixed variables, computed as sum obj * val */
-#ifndef NDEBUG
-   SCIP_Bool             infeasible;         /**< true if the problem is infeasible during insertion/presolving (if constraints without active variables present) */
-#endif
    SCIP_Bool             solved;             /**< Was the SDP solved since the problem was last changed? */
    int                   sdpcounter;         /**< used for debug messages */
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
@@ -285,9 +282,6 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->fixedvarsobjcontr = 0.0;
    (*sdpisolver)->solved = FALSE;
    (*sdpisolver)->sdpcounter = 0;
-#ifndef NDEBUG
-   (*sdpisolver)->infeasible = FALSE;
-#endif
 
    (*sdpisolver)->epsilon = 1e-3;
    (*sdpisolver)->feastol = 1e-6;
@@ -549,10 +543,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       SCIPdebugMessage("Inserting Data into DSDP for SDP (%d) \n", ++sdpisolver->sdpcounter);
    else
       SCIPdebugMessage("Inserting Data again into DSDP for SDP (%d) \n", sdpisolver->sdpcounter);
-
-#ifndef NDEBUG
-   sdpisolver->infeasible = FALSE;
-#endif
 
    /* allocate memory for inputtodsdpmapper, dsdptoinputmapper and the fixed variable information, for the latter this will later be shrinked if the needed size is known */
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtodsdpmapper), sdpisolver->nvars, nvars) );
@@ -1316,14 +1306,6 @@ SCIP_Bool SCIPsdpiSolverFeasibilityKnown(
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED( sdpisolver );
 
-#ifndef NDEBUG
-   if ( sdpisolver->infeasible )
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return TRUE;
-   }
-#endif
-
    DSDP_CALL( DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible) );
 
    if ( pdfeasible == DSDP_PDUNKNOWN )
@@ -1346,15 +1328,6 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
    assert( primalfeasible != NULL );
    assert( dualfeasible != NULL );
    CHECK_IF_SOLVED( sdpisolver );
-
-#ifndef NDEBUG
-   if ( sdpisolver->infeasible )
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      *primalfeasible = FALSE;
-      *dualfeasible = FALSE;
-   }
-#endif
 
    DSDP_CALL( DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible) );
 
@@ -1421,14 +1394,6 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED( sdpisolver );
 
-#ifndef NDEBUG
-   if (sdpisolver->infeasible)
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return FALSE;
-   }
-#endif
-
    DSDP_CALL( DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible) );
    if ( pdfeasible == DSDP_PDUNKNOWN )
    {
@@ -1455,14 +1420,6 @@ SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED( sdpisolver );
 
-#ifndef NDEBUG
-   if ( sdpisolver->infeasible )
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return FALSE;
-   }
-#endif
-
    DSDP_CALL( DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible) );
    if ( pdfeasible == DSDP_PDUNKNOWN )
    {
@@ -1488,14 +1445,6 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
 
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED( sdpisolver );
-
-#ifndef NDEBUG
-   if ( sdpisolver->infeasible )
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return FALSE;
-   }
-#endif
 
    DSDP_CALL( DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible) );
    if ( pdfeasible == DSDP_PDUNKNOWN )
@@ -1546,14 +1495,6 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED( sdpisolver );
 
-#ifndef NDEBUG
-   if ( sdpisolver->infeasible )
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return FALSE;
-   }
-#endif
-
    DSDP_CALL( DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible) );
    if ( pdfeasible == DSDP_PDUNKNOWN )
    {
@@ -1576,14 +1517,6 @@ SCIP_Bool SCIPsdpiSolverIsDualInfeasible(
 
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED( sdpisolver );
-
-#ifndef NDEBUG
-   if (sdpisolver->infeasible)
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return TRUE;
-   }
-#endif
 
    DSDP_CALL(DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible));
    if ( pdfeasible == DSDP_PDUNKNOWN )
@@ -1608,14 +1541,6 @@ SCIP_Bool SCIPsdpiSolverIsDualFeasible(
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED( sdpisolver );
 
-#ifndef NDEBUG
-   if (sdpisolver->infeasible)
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return FALSE;
-   }
-#endif
-
    DSDP_CALL( DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible) );
    if ( pdfeasible == DSDP_PDUNKNOWN )
    {
@@ -1637,14 +1562,6 @@ SCIP_Bool SCIPsdpiSolverIsConverged(
 
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED( sdpisolver );
-
-#ifndef NDEBUG
-   if ( sdpisolver->infeasible )
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return TRUE;
-   }
-#endif
 
    DSDP_CALL( DSDPStopReason(sdpisolver->dsdp, &reason) );
 
@@ -1673,14 +1590,6 @@ SCIP_Bool SCIPsdpiSolverIsIterlimExc(
 
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED( sdpisolver );
-
-#ifndef NDEBUG
-   if ( sdpisolver->infeasible )
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return FALSE;
-   }
-#endif
 
    DSDP_CALL(DSDPStopReason(sdpisolver->dsdp, &reason));
 
@@ -1717,14 +1626,6 @@ int SCIPsdpiSolverGetInternalStatus(
 
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED( sdpisolver );
-
-#ifndef NDEBUG
-   if ( sdpisolver->infeasible )
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return -1;
-   }
-#endif
 
    if ( sdpisolver->dsdp == NULL )
       return -1;
@@ -1778,13 +1679,6 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
    )
 {
    assert( sdpisolver != NULL );
-#ifndef NDEBUG
-   if ( sdpisolver->infeasible )
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return TRUE;
-   }
-#endif
 
    if ( SCIPsdpiSolverIsConverged(sdpisolver) )
       return TRUE;
@@ -1811,14 +1705,6 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    assert( sdpisolver != NULL );
    assert( objval != NULL );
    CHECK_IF_SOLVED( sdpisolver );
-
-#ifndef NDEBUG
-   if ( sdpisolver->infeasible )
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving, so no solution exists.");
-      return SCIP_OKAY;
-   }
-#endif
 
    DSDP_CALL( DSDPGetDObjective(sdpisolver->dsdp, objval) );
 
@@ -1848,14 +1734,6 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
    assert( sdpisolver != NULL );
    assert( dualsollength != NULL );
    CHECK_IF_SOLVED( sdpisolver );
-
-#ifndef NDEBUG
-   if ( sdpisolver->infeasible )
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving, so no solution exists.");
-      return SCIP_OKAY;
-   }
-#endif
 
    if ( objval != NULL )
    {
@@ -1972,15 +1850,6 @@ SCIP_RETCODE SCIPsdpiSolverGetIterations(
    assert( sdpisolver != NULL );
    assert( iterations != NULL );
    CHECK_IF_SOLVED( sdpisolver );
-
-#ifndef NDEBUG
-   if ( sdpisolver->infeasible )
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving, so no solution exists.");
-      *iterations = 0;
-      return SCIP_OKAY;
-   }
-#endif
 
    DSDP_CALL( DSDPGetIts(sdpisolver->dsdp, iterations) );
    return SCIP_OKAY;

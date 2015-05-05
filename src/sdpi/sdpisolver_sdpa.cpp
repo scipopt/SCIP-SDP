@@ -95,9 +95,6 @@ struct SCIP_SDPiSolver
    int                   nvarbounds;         /**< number of variable bounds given to sdpa, length of sdpavarboundpos */
    int*                  varboundpos;        /**< maps position of variable bounds in the variable bound part of the LP-block in sdpa to the sdpa-indices
                                                *  of the corresponding variables, -n means lower bound of variable n, +n means upper bound */
-#ifndef NDEBUG
-   SCIP_Bool             infeasible;         /**< true if the problem is infeasible during insertion/presolving (if constraints without active variables present) */
-#endif
    SCIP_Bool             solved;             /**< Was the SDP solved since the problem was last changed? */
    int                   sdpcounter;         /**< used for debug messages */
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
@@ -218,9 +215,6 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->varboundpos = NULL;
    (*sdpisolver)->solved = FALSE;
    (*sdpisolver)->sdpcounter = 0;
-#ifndef NDEBUG
-   (*sdpisolver)->infeasible = FALSE;
-#endif
 
    (*sdpisolver)->epsilon = 1e-3;
    (*sdpisolver)->feastol = 1e-6;
@@ -480,11 +474,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( nlpcons == 0 || lpval != NULL );
 
    checkinput = FALSE;
-
-#ifndef SCIP_DEBUG
-   sdpisolver->infeasible = FALSE;
-   checkinput = TRUE;
-#endif
 
    /* only increase the counter if we don't use the penalty formulation to stay in line with the numbers in the general interface (where this is still the
     * same SDP) */
@@ -1197,14 +1186,6 @@ SCIP_Bool SCIPsdpiSolverFeasibilityKnown(
    assert( sdpisolver->sdpa != NULL);
    CHECK_IF_SOLVED( sdpisolver );
 
-#ifndef NDEBUG
-   if ( sdpisolver->infeasible )
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return TRUE;
-   }
-#endif
-
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
    if ( phasetype == SDPA::noINFO || phasetype == SDPA::pFEAS || phasetype == SDPA::dFEAS || phasetype == SDPA::pdINF )
@@ -1228,15 +1209,6 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
    assert( primalfeasible != NULL );
    assert( dualfeasible != NULL );
    CHECK_IF_SOLVED( sdpisolver );
-
-#ifndef NDEBUG
-   if ( sdpisolver->infeasible )
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      *primalfeasible = FALSE;
-      *dualfeasible = FALSE;
-   }
-#endif
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
@@ -1315,14 +1287,6 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
    assert( sdpisolver->sdpa != NULL);
    CHECK_IF_SOLVED( sdpisolver );
 
-#ifndef NDEBUG
-   if (sdpisolver->infeasible)
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return FALSE;
-   }
-#endif
-
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
    if ( phasetype == SDPA::noINFO || phasetype == SDPA::pFEAS || phasetype == SDPA::pdINF )
@@ -1353,14 +1317,6 @@ SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
    assert( sdpisolver->sdpa != NULL);
    CHECK_IF_SOLVED( sdpisolver );
 
-#ifndef NDEBUG
-   if (sdpisolver->infeasible)
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return FALSE;
-   }
-#endif
-
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
    if ( phasetype == SDPA::noINFO || phasetype == SDPA::dFEAS || phasetype == SDPA::pdINF )
@@ -1390,14 +1346,6 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL);
    CHECK_IF_SOLVED( sdpisolver );
-
-#ifndef NDEBUG
-   if (sdpisolver->infeasible)
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return FALSE;
-   }
-#endif
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
@@ -1455,14 +1403,6 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
    assert( sdpisolver->sdpa != NULL);
    CHECK_IF_SOLVED( sdpisolver );
 
-#ifndef NDEBUG
-   if (sdpisolver->infeasible)
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return FALSE;
-   }
-#endif
-
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
    if ( phasetype == SDPA::noINFO || phasetype == SDPA::dFEAS || phasetype == SDPA::pdINF )
@@ -1492,14 +1432,6 @@ SCIP_Bool SCIPsdpiSolverIsDualInfeasible(
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL);
    CHECK_IF_SOLVED( sdpisolver );
-
-#ifndef NDEBUG
-   if (sdpisolver->infeasible)
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return TRUE;
-   }
-#endif
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
@@ -1531,14 +1463,6 @@ SCIP_Bool SCIPsdpiSolverIsDualFeasible(
    assert( sdpisolver->sdpa != NULL);
    CHECK_IF_SOLVED( sdpisolver );
 
-#ifndef NDEBUG
-   if (sdpisolver->infeasible)
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return FALSE;
-   }
-#endif
-
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
    if ( phasetype == SDPA::noINFO || phasetype == SDPA::dFEAS || phasetype == SDPA::pdINF )
@@ -1568,14 +1492,6 @@ SCIP_Bool SCIPsdpiSolverIsConverged(
    assert( sdpisolver->sdpa != NULL);
    CHECK_IF_SOLVED( sdpisolver );
 
-#ifndef NDEBUG
-   if (sdpisolver->infeasible)
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return TRUE;
-   }
-#endif
-
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
    if ( phasetype == SDPA::pdOPT )
@@ -1595,14 +1511,6 @@ SCIP_Bool SCIPsdpiSolverIsObjlimExc(
    assert( sdpisolver->sdpa != NULL);
    CHECK_IF_SOLVED( sdpisolver );
 
-#ifndef NDEBUG
-   if (sdpisolver->infeasible)
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return FALSE;
-   }
-#endif
-
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
    if ( phasetype == SDPA::pUNBD )
@@ -1621,14 +1529,6 @@ SCIP_Bool SCIPsdpiSolverIsIterlimExc(
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL);
    CHECK_IF_SOLVED( sdpisolver );
-
-#ifndef NDEBUG
-   if (sdpisolver->infeasible)
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return FALSE;
-   }
-#endif
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
@@ -1669,14 +1569,6 @@ int SCIPsdpiSolverGetInternalStatus(
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL);
    CHECK_IF_SOLVED( sdpisolver );
-
-#ifndef NDEBUG
-   if ( sdpisolver->infeasible )
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return -1;
-   }
-#endif
 
    if ( sdpisolver->sdpa == NULL )
       return -1;
@@ -1725,13 +1617,6 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL);
    CHECK_IF_SOLVED( sdpisolver );
-#ifndef NDEBUG
-   if ( sdpisolver->infeasible )
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving.");
-      return TRUE;
-   }
-#endif
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
@@ -1765,14 +1650,6 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    assert( sdpisolver->sdpa != NULL);
    assert( objval != NULL );
    CHECK_IF_SOLVED( sdpisolver );
-
-#ifndef NDEBUG
-   if ( sdpisolver->infeasible )
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving, so no solution exists.");
-      return SCIP_OKAY;
-   }
-#endif
 
    *objval = sdpisolver->sdpa->getPrimalObj();
 
@@ -1809,14 +1686,6 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
    assert( sdpisolver->sdpa != NULL);
    assert( dualsollength != NULL );
    CHECK_IF_SOLVED( sdpisolver );
-
-#ifndef NDEBUG
-   if ( sdpisolver->infeasible )
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving, so no solution exists.");
-      return SCIP_OKAY;
-   }
-#endif
 
    if ( objval != NULL )
    {
@@ -1957,15 +1826,6 @@ SCIP_RETCODE SCIPsdpiSolverGetIterations(
    assert( sdpisolver->sdpa != NULL);
    assert( iterations != NULL );
    CHECK_IF_SOLVED( sdpisolver );
-
-#ifndef NDEBUG
-   if ( sdpisolver->infeasible )
-   {
-      SCIPdebugMessage("Problem wasn't given to solver as dual infeasibility was detected during insertion/presolving, so no solution exists.");
-      *iterations = 0;
-      return SCIP_OKAY;
-   }
-#endif
 
    *iterations = sdpisolver->sdpa->getIteration();
    return SCIP_OKAY;
