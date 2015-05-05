@@ -72,9 +72,6 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPincludeBranchruleSdpmostfrac(scip) );
    SCIP_CALL( SCIPincludeBranchruleSdpmostinf(scip) );
    SCIP_CALL( SCIPincludeBranchruleSdpobjective(scip) );
-   //SCIP_CALL( SCIPincludeBranchruleSdpinfobjective(scip) );
-   //SCIP_CALL( SCIPincludeBranchruleCs(scip) );
-   //SCIP_CALL( SCIPincludeNodeselPrio(scip) );
 
    /* add parameter for SDP solver */
    SCIP_CALL( SCIPaddStringParam(scip, "sdpsolver", "SDP solver", 0, FALSE, "dsdp" , 0, 0) );
