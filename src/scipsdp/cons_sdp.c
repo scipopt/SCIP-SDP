@@ -1619,12 +1619,6 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
 
       SCIP_CALL( SCIPallocBufferArray(scip, &coeff, nvars) );
       SCIP_CALL( cutUsingEigenvector(scip, conss[i], NULL, coeff, &lhs) );
-/*TODO */
-      /* ????????????????????  */
-      if ( *result != SCIP_INFEASIBLE )
-      {
-         lhs = floor(lhs);
-      }
 
       rhs = SCIPinfinity(scip);
       conshdlrdata = SCIPconshdlrGetData(conshdlr);
