@@ -1,13 +1,13 @@
-=opt= gas1 +2.19336112070498e+02
-=opt= gas2 +3.06899061546997e+02
-=opt= maxcut1 +6.36594404451281e+03 
-=opt= maxcut2 +5.86378565623020e+03
-=opt= RIPl1 +8.63960957373039e-02
-=opt= RIPr1 -4.15822553939431e+00
+=opt= gas1 219.336112
+=opt= gas2 306.899062
+=opt= maxcut1 6365.94404
+=opt= maxcut2 5863.79051
+=opt= RIPl1 0.0863960957
+=opt= RIPr1 -4.15822554
 =opt= RIPr2 -3.66009376396311e+00
-=opt= RIPr3 -5.92904065585519e+01
-=opt= TT_2scen +3.90141627336600e+04
-=opt= TT_act +2.25291641217800e+04
-=opt= TT_beam_opt +2.55103476537173e-01
-=opt= TT_passive +2.40099972237600e+04
+=opt= RIPr3 -59.2904066
+=opt= TT_2scen 39014.1627
+=opt= TT_act 22529.1641
+=opt= TT_beam_opt 0.255094216
+=opt= TT_passive 24009.9972
 
