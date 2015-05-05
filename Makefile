@@ -164,23 +164,23 @@ SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
 
 MAINNAME	=	scipsdp
 MAINCOBJ	=	scipsdp/SdpVarmapper.o \
-			scipsdp/SdpVarfixer.o \
-			scipsdp/cons_sdp.o \
-			scipsdp/disp_sdpiterations.o \
-			scipsdp/disp_sdpavgiterations.o \
-			scipsdp/prop_sdpredcost.o \
-			scipsdp/branch_sdpmostfrac.o \
-			scipsdp/branch_sdpmostinf.o \
-			scipsdp/branch_sdpobjective.o \
-			scipsdp/branch_sdpinfobjective.o \
-			scipsdp/branch_cs.o \
+				scipsdp/SdpVarfixer.o \
+				scipsdp/cons_sdp.o \
+				scipsdp/relax_sdp.o \
+				scipsdp/disp_sdpiterations.o \
+				scipsdp/disp_sdpavgiterations.o \
+				scipsdp/prop_sdpredcost.o \
+				scipsdp/branch_sdpmostfrac.o \
+				scipsdp/branch_sdpmostinf.o \
+				scipsdp/branch_sdpobjective.o \
+				scipsdp/branch_sdpinfobjective.o \
+				scipsdp/branch_cs.o \
 	   		scipsdp/nodesel_prio.o \
-			sdpi/sdpi.o
+				sdpi/sdpi.o
 
-MAINCCOBJ =		scipsdp/main.o \
-			scipsdp/relax_sdp.o \
-			scipsdp/objreader_sdpa.o \
-			scipsdp/ScipStreamBuffer.o
+MAINCCOBJ =	scipsdp/main.o \
+				scipsdp/objreader_sdpa.o \
+				scipsdp/ScipStreamBuffer.o
 
 
 MAINCSRC	=	$(addprefix $(SRCDIR)/,$(MAINCOBJ:.o=.c))
