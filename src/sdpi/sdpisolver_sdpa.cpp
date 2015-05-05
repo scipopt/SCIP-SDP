@@ -528,6 +528,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
    assert( sdpisolver->nactivevars + nfixedvars == sdpisolver->nvars );
 
+   /* if we want to solve without objective, we reset fixedvarsobjcontr */
+   if ( ! withobj )
+      sdpisolver->fixedvarsobjcontr = 0.0;
+
    /* shrink the fixedvars and sdpatoinputmapper arrays to the right size */
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), nvars, nfixedvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->sdpatoinputmapper), nvars, sdpisolver->nactivevars) );

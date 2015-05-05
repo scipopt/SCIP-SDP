@@ -589,6 +589,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       SCIPdebugMessage("Variable %d is the slack variable for the explicit penalty formulation\n", sdpisolver->nactivevars + 1);
    }
 
+   /* if we want to solve without objective, we reset fixedvarsobjcontr */
+   if ( ! withobj )
+      sdpisolver->fixedvarsobjcontr = 0.0;
+
    /* shrink the fixedvars and dsdptoinputmapper arrays to the right size */
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), nvars, nfixedvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->dsdptoinputmapper), nvars, sdpisolver->nactivevars) );
@@ -1817,6 +1821,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
 #endif
 
    DSDP_CALL( DSDPGetDObjective(sdpisolver->dsdp, objval) );
+
    *objval = -1*(*objval); /*DSDP maximizes instead of minimizing, so the objective values were multiplied by -1 when inserted */
 
    /* as we didn't add the fixed (lb = ub) variables to dsdp, we have to add their contributions to the objective by hand */
