@@ -29,7 +29,7 @@
 /* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-//#define SCIP_DEBUG
+
 /**@file   cons_sdp.cpp
  * @brief  constraint handler for sdp-constraints
  * @author Sonja Mars
@@ -42,17 +42,16 @@
 
 #include "cons_sdp.h"
 
-#include <cassert>                      // for assert
-//#include <cmath>                        // for floor //TODO: lint says it's not needed
-#include <cstring>                      // for NULL, strcmp
+#include <assert.h>                     /* for assert */
+#include <string.h>                     /* for NULL, strcmp */
 
 #include "lapack.h"
 
 #include "scipsdp/SdpVarmapper.h"
 #include "scipsdp/SdpVarfixer.h"
 
-#include "scip/cons_linear.h"           // for SCIPcreateConsLinear
-#include "scip/scip.h"                  // for SCIPallocBufferArray, etc
+#include "scip/cons_linear.h"           /* for SCIPcreateConsLinear */
+#include "scip/scip.h"                  /* for SCIPallocBufferArray, etc */
 
 #define CONSHDLR_NAME          "SDP"
 #define CONSHDLR_DESC          "SDP constraints of the form \\sum_{j} A_j y_j - A_0 psd"
@@ -354,6 +353,9 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    SCIP_CONSDATA* consdata;
    int blocksize;
    double check_value;
+   SCIP_Real eigenvalue;
+   SCIP_Real* matrix = NULL;
+   SCIP_Real* fullmatrix = NULL;
 
    assert( scip != NULL );
    assert( cons != NULL );
@@ -364,9 +366,6 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    assert( consdata != NULL );
    blocksize = consdata->blocksize;
 
-   SCIP_Real eigenvalue;
-   SCIP_Real* matrix = NULL;
-   SCIP_Real* fullmatrix = NULL;
    SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1)) / 2) );
    SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize) );
    SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix) );
@@ -374,9 +373,9 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
 
    SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPblkmem(scip), FALSE, blocksize, fullmatrix, 1, &eigenvalue, NULL) );
 
-   // We are going to use one of the dimacs error norms for checking feasiblity.
-   // We use the second one: err=max{0, -lambda_min(x)/(1+maximumentry of rhs}
 
+
+   /* This enables checking the second DIMACS Error Norm: err=max{0, -lambda_min(x)/(1+maximumentry of rhs} */
 #ifdef DIMACS
    check_value = (-eigenvalue) / (1.0 + consdata->maxrhsentry);
 #else
@@ -400,7 +399,7 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
 
    SCIPfreeBufferArray(scip, &fullmatrix);
    SCIPfreeBufferArray(scip, &matrix);
-//TODO: checkintegrality, checklprows?
+
    return SCIP_OKAY;
 }
 
@@ -426,6 +425,8 @@ SCIP_RETCODE separateSol(
    int j;
    SCIP_COL** cols;
    SCIP_Real* vals;
+   int len;
+   SCIP_ROW* row;
 
    assert( cons != NULL );
 
@@ -440,7 +441,7 @@ SCIP_RETCODE separateSol(
    SCIP_CALL( SCIPallocBufferArray(scip, &cols, nvars ) );
    SCIP_CALL( SCIPallocBufferArray(scip, &vals, nvars ) );
 
-   int len = 0;
+   len = 0;
    for (j = 0; j < nvars; ++j)
    {
       if ( SCIPisZero(scip, coeff[j]) )
@@ -451,7 +452,6 @@ SCIP_RETCODE separateSol(
       ++len;
    }
 
-   SCIP_ROW* row;
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
 
@@ -523,10 +523,13 @@ SCIP_RETCODE diagGEzero(
    for (c = 0; c < nconss; ++c)
    {
       SCIP_CONSHDLR* conshdlr;
+#ifndef NDEBUG
+      const char* conshdlrName;
+#endif
+
       conshdlr = SCIPconsGetHdlr(conss[c]);
       assert( conshdlr != NULL );
 #ifndef NDEBUG
-      const char* conshdlrName;
       conshdlrName = SCIPconshdlrGetName(conshdlr);
       assert( strcmp(conshdlrName, "SDP") == 0);
 #endif
@@ -780,8 +783,10 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
    int count;
    int var;
    char* cutname;
+   SCIP_CONSDATA* consdata;
 #ifndef NDEBUG
    int snprintfreturn; /* used to assert the return code of snprintf */
+   const char* hdlrName;
 #endif
 
    *result = SCIP_SUCCESS;
@@ -792,12 +797,11 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
       assert(hdlr != NULL);
 
 #ifndef NDEBUG
-      const char* hdlrName;
       hdlrName = SCIPconshdlrGetName(hdlr);
       assert( strcmp(hdlrName, "SDP") == 0);
 #endif
 
-      SCIP_CONSDATA* consdata = SCIPconsGetData(conss[i]);
+      consdata = SCIPconsGetData(conss[i]);
       assert( consdata != NULL );
 
       /* if there is a 1x1 SDP-Block */
@@ -1440,11 +1444,13 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 
    SCIP_CALL( fixAndAggrVars(scip, conss, nconss, FALSE) ); /* the FALSE means we only do fixings and not (multi-)aggregations or negations */
 
+#if 0
    if ( nrounds == 0 )
    {
-      //SCIP_CALL( diagDominant(scip, conss, nconss, naddconss) ); /*TODO: could be activated for some problem classes
-      //but doesn't seem to work in the general case */
+      SCIP_CALL( diagDominant(scip, conss, nconss, naddconss) ); /* TODO: could be activated for some problem classes
+                                                                  * but doesn't work in the general case */
    }
+#endif
 
    return SCIP_OKAY;
 }
@@ -1513,12 +1519,14 @@ SCIP_DECL_CONSTRANS(consTransSdp)
 static
 SCIP_DECL_CONSCHECK(consCheckSdp)
 {
+   int i;
+
    assert( scip != NULL );
    assert( result != NULL );
 
    *result = SCIP_FEASIBLE;
 
-   for (int i = 0; i < nconss; ++i)
+   for (i = 0; i < nconss; ++i)
    {
       SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], sol, checkintegrality, checklprows, printreason, result) );
       if ( *result == SCIP_INFEASIBLE )
@@ -1584,6 +1592,14 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
 #endif
    int i;
    int j;
+   int nvars;
+   SCIP_ROW* row;
+   SCIP_Bool infeasible;
+   SCIP_Real lhs;
+   SCIP_Real* coeff;
+   SCIP_Real rhs;
+   SCIP_VAR** vars;
+   int count;
 
    assert( result != NULL );
    *result = SCIP_FEASIBLE;
@@ -1597,20 +1613,20 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
 
       all_feasible = FALSE;
 
-      int nvars = consdata->nvars;
-      SCIP_Real lhs = 0.0;
-      SCIP_Real* coeff = NULL;
+      nvars = consdata->nvars;
+      lhs = 0.0;
+      coeff = NULL;
 
       SCIP_CALL( SCIPallocBufferArray(scip, &coeff, nvars) );
       SCIP_CALL( cutUsingEigenvector(scip, conss[i], NULL, coeff, &lhs) );
-//TODO
+/*TODO */
       /* ????????????????????  */
       if ( *result != SCIP_INFEASIBLE )
       {
          lhs = floor(lhs);
       }
-      SCIP_ROW* row;
-      SCIP_Real rhs = SCIPinfinity(scip); //local modifiable, removable
+
+      rhs = SCIPinfinity(scip);
       conshdlrdata = SCIPconshdlrGetData(conshdlr);
 
       SCIP_CALL( SCIPallocBufferArray(scip, &cutname, 255) );
@@ -1638,7 +1654,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
          SCIPinfoMessage(scip, NULL, "+ (%f)*%s", coeff[j], SCIPvarGetName(consdata->vars[j]));
       SCIPinfoMessage(scip, NULL, "\n");
 #endif
-      SCIP_Bool infeasible;
+
       SCIP_CALL( SCIPaddCut(scip, NULL, row, FALSE, &infeasible) );
 
       if ( infeasible )
@@ -1661,9 +1677,8 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
    if ( separated )
       *result = SCIP_SEPARATED;
 
-   SCIP_VAR** vars;
    vars = SCIPgetVars(scip);
-   int count = 0;
+   count = 0;
    for (i = 0; i < SCIPgetNVars(scip); ++i)
    {
       if ( !SCIPisRelEQ(scip, SCIPvarGetLbLocal(vars[i]), SCIPvarGetUbLocal(vars[i])) && SCIPvarIsIntegral(vars[i]))
