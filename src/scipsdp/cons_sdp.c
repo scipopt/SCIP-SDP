@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   cons_sdp.cpp
+/**@file   cons_sdp.c
  * @brief  constraint handler for sdp-constraints
  * @author Sonja Mars
  * @author Lars Schewe
