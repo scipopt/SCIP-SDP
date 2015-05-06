@@ -373,8 +373,6 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
 
    SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPblkmem(scip), FALSE, blocksize, fullmatrix, 1, &eigenvalue, NULL) );
 
-
-
    /* This enables checking the second DIMACS Error Norm: err=max{0, -lambda_min(x)/(1+maximumentry of rhs} */
 #ifdef DIMACS
    check_value = (-eigenvalue) / (1.0 + consdata->maxrhsentry);
@@ -1206,7 +1204,7 @@ SCIP_RETCODE fixAndAggrVars(
 
             SCIPdebugMessage("Globally fixing Variable %s to value %f !\n", SCIPvarGetName(var), SCIPvarGetLbGlobal(var));
 
-            if ( ((! negated) && SCIPisGT(scip, SCIPvarGetLbGlobal(var), 0.0)) || (negated && SCIPisEQ(scip, SCIPvarGetLbGlobal(var), 0.0)) )
+            if ( ((! negated) && (! SCIPisEQ(scip, SCIPvarGetLbGlobal(var), 0.0))) || (negated && SCIPisEQ(scip, SCIPvarGetLbGlobal(var), 0.0)) )
             {
                /* the nonzeros are saved to later be inserted into the constant part (this is only done after all nonzeros of fixed variables have been
                 * assembled, because we need to sort the constant nonzeros and loop over them, which we only want to do once and not once for each fixed
