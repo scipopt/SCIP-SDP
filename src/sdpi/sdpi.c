@@ -2239,7 +2239,7 @@ SCIP_Bool SCIPsdpiIsDualFeasible(
    if (sdpi->infeasible)
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing\n");
-      return TRUE;
+      return FALSE;
    }
 
    return SCIPsdpiSolverIsDualFeasible(sdpi->sdpisolver);
