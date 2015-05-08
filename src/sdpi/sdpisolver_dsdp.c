@@ -827,7 +827,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 	   int pos;
 	   int newpos;
 	   int nlpineqs;
-	   SCIP_Bool* leqrows; /* is row i a <=-inequality (meaning we multiply with -1), only used in case of penalty-formulation with rbound = FALSE */
 
       assert( noldlpcons > 0 );
       assert( lprhs != NULL );
@@ -837,14 +836,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       /* allocate memory to save which lpconstraints are mapped to which index, entry 2i corresponds to the left hand side of row i, 2i+1 to the rhs */
       BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &rowmapper, 2*noldlpcons) );
-
-      /* allocate memory to save which constraints are <= constraints for later multiplying the coefficient of r by -1 */
-      if ( gamma > sdpisolver->epsilon && (! rbound) )
-      {
-         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &leqrows, noldlpcons) );
-      }
-      else
-         leqrows = NULL;
 
       /* compute the rowmapper and the number of inequalities we have to add to DSDP (as we have to split the ranged rows) */
       pos = 0;
@@ -856,8 +847,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
            if ( lplhs[newpos] > - SCIPsdpiSolverInfinity(sdpisolver) )
            {
               rowmapper[2*i] = pos;
-              if ( gamma > sdpisolver->epsilon && (! rbound) )
-                 leqrows[pos] = TRUE;
               pos++;
            }
            else
@@ -865,8 +854,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
            if ( lprhs[newpos] < SCIPsdpiSolverInfinity(sdpisolver) )
            {
               rowmapper[2*i + 1] = pos;
-              if ( gamma > sdpisolver->epsilon && (! rbound) )
-                 leqrows[pos] = FALSE;
               pos++;
            }
            else
@@ -1081,16 +1068,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          for (i = 0; i < nlpineqs; i++)
          {
             dsdplprow[dsdpnlpnonz] = i;
-            dsdplpval[dsdpnlpnonz] = leqrows[i] ? -1.0 : 1.0; /* for a lhs we have to multiply by -1 to get a <=-constraint */
+            dsdplpval[dsdpnlpnonz] = -1.0; /* for >=-inequalities we would add a +1, but then we have to multiply these with -1 for DSDP */
             dsdpnlpnonz++;
          }
          dsdplpbegcol[sdpisolver->nactivevars + 2] = dsdpnlpnonz;
-      }
-
-      /* free the memory for the leqrows array */
-      if ( gamma > sdpisolver->epsilon && (! rbound) )
-      {
-         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &leqrows, noldlpcons);
       }
 
       /* free the memory for the rowshifts-array */
