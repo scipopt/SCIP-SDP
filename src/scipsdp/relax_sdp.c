@@ -38,8 +38,8 @@
  */
 
 /* #define SCIP_DEBUG*/
-/* #define SCIP_MORE_DEBUG  */ /* displays complete solution for each relaxation */
-/* #define SCIP_EVEN_MORE_DEBUG  */ /* shows number of deleted empty cols/rows for every relaxation and variable status & bounds as well as all constraints in the beginning */
+/* #define SCIP_MORE_DEBUG   *//* displays complete solution for each relaxation */
+/* #define SCIP_EVEN_MORE_DEBUG  *//* shows number of deleted empty cols/rows for every relaxation and variable status & bounds as well as all constraints in the beginning */
 
 #include "relax_sdp.h"
 
@@ -56,8 +56,8 @@
 #define RELAX_PRIORITY              1
 #define RELAX_FREQ                  1
 
-#define DEFAULT_SDPSOLVEREPSILON    1e-4     /**< the stopping criterion for the duality gap the sdpsolver should use */
-#define DEFAULT_SDPSOLVERFEASTOL    0.9e-3     /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
+#define DEFAULT_SDPSOLVEREPSILON    1e-5     /**< the stopping criterion for the duality gap the sdpsolver should use */
+#define DEFAULT_SDPSOLVERFEASTOL    0.9e-4     /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
 #define DEFAULT_THREADS             1        /**< number of threads used for SDP solving */
 #define DEFAULT_OBJLIMIT            FALSE    /**< should an objective limit be given to the SDP-Solver ? */
 
@@ -519,7 +519,7 @@ SCIP_RETCODE calc_relax(
       {
          SCIPdebugMessage("Node cut off due to infeasibility.");
          *result = SCIP_CUTOFF;
-         /* need to set lowerbound? */
+         /* TODO: need to set lowerbound? */
          return SCIP_OKAY;
       }
       else if ( SCIPsdpiIsObjlimExc(sdpi) )
@@ -670,6 +670,10 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    int sense;
    SCIP_SOL* scipsol;
    SCIP_Bool stored;
+#ifdef SCIP_EVEN_MORE_DEBUG
+   SCIP_VAR** varsfordebug = SCIPgetVars(scip);
+   const int nvarsfordebug = SCIPgetNVars(scip);
+#endif
 
    /* construct the lp and make sure, that everything is where it should be */
    SCIP_CALL( SCIPconstructLP(scip, &cutoff) );
@@ -687,8 +691,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    nconss = SCIPgetNConss(scip);
 
 #ifdef SCIP_EVEN_MORE_DEBUG
-   SCIP_VAR** varsfordebug = SCIPgetVars(scip);
-   const int nvarsfordebug = SCIPgetNVars(scip);
    for (i = 0; i < nvarsfordebug; i++)
    {
       SCIPdebugMessage("variable %s: status = %u, integral = %u, bounds = [%f, %f] \n", SCIPvarGetName(varsfordebug[i]), SCIPvarGetStatus(varsfordebug[i]),

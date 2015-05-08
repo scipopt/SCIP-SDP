@@ -47,7 +47,7 @@
 
 #define BRANCHRULE_NAME            "sdpmostfrac"
 #define BRANCHRULE_DESC            "branch on the most fractional variable of the SDP"
-#define BRANCHRULE_PRIORITY        5000000
+#define BRANCHRULE_PRIORITY        500000
 #define BRANCHRULE_MAXDEPTH        -1
 #define BRANCHRULE_MAXBOUNDDIST    1.0
 

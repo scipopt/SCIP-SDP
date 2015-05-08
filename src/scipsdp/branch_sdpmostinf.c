@@ -47,7 +47,7 @@
 
 #define BRANCHRULE_NAME            "sdpmostinf"
 #define BRANCHRULE_DESC            "branch on the most infeasible variable of the SDP"
-#define BRANCHRULE_PRIORITY        2500000
+#define BRANCHRULE_PRIORITY        1000000
 #define BRANCHRULE_MAXDEPTH        -1
 #define BRANCHRULE_MAXBOUNDDIST    1.0
 
