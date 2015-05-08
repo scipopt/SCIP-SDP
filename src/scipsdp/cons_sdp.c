@@ -45,7 +45,7 @@
 #include <assert.h>                     /* for assert */
 #include <string.h>                     /* for NULL, strcmp */
 
-#include "lapack.h"
+#include "sdpi/lapack.h"
 
 #include "scipsdp/SdpVarmapper.h"
 #include "scipsdp/SdpVarfixer.h"

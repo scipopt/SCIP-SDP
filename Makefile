@@ -99,9 +99,9 @@ ifeq ($(SDPS),dsdp)
 SDPILIB		= 	-L$(SCIPSDPLIBDIR) -ldsdp -llapack -lblas
 SDPIINC		= 	-I$(SCIPSDPLIBDIR)/dsdpinc
 SDPICSRC 	= 	src/sdpi/sdpisolver_dsdp.c \
-					src/scipsdp/lapack_dsdp.c
+					src/sdpi/lapack_dsdp.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_dsdp.o \
-				$(OBJDIR)/scipsdp/lapack_dsdp.o
+				$(OBJDIR)/sdpi/lapack_dsdp.o
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/dsdpinc
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libdsdp.$(STATICLIBEXT)
 SDPIINSTMSG	=	"  -> \"dsdpinc\" is the path to the DSDP \"include\" directory, e.g., \"<DSDP-path>/include\".\n"
@@ -133,18 +133,18 @@ SDPILIB		=      -L$(SCIPSDPLIBDIR) -lsdpa -L$(SCIPSDPLIBDIR)/mumpslip -ldmumps -
 endif
 SDPIINC		=      -I$(SCIPSDPLIBDIR)/sdpainc
 SDPICCSRC 	= 	src/sdpi/sdpisolver_sdpa.cpp
-SDPICSRC		=	src/scipsdp/lapack_sdpa.c
+SDPICSRC		=	src/sdpi/lapack_sdpa.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o \
-				$(OBJDIR)/scipsdp/lapack_sdpa.o
+				$(OBJDIR)/sdpi/lapack_sdpa.o
 endif
 
 SDPIOPTIONS	+=	none
 ifeq ($(SDPS),none)
 SDPILIB		= 	-L$(SCIPSDPLIBDIR) -ldsdp -llapack -lblas
 SDPICSRC 	= 	src/sdpi/sdpisolver_none.c \
-					src/scipsdp/lapack_dsdp.c
+					src/sdpi/lapack_dsdp.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_none.o \
-				$(OBJDIR)/scipsdp/lapack_dsdp.o
+				$(OBJDIR)/sdpi/lapack_dsdp.o
 endif
 
 # include install/uninstall targets
