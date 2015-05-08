@@ -1974,13 +1974,13 @@ SCIP_RETCODE SCIPsdpiSolve(
           }
           else if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && ! feasorig )
           {
-             SCIPdebugMessage("Problem was found to be infeasible using a penalty formulation */");
+             SCIPdebugMessage("Problem was found to be infeasible using a penalty formulation \n");
              sdpi->infeasible = TRUE;
              sdpi->penalty = TRUE;
           }
           else
           {
-             SCIPdebugMessage("SDP-Solver couldnot solve that problem even after using a penalty formulation */");
+             SCIPdebugMessage("SDP-Solver couldnot solve that problem even after using a penalty formulation \n");
              sdpi->solved = FALSE;
              sdpi->penalty = TRUE;
           }
