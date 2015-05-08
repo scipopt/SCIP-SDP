@@ -53,6 +53,8 @@
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
 
+#define EPSILONCHANGE   0.1 /* change epsilon by this factor when switching from fast to default and from default to stable settings */
+#define FEASTOLCHANGE   0.1 /* change feastol by this factor when switching from fast to default and from default to stable settings */
 
 /* Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY. */
 #define BMS_CALL(x)   do                                                                                     \
@@ -1019,19 +1021,27 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* set the starting solution */
    if (start != NULL)
    {
-      //TODO: needs to be changed to y, Z and penalty formulation
+      /* TODO: needs to be changed to y, Z and penalty formulation */
       for (i = 1; i <= sdpisolver->nactivevars; i++) /* we iterate over the variables in sdpa */
          sdpisolver->sdpa->inputInitXVec(i, start[sdpisolver->sdpatoinputmapper[i] - 1]);
    }
 
    /* initialize settings */
    if ( gamma < sdpisolver->epsilon )
+   {
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_UNSTABLE_BUT_FAST);
+      sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->epsilon);
+      sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->feastol);
+   }
    else
+   {
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_STABLE_BUT_SLOW); /* if we already had problems with this problem, there is no reason to try fast */
+      /* as we want to solve with stable settings, we also update epsilon and the feasibility tolerance, as we skip the default settings, we multpy twice */
+      sdpisolver->sdpa->setParameterEpsilonStar(EPSILONCHANGE * EPSILONCHANGE * sdpisolver->epsilon);
+      sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->feastol);
+   }
    sdpisolver->sdpa->setParameterLowerBound(-1e20);
-   sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->epsilon);
-   sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->feastol);
+
    /* set the objective limit */
    if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
       sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
@@ -1072,8 +1082,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       /* initialize settings */
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_DEFAULT);
-      sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->epsilon);
-      sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->feastol);
+      sdpisolver->sdpa->setParameterEpsilonStar(EPSILONCHANGE * sdpisolver->epsilon);
+      sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * sdpisolver->feastol);
       /* set the objective limit */
       if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
          sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
@@ -1099,8 +1109,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
          /* initialize settings */
          sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_STABLE_BUT_SLOW);
-         sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->epsilon);
-         sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->feastol);
+         sdpisolver->sdpa->setParameterEpsilonStar(EPSILONCHANGE * EPSILONCHANGE * sdpisolver->epsilon);
+         sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->feastol);
          /* set the objective limit */
          if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
             sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
