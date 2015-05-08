@@ -1254,13 +1254,33 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    if ( gamma >= sdpisolver->epsilon )
    {
-      double rval;
-
-      DSDP_CALL( DSDPGetR(sdpisolver->dsdp, &rval) );
-      *feasorig = (rval < sdpisolver->feastol );
-      if ( ! *feasorig )
+      if ( rbound )
       {
-         SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", rval);
+         /* in this case we used the penalty-formulation of DSDP, so we can check their value of r */
+         double rval;
+
+         DSDP_CALL( DSDPGetR(sdpisolver->dsdp, &rval) );
+
+         *feasorig = (rval < sdpisolver->feastol );
+         if ( ! *feasorig )
+         {
+            SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", rval);
+         }
+      }
+      else
+      {
+         double* dsdpsol;
+
+         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, sdpisolver->nactivevars + 1) );
+         DSDP_CALL( DSDPGetY(sdpisolver->dsdp, dsdpsol, sdpisolver->nactivevars + 1) ); /* last entry needs to be the number of variables, will return an error otherwise */
+
+         *feasorig = (dsdpsol[sdpisolver->nactivevars] < sdpisolver->feastol); /* r is the last variable in DSDP, so the last entry gives us the value */
+         if ( ! *feasorig )
+         {
+            SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", dsdpsol[sdpisolver->nactivevars]);
+         }
+
+         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, sdpisolver->nactivevars + 1);
       }
    }
 
@@ -1706,7 +1726,6 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    CHECK_IF_SOLVED( sdpisolver );
 
    DSDP_CALL( DSDPGetDObjective(sdpisolver->dsdp, objval) );
-
    *objval = -1*(*objval); /*DSDP maximizes instead of minimizing, so the objective values were multiplied by -1 when inserted */
 
    /* as we didn't add the fixed (lb = ub) variables to dsdp, we have to add their contributions to the objective by hand */
@@ -1729,10 +1748,13 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
 {
    double* dsdpsol;
    int v;
+   int dsdpnvars;
 
    assert( sdpisolver != NULL );
    assert( dualsollength != NULL );
    CHECK_IF_SOLVED( sdpisolver );
+
+   dsdpnvars = sdpisolver->penaltyworbound ? sdpisolver->nactivevars + 1 : sdpisolver->nactivevars; /* in the first case we added r as an explicit var */
 
    if ( objval != NULL )
    {
@@ -1754,8 +1776,8 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
          return SCIP_OKAY;
       }
 
-      BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, sdpisolver->nactivevars) );
-      DSDP_CALL( DSDPGetY(sdpisolver->dsdp, dsdpsol, sdpisolver->nactivevars) ); /* last entry needs to be the number of variables, will return an error otherwise */
+      BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, dsdpnvars) );
+      DSDP_CALL( DSDPGetY(sdpisolver->dsdp, dsdpsol, dsdpnvars) ); /* last entry needs to be the number of variables, will return an error otherwise */
 
       /* insert the entries into dualsol, for non-fixed vars we copy those from dsdp, the rest are the saved entries from inserting (they equal lb=ub) */
       for (v = 0; v < sdpisolver->nvars; v++)
@@ -1771,7 +1793,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
             dualsol[v] = sdpisolver->fixedvarsval[(-1 * sdpisolver->inputtodsdpmapper[v]) - 1];
          }
       }
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, sdpisolver->nactivevars);
+      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, dsdpnvars);
    }
    return SCIP_OKAY;
 }
