@@ -32,7 +32,6 @@
 
 /* #define SCIP_DEBUG*/
 /* #define SCIP_MORE_DEBUG*/
-/*#define SCIP_DEBUG_SLATERCHECK*/
 
 /**@file   sdpi.c
  * @brief  interface for dsdp
@@ -142,6 +141,7 @@ struct SCIP_SDPi
    SCIP_Real*            lpval;              /**< values of LP-constraint matrix entries */
 
    /* other data */
+   SCIP_Bool             slatercheck;        /**< should the slater condition for the dual problem be checked ahead of each solving process */
    SCIP_Bool             solved;             /**< was the problem solved since the last change */
    SCIP_Bool             penalty;            /**< was the last solved problem a penalty formulation */
    SCIP_Bool             infeasible;         /**< was infeasibility detected in presolving */
@@ -865,6 +865,7 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->sdpnnonz = 0;
    (*sdpi)->nlpcons = 0;
    (*sdpi)->lpnnonz = 0;
+   (*sdpi)->slatercheck = FALSE;
    (*sdpi)->solved = FALSE;
    (*sdpi)->penalty = FALSE;
    (*sdpi)->infeasible = FALSE;
@@ -1769,251 +1770,253 @@ SCIP_RETCODE SCIPsdpiSolve(
    int*                  totalsdpiterations  /**< the number of sdpiterations needed will be added to the int this points to */
    )
 {
-    int block;
-    int sdpconstnnonz;
-    int* sdpconstnblocknonz;
-    int** sdpconstrow;
-    int** sdpconstcol;
-    SCIP_Real** sdpconstval;
-    int** indchanges;
-    int* nremovedinds;
-    int newiterations;
-    SCIP_Real* lplhsafterfix;
-    SCIP_Real* lprhsafterfix;
-    int* rowsnactivevars;
-    SCIP_Bool fixingfound;
-    int nactivelpcons;
-    int* blockindchanges;
-    int nremovedblocks;
-    SCIP_Bool equality;
-    int i;
+   int block;
+   int sdpconstnnonz;
+   int* sdpconstnblocknonz;
+   int** sdpconstrow;
+   int** sdpconstcol;
+   SCIP_Real** sdpconstval;
+   int** indchanges;
+   int* nremovedinds;
+   int newiterations;
+   SCIP_Real* lplhsafterfix;
+   SCIP_Real* lprhsafterfix;
+   int* rowsnactivevars;
+   SCIP_Bool fixingfound;
+   int nactivelpcons;
+   int* blockindchanges;
+   int nremovedblocks;
+   SCIP_Bool equality;
+   int i;
 
-    assert ( sdpi != NULL );
-    assert ( totalsdpiterations != NULL );
+   assert ( sdpi != NULL );
+   assert ( totalsdpiterations != NULL );
 
-    SCIPdebugMessage("Forwarding SDP %d to solver!\n", sdpi->sdpid);
-    sdpi->sdpid++;
+   SCIPdebugMessage("Forwarding SDP %d to solver!\n", sdpi->sdpid);
+   sdpi->sdpid++;
 
-    sdpconstnblocknonz = NULL;
-    sdpconstrow = NULL;
-    sdpconstcol = NULL;
-    sdpconstval = NULL;
-    indchanges = NULL;
-    nremovedinds = NULL;
-    nremovedblocks = 0;
+   sdpconstnblocknonz = NULL;
+   sdpconstrow = NULL;
+   sdpconstcol = NULL;
+   sdpconstval = NULL;
+   indchanges = NULL;
+   nremovedinds = NULL;
+   nremovedblocks = 0;
 
-    /* allocate memory for computing the constant matrix after fixings and finding empty rows and columns, this is as much as might possibly be
-     * needed, this will be shrinked again before solving */
-    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstnblocknonz, sdpi->nsdpblocks) );
-    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstrow, sdpi->nsdpblocks) );
-    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstcol, sdpi->nsdpblocks) );
-    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstval, sdpi->nsdpblocks) );
-    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &indchanges, sdpi->nsdpblocks) );
-    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &nremovedinds, sdpi->nsdpblocks) );
-    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &blockindchanges, sdpi->nsdpblocks) );
-    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &lplhsafterfix, sdpi->nlpcons) );
-    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &lprhsafterfix, sdpi->nlpcons) );
-    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &rowsnactivevars, sdpi->nlpcons) );
+   /* allocate memory for computing the constant matrix after fixings and finding empty rows and columns, this is as much as might possibly be
+    * needed, this will be shrinked again before solving */
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstnblocknonz, sdpi->nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstrow, sdpi->nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstcol, sdpi->nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstval, sdpi->nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &indchanges, sdpi->nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &nremovedinds, sdpi->nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &blockindchanges, sdpi->nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &lplhsafterfix, sdpi->nlpcons) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &lprhsafterfix, sdpi->nlpcons) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &rowsnactivevars, sdpi->nlpcons) );
 
-    for (block = 0; block < sdpi->nsdpblocks; block++)
-    {
-       sdpconstrow[block] = NULL;
-       sdpconstcol[block] = NULL;
-       sdpconstval[block] = NULL;
-       indchanges[block] = NULL;
-       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(indchanges[block]), sdpi->sdpblocksizes[block]) );
-       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) );
-       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) );
-       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) );
-    }
+   for (block = 0; block < sdpi->nsdpblocks; block++)
+   {
+      sdpconstrow[block] = NULL;
+      sdpconstcol[block] = NULL;
+      sdpconstval[block] = NULL;
+      indchanges[block] = NULL;
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(indchanges[block]), sdpi->sdpblocksizes[block]) );
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) );
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) );
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) );
+   }
 
-    /* compute the lplphss and lprhss, detect empty rows and check for additional variable fixings caused by boundchanges from
-     * lp rows with a single active variable */
-    do
-    {
-       fixingfound = FALSE;
-       SCIP_CALL( computeLpLhsRhsAfterFixings(sdpi, &nactivelpcons, lplhsafterfix, lprhsafterfix, rowsnactivevars, &fixingfound) );
-    }
-    while (fixingfound);
+   /* compute the lplphss and lprhss, detect empty rows and check for additional variable fixings caused by boundchanges from
+    * lp rows with a single active variable */
+   do
+   {
+      fixingfound = FALSE;
+      SCIP_CALL( computeLpLhsRhsAfterFixings(sdpi, &nactivelpcons, lplhsafterfix, lprhsafterfix, rowsnactivevars, &fixingfound) );
+   }
+   while (fixingfound);
 
-    /* check for equalities and infeasibilities */
-    equality = FALSE;
-    for (i = 0; i < nactivelpcons && (! sdpi->infeasible); i++)
-    {
-       if ( lprhsafterfix[i] - lplhsafterfix[i] < -sdpi->feastol )
-       {
-          SCIPdebugMessage("Problem found to be infeasible in sdpi.c, as we have an LP-constraint with lhs < rhs\n");
-          sdpi->infeasible = TRUE;
-       }
-       else if ( lprhsafterfix[i] - lplhsafterfix[i] < sdpi->feastol )
-       {
-          printf("Numerical problems, Slater condition doesn't hold because of local equality constraint");
-          SCIPdebugMessage("Immediately go to penalty formulation\n");
-          equality = TRUE;
-       }
-    }
+   /* check for equalities and infeasibilities */
+   equality = FALSE;
+   for (i = 0; i < nactivelpcons && (! sdpi->infeasible); i++)
+   {
+      if ( lprhsafterfix[i] - lplhsafterfix[i] < -sdpi->feastol )
+      {
+         SCIPdebugMessage("Problem found to be infeasible in sdpi.c, as we have an LP-constraint with lhs < rhs\n");
+         sdpi->infeasible = TRUE;
+      }
+      else if ( lprhsafterfix[i] - lplhsafterfix[i] < sdpi->feastol )
+      {
+         printf("Numerical problems, Slater condition doesn't hold because of local equality constraint");
+         SCIPdebugMessage("Immediately go to penalty formulation\n");
+         equality = TRUE;
+      }
+   }
 
-    /* initialize sdpconstnblocknonz */
-    for (block = 0; block < sdpi->nsdpblocks; block++)
-       sdpconstnblocknonz[block] = sdpi->sdpnnonz + sdpi->sdpconstnnonz;
+   /* initialize sdpconstnblocknonz */
+   for (block = 0; block < sdpi->nsdpblocks; block++)
+      sdpconstnblocknonz[block] = sdpi->sdpnnonz + sdpi->sdpconstnnonz;
 
-    SCIP_CALL( compConstMatAfterFixings(sdpi, &sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval) );
+   SCIP_CALL( compConstMatAfterFixings(sdpi, &sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval) );
 
-    /* shrink the constant arrays after the number of fixed nonzeros is known */
-    for (block = 0; block < sdpi->nsdpblocks; block++)
-    {
-       assert ( sdpconstnblocknonz[block] <= sdpi->sdpnnonz + sdpi->sdpconstnnonz ); /* otherwise the memory wasn't sufficient,
-                                                                                      * but we allocated more than enough */
-       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) );
-       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) );
-       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) );
-    }
+   /* shrink the constant arrays after the number of fixed nonzeros is known */
+   for (block = 0; block < sdpi->nsdpblocks; block++)
+   {
+      assert ( sdpconstnblocknonz[block] <= sdpi->sdpnnonz + sdpi->sdpconstnnonz ); /* otherwise the memory wasn't sufficient,
+                                                                                     * but we allocated more than enough */
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) );
+   }
 
-    SCIP_CALL (findEmptyRowColsSDP(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges, nremovedinds, blockindchanges, &nremovedblocks) );
+   SCIP_CALL (findEmptyRowColsSDP(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges, nremovedinds, blockindchanges, &nremovedblocks) );
 
-    if ( sdpi->infeasible )
-    {
-       SCIPdebugMessage("SDP %d not given to solver, as infeasibility was detected during presolving!\n", sdpi->sdpid++);
-       SCIP_CALL( SCIPsdpiSolverIncreaseCounter(sdpi->sdpisolver) );
-    }
-    else
-    {
-#ifdef SCIP_DEBUG_SLATERCHECK
-       /* if we have an equality, then there is no interior point */
-       if ( equality )
-          printf("Slater condition isn't fullfilled for SDP %d because of an equality\n", sdpi->sdpid);
-       else
-       {
-          SCIP_Real objval;
-          SCIP_Bool origfeas;
+   if ( sdpi->infeasible )
+   {
+      SCIPdebugMessage("SDP %d not given to solver, as infeasibility was detected during presolving!\n", sdpi->sdpid++);
+      SCIP_CALL( SCIPsdpiSolverIncreaseCounter(sdpi->sdpisolver) );
+   }
+   else
+   {
+      if ( sdpi->slatercheck )
+      {
+         /* if we have an equality, then there is no interior point */
+         if ( equality )
+            printf("Slater condition isn't fullfilled for SDP %d because of an equality\n", sdpi->sdpid);
+         else
+         {
+            SCIP_Real objval;
+            SCIP_Bool origfeas;
 
-          /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if we are
-           * still feasible for r < feastol, then we have an interior point with smallest eigenvalue > feastol, otherwise the slater condition is harmed */
-          SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
-                       sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
-                       sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
-                       sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-                       sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-                       rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, &origfeas) );
+            /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if we are
+             * still feasible for r < feastol, then we have an interior point with smallest eigenvalue > feastol, otherwise the slater condition is harmed */
+            SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
+                  sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
+                  sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
+                  sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
+                  sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
+                  rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, &origfeas) );
 
-          SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
+            SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
 
-          if ( objval < - sdpi->feastol )
-             printf("Slater condition for SDP %d is fullfilled for dual problem with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);
-          else
-             printf("Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, expect numerical trouble.\n",
-                   sdpi->sdpid, -1.0 * objval);
-       }
-#endif
-       /* we only try to solve it normally if there are no inequalities, otherwise the slater condition doesn't hold and we immediately
-        * go to the penalty formulation */
-       if ( ! equality )
-       {
-          SCIP_CALL( SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
-                sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
-                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
-                sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-                sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-                rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start) );
+            if ( objval < - sdpi->feastol )
+               SCIPdebugMessage("Slater condition for SDP %d is fullfilled for dual problem with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);
+            else
+               printf("Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, expect numerical trouble.\n",
+                     sdpi->sdpid, -1.0 * objval);
+         }
+      }
 
-          sdpi->penalty = FALSE;
-          sdpi->solved = TRUE;
-       }
+      /* we only try to solve it normally if there are no inequalities, otherwise the slater condition doesn't hold and we immediately
+       * go to the penalty formulation */
+      if ( ! equality )
+      {
+         SCIP_CALL( SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
+               sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
+               sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
+               sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
+               sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
+               rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start) );
 
-       /* if the solver didn't produce a satisfactory result, we have to try with penalty formulations */
-       if ( equality || (! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver)) )
-       {
-          SCIP_Real penaltyparam;
-          SCIP_Bool feasorig;
+         sdpi->penalty = FALSE;
+         sdpi->solved = TRUE;
+      }
 
-          penaltyparam = 1.0;
-          feasorig = FALSE;
+      /* if the solver didn't produce a satisfactory result, we have to try with penalty formulations */
+      if ( equality || (! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver)) )
+      {
+         SCIP_Real penaltyparam;
+         SCIP_Bool feasorig;
 
-          /* if we didn't converge, first try to check feasibility with a penalty formulation */
-          SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penalty formulation\n", sdpi->sdpid);
+         penaltyparam = 1.0;
+         feasorig = FALSE;
 
-          SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, TRUE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
-                       sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
-                       sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
-                       sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-                       sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-                       rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, &feasorig) );
+         /* if we didn't converge, first try to check feasibility with a penalty formulation */
+         SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penalty formulation\n", sdpi->sdpid);
 
-          /* if the solver converged and the solution is feasible for our original problem, the problem is feasible and we can continue to search for an
-           * optimal solution, if the solver converged but the solution isn't feasible for our original problem, the problem is infeasible, if we still
-           * didn't converge, we are out of luck */
-          if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && feasorig)
-          {
-             /* increase the penalty parameter until we are able to solve the problem and get a solution that is feasible for our original problem and the problem
-              * isn't unbounded (this can be caused by a too small penalty parameter) or the penalty parameter gets too large */
-             do
-             {
-                SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penaltyparameter %f\n", sdpi->sdpid, penaltyparam);
+         SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, TRUE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
+               sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
+               sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
+               sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
+               sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
+               rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, &feasorig) );
 
-                SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, penaltyparam, TRUE, TRUE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
-                      sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
-                      sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
-                      sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-                      sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-                      rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, &feasorig) );
+         /* if the solver converged and the solution is feasible for our original problem, the problem is feasible and we can continue to search for an
+          * optimal solution, if the solver converged but the solution isn't feasible for our original problem, the problem is infeasible, if we still
+          * didn't converge, we are out of luck */
+         if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && feasorig)
+         {
+            /* increase the penalty parameter until we are able to solve the problem and get a solution that is feasible for our original problem and the problem
+             * isn't unbounded (this can be caused by a too small penalty parameter) or the penalty parameter gets too large */
+            do
+            {
+               SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penaltyparameter %f\n", sdpi->sdpid, penaltyparam);
 
-                penaltyparam *= 10.0;
-             }
-             while ( (! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) || ! feasorig || SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver))  &&
-                      ! SCIPsdpiSolverIsGEMaxPenParam(sdpi->sdpisolver, penaltyparam) );
+               SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, penaltyparam, TRUE, TRUE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
+                     sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
+                     sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
+                     sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
+                     sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
+                     rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, &feasorig) );
 
-             /* check if we were able to solve the problem in the end */
-             if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && feasorig )
-                sdpi->penalty = TRUE;
-             else
-             {
-                // TODO: Do we want to give the computed lower bound? Do we want to tell that we showed that the problem is feasible?
-                sdpi->solved = FALSE;
-                sdpi->penalty = TRUE;
-             }
-          }
-          else if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && ! feasorig )
-          {
-             SCIPdebugMessage("Problem was found to be infeasible using a penalty formulation \n");
-             sdpi->infeasible = TRUE;
-             sdpi->penalty = TRUE;
-          }
-          else
-          {
-             SCIPdebugMessage("SDP-Solver couldnot solve that problem even after using a penalty formulation \n");
-             sdpi->solved = FALSE;
-             sdpi->penalty = TRUE;
-          }
-       }
-    }
+               penaltyparam *= 10.0;
+            }
+            while ( (! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) || ! feasorig || SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver))  &&
+                     ! SCIPsdpiSolverIsGEMaxPenParam(sdpi->sdpisolver, penaltyparam) );
 
-    /* empty the memory allocated here */
-    for (block = 0; block < sdpi->nsdpblocks; block++)
-    {
-       BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpconstnblocknonz[block]);
-       BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpconstnblocknonz[block]);
-       BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpconstnblocknonz[block]);
-       BMSfreeBlockMemoryArray(sdpi->blkmem, &(indchanges[block]), sdpi->sdpblocksizes[block]);
-    }
-    BMSfreeBlockMemoryArray(sdpi->blkmem, &rowsnactivevars, sdpi->nlpcons);
-    BMSfreeBlockMemoryArray(sdpi->blkmem, &lprhsafterfix, sdpi->nlpcons);
-    BMSfreeBlockMemoryArray(sdpi->blkmem, &lplhsafterfix, sdpi->nlpcons);
-    BMSfreeBlockMemoryArray(sdpi->blkmem, &blockindchanges, sdpi->nsdpblocks);
-    BMSfreeBlockMemoryArray(sdpi->blkmem, &nremovedinds, sdpi->nsdpblocks);
-    BMSfreeBlockMemoryArray(sdpi->blkmem, &indchanges, sdpi->nsdpblocks);
-    BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstval, sdpi->nsdpblocks);
-    BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstcol, sdpi->nsdpblocks);
-    BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstrow, sdpi->nsdpblocks);
-    BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstnblocknonz, sdpi->nsdpblocks);
+            /* check if we were able to solve the problem in the end */
+            if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && feasorig )
+               sdpi->penalty = TRUE;
+            else
+            {
+               /* TODO: Do we want to give the computed lower bound? Do we want to tell that we showed that the problem is feasible? */
+               sdpi->solved = FALSE;
+               sdpi->penalty = TRUE;
+            }
+         }
+         else if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && ! feasorig )
+         {
+            SCIPdebugMessage("Problem was found to be infeasible using a penalty formulation \n");
+            sdpi->infeasible = TRUE;
+            sdpi->penalty = TRUE;
+         }
+         else
+         {
+            SCIPdebugMessage("SDP-Solver couldnot solve that problem even after using a penalty formulation \n");
+            sdpi->solved = FALSE;
+            sdpi->penalty = TRUE;
+         }
+      }
+   }
 
-    /* add the iterations needed to solve this SDP */
-    if ( ! sdpi->infeasible )
-    {
-       SCIP_CALL( SCIPsdpiSolverGetIterations(sdpi->sdpisolver, &newiterations) );
-       *totalsdpiterations += newiterations;
-    }
+   /* empty the memory allocated here */
+   for (block = 0; block < sdpi->nsdpblocks; block++)
+   {
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpconstnblocknonz[block]);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpconstnblocknonz[block]);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpconstnblocknonz[block]);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(indchanges[block]), sdpi->sdpblocksizes[block]);
+   }
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &rowsnactivevars, sdpi->nlpcons);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &lprhsafterfix, sdpi->nlpcons);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &lplhsafterfix, sdpi->nlpcons);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &blockindchanges, sdpi->nsdpblocks);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &nremovedinds, sdpi->nsdpblocks);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &indchanges, sdpi->nsdpblocks);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstval, sdpi->nsdpblocks);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstcol, sdpi->nsdpblocks);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstrow, sdpi->nsdpblocks);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstnblocknonz, sdpi->nsdpblocks);
 
-    return SCIP_OKAY;
+   /* add the iterations needed to solve this SDP */
+   if ( ! sdpi->infeasible )
+   {
+      SCIP_CALL( SCIPsdpiSolverGetIterations(sdpi->sdpisolver, &newiterations) );
+      *totalsdpiterations += newiterations;
+   }
+
+   return SCIP_OKAY;
 }
 
 
@@ -2601,15 +2604,21 @@ SCIP_RETCODE SCIPsdpiGetIntpar(
    case SCIP_SDPPAR_SDPINFO:
       SCIP_CALL_PARAM( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, ival) );
       break;
+   case SCIP_SDPPAR_SLATERCHECK:
+      *ival = sdpi->slatercheck;
+      break;
    default:
       return SCIP_PARAMETERUNKNOWN;
    }
 
 #ifndef NDEBUG
    {
-      int val;
-      SCIP_CALL_PARAM( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, &val) );
-      assert( *ival == val );
+      if ( type != SCIP_SDPPAR_SLATERCHECK )
+      {
+         int val;
+         SCIP_CALL_PARAM( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, &val) );
+         assert( *ival == val );
+      }
    }
 #endif
 
@@ -2632,7 +2641,12 @@ SCIP_RETCODE SCIPsdpiSetIntpar(
       SCIP_CALL_PARAM( SCIPsdpiSolverSetIntpar(sdpi->sdpisolver, type, ival) );
       break;
    case SCIP_SDPPAR_SDPINFO:
+      assert( ival == 0 || ival == 1 ); /* this is a boolean parameter */
       SCIP_CALL_PARAM( SCIPsdpiSolverSetIntpar(sdpi->sdpisolver, type, ival) );
+      break;
+   case SCIP_SDPPAR_SLATERCHECK:
+      assert( ival == 0 || ival == 1 ); /* this is a boolean parameter */
+      sdpi->slatercheck = ival;
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;
@@ -2640,9 +2654,12 @@ SCIP_RETCODE SCIPsdpiSetIntpar(
 
 #ifndef NDEBUG
    {
-      int val;
-      SCIP_CALL_PARAM( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, &val) );
-      assert( ival == val);
+      if ( type != SCIP_SDPPAR_SLATERCHECK )
+      {
+         int val;
+         SCIP_CALL_PARAM( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, &val) );
+         assert( ival == val );
+      }
    }
 #endif
 
