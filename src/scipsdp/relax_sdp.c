@@ -432,6 +432,12 @@ SCIP_RETCODE calc_relax(
    int v;
    SCIP_SDPI* sdpi;
    SdpVarmapper* varmapper;
+#ifdef SCIP_MORE_DEBUG
+   SCIP_Real objforscip;
+   SCIP_Real* solforscip;
+   SCIP_Bool allint;
+   int sollength;
+#endif
 
    SCIPdebugMessage("calc_relax called\n");
 
@@ -481,10 +487,6 @@ SCIP_RETCODE calc_relax(
    }
 
 #ifdef SCIP_MORE_DEBUG /* print the optimal solution */
-   SCIP_Real objforscip;
-   SCIP_Real* solforscip;
-   SCIP_Bool allint;
-   int sollength;
 
    SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
    sollength = nvars;
