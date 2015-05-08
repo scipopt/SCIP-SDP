@@ -547,7 +547,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
                }
                /* check for the right-hand-side */
                if ( (lprhsafterfix[*nactivelpcons] < SCIPsdpiInfinity(sdpi)) &&
-                    ((lprhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] - sdpi->feastol) )
+                    ((lprhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] + sdpi->feastol) )
                {
                   /* this bound is sharper than the original one */
                   SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
@@ -1793,7 +1793,6 @@ SCIP_RETCODE SCIPsdpiSolve(
    assert ( totalsdpiterations != NULL );
 
    SCIPdebugMessage("Forwarding SDP %d to solver!\n", sdpi->sdpid);
-   sdpi->sdpid++;
 
    sdpconstnblocknonz = NULL;
    sdpconstrow = NULL;
@@ -2015,6 +2014,8 @@ SCIP_RETCODE SCIPsdpiSolve(
       SCIP_CALL( SCIPsdpiSolverGetIterations(sdpi->sdpisolver, &newiterations) );
       *totalsdpiterations += newiterations;
    }
+
+   sdpi->sdpid++;
 
    return SCIP_OKAY;
 }
