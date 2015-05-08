@@ -1134,6 +1134,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       /* we get r as the last variable in SDPA */
       *feasorig = (sdpasol[sdpisolver->nactivevars] < sdpisolver->feastol);
+      if ( ! *feasorig )
+      {
+         SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", sdpasol[sdpisolver->nactivevars]);
+      }
    }
 
    return SCIP_OKAY;

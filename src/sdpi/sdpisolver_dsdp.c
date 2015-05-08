@@ -1258,6 +1258,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       DSDP_CALL( DSDPGetR(sdpisolver->dsdp, &rval) );
       *feasorig = (rval < sdpisolver->feastol );
+      if ( ! *feasorig )
+      {
+         SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", rval);
+      }
    }
 
    return SCIP_OKAY;
@@ -1511,6 +1515,7 @@ SCIP_Bool SCIPsdpiSolverIsDualInfeasible(
    CHECK_IF_SOLVED( sdpisolver );
 
    DSDP_CALL(DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible));
+
    if ( pdfeasible == DSDP_PDUNKNOWN )
    {
       SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible");
@@ -1534,6 +1539,7 @@ SCIP_Bool SCIPsdpiSolverIsDualFeasible(
    CHECK_IF_SOLVED( sdpisolver );
 
    DSDP_CALL( DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible) );
+
    if ( pdfeasible == DSDP_PDUNKNOWN )
    {
       SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible");
