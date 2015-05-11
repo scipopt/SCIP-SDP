@@ -43,7 +43,7 @@
 
 #include "relax_sdp.h"
 
-#include "assert.h"                     /* for assert */
+#include "assert.h"                     /*lint !e451*/
 #include "string.h"                     /* for strcmp */
 
 #include "SdpVarmapper.h"
@@ -312,7 +312,8 @@ SCIP_RETCODE putLpDataInInterface(
    assert( sdpi != NULL );
    assert( varmapper != NULL );
 
-   nvars = SCIPgetNVars(scip); /* or get these from the varmapper, depending on how it is done in the SDP-part */
+   nvars = SCIPgetNVars(scip);
+   assert( nvars > 0 );
 
    SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
 
@@ -383,8 +384,6 @@ SCIP_RETCODE putLpDataInInterface(
    /* update the bounds */
 
    /* get the variables */
-   nvars = SCIPgetNVars(scip);
-   assert( nvars > 0 );
    vars = SCIPgetVars(scip);
    assert( vars != NULL );
 
@@ -617,7 +616,7 @@ SCIP_RETCODE calc_relax(
                if ( SCIPvarIsIntegral(var) && ! SCIPisFeasIntegral(scip, solforscip[i]) && ! SCIPisEQ(scip, SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var)) )
                {
                   /* we don't set a true score, we will just let the heuristic decide */
-                  SCIP_CALL( SCIPaddExternBranchCand(scip, var, 10000, solforscip[i]) );
+                  SCIP_CALL( SCIPaddExternBranchCand(scip, var, 10000.0, solforscip[i]) );
                }
             }
          }
@@ -668,7 +667,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    SCIP_VAR** vars;
    SCIP_Real* ubs;
    SCIP_Bool cutoff;
-   int sense;
    SCIP_SOL* scipsol;
    SCIP_Bool stored;
 #ifdef SCIP_EVEN_MORE_DEBUG
@@ -724,8 +722,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
          *lowerbound += SCIPvarGetObj(vars[i]) * ubs[i];
          assert( SCIPisEQ(scip, SCIPvarGetUbLocal(vars[i]), SCIPvarGetLbLocal(vars[i])));
       }
-      sense = SCIPgetObjsense(scip);
-      if ( sense == -1 )
+      if ( SCIPgetObjsense(scip) == -1 ) /*lint !e641*/
          *lowerbound *= -1;
 
       SCIPdebugMessage("EVERYTHING IS FIXED, objective value = %f\n", *lowerbound);
@@ -736,6 +733,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       /* check if the solution really is feasible */
       SCIP_CALL( SCIPcheckSol(scip, scipsol, FALSE, TRUE, TRUE, TRUE, &feasible) );
 
+      stored = FALSE;
       if ( feasible )
       {
          SCIP_CALL( SCIPtrySolFree(scip, &scipsol, FALSE, FALSE, FALSE, FALSE, &stored) );
@@ -746,9 +744,15 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       }
 
       if (feasible && stored == 1)
+      {
          *result = SCIP_CUTOFF;
+         SCIPdebugMessage("New solution was stored, node is cut off !\n");
+      }
       else
+      {
          *result = SCIP_CUTOFF;
+         SCIPdebugMessage("Fixed solution either infeasible or not good enough for storage, node cut off !\n");
+      }
 
       SCIPfreeBlockMemoryArray(scip, &ubs, nvars);
 
@@ -800,8 +804,8 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
    nvars = SCIPgetNVars(scip);
    vars = SCIPgetVars(scip);
 
-   SCIP_CALL( SdpVarmapperCreate(scip, &(relaxdata->varmapper), ceil(1.33 * nvars)) ); /* all SCIPvars will be added to this list, and 3/4 seems
-                                                                                        * like a good load factor (java uses this factor) */
+   SCIP_CALL( SdpVarmapperCreate(scip, &(relaxdata->varmapper), (int) ceil(1.33 * nvars)) ); /* all SCIPvars will be added to this list, and 3/4 seems
+                                                                                              * like a good load factor (java uses this factor) */
    SCIP_CALL( SdpVarmapperAddVars(scip, relaxdata->varmapper, nvars, vars) );
 
    if ( SCIPgetNVars(scip) > 0 )
@@ -886,7 +890,7 @@ SCIP_DECL_RELAXCOPY(relaxCopySdp)
    assert( relax != NULL );
    assert(strcmp(SCIPrelaxGetName(relax), RELAX_NAME) == 0);
 
-   SCIPincludeRelaxSdp(scip);
+   SCIP_CALL( SCIPincludeRelaxSdp(scip) );
 
    return SCIP_OKAY;
 }
@@ -923,7 +927,7 @@ SCIP_DECL_RELAXEXIT(relaxExitSdp)
 /** free the relaxator's data */
 static
 SCIP_DECL_RELAXFREE(relaxFreeSdp)
-{
+{/*lint --e{715}*/
    SCIP_RELAXDATA* relaxdata;
 
    relaxdata = SCIPrelaxGetData(relax);
