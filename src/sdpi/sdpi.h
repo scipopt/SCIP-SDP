@@ -612,7 +612,7 @@ SCIP_Bool SCIPsdpiIsGEMaxPenParam(
 EXTERN
 SCIP_RETCODE SCIPsdpiGetRealpar(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_LPPARAM          type,               /**< parameter number */
+   SCIP_SDPPARAM         type,               /**< parameter number */
    SCIP_Real*            dval                /**< buffer to store the parameter value */
    );
 

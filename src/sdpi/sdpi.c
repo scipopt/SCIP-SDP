@@ -495,7 +495,9 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
    *nactivelpcons = 0;
 
    /* sort the lp arrays by row indices */
+#if 0 /* TODO thoroughly test this */
    SCIPsortIntIntReal(sdpi->lprow, sdpi->lpcol, sdpi->lpval, sdpi->lpnnonz);
+#endif
 
    for (i = 0; i < sdpi->lpnnonz; i++)
    {
@@ -1320,27 +1322,28 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
    assert ( col != NULL );
    assert ( val != NULL );
 
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lplhs), sdpi->nlpcons, sdpi->nlpcons + nrows) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons, sdpi->nlpcons + nrows) );
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lplhs), sdpi->nlpcons, sdpi->nlpcons + nrows) ); /*lint !e776*/
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons, sdpi->nlpcons + nrows) ); /*lint !e776*/
    for (i = 0; i < nrows; i++)
    {
       sdpi->lplhs[sdpi->nlpcons + i] = lhs[i];
       sdpi->lprhs[sdpi->nlpcons + i] = rhs[i];
    }
 
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz, sdpi->lpnnonz + nnonz) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz, sdpi->lpnnonz + nnonz) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, sdpi->lpnnonz + nnonz) );
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz, sdpi->lpnnonz + nnonz) ); /*lint !e776*/
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz, sdpi->lpnnonz + nnonz) ); /*lint !e776*/
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, sdpi->lpnnonz + nnonz) ); /*lint !e776*/
 
    for (i = 0; i < nnonz; i++)
    {
       assert ( 0 <= row[i] && row[i] < nrows );
-      sdpi->lprow[sdpi->lpnnonz + i] = row[i] + sdpi->nlpcons; /* the new rows are added at the end, so the row indices are increased by the old
-                                                                * number of LP-constraints */
+      /* the new rows are added at the end, so the row indices are increased by the old number of LP-constraints */
+      sdpi->lprow[sdpi->lpnnonz + i] = row[i] + sdpi->nlpcons; /*lint !e776*/
 
       assert ( 0 <= col[i] && col[i] < sdpi->nvars ); /* only existing vars should be added to the LP-constraints */
-      sdpi->lpcol[sdpi->lpnnonz + i] = col[i];
-      sdpi->lpval[sdpi->lpnnonz + i] = val[i];
+      sdpi->lpcol[sdpi->lpnnonz + i] = col[i]; /*lint !e776*/
+
+      sdpi->lpval[sdpi->lpnnonz + i] = val[i]; /*lint !e776*/
    }
 
    sdpi->nlpcons = sdpi->nlpcons + nrows;
@@ -1396,17 +1399,17 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
       return SCIP_OKAY;
    }
 
-   deletedrows = lastrow - firstrow + 1;
+   deletedrows = lastrow - firstrow + 1; /*lint !e834*/
    deletednonz = 0;
 
    /* first delete the left- and right-hand-sides */
    for (i = lastrow + 1; i < sdpi->nlpcons; i++) /* shift all rhs after the deleted rows */
    {
-      sdpi->lplhs[i - deletedrows] = sdpi->lplhs[i];
-      sdpi->lprhs[i - deletedrows] = sdpi->lprhs[i];
+      sdpi->lplhs[i - deletedrows] = sdpi->lplhs[i]; /*lint !e679*/
+      sdpi->lprhs[i - deletedrows] = sdpi->lprhs[i]; /*lint !e679*/
    }
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lplhs), sdpi->nlpcons, sdpi->nlpcons - deletedrows));
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons, sdpi->nlpcons - deletedrows));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lplhs), sdpi->nlpcons, sdpi->nlpcons - deletedrows)); /*lint !e776*/
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons, sdpi->nlpcons - deletedrows)); /*lint !e776*/
 
    /* for deleting and reordering the lpnonzeroes, the arrays first have to be sorted to have the rows to be deleted together */
    SCIPsortIntIntReal(sdpi->lprow, sdpi->lpcol, sdpi->lpval, sdpi->lpnnonz); /* sort all arrays by non-decreasing row indices */
@@ -1429,24 +1432,24 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
       /* now find the last occurence of one of the rows (as these are sorted all in between also belong to deleted rows and will be removed) */
       while (i < sdpi->lpnnonz && sdpi->lprow[i] <= lastrow)
       {
-         lastrowind++;
+         lastrowind++; /*lint !e644*/
          i++;
       }
-      deletednonz = lastrowind - firstrowind + 1;
+      deletednonz = lastrowind - firstrowind + 1; /*lint !e834*/
 
       /* finally shift all LP-array-entries after the deleted rows */
       for (i = lastrowind + 1; i < sdpi->lpnnonz; i++)
       {
-         sdpi->lpcol[i - deletednonz] = sdpi->lpcol[i];
-         sdpi->lprow[i - deletednonz] = sdpi->lprow[i] - deletedrows; /* all rowindices after the deleted ones have to be lowered to still have ongoing
-                                                                       * indices from 0 to nlpcons-1 */
-         sdpi->lpval[i - deletednonz] = sdpi->lpval[i];
+         sdpi->lpcol[i - deletednonz] = sdpi->lpcol[i]; /*lint !e679*/
+         /* all rowindices after the deleted ones have to be lowered to still have ongoing indices from 0 to nlpcons-1 */
+         sdpi->lprow[i - deletednonz] = sdpi->lprow[i] - deletedrows;  /*lint !e679*/
+         sdpi->lpval[i - deletednonz] = sdpi->lpval[i]; /*lint !e679*/
       }
    }
 
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz, sdpi->lpnnonz - deletednonz));
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz, sdpi->lpnnonz - deletednonz));
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, sdpi->lpnnonz - deletednonz));
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz, sdpi->lpnnonz - deletednonz)); /*lint !e776*/
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz, sdpi->lpnnonz - deletednonz)); /*lint !e776*/
+   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, sdpi->lpnnonz - deletednonz)); /*lint !e776*/
    sdpi->nlpcons = sdpi->nlpcons - deletedrows;
    sdpi->lpnnonz = sdpi->lpnnonz - deletednonz;
 
@@ -1480,8 +1483,8 @@ SCIP_RETCODE SCIPsdpiDelLPRowset(
    {
       if (dstat[i] == 1)
       {
-         SCIPsdpiDelLPRows(sdpi, i - deletedrows, i - deletedrows); /* delete this row, it is shifted by - deletedrows, because in this
-                                                                             * problem the earlier rows have already been deleted */
+         /* delete this row, it is shifted by - deletedrows, because in this problem the earlier rows have already been deleted */
+         SCIP_CALL( SCIPsdpiDelLPRows(sdpi, i - deletedrows, i - deletedrows) );
          dstat[i] = -1;
          deletedrows++;
       }
@@ -1506,7 +1509,7 @@ SCIP_RETCODE SCIPsdpiClear(
 
    /* we reset all counters */
    sdpi->sdpid = 1;
-   SCIPsdpiSolverResetCounter(sdpi->sdpisolver);
+   SCIP_CALL( SCIPsdpiSolverResetCounter(sdpi->sdpisolver) );
 
    return SCIP_OKAY;
 }
@@ -1673,8 +1676,8 @@ SCIP_RETCODE SCIPsdpiGetObj(
    assert( lastvar < sdpi->nvars);
    assert( vals != NULL );
 
-   for (i = 0; i < lastvar - firstvar + 1; i++)
-      vals[i] = sdpi->obj[firstvar + i];
+   for (i = 0; i < lastvar - firstvar + 1; i++) /*lint !e834*/
+      vals[i] = sdpi->obj[firstvar + i]; /*lint !e679*/
 
    return SCIP_OKAY;
 }
@@ -1697,12 +1700,12 @@ SCIP_RETCODE SCIPsdpiGetBounds(
    assert( lbs != NULL );
    assert( ubs != NULL );
 
-   for (i = 0; i < lastvar - firstvar + 1; i++)
+   for (i = 0; i < lastvar - firstvar + 1; i++) /*lint !e834*/
    {
       if (lbs != NULL)
-         lbs[i] = sdpi->lb[firstvar + i];
+         lbs[i] = sdpi->lb[firstvar + i]; /*lint !e679*/
       if (ubs != NULL)
-         ubs[i] = sdpi->ub[firstvar + i];
+         ubs[i] = sdpi->ub[firstvar + i]; /*lint !e679*/
    }
    return SCIP_OKAY;
 }
@@ -1723,8 +1726,8 @@ SCIP_RETCODE SCIPsdpiGetLhSides(
    assert( lastrow < sdpi->nlpcons);
    assert( lhss != NULL );
 
-   for (i = 0; i < lastrow - firstrow + 1; i++)
-      lhss[firstrow + i] = sdpi->lplhs[i];
+   for (i = 0; i < lastrow - firstrow + 1; i++) /*lint !e834*/
+      lhss[firstrow + i] = sdpi->lplhs[i]; /*lint !e679*/
 
    return SCIP_OKAY;
 }
@@ -1745,8 +1748,8 @@ SCIP_RETCODE SCIPsdpiGetRhSides(
    assert( lastrow < sdpi->nlpcons);
    assert( rhss != NULL );
 
-   for (i = 0; i < lastrow - firstrow + 1; i++)
-      rhss[firstrow + i] = sdpi->lprhs[i];
+   for (i = 0; i < lastrow - firstrow + 1; i++) /*lint !e834*/
+      rhss[firstrow + i] = sdpi->lprhs[i]; /*lint !e679*/
 
    return SCIP_OKAY;
 }
@@ -1822,9 +1825,9 @@ SCIP_RETCODE SCIPsdpiSolve(
       sdpconstval[block] = NULL;
       indchanges[block] = NULL;
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(indchanges[block]), sdpi->sdpblocksizes[block]) );
-      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) );
-      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) );
-      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) );
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) ); /*lint !e776*/
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) ); /*lint !e776*/
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) ); /*lint !e776*/
    }
 
    /* compute the lplphss and lprhss, detect empty rows and check for additional variable fixings caused by boundchanges from
@@ -1864,9 +1867,9 @@ SCIP_RETCODE SCIPsdpiSolve(
    {
       assert ( sdpconstnblocknonz[block] <= sdpi->sdpnnonz + sdpi->sdpconstnnonz ); /* otherwise the memory wasn't sufficient,
                                                                                      * but we allocated more than enough */
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) );
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) );
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) ); /*lint !e776*/
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) ); /*lint !e776*/
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) ); /*lint !e776*/
    }
 
    SCIP_CALL (findEmptyRowColsSDP(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges, nremovedinds, blockindchanges, &nremovedblocks) );
@@ -2047,7 +2050,7 @@ SCIP_Bool SCIPsdpiSolvedOrig(
 {
    assert ( sdpi != NULL );
 
-   return sdpi->epsilon;
+   return (sdpi->penalty );
 }
 
 /** returns true if the solver could determine whether or not the problem is feasible, so it returns true if the
@@ -2092,7 +2095,6 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
  *  this does not necessarily mean, that the solver knows and can return the primal ray
  *  this is not implemented for all Solvers, always returns false (and a debug message) if it isn't
  */
-EXTERN
 SCIP_Bool SCIPsdpiExistsPrimalRay(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
@@ -2106,7 +2108,6 @@ SCIP_Bool SCIPsdpiExistsPrimalRay(
  *  and the solver knows and can return the primal ray
  *  this is not implemented for all Solvers, always returns false (and a debug message) if it isn't
  */
-EXTERN
 SCIP_Bool SCIPsdpiHasPrimalRay(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
@@ -2173,11 +2174,10 @@ SCIP_Bool SCIPsdpiIsPrimalFeasible(
  *  this does not necessarily mean, that the solver knows and can return the dual ray
  *  this is not implemented for all Solvers, will always return false (and a debug message) if it isn't
  */
-EXTERN
 SCIP_Bool SCIPsdpiExistsDualRay(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
-{
+{/*lint --e{715}*/
    SCIPdebugMessage("Not implemented in DSDP!\n");
    return FALSE;
 }
@@ -2186,11 +2186,10 @@ SCIP_Bool SCIPsdpiExistsDualRay(
  *  and the solver knows and can return the dual ray
  *  this is not implemented for all Solvers, will always return false (and a debug message) if it isn't
  */
-EXTERN
 SCIP_Bool SCIPsdpiHasDualRay(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
-{
+{/*lint --e{715}*/
    SCIPdebugMessage("Not implemented in DSDP!\n");
    return FALSE;
 }
@@ -2304,7 +2303,7 @@ SCIP_Bool SCIPsdpiIsIterlimExc(
 SCIP_Bool SCIPsdpiIsTimelimExc(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
-{
+{/*lint --e{715}*/
    SCIPdebugMessage("Not implemented!\n");
    return SCIP_LPERROR;
 }
@@ -2432,7 +2431,7 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
       return SCIP_OKAY;
    }
 
-   SCIPsdpiSolverGetPrimalBoundVars(sdpi->sdpisolver, lbvars, ubvars, arraylength);
+   SCIP_CALL( SCIPsdpiSolverGetPrimalBoundVars(sdpi->sdpisolver, lbvars, ubvars, arraylength) );
 
    return SCIP_OKAY;
 }
@@ -2514,7 +2513,7 @@ SCIP_Bool SCIPsdpiIsGEMaxPenParam(
 /** gets floating point parameter of SDP */
 SCIP_RETCODE SCIPsdpiGetRealpar(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_LPPARAM          type,               /**< parameter number */
+   SCIP_SDPPARAM         type,               /**< parameter number */
    SCIP_Real*            dval                /**< buffer to store the parameter value */
    )
 {
@@ -2523,7 +2522,7 @@ SCIP_RETCODE SCIPsdpiGetRealpar(
    assert( dval != NULL );
 
    switch( type )
-   {
+   {/*lint --e{788}*/
    case SCIP_SDPPAR_EPSILON:
       *dval = sdpi->epsilon;
       break;
@@ -2559,7 +2558,7 @@ SCIP_RETCODE SCIPsdpiSetRealpar(
    assert( sdpi->sdpisolver != NULL );
 
    switch( type )
-   {
+   {/*lint --e{788}*/
    case SCIP_SDPPAR_EPSILON:
       sdpi->epsilon = dval;
       SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
@@ -2598,7 +2597,7 @@ SCIP_RETCODE SCIPsdpiGetIntpar(
    assert( ival != NULL );
 
    switch( type )
-   {
+   {/*lint --e{788}*/
    case SCIP_SDPPAR_THREADS:
       SCIP_CALL_PARAM( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, ival) );
       break;
@@ -2637,7 +2636,7 @@ SCIP_RETCODE SCIPsdpiSetIntpar(
    assert( sdpi->sdpisolver != NULL );
 
    switch( type )
-   {
+   {/*lint --e{788}*/
    case SCIP_SDPPAR_THREADS:
       SCIP_CALL_PARAM( SCIPsdpiSolverSetIntpar(sdpi->sdpisolver, type, ival) );
       break;
@@ -2684,7 +2683,7 @@ SCIP_RETCODE SCIPsdpiReadSDP(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    const char*           fname               /**< file name */
    )
-{
+{/*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
    return SCIP_LPERROR;
 }
@@ -2694,7 +2693,7 @@ SCIP_RETCODE SCIPsdpiWriteSDP(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    const char*           fname               /**< file name */
    )
-{
+{/*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
    return SCIP_LPERROR;
 }
