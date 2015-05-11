@@ -98,7 +98,8 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
    int                   targetmemory        /**< amount of memory allocated for targetrow, -col, -val, if this isn't sufficient targetlength will
                                               *   return the needed amount and a corresponding debug message will be thrown */
    )
-{
+{  /*lint --e{679}*/
+   /*lint --e{850}*/
    int ind;
    int i;
    int nleftshifts; /* if some nonzeros of the target arrays get deleted, this saves the number of spots the following entries have to be moved
