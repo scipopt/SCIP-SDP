@@ -38,10 +38,10 @@
 #include "prop_sdpredcost.h"
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "relax_sdp.h"                       /* to get relaxation value */
-#include "sdpi/sdpi.h"               /* to get values of primal variables */
+#include "sdpi/sdpi.h"                       /* to get values of primal variables */
 
 #include <string.h>
-#include <assert.h>
+#include <assert.h>                          /*lint !e451*/
 
 /**@name Propagator properties
  * @{
@@ -49,7 +49,7 @@
 
 #define PROP_NAME              "sdpredcost"
 #define PROP_DESC              "sdp reduced cost strengthening propagator"
-#define PROP_TIMING            SCIP_PROPTIMING_DURINGLPLOOP | SCIP_PROPTIMING_AFTERLPLOOP
+#define PROP_TIMING            (SCIP_PROPTIMING_DURINGLPLOOP | SCIP_PROPTIMING_AFTERLPLOOP)
 #define PROP_PRIORITY          +1000000 /**< propagator priority */
 #define PROP_FREQ                     1 /**< propagator frequency */
 #define PROP_DELAY                FALSE /**< should propagation method be delayed, if other propagators found reductions? */
@@ -129,7 +129,7 @@ SCIP_RETCODE sdpRedcostFixingBinary(
 /** reduced cost propagation method for an LP solution */
 static
 SCIP_DECL_PROPEXEC(propExecSdpredcost)
-{
+{/*lint --e{715}*/
    int v;
    int nvars;
    SCIP_VAR** vars;
