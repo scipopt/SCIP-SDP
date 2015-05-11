@@ -172,7 +172,7 @@ SCIP_DECL_DISPOUTPUT(dispOutputSdpiterations)
    assert( dispdata != NULL );
    assert( dispdata->relaxSDP != NULL );
 
-   SCIPdispLongint(SCIPgetMessagehdlr(scip), file, SCIPrelaxSdpGetNIterations(dispdata->relaxSDP), DISP_WIDTH);
+   SCIPdispLongint(SCIPgetMessagehdlr(scip), file, (long long) SCIPrelaxSdpGetNIterations(dispdata->relaxSDP), DISP_WIDTH);
 
    return SCIP_OKAY;
 }
