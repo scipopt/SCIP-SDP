@@ -243,7 +243,6 @@ SCIP_VAR* SdpVarmapperGetSCIPvar(
 }
 
 /** removes the variable for the given Sdp index from the varmapper, decreasing the indices of all later variables by 1 */
-EXTERN
 SCIP_RETCODE SdpVarmapperRemoveSdpIndex(
    SCIP*                 scip,              /**< SCIP data structure */
    SdpVarmapper*         varmapper,         /**< Varmapper to get variable index for */
