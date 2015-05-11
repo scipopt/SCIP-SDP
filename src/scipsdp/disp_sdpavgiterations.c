@@ -85,7 +85,7 @@ SCIP_DECL_DISPCOPY(dispCopySdpavgiterations)
 /** destructor of display column to free user data (called when SCIP is exiting) */
 static
 SCIP_DECL_DISPFREE(dispFreeSdpavgiterations)
-{
+{/*lint --e{715}*/
    SCIP_DISPDATA* dispdata;
 
    assert( disp != NULL );
