@@ -84,7 +84,7 @@ SCIP_DECL_BRANCHCOPY(branchCopySdpmostfrac)
 /** branching execution method for external candidates */
 static
 SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
-{
+{/*lint --e{715}*/
    int i;
    int ncands;
    SCIP_VAR** cands = NULL;
@@ -103,7 +103,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
 
    /* get the external candidates, as we use the score only as a tiebreaker, we aren't interested in the number of variables of different types with maximal
     * score, so these return values are set to NULL */
-   SCIPgetExternBranchCands(scip, &cands, &candssol, &candsscore, &ncands, NULL, NULL, NULL, NULL);
+   SCIP_CALL( SCIPgetExternBranchCands(scip, &cands, &candssol, &candsscore, &ncands, NULL, NULL, NULL, NULL) );
 
    assert( ncands > 0 ); /* branchExecext should only be called if the list of extern branching candidate is non-empty */
 
@@ -140,7 +140,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
    }
 
    assert( mostfracvar != NULL );
-   assert( SCIPisFeasGT(scip, mostfracfrac, 0) ); /* otherwise all variables are fixed and there is nothing to branch */
+   assert( SCIPisFeasGT(scip, mostfracfrac, 0.0) ); /* otherwise all variables are fixed and there is nothing to branch */
 
    /* branch */
    SCIPdebugMessage("branching on variable %s with value %f and score %f\n", SCIPvarGetName(mostfracvar), mostfracval, mostfracscore);

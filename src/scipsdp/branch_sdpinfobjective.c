@@ -84,7 +84,7 @@ SCIP_DECL_BRANCHCOPY(branchCopySdpinfobjective)
 /** branching execution method for external candidates */
 static
 SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
-{
+{/*lint --e{715}*/
    int i;
    int ncands;
    SCIP_VAR** cands = NULL;
@@ -104,7 +104,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
 
    /* get the external candidates, as we use the score only as a tiebreaker, we aren't interested in the number of variables of different types with maximal
     * score, so these return values are set to NULL */
-   SCIPgetExternBranchCands(scip, &cands, &candssol, &candsscore, &ncands, NULL, NULL, NULL, NULL);
+   SCIP_CALL( SCIPgetExternBranchCands(scip, &cands, &candssol, &candsscore, &ncands, NULL, NULL, NULL, NULL) );
 
    assert( ncands > 0 ); /* branchExecext should only be called if the list of extern branching candidate is non-empty */
 
@@ -218,7 +218,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
             continue; /* if we can't get the variables of this constraint, we can't include variables coupled through this constraint */
             }
          assert( nvarsincons > 0 );
-         SCIPgetConsVars(scip, conss[c], varsincons, nvarsincons, &success);
+         SCIP_CALL( SCIPgetConsVars(scip, conss[c], varsincons, nvarsincons, &success) );
          assert( success ); /* we allocated enough memory */
          assert( varsincons != NULL );
          for (v = 0; v < nvarsincons; v++)
@@ -240,7 +240,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
             {
                /* the coupledvars-index corresponding to a variable is its variable index - nvars, because we work on the transformed variables which
                 * have indices nvars to 2*nvars - 1, as their indices start after those of the original variables */
-               coupledvars[candsincons[c][candpos]][SCIPvarGetIndex(varsincons[v]) - nvars] = TRUE;
+               coupledvars[candsincons[c][candpos]][SCIPvarGetIndex(varsincons[v]) - nvars] = TRUE; /*lint !e679*/
             }
          }
       }
