@@ -62,7 +62,7 @@
                       while( FALSE )
 
 /** transforms a double (that should be integer, but might be off by some numerical error) to an integer by adding an epsilon and rounding down */
-#define DOUBLETOINT(x) ((int) x + 0.5)
+#define DOUBLETOINT(x) ((int) (x + 0.5))
 
 /*
  * BLAS/LAPACK Calls
