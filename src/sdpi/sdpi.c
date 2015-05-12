@@ -66,8 +66,18 @@
                          if ( ! (sdpi->solved) )                                                              \
                          {                                                                                    \
                             SCIPerrorMessage("Tried to access solution information ahead of solving! \n");    \
-                            SCIPABORT();                                                                      \
                             return SCIP_LPERROR;                                                              \
+                         }                                                                                    \
+                      }                                                                                       \
+                      while( FALSE )
+
+/* same as CHECK_IF_SOLVED, but this will be used in functions returning a boolean value */
+#define CHECK_IF_SOLVED_BOOL(sdpi)  do                                                                        \
+                      {                                                                                       \
+                         if ( ! (sdpi->solved) )                                                              \
+                         {                                                                                    \
+                            SCIPerrorMessage("Tried to access solution information ahead of solving! \n");    \
+                            return FALSE;                                                                     \
                          }                                                                                    \
                       }                                                                                       \
                       while( FALSE )
@@ -2061,7 +2071,7 @@ SCIP_Bool SCIPsdpiFeasibilityKnown(
    )
 {
    assert ( sdpi != NULL );
-   CHECK_IF_SOLVED(sdpi);
+   CHECK_IF_SOLVED_BOOL(sdpi);
 
    if (sdpi->infeasible)
       return TRUE;
@@ -2099,8 +2109,16 @@ SCIP_Bool SCIPsdpiExistsPrimalRay(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   SCIPdebugMessage("Not implemented in DSDP!\n");
-   return FALSE;
+   assert ( sdpi != NULL );
+   CHECK_IF_SOLVED_BOOL(sdpi);
+
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing\n");
+      return TRUE;
+   }
+
+   return SCIPsdpiSolverExistsPrimalRay(sdpi->sdpisolver);
 }
 
 
@@ -2112,8 +2130,16 @@ SCIP_Bool SCIPsdpiHasPrimalRay(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   SCIPdebugMessage("Not implemented in DSDP!\n");
-   return FALSE;
+   assert ( sdpi != NULL );
+   CHECK_IF_SOLVED_BOOL(sdpi);
+
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing\n");
+      return TRUE;
+   }
+
+   return SCIPsdpiSolverHasPrimalRay(sdpi->sdpisolver);
 }
 
 /** returns TRUE iff SDP is proven to be primal unbounded
@@ -2123,7 +2149,7 @@ SCIP_Bool SCIPsdpiIsPrimalUnbounded(
    )
 {
    assert ( sdpi != NULL );
-   CHECK_IF_SOLVED(sdpi);
+   CHECK_IF_SOLVED_BOOL(sdpi);
 
    if (sdpi->infeasible)
    {
@@ -2141,7 +2167,7 @@ SCIP_Bool SCIPsdpiIsPrimalInfeasible(
    )
 {
    assert ( sdpi != NULL );
-   CHECK_IF_SOLVED(sdpi);
+   CHECK_IF_SOLVED_BOOL(sdpi);
 
    if (sdpi->infeasible)
    {
@@ -2159,7 +2185,7 @@ SCIP_Bool SCIPsdpiIsPrimalFeasible(
    )
 {
    assert (sdpi != NULL );
-   CHECK_IF_SOLVED(sdpi);
+   CHECK_IF_SOLVED_BOOL(sdpi);
 
    if (sdpi->infeasible)
    {
@@ -2177,9 +2203,17 @@ SCIP_Bool SCIPsdpiIsPrimalFeasible(
 SCIP_Bool SCIPsdpiExistsDualRay(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
-{/*lint --e{715}*/
-   SCIPdebugMessage("Not implemented in DSDP!\n");
-   return FALSE;
+{
+   assert ( sdpi != NULL );
+   CHECK_IF_SOLVED_BOOL(sdpi);
+
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing\n");
+      return FALSE;
+   }
+
+   return SCIPsdpiSolverExistsDualRay(sdpi->sdpisolver);
 }
 
 /** returns TRUE iff SDP is proven to have a dual unbounded ray (but not necessary a dual feasible point),
@@ -2189,9 +2223,17 @@ SCIP_Bool SCIPsdpiExistsDualRay(
 SCIP_Bool SCIPsdpiHasDualRay(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
-{/*lint --e{715}*/
-   SCIPdebugMessage("Not implemented in DSDP!\n");
-   return FALSE;
+{
+   assert ( sdpi != NULL );
+   CHECK_IF_SOLVED_BOOL(sdpi);
+
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing\n");
+      return FALSE;
+   }
+
+   return SCIPsdpiSolverHasDualRay(sdpi->sdpisolver);
 }
 
 /** returns TRUE iff SDP is proven to be dual unbounded
@@ -2201,7 +2243,7 @@ SCIP_Bool SCIPsdpiIsDualUnbounded(
    )
 {
    assert ( sdpi != NULL );
-   CHECK_IF_SOLVED(sdpi);
+   CHECK_IF_SOLVED_BOOL(sdpi);
 
    if (sdpi->infeasible)
    {
@@ -2219,7 +2261,7 @@ SCIP_Bool SCIPsdpiIsDualInfeasible(
    )
 {
    assert ( sdpi != NULL );
-   CHECK_IF_SOLVED(sdpi);
+   CHECK_IF_SOLVED_BOOL(sdpi);
 
    if (sdpi->infeasible)
    {
@@ -2237,7 +2279,7 @@ SCIP_Bool SCIPsdpiIsDualFeasible(
    )
 {
    assert ( sdpi != NULL );
-   CHECK_IF_SOLVED(sdpi);
+   CHECK_IF_SOLVED_BOOL(sdpi);
 
    if (sdpi->infeasible)
    {
@@ -2254,7 +2296,7 @@ SCIP_Bool SCIPsdpiIsConverged(
    )
 {
    assert ( sdpi != NULL );
-   CHECK_IF_SOLVED(sdpi);
+   CHECK_IF_SOLVED_BOOL(sdpi);
 
    if (sdpi->infeasible)
    {
@@ -2271,7 +2313,7 @@ SCIP_Bool SCIPsdpiIsObjlimExc(
    )
 {
    assert ( sdpi != NULL );
-   CHECK_IF_SOLVED(sdpi);
+   CHECK_IF_SOLVED_BOOL(sdpi);
 
    if (sdpi->infeasible)
    {
@@ -2288,7 +2330,7 @@ SCIP_Bool SCIPsdpiIsIterlimExc(
    )
 {
    assert ( sdpi != NULL );
-   CHECK_IF_SOLVED(sdpi);
+   CHECK_IF_SOLVED_BOOL(sdpi);
 
    if (sdpi->infeasible)
    {
@@ -2303,9 +2345,17 @@ SCIP_Bool SCIPsdpiIsIterlimExc(
 SCIP_Bool SCIPsdpiIsTimelimExc(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
-{/*lint --e{715}*/
-   SCIPdebugMessage("Not implemented!\n");
-   return SCIP_LPERROR;
+{
+   assert ( sdpi != NULL );
+   CHECK_IF_SOLVED_BOOL(sdpi);
+
+   if (sdpi->infeasible)
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, no time limit available.\n");
+      return FALSE;
+   }
+
+   return SCIPsdpiSolverIsTimelimExc(sdpi->sdpisolver);
 }
 
 /** returns the internal solution status of the solver */
@@ -2314,7 +2364,7 @@ int SCIPsdpiGetInternalStatus(
    )
 {
    assert ( sdpi != NULL );
-   CHECK_IF_SOLVED(sdpi);
+   CHECK_IF_SOLVED_BOOL(sdpi);
 
    if (sdpi->infeasible)
    {
@@ -2331,7 +2381,7 @@ SCIP_Bool SCIPsdpiIsOptimal(
    )
 {
    assert ( sdpi != NULL );
-   CHECK_IF_SOLVED(sdpi);
+   CHECK_IF_SOLVED_BOOL(sdpi);
 
    if (sdpi->infeasible)
    {
@@ -2349,7 +2399,7 @@ SCIP_Bool SCIPsdpiIsAcceptable(
    )
 {
    assert ( sdpi != NULL );
-   CHECK_IF_SOLVED(sdpi);
+   CHECK_IF_SOLVED_BOOL(sdpi);
 
    if (sdpi->infeasible)
    {
@@ -2448,7 +2498,8 @@ SCIP_RETCODE SCIPsdpiGetIterations(
    if (sdpi->infeasible)
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no iterations needed.\n");
-      return 0;
+      *iterations = 0;
+      return SCIP_OKAY;
    }
 
    SCIP_CALL( SCIPsdpiSolverGetIterations(sdpi->sdpisolver, iterations) );
