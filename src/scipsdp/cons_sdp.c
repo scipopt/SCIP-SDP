@@ -2095,12 +2095,6 @@ SCIP_RETCODE SCIPconsSdpGetData(
          }
       }
    }
-   else
-   {
-      constcol = NULL;
-      constrow = NULL;
-      constval = NULL;
-   }
 
    *constnnonz = consdata->constnnonz;
 
