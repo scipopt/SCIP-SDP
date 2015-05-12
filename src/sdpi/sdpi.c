@@ -1326,8 +1326,8 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
    BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons, sdpi->nlpcons + nrows) ); /*lint !e776*/
    for (i = 0; i < nrows; i++)
    {
-      sdpi->lplhs[sdpi->nlpcons + i] = lhs[i];
-      sdpi->lprhs[sdpi->nlpcons + i] = rhs[i];
+      sdpi->lplhs[sdpi->nlpcons + i] = lhs[i]; /*lint !e679*/
+      sdpi->lprhs[sdpi->nlpcons + i] = rhs[i]; /*lint !e679*/
    }
 
    BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz, sdpi->lpnnonz + nnonz) ); /*lint !e776*/
@@ -1338,12 +1338,12 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
    {
       assert ( 0 <= row[i] && row[i] < nrows );
       /* the new rows are added at the end, so the row indices are increased by the old number of LP-constraints */
-      sdpi->lprow[sdpi->lpnnonz + i] = row[i] + sdpi->nlpcons; /*lint !e776*/
+      sdpi->lprow[sdpi->lpnnonz + i] = row[i] + sdpi->nlpcons; /*lint !e679*/
 
       assert ( 0 <= col[i] && col[i] < sdpi->nvars ); /* only existing vars should be added to the LP-constraints */
-      sdpi->lpcol[sdpi->lpnnonz + i] = col[i]; /*lint !e776*/
+      sdpi->lpcol[sdpi->lpnnonz + i] = col[i]; /*lint !e679*/
 
-      sdpi->lpval[sdpi->lpnnonz + i] = val[i]; /*lint !e776*/
+      sdpi->lpval[sdpi->lpnnonz + i] = val[i]; /*lint !e679*/
    }
 
    sdpi->nlpcons = sdpi->nlpcons + nrows;
@@ -2521,8 +2521,8 @@ SCIP_RETCODE SCIPsdpiGetRealpar(
    assert( sdpi->sdpisolver != NULL );
    assert( dval != NULL );
 
-   switch( type )
-   {/*lint --e{788}*/
+   switch( type )/*lint --e{788}*/
+   {
    case SCIP_SDPPAR_EPSILON:
       *dval = sdpi->epsilon;
       break;
@@ -2557,8 +2557,8 @@ SCIP_RETCODE SCIPsdpiSetRealpar(
    assert( sdpi != NULL );
    assert( sdpi->sdpisolver != NULL );
 
-   switch( type )
-   {/*lint --e{788}*/
+   switch( type )/*lint --e{788}*/
+   {
    case SCIP_SDPPAR_EPSILON:
       sdpi->epsilon = dval;
       SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
@@ -2596,8 +2596,8 @@ SCIP_RETCODE SCIPsdpiGetIntpar(
    assert( sdpi->sdpisolver != NULL );
    assert( ival != NULL );
 
-   switch( type )
-   {/*lint --e{788}*/
+   switch( type )/*lint --e{788}*/
+   {
    case SCIP_SDPPAR_THREADS:
       SCIP_CALL_PARAM( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, ival) );
       break;
@@ -2605,7 +2605,7 @@ SCIP_RETCODE SCIPsdpiGetIntpar(
       SCIP_CALL_PARAM( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, ival) );
       break;
    case SCIP_SDPPAR_SLATERCHECK:
-      *ival = sdpi->slatercheck;
+      *ival = (int) sdpi->slatercheck;
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;
@@ -2635,8 +2635,8 @@ SCIP_RETCODE SCIPsdpiSetIntpar(
    assert( sdpi != NULL );
    assert( sdpi->sdpisolver != NULL );
 
-   switch( type )
-   {/*lint --e{788}*/
+   switch( type )/*lint --e{788}*/
+   {
    case SCIP_SDPPAR_THREADS:
       SCIP_CALL_PARAM( SCIPsdpiSolverSetIntpar(sdpi->sdpisolver, type, ival) );
       break;
@@ -2646,7 +2646,7 @@ SCIP_RETCODE SCIPsdpiSetIntpar(
       break;
    case SCIP_SDPPAR_SLATERCHECK:
       assert( ival == 0 || ival == 1 ); /* this is a boolean parameter */
-      sdpi->slatercheck = ival;
+      sdpi->slatercheck = (SCIP_Bool) ival;
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;
