@@ -2358,15 +2358,27 @@ SCIP_Bool SCIPsdpiIsTimelimExc(
    return SCIPsdpiSolverIsTimelimExc(sdpi->sdpisolver);
 }
 
-/** returns the internal solution status of the solver */
+/** -1: solver wasn't started
+ *  0: converged
+ *  1: infeasible start
+ *  2: numerical problems
+ *  3: objective limit reached
+ *  4: iteration limit reached
+ *  5: time limit reached
+ *  6: user termination
+ *  7: other */
 int SCIPsdpiGetInternalStatus(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
    assert ( sdpi != NULL );
-   CHECK_IF_SOLVED_BOOL(sdpi);
 
-   if (sdpi->infeasible)
+   if ( ! sdpi->solved )
+   {
+      SCIPdebugMessage("Problem wasn't solved yet.\n");
+      return -1;
+   }
+   else if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no internal status available.\n");
       return 0;

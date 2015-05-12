@@ -73,8 +73,18 @@
                          if (!(sdpisolver->solved))                                                          \
                          {                                                                                   \
                             SCIPerrorMessage("Tried to access solution information for SDP %d ahead of solving!\n", sdpisolver->sdpcounter);  \
-                            SCIPABORT();                                                                     \
-                            return SCIP_LPERROR;                                                               \
+                            return SCIP_LPERROR;                                                             \
+                         }                                                                                   \
+                      }                                                                                      \
+                      while( FALSE )
+
+/* This is the same as CHECK_IF_SOLVED, but will be called for methods returning a bool instead of a SCIP_RETURNCODE */
+#define CHECK_IF_SOLVED_BOOL(sdpisolver)  do                                                                 \
+                      {                                                                                      \
+                         if (!(sdpisolver->solved))                                                          \
+                         {                                                                                   \
+                            SCIPerrorMessage("Tried to access solution information for SDP %d ahead of solving!\n", sdpisolver->sdpcounter);  \
+                            return FALSE;                                                                    \
                          }                                                                                   \
                       }                                                                                      \
                       while( FALSE )
@@ -1190,7 +1200,7 @@ SCIP_Bool SCIPsdpiSolverFeasibilityKnown(
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL);
-   CHECK_IF_SOLVED( sdpisolver );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
@@ -1291,7 +1301,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL);
-   CHECK_IF_SOLVED( sdpisolver );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
@@ -1321,7 +1331,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL);
-   CHECK_IF_SOLVED( sdpisolver );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
@@ -1351,7 +1361,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL);
-   CHECK_IF_SOLVED( sdpisolver );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
@@ -1407,7 +1417,7 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL);
-   CHECK_IF_SOLVED( sdpisolver );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
@@ -1437,7 +1447,7 @@ SCIP_Bool SCIPsdpiSolverIsDualInfeasible(
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL);
-   CHECK_IF_SOLVED( sdpisolver );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
@@ -1467,7 +1477,7 @@ SCIP_Bool SCIPsdpiSolverIsDualFeasible(
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL);
-   CHECK_IF_SOLVED( sdpisolver );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
@@ -1496,7 +1506,7 @@ SCIP_Bool SCIPsdpiSolverIsConverged(
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL);
-   CHECK_IF_SOLVED( sdpisolver );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
@@ -1515,7 +1525,7 @@ SCIP_Bool SCIPsdpiSolverIsObjlimExc(
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL);
-   CHECK_IF_SOLVED( sdpisolver );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
@@ -1534,7 +1544,7 @@ SCIP_Bool SCIPsdpiSolverIsIterlimExc(
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL);
-   CHECK_IF_SOLVED( sdpisolver );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
@@ -1574,9 +1584,8 @@ int SCIPsdpiSolverGetInternalStatus(
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL);
-   CHECK_IF_SOLVED( sdpisolver );
 
-   if ( sdpisolver->sdpa == NULL )
+   if ( sdpisolver->sdpa == NULL || (! sdpisolver->solved) )
       return -1;
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
@@ -1602,7 +1611,7 @@ SCIP_Bool SCIPsdpiSolverIsOptimal(
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL);
-   CHECK_IF_SOLVED( sdpisolver );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
@@ -1622,7 +1631,7 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL);
-   CHECK_IF_SOLVED( sdpisolver );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 

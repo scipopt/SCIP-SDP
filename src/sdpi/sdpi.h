@@ -501,6 +501,7 @@ SCIP_Bool SCIPsdpiIsTimelimExc(
    );
 
 /** returns the internal solution status of the solver, which has the following meaning:
+ *  -1: solver wasn't started
  *  0: converged
  *  1: infeasible start
  *  2: numerical problems

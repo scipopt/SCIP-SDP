@@ -59,8 +59,7 @@
                          if ( (_dsdperrorcode_ = (x)) != 0 )                                                 \
                          {                                                                                   \
                             SCIPerrorMessage("DSDP-Error <%d> in function call.\n", _dsdperrorcode_);        \
-                            SCIPABORT();                                                                     \
-                            return SCIP_LPERROR;                                                               \
+                            return SCIP_LPERROR;                                                             \
                          }                                                                                   \
                       }                                                                                      \
                       while( FALSE )
@@ -72,7 +71,6 @@
                          if ( (_dsdperrorcode_ = (x)) != 0 )                                                 \
                          {                                                                                   \
                             SCIPerrorMessage("DSDP-Error <%d> in function call.\n", _dsdperrorcode_);        \
-                            SCIPABORT();                                                                     \
                             return SCIP_NOMEMORY;                                                            \
                          }                                                                                   \
                       }                                                                                      \
@@ -95,8 +93,18 @@
                          if (!(sdpisolver->solved))                                                          \
                          {                                                                                   \
                             SCIPerrorMessage("Tried to access solution information for SDP %d ahead of solving!\n", sdpisolver->sdpcounter);  \
-                            SCIPABORT();                                                                     \
-                            return SCIP_LPERROR;                                                               \
+                            return SCIP_LPERROR;                                                             \
+                         }                                                                                   \
+                      }                                                                                      \
+                      while( FALSE )
+
+/* This is the same as CHECK_IF_SOLVED, but will be called for methods returning a bool instead of a SCIP_RETURNCODE */
+#define CHECK_IF_SOLVED_BOOL(sdpisolver)  do                                                                      \
+                      {                                                                                      \
+                         if (!(sdpisolver->solved))                                                          \
+                         {                                                                                   \
+                            SCIPerrorMessage("Tried to access solution information for SDP %d ahead of solving!\n", sdpisolver->sdpcounter);  \
+                            return FALSE;                                                                    \
                          }                                                                                   \
                       }                                                                                      \
                       while( FALSE )
@@ -1301,7 +1309,7 @@ SCIP_Bool SCIPsdpiSolverFeasibilityKnown(
    DSDPSolutionType pdfeasible;
 
    assert( sdpisolver != NULL );
-   CHECK_IF_SOLVED( sdpisolver );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    DSDP_CALL( DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible) );
 
@@ -1389,7 +1397,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
    DSDPSolutionType pdfeasible;
 
    assert( sdpisolver != NULL );
-   CHECK_IF_SOLVED( sdpisolver );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    DSDP_CALL( DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible) );
    if ( pdfeasible == DSDP_PDUNKNOWN )
@@ -1415,7 +1423,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
    DSDPSolutionType pdfeasible;
 
    assert( sdpisolver != NULL );
-   CHECK_IF_SOLVED( sdpisolver );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    DSDP_CALL( DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible) );
    if ( pdfeasible == DSDP_PDUNKNOWN )
@@ -1441,7 +1449,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
    DSDPSolutionType pdfeasible;
 
    assert( sdpisolver != NULL );
-   CHECK_IF_SOLVED( sdpisolver );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    DSDP_CALL( DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible) );
    if ( pdfeasible == DSDP_PDUNKNOWN )
@@ -1490,7 +1498,7 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
    DSDPSolutionType pdfeasible;
 
    assert( sdpisolver != NULL );
-   CHECK_IF_SOLVED( sdpisolver );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    DSDP_CALL( DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible) );
    if ( pdfeasible == DSDP_PDUNKNOWN )
@@ -1513,7 +1521,7 @@ SCIP_Bool SCIPsdpiSolverIsDualInfeasible(
    DSDPSolutionType pdfeasible;
 
    assert( sdpisolver != NULL );
-   CHECK_IF_SOLVED( sdpisolver );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    DSDP_CALL(DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible));
 
@@ -1537,7 +1545,7 @@ SCIP_Bool SCIPsdpiSolverIsDualFeasible(
    DSDPSolutionType pdfeasible;
 
    assert( sdpisolver != NULL );
-   CHECK_IF_SOLVED( sdpisolver );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    DSDP_CALL( DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible) );
 
@@ -1560,7 +1568,7 @@ SCIP_Bool SCIPsdpiSolverIsConverged(
    DSDPTerminationReason reason;
 
    assert( sdpisolver != NULL );
-   CHECK_IF_SOLVED( sdpisolver );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    DSDP_CALL( DSDPStopReason(sdpisolver->dsdp, &reason) );
 
@@ -1589,7 +1597,7 @@ SCIP_Bool SCIPsdpiSolverIsIterlimExc(
    DSDPTerminationReason reason;
 
    assert( sdpisolver != NULL );
-   CHECK_IF_SOLVED( sdpisolver );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    DSDP_CALL(DSDPStopReason(sdpisolver->dsdp, &reason));
 
@@ -1625,9 +1633,8 @@ int SCIPsdpiSolverGetInternalStatus(
    DSDPTerminationReason reason;
 
    assert( sdpisolver != NULL );
-   CHECK_IF_SOLVED( sdpisolver );
 
-   if ( sdpisolver->dsdp == NULL )
+   if ( sdpisolver->dsdp == NULL || (! sdpisolver->solved) )
       return -1;
 
    DSDP_CALL( DSDPStopReason(sdpisolver->dsdp, &reason) );
