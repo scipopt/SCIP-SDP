@@ -313,7 +313,7 @@ SCIP_RETCODE SCIPsdpiSolverFree(
       BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->dsdptoinputmapper, (*sdpisolver)->nactivevars);
 
    if ( (*sdpisolver)->nvars >= (*sdpisolver)->nactivevars )
-      BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->fixedvarsval, (*sdpisolver)->nvars - (*sdpisolver)->nactivevars);
+      BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->fixedvarsval, (*sdpisolver)->nvars - (*sdpisolver)->nactivevars); /*lint !e776*/
 
    BMSfreeBlockMemory((*sdpisolver)->blkmem, sdpisolver);
 
@@ -439,7 +439,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  */
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
-   SCIP_Real             gamma,              /**< the penalty parameter above, needs to be >= 0 */
+   SCIP_Real             penaltyparam,       /**< the Gamma above, needs to be >= 0 */
    SCIP_Bool             withobj,            /**< if this is false, the objective is set to 0 */
    SCIP_Bool             rbound,             /**< should r be non-negative ? */
    int                   nvars,              /**< number of variables */
@@ -480,7 +480,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
-   SCIP_Bool*            feasorig            /**< is the solution to the penalty-formulation feasible for the original problem? (may be NULL if gamma = 0) */
+   SCIP_Bool*            feasorig            /**< is the solution to the penalty-formulation feasible for the original problem? (may be NULL if penaltyparam = 0) */
 )
 {
    int* dsdpconstind = NULL;  /* indices for constant SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
@@ -504,7 +504,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
 
    assert( sdpisolver != NULL );
-   assert( gamma > -1 * sdpisolver->epsilon );
+   assert( penaltyparam > -1 * sdpisolver->epsilon );
    assert( nvars > 0 );
    assert( obj != NULL );
    assert( lb != NULL );
@@ -539,7 +539,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* only increase the counter if we don't use the penalty formulation to stay in line with the numbers in the general interface (where this is still the
     * same SDP) */
-   if ( gamma < sdpisolver->epsilon )
+   if ( penaltyparam < sdpisolver->epsilon )
       SCIPdebugMessage("Inserting Data into DSDP for SDP (%d) \n", ++sdpisolver->sdpcounter);
    else
       SCIPdebugMessage("Inserting Data again into DSDP for SDP (%d) \n", sdpisolver->sdpcounter);
@@ -574,7 +574,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
    }
    assert( sdpisolver->nactivevars + nfixedvars == sdpisolver->nvars );
-   if ( gamma > sdpisolver->epsilon && (! rbound) )
+   if ( penaltyparam > sdpisolver->epsilon && (! rbound) )
    {
       SCIPdebugMessage("Variable %d is the slack variable for the explicit penalty formulation\n", sdpisolver->nactivevars + 1);
    }
@@ -595,7 +595,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
    /* in case we don't want to bound r, we can't use the penalty formulation in DSDP and have to give r explicitly */
-   if ( gamma > sdpisolver->epsilon && (! rbound) )
+   if ( penaltyparam > sdpisolver->epsilon && (! rbound) )
    {
       DSDP_CALLM( DSDPCreate(sdpisolver->nactivevars + 1, &(sdpisolver->dsdp)) );
       sdpisolver->penaltyworbound = TRUE;
@@ -639,11 +639,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
    /* insert the objective value for r if solving without rbound, it is variable nactivevars + 1 and the objective is multiplied by -1 as we maximize */
-   if ( gamma > sdpisolver->epsilon && (! rbound) )
+   if ( penaltyparam > sdpisolver->epsilon && (! rbound) )
    {
-      DSDP_CALL( DSDPSetDualObjective(sdpisolver->dsdp, sdpisolver->nactivevars + 1, -1.0 * gamma) );
+      DSDP_CALL( DSDPSetDualObjective(sdpisolver->dsdp, sdpisolver->nactivevars + 1, -1.0 * penaltyparam) );
 #ifdef SCIP_MORE_DEBUG
-         printf("slack variable r: %f, ", gamma);
+         printf("slack variable r: %f, ", penaltyparam);
 #endif
    }
 
@@ -678,7 +678,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
        * problem is solved. The distinct blocks/variables (for the i,j-parts) are then given by dsdpind + startind, which gives a pointer to the
        * first array-element belonging to this block and then the number of elements in this block is given to DSDP for iterating over it. */
 
-      if ( gamma > sdpisolver->epsilon && (! rbound) )
+      if ( penaltyparam > sdpisolver->epsilon && (! rbound) )
       {
          /* we need to compute the total number of nonzeros for the slack variable r, which equals the total number of diagonal entries */
          for (block = 0; block < nsdpblocks; block++)
@@ -748,7 +748,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             }
          }
       }
-      if ( gamma > sdpisolver->epsilon && (! rbound) )
+      if ( penaltyparam > sdpisolver->epsilon && (! rbound) )
       {
          startind = ind;
          /* add r * Identity for each block */
@@ -883,7 +883,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* these arrays are needed in DSDP during solving, so they may only be freed afterwards */
       /* dsdplpbegcol[i] gives the number of nonzeros in column 0 (right hand side) till i-1 (i going from 1 till m, with extra entries 0 (always 0)
        * and m+1 (always lpcons + lpnnonz)) */
-      if ( gamma > sdpisolver->epsilon && (! rbound) )
+      if ( penaltyparam > sdpisolver->epsilon && (! rbound) )
       {
          BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpbegcol, sdpisolver->nactivevars + 3) ); /* extra entry for r */
       }
@@ -898,7 +898,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
        * the entries for r ourselves, we have to add another nlpineqs for one entry for r for each active lp-constraint */
       if ( SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
       {
-         if ( gamma > sdpisolver->epsilon && (! rbound) )
+         if ( penaltyparam > sdpisolver->epsilon && (! rbound) )
          {
             BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, 2 * nlpineqs + 2*lpnnonz) );
          }
@@ -909,7 +909,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
       else
       {
-         if ( gamma > sdpisolver->epsilon && (! rbound) )
+         if ( penaltyparam > sdpisolver->epsilon && (! rbound) )
          {
             BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, (nlpineqs + 1) + 2*lpnnonz + nvars + nlpineqs) );
          }
@@ -927,7 +927,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
        * the entries for r ourselves, we have to add another nlpineqs for one entry for r for each active lp-constraint */
       if ( SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
       {
-         if ( gamma > sdpisolver->epsilon && (! rbound) )
+         if ( penaltyparam > sdpisolver->epsilon && (! rbound) )
          {
             BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, 2 * nlpineqs + 2*lpnnonz) );
          }
@@ -938,7 +938,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
       else
       {
-         if ( gamma > sdpisolver->epsilon && (! rbound) )
+         if ( penaltyparam > sdpisolver->epsilon && (! rbound) )
          {
             BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, (nlpineqs + 1) + 2*lpnnonz + nvars + nlpineqs) );
          }
@@ -1071,7 +1071,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       dsdplpbegcol[sdpisolver->nactivevars + 1] = dsdpnlpnonz;
 
       /* add r * Identity if using a penalty formulation without a bound on r */
-      if ( gamma > sdpisolver->epsilon && (! rbound) )
+      if ( penaltyparam > sdpisolver->epsilon && (! rbound) )
       {
          for (i = 0; i < nlpineqs; i++)
          {
@@ -1088,7 +1088,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* shrink the dsdplp-arrays */
       if ( SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
       {
-         if ( gamma > sdpisolver->epsilon && (! rbound) )
+         if ( penaltyparam > sdpisolver->epsilon && (! rbound) )
          {
             BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, 2*nlpineqs + 2*lpnnonz, dsdpnlpnonz) );
             BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, 2*nlpineqs + 2*lpnnonz, dsdpnlpnonz) );
@@ -1101,7 +1101,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
       else
       {
-         if ( gamma > sdpisolver->epsilon && (! rbound) )
+         if ( penaltyparam > sdpisolver->epsilon && (! rbound) )
          {
             BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, (nlpineqs + 1) + 2*lpnnonz + nvars + nlpineqs, dsdpnlpnonz) );
             BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, (nlpineqs + 1) + 2*lpnnonz + nvars + nlpineqs, dsdpnlpnonz) );
@@ -1137,9 +1137,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
    /* set the penalty parameter (only if rbound = TRUE, otherwise we had to add everything ourselves) */
-   if ( gamma >= sdpisolver->epsilon && rbound ) /* in sdpisolverSolve this is called with an exact 0 */
+   if ( penaltyparam >= sdpisolver->epsilon && rbound ) /* in sdpisolverSolve this is called with an exact 0 */
    {
-      DSDP_CALL( DSDPSetPenaltyParameter(sdpisolver->dsdp, gamma) );
+      DSDP_CALL( DSDPSetPenaltyParameter(sdpisolver->dsdp, penaltyparam) );
       DSDP_CALL( DSDPUsePenalty(sdpisolver->dsdp, 1) );
    }
 
@@ -1168,7 +1168,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    if ( sdpnnonz > 0 )
    {
-      if ( gamma > sdpisolver->epsilon && (! rbound) )
+      if ( penaltyparam > sdpisolver->epsilon && (! rbound) )
       {
          BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpval, sdpnnonz + nrnonz);
          BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpind, sdpnnonz + nrnonz);
@@ -1184,7 +1184,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    {
       BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, dsdpnlpnonz);
       BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, dsdpnlpnonz);
-      if ( gamma > sdpisolver->epsilon && (! rbound) )
+      if ( penaltyparam > sdpisolver->epsilon && (! rbound) )
       {
          BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplpbegcol, sdpisolver->nactivevars + 3);
       }
@@ -1241,7 +1241,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 #endif
 
-   if ( gamma >= sdpisolver->epsilon )
+   if ( penaltyparam >= sdpisolver->epsilon )
    {
       if ( rbound )
       {

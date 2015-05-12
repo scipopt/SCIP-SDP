@@ -227,7 +227,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 EXTERN
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
-   SCIP_Real             gamma,              /**< the penalty parameter above, needs to be >= 0 */
+   SCIP_Real             penaltyparam,       /**< the Gamma above, needs to be >= 0 */
    SCIP_Bool             withobj,            /**< if this is false, the objective is set to 0 */
    SCIP_Bool             rbound,             /**< should r be non-negative ? */
    int                   nvars,              /**< number of variables */
@@ -268,7 +268,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
-   SCIP_Bool*            feasorig            /**< is the solution to the penalty-formulation feasible for the original problem? (may be NULL if gamma = 0) */
+   SCIP_Bool*            feasorig            /**< is the solution to the penalty-formulation feasible for the original problem? (may be NULL if penaltyparam = 0) */
 );/*TODO: start needs to include X,y,Z for SDPA*/
 
 
