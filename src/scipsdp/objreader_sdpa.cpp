@@ -50,7 +50,7 @@
 
 #include "BlockMemoryAllocator.h"       // for BlockMemoryAllocator
 #include "ScipStreamBuffer.h"           // for ScipStreamBuffer
-#include "scipsdp/cons_sdp.h"                   // for SCIPcreateConsSdp
+#include "scipsdp/cons_sdp.h"           // for SCIPcreateConsSdp
 
 #include "scip/cons_linear.h"           // for SCIPaddCoefLinear, etc
 #include "scip/scip.h"                  // for SCIPinfinity, etc
@@ -175,7 +175,7 @@ namespace scip
 
       // read block pattern
       blockpattern = std::vector<int, BlockMemoryAllocator<int> >(numblocks, 0, BlockMemoryAllocator<int>(scip));
-      blockislp = std::vector<bool>(numblocks, FALSE);
+      blockislp = std::vector<bool>(numblocks, false);
       lp_block_num = std::vector<int>(numblocks, 0);
       lp_block_size = std::vector<int>(numblocks, 0);
 
@@ -194,7 +194,7 @@ namespace scip
             //LP block has a negative coefficient!
             numlpblocks++;
             alllpblocksize += abs(blockpattern[j]);
-            blockislp[j] = TRUE;
+            blockislp[j] = true;
             blockstruct.push_back(SDPBlock(0));
             lp_block_num[j] = numlpblocks;
             lp_block_size[numlpblocks] = abs(blockpattern[j]);
@@ -370,7 +370,7 @@ namespace scip
       /* create SDP and LP constraints */
       /*********************************/
 
-      lp_block_already_done = FALSE;
+      lp_block_already_done = false;
       for (int bindex = 0; bindex < numblocks; ++bindex)
       {
          if (!blockislp[bindex])
@@ -515,7 +515,7 @@ namespace scip
             //construct lp-block only once
             if (!lp_block_already_done)
             {
-               lp_block_already_done = TRUE;
+               lp_block_already_done = true;
                SCIPdebugMessage("Begin construction of LP (block %d).\n", bindex);
 
                for (int row_i = 0; row_i < LPData.numrows; ++row_i)
