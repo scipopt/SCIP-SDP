@@ -445,6 +445,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    assert( sdpisolver != NULL );
    assert( penaltyparam > -1 * sdpisolver->epsilon );
+   assert( penaltyparam < sdpisolver->epsilon || feasorig != NULL );
    assert( nvars > 0 );
    assert( obj != NULL );
    assert( lb != NULL );
@@ -1273,7 +1274,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
 SCIP_Bool SCIPsdpiSolverExistsPrimalRay(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
-{
+{/*lint --e{715}*/
    SCIPdebugMessage("Not implemented in SDPA!\n");
    return FALSE;
 }
@@ -1286,7 +1287,7 @@ SCIP_Bool SCIPsdpiSolverExistsPrimalRay(
 SCIP_Bool SCIPsdpiSolverHasPrimalRay(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
-{
+{/*lint --e{715}*/
    SCIPdebugMessage("Not implemented in SDPA!\n");
    return FALSE;
 }
@@ -1389,7 +1390,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
 SCIP_Bool SCIPsdpiSolverExistsDualRay(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
-{
+{/*lint --e{715}*/
    SCIPdebugMessage("Not implemented in SDPA!\n");
    return FALSE;
 }
@@ -1402,7 +1403,7 @@ SCIP_Bool SCIPsdpiSolverExistsDualRay(
 SCIP_Bool SCIPsdpiSolverHasDualRay(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
-{
+{/*lint --e{715}*/
    SCIPdebugMessage("Not implemented in SDPA!\n");
    return FALSE;
 }
@@ -1648,7 +1649,7 @@ SCIP_RETCODE SCIPsdpiSolverIgnoreInstability(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
    SCIP_Bool*            success             /**< pointer to store, whether the instability could be ignored */
    )
-{
+{/*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
 
    /* todo: change settings to stable */
@@ -1902,7 +1903,7 @@ SCIP_RETCODE SCIPsdpiSolverGetRealpar(
    assert( sdpisolver != NULL );
    assert( dval != NULL );
 
-   switch( type )
+   switch( type )/*lint --e{788}*/
    {
    case SCIP_SDPPAR_EPSILON:
       *dval = sdpisolver->epsilon;
@@ -1929,7 +1930,7 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
 {
    assert( sdpisolver != NULL );
 
-   switch( type )
+   switch( type )/*lint --e{788}*/
    {
    case SCIP_SDPPAR_EPSILON:
       sdpisolver->epsilon = dval;
@@ -1959,7 +1960,7 @@ SCIP_RETCODE SCIPsdpiSolverGetIntpar(
 {
    assert( sdpisolver != NULL );
 
-   switch( type )
+   switch( type )/*lint --e{788}*/
    {
    case SCIP_SDPPAR_THREADS:
       *ival = sdpisolver->threads;
@@ -1985,14 +1986,14 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
 {
    assert( sdpisolver != NULL );
 
-   switch( type )
+   switch( type )/*lint --e{788}*/
    {
    case SCIP_SDPPAR_THREADS:
       sdpisolver->threads = ival;
       SCIPdebugMessage("Setting sdpisolver number of threads to %d.\n", ival);
       break;
    case SCIP_SDPPAR_SDPINFO:
-      sdpisolver->sdpinfo = ival;
+      sdpisolver->sdpinfo = (SCIP_Bool) ival;
       SCIPdebugMessage("Setting sdpisolver information output (%d).\n", ival);
       break;
    default:
