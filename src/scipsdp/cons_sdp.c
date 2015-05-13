@@ -1439,8 +1439,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 #if 0
    if ( nrounds == 0 )
    {
-      SCIP_CALL( diagDominant(scip, conss, nconss, naddconss) ); /* TODO: could be activated for some problem classes
-                                                                  * but doesn't work in the general case */
+      SCIP_CALL( diagDominant(scip, conss, nconss, naddconss) ); /* TODO: could be activated for some problem classes but doesn't work in the general case */
    }
 #endif
 
