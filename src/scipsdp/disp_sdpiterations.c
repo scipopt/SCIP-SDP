@@ -100,34 +100,6 @@ SCIP_DECL_DISPFREE(dispFreeSdpiterations)
    return SCIP_OKAY;
 }
 
-/** initialization method of display column (called after problem was transformed) */
-#if 0
-static
-SCIP_DECL_DISPINIT(dispInitXyz)
-{  /*lint --e{715}*/
-   SCIPerrorMessage("method of xyz display column not implemented yet\n");
-   SCIPABORT(); /*lint --e{527}*/
-
-   return SCIP_OKAY;
-}
-#else
-#define dispInitXyz NULL
-#endif
-
-/** deinitialization method of display column (called before transformed problem is freed) */
-#if 0
-static
-SCIP_DECL_DISPEXIT(dispExitXyz)
-{  /*lint --e{715}*/
-   SCIPerrorMessage("method of xyz display column not implemented yet\n");
-   SCIPABORT(); /*lint --e{527}*/
-
-   return SCIP_OKAY;
-}
-#else
-#define dispExitXyz NULL
-#endif
-
 /** solving process initialization method of display column (called when branch and bound process is about to begin) */
 static
 SCIP_DECL_DISPINITSOL(dispInitsolSdpiterations)
@@ -143,20 +115,6 @@ SCIP_DECL_DISPINITSOL(dispInitsolSdpiterations)
 
    return SCIP_OKAY;
 }
-
-/** solving process deinitialization method of display column (called before branch and bound process data is freed) */
-#if 0
-static
-SCIP_DECL_DISPEXITSOL(dispExitsolXyz)
-{  /*lint --e{715}*/
-   SCIPerrorMessage("method of xyz display column not implemented yet\n");
-   SCIPABORT(); /*lint --e{527}*/
-
-   return SCIP_OKAY;
-}
-#else
-#define dispExitsolXyz NULL
-#endif
 
 /** output method of display column to output file stream 'file' */
 static
@@ -197,8 +155,8 @@ SCIP_RETCODE SCIPincludeDispSdpiterations(
    /* include display column */
    SCIP_CALL( SCIPincludeDisp(scip, DISP_NAME, DISP_DESC, DISP_HEADER, SCIP_DISPSTATUS_AUTO,
          dispCopySdpiterations,
-         dispFreeSdpiterations, dispInitXyz, dispExitXyz,
-         dispInitsolSdpiterations, dispExitsolXyz, dispOutputSdpiterations,
+         dispFreeSdpiterations, NULL, NULL,
+         dispInitsolSdpiterations, NULL, dispOutputSdpiterations,
          dispdata, DISP_WIDTH, DISP_PRIORITY, DISP_POSITION, DISP_STRIPLINE) );
 
    return SCIP_OKAY;
