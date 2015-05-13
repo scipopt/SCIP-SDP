@@ -212,7 +212,8 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
             SCIPdebugMessage("couldn't get variable information from constraint %s, so ignoring it for computing coupled variables\n", SCIPconsGetName(conss[c]));
             continue; /* if we can't get the variables of this constraint, we can't include variables coupled through this constraint */
             }
-         assert( nvarsincons > 0 );
+         if ( nvarsincons == 0)
+            continue; /* nothing to do for this constraint if there are no variables (this can happen if all vars are fixed, as the constraint is non-trivial to check) */
          SCIP_CALL( SCIPgetConsVars(scip, conss[c], varsincons, nvarsincons, &success) );
          assert( success ); /* we allocated enough memory */
          assert( varsincons != NULL );
