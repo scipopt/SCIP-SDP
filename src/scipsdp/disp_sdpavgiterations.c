@@ -99,34 +99,6 @@ SCIP_DECL_DISPFREE(dispFreeSdpavgiterations)
    return SCIP_OKAY;
 }
 
-/** initialization method of display column (called after problem was transformed) */
-#if 0
-static
-SCIP_DECL_DISPINIT(dispInitXyz)
-{  /*lint --e{715}*/
-   SCIPerrorMessage("method of xyz display column not implemented yet\n");
-   SCIPABORT(); /*lint --e{527}*/
-
-   return SCIP_OKAY;
-}
-#else
-#define dispInitXyz NULL
-#endif
-
-/** deinitialization method of display column (called before transformed problem is freed) */
-#if 0
-static
-SCIP_DECL_DISPEXIT(dispExitXyz)
-{  /*lint --e{715}*/
-   SCIPerrorMessage("method of xyz display column not implemented yet\n");
-   SCIPABORT(); /*lint --e{527}*/
-
-   return SCIP_OKAY;
-}
-#else
-#define dispExitXyz NULL
-#endif
-
 /** solving process initialization method of display column (called when branch and bound process is about to begin) */
 static
 SCIP_DECL_DISPINITSOL(dispInitsolSdpavgiterations)
@@ -143,20 +115,6 @@ SCIP_DECL_DISPINITSOL(dispInitsolSdpavgiterations)
 
    return SCIP_OKAY;
 }
-
-/** solving process deinitialization method of display column (called before branch and bound process data is freed) */
-#if 0
-static
-SCIP_DECL_DISPEXITSOL(dispExitsolXyz)
-{  /*lint --e{715}*/
-   SCIPerrorMessage("method of xyz display column not implemented yet\n");
-   SCIPABORT(); /*lint --e{527}*/
-
-   return SCIP_OKAY;
-}
-#else
-#define dispExitsolXyz NULL
-#endif
 
 /** output method of display column to output file stream 'file' */
 static
@@ -200,8 +158,8 @@ SCIP_RETCODE SCIPincludeDispSdpavgiterations(
    /* include display column */
    SCIP_CALL( SCIPincludeDisp(scip, DISP_NAME, DISP_DESC, DISP_HEADER, SCIP_DISPSTATUS_AUTO,
          dispCopySdpavgiterations,
-         dispFreeSdpavgiterations, dispInitXyz, dispExitXyz,
-         dispInitsolSdpavgiterations, dispExitsolXyz, dispOutputSdpavgiterations,
+         dispFreeSdpavgiterations, NULL, NULL,
+         dispInitsolSdpavgiterations, NULL, dispOutputSdpavgiterations,
          dispdata, DISP_WIDTH, DISP_PRIORITY, DISP_POSITION, DISP_STRIPLINE) );
 
    return SCIP_OKAY;
