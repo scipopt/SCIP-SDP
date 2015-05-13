@@ -92,6 +92,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
    SCIP_Real* candsscore; /* scores of all candidates */
    SCIP_Real mostfracfrac; /* fractionality of the current most fractional variable */
    SCIP_Real mostfracscore; /* score of the current most fractional variable */
+   SCIP_Real mostfracobj; /* objective of the current most fractional variable */
    SCIP_Real mostfracval; /* value of the current most fractional variable */
    SCIP_VAR* mostfracvar = NULL; /* variable with the highest current fractionality */
 
@@ -116,24 +117,24 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
    mostfracfrac = -1.0;
    mostfracscore = 0.0;
    mostfracval = 0.0;
+   mostfracobj = -1.0;
 
    /* iterate over all solution candidates to find the one with the highest fractionality */
    for (i = 0; i < ncands; i++)
    {
       /* a candidate is better than the current one if:
-       * - the fractionality is (epsilon-)bigger than before or
-       * - the fractionality is (epsilon-)equal and the score is (epsilon-)bigger or
-       * - the score is (epsilon-)equal and the fractionality is (less than epsilon) bigger
-       * - the fractionality is (exactly) equal and the score is (less than epsilon) bigger
-       */
+       * - the fractionality is (feastol-)bigger than before or
+       * - the fractionality is (feastol-)equal and the score is (epsilon-)bigger or
+       * - the fractionality and score are (feastol-/epsilon-)equal and the objective is bigger */
       if ( SCIPisFeasGT(scip, SCIPfeasFrac(scip, candssol[i]), mostfracfrac) ||
           (SCIPisFeasEQ(scip, SCIPfeasFrac(scip, candssol[i]), mostfracfrac) && SCIPisGT(scip, candsscore[i], mostfracscore)) ||
-          (SCIPisEQ(scip, candsscore[i], mostfracscore) && SCIPfeasFrac(scip, candssol[i]) > mostfracfrac) ||
-          (SCIPfeasFrac(scip, candssol[i]) == mostfracfrac && candsscore[i] > mostfracscore) )
+          (SCIPisFeasEQ(scip, SCIPfeasFrac(scip, candssol[i]), mostfracfrac) && SCIPisEQ(scip, candsscore[i], mostfracscore)
+              && REALABS(SCIPvarGetObj(cands[i])) > mostfracobj) )
       {
          /* update the current best candidate */
          mostfracfrac = SCIPfeasFrac(scip, candssol[i]);
          mostfracscore = candsscore[i];
+         mostfracobj = REALABS(SCIPvarGetObj(cands[i]));
          mostfracval = candssol[i];
          mostfracvar = cands[i];
       }

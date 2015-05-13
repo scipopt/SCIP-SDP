@@ -90,8 +90,11 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
    SCIP_VAR** cands = NULL;
    SCIP_Real* candssol; /* solution values of all candidates */
    SCIP_Real* candsscore; /* scores of all candidates */
+   SCIP_Real currentfrac; /* fractionality of the current candidate */
+   SCIP_Real currentinf; /* infeasibility of the current candidate */
    SCIP_VAR* maxobjvar = NULL; /* variable with currently highest absolute objective */
    SCIP_Real maxobjobj; /* objective of the current candidate with highest absolute objective */
+   SCIP_Real maxobjinf; /* infeasibility of the current candidate with highest absolute objective */
    SCIP_Real maxobjval; /* value of the current candidate with highest absolute objective */
    SCIP_Real maxobjscore; /* score of the current candidate with highest absolute objective */
 
@@ -115,23 +118,25 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
    maxobjobj = -1.0;
    maxobjscore = 0.0;
    maxobjval = 0.0;
+   maxobjinf = -1.0;
 
    /* iterate over all candidates and find the one with the highest absolute objective, use score as tiebreaker */
    for (i = 0; i < ncands; i++)
    {
+      currentfrac = SCIPfeasFrac(scip, candssol[i]);
+      currentinf = (currentfrac <= 0.5) ? currentfrac : 1 - currentfrac;
+
       /* a candidate is better than the current one if:
        * - the absolute objective is (epsilon-)bigger than before or
        * - the absolute objective is (epsilon-)equal and the score is (epsilon-)bigger or
-       * - the score is (epsilon-)equal and the absolute objective is (less than epsilon) bigger
-       * - the absolute objective is (exactly) equal and the score is (less than epsilon) bigger
-       */
+       * - the absolute objective and score are (epsilon-)equal and the current integral-infeasibility is highter */
       if ( SCIPisGT(scip, REALABS(SCIPvarGetObj(cands[i])), maxobjobj) ||
           (SCIPisEQ(scip, REALABS(SCIPvarGetObj(cands[i])), maxobjobj) && SCIPisGT(scip, candsscore[i], maxobjscore)) ||
-          (SCIPisEQ(scip, candsscore[i], maxobjscore) && SCIPvarGetObj(cands[i]) > maxobjobj) ||
-          (REALABS(SCIPvarGetObj(cands[i])) == maxobjobj && candsscore[i] > maxobjscore) )
+          (SCIPisEQ(scip, REALABS(SCIPvarGetObj(cands[i])), maxobjobj) && SCIPisEQ(scip, candsscore[i], maxobjscore) && currentinf > maxobjinf ) )
       {
          maxobjvar = cands[i];
          maxobjobj = REALABS(SCIPvarGetObj(cands[i]));
+         maxobjinf = currentinf;
          maxobjval = candssol[i];
          maxobjscore = candsscore[i];
       }
@@ -203,10 +208,10 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
          /* first check which candidates appear in which constraints */
          SCIP_CALL( SCIPgetConsNVars(scip, conss[c], &nvarsincons, &success) );
          if ( ! success )
-            {
+         {
             SCIPdebugMessage("couldn't get variable information from constraint %s, so ignoring it for computing coupled variables\n", SCIPconsGetName(conss[c]));
             continue; /* if we can't get the variables of this constraint, we can't include variables coupled through this constraint */
-            }
+         }
          assert( nvarsincons > 0 );
          SCIP_CALL( SCIPgetConsVars(scip, conss[c], varsincons, nvarsincons, &success) );
          assert( success ); /* we allocated enough memory */
@@ -280,6 +285,9 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
 
          assert( SCIPisGE(scip, currentobj, 0.0) );
 
+         currentfrac = SCIPfeasFrac(scip, candssol[i]);
+         currentinf = (currentfrac <= 0.5) ? currentfrac : 1 - currentfrac;
+
 #ifdef SCIP_DEBUG
          printf("candidate %s, coupled with ", SCIPvarGetName(cands[cand]));
          for (v = 0; v < nvars; v++)
@@ -304,12 +312,12 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
           * - the total absolute objective is (exactly) equal and the score is (less than epsilon) bigger
           */
          if ( SCIPisGT(scip, currentobj, maxobjobj) ||
-             (SCIPisEQ(scip, currentobj, maxobjobj) && SCIPisGT(scip, candsscore[cand], maxobjscore)) ||
-             (SCIPisEQ(scip, candsscore[cand], maxobjscore) && currentobj > maxobjobj) ||
-             (currentobj == maxobjobj && candsscore[i] > maxobjscore) )
+             (SCIPisEQ(scip, currentobj, maxobjobj) && SCIPisGT(scip, candsscore[i], maxobjscore)) ||
+             (SCIPisEQ(scip, currentobj, maxobjobj) && SCIPisEQ(scip, candsscore[i], maxobjscore) && currentinf > maxobjinf ) )
          {
             maxobjvar = cands[cand];
             maxobjobj = currentobj;
+            maxobjinf = currentinf;
             maxobjval = candssol[cand];
             maxobjscore = candsscore[cand];
          }

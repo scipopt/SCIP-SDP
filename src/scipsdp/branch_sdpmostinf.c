@@ -94,6 +94,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostinf)
    SCIP_Real currentinf; /* infeasibility of the current candidate */
    SCIP_Real mostinfinf; /* infeasibility of the current most infeasible variable */
    SCIP_Real mostinfscore; /* score of the current most infeasible variable */
+   SCIP_Real mostinfobj; /* objective of the current most infeasible variable */
    SCIP_Real mostinfval; /* value of the current most infeasible variable */
    SCIP_VAR* mostinfvar = NULL; /* variable with the highest current infeasibility */
 
@@ -118,6 +119,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostinf)
    mostinfinf = -1.0;
    mostinfscore = 0.0;
    mostinfval = 0.0;
+   mostinfobj = -1.0;
 
    /* iterate over all solution candidates to find the one with the highest infeasibility */
    for (i = 0; i < ncands; i++)
@@ -125,19 +127,17 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostinf)
       currentfrac = SCIPfeasFrac(scip, candssol[i]);
       currentinf = (currentfrac <= 0.5) ? currentfrac : 1 - currentfrac;
       /* a candidate is better than the current one if:
-       * - the infeasibility is (epsilon-)bigger than before or
-       * - the infeasibility is (epsilon-)equal and the score is (epsilon-)bigger or
-       * - the score is (epsilon-)equal and the infeasibility is (less than epsilon) bigger
-       * - the infeasibility is (exactly) equal and the score is (less than epsilon) bigger
-       */
+       * - the infeasibility is (feastol-)bigger than before or
+       * - the infeasibility is (feastol-)equal and the score is (epsilon-)bigger or
+       * - the infeasibility and score are (feastol-/epsilon-)equal and the objective is bigger than before */
       if ( SCIPisFeasGT(scip, currentinf, mostinfinf) ||
           (SCIPisFeasEQ(scip, currentinf, mostinfinf) && SCIPisGT(scip, candsscore[i], mostinfscore)) ||
-          (SCIPisEQ(scip, candsscore[i], mostinfscore) && currentinf > mostinfinf) ||
-          (currentinf == mostinfinf && candsscore[i] > mostinfscore) )
+          (SCIPisFeasEQ(scip, currentinf, mostinfinf) && SCIPisEQ(scip, candsscore[i], mostinfscore) && REALABS(SCIPvarGetObj(cands[i])) > mostinfobj ) )
       {
          /* update the current best candidate */
          mostinfinf = currentinf;
          mostinfval = candssol[i];
+         mostinfobj = REALABS(SCIPvarGetObj(cands[i]));
          mostinfscore = candsscore[i];
          mostinfvar = cands[i];
       }

@@ -130,14 +130,9 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
 
       /* a candidate is better than the current one if:
        * - the absolute objective * integer infeasibility is (epsilon-)bigger than before or
-       * - the absolute objective * integer infeasibility is (epsilon-)equal and the score is (epsilon-)bigger or
-       * - the score is (epsilon-)equal and the absolute objective * integer infeasibility is (less than epsilon) bigger
-       * - the absolute objective * integer infeasibility is (exactly) equal and the score is (less than epsilon) bigger
-       */
+       * - the absolute objective * integer infeasibility is (epsilon-)equal and the score is bigger */
       if ( SCIPisGT(scip, currenttarget, maxtargettarget) ||
-          (SCIPisEQ(scip, currenttarget, maxtargettarget) && SCIPisGT(scip, candsscore[i], maxtargetscore)) ||
-          (SCIPisEQ(scip, candsscore[i], maxtargetscore) && currenttarget > maxtargettarget) ||
-          (currenttarget == maxtargettarget && candsscore[i] > maxtargetscore) )
+          (SCIPisEQ(scip, currenttarget, maxtargettarget) && candsscore[i] > maxtargetscore) )
       {
          maxtargetvar = cands[i];
          maxtargettarget = currenttarget;
@@ -312,15 +307,9 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
 #endif
 
          /* a candidate is better than the current one if:
-          * - the total absolute objective times integral infeasibility is (epsilon-)bigger than before or
-          * - the total absolute objective times integral infeasibility is (epsilon-)equal and the score is (epsilon-)bigger or
-          * - the score is (epsilon-)equal and the total absolute objective times integral infeasibility is (less than epsilon) bigger
-          * - the total absolute objective times integral infeasibility is (exactly) equal and the score is (less than epsilon) bigger
-          */
+          * - the total absolute objective times integral infeasibility is bigger than before */
          if ( SCIPisGT(scip, currenttarget, maxtargettarget) ||
-             (SCIPisEQ(scip, currenttarget, maxtargettarget) && SCIPisGT(scip, candsscore[cand], maxtargetscore)) ||
-             (SCIPisEQ(scip, candsscore[cand], maxtargetscore) && currenttarget > maxtargettarget) ||
-             (currenttarget == maxtargettarget && candsscore[i] > maxtargetscore) )
+             (SCIPisEQ(scip, currenttarget, maxtargettarget) && candsscore[cand] > maxtargetscore) )
          {
             maxtargetvar = cands[cand];
             maxtargettarget = currenttarget;
