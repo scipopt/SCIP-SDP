@@ -57,7 +57,7 @@
 #define RELAX_FREQ                  1
 
 #define DEFAULT_SDPSOLVEREPSILON    1e-5     /**< the stopping criterion for the duality gap the sdpsolver should use */
-#define DEFAULT_SDPSOLVERFEASTOL    0.9e-4     /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
+#define DEFAULT_SDPSOLVERFEASTOL    0.9e-4   /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
 #define DEFAULT_THREADS             1        /**< number of threads used for SDP solving */
 #define DEFAULT_OBJLIMIT            FALSE    /**< should an objective limit be given to the SDP-Solver ? */
 
@@ -470,6 +470,9 @@ SCIP_RETCODE calc_relax(
    {
       /* We couldn't solve the problem, not even with a penalty formulation, so we reuse the relaxation result of the parent node (if one exists) */
       SCIP_NODE* node = SCIPnodeGetParent(SCIPgetCurrentNode(scip));
+
+      relaxdata->origsolved = FALSE;
+
       if ( node == 0 )
       {
          /* TODO: if we could generate a feasible solution via penalty-only and a lower bound via penalty-with-objective, we could use those two together here */
