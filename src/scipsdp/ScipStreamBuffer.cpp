@@ -40,7 +40,6 @@
 #include <cstdio>                       // for EOF
 #include <algorithm>                    // for min
 #include <cstring>                      // for memcpy
-//#include "scip/def.h"                   // for SCIP_CALL_ABORT
 #include "scip/scip.h"                  // for SCIPallocBufferArray, etc
 
 #define SCIPSTREAMBUFFERSIZE 256
