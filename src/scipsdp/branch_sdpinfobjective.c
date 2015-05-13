@@ -50,6 +50,19 @@
 #define BRANCHRULE_PRIORITY        -5000
 #define BRANCHRULE_MAXDEPTH        -1
 #define BRANCHRULE_MAXBOUNDDIST    1.0
+#define DEFAULT_COUPLEDVARS        FALSE /**< if all branching candidates have objective zero, should we use the sum of the absolute objectives of all
+                                          *  continuous variables coupled with the candidate through constraints */
+#define DEFAULT_SINGLECOUPLEDVARS  FALSE /**< if all branching candidates have objective zero, should we use the sum of the absolute objectives of all
+                                          *  continuous variables coupled with the candidate through constraints in which no other candidate appears */
+
+/** branching rule data */
+struct SCIP_BranchruleData
+{
+   SCIP_Bool             coupledvars;        /**< if all branching candidates have objective zero, should we use the sum of the absolute objectives of all
+                                               *  continuous variables coupled with the candidate through linear constraints */
+   SCIP_Bool             singlecoupledvars;  /**< if all branching candidates have objective zero, should we use the sum of the absolute objectives of all
+                                               *  continuous variables coupled with the candidate through linear constraints in which no other candidate appears */
+};
 
 
 /*
@@ -96,8 +109,10 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
    SCIP_Real maxtargetscore; /* score of the current candidate with highest target value, meaning product of integer infeasibility and absolute objective */
    SCIP_Real currentfrac; /* fractionality of the current candidate */
    SCIP_Real currenttarget; /* target value, meaning product of integer infeasibility and absolute objective, of the current candidate */
+   SCIP_BRANCHRULEDATA* branchruledata;
 
    assert( scip != NULL );
+   assert( branchrule != NULL );
    assert( result != NULL );
 
    SCIPdebugMessage("Executing External Branching method of SDP-integer-infeasibility-objective!\n");
@@ -143,8 +158,12 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
 
    assert( SCIPisGE(scip, maxtargettarget, 0.0) );
 
-   /* if all candidates have objective zero, we look for other variables that are coupled with the candidates and check their objective values */
-   if ( SCIPisEQ(scip, maxtargettarget, 0.0) )
+   branchruledata = SCIPbranchruleGetData(branchrule);
+   assert( branchruledata != NULL );
+
+   /* if all candidates have objective zero, we look for other variables that are coupled with the candidates and check their objective values if the
+    * coupledvars or singlecoupledvars parameter is set to true */
+   if ( SCIPisEQ(scip, maxtargettarget, 0.0) && (branchruledata->coupledvars || branchruledata->singlecoupledvars) )
    {
       int j;
       int c;
@@ -193,13 +212,6 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
          for (j = 0; j < nvars; j++)
             coupledvars[i][j] = FALSE;
       }
-      SCIP_CALL( SCIPallocBufferArray(scip, &singlecoupledvars, ncands) );
-      for (i = 0; i < ncands; i++)
-      {
-         SCIP_CALL( SCIPallocBufferArray(scip, &(singlecoupledvars[i]), nvars) );
-         for (j = 0; j < nvars; j++)
-            singlecoupledvars[i][j] = FALSE;
-      }
       SCIP_CALL( SCIPallocBufferArray(scip, &varsincons, nvars) );
 
       /* find all variables that are coupled to a candidate */
@@ -241,36 +253,47 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
          }
       }
 
-      /* finally remove all variables, that are coupled to multiple candidates */
-      for (v = 0; v < nvars; v++)
+      if ( branchruledata->singlecoupledvars )
       {
-         /* we use coupledcand to save if we have already found a candidate this variable is coupled with (otherwise coupledcand = -1), if we find one, we set
-          * coupledcand to that index, to easily set the corresponding entry to TRUE if we don't find another candidate it is coupled with */
-         coupledcand = -1;
-         for (cand = 0; cand < ncands; cand++)
+         /* allocate memory for singlecoupledvars */
+         SCIP_CALL( SCIPallocBufferArray(scip, &singlecoupledvars, ncands) );
+         for (i = 0; i < ncands; i++)
          {
-            if ( coupledvars[cand][v] )
+            SCIP_CALL( SCIPallocBufferArray(scip, &(singlecoupledvars[i]), nvars) );
+            for (j = 0; j < nvars; j++)
+               singlecoupledvars[i][j] = FALSE;
+         }
+         /* finally remove all variables, that are coupled to multiple candidates */
+         for (v = 0; v < nvars; v++)
+         {
+            /* we use coupledcand to save if we have already found a candidate this variable is coupled with (otherwise coupledcand = -1), if we find one, we set
+             * coupledcand to that index, to easily set the corresponding entry to TRUE if we don't find another candidate it is coupled with */
+            coupledcand = -1;
+            for (cand = 0; cand < ncands; cand++)
             {
-               /* check if this is the first or the second found candidate for this variable */
-               if ( coupledcand == -1 )
+               if ( coupledvars[cand][v] )
                {
-                  /* this is the first candidate this is coupled with, so it might be the only one and we save it to potentially later set singlecoupledvars
-                   * to true */
-                  coupledcand = cand;
-               }
-               else
-               {
-                  /* we found a second candidate, so this variable won't be taken into account for the branching rule, so we reset coupledcand to -1 to not set
-                   * the corresponding entry in singlecoupledvars to TRUE and continue with the next variable */
-                  coupledcand = -2;
-                  break;
+                  /* check if this is the first or the second found candidate for this variable */
+                  if ( coupledcand == -1 )
+                  {
+                     /* this is the first candidate this is coupled with, so it might be the only one and we save it to potentially later set singlecoupledvars
+                      * to true */
+                     coupledcand = cand;
+                  }
+                  else
+                  {
+                     /* we found a second candidate, so this variable won't be taken into account for the branching rule, so we set coupledcand to -2 to not set
+                      * the corresponding entry in singlecoupledvars to TRUE and continue with the next variable */
+                     coupledcand = -2;
+                     break;
+                  }
                }
             }
-         }
-         if ( coupledcand > -1 )
-         {
-            /* as we found exactly one candidate this variable is coupled with, we set the corresponding singlecoupledvars-entry to TRUE */
-            singlecoupledvars[coupledcand][v] = TRUE;
+            if ( coupledcand > -1 )
+            {
+               /* as we found exactly one candidate this variable is coupled with, we set the corresponding singlecoupledvars-entry to TRUE */
+               singlecoupledvars[coupledcand][v] = TRUE;
+            }
          }
       }
 
@@ -280,7 +303,9 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
          currentobj = 0.0;
          for (v = 0; v < nvars; v++)
          {
-            if (singlecoupledvars[cand][v])
+            if ( branchruledata->singlecoupledvars && singlecoupledvars[cand][v] )
+               currentobj += REALABS(SCIPvarGetObj(vars[v]));
+            else if ( coupledvars[cand][v] )
                currentobj += REALABS(SCIPvarGetObj(vars[v]));
          }
 
@@ -320,12 +345,15 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
       }
 
       /* free Memory */
-      SCIPfreeBufferArray(scip, &varsincons);
-      for (i = 0; i < ncands; i++)
+      if ( branchruledata->singlecoupledvars )
       {
-         SCIPfreeBufferArray(scip, &(singlecoupledvars[i]));
+         for (i = 0; i < ncands; i++)
+         {
+            SCIPfreeBufferArray(scip, &(singlecoupledvars[i]));
+         }
+         SCIPfreeBufferArray(scip, &singlecoupledvars);
       }
-      SCIPfreeBufferArray(scip, &singlecoupledvars);
+      SCIPfreeBufferArray(scip, &varsincons);
       for (i = 0; i < ncands; i++)
       {
          SCIPfreeBufferArray(scip, &(coupledvars[i]));
@@ -349,6 +377,20 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
    return SCIP_OKAY;
 }
 
+/** destructor of branching rule to free user data (called when SCIP is exiting) */
+static
+SCIP_DECL_BRANCHFREE(branchFreeSdpinfobjective)
+{  /*lint --e{715}*/
+   SCIP_BRANCHRULEDATA* branchruledata;
+
+   /* free branching rule data */
+   branchruledata = SCIPbranchruleGetData(branchrule);
+   SCIPfreeMemory(scip, &branchruledata);
+   SCIPbranchruleSetData(branchrule, NULL);
+
+   return SCIP_OKAY;
+}
+
 /*
  * branching rule specific interface methods
  */
@@ -361,8 +403,8 @@ SCIP_RETCODE SCIPincludeBranchruleSdpinfobjective(
    SCIP_BRANCHRULEDATA* branchruledata;
    SCIP_BRANCHRULE* branchrule;
 
-   /* create empty branching rule data */
-   branchruledata = NULL;
+   /* create branching rule data */
+   SCIP_CALL( SCIPallocMemory(scip, &branchruledata) );
 
    branchrule = NULL;
 
@@ -375,6 +417,19 @@ SCIP_RETCODE SCIPincludeBranchruleSdpinfobjective(
    /* set non fundamental callbacks via setter functions */
    SCIP_CALL( SCIPsetBranchruleCopy(scip, branchrule, branchCopySdpinfobjective) );
    SCIP_CALL( SCIPsetBranchruleExecExt(scip, branchrule, branchExecextSdpinfobjective) );
+   SCIP_CALL( SCIPsetBranchruleFree(scip, branchrule, branchFreeSdpinfobjective) );
+
+   /* add parameters for the branching rule */
+   SCIP_CALL( SCIPaddBoolParam(scip,
+         "branching/sdpinfobjective/coupledvars",
+         "If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the "
+         "candidate through constraints ?",
+         &branchruledata->coupledvars, TRUE, DEFAULT_COUPLEDVARS, NULL, NULL) );
+   SCIP_CALL( SCIPaddBoolParam(scip,
+         "branching/sdpinfobjective/singlecoupledvars",
+         "If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the "
+         "candidate through constraints in which no other candidate appears ?",
+         &branchruledata->singlecoupledvars, TRUE, DEFAULT_SINGLECOUPLEDVARS, NULL, NULL) );
 
    return SCIP_OKAY;
 }
