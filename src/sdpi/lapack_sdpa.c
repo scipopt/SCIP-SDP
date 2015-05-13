@@ -176,7 +176,7 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &WORK, (int) LWORK) );
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &IWORK, (int) LIWORK) );
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &WTMP, (int) N) );
-   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &ISUPPZ, 2) );
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &ISUPPZ, 2) ); /*lint !e506*/
 
    /* call the function */
    VL = -1e20;
