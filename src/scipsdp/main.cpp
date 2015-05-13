@@ -72,6 +72,7 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPincludeBranchruleSdpmostfrac(scip) );
    SCIP_CALL( SCIPincludeBranchruleSdpmostinf(scip) );
    SCIP_CALL( SCIPincludeBranchruleSdpobjective(scip) );
+   SCIP_CALL( SCIPincludeBranchruleSdpinfobjective(scip) );
 
    /* add parameter for SDP solver */
    SCIP_CALL( SCIPaddStringParam(scip, "sdpsolver", "SDP solver", 0, FALSE, "dsdp" , 0, 0) );
@@ -125,7 +126,7 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight", 0.0) );
 
    /* turn off one-opt, as it doesn't check for positive semidefinitness of the solutions */
-   SCIP_CALL( SCIPsetIntParam(scip, "heuristics/oneopt/freq", -1) );
+   //SCIP_CALL( SCIPsetIntParam(scip, "heuristics/oneopt/freq", -1) );
 
    /* run interactive shell */
    SCIP_CALL( SCIPprocessShellArguments(scip, argc, argv, "scip.set") );
