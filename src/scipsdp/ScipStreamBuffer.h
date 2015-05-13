@@ -41,8 +41,6 @@
 #include <streambuf>                    // for streamsize, streambuf
 
 #include <cstddef>                      // for size_t
-//#include "scip/pub_fileio.h"            // for SCIP_FILE
-//#include "scip/type_scip.h"             // for SCIP
 #include "scip/scip.h"
 
 class ScipStreamBuffer : public std::streambuf
@@ -52,7 +50,7 @@ class ScipStreamBuffer : public std::streambuf
 
    ~ScipStreamBuffer();
 
- private:
+ protected:
    /// the underflow function is responsible for the refilling of the buffer
    virtual int underflow();
 
