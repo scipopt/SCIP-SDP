@@ -871,7 +871,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
               pos++;
            }
            else
-              rowmapper[2*i] = -1;
+              rowmapper[2*i] = -1; /*lint !e679*/
            if ( lprhs[newpos] < SCIPsdpiSolverInfinity(sdpisolver) )
            {
               rowmapper[2*i + 1] = pos; /*lint !e679*/
@@ -884,7 +884,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
         }
         else
         {
-           rowmapper[2*i] = -1;
+           rowmapper[2*i] = -1; /*lint !e679*/
            rowmapper[2*i + 1] = -1; /*lint !e679*/
         }
       }
