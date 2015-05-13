@@ -825,7 +825,7 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
          rhs = (consdata->constnnonz == 1) ? consdata->constval[0] : 0.0; /* if this one entry is not 0, than this is the rhs, otherwise it's 0 */
 
          /* if there is more than one left-hand-side-entry, add a linear constraint, otherwise update the variable bound */
-         if (count > 1)
+         if ( count > 1 )
          {
             /* add new linear cons */
             conshdlrdata = SCIPconshdlrGetData(hdlr);
@@ -858,10 +858,10 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
          {
             /* we compare this new variable with the current (local) bounds, we don't do an epsilon check here, because 10^(-21)*x >= 10^(-19) for
              * epsilon = 10^(-20) would be infeasible then, even though it only says x >= 100 */
-            if (coeffs[0] > 0.0)
+            if ( coeffs[0] > 0.0 )
             {
                /* this gives a lower bound, if it is bigger than the current one, we need to update it */
-               if (SCIPisFeasGT(scip, rhs / coeffs[0], SCIPvarGetLbLocal(vars[0])))
+               if ( SCIPisFeasGT(scip, rhs / coeffs[0], SCIPvarGetLbLocal(vars[0])) )
                {
                   SCIPdebugMessage("Changing lower bound of variable %s from %f to %f because of 1x1-SDP-constraint %s!\n",
                         SCIPvarGetName(vars[0]), SCIPvarGetLbLocal(vars[0]), rhs / coeffs[0], SCIPconsGetName(conss[i]));
@@ -873,7 +873,7 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
                         SCIPconsGetName(conss[i]), rhs / coeffs[0], SCIPvarGetName(vars[0]), SCIPvarGetLbLocal(vars[0]));
                }
             }
-            else if (coeffs[0] < 0.0)
+            else if ( coeffs[0] < 0.0 )
             {
                /* this gives an upper bound, if it is lower than the current one, we need to update it */
                if (SCIPisFeasLT(scip, -rhs / coeffs[0], SCIPvarGetUbLocal(vars[0])))
@@ -891,12 +891,12 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
             else
             {
                SCIPdebugMessage("Detected 1x1 SDP-block without any nonzero coefficients \n");
-               if (SCIPisFeasGT(scip, rhs, 0.0))
+               if ( SCIPisFeasGT(scip, rhs, 0.0) )
                {
                   SCIPdebugMessage("Detected infeasibility in 1x1 SDP-block without any nonzero coefficients but with strictly positive rhs\n");
                   *result = SCIP_CUTOFF;
                   /* delete old 1x1 sdpcone */
-                  SCIP_CALL(SCIPdelCons(scip, conss[i]));
+                  SCIP_CALL( SCIPdelCons(scip, conss[i]) );
                   (*ndelconss)++;
 
                   SCIPfreeBufferArray(scip, &coeffs);
@@ -1006,7 +1006,7 @@ SCIP_RETCODE multiaggrVar(
       aggrconsind = -1;
       for (i = 0; i < consdata->nvars; i++)
       {
-         if (consdata->vars[i] == aggrvars[aggrind])
+         if ( consdata->vars[i] == aggrvars[aggrind] )
          {
             aggrconsind = i;
             break;
@@ -1053,17 +1053,17 @@ SCIP_RETCODE multiaggrVar(
          SCIPdebugMessage("adding variable %s to SDP constraint %s because of (multi-)aggregation\n", SCIPvarGetName(aggrvars[aggrind]), SCIPconsGetName(cons));
 
          /* check if we have to enlarge the arrays */
-         if (consdata->nvars == *vararraylength)
+         if ( consdata->nvars == *vararraylength )
          {
             globalnvars = SCIPgetNVars(scip);
 
+            /* we don't want to enlarge this by one for every variable added, so we immediately set it to the maximum possible size */
             SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->col, *vararraylength, globalnvars) );
             SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->row, *vararraylength, globalnvars) );
             SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->val, *vararraylength, globalnvars) );
             SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->nvarnonz, *vararraylength, globalnvars) );
             SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->vars, *vararraylength, globalnvars) );
-            *vararraylength = globalnvars; /* we don't want to enlarge this by one for every variable added, so we immediately set it to the
-                                            * maximum possible size */
+            *vararraylength = globalnvars;
          }
 
          /* we insert this variable at the last position, as the ordering doesn't matter */
@@ -1105,7 +1105,7 @@ SCIP_RETCODE multiaggrVar(
             }
          }
 
-         if (consdata->nvarnonz[consdata->nvars] > 0) /* if scalar and all savedvals were to small */
+         if ( consdata->nvarnonz[consdata->nvars] > 0 ) /* if scalar and all savedvals were to small */
             consdata->nvars++;
       }
    }
@@ -1183,7 +1183,7 @@ SCIP_RETCODE fixAndAggrVars(
       {
          negated = FALSE;
          /* if the variable is negated, get the negation var */
-         if ( SCIPvarIsBinary(consdata->vars[v]) && SCIPvarIsNegated(consdata->vars[v]))
+         if ( SCIPvarIsBinary(consdata->vars[v]) && SCIPvarIsNegated(consdata->vars[v]) )
          {
             negated = TRUE;
             var = SCIPvarGetNegationVar(consdata->vars[v]);
@@ -1932,7 +1932,7 @@ SCIP_DECL_CONSGETVARS(consGetVarsSdp)
 
    nvars = consdata->nvars;
 
-   if (nvars > varssize)
+   if ( nvars > varssize )
    {
       SCIPdebugMessage("consGetVarsIndicator called for array of size %d, needed size %d.\n", varssize, nvars);
       *success = FALSE;
@@ -2027,7 +2027,7 @@ SCIP_RETCODE SCIPconsSdpGetData(
    int*                  constcol,           /**< pointer to column indices of the constant nonzeroes */
    int*                  constrow,           /**< pointer to row indices of the constant nonzeroes */
    SCIP_Real*            constval            /**< pointer to values of the constant nonzeroes */
-   )/* TODO: why does lint complain about last value of constcol etc. not being used */
+   )
 {
    SCIP_CONSDATA* consdata;
    int i;
@@ -2059,7 +2059,7 @@ SCIP_RETCODE SCIPconsSdpGetData(
       vars[i] = consdata->vars[i];
 
    /* check that the sdp-arrays are long enough to store the information */
-   if (*arraylength < consdata->nvars)
+   if ( *arraylength < consdata->nvars )
    {
       SCIPdebugMessage("nvarnonz, col, row and val arrays were not long enough to store the information for cons %s, they need to be at least"
                        "size %d, given was only length %d! \n", name, consdata->nvars, *arraylength);
@@ -2078,9 +2078,9 @@ SCIP_RETCODE SCIPconsSdpGetData(
    }
 
    /* set the constant pointers (if a constant part exists) */
-   if (consdata->constnnonz > 0)
+   if ( consdata->constnnonz > 0 )
    {
-      if (consdata->constnnonz > *constnnonz)
+      if ( consdata->constnnonz > *constnnonz )
       {
          SCIPdebugMessage("The constant nonzeros arrays were not long enough to store the information for cons %s, they need to be at least"
                                 "size %d, given was only length %d! \n", name, consdata->constnnonz, *constnnonz);
