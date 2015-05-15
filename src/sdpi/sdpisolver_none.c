@@ -663,7 +663,7 @@ SCIP_Real SCIPsdpiSolverMaxPenParam(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to an SDP interface solver structure */
    )
 {
-   return 1E+10;  /* DSDP will start with penalty param 10^10 if called normally */
+   return 1E+10;  /* this is the value DSDP will start with if called normally */
 }
 
 /** checks if given value is greater or equal to the highest penalty parameter to be used */
