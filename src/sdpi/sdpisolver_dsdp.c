@@ -179,7 +179,7 @@ SCIP_Bool isFixed(
 {
    assert( lb < ub + sdpisolver->epsilon );
 
-   return ( REALABS(ub-lb) <= sdpisolver->epsilon);
+   return (REALABS(ub-lb) <= sdpisolver->epsilon);
 }
 #else
 #define isFixed(sdpisolver,lb,ub) (REALABS(ub-lb) <= sdpisolver->epsilon)
@@ -726,7 +726,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             blockvar = -1;
             for (k = 0; k < sdpnblockvars[block]; k++)
             {
-               if (v == sdpvar[block][k])
+               if ( v == sdpvar[block][k] )
                {
                   blockvar = k;
                   break;
@@ -735,7 +735,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
             startind = ind;
 
-            if (blockvar > -1) /* the variable exists in this block */
+            if ( blockvar > -1 ) /* the variable exists in this block */
             {
                for (k = 0; k < sdpnblockvarnonz[block][blockvar]; k++)
                {
@@ -767,7 +767,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          /* add r * Identity for each block */
          for (block = 0; block < nsdpblocks; block++)
          {
-            if ( blockindchanges[block] > -1)
+            if ( blockindchanges[block] > -1 )
             {
                for (i = 0; i < sdpblocksizes[block] - nremovedinds[block]; i++)
                {
@@ -1012,14 +1012,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       for (i = 0; i < lpnnonz; i++)
       {
          /* if a new variable starts, set the corresponding dsdplpbegcol-entry */
-         if (lpcol[i] >= nextcol)
+         if ( lpcol[i] >= nextcol )
          {
             /* set the dsdplpbegcol entries, as there might be active variables which appear only in the sdp but not the lp-part, we also have to set
              * the starting values for all variables in between to the same value (as we also set the entry for the found variable, this for-queue
              * will always have at least one index in the index set) */
             for (j = nextcol; j <= lpcol[i]; j++)
             {
-               if (sdpisolver->inputtodsdpmapper[j] >= 0)
+               if ( sdpisolver->inputtodsdpmapper[j] >= 0 )
                {
                   assert( ! (isFixed(sdpisolver, lb[j], ub[j])) );
                   dsdplpbegcol[sdpisolver->inputtodsdpmapper[j]] = dsdpnlpnonz;
@@ -1067,7 +1067,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* set the begcol array for all remaining variables (that aren't part of the LP-part), and also set the objlimit-constraint-entries */
       for (j = nextcol; j < nvars; j++)
       {
-         if (sdpisolver->inputtodsdpmapper[j] >= 0)
+         if ( sdpisolver->inputtodsdpmapper[j] >= 0 )
          {
             assert( ! (isFixed(sdpisolver, lb[j], ub[j])) );
             dsdplpbegcol[sdpisolver->inputtodsdpmapper[j]] = dsdpnlpnonz;
@@ -1157,7 +1157,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
    /* set the starting solution */
-   if (start != NULL)
+   if ( start != NULL )
    {
       for (i = 1; i <= sdpisolver->nactivevars; i++) /* we iterate over the variables in DSDP */
       {
@@ -1193,7 +1193,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
    }
 
-   if (nlpcons > 0 || lpnnonz > 0)
+   if ( nlpcons > 0 || lpnnonz > 0 )
    {
       BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, dsdpnlpnonz); /*lint !e644*/
       BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, dsdpnlpnonz);
@@ -1848,7 +1848,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    /* copy them to the right spots of lbvars & ubvars */
    for (i = 0; i < sdpisolver->nvars; i++)
    {
-      if (sdpisolver->inputtodsdpmapper[i] < 0)
+      if ( sdpisolver->inputtodsdpmapper[i] < 0 )
       {
          /* if the variable was fixed, it didn't exist in the relaxation, so we set the value to 0
           * (as DSDP already uses this value for unbounded vars) */
