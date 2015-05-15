@@ -522,7 +522,6 @@ SCIP_RETCODE calc_relax(
       {
          SCIPdebugMessage("Node cut off due to infeasibility.");
          *result = SCIP_CUTOFF;
-         /* TODO: need to set lowerbound? */
          return SCIP_OKAY;
       }
       else if ( SCIPsdpiIsObjlimExc(sdpi) )
@@ -807,8 +806,8 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
    nvars = SCIPgetNVars(scip);
    vars = SCIPgetVars(scip);
 
-   SCIP_CALL( SdpVarmapperCreate(scip, &(relaxdata->varmapper), (int) ceil(1.33 * nvars)) ); /* all SCIPvars will be added to this list, and 3/4 seems
-                                                                                              * like a good load factor (java uses this factor) */
+   /* all SCIPvars will be added to this list, and 3/4 seems like a good load factor (java uses this factor) */
+   SCIP_CALL( SdpVarmapperCreate(scip, &(relaxdata->varmapper), (int) ceil(1.33 * nvars)) );
    SCIP_CALL( SdpVarmapperAddVars(scip, relaxdata->varmapper, nvars, vars) );
 
    if ( SCIPgetNVars(scip) > 0 )
