@@ -62,7 +62,7 @@ SCIP_RETCODE SdpVarmapperCreate(
    assert ( varmapper != NULL );
    assert ( size >= 0 );
 
-   if (size == 0)
+   if ( size == 0 )
    {
       SCIPdebugMessage("SdpVarmapperCreate called for size 0!\n");
       return SCIP_OKAY;
@@ -115,7 +115,7 @@ SCIP_RETCODE SdpVarmapperAddVars(
                              * should reallocate later */
    int allocsize;
 
-   if (nvars == 0)
+   if ( nvars == 0 )
       return SCIP_OKAY;
 
    assert ( scip != NULL );
@@ -144,7 +144,7 @@ SCIP_RETCODE SdpVarmapperAddVars(
       }
    }
 
-   if (reallocneeded)
+   if ( reallocneeded )
    {
       SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(varmapper->sdptoscip), allocsize, varmapper->nvars) );
    }

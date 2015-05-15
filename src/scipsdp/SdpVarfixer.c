@@ -120,7 +120,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
    /* sort the target and origin arrays first by row and then by col to make searching for entries easier */
    SdpVarfixerSortRowCol(targetrow, targetcol, targetval, *targetlength);
 
-   if (! (originsorted))
+   if ( ! (originsorted) )
       SdpVarfixerSortRowCol(originrow, origincol, originval, originlength);
 
    ind = 0; /* this will be used to traverse the nonzeros of the target arrays */
@@ -138,7 +138,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
       while (ind < *targetlength && (targetrow[ind] < originrow[i] || (targetrow[ind] == originrow[i] && targetcol[ind] < origincol[i])))
       {
          /* shift the target nonzeros to the left if needed */
-         if (nleftshifts > 0)
+         if ( nleftshifts > 0 )
          {
             targetrow[ind - nleftshifts] = targetrow[ind];
             targetcol[ind - nleftshifts] = targetcol[ind];
@@ -147,12 +147,12 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
          ind++;
       }
 
-      if (ind < *targetlength && (targetrow[ind] == originrow[i] && targetcol[ind] == origincol[i]))
+      if ( ind < *targetlength && (targetrow[ind] == originrow[i] && targetcol[ind] == origincol[i]) )
       {
          /* add to the old entry */
 
          /* shift the entry to the left if needed and change the value */
-         if (nleftshifts > 0)
+         if ( nleftshifts > 0 )
          {
             targetrow[ind - nleftshifts] = targetrow[ind];
             targetcol[ind - nleftshifts] = targetcol[ind];
@@ -167,7 +167,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
             i++;
          }
 
-         if (REALABS(targetval[ind - nleftshifts]) < epsilon)
+         if ( REALABS(targetval[ind - nleftshifts]) < epsilon )
          {
             /* the nonzero became zero */
             nleftshifts++;
@@ -176,7 +176,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
       }
       else  /* create a new entry */
       {
-         if (nleftshifts > 0)
+         if ( nleftshifts > 0 )
          {
             /* we can add the nonzero at one of the empty spots */
             insertionpos = ind - nleftshifts;
@@ -189,7 +189,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
             naddednonz++;
          }
 
-         if (insertionpos < targetmemory)
+         if ( insertionpos < targetmemory )
          {
             /* add the nonzero to the computed position */
             targetrow[insertionpos] = originrow[i];
@@ -204,10 +204,10 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
             }
 
             /* if there were indeed multiple entries, check if they did cancel each other out, in that case remove the entry */
-            if (REALABS(targetval[insertionpos]) < epsilon)
+            if ( REALABS(targetval[insertionpos]) < epsilon )
             {
                /* depending on where this actually zero nonzero was added, either add another leftshift to overwrite it or decrease the number of addednonz */
-               if (insertionpos < ind)
+               if ( insertionpos < ind )
                   nleftshifts++;
                else
                   naddednonz--;
@@ -218,7 +218,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
       }
    }
    /* shift the remaining entries of the target arrays */
-   if (nleftshifts > 0)
+   if ( nleftshifts > 0 )
    {
       while (ind < *targetlength + naddednonz && ind < targetmemory)
       {
@@ -229,7 +229,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
       }
    }
 
-   if (debugmsg)
+   if ( debugmsg )
       SCIPdebugMessage("insufficient memory given for SdpVarfixerMergeArrays, targetmemorys had length %d, would have needed up to %d\n",
                                     targetmemory, *targetlength + naddednonz);
 
@@ -294,9 +294,9 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
    {
       /* if the next entry of the first arrays comes before the next entry of the second arrays according to the row then col sorting, then we can
        * insert the next entry of the first arrays, as there can't be an entry in the second arrays for the same row/col-combination */
-      if (firstrow[firstind] < secondrow[secondind] || (firstrow[firstind] == secondrow[secondind] && firstcol[firstind] < secondcol[secondind]))
+      if ( firstrow[firstind] < secondrow[secondind] || (firstrow[firstind] == secondrow[secondind] && firstcol[firstind] < secondcol[secondind]) )
       {
-         if (targetind < *targetlength)
+         if ( targetind < *targetlength )
          {
             targetrow[targetind] = firstrow[firstind];
             targetcol[targetind] = firstcol[firstind];
@@ -309,9 +309,9 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
          firstind++;
       }
       /* if the next entry of the second array comes first, we insert it */
-      else if (firstrow[firstind] > secondrow[secondind] || (firstrow[firstind] == secondrow[secondind] && firstcol[firstind] > secondcol[secondind]))
+      else if ( firstrow[firstind] > secondrow[secondind] || (firstrow[firstind] == secondrow[secondind] && firstcol[firstind] > secondcol[secondind]) )
       {
-         if (targetind < *targetlength)
+         if ( targetind < *targetlength )
          {
             targetrow[targetind] = secondrow[secondind];
             targetcol[targetind] = secondcol[secondind];
@@ -325,20 +325,20 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
           * add it's value to the created entry in the target entries and continue */
          while (secondind < secondlength && (secondrow[secondind] == targetrow[targetind] && secondcol[secondind] == targetcol[targetind]))
          {
-            if (targetind < *targetlength)
+            if ( targetind < *targetlength )
                targetval[targetind] += secondval[secondind];
             secondind++;
          }
 
          /* if we combined multiple fixed nonzeros, it is possible that they cancelled each other out, in that case, we shouldn't add a nonzero to the
           * target arrays (if the array was too short we didn't compute the entry, but we add it, as we want to get an upper bound on the needed size) */
-         if (targetind >= *targetlength || REALABS(targetval[targetind]) >= epsilon)
+         if ( targetind >= *targetlength || REALABS(targetval[targetind]) >= epsilon )
             targetind++;
       }
       /* if the next entries of both arrays are equal according to the row then col sorting, then they need to be combined */
       else
       {
-         if (targetind < *targetlength)
+         if ( targetind < *targetlength )
          {
             targetrow[targetind] = firstrow[firstind];
             targetcol[targetind] = firstcol[firstind];
@@ -353,14 +353,14 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
           * add it's value to the created entry in the target entries and continue */
          while (secondind < secondlength && (secondrow[secondind] == targetrow[targetind] && secondcol[secondind] == targetcol[targetind]))
          {
-            if (targetind < *targetlength)
+            if ( targetind < *targetlength )
                targetval[targetind] += secondval[secondind];
             secondind++;
          }
 
          /* as we combined multiple entires, it is possible that they cancelled each other out, in that case, we shouldn't add a nonzero to the
           * target arrays (if the array was too short we didn't compute the entry, but we add it, as we want to get an upper bound on the needed size) */
-         if (targetind >= *targetlength || REALABS(targetval[targetind]) >= epsilon)
+         if ( targetind >= *targetlength || REALABS(targetval[targetind]) >= epsilon )
             targetind++;
       }
    }
@@ -369,7 +369,7 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
     * queues are exactly the same as the corresponding if-case in the above while-queue (+ checking for the length of the target arrays) */
    while (firstind < firstlength)
    {
-      if (targetind < *targetlength)
+      if ( targetind < *targetlength )
       {
          targetrow[targetind] = firstrow[firstind];
          targetcol[targetind] = firstcol[firstind];
@@ -383,7 +383,7 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
 
    while (secondind < secondlength)
    {
-      if (targetind < *targetlength)
+      if ( targetind < *targetlength )
       {
          targetrow[targetind] = secondrow[secondind];
          targetcol[targetind] = secondcol[secondind];
@@ -397,18 +397,18 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
        * add it's value to the created entry in the target entries and continue */
       while (secondind < secondlength && (secondrow[secondind] == targetrow[targetind] && secondcol[secondind] == targetcol[targetind]))
       {
-         if (targetind < *targetlength)
+         if ( targetind < *targetlength )
             targetval[targetind] += secondval[secondind];
          secondind++;
       }
 
       /* if we combined multiple fixed nonzeros, it is possible that they cancelled each other out, in that case, we shouldn't add a nonzero to the
        * target arrays */
-      if (targetind >= *targetlength || REALABS(targetval[targetind]) >= epsilon)
+      if ( targetind >= *targetlength || REALABS(targetval[targetind]) >= epsilon )
          targetind++;
    }
 
-   if (debugmsg)
+   if ( debugmsg )
    {
       SCIPdebugMessage("Insufficient arraylength in SdpVarfixerMergeArraysIntoNew, given targetarray-length was %d, would have needed %d",
                                   *targetlength, targetind);
