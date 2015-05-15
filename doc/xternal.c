@@ -37,9 +37,8 @@
  * @author Sonja Mars, Lars Schewe, Tristan Gally, Marc Pfetsch
  * @date 2011-2015
  *
- * The SCIP-SDP-Package is a plug-in for the Software SCIP. It is able to solve Mixed-Integer SDPs using the
- * interior-point solver DSDP and SCIP as a branch and bound framework. It provides a lot of data handling, some
- * presolve routines and an linear approximation procedure for MISDPs. Two examples for mixed-integer semidefinite
- * programs are arising from truss topology design and maximum cut problems on graphs. We tested our code on a lot of
- * instances, most of them are trusses or max-cuts.
+ * The SCIP-SDP-Package is a plug-in for the Software SCIP. It is able to solve Mixed-Integer SDPs using
+ * interior-point SDP-solvers (currently DSDP and SDPA) and SCIP as a branch and bound framework. It provides a lot 
+ * of data handling, some presolve routines and a propagator for reduced cost/dual fixing for semidefinite problems
+ * as well as a linear approximation procedure for MISDPs. 
  */
