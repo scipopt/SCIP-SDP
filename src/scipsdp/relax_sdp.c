@@ -617,7 +617,7 @@ SCIP_RETCODE calc_relax(
                SCIP_VAR* var = vars[i];
                if ( SCIPvarIsIntegral(var) && ! SCIPisFeasIntegral(scip, solforscip[i]) && ! SCIPisEQ(scip, SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var)) )
                {
-                  /* we don't set a true score, we will just let the heuristic decide */
+                  /* we don't set a true score, we will just let the branching rule decide */
                   SCIP_CALL( SCIPaddExternBranchCand(scip, var, 10000.0, solforscip[i]) );
                }
             }
