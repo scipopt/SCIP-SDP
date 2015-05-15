@@ -258,10 +258,10 @@ SCIP_RETCODE setMaxRhsEntry(
 }
 
 
-/** separate current solution using a cut, with the eigenvectors and -values of the solution matrix
+/** separate current solution with a cut using the eigenvectors and -values of the solution matrix
  *
- *  This function computes the eigenvectors of the matrix, takes the first one and multiplies the matrix with it
- *  \f$ x^T*A_i*x = coeff[i], x^T*A_0*x =lhs \f$.
+ *  This function computes the eigenvectors of the matrix, takes the first one and multiplies the matrix with it such that
+ *  \f$ coeff[i] = x^T*A_i*x , lhs = x^T*A_0*x \f$.
  */
 static
 SCIP_RETCODE cutUsingEigenvector(
@@ -1529,7 +1529,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
 
 /** enforce pseudo solution method
  *
- *  Returns didnotrun, if objinfeasible, computes cut otherwise.
+ *  Returns didnotrun, if objinfeasible, computes feasibility otherwise.
  */
 static
 SCIP_DECL_CONSENFOPS(consEnfopsSdp)
