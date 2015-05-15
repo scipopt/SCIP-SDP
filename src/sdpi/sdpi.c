@@ -294,9 +294,8 @@ SCIP_RETCODE compConstMatAfterFixings(
             {
                fixedrows[block][nfixednonz[block]] = sdpi->sdprow[block][v][i];
                fixedcols[block][nfixednonz[block]] = sdpi->sdpcol[block][v][i];
-               fixedvals[block][nfixednonz[block]] = - sdpi->sdpval[block][v][i] * sdpi->lb[sdpi->sdpvar[block][v]]; /* this is the final value to
-                                                                       * add, so we no longer have to remember, from which variable this nonzero
-                                                                       * comes, the -1 comes from +y_iA_i but -A_0 */
+               /* this is the final value to add, so we no longer have to remember, from which variable this nonzero comes, the -1 comes from +y_iA_i but -A_0 */
+               fixedvals[block][nfixednonz[block]] = - sdpi->sdpval[block][v][i] * sdpi->lb[sdpi->sdpvar[block][v]];
                nfixednonz[block]++;
             }
          }
@@ -383,22 +382,22 @@ SCIP_RETCODE findEmptyRowColsSDP(
       nfoundinds = 0;
       for (v = 0; v < sdpi->sdpnblockvars[block]; v++)
       {
-         if ( ! (isFixed(sdpi, sdpi->sdpvar[block][v])))
+         if ( ! (isFixed(sdpi, sdpi->sdpvar[block][v])) )
          {
             for (i = 0; i < sdpi->sdpnblockvarnonz[block][v]; i++)
             {
                assert ( REALABS(sdpi->sdpval[block][v][i]) > sdpi->epsilon); /* this should really be a nonzero */
-               if (indchanges[block][sdpi->sdprow[block][v][i]] == -1)
+               if ( indchanges[block][sdpi->sdprow[block][v][i]] == -1 )
                {
                   indchanges[block][sdpi->sdprow[block][v][i]] = 1;
                   nfoundinds++;
                }
-               if (indchanges[block][sdpi->sdpcol[block][v][i]] == -1)
+               if ( indchanges[block][sdpi->sdpcol[block][v][i]] == -1 )
                {
                   indchanges[block][sdpi->sdpcol[block][v][i]] = 1;
                   nfoundinds++;
                }
-               if (nfoundinds == sdpi->sdpblocksizes[block])
+               if ( nfoundinds == sdpi->sdpblocksizes[block] )
                   break;   /* we're done for this block */
             }
          }
@@ -406,23 +405,23 @@ SCIP_RETCODE findEmptyRowColsSDP(
             break;   /* we're done for this block */
       }
 
-      if (nfoundinds < sdpi->sdpblocksizes[block])
+      if ( nfoundinds < sdpi->sdpblocksizes[block] )
       {
          /* if some indices haven't been found yet, look in the constant part for them */
          for (i = 0; i < sdpconstnblocknonz[block]; i++)
          {
             assert ( REALABS(sdpconstval[block][i]) > sdpi->epsilon); /* this should really be a nonzero */
-            if (indchanges[block][sdpconstrow[block][i]] == -1)
+            if ( indchanges[block][sdpconstrow[block][i]] == -1 )
             {
                indchanges[block][sdpconstrow[block][i]] = 1;
                nfoundinds++;
             }
-            if (indchanges[block][sdpconstcol[block][i]] == -1)
+            if ( indchanges[block][sdpconstcol[block][i]] == -1 )
             {
                indchanges[block][sdpconstcol[block][i]] = 1;
                nfoundinds++;
             }
-            if (nfoundinds == sdpi->sdpblocksizes[block])
+            if ( nfoundinds == sdpi->sdpblocksizes[block] )
                break;   /* we're done for this block */
          }
       }
@@ -431,7 +430,7 @@ SCIP_RETCODE findEmptyRowColsSDP(
       nremovedinds[block] = 0;
       for (i = 0; i < sdpi->sdpblocksizes[block]; i++)
       {
-         if (indchanges[block][i] == -1)
+         if ( indchanges[block][i] == -1 )
          {
             SCIPdebugMessage("empty row and col %d were removed from block %d of SDP %d\n", i, block, sdpi->sdpid);
             /* this index wasn't found (indchanges was initialized with 0), so it can be removed */
@@ -704,7 +703,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
                   nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
             }
             /* check if this makes the problem infeasible */
-            if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
+            if ( sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol )
             {
                sdpi->infeasible = TRUE;
                SCIPdebugMessage("We found an upper bound that is lower than the lower bound, so the problem is infeasible !\n");
@@ -728,7 +727,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
                   nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
             }
             /* check if this makes the problem infeasible */
-            if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
+            if ( sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol )
             {
                sdpi->infeasible = TRUE;
                SCIPdebugMessage("We found an upper bound that is lower than the lower bound, so the problem is infeasible !\n");
@@ -755,7 +754,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
                   nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
             }
             /* check if this makes the problem infeasible */
-            if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
+            if ( sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol )
             {
                sdpi->infeasible = TRUE;
                SCIPdebugMessage("We found a lower bound that is bigger than the upper bound, so the problem is infeasible !\n");
@@ -779,7 +778,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
                   nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
             }
             /* check if this makes the problem infeasible */
-            if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
+            if ( sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol )
             {
                sdpi->infeasible = TRUE;
                SCIPdebugMessage("We found an upper bound that is lower than the lower bound, so the problem is infeasible !\n");
@@ -1100,7 +1099,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    int*                  sdpnblockvars,      /**< number of variables in each SDP block (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
    int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks */
    int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
-                                                  *  number of entries  of sdpconst row/col/val [i] */
+                                               *  number of entries  of sdpconst row/col/val [i] */
    int**                 sdpconstrow,        /**< pointer to row-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
    int**                 sdpconstcol,        /**< pointer to column-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
    SCIP_Real**           sdpconstval,        /**< pointer to values of entries of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
@@ -1334,6 +1333,7 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
 
    BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lplhs), sdpi->nlpcons, sdpi->nlpcons + nrows) ); /*lint !e776*/
    BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons, sdpi->nlpcons + nrows) ); /*lint !e776*/
+
    for (i = 0; i < nrows; i++)
    {
       sdpi->lplhs[sdpi->nlpcons + i] = lhs[i]; /*lint !e679*/
@@ -1418,8 +1418,8 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
       sdpi->lplhs[i - deletedrows] = sdpi->lplhs[i]; /*lint !e679*/
       sdpi->lprhs[i - deletedrows] = sdpi->lprhs[i]; /*lint !e679*/
    }
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lplhs), sdpi->nlpcons, sdpi->nlpcons - deletedrows)); /*lint !e776*/
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons, sdpi->nlpcons - deletedrows)); /*lint !e776*/
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lplhs), sdpi->nlpcons, sdpi->nlpcons - deletedrows) ); /*lint !e776*/
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons, sdpi->nlpcons - deletedrows) ); /*lint !e776*/
 
    /* for deleting and reordering the lpnonzeroes, the arrays first have to be sorted to have the rows to be deleted together */
    SCIPsortIntIntReal(sdpi->lprow, sdpi->lpcol, sdpi->lpval, sdpi->lpnnonz); /* sort all arrays by non-decreasing row indices */
@@ -1457,9 +1457,9 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
       }
    }
 
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz, sdpi->lpnnonz - deletednonz)); /*lint !e776*/
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz, sdpi->lpnnonz - deletednonz)); /*lint !e776*/
-   BMS_CALL(BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, sdpi->lpnnonz - deletednonz)); /*lint !e776*/
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz, sdpi->lpnnonz - deletednonz) ); /*lint !e776*/
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz, sdpi->lpnnonz - deletednonz) ); /*lint !e776*/
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, sdpi->lpnnonz - deletednonz) ); /*lint !e776*/
    sdpi->nlpcons = sdpi->nlpcons - deletedrows;
    sdpi->lpnnonz = sdpi->lpnnonz - deletednonz;
 
@@ -1469,7 +1469,7 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
    return SCIP_OKAY;
 }
 
-/** deletes LP rows from SCIP_SDPI; the new position of a row must not be greater that its old position */
+/** deletes LP rows from SCIP_SDPI; the new position of a row must not be greater than its old position */
 SCIP_RETCODE SCIPsdpiDelLPRowset(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int*                  dstat               /**< deletion status of LP rows
@@ -2048,7 +2048,7 @@ SCIP_Bool SCIPsdpiWasSolved(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
 
    return sdpi->solved;
 }
@@ -2058,7 +2058,7 @@ SCIP_Bool SCIPsdpiSolvedOrig(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
 
    return (sdpi->penalty );
 }
@@ -2070,7 +2070,7 @@ SCIP_Bool SCIPsdpiFeasibilityKnown(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
    CHECK_IF_SOLVED_BOOL(sdpi);
 
    if (sdpi->infeasible)
@@ -2086,10 +2086,10 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
    SCIP_Bool*            dualfeasible        /**< stores dual feasibility status */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, primal feasibility not available\n");
       *dualfeasible = FALSE;
@@ -2109,10 +2109,10 @@ SCIP_Bool SCIPsdpiExistsPrimalRay(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
    CHECK_IF_SOLVED_BOOL(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing\n");
       return TRUE;
@@ -2130,10 +2130,10 @@ SCIP_Bool SCIPsdpiHasPrimalRay(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
    CHECK_IF_SOLVED_BOOL(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing\n");
       return TRUE;
@@ -2148,10 +2148,10 @@ SCIP_Bool SCIPsdpiIsPrimalUnbounded(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
    CHECK_IF_SOLVED_BOOL(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, primal unboundedness not available\n");
       return FALSE;
@@ -2166,10 +2166,10 @@ SCIP_Bool SCIPsdpiIsPrimalInfeasible(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
    CHECK_IF_SOLVED_BOOL(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, primal feasibility not available\n");
       return FALSE;
@@ -2184,10 +2184,10 @@ SCIP_Bool SCIPsdpiIsPrimalFeasible(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   assert (sdpi != NULL );
+   assert(sdpi != NULL );
    CHECK_IF_SOLVED_BOOL(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, primal feasibility not available\n");
       return FALSE;
@@ -2204,10 +2204,10 @@ SCIP_Bool SCIPsdpiExistsDualRay(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
    CHECK_IF_SOLVED_BOOL(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing\n");
       return FALSE;
@@ -2224,10 +2224,10 @@ SCIP_Bool SCIPsdpiHasDualRay(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
    CHECK_IF_SOLVED_BOOL(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing\n");
       return FALSE;
@@ -2242,10 +2242,10 @@ SCIP_Bool SCIPsdpiIsDualUnbounded(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
    CHECK_IF_SOLVED_BOOL(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, dual unboundedness not available\n");
       return FALSE;
@@ -2260,10 +2260,10 @@ SCIP_Bool SCIPsdpiIsDualInfeasible(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
    CHECK_IF_SOLVED_BOOL(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing\n");
       return TRUE;
@@ -2278,10 +2278,10 @@ SCIP_Bool SCIPsdpiIsDualFeasible(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
    CHECK_IF_SOLVED_BOOL(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing\n");
       return FALSE;
@@ -2295,10 +2295,10 @@ SCIP_Bool SCIPsdpiIsConverged(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
    CHECK_IF_SOLVED_BOOL(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, this counts as converged.\n");
       return TRUE;
@@ -2312,10 +2312,10 @@ SCIP_Bool SCIPsdpiIsObjlimExc(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
    CHECK_IF_SOLVED_BOOL(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no objective limit available.\n");
       return FALSE;
@@ -2329,10 +2329,10 @@ SCIP_Bool SCIPsdpiIsIterlimExc(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
    CHECK_IF_SOLVED_BOOL(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no iteration limit available.\n");
       return FALSE;
@@ -2346,10 +2346,10 @@ SCIP_Bool SCIPsdpiIsTimelimExc(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
    CHECK_IF_SOLVED_BOOL(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no time limit available.\n");
       return FALSE;
@@ -2371,7 +2371,7 @@ int SCIPsdpiGetInternalStatus(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
 
    if ( ! sdpi->solved )
    {
@@ -2392,10 +2392,10 @@ SCIP_Bool SCIPsdpiIsOptimal(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
    CHECK_IF_SOLVED_BOOL(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, therefore there is no optimal solution.\n");
       return FALSE;
@@ -2410,10 +2410,10 @@ SCIP_Bool SCIPsdpiIsAcceptable(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
    CHECK_IF_SOLVED_BOOL(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, this is acceptable in a B&B context.\n");
       return TRUE;
@@ -2428,11 +2428,11 @@ SCIP_RETCODE SCIPsdpiGetObjval(
    SCIP_Real*            objval              /**< stores the objective value */
    )
 {
-   assert ( sdpi != NULL );
-   assert ( objval != NULL );
+   assert( sdpi != NULL );
+   assert( objval != NULL );
    CHECK_IF_SOLVED(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no objective value available.\n");
       return SCIP_OKAY;
@@ -2458,7 +2458,7 @@ SCIP_RETCODE SCIPsdpiGetSol(
    assert( *dualsollength == 0 || dualsol != NULL );
    CHECK_IF_SOLVED(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no solution available.\n");
       return SCIP_OKAY;
@@ -2480,14 +2480,14 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
                                                   output: number of elements inserted into lbvars/ubvars (or needed length if it wasn't sufficient) */
    )
 {
-   assert ( sdpi != NULL );
-   assert ( lbvars != NULL );
-   assert ( ubvars != NULL );
-   assert ( arraylength != NULL );
-   assert ( *arraylength >= 0 );
+   assert( sdpi != NULL );
+   assert( lbvars != NULL );
+   assert( ubvars != NULL );
+   assert( arraylength != NULL );
+   assert( *arraylength >= 0 );
    CHECK_IF_SOLVED(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no primal variables available.\n");
       return SCIP_OKAY;
@@ -2504,10 +2504,10 @@ SCIP_RETCODE SCIPsdpiGetIterations(
    int*                  iterations          /**< pointer to store the number of iterations of the last solve call */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
    CHECK_IF_SOLVED(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no iterations needed.\n");
       *iterations = 0;
@@ -2536,7 +2536,7 @@ SCIP_Real SCIPsdpiInfinity(
    SCIP_SDPI*           sdpi                 /**< SDP interface structure */
    )
 {
-   assert (sdpi != NULL );
+   assert( sdpi != NULL  );
 
    return SCIPsdpiSolverInfinity(sdpi->sdpisolver);
 }
@@ -2547,7 +2547,7 @@ SCIP_Bool SCIPsdpiIsInfinity(
    SCIP_Real            val                 /**< value to be checked for infinity */
    )
 {
-   assert (sdpi != NULL );
+   assert( sdpi != NULL );
 
    return ((val <= -SCIPsdpiInfinity(sdpi)) || (val >= SCIPsdpiInfinity(sdpi)));
 }
@@ -2557,7 +2557,7 @@ SCIP_Real SCIPsdpiMaxPenParam(
    SCIP_SDPI*           sdpi                 /**< SDP interface structure */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
 
    return SCIPsdpiSolverMaxPenParam(sdpi->sdpisolver);
 }
@@ -2568,7 +2568,7 @@ SCIP_Bool SCIPsdpiIsGEMaxPenParam(
    SCIP_Real            val                 /**< value to be compared to maximum penalty parameter */
    )
 {
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
 
    return ((val <= -SCIPsdpiMaxPenParam(sdpi)) || (val >= SCIPsdpiMaxPenParam(sdpi)));
 }
