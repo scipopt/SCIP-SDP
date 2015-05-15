@@ -134,7 +134,7 @@ SCIP_Bool isFixed(
 {
    assert( lb < ub + sdpisolver->epsilon );
 
-   return ( REALABS(ub-lb) <= sdpisolver->epsilon );
+   return (REALABS(ub-lb) <= sdpisolver->epsilon);
 }
 #else
 #define isFixed(sdpisolver,lb,ub) (REALABS(ub-lb) <= sdpisolver->epsilon)
@@ -561,7 +561,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          sdpisolver->varboundpos[sdpisolver->nvarbounds] = -(i + 1); /* negative sign means lower bound, i + 1 because sdpa starts counting from one */
          (sdpisolver->nvarbounds)++;
       }
-      if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, ub[sdpisolver->sdpatoinputmapper[i]]))
+      if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, ub[sdpisolver->sdpatoinputmapper[i]]) )
       {
          sdpavarbounds[sdpisolver->nvarbounds] = ub[sdpisolver->sdpatoinputmapper[i]];
          sdpisolver->varboundpos[sdpisolver->nvarbounds] = +(i + 1); /* positive sign means upper bound, i + 1 because sdpa starts counting from one */
@@ -1019,7 +1019,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
    }
 
-   if ( penaltyparam >= sdpisolver->epsilon && rbound)
+   if ( penaltyparam >= sdpisolver->epsilon && rbound )
    {
       /* we add the variable bound r >= 0 */
       sdpisolver->sdpa->inputElement((long long) sdpisolver->nactivevars + 1, (long long) nsdpblocks - nremovedblocks + 1, (long long) nlpineqs + 1 + i, /*lint !e776, !e834*/
@@ -1044,7 +1044,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->sdpa->initializeSolve();
 
    /* set the starting solution */
-   if (start != NULL)
+   if ( start != NULL )
    {
       /* TODO: needs to be changed to y, Z and penalty formulation */
       for (i = 1; i <= sdpisolver->nactivevars; i++) /* we iterate over the variables in sdpa */
@@ -1240,7 +1240,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
    SDPA::PhaseType phasetype;
 
    assert( sdpisolver != NULL );
-   assert( sdpisolver->sdpa != NULL);
+   assert( sdpisolver->sdpa != NULL );
    assert( primalfeasible != NULL );
    assert( dualfeasible != NULL );
    CHECK_IF_SOLVED( sdpisolver );
@@ -1318,7 +1318,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
    SDPA::PhaseType phasetype;
 
    assert( sdpisolver != NULL );
-   assert( sdpisolver->sdpa != NULL);
+   assert( sdpisolver->sdpa != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
@@ -1348,7 +1348,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
    SDPA::PhaseType phasetype;
 
    assert( sdpisolver != NULL );
-   assert( sdpisolver->sdpa != NULL);
+   assert( sdpisolver->sdpa != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
@@ -1378,7 +1378,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
    SDPA::PhaseType phasetype;
 
    assert( sdpisolver != NULL );
-   assert( sdpisolver->sdpa != NULL);
+   assert( sdpisolver->sdpa != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
@@ -1523,7 +1523,7 @@ SCIP_Bool SCIPsdpiSolverIsConverged(
    SDPA::PhaseType phasetype;
 
    assert( sdpisolver != NULL );
-   assert( sdpisolver->sdpa != NULL);
+   assert( sdpisolver->sdpa != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
@@ -1542,7 +1542,7 @@ SCIP_Bool SCIPsdpiSolverIsObjlimExc(
    SDPA::PhaseType phasetype;
 
    assert( sdpisolver != NULL );
-   assert( sdpisolver->sdpa != NULL);
+   assert( sdpisolver->sdpa != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
@@ -1601,7 +1601,7 @@ int SCIPsdpiSolverGetInternalStatus(
    SDPA::PhaseType phasetype;
 
    assert( sdpisolver != NULL );
-   assert( sdpisolver->sdpa != NULL);
+   assert( sdpisolver->sdpa != NULL );
 
    if ( sdpisolver->sdpa == NULL || (! sdpisolver->solved) )
       return -1;
@@ -1628,7 +1628,7 @@ SCIP_Bool SCIPsdpiSolverIsOptimal(
    SDPA::PhaseType phasetype;
 
    assert( sdpisolver != NULL );
-   assert( sdpisolver->sdpa != NULL);
+   assert( sdpisolver->sdpa != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
@@ -1648,7 +1648,7 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
    SDPA::PhaseType phasetype;
 
    assert( sdpisolver != NULL );
-   assert( sdpisolver->sdpa != NULL);
+   assert( sdpisolver->sdpa != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
@@ -1680,7 +1680,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    )
 {
    assert( sdpisolver != NULL );
-   assert( sdpisolver->sdpa != NULL);
+   assert( sdpisolver->sdpa != NULL );
    assert( objval != NULL );
    CHECK_IF_SOLVED( sdpisolver );
 
@@ -1716,7 +1716,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
    int v;
 
    assert( sdpisolver != NULL );
-   assert( sdpisolver->sdpa != NULL);
+   assert( sdpisolver->sdpa != NULL );
    assert( dualsollength != NULL );
    CHECK_IF_SOLVED( sdpisolver );
 
@@ -1756,7 +1756,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
       /* insert the entries into dualsol, for non-fixed vars we copy those from sdpa, the rest are the saved entries from inserting (they equal lb=ub) */
       for (v = 0; v < sdpisolver->nvars; v++)
       {
-         if (sdpisolver->inputtosdpamapper[v] > 0)
+         if ( sdpisolver->inputtosdpamapper[v] > 0 )
          {
             /* minus one because the inputtosdpamapper gives the sdpa indices which start at one, but the array starts at 0 */
             dualsol[v] = sdpasol[sdpisolver->inputtosdpamapper[v] - 1];
@@ -1792,7 +1792,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    int nlpcons;
 
    assert( sdpisolver != NULL );
-   assert( sdpisolver->sdpa != NULL);
+   assert( sdpisolver->sdpa != NULL );
    assert( lbvars != NULL );
    assert( ubvars != NULL );
    assert( arraylength != NULL );
@@ -1858,7 +1858,7 @@ SCIP_RETCODE SCIPsdpiSolverGetIterations(
    )
 {
    assert( sdpisolver != NULL );
-   assert( sdpisolver->sdpa != NULL);
+   assert( sdpisolver->sdpa != NULL );
    assert( iterations != NULL );
    CHECK_IF_SOLVED( sdpisolver );
 
@@ -1900,7 +1900,7 @@ SCIP_Real SCIPsdpiSolverMaxPenParam(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to an SDP interface solver structure */
    )
 {/*lint --e{715}*/
-   return 1E+10;  /* not yet implemented */
+   return 1E+10;  /* this is the value DSDP will start with if called normally */
 }
 
 /** checks if given value is greater or equal to the highest penalty parameter to be used */
