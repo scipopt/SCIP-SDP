@@ -1797,7 +1797,7 @@ SCIP_DECL_CONSCOPY(consCopySdp)
     * exitpresolve (stage 6) this should always be the case, earlier than that we need to call fixAndAggrVars */
    if ( SCIPgetStage(sourcescip)  <= SCIP_STAGE_EXITPRESOLVE )
    {
-      SCIP_CALL( fixAndAggrVars(scip, &sourcecons, 1, TRUE) );
+      SCIP_CALL( fixAndAggrVars(sourcescip, &sourcecons, 1, TRUE) );
    }
 
 
