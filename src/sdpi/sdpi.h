@@ -394,8 +394,8 @@ SCIP_Bool SCIPsdpiFeasibilityKnown(
 EXTERN
 SCIP_RETCODE SCIPsdpiGetSolFeasibility(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_Bool*            primalfeasible,     /**< stores primal feasibility status */
-   SCIP_Bool*            dualfeasible        /**< stores dual feasibility status */
+   SCIP_Bool*            primalfeasible,     /**< pointer to store the primal feasibility status */
+   SCIP_Bool*            dualfeasible        /**< pointer to store the dual feasibility status */
    );
 
 /** returns TRUE iff SDP is proven to have a primal unbounded ray (but not necessary a primal feasible point);
@@ -532,7 +532,7 @@ SCIP_Bool SCIPsdpiIsAcceptable(
 EXTERN
 SCIP_RETCODE SCIPsdpiGetObjval(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_Real*            objval              /**< stores the objective value */
+   SCIP_Real*            objval              /**< pointer to store the objective value */
    );
 
 /** gets dual solution vector for feasible SDPs, if dualsollength isn't equal to the number of variables this will return , the needed length and
@@ -540,10 +540,10 @@ SCIP_RETCODE SCIPsdpiGetObjval(
 EXTERN
 SCIP_RETCODE SCIPsdpiGetSol(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_Real*            objval,             /**< stores the objective value, may be NULL if not needed */
-   SCIP_Real*            dualsol,            /**< dual solution vector, may be NULL if not needed */
+   SCIP_Real*            objval,             /**< pointer to store the objective value, may be NULL if not needed */
+   SCIP_Real*            dualsol,            /**< pointer to store the dual solution vector, may be NULL if not needed */
    int*                  dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
-                                               *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
+                                               *  of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
    );
 
 /** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem, the last input should specify the length
@@ -552,10 +552,10 @@ SCIP_RETCODE SCIPsdpiGetSol(
 EXTERN
 SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP interface structure */
-   SCIP_Real*            lbvars,             /**< returns the variables corresponding to lower bounds in the dual problems */
-   SCIP_Real*            ubvars,             /**< returns the variables corresponding to upper bounds in the dual problems */
+   SCIP_Real*            lbvars,             /**< pointer to store the optimal values of the variables corresponding to lower bounds in the dual problems */
+   SCIP_Real*            ubvars,             /**< pointer to store the optimal values of the variables corresponding to upper bounds in the dual problems */
    int*                  arraylength         /**< input: length of lbvars and ubvars
-                                                  output: number of elements inserted into lbvars/ubvars (or needed length if it wasn't sufficient) */
+                                               *  output: number of elements inserted into lbvars/ubvars (or needed length if it wasn't sufficient) */
    );
 
 /** gets the number of SDP iterations of the last solve call */
