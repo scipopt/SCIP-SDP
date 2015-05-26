@@ -1675,7 +1675,7 @@ SCIP_RETCODE SCIPsdpiGetObj(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   firstvar,           /**< first variable to get objective coefficient for */
    int                   lastvar,            /**< last variable to get objective coefficient for */
-   SCIP_Real*            vals                /**< array to store objective coefficients */
+   SCIP_Real*            vals                /**< pointer to store objective coefficients (memory of size lastvar - firstvar + 1 needs to be allocated) */
    )
 {
    int i;
@@ -1697,8 +1697,8 @@ SCIP_RETCODE SCIPsdpiGetBounds(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   firstvar,           /**< first variable to get bounds for */
    int                   lastvar,            /**< last variable to get bounds for */
-   SCIP_Real*            lbs,                /**< array to store lower bound values, or NULL */
-   SCIP_Real*            ubs                 /**< array to store upper bound values, or NULL */
+   SCIP_Real*            lbs,                /**< pointer to store lower bound values, or NULL (memory of size lastvar - firstvar + 1 needs to be allocated) */
+   SCIP_Real*            ubs                 /**< pointer to store upper bound values, or NULL (memory of size lastvar - firstvar + 1 needs to be allocated) */
    )
 {
    int i;
@@ -1725,7 +1725,7 @@ SCIP_RETCODE SCIPsdpiGetLhSides(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   firstrow,           /**< first row to get sides for */
    int                   lastrow,            /**< last row to get sides for */
-   SCIP_Real*            lhss                /**< array to store left hand side values */
+   SCIP_Real*            lhss                /**< pointer to store left hand side values (memory of size lastvar - firstvar + 1 needs to be allocated) */
    )
 {
    int i;
@@ -1747,7 +1747,7 @@ SCIP_RETCODE SCIPsdpiGetRhSides(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   firstrow,           /**< first row to get sides for */
    int                   lastrow,            /**< last row to get sides for */
-   SCIP_Real*            rhss                /**< array to store right hand side values */
+   SCIP_Real*            rhss                /**< pointer to store right hand side values (memory of size lastvar - firstvar + 1 needs to be allocated) */
    )
 {
    int i;
