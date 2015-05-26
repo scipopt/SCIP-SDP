@@ -53,16 +53,6 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP*                 scip                /**< SCIP data structure */
    );
 
-/** sort given arrays by nondecreasing rows and then cols */
-EXTERN
-SCIP_RETCODE SCIPconsSDPsortRowsCols(
-   int*                  row,                /**< array of row indices, will be returned in nondecreasing order */
-   int*                  col,                /**< array of col indices, for equal rows this will be the tiebreaker */
-   SCIP_Real*            val,                /**< this will be returned in the order of row and col */
-   int                   maxrow,             /**< maximum value in the row array (values should go from 0 to maxrow */
-   int                   length              /**< length of the arrays that should be sorted */
-   );
-
 /** creates an SDP-constraint */
 SCIP_RETCODE SCIPcreateConsSdp(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -92,19 +82,19 @@ EXTERN
 SCIP_RETCODE SCIPconsSdpGetData(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< SDP constraint to get data of */
-   int*                  nvars,              /**< number of variables in this SDP constraint */
-   int*                  nnonz,              /**< number of nonzeroes in this SDP constraint */
-   int*                  blocksize,          /**< size of this SDP-block */
+   int*                  nvars,              /**< pointer to store the number of variables in this SDP constraint */
+   int*                  nnonz,              /**< pointer to store the number of nonzeroes in this SDP constraint */
+   int*                  blocksize,          /**< pointer to store the size of this SDP-block */
    int*                  arraylength,        /**< length of the given nvarnonz, col, row and val arrays, if this is too short this will return the needed length*/
-   int*                  nvarnonz,           /**< number of nonzeros for each variable, also length of the arrays col/row/val are pointing to */
-   int**                 col,                /**< pointers to column indices of the nonzeroes for each variable */
-   int**                 row,                /**< pointers to row indices of the nonzeroes for each variable */
-   SCIP_Real**           val,                /**< pointers to values of the nonzeroes for each variable */
-   SCIP_VAR**            vars,               /**< the SCIP variables present in this constraint, indexing equals indices in col/row/val */
-   int*                  constnnonz,         /**< number of nonzeroes in the constant part of this SDP constraint, also length of the const arrays */
-   int*                  constcol,           /**< pointer to column indices of the constant nonzeroes */
-   int*                  constrow,           /**< pointer to row indices of the constant nonzeroes */
-   SCIP_Real*            constval            /**< pointer to values of the constant nonzeroes */
+   int*                  nvarnonz,           /**< pointer to store the number of nonzeros for each variable, also length of the arrays col/row/val are pointing to */
+   int**                 col,                /**< pointer to store the column indices of the nonzeroes for each variable */
+   int**                 row,                /**< pointer to store the row indices of the nonzeroes for each variable */
+   SCIP_Real**           val,                /**< pointer to store the values of the nonzeroes for each variable */
+   SCIP_VAR**            vars,               /**< pointer to store the SCIP variables present in this constraint, indexing equals indices in col/row/val */
+   int*                  constnnonz,         /**< pointer to store the number of nonzeroes in the constant part of this SDP constraint, also length of the const arrays */
+   int*                  constcol,           /**< pointer to store the column indices of the constant nonzeroes */
+   int*                  constrow,           /**< pointer to store the row indices of the constant nonzeroes */
+   SCIP_Real*            constval            /**< pointer to store the values of the constant nonzeroes */
    );
 
 /** gets the number of nonzeroes and constant nonzeroes for this SDP constraint
@@ -115,8 +105,8 @@ EXTERN
 SCIP_RETCODE SCIPconsSdpGetNNonz(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< SDP constraint to get data of */
-   int*                  nnonz,              /**< number of nonzeroes in this SDP constraint */
-   int*                  constnnonz          /**< number of nonzeroes in the constant part of this SDP constraint */
+   int*                  nnonz,              /**< pointer to store the number of nonzeroes in this SDP constraint */
+   int*                  constnnonz          /**< pointer to store the number of nonzeroes in the constant part of this SDP constraint */
    );
 
 /** gets the full constraint Matrix \f A_j \f for a given variable j */
