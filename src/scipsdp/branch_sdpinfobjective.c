@@ -395,7 +395,7 @@ SCIP_DECL_BRANCHFREE(branchFreeSdpinfobjective)
  * branching rule specific interface methods
  */
 
-/** creates the SDP highest absolute objective rule and includes it in SCIP */
+/** creates the SDP combined infeasibility and absolute objective branching rule and includes it in SCIP */
 SCIP_RETCODE SCIPincludeBranchruleSdpinfobjective(
    SCIP*                 scip                /**< SCIP data structure */
 )

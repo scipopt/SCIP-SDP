@@ -59,9 +59,9 @@
 struct SCIP_BranchruleData
 {
    SCIP_Bool             coupledvars;        /**< if all branching candidates have objective zero, should we use the sum of the absolute objectives of all
-                                               *  continuous variables coupled with the candidate through linear constraints */
+                                               *  continuous variables coupled with the candidate through linear constraints ? */
    SCIP_Bool             singlecoupledvars;  /**< if all branching candidates have objective zero, should we use the sum of the absolute objectives of all
-                                               *  continuous variables coupled with the candidate through linear constraints in which no other candidate appears */
+                                               *  continuous variables coupled with the candidate through linear constraints in which no other candidate appears ? */
 };
 
 
@@ -399,7 +399,7 @@ SCIP_DECL_BRANCHFREE(branchFreeSdpobjective)
  * branching rule specific interface methods
  */
 
-/** creates the SDP highest absolute objective rule and includes it in SCIP */
+/** creates the SDP highest absolute objective branching rule and includes it in SCIP */
 SCIP_RETCODE SCIPincludeBranchruleSdpobjective(
    SCIP*                 scip                /**< SCIP data structure */
 )
