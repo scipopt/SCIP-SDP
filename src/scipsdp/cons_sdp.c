@@ -114,10 +114,10 @@ int compLowerTriangPos(
 #define compLowerTriangPos(i, j) (i*(i+1)/2 + j)
 #endif
 
-/** takes an 0.5*n*(n+1) array of a symmetric matrix and expands it to a n*n array of the full matrix to input into LAPACK */
+/** takes a 0.5*n*(n+1) array of a symmetric matrix and expands it to a n*n array of the full matrix to input into LAPACK */
 static
 SCIP_RETCODE expandSymMatrix(
-   int                   size,               /**< size of the matrix, named n below */
+   int                   size,               /**< size of the matrix, named n above */
    SCIP_Real*            symMat,             /**< symmetric matrix indexed via compLowerTriangPos that should be expanded */
    SCIP_Real*            fullMat             /**< pointer to store the n*n matrix, that is the symmetric expansion of symMat */
    )
@@ -262,7 +262,7 @@ SCIP_RETCODE setMaxRhsEntry(
 /** separate current solution with a cut using the eigenvectors and -values of the solution matrix
  *
  *  This function computes the eigenvectors of the matrix, takes the first one and multiplies the matrix with it such that
- *  \f$ coeff[i] = x^T*A_i*x , lhs = x^T*A_0*x \f$.
+ *  \f$ coeff[i] = x^TA_ix , lhs = x^TA_0x \f$.
  */
 static
 SCIP_RETCODE cutUsingEigenvector(
@@ -2195,7 +2195,7 @@ SCIP_RETCODE SCIPconsSdpGetFullConstMatrix(
    return SCIP_OKAY;
 }
 
-/** gives an 0.5*n*(n+1)-long array with the lower triangular part of the constant matrix indexed by compLowerTriangPos */
+/** gives a 0.5*n*(n+1)-long array with the lower triangular part of the constant matrix indexed by compLowerTriangPos */
 SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< SDP constraint to get data of */
