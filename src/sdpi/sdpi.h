@@ -123,7 +123,7 @@ SCIP_RETCODE SCIPsdpiFree(
    );
 
 /** cloning method of the general SDP-Interface
- *  @ note: the solver specific interface is created anew and not copied */
+ *  @note the solver specific interface is created anew and not copied */
 EXTERN
 SCIP_RETCODE SCIPsdpiClone(
    SCIP_SDPI*            oldsdpi,            /**< pointer to the SDP interface structure that should be cloned */
@@ -169,9 +169,10 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    int**                 sdpvar,             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
                                                *  in the i-th block */
    int***                sdprow,             /**< pointer to the row-indices for each block and variable in this block, so row[i][j][k] gives
-                                               *  the k-th nonzero of the j-th variable (not necessarly variable j) in the i-th block */
-   int***                sdpcol,             /**< pointer to the column-indices for each block and variable in this block */
-   SCIP_Real***          sdpval,             /**< pointer to the values of the nonzeros for each block and variable in this block */
+                                               *  the k-th nonzero of the j-th variable (not necessarly variable j) in the i-th block
+                                               *  (may be NULL if sdptnnonz = 0) */
+   int***                sdpcol,             /**< pointer to the column-indices for each block and variable in this block (may be NULL if sdptnnonz = 0) */
+   SCIP_Real***          sdpval,             /**< pointer to the values of the nonzeros for each block and variable in this block (may be NULL if sdptnnonz = 0) */
    int                   nlpcons,            /**< number of LP-constraints */
    SCIP_Real*            lplhs,              /**< left hand sides of LP rows (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right hand sides of LP rows (may be NULL if nlpcons = 0) */
@@ -198,7 +199,7 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
    const SCIP_Real*      val                 /**< values of constraint matrix entries */
    );
 
-/** deletes all rows in the given range from LP-Block */
+/** deletes all rows in the given range from the LP-Block */
 EXTERN
 SCIP_RETCODE SCIPsdpiDelLPRows(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
@@ -206,12 +207,12 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
    int                   lastrow             /**< last row to be deleted */
    );
 
-/** deletes LP rows from SCIP_SDPI; the new position of a row must not be greater that its old position */
+/** deletes LP rows from SCIP_SDPI */
 EXTERN
 SCIP_RETCODE SCIPsdpiDelLPRowset(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   int*                  dstat               /**< deletion status of LP rows
-                                              *   input:  1 if row should be deleted, 0 if not
+   int*                  dstat               /**< deletion status of LP rows <br>
+                                              *   input:  1 if row should be deleted, 0 otherwise <br>
                                               *   output: new position of row, -1 if row was deleted */
    );
 
@@ -269,7 +270,7 @@ SCIP_RETCODE SCIPsdpiGetNLPRows(
 EXTERN
 SCIP_RETCODE SCIPsdpiGetNSDPBlocks(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   int*                  nsdpblocks          /**< pointer to store the number of rows */
+   int*                  nsdpblocks          /**< pointer to store the number of blocks */
    );
 
 /** gets the number of variables in the SDP */
@@ -382,7 +383,7 @@ SCIP_Bool SCIPsdpiSolvedOrig(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    );
 
-/** returns true if the solver could determine whether or not the problem is feasible, so it returns true if the
+/** returns true if the solver could determine whether the problem is feasible, so it returns true if the
  *  solver knows that the problem is feasible/infeasible/unbounded, it returns false if the solver doesn't know
  *  anything about the feasibility status and thus the functions IsPrimalFeasible etc. shouldn't be used */
 EXTERN
@@ -399,7 +400,7 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
    );
 
 /** returns TRUE iff SDP is proven to have a primal unbounded ray (but not necessary a primal feasible point);
- *  this does not necessarily mean, that the solver knows and can return the primal ray
+ *  this does not necessarily mean that the solver knows and can return the primal ray
  *  this is not implemented for all Solvers, will always return false (and a debug message) if it isn't
  */
 EXTERN
@@ -438,7 +439,7 @@ SCIP_Bool SCIPsdpiIsPrimalFeasible(
    );
 
 /** returns TRUE iff SDP is proven to have a dual unbounded ray (but not necessary a dual feasible point);
- *  this does not necessarily mean, that the solver knows and can return the dual ray
+ *  this does not necessarily mean that the solver knows and can return the dual ray
  *  this is not implemented for all Solvers, will always return false (and a debug message) if it isn't
  */
 EXTERN
@@ -500,15 +501,15 @@ SCIP_Bool SCIPsdpiIsTimelimExc(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    );
 
-/** returns the internal solution status of the solver, which has the following meaning:
- *  -1: solver wasn't started
- *  0: converged
- *  1: infeasible start
- *  2: numerical problems
- *  3: objective limit reached
- *  4: iteration limit reached
- *  5: time limit reached
- *  6: user termination
+/** returns the internal solution status of the solver, which has the following meaning:<br>
+ *  -1: solver wasn't started<br>
+ *  0: converged<br>
+ *  1: infeasible start<br>
+ *  2: numerical problems<br>
+ *  3: objective limit reached<br>
+ *  4: iteration limit reached<br>
+ *  5: time limit reached<br>
+ *  6: user termination<br>
  *  7: other */
 EXTERN
 int SCIPsdpiGetInternalStatus(
@@ -521,7 +522,7 @@ SCIP_Bool SCIPsdpiIsOptimal(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    );
 
-/** returns TRUE iff SDP was solved to optimality or some other status was reached,
+/** returns TRUE iff SDP was solved to optimality or some other status was reached
  * that is still acceptable inside a Branch & Bound framework */
 EXTERN
 SCIP_Bool SCIPsdpiIsAcceptable(
@@ -535,14 +536,14 @@ SCIP_RETCODE SCIPsdpiGetObjval(
    SCIP_Real*            objval              /**< pointer to store the objective value */
    );
 
-/** gets dual solution vector for feasible SDPs, if dualsollength isn't equal to the number of variables this will return , the needed length and
+/** gets dual solution vector for feasible SDPs, if dualsollength isn't equal to the number of variables this will return the needed length and
  *  a debug message */
 EXTERN
 SCIP_RETCODE SCIPsdpiGetSol(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_Real*            objval,             /**< pointer to store the objective value, may be NULL if not needed */
    SCIP_Real*            dualsol,            /**< pointer to store the dual solution vector, may be NULL if not needed */
-   int*                  dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
+   int*                  dualsollength       /**< length of the dualsol vector, must be 0 if dualsol is NULL, if this is less than the number
                                                *  of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
    );
 
@@ -554,7 +555,7 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP interface structure */
    SCIP_Real*            lbvars,             /**< pointer to store the optimal values of the variables corresponding to lower bounds in the dual problems */
    SCIP_Real*            ubvars,             /**< pointer to store the optimal values of the variables corresponding to upper bounds in the dual problems */
-   int*                  arraylength         /**< input: length of lbvars and ubvars
+   int*                  arraylength         /**< input: length of lbvars and ubvars<br>
                                                *  output: number of elements inserted into lbvars/ubvars (or needed length if it wasn't sufficient) */
    );
 
@@ -589,7 +590,7 @@ SCIP_Real SCIPsdpiInfinity(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    );
 
-/** checks if given value is treated as infinity in the SDP solver */
+/** checks if given value is treated as (plus or minus) infinity in the SDP solver */
 EXTERN
 SCIP_Bool SCIPsdpiIsInfinity(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
@@ -614,7 +615,7 @@ EXTERN
 SCIP_RETCODE SCIPsdpiGetRealpar(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_SDPPARAM         type,               /**< parameter number */
-   SCIP_Real*            dval                /**< buffer to store the parameter value */
+   SCIP_Real*            dval                /**< pointer to store the parameter value */
    );
 
 /** sets floating point parameter of SDP */
