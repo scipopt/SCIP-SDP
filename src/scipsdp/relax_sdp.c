@@ -413,9 +413,6 @@ SCIP_RETCODE putLpDataInInterface(
 }
 
 /** calculate relaxation and process the relaxation results
- *
- *  May call itself recursively once to try again with a penalty formulation (or more often if the penalty formulation
- *  turns out to be unbounded).
  */
 static
 SCIP_RETCODE calc_relax(
@@ -884,7 +881,7 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
    return SCIP_OKAY;
 }
 
-/* copy method for sdp relaxation handler (called when SCIP copies plugins) */
+/** copy method for sdp relaxation handler (called when SCIP copies plugins) */
 static
 SCIP_DECL_RELAXCOPY(relaxCopySdp)
 {
