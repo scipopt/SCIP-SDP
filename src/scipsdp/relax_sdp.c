@@ -1003,7 +1003,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
  *  length will be returned and a debug message thrown. Note: if a variable is either fixed or unbounded in the dual
  *  problem, a zero will be returned for the non-existent primal variable.
  */
-SCIP_RETCODE SCIPrelaxGetPrimalBoundVars(
+SCIP_RETCODE SCIPrelaxSdpGetPrimalBoundVars(
    SCIP_RELAX*           relax,              /**< SDP relaxator to information for */
    SCIP_Real*            lbvars,             /**< returns the variables corresponding to lower bounds in the dual problems */
    SCIP_Real*            ubvars,             /**< returns the variables corresponding to upper bounds in the dual problems */
