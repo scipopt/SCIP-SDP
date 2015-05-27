@@ -101,12 +101,12 @@ void F77_FUNC(dgemv, DGEMV)(char* TRANS, LAPACKINTTYPE* M, LAPACKINTTYPE* N, dou
 /** computes the i-th eigenvalue, where 1 is the smallest and n the largest, matrix has to be given with all n^2 entries */
 SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    BMS_BLKMEM*           blkmem,             /**< block memory */
-   SCIP_Bool             geteigenvectors,    /**< Should also the eigenvectors be computed? */
+   SCIP_Bool             geteigenvectors,    /**< should also the eigenvectors be computed? */
    int                   n,                  /**< size of matrix */
    SCIP_Real*            A,                  /**< matrix for which eigenvalues should be computed */
    int                   i,                  /**< index of eigenvalue to be computed */
    SCIP_Real*            eigenvalue,         /**< pointer to store eigenvalue */
-   SCIP_Real*            eigenvector         /**< pointer to array to store eigenvector */
+   SCIP_Real*            eigenvector         /**< pointer to store eigenvector */
    )
 {
    LAPACKINTTYPE N;
