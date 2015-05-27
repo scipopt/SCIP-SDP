@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   ScipStreamBuffer.cpp
+/**@file   ScipStreamBuffer.h
  * @brief  An std::streambuf that uses SCIP I/O routines (suitable for reading)
  * @author Lars Schewe
  */

@@ -31,7 +31,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   sdpi.h
- * @brief  general interface methods for SDP-preprocessing (mainly fixing variables and removing empty rows/cols)
+ * @brief  General interface methods for SDP-preprocessing (mainly fixing variables and removing empty rows/cols)
  * @author Tristan Gally
  *
  * This file specifies a generic SDP solver interface used by SCIP to create, modify, and solve semidefinite programs of

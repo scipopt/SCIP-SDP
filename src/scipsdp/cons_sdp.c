@@ -31,7 +31,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   cons_sdp.c
- * @brief  constraint handler for sdp-constraints
+ * @brief  Constraint handler for SDP-constraints
  * @author Sonja Mars
  * @author Lars Schewe
  * @author Tristan Gally

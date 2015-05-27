@@ -34,7 +34,7 @@
 /* #define SCIP_MORE_DEBUG*/
 
 /**@file   sdpi.c
- * @brief  interface for dsdp
+ * @brief  General interface methods for SDP-preprocessing (mainly fixing variables and removing empty rows/cols)
  * @author Tristan Gally
  */
 

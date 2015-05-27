@@ -34,7 +34,7 @@
 /* #define SCIP_MORE_DEBUG*/
 
 /**@file   lapack_dsdp.c
- * @brief  interface methods for eigenvector computation and matrix multiplication using LAPACK and BLAS
+ * @brief  interface methods for eigenvector computation and matrix multiplication using standard LAPACK and BLAS
  * @author Sonja Mars
  * @author Lars Schewe
  * @author Tristan Gally

@@ -30,9 +30,9 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   disp_sdpiterations.h
+/**@file   disp_sdpavgiterations.h
  * @ingroup DISPLAYS
- * @brief  SDP iterations display column
+ * @brief  Column to display the average number of SDP iterations
  * @author Tristan Gally
  */
 

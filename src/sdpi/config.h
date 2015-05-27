@@ -30,6 +30,13 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+/**@file   config.h
+ * @brief  Makros for calling Fortran-functions
+ * @author Sonja Mars, Lars Schewe
+ */
+
+/*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
+
 /** Define to a macro mangling the given C identifier (in lower and upper
    case), which must not contain underscores, for linking with Fortran. */
 #define F77_FUNC(name,NAME) name ## _

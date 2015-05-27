@@ -31,7 +31,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   lapack.h
- * @brief  interface methods for eigenvector computation and matrix multiplication using LAPACK and BLAS
+ * @brief  interface methods for eigenvector computation and matrix multiplication using different versions of LAPACK and BLAS
  * @author Tristan Gally
  *
  * This file is used to call the LAPACK routine DSYEVR (double-symmetric-eigenvector computation) and the
