@@ -126,7 +126,7 @@ SCIP_RETCODE sdpRedcostFixingBinary(
    return SCIP_OKAY;
 }
 
-/** reduced cost propagation method for an LP solution */
+/** reduced cost propagation method */
 static
 SCIP_DECL_PROPEXEC(propExecSdpredcost)
 {/*lint --e{715}*/
