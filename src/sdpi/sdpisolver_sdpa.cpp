@@ -1090,7 +1090,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 #endif
 
-   SCIPdebugMessage("Calling SDPA solve (SDP: %d, threads: %lld)\n", sdpisolver->sdpcounter, sdpisolver->sdpa->getNumThreads());
+   SCIPdebugMessage("Calling SDPA solve (SDP: %d, threads: %d)\n", sdpisolver->sdpcounter, sdpisolver->sdpa->getNumThreads());
    sdpisolver->sdpa->solve();
    sdpisolver->solved = TRUE;
 
