@@ -32,7 +32,9 @@
 
 /**@file   objreader_sdpa.cpp
  * @brief  Reader for SDPA-files
- * @author Jakob Schelbert, Sonja Mars, Tristan Gally
+ * @author Jakob Schelbert
+ * @author Sonja Mars
+ * @author Tristan Gally
  */
 
 //#define SCIP_DEBUG
