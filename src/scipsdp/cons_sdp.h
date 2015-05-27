@@ -54,6 +54,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    );
 
 /** creates an SDP-constraint */
+EXTERN
 SCIP_RETCODE SCIPcreateConsSdp(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
@@ -110,6 +111,7 @@ SCIP_RETCODE SCIPconsSdpGetNNonz(
    );
 
 /** gets the full constraint Matrix \f A_j \f for a given variable j */
+EXTERN
 SCIP_RETCODE SCIPconsSdpGetFullAj(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< SDP constraint to get data of */
@@ -126,6 +128,7 @@ SCIP_RETCODE SCIPconsSdpGetFullConstMatrix(
    );
 
 /** gives an 0.5*n*(n+1)-long array with the lower triangular part of the constant matrix indexed by compLowerTriangPos */
+EXTERN
 SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< SDP constraint to get data of */
@@ -133,6 +136,7 @@ SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
    );
 
 /** checks feasibility for a single SDP-Cone */
+EXTERN
 SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< the constraint for which the Matrix should be assembled */
