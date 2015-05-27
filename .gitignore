@@ -2,3 +2,13 @@
 obj/*
 bin/*
 doc/html/*
+RIP-MISDP-Paper/instances/*
+RIP-MISDP-Paper/*.aux
+RIP-MISDP-Paper/*.bbl
+RIP-MISDP-Paper/*.blg
+RIP-MISDP-Paper/*.log
+RIP-MISDP-Paper/*.spl
+RIP-MISDP-Paper/*.tex.backup
+check/results/*
+instances/*.dat-s_misdp.sol
+lib/*
