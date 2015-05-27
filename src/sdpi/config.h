@@ -31,7 +31,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   config.h
- * @brief  Makros for calling Fortran-functions
+ * @brief  Macros for calling Fortran-functions
  * @author Sonja Mars, Lars Schewe
  */
 
