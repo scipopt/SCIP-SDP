@@ -1005,9 +1005,9 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
  */
 SCIP_RETCODE SCIPrelaxSdpGetPrimalBoundVars(
    SCIP_RELAX*           relax,              /**< SDP relaxator to information for */
-   SCIP_Real*            lbvars,             /**< returns the variables corresponding to lower bounds in the dual problems */
-   SCIP_Real*            ubvars,             /**< returns the variables corresponding to upper bounds in the dual problems */
-   int*                  arraylength         /**< input: length of lbvars and ubvars
+   SCIP_Real*            lbvars,             /**< pointer to store the values of the variables corresponding to lower bounds in the dual problems */
+   SCIP_Real*            ubvars,             /**< pointer to store the values of the variables corresponding to upper bounds in the dual problems */
+   int*                  arraylength         /**< input: length of lbvars and ubvars <br>
                                               *   output: number of elements inserted into lbvars/ubvars (or needed length if it wasn't sufficient) */
    )
 {
@@ -1031,7 +1031,7 @@ SCIP_RETCODE SCIPrelaxSdpGetPrimalBoundVars(
 SCIP_RETCODE SCIPrelaxSdpRelaxVal(
    SCIP_RELAX*           relax,              /**< SDP relaxator to get objective value for */
    SCIP_Bool*            success,            /**< pointer to store whether the last SDP relaxation solved successfully */
-   SCIP_Real*            objval              /**< returns the optimal objective value of the SDP relaxation */
+   SCIP_Real*            objval              /**< pointer to store the optimal objective value of the SDP relaxation */
    )
 {
    SCIP_RELAXDATA* relaxdata;
@@ -1054,7 +1054,7 @@ SCIP_RETCODE SCIPrelaxSdpGetRelaxSol(
    SCIP*                 scip,               /**< SCIP pointer */
    SCIP_RELAX*           relax,              /**< SDP relaxator to get solution for */
    SCIP_Bool*            success,            /**< pointer to store whether the last SDP relaxation solved successfully */
-   SCIP_Real*            solarray,           /**< array to insert the solution, this has to be at least length nvars */
+   SCIP_Real*            solarray,           /**< pointer to store the solution, this has to be at least length nvars */
    int*                  sollength           /**< length of the solarray, if this is less than nvars, it will be overwritten with the needed length and a
                                                *  debug message is thrown */
    )
