@@ -475,10 +475,10 @@ SCIP_RETCODE calc_relax(
 
       if ( node == 0 )
       {
-         /* TODO: if we could generate a feasible solution via penalty-only and a lower bound via penalty-with-objective, we could use those two together here */
+         /* TODO: if we could generate a lower bound via penalty-with-objective, we could use it here */
          *result = SCIP_SUSPENDED;
-         SCIPdebugMessage("The relaxation of the root node could not be solved, as there is no parent node the relaxation is suspended. \n");
-         return SCIP_OKAY;
+         SCIPerrorMessage("The relaxation of the root node could not be solved, so there is no hope to solve this instance. \n");
+         return SCIP_ERROR;
       }
 
       *lowerbound = SCIPnodeGetLowerbound(node);
