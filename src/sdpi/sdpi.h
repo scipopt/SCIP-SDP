@@ -399,24 +399,6 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
    SCIP_Bool*            dualfeasible        /**< pointer to store the dual feasibility status */
    );
 
-/** returns TRUE iff SDP is proven to have a primal unbounded ray (but not necessary a primal feasible point);
- *  this does not necessarily mean that the solver knows and can return the primal ray
- *  this is not implemented for all Solvers, will always return false (and a debug message) if it isn't
- */
-EXTERN
-SCIP_Bool SCIPsdpiExistsPrimalRay(
-   SCIP_SDPI*            sdpi                /**< SDP interface structure */
-   );
-
-/** returns TRUE iff SDP is proven to have a primal unbounded ray (but not necessary a primal feasible point),
- *  and the solver knows and can return the primal ray
- *  this is not implemented for all Solvers, will always return false (and a debug message) if it isn't
- */
-EXTERN
-SCIP_Bool SCIPsdpiHasPrimalRay(
-   SCIP_SDPI*            sdpi                /**< SDP interface structure */
-   );
-
 /** returns TRUE iff SDP is proven to be primal unbounded
  *  returns FALSE with a debug-message if the solver couldnot determine feasibility */
 EXTERN
@@ -435,24 +417,6 @@ SCIP_Bool SCIPsdpiIsPrimalInfeasible(
  *  returns FALSE with a debug-message if the solver couldnot determine feasibility */
 EXTERN
 SCIP_Bool SCIPsdpiIsPrimalFeasible(
-   SCIP_SDPI*            sdpi                /**< SDP interface structure */
-   );
-
-/** returns TRUE iff SDP is proven to have a dual unbounded ray (but not necessary a dual feasible point);
- *  this does not necessarily mean that the solver knows and can return the dual ray
- *  this is not implemented for all Solvers, will always return false (and a debug message) if it isn't
- */
-EXTERN
-SCIP_Bool SCIPsdpiExistsDualRay(
-   SCIP_SDPI*            sdpi                /**< SDP interface structure */
-   );
-
-/** returns TRUE iff SDP is proven to have a dual unbounded ray (but not necessary a dual feasible point),
- *  and the solver knows and can return the dual ray
- *  this is not implemented for all Solvers, will always return false (and a debug message) if it isn't
- */
-EXTERN
-SCIP_Bool SCIPsdpiHasDualRay(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    );
 

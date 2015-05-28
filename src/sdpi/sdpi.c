@@ -2102,47 +2102,6 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
    return SCIP_OKAY;
 }
 
-/** returns TRUE iff SDP is proven to have a primal unbounded ray (but not necessary a primal feasible point);
- *  this does not necessarily mean that the solver knows and can return the primal ray
- *  this is not implemented for all Solvers, always returns false (and a debug message) if it isn't
- */
-SCIP_Bool SCIPsdpiExistsPrimalRay(
-   SCIP_SDPI*            sdpi                /**< SDP interface structure */
-   )
-{
-   assert( sdpi != NULL );
-   CHECK_IF_SOLVED_BOOL(sdpi);
-
-   if ( sdpi->infeasible )
-   {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing\n");
-      return TRUE;
-   }
-
-   return SCIPsdpiSolverExistsPrimalRay(sdpi->sdpisolver);
-}
-
-
-/** returns TRUE iff SDP is proven to have a primal unbounded ray (but not necessary a primal feasible point),
- *  and the solver knows and can return the primal ray
- *  this is not implemented for all Solvers, always returns false (and a debug message) if it isn't
- */
-SCIP_Bool SCIPsdpiHasPrimalRay(
-   SCIP_SDPI*            sdpi                /**< SDP interface structure */
-   )
-{
-   assert( sdpi != NULL );
-   CHECK_IF_SOLVED_BOOL(sdpi);
-
-   if ( sdpi->infeasible )
-   {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing\n");
-      return TRUE;
-   }
-
-   return SCIPsdpiSolverHasPrimalRay(sdpi->sdpisolver);
-}
-
 /** returns TRUE iff SDP is proven to be primal unbounded
  *  returns FALSE with a debug-message if the solver couldnot determine feasibility */
 SCIP_Bool SCIPsdpiIsPrimalUnbounded(
@@ -2195,46 +2154,6 @@ SCIP_Bool SCIPsdpiIsPrimalFeasible(
    }
 
    return SCIPsdpiSolverIsPrimalFeasible(sdpi->sdpisolver);
-}
-
-/** returns TRUE iff SDP is proven to have a dual unbounded ray (but not necessary a dual feasible point);
- *  this does not necessarily mean that the solver knows and can return the dual ray
- *  this is not implemented for all Solvers, will always return false (and a debug message) if it isn't
- */
-SCIP_Bool SCIPsdpiExistsDualRay(
-   SCIP_SDPI*            sdpi                /**< SDP interface structure */
-   )
-{
-   assert( sdpi != NULL );
-   CHECK_IF_SOLVED_BOOL(sdpi);
-
-   if ( sdpi->infeasible )
-   {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing\n");
-      return FALSE;
-   }
-
-   return SCIPsdpiSolverExistsDualRay(sdpi->sdpisolver);
-}
-
-/** returns TRUE iff SDP is proven to have a dual unbounded ray (but not necessary a dual feasible point),
- *  and the solver knows and can return the dual ray
- *  this is not implemented for all Solvers, will always return false (and a debug message) if it isn't
- */
-SCIP_Bool SCIPsdpiHasDualRay(
-   SCIP_SDPI*            sdpi                /**< SDP interface structure */
-   )
-{
-   assert( sdpi != NULL );
-   CHECK_IF_SOLVED_BOOL(sdpi);
-
-   if ( sdpi->infeasible )
-   {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing\n");
-      return FALSE;
-   }
-
-   return SCIPsdpiSolverHasDualRay(sdpi->sdpisolver);
 }
 
 /** returns TRUE iff SDP is proven to be dual unbounded

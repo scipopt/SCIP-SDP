@@ -304,26 +304,6 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
    SCIP_Bool*            dualfeasible        /**< stores dual feasibility status */
    );
 
-/** returns TRUE iff SDP is proven to have a primal unbounded ray (but not necessary a primal feasible point);
- *
- *  This does not necessarily mean, that the solver knows and can return the primal ray.
- *  This is not implemented for all Solvers, always returns false (and a debug message) if it isn't.
- */
-EXTERN
-SCIP_Bool SCIPsdpiSolverExistsPrimalRay(
-   SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
-   );
-
-/** returns TRUE iff SDP is proven to have a primal unbounded ray (but not necessary a primal feasible point),
- *  and the solver knows and can return the primal ray
- *
- *  This is not implemented for all Solvers, always returns false (and a debug message) if it isn't.
- */
-EXTERN
-SCIP_Bool SCIPsdpiSolverHasPrimalRay(
-   SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
-   );
-
 /** returns TRUE iff SDP is proven to be primal unbounded,
  *  returns FALSE with a debug-message if the solver could not determine feasibility */
 EXTERN
@@ -342,26 +322,6 @@ SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
  *  returns FALSE with a debug-message if the solver could not determine feasibility */
 EXTERN
 SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
-   SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
-   );
-
-/** returns TRUE iff SDP is proven to have a dual unbounded ray (but not necessary a dual feasible point)
- *
- *  This does not necessarily mean, that the solver knows and can return the dual ray.
- *  This is not implemented for all Solvers, will always return false (and a debug message) if it isn't.
- */
-EXTERN
-SCIP_Bool SCIPsdpiSolverExistsDualRay(
-   SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
-   );
-
-/** returns TRUE iff SDP is proven to have a dual unbounded ray (but not necessary a dual feasible point),
- *  and the solver knows and can return the dual ray
- *
- *  This is not implemented for all Solvers, will always return false (and a debug message) if it isn't.
- */
-EXTERN
-SCIP_Bool SCIPsdpiSolverHasDualRay(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
    );
 
