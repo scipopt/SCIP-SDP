@@ -38,7 +38,7 @@
 # own variables
 #-----------------------------------------------------------------------------
 
-SCIPSDPVERSION	=	1.0
+SCIPSDPVERSION	=	2.0
 SDPS		=	none
 
 GCCWARN		+= 	-Wextra
@@ -164,28 +164,27 @@ SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
 
 MAINNAME	=	scipsdp
 MAINCOBJ	=	scipsdp/SdpVarmapper.o \
-				scipsdp/SdpVarfixer.o \
-				scipsdp/cons_sdp.o \
-				scipsdp/relax_sdp.o \
-				scipsdp/disp_sdpiterations.o \
-				scipsdp/disp_sdpavgiterations.o \
-				scipsdp/prop_sdpredcost.o \
-				scipsdp/branch_sdpmostfrac.o \
-				scipsdp/branch_sdpmostinf.o \
-				scipsdp/branch_sdpobjective.o \
-				scipsdp/branch_sdpinfobjective.o \
-				scipsdp/branch_cs.o \
-	   		scipsdp/nodesel_prio.o \
-				sdpi/sdpi.o
+			scipsdp/SdpVarfixer.o \
+			scipsdp/cons_sdp.o \
+			scipsdp/relax_sdp.o \
+			scipsdp/disp_sdpiterations.o \
+			scipsdp/disp_sdpavgiterations.o \
+			scipsdp/prop_sdpredcost.o \
+			scipsdp/branch_sdpmostfrac.o \
+			scipsdp/branch_sdpmostinf.o \
+			scipsdp/branch_sdpobjective.o \
+			scipsdp/branch_sdpinfobjective.o \
+		   	scipsdp/nodesel_prio.o \
+			sdpi/sdpi.o
 
-MAINCCOBJ =	scipsdp/main.o \
-				scipsdp/objreader_sdpa.o \
-				scipsdp/ScipStreamBuffer.o
+MAINCCOBJ =		scipsdp/main.o \
+			scipsdp/objreader_sdpa.o \
+			scipsdp/ScipStreamBuffer.o
 
 
 MAINCSRC	=	$(addprefix $(SRCDIR)/,$(MAINCOBJ:.o=.c))
-MAINCCSRC =	$(addprefix $(SRCDIR)/,$(MAINCCOBJ:.o=.cpp))
-MAINDEP =	$(SRCDIR)/depend.cppmain.$(OPT)
+MAINCCSRC =		$(addprefix $(SRCDIR)/,$(MAINCCOBJ:.o=.cpp))
+MAINDEP =		$(SRCDIR)/depend.cppmain.$(OPT)
 
 # @todo possibly add LPS
 MAINFILE	=	$(BINDIR)/$(MAINNAME).$(BASE).$(SDPS)$(EXEEXTENSION)
