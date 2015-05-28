@@ -81,7 +81,7 @@ void F77_FUNC(dsyevr, DSYEVR)(
    double* ABSTOL, LAPACKINTTYPE* M, double* W, double* Z,
    LAPACKINTTYPE* LDZ, LAPACKINTTYPE* ISUPPZ, double* WORK,
    LAPACKINTTYPE* LWORK, LAPACKINTTYPE* IWORK, LAPACKINTTYPE* LIWORK,
-   LAPACKINTTYPE* INFO );
+   int* INFO );
 
 
 /** BLAS Fortran subroutine DGEMV */
@@ -110,7 +110,7 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    )
 {
    LAPACKINTTYPE N;
-   LAPACKINTTYPE INFO;
+   int INFO;
    char JOBZ;
    char RANGE;
    char UPLO;
