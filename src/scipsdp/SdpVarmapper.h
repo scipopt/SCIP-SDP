@@ -62,7 +62,7 @@ SCIP_RETCODE SdpVarmapperFree(
    SdpVarmapper**        varmapper          /**< Pointer to the Varmapper that should be freed */
    );
 
-/** adds the given variables (if not already existant) to the end of the Varmapper */
+/** adds the given variables (if not already existent) to the end of the Varmapper */
 EXTERN
 SCIP_RETCODE SdpVarmapperAddVars(
    SCIP*                 scip,              /**< SCIP data structure */
@@ -119,15 +119,15 @@ SCIP_RETCODE SdpVarmapperRemoveSdpIndex(
 EXTERN
 SCIP_RETCODE SdpVarmapperTransform(
    SCIP*                 scip,              /**< SCIP data structure */
-   SdpVarmapper*         varmapper          /**< Pointer to the Varmapper that should be transformed */
+   SdpVarmapper*         varmapper          /**< pointer to the Varmapper that should be transformed */
    );
 
 /** clones the varmapper in the second argument to the varmapper in the third argument */
 EXTERN
 SCIP_RETCODE SdpVarmapperClone(
    SCIP*                 scip,              /**< SCIP data structure */
-   SdpVarmapper*         oldmapper,         /**< Pointer to the Varmapper that should be cloned */
-   SdpVarmapper*         newmapper          /**< Pointer to the Varmapper that should become a clone of the other one */
+   SdpVarmapper*         oldmapper,         /**< pointer to the Varmapper that should be cloned */
+   SdpVarmapper*         newmapper          /**< pointer to the Varmapper that should become a clone of the other one */
    );
 
 #ifdef __cplusplus

@@ -102,7 +102,7 @@ SCIP_RETCODE SdpVarmapperFree(
    return SCIP_OKAY;
 }
 
-/** adds the given variables (if not already existant) to the end of the Varmapper */
+/** adds the given variables (if not already existent) to the end of the Varmapper */
 SCIP_RETCODE SdpVarmapperAddVars(
    SCIP*                 scip,              /**< SCIP data structure */
    SdpVarmapper*         varmapper,         /**< Varmapper to add variables to */
@@ -280,7 +280,7 @@ SCIP_RETCODE SdpVarmapperRemoveSdpIndex(
 /** swaps all SCIP variables for their transformed counterparts */
 SCIP_RETCODE SdpVarmapperTransform(
    SCIP*                 scip,              /**< SCIP data structure */
-   SdpVarmapper*         varmapper          /**< Pointer to the Varmapper that should be transformed */
+   SdpVarmapper*         varmapper          /**< pointer to the Varmapper that should be transformed */
    )
 {
    int k;
@@ -308,8 +308,8 @@ SCIP_RETCODE SdpVarmapperTransform(
 /** clones the varmapper in the second argument to the varmapper in the third argument */
 SCIP_RETCODE SdpVarmapperClone(
    SCIP*                 scip,              /**< SCIP data structure */
-   SdpVarmapper*         oldmapper,         /**< Pointer to the Varmapper that should be cloned */
-   SdpVarmapper*         newmapper          /**< Pointer to the Varmapper that should become a clone of the other one */
+   SdpVarmapper*         oldmapper,         /**< pointer to the Varmapper that should be cloned */
+   SdpVarmapper*         newmapper          /**< pointer to the Varmapper that should become a clone of the other one */
    )
 {
    int nvars;
