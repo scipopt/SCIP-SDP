@@ -2,9 +2,9 @@
   The SDPA-Data-Format
 ========================
 
-SDP-solvers typically use the standard sdpa-format (*.dat-s) for the problem 
+SDP-solvers typically use the sparse sdpa-format (*.dat-s) for the problem 
 instances. For solving mixed-integer SDPs we need to extend the format. The 
-sdpa-format is a sparse format, so zeros can be omitted. 
+format is a sparse format, so zeros can be omitted. 
 The format models problems in the following standard form:
 
 	min c^T*x
@@ -29,7 +29,7 @@ one entry of the matrices A_0 or A_i.
 Matrix entries are given in the following format:
 n b i j v
 n = number of variables (0 stands for the rhs, i.e. the constant terms)
-b = number of block
+b = number of blocks
 i j = position in matrix
 v = coefficient or value
 
@@ -57,10 +57,11 @@ References:
 [1] Borchers, Brian. SDPLIB 1.2, a library of semidefinite programming test 
 	problems. Optimization Methods and Software, volume 11, number 1-4, 
     pages 683-690, 1999, doi = 10.1080/10556789908805769.
+________________________________________________________________________________
 
-
-Example (the sdpa-File is also found under examples/example.dat-s):
---------------------------------------------------------------------------------
+*---------------------------------------------------------------------*
+* EXAMPLE (the sdpa-File is also found under examples/example.dat-s): *
+*---------------------------------------------------------------------*
 suppose we want to solve the following MISDP:
 
  max   	-y_1 + 2*y_2 + y_3
@@ -79,7 +80,7 @@ suppose we want to solve the following MISDP:
 	y_1, y_2, y_3 integer
 
 then this reads in standard form with two SDP- and one LP-block (note that 
-since we are now minimizing, the optimal objective needs to be multiplied 
+since we are now minimizing, the optimal objective value needs to be multiplied 
 by -1 afterwards):
 
  min 	1*y_1 + (-2)*y_2 + (-1)*y_3
