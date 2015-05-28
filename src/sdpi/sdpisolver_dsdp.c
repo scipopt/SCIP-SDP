@@ -222,12 +222,12 @@ void sortColRow(
 /**@{ */
 
 
-/** gets name of SDP solver, getting version doesn't seem to be supported by DSDP */
+/** gets name and version (if available) of SDP solver*/
 const char* SCIPsdpiSolverGetSolverName(
    void
    )
 {
-   return "DSDP";
+   return "DSDP"; /* getting the version is not supported in DSDP */
 }
 
 /** gets description of SDP solver (developer, webpage, ...) */
@@ -1309,11 +1309,11 @@ SCIP_Bool SCIPsdpiSolverWasSolved(
    return sdpisolver->solved;
 }
 
-/** returns true if the solver could determine whether or not the problem is feasible
+/** returns true if the solver could determine whether the problem is feasible
  *
  *  So it returns true if the solver knows that the problem is feasible/infeasible/unbounded, it returns false if the
  *  solver doesn't know anything about the feasibility status and thus the functions IsPrimalFeasible etc. shouldn't be
- *  used
+ *  used.
  */
 SCIP_Bool SCIPsdpiSolverFeasibilityKnown(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
@@ -1332,8 +1332,7 @@ SCIP_Bool SCIPsdpiSolverFeasibilityKnown(
    return TRUE;
 }
 
-/** gets information about primal and dual feasibility of the current SDP solution
- *  only call this after SCIPsdpiSolverFeasibilityKnown returned true */
+/** gets information about primal and dual feasibility of the current SDP solution */
 SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
    SCIP_Bool*            primalfeasible,     /**< stores primal feasibility status */
@@ -1628,15 +1627,15 @@ SCIP_Bool SCIPsdpiSolverIsTimelimExc(
    return SCIP_LPERROR;
 }
 
-/** returns the internal solution status of the solver
- *  -1: solver wasn't started
- *  0: converged
- *  1: infeasible start
- *  2: numerical problems
- *  3: objective limit reached
- *  4: iteration limit reached
- *  5: time limit reached
- *  6: user termination
+/** returns the internal solution status of the solver, which has the following meaning:<br>
+ * -1: solver wasn't started<br>
+ *  0: converged<br>
+ *  1: infeasible start<br>
+ *  2: numerical problems<br>
+ *  3: objective limit reached<br>
+ *  4: iteration limit reached<br>
+ *  5: time limit reached<br>
+ *  6: user termination<br>
  *  7: other */
 int SCIPsdpiSolverGetInternalStatus(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
@@ -1689,7 +1688,7 @@ int SCIPsdpiSolverGetInternalStatus(
    }
 }
 
-/** returns TRUE iff SDP was solved to optimality */
+/** returns TRUE iff SDP was solved to optimality, meaning the solver converged and returned primal and dual feasible solutions */
 SCIP_Bool SCIPsdpiSolverIsOptimal(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
@@ -1698,8 +1697,8 @@ SCIP_Bool SCIPsdpiSolverIsOptimal(
    return (SCIPsdpiSolverIsConverged(sdpisolver) && SCIPsdpiSolverIsPrimalFeasible(sdpisolver) && SCIPsdpiSolverIsDualFeasible(sdpisolver));
 }
 
-/** returns TRUE iff SDP was solved to optimality or some other status was reached,
- *  which is still acceptable inside a Branch & Bound framework */
+/** returns TRUE iff SDP was solved to optimality or some other status was reached
+ *  that is still acceptable inside a Branch & Bound framework */
 SCIP_Bool SCIPsdpiSolverIsAcceptable(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
@@ -1743,7 +1742,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
 
 /** gets dual solution vector for feasible SDPs
  *
- *  If dualsollength isn't equal to the number of variables this will return the needed length and a debug message.
+ *  If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
  */
 SCIP_RETCODE SCIPsdpiSolverGetSol(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
@@ -1808,8 +1807,9 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
 /** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem
  *
  *  The last input should specify the length of the arrays. If this is less than the number of variables, the needed
- *  length will be returned and a debug message thrown. Note: if a variable is either fixed or unbounded in the dual
- *  problem, a zero will be returned for the non-existent primal variable.
+ *  length will be returned and a debug message thrown.
+ *
+ *  @note if a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent primal variable.
  */
 SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
@@ -1903,7 +1903,7 @@ SCIP_Real SCIPsdpiSolverInfinity(
    return 1E+20; /* default infinity from SCIP */
 }
 
-/** checks if given value is treated as infinity in the SDP solver */
+/** checks if given value is treated as (plus or minus) infinity in the SDP solver */
 SCIP_Bool SCIPsdpiSolverIsInfinity(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
    SCIP_Real             val                 /**< value to be checked for infinity */
@@ -1929,7 +1929,7 @@ SCIP_Bool SCIPsdpiSolverIsGEMaxPenParam(
    return ((val <= -SCIPsdpiSolverMaxPenParam(sdpisolver)) || (val >= SCIPsdpiSolverMaxPenParam(sdpisolver)));
 }
 
-/** gets floating point parameter of SDP */
+/** gets floating point parameter of SDP-Solver */
 SCIP_RETCODE SCIPsdpiSolverGetRealpar(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
    SCIP_SDPPARAM         type,               /**< parameter number */
@@ -1957,7 +1957,7 @@ SCIP_RETCODE SCIPsdpiSolverGetRealpar(
    return SCIP_OKAY;
 }
 
-/** sets floating point parameter of SDP */
+/** sets floating point parameter of SDP-Solver */
 SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
    SCIP_SDPPARAM         type,               /**< parameter number */
@@ -1989,7 +1989,7 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    return SCIP_OKAY;
 }
 
-/** gets integer parameter of SDP */
+/** gets integer parameter of SDP-Solver */
 SCIP_RETCODE SCIPsdpiSolverGetIntpar(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
    SCIP_SDPPARAM         type,               /**< parameter number */
@@ -2011,7 +2011,7 @@ SCIP_RETCODE SCIPsdpiSolverGetIntpar(
    return SCIP_OKAY;
 }
 
-/** sets integer parameter of SDP */
+/** sets integer parameter of SDP-Solver */
 SCIP_RETCODE SCIPsdpiSolverSetIntpar(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
    SCIP_SDPPARAM         type,               /**< parameter number */
