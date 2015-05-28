@@ -48,7 +48,7 @@ extern "C" {
  * sort the given row, col and val arrays first by non-decreasing row-indices, than for those by identical row-indices by non-decreasing col-indices
  */
 EXTERN
-void SdpVarfixerSortRowCol(
+void SCIPsdpVarfixerSortRowCol(
    int*                  row,                /* row indices */
    int*                  col,                /* column indices */
    SCIP_Real*            val,                /* values */
@@ -62,7 +62,7 @@ void SdpVarfixerSortRowCol(
  * be removed. If you think of the matrices described by the two arrays, this is a matrix addition (but only working on the nonzeros for efficiency).
  * The target arrays need to be long enough, otherwise targetlength returns the needed amount and a corresponding debug message is thrown.
  */
-SCIP_RETCODE SdpVarfixerMergeArrays(
+SCIP_RETCODE SCIPsdpVarfixerMergeArrays(
    BMS_BLKMEM*           blkmem,             /**< block memory */
    SCIP_Real             feastol,            /**< only values bigger than this are counted as nonzeros */
    int*                  originrow,          /** original row-index-array that is going to be merged, may be NULL if originlength = NULL */
@@ -89,7 +89,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
  * thrown.
  */
 EXTERN
-SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
+SCIP_RETCODE SCIPsdpVarfixerMergeArraysIntoNew(
    BMS_BLKMEM*           blkmem,             /**< block memory */
    SCIP_Real             feastol,            /**< only values bigger than this are counted as nonzeros */
    int*                  firstrow,           /** first row-index-array that is going to be merged, may be NULL if firstlength = 0 */

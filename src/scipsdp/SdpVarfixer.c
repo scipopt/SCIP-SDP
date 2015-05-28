@@ -43,7 +43,7 @@
 /** sort the given row, col and val arrays first by non-decreasing row-indices, then for those with identical
  *  row-indices by non-decreasing col-indices
  */
-void SdpVarfixerSortRowCol(
+void SCIPsdpVarfixerSortRowCol(
    int*                  row,                /**< row indices */
    int*                  col,                /**< column indices */
    SCIP_Real*            val,                /**< values */
@@ -80,7 +80,7 @@ void SdpVarfixerSortRowCol(
  *  be removed. If you think of the matrices described by the two arrays, this is a matrix addition (but only working on the nonzeros for efficiency).
  *  The target arrays need to be long enough, otherwise targetlength returns the needed amount and a corresponding debug message is thrown.
  */
-SCIP_RETCODE SdpVarfixerMergeArrays(
+SCIP_RETCODE SCIPsdpVarfixerMergeArrays(
    BMS_BLKMEM*           blkmem,             /**< block memory */
    SCIP_Real             feastol,            /**< only values bigger than this are counted as nonzeros */
    int*                  originrow,          /**< original row-index-array that is going to be merged, may be NULL if originlength = NULL */
@@ -117,10 +117,10 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
    assert ( *targetlength >= 0 );
 
    /* sort the target and origin arrays first by row and then by col to make searching for entries easier */
-   SdpVarfixerSortRowCol(targetrow, targetcol, targetval, *targetlength);
+   SCIPsdpVarfixerSortRowCol(targetrow, targetcol, targetval, *targetlength);
 
    if ( ! (originsorted) )
-      SdpVarfixerSortRowCol(originrow, origincol, originval, originlength);
+      SCIPsdpVarfixerSortRowCol(originrow, origincol, originval, originlength);
 
    ind = 0; /* this will be used to traverse the nonzeros of the target arrays */
    naddednonz = 0;
@@ -229,7 +229,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
    }
 
    if ( debugmsg )
-      SCIPdebugMessage("insufficient memory given for SdpVarfixerMergeArrays, targetmemorys had length %d, would have needed up to %d\n",
+      SCIPdebugMessage("insufficient memory given for SCIPsdpVarfixerMergeArrays, targetmemorys had length %d, would have needed up to %d\n",
                                     targetmemory, *targetlength + naddednonz);
 
    *targetlength = *targetlength + naddednonz - nleftshifts;
@@ -246,7 +246,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
  * the new targetarrays, and not overwrite one of the old arrays. targetlength should give the length of the target arrays, if this is not sufficient,
  * the needed length is returned there and a debug message is thrown.
  */
-SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
+SCIP_RETCODE SCIPsdpVarfixerMergeArraysIntoNew(
    BMS_BLKMEM*           blkmem,             /**< block memory */
    SCIP_Real             feastol,            /**< only values bigger than this are counted as nonzeros */
    int*                  firstrow,           /**< first row-index-array that is going to be merged, may be NULL if firstlength = 0 */
@@ -281,8 +281,8 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
    debugmsg = FALSE;
 
    /* sort both arrays by non-decreasing row and then col indices to make comparisons easier */
-   SdpVarfixerSortRowCol(firstrow, firstcol, firstval, firstlength);
-   SdpVarfixerSortRowCol(secondrow, secondcol, secondval, secondlength);
+   SCIPsdpVarfixerSortRowCol(firstrow, firstcol, firstval, firstlength);
+   SCIPsdpVarfixerSortRowCol(secondrow, secondcol, secondval, secondlength);
 
    /* as both arrays are sorted, traverse them simultanously, always adding the current entry with the lower index of either array to the
     * target arrays (if they both have the same index, we have found entries that need to be merged) */
@@ -410,7 +410,7 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
 
    if ( debugmsg )
    {
-      SCIPdebugMessage("Insufficient arraylength in SdpVarfixerMergeArraysIntoNew, given targetarray-length was %d, would have needed %d",
+      SCIPdebugMessage("Insufficient arraylength in SCIPsdpVarfixerMergeArraysIntoNew, given targetarray-length was %d, would have needed %d",
                                   *targetlength, targetind);
    }
 

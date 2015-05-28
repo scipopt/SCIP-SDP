@@ -232,7 +232,7 @@ SCIP_RETCODE putSdpDataInInterface(
 
          /* get global variable indices */
          for (j = 0; j < nblockvars[ind]; j++)
-            sdpvar[ind][j] = SdpVarmapperGetSdpIndex(varmapper, blockvars[j]);
+            sdpvar[ind][j] = SCIPsdpVarmapperGetSdpIndex(varmapper, blockvars[j]);
 
          ind++;
       }
@@ -356,7 +356,7 @@ SCIP_RETCODE putLpDataInInterface(
       for (j = 0; j < rownnonz; j++)
       {
          assert( SCIPcolGetVar(rowcols[j]) != 0 );
-         colind[nnonz] = SdpVarmapperGetSdpIndex(varmapper, SCIPcolGetVar(rowcols[j]));
+         colind[nnonz] = SCIPsdpVarmapperGetSdpIndex(varmapper, SCIPcolGetVar(rowcols[j]));
          rowind[nnonz] = nconss;
          val[nnonz] = rowvals[j];
          nnonz++;
@@ -562,7 +562,7 @@ SCIP_RETCODE calc_relax(
          allint = TRUE;
          for (v = 0; v < nvars; v++)
          {
-            if ( SCIPvarIsIntegral(SdpVarmapperGetSCIPvar(varmapper, v)) && ! (SCIPisFeasIntegral(scip, solforscip[v])) )
+            if ( SCIPvarIsIntegral(SCIPsdpVarmapperGetSCIPvar(varmapper, v)) && ! (SCIPisFeasIntegral(scip, solforscip[v])) )
             {
                allint = FALSE;
                break;
@@ -808,8 +808,8 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
    vars = SCIPgetVars(scip);
 
    /* all SCIPvars will be added to this list, and 3/4 seems like a good load factor (java uses this factor) */
-   SCIP_CALL( SdpVarmapperCreate(scip, &(relaxdata->varmapper), (int) ceil(1.33 * nvars)) );
-   SCIP_CALL( SdpVarmapperAddVars(scip, relaxdata->varmapper, nvars, vars) );
+   SCIP_CALL( SCIPsdpVarmapperCreate(scip, &(relaxdata->varmapper), (int) ceil(1.33 * nvars)) );
+   SCIP_CALL( SCIPsdpVarmapperAddVars(scip, relaxdata->varmapper, nvars, vars) );
 
    if ( SCIPgetNVars(scip) > 0 )
    {
@@ -916,7 +916,7 @@ SCIP_DECL_RELAXEXIT(relaxExitSdp)
 
    if ( relaxdata->varmapper != NULL )
    {
-      SCIP_CALL( SdpVarmapperFree(scip, &(relaxdata->varmapper)) );
+      SCIP_CALL( SCIPsdpVarmapperFree(scip, &(relaxdata->varmapper)) );
    }
 
    relaxdata->objval = 0.0;

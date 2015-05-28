@@ -306,7 +306,7 @@ SCIP_RETCODE compConstMatAfterFixings(
    *sdpconstnnonz = 0;
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
-      SCIP_CALL( SdpVarfixerMergeArraysIntoNew(sdpi->blkmem, sdpi->feastol, sdpi->sdpconstrow[block], sdpi->sdpconstcol[block], sdpi->sdpconstval[block],
+      SCIP_CALL( SCIPsdpVarfixerMergeArraysIntoNew(sdpi->blkmem, sdpi->feastol, sdpi->sdpconstrow[block], sdpi->sdpconstcol[block], sdpi->sdpconstval[block],
                                                sdpi->sdpconstnblocknonz[block], fixedrows[block], fixedcols[block], fixedvals[block], nfixednonz[block],
                                                sdpconstrow[block], sdpconstcol[block], sdpconstval[block], &sdpconstnblocknonz[block]) );
       *sdpconstnnonz += sdpconstnblocknonz[block];
