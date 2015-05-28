@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION="1.0"
+VERSION="2.0"
 NAME="scipsdp-$VERSION"
 rm -f $NAME
 
@@ -15,7 +15,6 @@ tar --no-recursion --ignore-failed-read -cvzhf $NAME.tgz \
     --exclude="*~" \
     --exclude=".*" \
     $NAME/Makefile \
-    $NAME/make.local \
     $NAME/doc/scipsdp.dxy \
     $NAME/doc/xternal.c \
     $NAME/instances \
