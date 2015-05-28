@@ -3,57 +3,38 @@ SCIP-SDP version 2.0
 
 fixed bugs:
 - if DSDP didn't converge but produced primal and dual feasible solutions, these are no longer automatically accepted but are checked for optimality
+- input-file may now have comment-lines between LP-block-lines
+- value 0 in the last LP-block-line no longer causes an infinite loop
+- removed the diagDominant-cuts that are only correct for general MISDPs under some prerequisites
 
 data structures:
+- now uses arrays for the nonzeros instead of the SDP-cone class
 
 features:
+- dual/reduced cost fixing for SDPs
+- added branching rules, as some of the SCIP branching rules only work on LP-solutions
 
 performance improvements:
 
 interface:
-- added a more modular SDP-Interface and removed direct DSDP-reverences from the SCIPSDP-core-code
-- added interface to SDPA
+- added a more modular SDP-Interface and removed direct DSDP-references from the SCIPSDP-core-code
+- added beta version of interface to SDPA
 
 parameters:
+- can now specify epsilon and feasibility tolerance for the SDP-solver specifically
+- can specify whether an objective limit should be set for the SDP-solver
+- can choose to check slater condition in the dual problem ahead of solving the SDPs
+- for a full list check the parameters tab in the documentation
 
 core:
 - bounds from SCIP are no longer transformed into LP-rows but are given to the SDP Solver as bounds
+- added SCIP 3.2.0 support
+- transferred all code except for reader and SDPA-interface from C++ to C
+- now uses the SCIP shell
 
 Makefile:
 - creates extra directory sdpi for SDP-Interface
+- SDP-solver is now specified via make option SDPS=...
 
 misc:
-
-
-
-
-SCIP-SDP version 1.1
-==================
-
-fixed bugs:
-- input-file may now have comment-lines between LP-block-lines
-- value 0 in the last LP-block-line no longer causes an infinite loop
-- friends-declaration in BlockMemoryAllocator.cpp
-- added missing cassert to SDPSolverFactory.cpp
-- added missing newlines at the end of BlockMemoryAllocator.h and config.h
-
-data structures:
-
-features:
-
-performance improvements:
-
-interface:
-
-parameters:
-- in standard configuration SDP-Relaxations are now called instead of Eigenvalue-Cuts
-
-core:
-- added SCIP 3.1.0 support by adding an additional parameter to SCIPaddCut
-
-Makefile:
-- SCIP-SDP is now started via ./bin/scipsdp instead of ./bin/main
-- additional option of SDPS=dsdp when calling make instead of $(USE_DSDP) = true
-
-misc:
-- added Doxygen-Documentation
+- total and average SDP-iterations are displayed in the shell
