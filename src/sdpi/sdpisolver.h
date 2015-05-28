@@ -183,10 +183,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int***                sdprow,             /**< pointer to the row-indices for each block and variable */
    int***                sdpcol,             /**< pointer to the column-indices for each block and variable */
    SCIP_Real***          sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
-   int**                 indchanges,         /**< changes needed to be done to the indices, if indchange[block][nonz]=-1, then the index can
-                                              *   be removed, otherwise it gives the number of indices removed before this, i.e., the value
-                                              *   to decrease this index by, this array should have memory allocated in the size sdpi->nsdpblocks
-                                              *   times sdpi->sdpblocksizes[block] */
+   int**                 indchanges,         /**< changes needed to be done to the indices, if indchanges[block][nonz]=-1, then the index can
+                                              *   be removed, otherwise it gives the number of indices removed before this */
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
@@ -248,10 +246,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int***                sdprow,             /**< pointer to the row-indices for each block and variable */
    int***                sdpcol,             /**< pointer to the column-indices for each block and variable */
    SCIP_Real***          sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
-   int**                 indchanges,         /**< this returns the changes needed to be done to the indices, if indchanges[block][nonz]=-1, then
-                                              *   the index can be removed, otherwise it gives the number of indices removed before this, i.e.
-                                              *   the value to decrease this index by, this array should have memory allocated in the size
-                                              *   sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
+   int**                 indchanges,         /**< changes needed to be done to the indices, if indchanges[block][nonz]=-1, then
+                                              *   the index can be removed, otherwise it gives the number of indices removed before this */
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
@@ -259,7 +255,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lplhs,              /**< left hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
-   int*                  rownactivevars,     /**< number of active variables for each lp constraint */
+   int*                  rownactivevars,     /**< number of active variables for each LP constraint */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
@@ -453,7 +449,7 @@ SCIP_RETCODE SCIPsdpiSolverIgnoreInstability(
 EXTERN
 SCIP_RETCODE SCIPsdpiSolverGetObjval(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
-   SCIP_Real*            objval              /**< stores the objective value */
+   SCIP_Real*            objval              /**< pointer to store the objective value */
    );
 
 /** gets dual solution vector for feasible SDPs
@@ -463,8 +459,8 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
 EXTERN
 SCIP_RETCODE SCIPsdpiSolverGetSol(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
-   SCIP_Real*            objval,             /**< stores the objective value, may be NULL if not needed */
-   SCIP_Real*            dualsol,            /**< dual solution vector, may be NULL if not needed */
+   SCIP_Real*            objval,             /**< pointer to store the objective value, may be NULL if not needed */
+   SCIP_Real*            dualsol,            /**< pointer to store the dual solution vector, may be NULL if not needed */
    int*                  dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
                                               *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
    );
@@ -479,9 +475,9 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
 EXTERN
 SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
-   SCIP_Real*            lbvars,             /**< returns the variables corresponding to lower bounds in the dual problems */
-   SCIP_Real*            ubvars,             /**< returns the variables corresponding to upper bounds in the dual problems */
-   int*                  arraylength         /**< input: length of lbvars and ubvars
+   SCIP_Real*            lbvars,             /**< pointer to store the values of the variables corresponding to lower bounds in the dual problems */
+   SCIP_Real*            ubvars,             /**< pointer to store the values of the variables corresponding to upper bounds in the dual problems */
+   int*                  arraylength         /**< input: length of lbvars and ubvars <br>
                                               *   output: number of elements inserted into lbvars/ubvars (or needed length if it wasn't sufficient) */
    );
 

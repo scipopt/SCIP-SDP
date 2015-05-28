@@ -216,17 +216,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int***                sdprow,             /**< pointer to the row-indices for each block and variable */
    int***                sdpcol,             /**< pointer to the column-indices for each block and variable */
    SCIP_Real***          sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
-   int**                 indchanges,         /**< this returns the changes needed to be done to the indices, if indchange[block][nonz]=-1, then
-                                              *   the index can be removed, otherwise it gives the number of indices removed before this, i.e.,
-                                              *   the value to decrease this index by, this array should have memory allocated in the size
-                                              *   sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
+   int**                 indchanges,         /**< changes needed to be done to the indices, if indchanges[block][nonz]=-1, then
+                                              *   the index can be removed, otherwise it gives the number of indices removed before this */
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
    int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
-   int*                  rownactivevars,     /**< number of active variables for each lp constraint */
+   int*                  rownactivevars,     /**< number of active variables for each LP constraint */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
@@ -247,7 +245,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathds{I} \succeq 0 \quad \forall i \leq m \\
  *      & & Dy \geq d \\
  *      & & l \leq y \leq u.\f}
- *  Alternatively withObj can be set to false to set \f$ b \f$ to 0 and only check for feasibility (if the optimal objective value is
+ *  Alternatively withObj can be set to false to set b to 0 and only check for feasibility (if the optimal objective value is
  *  bigger than 0 the problem is infeasible, otherwise it's feasible).
  *  For the non-constant SDP- and the LP-part the original arrays before fixings should be given, for the constant SDP-part the arrays AFTER fixings
  *  should be given. In addition, an array needs to be given, that for every block and every row/col index within that block either has value
@@ -255,15 +253,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *  meaning that this index will be decreased by that number. Moreover, the total number of deleted indices for each block should be given.
  *  An optional starting point for the solver may be given; if it is NULL, the solver will start from scratch.
  *
- *  @warning This only works for some solvers, check with SCIPsdpiKnowsPenalty first, otherwise this returns an error (in which case you should form
- *  the penalty formulation yourself and pass it via LoadAndSolve).
- *
  *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
  */
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
    SCIP_Real             gamma,              /**< the penalty parameter above, needs to be >= 0 */
-   SCIP_Bool             withObj,            /**< if this is false, the objective is set to 0 */
+   SCIP_Bool             withObj,            /**< if this is false the objective is set to 0 */
    int                   nvars,              /**< number of variables */
    SCIP_Real*            obj,                /**< objective function values of variables */
    SCIP_Real*            lb,                 /**< lower bounds of variables */
@@ -285,23 +280,22 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int***                sdprow,             /**< pointer to the row-indices for each block and variable */
    int***                sdpcol,             /**< pointer to the column-indices for each block and variable */
    SCIP_Real***          sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
-   int**                 indchanges,         /**< this returns the changes needed to be done to the indices, if indchange[block][nonz]=-1, then
-                                              *   the index can be removed, otherwise it gives the number of indices removed before this, i.e.
-                                              *   the value to decrease this index by, this array should have memory allocated in the size
-                                              *   sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
+   int**                 indchanges,         /**< changes needed to be done to the indices, if indchanges[block][nonz]=-1, then
+                                              *   the index can be removed, otherwise it gives the number of indices removed before this */
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
    int	                noldlpcons,		   /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
-   int*	                rownactivevars,	   /**< number of active variables for each lp constraint */
+   int*	                rownactivevars,	   /**< number of active variables for each LP constraint */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
-   SCIP_Bool*            feasorig            /**< is the solution to the penalty-formulation feasible for the original problem? (may be NULL if gamma = 0) */
+   SCIP_Bool*            feasorig            /**< pointer to store if the solution to the penalty-formulation is feasible for the original problem
+                                               *  (may be NULL if penaltyparam = 0) */
 )
 {
    errorMessage();
@@ -573,7 +567,7 @@ SCIP_RETCODE SCIPsdpiSolverIgnoreInstability(
 /** gets objective value of solution */
 SCIP_RETCODE SCIPsdpiSolverGetObjval(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
-   SCIP_Real*            objval              /**< stores the objective value */
+   SCIP_Real*            objval              /**< pointer to store the objective value */
    )
 {
    errorMessageAbort();
@@ -587,8 +581,8 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
  */
 SCIP_RETCODE SCIPsdpiSolverGetSol(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
-   SCIP_Real*            objval,             /**< stores the objective value, may be NULL if not needed */
-   SCIP_Real*            dualsol,            /**< dual solution vector, may be NULL if not needed */
+   SCIP_Real*            objval,             /**< pointer to store the objective value, may be NULL if not needed */
+   SCIP_Real*            dualsol,            /**< pointer to store the dual solution vector, may be NULL if not needed */
    int*                  dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
                                               *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
    )
@@ -607,9 +601,9 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
  */
 SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
-   SCIP_Real*            lbvars,             /**< returns the variables corresponding to lower bounds in the dual problems */
-   SCIP_Real*            ubvars,             /**< returns the variables corresponding to upper bounds in the dual problems */
-   int*                  arraylength         /**< input: length of lbvars and ubvars
+   SCIP_Real*            lbvars,             /**< pointer to store the values of the variables corresponding to lower bounds in the dual problems */
+   SCIP_Real*            ubvars,             /**< pointer to store the values of the variables corresponding to upper bounds in the dual problems */
+   int*                  arraylength         /**< input: length of lbvars and ubvars <br>
                                               *   output: number of elements inserted into lbvars/ubvars (or needed length if it wasn't sufficient) */
    )
 {
