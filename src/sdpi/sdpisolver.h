@@ -45,7 +45,7 @@
  *      & & Dy \geq d \\
  *      & & l \leq y \leq u
  *   \f}
- * for symmetric matrices \f$ A_j^i \in S_{k_i} \f$ and a matrix \f$ D \in \mathds{R}^{k_0 \times n} \f$ and query information about the solution.
+ * for symmetric matrices \f$ A_j^i \in S_{k_i} \f$, a matrix \f$ D \in \mathbb{R}^{k_0 \times n} \f$ and query information about the solution.
  *
  * All indexing (rows, columns, blocks and variables) starts at 0.
  *

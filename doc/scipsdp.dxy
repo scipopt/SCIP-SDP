@@ -928,6 +928,10 @@ DOT_CLEANUP            = YES
 
 SEARCHENGINE           = YES
 
+#---------------------------------------------------------------------------
+# other things
+#---------------------------------------------------------------------------
+
 # Should the namespaces tab be used.
 
 SHOW_NAMESPACES        = NO
@@ -935,3 +939,7 @@ SHOW_NAMESPACES        = NO
 # Load the layout from the file.
 
 LAYOUT_FILE            = ./layout.xml
+
+# Load the math fonts for mathbb
+
+EXTRA_PACKAGES = amsmath xr amsfonts
