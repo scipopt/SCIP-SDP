@@ -112,7 +112,9 @@ struct SCIP_SDPiSolver
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
    SCIP_Real             objlimit;           /**< objective limit for SDP solver */
+#if 0
    int                   threads;            /**< number of threads */
+#endif
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             penalty;            /**< was the problem last solved using a penalty formulation */
    SCIP_Bool             rbound;             /**< was the penalty parameter bounded during the last solve call */
@@ -223,7 +225,9 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->epsilon = 1e-3;
    (*sdpisolver)->feastol = 1e-6;
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
+#if 0
    (*sdpisolver)->threads = 1;
+#endif
    (*sdpisolver)->sdpinfo = FALSE;
 
    return SCIP_OKAY;
@@ -1086,8 +1090,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       return SCIP_LPERROR;
    }
 #endif
-
+#if 0
    SCIPdebugMessage("Calling SDPA solve (SDP: %d, threads: %d)\n", sdpisolver->sdpcounter, sdpisolver->sdpa->getNumThreads());
+#else
+   SCIPdebugMessage("Calling SDPA solve (SDP: %d)\n", sdpisolver->sdpcounter);
+#endif
    sdpisolver->sdpa->solve();
    sdpisolver->solved = TRUE;
 
@@ -1924,10 +1931,12 @@ SCIP_RETCODE SCIPsdpiSolverGetIntpar(
 
    switch( type )/*lint --e{788}*/
    {
+#if 0
    case SCIP_SDPPAR_THREADS:
       *ival = sdpisolver->threads;
       SCIPdebugMessage("Getting sdpisolver number of threads: %d.\n", *ival);
       break;
+#endif
    case SCIP_SDPPAR_SDPINFO:
       *ival = (int) sdpisolver->sdpinfo;
       SCIPdebugMessage("Getting sdpisolver information output (%d).\n", *ival);
@@ -1950,10 +1959,12 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
 
    switch( type )/*lint --e{788}*/
    {
+#if 0
    case SCIP_SDPPAR_THREADS:
       sdpisolver->threads = ival;
       SCIPdebugMessage("Setting sdpisolver number of threads to %d.\n", ival);
       break;
+#endif
    case SCIP_SDPPAR_SDPINFO:
       sdpisolver->sdpinfo = (SCIP_Bool) ival;
       SCIPdebugMessage("Setting sdpisolver information output (%d).\n", ival);

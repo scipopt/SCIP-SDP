@@ -943,6 +943,7 @@ SCIP_RETCODE multiaggrVar(
    int aggrtargetlength;
    int globalnvars;
    int aggrconsind;
+   SCIP_Real feastol;
 
    assert( scip != NULL );
    assert( cons != NULL );
@@ -955,6 +956,8 @@ SCIP_RETCODE multiaggrVar(
 
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
+
+   SCIP_CALL( SCIPgetRealParam(scip, "numerics/feastol", &feastol) );
 
    /* save the current nfixednonz-index, all entries starting from here will need to be added to the variables this is aggregated to */
    startind = *nfixednonz;
@@ -1028,7 +1031,7 @@ SCIP_RETCODE multiaggrVar(
          {
             /* in this case we saved the original values in savedval, we add startind to the pointers to only add those from
              * the current variable, the number of entries is the current position minus the position whre we started */
-            SCIP_CALL( SdpVarfixerMergeArrays(SCIPblkmem(scip), savedrow + startind, savedcol + startind, savedval + startind,
+            SCIP_CALL( SdpVarfixerMergeArrays(SCIPblkmem(scip), feastol, savedrow + startind, savedcol + startind, savedval + startind,
                         *nfixednonz - startind, TRUE, scalars[aggrind], consdata->row[aggrconsind], consdata->col[aggrconsind],
                         consdata->val[aggrconsind], &(consdata->nvarnonz[aggrconsind]), aggrtargetlength) );
          }
@@ -1036,7 +1039,7 @@ SCIP_RETCODE multiaggrVar(
          {
             /* in this case we saved the original values * constant, so we now have to divide by constant, we add startind to the pointers
              * to only add those from the current variable, the number of entries is the current position minus the position whre we started */
-            SCIP_CALL( SdpVarfixerMergeArrays(SCIPblkmem(scip), savedrow + startind, savedcol + startind, savedval + startind,
+            SCIP_CALL( SdpVarfixerMergeArrays(SCIPblkmem(scip), feastol, savedrow + startind, savedcol + startind, savedval + startind,
                         *nfixednonz - startind, TRUE, scalars[aggrind] / constant, consdata->row[aggrconsind], consdata->col[aggrconsind],
                         consdata->val[aggrconsind], &(consdata->nvarnonz[aggrconsind]), aggrtargetlength) );
          }
@@ -1148,6 +1151,7 @@ SCIP_RETCODE fixAndAggrVars(
    int globalnvars;
    int vararraylength;
    SCIP_Bool negated;
+   SCIP_Real feastol;
 
 
    /* loop over all variables once, add all fixed to savedrow/col/val, for all multiaggregated variables, if constant-scalar =!= 0, add
@@ -1160,6 +1164,8 @@ SCIP_RETCODE fixAndAggrVars(
    assert( nconss >= 0 );
 
    SCIPdebugMessage("Calling fixAndAggrVars with aggregate = %u\n", aggregate);
+
+   SCIP_CALL( SCIPgetRealParam(scip, "numerics/feastol", &feastol) );
 
    for (c = 0; c < nconss; ++c)
    {
@@ -1311,8 +1317,8 @@ SCIP_RETCODE fixAndAggrVars(
       SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constval), consdata->constnnonz, arraylength) );
 
       /* insert the fixed variables into the constant arrays, as we have +A_i but -A_0 we mutliply them by -1 */
-      SCIP_CALL( SdpVarfixerMergeArrays(SCIPblkmem(scip), savedrow, savedcol, savedval, nfixednonz, FALSE, -1.0, consdata->constrow, consdata->constcol,
-                consdata->constval, &(consdata->constnnonz), arraylength) );
+      SCIP_CALL( SdpVarfixerMergeArrays(SCIPblkmem(scip), feastol, savedrow, savedcol, savedval, nfixednonz, FALSE, -1.0, consdata->constrow,
+            consdata->constcol, consdata->constval, &(consdata->constnnonz), arraylength) );
 
       assert( consdata->constnnonz <= arraylength ); /* the allocated memory should always be sufficient */
 

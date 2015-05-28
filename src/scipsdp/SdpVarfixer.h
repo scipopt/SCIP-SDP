@@ -45,7 +45,7 @@ extern "C" {
 #endif
 
 /**
- * sort the given row, col and val arrays first by non-decreasing row-indices, than for those by identical row-indices by non-increasing col-indices
+ * sort the given row, col and val arrays first by non-decreasing row-indices, than for those by identical row-indices by non-decreasing col-indices
  */
 EXTERN
 void SdpVarfixerSortRowCol(
@@ -60,10 +60,11 @@ void SdpVarfixerSortRowCol(
  * scalar and then merged into the target arrays (which may not have multiple entries for the same row and col). If there is already an entry for
  * a row/col combination, these two entries will be combined (their values added together), if they cancel each other out the nonzero entry will
  * be removed. If you think of the matrices described by the two arrays, this is a matrix addition (but only working on the nonzeros for efficiency).
- * The target arrays need to be long enough, otherwise targetlength returns the needed amount an a corresponding debug message will be thrown.
+ * The target arrays need to be long enough, otherwise targetlength returns the needed amount and a corresponding debug message is thrown.
  */
 SCIP_RETCODE SdpVarfixerMergeArrays(
    BMS_BLKMEM*           blkmem,             /**< block memory */
+   SCIP_Real             feastol,            /**< only values bigger than this are counted as nonzeros */
    int*                  originrow,          /** original row-index-array that is going to be merged, may be NULL if originlength = NULL */
    int*                  origincol,          /** original column-index-array that is going to be merged, may be NULL if originlength = NULL */
    SCIP_Real*            originval,          /** original nonzero-values-array that is going to be merged, may be NULL if originlength = NULL */
@@ -84,12 +85,13 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
  * together), if they cancel each other out the nonzero entry will be removed. The first arrays are assumed to have unique row/col-combinations, the
  * second entries may have duplicates of the same row/col-combination. In constrast to MergeArrays, here the combined arrays will be inserted in
  * the new targetarrays, and not overwrite one of the old arrays.
- * targetlength should give the length of the target arrays, if this is not sufficient, the needed length is returned there and a debugMessage is
- * thrown
+ * targetlength should give the length of the target arrays, if this is not sufficient, the needed length is returned there and a debug message is
+ * thrown.
  */
 EXTERN
 SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
    BMS_BLKMEM*           blkmem,             /**< block memory */
+   SCIP_Real             feastol,            /**< only values bigger than this are counted as nonzeros */
    int*                  firstrow,           /** first row-index-array that is going to be merged, may be NULL if firstlength = 0 */
    int*                  firstcol,           /** first column-index-array that is going to be merged, may be NULL if firstlength = 0 */
    SCIP_Real*            firstval,           /** first nonzero-values-array that is going to be merged, may be NULL if firstlength = 0 */

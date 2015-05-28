@@ -40,10 +40,8 @@
 #include "scip/pub_misc.h" /* for sorting */
 #include "SdpVarfixer.h"
 
-static double epsilon    = 1e-6; /**< only values bigger than this are counted as nonzeros */
-
 /** sort the given row, col and val arrays first by non-decreasing row-indices, then for those with identical
- *  row-indices by non-increasing col-indices
+ *  row-indices by non-decreasing col-indices
  */
 void SdpVarfixerSortRowCol(
    int*                  row,                /**< row indices */
@@ -80,10 +78,11 @@ void SdpVarfixerSortRowCol(
  *  scalar and then merged into the target arrays (which may not have multiple entries for the same row and col). If there is already an entry for
  *  a row/col combination, these two entries will be combined (their values added together), if they cancel each other out the nonzero entry will
  *  be removed. If you think of the matrices described by the two arrays, this is a matrix addition (but only working on the nonzeros for efficiency).
- *  The target arrays need to be long enough, otherwise targetlength returns the needed amount an a corresponding debug message will be thrown.
+ *  The target arrays need to be long enough, otherwise targetlength returns the needed amount and a corresponding debug message is thrown.
  */
 SCIP_RETCODE SdpVarfixerMergeArrays(
    BMS_BLKMEM*           blkmem,             /**< block memory */
+   SCIP_Real             feastol,            /**< only values bigger than this are counted as nonzeros */
    int*                  originrow,          /**< original row-index-array that is going to be merged, may be NULL if originlength = NULL */
    int*                  origincol,          /**< original column-index-array that is going to be merged, may be NULL if originlength = NULL */
    SCIP_Real*            originval,          /**< original nonzero-values-array that is going to be merged, may be NULL if originlength = NULL */
@@ -167,7 +166,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
             i++;
          }
 
-         if ( REALABS(targetval[ind - nleftshifts]) < epsilon )
+         if ( REALABS(targetval[ind - nleftshifts]) < feastol )
          {
             /* the nonzero became zero */
             nleftshifts++;
@@ -204,7 +203,7 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
             }
 
             /* if there were indeed multiple entries, check if they did cancel each other out, in that case remove the entry */
-            if ( REALABS(targetval[insertionpos]) < epsilon )
+            if ( REALABS(targetval[insertionpos]) < feastol )
             {
                /* depending on where this actually zero nonzero was added, either add another leftshift to overwrite it or decrease the number of addednonz */
                if ( insertionpos < ind )
@@ -244,11 +243,12 @@ SCIP_RETCODE SdpVarfixerMergeArrays(
  * If there are multiple entries for a row/col combination, these will be combined (their values added
  * together), if they cancel each other out the nonzero entry will be removed. The first arrays are assumed to have unique row/col-combinations, the
  * second arrays may have duplicates of the same row/col-combination. In constrast to MergeArrays, here the combined arrays will be inserted in
- * the new targetarrays, and not overwrite one of the old arrays. Targetlength should give the length of the target arrays, if this is not sufficient,
- * the needed length is returned there and a debugMessage is thrown.
+ * the new targetarrays, and not overwrite one of the old arrays. targetlength should give the length of the target arrays, if this is not sufficient,
+ * the needed length is returned there and a debug message is thrown.
  */
 SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
    BMS_BLKMEM*           blkmem,             /**< block memory */
+   SCIP_Real             feastol,            /**< only values bigger than this are counted as nonzeros */
    int*                  firstrow,           /**< first row-index-array that is going to be merged, may be NULL if firstlength = 0 */
    int*                  firstcol,           /**< first column-index-array that is going to be merged, may be NULL if firstlength = 0 */
    SCIP_Real*            firstval,           /**< first nonzero-values-array that is going to be merged, may be NULL if firstlength = 0 */
@@ -332,7 +332,7 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
 
          /* if we combined multiple fixed nonzeros, it is possible that they cancelled each other out, in that case, we shouldn't add a nonzero to the
           * target arrays (if the array was too short we didn't compute the entry, but we add it, as we want to get an upper bound on the needed size) */
-         if ( targetind >= *targetlength || REALABS(targetval[targetind]) >= epsilon )
+         if ( targetind >= *targetlength || REALABS(targetval[targetind]) >= feastol )
             targetind++;
       }
       /* if the next entries of both arrays are equal according to the row then col sorting, then they need to be combined */
@@ -360,7 +360,7 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
 
          /* as we combined multiple entires, it is possible that they cancelled each other out, in that case, we shouldn't add a nonzero to the
           * target arrays (if the array was too short we didn't compute the entry, but we add it, as we want to get an upper bound on the needed size) */
-         if ( targetind >= *targetlength || REALABS(targetval[targetind]) >= epsilon )
+         if ( targetind >= *targetlength || REALABS(targetval[targetind]) >= feastol )
             targetind++;
       }
    }
@@ -404,7 +404,7 @@ SCIP_RETCODE SdpVarfixerMergeArraysIntoNew(
 
       /* if we combined multiple fixed nonzeros, it is possible that they cancelled each other out, in that case, we shouldn't add a nonzero to the
        * target arrays */
-      if ( targetind >= *targetlength || REALABS(targetval[targetind]) >= epsilon )
+      if ( targetind >= *targetlength || REALABS(targetval[targetind]) >= feastol )
          targetind++;
    }
 

@@ -306,7 +306,7 @@ SCIP_RETCODE compConstMatAfterFixings(
    *sdpconstnnonz = 0;
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
-      SCIP_CALL( SdpVarfixerMergeArraysIntoNew(sdpi->blkmem, sdpi->sdpconstrow[block], sdpi->sdpconstcol[block], sdpi->sdpconstval[block],
+      SCIP_CALL( SdpVarfixerMergeArraysIntoNew(sdpi->blkmem, sdpi->feastol, sdpi->sdpconstrow[block], sdpi->sdpconstcol[block], sdpi->sdpconstval[block],
                                                sdpi->sdpconstnblocknonz[block], fixedrows[block], fixedcols[block], fixedvals[block], nfixednonz[block],
                                                sdpconstrow[block], sdpconstcol[block], sdpconstval[block], &sdpconstnblocknonz[block]) );
       *sdpconstnnonz += sdpconstnblocknonz[block];
@@ -2582,9 +2582,11 @@ SCIP_RETCODE SCIPsdpiGetIntpar(
 
    switch( type )/*lint --e{788}*/
    {
+#if 0
    case SCIP_SDPPAR_THREADS:
       SCIP_CALL_PARAM( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, ival) );
       break;
+#endif
    case SCIP_SDPPAR_SDPINFO:
       SCIP_CALL_PARAM( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, ival) );
       break;
@@ -2621,9 +2623,11 @@ SCIP_RETCODE SCIPsdpiSetIntpar(
 
    switch( type )/*lint --e{788}*/
    {
+#if 0
    case SCIP_SDPPAR_THREADS:
       SCIP_CALL_PARAM( SCIPsdpiSolverSetIntpar(sdpi->sdpisolver, type, ival) );
       break;
+#endif
    case SCIP_SDPPAR_SDPINFO:
       assert( ival == 0 || ival == 1 ); /* this is a boolean parameter */
       SCIP_CALL_PARAM( SCIPsdpiSolverSetIntpar(sdpi->sdpisolver, type, ival) );

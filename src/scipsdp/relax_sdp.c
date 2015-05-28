@@ -75,7 +75,9 @@ struct SCIP_RelaxData
    SCIP_Real             sdpsolverepsilon;   /**< the stopping criterion for the duality gap the sdpsolver should use */
    SCIP_Real             sdpsolverfeastol;   /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
    int                   sdpiterations;      /**< saves the total number of sdp-iterations */
+#if 0
    int                   threads;            /**< number of threads used for SDP solving */
+#endif
    SCIP_Bool             slatercheck;        /**< Should the Slater condition for the dual problem be check ahead of solving every SDP ? */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             objlimit;           /**< Should an objective limit be given to the SDP solver? */
@@ -785,7 +787,9 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
    SCIP_VAR** vars;
    SCIP_Real epsilon;
    SCIP_Real feastol;
+#if 0
    int threads;
+#endif
    SCIP_Bool sdpinfo;
    SCIP_Bool slatercheck;
 
@@ -839,6 +843,7 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
       SCIP_CALL( retcode );
    }
 
+#if 0
    SCIP_CALL( SCIPgetIntParam(scip, "relaxing/SDP/threads", &threads) );
    retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_THREADS, threads);
    if ( retcode == SCIP_PARAMETERUNKNOWN )
@@ -851,6 +856,7 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
    {
       SCIP_CALL( retcode );
    }
+#endif
 
    SCIP_CALL( SCIPgetBoolParam(scip, "relaxing/SDP/sdpinfo", &sdpinfo) );
    retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_SDPINFO, (int) sdpinfo);
@@ -979,8 +985,10 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          &(relaxdata->sdpsolverepsilon), TRUE, DEFAULT_SDPSOLVEREPSILON, 1e-20, 0.001, NULL, NULL) );
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/sdpsolverfeastol", "the feasibility tolerance the SDP solver should use for the SDP constraints",
          &(relaxdata->sdpsolverfeastol), TRUE, DEFAULT_SDPSOLVERFEASTOL, 1e-17, 0.001, NULL, NULL) );
+#if 0
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/threads", "number of threads used for SDP solving",
          &(relaxdata->threads), TRUE, DEFAULT_THREADS, 1, INT_MAX, NULL, NULL) );
+#endif
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/slatercheck", "Should the slater condition for the dual problem be check ahead of solving each SDP?",
          &(relaxdata->slatercheck), TRUE, FALSE, NULL, NULL) );
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/sdpinfo", "Should the SDP solver output information to the screen?",
