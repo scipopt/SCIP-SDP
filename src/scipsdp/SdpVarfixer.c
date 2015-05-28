@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   SdpVarfixer.h
+/**@file   SdpVarfixer.c
  * @brief  adds the main functionality to fix/unfix/(multi-)aggregate variables by merging two three-tuple-arrays of row/col/val together
  * @author Tristan Gally
  */
