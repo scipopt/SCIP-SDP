@@ -85,8 +85,6 @@ namespace
 namespace scip
 {
 
-   static double epsilon    = 1e-6;             /**< this is used for checking if primal and dual objective are equal */
-
    /** function for removing comments in between the variable & block definitions */
    static
    SCIP_RETCODE dropComments(
@@ -126,7 +124,8 @@ namespace scip
       int numsdpblocks;                   //Number of SDP-blocks
       int numlpblocks;                    //Number of LP-blocks
       int alllpblocksize;                 //Size of all LP-blocks added
-      int* nvarnonz;                     /* nblockvarnonz[i] gives the number of nonzeros for variable i */
+      int* nvarnonz;                      // nblockvarnonz[i] gives the number of nonzeros for variable i
+      SCIP_Real feastol;                  // used to check for nonzeros
 
       std::vector<int, BlockMemoryAllocator<int> > blockpattern =
       std::vector<int, BlockMemoryAllocator<int> >(BlockMemoryAllocator<int>(scip));      //Vector with the sizes of all blocks
@@ -149,6 +148,9 @@ namespace scip
 
       // setup our stream from the new buffer
       std::istream file(&scip_buffer);
+
+      // initialize feastol
+      SCIP_CALL( SCIPgetRealParam(scip, "numerics/feastol", &feastol) );
 
       if( !file )
          return SCIP_READERROR;
@@ -426,7 +428,7 @@ namespace scip
             /* prepare the constant arrays */
             for (k = 0; k < blockstruct[bindex].constnum_nonzeros; ++k)
             {
-               if (blockstruct[bindex].constvalues[k] > epsilon || blockstruct[bindex].constvalues[k] < -epsilon)
+               if (blockstruct[bindex].constvalues[k] > feastol || blockstruct[bindex].constvalues[k] < -feastol)
                {
                   constcol[ind] = blockstruct[bindex].constcolumns[k] - 1; /* the sdpa format counts from 1 to blocksize, we want to start from 0 */
                   constrow[ind] = blockstruct[bindex].constrows[k] - 1;
@@ -440,7 +442,7 @@ namespace scip
             ind = 0;
             for (k = 0; k < nnonz; ++k)
             {
-               if (blockstruct[bindex].values[k] > epsilon || blockstruct[bindex].values[k] < -epsilon)
+               if (blockstruct[bindex].values[k] > feastol || blockstruct[bindex].values[k] < -feastol)
                {
                   varind[ind] = blockstruct[bindex].variables[k] - 1;
                   col[ind] = blockstruct[bindex].columns[k] - 1;
