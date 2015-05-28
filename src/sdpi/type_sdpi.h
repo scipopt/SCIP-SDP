@@ -14,7 +14,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   type_sdpi.h
- * @brief  type definitions for specific SDP solvers interface
+ * @brief  type definitions for specific SDP solver interfaces
  * @author Tristan Gally
  */
 
