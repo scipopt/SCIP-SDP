@@ -948,7 +948,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* free the memory for the rowmapper */
    if ( nlpcons > 0 )
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &rowmapper, noldlpcons);
+      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &rowmapper, 2 * noldlpcons);
 
    /* insert variable bounds, these are also added as LP-constraints and therefore diagonal entries of the LP block
     * if we work with the penalty formulation, we get an extra entry for r >= 0, but this we will add afterwards */
