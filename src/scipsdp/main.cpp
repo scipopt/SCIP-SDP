@@ -74,9 +74,6 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPincludeBranchruleSdpobjective(scip) );
    SCIP_CALL( SCIPincludeBranchruleSdpinfobjective(scip) );
 
-   /* add parameter for SDP solver */
-   SCIP_CALL( SCIPaddStringParam(scip, "sdpsolver", "SDP solver", 0, FALSE, "dsdp" , 0, 0) );
-
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
 
@@ -101,8 +98,6 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPsetRealParam(scip, "numerics/epsilon", 1e-5) );
    SCIP_CALL( SCIPsetRealParam(scip, "numerics/sumepsilon", 1e-3) );
    SCIP_CALL( SCIPsetRealParam(scip, "numerics/feastol", 1e-4) );
-
-   SCIP_CALL( SCIPsetStringParam(scip, "sdpsolver", "dsdp") );
 
    /* parameters for separation */
    SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprows", FALSE) );
