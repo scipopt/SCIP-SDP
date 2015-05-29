@@ -18,6 +18,7 @@ Now you are able to install the SDP-Plugin. It uses the SCIP-Makefiles for
 building. After unpacking the files you need to set a symbolic link to your
 SCIP directory in the lib-subdirectory, this can be done via
 
+mkdir lib
 cd lib
 ln -s /home/username/scipoptsuite-3.2.0/scip-3.2.0/scip/
 cd ..
@@ -90,3 +91,10 @@ followed by
 optimize
 
 as in the usual SCIP shell. You can test this with the examples in the "instances"-subfolder.
+
+If you compiled SCIP-SDP with SDPA and openblas, the BLAS/LAPACK routines can be run multithreaded.
+For this you have to set the corresponding environment variable by typing
+
+export OMP_NUM_THREADS=n
+
+where n is the desired number of threads.
