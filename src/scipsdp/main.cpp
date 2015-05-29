@@ -48,7 +48,6 @@
 #include "branch_sdpmostinf.h"
 #include "branch_sdpobjective.h"
 #include "branch_sdpinfobjective.h"
-#include "branch_cs.h"
 #include "nodesel_prio.h"
 
 using namespace scip;
