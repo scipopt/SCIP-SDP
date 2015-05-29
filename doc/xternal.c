@@ -34,7 +34,7 @@
 /**@mainpage Overview
  *
  * @version 2.0
- * @author Sonja Mars, Lars Schewe, Tristan Gally, Marc Pfetsch
+ * @author Tristan Gally, Marc Pfetsch; Sonja Mars, Lars Schewe
  * @date 2011-2015
  *
  * The SCIP-SDP-Package is a plug-in for the Software SCIP. It is able to solve Mixed-Integer SDPs using
