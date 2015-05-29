@@ -30,8 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* #define SCIP_DEBUG*/
-/* #define SCIP_MORE_DEBUG  *//* shows all added nonzero entries */
+ #define SCIP_DEBUG
+ #define SCIP_MORE_DEBUG  /* shows all added nonzero entries */
 /* #define SCIP_DEBUG_PRINTTOFILE */ /* prints each problem inserted into SDPA to the file sdpa.dat-s and the starting point to sdpa.ini-s */
 
 /**@file   sdpisolver_sdpa.cpp
@@ -362,8 +362,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *  The penalty formulation of the SDP is:
  *      \f{eqnarray*}{
  *      \min & & b^T y + \Gamma r \\
- *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathds{I} \succeq 0 \quad \forall i \leq m \\
- *      & & Dy + r \cdot \mathds{I} \geq d \\
+ *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathbb{I} \succeq 0 \quad \forall i \leq m \\
+ *      & & Dy + r \cdot \mathbb{I} \geq d \\
  *      & & l \leq y \leq u \\
  *      & & r \geq 0.\f}
  *  Alternatively withobj can be set to false to set b to 0 and only check for feasibility (if the optimal objective value is
@@ -433,7 +433,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int nlpineqs;
    int pos;
    int newpos;
-#ifdef SCIP_DEBUG
+#ifdef SCIP_MORE_DEBUG
    int ind;
 #endif
 

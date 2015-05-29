@@ -197,18 +197,6 @@ SCIP_RETCODE SCIPsdpiSolverResetCounter(
  *
  *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
  */
-/** loads and solves an SDP
- *
- *  For the non-constant SDP- and the LP-part, the original arrays before fixings should be given, for the constant
- *  SDP-part the arrays AFTER fixings should be given. In addition, an array needs to be given, that for every block and
- *  every row/col index within that block either has value -1, meaning that this index should be deleted, or a
- *  non-negative integer stating the number of indices before it that are to be deleated, meaning that this index will
- *  be decreased by that number, in addition to that the total number of deleted indices for each block should be given.
- *  Optionally an array start may be given with a starting point for the solver (if this is NULL then the solver should
- *  start from scratch).
- *
- *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
- */
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
    int                   nvars,              /**< number of variables */
@@ -259,8 +247,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *  The penalty formulation of the SDP is:
  *      \f{eqnarray*}{
  *      \min & & b^T y + \Gamma r \\
- *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathds{I} \succeq 0 \quad \forall i \leq m \\
- *      & & Dy + r \cdot \mathds{I} \geq d \\
+ *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathbb{I} \succeq 0 \quad \forall i \leq m \\
+ *      & & Dy + r \cdot \mathbb{I} \geq d \\
  *      & & l \leq y \leq u \\
  *      & & r \geq 0.\f}
  *  Alternatively withobj can be set to false to set b to 0 and only check for feasibility (if the optimal objective value is
