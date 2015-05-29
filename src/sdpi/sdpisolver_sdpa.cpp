@@ -30,8 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
- #define SCIP_DEBUG
- #define SCIP_MORE_DEBUG  /* shows all added nonzero entries */
+/* #define SCIP_DEBUG*/
+/* #define SCIP_MORE_DEBUG  *//* shows all added nonzero entries */
 /* #define SCIP_DEBUG_PRINTTOFILE */ /* prints each problem inserted into SDPA to the file sdpa.dat-s and the starting point to sdpa.ini-s */
 
 /**@file   sdpisolver_sdpa.cpp
