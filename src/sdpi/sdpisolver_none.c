@@ -53,7 +53,9 @@ struct SCIP_SDPiSolver
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
    SCIP_Real             objlimit;           /**< objective limit for SDP solver */
+#if 0
    int                   threads;            /**< number of threads */
+#endif
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
 };
 
@@ -104,14 +106,6 @@ const char* SCIPsdpiSolverGetSolverDesc(
    )
 {
    return "no SDP-Solver linked currently";
-}
-
-/** Does the solver have a way to solve a penalty formulation on its own or must one be provided? */
-SCIP_Bool SCIPsdpiSolverKnowsPenalty(
-   void
-   )
-{
-   return FALSE;
 }
 
 /** gets pointer for SDP solver - use only with great care
@@ -166,7 +160,17 @@ SCIP_RETCODE SCIPsdpiSolverIncreaseCounter(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
    )
 {
-   errorMessage();
+   SCIPdebugMessage("SDPs aren't counted as there is no SDP-solver.\n");
+
+   return SCIP_OKAY;
+}
+
+/** reset the SDP-Counter to zero */
+SCIP_RETCODE SCIPsdpiSolverResetCounter(
+   SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
+   )
+{
+   SCIPdebugMessage("SDPs aren't counted as there is no SDP-solver.\n");
 
    return SCIP_OKAY;
 }
@@ -193,6 +197,18 @@ SCIP_RETCODE SCIPsdpiSolverIncreaseCounter(
  *
  *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
  */
+/** loads and solves an SDP
+ *
+ *  For the non-constant SDP- and the LP-part, the original arrays before fixings should be given, for the constant
+ *  SDP-part the arrays AFTER fixings should be given. In addition, an array needs to be given, that for every block and
+ *  every row/col index within that block either has value -1, meaning that this index should be deleted, or a
+ *  non-negative integer stating the number of indices before it that are to be deleated, meaning that this index will
+ *  be decreased by that number, in addition to that the total number of deleted indices for each block should be given.
+ *  Optionally an array start may be given with a starting point for the solver (if this is NULL then the solver should
+ *  start from scratch).
+ *
+ *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
+ */
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
    int                   nvars,              /**< number of variables */
@@ -202,7 +218,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int                   nsdpblocks,         /**< number of SDP-blocks */
    int*                  sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
    int*                  sdpnblockvars,      /**< number of variables that exist in each block */
-   int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks AFTER FIXINGS */
+   int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-blocks AFTER FIXINGS */
    int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
                                               *   number of entries  of sdpconst row/col/val [i] AFTER FIXINGS */
    int**                 sdpconstrow,        /**< pointers to row-indices for each block AFTER FIXINGS*/
@@ -216,13 +232,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int***                sdprow,             /**< pointer to the row-indices for each block and variable */
    int***                sdpcol,             /**< pointer to the column-indices for each block and variable */
    SCIP_Real***          sdpval,             /**< values of SDP-constraint matrix entries (may be NULL if sdpnnonz = 0) */
-   int**                 indchanges,         /**< changes needed to be done to the indices, if indchanges[block][nonz]=-1, then
-                                              *   the index can be removed, otherwise it gives the number of indices removed before this */
+   int**                 indchanges,         /**< changes needed to be done to the indices, if indchanges[block][nonz]=-1, then the index can
+                                              *   be removed, otherwise it gives the number of indices removed before this */
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
    int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
+   SCIP_Real*            lplhs,              /**< left hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
    int*                  rownactivevars,     /**< number of active variables for each LP constraint */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
@@ -230,7 +247,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            start               /**< NULL or a starting point for the solver, this should have length nvars */
-   )
+)
 {
    errorMessage();
 
@@ -243,10 +260,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *      \f{eqnarray*}{
  *      \min & & b^T y + \Gamma r \\
  *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i + r \cdot \mathds{I} \succeq 0 \quad \forall i \leq m \\
- *      & & Dy \geq d \\
- *      & & l \leq y \leq u.\f}
- *  Alternatively withObj can be set to false to set b to 0 and only check for feasibility (if the optimal objective value is
- *  bigger than 0 the problem is infeasible, otherwise it's feasible).
+ *      & & Dy + r \cdot \mathds{I} \geq d \\
+ *      & & l \leq y \leq u \\
+ *      & & r \geq 0.\f}
+ *  Alternatively withobj can be set to false to set b to 0 and only check for feasibility (if the optimal objective value is
+ *  bigger than 0 the problem is infeasible, otherwise it's feasible), and rbound can be set to false to remove the non-negativity condition on r.
  *  For the non-constant SDP- and the LP-part the original arrays before fixings should be given, for the constant SDP-part the arrays AFTER fixings
  *  should be given. In addition, an array needs to be given, that for every block and every row/col index within that block either has value
  *  -1, meaning that this index should be deleted, or a non-negative integer stating the number of indices before it that are to be deleated,
@@ -257,8 +275,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  */
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
-   SCIP_Real             gamma,              /**< the penalty parameter above, needs to be >= 0 */
-   SCIP_Bool             withObj,            /**< if this is false the objective is set to 0 */
+   SCIP_Real             penaltyparam,       /**< the Gamma above, needs to be >= 0 */
+   SCIP_Bool             withobj,            /**< if this is false the objective is set to 0 */
+   SCIP_Bool             rbound,             /**< should r be non-negative ? */
    int                   nvars,              /**< number of variables */
    SCIP_Real*            obj,                /**< objective function values of variables */
    SCIP_Real*            lb,                 /**< lower bounds of variables */
@@ -286,9 +305,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
-   int	                noldlpcons,		   /**< number of LP-constraints including those with less than two active nonzeros */
+   int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
+   SCIP_Real*            lplhs,              /**< left hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
-   int*	                rownactivevars,	   /**< number of active variables for each LP constraint */
+   int*                  rownactivevars,     /**< number of active variables for each LP constraint */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
@@ -351,13 +371,10 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
    return SCIP_PLUGINNOTFOUND;
 }
 
-/** returns TRUE iff SDP is proven to have a primal unbounded ray (but not necessary a primal feasible point);
- *
- *  This does not necessarily mean, that the solver knows and can return the primal ray.
- *  This is not implemented for all Solvers, always returns false (and a debug message) if it isn't.
- */
-SCIP_Bool SCIPsdpiSolverExistsPrimalRay(
-   SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
+/** returns TRUE iff SDP is proven to be primal unbounded,
+ *  returns FALSE with a debug-message if the solver could not determine feasibility */
+SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
+   SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
    )
 {
    errorMessageAbort();
@@ -685,10 +702,12 @@ SCIP_RETCODE SCIPsdpiSolverGetIntpar(
 
    switch( type )
    {
+#if 0
    case SCIP_SDPPAR_THREADS:
       *ival = sdpisolver->threads;
       SCIPdebugMessage("Getting sdpisolver number of threads: %d.\n", *ival);
       break;
+#endif
    case SCIP_SDPPAR_SDPINFO:
       *ival = sdpisolver->sdpinfo;
       SCIPdebugMessage("Getting sdpisolver information output (%d).\n", *ival);
@@ -711,10 +730,12 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
 
    switch( type )
    {
+#if 0
    case SCIP_SDPPAR_THREADS:
       sdpisolver->threads = ival;
       SCIPdebugMessage("Setting sdpisolver number of threads to %d.\n", ival);
       break;
+#endif
    case SCIP_SDPPAR_SDPINFO:
       sdpisolver->sdpinfo = ival;
       SCIPdebugMessage("Setting sdpisolver information output (%d).\n", ival);
