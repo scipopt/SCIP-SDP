@@ -20,7 +20,7 @@ SCIP directory in the lib-subdirectory, this can be done via
 
 mkdir lib
 cd lib
-ln -s /home/username/scipoptsuite-3.2.0/scip-3.2.0/scip/
+ln -s /home/username/scipoptsuite-3.2.0/scip-3.2.0/ scip
 cd ..
 
 if /home/username/scipoptsuite-3.2.0/scip-3.2.0 is the path to your SCIP directory.
