@@ -519,13 +519,13 @@ SCIP_RETCODE calc_relax(
    {
       if ( SCIPsdpiIsDualInfeasible(sdpi) )
       {
-         SCIPdebugMessage("Node cut off due to infeasibility.");
+         SCIPdebugMessage("Node cut off due to infeasibility.\n");
          *result = SCIP_CUTOFF;
          return SCIP_OKAY;
       }
       else if ( SCIPsdpiIsObjlimExc(sdpi) )
       {
-         SCIPdebugMessage("Node cut off due to objective limit.");
+         SCIPdebugMessage("Node cut off due to objective limit.\n");
          *result = SCIP_CUTOFF;
          return SCIP_OKAY;
       }
