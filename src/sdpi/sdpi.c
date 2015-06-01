@@ -1863,7 +1863,9 @@ SCIP_RETCODE SCIPsdpiSolve(
       }
       else if ( lprhsafterfix[i] - lplhsafterfix[i] < sdpi->feastol )
       {
-         printf("Numerical problems, Slater condition doesn't hold because of local equality constraint");
+         /* TODO: could remove this and other printfs and add a pointer to save the result of the slater check to make it more applicable
+          * outside of SCIP-SDP */
+         printf("Slater condition doesn't hold because of local equality constraint, expect numerical problems");
          SCIPdebugMessage("Immediately go to penalty formulation\n");
          equality = TRUE;
       }
