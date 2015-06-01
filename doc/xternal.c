@@ -33,7 +33,7 @@
 
 /**@mainpage Overview
  *
- * @version 2.0
+ * @version 2.0.0
  * @author Tristan Gally, Marc Pfetsch; Sonja Mars, Lars Schewe
  * @date 2011-2015
  *
