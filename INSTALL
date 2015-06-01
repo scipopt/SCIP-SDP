@@ -76,7 +76,13 @@ In case of SDPA you also need to install openblas and in this case the links are
 > Enter soft-link target file or directory for "lib/libopenblas.so.0" (return if not needed): 
 > /home/username/openblas/lib/libopenblas.so.0 
 
-You can now use the SDP-Plugin by calling
+The success of the installation can now be tested via make test by typing for example
+
+make SDPS=dsdp test
+
+where you have to use the same options you included in your make command.
+
+To use the SDP-Plugin call
 
 ./bin/scipsdp
 
