@@ -1781,7 +1781,9 @@ SCIP_RETCODE SCIPsdpiGetRhSides(
 SCIP_RETCODE SCIPsdpiSolve(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
-   int*                  totalsdpiterations  /**< the number of sdpiterations needed will be added to the int this points to */
+   int*                  totalsdpiterations, /**< the number of sdpiterations needed will be added to the int this points to */
+   SCIP_Bool             enforceslatercheck  /**< always check for slater condition in case the problem could not be solved and printf the solution
+                                                  of this check */
    )
 {
    int block;
@@ -1996,9 +1998,32 @@ SCIP_RETCODE SCIPsdpiSolve(
          }
          else
          {
-            SCIPdebugMessage("SDP-Solver couldnot solve that problem even after using a penalty formulation \n");
+            SCIPdebugMessage("SDP-Solver could not solve the problem even after using a penalty formulation \n");
             sdpi->solved = FALSE;
             sdpi->penalty = TRUE;
+         }
+         if ( sdpi->solved == FALSE && enforceslatercheck)
+         {
+            SCIP_Real objval;
+            SCIP_Bool origfeas;
+
+            /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if we are
+             * still feasible for r < feastol, then we have an interior point with smallest eigenvalue > feastol, otherwise the slater condition is harmed */
+            SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
+                  sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
+                  sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
+                  sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
+                  sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
+                  rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, &origfeas) );
+
+            SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
+
+            if ( objval < - sdpi->feastol )
+               printf("SDP-solver could not solve root node relaxation even though Slater condition fullfilled for dual problem with smallest eigenvalue %f.\n",
+                        -1.0 * objval);
+            else
+               printf("SDP-solver could not solve root node relaxation, Slater condition not fullfilled for dual problem as smallest eigenvalue was %f.\n",
+                     -1.0 * objval);
          }
       }
    }

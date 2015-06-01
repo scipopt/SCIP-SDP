@@ -430,6 +430,7 @@ SCIP_RETCODE calc_relax(
    int v;
    SCIP_SDPI* sdpi;
    SdpVarmapper* varmapper;
+   SCIP_Bool rootnode;
 #ifdef SCIP_MORE_DEBUG
    SCIP_Real objforscip;
    SCIP_Real* solforscip;
@@ -459,8 +460,11 @@ SCIP_RETCODE calc_relax(
       SCIP_CALL( SCIPsdpiSetRealpar(sdpi, SCIP_SDPPAR_OBJLIMIT, SCIPgetUpperbound(scip)) );
    }
 
+   /* if this is the root node and we cannot solve the problem, we want to check for the slater condition independent of the SCIP parameter */
+   rootnode = (SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) == 1);
+
    /* solve the problem */
-   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, &(relaxdata->sdpiterations)) );
+   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, &(relaxdata->sdpiterations), rootnode) );
    relaxdata->lastsdpnode = SCIPnodeGetNumber(SCIPgetCurrentNode(scip));
 
    if ( SCIPsdpiWasSolved(sdpi) && SCIPsdpiSolvedOrig(sdpi) )
