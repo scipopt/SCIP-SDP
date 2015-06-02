@@ -2027,6 +2027,8 @@ SCIP_RETCODE SCIPsdpiSolve(
                printf("SDP-solver could not solve root node relaxation, Slater condition not fullfilled for dual problem as smallest eigenvalue was %f.\n",
                      -1.0 * objval);
          }
+         else if ( sdpi->solved == FALSE )
+            printf("Numerical trouble");
       }
    }
 

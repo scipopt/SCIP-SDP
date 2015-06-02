@@ -519,7 +519,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          sdpisolver->sdpatoinputmapper[sdpisolver->nactivevars] = i;
          sdpisolver->nactivevars++;
          sdpisolver->inputtosdpamapper[i] = sdpisolver->nactivevars; /* sdpa starts counting at 1, so we do this after increasing nactivevars */
+#ifdef SCIP_MORE_DEBUG
          SCIPdebugMessage("Variable %d becomes variable %d for SDP %d in SDPA\n", i, sdpisolver->inputtosdpamapper[i], sdpisolver->sdpcounter);
+#endif
       }
    }
    assert( sdpisolver->nactivevars + nfixedvars == sdpisolver->nvars );
@@ -1109,7 +1111,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if ( (! SCIPsdpiSolverIsAcceptable(sdpisolver)) && penaltyparam < sdpisolver->epsilon )
    {
       SCIPdebugMessage("Numerical troubles -- solving SDP %d again ...\n", sdpisolver->sdpcounter);
-      printf("Numerical troubles -- solving SDP %d again ...\n", sdpisolver->sdpcounter);
 
       /* initialize settings */
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_DEFAULT);
@@ -1136,7 +1137,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       if ( ! SCIPsdpiSolverIsAcceptable(sdpisolver) )
       {
          SCIPdebugMessage("Numerical troubles -- solving SDP %d again^2 ...\n", sdpisolver->sdpcounter);
-         printf("Numerical troubles -- solving SDP %d again^2 ...\n", sdpisolver->sdpcounter);
 
          /* initialize settings */
          sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_STABLE_BUT_SLOW);
