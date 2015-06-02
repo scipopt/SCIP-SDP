@@ -72,6 +72,10 @@ you do need to link to both lib and libseq for mumps):
 > Enter soft-link target file or directory for "lib/libsdpa.so" (return if not needed):
 > 
 
+- preparing missing soft-link "lib/mumpsinc":
+> Enter soft-link target file or directory for "lib/mumpsinc" (return if not needed): 
+> /home/gally/SDP/sdpa-7.3.8/mumps/build/include/
+
 - preparing missing soft-link "lib/mumpslib":                     
 > Enter soft-link target file or directory for "lib/mumpslib" (return if not needed):
 > /home/username/sdpa.7.3.8/sdpa-7.3.8/mumps/build/lib/
