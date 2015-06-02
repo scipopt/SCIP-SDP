@@ -502,8 +502,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int block;
    int startind;
    int nfixedvars;
-   int dsdpnlpnonz;
-   int nrnonz;
+   int dsdpnlpnonz = 0;
+   int nrnonz = 0;
 
 #ifdef SCIP_DEBUG
    DSDPTerminationReason reason; /* this will later be used to check if DSDP converged */
