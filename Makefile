@@ -113,13 +113,15 @@ ifeq ($(SDPS),sdpa)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/sdpainc
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libsdpa.$(STATICLIBEXT)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libsdpa.$(SHAREDLIBEXT)
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mumpsinc
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mumpslib
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mumpslibseq
 ifeq ($(OPENBLAS),true)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libopenblas.$(SHAREDLIBEXT).0
 endif
-SDPIINSTMSG	=	"  -> \"sdpainc\" is the path to the SDPA \"include\" directory, e.g., \"<SDPA-path>/include\".\n"
+SDPIINSTMSG	=	" -> \"sdpainc\" is the path to the SDPA \"include\" directory, e.g., \"<SDPA-path>/include\".\n"
 SDPIINSTMSG	+=	" -> \"libsdpa.*\" is the path to the SDPA library, e.g., \"<SDPA-path>/lib/libsdpa.a\".\n"
+SDPIINSTMSG	+=	" -> \"mumpsinc\" is the path to the Mumps \"include\" directory, e.g., \"<SDPA-path>/mumps/build/include\".\n"
 SDPIINSTMSG	+=	" -> \"mumpslib\" is the path to the Mumps \"lib\" directory, e.g., \"<SDPA-path>/mumps/build/lib\".\n"
 SDPIINSTMSG	+=	" -> \"mumpslibseq\" is the path to the Mumps \"libseq\" directory, e.g., \"<SDPA-path>/mumps/build/libseq\".\n"
 ifeq ($(OPENBLAS),true)
@@ -131,7 +133,7 @@ else
 SDPILIB		=      -L$(SCIPSDPLIBDIR) -lsdpa -L$(SCIPSDPLIBDIR)/mumpslip -ldmumps -lmumps_common -lpord -L$(SCIPSDPLIBDIR)/mumpslibseq -lmpiseq \
 			-lgfortran -llapack -lblas
 endif
-SDPIINC		=      -I$(SCIPSDPLIBDIR)/sdpainc
+SDPIINC		=      -I$(SCIPSDPLIBDIR)/sdpainc -I$(SCIPSDPLIBDIR)/mumpsinc
 SDPICCSRC 	= 	src/sdpi/sdpisolver_sdpa.cpp
 SDPICSRC		=	src/sdpi/lapack_sdpa.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o \
