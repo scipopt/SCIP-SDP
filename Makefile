@@ -210,7 +210,7 @@ all:            $(SCIPDIR) $(MAINFILE) $(MAINSHORTLINK)
 .PHONY: checkdefines
 checkdefines:
 ifeq ($(SDPIOBJ),)
-		$(error invalid SDP solver selected: SDPIS=$(SDPIS). Possible options are: $(SDPIOPTIONS))
+		$(error invalid SDP solver selected: SDPS=$(SDPIS). Possible options are: $(SDPIOPTIONS))
 endif
 
 .PHONY: preprocess
