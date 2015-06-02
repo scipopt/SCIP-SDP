@@ -37,6 +37,9 @@ in the main directory. In addition to SDPS you can use the same options for the 
 as you can use for building SCIP (i.e. make OPT=dbg, LPS=cpx), you may also create
 a doxygen-documentation by calling i.e. make OPT=dbg SDPS=dsdp doc.
 
+Setting Links for DSDP
+----------------------
+
 After calling "make" with an SDPS-option other than none, you will be asked for paths
 to your installation of the SDP-solver and possibly other libraries. For example for 
 DSDP you need to enter (assuming again an installation path of /home/username/DSDP5.8
@@ -49,7 +52,12 @@ DSDP you need to enter (assuming again an installation path of /home/username/DS
 > Enter soft-link target file or directory for "lib/libdsdp.a" (return if not needed): 
 > /home/username/DSDP5.8/lib/libdsdp.a 
 
-In case of SDPA you also need to install openblas and in this case the links are
+Setting Links for SDPA
+----------------------
+
+In case of SDPA you also need to install openblas and in this case the links are (please
+note that you do not need to give the link to libsdpa.so if you linked to libsdpa.a, but 
+you do need to link to both lib and libseq for mumps):
 
 - preparing missing soft-link "lib/sdpainc":
 > Enter soft-link target file or directory for "lib/sdpainc" (return if not needed):
@@ -76,11 +84,24 @@ In case of SDPA you also need to install openblas and in this case the links are
 > Enter soft-link target file or directory for "lib/libopenblas.so.0" (return if not needed): 
 > /home/username/openblas/lib/libopenblas.so.0 
 
+Testing the Installation
+------------------------
+
 The success of the installation can now be tested via make test by typing for example
 
 make SDPS=dsdp test
 
-where you have to use the same options you included in your make command.
+where you have to use the same options you included in your make command. Please note that
+when using SDPA, you will get messages 
+
+pFEAS_dINF criteria :: line 1211 in sdpa_parts.cpp
+
+between the SCIP output. This is output given by SDPA whenever a problem is infeasible
+and cannot be deactivated. Within a branch-and-bound context it is normal for infeasible
+problems to appear, so this is not a sign of an unsuccessfull installation or a bug.
+
+Usage of SCIP-SDP
+-----------------
 
 To use the SDP-Plugin call
 
@@ -98,9 +119,12 @@ optimize
 
 as in the usual SCIP shell. You can test this with the examples in the "instances"-subfolder.
 
+Parallelization for SDPA
+------------------------
+
 If you compiled SCIP-SDP with SDPA and openblas, the BLAS/LAPACK routines can be run multithreaded.
 For this you have to set the corresponding environment variable by typing
 
 export OMP_NUM_THREADS=n
 
-where n is the desired number of threads.
+before opening the shell, where n is the desired number of threads.
