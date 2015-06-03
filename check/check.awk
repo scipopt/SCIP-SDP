@@ -727,8 +727,8 @@ BEGIN {
          fail++;
       }
       else if( solstatus[prob] == "opt" ) {
-         reltol = 1e-5 * max(abs(pb),1.0);
-         abstol = 1e-4;
+         reltol = 1e-4 * max(abs(pb),1.0);
+         abstol = 1e-3;
 
 	 # objsense = 1 -> minimize; objsense = -1 -> maximize
          if( feasible && (( objsense == 1 && ((db > -infty && db-sol[prob] > reltol) || sol[prob]-pb > reltol) ) || ( objsense == -1 && ((db > -infty && sol[prob]-db > reltol) || pb-sol[prob] > reltol) )) ) {
