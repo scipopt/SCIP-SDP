@@ -37,17 +37,26 @@
  * @author Tristan Gally, Marc Pfetsch; Sonja Mars, Lars Schewe
  * @date 2011-2015
  *
- * The SCIP-SDP-Package is a plug-in for the Software SCIP. It is able to solve Mixed-Integer SDPs using
- * interior-point SDP-solvers (currently DSDP and SDPA) and SCIP as a branch and bound framework. It provides a lot
- * of data handling, some presolve routines and a propagator for reduced cost/dual fixing for semidefinite problems
- * as well as a linear approximation procedure for MISDPs.
+ * SCIP-SDP is a plugin for SCIP to solve mixed integer semidefinite programs (MISDPs). It combines the branch-and-bound
+ * framework of SCIP with interior-point SDP-solvers. It provides the data handling, some presolving and propagation as
+ * well as a reader for a modified sparse SDPA-format with additional lines for integrality constraints (see 
+ * data_format.txt. It is possible to solve the resulting SDP-relaxations using a linear approximation procedure, but for
+ * full functionality one of the following SDP-solvers needs to be installed:
  *
- * The solution process of interior-point methods for SDPs is highly dependent on the slater condition. One of the 
- * main purposes of the code is ensuring that the slater condition is not harmed by fixing variables alone. Still the 
- * combination of variable fixings and specific linear or semidefinite constraints might lead to relaxations in which 
- * the slater condition no longer holds. In this case the SDP-solvers may be unable to solve the relaxations or even 
- * return wrong results, which cannot be compensated in all cases. For this purpose there is the possibility to check 
- * the slater condition before the solution of each SDP, for details see the parameters tab.
+ * - DSDP
+ * - SDPA
+ *
+ * Please note that the interface to SDPA is still in beta state. It works well for some instances and is faster than DSDP
+ * for those, but currently fails for others because of numerical problems, as some parameters need further tuning.
+ *
+ * The solution process of interior-point methods for SDPs is highly dependent on the Slater condition. One of the main
+ * purposes of the code is ensuring that the slater condition is not harmed by fixing variables in the branch-and-bound
+ * process. However in some cases the combination of variable fixings and specific linear or semidefinite constraints might
+ * still lead to relaxations for which the Slater condition no longer holds. In this case the SDP-solvers may be unable to
+ * solve the relaxations or even return wrong results, which cannot be compensated. For this purpose there is the 
+ * possibility to check the Slater condition before the solution of each SDP by setting a SCIP parameter, for details see
+ * the parameters tab.
+
  */
 
 /** @page PARAMETERS Additional Parameters
@@ -56,9 +65,8 @@
  * <table>
  * <tr><td>relaxing/SDP/freq = 1</td> <td>set this to -1 and lp/solvefreq to 1 to solve LP relaxations and add eigenvector cuts</td></tr>
  * <tr><td>propagating/sdpredcost/freq = 1</td> <td>set this to -1 to disable reduced cost fixing for SDPs</td></tr>
- * <tr><td>relaxing/SDP/sdpsolverepsilon = 0.0001</td> <td>sets the bound for the duality gap in the SDP-Solver and also the difference that is allowed when fixing variables before inserting into the SDP-solver</td></tr>
+ * <tr><td>relaxing/SDP/sdpsolverepsilon = 0.0001</td> <td>sets the bound for the duality gap in the SDP-Solver</td></tr>
  * <tr><td>relaxing/SDP/sdpsolverfeastol = 0.00001</td> <td>a matrix is considered positive semidefinite if the smallest eigenvalue is bigger than -sdpsolverfeastol</td></tr>
-<!-- * <tr><td>relaxing/SDP/threads = 1</td> <td>number of threads to use for the SDP-Solver, currently only supported for SDPA</td></tr> -->
  * <tr><td>relaxing/SDP/sdpinfo = FALSE</td> <td>Should output of the SDP-Solver be printed to the console?</td></tr>
  * <tr><td>relaxing/SDP/objlimit = FALSE</td> <td>Should an objective limit be given to the SDP-Solver?</td></tr>
  * <tr><td>relaxing/SDP/slatercheck = FALSE</td> <td>Should the slater condition for the dual problem be check ahead of solving each SDP?</td></tr>
