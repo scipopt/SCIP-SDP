@@ -359,7 +359,8 @@ namespace scip
          }
          else
          {
-            SCIP_CALL( SCIPcreateVar(scip, &var, var_name,  -SCIPinfinity(scip), SCIPinfinity(scip), object[i],  SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, 0, 0, 0, 0, 0));
+            SCIP_CALL( SCIPcreateVar(scip, &var, var_name,  -SCIPinfinity(scip), SCIPinfinity(scip), object[i],
+                  SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, 0, 0, 0, 0, 0));
          }
 
          SCIP_CALL( SCIPaddVar(scip, var) );
@@ -488,8 +489,8 @@ namespace scip
             SCIP_CONS* sdpcon;
             char       sdpcon_name[255];
             SCIPsnprintf(sdpcon_name, 255, "SDP-Constraint-%d", bindex);
-            SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcon, sdpcon_name, nvars, nnonz, blocksize, nvarnonz, colpointer, rowpointer, valpointer, vars, constnnonz,
-                                         constcol, constrow, constval) );
+            SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcon, sdpcon_name, nvars, nnonz, blocksize, nvarnonz, colpointer,
+                  rowpointer, valpointer, vars, constnnonz, constcol, constrow, constval) );
 
 #ifdef SCIP_MORE_DEBUG
       SCIP_CALL( SCIPprintCons(scip, sdpcon, NULL) );
@@ -540,7 +541,8 @@ namespace scip
                   }
 
                   //Create constraint
-                  SCIP_CALL( SCIPcreateConsLinear(scip, &LPcon, LPcon_name, 0, 0, 0, LPlhs, SCIPinfinity(scip), TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
+                  SCIP_CALL( SCIPcreateConsLinear(scip, &LPcon, LPcon_name, 0, 0, 0, LPlhs, SCIPinfinity(scip), TRUE, TRUE,
+                        TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
 
                   SCIP_CALL( SCIPaddCons(scip, LPcon) );
 

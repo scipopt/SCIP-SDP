@@ -39,7 +39,8 @@
 
 /* #define SCIP_DEBUG*/
 /* #define SCIP_MORE_DEBUG   *//* displays complete solution for each relaxation */
-/* #define SCIP_EVEN_MORE_DEBUG  *//* shows number of deleted empty cols/rows for every relaxation and variable status & bounds as well as all constraints in the beginning */
+/* #define SCIP_EVEN_MORE_DEBUG  *//* shows number of deleted empty cols/rows for every relaxation and variable status &
+ * bounds as well as all constraints in the beginning */
 
 #include "relax_sdp.h"
 
@@ -596,7 +597,8 @@ SCIP_RETCODE calc_relax(
                *result = SCIP_CUTOFF;
                return SCIP_OKAY;
             }
-            SCIPdebugMessage("WARNING!!! Found a solution that is feasible for SDP and integrality, but infeasible for SCIP, this will probably not properly get enforced ! \n");
+            SCIPdebugMessage("WARNING!!! Found a solution that is feasible for the SDP-solver and integrality, but infeasible for "
+                  "SCIP, this will probably not properly get enforced ! \n");
          }
 
          /* copy solution */

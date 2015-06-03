@@ -52,7 +52,8 @@ enum SCIP_SDPParam
 {
    SCIP_SDPPAR_EPSILON       = 0,      /**< convergence tolerance */
    SCIP_SDPPAR_FEASTOL       = 1,      /**< feasibility tolerance */
-   SCIP_SDPPAR_OBJLIMIT      = 2,      /**< objective limit, if the SDP solver computes a lower bound for the minimzation problem that is bigger than this, it may stop */
+   SCIP_SDPPAR_OBJLIMIT      = 2,      /**< objective limit, if the SDP solver computes a lower bound for the minimzation
+                                         *  problem that is bigger than this, it may stop */
 #if 0
    SCIP_SDPPAR_THREADS       = 3,      /**< numer of threads */
 #endif

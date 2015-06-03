@@ -224,8 +224,9 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
             SCIPdebugMessage("couldn't get variable information from constraint %s, so ignoring it for computing coupled variables\n", SCIPconsGetName(conss[c]));
             continue; /* if we can't get the variables of this constraint, we can't include variables coupled through this constraint */
             }
+         /* nothing to do for this constraint if there are no variables (this can happen if all vars are fixed, as the constraint is non-trivial to check) */
          if ( nvarsincons == 0)
-            continue; /* nothing to do for this constraint if there are no variables (this can happen if all vars are fixed, as the constraint is non-trivial to check) */
+            continue;
          SCIP_CALL( SCIPgetConsVars(scip, conss[c], varsincons, nvarsincons, &success) );
          assert( success ); /* we allocated enough memory */
          assert( varsincons != NULL );
@@ -241,7 +242,8 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
             }
          }
 
-         /* now save which variables are coupled to each candidate by adding all those that appear in this constraint to all candidates appearing in this constraint */
+         /* now save which variables are coupled to each candidate by adding all those that appear in this constraint to
+          * all candidates appearing in this constraint */
          for (candpos = 0; candpos < ncandsincons[c]; candpos++)
          {
             for (v = 0; v < nvarsincons; v++)
@@ -266,8 +268,8 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
          /* finally remove all variables, that are coupled to multiple candidates */
          for (v = 0; v < nvars; v++)
          {
-            /* we use coupledcand to save if we have already found a candidate this variable is coupled with (otherwise coupledcand = -1), if we find one, we set
-             * coupledcand to that index, to easily set the corresponding entry to TRUE if we don't find another candidate it is coupled with */
+            /* we use coupledcand to save if we have already found a candidate this variable is coupled with (otherwise coupledcand = -1), if we find one,
+             * we set coupledcand to that index, to easily set the corresponding entry to TRUE if we don't find another candidate it is coupled with */
             coupledcand = -1;
             for (cand = 0; cand < ncands; cand++)
             {
@@ -276,14 +278,14 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
                   /* check if this is the first or the second found candidate for this variable */
                   if ( coupledcand == -1 )
                   {
-                     /* this is the first candidate this is coupled with, so it might be the only one and we save it to potentially later set singlecoupledvars
-                      * to true */
+                     /* this is the first candidate this is coupled with, so it might be the only one and we save it to
+                      * potentially later set singlecoupledvars to true */
                      coupledcand = cand;
                   }
                   else
                   {
-                     /* we found a second candidate, so this variable won't be taken into account for the branching rule, so we set coupledcand to -2 to not set
-                      * the corresponding entry in singlecoupledvars to TRUE and continue with the next variable */
+                     /* we found a second candidate, so this variable won't be taken into account for the branching rule, so we set coupledcand
+                      * to -2 to not set the corresponding entry in singlecoupledvars to TRUE and continue with the next variable */
                      coupledcand = -2;
                      break;
                   }
@@ -328,8 +330,8 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
             if (singlecoupledvars[cand][v])
                printf("%s, ", SCIPvarGetName(vars[v]));
          }
-         printf("are only coupled with this candidate, total objective = %f, integral infeasibility = %f, total objective * candidate's fractionality = %f, score = %f\n",
-               currentobj, (currentfrac <= 0.5) ? currentfrac : (1 - currentfrac), currenttarget, candsscore[cand]);
+         printf("are only coupled with this candidate, total objective = %f, integral infeasibility = %f, total objective * candidate's fractionality = %f,"
+               "score = %f\n", currentobj, (currentfrac <= 0.5) ? currentfrac : (1 - currentfrac), currenttarget, candsscore[cand]);
 #endif
 
          /* a candidate is better than the current one if:

@@ -85,7 +85,9 @@ void F77_FUNC(dsyevr, DSYEVR)(
 
 
 /** BLAS Fortran subroutine DGEMV */
-void F77_FUNC(dgemv, DGEMV)(char* TRANS, LAPACKINTTYPE* M, LAPACKINTTYPE* N, double* ALPHA, double* A, LAPACKINTTYPE* LDA, double* X, LAPACKINTTYPE* INCX, double* BETA, double* Y, LAPACKINTTYPE* INCY);
+void F77_FUNC(dgemv, DGEMV)(char* TRANS, LAPACKINTTYPE* M,
+   LAPACKINTTYPE* N, double* ALPHA, double* A, LAPACKINTTYPE* LDA,
+   double* X, LAPACKINTTYPE* INCX, double* BETA, double* Y, LAPACKINTTYPE* INCY);
 
 
 /**@} */

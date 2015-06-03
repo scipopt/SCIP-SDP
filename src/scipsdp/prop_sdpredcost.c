@@ -106,7 +106,8 @@ SCIP_RETCODE sdpRedcostFixingBinary(
 #ifdef SCIP_DEBUG
       SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolverepsilon", &sdpepsilon) );
       SCIP_CALL( SCIPgetRealParam(scip, "numerics/epsilon", &epsilon) );
-      assert( SCIPisGE(scip, relaxval, cutoffbound) || SCIPisLE(scip, primalubval, cutoffbound - relaxval) || SCIPisLE(scip, primalubval, cutoffbound - relaxval) );
+      assert( SCIPisGE(scip, relaxval, cutoffbound) || SCIPisLE(scip, primalubval, cutoffbound - relaxval)
+            || SCIPisLE(scip, primalubval, cutoffbound - relaxval) );
       /* if the variable should be fixed to both zero and one, something went wrong (unless we are done anyways) */
 #endif
       *result = SCIP_REDUCEDDOM;

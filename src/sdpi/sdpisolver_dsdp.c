@@ -235,7 +235,8 @@ const char* SCIPsdpiSolverGetSolverDesc(
    void
    )
 {
-   return "Dual-Scaling Interior Point Solver for Semidefinite Programming developed by Steve Benson, Yinyu Ye, and Xiong Zhang (http://www.mcs.anl.gov/hs/software/DSDP/)";
+   return "Dual-Scaling Interior Point Solver for Semidefinite Programming developed by Steve Benson, Yinyu Ye, and Xiong Zhang "
+         "(http://www.mcs.anl.gov/hs/software/DSDP/)";
 }
 
 /** gets pointer for SDP solver - use only with great care
@@ -551,7 +552,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    else
       SCIPdebugMessage("Inserting Data again into DSDP for SDP (%d) \n", sdpisolver->sdpcounter);
 
-   /* allocate memory for inputtodsdpmapper, dsdptoinputmapper and the fixed variable information, for the latter this will later be shrinked if the needed size is known */
+   /* allocate memory for inputtodsdpmapper, dsdptoinputmapper and the fixed variable information, for the latter this will
+    * later be shrinked if the needed size is known */
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtodsdpmapper), sdpisolver->nvars, nvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->dsdptoinputmapper), sdpisolver->nactivevars, nvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), sdpisolver->nvars - sdpisolver->nactivevars, nvars) ); /*lint !e776*/
@@ -1268,7 +1270,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          double* dsdpsol;
 
          BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, sdpisolver->nactivevars + 1) ); /*lint !e776*/
-         DSDP_CALL( DSDPGetY(sdpisolver->dsdp, dsdpsol, sdpisolver->nactivevars + 1) ); /* last entry needs to be the number of variables, will return an error otherwise */
+         /* last entry of DSDPGetY needs to be the number of variables, will return an error otherwise */
+         DSDP_CALL( DSDPGetY(sdpisolver->dsdp, dsdpsol, sdpisolver->nactivevars + 1) );
 
          *feasorig = (dsdpsol[sdpisolver->nactivevars] < sdpisolver->feastol); /* r is the last variable in DSDP, so the last entry gives us the value */
          if ( ! *feasorig )

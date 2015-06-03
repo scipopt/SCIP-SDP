@@ -294,7 +294,8 @@ SCIP_RETCODE compConstMatAfterFixings(
             {
                fixedrows[block][nfixednonz[block]] = sdpi->sdprow[block][v][i];
                fixedcols[block][nfixednonz[block]] = sdpi->sdpcol[block][v][i];
-               /* this is the final value to add, so we no longer have to remember, from which variable this nonzero comes, the -1 comes from +y_iA_i but -A_0 */
+               /* this is the final value to add, so we no longer have to remember, from which variable this nonzero comes,
+                * the -1 comes from +y_iA_i but -A_0 */
                fixedvals[block][nfixednonz[block]] = - sdpi->sdpval[block][v][i] * sdpi->lb[sdpi->sdpvar[block][v]];
                nfixednonz[block]++;
             }
@@ -1112,7 +1113,8 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
                                                *  the k-th nonzero of the j-th variable (not necessarly variable j) in the i-th block
                                                *  (may be NULL if sdptnnonz = 0)*/
    int***                sdpcol,             /**< pointer to the column-indices for each block and variable in this block (may be NULL if sdptnnonz = 0)*/
-   SCIP_Real***          sdpval,             /**< pointer to the values of the nonzeros for each block and variable in this block (may be NULL if sdptnnonz = 0)*/
+   SCIP_Real***          sdpval,             /**< pointer to the values of the nonzeros for each block and variable in this
+                                               *  block (may be NULL if sdptnnonz = 0)*/
    int                   nlpcons,            /**< number of LP-constraints */
    SCIP_Real*            lplhs,              /**< left hand sides of LP rows (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right hand sides of LP rows (may be NULL if nlpcons = 0) */
@@ -1964,8 +1966,8 @@ SCIP_RETCODE SCIPsdpiSolve(
           * didn't converge, we are out of luck */
          if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && feasorig)
          {
-            /* increase the penalty parameter until we are able to solve the problem and get a solution that is feasible for our original problem and the problem
-             * isn't unbounded (this can be caused by a too small penalty parameter) or the penalty parameter gets too large */
+            /* increase the penalty parameter until we are able to solve the problem and get a solution that is feasible for our original problem and
+             * the problem isn't unbounded (this can be caused by a too small penalty parameter) or the penalty parameter gets too large */
             do
             {
                SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penaltyparameter %f\n", sdpi->sdpid, penaltyparam);

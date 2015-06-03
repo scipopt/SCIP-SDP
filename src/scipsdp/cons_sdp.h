@@ -87,12 +87,14 @@ SCIP_RETCODE SCIPconsSdpGetData(
    int*                  nnonz,              /**< pointer to store the number of nonzeroes in this SDP constraint */
    int*                  blocksize,          /**< pointer to store the size of this SDP-block */
    int*                  arraylength,        /**< length of the given nvarnonz, col, row and val arrays, if this is too short this will return the needed length*/
-   int*                  nvarnonz,           /**< pointer to store the number of nonzeros for each variable, also length of the arrays col/row/val are pointing to */
+   int*                  nvarnonz,           /**< pointer to store the number of nonzeros for each variable, also length of the arrays col/row/val are
+                                               *  pointing to */
    int**                 col,                /**< pointer to store the column indices of the nonzeroes for each variable */
    int**                 row,                /**< pointer to store the row indices of the nonzeroes for each variable */
    SCIP_Real**           val,                /**< pointer to store the values of the nonzeroes for each variable */
    SCIP_VAR**            vars,               /**< pointer to store the SCIP variables present in this constraint, indexing equals indices in col/row/val */
-   int*                  constnnonz,         /**< pointer to store the number of nonzeroes in the constant part of this SDP constraint, also length of the const arrays */
+   int*                  constnnonz,         /**< pointer to store the number of nonzeroes in the constant part of this SDP constraint, also length of
+                                               *  the const arrays */
    int*                  constcol,           /**< pointer to store the column indices of the constant nonzeroes */
    int*                  constrow,           /**< pointer to store the row indices of the constant nonzeroes */
    SCIP_Real*            constval            /**< pointer to store the values of the constant nonzeroes */

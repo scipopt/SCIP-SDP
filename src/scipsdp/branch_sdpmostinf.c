@@ -104,8 +104,8 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostinf)
 
    SCIPdebugMessage("Executing External Branching method of SDP-mostinf!\n");
 
-   /* get the external candidates, as we use the score only as a tiebreaker, we aren't interested in the number of variables of different types with maximal
-    * score, so these return values are set to NULL */
+   /* get the external candidates, as we use the score only as a tiebreaker, we aren't interested in the number of
+    * variables of different types with maximal score, so these return values are set to NULL */
    SCIP_CALL( SCIPgetExternBranchCands(scip, &cands, &candssol, &candsscore, &ncands, NULL, NULL, NULL, NULL) );
 
    assert( ncands > 0 ); /* branchExecext should only be called if the list of extern branching candidate is non-empty */
