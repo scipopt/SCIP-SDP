@@ -50,18 +50,18 @@
 #define BRANCHRULE_PRIORITY        -5000
 #define BRANCHRULE_MAXDEPTH        -1
 #define BRANCHRULE_MAXBOUNDDIST    1.0
-#define DEFAULT_COUPLEDVARS        FALSE /**< if all branching candidates have objective zero, should we use the sum of the absolute objectives of all
-                                          *  continuous variables coupled with the candidate through constraints */
-#define DEFAULT_SINGLECOUPLEDVARS  FALSE /**< if all branching candidates have objective zero, should we use the sum of the absolute objectives of all
-                                          *  continuous variables coupled with the candidate through constraints in which no other candidate appears */
+#define DEFAULT_COUPLEDVARS        FALSE     /**< if all branching candidates have objective zero, should we use the sum of the absolute objectives of all
+                                               *  continuous variables coupled with the candidate through constraints */
+#define DEFAULT_SINGLECOUPLEDVARS  FALSE     /**< if all branching candidates have objective zero, should we use the sum of the absolute objectives of all
+                                               *  continuous variables coupled with the candidate through constraints in which no other candidate appears */
 
 /** branching rule data */
 struct SCIP_BranchruleData
 {
-   SCIP_Bool             coupledvars;        /**< if all branching candidates have objective zero, should we use the sum of the absolute objectives of all
-                                               *  continuous variables coupled with the candidate through linear constraints */
-   SCIP_Bool             singlecoupledvars;  /**< if all branching candidates have objective zero, should we use the sum of the absolute objectives of all
-                                               *  continuous variables coupled with the candidate through linear constraints in which no other candidate appears */
+   SCIP_Bool             coupledvars;        /**< If all branching candidates have objective zero, should we use the sum of the absolute objectives of all
+                                               *  continuous variables coupled with the candidate through linear constraints ? */
+   SCIP_Bool             singlecoupledvars;  /**< If all branching candidates have objective zero, should we use the sum of the absolute objectives of all
+                                               *  continuous variables coupled with the candidate through linear constraints in which no other candidate appears ? */
 };
 
 
