@@ -56,7 +56,6 @@
  * solve the relaxations or even return wrong results, which cannot be compensated. For this purpose there is the 
  * possibility to check the Slater condition before the solution of each SDP by setting a SCIP parameter, for details see
  * the parameters tab.
-
  */
 
 /** @page PARAMETERS Additional Parameters
