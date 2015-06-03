@@ -67,11 +67,6 @@ then
     echo set misc permutationseed $p   >> $TMPFILE
 fi
 
-# avoid solving LPs in case of LPS=none
-if test "$LPS" = "none"
-then
-    echo set lp solvefreq -1           >> $TMPFILE
-fi
 echo set limits time $TIMELIMIT        >> $TMPFILE
 echo set limits nodes $NODELIMIT       >> $TMPFILE
 echo set limits memory $MEMLIMIT       >> $TMPFILE
