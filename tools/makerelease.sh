@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION="2.0"
+VERSION="2.0.0"
 NAME="scipsdp-$VERSION"
 rm -f $NAME
 
@@ -28,6 +28,7 @@ tar --no-recursion --ignore-failed-read -cvzhf $NAME.tgz \
     $NAME/check/*.awk \
     $NAME/check/testset/short.test \
     $NAME/check/testset/short.solu \
+    $NAME/settings/lp_approx.set
 
 echo ""
 echo "check version numbers in doc/scipsdp.dxy, doc/xternal.c, and Makefile:"

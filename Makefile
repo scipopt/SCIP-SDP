@@ -147,6 +147,7 @@ SDPICSRC 	= 	src/sdpi/sdpisolver_none.c \
 					src/sdpi/lapack_dsdp.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_none.o \
 				$(OBJDIR)/sdpi/lapack_dsdp.o
+SETTINGS = lp_approx
 endif
 
 # include install/uninstall targets
