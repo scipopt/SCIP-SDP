@@ -32,7 +32,7 @@
 
 /* #define SCIP_DEBUG*/
 /* #define SCIP_MORE_DEBUG  *//* shows all added nonzero entries */
-/* #define SCIP_DEBUG_PRINTTOFILE */ /* prints each problem inserted into SDPA to the file sdpa.dat-s and the starting point to sdpa.ini-s */
+/* #define SCIP_DEBUG_PRINTTOFILE  *//* prints each problem inserted into SDPA to the file sdpa.dat-s and the starting point to sdpa.ini-s */
 
 /**@file   sdpisolver_sdpa.cpp
  * @brief  interface for SDPA
@@ -1082,8 +1082,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #ifdef SCIP_MORE_DEBUG
    sdpisolver->sdpa->printParameters(stdout);
 #endif
-
-   /* sdpisolver->sdpa->setParameterLambdaStar(1e5); */
 
 #if 0
    /* set number of threads */
