@@ -217,7 +217,7 @@ SCIP_RETCODE SCIPlapackMatrixVectorMult(
    int                   ncols,              /**< number of cols in matrix */
    SCIP_Real*            matrix,             /**< the matrix we want to multiply */
    SCIP_Real*            vector,             /**< vector we want to multiply with the matrix */
-   SCIP_Real*            result              /**< vector where the result is put in */
+   SCIP_Real*            result              /**< pointer to store the resulting vector */
    )
 {
    char TRANS;
