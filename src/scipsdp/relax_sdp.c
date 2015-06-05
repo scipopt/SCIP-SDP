@@ -59,7 +59,9 @@
 
 #define DEFAULT_SDPSOLVEREPSILON    1e-5     /**< the stopping criterion for the duality gap the sdpsolver should use */
 #define DEFAULT_SDPSOLVERFEASTOL    1e-4   /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
+#if 0
 #define DEFAULT_THREADS             1        /**< number of threads used for SDP solving */
+#endif
 #define DEFAULT_OBJLIMIT            FALSE    /**< should an objective limit be given to the SDP-Solver ? */
 
 /*
