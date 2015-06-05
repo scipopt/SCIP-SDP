@@ -40,7 +40,7 @@
  * SCIP-SDP is a plugin for SCIP to solve mixed integer semidefinite programs (MISDPs). It combines the branch-and-bound
  * framework of SCIP with interior-point SDP-solvers. It provides the data handling, some presolving and propagation as
  * well as a reader for a modified sparse SDPA-format with additional lines for integrality constraints (see 
- * data_format.txt. It is possible to solve the resulting SDP-relaxations using a linear approximation procedure, but for
+ * data_format.txt). It is possible to solve the resulting SDP-relaxations using a linear approximation procedure, but for
  * full functionality one of the following SDP-solvers needs to be installed:
  *
  * - DSDP
