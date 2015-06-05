@@ -1016,8 +1016,10 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
 /** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem
  *
  *  The last input should specify the length of the arrays. If this is less than the number of variables, the needed
- *  length will be returned and a debug message thrown. Note: if a variable is either fixed or unbounded in the dual
- *  problem, a zero will be returned for the non-existent primal variable.
+ *  length will be returned and a debug message thrown.
+ *
+ *  @note if a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent
+ *  primal variable.
  */
 SCIP_RETCODE SCIPrelaxSdpGetPrimalBoundVars(
    SCIP_RELAX*           relax,              /**< SDP relaxator to information for */
@@ -1065,14 +1067,14 @@ SCIP_RETCODE SCIPrelaxSdpRelaxVal(
    return SCIP_OKAY;
 }
 
-/** returns values of all variables in the solution of the current SDP relaxation, if the last SDP relaxation was successfully solved */
+/** returns values of all variables in the solution of the current SDP relaxation, if the last SDP relaxation was successfully solved, if the length of
+  * solarray is less than the number of variables, sollength will be overwritten with the needed length and a debug message is thrown */
 SCIP_RETCODE SCIPrelaxSdpGetRelaxSol(
    SCIP*                 scip,               /**< SCIP pointer */
    SCIP_RELAX*           relax,              /**< SDP relaxator to get solution for */
    SCIP_Bool*            success,            /**< pointer to store whether the last SDP relaxation solved successfully */
    SCIP_Real*            solarray,           /**< pointer to store the solution, this has to be at least length nvars */
-   int*                  sollength           /**< length of the solarray, if this is less than nvars, it will be overwritten with the needed length and a
-                                               *  debug message is thrown */
+   int*                  sollength           /**< length of the solarray */
    )
 {
    SCIP_RELAXDATA* relaxdata;
