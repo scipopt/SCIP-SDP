@@ -165,9 +165,9 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
       &LWORK, &WISIZE, &LIWORK,
       &INFO );
 
-   if ( INFO != 0LL )
+   if ( INFO != 0 )
    {
-      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %lld\n", INFO);
+      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d\n", INFO);
       return SCIP_ERROR;
    }
 
