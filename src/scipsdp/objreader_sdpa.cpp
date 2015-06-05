@@ -57,9 +57,6 @@
 #include "scip/cons_linear.h"           // for SCIPaddCoefLinear, etc
 #include "scip/scip.h"                  // for SCIPinfinity, etc
 
-//#include <fstream>
-//#include <sstream>
-
 namespace
 {
 
