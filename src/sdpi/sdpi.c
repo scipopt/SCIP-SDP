@@ -1867,7 +1867,7 @@ SCIP_RETCODE SCIPsdpiSolve(
       {
          /* TODO: could remove this and other printfs and add a pointer to save the result of the slater check to make it more applicable
           * outside of SCIP-SDP */
-         printf("Slater condition doesn't hold because of local equality constraint, expect numerical problems");
+         printf("Slater condition doesn't hold because of local equality constraint, expect numerical problems\n");
          SCIPdebugMessage("Immediately go to penalty formulation\n");
          equality = TRUE;
       }
@@ -2030,7 +2030,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                      -1.0 * objval);
          }
          else if ( sdpi->solved == FALSE )
-            printf("Numerical trouble");
+            printf("Numerical trouble\n");
       }
    }
 
