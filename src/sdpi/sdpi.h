@@ -515,7 +515,7 @@ SCIP_RETCODE SCIPsdpiGetSol(
 
 /** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem, the last input should specify the length
  *  of the arrays, if this is less than the number of variables, the needed length will be returned and a debug message thrown
- *  note: if a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent primal variable */
+ *  @note if a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent primal variable */
 EXTERN
 SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP interface structure */

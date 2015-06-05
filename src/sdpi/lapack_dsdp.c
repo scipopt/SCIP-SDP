@@ -50,7 +50,7 @@
 #include "scip/type_retcode.h"
 
 
-/* Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY */
+/** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY */
 #define BMS_CALL(x)   do                                                                                      \
                       {                                                                                       \
                           if( NULL == (x) )                                                                   \

@@ -53,10 +53,10 @@
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
 
-#define EPSILONCHANGE   0.1 /* change epsilon by this factor when switching from fast to default and from default to stable settings */
-#define FEASTOLCHANGE   0.1 /* change feastol by this factor when switching from fast to default and from default to stable settings */
+#define EPSILONCHANGE   0.1 /**< change epsilon by this factor when switching from fast to default and from default to stable settings */
+#define FEASTOLCHANGE   0.1 /**< change feastol by this factor when switching from fast to default and from default to stable settings */
 
-/* Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY. */
+/** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY. */
 #define BMS_CALL(x)   do                                                                                     \
                       {                                                                                      \
                          if( NULL == (x) )                                                                   \
@@ -67,7 +67,7 @@
                       }                                                                                      \
                       while( FALSE )
 
-/* This will be called in all functions that want to access solution information to check if the problem was solved since the last change of the problem. */
+/** This will be called in all functions that want to access solution information to check if the problem was solved since the last change of the problem. */
 #define CHECK_IF_SOLVED(sdpisolver)  do                                                                      \
                       {                                                                                      \
                          if (!(sdpisolver->solved))                                                          \
@@ -78,7 +78,7 @@
                       }                                                                                      \
                       while( FALSE )
 
-/* This is the same as CHECK_IF_SOLVED, but will be called for methods returning a bool instead of a SCIP_RETURNCODE */
+/** This is the same as CHECK_IF_SOLVED, but will be called for methods returning a bool instead of a SCIP_RETURNCODE */
 #define CHECK_IF_SOLVED_BOOL(sdpisolver)  do                                                                 \
                       {                                                                                      \
                          if (!(sdpisolver->solved))                                                          \

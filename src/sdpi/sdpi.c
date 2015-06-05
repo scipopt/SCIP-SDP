@@ -49,7 +49,7 @@
 #include "scip/pub_misc.h"                   /* for sorting */
 
 
-/* Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY */
+/** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY */
 #define BMS_CALL(x)   do                                                                                      \
                       {                                                                                       \
                           if( NULL == (x) )                                                                   \
@@ -60,7 +60,7 @@
                       }                                                                                       \
                       while( FALSE )
 
-/* this will be called in all functions that want to access solution information to check if the problem was solved since the last change of the problem */
+/** this will be called in all functions that want to access solution information to check if the problem was solved since the last change of the problem */
 #define CHECK_IF_SOLVED(sdpi)  do                                                                             \
                       {                                                                                       \
                          if ( ! (sdpi->solved) )                                                              \
@@ -71,7 +71,7 @@
                       }                                                                                       \
                       while( FALSE )
 
-/* same as CHECK_IF_SOLVED, but this will be used in functions returning a boolean value */
+/** same as CHECK_IF_SOLVED, but this will be used in functions returning a boolean value */
 #define CHECK_IF_SOLVED_BOOL(sdpi)  do                                                                        \
                       {                                                                                       \
                          if ( ! (sdpi->solved) )                                                              \
@@ -82,7 +82,7 @@
                       }                                                                                       \
                       while( FALSE )
 
-/* duplicate an array that might be null (in that case null is returned, otherwise BMSduplicateMemory is called) */
+/** duplicate an array that might be null (in that case null is returned, otherwise BMSduplicateMemory is called) */
 #define DUPLICATE_ARRAY_NULL(blkmem, target, source, size) do                                                 \
                       {                                                                                       \
                          if (size > 0)                                                                        \
@@ -92,7 +92,7 @@
                       }                                                                                       \
                       while( FALSE )
 
-/* same as SCIP_CALL, but gives a SCIP_PARAMETERUNKNOWN error if it fails */
+/** same as SCIP_CALL, but gives a SCIP_PARAMETERUNKNOWN error if it fails */
 #define SCIP_CALL_PARAM(x)   do                                                                               \
                       {                                                                                       \
                          SCIP_RETCODE _restat_;                                                               \
@@ -184,7 +184,7 @@ void ensureLowerTriangular(
 }
 
 #ifndef NDEBUG
-/** Test if for a given variable the lower bound is in an epsilon neighborhood of the upper bound */
+/** tests if for a given variable the lower bound is in an epsilon neighborhood of the upper bound */
 static
 SCIP_Bool isFixed(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP interface structure */
@@ -329,11 +329,7 @@ SCIP_RETCODE compConstMatAfterFixings(
 }
 
 /** This takes the sdpi and the computed constant matrix after fixings as input and checks for empty rows and columns in each block, which should be
- *  removed to not harm the slater condition. It also removes SDP blocks with no entries left, these are returned in blockindchanges and nremovedblocks
- *
- *  This is returned as a 2d-array, where each block and each row/col index (which is the same because of symmetry)
- *  either has value -1, then the index is to be removed, or gives a number (the number of indices deleted before it) by
- *  which this index is to be decreased.
+ *  removed to not harm the slater condition. It also removes SDP blocks with no entries left, these are returned in blockindchanges and nremovedblocks.
  */
 static
 SCIP_RETCODE findEmptyRowColsSDP(
@@ -343,13 +339,13 @@ SCIP_RETCODE findEmptyRowColsSDP(
    int**                 sdpconstrow,        /**< pointers to row-indices for each block */
    int**                 sdpconstcol,        /**< pointers to column-indices for each block */
    SCIP_Real**           sdpconstval,        /**< pointers to the values of the nonzeros for each block */
-   int**                 indchanges,         /**< this returns the changes needed to be done to the indices, if indchange[block][nonz]=-1, then
+   int**                 indchanges,         /**< pointer to store the changes needed to be done to the indices, if indchange[block][nonz]=-1, then
                                               *   the index can be removed, otherwise it gives the number of indices removed before this, i.e.
                                               *   the value to decrease this index by, this array should have memory allocated in the size
                                               *   sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
-   int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
-   int*                  blockindchanges,    /**< index change for each block, system is the same as for indchanges */
-   int*                  nremovedblocks      /**< the number of blocks to be removed from the SDP */
+   int*                  nremovedinds,       /**< pointer to store the number of rows/cols to be fixed for each block */
+   int*                  blockindchanges,    /**< pointer to store index change for each block, system is the same as for indchanges */
+   int*                  nremovedblocks      /**< pointer to store the number of blocks to be removed from the SDP */
    )
 {
    int block;
@@ -2423,7 +2419,7 @@ SCIP_RETCODE SCIPsdpiGetSol(
 
 /** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem, the last input should specify the length
  *  of the arrays, if this is less than the number of variables, the needed length will be returned and a debug message thrown
- *  note: if a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent primal variable */
+ *  @note if a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent primal variable */
 SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP interface structure */
    SCIP_Real*            lbvars,             /**< pointer to store the values of the variables corresponding to lower bounds in the dual problems */

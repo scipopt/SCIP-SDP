@@ -52,7 +52,7 @@
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
 
-/* Calls a DSDP-Function and transforms the return-code to a SCIP_LPERROR if needed. */
+/** Calls a DSDP-Function and transforms the return-code to a SCIP_LPERROR if needed. */
 #define DSDP_CALL(x)  do                                                                                     \
                       {                                                                                      \
                          int _dsdperrorcode_;                                                                \
@@ -64,7 +64,7 @@
                       }                                                                                      \
                       while( FALSE )
 
-/* Same as DSDP_CALL, but used for functions returning a boolean. */
+/** Same as DSDP_CALL, but used for functions returning a boolean. */
 #define DSDP_CALL_BOOL(x)  do                                                                                \
                       {                                                                                      \
                          int _dsdperrorcode_;                                                                \
@@ -76,7 +76,7 @@
                       }                                                                                      \
                       while( FALSE )
 
-/* Same as DSDP_CALL, but this will be used for initialization methods with memory allocation and return a SCIP_NOMEMORY if an error is produced. */
+/** Same as DSDP_CALL, but this will be used for initialization methods with memory allocation and return a SCIP_NOMEMORY if an error is produced. */
 #define DSDP_CALLM(x) do                                                                                     \
                       {                                                                                      \
                          int _dsdperrorcode_;                                                                \
@@ -88,7 +88,7 @@
                       }                                                                                      \
                       while( FALSE )
 
-/* Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY. */
+/** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY. */
 #define BMS_CALL(x)   do                                                                                     \
                       {                                                                                      \
                          if( NULL == (x) )                                                                   \
@@ -99,7 +99,7 @@
                       }                                                                                      \
                       while( FALSE )
 
-/* This will be called in all functions that want to access solution information to check if the problem was solved since the last change of the problem. */
+/** This will be called in all functions that want to access solution information to check if the problem was solved since the last change of the problem. */
 #define CHECK_IF_SOLVED(sdpisolver)  do                                                                      \
                       {                                                                                      \
                          if (!(sdpisolver->solved))                                                          \
@@ -110,7 +110,7 @@
                       }                                                                                      \
                       while( FALSE )
 
-/* This is the same as CHECK_IF_SOLVED, but will be called for methods returning a bool instead of a SCIP_RETURNCODE */
+/** This is the same as CHECK_IF_SOLVED, but will be called for methods returning a bool instead of a SCIP_RETURNCODE */
 #define CHECK_IF_SOLVED_BOOL(sdpisolver)  do                                                                      \
                       {                                                                                      \
                          if (!(sdpisolver->solved))                                                          \
@@ -169,7 +169,7 @@ int compLowerTriangPos(
 }
 
 #ifndef NDEBUG
-/** Test if a lower bound lb is not smaller than an upper bound ub, meaning that lb > ub - epsilon */
+/** test if a lower bound lb is not smaller than an upper bound ub, meaning that lb > ub - epsilon */
 static
 SCIP_Bool isFixed(
    SCIP_SDPISOLVER*      sdpisolver,          /**< pointer to an SDP interface solver structure */
