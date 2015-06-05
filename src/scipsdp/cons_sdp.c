@@ -145,9 +145,8 @@ SCIP_RETCODE expandSymMatrix(
    return SCIP_OKAY;
 }
 
-/** For a given vector \f$ y \f$ computes the SDP-Matrix \f$ \sum_{j=1}^m A_j y_j - A_0 \f$ for this SDP block.
- *
- *  The length of the matrix array needs to be (length of y) * (length of y + 1) /2, this will be indexed by compLowerTriangPos.
+/** For a given vector \f$ y \f$ computes the (length of y) * (length of y + 1) /2 -long array of the lower-triangular part
+ *  of the SDP-Matrix \f$ \sum_{j=1}^m A_j y_j - A_0 \f$ for this SDP block, indexed by compLowerTriangPos.
  */
 static
 SCIP_RETCODE computeSdpMatrix(
