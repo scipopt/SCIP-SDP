@@ -760,7 +760,7 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
    int*                  ndelconss,          /**< pointer to store how many constraints were deleted */
    SCIP_RESULT*          result              /**< pointer to store if this routine was successfull or if it detected infeasibility */
    )
-{
+{ /* TODO: detect infeasibility if ub < lb */
    SCIP_CONSHDLR* hdlr;
    SCIP_CONS* cons;
    SCIP_CONSHDLRDATA* conshdlrdata;
@@ -876,16 +876,16 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
             else if ( coeffs[0] < 0.0 )
             {
                /* this gives an upper bound, if it is lower than the current one, we need to update it */
-               if (SCIPisFeasLT(scip, -rhs / coeffs[0], SCIPvarGetUbLocal(vars[0])))
+               if (SCIPisFeasLT(scip, rhs / coeffs[0], SCIPvarGetUbLocal(vars[0])))
                {
                   SCIPdebugMessage("Changing upper bound of variable %s from %f to %f because of 1x1-SDP-constraint %s!\n",
                                           SCIPvarGetName(vars[0]), SCIPvarGetUbLocal(vars[0]), -rhs / coeffs[0], SCIPconsGetName(conss[i]));
-                  SCIP_CALL( SCIPchgVarUb(scip, vars[0], -rhs / coeffs[0]) );
+                  SCIP_CALL( SCIPchgVarUb(scip, vars[0], rhs / coeffs[0]) );
                }
                else
                {
                   SCIPdebugMessage("Deleting 1x1-SDP-constraint %s, new upper bound %f for variable %s no improvement over old bound %f!\n",
-                        SCIPconsGetName(conss[i]), -rhs / coeffs[0], SCIPvarGetName(vars[0]), SCIPvarGetUbLocal(vars[0]));
+                        SCIPconsGetName(conss[i]), rhs / coeffs[0], SCIPvarGetName(vars[0]), SCIPvarGetUbLocal(vars[0]));
                }
             }
             else
