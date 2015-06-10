@@ -177,12 +177,12 @@ SCIP_Bool isFixed(
    SCIP_Real             ub                  /**< upper bound */
    )
 {
-   assert( lb < ub + sdpisolver->epsilon );
+   assert( lb < ub + sdpisolver->feastol );
 
-   return (REALABS(ub-lb) <= sdpisolver->epsilon);
+   return (REALABS(ub-lb) <= sdpisolver->feastol);
 }
 #else
-#define isFixed(sdpisolver,lb,ub) (REALABS(ub-lb) <= sdpisolver->epsilon)
+#define isFixed(sdpisolver,lb,ub) (REALABS(ub-lb) <= sdpisolver->feastol)
 #endif
 
 /** sort the given row, col and val arrays first by non-decreasing col-indices, than for those with identical col-indices by non-increasing row-indices */

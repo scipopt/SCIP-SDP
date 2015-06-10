@@ -202,9 +202,9 @@ SCIP_Bool isFixed(
    lb = sdpi->lb[v];
    ub = sdpi->ub[v];
 
-   assert( lb < ub + sdpi->epsilon || sdpi->infeasible );
+   assert( lb < ub + sdpi->feastol || sdpi->infeasible );
 
-   return ( REALABS(ub-lb) <= sdpi->epsilon );
+   return ( REALABS(ub-lb) <= sdpi->feastol );
 }
 #else
 #define isFixed(sdpi, v) (REALABS(sdpi->ub[v] - sdpi->lb[v]) <= sdpi->epsilon)
