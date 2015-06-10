@@ -1870,6 +1870,8 @@ SCIP_RETCODE SCIPsdpiSolve(
    {
       SCIPdebugMessage("SDP %d not given to solver, as infeasibility was detected during presolving!\n", sdpi->sdpid++);
       SCIP_CALL( SCIPsdpiSolverIncreaseCounter(sdpi->sdpisolver) );
+
+      sdpi->solved = TRUE;
    }
    else
    {
