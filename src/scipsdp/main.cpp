@@ -78,6 +78,9 @@ SCIP_RETCODE runSCIP(
    /* disable subscips - for the meantime */
    SCIP_CALL( SCIPsetSubscipsOff(scip, TRUE) );
 
+   /* disable restarts - for the meantime */
+   SCIP_CALL( SCIPsetIntParam(scip, "limits/restarts", 0) );
+
    /* set clocktype to walltime to not add multiple threads together */
    SCIP_CALL( SCIPsetIntParam(scip, "timing/clocktype", 2) );
 
