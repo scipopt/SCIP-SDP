@@ -28,8 +28,8 @@ one entry of the matrices A_0 or A_i.
 
 Matrix entries are given in the following format:
 n b i j v
-n = number of variable (0 stands for the rhs, i.e. the constant terms)
-b = number of block
+n = index of variable (0 stands for the rhs, i.e. the constant terms)
+b = index of block
 i j = position in matrix
 v = coefficient or value
 
