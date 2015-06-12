@@ -863,6 +863,25 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
                /* this gives a lower bound, if it is bigger than the current one, we need to update it */
                if ( SCIPisFeasGT(scip, rhs / coeffs[0], SCIPvarGetLbLocal(vars[0])) )
                {
+                  /* check if the changed bound renders the problem infeasible */
+                  if( SCIPisFeasGT(scip, rhs / coeffs[0], SCIPvarGetUbLocal(vars[0])) )
+                  {
+                     SCIPdebugMessage("Problem found infeasible during presolving, 1x1-SDP-constraint %s caused change"
+                           "of lower bound for variable %s from %f to %f, which is bigger than upper bound of %f\n",
+                           SCIPconsGetName(conss[i]), SCIPvarGetName(vars[0]), SCIPvarGetLbLocal(vars[0]), rhs / coeffs[0],
+                           SCIPvarGetUbLocal(vars[0]));
+
+                     *result = SCIP_CUTOFF;
+                     /* delete old 1x1 sdpcone */
+                     SCIP_CALL( SCIPdelCons(scip, conss[i]) );
+                     (*ndelconss)++;
+
+                     SCIPfreeBufferArray(scip, &coeffs);
+                     SCIPfreeBufferArray(scip, &vars);
+
+                     return SCIP_OKAY; /* the node is infeasible, we don't care for the other constraints */
+                  }
+
                   SCIPdebugMessage("Changing lower bound of variable %s from %f to %f because of 1x1-SDP-constraint %s!\n",
                         SCIPvarGetName(vars[0]), SCIPvarGetLbLocal(vars[0]), rhs / coeffs[0], SCIPconsGetName(conss[i]));
                   SCIP_CALL( SCIPchgVarLb(scip, vars[0], rhs / coeffs[0]) );
@@ -876,16 +895,35 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
             else if ( coeffs[0] < 0.0 )
             {
                /* this gives an upper bound, if it is lower than the current one, we need to update it */
-               if (SCIPisFeasLT(scip, -rhs / coeffs[0], SCIPvarGetUbLocal(vars[0])))
+               if (SCIPisFeasLT(scip, rhs / coeffs[0], SCIPvarGetUbLocal(vars[0])))
                {
+                  /* check if the changed bound renders the problem infeasible */
+                  if( SCIPisFeasLT(scip, rhs / coeffs[0], SCIPvarGetLbLocal(vars[0])) )
+                  {
+                     SCIPdebugMessage("Problem found infeasible during presolving, 1x1-SDP-constraint %s caused change"
+                           "of upper bound for variable %s from %f to %f, which is less than lower bound of %f\n",
+                           SCIPconsGetName(conss[i]), SCIPvarGetName(vars[0]), SCIPvarGetUbLocal(vars[0]), rhs / coeffs[0],
+                           SCIPvarGetLbLocal(vars[0]));
+
+                     *result = SCIP_CUTOFF;
+                     /* delete old 1x1 sdpcone */
+                     SCIP_CALL( SCIPdelCons(scip, conss[i]) );
+                     (*ndelconss)++;
+
+                     SCIPfreeBufferArray(scip, &coeffs);
+                     SCIPfreeBufferArray(scip, &vars);
+
+                     return SCIP_OKAY; /* the node is infeasible, we don't care for the other constraints */
+                  }
+
                   SCIPdebugMessage("Changing upper bound of variable %s from %f to %f because of 1x1-SDP-constraint %s!\n",
                                           SCIPvarGetName(vars[0]), SCIPvarGetUbLocal(vars[0]), -rhs / coeffs[0], SCIPconsGetName(conss[i]));
-                  SCIP_CALL( SCIPchgVarUb(scip, vars[0], -rhs / coeffs[0]) );
+                  SCIP_CALL( SCIPchgVarUb(scip, vars[0], rhs / coeffs[0]) );
                }
                else
                {
                   SCIPdebugMessage("Deleting 1x1-SDP-constraint %s, new upper bound %f for variable %s no improvement over old bound %f!\n",
-                        SCIPconsGetName(conss[i]), -rhs / coeffs[0], SCIPvarGetName(vars[0]), SCIPvarGetUbLocal(vars[0]));
+                        SCIPconsGetName(conss[i]), rhs / coeffs[0], SCIPvarGetName(vars[0]), SCIPvarGetUbLocal(vars[0]));
                }
             }
             else
