@@ -151,7 +151,7 @@ struct SCIP_SDPi
    SCIP_Real*            lpval;              /**< values of LP-constraint matrix entries */
 
    /* other data */
-   SCIP_Bool             slatercheck;        /**< should the slater condition for the dual problem be checked ahead of each solving process */
+   SCIP_Bool             slatercheck;        /**< should the Slater condition for the dual problem be checked ahead of each solving process */
    SCIP_Bool             solved;             /**< was the problem solved since the last change */
    SCIP_Bool             penalty;            /**< was the last solved problem a penalty formulation */
    SCIP_Bool             infeasible;         /**< was infeasibility detected in presolving */
@@ -329,7 +329,7 @@ SCIP_RETCODE compConstMatAfterFixings(
 }
 
 /** This takes the sdpi and the computed constant matrix after fixings as input and checks for empty rows and columns in each block, which should be
- *  removed to not harm the slater condition. It also removes SDP blocks with no entries left, these are returned in blockindchanges and nremovedblocks.
+ *  removed to not harm the Slater condition. It also removes SDP blocks with no entries left, these are returned in blockindchanges and nremovedblocks.
  */
 static
 SCIP_RETCODE findEmptyRowColsSDP(
@@ -1780,7 +1780,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
    int*                  totalsdpiterations, /**< the number of sdpiterations needed will be added to the int this points to */
-   SCIP_Bool             enforceslatercheck  /**< always check for slater condition in case the problem could not be solved and printf the solution
+   SCIP_Bool             enforceslatercheck  /**< always check for Slater condition in case the problem could not be solved and printf the solution
                                                   of this check */
    )
 {
@@ -1881,7 +1881,7 @@ SCIP_RETCODE SCIPsdpiSolve(
          SCIP_Bool origfeas;
 
          /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if we are
-          * still feasible for r < feastol, then we have an interior point with smallest eigenvalue > feastol, otherwise the slater condition is harmed */
+          * still feasible for r < feastol, then we have an interior point with smallest eigenvalue > feastol, otherwise the Slater condition is harmed */
          SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
                sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
@@ -1979,7 +1979,7 @@ SCIP_RETCODE SCIPsdpiSolve(
             SCIP_Bool origfeas;
 
             /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if we are
-             * still feasible for r < feastol, then we have an interior point with smallest eigenvalue > feastol, otherwise the slater condition is harmed */
+             * still feasible for r < feastol, then we have an interior point with smallest eigenvalue > feastol, otherwise the Slater condition is harmed */
             SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
                   sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
                   sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,

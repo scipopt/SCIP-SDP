@@ -357,7 +357,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
    int*                  totalsdpiterations, /**< the number of sdpiterations needed will be added to the int this points to */
-   SCIP_Bool             enforceslatercheck  /**< always check for slater condition in case the problem could not be solved and printf the solution
+   SCIP_Bool             enforceslatercheck  /**< always check for Slater condition in case the problem could not be solved and printf the solution
                                                   of this check */
    );
 

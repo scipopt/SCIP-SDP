@@ -463,7 +463,7 @@ SCIP_RETCODE calc_relax(
       SCIP_CALL( SCIPsdpiSetRealpar(sdpi, SCIP_SDPPAR_OBJLIMIT, SCIPgetUpperbound(scip)) );
    }
 
-   /* if this is the root node and we cannot solve the problem, we want to check for the slater condition independent of the SCIP parameter */
+   /* if this is the root node and we cannot solve the problem, we want to check for the Slater condition independent of the SCIP parameter */
    rootnode = (SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) == 1);
 
    /* solve the problem */
@@ -997,7 +997,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/threads", "number of threads used for SDP solving",
          &(relaxdata->threads), TRUE, DEFAULT_THREADS, 1, INT_MAX, NULL, NULL) );
 #endif
-   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/slatercheck", "Should the slater condition for the dual problem be check ahead of solving each SDP?",
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/slatercheck", "Should the Slater condition for the dual problem be check ahead of solving each SDP?",
          &(relaxdata->slatercheck), TRUE, FALSE, NULL, NULL) );
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/sdpinfo", "Should the SDP solver output information to the screen?",
          &(relaxdata->sdpinfo), TRUE, FALSE, NULL, NULL) );

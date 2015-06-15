@@ -54,8 +54,8 @@
  * process. However in some cases the combination of variable fixings and specific linear or semidefinite constraints might
  * still lead to relaxations for which the Slater condition no longer holds. In this case the SDP-solvers may be unable to
  * solve the relaxations or even return wrong results, which cannot be compensated. For this purpose there is the 
- * possibility to check the Slater condition before the solution of each SDP by setting a SCIP parameter, for details see
- * the parameters tab.
+ * possibility to check the Slater condition for the dual problem (which still does not guarantee it for the primal)
+ * before the solution of each SDP by setting a SCIP parameter, for details see the parameters tab.
  */
 
 /** @page PARAMETERS Additional Parameters
@@ -68,7 +68,7 @@
  * <tr><td>relaxing/SDP/sdpsolverfeastol = 0.00001</td> <td>feasibility tolerance for the SDP-Solver (should be less or equal to numerics/feastol)</td></tr>
  * <tr><td>relaxing/SDP/sdpinfo = FALSE</td> <td>Should output of the SDP-Solver be printed to the console?</td></tr>
  * <tr><td>relaxing/SDP/objlimit = FALSE</td> <td>Should an objective limit be given to the SDP-Solver?</td></tr>
- * <tr><td>relaxing/SDP/slatercheck = FALSE</td> <td>Should the slater condition for the dual problem be checked ahead of solving each SDP?</td></tr>
+ * <tr><td>relaxing/SDP/slatercheck = FALSE</td> <td>Should the Slater condition for the dual problem be checked ahead of solving each SDP?</td></tr>
  * <tr><td>branching/sdpobjective/coupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints?</td></tr>
  * <tr><td>branching/sdpobjective/singlecoupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints in which no other candidate appears?</td></tr>
  * <tr><td>branching/sdpinfobjective/coupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints?</td></tr>
