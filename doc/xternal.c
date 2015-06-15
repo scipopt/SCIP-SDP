@@ -65,7 +65,7 @@
  * <tr><td>relaxing/SDP/freq = 1</td> <td>set this to -1 and lp/solvefreq to 1 to solve LP relaxations with eigenvector cuts</td></tr>
  * <tr><td>propagating/sdpredcost/freq = 1</td> <td>set this to -1 to disable reduced cost fixing for SDPs</td></tr>
  * <tr><td>relaxing/SDP/sdpsolverepsilon = 0.0001</td> <td>sets the bound for the duality gap in the SDP-Solver</td></tr>
- * <tr><td>relaxing/SDP/sdpsolverfeastol = 0.00001</td> <td>a matrix is considered positive semidefinite if the smallest eigenvalue is bigger than -sdpsolverfeastol (should be less or equal to numerics/feastol)</td></tr>
+ * <tr><td>relaxing/SDP/sdpsolverfeastol = 0.00001</td> <td>feasibility tolerance for the SDP-Solver (should be less or equal to numerics/feastol)</td></tr>
  * <tr><td>relaxing/SDP/sdpinfo = FALSE</td> <td>Should output of the SDP-Solver be printed to the console?</td></tr>
  * <tr><td>relaxing/SDP/objlimit = FALSE</td> <td>Should an objective limit be given to the SDP-Solver?</td></tr>
  * <tr><td>relaxing/SDP/slatercheck = FALSE</td> <td>Should the slater condition for the dual problem be checked ahead of solving each SDP?</td></tr>
