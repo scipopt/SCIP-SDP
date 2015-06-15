@@ -1990,10 +1990,10 @@ SCIP_RETCODE SCIPsdpiSolve(
             SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
 
             if ( objval < - sdpi->feastol )
-               printf("SDP-solver could not solve root node relaxation even though Slater condition fullfilled for dual problem with smallest eigenvalue %f.\n",
+               printf("SDP-solver could not solve root node relaxation even though the Slater condition is fullfilled for the dual problem with smallest eigenvalue %f.\n",
                         -1.0 * objval);
             else
-               printf("SDP-solver could not solve root node relaxation, Slater condition not fullfilled for dual problem as smallest eigenvalue was %f.\n",
+               printf("SDP-solver could not solve root node relaxation, Slater condition is not fullfilled for the dual problem as smallest eigenvalue was %f.\n",
                      -1.0 * objval);
          }
          else if ( sdpi->solved == FALSE )
