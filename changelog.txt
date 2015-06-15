@@ -2,7 +2,7 @@ SCIP-SDP version 2.0
 ==================
 
 fixed bugs:
-- if DSDP does not converge but produced primal and dual feasible solutions, these are no longer accepted as optimal
+- if DSDP does not converge but produces primal and dual feasible solutions, these are no longer accepted as optimal
 - input-file may now have comment-lines between SDP/LP-block-lines
 - value 0 in the last LP-block-line no longer causes an infinite loop
 - removed the diagDominant-cuts that are only correct for general MISDPs under some prerequisites
@@ -13,6 +13,7 @@ data structures:
 features:
 - dual/reduced cost fixing for SDPs
 - added branching rules, as some of the SCIP branching rules only work on LP-solutions
+- total and average SDP-iterations are displayed in the shell
 
 performance improvements:
 
@@ -40,4 +41,3 @@ Makefile:
 - links are now set via console when calling make instead of the make.local file
 
 misc:
-- total and average SDP-iterations are displayed in the shell
