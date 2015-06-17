@@ -98,6 +98,68 @@ namespace scip
       return SCIP_OKAY;
    }
 
+   /* drop spaces and all brackets that are allowed within the blocks in the sdpa format, throws an error if it reaches a newline */
+   static
+   SCIP_RETCODE dropSpaceNewlineError(std::istream& line)
+   {
+      if ( line.peek() == '\n' )
+      {
+         SCIPerrorMessage("Input File invalid, SDP/LP-block rows need to consist of five entries each, see data_format.txt\n");
+         return SCIP_ERROR;
+      }
+      while(std::isspace(line.peek()) || line.peek() == '(' || line.peek() == '{' || line.peek() == ')' || line.peek() == '}' || line.peek() == ',')
+      {
+         line.ignore(1);
+         if ( line.peek() == '\n' )
+         {
+            SCIPerrorMessage("Input File invalid, SDP/LP-block rows need to consist of five entries each, see data_format.txt\n");
+            return SCIP_ERROR;
+         }
+      }
+      return SCIP_OKAY;
+   }
+
+   /* checks that only spaces, newlines or comments follow in the current line */
+   static
+   SCIP_RETCODE checkForLineEnd(std::istream& line)
+   {
+      if ( line.peek() == '\n' || line.peek() == '"' || line.peek() == '*' || line.peek() == EOF )
+      {
+         return SCIP_OKAY;
+      }
+      while(std::isspace(line.peek()) || line.peek() == '(' || line.peek() == '{' || line.peek() == ')' || line.peek() == '}' || line.peek() == ',')
+      {
+         line.ignore(1);
+         if ( line.peek() == '\n' || line.peek() == '"' || line.peek() == '*' || line.peek() == EOF )
+         {
+            return SCIP_OKAY;
+         }
+         else if (std::isspace(line.peek()) || line.peek() == '(' || line.peek() == '{' || line.peek() == ')' || line.peek() == '}' || line.peek() == ',')
+            continue;
+         else
+         {
+            SCIPerrorMessage("Input File invalid, SDP/LP-block rows need to consist of five entries each, see data_format.txt\n");
+            return SCIP_ERROR;
+         }
+      }
+      return SCIP_OKAY;
+   }
+
+   /** function to test whether the next character in the input string is a digit (or a minus), if it isn't SCIP aborts with a corresponding error */
+   static
+   SCIP_RETCODE testDigit(
+      std::istream*       file                /* the file instance that is read */
+      )
+   {
+      if ( (! isdigit((*file).peek())) && (! ((*file).peek() == '-')) )
+      {
+         SCIPerrorMessage("Input File invalid, only numerals allowed in SDP/LP-block rows, see data_format.txt\n");
+         return SCIP_ERROR;
+      }
+
+      return SCIP_OKAY;
+   }
+
 
    /** problem reading method of reader
     *
@@ -257,15 +319,25 @@ namespace scip
       		double val;
       		drop_space(file);
 
+      		SCIP_CALL( testDigit(&file) );
       		file >> var_index;
-      		drop_space(file);
+      		SCIP_CALL( dropSpaceNewlineError(file) );
+
+      		SCIP_CALL( testDigit(&file) );
       		file >> block_index;
-      		drop_space(file);
+      		SCIP_CALL( dropSpaceNewlineError(file) );
+
+      		SCIP_CALL( testDigit(&file) );
       		file >> row_index;
-      		drop_space(file);
+      		SCIP_CALL( dropSpaceNewlineError(file) );
+
+      		SCIP_CALL( testDigit(&file) );
       		file >> col_index;
-      		drop_space(file);
+      		SCIP_CALL( dropSpaceNewlineError(file) );
+
+      		SCIP_CALL( testDigit(&file) );
       		file >> val;
+      		SCIP_CALL( checkForLineEnd(file) );
 
       		if (SCIPisEQ(scip, val, 0.0))
       		{
