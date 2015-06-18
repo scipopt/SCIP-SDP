@@ -85,7 +85,7 @@ namespace scip
    /** function for removing comments in between the variable & block definitions */
    static
    SCIP_RETCODE dropComments(
-      std::istream*       file                /* the file instance that is read */
+      std::istream*      file                /* the file instance that is read */
       )
    {
       char fst_col('"');
@@ -148,7 +148,7 @@ namespace scip
    /** function to test whether the next character in the input string is a digit (or a minus), if it isn't SCIP aborts with a corresponding error */
    static
    SCIP_RETCODE testDigit(
-      std::istream*       file                /* the file instance that is read */
+      std::istream*      file                /* the file instance that is read */
       )
    {
       if ( (! isdigit((*file).peek())) && (! ((*file).peek() == '-')) )
@@ -160,6 +160,21 @@ namespace scip
       return SCIP_OKAY;
    }
 
+   /** function to check whether the given index is within the given bounds, if not an error message for the given string will be thrown */
+   static
+   SCIP_RETCODE checkIndex(
+      const char*        indexname,          /* name of the index that will be used in the error message */
+      int                value,              /* value to check against the upper bound */
+      int                ub                  /* upper bound to check against */
+      )
+   {
+      if ( value > ub )
+      {
+         SCIPerrorMessage("In an SDP/LP-block-line %s index %d was larger than given number of %ss %d.\n", indexname, value, indexname, ub);
+         return SCIP_ERROR;
+      }
+      return SCIP_OKAY;
+   }
 
    /** problem reading method of reader
     *
@@ -321,18 +336,22 @@ namespace scip
 
       		SCIP_CALL( testDigit(&file) );
       		file >> var_index;
+      		SCIP_CALL( checkIndex("variable", var_index, numvars) );
       		SCIP_CALL( dropSpaceNewlineError(file) );
 
       		SCIP_CALL( testDigit(&file) );
       		file >> block_index;
+      		SCIP_CALL( checkIndex("block", block_index, numblocks) );
       		SCIP_CALL( dropSpaceNewlineError(file) );
 
       		SCIP_CALL( testDigit(&file) );
       		file >> row_index;
+      		SCIP_CALL( checkIndex("row", row_index, (blockislp[block_index - 1] ? LPData.numrows : blockstruct[block_index - 1].blocksize)) );
       		SCIP_CALL( dropSpaceNewlineError(file) );
 
       		SCIP_CALL( testDigit(&file) );
       		file >> col_index;
+            SCIP_CALL( checkIndex("column", col_index, (blockislp[block_index - 1] ? LPData.numrows : blockstruct[block_index - 1].blocksize)) );
       		SCIP_CALL( dropSpaceNewlineError(file) );
 
       		SCIP_CALL( testDigit(&file) );
