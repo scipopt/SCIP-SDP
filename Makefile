@@ -135,19 +135,16 @@ SDPILIB		=      -L$(SCIPSDPLIBDIR) -lsdpa -L$(SCIPSDPLIBDIR)/mumpslip -ldmumps -
 endif
 SDPIINC		=      -I$(SCIPSDPLIBDIR)/sdpainc -I$(SCIPSDPLIBDIR)/mumpsinc
 SDPICCSRC 	= 	src/sdpi/sdpisolver_sdpa.cpp
-SDPICSRC		=	src/sdpi/lapack_sdpa.c
-SDPIOBJ 		= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o \
-				$(OBJDIR)/sdpi/lapack_sdpa.o
+SDPICSRC	=	src/sdpi/lapack_sdpa.c
+SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o $(OBJDIR)/sdpi/lapack_sdpa.o
 endif
 
 SDPIOPTIONS	+=	none
 ifeq ($(SDPS),none)
 SDPILIB		= 	-L$(SCIPSDPLIBDIR) -ldsdp -llapack -lblas
-SDPICSRC 	= 	src/sdpi/sdpisolver_none.c \
-					src/sdpi/lapack_dsdp.c
-SDPIOBJ 		= 	$(OBJDIR)/sdpi/sdpisolver_none.o \
-					$(OBJDIR)/sdpi/lapack_dsdp.o
-SETTINGS		= lp_approx
+SDPICSRC 	= 	src/sdpi/sdpisolver_none.c src/sdpi/lapack_dsdp.c
+SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_none.o $(OBJDIR)/sdpi/lapack_dsdp.o
+SETTINGS	= 	lp_approx
 endif
 
 # include install/uninstall targets
@@ -167,36 +164,36 @@ SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
 
 MAINNAME	=	scipsdp
 MAINCOBJ	=	scipsdp/SdpVarmapper.o \
-				scipsdp/SdpVarfixer.o \
-				scipsdp/cons_sdp.o \
-				scipsdp/relax_sdp.o \
-				scipsdp/disp_sdpiterations.o \
-				scipsdp/disp_sdpavgiterations.o \
-				scipsdp/prop_sdpredcost.o \
-				scipsdp/branch_sdpmostfrac.o \
-				scipsdp/branch_sdpmostinf.o \
-				scipsdp/branch_sdpobjective.o \
-				scipsdp/branch_sdpinfobjective.o \
-				sdpi/sdpi.o
+			scipsdp/SdpVarfixer.o \
+			scipsdp/cons_sdp.o \
+			scipsdp/relax_sdp.o \
+			scipsdp/disp_sdpiterations.o \
+			scipsdp/disp_sdpavgiterations.o \
+			scipsdp/prop_sdpredcost.o \
+			scipsdp/branch_sdpmostfrac.o \
+			scipsdp/branch_sdpmostinf.o \
+			scipsdp/branch_sdpobjective.o \
+			scipsdp/branch_sdpinfobjective.o \
+			sdpi/sdpi.o
 
-MAINCCOBJ =	scipsdp/main.o \
-				scipsdp/objreader_sdpa.o \
-				scipsdp/ScipStreamBuffer.o
+MAINCCOBJ 	=	scipsdp/main.o \
+			scipsdp/objreader_sdpa.o \
+			scipsdp/ScipStreamBuffer.o
 
 
-MAINCSRC		=	$(addprefix $(SRCDIR)/,$(MAINCOBJ:.o=.c))
+MAINCSRC	=	$(addprefix $(SRCDIR)/,$(MAINCOBJ:.o=.c))
 MAINCCSRC 	=	$(addprefix $(SRCDIR)/,$(MAINCCOBJ:.o=.cpp))
-MAINDEP 		=	$(SRCDIR)/depend.cppmain.$(OPT)
+MAINDEP 	=	$(SRCDIR)/depend.cppmain.$(OPT)
 
 # @todo possibly add LPS
-MAINFILE			=	$(BINDIR)/$(MAINNAME).$(BASE).$(SDPS)$(EXEEXTENSION)
+MAINFILE	=	$(BINDIR)/$(MAINNAME).$(BASE).$(SDPS)$(EXEEXTENSION)
 MAINSHORTLINK	=	$(BINDIR)/$(MAINNAME)
 MAINCOBJFILES	=	$(addprefix $(OBJDIR)/,$(MAINCOBJ))
 MAINCCOBJFILES	=	$(addprefix $(OBJDIR)/,$(MAINCCOBJ))
 
-ALLSRC				=	$(MAINCSRC) $(MAINCCSRC) $(SDPICSRC) $(SDPICCSRC)
-LINKSMARKERFILE 	=	$(SCIPSDPLIBDIR)/linkscreated.$(SDPS).$(LPS)-$(LPSOPT).$(OSTYPE).$(ARCH).$(COMP)$(LINKLIBSUFFIX)
-LASTSETTINGS 		=	$(OBJDIR)/make.lastsettings
+ALLSRC		=	$(MAINCSRC) $(MAINCCSRC) $(SDPICSRC) $(SDPICCSRC)
+LINKSMARKERFILE =	$(SCIPSDPLIBDIR)/linkscreated.$(SDPS).$(LPS)-$(LPSOPT).$(OSTYPE).$(ARCH).$(COMP)$(LINKLIBSUFFIX)
+LASTSETTINGS 	=	$(OBJDIR)/make.lastsettings
 
 
 #-----------------------------------------------------------------------------
@@ -244,22 +241,22 @@ doc:
 		cd doc; $(DOXY) $(MAINNAME).dxy
 
 $(MAINSHORTLINK):	$(MAINFILE)
-	@rm -f $@
-	cd $(dir $@) && ln -s $(notdir $(MAINFILE)) $(notdir $@)
+		@rm -f $@
+		cd $(dir $@) && ln -s $(notdir $(MAINFILE)) $(notdir $@)
 
 $(OBJDIR):
-	@mkdir -p $(OBJDIR);
+		@mkdir -p $(OBJDIR);
 
 $(SDPOBJSUBDIRS):	| $(OBJDIR)
-	@-mkdir -p $(SDPOBJSUBDIRS);
+		@-mkdir -p $(SDPOBJSUBDIRS);
 
 $(SCIPSDPLIBDIR):
 		@-mkdir -p $(SCIPSDPLIBDIR)
 
 $(BINDIR):
-	-@test -d $(BINDIR) || { \
-	echo "-> Creating $(BINDIR) directory"; \
-	mkdir -p $(BINDIR); }
+		-@test -d $(BINDIR) || { \
+		echo "-> Creating $(BINDIR) directory"; \
+		mkdir -p $(BINDIR); }
 
 .PHONY: clean
 clean:
