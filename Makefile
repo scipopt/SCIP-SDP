@@ -77,6 +77,11 @@ SCIPSDPLIBDIR	=	lib
 
 SCIPDIR		= 	$(SCIPSDPDIR)/lib/scip
 
+# check whether SCIPDIR exists
+ifeq ("$(wildcard $(SCIPDIR))","")
+$(error Please add a soft-link to the SCIP directory as $(SCIPSDPDIR)/lib/scip)
+endif
+
 # load SCIP project makefile
 include $(SCIPDIR)/make/make.project
 
