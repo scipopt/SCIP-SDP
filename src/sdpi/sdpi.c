@@ -858,7 +858,7 @@ SCIP_RETCODE SCIPsdpiCreate(
    assert ( sdpi != NULL );
    assert ( blkmem != NULL );
 
-   SCIPdebugMessage("Calling SCIPsdpiCreate");
+   SCIPdebugMessage("Calling SCIPsdpiCreate\n");
 
    BMS_CALL(BMSallocBlockMemory(blkmem, sdpi));
 
@@ -2059,7 +2059,7 @@ SCIP_Bool SCIPsdpiSolvedOrig(
 {
    assert( sdpi != NULL );
 
-   return (sdpi->penalty );
+   return ( ! sdpi->penalty );
 }
 
 /** returns true if the solver could determine whether the problem is feasible, so it returns true if the

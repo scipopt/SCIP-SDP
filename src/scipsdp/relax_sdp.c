@@ -581,6 +581,7 @@ SCIP_RETCODE calc_relax(
          SCIP_CALL( SCIPsetSolVals(scip, scipsol, nvars, vars, solforscip) );
 
          *lowerbound = objforscip;
+         relaxdata->objval = objforscip;
 
          if ( allint ) /* if the solution is integer, we might have found a new best solution for the MISDP */
          {
