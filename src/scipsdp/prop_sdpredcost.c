@@ -49,12 +49,14 @@
  * @{
  */
 
-#define PROP_NAME              "sdpredcost"
-#define PROP_DESC              "sdp reduced cost strengthening propagator"
-#define PROP_TIMING            (SCIP_PROPTIMING_DURINGLPLOOP | SCIP_PROPTIMING_AFTERLPLOOP)
-#define PROP_PRIORITY          +1000000 /**< propagator priority */
-#define PROP_FREQ                     1 /**< propagator frequency */
-#define PROP_DELAY                FALSE /**< should propagation method be delayed, if other propagators found reductions? */
+#define PROP_NAME                   "sdpredcost"
+#define PROP_DESC                   "sdp reduced cost strengthening propagator"
+#define PROP_TIMING                 (SCIP_PROPTIMING_DURINGLPLOOP | SCIP_PROPTIMING_AFTERLPLOOP)
+#define PROP_PRIORITY               +1000000 /**< propagator priority */
+#define PROP_FREQ                   1        /**< propagator frequency */
+#define PROP_DELAY                  FALSE    /**< Should propagation method be delayed, if other propagators found reductions? */
+#define DEFAULT_SDPRCBIN            TRUE     /**< Should sdp reduced cost fixing be executed for binary variables? */
+#define DEFAULT_SDPRCINTCONT        TRUE     /**< Should sdp reduced cost fixing be executed for integer and continuous variables? */
 
 /**@} */
 
@@ -65,6 +67,8 @@ struct SCIP_PropData
    SCIP_Real*            lbvarvals;          /**< array where the current values of the primal variables corresponding to dual lower variable-bounds are saved */
    SCIP_Real*            ubvarvals;          /**< array where the current values of the primal variables corresponding to dual upper variable-bounds are saved */
    int                   nvars;              /**< number of variables and therefore also length of lbvarvals and ubvarvals */
+   SCIP_Bool             forbins;            /**< should sdp reduced cost fixing be executed for binary variables? */
+   SCIP_Bool             forintconts;        /**< should sdp reduced cost fixing be executed for integer and continuous variables? */
 };
 
 /** reduced cost fixing for binary variables
@@ -274,14 +278,14 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
 
    for (v = 0; v < nvars; v++)
    {
-      if ( SCIPvarIsBinary(vars[v]) )
+      if ( SCIPvarIsBinary(vars[v]) && propdata->forbins )
       {
          SCIP_CALL( sdpRedcostFixingBinary(scip, vars[v], propdata->lbvarvals[v], propdata->ubvarvals[v], cutoffbound, relaxval, &varresult) );
 
          if ( varresult == SCIP_REDUCEDDOM )
             *result = SCIP_REDUCEDDOM;
       }
-      else
+      else if ( (! SCIPvarIsBinary(vars[v])) && propdata->forintconts )
       {
          SCIP_CALL( sdpRedcostFixingIntCont(scip, vars[v], propdata->lbvarvals[v], propdata->ubvarvals[v], cutoffbound, relaxval, &varresult) );
 
@@ -368,6 +372,12 @@ SCIP_RETCODE SCIPincludePropSdpredcost(
    SCIP_CALL( SCIPsetPropCopy(scip, prop, propCopySdpredcost) );
    SCIP_CALL( SCIPsetPropInitsol(scip, prop, propInitsolSdpredcost) );
    SCIP_CALL( SCIPsetPropFree(scip, prop, propFreeSdpredcost) );
+
+   /* add additional parameters */
+   SCIP_CALL( SCIPaddBoolParam(scip, "propagating/sdpredcost/forbins", "should sdp reduced cost fixing be executed for binary variables?",
+         &(propdata->forbins), TRUE, DEFAULT_SDPRCBIN, NULL, NULL) );
+   SCIP_CALL( SCIPaddBoolParam(scip, "propagating/sdpredcost/forintconts", "should sdp reduced cost fixing be executed for integer and continuous variables?",
+         &(propdata->forintconts), TRUE, DEFAULT_SDPRCINTCONT, NULL, NULL) );
 
    return SCIP_OKAY;
 }

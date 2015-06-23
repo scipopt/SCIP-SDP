@@ -429,12 +429,12 @@ SCIP_RETCODE SCIPincludeBranchruleSdpobjective(
    /* add parameters for the branching rule */
    SCIP_CALL( SCIPaddBoolParam(scip,
          "branching/sdpobjective/coupledvars",
-         "If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the "
+         "if all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the "
          "candidate through constraints ?",
          &branchruledata->coupledvars, TRUE, DEFAULT_COUPLEDVARS, NULL, NULL) );
    SCIP_CALL( SCIPaddBoolParam(scip,
          "branching/sdpobjective/singlecoupledvars",
-         "If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the "
+         "if all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the "
          "candidate through constraints in which no other candidate appears ?",
          &branchruledata->singlecoupledvars, TRUE, DEFAULT_SINGLECOUPLEDVARS, NULL, NULL) );
 

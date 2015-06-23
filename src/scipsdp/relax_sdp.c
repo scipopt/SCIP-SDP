@@ -58,7 +58,7 @@
 #define RELAX_FREQ                  1
 
 #define DEFAULT_SDPSOLVEREPSILON    1e-5     /**< the stopping criterion for the duality gap the sdpsolver should use */
-#define DEFAULT_SDPSOLVERFEASTOL    1e-4   /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
+#define DEFAULT_SDPSOLVERFEASTOL    1e-4     /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
 #if 0
 #define DEFAULT_THREADS             1        /**< number of threads used for SDP solving */
 #endif
@@ -998,11 +998,11 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/threads", "number of threads used for SDP solving",
          &(relaxdata->threads), TRUE, DEFAULT_THREADS, 1, INT_MAX, NULL, NULL) );
 #endif
-   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/slatercheck", "Should the Slater condition for the dual problem be check ahead of solving each SDP?",
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/slatercheck", "should the Slater condition for the dual problem be check ahead of solving each SDP?",
          &(relaxdata->slatercheck), TRUE, FALSE, NULL, NULL) );
-   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/sdpinfo", "Should the SDP solver output information to the screen?",
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/sdpinfo", "should the SDP solver output information to the screen?",
          &(relaxdata->sdpinfo), TRUE, FALSE, NULL, NULL) );
-   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/objlimit", "Should an objective limit be given to the SDP-Solver?",
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/objlimit", "should an objective limit be given to the SDP-Solver?",
          &(relaxdata->objlimit), TRUE, DEFAULT_OBJLIMIT, NULL, NULL) );
 
    /* add description of SDP-solver */

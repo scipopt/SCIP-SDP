@@ -64,14 +64,16 @@
  * <table>
  * <tr><td>relaxing/SDP/freq = 1</td> <td>set this to -1 and lp/solvefreq to 1 to solve LP relaxations with eigenvector cuts</td></tr>
  * <tr><td>propagating/sdpredcost/freq = 1</td> <td>set this to -1 to disable reduced cost fixing for SDPs</td></tr>
+ * <tr><td>propagating/sdpredcost/advanced/forbins = TRUE</td> <td>should sdp reduced cost fixing be executed for binary variables?</tr>
+ * <tr><td>propagating/sdpredcost/advanced/forintcons = TRUE</td> <td>should sdp reduced cost fixing be executed for integer and continuous variables?</tr>
  * <tr><td>relaxing/SDP/sdpsolverepsilon = 0.0001</td> <td>sets the bound for the duality gap in the SDP-Solver</td></tr>
  * <tr><td>relaxing/SDP/sdpsolverfeastol = 0.00001</td> <td>feasibility tolerance for the SDP-Solver (should be less or equal to numerics/feastol)</td></tr>
- * <tr><td>relaxing/SDP/sdpinfo = FALSE</td> <td>Should output of the SDP-Solver be printed to the console?</td></tr>
- * <tr><td>relaxing/SDP/objlimit = FALSE</td> <td>Should an objective limit be given to the SDP-Solver?</td></tr>
- * <tr><td>relaxing/SDP/slatercheck = FALSE</td> <td>Should the Slater condition for the dual problem be checked ahead of solving each SDP?</td></tr>
- * <tr><td>branching/sdpobjective/coupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints?</td></tr>
- * <tr><td>branching/sdpobjective/singlecoupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints in which no other candidate appears?</td></tr>
- * <tr><td>branching/sdpinfobjective/coupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints?</td></tr>
- * <tr><td>branching/sdpinfobjective/singlecoupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints in which no other candidate appears?</td></tr>
+ * <tr><td>relaxing/SDP/sdpinfo = FALSE</td> <td>should output of the SDP-Solver be printed to the console?</td></tr>
+ * <tr><td>relaxing/SDP/objlimit = FALSE</td> <td>should an objective limit be given to the SDP-Solver?</td></tr>
+ * <tr><td>relaxing/SDP/slatercheck = FALSE</td> <td>should the Slater condition for the dual problem be checked ahead of solving each SDP?</td></tr>
+ * <tr><td>branching/sdpobjective/coupledvars = FALSE</td> <td>if all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints?</td></tr>
+ * <tr><td>branching/sdpobjective/singlecoupledvars = FALSE</td> <td>if all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints in which no other candidate appears?</td></tr>
+ * <tr><td>branching/sdpinfobjective/coupledvars = FALSE</td> <td>if all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints?</td></tr>
+ * <tr><td>branching/sdpinfobjective/singlecoupledvars = FALSE</td> <td>if all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints in which no other candidate appears?</td></tr>
  * </table>
  */
