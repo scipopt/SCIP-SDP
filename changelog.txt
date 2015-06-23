@@ -3,8 +3,10 @@ SCIP-SDP version 2.0
 
 fixed bugs:
 - if DSDP does not converge but produces primal and dual feasible solutions, these are no longer accepted as optimal
-- input-file may now have comment-lines between SDP/LP-block-lines
+- reader no longer crashes because of comment-lines between SDP/LP-block-lines
 - value 0 in the last LP-block-line no longer causes an infinite loop
+- non-numbers in the SDP/LP-block-lines and lines with more or less than five entries no longer cause infinite loops
+  or get cut off or combined with others rows, but cause exits with meaningful error messages
 - removed the diagDominant-cuts that are only correct for general MISDPs under some prerequisites
 
 data structures:
@@ -13,7 +15,6 @@ data structures:
 features:
 - dual/reduced cost fixing for SDPs
 - added branching rules, as some of the SCIP branching rules only work on LP-solutions
-- total and average SDP-iterations are displayed in the shell
 
 performance improvements:
 
@@ -25,15 +26,15 @@ parameters:
 - can now specify epsilon and feasibility tolerance for the SDP-solver specifically
 - can specify whether an objective limit should be set for the SDP-solver
 - can choose to display output of SDP-solver
-- can choose whether to give an objective limit to the SDP-solver
 - can choose to check slater condition in the dual problem ahead of solving the SDPs
 - for a full list check the parameters tab in the documentation
 
 core:
-- bounds from SCIP are no longer transformed into LP-rows but are given to the SDP Solver (specifically DSDP, for SDPA they still need to be transformed) as bounds
-- added SCIP 3.2.0 support
 - transferred all code except for reader and SDPA-interface from C++ to C
 - now uses the SCIP shell
+- added SCIP 3.2.0 support
+- bounds from SCIP are no longer transformed into LP-rows but are given to the SDP Solver (specifically DSDP, for SDPA 
+  they still need to be transformed) as bounds
 
 Makefile:
 - creates extra directory sdpi for SDP-Interface
@@ -41,3 +42,4 @@ Makefile:
 - links are now set via console when calling make instead of the make.local file
 
 misc:
+- total and average SDP-iterations are displayed in the shell
