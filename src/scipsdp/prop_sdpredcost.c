@@ -35,6 +35,8 @@
  * @author Tristan Gally
  */
 
+/*#define SCIP_DEBUG*/
+
 #include "prop_sdpredcost.h"
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "relax_sdp.h"                       /* to get relaxation value */
@@ -82,11 +84,6 @@ SCIP_RETCODE sdpRedcostFixingBinary(
    SCIP_RESULT*          result              /**< pointer to return result */
    )
 {
-#ifdef SCIP_DEBUG
-   SCIP_Real sdpepsilon;
-   SCIP_Real epsilon;
-#endif
-
    assert( scip != NULL );
    assert( var != NULL );
    assert( result != NULL );
@@ -103,14 +100,14 @@ SCIP_RETCODE sdpRedcostFixingBinary(
    {
       SCIP_CALL( SCIPchgVarUb(scip, var, 0.0) );
       SCIPdebugMessage("Variable %s fixed to zero by reduced cost fixing ! \n", SCIPvarGetName(var));
-#ifdef SCIP_DEBUG
-      SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolverepsilon", &sdpepsilon) );
-      SCIP_CALL( SCIPgetRealParam(scip, "numerics/epsilon", &epsilon) );
-      assert( SCIPisGE(scip, relaxval, cutoffbound) || SCIPisLE(scip, primalubval, cutoffbound - relaxval)
-            || SCIPisLE(scip, primalubval, cutoffbound - relaxval) );
-      /* if the variable should be fixed to both zero and one, something went wrong (unless we are done anyways) */
-#endif
       *result = SCIP_REDUCEDDOM;
+
+      /* check if we would also have to fix the variable to one, in that case, we can cut the node off, as there can't be a new optimal solution */
+      if ( SCIPisGT(scip, primalubval, cutoffbound - relaxval) )
+      {
+         *result = SCIP_CUTOFF;
+      }
+
       return SCIP_OKAY;
    }
 
@@ -124,6 +121,83 @@ SCIP_RETCODE sdpRedcostFixingBinary(
    }
 
    *result = SCIP_DIDNOTFIND;
+   return SCIP_OKAY;
+}
+
+/** reduced cost fixing for non-binary variables
+ *
+ *  We propagate the new bounds
+ *
+ *  \f$ y_j \leq \ell_j + \frac{v_{CO} - \bar{v}}{\bar{X}_{n+m+j,n+m+j}} \f$,
+ *
+ *  \f$ y_j \geq u_j - \frac{v_{CO} - \bar{v}}{\bar{X}_{n+j,n+j}} \f$
+ *
+ *  where \f$\bar{v}\f$ is the value of the current relaxation, \f$v_{CO}\f$ is the cutoffbound and \f$\bar{X}_{n+m+j,n+m+j}\f$ the value of the
+ *  corresponding primal solution
+ */
+static
+SCIP_RETCODE sdpRedcostFixingIntCont(
+   SCIP*                 scip,               /**< pointer to SCIP data structure */
+   SCIP_VAR*             var,                /**< variable to propagate */
+   SCIP_Real             primallbval,        /**< value of the primal variable corresponding to the lower bound */
+   SCIP_Real             primalubval,        /**< value of the primal variable corresponding to the upper bound */
+   SCIP_Real             cutoffbound,        /**< current cutoffbound in SCIP */
+   SCIP_Real             relaxval,           /**< optimal objective value of the current relaxation */
+   SCIP_RESULT*          result              /**< pointer to return result */
+   )
+{
+   SCIP_Real lb;
+   SCIP_Real ub;
+
+   assert( scip != NULL );
+   assert( var != NULL );
+   assert( result != NULL );
+
+   *result = SCIP_DIDNOTFIND;
+
+   /* compute the new lower and upper bound, if we divide by zero (checking > 0 is sufficient, as the variabls are non-negative), the bounds are infinity */
+   ub = SCIPisGT(scip, primallbval, 0.0) ? SCIPvarGetLbLocal(var) + (cutoffbound - relaxval) / primallbval : SCIPinfinity(scip);
+   lb = SCIPisGT(scip, primalubval, 0.0) ? SCIPvarGetUbLocal(var) - (cutoffbound - relaxval) / primalubval : -SCIPinfinity(scip);
+
+   /* if either bound is infinite, we set it to the corresponding SCIP value */
+   if ( SCIPisInfinity(scip, ub) )
+      ub = SCIPinfinity(scip);
+   else if ( SCIPisInfinity(scip, -ub) )
+      ub = -SCIPinfinity(scip);
+   if ( SCIPisInfinity(scip, lb) )
+      lb = SCIPinfinity(scip);
+   else if ( SCIPisInfinity(scip, -lb) )
+      lb = -SCIPinfinity(scip);
+
+
+   /* if after propagation the upper bound is less than the lower bound, the current node is infeasible */
+   if ( SCIPisLT(scip, ub, lb) || SCIPisLT(scip, ub, SCIPvarGetLbLocal(var)) || SCIPisLT(scip, SCIPvarGetUbLocal(var), lb) )
+   {
+      SCIPdebugMessage("Infeasibility of current node detected by prop_sdpredcost! Updated bounds for variable %s: lb = %f > %f = ub !\n",
+            SCIPvarGetName(var), SCIPisGT(scip, lb, SCIPvarGetLbLocal(var))? lb : SCIPvarGetLbLocal(var),
+            SCIPisLT(scip, ub, SCIPvarGetLbLocal(var)) ? ub : SCIPvarGetUbLocal(var) );
+      *result = SCIP_CUTOFF;
+      return SCIP_OKAY;
+   }
+
+   /* if the new upper bound is an enhancement, update it */
+   if ( SCIPisLT(scip, ub, SCIPvarGetUbLocal(var)) )
+   {
+      SCIPdebugMessage("Changing upper bound of variable %s from %f to %f because of prop_sdpredcost \n",
+            SCIPvarGetName(var), SCIPvarGetUbLocal(var), ub);
+      SCIP_CALL( SCIPchgVarUb(scip, var, ub) );
+      *result =  SCIP_REDUCEDDOM;
+   }
+
+   /* if the new lower bound is an enhancement, update it */
+   if ( SCIPisGT(scip, lb, SCIPvarGetLbLocal(var)) )
+   {
+      SCIPdebugMessage("Changing lower bound of variable %s from %f to %f because of prop_sdpredcost \n",
+            SCIPvarGetName(var), SCIPvarGetLbLocal(var), lb);
+      SCIP_CALL( SCIPchgVarLb(scip, var, lb) );
+      *result =  SCIP_REDUCEDDOM;
+   }
+
    return SCIP_OKAY;
 }
 
@@ -203,6 +277,13 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
       if ( SCIPvarIsBinary(vars[v]) )
       {
          SCIP_CALL( sdpRedcostFixingBinary(scip, vars[v], propdata->lbvarvals[v], propdata->ubvarvals[v], cutoffbound, relaxval, &varresult) );
+
+         if ( varresult == SCIP_REDUCEDDOM )
+            *result = SCIP_REDUCEDDOM;
+      }
+      else
+      {
+         SCIP_CALL( sdpRedcostFixingIntCont(scip, vars[v], propdata->lbvarvals[v], propdata->ubvarvals[v], cutoffbound, relaxval, &varresult) );
 
          if ( varresult == SCIP_REDUCEDDOM )
             *result = SCIP_REDUCEDDOM;
