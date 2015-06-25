@@ -134,12 +134,12 @@ SCIP_Bool isFixed(
    SCIP_Real             ub                  /**< upper bound */
    )
 {
-   assert( lb < ub + sdpisolver->epsilon );
+   assert( lb < ub + sdpisolver->feastol );
 
-   return (REALABS(ub-lb) <= sdpisolver->epsilon);
+   return (REALABS(ub-lb) <= sdpisolver->feastol);
 }
 #else
-#define isFixed(sdpisolver,lb,ub) (REALABS(ub-lb) <= sdpisolver->epsilon)
+#define isFixed(sdpisolver,lb,ub) (REALABS(ub-lb) <= sdpisolver->feastol)
 #endif
 
 
