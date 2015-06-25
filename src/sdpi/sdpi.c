@@ -1889,13 +1889,20 @@ SCIP_RETCODE SCIPsdpiSolve(
                sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
                rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, &origfeas) );
 
-         SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
-
-         if ( objval < - sdpi->feastol )
-            SCIPdebugMessage("Slater condition for SDP %d is fullfilled for dual problem with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);
+         /* if we didn't succeed, then probably the primal problem is troublesome */
+         if ( (! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver)) && (! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver)) )
+            printf("Unable to check Slater condition for dual problem of SDP %d, could mean that the Slater conidition for the primal problem"
+                  " is not fullfilled.\n", sdpi->sdpid);
          else
-            printf("Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, expect numerical trouble.\n",
+         {
+            SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
+
+            if ( objval < - sdpi->feastol )
+               SCIPdebugMessage("Slater condition for SDP %d is fullfilled for dual problem with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);
+            else
+               printf("Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, expect numerical trouble.\n",
                   sdpi->sdpid, -1.0 * objval);
+         }
       }
 
       /* try to solve the problem */
@@ -1973,6 +1980,7 @@ SCIP_RETCODE SCIPsdpiSolve(
             sdpi->solved = FALSE;
             sdpi->penalty = TRUE;
          }
+         /* if we still didn't succeed and enforceslatercheck was set, we finally test for the Slater condition to give a reason for failure */
          if ( sdpi->solved == FALSE && enforceslatercheck)
          {
             SCIP_Real objval;
@@ -1987,14 +1995,21 @@ SCIP_RETCODE SCIPsdpiSolve(
                   sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
                   rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, &origfeas) );
 
-            SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
-
-            if ( objval < - sdpi->feastol )
-               printf("SDP-solver could not solve root node relaxation even though the Slater condition is fullfilled for the dual problem with smallest eigenvalue %f.\n",
-                        -1.0 * objval);
+            /* if we didn't succeed, then probably the primal problem is troublesome */
+            if ( (! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver)) && (! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver)) )
+               printf("SDP-solver could not solve root node relaxation, unable to check Slater condition for dual problem of SDP %d, could mean that the "
+                     "Slater conidition for the primal problem is not fullfilled.\n", sdpi->sdpid);
             else
-               printf("SDP-solver could not solve root node relaxation, Slater condition is not fullfilled for the dual problem as smallest eigenvalue was %f.\n",
-                     -1.0 * objval);
+            {
+               SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
+
+               if ( objval < - sdpi->feastol )
+                  printf("SDP-solver could not solve root node relaxation even though the Slater condition is fullfilled for the dual problem with smallest eigenvalue %f.\n",
+                           -1.0 * objval);
+               else
+                  printf("SDP-solver could not solve root node relaxation, Slater condition is not fullfilled for the dual problem as smallest eigenvalue was %f.\n",
+                        -1.0 * objval);
+            }
          }
          else if ( sdpi->solved == FALSE )
             printf("Numerical trouble\n");
