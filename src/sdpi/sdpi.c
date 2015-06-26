@@ -2322,7 +2322,7 @@ int SCIPsdpiGetInternalStatus(
    return SCIPsdpiSolverGetInternalStatus(sdpi->sdpisolver);
 }
 
-/** returns TRUE iff SDP was solved to optimality */
+/** returns TRUE iff SDP was solved to optimality, meaning the solver converged and returned primal and dual feasible solutions */
 SCIP_Bool SCIPsdpiIsOptimal(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )

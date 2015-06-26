@@ -232,21 +232,11 @@ SCIP_RETCODE SCIPsdpiChgBounds(
    const SCIP_Real*      ub                  /**< values for the new upper bounds */
    );
 
-/** changes left hand sides of LP rows */
-EXTERN
-SCIP_RETCODE SCIPsdpiChgLPLhSides(
-   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   int                   nrows,              /**< number of LP rows to change right hand sides for */
-   const int*            ind,                /**< row indices */
-   const SCIP_Real*      lhs                 /**< new values for left hand sides */
-   );
-
-/** changes right hand sides of LP rows */
-EXTERN
+/** changes left and right hand sides of LP rows */
 SCIP_RETCODE SCIPsdpiChgLPLhRhSides(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int                   nrows,              /**< number of LP rows to change right hand sides for */
-   const int*            ind,                /**< row indices */
+   const int*            ind,                /**< row indices between 1 and nlpcons */
    const SCIP_Real*      lhs,                /**< new values for left hand sides */
    const SCIP_Real*      rhs                 /**< new values for right hand sides */
    );

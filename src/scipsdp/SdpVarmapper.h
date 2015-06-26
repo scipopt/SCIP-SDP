@@ -71,7 +71,7 @@ SCIP_RETCODE SCIPsdpVarmapperAddVars(
    SCIP_VAR**            vars               /**< SCIP variables to add to the varmapper */
    );
 
-/** adds the given variable (if not already existant) to the Varmapper at the given position */
+/** adds the given variable (if not already existent) to the Varmapper at the given position */
 EXTERN
 SCIP_RETCODE SCIPsdpVarmapperInsertVar(
    SCIP*                 scip,              /**< SCIP data structure */

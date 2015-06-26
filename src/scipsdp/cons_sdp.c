@@ -2008,7 +2008,7 @@ SCIP_DECL_CONSGETNVARS(consGetNVarsSdp)
    return SCIP_OKAY;
 }
 
-/** creates the handler for sdp constraints and includes it in SCIP */
+/** creates the handler for SDP constraints and includes it in SCIP */
 SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP*                 scip                /**< SCIP data structure */
    )
