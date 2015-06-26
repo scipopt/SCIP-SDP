@@ -20,6 +20,7 @@ tar --no-recursion --ignore-failed-read -cvzhf $NAME.tgz \
     $NAME/doc/layout.xml \
     $NAME/instances/* \
     $NAME/INSTALL \
+    $NAME/license.txt \
     $NAME/changelog.txt \
     $NAME/data_format.txt \
     $NAME/src/scipsdp/*.c $NAME/src/scipsdp/*.cpp $NAME/src/scipsdp/*.h \
