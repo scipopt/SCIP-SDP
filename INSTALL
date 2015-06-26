@@ -34,7 +34,7 @@ to 1. So for example to compile SCIP-SDP with DSDP, just type
 make SDPS=dsdp
 
 in the main directory. In addition to SDPS you can use the same options for the Makefile 
-as you can use for building SCIP (i.e. make OPT=dbg, LPS=cpx), you may also create
+as you can use for building SCIP (i.e. make OPT=dbg LPS=cpx), you may also create
 a doxygen-documentation by calling i.e. make OPT=dbg SDPS=dsdp doc.
 
 Setting Links for DSDP
