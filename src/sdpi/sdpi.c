@@ -899,6 +899,7 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->lpval = NULL;
 
    (*sdpi)->epsilon = 1e-6;
+   (*sdpi)->feastol = 1e-6;
 
    return SCIP_OKAY;
 }
