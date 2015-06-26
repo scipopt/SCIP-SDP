@@ -129,11 +129,12 @@ struct SCIP_SDPiSolver
 /** Test if a lower bound lb is not smaller than an upper bound ub, meaning that lb > ub - epsilon */
 static
 SCIP_Bool isFixed(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< pointer to an SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
    SCIP_Real             lb,                 /**< lower bound */
    SCIP_Real             ub                  /**< upper bound */
    )
 {
+   assert( sdpisolver != NULL );
    assert( lb < ub + sdpisolver->feastol );
 
    return (REALABS(ub-lb) <= sdpisolver->feastol);
@@ -193,9 +194,9 @@ void* SCIPsdpiSolverGetSolverPointer(
 
 /** creates an SDP problem object */
 SCIP_RETCODE SCIPsdpiSolverCreate(
-   SCIP_SDPISOLVER**     sdpisolver,         /**< pointer to an SDP interface solver structure */
-   SCIP_MESSAGEHDLR*     messagehdlr,        /**< message handler to use for printing messages, or NULL */
-   BMS_BLKMEM*           blkmem              /**< block memory */
+   SCIP_SDPISOLVER**     sdpisolver,        /**< pointer to an SDP interface solver structure */
+   SCIP_MESSAGEHDLR*     messagehdlr,       /**< message handler to use for printing messages, or NULL */
+   BMS_BLKMEM*           blkmem             /**< block memory */
    )
 {
    assert( sdpisolver != NULL );
@@ -222,8 +223,8 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->solved = FALSE;
    (*sdpisolver)->sdpcounter = 0;
 
-   (*sdpisolver)->epsilon = 1e-3;
-   (*sdpisolver)->feastol = 1e-6;
+   (*sdpisolver)->epsilon = 1e-5;
+   (*sdpisolver)->feastol = 1e-4;
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
 #if 0
    (*sdpisolver)->threads = 1;
