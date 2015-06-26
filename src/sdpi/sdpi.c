@@ -809,7 +809,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
 /**@{ */
 
 
-/** gets name of SDP solver */
+/** gets name and potentially version of SDP solver */
 const char* SCIPsdpiGetSolverName(
    void
    )

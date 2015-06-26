@@ -73,7 +73,7 @@ extern "C" {
 /**@name Miscellaneous Methods */
 /**@{ */
 
-/** gets name and version of SDP solver */
+/** gets name and potentially version of SDP solver */
 EXTERN
 const char* SCIPsdpiGetSolverName(
    void
