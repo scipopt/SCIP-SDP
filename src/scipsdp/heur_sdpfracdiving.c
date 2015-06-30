@@ -207,7 +207,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving) /*lint --e{715}*/
    if ( ! SCIPisRelaxSolValid(scip) )
       return SCIP_OKAY;
 
-   /* do not call heuristic of node was already detected to be infeasible */
+   /* do not call heuristic if node was already detected to be infeasible */
    if( nodeinfeasible )
       return SCIP_OKAY;
 
@@ -241,7 +241,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving) /*lint --e{715}*/
       SCIP_Real val;
 
       val = SCIPgetRelaxSolVal(scip, vars[v]);
-      frac = SCIPfrac(scip, val);
+      frac = SCIPfeasFrac(scip, val);
 
       if ( ! SCIPisFeasZero(scip, frac) )
       {
@@ -543,7 +543,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving) /*lint --e{715}*/
             SCIP_Real val;
 
             val = SCIPgetRelaxSolVal(scip, vars[v]);
-            frac = SCIPfrac(scip, val);
+            frac = SCIPfeasFrac(scip, val);
 
             if ( ! SCIPisFeasZero(scip, frac) )
             {
