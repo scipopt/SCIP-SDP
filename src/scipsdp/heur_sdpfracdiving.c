@@ -12,13 +12,16 @@
 /*  along with SCIP; see the file COPYING. If not email to scip@zib.de.      */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-#define SCIP_DEBUG
+
 /**@file   heur_sdpfracdiving.c
  * @brief  SDP diving heuristic that chooses fixings w.r.t. the fractionalities
  * @author Marc Pfetsch
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
+
+ #define SCIP_DEBUG
+/* #define SCIP_MORE_DEBUG *//* shows all diving decisions */
 
 #include <assert.h>
 #include <string.h>
@@ -475,20 +478,24 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving) /*lint --e{715}*/
          if ( bestcandroundup == !backtracked )
          {
             /* round variable up */
+#ifdef SCIP_MORE_DEBUG
             SCIPdebugMessage("  dive %d/%d: var <%s>, round=%u/%u, sol=%g, oldbounds=[%g,%g], newbounds=[%g,%g]\n",
                divedepth, maxdivedepth, SCIPvarGetName(var), bestcandmayrounddown, bestcandmayroundup,
                sdpcandssol[bestcand], SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var),
                SCIPfeasCeil(scip, sdpcandssol[bestcand]), SCIPvarGetUbLocal(var));
+#endif
             SCIP_CALL( SCIPchgVarLbProbing(scip, var, SCIPfeasCeil(scip, sdpcandssol[bestcand])) );
             roundup = TRUE;
          }
          else
          {
             /* round variable down */
+#ifdef SCIP_MORE_DEBUG
             SCIPdebugMessage("  dive %d/%d: var <%s>, round=%u/%u, sol=%g, oldbounds=[%g,%g], newbounds=[%g,%g]\n",
                divedepth, maxdivedepth, SCIPvarGetName(var), bestcandmayrounddown, bestcandmayroundup,
                sdpcandssol[bestcand], SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var),
                SCIPvarGetLbLocal(var), SCIPfeasFloor(scip, sdpcandssol[bestcand]));
+#endif
             SCIP_CALL( SCIPchgVarUbProbing(scip, var, SCIPfeasFloor(scip, sdpcandssol[bestcand])) );
             roundup = FALSE;
          }
@@ -504,7 +511,9 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving) /*lint --e{715}*/
          /* perform backtracking if a cutoff was detected */
          if ( cutoff && ! backtracked && heurdata->backtrack )
          {
+#ifdef SCIP_MORE_DEBUG
             SCIPdebugMessage("  *** cutoff detected at level %d - backtracking\n", SCIPgetProbingDepth(scip));
+#endif
             SCIP_CALL( SCIPbacktrackProbing(scip, SCIPgetProbingDepth(scip)-1) );
             SCIP_CALL( SCIPnewProbingNode(scip) );
             backtracked = TRUE;
@@ -554,7 +563,9 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving) /*lint --e{715}*/
             }
          }
       }
+#ifdef SCIP_MORE_DEBUG
       SCIPdebugMessage("   -> objval=%g/%g, nfrac=%d\n", objval, searchbound, nsdpcands);
+#endif
    }
 
    /* check if a solution has been found */
