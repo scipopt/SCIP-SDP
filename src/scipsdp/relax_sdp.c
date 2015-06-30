@@ -684,6 +684,13 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    const int nvarsfordebug = SCIPgetNVars(scip);
 #endif
 
+   /* don't run again if we already solved the current node */
+   if (SCIPrelaxGetData(relax)->lastsdpnode == SCIPnodeGetNumber(SCIPgetCurrentNode(scip)))
+   {
+      *result = SCIP_DIDNOTRUN;
+      return SCIP_OKAY;
+   }
+
    /* construct the lp and make sure, that everything is where it should be */
    SCIP_CALL( SCIPconstructLP(scip, &cutoff) );
 
