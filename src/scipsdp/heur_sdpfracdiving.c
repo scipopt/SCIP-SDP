@@ -1,15 +1,32 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /*                                                                           */
-/*                  This file is part of the program and library             */
-/*         SCIP --- Solving Constraint Integer Programs                      */
+/* This file is part of SCIPSDP - a solving framework for mixed-integer      */
+/* semidefinite programms based on SCIP.                                     */
 /*                                                                           */
-/*    Copyright (C) 2002-2015 Konrad-Zuse-Zentrum                            */
-/*                            fuer Informationstechnik Berlin                */
+/* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
+/*                         EDOM, FAU Erlangen-Nürnberg                       */
+/*               2014-2015 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
-/*  SCIP is distributed under the terms of the ZIB Academic License.         */
 /*                                                                           */
-/*  You should have received a copy of the ZIB Academic License              */
-/*  along with SCIP; see the file COPYING. If not email to scip@zib.de.      */
+/* This program is free software; you can redistribute it and/or             */
+/* modify it under the terms of the GNU Lesser General Public License        */
+/* as published by the Free Software Foundation; either version 3            */
+/* of the License, or (at your option) any later version.                    */
+/*                                                                           */
+/* This program is distributed in the hope that it will be useful,           */
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of            */
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             */
+/* GNU Lesser General Public License for more details.                       */
+/*                                                                           */
+/* You should have received a copy of the GNU Lesser General Public License  */
+/* along with this program; if not, write to the Free Software               */
+/* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.*/
+/*                                                                           */
+/*                                                                           */
+/* Based on SCIP - Solving Constraint Integer Programs                       */
+/* Copyright (C) 2002-2015 Zuse Institute Berlin                             */
+/* SCIP is distributed under the terms of the SCIP Academic Licence,         */
+/* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -20,7 +37,7 @@
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
- #define SCIP_DEBUG
+/* #define SCIP_DEBUG*/
 /* #define SCIP_MORE_DEBUG *//* shows all diving decisions */
 
 #include <assert.h>
