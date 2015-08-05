@@ -97,10 +97,22 @@ long int SCIPrelaxSdpGetSdpNode(
    SCIP_RELAX*           relax               /**< SDP relaxator to get solution for */
    );
 
-/** was the original problem solved for the last SDP-Node (or a penalty formulation) ? */
+/** was the original problem solved for the last SDP-Node (or a penalty or probing formulation) ? */
 EXTERN
 SCIP_Bool SCIPrelaxSdpSolvedOrig(
    SCIP_RELAX*           relax               /**< SDP relaxator to get solution for */
+   );
+
+/** was the last probing SDP solved successfully ? */
+EXTERN
+SCIP_Bool SCIPrelaxSdpSolvedProbing(
+   SCIP_RELAX*           relax               /**< SDP relaxator to get solution for */
+   );
+
+/** returns whether the last solved problem was feasible */
+EXTERN
+SCIP_Bool SCIPrelaxSdpIsFeasible(
+   SCIP_RELAX*           relax               /**< SDP relaxator to get feasibility for */
    );
 
 /** returns total number of SDP iterations */

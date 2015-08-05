@@ -74,7 +74,8 @@ struct SCIP_RelaxData
    SCIP_SDPI*            sdpi;               /**< general SDP Interface that is given the data to presolve the SDP and give it so a solver specific interface */
    SdpVarmapper*         varmapper;          /**< maps SCIP variables to their global SDP indices and vice versa */
    SCIP_Real             objval;             /**< objective value of the last SDP relaxation */
-   SCIP_Bool             origsolved;         /**< solved original problem to optimality (not only a penalty formulation */
+   SCIP_Bool             origsolved;         /**< solved original problem to optimality (not only a penalty or probing formulation) */
+   SCIP_Bool             probingsolved;      /**< was the last probing SDP solved successfully? */
    SCIP_Real             sdpsolverepsilon;   /**< the stopping criterion for the duality gap the sdpsolver should use */
    SCIP_Real             sdpsolverfeastol;   /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
    int                   sdpiterations;      /**< saves the total number of sdp-iterations */
@@ -86,6 +87,7 @@ struct SCIP_RelaxData
    SCIP_Bool             objlimit;           /**< Should an objective limit be given to the SDP solver? */
    int                   sdpcalls;           /**< number of solved SDPs (used to compute average SDP iterations) */
    long int              lastsdpnode;        /**< number of the SCIP node the current SDP-solution belongs to */
+   SCIP_Bool             feasible;           /**< was the last solved SDP feasible */
 };
 
 /** inserts all the SDP data into the corresponding SDP Interface */
@@ -464,29 +466,38 @@ SCIP_RETCODE calc_relax(
    }
 
    /* if this is the root node and we cannot solve the problem, we want to check for the Slater condition independent of the SCIP parameter */
-   rootnode = (SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) == 1);
+   rootnode = (SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) == 0);
 
    /* solve the problem */
    SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, &(relaxdata->sdpiterations), rootnode) );
    relaxdata->lastsdpnode = SCIPnodeGetNumber(SCIPgetCurrentNode(scip));
 
    if ( SCIPsdpiWasSolved(sdpi) && SCIPsdpiSolvedOrig(sdpi) )
-      relaxdata->origsolved = TRUE;
+   {
+      if ( SCIPinProbing(scip) )
+         relaxdata->probingsolved = TRUE;
+      else
+         relaxdata->origsolved = TRUE;
+   }
    else if ( ! SCIPsdpiWasSolved(sdpi) )
    {
       /* We couldn't solve the problem, not even with a penalty formulation, so we reuse the relaxation result of the parent node (if one exists) */
       SCIP_NODE* node = SCIPnodeGetParent(SCIPgetCurrentNode(scip));
 
       relaxdata->origsolved = FALSE;
+      if ( SCIPinProbing(scip) )
+         relaxdata->probingsolved = FALSE;
 
       if ( node == 0 )
       {
          /* TODO: if we could generate a lower bound via penalty-with-objective, we could use it here */
+         relaxdata->feasible = FALSE;
          *result = SCIP_SUSPENDED;
          SCIPerrorMessage("The relaxation of the root node could not be solved, so there is no hope to solve this instance. \n");
          return SCIP_ERROR;
       }
 
+      relaxdata->feasible = FALSE;
       *lowerbound = SCIPnodeGetLowerbound(node);
       *result = SCIP_SUCCESS;
       SCIP_CALL( SCIPupdateLocalLowerbound(scip, *lowerbound) );
@@ -527,18 +538,21 @@ SCIP_RETCODE calc_relax(
       if ( SCIPsdpiIsDualInfeasible(sdpi) )
       {
          SCIPdebugMessage("Node cut off due to infeasibility.\n");
+         relaxdata->feasible = FALSE;
          *result = SCIP_CUTOFF;
          return SCIP_OKAY;
       }
       else if ( SCIPsdpiIsObjlimExc(sdpi) )
       {
          SCIPdebugMessage("Node cut off due to objective limit.\n");
+         relaxdata->feasible = FALSE;
          *result = SCIP_CUTOFF;
          return SCIP_OKAY;
       }
       else if ( SCIPsdpiIsDualUnbounded(sdpi) )
       {
          SCIPdebugMessage("Node unbounded.");
+         relaxdata->feasible = TRUE;
          *result = SCIP_SUCCESS;
          *lowerbound = -SCIPinfinity(scip);
          return SCIP_OKAY;
@@ -594,9 +608,14 @@ SCIP_RETCODE calc_relax(
                else
                   SCIPdebugMessage("feasible solution for MISDP found, cut node off, solution is worse than earlier one \n");
 
+               /* set relax sol */
+               SCIP_CALL( SCIPsetRelaxSolVals(scip, nvars, vars, solforscip) );
+               SCIP_CALL( SCIPmarkRelaxSolValid(scip) );
+
                SCIPfreeBufferArray(scip, &solforscip);
                SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
 
+               relaxdata->feasible = TRUE;
                *result = SCIP_CUTOFF;
                return SCIP_OKAY;
             }
@@ -610,6 +629,7 @@ SCIP_RETCODE calc_relax(
             SCIP_CALL( SCIPsetRelaxSolVal(scip, SCIPcolGetVar(cols[i]), SCIPgetSolVal(scip, scipsol, SCIPcolGetVar(cols[i]))) );
 
          SCIP_CALL( SCIPmarkRelaxSolValid(scip) );
+         relaxdata->feasible = TRUE;
          *result = SCIP_SUCCESS;
 
          /* if all int and binary vars are integral, nothing else needs to be done */
@@ -684,18 +704,27 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    const int nvarsfordebug = SCIPgetNVars(scip);
 #endif
 
-   /* don't run again if we already solved the current node */
-   if (SCIPrelaxGetData(relax)->lastsdpnode == SCIPnodeGetNumber(SCIPgetCurrentNode(scip)))
+   SCIPdebugMessage("Calling relaxExecSdp.\n");
+
+   relaxdata = SCIPrelaxGetData(relax);
+
+   /* don't run again if we already solved the current node (except during probing), and we solved the correct problem */
+   if ( ( relaxdata->lastsdpnode == SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) && ( ! SCIPinProbing(scip) ) ) && relaxdata->origsolved )
    {
+      SCIPdebugMessage("Already solved SDP-relaxation for node %ld, returning with DIDNOTRUN.\n", SCIPrelaxGetData(relax)->lastsdpnode);
       *result = SCIP_DIDNOTRUN;
       return SCIP_OKAY;
    }
+
+   /* if we are solving a probing SDP, remember that we didn't solve the original problem */
+   relaxdata->origsolved = FALSE;
 
    /* construct the lp and make sure, that everything is where it should be */
    SCIP_CALL( SCIPconstructLP(scip, &cutoff) );
 
    if ( cutoff )
    {
+      relaxdata->feasible = FALSE;
       *result = SCIP_CUTOFF;
       return SCIP_OKAY;
    }
@@ -717,6 +746,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    if ( nconss == 0 )
    {
       /* if there are no constraints, there is nothing to do */
+      relaxdata->feasible = TRUE;
       *result = SCIP_DIDNOTRUN;
       return SCIP_OKAY;
    }
@@ -747,6 +777,11 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
       SCIP_CALL( SCIPsetSolVals(scip, scipsol, nvars, vars, ubs) );
 
+      /* set the relaxation solution */
+      for (i = 0; i < nvars; i++)
+         SCIP_CALL( SCIPsetRelaxSolVal(scip, vars[i], SCIPvarGetLbLocal(vars[i])) );
+      SCIP_CALL( SCIPmarkRelaxSolValid(scip) );
+
       /* check if the solution really is feasible */
       SCIP_CALL( SCIPcheckSol(scip, scipsol, FALSE, TRUE, TRUE, TRUE, &feasible) );
 
@@ -759,6 +794,8 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       {
          SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
       }
+
+      relaxdata->feasible = feasible;
 
       if (feasible && stored == 1)
       {
@@ -775,8 +812,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
 
       return SCIP_OKAY;
    }
-
-   relaxdata = SCIPrelaxGetData(relax);
 
    /* update LP Data in Interface */
    SCIP_CALL( putLpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper) );
@@ -817,8 +852,10 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
 
    relaxdata->objval = 0.0;
    relaxdata->origsolved = FALSE;
+   relaxdata->probingsolved = FALSE;
    relaxdata->sdpcalls = 0;
    relaxdata->sdpiterations = 0;
+   relaxdata->feasible = FALSE;
 
    nvars = SCIPgetNVars(scip);
    vars = SCIPgetVars(scip);
@@ -937,6 +974,8 @@ SCIP_DECL_RELAXEXIT(relaxExitSdp)
 
    relaxdata->objval = 0.0;
    relaxdata->origsolved = FALSE;
+   relaxdata->probingsolved = FALSE;
+   relaxdata->feasible = FALSE;
    relaxdata->sdpiterations = 0;
    relaxdata->sdpcalls = 0;
    relaxdata->lastsdpnode = 0;
@@ -1117,7 +1156,7 @@ long int SCIPrelaxSdpGetSdpNode(
    return SCIPrelaxGetData(relax)->lastsdpnode;
 }
 
-/** was the original problem solved for the last SDP-Node (or a penalty formulation) ? */
+/** was the original problem solved for the last SDP-Node (or a penalty or probing formulation) ? */
 SCIP_Bool SCIPrelaxSdpSolvedOrig(
    SCIP_RELAX*           relax               /**< SDP relaxator to get solution for */
    )
@@ -1131,7 +1170,35 @@ SCIP_Bool SCIPrelaxSdpSolvedOrig(
    assert( relaxdata != NULL );
    assert( relaxdata->sdpi != NULL );
 
-   return SCIPsdpiSolvedOrig(relaxdata->sdpi);
+   return relaxdata->origsolved && SCIPsdpiSolvedOrig(relaxdata->sdpi);
+}
+
+/** was the last probing SDP solved successfully ? */
+SCIP_Bool SCIPrelaxSdpSolvedProbing(
+   SCIP_RELAX*           relax               /**< SDP relaxator to get solution for */
+   )
+{
+   SCIP_RELAXDATA* relaxdata;
+
+   assert( relax != NULL );
+
+   relaxdata = SCIPrelaxGetData(relax);
+
+   assert( relaxdata != NULL );
+   assert( relaxdata->sdpi != NULL );
+
+   return relaxdata->probingsolved;
+}
+
+/** returns whether the last solved problem was feasible */
+SCIP_Bool SCIPrelaxSdpIsFeasible(
+   SCIP_RELAX*           relax               /**< SDP relaxator to get feasibility for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->feasible );
 }
 
 /** returns total number of SDP iterations */

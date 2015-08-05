@@ -44,6 +44,7 @@
 #include <string.h>
 
 #include "heur_sdpfracdiving.h"
+#include "relax_sdp.h"
 
 
 #define HEUR_NAME             "sdpfracdiving"
@@ -521,8 +522,29 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving) /*lint --e{715}*/
          SCIP_CALL( SCIPpropagateProbing(scip, 0, &cutoff, NULL) );
          if ( !cutoff )
          {
+            SCIP_RELAX* relaxsdp;
+
             /* resolve the diving SDP */
             SCIP_CALL( SCIPsolveProbingRelax(scip, &cutoff) );
+
+            /* as cutoff doesn't work for relax sdp, we have to check ourselves, if we didn't manage to solve successfully, we abort diving */
+            relaxsdp = SCIPfindRelax(scip, "SDP");
+
+            /* if solving was unsuccessfull, abort */
+            if (! SCIPrelaxSdpSolvedProbing(relaxsdp))
+            {
+               SCIPdebugMessage("SDP fracdiving heuristic aborted, as we could not solve one of the diving SDPs.\n");
+
+               SCIPfreeBufferArray(scip, &sdpcandsfrac);
+               SCIPfreeBufferArray(scip, &sdpcandssol);
+               SCIPfreeBufferArray(scip, &sdpcands);
+
+               *result = SCIP_DIDNOTRUN;
+
+               return SCIP_OKAY;
+            }
+
+            cutoff = ! SCIPrelaxSdpIsFeasible(relaxsdp);
          }
 
          /* perform backtracking if a cutoff was detected */
