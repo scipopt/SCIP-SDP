@@ -457,6 +457,7 @@ SCIP_RETCODE separateSol(
 
    if ( SCIPisCutEfficacious(scip, sol, row) )
    {
+      SCIP_Bool infeasible;
 #ifdef SCIP_MORE_DEBUG
       SCIPinfoMessage(scip, NULL, "Added cut %s: ", cutname);
       SCIPinfoMessage(scip, NULL, "%f <= ", lhs);
@@ -465,7 +466,6 @@ SCIP_RETCODE separateSol(
       SCIPinfoMessage(scip, NULL, "\n");
 #endif
 
-      SCIP_Bool infeasible;
       SCIP_CALL( SCIPaddCut(scip, sol, row, FALSE, &infeasible) );
       if ( infeasible )
          *result = SCIP_CUTOFF;
