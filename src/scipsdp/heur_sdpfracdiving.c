@@ -264,7 +264,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving) /*lint --e{715}*/
       val = SCIPgetRelaxSolVal(scip, vars[v]);
       frac = SCIPfeasFrac(scip, val);
 
-      if ( ! SCIPisFeasZero(scip, frac) )
+      if ( SCIPvarIsIntegral(vars[v]) && ( ! SCIPisFeasZero(scip, frac) ) )
       {
          sdpcands[nsdpcands] = vars[v];
          sdpcandssol[nsdpcands] = val;
@@ -593,7 +593,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving) /*lint --e{715}*/
             val = SCIPgetRelaxSolVal(scip, vars[v]);
             frac = SCIPfeasFrac(scip, val);
 
-            if ( ! SCIPisFeasZero(scip, frac) )
+            if ( SCIPvarIsIntegral(vars[v]) && ( ! SCIPisFeasZero(scip, frac) ) )
             {
                sdpcands[nsdpcands] = vars[v];
                sdpcandssol[nsdpcands] = val;
