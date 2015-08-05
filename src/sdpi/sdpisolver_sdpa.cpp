@@ -547,6 +547,43 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->sdpa = new SDPA();
    assert( sdpisolver->sdpa != 0 );
 
+   /* initialize settings (this needs to be done before inserting the problem as the initial point depends on the settings) */
+   if ( penaltyparam < sdpisolver->epsilon )
+   {
+      sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_UNSTABLE_BUT_FAST);
+      sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->epsilon);
+      sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->feastol);
+   }
+   else
+   {
+      sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_STABLE_BUT_SLOW); /* if we already had problems with this problem, there is no reason to try fast */
+      /* as we want to solve with stable settings, we also update epsilon and the feasibility tolerance, as we skip the default settings, we multpy twice */
+      sdpisolver->sdpa->setParameterEpsilonStar(EPSILONCHANGE * EPSILONCHANGE * sdpisolver->epsilon);
+      sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->feastol);
+   }
+   sdpisolver->sdpa->setParameterLowerBound(-1e20);
+
+   /* set the objective limit */
+   if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
+      sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
+   else
+      sdpisolver->sdpa->setParameterUpperBound(1e20);
+#ifdef SCIP_MORE_DEBUG
+   sdpisolver->sdpa->printParameters(stdout);
+#endif
+
+#if 0
+   /* set number of threads */
+   char str[1024];
+   snprintf(str, 1024, "OMP_NUM_THREADS=%d", sdpisolver->threads);
+   int status = putenv(str);
+   if ( status )
+   {
+      SCIPdebugMessage("Setting the number of threads failed (%d, %d).\n", status, errno);
+      return SCIP_LPERROR;
+   }
+#endif
+
    /* compute number of variable bounds and save them in sdpavarbounds */
    sdpisolver->nvarbounds = 0;
    BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &sdpavarbounds, 2 * sdpisolver->nactivevars) ); /*lint !e647*/
@@ -1059,42 +1096,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    else if ( penaltyparam >= sdpisolver->epsilon )
       SCIPdebugMessage("Skipping insertion of starting point, as this is not yet supported for penalty formulation.\n");
 
-   /* initialize settings */
-   if ( penaltyparam < sdpisolver->epsilon )
-   {
-      sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_UNSTABLE_BUT_FAST);
-      sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->epsilon);
-      sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->feastol);
-   }
-   else
-   {
-      sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_STABLE_BUT_SLOW); /* if we already had problems with this problem, there is no reason to try fast */
-      /* as we want to solve with stable settings, we also update epsilon and the feasibility tolerance, as we skip the default settings, we multpy twice */
-      sdpisolver->sdpa->setParameterEpsilonStar(EPSILONCHANGE * EPSILONCHANGE * sdpisolver->epsilon);
-      sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->feastol);
-   }
-   sdpisolver->sdpa->setParameterLowerBound(-1e20);
-
-   /* set the objective limit */
-   if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
-      sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
-   else
-      sdpisolver->sdpa->setParameterUpperBound(1e20);
-#ifdef SCIP_MORE_DEBUG
-   sdpisolver->sdpa->printParameters(stdout);
-#endif
-
-#if 0
-   /* set number of threads */
-   char str[1024];
-   snprintf(str, 1024, "OMP_NUM_THREADS=%d", sdpisolver->threads);
-   int status = putenv(str);
-   if ( status )
-   {
-      SCIPdebugMessage("Setting the number of threads failed (%d, %d).\n", status, errno);
-      return SCIP_LPERROR;
-   }
-#endif
 #if 0
    SCIPdebugMessage("Calling SDPA solve (SDP: %d, threads: %d)\n", sdpisolver->sdpcounter, sdpisolver->sdpa->getNumThreads());
 #else
