@@ -1,4 +1,21 @@
-SCIP-SDP version 2.0
+SCIP-SDP version 2.1.0
+==================
+
+features:
+- added diving heuristic for SDPs
+
+performance improvements:
+- only allow saving the SDP once for each node, do not rerun after finding some fixing in propagation like reduced cost fixing
+
+
+SCIP-SDP version 2.0.1
+==================
+
+fixed bugs:
+- parameters for SDPA are now set before inserting the problem so that they are also used for computing the initial point
+
+
+SCIP-SDP version 2.0.0
 ==================
 
 fixed bugs:
