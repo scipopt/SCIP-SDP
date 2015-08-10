@@ -53,8 +53,8 @@
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
 
-#define EPSILONCHANGE   0.1 /**< change epsilon by this factor when switching from fast to default and from default to stable settings */
-#define FEASTOLCHANGE   0.1 /**< change feastol by this factor when switching from fast to default and from default to stable settings */
+#define EPSILONCHANGE   1 /**< change epsilon by this factor when switching from fast to default and from default to stable settings */
+#define FEASTOLCHANGE   1 /**< change feastol by this factor when switching from fast to default and from default to stable settings */
 
 /** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY. */
 #define BMS_CALL(x)   do                                                                                     \
@@ -453,10 +453,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( nsdpblocks == 0 || sdpblocksizes != NULL );
    assert( nsdpblocks == 0 || sdpnblockvars != NULL );
    assert( sdpconstnnonz >= 0 );
-   assert( nsdpblocks == 0 || sdpconstnblocknonz != NULL );
-   assert( nsdpblocks == 0 || sdpconstrow != NULL );
-   assert( nsdpblocks == 0 || sdpconstcol != NULL );
-   assert( nsdpblocks == 0 || sdpconstval != NULL );
+   assert( nsdpblocks == 0 || sdpconstnnonz == 0 || sdpconstnblocknonz != NULL );
+   assert( nsdpblocks == 0 || sdpconstnnonz == 0 || sdpconstrow != NULL );
+   assert( nsdpblocks == 0 || sdpconstnnonz == 0 || sdpconstcol != NULL );
+   assert( nsdpblocks == 0 || sdpconstnnonz == 0 || sdpconstval != NULL );
    assert( sdpnnonz >= 0 );
    assert( nsdpblocks == 0 || sdpnblockvarnonz != NULL );
    assert( nsdpblocks == 0 || sdpvar != NULL );
@@ -851,7 +851,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    {
       assert( 0 <= lprow[i] && lprow[i] < noldlpcons );
       assert( 0 <= lpcol[i] && lpcol[i] < nvars );
-      assert( REALABS(lpval[i]) > sdpisolver->epsilon );
+      assert( REALABS(lpval[i]) > sdpisolver->feastol );
 
       /* if the variable is active and the constraint is more than a bound, we add it */
       if ( sdpisolver->inputtosdpamapper[lpcol[i]] > 0 )
@@ -1128,6 +1128,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #ifdef SCIP_MORE_DEBUG
    sdpisolver->sdpa->printParameters(stdout);
 #endif
+      sdpisolver->sdpa->initializeSolve();
       sdpisolver->sdpa->solve();
       sdpisolver->solved = TRUE;
 
@@ -1154,6 +1155,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #ifdef SCIP_MORE_DEBUG
    sdpisolver->sdpa->printParameters(stdout);
 #endif
+      sdpisolver->sdpa->initializeSolve();
          sdpisolver->sdpa->solve();
          sdpisolver->solved = TRUE;
 
