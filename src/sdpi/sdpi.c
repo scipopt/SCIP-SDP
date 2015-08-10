@@ -1892,8 +1892,8 @@ SCIP_RETCODE SCIPsdpiSolve(
 
          /* if we didn't succeed, then probably the primal problem is troublesome */
          if ( (! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver)) && (! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver)) )
-            printf("Unable to check Slater condition for dual problem of SDP %d, could mean that the Slater conidition for the primal problem"
-                  " is not fullfilled.\n", sdpi->sdpid);
+            printf("Unable to check Slater condition for dual problem, could mean that the Slater conidition for the primal problem"
+                  " is not fullfilled.\n");
          else
          {
             SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
