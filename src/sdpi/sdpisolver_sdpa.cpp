@@ -1155,7 +1155,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #ifdef SCIP_MORE_DEBUG
    sdpisolver->sdpa->printParameters(stdout);
 #endif
-      sdpisolver->sdpa->initializeSolve();
+         sdpisolver->sdpa->initializeSolve();
          sdpisolver->sdpa->solve();
          sdpisolver->solved = TRUE;
 
