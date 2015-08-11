@@ -540,6 +540,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving) /*lint --e{715}*/
                SCIPfreeBufferArray(scip, &sdpcands);
 
                *result = SCIP_DIDNOTRUN;
+               SCIP_CALL( SCIPendProbing(scip) );
 
                return SCIP_OKAY;
             }
