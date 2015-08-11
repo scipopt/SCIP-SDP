@@ -521,10 +521,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( nsdpblocks == 0 || sdpblocksizes != NULL );
    assert( nsdpblocks == 0 || sdpnblockvars != NULL );
    assert( sdpconstnnonz >= 0 );
-   assert( nsdpblocks == 0 || sdpconstnblocknonz != NULL );
-   assert( nsdpblocks == 0 || sdpconstrow != NULL );
-   assert( nsdpblocks == 0 || sdpconstcol != NULL );
-   assert( nsdpblocks == 0 || sdpconstval != NULL );
+   assert( nsdpblocks == 0 || sdpconstnnonz == 0 || sdpconstnblocknonz != NULL );
+   assert( nsdpblocks == 0 || sdpconstnnonz == 0 || sdpconstrow != NULL );
+   assert( nsdpblocks == 0 || sdpconstnnonz == 0 || sdpconstcol != NULL );
+   assert( nsdpblocks == 0 || sdpconstnnonz == 0 || sdpconstval != NULL );
    assert( sdpnnonz >= 0 );
    assert( nsdpblocks == 0 || sdpnblockvarnonz != NULL );
    assert( nsdpblocks == 0 || sdpvar != NULL );
