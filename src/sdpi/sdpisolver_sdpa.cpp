@@ -1077,12 +1077,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* transform the matrices to a more efficient form */
    sdpisolver->sdpa->initializeUpperTriangle();
 
-#ifdef SCIP_DEBUG_PRINTTOFILE
-   /* if necessary, dump input data and initial point */
-   sdpisolver->sdpa->writeInputSparse(const_cast<char*>("sdpa.dat-s"), const_cast<char*>("%+8.3e"));
-   sdpisolver->sdpa->writeInitSparse(const_cast<char*>("sdpa.ini-s"), const_cast<char*>("%+8.3e"));
-#endif
-
    sdpisolver->sdpa->initializeSolve();
 
    /* set the starting solution */
@@ -1095,6 +1089,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
    else if ( penaltyparam >= sdpisolver->epsilon )
       SCIPdebugMessage("Skipping insertion of starting point, as this is not yet supported for penalty formulation.\n");
+
+#ifdef SCIP_DEBUG_PRINTTOFILE
+   /* if necessary, dump input data and initial point */
+   sdpisolver->sdpa->writeInputSparse(const_cast<char*>("sdpa.dat-s"), const_cast<char*>("%+8.3e"));
+   sdpisolver->sdpa->writeInitSparse(const_cast<char*>("sdpa.ini-s"), const_cast<char*>("%+8.3e"));
+#endif
 
 #if 0
    SCIPdebugMessage("Calling SDPA solve (SDP: %d, threads: %d)\n", sdpisolver->sdpcounter, sdpisolver->sdpa->getNumThreads());
@@ -1120,6 +1120,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_DEFAULT);
       sdpisolver->sdpa->setParameterEpsilonStar(EPSILONCHANGE * sdpisolver->epsilon);
       sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * sdpisolver->feastol);
+      sdpisolver->sdpa->setParameterLowerBound(-1e20);
       /* set the objective limit */
       if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
          sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
@@ -1147,6 +1148,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_STABLE_BUT_SLOW);
          sdpisolver->sdpa->setParameterEpsilonStar(EPSILONCHANGE * EPSILONCHANGE * sdpisolver->epsilon);
          sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->feastol);
+         sdpisolver->sdpa->setParameterLowerBound(-1e20);
          /* set the objective limit */
          if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
             sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
