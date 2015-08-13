@@ -3,6 +3,8 @@ SCIP-SDP version 2.1.0
 
 features:
 - added diving heuristic for SDPs
+- added optimization-based bound tightening for SDPs
+- added possibility to also check primal slater condition (for some specially structured problems)
 
 performance improvements:
 - only allow saving the SDP once for each node, do not rerun after finding some fixing in propagation like reduced cost fixing

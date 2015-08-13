@@ -283,7 +283,7 @@ SCIP_RETCODE putSdpDataInInterface(
    return SCIP_OKAY;
 }
 
-/** inserts all the LP data into the corresponding SDP Interface */
+/** inserts all the LP data (including bounds and objective) into the corresponding SDP Interface */
 static
 SCIP_RETCODE putLpDataInInterface(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -314,6 +314,8 @@ SCIP_RETCODE putLpDataInInterface(
    SCIP_Real* lb;
    SCIP_Real* ub;
    int* inds;
+   SCIP_Real* obj;
+   int* objinds;
 
    assert( scip != NULL );
    assert( sdpi != NULL );
@@ -398,20 +400,27 @@ SCIP_RETCODE putLpDataInInterface(
    SCIP_CALL( SCIPallocBufferArray(scip, &lb, nvars) );
    SCIP_CALL( SCIPallocBufferArray(scip, &ub, nvars) );
    SCIP_CALL( SCIPallocBufferArray(scip, &inds, nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &obj, nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &objinds, nvars) );
 
-   /* get new bounds */
+   /* get new bounds and objective coefficients */
    for (i = 0; i < nvars; i++)
    {
       assert( vars[i] != NULL );
       lb[i] = SCIPvarGetLbLocal(vars[i]);
       ub[i] = SCIPvarGetUbLocal(vars[i]);
       inds[i] = i; /* we want to change all bounds, so all indices are included in inds */
+      obj[i] = SCIPvarGetObj(vars[i]);
+      objinds[i] = i;
    }
 
    /* inform interface */
    SCIP_CALL( SCIPsdpiChgBounds(sdpi, nvars, inds, lb, ub) );
+   SCIP_CALL( SCIPsdpiChgObj(sdpi, nvars, objinds, obj) );
 
    /* free the bounds-arrays */
+   SCIPfreeBufferArray(scip, &objinds);
+   SCIPfreeBufferArray(scip, &obj);
    SCIPfreeBufferArray(scip, &inds);
    SCIPfreeBufferArray(scip, &ub);
    SCIPfreeBufferArray(scip, &lb);

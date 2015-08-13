@@ -222,6 +222,15 @@ SCIP_RETCODE SCIPsdpiClear(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    );
 
+/** changes objective coefficients of variables */
+EXTERN
+SCIP_RETCODE SCIPsdpiChgObj(
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   int                   nvars,              /**< number of variables to change bounds for */
+   const int*            ind,                /**< variables indices */
+   const SCIP_Real*      obj                 /**< values for the new lower bounds */
+   );
+
 /** changes lower and upper bounds of variables */
 EXTERN
 SCIP_RETCODE SCIPsdpiChgBounds(

@@ -38,7 +38,7 @@
 # own variables
 #-----------------------------------------------------------------------------
 
-SCIPSDPVERSION	=	2.0.0
+SCIPSDPVERSION	=	2.1.0
 SDPS		=	none
 
 GCCWARN		+= 	-Wextra
@@ -180,6 +180,7 @@ MAINCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/branch_sdpobjective.o \
 			scipsdp/branch_sdpinfobjective.o \
 			scipsdp/heur_sdpfracdiving.o \
+			scipsdp/prop_sdpobbt.o \
 			sdpi/sdpi.o
 
 MAINCCOBJ 	=	scipsdp/main.o \

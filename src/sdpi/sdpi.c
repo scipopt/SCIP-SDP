@@ -1527,6 +1527,31 @@ SCIP_RETCODE SCIPsdpiClear(
    return SCIP_OKAY;
 }
 
+/** changes objective coefficients of variables */
+SCIP_RETCODE SCIPsdpiChgObj(
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   int                   nvars,              /**< number of variables to change bounds for */
+   const int*            ind,                /**< variables indices */
+   const SCIP_Real*      obj                 /**< values for the new lower bounds */
+   )
+{
+   int i;
+
+   SCIPdebugMessage("Changing %d objective coefficients in SDP %d\n", nvars, sdpi->sdpid);
+
+   assert( sdpi != NULL );
+   assert( ind != NULL );
+   assert( obj != NULL );
+
+   for (i = 0; i < nvars; i++)
+   {
+      assert( 0 <= ind[i] && ind[i] < sdpi->nvars );
+      sdpi->obj[ind[i]] = obj[i];
+   }
+
+   return SCIP_OKAY;
+}
+
 /** changes lower and upper bounds of variables */
 SCIP_RETCODE SCIPsdpiChgBounds(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
@@ -1540,14 +1565,14 @@ SCIP_RETCODE SCIPsdpiChgBounds(
 
    SCIPdebugMessage("Changing %d variable bounds in SDP %d\n", nvars, sdpi->sdpid);
 
-   assert ( sdpi != NULL );
-   assert ( ind != NULL );
-   assert ( lb != NULL );
-   assert ( ub != NULL );
+   assert( sdpi != NULL );
+   assert( ind != NULL );
+   assert( lb != NULL );
+   assert( ub != NULL );
 
    for (i = 0; i < nvars; i++)
    {
-      assert ( 0 <= ind[i] && ind[i] < sdpi->nvars );
+      assert( 0 <= ind[i] && ind[i] < sdpi->nvars );
       sdpi->lb[ind[i]] = lb[i];
       sdpi->ub[ind[i]] = ub[i];
    }
