@@ -2084,7 +2084,7 @@ SCIP_DECL_CONSPARSE(consParseSdp)
          pos += 2; /* remove the "):" */
          parsesuccess = SCIPstrToRealValue(pos, &(consdata->constval[consdata->constnnonz]), &pos);
          *success = *success && parsesuccess;
-         pos += 2; /* remove the ", " */
+         pos ++; /* remove the "," */
 
          /* if we got an entry in the upper triangular part, switch the entries for lower triangular */
          if ( consdata->constcol[consdata->constnnonz] > consdata->constrow[consdata->constnnonz] )
@@ -2095,6 +2095,10 @@ SCIP_DECL_CONSPARSE(consParseSdp)
          }
 
          consdata->constnnonz++;
+
+         /* skip whitespace */
+         while( isspace((unsigned char)*pos) )
+            pos++;
       }
 
       /* resize the arrays to their final size */
@@ -2149,7 +2153,7 @@ SCIP_DECL_CONSPARSE(consParseSdp)
          pos += 2; /* remove the "):" */
          parsesuccess = SCIPstrToRealValue(pos, &(consdata->val[consdata->nvars - 1][consdata->nvarnonz[consdata->nvars - 1]]), &pos);
          *success = *success && parsesuccess;
-         pos += 2; /* remove the ", " */
+         pos ++; /* remove the "," */
 
          /* if we got an entry in the upper triangular part, switch the entries for lower triangular */
          if ( consdata->col[consdata->nvars - 1][consdata->nvarnonz[consdata->nvars - 1]] >
@@ -2162,6 +2166,10 @@ SCIP_DECL_CONSPARSE(consParseSdp)
          }
 
          consdata->nvarnonz[consdata->nvars - 1]++;
+
+         /* skip whitespace */
+         while( isspace((unsigned char)*pos) )
+            pos++;
       }
 
       /* resize the arrays to their final size */
