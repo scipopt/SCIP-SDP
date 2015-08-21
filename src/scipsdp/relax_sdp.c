@@ -720,8 +720,9 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    /* don't run again if we already solved the current node (except during probing), and we solved the correct problem */
    if ( ( relaxdata->lastsdpnode == SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) && ( ! SCIPinProbing(scip) ) ) && relaxdata->origsolved )
    {
-      SCIPdebugMessage("Already solved SDP-relaxation for node %ld, returning with DIDNOTRUN.\n", SCIPrelaxGetData(relax)->lastsdpnode);
-      *result = SCIP_DIDNOTRUN;
+      SCIPdebugMessage("Already solved SDP-relaxation for node %ld, returning with SCIP_SUCCESS so that no other relaxator is called.\n",
+            SCIPrelaxGetData(relax)->lastsdpnode);
+      *result = SCIP_SUCCESS;
       return SCIP_OKAY;
    }
 
