@@ -2025,6 +2025,8 @@ SCIP_DECL_CONSPARSE(consParseSdp)
 
    nvars = SCIPgetNVars(scip);
 
+   *success = TRUE;
+
    /* create constraint data */
    SCIP_CALL( SCIPallocBlockMemory(scip, &consdata) );
    consdata->nvars = 0;
@@ -2041,7 +2043,7 @@ SCIP_DECL_CONSPARSE(consParseSdp)
 
    /* parse the blocksize */
    parsesuccess = SCIPstrToIntValue(str, &(consdata->blocksize), &pos);
-   assert( parsesuccess );
+   *success = *success && parsesuccess;
 
    /* skip whitespace */
    while( isspace((unsigned char)*pos) )
@@ -2073,15 +2075,15 @@ SCIP_DECL_CONSPARSE(consParseSdp)
          }
 
          parsesuccess = SCIPstrToIntValue(pos, &(consdata->constrow[consdata->constnnonz]), &pos);
-         assert( parsesuccess );
+         *success = *success && parsesuccess;
          assert( consdata->constrow[consdata->constnnonz] < consdata->blocksize );
          pos++; /* remove the ',' */
          parsesuccess = SCIPstrToIntValue(pos, &(consdata->constcol[consdata->constnnonz]), &pos);
-         assert( parsesuccess );
+         *success = *success && parsesuccess;
          assert( consdata->constcol[consdata->constnnonz] < consdata->blocksize );
          pos += 2; /* remove the "):" */
          parsesuccess = SCIPstrToRealValue(pos, &(consdata->constval[consdata->constnnonz]), &pos);
-         assert( parsesuccess );
+         *success = *success && parsesuccess;
          pos += 2; /* remove the ", " */
 
          /* if we got an entry in the upper triangular part, switch the entries for lower triangular */
@@ -2138,15 +2140,15 @@ SCIP_DECL_CONSPARSE(consParseSdp)
          }
 
          parsesuccess = SCIPstrToIntValue(pos, &(consdata->row[consdata->nvars - 1][consdata->nvarnonz[consdata->nvars - 1]]), &pos);
-         assert( parsesuccess );
+         *success = *success && parsesuccess;
          assert( consdata->row[consdata->nvars - 1][consdata->nvarnonz[consdata->nvars - 1]] < consdata->blocksize );
          pos++; /* remove the ',' */
          parsesuccess = SCIPstrToIntValue(pos, &(consdata->col[consdata->nvars - 1][consdata->nvarnonz[consdata->nvars - 1]]), &pos);
-         assert( parsesuccess );
+         *success = *success && parsesuccess;
          assert( consdata->col[consdata->nvars - 1][consdata->nvarnonz[consdata->nvars - 1]] < consdata->blocksize );
          pos += 2; /* remove the "):" */
          parsesuccess = SCIPstrToRealValue(pos, &(consdata->val[consdata->nvars - 1][consdata->nvarnonz[consdata->nvars - 1]]), &pos);
-         assert( parsesuccess );
+         *success = *success && parsesuccess;
          pos += 2; /* remove the ", " */
 
          /* if we got an entry in the upper triangular part, switch the entries for lower triangular */
@@ -2182,8 +2184,6 @@ SCIP_DECL_CONSPARSE(consParseSdp)
 #ifdef SCIP_MORE_DEBUG
    SCIP_CALL( SCIPprintCons(scip, *cons, NULL) );
 #endif
-
-   *success = TRUE;
 
    return SCIP_OKAY;
 }
