@@ -38,12 +38,14 @@
  */
 
 /* #define SCIP_DEBUG*/
-/* #define SCIP_MORE_DEBUG *//* shows all cuts added */
+/* #define SCIP_MORE_DEBUG *//* shows all cuts added and prints constraint after parsing */
+/* #define PRINT_HUMAN_READABLE *//* change the output of PRINTCONS to a better readable format (dense instead of sparse), WHICH CAN NO LONGER BE PARSED */
 
 #include "cons_sdp.h"
 
 #include <assert.h>                     /*lint !e451*/
 #include <string.h>                     /* for NULL, strcmp */
+#include <ctype.h>                      /* for isspace */
 
 #include "sdpi/lapack.h"
 
@@ -63,9 +65,11 @@
                                          *   propagation and enforcement, -1 for no eager evaluations, 0 for first only */
 #define CONSHDLR_MAXPREROUNDS        -1 /**< maximal number of presolving rounds the constraint handler participates in (-1: no limit) */
 #define CONSHDLR_DELAYSEPA        FALSE /**< should separation method be delayed, if other separators found cuts? */
-#define CONSHDLR_NEEDSCONS        TRUE /**< should the constraint handler be skipped, if no constraints are available? */
+#define CONSHDLR_NEEDSCONS        TRUE  /**< should the constraint handler be skipped, if no constraints are available? */
 
 #define CONSHDLR_PRESOLTIMING     SCIP_PRESOLTIMING_FAST
+#define PARSE_STARTSIZE               1 /**< initial size of the consdata-arrays when parsing a problem */
+#define PARSE_SIZEFACTOR             10 /**< size of consdata-arrays is increased by this factor when parsing a problem */
 
 
 /** constraint data for sdp constraints */
@@ -1530,9 +1534,18 @@ SCIP_DECL_CONSTRANS(consTransSdp)
    /* copy the constant nonzeros */
    targetdata->constnnonz = sourcedata->constnnonz;
 
-   SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->constcol), sourcedata->constcol, sourcedata->constnnonz));
-   SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->constrow), sourcedata->constrow, sourcedata->constnnonz));
-   SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->constval), sourcedata->constval, sourcedata->constnnonz));
+   if ( sourcedata->constnnonz > 0 )
+   {
+      SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->constcol), sourcedata->constcol, sourcedata->constnnonz));
+      SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->constrow), sourcedata->constrow, sourcedata->constnnonz));
+      SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->constval), sourcedata->constval, sourcedata->constnnonz));
+   }
+   else
+   {
+      targetdata->constcol = NULL;
+      targetdata->constrow = NULL;
+      targetdata->constval = NULL;
+   }
 
    /* copy the maxrhsentry */
    targetdata->maxrhsentry = sourcedata->maxrhsentry;
@@ -1876,12 +1889,14 @@ SCIP_DECL_CONSCOPY(consCopySdp)
 static
 SCIP_DECL_CONSPRINT(consPrintSdp)
 {/*lint --e{715}*/
+#ifdef PRINT_HUMAN_READABLE
    SCIP_CONSDATA* consdata;
    SCIP_Real* fullmatrix;
    int v;
    int i;
    int j;
 
+   assert( scip != NULL );
    assert( cons != NULL );
 
    consdata = SCIPconsGetData(cons);
@@ -1949,6 +1964,226 @@ SCIP_DECL_CONSPRINT(consPrintSdp)
    SCIPinfoMessage(scip, file, ">=0\n");
 
    SCIPfreeBufferArray(scip, &fullmatrix);
+
+   return SCIP_OKAY;
+#else
+   SCIP_CONSDATA* consdata;
+   int i;
+   int v;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+
+   /* print blocksize */
+   SCIPinfoMessage(scip, file, "%d\n", consdata->blocksize);
+
+   /* print A_0 if it exists */
+   if ( consdata->constnnonz > 0 )
+   {
+      SCIPinfoMessage(scip, file, "A_0: ");
+
+      for (i = 0; i < consdata->constnnonz; i++)
+      {
+         SCIPinfoMessage(scip, file, "(%d,%d):%f, ", consdata->constrow[i], consdata->constcol[i], consdata->constval[i]);
+      }
+      SCIPinfoMessage(scip, file, "\n");
+   }
+
+   /* print other matrices */
+   for (v = 0; v < consdata->nvars; v++)
+   {
+      SCIPinfoMessage(scip, file, "<%s>: ", SCIPvarGetName(consdata->vars[v]));
+      for (i = 0; i < consdata->nvarnonz[v]; i++)
+      {
+         SCIPinfoMessage(scip, file, "(%d,%d):%f, ", consdata->row[v][i], consdata->col[v][i], consdata->val[v][i]);
+      }
+      /* if this is not the last variable, add a newline */
+      if (v < consdata->nvars - 1)
+      {
+         SCIPinfoMessage(scip, file, "\n");
+      }
+   }
+
+   return SCIP_OKAY;
+#endif
+}
+
+static
+SCIP_DECL_CONSPARSE(consParseSdp)
+{  /*lint --e{715}*/
+   char* pos;
+   SCIP_Bool parsesuccess;
+   SCIP_CONSDATA* consdata = NULL;
+   int nvars;
+   int currentsize;
+   int i;
+
+   assert( scip != NULL );
+   assert( str != NULL );
+
+   nvars = SCIPgetNVars(scip);
+
+   /* create constraint data */
+   SCIP_CALL( SCIPallocBlockMemory(scip, &consdata) );
+   consdata->nvars = 0;
+   consdata->nnonz = 0;
+   consdata->constnnonz = 0;
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->nvarnonz, nvars) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->col, nvars) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->row, nvars) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->val, nvars) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->vars, nvars));
+   consdata->constcol = NULL;
+   consdata->constrow = NULL;
+   consdata->constval = NULL;
+
+   /* parse the blocksize */
+   parsesuccess = SCIPstrToIntValue(str, &(consdata->blocksize), &pos);
+   assert( parsesuccess );
+
+   /* skip whitespace */
+   while( isspace((unsigned char)*pos) )
+      pos++;
+
+   /* check if there is a constant part */
+   if ( pos[0] == 'A' && pos[1] == '_' && pos[2] == '0' )
+   {
+      pos += 5; /* we skip "A_0: " */
+
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->constcol, PARSE_STARTSIZE) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->constrow, PARSE_STARTSIZE) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->constval, PARSE_STARTSIZE) );
+
+      currentsize = PARSE_STARTSIZE;
+
+      /* as long as there is another entry for the constant part, parse it */
+      while (pos[0] == '(')
+      {
+         pos++; /* remove the '(' */
+
+         /* check if we need to enlarge the arrays */
+         if ( consdata->constnnonz == currentsize )
+         {
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->constcol, currentsize, PARSE_SIZEFACTOR * currentsize) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->constrow, currentsize, PARSE_SIZEFACTOR * currentsize) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->constval, currentsize, PARSE_SIZEFACTOR * currentsize) );
+            currentsize *= PARSE_SIZEFACTOR;
+         }
+
+         parsesuccess = SCIPstrToIntValue(pos, &(consdata->constrow[consdata->constnnonz]), &pos);
+         assert( parsesuccess );
+         assert( consdata->constrow[consdata->constnnonz] < consdata->blocksize );
+         pos++; /* remove the ',' */
+         parsesuccess = SCIPstrToIntValue(pos, &(consdata->constcol[consdata->constnnonz]), &pos);
+         assert( parsesuccess );
+         assert( consdata->constcol[consdata->constnnonz] < consdata->blocksize );
+         pos += 2; /* remove the "):" */
+         parsesuccess = SCIPstrToRealValue(pos, &(consdata->constval[consdata->constnnonz]), &pos);
+         assert( parsesuccess );
+         pos += 2; /* remove the ", " */
+
+         /* if we got an entry in the upper triangular part, switch the entries for lower triangular */
+         if ( consdata->constcol[consdata->constnnonz] > consdata->constrow[consdata->constnnonz] )
+         {
+            i = consdata->constcol[consdata->constnnonz];
+            consdata->constcol[consdata->constnnonz] = consdata->constrow[consdata->constnnonz];
+            consdata->constrow[consdata->constnnonz] = i;
+         }
+
+         consdata->constnnonz++;
+      }
+
+      /* resize the arrays to their final size */
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->constcol, currentsize, consdata->constnnonz) );
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->constrow, currentsize, consdata->constnnonz) );
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->constval, currentsize, consdata->constnnonz) );
+   }
+
+   /* skip whitespace */
+   while( isspace((unsigned char)*pos) )
+      pos++;
+
+   /* parse the non-constant part */
+
+   /* while there is another variable, parse it */
+   while (pos[0] == '<')
+   {
+      /* add the variable to consdata->vars and create the corresponding nonzero arrays */
+      SCIP_CALL( SCIPparseVarName(scip, pos, &(consdata->vars[consdata->nvars]), &pos) );
+      SCIP_CALL( SCIPcaptureVar(scip, consdata->vars[consdata->nvars]) );
+
+      consdata->nvarnonz[consdata->nvars] = 0;
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(consdata->col[consdata->nvars]), PARSE_STARTSIZE));
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(consdata->row[consdata->nvars]), PARSE_STARTSIZE));
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(consdata->val[consdata->nvars]), PARSE_STARTSIZE));
+      consdata->nvars++;
+      currentsize = PARSE_STARTSIZE;
+
+      pos += 2; /* remove the ": " */
+
+      /* while there is another entry, parse it */
+      while (pos[0] == '(')
+      {
+         pos++; /* remove the '(' */
+
+         /* check if we need to enlarge the arrays */
+         if ( consdata->nvarnonz[consdata->nvars - 1] == currentsize )
+         {
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->col[consdata->nvars - 1], currentsize, PARSE_SIZEFACTOR * currentsize) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->row[consdata->nvars - 1], currentsize, PARSE_SIZEFACTOR * currentsize) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->val[consdata->nvars - 1], currentsize, PARSE_SIZEFACTOR * currentsize) );
+            currentsize *= PARSE_SIZEFACTOR;
+         }
+
+         parsesuccess = SCIPstrToIntValue(pos, &(consdata->row[consdata->nvars - 1][consdata->nvarnonz[consdata->nvars - 1]]), &pos);
+         assert( parsesuccess );
+         assert( consdata->row[consdata->nvars - 1][consdata->nvarnonz[consdata->nvars - 1]] < consdata->blocksize );
+         pos++; /* remove the ',' */
+         parsesuccess = SCIPstrToIntValue(pos, &(consdata->col[consdata->nvars - 1][consdata->nvarnonz[consdata->nvars - 1]]), &pos);
+         assert( parsesuccess );
+         assert( consdata->col[consdata->nvars - 1][consdata->nvarnonz[consdata->nvars - 1]] < consdata->blocksize );
+         pos += 2; /* remove the "):" */
+         parsesuccess = SCIPstrToRealValue(pos, &(consdata->val[consdata->nvars - 1][consdata->nvarnonz[consdata->nvars - 1]]), &pos);
+         assert( parsesuccess );
+         pos += 2; /* remove the ", " */
+
+         /* if we got an entry in the upper triangular part, switch the entries for lower triangular */
+         if ( consdata->col[consdata->nvars - 1][consdata->nvarnonz[consdata->nvars - 1]] >
+               consdata->row[consdata->nvars - 1][consdata->nvarnonz[consdata->nvars - 1]] )
+         {
+            i = consdata->col[consdata->nvars - 1][consdata->nvarnonz[consdata->nvars - 1]];
+            consdata->col[consdata->nvars - 1][consdata->nvarnonz[consdata->nvars - 1]] =
+                  consdata->row[consdata->nvars - 1][consdata->nvarnonz[consdata->nvars - 1]];
+            consdata->row[consdata->nvars - 1][consdata->nvarnonz[consdata->nvars - 1]] = i;
+         }
+
+         consdata->nvarnonz[consdata->nvars - 1]++;
+      }
+
+      /* resize the arrays to their final size */
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->col[consdata->nvars - 1], currentsize, consdata->nvarnonz[consdata->nvars - 1]) );
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->row[consdata->nvars - 1], currentsize, consdata->nvarnonz[consdata->nvars - 1]) );
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->val[consdata->nvars - 1], currentsize, consdata->nvarnonz[consdata->nvars - 1]) );
+
+      /* skip whitespace */
+      while( isspace((unsigned char)*pos) )
+         pos++;
+   }
+
+   /* create the constraint */
+   SCIP_CALL( SCIPcreateCons(scip, cons, name, conshdlr, consdata, initial, separate, enforce, check, propagate, local, modifiable,
+         dynamic, removable, stickingatnode) );
+
+   /* compute maximum rhs entry for later use in the DIMACS Error Norm */
+   SCIP_CALL( setMaxRhsEntry(*cons) );
+
+#ifdef SCIP_MORE_DEBUG
+   SCIP_CALL( SCIPprintCons(scip, *cons, NULL) );
+#endif
+
+   *success = TRUE;
 
    return SCIP_OKAY;
 }
@@ -2039,6 +2274,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          CONSHDLR_SEPAPRIORITY, CONSHDLR_DELAYSEPA) );
    SCIP_CALL( SCIPsetConshdlrTrans(scip, conshdlr, consTransSdp) );
    SCIP_CALL( SCIPsetConshdlrPrint(scip, conshdlr, consPrintSdp) );
+   SCIP_CALL( SCIPsetConshdlrParse(scip, conshdlr, consParseSdp) );
    SCIP_CALL( SCIPsetConshdlrGetVars(scip, conshdlr, consGetVarsSdp) );
    SCIP_CALL( SCIPsetConshdlrGetNVars(scip, conshdlr, consGetNVarsSdp) );
 
