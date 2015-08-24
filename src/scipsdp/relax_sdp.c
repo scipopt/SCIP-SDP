@@ -63,6 +63,7 @@
 #define DEFAULT_THREADS             1        /**< number of threads used for SDP solving */
 #endif
 #define DEFAULT_OBJLIMIT            FALSE    /**< should an objective limit be given to the SDP-Solver ? */
+#define DEFAULT_RESOLVE             FALSE    /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
 
 /*
  * Data structures
@@ -85,6 +86,7 @@ struct SCIP_RelaxData
    SCIP_Bool             slatercheck;        /**< Should the Slater condition for the dual problem be check ahead of solving every SDP ? */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             objlimit;           /**< Should an objective limit be given to the SDP solver? */
+   SCIP_Bool             resolve;            /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
    int                   sdpcalls;           /**< number of solved SDPs (used to compute average SDP iterations) */
    long int              lastsdpnode;        /**< number of the SCIP node the current SDP-solution belongs to */
    SCIP_Bool             feasible;           /**< was the last solved SDP feasible */
@@ -628,8 +630,7 @@ SCIP_RETCODE calc_relax(
                *result = SCIP_CUTOFF;
                return SCIP_OKAY;
             }
-            SCIPdebugMessage("WARNING!!! Found a solution that is feasible for the SDP-solver and integrality, but infeasible for "
-                  "SCIP, this will probably not properly get enforced ! \n");
+            SCIPdebugMessage("Found a solution that is feasible for the SDP-solver and integrality, but infeasible for SCIP! \n");
          }
 
          /* copy solution */
@@ -718,7 +719,8 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    relaxdata = SCIPrelaxGetData(relax);
 
    /* don't run again if we already solved the current node (except during probing), and we solved the correct problem */
-   if ( ( relaxdata->lastsdpnode == SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) && ( ! SCIPinProbing(scip) ) ) && relaxdata->origsolved )
+   if ( ( relaxdata->lastsdpnode == SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) && ( ! SCIPinProbing(scip) ) )
+         && relaxdata->origsolved && ( ! relaxdata->resolve) )
    {
       SCIPdebugMessage("Already solved SDP-relaxation for node %ld, returning with SCIP_SUCCESS so that no other relaxator is called.\n",
             SCIPrelaxGetData(relax)->lastsdpnode);
@@ -1060,6 +1062,8 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          &(relaxdata->sdpinfo), TRUE, FALSE, NULL, NULL) );
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/objlimit", "should an objective limit be given to the SDP-Solver?",
          &(relaxdata->objlimit), TRUE, DEFAULT_OBJLIMIT, NULL, NULL) );
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/resolve", "Are we allowed to solve the relaxation of a single node multiple times in a row"
+         " (outside of probing) ?", &(relaxdata->resolve), TRUE, DEFAULT_RESOLVE, NULL, NULL) );
 
    /* add description of SDP-solver */
    SCIP_CALL( SCIPincludeExternalCodeInformation(scip, SCIPsdpiGetSolverName(), SCIPsdpiGetSolverDesc()) );
