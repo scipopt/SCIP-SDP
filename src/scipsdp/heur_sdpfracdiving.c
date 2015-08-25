@@ -38,7 +38,7 @@
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
 /* #define SCIP_DEBUG*/
-/* #define SCIP_MORE_DEBUG *//* shows all diving decisions */
+/* #define SCIP_MORE_DEBUG */ /* shows all diving decisions */
 
 #include <assert.h>
 #include <string.h>
@@ -488,7 +488,9 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving) /*lint --e{715}*/
          {
             SCIPdebugMessage("selected variable's <%s> solution value is outside the domain [%g,%g] (solval: %.9f), diving aborted\n",
                SCIPvarGetName(var), SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var), sdpcandssol[bestcand]);
-            assert( backtracked );
+#if 0
+            assert( backtracked ); /* this may happen if we didn't resolve after propagation, in that case we will also abort (or resolve now and start again?) */
+#endif
             break;
          }
 
