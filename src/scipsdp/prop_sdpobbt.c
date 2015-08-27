@@ -37,8 +37,8 @@
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
-#define SCIP_DEBUG
-#define SCIP_MORE_DEBUG
+/*#define SCIP_DEBUG*/
+/*#define SCIP_MORE_DEBUG*/
 
 #include <assert.h>
 #include <string.h>
@@ -374,7 +374,7 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
 #ifdef SCIP_MORE_DEBUG
          else
          {
-            SCIPdebugMessage("Obbt-Sdp found lower bound of %f for variable %s, worse than old bound %f !\n",
+            SCIPdebugMessage("Obbt-Sdp found upper bound of %f for variable %s, worse than old bound %f !\n",
                   -probingval, SCIPvarGetName(vars[v]), SCIPvarGetUbLocal(vars[v]));
          }
 #endif
