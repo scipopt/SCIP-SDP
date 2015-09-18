@@ -64,6 +64,7 @@
 #endif
 #define DEFAULT_OBJLIMIT            FALSE    /**< should an objective limit be given to the SDP-Solver ? */
 #define DEFAULT_RESOLVE             FALSE    /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
+#define DEFAULT_TIGHTENVB           FALSE    /**< Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ? */
 
 /*
  * Data structures
@@ -87,6 +88,7 @@ struct SCIP_RelaxData
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             objlimit;           /**< Should an objective limit be given to the SDP solver? */
    SCIP_Bool             resolve;            /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
+   SCIP_Bool             tightenvb;          /**< Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ? */
    int                   sdpcalls;           /**< number of solved SDPs (used to compute average SDP iterations) */
    long int              lastsdpnode;        /**< number of the SCIP node the current SDP-solution belongs to */
    SCIP_Bool             feasible;           /**< was the last solved SDP feasible */
@@ -318,6 +320,7 @@ SCIP_RETCODE putLpDataInInterface(
    int* inds;
    SCIP_Real* obj;
    int* objinds;
+   SCIP_Bool tightenvb;
 
    assert( scip != NULL );
    assert( sdpi != NULL );
@@ -327,6 +330,7 @@ SCIP_RETCODE putLpDataInInterface(
    assert( nvars > 0 );
 
    SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
+   SCIP_CALL( SCIPgetBoolParam(scip, "relaxing/SDP/tightenvb", &tightenvb) );
 
    SCIPdebugMessage("inserting %d LPRows into the interface \n", nrows);
 
@@ -352,23 +356,109 @@ SCIP_RETCODE putLpDataInInterface(
    for (i = 0; i < nrows; i++)
    {
       SCIP_ROW* row;
+      SCIP_Bool tightened;
+      SCIP_Bool swapped;
+      SCIP_Real tightenedval;
 
       row = rows[i];
       assert( row != 0 );
       rownnonz = SCIProwGetNNonz(row);
+      tightened = FALSE;
 
       rowvals = SCIProwGetVals(row);
       rowcols = SCIProwGetCols(row);
       sciplhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
       sciprhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
 
+      /* check whether we have a variable bound and can strenghten the big-M */
+      if ( tightenvb && rownnonz == 2 && (SCIPisZero(scip, sciplhs) || SCIPisZero(scip, sciprhs) ) )
+      {
+         SCIP_VAR* var1;
+         SCIP_VAR* var2;
+         SCIP_Real val1;
+         SCIP_Real val2;
+
+         val1 = rowvals[0];
+         val2 = rowvals[1];
+
+         assert( rowcols[0] != NULL );
+         assert( rowcols[1] != NULL );
+         var1 = SCIPcolGetVar(rowcols[0]);
+         var2 = SCIPcolGetVar(rowcols[1]);
+         assert( var1 != NULL );
+         assert( var2 != NULL );
+
+         /* check that variables are not locally fixed */
+         if ( ! SCIPisEQ(scip, SCIPvarGetLbLocal(var1), SCIPvarGetUbLocal(var1)) && ! SCIPisEQ(scip, SCIPvarGetLbLocal(var2), SCIPvarGetUbLocal(var2)) )
+         {
+            /* one coefficient must be 1 and the other negative */
+            if ( (SCIPisEQ(scip, val1, 1.0) || SCIPisEQ(scip, val2, 1.0)) && ( SCIPisNegative(scip, val1) || SCIPisNegative(scip, val2) ) )
+            {
+               swapped = FALSE;
+               /* We want x - a z <= 0 or x - a z >= 0, where var1 = x and var2 = z; possibly swap variables otherwise */
+               if ( ! SCIPisEQ(scip, val1, 1.0) || ! SCIPisNegative(scip, val2) )
+               {
+                  SCIP_Real aval;
+
+                  SCIPswapPointers((void**) &var1, (void**) &var2);
+
+                  aval = val1;
+                  val1 = val2;
+                  val2 = aval;
+                  swapped = TRUE;
+               }
+
+               /* var2 needs to be binary */
+               if ( SCIPvarIsBinary(var2) )
+               {
+                  if ( SCIPisZero(scip, sciprhs) )
+                  {
+                     if ( SCIPisLT(scip, SCIPvarGetUbLocal(var1), REALABS(val2)) )
+                     {
+                        SCIPdebugMessage("Big-M in %s changed from %f to %f\n", SCIProwGetName(row), REALABS(val2), SCIPvarGetUbLocal(var1));
+
+                        tightened = TRUE;
+                        tightenedval = -SCIPvarGetUbLocal(var1); /* negative sign because the coefficient needs to be negative */
+                     }
+                  }
+
+                  if ( SCIPisZero(scip, sciplhs) )
+                  {
+                     if ( SCIPisGT(scip, SCIPvarGetLbLocal(var1), REALABS(val2)) )
+                     {
+                        SCIPdebugMessage("Big-M in %s changed from %f to %f\n", SCIProwGetName(row), REALABS(val2), SCIPvarGetLbLocal(var1));
+
+                        tightened = TRUE;
+                        tightenedval = -SCIPvarGetUbLocal(var1); /* negative sign because the coefficient needs to be negative */
+                     }
+                  }
+               }
+            }
+         }
+      }
+
       for (j = 0; j < rownnonz; j++)
       {
-         assert( SCIPcolGetVar(rowcols[j]) != 0 );
-         colind[nnonz] = SCIPsdpVarmapperGetSdpIndex(varmapper, SCIPcolGetVar(rowcols[j]));
-         rowind[nnonz] = nconss;
-         val[nnonz] = rowvals[j];
-         nnonz++;
+         /* if the Big-M was tightened, we use the new value (the position where this new value is used is dependant on wheter we needed to swap) */
+         if ( tightened && ( (swapped && (j == 0)) || ((! swapped) && (j == 1)) ) ) /* use the tightened value */
+         {
+            if ( SCIPisFeasGT(scip, REALABS(tightenedval), 0.0) )
+            {
+               assert( SCIPcolGetVar(rowcols[j]) != 0 );
+               colind[nnonz] = SCIPsdpVarmapperGetSdpIndex(varmapper, SCIPcolGetVar(rowcols[j]));
+               rowind[nnonz] = nconss;
+               val[nnonz] = tightenedval;
+               nnonz++;
+            }
+         }
+         else if ( SCIPisFeasGT(scip, REALABS(rowvals[j]), 0.0))
+         {
+            assert( SCIPcolGetVar(rowcols[j]) != 0 );
+            colind[nnonz] = SCIPsdpVarmapperGetSdpIndex(varmapper, SCIPcolGetVar(rowcols[j]));
+            rowind[nnonz] = nconss;
+            val[nnonz] = rowvals[j];
+            nnonz++;
+         }
       }
       lhs[nconss] = sciplhs;
       rhs[nconss] = sciprhs;
@@ -655,6 +745,7 @@ SCIP_RETCODE calc_relax(
                }
             }
          }
+
          SCIPfreeBufferArray(scip, &solforscip);
          SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
       }
@@ -1096,6 +1187,8 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          &(relaxdata->objlimit), TRUE, DEFAULT_OBJLIMIT, NULL, NULL) );
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/resolve", "Are we allowed to solve the relaxation of a single node multiple times in a row"
          " (outside of probing) ?", &(relaxdata->resolve), TRUE, DEFAULT_RESOLVE, NULL, NULL) );
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/tightenvb", "Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ?",
+         &(relaxdata->tightenvb), TRUE, DEFAULT_TIGHTENVB, NULL, NULL) );
 
    /* add description of SDP-solver */
    SCIP_CALL( SCIPincludeExternalCodeInformation(scip, SCIPsdpiGetSolverName(), SCIPsdpiGetSolverDesc()) );
