@@ -51,7 +51,7 @@
 #define HEUR_DESC             "SDP diving heuristic that chooses fixings w.r.t. the fractionalities"
 #define HEUR_DISPCHAR         'f'
 #define HEUR_PRIORITY         -1003000
-#define HEUR_FREQ             10
+#define HEUR_FREQ             0
 #define HEUR_FREQOFS          0
 #define HEUR_MAXDEPTH         -1
 #define HEUR_TIMING           SCIP_HEURTIMING_AFTERNODE
