@@ -33,6 +33,7 @@
 /* #define SCIP_DEBUG*/
 /* #define SCIP_MORE_DEBUG  *//* shows all added nonzero entries */
 /* #define SCIP_DEBUG_PRINTTOFILE  *//* prints each problem inserted into SDPA to the file sdpa.dat-s and the starting point to sdpa.ini-s */
+#define STABLE_BUT_SLOW
 
 /**@file   sdpisolver_sdpa.cpp
  * @brief  interface for SDPA
@@ -547,6 +548,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->sdpa = new SDPA();
    assert( sdpisolver->sdpa != 0 );
 
+#ifndef STABLE_BUT_SLOW
    /* initialize settings (this needs to be done before inserting the problem as the initial point depends on the settings) */
    if ( penaltyparam < sdpisolver->epsilon )
    {
@@ -556,11 +558,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
    else
    {
+#endif
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_STABLE_BUT_SLOW); /* if we already had problems with this problem, there is no reason to try fast */
       /* as we want to solve with stable settings, we also update epsilon and the feasibility tolerance, as we skip the default settings, we multpy twice */
       sdpisolver->sdpa->setParameterEpsilonStar(EPSILONCHANGE * EPSILONCHANGE * sdpisolver->epsilon);
       sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->feastol);
+#ifndef STABLE_BUT_SLOW
    }
+#endif
    sdpisolver->sdpa->setParameterLowerBound(-1e20);
 
    /* set the objective limit */
@@ -1109,7 +1114,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->sdpa->getPhaseString((char*)phase_string);
    SCIPdebugMessage("SDPA solving finished with status %s (primal and dual here are switched in contrast to our formulation)\n", phase_string);
 #endif
-
+#ifndef STABLE_BUT_SLOW
    /* check whether problem has been stably solved, if it wasn't and we didn't yet run the stable parametersettings (for the penalty formulation we do so), try
     * again with more stable parameters */
    if ( (! SCIPsdpiSolverIsAcceptable(sdpisolver)) && penaltyparam < sdpisolver->epsilon )
@@ -1168,6 +1173,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
       }
    }
+#endif
 
 #ifdef SCIP_MORE_DEBUG
    (void) fclose(fpOut);
