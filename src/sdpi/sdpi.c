@@ -1549,6 +1549,8 @@ SCIP_RETCODE SCIPsdpiChgObj(
       sdpi->obj[ind[i]] = obj[i];
    }
 
+   sdpi->solved = FALSE;
+
    return SCIP_OKAY;
 }
 
@@ -1578,6 +1580,7 @@ SCIP_RETCODE SCIPsdpiChgBounds(
    }
 
    sdpi->solved = FALSE;
+   sdpi->infeasible = FALSE;
 
    return SCIP_OKAY;
 }
@@ -1610,6 +1613,7 @@ SCIP_RETCODE SCIPsdpiChgLPLhRhSides(
    }
 
    sdpi->solved = FALSE;
+   sdpi->infeasible = FALSE;
 
    return SCIP_OKAY;
 }
