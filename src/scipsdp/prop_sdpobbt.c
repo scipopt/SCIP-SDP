@@ -47,15 +47,15 @@
 #include "relax_sdp.h"
 
 /* fundamental propagator properties */
-#define PROP_NAME              "obbt-sdp"
-#define PROP_DESC              "optimization-based bound tightening for sdps"
-#define PROP_PRIORITY                 -1100000 /**< propagator priority */
-#define PROP_FREQ                     -1 /**< propagator frequency */
-#define PROP_DELAY                FALSE /**< should propagation method be delayed, if other propagators found reductions? */
-#define PROP_TIMING             SCIP_PROPTIMING_AFTERLPLOOP/**< propagation timing mask */
+#define PROP_NAME             "obbt-sdp"
+#define PROP_DESC             "optimization-based bound tightening for sdps"
+#define PROP_PRIORITY         -1100000 /**< propagator priority */
+#define PROP_FREQ             -1 /**< propagator frequency */
+#define PROP_DELAY            FALSE /**< should propagation method be delayed, if other propagators found reductions? */
+#define PROP_TIMING           SCIP_PROPTIMING_AFTERLPLOOP /**< propagation timing mask */
 
-#define DEFAULT_PROPBIN                FALSE /**< should obbt be done for binary variables ? */
-#define DEFAULT_PROPCONT               TRUE /**< should obbt be done for continuous variables ? */
+#define DEFAULT_PROPBIN       FALSE /**< should obbt be done for binary variables ? */
+#define DEFAULT_PROPCONT      TRUE /**< should obbt be done for continuous variables ? */
 
 
 /*
