@@ -18,6 +18,7 @@ SCIP-SDP version 2.0.1
 
 fixed bugs:
 - parameters for SDPA are now set before inserting the problem so that they are also used for computing the initial point
+- infeasibility-status for presolving was not correctly reset after changing bounds
 
 
 SCIP-SDP version 2.0.0
