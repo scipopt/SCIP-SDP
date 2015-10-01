@@ -30,10 +30,9 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* #define SCIP_DEBUG*/
-/* #define SCIP_MORE_DEBUG  *//* shows all added nonzero entries */
+/*#define SCIP_DEBUG*/
+/* #define SCIP_MORE_DEBUG */  /* shows all added nonzero entries */
 /* #define SCIP_DEBUG_PRINTTOFILE  *//* prints each problem inserted into SDPA to the file sdpa.dat-s and the starting point to sdpa.ini-s */
-#define STABLE_BUT_SLOW
 
 /**@file   sdpisolver_sdpa.cpp
  * @brief  interface for SDPA
@@ -548,7 +547,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->sdpa = new SDPA();
    assert( sdpisolver->sdpa != 0 );
 
-#ifndef STABLE_BUT_SLOW
    /* initialize settings (this needs to be done before inserting the problem as the initial point depends on the settings) */
    if ( penaltyparam < sdpisolver->epsilon )
    {
@@ -558,14 +556,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
    else
    {
-#endif
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_STABLE_BUT_SLOW); /* if we already had problems with this problem, there is no reason to try fast */
       /* as we want to solve with stable settings, we also update epsilon and the feasibility tolerance, as we skip the default settings, we multpy twice */
       sdpisolver->sdpa->setParameterEpsilonStar(EPSILONCHANGE * EPSILONCHANGE * sdpisolver->epsilon);
       sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->feastol);
-#ifndef STABLE_BUT_SLOW
    }
-#endif
    sdpisolver->sdpa->setParameterLowerBound(-1e20);
 
    /* set the objective limit */
@@ -670,10 +665,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->sdpa->setResultFile(fpOut);
 #endif
 
-   /* if we want to use a starting point we have to tell SDPA to allocate memory for it */
-   if ( start != NULL )
-      sdpisolver->sdpa->setInitPoint(true);
-
    /* initialize blockstruct */
    if ( penaltyparam < sdpisolver->epsilon ) /* we initialize this with an exact 0.0 in Solve without penalty */
       sdpisolver->sdpa->inputConstraintNumber((long long) sdpisolver->nactivevars);
@@ -704,6 +695,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       SCIPdebugMessage("adding LP block to SDPA as block %d with size %d\n", nsdpblocks - nremovedblocks + 1,
             -(nlpineqs + sdpisolver->nvarbounds)); /*lint !e834*/
    }
+
    sdpisolver->sdpa->initializeUpperTriangleSpace();
 
    /* set objective values */
@@ -721,6 +713,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       if ( penaltyparam >= sdpisolver->epsilon )
          sdpisolver->sdpa->inputCVec((long long) sdpisolver->nactivevars + 1, penaltyparam); /* set the objective of the additional var to penaltyparam */
    }
+
+   /* if we want to use a starting point we have to tell SDPA to allocate memory for it */
+   if ( start != NULL )
+      sdpisolver->sdpa->setInitPoint(true);
+   else
+      sdpisolver->sdpa->setInitPoint(false);
 
    /* start inserting the non-constant SDP-Constraint-Matrices */
    if ( sdpnnonz > 0 )
@@ -1081,7 +1079,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* transform the matrices to a more efficient form */
    sdpisolver->sdpa->initializeUpperTriangle();
-
    sdpisolver->sdpa->initializeSolve();
 
    /* set the starting solution */
@@ -1114,7 +1111,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->sdpa->getPhaseString((char*)phase_string);
    SCIPdebugMessage("SDPA solving finished with status %s (primal and dual here are switched in contrast to our formulation)\n", phase_string);
 #endif
-#ifndef STABLE_BUT_SLOW
+
    /* check whether problem has been stably solved, if it wasn't and we didn't yet run the stable parametersettings (for the penalty formulation we do so), try
     * again with more stable parameters */
    if ( (! SCIPsdpiSolverIsAcceptable(sdpisolver)) && penaltyparam < sdpisolver->epsilon )
@@ -1134,6 +1131,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #ifdef SCIP_MORE_DEBUG
    sdpisolver->sdpa->printParameters(stdout);
 #endif
+   sdpisolver->sdpa->setInitPoint(false);
       sdpisolver->sdpa->initializeSolve();
       sdpisolver->sdpa->solve();
       sdpisolver->solved = TRUE;
@@ -1162,6 +1160,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #ifdef SCIP_MORE_DEBUG
    sdpisolver->sdpa->printParameters(stdout);
 #endif
+   sdpisolver->sdpa->setInitPoint(false);
          sdpisolver->sdpa->initializeSolve();
          sdpisolver->sdpa->solve();
          sdpisolver->solved = TRUE;
@@ -1173,7 +1172,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
       }
    }
-#endif
 
 #ifdef SCIP_MORE_DEBUG
    (void) fclose(fpOut);
