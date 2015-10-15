@@ -591,7 +591,7 @@ SCIP_RETCODE calc_relax(
       if ( SCIPinProbing(scip) )
          relaxdata->probingsolved = FALSE;
 
-      if ( node == 0 )
+      if ( node == NULL )
       {
          relaxdata->feasible = FALSE;
          *result = SCIP_SUSPENDED;
