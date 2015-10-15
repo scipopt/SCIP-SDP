@@ -71,7 +71,7 @@
                          if ( (_dsdperrorcode_ = (x)) != 0 )                                                 \
                          {                                                                                   \
                             SCIPerrorMessage("DSDP-Error <%d> in function call.\n", _dsdperrorcode_);        \
-                            return FALSE;                                                             \
+                            return FALSE;                                                                    \
                          }                                                                                   \
                       }                                                                                      \
                       while( FALSE )
@@ -143,6 +143,7 @@ struct SCIP_SDPiSolver
    int                   sdpcounter;         /**< used for debug messages */
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
+   SCIP_Real             penaltyparam;       /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
    SCIP_Real             objlimit;           /**< objective limit for SDP solver */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             penaltyworbound;    /**< Was a penalty formulation solved without bounding r ? */
@@ -298,6 +299,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
 
    (*sdpisolver)->epsilon = 1e-5;
    (*sdpisolver)->feastol = 1e-4;
+   (*sdpisolver)->penaltyparam = 1e5;
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
    (*sdpisolver)->sdpinfo = FALSE;
 
@@ -1151,6 +1153,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       DSDP_CALL( DSDPSetPenaltyParameter(sdpisolver->dsdp, penaltyparam) );
       DSDP_CALL( DSDPUsePenalty(sdpisolver->dsdp, 1) );
    }
+   else
+   {
+      /* set the penalty parameter to the default value */
+      DSDP_CALL( DSDPSetPenaltyParameter(sdpisolver->dsdp, sdpisolver->penaltyparam) );
+   }
 
    /* set the starting solution */
    if ( start != NULL )
@@ -1892,6 +1899,9 @@ SCIP_RETCODE SCIPsdpiSolverGetRealpar(
    case SCIP_SDPPAR_FEASTOL:
       *dval = sdpisolver->feastol;
       break;
+   case SCIP_SDPPAR_PENALTYPARAM:
+      *dval = sdpisolver->penaltyparam;
+      break;
    case SCIP_SDPPAR_OBJLIMIT:
       *dval = sdpisolver->objlimit;
       break;
@@ -1920,6 +1930,10 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    case SCIP_SDPPAR_FEASTOL:
       sdpisolver->feastol = dval;
       SCIPdebugMessage("Setting sdpisolver feastol to %f.\n", dval);
+      break;
+   case SCIP_SDPPAR_PENALTYPARAM:
+      sdpisolver->penaltyparam = dval;
+      SCIPdebugMessage("Setting sdpisolver penaltyparameter to %f.\n", dval);
       break;
    case SCIP_SDPPAR_OBJLIMIT:
       /* DSDP only allows to set a dual bound, but as we want to solve the dual problem in DSDP, we would need to set a primal bound, which doesn't exist in

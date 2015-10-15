@@ -1892,6 +1892,10 @@ SCIP_RETCODE SCIPsdpiSolverGetRealpar(
    case SCIP_SDPPAR_FEASTOL:
       *dval = sdpisolver->feastol;
       break;
+   case SCIP_SDPPAR_PENALTYPARAM:
+      *dval = 0.0;
+      SCIPdebugMessage("Parameter SCIP_SDPPAR_PENALTYPARAM not used by SDPA"); /* this parameter is only used by DSDP */
+      break;
    case SCIP_SDPPAR_OBJLIMIT:
       *dval = sdpisolver->objlimit;
       break;
@@ -1920,6 +1924,9 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    case SCIP_SDPPAR_FEASTOL:
       sdpisolver->feastol = dval;
       SCIPdebugMessage("Setting sdpisolver feastol to %f.\n", dval);
+      break;
+   case SCIP_SDPPAR_PENALTYPARAM:
+      SCIPdebugMessage("Parameter SCIP_SDPPAR_PENALTYPARAM not used by SDPA"); /* this parameter is only used by DSDP */
       break;
    case SCIP_SDPPAR_OBJLIMIT:
       SCIPdebugMessage("Setting sdpisolver objlimit to %f.\n", dval);

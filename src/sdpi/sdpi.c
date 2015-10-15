@@ -113,7 +113,7 @@
 
 #define DEFAULT_SDPSOLVEREPSILON    1e-5     /**< the stopping criterion for the duality gap the sdpsolver should use */
 #define DEFAULT_SDPSOLVERFEASTOL    1e-4     /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
-#define DEFAULT_PENALTYPARAM        1e+8     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
+#define DEFAULT_PENALTYPARAM        1e+5     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 
 /** data for SDPI */
 struct SCIP_SDPi
@@ -2776,6 +2776,7 @@ SCIP_RETCODE SCIPsdpiSetRealpar(
       break;
    case SCIP_SDPPAR_PENALTYPARAM:
       sdpi->penaltyparam = dval;
+      SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;
