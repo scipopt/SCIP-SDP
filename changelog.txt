@@ -1,6 +1,10 @@
 SCIP-SDP version 2.1.0
 ==================
 
+fixed bugs:
+- changed default penalty parameter in DSDP to prevent cases where optimal solutions within the feasibility tolerance
+  where cut off by DSDP
+
 features:
 - added diving heuristic for SDPs
 - added optimization-based bound tightening for SDPs
@@ -8,6 +12,9 @@ features:
 
 interface:
 - added possibility to read and write in .cip format
+
+parameters:
+- penalty parameter to be used for numerically hard relaxations can now be changed by a parameter
 
 core:
 - penalty formulation is now called only once for a SCIP-parameter-controlled penalty parameter, instead of once for 
