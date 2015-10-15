@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
- #define SCIP_DEBUG
+/* #define SCIP_DEBUG*/
 /* #define SCIP_MORE_DEBUG*/
 
 /**@file   sdpi.c
