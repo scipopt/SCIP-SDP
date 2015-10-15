@@ -59,6 +59,7 @@
 
 #define DEFAULT_SDPSOLVEREPSILON    1e-5     /**< the stopping criterion for the duality gap the sdpsolver should use */
 #define DEFAULT_SDPSOLVERFEASTOL    1e-4     /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
+#define DEFAULT_PENALTYPARAM        1e+7     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 #if 0
 #define DEFAULT_THREADS             1        /**< number of threads used for SDP solving */
 #endif
@@ -80,6 +81,7 @@ struct SCIP_RelaxData
    SCIP_Bool             probingsolved;      /**< was the last probing SDP solved successfully? */
    SCIP_Real             sdpsolverepsilon;   /**< the stopping criterion for the duality gap the sdpsolver should use */
    SCIP_Real             sdpsolverfeastol;   /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
+   SCIP_Real             penaltyparam;       /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
    int                   sdpiterations;      /**< saves the total number of sdp-iterations */
 #if 0
    int                   threads;            /**< number of threads used for SDP solving */
@@ -591,7 +593,6 @@ SCIP_RETCODE calc_relax(
 
       if ( node == 0 )
       {
-         /* TODO: if we could generate a lower bound via penalty-with-objective, we could use it here */
          relaxdata->feasible = FALSE;
          *result = SCIP_SUSPENDED;
          SCIPerrorMessage("The relaxation of the root node could not be solved, so there is no hope to solve this instance. \n");
@@ -806,6 +807,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    vars = SCIPgetVars(scip);
    nvars = SCIPgetNVars(scip);
 
+#if 0
    /* don't run again if we already solved the current node (except during probing), and we solved the correct problem */
    if ( ( relaxdata->lastsdpnode == SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) && ( ! SCIPinProbing(scip) ) )
          && relaxdata->origsolved && ( ! relaxdata->resolve) )
@@ -853,6 +855,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       *result = SCIP_SUCCESS;
       return SCIP_OKAY;
    }
+#endif
 
    /* if we are solving a probing SDP, remember that we didn't solve the original problem */
    relaxdata->origsolved = FALSE;
@@ -973,6 +976,7 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
    SCIP_VAR** vars;
    SCIP_Real epsilon;
    SCIP_Real feastol;
+   SCIP_Real penaltyparam;
 #if 0
    int threads;
 #endif
@@ -1020,6 +1024,19 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
 
    SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolverfeastol", &feastol) );
    retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_FEASTOL, feastol);
+   if ( retcode == SCIP_PARAMETERUNKNOWN )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
+         "SDP Solver <%s>: feastol setting not available -- SCIP parameter has no effect\n",
+         SCIPsdpiGetSolverName());
+   }
+   else
+   {
+      SCIP_CALL( retcode );
+   }
+
+   SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/penaltyparam", &penaltyparam) );
+   retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, penaltyparam);
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
@@ -1175,6 +1192,8 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          &(relaxdata->sdpsolverepsilon), TRUE, DEFAULT_SDPSOLVEREPSILON, 1e-20, 0.001, NULL, NULL) );
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/sdpsolverfeastol", "the feasibility tolerance the SDP solver should use for the SDP constraints",
          &(relaxdata->sdpsolverfeastol), TRUE, DEFAULT_SDPSOLVERFEASTOL, 1e-17, 0.001, NULL, NULL) );
+   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/penaltyparam", "the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge",
+         &(relaxdata->penaltyparam), TRUE, DEFAULT_PENALTYPARAM, 0.001, 1e+20, NULL, NULL) );
 #if 0
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/threads", "number of threads used for SDP solving",
          &(relaxdata->threads), TRUE, DEFAULT_THREADS, 1, INT_MAX, NULL, NULL) );

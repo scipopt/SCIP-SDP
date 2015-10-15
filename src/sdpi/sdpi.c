@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* #define SCIP_DEBUG*/
+ #define SCIP_DEBUG
 /* #define SCIP_MORE_DEBUG*/
 
 /**@file   sdpi.c
@@ -111,6 +111,10 @@
 /* should the slater condition also be checked for the primal problem? (this in general doesnot work if variables are bounded both from above and below */
 #define SLATERCHECKPRIMAL           FALSE
 
+#define DEFAULT_SDPSOLVEREPSILON    1e-5     /**< the stopping criterion for the duality gap the sdpsolver should use */
+#define DEFAULT_SDPSOLVERFEASTOL    1e-4     /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
+#define DEFAULT_PENALTYPARAM        1e+7     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
+
 /** data for SDPI */
 struct SCIP_SDPi
 {
@@ -161,6 +165,7 @@ struct SCIP_SDPi
    int                   sdpid;              /**< counter for the number of SDPs solved */
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
+   SCIP_Real             penaltyparam;       /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 };
 
 /*
@@ -901,8 +906,9 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->lpcol = NULL;
    (*sdpi)->lpval = NULL;
 
-   (*sdpi)->epsilon = 1e-5;
-   (*sdpi)->feastol = 1e-4;
+   (*sdpi)->epsilon = DEFAULT_SDPSOLVEREPSILON;
+   (*sdpi)->feastol = DEFAULT_SDPSOLVERFEASTOL;
+   (*sdpi)->penaltyparam = DEFAULT_PENALTYPARAM;
 
    return SCIP_OKAY;
 }
@@ -2141,63 +2147,35 @@ SCIP_RETCODE SCIPsdpiSolve(
       sdpi->penalty = FALSE;
       sdpi->solved = TRUE;
 
-      /* if the solver didn't produce a satisfactory result, we have to try with penalty formulations */
+      /* if the solver didn't produce a satisfactory result, we have to try with a penalty formulation */
       if ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) )
       {
-         SCIP_Real penaltyparam;
          SCIP_Bool feasorig;
 
-         penaltyparam = 1.0;
          feasorig = FALSE;
 
-         /* if we didn't converge, first try to check feasibility with a penalty formulation */
-         SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penalty formulation\n", sdpi->sdpid);
+         SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penaltyparameter %f\n", sdpi->sdpid, sdpi->penaltyparam);
 
-         SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, TRUE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
-               sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
-               sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
-               sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-               sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-               rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, &feasorig) );
+         SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, sdpi->penaltyparam, TRUE, TRUE, sdpi->nvars, sdpi->obj,
+                    sdpi->lb, sdpi->ub, sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
+                    sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
+                    sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
+                    sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
+                    rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, &feasorig) );
 
-         /* if the solver converged and the solution is feasible for our original problem, the problem is feasible and we can continue to search for an
-          * optimal solution, if the solver converged but the solution isn't feasible for our original problem, the problem is infeasible, if we still
-          * didn't converge, we are out of luck */
-         if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && feasorig)
+
+         /* check if we were able to solve the problem in the end */
+         if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && feasorig )
          {
-            /* increase the penalty parameter until we are able to solve the problem and get a solution that is feasible for our original problem and
-             * the problem isn't unbounded (this can be caused by a too small penalty parameter) or the penalty parameter gets too large */
-            do
-            {
-               SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penaltyparameter %f\n", sdpi->sdpid, penaltyparam);
-
-               SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, penaltyparam, TRUE, TRUE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
-                     sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
-                     sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
-                     sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-                     sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-                     rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, &feasorig) );
-
-               penaltyparam *= 10.0;
-            }
-            while ( (! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) || ! feasorig || SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver))  &&
-                     ! SCIPsdpiSolverIsGEMaxPenParam(sdpi->sdpisolver, penaltyparam) );
-
-            /* check if we were able to solve the problem in the end */
-            if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && feasorig )
-               sdpi->penalty = TRUE;
-            else
-            {
-               /* TODO: Do we want to give the computed lower bound? Do we want to tell that we showed that the problem is feasible? */
-               sdpi->solved = FALSE;
-               sdpi->penalty = TRUE;
-            }
+            sdpi->penalty = TRUE;
+            sdpi->solved = TRUE;
          }
          else if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && ! feasorig )
          {
             SCIPdebugMessage("Problem was found to be infeasible using a penalty formulation \n");
             sdpi->infeasible = TRUE;
             sdpi->penalty = TRUE;
+            sdpi->solved = TRUE;
          }
          else
          {
@@ -2205,6 +2183,7 @@ SCIP_RETCODE SCIPsdpiSolve(
             sdpi->solved = FALSE;
             sdpi->penalty = TRUE;
          }
+
          /* if we still didn't succeed and enforceslatercheck was set, we finally test for the Slater condition to give a reason for failure */
          if ( sdpi->solved == FALSE && enforceslatercheck)
          {
@@ -2754,6 +2733,9 @@ SCIP_RETCODE SCIPsdpiGetRealpar(
    case SCIP_SDPPAR_OBJLIMIT:
       SCIP_CALL_PARAM( SCIPsdpiSolverGetRealpar(sdpi->sdpisolver, type, dval) );
       break;
+   case SCIP_SDPPAR_PENALTYPARAM:
+      *dval = sdpi->penaltyparam;
+      break;
    default:
       return SCIP_PARAMETERUNKNOWN;
    }
@@ -2791,6 +2773,9 @@ SCIP_RETCODE SCIPsdpiSetRealpar(
       break;
    case SCIP_SDPPAR_OBJLIMIT:
       SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
+      break;
+   case SCIP_SDPPAR_PENALTYPARAM:
+      sdpi->penaltyparam = dval;
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;

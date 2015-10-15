@@ -9,8 +9,10 @@ features:
 interface:
 - added possibility to read and write in .cip format
 
-performance improvements:
-- only allow saving the SDP once for each node, do not rerun after finding some fixing in propagation like reduced cost fixing
+core:
+- penalty formulation is now called only once for a SCIP-parameter-controlled penalty parameter, instead of once for 
+  feasibility (which is also problematic from a theoretical viewpoint) and then multiple times with increased penalty
+  parameters
 
 
 SCIP-SDP version 2.0.1
