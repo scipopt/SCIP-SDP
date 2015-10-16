@@ -2782,14 +2782,6 @@ SCIP_RETCODE SCIPsdpiSetRealpar(
       return SCIP_PARAMETERUNKNOWN;
    }
 
-#ifndef NDEBUG
-   {
-      SCIP_Real val;
-      SCIP_CALL_PARAM( SCIPsdpiSolverGetRealpar(sdpi->sdpisolver, type, &val) );
-      assert( REALABS(dval - val) < sdpi->epsilon );
-   }
-#endif
-
    return SCIP_OKAY;
 }
 
