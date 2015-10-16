@@ -59,13 +59,17 @@
 
 #define DEFAULT_SDPSOLVEREPSILON    1e-5     /**< the stopping criterion for the duality gap the sdpsolver should use */
 #define DEFAULT_SDPSOLVERFEASTOL    1e-4     /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
-#define DEFAULT_PENALTYPARAM        1e+5     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
+#define DEFAULT_PENALTYPARAM        -1       /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 #if 0
 #define DEFAULT_THREADS             1        /**< number of threads used for SDP solving */
 #endif
 #define DEFAULT_OBJLIMIT            FALSE    /**< should an objective limit be given to the SDP-Solver ? */
 #define DEFAULT_RESOLVE             FALSE    /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
 #define DEFAULT_TIGHTENVB           FALSE    /**< Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ? */
+
+#define MIN_PENALTYPARAM            1e5      /**< if the penalty parameter is to be computed, this is the minimum value it will take */
+#define MAX_PENALTYPARAM            1e12     /**< if the penalty parameter is to be computed, this is the maximum value it will take */
+#define PENALTYPARAM_FACTOR         1e4      /**< if the penalty parameter is to be computed, the maximal objective coefficient will be multiplied by this */
 
 /*
  * Data structures
@@ -1036,7 +1040,39 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
    }
 
    SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/penaltyparam", &penaltyparam) );
-   retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, penaltyparam);
+   if ( SCIPisGE(scip, penaltyparam, 0.0) )
+      retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, penaltyparam);
+   else
+   {
+      SCIP_Real maxcoeff;
+      int v;
+
+      /* we set the value to max{MIN_PENALTYPARAM, PENALTYPARAM_FACTOR * max_objective_coefficient} */
+
+      /* compute the maximum coefficient in the objective */
+      maxcoeff = 0.0;
+      for (v = 0; v < nvars; v++)
+      {
+         if ( SCIPisGT(scip, REALABS(SCIPvarGetObj(vars[v])), maxcoeff) )
+            maxcoeff = SCIPvarGetObj(vars[v]);
+      }
+
+      if ( SCIPisLT(scip, PENALTYPARAM_FACTOR * maxcoeff, MIN_PENALTYPARAM) )
+      {
+         retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, MIN_PENALTYPARAM);
+         SCIPdebugMessage("Setting penaltyparameter to %f.\n", MIN_PENALTYPARAM);
+      }
+      else if ( SCIPisGT(scip, PENALTYPARAM_FACTOR * maxcoeff, MAX_PENALTYPARAM) )
+      {
+         retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, MAX_PENALTYPARAM);
+         SCIPdebugMessage("Setting penaltyparameter to %f.\n", MAX_PENALTYPARAM);
+      }
+      else
+      {
+         retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, PENALTYPARAM_FACTOR * maxcoeff);
+         SCIPdebugMessage("Setting penaltyparameter to %f.\n", PENALTYPARAM_FACTOR * maxcoeff);
+      }
+   }
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
@@ -1192,8 +1228,9 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          &(relaxdata->sdpsolverepsilon), TRUE, DEFAULT_SDPSOLVEREPSILON, 1e-20, 0.001, NULL, NULL) );
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/sdpsolverfeastol", "the feasibility tolerance the SDP solver should use for the SDP constraints",
          &(relaxdata->sdpsolverfeastol), TRUE, DEFAULT_SDPSOLVERFEASTOL, 1e-17, 0.001, NULL, NULL) );
-   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/penaltyparam", "the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge",
-         &(relaxdata->penaltyparam), TRUE, DEFAULT_PENALTYPARAM, 0.001, 1e+20, NULL, NULL) );
+   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/penaltyparam", "the penalty parameter Gamma used for the penalty formulation if the SDP solver "
+         "didn't converge, set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->penaltyparam),
+         TRUE, DEFAULT_PENALTYPARAM, -1.0, 1e+20, NULL, NULL) );
 #if 0
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/threads", "number of threads used for SDP solving",
          &(relaxdata->threads), TRUE, DEFAULT_THREADS, 1, INT_MAX, NULL, NULL) );
