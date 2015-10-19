@@ -69,7 +69,8 @@
 
 #define MIN_PENALTYPARAM            1e5      /**< if the penalty parameter is to be computed, this is the minimum value it will take */
 #define MAX_PENALTYPARAM            1e12     /**< if the penalty parameter is to be computed, this is the maximum value it will take */
-#define PENALTYPARAM_FACTOR         1e4      /**< if the penalty parameter is to be computed, the maximal objective coefficient will be multiplied by this */
+#define PENALTYPARAM_FACTOR_DSDP    1e4      /**< if the penalty parameter is to be computed, the maximal objective coefficient will be multiplied by this */
+#define PENALTYPARAM_FACTOR_SDPA    1e1      /**< if the penalty parameter is to be computed, the maximal objective coefficient will be multiplied by this */
 
 /*
  * Data structures
@@ -1046,6 +1047,7 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
    {
       SCIP_Real maxcoeff;
       int v;
+      SCIP_Real compval;
 
       /* we set the value to max{MIN_PENALTYPARAM, PENALTYPARAM_FACTOR * max_objective_coefficient} */
 
@@ -1057,20 +1059,31 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
             maxcoeff = SCIPvarGetObj(vars[v]);
       }
 
-      if ( SCIPisLT(scip, PENALTYPARAM_FACTOR * maxcoeff, MIN_PENALTYPARAM) )
+      /* compute the value we would like to set the penaltyparameter to */
+      if ( strcmp(SCIPsdpiGetSolverName(), "DSDP") == 0 )
+         compval = PENALTYPARAM_FACTOR_DSDP * maxcoeff;
+      else if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0 )
+         compval = PENALTYPARAM_FACTOR_SDPA * maxcoeff;
+      else
+      {
+         SCIPdebugMessage("unknown SDP-Solver %s when setting penaltyparam !\n", SCIPsdpiGetSolverName());
+         compval = SCIPinfinity(scip);
+      }
+
+      if ( SCIPisLT(scip, compval, MIN_PENALTYPARAM) )
       {
          retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, MIN_PENALTYPARAM);
          SCIPdebugMessage("Setting penaltyparameter to %f.\n", MIN_PENALTYPARAM);
       }
-      else if ( SCIPisGT(scip, PENALTYPARAM_FACTOR * maxcoeff, MAX_PENALTYPARAM) )
+      else if ( SCIPisGT(scip, compval, MAX_PENALTYPARAM) )
       {
          retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, MAX_PENALTYPARAM);
          SCIPdebugMessage("Setting penaltyparameter to %f.\n", MAX_PENALTYPARAM);
       }
       else
       {
-         retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, PENALTYPARAM_FACTOR * maxcoeff);
-         SCIPdebugMessage("Setting penaltyparameter to %f.\n", PENALTYPARAM_FACTOR * maxcoeff);
+         retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, compval);
+         SCIPdebugMessage("Setting penaltyparameter to %f.\n", compval);
       }
    }
    if ( retcode == SCIP_PARAMETERUNKNOWN )
