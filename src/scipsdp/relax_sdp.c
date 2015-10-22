@@ -910,7 +910,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       {
          ubs[i] = SCIPvarGetUbLocal(vars[i]);
          *lowerbound += SCIPvarGetObj(vars[i]) * ubs[i];
-         assert( SCIPisEQ(scip, SCIPvarGetUbLocal(vars[i]), SCIPvarGetLbLocal(vars[i])));
+         assert( SCIPisFeasEQ(scip, SCIPvarGetUbLocal(vars[i]), SCIPvarGetLbLocal(vars[i])));
       }
       if ( SCIPgetObjsense(scip) == -1 ) /*lint !e641*/
          *lowerbound *= -1;
