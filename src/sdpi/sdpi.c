@@ -43,10 +43,13 @@
 #include "sdpi/sdpisolver.h"
 #include "sdpi/sdpi.h"
 #include "scipsdp/SdpVarfixer.h"
+#include "sdpi/lapack.h"                     /* to check feasibility if all variables are fixed during preprocessing */
 
 #include "blockmemshell/memory.h"            /* for memory allocation */
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
+
+/* TODO: don't override old lb/ub when computing changes caused by fixed variables and LP-rows with single entries */
 
 
 /** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY */
@@ -161,7 +164,8 @@ struct SCIP_SDPi
    SCIP_Bool             slatercheck;        /**< should the Slater condition for the dual problem be checked ahead of each solving process */
    SCIP_Bool             solved;             /**< was the problem solved since the last change */
    SCIP_Bool             penalty;            /**< was the last solved problem a penalty formulation */
-   SCIP_Bool             infeasible;         /**< was infeasibility detected in presolving */
+   SCIP_Bool             infeasible;         /**< was infeasibility detected in presolving? */
+   SCIP_Bool             allfixed;           /**< could all variables be fixed during presolving? */
    int                   sdpid;              /**< counter for the number of SDPs solved */
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
@@ -808,6 +812,143 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
    return SCIP_OKAY;
 }
 
+/** checks whether all variables are fixed (lb=ub), in that case changes the sdpi->allfixed pointer accordingly
+ * TODO: also needs lb and ub, after they get changed outside the sdpi
+ */
+static
+SCIP_RETCODE checkAllFixed(
+   SCIP_SDPI*            sdpi                /**< pointer to an SDP interface structure */
+   )
+{
+   int v;
+
+   /* check all variables until we find an unfixed one */
+   for (v = 0; v < sdpi->nvars; v++)
+   {
+      if ( ! isFixed(sdpi, v) )
+      {
+         sdpi->allfixed = FALSE;
+
+         return SCIP_OKAY;
+      }
+   }
+
+   /* we did not find an unfixed variable, so all are fixed */
+   SCIPdebugMessage("Detected that all variables in SDP %d are fixed.\n", sdpi->sdpid);
+   sdpi->allfixed = TRUE;
+
+   return SCIP_OKAY;
+}
+
+/** If all variables are fixed, check whether the remaining solution is feasible for the SDP-constraints (LP constraints should be checked
+ *  already when computing the rhs after fixing)
+ *  TODO: also needs lb and ub, after they get changed outside the sdpi
+ */
+static
+SCIP_RETCODE checkFixedFeasibilitySdp(
+   SCIP_SDPI*            sdpi,               /**< pointer to an SDP interface structure */
+   int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
+                                              *   number of entries  of sdpconst row/col/val [i] */
+   int**                 sdpconstrow,        /**< pointers to row-indices for each block */
+   int**                 sdpconstcol,        /**< pointers to column-indices for each block */
+   SCIP_Real**           sdpconstval,        /**< pointers to the values of the nonzeros for each block */
+   int**                 indchanges,         /**< pointer to store the changes needed to be done to the indices, if indchanges[block][nonz]=-1, then
+                                              *   the index can be removed, otherwise it gives the number of indices removed before this, i.e.
+                                              *   the value to decrease this index by, this array should have memory allocated in the size
+                                              *   sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
+   int*                  nremovedinds,       /**< pointer to store the number of rows/cols to be fixed for each block */
+   int*                  blockindchanges     /**< pointer to store index change for each block, system is the same as for indchanges */
+   )
+{
+   SCIP_Real* fullmatrix; /* we need to give the full matrix to LAPACK */
+   int maxsize; /* as we don't want to allocate memory newly for every SDP-block, we allocate memory according to the size of the largest block */
+   int b;
+   int i;
+   int size;
+   int v;
+   int fixedval;
+   SCIP_Real eigenvalue;
+
+   assert( sdpi->allfixed );
+
+   /* compute the maximum blocksize */
+   maxsize = -1;
+
+   for (b = 0; b < sdpi->nsdpblocks; b++)
+   {
+      if ( sdpi->sdpblocksizes[b] - nremovedinds[b] > maxsize )
+         maxsize = sdpi->sdpblocksizes[b] - nremovedinds[b];
+   }
+
+   /* allocate memory */
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &fullmatrix, maxsize * maxsize) );
+
+   /* iterate over all SDP-blocks and check if the smallest eigenvalue is non-negative */
+   for (b = 0; b < sdpi->nsdpblocks; b++)
+   {
+      /* if the block is removed, we don't need to do anything, otherwise build the full matrix */
+      if ( blockindchanges[b] == -1 )
+         continue;
+
+      size = sdpi->sdpblocksizes[b] - nremovedinds[b];
+
+      /* initialize the matrix with zero */
+      for (i = 0; i < size * size; i++)
+         fullmatrix[i] = 0.0;
+
+      /* add the constant part (with negative sign) */
+      for (i = 0; i < sdpconstnblocknonz[b]; i++)
+      {
+         assert( 0 <= sdpconstrow[b][i] - indchanges[b][sdpconstrow[b][i]] && sdpconstrow[b][i] - indchanges[b][sdpconstrow[b][i]] < size );
+         assert( 0 <= sdpconstcol[b][i] - indchanges[b][sdpconstcol[b][i]] && sdpconstcol[b][i] - indchanges[b][sdpconstcol[b][i]] < size );
+         fullmatrix[(sdpconstrow[b][i] - indchanges[b][sdpconstrow[b][i]]) * size
+                    + sdpconstcol[b][i] - indchanges[b][sdpconstcol[b][i]]] = -1 * sdpconstval[b][i];
+      }
+
+      /* add the contributions of the fixed variables */
+      for (v = 0; v < sdpi->sdpnblockvars[b]; v++)
+      {
+
+         fixedval = sdpi->lb[sdpi->sdpvar[b][v]];
+
+         /* if the variable is fixed to zero, we can ignore its contributions */
+         if ( REALABS(fixedval) < sdpi->feastol )
+            continue;
+
+         /* iterate over all nonzeros */
+         for (i = 0; i < sdpi->sdpnblockvarnonz[b][v]; i++)
+         {
+            assert( 0 <= sdpi->sdprow[b][v][i] - indchanges[b][sdpi->sdprow[b][v][i]] &&
+                         sdpi->sdprow[b][v][i] - indchanges[b][sdpi->sdprow[b][v][i]] < size );
+            assert( 0 <= sdpi->sdpcol[b][v][i] - indchanges[b][sdpi->sdpcol[b][v][i]] &&
+                         sdpi->sdpcol[b][v][i] - indchanges[b][sdpi->sdpcol[b][v][i]] < size );
+            fullmatrix[(sdpi->sdprow[b][v][i] - indchanges[b][sdpi->sdprow[b][v][i]]) * size
+                       + sdpi->sdpcol[b][v][i] - indchanges[b][sdpi->sdpcol[b][v][i]]] += fixedval * sdpi->sdpval[b][v][i];
+         }
+      }
+
+      /* compute the smallest eigenvalue */
+      SCIP_CALL( SCIPlapackComputeIthEigenvalue(sdpi->blkmem, FALSE, size, fullmatrix, 1, &eigenvalue, NULL) );
+
+      /* check if the eigenvalue is negative */
+      if ( eigenvalue < -1 * sdpi->feastol )
+      {
+         sdpi->infeasible = TRUE;
+         SCIPdebugMessage("Detected infeasibility for SDP %d with all fixed variables!\n", sdpi->sdpid);
+         break;
+      }
+   }
+
+   /* free memory */
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &fullmatrix, maxsize * maxsize);
+
+   /* if we didn't find an SDP-block with negative eigenvalue, the solution is feasible */
+   sdpi->infeasible = FALSE;
+   SCIPdebugMessage("Unique solution for SDP %d with all fixed variables is feasible!\n", sdpi->sdpid);
+
+   return SCIP_OKAY;
+}
+
 
 /*
  * Miscellaneous Methods
@@ -885,6 +1026,7 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->solved = FALSE;
    (*sdpi)->penalty = FALSE;
    (*sdpi)->infeasible = FALSE;
+   (*sdpi)->allfixed = FALSE;
 
    (*sdpi)->obj = NULL;
    (*sdpi)->lb = NULL;
@@ -1073,6 +1215,7 @@ SCIP_RETCODE SCIPsdpiClone(
    newsdpi->solved = FALSE; /* as we don't copy the sdpisolver, this needs to be set to false */
    newsdpi->penalty = FALSE; /* all things about SDP-solutions are set to false as well, as we didn't solve the problem */
    newsdpi->infeasible = FALSE;
+   newsdpi->allfixed = FALSE;
    newsdpi->sdpid = 1000000 + oldsdpi->sdpid; /* this is only used for debug output, setting it to this value should make it clear, that it is a new sdpi */
    newsdpi->epsilon = oldsdpi->epsilon;
    newsdpi->feastol = oldsdpi->feastol;
@@ -1304,6 +1447,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
 
    sdpi->solved = FALSE;
    sdpi->infeasible = FALSE;
+   sdpi->allfixed = FALSE;
 
    return SCIP_OKAY;
 }
@@ -1414,6 +1558,7 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
 
       sdpi->solved = FALSE;
       sdpi->infeasible = FALSE;
+      sdpi->allfixed = FALSE;
 
       return SCIP_OKAY;
    }
@@ -1474,6 +1619,7 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
 
    sdpi->solved = FALSE;
    sdpi->infeasible = FALSE;
+   sdpi->allfixed = FALSE;
 
    return SCIP_OKAY;
 }
@@ -1513,6 +1659,7 @@ SCIP_RETCODE SCIPsdpiDelLPRowset(
 
    sdpi->solved = FALSE;
    sdpi->infeasible = FALSE;
+   sdpi->allfixed = FALSE;
 
    return SCIP_OKAY;
 }
@@ -1587,6 +1734,7 @@ SCIP_RETCODE SCIPsdpiChgBounds(
 
    sdpi->solved = FALSE;
    sdpi->infeasible = FALSE;
+   sdpi->allfixed = FALSE;
 
    return SCIP_OKAY;
 }
@@ -1620,6 +1768,7 @@ SCIP_RETCODE SCIPsdpiChgLPLhRhSides(
 
    sdpi->solved = FALSE;
    sdpi->infeasible = FALSE;
+   sdpi->allfixed = FALSE;
 
    return SCIP_OKAY;
 }
@@ -1903,11 +2052,26 @@ SCIP_RETCODE SCIPsdpiSolve(
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) ); /*lint !e776*/
    }
 
-   SCIP_CALL (findEmptyRowColsSDP(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges, nremovedinds, blockindchanges, &nremovedblocks) );
+   SCIP_CALL( findEmptyRowColsSDP(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges, nremovedinds, blockindchanges, &nremovedblocks) );
+
+   /* check if all variables are fixed, if this is the case, check if the remaining solution if feasible (we only need to check the SDP-constraint,
+    * the linear constraints were already checked in computeLpLhsRhsAfterFixings) */
+   SCIP_CALL( checkAllFixed(sdpi) );
+   if ( sdpi->allfixed && (! sdpi->infeasible) )
+   {
+      SCIP_CALL( checkFixedFeasibilitySdp(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges, nremovedinds, blockindchanges) );
+   }
 
    if ( sdpi->infeasible )
    {
       SCIPdebugMessage("SDP %d not given to solver, as infeasibility was detected during presolving!\n", sdpi->sdpid++);
+      SCIP_CALL( SCIPsdpiSolverIncreaseCounter(sdpi->sdpisolver) );
+
+      sdpi->solved = TRUE;
+   }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("SDP %d not given to solver, as all variables were fixed during presolving (the solution was feasible)!\n", sdpi->sdpid++);
       SCIP_CALL( SCIPsdpiSolverIncreaseCounter(sdpi->sdpisolver) );
 
       sdpi->solved = TRUE;
@@ -1943,8 +2107,10 @@ SCIP_RETCODE SCIPsdpiSolve(
 
          /* if we didn't succeed, then probably the primal problem is troublesome */
          if ( (! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver)) && (! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver)) )
+         {
             printf("Unable to check Slater condition for dual problem, could mean that the Slater conidition for the primal problem"
                   " is not fullfilled.\n");
+         }
          else
          {
             if ( SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
@@ -2240,7 +2406,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstnblocknonz, sdpi->nsdpblocks);
 
    /* add the iterations needed to solve this SDP */
-   if ( ! sdpi->infeasible )
+   if ( ! ( sdpi->infeasible || sdpi->allfixed ) )
    {
       SCIP_CALL( SCIPsdpiSolverGetIterations(sdpi->sdpisolver, &newiterations) );
       *totalsdpiterations += newiterations;
@@ -2291,7 +2457,7 @@ SCIP_Bool SCIPsdpiFeasibilityKnown(
    assert( sdpi != NULL );
    CHECK_IF_SOLVED_BOOL(sdpi);
 
-   if (sdpi->infeasible)
+   if ( sdpi->infeasible || sdpi->allfixed )
       return TRUE;
 
    return SCIPsdpiSolverFeasibilityKnown(sdpi->sdpisolver);
@@ -2311,6 +2477,12 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, primal feasibility not available\n");
       *dualfeasible = FALSE;
+      return SCIP_OKAY;
+   }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All variables were fixed during preprocessing, dual problem is feasible, primal feasibility not available\n");
+      *dualfeasible = TRUE;
       return SCIP_OKAY;
    }
 
@@ -2333,6 +2505,11 @@ SCIP_Bool SCIPsdpiIsPrimalUnbounded(
       SCIPdebugMessage("Problem was found infeasible during preprocessing, primal unboundedness not available\n");
       return FALSE;
    }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All variables were fixed during preprocessing, primal unboundedness not available\n");
+      return FALSE;
+   }
 
    return SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver);
 }
@@ -2349,6 +2526,11 @@ SCIP_Bool SCIPsdpiIsPrimalInfeasible(
    if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, primal feasibility not available\n");
+      return FALSE;
+   }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All variables were fixed during preprocessing, primal feasibility not available\n");
       return FALSE;
    }
 
@@ -2369,6 +2551,11 @@ SCIP_Bool SCIPsdpiIsPrimalFeasible(
       SCIPdebugMessage("Problem was found infeasible during preprocessing, primal feasibility not available\n");
       return FALSE;
    }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All variables fixed during preprocessing, primal feasibility not available\n");
+      return FALSE;
+   }
 
    return SCIPsdpiSolverIsPrimalFeasible(sdpi->sdpisolver);
 }
@@ -2384,7 +2571,12 @@ SCIP_Bool SCIPsdpiIsDualUnbounded(
 
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, dual unboundedness not available\n");
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, therefore is not unbounded\n");
+      return FALSE;
+   }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All variables were fixed during preprocessing, therefore the problem is not unbounded\n");
       return FALSE;
    }
 
@@ -2405,6 +2597,11 @@ SCIP_Bool SCIPsdpiIsDualInfeasible(
       SCIPdebugMessage("Problem was found infeasible during preprocessing\n");
       return TRUE;
    }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All variables were fixed during preprocessing, solution is feasible\n");
+      return FALSE;
+   }
 
    return SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver);
 }
@@ -2423,6 +2620,11 @@ SCIP_Bool SCIPsdpiIsDualFeasible(
       SCIPdebugMessage("Problem was found infeasible during preprocessing\n");
       return FALSE;
    }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All variables fixed during preprocessing, solution is feasible\n");
+      return TRUE;
+   }
 
    return SCIPsdpiSolverIsDualFeasible(sdpi->sdpisolver);
 }
@@ -2438,6 +2640,11 @@ SCIP_Bool SCIPsdpiIsConverged(
    if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, this counts as converged.\n");
+      return TRUE;
+   }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All variables were fixed during preprocessing, this counts as converged.\n");
       return TRUE;
    }
 
@@ -2457,6 +2664,11 @@ SCIP_Bool SCIPsdpiIsObjlimExc(
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no objective limit available.\n");
       return FALSE;
    }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All variables were fixed during preprocessing, no objective limit available.\n");
+      return FALSE;
+   }
 
    return SCIPsdpiSolverIsObjlimExc(sdpi->sdpisolver);
 }
@@ -2474,6 +2686,11 @@ SCIP_Bool SCIPsdpiIsIterlimExc(
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no iteration limit available.\n");
       return FALSE;
    }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All variables were fixed during preprocessing, no iteration limit available.\n");
+      return FALSE;
+   }
 
    return SCIPsdpiSolverIsIterlimExc(sdpi->sdpisolver);
 }
@@ -2489,6 +2706,11 @@ SCIP_Bool SCIPsdpiIsTimelimExc(
    if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no time limit available.\n");
+      return FALSE;
+   }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All variables were fixed during preprocessing, no time limit available.\n");
       return FALSE;
    }
 
@@ -2521,6 +2743,11 @@ int SCIPsdpiGetInternalStatus(
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no internal status available.\n");
       return 0;
    }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All variables were fixed during preprocessing, no internal status available.\n");
+      return 0;
+   }
 
    return SCIPsdpiSolverGetInternalStatus(sdpi->sdpisolver);
 }
@@ -2536,6 +2763,11 @@ SCIP_Bool SCIPsdpiIsOptimal(
    if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, therefore there is no optimal solution.\n");
+      return FALSE;
+   }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All variables were fixed during preprocessing, therefore there is no optimal solution.\n");
       return FALSE;
    }
 
@@ -2556,6 +2788,11 @@ SCIP_Bool SCIPsdpiIsAcceptable(
       SCIPdebugMessage("Problem was found infeasible during preprocessing, this is acceptable in a B&B context.\n");
       return TRUE;
    }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All variables fixed during preprocessing, this is acceptable in a B&B context.\n");
+      return TRUE;
+   }
 
    return SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver);
 }
@@ -2574,6 +2811,17 @@ SCIP_RETCODE SCIPsdpiGetObjval(
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no objective value available.\n");
       return SCIP_OKAY;
+   }
+
+   if ( sdpi->allfixed )
+   {
+      int v;
+
+      /* As all variables were fixed during preprocessing, we have to compute it ourselves here */
+      *objval = 0;
+
+      for (v = 0; v < sdpi->nvars; v++)
+         *objval += sdpi->lb[v] * sdpi->obj[v];
    }
 
    SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, objval) );
@@ -2600,6 +2848,32 @@ SCIP_RETCODE SCIPsdpiGetSol(
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no solution available.\n");
       return SCIP_OKAY;
+   }
+   else if ( sdpi->allfixed )
+   {
+      if ( objval != NULL )
+      {
+         SCIP_CALL( SCIPsdpiGetObjval(sdpi, objval) );
+      }
+      if ( *dualsollength > 0 )
+      {
+         int v;
+
+         assert( dualsol != NULL );
+         if ( *dualsollength < sdpi->nvars )
+         {
+            SCIPdebugMessage("The given array in SCIPsdpiGetSol only had length %d, but %d was needed", *dualsollength, sdpi->nvars);
+            *dualsollength = sdpi->nvars;
+
+            return SCIP_OKAY;
+         }
+
+         /* we give the fixed values as the solution */
+         for (v = 0; v < sdpi->nvars; v++)
+            dualsol[v] = sdpi->lb[v];
+
+         return SCIP_OKAY;
+      }
    }
 
    SCIP_CALL( SCIPsdpiSolverGetSol(sdpi->sdpisolver, objval, dualsol, dualsollength) );
@@ -2630,6 +2904,11 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no primal variables available.\n");
       return SCIP_OKAY;
    }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All variables fixed during preprocessing, no primal variables available.\n");
+      return SCIP_OKAY;
+   }
 
    SCIP_CALL( SCIPsdpiSolverGetPrimalBoundVars(sdpi->sdpisolver, lbvars, ubvars, arraylength) );
 
@@ -2648,6 +2927,12 @@ SCIP_RETCODE SCIPsdpiGetIterations(
    if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no iterations needed.\n");
+      *iterations = 0;
+      return SCIP_OKAY;
+   }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All varialbes fixed during preprocessing, no iterations needed.\n");
       *iterations = 0;
       return SCIP_OKAY;
    }

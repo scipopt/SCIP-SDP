@@ -370,7 +370,8 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
 
    SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPblkmem(scip), FALSE, blocksize, fullmatrix, 1, &eigenvalue, NULL) );
 
-   /* This enables checking the second DIMACS Error Norm: err=max{0, -lambda_min(x)/(1+maximumentry of rhs} */
+   /* This enables checking the second DIMACS Error Norm: err=max{0, -lambda_min(x)/(1+maximumentry of rhs)}, in that case it also needs
+    * to be changed in the sdpi (and implemented there first), when checking feasibility of problems where all variables are fixed */
 #ifdef DIMACS
    check_value = (-eigenvalue) / (1.0 + consdata->maxrhsentry);
 #else
