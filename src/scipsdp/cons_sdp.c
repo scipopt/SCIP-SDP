@@ -1876,10 +1876,19 @@ SCIP_DECL_CONSCOPY(consCopySdp)
          *valid = FALSE;
    }
 
-   /* create the new constraint */
-   SCIP_CALL( SCIPcreateConsSdp( scip, cons, name, sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize, sourcedata->nvarnonz,
-                                 sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
-                                 sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
+   /* create the new constraint, using the source name if no new name was given */
+   if ( name )
+   {
+      SCIP_CALL( SCIPcreateConsSdp( scip, cons, name, sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize, sourcedata->nvarnonz,
+                 sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
+                 sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
+   }
+   else
+   {
+      SCIP_CALL( SCIPcreateConsSdp( scip, cons, SCIPconsGetName(sourcecons), sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize,
+                 sourcedata->nvarnonz, sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
+                 sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
+   }
 
    SCIPfreeBufferArray(scip, &targetvars);
 
