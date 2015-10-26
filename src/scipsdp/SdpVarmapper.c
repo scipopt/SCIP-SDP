@@ -62,16 +62,18 @@ SCIP_RETCODE SCIPsdpVarmapperCreate(
    assert ( varmapper != NULL );
    assert ( size >= 0 );
 
+   SCIP_CALL( SCIPallocBlockMemory(scip, varmapper) );
+   (*varmapper)->nvars = 0;
+   (*varmapper)->sdptoscip = NULL;
+
    if ( size == 0 )
    {
       SCIPdebugMessage("SCIPsdpVarmapperCreate called for size 0!\n");
+
       return SCIP_OKAY;
    }
 
-   SCIP_CALL( SCIPallocBlockMemory(scip, varmapper) );
    SCIP_CALL( SCIPhashmapCreate(&((*varmapper)->sciptosdp), SCIPblkmem(scip), size) );
-   (*varmapper)->nvars = 0;
-   (*varmapper)->sdptoscip = NULL;
 
    return SCIP_OKAY;
 }
@@ -95,7 +97,9 @@ SCIP_RETCODE SCIPsdpVarmapperFree(
       SCIP_CALL( SCIPreleaseVar(scip, &((*varmapper)->sdptoscip[i])) );
    }
 
-   SCIPhashmapFree(&((*varmapper)->sciptosdp));
+   if ( (*varmapper)->nvars )
+      SCIPhashmapFree(&((*varmapper)->sciptosdp));
+
    SCIPfreeBlockMemoryArray(scip, &(*varmapper)->sdptoscip, (*varmapper)->nvars);
    SCIPfreeBlockMemory(scip, varmapper);
 
