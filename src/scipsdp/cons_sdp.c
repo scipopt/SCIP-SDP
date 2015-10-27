@@ -1463,7 +1463,9 @@ static
 SCIP_DECL_CONSEXITPRE(consExitpreSdp)
 {/*lint --e{715}*/
    assert( scip != NULL );
-   assert( conss != NULL );
+
+   if ( conss == NULL )
+      return SCIP_OKAY;
 
    SCIP_CALL( fixAndAggrVars(scip, conss, nconss, TRUE) );
 
