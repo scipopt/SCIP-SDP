@@ -395,7 +395,7 @@ SCIP_RETCODE findEmptyRowColsSDP(
          {
             for (i = 0; i < sdpi->sdpnblockvarnonz[block][v]; i++)
             {
-               assert ( REALABS(sdpi->sdpval[block][v][i]) > sdpi->epsilon); /* this should really be a nonzero */
+               assert ( REALABS(sdpi->sdpval[block][v][i]) > sdpi->feastol); /* this should really be a nonzero */
                if ( indchanges[block][sdpi->sdprow[block][v][i]] == -1 )
                {
                   indchanges[block][sdpi->sdprow[block][v][i]] = 1;
@@ -419,7 +419,7 @@ SCIP_RETCODE findEmptyRowColsSDP(
          /* if some indices haven't been found yet, look in the constant part for them */
          for (i = 0; i < sdpconstnblocknonz[block]; i++)
          {
-            assert ( REALABS(sdpconstval[block][i]) > sdpi->epsilon); /* this should really be a nonzero */
+            assert ( REALABS(sdpconstval[block][i]) > sdpi->feastol); /* this should really be a nonzero */
             if ( indchanges[block][sdpconstrow[block][i]] == -1 )
             {
                indchanges[block][sdpconstrow[block][i]] = 1;
@@ -690,7 +690,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
       assert( 0 <= nonzcol && nonzcol < sdpi->nvars );
 
       nonzval = sdpi->lpval[nonzind];
-      assert( REALABS(nonzval) > sdpi->epsilon );
+      assert( REALABS(nonzval) > sdpi->feastol );
 
       /* we have to check if this is an improvement of the current bound */
       if ( nonzval < 0.0 ) /* we have to compare with the upper bound for lhs and lower bound for rhs */
