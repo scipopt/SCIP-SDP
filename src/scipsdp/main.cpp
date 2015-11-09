@@ -44,6 +44,8 @@
 #include "prop_sdpredcost.h"
 #include "disp_sdpiterations.h"
 #include "disp_sdpavgiterations.h"
+#include "disp_sdpfastsettings.h"
+#include "disp_sdppenalty.h"
 #include "branch_sdpmostfrac.h"
 #include "branch_sdpmostinf.h"
 #include "branch_sdpobjective.h"
@@ -98,6 +100,14 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPincludeDispSdpavgiterations(scip) );
    SCIP_CALL( SCIPsetIntParam(scip, "display/lpiterations/active", 0) );
    SCIP_CALL( SCIPsetIntParam(scip, "display/lpavgiterations/active", 0) );
+
+   /* display numerical problems in SDPs instead of conflict analysis and strong branching */
+   SCIP_CALL( SCIPsetIntParam(scip, "display/nfrac/active", 0) );
+   SCIP_CALL( SCIPsetIntParam(scip, "display/vars/active", 0) );
+   SCIP_CALL( SCIPsetIntParam(scip, "display/conss/active", 0) );
+   SCIP_CALL( SCIPsetIntParam(scip, "display/curcols/active", 0) );
+   SCIP_CALL( SCIPincludeDispSdpfastsettings(scip) );
+   SCIP_CALL( SCIPincludeDispSdppenalty(scip) );
 
    /* change epsilons for numerical stability */
    SCIP_CALL( SCIPsetRealParam(scip, "numerics/epsilon", 1e-5) );

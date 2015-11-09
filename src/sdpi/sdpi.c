@@ -1967,7 +1967,6 @@ SCIP_RETCODE SCIPsdpiGetRhSides(
 SCIP_RETCODE SCIPsdpiSolve(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
-   int*                  totalsdpiterations, /**< the number of sdpiterations needed will be added to the int this points to */
    SCIP_Bool             enforceslatercheck  /**< always check for Slater condition in case the problem could not be solved and printf the solution
                                                   of this check */
    )
@@ -1980,7 +1979,6 @@ SCIP_RETCODE SCIPsdpiSolve(
    SCIP_Real** sdpconstval;
    int** indchanges;
    int* nremovedinds;
-   int newiterations;
    SCIP_Real* lplhsafterfix;
    SCIP_Real* lprhsafterfix;
    int* rowsnactivevars;
@@ -1989,8 +1987,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    int* blockindchanges;
    int nremovedblocks;
 
-   assert ( sdpi != NULL );
-   assert ( totalsdpiterations != NULL );
+   assert( sdpi != NULL );
 
    SCIPdebugMessage("Forwarding SDP %d to solver!\n", sdpi->sdpid);
 
@@ -2001,6 +1998,8 @@ SCIP_RETCODE SCIPsdpiSolve(
    indchanges = NULL;
    nremovedinds = NULL;
    nremovedblocks = 0;
+
+   sdpi->penalty = FALSE;
 
    /* allocate memory for computing the constant matrix after fixings and finding empty rows and columns, this is as much as might possibly be
     * needed, this will be shrinked again before solving */
@@ -2310,7 +2309,6 @@ SCIP_RETCODE SCIPsdpiSolve(
             sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
             rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start) );
 
-      sdpi->penalty = FALSE;
       sdpi->solved = TRUE;
 
       /* if the solver didn't produce a satisfactory result, we have to try with a penalty formulation */
@@ -2404,13 +2402,6 @@ SCIP_RETCODE SCIPsdpiSolve(
    BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstcol, sdpi->nsdpblocks);
    BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstrow, sdpi->nsdpblocks);
    BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstnblocknonz, sdpi->nsdpblocks);
-
-   /* add the iterations needed to solve this SDP */
-   if ( ! ( sdpi->infeasible || sdpi->allfixed ) )
-   {
-      SCIP_CALL( SCIPsdpiSolverGetIterations(sdpi->sdpisolver, &newiterations) );
-      *totalsdpiterations += newiterations;
-   }
 
    sdpi->sdpid++;
 
@@ -2922,9 +2913,16 @@ SCIP_RETCODE SCIPsdpiGetIterations(
    )
 {
    assert( sdpi != NULL );
-   CHECK_IF_SOLVED(sdpi);
+   assert( iterations != NULL );
 
-   if ( sdpi->infeasible )
+   /* check if the problem was solved (solved=FALSE, penalty=TRUE means we tried, but didnot succeed */
+   if ( (! sdpi->solved) && (! sdpi->penalty) )
+   {
+      SCIPerrorMessage("Tried to access solution information ahead of solving! \n");
+      return SCIP_LPERROR;
+   }
+
+   if ( sdpi->infeasible && ( ! sdpi->penalty ) ) /* if we solved the penalty formulation, we may also set infeasible if it is infeasible for the original problem */
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no iterations needed.\n");
       *iterations = 0;
@@ -2939,6 +2937,39 @@ SCIP_RETCODE SCIPsdpiGetIterations(
 
    SCIP_CALL( SCIPsdpiSolverGetIterations(sdpi->sdpisolver, iterations) );
 
+   return SCIP_OKAY;
+}
+
+/** returns which settings the SDP solver used in the last solve call */
+SCIP_RETCODE SCIPsdpiSettingsUsed(
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   SCIP_SDPSOLVERSETTING* usedsetting        /**< the setting used by the SDP solver */
+   )
+{
+   assert( sdpi != NULL );
+   assert( usedsetting != NULL );
+
+   if ( ! sdpi->solved )
+   {
+      SCIPdebugMessage("Problem was not solved successfully.\n");
+      *usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
+      return SCIP_OKAY;
+   }
+
+   if ( sdpi->infeasible && ( ! sdpi->penalty ) ) /* if we solved the penalty formulation, we may also set infeasible if it is infeasible for the original problem */
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, no settings used.\n");
+      *usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
+      return SCIP_OKAY;
+   }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All varialbes fixed during preprocessing, no settings used.\n");
+      *usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
+      return SCIP_OKAY;
+   }
+
+   SCIP_CALL( SCIPsdpiSolverSettingsUsed(sdpi->sdpisolver, usedsetting) );
    return SCIP_OKAY;
 }
 

@@ -355,7 +355,6 @@ EXTERN
 SCIP_RETCODE SCIPsdpiSolve(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
-   int*                  totalsdpiterations, /**< the number of sdpiterations needed will be added to the int this points to */
    SCIP_Bool             enforceslatercheck  /**< always check for Slater condition in case the problem could not be solved and printf the solution
                                                   of this check */
    );
@@ -529,6 +528,13 @@ EXTERN
 SCIP_RETCODE SCIPsdpiGetIterations(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    int*                  iterations          /**< pointer to store the number of iterations of the last solve call */
+   );
+
+/** returns which settings the SDP solver used in the last solve call */
+EXTERN
+SCIP_RETCODE SCIPsdpiSettingsUsed(
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   SCIP_SDPSOLVERSETTING* usedsetting        /**< the setting used by the SDP solver */
    );
 
 /**@} */

@@ -88,6 +88,10 @@ struct SCIP_RelaxData
    SCIP_Real             sdpsolverfeastol;   /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
    SCIP_Real             penaltyparam;       /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
    int                   sdpiterations;      /**< saves the total number of sdp-iterations */
+   int                   solvedfast;         /**< number of SDPs solved with fast settings */
+   int                   solvedmedium;       /**< number of SDPs solved with medium settings */
+   int                   solvedstable;       /**< number of SDPs solved with stable settings */
+   int                   solvedpenalty;      /**< number of SDPs solved using penalty formulation */
 #if 0
    int                   threads;            /**< number of threads used for SDP solving */
 #endif
@@ -544,6 +548,8 @@ SCIP_RETCODE calc_relax(
    SCIP_SDPI* sdpi;
    SdpVarmapper* varmapper;
    SCIP_Bool rootnode;
+   int naddediters;
+   SCIP_SDPSOLVERSETTING usedsetting;
 #ifdef SCIP_MORE_DEBUG
    SCIP_Real objforscip;
    SCIP_Real* solforscip;
@@ -577,8 +583,33 @@ SCIP_RETCODE calc_relax(
    rootnode = (SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) == 0);
 
    /* solve the problem */
-   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, &(relaxdata->sdpiterations), rootnode) );
+   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, rootnode) );
    relaxdata->lastsdpnode = SCIPnodeGetNumber(SCIPgetCurrentNode(scip));
+
+   /* update calls, iterations and stability numbers */
+   relaxdata->sdpcalls++;
+   naddediters = 0;
+   SCIP_CALL( SCIPsdpiGetIterations(relaxdata->sdpi, &naddediters) );
+   relaxdata->sdpiterations += naddediters;
+   usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
+   SCIP_CALL( SCIPsdpiSettingsUsed(relaxdata->sdpi, &usedsetting) );
+   switch( usedsetting )/*lint --e{788}*/
+   {
+      case SCIP_SDPSOLVERSETTING_PENALTY:
+         relaxdata->solvedpenalty++;
+         break;
+      case SCIP_SDPSOLVERSETTING_FAST:
+         relaxdata->solvedfast++;
+         break;
+      case SCIP_SDPSOLVERSETTING_MEDIUM:
+         relaxdata->solvedmedium++;
+         break;
+      case SCIP_SDPSOLVERSETTING_STABLE:
+         relaxdata->solvedstable++;
+         break;
+      default:
+         break;
+   }
 
    if ( SCIPsdpiWasSolved(sdpi) && SCIPsdpiSolvedOrig(sdpi) )
    {
@@ -960,7 +991,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    SCIP_CALL( putLpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper) );
 
    SCIP_CALL( calc_relax(scip, relaxdata, result, lowerbound));
-   relaxdata->sdpcalls++;
 
    return SCIP_OKAY;
 }
@@ -999,6 +1029,10 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
    relaxdata->probingsolved = FALSE;
    relaxdata->sdpcalls = 0;
    relaxdata->sdpiterations = 0;
+   relaxdata->solvedfast = 0;
+   relaxdata->solvedmedium = 0;
+   relaxdata->solvedstable = 0;
+   relaxdata->solvedpenalty = 0;
    relaxdata->feasible = FALSE;
 
    nvars = SCIPgetNVars(scip);
@@ -1429,4 +1463,48 @@ int SCIPrelaxSdpGetNSdpCalls(
    assert( SCIPrelaxGetData(relax) != NULL );
 
    return ( SCIPrelaxGetData(relax)->sdpcalls );
+}
+
+/** returns number of SDP relaxation solved with fast settings */
+int SCIPrelaxSdpGetNSdpFast(
+   SCIP_RELAX*           relax               /**< SDP relaxator to get the number of calls for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->solvedfast );
+}
+
+/** returns number of SDP relaxation solved with medium settings */
+int SCIPrelaxSdpGetNSdpMedium(
+   SCIP_RELAX*           relax               /**< SDP relaxator to get the number of calls for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->solvedmedium );
+}
+
+/** returns number of SDP relaxation solved with stable settings */
+int SCIPrelaxSdpGetNSdpStable(
+   SCIP_RELAX*           relax               /**< SDP relaxator to get the number of calls for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->solvedstable );
+}
+
+/** returns number of SDP relaxation solved with penalty formulation */
+int SCIPrelaxSdpGetNSdpPenalty(
+   SCIP_RELAX*           relax               /**< SDP relaxator to get the number of calls for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->solvedpenalty );
 }

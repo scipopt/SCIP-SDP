@@ -118,6 +118,7 @@ struct SCIP_SDPiSolver
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             penalty;            /**< was the problem last solved using a penalty formulation */
    SCIP_Bool             rbound;             /**< was the penalty parameter bounded during the last solve call */
+   SCIP_SDPSOLVERSETTING usedsetting;        /**< setting used to solve the last SDP */
 };
 
 
@@ -230,6 +231,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->threads = 1;
 #endif
    (*sdpisolver)->sdpinfo = FALSE;
+   (*sdpisolver)->usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
 
    return SCIP_OKAY;
 }
@@ -482,6 +484,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #else
    checkinput = true;
 #endif
+
+   sdpisolver->usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
 
    /* only increase the counter if we don't use the penalty formulation to stay in line with the numbers in the general interface (where this is still the
     * same SDP) */
@@ -1112,6 +1116,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIPdebugMessage("SDPA solving finished with status %s (primal and dual here are switched in contrast to our formulation)\n", phase_string);
 #endif
 
+   /* remember settings */
+   if ( SCIPsdpiSolverIsAcceptable(sdpisolver) )
+   {
+      if ( penaltyparam < sdpisolver->epsilon )
+         sdpisolver->usedsetting = SCIP_SDPSOLVERSETTING_FAST;
+      else
+         sdpisolver->usedsetting = SCIP_SDPSOLVERSETTING_PENALTY;
+   }
+
    /* check whether problem has been stably solved, if it wasn't and we didn't yet run the stable parametersettings (for the penalty formulation we do so), try
     * again with more stable parameters */
    if ( (! SCIPsdpiSolverIsAcceptable(sdpisolver)) && penaltyparam < sdpisolver->epsilon )
@@ -1135,6 +1148,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->sdpa->initializeSolve();
       sdpisolver->sdpa->solve();
       sdpisolver->solved = TRUE;
+
+      /* remember setting */
+      if ( SCIPsdpiSolverIsAcceptable(sdpisolver) )
+         sdpisolver->usedsetting = SCIP_SDPSOLVERSETTING_MEDIUM;
 
 #ifdef SCIP_DEBUG
    /* print the phase value , i.e. whether solving was successfull */
@@ -1164,6 +1181,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          sdpisolver->sdpa->initializeSolve();
          sdpisolver->sdpa->solve();
          sdpisolver->solved = TRUE;
+
+         /* remember setting */
+         if ( SCIPsdpiSolverIsAcceptable(sdpisolver) )
+            sdpisolver->usedsetting = SCIP_SDPSOLVERSETTING_STABLE;
 
 #ifdef SCIP_DEBUG
    /* print the phase value , i.e. whether solving was successfull */
@@ -1825,6 +1846,21 @@ SCIP_RETCODE SCIPsdpiSolverGetIterations(
    CHECK_IF_SOLVED( sdpisolver );
 
    *iterations = (int) sdpisolver->sdpa->getIteration();
+   return SCIP_OKAY;
+}
+
+/** gets the number of SDP iterations of the last solve call */
+SCIP_RETCODE SCIPsdpiSolverSettingsUsed(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
+   SCIP_SDPSOLVERSETTING* usedsetting        /**< the setting used by the SDP solver */
+   )
+{
+   assert( sdpisolver != NULL );
+   assert( usedsetting != NULL );
+   CHECK_IF_SOLVED(sdpisolver);
+
+   *usedsetting = sdpisolver->usedsetting;
+
    return SCIP_OKAY;
 }
 

@@ -1835,6 +1835,26 @@ SCIP_RETCODE SCIPsdpiSolverGetIterations(
    return SCIP_OKAY;
 }
 
+/** gets the number of SDP iterations of the last solve call */
+SCIP_RETCODE SCIPsdpiSolverSettingsUsed(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
+   SCIP_SDPSOLVERSETTING* usedsetting        /**< the setting used by the SDP solver */
+   )
+{
+   assert( sdpisolver != NULL );
+   assert( usedsetting != NULL );
+   CHECK_IF_SOLVED(sdpisolver);
+
+   if ( ! SCIPsdpiSolverIsAcceptable(sdpisolver) )
+      *usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
+   else if ( sdpisolver->penaltyparam < sdpisolver->epsilon )
+      *usedsetting = SCIP_SDPSOLVERSETTING_FAST;
+   else
+      *usedsetting = SCIP_SDPSOLVERSETTING_PENALTY;
+
+   return SCIP_OKAY;
+}
+
 /**@} */
 
 

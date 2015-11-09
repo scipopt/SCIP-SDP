@@ -127,6 +127,30 @@ int SCIPrelaxSdpGetNSdpCalls(
    SCIP_RELAX*           relax               /**< SDP relaxator to get the number of calls for */
    );
 
+/** returns number of SDP relaxation solved with fast settings */
+EXTERN
+int SCIPrelaxSdpGetNSdpFast(
+   SCIP_RELAX*           relax               /**< SDP relaxator to get the number of calls for */
+   );
+
+/** returns number of SDP relaxation solved with medium settings */
+EXTERN
+int SCIPrelaxSdpGetNSdpMedium(
+   SCIP_RELAX*           relax               /**< SDP relaxator to get the number of calls for */
+   );
+
+/** returns number of SDP relaxation solved with stable settings */
+EXTERN
+int SCIPrelaxSdpGetNSdpStable(
+   SCIP_RELAX*           relax               /**< SDP relaxator to get the number of calls for */
+   );
+
+/** returns number of SDP relaxation solved with penalty formulation */
+EXTERN
+int SCIPrelaxSdpGetNSdpPenalty(
+   SCIP_RELAX*           relax               /**< SDP relaxator to get the number of calls for */
+   );
+
 #ifdef __cplusplus
 }
 #endif
