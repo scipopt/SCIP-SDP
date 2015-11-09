@@ -352,12 +352,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            start               /**< NULL or a starting point for the solver, this should have length nvars */
+   SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
+   SCIP_SDPSOLVERSETTING startsettings       /**< settings used to start with in SDPA, currently not used for DSDP, set this to
+                                               *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    )/* TODO: start needs to include X,y,Z for SDPA */
 {
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, FALSE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
-               nremovedinds, blockindchanges, nremovedblocks, nlpcons, noldlpcons, lplhs, lprhs, lprownactivevars, lpnnonz, lprow, lpcol, lpval, start, NULL);
+               nremovedinds, blockindchanges, nremovedblocks, nlpcons, noldlpcons, lplhs, lprhs, lprownactivevars, lpnnonz, lprow, lpcol, lpval, start,
+               startsettings, NULL);
 }
 
 /** loads and solves an SDP using a penalty formulation
@@ -420,6 +423,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
+   SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP, set this to
+                                               *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Bool*            feasorig            /**< pointer to store if the solution to the penalty-formulation is feasible for the original problem
                                                *  (may be NULL if penaltyparam = 0) */
 ) /*TODO: start needs to include X,y,Z for SDPA*/
@@ -552,18 +557,33 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( sdpisolver->sdpa != 0 );
 
    /* initialize settings (this needs to be done before inserting the problem as the initial point depends on the settings) */
-   if ( penaltyparam < sdpisolver->epsilon )
-   {
-      sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_UNSTABLE_BUT_FAST);
-      sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->epsilon);
-      sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->feastol);
-   }
-   else
+   if ( penaltyparam >= sdpisolver->epsilon || startsettings == SCIP_SDPSOLVERSETTING_STABLE || startsettings == SCIP_SDPSOLVERSETTING_PENALTY )
    {
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_STABLE_BUT_SLOW); /* if we already had problems with this problem, there is no reason to try fast */
       /* as we want to solve with stable settings, we also update epsilon and the feasibility tolerance, as we skip the default settings, we multpy twice */
       sdpisolver->sdpa->setParameterEpsilonStar(EPSILONCHANGE * EPSILONCHANGE * sdpisolver->epsilon);
       sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->feastol);
+      SCIPdebugMessage("Start solving process with stable settings\n");
+   }
+   else if ( startsettings == SCIP_SDPSOLVERSETTING_UNSOLVED || startsettings == SCIP_SDPSOLVERSETTING_FAST)
+   {
+      sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_UNSTABLE_BUT_FAST);
+      sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->epsilon);
+      sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->feastol);
+      SCIPdebugMessage("Start solving process with fast settings\n");
+   }
+   else if ( startsettings == SCIP_SDPSOLVERSETTING_MEDIUM )
+   {
+      sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_DEFAULT);
+      /* as we want to solve with stable settings, we also update epsilon and the feasibility tolerance, as we skip the default settings, we multpy once */
+      sdpisolver->sdpa->setParameterEpsilonStar(EPSILONCHANGE * sdpisolver->epsilon);
+      sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * sdpisolver->feastol);
+      SCIPdebugMessage("Start solving process with medium settings\n");
+   }
+   else
+   {
+      SCIPerrorMessage("Unknown setting for start-settings: %d!\n", startsettings);  \
+      return SCIP_LPERROR;
    }
    sdpisolver->sdpa->setParameterLowerBound(-1e20);
 
@@ -1125,9 +1145,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          sdpisolver->usedsetting = SCIP_SDPSOLVERSETTING_PENALTY;
    }
 
-   /* check whether problem has been stably solved, if it wasn't and we didn't yet run the stable parametersettings (for the penalty formulation we do so), try
+   /* check whether problem has been stably solved, if it wasn't and we didn't yet use the default parametersettings (for the penalty formulation we do so), try
     * again with more stable parameters */
-   if ( (! SCIPsdpiSolverIsAcceptable(sdpisolver)) && penaltyparam < sdpisolver->epsilon )
+   if ( (! SCIPsdpiSolverIsAcceptable(sdpisolver)) && penaltyparam < sdpisolver->epsilon &&
+         (startsettings == SCIP_SDPSOLVERSETTING_UNSOLVED || startsettings == SCIP_SDPSOLVERSETTING_FAST) )
    {
       SCIPdebugMessage("Numerical troubles -- solving SDP %d again ...\n", sdpisolver->sdpcounter);
 
@@ -1159,8 +1180,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIPdebugMessage("SDPA solving finished with status %s (primal and dual here are switched in contrast to our formulation)\n", phase_string);
 #endif
 
-      /* if we still didn't converge, set the parameters even more conservativly */
-      if ( ! SCIPsdpiSolverIsAcceptable(sdpisolver) )
+      /* if we still didn't converge, and did not yet use the stable settings, set the parameters even more conservativly */
+   if ( (! SCIPsdpiSolverIsAcceptable(sdpisolver)) && penaltyparam < sdpisolver->epsilon &&
+         (startsettings == SCIP_SDPSOLVERSETTING_UNSOLVED || startsettings == SCIP_SDPSOLVERSETTING_FAST || startsettings == SCIP_SDPSOLVERSETTING_MEDIUM) )
       {
          SCIPdebugMessage("Numerical troubles -- solving SDP %d again^2 ...\n", sdpisolver->sdpcounter);
 

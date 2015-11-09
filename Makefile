@@ -171,6 +171,7 @@ MAINNAME	=	scipsdp
 MAINCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/SdpVarfixer.o \
 			scipsdp/cons_sdp.o \
+			scipsdp/cons_savedsdpsettings.o \
 			scipsdp/relax_sdp.o \
 			scipsdp/disp_sdpiterations.o \
 			scipsdp/disp_sdpavgiterations.o \

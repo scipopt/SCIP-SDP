@@ -1967,6 +1967,8 @@ SCIP_RETCODE SCIPsdpiGetRhSides(
 SCIP_RETCODE SCIPsdpiSolve(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
+   SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP, set this to
+                                               *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Bool             enforceslatercheck  /**< always check for Slater condition in case the problem could not be solved and printf the solution
                                                   of this check */
    )
@@ -2102,7 +2104,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-               rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, &origfeas) );
+               rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, &origfeas) );
 
          /* if we didn't succeed, then probably the primal problem is troublesome */
          if ( (! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver)) && (! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver)) )
@@ -2235,7 +2237,8 @@ SCIP_RETCODE SCIPsdpiSolve(
                sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, 0, NULL, NULL, NULL, NULL,
                sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons + 1, sdpi->nlpcons + 1, slaterlplhs, slaterlprhs,
-               slaterrowsnactivevars, sdpi->lpnnonz + sdpi->nvars - nremovedslaterlpinds, slaterlprow, slaterlpcol, slaterlpval, start, &origfeas) );
+               slaterrowsnactivevars, sdpi->lpnnonz + sdpi->nvars - nremovedslaterlpinds, slaterlprow, slaterlpcol, slaterlpval, start,
+               SCIP_SDPSOLVERSETTING_UNSOLVED, &origfeas) );
 
          /* if we didn't succeed, then probably the primal problem is troublesome */
          if ( (! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver)) && (! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver)) )
@@ -2263,7 +2266,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                      sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, 0, NULL, NULL, NULL, NULL,
                      sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                      sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons + 1, sdpi->nlpcons + 1, slaterlplhs, slaterlprhs,
-                     slaterrowsnactivevars, sdpi->lpnnonz + sdpi->nvars, slaterlprow, slaterlpcol, slaterlpval, start) );
+                     slaterrowsnactivevars, sdpi->lpnnonz + sdpi->nvars, slaterlprow, slaterlpcol, slaterlpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED) );
 
                if ( (! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver)) && (! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver)) )
                   printf("Unable to check Slater condition for primal problem, could not solve auxilliary problem.\n");
@@ -2307,7 +2310,7 @@ SCIP_RETCODE SCIPsdpiSolve(
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
             sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
             sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-            rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start) );
+            rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, startsettings) );
 
       sdpi->solved = TRUE;
 
@@ -2325,7 +2328,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                     sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                     sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                     sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-                    rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, &feasorig) );
+                    rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, startsettings, &feasorig) );
 
 
          /* check if we were able to solve the problem in the end */
@@ -2361,7 +2364,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                   sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                   sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                   sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-                  rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, &origfeas) );
+                  rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, &origfeas) );
 
             /* if we didn't succeed, then probably the primal problem is troublesome */
             if ( (! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver)) && (! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver)) )

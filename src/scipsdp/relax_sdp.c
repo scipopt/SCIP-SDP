@@ -50,6 +50,7 @@
 #include "SdpVarmapper.h"
 #include "sdpi/sdpi.h"
 #include "scipsdp/cons_sdp.h"
+#include "scipsdp/cons_savedsdpsettings.h"
 
 
 #define RELAX_NAME                  "SDP"
@@ -549,7 +550,14 @@ SCIP_RETCODE calc_relax(
    SdpVarmapper* varmapper;
    SCIP_Bool rootnode;
    int naddediters;
+   SCIP_SDPSOLVERSETTING startsetting;
    SCIP_SDPSOLVERSETTING usedsetting;
+   SCIP_CONS* savedsetting;
+   char* saveconsname;
+   SCIP_CONS** conss;
+#ifndef NDEBUG
+   int snprintfreturn; /* this is used to assert that the SCIP string concatenation works */
+#endif
 #ifdef SCIP_MORE_DEBUG
    SCIP_Real objforscip;
    SCIP_Real* solforscip;
@@ -580,10 +588,39 @@ SCIP_RETCODE calc_relax(
    }
 
    /* if this is the root node and we cannot solve the problem, we want to check for the Slater condition independent of the SCIP parameter */
-   rootnode = (SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) == 0);
+   rootnode = ! SCIPnodeGetParent(SCIPgetCurrentNode(scip));
+
+   /* find settings to use for this relaxation */
+   if ( rootnode )
+      startsetting = SCIP_SDPSOLVERSETTING_UNSOLVED; /* in the root node we have no information */
+   else
+   {
+      SCIP_CONSHDLR* conshdlr;
+      int lastconsind;
+
+      /* get constraint handler */
+      conshdlr = SCIPfindConshdlr(scip, "Savedsdpsettings");
+      if ( conshdlr == NULL )
+      {
+         SCIPerrorMessage("Savedsdpsettings constraint handler not found!\n");
+         return SCIP_PLUGINNOTFOUND;
+      }
+
+      /* get constraints */
+      conss = SCIPconshdlrGetConss(conshdlr);
+      lastconsind = SCIPconshdlrGetNConss(conshdlr) - 1;
+
+
+      assert ( conss != NULL );
+      assert ( conss[lastconsind] != NULL ); /* we always use the last information we got (important e.g. in fracdiving) */
+
+      /* start with the settings of the parentnode */
+      startsetting = SCIPconsSavedsdpsettingsGetSettings(scip, conss[lastconsind]);
+
+   }
 
    /* solve the problem */
-   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, rootnode) );
+   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, startsetting, rootnode) );
    relaxdata->lastsdpnode = SCIPnodeGetNumber(SCIPgetCurrentNode(scip));
 
    /* update calls, iterations and stability numbers */
@@ -610,6 +647,19 @@ SCIP_RETCODE calc_relax(
       default:
          break;
    }
+
+   /* remember settings */
+   SCIP_CALL( SCIPallocBufferArray(scip, &saveconsname, 255));
+#ifndef NDEBUG
+         snprintfreturn = SCIPsnprintf(saveconsname, 255, "savedsettings_node_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
+         assert( snprintfreturn < 256 ); /* this is the number of positions needed, we gave 255 */
+#else
+         SCIPsnprintf(saveconsname, 255, "savedsettings_node_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
+#endif
+   SCIP_CALL( createConsSavedsdpsettings(scip, &savedsetting, saveconsname, usedsetting) );
+   SCIP_CALL( SCIPaddCons(scip, savedsetting) );
+   SCIP_CALL( SCIPreleaseCons(scip, &savedsetting) );
+   SCIPfreeBufferArray(scip, &saveconsname);
 
    if ( SCIPsdpiWasSolved(sdpi) && SCIPsdpiSolvedOrig(sdpi) )
    {
