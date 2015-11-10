@@ -65,8 +65,10 @@
 #define DEFAULT_THREADS             1        /**< number of threads used for SDP solving */
 #endif
 #define DEFAULT_OBJLIMIT            FALSE    /**< should an objective limit be given to the SDP-Solver ? */
-#define DEFAULT_RESOLVE             FALSE    /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
+#define DEFAULT_RESOLVE             TRUE     /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
 #define DEFAULT_TIGHTENVB           FALSE    /**< Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ? */
+#define DEFAULT_SETTINGSRESETFREQ   -1       /**< frequency for resetting parameters in SDP solver and trying again with fastest settings */
+#define DEFAULT_SETTINGSRESETOFS    0        /**< frequency offset for resetting parameters in SDP solver and trying again with fastest settings */
 
 #define MIN_PENALTYPARAM            1e5      /**< if the penalty parameter is to be computed, this is the minimum value it will take */
 #define MAX_PENALTYPARAM            1e12     /**< if the penalty parameter is to be computed, this is the maximum value it will take */
@@ -101,6 +103,8 @@ struct SCIP_RelaxData
    SCIP_Bool             objlimit;           /**< Should an objective limit be given to the SDP solver? */
    SCIP_Bool             resolve;            /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
    SCIP_Bool             tightenvb;          /**< Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ? */
+   int                   settingsresetfreq;  /**< frequency for resetting parameters in SDP solver and trying again with fastest settings */
+   int                   settingsresetofs;   /**< frequency offset for resetting parameters in SDP solver and trying again with fastest settings */
    int                   sdpcalls;           /**< number of solved SDPs (used to compute average SDP iterations) */
    long int              lastsdpnode;        /**< number of the SCIP node the current SDP-solution belongs to */
    SCIP_Bool             feasible;           /**< was the last solved SDP feasible */
@@ -591,8 +595,9 @@ SCIP_RETCODE calc_relax(
    rootnode = ! SCIPnodeGetParent(SCIPgetCurrentNode(scip));
 
    /* find settings to use for this relaxation */
-   if ( rootnode )
-      startsetting = SCIP_SDPSOLVERSETTING_UNSOLVED; /* in the root node we have no information */
+   if ( rootnode || (SCIPnodeGetDepth(SCIPgetCurrentNode(scip)) == relaxdata->settingsresetofs) ||
+         (relaxdata->settingsresetfreq > 0 && ((SCIPnodeGetDepth(SCIPgetCurrentNode(scip)) - relaxdata->settingsresetofs) % relaxdata->settingsresetfreq == 0)) )
+      startsetting = SCIP_SDPSOLVERSETTING_UNSOLVED; /* in the root node we have no information, at each multiple of resetfreq we reset */
    else
    {
       SCIP_CONSHDLR* conshdlr;
@@ -893,7 +898,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    vars = SCIPgetVars(scip);
    nvars = SCIPgetNVars(scip);
 
-#if 0
    /* don't run again if we already solved the current node (except during probing), and we solved the correct problem */
    if ( ( relaxdata->lastsdpnode == SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) && ( ! SCIPinProbing(scip) ) )
          && relaxdata->origsolved && ( ! relaxdata->resolve) )
@@ -941,7 +945,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       *result = SCIP_SUCCESS;
       return SCIP_OKAY;
    }
-#endif
 
    /* if we are solving a probing SDP, remember that we didn't solve the original problem */
    relaxdata->origsolved = FALSE;
@@ -1342,6 +1345,12 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          " (outside of probing) ?", &(relaxdata->resolve), TRUE, DEFAULT_RESOLVE, NULL, NULL) );
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/tightenvb", "Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ?",
          &(relaxdata->tightenvb), TRUE, DEFAULT_TIGHTENVB, NULL, NULL) );
+   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/settingsresetfreq",
+         "frequency for resetting parameters in SDP solver and trying again with fastest settings (-1: never, 0: only at depth settingsresetofs)",
+         &(relaxdata->settingsresetfreq), TRUE, DEFAULT_SETTINGSRESETFREQ, -1, INT_MAX, NULL, NULL) );
+   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/settingsresetofs",
+         "frequency offset for resetting parameters in SDP solver and trying again with fastest settings",
+         &(relaxdata->settingsresetofs), TRUE, DEFAULT_SETTINGSRESETOFS, 0, INT_MAX, NULL, NULL) );
 
    /* add description of SDP-solver */
    SCIP_CALL( SCIPincludeExternalCodeInformation(scip, SCIPsdpiGetSolverName(), SCIPsdpiGetSolverDesc()) );
