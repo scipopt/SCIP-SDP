@@ -578,14 +578,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* as we want to solve with stable settings, we also update epsilon and the feasibility tolerance, as we skip the default settings, we multpy once */
       sdpisolver->sdpa->setParameterEpsilonStar(EPSILONCHANGE * sdpisolver->epsilon);
       sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * sdpisolver->feastol);
-      SCIPdebugMessage("Start solving process with medium settings\n");
+      SCIdebugMessage("Start solving process with medium settings\n");
    }
    else
    {
-      SCIPerrorMessage("Unknown setting for start-settings: %d!\n", startsettings);  \
+      SCIPdebugMessage("Unknown setting for start-settings: %d!\n", startsettings);  \
       return SCIP_LPERROR;
    }
    sdpisolver->sdpa->setParameterLowerBound(-1e20);
+
 
    /* set the objective limit */
    if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
@@ -607,6 +608,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       return SCIP_LPERROR;
    }
 #endif
+
+   /* increase Lambda Star, this seems to help the numerics */
+   sdpisolver->sdpa->setParameterLambdaStar(1e4);
 
    /* compute number of variable bounds and save them in sdpavarbounds */
    sdpisolver->nvarbounds = 0;
@@ -1162,6 +1166,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
       else
          sdpisolver->sdpa->setParameterUpperBound(1e20);
+
+      /* increase Lambda Star, this seems to help the numerics */
+      sdpisolver->sdpa->setParameterLambdaStar(1e4);
+
 #ifdef SCIP_MORE_DEBUG
    sdpisolver->sdpa->printParameters(stdout);
 #endif
@@ -1196,6 +1204,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
          else
             sdpisolver->sdpa->setParameterUpperBound(1e20);
+
+         /* increase Lambda Star, this seems to help the numerics */
+         sdpisolver->sdpa->setParameterLambdaStar(1e4);
+
 #ifdef SCIP_MORE_DEBUG
    sdpisolver->sdpa->printParameters(stdout);
 #endif
