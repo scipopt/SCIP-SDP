@@ -592,7 +592,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
       sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
    else
-      sdpisolver->sdpa->setParameterUpperBound(1e20);
+      sdpisolver->sdpa->setParameterUpperBound(1e8);
 #ifdef SCIP_MORE_DEBUG
    sdpisolver->sdpa->printParameters(stdout);
 #endif
@@ -1165,7 +1165,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
          sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
       else
-         sdpisolver->sdpa->setParameterUpperBound(1e20);
+         sdpisolver->sdpa->setParameterUpperBound(1e8);
 
       /* increase Lambda Star, this seems to help the numerics */
       sdpisolver->sdpa->setParameterLambdaStar(1e4);
@@ -1203,7 +1203,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
             sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
          else
-            sdpisolver->sdpa->setParameterUpperBound(1e20);
+            sdpisolver->sdpa->setParameterUpperBound(1e8);
 
          /* increase Lambda Star, this seems to help the numerics */
          sdpisolver->sdpa->setParameterLambdaStar(1e4);
