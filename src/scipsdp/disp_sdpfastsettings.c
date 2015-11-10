@@ -133,7 +133,7 @@ SCIP_DECL_DISPOUTPUT(dispOutputSdpfastsettings)
 
    if ( SCIPrelaxSdpGetNSdpCalls(dispdata->relaxSDP) == 0 )
    {
-      SCIPinfoMessage(scip, file, "  --  ");
+      SCIPinfoMessage(scip, file, "   --   ");
    }
    else
    {

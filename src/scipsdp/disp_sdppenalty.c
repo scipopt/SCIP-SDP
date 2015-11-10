@@ -132,7 +132,7 @@ SCIP_DECL_DISPOUTPUT(dispOutputSdppenalty)
 
    if ( SCIPrelaxSdpGetNSdpCalls(dispdata->relaxSDP) == 0 )
    {
-      SCIPinfoMessage(scip, file, "  --  ");
+      SCIPinfoMessage(scip, file, "   --   ");
    }
    else
    {
