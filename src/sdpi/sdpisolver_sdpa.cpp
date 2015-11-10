@@ -578,7 +578,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* as we want to solve with stable settings, we also update epsilon and the feasibility tolerance, as we skip the default settings, we multpy once */
       sdpisolver->sdpa->setParameterEpsilonStar(EPSILONCHANGE * sdpisolver->epsilon);
       sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * sdpisolver->feastol);
-      SCIdebugMessage("Start solving process with medium settings\n");
+      SCIPdebugMessage("Start solving process with medium settings\n");
    }
    else
    {
