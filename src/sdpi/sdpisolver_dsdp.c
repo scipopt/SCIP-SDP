@@ -147,6 +147,7 @@ struct SCIP_SDPiSolver
    SCIP_Real             objlimit;           /**< objective limit for SDP solver */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             penaltyworbound;    /**< Was a penalty formulation solved without bounding r ? */
+   SCIP_SDPSOLVERSETTING usedsetting;        /**< setting used to solve the last SDP */
 };
 
 
@@ -302,6 +303,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->penaltyparam = 1e5;
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
    (*sdpisolver)->sdpinfo = FALSE;
+   (*sdpisolver)->usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
 
    return SCIP_OKAY;
 }
@@ -552,11 +554,17 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( nlpcons == 0 || lpval != NULL );
 
    /* only increase the counter if we don't use the penalty formulation to stay in line with the numbers in the general interface (where this is still the
-    * same SDP) */
+    * same SDP), also remember settings for statistics */
    if ( penaltyparam < sdpisolver->epsilon )
+   {
       SCIPdebugMessage("Inserting Data into DSDP for SDP (%d) \n", ++sdpisolver->sdpcounter);
+      sdpisolver->usedsetting = SCIP_SDPSOLVERSETTING_FAST;
+   }
    else
+   {
       SCIPdebugMessage("Inserting Data again into DSDP for SDP (%d) \n", sdpisolver->sdpcounter);
+      sdpisolver->usedsetting = SCIP_SDPSOLVERSETTING_PENALTY;
+   }
 
    /* allocate memory for inputtodsdpmapper, dsdptoinputmapper and the fixed variable information, for the latter this will
     * later be shrinked if the needed size is known */
@@ -1851,10 +1859,8 @@ SCIP_RETCODE SCIPsdpiSolverSettingsUsed(
 
    if ( ! SCIPsdpiSolverIsAcceptable(sdpisolver) )
       *usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
-   else if ( sdpisolver->penaltyparam < sdpisolver->epsilon )
-      *usedsetting = SCIP_SDPSOLVERSETTING_FAST;
    else
-      *usedsetting = SCIP_SDPSOLVERSETTING_PENALTY;
+      *usedsetting = sdpisolver->usedsetting;
 
    return SCIP_OKAY;
 }
