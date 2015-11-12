@@ -502,6 +502,14 @@ SCIP_RETCODE SCIPsdpiGetObjval(
    SCIP_Real*            objval              /**< pointer to store the objective value */
    );
 
+/** gets the best lower bound on the objective (this is equal to objval, if the problem was solved successfully, but can also give a bound
+ *  if we did not get a feasible solution using the penalty approach) */
+EXTERN
+SCIP_RETCODE SCIPsdpiGetLowerObjbound(
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   SCIP_Real*            objlb              /**< pointer to store the lower bound on the objective value */
+   );
+
 /** gets dual solution vector for feasible SDPs, if dualsollength isn't equal to the number of variables this will return the needed length and
  *  a debug message */
 EXTERN

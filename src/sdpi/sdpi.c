@@ -174,6 +174,7 @@ struct SCIP_SDPi
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
    SCIP_Real             penaltyparam;       /**< the starting penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
    SCIP_Real             maxpenaltyparam;    /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
+   SCIP_Real             bestbound;          /**< best bound computed with a penalty formulation */
 };
 
 /*
@@ -1055,6 +1056,7 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->epsilon = DEFAULT_SDPSOLVEREPSILON;
    (*sdpi)->feastol = DEFAULT_SDPSOLVERFEASTOL;
    (*sdpi)->penaltyparam = DEFAULT_PENALTYPARAM;
+   (*sdpi)->bestbound = -SCIPsdpiSolverInfinity((*sdpi)->sdpisolver);
 
    return SCIP_OKAY;
 }
@@ -2006,6 +2008,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    nremovedblocks = 0;
 
    sdpi->penalty = FALSE;
+   sdpi->bestbound = -SCIPsdpiSolverInfinity(sdpi->sdpisolver);
 
    /* allocate memory for computing the constant matrix after fixings and finding empty rows and columns, this is as much as might possibly be
     * needed, this will be shrinked again before solving */
@@ -2108,7 +2111,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-               rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, &origfeas, NULL) );
+               rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, &origfeas, sdpi->feastol, NULL) );
 
          /* if we didn't succeed, then probably the primal problem is troublesome */
          if ( (! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver)) && (! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver)) )
@@ -2327,6 +2330,7 @@ SCIP_RETCODE SCIPsdpiSolve(
          SCIP_Real feastolfact;
          SCIP_Bool feasorig;
          SCIP_Bool penaltybound;
+         SCIP_Real objbound;
 
          feasorig = FALSE;
          penaltybound = TRUE;
@@ -2348,13 +2352,20 @@ SCIP_RETCODE SCIPsdpiSolve(
                        sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                        sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                        sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-                       rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, startsettings, &feasorig, &penaltybound) );
+                       rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, startsettings, &feasorig, sdpi->feastol, &penaltybound) );
 
+            /* If the solver did not converge, we increase the penalty parameter */
             if ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver))
             {
                penaltyparam *= penaltyparamfact;
                SCIPdebugMessage("Solver did not converge even with penalty formulation, increasing penaltyparameter\n");
+               continue;
             }
+
+            /* if we succeeded to solve the problem, update the bound */
+            SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objbound) );
+            if ( objbound > sdpi->bestbound + sdpi->epsilon )
+               sdpi->bestbound = objbound;
 
             /* If we don't get a feasible solution to our original problem we have to update either Gamma (if the penalty bound was active
              * in the primal problem) or feastol (otherwise) */
@@ -2417,7 +2428,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                   sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                   sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                   sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-                  rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, &origfeas, NULL) );
+                  rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, &origfeas, sdpi->feastol, NULL) );
 
             /* if we didn't succeed, then probably the primal problem is troublesome */
             if ( (! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver)) && (! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver)) )
@@ -2869,9 +2880,54 @@ SCIP_RETCODE SCIPsdpiGetObjval(
 
       for (v = 0; v < sdpi->nvars; v++)
          *objval += sdpi->lb[v] * sdpi->obj[v];
+
+      return SCIP_OKAY;
    }
 
    SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, objval) );
+
+   return SCIP_OKAY;
+}
+
+/** gets the best lower bound on the objective (this is equal to objval, if the problem was solved successfully, but can also give a bound
+ *  if we did not get a feasible solution using the penalty approach) */
+SCIP_RETCODE SCIPsdpiGetLowerObjbound(
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   SCIP_Real*            objlb              /**< pointer to store the lower bound on the objective value */
+   )
+{
+   assert( sdpi != NULL );
+   assert( objlb != NULL );
+
+   /* if we could successfully solve the problem, the best bound is the optimal objective */
+   if ( sdpi->solved )
+   {
+      if ( sdpi->infeasible )
+      {
+         SCIPdebugMessage("Problem was found infeasible during preprocessing, no objective value available.\n");
+         return SCIP_OKAY;
+      }
+
+      if ( sdpi->allfixed )
+      {
+         int v;
+
+         /* As all variables were fixed during preprocessing, we have to compute it ourselves here */
+         *objlb = 0;
+
+         for (v = 0; v < sdpi->nvars; v++)
+            *objlb += sdpi->lb[v] * sdpi->obj[v];
+
+         return SCIP_OKAY;
+      }
+
+      SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, objlb) );
+      return SCIP_OKAY;
+   }
+
+   /* if we could not solve it, but tried the penalty formulation, we take the best bound computed by the penalty approach */
+   if ( sdpi->penalty )
+      *objlb = sdpi->bestbound;
 
    return SCIP_OKAY;
 }

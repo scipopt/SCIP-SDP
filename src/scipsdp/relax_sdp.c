@@ -679,8 +679,11 @@ SCIP_RETCODE calc_relax(
    }
    else if ( ! SCIPsdpiWasSolved(sdpi) )
    {
+      SCIP_Real objlb;
+      SCIP_NODE* node;
+
       /* We couldn't solve the problem, not even with a penalty formulation, so we reuse the relaxation result of the parent node (if one exists) */
-      SCIP_NODE* node = SCIPnodeGetParent(SCIPgetCurrentNode(scip));
+      node = SCIPnodeGetParent(SCIPgetCurrentNode(scip));
 
       relaxdata->origsolved = FALSE;
       if ( SCIPinProbing(scip) )
@@ -695,7 +698,15 @@ SCIP_RETCODE calc_relax(
       }
 
       relaxdata->feasible = FALSE;
-      *lowerbound = SCIPnodeGetLowerbound(node);
+
+      /* if we used the penalty approach, we might have calculated a good lower bound, even if we did not produce a feasible solution */
+      objlb = -SCIPinfinity(scip);
+      SCIP_CALL( SCIPsdpiGetLowerObjbound(relaxdata->sdpi, &objlb) );
+      if ( ! SCIPisInfinity(scip, objlb) )
+         *lowerbound = objlb;
+      else
+         *lowerbound = SCIPnodeGetLowerbound(node);
+
       *result = SCIP_SUCCESS;
       SCIP_CALL( SCIPupdateLocalLowerbound(scip, *lowerbound) );
       SCIPdebugMessage("The relaxation couldn't be solved, so the relaxation result from the parent node was copied. \n");
