@@ -432,7 +432,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, TRUE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars,
            sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
            indchanges, nremovedinds, blockindchanges, nremovedblocks, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol,
-           lpval, start, startsettings, NULL, NULL);
+           lpval, start, startsettings, NULL, sdpisolver->feastol, NULL);
 }
 
 /** loads and solves an SDP using a penalty formulation
@@ -499,6 +499,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                                                *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Bool*            feasorig,           /**< pointer to store if the solution to the penalty-formulation is feasible for the original problem
                                                *  (may be NULL if penaltyparam = 0) */
+   SCIP_Real             feastolr,           /**< feasibility tolerance to compare the penalty variable r with for deciding on feasorig */
    SCIP_Bool*            penaltybound        /**< pointer to store if the primal solution reached the bound Tr(X) <= penaltyparam in the primal problem,
                                                *  this is also an indication of the penalty parameter being to small (may be NULL if not needed) */
 )
@@ -1280,17 +1281,18 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          /* in this case we used the penalty-formulation of DSDP, so we can check their value of r */
          double rval;
-         double trace;
 
          DSDP_CALL( DSDPGetR(sdpisolver->dsdp, &rval) );
 
-         *feasorig = (rval < sdpisolver->feastol );
+         *feasorig = (rval < feastolr );
 
          /* if r > 0 or we are in debug mode, also check the primal bound */
 #ifndef NDEBUG
          if ( ( ! *feasorig ) && ( penaltybound != NULL ) )
          {
 #endif
+            double trace;
+
             SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", rval);
 
             /* get the trace of X to compare it with the penalty parameter */
@@ -1318,23 +1320,41 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       else
       {
          double* dsdpsol;
-         double tracex;
 
          BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, sdpisolver->nactivevars + 1) ); /*lint !e776*/
          /* last entry of DSDPGetY needs to be the number of variables, will return an error otherwise */
          DSDP_CALL( DSDPGetY(sdpisolver->dsdp, dsdpsol, sdpisolver->nactivevars + 1) );
 
-         *feasorig = (dsdpsol[sdpisolver->nactivevars] < sdpisolver->feastol); /* r is the last variable in DSDP, so the last entry gives us the value */
-         if ( ! *feasorig )
+         *feasorig = (dsdpsol[sdpisolver->nactivevars] < feastolr); /* r is the last variable in DSDP, so the last entry gives us the value */
+#ifndef NDEBUG
+         if ( ( ! *feasorig ) && ( penaltybound != NULL ) )
          {
+#endif
+            double trace;
+
             SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", dsdpsol[sdpisolver->nactivevars]);
+
+            /* get the trace of X to compare it with the penalty parameter */
+            DSDP_CALL( DSDPGetTraceX(sdpisolver->dsdp, &trace) );
+
+            assert( trace < penaltyparam + sdpisolver->feastol ); /* solution should be primal feasible */
+
+            /* if the relative gap is smaller than the tolerance, we return equality */
+            if ( (penaltyparam - trace) / penaltyparam < PENALTYBOUNDTOL )
+            {
+               *penaltybound = TRUE;
+               SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible\n",
+                     trace, penaltyparam);
+            }
+            else
+               *penaltybound = FALSE;
+
+            /* if the primal bound is attained, r should also be strictly positive (outside of debug we will not even compute it otherwise) */
+            assert( ( ! *penaltybound ) || ( ! feasorig ) );
+
+#ifndef NDEBUG
          }
-
-         /* get the trace of X to compare it with the penalty parameter */
-         DSDP_CALL( DSDPGetTraceX(sdpisolver->dsdp, &tracex) );
-         printf("r = %f == 0; Trace(X) = %f < %f = Gamma\n", dsdpsol[sdpisolver->nactivevars], tracex, penaltyparam);
-
-         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, sdpisolver->nactivevars + 1); /*lint !e776*/
+#endif
       }
    }
 
