@@ -24,9 +24,8 @@ parameters:
 - penalty parameter to be used for numerically hard relaxations can now be changed by a parameter
 
 core:
-- penalty formulation is now called only once for a SCIP-parameter-controlled penalty parameter, instead of once for 
-  feasibility (which is also problematic from a theoretical viewpoint) and then multiple times with increased penalty
-  parameters
+- in the penalty formulation the primal bound added by the penalty parameter is now also checked to decide between
+  increasing the penalty parameter or decreasing the feasibility tolerance
 
 
 SCIP-SDP version 2.0.1

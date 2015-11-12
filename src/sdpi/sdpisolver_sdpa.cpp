@@ -55,6 +55,8 @@
 
 #define EPSILONCHANGE   1 /**< change epsilon by this factor when switching from fast to default and from default to stable settings */
 #define FEASTOLCHANGE   1 /**< change feastol by this factor when switching from fast to default and from default to stable settings */
+#define PENALTYBOUNDTOL 1E-3 /**< if the relative gap between Tr(X) and penaltyparam for a primal solution of the penaltyformulation
+                               *  is bigger than this value, it will be reported to the sdpi */
 
 /** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY. */
 #define BMS_CALL(x)   do                                                                                     \
@@ -360,7 +362,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, FALSE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
                nremovedinds, blockindchanges, nremovedblocks, nlpcons, noldlpcons, lplhs, lprhs, lprownactivevars, lpnnonz, lprow, lpcol, lpval, start,
-               startsettings, NULL);
+               startsettings, NULL, NULL);
 }
 
 /** loads and solves an SDP using a penalty formulation
@@ -425,8 +427,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP, set this to
                                                *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
-   SCIP_Bool*            feasorig            /**< pointer to store if the solution to the penalty-formulation is feasible for the original problem
+   SCIP_Bool*            feasorig,           /**< pointer to store if the solution to the penalty-formulation is feasible for the original problem
                                                *  (may be NULL if penaltyparam = 0) */
+   SCIP_Bool*            penaltybound        /**< pointer to store if the primal solution reached the bound Tr(X) <= penaltyparam in the primal problem,
+                                               *  this is also an indication of the penalty parameter being to small (may be NULL if not needed) */
 ) /*TODO: start needs to include X,y,Z for SDPA*/
 {
    SCIP_Real* sdpavarbounds;
@@ -451,7 +455,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    assert( sdpisolver != NULL );
    assert( penaltyparam > -1 * sdpisolver->epsilon );
-   assert( penaltyparam < sdpisolver->epsilon || feasorig != NULL );
+   assert( penaltyparam < sdpisolver->epsilon || ( feasorig != NULL ) );
    assert( nvars > 0 );
    assert( obj != NULL );
    assert( lb != NULL );
@@ -1141,13 +1145,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
 
    /* remember settings */
-   if ( SCIPsdpiSolverIsAcceptable(sdpisolver) )
-   {
-      if ( penaltyparam < sdpisolver->epsilon )
-         sdpisolver->usedsetting = SCIP_SDPSOLVERSETTING_FAST;
-      else
-         sdpisolver->usedsetting = SCIP_SDPSOLVERSETTING_PENALTY;
-   }
+   if ( SCIPsdpiSolverIsAcceptable(sdpisolver) && penaltyparam < sdpisolver->epsilon )
+      sdpisolver->usedsetting = SCIP_SDPSOLVERSETTING_FAST;
+   else if ( penaltyparam >= sdpisolver->epsilon )
+      sdpisolver->usedsetting = SCIP_SDPSOLVERSETTING_PENALTY;
 
    /* check whether problem has been stably solved, if it wasn't and we didn't yet use the default parametersettings (for the penalty formulation we do so), try
     * again with more stable parameters */
@@ -1244,10 +1245,61 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       /* we get r as the last variable in SDPA */
       *feasorig = (sdpasol[sdpisolver->nactivevars] < sdpisolver->feastol); /*lint !e413*/
-      if ( ! *feasorig )
+
+      /* if r > 0 or we are in debug mode, also check the primal bound */
+#ifndef NDEBUG
+      if ( ( ! *feasorig ) && ( penaltybound != NULL ) )
       {
+#endif
+         double* X;
+         int b;
+         int nblockssdpa;
+         int nrow;
+         double trace = 0.0;
+
          SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", sdpasol[sdpisolver->nactivevars]);
+
+         /* compute Tr(X) */
+
+         /* iterate over all blocks (SDPA starts counting at one and includes the LP block) */
+         nblockssdpa = (int) sdpisolver->sdpa->getBlockNumber();
+         for (b = 1; b <= nblockssdpa; b++)
+         {
+            /* get the block from SDPA */
+            X = sdpisolver->sdpa->getResultYMat((long long) b);
+            nrow = (int) sdpisolver->sdpa->getBlockSize((long long) b);
+            assert( nrow >= 0 );
+
+            /* if it is the LP-block, we omit the variable bounds as the penalty variable is not added to them */
+            if ( sdpisolver->sdpa->getBlockType((long long) b) == SDPA::LP )
+            {
+               /* iterate over all diagonal entries (until we reach the varbound part), adding them to the trace */
+               for (i = 0; i < nrow - sdpisolver->nvarbounds; i++)
+                  trace += X[i]; /* get entry (i+1,i+1) for the diagonal matrix X */
+            }
+         else
+            {
+               /* iterate over all diagonal entries and add them to the trace */
+               for (i = 0; i < nrow; i++)
+                  trace += X[i + i*nrow]; /* get entry (i+1,i+1) in X */
+            }
+         }
+
+         /* if the relative gap is smaller than the tolerance, we return equality */
+         if ( (penaltyparam - trace) / penaltyparam < PENALTYBOUNDTOL )
+         {
+            *penaltybound = TRUE;
+            SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible\n",
+                  trace, penaltyparam);
+         }
+         else
+            *penaltybound = FALSE;
+
+         /* if the primal bound is attained, r should also be strictly positive (outside of debug we will not even compute it otherwise) */
+         assert( ( ! *penaltybound ) || ( ! *feasorig ) );
+#ifndef NDEBUG
       }
+#endif
    }
 
    return SCIP_OKAY;
