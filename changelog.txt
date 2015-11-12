@@ -25,7 +25,9 @@ parameters:
 
 core:
 - in the penalty formulation the primal bound added by the penalty parameter is now also checked to decide between
-  increasing the penalty parameter or decreasing the feasibility tolerance
+  increasing the penalty parameter or decreasing the feasibility tolerance, also the best lower bound computed by the
+  penalty formulation is now used in SCIP even if the corresponding solution is not feasible in the original
+  formulation
 
 
 SCIP-SDP version 2.0.1
