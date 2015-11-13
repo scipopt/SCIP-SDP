@@ -3061,14 +3061,13 @@ SCIP_RETCODE SCIPsdpiSettingsUsed(
    assert( sdpi != NULL );
    assert( usedsetting != NULL );
 
-   if ( ! sdpi->solved )
+   if ( ( ! sdpi->solved ) && ( ! sdpi->penalty ) )
    {
       SCIPdebugMessage("Problem was not solved successfully.\n");
       *usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
       return SCIP_OKAY;
    }
-
-   if ( sdpi->infeasible && ( ! sdpi->penalty ) ) /* if we solved the penalty formulation, we may also set infeasible if it is infeasible for the original problem */
+   else if ( sdpi->infeasible && ( ! sdpi->penalty ) ) /* if we solved the penalty formulation, we may also set infeasible if it is infeasible for the original problem */
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no settings used.\n");
       *usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
@@ -3078,6 +3077,11 @@ SCIP_RETCODE SCIPsdpiSettingsUsed(
    {
       SCIPdebugMessage("All varialbes fixed during preprocessing, no settings used.\n");
       *usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
+      return SCIP_OKAY;
+   }
+   else if ( sdpi->penalty )
+   {
+      *usedsetting = SCIP_SDPSOLVERSETTING_PENALTY;
       return SCIP_OKAY;
    }
 
