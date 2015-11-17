@@ -114,7 +114,7 @@
 /* should the slater condition also be checked for the primal problem? (this in general doesnot work if variables are bounded both from above and below */
 #define SLATERCHECKPRIMAL           FALSE
 #define NINCREASESGAMMA             2        /**< How often will Gamma at most be increased if penalty formulation failed */
-#define MIN_FEASTOL                 1e-10    /**< minimum feasibility tolerance if decreasing it for a penalty formulation */
+#define MIN_EPSILON                 1e-10    /**< minimum epsilon for SDP solver if decreasing it for a penalty formulation */
 
 #define DEFAULT_SDPSOLVEREPSILON    1e-5     /**< the stopping criterion for the duality gap the sdpsolver should use */
 #define DEFAULT_SDPSOLVERFEASTOL    1e-4     /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
@@ -2111,7 +2111,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-               rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, &origfeas, sdpi->feastol, NULL) );
+               rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, &origfeas, NULL) );
 
          /* if we didn't succeed, then probably the primal problem is troublesome */
          if ( (! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver)) && (! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver)) )
@@ -2326,8 +2326,8 @@ SCIP_RETCODE SCIPsdpiSolve(
       {
          SCIP_Real penaltyparam;
          SCIP_Real penaltyparamfact;
-         SCIP_Real feastol;
-         SCIP_Real feastolfact;
+         SCIP_Real epsilon;
+         SCIP_Real epsilonfact;
          SCIP_Bool feasorig;
          SCIP_Bool penaltybound;
          SCIP_Real objbound;
@@ -2338,12 +2338,12 @@ SCIP_RETCODE SCIPsdpiSolve(
          penaltyparam = sdpi->penaltyparam;
          /* we compute the factor to increase with as n-th root of the total increase until the maximum, where n is the number of iterations */
          penaltyparamfact = pow((sdpi->maxpenaltyparam / sdpi->penaltyparam), 1.0/NINCREASESGAMMA);
-         feastol = sdpi->feastol;
-         feastolfact = pow((MIN_FEASTOL / sdpi->feastol), 1.0/NINCREASESGAMMA);
+         epsilon = sdpi->epsilon;
+         epsilonfact = pow((MIN_EPSILON / sdpi->epsilon), 1.0/NINCREASESGAMMA);
 
          /* increase penalty-param and decrease feasibility tolerance until we find a feasible solution or reach the final bound for either one of them */
          while ( (( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver)) || ( ! feasorig ) ) &&
-               ( penaltyparam < sdpi->maxpenaltyparam + sdpi->epsilon ) && ( feastol > MIN_FEASTOL - sdpi->epsilon ) )
+               ( penaltyparam < sdpi->maxpenaltyparam + sdpi->epsilon ) && ( epsilon > 0.99 * MIN_EPSILON ) )
          {
             SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penaltyparameter %f\n", sdpi->sdpid, penaltyparam);
 
@@ -2352,7 +2352,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                        sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                        sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                        sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-                       rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, startsettings, &feasorig, sdpi->feastol, &penaltybound) );
+                       rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, startsettings, &feasorig, &penaltybound) );
 
             /* If the solver did not converge, we increase the penalty parameter */
             if ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver))
@@ -2368,7 +2368,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                sdpi->bestbound = objbound;
 
             /* If we don't get a feasible solution to our original problem we have to update either Gamma (if the penalty bound was active
-             * in the primal problem) or feastol (otherwise) */
+             * in the primal problem) or epsilon (otherwise) */
             if ( ! feasorig )
             {
                if ( penaltybound )
@@ -2378,18 +2378,18 @@ SCIP_RETCODE SCIPsdpiSolve(
                }
                else
                {
-                  feastol *= feastolfact;
-                  SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, SCIP_SDPPAR_FEASTOL, feastol) );
+                  epsilon *= epsilonfact;
+                  SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, SCIP_SDPPAR_EPSILON, epsilon) );
                   SCIPdebugMessage("Penalty formulation produced a result which is infeasible for the original problem, even though primal penalty "
-                        "bound was not reached, decreasing feasibility tolerance\n");
+                        "bound was not reached, decreasing epsilon value for duality gap in SDP solver\n");
                }
             }
          }
 
          /* reset the feasibility tolerance in the SDP solver */
-         if ( feastol > sdpi->feastol )
+         if ( epsilon > sdpi->epsilon )
          {
-            SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, SCIP_SDPPAR_FEASTOL, sdpi->feastol) );
+            SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, SCIP_SDPPAR_EPSILON, sdpi->epsilon) );
          }
 
 
@@ -2428,7 +2428,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                   sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                   sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                   sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-                  rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, &origfeas, sdpi->feastol, NULL) );
+                  rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, &origfeas, NULL) );
 
             /* if we didn't succeed, then probably the primal problem is troublesome */
             if ( (! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver)) && (! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver)) )

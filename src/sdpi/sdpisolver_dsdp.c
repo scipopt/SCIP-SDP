@@ -432,7 +432,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, TRUE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars,
            sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
            indchanges, nremovedinds, blockindchanges, nremovedblocks, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol,
-           lpval, start, startsettings, NULL, sdpisolver->feastol, NULL);
+           lpval, start, startsettings, NULL, NULL);
 }
 
 /** loads and solves an SDP using a penalty formulation
@@ -499,7 +499,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                                                *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Bool*            feasorig,           /**< pointer to store if the solution to the penalty-formulation is feasible for the original problem
                                                *  (may be NULL if penaltyparam = 0) */
-   SCIP_Real             feastolr,           /**< feasibility tolerance to compare the penalty variable r with for deciding on feasorig */
    SCIP_Bool*            penaltybound        /**< pointer to store if the primal solution reached the bound Tr(X) <= penaltyparam in the primal problem,
                                                *  this is also an indication of the penalty parameter being to small (may be NULL if not needed) */
 )
@@ -1284,7 +1283,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
          DSDP_CALL( DSDPGetR(sdpisolver->dsdp, &rval) );
 
-         *feasorig = (rval < feastolr );
+         *feasorig = (rval < sdpisolver->feastol );
 
          /* if r > 0 or we are in debug mode, also check the primal bound */
 #ifndef NDEBUG
@@ -1325,7 +1324,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          /* last entry of DSDPGetY needs to be the number of variables, will return an error otherwise */
          DSDP_CALL( DSDPGetY(sdpisolver->dsdp, dsdpsol, sdpisolver->nactivevars + 1) );
 
-         *feasorig = (dsdpsol[sdpisolver->nactivevars] < feastolr); /* r is the last variable in DSDP, so the last entry gives us the value */
+         *feasorig = (dsdpsol[sdpisolver->nactivevars] < sdpisolver->feastol); /* r is the last variable in DSDP, so the last entry gives us the value */
 #ifndef NDEBUG
          if ( ( ! *feasorig ) && ( penaltybound != NULL ) )
          {
