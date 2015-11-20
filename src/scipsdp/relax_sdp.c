@@ -1240,7 +1240,7 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
       }
       else
       {
-         retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, MAX_MAXPENALTYPARAM);
+         retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_MAXPENALTYPARAM, MAX_MAXPENALTYPARAM);
          SCIPdebugMessage("Setting penaltyparameter to %f.\n", MAX_MAXPENALTYPARAM);
       }
    }
