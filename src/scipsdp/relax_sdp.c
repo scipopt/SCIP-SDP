@@ -61,6 +61,7 @@
 #define DEFAULT_SDPSOLVEREPSILON    1e-5     /**< the stopping criterion for the duality gap the sdpsolver should use */
 #define DEFAULT_SDPSOLVERFEASTOL    1e-4     /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
 #define DEFAULT_PENALTYPARAM        -1       /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
+#define DEFAULT_LAMBDASTAR          -1       /**< the parameter lambda star used by SDPA to set the initial point */
 #define DEFAULT_MAXPENALTYPARAM     -1       /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 #if 0
 #define DEFAULT_THREADS             1        /**< number of threads used for SDP solving */
@@ -77,6 +78,9 @@
 #define PENALTYPARAM_FACTOR_SDPA    1e1      /**< if the penalty parameter is to be computed, the maximal objective coefficient will be multiplied by this */
 #define MAX_MAXPENALTYPARAM         1e15     /**< if the maximum penaltyparameter is to be computed, this is the maximum value it will take */
 #define MAXPENALTYPARAM_FACTOR      1e6      /**< if the maximum penaltyparameter is to be computed, it will be set to penaltyparam * this */
+#define LAMBDASTAR_FACTOR           1e1      /**< if lambda star is to be computed, the maximal objective coefficient will be multiplied by this */
+#define MIN_LAMBDASTAR              1e1      /**< if lambda star is to be computed, this is the minimum value it will take */
+#define MAX_LAMBDASTAR              1e12     /**< if lambda star is to be computed, this is the maximum value it will take */
 
 /*
  * Data structures
@@ -94,6 +98,7 @@ struct SCIP_RelaxData
    SCIP_Real             sdpsolverfeastol;   /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
    SCIP_Real             penaltyparam;       /**< the starting penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
    SCIP_Real             maxpenaltyparam;    /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
+   SCIP_Real             lambdastar;         /**< the parameter lambda star used by SDPA to set the initial point */
    int                   sdpiterations;      /**< saves the total number of sdp-iterations */
    int                   solvedfast;         /**< number of SDPs solved with fast settings */
    int                   solvedmedium;       /**< number of SDPs solved with medium settings */
@@ -1164,7 +1169,7 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
       for (v = 0; v < nvars; v++)
       {
          if ( SCIPisGT(scip, REALABS(SCIPvarGetObj(vars[v])), maxcoeff) )
-            maxcoeff = SCIPvarGetObj(vars[v]);
+            maxcoeff = REALABS(SCIPvarGetObj(vars[v]));
       }
 
       /* compute the value we would like to set the penaltyparameter to */
@@ -1248,6 +1253,63 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
          "SDP Solver <%s>: maxpenaltyparam setting not available -- SCIP parameter has no effect\n",
+         SCIPsdpiGetSolverName());
+   }
+   else
+   {
+      SCIP_CALL( retcode );
+   }
+
+   /* set/compute lambda star if SDPA is used as the SDP-Solver */
+   if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0.0 )
+   {
+      SCIP_Real lambdastar;
+
+      SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/lambdastar", &lambdastar) );
+      if ( SCIPisGE(scip, lambdastar, 0.0) )
+      {
+         retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_LAMBDASTAR, lambdastar);
+      }
+      else
+      {
+         SCIP_Real maxcoeff;
+         int v;
+         SCIP_Real compval;
+
+         /* we set the value to min{max{MIN_LAMBDASTAR, REALABS(LAMBDASTAR_FACTOR * max_objective_coefficient)}, MAX_LAMBDASTAR} */
+
+         /* compute the maximum coefficient in the objective */
+         maxcoeff = 0.0;
+         for (v = 0; v < nvars; v++)
+         {
+            if ( SCIPisGT(scip, REALABS(SCIPvarGetObj(vars[v])), maxcoeff) )
+               maxcoeff = SCIPvarGetObj(vars[v]);
+         }
+
+         compval = REALABS(maxcoeff * LAMBDASTAR_FACTOR);
+
+         if ( SCIPisLT(scip, compval, MIN_LAMBDASTAR) )
+         {
+            retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_LAMBDASTAR, MIN_LAMBDASTAR);
+            SCIPdebugMessage("Setting lambdastar to %f.\n", MIN_LAMBDASTAR);
+         }
+         else if ( SCIPisGT(scip, compval, MAX_LAMBDASTAR) )
+         {
+            retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_LAMBDASTAR, MAX_LAMBDASTAR);
+            SCIPdebugMessage("Setting lambdastar to %f.\n", MAX_LAMBDASTAR);
+         }
+         else
+         {
+            retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_LAMBDASTAR, compval);
+            SCIPdebugMessage("Setting lambdastar to %f.\n", compval);
+         }
+
+      }
+   }
+   if ( retcode == SCIP_PARAMETERUNKNOWN )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
+         "SDP Solver <%s>: lambdastar setting not available -- SCIP parameter has no effect\n",
          SCIPsdpiGetSolverName());
    }
    else
@@ -1405,6 +1467,9 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/maxpenaltyparam", "the maximum value of the penalty parameter Gamma used for the penalty formulation if the "
          "SDP solver didn't converge, set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->maxpenaltyparam),
          TRUE, DEFAULT_MAXPENALTYPARAM, -1.0, 1e+20, NULL, NULL) );
+   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/lambdastar", "the parameter lambda star used by SDPA to set the initial point , "
+         "set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->lambdastar),
+            TRUE, DEFAULT_LAMBDASTAR, -1.0, 1e+20, NULL, NULL) );
 #if 0
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/threads", "number of threads used for SDP solving",
          &(relaxdata->threads), TRUE, DEFAULT_THREADS, 1, INT_MAX, NULL, NULL) );

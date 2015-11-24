@@ -60,7 +60,8 @@ enum SCIP_SDPParam
    SCIP_SDPPAR_SDPINFO       = 4,      /**< should the SDP solver output information to the screen? */
    SCIP_SDPPAR_SLATERCHECK   = 5,      /**< should the slater condition for the dual problem be checked before solving each SDP ? */
    SCIP_SDPPAR_PENALTYPARAM  = 6,      /**< the startingpenalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
-   SCIP_SDPPAR_MAXPENALTYPARAM  = 7       /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
+   SCIP_SDPPAR_MAXPENALTYPARAM  = 7,      /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
+   SCIP_SDPPAR_LAMBDASTAR    = 8       /**< the parameter lambda star used by SDPA to set the initial point */
 };
 typedef enum SCIP_SDPParam SCIP_SDPPARAM;
 

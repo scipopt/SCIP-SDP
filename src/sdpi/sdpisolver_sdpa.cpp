@@ -121,6 +121,7 @@ struct SCIP_SDPiSolver
    SCIP_Bool             penalty;            /**< was the problem last solved using a penalty formulation */
    SCIP_Bool             rbound;             /**< was the penalty parameter bounded during the last solve call */
    SCIP_SDPSOLVERSETTING usedsetting;        /**< setting used to solve the last SDP */
+   SCIP_Real             lambdastar;         /**< lambda star parameter to give to SDPA for initial point */
 };
 
 
@@ -614,7 +615,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
 
    /* increase Lambda Star, this seems to help the numerics */
-   sdpisolver->sdpa->setParameterLambdaStar(1e4);
+   sdpisolver->sdpa->setParameterLambdaStar(sdpisolver->lambdastar);
 
    /* compute number of variable bounds and save them in sdpavarbounds */
    sdpisolver->nvarbounds = 0;
@@ -1169,7 +1170,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          sdpisolver->sdpa->setParameterUpperBound(1e8);
 
       /* increase Lambda Star, this seems to help the numerics */
-      sdpisolver->sdpa->setParameterLambdaStar(1e4);
+      sdpisolver->sdpa->setParameterLambdaStar(sdpisolver->lambdastar);
 
 #ifdef SCIP_MORE_DEBUG
    sdpisolver->sdpa->printParameters(stdout);
@@ -1207,7 +1208,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             sdpisolver->sdpa->setParameterUpperBound(1e8);
 
          /* increase Lambda Star, this seems to help the numerics */
-         sdpisolver->sdpa->setParameterLambdaStar(1e4);
+         sdpisolver->sdpa->setParameterLambdaStar(sdpisolver->lambdastar);
 
 #ifdef SCIP_MORE_DEBUG
    sdpisolver->sdpa->printParameters(stdout);
@@ -2021,6 +2022,9 @@ SCIP_RETCODE SCIPsdpiSolverGetRealpar(
    case SCIP_SDPPAR_OBJLIMIT:
       *dval = sdpisolver->objlimit;
       break;
+   case SCIP_SDPPAR_LAMBDASTAR:
+      *dval = sdpisolver->lambdastar;
+      break;
    default:
       return SCIP_PARAMETERUNKNOWN;
    }
@@ -2053,6 +2057,10 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    case SCIP_SDPPAR_OBJLIMIT:
       SCIPdebugMessage("Setting sdpisolver objlimit to %f.\n", dval);
       sdpisolver->objlimit = dval;
+      break;
+   case SCIP_SDPPAR_LAMBDASTAR:
+      SCIPdebugMessage("Setting sdpisolver lambdastar parameter to %f.\n", dval);
+      sdpisolver->lambdastar = dval;
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;
