@@ -2615,8 +2615,6 @@ SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
    else
       *lambdastar = dualguess;
 
-   printf("lambdastar = %f\n", *lambdastar);
-
    return SCIP_OKAY;
 }
 
