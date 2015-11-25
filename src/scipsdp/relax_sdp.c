@@ -82,6 +82,8 @@
 #define MAX_LAMBDASTAR              1e8     /**< if lambda star is to be computed, this is the maximum value it will take */
 #define LAMBDASTAR_FACTOR           1e0      /**< if lambda star is to be computed, the biggest guess of the SDP blocks is multiplied by this value */
 
+#define PRINT_STATISTICS /* uncomment this to print additional statistics after the computation is finished */
+
 /*
  * Data structures
  */
@@ -1397,10 +1399,19 @@ SCIP_DECL_RELAXEXIT(relaxExitSdp)
    assert( scip != NULL );
    assert( relax != NULL );
 
-   SCIPdebugMessage("Exiting Relaxation Handler \n");
-
    relaxdata = SCIPrelaxGetData(relax);
    assert( relaxdata != NULL );
+
+#ifdef PRINT_STATISTICS
+   SCIPinfoMessage(scip, NULL, "SDP-Iterations:%d \n", relaxdata->sdpiterations);
+   SCIPinfoMessage(scip, NULL, "Average-SDP-Iterations:%f \n", (double) relaxdata->sdpiterations / (double) relaxdata->sdpcalls );
+   SCIPinfoMessage(scip, NULL, "Fastest-Settings-Solved:%f \n", 100.0 * (double) relaxdata->solvedfast / (double) relaxdata->sdpcalls);
+   SCIPinfoMessage(scip, NULL, "Medium-Settings-Solved:%f \n", 100.0 * (double) relaxdata->solvedmedium / (double) relaxdata->sdpcalls);
+   SCIPinfoMessage(scip, NULL, "Stable-Settings-Solved:%f \n", 100.0 * (double) relaxdata->solvedstable / (double) relaxdata->sdpcalls);
+   SCIPinfoMessage(scip, NULL, "Penalty-Percent:%f \n", 100.0 * (double) relaxdata->solvedpenalty / (double) relaxdata->sdpcalls);
+#endif
+
+   SCIPdebugMessage("Exiting Relaxation Handler \n");
 
    if ( relaxdata->varmapper != NULL )
    {
