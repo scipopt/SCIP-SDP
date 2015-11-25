@@ -78,9 +78,9 @@
 #define PENALTYPARAM_FACTOR_SDPA    1e1      /**< if the penalty parameter is to be computed, the maximal objective coefficient will be multiplied by this */
 #define MAX_MAXPENALTYPARAM         1e15     /**< if the maximum penaltyparameter is to be computed, this is the maximum value it will take */
 #define MAXPENALTYPARAM_FACTOR      1e6      /**< if the maximum penaltyparameter is to be computed, it will be set to penaltyparam * this */
-#define MIN_LAMBDASTAR              1e1      /**< if lambda star is to be computed, this is the minimum value it will take */
+#define MIN_LAMBDASTAR              1e0      /**< if lambda star is to be computed, this is the minimum value it will take */
 #define MAX_LAMBDASTAR              1e12     /**< if lambda star is to be computed, this is the maximum value it will take */
-#define LAMBDASTAR_FACTOR           1e1      /**< if lambda star is to be computed, the biggest guess of the SDP blocks is multiplied by this value */
+#define LAMBDASTAR_FACTOR           1e0      /**< if lambda star is to be computed, the biggest guess of the SDP blocks is multiplied by this value */
 
 /*
  * Data structures

@@ -2527,7 +2527,7 @@ SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
 }
 
 /** compute a heuristic guess for a good starting solution \f$ \lambda ^* \cdot I \f$ for SDPA, it is computed as
- * \f$ \max \{ S_0 \cdot \max_{i>=0} \{ \|A_i\|_\infty \}, \frac{ \max_i \{ b_i \} }{S \cdot \min_{i>=1} \{ \min (A_i)_{jk} \} } \},  \f$
+ * \f$ \max \{ S_0 \cdot \max_{i \in \set{m}} \{u_i - \ell_i \} \cdot \max_{i>=0} \{ \|A_i\|_\infty \}, \frac{ \max_i \{ b_i \} }{S \cdot \min_{i>=1} \{ \min (A_i)_{jk} \} } \},  \f$
  * where \f$ S = \frac{ | \text{nonzero-entries of all } A_i | }{0.5 \cdot \text{ blocksize } (\text{ blocksize } + 1)} \f$
  * measures the sparsity of the matrices, with \f$ S_0 \f$ also including \f$ A_0 \f$
  */
@@ -2543,6 +2543,7 @@ SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
    SCIP_Real maxinfnorm;
    SCIP_Real mininfnorm;
    SCIP_Real maxobj;
+   SCIP_Real maxbounddiff;
    int blocksize;
    int i;
    int v;
@@ -2583,13 +2584,17 @@ SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
 
    assert( SCIPisGT(scip, mininfnorm, 0.0) );
 
-   /* compute maximum b_i */
+   /* compute maximum b_i and bound interval */
    maxobj = 0.0;
+   maxbounddiff = 0.0;
    for (v = 0; v < consdata->nvars; v++)
    {
       if ( SCIPisGT(scip, REALABS(SCIPvarGetObj(consdata->vars[v])), maxobj) )
          maxobj = REALABS(SCIPvarGetObj(consdata->vars[v]));
+      if ( SCIPisGT(scip, SCIPvarGetUbGlobal(consdata->vars[v]) - SCIPvarGetLbGlobal(consdata->vars[v]), maxbounddiff) )
+         maxbounddiff = SCIPvarGetUbGlobal(consdata->vars[v]) - SCIPvarGetLbGlobal(consdata->vars[v]);
    }
+
 
    /* compute primal and dual guess */
    primalguess = maxobj / (sparsity * mininfnorm);
