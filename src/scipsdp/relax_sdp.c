@@ -79,7 +79,7 @@
 #define MAX_MAXPENALTYPARAM         1e15     /**< if the maximum penaltyparameter is to be computed, this is the maximum value it will take */
 #define MAXPENALTYPARAM_FACTOR      1e6      /**< if the maximum penaltyparameter is to be computed, it will be set to penaltyparam * this */
 #define MIN_LAMBDASTAR              1e0      /**< if lambda star is to be computed, this is the minimum value it will take */
-#define MAX_LAMBDASTAR              1e12     /**< if lambda star is to be computed, this is the maximum value it will take */
+#define MAX_LAMBDASTAR              1e8     /**< if lambda star is to be computed, this is the maximum value it will take */
 #define LAMBDASTAR_FACTOR           1e0      /**< if lambda star is to be computed, the biggest guess of the SDP blocks is multiplied by this value */
 
 /*

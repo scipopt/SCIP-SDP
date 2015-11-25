@@ -2527,9 +2527,10 @@ SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
 }
 
 /** compute a heuristic guess for a good starting solution \f$ \lambda ^* \cdot I \f$ for SDPA, it is computed as
- * \f$ \max \{ S_0 \cdot \max_{i \in \set{m}} \{u_i - \ell_i \} \cdot \max_{i>=0} \{ \|A_i\|_\infty \}, \frac{ \max_i \{ b_i \} }{S \cdot \min_{i>=1} \{ \min (A_i)_{jk} \} } \},  \f$
+ * \f$ \lambda^* = \max \Bigg\{  \max \{ S \cdot \max_{i \in \set{m}} \{|u_i|, |l_i|\} \cdot \max_{i \in \set{m}} \|A_i\|_\infty, \|C\|_\infty \} ,
+   \frac{\max_{i \in \set{m}}  b_i  }{S \cdot \min_{i \in \set{m}}  \min_{j, \ell \in \set{n}} (A_i)_{j\ell} } \Bigg\}  \f$
  * where \f$ S = \frac{ | \text{nonzero-entries of all } A_i | }{0.5 \cdot \text{ blocksize } (\text{ blocksize } + 1)} \f$
- * measures the sparsity of the matrices, with \f$ S_0 \f$ also including \f$ A_0 \f$
+ * measures the sparsity of the matrices \f$
  */
 SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -2539,16 +2540,17 @@ SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
 {
    SCIP_CONSDATA* consdata;
    SCIP_Real sparsity;
-   SCIP_Real sparsitywconst;
    SCIP_Real maxinfnorm;
+   SCIP_Real maxconst;
    SCIP_Real mininfnorm;
    SCIP_Real maxobj;
-   SCIP_Real maxbounddiff;
+   SCIP_Real maxbound;
    int blocksize;
    int i;
    int v;
    SCIP_Real primalguess;
    SCIP_Real dualguess;
+   SCIP_Real compval;
 
    assert( scip != NULL );
    assert( cons != NULL );
@@ -2561,7 +2563,6 @@ SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
    blocksize = consdata->blocksize;
 
    sparsity = consdata->nnonz / (0.5 * blocksize * (blocksize + 1));
-   sparsitywconst = (consdata->nnonz + consdata->constnnonz) / (0.5 * blocksize * (blocksize + 1));
 
    /* compute the maximum entry of the A_i */
    maxinfnorm = 0.0;
@@ -2576,34 +2577,45 @@ SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
             mininfnorm = REALABS(consdata->val[v][i]);
       }
    }
+   maxconst = 0.0;
    for (i = 0; i < consdata->constnnonz; i++)
    {
-      if ( SCIPisGT(scip, REALABS(consdata->constval[i]), maxinfnorm ) )
-         maxinfnorm = REALABS(consdata->constval[i]);
+      if ( SCIPisGT(scip, REALABS(consdata->constval[i]), maxconst ) )
+         maxconst = REALABS(consdata->constval[i]);
    }
 
    assert( SCIPisGT(scip, mininfnorm, 0.0) );
 
-   /* compute maximum b_i and bound interval */
+   /* compute maximum b_i and bound */
    maxobj = 0.0;
-   maxbounddiff = 0.0;
+   maxbound = 0.0;
    for (v = 0; v < consdata->nvars; v++)
    {
       if ( SCIPisGT(scip, REALABS(SCIPvarGetObj(consdata->vars[v])), maxobj) )
          maxobj = REALABS(SCIPvarGetObj(consdata->vars[v]));
-      if ( SCIPisGT(scip, SCIPvarGetUbGlobal(consdata->vars[v]) - SCIPvarGetLbGlobal(consdata->vars[v]), maxbounddiff) )
-         maxbounddiff = SCIPvarGetUbGlobal(consdata->vars[v]) - SCIPvarGetLbGlobal(consdata->vars[v]);
+      compval = SCIPisInfinity(scip, REALABS(SCIPvarGetUbGlobal(consdata->vars[v]))) ? 1e+6 : REALABS(SCIPvarGetUbGlobal(consdata->vars[v]));
+      if ( SCIPisGT(scip, compval, maxbound) )
+         maxbound = compval;
+      compval = SCIPisInfinity(scip, REALABS(SCIPvarGetLbGlobal(consdata->vars[v]))) ? 1e+6 : REALABS(SCIPvarGetUbGlobal(consdata->vars[v]));
+      if ( SCIPisGT(scip, compval, maxbound) )
+         maxbound = compval;
    }
+
+   /* if all variables were unbounded, we set the value to 10^6 */
+   if ( SCIPisEQ(scip, maxbound, 0.0) )
+      maxbound = 1E+6;
 
 
    /* compute primal and dual guess */
    primalguess = maxobj / (sparsity * mininfnorm);
-   dualguess = sparsitywconst * maxinfnorm;
+   dualguess = SCIPisGT(scip, sparsity * maxinfnorm * maxbound, maxconst) ? sparsity * maxinfnorm * maxbound : maxconst;
 
    if ( SCIPisGT(scip, primalguess, dualguess) )
       *lambdastar = primalguess;
    else
       *lambdastar = dualguess;
+
+   printf("lambdastar = %f\n", *lambdastar);
 
    return SCIP_OKAY;
 }
