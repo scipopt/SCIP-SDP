@@ -391,6 +391,7 @@ SCIP_RETCODE putLpDataInInterface(
       assert( row != 0 );
       rownnonz = SCIProwGetNNonz(row);
       tightened = FALSE;
+      tightenedval = 0.0;
 
       rowvals = SCIProwGetVals(row);
       rowcols = SCIProwGetCols(row);

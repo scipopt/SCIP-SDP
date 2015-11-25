@@ -1280,18 +1280,17 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          /* in this case we used the penalty-formulation of DSDP, so we can check their value of r */
          double rval;
+         double trace;
 
          DSDP_CALL( DSDPGetR(sdpisolver->dsdp, &rval) );
 
          *feasorig = (rval < sdpisolver->feastol );
 
          /* if r > 0 or we are in debug mode, also check the primal bound */
-#ifndef NDEBUG
+#ifdef NDEBUG
          if ( ( ! *feasorig ) && ( penaltybound != NULL ) )
          {
 #endif
-            double trace;
-
             SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", rval);
 
             /* get the trace of X to compare it with the penalty parameter */
@@ -1314,25 +1313,24 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             /* if the primal bound is attained, r should also be strictly positive (outside of debug we will not even compute it otherwise) */
             assert( ( ! *penaltybound ) || ( ! *feasorig ) );
 
-#ifndef NDEBUG
+#ifdef NDEBUG
          }
 #endif
       }
       else
       {
          double* dsdpsol;
+         double trace;
 
          BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, sdpisolver->nactivevars + 1) ); /*lint !e776*/
          /* last entry of DSDPGetY needs to be the number of variables, will return an error otherwise */
          DSDP_CALL( DSDPGetY(sdpisolver->dsdp, dsdpsol, sdpisolver->nactivevars + 1) );
 
          *feasorig = (dsdpsol[sdpisolver->nactivevars] < sdpisolver->feastol); /* r is the last variable in DSDP, so the last entry gives us the value */
-#ifndef NDEBUG
+#ifdef NDEBUG
          if ( ( ! *feasorig ) && ( penaltybound != NULL ) )
          {
 #endif
-            double trace;
-
             SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", dsdpsol[sdpisolver->nactivevars]);
 
             /* get the trace of X to compare it with the penalty parameter */
@@ -1353,7 +1351,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             /* if the primal bound is attained, r should also be strictly positive (outside of debug we will not even compute it otherwise) */
             assert( ( ! *penaltybound ) || ( ! feasorig ) );
 
-#ifndef NDEBUG
+#ifdef NDEBUG
          }
 #endif
       }
