@@ -154,6 +154,18 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    SCIP_RESULT*          result              /**< pointer to store the result of the feasibility checking call */
    );
 
+/** compute a heuristic guess for a good starting solution \f$ \lambda ^* \cdot I \f$ for SDPA, it is computed as
+ * \f$ \max \{ S \cdot \max_i \{ \|A_i\|_\infty \}, \frac{ \max_i \{ b_i \} }{S \cdot \max_i \{ \|A_i\|_\infty \} } \},  \f$
+ * where \f$ S = \frac{ | \text{nonzero-entries of all } A_i | }{0.5 \cdot \text{ blocksize } (\text{ blocksize } + 1)} \f$
+ * measures the sparsity of the matrices
+ */
+EXTERN
+SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons,               /**< the constraint for which the Matrix should be assembled */
+   SCIP_Real*            lambdastar          /**< pointer to store the guess for the initial point */
+   );
+
 #ifdef __cplusplus
 }
 #endif

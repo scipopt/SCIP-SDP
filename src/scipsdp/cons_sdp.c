@@ -2526,6 +2526,77 @@ SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
    return SCIP_OKAY;
 }
 
+/** compute a heuristic guess for a good starting solution \f$ \lambda ^* \cdot I \f$ for SDPA, it is computed as
+ * \f$ \max \{ S \cdot \max_i \{ \|A_i\|_\infty \}, \frac{ \max_i \{ b_i \} }{S \cdot \max_i \{ \|A_i\|_\infty \} } \},  \f$
+ * where \f$ S = \frac{ | \text{nonzero-entries of all } A_i | }{0.5 \cdot \text{ blocksize } (\text{ blocksize } + 1)} \f$
+ * measures the sparsity of the matrices
+ */
+SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons,               /**< the constraint for which the Matrix should be assembled */
+   SCIP_Real*            lambdastar          /**< pointer to store the guess for the initial point */
+   )
+{
+   SCIP_CONSDATA* consdata;
+   SCIP_Real sparsity;
+   SCIP_Real maxinfnorm;
+   SCIP_Real maxobj;
+   int blocksize;
+   int i;
+   int v;
+   SCIP_Real primalguess;
+   SCIP_Real dualguess;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+   assert( lambdastar != NULL );
+   assert( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(cons)), CONSHDLR_NAME) == 0 );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+
+   blocksize = consdata->blocksize;
+
+   sparsity = consdata->nnonz / (0.5 * blocksize * (blocksize + 1));
+
+   /* compute the maximum entry of the A_i */
+   maxinfnorm = 0.0;
+   for (v = 0; v < consdata->nvars; v++)
+   {
+      for (i = 0; i < consdata->nvarnonz[v]; i++)
+      {
+         if ( SCIPisGT(scip, REALABS(consdata->val[v][i]), maxinfnorm ) )
+            maxinfnorm = REALABS(consdata->val[v][i]);
+      }
+   }
+   for (i = 0; i < consdata->constnnonz; i++)
+   {
+      if ( SCIPisGT(scip, REALABS(consdata->constval[i]), maxinfnorm ) )
+         maxinfnorm = REALABS(consdata->constval[i]);
+   }
+
+   /* compute maximum b_i */
+   maxobj = 0.0;
+   for (v = 0; v < consdata->nvars; v++)
+   {
+      if ( SCIPisGT(scip, REALABS(SCIPvarGetObj(consdata->vars[v])), maxobj) )
+         maxobj = REALABS(SCIPvarGetObj(consdata->vars[v]));
+   }
+
+   /* compute primal and dual guess */
+   primalguess = maxobj / (sparsity * maxinfnorm);
+   dualguess = sparsity * maxinfnorm;
+
+   if ( SCIPisGT(scip, primalguess, dualguess) )
+      *lambdastar = primalguess;
+   else
+      *lambdastar = dualguess;
+
+   printf("lambdastar=%f\n", *lambdastar);
+
+   return SCIP_OKAY;
+}
+
 /** creates an SDP-constraint */
 SCIP_RETCODE SCIPcreateConsSdp(
    SCIP*                 scip,               /**< SCIP data structure */

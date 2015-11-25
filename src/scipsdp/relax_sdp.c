@@ -78,9 +78,9 @@
 #define PENALTYPARAM_FACTOR_SDPA    1e1      /**< if the penalty parameter is to be computed, the maximal objective coefficient will be multiplied by this */
 #define MAX_MAXPENALTYPARAM         1e15     /**< if the maximum penaltyparameter is to be computed, this is the maximum value it will take */
 #define MAXPENALTYPARAM_FACTOR      1e6      /**< if the maximum penaltyparameter is to be computed, it will be set to penaltyparam * this */
-#define LAMBDASTAR_FACTOR           1e1      /**< if lambda star is to be computed, the maximal objective coefficient will be multiplied by this */
 #define MIN_LAMBDASTAR              1e1      /**< if lambda star is to be computed, this is the minimum value it will take */
 #define MAX_LAMBDASTAR              1e12     /**< if lambda star is to be computed, this is the maximum value it will take */
+#define LAMBDASTAR_FACTOR           1e1      /**< if lambda star is to be computed, the biggest guess of the SDP blocks is multiplied by this value */
 
 /*
  * Data structures
@@ -1272,21 +1272,35 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
       }
       else
       {
-         SCIP_Real maxcoeff;
-         int v;
+         SCIP_Real guess;
+         SCIP_Real maxguess;
+         SCIP_CONS** conss;
+         int nconss;
+         int c;
          SCIP_Real compval;
 
-         /* we set the value to min{max{MIN_LAMBDASTAR, REALABS(LAMBDASTAR_FACTOR * max_objective_coefficient)}, MAX_LAMBDASTAR} */
+         /* we set the value to min{max{MIN_LAMBDASTAR, LAMBDASTAR_FACTOR * MAX_GUESS}, MAX_LAMBDASTAR}, where MAX_GUESS is the maximum of the guesses
+          * of the SDP-Blocks */
 
-         /* compute the maximum coefficient in the objective */
-         maxcoeff = 0.0;
-         for (v = 0; v < nvars; v++)
+         /* compute the maximum guess */
+         conss = SCIPgetConss(scip);
+         nconss = SCIPgetNConss(scip);
+         maxguess = 0.0;
+
+         for (c = 0; c < nconss; c++)
          {
-            if ( SCIPisGT(scip, REALABS(SCIPvarGetObj(vars[v])), maxcoeff) )
-               maxcoeff = SCIPvarGetObj(vars[v]);
+            /* only check the SDP constraints */
+            if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") == 0 )
+            {
+               SCIP_CALL( SCIPconsSdpGuessInitialPoint(scip, conss[c], &guess) );
+               if ( SCIPisGT(scip, guess, maxguess) )
+               {
+                  maxguess = guess;
+               }
+            }
          }
 
-         compval = REALABS(maxcoeff * LAMBDASTAR_FACTOR);
+         compval = LAMBDASTAR_FACTOR * maxguess;
 
          if ( SCIPisLT(scip, compval, MIN_LAMBDASTAR) )
          {
