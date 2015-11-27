@@ -2447,7 +2447,11 @@ SCIP_RETCODE SCIPsdpiSolve(
             }
          }
          else if ( sdpi->solved == FALSE )
+#if 0
             printf("Numerical trouble\n");
+#else
+         SCIPdebugMessage("SDP-Interface was unable to solve SDP %d\n", sdpi->sdpid);
+#endif
       }
    }
 
