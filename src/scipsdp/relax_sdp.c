@@ -79,8 +79,12 @@
 #define MAX_MAXPENALTYPARAM         1e15     /**< if the maximum penaltyparameter is to be computed, this is the maximum value it will take */
 #define MAXPENALTYPARAM_FACTOR      1e6      /**< if the maximum penaltyparameter is to be computed, it will be set to penaltyparam * this */
 #define MIN_LAMBDASTAR              1e0      /**< if lambda star is to be computed, this is the minimum value it will take */
-#define MAX_LAMBDASTAR              1e8     /**< if lambda star is to be computed, this is the maximum value it will take */
+#define MAX_LAMBDASTAR              1e8      /**< if lambda star is to be computed, this is the maximum value it will take */
 #define LAMBDASTAR_FACTOR           1e0      /**< if lambda star is to be computed, the biggest guess of the SDP blocks is multiplied by this value */
+#define LAMBDASTAR_TWOPOINTS        TRUE     /**< if lambda star is to be computed, should we use only a low and a high value or instead a continuous interval */
+#define LAMBDASTAR_THRESHOLD        1e1      /**< if lambda star is to be computed and LAMBDASTAR_TWOPOINTS=TRUE, then we distinguish between low and high using this */
+#define LAMBDASTAR_LOW              1.5      /**< if lambda star is to be computed and LAMBDASTAR_TWOPOINTS=TRUE, then this is the value for below the threshold */
+#define LAMBDASTAR_HIGH             1e5      /**< if lambda star is to be computed and LAMBDASTAR_TWOPOINTS=TRUE, then this is the value for above the threshold */
 
 #define PRINT_STATISTICS /* uncomment this to print additional statistics after the computation is finished */
 
@@ -1283,7 +1287,7 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
          SCIP_Real compval;
 
          /* we set the value to min{max{MIN_LAMBDASTAR, LAMBDASTAR_FACTOR * MAX_GUESS}, MAX_LAMBDASTAR}, where MAX_GUESS is the maximum of the guesses
-          * of the SDP-Blocks */
+          * of the SDP-Blocks, if MAX_GUESS > LAMBDASTAR_THRESHOLD, we mutliply it by LAMBDASTAR_THRESHOLD_FACT */
 
          /* compute the maximum guess */
          conss = SCIPgetConss(scip);
@@ -1303,7 +1307,15 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
             }
          }
 
-         compval = LAMBDASTAR_FACTOR * maxguess;
+         if ( LAMBDASTAR_TWOPOINTS )
+         {
+            if ( maxguess < LAMBDASTAR_THRESHOLD )
+               compval = LAMBDASTAR_LOW;
+            else
+               compval = LAMBDASTAR_HIGH;
+         }
+         else
+            compval = LAMBDASTAR_FACTOR * maxguess;
 
          if ( SCIPisLT(scip, compval, MIN_LAMBDASTAR) )
          {

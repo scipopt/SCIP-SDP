@@ -2527,7 +2527,7 @@ SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
 }
 
 /** compute a heuristic guess for a good starting solution \f$ \lambda ^* \cdot I \f$ for SDPA, it is computed as
- * \f$ \lambda^* = \max \Bigg\{  \max \{ S \cdot \max_{i \in \set{m}} \{|u_i|, |l_i|\} \cdot \max_{i \in \set{m}} \|A_i\|_\infty, \|C\|_\infty \} ,
+ * \f$ \lambda^* = \max \Bigg\{  S \cdot \max_{i \in \set{m}} \{|u_i|, |l_i|\} \cdot \max_{i \in \set{m}} \|A_i\|_\infty + \|C\|_\infty,
    \frac{\max_{i \in \set{m}}  b_i  }{S \cdot \min_{i \in \set{m}}  \min_{j, \ell \in \set{n}} (A_i)_{j\ell} } \Bigg\}  \f$
  * where \f$ S = \frac{ | \text{nonzero-entries of all } A_i | }{0.5 \cdot \text{ blocksize } (\text{ blocksize } + 1)} \f$
  * measures the sparsity of the matrices \f$
@@ -2608,7 +2608,7 @@ SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
 
    /* compute primal and dual guess */
    primalguess = maxobj / (sparsity * mininfnorm);
-   dualguess = SCIPisGT(scip, sparsity * maxinfnorm * maxbound, maxconst) ? sparsity * maxinfnorm * maxbound : maxconst;
+   dualguess = sparsity * maxinfnorm * maxbound + maxconst;
 
    if ( SCIPisGT(scip, primalguess, dualguess) )
       *lambdastar = primalguess;
