@@ -369,12 +369,21 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
       SCIPfreeBufferArray(scip, &ncandsincons);
    }
 
-   /* branch */
-   SCIPdebugMessage("branching on variable %s with value %f, absolute objective * integer infeasibility = %f and score %f\n",
-         SCIPvarGetName(maxtargetvar), maxtargetval, maxtargettarget, maxtargetscore);
-   SCIP_CALL( SCIPbranchVarVal(scip, maxtargetvar, maxtargetval, NULL, NULL, NULL) );
+   /* if the objective values of all integer variables (and all coupled variables, if this settings was used) is zero, skip this branching rule */
+   if ( SCIPisGT(scip, maxtargettarget, 0.0) )
+   {
+      /* branch */
+      SCIPdebugMessage("branching on variable %s with value %f, absolute objective * integer infeasibility = %f and score %f\n",
+            SCIPvarGetName(maxtargetvar), maxtargetval, maxtargettarget, maxtargetscore);
+      SCIP_CALL( SCIPbranchVarVal(scip, maxtargetvar, maxtargetval, NULL, NULL, NULL) );
 
-   *result = SCIP_BRANCHED;
+      *result = SCIP_BRANCHED;
+   }
+   else
+   {
+      /* skip */
+      *result = SCIP_DIDNOTRUN;
+   }
 
    return SCIP_OKAY;
 }
