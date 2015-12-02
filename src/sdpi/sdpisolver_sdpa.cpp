@@ -227,8 +227,8 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->solved = FALSE;
    (*sdpisolver)->sdpcounter = 0;
 
-   (*sdpisolver)->epsilon = 1e-5;
-   (*sdpisolver)->feastol = 1e-4;
+   (*sdpisolver)->epsilon = 1e-4;
+   (*sdpisolver)->feastol = 1e-6;
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
 #if 0
    (*sdpisolver)->threads = 1;
