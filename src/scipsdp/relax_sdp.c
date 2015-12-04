@@ -1416,12 +1416,15 @@ SCIP_DECL_RELAXEXIT(relaxExitSdp)
    assert( relaxdata != NULL );
 
 #ifdef PRINT_STATISTICS
-   SCIPinfoMessage(scip, NULL, "SDP-Iterations:%d \n", relaxdata->sdpiterations);
-   SCIPinfoMessage(scip, NULL, "Average-SDP-Iterations:%f \n", (double) relaxdata->sdpiterations / (double) relaxdata->sdpcalls );
-   SCIPinfoMessage(scip, NULL, "Fastest-Settings-Solved:%f \n", 100.0 * (double) relaxdata->solvedfast / (double) relaxdata->sdpcalls);
-   SCIPinfoMessage(scip, NULL, "Medium-Settings-Solved:%f \n", 100.0 * (double) relaxdata->solvedmedium / (double) relaxdata->sdpcalls);
-   SCIPinfoMessage(scip, NULL, "Stable-Settings-Solved:%f \n", 100.0 * (double) relaxdata->solvedstable / (double) relaxdata->sdpcalls);
-   SCIPinfoMessage(scip, NULL, "Penalty-Percent:%f \n", 100.0 * (double) relaxdata->solvedpenalty / (double) relaxdata->sdpcalls);
+   SCIPinfoMessage(scip, NULL, "\nSDP iterations:\t\t\t\t%d\n", relaxdata->sdpiterations);
+   SCIPinfoMessage(scip, NULL, "Average SDP-iterations:\t\t\t%.2f \n", (double) relaxdata->sdpiterations / (double) relaxdata->sdpcalls );
+   if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0 )
+   {
+      SCIPinfoMessage(scip, NULL, "Percentage 'fastest settings' solved:\t%6.2f \n", 100.0 * (double) relaxdata->solvedfast / (double) relaxdata->sdpcalls);
+      SCIPinfoMessage(scip, NULL, "Percentage 'medium settings' solved:\t%6.2f \n", 100.0 * (double) relaxdata->solvedmedium / (double) relaxdata->sdpcalls);
+      SCIPinfoMessage(scip, NULL, "Percentage 'stable settings' solved:\t%6.2f \n", 100.0 * (double) relaxdata->solvedstable / (double) relaxdata->sdpcalls);
+   }
+   SCIPinfoMessage(scip, NULL, "Percentage penalty formulation used:\t%6.2f \n", 100.0 * (double) relaxdata->solvedpenalty / (double) relaxdata->sdpcalls);
 #endif
 
    SCIPdebugMessage("Exiting Relaxation Handler \n");
