@@ -234,8 +234,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            start               /**< NULL or a starting point for the solver, this should have length nvars */
-)
+   SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
+   SCIP_SDPSOLVERSETTING startsettings       /**< settings used to start with in SDPA, currently not used for DSDP, set this to
+                                               *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
+   )
 {
    errorMessage();
 
@@ -572,6 +574,18 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
 SCIP_RETCODE SCIPsdpiSolverGetIterations(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
    int*                  iterations          /**< pointer to store the number of iterations of the last solve call */
+   )
+{
+   errorMessageAbort();
+
+   return SCIP_PLUGINNOTFOUND;
+}
+
+/** gets the number of SDP iterations of the last solve call */
+EXTERN
+SCIP_RETCODE SCIPsdpiSolverSettingsUsed(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
+   SCIP_SDPSOLVERSETTING* usedsetting        /**< the setting used by the SDP solver */
    )
 {
    errorMessageAbort();
