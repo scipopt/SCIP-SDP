@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   cons_savedsdpsettings.h
+/**@file   cons_savedsdpsettings.c
  * @brief  constraint handler for saving SDP settings
  * @author Tristan Gally
  */

@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   prop_SdpObbt.c
+/**@file   prop_sdpobbt.c
  * @brief  SdpObbt propagator
  * @author Tristan Gally
  */
