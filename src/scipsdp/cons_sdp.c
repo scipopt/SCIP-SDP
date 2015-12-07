@@ -2520,7 +2520,7 @@ SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
    return SCIP_OKAY;
 }
 
-/** compute a heuristic guess for a good starting solution
+/** Compute a heuristic guess for a good starting solution \f$ \lambda ^* \cdot I \f$.
  *
  *  The solution is computed as
  *  \f[
