@@ -151,6 +151,12 @@ int SCIPrelaxSdpGetNSdpPenalty(
    SCIP_RELAX*           relax               /**< SDP relaxator to get the number of calls for */
    );
 
+/** returns number of SDP relaxation unsolved even when using a penalty formulation */
+EXTERN
+int SCIPrelaxSdpGetNSdpUnsolved(
+   SCIP_RELAX*           relax               /**< SDP relaxator to get the number of calls for */
+   );
+
 #ifdef __cplusplus
 }
 #endif

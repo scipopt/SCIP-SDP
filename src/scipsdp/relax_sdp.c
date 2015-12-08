@@ -110,6 +110,7 @@ struct SCIP_RelaxData
    int                   solvedmedium;       /**< number of SDPs solved with medium settings */
    int                   solvedstable;       /**< number of SDPs solved with stable settings */
    int                   solvedpenalty;      /**< number of SDPs solved using penalty formulation */
+   int                   unsolved;           /**< number of SDPs that could not be solved even using a penalty formulation */
 #if 0
    int                   threads;            /**< number of threads used for SDP solving */
 #endif
@@ -665,6 +666,9 @@ SCIP_RETCODE calc_relax(
       case SCIP_SDPSOLVERSETTING_STABLE:
          relaxdata->solvedstable++;
          break;
+      case SCIP_SDPSOLVERSETTING_UNSOLVED:
+         relaxdata->unsolved++;
+         break;
       default:
          break;
    }
@@ -1115,6 +1119,7 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
    relaxdata->solvedmedium = 0;
    relaxdata->solvedstable = 0;
    relaxdata->solvedpenalty = 0;
+   relaxdata->unsolved = 0;
    relaxdata->feasible = FALSE;
 
    nvars = SCIPgetNVars(scip);
@@ -1425,6 +1430,7 @@ SCIP_DECL_RELAXEXIT(relaxExitSdp)
       SCIPinfoMessage(scip, NULL, "Percentage 'stable settings' solved:\t%6.2f \n", 100.0 * (double) relaxdata->solvedstable / (double) relaxdata->sdpcalls);
    }
    SCIPinfoMessage(scip, NULL, "Percentage penalty formulation used:\t%6.2f \n", 100.0 * (double) relaxdata->solvedpenalty / (double) relaxdata->sdpcalls);
+   SCIPinfoMessage(scip, NULL, "Percentage unsolved even with penalty:\t%6.2f \n", 100.0 * (double) relaxdata->unsolved / (double) relaxdata->sdpcalls);
 #endif
 
    SCIPdebugMessage("Exiting Relaxation Handler \n");
@@ -1746,4 +1752,15 @@ int SCIPrelaxSdpGetNSdpPenalty(
    assert( SCIPrelaxGetData(relax) != NULL );
 
    return ( SCIPrelaxGetData(relax)->solvedpenalty );
+}
+
+/** returns number of SDP relaxation unsolved even when using a penalty formulation */
+int SCIPrelaxSdpGetNSdpUnsolved(
+   SCIP_RELAX*           relax               /**< SDP relaxator to get the number of calls for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->unsolved );
 }

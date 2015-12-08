@@ -177,6 +177,7 @@ MAINCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/disp_sdpavgiterations.o \
 			scipsdp/disp_sdpfastsettings.o \
 			scipsdp/disp_sdppenalty.o \
+			scipsdp/disp_sdpunsolved.o \
 			scipsdp/prop_sdpredcost.o \
 			scipsdp/branch_sdpmostfrac.o \
 			scipsdp/branch_sdpmostinf.o \

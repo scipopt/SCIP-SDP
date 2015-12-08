@@ -3065,7 +3065,7 @@ SCIP_RETCODE SCIPsdpiSettingsUsed(
    assert( sdpi != NULL );
    assert( usedsetting != NULL );
 
-   if ( ( ! sdpi->solved ) && ( ! sdpi->penalty ) )
+   if ( ! sdpi->solved )
    {
       SCIPdebugMessage("Problem was not solved successfully.\n");
       *usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
