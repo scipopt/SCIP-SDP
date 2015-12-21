@@ -585,6 +585,7 @@ SCIP_RETCODE calc_relax(
    SCIP_Bool allint;
    int sollength;
 #endif
+   SCIP_Real timelimit;
 
    SCIPdebugMessage("calc_relax called\n");
 
@@ -642,7 +643,9 @@ SCIP_RETCODE calc_relax(
    }
 
    /* solve the problem */
-   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, startsetting, rootnode) );
+   SCIP_CALL( SCIPgetRealParam(scip, "limits/time", &timelimit) );
+   timelimit -= SCIPgetSolvingTime(scip);
+   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, startsetting, rootnode, timelimit) );
    relaxdata->lastsdpnode = SCIPnodeGetNumber(SCIPgetCurrentNode(scip));
 
    /* update calls, iterations and stability numbers */

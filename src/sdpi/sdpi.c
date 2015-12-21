@@ -39,6 +39,7 @@
  */
 
 #include <assert.h>
+#include <time.h>
 
 #include "sdpi/sdpisolver.h"
 #include "sdpi/sdpi.h"
@@ -1975,8 +1976,9 @@ SCIP_RETCODE SCIPsdpiSolve(
    SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP, set this to
                                                *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
-   SCIP_Bool             enforceslatercheck  /**< always check for Slater condition in case the problem could not be solved and printf the solution
+   SCIP_Bool             enforceslatercheck, /**< always check for Slater condition in case the problem could not be solved and printf the solution
                                                   of this check */
+   SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP) */
    )
 {
    int block;
@@ -1994,8 +1996,13 @@ SCIP_RETCODE SCIPsdpiSolve(
    int nactivelpcons;
    int* blockindchanges;
    int nremovedblocks;
+   clock_t starttime;
+   clock_t currenttime;
+   SCIP_Real solvertimelimit;
 
    assert( sdpi != NULL );
+
+   starttime = clock();
 
    SCIPdebugMessage("Forwarding SDP %d to solver!\n", sdpi->sdpid);
 
@@ -2104,6 +2111,10 @@ SCIP_RETCODE SCIPsdpiSolve(
 
          /* first check the slater condition for the dual problem */
 
+         /* compute the timit limit to set for the solver */
+         currenttime = clock();
+         solvertimelimit = timelimit - ((double)(currenttime - starttime) / (double) CLOCKS_PER_SEC);
+
          /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if we are
           * still feasible for r > feastol, then we have an interior point with smallest eigenvalue > feastol, otherwise the Slater condition is harmed */
          SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
@@ -2111,7 +2122,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-               rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, &origfeas, NULL) );
+               rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit, &origfeas, NULL) );
 
          /* if we didn't succeed, then probably the primal problem is troublesome */
          if ( (! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver)) && (! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver)) )
@@ -2311,18 +2322,22 @@ SCIP_RETCODE SCIPsdpiSolve(
 #endif
       }
 
+      /* compute the timit limit to set for the solver */
+      currenttime = clock();
+      solvertimelimit = timelimit - ((double)(currenttime - starttime) / (double) CLOCKS_PER_SEC);
+
       /* try to solve the problem */
       SCIP_CALL( SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
             sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
             sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
             sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-            rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, startsettings) );
+            rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, startsettings, solvertimelimit) );
 
       sdpi->solved = TRUE;
 
       /* if the solver didn't produce a satisfactory result, we have to try with a penalty formulation */
-      if ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) )
+      if ( ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) ) && ( ! SCIPsdpiSolverIsTimelimExc(sdpi->sdpisolver) ) )
       {
          SCIP_Real penaltyparam;
          SCIP_Real penaltyparamfact;
@@ -2343,16 +2358,20 @@ SCIP_RETCODE SCIPsdpiSolve(
 
          /* increase penalty-param and decrease feasibility tolerance until we find a feasible solution or reach the final bound for either one of them */
          while ( (( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver)) || ( ! feasorig ) ) &&
-               ( penaltyparam < sdpi->maxpenaltyparam + sdpi->epsilon ) && ( epsilon > 0.99 * MIN_EPSILON ) )
+               ( penaltyparam < sdpi->maxpenaltyparam + sdpi->epsilon ) && ( epsilon > 0.99 * MIN_EPSILON ) && ( ! SCIPsdpiSolverIsTimelimExc(sdpi->sdpisolver) ))
          {
             SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penaltyparameter %f\n", sdpi->sdpid, penaltyparam);
+
+            /* compute the timit limit to set for the solver */
+            currenttime = clock();
+            solvertimelimit = timelimit - ((double)(currenttime - starttime) / (double) CLOCKS_PER_SEC);
 
             SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, penaltyparam, TRUE, TRUE, sdpi->nvars, sdpi->obj,
                        sdpi->lb, sdpi->ub, sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
                        sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                        sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                        sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-                       rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, startsettings, &feasorig, &penaltybound) );
+                       rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, startsettings, solvertimelimit, &feasorig, &penaltybound) );
 
             /* If the solver did not converge, we increase the penalty parameter */
             if ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver))
@@ -2421,6 +2440,10 @@ SCIP_RETCODE SCIPsdpiSolve(
             SCIP_Real objval;
             SCIP_Bool origfeas;
 
+            /* compute the timit limit to set for the solver */
+            currenttime = clock();
+            solvertimelimit = timelimit - ((double)(currenttime - starttime) / (double) CLOCKS_PER_SEC);
+
             /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if we are
              * still feasible for r < feastol, then we have an interior point with smallest eigenvalue > feastol, otherwise the Slater condition is harmed */
             SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
@@ -2428,7 +2451,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                   sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                   sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                   sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-                  rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, &origfeas, NULL) );
+                  rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit, &origfeas, NULL) );
 
             /* if we didn't succeed, then probably the primal problem is troublesome */
             if ( (! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver)) && (! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver)) )

@@ -39,6 +39,8 @@
  */
 
 #include <assert.h>
+#include <sys/time.h>
+#include <time.h>
 
 #include "sdpi/sdpisolver.h"
 
@@ -151,7 +153,15 @@ struct SCIP_SDPiSolver
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             penaltyworbound;    /**< Was a penalty formulation solved without bounding r ? */
    SCIP_SDPSOLVERSETTING usedsetting;        /**< setting used to solve the last SDP */
+   SCIP_Bool             timelimit;          /**< was the last solving stopped after reaching the time limit */
 };
+
+typedef struct Timings
+{
+   clock_t               starttime;          /**< time when solving started */
+   SCIP_Real             timelimit;          /**< timelimit in seconds */
+   SCIP_Bool             stopped;            /**< was the solver stopped after reaching the time limit? */
+} Timings;
 
 
 /*
@@ -177,7 +187,7 @@ int compLowerTriangPos(
 /** test if a lower bound lb is not smaller than an upper bound ub, meaning that lb > ub - epsilon */
 static
 SCIP_Bool isFixed(
-   SCIP_SDPISOLVER*      sdpisolver,          /**< pointer to an SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
    SCIP_Real             lb,                 /**< lower bound */
    SCIP_Real             ub                  /**< upper bound */
    )
@@ -193,10 +203,10 @@ SCIP_Bool isFixed(
 /** sort the given row, col and val arrays first by non-decreasing col-indices, than for those with identical col-indices by non-increasing row-indices */
 static
 void sortColRow(
-   int*                  row,                /* row indices */
-   int*                  col,                /* column indices */
-   SCIP_Real*            val,                /* values */
-   int                   length              /* length of the given arrays */
+   int*                  row,                /**< row indices */
+   int*                  col,                /**< column indices */
+   SCIP_Real*            val,                /**< values */
+   int                   length              /**< length of the given arrays */
    )
 {
    int firstentry;
@@ -216,6 +226,36 @@ void sortColRow(
       /* now sort all entries between firstentry and nextentry-1 by their row-indices */
       SCIPsortIntReal(row + firstentry, val + firstentry, nextentry - firstentry);
    }
+}
+
+/** check the time limit after each iteration in DSDP */
+static
+int checkTimeLimitDSDP(
+   DSDP                  dsdp,               /**< DSDP-pointer */
+   void*                 ctx                 /**< pointer to data of iteration monitor */
+   )
+{
+   Timings* timings;
+   clock_t currenttime;
+   SCIP_Real elapsedtime;
+
+   assert( dsdp != NULL );
+   assert( ctx != NULL );
+
+   timings = (Timings*) ctx;
+
+   currenttime = clock();
+
+   elapsedtime = (double)(currenttime - timings->starttime) / (double)CLOCKS_PER_SEC;
+
+   if ( elapsedtime > timings->timelimit )
+   {
+      DSDP_CALL( DSDPSetConvergenceFlag(dsdp, DSDP_MAX_IT) );
+      timings->stopped = TRUE;
+      SCIPdebugMessage("Time limit reached! Stopping DSDP \n");
+   }
+
+   return 0;
 }
 
 
@@ -425,14 +465,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
-   SCIP_SDPSOLVERSETTING startsettings       /**< settings used to start with in SDPA, currently not used for DSDP, set this to
+   SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP, set this to
                                                *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
+   SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP) */
    )
 {
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, TRUE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars,
            sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
            indchanges, nremovedinds, blockindchanges, nremovedblocks, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol,
-           lpval, start, startsettings, NULL, NULL);
+           lpval, start, startsettings, timelimit, NULL, NULL);
 }
 
 /** loads and solves an SDP using a penalty formulation
@@ -497,6 +538,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP, set this to
                                                *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
+   SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP) */
    SCIP_Bool*            feasorig,           /**< pointer to store if the solution to the penalty-formulation is feasible for the original problem
                                                *  (may be NULL if penaltyparam = 0) */
    SCIP_Bool*            penaltybound        /**< pointer to store if the primal solution reached the bound Tr(X) <= penaltyparam in the primal problem,
@@ -518,6 +560,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int nfixedvars;
    int dsdpnlpnonz = 0;
    int nrnonz = 0;
+   Timings* timings;
 
 #ifdef SCIP_DEBUG
    DSDPTerminationReason reason; /* this will later be used to check if DSDP converged */
@@ -557,6 +600,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( nlpcons == 0 || lprow != NULL );
    assert( nlpcons == 0 || lpcol != NULL );
    assert( nlpcons == 0 || lpval != NULL );
+
+   /* start the timing */
+   BMS_CALL( BMSallocBlockMemory(sdpisolver->blkmem, &timings) );
+   timings->starttime = clock();
+   timings->timelimit = timelimit;
+   timings->stopped = FALSE;
 
    /* only increase the counter if we don't use the penalty formulation to stay in line with the numbers in the general interface (where this is still the
     * same SDP), also remember settings for statistics */
@@ -1187,7 +1236,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* start the solving process */
    DSDP_CALLM( DSDPSetup(sdpisolver->dsdp) );
+   DSDP_CALLM( DSDPSetMonitor(sdpisolver->dsdp, checkTimeLimitDSDP, (void*) timings) );
    DSDP_CALL( DSDPSolve(sdpisolver->dsdp) );
+   if ( timings->stopped )
+      sdpisolver->timelimit = TRUE;
+   else
+      sdpisolver->timelimit = FALSE;
+
 
    DSDP_CALL( DSDPComputeX(sdpisolver->dsdp) ); /* computes X and determines feasibility and unboundedness of the solution */
    sdpisolver->solved = TRUE;
@@ -1356,6 +1411,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
       }
    }
+
+   BMSfreeBlockMemory(sdpisolver->blkmem, &timings);
 
    return SCIP_OKAY;
 }
@@ -1642,8 +1699,13 @@ SCIP_Bool SCIPsdpiSolverIsTimelimExc(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
 {/*lint --e{715}*/
-   SCIPdebugMessage("Not implemented in DSDP!\n");
-   return SCIP_LPERROR;
+   assert( sdpisolver != NULL );
+
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
+   if ( sdpisolver->timelimit )
+      return TRUE;
+
+   return FALSE;
 }
 
 /** returns the internal solution status of the solver, which has the following meaning:<br>
@@ -1667,6 +1729,9 @@ int SCIPsdpiSolverGetInternalStatus(
 
    if ( sdpisolver->dsdp == NULL || (! sdpisolver->solved) )
       return -1;
+
+   if ( sdpisolver->timelimit )
+      return 5;
 
    dsdpreturn = DSDPStopReason(sdpisolver->dsdp, &reason);
 
