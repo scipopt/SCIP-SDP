@@ -557,7 +557,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int nfixedvars;
    int dsdpnlpnonz = 0;
    int nrnonz = 0;
-   Timings* timings;
+   Timings timings;
 
 #ifdef SCIP_DEBUG
    DSDPTerminationReason reason; /* this will later be used to check if DSDP converged */
@@ -599,9 +599,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( nlpcons == 0 || lpval != NULL );
 
    /* start the timing */
-   BMS_CALL( BMSallocBlockMemory(sdpisolver->blkmem, &timings) );
-   timings->starttime = clock();
-   timings->timelimit = timelimit;
+   timings.starttime = clock();
+   timings.timelimit = timelimit;
 
    /* only increase the counter if we don't use the penalty formulation to stay in line with the numbers in the general interface (where this is still the
     * same SDP), also remember settings for statistics */
@@ -1232,7 +1231,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* start the solving process */
    DSDP_CALLM( DSDPSetup(sdpisolver->dsdp) );
-   DSDP_CALLM( DSDPSetMonitor(sdpisolver->dsdp, checkTimeLimitDSDP, (void*) timings) );
+   DSDP_CALLM( DSDPSetMonitor(sdpisolver->dsdp, checkTimeLimitDSDP, (void*) &timings) );
    DSDP_CALL( DSDPSolve(sdpisolver->dsdp) );
 
 
@@ -1403,8 +1402,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
       }
    }
-
-   BMSfreeBlockMemory(sdpisolver->blkmem, &timings);
 
    return SCIP_OKAY;
 }
