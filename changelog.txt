@@ -19,6 +19,7 @@ interface:
 - added possibility to read and write in .cip format
 - added parameter to control how often successfull parameter settings should be deleted to try again with the fastest
   settings
+- when using DSDP, time limit is now checked after each iteration
 
 parameters:
 - penalty parameter to be used for numerically hard relaxations can now be changed by a parameter
