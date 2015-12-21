@@ -153,14 +153,12 @@ struct SCIP_SDPiSolver
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             penaltyworbound;    /**< Was a penalty formulation solved without bounding r ? */
    SCIP_SDPSOLVERSETTING usedsetting;        /**< setting used to solve the last SDP */
-   SCIP_Bool             timelimit;          /**< was the last solving stopped after reaching the time limit */
 };
 
 typedef struct Timings
 {
    clock_t               starttime;          /**< time when solving started */
    SCIP_Real             timelimit;          /**< timelimit in seconds */
-   SCIP_Bool             stopped;            /**< was the solver stopped after reaching the time limit? */
 } Timings;
 
 
@@ -250,8 +248,7 @@ int checkTimeLimitDSDP(
 
    if ( elapsedtime > timings->timelimit )
    {
-      DSDP_CALL( DSDPSetConvergenceFlag(dsdp, DSDP_MAX_IT) );
-      timings->stopped = TRUE;
+      DSDP_CALL( DSDPSetConvergenceFlag(dsdp, DSDP_USER_TERMINATION) );
       SCIPdebugMessage("Time limit reached! Stopping DSDP \n");
    }
 
@@ -605,7 +602,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    BMS_CALL( BMSallocBlockMemory(sdpisolver->blkmem, &timings) );
    timings->starttime = clock();
    timings->timelimit = timelimit;
-   timings->stopped = FALSE;
 
    /* only increase the counter if we don't use the penalty formulation to stay in line with the numbers in the general interface (where this is still the
     * same SDP), also remember settings for statistics */
@@ -1238,10 +1234,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    DSDP_CALLM( DSDPSetup(sdpisolver->dsdp) );
    DSDP_CALLM( DSDPSetMonitor(sdpisolver->dsdp, checkTimeLimitDSDP, (void*) timings) );
    DSDP_CALL( DSDPSolve(sdpisolver->dsdp) );
-   if ( timings->stopped )
-      sdpisolver->timelimit = TRUE;
-   else
-      sdpisolver->timelimit = FALSE;
 
 
    DSDP_CALL( DSDPComputeX(sdpisolver->dsdp) ); /* computes X and determines feasibility and unboundedness of the solution */
@@ -1698,11 +1690,15 @@ SCIP_Bool SCIPsdpiSolverIsIterlimExc(
 SCIP_Bool SCIPsdpiSolverIsTimelimExc(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
-{/*lint --e{715}*/
-   assert( sdpisolver != NULL );
+{
+   DSDPTerminationReason reason;
 
+   assert( sdpisolver != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
-   if ( sdpisolver->timelimit )
+
+   DSDP_CALL_BOOL(DSDPStopReason(sdpisolver->dsdp, &reason));
+
+   if ( reason == DSDP_USER_TERMINATION ) /* this is the reason we give when stopping DSDP after reaching the time limit */
       return TRUE;
 
    return FALSE;
@@ -1729,9 +1725,6 @@ int SCIPsdpiSolverGetInternalStatus(
 
    if ( sdpisolver->dsdp == NULL || (! sdpisolver->solved) )
       return -1;
-
-   if ( sdpisolver->timelimit )
-      return 5;
 
    dsdpreturn = DSDPStopReason(sdpisolver->dsdp, &reason);
 
@@ -1765,7 +1758,7 @@ int SCIPsdpiSolverGetInternalStatus(
       return 3;
 
    case DSDP_USER_TERMINATION:
-      return 6;
+      return 5;
 
    default:
       return 7;
