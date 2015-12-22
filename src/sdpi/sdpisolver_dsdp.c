@@ -40,7 +40,6 @@
 
 #include <assert.h>
 #include <sys/time.h>
-#include <time.h>
 
 #include "sdpi/sdpisolver.h"
 
@@ -104,6 +103,18 @@
                       }                                                                                      \
                       while( FALSE )
 
+/** Calls a DSDP-Function and transforms the return-code to a SCIP_LPERROR if needed. */
+#define TIMEOFDAY_CALL(x)  do                                                                                \
+                      {                                                                                      \
+                         int _errorcode_;                                                                    \
+                         if ( (_errorcode_ = (x)) != 0 )                                                     \
+                         {                                                                                   \
+                            SCIPerrorMessage("Error in gettimeofday! \n");                                   \
+                            return SCIP_ERROR;                                                               \
+                         }                                                                                   \
+                      }                                                                                      \
+                      while( FALSE )
+
 /** This will be called in all functions that want to access solution information to check if the problem was solved since the last change of the problem. */
 #define CHECK_IF_SOLVED(sdpisolver)  do                                                                      \
                       {                                                                                      \
@@ -153,12 +164,14 @@ struct SCIP_SDPiSolver
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             penaltyworbound;    /**< Was a penalty formulation solved without bounding r ? */
    SCIP_SDPSOLVERSETTING usedsetting;        /**< setting used to solve the last SDP */
+   SCIP_Bool             timelimit;          /**< was the solver stopped because of the time limit? */
 };
 
 typedef struct Timings
 {
-   clock_t               starttime;          /**< time when solving started */
+   struct timeval        starttime;          /**< time when solving started */
    SCIP_Real             timelimit;          /**< timelimit in seconds */
+   SCIP_Bool             stopped;            /**< was the solver stopped because of the time limit? */
 } Timings;
 
 
@@ -234,7 +247,9 @@ int checkTimeLimitDSDP(
    )
 {
    Timings* timings;
-   clock_t currenttime;
+   struct timeval currenttime;
+   SCIP_Real startseconds;
+   SCIP_Real currentseconds;
    SCIP_Real elapsedtime;
 
    assert( dsdp != NULL );
@@ -242,13 +257,17 @@ int checkTimeLimitDSDP(
 
    timings = (Timings*) ctx;
 
-   currenttime = clock();
+   startseconds = (double) (timings->starttime).tv_sec + ((double) (timings->starttime).tv_usec / 1e6);
 
-   elapsedtime = (double)(currenttime - timings->starttime) / (double)CLOCKS_PER_SEC;
+   TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );
+   currentseconds = (double) currenttime.tv_sec + ((double) currenttime.tv_usec / 1e6);
+
+   elapsedtime = currentseconds - startseconds;
 
    if ( elapsedtime > timings->timelimit )
    {
       DSDP_CALL( DSDPSetConvergenceFlag(dsdp, DSDP_USER_TERMINATION) );
+      timings->stopped = TRUE;
       SCIPdebugMessage("Time limit reached! Stopping DSDP \n");
    }
 
@@ -599,8 +618,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( nlpcons == 0 || lpval != NULL );
 
    /* start the timing */
-   timings.starttime = clock();
+   TIMEOFDAY_CALL( gettimeofday(&(timings.starttime), NULL) );
    timings.timelimit = timelimit;
+   timings.stopped = FALSE;
 
    /* only increase the counter if we don't use the penalty formulation to stay in line with the numbers in the general interface (where this is still the
     * same SDP), also remember settings for statistics */
@@ -1234,6 +1254,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    DSDP_CALLM( DSDPSetMonitor(sdpisolver->dsdp, checkTimeLimitDSDP, (void*) &timings) );
    DSDP_CALL( DSDPSolve(sdpisolver->dsdp) );
 
+   /* check if solving was stopped because of the time limit */
+   if ( timings.stopped )
+      sdpisolver->timelimit = TRUE;
+   else
+      sdpisolver->timelimit = FALSE;
 
    DSDP_CALL( DSDPComputeX(sdpisolver->dsdp) ); /* computes X and determines feasibility and unboundedness of the solution */
    sdpisolver->solved = TRUE;
@@ -1688,14 +1713,10 @@ SCIP_Bool SCIPsdpiSolverIsTimelimExc(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
 {
-   DSDPTerminationReason reason;
-
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
-   DSDP_CALL_BOOL(DSDPStopReason(sdpisolver->dsdp, &reason));
-
-   if ( reason == DSDP_USER_TERMINATION ) /* this is the reason we give when stopping DSDP after reaching the time limit */
+   if ( sdpisolver->timelimit )
       return TRUE;
 
    return FALSE;
@@ -1722,6 +1743,9 @@ int SCIPsdpiSolverGetInternalStatus(
 
    if ( sdpisolver->dsdp == NULL || (! sdpisolver->solved) )
       return -1;
+
+   if ( sdpisolver->timelimit )
+      return 5;
 
    dsdpreturn = DSDPStopReason(sdpisolver->dsdp, &reason);
 
