@@ -37,8 +37,8 @@
  * @author Tristan Gally
  */
 
-//#define SCIP_DEBUG
-//#define SCIP_MORE_DEBUG
+#define SCIP_DEBUG
+#define SCIP_MORE_DEBUG
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 #include "objreader_sdpa.h"
@@ -275,7 +275,7 @@ namespace scip
             blockislp[j] = true;
             blockstruct.push_back(SDPBlock(0));
             lp_block_num[j] = numlpblocks;
-            lp_block_size[numlpblocks] = abs(blockpattern[j]);
+            lp_block_size[numlpblocks - 1] = abs(blockpattern[j]);
 
          }
          else
@@ -307,6 +307,7 @@ namespace scip
       //construct LP block
       LPData.rows = std::vector<LProw>(alllpblocksize);
       LPData.numrows = alllpblocksize;
+      SCIPdebugMessage("Number of LP constraints: %d\n", alllpblocksize);
 
       std::vector<int> for_indices;
       std::string commentline;
@@ -396,9 +397,24 @@ namespace scip
       		else if (blockislp[block_index - 1])
       		{
       			assert(row_index == col_index);
-      			new_row_index = (row_index - 1) + (lp_block_num[block_index - 1] - 1) * lp_block_size[lp_block_num[block_index - 1] - 1];
+      			if ( lp_block_num[block_index - 1] == 1 )
+      			   new_row_index = row_index - 1;
+      			else //we combine all lp blocks to a single one, so we add the total number of rows of earlier blocks to the row index
+      			{
+      			   int rowoffset;
+      			   int b;
+
+      			   rowoffset = 0;
+
+      			   for ( b = 0; b < lp_block_num[block_index - 1] - 1; b++ )
+      			      rowoffset += lp_block_size[b];
+
+      			   printf("rowoffset=%d\n", rowoffset);
+
+      			   new_row_index = rowoffset + row_index - 1;
+      			}
       			LPData.rows[new_row_index].data.push_back(std::make_pair(var_index, val));
-      			SCIPdebugMessage("LP entry: block_index: %d, row: %d, var: %d, val: %g\n", block_index, new_row_index, var_index,val );
+      			SCIPdebugMessage("LP entry: row: %d, var: %d, val: %g\n", new_row_index, var_index,val );
       		}
 
       		drop_rest_line(file);
