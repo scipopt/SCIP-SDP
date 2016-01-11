@@ -5,6 +5,8 @@ fixed bugs:
 - changed default penalty parameter in DSDP to prevent cases where optimal solutions within the feasibility tolerance
   where cut off by DSDP
 - changed default lambda star parameter in SDPA to prevent aborts for infeasible subproblems
+- fixed bug in reader that resulted in wrong computation of LP-row-indices when using multiple LP-blocks and could lead
+  to segmenation faults
 
 features:
 - added diving heuristic for SDPs
