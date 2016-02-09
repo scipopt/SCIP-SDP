@@ -129,10 +129,13 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostinf)
       /* a candidate is better than the current one if:
        * - the infeasibility is (feastol-)bigger than before or
        * - the infeasibility is (feastol-)equal and the score is (epsilon-)bigger or
-       * - the infeasibility and score are (feastol-/epsilon-)equal and the objective is bigger than before */
+       * - the infeasibility and score are (feastol-/epsilon-)equal and the objective is (epsilon-)bigger than before
+       * - add three above are (feastol-/epsilon-)equal and the index is smaller */
       if ( SCIPisFeasGT(scip, currentinf, mostinfinf) ||
           (SCIPisFeasEQ(scip, currentinf, mostinfinf) && SCIPisGT(scip, candsscore[i], mostinfscore)) ||
-          (SCIPisFeasEQ(scip, currentinf, mostinfinf) && SCIPisEQ(scip, candsscore[i], mostinfscore) && REALABS(SCIPvarGetObj(cands[i])) > mostinfobj ) )
+          (SCIPisFeasEQ(scip, currentinf, mostinfinf) && SCIPisEQ(scip, candsscore[i], mostinfscore) && SCIPisGT(scip, SCIPvarGetObj(cands[i]), mostinfobj)) ||
+          (SCIPisFeasEQ(scip, currentinf, mostinfinf) && SCIPisEQ(scip, candsscore[i], mostinfscore) && SCIPisEQ(scip, SCIPvarGetObj(cands[i]), mostinfobj) &&
+                SCIPvarGetIndex(cands[i]) < SCIPvarGetIndex(mostinfvar)) )
       {
          /* update the current best candidate */
          mostinfinf = currentinf;

@@ -125,11 +125,14 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
       /* a candidate is better than the current one if:
        * - the fractionality is (feastol-)bigger than before or
        * - the fractionality is (feastol-)equal and the score is (epsilon-)bigger or
-       * - the fractionality and score are (feastol-/epsilon-)equal and the objective is bigger */
+       * - the fractionality and score are (feastol-/epsilon-)equal and the objective is (epsilon) bigger or
+       * - all three are (feastol-/epsilon-)bigger and the index is smaller */
       if ( SCIPisFeasGT(scip, SCIPfeasFrac(scip, candssol[i]), mostfracfrac) ||
           (SCIPisFeasEQ(scip, SCIPfeasFrac(scip, candssol[i]), mostfracfrac) && SCIPisGT(scip, candsscore[i], mostfracscore)) ||
           (SCIPisFeasEQ(scip, SCIPfeasFrac(scip, candssol[i]), mostfracfrac) && SCIPisEQ(scip, candsscore[i], mostfracscore)
-              && REALABS(SCIPvarGetObj(cands[i])) > mostfracobj) )
+              && SCIPisGT(scip, SCIPvarGetObj(cands[i]), mostfracobj)) ||
+          (SCIPisFeasEQ(scip, SCIPfeasFrac(scip, candssol[i]), mostfracfrac) && SCIPisEQ(scip, candsscore[i], mostfracscore)
+              && SCIPisEQ(scip, SCIPvarGetObj(cands[i]), mostfracobj) && SCIPvarGetIndex(cands[i]) < SCIPvarGetIndex(mostfracvar)) )
       {
          /* update the current best candidate */
          mostfracfrac = SCIPfeasFrac(scip, candssol[i]);

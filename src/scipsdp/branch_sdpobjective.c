@@ -145,10 +145,14 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
       /* a candidate is better than the current one if:
        * - the absolute objective is (epsilon-)bigger than before or
        * - the absolute objective is (epsilon-)equal and the score is (epsilon-)bigger or
-       * - the absolute objective and score are (epsilon-)equal and the current integral-infeasibility is highter */
+       * - the absolute objective and score are (epsilon-)equal and the integer infeasibility is (feastol-)bigger
+       * - all three above are (epsilon-/feastol)equal in the index is smaller */
       if ( SCIPisGT(scip, REALABS(SCIPvarGetObj(cands[i])), maxobjobj) ||
           (SCIPisEQ(scip, REALABS(SCIPvarGetObj(cands[i])), maxobjobj) && SCIPisGT(scip, candsscore[i], maxobjscore)) ||
-          (SCIPisEQ(scip, REALABS(SCIPvarGetObj(cands[i])), maxobjobj) && SCIPisEQ(scip, candsscore[i], maxobjscore) && currentinf > maxobjinf ) )
+          (SCIPisEQ(scip, REALABS(SCIPvarGetObj(cands[i])), maxobjobj) && SCIPisEQ(scip, candsscore[i], maxobjscore) &&
+                SCIPisFeasGT(scip, currentinf, maxobjinf)) ||
+          (SCIPisEQ(scip, REALABS(SCIPvarGetObj(cands[i])), maxobjobj) && SCIPisEQ(scip, candsscore[i], maxobjscore) &&
+                SCIPisFeasEQ(scip, currentinf, maxobjinf) && (SCIPvarGetIndex(cands[i]) < SCIPvarGetIndex(maxobjvar))) )
       {
          maxobjvar = cands[i];
          maxobjobj = REALABS(SCIPvarGetObj(cands[i]));
@@ -335,14 +339,15 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
 #endif
 
          /* a candidate is better than the current one if:
-          * - the total absolute objective is (epsilon-)bigger than before or
-          * - the total absolute objective is (epsilon-)equal and the score is (epsilon-)bigger or
-          * - the score is (epsilon-)equal and the total absolute objective is (less than epsilon) bigger
-          * - the total absolute objective is (exactly) equal and the score is (less than epsilon) bigger
-          */
+          * - the absolute objective is (epsilon-)bigger than before or
+          * - the absolute objective is (epsilon-)equal and the score is (epsilon-)bigger or
+          * - the absolute objective and score are (epsilon-)equal and the integer infeasibility is (epsilon-)bigger
+          * - all three above are (epsilon-)equal in the index is smaller */
          if ( SCIPisGT(scip, currentobj, maxobjobj) ||
              (SCIPisEQ(scip, currentobj, maxobjobj) && SCIPisGT(scip, candsscore[i], maxobjscore)) ||
-             (SCIPisEQ(scip, currentobj, maxobjobj) && SCIPisEQ(scip, candsscore[i], maxobjscore) && currentinf > maxobjinf ) )
+             (SCIPisEQ(scip, currentobj, maxobjobj) && SCIPisEQ(scip, candsscore[i], maxobjscore) && SCIPisGT(scip, currentinf, maxobjinf)) ||
+             (SCIPisEQ(scip, currentobj, maxobjobj) && SCIPisEQ(scip, candsscore[i], maxobjscore) && SCIPisEQ(scip, currentinf, maxobjinf) &&
+                   (SCIPvarGetIndex(cands[cand]) < SCIPvarGetIndex(maxobjvar))) )
          {
             maxobjvar = cands[cand];
             maxobjobj = currentobj;

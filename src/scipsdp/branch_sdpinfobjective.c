@@ -145,9 +145,12 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
 
       /* a candidate is better than the current one if:
        * - the absolute objective * integer infeasibility is (epsilon-)bigger than before or
-       * - the absolute objective * integer infeasibility is (epsilon-)equal and the score is bigger */
+       * - the absolute objective * integer infeasibility is (epsilon-)equal and the score is (epsilon-)bigger or
+       * - both are (epsilon-)equal and the index is smaller */
       if ( SCIPisGT(scip, currenttarget, maxtargettarget) ||
-          (SCIPisEQ(scip, currenttarget, maxtargettarget) && candsscore[i] > maxtargetscore) )
+          (SCIPisEQ(scip, currenttarget, maxtargettarget) && SCIPisGT(scip, candsscore[i], maxtargetscore)) ||
+          (SCIPisEQ(scip, currenttarget, maxtargettarget) && SCIPisEQ(scip, candsscore[i], maxtargetscore) &&
+                SCIPvarGetIndex(cands[i]) < SCIPvarGetIndex(maxtargetvar)) )
       {
          maxtargetvar = cands[i];
          maxtargettarget = currenttarget;
@@ -335,9 +338,13 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
 #endif
 
          /* a candidate is better than the current one if:
-          * - the total absolute objective times integral infeasibility is bigger than before */
+          * - the absolute objective * integer infeasibility is (epsilon-)bigger than before or
+          * - the absolute objective * integer infeasibility is (epsilon-)equal and the score is (epsilon-)bigger or
+          * - both are (epsilon-)equal and the index is smaller */
          if ( SCIPisGT(scip, currenttarget, maxtargettarget) ||
-             (SCIPisEQ(scip, currenttarget, maxtargettarget) && candsscore[cand] > maxtargetscore) )
+             (SCIPisEQ(scip, currenttarget, maxtargettarget) && SCIPisGT(scip, candsscore[cand], maxtargetscore)) ||
+             (SCIPisEQ(scip, currenttarget, maxtargettarget) && SCIPisEQ(scip, candsscore[cand], maxtargetscore) &&
+                   SCIPvarGetIndex(cands[cand]) < SCIPvarGetIndex(maxtargetvar)) )
          {
             maxtargetvar = cands[cand];
             maxtargettarget = currenttarget;

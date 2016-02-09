@@ -37,8 +37,8 @@
  * @author Tristan Gally
  */
 
-#define SCIP_DEBUG
-#define SCIP_MORE_DEBUG
+/*#define SCIP_DEBUG*/
+/*#define SCIP_MORE_DEBUG*/
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 #include "objreader_sdpa.h"
