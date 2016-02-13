@@ -391,8 +391,8 @@ SCIP_RETCODE putLpDataInInterface(
    {
       SCIP_ROW* row;
       SCIP_Bool tightened = FALSE;
-      SCIP_Bool swapped;
       SCIP_Real tightenedval = 0.0;
+      SCIP_Bool swapped = FALSE;
 
       row = rows[i];
       assert( row != 0 );
@@ -427,7 +427,6 @@ SCIP_RETCODE putLpDataInInterface(
             /* one coefficient must be 1 and the other negative */
             if ( (SCIPisEQ(scip, val1, 1.0) || SCIPisEQ(scip, val2, 1.0)) && ( SCIPisNegative(scip, val1) || SCIPisNegative(scip, val2) ) )
             {
-               swapped = FALSE;
                /* We want x - a z <= 0 or x - a z >= 0, where var1 = x and var2 = z; possibly swap variables otherwise */
                if ( ! SCIPisEQ(scip, val1, 1.0) || ! SCIPisNegative(scip, val2) )
                {
