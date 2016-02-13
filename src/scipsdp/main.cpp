@@ -53,6 +53,7 @@
 #include "branch_sdpobjective.h"
 #include "branch_sdpinfobjective.h"
 #include "heur_sdpfracdiving.h"
+#include "heur_sdprand.h"
 #include "prop_sdpobbt.h"
 
 using namespace scip;
@@ -79,6 +80,7 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPincludeBranchruleSdpobjective(scip) );
    SCIP_CALL( SCIPincludeBranchruleSdpinfobjective(scip) );
    SCIP_CALL( SCIPincludeHeurSdpFracdiving(scip) );
+   SCIP_CALL( SCIPincludeHeurSdpRand(scip) );
    SCIP_CALL( SCIPincludePropSdpObbt(scip) );
 
    /* include default SCIP plugins */
