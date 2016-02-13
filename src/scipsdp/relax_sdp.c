@@ -1013,7 +1013,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
 
       /* if all variables, really all, are fixed, we give this fixed solution to SCIP */
 
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &ubs, nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &ubs, nvars) );
 
       *lowerbound = 0.0;
       for (i = 0; i < nvars; i++)
@@ -1063,7 +1063,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
          SCIPdebugMessage("Fixed solution either infeasible or not good enough for storage, node cut off !\n");
       }
 
-      SCIPfreeBlockMemoryArray(scip, &ubs, nvars);
+      SCIPfreeBufferArray(scip, &ubs);
 
       return SCIP_OKAY;
    }
