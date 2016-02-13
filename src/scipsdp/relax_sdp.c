@@ -572,16 +572,13 @@ SCIP_RETCODE calcRelax(
    SCIP_SDPI* sdpi;
    SCIP_Bool rootnode;
    SCIP_Real timelimit;
+   SCIP_Real objforscip;
+   SCIP_Real* solforscip;
+   SCIP_Bool allint;
    int naddediters;
    int nvars;
    int i;
    int v;
-#ifdef SCIP_MORE_DEBUG
-   SCIP_Real objforscip;
-   SCIP_Real* solforscip;
-   SCIP_Bool allint;
-   int sollength;
-#endif
 
    SCIPdebugMessage("calcRelax called\n");
 
@@ -726,29 +723,32 @@ SCIP_RETCODE calcRelax(
    }
 
 #ifdef SCIP_MORE_DEBUG /* print the optimal solution */
-   SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
-   sollength = nvars;
-   SCIP_CALL( SCIPsdpiGetSol(sdpi, &objforscip, solforscip, &sollength) ); /* get both the objective and the solution from the SDP solver */
+   {
+      int sollength;
+      SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
+      sollength = nvars;
+      SCIP_CALL( SCIPsdpiGetSol(sdpi, &objforscip, solforscip, &sollength) ); /* get both the objective and the solution from the SDP solver */
 
-   assert( sollength == nvars ); /* If this isn't true any longer, the getSol-call was unsuccessfull, because the given array wasn't long enough,
+      assert( sollength == nvars ); /* If this isn't true any longer, the getSol-call was unsuccessfull, because the given array wasn't long enough,
                                    * but this can't happen, because the array has enough space for all SDP variables. */
 
-   if ( SCIPsdpiFeasibilityKnown(sdpi) )
-   {
-      SCIPdebugMessage("optimal solution: objective = %f, dual feasible: %d, primal feasible: %d.\n",
-         objforscip, SCIPsdpiIsDualFeasible(sdpi), SCIPsdpiIsPrimalFeasible(sdpi));
-   }
-   else
-   {
-      SCIPdebugMessage("The solver could not determine feasibility ! ");
-   }
+      if ( SCIPsdpiFeasibilityKnown(sdpi) )
+      {
+         SCIPdebugMessage("optimal solution: objective = %f, dual feasible: %d, primal feasible: %d.\n",
+            objforscip, SCIPsdpiIsDualFeasible(sdpi), SCIPsdpiIsPrimalFeasible(sdpi));
+      }
+      else
+      {
+         SCIPdebugMessage("The solver could not determine feasibility ! ");
+      }
 
-   /* output solution */
-   for (i = 0; i < nvars; ++i)
-   {
-      SCIPdebugMessage("<%s> = %f\n", SCIPvarGetName(vars[i]), solforscip[i]);
+      /* output solution */
+      for (i = 0; i < nvars; ++i)
+      {
+         SCIPdebugMessage("<%s> = %f\n", SCIPvarGetName(vars[i]), solforscip[i]);
+      }
+      SCIPfreeBufferArray(scip, &solforscip);
    }
-   SCIPfreeBufferArray(scip, &solforscip);
 #endif
 
    if ( SCIPsdpiIsAcceptable(sdpi) )
@@ -777,11 +777,6 @@ SCIP_RETCODE calcRelax(
       }
       else if ( SCIPsdpiIsPrimalFeasible(sdpi) && SCIPsdpiIsDualFeasible(sdpi) )
       {
-#ifndef SCIP_MORE_DEBUG       /* with MORE_DEBUG these were created when accessing solution information to print it to the console */
-         SCIP_Real objforscip;
-         SCIP_Real* solforscip;
-         SCIP_Bool allint;
-#endif
          SCIP_SOL* scipsol;
          SCIP_COL** cols;
          SCIP_Bool stored;
