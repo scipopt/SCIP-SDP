@@ -37,7 +37,6 @@
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
-/* #define SCIP_DEBUG*/
 /* #define SCIP_MORE_DEBUG */ /* shows all diving decisions */
 
 #include <assert.h>
@@ -55,7 +54,7 @@
 #define HEUR_FREQOFS          0
 #define HEUR_MAXDEPTH         -1
 #define HEUR_TIMING           SCIP_HEURTIMING_AFTERNODE
-#define HEUR_USESSUBSCIP      FALSE  /**< does the heuristic use a secondary SCIP instance? */
+#define HEUR_USESSUBSCIP      FALSE  /* does the heuristic use a secondary SCIP instance? */
 
 
 /*
@@ -89,12 +88,6 @@ struct SCIP_HeurData
    int                   nsuccess;           /**< number of runs that produced at least one feasible solution */
 };
 
-
-/*
- * local methods
- */
-
-
 /*
  * Callback methods
  */
@@ -115,7 +108,7 @@ SCIP_DECL_HEURCOPY(heurCopySdpFracdiving)
 
 /** destructor of primal heuristic to free user data (called when SCIP is exiting) */
 static
-SCIP_DECL_HEURFREE(heurFreeSdpFracdiving) /*lint --e{715}*/
+SCIP_DECL_HEURFREE(heurFreeSdpFracdiving)
 {  /*lint --e{715}*/
    SCIP_HEURDATA* heurdata;
 
@@ -135,7 +128,7 @@ SCIP_DECL_HEURFREE(heurFreeSdpFracdiving) /*lint --e{715}*/
 
 /** initialization method of primal heuristic (called after problem was transformed) */
 static
-SCIP_DECL_HEURINIT(heurInitSdpFracdiving) /*lint --e{715}*/
+SCIP_DECL_HEURINIT(heurInitSdpFracdiving)
 {  /*lint --e{715}*/
    SCIP_HEURDATA* heurdata;
 
@@ -158,7 +151,7 @@ SCIP_DECL_HEURINIT(heurInitSdpFracdiving) /*lint --e{715}*/
 
 /** deinitialization method of primal heuristic (called before transformed problem is freed) */
 static
-SCIP_DECL_HEUREXIT(heurExitSdpFracdiving) /*lint --e{715}*/
+SCIP_DECL_HEUREXIT(heurExitSdpFracdiving)
 {  /*lint --e{715}*/
    SCIP_HEURDATA* heurdata;
 
@@ -178,7 +171,7 @@ SCIP_DECL_HEUREXIT(heurExitSdpFracdiving) /*lint --e{715}*/
 
 /** execution method of primal heuristic */
 static
-SCIP_DECL_HEUREXEC(heurExecSdpFracdiving) /*lint --e{715}*/
+SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
 {  /*lint --e{715}*/
 #if ( SCIP_VERSION >= 320 )
    SCIP_HEURDATA* heurdata;
