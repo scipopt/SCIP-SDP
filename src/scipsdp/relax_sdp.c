@@ -62,9 +62,9 @@
 /* default values for parameters: */
 #define DEFAULT_SDPSOLVEREPSILON    1e-4     /**< the stopping criterion for the duality gap the sdpsolver should use */
 #define DEFAULT_SDPSOLVERFEASTOL    1e-6     /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
-#define DEFAULT_PENALTYPARAM        -1       /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
-#define DEFAULT_LAMBDASTAR          -1       /**< the parameter lambda star used by SDPA to set the initial point */
-#define DEFAULT_MAXPENALTYPARAM     -1       /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
+#define DEFAULT_PENALTYPARAM        -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
+#define DEFAULT_LAMBDASTAR          -1.0     /**< the parameter lambda star used by SDPA to set the initial point */
+#define DEFAULT_MAXPENALTYPARAM     -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 #if 0
 #define DEFAULT_THREADS             1        /**< number of threads used for SDP solving */
 #endif
