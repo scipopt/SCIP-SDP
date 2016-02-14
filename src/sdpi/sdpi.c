@@ -873,7 +873,7 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
    int i;
    int size;
    int v;
-   int fixedval;
+   SCIP_Real fixedval;
    SCIP_Real eigenvalue;
 
    assert( sdpi->allfixed );
