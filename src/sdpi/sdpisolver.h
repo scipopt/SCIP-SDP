@@ -323,7 +323,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
  *  returns FALSE with a debug-message if the solver could not determine feasibility */
 EXTERN
 SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
-   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
    );
 
 /** returns TRUE iff SDP is proven to be primal feasible,
@@ -363,7 +363,7 @@ SCIP_Bool SCIPsdpiSolverIsConverged(
 /** returns TRUE iff the objective limit was reached */
 EXTERN
 SCIP_Bool SCIPsdpiSolverIsObjlimExc(
-   SCIP_SDPISOLVER*      sdpisolver           /**< SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
    );
 
 /** returns TRUE iff the iteration limit was reached */

@@ -108,10 +108,10 @@ SCIP_RETCODE SCIPsdpVarmapperFree(
 
 /** adds the given variables (if not already existent) to the end of the Varmapper */
 SCIP_RETCODE SCIPsdpVarmapperAddVars(
-   SCIP*                 scip,              /**< SCIP data structure */
-   SdpVarmapper*         varmapper,         /**< Varmapper to add variables to */
-   int                   nvars,             /**< number of variables to add to the varmapper */
-   SCIP_VAR**            vars               /**< SCIP variables to add to the varmapper */
+   SCIP*                 scip,               /**< SCIP data structure */
+   SdpVarmapper*         varmapper,          /**< Varmapper to add variables to */
+   int                   nvars,              /**< number of variables to add to the varmapper */
+   SCIP_VAR**            vars                /**< SCIP variables to add to the varmapper */
    )
 {
    int i;
@@ -202,7 +202,7 @@ SCIP_RETCODE SCIPsdpVarmapperInsertVar(
 
 /** gets the number of variables */
 int SCIPsdpVarmapperGetNVars(
-   SdpVarmapper*         varmapper          /**< Varmapper to get number of variables for */
+   SdpVarmapper*         varmapper           /**< Varmapper to get number of variables for */
    )
 {
    assert ( varmapper != NULL );
@@ -212,8 +212,8 @@ int SCIPsdpVarmapperGetNVars(
 
 /** Is the given SCIP variable included in the varmapper? */
 SCIP_Bool SCIPsdpVarmapperExistsSCIPvar(
-   SdpVarmapper*         varmapper,         /**< Varmapper to get variable index for */
-   SCIP_VAR*             var                /**< SCIP variables to get sdp index for */
+   SdpVarmapper*         varmapper,          /**< Varmapper to get variable index for */
+   SCIP_VAR*             var                 /**< SCIP variables to get sdp index for */
    )
 {
    assert ( varmapper != NULL );
@@ -224,8 +224,8 @@ SCIP_Bool SCIPsdpVarmapperExistsSCIPvar(
 
 /** gets the sdp index for the given SCIP variable */
 int SCIPsdpVarmapperGetSdpIndex(
-   SdpVarmapper*         varmapper,         /**< Varmapper to get variable index for */
-   SCIP_VAR*             var                /**< SCIP variables to get sdp index for */
+   SdpVarmapper*         varmapper,          /**< Varmapper to get variable index for */
+   SCIP_VAR*             var                 /**< SCIP variables to get sdp index for */
    )
 {
    assert ( varmapper != NULL );
@@ -236,8 +236,8 @@ int SCIPsdpVarmapperGetSdpIndex(
 
 /** gets the corresponding SCIP variable for the given sdp variable index */
 SCIP_VAR* SCIPsdpVarmapperGetSCIPvar(
-   SdpVarmapper*         varmapper,         /**< Varmapper to get variable index for */
-   int                   ind                /**< index of the sdp variable */
+   SdpVarmapper*         varmapper,          /**< Varmapper to get variable index for */
+   int                   ind                 /**< index of the sdp variable */
    )
 {
    assert ( varmapper != NULL );
@@ -248,9 +248,9 @@ SCIP_VAR* SCIPsdpVarmapperGetSCIPvar(
 
 /** removes the variable for the given Sdp index from the varmapper, decreasing the indices of all later variables by 1 */
 SCIP_RETCODE SCIPsdpVarmapperRemoveSdpIndex(
-   SCIP*                 scip,              /**< SCIP data structure */
-   SdpVarmapper*         varmapper,         /**< Varmapper to get variable index for */
-   int                   ind                /**< index of the sdp variable */
+   SCIP*                 scip,               /**< SCIP data structure */
+   SdpVarmapper*         varmapper,          /**< Varmapper to get variable index for */
+   int                   ind                 /**< index of the sdp variable */
    )
 {
    SCIP_VAR* var;
@@ -283,8 +283,8 @@ SCIP_RETCODE SCIPsdpVarmapperRemoveSdpIndex(
 
 /** swaps all SCIP variables for their transformed counterparts */
 SCIP_RETCODE SCIPsdpVarmapperTransform(
-   SCIP*                 scip,              /**< SCIP data structure */
-   SdpVarmapper*         varmapper          /**< pointer to the Varmapper that should be transformed */
+   SCIP*                 scip,               /**< SCIP data structure */
+   SdpVarmapper*         varmapper           /**< pointer to the Varmapper that should be transformed */
    )
 {
    int k;
@@ -311,9 +311,9 @@ SCIP_RETCODE SCIPsdpVarmapperTransform(
 
 /** clones the varmapper in the second argument to the varmapper in the third argument */
 SCIP_RETCODE SCIPsdpVarmapperClone(
-   SCIP*                 scip,              /**< SCIP data structure */
-   SdpVarmapper*         oldmapper,         /**< pointer to the Varmapper that should be cloned */
-   SdpVarmapper*         newmapper          /**< pointer to the Varmapper that should become a clone of the other one */
+   SCIP*                 scip,               /**< SCIP data structure */
+   SdpVarmapper*         oldmapper,          /**< pointer to the Varmapper that should be cloned */
+   SdpVarmapper*         newmapper           /**< pointer to the Varmapper that should become a clone of the other one */
    )
 {
    int nvars;

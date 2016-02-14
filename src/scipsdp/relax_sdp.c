@@ -1701,7 +1701,7 @@ SCIP_Bool SCIPrelaxSdpIsFeasible(
 
 /** returns total number of SDP iterations */
 int SCIPrelaxSdpGetNIterations(
-   SCIP_RELAX*            relax              /**< SDP relaxator to get the iterations for */
+   SCIP_RELAX*           relax               /**< SDP relaxator to get the iterations for */
    )
 {
    assert( relax != NULL );
@@ -1712,7 +1712,7 @@ int SCIPrelaxSdpGetNIterations(
 
 /** returns number of solved SDP relaxations */
 int SCIPrelaxSdpGetNSdpCalls(
-   SCIP_RELAX*            relax              /**< SDP relaxator to get the number of calls for */
+   SCIP_RELAX*           relax               /**< SDP relaxator to get the number of calls for */
    )
 {
    assert( relax != NULL );

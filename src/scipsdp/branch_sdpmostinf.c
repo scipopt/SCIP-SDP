@@ -165,7 +165,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostinf)
 /** creates the SDP most infeasible branching rule and includes it in SCIP */
 SCIP_RETCODE SCIPincludeBranchruleSdpmostinf(
    SCIP*                 scip                /**< SCIP data structure */
-)
+   )
 {
    SCIP_BRANCHRULEDATA* branchruledata;
    SCIP_BRANCHRULE* branchrule;

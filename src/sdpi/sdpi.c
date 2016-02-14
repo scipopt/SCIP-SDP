@@ -188,9 +188,9 @@ struct SCIP_SDPi
  */
 static
 void ensureLowerTriangular(
-  int*                   i,                  /**< row index */
-  int*                   j                   /**< column index */
-  )
+   int*                  i,                  /**< row index */
+   int*                  j                   /**< column index */
+   )
 {
    if ( *i < *j )
    {
@@ -2920,7 +2920,7 @@ SCIP_RETCODE SCIPsdpiGetObjval(
  *  if we did not get a feasible solution using the penalty approach) */
 SCIP_RETCODE SCIPsdpiGetLowerObjbound(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_Real*            objlb              /**< pointer to store the lower bound on the objective value */
+   SCIP_Real*            objlb               /**< pointer to store the lower bound on the objective value */
    )
 {
    assert( sdpi != NULL );
@@ -3130,7 +3130,7 @@ SCIP_RETCODE SCIPsdpiSettingsUsed(
 
 /** returns value treated as infinity in the SDP solver */
 SCIP_Real SCIPsdpiInfinity(
-   SCIP_SDPI*           sdpi                 /**< SDP interface structure */
+   SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
    assert( sdpi != NULL  );
@@ -3140,8 +3140,8 @@ SCIP_Real SCIPsdpiInfinity(
 
 /** checks if given value is treated as (plus or minus) infinity in the SDP solver */
 SCIP_Bool SCIPsdpiIsInfinity(
-   SCIP_SDPI*           sdpi,               /**< SDP interface structure */
-   SCIP_Real            val                 /**< value to be checked for infinity */
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   SCIP_Real             val                 /**< value to be checked for infinity */
    )
 {
    assert( sdpi != NULL );
@@ -3151,7 +3151,7 @@ SCIP_Bool SCIPsdpiIsInfinity(
 
 /** returns highest penalty parameter to be used */
 SCIP_Real SCIPsdpiMaxPenParam(
-   SCIP_SDPI*           sdpi                 /**< SDP interface structure */
+   SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
 {
    assert( sdpi != NULL );
@@ -3161,8 +3161,8 @@ SCIP_Real SCIPsdpiMaxPenParam(
 
 /** checks if given value is greater or equal to the highest penalty parameter to be used */
 SCIP_Bool SCIPsdpiIsGEMaxPenParam(
-   SCIP_SDPI*           sdpi,               /**< SDP interface structure */
-   SCIP_Real            val                 /**< value to be compared to maximum penalty parameter */
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   SCIP_Real             val                 /**< value to be compared to maximum penalty parameter */
    )
 {
    assert( sdpi != NULL );

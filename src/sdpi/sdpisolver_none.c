@@ -115,7 +115,7 @@ const char* SCIPsdpiSolverGetSolverDesc(
  *  doing. In general, it returns a pointer to the SDP solver object.
  */
 void* SCIPsdpiSolverGetSolverPointer(
-   SCIP_SDPISOLVER*      sdpisolver           /**< pointer to an SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver          /**< pointer to an SDP interface solver structure */
    )
 {
    assert( sdpisolver != NULL );
@@ -312,7 +312,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                                                *  (may be NULL if penaltyparam = 0) */
    SCIP_Bool*            penaltybound        /**< pointer to store if the primal solution reached the bound Tr(X) <= penaltyparam in the primal problem,
                                                *  this is also an indication of the penalty parameter being to small (may be NULL if not needed) */
-)
+   )
 {
    errorMessage();
 

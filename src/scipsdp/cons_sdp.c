@@ -952,18 +952,18 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
 /** local function to perform (parts of) multiaggregation of a single variable within fixAndAggrVars */
 static
 SCIP_RETCODE multiaggrVar(
-   SCIP*                scip,                /**< SCIP pointer */
-   SCIP_CONS*           cons,                /**< constraint to multiaggregate for */
-   int*                 v,                   /**< position of the variable that gets (multi-)aggregated */
-   SCIP_VAR**           aggrvars,            /**< variables this has to be (multi-)aggregated to */
-   SCIP_Real*           scalars,             /**< scalar parts to multiply with for each variable this is aggregated to */
-   int                  naggrvars,           /**< number of variables this is (multi-)aggregated to */
-   SCIP_Real            constant,            /**< the constant part for the (multi-)aggregation */
-   int*                 savedcol,            /**< array of columns for nonzeros that need to be added to the constant part */
-   int*                 savedrow,            /**< array of rows for nonzeros that need to be added to the constant part */
-   SCIP_Real*           savedval,            /**< array of values for nonzeros that need to be added to the constant part */
-   int*                 nfixednonz,          /**< length of the arrays of saved nonzeros for the constant part */
-   int*                 vararraylength       /**< length of the variable array */
+   SCIP*                 scip,               /**< SCIP pointer */
+   SCIP_CONS*            cons,               /**< constraint to multiaggregate for */
+   int*                  v,                  /**< position of the variable that gets (multi-)aggregated */
+   SCIP_VAR**            aggrvars,           /**< variables this has to be (multi-)aggregated to */
+   SCIP_Real*            scalars,            /**< scalar parts to multiply with for each variable this is aggregated to */
+   int                   naggrvars,          /**< number of variables this is (multi-)aggregated to */
+   SCIP_Real             constant,           /**< the constant part for the (multi-)aggregation */
+   int*                  savedcol,           /**< array of columns for nonzeros that need to be added to the constant part */
+   int*                  savedrow,           /**< array of rows for nonzeros that need to be added to the constant part */
+   SCIP_Real*            savedval,           /**< array of values for nonzeros that need to be added to the constant part */
+   int*                  nfixednonz,         /**< length of the arrays of saved nonzeros for the constant part */
+   int*                  vararraylength      /**< length of the variable array */
    )
 {
    int i;

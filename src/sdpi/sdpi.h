@@ -508,7 +508,7 @@ SCIP_RETCODE SCIPsdpiGetObjval(
 EXTERN
 SCIP_RETCODE SCIPsdpiGetLowerObjbound(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_Real*            objlb              /**< pointer to store the lower bound on the objective value */
+   SCIP_Real*            objlb               /**< pointer to store the lower bound on the objective value */
    );
 
 /** gets dual solution vector for feasible SDPs, if dualsollength isn't equal to the number of variables this will return the needed length and

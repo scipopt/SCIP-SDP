@@ -51,12 +51,13 @@ class SdpVarMapper;
 
 namespace scip
 {
-   /**struct with the lp-rows-data*/
+   /** struct with the lp-rows-data */
    struct LProw
    {
       std::vector< std::pair<int, double> > data;
    };
-   /**class of one sdpblock, very similar to sdpcone and the sdpa-format*/
+
+   /** class of one sdpblock, very similar to sdpcone and the sdpa-format */
    class SDPBlock
    {
    public:
@@ -76,7 +77,7 @@ namespace scip
       int constnum_nonzeros;
    };
 
-   /**class for the lp-blocks*/
+   /** class for the lp-blocks */
    class LPBlock
    {
    public:
@@ -93,7 +94,7 @@ namespace scip
    public:
 
       /** default constructor */
-   ObjReaderSDPA(SCIP* scip)
+      ObjReaderSDPA(SCIP* scip)
       : ObjReader(scip, "sdpareader", "file reader for SDPA files", "dat-s")
       {}
 

@@ -416,7 +416,7 @@ SCIP_DECL_BRANCHFREE(branchFreeSdpinfobjective)
 /** creates the SDP combined infeasibility and absolute objective branching rule and includes it in SCIP */
 SCIP_RETCODE SCIPincludeBranchruleSdpinfobjective(
    SCIP*                 scip                /**< SCIP data structure */
-)
+   )
 {
    SCIP_BRANCHRULEDATA* branchruledata;
    SCIP_BRANCHRULE* branchrule;

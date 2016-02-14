@@ -162,7 +162,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
 /** creates the SDP most fractional branching rule and includes it in SCIP */
 SCIP_RETCODE SCIPincludeBranchruleSdpmostfrac(
    SCIP*                 scip                /**< SCIP data structure */
-)
+   )
 {
    SCIP_BRANCHRULEDATA* branchruledata;
    SCIP_BRANCHRULE* branchrule;

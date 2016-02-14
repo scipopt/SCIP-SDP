@@ -419,7 +419,7 @@ SCIP_DECL_BRANCHFREE(branchFreeSdpobjective)
 /** creates the SDP highest absolute objective branching rule and includes it in SCIP */
 SCIP_RETCODE SCIPincludeBranchruleSdpobjective(
    SCIP*                 scip                /**< SCIP data structure */
-)
+   )
 {
    SCIP_BRANCHRULEDATA* branchruledata;
    SCIP_BRANCHRULE* branchrule;

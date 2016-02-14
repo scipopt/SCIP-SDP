@@ -162,7 +162,7 @@ struct SCIP_SDPiSolver
    SCIP_Real             penaltyparam;       /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
    SCIP_Real             objlimit;           /**< objective limit for SDP solver */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
-   SCIP_Bool             penaltyworbound;    /**< Was a penalty formulation solved without bounding r ? */
+   SCIP_Bool             penaltyworbound;    /**< Was a penalty formulation solved without bounding r? */
    SCIP_SDPSOLVERSETTING usedsetting;        /**< setting used to solve the last SDP */
    SCIP_Bool             timelimit;          /**< was the solver stopped because of the time limit? */
 };
@@ -307,7 +307,7 @@ const char* SCIPsdpiSolverGetSolverDesc(
  *  doing. In general, it returns a pointer to the SDP solver object.
  */
 void* SCIPsdpiSolverGetSolverPointer(
-   SCIP_SDPISOLVER*      sdpisolver           /**< pointer to an SDP interface solver structure */
+   SCIP_SDPISOLVER*      sdpisolver          /**< pointer to an SDP interface solver structure */
    )
 {
    assert( sdpisolver != NULL );
@@ -543,10 +543,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
-   int	                noldlpcons,		   /**< number of LP-constraints including those with less than two active nonzeros */
+   int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lplhs,              /**< left hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
-   int*	                rownactivevars,	   /**< number of active variables for each LP constraint */
+   int*                  rownactivevars,     /**< number of active variables for each LP constraint */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
@@ -559,7 +559,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                                                *  (may be NULL if penaltyparam = 0) */
    SCIP_Bool*            penaltybound        /**< pointer to store if the primal solution reached the bound Tr(X) <= penaltyparam in the primal problem,
                                                *  this is also an indication of the penalty parameter being to small (may be NULL if not needed) */
-)
+   )
 {/*lint --e{413}*/
    int* dsdpconstind = NULL;  /* indices for constant SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
    double* dsdpconstval = NULL; /* non-zero values for constant SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
@@ -922,11 +922,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* start inserting the LP constraints */
    if ( nlpcons > 0 || lpnnonz > 0 || ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
    {
-	   int nextcol;
-	   int* rowmapper; /* maps the lhs- and rhs-inequalities of the old LP-cons to their constraint numbers in DSDP */
-	   int pos;
-	   int newpos;
-	   int nlpineqs;
+      int nextcol;
+      int* rowmapper; /* maps the lhs- and rhs-inequalities of the old LP-cons to their constraint numbers in DSDP */
+      int pos;
+      int newpos;
+      int nlpineqs;
 
       assert( noldlpcons > 0 );
       assert( lprhs != NULL );
