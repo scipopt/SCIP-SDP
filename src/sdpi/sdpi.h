@@ -439,7 +439,7 @@ SCIP_Bool SCIPsdpiIsDualInfeasible(
 
 /** returns TRUE iff SDP is proven to be dual feasible;
  *  returns FALSE with a debug-message if the solver could not determine feasibility */
-EXTERNx
+EXTERN
 SCIP_Bool SCIPsdpiIsDualFeasible(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    );
