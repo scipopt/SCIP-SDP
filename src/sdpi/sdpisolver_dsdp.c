@@ -296,7 +296,7 @@ const char* SCIPsdpiSolverGetSolverDesc(
    void
    )
 {
-   return "Dual-Scaling Interior Point Solver for SDPs developed by S. Benson, Y. Ye, and X. Zhang (http://www.mcs.anl.gov/hs/software/DSDP/)";
+   return "Dual-Scaling Interior Point SDP-Solver by S. Benson, Y. Ye, and X. Zhang (http://www.mcs.anl.gov/hs/software/DSDP/)";
 }
 
 /** gets pointer for SDP solver - use only with great care
