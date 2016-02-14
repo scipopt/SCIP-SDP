@@ -328,8 +328,8 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
                /* check solution */
                SCIP_CALL( SCIPlinkRelaxSol(scip, heurdata->sol) );
 
-               /* try to add solution to SCIP */
-               SCIP_CALL( SCIPtrySol(scip, heurdata->sol, FALSE, FALSE, FALSE, FALSE, &success) );
+               /* try to add solution to SCIP: check all constraints, including integrality */
+               SCIP_CALL( SCIPtrySol(scip, heurdata->sol, FALSE, TRUE, TRUE, TRUE, &success) );
 
                /* check, if solution was feasible and good enough */
                if ( success )
@@ -347,6 +347,9 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
 
          /* free local problem */
          SCIP_CALL( SCIPendProbing(scip) );
+
+         if ( SCIPisStopped(scip) )
+            break;
       }
    }
 
