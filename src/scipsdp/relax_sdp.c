@@ -1412,8 +1412,8 @@ SCIP_DECL_RELAXEXIT(relaxExitSdp)
    SCIPdebugMessage("Exiting Relaxation Handler.\n");
 
 #ifdef PRINT_STATISTICS
-   SCIPinfoMessage(scip, NULL, "\nSDP iterations:\t\t\t\t%d\n", relaxdata->sdpiterations);
-   SCIPinfoMessage(scip, NULL, "Average SDP-iterations:\t\t\t%.2f \n", (double) relaxdata->sdpiterations / (double) relaxdata->sdpcalls );
+   SCIPinfoMessage(scip, NULL, "\nSDP iterations:\t\t\t\t%6d\n", relaxdata->sdpiterations);
+   SCIPinfoMessage(scip, NULL, "Average SDP-iterations:\t\t\t%6.2f \n", (double) relaxdata->sdpiterations / (double) relaxdata->sdpcalls );
    if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0 )
    {
       SCIPinfoMessage(scip, NULL, "Percentage 'fastest settings' solved:\t%6.2f \n", 100.0 * (double) relaxdata->solvedfast / (double) relaxdata->sdpcalls);
