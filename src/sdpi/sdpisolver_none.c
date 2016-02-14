@@ -586,7 +586,6 @@ SCIP_RETCODE SCIPsdpiSolverGetIterations(
 }
 
 /** gets the number of SDP iterations of the last solve call */
-EXTERN
 SCIP_RETCODE SCIPsdpiSolverSettingsUsed(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
    SCIP_SDPSOLVERSETTING* usedsetting        /**< the setting used by the SDP solver */
