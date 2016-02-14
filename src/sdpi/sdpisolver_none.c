@@ -46,6 +46,8 @@
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
 
+/* turn off lint warnings for whole file: */
+/*lint --e{715,788,818}*/
 
 /** data used for SDP interface */
 struct SCIP_SDPiSolver
