@@ -337,7 +337,7 @@ SCIP_Bool SCIPsdpiSolverWasSolved(
 {
    errorMessageAbort();
 
-   return SCIP_PLUGINNOTFOUND;
+   return FALSE;
 }
 
 /** returns true if the solver could determine whether the problem is feasible
@@ -352,7 +352,7 @@ SCIP_Bool SCIPsdpiSolverFeasibilityKnown(
 {
    errorMessageAbort();
 
-   return SCIP_PLUGINNOTFOUND;
+   return FALSE;
 }
 
 /** gets information about primal and dual feasibility of the current SDP solution */
@@ -375,7 +375,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
 {
    errorMessageAbort();
 
-   return SCIP_PLUGINNOTFOUND;
+   return FALSE;
 }
 
 /** returns TRUE iff SDP is proven to be primal infeasible,
@@ -386,7 +386,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
 {
    errorMessageAbort();
 
-   return SCIP_PLUGINNOTFOUND;
+   return FALSE;
 }
 
 /** returns TRUE iff SDP is proven to be primal feasible,
@@ -397,7 +397,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
 {
    errorMessageAbort();
 
-   return SCIP_PLUGINNOTFOUND;
+   return FALSE;
 }
 
 /** returns TRUE iff SDP is proven to be dual unbounded,
@@ -408,7 +408,7 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
 {
    errorMessageAbort();
 
-   return SCIP_PLUGINNOTFOUND;
+   return FALSE;
 }
 
 /** returns TRUE iff SDP is proven to be dual infeasible,
@@ -419,7 +419,7 @@ SCIP_Bool SCIPsdpiSolverIsDualInfeasible(
 {
    errorMessageAbort();
 
-   return SCIP_PLUGINNOTFOUND;
+   return FALSE;
 }
 
 /** returns TRUE iff SDP is proven to be dual feasible,
@@ -430,7 +430,7 @@ SCIP_Bool SCIPsdpiSolverIsDualFeasible(
 {
    errorMessageAbort();
 
-   return SCIP_PLUGINNOTFOUND;
+   return FALSE;
 }
 
 /** returns TRUE iff the solver converged */
@@ -440,7 +440,7 @@ SCIP_Bool SCIPsdpiSolverIsConverged(
 {
    errorMessageAbort();
 
-   return SCIP_PLUGINNOTFOUND;
+   return FALSE;
 }
 
 /** returns TRUE iff the objective limit was reached */
@@ -450,7 +450,7 @@ SCIP_Bool SCIPsdpiSolverIsObjlimExc(
 {
    errorMessageAbort();
 
-   return SCIP_PLUGINNOTFOUND;
+   return FALSE;
 }
 
 /** returns TRUE iff the iteration limit was reached */
@@ -460,7 +460,7 @@ SCIP_Bool SCIPsdpiSolverIsIterlimExc(
 {
    errorMessageAbort();
 
-   return SCIP_PLUGINNOTFOUND;
+   return FALSE;
 }
 
 /** returns TRUE iff the time limit was reached */
@@ -470,7 +470,7 @@ SCIP_Bool SCIPsdpiSolverIsTimelimExc(
 {
    errorMessageAbort();
 
-   return SCIP_PLUGINNOTFOUND;
+   return FALSE;
 }
 
 /** returns the internal solution status of the solver, which has the following meaning:<br>
@@ -489,7 +489,7 @@ int SCIPsdpiSolverGetInternalStatus(
 {
    errorMessageAbort();
 
-   return SCIP_PLUGINNOTFOUND;
+   return -2;
 }
 
 /** returns TRUE iff SDP was solved to optimality, meaning the solver converged and returned primal and dual feasible solutions */
@@ -499,7 +499,7 @@ SCIP_Bool SCIPsdpiSolverIsOptimal(
 {
    errorMessageAbort();
 
-   return SCIP_PLUGINNOTFOUND;
+   return FALSE;
 }
 
 /** returns TRUE iff SDP was solved to optimality or some other status was reached
@@ -510,7 +510,7 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
 {
    errorMessageAbort();
 
-   return SCIP_PLUGINNOTFOUND;
+   return FALSE;
 }
 
 /** tries to reset the internal status of the SDP solver in order to ignore an instability of the last solving call */
