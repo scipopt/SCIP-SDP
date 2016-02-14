@@ -848,6 +848,7 @@ SCIP_RETCODE checkAllFixed(
 
 /** If all variables are fixed, check whether the remaining solution is feasible for the SDP-constraints (LP constraints should be checked
  *  already when computing the rhs after fixing)
+ *
  *  TODO: also needs lb and ub, after they get changed outside the sdpi
  */
 static
@@ -914,7 +915,6 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
       /* add the contributions of the fixed variables */
       for (v = 0; v < sdpi->sdpnblockvars[b]; v++)
       {
-
          fixedval = sdpi->lb[sdpi->sdpvar[b][v]];
 
          /* if the variable is fixed to zero, we can ignore its contributions */
@@ -1015,7 +1015,7 @@ SCIP_RETCODE SCIPsdpiCreate(
 
    SCIPdebugMessage("Calling SCIPsdpiCreate\n");
 
-   BMS_CALL(BMSallocBlockMemory(blkmem, sdpi));
+   BMS_CALL( BMSallocBlockMemory(blkmem, sdpi) );
 
    SCIP_CALL( SCIPsdpiSolverCreate(&((*sdpi)->sdpisolver), messagehdlr, blkmem) );
 
@@ -1125,7 +1125,9 @@ SCIP_RETCODE SCIPsdpiFree(
 }
 
 /** cloning method of the general SDP-Interface
- *  @note the solver specific interface is created anew and not copied */
+ *
+ *  @note The solver specific interface is created anew and not copied.
+ */
 SCIP_RETCODE SCIPsdpiClone(
    SCIP_SDPI*            oldsdpi,            /**< pointer to the SDP interface structure that should be cloned */
    SCIP_SDPI*            newsdpi             /**< pointer to an SDP interface structure to clone into */
@@ -1242,8 +1244,8 @@ SCIP_RETCODE SCIPsdpiClone(
 
 /** copies SDP data into SDP solver
  *
- *  @note as the SDP-constraint matrices are symmetric, only the upper triangular part of them must be specified
- *  @note there must be at least one variable, the SDP- and/or LP-part may be empty
+ *  @note As the SDP-constraint matrices are symmetric, only the upper triangular part of them must be specified.
+ *  @note There must be at least one variable, the SDP- and/or LP-part may be empty.
  */
 SCIP_RETCODE SCIPsdpiLoadSDP(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
@@ -1461,7 +1463,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
 
 /** adds rows to the LP-Block
  *
- *  @note arrays are not checked for duplicates, problems may appear if indices are added more than once
+ *  @note Arrays are not checked for duplicates, problems may appear if indices are added more than once.
  */
 SCIP_RETCODE SCIPsdpiAddLPRows(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
@@ -1795,6 +1797,7 @@ SCIP_RETCODE SCIPsdpiGetNLPRows(
    )
 {
    assert( sdpi != NULL );
+   assert( nlprows != NULL );
 
    *nlprows = sdpi->nlpcons;
 
@@ -1808,6 +1811,7 @@ SCIP_RETCODE SCIPsdpiGetNSDPBlocks(
    )
 {
    assert( sdpi != NULL );
+   assert( nsdpblocks != NULL );
 
    *nsdpblocks = sdpi->nsdpblocks;
 
@@ -1821,8 +1825,11 @@ SCIP_RETCODE SCIPsdpiGetNVars(
    )
 {
    assert( sdpi != NULL );
+   assert( nvars != NULL );
 
-   *nvars = sdpi->nvars;   return SCIP_OKAY;
+   *nvars = sdpi->nvars;
+
+   return SCIP_OKAY;
 }
 
 /** gets the number of nonzero elements in the SDP constraint matrices */
@@ -1832,6 +1839,7 @@ SCIP_RETCODE SCIPsdpiGetSDPNNonz(
    )
 {
    assert( sdpi != NULL );
+   assert( nnonz != NULL );
 
    *nnonz = sdpi->sdpnnonz;
 
@@ -1845,6 +1853,7 @@ SCIP_RETCODE SCIPsdpiGetConstNNonz(
    )
 {
    assert( sdpi != NULL );
+   assert( nnonz != NULL );
 
    *nnonz = sdpi->sdpconstnnonz;
 
@@ -1858,6 +1867,7 @@ SCIP_RETCODE SCIPsdpiGetLPNNonz(
    )
 {
    assert( sdpi != NULL );
+   assert( nnonz != NULL );
 
    *nnonz = sdpi->lpnnonz;
 
@@ -2049,7 +2059,7 @@ SCIP_RETCODE SCIPsdpiSolve(
       fixingfound = FALSE;
       SCIP_CALL( computeLpLhsRhsAfterFixings(sdpi, &nactivelpcons, lplhsafterfix, lprhsafterfix, rowsnactivevars, &fixingfound) );
    }
-   while (fixingfound);
+   while ( fixingfound );
 
    /* initialize sdpconstnblocknonz */
    for (block = 0; block < sdpi->nsdpblocks; block++)
@@ -2072,7 +2082,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    /* check if all variables are fixed, if this is the case, check if the remaining solution if feasible (we only need to check the SDP-constraint,
     * the linear constraints were already checked in computeLpLhsRhsAfterFixings) */
    SCIP_CALL( checkAllFixed(sdpi) );
-   if ( sdpi->allfixed && (! sdpi->infeasible) )
+   if ( sdpi->allfixed && ! sdpi->infeasible )
    {
       SCIP_CALL( checkFixedFeasibilitySdp(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges, nremovedinds, blockindchanges) );
    }
@@ -2125,7 +2135,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit, &origfeas, NULL) );
 
          /* if we didn't succeed, then probably the primal problem is troublesome */
-         if ( (! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver)) && (! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver)) )
+         if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
          {
             printf("Unable to check Slater condition for dual problem, could mean that the Slater conidition for the primal problem"
                   " is not fullfilled.\n");
@@ -2184,6 +2194,7 @@ SCIP_RETCODE SCIPsdpiSolve(
             slaterlpcol[sdpi->lpnnonz + v] = v;
             slaterlpval[sdpi->lpnnonz + v] = 0.0;
          }
+
          for (block = 0; block < sdpi->nsdpblocks; block++)
          {
             for (v = 0; v < sdpi->sdpnblockvars[block]; v++)
@@ -2259,7 +2270,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                SCIP_SDPSOLVERSETTING_UNSOLVED, &origfeas) );
 
          /* if we didn't succeed, then probably the primal problem is troublesome */
-         if ( (! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver)) && (! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver)) )
+         if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
             printf("Unable to check Slater condition for primal problem, could not check dual slater for auxilliary problem.\n");
          else
          {
@@ -2286,7 +2297,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                      sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons + 1, sdpi->nlpcons + 1, slaterlplhs, slaterlprhs,
                      slaterrowsnactivevars, sdpi->lpnnonz + sdpi->nvars, slaterlprow, slaterlpcol, slaterlpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED) );
 
-               if ( (! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver)) && (! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver)) )
+               if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
                   printf("Unable to check Slater condition for primal problem, could not solve auxilliary problem.\n");
                else
                {
@@ -2300,7 +2311,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                   {
                      SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
 
-                     if ( objval > - sdpi->feastol)
+                     if ( objval > - sdpi->feastol )
                      {
                         printf("Slater condition for primal problem for SDP %d not fullfilled "
                                "as smallest eigenvalue was %f, expect numerical trouble or infeasible problem.\n",sdpi->sdpid, -1.0 * objval);
@@ -2337,7 +2348,7 @@ SCIP_RETCODE SCIPsdpiSolve(
       sdpi->solved = TRUE;
 
       /* if the solver didn't produce a satisfactory result, we have to try with a penalty formulation */
-      if ( ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) ) && ( ! SCIPsdpiSolverIsTimelimExc(sdpi->sdpisolver) ) )
+      if ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && ! SCIPsdpiSolverIsTimelimExc(sdpi->sdpisolver) )
       {
          SCIP_Real penaltyparam;
          SCIP_Real penaltyparamfact;
@@ -2357,7 +2368,7 @@ SCIP_RETCODE SCIPsdpiSolve(
          epsilonfact = pow((MIN_EPSILON / sdpi->epsilon), 1.0/NINCREASESGAMMA);
 
          /* increase penalty-param and decrease feasibility tolerance until we find a feasible solution or reach the final bound for either one of them */
-         while ( (( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver)) || ( ! feasorig ) ) &&
+         while ( ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) || ! feasorig ) &&
                ( penaltyparam < sdpi->maxpenaltyparam + sdpi->epsilon ) && ( epsilon > 0.99 * MIN_EPSILON ) && ( ! SCIPsdpiSolverIsTimelimExc(sdpi->sdpisolver) ))
          {
             SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penaltyparameter %f\n", sdpi->sdpid, penaltyparam);
@@ -2454,19 +2465,25 @@ SCIP_RETCODE SCIPsdpiSolve(
                   rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit, &origfeas, NULL) );
 
             /* if we didn't succeed, then probably the primal problem is troublesome */
-            if ( (! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver)) && (! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver)) )
+            if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
+            {
                printf("SDP-solver could not solve root node relaxation, unable to check Slater condition for dual problem of SDP %d, could mean that the "
                      "Slater conidition for the primal problem is not fullfilled.\n", sdpi->sdpid);
+            }
             else
             {
                SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
 
                if ( objval < - sdpi->feastol )
+               {
                   printf("SDP-solver could not solve root node relaxation even though the Slater condition is fullfilled for the dual problem with smallest eigenvalue %f.\n",
                            -1.0 * objval);
+               }
                else
+               {
                   printf("SDP-solver could not solve root node relaxation, Slater condition is not fullfilled for the dual problem as smallest eigenvalue was %f.\n",
                         -1.0 * objval);
+               }
             }
          }
          else if ( sdpi->solved == FALSE )
@@ -2576,8 +2593,8 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
    return SCIP_OKAY;
 }
 
-/** returns TRUE iff SDP is proven to be primal unbounded
- *  returns FALSE with a debug-message if the solver couldnot determine feasibility */
+/** returns TRUE iff SDP is proven to be primal unbounded;
+ *  returns FALSE with a debug-message if the solver could not determine feasibility */
 SCIP_Bool SCIPsdpiIsPrimalUnbounded(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
@@ -2599,8 +2616,8 @@ SCIP_Bool SCIPsdpiIsPrimalUnbounded(
    return SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver);
 }
 
-/** returns TRUE iff SDP is proven to be primal infeasible
- *  returns FALSE with a debug-message if the solver couldnot determine feasibility */
+/** returns TRUE iff SDP is proven to be primal infeasible;
+ *  returns FALSE with a debug-message if the solver could not determine feasibility */
 SCIP_Bool SCIPsdpiIsPrimalInfeasible(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
@@ -2622,8 +2639,8 @@ SCIP_Bool SCIPsdpiIsPrimalInfeasible(
    return SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver);
 }
 
-/** returns TRUE iff SDP is proven to be primal feasible
- *  returns FALSE with a debug-message if the solver couldnot determine feasibility */
+/** returns TRUE iff SDP is proven to be primal feasible;
+ *  returns FALSE with a debug-message if the solver could not determine feasibility */
 SCIP_Bool SCIPsdpiIsPrimalFeasible(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
@@ -2645,8 +2662,8 @@ SCIP_Bool SCIPsdpiIsPrimalFeasible(
    return SCIPsdpiSolverIsPrimalFeasible(sdpi->sdpisolver);
 }
 
-/** returns TRUE iff SDP is proven to be dual unbounded
- *  returns FALSE with a debug-message if the solver couldnot determine feasibility */
+/** returns TRUE iff SDP is proven to be dual unbounded;
+ *  returns FALSE with a debug-message if the solver could not determine feasibility */
 SCIP_Bool SCIPsdpiIsDualUnbounded(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
@@ -2668,8 +2685,8 @@ SCIP_Bool SCIPsdpiIsDualUnbounded(
    return SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver);
 }
 
-/** returns TRUE iff SDP is proven to be dual infeasible
- *  returns FALSE with a debug-message if the solver couldnot determine feasibility */
+/** returns TRUE iff SDP is proven to be dual infeasible;
+ *  returns FALSE with a debug-message if the solver could not determine feasibility */
 SCIP_Bool SCIPsdpiIsDualInfeasible(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
@@ -2691,8 +2708,8 @@ SCIP_Bool SCIPsdpiIsDualInfeasible(
    return SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver);
 }
 
-/** returns TRUE iff SDP is proven to be dual feasible
- *  returns FALSE with a debug-message if the solver couldnot determine feasibility */
+/** returns TRUE iff SDP is proven to be dual feasible;
+ *  returns FALSE with a debug-message if the solver could not determine feasibility */
 SCIP_Bool SCIPsdpiIsDualFeasible(
    SCIP_SDPI*            sdpi                /**< SDP interface structure */
    )
@@ -3055,13 +3072,13 @@ SCIP_RETCODE SCIPsdpiGetIterations(
    assert( iterations != NULL );
 
    /* check if the problem was solved (solved=FALSE, penalty=TRUE means we tried, but didnot succeed */
-   if ( (! sdpi->solved) && (! sdpi->penalty) )
+   if ( ! sdpi->solved && ! sdpi->penalty )
    {
       SCIPerrorMessage("Tried to access solution information ahead of solving! \n");
       return SCIP_LPERROR;
    }
 
-   if ( sdpi->infeasible && ( ! sdpi->penalty ) ) /* if we solved the penalty formulation, we may also set infeasible if it is infeasible for the original problem */
+   if ( sdpi->infeasible && ! sdpi->penalty ) /* if we solved the penalty formulation, we may also set infeasible if it is infeasible for the original problem */
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no iterations needed.\n");
       *iterations = 0;
@@ -3094,7 +3111,7 @@ SCIP_RETCODE SCIPsdpiSettingsUsed(
       *usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
       return SCIP_OKAY;
    }
-   else if ( sdpi->infeasible && ( ! sdpi->penalty ) ) /* if we solved the penalty formulation, we may also set infeasible if it is infeasible for the original problem */
+   else if ( sdpi->infeasible && ! sdpi->penalty ) /* if we solved the penalty formulation, we may also set infeasible if it is infeasible for the original problem */
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no settings used.\n");
       *usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
