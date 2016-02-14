@@ -869,12 +869,12 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
 {
    SCIP_Real* fullmatrix; /* we need to give the full matrix to LAPACK */
    int maxsize; /* as we don't want to allocate memory newly for every SDP-block, we allocate memory according to the size of the largest block */
-   int b;
-   int i;
-   int size;
-   int v;
    SCIP_Real fixedval;
    SCIP_Real eigenvalue;
+   int size;
+   int b;
+   int i;
+   int v;
 
    assert( sdpi->allfixed );
 
