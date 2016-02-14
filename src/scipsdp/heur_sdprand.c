@@ -33,6 +33,8 @@
 /**@file   heur_sdprand.c
  * @brief  randomized rounding heuristic for SDPs
  * @author Marc Pfetsch
+ *
+ * @todo Generalize heuristic to the case of general integer variables (should be easy).
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
@@ -177,11 +179,11 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
 
    *result = SCIP_DIDNOTRUN;
 
-   /* do not round if we have integer variables */
+   /* do not run if we have general integer variables */
    if ( SCIPgetNIntVars(scip) > 0 )
       return SCIP_OKAY;
 
-   /* get heuristic's data */
+   /* get heuristic data */
    heurdata = SCIPheurGetData(heur);
    assert( heurdata != NULL );
 
@@ -197,7 +199,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
       val = SCIPgetRelaxSolVal(scip, vars[v]);
       if ( SCIPvarIsIntegral(vars[v]) && ! SCIPisFeasIntegral(scip, val) )
       {
-         assert( SCIPisFeasGE(scip, val, 0.0) && SCIPisFeasLE(scip, val, 1.0) ); /* only binary variables */
+         assert( SCIPisFeasGE(scip, val, 0.0) && SCIPisFeasLE(scip, val, 1.0) ); /* so far only binary variables */
          sdpcands[nsdpcands] = vars[v];
          sdpcandssol[nsdpcands] = val;
          ++nsdpcands;
@@ -249,6 +251,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
          {
             var = sdpcands[v];
             assert( SCIPvarIsIntegral(var) );
+            assert( SCIPvarIsBinary(var) );
 
             /* if the variable is not fixed and its value is fractional */
             if ( SCIPvarGetLbLocal(var) < 0.5 && SCIPvarGetUbLocal(var) > 0.5 && ! SCIPisFeasIntegral(scip, sdpcandssol[v]) )
@@ -267,7 +270,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
             }
          }
 
-         /* try to add solution to SCIP */
+         /* try to add solution to SCIP - do not need to check integrality here */
          SCIP_CALL( SCIPtrySol(scip, heurdata->sol, FALSE, FALSE, FALSE, FALSE, &success) );
 
          if ( success )
@@ -278,13 +281,13 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
       else
       {
          /* if there are continuous variables, we need to solve a final SDP */
-         /* init local problem */
          SCIP_CALL( SCIPstartProbing(scip) );
 
          for (v = 0; v < nsdpcands; ++v)
          {
             var = sdpcands[v];
             assert( SCIPvarIsIntegral(var) );
+            assert( SCIPvarIsBinary(var) );
 
             /* if the variable is not fixed and its value is fractional */
             if ( SCIPvarGetLbLocal(var) < 0.5 && SCIPvarGetUbLocal(var) > 0.5 && ! SCIPisFeasIntegral(scip, sdpcandssol[v]) )
@@ -307,11 +310,12 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
          /* if no value was changed */
          if ( cnt == 0 )
          {
+            /* We can exit since there will be no chance to be successful in future runs. */
             SCIPdebugMessage("Iteration %d: All variables were fixed or their values were integral -> exit.\n", iter);
             break;
          }
 
-         /* apply domain propagation */
+         /* apply domain propagation (use parameter settings for maximal number of rounds) */
          SCIP_CALL( SCIPpropagateProbing(scip, 0, &cutoff, NULL) );
          if ( ! cutoff )
          {
