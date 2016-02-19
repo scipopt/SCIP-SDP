@@ -1358,31 +1358,29 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
          /* if r > 0 or we are in debug mode, also check the primal bound */
 #ifdef NDEBUG
-         if ( ( ! *feasorig ) && ( penaltybound != NULL ) )
+         if ( ! *feasorig )
          {
 #endif
-            SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", rval);
+            if ( penaltybound != NULL )
+            {  SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", rval);
 
-            /* get the trace of X to compare it with the penalty parameter */
-            DSDP_CALL( DSDPGetTraceX(sdpisolver->dsdp, &trace) );
+               /* get the trace of X to compare it with the penalty parameter */
+               DSDP_CALL( DSDPGetTraceX(sdpisolver->dsdp, &trace) );
 
 #if 0 /* DSDP doesn't seem to adhere to its own feasiblity tolerance */
-            assert( trace < penaltyparam + sdpisolver->feastol ); /* solution should be primal feasible */
+               assert( trace < penaltyparam + sdpisolver->feastol ); /* solution should be primal feasible */
 #endif
 
-            /* if the relative gap is smaller than the tolerance, we return equality */
-            if ( (penaltyparam - trace) / penaltyparam < PENALTYBOUNDTOL )
-            {
-               *penaltybound = TRUE;
-               SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible\n",
+               /* if the relative gap is smaller than the tolerance, we return equality */
+               if ( (penaltyparam - trace) / penaltyparam < PENALTYBOUNDTOL )
+               {
+                  *penaltybound = TRUE;
+                  SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible\n",
                      trace, penaltyparam);
+               }
+               else
+                  *penaltybound = FALSE;
             }
-            else
-               *penaltybound = FALSE;
-
-            /* if the primal bound is attained, r should also be strictly positive (outside of debug we will not even compute it otherwise) */
-            assert( ( ! *penaltybound ) || ( ! *feasorig ) );
-
 #ifdef NDEBUG
          }
 #endif
@@ -1398,29 +1396,28 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
          *feasorig = (dsdpsol[sdpisolver->nactivevars] < sdpisolver->feastol); /* r is the last variable in DSDP, so the last entry gives us the value */
 #ifdef NDEBUG
-         if ( ( ! *feasorig ) && ( penaltybound != NULL ) )
+         if ( ! *feasorig )
          {
 #endif
-            SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", dsdpsol[sdpisolver->nactivevars]);
-
-            /* get the trace of X to compare it with the penalty parameter */
-            DSDP_CALL( DSDPGetTraceX(sdpisolver->dsdp, &trace) );
-
-            assert( trace < penaltyparam + sdpisolver->feastol ); /* solution should be primal feasible */
-
-            /* if the relative gap is smaller than the tolerance, we return equality */
-            if ( (penaltyparam - trace) / penaltyparam < PENALTYBOUNDTOL )
+            if ( penaltybound != NULL )
             {
-               *penaltybound = TRUE;
-               SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible\n",
-                     trace, penaltyparam);
+               SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", dsdpsol[sdpisolver->nactivevars]);
+
+               /* get the trace of X to compare it with the penalty parameter */
+               DSDP_CALL( DSDPGetTraceX(sdpisolver->dsdp, &trace) );
+
+               assert( trace < penaltyparam + sdpisolver->feastol ); /* solution should be primal feasible */
+
+               /* if the relative gap is smaller than the tolerance, we return equality */
+               if ( (penaltyparam - trace) / penaltyparam < PENALTYBOUNDTOL )
+               {
+                  *penaltybound = TRUE;
+                  SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible\n",
+                        trace, penaltyparam);
+               }
+               else
+                  *penaltybound = FALSE;
             }
-            else
-               *penaltybound = FALSE;
-
-            /* if the primal bound is attained, r should also be strictly positive (outside of debug we will not even compute it otherwise) */
-            assert( ( ! *penaltybound ) || ( ! feasorig ) );
-
 #ifdef NDEBUG
          }
 #endif
