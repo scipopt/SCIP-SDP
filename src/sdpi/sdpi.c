@@ -2117,6 +2117,7 @@ SCIP_RETCODE SCIPsdpiSolve(
          int nremovedslaterlpinds;
          int i;
          int v;
+         int slaternactivelpcons;
 #endif
 
          /* first check the slater condition for the dual problem */
@@ -2160,19 +2161,18 @@ SCIP_RETCODE SCIPsdpiSolve(
 #if SLATERCHECKPRIMAL
          /* check the slater condition also for the primal problem */
 
-         /* As we do not want to give equality constraints to the solver by reformulating the primal problem as a dual problem, we instead use
-          * Y'=(Y+rI, 0; 0, -r) to solve the primal dual pair
+         /* As we do not want to give equality constraints to the solver by reformulating the primal problem as a dual problem, we instead
+          * solve the primal dual pair
           *
           * (P) max (0 0) * Y' s.t. (A_i            0    ) * Y' = c_i forall i, Y' psd
           *         (0 1)           ( 0  sum_j [(A_i)_jj])
           *
           * (D) min sum_i [c_i x_i] s.t. sum_i [A_i x_i] psd, sum_i[(sum_j [(A_i)_jj]) x_i] >= 1
           *
-          * Because we are interested in the optimal objective of the primal problem but have to solve the dual because of the SDP-solvers, we will
-          * first check if the slater-condition holds for the dual of this problem, before solving the dual problem if we now that the slater condition
-          * holds. In that case, the optimal objective will be -r, so if -r < 0, we know that the primal problem is infeasible (and therefore our original
-          * problem is unbounded), but we won't really use this information here, if -r = 0 the slater condition is harmed in the primal problem, and if
-          * -r > 0, we know that there exists a strictly feasible solution for the primal problem (as Y+rI is still psd for some r < 0).
+          * if the objective is strictly positive, than we now that there exists some r > 0 such that
+          * Y is psd and Y+rI is feasible for the equality constraints in our original primal problem,
+          * so Y+rI is also feasible for the original primal problem and is strictly positive definite
+          * so the primal Slater condition holds
           */
 
          /* allocate the LP-arrays, as we have to add the additional LP-constraint, because we want to add extra entries, we cannot use BMSduplicate... */
@@ -2195,7 +2195,6 @@ SCIP_RETCODE SCIPsdpiSolve(
             slaterlpcol[sdpi->lpnnonz + v] = v;
             slaterlpval[sdpi->lpnnonz + v] = 0.0;
          }
-
          for (block = 0; block < sdpi->nsdpblocks; block++)
          {
             for (v = 0; v < sdpi->sdpnblockvars[block]; v++)
@@ -2260,67 +2259,46 @@ SCIP_RETCODE SCIPsdpiSolve(
                slaterrowsnactivevars[sdpi->nlpcons]++;
          }
 
-         /* check the dual slater condition for the changed problem (with A_0 = 0): we solve the problem with a slack variable times identity added to
-          * the constraints and trying to minimize this slack variable r, if we are still feasible for r > feastol, then we have an interior point with
-          * smallest eigenvalue > feastol, otherwise the Slater condition is harmed */
-         SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
+         slaternactivelpcons = (slaterrowsnactivevars[sdpi->nlpcons] > 1) ? nactivelpcons + 1 : nactivelpcons;
+
+         /* compute the timit limit to set for the solver */
+         currenttime = clock();
+         solvertimelimit = timelimit - ((double)(currenttime - starttime) / (double) CLOCKS_PER_SEC);
+
+         /* solve the problem to check slater condition for primal of original problem */
+         SCIP_CALL( SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
                sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, 0, NULL, NULL, NULL, NULL,
                sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-               sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons + 1, sdpi->nlpcons + 1, slaterlplhs, slaterlprhs,
+               sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, slaternactivelpcons, sdpi->nlpcons + 1, slaterlplhs, slaterlprhs,
                slaterrowsnactivevars, sdpi->lpnnonz + sdpi->nvars - nremovedslaterlpinds, slaterlprow, slaterlpcol, slaterlpval, start,
-               SCIP_SDPSOLVERSETTING_UNSOLVED, &origfeas) );
+               SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit) );
 
-         /* if we didn't succeed, then probably the primal problem is troublesome */
-         if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
-            printf("Unable to check Slater condition for primal problem, could not check dual slater for auxilliary problem.\n");
+         if ( (! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver)) && (! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver)
+               && (! SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver))) )
+            printf("Unable to check Slater condition for primal problem, could not solve auxilliary problem.\n");
          else
          {
             if ( SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
-               objval = -1 * SCIPsdpiSolverInfinity(sdpi->sdpisolver);
+            {
+               printf("Slater condition for primal problem for SDP %d not fullfilled "
+                      "smallest eigenvalue has to be negative, so primal problem is infeasible (if the dual slater condition holds,"
+                      "this means, that the original (dual) problem is unbounded.\n",sdpi->sdpid);
+            }
+            if ( SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver) )
+            {
+               SCIPdebugMessage("Slater condition for primal problem for SDP %d fullfilled, smallest eigenvalue maximization problem unbounded \n",sdpi->sdpid);
+            }
             else
             {
                SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
-            }
 
-            if ( objval > - sdpi->feastol )
-            {
-               printf("Unable to check Slater condition for primal problem, dual Slater condition for auxilliary problem for SDP %d not fullfilled "
-                      "as smallest eigenvalue was %f.\n",sdpi->sdpid, -1.0 * objval);
-            }
-            else
-            {
-               SCIPdebugMessage("Slater condition for dual of auxilliary problem of SDP %d is fullfilled with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);
-
-               /* solve the problem to check slater condition for primal of original problem */
-               SCIP_CALL( SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
-                     sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, 0, NULL, NULL, NULL, NULL,
-                     sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-                     sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons + 1, sdpi->nlpcons + 1, slaterlplhs, slaterlprhs,
-                     slaterrowsnactivevars, sdpi->lpnnonz + sdpi->nvars, slaterlprow, slaterlpcol, slaterlpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED) );
-
-               if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
-                  printf("Unable to check Slater condition for primal problem, could not solve auxilliary problem.\n");
-               else
+               if ( objval > - sdpi->feastol)
                {
-                  if ( SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
-                  {
-                     printf("Slater condition for primal problem for SDP %d not fullfilled "
-                            "smallest eigenvalue has to be negative, so primal problem is infeasible (if the dual slater condition holds,"
-                            "this means, that the original (dual) problem is unbounded.\n",sdpi->sdpid);
-                  }
-                  else
-                  {
-                     SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
-
-                     if ( objval > - sdpi->feastol )
-                     {
-                        printf("Slater condition for primal problem for SDP %d not fullfilled "
-                               "as smallest eigenvalue was %f, expect numerical trouble or infeasible problem.\n",sdpi->sdpid, -1.0 * objval);
-                     }
-                     else
-                        SCIPdebugMessage("Slater condition for primal problem of SDP %d is fullfilled with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);
-                  }
+                  printf("Slater condition for primal problem for SDP %d not fullfilled "
+                         "as smallest eigenvalue was %f, expect numerical trouble or infeasible problem.\n",sdpi->sdpid, -1.0 * objval);
                }
+                else
+                  SCIPdebugMessage("Slater condition for primal problem of SDP %d is fullfilled with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);
             }
          }
 
