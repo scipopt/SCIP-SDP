@@ -485,9 +485,9 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
                                               *           in the same relative order as before (with non-active rows
                                               *           removed) */
    SCIP_Real*            lprhsafterfix,      /**< output: first nlpcons (output) entries give right-hand sides of
-                                              *  		    active lp-constraints after fixing variables, these are
-                                              *  		    in the same relative order as before (with non-active rows
-                                              *  		    removed) */
+                                              *  	  active lp-constraints after fixing variables, these are
+                                              *  	  in the same relative order as before (with non-active rows
+                                              *  	  removed) */
    int*                  rownactivevars,     /**< output: number of active variable for every row */
    SCIP_Bool*            fixingsfound        /**< output: returns true if a variable was fixed during this function call */
    )
@@ -548,7 +548,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
             {
                /* check for the left-hand-side */
                if ( (lplhsafterfix[*nactivelpcons] > - SCIPsdpiInfinity(sdpi)) &&
-                    ((lplhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->feastol) )
+                  ( (lplhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->feastol) )
                {
                   /* this bound is sharper than the original one */
                   SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
@@ -573,7 +573,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
                }
                /* check for the right-hand-side */
                if ( (lprhsafterfix[*nactivelpcons] < SCIPsdpiInfinity(sdpi)) &&
-                    ((lprhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] + sdpi->feastol) )
+                  ( (lprhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] + sdpi->feastol) )
                {
                   /* this bound is sharper than the original one */
                   SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
@@ -587,6 +587,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
                      SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
                         nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
                   }
+
                   /* check if this makes the problem infeasible */
                   if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
                   {
@@ -601,7 +602,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
             {
                /* check for the left-hand-side */
                if ( (lplhsafterfix[*nactivelpcons] < SCIPsdpiInfinity(sdpi)) &&
-                    ((lplhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] + sdpi->feastol) )
+                  ( (lplhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] + sdpi->feastol) )
                {
                   /* this bound is sharper than the original one */
                   SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
@@ -615,6 +616,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
                      SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
                         nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
                   }
+
                   /* check if this makes the problem infeasible */
                   if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
                   {
@@ -626,7 +628,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
                }
                /* check for the right-hand-side */
                if ( (lprhsafterfix[*nactivelpcons] > - SCIPsdpiInfinity(sdpi)) &&
-                    ((lprhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->feastol) )
+                  ( (lprhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->feastol) )
                {
                   /* this bound is sharper than the original one */
                   SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
@@ -640,6 +642,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
                      SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
                         nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
                   }
+
                   /* check if this makes the problem infeasible */
                   if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
                   {
@@ -685,6 +688,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
          lprhsafterfix[*nactivelpcons] -= sdpi->lpval[i] * sdpi->lb[sdpi->lpcol[i]];
       }
    }
+
    /* for the last row of the lp we have to check if it is active, as in the above for-queue we only do so when the next row start */
    if ( rownactivevars[lastrow] > 1 )
       (*nactivelpcons)++;
@@ -703,7 +707,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
       {
          /* check for the left-hand-side */
          if ( (lplhsafterfix[*nactivelpcons] > SCIPsdpiInfinity(sdpi)) &&
-              ((lplhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->feastol) )
+            ( (lplhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->feastol) )
          {
             /* this bound is sharper than the original one */
             SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
@@ -717,6 +721,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
                SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
                   nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
             }
+
             /* check if this makes the problem infeasible */
             if ( sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol )
             {
@@ -727,7 +732,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
          }
          /* check for the right-hand-side */
          if ( (lprhsafterfix[*nactivelpcons] < SCIPsdpiInfinity(sdpi)) &&
-              ((lprhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] - sdpi->feastol) )
+            ( (lprhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] - sdpi->feastol) )
          {
             /* this bound is sharper than the original one */
             SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
@@ -741,6 +746,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
                SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
                   nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
             }
+
             /* check if this makes the problem infeasible */
             if ( sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol )
             {
@@ -754,7 +760,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
       {
          /* check for the left-hand-side */
          if ( (lplhsafterfix[*nactivelpcons] < SCIPsdpiInfinity(sdpi)) &&
-              ((lplhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] + sdpi->feastol) )
+            ( (lplhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] + sdpi->feastol) )
          {
             /* this bound is sharper than the original one */
             SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
@@ -768,6 +774,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
                SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
                   nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
             }
+
             /* check if this makes the problem infeasible */
             if ( sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol )
             {
@@ -778,7 +785,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
          }
          /* check for the right-hand-side */
          if ( (lprhsafterfix[*nactivelpcons] > SCIPsdpiInfinity(sdpi)) &&
-              ((lprhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->feastol) )
+            ( (lprhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->feastol) )
          {
             /* this bound is sharper than the original one */
             SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
@@ -792,6 +799,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
                SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
                   nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
             }
+
             /* check if this makes the problem infeasible */
             if ( sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol )
             {
@@ -1985,30 +1993,30 @@ SCIP_RETCODE SCIPsdpiSolve(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP, set this to
-                                               *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
+                                              *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Bool             enforceslatercheck, /**< always check for Slater condition in case the problem could not be solved and printf the solution
-                                                  of this check */
+                                              *   of this check */
    SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP) */
    )
 {
-   int block;
-   int sdpconstnnonz;
-   int* sdpconstnblocknonz;
-   int** sdpconstrow;
-   int** sdpconstcol;
-   SCIP_Real** sdpconstval;
-   int** indchanges;
-   int* nremovedinds;
+   int* sdpconstnblocknonz = NULL;
+   int** sdpconstrow = NULL;
+   int** sdpconstcol = NULL;
+   SCIP_Real** sdpconstval = NULL;
+   int** indchanges = NULL;
+   int* nremovedinds = NULL;
    SCIP_Real* lplhsafterfix;
    SCIP_Real* lprhsafterfix;
-   int* rowsnactivevars;
+   SCIP_Real solvertimelimit;
    SCIP_Bool fixingfound;
-   int nactivelpcons;
-   int* blockindchanges;
-   int nremovedblocks;
    clock_t starttime;
    clock_t currenttime;
-   SCIP_Real solvertimelimit;
+   int* rowsnactivevars;
+   int* blockindchanges;
+   int sdpconstnnonz;
+   int nactivelpcons;
+   int nremovedblocks = 0;
+   int block;
 
    assert( sdpi != NULL );
 
@@ -2016,16 +2024,9 @@ SCIP_RETCODE SCIPsdpiSolve(
 
    SCIPdebugMessage("Forwarding SDP %d to solver!\n", sdpi->sdpid);
 
-   sdpconstnblocknonz = NULL;
-   sdpconstrow = NULL;
-   sdpconstcol = NULL;
-   sdpconstval = NULL;
-   indchanges = NULL;
-   nremovedinds = NULL;
-   nremovedblocks = 0;
-
    sdpi->penalty = FALSE;
    sdpi->bestbound = -SCIPsdpiSolverInfinity(sdpi->sdpisolver);
+   sdpi->solved = FALSE;
 
    /* allocate memory for computing the constant matrix after fixings and finding empty rows and columns, this is as much as might possibly be
     * needed, this will be shrinked again before solving */
@@ -2127,8 +2128,12 @@ SCIP_RETCODE SCIPsdpiSolve(
          /* first check the slater condition for the dual problem */
 
          /* compute the timit limit to set for the solver */
-         currenttime = clock();
-         solvertimelimit = timelimit - ((double)(currenttime - starttime) / (double) CLOCKS_PER_SEC);
+         solvertimelimit = timelimit;
+         if ( ! SCIPsdpiIsInfinity(sdpi, solvertimelimit) )
+         {
+            currenttime = clock();
+            solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;
+         }
 
          /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if we are
           * still feasible for r > feastol, then we have an interior point with smallest eigenvalue > feastol, otherwise the Slater condition is harmed */
@@ -2140,8 +2145,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit,
                &origfeas, &penaltybound) );
 
-         if ( (! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver)) && (! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver)) &&
-               (! SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver)) )
+         if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) )
          {
             printf("Unable to check Slater condition for dual problem.\n");
          }
@@ -2301,8 +2305,12 @@ SCIP_RETCODE SCIPsdpiSolve(
          else
          {
             /* compute the timit limit to set for the solver */
-            currenttime = clock();
-            solvertimelimit = timelimit - ((double)(currenttime - starttime) / (double) CLOCKS_PER_SEC);
+            solvertimelimit = timelimit;
+            if ( ! SCIPsdpiIsInfinity(sdpi, solvertimelimit) )
+            {
+               currenttime = clock();
+               solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;
+            }
 
             /* solve the problem to check slater condition for primal of original problem */
             SCIP_CALL( SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, slaterlb, slaterub,
@@ -2312,8 +2320,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                   slaterrowsnactivevars, sdpi->lpnnonz + sdpi->nvars - nremovedslaterlpinds, slaterlprow, slaterlpcol, slaterlpval, start,
                   SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit) );
 
-            if ( (! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver)) && (! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver)
-                  && (! SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver))) )
+            if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) && ! SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver) )
                printf("Unable to check Slater condition for primal problem, could not solve auxilliary problem.\n");
             else
             {
@@ -2355,8 +2362,12 @@ SCIP_RETCODE SCIPsdpiSolve(
       }
 
       /* compute the timit limit to set for the solver */
-      currenttime = clock();
-      solvertimelimit = timelimit - ((double)(currenttime - starttime) / (double) CLOCKS_PER_SEC);
+      solvertimelimit = timelimit;
+      if ( ! SCIPsdpiIsInfinity(sdpi, solvertimelimit) )
+      {
+         currenttime = clock();
+         solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;
+      }
 
       /* try to solve the problem */
       SCIP_CALL( SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
@@ -2383,6 +2394,7 @@ SCIP_RETCODE SCIPsdpiSolve(
          penaltybound = TRUE;
 
          penaltyparam = sdpi->penaltyparam;
+
          /* we compute the factor to increase with as n-th root of the total increase until the maximum, where n is the number of iterations */
          penaltyparamfact = pow((sdpi->maxpenaltyparam / sdpi->penaltyparam), 1.0/NINCREASESGAMMA);
          epsilon = sdpi->epsilon;
@@ -2395,21 +2407,25 @@ SCIP_RETCODE SCIPsdpiSolve(
             SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penaltyparameter %f\n", sdpi->sdpid, penaltyparam);
 
             /* compute the timit limit to set for the solver */
-            currenttime = clock();
-            solvertimelimit = timelimit - ((double)(currenttime - starttime) / (double) CLOCKS_PER_SEC);
+            solvertimelimit = timelimit;
+            if ( ! SCIPsdpiIsInfinity(sdpi, solvertimelimit) )
+            {
+               currenttime = clock();
+               solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;
+            }
 
             SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, penaltyparam, TRUE, TRUE, sdpi->nvars, sdpi->obj,
-                       sdpi->lb, sdpi->ub, sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
-                       sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
-                       sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-                       sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-                       rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, startsettings, solvertimelimit, &feasorig, &penaltybound) );
+                  sdpi->lb, sdpi->ub, sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
+                  sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
+                  sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
+                  sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
+                  rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, startsettings, solvertimelimit, &feasorig, &penaltybound) );
 
             /* If the solver did not converge, we increase the penalty parameter */
-            if ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver))
+            if ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) )
             {
                penaltyparam *= penaltyparamfact;
-               SCIPdebugMessage("Solver did not converge even with penalty formulation, increasing penaltyparameter\n");
+               SCIPdebugMessage("Solver did not converge even with penalty formulation, increasing penaltyparameter.\n");
                continue;
             }
 
@@ -2443,7 +2459,6 @@ SCIP_RETCODE SCIPsdpiSolve(
             SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, SCIP_SDPPAR_EPSILON, sdpi->epsilon) );
          }
 
-
          /* check if we were able to solve the problem in the end */
          if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && feasorig )
          {
@@ -2473,8 +2488,12 @@ SCIP_RETCODE SCIPsdpiSolve(
             SCIP_Bool origfeas;
 
             /* compute the timit limit to set for the solver */
-            currenttime = clock();
-            solvertimelimit = timelimit - ((double)(currenttime - starttime) / (double) CLOCKS_PER_SEC);
+            solvertimelimit = timelimit;
+            if ( ! SCIPsdpiIsInfinity(sdpi, solvertimelimit) )
+            {
+               currenttime = clock();
+               solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;
+            }
 
             /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if we are
              * still feasible for r < feastol, then we have an interior point with smallest eigenvalue > feastol, otherwise the Slater condition is harmed */
