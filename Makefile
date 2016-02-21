@@ -99,20 +99,25 @@ SDPICSRC	=
 SDPICCSRC	=
 SDPICCOBJ	=
 
+
+#-----------------------------------------------------------------------------
+# DSDP solver
 SDPIOPTIONS	+=	dsdp
 ifeq ($(SDPS),dsdp)
 SDPILIB		= 	-L$(SCIPSDPLIBDIR) -ldsdp -llapack -lblas
 SDPIINC		= 	-I$(SCIPSDPLIBDIR)/dsdpinc
 SDPICSRC 	= 	src/sdpi/sdpisolver_dsdp.c \
-					src/sdpi/lapack_dsdp.c
+			src/sdpi/lapack_dsdp.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_dsdp.o \
-				$(OBJDIR)/sdpi/lapack_dsdp.o
+			$(OBJDIR)/sdpi/lapack_dsdp.o
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/dsdpinc
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libdsdp.$(STATICLIBEXT)
 SDPIINSTMSG	=	"  -> \"dsdpinc\" is the path to the DSDP \"include\" directory, e.g., \"<DSDP-path>/include\".\n"
 SDPIINSTMSG	+=	" -> \"libdsdp.*\" is the path to the DSDP library, e.g., \"<DSDP-path>/lib/libdsdp.$(STATICLIBEXT)\""
 endif
 
+#-----------------------------------------------------------------------------
+# SDPA solver
 SDPIOPTIONS	+=	sdpa
 ifeq ($(SDPS),sdpa)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/sdpainc
@@ -124,26 +129,28 @@ SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mumpslibseq
 ifeq ($(OPENBLAS),true)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libopenblas.$(SHAREDLIBEXT).0
 endif
-SDPIINSTMSG	=	" -> \"sdpainc\" is the path to the SDPA \"include\" directory, e.g., \"<SDPA-path>/include\".\n"
+SDPIINSTMSG	=	"  -> \"sdpainc\" is the path to the SDPA \"include\" directory, e.g., \"<SDPA-path>/include\".\n"
 SDPIINSTMSG	+=	" -> \"libsdpa.*\" is the path to the SDPA library, e.g., \"<SDPA-path>/lib/libsdpa.a\".\n"
 SDPIINSTMSG	+=	" -> \"mumpsinc\" is the path to the Mumps \"include\" directory, e.g., \"<SDPA-path>/mumps/build/include\".\n"
 SDPIINSTMSG	+=	" -> \"mumpslib\" is the path to the Mumps \"lib\" directory, e.g., \"<SDPA-path>/mumps/build/lib\".\n"
 SDPIINSTMSG	+=	" -> \"mumpslibseq\" is the path to the Mumps \"libseq\" directory, e.g., \"<SDPA-path>/mumps/build/libseq\".\n"
 ifeq ($(OPENBLAS),true)
 SDPIINSTMSG	+=	" -> \"libopenblas.$(SHAREDLIBEXT).0\" is the openblas library.\n"
-SDPILIB		=      -L$(SCIPSDPLIBDIR) -lsdpa -L$(SCIPSDPLIBDIR)/mumpslib -ldmumps -lmumps_common -lpord -L$(SCIPSDPLIBDIR)/mumpslibseq -lmpiseq \
+SDPILIB		=      	-L$(SCIPSDPLIBDIR) -lsdpa -L$(SCIPSDPLIBDIR)/mumpslib -ldmumps -lmumps_common -lpord -L$(SCIPSDPLIBDIR)/mumpslibseq -lmpiseq \
 			$(SCIPSDPLIBDIR)/libopenblas.$(SHAREDLIBEXT).0 -Wl,-rpath,$(SCIPSDPDIR)/$(SCIPSDPLIBDIR) \
 			-lgfortran -L/lib/x86_64-linux-gnu -lpthread -lgomp
 else
-SDPILIB		=      -L$(SCIPSDPLIBDIR) -lsdpa -L$(SCIPSDPLIBDIR)/mumpslip -ldmumps -lmumps_common -lpord -L$(SCIPSDPLIBDIR)/mumpslibseq -lmpiseq \
+SDPILIB		=      	-L$(SCIPSDPLIBDIR) -lsdpa -L$(SCIPSDPLIBDIR)/mumpslip -ldmumps -lmumps_common -lpord -L$(SCIPSDPLIBDIR)/mumpslibseq -lmpiseq \
 			-lgfortran -llapack -lblas
 endif
-SDPIINC		=      -I$(SCIPSDPLIBDIR)/sdpainc -I$(SCIPSDPLIBDIR)/mumpsinc
+SDPIINC		=      	-I$(SCIPSDPLIBDIR)/sdpainc -I$(SCIPSDPLIBDIR)/mumpsinc
 SDPICCSRC 	= 	src/sdpi/sdpisolver_sdpa.cpp
 SDPICSRC	=	src/sdpi/lapack_sdpa.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o $(OBJDIR)/sdpi/lapack_sdpa.o
 endif
 
+#-----------------------------------------------------------------------------
+# no solver
 SDPIOPTIONS	+=	none
 ifeq ($(SDPS),none)
 SDPILIB		= 	-L$(SCIPSDPLIBDIR) -ldsdp -llapack -lblas
@@ -252,7 +259,7 @@ lint:		$(MAINCSRC) $(MAINCCSRC) $(SDPICSRC) $(SDPICCSRC)
 doc:
 		cd doc; $(DOXY) $(MAINNAME).dxy
 
-$(MAINSHORTLINK):	$(MAINFILE)
+$(MAINSHORTLINK): $(MAINFILE)
 		@rm -f $@
 		cd $(dir $@) && ln -s $(notdir $(MAINFILE)) $(notdir $@)
 
