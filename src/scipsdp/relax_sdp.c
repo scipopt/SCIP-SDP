@@ -607,7 +607,7 @@ SCIP_RETCODE calcRelax(
 
    /* find settings to use for this relaxation */
    if ( rootnode || (SCIPnodeGetDepth(SCIPgetCurrentNode(scip)) == relaxdata->settingsresetofs) ||
-      (relaxdata->settingsresetfreq > 0 && ((SCIPnodeGetDepth(SCIPgetCurrentNode(scip)) - relaxdata->settingsresetofs) % relaxdata->settingsresetfreq == 0)) )
+      ( relaxdata->settingsresetfreq > 0 && ((SCIPnodeGetDepth(SCIPgetCurrentNode(scip)) - relaxdata->settingsresetofs) % relaxdata->settingsresetfreq == 0)) )
    {
       startsetting = SCIP_SDPSOLVERSETTING_UNSOLVED; /* in the root node we have no information, at each multiple of resetfreq we reset */
    }
@@ -636,7 +636,15 @@ SCIP_RETCODE calcRelax(
 
    /* set time limit */
    SCIP_CALL( SCIPgetRealParam(scip, "limits/time", &timelimit) );
-   timelimit -= SCIPgetSolvingTime(scip);
+   if ( ! SCIPisInfinity(scip, timelimit) )
+   {
+      timelimit -= SCIPgetSolvingTime(scip);
+      if ( timelimit <= 0.0 )
+      {
+         *result = SCIP_SUSPENDED;
+         return SCIP_OKAY;
+      }
+   }
 
    /* solve the problem */
    SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, startsetting, rootnode, timelimit) );
