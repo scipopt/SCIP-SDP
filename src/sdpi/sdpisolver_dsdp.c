@@ -619,7 +619,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if ( timelimit <= 0.0 )
    {
       sdpisolver->timelimit = TRUE;
-      sdpi->solver->solved = FALSE;
+      sdpisolver->solved = FALSE;
       return SCIP_OKAY;
    }
 
