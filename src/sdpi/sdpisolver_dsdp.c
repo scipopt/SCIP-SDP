@@ -257,10 +257,10 @@ int checkTimeLimitDSDP(
 
    timings = (Timings*) ctx;
 
-   startseconds = (double) (timings->starttime).tv_sec + ((double) (timings->starttime).tv_usec / 1e6);
+   startseconds = (SCIP_Real) (timings->starttime).tv_sec + (SCIP_Real) (timings->starttime).tv_usec / 1e6;
 
    TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );
-   currentseconds = (double) currenttime.tv_sec + ((double) currenttime.tv_usec / 1e6);
+   currentseconds = (SCIP_Real) currenttime.tv_sec + (SCIP_Real) currenttime.tv_usec / 1e6;
 
    elapsedtime = currentseconds - startseconds;
 
@@ -268,7 +268,7 @@ int checkTimeLimitDSDP(
    {
       DSDP_CALL( DSDPSetConvergenceFlag(dsdp, DSDP_USER_TERMINATION) );
       timings->stopped = TRUE;
-      SCIPdebugMessage("Time limit reached! Stopping DSDP \n");
+      SCIPdebugMessage("Time limit reached! Stopping DSDP.\n");
    }
 
    return 0;
@@ -616,6 +616,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( nlpcons == 0 || lpcol != NULL );
    assert( nlpcons == 0 || lpval != NULL );
 
+   if ( timelimit <= 0.0 )
+   {
+      sdpisolver->timelimit = TRUE;
+      sdpi->solver->solved = FALSE;
+      return SCIP_OKAY;
+   }
+
    /* start the timing */
    TIMEOFDAY_CALL( gettimeofday(&(timings.starttime), NULL) );
    timings.timelimit = timelimit;
@@ -701,8 +708,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    DSDP_CALLM( DSDPCreateBCone(sdpisolver->dsdp, &(sdpisolver->bcone)) );
 
 #ifdef SCIP_MORE_DEBUG
-         printf("setting objective values for SDP %d:\n", sdpisolver->sdpcounter);
+   printf("setting objective values for SDP %d:\n", sdpisolver->sdpcounter);
 #endif
+
    for (i = 0; i < sdpisolver->nactivevars; i++)
    {
       if ( withobj )
@@ -717,11 +725,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          DSDP_CALL( DSDPSetDualObjective(sdpisolver->dsdp, i+1, 0.0) );
       }
+
       if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, lb[sdpisolver->dsdptoinputmapper[i]]) )
       {
          /* insert lower bound, DSDP counts from 1 to n instead of 0 to n-1 */
          DSDP_CALL( BConeSetLowerBound(sdpisolver->bcone, i+1, lb[sdpisolver->dsdptoinputmapper[i]]) );
       }
+
       if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, ub[sdpisolver->dsdptoinputmapper[i]]) )
       {
          /* insert upper bound, DSDP counts from 1 to n instead of 0 to n-1 */
@@ -734,7 +744,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    {
       DSDP_CALL( DSDPSetDualObjective(sdpisolver->dsdp, sdpisolver->nactivevars + 1, -1.0 * penaltyparam) );
 #ifdef SCIP_MORE_DEBUG
-         printf("slack variable r: %f, ", penaltyparam);
+      printf("slack variable r: %f, ", penaltyparam);
 #endif
    }
 
@@ -773,9 +783,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          /* we need to compute the total number of nonzeros for the slack variable r, which equals the total number of diagonal entries */
          for (block = 0; block < nsdpblocks; block++)
-         {
             nrnonz += sdpblocksizes[block] - nremovedinds[block];
-         }
          assert( nrnonz >= 0 );
 
          /* indices given to DSDP, for this the elements in the lower triangular part of the matrix are labeled from 0 to n*(n+1)/2 -1 */
@@ -827,7 +835,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                   ind++;
                }
 
-               /* sort the arrays for this Matrix (by non decreasing indices) as this might help the solving time of DSDP */
+               /* sort the arrays for this matrix (by non decreasing indices) as this might help the solving time of DSDP */
                SCIPsortIntReal(dsdpind + startind, dsdpval + startind, sdpnblockvarnonz[block][blockvar]);
 
                assert( blockindchanges[block] > -1 ); /* we shouldn't insert into blocks we removed */
@@ -839,6 +847,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             }
          }
       }
+
       if ( penaltyparam > sdpisolver->epsilon && (! rbound) )
       {
          startind = ind;
@@ -950,6 +959,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
            }
            else
               rowmapper[2*i] = -1; /*lint !e679*/
+
            if ( lprhs[newpos] < SCIPsdpiSolverInfinity(sdpisolver) )
            {
               rowmapper[2*i + 1] = pos; /*lint !e679*/
@@ -982,6 +992,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdplpbegcol, sdpisolver->nactivevars + 2) ); /*lint !e776*/
       }
+
       /* dsdplprow saves the row indices of the LP for DSDP */
       /* worst-case length is 2*lpnnonz + nlpineqs, because left- and right-hand-sides are also included in the vectorand we might have to duplicate the
        * non-zeros when splitting the ranged rows, this will be shortened after the exact length after fixings is known, in case we have an objective limit,
@@ -1113,6 +1124,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             }
             nextcol = j;
          }
+
          /* add the nonzero, if it isn't fixed and the row isn't to be deleted (because it is only a variable bound) */
          if ( ! isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]]) )
          {
@@ -1250,7 +1262,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* start the solving process */
    DSDP_CALLM( DSDPSetup(sdpisolver->dsdp) );
-   DSDP_CALLM( DSDPSetMonitor(sdpisolver->dsdp, checkTimeLimitDSDP, (void*) &timings) );
+   if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, timelimit) )
+   {
+      DSDP_CALLM( DSDPSetMonitor(sdpisolver->dsdp, checkTimeLimitDSDP, (void*) &timings) );
+   }
    DSDP_CALL( DSDPSolve(sdpisolver->dsdp) );
 
    /* check if solving was stopped because of the time limit */
@@ -1298,7 +1313,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
 #ifdef SCIP_DEBUG
-   DSDP_CALL(DSDPStopReason(sdpisolver->dsdp, &reason));
+   DSDP_CALL( DSDPStopReason(sdpisolver->dsdp, &reason) );
 
    switch ( reason )
    {
@@ -1362,7 +1377,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          {
 #endif
             if ( penaltybound != NULL )
-            {  SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", rval);
+            {
+               SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", rval);
 
                /* get the trace of X to compare it with the penalty parameter */
                DSDP_CALL( DSDPGetTraceX(sdpisolver->dsdp, &trace) );
@@ -1696,7 +1712,7 @@ SCIP_Bool SCIPsdpiSolverIsIterlimExc(
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
-   DSDP_CALL_BOOL(DSDPStopReason(sdpisolver->dsdp, &reason));
+   DSDP_CALL_BOOL( DSDPStopReason(sdpisolver->dsdp, &reason) );
 
    if ( reason == DSDP_MAX_IT )
       return TRUE;
