@@ -122,7 +122,6 @@ do
         SCIP_INSTANCEPATH=$SCIPPATH
         for IPATH in ${POSSIBLEPATHS[@]}
         do
-            echo $IPATH
             if test "$IPATH" = "DONE"
             then
                 echo "input file $INSTANCE not found!"
@@ -132,7 +131,6 @@ do
                 SCIP_INSTANCEPATH=$IPATH
                 break
             fi
-
         done
         # the cluster queue has an upper bound of 2000 jobs; if this limit is
         # reached the submitted jobs are dumped; to avoid that we check the total
@@ -161,6 +159,9 @@ do
             # call tmp file configuration for SCIP
             . ./configuration_tmpfile_setup_scip.sh $INSTANCE $SCIPPATH $TMPFILE $SETNAME $SETFILE $THREADS $SETCUTOFF $FEASTOL $TIMELIMIT $MEMLIMIT $NODELIMIT $LPS $DISPFREQ $OPTCOMMAND $SOLUFILE
 
+	    # determine number of threads
+	    export OMP_NUM_THREADS=$THREADS
+
             # check queue type
             if test  "$QUEUETYPE" = "srun"
             then
@@ -174,8 +175,13 @@ do
                 export HARDMEMLIMIT
                 sbatch --job-name=SCIP$SHORTPROBNAME --mem=$HARDMEMLIMIT -p $CLUSTERQUEUE -A $ACCOUNT $NICE --time=${HARDTIMELIMIT} ${EXCLUSIVE} --output=/dev/null run.sh
             else
-                # -V to copy all environment variables
-                qsub -l walltime=$HARDTIMELIMIT -l mem=$HARDMEMLIMIT -l nodes=1:ppn=$PPN -N SCIP$SHORTPROBNAME -v SOLVERPATH=$SCIPPATH,EXECNAME=$SCIPPATH/../$BINNAME,BASENAME=$FILENAME,FILENAME=$INSTANCE,CLIENTTMPDIR=$CLIENTTMPDIR -V -q $CLUSTERQUEUE -o /dev/null -e /dev/null run.sh
+                export HARDTIMELIMIT
+                export HARDMEMLIMIT
+
+                # -V to copy all environment variables, pvmem does not seem to work
+                qsub -l cput=$HARDTIMELIMIT -l pcput=$HARDTIMELIMIT -l walltime=$HARDTIMELIMIT -l mem=$HARDMEMLIMIT -l vmem=$HARDMEMLIMIT -l nodes=1:ppn=$PPN \
+		    -N SCIP$SHORTPROBNAME -v SOLVERPATH=$SCIPPATH,EXECNAME=$SCIPPATH/../$BINNAME,BASENAME=$FILENAME,FILENAME=$INSTANCE,CLIENTTMPDIR=$CLIENTTMPDIR \
+		    -V -q $CLUSTERQUEUE -o /dev/null -e /dev/null run.sh
             fi
         done # end for SETNAME
         # after the first termination of the set loop, no file needs to be initialized anymore
