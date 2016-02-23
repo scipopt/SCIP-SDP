@@ -86,9 +86,6 @@ SCIP_RETCODE runSCIP(
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
 
-   /* disable subscips - for the meantime */
-   SCIP_CALL( SCIPsetSubscipsOff(scip, TRUE) );
-
    /* disable restarts - for the meantime */
    SCIP_CALL( SCIPsetIntParam(scip, "limits/restarts", 0) );
 
