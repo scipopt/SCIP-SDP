@@ -26,8 +26,9 @@ ERRFILE=$CLIENTTMPDIR/${USER}-tmpdir/$BASENAME.err
 TMPFILE=$SOLVERPATH/results/$BASENAME.tmp
 uname -a                            > $OUTFILE
 uname -a                            > $ERRFILE
-echo "hard time limit: $HARDTIMELIMIT">>$OUTFILE
-echo "hard mem limit: $HARDMEMLIMIT" >>$OUTFILE
+echo "hard time limit: "$HARDTIMELIMIT>>$OUTFILE
+echo "hard mem limit: "$HARDMEMLIMIT >>$OUTFILE
+echo "number of threads: "$OMP_NUM_THREADS >>$OUTFILE
 echo @01 $FILENAME ===========      >> $OUTFILE
 echo @01 $FILENAME ===========      >> $ERRFILE
 echo -----------------------------  >> $OUTFILE
