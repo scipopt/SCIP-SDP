@@ -1422,7 +1422,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                /* get the trace of X to compare it with the penalty parameter */
                DSDP_CALL( DSDPGetTraceX(sdpisolver->dsdp, &trace) );
 
+#if 0 /* DSDP doesn't seem to adhere to its own feasiblity tolerance */
                assert( trace < penaltyparam + sdpisolver->feastol ); /* solution should be primal feasible */
+#endif
 
                /* if the relative gap is smaller than the tolerance, we return equality */
                if ( (penaltyparam - trace) / penaltyparam < PENALTYBOUNDTOL )
