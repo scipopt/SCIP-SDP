@@ -2,3 +2,5 @@ branching/inference/priority = 5000000
 
 propagating/sdpredcost/freq = -1
 
+heuristics/crossover/freq = -1
+

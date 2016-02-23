@@ -6,4 +6,4 @@ propagating/sdpredcost/freq = -1
 
 heuristics/sdprand/freq = 10
 
-
+heuristics/crossover/freq = -1

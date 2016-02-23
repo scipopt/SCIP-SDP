@@ -6,3 +6,4 @@ branching/sdpinfobjective/priority = 5000000
 
 heuristics/sdprand/freq = 0
 
+heuristics/crossover/freq = -1
