@@ -50,7 +50,8 @@
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
 
-/* TODO: don't override old lb/ub when computing changes caused by fixed variables and LP-rows with single entries */
+/* TODO: don't override old lb/ub when computing changes caused by fixed variables and LP-rows with single entries
+ *       (works for SCIP-SDP as we completely reset lb/ub whenever changing the new problem) */
 
 
 /** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY */
@@ -113,7 +114,6 @@
                       while( FALSE )
 
 /* should the slater condition also be checked for the primal problem? (this in general doesnot work if variables are bounded both from above and below */
-#define SLATERCHECKPRIMAL           FALSE
 #define NINCREASESGAMMA             2        /**< How often will Gamma at most be increased if penalty formulation failed */
 #define MIN_EPSILON                 1e-10    /**< minimum epsilon for SDP solver if decreasing it for a penalty formulation */
 
@@ -2109,7 +2109,6 @@ SCIP_RETCODE SCIPsdpiSolve(
          SCIP_Real objval;
          SCIP_Bool origfeas;
          SCIP_Bool penaltybound;
-#if SLATERCHECKPRIMAL
          int* slaterlprow;
          int* slaterlpcol;
          SCIP_Real* slaterlpval;
@@ -2123,7 +2122,6 @@ SCIP_RETCODE SCIPsdpiSolve(
          SCIP_Real* slaterlb;
          SCIP_Real* slaterub;
          int slaternremovedvarbounds;
-#endif
 
          /* first check the slater condition for the dual problem */
 
@@ -2171,7 +2169,6 @@ SCIP_RETCODE SCIPsdpiSolve(
             }
          }
 
-#if SLATERCHECKPRIMAL
          /* check the slater condition also for the primal problem */
 
          /* As we do not want to give equality constraints to the solver by reformulating the primal problem as a dual problem, we instead
@@ -2358,7 +2355,6 @@ SCIP_RETCODE SCIPsdpiSolve(
          BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlpval, sdpi->lpnnonz + sdpi->nvars);
          BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlpcol, sdpi->lpnnonz + sdpi->nvars);
          BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlprow, sdpi->lpnnonz + sdpi->nvars);
-#endif
       }
 
       /* compute the timit limit to set for the solver */
