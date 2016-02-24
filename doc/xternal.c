@@ -67,13 +67,25 @@
  * <table>
  * <tr><td>relaxing/SDP/freq = 1</td> <td>set this to -1 and lp/solvefreq to 1 to solve LP relaxations with eigenvector cuts</td></tr>
  * <tr><td>propagating/sdpredcost/freq = 1</td> <td>set this to -1 to disable reduced cost fixing for SDPs</td></tr>
- * <tr><td>propagating/sdpredcost/advanced/forbins = TRUE</td> <td>should sdp reduced cost fixing be executed for binary variables?</tr>
- * <tr><td>propagating/sdpredcost/advanced/forintcons = TRUE</td> <td>should sdp reduced cost fixing be executed for integer and continuous variables?</tr>
+ * <tr><td>propagating/sdpredcost/forbins = TRUE</td> <td>should sdp reduced cost fixing be executed for binary variables?</tr>
+ * <tr><td>propagating/sdpredcost/forintcons = TRUE</td> <td>should sdp reduced cost fixing be executed for integer and continuous variables?</tr>
+ * <tr><td>propagating/obbt-sdp/tightcontboundsprobing = -1</td> <td>set this to 1 to enable SDP-OBBT</td></tr>
+ * <tr><td>propagating/obbt/tightcontboundsprobing = FALSE</td> <td>should continuous bounds be tightened during the probing mode?</tr>
+ * <tr><td>propagating/obbt/tightintboundsprobing = TRUE</td> <td>should integral bounds be tightened during the probing mode?</tr>
+ * <tr><td>heuristics/sdpfracdiving/freq = -1</td> <td>set this to >= 0 to enable a fractional diving heuristic for SDPs</td></tr>
+ * <tr><td>heuristics/sdprand/freq = 1</td> <td>set this to -1 0 to disable the randomized rounding heuristic</td></tr>
  * <tr><td>relaxing/SDP/sdpsolverepsilon = 0.0001</td> <td>sets the bound for the duality gap in the SDP-Solver</td></tr>
  * <tr><td>relaxing/SDP/sdpsolverfeastol = 0.00001</td> <td>feasibility tolerance for the SDP-Solver (should be less or equal to numerics/feastol)</td></tr>
  * <tr><td>relaxing/SDP/sdpinfo = FALSE</td> <td>should output of the SDP-Solver be printed to the console?</td></tr>
  * <tr><td>relaxing/SDP/objlimit = FALSE</td> <td>should an objective limit be given to the SDP-Solver?</td></tr>
- * <tr><td>relaxing/SDP/slatercheck = FALSE</td> <td>should the Slater condition for the dual problem be checked ahead of solving each SDP?</td></tr>
+ * <tr><td>relaxing/SDP/slatercheck = FALSE</td> <td>should the Slater condition for the primal and dual problem be checked ahead of solving each SDP?</td></tr>
+ * <tr><td>relaxing/SDP/lambdastar = -1</td> <td>the parameter lambda star used by SDPA to set the initial point , set this to a negative value to compute the parameter depending on the given problem</td></tr>
+ * <tr><td>relaxing/SDP/penaltyparam = -1</td> <td>the starting value of the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge, set this to a negative value to compute the parameter depending on the given problem</td></tr>
+ * <tr><td>relaxing/SDP/maxpenaltyparam = -1</td> <td>the maximum value of the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge, set this to a negative value to compute the parameter depending on the given problem</td></tr>
+ * <tr><td>relaxing/SDP/resolve = TRUE</td> <td>Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing)?</td></tr>
+ * <tr><td>relaxing/SDP/settingsresetfreq = -1</td> <td>frequency for resetting parameters in SDP solver and trying again with fastest settings (-1: never, 0: only at depth settingsresetofs)</td></tr>
+ * <tr><td>relaxing/SDP/settingsresetofs = 0</td> <td>frequency offset for resetting parameters in SDP solver and trying again with fastest settings</td></tr>
+ * <tr><td>relaxing/SDP/tightenvb = TRUE</td> <td>Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ?</td></tr>
  * <tr><td>branching/sdpobjective/coupledvars = FALSE</td> <td>if all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints?</td></tr>
  * <tr><td>branching/sdpobjective/singlecoupledvars = FALSE</td> <td>if all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints in which no other candidate appears?</td></tr>
  * <tr><td>branching/sdpinfobjective/coupledvars = FALSE</td> <td>if all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints?</td></tr>
