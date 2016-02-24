@@ -1,12 +1,12 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /*                                                                           */
-/*                  This file is part of the                                 */
-/*      SDP-Package for SCIP: a solving framework for                        */
-/*                            mixed-integer semidefinite programms           */
+/* This file is part of SCIPSDP - a solving framework for mixed-integer      */
+/* semidefinite programms based on SCIP.                                     */
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2015 Discrete Optimization, TU Darmstadt               */
+/*               2014-2016 Discrete Optimization, TU Darmstadt               */
+/*                                                                           */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or             */
 /* modify it under the terms of the GNU Lesser General Public License        */
@@ -22,6 +22,12 @@
 /* along with this program; if not, write to the Free Software               */
 /* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.*/
 /*                                                                           */
+/*                                                                           */
+/* Based on SCIP - Solving Constraint Integer Programs                       */
+/* Copyright (C) 2002-2016 Zuse Institute Berlin                             */
+/* SCIP is distributed under the terms of the SCIP Academic Licence,         */
+/* see file COPYING in the SCIP distribution.                                */
+/*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   xternal.c
@@ -33,7 +39,7 @@
 
 /**@mainpage Overview
  *
- * @version 2.0.0
+ * @version 2.1.0
  * @author Tristan Gally, Marc Pfetsch; Sonja Mars, Lars Schewe
  * @date 2011-2015
  *
@@ -46,16 +52,13 @@
  * - DSDP
  * - SDPA
  *
- * Please note that the interface to SDPA is still in beta state. It works well for some instances and is faster than DSDP
- * for those, but currently fails for others because of numerical problems, as some parameters need further tuning.
- *
  * The solution process of interior-point methods for SDPs is highly dependent on the Slater condition. One of the main
  * purposes of the code is ensuring that the slater condition is not harmed by fixing variables in the branch-and-bound
  * process. However in some cases the combination of variable fixings and specific linear or semidefinite constraints might
  * still lead to relaxations for which the Slater condition no longer holds. In this case the SDP-solvers may be unable to
  * solve the relaxations or even return wrong results, which cannot be compensated. For this purpose there is the 
- * possibility to check the Slater condition for the dual problem (which still does not guarantee it for the primal)
- * before the solution of each SDP by setting a SCIP parameter, for details see the parameters tab.
+ * possibility to check the Slater condition for the primal and dual problem before the solution of each SDP by setting a 
+ * SCIP parameter, for details see the parameters tab.
  */
 
 /** @page PARAMETERS Additional Parameters

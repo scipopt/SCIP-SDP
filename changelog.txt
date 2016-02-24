@@ -7,11 +7,15 @@ fixed bugs:
 - changed default lambda star parameter in SDPA to prevent aborts for infeasible subproblems
 - fixed bug in reader that resulted in wrong computation of LP-row-indices when using multiple LP-blocks and could lead
   to segmenation faults
+- parameters for SDPA are now set before inserting the problem so that they are also used for computing the initial point
+- infeasibility-status for presolving was not correctly reset after changing bounds
+- check again for all variables fixed after local presolving, problems without variables may not be given to SDPA
+- fixed some wrong asserts that used epsilon instead of feasibility tolerance
 
 features:
 - added diving heuristic for SDPs
-- added optimization-based bound tightening for SDPs
-- added possibility to also check primal slater condition (for some specially structured problems)
+- added optimization-based bound tightening for SDPs (disabled by default)
+- added possibility to also check primal slater condition
 
 performance improvements:
 - in case of numerical problems, child nodes are no longer tried to solve with fast settings in SDPA, but instead with
@@ -33,16 +37,6 @@ core:
   increasing the penalty parameter or decreasing the feasibility tolerance, also the best lower bound computed by the
   penalty formulation is now used in SCIP even if the corresponding solution is not feasible in the original
   formulation
-
-
-SCIP-SDP version 2.0.1
-==================
-
-fixed bugs:
-- parameters for SDPA are now set before inserting the problem so that they are also used for computing the initial point
-- infeasibility-status for presolving was not correctly reset after changing bounds
-- check again for all variables fixed after local presolving, problems without variables may not be given to SDPA
-- fixed some wrong asserts that used epsilon instead of feasibility tolerance
 
 
 SCIP-SDP version 2.0.0
