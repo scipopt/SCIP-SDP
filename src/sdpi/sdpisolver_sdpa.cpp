@@ -1040,7 +1040,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* insert variable bounds, these are also added as LP-constraints and therefore diagonal entries of the LP block
     * if we work with the penalty formulation, we get an extra entry for r >= 0, but this we will add afterwards */
-   for (i = 0; i < ((penaltyparam < sdpisolver->epsilon) ? sdpisolver->nvarbounds : sdpisolver->nvarbounds - 1); i++)
+   for (i = 0; i < ((penaltyparam < sdpisolver->epsilon) || (! rbound) ? sdpisolver->nvarbounds : sdpisolver->nvarbounds - 1); i++)
    {
       assert( 0 < abs(sdpisolver->varboundpos[i]) && abs(sdpisolver->varboundpos[i] <= sdpisolver->nactivevars) ); /* the indices are already those for SDPA */
 
