@@ -6,6 +6,7 @@
       <li><a href="#bugs">Bugs</a></li>
       <li><a href="#developers">Developers</a></li>
       <li><a href="#download">Download</a></li>
+      <li><a href="#cooperation">Cooperation</a></li>
    </ul>
 </div>
 

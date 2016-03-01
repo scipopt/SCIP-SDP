@@ -49,6 +49,10 @@
                <h1 id="download">Download</h1>
                <?php include('download.inc'); ?>
             </div>
+            <div>
+               <h1 id="cooperation">Cooperation</h1>
+               <?php include('cooperation.inc'); ?>
+            </div>
          </div>
          <!-- end col-md-9 -->
       </div>
