@@ -2385,149 +2385,182 @@ SCIP_RETCODE SCIPsdpiSolve(
          SCIP_Bool feasorig;
          SCIP_Bool penaltybound;
          SCIP_Real objbound;
+         SCIP_Real objval;
 
          feasorig = FALSE;
          penaltybound = TRUE;
 
-         penaltyparam = sdpi->penaltyparam;
+         /* first check feasibility using the penalty approach */
 
-         /* we compute the factor to increase with as n-th root of the total increase until the maximum, where n is the number of iterations */
-         penaltyparamfact = pow((sdpi->maxpenaltyparam / sdpi->penaltyparam), 1.0/NINCREASESGAMMA);
-         epsilon = sdpi->epsilon;
-         epsilonfact = pow((MIN_EPSILON / sdpi->epsilon), 1.0/NINCREASESGAMMA);
-
-         /* increase penalty-param and decrease feasibility tolerance until we find a feasible solution or reach the final bound for either one of them */
-         while ( ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) || ! feasorig ) &&
-               ( penaltyparam < sdpi->maxpenaltyparam + sdpi->epsilon ) && ( epsilon > 0.99 * MIN_EPSILON ) && ( ! SCIPsdpiSolverIsTimelimExc(sdpi->sdpisolver) ))
+         /* compute the timit limit to set for the solver */
+         solvertimelimit = timelimit;
+         if ( ! SCIPsdpiIsInfinity(sdpi, solvertimelimit) )
          {
-            SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penaltyparameter %f\n", sdpi->sdpid, penaltyparam);
-
-            /* compute the timit limit to set for the solver */
-            solvertimelimit = timelimit;
-            if ( ! SCIPsdpiIsInfinity(sdpi, solvertimelimit) )
-            {
-               currenttime = clock();
-               solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;
-            }
-
-            SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, penaltyparam, TRUE, TRUE, sdpi->nvars, sdpi->obj,
-                  sdpi->lb, sdpi->ub, sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
-                  sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
-                  sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-                  sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-                  rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, startsettings, solvertimelimit, &feasorig, &penaltybound) );
-
-            /* If the solver did not converge, we increase the penalty parameter */
-            if ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) )
-            {
-               penaltyparam *= penaltyparamfact;
-               SCIPdebugMessage("Solver did not converge even with penalty formulation, increasing penaltyparameter.\n");
-               continue;
-            }
-
-            /* if we succeeded to solve the problem, update the bound */
-            SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objbound) );
-            if ( objbound > sdpi->bestbound + sdpi->epsilon )
-               sdpi->bestbound = objbound;
-
-            /* If we don't get a feasible solution to our original problem we have to update either Gamma (if the penalty bound was active
-             * in the primal problem) or epsilon (otherwise) */
-            if ( ! feasorig )
-            {
-               if ( penaltybound )
-               {
-                  penaltyparam *= penaltyparamfact;
-                  SCIPdebugMessage("Penalty formulation produced a result which is infeasible for the original problem, increasing penaltyparameter\n");
-               }
-               else
-               {
-                  epsilon *= epsilonfact;
-                  SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, SCIP_SDPPAR_EPSILON, epsilon) );
-                  SCIPdebugMessage("Penalty formulation produced a result which is infeasible for the original problem, even though primal penalty "
-                        "bound was not reached, decreasing epsilon value for duality gap in SDP solver\n");
-               }
-            }
+            currenttime = clock();
+            solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;
          }
 
-         /* reset the feasibility tolerance in the SDP solver */
-         if ( epsilon > sdpi->epsilon )
-         {
-            SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, SCIP_SDPPAR_EPSILON, sdpi->epsilon) );
-         }
+         /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if
+          * the optimal objective is bigger than feastol, then we know that the problem is infeasible */
+         SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
+               sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
+               sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
+               sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
+               sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
+               rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit,
+               &feasorig, &penaltybound) );
 
-         /* check if we were able to solve the problem in the end */
-         if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && feasorig )
+         /* get objective value */
+         SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval);
+
+         if ( (SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && objval > sdpi->feastol) || SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver))
          {
+            SCIPdebugMessage("SDP %d found infeasible using penalty formulation, maximum of smallest eigenvalue is %f.\n", sdpi->sdpid, -1.0 * objval);
             sdpi->penalty = TRUE;
-            sdpi->solved = TRUE;
-         }
-#if 0 /* we don't really know if it is infeasible or just ill-posed (no KKT-point) */
-         else if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && ! feasorig )
-         {
-            SCIPdebugMessage("Problem was found to be infeasible using a penalty formulation \n");
             sdpi->infeasible = TRUE;
-            sdpi->penalty = TRUE;
-            sdpi->solved = TRUE;
          }
-#endif
          else
          {
-            SCIPdebugMessage("SDP-Solver could not solve the problem even after using a penalty formulation \n");
-            sdpi->solved = FALSE;
-            sdpi->penalty = TRUE;
-         }
 
-         /* if we still didn't succeed and enforceslatercheck was set, we finally test for the Slater condition to give a reason for failure */
-         if ( sdpi->solved == FALSE && enforceslatercheck)
-         {
-            SCIP_Real objval;
-            SCIP_Bool origfeas;
+            penaltyparam = sdpi->penaltyparam;
 
-            /* compute the timit limit to set for the solver */
-            solvertimelimit = timelimit;
-            if ( ! SCIPsdpiIsInfinity(sdpi, solvertimelimit) )
+            /* we compute the factor to increase with as n-th root of the total increase until the maximum, where n is the number of iterations */
+            penaltyparamfact = pow((sdpi->maxpenaltyparam / sdpi->penaltyparam), 1.0/NINCREASESGAMMA);
+            epsilon = sdpi->epsilon;
+            epsilonfact = pow((MIN_EPSILON / sdpi->epsilon), 1.0/NINCREASESGAMMA);
+
+            /* increase penalty-param and decrease feasibility tolerance until we find a feasible solution or reach the final bound for either one of them */
+            while ( ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) || ! feasorig ) &&
+                  ( penaltyparam < sdpi->maxpenaltyparam + sdpi->epsilon ) && ( epsilon > 0.99 * MIN_EPSILON ) && ( ! SCIPsdpiSolverIsTimelimExc(sdpi->sdpisolver) ))
             {
-               currenttime = clock();
-               solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;
+               SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penaltyparameter %f\n", sdpi->sdpid, penaltyparam);
+
+               /* compute the timit limit to set for the solver */
+               solvertimelimit = timelimit;
+               if ( ! SCIPsdpiIsInfinity(sdpi, solvertimelimit) )
+               {
+                  currenttime = clock();
+                  solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;
+               }
+
+               SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, penaltyparam, TRUE, TRUE, sdpi->nvars, sdpi->obj,
+                     sdpi->lb, sdpi->ub, sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
+                     sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
+                     sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
+                     sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
+                     rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, startsettings, solvertimelimit, &feasorig, &penaltybound) );
+
+               /* If the solver did not converge, we increase the penalty parameter */
+               if ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) )
+               {
+                  penaltyparam *= penaltyparamfact;
+                  SCIPdebugMessage("Solver did not converge even with penalty formulation, increasing penaltyparameter.\n");
+                  continue;
+               }
+
+               /* if we succeeded to solve the problem, update the bound */
+               SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objbound) );
+               if ( objbound > sdpi->bestbound + sdpi->epsilon )
+                  sdpi->bestbound = objbound;
+
+               /* If we don't get a feasible solution to our original problem we have to update either Gamma (if the penalty bound was active
+                * in the primal problem) or epsilon (otherwise) */
+               if ( ! feasorig )
+               {
+                  if ( penaltybound )
+                  {
+                     penaltyparam *= penaltyparamfact;
+                     SCIPdebugMessage("Penalty formulation produced a result which is infeasible for the original problem, increasing penaltyparameter\n");
+                  }
+                  else
+                  {
+                     epsilon *= epsilonfact;
+                     SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, SCIP_SDPPAR_EPSILON, epsilon) );
+                     SCIPdebugMessage("Penalty formulation produced a result which is infeasible for the original problem, even though primal penalty "
+                           "bound was not reached, decreasing epsilon value for duality gap in SDP solver\n");
+                  }
+               }
             }
 
-            /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if we are
-             * still feasible for r < feastol, then we have an interior point with smallest eigenvalue > feastol, otherwise the Slater condition is harmed */
-            SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
-                  sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
-                  sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
-                  sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-                  sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-                  rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit, &origfeas, NULL) );
-
-            /* if we didn't succeed, then probably the primal problem is troublesome */
-            if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
+            /* reset the feasibility tolerance in the SDP solver */
+            if ( epsilon > sdpi->epsilon )
             {
-               printf("SDP-solver could not solve root node relaxation, unable to check Slater condition for dual problem of SDP %d, could mean that the "
-                     "Slater conidition for the primal problem is not fullfilled.\n", sdpi->sdpid);
+               SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, SCIP_SDPPAR_EPSILON, sdpi->epsilon) );
             }
+
+            /* check if we were able to solve the problem in the end */
+            if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && feasorig )
+            {
+               sdpi->penalty = TRUE;
+               sdpi->solved = TRUE;
+            }
+#if 0 /* we don't really know if it is infeasible or just ill-posed (no KKT-point) */
+            else if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && ! feasorig )
+            {
+               SCIPdebugMessage("Problem was found to be infeasible using a penalty formulation \n");
+               sdpi->infeasible = TRUE;
+               sdpi->penalty = TRUE;
+               sdpi->solved = TRUE;
+            }
+#endif
             else
             {
-               SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
+               SCIPdebugMessage("SDP-Solver could not solve the problem even after using a penalty formulation \n");
+               sdpi->solved = FALSE;
+               sdpi->penalty = TRUE;
+            }
 
-               if ( objval < - sdpi->feastol )
+            /* if we still didn't succeed and enforceslatercheck was set, we finally test for the Slater condition to give a reason for failure */
+            if ( sdpi->solved == FALSE && enforceslatercheck)
+            {
+               SCIP_Bool origfeas;
+
+               /* compute the timit limit to set for the solver */
+               solvertimelimit = timelimit;
+               if ( ! SCIPsdpiIsInfinity(sdpi, solvertimelimit) )
                {
-                  printf("SDP-solver could not solve root node relaxation even though the Slater condition is fullfilled for the dual problem with smallest eigenvalue %f.\n",
-                           -1.0 * objval);
+                  currenttime = clock();
+                  solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;
+               }
+
+               /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if we are
+                * still feasible for r < feastol, then we have an interior point with smallest eigenvalue > feastol, otherwise the Slater condition is harmed */
+               SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
+                     sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
+                     sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
+                     sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
+                     sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
+                     rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit, &origfeas, NULL) );
+
+               /* if we didn't succeed, then probably the primal problem is troublesome */
+               if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
+               {
+                  printf("SDP-solver could not solve root node relaxation, unable to check Slater condition for dual problem of SDP %d, could mean that the "
+                        "Slater conidition for the primal problem is not fullfilled.\n", sdpi->sdpid);
                }
                else
                {
-                  printf("SDP-solver could not solve root node relaxation, Slater condition is not fullfilled for the dual problem as smallest eigenvalue was %f.\n",
-                        -1.0 * objval);
+                  SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
+
+                  if ( objval < - sdpi->feastol )
+                  {
+                     printf("SDP-solver could not solve root node relaxation even though the Slater condition is fullfilled for the dual problem with smallest eigenvalue %f.\n",
+                           -1.0 * objval);
+                  }
+                  else
+                  {
+                     printf("SDP-solver could not solve root node relaxation, Slater condition is not fullfilled for the dual problem as smallest eigenvalue was %f.\n",
+                           -1.0 * objval);
+                  }
                }
             }
-         }
-         else if ( sdpi->solved == FALSE )
+            else if ( sdpi->solved == FALSE )
 #if 0
-            printf("Numerical trouble\n");
+               printf("Numerical trouble\n");
 #else
-         SCIPdebugMessage("SDP-Interface was unable to solve SDP %d\n", sdpi->sdpid);
+            SCIPdebugMessage("SDP-Interface was unable to solve SDP %d\n", sdpi->sdpid);
 #endif
+         }
       }
    }
 
