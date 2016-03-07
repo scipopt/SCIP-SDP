@@ -336,7 +336,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
             SCIP_CALL( SCIPsolveProbingRelax(scip, &cutoff) );
 
             /* if solving was successfull */
-            if ( ! cutoff && SCIPrelaxSdpSolvedProbing(relaxsdp) && SCIPrelaxSdpIsFeasible(relaxsdp) )
+            if (SCIPrelaxSdpSolvedProbing(relaxsdp) && SCIPrelaxSdpIsFeasible(relaxsdp) )
             {
                /* check solution */
                SCIP_CALL( SCIPlinkRelaxSol(scip, heurdata->sol) );
@@ -354,9 +354,6 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
                   SCIPdebugMessage("Iteration %d: solution was not feasible.\n", iter);
             }
          }
-
-         if ( cutoff )
-            SCIPdebugMessage("Iteration %d: SDP solution process was cutoff.\n", iter);
 
          /* free local problem */
          SCIP_CALL( SCIPendProbing(scip) );

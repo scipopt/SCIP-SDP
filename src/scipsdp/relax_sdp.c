@@ -822,11 +822,19 @@ SCIP_RETCODE calcRelax(
             SCIP_CALL( SCIPcheckSol(scip, scipsol, TRUE, FALSE, FALSE, FALSE, &allfeas) ); /* is this really needed ? */
             if ( allfeas )
             {
-               SCIP_CALL( SCIPtrySol(scip, scipsol, TRUE, FALSE, FALSE, FALSE, &stored) );
-               if (stored)
-                  SCIPdebugMessage("feasible solution for MISDP found, cut node off, solution is stored.\n");
-               else
-                  SCIPdebugMessage("feasible solution for MISDP found, cut node off, solution is worse than earlier one.\n");
+               /* if we are not in probing give the solution to SCIP so that we can cut the node off, otherwise let the heuristic do it */
+               if ( ! SCIPinProbing(scip) )
+               {
+                  SCIP_CALL( SCIPtrySol(scip, scipsol, TRUE, FALSE, FALSE, FALSE, &stored) );
+                  if (stored)
+                  {
+                     SCIPdebugMessage("feasible solution for MISDP found, cut node off, solution is stored.\n");
+                  }
+                  else
+                  {
+                     SCIPdebugMessage("feasible solution for MISDP found, cut node off, solution is worse than earlier one.\n");
+                  }
+               }
 
                /* set relax sol */
                SCIP_CALL( SCIPsetRelaxSolVals(scip, nvars, vars, solforscip) );
