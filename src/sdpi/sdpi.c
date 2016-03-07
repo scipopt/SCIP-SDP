@@ -2161,10 +2161,10 @@ SCIP_RETCODE SCIPsdpiSolve(
             {
                SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
 
-               if ( objval < - sdpi->feastol )
+               if ( objval < - sdpi->epsilon )
                   SCIPdebugMessage("Slater condition for SDP %d is fullfilled for dual problem with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);
                else
-                  printf("Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, expect numerical trouble.\n",
+                  SCIPdebugMessage("Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, expect numerical trouble.\n",
                      sdpi->sdpid, -1.0 * objval);
             }
          }
@@ -2413,7 +2413,7 @@ SCIP_RETCODE SCIPsdpiSolve(
          /* get objective value */
          SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval);
 
-         if ( (SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && objval > sdpi->feastol) || SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver))
+         if ( (SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && objval > sdpi->epsilon) || SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver))
          {
             SCIPdebugMessage("SDP %d found infeasible using penalty formulation, maximum of smallest eigenvalue is %f.\n", sdpi->sdpid, -1.0 * objval);
             sdpi->penalty = TRUE;
