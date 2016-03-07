@@ -38,7 +38,7 @@
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
-
+/*#define SCIP_DEBUG*/
 #include <assert.h>
 #include <string.h>
 
@@ -283,19 +283,20 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
          /* if there are continuous variables, we need to solve a final SDP */
          SCIP_CALL( SCIPstartProbing(scip) );
 
-         for (v = 0; v < nsdpcands; ++v)
+         for (v = 0; v < nvars; ++v)
          {
-            var = sdpcands[v];
-            assert( SCIPvarIsIntegral(var) );
-            assert( SCIPvarIsBinary(var) );
+            SCIP_Real val;
+
+            var = vars[v];
+            val = SCIPgetRelaxSolVal(scip, var);
 
             /* if the variable is not fixed and its value is fractional */
-            if ( SCIPvarGetLbLocal(var) < 0.5 && SCIPvarGetUbLocal(var) > 0.5 && ! SCIPisFeasIntegral(scip, sdpcandssol[v]) )
+            if ( SCIPvarGetLbLocal(var) < 0.5 && SCIPvarGetUbLocal(var) > 0.5 && SCIPvarIsIntegral(var) && ! SCIPisFeasIntegral(scip, val) )
             {
                r = SCIPgetRandomReal(0.0, 1.0, &heurdata->randseed);
 
                /* depending on random value, fix variable to 0 or 1 */
-               if ( sdpcandssol[v] <= r )
+               if ( val <= r )
                {
                   SCIP_CALL( SCIPchgVarUbProbing(scip, var, 0.0) );
                }
@@ -303,6 +304,18 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
                {
                   SCIP_CALL( SCIPchgVarLbProbing(scip, var, 1.0) );
                }
+               ++cnt;
+            }
+            else if ( SCIPvarIsIntegral(var) && SCIPisFeasIntegral(scip, val) && SCIPisFeasGT(scip, val, SCIPvarGetLbLocal(var)) )
+            {
+               /* if an integral variable already attained an integer value, we fix it */
+               SCIP_CALL( SCIPchgVarLbProbing(scip, var, val) );
+               ++cnt;
+            }
+            else if ( SCIPvarIsIntegral(var) && SCIPisFeasIntegral(scip, val) && SCIPisFeasLT(scip, val, SCIPvarGetUbLocal(var)) )
+            {
+               /* if an integral variable already attained an integer value, we fix it */
+               SCIP_CALL( SCIPchgVarUbProbing(scip, var, val) );
                ++cnt;
             }
          }
