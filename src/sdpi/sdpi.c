@@ -2164,7 +2164,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                if ( objval < - sdpi->epsilon )
                   SCIPdebugMessage("Slater condition for SDP %d is fullfilled for dual problem with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);
                else
-                  SCIPdebugMessage("Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, expect numerical trouble.\n",
+                  printf("Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, expect numerical trouble.\n",
                      sdpi->sdpid, -1.0 * objval);
             }
          }
@@ -2421,6 +2421,8 @@ SCIP_RETCODE SCIPsdpiSolve(
          }
          else
          {
+            feasorig = FALSE;
+            penaltybound = TRUE;
 
             penaltyparam = sdpi->penaltyparam;
 
