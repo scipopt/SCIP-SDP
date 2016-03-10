@@ -514,8 +514,8 @@ we also used three more with theoretical results about their restricted isometry
 A_{ij} = \begin{cases} + \sqrt{3/m} & \text{with probability } \frac{1}{6} \\ 0 & \text{with probability } \frac{2}{3} \\ - \sqrt{3/m} & \text{with probability } \frac{1}{6}. \end{cases}
 \end{equation}
 For the latter three kinds of matrices it was shown in \cite{BDDW08}, that for $n \rightarrow \infty$, sufficiently small $k$ and given $\delta$ they satisfy the restricted isometry property (\ref{rip}) of order $k$ for this $\delta$
-with probability converging exponentially to one. But the needed proportion between $n$ and $k$ is so small that we can't expect the generated matrices in small dimensions to satisfy the RIP. For each type we used \mbox{MATLAB 8.3.0 
-\cite{MAT}} to randomly generated nine matrices of three different sizes with rows ranging from 15 to 30, columns from 25 to 40 and order $k$ between three and five.
+with probability converging exponentially to one. But the needed proportion between $n$ and $k$ is so small that we can't expect the generated matrices in small dimensions to satisfy the RIP. For each type we used \mbox{MATLAB 8.3.0} 
+to randomly generated nine matrices of three different sizes with rows ranging from 15 to 30, columns from 25 to 40 and order $k$ between three and five.
 
 The tests were performed on an Intel i7-4770 with 3.4 GHz. For each instance we set a time limit of one hour, if a problem did not finish within this time, we counted 3600 seconds and used the dual bound as the result. In our test this
 only happened once for the right-hand-side of a $15 \times 30$ binary matrix with order $k=5$ in (\ref{MISDP}). 
