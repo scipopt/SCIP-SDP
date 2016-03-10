@@ -320,14 +320,14 @@ $\Sigma = A\T A$ we can use this to compute an upper bound on $\beta_k$ via Lagr
  \end{aligned}
 \end{equation*}
 
-As one way to solve (\ref{phi}) the semidefinite lifting technique is used again in \cite{Asp08} to compute an upper bound on $\phi$ via
+As one way to solve (\ref{phi}) the semidefinite lifting technique is used again to compute an upper bound on $\phi$ via
 \begin{align}\label{Asp08}
  \max \quad & \sum_{i=1}^n\Tr(P_iB_i) \nonumber \\
  \text{s.t.} \quad & \Tr(X) = 1 \nonumber \\
  & X \succeq 0 \tag{A2-Primal} \\
  & X \succeq P_i \succeq 0 \quad \text{for } i = 1, ..., n, \nonumber
 \end{align}
-for $B_i = b_ib_i\T - \rho I,$ where $b_i$ is the $i$-th column of a squareroot of $\Sigma$. The corresponding dual problem can then be written as 
+for $B_i = b_ib_i\T - \rho I,$ where $b_i$ is the $i$-th column of a squareroot of $\Sigma$, for details see \cite{Asp08}. The corresponding dual problem can then be written as 
 \begin{align}\label{Asp08Dual}
   \min \quad & \lambda_{\max}\left(\sum_{i=1}^n Y_i \right) \nonumber \\
   \text{s.t.} \quad & Y_i \succeq B_i \quad \forall i \leq n \tag{A2-Dual} \\
