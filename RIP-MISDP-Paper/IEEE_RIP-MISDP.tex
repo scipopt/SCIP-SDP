@@ -320,7 +320,7 @@ $\Sigma = A\T A$ we can use this to compute an upper bound on $\beta_k$ via Lagr
  \end{aligned}
 \end{equation*}
 
-As one way to solve (\ref{phi}) again the semidefinite lifting technique is used in \cite{Asp08} to compute an upper bound on $\phi$ via
+As one way to solve (\ref{phi}) the semidefinite lifting technique is used again in \cite{Asp08} to compute an upper bound on $\phi$ via
 \begin{align}\label{Asp08}
  \max \quad & \sum_{i=1}^n\Tr(P_iB_i) \nonumber \\
  \text{s.t.} \quad & \Tr(X) = 1 \nonumber \\
@@ -415,7 +415,7 @@ The next step would then be to relax the non-convex rank constraint again to arr
  & z \in \{0,1\}^n \nonumber
 \end{align}
 
-In the following we will to show that (\ref{MISDP}) not only computes a lower bound but the exact value of $\alpha_k$. For this we will use results about the geometry of semidefinite programs to show that there always exists an 
+In the following we will show that (\ref{MISDP}) not only computes a lower bound but the exact value of $\alpha_k$. For this we will use results about the geometry of semidefinite programs to show that there always exists an 
 optimal solution to (\ref{MISDP}) with rank 1 so that the optimal objective values of (\ref{Rk1MISDP}) and (\ref{MISDP}) have to agree. We will use the following result by Pataki \cite{pat98} about the relationship between the rank of
 solutions of semidefinite programs and the dimension of corresponding faces, meaning a subset $F$ of the convex set $P$ such that \mbox{$x \in F, y, z \in P$} and $x = 0.5y + 0.5z$ imply $y,z \in F$:
 
@@ -437,15 +437,16 @@ solution to (\ref{MISDP}) with rank one.
  For every $A \in \R^{m \times n}$ and $k \geq 1$ there exists an optimal solution $X^*, z^*$ to (\ref{MISDP}) such that $\Rk(X^*) = 1$. 
 \end{theorem}
 \begin{proof}
- Let $\hat{X}, \hat{z}$ be an optimal solution to (\ref{MISDP}) with $\sum_{i=1}^n z_i = \ell \leq k$ 
- (because of $\Tr(X) = 1$ the problem is bounded and $X_{11} = 1, X_{ij} = 0 \ \forall i,j \neq 1,$ \mbox{$z_1 = 1, z_i = 0 \ \forall i \neq 1$} is always feasible for $k > 0$, so an optimal solution exists).
+ Because of the constraint $\Tr(X) = 1$, Problem~\eqref{MISDP} is bounded and $X_{11} = 1, X_{ij} = 0 \ \forall i,j \neq 1,$ \mbox{$z_1 = 1, z_i = 0 \ \forall i \neq 1$} 
+ is always feasible for $k > 0$,  so an optimal solution to~\eqref{MISDP} exists.
+ Let $\hat{X}, \hat{z}$ be such an optimal solution to (\ref{MISDP}) with $\sum_{i=1}^n z_i =: \ell \leq k$.
  Define
  \begin{align}\label{Proj}
  \min \quad & \Tr(\tilde{A}\T\tilde{A}\tilde{X}) \nonumber \\
  \text{s.t.} \quad & \Tr(\tilde{X}) = 1 \tag{Proj} \\
- & \tilde{X} \succeq 0 , \tilde{X} \in S_\ell, \nonumber 
- \end{align}\comment{$\tilde{X} \in S_\ell$ eigentlich in $\tilde{X} \succeq 0$ enthalten, aber betont halt Dimension, so drinnlassen oder \"andern?}
-where $\tilde{A} = (A_{i_1}, A_{i_2}, ..., A_{i_\ell})$ consists of those
+ & \tilde{X} \succeq 0  \nonumber 
+ \end{align}
+for $\tilde{X} \in S_\ell$, where $\tilde{A} = (A_{i_1}, A_{i_2}, ..., A_{i_\ell})$ consists of those
 columns $\{{i_1}, {i_2}, ..., {i_\ell}\} \enifed T$ of $A$ for which
 $\hat{z}_{i_k} = 1$.
 
@@ -457,8 +458,8 @@ and $X^{\prime}_{i_{j_1} i_{j_2}} = \check{X}_{j_1j_2}$ if and only if $i_{j_1},
 and $X^{\prime}_{ij}=0$ otherwise. This solution will then be feasible for (\ref{MISDP}), since $\Tr(\check{X}) = 1$ and $\check{X}\in S_\ell$ imply $0 \leq \check{X}_{jj} = X^{\prime}_{i_j i_j} \leq 1$ and therefore 
 $X^{\prime}_{ij} \leq z^{\prime}_j$ by diagonal dominance of semidefinite matrices.
 
-So the optimal objective values of (\ref{Proj}) and (\ref{MISDP}) agree and with this construction we also get that 
-$\Rk(X^{\prime}) = \Rk(\check{X})$, so it suffices to show that (\ref{Proj}) always allows for a solution of rank one.
+So the optimal objective values of (\ref{Proj}) and (\ref{MISDP}) agree and with this construction also 
+$\Rk(X^{\prime}) = \Rk(\check{X})$, so it suffices to show that (\ref{Proj}) always allows for an optimal solution of rank one.
 Let $\breve{X}$ be an extreme point of (\ref{Proj}) (as the set of optimal points of (\ref{Proj}) is a non-empty, convex, compact subset of $\R^{\ell(\ell+1)/2}$, such a point exists
 \cite[Corollary 18.5.1]{Roc70}) with corresponding face $F=\{\breve{X}\}$. Then using Theorem~\ref{patakiLemma} on (\ref{Proj}) with $\tilde{m} = 1$ LP-constraint gives
 \begin{equation*}
@@ -481,7 +482,7 @@ To solve \eqref{MISDP} successfully using a branch-and-bound-approach, it is imp
 Therefore we will further strengthen the constraint coupling the continuous and binary variables to force the nonzero entries of $z$ towards one in the
 semidefinite relaxations.
 
-\begin{remark}\label{HalfConstraint}
+\begin{remark}\label{HalfConstraint} \comment{Als Remark belassen oder ein Lemma draus machen?}
 We can substitute the constraint $-z_j \leq X_{ij} \leq z_j$ for all non-diagonal entries of $X$ by the stronger constraint 
 \begin{equation}\label{eq:HalfConstraint}
   -\frac{1}{2}z_j \leq X_{ij} \leq \frac{1}{2}z_j.
