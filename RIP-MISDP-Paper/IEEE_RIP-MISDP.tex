@@ -12,6 +12,7 @@
 \newtheorem{theorem}{Theorem}
 \newtheorem{definition}{Definition}
 \newtheorem{remark}{Remark}
+\newtheorem{lemma}[theorem]{Lemma}
 
 \DeclareMathOperator*{\argmin}{argmin}
 \DeclareMathOperator*{\argmax}{argmax}
@@ -46,7 +47,7 @@
 
 \begin{document}
 
-\title{Computing exact restricted isometry constants via\\ mixed integer semidefinite programming}
+\title{Computing Exact Restricted Isometry Constants via\\ Mixed Integer Semidefinite Programming}
 \author{Tristan~Gally and Marc~E.~Pfetsch
   \thanks{This work was supported by the German Research Foundation (DFG) through Collaborative Research Center 805 and Priority Program 1798.}
   \thanks{The  authors  are  with  the  Research  Group  Optimization,  TU  Darmstadt,
@@ -57,7 +58,7 @@
 \maketitle
 
 \begin{abstract}
-An important task in compressed sensing is finding the sparsest solution to an underdetermined system of linear equations. An important result is that, under certain conditions, this is equivalent to minimizing the 1-Norm and thus
+An important task in compressed sensing is finding the sparsest solution to an underdetermined system of linear equations. An outstanding result is that, under certain conditions, this is equivalent to minimizing the 1-Norm and thus
 solving a linear program. One such condition is the restricted isometry property for which no efficient algorithms are known to compute the optimal constants, the so called restricted isometry constants. In this paper we propose a
 mixed integer semidefinite program for computing these constants. Numerical results are presented comparing this to ealier SDP relaxations for the same task.
 \end{abstract}
@@ -66,14 +67,14 @@ mixed integer semidefinite program for computing these constants. Numerical resu
 
 \IEEEPARstart{F}{inding} a sparsest solution of an underdetermined system of linear
 equations is one key problem in compressed sensing and has been
-thoroughly investigated in recent years. Given a matrix $A \in \R^{m \times n}$ with $m < n$ and 
-right-hand side $b \in \R^m$, the problem is to compute
+thoroughly investigated in recent years. Given a matrix $A \in \R^{m \times n}$ with $m \ n$ and 
+right-hand side $b \in \R^m$, one core problem is to compute
 \begin{align}\label{l0min}
  \min \quad & \Norm{x}{0} \tag{$P_0$}\\
  \text{s.t.} \quad & Ax = b, \nonumber
 \end{align}
 where $\Norm{x}{0}$ denotes the number of nonzero components of~$x$. This
-problem is \NP-hard, see for example the book by Garey and
+problem is \NP-hard, see Garey and
 Johnson~\cite{GareyJohnson}. One key observation in compressed sensing is
 that a solution of~\eqref{l0min} can be found by solving the following
 convex optimization problem if certain conditions are fulfilled:
@@ -128,7 +129,7 @@ small enough, we are generally interested in the smallest constant satisfying
 
 \begin{definition}\label{ricdef}
 For a matrix $A \in \R^{m \times n}$ and order~$k$, the smallest constant in 
-(\ref{rip}), meaning
+(\ref{rip}),
 \begin{equation}\label{ric}
  \begin{aligned}
   \delta_k \define \argmin_{\delta \geq 0} \{&(1 - \delta) \Norm{x}{2}^2 \leq \Norm{Ax}{2}^2 \leq (1+\delta) \Norm{x}{2}^2 ,\\
@@ -150,25 +151,25 @@ the following:
   and~\eqref{l1min} coincide.
 \end{theorem}
 
-There are also many other results similar to Theorem~\ref{RIPsqrt2}: For
+Many results similar to Theorem~\ref{RIPsqrt2} exist: For
 example, Foucart~\cite{fou10} relaxed the condition to $\delta_{2k} <
 0.4652$ and Foucart and Rauhut~\cite{FouR13} to $\delta_{2k} < 0.6246$.
-Moreover, Cai et al.~\cite{CWX10} gave the condition $\delta_k <
+Moreover, Cai et al.~\cite{CWX10} showed the condition $\delta_k <
 0.307$ for Theorem~\ref{RIPsqrt2} to hold. 
 
 For this paper, it is useful to take an asymmetric viewpoint and
-distinguish between the lower and upper bounds in~\eqref{rip}, as was done
-in~\cite{FL09}:
+distinguish between the lower and upper bounds in~\eqref{rip}, as proposed
+by Foucart and Lai~\cite{FL09}:
 
 \begin{definition}\label{asymRIPdef}
- The \emph{lower} and \emph{upper RIC} are defined as
+ The \emph{lower} and \emph{upper restricted isometry constant} are defined as
  \begin{align}
    \alpha_k & \define \argmax_{\alpha \geq 0}\; \{ \alpha^2 \Norm{x}{2}^2
    \leq \Norm{Ax}{2}^2,\; \text{ for all }x \in \Sigma_k\}, \label{lowerRIP}\\
-   \beta_k & \define \argmin_{\beta \geq 1}\; \{ \Norm{Ax}{2}^2 \leq \beta^2
+   \beta_k & \define \argmin_{\beta \geq 0}\; \{ \Norm{Ax}{2}^2 \leq \beta^2
    \Norm{x}{2}^2,\; \text{ for all }x \in \Sigma_k\},\label{upperRIP}
  \end{align}
- respectively. The \emph{restricted isometry ratio} (RIR) $\gamma_k$ is
+ respectively. The \emph{restricted isometry ratio} (RIR) is
  defined as $\gamma_k \define \beta_k^2 / \alpha_k^2$ for $\alpha_k \neq 0$.
 \end{definition}
 
@@ -260,7 +261,7 @@ we present numerical results and comparisons with the SDP relaxations in
 \section{SDP Relaxations}
 \label{sec:SDPrelax}
 
-In this section, we will discuss two known SDP relaxations to compute an upper bound on the restricted isometry constant $\delta_k$ in (\ref{rip}), as they have some ideas in common with the mixed integer semidefinite program we want to 
+In this section, we will introduce two known SDP relaxations to compute an upper bound on the restricted isometry constant $\delta_k$ in (\ref{rip}), as they have some ideas in common with the mixed integer semidefinite program we want to 
 propose and will also be checked against in the section on numerical results. The idea of these two relaxations as well as the MISDP in the next section is that the optimal constant $\alpha_k^2$ in (\ref{lowerRIP}) can be computed
 by the non-convex quadratic optimization problem
 \begin{align}\label{QP}
@@ -268,7 +269,7 @@ by the non-convex quadratic optimization problem
  \text{s.t.} \quad & \Norm{x}{2}^2 = 1 \tag{QP} \\
  & \Norm{x}{0} \leq k. \nonumber
 \end{align}
-The corresponding maximization problem can be solved to compute $\beta_k^2$. In \cite{Asp07} the non-convex quadratic equality constraint $\Norm{x}{2}^2 = 1$ is tackled by the technique of semidefinite lifting first introduced in \cite{GW95} 
+The corresponding maximization problem allows to compute $\beta_k^2$. In \cite{Asp07} the non-convex quadratic equality constraint $\Norm{x}{2}^2 = 1$ is tackled by the technique of semidefinite lifting first introduced in \cite{GW95} 
 for the max-cut problem. The idea is to use a new matrix variable $X=xx\T$ for the quadratic terms, where the condition $X=xx\T$ is then enforced by the equivalent constraints $X \succeq 0$ and $\Rk(X) = 1$, where 
 $X \succeq 0$ means that $X$ is symmetric (shortly written \mbox{$X \in S_n$}) and positive semidefinite. The objective and the normalization-constraint can then be expressed in $X$ as  $\Norm{Ax}{2}^2 = x\T A\T Ax =
 \Tr(A\T A X)$ and $\Norm{x}{2}^2 = \sum_{i=1}^n x_i^2 = \Tr(X)$. In the
@@ -459,11 +460,13 @@ To solve \eqref{MISDP} successfully using a branch-and-bound-approach, it is imp
 Therefore we will further strengthen the constraint coupling the continuous and binary variables to force the nonzero entries of $z$ towards one in the
 semidefinite relaxations.
 
-\begin{remark}\label{HalfConstraint} \comment{Als Remark belassen oder ein Lemma draus machen?}
-We can substitute the constraint $-z_j \leq X_{ij} \leq z_j$ for all non-diagonal entries of $X$ by the stronger constraint 
+\begin{lemma}\label{HalfConstraint} 
+The constraint $-z_j \leq X_{ij} \leq z_j$ in~\eqref{MISDP} can be substituted for all non-diagonal entries of $X$ by the stronger constraint 
 \begin{equation}\label{eq:HalfConstraint}
   -\frac{1}{2}z_j \leq X_{ij} \leq \frac{1}{2}z_j.
 \end{equation}
+\end{lemma}
+\begin{proof}
 Let $X$ satisfy $\Tr(X)=1$ and $X\succeq 0$, which immediately implies $X_{ii}\geq 0$.
 Since all minors of $X$ need to be nonnegative, we get that
 \begin{equation*}
@@ -471,8 +474,9 @@ Since all minors of $X$ need to be nonnegative, we get that
 \end{equation*}
 and therefore $-1/2 \leq X_{ij} \leq 1/2$, which implies the equivalence between
 $-z_j \leq X_{ij} \leq z_j$ and~\eqref{eq:HalfConstraint} for all integer values 
-of $z$, while~\eqref{eq:HalfConstraint} might cut off some solutions for fractional $z$.
-\end{remark}
+of $z$..
+\end{proof}
+
 
 Theorem \ref{Rk1thm} and Remark \ref{Rk1rmk} do not guarantee that any found solution will have rank one, they only guarantee that there exists a rank one solution. But this is not a problem for applications in the context of the RIP, 
 since we are only interested in the optimal objective value, since it implies the constant $\alpha_k$ or $\beta_k$ for the RIP. For other applications like the SPCA such an extreme solution can also be generated with an algorithm 
@@ -549,7 +553,7 @@ memory limit, but even without those, the algorithm still takes slightly longer 
 \section{Conclusion}
 
 We have seen that exact restricted isometry constants can be computed not only via total enumeration but also by solving a mixed integer semidefinite program. Because of this exactness result, the new problem can drastically
-improve the bounds computed with the semidefinite relaxations proposed in \cite{Asp08} and \cite{Asp07}, but this comes at the cost of a much higher complexity of computation, at least in comparison to \cite{Asp07}. We could only 
+improve the bounds computed by the semidefinite relaxations proposed in \cite{Asp08} and \cite{Asp07}, but this comes at the cost of a much higher complexity of computation, at least in comparison to \cite{Asp07}. We could only 
 solve these problems for relatively small instances, but this might change with sufficient advances in the area of mixed integer semidefinite programming, especially with the addition of special cutting planes, which proved to be 
 the main enhancement needed to make mixed integer linear solvers as fast as they are today. Also special heuristics and branching rules could improve the performance of the branch-and-bound-algorithm and allow us to solve bigger 
 instances of the proposed MISDP.
