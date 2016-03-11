@@ -467,14 +467,15 @@ The constraint $-z_j \leq X_{ij} \leq z_j$ in~\eqref{MISDP} can be substituted f
 \end{equation}
 \end{lemma}
 \begin{proof}
-Let $X$ satisfy $\Tr(X)=1$ and $X\succeq 0$, which immediately implies $X_{ii}\geq 0$.
-Since all minors of $X$ need to be nonnegative, we get that
+Let $X$ satisfy $\Tr(X)=1$ and $X\succeq 0$. Then $X_{ii}+X_{jj}\leq 1$ and nonnegativity of the diagonal 
+entries imply $X_{ii}X_{jj}\leq 1/4$. 
+Since all minors of $X$ need to be nonnegative, it follows that
 \begin{equation*}
   X_{ij}^2 \leq  X_{ii} X_{jj} \leq \frac{1}{4}
 \end{equation*}
 and therefore $-1/2 \leq X_{ij} \leq 1/2$, which implies the equivalence between
 $-z_j \leq X_{ij} \leq z_j$ and~\eqref{eq:HalfConstraint} for all integer values 
-of $z$..
+of $z$.
 \end{proof}
 
 
