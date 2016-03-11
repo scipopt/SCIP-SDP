@@ -7,6 +7,7 @@
 \usepackage{multirow}
 \usepackage{mathtools}
 \usepackage{url}
+\usepackage{sistyle}
 
 \newtheorem{theorem}{Theorem}
 \newtheorem{definition}{Definition}
@@ -39,6 +40,9 @@
 % other commands
 \newcommand{\NP}{\text{NP}}
 \newcommand{\comment}[1]{\marginpar{\raggedright\tiny {#1}}}
+
+% comma after thousands in numbers
+\SIthousandsep{,}
 
 \begin{document}
 
@@ -504,116 +508,74 @@ proposed by Pataki in \cite{coneLP}.
 \section{Numerical Results}
 \label{sec:numerical_results}
 
-For solving the mixed-integer semidefinite programs we used the MISDP-Solver SCIP-SDP \cite{SCIP-SDP} originally developed in \cite{MS12} and \cite{Mar13}, which combines the branch-and-bound-framework of SCIP 3.1 \cite{SCIP} with 
-interior-point SDP-solvers. The continuous SDPs were solved using the command-line version of SDPA~\cite{SDPA6,SDPA7}. The testset consisted of 63 matrices of seven 
-different types, and for each matrix we computed the left- and right-hand restricted isometry constant $\alpha$ and $\beta$ using the problems (\ref{MISDP}), (\ref{Asp07}) and (\ref{Asp08Dual}). In the latter case we solved 15 
-SDPs for $\rho$ between $0$ and the maximum diagonal entry of $A\T A$. The matrices were band matrices with band size three or five with entries within the band chosen uniformly in $\{0,1\}$, binary matrices with all entries chosen 
-uniformly in $\{0,1\}$ as well as matrices with entries chosen with distribution $\mathcal{N}(0,1)$ and rank one matrices $A = aa\T$, with $\mathcal{N}(0,1)$-distributed entries of $a$. In addition to these four kinds of matrices, 
-we also used three more with theoretical results about their restricted isometry constants, namely matrices with $N(0, 1/m)$-distributed entries, with entries chosen uniformly in $\pm 1/\sqrt{m}$ and finaly with distribution
+In this section we want to show the applicability of our proposed MISDP-formulation and use it to
+assess the quality of the relaxations proposed in \cite{Asp08} and \cite{Asp07}.
+For solving the mixed-integer semidefinite programs we use the MISDP-Solver SCIP-SDP \cite{SCIP-SDP} 
+originally developed in \cite{Mar13} and \cite{MS12}, which combines the branch-and-bound-framework of SCIP 3.2.1 \cite{SCIP} with 
+interior-point SDP-solvers, in our case SDPA~7.3.8~\cite{SDPA6,SDPA7}. The continuous SDPs are solved using the command-line version of 
+SDPA~7.3.8. In our tests we compute the left- and right-hand restricted isometry constant 
+$\alpha_k$ and $\beta_k$ either exactly using~\eqref{MISDP} or produce corresponding bounds via (\ref{Asp07}) and (\ref{Asp08Dual}). In the latter case we solve 15 
+SDPs for $\rho$ between $0$ and the maximum diagonal entry of $A\T A$. 
+
+The testset consists of 63 matrices of seven 
+different types including band matrices 
+with band size three or five with entries within the band chosen uniformly in $\{0,1\}$, binary matrices with all entries chosen 
+uniformly in $\{0,1\}$, Gaussian-distributed matrices and rank one 
+matrices $A = aa\T$ with $\mathcal{N}(0,1)$-distributed entries of $a$. In addition to these four kinds of matrices, 
+we also use three more with theoretical results about their restricted isometry constants, namely matrices with 
+$N(0, 1/m)$-distributed entries, with entries chosen uniformly in $\pm 1/\sqrt{m}$ and finaly with distribution
 \begin{equation}\nonumber
 A_{ij} = \begin{cases} + \sqrt{3/m} & \text{with probability } \frac{1}{6} \\ 0 & \text{with probability } \frac{2}{3} \\ - \sqrt{3/m} & \text{with probability } \frac{1}{6}. \end{cases}
 \end{equation}
-For the latter three kinds of matrices it was shown in \cite{BDDW08}, that for $n \rightarrow \infty$, sufficiently small $k$ and given $\delta$ they satisfy the restricted isometry property (\ref{rip}) of order $k$ for this $\delta$
-with probability converging exponentially to one. But the needed proportion between $n$ and $k$ is so small that we can't expect the generated matrices in small dimensions to satisfy the RIP. For each type we used \mbox{MATLAB 8.3.0} 
-to randomly generated nine matrices of three different sizes with rows ranging from 15 to 30, columns from 25 to 40 and order $k$ between three and five.
+For the latter three kinds of matrices it is shown in \cite{BDDW08} that for $n \rightarrow \infty$, 
+sufficiently small $k$ and given $\delta$, they satisfy the restricted isometry property (\ref{rip}) of order $k$  
+with probability converging exponentially to one. The needed proportion between $n$ and $k$ is so small, however,
+that we cannot expect the generated matrices in small dimensions to satisfy the RIP. For each type we used \mbox{MATLAB 8.3.0} 
+to randomly generated nine matrices of three different sizes with rows ranging from 15 to 30, columns 
+from 25 to 40 and order $k$ between three and five.
 
-The tests were performed on an Intel i7-4770 with 3.4 GHz. For each instance we set a time limit of one hour, if a problem did not finish within this time, we counted 3600 seconds and used the dual bound as the result. In our test this
-only happened once for the right-hand-side of a $15 \times 30$ binary matrix with order $k=5$ in (\ref{MISDP}). 
+The tests were performed on a Linux cluster with Intel i3 CPUs with 3.2GHz, 4MB cache and 8GB memory running
+Linux. Each computation was performed single-threaded with a single process running on each computer and with 
+a time limit of four hours. The code was compiled with gcc 4.4.5 with \texttt{-O3} optimization. For the 
+Problem~\eqref{Asp08Dual} most of the larger instance were aborted because of the memory limit, these are
+counted with the maximum allowed time of four hours. 
 
-The average gap of the relaxations (\ref{Asp07}) and (\ref{Asp08Dual}) in contrast to the exact solution computed
-with (\ref{MISDP}) is shown in table \ref{results}. Results for the left hand sides of the band and rank one matrices where omitted, as they equalled zero within numerical exactness for all problems.
+In Table~\ref{lhsGap} we compare the relative gap between the bounds on $\alpha_k$ computed by the two heuristics
+and the exact values given by our
+mixed integer semidefinite program. We give arithmetic means over all of the nine matrices for the given type that
+could be solved within the time- and memory-limit. Note that we ommitted the rank one matrices, since these satisfy
+$\alpha_k = 0$ in all cases, so that the trivial lower bound would already be optimal. For the 
+left-hand-side of the RIP, both relaxations did not perform
+too well. Especially the relaxation given in \cite{Asp08} regularly returned worse solution than the
+trivial lower bound of zero. The relaxation in \cite{Asp07} performed slightly better, but the bounds
+were still not nearly good enough to have any chance of proving $\ell_0$-$\ell_1$-equivalance. The relatively
+bad performance of both relaxations for the left-hand side might not be too surprising, since both relaxations
+were originally designed for sparse principal component analysis, which corresponds to the right-hand side
+of the RIP.
 
-\begin{table}[ht]
-   \centering
-        \caption{Average gap of relaxations for restricted isometry constants $\alpha_k$ and $\beta_k$}
-   \label{results}
-   \begin{tabular*}{\textwidth}{l @{\extracolsep{\fill}} c r r c r r}
-   \toprule
-  & & \multicolumn{2}{c}{$\alpha_k^2$} & \phantom{abc} & \multicolumn{2}{c}{$\beta_k^2$} \\
- \cmidrule{3-4} \cmidrule{6-7} 
-type of matrix & & (\ref{Asp07}) & (\ref{Asp08Dual}) & & (\ref{Asp07}) & (\ref{Asp08Dual}) \\
-\midrule
-$\mathcal{N}(0,1)$ & & $85.45\%$ & todo &  & $23.84\%$ & todo\\
-binary & & $85.28\%$ & todo &  & $47.12\%$ & todo\\
-band matrix & & - & todo &  & $12.97\%$ & todo\\
-rank 1 & & - & todo &  & $50.94\%$ & todo\\
-$\mathcal{N}(0,1/m)$ & & $88.36\%$ & todo &  & $26.05\%$ & todo\\
-$\pm 1/\sqrt{m}$ & & $85.35\%$ & todo &  & $29.53\%$ & todo\\
-$0, \pm \sqrt{3/m}$ & & $87.45\%$ & todo &  & $23.05\%$ & todo\\
-\midrule
-average & & $86.38\%$ & todo &  & $29.92\%$ & todo \\
-\bottomrule
-\end{tabular*}
-\end{table}
+\input{tables/lhsGap}
 
-As we can see from the results, for the right- and especially for the left-hand-side for all of our instances there was quite a big gap for the relaxation in (\ref{Asp07}) which we were able to close with our exact optimization 
-problem (\ref{MISDP}). For the right-hand-side the relaxation from \cite{Asp07} performed quite well for band matrices with a gap of $13 \%$ and satisfactorly for most other classes of matrices, except for binary matrices, where in
-our testset the average gap reached almost $50\%$. On the left-hand-side however, the gap of the relaxation was between $85\%$ and $90\%$ for all classes, which would make it extremely hard to verify the requirements of theorem 
-\ref{RIPsqrt2} or theorem \ref{asymRIPtheorem}.
+Results for the right-hand side, i.e. $\beta_k$, are given in Table~\ref{rhsGap}. Here both relaxations
+perform much better. Problem~\eqref{Asp08Dual} constantly produced bounds within 10 to 35\,\% of the optimal
+solution. The formulation in~\eqref{Asp08Dual} showed bigger fluctuation, but was very tight in many cases,
+with a gap of less than two percent for band matrices.
 
-The average solving times of (\ref{MISDP}), (\ref{Asp07}) and (\ref{Asp08Dual}) in seconds are shown in table \ref{times}.
+\input{tables/rhsGap}
 
-\begin{table}[ht]
-   \centering
-        \caption{Average solving times for left- and right-hand-sides (seconds)}
-   \label{times}
-   \begin{tabular*}{\textwidth}{l @{\extracolsep{\fill}} c r r c r r c r r}
-   \toprule
-  & & \multicolumn{2}{c}{(\ref{MISDP})} & \phantom{abc} & \multicolumn{2}{c}{(\ref{Asp07})} & \phantom{abc} & \multicolumn{2}{c}{(\ref{Asp08Dual})} \\
- \cmidrule{3-4} \cmidrule{6-7} \cmidrule{9-10} 
-type of matrix & & l & r &  & l & r &  & l & r \\
-\midrule
-$\mathcal{N}(0,1)$ & & 2145.35 & 1489.05 & & 5.35 & 5.6 & & todo & todo\\
-binary & & 2009.65 & 2586.0 & & 5.05 & 3.85 & & todo & todo\\
-band matrix & & 75.65 & 732.75 & & 3.1 & 5.55 & & todo & todo\\
-rank 1 & & 222.85 & 1658.1 & & 4.4 & 5.05 & & todo & todo\\
-$\mathcal{N}(0,1/m)$ & & 2035.05 & 1488.05& & 7.4 & 5.8 & & todo & todo\\
-$\pm 1/\sqrt{m}$ & & 2106.3 & 1537.45 & & 3.7 & 4.3 & & todo & todo\\
-$0, \pm \sqrt{3/m}$ & & 1731.45 & 1309.8 & & 5.6 & 5.35 & & todo & todo\\
-\midrule
-average & & 1475.19 & 1543.03 & & 4.94 & 5.07 & & todo & todo \\
-\bottomrule
-\end{tabular*}
-\end{table}
+Solving times for the left- and right-hand side are given in Table~\ref{lhsTime} and~\ref{rhsTime}. The relaxation proposed in \cite{Asp07}
+was very fast, taking only a few seconds for all instances. The mixed-integer semidefinite program obviously
+cannot compete with these solving times, although for band-matrices, specifically, the difference was relatively
+small. The Lagrangian Relaxation from \cite{Asp08}, however, took more time to produce bounds than was needed
+by our MISDP to compute exact solutions. The big difference is also caused by the instances running into the 
+memory limit, but even without those, the algorithm still took slightly longer than the MISDP.
 
-Here we can see the advantage of the relaxation proposed in \cite{Asp07}. While it won't produce exact results, it can solve instances, where the mixed integer semidefinite problem takes 30 or more minutes, within a few seconds. 
-With the mixed integer semidefinite program we could only solve instances up to size $40$ and order $5$ within our time limit of 60 minutes, which is far from the amount needed for the instances used in practical applications. 
-But this still gives us a way to compute restricted isometry constants apart from total enumeration, if they need to be known exactly. Also mixed integer semidefinite programming is still a relatively new subject of research, and like
-in the mixed integer linear case, there should be hope for improvements in the algorithms in the future, which would make this approach much more feasible.
+\input{tables/lhsTime}
 
-In table \ref{nodes} we compare the number of nodes in the branch-and-bound-tree for (\ref{MISDP}) with the number of eigenvalue problems that would have to be solved to compute the restricted isometry constants via total enumeration.
-For this we computed the ratio of branch-and-bound nodes to submatrices of order $k$ of $A$, of which there exist $\binom{n}{k}$. 
-
-\begin{table}[ht]
-   \centering
-        \caption{Branch-and-bound-nodes as percentage of total enumeration}
-   \label{nodes}
-   \begin{tabular*}{\textwidth}{l @{\extracolsep{\fill}} r r}
-   \toprule
-type of matrix & left & right \\
-\midrule
-$\mathcal{N}(0,1)$ & $76,94\%$ & $59.52\%$\\
-binary & $89.40\%$ & $138.87\%$\\
-band matrix & $0.77\%$ & $0.17\%$ \\
-rank 1 & $1.01\%$ & $30.64\%$\\
-$\mathcal{N}(0,1/m)$ & $59.85\%$ & $58.85\%$\\
-$\pm 1/\sqrt{m}$ & $90.74\%$ & $69.49\%$\\
-$0, \pm \sqrt{3/m}$ & $75.96\%$ & $60.68\%$\\
-\midrule
-average & $56.38\%$ & $61.87\%$ \\
-\bottomrule
-\end{tabular*}
-\end{table}
-
-While the mixed integer semidefinite program performed quite well for band and rank one matrices, it didn't perform too well for most other clases, sometimes even needing more branch-and-bound nodes than there are submatrices of $A$
-(which can happen, as the latter only appear as leaves in the branch-and-bound-tree). One reason for this is that sparse eigenvalues will usually be lower than non-sparse eigenvalues, leading to fractional solution as long as there
-are still unfixed binary variables, while integer solutions only appear in the leaves. But for these computations we only used general heuristics and branching rules as implemented in SCIP, so there might be chances for improvements with
-specially tailored heuristics and branching rules for this kind of problem. Also our tests showed, that the ratio gets smaller with larger $k$, so for bigger instances the performance of the algorithm in contrast to total enumeration
-should increase.
+\input{tables/rhsTime}
 
 \section{Conclusion}
 
-We have seen that exact restricted isometry constants can be computed not only via total enumeration but also by solving a mixed integer semidefinite program. Because of this exactness result, this new problem could drastically
+We have seen that exact restricted isometry constants can be computed not only via total enumeration but also by solving a mixed integer semidefinite program. Because of this exactness result, the new problem could drastically
 improve the bounds computed with the semidefinite relaxations proposed in \cite{Asp07} and \cite{Asp08}, but this came at the cost of a much higher complexity of computation, at least in comparison to \cite{Asp07}. We could only 
 solve these problems for relatively small instances, but this could change with sufficient advances in the area of mixed integer semidefinite programming, especially with the addition of special cutting planes, which proved to be 
 the main enhancement needed to make mixed integer linear solvers as fast as they are today. Also special heuristics and branching rules could improve the performance of the branch-and-bound-algorithm and allow us to solve bigger 
