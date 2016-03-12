@@ -617,11 +617,22 @@ memory limit, but even without those, the algorithm still takes slightly longer 
 
 \section{Conclusion}
 
-We have seen that exact restricted isometry constants can be computed not only via total enumeration but also by solving a mixed integer semidefinite program. Because of this exactness result, the new problem can drastically
-improve the bounds computed by the semidefinite relaxations proposed in \cite{Asp08} and \cite{Asp07}, but this comes at the cost of a much higher complexity of computation, at least in comparison to \cite{Asp07}. We could only 
-solve these problems for relatively small instances, but this might change with sufficient advances in the area of mixed integer semidefinite programming, especially with the addition of special cutting planes, which proved to be 
-the main enhancement needed to make mixed integer linear solvers as fast as they are today. Also special heuristics and branching rules could improve the performance of the branch-and-bound-algorithm and allow us to solve bigger 
-instances of the proposed MISDP.
+\noindent
+This paper shows that exact values of restricted isometry constants can be
+computed via mixed-integer semidefinite programming. Although the used
+matrices are necessarily small, we can significantly improve the bounds
+computed by the semidefinite relaxations proposed in \cite{Asp08} and
+\cite{Asp07}. Moreover, the results of this paper can be used to design
+further approximations of the RIP, which might also be applicable for
+larger matrices. On the negative side, the running time of the mixed-integer
+semidefinite approach is significantly larger than the relaxation
+of~\cite{Asp07}. On the positive side, it is faster and/or uses less memory
+than the relaxation of \cite{Asp08} and it computes optimal constants!
+
+For the future, the hope is that with the advancement of solving techniques
+for mixed-integer semidefinite programs, the sizes of the matrices can be
+significantly increased. The components to be improved include cutting
+planes, primal heuristics, and branching rules.
 
 \bibliographystyle{abbrv}
 \bibliography{Paperbib}
