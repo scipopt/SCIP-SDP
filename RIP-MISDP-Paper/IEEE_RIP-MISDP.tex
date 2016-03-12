@@ -78,8 +78,8 @@
 
 \IEEEPARstart{F}{inding} a sparsest solution of an underdetermined system of linear
 equations is one key problem in compressed sensing and has been
-thoroughly investigated in recent years. Given a matrix $A \in \R^{m \times n}$ with $m \ n$ and 
-right-hand side $b \in \R^m$, one core problem is to compute
+thoroughly investigated in recent years. Given a matrix $A \in \R^{m \times n}$ with $m \leq n$ and 
+right-hand side $b \in \R^m$, the core problem is
 \begin{align}\label{l0min}
  \min \quad & \Norm{x}{0} \tag{$P_0$}\\
  \text{s.t.} \quad & Ax = b, \nonumber
@@ -88,7 +88,7 @@ where $\Norm{x}{0}$ denotes the number of nonzero components of~$x$. This
 problem is \NP-hard, see Garey and
 Johnson~\cite{GareyJohnson}. One key observation in compressed sensing is
 that a solution of~\eqref{l0min} can be found by solving the following
-convex optimization problem if certain conditions are fulfilled:
+convex optimization problem, if certain conditions are fulfilled:
 \begin{align}\label{l1min}
  \min \quad & \Norm{x}{1} \tag{$P_1$}\\
  \text{s.t.} \quad & Ax = b. \nonumber
@@ -96,9 +96,8 @@ convex optimization problem if certain conditions are fulfilled:
 In fact, this so-called \emph{basis pursuit} problem can be reformulated as
 a linear program (LP) and efficient specialized solution algorithms are
 available both in theory and practice: as an extremely selected list
-consider the articles~\cite{BecBC11,CheDS99,OsbPT00,vdBF08}. For more
-information we refer the reader to~\cite{FouR13} and the practical
-comparison in~\cite{LorPT15}.
+consider the articles~\cite{BecBC11,CheDS99,OsbPT00,vdBF08} and the
+practical comparison in~\cite{LorPT15}.
 % Note: do not write out author names to keep text short at this place.
 
 % long version:
@@ -113,7 +112,7 @@ comparison in~\cite{LorPT15}.
 \section{The Restriced Isometry Property}
 \label{sec:RIP}
 
-
+\noindent
 Several conditions in compressed sensing imply that a solution
 of~\eqref{l0min} can be \emph{recovered} by solving \eqref{l1min}, in which
 case one speaks of $\ell_0$-$\ell_1$-\emph{equivalence}. First results in
@@ -134,30 +133,30 @@ which was first introduced by Cand\`es and Tao~\cite{CT05}.
   for all $x \in \Sigma_k \define \{x \in \R^n \suchthat \Norm{x}{0} \leq k\}$.
 \end{definition}
 
-Since the following results depend on the constant $\delta$ in (\ref{rip}) being
+Since the following results depend on the constant $\delta$ in \eqref{rip} being
 small enough, we are generally interested in the smallest constant satisfying
-(\ref{rip}).
+\eqref{rip}.
 
 \begin{definition}\label{ricdef}
-For a matrix $A \in \R^{m \times n}$ and order~$k$, the smallest constant in 
-(\ref{rip}),
-\begin{equation}\label{ric}
- \begin{aligned}
-  \delta_k \define \argmin_{\delta \geq 0} \{&(1 - \delta) \Norm{x}{2}^2 \leq \Norm{Ax}{2}^2 \leq (1+\delta) \Norm{x}{2}^2 ,\\
-  & \text{ for all }x \in \Sigma_k\},
- \end{aligned}
-\end{equation}
-is called \emph{restricted isometry constant} (RIC).
+  For a matrix $A \in \R^{m \times n}$ and order~$k$, the smallest constant in 
+  \eqref{rip},
+  \begin{equation}\label{ric}
+    \begin{aligned}
+      \delta_k \define \argmin_{\delta \geq 0} \big\{&(1 - \delta) \Norm{x}{2}^2 \leq \Norm{Ax}{2}^2 \leq (1+\delta) \Norm{x}{2}^2 ,\\
+      & \text{ for all }x \in \Sigma_k \big\},
+    \end{aligned}
+  \end{equation}
+  is called \emph{restricted isometry constant} (RIC) of order~$k$.
 \end{definition}
 
 If the restricted isometry property holds for a sufficiently small
-restricted isometry constant, then the optimal solutions of~\eqref{l0min}
+restricted isometry constant, the optimal solutions of~\eqref{l0min}
 and~\eqref{l1min} coincide.  The best-known result of this type is probably
 the following:
  
 \begin{theorem}[Cand\'es~\cite{Can08}]\label{RIPsqrt2}
   Let $A$ satisfy $\delta_{2k} < \sqrt{2}-1 \approx 0.4142$. If there
-  exists $\tilde{x} \in \R^n$ with $\Norm{\tilde{x}}{0} \leq k$ such that
+  exists $\tilde{x} \in \R^n$ with $\Norm{\tilde{x}}{0} \leq k$ and
   $A\tilde{x} = b$, then the optimal solutions of~\eqref{l0min}
   and~\eqref{l1min} coincide.
 \end{theorem}
@@ -175,16 +174,15 @@ by Foucart and Lai~\cite{FL09}:
 \begin{definition}\label{asymRIPdef}
  The \emph{lower} and \emph{upper restricted isometry constant} are defined as
  \begin{align}
-   \alpha_k & \define \argmax_{\alpha \geq 0}\; \{ \alpha^2 \Norm{x}{2}^2
-   \leq \Norm{Ax}{2}^2,\; \text{ for all }x \in \Sigma_k\}, \label{lowerRIP}\\
-   \beta_k & \define \argmin_{\beta \geq 0}\; \{ \Norm{Ax}{2}^2 \leq \beta^2
-   \Norm{x}{2}^2,\; \text{ for all }x \in \Sigma_k\},\label{upperRIP}
+   \alpha_k & \define \argmax_{\alpha \geq 0}\; \big\{ \alpha^2\, \Norm{x}{2}^2
+   \leq \Norm{Ax}{2}^2,\; \text{ for all }x \in \Sigma_k\big\}, \label{lowerRIP}\\
+   \beta_k & \define \argmin_{\beta \geq 0}\; \big\{ \Norm{Ax}{2}^2 \leq \beta^2\,
+   \Norm{x}{2}^2,\; \text{ for all }x \in \Sigma_k\big\},\label{upperRIP}
  \end{align}
  respectively. The \emph{restricted isometry ratio} (RIR) is
  defined as $\gamma_k \define \beta_k^2 / \alpha_k^2$ for $\alpha_k \neq 0$.
 \end{definition}
 
-%
 Definition~\ref{asymRIPdef} is a generalization of Definition~\ref{ripdef}
 in the following sense: if the matrix~$A$ satisfies the RIP of order $k$
 with RIC $\delta_k$, then it has a RIR of at most $(1 + \delta_k) / (1 -
@@ -195,7 +193,7 @@ So $A$ has a small RIC if and only if it has a large lower and a small upper
 RIC. But since in~\eqref{rip} usually only one of the two inequalities will 
 be sharp, the asymmetric version yields more information about~$A$.
 
-For the asmmetric version of the RIP in Definition~\ref{asymRIPdef}, we
+For the asmmetric version of the RIP in Definition~\ref{asymRIPdef}, one
 can again show $\ell_0$-$\ell_1$-equivalence:
 
 \begin{theorem}[Foucart and Lai~\cite{FL09}]\label{asymRIPtheorem}
@@ -210,12 +208,12 @@ of Definition~\ref{asymRIPdef} and Theorem~\ref{asymRIPtheorem} is that they
 are invariant under scaling of $Ax = b$. The condition of
 Theorem~\ref{RIPsqrt2} holding for~$A x = b$ does not imply the same 
 for the scaled equation
-$\lambda Ax = \lambda b$. In Definition \ref{asymRIPdef}, however, we can
+$\lambda Ax = \lambda b$, $\lambda \in \R \setminus \{0\}$. In Definition~\ref{asymRIPdef}, however, we can
 use $\tilde{\alpha}_k = \lambda \alpha_k$, $\tilde{\beta}_k = \lambda
 \beta_k$, and therefore $\tilde{\gamma}_k = \lambda^2 \alpha_k^2 /
-\lambda^2 \beta_k^2 = \gamma_k$.
+(\lambda^2 \beta_k^2) = \gamma_k$.
 
-Furthermore, the recovery results given in this section can also be derived 
+Furthermore, we note that the recovery results given in this section can also be derived 
 for the \emph{denoising} case, where instead of~\eqref{l0min} one considers
 \begin{align}\label{l0minDenoising}
   \min \quad & \Norm{x}{0} \tag{$P_0^\delta$}\\
