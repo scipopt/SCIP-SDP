@@ -69,7 +69,7 @@
   mixed-integer semidefinite programming approach for computing these
   optimal constants. This also subsumes sparse principal component
   analysis. Computational results with this approach allow to evaluate
-  ealier SDP relaxations and show that their quality is limited.
+  earlier SDP relaxations and show that their quality is limited.
 \end{abstract}
 
 \section{Introduction}
@@ -109,7 +109,7 @@ practical comparison in~\cite{LorPT15}.
 % found in Foucart and Rauhut~\cite{FouR13} and the practical comparison
 % in~\cite{LorPT15}.
 
-\section{The Restriced Isometry Property}
+\section{The Restricted Isometry Property}
 \label{sec:RIP}
 
 \noindent
@@ -193,7 +193,7 @@ So $A$ has a small RIC if and only if it has a large lower and a small upper
 RIC. But since in~\eqref{rip} usually only one of the two inequalities will 
 be sharp, the asymmetric version yields more information about~$A$.
 
-For the asmmetric version of the RIP in Definition~\ref{asymRIPdef}, one
+For the asymmetric version of the RIP in Definition~\ref{asymRIPdef}, one
 can again show $\ell_0$-$\ell_1$-equivalence:
 
 \begin{theorem}[Foucart and Lai~\cite{FL09}]\label{asymRIPtheorem}
@@ -233,7 +233,7 @@ However, it turns out that computing the restricted isometry
 constants for a given matrix~$A$ and~$k$ is NP-hard, see~\cite{PT14}. 
 Note the the unfortunate implication that it is hard to check for a
 concrete random matrix whether it satisfies the RIP, since the theoretical
-results hold asymptotically and with respect to high probabilty.
+results hold asymptotically and with respect to high probability.
 
 This motivated d'Aspremont et al.~\cite{Asp08,Asp07} to propose several
 semidefinite relaxations to compute upper bounds on the restricted isometry
@@ -272,7 +272,7 @@ al. in~\cite{AspBG14}.
 In the following, we start by reviewing the SDP-relaxations of~\cite{Asp08}
 and~\cite{Asp07} in Section~\ref{sec:SDPrelax}.  Afterwards, in
 Section~\ref{sec:MISDP}, we construct a mixed integer semidefinite
-programm and show that it produces exact restricted isometry
+program and show that it produces exact restricted isometry
 constants. Finally, in Section~\ref{sec:numerical_results}, we present
 numerical results and comparisons with the SDP relaxations in \cite{Asp08}
 and \cite{Asp07}.
@@ -332,7 +332,7 @@ As one way to solve \eqref{phi} the semidefinite lifting technique is used again
  & X \succeq P_i \succeq 0 \quad \text{for } i = 1, \dots, n, \nonumber
 \end{align}
 for $B_i = b_i\,b_i\T - \rho\, I$, where $b_i$ is the $i$-th column of the
-squareroot of $\Sigma$. For details, we refer the reader to~\cite{Asp08}. The corresponding dual problem can then be written as 
+square-root of $\Sigma$. For details, we refer the reader to~\cite{Asp08}. The corresponding dual problem can then be written as 
 \begin{align}\label{Asp08Dual}
   \min \quad & \lambda_{\max}\Big(\sum_{i=1}^n Y_i \Big) \nonumber \\
   \text{s.t.} \quad & Y_i \succeq B_i \quad \text{for } i = 1, \dots, n \tag{A2-Dual} \\
@@ -581,14 +581,14 @@ counted with the maximum allowed time of four hours.
 
 In Table~\ref{lhsGap} we compare the relative gap between the bounds on $\alpha_k$ computed by the two heuristics
 and the exact values given by~\eqref{MISDP}. We present arithmetic means over all of the nine matrices for the given type that
-could be solved within the time- and memory-limit. Note that in this case, we ommitted the rank one matrices, since these satisfy
+could be solved within the time- and memory-limit. Note that in this case, we omitted the rank one matrices, since these satisfy
 $\alpha_k = 0$ in all cases, so that the trivial lower bound would already
 be optimal.
 
 For the left-hand-side of the RIP, both relaxations did not perform
 too well. Especially the relaxation given in \cite{Asp08} regularly returned worse solutions than the
 trivial lower bound of zero. The relaxation in \cite{Asp07} performed slightly better, but the bounds
-were still not nearly good enough to have any chance of proving $\ell_0$-$\ell_1$-equivalance. The relatively
+were still not nearly good enough to have any chance of proving $\ell_0$-$\ell_1$-equivalence. The relatively
 bad performance of both relaxations for the left-hand side might not be too surprising, since both relaxations
 were originally designed for sparse principal component analysis, which corresponds to the right-hand side
 of the RIP.
