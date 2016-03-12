@@ -378,141 +378,158 @@ In \cite{AspBG14} explicit bounds on the quality of this relaxation where derive
 % \end{equation*}
 
 
-\section{An MISDP for the Restricted Isometry Property}
+\section{An MISDP for the RIP}
 \label{sec:MISDP}
 
-In this section we want to compute the optimal constants $\alpha_k$ and $\beta_k$ in (\ref{lowerRIP}) and (\ref{upperRIP}) using mixed integer semidefinite programming. We will again start with the non-convex quadratic problem
-\begin{align}\label{QP2}
- \min \quad & \Norm{Ax}{2}^2 \nonumber \\
- \text{s.t.} \quad & \Norm{x}{2}^2 = 1 \tag{QP} \\
- & \Norm{x}{0} \leq k. \nonumber
-\end{align}
-For the non-convex quadratic equality constraint $\Norm{x}{2}^2 = 1$ we will
+\noindent
+In this section we propose a MISDP formulation to compute the optimal
+constants $\alpha_k$ and $\beta_k$ in \eqref{lowerRIP} and
+\eqref{upperRIP}, respectively. We will again start with the non-convex quadratic problem~\eqref{QP}.
+For the non-convex quadratic equality constraint $\Norm{x}{2}^2 = 1$, we
 again use semidefinite lifting, introducing the new variable $X=xx\T$ like in the last section. 
-The cardinality-constraint in (\ref{QP}) can equivalently be written using binary variables $z_i$ as $-z_i \leq x_i \leq z_i$ and $\sum_{i=1}^n z_i \leq k$. We can thus rewrite (\ref{QP}) equivalently as
-% In this section we want to compute the optimal constants $\alpha_k$ and $\beta_k$ in (\ref{asymRIP}) using mixed integer semidefinite programming. A non-convex quadratic optimization problem to compute $\alpha_k$ can be formulated as
-% 
-% \begin{align}\label{QP}
-%  \min \quad & \Norm{Ax}{2}^2 \nonumber \\
-%  \text{s.t.} \quad & \Norm{x}{2}^2 = 1 \tag{QP} \\
-%  & \Norm{x}{0} \leq k. \nonumber
-% \end{align}
-% 
-% By switching $\min$ for $\max$ in (\ref{QP}) we also get a corresponding optimization problem to compute $\beta_k$ and therefore also $\gamma_k$ and $\delta_k$.
-% The cardinality-constraint in (\ref{QP}) can equivalently be written using binary variables $z_i$ as $-z_i \leq x_i \leq z_i$ and $\sum_{i=1}^n z_i \leq k$. For the non-convex quadratic equality constraint $\Norm{x}{2}^2 = 1$ we will
-% use the technique of semidefinite lifting first introduced in \cite{GW95} for the max-cut problem. The idea is to use a new matrix variable $X=xx\T$ for the quadratic terms, where the condition $X=xx\T$ is then enforced by the 
-% equivalent constraints $X \succeq 0$ and $\Rk(X) = 1$, where $X
-% \succeq 0$ means that $X$ is symmetric and positive semidefinite. Using
-% that $\Norm{Ax}{2}^2 = x\T A\T Ax = \Tr(A\T A X)$ and 
-% $\Tr(X) = \sum_{i=1}^n x_i^2$, we can thus rewrite (\ref{QP}) equivalently to
+The cardinality-constraint in \eqref{QP} can equivalently be written using
+binary variables $z_i$ as $-z_i \leq x_i \leq z_i$ and $\sum_{i=1}^n z_i
+\leq k$. We can thus equivalently rewrite \eqref{QP} as
 \begin{align}\label{Rk1MISDP}
  \min \quad & \Tr(A\T A X) \nonumber \\
- \text{s.t.} \quad & \Tr(X) = 1 \nonumber \\
- & -z_j \leq X_{ij} \leq z_j \quad \text{for } j = 1, ..., n \nonumber \\
- & \sum_{i=1}^n z_i \leq k \tag{M1} \\
- & \Rk(X) = 1 \nonumber \\
- & X \succeq 0  \nonumber \\
+ \text{s.t.} \quad & \Tr(X) = 1, \nonumber \\
+ & -z_j \leq X_{ij} \leq z_j \quad \text{for } j = 1, \dots, n, \nonumber \\
+ & \sum_{i=1}^n z_i \leq k,\\
+ & \Rk(X) = 1, \nonumber \\
+ & X \succeq 0,  \nonumber \\
  & z \in \{0,1\}^n. \nonumber
 \end{align}
-The next step would then be to relax the non-convex rank constraint again to arrive at the following relaxation which computes a lower bound on the optimal constant $\alpha_k$ in (\ref{lowerRIP}):
+We then relax the non-convex rank constraint to arrive at the following
+MISDP formulation:
 \begin{align}\label{MISDP}
  \min \quad & \Tr(A\T A X) \nonumber \\
- \text{s.t.} \quad & \Tr(X) = 1 \nonumber \\
- & -z_j \leq X_{ij} \leq z_j \quad \text{for } j = 1, ..., n \nonumber \\
- & \sum_{i=1}^n z_i \leq k \tag{MISDP} \\
- & X \succeq 0  \nonumber \\
- & z \in \{0,1\}^n \nonumber
+ \text{s.t.} \quad & \Tr(X) = 1, \nonumber \\
+ & -z_j \leq X_{ij} \leq z_j \quad \text{for } j = 1, \dots, n, \nonumber \\
+ & \sum_{i=1}^n z_i \leq k, \tag{MISDP} \\
+ & X \succeq 0,  \nonumber \\
+ & z \in \{0,1\}^n. \nonumber
 \end{align}
+In the following, we will show that \eqref{MISDP} actually produces the
+exact value of $\alpha_k$. We will use the following result about the
+relationship between the rank of solutions of semidefinite programs and the
+dimension of corresponding faces of a convex set~$P$, i.e., subsets $F
+\subseteq P$ such that $x \in F$, $y, z \in P$, and $x = \tfrac{1}{2} (y + z)$ imply
+$y,z \in F$:
 
-In the following we will show that (\ref{MISDP}) not only computes a lower bound but the exact value of $\alpha_k$. For this we will use results about the geometry of semidefinite programs to show that there always exists an 
-optimal solution to (\ref{MISDP}) with rank 1 so that the optimal objective values of (\ref{Rk1MISDP}) and (\ref{MISDP}) have to agree. We will use the following result by Pataki \cite{pat98} about the relationship between the rank of
-solutions of semidefinite programs and the dimension of corresponding faces, meaning a subset $F$ of the convex set $P$ such that \mbox{$x \in F, y, z \in P$} and $x = 0.5y + 0.5z$ imply $y,z \in F$:
-
-\begin{theorem}\label{patakiLemma}
- Let $X \in F$, where $F$ is a face of
- \begin{equation*}
- P \define \{X \in S_n : X \succeq 0, \Tr(A_i X) = b_i \ \text{for } i = 1, ..., m\}
- \end{equation*}
- for symmetric matrices $A_i \in S_n, i \leq m$. Then
- \begin{equation*}
-  \frac{1}{2}\Rk(X)\cdot(\Rk(X)+1) \leq m + dim(F).
- \end{equation*}
+\begin{theorem}[Pataki~\cite{pat98}]\label{patakiLemma}
+  Let $X \in F$, where $F$ is a face of
+  \begin{equation*}
+    P \define \{X \in S_n \suchthat X \succeq 0,\; \Tr(A_i X) = b_i\; \text{ for } i = 1, \dots, \tilde{m}\}
+  \end{equation*}
+  for symmetric matrices $A_i \in S_n$, $i = 1, \dots, \tilde{m}$. Then
+  \begin{equation*}
+    \tfrac{1}{2}\Rk(X)\cdot(\Rk(X)+1) \leq \tilde{m} + dim(F).
+  \end{equation*}
 \end{theorem}
 
-Now we will use this theorem on the projection of the feasible set of (\ref{MISDP}) onto the space of all indices $i$, such that $z_i = 1$ for a given optimal solution of (\ref{MISDP}), to show that there always exists an optimal 
-solution to (\ref{MISDP}) with rank one.
+Using this result on the projection of~\eqref{MISDP} onto the $X$ variables, yields the following.
 
 \begin{theorem}\label{Rk1thm}
- For every $A \in \R^{m \times n}$ and $k \geq 1$ there exists an optimal solution $X^*, z^*$ to (\ref{MISDP}) such that $\Rk(X^*) = 1$. 
+  For every $A \in \R^{m \times n}$ and $k \in \Z_{>0}$, there exists an optimal solution $(X^\star, z^\star)$ of \eqref{MISDP} with $\Rk(X^\star) = 1$. 
 \end{theorem}
+
 \begin{proof}
- Because of the constraint $\Tr(X) = 1$, Problem~\eqref{MISDP} is bounded and $X_{11} = 1, X_{ij} = 0 \ \forall i,j \neq 1,$ \mbox{$z_1 = 1, z_i = 0 \ \forall i \neq 1$} 
- is always feasible for $k > 0$,  so an optimal solution to~\eqref{MISDP} exists.
- Let $\hat{X}, \hat{z}$ be such an optimal solution to (\ref{MISDP}) with $\sum_{i=1}^n z_i =: \ell \leq k$.
- Define
- \begin{align}\label{Proj}
- \min \quad & \Tr(\tilde{A}\T\tilde{A}\tilde{X}) \nonumber \\
- \text{s.t.} \quad & \Tr(\tilde{X}) = 1 \tag{Proj} \\
- & \tilde{X} \succeq 0  \nonumber 
- \end{align}
-for $\tilde{X} \in S_\ell$, where $\tilde{A} = (A_{i_1}, A_{i_2}, ..., A_{i_\ell})$ consists of those
-columns $\{{i_1}, {i_2}, ..., {i_\ell}\} \enifed T$ of $A$ for which
-$\hat{z}_{i_k} = 1$.
+  First note that because of the constraint $\Tr(X) = 1$,
+  Problem~\eqref{MISDP} is bounded. Moreover, $X_{11} = 1$, $X_{ij} = 0$
+  for all $i,j \neq 1$, $z_1 = 1$, $z_i = 0$ for all $i = 2, \dots, n$ is
+  feasible for $k > 0$. Thus, an optimal solution to~\eqref{MISDP} exists.
 
-Now let $\bar{X}$ be the $\ell \times \ell$ submatrix of $\hat{X}$ with all rows and columns outside of $T$ removed. Then $\bar{X}$ is feasible for (\ref{Proj}) with the same objective value as the optimal solution $\hat{X}$ of (\ref{MISDP}), 
-as we only removed zero rows and columns of $\hat{X}$ and $(A\T A)\hat{X}$, which do not influence the trace or the positive semidefiniteness.
+  Let $(X^\star, z^\star)$ be an optimal solution to \eqref{MISDP} with
+  $\ell \define \sum_{i=1}^n z^\star_i \leq k$. Let $T \define \{i_1, i_2,
+  \dots, i_\ell\}$ be the support of $z^\star$, and define $\check{A} =
+  (A_{i_1}, A_{i_2}, \dots, A_{i_\ell})$ to be the submatrix of~$A$ formed by
+  the columns indexed by~$T$. Then consider
+  \begin{align}\label{Proj}
+    \min \quad & \Tr(\check{A}\T \check{A} \check{X}), \nonumber \\
+    \text{s.t.} \quad & \Tr(\check{X}) = 1, \\
+    & \check{X} \succeq 0,\; \check{X} \in S_\ell.\nonumber 
+  \end{align}
 
-On the other hand we can lift any optimal solution $\check{X}$ of (\ref{Proj}) to a feasible point for (\ref{MISDP}) with identical objective value by setting $z^{\prime}_i$ to one if and only if $i \in T$
-and $X^{\prime}_{i_{j_1} i_{j_2}} = \check{X}_{j_1j_2}$ if and only if $i_{j_1}, i_{j_2} \in T$
-and $X^{\prime}_{ij}=0$ otherwise. This solution will then be feasible for (\ref{MISDP}), since $\Tr(\check{X}) = 1$ and $\check{X}\in S_\ell$ imply $0 \leq \check{X}_{jj} = X^{\prime}_{i_j i_j} \leq 1$ and therefore 
-$X^{\prime}_{ij} \leq z^{\prime}_j$ by diagonal dominance of semidefinite matrices.
+  Let $\check{X}$ be the $\ell \times \ell$ submatrix of $X^\star$ with all
+  rows and columns outside of $T$ removed. Then $\check{X}$ is feasible for
+  \eqref{Proj} with the same objective value, since we only removed zero
+  rows and columns of $X^\star$ and $(A\T A) X^\star$, which do not
+  influence the trace or the positive semidefiniteness.
 
-So the optimal objective values of (\ref{Proj}) and (\ref{MISDP}) agree and with this construction also 
-$\Rk(X^{\prime}) = \Rk(\check{X})$, so it suffices to show that (\ref{Proj}) always allows for an optimal solution of rank one.
-Let $\breve{X}$ be an extreme point of (\ref{Proj}) (as the set of optimal points of (\ref{Proj}) is a non-empty, convex, compact subset of $\R^{\ell(\ell+1)/2}$, such a point exists
-\cite[Corollary 18.5.1]{Roc70}) with corresponding face $F=\{\breve{X}\}$. Then using Theorem~\ref{patakiLemma} on (\ref{Proj}) with $\tilde{m} = 1$ LP-constraint gives
-\begin{equation*}
- \frac{1}{2}\Rk(\breve{X})\cdot(\Rk(\breve{X})+1) \leq \tilde{m} + dim(F) = 1 + 0 = 1.
-\end{equation*}
-Since $\breve{X}=0$ is infeasible for $\Tr(X)=1$, we must have $\Rk(\breve{X}) = 1$, which can then be lifted to an optimal solution of (\ref{MISDP}) with rank one.
+  On the other hand, we can lift any solution $\check{X}$ of~\eqref{Proj}
+  to a point $\hat{X} \in S_n$ by extending with zeros. Defining
+  $\hat{z}_i$ to be 1 if and only if $i \in T$, yields a feasible point
+  $(\hat{X}, \hat{z})$ for \eqref{MISDP} with identical objective value,
+  since $\Tr(\check{X}) = 1$ and $\check{X} \in S_\ell$ imply $0 \leq
+  \check{X}_{jj} = \hat{X}_{i_j i_j} \leq 1$ for $j = 1, \dots,
+  \ell$. Therefore, $\hat{X}_{ij} \leq \hat{z}_j$ by diagonal dominance of
+  semidefinite matrices.
+
+  Thus, the optimal objective values of \eqref{Proj} and \eqref{MISDP}
+  agree and $\Rk(\hat{X}) = \Rk(\check{X})$.  Therefore, it
+  suffices to show that \eqref{Proj} has an optimal solution of rank one.
+
+  Let $\check{X}$ be an extreme point of \eqref{Proj} (since the set of
+  optimal points of~\eqref{Proj} is a nonempty, convex, and compact, such a
+  point exists, see~\cite[Corollary 18.5.1]{Roc70}). Defining the face $F =
+  \{\check{X}\}$ and applying Theorem~\ref{patakiLemma} on \eqref{Proj}
+  gives
+  \begin{equation*}
+    \tfrac{1}{2} \Rk(\check{X}) \cdot (\Rk(\check{X})+1) \leq \tilde{m} + dim(F) = 1 + 0 = 1,
+  \end{equation*}
+  since there are $\tilde{m} = 1$ linear constraints. Since $\check{X} = 0$
+  is infeasible for $\Tr(X) = 1$, it follows that $\Rk(\check{X}) = 1$,
+  which can then be lifted to an optimal solution of \eqref{MISDP} of rank
+  one.
 \end{proof}
 
-Since Theorem~\ref{Rk1thm} guarantees that (\ref{MISDP}) always has a solution of rank one and the rank-constraint was the only constraint we relaxed to get (\ref{MISDP}) from (\ref{QP}), this means that their optimal objective values 
-have to agree and we can compute the optimal constant $\alpha_k$ for the RIP by solving (\ref{MISDP}). Since the same argumentation also holds for the maximization problem for $\beta_k$, this allows us to compute the restricted isometry
-constant and the restricted isometry ratio by mixed integer semidefinite programming.
+Theorem~\ref{Rk1thm} guarantees that \eqref{MISDP} always has a solution of
+rank one. Therefore, the optimal values of \eqref{MISDP} and \eqref{QP}
+agree. We can therefore compute the optimal constant $\alpha_k$ for the RIP
+by solving \eqref{MISDP}. Since the same argumentation also holds for the
+maximization problem for $\beta_k$, this allows us to compute the
+restricted isometry constant and the restricted isometry ratio by
+mixed-integer semidefinite programming.
 
 \begin{remark}\label{Rk1rmk}
-Theorem \ref{Rk1thm} still holds if additional constraints are added fixing some of the binary variables $z_j$ to $0$ or $1$. In this case there will always exist an optimal solution to problem (\ref{MISDP}) with these added
-constraints with rank $1$, such that the optimal objective value of this problem will also equal that of (\ref{Rk1MISDP}) with the added constraints. This means in particular, that solving problem (\ref{MISDP}) using a 
-branch-and-bound-approach is the same as solving the original problem (\ref{Rk1MISDP}) with a branch-and-bound-code.
+  Theorem \ref{Rk1thm} still holds, if additional constraints involving
+  only $z$-variables are added, e.g., fixing some $z_j$ to $0$ or $1$. In
+  particular, \eqref{MISDP} or equivalently \eqref{Rk1MISDP} can be
+  solved by branch and bound.
 \end{remark}
 
-To solve \eqref{MISDP} successfully using a branch-and-bound-approach, it is important to have strong semidefinite relaxations for fractional $z$ variables. 
-Therefore we will further strengthen the constraint coupling the continuous and binary variables to force the nonzero entries of $z$ towards one in the
-semidefinite relaxations.
+Theorem~\ref{Rk1thm} and Remark~\ref{Rk1rmk} do not guarantee that any
+found solution will have rank one. However, branch and bound will still
+produce the correct optimal value. This suffices for our application of
+computing the RIP constants $\alpha_k$ and $\beta_k$. For other
+applications like SPCA, an extreme solution can be generated with an
+algorithm proposed by Pataki~\cite{coneLP}.
+
+In order to successfully apply branch and bound to \eqref{MISDP}, it is
+important to use strong semidefinite relaxations for fractional $z$
+variables. To this end, we can use the following strengthening of the
+constraints $-z_j \leq X_{ij} \leq z_j$.
 
 \begin{lemma}\label{HalfConstraint} 
-The constraint $-z_j \leq X_{ij} \leq z_j$ in~\eqref{MISDP} can be substituted for all non-diagonal entries of $X$ by the stronger constraint 
-\begin{equation}\label{eq:HalfConstraint}
-  -\frac{1}{2}z_j \leq X_{ij} \leq \frac{1}{2}z_j.
-\end{equation}
+  The inequalities
+  \begin{equation}\label{eq:HalfConstraint}
+    -\tfrac{1}{2} z_j \leq X_{ij} \leq \tfrac{1}{2} z_j,
+  \end{equation}
+  for $i, j \in \{1, \dots, n\}$, are valid for~\eqref{MISDP}.
 \end{lemma}
+
 \begin{proof}
-Let $X$ satisfy $\Tr(X)=1$ and $X\succeq 0$. Then $X_{ii}+X_{jj}\leq 1$ and nonnegativity of the diagonal 
-entries imply $X_{ii}X_{jj}\leq 1/4$. 
-Since all minors of $X$ need to be nonnegative, it follows that
-\begin{equation*}
-  X_{ij}^2 \leq  X_{ii} X_{jj} \leq \frac{1}{4}
-\end{equation*}
-and therefore $-1/2 \leq X_{ij} \leq 1/2$, which implies the equivalence between
-$-z_j \leq X_{ij} \leq z_j$ and~\eqref{eq:HalfConstraint} for all integer values 
-of $z$.
+  Let $X \succeq 0$ satisfy $\Tr(X)=1$. Then $X_{ii}+X_{jj}\leq 1$ and
+  nonnegativity of the diagonal entries imply $X_{ii}X_{jj}\leq
+  \tfrac{1}{4}$.  Since all minors of $X$ need to be nonnegative, it
+  follows that
+  \begin{equation*}
+    X_{ij}^2 \leq  X_{ii} X_{jj} \leq \tfrac{1}{4}.
+  \end{equation*}
+  Therefore $- \tfrac{1}{2} \leq X_{ij} \leq \tfrac{1}{2}$, which shows
+  validity of~\eqref{eq:HalfConstraint}.
 \end{proof}
 
-
-Theorem \ref{Rk1thm} and Remark \ref{Rk1rmk} do not guarantee that any found solution will have rank one, they only guarantee that there exists a rank one solution. But this is not a problem for applications in the context of the RIP, 
-since we are only interested in the optimal objective value, since it implies the constant $\alpha_k$ or $\beta_k$ for the RIP. For other applications like the SPCA such an extreme solution can also be generated with an algorithm 
-proposed by Pataki in \cite{coneLP}.
 
 \section{Numerical Results}
 \label{sec:numerical_results}
