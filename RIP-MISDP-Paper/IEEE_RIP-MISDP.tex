@@ -57,13 +57,24 @@
 
 \maketitle
 
+\noindent
 \begin{abstract}
-An important task in compressed sensing is finding the sparsest solution to an underdetermined system of linear equations. An outstanding result is that, under certain conditions, this is equivalent to minimizing the 1-Norm and thus
-solving a linear program. One such condition is the restricted isometry property for which no efficient algorithms are known to compute the optimal constants, the so called restricted isometry constants. In this paper we propose a
-mixed integer semidefinite program for computing these constants. Numerical results are presented comparing this to ealier SDP relaxations for the same task.
+  One of the fundamental tasks in compressed sensing is finding the
+  sparsest solution to an underdetermined system of linear equations. It is
+  well known that although this problem is \NP-hard, under certain
+  conditions it can be solved by using a linear program which minimizes the
+  1-norm. The restricted isometry property has been one of the key
+  conditions in this context. However, computing the best constants for
+  this condition is itself \NP-hard. In this paper we propose a
+  mixed-integer semidefinite programming approach for computing these
+  optimal constants. This also subsumes sparse principal component
+  analysis. Computational results with this approach allow to evaluate
+  ealier SDP relaxations and show that their quality is limited.
 \end{abstract}
 
 \section{Introduction}
+
+
 
 \IEEEPARstart{F}{inding} a sparsest solution of an underdetermined system of linear
 equations is one key problem in compressed sensing and has been
