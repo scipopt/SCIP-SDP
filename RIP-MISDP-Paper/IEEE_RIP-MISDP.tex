@@ -534,44 +534,58 @@ constraints $-z_j \leq X_{ij} \leq z_j$.
 \section{Numerical Results}
 \label{sec:numerical_results}
 
-In this section we want to show the applicability of our proposed MISDP-formulation and use it to
+\noindent
+In this section we demonstrate the applicability of the proposed MISDP-formulation and use it to
 assess the quality of the relaxations proposed in \cite{Asp08} and \cite{Asp07}.
-For solving the mixed-integer semidefinite programs we use the MISDP-Solver SCIP-SDP \cite{SCIP-SDP} 
-originally developed in \cite{Mar13} and \cite{MS12}, which combines the branch-and-bound-framework of SCIP 3.2.1 \cite{SCIP} with 
-interior-point SDP-solvers, in our case SDPA~7.3.8~\cite{SDPA6,SDPA7}. The continuous SDPs are solved using the command-line version of 
-SDPA~7.3.8. In our tests we compute the left- and right-hand restricted isometry constant 
-$\alpha_k$ and $\beta_k$ either exactly using~\eqref{MISDP} or produce corresponding bounds via (\ref{Asp07}) and (\ref{Asp08Dual}). In the latter case we solve 15 
-SDPs for $\rho$ between $0$ and the maximum diagonal entry of $A\T A$. 
+For solving the mixed-integer semidefinite programs we use the MISDP solver SCIP-SDP \cite{SCIP-SDP},
+originally developed in \cite{Mar13} and \cite{MS12}. It combines the
+branch and bound framework SCIP 3.2.1 \cite{SCIP} with 
+interior-point SDP-solvers, in our case SDPA~7.3.8~\cite{SDPA6,SDPA7}.
 
-The testset consists of 63 matrices of seven 
-different types including band matrices 
+The continuous SDPs are solved using the command-line version of
+SDPA~7.3.8. We compute the left- and right-hand restricted isometry
+constant $\alpha_k$ and $\beta_k$ either exactly using~\eqref{MISDP} or
+produce corresponding bounds via \eqref{Asp07} and \eqref{Asp08Dual}. In
+the latter case, we solve 15 SDPs for $\rho$ between~$0$ and the maximum
+diagonal entry of $A\T A$.\comment{As done in \cite{Asp08}?}
+
+We use a testset consisting of 63 matrices with seven 
+different types including band matrices, 
 with band size three or five with entries within the band chosen uniformly in $\{0,1\}$, binary matrices with all entries chosen 
 uniformly in $\{0,1\}$, Gaussian-distributed matrices and rank one 
-matrices $A = aa\T$ with $\mathcal{N}(0,1)$-distributed entries of $a$. In addition to these four kinds of matrices, 
-we also use three more with theoretical results about their restricted isometry constants, namely matrices with 
+matrices $A = aa\T$ with $N(0,1)$-distributed entries of $a$. In addition to these four types,
+we also use three more for which theoretical results on restricted isometry
+constants are available. This includes matrices with 
 $N(0, 1/m)$-distributed entries, with entries chosen uniformly in $\pm 1/\sqrt{m}$ and finally with distribution
 \begin{equation}\nonumber
-A_{ij} = \begin{cases} + \sqrt{3/m} & \text{with probability } \frac{1}{6} \\ 0 & \text{with probability } \frac{2}{3} \\ - \sqrt{3/m} & \text{with probability } \frac{1}{6}. \end{cases}
+  A_{ij} = \begin{cases}
+    + \sqrt{3/m} & \text{with probability } \frac{1}{6}, \\
+    0 & \text{with probability } \frac{2}{3}, \\
+    - \sqrt{3/m} & \text{with probability } \frac{1}{6}.
+  \end{cases}
 \end{equation}
-For the latter three kinds of matrices it is shown in \cite{BDDW08} that for $n \rightarrow \infty$, 
-sufficiently small $k$ and given $\delta$, they satisfy the restricted isometry property (\ref{rip}) of order $k$  
-with probability converging exponentially to one. The needed proportion between $n$ and $k$ is so small, however,
-that we cannot expect the generated matrices in small dimensions to satisfy the RIP. For each type we used \mbox{MATLAB 8.3.0} 
-to randomly generate nine matrices of three different sizes with rows ranging from 15 to 30, columns 
+For each type we used \mbox{MATLAB 8.3.0} to randomly generate nine
+matrices of three different sizes with rows ranging from 15 to 30, columns
 from 25 to 40 and order $k$ between three and five.
 
-The tests were performed on a Linux cluster with Intel i3 CPUs with 3.2GHz, 4MB cache and 8GB memory running
+For the latter three kinds of matrices, it was shown by Baraniuk et al.~\cite{BDDW08} that for $n \rightarrow \infty$, 
+sufficiently small $k$, and given $\delta$, they satisfy the restricted isometry property of order $k$  
+with probability converging exponentially to one. The needed proportion between $n$ and $k$ is so small, however,
+that we cannot expect the generated matrices in small dimensions to satisfy the RIP.
+
+The tests were performed on a Linux cluster with Intel i3 CPUs with 3.2GHz, 4MB cache, and 8GB memory running
 Linux. Each computation was performed single-threaded with a single process running on each computer and with 
 a time limit of four hours. The code was compiled with gcc 4.4.5 with \texttt{-O3} optimization. For the 
-Problem~\eqref{Asp08Dual} most of the larger instance were aborted because of the memory limit, these are
+Problem~\eqref{Asp08Dual} most of the larger instance were aborted because of the memory limit. These are
 counted with the maximum allowed time of four hours. 
 
 In Table~\ref{lhsGap} we compare the relative gap between the bounds on $\alpha_k$ computed by the two heuristics
-and the exact values given by our
-mixed integer semidefinite program. We give arithmetic means over all of the nine matrices for the given type that
-could be solved within the time- and memory-limit. Note that we ommitted the rank one matrices, since these satisfy
-$\alpha_k = 0$ in all cases, so that the trivial lower bound would already be optimal. For the 
-left-hand-side of the RIP, both relaxations did not perform
+and the exact values given by~\eqref{MISDP}. We present arithmetic means over all of the nine matrices for the given type that
+could be solved within the time- and memory-limit. Note that in this case, we ommitted the rank one matrices, since these satisfy
+$\alpha_k = 0$ in all cases, so that the trivial lower bound would already
+be optimal.
+
+For the left-hand-side of the RIP, both relaxations did not perform
 too well. Especially the relaxation given in \cite{Asp08} regularly returned worse solutions than the
 trivial lower bound of zero. The relaxation in \cite{Asp07} performed slightly better, but the bounds
 were still not nearly good enough to have any chance of proving $\ell_0$-$\ell_1$-equivalance. The relatively
@@ -581,16 +595,18 @@ of the RIP.
 
 \input{tables/lhsGap}
 
-Results for the right-hand side, i.e. $\beta_k$, are given in Table~\ref{rhsGap}. Here both relaxations
+Results for the right-hand side, i.e., $\beta_k$, are given in Table~\ref{rhsGap}. Here both relaxations
 perform much better. Problem~\eqref{Asp08Dual} constantly produces bounds within 10 to 35\,\% of the optimal
-solution. The formulation in~\eqref{Asp08Dual} shows bigger fluctuation, but is very tight in many cases,
+solution. The formulation in~\eqref{Asp08Dual} shows bigger fluctuations, but is very tight in many cases,
 with a gap of less than two percent for band matrices.
 
 \input{tables/rhsGap}
 
-Solving times for the left- and right-hand side are given in Table~\ref{lhsTime} and~\ref{rhsTime}. The relaxation proposed in \cite{Asp07}
+\comment{Wieder arith. Mean?}
+The solving times in seconds for the left- and right-hand side of the RIP are given in
+Table~\ref{lhsTime} and~\ref{rhsTime}, respectively. The relaxation proposed in \cite{Asp07}
 is very fast, taking only a few seconds for all instances. The mixed-integer semidefinite program obviously
-cannot compete with these solving times, although for band-matrices, specifically, the difference is relatively
+cannot compete with these solving times, although for band-matrices, the difference is relatively
 small. The Lagrangian Relaxation from \cite{Asp08}, however, takes more time to produce bounds than is needed
 by our MISDP to compute exact solutions. The big difference is also caused by the instances running into the 
 memory limit, but even without those, the algorithm still takes slightly longer than the MISDP.
