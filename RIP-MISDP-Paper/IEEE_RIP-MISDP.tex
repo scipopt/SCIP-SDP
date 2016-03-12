@@ -281,74 +281,85 @@ and \cite{Asp07}.
 \section{SDP Relaxations}
 \label{sec:SDPrelax}
 
-In this section, we will introduce two known SDP relaxations to compute an upper bound on the restricted isometry constant $\delta_k$ in (\ref{rip}), as they have some ideas in common with the mixed integer semidefinite program we want to 
-propose and will also be checked against in the section on numerical results. The idea of these two relaxations as well as the MISDP in the next section is that the optimal constant $\alpha_k^2$ in (\ref{lowerRIP}) can be computed
+\noindent
+In this section, we will introduce two known SDP relaxations to compute an upper bound on the restricted isometry constant $\delta_k$ in~\eqref{rip}, since they have some ideas in common with the mixed integer semidefinite program we want to 
+propose and will also be checked against in the section on numerical
+results.
+
+The idea is that the optimal constant $\alpha_k^2$ in \eqref{lowerRIP} can be computed
 by the non-convex quadratic optimization problem
 \begin{align}\label{QP}
  \min \quad & \Norm{Ax}{2}^2 \nonumber \\
- \text{s.t.} \quad & \Norm{x}{2}^2 = 1 \tag{QP} \\
+ \text{s.t.} \quad & \Norm{x}{2}^2 = 1, \tag{QP} \\
  & \Norm{x}{0} \leq k. \nonumber
 \end{align}
-The corresponding maximization problem allows to compute $\beta_k^2$. In \cite{Asp07} the non-convex quadratic equality constraint $\Norm{x}{2}^2 = 1$ is tackled by the technique of semidefinite lifting first introduced in \cite{GW95} 
-for the max-cut problem. The idea is to use a new matrix variable $X=xx\T$ for the quadratic terms, where the condition $X=xx\T$ is then enforced by the equivalent constraints $X \succeq 0$ and $\Rk(X) = 1$, where 
-$X \succeq 0$ means that $X$ is symmetric (shortly written \mbox{$X \in S_n$}) and positive semidefinite. The objective and the normalization-constraint can then be expressed in $X$ as  $\Norm{Ax}{2}^2 = x\T A\T Ax =
-\Tr(A\T A X)$ and $\Norm{x}{2}^2 = \sum_{i=1}^n x_i^2 = \Tr(X)$. In the
-next step the inequality $\Norm{x}{0} \leq k$ is then substituted by the coarser constraint $\ones\T
-\abs{X} \ones \leq k$, which follows from the fact that $\ones\T\abs{X} \ones = \Norm{\vect(X)}{1}\leq \sqrt{\Norm{\vect(X)}{0}} \Norm{\vect(X)}{2}$ and $\Norm{\vect(X)}{0}=\Norm{x}{0}^2$ in the rank 1 case, where $\vect(X)$ is a vector
+The corresponding maximization problem allows to compute $\beta_k^2$. In \cite{Asp07}, the non-convex quadratic equality constraint $\Norm{x}{2}^2 = 1$ is tackled by the technique of semidefinite lifting first introduced in \cite{GW95} 
+for the max-cut problem. The idea is to use new matrix variables $X=xx\T$ for the quadratic terms, where the condition $X=xx\T$ is enforced by the equivalent constraints $X \succeq 0$ and $\Rk(X) = 1$, where 
+$X \succeq 0$ means that $X$ is symmetric (shortly written $X \in S_n$) and positive semidefinite. The objective and the normalization-constraint can then be expressed as  $\Norm{Ax}{2}^2 = x\T A\T Ax =
+\Tr(A\T A X)$ and $\Norm{x}{2}^2 = \sum_{i=1}^n x_i^2 = \Tr(X)$. 
+
+In the next step, the inequality $\Norm{x}{0} \leq k$ is then substituted by the weaker constraint $\ones\T
+\abs{X} \ones \leq k$, which follows from the fact that $\ones\T\abs{X} \ones = \Norm{\vect(X)}{1}\leq \sqrt{\Norm{\vect(X)}{0}}\, \Norm{\vect(X)}{2}$ and $\Norm{\vect(X)}{0}=\Norm{x}{0}^2$ in the rank-1 case, where $\vect(X)$ is a vector
 in $\R^{n^2}$ consisting of all entries of $X$. 
-Relaxing the non-convex Rank-constraint finally leads to the following relaxation:
+Relaxing the non-convex rank constraint finally leads to the following SDP:
 \begin{align}\label{Asp07}
  \min \quad & \Tr(A\T A X) \nonumber \\
- \text{s.t.} \quad & \Tr(X) = 1 \nonumber \\
- & \ones\T \abs{X} \ones \leq k \tag{A1} \\
+ \text{s.t.} \quad & \Tr(X) = 1, \tag{A1} \\
+ & \ones\T \abs{X} \ones \leq k, \nonumber \\
  & X \succeq 0. \nonumber
 \end{align}
 
-Another SDP relaxation was proposed in \cite{Asp08}. There the problem
+Another SDP relaxation was proposed in \cite{Asp08}, where
 \begin{equation}\label{phi}
- \phi(\rho) = \max_{\Norm{x}{2} \leq 1} x\T \Sigma x - \rho \Norm{x}{0},
+  \phi(\rho) = \max \big\{ x\T \Sigma\, x - \rho \Norm{x}{0} \suchthat \Norm{x}{2} \leq 1 \big\},
 \end{equation}
 originally stemming from sparse principal component analysis, is tackled for a symmetric positive semidefinite matrix $\Sigma$. For
 $\Sigma = A\T A$ we can use this to compute an upper bound on $\beta_k$ via Lagrangian Relaxation as
 \begin{equation*}
  \begin{aligned}
-  \beta_k^2 & = \max_{\|x\|_2 \leq 1, \|x\|_0 \leq k} x^TA^TAx \\
-	    & \leq \inf_{\rho \geq 0} \max_{\|x\|_2\leq 1} x^TA^TAx - \rho (\|x\|_0-k) \\
-	    & = \inf_{\rho \geq 0} \phi(\rho) + \rho k.
+  \beta_k^2 & = \max \big\{ x\T A\T A x \suchthat \Norm{x}{2} \leq 1,\; \Norm{x}{0} \leq k \big\}\\
+	    & \leq \inf_{\rho \geq 0} \max \big\{ x\T A\T A x - \rho
+            (\Norm{x}{0} - k) \suchthat \Norm{x}{2} \leq 1 \big\}\\
+	    & = \inf_{\rho \geq 0} \phi(\rho) + \rho\, k.
  \end{aligned}
 \end{equation*}
 
-As one way to solve (\ref{phi}) the semidefinite lifting technique is used again to compute an upper bound on $\phi$ via
+As one way to solve \eqref{phi} the semidefinite lifting technique is used again to compute an upper bound on $\phi$ via
 \begin{align}\label{Asp08}
- \max \quad & \sum_{i=1}^n\Tr(P_iB_i) \nonumber \\
- \text{s.t.} \quad & \Tr(X) = 1 \nonumber \\
- & X \succeq 0 \tag{A2-Primal} \\
- & X \succeq P_i \succeq 0 \quad \text{for } i = 1, ..., n, \nonumber
+ \max \quad & \sum_{i=1}^n \Tr(P_i \, B_i) \nonumber \\
+ \text{s.t.} \quad & \Tr(X) = 1, \tag{A2-Primal}\\
+ & X \succeq 0,  \nonumber \\
+ & X \succeq P_i \succeq 0 \quad \text{for } i = 1, \dots, n, \nonumber
 \end{align}
-for $B_i = b_ib_i\T - \rho I,$ where $b_i$ is the $i$-th column of a squareroot of $\Sigma$, for details see \cite{Asp08}. The corresponding dual problem can then be written as 
+for $B_i = b_i\,b_i\T - \rho\, I$, where $b_i$ is the $i$-th column of the
+squareroot of $\Sigma$. For details, we refer the reader to~\cite{Asp08}. The corresponding dual problem can then be written as 
 \begin{align}\label{Asp08Dual}
-  \min \quad & \lambda_{\max}\left(\sum_{i=1}^n Y_i \right) \nonumber \\
-  \text{s.t.} \quad & Y_i \succeq B_i \quad \forall i \leq n \tag{A2-Dual} \\
-  & Y_i \succeq 0 \quad \ \ \text{for } i = 1, ..., n, \nonumber
+  \min \quad & \lambda_{\max}\Big(\sum_{i=1}^n Y_i \Big) \nonumber \\
+  \text{s.t.} \quad & Y_i \succeq B_i \quad \text{for } i = 1, \dots, n \tag{A2-Dual} \\
+  & Y_i \succeq 0 \quad \ \ \text{for } i = 1, \dots, n, \nonumber
 \end{align}
-which only has half as many variables as (\ref{Asp08}) and one less linear and semidefinite constraint. Then (\ref{Asp08Dual}) can be solved for non-negative $\rho$, which should be smaller than $\Sigma_{11}$, because otherwise the
-optimal solution for (\ref{phi}) will always be $x=0$. 
+which has only half as many variables as \eqref{Asp08} and one fewer linear and semidefinite constraint. Then \eqref{Asp08Dual} can be solved for non-negative $\rho$, which should be smaller than $\Sigma_{11}$, because otherwise the
+optimal solution for \eqref{phi} will always be $x=0$. 
 
-As mentioned in \cite{Asp08}, a lower bound for $\alpha_k$ can be computed via
+As shown in \cite{Asp08}, a lower bound for $\alpha_k$ can be computed via
 \begin{equation*}
- \alpha_k^2 \geq \sup_{\rho \geq 0} \psi(\rho) - \rho k,
+ \alpha_k^2 \geq \sup_{\rho \geq 0}\; \psi(\rho) - \rho\, k,
 \end{equation*}
 with 
 \begin{equation*}
- \psi(\rho) = \min_{\Norm{x}{2} \leq 1} x\T \Sigma x + \rho \Norm{x}{0}.
+  \psi(\rho) = \min \big\{ x\T \Sigma\, x + \rho \Norm{x}{0} \suchthat \Norm{x}{2} \leq 1\big\}.
 \end{equation*}
-In this case problem (\ref{Asp08}) or equivalently (\ref{Asp08Dual}) has to be solved for $\Sigma = M I - A\T A$, where $M$ has to be big enough to make $\Sigma$ positive semidefinite again. If $\bar{\Psi}$ is the corresponding optimal solution, this implies
-a lower bound on $\alpha_k$ in
+\comment{$\bar{X}$ L\"osung von \eqref{Asp08}?}
+In this case problem \eqref{Asp08} or equivalently \eqref{Asp08Dual} has to
+be solved for $\Sigma = M I - A\T A$, where $M \in \R$ has to be big enough
+to make $\Sigma$ positive semidefinite again. If $\bar{X}$ is a
+corresponding optimal solution, this implies a lower bound on $\alpha_k$
+in\comment{Ist $M\,I$ statt $M$ korrekt?}
 \begin{equation*}
- \alpha_k^2 \geq \sup_{\rho \geq 0} (M - \bar{\Psi}) - \rho k.
+  \alpha_k^2 \geq \sup_{\rho \geq 0}\; (M\, I - \bar{X}) - \rho\, k.
 \end{equation*}
-
-In \cite{AspBG14} explicit bounds on the quality of the semidefinite relaxation where derived using randomization arguments.
+In \cite{AspBG14} explicit bounds on the quality of this relaxation where derived using randomization arguments.
+\comment{Ist hier die Lagrange-Relaxierung gemeint?}
  
 %To compute the parameter $\rho$, the authors of \cite{Asp08} propose to minimize over the interval
 % \begin{equation*}
