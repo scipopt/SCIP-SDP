@@ -619,18 +619,19 @@ memory limit, but even without those, the algorithm still takes slightly longer 
 
 \noindent
 This paper shows that exact values of restricted isometry constants can be
-computed via mixed-integer semidefinite programming. Although the used
-matrices are necessarily small, we can significantly improve the bounds
-computed by the semidefinite relaxations proposed in \cite{Asp08} and
-\cite{Asp07}. Moreover, the results of this paper can be used to design
-further approximations of the RIP, which might also be applicable for
-larger matrices. On the negative side, the running time of the mixed-integer
-semidefinite approach is significantly larger than the relaxation
-of~\cite{Asp07}. On the positive side, it is faster and/or uses less memory
-than the relaxation of \cite{Asp08} and it computes optimal constants!
+computed via mixed-integer semidefinite programming. The computed bounds
+significantly improve the bounds computed by the semidefinite relaxations
+proposed in~\cite{Asp07} and \cite{Asp08}. In conclusion, the relaxation of
+\cite{Asp07} is fast to compute, but produces a gap of arround 90\,\% for
+$\alpha_k$ and 23\,\% for $\beta_k$. If successfully solved, the relaxation
+of \cite{Asp08} provides better bounds, but its running time is too large
+to be used in practice. Moreover, directly solving~\eqref{MISDP} is often
+faster and produces the exact value. Consequently, the relaxation
+in~\cite{Asp08} should not be used in practice.
 
-For the future, the hope is that with the advancement of solving techniques
-for mixed-integer semidefinite programs, the sizes of the matrices can be
+Still, the matrices currently handable by~\eqref{MISDP} are small. For the
+future, the hope is that with the advancement of solving techniques for
+mixed-integer semidefinite programs, the sizes of the matrices can be
 significantly increased. The components to be improved include cutting
 planes, primal heuristics, and branching rules.
 
