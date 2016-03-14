@@ -349,14 +349,13 @@ with
 \begin{equation*}
   \psi(\rho) = \min \big\{ x\T \Sigma\, x + \rho \Norm{x}{0} \suchthat \Norm{x}{2} \leq 1\big\}.
 \end{equation*}
-\comment{$\bar{X}$ L\"osung von \eqref{Asp08}?}
 In this case problem \eqref{Asp08} or equivalently \eqref{Asp08Dual} has to
 be solved for $\Sigma = M I - A\T A$, where $M \in \R$ has to be big enough
-to make $\Sigma$ positive semidefinite again. If $\bar{X}$ is a
-corresponding optimal solution, this implies a lower bound on $\alpha_k$
-in\comment{Ist $M\,I$ statt $M$ korrekt?}
+to make $\Sigma$ positive semidefinite again. If $\Psi$ is the
+corresponding optimal objective, this implies a lower bound on $\alpha_k$
+in\comment{Ist $M\,I$ statt $M$ korrekt? \\ $\Rightarrow$ nein, sollten alles Skalare sein, $\Psi$ demenstrechend optimaler Zielfunktionswert statt L\"osung (habe ich jetzt oben angepasst)}
 \begin{equation*}
-  \alpha_k^2 \geq \sup_{\rho \geq 0}\; (M\, I - \bar{X}) - \rho\, k.
+  \alpha_k^2 \geq \sup_{\rho \geq 0}\; (M - \Psi) - \rho\, k.
 \end{equation*}
 In \cite{AspBG14} explicit bounds on the quality of this relaxation where derived using randomization arguments.
 \comment{Ist hier die Lagrange-Relaxierung gemeint?}
