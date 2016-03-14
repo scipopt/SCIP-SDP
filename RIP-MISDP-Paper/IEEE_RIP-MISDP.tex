@@ -293,10 +293,11 @@ by the non-convex quadratic optimization problem
  \text{s.t.} \quad & \Norm{x}{2}^2 = 1, \tag{QP} \\
  & \Norm{x}{0} \leq k. \nonumber
 \end{align}
-The corresponding maximization problem allows to compute $\beta_k^2$. In \cite{Asp07}, the non-convex quadratic equality constraint $\Norm{x}{2}^2 = 1$ is tackled by the technique of semidefinite lifting first introduced in \cite{GW95} 
-for the max-cut problem. The idea is to use new matrix variables $X=xx\T$ for the quadratic terms, where the condition $X=xx\T$ is enforced by the equivalent constraints $X \succeq 0$ and $\Rk(X) = 1$, where 
+The corresponding maximization problem allows to compute $\beta_k^2$. D'Aspremont et al. \cite{Asp07} tackled the non-convex quadratic equality constraint 
+$\Norm{x}{2}^2 = 1$ by the technique of semidefinite lifting, first introduced by Goemans and and Williamson~\cite{GW95} 
+for the max-cut problem. The idea is to use new matrix variables $X=xx\T$ for the quadratic terms, where the condition $X=xx\T$ is enforced by the equivalent constraints $X \succeq 0$ and $\Rk(X) = 1$, where, as usual, 
 $X \succeq 0$ means that $X$ is symmetric (shortly written $X \in S_n$) and positive semidefinite. The objective and the normalization-constraint can then be expressed as  $\Norm{Ax}{2}^2 = x\T A\T Ax =
-\Tr(A\T A X)$ and $\Norm{x}{2}^2 = \sum_{i=1}^n x_i^2 = \Tr(X)$. 
+\Tr(A\T A X)$ and $1 = \Norm{x}{2}^2 = \sum_{i=1}^n x_i^2 = \Tr(X)$. 
 
 In the next step, the inequality $\Norm{x}{0} \leq k$ is then substituted by the weaker constraint $\ones\T
 \abs{X} \ones \leq k$, which follows from the fact that $\ones\T\abs{X} \ones = \Norm{\vect(X)}{1}\leq \sqrt{\Norm{\vect(X)}{0}}\, \Norm{\vect(X)}{2}$ and $\Norm{\vect(X)}{0}=\Norm{x}{0}^2$ in the rank-1 case, where $\vect(X)$ is a vector
@@ -309,11 +310,11 @@ Relaxing the non-convex rank constraint finally leads to the following SDP:
  & X \succeq 0. \nonumber
 \end{align}
 
-Another SDP relaxation was proposed in \cite{Asp08}, where
+Another SDP relaxation was proposed by d'Aspremont et al. in \cite{Asp08}, where
 \begin{equation}\label{phi}
   \phi(\rho) = \max \big\{ x\T \Sigma\, x - \rho \Norm{x}{0} \suchthat \Norm{x}{2} \leq 1 \big\},
 \end{equation}
-originally stemming from sparse principal component analysis, is tackled for a symmetric positive semidefinite matrix $\Sigma$. For
+originally stemming from sparse principal component analysis, is approximately solved for a symmetric positive semidefinite matrix $\Sigma$. For
 $\Sigma = A\T A$ we can use this to compute an upper bound on $\beta_k$ via Lagrangian Relaxation as
 \begin{equation*}
  \begin{aligned}
