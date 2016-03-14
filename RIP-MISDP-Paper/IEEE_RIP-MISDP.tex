@@ -489,16 +489,9 @@ maximization problem for $\beta_k$, this allows us to compute the
 restricted isometry constant and the restricted isometry ratio by
 mixed-integer semidefinite programming.
 
-\begin{remark}\label{Rk1rmk}
-  Theorem \ref{Rk1thm} still holds, if additional constraints involving
-  only $z$-variables are added, e.g., fixing some $z_j$ to $0$ or $1$. In
-  particular, \eqref{MISDP} or equivalently \eqref{Rk1MISDP} can be
-  solved by branch and bound.
-\end{remark}
-
-Theorem~\ref{Rk1thm} and Remark~\ref{Rk1rmk} do not guarantee that any
-found solution will have rank one. However, branch and bound will still
-produce the correct optimal value. This suffices for our application of
+Theorem~\ref{Rk1thm} does not guarantee that any
+found solution will have rank one, only that the optimal objective
+values agree. This suffices for our application of
 computing the RIP constants $\alpha_k$ and $\beta_k$. For other
 applications like SPCA, an extreme solution can be generated with an
 algorithm proposed by Pataki~\cite{coneLP}.
