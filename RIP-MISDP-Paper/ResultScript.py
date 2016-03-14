@@ -9,8 +9,9 @@ from decimal import Decimal
 texfile = 0 # make the output a compilable texfile or just a figure/table that can be included?
 Lbounds = 0
 Rbounds = 0
+LRbounds = 1
 Ltimes = 0
-Rtimes = 1
+Rtimes = 0
 completeTable = 0
 
 MISDPfilename = "/local/gally/results/RIP-MISDP-Paper/160311/RIP-results/check.RIPMISDP.scipsdp.linux.x86_64.gnu.opt.sdpa.extra.branchinfobj_nofracdive.out"
@@ -286,14 +287,14 @@ def RhsResultsTable(instancesets, instancesetnames, caption, label):
 		for j in instancetype:
 			# we only take instances with alpha_k > 0, since otherwise the trivial bound is optimal and we cannot compute a relative gap
 			if dualresults[1][j] != -1e20 and gaps[0][j] != "infinite" and float(gaps[0][j]) < epsilon:
-				diff07 += (float(dualresults[1][j]) - float(dualresults[0][j])) / float(dualresults[1][j])
-				totalDiff07 += (float(dualresults[1][j]) - float(dualresults[0][j])) / float(dualresults[1][j])
+				diff07 += (float(dualresults[1][j]) - float(dualresults[0][j])) / float(dualresults[0][j])
+				totalDiff07 += (float(dualresults[1][j]) - float(dualresults[0][j])) / float(dualresults[0][j])
 				nInstances07 += 1
 				totalnInstances07 += 1
 			if dualresults[2][j] != -1e20 and gaps[0][j] != "infinite" and float(gaps[0][j]) < epsilon and dualresults[2][j] != float("inf"):
-				diff08 += (float(dualresults[2][j]) - float(dualresults[0][j])) / float(dualresults[1][j])
+				diff08 += (float(dualresults[2][j]) - float(dualresults[0][j])) / float(dualresults[0][j])
 				nInstances08 += 1
-				totalDiff08 += (float(dualresults[2][j]) - float(dualresults[0][j])) / float(dualresults[1][j])
+				totalDiff08 += (float(dualresults[2][j]) - float(dualresults[0][j])) / float(dualresults[0][j])
 				totalnInstances08 += 1
 		if nInstances07 > 0:
 			avgdiff07 = 100 * diff07 / nInstances07
@@ -334,68 +335,119 @@ def RhsResultsTable(instancesets, instancesetnames, caption, label):
 	file.write("\\bottomrule \n \\end{tabular*} \n \end{scriptsize} \n \\end{table} \n")
 
 
-TODO: write this
 def LhsRhsResultsTable(instancesets, instancesetnames, caption, label):
 	file.write("\\begin{table} \n \\begin{scriptsize} \\caption{" + caption + "} \n \\label{" + label + "} \n \\begin{tabular*}{0.48\\textwidth}{@{}l@{\\;\\;\extracolsep{\\fill}}rrrr")
 	file.write("@{}}\\toprule \n")
-	file.write(" type of matrix & d'Asp 07 & d'Asp 08 ")
+	file.write("  & \\multicolumn{2}{c}{$\\alpha_k$} & \\multicolumn{2}{c}{$\\beta_k$} \\\ \n")
+	file.write("\\cmidrule(r){2-3} \\cmidrule(l){4-5} \n")
+	file.write("type of matrix & d'Asp07 & d'Asp08 & d'Asp07 & d'Asp08 \\ \n")
 	file.write("\\\ \midrule \n")
-	totalDiff07 = 0
-	totalnInstances07 = 0
-	totalDiff08 = 0
-	totalnInstances08 = 0
+	totalDiff07l = 0
+	totalnInstances07l = 0
+	totalDiff07r = 0
+	totalnInstances07r = 0
+	totalDiff08l = 0
+	totalnInstances08l = 0
+	totalDiff08r = 0
+	totalnInstances08r = 0
 	i = 0
 	for instancetype in instancesets:
-		diff07 = 0
-		nInstances07 = 0
-		diff08 = 0
-		nInstances08 = 0
-		for j in instancetype:
+		diff07l = 0
+		nInstances07l = 0
+		diff07r = 0
+		nInstances07r = 0
+		diff08l = 0
+		nInstances08l = 0
+		diff08r = 0
+		nInstances08r = 0
+		for j1,j2 in instancetype:
 			# we only take instances with alpha_k > 0, since otherwise the trivial bound is optimal and we cannot compute a relative gap
-			if dualresults[1][j] != -1e20 and gaps[0][j] != "infinite" and float(gaps[0][j]) < epsilon:
-				diff07 += (float(dualresults[1][j]) - float(dualresults[0][j])) / float(dualresults[1][j])
-				totalDiff07 += (float(dualresults[1][j]) - float(dualresults[0][j])) / float(dualresults[1][j])
-				nInstances07 += 1
-				totalnInstances07 += 1
-			if dualresults[2][j] != -1e20 and gaps[0][j] != "infinite" and float(gaps[0][j]) < epsilon and dualresults[2][j] != float("inf"):
-				diff08 += (float(dualresults[2][j]) - float(dualresults[0][j])) / float(dualresults[1][j])
-				nInstances08 += 1
-				totalDiff08 += (float(dualresults[2][j]) - float(dualresults[0][j])) / float(dualresults[1][j])
-				totalnInstances08 += 1
-		if nInstances07 > 0:
-			avgdiff07 = 100 * diff07 / nInstances07
+			if dualresults[1][j1] != -1e20 and gaps[0][j1] != "infinite" and float(gaps[0][j1]) < epsilon and float(dualresults[0][j1]) > epsilon:
+				diff07l += (float(dualresults[0][j1]) - float(dualresults[1][j1])) / float(dualresults[0][j1])
+				totalDiff07l += (float(dualresults[0][j1]) - float(dualresults[1][j1])) / float(dualresults[0][j1])
+				nInstances07l += 1
+				totalnInstances07l += 1
+			if dualresults[1][j2] != -1e20 and gaps[0][j2] != "infinite" and float(gaps[0][j2]) < epsilon and dualresults[0][j2] != float("inf"):
+				diff07r += (float(dualresults[1][j2]) - float(dualresults[0][j2])) / float(dualresults[0][j2])
+				totalDiff07r += (float(dualresults[1][j2]) - float(dualresults[0][j2])) / float(dualresults[0][j2])
+				nInstances07r += 1
+				totalnInstances07r += 1
+			if dualresults[2][j1] != -1e20 and gaps[0][j1] != "infinite" and float(gaps[0][j1]) < epsilon and float(dualresults[0][j1]) > epsilon and dualresults[2][j1] != -float("inf"):
+				diff08l += (float(dualresults[0][j1]) - float(dualresults[2][j1])) / float(dualresults[0][j1])
+				nInstances08l += 1
+				totalDiff08l += (float(dualresults[0][j1]) - float(dualresults[2][j1])) / float(dualresults[0][j1])
+				totalnInstances08l += 1
+			if dualresults[2][j2] != -1e20 and gaps[0][j2] != "infinite" and float(gaps[0][j2]) < epsilon and dualresults[2][j2] != float("inf"):
+				diff08r += (float(dualresults[2][j2]) - float(dualresults[0][j2])) / float(dualresults[0][j2])
+				nInstances08r += 1
+				totalDiff08r += (float(dualresults[2][j2]) - float(dualresults[0][j2])) / float(dualresults[0][j2])
+				totalnInstances08r += 1
+		if nInstances07l > 0:
+			avgdiff07l = 100 * diff07l / nInstances07l
 		else:
-			avgdiff07 = "-"
-		if nInstances08 > 0:
-			avgdiff08 = 100 * diff08 / nInstances08
+			avgdiff07l = "-"
+		if nInstances07r > 0:
+			avgdiff07r = 100 * diff07r / nInstances07r
 		else:
-			avgdiff08 = "-"
+			avgdiff07r = "-"
+		if nInstances08l > 0:
+			avgdiff08l = 100 * diff08l / nInstances08l
+		else:
+			avgdiff08l = "-"
+		if nInstances08r > 0:
+			avgdiff08r = 100 * diff08r / nInstances08r
+		else:
+			avgdiff08r = "-"
 		file.write(instancesetnames[i])
-		if avgdiff07 != "-":
-			file.write(" & \\num{" + "%.2f" % avgdiff07 + "}\,\% &")
+		if avgdiff07l != "-":
+			file.write(" & \\num{" + "%.2f" % avgdiff07l + "}\,\% &")
 		else:
 			file.write("& - &")
-		if avgdiff08 != "-":
-			file.write(" \\num{" + "%.2f" % avgdiff08 + "}\,\% \\\ \n")
+		if avgdiff08l != "-":
+			file.write(" \\num{" + "%.2f" % avgdiff08l + "}\,\% &")
+		else:
+			file.write("- &")
+		if avgdiff07r != "-":
+			file.write(" \\num{" + "%.2f" % avgdiff07r + "}\,\% &")
+		else:
+			file.write(" - &")
+		if avgdiff08r != "-":
+			file.write(" \\num{" + "%.2f" % avgdiff08r + "}\,\% \\\ \n")
 		else:
 			file.write("- \\\ \n")
 		i += 1
 	file.write("\\midrule \n")
-	if totalnInstances07 > 0:
-		totalavgdiff07 = 100 * totalDiff07 / totalnInstances07
+	if totalnInstances07l > 0:
+		totalavgdiff07l = 100 * totalDiff07l / totalnInstances07l
 	else:
-		totalavgdiff07 = "-"
-	if nInstances08 > 0:
-		totalavgdiff08 = 100 * totalDiff08 / totalnInstances08
+		totalavgdiff07l = "-"
+	if totalnInstances07r > 0:
+		totalavgdiff07r = 100 * totalDiff07r / totalnInstances07r
 	else:
-		totalavgdiff08 = "-"
+		totalavgdiff07r = "-"
+	if nInstances08l > 0:
+		totalavgdiff08l = 100 * totalDiff08l / totalnInstances08l
+	else:
+		totalavgdiff08l = "-"
+	if nInstances08r > 0:
+		totalavgdiff08r = 100 * totalDiff08r / totalnInstances08r
+	else:
+		totalavgdiff08r = "-"
 	file.write("total & ")
-	if avgdiff07 != "-":
-		file.write(" \\num{" + "%.2f" % totalavgdiff07 + "}\,\% &")
+	if avgdiff07l != "-":
+		file.write(" \\num{" + "%.2f" % totalavgdiff07l + "}\,\% &")
 	else:
 		file.write("- &")
-	if avgdiff08 != "-":
-		file.write(" \\num{" + "%.2f" % totalavgdiff08 + "}\,\%\\\ \n")
+	if avgdiff08l != "-":
+		file.write(" \\num{" + "%.2f" % totalavgdiff08l + "}\,\% &")
+	else:
+		file.write("- &")
+	if avgdiff07r != "-":
+		file.write(" \\num{" + "%.2f" % totalavgdiff07r + "}\,\% &")
+	else:
+		file.write("- &")
+	if avgdiff08r != "-":
+		file.write(" \\num{" + "%.2f" % totalavgdiff08r + "}\,\%\\\ \n")
 	else:
 		file.write("- \\\ \n")
 	file.write("\\bottomrule \n \\end{tabular*} \n \end{scriptsize} \n \\end{table} \n")
@@ -478,6 +530,9 @@ if __name__=="__main__":
 
 	if Rbounds:
 		RhsResultsTable([[55,57,59,61,63,65,67,69,71],[19,21,23,25,27,29,31,33,35],[91,93,95,97,99,101,103,105,107],[109,111,113,115,117,119,121,123,125],[73,75,77,79,81,83,85,87,89],[37,39,41,43,45,47,49,51,53],[1,3,5,7,9,11,13,15,17]], ["$\\mathcal{N}(0,1)$", "binary", "band matrix", "rank 1", "$\\mathcal{N}(0,1/m)$", "$\\pm 1/\\sqrt{m}$", "$0, \\pm \\sqrt{3/m}$"], "Average gap of relaxations for RIC $\\beta_k$", "rhsGap")
+
+	if LRbounds:
+		LhsRhsResultsTable([[[54,55],[56,57],[58,59],[60,61],[62,63],[64,65],[66,67],[68,69],[70,71]],[[18,19],[20,21],[22,23],[24,25],[26,27],[28,29],[30,31],[32,33],[34,35]],[[90,91],[92,93],[94,95],[96,97],[98,99],[100,101],[102,103],[104,105],[106,107]],[[108,109],[110,111],[112,113],[114,115],[116,117],[118,119],[120,121],[122,123],[124,125]],[[72,73],[74,75],[76,77],[78,79],[80,81],[82,83],[84,85],[86,87],[88,89]],[[36,37],[38,39],[40,41],[42,43],[44,45],[46,47],[48,49],[50,51],[52,53]],[[0,1],[2,3],[4,5],[6,7],[8,9],[10,11],[12,13],[14,15],[16,17]]], ["$\\mathcal{N}(0,1)$", "binary", "band matrix", "rank 1", "$\\mathcal{N}(0,1/m)$", "$\\pm 1/\\sqrt{m}$", "$0, \\pm \\sqrt{3/m}$"], "Average gap of relaxations for RICs", "lhsRhsGap")
 
 	if Ltimes:
 		TimeTable([[54,56,58,60,62,64,66,68,70],[18,20,22,24,26,28,30,32,34],[90,92,94,96,98,100,102,104,106],[72,74,76,78,80,82,84,86,88],[36,38,40,42,44,46,48,50,52],[0,2,4,6,8,10,12,14,16]], ["$\\mathcal{N}(0,1)$", "binary", "band matrix", "$\\mathcal{N}(0,1/m)$", "$\\pm 1/\\sqrt{m}$", "$0, \\pm \\sqrt{3/m}$"], "Solving times for left-hand side of RIP", "lhsTime")

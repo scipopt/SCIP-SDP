@@ -574,28 +574,27 @@ a time limit of four hours. The code was compiled with gcc 4.4.5 with \texttt{-O
 Problem~\eqref{Asp08Dual} most of the larger instance were aborted because of the memory limit of 8GB. These are
 counted with the maximum allowed time of four hours. 
 
-In Table~\ref{lhsGap} we compare the relative gap between the bounds on $\alpha_k$ computed by the two heuristics
+In Table~\ref{lhsRhsGap} we compare the relative gap between the bounds on $\alpha_k$ and $\beta_k$ computed by the two heuristics
 and the exact values given by~\eqref{MISDP}. We present arithmetic means over all of the nine matrices for the given type that
-could be solved within the time- and memory-limit. Note that in this case, we omitted the rank one matrices, since these satisfy
-$\alpha_k = 0$ in all cases, so that the trivial lower bound would already
-be optimal.
+could be solved within the time- and memory-limit. Note that we omitted the rank one matrices for the left-hand side since these satisfy
+$\alpha_k = 0$ in all cases, so that the trivial lower bound would already be optimal.
 
-For the left-hand-side of the RIP, both relaxations did not perform
+For the left-hand-side of the RIP, $\alpha_k$, both relaxations did not perform
 too well. Especially the relaxation given in \cite{Asp08} regularly returned worse solutions than the
 trivial lower bound of zero. The relaxation in \cite{Asp07} performed slightly better, but the bounds
 were still not nearly good enough to have any chance of proving $\ell_0$-$\ell_1$-equivalence. The relatively
-bad performance of both relaxations for the left-hand side might not be too surprising, since both relaxations
+bad performance of both relaxations for the left-hand side might not be too surprising though, since both relaxations
 were originally designed for sparse principal component analysis, which corresponds to the right-hand side
 of the RIP.
 
-\input{tables/lhsGap}
+\input{tables/lhsRhsGap}
 
-Results for the right-hand side, i.e., $\beta_k$, are given in Table~\ref{rhsGap}. Here both relaxations
-perform much better. Problem~\eqref{Asp08Dual} constantly produces bounds within 10 to 35\,\% of the optimal
-solution. The formulation in~\eqref{Asp08Dual} shows bigger fluctuations, but is very tight in many cases,
-with a gap of less than two percent for band matrices.
-
-\input{tables/rhsGap}
+For the right-hand side, i.e., $\beta_k$,  both relaxations
+perform much better. Problem~\eqref{Asp07} constantly produces bounds within 10 to 30\,\% of the optimal
+solution, with only slightly worse results for binary and rank one matrices. The formulation in~\eqref{Asp08Dual}
+shows bigger fluctuations, but produces better results for five of the seven matrix types, while performing even
+worse for binary and rank one matrices. For band matrices, however, the average gap was below 2\,\%, the best 
+result for any matrix type among both relaxations.
 
 For reporting some the solving times, we will use the \emph{shifted
   geometric mean} to decrease the influence of easy instances, see
@@ -626,8 +625,9 @@ computed via mixed-integer semidefinite programming. The computed bounds
 significantly improve the bounds computed by the semidefinite relaxations
 proposed in~\cite{Asp07} and \cite{Asp08}. In conclusion, the relaxation of
 \cite{Asp07} is fast to compute, but produces a gap of arround 90\,\% for
-$\alpha_k$ and 23\,\% for $\beta_k$. If successfully solved, the relaxation
-of \cite{Asp08} provides better bounds, but its running time is too large
+$\alpha_k$ and 30\,\% for $\beta_k$. If successfully solved, the relaxation
+of \cite{Asp08} provides better bounds for $\beta_k$ for most types of 
+matrices, but its running time is too large
 to be used in practice. Moreover, directly solving~\eqref{MISDP} is often
 faster and produces the exact value. Consequently, the relaxation
 in~\cite{Asp08} should not be used in practice.
