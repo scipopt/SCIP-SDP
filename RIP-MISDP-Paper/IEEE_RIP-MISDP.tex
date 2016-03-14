@@ -69,7 +69,7 @@
   mixed-integer semidefinite programming approach for computing these
   optimal constants. This also subsumes sparse principal component
   analysis. Computational results with this approach allow to evaluate
-  earlier SDP relaxations and show that their quality is limited.
+  earlier semidefinite relaxations and show that their quality is limited.
 \end{abstract}
 
 \section{Introduction}
@@ -236,7 +236,7 @@ concrete random matrix whether it satisfies the RIP, since the theoretical
 results hold asymptotically and with respect to high probability.
 
 This motivated d'Aspremont et al.~\cite{Asp08,Asp07} to propose several
-semidefinite relaxations to compute upper bounds on the restricted isometry
+relaxations based on semidefinite programming (SDP) to compute upper bounds on the restricted isometry
 constants; small upper bounds suffice to guarantee
 $\ell_0$-$\ell_1$-equivalence between~\eqref{l0min} and~\eqref{l1min}, but
 there exist cases in which the bounds are too weak to give a guarantee.
@@ -328,7 +328,6 @@ As one way to solve \eqref{phi} the semidefinite lifting technique is used again
 \begin{align}\label{Asp08}
  \max \quad & \sum_{i=1}^n \Tr(P_i \, B_i) \nonumber \\
  \text{s.t.} \quad & \Tr(X) = 1, \tag{A2-Primal}\\
- & X \succeq 0,  \nonumber \\
  & X \succeq P_i \succeq 0 \quad \text{for } i = 1, \dots, n, \nonumber
 \end{align}
 for $B_i = b_i\,b_i\T - \rho\, I$, where $b_i$ is the $i$-th column of the
@@ -392,7 +391,7 @@ binary variables $z_i$ as $-z_i \leq x_i \leq z_i$ and $\sum_{i=1}^n z_i
  \min \quad & \Tr(A\T A X) \nonumber \\
  \text{s.t.} \quad & \Tr(X) = 1, \nonumber \\
  & -z_j \leq X_{ij} \leq z_j \quad \text{for } j = 1, \dots, n, \nonumber \\
- & \sum_{i=1}^n z_i \leq k,\tag{Rk1MISDP}\\
+ & \sum_{i=1}^n z_i \leq k,\\
  & \Rk(X) = 1, \nonumber \\
  & X \succeq 0,  \nonumber \\
  & z \in \{0,1\}^n. \nonumber
