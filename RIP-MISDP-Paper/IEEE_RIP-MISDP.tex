@@ -604,7 +604,15 @@ with a gap of less than two percent for band matrices.
 
 \input{tables/rhsGap}
 
-\comment{Wieder arith. Mean?}
+For reporting some the solving times, we will use the \emph{shifted
+  geometric mean} to decrease the influence of easy instances, see
+Achterberg~\cite{SCIP} for more details. The shifted geometric
+mean of values $x_1$, \dots, $x_n$ is computed as
+\begin{equation*}
+  \Big( \prod_{i=1}^n (x_i + s)\Big)^{1/n} - s,
+\end{equation*}
+where we used a shift of $s=10$.
+
 The solving times in seconds for the left- and right-hand side of the RIP are given in
 Table~\ref{lhsTime} and~\ref{rhsTime}, respectively. The relaxation proposed in \cite{Asp07}
 is very fast, taking only a few seconds for all instances. The mixed-integer semidefinite program obviously
