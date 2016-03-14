@@ -9,9 +9,9 @@ from decimal import Decimal
 texfile = 0 # make the output a compilable texfile or just a figure/table that can be included?
 Lbounds = 0
 Rbounds = 0
-LRbounds = 1
+LRbounds = 0
 Ltimes = 0
-Rtimes = 0
+Rtimes = 1
 completeTable = 0
 
 MISDPfilename = "/local/gally/results/RIP-MISDP-Paper/160311/RIP-results/check.RIPMISDP.scipsdp.linux.x86_64.gnu.opt.sdpa.extra.branchinfobj_nofracdive.out"
@@ -204,7 +204,7 @@ def makeCompleteTableCaptionMISDP(shortcaption, caption, label, file, i):
 
 
 def LhsResultsTable(instancesets, instancesetnames, caption, label):
-	file.write("\\begin{table} \n \\begin{scriptsize} \\caption{" + caption + "} \n \\label{" + label + "} \n \\begin{tabular*}{0.48\\textwidth}{@{}l@{\\;\\;\extracolsep{\\fill}}rr")
+	file.write("\\begin{table} \n \\begin{scriptsize} \\caption{" + caption + "} \n \\label{" + label + "} \n \\begin{tabular*}{\\linewidth}{@{}l@{\\;\\;\extracolsep{\\fill}}rr")
 	file.write("@{}}\\toprule \n")
 	file.write(" type of matrix & d'Asp 07 & d'Asp 08 ")
 	file.write("\\\ \midrule \n")
@@ -270,7 +270,7 @@ def LhsResultsTable(instancesets, instancesetnames, caption, label):
 
 
 def RhsResultsTable(instancesets, instancesetnames, caption, label):
-	file.write("\\begin{table} \n \\begin{scriptsize} \\caption{" + caption + "} \n \\label{" + label + "} \n \\begin{tabular*}{0.48\\textwidth}{@{}l@{\\;\\;\extracolsep{\\fill}}rr")
+	file.write("\\begin{table} \n \\begin{scriptsize} \\caption{" + caption + "} \n \\label{" + label + "} \n \\begin{tabular*}{\\linewidth}{@{}l@{\\;\\;\extracolsep{\\fill}}rr")
 	file.write("@{}}\\toprule \n")
 	file.write(" type of matrix & d'Asp 07 & d'Asp 08 ")
 	file.write("\\\ \midrule \n")
@@ -336,7 +336,7 @@ def RhsResultsTable(instancesets, instancesetnames, caption, label):
 
 
 def LhsRhsResultsTable(instancesets, instancesetnames, caption, label):
-	file.write("\\begin{table} \n \\begin{scriptsize} \\caption{" + caption + "} \n \\label{" + label + "} \n \\begin{tabular*}{0.48\\textwidth}{@{}l@{\\;\\;\extracolsep{\\fill}}rrrr")
+	file.write("\\begin{table} \n \\begin{scriptsize} \\caption{" + caption + "} \n \\label{" + label + "} \n \\begin{tabular*}{\\linewidth}{@{}l@{\\;\\;\extracolsep{\\fill}}rrrr")
 	file.write("@{}}\\toprule \n")
 	file.write("  & \\multicolumn{2}{c}{$\\alpha_k$} & \\multicolumn{2}{c}{$\\beta_k$} \\\ \n")
 	file.write("\\cmidrule(r){2-3} \\cmidrule(l){4-5} \n")
@@ -454,7 +454,7 @@ def LhsRhsResultsTable(instancesets, instancesetnames, caption, label):
 		
 
 def TimeTable(instancesets, instancesetnames, caption, label):
-	file.write("\\begin{table} \n \\begin{scriptsize} \\caption{" + caption + "} \n \\label{" + label + "} \n \\begin{tabular*}{0.48\\textwidth}{@{}l@{\\;\\;\extracolsep{\\fill}}rrrr")
+	file.write("\\begin{table} \n \\begin{scriptsize} \\caption{" + caption + "} \n \\label{" + label + "} \n \\begin{tabular*}{\\linewidth}{@{}l@{\\;\\;\extracolsep{\\fill}}rrrr")
 	file.write("@{}}\\toprule \n")
 	file.write(" type of matrix & MISDP & d'Asp 07 & d'Asp 08 ")
 	file.write("\\\ \midrule \n")
