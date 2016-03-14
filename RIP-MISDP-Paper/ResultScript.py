@@ -332,6 +332,73 @@ def RhsResultsTable(instancesets, instancesetnames, caption, label):
 	else:
 		file.write("- \\\ \n")
 	file.write("\\bottomrule \n \\end{tabular*} \n \end{scriptsize} \n \\end{table} \n")
+
+
+TODO: write this
+def LhsRhsResultsTable(instancesets, instancesetnames, caption, label):
+	file.write("\\begin{table} \n \\begin{scriptsize} \\caption{" + caption + "} \n \\label{" + label + "} \n \\begin{tabular*}{0.48\\textwidth}{@{}l@{\\;\\;\extracolsep{\\fill}}rrrr")
+	file.write("@{}}\\toprule \n")
+	file.write(" type of matrix & d'Asp 07 & d'Asp 08 ")
+	file.write("\\\ \midrule \n")
+	totalDiff07 = 0
+	totalnInstances07 = 0
+	totalDiff08 = 0
+	totalnInstances08 = 0
+	i = 0
+	for instancetype in instancesets:
+		diff07 = 0
+		nInstances07 = 0
+		diff08 = 0
+		nInstances08 = 0
+		for j in instancetype:
+			# we only take instances with alpha_k > 0, since otherwise the trivial bound is optimal and we cannot compute a relative gap
+			if dualresults[1][j] != -1e20 and gaps[0][j] != "infinite" and float(gaps[0][j]) < epsilon:
+				diff07 += (float(dualresults[1][j]) - float(dualresults[0][j])) / float(dualresults[1][j])
+				totalDiff07 += (float(dualresults[1][j]) - float(dualresults[0][j])) / float(dualresults[1][j])
+				nInstances07 += 1
+				totalnInstances07 += 1
+			if dualresults[2][j] != -1e20 and gaps[0][j] != "infinite" and float(gaps[0][j]) < epsilon and dualresults[2][j] != float("inf"):
+				diff08 += (float(dualresults[2][j]) - float(dualresults[0][j])) / float(dualresults[1][j])
+				nInstances08 += 1
+				totalDiff08 += (float(dualresults[2][j]) - float(dualresults[0][j])) / float(dualresults[1][j])
+				totalnInstances08 += 1
+		if nInstances07 > 0:
+			avgdiff07 = 100 * diff07 / nInstances07
+		else:
+			avgdiff07 = "-"
+		if nInstances08 > 0:
+			avgdiff08 = 100 * diff08 / nInstances08
+		else:
+			avgdiff08 = "-"
+		file.write(instancesetnames[i])
+		if avgdiff07 != "-":
+			file.write(" & \\num{" + "%.2f" % avgdiff07 + "}\,\% &")
+		else:
+			file.write("& - &")
+		if avgdiff08 != "-":
+			file.write(" \\num{" + "%.2f" % avgdiff08 + "}\,\% \\\ \n")
+		else:
+			file.write("- \\\ \n")
+		i += 1
+	file.write("\\midrule \n")
+	if totalnInstances07 > 0:
+		totalavgdiff07 = 100 * totalDiff07 / totalnInstances07
+	else:
+		totalavgdiff07 = "-"
+	if nInstances08 > 0:
+		totalavgdiff08 = 100 * totalDiff08 / totalnInstances08
+	else:
+		totalavgdiff08 = "-"
+	file.write("total & ")
+	if avgdiff07 != "-":
+		file.write(" \\num{" + "%.2f" % totalavgdiff07 + "}\,\% &")
+	else:
+		file.write("- &")
+	if avgdiff08 != "-":
+		file.write(" \\num{" + "%.2f" % totalavgdiff08 + "}\,\%\\\ \n")
+	else:
+		file.write("- \\\ \n")
+	file.write("\\bottomrule \n \\end{tabular*} \n \end{scriptsize} \n \\end{table} \n")
 		
 
 def TimeTable(instancesets, instancesetnames, caption, label):
