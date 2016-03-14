@@ -392,7 +392,7 @@ binary variables $z_i$ as $-z_i \leq x_i \leq z_i$ and $\sum_{i=1}^n z_i
  \min \quad & \Tr(A\T A X) \nonumber \\
  \text{s.t.} \quad & \Tr(X) = 1, \nonumber \\
  & -z_j \leq X_{ij} \leq z_j \quad \text{for } j = 1, \dots, n, \nonumber \\
- & \sum_{i=1}^n z_i \leq k,\\
+ & \sum_{i=1}^n z_i \leq k,\tag{Rk1MISDP}\\
  & \Rk(X) = 1, \nonumber \\
  & X \succeq 0,  \nonumber \\
  & z \in \{0,1\}^n. \nonumber
@@ -410,7 +410,7 @@ MISDP formulation:
 In the following, we will show that \eqref{MISDP} actually produces the
 exact value of $\alpha_k$. We will use the following result about the
 relationship between the rank of solutions of semidefinite programs and the
-dimension of corresponding faces of a convex set~$P$, i.e., subsets $F
+dimension of corresponding faces of the feasible set~$P$, i.e., subsets $F
 \subseteq P$ such that $x \in F$, $y, z \in P$, and $x = \tfrac{1}{2} (y + z)$ imply
 $y,z \in F$:
 
