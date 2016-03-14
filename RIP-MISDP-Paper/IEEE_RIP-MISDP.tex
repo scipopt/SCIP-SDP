@@ -468,7 +468,7 @@ Using this result on the projection of~\eqref{MISDP} onto the $X$ variables, yie
   suffices to show that \eqref{Proj} has an optimal solution of rank one.
 
   Let $\check{X}$ be an extreme point of \eqref{Proj} (since the set of
-  optimal points of~\eqref{Proj} is a nonempty, convex, and compact, such a
+  optimal points of~\eqref{Proj} is nonempty, convex, and compact, such a
   point exists, see~\cite[Corollary 18.5.1]{Roc70}). Defining the face $F =
   \{\check{X}\}$ and applying Theorem~\ref{patakiLemma} on \eqref{Proj}
   gives
@@ -545,7 +545,11 @@ SDPA~7.3.8. We compute the left- and right-hand restricted isometry
 constant $\alpha_k$ and $\beta_k$ either exactly using~\eqref{MISDP} or
 produce corresponding bounds via \eqref{Asp07} and \eqref{Asp08Dual}. In
 the latter case, we solve 15 SDPs for $\rho$ between~$0$ and the maximum
-diagonal entry of $A\T A$.\comment{As done in \cite{Asp08}?}
+diagonal entry of $A\T A$. This is the same approach as in \cite{Asp08},
+except that we reduced the number of problems from 25 to 15, as this did
+not seem to influence the quality of th solutions much in our preliminary
+experiments but brought the solving times more in line with the other
+approaches.
 
 We use a testset consisting of 63 matrices with seven 
 different types including band matrices, 
