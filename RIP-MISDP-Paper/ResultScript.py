@@ -532,18 +532,21 @@ def LhsRhsTimeTable(instancesets, instancesetnames, caption, label):
 		A08timer = 1.0
 		A08numr = 0
 		for j1,j2 in instancetype:
-			MISDPtimel = math.pow(MISDPtimel, float(MISDPnuml) / float(MISDPnuml+1)) * math.pow(float(times[0][j1] + timeshift), 1.0/float(MISDPnuml+1))
-			MISDPnuml += 1
-			totalMISDPtimel = math.pow(totalMISDPtimel, float(totalMISDPnuml) / float(totalMISDPnuml+1)) * math.pow(float(times[0][j1] + timeshift), 1.0/float(totalMISDPnuml+1))
-			totalMISDPnuml += 1
-			A07timel = math.pow(A07timel, float(A07numl) / float(A07numl+1)) * math.pow(float(times[1][j1] + timeshift), 1.0/float(A07numl+1))
-			A07numl += 1
-			totalA07timel = math.pow(totalA07timel, float(totalA07numl) / float(totalA07numl+1)) * math.pow(float(times[1][j1] + timeshift), 1.0/float(totalA07numl+1))
-			totalA07numl += 1
-			A08timel = math.pow(A08timel, float(A08numl) / float(A08numl+1)) * math.pow(float(times[2][j1] + timeshift), 1.0/float(A08numl+1))
-			A08numl += 1
-			totalA08timel = math.pow(totalA08timel, float(totalA08numl) / float(totalA08numl+1)) * math.pow(float(times[2][j1] + timeshift), 1.0/float(totalA08numl+1))
-			totalA08numl += 1
+			if j1 > -1:
+				MISDPtimel = math.pow(MISDPtimel, float(MISDPnuml) / float(MISDPnuml+1)) * math.pow(float(times[0][j1] + timeshift), 1.0/float(MISDPnuml+1))
+				MISDPnuml += 1
+				totalMISDPtimel = math.pow(totalMISDPtimel, float(totalMISDPnuml) / float(totalMISDPnuml+1)) * math.pow(float(times[0][j1] + timeshift), 1.0/float(totalMISDPnuml+1))
+				totalMISDPnuml += 1
+				A07timel = math.pow(A07timel, float(A07numl) / float(A07numl+1)) * math.pow(float(times[1][j1] + timeshift), 1.0/float(A07numl+1))
+				A07numl += 1
+				totalA07timel = math.pow(totalA07timel, float(totalA07numl) / float(totalA07numl+1)) * math.pow(float(times[1][j1] + timeshift), 1.0/float(totalA07numl+1))
+				totalA07numl += 1
+				A08timel = math.pow(A08timel, float(A08numl) / float(A08numl+1)) * math.pow(float(times[2][j1] + timeshift), 1.0/float(A08numl+1))
+				A08numl += 1
+				totalA08timel = math.pow(totalA08timel, float(totalA08numl) / float(totalA08numl+1)) * math.pow(float(times[2][j1] + timeshift), 1.0/float(totalA08numl+1))
+				totalA08numl += 1
+			else:
+				MISDPtimel = -1.0
 			MISDPtimer = math.pow(MISDPtimer, float(MISDPnumr) / float(MISDPnumr+1)) * math.pow(float(times[0][j2] + timeshift), 1.0/float(MISDPnumr+1))
 			MISDPnumr += 1
 			totalMISDPtimer = math.pow(totalMISDPtimer, float(totalMISDPnumr) / float(totalMISDPnumr+1)) * math.pow(float(times[0][j2] + timeshift), 1.0/float(totalMISDPnumr+1))
@@ -562,7 +565,10 @@ def LhsRhsTimeTable(instancesets, instancesetnames, caption, label):
 		MISDPtimer = MISDPtimer - timeshift
 		A07timer = A07timer - timeshift
 		A08timer = A08timer - timeshift
-		file.write(instancesetnames[i] + "& \\num{%.1f" % MISDPtimel + "} & " + "\\num{%.1f" % A07timel + "} & " + "\\num{%.1f" % A08timel + "} ")
+		if MISDPtimel >= 0.0:
+			file.write(instancesetnames[i] + "& \\num{%.1f" % MISDPtimel + "} & " + "\\num{%.1f" % A07timel + "} & " + "\\num{%.1f" % A08timel + "} ")
+		else:
+			file.write(instancesetnames[i] + "& - & - & - ")
 		file.write("& \\num{%.1f" % MISDPtimer + "} & " + "\\num{%.1f" % A07timer + "} & " + "\\num{%.1f" % A08timer + "} \\\ \n ")
 		i += 1
 	file.write("\\midrule \n")
@@ -620,7 +626,7 @@ if __name__=="__main__":
 	if Rtimes:
 		TimeTable([[55,57,59,61,63,65,67,69,71],[19,21,23,25,27,29,31,33,35],[91,93,95,97,99,101,103,105,107],[109,111,113,115,117,119,121,123,125],[73,75,77,79,81,83,85,87,89],[37,39,41,43,45,47,49,51,53],[1,3,5,7,9,11,13,15,17]], ["$N(0,1)$", "binary", "band matrix", "rank 1", "$N(0,1/m)$", "$\\pm 1/\\sqrt{m}$", "$0, \\pm \\sqrt{3/m}$"], "Average Solving times for right-hand side of RIP", "rhsTime")
 	if LRtimes:
-		LhsRhsTimeTable([[[54,55],[56,57],[58,59],[60,61],[62,63],[64,65],[66,67],[68,69],[70,71]],[[18,19],[20,21],[22,23],[24,25],[26,27],[28,29],[30,31],[32,33],[34,35]],[[90,91],[92,93],[94,95],[96,97],[98,99],[100,101],[102,103],[104,105],[106,107]],[[108,109],[110,111],[112,113],[114,115],[116,117],[118,119],[120,121],[122,123],[124,125]],[[72,73],[74,75],[76,77],[78,79],[80,81],[82,83],[84,85],[86,87],[88,89]],[[36,37],[38,39],[40,41],[42,43],[44,45],[46,47],[48,49],[50,51],[52,53]],[[0,1],[2,3],[4,5],[6,7],[8,9],[10,11],[12,13],[14,15],[16,17]]], ["$N(0,1)$", "binary", "band matrix", "rank 1", "$N(0,1/m)$", "$\\pm 1/\\sqrt{m}$", "$0, \\pm \\sqrt{3/m}$"], "Average Solving times for RICs", "rhsTime")
+		LhsRhsTimeTable([[[54,55],[56,57],[58,59],[60,61],[62,63],[64,65],[66,67],[68,69],[70,71]],[[18,19],[20,21],[22,23],[24,25],[26,27],[28,29],[30,31],[32,33],[34,35]],[[90,91],[92,93],[94,95],[96,97],[98,99],[100,101],[102,103],[104,105],[106,107]],[[-1,109],[-1,111],[-1,113],[-1,115],[-1,117],[-1,119],[-1,121],[-1,123],[-1,125]],[[72,73],[74,75],[76,77],[78,79],[80,81],[82,83],[84,85],[86,87],[88,89]],[[36,37],[38,39],[40,41],[42,43],[44,45],[46,47],[48,49],[50,51],[52,53]],[[0,1],[2,3],[4,5],[6,7],[8,9],[10,11],[12,13],[14,15],[16,17]]], ["$N(0,1)$", "binary", "band matrix", "rank 1", "$N(0,1/m)$", "$\\pm 1/\\sqrt{m}$", "$0, \\pm \\sqrt{3/m}$"], "Average Solving times for RICs", "rhsTime")
 
 
 	if texfile:
