@@ -215,10 +215,12 @@ use $\tilde{\alpha}_k = \lambda \alpha_k$, $\tilde{\beta}_k = \lambda
 
 Furthermore, we note that the recovery results given in this section can also be derived 
 for the \emph{denoising} case, where instead of~\eqref{l0min} one considers
-\begin{align}\label{l0minDenoising}
-  \min \quad & \Norm{x}{0} \tag{$P_0^\delta$}\\
-  \text{s.t.} \quad & \Norm{Ax - b}{2} \leq \delta, \nonumber
-\end{align}
+\begin{equation}\label{l0minDenoising}\tag{$P_0^\delta$}
+ \begin{aligned}
+  \min \quad & \Norm{x}{0} \\
+  \text{s.t.} \quad & \Norm{Ax - b}{2} \leq \delta, 
+ \end{aligned}
+\end{equation}
 for some $\delta \geq 0$; the $\ell_1$-problem~\eqref{l1min} is changed
 similarly. For more details we refer the reader to~\cite{FouR13}.
 
@@ -288,13 +290,15 @@ results.
 
 The idea is that the optimal constant $\alpha_k^2$ in \eqref{lowerRIP} can be computed
 by the non-convex quadratic optimization problem
-\begin{align}\label{QP}
- \min \quad & \Norm{Ax}{2}^2 \nonumber \\
- \text{s.t.} \quad & \Norm{x}{2}^2 = 1, \tag{QP} \\
- & \Norm{x}{0} \leq k. \nonumber
-\end{align}
+\begin{equation}\label{QP}\tag{QP}
+ \begin{aligned}
+  \min \quad & \Norm{Ax}{2}^2  \\
+  \text{s.t.} \quad & \Norm{x}{2}^2 = 1,  \\
+  & \Norm{x}{0} \leq k. 
+ \end{aligned}
+\end{equation}
 The corresponding maximization problem allows to compute $\beta_k^2$. D'Aspremont et al. \cite{Asp07} tackled the non-convex quadratic equality constraint 
-$\Norm{x}{2}^2 = 1$ by the technique of semidefinite lifting, first introduced by Goemans and and Williamson~\cite{GW95} 
+$\Norm{x}{2}^2 = 1$ by the technique of semidefinite lifting, first introduced by Goemans and Williamson~\cite{GW95} 
 for the max-cut problem. The idea is to use new matrix variables $X=xx\T$ for the quadratic terms, where the condition $X=xx\T$ is enforced by the equivalent constraints $X \succeq 0$ and $\Rk(X) = 1$, where, as usual, 
 $X \succeq 0$ means that $X$ is symmetric (shortly written $X \in S_n$) and positive semidefinite. The objective and the normalization-constraint can then be expressed as  $\Norm{Ax}{2}^2 = x\T A\T Ax =
 \Tr(A\T A X)$ and $1 = \Norm{x}{2}^2 = \sum_{i=1}^n x_i^2 = \Tr(X)$. 
@@ -303,12 +307,14 @@ In the next step, the inequality $\Norm{x}{0} \leq k$ is then substituted by the
 \abs{X} \ones \leq k$, which follows from the fact that $\ones\T\abs{X} \ones = \Norm{\vect(X)}{1}\leq \sqrt{\Norm{\vect(X)}{0}}\, \Norm{\vect(X)}{2}$ and $\Norm{\vect(X)}{0}=\Norm{x}{0}^2$ in the rank-1 case, where $\vect(X)$ is a vector
 in $\R^{n^2}$ consisting of all entries of $X$. 
 Relaxing the non-convex rank constraint finally leads to the following SDP:
-\begin{align}\label{Asp07}
- \min \quad & \Tr(A\T A X) \nonumber \\
- \text{s.t.} \quad & \Tr(X) = 1, \tag{A1} \\
- & \ones\T \abs{X} \ones \leq k, \nonumber \\
- & X \succeq 0. \nonumber
-\end{align}
+\begin{equation}\label{Asp07}\tag{A1}
+ \begin{aligned}
+  \min \quad & \Tr(A\T A X) \\
+  \text{s.t.} \quad & \Tr(X) = 1, \\
+  & \ones\T \abs{X} \ones \leq k, \\
+  & X \succeq 0. \nonumber
+ \end{aligned}
+\end{equation}
 
 Another SDP relaxation was proposed by d'Aspremont et al. in \cite{Asp08}, where
 \begin{equation}\label{phi}
@@ -316,40 +322,42 @@ Another SDP relaxation was proposed by d'Aspremont et al. in \cite{Asp08}, where
 \end{equation}
 originally stemming from sparse principal component analysis, is approximately solved for a symmetric positive semidefinite matrix $\Sigma$. For
 $\Sigma = A\T A$ we can use this to compute an upper bound on $\beta_k$ via Lagrangian Relaxation as
-\begin{equation*}
- \begin{aligned}
-  \beta_k^2 & = \max \big\{ x\T A\T A x \suchthat \Norm{x}{2} \leq 1,\; \Norm{x}{0} \leq k \big\}\\
-	    & \leq \inf_{\rho \geq 0} \max \big\{ x\T A\T A x - \rho
-            (\Norm{x}{0} - k) \suchthat \Norm{x}{2} \leq 1 \big\}\\
-	    & = \inf_{\rho \geq 0} \phi(\rho) + \rho\, k.
- \end{aligned}
-\end{equation*}
+ \begin{align*}
+  \beta_k^2 & = \max \big\{ x\T A\T A x \suchthat \Norm{x}{2} \leq 1,\; \Norm{x}{0} \leq k \big\} \\
+	    & \leq \inf_{\rho \geq 0} \max \big\{ x\T A\T A x - \rho 
+            (\Norm{x}{0} - k) \suchthat \Norm{x}{2} \leq 1 \big\} \\
+	    & = \inf_{\rho \geq 0} \phi(\rho) + \rho\, k. 
+ \end{align*}
 
 As one way to solve \eqref{phi} the semidefinite lifting technique is used again to compute an upper bound on $\phi$ via
-\begin{align}\label{Asp08}
- \max \quad & \sum_{i=1}^n \Tr(P_i \, B_i) \nonumber \\
- \text{s.t.} \quad & \Tr(X) = 1, \tag{A2-Primal}\\
- & X \succeq P_i \succeq 0 \quad \text{for } i = 1, \dots, n, \nonumber
-\end{align}
+\begin{equation}\label{Asp08Primal}\tag{A2-Primal}
+ \begin{aligned}
+  \max \quad & \sum_{i=1}^n \Tr(P_i \, B_i) \\
+  \text{s.t.} \quad & \Tr(X) = 1, \\
+  & X \succeq P_i \succeq 0 \quad \text{for } i = 1, \dots, n,
+ \end{aligned}
+\end{equation}
 for $B_i = b_i\,b_i\T - \rho\, I$, where $b_i$ is the $i$-th column of the
 square-root of $\Sigma$. For details, we refer the reader to~\cite{Asp08}. The corresponding dual problem can then be written as 
-\begin{align}\label{Asp08Dual}
-  \min \quad & \lambda_{\max}\Big(\sum_{i=1}^n Y_i \Big) \nonumber \\
-  \text{s.t.} \quad & Y_i \succeq B_i \quad \text{for } i = 1, \dots, n \tag{A2-Dual} \\
-  & Y_i \succeq 0 \quad \ \ \text{for } i = 1, \dots, n, \nonumber
-\end{align}
-which has only half as many variables as \eqref{Asp08} and one fewer linear and semidefinite constraint. Then \eqref{Asp08Dual} can be solved for non-negative $\rho$, which should be smaller than $\Sigma_{11}$, because otherwise the
+\begin{equation}\label{Asp08Dual}\tag{A2-Dual}
+ \begin{aligned}
+  \min \quad & \lambda_{\max}\Big(\sum_{i=1}^n Y_i \Big) \\
+  \text{s.t.} \quad & Y_i \succeq B_i \quad \text{for } i = 1, \dots, n \\
+  & Y_i \succeq 0 \quad \ \ \text{for } i = 1, \dots, n,
+ \end{aligned}
+\end{equation}
+which has only half as many variables as \eqref{Asp08Primal} and one fewer linear and semidefinite constraint. Then \eqref{Asp08Dual} can be solved for non-negative $\rho$, which should be smaller than $\Sigma_{11}$, because otherwise the
 optimal solution for \eqref{phi} will always be $x=0$. 
 
 As shown in \cite{Asp08}, a lower bound for $\alpha_k$ can be computed via
-\begin{equation*}
- \alpha_k^2 \geq \sup_{\rho \geq 0}\; \psi(\rho) - \rho\, k,
-\end{equation*}
+\begin{equation}\tag{A2}\label{Asp08}
+ \alpha_k^2 \geq \sup_{\rho \geq 0}\; \psi(\rho) - \rho\, k, 
+\end{equation}
 with 
 \begin{equation*}
   \psi(\rho) = \min \big\{ x\T \Sigma\, x + \rho \Norm{x}{0} \suchthat \Norm{x}{2} \leq 1\big\}.
 \end{equation*}
-In this case problem \eqref{Asp08} or equivalently \eqref{Asp08Dual} has to
+In this case problem \eqref{Asp08Primal} or equivalently \eqref{Asp08Dual} has to
 be solved for $\Sigma = M I - A\T A$, where $M \in \R$ has to be big enough
 to make $\Sigma$ positive semidefinite again. If $\Psi$ is the
 corresponding optimal objective, this implies a lower bound on $\alpha_k$
@@ -357,7 +365,7 @@ in\comment{Ist $M\,I$ statt $M$ korrekt? \\ $\Rightarrow$ nein, sollten alles Sk
 \begin{equation*}
   \alpha_k^2 \geq \sup_{\rho \geq 0}\; (M - \Psi) - \rho\, k.
 \end{equation*}
-In \cite{AspBG14} explicit bounds on the gap between \eqref{Asp08} and the penalized problem \eqref{phi} were derived using randomization arguments.
+In \cite{AspBG14} explicit bounds on the gap between \eqref{Asp08Primal} and the penalized problem \eqref{phi} were derived using randomization arguments.
  
 %To compute the parameter $\rho$, the authors of \cite{Asp08} propose to minimize over the interval
 % \begin{equation*}
@@ -388,25 +396,29 @@ again use semidefinite lifting, introducing the new variable $X=xx\T$ like in th
 The cardinality-constraint in \eqref{QP} can equivalently be written using
 binary variables $z_i$ as $-z_i \leq x_i \leq z_i$ and $\sum_{i=1}^n z_i
 \leq k$. We can thus equivalently rewrite \eqref{QP} as
-\begin{align}\label{Rk1MISDP}
- \min \quad & \Tr(A\T A X) \nonumber \\
- \text{s.t.} \quad & \Tr(X) = 1, \nonumber \\
- & -z_j \leq X_{ij} \leq z_j \quad \text{for } j = 1, \dots, n, \nonumber \\
- & \sum_{i=1}^n z_i \leq k,\\
- & \Rk(X) = 1, \nonumber \\
- & X \succeq 0,  \nonumber \\
- & z \in \{0,1\}^n. \nonumber
-\end{align}
+\begin{equation}\label{Rk1MISDP}
+ \begin{aligned}
+  \min \quad & \Tr(A\T A X) \\
+  \text{s.t.} \quad & \Tr(X) = 1, \\
+  & -z_j \leq X_{ij} \leq z_j \quad \text{for } j = 1, \dots, n, \\
+  & \sum_{i=1}^n z_i \leq k,\\
+  & \Rk(X) = 1, \\
+  & X \succeq 0, \\
+  & z \in \{0,1\}^n.
+ \end{aligned}
+\end{equation}
 We then relax the non-convex rank constraint to arrive at the following
 MISDP formulation:
-\begin{align}\label{MISDP}
- \min \quad & \Tr(A\T A X) \nonumber \\
- \text{s.t.} \quad & \Tr(X) = 1, \nonumber \\
- & -z_j \leq X_{ij} \leq z_j \quad \text{for } j = 1, \dots, n, \nonumber \\
- & \sum_{i=1}^n z_i \leq k, \tag{MISDP} \\
- & X \succeq 0,  \nonumber \\
- & z \in \{0,1\}^n. \nonumber
-\end{align}
+\begin{equation}\label{MISDP}\tag{MISDP}
+ \begin{aligned}
+  \min \quad & \Tr(A\T A X) \\
+  \text{s.t.} \quad & \Tr(X) = 1, \\
+  & -z_j \leq X_{ij} \leq z_j \quad \text{for } j = 1, \dots, n, \\
+  & \sum_{i=1}^n z_i \leq k, \\
+  & X \succeq 0, \\
+  & z \in \{0,1\}^n.
+ \end{aligned}
+\end{equation}
 In the following, we will show that \eqref{MISDP} actually produces the
 exact value of $\alpha_k$. We will use the following result about the
 relationship between the rank of solutions of semidefinite programs and the
@@ -442,11 +454,13 @@ Using this result on the projection of~\eqref{MISDP} onto the $X$ variables, yie
   \dots, i_\ell\}$ be the support of $z^\star$, and define $\check{A} =
   (A_{i_1}, A_{i_2}, \dots, A_{i_\ell})$ to be the submatrix of~$A$ formed by
   the columns indexed by~$T$. Then consider
-  \begin{align}\label{Proj}
-    \min \quad & \Tr(\check{A}\T \check{A} \check{X}), \nonumber \\
+  \begin{equation}\label{Proj}
+   \begin{aligned}
+    \min \quad & \Tr(\check{A}\T \check{A} \check{X}), \\
     \text{s.t.} \quad & \Tr(\check{X}) = 1, \\
-    & \check{X} \succeq 0,\; \check{X} \in S_\ell.\nonumber 
-  \end{align}
+    & \check{X} \succeq 0,\; \check{X} \in S_\ell.
+   \end{aligned}
+  \end{equation}
 
   Let $\check{X}$ be the $\ell \times \ell$ submatrix of $X^\star$ with all
   rows and columns outside of $T$ removed. Then $\check{X}$ is feasible for
@@ -527,30 +541,30 @@ constraints $-z_j \leq X_{ij} \leq z_j$.
 
 \noindent
 In this section we demonstrate the applicability of the proposed MISDP-formulation and use it to
-assess the quality of the relaxations proposed in \cite{Asp08} and \cite{Asp07}.
-For solving the mixed-integer semidefinite programs we use the MISDP solver SCIP-SDP \cite{SCIP-SDP},
-originally developed in \cite{Mar13} and \cite{MS12}. It combines the
+assess the quality of the relaxations proposed in~\cite{Asp08} and~\cite{Asp07}.
+For solving the mixed-integer semidefinite programs we use the MISDP solver SCIP-SDP~\cite{SCIP-SDP},
+originally developed in~\cite{Mar13} and~\cite{MS12}. It combines the
 branch and bound framework SCIP 3.2.1 \cite{SCIP} with 
 interior-point SDP-solvers, in our case SDPA~7.3.8~\cite{SDPA6,SDPA7}.
 
 The continuous SDPs are solved using the command-line version of
 SDPA~7.3.8. We compute the left- and right-hand restricted isometry
 constant $\alpha_k$ and $\beta_k$ either exactly using~\eqref{MISDP} or
-produce corresponding bounds via \eqref{Asp07} and \eqref{Asp08Dual}. In
-the latter case, we solve 15 SDPs for $\rho$ between~$0$ and the maximum
+produce corresponding bounds via~\eqref{Asp07} and~\eqref{Asp08}. In
+the latter case, we solve the SDP~\eqref{Asp08Dual} 15 times for $\rho$ between~$0$ and the maximum
 diagonal entry of $A\T A$. This is the same approach as in \cite{Asp08},
 except that we reduced the number of problems from 25 to 15, as this did
-not seem to influence the quality of th solutions much in our preliminary
+not seem to influence the quality of the solutions much in our preliminary
 experiments but brought the solving times more in line with the other
 approaches.
 
-We use a testset consisting of 63 matrices with seven 
+We use a testset consisting of 63 matrices of seven 
 different types including band matrices, 
 with band size three or five with entries within the band chosen uniformly in $\{0,1\}$, binary matrices with all entries chosen 
 uniformly in $\{0,1\}$, Gaussian-distributed matrices and rank one 
 matrices $A = aa\T$ with $N(0,1)$-distributed entries of $a$. In addition to these four types,
-we also use three more for which theoretical results on restricted isometry
-constants are available. This includes matrices with 
+we also use three more with theoretical results on their restricted isometry
+constants. These include matrices with 
 $N(0, 1/m)$-distributed entries, with entries chosen uniformly in $\pm 1/\sqrt{m}$ and finally with distribution
 \begin{equation}\nonumber
   A_{ij} = \begin{cases}
@@ -571,7 +585,7 @@ that we cannot expect the generated matrices in small dimensions to satisfy the 
 The tests were performed on a Linux cluster with Intel i3 CPUs with 3.2GHz, 4MB cache, and 8GB memory running
 Linux. Each computation was performed single-threaded with a single process running on each computer and with 
 a time limit of four hours. The code was compiled with gcc 4.4.5 with \texttt{-O3} optimization. For the 
-Problem~\eqref{Asp08Dual} most of the larger instance were aborted because of the memory limit of 8GB. These are
+Problem~\eqref{Asp08}, most of the larger instance were aborted because of the memory limit of 8GB. These are
 counted with the maximum allowed time of four hours. 
 
 In Table~\ref{lhsRhsGap} we compare the relative gap between the bounds on $\alpha_k$ and $\beta_k$ computed by the two heuristics
@@ -580,8 +594,8 @@ could be solved within the time- and memory-limit. Note that we omitted the rank
 $\alpha_k = 0$ in all cases, so that the trivial lower bound would already be optimal.
 
 For the left-hand-side of the RIP, $\alpha_k$, both relaxations did not perform
-too well. Especially the relaxation given in \cite{Asp08} regularly returned worse solutions than the
-trivial lower bound of zero. The relaxation in \cite{Asp07} performed slightly better, but the bounds
+too well. Especially~\eqref{Asp08} regularly returned worse solutions than the
+trivial lower bound of zero. Relaxation~\eqref{Asp07} performed slightly better, but the bounds
 were still not nearly good enough to have any chance of proving $\ell_0$-$\ell_1$-equivalence. The relatively
 bad performance of both relaxations for the left-hand side might not be too surprising though, since both relaxations
 were originally designed for sparse principal component analysis, which corresponds to the right-hand side
@@ -591,7 +605,7 @@ of the RIP.
 
 For the right-hand side, i.e., $\beta_k$,  both relaxations
 perform much better. Problem~\eqref{Asp07} constantly produces bounds within 10 to 30\,\% of the optimal
-solution, with only slightly worse results for binary and rank one matrices. The formulation in~\eqref{Asp08Dual}
+solution, with only slightly worse results for binary and rank one matrices. The formulation~\eqref{Asp08}
 shows bigger fluctuations, but produces better results for five of the seven matrix types, while performing even
 worse for binary and rank one matrices. For band matrices, however, the average gap was below 2\,\%, the best 
 result for any matrix type among both relaxations.
@@ -606,12 +620,12 @@ mean of values $x_1$, \dots, $x_n$ is computed as
 where we used a shift of $s=10$.
 
 The solving times in seconds for the left- and right-hand side of the RIP are given in
-Table~\ref{lhsRhsTime}. The relaxation proposed in \cite{Asp07}
+Table~\ref{lhsRhsTime}. The relaxation~\eqref{Asp07}
 is very fast, taking only a few seconds for all instances. The mixed-integer semidefinite program obviously
 cannot compete with these solving times, although for band-matrices, the difference is relatively
-small. The Lagrangian Relaxation from \cite{Asp08}, however, takes more time to produce bounds than is needed
-by our MISDP to compute exact solutions. The big difference is also caused by the instances running into the 
-memory limit, but even without those, the algorithm still takes slightly longer than the MISDP.
+small. The Lagrangian Relaxation~\eqref{Asp08}, however, takes more time to produce bounds than is needed
+by~\eqref{MISDP} to compute exact solutions. The big difference is also caused by the instances running into the 
+memory limit, but even without those, the algorithm still takes slightly longer than~\eqref{MISDP}.
 
 \input{tables/lhsRhsTime}
 
@@ -620,15 +634,16 @@ memory limit, but even without those, the algorithm still takes slightly longer 
 \noindent
 This paper shows that exact values of restricted isometry constants can be
 computed via mixed-integer semidefinite programming. The computed bounds
-significantly improve the bounds computed by the semidefinite relaxations
-proposed in~\cite{Asp07} and \cite{Asp08}. In conclusion, the relaxation of
-\cite{Asp07} is fast to compute, but produces a gap of arround 90\,\% for
-$\alpha_k$ and 30\,\% for $\beta_k$. If successfully solved, the relaxation
-of \cite{Asp08} provides better bounds for $\beta_k$ for most types of 
+significantly improve the bounds computed by the semidefinite
+relaxations~\eqref{Asp07} and~\eqref{Asp08}
+proposed in~\cite{Asp07} and \cite{Asp08}, respectively. In conclusion, the relaxation~
+\eqref{Asp07} is fast to compute, but produces a gap of arround 90\,\% for
+$\alpha_k$ and 30\,\% for $\beta_k$. If successfully solved, 
+\eqref{Asp08} provides better bounds for $\beta_k$ for most types of 
 matrices, but its running time is too large
 to be used in practice. Moreover, directly solving~\eqref{MISDP} is often
-faster and produces the exact value. Consequently, the relaxation
-in~\cite{Asp08} should not be used in practice.
+faster and produces the exact value. Consequently, 
+\eqref{Asp08} should not be used in practice.
 
 Still, the matrices currently handable by~\eqref{MISDP} are small. For the
 future, the hope is that with the advancement of solving techniques for

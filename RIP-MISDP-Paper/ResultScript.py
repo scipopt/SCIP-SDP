@@ -207,7 +207,7 @@ def makeCompleteTableCaptionMISDP(shortcaption, caption, label, file, i):
 def LhsResultsTable(instancesets, instancesetnames, caption, label):
 	file.write("\\begin{table} \n \\begin{scriptsize} \\caption{" + caption + "} \n \\label{" + label + "} \n \\begin{tabular*}{\\linewidth}{@{}l@{\\;\\;\extracolsep{\\fill}}rr")
 	file.write("@{}}\\toprule \n")
-	file.write(" matrices & d'Asp 07 & d'Asp 08 ")
+	file.write(" matrices & \eqref{Asp07} & \eqref{Asp08} ")
 	file.write("\\\ \midrule \n")
 	totalDiff07 = 0
 	totalnInstances07 = 0
@@ -273,7 +273,7 @@ def LhsResultsTable(instancesets, instancesetnames, caption, label):
 def RhsResultsTable(instancesets, instancesetnames, caption, label):
 	file.write("\\begin{table} \n \\begin{scriptsize} \\caption{" + caption + "} \n \\label{" + label + "} \n \\begin{tabular*}{\\linewidth}{@{}l@{\\;\\;\extracolsep{\\fill}}rr")
 	file.write("@{}}\\toprule \n")
-	file.write(" matrices & d'Asp 07 & d'Asp 08 ")
+	file.write(" matrices & \eqref{Asp07} & \eqref{Asp08} ")
 	file.write("\\\ \midrule \n")
 	totalDiff07 = 0
 	totalnInstances07 = 0
@@ -341,7 +341,7 @@ def LhsRhsResultsTable(instancesets, instancesetnames, caption, label):
 	file.write("@{}}\\toprule \n")
 	file.write("  & \\multicolumn{2}{c}{$\\alpha_k$} & \\multicolumn{2}{c}{$\\beta_k$} \\\ \n")
 	file.write("\\cmidrule(r){2-3} \\cmidrule(l){4-5} \n")
-	file.write("matrices & d'Asp07 & d'Asp08 & d'Asp07 & d'Asp08 \\ \n")
+	file.write("matrices & \eqref{Asp07} & \eqref{Asp08} & \eqref{Asp07} & \eqref{Asp08} \\ \n")
 	file.write("\\\ \midrule \n")
 	totalDiff07l = 0
 	totalnInstances07l = 0
@@ -457,7 +457,7 @@ def LhsRhsResultsTable(instancesets, instancesetnames, caption, label):
 def TimeTable(instancesets, instancesetnames, caption, label):
 	file.write("\\begin{table} \n \\begin{scriptsize} \\caption{" + caption + "} \n \\label{" + label + "} \n \\begin{tabular*}{\\linewidth}{@{}l@{\\;\\;\extracolsep{\\fill}}rrr")
 	file.write("@{}}\\toprule \n")
-	file.write(" matrices & MISDP & d'Asp 07 & d'Asp 08 ")
+	file.write(" matrices & \eqref{MISP} & \eqref{Asp07} & \eqref{Asp08} ")
 	file.write("\\\ \midrule \n")
 	totalMISDPtime = 1.0
 	totalMISDPnum = 0
@@ -503,7 +503,7 @@ def LhsRhsTimeTable(instancesets, instancesetnames, caption, label):
 	file.write("@{}}\\toprule \n")
 	file.write("  & \\multicolumn{3}{c}{$\\alpha_k$} & \\multicolumn{3}{c}{$\\beta_k$} \\\ \n")
 	file.write("\\cmidrule(r){2-4} \\cmidrule(l){5-7} \n")
-	file.write(" matrices & MISDP & d'Asp 07 & d'Asp 08 & MISDP & d'Asp 07 & d'Asp 08 ")
+	file.write(" matrices & \eqref{MISDP} & \eqref{Asp07} & \eqref{Asp08} & \eqref{MISDP} & \eqref{Asp07} & \eqref{Asp08} ")
 	file.write("\\\ \midrule \n")
 	totalMISDPtimel = 1.0
 	totalMISDPnuml = 0
@@ -621,12 +621,12 @@ if __name__=="__main__":
 		LhsRhsResultsTable([[[54,55],[56,57],[58,59],[60,61],[62,63],[64,65],[66,67],[68,69],[70,71]],[[18,19],[20,21],[22,23],[24,25],[26,27],[28,29],[30,31],[32,33],[34,35]],[[90,91],[92,93],[94,95],[96,97],[98,99],[100,101],[102,103],[104,105],[106,107]],[[108,109],[110,111],[112,113],[114,115],[116,117],[118,119],[120,121],[122,123],[124,125]],[[72,73],[74,75],[76,77],[78,79],[80,81],[82,83],[84,85],[86,87],[88,89]],[[36,37],[38,39],[40,41],[42,43],[44,45],[46,47],[48,49],[50,51],[52,53]],[[0,1],[2,3],[4,5],[6,7],[8,9],[10,11],[12,13],[14,15],[16,17]]], ["$N(0,1)$", "binary", "band matrix", "rank 1", "$N(0,1/m)$", "$\\pm 1/\\sqrt{m}$", "$0, \\pm \\sqrt{3/m}$"], "Average gap of relaxations for RICs", "lhsRhsGap")
 
 	if Ltimes:
-		TimeTable([[54,56,58,60,62,64,66,68,70],[18,20,22,24,26,28,30,32,34],[90,92,94,96,98,100,102,104,106],[72,74,76,78,80,82,84,86,88],[36,38,40,42,44,46,48,50,52],[0,2,4,6,8,10,12,14,16]], ["$N(0,1)$", "binary", "band matrix", "$N(0,1/m)$", "$\\pm 1/\\sqrt{m}$", "$0, \\pm \\sqrt{3/m}$"], "Average Solving times for left-hand side of RIP", "lhsTime")
+		TimeTable([[54,56,58,60,62,64,66,68,70],[18,20,22,24,26,28,30,32,34],[90,92,94,96,98,100,102,104,106],[72,74,76,78,80,82,84,86,88],[36,38,40,42,44,46,48,50,52],[0,2,4,6,8,10,12,14,16]], ["$N(0,1)$", "binary", "band matrix", "$N(0,1/m)$", "$\\pm 1/\\sqrt{m}$", "$0, \\pm \\sqrt{3/m}$"], "Average solving times for left-hand side of RIP", "lhsTime")
 
 	if Rtimes:
-		TimeTable([[55,57,59,61,63,65,67,69,71],[19,21,23,25,27,29,31,33,35],[91,93,95,97,99,101,103,105,107],[109,111,113,115,117,119,121,123,125],[73,75,77,79,81,83,85,87,89],[37,39,41,43,45,47,49,51,53],[1,3,5,7,9,11,13,15,17]], ["$N(0,1)$", "binary", "band matrix", "rank 1", "$N(0,1/m)$", "$\\pm 1/\\sqrt{m}$", "$0, \\pm \\sqrt{3/m}$"], "Average Solving times for right-hand side of RIP", "rhsTime")
+		TimeTable([[55,57,59,61,63,65,67,69,71],[19,21,23,25,27,29,31,33,35],[91,93,95,97,99,101,103,105,107],[109,111,113,115,117,119,121,123,125],[73,75,77,79,81,83,85,87,89],[37,39,41,43,45,47,49,51,53],[1,3,5,7,9,11,13,15,17]], ["$N(0,1)$", "binary", "band matrix", "rank 1", "$N(0,1/m)$", "$\\pm 1/\\sqrt{m}$", "$0, \\pm \\sqrt{3/m}$"], "Average solving times for right-hand side of RIP", "rhsTime")
 	if LRtimes:
-		LhsRhsTimeTable([[[54,55],[56,57],[58,59],[60,61],[62,63],[64,65],[66,67],[68,69],[70,71]],[[18,19],[20,21],[22,23],[24,25],[26,27],[28,29],[30,31],[32,33],[34,35]],[[90,91],[92,93],[94,95],[96,97],[98,99],[100,101],[102,103],[104,105],[106,107]],[[-1,109],[-1,111],[-1,113],[-1,115],[-1,117],[-1,119],[-1,121],[-1,123],[-1,125]],[[72,73],[74,75],[76,77],[78,79],[80,81],[82,83],[84,85],[86,87],[88,89]],[[36,37],[38,39],[40,41],[42,43],[44,45],[46,47],[48,49],[50,51],[52,53]],[[0,1],[2,3],[4,5],[6,7],[8,9],[10,11],[12,13],[14,15],[16,17]]], ["$N(0,1)$", "binary", "band matrix", "rank 1", "$N(0,1/m)$", "$\\pm 1/\\sqrt{m}$", "$0, \\pm \\sqrt{3/m}$"], "Average Solving times for RICs", "lhsRhsTime")
+		LhsRhsTimeTable([[[54,55],[56,57],[58,59],[60,61],[62,63],[64,65],[66,67],[68,69],[70,71]],[[18,19],[20,21],[22,23],[24,25],[26,27],[28,29],[30,31],[32,33],[34,35]],[[90,91],[92,93],[94,95],[96,97],[98,99],[100,101],[102,103],[104,105],[106,107]],[[-1,109],[-1,111],[-1,113],[-1,115],[-1,117],[-1,119],[-1,121],[-1,123],[-1,125]],[[72,73],[74,75],[76,77],[78,79],[80,81],[82,83],[84,85],[86,87],[88,89]],[[36,37],[38,39],[40,41],[42,43],[44,45],[46,47],[48,49],[50,51],[52,53]],[[0,1],[2,3],[4,5],[6,7],[8,9],[10,11],[12,13],[14,15],[16,17]]], ["$N(0,1)$", "binary", "band matrix", "rank 1", "$N(0,1/m)$", "$\\pm 1/\\sqrt{m}$", "$0, \\pm \\sqrt{3/m}$"], "Average solving times for RICs", "lhsRhsTime")
 
 
 	if texfile:
