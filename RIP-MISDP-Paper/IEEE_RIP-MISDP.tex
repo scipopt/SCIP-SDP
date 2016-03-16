@@ -646,7 +646,8 @@ is very fast, taking only a few seconds for all instances. The mixed-integer sem
 cannot compete with these solving times, although for band-matrices, the difference is relatively
 small. The Lagrangian Relaxation~\eqref{Asp08}, however, takes more time to produce bounds than is needed
 by~\eqref{MISDP} to compute exact solutions. This is mainly caused by the fact that~\eqref{Asp08Dual} involves
-$n+1$ $n\times n$ matrix variables and SDP-blocks instead of a single one each in~\eqref{MISDP} and~\eqref{Asp07}.
+$n+1$ matrix variables of dimension $n\times n$ with corresponding SDP-constraints instead of a 
+single one each in~\eqref{MISDP} and~\eqref{Asp07}.
 Furthermore, the big difference is also caused by the instances running into the 
 memory limit, but even without those, the algorithm still takes slightly longer than~\eqref{MISDP}.
 
