@@ -575,7 +575,28 @@ $N(0, 1/m)$-distributed entries, with entries chosen uniformly in $\pm 1/\sqrt{m
 \end{equation}
 For each type we used \mbox{MATLAB 8.3.0} to randomly generate nine
 matrices of three different sizes with rows ranging from 15 to 30, columns
-from 25 to 40 and order $k$ between three and five.
+from 25 to 40 and order $k$ between three and five, see Table~\ref{matrixsizes}.
+
+\begin{table} 
+ \begin{scriptsize} \caption{Sizes of the used matrices, three matrices were
+ randomly generated for each size} 
+ \label{matrixsizes} 
+ \begin{tabular*}{\linewidth}{@{}l@{\;\;\extracolsep{\fill}}rrrrrrrrr@{}}\toprule 
+  & \multicolumn{3}{c}{1} & \multicolumn{3}{c}{2} & \multicolumn{3}{c}{3} \\ 
+\cmidrule(r){2-4} \cmidrule{5-7}  \cmidrule(l){8-10}
+type & $m$ & $n$ & $k$ & $m$ & $n$ & $k$ & $m$ & $n$ & $k$  \\ 
+\midrule 
+$N(0,1)$ & 15 & 30 & 5 & 25 & 35 & 4 & 30 & 40 & 3 \\
+binary & 15 & 30 & 5 & 25 & 35 & 4 & 30 & 40 & 3 \\
+band matrix & 30 & 30 & 5 & 35 & 35 & 4 & 40 & 40 & 3 \\
+rank 1& 30 & 30 & 5 & 35 & 35 & 4 & 40 & 40 & 3 \\
+$N(0,1/m)$ & 15 & 30 & 5 & 25 & 35 & 4 & 30 & 40 & 3 \\
+$\pm 1/\sqrt{m}$ & 15 & 30 & 5 & 25 & 35 & 4 & 30 & 40 & 3 \\
+$0, \pm \sqrt{3/m}$ & 15 & 30 & 5 & 25 & 35 & 4 & 30 & 40 & 3 \\
+\bottomrule 
+ \end{tabular*} 
+ \end{scriptsize} 
+ \end{table} 
 
 For the latter three kinds of matrices, it was shown by Baraniuk et al.~\cite{BDDW08} that for $n \rightarrow \infty$, 
 sufficiently small $k$, and given $\delta$, they satisfy the restricted isometry property of order $k$  
