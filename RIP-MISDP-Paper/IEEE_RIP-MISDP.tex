@@ -610,7 +610,7 @@ Problem~\eqref{Asp08}, most of the larger instance were aborted because of the m
 counted with the maximum allowed time of four hours. 
 
 In Table~\ref{lhsRhsGap} we compare the relative gap between the bounds on $\alpha_k$ and $\beta_k$ computed by the two heuristics
-and the exact values given by~\eqref{MISDP}. We present arithmetic means over all of the nine matrices for the given type that
+and the exact values given by~\eqref{MISDP}, computed as their difference divided by the exact value. We present arithmetic means over all of the nine matrices for the given type that
 could be solved within the time- and memory-limit. Note that we omitted the rank one matrices for the left-hand side since these satisfy
 $\alpha_k = 0$ in all cases, so that the trivial lower bound would already be optimal.
 
@@ -645,7 +645,9 @@ Table~\ref{lhsRhsTime}. The relaxation~\eqref{Asp07}
 is very fast, taking only a few seconds for all instances. The mixed-integer semidefinite program obviously
 cannot compete with these solving times, although for band-matrices, the difference is relatively
 small. The Lagrangian Relaxation~\eqref{Asp08}, however, takes more time to produce bounds than is needed
-by~\eqref{MISDP} to compute exact solutions. The big difference is also caused by the instances running into the 
+by~\eqref{MISDP} to compute exact solutions. This is mainly caused by the fact that~\eqref{Asp08Dual} involves
+$n+1$ $n\times n$ matrix variables and SDP-blocks instead of a single one each in~\eqref{MISDP} and~\eqref{Asp07}.
+Furthermore, the big difference is also caused by the instances running into the 
 memory limit, but even without those, the algorithm still takes slightly longer than~\eqref{MISDP}.
 
 \input{tables/lhsRhsTime}
