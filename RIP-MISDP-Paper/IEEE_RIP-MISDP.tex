@@ -605,9 +605,9 @@ that we cannot expect the generated matrices in small dimensions to satisfy the 
 
 The tests were performed on a Linux cluster with Intel i3 CPUs with 3.2GHz, 4MB cache, and 8GB memory running
 Linux. Each computation was performed single-threaded with a single process running on each computer and with 
-a time limit of four hours. The code was compiled with gcc 4.4.5 with \texttt{-O3} optimization. For the 
-Problem~\eqref{Asp08}, most of the larger instance were aborted because of the memory limit of 8GB. These are
-counted with the maximum allowed time of four hours. 
+a time limit of four hours. The code was compiled with gcc 4.4.5 with \texttt{-O3} optimization. For 
+Problem~\eqref{Asp08}, the 585 evaluations of~\eqref{Asp08Dual} for 39 matrices and all 15 choices of $\rho$
+were aborted because of the memory limit of 8GB. These are counted with the maximum allowed time of four hours. 
 
 In Table~\ref{lhsRhsGap} we compare the relative gap between the bounds on $\alpha_k$ and $\beta_k$ computed by the two heuristics
 and the exact values given by~\eqref{MISDP}, computed as their difference divided by the exact value. We present arithmetic means over all of the nine matrices for the given type that

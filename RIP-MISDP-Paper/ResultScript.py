@@ -12,7 +12,8 @@ Rbounds = 0
 LRbounds = 0
 Ltimes = 0
 Rtimes = 0
-LRtimes = 1
+LRtimes = 0
+printFails = 1
 completeTable = 0
 
 MISDPfilename = "/local/gally/results/RIP-MISDP-Paper/160311/RIP-results/check.RIPMISDP.scipsdp.linux.x86_64.gnu.opt.sdpa.extra.branchinfobj_nofracdive.out"
@@ -92,11 +93,15 @@ def readFileAsp07(filename, j, rhs):
 	iters = substring[substring.find("   Iteration = ") + 15:].split()[0]
 	sdpiters[1][j] = float(iters)
 	returncode = substring[substring.find("phase.value  = ") + 15:].split()[0]
+	if substring.find("phase.value  = ") == -1:
+		Asp07unsolved[j] = -1
+	else:
+		returncode = substring[substring.find("phase.value  = ") + 15:].split()[0]
+		if returncode != "pdOPT":
+			Asp07unsolved[j] = 1
 	if rhs:
 		primalresults[1][j] *= -1
 		dualresults[1][j] *= -1
-	#if returncode != "pdOPT":
-		#print(filename + " returned " + returncode) 
 	file.close()
 
 def readFileAsp08(basename, datafilename, j, rhs):
@@ -130,9 +135,12 @@ def readFileAsp08(basename, datafilename, j, rhs):
 		else:
 			iters = substring[substring.find("   Iteration = ") + 15:].split()[0]
 			Asp08sdpiters[j][i] = float(iters)
-		returncode = substring[substring.find("phase.value  = ") + 15:].split()[0]
-		#if returncode != "pdOPT":
-			#print(filename + " returned " + returncode) 
+		if substring.find("phase.value  = ") == -1:
+			Asp08unsolved[j][i] = -1
+		else:
+			returncode = substring[substring.find("phase.value  = ") + 15:].split()[0]
+			if returncode != "pdOPT":
+				Asp08unsolved[j][i] = 1	#TODO maybe also reset results, iters etc. or check for gap below
 		file.close()
 	# compute best bound
 	datafilename = basename + "_1" + ".dat-s"
@@ -582,6 +590,34 @@ def LhsRhsTimeTable(instancesets, instancesetnames, caption, label):
 	file.write("& \\num{%.1f" % totalMISDPtimer + "} & " + "\\num{%.1f" % totalA07timer + "} & " + "\\num{%.1f" % totalA08timer + "} \\\ \n ")
 	file.write("\\bottomrule \n \\end{tabular*} \n \end{scriptsize} \n \\end{table} \n")
 
+def printUnsolved(instanceset):
+	memory07 = 0
+	fail07 = 0
+	memory08 = 0
+	fail08 = 0
+	totalunsolved08 = 0
+	for j in instanceset:
+		if Asp07unsolved[j] < 0:
+			memory07 += 1
+		elif Asp07unsolved[j] > 0:
+			fail07 += 1
+		allfailed = True
+		for s in range(nAsp08Steps):
+			if Asp08unsolved[j][s] < 0:
+				memory08 += 1
+			elif Asp08unsolved[j][s] > 0:
+				fail08 += 1
+			if Asp08unsolved[j][s] >= 0:
+				allfailed = False
+				continue
+		if allfailed:
+			totalunsolved08 += 1
+	print("number of memory fails d'Aspremont 2007: " + str(memory07))
+	print("number of solver fails d'Aspremont 2007: " + str(fail07))
+	print("number of memory fails d'Aspremont 2008: " + str(memory08))
+	print("number of solver fails d'Aspremont 2007: " + str(fail08))
+	print("number of complete fails d'Aspremont 2007: " + str(totalunsolved08))
+
 
 if __name__=="__main__":
 	"""give any number of .out-files for the same testset, then loops over them and returns a .tex-file given as first argument with some tables and a performance graph """
@@ -598,6 +634,8 @@ if __name__=="__main__":
 	Asp08gaps=[[0 for x in range(15)] for x in range(126)]   #initialize gaps matrix for Asp08 
 	Asp08times=[[0 for x in range(15)] for x in range(126)]   #initialize solvingtime matrix for Asp08 
 	Asp08sdpiters=[[0 for x in range(15)] for x in range(126)]   #initialize sdp iterations matrix for Asp08 
+	Asp08unsolved=[[0 for x in range(15)] for x in range(126)]	#initialize unsolved matrix for Asp08 | -1 = memory limit +1 = not converged
+	Asp07unsolved=[0 for x in range(126)]	#initialize unsolved matrix for Asp07 
 
 	#read the results
 	readFileMISDP(MISDPfilename)
@@ -628,6 +666,8 @@ if __name__=="__main__":
 	if LRtimes:
 		LhsRhsTimeTable([[[54,55],[56,57],[58,59],[60,61],[62,63],[64,65],[66,67],[68,69],[70,71]],[[18,19],[20,21],[22,23],[24,25],[26,27],[28,29],[30,31],[32,33],[34,35]],[[90,91],[92,93],[94,95],[96,97],[98,99],[100,101],[102,103],[104,105],[106,107]],[[-1,109],[-1,111],[-1,113],[-1,115],[-1,117],[-1,119],[-1,121],[-1,123],[-1,125]],[[72,73],[74,75],[76,77],[78,79],[80,81],[82,83],[84,85],[86,87],[88,89]],[[36,37],[38,39],[40,41],[42,43],[44,45],[46,47],[48,49],[50,51],[52,53]],[[0,1],[2,3],[4,5],[6,7],[8,9],[10,11],[12,13],[14,15],[16,17]]], ["$N(0,1)$", "binary", "band matrix", "rank 1", "$N(0,1/m)$", "$\\pm 1/\\sqrt{m}$", "$0, \\pm \\sqrt{3/m}$"], "Average solving times for RICs", "lhsRhsTime")
 
+	if printFails:
+		printUnsolved([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,109,111,113,115,117,119,121,123,125])
 
 	if texfile:
 		file.write("\\end{document}")
