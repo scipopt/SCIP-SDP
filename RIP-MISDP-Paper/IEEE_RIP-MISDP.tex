@@ -266,7 +266,7 @@ The goal of this paper is to compute optimal restricted isometry constants
 via mixed-integer semidefinite programming (MISDP). To this end, we will
 introduce an MISDP with a rank-1 constraint. In order to utilize this
 MISDP, we will show that the rank constraint can be relaxed without
-changing the optimal value. We can then apply a MISDP solver.
+changing the optimal value. We can then apply an MISDP solver.
 
 In our computational results we show that the resulting problems are quite
 hard to solve, even for matrices of smaller size. However, this is true for
@@ -347,7 +347,7 @@ square-root of $\Sigma$. For details, we refer the reader to~\cite{Asp08}. The c
 \begin{equation}\label{Asp08Dual}\tag{A2-Dual}
  \begin{aligned}
   \min \quad & \lambda_{\max}\Big(\sum_{i=1}^n Y_i \Big) \\
-  \text{s.t.} \quad & Y_i \succeq B_i \quad \text{for } i = 1, \dots, n \\
+  \text{s.t.} \quad & Y_i \succeq B_i \quad \text{for } i = 1, \dots, n, \\
   & Y_i \succeq 0 \quad \ \ \text{for } i = 1, \dots, n,
  \end{aligned}
 \end{equation}
@@ -393,7 +393,7 @@ In \cite{AspBG14} explicit bounds on the gap between \eqref{Asp08Primal} and the
 \label{sec:MISDP}
 
 \noindent
-In this section we propose a MISDP formulation to compute the optimal
+In this section we propose an MISDP formulation to compute the optimal
 constants $\alpha_k$ and $\beta_k$ in \eqref{lowerRIP} and
 \eqref{upperRIP}, respectively. We will again start with the non-convex quadratic problem~\eqref{QP}.
 For the non-convex quadratic equality constraint $\Norm{x}{2}^2 = 1$, we
@@ -511,7 +511,7 @@ mixed-integer semidefinite programming.
 Theorem~\ref{Rk1thm} does not guarantee that any
 found solution will have rank one, only that the optimal objective
 values agree. This suffices for our application of
-computing the RIP constants $\alpha_k$ and $\beta_k$. For other
+computing the restricted isometry constants $\alpha_k$ and $\beta_k$. For other
 applications like SPCA, an extreme solution can be generated with an
 algorithm proposed by Pataki~\cite{coneLP}.
 
@@ -525,13 +525,13 @@ constraints $-z_j \leq X_{ij} \leq z_j$.
   \begin{equation}\label{eq:HalfConstraint}
     -\tfrac{1}{2} z_j \leq X_{ij} \leq \tfrac{1}{2} z_j,
   \end{equation}
-  for $i, j \in \{1, \dots, n\}$, are valid for~\eqref{MISDP}.
+  for $i \neq j \in \{1, \dots, n\}$, are valid for~\eqref{MISDP}.
 \end{lemma}
 
 \begin{proof}
   Let $X \succeq 0$ satisfy $\Tr(X)=1$. Then $X_{ii}+X_{jj}\leq 1$ and
   nonnegativity of the diagonal entries imply $X_{ii}X_{jj}\leq
-  \tfrac{1}{4}$.  Since all minors of $X$ need to be nonnegative, it
+  \tfrac{1}{4}$ for $i \neq j$. Since all minors of $X$ need to be nonnegative, it
   follows that
   \begin{equation*}
     X_{ij}^2 \leq  X_{ii} X_{jj} \leq \tfrac{1}{4}.
@@ -614,7 +614,7 @@ a time limit of four hours. The code was compiled with gcc 4.4.5 with \texttt{-O
 Problem~\eqref{Asp08}, the 585 evaluations of~\eqref{Asp08Dual} for 39 matrices and all 15 choices of $\rho$
 were aborted because of the memory limit of 8GB. These are counted with the maximum allowed time of four hours. 
 
-In Table~\ref{lhsRhsGap} we compare the relative gap between the bounds on $\alpha_k$ and $\beta_k$ computed by the two heuristics
+In Table~\ref{lhsRhsGap} we compare the relative gap between the bounds on $\alpha_k$ and $\beta_k$ produced by the two heuristics
 and the exact values given by~\eqref{MISDP}, computed as their difference divided by the exact value. We present arithmetic means over all of the nine matrices for the given type that
 could be solved within the time- and memory-limit. Note that we omitted the rank one matrices for the left-hand side since these satisfy
 $\alpha_k = 0$ in all cases, so that the trivial lower bound would already be optimal.
@@ -636,7 +636,7 @@ shows bigger fluctuations, but produces better results for five of the seven mat
 worse for binary and rank one matrices. For band matrices, however, the average gap was below 2\,\%, the best 
 result for any matrix type among both relaxations.
 
-For reporting some the solving times, we will use the \emph{shifted
+For reporting the solving times, we will use the \emph{shifted
   geometric mean} to decrease the influence of easy instances, see
 Achterberg~\cite{SCIP} for more details. The shifted geometric
 mean of values $x_1$, \dots, $x_n$ is computed as
