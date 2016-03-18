@@ -616,8 +616,9 @@ These are counted with the maximum allowed time of four hours.
 
 In Table~\ref{lhsRhsGap} we compare the relative gap between the bounds on $\alpha_k$ and $\beta_k$ produced by the two heuristics
 and the exact values given by~\eqref{MISDP}, computed as their difference divided by the exact value. We present arithmetic means over all of the nine matrices for the given type that
-could be solved within the time- and memory-limit. Note that we omitted the rank one matrices for the left-hand side since these satisfy
-$\alpha_k = 0$ in all cases, so that the trivial lower bound would already be optimal.
+could be solved within the time- and memory-limit. Note that for the left-hand side we also omitted all instances with $\alpha_k=0$, 
+since we cannot compute a relative gap in that case. This included all rank one matrices. The number of instances used to compute the
+average is given in brackets.
 
 For the left-hand-side of the RIP, $\alpha_k$, both relaxations did not perform
 too well. Especially~\eqref{Asp08} regularly returned worse solutions than the
