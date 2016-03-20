@@ -309,9 +309,9 @@ The corresponding maximization problem allows to compute $\beta_k^2$. D'Aspremon
 $\Norm{x}{2}^2 = 1$ by the technique of semidefinite lifting, first introduced by Goemans and Williamson~\cite{GW95} 
 for the max-cut problem. The idea is to use new matrix variables $X=xx\T$ for the quadratic terms, where the condition $X=xx\T$ is enforced by the equivalent constraints $X \succeq 0$ and $\Rk(X) = 1$, where, as usual, 
 $X \succeq 0$ means that $X$ is symmetric (shortly written $X \in S_n$) and positive semidefinite. The objective and the normalization-constraint can then be expressed as  $\Norm{Ax}{2}^2 = x\T A\T Ax =
-\Tr(A\T A X)$ and $1 = \Norm{x}{2}^2 = \sum_{i=1}^n x_i^2 = \Tr(X)$. 
+\Tr(A\T A X)$ and $\Norm{x}{2}^2 = \sum_{i=1}^n x_i^2 = \Tr(X) = 1$.
 
-In the next step, the inequality $\Norm{x}{0} \leq k$ is then substituted by the weaker constraint $\ones\T
+In the next step, the inequality $\Norm{x}{0} \leq k$ is substituted by the weaker constraint $\ones\T
 \abs{X} \ones \leq k$, which follows from the fact that $\ones\T\abs{X} \ones = \Norm{\vect(X)}{1}\leq \sqrt{\Norm{\vect(X)}{0}}\, \Norm{\vect(X)}{2}$ and $\Norm{\vect(X)}{0}=\Norm{x}{0}^2$ in the rank-1 case, where $\vect(X)$ is a vector
 in $\R^{n^2}$ consisting of all entries of $X$. 
 Relaxing the non-convex rank constraint finally leads to the following SDP:
@@ -324,7 +324,7 @@ Relaxing the non-convex rank constraint finally leads to the following SDP:
  \end{aligned}
 \end{equation}
 
-Another SDP relaxation was proposed by d'Aspremont et al. in \cite{Asp08}, where
+Another SDP relaxation was proposed by d'Aspremont et al. in \cite{Asp08}. Here,
 \begin{equation}\label{phi}
   \phi(\rho) = \max \big\{ x\T \Sigma\, x - \rho \Norm{x}{0} \suchthat \Norm{x}{2} \leq 1 \big\},
 \end{equation}
@@ -337,7 +337,7 @@ $\Sigma = A\T A$ we can use this to compute an upper bound on $\beta_k$ via Lagr
 	    & = \inf_{\rho \geq 0} \phi(\rho) + \rho\, k. 
  \end{align*}
 
-As one way to solve \eqref{phi} the semidefinite lifting technique is used again to compute an upper bound on $\phi$ via
+As one way to solve \eqref{phi}, the semidefinite lifting technique is used again to compute an upper bound on $\phi$ via
 \begin{equation}\label{Asp08Primal}\tag{A2-Primal}
  \begin{aligned}
   \max \quad & \sum_{i=1}^n \Tr(P_i \, B_i) \\
@@ -367,9 +367,8 @@ with
 \end{equation*}
 In this case problem \eqref{Asp08Primal} or equivalently \eqref{Asp08Dual} has to
 be solved for $\Sigma = M I - A\T A$, where $M \in \R$ has to be big enough
-to make $\Sigma$ positive semidefinite again. If $\Psi$ is the
-corresponding optimal objective, this implies a lower bound on $\alpha_k$
-in
+to make $\Sigma$ positive semidefinite. If $\Psi$ is the
+corresponding optimal objective, this implies the following lower bound:
 \begin{equation*}
   \alpha_k^2 \geq \sup_{\rho \geq 0}\; (M - \Psi) - \rho\, k.
 \end{equation*}
