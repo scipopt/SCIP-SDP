@@ -428,14 +428,14 @@ MISDP formulation:
 In the following, we will show that \eqref{MISDP} actually produces the
 exact value of $\alpha_k$. We will use the following result about the
 relationship between the rank of solutions of semidefinite programs and the
-dimension of corresponding faces of the feasible set~$P$, i.e., subsets $F
-\subseteq P$ such that $x \in F$, $y, z \in P$, and $x = \tfrac{1}{2} (y + z)$ imply
-$y,z \in F$:
+dimension of corresponding faces of the feasible set~$S$, i.e., subsets $F
+\subseteq S$ such that $\tfrac{1}{2} (p + q) \in F$ for $p, q \in S$ implies
+$p,q \in F$:
 
 \begin{theorem}[Pataki~\cite{pat98}]\label{patakiLemma}
   Let $X \in F$, where $F$ is a face of
   \begin{equation*}
-    P \define \{X \in S_n \suchthat X \succeq 0,\; \Tr(A_i X) = b_i\; \text{ for } i = 1, \dots, \tilde{m}\}
+    S \define \{X \in S_n \suchthat X \succeq 0,\; \Tr(A_i X) = b_i\; \text{ for } i = 1, \dots, \tilde{m}\}
   \end{equation*}
   for symmetric matrices $A_i \in S_n$, $i = 1, \dots, \tilde{m}$. Then
   \begin{equation*}
