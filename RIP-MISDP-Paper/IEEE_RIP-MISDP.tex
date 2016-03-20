@@ -297,7 +297,7 @@ propose and will also be checked against in the section on numerical
 results.
 
 The idea is that the optimal constant $\alpha_k^2$ in \eqref{lowerRIP} can be computed
-by the non-convex quadratic optimization problem
+by the non-convex quadratic optimization problem with a cardinality constraint
 \begin{equation}\label{QP}\tag{QP}
  \begin{aligned}
   \min \quad & \Norm{Ax}{2}^2  \\
@@ -396,7 +396,7 @@ In \cite{AspBG14} explicit bounds on the gap between \eqref{Asp08Primal} and the
 \noindent
 In this section we propose an MISDP formulation to compute the optimal
 constants $\alpha_k$ and $\beta_k$ in \eqref{lowerRIP} and
-\eqref{upperRIP}, respectively. We will again start with the non-convex quadratic problem~\eqref{QP}.
+\eqref{upperRIP}, respectively. We will again start with the problem~\eqref{QP}.
 For the non-convex quadratic equality constraint $\Norm{x}{2}^2 = 1$, we
 again use semidefinite lifting, introducing the new variable $X=xx\T$ like in the last section. 
 The cardinality-constraint in \eqref{QP} can equivalently be written using
