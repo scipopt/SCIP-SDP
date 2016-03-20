@@ -563,14 +563,14 @@ except that we reduced the number from 25 to 15, as this did
 not significantly seem to influence the quality of the solutions,
 but reduced the solving times.
 
-We use a testset consisting of 63 matrices of seven 
-different types including band matrices, 
+We use a testset consisting of 63 matrices of the following seven
+different types: band matrices,
 with band size three or five with entries within the band chosen uniformly in $\{0,1\}$, binary matrices with all entries chosen 
-uniformly in $\{0,1\}$, Gaussian-distributed matrices and rank one 
+uniformly in $\{0,1\}$, Gaussian-distributed matrices, and rank one 
 matrices $A = aa\T$ with $N(0,1)$-distributed entries of $a$. In addition to these four types,
 we also use three more with theoretical results on their restricted isometry
 constants. These include matrices with 
-$N(0, 1/m)$-distributed entries, with entries chosen uniformly in $\pm 1/\sqrt{m}$ and finally with distribution
+$N(0, 1/m)$-distributed entries, with entries chosen uniformly in $\pm 1/\sqrt{m}$, and finally with distribution
 \begin{equation}\nonumber
   A_{ij} = \begin{cases}
     + \sqrt{3/m} & \text{with probability } \frac{1}{6}, \\
@@ -579,8 +579,9 @@ $N(0, 1/m)$-distributed entries, with entries chosen uniformly in $\pm 1/\sqrt{m
   \end{cases}
 \end{equation}
 For each type we used \mbox{MATLAB 8.3.0} to randomly generate nine
-matrices of three different sizes with rows ranging from 15 to 30, columns
-from 25 to 40 and order $k$ between three and five, see Table~\ref{matrixsizes}.
+matrices of three different sizes with the number of rows ranging from 15
+to 30, number of columns
+from 25 to 40, and order $k$ between three and five, see Table~\ref{matrixsizes}.
 
 \begin{table} 
  \begin{scriptsize} \caption{Sizes of the used matrices; three matrices were
@@ -604,24 +605,25 @@ $0, \pm \sqrt{3/m}$ & 15 & 30 & 5 & 25 & 35 & 4 & 30 & 40 & 3 \\
  \end{table} 
 
 For the latter three kinds of matrices, it was shown by Baraniuk et al.~\cite{BDDW08} that for $n \rightarrow \infty$, 
-sufficiently small $k$, and given $\delta$, they satisfy the restricted isometry property of order $k$  
+sufficiently small $k$, and given $\delta$, they satisfy the restricted
+isometry property of order~$k$ and constant~$\delta$
 with probability converging exponentially to one. The needed proportion between $n$ and $k$ is so small, however,
 that we cannot expect the generated matrices in small dimensions to satisfy the RIP.
 
 The tests were performed on a Linux cluster with Intel i3 CPUs with 3.2GHz, 4MB cache, and 8GB memory running
 Linux. Each computation was performed single-threaded with a single process running on each computer and with 
 a time limit of four hours. The code was compiled with gcc 4.4.5 with \texttt{-O3} optimization. For 39 matrices 
-the evaluation of~\eqref{Asp08Dual} was aborted for all 15 choices of $\rho$ because of the memory limit of 8GB. 
+the evaluation of~\eqref{Asp08Dual} was aborted for all 15 choices of $\rho$, because of the memory limit of 8GB. 
 These are counted with the maximum allowed time of four hours. 
 
-In Table~\ref{lhsRhsGap} we compare the relative gap between the bounds on $\alpha_k$ and $\beta_k$ produced by the two heuristics
+In Table~\ref{lhsRhsGap}, we compare the relative gap between the bounds on $\alpha_k$ and $\beta_k$ produced by the two heuristics
 and the exact values given by~\eqref{MISDP}, computed as their difference divided by the exact value. We present arithmetic means over all of the nine matrices for the given type that
 could be solved within the time- and memory-limit. Note that for the left-hand side we also omitted all instances with $\alpha_k=0$, 
 since we cannot compute a relative gap in that case. This included all rank one matrices. The number of instances used to compute the
-average is given in brackets.
+average is given in parentheses.
 
-For the left-hand-side of the RIP, $\alpha_k$, both relaxations did not perform
-too well. Especially~\eqref{Asp08} regularly returned worse solutions than the
+For the left-hand-side~$\alpha_k$ of the RIP, the quality of both
+relaxations is bad: Especially~\eqref{Asp08} regularly returned worse solutions than the
 trivial lower bound of zero. Relaxation~\eqref{Asp07} performed slightly better, but the bounds
 were still not nearly good enough to have any chance of proving $\ell_0$-$\ell_1$-equivalence. The relatively
 bad performance of both relaxations for the left-hand side might not be too surprising though, since both relaxations
@@ -630,7 +632,7 @@ of the RIP.
 
 \input{tables/lhsRhsGap}
 
-For the right-hand side, i.e., $\beta_k$,  both relaxations
+In fact, for the right-hand side~$\beta_k$,  both relaxations
 perform much better. Problem~\eqref{Asp07} constantly produces bounds within 10 to 30\,\% of the optimal
 solution, with only slightly worse results for binary and rank one matrices. The formulation~\eqref{Asp08}
 shows bigger fluctuations, but produces better results for five of the seven matrix types, while performing even
@@ -647,7 +649,7 @@ mean of values $x_1$, \dots, $x_n$ is computed as
 where we used a shift of $s=10$.
 
 The solving times in seconds for the left- and right-hand side of the RIP are given in
-Table~\ref{lhsRhsTime}, again exlucding the left-hand sides for the rank one matrices
+Table~\ref{lhsRhsTime}, again exlucding the left-hand sides for the rank one matrices,
 but including all others. The relaxation~\eqref{Asp07}
 is very fast, taking only a few seconds for all instances. The mixed integer semidefinite program obviously
 cannot compete with these solving times, although for band-matrices, the difference is relatively
@@ -667,8 +669,9 @@ This paper shows that exact values of restricted isometry constants can be
 computed via mixed integer semidefinite programming. The computed bounds
 significantly improve the bounds computed by the semidefinite
 relaxations~\eqref{Asp07} and~\eqref{Asp08}
-proposed in~\cite{Asp07} and \cite{Asp08}, respectively. In conclusion, the relaxation~
-\eqref{Asp07} is fast to compute, but produces a gap of around 90\,\% for
+proposed in~\cite{Asp07} and \cite{Asp08}, respectively. In conclusion, the
+relaxation~\eqref{Asp07}
+is fast to compute, but produces a gap of around 90\,\% for
 $\alpha_k$ and 30\,\% for $\beta_k$. If successfully solved, 
 \eqref{Asp08} provides better bounds for $\beta_k$ for most types of 
 matrices, but its running time is too large
