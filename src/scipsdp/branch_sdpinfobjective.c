@@ -98,18 +98,18 @@ SCIP_DECL_BRANCHCOPY(branchCopySdpinfobjective)
 static
 SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
 {/*lint --e{715}*/
-   int i;
-   int ncands;
-   SCIP_VAR** cands = NULL;
-   SCIP_Real* candssol; /* solution values of all candidates */
-   SCIP_Real* candsscore; /* scores of all candidates */
-   SCIP_VAR* maxtargetvar = NULL; /* variable with currently highest target value, meaning product of integer infeasibility and absolute objective */
-   SCIP_Real maxtargettarget; /* target value of the current candidate with highest target value, meaning product of integer infeasibility and absolute objective */
-   SCIP_Real maxtargetval; /* value of the current candidate with highest target value, meaning product of integer infeasibility and absolute objective */
-   SCIP_Real maxtargetscore; /* score of the current candidate with highest target value, meaning product of integer infeasibility and absolute objective */
-   SCIP_Real currentfrac; /* fractionality of the current candidate */
-   SCIP_Real currenttarget; /* target value, meaning product of integer infeasibility and absolute objective, of the current candidate */
    SCIP_BRANCHRULEDATA* branchruledata;
+   SCIP_VAR** cands = NULL;
+   SCIP_Real* candssol;              /* solution values of all candidates */
+   SCIP_Real* candsscore;            /* scores of all candidates */
+   SCIP_VAR* maxtargetvar = NULL;    /* variable with currently highest target value, i.e., product of integer infeasibility and absolute objective */
+   SCIP_Real maxtargettarget = -1.0; /* target value of current candidate with highest target value, i.e., product of integer infeasibility and absolute objective */
+   SCIP_Real maxtargetval = 0.0;     /* value of current candidate with highest target value, i.e., product of integer infeasibility and absolute objective */
+   SCIP_Real maxtargetscore = 0.0;   /* score of current candidate with highest target value, i.e., product of integer infeasibility and absolute objective */
+   SCIP_Real currentfrac;            /* fractionality of the current candidate */
+   SCIP_Real currenttarget;          /* target value, i.e., product of integer infeasibility and absolute objective, of the current candidate */
+   int ncands;
+   int i;
 
    assert( scip != NULL );
    assert( branchrule != NULL );
@@ -117,40 +117,32 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
 
    SCIPdebugMessage("Executing External Branching method of SDP-integer-infeasibility-objective!\n");
 
-   /* get the external candidates, as we use the score only as a tiebreaker, we aren't interested in the number of variables of different types with maximal
-    * score, so these return values are set to NULL */
+   /* Get the external candidates, as we use the score only as a tiebreaker, we aren't interested in the number of
+    * variables of different types with maximal score, so these return values are set to NULL. */
    SCIP_CALL( SCIPgetExternBranchCands(scip, &cands, &candssol, &candsscore, &ncands, NULL, NULL, NULL, NULL) );
 
    assert( ncands > 0 ); /* branchExecext should only be called if the list of extern branching candidate is non-empty */
 
-#ifdef SCIP_DEBUG
-   printf("branching candidates for SDP-objective:\n");
-#endif
-
-   maxtargettarget = -1.0;
-   maxtargetscore = 0.0;
-   maxtargetval = 0.0;
+   SCIPdebugMessage("branching candidates for SDP-objective:\n");
 
    /* iterate over all candidates and find the one with the highest absolute objective times integral infeasibility, use score as tiebreaker */
    for (i = 0; i < ncands; i++)
    {
       /* compute the infeasibility for the integrality constraint */
       currentfrac = SCIPfeasFrac(scip, candssol[i]);
-      currenttarget = (currentfrac <= 0.5) ? (currentfrac * REALABS(SCIPvarGetObj(cands[i]))) : ((1 - currentfrac) * REALABS(SCIPvarGetObj(cands[i])));
+      currenttarget = (currentfrac <= 0.5) ? (currentfrac * REALABS(SCIPvarGetObj(cands[i]))) : ((1.0 - currentfrac) * REALABS(SCIPvarGetObj(cands[i])));
 
-#ifdef SCIP_DEBUG
-      printf("%s, value = %f, objective = %f, objective * integer infeasibility = %f, score = %f\n",
-            SCIPvarGetName(cands[i]), candssol[i], SCIPvarGetObj(cands[i]), currenttarget, candsscore[i]);
-#endif
+      SCIPdebugMessage("%s, value = %f, objective = %f, objective * integer infeasibility = %f, score = %f\n",
+         SCIPvarGetName(cands[i]), candssol[i], SCIPvarGetObj(cands[i]), currenttarget, candsscore[i]);
 
       /* a candidate is better than the current one if:
        * - the absolute objective * integer infeasibility is (epsilon-)bigger than before or
        * - the absolute objective * integer infeasibility is (epsilon-)equal and the score is (epsilon-)bigger or
        * - both are (epsilon-)equal and the index is smaller */
       if ( SCIPisGT(scip, currenttarget, maxtargettarget) ||
-          (SCIPisEQ(scip, currenttarget, maxtargettarget) && SCIPisGT(scip, candsscore[i], maxtargetscore)) ||
-          (SCIPisEQ(scip, currenttarget, maxtargettarget) && SCIPisEQ(scip, candsscore[i], maxtargetscore) &&
-                SCIPvarGetIndex(cands[i]) < SCIPvarGetIndex(maxtargetvar)) )
+         ( SCIPisEQ(scip, currenttarget, maxtargettarget) && SCIPisGT(scip, candsscore[i], maxtargetscore) ) ||
+         ( SCIPisEQ(scip, currenttarget, maxtargettarget) && SCIPisEQ(scip, candsscore[i], maxtargetscore) &&
+            SCIPvarGetIndex(cands[i]) < SCIPvarGetIndex(maxtargetvar) ) )
       {
          maxtargetvar = cands[i];
          maxtargettarget = currenttarget;
@@ -164,16 +156,10 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
    branchruledata = SCIPbranchruleGetData(branchrule);
    assert( branchruledata != NULL );
 
-   /* if all candidates have objective zero, we look for other variables that are coupled with the candidates and check their objective values if the
-    * coupledvars or singlecoupledvars parameter is set to true */
+   /* If all candidates have objective zero, we look for other variables that are coupled with the candidates and check
+    * their objective values if the coupledvars or singlecoupledvars parameter is set to true. */
    if ( SCIPisEQ(scip, maxtargettarget, 0.0) && (branchruledata->coupledvars || branchruledata->singlecoupledvars) )
    {
-      int j;
-      int c;
-      int v;
-      int cand;
-      int candpos;
-      int nvars;
       SCIP_VAR** vars;
       int nconss;
       SCIP_CONS** conss;
@@ -186,9 +172,15 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
       SCIP_Bool success;
       int coupledcand;
       SCIP_Real currentobj;
+      int cand;
+      int candpos;
+      int nvars;
+      int j;
+      int c;
+      int v;
 
       SCIPdebugMessage("All branching candidates have objective 0.0, combined integral infeasibility and objective branching proceeds to check coupled "
-                       "variables, updated values for candidates: \n");
+                       "variables, updated values for candidates:\n");
 
       nvars = SCIPgetNVars(scip);
       vars = SCIPgetVars(scip);
@@ -223,16 +215,19 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
          /* first check which candidates appear in which constraints */
          SCIP_CALL( SCIPgetConsNVars(scip, conss[c], &nvarsincons, &success) );
          if ( ! success )
-            {
+         {
             SCIPdebugMessage("couldn't get variable information from constraint %s, so ignoring it for computing coupled variables\n", SCIPconsGetName(conss[c]));
             continue; /* if we can't get the variables of this constraint, we can't include variables coupled through this constraint */
-            }
+         }
+
          /* nothing to do for this constraint if there are no variables (this can happen if all vars are fixed, as the constraint is non-trivial to check) */
          if ( nvarsincons == 0)
             continue;
+
          SCIP_CALL( SCIPgetConsVars(scip, conss[c], varsincons, nvarsincons, &success) );
          assert( success ); /* we allocated enough memory */
          assert( varsincons != NULL );
+
          for (v = 0; v < nvarsincons; v++)
          {
             for (cand = 0; cand < ncands; cand++)
