@@ -192,7 +192,7 @@ by Foucart and Lai~\cite{FL09}:
 \end{definition}
 
 Definition~\ref{asymRIPdef} is a generalization of Definition~\ref{ripdef}
-in the following sense: if the matrix~$A$ satisfies the RIP of order $k$
+in the following sense: if the matrix~$A$ satisfies the RIP of order~$k$
 with RIC $\delta_k$, then it has a RIR of at most $(1 + \delta_k) / (1 -
 \delta_k)$. Conversely, if $A$ has lower/upper RICs $\alpha_k$ and
 $\beta_k$, respectively, then this implies a restricted isometry constant
@@ -205,7 +205,7 @@ For the asymmetric version of the RIP in Definition~\ref{asymRIPdef}, one
 can again show $\ell_0$-$\ell_1$-equivalence:
 
 \begin{theorem}[Foucart and Lai~\cite{FL09}]\label{asymRIPtheorem}
-  Let $A$ satisfy $\gamma_{2k} \leq 4 \sqrt{2} - 3 \approx 2.6569$. If
+  Let the RIR of order $2k$ of $A$ satisfy $\gamma_{2k} \leq 4 \sqrt{2} - 3 \approx 2.6569$. If
   there exists $\tilde{x} \in \R^n$ with $\Norm{\tilde{x}}{0} \leq k$ such
   that $A\tilde{x} = b$, then the optimal solutions of~\eqref{l0min}
   and~\eqref{l1min} coincide.
@@ -213,7 +213,7 @@ can again show $\ell_0$-$\ell_1$-equivalence:
 
 One advantage
 of Definition~\ref{asymRIPdef} and Theorem~\ref{asymRIPtheorem} is that they
-are invariant under scaling of $Ax = b$. The condition of
+are invariant under scaling of $Ax = b$. In fact, the condition of
 Theorem~\ref{RIPsqrt2} holding for~$A x = b$ does not imply the same 
 for the scaled equation
 $\lambda Ax = \lambda b$, $\lambda \in \R \setminus \{0\}$. In Definition~\ref{asymRIPdef}, however, we can
@@ -256,7 +256,7 @@ connected \emph{sparse principal component analysis} (SPCA). Principal
 component analysis (PCA) finds orthogonal directions maximizing the 
 variance given in matrix $A$, solving problems
 \[
-\max \{ \Norm{A x}{2}^2 \suchthat \Norm{x}{2} \leq 1\}
+\max\; \{ \Norm{A x}{2}^2 \suchthat \Norm{x}{2} \leq 1\}
 \]
 along the way. For SPCA, one further adds the condition that $\Norm{x}{0}
 \leq k$ with the goal to reduce the dependency on small components. Note
@@ -271,7 +271,7 @@ introduce an MISDP with a rank-1 constraint. In order to utilize this
 MISDP, we will show that the rank constraint can be relaxed without
 changing the optimal value. We can then apply an MISDP solver.
 
-In our computational results we show that the resulting problems are quite
+Our computational results show that the resulting problems are quite
 hard to solve, even for matrices of smaller size. However, this is true for
 the SDP relaxations of d'Aspremont et al.\ as well, and it allows for an
 evaluation of the quality of these bounds.  In fact, these bounds turn out
