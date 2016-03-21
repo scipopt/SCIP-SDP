@@ -187,22 +187,46 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
    heurdata = SCIPheurGetData(heur);
    assert( heurdata != NULL );
 
-   /* get fractional variables that should be integral */
+   /* get number of continuous variables */
+   ncontvars = SCIPgetNContVars(scip) +  SCIPgetNImplVars(scip);
+
+   /* save old SDP solution */
    vars = SCIPgetVars(scip);
    nvars = SCIPgetNVars(scip);
    SCIP_CALL( SCIPallocBufferArray(scip, &sdpcands, nvars) );
    SCIP_CALL( SCIPallocBufferArray(scip, &sdpcandssol, nvars) );
-   for (v = 0; v < nvars; ++v)
+   if ( ncontvars == 0)
    {
-      SCIP_Real val;
-
-      val = SCIPgetRelaxSolVal(scip, vars[v]);
-      if ( SCIPvarIsIntegral(vars[v]) && ! SCIPisFeasIntegral(scip, val) )
+      /* in this case we do not need to solve an SDP again, so we only need to save the fractional values */
+      for (v = 0; v < nvars; ++v)
       {
-         assert( SCIPisFeasGE(scip, val, 0.0) && SCIPisFeasLE(scip, val, 1.0) ); /* so far only binary variables */
-         sdpcands[nsdpcands] = vars[v];
-         sdpcandssol[nsdpcands] = val;
-         ++nsdpcands;
+         SCIP_Real val;
+
+         val = SCIPgetRelaxSolVal(scip, vars[v]);
+         if ( SCIPvarIsIntegral(vars[v]) && ! SCIPisFeasIntegral(scip, val) )
+         {
+            assert( SCIPisFeasGE(scip, val, 0.0) && SCIPisFeasLE(scip, val, 1.0) ); /* so far only binary variables */
+            sdpcands[nsdpcands] = vars[v];
+            sdpcandssol[nsdpcands] = val;
+            ++nsdpcands;
+         }
+      }
+   }
+   else
+   {
+      /* if there are continuous variables, we need to save all values to later be able to fix all current integer values */
+      for (v = 0; v < nvars; ++v)
+      {
+         SCIP_Real val;
+
+         val = SCIPgetRelaxSolVal(scip, vars[v]);
+         sdpcands[v] = vars[v];
+         sdpcandssol[v] = val;
+         if ( SCIPvarIsIntegral(vars[v]) && ! SCIPisFeasIntegral(scip, val) )
+         {
+            assert( SCIPisFeasGE(scip, val, 0.0) && SCIPisFeasLE(scip, val, 1.0) ); /* so far only binary variables */
+            ++nsdpcands;
+         }
       }
    }
 
@@ -215,9 +239,6 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
    }
 
    *result = SCIP_DIDNOTFIND;
-
-   /* get number of continuous variables */
-   ncontvars = SCIPgetNContVars(scip) +  SCIPgetNImplVars(scip);
 
    /* get relaxator */
    relaxsdp = SCIPfindRelax(scip, "SDP");
@@ -288,7 +309,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
             SCIP_Real val;
 
             var = vars[v];
-            val = SCIPgetRelaxSolVal(scip, var);
+            val = sdpcandssol[v];
 
             /* if the variable is not fixed and its value is fractional */
             if ( SCIPvarGetLbLocal(var) < 0.5 && SCIPvarGetUbLocal(var) > 0.5 && SCIPvarIsIntegral(var) && ! SCIPisFeasIntegral(scip, val) )
@@ -343,7 +364,6 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
 
                /* try to add solution to SCIP: check all constraints, including integrality */
                SCIP_CALL( SCIPtrySol(scip, heurdata->sol, FALSE, TRUE, TRUE, TRUE, &success) );
-
                /* check, if solution was feasible and good enough */
                if ( success )
                {
