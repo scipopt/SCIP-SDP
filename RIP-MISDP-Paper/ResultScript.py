@@ -9,12 +9,13 @@ from decimal import Decimal
 texfile = 0 # make the output a compilable texfile or just a figure/table that can be included?
 Lbounds = 0
 Rbounds = 0
-LRbounds = 1
+LRbounds = 0
 Ltimes = 0
 Rtimes = 0
 LRtimes = 0
 printFails = 0
 completeTable = 0
+CompleteRICtable = 1
 
 MISDPfilename = "/local/gally/results/RIP-MISDP-Paper/160311/RIP-results/check.RIPMISDP.scipsdp.linux.x86_64.gnu.opt.sdpa.extra.branchinfobj_nofracdive.out"
 Asp0708path = "/local/gally/results/RIP-MISDP-Paper/160311/SDPA-results/"
@@ -590,6 +591,55 @@ def LhsRhsTimeTable(instancesets, instancesetnames, caption, label):
 	file.write("& \\num{%.1f" % totalMISDPtimer + "} & " + "\\num{%.1f" % totalA07timer + "} & " + "\\num{%.1f" % totalA08timer + "} \\\ \n ")
 	file.write("\\bottomrule \n \\end{tabular*} \n \end{scriptsize} \n \\end{table} \n")
 
+def RICtable(instances, caption, label, tabularx):
+	if tabularx:
+		file.write("\\newpage \n \\begin{scriptsize} \n  \\setlength{\\tabcolsep}{2pt} \n \\tablehead{\\toprule \n")
+		file.write("matrix & $m$ & $n$ & $k$ & $\\alpha_k^2$ & $\\beta_k^2$ & $\\gamma_k^2$ & $\\delta_k^2$")
+		file.write("\\\ \\midrule} \n \\tabletail{ \\midrule \\multicolumn{3}{@{}l}{continued on next page \\dots}\\\ \\bottomrule} \n \\tablelasttail{\\bottomrule} \n \\tablecaption[")
+		file.write(caption)
+		file.write("]{")
+		file.write(caption)
+		file.write("}\label{")
+		file.write(label)
+		file.write("}\n")
+		file.write("\\begin{xtabular*}{\\linewidth}{@{\extracolsep{\\fill}}lrrrrrrr@{}} \n ")
+	else:
+		file.write("\\begin{table} \n \\begin{scriptsize} \\caption{" + caption + "} \n \\label{" + label + "} \n \\begin{tabular*}{\\linewidth}{@{}l@{\\;\\;\extracolsep{\\fill}}rrrrrrr @{}}\\toprule \n")
+		file.write("matrix & $m$ & $n$ & $k$ & $\\alpha_k^2$ & $\\beta_k^2$ & $\\gamma_k^2$ & $\\delta_k^2$")
+		file.write("\\\ \midrule \n")
+	i = 0
+	j = 0
+	correct = [-0.00574, -0.01336, -0.01220]
+	m = [15,15,15,25,25,25,30,30,30,15,15,15,25,25,25,30,30,30,30,30,30,35,35,35,40,40,40,30,30,30,35,35,35,40,40,40,15,15,15,25,25,25,30,30,30,15,15,15,25,25,25,30,30,30,15,15,15,25,25,25,30,30,30]
+	n = [30,30,30,35,35,35,40,40,40,30,30,30,35,35,35,40,40,40,30,30,30,35,35,35,40,40,40,30,30,30,35,35,35,40,40,40,30,30,30,35,35,35,40,40,40,30,30,30,35,35,35,40,40,40,30,30,30,35,35,35,40,40,40]
+	k = [5,5,5,4,4,4,3,3,3,5,5,5,4,4,4,3,3,3,5,5,5,4,4,4,3,3,3,5,5,5,4,4,4,3,3,3,5,5,5,4,4,4,3,3,3,5,5,5,4,4,4,3,3,3,5,5,5,4,4,4,3,3,3]
+	for j1,j2 in instances:
+		if primalresults[0][j1] == 1e20:
+			alpha = correct[j]
+			j += 1
+		else:
+			alpha = float(primalresults[0][j1])
+		beta = float(primalresults[0][j2])
+		if alpha > 0.0001:
+			gamma = beta / alpha
+		else:
+			gamma = "-"
+		if 1 - alpha > beta - 1:
+			delta = 1-alpha
+		else:
+			delta = beta-1
+		file.write(names[0][j1].split("_")[0] + " & \\num{%.0f" % float(m[j1/2]) + "} & \\num{%.0f" % float(n[j1/2]) + "} & \\num{%.0f" % float(k[j1/2]) + "} & \\num{%.2f" % float(alpha) + "} & \\num{%.2f" % float(beta) + "} & ")
+		if gamma == "-":
+			file.write("- & ")
+		else:
+			file.write("\\num{%.2f" % float(gamma) + "} & ")
+		file.write("\\num{%.2f" % float(delta) + "} \\\ \n")
+		i += 1
+	if tabularx:
+		file.write("\\end{xtabular*} \n \\end{scriptsize} \n")
+	else:
+		file.write("\\bottomrule \n \\end{tabular*} \n \end{scriptsize} \n \\end{table} \n")
+
 def printUnsolved(instanceset):
 	memory07 = 0
 	fail07 = 0
@@ -668,6 +718,9 @@ if __name__=="__main__":
 
 	if printFails:
 		printUnsolved([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,109,111,113,115,117,119,121,123,125])
+
+	if CompleteRICtable:
+		RICtable([[54,55],[56,57],[58,59],[60,61],[62,63],[64,65],[66,67],[68,69],[70,71],[18,19],[20,21],[22,23],[24,25],[26,27],[28,29],[30,31],[32,33],[34,35],[90,91],[92,93],[94,95],[96,97],[98,99],[100,101],[102,103],[104,105],[106,107],[108,109],[110,111],[112,113],[114,115],[116,117],[118,119],[120,121],[122,123],[124,125],[72,73],[74,75],[76,77],[78,79],[80,81],[82,83],[84,85],[86,87],[88,89],[36,37],[38,39],[40,41],[42,43],[44,45],[46,47],[48,49],[50,51],[52,53],[0,1],[2,3],[4,5],[6,7],[8,9],[10,11],[12,13],[14,15],[16,17]], "List of all created matrices", "MatrixList",1)
 
 	if texfile:
 		file.write("\\end{document}")

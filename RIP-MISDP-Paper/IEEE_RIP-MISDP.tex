@@ -8,6 +8,9 @@
 \usepackage{mathtools}
 \usepackage{url}
 \usepackage{sistyle}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{xtab}
 
 \usepackage[breaklinks,colorlinks,citecolor=blue,linkcolor=blue,urlcolor=blue,bookmarks=false,hypertexnames=false,
   pdftitle={Computing Exact Restricted Isometry Constants via Mixed Integer Semidefinite Programming},
@@ -49,6 +52,9 @@
 
 % comma after thousands in numbers
 \SIthousandsep{,}
+
+% prevent tables from being broken too early
+\xentrystretch{-0.2}
 
 \begin{document}
 
@@ -697,4 +703,8 @@ planes, primal heuristics, and branching rules.
 
 \bibliographystyle{abbrv}
 \bibliography{Paperbib}
+
+\appendix{ \input{tables/matrixList}}
+
+
 \end{document}
