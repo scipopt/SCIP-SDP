@@ -183,6 +183,11 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
    if ( SCIPgetNIntVars(scip) > 0 )
       return SCIP_OKAY;
 
+   /* get relaxator - exit if not found (use LP randomized rounding) */
+   relaxsdp = SCIPfindRelax(scip, "SDP");
+   if ( relaxsdp == NULL )
+      return SCIP_OKAY;
+
    /* get heuristic data */
    heurdata = SCIPheurGetData(heur);
    assert( heurdata != NULL );
@@ -239,16 +244,6 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
    }
 
    *result = SCIP_DIDNOTFIND;
-
-   /* get relaxator */
-   relaxsdp = SCIPfindRelax(scip, "SDP");
-   if ( relaxsdp == NULL )
-   {
-      /* could not find SDP relaxator -> exit */
-      SCIPfreeBufferArray(scip, &sdpcandssol);
-      SCIPfreeBufferArray(scip, &sdpcands);
-      return SCIP_OKAY;
-   }
 
    SCIPdebugMessage("node %"SCIP_LONGINT_FORMAT") executing SDP randomized rounding heuristic: depth=%d, %d fractionals.\n",
       SCIPgetNNodes(scip), SCIPgetDepth(scip), nsdpcands);
