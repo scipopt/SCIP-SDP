@@ -306,8 +306,8 @@ by the non-convex quadratic optimization problem with a cardinality constraint
  \end{aligned}
 \end{equation}
 The corresponding maximization problem allows to compute $\beta_k^2$. D'Aspremont et al. \cite{Asp07} tackled the non-convex quadratic equality constraint 
-$\Norm{x}{2}^2 = 1$ by the technique of semidefinite lifting, first introduced by Goemans and Williamson~\cite{GW95} 
-for the max-cut problem. The idea is to use new matrix variables $X=xx\T$ for the quadratic terms, where the condition $X=xx\T$ is enforced by the equivalent constraints $X \succeq 0$ and $\Rk(X) = 1$, where, as usual, 
+$\Norm{x}{2}^2 = 1$ by the technique of semidefinite lifting, see, e.g., Goemans and Williamson~\cite{GW95}.
+The idea is to use new matrix variables $X=xx\T$ for the quadratic terms, where the condition $X=xx\T$ is enforced by the equivalent constraints $X \succeq 0$ and $\Rk(X) = 1$, where, as usual, 
 $X \succeq 0$ means that $X$ is symmetric (shortly written $X \in S_n$) and positive semidefinite. The objective and the normalization-constraint can then be expressed as  $\Norm{Ax}{2}^2 = x\T A\T Ax =
 \Tr(A\T A X)$ and $\Norm{x}{2}^2 = \sum_{i=1}^n x_i^2 = \Tr(X) = 1$.
 
@@ -326,7 +326,7 @@ Relaxing the non-convex rank constraint finally leads to the following SDP:
 
 Another SDP relaxation was proposed by d'Aspremont et al. in \cite{Asp08}. Here,
 \begin{equation}\label{phi}
-  \phi(\rho) = \max \big\{ x\T \Sigma\, x - \rho \Norm{x}{0} \suchthat \Norm{x}{2} \leq 1 \big\},
+  \phi(\Sigma, \rho) = \max \big\{ x\T \Sigma\, x - \rho \Norm{x}{0} \suchthat \Norm{x}{2} \leq 1 \big\},
 \end{equation}
 originally stemming from sparse principal component analysis, is approximately solved for a symmetric positive semidefinite matrix $\Sigma$. For
 $\Sigma = A\T A$ we can use this to compute an upper bound on $\beta_k$ via Lagrangian Relaxation as
@@ -334,7 +334,7 @@ $\Sigma = A\T A$ we can use this to compute an upper bound on $\beta_k$ via Lagr
   \beta_k^2 & = \max \big\{ x\T A\T A x \suchthat \Norm{x}{2} \leq 1,\; \Norm{x}{0} \leq k \big\} \\
 	    & \leq \inf_{\rho \geq 0} \max \big\{ x\T A\T A x - \rho 
             (\Norm{x}{0} - k) \suchthat \Norm{x}{2} \leq 1 \big\} \\
-	    & = \inf_{\rho \geq 0} \phi(\rho) + \rho\, k. 
+	    & = \inf_{\rho \geq 0} \phi(A\T A, \rho) + \rho\, k. 
  \end{align*}
 
 As one way to solve \eqref{phi}, the semidefinite lifting technique is used again to compute an upper bound on $\phi$ via
@@ -359,17 +359,17 @@ optimal solution for \eqref{phi} will always be $x=0$.
 
 As shown in \cite{Asp08}, a lower bound for $\alpha_k$ can be computed via
 \begin{equation}\tag{A2}\label{Asp08}
- \alpha_k^2 \geq \sup_{\rho \geq 0}\; \psi(\rho) - \rho\, k, 
+ \alpha_k^2 \geq \sup_{\rho \geq 0}\; \psi(A\T A, \rho) - \rho\, k, 
 \end{equation}
 with 
 \begin{equation*}
-  \psi(\rho) = \min \big\{ x\T \Sigma\, x + \rho \Norm{x}{0} \suchthat \Norm{x}{2} \leq 1\big\}.
+  \psi(\Sigma, \rho) = \min \big\{ x\T \Sigma\, x + \rho \Norm{x}{0} \suchthat \Norm{x}{2} \leq 1\big\}.
 \end{equation*}
 In this case problem \eqref{Asp08Primal} or equivalently \eqref{Asp08Dual} has to
 be solved for $\Sigma = M I - A\T A$, where $M \in \R$ has to be big enough
 to make $\Sigma$ positive semidefinite. This implies the following lower bound:
 \begin{equation*}
-  \alpha_k^2 \geq \sup_{\rho \geq 0}\; (M - \psi(\rho)) - \rho\, k.
+  \alpha_k^2 \geq \sup_{\rho \geq 0}\; (M - \psi(M I - A\T A, \rho)) - \rho\, k.
 \end{equation*}
 In \cite{AspBG14} explicit bounds on the gap between \eqref{Asp08Primal} and the penalized problem \eqref{phi} were derived using randomization arguments.
  
