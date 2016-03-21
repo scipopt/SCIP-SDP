@@ -613,7 +613,10 @@ that we cannot expect the generated matrices in small dimensions to satisfy the 
 The tests were performed on a Linux cluster with Intel i3 CPUs with 3.2GHz, 4MB cache, and 8GB memory running
 Linux. Each computation was performed single-threaded with a single process running on each computer and with 
 a time limit of four hours. The code was compiled with gcc 4.4.5 with \texttt{-O3} optimization. For 39 matrices 
-the evaluation of~\eqref{Asp08Dual} was aborted for all 15 choices of $\rho$, because of the memory limit of 8GB. 
+the evaluation of~\eqref{Asp08Dual} was aborted for all 15 choices of $\rho$, because of the memory limit of 8GB.
+\color{red}We also failed to solve \eqref{MISDP} for the left-hand side of the three medium sized rank one matrices with default
+parameters because SDPA failed to solve the root node relaxation, however with different settings or a different
+SDP-solver we could verify that $\alpha_k$ equaled zero up to the numerical tolerance for these instances.\color{black}
 These are counted with the maximum allowed time of four hours. 
 
 In Table~\ref{lhsRhsGap}, we compare the relative gap between the bounds on $\alpha_k$ and $\beta_k$ produced by the two heuristics
@@ -638,6 +641,13 @@ solution, with only slightly worse results for binary and rank one matrices. The
 shows bigger fluctuations, but produces better results for five of the seven matrix types, while performing even
 worse for binary and rank one matrices. For band matrices, however, the average gap was below 2\,\%, the best 
 result for any matrix type among both relaxations.
+
+\color{red}The restricted isometry constants of all matrices can be found in the appendix. Note that for the unscaled matrices
+the restricted isometry constants can be expected to be much larger than for the scaled ones. Furthermore, since we solved
+the instances with a feasibility tolerance of $10^{-6}$, which influences the optimal objective by a factor of the
+largest objective coefficients and the number of variables, the computed constants are only exact up to a factor
+of about $10^{-2}$ for these matrices, while the precision is much better for the normalized ones because of their
+smaller objective coefficients.\color{black}
 
 For reporting the solving times, we will use the \emph{shifted
   geometric mean} to decrease the influence of easy instances, see
