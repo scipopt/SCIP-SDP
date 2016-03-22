@@ -554,7 +554,7 @@ constraints $-z_j \leq X_{ij} \leq z_j$.
 \noindent
 In this section we demonstrate the applicability of the proposed MISDP-formulation and use it to
 assess the quality of the relaxations proposed in~\cite{Asp08} and~\cite{Asp07}.
-For solving the mixed integer semidefinite programs, we use the MISDP solver SCIP-SDP~\cite{SCIP-SDP},
+For solving the mixed integer semidefinite programs, we use the MISDP solver SCIP-SDP~\cite{SCIP-SDP,GalPU16},
 originally developed in~\cite{Mar13} and~\cite{MS12}. It combines the
 branch and bound framework SCIP 3.2.1 \cite{SCIP} with 
 interior-point SDP-solvers, in our case SDPA~7.3.8~\cite{SDPA6,SDPA7}.
@@ -574,8 +574,7 @@ different types: band matrices,
 with band size three or five with entries within the band chosen uniformly in $\{0,1\}$, binary matrices with all entries chosen 
 uniformly in $\{0,1\}$, Gaussian-distributed matrices, and rank one 
 matrices $A = aa\T$ with $N(0,1)$-distributed entries of $a$. In addition to these four types,
-we also use three types of scaled matrices with theoretical results on their restricted isometry
-constants. These include matrices with 
+we also use three types of matrices with scaled parameters. These include matrices with 
 $N(0, 1/m)$-distributed entries, with entries chosen uniformly in $\pm 1/\sqrt{m}$, and finally with distribution
 \begin{equation}\nonumber
   A_{ij} = \begin{cases}
@@ -620,9 +619,9 @@ The tests were performed on a Linux cluster with Intel i3 CPUs with 3.2GHz, 4MB 
 Linux. Each computation was performed single-threaded with a single process running on each computer and with 
 a time limit of four hours. The code was compiled with gcc 4.4.5 with \texttt{-O3} optimization. For 39 matrices, 
 the evaluation of~\eqref{Asp08Dual} was aborted for all 15 choices of $\rho$, because of the memory limit of 8GB.
-\color{red}We also failed to solve \eqref{MISDP} for the left-hand side of the three medium sized rank one matrices with default
-parameters because SDPA failed to solve the root node relaxation, however with different settings or a different
-SDP-solver we could verify that $\alpha_k$ equaled zero up to the numerical tolerance for these instances. \color{black}
+We also failed to solve \eqref{MISDP} for the left-hand side of the three medium sized rank one matrices with default
+parameters, because SDPA failed to solve the root node relaxation. With different settings or a different
+SDP-solver, however, we could verify that $\alpha_k$ is zero for these instances.
 These are counted with the maximum allowed time of four hours. 
 
 In Table~\ref{lhsRhsGap}, we compare the relative gap between the bounds on $\alpha_k$ and $\beta_k$ produced by the two heuristics
@@ -648,15 +647,12 @@ shows bigger fluctuations, but produces better results for five of the seven mat
 worse for binary and rank one matrices. For band matrices, however, the average gap was below 2\,\%, the best 
 result for any matrix type among both relaxations.
 
-The restricted isometry constants of all matrices can be found in the appendix. Note that for the unscaled matrices,
-the restricted isometry constants can be expected to be much larger than for the scaled ones. Even for the scaled
-matrices, the restricted isometry property did not hold for any of the matrices in the testset, since the instances
-were too small to satisfy the needed relation between $n$ and $k$.
-\color{red} Furthermore, since we solved
-the instances with a feasibility tolerance of $10^{-6}$, which influences the optimal objective by a factor of the
-largest objective coefficients and the number of variables, the computed constants are only exact up to a factor
-of about $10^{-2}$ for the unscaled matrices, while the precision is much better for the normalized ones because of their
-smaller objective coefficients.\color{black}
+The restricted isometry constants of all matrices can be found in the
+appendix. Note that for the unscaled matrices (the first 36 instances until
+instance \texttt{rnk140403C}),
+we expect the restricted isometry constants to be much larger than for the scaled ones. Even for the scaled
+matrices, the restricted isometry property never holds for the matrices in the testset, since the instances
+are too small to satisfy the needed relation between $n$ and $k$.
 
 For reporting the solving times, we will use the \emph{shifted
   geometric mean} to decrease the influence of easy instances, see
@@ -695,8 +691,7 @@ $\alpha_k$ and 30\,\% for $\beta_k$. If successfully solved,
 \eqref{Asp08} provides better bounds for $\beta_k$ for most types of 
 matrices, but its running time is too large
 to be used in practice. Moreover, directly solving~\eqref{MISDP} is often
-faster and produces the exact value. Consequently, 
-\eqref{Asp08} should not be used in practice.
+faster and produces the exact value!
 
 Still, the matrices currently handable by~\eqref{MISDP} are small. For the
 future, the hope is that with the advancement of solving techniques for
@@ -707,6 +702,7 @@ planes, primal heuristics, and branching rules.
 \bibliographystyle{abbrv}
 \bibliography{Paperbib}
 
+\newpage
 \appendix{ \input{tables/matrixList}}
 
 
