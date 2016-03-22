@@ -522,7 +522,7 @@ computing the restricted isometry constants $\alpha_k$ and $\beta_k$. For other
 applications like SPCA, an extreme solution can be generated with an
 algorithm proposed by Pataki~\cite{coneLP}.
 
-In order to successfully apply branch and bound to \eqref{MISDP}, it is
+In order to successfully apply branch-and-bound to \eqref{MISDP}, it is
 important to use strong semidefinite relaxations for fractional $z$
 variables. To this end, we can use the following strengthening of the
 constraints $-z_j \leq X_{ij} \leq z_j$.
@@ -556,7 +556,7 @@ In this section we demonstrate the applicability of the proposed MISDP-formulati
 assess the quality of the relaxations proposed in~\cite{Asp08} and~\cite{Asp07}.
 For solving the mixed integer semidefinite programs, we use the MISDP solver SCIP-SDP~\cite{SCIP-SDP,GalPU16},
 originally developed in~\cite{Mar13} and~\cite{MS12}. It combines the
-branch and bound framework SCIP 3.2.1 \cite{SCIP} with 
+branch-and-bound framework SCIP 3.2.1 \cite{SCIP} with 
 interior-point SDP-solvers, in our case SDPA~7.3.8~\cite{SDPA6,SDPA7}.
 
 The continuous SDPs are solved using the command-line version of
@@ -703,7 +703,7 @@ planes, primal heuristics, and branching rules.
 \bibliography{Paperbib}
 
 \newpage
-\appendix{ \input{tables/matrixList}}
+\appendix{\input{tables/matrixList}}
 
 
 \end{document}
