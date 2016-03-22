@@ -630,7 +630,7 @@ def RICtable(instances, caption, label, tabularx):
 			delta = beta-1
 		file.write(names[0][j1].split("_")[0] + " & \\num{%.0f" % float(m[j1/2]) + "} & \\num{%.0f" % float(n[j1/2]) + "} & \\num{%.0f" % float(k[j1/2]) + "} & \\num{%.2f" % float(alpha) + "} & \\num{%.2f" % float(beta) + "} & ")
 		if gamma == "-":
-			file.write("- & ")
+			file.write("-- & ")
 		else:
 			file.write("\\num{%.2f" % float(gamma) + "} & ")
 		file.write("\\num{%.2f" % float(delta) + "} \\\ \n")
