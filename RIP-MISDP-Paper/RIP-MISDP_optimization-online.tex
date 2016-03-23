@@ -314,7 +314,7 @@ by the non-convex quadratic optimization problem with a cardinality constraint
   & \Norm{x}{0} \leq k. 
  \end{aligned}
 \end{equation}
-The corresponding maximization problem allows to compute $\beta_k^2$. D'Aspremont et al. \cite{Asp07} tackled the non-convex quadratic equality constraint 
+The corresponding maximization problem allows to compute the constant $\beta_k^2$ in~\eqref{upperRIP}. D'Aspremont et al. \cite{Asp07} tackled the non-convex quadratic equality constraint 
 $\Norm{x}{2}^2 = 1$ by the technique of semidefinite lifting, see, e.g., Goemans and Williamson~\cite{GW95}.
 The idea is to use new matrix variables $X=xx\T$ for the quadratic terms, where the condition $X=xx\T$ is enforced by the equivalent constraints $X \succeq 0$ and $\Rk(X) = 1$, where, as usual, 
 $X \succeq 0$ means that $X$ is symmetric (shortly written $X \in S_n$) and positive semidefinite. The objective and the normalization-constraint can then be expressed as  $\Norm{Ax}{2}^2 = x\T A\T Ax =
@@ -460,14 +460,14 @@ Using this result on the projection of~\eqref{MISDP} onto the $X$ variables, yie
 
 \begin{proof}
   First note that because of the constraint $\Tr(X) = 1$,
-  Problem~\eqref{MISDP} is bounded. Moreover, $X_{11} = 1$, $X_{ij} = 0$
+  \eqref{MISDP} is bounded. Moreover, $X_{11} = 1$, $X_{ij} = 0$
   for all $i,j \neq 1$, $z_1 = 1$, $z_i = 0$ for all $i = 2, \dots, n$ is
   feasible for $k > 0$. Thus, an optimal solution to~\eqref{MISDP} exists.
 
   Let $(X^\star, z^\star)$ be an optimal solution to \eqref{MISDP} with
   $\ell \define \sum_{i=1}^n z^\star_i \leq k$. Let $T \define \{i_1, i_2,
-  \dots, i_\ell\}$ be the support of $z^\star$, and define $\check{A} =
-  (A_{i_1}, A_{i_2}, \dots, A_{i_\ell})$ to be the submatrix of~$A$ formed by
+  \dots, i_\ell\}$ be the support of $z^\star$, and $\check{A} =
+  (A_{i_1}, A_{i_2}, \dots, A_{i_\ell})$ the submatrix of~$A$ formed by
   the columns indexed by~$T$. Then consider
   \begin{equation}\label{Proj}
    \begin{aligned}
@@ -493,7 +493,7 @@ Using this result on the projection of~\eqref{MISDP} onto the $X$ variables, yie
   semidefinite matrices.
 
   Thus, the optimal objective values of \eqref{Proj} and \eqref{MISDP}
-  agree and $\Rk(\hat{X}) = \Rk(\check{X})$.  Therefore, it
+  agree, and, furthermore, $\Rk(\hat{X}) = \Rk(\check{X})$.  Therefore, it
   suffices to show that~\eqref{Proj} has an optimal solution of rank one.
 
   Let $\check{X}$ be an extreme point of \eqref{Proj} (since the set of
@@ -562,8 +562,8 @@ originally developed in~\cite{Mar13} and~\cite{MS12}. It combines the
 branch-and-bound framework SCIP 3.2.1 \cite{SCIP} with 
 interior-point SDP-solvers, in our case SDPA~7.3.8~\cite{SDPA6,SDPA7}.
 
-The continuous SDPs are solved using the command-line version of
-SDPA~7.3.8. We compute the left- and right-hand restricted isometry
+For solving the continuous SDPs, the command-line version of
+SDPA~7.3.8 is used. We compute the left- and right-hand restricted isometry
 constant $\alpha_k$ and $\beta_k$ either exactly using~\eqref{MISDP} or
 produce corresponding bounds via~\eqref{Asp07} and~\eqref{Asp08}. In
 the latter case, we solve the SDP~\eqref{Asp08Dual} 15 times for $\rho$ between~$0$ and the maximum
