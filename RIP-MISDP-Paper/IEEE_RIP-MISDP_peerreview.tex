@@ -1,4 +1,4 @@
-\documentclass[peerreviewca,onecolumn]{IEEEtran}
+\documentclass[journal,onecolumn]{IEEEtran}
 
 \usepackage{amsmath}
 \usepackage{amsthm}
@@ -71,8 +71,8 @@
 
 \IEEEpeerreviewmaketitle
 
-\noindent
 \begin{abstract}
+  \noindent
   One of the fundamental tasks in compressed sensing is finding the
   sparsest solution to an underdetermined system of linear equations. It is
   well known that although this problem is \NP-hard, under certain
@@ -149,8 +149,8 @@ which was first introduced by Cand\`es and Tao~\cite{CT05}.
   matrix $A \in \R^{m \times n}$ with constant~$\delta \geq 0$, if
   \begin{equation}\label{rip}
     (1 - \delta) \Norm{x}{2}^2 \leq \Norm{Ax}{2}^2 \leq (1+\delta) \Norm{x}{2}^2
+    \quad\text{for all }x \in \Sigma_k \define \{x \in \R^n \suchthat \Norm{x}{0} \leq k\}.
   \end{equation}
-  for all $x \in \Sigma_k \define \{x \in \R^n \suchthat \Norm{x}{0} \leq k\}$.
 \end{definition}
 
 Since the following results depend on the constant $\delta$ in \eqref{rip} being
@@ -162,8 +162,8 @@ small enough, one is generally interested in the smallest constant satisfying
   \eqref{rip},
   \begin{equation}\label{ric}
     \begin{aligned}
-      \delta_k \define \argmin_{\delta \geq 0} \big\{&(1 - \delta) \Norm{x}{2}^2 \leq \Norm{Ax}{2}^2 \leq (1+\delta) \Norm{x}{2}^2 ,\\
-      & \text{ for all }x \in \Sigma_k \big\},
+      \delta_k \define \argmin_{\delta \geq 0} \big\{(1 - \delta) \Norm{x}{2}^2 \leq \Norm{Ax}{2}^2 \leq (1+\delta) \Norm{x}{2}^2 
+      \quad\text{ for all }x \in \Sigma_k \big\},
     \end{aligned}
   \end{equation}
   is called \emph{restricted isometry constant} (RIC) of order~$k$.
@@ -205,7 +205,7 @@ by Foucart and Lai~\cite{FL09}:
 
 Definition~\ref{asymRIPdef} is a generalization of Definition~\ref{ripdef}
 in the following sense: if the matrix~$A$ satisfies the RIP of order~$k$
-with RIC $\delta_k$, then it has a RIR of at most $(1 + \delta_k) / (1 -
+with RIC~$\delta_k$, then it has a RIR of at most $(1 + \delta_k) / (1 -
 \delta_k)$. Conversely, if $A$ has lower/upper RICs $\alpha_k$ and
 $\beta_k$, respectively, then this implies a restricted isometry constant
 of $\delta_k = \max \{1 - \alpha_k^2,\; \beta_k^2 - 1\}$ in~\eqref{rip}.
@@ -304,7 +304,7 @@ and \cite{Asp07}.
 \label{sec:SDPrelax}
 
 \noindent
-In this section, we will introduce two known SDP relaxations to compute an upper bound on the restricted isometry constant $\delta_k$ in~\eqref{rip}, since they have some ideas in common with the mixed-integer semidefinite program we want to 
+In this section, we will introduce two known SDP relaxations to compute an upper bound on the restricted isometry constant~$\delta_k$ in~\eqref{rip}, since they have some ideas in common with the mixed-integer semidefinite program we want to 
 propose and will also be checked against in the section on numerical
 results.
 
@@ -497,7 +497,7 @@ Using this result on the projection of~\eqref{MISDP} onto the $X$ variables, yie
 
   Thus, the optimal objective values of \eqref{Proj} and \eqref{MISDP}
   agree and $\Rk(\hat{X}) = \Rk(\check{X})$.  Therefore, it
-  suffices to show that \eqref{Proj} has an optimal solution of rank one.
+  suffices to show that~\eqref{Proj} has an optimal solution of rank one.
 
   Let $\check{X}$ be an extreme point of \eqref{Proj} (since the set of
   optimal points of~\eqref{Proj} is nonempty, convex, and compact, such a
@@ -729,6 +729,8 @@ compressed sensing and truss topology design.
   optimization, in particular symmetry in integer programs, compressed
   sensing, and algorithms for mixed integer programs.
 \end{IEEEbiographynophoto}
+\vfill
+\mbox{}
 
 \newpage
 \appendix{\input{tables/matrixList}}
