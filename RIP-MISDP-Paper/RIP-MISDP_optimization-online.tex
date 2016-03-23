@@ -1,0 +1,712 @@
+\documentclass[11pt,a4paper]{amsart}
+
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{dsfont}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{mathtools}
+\usepackage{url}
+\usepackage{sistyle}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{xtab}
+
+\usepackage[breaklinks,colorlinks,citecolor=blue,linkcolor=blue,urlcolor=blue,bookmarks=false,hypertexnames=false,
+  pdftitle={Computing Restricted Isometry Constants via Mixed-Integer Semidefinite Programming},
+  pdfauthor={T. Gally, and M. E. Pfetsch}]{hyperref}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{definition}{Definition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+
+\DeclareMathOperator*{\argmin}{argmin}
+\DeclareMathOperator*{\argmax}{argmax}
+\DeclareMathOperator{\supp}{supp}
+
+\newcommand{\suchthat}{\,:\,}
+\newcommand{\abs}[1]{\lvert{#1}\rvert}
+\newcommand{\card}[1]{\lvert{#1}\rvert}
+\newcommand{\define}{\coloneqq}
+\newcommand{\enifed}{\eqqcolon}
+\newcommand{\norm}[1]{\lVert{#1}\rVert}
+\newcommand{\Norm}[2]{\lVert{#1}\rVert_{#2}}
+\newcommand{\skal}[2]{\langle{#1},{#2}\rangle}
+\newcommand{\order}[1]{O\left({#1}\right)}
+\newcommand{\T}{^{\top}}
+\newcommand{\Tr}{\text{Tr}}
+\newcommand{\Rk}{\text{Rank}}
+\newcommand{\vect}{\text{vec}}
+
+% sets
+\newcommand{\C}{\mathds{C}}
+\newcommand{\R}{\mathds{R}}
+\newcommand{\Z}{\mathds{Z}}
+\newcommand{\ones}{\mathds{1}}
+
+% other commands
+\newcommand{\NP}{\text{NP}}
+\newcommand{\comment}[1]{\marginpar{\raggedright\tiny {#1}}}
+
+% comma after thousands in numbers
+\SIthousandsep{,}
+
+% prevent tables from being broken too early
+\xentrystretch{-0.4}
+
+\begin{document}
+
+\title[Computing Restricted Isometry Constants via MISDP]{Computing Restricted Isometry Constants via \\ Mixed-Integer Semidefinite Programming}
+\author[T. Gally]{Tristan Gally}
+\author[M. E. Pfetsch]{Marc E. Pfetsch}
+
+\address{Tristan Gally \\ Technische Universit\"at Darmstadt, Department of Mathematics\\ Dolivostra\ss e 15, 64293 Darmstadt, Germany}
+\email{gally@mathematik.tu-darmstadt.de}
+\address{Marc E. Pfetsch \\ Technische Universit\"at Darmstadt, Department of Mathematics\\ Dolivostra\ss e 15, 64293 Darmstadt, Germany}
+\email{pfetsch@mathematik.tu-darmstadt.de}
+
+
+\begin{abstract}
+  \noindent
+  One of the fundamental tasks in compressed sensing is finding the
+  sparsest solution to an underdetermined system of linear equations. It is
+  well known that although this problem is \NP-hard, under certain
+  conditions it can be solved by using a linear program which minimizes the
+  1-norm. The restricted isometry property has been one of the key
+  conditions in this context. However, computing the best constants for
+  this condition is itself \NP-hard. In this paper we propose a
+  mixed-integer semidefinite programming approach for computing these
+  optimal constants. This also subsumes sparse principal component
+  analysis. Computational results with this approach allow to evaluate
+  earlier semidefinite relaxations and show that the quality that can be
+  obtained in reasonable time is limited.
+\end{abstract}
+
+\maketitle
+
+\smallskip
+\noindent \textbf{Keywords.}
+Compressed Sensing, Restricted Isometry Property, Mixed-Integer Semidefinite Programming
+
+
+\section{Introduction}
+
+Finding a sparsest solution of an underdetermined system of linear
+equations is one key problem in compressed sensing and has been
+thoroughly investigated in recent years. Given a matrix $A \in \R^{m \times n}$ with $m \leq n$ and 
+right-hand side $b \in \R^m$, the core problem is
+\begin{align}\label{l0min}
+ \min \quad & \Norm{x}{0} \tag{$P_0$}\\
+ \text{s.t.} \quad & Ax = b, \nonumber
+\end{align}
+where $\Norm{x}{0}$ denotes the number of nonzero components of~$x$. This
+problem is \NP-hard, see Garey and
+Johnson~\cite{GareyJohnson}. One key observation in compressed sensing is
+that a solution of~\eqref{l0min} can be found by solving the following
+convex optimization problem, if certain conditions are fulfilled:
+\begin{align}\label{l1min}
+ \min \quad & \Norm{x}{1} \tag{$P_1$}\\
+ \text{s.t.} \quad & Ax = b. \nonumber
+\end{align}
+In fact, this so-called \emph{basis pursuit} problem can be reformulated as
+a linear program (LP) and efficient specialized solution algorithms are
+available both in theory and practice: as an extremely selected list
+consider the articles~\cite{BecBC11,CheDS99,OsbPT00,vdBF08} and the
+practical comparison in~\cite{LorPT15}.
+% Note: do not write out author names to keep text short at this place.
+
+% long version:
+%
+% consider the articles by Chen et al.~\cite{CheDS99} (interior point
+% algorithm), Osbourne et al.~\cite{OsbPT00} and Malioutov et
+% al.~\cite{MalCW05} ($\ell_1$-homotopy), van den Berg et al.~\cite{vdBF08}
+% (SPGL1), and Becker et al.~\cite{BecBC11} (NESTA). More information can be
+% found in Foucart and Rauhut~\cite{FouR13} and the practical comparison
+% in~\cite{LorPT15}.
+
+\section{The Restricted Isometry Property}
+\label{sec:RIP}
+
+\noindent
+Several conditions in compressed sensing imply that a solution
+of~\eqref{l0min} can be \emph{recovered} by solving \eqref{l1min}, in which
+case one speaks of $\ell_0$-$\ell_1$-\emph{equivalence}. First results in
+this direction were established by Chen, Donoho, and
+Saunders~\cite{CheDS99} and Donoho and Huo~\cite{DH01}, with many articles
+following. We therefore refer the reader to the excellent book by Foucart
+and Rauhut~\cite{FouR13} for further information.
+
+One important condition is the \emph{restricted isometry property} (RIP),
+which was first introduced by Cand\`es and Tao~\cite{CT05}. 
+
+\begin{definition}\label{ripdef}
+  The \emph{restricted isometry property} (RIP) of order~$k$ holds for a
+  matrix $A \in \R^{m \times n}$ with constant~$\delta \geq 0$, if
+  \begin{equation}\label{rip}
+    (1 - \delta) \Norm{x}{2}^2 \leq \Norm{Ax}{2}^2 \leq (1+\delta) \Norm{x}{2}^2
+  \end{equation}
+  for all $x \in \Sigma_k \define \{x \in \R^n \suchthat \Norm{x}{0} \leq k\}$.
+\end{definition}
+
+Since the following results depend on the constant $\delta$ in \eqref{rip} being
+small enough, one is generally interested in the smallest constant satisfying
+\eqref{rip}.
+
+\begin{definition}\label{ricdef}
+  For a matrix $A \in \R^{m \times n}$ and order~$k$, the smallest constant in 
+  \eqref{rip},
+  \begin{equation}\label{ric}
+    \begin{aligned}
+      \delta_k \define \argmin_{\delta \geq 0} \big\{(1 - \delta) \Norm{x}{2}^2 \leq \Norm{Ax}{2}^2 \leq (1+\delta) \Norm{x}{2}^2 
+      \quad\text{ for all }x \in \Sigma_k \big\},
+    \end{aligned}
+  \end{equation}
+  is called \emph{restricted isometry constant} (RIC) of order~$k$.
+\end{definition}
+
+If the restricted isometry property holds for a sufficiently small
+restricted isometry constant, the optimal solutions of~\eqref{l0min}
+and~\eqref{l1min} coincide.  The best-known result of this type is probably
+the following:
+ 
+\begin{theorem}[Cand\'es~\cite{Can08}]\label{RIPsqrt2}
+  Let the RIC of order $2k$ of $A$ satisfy $\delta_{2k} < \sqrt{2}-1 \approx 0.4142$. If there
+  exists $\tilde{x} \in \R^n$ with $\Norm{\tilde{x}}{0} \leq k$ and
+  $A\tilde{x} = b$, then the optimal solutions of~\eqref{l0min}
+  and~\eqref{l1min} coincide.
+\end{theorem}
+
+Many results similar to Theorem~\ref{RIPsqrt2} exist: For
+example, Foucart~\cite{fou10} relaxed the condition to $\delta_{2k} <
+0.4652$ and Foucart and Rauhut~\cite{FouR13} to $\delta_{2k} < 0.6246$.
+Moreover, Cai et al.~\cite{CWX10} showed the condition $\delta_k <
+0.307$ for Theorem~\ref{RIPsqrt2} to hold. 
+
+For this paper, it is useful to take an asymmetric viewpoint and
+distinguish between the lower and upper bounds in~\eqref{rip}, as proposed
+by Foucart and Lai~\cite{FL09}:
+
+\begin{definition}\label{asymRIPdef}
+ The \emph{lower} and \emph{upper restricted isometry constant} are defined as
+ \begin{align}
+   \alpha_k & \define \argmax_{\alpha \geq 0}\; \big\{ \alpha^2\, \Norm{x}{2}^2
+   \leq \Norm{Ax}{2}^2,\; \text{ for all }x \in \Sigma_k\big\}, \label{lowerRIP}\\
+   \beta_k & \define \argmin_{\beta \geq 0}\; \big\{ \Norm{Ax}{2}^2 \leq \beta^2\,
+   \Norm{x}{2}^2,\; \text{ for all }x \in \Sigma_k\big\},\label{upperRIP}
+ \end{align}
+ respectively. The \emph{restricted isometry ratio} (RIR) is
+ defined as $\gamma_k \define \beta_k^2 / \alpha_k^2$ for $\alpha_k \neq 0$.
+\end{definition}
+
+Definition~\ref{asymRIPdef} is a generalization of Definition~\ref{ripdef}
+in the following sense: if the matrix~$A$ satisfies the RIP of order~$k$
+with RIC~$\delta_k$, then it has a RIR of at most $(1 + \delta_k) / (1 -
+\delta_k)$. Conversely, if $A$ has lower/upper RICs $\alpha_k$ and
+$\beta_k$, respectively, then this implies a restricted isometry constant
+of $\delta_k = \max \{1 - \alpha_k^2,\; \beta_k^2 - 1\}$ in~\eqref{rip}.
+So $A$ has a small RIC if and only if it has a large lower and a small upper 
+RIC. But since in~\eqref{rip} usually only one of the two inequalities will 
+be sharp, the asymmetric version yields more information about~$A$.
+
+For the asymmetric version of the RIP in Definition~\ref{asymRIPdef}, one
+can again show $\ell_0$-$\ell_1$-equivalence:
+
+\begin{theorem}[Foucart and Lai~\cite{FL09}]\label{asymRIPtheorem}
+  Let the RIR of order $2k$ of $A$ satisfy $\gamma_{2k} \leq 4 \sqrt{2} - 3 \approx 2.6569$. If
+  there exists $\tilde{x} \in \R^n$ with $\Norm{\tilde{x}}{0} \leq k$ such
+  that $A\tilde{x} = b$, then the optimal solutions of~\eqref{l0min}
+  and~\eqref{l1min} coincide.
+\end{theorem}
+
+One advantage
+of Definition~\ref{asymRIPdef} and Theorem~\ref{asymRIPtheorem} is that they
+are invariant under scaling of $Ax = b$. In fact, the condition of
+Theorem~\ref{RIPsqrt2} holding for~$A x = b$ does not imply the same 
+for the scaled equation
+$\lambda Ax = \lambda b$, $\lambda \in \R \setminus \{0\}$. In Definition~\ref{asymRIPdef}, however, we can
+use $\tilde{\alpha}_k = \lambda \alpha_k$, $\tilde{\beta}_k = \lambda
+\beta_k$, and therefore $\tilde{\gamma}_k = \lambda^2 \alpha_k^2 /
+(\lambda^2 \beta_k^2) = \gamma_k$.
+
+Furthermore, we note that the recovery results given in this section can also be derived 
+for the \emph{denoising} case, where instead of~\eqref{l0min} one considers
+\begin{equation}\label{l0minDenoising}\tag{$P_0^\delta$}
+ \begin{aligned}
+  \min \quad & \Norm{x}{0} \\
+  \text{s.t.} \quad & \Norm{Ax - b}{2} \leq \delta, 
+ \end{aligned}
+\end{equation}
+for some $\delta \geq 0$; the $\ell_1$-problem~\eqref{l1min} is changed
+similarly. For more details we refer the reader to~\cite{FouR13}.
+
+
+\section{Contribution of this Work}
+
+\noindent
+There are several types of matrices~$A$ for which it is possible
+to show analytically that the RIP holds, for instance random
+matrices with high probability, see, e.g., Baraniuk et al.~\cite{BDDW08}.
+However, it turns out that computing the restricted isometry
+constants for a given matrix~$A$ and~$k$ is NP-hard, see~\cite{PT14}. 
+Note the unfortunate implication that it is hard to check for a
+concrete random matrix whether it satisfies the RIP, since the theoretical
+results hold asymptotically and with respect to high probability.
+
+This motivated d'Aspremont et al.~\cite{Asp08,Asp07} to propose several
+relaxations based on semidefinite programming (SDP) to compute upper bounds on the restricted isometry
+constants; small upper bounds suffice to guarantee
+$\ell_0$-$\ell_1$-equivalence between~\eqref{l0min} and~\eqref{l1min}, but
+there exist cases in which the bounds are too weak to give a guarantee.
+
+The relaxations in \cite{Asp08,Asp07} were originally derived for the
+connected \emph{sparse principal component analysis} (SPCA). Principal
+component analysis (PCA) finds orthogonal directions maximizing the 
+variance given in matrix $A$, solving problems
+\[
+\max\; \{ \Norm{A x}{2}^2 \suchthat \Norm{x}{2} \leq 1\}
+\]
+along the way. For SPCA, one further adds the condition that $\Norm{x}{0}
+\leq k$ with the goal to reduce the dependency on small components. Note
+that this is then equivalent to computing the upper RIC and it is \NP-hard
+in the strong sense~\cite{PT14}. SPCA was
+originally proposed by Zuo et al.~\cite{SPCA}. Other authors like Moghaddam et al.
+\cite{sbSPCA} also proposed computing a sparse maximal eigenvalue for SPCA.
+
+The goal of this paper is to compute optimal restricted isometry constants
+via mixed-integer semidefinite programming (MISDP). To this end, we will
+introduce an MISDP with a rank-1 constraint. In order to utilize this
+MISDP, we will show that the rank constraint can be relaxed without
+changing the optimal value. We can then apply an MISDP solver.
+
+Our computational results show that the resulting problems are quite
+hard to solve, even for matrices of smaller size. However, this is true for
+the SDP relaxations of d'Aspremont et al.\ as well, and it allows for an
+evaluation of the quality of these bounds.  In fact, these bounds turn out
+to be quite tight or weak, depending on the instance. This complements the
+theoretical approximation guarantees developed by d'Aspremont et
+al. in~\cite{AspBG14}.
+
+In the following, we start by reviewing the SDP-relaxations of~\cite{Asp08}
+and~\cite{Asp07} in Section~\ref{sec:SDPrelax}.  Afterwards, in
+Section~\ref{sec:MISDP}, we construct a mixed-integer semidefinite
+program and show that it produces exact restricted isometry
+constants. Finally, in Section~\ref{sec:numerical_results}, we present
+numerical results and comparisons with the SDP relaxations in \cite{Asp08}
+and \cite{Asp07}.
+
+
+\section{SDP Relaxations}
+\label{sec:SDPrelax}
+
+\noindent
+In this section, we will introduce two known SDP relaxations to compute an upper bound on the restricted isometry constant~$\delta_k$ in~\eqref{rip}, since they have some ideas in common with the mixed-integer semidefinite program we want to 
+propose and will also be checked against in the section on numerical
+results.
+
+The idea is that the optimal constant $\alpha_k^2$ in \eqref{lowerRIP} can be computed
+by the non-convex quadratic optimization problem with a cardinality constraint
+\begin{equation}\label{QP}\tag{QP}
+ \begin{aligned}
+  \min \quad & \Norm{Ax}{2}^2  \\
+  \text{s.t.} \quad & \Norm{x}{2}^2 = 1,  \\
+  & \Norm{x}{0} \leq k. 
+ \end{aligned}
+\end{equation}
+The corresponding maximization problem allows to compute $\beta_k^2$. D'Aspremont et al. \cite{Asp07} tackled the non-convex quadratic equality constraint 
+$\Norm{x}{2}^2 = 1$ by the technique of semidefinite lifting, see, e.g., Goemans and Williamson~\cite{GW95}.
+The idea is to use new matrix variables $X=xx\T$ for the quadratic terms, where the condition $X=xx\T$ is enforced by the equivalent constraints $X \succeq 0$ and $\Rk(X) = 1$, where, as usual, 
+$X \succeq 0$ means that $X$ is symmetric (shortly written $X \in S_n$) and positive semidefinite. The objective and the normalization-constraint can then be expressed as  $\Norm{Ax}{2}^2 = x\T A\T Ax =
+\Tr(A\T A X)$ and $\Norm{x}{2}^2 = \sum_{i=1}^n x_i^2 = \Tr(X) = 1$.
+
+In the next step, the inequality $\Norm{x}{0} \leq k$ is substituted by the weaker constraint $\ones\T
+\abs{X} \ones \leq k$, which follows from the fact that $\ones\T\abs{X} \ones = \Norm{\vect(X)}{1}\leq \sqrt{\Norm{\vect(X)}{0}}\, \Norm{\vect(X)}{2}$ and $\Norm{\vect(X)}{0}=\Norm{x}{0}^2$ in the rank-1 case, where $\vect(X)$ is a vector
+in $\R^{n^2}$ consisting of all entries of $X$. 
+Relaxing the non-convex rank constraint finally leads to the following SDP:
+\begin{equation}\label{Asp07}\tag{A1}
+ \begin{aligned}
+  \min \quad & \Tr(A\T A X) \\
+  \text{s.t.} \quad & \Tr(X) = 1, \\
+  & \ones\T \abs{X} \ones \leq k, \\
+  & X \succeq 0. \nonumber
+ \end{aligned}
+\end{equation}
+
+Another SDP relaxation was proposed by d'Aspremont et al. in \cite{Asp08}. Here,
+\begin{equation}\label{phi}
+  \phi(\Sigma, \rho) = \max \big\{ x\T \Sigma\, x - \rho \Norm{x}{0} \suchthat \Norm{x}{2} \leq 1 \big\},
+\end{equation}
+originally stemming from sparse principal component analysis, is approximately solved for a symmetric positive semidefinite matrix $\Sigma$. For
+$\Sigma = A\T A$ we can use this to compute an upper bound on $\beta_k$ via Lagrangian Relaxation as
+ \begin{align*}
+  \beta_k^2 & = \max \big\{ x\T A\T A x \suchthat \Norm{x}{2} \leq 1,\; \Norm{x}{0} \leq k \big\} \\
+	    & \leq \inf_{\rho \geq 0} \max \big\{ x\T A\T A x - \rho 
+            (\Norm{x}{0} - k) \suchthat \Norm{x}{2} \leq 1 \big\} \\
+	    & = \inf_{\rho \geq 0} \phi(A\T A, \rho) + \rho\, k. 
+ \end{align*}
+
+As one way to solve \eqref{phi}, the semidefinite lifting technique is used again to compute an upper bound on $\phi$ via
+\begin{equation}\label{Asp08Primal}\tag{A2-Primal}
+ \begin{aligned}
+  \max \quad & \sum_{i=1}^n \Tr(P_i \, B_i) \\
+  \text{s.t.} \quad & \Tr(X) = 1, \\
+  & X \succeq P_i \succeq 0 \quad \text{for } i = 1, \dots, n,
+ \end{aligned}
+\end{equation}
+for $B_i = b_i\,b_i\T - \rho\, I$, where $b_i$ is the $i$-th column of the
+square-root of $\Sigma$. For details, we refer the reader to~\cite{Asp08}. The corresponding dual problem can then be written as 
+\begin{equation}\label{Asp08Dual}\tag{A2-Dual}
+ \begin{aligned}
+  \min \quad & \lambda_{\max}\Big(\sum_{i=1}^n Y_i \Big) \\
+  \text{s.t.} \quad & Y_i \succeq B_i \quad \text{for } i = 1, \dots, n, \\
+  & Y_i \succeq 0 \quad \ \ \text{for } i = 1, \dots, n,
+ \end{aligned}
+\end{equation}
+which has only half as many variables as \eqref{Asp08Primal} and one fewer linear and semidefinite constraint. Then \eqref{Asp08Dual} can be solved for non-negative $\rho$, which should be smaller than $\Sigma_{11}$, because otherwise the
+optimal solution for \eqref{phi} will always be $x=0$. 
+
+As shown in \cite{Asp08}, a lower bound for $\alpha_k$ can be computed via
+\begin{equation}\tag{A2}\label{Asp08}
+ \alpha_k^2 \geq \sup_{\rho \geq 0}\; \psi(A\T A, \rho) - \rho\, k, 
+\end{equation}
+with 
+\begin{equation*}
+  \psi(\Sigma, \rho) = \min \big\{ x\T \Sigma\, x + \rho \Norm{x}{0} \suchthat \Norm{x}{2} \leq 1\big\}.
+\end{equation*}
+In this case problem \eqref{Asp08Primal} or equivalently \eqref{Asp08Dual} has to
+be solved for $\Sigma = M I - A\T A$, where $M \in \R$ has to be big enough
+to make $\Sigma$ positive semidefinite. This implies the following lower bound:
+\begin{equation*}
+  \alpha_k^2 \geq \sup_{\rho \geq 0}\; (M - \psi(M I - A\T A, \rho)) - \rho\, k.
+\end{equation*}
+In \cite{AspBG14} explicit bounds on the gap between \eqref{Asp08Primal} and the penalized problem \eqref{phi} were derived using randomization arguments.
+ 
+%To compute the parameter $\rho$, the authors of \cite{Asp08} propose to minimize over the interval
+% \begin{equation*}
+%  \max_{i \notin I} (b_i\T x)^2 \leq \rho \leq  \min_{i \in I} (b_i\T x)^2
+% \end{equation*}
+% the convex function
+% \begin{equation*}
+%  \text{gap}(\rho) = \lambda_{\max} \left( \sum_{i=1}^n Y_i \right) -
+%  \sum_{i \in I} ((b_i\T x)^2 - \rho),
+% \end{equation*}
+% where $I$ is a given sparsity pattern, found by some heuristic for example, $x$ the largest eigenvector of $\sum_{i \in I} b_i b_i\T$ and
+% \begin{equation*}
+%  Y_i = \begin{cases}\frac{B_ixx\T B_i}{x\T B_ix}, & \text{for } i \in I \\
+%    \max\{0, \rho \frac{b_i\T b_i - \rho}{\rho - (b_i\T x)^2} \} \frac{(I-xx\T)b_ib_i\T(I-xx\T)}{\Norm{(I-xx\T)b_i}{2}^2}, & \text{for } i \in I^c\end{cases}. 
+%  %x in the second case sill as above?
+% \end{equation*}
+
+
+\section{An MISDP Formulation for the RIP}
+\label{sec:MISDP}
+
+\noindent
+In this section we propose an MISDP formulation to compute the optimal
+constants $\alpha_k$ and $\beta_k$ in \eqref{lowerRIP} and
+\eqref{upperRIP}, respectively. We will again start with the problem~\eqref{QP}.
+For the non-convex quadratic equality constraint $\Norm{x}{2}^2 = 1$, we
+again use semidefinite lifting, introducing the new variable $X=xx\T$ like in the last section. 
+The cardinality-constraint in \eqref{QP} can equivalently be written using
+binary variables $z_i$ as $-z_i \leq x_i \leq z_i$ and $\sum_{i=1}^n z_i
+\leq k$. We can thus equivalently rewrite \eqref{QP} as
+\begin{equation}\label{Rk1MISDP}
+ \begin{aligned}
+  \min \quad & \Tr(A\T A X) \\
+  \text{s.t.} \quad & \Tr(X) = 1, \\
+  & -z_j \leq X_{ij} \leq z_j \quad \text{for } j = 1, \dots, n, \\
+  & \sum_{i=1}^n z_i \leq k,\\
+  & \Rk(X) = 1, \\
+  & X \succeq 0, \\
+  & z \in \{0,1\}^n.
+ \end{aligned}
+\end{equation}
+We then relax the non-convex rank constraint to arrive at the following
+MISDP formulation:
+\begin{equation}\label{MISDP}\tag{MISDP}
+ \begin{aligned}
+  \min \quad & \Tr(A\T A X) \\
+  \text{s.t.} \quad & \Tr(X) = 1, \\
+  & -z_j \leq X_{ij} \leq z_j \quad \text{for } j = 1, \dots, n, \\
+  & \sum_{i=1}^n z_i \leq k, \\
+  & X \succeq 0, \\
+  & z \in \{0,1\}^n.
+ \end{aligned}
+\end{equation}
+In the following, we will show that \eqref{MISDP} actually produces the
+exact value of $\alpha_k$. We will use the following result about the
+relationship between the rank of solutions of semidefinite programs and the
+dimension of corresponding faces of the feasible set~$S$, i.e., subsets $F
+\subseteq S$ such that $\tfrac{1}{2} (p + q) \in F$ for $p, q \in S$ implies
+$p,q \in F$:
+
+\begin{theorem}[Pataki~\cite{pat98}]\label{patakiLemma}
+  Let $X \in F$, where $F$ is a face of
+  \begin{equation*}
+    S \define \{X \in S_n \suchthat X \succeq 0,\; \Tr(A_i X) = b_i\; \text{ for } i = 1, \dots, \tilde{m}\}
+  \end{equation*}
+  for symmetric matrices $A_i \in S_n$, $i = 1, \dots, \tilde{m}$. Then
+  \begin{equation*}
+    \tfrac{1}{2}\Rk(X)\cdot(\Rk(X)+1) \leq \tilde{m} + dim(F).
+  \end{equation*}
+\end{theorem}
+
+Using this result on the projection of~\eqref{MISDP} onto the $X$ variables, yields the following.
+
+\begin{theorem}\label{Rk1thm}
+  For every $A \in \R^{m \times n}$ and $k \in \Z_{>0}$, there exists an optimal solution $(X^\star, z^\star)$ of \eqref{MISDP} with $\Rk(X^\star) = 1$. 
+\end{theorem}
+
+\begin{proof}
+  First note that because of the constraint $\Tr(X) = 1$,
+  Problem~\eqref{MISDP} is bounded. Moreover, $X_{11} = 1$, $X_{ij} = 0$
+  for all $i,j \neq 1$, $z_1 = 1$, $z_i = 0$ for all $i = 2, \dots, n$ is
+  feasible for $k > 0$. Thus, an optimal solution to~\eqref{MISDP} exists.
+
+  Let $(X^\star, z^\star)$ be an optimal solution to \eqref{MISDP} with
+  $\ell \define \sum_{i=1}^n z^\star_i \leq k$. Let $T \define \{i_1, i_2,
+  \dots, i_\ell\}$ be the support of $z^\star$, and define $\check{A} =
+  (A_{i_1}, A_{i_2}, \dots, A_{i_\ell})$ to be the submatrix of~$A$ formed by
+  the columns indexed by~$T$. Then consider
+  \begin{equation}\label{Proj}
+   \begin{aligned}
+    \min \quad & \Tr(\check{A}\T \check{A} \check{X}), \\
+    \text{s.t.} \quad & \Tr(\check{X}) = 1, \\
+    & \check{X} \succeq 0,\; \check{X} \in S_\ell.
+   \end{aligned}
+  \end{equation}
+
+  Let $\check{X}$ be the $\ell \times \ell$ submatrix of $X^\star$ with all
+  rows and columns outside of $T$ removed. Then $\check{X}$ is feasible for
+  \eqref{Proj} with the same objective value, since we only removed zero
+  rows and columns of $X^\star$ and $(A\T A) X^\star$, which do not
+  influence the trace or the positive semidefiniteness.
+
+  On the other hand, we can lift any solution $\check{X}$ of~\eqref{Proj}
+  to a point $\hat{X} \in S_n$ by extending with zeros. Defining
+  $\hat{z}_i$ to be 1 if and only if $i \in T$, yields a feasible point
+  $(\hat{X}, \hat{z})$ for \eqref{MISDP} with identical objective value,
+  since $\Tr(\check{X}) = 1$ and $\check{X} \in S_\ell$ imply $0 \leq
+  \check{X}_{jj} = \hat{X}_{i_j i_j} \leq 1$ for $j = 1, \dots,
+  \ell$. Therefore, $\hat{X}_{ij} \leq \hat{z}_j$ by diagonal dominance of
+  semidefinite matrices.
+
+  Thus, the optimal objective values of \eqref{Proj} and \eqref{MISDP}
+  agree and $\Rk(\hat{X}) = \Rk(\check{X})$.  Therefore, it
+  suffices to show that~\eqref{Proj} has an optimal solution of rank one.
+
+  Let $\check{X}$ be an extreme point of \eqref{Proj} (since the set of
+  optimal points of~\eqref{Proj} is nonempty, convex, and compact, such a
+  point exists, see~\cite[Corollary 18.5.1]{Roc70}). Defining the face $F =
+  \{\check{X}\}$ and applying Theorem~\ref{patakiLemma} on \eqref{Proj}
+  gives
+  \begin{equation*}
+    \tfrac{1}{2} \Rk(\check{X}) \cdot (\Rk(\check{X})+1) \leq \tilde{m} + dim(F) = 1 + 0 = 1,
+  \end{equation*}
+  since there are $\tilde{m} = 1$ linear constraints. Since $\check{X} = 0$
+  is infeasible for $\Tr(X) = 1$, it follows that $\Rk(\check{X}) = 1$,
+  which can then be lifted to an optimal solution of \eqref{MISDP} of rank
+  one.
+\end{proof}
+
+Theorem~\ref{Rk1thm} guarantees that \eqref{MISDP} always has a solution of
+rank one. Therefore, the optimal values of \eqref{MISDP} and \eqref{QP}
+agree. We can therefore compute the optimal constant $\alpha_k$ for the RIP
+by solving \eqref{MISDP}. Since the same argumentation also holds for the
+maximization problem for $\beta_k$, this allows us to compute the
+restricted isometry constant and the restricted isometry ratio by
+mixed-integer semidefinite programming.
+
+Theorem~\ref{Rk1thm} does not guarantee that any
+found solution will have rank one, only that the optimal objective
+values agree. This suffices for our application of
+computing the restricted isometry constants $\alpha_k$ and $\beta_k$. For other
+applications like SPCA, an extreme solution can be generated with an
+algorithm proposed by Pataki~\cite{coneLP}.
+
+In order to successfully apply branch-and-bound to \eqref{MISDP}, it is
+important to use strong semidefinite relaxations for fractional $z$
+variables. To this end, we can use the following strengthening of the
+constraints $-z_j \leq X_{ij} \leq z_j$.
+
+\begin{lemma}\label{HalfConstraint} 
+  The inequalities
+  \begin{equation}\label{eq:HalfConstraint}
+    -\tfrac{1}{2} z_j \leq X_{ij} \leq \tfrac{1}{2} z_j,
+  \end{equation}
+  for $i \neq j \in \{1, \dots, n\}$, are valid for~\eqref{MISDP}.
+\end{lemma}
+
+\begin{proof}
+  Let $X \succeq 0$ satisfy $\Tr(X)=1$. Then $X_{ii}+X_{jj}\leq 1$ and
+  nonnegativity of the diagonal entries imply $X_{ii}X_{jj}\leq
+  \tfrac{1}{4}$ for $i \neq j$. Since all minors of $X$ need to be nonnegative, it
+  follows that
+  \begin{equation*}
+    X_{ij}^2 \leq  X_{ii} X_{jj} \leq \tfrac{1}{4}.
+  \end{equation*}
+  Therefore $- \tfrac{1}{2} \leq X_{ij} \leq \tfrac{1}{2}$, which shows
+  validity of~\eqref{eq:HalfConstraint}.
+\end{proof}
+
+
+\section{Numerical Results}
+\label{sec:numerical_results}
+
+\noindent
+In this section we demonstrate the applicability of the proposed MISDP-formulation and use it to
+assess the quality of the relaxations proposed in~\cite{Asp08} and~\cite{Asp07}.
+For solving the mixed-integer semidefinite programs, we use the MISDP solver SCIP-SDP~\cite{SCIP-SDP,GalPU16},
+originally developed in~\cite{Mar13} and~\cite{MS12}. It combines the
+branch-and-bound framework SCIP 3.2.1 \cite{SCIP} with 
+interior-point SDP-solvers, in our case SDPA~7.3.8~\cite{SDPA6,SDPA7}.
+
+The continuous SDPs are solved using the command-line version of
+SDPA~7.3.8. We compute the left- and right-hand restricted isometry
+constant $\alpha_k$ and $\beta_k$ either exactly using~\eqref{MISDP} or
+produce corresponding bounds via~\eqref{Asp07} and~\eqref{Asp08}. In
+the latter case, we solve the SDP~\eqref{Asp08Dual} 15 times for $\rho$ between~$0$ and the maximum
+diagonal entry of $A\T A$. This is the same approach as in \cite{Asp08},
+except that we reduced the number from 25 to 15, as this did
+not significantly seem to influence the quality of the solutions,
+but reduced the solving times.
+
+We use a testset consisting of 63 matrices of the following seven
+different types: band matrices,
+with band size three or five with entries within the band chosen uniformly in $\{0,1\}$, binary matrices with all entries chosen 
+uniformly in $\{0,1\}$, Gaussian-distributed matrices, and rank one 
+matrices $A = aa\T$ with $N(0,1)$-distributed entries of $a$. In addition to these four types,
+we also use three types of matrices with scaled parameters. These include matrices with 
+$N(0, 1/m)$-distributed entries, with entries chosen uniformly in $\pm 1/\sqrt{m}$, and finally with distribution
+\begin{equation}\nonumber
+  A_{ij} = \begin{cases}
+    + \sqrt{3/m} & \text{with probability } \frac{1}{6}, \\
+    0 & \text{with probability } \frac{2}{3}, \\
+    - \sqrt{3/m} & \text{with probability } \frac{1}{6}.
+  \end{cases}
+\end{equation}
+For each type we used \mbox{MATLAB 8.3.0} to randomly generate nine
+matrices of three different sizes with the number of rows ranging from 15
+to 30, number of columns
+from 25 to 40, and order $k$ between three and five, see Table~\ref{matrixsizes}.
+
+\begin{table} 
+ \begin{scriptsize} \caption{Sizes of the used matrices; three matrices were
+ randomly generated for each size} 
+ \label{matrixsizes} 
+ \begin{tabular*}{\linewidth}{@{}l@{\;\;\extracolsep{\fill}}rrrrrrrrr@{}}\toprule 
+  & \multicolumn{3}{c}{A} & \multicolumn{3}{c}{B} & \multicolumn{3}{c}{C} \\ 
+\cmidrule(r){2-4} \cmidrule{5-7}  \cmidrule(l){8-10}
+type & $m$ & $n$ & $k$ & $m$ & $n$ & $k$ & $m$ & $n$ & $k$  \\ 
+\midrule 
+$N(0,1)$ & 15 & 30 & 5 & 25 & 35 & 4 & 30 & 40 & 3 \\
+binary & 15 & 30 & 5 & 25 & 35 & 4 & 30 & 40 & 3 \\
+band matrix & 30 & 30 & 5 & 35 & 35 & 4 & 40 & 40 & 3 \\
+rank 1& 30 & 30 & 5 & 35 & 35 & 4 & 40 & 40 & 3 \\
+$N(0,1/m)$ & 15 & 30 & 5 & 25 & 35 & 4 & 30 & 40 & 3 \\
+$\pm 1/\sqrt{m}$ & 15 & 30 & 5 & 25 & 35 & 4 & 30 & 40 & 3 \\
+$0, \pm \sqrt{3/m}$ & 15 & 30 & 5 & 25 & 35 & 4 & 30 & 40 & 3 \\
+\bottomrule 
+ \end{tabular*} 
+ \end{scriptsize} 
+ \end{table} 
+
+For the latter three kinds of matrices, it was shown by Baraniuk et al.~\cite{BDDW08} that for $n \rightarrow \infty$, 
+sufficiently small $k$, and given $\delta$, they satisfy the restricted
+isometry property of order~$k$ and constant~$\delta$
+with probability converging exponentially to one. The needed proportion between $n$ and $k$ is so small, however,
+that we cannot expect the generated matrices in small dimensions to satisfy the RIP.
+
+The tests were performed on a Linux cluster with Intel i3 CPUs with 3.2GHz, 4MB cache, and 8GB memory running
+Linux. Each computation was performed single-threaded with a single process running on each computer and with 
+a time limit of four hours. The code was compiled with gcc 4.4.5 with \texttt{-O3} optimization. For 39 matrices, 
+the evaluation of~\eqref{Asp08Dual} was aborted for all 15 choices of $\rho$, because of the memory limit of 8GB.
+We also failed to solve \eqref{MISDP} for the left-hand side of the three medium sized rank one matrices with default
+parameters, because SDPA failed to solve the root node relaxation. With different settings or a different
+SDP-solver, however, we could verify that $\alpha_k$ is zero for these instances.
+These are counted with the maximum allowed time of four hours. 
+
+In Table~\ref{lhsRhsGap}, we compare the relative gap between the bounds on $\alpha_k$ and $\beta_k$ produced by the two heuristics
+and the exact values given by~\eqref{MISDP}, computed as their difference divided by the exact value. We present arithmetic means over all of the nine matrices for the given type that
+could be solved within the time- and memory-limit. Note that for the left-hand side we also omitted all instances with $\alpha_k=0$, 
+since we cannot compute a relative gap in that case. This included all rank one matrices. The number of instances used to compute the
+average is given in parentheses.
+
+For the left-hand-side~$\alpha_k$ of the RIP, the quality of both
+relaxations is bad: Especially~\eqref{Asp08} regularly returned worse solutions than the
+trivial lower bound of zero. Relaxation~\eqref{Asp07} performed slightly better, but the bounds
+were still not nearly good enough to have any chance of proving $\ell_0$-$\ell_1$-equivalence. The relatively
+bad performance of both relaxations for the left-hand side might not be too surprising though, since both relaxations
+were originally designed for sparse principal component analysis, which corresponds to the right-hand side
+of the RIP.
+
+\input{tables/lhsRhsGap}
+
+In fact, for the right-hand side~$\beta_k$,  both relaxations
+perform much better. Problem~\eqref{Asp07} constantly produces bounds within 10 to 30\,\% of the optimal
+solution, with only slightly worse results for binary and rank one matrices. The formulation~\eqref{Asp08}
+shows bigger fluctuations, but produces better results for five of the seven matrix types, while performing even
+worse for binary and rank one matrices. For band matrices, however, the average gap was below 2\,\%, the best 
+result for any matrix type among both relaxations.
+
+The restricted isometry constants of all matrices can be found in the
+appendix. Note that for the unscaled matrices (the first 36 instances until
+instance \texttt{rnk140403C}),
+we expect the restricted isometry constants to be much larger than for the scaled ones. Even for the scaled
+matrices, the restricted isometry property never holds for the matrices in the testset, since the instances
+are too small to satisfy the needed relation between $n$ and $k$.
+
+For reporting the solving times, we will use the \emph{shifted
+  geometric mean} to decrease the influence of easy instances, see
+Achterberg~\cite{SCIP} for more details. The shifted geometric
+mean of values $x_1$, \dots, $x_n$ is computed as
+\begin{equation*}
+  \Big( \prod_{i=1}^n (x_i + s)\Big)^{1/n} - s,
+\end{equation*}
+where we used a shift of $s=10$.
+
+The solving times in seconds for the left- and right-hand side of the RIP are given in
+Table~\ref{lhsRhsTime}, again excluding the left-hand sides for the rank one matrices,
+but including all others. The relaxation~\eqref{Asp07}
+is very fast, taking only a few seconds for all instances. The mixed-integer semidefinite program obviously
+cannot compete with these solving times, although for band-matrices, the difference is relatively
+small. The Lagrangian Relaxation~\eqref{Asp08}, however, takes more time to produce bounds than is needed
+by~\eqref{MISDP} to compute exact solutions. This is mainly caused by the fact that~\eqref{Asp08Dual} involves
+$n+1$ matrix variables of dimension $n\times n$ with corresponding SDP-constraints instead of a 
+single one each in~\eqref{MISDP} and~\eqref{Asp07}.
+Furthermore, the big difference is also caused by the instances running into the 
+memory limit, but even without those, the algorithm still takes slightly longer than~\eqref{MISDP}.
+
+\input{tables/lhsRhsTime}
+
+\section{Conclusion}
+
+\noindent
+This paper shows that exact values of restricted isometry constants can be
+computed via mixed-integer semidefinite programming. The computed bounds
+significantly improve the bounds computed by the semidefinite
+relaxations~\eqref{Asp07} and~\eqref{Asp08}
+proposed in~\cite{Asp07} and \cite{Asp08}, respectively. In conclusion, the
+relaxation~\eqref{Asp07}
+is fast to compute, but produces a gap of around 90\,\% for
+$\alpha_k$ and 30\,\% for $\beta_k$. If successfully solved, 
+\eqref{Asp08} provides better bounds for $\beta_k$ for most types of 
+matrices, but its running time is too large
+to be used in practice. Moreover, directly solving~\eqref{MISDP} is often
+faster and produces the exact value!
+
+Still, the matrices currently handable by~\eqref{MISDP} are small. For the
+future, the hope is that with the advancement of solving techniques for
+mixed-integer semidefinite programs, the sizes of the matrices can be
+significantly increased. The components to be improved include cutting
+planes, primal heuristics, and branching rules.
+
+\bibliographystyle{abbrv}
+\bibliography{Paperbib}
+
+\appendix
+\section*{Appendix}
+\input{tables/matrixList_optimization-online}
+
+\end{document}
