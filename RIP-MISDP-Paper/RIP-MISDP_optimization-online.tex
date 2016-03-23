@@ -1,5 +1,6 @@
 \documentclass[11pt,a4paper]{amsart}
 
+\usepackage[T1]{fontenc}
 \usepackage{amsmath}
 \usepackage{amsthm}
 \usepackage{dsfont}
@@ -11,6 +12,7 @@
 \usepackage{tabularx}
 \usepackage{booktabs}
 \usepackage{xtab}
+\usepackage[labelfont={footnotesize,bf},textfont=footnotesize]{caption}
 
 \usepackage[breaklinks,colorlinks,citecolor=blue,linkcolor=blue,urlcolor=blue,bookmarks=false,hypertexnames=false,
   pdftitle={Computing Restricted Isometry Constants via Mixed-Integer Semidefinite Programming},
@@ -56,6 +58,9 @@
 % prevent tables from being broken too early
 \xentrystretch{-0.4}
 
+\setlength{\abovecaptionskip}{1ex plus0.5ex minus0.5ex}
+\setlength{\belowcaptionskip}{1ex plus0.5ex minus0.5ex}
+
 \begin{document}
 
 \title[Computing Restricted Isometry Constants via MISDP]{Computing Restricted Isometry Constants via \\ Mixed-Integer Semidefinite Programming}
@@ -93,6 +98,7 @@ Compressed Sensing, Restricted Isometry Property, Mixed-Integer Semidefinite Pro
 
 \section{Introduction}
 
+\noindent
 Finding a sparsest solution of an underdetermined system of linear
 equations is one key problem in compressed sensing and has been
 thoroughly investigated in recent years. Given a matrix $A \in \R^{m \times n}$ with $m \leq n$ and 
@@ -113,7 +119,7 @@ convex optimization problem, if certain conditions are fulfilled:
 In fact, this so-called \emph{basis pursuit} problem can be reformulated as
 a linear program (LP) and efficient specialized solution algorithms are
 available both in theory and practice: as an extremely selected list
-consider the articles~\cite{BecBC11,CheDS99,OsbPT00,vdBF08} and the
+consider the articles \cite{BecBC11,CheDS99,OsbPT00,vdBF08} and the
 practical comparison in~\cite{LorPT15}.
 % Note: do not write out author names to keep text short at this place.
 
@@ -157,12 +163,10 @@ small enough, one is generally interested in the smallest constant satisfying
 \begin{definition}\label{ricdef}
   For a matrix $A \in \R^{m \times n}$ and order~$k$, the smallest constant in 
   \eqref{rip},
-  \begin{equation}\label{ric}
-    \begin{aligned}
-      \delta_k \define \argmin_{\delta \geq 0} \big\{(1 - \delta) \Norm{x}{2}^2 \leq \Norm{Ax}{2}^2 \leq (1+\delta) \Norm{x}{2}^2 
-      \quad\text{ for all }x \in \Sigma_k \big\},
-    \end{aligned}
-  \end{equation}
+  \[
+  \delta_k \define \argmin_{\delta \geq 0} \big\{(1 - \delta) \Norm{x}{2}^2 \leq \Norm{Ax}{2}^2 \leq (1+\delta) \Norm{x}{2}^2 
+  \quad\text{ for all }x \in \Sigma_k \big\},
+  \]
   is called \emph{restricted isometry constant} (RIC) of order~$k$.
 \end{definition}
 
@@ -172,7 +176,7 @@ and~\eqref{l1min} coincide.  The best-known result of this type is probably
 the following:
  
 \begin{theorem}[Cand\'es~\cite{Can08}]\label{RIPsqrt2}
-  Let the RIC of order $2k$ of $A$ satisfy $\delta_{2k} < \sqrt{2}-1 \approx 0.4142$. If there
+  Let the RIC of order $2k$ of $A$ satisfy the condition $\delta_{2k} < \sqrt{2}-1 \approx 0.4142$. If there
   exists $\tilde{x} \in \R^n$ with $\Norm{\tilde{x}}{0} \leq k$ and
   $A\tilde{x} = b$, then the optimal solutions of~\eqref{l0min}
   and~\eqref{l1min} coincide.
@@ -223,9 +227,9 @@ can again show $\ell_0$-$\ell_1$-equivalence:
 One advantage
 of Definition~\ref{asymRIPdef} and Theorem~\ref{asymRIPtheorem} is that they
 are invariant under scaling of $Ax = b$. In fact, the condition of
-Theorem~\ref{RIPsqrt2} holding for~$A x = b$ does not imply the same 
+Theorem~\ref{RIPsqrt2} holding for $A x = b$ does not imply the same 
 for the scaled equation
-$\lambda Ax = \lambda b$, $\lambda \in \R \setminus \{0\}$. In Definition~\ref{asymRIPdef}, however, we can
+$\lambda Ax = \lambda b$ with $\lambda \in \R \setminus \{0\}$. In Definition~\ref{asymRIPdef}, however, we can
 use $\tilde{\alpha}_k = \lambda \alpha_k$, $\tilde{\beta}_k = \lambda
 \beta_k$, and therefore $\tilde{\gamma}_k = \lambda^2 \alpha_k^2 /
 (\lambda^2 \beta_k^2) = \gamma_k$.
@@ -363,7 +367,7 @@ square-root of $\Sigma$. For details, we refer the reader to~\cite{Asp08}. The c
   & Y_i \succeq 0 \quad \ \ \text{for } i = 1, \dots, n,
  \end{aligned}
 \end{equation}
-which has only half as many variables as \eqref{Asp08Primal} and one fewer linear and semidefinite constraint. Then \eqref{Asp08Dual} can be solved for non-negative $\rho$, which should be smaller than $\Sigma_{11}$, because otherwise the
+which has only half as many variables as \eqref{Asp08Primal} and one fewer linear and semidefinite constraint. Then \eqref{Asp08Dual} can be solved for non-negative~$\rho$, which should be smaller than $\Sigma_{11}$, because otherwise the
 optimal solution for \eqref{phi} will always be $x=0$. 
 
 As shown in \cite{Asp08}, a lower bound for $\alpha_k$ can be computed via
@@ -478,7 +482,7 @@ Using this result on the projection of~\eqref{MISDP} onto the $X$ variables, yie
   \end{equation}
 
   Let $\check{X}$ be the $\ell \times \ell$ submatrix of $X^\star$ with all
-  rows and columns outside of $T$ removed. Then $\check{X}$ is feasible for
+  rows and columns outside of~$T$ removed. Then $\check{X}$ is feasible for
   \eqref{Proj} with the same objective value, since we only removed zero
   rows and columns of $X^\star$ and $(A\T A) X^\star$, which do not
   influence the trace or the positive semidefiniteness.
@@ -525,7 +529,7 @@ computing the restricted isometry constants $\alpha_k$ and $\beta_k$. For other
 applications like SPCA, an extreme solution can be generated with an
 algorithm proposed by Pataki~\cite{coneLP}.
 
-In order to successfully apply branch-and-bound to \eqref{MISDP}, it is
+For efficient application of branch-and-bound to \eqref{MISDP}, it is
 important to use strong semidefinite relaxations for fractional $z$
 variables. To this end, we can use the following strengthening of the
 constraints $-z_j \leq X_{ij} \leq z_j$.
@@ -707,6 +711,8 @@ planes, primal heuristics, and branching rules.
 
 \appendix
 \section*{Appendix}
+
+\vspace{-3ex}
 \input{tables/matrixList_optimization-online}
 
 \end{document}
