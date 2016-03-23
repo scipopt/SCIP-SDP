@@ -13,7 +13,7 @@
 \usepackage{xtab}
 
 \usepackage[breaklinks,colorlinks,citecolor=blue,linkcolor=blue,urlcolor=blue,bookmarks=false,hypertexnames=false,
-  pdftitle={Computing Exact Restricted Isometry Constants via Mixed Integer Semidefinite Programming},
+  pdftitle={Computing Restricted Isometry Constants via Mixed-Integer Semidefinite Programming},
   % pdftitle={Computing Restricted Isometry Constants via Mixed Integer Semidefinite Programming},
   pdfauthor={T. Gally, and M. E. Pfetsch}]{hyperref}
 
@@ -58,8 +58,7 @@
 
 \begin{document}
 
-\title{Computing Exact Restricted Isometry Constants via Mixed Integer Semidefinite Programming}
-%\title{Computing Restricted Isometry Constants via Mixed Integer Semidefinite Programming}
+\title{Computing Restricted Isometry Constants via Mixed-Integer Semidefinite Programming}
 \author{Tristan~Gally and Marc~E.~Pfetsch
   \thanks{This work was supported by the German Research Foundation (DFG) through Collaborative Research Center 805 and Priority Program 1798.}
   \thanks{The  authors  are  with  the  Research  Group  Optimization,  TU
@@ -79,7 +78,7 @@
   1-norm. The restricted isometry property has been one of the key
   conditions in this context. However, computing the best constants for
   this condition is itself \NP-hard. In this paper we propose a
-  mixed integer semidefinite programming approach for computing these
+  mixed-integer semidefinite programming approach for computing these
   optimal constants. This also subsumes sparse principal component
   analysis. Computational results with this approach allow to evaluate
   earlier semidefinite relaxations and show that the quality that can be
@@ -272,7 +271,7 @@ originally proposed by Zuo et al.~\cite{SPCA}. Other authors like Moghaddam et a
 \cite{sbSPCA} also proposed computing a sparse maximal eigenvalue for SPCA.
 
 The goal of this paper is to compute optimal restricted isometry constants
-via mixed integer semidefinite programming (MISDP). To this end, we will
+via mixed-integer semidefinite programming (MISDP). To this end, we will
 introduce an MISDP with a rank-1 constraint. In order to utilize this
 MISDP, we will show that the rank constraint can be relaxed without
 changing the optimal value. We can then apply an MISDP solver.
@@ -287,7 +286,7 @@ al. in~\cite{AspBG14}.
 
 In the following, we start by reviewing the SDP-relaxations of~\cite{Asp08}
 and~\cite{Asp07} in Section~\ref{sec:SDPrelax}.  Afterwards, in
-Section~\ref{sec:MISDP}, we construct a mixed integer semidefinite
+Section~\ref{sec:MISDP}, we construct a mixed-integer semidefinite
 program and show that it produces exact restricted isometry
 constants. Finally, in Section~\ref{sec:numerical_results}, we present
 numerical results and comparisons with the SDP relaxations in \cite{Asp08}
@@ -298,7 +297,7 @@ and \cite{Asp07}.
 \label{sec:SDPrelax}
 
 \noindent
-In this section, we will introduce two known SDP relaxations to compute an upper bound on the restricted isometry constant $\delta_k$ in~\eqref{rip}, since they have some ideas in common with the mixed integer semidefinite program we want to 
+In this section, we will introduce two known SDP relaxations to compute an upper bound on the restricted isometry constant $\delta_k$ in~\eqref{rip}, since they have some ideas in common with the mixed-integer semidefinite program we want to 
 propose and will also be checked against in the section on numerical
 results.
 
@@ -513,7 +512,7 @@ agree. We can therefore compute the optimal constant $\alpha_k$ for the RIP
 by solving \eqref{MISDP}. Since the same argumentation also holds for the
 maximization problem for $\beta_k$, this allows us to compute the
 restricted isometry constant and the restricted isometry ratio by
-mixed integer semidefinite programming.
+mixed-integer semidefinite programming.
 
 Theorem~\ref{Rk1thm} does not guarantee that any
 found solution will have rank one, only that the optimal objective
@@ -554,7 +553,7 @@ constraints $-z_j \leq X_{ij} \leq z_j$.
 \noindent
 In this section we demonstrate the applicability of the proposed MISDP-formulation and use it to
 assess the quality of the relaxations proposed in~\cite{Asp08} and~\cite{Asp07}.
-For solving the mixed integer semidefinite programs, we use the MISDP solver SCIP-SDP~\cite{SCIP-SDP,GalPU16},
+For solving the mixed-integer semidefinite programs, we use the MISDP solver SCIP-SDP~\cite{SCIP-SDP,GalPU16},
 originally developed in~\cite{Mar13} and~\cite{MS12}. It combines the
 branch-and-bound framework SCIP 3.2.1 \cite{SCIP} with 
 interior-point SDP-solvers, in our case SDPA~7.3.8~\cite{SDPA6,SDPA7}.
@@ -666,7 +665,7 @@ where we used a shift of $s=10$.
 The solving times in seconds for the left- and right-hand side of the RIP are given in
 Table~\ref{lhsRhsTime}, again excluding the left-hand sides for the rank one matrices,
 but including all others. The relaxation~\eqref{Asp07}
-is very fast, taking only a few seconds for all instances. The mixed integer semidefinite program obviously
+is very fast, taking only a few seconds for all instances. The mixed-integer semidefinite program obviously
 cannot compete with these solving times, although for band-matrices, the difference is relatively
 small. The Lagrangian Relaxation~\eqref{Asp08}, however, takes more time to produce bounds than is needed
 by~\eqref{MISDP} to compute exact solutions. This is mainly caused by the fact that~\eqref{Asp08Dual} involves
@@ -681,7 +680,7 @@ memory limit, but even without those, the algorithm still takes slightly longer 
 
 \noindent
 This paper shows that exact values of restricted isometry constants can be
-computed via mixed integer semidefinite programming. The computed bounds
+computed via mixed-integer semidefinite programming. The computed bounds
 significantly improve the bounds computed by the semidefinite
 relaxations~\eqref{Asp07} and~\eqref{Asp08}
 proposed in~\cite{Asp07} and \cite{Asp08}, respectively. In conclusion, the
@@ -695,7 +694,7 @@ faster and produces the exact value!
 
 Still, the matrices currently handable by~\eqref{MISDP} are small. For the
 future, the hope is that with the advancement of solving techniques for
-mixed integer semidefinite programs, the sizes of the matrices can be
+mixed-integer semidefinite programs, the sizes of the matrices can be
 significantly increased. The components to be improved include cutting
 planes, primal heuristics, and branching rules.
 
