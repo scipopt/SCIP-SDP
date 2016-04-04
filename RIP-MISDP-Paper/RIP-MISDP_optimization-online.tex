@@ -61,6 +61,12 @@
 \setlength{\abovecaptionskip}{1ex plus0.5ex minus0.5ex}
 \setlength{\belowcaptionskip}{1ex plus0.5ex minus0.5ex}
 
+\makeatletter
+\newcommand{\addresseshere}{%
+  \enddoc@text\let\enddoc@text\relax
+}
+\makeatother
+
 \begin{document}
 
 \title[Computing Restricted Isometry Constants via MISDP]{Computing Restricted Isometry Constants via \\ Mixed-Integer Semidefinite Programming}
@@ -706,13 +712,22 @@ mixed-integer semidefinite programs, the sizes of the matrices can be
 significantly increased. The components to be improved include cutting
 planes, primal heuristics, and branching rules.
 
+\section*{Acknowledgments}
+The authors would like to thank the German Research Foundation (DFG) for
+funding, since parts of this research have been carried out within the
+Collaborative Research Center 805.
+
 \bibliographystyle{abbrv}
 \bibliography{Paperbib}
 
+\vspace{5ex}
+
+\addresseshere
+
+\newpage
 \appendix
 \section*{Appendix}
 
-\vspace{-3ex}
 \input{tables/matrixList_optimization-online}
 
 \end{document}
