@@ -14,8 +14,9 @@ This program is free software; you can redistribute it and/or modify it under th
 </table>
 <br><br>
 <p>
-   <b>Any publication for which SCIP-SDP is used should include an acknowledgment and a reference to one of the following articles:</b>
+   <b>Any publication for which SCIP-SDP is used should include an acknowledgment and a reference to the following article:</b>
 <ul>
-   <li><a href="http://tubiblio.ulb.tu-darmstadt.de/62096/">Mixed-Integer Semidefinite Programming with an Application to Truss Topology Design </a> <br> <i> Sonja Mars </i> <br> Phd Thesis, FAU Erlangen-N&uuml;rnberg</li>
-   <li><a href="http://www.opt.tu-darmstadt.de/scipsdp/downloads/scipsdp_preprint_2012.pdf">An SDP-Package for SCIP </a> <br> <i> Sonja Mars and Lars Schewe </i> <br> Technical Report 08/2012, TU Darmstadt and FAU Erlangen-N&uuml;rnberg </li>
+   <li><a href="http://www.optimization-online.org/DB_HTML/2016/04/5394.html">A Framework for Solving Mixed-Integer Semidefinite Programs</a> <br> <i> Tristan Gally, Marc E. Pfetsch, and Stefan Ulbrich </i> <br>  Technical report, Optimization-Online, 2016</li>
 </ul>
+   An <a href="http://www.opt.tu-darmstadt.de/scipsdp/downloads/OnlineSupplement-GallyPfetschUlbrich-FrameworkMISDP.pdf">online supplement with detailed results</a> and the <a href="http://www.opt.tu-darmstadt.de/scipsdp/downloads/FrameworkMISDP-instances.tar.gz">corresponding instances</a> are also available.
+</p>
