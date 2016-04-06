@@ -41,7 +41,7 @@
  *
  * @version 2.1.0
  * @author Tristan Gally, Marc Pfetsch; Sonja Mars, Lars Schewe
- * @date 2011-2015
+ * @date 2011-2016
  *
  * SCIP-SDP is a plugin for SCIP to solve mixed integer semidefinite programs (MISDPs). It combines the branch-and-bound
  * framework of SCIP with interior-point SDP-solvers. It provides the data handling, some presolving and propagation as
