@@ -31,6 +31,7 @@ parameters:
 - penalty parameter to be used for numerically hard relaxations can now be changed by a parameter
 - lambda star parameter for initial point in SDPA can now be changed by a parameter
 - frequency of parameter resets in SDPA can be set by a parameter
+- number of threads for SDPA/Openblas can now be changed via parameter if Intel® MKL is installed
 
 core:
 - in the penalty formulation the primal bound added by the penalty parameter is now also checked to decide between

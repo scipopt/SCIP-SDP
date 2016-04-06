@@ -33,9 +33,12 @@ to 1. So for example to compile SCIP-SDP with DSDP, just type
 
 make SDPS=dsdp
 
-in the main directory. In addition to SDPS you can use the same options for the Makefile 
-as you can use for building SCIP (i.e. make SDPS=sdpa OPT=dbg LPS=cpx), you may also create
-a doxygen-documentation by calling i.e. make OPT=dbg SDPS=dsdp doc.
+in the main directory. Furthermore, you may need to set MKL=false if you do not have
+Intel® MKL. This then disables the possibility to set the number of threads dynamically
+via SCIP-parameter for SDPA/openblas. Additionally, you can use the same options for the 
+Makefile as you can use for building SCIP (i.e. make SDPS=sdpa OPT=dbg LPS=cpx), note that 
+a compiled SCIP binary with the same settings needs to exist in the linked path. You may 
+also create a doxygen-documentation by calling i.e. make OPT=dbg SDPS=dsdp doc.
 
 Setting Links for DSDP
 ----------------------
@@ -132,3 +135,8 @@ For this you have to set the corresponding environment variable by typing
 export OMP_NUM_THREADS=n
 
 before opening the shell, where n is the desired number of threads.
+
+Alternatively, if you have Intel® MKL, you may also compile SCIP-SDP with MKL=true (which is
+the default). Then you can change the number of settings via SCIP-parameter:
+
+set relaxing SDP advanced threads n

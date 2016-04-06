@@ -52,6 +52,9 @@
 #include "blockmemshell/memory.h"            /* for memory allocation */
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
+#ifndef NO_MKL
+#include "omp.h"                             /* for changing the number of threads */
+#endif
 
 #define EPSILONCHANGE   1 /**< change epsilon by this factor when switching from fast to default and from default to stable settings */
 #define FEASTOLCHANGE   1 /**< change feastol by this factor when switching from fast to default and from default to stable settings */
@@ -114,9 +117,7 @@ struct SCIP_SDPiSolver
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
    SCIP_Real             objlimit;           /**< objective limit for SDP solver */
-#if 0
    int                   threads;            /**< number of threads */
-#endif
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             penalty;            /**< was the problem last solved using a penalty formulation */
    SCIP_Bool             rbound;             /**< was the penalty parameter bounded during the last solve call */
@@ -230,9 +231,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->epsilon = 1e-4;
    (*sdpisolver)->feastol = 1e-6;
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
-#if 0
    (*sdpisolver)->threads = 1;
-#endif
    (*sdpisolver)->sdpinfo = FALSE;
    (*sdpisolver)->usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
 
@@ -608,16 +607,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->sdpa->printParameters(stdout);
 #endif
 
-#if 0
+#ifndef NO_MKL
    /* set number of threads */
-   char str[1024];
-   snprintf(str, 1024, "OMP_NUM_THREADS=%d", sdpisolver->threads);
-   int status = putenv(str);
-   if ( status )
-   {
-      SCIPdebugMessage("Setting the number of threads failed (%d, %d).\n", status, errno);
-      return SCIP_LPERROR;
-   }
+   omp_set_num_threads(sdpisolver->threads);
 #endif
 
    /* increase Lambda Star, this seems to help the numerics */
@@ -1139,7 +1131,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->sdpa->writeInitSparse(const_cast<char*>("sdpa.ini-s"), const_cast<char*>("%+8.3e"));
 #endif
 
-#if 0
+#ifndef NO_MKL
    SCIPdebugMessage("Calling SDPA solve (SDP: %d, threads: %d)\n", sdpisolver->sdpcounter, sdpisolver->sdpa->getNumThreads());
 #else
    SCIPdebugMessage("Calling SDPA solve (SDP: %d)\n", sdpisolver->sdpcounter);
@@ -2088,12 +2080,10 @@ SCIP_RETCODE SCIPsdpiSolverGetIntpar(
 
    switch( type )/*lint --e{788}*/
    {
-#if 0
    case SCIP_SDPPAR_THREADS:
       *ival = sdpisolver->threads;
       SCIPdebugMessage("Getting sdpisolver number of threads: %d.\n", *ival);
       break;
-#endif
    case SCIP_SDPPAR_SDPINFO:
       *ival = (int) sdpisolver->sdpinfo;
       SCIPdebugMessage("Getting sdpisolver information output (%d).\n", *ival);
@@ -2116,12 +2106,14 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
 
    switch( type )/*lint --e{788}*/
    {
-#if 0
    case SCIP_SDPPAR_THREADS:
       sdpisolver->threads = ival;
+#ifndef NO_MKL
       SCIPdebugMessage("Setting sdpisolver number of threads to %d.\n", ival);
-      break;
+#else
+      SCIPdebugMessage("Setting number of threads not supported without Intel® MKL.\n");
 #endif
+      break;
    case SCIP_SDPPAR_SDPINFO:
       sdpisolver->sdpinfo = (SCIP_Bool) ival;
       SCIPdebugMessage("Setting sdpisolver information output (%d).\n", ival);

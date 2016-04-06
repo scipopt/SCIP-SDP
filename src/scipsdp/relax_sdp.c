@@ -65,9 +65,7 @@
 #define DEFAULT_PENALTYPARAM        -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 #define DEFAULT_LAMBDASTAR          -1.0     /**< the parameter lambda star used by SDPA to set the initial point */
 #define DEFAULT_MAXPENALTYPARAM     -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
-#if 0
 #define DEFAULT_THREADS             1        /**< number of threads used for SDP solving */
-#endif
 #define DEFAULT_OBJLIMIT            FALSE    /**< should an objective limit be given to the SDP-Solver ? */
 #define DEFAULT_RESOLVE             TRUE     /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
 #define DEFAULT_TIGHTENVB           FALSE    /**< Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ? */
@@ -113,9 +111,7 @@ struct SCIP_RelaxData
    int                   solvedstable;       /**< number of SDPs solved with stable settings */
    int                   solvedpenalty;      /**< number of SDPs solved using penalty formulation */
    int                   unsolved;           /**< number of SDPs that could not be solved even using a penalty formulation */
-#if 0
    int                   threads;            /**< number of threads used for SDP solving */
-#endif
    SCIP_Bool             slatercheck;        /**< Should the Slater condition for the dual problem be check ahead of solving every SDP ? */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             objlimit;           /**< Should an objective limit be given to the SDP solver? */
@@ -1107,9 +1103,7 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
    SCIP_Bool slatercheck;
    SCIP_Real givenpenaltyparam;
    int nvars;
-#if 0
    int threads;
-#endif
 
    assert( relax != NULL );
 
@@ -1356,7 +1350,6 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
       SCIP_CALL( retcode );
    }
 
-#if 0
    SCIP_CALL( SCIPgetIntParam(scip, "relaxing/SDP/threads", &threads) );
    retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_THREADS, threads);
    if ( retcode == SCIP_PARAMETERUNKNOWN )
@@ -1369,7 +1362,6 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
    {
       SCIP_CALL( retcode );
    }
-#endif
 
    SCIP_CALL( SCIPgetBoolParam(scip, "relaxing/SDP/sdpinfo", &sdpinfo) );
    retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_SDPINFO, (int) sdpinfo);
@@ -1530,10 +1522,8 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          "set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->lambdastar),
          TRUE, DEFAULT_LAMBDASTAR, -1.0, 1e+20, NULL, NULL) );
 
-#if 0
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/threads", "number of threads used for SDP solving",
          &(relaxdata->threads), TRUE, DEFAULT_THREADS, 1, INT_MAX, NULL, NULL) );
-#endif
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/slatercheck",
          "should the Slater condition for the dual problem be check ahead of solving each SDP?",

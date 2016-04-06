@@ -50,13 +50,11 @@ extern "C" {
 /** SDP solver parameters */
 enum SCIP_SDPParam
 {
-   SCIP_SDPPAR_EPSILON       = 0,       /**< convergence tolerance */
-   SCIP_SDPPAR_FEASTOL       = 1,       /**< feasibility tolerance */
-   SCIP_SDPPAR_OBJLIMIT      = 2,       /**< objective limit, if the SDP solver computes a lower bound for the minimzation
+   SCIP_SDPPAR_EPSILON        = 0,      /**< convergence tolerance */
+   SCIP_SDPPAR_FEASTOL        = 1,      /**< feasibility tolerance */
+   SCIP_SDPPAR_OBJLIMIT       = 2,      /**< objective limit, if the SDP solver computes a lower bound for the minimzation
                                          *   problem that is bigger than this, it may stop */
-#if 0
-   SCIP_SDPPAR_THREADS       = 3,       /**< numer of threads */
-#endif
+   SCIP_SDPPAR_THREADS        = 3,      /**< numer of threads */
    SCIP_SDPPAR_SDPINFO        = 4,      /**< should the SDP solver output information to the screen? */
    SCIP_SDPPAR_SLATERCHECK    = 5,      /**< should the slater condition for the dual problem be checked before solving each SDP ? */
    SCIP_SDPPAR_PENALTYPARAM   = 6,      /**< the startingpenalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
