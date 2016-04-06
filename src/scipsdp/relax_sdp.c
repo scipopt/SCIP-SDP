@@ -87,6 +87,7 @@
 #define LAMBDASTAR_HIGH             1e5      /**< if lambda star is to be computed and LAMBDASTAR_TWOPOINTS=TRUE, then this is the value for above the threshold */
 
 #define PRINT_STATISTICS /* uncomment this to print additional statistics after the computation is finished */
+#define SLATERSOLVED_ABSOLUTE /* uncomment this to return the absolute number of nodes for, e.g., solved fast with slater in addition to percentages */
 
 /*
  * Data structures
@@ -122,6 +123,32 @@ struct SCIP_RelaxData
    int                   sdpcalls;           /**< number of solved SDPs (used to compute average SDP iterations) */
    long int              lastsdpnode;        /**< number of the SCIP node the current SDP-solution belongs to */
    SCIP_Bool             feasible;           /**< was the last solved SDP feasible */
+   int                   stablewslater;      /**< number of instances solved with fastest settings where primal and dual slater held */
+   int                   unstablewslater;    /**< number of instances solved with stable settings where primal and dual slater held */
+   int                   penaltywslater;     /**< number of instances solved with penalty formulation where primal and dual slater held */
+   int                   boundedwslater;     /**< number of instances we could compute a bound for via the penalty approach where primal and dual slater held */
+   int                   unsolvedwslater;    /**< number of instances that could not be solved where primal and dual slater held */
+   int                   stablenoslater;     /**< number of instances solved with fastest setting where either primal or dual slater did not hold */
+   int                   unstablenoslater;   /**< number of instances solved with stable settings where either primal or dual slater did not hold */
+   int                   penaltynoslater;    /**< number of instances solved with penalty formulation where either primal or dual slater did not hold */
+   int                   boundednoslater;    /**< number of instances we could compute a bound for via the penalty approach where either primal or dual slater did not hold */
+   int                   unsolvednoslater;   /**< number of instances that could not be solved where either primal or dual slater did not hold */
+   int                   nslaterholds;       /**< number of SDPs for which primal and dual slater condition held */
+   int                   nnoslater;          /**< number of SDPs for which either primal or dual slater condition did not hold (including those where we could not check the other) */
+   int                   nslatercheckfailed; /**< number of SDPs for which we failed to check the slater condition (this only includes SDPs where both checks failed or
+                                              *   one checked returned slater holds and the other failed but not those where the first check already returned that it does not hold */
+   int                   npslaterholds;      /**< number of SDPs for which primal slater condition held */
+   int                   npnoslater;         /**< number of SDPs for which primal slater condition did not hold */
+   int                   npslatercheckfailed;/**< number of SDPs for which we failed to check the dual slater condition */
+   int                   ndslaterholds;      /**< number of SDPs for which dual slater condition held */
+   int                   ndnoslater;         /**< number of SDPs for which dual slater condition did not hold */
+   int                   ndslatercheckfailed;/**< number of SDPs for which we failed to check the dual slater condition */
+   int                   nslaterinfeasible;  /**< number of SDPs for which we detected infeasibility during the Slater check */
+   int                   stableinfeasible;   /**< number of instances solved with fastest settings where the dual slater check showed that the problem is infeasible */
+   int                   unstableinfeasible; /**< number of instances solved with stable settings where the dual slater check showed that the problem is infeasible */
+   int                   penaltyinfeasible;  /**< number of instances solved with penalty formulation where the dual slater check showed that the problem is infeasible */
+   int                   boundedinfeasible;  /**< number of instances we could compute a bound for via the penalty approach where the dual slater check showed that the problem is infeasible */
+   int                   unsolvedinfeasible; /**< number of instances that could not be solved where the dual slater check showed that the problem is infeasible */
 };
 
 /** inserts all the SDP data into the corresponding SDP Interface */
@@ -570,6 +597,9 @@ SCIP_RETCODE calcRelax(
    SCIP_Real objforscip;
    SCIP_Real* solforscip;
    SCIP_Bool allint;
+   SCIP_SDPSLATERSETTING slatersetting;
+   SCIP_SDPSLATER primalslater;
+   SCIP_SDPSLATER dualslater;
    int naddediters;
    int nvars;
    int i;
@@ -674,6 +704,144 @@ SCIP_RETCODE calcRelax(
       break;
    default:
       break;
+   }
+   primalslater = SCIP_SDPSLATER_NOINFO;
+   dualslater = SCIP_SDPSLATER_NOINFO;
+   SCIP_CALL( SCIPsdpiSlater(relaxdata->sdpi, &primalslater, &dualslater) );
+   switch( primalslater )/*lint --e{788}*/
+   {
+      case SCIP_SDPSLATER_NOINFO:
+         relaxdata->npslatercheckfailed++;
+         switch( dualslater )/*lint --e{788}*/
+         {
+            case SCIP_SDPSLATER_NOINFO:
+               relaxdata->ndslatercheckfailed++;
+               relaxdata->nslatercheckfailed++;
+               break;
+            case SCIP_SDPSLATER_NOT:
+               relaxdata->ndnoslater++;
+               relaxdata->nnoslater++;
+               break;
+            case SCIP_SDPSLATER_HOLDS:
+               relaxdata->ndslaterholds++;
+               relaxdata->nslatercheckfailed++;
+               break;
+            case SCIP_SDPSLATER_INF:
+               relaxdata->nslaterinfeasible++;
+               break;
+            default:
+               relaxdata->ndslatercheckfailed++;
+               relaxdata->nslatercheckfailed++;
+               break;
+         }
+         break;
+      case SCIP_SDPSLATER_NOT:
+         relaxdata->npnoslater++;
+         switch( dualslater )/*lint --e{788}*/
+         {
+            case SCIP_SDPSLATER_NOINFO:
+               relaxdata->ndslatercheckfailed++;
+               relaxdata->nnoslater++;
+               break;
+            case SCIP_SDPSLATER_NOT:
+               relaxdata->ndnoslater++;
+               relaxdata->nnoslater++;
+               break;
+            case SCIP_SDPSLATER_HOLDS:
+               relaxdata->ndslaterholds++;
+               relaxdata->nnoslater++;
+               break;
+            case SCIP_SDPSLATER_INF:
+               relaxdata->nslaterinfeasible++;
+               break;
+            default:
+               relaxdata->ndslatercheckfailed++;
+               relaxdata->nnoslater++;
+               break;
+         }
+         break;
+      case SCIP_SDPSLATER_HOLDS:
+         relaxdata->npslaterholds++;
+         switch( dualslater )/*lint --e{788}*/
+         {
+            case SCIP_SDPSLATER_NOINFO:
+               relaxdata->ndslatercheckfailed++;
+               relaxdata->nslatercheckfailed++;
+               break;
+            case SCIP_SDPSLATER_NOT:
+               relaxdata->ndnoslater++;
+               relaxdata->nnoslater++;
+               break;
+            case SCIP_SDPSLATER_HOLDS:
+               relaxdata->ndslaterholds++;
+               relaxdata->nslaterholds++;
+               break;
+            case SCIP_SDPSLATER_INF:
+               relaxdata->nslaterinfeasible++;
+               break;
+            default:
+               relaxdata->ndslatercheckfailed++;
+               relaxdata->nslatercheckfailed++;
+               break;
+         }
+         break;
+         default:
+            relaxdata->npslatercheckfailed++;
+            relaxdata->ndslatercheckfailed++;
+            relaxdata->nslatercheckfailed++;
+            break;
+   }
+   slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+   SCIP_CALL( SCIPsdpiSlaterSettings(relaxdata->sdpi, &slatersetting) );
+   switch( slatersetting )/*lint --e{788}*/
+   {
+      case SCIP_SDPSLATERSETTING_STABLEWSLATER:
+         relaxdata->stablewslater++;
+         break;
+      case SCIP_SDPSLATERSETTING_UNSTABLEWSLATER:
+         relaxdata->unstablewslater++;
+         break;
+      case SCIP_SDPSLATERSETTING_PENALTYWSLATER:
+         relaxdata->penaltywslater++;
+         break;
+      case SCIP_SDPSLATERSETTING_BOUNDEDWSLATER:
+         relaxdata->boundedwslater++;
+         break;
+      case SCIP_SDPSLATERSETTING_UNSOLVEDWSLATER:
+         relaxdata->unsolvedwslater++;
+         break;
+      case SCIP_SDPSLATERSETTING_STABLENOSLATER:
+         relaxdata->stablenoslater++;
+         break;
+      case SCIP_SDPSLATERSETTING_UNSTABLENOSLATER:
+         relaxdata->unstablenoslater++;
+         break;
+      case SCIP_SDPSLATERSETTING_PENALTYNOSLATER:
+         relaxdata->penaltynoslater++;
+         break;
+      case SCIP_SDPSLATERSETTING_BOUNDEDNOSLATER:
+         relaxdata->boundednoslater++;
+         break;
+      case SCIP_SDPSLATERSETTING_UNSOLVEDNOSLATER:
+         relaxdata->unsolvednoslater++;
+         break;
+      case SCIP_SDPSLATERSETTING_STABLEINFEASIBLE:
+         relaxdata->stableinfeasible++;
+         break;
+      case SCIP_SDPSLATERSETTING_UNSTABLEINFEASIBLE:
+         relaxdata->unstableinfeasible++;
+         break;
+      case SCIP_SDPSLATERSETTING_PENALTYINFEASIBLE:
+         relaxdata->penaltyinfeasible++;
+         break;
+      case SCIP_SDPSLATERSETTING_BOUNDEDINFEASIBLE:
+         relaxdata->boundedinfeasible++;
+         break;
+      case SCIP_SDPSLATERSETTING_UNSOLVEDINFEASIBLE:
+         relaxdata->unsolvedinfeasible++;
+         break;
+      default:
+         break;
    }
 
    /* remember settings */
@@ -1119,6 +1287,29 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
    relaxdata->solvedmedium = 0;
    relaxdata->solvedstable = 0;
    relaxdata->solvedpenalty = 0;
+   relaxdata->stablewslater = 0;
+   relaxdata->unstablewslater = 0;
+   relaxdata->boundedwslater = 0;
+   relaxdata->unsolvedwslater = 0;
+   relaxdata->stablenoslater = 0;
+   relaxdata->unsolvednoslater = 0;
+   relaxdata->boundednoslater = 0;
+   relaxdata->unsolvednoslater = 0;
+   relaxdata->nslaterholds = 0;
+   relaxdata->nnoslater = 0;
+   relaxdata->nslatercheckfailed = 0;
+   relaxdata->npslaterholds = 0;
+   relaxdata->npnoslater = 0;
+   relaxdata->npslatercheckfailed = 0;
+   relaxdata->ndslaterholds = 0;
+   relaxdata->ndnoslater = 0;
+   relaxdata->ndslatercheckfailed = 0;
+   relaxdata->nslaterinfeasible = 0;
+   relaxdata->stableinfeasible = 0;
+   relaxdata->unstableinfeasible = 0;
+   relaxdata->penaltyinfeasible = 0;
+   relaxdata->boundedinfeasible = 0;
+   relaxdata->unsolvedinfeasible = 0;
    relaxdata->unsolved = 0;
    relaxdata->feasible = FALSE;
 
@@ -1430,6 +1621,77 @@ SCIP_DECL_RELAXEXIT(relaxExitSdp)
    }
    SCIPinfoMessage(scip, NULL, "Percentage penalty formulation used:\t%6.2f \n", 100.0 * (double) relaxdata->solvedpenalty / (double) relaxdata->sdpcalls);
    SCIPinfoMessage(scip, NULL, "Percentage unsolved even with penalty:\t%6.2f \n", 100.0 * (double) relaxdata->unsolved / (double) relaxdata->sdpcalls);
+
+   SCIPinfoMessage(scip, NULL, "Percentage primal Slater condition held:\t%6.2f \n", 100.0 * (double) relaxdata->npslaterholds / (double) relaxdata->sdpcalls);
+   SCIPinfoMessage(scip, NULL, "Percentage primal Slater condition did not hold:\t%6.2f \n", 100.0 * (double) relaxdata->npnoslater / (double) relaxdata->sdpcalls);
+   SCIPinfoMessage(scip, NULL, "Percentage primal Slater check failed:\t%6.2f \n", 100.0 * (double) relaxdata->npslatercheckfailed / (double) relaxdata->sdpcalls);
+
+   SCIPinfoMessage(scip, NULL, "Percentage dual Slater condition held:\t%6.2f \n", 100.0 * (double) relaxdata->ndslaterholds / (double) relaxdata->sdpcalls);
+   SCIPinfoMessage(scip, NULL, "Percentage dual Slater condition did not hold:\t%6.2f \n", 100.0 * (double) relaxdata->ndnoslater / (double) relaxdata->sdpcalls);
+   SCIPinfoMessage(scip, NULL, "Percentage dual Slater check failed:\t%6.2f \n", 100.0 * (double) relaxdata->ndslatercheckfailed / (double) relaxdata->sdpcalls);
+   SCIPinfoMessage(scip, NULL, "Percentage dual Slater check detected infeasibility:\t%6.2f \n", 100.0 * (double) relaxdata->nslaterinfeasible / (double) relaxdata->sdpcalls);
+
+   if ( relaxdata->nslaterholds )
+   {
+      SCIPinfoMessage(scip, NULL, "Percentage 'fastest settings' with primal and dual slater holding:\t%6.2f \n",
+            100.0 * (double) relaxdata->stablewslater / (double) relaxdata->nslaterholds);
+      SCIPinfoMessage(scip, NULL, "Percentage 'stable settings' with primal and dual slater holding:\t%6.2f \n",
+            100.0 * (double) relaxdata->unstablewslater / (double) relaxdata->nslaterholds);
+      SCIPinfoMessage(scip, NULL, "Percentage 'penalty' with primal and dual slater holding:\t%6.2f \n",
+            100.0 * (double) relaxdata->penaltywslater / (double) relaxdata->nslaterholds);
+      SCIPinfoMessage(scip, NULL, "Percentage 'computed infeasible lower bound' with primal and dual slater holding:\t%6.2f \n",
+            100.0 * (double) relaxdata->boundedwslater / (double) relaxdata->nslaterholds);
+      SCIPinfoMessage(scip, NULL, "Percentage 'unsolved' with primal and dual slater holding:\t%6.2f \n",
+            100.0 * (double) relaxdata->unsolvedwslater / (double) relaxdata->nslaterholds);
+   }
+   if ( relaxdata->nnoslater )
+   {
+      SCIPinfoMessage(scip, NULL, "Percentage 'fastest settings' with either primal or dual slater not holding:\t%6.2f \n",
+            100.0 * (double) relaxdata->stablenoslater / (double) relaxdata->nnoslater);
+      SCIPinfoMessage(scip, NULL, "Percentage 'stable settings' with either primal or dual slater not holding:\t%6.2f \n",
+            100.0 * (double) relaxdata->unstablenoslater / (double) relaxdata->nnoslater);
+      SCIPinfoMessage(scip, NULL, "Percentage 'penalty' with either primal or dual slater not holding:\t%6.2f \n",
+            100.0 * (double) relaxdata->penaltynoslater / (double) relaxdata->nnoslater);
+      SCIPinfoMessage(scip, NULL, "Percentage 'computed infeasible lower bound' with either primal or dual slater not holding:\t%6.2f \n",
+            100.0 * (double) relaxdata->boundednoslater / (double) relaxdata->nnoslater);
+      SCIPinfoMessage(scip, NULL, "Percentage 'unsolved' with either primal or dual slater not holding:\t%6.2f \n",
+            100.0 * (double) relaxdata->unsolvednoslater / (double) relaxdata->nnoslater);
+   }
+   if ( relaxdata->nslaterinfeasible )
+   {
+      SCIPinfoMessage(scip, NULL, "Percentage 'fastest settings' with slater check showing infeasibility:\t%6.2f \n",
+            100.0 * (double) relaxdata->stableinfeasible / (double) relaxdata->nslaterinfeasible);
+      SCIPinfoMessage(scip, NULL, "Percentage 'stable settings' with slater check showing infeasibility:\t%6.2f \n",
+            100.0 * (double) relaxdata->unstableinfeasible / (double) relaxdata->nslaterinfeasible);
+      SCIPinfoMessage(scip, NULL, "Percentage 'penalty' with slater check showing infeasibility:\t%6.2f \n",
+            100.0 * (double) relaxdata->penaltyinfeasible / (double) relaxdata->nslaterinfeasible);
+      SCIPinfoMessage(scip, NULL, "Percentage 'computed infeasible lower bound' with slater check showing infeasibility:\t%6.2f \n",
+            100.0 * (double) relaxdata->boundedinfeasible / (double) relaxdata->nslaterinfeasible);
+      SCIPinfoMessage(scip, NULL, "Percentage 'unsolved' with slater check showing infeasibility:\t%6.2f \n",
+            100.0 * (double) relaxdata->unsolvedinfeasible / (double) relaxdata->nslaterinfeasible);
+   }
+#ifdef SLATERSOLVED_ABSOLUTE
+   SCIPinfoMessage(scip, NULL, "Number of nodes with primal and dual slater holding:\t%d \n", relaxdata->nslaterholds);
+   SCIPinfoMessage(scip, NULL, "Number of nodes with 'fastest settings' and primal and dual slater holding:\t%d \n", relaxdata->stablewslater);
+   SCIPinfoMessage(scip, NULL, "Number of nodes with 'stable settings' and primal and dual slater holding:\t%d \n", relaxdata->unstablewslater);
+   SCIPinfoMessage(scip, NULL, "Number of nodes with 'penalty' and primal and dual slater holding:\t%d \n", relaxdata->penaltywslater);
+   SCIPinfoMessage(scip, NULL, "Number of nodes with 'computed infeasible lower bound' and primal and dual slater holding:\t%d \n", relaxdata->boundedwslater);
+   SCIPinfoMessage(scip, NULL, "Number of nodes with 'unsolved' and primal and dual slater holding:\t%d \n", relaxdata->unsolvedwslater);
+
+   SCIPinfoMessage(scip, NULL, "Number of nodes with either primal or dual slater not holding:\t%d \n", relaxdata->nnoslater);
+   SCIPinfoMessage(scip, NULL, "Number of nodes with 'fastest settings' and either primal or dual slater not holding:\t%d \n", relaxdata->stablenoslater);
+   SCIPinfoMessage(scip, NULL, "Number of nodes with 'stable settings' and either primal or dual slater not holding:\t%d \n", relaxdata->unstablenoslater);
+   SCIPinfoMessage(scip, NULL, "Number of nodes with 'penalty' and either primal or dual slater not holding:\t%d \n", relaxdata->penaltynoslater);
+   SCIPinfoMessage(scip, NULL, "Number of nodes with 'computed infeasible lower bound' and either primal or dual slater not holding:\t%d \n", relaxdata->boundednoslater);
+   SCIPinfoMessage(scip, NULL, "Number of nodes with 'unsolved' and either primal or dual slater not holding:\t%d \n", relaxdata->unsolvednoslater);
+
+   SCIPinfoMessage(scip, NULL, "Number of infeasible nodes:\t%d \n", relaxdata->nslaterinfeasible);
+   SCIPinfoMessage(scip, NULL, "Number of infeasible nodes with 'fastest settings':\t%d \n", relaxdata->stableinfeasible);
+   SCIPinfoMessage(scip, NULL, "Number of infeasible nodes with 'stable settings':\t%d \n", relaxdata->unstableinfeasible);
+   SCIPinfoMessage(scip, NULL, "Number of infeasible nodes with 'penalty':\t%d \n", relaxdata->penaltyinfeasible);
+   SCIPinfoMessage(scip, NULL, "Number of infeasible nodes with 'computed infeasible lower bound':\t%d \n", relaxdata->boundedinfeasible);
+   SCIPinfoMessage(scip, NULL, "Number of infeasible nodes with 'unsolved':\t%d \n", relaxdata->unsolvedinfeasible);
+#endif
 #endif
 
    if ( relaxdata->varmapper != NULL )

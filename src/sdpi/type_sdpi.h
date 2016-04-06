@@ -74,6 +74,38 @@ enum SCIP_SDPSolverSetting
 };
 typedef enum SCIP_SDPSolverSetting SCIP_SDPSOLVERSETTING;
 
+/** SDP solver settings and slater */
+enum SCIP_SDPSlaterSetting
+{
+   SCIP_SDPSLATERSETTING_NOINFO           = 0, /**< slater check failed or problem not given to solver */
+   SCIP_SDPSLATERSETTING_STABLEWSLATER    = 1, /**< number of instances solved with fastest settings where primal and dual slater held */
+   SCIP_SDPSLATERSETTING_UNSTABLEWSLATER  = 2, /**< number of instances solved with stable settings where primal and dual slater held */
+   SCIP_SDPSLATERSETTING_PENALTYWSLATER   = 3, /**< number of instances solved with penalty formulation where primal and dual slater held */
+   SCIP_SDPSLATERSETTING_BOUNDEDWSLATER   = 4, /**< number of instances we could compute a bound for via the penalty approach where primal and dual slater held */
+   SCIP_SDPSLATERSETTING_UNSOLVEDWSLATER  = 5, /**< number of instances that could not be solved where primal and dual slater held */
+   SCIP_SDPSLATERSETTING_STABLENOSLATER   = 6, /**< number of instances solved with fastest setting where either primal or dual slater did not hold */
+   SCIP_SDPSLATERSETTING_UNSTABLENOSLATER = 7, /**< number of instances solved with stable settings where either primal or dual slater did not hold */
+   SCIP_SDPSLATERSETTING_PENALTYNOSLATER  = 8, /**< number of instances solved with penalty formulation where either primal or dual slater did not hold */
+   SCIP_SDPSLATERSETTING_BOUNDEDNOSLATER  = 9, /**< number of instances we could compute a bound for via the penalty approach where primal and dual slater held */
+   SCIP_SDPSLATERSETTING_UNSOLVEDNOSLATER = 10,/**< number of instances that could not be solved where either primal or dual slater did not hold */
+   SCIP_SDPSLATERSETTING_STABLEINFEASIBLE = 11, /**< number of instances solved with fastest setting where the dual slater check showed that the problem is infeasible */
+   SCIP_SDPSLATERSETTING_UNSTABLEINFEASIBLE= 12, /**< number of instances solved with stable settings where the dual slater check showed that the problem is infeasible */
+   SCIP_SDPSLATERSETTING_PENALTYINFEASIBLE= 13, /**< number of instances solved with penalty formulation where the dual slater check showed that the problem is infeasible */
+   SCIP_SDPSLATERSETTING_BOUNDEDINFEASIBLE= 14, /**< number of instances we could compute a bound for via the penalty approach where the dual slater check showed that the problem is infeasible */
+   SCIP_SDPSLATERSETTING_UNSOLVEDINFEASIBLE= 15 /**< number of instances that could not be solved where the dual slater check showed that the problem is infeasible */
+};
+typedef enum SCIP_SDPSlaterSetting SCIP_SDPSLATERSETTING;
+
+/** SDP solver settings used */
+enum SCIP_SDPSlater
+{
+   SCIP_SDPSLATER_INF    = -2, /**< problem is infeasible */
+   SCIP_SDPSLATER_NOINFO = -1, /**< check for slater condition failed */
+   SCIP_SDPSLATER_NOT    = 0,  /**< slater condition does not hold */
+   SCIP_SDPSLATER_HOLDS  = 1   /**< slater condition holds */
+};
+typedef enum SCIP_SDPSlater SCIP_SDPSLATER;
+
 typedef struct SCIP_SDPi SCIP_SDPI;                 /**< solver independent SDP interface */
 
 #ifdef __cplusplus

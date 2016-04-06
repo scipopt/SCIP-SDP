@@ -159,7 +159,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    int*                  sdpnblockvars,      /**< number of variables in each SDP block (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
    int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-Blocks */
    int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
-                                                  *  number of entries  of sdpconst row/col/val [i] */
+                                               *  number of entries  of sdpconst row/col/val [i] */
    int**                 sdpconstrow,        /**< pointer to row-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
    int**                 sdpconstcol,        /**< pointer to column-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
    SCIP_Real**           sdpconstval,        /**< pointer to values of entries of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
@@ -546,6 +546,21 @@ EXTERN
 SCIP_RETCODE SCIPsdpiSettingsUsed(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SCIP_SDPSOLVERSETTING* usedsetting        /**< the setting used by the SDP solver */
+   );
+
+/** returns which settings the SDP solver used in the last solve call and whether primal and dual slater condition were fullfilled */
+EXTERN
+SCIP_RETCODE SCIPsdpiSlaterSettings(
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   SCIP_SDPSLATERSETTING* slatersetting      /**< the combination of slater conditions and successfull settings */
+   );
+
+/** returns whether primal and dual slater condition held for last solved SDP */
+EXTERN
+SCIP_RETCODE SCIPsdpiSlater(
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   SCIP_SDPSLATER*       primalslater,       /**< pointer to save whether primal slater condition held */
+   SCIP_SDPSLATER*       dualslater          /**< pointer to save whether dual slater condition held */
    );
 
 /**@} */

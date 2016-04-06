@@ -37,7 +37,6 @@
  * @brief  General interface methods for SDP-preprocessing (mainly fixing variables and removing empty rows/cols)
  * @author Tristan Gally
  */
-
 #include <assert.h>
 #include <time.h>
 
@@ -113,7 +112,7 @@
                       }                                                                                       \
                       while( FALSE )
 
-/* should the slater condition also be checked for the primal problem? (this in general doesnot work if variables are bounded both from above and below */
+/* #define PRINTSLATER */
 #define NINCREASESGAMMA             2        /**< How often will Gamma at most be increased if penalty formulation failed */
 #define MIN_EPSILON                 1e-10    /**< minimum epsilon for SDP solver if decreasing it for a penalty formulation */
 
@@ -176,6 +175,8 @@ struct SCIP_SDPi
    SCIP_Real             penaltyparam;       /**< the starting penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
    SCIP_Real             maxpenaltyparam;    /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
    SCIP_Real             bestbound;          /**< best bound computed with a penalty formulation */
+   SCIP_SDPSLATER        primalslater;       /**< did the primal slater condition hold for the last problem */
+   SCIP_SDPSLATER        dualslater;         /**< did the dual slater condition hold for the last problem */
 };
 
 /*
@@ -1066,6 +1067,8 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->feastol = DEFAULT_SDPSOLVERFEASTOL;
    (*sdpi)->penaltyparam = DEFAULT_PENALTYPARAM;
    (*sdpi)->bestbound = -SCIPsdpiSolverInfinity((*sdpi)->sdpisolver);
+   (*sdpi)->primalslater = SCIP_SDPSLATER_NOINFO;
+   (*sdpi)->dualslater = SCIP_SDPSLATER_NOINFO;
 
    return SCIP_OKAY;
 }
@@ -2094,6 +2097,8 @@ SCIP_RETCODE SCIPsdpiSolve(
       SCIP_CALL( SCIPsdpiSolverIncreaseCounter(sdpi->sdpisolver) );
 
       sdpi->solved = TRUE;
+      sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
+      sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
    }
    else if ( sdpi->allfixed )
    {
@@ -2101,6 +2106,8 @@ SCIP_RETCODE SCIPsdpiSolve(
       SCIP_CALL( SCIPsdpiSolverIncreaseCounter(sdpi->sdpisolver) );
 
       sdpi->solved = TRUE;
+      sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
+      sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
    }
    else
    {
@@ -2145,27 +2152,50 @@ SCIP_RETCODE SCIPsdpiSolve(
 
          if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) )
          {
+#ifdef PRINTSLATER
             printf("Unable to check Slater condition for dual problem.\n");
+#endif
+            sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
          }
          else
          {
             if ( SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
             {
                SCIPdebugMessage("Slater condition for dual problem for SDP %d fullfilled, smallest eigenvalue maximization problem unbounded.\n", sdpi->sdpid);
+               sdpi->dualslater = SCIP_SDPSLATER_HOLDS;
             }
             else if ( SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) )
             {
-               printf("Slater condition for dual problem for SDP %d no fullfilled, problem infeasible.\n", sdpi->sdpid);
+#ifdef PRINTSLATER
+               printf("Slater condition for dual problem for SDP %d not fullfilled, problem infeasible.\n", sdpi->sdpid);
+#endif
+               sdpi->dualslater = SCIP_SDPSLATER_NOT;
             }
             else
             {
                SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
 
-               if ( objval < - sdpi->epsilon )
+               if ( objval < - sdpi->feastol )
+               {
                   SCIPdebugMessage("Slater condition for SDP %d is fullfilled for dual problem with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);
-               else
+                  sdpi->dualslater = SCIP_SDPSLATER_HOLDS;
+               }
+               else if ( objval < sdpi->epsilon )
+               {
+#ifdef PRINTSLATER
                   printf("Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, expect numerical trouble.\n",
-                     sdpi->sdpid, -1.0 * objval);
+                        sdpi->sdpid, -1.0 * objval);
+#endif
+                  sdpi->dualslater = SCIP_SDPSLATER_NOT;
+               }
+               else
+               {
+#ifdef PRINTSLATER
+                  printf("Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, problem is infeasible.\n",
+                        sdpi->sdpid, -1.0 * objval);
+#endif
+                  sdpi->dualslater = SCIP_SDPSLATER_INF;
+               }
             }
          }
 
@@ -2298,16 +2328,13 @@ SCIP_RETCODE SCIPsdpiSolve(
          if ( slaternremovedvarbounds == 2 * sdpi->nvars )
          {
             SCIPdebugMessage("Slater condition for primal problem for SDP %d fullfilled as all variables have finite upper and lower bounds \n",sdpi->sdpid);
+            sdpi->primalslater = SCIP_SDPSLATER_HOLDS;
          }
          else
          {
             /* compute the timit limit to set for the solver */
-            solvertimelimit = timelimit;
-            if ( ! SCIPsdpiIsInfinity(sdpi, solvertimelimit) )
-            {
-               currenttime = clock();
-               solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;
-            }
+            currenttime = clock();
+            solvertimelimit = timelimit - ((double)(currenttime - starttime) / (double) CLOCKS_PER_SEC);
 
             /* solve the problem to check slater condition for primal of original problem */
             SCIP_CALL( SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, slaterlb, slaterub,
@@ -2318,18 +2345,40 @@ SCIP_RETCODE SCIPsdpiSolve(
                   SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit) );
 
             if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) && ! SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver) )
+            {
+#ifdef PRINTSLATER
                printf("Unable to check Slater condition for primal problem, could not solve auxilliary problem.\n");
-            else
+#endif
+               sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
+            }
+         }
+
+         /* if all variables have finite upper and lower bounds these add variables to every constraint of the
+          * primal problem that allow us to make the problem feasible for every primal matrix X, so the primal
+          * slater condition holds */
+         if ( slaternremovedvarbounds == 2 * sdpi->nvars )
+         {
+            SCIPdebugMessage("Slater condition for primal problem for SDP %d fullfilled as all variables have finite upper and lower bounds \n",sdpi->sdpid);
+         }
+         else
+         {
+            /* compute the timit limit to set for the solver */
+            solvertimelimit = timelimit;
+            if ( ! SCIPsdpiIsInfinity(sdpi, solvertimelimit) )
             {
                if ( SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
                {
+#ifdef PRINTSLATER
                   printf("Slater condition for primal problem for SDP %d not fullfilled "
                          "smallest eigenvalue has to be negative, so primal problem is infeasible (if the dual slater condition holds,"
                          "this means, that the original (dual) problem is unbounded.\n",sdpi->sdpid);
+#endif
+                  sdpi->primalslater = SCIP_SDPSLATER_NOT;
                }
                if ( SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver) )
                {
                   SCIPdebugMessage("Slater condition for primal problem for SDP %d fullfilled, smallest eigenvalue maximization problem unbounded \n",sdpi->sdpid);
+                  sdpi->primalslater = SCIP_SDPSLATER_HOLDS;
                }
                else
                {
@@ -2337,11 +2386,17 @@ SCIP_RETCODE SCIPsdpiSolve(
 
                   if ( objval > - sdpi->feastol)
                   {
+#ifdef PRINTSLATER
                      printf("Slater condition for primal problem for SDP %d not fullfilled "
                             "as smallest eigenvalue was %f, expect numerical trouble or infeasible problem.\n",sdpi->sdpid, -1.0 * objval);
+#endif
+                     sdpi->primalslater = SCIP_SDPSLATER_NOT;
                   }
-                   else
-                   SCIPdebugMessage("Slater condition for primal problem of SDP %d is fullfilled with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);
+                  else
+                  {
+                     SCIPdebugMessage("Slater condition for primal problem of SDP %d is fullfilled with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);
+                     sdpi->primalslater = SCIP_SDPSLATER_HOLDS;
+                  }
                }
             }
          }
@@ -3201,6 +3256,343 @@ SCIP_RETCODE SCIPsdpiSettingsUsed(
    }
 
    SCIP_CALL( SCIPsdpiSolverSettingsUsed(sdpi->sdpisolver, usedsetting) );
+   return SCIP_OKAY;
+}
+
+/** returns which settings the SDP solver used in the last solve call and whether primal and dual slater condition were fullfilled */
+SCIP_RETCODE SCIPsdpiSlaterSettings(
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   SCIP_SDPSLATERSETTING* slatersetting      /**< the combination of slater conditions and successfull settings */
+   )
+{
+   SCIP_SDPSOLVERSETTING usedsetting;
+
+   assert( sdpi != NULL );
+   assert( slatersetting != NULL );
+
+   if ( ! sdpi->solved )
+   {
+      SCIPdebugMessage("Problem was not solved successfully");
+      if ( sdpi->bestbound > -SCIPsdpiSolverInfinity(sdpi->sdpisolver) )
+      {
+         SCIPdebugMessage(", but we could at least compute a lower bound. \n");
+         if ( sdpi->dualslater == SCIP_SDPSLATER_INF)
+            *slatersetting = SCIP_SDPSLATERSETTING_BOUNDEDINFEASIBLE;
+         else
+         {
+            switch( sdpi->primalslater )/*lint --e{788}*/
+            {
+               case SCIP_SDPSLATER_NOINFO:
+                  if ( sdpi->dualslater == SCIP_SDPSLATER_NOT )
+                     *slatersetting = SCIP_SDPSLATERSETTING_BOUNDEDNOSLATER;
+                  else
+                     *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+                  break;
+               case SCIP_SDPSLATER_NOT:
+                  *slatersetting = SCIP_SDPSLATERSETTING_BOUNDEDNOSLATER;
+                  break;
+               case SCIP_SDPSLATER_HOLDS:
+                  switch( sdpi->dualslater )/*lint --e{788}*/
+                  {
+                     case SCIP_SDPSLATER_NOINFO:
+                        *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+                        break;
+                     case SCIP_SDPSLATER_NOT:
+                        *slatersetting = SCIP_SDPSLATERSETTING_BOUNDEDNOSLATER;
+                        break;
+                     case SCIP_SDPSLATER_HOLDS:
+                        *slatersetting = SCIP_SDPSLATERSETTING_BOUNDEDWSLATER;
+                        break;
+                     default:
+                        *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+                        break;
+                  }
+                  break;
+                  default:
+                     *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+                     break;
+            }
+         }
+      }
+      else
+      {
+         SCIPdebugMessage(".\n");
+         if ( sdpi->dualslater == SCIP_SDPSLATER_INF)
+            *slatersetting = SCIP_SDPSLATERSETTING_UNSOLVEDINFEASIBLE;
+         else
+         {
+            switch( sdpi->primalslater )/*lint --e{788}*/
+            {
+               case SCIP_SDPSLATER_NOINFO:
+                  if ( sdpi->dualslater == SCIP_SDPSLATER_NOT )
+                     *slatersetting = SCIP_SDPSLATERSETTING_UNSOLVEDNOSLATER;
+                  else
+                     *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+                  break;
+               case SCIP_SDPSLATER_NOT:
+                  *slatersetting = SCIP_SDPSLATERSETTING_UNSOLVEDNOSLATER;
+                  break;
+               case SCIP_SDPSLATER_HOLDS:
+                  switch( sdpi->dualslater )/*lint --e{788}*/
+                  {
+                     case SCIP_SDPSLATER_NOINFO:
+                        *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+                        break;
+                     case SCIP_SDPSLATER_NOT:
+                        *slatersetting = SCIP_SDPSLATERSETTING_UNSOLVEDNOSLATER;
+                        break;
+                     case SCIP_SDPSLATER_HOLDS:
+                        *slatersetting = SCIP_SDPSLATERSETTING_UNSOLVEDWSLATER;
+                        break;
+                     default:
+                        *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+                        break;
+                  }
+                  break;
+               default:
+                  *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+                  break;
+            }
+         }
+      }
+      return SCIP_OKAY;
+   }
+   else if ( sdpi->infeasible && ( ! sdpi->penalty ) ) /* if we solved the penalty formulation, we may also set infeasible if it is infeasible for the original problem */
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, no settings used.\n");
+      *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+      return SCIP_OKAY;
+   }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All varialbes fixed during preprocessing, no settings used.\n");
+      *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+      return SCIP_OKAY;
+   }
+   else if ( sdpi->penalty )
+   {
+      switch( sdpi->primalslater )/*lint --e{788}*/
+      {
+         case SCIP_SDPSLATER_NOINFO:
+            if ( sdpi->dualslater == SCIP_SDPSLATER_NOT )
+               *slatersetting = SCIP_SDPSLATERSETTING_PENALTYNOSLATER;
+            else if ( sdpi->dualslater == SCIP_SDPSLATER_INF )
+               *slatersetting = SCIP_SDPSLATERSETTING_PENALTYINFEASIBLE;
+            else
+               *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+            break;
+         case SCIP_SDPSLATER_NOT:
+            if ( sdpi->dualslater == SCIP_SDPSLATER_INF )
+               *slatersetting = SCIP_SDPSLATERSETTING_PENALTYINFEASIBLE;
+            else
+               *slatersetting = SCIP_SDPSLATERSETTING_PENALTYNOSLATER;
+            break;
+         case SCIP_SDPSLATER_HOLDS:
+            switch( sdpi->dualslater )/*lint --e{788}*/
+            {
+               case SCIP_SDPSLATER_NOINFO:
+                  *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+                  break;
+               case SCIP_SDPSLATER_NOT:
+                  *slatersetting = SCIP_SDPSLATERSETTING_PENALTYNOSLATER;
+                  break;
+               case SCIP_SDPSLATER_HOLDS:
+                  *slatersetting = SCIP_SDPSLATERSETTING_PENALTYWSLATER;
+                  break;
+               case SCIP_SDPSLATER_INF:
+                  *slatersetting = SCIP_SDPSLATERSETTING_PENALTYINFEASIBLE;
+                  break;
+               default:
+                  *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+                  break;
+            }
+            break;
+         default:
+            *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+            break;
+      }
+      return SCIP_OKAY;
+   }
+
+   switch( sdpi->primalslater )/*lint --e{788}*/
+   {
+   case SCIP_SDPSLATER_NOINFO:
+      if ( sdpi->dualslater == SCIP_SDPSLATER_NOT )
+      {
+         usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
+         SCIP_CALL( SCIPsdpiSolverSettingsUsed(sdpi->sdpisolver, &usedsetting) );
+         switch( usedsetting )/*lint --e{788}*/
+         {
+            case SCIP_SDPSOLVERSETTING_FAST:
+               *slatersetting = SCIP_SDPSLATERSETTING_STABLENOSLATER;
+               break;
+            case SCIP_SDPSOLVERSETTING_MEDIUM:
+            case SCIP_SDPSOLVERSETTING_STABLE:
+               *slatersetting = SCIP_SDPSLATERSETTING_UNSTABLENOSLATER;
+               break;
+            default:
+               *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+               break;
+         }
+      }
+      if ( sdpi->dualslater == SCIP_SDPSLATER_INF )
+      {
+         usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
+         SCIP_CALL( SCIPsdpiSolverSettingsUsed(sdpi->sdpisolver, &usedsetting) );
+         switch( usedsetting )/*lint --e{788}*/
+         {
+            case SCIP_SDPSOLVERSETTING_FAST:
+               *slatersetting = SCIP_SDPSLATERSETTING_STABLEINFEASIBLE;
+               break;
+            case SCIP_SDPSOLVERSETTING_MEDIUM:
+            case SCIP_SDPSOLVERSETTING_STABLE:
+               *slatersetting = SCIP_SDPSLATERSETTING_UNSTABLEINFEASIBLE;
+               break;
+            default:
+               *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+               break;
+         }
+      }
+      else
+         *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+      break;
+   case SCIP_SDPSLATER_NOT:
+      if ( sdpi->dualslater == SCIP_SDPSLATER_INF )
+      {
+         usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
+         SCIP_CALL( SCIPsdpiSolverSettingsUsed(sdpi->sdpisolver, &usedsetting) );
+         switch( usedsetting )/*lint --e{788}*/
+         {
+            case SCIP_SDPSOLVERSETTING_FAST:
+               *slatersetting = SCIP_SDPSLATERSETTING_STABLEINFEASIBLE;
+               break;
+            case SCIP_SDPSOLVERSETTING_MEDIUM:
+            case SCIP_SDPSOLVERSETTING_STABLE:
+               *slatersetting = SCIP_SDPSLATERSETTING_UNSTABLEINFEASIBLE;
+               break;
+            default:
+               *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+               break;
+         }
+      }
+      else
+      {
+         usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
+         SCIP_CALL( SCIPsdpiSolverSettingsUsed(sdpi->sdpisolver, &usedsetting) );
+         switch( usedsetting )/*lint --e{788}*/
+         {
+            case SCIP_SDPSOLVERSETTING_FAST:
+               *slatersetting = SCIP_SDPSLATERSETTING_STABLENOSLATER;
+               break;
+            case SCIP_SDPSOLVERSETTING_MEDIUM:
+            case SCIP_SDPSOLVERSETTING_STABLE:
+               *slatersetting = SCIP_SDPSLATERSETTING_UNSTABLENOSLATER;
+               break;
+            default:
+               *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+               break;
+         }
+      }
+      break;
+   case SCIP_SDPSLATER_HOLDS:
+      switch( sdpi->dualslater )/*lint --e{788}*/
+      {
+      case SCIP_SDPSLATER_NOINFO:
+         *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+         break;
+      case SCIP_SDPSLATER_NOT:
+         usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
+         SCIP_CALL( SCIPsdpiSolverSettingsUsed(sdpi->sdpisolver, &usedsetting) );
+         switch( usedsetting )/*lint --e{788}*/
+         {
+            case SCIP_SDPSOLVERSETTING_FAST:
+               *slatersetting = SCIP_SDPSLATERSETTING_STABLENOSLATER;
+               break;
+            case SCIP_SDPSOLVERSETTING_MEDIUM:
+            case SCIP_SDPSOLVERSETTING_STABLE:
+               *slatersetting = SCIP_SDPSLATERSETTING_UNSTABLENOSLATER;
+               break;
+            default:
+               *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+               break;
+         }
+         break;
+         case SCIP_SDPSLATER_INF:
+            usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
+            SCIP_CALL( SCIPsdpiSolverSettingsUsed(sdpi->sdpisolver, &usedsetting) );
+            switch( usedsetting )/*lint --e{788}*/
+            {
+               case SCIP_SDPSOLVERSETTING_FAST:
+                  *slatersetting = SCIP_SDPSLATERSETTING_STABLEINFEASIBLE;
+                  break;
+               case SCIP_SDPSOLVERSETTING_MEDIUM:
+               case SCIP_SDPSOLVERSETTING_STABLE:
+                  *slatersetting = SCIP_SDPSLATERSETTING_UNSTABLEINFEASIBLE;
+                  break;
+               default:
+                  *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+                  break;
+            }
+            break;
+         case SCIP_SDPSLATER_HOLDS:
+            usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
+            SCIP_CALL( SCIPsdpiSolverSettingsUsed(sdpi->sdpisolver, &usedsetting) );
+            switch( usedsetting )/*lint --e{788}*/
+            {
+               case SCIP_SDPSOLVERSETTING_FAST:
+                  *slatersetting = SCIP_SDPSLATERSETTING_STABLEWSLATER;
+                  break;
+               case SCIP_SDPSOLVERSETTING_MEDIUM:
+               case SCIP_SDPSOLVERSETTING_STABLE:
+                  *slatersetting = SCIP_SDPSLATERSETTING_UNSTABLEWSLATER;
+                  break;
+               default:
+                  *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+                  break;
+            }
+            break;
+         default:
+            *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+            break;
+      }
+      break;
+   default:
+      *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+      break;
+   }
+
+   return SCIP_OKAY;
+}
+
+/** returns whether primal and dual slater condition held for last solved SDP */
+SCIP_RETCODE SCIPsdpiSlater(
+   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
+   SCIP_SDPSLATER*       primalslater,       /**< pointer to save whether primal slater condition held */
+   SCIP_SDPSLATER*       dualslater          /**< pointer to save whether dual slater condition held */
+   )
+{
+   assert( sdpi != NULL );
+   assert( primalslater != NULL );
+   assert( dualslater != NULL );
+
+
+   if ( sdpi->infeasible )
+   {
+      *primalslater = SCIP_SDPSLATER_NOINFO;
+      *dualslater = sdpi->dualslater;
+      return SCIP_OKAY;
+   }
+
+   if (sdpi->allfixed )
+   {
+      *primalslater = SCIP_SDPSLATER_NOINFO;
+      *dualslater = SCIP_SDPSLATER_NOINFO;
+      return SCIP_OKAY;
+   }
+
+   *primalslater = sdpi->primalslater;
+   *dualslater = sdpi->dualslater;
+
    return SCIP_OKAY;
 }
 
