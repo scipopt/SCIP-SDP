@@ -1,13 +1,11 @@
 =opt= gas1 219.336112
-=opt= gas2 306.899062
 =opt= maxcut1 6365.94404
 =opt= maxcut2 5863.79051
 =opt= RIPl1 0.0863960957
 =opt= RIPr1 -4.15822554
-=opt= RIPr2 -3.66009376396311e+00
-=opt= RIPr3 -59.2904066
-=opt= TT_2scen 39014.1627
-=opt= TT_act 22529.1641
 =opt= TT_beam_opt 0.255094216
 =opt= TT_passive 24009.9972
-
+=opt= CLS_rand32 19.7225949526
+=opt= CLS_CC 127.471222141
+=opt= minK_vlsi -144.000019067
+=opt= minK_rand -1872608.0

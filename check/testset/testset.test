@@ -1,12 +1,11 @@
 ../testset/gas1.dat-s
-../testset/gas2.dat-s
 ../testset/maxcut1.dat-s
 ../testset/maxcut2.dat-s
 ../testset/RIPl1.dat-s
 ../testset/RIPr1.dat-s
-../testset/RIPr2.dat-s
-../testset/RIPr3.dat-s
-../testset/TT_2scen.dat-s
-../testset/TT_act.dat-s
 ../testset/TT_beam_opt.dat-s
 ../testset/TT_passive.dat-s
+../testset/CLS_CC.dat-s
+../testset/CLS_rand32.dat-s
+../testset/minK_vlsi.dat-s
+../testset/minK_rand.dat-s
