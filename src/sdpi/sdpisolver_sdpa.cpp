@@ -1248,7 +1248,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       *feasorig = (sdpasol[sdpisolver->nactivevars] < sdpisolver->feastol); /*lint !e413*/
 
       /* if r > 0 or we are in debug mode, also check the primal bound */
-#ifndef NDEBUG
+#ifdef NDEBUG
       if ( ! *feasorig && penaltybound != NULL )
       {
 #endif
@@ -1289,16 +1289,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          /* if the relative gap is smaller than the tolerance, we return equality */
          if ( (penaltyparam - trace) / penaltyparam < PENALTYBOUNDTOL )
          {
-            *penaltybound = TRUE;
+            if ( penaltybound != NULL )
+               *penaltybound = TRUE;
             SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible\n",
                   trace, penaltyparam);
          }
-         else
+         else if ( penaltybound != NULL )
             *penaltybound = FALSE;
 
-         /* if the primal bound is attained, r should also be strictly positive (outside of debug we will not even compute it otherwise) */
-         assert( ( ! *penaltybound ) || ( ! *feasorig ) );
-#ifndef NDEBUG
+#ifdef NDEBUG
       }
 #endif
    }
