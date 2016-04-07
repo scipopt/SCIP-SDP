@@ -47,7 +47,7 @@
 
 #define BRANCHRULE_NAME            "sdpinfobjective"
 #define BRANCHRULE_DESC            "branch on variable with highest product of fractionality/integral-infeasibility and absolute objective of the SDP"
-#define BRANCHRULE_PRIORITY        -5000
+#define BRANCHRULE_PRIORITY        2000000
 #define BRANCHRULE_MAXDEPTH        -1
 #define BRANCHRULE_MAXBOUNDDIST    1.0
 #define DEFAULT_COUPLEDVARS        FALSE     /**< if all branching candidates have objective zero, should we use the sum of the absolute objectives of all
