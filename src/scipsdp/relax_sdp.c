@@ -1756,7 +1756,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
 
    /* create SDP relaxator data */
    SCIP_CALL( SCIPallocMemory(scip, &relaxdata) );
-   SCIP_CALL( SCIPsdpiCreate(&sdpi, NULL, SCIPblkmem(scip)) );
+   SCIP_CALL( SCIPsdpiCreate(&sdpi, SCIPgetMessagehdlr(scip), SCIPblkmem(scip)) );
 
    relaxdata->sdpi = sdpi;
    relaxdata->lastsdpnode = -1;

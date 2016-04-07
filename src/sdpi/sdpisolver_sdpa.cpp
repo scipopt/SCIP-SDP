@@ -1003,25 +1003,25 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                if ( lastrow >= 0 )
                {
                   if ( lprhs[ind] < SCIPsdpiSolverInfinity(sdpisolver) )
-                     printf(" <= %f\n", lprhs[ind]);
+                     SCIPmessagePrintInfo(sdpi->messagehdlr, " <= %f\n", lprhs[ind]);
                   else
-                     printf("\n");
+                     SCIPmessagePrintInfo(sdpi->messagehdlr, "\n");
                }
                lastrow = lprow[i];
                ind++;
                if ( lplhs[ind] > - SCIPsdpiSolverInfinity(sdpisolver) )
-                  printf("%f <= ", lplhs[ind]);
+                  SCIPmessagePrintInfo(sdpi->messagehdlr, "%f <= ", lplhs[ind]);
             }
-            printf("+ %f <x%d> ", lpval[i], lpcol[i]);
+            SCIPmessagePrintInfo(sdpi->messagehdlr, "+ %f <x%d> ", lpval[i], lpcol[i]);
          }
       }
    }
    if ( lastrow >= 0 )
    {
       if ( lprhs[ind] < SCIPsdpiSolverInfinity(sdpisolver) )
-         printf(" <= %f\n", lprhs[ind]);
+         SCIPmessagePrintInfo(sdpi->messagehdlr, " <= %f\n", lprhs[ind]);
       else
-         printf("\n");
+         SCIPmessagePrintInfo(sdpi->messagehdlr, "\n");
    }
    assert( ind == nlpcons - 1 ); /* -1 because we start indexing at zero and do not increase after the last row */
 #endif

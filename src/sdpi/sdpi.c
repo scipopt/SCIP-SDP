@@ -2153,7 +2153,7 @@ SCIP_RETCODE SCIPsdpiSolve(
          if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) )
          {
             if ( sdpi->slatercheck == 2 )
-               printf("Unable to check Slater condition for dual problem.\n");
+               SCIPmessagePrintInfo(sdpi->messagehdlr, "Unable to check Slater condition for dual problem.\n");
             sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
          }
          else
@@ -2166,7 +2166,7 @@ SCIP_RETCODE SCIPsdpiSolve(
             else if ( SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) )
             {
                if ( sdpi->slatercheck == 2 )
-                  printf("Slater condition for dual problem for SDP %d not fullfilled, problem infeasible.\n", sdpi->sdpid);
+                  SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for dual problem for SDP %d not fullfilled, problem infeasible.\n", sdpi->sdpid);
                sdpi->dualslater = SCIP_SDPSLATER_NOT;
             }
             else
@@ -2182,7 +2182,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                {
                   if ( sdpi->slatercheck == 2 )
                   {
-                     printf("Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, expect numerical trouble.\n",
+                     SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, expect numerical trouble.\n",
                            sdpi->sdpid, -1.0 * objval);
                   }
                   sdpi->dualslater = SCIP_SDPSLATER_NOT;
@@ -2191,7 +2191,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                {
                   if ( sdpi->slatercheck == 2 )
                   {
-                     printf("Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, problem is infeasible.\n",
+                     SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, problem is infeasible.\n",
                            sdpi->sdpid, -1.0 * objval);
                   }
                   sdpi->dualslater = SCIP_SDPSLATER_INF;
@@ -2347,7 +2347,7 @@ SCIP_RETCODE SCIPsdpiSolve(
             if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) && ! SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver) )
             {
                if ( sdpi->slatercheck == 2 )
-                  printf("Unable to check Slater condition for primal problem, could not solve auxilliary problem.\n");
+                  SCIPmessagePrintInfo(sdpi->messagehdlr, "Unable to check Slater condition for primal problem, could not solve auxilliary problem.\n");
                sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
             }
          }
@@ -2369,7 +2369,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                {
                   if ( sdpi->slatercheck == 2 )
                   {
-                     printf("Slater condition for primal problem for SDP %d not fullfilled "
+                     SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problem for SDP %d not fullfilled "
                            "smallest eigenvalue has to be negative, so primal problem is infeasible (if the dual slater condition holds,"
                            "this means, that the original (dual) problem is unbounded.\n",sdpi->sdpid);
                   }
@@ -2388,7 +2388,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                   {
                      if ( sdpi->slatercheck == 2 )
                      {
-                        printf("Slater condition for primal problem for SDP %d not fullfilled "
+                        SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problem for SDP %d not fullfilled "
                                  "as smallest eigenvalue was %f, expect numerical trouble or infeasible problem.\n",sdpi->sdpid, -1.0 * objval);
                      }
                      sdpi->primalslater = SCIP_SDPSLATER_NOT;
@@ -2593,7 +2593,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                /* if we didn't succeed, then probably the primal problem is troublesome */
                if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
                {
-                  printf("SDP-solver could not solve root node relaxation, unable to check Slater condition for dual problem of SDP %d, could mean that the "
+                  SCIPmessagePrintInfo(sdpi->messagehdlr, "SDP-solver could not solve root node relaxation, unable to check Slater condition for dual problem of SDP %d, could mean that the "
                         "Slater conidition for the primal problem is not fullfilled.\n", sdpi->sdpid);
                }
                else
@@ -2602,19 +2602,19 @@ SCIP_RETCODE SCIPsdpiSolve(
 
                   if ( objval < - sdpi->feastol )
                   {
-                     printf("SDP-solver could not solve root node relaxation even though the Slater condition is fullfilled for the dual problem with smallest eigenvalue %f.\n",
+                     SCIPmessagePrintInfo(sdpi->messagehdlr, "SDP-solver could not solve root node relaxation even though the Slater condition is fullfilled for the dual problem with smallest eigenvalue %f.\n",
                            -1.0 * objval);
                   }
                   else
                   {
-                     printf("SDP-solver could not solve root node relaxation, Slater condition is not fullfilled for the dual problem as smallest eigenvalue was %f.\n",
+                     SCIPmessagePrintInfo(sdpi->messagehdlr, "SDP-solver could not solve root node relaxation, Slater condition is not fullfilled for the dual problem as smallest eigenvalue was %f.\n",
                            -1.0 * objval);
                   }
                }
             }
             else if ( sdpi->solved == FALSE )
 #if 0
-               printf("Numerical trouble\n");
+               SCIPmessagePrintInfo(sdpi->messagehdlr, "Numerical trouble\n");
 #else
             SCIPdebugMessage("SDP-Interface was unable to solve SDP %d\n", sdpi->sdpid);
 #endif
