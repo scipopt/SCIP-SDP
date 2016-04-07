@@ -1613,7 +1613,7 @@ SCIP_DECL_RELAXEXIT(relaxExitSdp)
 
    SCIPdebugMessage("Exiting Relaxation Handler.\n");
 
-   if ( relaxdata->displaystat )
+   if ( relaxdata->displaystat && SCIPgetSubscipDepth(scip) == 0 )
    {
       SCIPinfoMessage(scip, NULL, "\nSDP iterations:\t\t\t\t%6d\n", relaxdata->sdpiterations);
       SCIPinfoMessage(scip, NULL, "Average SDP-iterations:\t\t\t%6.2f \n", (double) relaxdata->sdpiterations / (double) relaxdata->sdpcalls );
