@@ -226,7 +226,7 @@ SCIP_Bool isFixed(
    return ( REALABS(ub-lb) <= sdpi->feastol );
 }
 #else
-#define isFixed(sdpi, v) (REALABS(sdpi->ub[v] - sdpi->lb[v]) <= sdpi->epsilon)
+#define isFixed(sdpi, v) (REALABS(sdpi->ub[v] - sdpi->lb[v]) <= sdpi->feastol)
 #endif
 
 /** Computes the constant Matrix after all variables with lb=ub have been fixed and their nonzeros were moved to the constant part. The five variables
