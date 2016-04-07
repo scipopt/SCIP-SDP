@@ -78,7 +78,7 @@
  * <tr><td>relaxing/SDP/sdpsolverfeastol = 0.00001</td> <td>feasibility tolerance for the SDP-Solver (should be less or equal to numerics/feastol)</td></tr>
  * <tr><td>relaxing/SDP/sdpinfo = FALSE</td> <td>should output of the SDP-Solver be printed to the console?</td></tr>
  * <tr><td>relaxing/SDP/objlimit = FALSE</td> <td>should an objective limit be given to the SDP-Solver?</td></tr>
- * <tr><td>relaxing/SDP/slatercheck = FALSE</td> <td>should the Slater condition for the primal and dual problem be checked ahead of solving each SDP?</td></tr>
+ * <tr><td>relaxing/SDP/slatercheck = 0</td> <td>should the Slater condition for the dual problem be check ahead of solving each SDP? 0: no, 1: yes and output statistics, 2: yes and print warning for every problem not satisfying primal and dual Slater condition</td></tr>
  * <tr><td>relaxing/SDP/lambdastar = -1</td> <td>the parameter lambda star used by SDPA to set the initial point , set this to a negative value to compute the parameter depending on the given problem</td></tr>
  * <tr><td>relaxing/SDP/penaltyparam = -1</td> <td>the starting value of the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge, set this to a negative value to compute the parameter depending on the given problem</td></tr>
  * <tr><td>relaxing/SDP/maxpenaltyparam = -1</td> <td>the maximum value of the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge, set this to a negative value to compute the parameter depending on the given problem</td></tr>

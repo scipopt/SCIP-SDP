@@ -15,7 +15,7 @@ fixed bugs:
 features:
 - added diving heuristic for SDPs
 - added optimization-based bound tightening for SDPs (disabled by default)
-- added possibility to also check primal slater condition
+- added possibility to also check primal slater condition and output statistics in the end
 
 performance improvements:
 - in case of numerical problems, child nodes are no longer tried to solve with fast settings in SDPA, but instead with
@@ -32,6 +32,8 @@ parameters:
 - lambda star parameter for initial point in SDPA can now be changed by a parameter
 - frequency of parameter resets in SDPA can be set by a parameter
 - number of threads for SDPA/Openblas can now be changed via parameter if Intel® MKL is installed
+- slatercheck is now an int parameter that also determines whether Slater results should be printed to console or
+  only displayed as statistics in the end
 
 core:
 - in the penalty formulation the primal bound added by the penalty parameter is now also checked to decide between
