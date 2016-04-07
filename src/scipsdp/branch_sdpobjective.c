@@ -47,7 +47,7 @@
 
 #define BRANCHRULE_NAME            "sdpobjective"
 #define BRANCHRULE_DESC            "branch on variable with highest absolute objective of the SDP"
-#define BRANCHRULE_PRIORITY        0
+#define BRANCHRULE_PRIORITY        1500000
 #define BRANCHRULE_MAXDEPTH        -1
 #define BRANCHRULE_MAXBOUNDDIST    1.0
 #define DEFAULT_COUPLEDVARS        FALSE     /**< if all branching candidates have objective zero, should we use the sum of the absolute objectives of all
