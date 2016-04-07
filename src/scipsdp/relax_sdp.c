@@ -66,9 +66,12 @@
 #define DEFAULT_LAMBDASTAR          -1.0     /**< the parameter lambda star used by SDPA to set the initial point */
 #define DEFAULT_MAXPENALTYPARAM     -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 #define DEFAULT_THREADS             1        /**< number of threads used for SDP solving */
-#define DEFAULT_OBJLIMIT            FALSE    /**< should an objective limit be given to the SDP-Solver ? */
+#define DEFAULT_SLATERCHECK         0        /**< Should the Slater condition be checked ? */
+#define DEFAULT_OBJLIMIT            FALSE    /**< Should an objective limit be given to the SDP-Solver ? */
 #define DEFAULT_RESOLVE             TRUE     /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
 #define DEFAULT_TIGHTENVB           FALSE    /**< Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ? */
+#define DEFAULT_SDPINFO             FALSE    /**< Should the SDP solver output information to the screen? */
+#define DEFAULT_DISPLAYSTAT         TRUE     /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
 #define DEFAULT_SETTINGSRESETFREQ   -1       /**< frequency for resetting parameters in SDP solver and trying again with fastest settings */
 #define DEFAULT_SETTINGSRESETOFS    0        /**< frequency offset for resetting parameters in SDP solver and trying again with fastest settings */
 
@@ -86,7 +89,6 @@
 #define LAMBDASTAR_LOW              1.5      /**< if lambda star is to be computed and LAMBDASTAR_TWOPOINTS=TRUE, then this is the value for below the threshold */
 #define LAMBDASTAR_HIGH             1e5      /**< if lambda star is to be computed and LAMBDASTAR_TWOPOINTS=TRUE, then this is the value for above the threshold */
 
-#define PRINT_STATISTICS /* uncomment this to print additional statistics after the computation is finished */
 /*#define SLATERSOLVED_ABSOLUTE *//* uncomment this to return the absolute number of nodes for, e.g., solved fast with slater in addition to percentages */
 
 /*
@@ -115,6 +117,7 @@ struct SCIP_RelaxData
    int                   threads;            /**< number of threads used for SDP solving */
    int                   slatercheck;        /**< Should the Slater condition for the dual problem be check ahead of solving every SDP ? */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
+   SCIP_Bool             displaystat;        /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
    SCIP_Bool             objlimit;           /**< Should an objective limit be given to the SDP solver? */
    SCIP_Bool             resolve;            /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
    SCIP_Bool             tightenvb;          /**< Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ? */
@@ -1610,96 +1613,97 @@ SCIP_DECL_RELAXEXIT(relaxExitSdp)
 
    SCIPdebugMessage("Exiting Relaxation Handler.\n");
 
-#ifdef PRINT_STATISTICS
-   SCIPinfoMessage(scip, NULL, "\nSDP iterations:\t\t\t\t%6d\n", relaxdata->sdpiterations);
-   SCIPinfoMessage(scip, NULL, "Average SDP-iterations:\t\t\t%6.2f \n", (double) relaxdata->sdpiterations / (double) relaxdata->sdpcalls );
-   if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0 )
+   if ( relaxdata->displaystat )
    {
-      SCIPinfoMessage(scip, NULL, "Percentage 'fastest settings' solved:\t%6.2f \n", 100.0 * (double) relaxdata->solvedfast / (double) relaxdata->sdpcalls);
-      SCIPinfoMessage(scip, NULL, "Percentage 'medium settings' solved:\t%6.2f \n", 100.0 * (double) relaxdata->solvedmedium / (double) relaxdata->sdpcalls);
-      SCIPinfoMessage(scip, NULL, "Percentage 'stable settings' solved:\t%6.2f \n", 100.0 * (double) relaxdata->solvedstable / (double) relaxdata->sdpcalls);
-   }
-   else
-   {
-      SCIPinfoMessage(scip, NULL, "Percentage 'default formulation' solved:\t%6.2f \n", 100.0 * (double) relaxdata->solvedfast / (double) relaxdata->sdpcalls);
-   }
-   SCIPinfoMessage(scip, NULL, "Percentage penalty formulation used:\t%6.2f \n", 100.0 * (double) relaxdata->solvedpenalty / (double) relaxdata->sdpcalls);
-   SCIPinfoMessage(scip, NULL, "Percentage unsolved even with penalty:\t%6.2f \n", 100.0 * (double) relaxdata->unsolved / (double) relaxdata->sdpcalls);
-
-   if ( relaxdata->slatercheck )
-   {
-      SCIPinfoMessage(scip, NULL, "Percentage primal Slater condition held:\t%6.2f \n", 100.0 * (double) relaxdata->npslaterholds / (double) relaxdata->sdpcalls);
-      SCIPinfoMessage(scip, NULL, "Percentage primal Slater condition did not hold:\t%6.2f \n", 100.0 * (double) relaxdata->npnoslater / (double) relaxdata->sdpcalls);
-      SCIPinfoMessage(scip, NULL, "Percentage primal Slater check failed:\t%6.2f \n", 100.0 * (double) relaxdata->npslatercheckfailed / (double) relaxdata->sdpcalls);
-
-      SCIPinfoMessage(scip, NULL, "Percentage dual Slater condition held:\t%6.2f \n", 100.0 * (double) relaxdata->ndslaterholds / (double) relaxdata->sdpcalls);
-      SCIPinfoMessage(scip, NULL, "Percentage dual Slater condition did not hold:\t%6.2f \n", 100.0 * (double) relaxdata->ndnoslater / (double) relaxdata->sdpcalls);
-      SCIPinfoMessage(scip, NULL, "Percentage dual Slater check failed:\t%6.2f \n", 100.0 * (double) relaxdata->ndslatercheckfailed / (double) relaxdata->sdpcalls);
-      SCIPinfoMessage(scip, NULL, "Percentage dual Slater check detected infeasibility:\t%6.2f \n", 100.0 * (double) relaxdata->nslaterinfeasible / (double) relaxdata->sdpcalls);
-
-      if ( relaxdata->nslaterholds )
+      SCIPinfoMessage(scip, NULL, "\nSDP iterations:\t\t\t\t%6d\n", relaxdata->sdpiterations);
+      SCIPinfoMessage(scip, NULL, "Average SDP-iterations:\t\t\t%6.2f \n", (double) relaxdata->sdpiterations / (double) relaxdata->sdpcalls );
+      if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0 )
       {
-         SCIPinfoMessage(scip, NULL, "Percentage 'fastest settings' with primal and dual slater holding:\t%6.2f \n",
-               100.0 * (double) relaxdata->stablewslater / (double) relaxdata->nslaterholds);
-         SCIPinfoMessage(scip, NULL, "Percentage 'stable settings' with primal and dual slater holding:\t%6.2f \n",
-               100.0 * (double) relaxdata->unstablewslater / (double) relaxdata->nslaterholds);
-         SCIPinfoMessage(scip, NULL, "Percentage 'penalty' with primal and dual slater holding:\t%6.2f \n",
-               100.0 * (double) relaxdata->penaltywslater / (double) relaxdata->nslaterholds);
-         SCIPinfoMessage(scip, NULL, "Percentage 'computed infeasible lower bound' with primal and dual slater holding:\t%6.2f \n",
-               100.0 * (double) relaxdata->boundedwslater / (double) relaxdata->nslaterholds);
-         SCIPinfoMessage(scip, NULL, "Percentage 'unsolved' with primal and dual slater holding:\t%6.2f \n",
-               100.0 * (double) relaxdata->unsolvedwslater / (double) relaxdata->nslaterholds);
+         SCIPinfoMessage(scip, NULL, "Percentage 'fastest settings' solved:\t%6.2f \n", 100.0 * (double) relaxdata->solvedfast / (double) relaxdata->sdpcalls);
+         SCIPinfoMessage(scip, NULL, "Percentage 'medium settings' solved:\t%6.2f \n", 100.0 * (double) relaxdata->solvedmedium / (double) relaxdata->sdpcalls);
+         SCIPinfoMessage(scip, NULL, "Percentage 'stable settings' solved:\t%6.2f \n", 100.0 * (double) relaxdata->solvedstable / (double) relaxdata->sdpcalls);
       }
-      if ( relaxdata->nnoslater )
+      else
       {
-         SCIPinfoMessage(scip, NULL, "Percentage 'fastest settings' with either primal or dual slater not holding:\t%6.2f \n",
-               100.0 * (double) relaxdata->stablenoslater / (double) relaxdata->nnoslater);
-         SCIPinfoMessage(scip, NULL, "Percentage 'stable settings' with either primal or dual slater not holding:\t%6.2f \n",
-               100.0 * (double) relaxdata->unstablenoslater / (double) relaxdata->nnoslater);
-         SCIPinfoMessage(scip, NULL, "Percentage 'penalty' with either primal or dual slater not holding:\t%6.2f \n",
-               100.0 * (double) relaxdata->penaltynoslater / (double) relaxdata->nnoslater);
-         SCIPinfoMessage(scip, NULL, "Percentage 'computed infeasible lower bound' with either primal or dual slater not holding:\t%6.2f \n",
-               100.0 * (double) relaxdata->boundednoslater / (double) relaxdata->nnoslater);
-         SCIPinfoMessage(scip, NULL, "Percentage 'unsolved' with either primal or dual slater not holding:\t%6.2f \n",
-               100.0 * (double) relaxdata->unsolvednoslater / (double) relaxdata->nnoslater);
+         SCIPinfoMessage(scip, NULL, "Percentage 'default formulation' solved:\t%6.2f \n", 100.0 * (double) relaxdata->solvedfast / (double) relaxdata->sdpcalls);
       }
-      if ( relaxdata->nslaterinfeasible )
+      SCIPinfoMessage(scip, NULL, "Percentage penalty formulation used:\t%6.2f \n", 100.0 * (double) relaxdata->solvedpenalty / (double) relaxdata->sdpcalls);
+      SCIPinfoMessage(scip, NULL, "Percentage unsolved even with penalty:\t%6.2f \n", 100.0 * (double) relaxdata->unsolved / (double) relaxdata->sdpcalls);
+
+      if ( relaxdata->slatercheck )
       {
-         SCIPinfoMessage(scip, NULL, "Percentage 'fastest settings' with slater check showing infeasibility:\t%6.2f \n",
-               100.0 * (double) relaxdata->stableinfeasible / (double) relaxdata->nslaterinfeasible);
-         SCIPinfoMessage(scip, NULL, "Percentage 'stable settings' with slater check showing infeasibility:\t%6.2f \n",
-               100.0 * (double) relaxdata->unstableinfeasible / (double) relaxdata->nslaterinfeasible);
-         SCIPinfoMessage(scip, NULL, "Percentage 'penalty' with slater check showing infeasibility:\t%6.2f \n",
-               100.0 * (double) relaxdata->penaltyinfeasible / (double) relaxdata->nslaterinfeasible);
-         SCIPinfoMessage(scip, NULL, "Percentage 'computed infeasible lower bound' with slater check showing infeasibility:\t%6.2f \n",
-               100.0 * (double) relaxdata->boundedinfeasible / (double) relaxdata->nslaterinfeasible);
-         SCIPinfoMessage(scip, NULL, "Percentage 'unsolved' with slater check showing infeasibility:\t%6.2f \n",
-               100.0 * (double) relaxdata->unsolvedinfeasible / (double) relaxdata->nslaterinfeasible);
-      }
+         SCIPinfoMessage(scip, NULL, "Percentage primal Slater condition held:\t%6.2f \n", 100.0 * (double) relaxdata->npslaterholds / (double) relaxdata->sdpcalls);
+         SCIPinfoMessage(scip, NULL, "Percentage primal Slater condition did not hold:\t%6.2f \n", 100.0 * (double) relaxdata->npnoslater / (double) relaxdata->sdpcalls);
+         SCIPinfoMessage(scip, NULL, "Percentage primal Slater check failed:\t%6.2f \n", 100.0 * (double) relaxdata->npslatercheckfailed / (double) relaxdata->sdpcalls);
+
+         SCIPinfoMessage(scip, NULL, "Percentage dual Slater condition held:\t%6.2f \n", 100.0 * (double) relaxdata->ndslaterholds / (double) relaxdata->sdpcalls);
+         SCIPinfoMessage(scip, NULL, "Percentage dual Slater condition did not hold:\t%6.2f \n", 100.0 * (double) relaxdata->ndnoslater / (double) relaxdata->sdpcalls);
+         SCIPinfoMessage(scip, NULL, "Percentage dual Slater check failed:\t%6.2f \n", 100.0 * (double) relaxdata->ndslatercheckfailed / (double) relaxdata->sdpcalls);
+         SCIPinfoMessage(scip, NULL, "Percentage dual Slater check detected infeasibility:\t%6.2f \n", 100.0 * (double) relaxdata->nslaterinfeasible / (double) relaxdata->sdpcalls);
+
+         if ( relaxdata->nslaterholds )
+         {
+            SCIPinfoMessage(scip, NULL, "Percentage 'fastest settings' with primal and dual slater holding:\t%6.2f \n",
+                  100.0 * (double) relaxdata->stablewslater / (double) relaxdata->nslaterholds);
+            SCIPinfoMessage(scip, NULL, "Percentage 'stable settings' with primal and dual slater holding:\t%6.2f \n",
+                  100.0 * (double) relaxdata->unstablewslater / (double) relaxdata->nslaterholds);
+            SCIPinfoMessage(scip, NULL, "Percentage 'penalty' with primal and dual slater holding:\t%6.2f \n",
+                  100.0 * (double) relaxdata->penaltywslater / (double) relaxdata->nslaterholds);
+            SCIPinfoMessage(scip, NULL, "Percentage 'computed infeasible lower bound' with primal and dual slater holding:\t%6.2f \n",
+                  100.0 * (double) relaxdata->boundedwslater / (double) relaxdata->nslaterholds);
+            SCIPinfoMessage(scip, NULL, "Percentage 'unsolved' with primal and dual slater holding:\t%6.2f \n",
+                  100.0 * (double) relaxdata->unsolvedwslater / (double) relaxdata->nslaterholds);
+         }
+         if ( relaxdata->nnoslater )
+         {
+            SCIPinfoMessage(scip, NULL, "Percentage 'fastest settings' with either primal or dual slater not holding:\t%6.2f \n",
+                  100.0 * (double) relaxdata->stablenoslater / (double) relaxdata->nnoslater);
+            SCIPinfoMessage(scip, NULL, "Percentage 'stable settings' with either primal or dual slater not holding:\t%6.2f \n",
+                  100.0 * (double) relaxdata->unstablenoslater / (double) relaxdata->nnoslater);
+            SCIPinfoMessage(scip, NULL, "Percentage 'penalty' with either primal or dual slater not holding:\t%6.2f \n",
+                  100.0 * (double) relaxdata->penaltynoslater / (double) relaxdata->nnoslater);
+            SCIPinfoMessage(scip, NULL, "Percentage 'computed infeasible lower bound' with either primal or dual slater not holding:\t%6.2f \n",
+                  100.0 * (double) relaxdata->boundednoslater / (double) relaxdata->nnoslater);
+            SCIPinfoMessage(scip, NULL, "Percentage 'unsolved' with either primal or dual slater not holding:\t%6.2f \n",
+                  100.0 * (double) relaxdata->unsolvednoslater / (double) relaxdata->nnoslater);
+         }
+         if ( relaxdata->nslaterinfeasible )
+         {
+            SCIPinfoMessage(scip, NULL, "Percentage 'fastest settings' with slater check showing infeasibility:\t%6.2f \n",
+                  100.0 * (double) relaxdata->stableinfeasible / (double) relaxdata->nslaterinfeasible);
+            SCIPinfoMessage(scip, NULL, "Percentage 'stable settings' with slater check showing infeasibility:\t%6.2f \n",
+                  100.0 * (double) relaxdata->unstableinfeasible / (double) relaxdata->nslaterinfeasible);
+            SCIPinfoMessage(scip, NULL, "Percentage 'penalty' with slater check showing infeasibility:\t%6.2f \n",
+                  100.0 * (double) relaxdata->penaltyinfeasible / (double) relaxdata->nslaterinfeasible);
+            SCIPinfoMessage(scip, NULL, "Percentage 'computed infeasible lower bound' with slater check showing infeasibility:\t%6.2f \n",
+                  100.0 * (double) relaxdata->boundedinfeasible / (double) relaxdata->nslaterinfeasible);
+            SCIPinfoMessage(scip, NULL, "Percentage 'unsolved' with slater check showing infeasibility:\t%6.2f \n",
+                  100.0 * (double) relaxdata->unsolvedinfeasible / (double) relaxdata->nslaterinfeasible);
+         }
 #ifdef SLATERSOLVED_ABSOLUTE
-      SCIPinfoMessage(scip, NULL, "Number of nodes with primal and dual slater holding:\t%d \n", relaxdata->nslaterholds);
-      SCIPinfoMessage(scip, NULL, "Number of nodes with 'fastest settings' and primal and dual slater holding:\t%d \n", relaxdata->stablewslater);
-      SCIPinfoMessage(scip, NULL, "Number of nodes with 'stable settings' and primal and dual slater holding:\t%d \n", relaxdata->unstablewslater);
-      SCIPinfoMessage(scip, NULL, "Number of nodes with 'penalty' and primal and dual slater holding:\t%d \n", relaxdata->penaltywslater);
-      SCIPinfoMessage(scip, NULL, "Number of nodes with 'computed infeasible lower bound' and primal and dual slater holding:\t%d \n", relaxdata->boundedwslater);
-      SCIPinfoMessage(scip, NULL, "Number of nodes with 'unsolved' and primal and dual slater holding:\t%d \n", relaxdata->unsolvedwslater);
+         SCIPinfoMessage(scip, NULL, "Number of nodes with primal and dual slater holding:\t%d \n", relaxdata->nslaterholds);
+         SCIPinfoMessage(scip, NULL, "Number of nodes with 'fastest settings' and primal and dual slater holding:\t%d \n", relaxdata->stablewslater);
+         SCIPinfoMessage(scip, NULL, "Number of nodes with 'stable settings' and primal and dual slater holding:\t%d \n", relaxdata->unstablewslater);
+         SCIPinfoMessage(scip, NULL, "Number of nodes with 'penalty' and primal and dual slater holding:\t%d \n", relaxdata->penaltywslater);
+         SCIPinfoMessage(scip, NULL, "Number of nodes with 'computed infeasible lower bound' and primal and dual slater holding:\t%d \n", relaxdata->boundedwslater);
+         SCIPinfoMessage(scip, NULL, "Number of nodes with 'unsolved' and primal and dual slater holding:\t%d \n", relaxdata->unsolvedwslater);
 
-      SCIPinfoMessage(scip, NULL, "Number of nodes with either primal or dual slater not holding:\t%d \n", relaxdata->nnoslater);
-      SCIPinfoMessage(scip, NULL, "Number of nodes with 'fastest settings' and either primal or dual slater not holding:\t%d \n", relaxdata->stablenoslater);
-      SCIPinfoMessage(scip, NULL, "Number of nodes with 'stable settings' and either primal or dual slater not holding:\t%d \n", relaxdata->unstablenoslater);
-      SCIPinfoMessage(scip, NULL, "Number of nodes with 'penalty' and either primal or dual slater not holding:\t%d \n", relaxdata->penaltynoslater);
-      SCIPinfoMessage(scip, NULL, "Number of nodes with 'computed infeasible lower bound' and either primal or dual slater not holding:\t%d \n", relaxdata->boundednoslater);
-      SCIPinfoMessage(scip, NULL, "Number of nodes with 'unsolved' and either primal or dual slater not holding:\t%d \n", relaxdata->unsolvednoslater);
+         SCIPinfoMessage(scip, NULL, "Number of nodes with either primal or dual slater not holding:\t%d \n", relaxdata->nnoslater);
+         SCIPinfoMessage(scip, NULL, "Number of nodes with 'fastest settings' and either primal or dual slater not holding:\t%d \n", relaxdata->stablenoslater);
+         SCIPinfoMessage(scip, NULL, "Number of nodes with 'stable settings' and either primal or dual slater not holding:\t%d \n", relaxdata->unstablenoslater);
+         SCIPinfoMessage(scip, NULL, "Number of nodes with 'penalty' and either primal or dual slater not holding:\t%d \n", relaxdata->penaltynoslater);
+         SCIPinfoMessage(scip, NULL, "Number of nodes with 'computed infeasible lower bound' and either primal or dual slater not holding:\t%d \n", relaxdata->boundednoslater);
+         SCIPinfoMessage(scip, NULL, "Number of nodes with 'unsolved' and either primal or dual slater not holding:\t%d \n", relaxdata->unsolvednoslater);
 
-      SCIPinfoMessage(scip, NULL, "Number of infeasible nodes:\t%d \n", relaxdata->nslaterinfeasible);
-      SCIPinfoMessage(scip, NULL, "Number of infeasible nodes with 'fastest settings':\t%d \n", relaxdata->stableinfeasible);
-      SCIPinfoMessage(scip, NULL, "Number of infeasible nodes with 'stable settings':\t%d \n", relaxdata->unstableinfeasible);
-      SCIPinfoMessage(scip, NULL, "Number of infeasible nodes with 'penalty':\t%d \n", relaxdata->penaltyinfeasible);
-      SCIPinfoMessage(scip, NULL, "Number of infeasible nodes with 'computed infeasible lower bound':\t%d \n", relaxdata->boundedinfeasible);
-      SCIPinfoMessage(scip, NULL, "Number of infeasible nodes with 'unsolved':\t%d \n", relaxdata->unsolvedinfeasible);
+         SCIPinfoMessage(scip, NULL, "Number of infeasible nodes:\t%d \n", relaxdata->nslaterinfeasible);
+         SCIPinfoMessage(scip, NULL, "Number of infeasible nodes with 'fastest settings':\t%d \n", relaxdata->stableinfeasible);
+         SCIPinfoMessage(scip, NULL, "Number of infeasible nodes with 'stable settings':\t%d \n", relaxdata->unstableinfeasible);
+         SCIPinfoMessage(scip, NULL, "Number of infeasible nodes with 'penalty':\t%d \n", relaxdata->penaltyinfeasible);
+         SCIPinfoMessage(scip, NULL, "Number of infeasible nodes with 'computed infeasible lower bound':\t%d \n", relaxdata->boundedinfeasible);
+         SCIPinfoMessage(scip, NULL, "Number of infeasible nodes with 'unsolved':\t%d \n", relaxdata->unsolvedinfeasible);
 #endif
+      }
    }
-#endif
 
    if ( relaxdata->varmapper != NULL )
    {
@@ -1796,14 +1800,14 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/slatercheck",
          "should the Slater condition for the dual problem be check ahead of solving each SDP? 0: no, 1: yes and output statistics, 2: yes and print warning for "
-         "every problem not satisfying primal and dual Slater condition", &(relaxdata->slatercheck), TRUE, 0, 0, 2, NULL, NULL) );
+         "every problem not satisfying primal and dual Slater condition", &(relaxdata->slatercheck), TRUE, DEFAULT_SLATERCHECK, 0, 2, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/sdpinfo",
-         "should the SDP solver output information to the screen?",
-         &(relaxdata->sdpinfo), TRUE, FALSE, NULL, NULL) );
+         "Should the SDP solver output information to the screen?",
+         &(relaxdata->sdpinfo), TRUE, DEFAULT_SDPINFO, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/objlimit",
-         "should an objective limit be given to the SDP-Solver?",
+         "Should an objective limit be given to the SDP-Solver?",
          &(relaxdata->objlimit), TRUE, DEFAULT_OBJLIMIT, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/resolve",
@@ -1813,6 +1817,10 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/tightenvb",
          "Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ?",
          &(relaxdata->tightenvb), TRUE, DEFAULT_TIGHTENVB, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/displaystatistics",
+         "Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ?",
+         &(relaxdata->displaystat), TRUE, DEFAULT_DISPLAYSTAT, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/settingsresetfreq",
          "frequency for resetting parameters in SDP solver and trying again with fastest settings (-1: never, 0: only at depth settingsresetofs)",

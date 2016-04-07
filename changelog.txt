@@ -34,6 +34,7 @@ parameters:
 - number of threads for SDPA/Openblas can now be changed via parameter if Intel® MKL is installed
 - slatercheck is now an int parameter that also determines whether Slater results should be printed to console or
   only displayed as statistics in the end
+- added parameter to control output of statistics after quitting SCIP-SDP
 
 core:
 - in the penalty formulation the primal bound added by the penalty parameter is now also checked to decide between
