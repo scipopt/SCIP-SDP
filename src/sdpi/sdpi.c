@@ -164,7 +164,7 @@ struct SCIP_SDPi
    SCIP_Real*            lpval;              /**< values of LP-constraint matrix entries */
 
    /* other data */
-   SCIP_Bool             slatercheck;        /**< should the Slater condition for the dual problem be checked ahead of each solving process */
+   int                   slatercheck;        /**< should the Slater condition for the dual problem be checked ahead of each solving process */
    SCIP_Bool             solved;             /**< was the problem solved since the last change */
    SCIP_Bool             penalty;            /**< was the last solved problem a penalty formulation */
    SCIP_Bool             infeasible;         /**< was infeasibility detected in presolving? */
@@ -1037,7 +1037,7 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->sdpnnonz = 0;
    (*sdpi)->nlpcons = 0;
    (*sdpi)->lpnnonz = 0;
-   (*sdpi)->slatercheck = FALSE;
+   (*sdpi)->slatercheck = 0;
    (*sdpi)->solved = FALSE;
    (*sdpi)->penalty = FALSE;
    (*sdpi)->infeasible = FALSE;
@@ -2152,9 +2152,8 @@ SCIP_RETCODE SCIPsdpiSolve(
 
          if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) )
          {
-#ifdef PRINTSLATER
-            printf("Unable to check Slater condition for dual problem.\n");
-#endif
+            if ( sdpi->slatercheck == 2 )
+               printf("Unable to check Slater condition for dual problem.\n");
             sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
          }
          else
@@ -2166,9 +2165,8 @@ SCIP_RETCODE SCIPsdpiSolve(
             }
             else if ( SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) )
             {
-#ifdef PRINTSLATER
-               printf("Slater condition for dual problem for SDP %d not fullfilled, problem infeasible.\n", sdpi->sdpid);
-#endif
+               if ( sdpi->slatercheck == 2 )
+                  printf("Slater condition for dual problem for SDP %d not fullfilled, problem infeasible.\n", sdpi->sdpid);
                sdpi->dualslater = SCIP_SDPSLATER_NOT;
             }
             else
@@ -2182,18 +2180,20 @@ SCIP_RETCODE SCIPsdpiSolve(
                }
                else if ( objval < sdpi->epsilon )
                {
-#ifdef PRINTSLATER
-                  printf("Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, expect numerical trouble.\n",
-                        sdpi->sdpid, -1.0 * objval);
-#endif
+                  if ( sdpi->slatercheck == 2 )
+                  {
+                     printf("Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, expect numerical trouble.\n",
+                           sdpi->sdpid, -1.0 * objval);
+                  }
                   sdpi->dualslater = SCIP_SDPSLATER_NOT;
                }
                else
                {
-#ifdef PRINTSLATER
-                  printf("Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, problem is infeasible.\n",
-                        sdpi->sdpid, -1.0 * objval);
-#endif
+                  if ( sdpi->slatercheck == 2 )
+                  {
+                     printf("Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, problem is infeasible.\n",
+                           sdpi->sdpid, -1.0 * objval);
+                  }
                   sdpi->dualslater = SCIP_SDPSLATER_INF;
                }
             }
@@ -2346,9 +2346,8 @@ SCIP_RETCODE SCIPsdpiSolve(
 
             if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) && ! SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver) )
             {
-#ifdef PRINTSLATER
-               printf("Unable to check Slater condition for primal problem, could not solve auxilliary problem.\n");
-#endif
+               if ( sdpi->slatercheck == 2 )
+                  printf("Unable to check Slater condition for primal problem, could not solve auxilliary problem.\n");
                sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
             }
          }
@@ -2368,11 +2367,12 @@ SCIP_RETCODE SCIPsdpiSolve(
             {
                if ( SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
                {
-#ifdef PRINTSLATER
-                  printf("Slater condition for primal problem for SDP %d not fullfilled "
-                         "smallest eigenvalue has to be negative, so primal problem is infeasible (if the dual slater condition holds,"
-                         "this means, that the original (dual) problem is unbounded.\n",sdpi->sdpid);
-#endif
+                  if ( sdpi->slatercheck == 2 )
+                  {
+                     printf("Slater condition for primal problem for SDP %d not fullfilled "
+                           "smallest eigenvalue has to be negative, so primal problem is infeasible (if the dual slater condition holds,"
+                           "this means, that the original (dual) problem is unbounded.\n",sdpi->sdpid);
+                  }
                   sdpi->primalslater = SCIP_SDPSLATER_NOT;
                }
                if ( SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver) )
@@ -2386,10 +2386,11 @@ SCIP_RETCODE SCIPsdpiSolve(
 
                   if ( objval > - sdpi->feastol)
                   {
-#ifdef PRINTSLATER
-                     printf("Slater condition for primal problem for SDP %d not fullfilled "
-                            "as smallest eigenvalue was %f, expect numerical trouble or infeasible problem.\n",sdpi->sdpid, -1.0 * objval);
-#endif
+                     if ( sdpi->slatercheck == 2 )
+                     {
+                        printf("Slater condition for primal problem for SDP %d not fullfilled "
+                                 "as smallest eigenvalue was %f, expect numerical trouble or infeasible problem.\n",sdpi->sdpid, -1.0 * objval);
+                     }
                      sdpi->primalslater = SCIP_SDPSLATER_NOT;
                   }
                   else
@@ -3756,7 +3757,7 @@ SCIP_RETCODE SCIPsdpiGetIntpar(
       SCIP_CALL_PARAM( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, ival) );
       break;
    case SCIP_SDPPAR_SLATERCHECK:
-      *ival = (int) sdpi->slatercheck;
+      *ival = sdpi->slatercheck;
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;
@@ -3796,8 +3797,7 @@ SCIP_RETCODE SCIPsdpiSetIntpar(
       SCIP_CALL_PARAM( SCIPsdpiSolverSetIntpar(sdpi->sdpisolver, type, ival) );
       break;
    case SCIP_SDPPAR_SLATERCHECK:
-      assert( ival == 0 || ival == 1 ); /* this is a boolean parameter */
-      sdpi->slatercheck = (SCIP_Bool) ival;
+      sdpi->slatercheck = ival;
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;
