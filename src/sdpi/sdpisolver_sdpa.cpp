@@ -1237,7 +1237,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* if we solved a penalty formulation, check if the solution is feasible for the original problem (which is the case iff r < feastol) */
    if ( penaltyparam >= sdpisolver->epsilon )
    {
-      double* sdpasol;
+      SCIP_Real* sdpasol;
 
       /* in the second case we have r as an additional variable */
       assert( (sdpisolver->nactivevars + 1 == sdpisolver->sdpa->getConstraintNumber()) );  /*lint !e776*/
@@ -1252,11 +1252,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       if ( ! *feasorig && penaltybound != NULL )
       {
 #endif
-         double* X;
+         SCIP_Real* X;
          int b;
          int nblockssdpa;
          int nrow;
-         double trace = 0.0;
+         SCIP_Real trace = 0.0;
 
          SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", sdpasol[sdpisolver->nactivevars]);
 
@@ -1856,7 +1856,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    )
 {
    int i;
-   double* X; /* block of primal solution matrix corresponding to the LP-part */
+   SCIP_Real* X; /* block of primal solution matrix corresponding to the LP-part */
    int lpblockind;
    int nlpcons;
 

@@ -2334,7 +2334,7 @@ SCIP_RETCODE SCIPsdpiSolve(
          {
             /* compute the timit limit to set for the solver */
             currenttime = clock();
-            solvertimelimit = timelimit - ((double)(currenttime - starttime) / (double) CLOCKS_PER_SEC);
+            solvertimelimit = timelimit - ((SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC);
 
             /* solve the problem to check slater condition for primal of original problem */
             SCIP_CALL( SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, slaterlb, slaterub,

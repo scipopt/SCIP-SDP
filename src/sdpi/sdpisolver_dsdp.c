@@ -561,12 +561,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    )
 {/*lint --e{413}*/
    int* dsdpconstind = NULL;  /* indices for constant SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
-   double* dsdpconstval = NULL; /* non-zero values for constant SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
+   SCIP_Real* dsdpconstval = NULL; /* non-zero values for constant SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
    int* dsdpind = NULL;       /* indices for SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
-   double* dsdpval = NULL;    /* non-zero values for SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
+   SCIP_Real* dsdpval = NULL;    /* non-zero values for SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
    int* dsdplpbegcol = NULL;  /* starting-indices for all columns in LP, needs to be stored for DSDP during solving and be freed only afterwards */
    int* dsdplprow = NULL;     /* row indices in LP, needs to be stored for DSDP during solving and be freed only afterwards */
-   double* dsdplpval = NULL;  /* nonzeroes in LP, needs to be stored for DSDP during solving and be freed only afterwards */
+   SCIP_Real* dsdplpval = NULL;  /* nonzeroes in LP, needs to be stored for DSDP during solving and be freed only afterwards */
    int i;
    int j;
    int ind;
@@ -1364,8 +1364,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       if ( rbound )
       {
          /* in this case we used the penalty-formulation of DSDP, so we can check their value of r */
-         double rval;
-         double trace;
+         SCIP_Real rval;
+         SCIP_Real trace;
 
          DSDP_CALL( DSDPGetR(sdpisolver->dsdp, &rval) );
 
@@ -1403,8 +1403,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
       else
       {
-         double* dsdpsol;
-         double trace;
+         SCIP_Real* dsdpsol;
+         SCIP_Real trace;
 
          BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, sdpisolver->nactivevars + 1) ); /*lint !e776*/
          /* last entry of DSDPGetY needs to be the number of variables, will return an error otherwise */
@@ -1864,7 +1864,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
                                               *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
    )
 {
-   double* dsdpsol;
+   SCIP_Real* dsdpsol;
    int v;
    int dsdpnvars;
 
@@ -1931,8 +1931,8 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
                                               *   output: number of elements inserted into lbvars/ubvars (or needed length if it wasn't sufficient) */
    )
 {
-   double* lbvarsdsdp;
-   double* ubvarsdsdp;
+   SCIP_Real* lbvarsdsdp;
+   SCIP_Real* ubvarsdsdp;
    int i;
 
    assert( sdpisolver != NULL );

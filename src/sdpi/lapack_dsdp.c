@@ -61,8 +61,8 @@
                       }                                                                                       \
                       while( FALSE )
 
-/** transforms a double (that should be integer, but might be off by some numerical error) to an integer by adding an epsilon and rounding down */
-#define DOUBLETOINT(x) ((int) (x + 0.5))
+/** transforms a SCIP_Real (that should be integer, but might be off by some numerical error) to an integer by adding an epsilon and rounding down */
+#define SCIP_RealTOINT(x) ((int) (x + 0.5))
 
 /*
  * BLAS/LAPACK Calls
@@ -74,17 +74,17 @@
 /** LAPACK Fortran subroutine DSYEVR */
 void F77_FUNC(dsyevr, DSYEVR)(
    char* JOBZ, char* RANGE, char* UPLO,
-   int* N, double* A, int* LDA,
-   double* VL, double* VU,
+   int* N, SCIP_Real* A, int* LDA,
+   SCIP_Real* VL, SCIP_Real* VU,
    int* IL, int* IU,
-   double* ABSTOL, int* M, double* W, double* Z,
-   int* LDZ, int* ISUPPZ, double* WORK,
+   SCIP_Real* ABSTOL, int* M, SCIP_Real* W, SCIP_Real* Z,
+   int* LDZ, int* ISUPPZ, SCIP_Real* WORK,
    int* LWORK, int* IWORK, int* LIWORK,
    int* INFO );
 
 
 /** BLAS Fortran subroutine DGEMV */
-void F77_FUNC(dgemv, DGEMV)(char* TRANS, int* M, int* N, double* ALPHA, double* A, int* LDA, double* X, int* INCX, double* BETA, double* Y, int* INCY);
+void F77_FUNC(dgemv, DGEMV)(char* TRANS, int* M, int* N, SCIP_Real* ALPHA, SCIP_Real* A, int* LDA, SCIP_Real* X, int* INCX, SCIP_Real* BETA, SCIP_Real* Y, int* INCY);
 
 
 /**@} */
@@ -114,20 +114,20 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    char RANGE;
    char UPLO;
    int LDA;
-   double* WORK;
+   SCIP_Real* WORK;
    int LWORK;
    int* IWORK;
    int LIWORK;
-   double* WTMP;
-   double ABSTOL;
+   SCIP_Real* WTMP;
+   SCIP_Real ABSTOL;
    int IL;
    int IU;
    int M;
    int LDZ;
-   double WSIZE;
+   SCIP_Real WSIZE;
    int WISIZE;
-   double VL;
-   double VU;
+   SCIP_Real VL;
+   SCIP_Real VU;
    int* ISUPPZ;
 
 
@@ -170,7 +170,7 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    }
 
    /* allocate workspace */
-   LWORK = DOUBLETOINT(WSIZE);
+   LWORK = SCIP_RealTOINT(WSIZE);
    LIWORK = WISIZE;
 
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &WORK, LWORK) );
@@ -221,13 +221,13 @@ SCIP_RETCODE SCIPlapackMatrixVectorMult(
    char TRANS;
    int M;
    int N;
-   double ALPHA;
-   double* A;
+   SCIP_Real ALPHA;
+   SCIP_Real* A;
    int LDA;
-   double* X;
+   SCIP_Real* X;
    int INCX;
-   double BETA;
-   double* Y;
+   SCIP_Real BETA;
+   SCIP_Real* Y;
    int INCY;
 
    TRANS = 'N';

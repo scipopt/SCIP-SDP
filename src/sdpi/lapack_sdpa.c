@@ -62,8 +62,8 @@ typedef long long int LAPACKINTTYPE;
                       }                                                                                       \
                       while( FALSE )
 
-/** transforms a double (that should be integer, but might be off by some numerical error) to an integer by adding an epsilon and rounding down */
-#define DOUBLETOINT(x) ((LAPACKINTTYPE) (x + 0.5))
+/** transforms a SCIP_Real (that should be integer, but might be off by some numerical error) to an integer by adding an epsilon and rounding down */
+#define SCIP_RealTOINT(x) ((LAPACKINTTYPE) (x + 0.5))
 
 /*
  * BLAS/LAPACK Calls
@@ -75,19 +75,19 @@ typedef long long int LAPACKINTTYPE;
 /** LAPACK Fortran subroutine DSYEVR */
 void F77_FUNC(dsyevr, DSYEVR)(
    char* JOBZ, char* RANGE, char* UPLO,
-   LAPACKINTTYPE* N, double* A, LAPACKINTTYPE* LDA,
-   double* VL, double* VU,
+   LAPACKINTTYPE* N, SCIP_Real* A, LAPACKINTTYPE* LDA,
+   SCIP_Real* VL, SCIP_Real* VU,
    LAPACKINTTYPE* IL, LAPACKINTTYPE* IU,
-   double* ABSTOL, LAPACKINTTYPE* M, double* W, double* Z,
-   LAPACKINTTYPE* LDZ, LAPACKINTTYPE* ISUPPZ, double* WORK,
+   SCIP_Real* ABSTOL, LAPACKINTTYPE* M, SCIP_Real* W, SCIP_Real* Z,
+   LAPACKINTTYPE* LDZ, LAPACKINTTYPE* ISUPPZ, SCIP_Real* WORK,
    LAPACKINTTYPE* LWORK, LAPACKINTTYPE* IWORK, LAPACKINTTYPE* LIWORK,
    int* INFO );
 
 
 /** BLAS Fortran subroutine DGEMV */
 void F77_FUNC(dgemv, DGEMV)(char* TRANS, LAPACKINTTYPE* M,
-   LAPACKINTTYPE* N, double* ALPHA, double* A, LAPACKINTTYPE* LDA,
-   double* X, LAPACKINTTYPE* INCX, double* BETA, double* Y, LAPACKINTTYPE* INCY);
+   LAPACKINTTYPE* N, SCIP_Real* ALPHA, SCIP_Real* A, LAPACKINTTYPE* LDA,
+   SCIP_Real* X, LAPACKINTTYPE* INCX, SCIP_Real* BETA, SCIP_Real* Y, LAPACKINTTYPE* INCY);
 
 
 /**@} */
@@ -117,20 +117,20 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    char RANGE;
    char UPLO;
    LAPACKINTTYPE LDA;
-   double* WORK;
+   SCIP_Real* WORK;
    LAPACKINTTYPE LWORK;
    LAPACKINTTYPE* IWORK;
    LAPACKINTTYPE LIWORK;
-   double* WTMP;
-   double ABSTOL;
+   SCIP_Real* WTMP;
+   SCIP_Real ABSTOL;
    LAPACKINTTYPE IL;
    LAPACKINTTYPE IU;
    LAPACKINTTYPE M;
    LAPACKINTTYPE LDZ;
-   double WSIZE;
+   SCIP_Real WSIZE;
    LAPACKINTTYPE WISIZE;
-   double VL;
-   double VU;
+   SCIP_Real VL;
+   SCIP_Real VU;
    LAPACKINTTYPE* ISUPPZ;
 
    assert( blkmem != NULL );
@@ -172,7 +172,7 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    }
 
    /* allocate workspace */
-   LWORK = DOUBLETOINT(WSIZE);
+   LWORK = SCIP_RealTOINT(WSIZE);
    LIWORK = WISIZE;
 
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &WORK, (int) LWORK) );
@@ -223,13 +223,13 @@ SCIP_RETCODE SCIPlapackMatrixVectorMult(
    char TRANS;
    LAPACKINTTYPE M;
    LAPACKINTTYPE N;
-   double ALPHA;
-   double* A;
+   SCIP_Real ALPHA;
+   SCIP_Real* A;
    LAPACKINTTYPE LDA;
-   double* X;
+   SCIP_Real* X;
    LAPACKINTTYPE INCX;
-   double BETA;
-   double* Y;
+   SCIP_Real BETA;
+   SCIP_Real* Y;
    LAPACKINTTYPE INCY;
 
    TRANS = 'N';
