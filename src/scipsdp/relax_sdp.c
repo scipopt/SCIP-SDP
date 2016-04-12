@@ -863,36 +863,36 @@ SCIP_RETCODE calcRelax(
    else if ( ! SCIPsdpiWasSolved(sdpi) )
    {
       SCIP_Real objlb;
-      SCIP_NODE* node;
-
-      /* We couldn't solve the problem, not even with a penalty formulation, so we reuse the relaxation result of the parent node (if one exists). */
-      node = SCIPnodeGetParent(SCIPgetCurrentNode(scip));
 
       relaxdata->origsolved = FALSE;
       if ( SCIPinProbing(scip) )
          relaxdata->probingsolved = FALSE;
 
-      if ( node == NULL )
+      relaxdata->feasible = FALSE;
+
+      /* if we used the penalty approach, we might have calculated a good lower bound, even if we did not produce a feasible solution, otherwise we
+       * keep the current bound, if the current bound is -infty, we abort */
+      objlb = -SCIPinfinity(scip);
+      SCIP_CALL( SCIPsdpiGetLowerObjbound(relaxdata->sdpi, &objlb) );
+      if ( ! SCIPisInfinity(scip, objlb) )
       {
-         relaxdata->feasible = FALSE;
+         *lowerbound = objlb;
+         SCIPdebugMessage("The relaxation could not be solved, using best computed bound from penalty formulation.\n");
+      }
+      else if ( SCIPisInfinity(scip, -1 * SCIPnodeGetLowerbound(SCIPgetCurrentNode(scip))) )
+      {
+         *lowerbound = SCIPnodeGetLowerbound(SCIPgetCurrentNode(scip));
+         SCIPdebugMessage("The relaxation could not be solved, keeping old bound.\n");
+      }
+      else
+      {
          *result = SCIP_SUSPENDED;
          SCIPerrorMessage("The relaxation of the root node could not be solved, so there is no hope to solve this instance.\n");
          return SCIP_ERROR;
       }
 
-      relaxdata->feasible = FALSE;
-
-      /* if we used the penalty approach, we might have calculated a good lower bound, even if we did not produce a feasible solution */
-      objlb = -SCIPinfinity(scip);
-      SCIP_CALL( SCIPsdpiGetLowerObjbound(relaxdata->sdpi, &objlb) );
-      if ( ! SCIPisInfinity(scip, objlb) )
-         *lowerbound = objlb;
-      else
-         *lowerbound = SCIPnodeGetLowerbound(node);
-
       *result = SCIP_SUCCESS;
       SCIP_CALL( SCIPupdateLocalLowerbound(scip, *lowerbound) );
-      SCIPdebugMessage("The relaxation couldn't be solved, so the relaxation result from the parent node was copied.\n");
       return SCIP_OKAY;
    }
 
