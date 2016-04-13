@@ -61,6 +61,20 @@
 #define PENALTYBOUNDTOL 1E-3 /**< if the relative gap between Tr(X) and penaltyparam for a primal solution of the penaltyformulation
                                *  is bigger than this value, it will be reported to the sdpi */
 
+#define MIN_LAMBDASTAR              1e0      /**< if lambda star is to be computed, this is the minimum value it will take */
+#define MAX_LAMBDASTAR              1e8      /**< if lambda star is to be computed, this is the maximum value it will take */
+#define LAMBDASTAR_FACTOR           1e0      /**< if lambda star is to be computed, the biggest guess of the SDP blocks is multiplied by this value */
+#define LAMBDASTAR_TWOPOINTS        TRUE     /**< if lambda star is to be computed, should we use only a low and a high value or instead a continuous interval */
+#define LAMBDASTAR_THRESHOLD        1e1      /**< if lambda star is to be computed and LAMBDASTAR_TWOPOINTS=TRUE, then we distinguish between low and high using this */
+#define LAMBDASTAR_LOW              1.5      /**< if lambda star is to be computed and LAMBDASTAR_TWOPOINTS=TRUE, then this is the value for below the threshold */
+#define LAMBDASTAR_HIGH             1e5      /**< if lambda star is to be computed and LAMBDASTAR_TWOPOINTS=TRUE, then this is the value for above the threshold */
+
+#define MIN_PENALTYPARAM            1e5      /**< if the penalty parameter is to be computed, this is the minimum value it will take */
+#define MAX_PENALTYPARAM            1e12     /**< if the penalty parameter is to be computed, this is the maximum value it will take */
+#define PENALTYPARAM_FACTOR         1e1      /**< if the penalty parameter is to be computed, the maximal objective coefficient will be multiplied by this */
+#define MAX_MAXPENALTYPARAM         1e15     /**< if the maximum penaltyparameter is to be computed, this is the maximum value it will take */
+#define MAXPENALTYPARAM_FACTOR      1e6      /**< if the maximum penaltyparameter is to be computed, it will be set to penaltyparam * this */
+
 /** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY. */
 #define BMS_CALL(x)   do                                                                                     \
                       {                                                                                      \
@@ -348,10 +362,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
-   int			 noldlpcons, 	     /**< number of LP-constraints including those with less than two active nonzeros */
+   int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lplhs,              /**< left hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
-   int*			 lprownactivevars,   /**< number of active variables for each LP constraint */
+   int*                  lprownactivevars,   /**< number of active variables for each LP constraint */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
@@ -2119,6 +2133,108 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;
+   }
+
+   return SCIP_OKAY;
+}
+
+/** compute and set lambdastar (only used for SDPA) */
+SCIP_RETCODE SCIPsdpiSolverComputeLambdastar(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_Real             maxguess            /**< maximum guess for lambda star of all SDP-constraints */
+   )
+{
+   SCIP_Real compval;
+
+   assert( sdpisolver != NULL );
+
+   /* we set the value to min{max{MIN_LAMBDASTAR, LAMBDASTAR_FACTOR * MAX_GUESS}, MAX_LAMBDASTAR}, where MAX_GUESS is the maximum of the guesses
+    * of the SDP-Blocks, if MAX_GUESS > LAMBDASTAR_THRESHOLD, we mutliply it by LAMBDASTAR_THRESHOLD_FACT */
+
+   if ( LAMBDASTAR_TWOPOINTS )
+   {
+      if ( maxguess < LAMBDASTAR_THRESHOLD )
+         compval = LAMBDASTAR_LOW;
+      else
+         compval = LAMBDASTAR_HIGH;
+   }
+   else
+      compval = LAMBDASTAR_FACTOR * maxguess;
+
+   if ( compval < MIN_LAMBDASTAR )
+   {
+      sdpisolver->lambdastar = MIN_LAMBDASTAR;
+      SCIPdebugMessage("Setting lambdastar to %f.\n", MIN_LAMBDASTAR);
+   }
+   else if ( compval > MAX_LAMBDASTAR )
+   {
+      sdpisolver->lambdastar = MAX_LAMBDASTAR;
+      SCIPdebugMessage("Setting lambdastar to %f.\n", MAX_LAMBDASTAR);
+   }
+   else
+   {
+      sdpisolver->lambdastar = compval;
+      SCIPdebugMessage("Setting lambdastar to %f.\n", compval);
+   }
+
+   return SCIP_OKAY;
+}
+
+/** compute and set the penalty parameter */
+SCIP_RETCODE SCIPsdpiSolverComputePenaltyparam(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_Real             maxcoeff,           /**< maximum objective coefficient */
+   SCIP_Real*            penaltyparam        /**< the computed penalty parameter */
+   )
+{
+   SCIP_Real compval;
+
+   assert( sdpisolver != NULL );
+   assert( penaltyparam != NULL );
+
+   compval = PENALTYPARAM_FACTOR * maxcoeff;
+
+   if ( compval < MIN_PENALTYPARAM )
+   {
+      SCIPdebugMessage("Setting penaltyparameter to %f.\n", MIN_PENALTYPARAM);
+      *penaltyparam = MIN_PENALTYPARAM;
+   }
+   else if ( compval > MAX_PENALTYPARAM )
+   {
+      SCIPdebugMessage("Setting penaltyparameter to %f.\n", MAX_PENALTYPARAM);
+      *penaltyparam = MAX_PENALTYPARAM;
+   }
+   else
+   {
+      SCIPdebugMessage("Setting penaltyparameter to %f.\n", compval);
+      *penaltyparam = compval;
+   }
+   return SCIP_OKAY;
+}
+
+/** compute and set the maximum penalty parameter */
+SCIP_RETCODE SCIPsdpiSolverComputeMaxPenaltyparam(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_Real             penaltyparam,       /**< the initial penalty parameter */
+   SCIP_Real*            maxpenaltyparam     /**< the computed maximum penalty parameter */
+   )
+{
+   SCIP_Real compval;
+
+   assert( sdpisolver != NULL );
+   assert( maxpenaltyparam != NULL );
+
+   compval = penaltyparam * MAXPENALTYPARAM_FACTOR;
+
+   if ( compval < MAX_MAXPENALTYPARAM )
+   {
+      *maxpenaltyparam = compval;
+      SCIPdebugMessage("Setting maximum penaltyparameter to %f.\n", compval);
+   }
+   else
+   {
+      *maxpenaltyparam = MAX_MAXPENALTYPARAM;
+      SCIPdebugMessage("Setting penaltyparameter to %f.\n", MAX_MAXPENALTYPARAM);
    }
 
    return SCIP_OKAY;

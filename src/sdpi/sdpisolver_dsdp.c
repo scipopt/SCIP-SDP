@@ -56,6 +56,12 @@
 #define PENALTYBOUNDTOL 1E-3 /**< if the relative gap between Tr(X) and penaltyparam for a primal solution of the penaltyformulation
                                *  is bigger than this value, it will be reported to the sdpi */
 
+#define MIN_PENALTYPARAM            1e5      /**< if the penalty parameter is to be computed, this is the minimum value it will take */
+#define MAX_PENALTYPARAM            1e12     /**< if the penalty parameter is to be computed, this is the maximum value it will take */
+#define PENALTYPARAM_FACTOR         1e4      /**< if the penalty parameter is to be computed, the maximal objective coefficient will be multiplied by this */
+#define MAX_MAXPENALTYPARAM         1e15     /**< if the maximum penaltyparameter is to be computed, this is the maximum value it will take */
+#define MAXPENALTYPARAM_FACTOR      1e6      /**< if the maximum penaltyparameter is to be computed, it will be set to penaltyparam * this */
+
 /** Calls a DSDP-Function and transforms the return-code to a SCIP_LPERROR if needed. */
 #define DSDP_CALL(x)  do                                                                                     \
                       {                                                                                      \
@@ -2114,10 +2120,11 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
       SCIPdebugMessage("Setting sdpisolver penaltyparameter to %f.\n", dval);
       break;
    case SCIP_SDPPAR_OBJLIMIT:
-      /* DSDP only allows to set a dual bound, but as we want to solve the dual problem in DSDP, we would need to set a primal bound, which doesn't exist in
-       * DSDP, so we can't do anything in this case. */
       SCIPdebugMessage("Setting sdpisolver objlimit to %f.\n", dval);
       sdpisolver->objlimit = dval;
+      break;
+   case SCIP_SDPPAR_LAMBDASTAR:
+      SCIPdebugMessage("Parameter SCIP_SDPPAR_LAMBDASTAR not used by DSDP"); /* this parameter is only used by SDPA */
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;
@@ -2167,6 +2174,86 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
       return SCIP_PARAMETERUNKNOWN;
    }
 
+   return SCIP_OKAY;
+}
+
+/** compute and set lambdastar (only used for SDPA) */
+SCIP_RETCODE SCIPsdpiSolverComputeLambdastar(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_Real             maxguess            /**< maximum guess for lambda star of all SDP-constraints */
+   )
+{
+   SCIPdebugMessage("Lambdastar parameter not used by DSDP"); /* this parameter is only used by SDPA */
+
+   return SCIP_OKAY;
+}
+
+/** compute and set the penalty parameter */
+SCIP_RETCODE SCIPsdpiSolverComputePenaltyparam(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_Real             maxcoeff,           /**< maximum objective coefficient */
+   SCIP_Real*            penaltyparam        /**< the computed penalty parameter */
+   )
+{
+   SCIP_Real compval;
+
+   assert( sdpisolver != NULL );
+   assert( penaltyparam != NULL );
+
+   compval = PENALTYPARAM_FACTOR * maxcoeff;
+
+   if ( compval < MIN_PENALTYPARAM )
+   {
+      SCIPdebugMessage("Setting penaltyparameter to %f.\n", MIN_PENALTYPARAM);
+      sdpisolver->penaltyparam = MIN_PENALTYPARAM;
+      *penaltyparam = MIN_PENALTYPARAM;
+   }
+   else if ( compval > MAX_PENALTYPARAM )
+   {
+      SCIPdebugMessage("Setting penaltyparameter to %f.\n", MAX_PENALTYPARAM);
+      sdpisolver->penaltyparam = MAX_PENALTYPARAM;
+      *penaltyparam = MAX_PENALTYPARAM;
+   }
+   else
+   {
+      SCIPdebugMessage("Setting penaltyparameter to %f.\n", compval);
+      sdpisolver->penaltyparam = compval;
+      *penaltyparam = compval;
+   }
+   return SCIP_OKAY;
+}
+
+/** compute and set the maximum penalty parameter */
+SCIP_RETCODE SCIPsdpiSolverComputeMaxPenaltyparam(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_Real             penaltyparam,       /**< the initial penalty parameter */
+   SCIP_Real*            maxpenaltyparam     /**< the computed maximum penalty parameter */
+   )
+{
+   SCIP_Real compval;
+
+   assert( sdpisolver != NULL );
+   assert( maxpenaltyparam != NULL );
+
+   compval = penaltyparam * MAXPENALTYPARAM_FACTOR;
+
+   if ( compval < MAX_MAXPENALTYPARAM )
+   {
+      *maxpenaltyparam = compval;
+      SCIPdebugMessage("Setting maximum penaltyparameter to %f.\n", compval);
+   }
+   else
+   {
+      *maxpenaltyparam = MAX_MAXPENALTYPARAM;
+      SCIPdebugMessage("Setting penaltyparameter to %f.\n", MAX_MAXPENALTYPARAM);
+   }
+
+   /* if the maximum penalty parameter is smaller than the initial penalty paramater, we decrease the initial one correspondingly */
+   if ( sdpisolver->penaltyparam > *maxpenaltyparam )
+   {
+      SCIPdebugMessage("Decreasing penaltyparameter of %f to maximum penalty paramater of %f.\n", sdpisolver->penaltyparam, *maxpenaltyparam);
+      sdpisolver->penaltyparam = *maxpenaltyparam;
+   }
    return SCIP_OKAY;
 }
 

@@ -539,6 +539,29 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
    int                   ival                /**< parameter value */
    );
 
+/** compute and set lambdastar (only used for SDPA) */
+EXTERN
+SCIP_RETCODE SCIPsdpiSolverComputeLambdastar(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_Real             maxguess            /**< maximum guess for lambda star of all SDP-constraints */
+   );
+
+/** compute and set the penalty parameter */
+EXTERN
+SCIP_RETCODE SCIPsdpiSolverComputePenaltyparam(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_Real             maxcoeff,           /**< maximum objective coefficient */
+   SCIP_Real*            penaltyparam        /**< the computed penalty parameter */
+   );
+
+/** compute and set the maximum penalty parameter */
+EXTERN
+SCIP_RETCODE SCIPsdpiSolverComputeMaxPenaltyparam(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_Real             penaltyparam,       /**< the initial penalty parameter */
+   SCIP_Real*            maxpenaltyparam     /**< the computed maximum penalty parameter */
+   );
+
 /**@} */
 
 

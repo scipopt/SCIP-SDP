@@ -170,7 +170,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
                                                *  in the i-th block */
    int***                sdprow,             /**< pointer to the row-indices for each block and variable in this block, so row[i][j][k] gives
                                                *  the k-th nonzero of the j-th variable (not necessarly variable j) in the i-th block
-                                               *  (may be NULL if sdptnnonz = 0) */
+                                               *  (may be NULL if sdpnnonz = 0) */
    int***                sdpcol,             /**< pointer to the column-indices for each block and variable in this block (may be NULL if sdptnnonz = 0) */
    SCIP_Real***          sdpval,             /**< pointer to the values of the nonzeros for each block and variable in this block (may be NULL if sdptnnonz = 0) */
    int                   nlpcons,            /**< number of LP-constraints */
@@ -637,6 +637,29 @@ SCIP_RETCODE SCIPsdpiSetIntpar(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP interface solver structure */
    SCIP_SDPPARAM         type,               /**< parameter number */
    int                   ival                /**< parameter value */
+   );
+
+/** compute and set lambdastar (only used for SDPA) */
+EXTERN
+SCIP_RETCODE SCIPsdpiComputeLambdastar(
+   SCIP_SDPI*            sdpi,               /**< pointer to an SDP interface solver structure */
+   SCIP_Real             maxguess            /**< maximum guess for lambda star of all SDP-constraints */
+   );
+
+/** compute and set the penalty parameter */
+EXTERN
+SCIP_RETCODE SCIPsdpiComputePenaltyparam(
+   SCIP_SDPI*            sdpi,               /**< pointer to an SDP interface solver structure */
+   SCIP_Real             maxcoeff,           /**< maximum objective coefficient */
+   SCIP_Real*            penaltyparam        /**< the computed penalty parameter */
+   );
+
+/** compute and set the maximum penalty parameter */
+EXTERN
+SCIP_RETCODE SCIPsdpiComputeMaxPenaltyparam(
+   SCIP_SDPI*            sdpi,               /**< pointer to an SDP interface solver structure */
+   SCIP_Real             penaltyparam,       /**< the initial penalty parameter */
+   SCIP_Real*            maxpenaltyparam     /**< the computed maximum penalty parameter */
    );
 
 /**@} */

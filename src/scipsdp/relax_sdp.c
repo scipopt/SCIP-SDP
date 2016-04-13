@@ -75,20 +75,6 @@
 #define DEFAULT_SETTINGSRESETFREQ   -1       /**< frequency for resetting parameters in SDP solver and trying again with fastest settings */
 #define DEFAULT_SETTINGSRESETOFS    0        /**< frequency offset for resetting parameters in SDP solver and trying again with fastest settings */
 
-#define MIN_PENALTYPARAM            1e5      /**< if the penalty parameter is to be computed, this is the minimum value it will take */
-#define MAX_PENALTYPARAM            1e12     /**< if the penalty parameter is to be computed, this is the maximum value it will take */
-#define PENALTYPARAM_FACTOR_DSDP    1e4      /**< if the penalty parameter is to be computed, the maximal objective coefficient will be multiplied by this */
-#define PENALTYPARAM_FACTOR_SDPA    1e1      /**< if the penalty parameter is to be computed, the maximal objective coefficient will be multiplied by this */
-#define MAX_MAXPENALTYPARAM         1e15     /**< if the maximum penaltyparameter is to be computed, this is the maximum value it will take */
-#define MAXPENALTYPARAM_FACTOR      1e6      /**< if the maximum penaltyparameter is to be computed, it will be set to penaltyparam * this */
-#define MIN_LAMBDASTAR              1e0      /**< if lambda star is to be computed, this is the minimum value it will take */
-#define MAX_LAMBDASTAR              1e8      /**< if lambda star is to be computed, this is the maximum value it will take */
-#define LAMBDASTAR_FACTOR           1e0      /**< if lambda star is to be computed, the biggest guess of the SDP blocks is multiplied by this value */
-#define LAMBDASTAR_TWOPOINTS        TRUE     /**< if lambda star is to be computed, should we use only a low and a high value or instead a continuous interval */
-#define LAMBDASTAR_THRESHOLD        1e1      /**< if lambda star is to be computed and LAMBDASTAR_TWOPOINTS=TRUE, then we distinguish between low and high using this */
-#define LAMBDASTAR_LOW              1.5      /**< if lambda star is to be computed and LAMBDASTAR_TWOPOINTS=TRUE, then this is the value for below the threshold */
-#define LAMBDASTAR_HIGH             1e5      /**< if lambda star is to be computed and LAMBDASTAR_TWOPOINTS=TRUE, then this is the value for above the threshold */
-
 /*#define SLATERSOLVED_ABSOLUTE *//* uncomment this to return the absolute number of nodes for, e.g., solved fast with slater in addition to percentages */
 
 /*
@@ -1361,14 +1347,21 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
    {
       retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, penaltyparam);
       givenpenaltyparam = penaltyparam;
+      if ( retcode == SCIP_PARAMETERUNKNOWN )
+      {
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
+            "SDP Solver <%s>: penaltyparam setting not available -- SCIP parameter has no effect\n",
+            SCIPsdpiGetSolverName());
+      }
+      else
+      {
+         SCIP_CALL( retcode );
+      }
    }
    else
    {
       SCIP_Real maxcoeff;
-      SCIP_Real compval;
       int v;
-
-      /* we set the value to min{max{MIN_PENALTYPARAM, PENALTYPARAM_FACTOR * max_objective_coefficient}, MAX_PENALTYPARAM} */
 
       /* compute the maximum coefficient in the objective */
       maxcoeff = 0.0;
@@ -1378,45 +1371,7 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
             maxcoeff = REALABS(SCIPvarGetObj(vars[v]));
       }
 
-      /* compute the value we would like to set the penaltyparameter to */
-      if ( strcmp(SCIPsdpiGetSolverName(), "DSDP") == 0 )
-         compval = PENALTYPARAM_FACTOR_DSDP * maxcoeff;
-      else if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0 )
-         compval = PENALTYPARAM_FACTOR_SDPA * maxcoeff;
-      else
-      {
-         SCIPdebugMessage("unknown SDP-Solver %s when setting penaltyparam!\n", SCIPsdpiGetSolverName());
-         compval = SCIPinfinity(scip);
-      }
-
-      if ( SCIPisLT(scip, compval, MIN_PENALTYPARAM) )
-      {
-         retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, MIN_PENALTYPARAM);
-         SCIPdebugMessage("Setting penaltyparameter to %f.\n", MIN_PENALTYPARAM);
-         givenpenaltyparam = MIN_PENALTYPARAM;
-      }
-      else if ( SCIPisGT(scip, compval, MAX_PENALTYPARAM) )
-      {
-         retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, MAX_PENALTYPARAM);
-         SCIPdebugMessage("Setting penaltyparameter to %f.\n", MAX_PENALTYPARAM);
-         givenpenaltyparam = MAX_PENALTYPARAM;
-      }
-      else
-      {
-         retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, compval);
-         SCIPdebugMessage("Setting penaltyparameter to %f.\n", compval);
-         givenpenaltyparam = compval;
-      }
-   }
-   if ( retcode == SCIP_PARAMETERUNKNOWN )
-   {
-      SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-         "SDP Solver <%s>: penaltyparam setting not available -- SCIP parameter has no effect\n",
-         SCIPsdpiGetSolverName());
-   }
-   else
-   {
-      SCIP_CALL( retcode );
+      SCIP_CALL( SCIPsdpiComputePenaltyparam(relaxdata->sdpi, maxcoeff, &givenpenaltyparam) );
    }
 
    /* set/compute the maximum penalty parameter */
@@ -1425,47 +1380,32 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
    {
       retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_MAXPENALTYPARAM, maxpenaltyparam);
 
+      if ( retcode == SCIP_PARAMETERUNKNOWN )
+      {
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
+            "SDP Solver <%s>: maxpenaltyparam setting not available -- SCIP parameter has no effect.\n",
+            SCIPsdpiGetSolverName());
+      }
+      else
+      {
+         SCIP_CALL( retcode );
+      }
+
       /* check if the starting value is not bigger than the maximum one, otherwise update it */
       if ( SCIPisLT(scip, givenpenaltyparam, maxpenaltyparam) )
       {
          SCIPdebugMessage("Penalty parameter %f overwritten by maxpenaltyparam %f! \n", givenpenaltyparam, maxpenaltyparam);
          SCIP_CALL( SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, maxpenaltyparam) );
-
       }
    }
    else
    {
-      SCIP_Real compval;
+      SCIP_Real givenmaxpenaltyparam;
 
-      /* we set the value to min{MAX_MAXPENALTYPARAM, MAXPENALTYPARAM_FACTOR * penaltyparam} */
-
-      assert( SCIPisLE(scip, givenpenaltyparam, MAX_MAXPENALTYPARAM) );
-
-      /* compute the value we would like to set the penaltyparameter to */
-      compval = givenpenaltyparam * MAXPENALTYPARAM_FACTOR;
-
-      if ( SCIPisLT(scip, compval, MAX_MAXPENALTYPARAM) )
-      {
-         retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_MAXPENALTYPARAM, compval);
-         SCIPdebugMessage("Setting maximum penaltyparameter to %f.\n", compval);
-      }
-      else
-      {
-         retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_MAXPENALTYPARAM, MAX_MAXPENALTYPARAM);
-         SCIPdebugMessage("Setting penaltyparameter to %f.\n", MAX_MAXPENALTYPARAM);
-      }
+      SCIP_CALL( SCIPsdpiComputeMaxPenaltyparam(relaxdata->sdpi, givenpenaltyparam, &givenmaxpenaltyparam) );
    }
 
-   if ( retcode == SCIP_PARAMETERUNKNOWN )
-   {
-      SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-         "SDP Solver <%s>: maxpenaltyparam setting not available -- SCIP parameter has no effect.\n",
-         SCIPsdpiGetSolverName());
-   }
-   else
-   {
-      SCIP_CALL( retcode );
-   }
+
 
    /* set/compute lambda star if SDPA is used as the SDP-Solver */
    if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0.0 )
@@ -1482,14 +1422,10 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
          SCIP_Real guess;
          SCIP_Real maxguess;
          SCIP_CONS** conss;
-         SCIP_Real compval;
          int nconss;
          int c;
 
-         /* we set the value to min{max{MIN_LAMBDASTAR, LAMBDASTAR_FACTOR * MAX_GUESS}, MAX_LAMBDASTAR}, where MAX_GUESS is the maximum of the guesses
-          * of the SDP-Blocks, if MAX_GUESS > LAMBDASTAR_THRESHOLD, we mutliply it by LAMBDASTAR_THRESHOLD_FACT */
-
-         /* compute the maximum guess */
+         /* iterate over all SDP-constraints to compute the biggest guess for lambdastar  */
          conss = SCIPgetConss(scip);
          nconss = SCIPgetNConss(scip);
          maxguess = 0.0;
@@ -1505,31 +1441,7 @@ SCIP_DECL_RELAXINIT(relaxInitSolSdp)
             }
          }
 
-         if ( LAMBDASTAR_TWOPOINTS )
-         {
-            if ( maxguess < LAMBDASTAR_THRESHOLD )
-               compval = LAMBDASTAR_LOW;
-            else
-               compval = LAMBDASTAR_HIGH;
-         }
-         else
-            compval = LAMBDASTAR_FACTOR * maxguess;
-
-         if ( SCIPisLT(scip, compval, MIN_LAMBDASTAR) )
-         {
-            retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_LAMBDASTAR, MIN_LAMBDASTAR);
-            SCIPdebugMessage("Setting lambdastar to %f.\n", MIN_LAMBDASTAR);
-         }
-         else if ( SCIPisGT(scip, compval, MAX_LAMBDASTAR) )
-         {
-            retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_LAMBDASTAR, MAX_LAMBDASTAR);
-            SCIPdebugMessage("Setting lambdastar to %f.\n", MAX_LAMBDASTAR);
-         }
-         else
-         {
-            retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_LAMBDASTAR, compval);
-            SCIPdebugMessage("Setting lambdastar to %f.\n", compval);
-         }
+         SCIP_CALL( SCIPsdpiComputeLambdastar(relaxdata->sdpi, maxguess) );
       }
    }
 
