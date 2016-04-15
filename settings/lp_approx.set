@@ -1,9 +1,0 @@
-#solve LPs instead of SDPs and use eigenvectorcuts to enforce positive semidefiniteness
-relaxing/SDP/freq = -1
-lp/solvefreq = 1
-
-# display LP instead of SDP iterations
-display/sdpiterations/active = 0
-display/lpiterations/active = 2
-display/sdpavgiterations/active = 0
-display/lpavgiterations/active = 2
