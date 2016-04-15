@@ -1252,7 +1252,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
 /** this method is called after presolving is finished, at this point the varmapper is prepared and the SDP Interface is initialized and gets
  *  the SDP information from the constraints */
 static
-SCIP_DECL_RELAXINIT(relaxInitSolSdp)
+SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
 {
    SCIP_RELAXDATA* relaxdata;
    SCIP_RETCODE retcode;
