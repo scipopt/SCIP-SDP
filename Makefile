@@ -149,6 +149,10 @@ SDPICSRC	=	src/sdpi/lapack_sdpa.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o $(OBJDIR)/sdpi/lapack_sdpa.o
 endif
 
+ifneq ($(SDPS),sdpa)
+DISABLEMKL=1
+endif
+
 #-----------------------------------------------------------------------------
 # no solver
 SDPIOPTIONS	+=	none
@@ -172,8 +176,13 @@ SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
 #-----------------------------------------------------------------------------
 # MKLSETTINGS
 #-----------------------------------------------------------------------------
-MKLFLAGS =
+
 ifeq ($(MKL),false)
+DISABLEMKL=1
+endif
+
+MKLFLAGS =
+ifeq ($(DISABLEMKL),1)
 MKLFLAGS += -DNO_MKL
 endif
 
