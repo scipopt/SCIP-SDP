@@ -582,6 +582,7 @@ SCIP_RETCODE calcRelax(
    SCIP_VAR** vars;
    SCIP_SDPI* sdpi;
    SCIP_Bool rootnode;
+   SCIP_Bool enforceslater;
    SCIP_Real timelimit;
    SCIP_Real objforscip;
    SCIP_Real* solforscip;
@@ -661,8 +662,12 @@ SCIP_RETCODE calcRelax(
       }
    }
 
+   /* if no dual bound is known (we are in the root node and not only repropagating), we will have to abort, so we want
+    * to check the Slater condition in this case */
+   enforceslater = SCIPisInfinity(scip, -1 * SCIPnodeGetLowerbound(SCIPgetCurrentNode(scip)));
+
    /* solve the problem */
-   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, startsetting, rootnode, timelimit) );
+   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, startsetting, enforceslater, timelimit) );
    relaxdata->lastsdpnode = SCIPnodeGetNumber(SCIPgetCurrentNode(scip));
 
    /* update calls, iterations and stability numbers */
@@ -865,7 +870,7 @@ SCIP_RETCODE calcRelax(
          *lowerbound = objlb;
          SCIPdebugMessage("The relaxation could not be solved, using best computed bound from penalty formulation.\n");
       }
-      else if ( SCIPisInfinity(scip, -1 * SCIPnodeGetLowerbound(SCIPgetCurrentNode(scip))) )
+      else if ( ! SCIPisInfinity(scip, -1 * SCIPnodeGetLowerbound(SCIPgetCurrentNode(scip))) )
       {
          *lowerbound = SCIPnodeGetLowerbound(SCIPgetCurrentNode(scip));
          SCIPdebugMessage("The relaxation could not be solved, keeping old bound.\n");
