@@ -73,7 +73,9 @@
  * <tr><td>propagating/obbt/tightcontboundsprobing = FALSE</td> <td>should continuous bounds be tightened during the probing mode?</tr>
  * <tr><td>propagating/obbt/tightintboundsprobing = TRUE</td> <td>should integral bounds be tightened during the probing mode?</tr>
  * <tr><td>heuristics/sdpfracdiving/freq = -1</td> <td>set this to >= 0 to enable a fractional diving heuristic for SDPs</td></tr>
- * <tr><td>heuristics/sdprand/freq = 1</td> <td>set this to -1 0 to disable the randomized rounding heuristic</td></tr>
+ * <tr><td>heuristics/sdprand/freq = 10</td> <td>set this to -1 to disable the randomized rounding heuristic</td></tr>
+ * <tr><td>heuristics/sdprand/nrounds = 5</td> <td>number of rounding rounds</td></tr>
+ * <tr><td>heuristics/sdprand/generalints = FALSE</td> <td>Should randomized rounding also be applied if there are general integer variables and not only binary variables ?</td></tr>
  * <tr><td>relaxing/SDP/sdpsolverepsilon = 0.0001</td> <td>sets the bound for the duality gap in the SDP-Solver</td></tr>
  * <tr><td>relaxing/SDP/sdpsolverfeastol = 0.00001</td> <td>feasibility tolerance for the SDP-Solver (should be less or equal to numerics/feastol)</td></tr>
  * <tr><td>relaxing/SDP/sdpinfo = FALSE</td> <td>Should output of the SDP-Solver be printed to the console?</td></tr>

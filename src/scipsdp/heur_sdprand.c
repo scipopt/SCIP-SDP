@@ -62,6 +62,7 @@
  */
 
 #define DEFAULT_NROUNDS                 5    /**< number rounding rounds */
+#define DEFAULT_GENERALINTS             FALSE/**< Should randomized rounding also be applied if there are general integer variables and not only binary variables ? */
 
 /* locally defined heuristic data */
 struct SCIP_HeurData
@@ -69,6 +70,7 @@ struct SCIP_HeurData
    SCIP_SOL*             sol;                /**< working solution */
    int                   nrounds;            /**< number of rounding rounds */
    unsigned int          randseed;           /**< seed for random numbers */
+   SCIP_Bool             generalints;        /**< Should randomized rounding also be applied if there are general integer variables and not only binary variables ? */
 };
 
 
@@ -179,18 +181,18 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
 
    *result = SCIP_DIDNOTRUN;
 
-   /* do not run if we have general integer variables */
-   if ( SCIPgetNIntVars(scip) > 0 )
+   /* get heuristic data */
+   heurdata = SCIPheurGetData(heur);
+   assert( heurdata != NULL );
+
+   /* only run if there are no general integer variables or the corresponding parameter is set */
+   if ( (! heurdata->generalints) && SCIPgetNIntVars(scip) > 0 )
       return SCIP_OKAY;
 
    /* get relaxator - exit if not found (use LP randomized rounding) */
    relaxsdp = SCIPfindRelax(scip, "SDP");
    if ( relaxsdp == NULL )
       return SCIP_OKAY;
-
-   /* get heuristic data */
-   heurdata = SCIPheurGetData(heur);
-   assert( heurdata != NULL );
 
    /* get number of continuous variables */
    ncontvars = SCIPgetNContVars(scip) +  SCIPgetNImplVars(scip);
@@ -210,7 +212,6 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
          val = SCIPgetRelaxSolVal(scip, vars[v]);
          if ( SCIPvarIsIntegral(vars[v]) && ! SCIPisFeasIntegral(scip, val) )
          {
-            assert( SCIPisFeasGE(scip, val, 0.0) && SCIPisFeasLE(scip, val, 1.0) ); /* so far only binary variables */
             sdpcands[nsdpcands] = vars[v];
             sdpcandssol[nsdpcands] = val;
             ++nsdpcands;
@@ -229,7 +230,6 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
          sdpcandssol[v] = val;
          if ( SCIPvarIsIntegral(vars[v]) && ! SCIPisFeasIntegral(scip, val) )
          {
-            assert( SCIPisFeasGE(scip, val, 0.0) && SCIPisFeasLE(scip, val, 1.0) ); /* so far only binary variables */
             ++nsdpcands;
          }
       }
@@ -267,7 +267,6 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
          {
             var = sdpcands[v];
             assert( SCIPvarIsIntegral(var) );
-            assert( SCIPvarIsBinary(var) );
 
             /* if the variable is not fixed and its value is fractional */
             if ( SCIPvarGetLbLocal(var) < 0.5 && SCIPvarGetUbLocal(var) > 0.5 && ! SCIPisFeasIntegral(scip, sdpcandssol[v]) )
@@ -275,13 +274,13 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
                r = SCIPgetRandomReal(0.0, 1.0, &heurdata->randseed);
 
                /* depending on random value, set variable to 0 or 1 */
-               if ( sdpcandssol[v] <= r )
+               if ( SCIPfeasFrac(scip, sdpcandssol[v]) <= r )
                {
-                  SCIP_CALL( SCIPsetSolVal(scip, heurdata->sol, var, 0.0) );
+                  SCIP_CALL( SCIPsetSolVal(scip, heurdata->sol, var, SCIPfeasFloor(scip, sdpcandssol[v])) );
                }
                else
                {
-                  SCIP_CALL( SCIPsetSolVal(scip, heurdata->sol, var, 1.0) );
+                  SCIP_CALL( SCIPsetSolVal(scip, heurdata->sol, var, SCIPfeasCeil(scip, sdpcandssol[v])) );
                }
             }
          }
@@ -421,6 +420,10 @@ SCIP_RETCODE SCIPincludeHeurSdpRand(
          "heuristics/sdprand/nrounds",
          "number of rounding rounds",
          &heurdata->nrounds, FALSE, DEFAULT_NROUNDS, 0, 10000, NULL, NULL) );
+   SCIP_CALL( SCIPaddBoolParam(scip,
+         "heuristics/sdprand/generalints",
+         "Should randomized rounding also be applied if there are general integer variables and not only binary variables ?",
+         &heurdata->generalints, FALSE, DEFAULT_GENERALINTS, NULL, NULL) );
 
    return SCIP_OKAY;
 }
