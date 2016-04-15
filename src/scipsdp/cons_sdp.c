@@ -55,6 +55,10 @@
 #include "scip/cons_linear.h"           /* for SCIPcreateConsLinear */
 #include "scip/scip.h"                  /* for SCIPallocBufferArray, etc */
 
+#ifndef NO_MKL
+#include "omp.h"                        /* for changing the number of threads */
+#endif
+
 #define CONSHDLR_NAME          "SDP"
 #define CONSHDLR_DESC          "SDP constraints of the form \\sum_{j} A_j y_j - A_0 psd"
 #define CONSHDLR_SEPAPRIORITY  +1000000 /**< priority of the constraint handler for separation */
@@ -70,6 +74,8 @@
 #define CONSHDLR_PRESOLTIMING     SCIP_PRESOLTIMING_FAST
 #define PARSE_STARTSIZE               1 /**< initial size of the consdata-arrays when parsing a problem */
 #define PARSE_SIZEFACTOR             10 /**< size of consdata-arrays is increased by this factor when parsing a problem */
+
+#define DEFAULT_NTHREADS              1 /**< number of threads used for LAPACK/BLAS */
 
 
 /** constraint data for sdp constraints */
@@ -97,6 +103,9 @@ struct SCIP_ConshdlrData
    int                   ndiaggezerocuts;    /**< this is used to give the diagGEzero-cuts distinguishable names */
    int                   ndiagdomcuts;       /**< this is used to give the diagDominant-cuts distinguishable names */
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
+#ifndef NO_MKL
+   int                   nthreads;           /**< number of threads used for LAPACK/BLAS */
+#endif
 };
 
 #ifndef NDEBUG
@@ -1488,10 +1497,19 @@ SCIP_DECL_CONSTRANS(consTransSdp)
 {/*lint --e{715}*/
    SCIP_CONSDATA* sourcedata;
    SCIP_CONSDATA* targetdata;
+#ifndef NO_MKL
+   SCIP_CONSHDLRDATA* conshdlrdata;
+#endif
    int i;
 
    sourcedata = SCIPconsGetData(sourcecons);
    assert( sourcedata != NULL );
+
+#ifndef NO_MKL
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   SCIPdebugMessage("Setting number of the threads to %d via Intel® MKL.\n", conshdlrdata->nthreads);
+   omp_set_num_threads(conshdlrdata->nthreads);
+#endif
 
    SCIP_CALL( SCIPallocBlockMemory(scip, &targetdata) );
 
@@ -2291,6 +2309,12 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPsetConshdlrParse(scip, conshdlr, consParseSdp) );
    SCIP_CALL( SCIPsetConshdlrGetVars(scip, conshdlr, consGetVarsSdp) );
    SCIP_CALL( SCIPsetConshdlrGetNVars(scip, conshdlr, consGetNVarsSdp) );
+
+   /* add parameter */
+#ifndef NO_MKL
+   SCIP_CALL( SCIPaddIntParam(scip, "constraints/SDP/threads", "number of threads used for LAPACK/BLAS",
+         &(conshdlrdata->nthreads), TRUE, DEFAULT_NTHREADS, 1, INT_MAX, NULL, NULL) );
+#endif
 
    return SCIP_OKAY;
 }

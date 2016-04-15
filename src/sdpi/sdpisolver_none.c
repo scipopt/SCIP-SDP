@@ -55,9 +55,6 @@ struct SCIP_SDPiSolver
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
    SCIP_Real             objlimit;           /**< objective limit for SDP solver */
-#if 0
-   int                   threads;            /**< number of threads */
-#endif
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
 };
 
@@ -694,12 +691,6 @@ SCIP_RETCODE SCIPsdpiSolverGetIntpar(
 
    switch( type )
    {
-#if 0
-   case SCIP_SDPPAR_THREADS:
-      *ival = sdpisolver->threads;
-      SCIPdebugMessage("Getting sdpisolver number of threads: %d.\n", *ival);
-      break;
-#endif
    case SCIP_SDPPAR_SDPINFO:
       *ival = sdpisolver->sdpinfo;
       SCIPdebugMessage("Getting sdpisolver information output (%d).\n", *ival);
@@ -722,12 +713,6 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
 
    switch( type )
    {
-#if 0
-   case SCIP_SDPPAR_THREADS:
-      sdpisolver->threads = ival;
-      SCIPdebugMessage("Setting sdpisolver number of threads to %d.\n", ival);
-      break;
-#endif
    case SCIP_SDPPAR_SDPINFO:
       sdpisolver->sdpinfo = ival;
       SCIPdebugMessage("Setting sdpisolver information output (%d).\n", ival);

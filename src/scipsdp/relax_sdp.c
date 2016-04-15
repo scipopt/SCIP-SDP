@@ -65,7 +65,6 @@
 #define DEFAULT_PENALTYPARAM        -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 #define DEFAULT_LAMBDASTAR          -1.0     /**< the parameter lambda star used by SDPA to set the initial point */
 #define DEFAULT_MAXPENALTYPARAM     -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
-#define DEFAULT_THREADS             1        /**< number of threads used for SDP solving */
 #define DEFAULT_SLATERCHECK         0        /**< Should the Slater condition be checked ? */
 #define DEFAULT_OBJLIMIT            FALSE    /**< Should an objective limit be given to the SDP-Solver ? */
 #define DEFAULT_RESOLVE             TRUE     /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
@@ -100,7 +99,6 @@ struct SCIP_RelaxData
    int                   solvedstable;       /**< number of SDPs solved with stable settings */
    int                   solvedpenalty;      /**< number of SDPs solved using penalty formulation */
    int                   unsolved;           /**< number of SDPs that could not be solved even using a penalty formulation */
-   int                   threads;            /**< number of threads used for SDP solving */
    int                   slatercheck;        /**< Should the Slater condition for the dual problem be check ahead of solving every SDP ? */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             displaystat;        /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
@@ -1245,10 +1243,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
 }
 
 
-/*
- * relaxator specific interface methods
- */
-
 /** this method is called after presolving is finished, at this point the varmapper is prepared and the SDP Interface is initialized and gets
  *  the SDP information from the constraints */
 static
@@ -1265,7 +1259,6 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    SCIP_Real givenpenaltyparam;
    int slatercheck;
    int nvars;
-   int threads;
 
    assert( relax != NULL );
 
@@ -1454,19 +1447,6 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
          "SDP Solver <%s>: lambdastar setting not available -- SCIP parameter has no effect.\n",
-         SCIPsdpiGetSolverName());
-   }
-   else
-   {
-      SCIP_CALL( retcode );
-   }
-
-   SCIP_CALL( SCIPgetIntParam(scip, "relaxing/SDP/threads", &threads) );
-   retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_THREADS, threads);
-   if ( retcode == SCIP_PARAMETERUNKNOWN )
-   {
-      SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-         "SDP Solver <%s>: threads setting not available -- SCIP parameter has no effect.\n",
          SCIPsdpiGetSolverName());
    }
    else
@@ -1711,9 +1691,6 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          "the parameter lambda star used by SDPA to set the initial point , "
          "set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->lambdastar),
          TRUE, DEFAULT_LAMBDASTAR, -1.0, 1e+20, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/threads", "number of threads used for SDP solving",
-         &(relaxdata->threads), TRUE, DEFAULT_THREADS, 1, INT_MAX, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/slatercheck",
          "should the Slater condition for the dual problem be check ahead of solving each SDP? 0: no, 1: yes and output statistics, 2: yes and print warning for "
