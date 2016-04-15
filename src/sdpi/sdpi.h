@@ -594,19 +594,6 @@ SCIP_Bool SCIPsdpiIsInfinity(
    SCIP_Real             val                 /**< value to be checked for infinity */
    );
 
-/** returns highest penalty parameter to be used */
-EXTERN
-SCIP_Real SCIPsdpiMaxPenParam(
-   SCIP_SDPI*            sdpi                /**< SDP interface structure */
-   );
-
-/** checks if given value is greater or equal to the highest penalty parameter to be used */
-EXTERN
-SCIP_Bool SCIPsdpiIsGEMaxPenParam(
-   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_Real             val                 /**< value to be compared to maximum penalty parameter */
-   );
-
 /** gets floating point parameter of SDP */
 EXTERN
 SCIP_RETCODE SCIPsdpiGetRealpar(

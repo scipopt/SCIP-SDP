@@ -625,23 +625,6 @@ SCIP_Bool SCIPsdpiSolverIsInfinity(
    return ((val <= -SCIPsdpiSolverInfinity(sdpisolver)) || (val >= SCIPsdpiSolverInfinity(sdpisolver)));
 }
 
-/** returns highest penalty parameter to be used */
-SCIP_Real SCIPsdpiSolverMaxPenParam(
-   SCIP_SDPISOLVER*      sdpisolver          /**< pointer to an SDP interface solver structure */
-   )
-{
-   return 1E+10;  /* this is the value DSDP will start with if called normally */
-}
-
-/** checks if given value is greater or equal to the highest penalty parameter to be used */
-SCIP_Bool SCIPsdpiSolverIsGEMaxPenParam(
-   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
-   SCIP_Real             val                 /**< value to be compared to maximum penalty parameter */
-   )
-{
-   return ((val <= -SCIPsdpiSolverMaxPenParam(sdpisolver)) || (val >= SCIPsdpiSolverMaxPenParam(sdpisolver)));
-}
-
 /** gets floating point parameter of SDP-Solver */
 SCIP_RETCODE SCIPsdpiSolverGetRealpar(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
@@ -776,7 +759,7 @@ SCIP_RETCODE SCIPsdpiSolverComputePenaltyparam(
 {
    assert( penaltyparam != NULL );
 
-   *penaltyparam = 1E10;
+   *penaltyparam = 1E+10;
 
    return SCIP_OKAY;
 }
@@ -788,9 +771,9 @@ SCIP_RETCODE SCIPsdpiSolverComputeMaxPenaltyparam(
    SCIP_Real*            maxpenaltyparam     /**< the computed maximum penalty parameter */
    )
 {
-   assert( penaltyparam != NULL );
+   assert( maxpenaltyparam != NULL );
 
-   *penaltyparam = 1E10;
+   *maxpenaltyparam = 1E+10;
 
    return SCIP_OKAY;
 }

@@ -3630,27 +3630,6 @@ SCIP_Bool SCIPsdpiIsInfinity(
    return ((val <= -SCIPsdpiInfinity(sdpi)) || (val >= SCIPsdpiInfinity(sdpi)));
 }
 
-/** returns highest penalty parameter to be used */
-SCIP_Real SCIPsdpiMaxPenParam(
-   SCIP_SDPI*            sdpi                /**< SDP interface structure */
-   )
-{
-   assert( sdpi != NULL );
-
-   return SCIPsdpiSolverMaxPenParam(sdpi->sdpisolver);
-}
-
-/** checks if given value is greater or equal to the highest penalty parameter to be used */
-SCIP_Bool SCIPsdpiIsGEMaxPenParam(
-   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SCIP_Real             val                 /**< value to be compared to maximum penalty parameter */
-   )
-{
-   assert( sdpi != NULL );
-
-   return ((val <= -SCIPsdpiMaxPenParam(sdpi)) || (val >= SCIPsdpiMaxPenParam(sdpi)));
-}
-
 /** gets floating point parameter of SDP */
 SCIP_RETCODE SCIPsdpiGetRealpar(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
