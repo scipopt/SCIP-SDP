@@ -75,7 +75,7 @@
 #define PARSE_STARTSIZE               1 /**< initial size of the consdata-arrays when parsing a problem */
 #define PARSE_SIZEFACTOR             10 /**< size of consdata-arrays is increased by this factor when parsing a problem */
 
-#define DEFAULT_NTHREADS              1 /**< number of threads used for LAPACK/BLAS */
+#define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
 
 
 /** constraint data for sdp constraints */
@@ -104,7 +104,7 @@ struct SCIP_ConshdlrData
    int                   ndiagdomcuts;       /**< this is used to give the diagDominant-cuts distinguishable names */
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
 #ifndef NO_MKL
-   int                   nthreads;           /**< number of threads used for LAPACK/BLAS */
+   int                   nthreads;           /**< number of threads used for OpenBLAS */
 #endif
 };
 
@@ -2312,7 +2312,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
 
    /* add parameter */
 #ifndef NO_MKL
-   SCIP_CALL( SCIPaddIntParam(scip, "constraints/SDP/threads", "number of threads used for LAPACK/BLAS",
+   SCIP_CALL( SCIPaddIntParam(scip, "constraints/SDP/threads", "number of threads used for OpenBLAS",
          &(conshdlrdata->nthreads), TRUE, DEFAULT_NTHREADS, 1, INT_MAX, NULL, NULL) );
 #endif
 

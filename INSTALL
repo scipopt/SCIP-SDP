@@ -129,7 +129,7 @@ as in the usual SCIP shell. You can test this with the examples in the "instance
 Parallelization for SDPA
 ------------------------
 
-If you compiled SCIP-SDP with SDPA and openblas, the BLAS/LAPACK routines can be run multithreaded.
+If you compiled SCIP-SDP with SDPA and OpenBLAS, the OpenBLAS routines can be run multithreaded.
 For this you have to set the corresponding environment variable by typing
 
 export OMP_NUM_THREADS=n
@@ -137,6 +137,6 @@ export OMP_NUM_THREADS=n
 before opening the shell, where n is the desired number of threads.
 
 Alternatively, if you have Intel® MKL, you may also compile SCIP-SDP with MKL=true (which is
-the default). Then you can change the number of settings via SCIP-parameter:
+the default for dsdp=SDPA). Then you can change the number of settings via SCIP-parameter:
 
 set constraints SDP advanced threads n
