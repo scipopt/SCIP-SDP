@@ -620,12 +620,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->sdpa->setParameterLambdaStar(sdpisolver->lambdastar);
 
    /* compute number of variable bounds and save them in sdpavarbounds */
+   if ( sdpisolver->varboundpos != NULL )
+   {
+      BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &(sdpisolver->varboundpos), 2 * sdpisolver->nvars); /*lint !e647*/
+   }
    sdpisolver->nvarbounds = 0;
    BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &sdpavarbounds, 2 * sdpisolver->nactivevars) ); /*lint !e647*/
-   if ( sdpisolver->varboundpos == NULL )
-   {
-      BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->varboundpos), 2 * sdpisolver->nvars) ); /*lint !e647*/
-   }
+   BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->varboundpos), 2 * sdpisolver->nvars) ); /*lint !e647*/
 
    for (i = 0; i < sdpisolver->nactivevars; i++)
    {
