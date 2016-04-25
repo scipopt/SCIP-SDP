@@ -192,6 +192,7 @@ SCIP_RETCODE SCIPsdpVarmapperInsertVar(
          varmapper->sdptoscip[pos] = var;
          SCIP_CALL( SCIPhashmapInsert(varmapper->sciptosdp, var, (void*) (size_t) pos) );
          varmapper->nvars++;
+         SCIP_CALL( SCIPcaptureVar(scip, var) );
       }
    }
    else
