@@ -266,6 +266,7 @@ SCIP_RETCODE SCIPsdpVarmapperRemoveSdpIndex(
    assert ( SCIPhashmapExists(varmapper->sciptosdp, var) );
 
    SCIP_CALL( SCIPhashmapRemove(varmapper->sciptosdp, var) );
+   SCIP_CALL( SCIPreleaseVar(scip, &(varmapper)->sdptoscip[ind]) );
 
    /* shift all entries of the sdptoscip-array behind ind one to the left and update their sciptosdp-entries */
    for (i = ind + 1; i < varmapper->nvars; i++)
@@ -333,6 +334,7 @@ SCIP_RETCODE SCIPsdpVarmapperClone(
    {
       newmapper->sdptoscip[i] = oldmapper->sdptoscip[i];
       SCIP_CALL( SCIPhashmapInsert(newmapper->sciptosdp, oldmapper->sdptoscip[i], (void*) (size_t) i) );
+      SCIP_CALL( SCIPcaptureVar(scip, newmapper->sdptoscip[i]) );
    }
 
    return SCIP_OKAY;
