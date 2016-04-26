@@ -222,14 +222,17 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
       return SCIP_OKAY;
 
    /* do not call heuristic if node was already detected to be infeasible */
-   if( nodeinfeasible )
+   if ( nodeinfeasible )
       return SCIP_OKAY;
 
    /* don't dive two times at the same node */
-   if( SCIPgetLastDivenode(scip) == SCIPgetNNodes(scip) && SCIPgetDepth(scip) > 0 )
+   if ( SCIPgetLastDivenode(scip) == SCIPgetNNodes(scip) && SCIPgetDepth(scip) > 0 )
       return SCIP_OKAY;
 
    *result = SCIP_DIDNOTRUN;
+
+   /* the current bugfix branch (3.2.1) does have SCIPsolveProbingRelax() -> do nothing */
+#if ( (SCIP_VERSION > 321 || SCIP_SUBVERSION > 0) )
 
    /* get heuristic's data */
    heurdata = SCIPheurGetData(heur);
@@ -637,6 +640,8 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
 #else
    *result = SCIP_DIDNOTRUN;
 #endif
+#endif
+
    return SCIP_OKAY;
 }
 
