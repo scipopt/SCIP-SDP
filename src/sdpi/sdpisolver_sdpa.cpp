@@ -257,11 +257,9 @@ SCIP_RETCODE SCIPsdpiSolverFree(
 
    SCIPdebugMessage("Freeing SDPISolver\n");
 
+   /* free SDPA object using destructor and free memory via blockmemshell */
    if ( (*sdpisolver)->sdpa != NULL)
-   {
-      /* free SDPA object using destructor and free memory via blockmemshell */
       delete (*sdpisolver)->sdpa;
-   }
 
    BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->varboundpos, 2 * (*sdpisolver)->nvars); /*lint !e647*/
 
@@ -271,7 +269,7 @@ SCIP_RETCODE SCIPsdpiSolverFree(
    if ( (*sdpisolver)->nactivevars > 0 )
       BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->sdpatoinputmapper, (*sdpisolver)->nactivevars);
 
-   if ( (*sdpisolver)->nvars >= (*sdpisolver)->nactivevars )
+   if ( (*sdpisolver)->nvars > (*sdpisolver)->nactivevars )
       BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->fixedvarsval, (*sdpisolver)->nvars - (*sdpisolver)->nactivevars); /*lint !e776*/
 
    BMSfreeBlockMemory((*sdpisolver)->blkmem, sdpisolver);
