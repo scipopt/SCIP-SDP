@@ -138,7 +138,7 @@ struct SCIP_SDPi
    /* constant SDP data: */
    int                   sdpconstnnonz;      /**< number of nonzero elements in the constant matrices of the SDP-Blocks */
    int*                  sdpconstnblocknonz; /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
-                                               *  number of entries  of sdpconst row/col/val [i] */
+                                              *   number of entries  of sdpconst row/col/val [i] */
    int**                 sdpconstrow;        /**< pointers to row-indices for each block */
    int**                 sdpconstcol;        /**< pointers to column-indices for each block */
    SCIP_Real**           sdpconstval;        /**< pointers to the values of the nonzeros for each block */
@@ -146,11 +146,11 @@ struct SCIP_SDPi
    /* non-constant SDP data: */
    int                   sdpnnonz;           /**< number of nonzero elements in the SDP-constraint matrices */
    int**                 sdpnblockvarnonz;   /**< sdpnblockvarnonz[i][j] gives the number of nonzeros for the j-th variable (not necessarly
-                                               *  variable j) in the i-th block, this is also the length of row/col/val[i][j] */
+                                              *   variable j) in the i-th block, this is also the length of row/col/val[i][j] */
    int**                 sdpvar;             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
-                                               *  in the i-th block */
+                                              *   in the i-th block */
    int***                sdprow;             /**< pointer to the row-indices for each block and variable in this block, so row[i][j][k] gives
-                                               *  the k-th nonzero of the j-th variable (not necessarly variable j) in the i-th block */
+                                              *   the k-th nonzero of the j-th variable (not necessarly variable j) in the i-th block */
    int***                sdpcol;             /**< pointer to the column-indices for each block and variable in this block */
    SCIP_Real***          sdpval;             /**< pointer to the values of the nonzeros for each block and variable in this block */
 

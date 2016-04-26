@@ -53,10 +53,11 @@
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
 
-#define EPSILONCHANGE   1 /**< change epsilon by this factor when switching from fast to default and from default to stable settings */
-#define FEASTOLCHANGE   1 /**< change feastol by this factor when switching from fast to default and from default to stable settings */
-#define PENALTYBOUNDTOL 1E-3 /**< if the relative gap between Tr(X) and penaltyparam for a primal solution of the penaltyformulation
-                               *  is bigger than this value, it will be reported to the sdpi */
+/* local defines */
+#define EPSILONCHANGE   1                    /**< change epsilon by this factor when switching from fast to default and from default to stable settings */
+#define FEASTOLCHANGE   1                    /**< change feastol by this factor when switching from fast to default and from default to stable settings */
+#define PENALTYBOUNDTOL 1E-3                 /**< if the relative gap between Tr(X) and penaltyparam for a primal solution of the penaltyformulation
+                                              *   is bigger than this value, it will be reported to the sdpi */
 
 #define MIN_LAMBDASTAR              1e0      /**< if lambda star is to be computed, this is the minimum value it will take */
 #define MAX_LAMBDASTAR              1e8      /**< if lambda star is to be computed, this is the maximum value it will take */
@@ -115,14 +116,14 @@ struct SCIP_SDPiSolver
    int                   nvars;              /**< number of input variables */
    int                   nactivevars;        /**< number of variables present in SDPA (nvars minus the number of variables with lb = ub) */
    int*                  inputtosdpamapper;  /**< entry i gives the index of input variable i in sdpa (starting from 1) or
-                                               *  -j (j=1, 2, ..., nvars - nactivevars) if the variable is fixed, the value and objective value of
-                                               *  this fixed variable can be found in entry j-1 of fixedval/obj */
+                                              *   -j (j=1, 2, ..., nvars - nactivevars) if the variable is fixed, the value and objective value of
+                                              *   this fixed variable can be found in entry j-1 of fixedval/obj */
    int*                  sdpatoinputmapper;  /**< entry i gives the original index of the (i+1)-th variable in sdpa (indices go from 0 to nactivevars-1) */
    SCIP_Real*            fixedvarsval;       /**< entry i gives the lower and upper bound of the i-th fixed variable */
    SCIP_Real             fixedvarsobjcontr;  /**< total contribution to the objective of all fixed variables, computed as sum obj * val */
    int                   nvarbounds;         /**< number of variable bounds given to sdpa, length of sdpavarboundpos */
    int*                  varboundpos;        /**< maps position of variable bounds in the variable bound part of the LP-block in sdpa to the sdpa-indices
-                                               *  of the corresponding variables, -n means lower bound of variable n, +n means upper bound */
+                                              *   of the corresponding variables, -n means lower bound of variable n, +n means upper bound */
    SCIP_Bool             solved;             /**< Was the SDP solved since the problem was last changed? */
    int                   sdpcounter;         /**< used for debug messages */
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
