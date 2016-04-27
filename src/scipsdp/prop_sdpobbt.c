@@ -187,13 +187,17 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
    assert( prop != NULL );
    assert( result != NULL );
 
+   *result = SCIP_DIDNOTRUN;
+
+   /* the current bugfix branch (3.2.1) does not have SCIPsolveProbingRelax() -> do nothing */
+#if ( (SCIP_VERSION > 321 || SCIP_SUBVERSION > 0) )
+
    SCIPdebugMessage("Executing propExecSdpObbt! \n");
 
    /* if there is no cutoff-bound, we don't want to run */
    if ( SCIPisInfinity(scip, SCIPgetCutoffbound(scip)) )
    {
       SCIPdebugMessage("Aborting propExecSdpObbt because of lack of cutoff-bound!\n");
-      *result = SCIP_DIDNOTRUN;
       return SCIP_OKAY;
    }
 
@@ -201,7 +205,6 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
    if( SCIPgetStage(scip) != SCIP_STAGE_SOLVING || SCIPinRepropagation(scip) || SCIPinProbing(scip) || !SCIPallowObjProp(scip) )
    {
       SCIPdebugMessage("Aborting propExecSdpObbt because we are in presolving, repropagation, probing mode or no objective propagation is allowed!\n");
-      *result = SCIP_DIDNOTRUN;
       return SCIP_OKAY;
    }
 
@@ -214,7 +217,6 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
    if ( SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) == propdata->lastnode )
    {
       SCIPdebugMessage("Not running again for node %lld!\n", propdata->lastnode);
-      *result = SCIP_DIDNOTRUN;
       return SCIP_OKAY;
    }
    else
@@ -411,6 +413,7 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
    SCIPfreeBufferArray(scip, &newbounds);
    SCIPfreeBufferArray(scip, &newboundinds);
 
+#endif
    return SCIP_OKAY;
 }
 
