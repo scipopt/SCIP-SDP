@@ -181,7 +181,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
 
    *result = SCIP_DIDNOTRUN;
 
-   /* the current bugfix branch (3.2.1) does have SCIPsolveProbingRelax() -> do nothing */
+   /* the current bugfix branch (3.2.1) does not have SCIPsolveProbingRelax() -> do nothing */
 #if ( (SCIP_VERSION > 321 || SCIP_SUBVERSION > 0) )
 
    /* get heuristic data */
