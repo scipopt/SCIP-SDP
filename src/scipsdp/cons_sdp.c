@@ -358,7 +358,7 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
 {  /*lint --e{715}*/
    SCIP_CONSDATA* consdata;
    int blocksize;
-   double check_value;
+   SCIP_Real check_value;
    SCIP_Real eigenvalue;
    SCIP_Real* matrix = NULL;
    SCIP_Real* fullmatrix = NULL;

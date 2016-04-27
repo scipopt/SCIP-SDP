@@ -203,7 +203,7 @@ namespace scip
 
       std::vector<int, BlockMemoryAllocator<int> > blockpattern =
       std::vector<int, BlockMemoryAllocator<int> >(BlockMemoryAllocator<int>(scip));      //Vector with the sizes of all blocks
-      std::vector<double> object;         //Objectivevector
+      std::vector<SCIP_Real> object;         //Objectivevector
       std::vector<SDPBlock> blockstruct;	//Blockstructure
       LPBlock LPData;                     //LP Data
       std::vector<bool> blockislp;         //Is the block an LP block?
@@ -290,7 +290,7 @@ namespace scip
       SCIP_CALL(dropComments(&file));
 
       // read objective
-      object = std::vector<double>(numvars, 0.0);
+      object = std::vector<SCIP_Real>(numvars, 0.0);
       for (int i = 0; i < numvars; ++i)
       {
          file >> object[i];
@@ -332,7 +332,7 @@ namespace scip
       	{
       		int var_index, block_index; // block id
       		int row_index, col_index; // position in matrix
-      		double val;
+      		SCIP_Real val;
       		drop_space(file);
 
       		SCIP_CALL( testDigit(&file) );
@@ -632,7 +632,7 @@ namespace scip
                   SCIPsnprintf(LPcon_name, 255, "LP-Con-%d", row_i);
 
                   //Get right hand side of the constraint
-                  double LPlhs = 0.0;
+                  SCIP_Real LPlhs = 0.0;
 
                   for (unsigned int var_i = 0; var_i < LPData.rows[row_i].data.size(); ++var_i)
                   {

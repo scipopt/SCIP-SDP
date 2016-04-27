@@ -1513,69 +1513,69 @@ SCIP_DECL_RELAXEXIT(relaxExitSdp)
    if ( relaxdata->displaystat && SCIPgetSubscipDepth(scip) == 0 )
    {
       SCIPinfoMessage(scip, NULL, "\nSDP iterations:\t\t\t\t%6d\n", relaxdata->sdpiterations);
-      SCIPinfoMessage(scip, NULL, "Average SDP-iterations:\t\t\t%6.2f \n", (double) relaxdata->sdpiterations / (double) relaxdata->sdpcalls );
+      SCIPinfoMessage(scip, NULL, "Average SDP-iterations:\t\t\t%6.2f \n", (SCIP_Real) relaxdata->sdpiterations / (SCIP_Real) relaxdata->sdpcalls );
       if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0 )
       {
-         SCIPinfoMessage(scip, NULL, "Percentage 'fastest settings' solved:\t%6.2f \n", 100.0 * (double) relaxdata->solvedfast / (double) relaxdata->sdpcalls);
-         SCIPinfoMessage(scip, NULL, "Percentage 'medium settings' solved:\t%6.2f \n", 100.0 * (double) relaxdata->solvedmedium / (double) relaxdata->sdpcalls);
-         SCIPinfoMessage(scip, NULL, "Percentage 'stable settings' solved:\t%6.2f \n", 100.0 * (double) relaxdata->solvedstable / (double) relaxdata->sdpcalls);
+         SCIPinfoMessage(scip, NULL, "Percentage 'fastest settings' solved:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->solvedfast / (SCIP_Real) relaxdata->sdpcalls);
+         SCIPinfoMessage(scip, NULL, "Percentage 'medium settings' solved:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->solvedmedium / (SCIP_Real) relaxdata->sdpcalls);
+         SCIPinfoMessage(scip, NULL, "Percentage 'stable settings' solved:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->solvedstable / (SCIP_Real) relaxdata->sdpcalls);
       }
       else
       {
-         SCIPinfoMessage(scip, NULL, "Percentage 'default formulation' solved:\t%6.2f \n", 100.0 * (double) relaxdata->solvedfast / (double) relaxdata->sdpcalls);
+         SCIPinfoMessage(scip, NULL, "Percentage 'default formulation' solved:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->solvedfast / (SCIP_Real) relaxdata->sdpcalls);
       }
-      SCIPinfoMessage(scip, NULL, "Percentage penalty formulation used:\t%6.2f \n", 100.0 * (double) relaxdata->solvedpenalty / (double) relaxdata->sdpcalls);
-      SCIPinfoMessage(scip, NULL, "Percentage unsolved even with penalty:\t%6.2f \n", 100.0 * (double) relaxdata->unsolved / (double) relaxdata->sdpcalls);
+      SCIPinfoMessage(scip, NULL, "Percentage penalty formulation used:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->solvedpenalty / (SCIP_Real) relaxdata->sdpcalls);
+      SCIPinfoMessage(scip, NULL, "Percentage unsolved even with penalty:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->unsolved / (SCIP_Real) relaxdata->sdpcalls);
 
       if ( relaxdata->slatercheck )
       {
-         SCIPinfoMessage(scip, NULL, "Percentage primal Slater condition held:\t%6.2f \n", 100.0 * (double) relaxdata->npslaterholds / (double) relaxdata->sdpcalls);
-         SCIPinfoMessage(scip, NULL, "Percentage primal Slater condition did not hold:\t%6.2f \n", 100.0 * (double) relaxdata->npnoslater / (double) relaxdata->sdpcalls);
-         SCIPinfoMessage(scip, NULL, "Percentage primal Slater check failed:\t%6.2f \n", 100.0 * (double) relaxdata->npslatercheckfailed / (double) relaxdata->sdpcalls);
+         SCIPinfoMessage(scip, NULL, "Percentage primal Slater condition held:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->npslaterholds / (SCIP_Real) relaxdata->sdpcalls);
+         SCIPinfoMessage(scip, NULL, "Percentage primal Slater condition did not hold:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->npnoslater / (SCIP_Real) relaxdata->sdpcalls);
+         SCIPinfoMessage(scip, NULL, "Percentage primal Slater check failed:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->npslatercheckfailed / (SCIP_Real) relaxdata->sdpcalls);
 
-         SCIPinfoMessage(scip, NULL, "Percentage dual Slater condition held:\t%6.2f \n", 100.0 * (double) relaxdata->ndslaterholds / (double) relaxdata->sdpcalls);
-         SCIPinfoMessage(scip, NULL, "Percentage dual Slater condition did not hold:\t%6.2f \n", 100.0 * (double) relaxdata->ndnoslater / (double) relaxdata->sdpcalls);
-         SCIPinfoMessage(scip, NULL, "Percentage dual Slater check failed:\t%6.2f \n", 100.0 * (double) relaxdata->ndslatercheckfailed / (double) relaxdata->sdpcalls);
-         SCIPinfoMessage(scip, NULL, "Percentage dual Slater check detected infeasibility:\t%6.2f \n", 100.0 * (double) relaxdata->nslaterinfeasible / (double) relaxdata->sdpcalls);
+         SCIPinfoMessage(scip, NULL, "Percentage dual Slater condition held:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->ndslaterholds / (SCIP_Real) relaxdata->sdpcalls);
+         SCIPinfoMessage(scip, NULL, "Percentage dual Slater condition did not hold:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->ndnoslater / (SCIP_Real) relaxdata->sdpcalls);
+         SCIPinfoMessage(scip, NULL, "Percentage dual Slater check failed:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->ndslatercheckfailed / (SCIP_Real) relaxdata->sdpcalls);
+         SCIPinfoMessage(scip, NULL, "Percentage dual Slater check detected infeasibility:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->nslaterinfeasible / (SCIP_Real) relaxdata->sdpcalls);
 
          if ( relaxdata->nslaterholds )
          {
             SCIPinfoMessage(scip, NULL, "Percentage 'fastest settings' with primal and dual slater holding:\t%6.2f \n",
-                  100.0 * (double) relaxdata->stablewslater / (double) relaxdata->nslaterholds);
+                  100.0 * (SCIP_Real) relaxdata->stablewslater / (SCIP_Real) relaxdata->nslaterholds);
             SCIPinfoMessage(scip, NULL, "Percentage 'stable settings' with primal and dual slater holding:\t%6.2f \n",
-                  100.0 * (double) relaxdata->unstablewslater / (double) relaxdata->nslaterholds);
+                  100.0 * (SCIP_Real) relaxdata->unstablewslater / (SCIP_Real) relaxdata->nslaterholds);
             SCIPinfoMessage(scip, NULL, "Percentage 'penalty' with primal and dual slater holding:\t%6.2f \n",
-                  100.0 * (double) relaxdata->penaltywslater / (double) relaxdata->nslaterholds);
+                  100.0 * (SCIP_Real) relaxdata->penaltywslater / (SCIP_Real) relaxdata->nslaterholds);
             SCIPinfoMessage(scip, NULL, "Percentage 'computed infeasible lower bound' with primal and dual slater holding:\t%6.2f \n",
-                  100.0 * (double) relaxdata->boundedwslater / (double) relaxdata->nslaterholds);
+                  100.0 * (SCIP_Real) relaxdata->boundedwslater / (SCIP_Real) relaxdata->nslaterholds);
             SCIPinfoMessage(scip, NULL, "Percentage 'unsolved' with primal and dual slater holding:\t%6.2f \n",
-                  100.0 * (double) relaxdata->unsolvedwslater / (double) relaxdata->nslaterholds);
+                  100.0 * (SCIP_Real) relaxdata->unsolvedwslater / (SCIP_Real) relaxdata->nslaterholds);
          }
          if ( relaxdata->nnoslater )
          {
             SCIPinfoMessage(scip, NULL, "Percentage 'fastest settings' with either primal or dual slater not holding:\t%6.2f \n",
-                  100.0 * (double) relaxdata->stablenoslater / (double) relaxdata->nnoslater);
+                  100.0 * (SCIP_Real) relaxdata->stablenoslater / (SCIP_Real) relaxdata->nnoslater);
             SCIPinfoMessage(scip, NULL, "Percentage 'stable settings' with either primal or dual slater not holding:\t%6.2f \n",
-                  100.0 * (double) relaxdata->unstablenoslater / (double) relaxdata->nnoslater);
+                  100.0 * (SCIP_Real) relaxdata->unstablenoslater / (SCIP_Real) relaxdata->nnoslater);
             SCIPinfoMessage(scip, NULL, "Percentage 'penalty' with either primal or dual slater not holding:\t%6.2f \n",
-                  100.0 * (double) relaxdata->penaltynoslater / (double) relaxdata->nnoslater);
+                  100.0 * (SCIP_Real) relaxdata->penaltynoslater / (SCIP_Real) relaxdata->nnoslater);
             SCIPinfoMessage(scip, NULL, "Percentage 'computed infeasible lower bound' with either primal or dual slater not holding:\t%6.2f \n",
-                  100.0 * (double) relaxdata->boundednoslater / (double) relaxdata->nnoslater);
+                  100.0 * (SCIP_Real) relaxdata->boundednoslater / (SCIP_Real) relaxdata->nnoslater);
             SCIPinfoMessage(scip, NULL, "Percentage 'unsolved' with either primal or dual slater not holding:\t%6.2f \n",
-                  100.0 * (double) relaxdata->unsolvednoslater / (double) relaxdata->nnoslater);
+                  100.0 * (SCIP_Real) relaxdata->unsolvednoslater / (SCIP_Real) relaxdata->nnoslater);
          }
          if ( relaxdata->nslaterinfeasible )
          {
             SCIPinfoMessage(scip, NULL, "Percentage 'fastest settings' with slater check showing infeasibility:\t%6.2f \n",
-                  100.0 * (double) relaxdata->stableinfeasible / (double) relaxdata->nslaterinfeasible);
+                  100.0 * (SCIP_Real) relaxdata->stableinfeasible / (SCIP_Real) relaxdata->nslaterinfeasible);
             SCIPinfoMessage(scip, NULL, "Percentage 'stable settings' with slater check showing infeasibility:\t%6.2f \n",
-                  100.0 * (double) relaxdata->unstableinfeasible / (double) relaxdata->nslaterinfeasible);
+                  100.0 * (SCIP_Real) relaxdata->unstableinfeasible / (SCIP_Real) relaxdata->nslaterinfeasible);
             SCIPinfoMessage(scip, NULL, "Percentage 'penalty' with slater check showing infeasibility:\t%6.2f \n",
-                  100.0 * (double) relaxdata->penaltyinfeasible / (double) relaxdata->nslaterinfeasible);
+                  100.0 * (SCIP_Real) relaxdata->penaltyinfeasible / (SCIP_Real) relaxdata->nslaterinfeasible);
             SCIPinfoMessage(scip, NULL, "Percentage 'computed infeasible lower bound' with slater check showing infeasibility:\t%6.2f \n",
-                  100.0 * (double) relaxdata->boundedinfeasible / (double) relaxdata->nslaterinfeasible);
+                  100.0 * (SCIP_Real) relaxdata->boundedinfeasible / (SCIP_Real) relaxdata->nslaterinfeasible);
             SCIPinfoMessage(scip, NULL, "Percentage 'unsolved' with slater check showing infeasibility:\t%6.2f \n",
-                  100.0 * (double) relaxdata->unsolvedinfeasible / (double) relaxdata->nslaterinfeasible);
+                  100.0 * (SCIP_Real) relaxdata->unsolvedinfeasible / (SCIP_Real) relaxdata->nslaterinfeasible);
          }
 #ifdef SLATERSOLVED_ABSOLUTE
          SCIPinfoMessage(scip, NULL, "Number of nodes with primal and dual slater holding:\t%d \n", relaxdata->nslaterholds);

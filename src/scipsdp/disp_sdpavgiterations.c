@@ -132,7 +132,7 @@ SCIP_DECL_DISPOUTPUT(dispOutputSdpavgiterations)
    if ( SCIPrelaxSdpGetNSdpCalls(dispdata->relaxSDP) == 0 )
       SCIPinfoMessage(scip, file, "      - ");
    else
-      SCIPinfoMessage(scip, file, "%7.1f ", (double) SCIPrelaxSdpGetNIterations(dispdata->relaxSDP) / (double) SCIPrelaxSdpGetNSdpCalls(dispdata->relaxSDP) );
+      SCIPinfoMessage(scip, file, "%7.1f ", (SCIP_Real) SCIPrelaxSdpGetNIterations(dispdata->relaxSDP) / (SCIP_Real) SCIPrelaxSdpGetNSdpCalls(dispdata->relaxSDP) );
 
    return SCIP_OKAY;
 }
