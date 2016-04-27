@@ -409,8 +409,6 @@ namespace scip
       			   for ( b = 0; b < lp_block_num[block_index - 1] - 1; b++ )
       			      rowoffset += lp_block_size[b];
 
-      			   printf("rowoffset=%d\n", rowoffset);
-
       			   new_row_index = rowoffset + row_index - 1;
       			}
       			LPData.rows[new_row_index].data.push_back(std::make_pair(var_index, val));

@@ -1314,8 +1314,8 @@ SCIP_RETCODE fixAndAggrVars(
             else
                SCIPdebugMessage("multiaggregating variable %s to ", SCIPvarGetName(var));
             for (i = 0; i < naggrvars; i++)
-               printf("+ (%f2) * %s ", scalars[i], SCIPvarGetName(aggrvars[i]));
-            printf("+ (%f2) \n", constant);
+               SCIPdebugMessage("+ (%f2) * %s ", scalars[i], SCIPvarGetName(aggrvars[i]));
+            SCIPdebugMessage("+ (%f2) \n", constant);
 #endif
 
             /* add the nonzeros to the saved-arrays for the constant part, remove the nonzeros for the old variables and add them to the variables this variable

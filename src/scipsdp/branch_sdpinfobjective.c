@@ -316,20 +316,20 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
          assert( SCIPisGE(scip, currentobj, 0.0) );
 
 #ifdef SCIP_DEBUG
-         printf("candidate %s, coupled with ", SCIPvarGetName(cands[cand]));
+         SCIPdebugMessage("candidate %s, coupled with ", SCIPvarGetName(cands[cand]));
          for (v = 0; v < nvars; v++)
          {
             if (coupledvars[cand][v])
-               printf("%s, ", SCIPvarGetName(vars[v]));
+               SCIPdebugMessage("%s, ", SCIPvarGetName(vars[v]));
          }
-         printf("out of those ");
+         SCIPdebugMessage("out of those ");
          for (v = 0; v < nvars; v++)
          {
             if (singlecoupledvars[cand][v])
-               printf("%s, ", SCIPvarGetName(vars[v]));
+               SCIPdebugMessage("%s, ", SCIPvarGetName(vars[v]));
          }
-         printf("are only coupled with this candidate, total objective = %f, integral infeasibility = %f, total objective * candidate's fractionality = %f,"
-               "score = %f\n", currentobj, (currentfrac <= 0.5) ? currentfrac : (1 - currentfrac), currenttarget, candsscore[cand]);
+         SCIPdebugMessage("are only coupled with this candidate, total objective = %f, integral infeasibility = %f, total objective * candidate's fractionality = %f,"
+                  "score = %f\n", currentobj, (currentfrac <= 0.5) ? currentfrac : (1 - currentfrac), currenttarget, candsscore[cand]);
 #endif
 
          /* a candidate is better than the current one if:

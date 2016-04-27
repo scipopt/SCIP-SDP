@@ -126,9 +126,9 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
    assert( ncands > 0 ); /* branchExecext should only be called if the list of extern branching candidate is non-empty */
 
 #ifdef SCIP_DEBUG
-   printf("branching candidates for SDP-objective:\n");
+   SCIPdebugMessage("branching candidates for SDP-objective:\n");
    for (i = 0; i < ncands; i++)
-      printf("%s, value = %f, objective = %f, score = %f\n", SCIPvarGetName(cands[i]), candssol[i], SCIPvarGetObj(cands[i]), candsscore[i]);
+      SCIPdebugMessage("%s, value = %f, objective = %f, score = %f\n", SCIPvarGetName(cands[i]), candssol[i], SCIPvarGetObj(cands[i]), candsscore[i]);
 #endif
 
    maxobjobj = -1.0;
@@ -322,19 +322,19 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
          currentinf = (currentfrac <= 0.5) ? currentfrac : 1 - currentfrac;
 
 #ifdef SCIP_DEBUG
-         printf("candidate %s, coupled with ", SCIPvarGetName(cands[cand]));
+         SCIPdebugMessage("candidate %s, coupled with ", SCIPvarGetName(cands[cand]));
          for (v = 0; v < nvars; v++)
          {
             if (coupledvars[cand][v])
-               printf("%s, ", SCIPvarGetName(vars[v]));
+               SCIPdebugMessage("%s, ", SCIPvarGetName(vars[v]));
          }
-         printf("out of those ");
+         SCIPdebugMessage("out of those ");
          for (v = 0; v < nvars; v++)
          {
             if (singlecoupledvars[cand][v])
-               printf("%s, ", SCIPvarGetName(vars[v]));
+               SCIPdebugMessage("%s, ", SCIPvarGetName(vars[v]));
          }
-         printf("are only coupled with this candidate, total objective = %f, score = %f\n", currentobj, candsscore[cand]);
+         SCIPdebugMessage("are only coupled with this candidate, total objective = %f, score = %f\n", currentobj, candsscore[cand]);
 
 #endif
 

@@ -109,9 +109,9 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
    assert( ncands > 0 ); /* branchExecext should only be called if the list of extern branching candidate is non-empty */
 
 #ifdef SCIP_DEBUG
-   printf("branching candidates for SDP-mostfrac:\n");
+   SCIPdebugMessage("branching candidates for SDP-mostfrac:\n");
    for (i = 0; i < ncands; i++)
-      printf("%s, value = %f, score = %f\n", SCIPvarGetName(cands[i]), candssol[i], candsscore[i]);
+      SCIPdebugMessage("%s, value = %f, score = %f\n", SCIPvarGetName(cands[i]), candssol[i], candsscore[i]);
 #endif
 
    mostfracfrac = -1.0;
