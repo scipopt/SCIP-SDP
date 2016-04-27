@@ -502,6 +502,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( nlpcons == 0 || lpcol != NULL );
    assert( nlpcons == 0 || lpval != NULL );
 
+   /* immediately exit if the time limit is negative */
+   if ( timelimit <= 0.0 )
+   {
+      sdpisolver->solved = FALSE;
+      return SCIP_OKAY;
+   }
+
 #ifndef SCIP_NDEBUG
    checkinput = false;
 #else
