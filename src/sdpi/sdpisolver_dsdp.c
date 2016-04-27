@@ -1278,10 +1278,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if ( timings.stopped )
       sdpisolver->timelimit = TRUE;
    else
+   {
       sdpisolver->timelimit = FALSE;
-
-   DSDP_CALL( DSDPComputeX(sdpisolver->dsdp) ); /* computes X and determines feasibility and unboundedness of the solution */
-   sdpisolver->solved = TRUE;
+      DSDP_CALL( DSDPComputeX(sdpisolver->dsdp) ); /* computes X and determines feasibility and unboundedness of the solution */
+      sdpisolver->solved = TRUE;
+   }
 
    /*these arrays were used to give information to DSDP and were needed during solving and for computing X, so they may only be freed now*/
    if ( sdpconstnnonz > 0 )
@@ -1365,7 +1366,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 #endif
 
-   if ( penaltyparam >= sdpisolver->epsilon )
+   if ( penaltyparam >= sdpisolver->epsilon && sdpisolver->solved )
    {
       if ( rbound )
       {
