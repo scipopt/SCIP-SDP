@@ -41,6 +41,11 @@ core:
   penalty formulation is now used in SCIP even if the corresponding solution is not feasible in the original
   formulation
 
+misc:
+- percentage of unsolved SDP relaxations are now displayed in the shell; percentage of instances solved using the fastest
+  settings (for SDPA, for DSDP this is the number of problems solved with the original formulation) and solved using the
+  penalty formulation can also be displayed but are disabled by default
+
 
 SCIP-SDP version 2.0.0
 ==================
