@@ -89,7 +89,7 @@
  * <tr><td>relaxing/SDP/settingsresetfreq = -1</td> <td>frequency for resetting parameters in SDP solver and trying again with fastest settings (-1: never, 0: only at depth settingsresetofs)</td></tr>
  * <tr><td>relaxing/SDP/settingsresetofs = 0</td> <td>frequency offset for resetting parameters in SDP solver and trying again with fastest settings</td></tr>
  * <tr><td>relaxing/SDP/tightenvb = TRUE</td> <td>Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ?</td></tr>
- * <tr><td>constraints/SDP/threads = 1</td> <td>number of threads used for openblas; only available with OpenBLAS/Intel® MKL and compile options SDPS=sdpa and MKL=true (default)</td></tr>
+ * <tr><td>constraints/SDP/threads = 1</td> <td>number of threads used for openblas; only available with OpenBLAS/OpenMP and compile options SDPS=sdpa and MKL=true (default for SDPS=sdpa)</td></tr>
  * <tr><td>branching/sdpobjective/coupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints?</td></tr>
  * <tr><td>branching/sdpobjective/singlecoupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints in which no other candidate appears?</td></tr>
  * <tr><td>branching/sdpinfobjective/coupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints?</td></tr>

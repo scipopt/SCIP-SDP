@@ -150,7 +150,7 @@ SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o $(OBJDIR)/sdpi/lapack_sdpa.o
 endif
 
 ifneq ($(SDPS),sdpa)
-DISABLEMKL=1
+DISABLEOMP=1
 endif
 
 #-----------------------------------------------------------------------------
@@ -174,16 +174,20 @@ SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
 			$(OBJDIR)/sdpi
 			
 #-----------------------------------------------------------------------------
-# MKLSETTINGS
+# OMPSETTINGS
 #-----------------------------------------------------------------------------
 
-ifeq ($(MKL),false)
-DISABLEMKL=1
+ifeq ($(OMP),false)
+DISABLEOMP=1
 endif
 
-MKLFLAGS =
-ifeq ($(DISABLEMKL),1)
-MKLFLAGS += -DNO_MKL
+ifeq ($(OMP),true)
+DISABLEOMP=0
+endif
+
+OMPFLAGS =
+ifneq ($(DISABLEOMP),1)
+OMPFLAGS += -DOMP
 endif
 
 #-----------------------------------------------------------------------------
@@ -452,10 +456,10 @@ $(MAINFILE):	preprocess $(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(MAINCOBJFI
 
 $(OBJDIR)/%.o:	$(SRCDIR)/%.c | $(SDPOBJSUBDIRS)
 		@echo "-> compiling $@"
-		$(CC) $(FLAGS) $(OFLAGS) $(SDPIINC) $(BINOFLAGS) $(CFLAGS) $(MKLFLAGS) -c $< $(CC_o)$@
+		$(CC) $(FLAGS) $(OFLAGS) $(SDPIINC) $(BINOFLAGS) $(CFLAGS) $(OMPFLAGS) -c $< $(CC_o)$@
 
 $(OBJDIR)/%.o:	$(SRCDIR)/%.cpp | $(SDPOBJSUBDIRS)
 		@echo "-> compiling $@"
-		$(CXX) $(FLAGS) $(OFLAGS) $(SDPIINC) $(BINOFLAGS) $(CXXFLAGS) $(MKLFLAGS) -c $< $(CXX_o)$@
+		$(CXX) $(FLAGS) $(OFLAGS) $(SDPIINC) $(BINOFLAGS) $(CXXFLAGS) $(OMPFLAGS) -c $< $(CXX_o)$@
 
 #---- EOF --------------------------------------------------------------------

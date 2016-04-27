@@ -33,8 +33,8 @@ to 1. So for example to compile SCIP-SDP with DSDP, just type
 
 make SDPS=dsdp
 
-in the main directory. Furthermore, you may need to set MKL=false if you do not have
-Intel® MKL. This then disables the possibility to set the number of threads dynamically
+in the main directory. Furthermore, you may need to set OMP=false if you do not have
+OpenMP. This then disables the possibility to set the number of threads dynamically
 via SCIP-parameter for SDPA/openblas. Additionally, you can use the same options for the 
 Makefile as you can use for building SCIP (i.e. make SDPS=sdpa OPT=dbg LPS=cpx), note that 
 a compiled SCIP binary with the same settings needs to exist in the linked path. You may 
@@ -136,7 +136,7 @@ export OMP_NUM_THREADS=n
 
 before opening the shell, where n is the desired number of threads.
 
-Alternatively, if you have Intel® MKL, you may also compile SCIP-SDP with MKL=true (which is
-the default for dsdp=SDPA). Then you can change the number of settings via SCIP-parameter:
+Alternatively, if you have OpenMP, you may also compile SCIP-SDP with OMP=true (which is
+the default for SDPS=sdpa). Then you can change the number of settings via SCIP-parameter:
 
 set constraints SDP advanced threads n

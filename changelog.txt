@@ -30,7 +30,7 @@ parameters:
 - penalty parameter to be used for numerically hard relaxations can now be changed by a parameter
 - lambda star parameter for initial point in SDPA can now be changed by a parameter
 - frequency of parameter resets in SDPA can be set by a parameter
-- number of threads for SDPA/Openblas can now be changed via parameter if Intel® MKL is installed
+- number of threads for SDPA/Openblas can now be changed via parameter if OpenMP is installed
 - slatercheck is now an int parameter that also determines whether Slater results should be printed to console or
   only displayed as statistics in the end
 - added parameter to control output of statistics after quitting SCIP-SDP

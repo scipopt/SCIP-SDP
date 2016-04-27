@@ -55,7 +55,7 @@
 #include "scip/cons_linear.h"           /* for SCIPcreateConsLinear */
 #include "scip/scip.h"                  /* for SCIPallocBufferArray, etc */
 
-#ifndef NO_MKL
+#ifdef OMP
 #include "omp.h"                        /* for changing the number of threads */
 #endif
 
@@ -103,7 +103,7 @@ struct SCIP_ConshdlrData
    int                   ndiaggezerocuts;    /**< this is used to give the diagGEzero-cuts distinguishable names */
    int                   ndiagdomcuts;       /**< this is used to give the diagDominant-cuts distinguishable names */
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
-#ifndef NO_MKL
+#ifdef OMP
    int                   nthreads;           /**< number of threads used for OpenBLAS */
 #endif
 };
@@ -1497,7 +1497,7 @@ SCIP_DECL_CONSTRANS(consTransSdp)
 {/*lint --e{715}*/
    SCIP_CONSDATA* sourcedata;
    SCIP_CONSDATA* targetdata;
-#ifndef NO_MKL
+#ifdef OMP
    SCIP_CONSHDLRDATA* conshdlrdata;
 #endif
    int i;
@@ -1505,9 +1505,9 @@ SCIP_DECL_CONSTRANS(consTransSdp)
    sourcedata = SCIPconsGetData(sourcecons);
    assert( sourcedata != NULL );
 
-#ifndef NO_MKL
+#ifdef OMP
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
-   SCIPdebugMessage("Setting number of the threads to %d via Intel® MKL.\n", conshdlrdata->nthreads);
+   SCIPdebugMessage("Setting number of threads to %d via OpenMP in Openblas.\n", conshdlrdata->nthreads);
    omp_set_num_threads(conshdlrdata->nthreads);
 #endif
 
@@ -2311,7 +2311,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPsetConshdlrGetNVars(scip, conshdlr, consGetNVarsSdp) );
 
    /* add parameter */
-#ifndef NO_MKL
+#ifdef OMP
    SCIP_CALL( SCIPaddIntParam(scip, "constraints/SDP/threads", "number of threads used for OpenBLAS",
          &(conshdlrdata->nthreads), TRUE, DEFAULT_NTHREADS, 1, INT_MAX, NULL, NULL) );
 #endif
