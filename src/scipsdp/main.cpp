@@ -103,14 +103,15 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPsetIntParam(scip, "display/lpiterations/active", 0) );
    SCIP_CALL( SCIPsetIntParam(scip, "display/lpavgiterations/active", 0) );
 
-   /* display numerical problems in SDPs instead of conflict analysis and strong branching */
+   /* display numerical problems in SDPs instead of current columns and strong branching */
    SCIP_CALL( SCIPsetIntParam(scip, "display/nfrac/active", 0) );
-   SCIP_CALL( SCIPsetIntParam(scip, "display/vars/active", 0) );
-   SCIP_CALL( SCIPsetIntParam(scip, "display/conss/active", 0) );
    SCIP_CALL( SCIPsetIntParam(scip, "display/curcols/active", 0) );
+   SCIP_CALL( SCIPsetIntParam(scip, "display/strongbranchs/active", 0) );
    SCIP_CALL( SCIPincludeDispSdpfastsettings(scip) );
    SCIP_CALL( SCIPincludeDispSdppenalty(scip) );
    SCIP_CALL( SCIPincludeDispSdpunsolved(scip) );
+   SCIP_CALL( SCIPsetIntParam(scip, "display/sdpfastsettings/active", 0) );
+   SCIP_CALL( SCIPsetIntParam(scip, "display/sdppenalty/active", 0) );
 
    /* change epsilons for numerical stability */
    SCIP_CALL( SCIPsetRealParam(scip, "numerics/epsilon", 1e-6) );

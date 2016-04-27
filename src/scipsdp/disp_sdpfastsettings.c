@@ -47,7 +47,7 @@
 #define DISP_DESC             "percentage of fastsettings for SDP solver"
 #define DISP_HEADER           "SDP fast"
 #define DISP_WIDTH            8              /**< the width of the display column */
-#define DISP_PRIORITY         30000          /**< the priority of the display column */
+#define DISP_PRIORITY         1000           /**< the priority of the display column */
 #define DISP_POSITION         2500           /**< the relative position of the display column */
 #define DISP_STRIPLINE        TRUE           /**< default for displaying column separated with a line from its right neighbor */
 
