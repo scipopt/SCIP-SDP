@@ -173,7 +173,8 @@ SCIP_DECL_HEUREXIT(heurExitSdpFracdiving)
 static
 SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
 {  /*lint --e{715}*/
-#if ( SCIP_VERSION >= 320 )
+   /* the current bugfix branch (3.2.1) does not have SCIPsolveProbingRelax() -> do nothing */
+#if ( (SCIP_VERSION > 321 || SCIP_SUBVERSION > 0) )
    SCIP_HEURDATA* heurdata;
    SCIP_VAR** vars;
    SCIP_VAR* var;
@@ -230,9 +231,6 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
       return SCIP_OKAY;
 
    *result = SCIP_DIDNOTRUN;
-
-   /* the current bugfix branch (3.2.1) does not have SCIPsolveProbingRelax() -> do nothing */
-#if ( (SCIP_VERSION > 321 || SCIP_SUBVERSION > 0) )
 
    /* get heuristic's data */
    heurdata = SCIPheurGetData(heur);
@@ -637,12 +635,14 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
    SCIPfreeBufferArray(scip, &sdpcandsfrac);
    SCIPfreeBufferArray(scip, &sdpcandssol);
    SCIPfreeBufferArray(scip, &sdpcands);
-#else
-   *result = SCIP_DIDNOTRUN;
-#endif
-#endif
 
    return SCIP_OKAY;
+
+#else
+   *result = SCIP_DIDNOTRUN;
+
+   return SCIP_OKAY;
+#endif
 }
 
 

@@ -75,6 +75,8 @@ struct SCIP_PropData
  * Local methods
  */
 
+/* the current bugfix branch (3.2.1) does not have SCIPsolveProbingRelax() -> do nothing */
+#if ( (SCIP_VERSION > 321 || SCIP_SUBVERSION > 0) )
 static
 SCIP_RETCODE addObjCutoff(
    SCIP*                 scip                /**< SCIP data structure */
@@ -110,6 +112,7 @@ SCIP_RETCODE addObjCutoff(
 
    return SCIP_OKAY;
 }
+#endif
 
 /*
  * Callback methods of propagator
@@ -166,6 +169,8 @@ SCIP_DECL_PROPEXIT(propExitSdpObbt)
 static
 SCIP_DECL_PROPEXEC(propExecSdpObbt)
 {  /*lint --e{715}*/
+   /* the current bugfix branch (3.2.1) does not have SCIPsolveProbingRelax() -> do nothing */
+#if ( (SCIP_VERSION > 321 || SCIP_SUBVERSION > 0) )
    int nvars;
    SCIP_VAR** vars;
    int v;
@@ -188,9 +193,6 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
    assert( result != NULL );
 
    *result = SCIP_DIDNOTRUN;
-
-   /* the current bugfix branch (3.2.1) does not have SCIPsolveProbingRelax() -> do nothing */
-#if ( (SCIP_VERSION > 321 || SCIP_SUBVERSION > 0) )
 
    SCIPdebugMessage("Executing propExecSdpObbt! \n");
 
@@ -413,8 +415,13 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
    SCIPfreeBufferArray(scip, &newbounds);
    SCIPfreeBufferArray(scip, &newboundinds);
 
-#endif
    return SCIP_OKAY;
+
+#else
+   *result = SCIP_DIDNOTRUN;
+
+   return SCIP_OKAY;
+#endif
 }
 
 

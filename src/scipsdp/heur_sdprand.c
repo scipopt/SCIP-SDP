@@ -153,6 +153,8 @@ SCIP_DECL_HEUREXIT(heurExitSdprand)
 static
 SCIP_DECL_HEUREXEC(heurExecSdprand)
 {  /*lint --e{715}*/
+   /* the current bugfix branch (3.2.1) does not have SCIPsolveProbingRelax() -> do nothing */
+#if ( (SCIP_VERSION > 321 || SCIP_SUBVERSION > 0) )
    SCIP_HEURDATA* heurdata;
    SCIP_RELAX* relaxsdp;
    SCIP_Real* sdpcandssol;
@@ -180,9 +182,6 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
       return SCIP_OKAY;
 
    *result = SCIP_DIDNOTRUN;
-
-   /* the current bugfix branch (3.2.1) does not have SCIPsolveProbingRelax() -> do nothing */
-#if ( (SCIP_VERSION > 321 || SCIP_SUBVERSION > 0) )
 
    /* get heuristic data */
    heurdata = SCIPheurGetData(heur);
@@ -382,11 +381,16 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
 
    SCIPfreeBufferArray(scip, &sdpcandssol);
    SCIPfreeBufferArray(scip, &sdpcands);
-#endif
 
    SCIPdebugMessage("finished randomized rounding heuristic.\n");
 
    return SCIP_OKAY;
+
+#else
+   *result = SCIP_DIDNOTRUN;
+
+   return SCIP_OKAY;
+#endif
 }
 
 
