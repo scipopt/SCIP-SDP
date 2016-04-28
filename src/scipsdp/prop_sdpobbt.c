@@ -31,7 +31,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   prop_sdpobbt.c
- * @brief  SdpObbt propagator
+ * @brief  optimization-based bound tightening propagator for semidefinite programs
  * @author Tristan Gally
  */
 

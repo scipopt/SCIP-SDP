@@ -33,7 +33,6 @@
 /**@file   sdpisolver.h
  * @brief  interface methods for specific SDP solvers
  * @author Marc Pfetsch
- * @author Leif Naundorf
  * @author Tristan Gally
  *
  * This file specifies a generic SDP solver interface used by SCIP to create, modify, and solve semidefinite programs of

@@ -32,7 +32,11 @@
 
 #@file    Makefile
 #@brief   Makefile for C++ SDP-Interface for SCIP
-#@author  Sonja Mars, Lars Schewe, Marc Pfetsch, Tristan Gally, Ambros Gleixner
+#@author  Sonja Mars
+#@author  Lars Schewe
+#@author  Marc Pfetsch
+#@author  Tristan Gally
+#@author  Ambros Gleixner
 
 #-----------------------------------------------------------------------------
 # own variables

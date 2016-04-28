@@ -33,6 +33,7 @@
 /**@file   heur_sdprand.c
  * @brief  randomized rounding heuristic for SDPs
  * @author Marc Pfetsch
+ * @author Tristan Gally
  *
  * @todo Generalize heuristic to the case of general integer variables (should be easy).
  */

@@ -31,7 +31,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   prop_sdpredcost.h
- * @brief  reduced cost fixing for SDPs
+ * @brief  reduced cost / dual fixing for SDPs
  * @author Tristan Gally
  */
 

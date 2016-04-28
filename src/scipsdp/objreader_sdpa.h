@@ -32,7 +32,8 @@
 
 /**@file   objreader_sdpa.h
  * @brief  Reader for SDPA-Files
- * @author Jakob Schelbert, Sonja Mars
+ * @author Jakob Schelbert
+ * @author Sonja Mars
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
