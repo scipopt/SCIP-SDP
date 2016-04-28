@@ -348,6 +348,12 @@ endif
 ifneq ($(NOBLKBUFMEM),$(LAST_NOBLKBUFMEM))
 		@-touch -c $(ALLSRC)
 endif
+ifneq ($(SDPS),$(LAST_SDPS))
+		@-touch -c $(SRCDIR)/scipsdp/cons_sdp.c
+endif
+ifneq ($(OMP),$(LAST_OMP))
+		@-touch -c $(SRCDIR)/scipsdp/cons_sdp.c
+endif
 		@-rm -f $(LASTSETTINGS)
 		@echo "LAST_PARASCIP=$(PARASCIP)" >> $(LASTSETTINGS)
 		@echo "LAST_SHARED=$(SHARED)" >> $(LASTSETTINGS)
@@ -361,6 +367,8 @@ endif
 		@echo "LAST_NOBLKMEM=$(NOBLKMEM)" >> $(LASTSETTINGS)
 		@echo "LAST_NOBUFMEM=$(NOBUFMEM)" >> $(LASTSETTINGS)
 		@echo "LAST_NOBLKBUFMEM=$(NOBLKBUFMEM)" >> $(LASTSETTINGS)
+		@echo "LAST_SDPS=$(SDPS)" >> $(LASTSETTINGS)
+		@echo "LAST_OMP=$(OMP)" >> $(LASTSETTINGS)
 
 $(LINKSMARKERFILE):
 		@$(MAKE) links
