@@ -964,6 +964,386 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
    return SCIP_OKAY;
 }
 
+/** Checks primal and dual Slater condition and outputs result depending on Slater settings in sdpi
+ */
+static
+SCIP_RETCODE checkSlaterCondition(
+   SCIP_SDPI*            sdpi,               /**< pointer to an SDP interface structure */
+   SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP) */
+   clock_t               starttime,          /**< currenttime - starttime will be substracted from the timelimit given to the solver */
+   int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
+                                              *   number of entries  of sdpconst row/col/val [i] (may be NULL if sdpconstnnonz = 0) */
+   int**                 sdpconstrow,        /**< pointer to row-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
+   int**                 sdpconstcol,        /**< pointer to column-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
+   SCIP_Real**           sdpconstval,        /**< pointer to values of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
+   int**                 indchanges,         /**< index changes for each variable in each block; variable v is removed in block b if indchanges[b][v] = -1,
+                                                  otherwise it gives the number of removed variables with smaller indices (may be NULL if sdpi->nsdpblocks = 0)*/
+   int*                  nremovedinds,       /**< number of removed variables for each block (may be NULL if sdpi->nsdpblocks = 0) */
+   SCIP_Real*            lplhsafterfix,      /**< left-hand sides of LP-constraints after fixing variables (may be NULL if nactivelpcons = 0) */
+   SCIP_Real*            lprhsafterfix,      /**< right-hand sides of LP-constraints after fixing variables (may be NULL if nactivelpcons = 0) */
+   int*                  rowsnactivevars,    /**< number of active variables for each LP-constraint (may be NULL if sdpi->nlpcons = 0) */
+   int*                  blockindchanges,    /**< index changes for SDP-blocks; blockindchanges[b] = -1 if SDP-block b should be removed
+                                              *   (may be NULL if sdpi->nsdpblocks = 0) */
+   int                   sdpconstnnonz,      /**< total number of nonzeros in the constant SDP part */
+   int                   nactivelpcons,      /**< number of active LP-constraints */
+   int                   nremovedblocks,     /**< number of removed SDP-blocks */
+   SCIP_Bool             rootnodefailed      /**< if TRUE we will output a message that the root node could not be solved and whether this was due
+                                              *   to the Slater condition, otherwise we will print depending on sdpi->slatercheck */
+   )
+{
+   SCIP_Real objval;
+   SCIP_Bool origfeas = FALSE;
+   SCIP_Bool penaltybound = FALSE;
+   int* slaterlprow;
+   int* slaterlpcol;
+   SCIP_Real* slaterlpval;
+   SCIP_Real* slaterlplhs;
+   SCIP_Real* slaterlprhs;
+   int* slaterrowsnactivevars;
+   int nremovedslaterlpinds;
+   int i;
+   int v;
+   int b;
+   int slaternactivelpcons;
+   SCIP_Real* slaterlb;
+   SCIP_Real* slaterub;
+   int slaternremovedvarbounds;
+   SCIP_Real solvertimelimit;
+   clock_t currenttime;
+
+   assert( sdpi != NULL );
+   assert( sdpconstnnonz == 0 || sdpconstnblocknonz != NULL );
+   assert( sdpconstnnonz == 0 || sdpconstrow != NULL );
+   assert( sdpconstnnonz == 0 || sdpconstcol != NULL );
+   assert( sdpconstnnonz == 0 || sdpconstval != NULL );
+   assert( sdpi->nsdpblocks == 0 || indchanges != NULL );
+   assert( sdpi->nsdpblocks == 0 || nremovedinds != NULL );
+   assert( nactivelpcons == 0 || lplhsafterfix != NULL );
+   assert( nactivelpcons == 0 || lprhsafterfix != NULL );
+   assert( sdpi->nlpcons == 0 || rowsnactivevars != NULL );
+   assert( sdpi->nsdpblocks == 0 || blockindchanges != NULL );
+
+   /* first check the slater condition for the dual problem */
+
+   /* compute the timit limit to set for the solver */
+   solvertimelimit = timelimit;
+   if ( ! SCIPsdpiIsInfinity(sdpi, solvertimelimit) )
+   {
+      currenttime = clock();
+      solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;
+   }
+
+   /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if we are
+    * still feasible for r > feastol, then we have an interior point with smallest eigenvalue > feastol, otherwise the Slater condition is harmed */
+   SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
+         sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
+         sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
+         sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
+         sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
+         rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit,
+         &origfeas, &penaltybound) );
+
+   if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) )
+   {
+      if ( rootnodefailed )
+      {
+         SCIPmessagePrintInfo(sdpi->messagehdlr, "Aborting due to failing to solve the root node relaxation, Slater condition for the dual problem could "
+               "not be checked, ");
+      }
+      else if ( sdpi->slatercheck == 2 )
+         SCIPmessagePrintInfo(sdpi->messagehdlr, "Unable to check Slater condition for dual problem.\n");
+      sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
+   }
+   else
+   {
+      if ( SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
+      {
+         if ( rootnodefailed )
+            SCIPmessagePrintInfo(sdpi->messagehdlr, "Aborting due to failing to solve the root node relaxation, Slater condition for the dual problem holds "
+                  "as smallest eigenvalue maximization problem is unbounded, ");
+         else
+            SCIPdebugMessage("Slater condition for dual problem for SDP %d fullfilled, smallest eigenvalue maximization problem unbounded.\n", sdpi->sdpid);
+         sdpi->dualslater = SCIP_SDPSLATER_HOLDS;
+      }
+      else if ( SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) )
+      {
+         if ( rootnodefailed )
+         {
+            SCIPmessagePrintInfo(sdpi->messagehdlr, "Aborting due to failing to solve the root node relaxation, Slater condition for the dual problem "
+                  "not fullfilled as problem is infeasible, ");
+         }
+         else if ( sdpi->slatercheck == 2 )
+            SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for dual problem for SDP %d not fullfilled, problem infeasible.\n", sdpi->sdpid);
+         sdpi->dualslater = SCIP_SDPSLATER_NOT;
+      }
+      else
+      {
+         SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
+
+         if ( objval < - sdpi->feastol )
+         {
+            if ( rootnodefailed )
+            {
+               SCIPmessagePrintInfo(sdpi->messagehdlr, "Aborting due to failing to solve the root node relaxation, Slater condition for the dual problem holds"
+                     "with smallest eigenvalue %f, ", -1.0 * objval);
+            }
+            else
+               SCIPdebugMessage("Slater condition for SDP %d is fullfilled for dual problem with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);
+            sdpi->dualslater = SCIP_SDPSLATER_HOLDS;
+         }
+         else if ( objval < sdpi->epsilon )
+         {
+            if ( rootnodefailed )
+            {
+               SCIPmessagePrintInfo(sdpi->messagehdlr, "Aborting due to failing to solve the root node relaxation, Slater condition for the dual problem "
+                     "not fullfilled with smallest eigenvalue %f, ", -1.0 * objval);
+            }
+            else if ( sdpi->slatercheck == 2 )
+            {
+               SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, expect numerical trouble.\n",
+                     sdpi->sdpid, -1.0 * objval);
+            }
+            sdpi->dualslater = SCIP_SDPSLATER_NOT;
+         }
+         else
+         {
+            if ( sdpi->slatercheck == 2 )
+            {
+               SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, problem is infeasible.\n",
+                     sdpi->sdpid, -1.0 * objval);
+            }
+            sdpi->dualslater = SCIP_SDPSLATER_INF;
+         }
+      }
+   }
+
+   /* check the slater condition also for the primal problem */
+
+   /* As we do not want to give equality constraints to the solver by reformulating the primal problem as a dual problem, we instead
+    * solve the primal dual pair
+    *
+    * (P) max (0 0) * Y' s.t. (A_i            0    ) * Y' = c_i forall i, Y' psd
+    *         (0 1)           ( 0  sum_j [(A_i)_jj])
+    *
+    * (D) min sum_i [c_i x_i] s.t. sum_i [A_i x_i] psd, sum_i[(sum_j [(A_i)_jj]) x_i] >= 1
+    *
+    * where we also set all finite lhs/rhs of all lp-constraints and varbounds to zero.
+    * If the objective is strictly positive, than we now that there exists some r > 0 such that
+    * Y is psd and Y+rI is feasible for the equality constraints in our original primal problem,
+    * so Y+rI is also feasible for the original primal problem and is strictly positive definite
+    * so the primal Slater condition holds
+    */
+
+   /* allocate the LP-arrays, as we have to add the additional LP-constraint, because we want to add extra entries, we cannot use BMSduplicate... */
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlprow, sdpi->lpnnonz + sdpi->nvars) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlpcol, sdpi->lpnnonz + sdpi->nvars) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlpval, sdpi->lpnnonz + sdpi->nvars) );
+
+   /* copy all old LP-entries */
+   for (i = 0; i < sdpi->lpnnonz; i++)
+   {
+      slaterlprow[i] = sdpi->lprow[i];
+      slaterlpcol[i] = sdpi->lpcol[i];
+      slaterlpval[i] = sdpi->lpval[i];
+   }
+
+   /* add the new entries sum_j [(A_i)_jj], for this we have to iterate over the whole sdp-matrices (for all blocks), adding all diagonal entries */
+   for (v = 0; v < sdpi->nvars; v++)
+   {
+      slaterlprow[sdpi->lpnnonz + v] = sdpi->nlpcons;
+      slaterlpcol[sdpi->lpnnonz + v] = v;
+      slaterlpval[sdpi->lpnnonz + v] = 0.0;
+   }
+   for (b = 0; b < sdpi->nsdpblocks; b++)
+   {
+      for (v = 0; v < sdpi->sdpnblockvars[b]; v++)
+      {
+         for (i = 0; i < sdpi->sdpnblockvarnonz[b][v]; i++)
+         {
+            if ( sdpi->sdprow[b][v][i] == sdpi->sdpcol[b][v][i] ) /* it is a diagonal entry */
+               slaterlpval[sdpi->lpnnonz + sdpi->sdpvar[b][v]] += sdpi->sdpval[b][v][i];
+         }
+      }
+   }
+
+   /* iterate over all added LP-entries and remove all zeros (by shifting further variables) */
+   nremovedslaterlpinds = 0;
+   for (v = 0; v < sdpi->nvars; v++)
+   {
+      if ( REALABS(slaterlpval[sdpi->lpnnonz + v]) <= sdpi->feastol )
+         nremovedslaterlpinds++;
+      else
+      {
+         /* shift the entries */
+         slaterlprow[sdpi->lpnnonz + v - nremovedslaterlpinds] = slaterlprow[sdpi->lpnnonz + v];
+         slaterlpcol[sdpi->lpnnonz + v - nremovedslaterlpinds] = slaterlpcol[sdpi->lpnnonz + v];
+         slaterlpval[sdpi->lpnnonz + v - nremovedslaterlpinds] = slaterlpval[sdpi->lpnnonz + v];
+      }
+   }
+
+   /* allocate memory for l/r-hs */
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlplhs, nactivelpcons + 1) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlprhs, nactivelpcons + 1) );
+
+   /* set the old entries to zero (if existing), as A_0 (including the LP-part) is removed because of the changed primal objective */
+   for (i = 0; i < nactivelpcons; i++)
+   {
+      if ( SCIPsdpiSolverIsInfinity(sdpi->sdpisolver, lplhsafterfix[i]) )
+         slaterlplhs[i] = lplhsafterfix[i];
+      else
+         slaterlplhs[i] = 0.0;
+
+      if ( SCIPsdpiSolverIsInfinity(sdpi->sdpisolver, lprhsafterfix[i]) )
+         slaterlprhs[i] = lprhsafterfix[i];
+      else
+         slaterlprhs[i] = 0.0;
+   }
+
+   /* add the new ones */
+   slaterlplhs[nactivelpcons] = 1.0;
+   slaterlprhs[nactivelpcons] = SCIPsdpiSolverInfinity(sdpi->sdpisolver);
+
+   /* allocate memory for rowsnactivevars to update it for the added row */
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterrowsnactivevars, sdpi->nlpcons + 1) );
+
+   /* copy the old entries */
+   for (i = 0; i < sdpi->nlpcons; i++)
+      slaterrowsnactivevars[i] = rowsnactivevars[i];
+
+   /* add the new entry (this equals the number of active variables) */
+   slaterrowsnactivevars[sdpi->nlpcons] = 0;
+   for (v = 0; v < sdpi->nvars; v++)
+   {
+      if ( ! (isFixed(sdpi, v)) )
+         slaterrowsnactivevars[sdpi->nlpcons]++;
+   }
+
+   slaternactivelpcons = (slaterrowsnactivevars[sdpi->nlpcons] > 1) ? nactivelpcons + 1 : nactivelpcons;
+
+   /* copy the varbound arrays to change all finite varbounds to zero */
+   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &slaterlb, sdpi->lb, sdpi->nvars);
+   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &slaterub, sdpi->ub, sdpi->nvars);
+
+   /* set all finite varbounds to zero */
+   slaternremovedvarbounds = 0;
+   for (v = 0; v < sdpi->nvars; v++)
+   {
+      if ( slaterlb[v] > -1 * SCIPsdpiSolverInfinity(sdpi->sdpisolver) )
+      {
+         slaterlb[v] = 0.0;
+         slaternremovedvarbounds++;
+      }
+      if ( slaterub[v] < SCIPsdpiSolverInfinity(sdpi->sdpisolver) )
+      {
+         slaterub[v] = 0.0;
+         slaternremovedvarbounds++;
+      }
+   }
+
+   /* if all variables have finite upper and lower bounds these add variables to every constraint of the
+    * primal problem that allow us to make the problem feasible for every primal matrix X, so the primal
+    * slater condition holds */
+   if ( slaternremovedvarbounds == 2 * sdpi->nvars )
+   {
+      if ( rootnodefailed )
+      {
+         SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problem holds since all variables have finite upper and lower bounds \n");
+      }
+      else
+         SCIPdebugMessage("Slater condition for primal problem for SDP %d fullfilled as all variables have finite upper and lower bounds \n",sdpi->sdpid);
+      sdpi->primalslater = SCIP_SDPSLATER_HOLDS;
+   }
+   else
+   {
+      /* compute the timit limit to set for the solver */
+      currenttime = clock();
+      solvertimelimit = timelimit - ((SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC);
+
+      /* solve the problem to check slater condition for primal of original problem */
+      SCIP_CALL( SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, slaterlb, slaterub,
+            sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, 0, NULL, NULL, NULL, NULL,
+            sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
+            sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, slaternactivelpcons, sdpi->nlpcons + 1, slaterlplhs, slaterlprhs,
+            slaterrowsnactivevars, sdpi->lpnnonz + sdpi->nvars - nremovedslaterlpinds, slaterlprow, slaterlpcol, slaterlpval, NULL,
+            SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit) );
+
+      if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) && ! SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver) )
+      {
+         if ( rootnodefailed )
+         {
+            SCIPmessagePrintInfo(sdpi->messagehdlr, "unable to check Slater condition for primal problem \n");
+         }
+         else if ( sdpi->slatercheck == 2 )
+            SCIPmessagePrintInfo(sdpi->messagehdlr, "Unable to check Slater condition for primal problem, could not solve auxilliary problem.\n");
+         sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
+      }
+      else if ( SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
+      {
+         if ( rootnodefailed )
+         {
+            SCIPmessagePrintInfo(sdpi->messagehdlr, " primal Slater condition shows infeasibility \n");
+         }
+         else if ( sdpi->slatercheck == 2 )
+         {
+            SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problem for SDP %d not fullfilled "
+                  "smallest eigenvalue has to be negative, so primal problem is infeasible (if the dual slater condition holds,"
+                  "this means, that the original (dual) problem is unbounded.\n",sdpi->sdpid);
+         }
+         sdpi->primalslater = SCIP_SDPSLATER_NOT;
+      }
+      else if ( SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver) )
+      {
+         if ( rootnodefailed )
+         {
+            SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problems holds sunce smallest eigenvalue maximization problem"
+                  "is unbounded \n");
+         }
+         else
+            SCIPdebugMessage("Slater condition for primal problem for SDP %d fullfilled, smallest eigenvalue maximization problem unbounded \n",sdpi->sdpid);
+         sdpi->primalslater = SCIP_SDPSLATER_HOLDS;
+      }
+      else
+      {
+         SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
+
+         if ( objval > - sdpi->feastol)
+         {
+            if ( rootnodefailed )
+            {
+               SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problem not fullfilled with smallest eigenvalue %f \n", -1.0 * objval);
+            }
+            else if ( sdpi->slatercheck == 2 )
+            {
+               SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problem for SDP %d not fullfilled "
+                        "as smallest eigenvalue was %f, expect numerical trouble or infeasible problem.\n",sdpi->sdpid, -1.0 * objval);
+            }
+            sdpi->primalslater = SCIP_SDPSLATER_NOT;
+         }
+         else
+         {
+            if ( rootnodefailed )
+            {
+               SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problem fullfilled with smallest eigenvalue %f \n", -1.0 * objval);
+            }
+            else
+               SCIPdebugMessage("Slater condition for primal problem of SDP %d is fullfilled with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);
+            sdpi->primalslater = SCIP_SDPSLATER_HOLDS;
+         }
+      }
+   }
+
+   /* free all memory */
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterub, sdpi->nvars);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlb, sdpi->nvars);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterrowsnactivevars, sdpi->nlpcons + 1);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlprhs, nactivelpcons + 1);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlplhs, nactivelpcons + 1);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlpval, sdpi->lpnnonz + sdpi->nvars);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlpcol, sdpi->lpnnonz + sdpi->nvars);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlprow, sdpi->lpnnonz + sdpi->nvars);
+
+   return SCIP_OKAY;
+}
 
 /*
  * Miscellaneous Methods
@@ -2113,288 +2493,8 @@ SCIP_RETCODE SCIPsdpiSolve(
    {
       if ( sdpi->slatercheck )
       {
-         SCIP_Real objval;
-         SCIP_Bool origfeas;
-         SCIP_Bool penaltybound;
-         int* slaterlprow;
-         int* slaterlpcol;
-         SCIP_Real* slaterlpval;
-         SCIP_Real* slaterlplhs;
-         SCIP_Real* slaterlprhs;
-         int* slaterrowsnactivevars;
-         int nremovedslaterlpinds;
-         int i;
-         int v;
-         int slaternactivelpcons;
-         SCIP_Real* slaterlb;
-         SCIP_Real* slaterub;
-         int slaternremovedvarbounds;
-
-         /* first check the slater condition for the dual problem */
-
-         /* compute the timit limit to set for the solver */
-         solvertimelimit = timelimit;
-         if ( ! SCIPsdpiIsInfinity(sdpi, solvertimelimit) )
-         {
-            currenttime = clock();
-            solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;
-         }
-
-         /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if we are
-          * still feasible for r > feastol, then we have an interior point with smallest eigenvalue > feastol, otherwise the Slater condition is harmed */
-         SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
-               sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
-               sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
-               sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-               sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-               rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit,
-               &origfeas, &penaltybound) );
-
-         if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) )
-         {
-            if ( sdpi->slatercheck == 2 )
-               SCIPmessagePrintInfo(sdpi->messagehdlr, "Unable to check Slater condition for dual problem.\n");
-            sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
-         }
-         else
-         {
-            if ( SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
-            {
-               SCIPdebugMessage("Slater condition for dual problem for SDP %d fullfilled, smallest eigenvalue maximization problem unbounded.\n", sdpi->sdpid);
-               sdpi->dualslater = SCIP_SDPSLATER_HOLDS;
-            }
-            else if ( SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) )
-            {
-               if ( sdpi->slatercheck == 2 )
-                  SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for dual problem for SDP %d not fullfilled, problem infeasible.\n", sdpi->sdpid);
-               sdpi->dualslater = SCIP_SDPSLATER_NOT;
-            }
-            else
-            {
-               SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
-
-               if ( objval < - sdpi->feastol )
-               {
-                  SCIPdebugMessage("Slater condition for SDP %d is fullfilled for dual problem with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);
-                  sdpi->dualslater = SCIP_SDPSLATER_HOLDS;
-               }
-               else if ( objval < sdpi->epsilon )
-               {
-                  if ( sdpi->slatercheck == 2 )
-                  {
-                     SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, expect numerical trouble.\n",
-                           sdpi->sdpid, -1.0 * objval);
-                  }
-                  sdpi->dualslater = SCIP_SDPSLATER_NOT;
-               }
-               else
-               {
-                  if ( sdpi->slatercheck == 2 )
-                  {
-                     SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for SDP %d not fullfilled for dual problem as smallest eigenvalue was %f, problem is infeasible.\n",
-                           sdpi->sdpid, -1.0 * objval);
-                  }
-                  sdpi->dualslater = SCIP_SDPSLATER_INF;
-               }
-            }
-         }
-
-         /* check the slater condition also for the primal problem */
-
-         /* As we do not want to give equality constraints to the solver by reformulating the primal problem as a dual problem, we instead
-          * solve the primal dual pair
-          *
-          * (P) max (0 0) * Y' s.t. (A_i            0    ) * Y' = c_i forall i, Y' psd
-          *         (0 1)           ( 0  sum_j [(A_i)_jj])
-          *
-          * (D) min sum_i [c_i x_i] s.t. sum_i [A_i x_i] psd, sum_i[(sum_j [(A_i)_jj]) x_i] >= 1
-          *
-          * where we also set all finite lhs/rhs of all lp-constraints and varbounds to zero.
-          * If the objective is strictly positive, than we now that there exists some r > 0 such that
-          * Y is psd and Y+rI is feasible for the equality constraints in our original primal problem,
-          * so Y+rI is also feasible for the original primal problem and is strictly positive definite
-          * so the primal Slater condition holds
-          */
-
-         /* allocate the LP-arrays, as we have to add the additional LP-constraint, because we want to add extra entries, we cannot use BMSduplicate... */
-         BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlprow, sdpi->lpnnonz + sdpi->nvars) );
-         BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlpcol, sdpi->lpnnonz + sdpi->nvars) );
-         BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlpval, sdpi->lpnnonz + sdpi->nvars) );
-
-         /* copy all old LP-entries */
-         for (i = 0; i < sdpi->lpnnonz; i++)
-         {
-            slaterlprow[i] = sdpi->lprow[i];
-            slaterlpcol[i] = sdpi->lpcol[i];
-            slaterlpval[i] = sdpi->lpval[i];
-         }
-
-         /* add the new entries sum_j [(A_i)_jj], for this we have to iterate over the whole sdp-matrices (for all blocks), adding all diagonal entries */
-         for (v = 0; v < sdpi->nvars; v++)
-         {
-            slaterlprow[sdpi->lpnnonz + v] = sdpi->nlpcons;
-            slaterlpcol[sdpi->lpnnonz + v] = v;
-            slaterlpval[sdpi->lpnnonz + v] = 0.0;
-         }
-         for (block = 0; block < sdpi->nsdpblocks; block++)
-         {
-            for (v = 0; v < sdpi->sdpnblockvars[block]; v++)
-            {
-               for (i = 0; i < sdpi->sdpnblockvarnonz[block][v]; i++)
-               {
-                  if ( sdpi->sdprow[block][v][i] == sdpi->sdpcol[block][v][i] ) /* it is a diagonal entry */
-                     slaterlpval[sdpi->lpnnonz + sdpi->sdpvar[block][v]] += sdpi->sdpval[block][v][i];
-               }
-            }
-         }
-
-         /* iterate over all added LP-entries and remove all zeros (by shifting further variables) */
-         nremovedslaterlpinds = 0;
-         for (v = 0; v < sdpi->nvars; v++)
-         {
-            if ( REALABS(slaterlpval[sdpi->lpnnonz + v]) <= sdpi->feastol )
-               nremovedslaterlpinds++;
-            else
-            {
-               /* shift the entries */
-               slaterlprow[sdpi->lpnnonz + v - nremovedslaterlpinds] = slaterlprow[sdpi->lpnnonz + v];
-               slaterlpcol[sdpi->lpnnonz + v - nremovedslaterlpinds] = slaterlpcol[sdpi->lpnnonz + v];
-               slaterlpval[sdpi->lpnnonz + v - nremovedslaterlpinds] = slaterlpval[sdpi->lpnnonz + v];
-            }
-         }
-
-         /* allocate memory for l/r-hs */
-         BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlplhs, nactivelpcons + 1) );
-         BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlprhs, nactivelpcons + 1) );
-
-         /* set the old entries to zero (if existing), as A_0 (including the LP-part) is removed because of the changed primal objective */
-         for (i = 0; i < nactivelpcons; i++)
-         {
-            if ( SCIPsdpiSolverIsInfinity(sdpi->sdpisolver, lplhsafterfix[i]) )
-               slaterlplhs[i] = lplhsafterfix[i];
-            else
-               slaterlplhs[i] = 0.0;
-
-            if ( SCIPsdpiSolverIsInfinity(sdpi->sdpisolver, lprhsafterfix[i]) )
-               slaterlprhs[i] = lprhsafterfix[i];
-            else
-               slaterlprhs[i] = 0.0;
-         }
-
-         /* add the new ones */
-         slaterlplhs[nactivelpcons] = 1.0;
-         slaterlprhs[nactivelpcons] = SCIPsdpiSolverInfinity(sdpi->sdpisolver);
-
-         /* allocate memory for rowsnactivevars to update it for the added row */
-         BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterrowsnactivevars, sdpi->nlpcons + 1) );
-
-         /* copy the old entries */
-         for (i = 0; i < sdpi->nlpcons; i++)
-            slaterrowsnactivevars[i] = rowsnactivevars[i];
-
-         /* add the new entry (this equals the number of active variables) */
-         slaterrowsnactivevars[sdpi->nlpcons] = 0;
-         for (v = 0; v < sdpi->nvars; v++)
-         {
-            if ( ! (isFixed(sdpi, v)) )
-               slaterrowsnactivevars[sdpi->nlpcons]++;
-         }
-
-         slaternactivelpcons = (slaterrowsnactivevars[sdpi->nlpcons] > 1) ? nactivelpcons + 1 : nactivelpcons;
-
-         /* copy the varbound arrays to change all finite varbounds to zero */
-         DUPLICATE_ARRAY_NULL(sdpi->blkmem, &slaterlb, sdpi->lb, sdpi->nvars);
-         DUPLICATE_ARRAY_NULL(sdpi->blkmem, &slaterub, sdpi->ub, sdpi->nvars);
-
-         /* set all finite varbounds to zero */
-         slaternremovedvarbounds = 0;
-         for (v = 0; v < sdpi->nvars; v++)
-         {
-            if ( slaterlb[v] > -1 * SCIPsdpiSolverInfinity(sdpi->sdpisolver) )
-            {
-               slaterlb[v] = 0.0;
-               slaternremovedvarbounds++;
-            }
-            if ( slaterub[v] < SCIPsdpiSolverInfinity(sdpi->sdpisolver) )
-            {
-               slaterub[v] = 0.0;
-               slaternremovedvarbounds++;
-            }
-         }
-
-         /* if all variables have finite upper and lower bounds these add variables to every constraint of the
-          * primal problem that allow us to make the problem feasible for every primal matrix X, so the primal
-          * slater condition holds */
-         if ( slaternremovedvarbounds == 2 * sdpi->nvars )
-         {
-            SCIPdebugMessage("Slater condition for primal problem for SDP %d fullfilled as all variables have finite upper and lower bounds \n",sdpi->sdpid);
-            sdpi->primalslater = SCIP_SDPSLATER_HOLDS;
-         }
-         else
-         {
-            /* compute the timit limit to set for the solver */
-            currenttime = clock();
-            solvertimelimit = timelimit - ((SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC);
-
-            /* solve the problem to check slater condition for primal of original problem */
-            SCIP_CALL( SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, slaterlb, slaterub,
-                  sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, 0, NULL, NULL, NULL, NULL,
-                  sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-                  sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, slaternactivelpcons, sdpi->nlpcons + 1, slaterlplhs, slaterlprhs,
-                  slaterrowsnactivevars, sdpi->lpnnonz + sdpi->nvars - nremovedslaterlpinds, slaterlprow, slaterlpcol, slaterlpval, start,
-                  SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit) );
-
-            if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) && ! SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver) )
-            {
-               if ( sdpi->slatercheck == 2 )
-                  SCIPmessagePrintInfo(sdpi->messagehdlr, "Unable to check Slater condition for primal problem, could not solve auxilliary problem.\n");
-               sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
-            }
-            else if ( SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
-            {
-               if ( sdpi->slatercheck == 2 )
-               {
-                  SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problem for SDP %d not fullfilled "
-                        "smallest eigenvalue has to be negative, so primal problem is infeasible (if the dual slater condition holds,"
-                        "this means, that the original (dual) problem is unbounded.\n",sdpi->sdpid);
-               }
-               sdpi->primalslater = SCIP_SDPSLATER_NOT;
-            }
-            else if ( SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver) )
-            {
-               SCIPdebugMessage("Slater condition for primal problem for SDP %d fullfilled, smallest eigenvalue maximization problem unbounded \n",sdpi->sdpid);
-               sdpi->primalslater = SCIP_SDPSLATER_HOLDS;
-            }
-            else
-            {
-               SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
-
-               if ( objval > - sdpi->feastol)
-               {
-                  if ( sdpi->slatercheck == 2 )
-                  {
-                     SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problem for SDP %d not fullfilled "
-                              "as smallest eigenvalue was %f, expect numerical trouble or infeasible problem.\n",sdpi->sdpid, -1.0 * objval);
-                  }
-                  sdpi->primalslater = SCIP_SDPSLATER_NOT;
-               }
-               else
-               {
-                  SCIPdebugMessage("Slater condition for primal problem of SDP %d is fullfilled with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);
-                  sdpi->primalslater = SCIP_SDPSLATER_HOLDS;
-               }
-            }
-         }
-
-         /* free all memory */
-         BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterub, sdpi->nvars);
-         BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlb, sdpi->nvars);
-         BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterrowsnactivevars, sdpi->nlpcons + 1);
-         BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlprhs, nactivelpcons + 1);
-         BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlplhs, nactivelpcons + 1);
-         BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlpval, sdpi->lpnnonz + sdpi->nvars);
-         BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlpcol, sdpi->lpnnonz + sdpi->nvars);
-         BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlprow, sdpi->lpnnonz + sdpi->nvars);
+         SCIP_CALL( checkSlaterCondition(sdpi, timelimit, starttime, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges,
+                  nremovedinds, lplhsafterfix, lprhsafterfix, rowsnactivevars, blockindchanges, sdpconstnnonz, nactivelpcons, nremovedblocks, FALSE) );
       }
 
       /* compute the timit limit to set for the solver */
@@ -2555,46 +2655,8 @@ SCIP_RETCODE SCIPsdpiSolve(
             /* if we still didn't succeed and enforceslatercheck was set, we finally test for the Slater condition to give a reason for failure */
             if ( sdpi->solved == FALSE && enforceslatercheck)
             {
-               SCIP_Bool origfeas;
-
-               /* compute the timit limit to set for the solver */
-               solvertimelimit = timelimit;
-               if ( ! SCIPsdpiIsInfinity(sdpi, solvertimelimit) )
-               {
-                  currenttime = clock();
-                  solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;
-               }
-
-               /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if we are
-                * still feasible for r < feastol, then we have an interior point with smallest eigenvalue > feastol, otherwise the Slater condition is harmed */
-               SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
-                     sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
-                     sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
-                     sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-                     sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-                     rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit, &origfeas, NULL) );
-
-               /* if we didn't succeed, then probably the primal problem is troublesome */
-               if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
-               {
-                  SCIPmessagePrintInfo(sdpi->messagehdlr, "SDP-solver could not solve root node relaxation, unable to check Slater condition for dual problem of SDP %d, could mean that the "
-                        "Slater conidition for the primal problem is not fullfilled.\n", sdpi->sdpid);
-               }
-               else
-               {
-                  SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
-
-                  if ( objval < - sdpi->feastol )
-                  {
-                     SCIPmessagePrintInfo(sdpi->messagehdlr, "SDP-solver could not solve root node relaxation even though the Slater condition is fullfilled for the dual problem with smallest eigenvalue %f.\n",
-                           -1.0 * objval);
-                  }
-                  else
-                  {
-                     SCIPmessagePrintInfo(sdpi->messagehdlr, "SDP-solver could not solve root node relaxation, Slater condition is not fullfilled for the dual problem as smallest eigenvalue was %f.\n",
-                           -1.0 * objval);
-                  }
-               }
+               SCIP_CALL( checkSlaterCondition(sdpi, timelimit, starttime, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges,
+                                 nremovedinds, lplhsafterfix, lprhsafterfix, rowsnactivevars, blockindchanges, sdpconstnnonz, nactivelpcons, nremovedblocks, TRUE) );
             }
             else if ( sdpi->solved == FALSE )
 #if 0
