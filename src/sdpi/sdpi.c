@@ -2350,54 +2350,38 @@ SCIP_RETCODE SCIPsdpiSolve(
                   SCIPmessagePrintInfo(sdpi->messagehdlr, "Unable to check Slater condition for primal problem, could not solve auxilliary problem.\n");
                sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
             }
-         }
-
-         /* if all variables have finite upper and lower bounds these add variables to every constraint of the
-          * primal problem that allow us to make the problem feasible for every primal matrix X, so the primal
-          * slater condition holds */
-         if ( slaternremovedvarbounds == 2 * sdpi->nvars )
-         {
-            SCIPdebugMessage("Slater condition for primal problem for SDP %d fullfilled as all variables have finite upper and lower bounds \n",sdpi->sdpid);
-         }
-         else
-         {
-            /* compute the timit limit to set for the solver */
-            solvertimelimit = timelimit;
-            if ( ! SCIPsdpiIsInfinity(sdpi, solvertimelimit) )
+            else if ( SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
             {
-               if ( SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
+               if ( sdpi->slatercheck == 2 )
+               {
+                  SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problem for SDP %d not fullfilled "
+                        "smallest eigenvalue has to be negative, so primal problem is infeasible (if the dual slater condition holds,"
+                        "this means, that the original (dual) problem is unbounded.\n",sdpi->sdpid);
+               }
+               sdpi->primalslater = SCIP_SDPSLATER_NOT;
+            }
+            else if ( SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver) )
+            {
+               SCIPdebugMessage("Slater condition for primal problem for SDP %d fullfilled, smallest eigenvalue maximization problem unbounded \n",sdpi->sdpid);
+               sdpi->primalslater = SCIP_SDPSLATER_HOLDS;
+            }
+            else
+            {
+               SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
+
+               if ( objval > - sdpi->feastol)
                {
                   if ( sdpi->slatercheck == 2 )
                   {
                      SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problem for SDP %d not fullfilled "
-                           "smallest eigenvalue has to be negative, so primal problem is infeasible (if the dual slater condition holds,"
-                           "this means, that the original (dual) problem is unbounded.\n",sdpi->sdpid);
+                              "as smallest eigenvalue was %f, expect numerical trouble or infeasible problem.\n",sdpi->sdpid, -1.0 * objval);
                   }
                   sdpi->primalslater = SCIP_SDPSLATER_NOT;
                }
-               if ( SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver) )
-               {
-                  SCIPdebugMessage("Slater condition for primal problem for SDP %d fullfilled, smallest eigenvalue maximization problem unbounded \n",sdpi->sdpid);
-                  sdpi->primalslater = SCIP_SDPSLATER_HOLDS;
-               }
                else
                {
-                  SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
-
-                  if ( objval > - sdpi->feastol)
-                  {
-                     if ( sdpi->slatercheck == 2 )
-                     {
-                        SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problem for SDP %d not fullfilled "
-                                 "as smallest eigenvalue was %f, expect numerical trouble or infeasible problem.\n",sdpi->sdpid, -1.0 * objval);
-                     }
-                     sdpi->primalslater = SCIP_SDPSLATER_NOT;
-                  }
-                  else
-                  {
-                     SCIPdebugMessage("Slater condition for primal problem of SDP %d is fullfilled with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);
-                     sdpi->primalslater = SCIP_SDPSLATER_HOLDS;
-                  }
+                  SCIPdebugMessage("Slater condition for primal problem of SDP %d is fullfilled with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);
+                  sdpi->primalslater = SCIP_SDPSLATER_HOLDS;
                }
             }
          }
