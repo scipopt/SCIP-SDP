@@ -46,6 +46,9 @@
 #include "prop_sdpobbt.h"
 #include "relax_sdp.h"
 
+/* turn off lint warnings for whole file: */
+/*lint --e{788,818}*/
+
 /* fundamental propagator properties */
 #define PROP_NAME             "obbt-sdp"
 #define PROP_DESC             "optimization-based bound tightening for sdps"
@@ -137,7 +140,7 @@ SCIP_DECL_PROPCOPY(propCopySdpObbt)
 /** destructor of propagator to free user data (called when SCIP is exiting) */
 static
 SCIP_DECL_PROPFREE(propFreeSdpObbt)
-{
+{/*lint --e{715}*/
    SCIP_PROPDATA* propdata;
 
    propdata = SCIPpropGetData(prop);
@@ -237,8 +240,8 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
    SCIP_CALL( SCIPsetBoolParam(scip, "relaxing/SDP/objlimit", FALSE) );
 
    /* allocate memory to save bounds */
-   SCIP_CALL( SCIPallocBufferArray(scip, &newbounds, 2*nvars) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &newboundinds, 2*nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &newbounds, 2*nvars) );/*lint !e647*/
+   SCIP_CALL( SCIPallocBufferArray(scip, &newboundinds, 2*nvars) );/*lint !e647*/
 
    *result = SCIP_DIDNOTFIND;
 
@@ -349,7 +352,7 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
             SCIPdebugMessage("Aborting sdp-obbt, as we were unable to solve a probing sdp!\n");
             if ( *result != SCIP_REDUCEDDOM )
                *result = SCIP_DIDNOTRUN;
-            goto TERMINATE;
+            break;
          }
 
          /* if the problem is infeasible, return with cutoff */
@@ -357,7 +360,7 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
          {
             SCIPdebugMessage("Probing sdp infeasible, so there can't be a better solution for this problem!\n");
             *result = SCIP_CUTOFF;
-            goto TERMINATE;
+            break;
          }
 
          /* check if we managed to tighten the bound */
@@ -395,7 +398,6 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
       SCIP_CALL( SCIPchgVarObjProbing(scip, vars[v], 0.0) );
    }
 
-   TERMINATE:
    SCIP_CALL( SCIPendProbing(scip) );
    SCIPdebugMessage("end probing\n");
    SCIP_CALL( SCIPsetBoolParam(scip, "relaxing/SDP/objlimit", oldobjlimitparam) );
