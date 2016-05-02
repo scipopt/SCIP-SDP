@@ -39,6 +39,9 @@
 #include "scip/def.h"                   /* for SCIP_Real, _Bool, ... */
 #include <string.h>                     /* for NULL, strcmp */
 
+/* turn off lint warnings for whole file: */
+/*lint --e{788,818}*/
+
 /* constraint handler properties */
 #define CONSHDLR_NAME          "Savedsdpsettings"
 #define CONSHDLR_DESC          "constraint handler to store SDP settings for each node"
@@ -47,8 +50,6 @@
 #define CONSHDLR_EAGERFREQ          100 /**< frequency for using all instead of only the useful constraints in separation,
                                          *   propagation and enforcement, -1 for no eager evaluations, 0 for first only */
 #define CONSHDLR_NEEDSCONS         TRUE /**< should the constraint handler be skipped, if no constraints are available? */
-
-#define CONSHDLR_PROP_TIMING       SCIP_PROPTIMING_BEFORELP
 
 /** constraint data to store optimal solution */
 struct SCIP_ConsData
@@ -77,7 +78,7 @@ SCIP_DECL_CONSDELETE(consDeleteSavedsdpsettings)
 /** constraint enforcing method of constraint handler for LP solutions */
 static
 SCIP_DECL_CONSENFOLP(consEnfolpSavedsdpsettings)
-{
+{/*lint --e{715}*/
    assert( scip != NULL );
    assert( conshdlr != NULL );
    assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
@@ -93,7 +94,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSavedsdpsettings)
 /** constraint enforcing method of constraint handler for pseudo solutions */
 static
 SCIP_DECL_CONSENFOPS(consEnfopsSavedsdpsettings)
-{
+{/*lint --e{715}*/
    assert( scip != NULL );
    assert( conshdlr != NULL );
    assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
@@ -109,7 +110,7 @@ SCIP_DECL_CONSENFOPS(consEnfopsSavedsdpsettings)
 /** feasibility check method of constraint handler for primal solutions */
 static
 SCIP_DECL_CONSCHECK(consCheckSavedsdpsettings)
-{
+{/*lint --e{715}*/
    assert( scip != NULL );
    assert( conshdlr != NULL );
    assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
@@ -125,7 +126,7 @@ SCIP_DECL_CONSCHECK(consCheckSavedsdpsettings)
 /** variable rounding lock method of constraint handler */
 static
 SCIP_DECL_CONSLOCK(consLockSavedsdpsettings)
-{
+{/*lint --e{715}*/
    assert( scip != NULL );
    assert( conshdlr != NULL );
    assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
@@ -232,7 +233,7 @@ SCIP_SDPSOLVERSETTING SCIPconsSavedsdpsettingsGetSettings(
    SCIP_CONS*            cons                /**< constraint to get starting point for */
    )
 {
-   SCIP_CONSDATA* consdata = NULL;
+   SCIP_CONSDATA* consdata;
 
    assert( scip != NULL );
    assert( cons != NULL );

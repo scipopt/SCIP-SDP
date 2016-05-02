@@ -49,6 +49,9 @@
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
 
+/* turn off lint warnings for whole file: */
+/*lint --e{788,818}*/
+
 /* TODO: don't override old lb/ub when computing changes caused by fixed variables and LP-rows with single entries
  *       (works for SCIP-SDP as we completely reset lb/ub whenever changing the new problem) */
 
@@ -897,7 +900,7 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
    }
 
    /* allocate memory */
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &fullmatrix, maxsize * maxsize) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &fullmatrix, maxsize * maxsize) ); /*lint !e647*/
 
    /* iterate over all SDP-blocks and check if the smallest eigenvalue is non-negative */
    for (b = 0; b < sdpi->nsdpblocks; b++)
@@ -918,7 +921,7 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
          assert( 0 <= sdpconstrow[b][i] - indchanges[b][sdpconstrow[b][i]] && sdpconstrow[b][i] - indchanges[b][sdpconstrow[b][i]] < size );
          assert( 0 <= sdpconstcol[b][i] - indchanges[b][sdpconstcol[b][i]] && sdpconstcol[b][i] - indchanges[b][sdpconstcol[b][i]] < size );
          fullmatrix[(sdpconstrow[b][i] - indchanges[b][sdpconstrow[b][i]]) * size
-                    + sdpconstcol[b][i] - indchanges[b][sdpconstcol[b][i]]] = -1 * sdpconstval[b][i];
+                    + sdpconstcol[b][i] - indchanges[b][sdpconstcol[b][i]]] = -1 * sdpconstval[b][i]; /*lint !e679*/
       }
 
       /* add the contributions of the fixed variables */
@@ -938,7 +941,7 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
             assert( 0 <= sdpi->sdpcol[b][v][i] - indchanges[b][sdpi->sdpcol[b][v][i]] &&
                          sdpi->sdpcol[b][v][i] - indchanges[b][sdpi->sdpcol[b][v][i]] < size );
             fullmatrix[(sdpi->sdprow[b][v][i] - indchanges[b][sdpi->sdprow[b][v][i]]) * size
-                       + sdpi->sdpcol[b][v][i] - indchanges[b][sdpi->sdpcol[b][v][i]]] += fixedval * sdpi->sdpval[b][v][i];
+                       + sdpi->sdpcol[b][v][i] - indchanges[b][sdpi->sdpcol[b][v][i]]] += fixedval * sdpi->sdpval[b][v][i]; /*lint !e679*/
          }
       }
 
@@ -955,7 +958,7 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
    }
 
    /* free memory */
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &fullmatrix, maxsize * maxsize);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &fullmatrix, maxsize * maxsize);/*lint !e737*//*lint !e647*/
 
    /* if we didn't find an SDP-block with negative eigenvalue, the solution is feasible */
    sdpi->infeasible = FALSE;
@@ -1030,7 +1033,7 @@ SCIP_RETCODE checkSlaterCondition(
    if ( ! SCIPsdpiIsInfinity(sdpi, solvertimelimit) )
    {
       currenttime = clock();
-      solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;
+      solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;/*lint !e620*/
    }
 
    /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if we are
@@ -1135,9 +1138,9 @@ SCIP_RETCODE checkSlaterCondition(
     */
 
    /* allocate the LP-arrays, as we have to add the additional LP-constraint, because we want to add extra entries, we cannot use BMSduplicate... */
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlprow, sdpi->lpnnonz + sdpi->nvars) );
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlpcol, sdpi->lpnnonz + sdpi->nvars) );
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlpval, sdpi->lpnnonz + sdpi->nvars) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlprow, sdpi->lpnnonz + sdpi->nvars) );/*lint !e776*/
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlpcol, sdpi->lpnnonz + sdpi->nvars) );/*lint !e776*/
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlpval, sdpi->lpnnonz + sdpi->nvars) );/*lint !e776*/
 
    /* copy all old LP-entries */
    for (i = 0; i < sdpi->lpnnonz; i++)
@@ -1150,9 +1153,9 @@ SCIP_RETCODE checkSlaterCondition(
    /* add the new entries sum_j [(A_i)_jj], for this we have to iterate over the whole sdp-matrices (for all blocks), adding all diagonal entries */
    for (v = 0; v < sdpi->nvars; v++)
    {
-      slaterlprow[sdpi->lpnnonz + v] = sdpi->nlpcons;
-      slaterlpcol[sdpi->lpnnonz + v] = v;
-      slaterlpval[sdpi->lpnnonz + v] = 0.0;
+      slaterlprow[sdpi->lpnnonz + v] = sdpi->nlpcons;/*lint !e679*/
+      slaterlpcol[sdpi->lpnnonz + v] = v;/*lint !e679*/
+      slaterlpval[sdpi->lpnnonz + v] = 0.0;/*lint !e679*/
    }
    for (b = 0; b < sdpi->nsdpblocks; b++)
    {
@@ -1161,7 +1164,7 @@ SCIP_RETCODE checkSlaterCondition(
          for (i = 0; i < sdpi->sdpnblockvarnonz[b][v]; i++)
          {
             if ( sdpi->sdprow[b][v][i] == sdpi->sdpcol[b][v][i] ) /* it is a diagonal entry */
-               slaterlpval[sdpi->lpnnonz + sdpi->sdpvar[b][v]] += sdpi->sdpval[b][v][i];
+               slaterlpval[sdpi->lpnnonz + sdpi->sdpvar[b][v]] += sdpi->sdpval[b][v][i];/*lint !e679*/
          }
       }
    }
@@ -1170,20 +1173,20 @@ SCIP_RETCODE checkSlaterCondition(
    nremovedslaterlpinds = 0;
    for (v = 0; v < sdpi->nvars; v++)
    {
-      if ( REALABS(slaterlpval[sdpi->lpnnonz + v]) <= sdpi->feastol )
+      if ( REALABS(slaterlpval[sdpi->lpnnonz + v]) <= sdpi->feastol )/*lint !e679*/
          nremovedslaterlpinds++;
       else
       {
          /* shift the entries */
-         slaterlprow[sdpi->lpnnonz + v - nremovedslaterlpinds] = slaterlprow[sdpi->lpnnonz + v];
-         slaterlpcol[sdpi->lpnnonz + v - nremovedslaterlpinds] = slaterlpcol[sdpi->lpnnonz + v];
-         slaterlpval[sdpi->lpnnonz + v - nremovedslaterlpinds] = slaterlpval[sdpi->lpnnonz + v];
+         slaterlprow[sdpi->lpnnonz + v - nremovedslaterlpinds] = slaterlprow[sdpi->lpnnonz + v];/*lint !e679*/
+         slaterlpcol[sdpi->lpnnonz + v - nremovedslaterlpinds] = slaterlpcol[sdpi->lpnnonz + v];/*lint !e679*/
+         slaterlpval[sdpi->lpnnonz + v - nremovedslaterlpinds] = slaterlpval[sdpi->lpnnonz + v];/*lint !e679*/
       }
    }
 
    /* allocate memory for l/r-hs */
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlplhs, nactivelpcons + 1) );
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlprhs, nactivelpcons + 1) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlplhs, nactivelpcons + 1) );/*lint !e776*/
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlprhs, nactivelpcons + 1) );/*lint !e776*/
 
    /* set the old entries to zero (if existing), as A_0 (including the LP-part) is removed because of the changed primal objective */
    for (i = 0; i < nactivelpcons; i++)
@@ -1204,7 +1207,7 @@ SCIP_RETCODE checkSlaterCondition(
    slaterlprhs[nactivelpcons] = SCIPsdpiSolverInfinity(sdpi->sdpisolver);
 
    /* allocate memory for rowsnactivevars to update it for the added row */
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterrowsnactivevars, sdpi->nlpcons + 1) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterrowsnactivevars, sdpi->nlpcons + 1) );/*lint !e776*/
 
    /* copy the old entries */
    for (i = 0; i < sdpi->nlpcons; i++)
@@ -1257,7 +1260,7 @@ SCIP_RETCODE checkSlaterCondition(
    {
       /* compute the timit limit to set for the solver */
       currenttime = clock();
-      solvertimelimit = timelimit - ((SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC);
+      solvertimelimit = timelimit - ((SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC); /*lint !e620*/
 
       /* solve the problem to check slater condition for primal of original problem */
       SCIP_CALL( SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, slaterlb, slaterub,
@@ -1333,14 +1336,14 @@ SCIP_RETCODE checkSlaterCondition(
    }
 
    /* free all memory */
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterub, sdpi->nvars);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlb, sdpi->nvars);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterrowsnactivevars, sdpi->nlpcons + 1);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlprhs, nactivelpcons + 1);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlplhs, nactivelpcons + 1);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlpval, sdpi->lpnnonz + sdpi->nvars);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlpcol, sdpi->lpnnonz + sdpi->nvars);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlprow, sdpi->lpnnonz + sdpi->nvars);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterub, sdpi->nvars);/*lint !e737*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlb, sdpi->nvars);/*lint !e737*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterrowsnactivevars, sdpi->nlpcons + 1);/*lint !e737*//*lint !e776*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlprhs, nactivelpcons + 1);/*lint !e737*//*lint !e776*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlplhs, nactivelpcons + 1);/*lint !e737*//*lint !e776*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlpval, sdpi->lpnnonz + sdpi->nvars);/*lint !e737*//*lint !e776*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlpcol, sdpi->lpnnonz + sdpi->nvars);/*lint !e737*//*lint !e776*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlprow, sdpi->lpnnonz + sdpi->nvars);/*lint !e737*//*lint !e776*/
 
    return SCIP_OKAY;
 }
@@ -1446,6 +1449,7 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->epsilon = DEFAULT_SDPSOLVEREPSILON;
    (*sdpi)->feastol = DEFAULT_SDPSOLVERFEASTOL;
    (*sdpi)->penaltyparam = DEFAULT_PENALTYPARAM;
+   (*sdpi)->penaltyparam = DEFAULT_MAXPENALTYPARAM;
    (*sdpi)->bestbound = -SCIPsdpiSolverInfinity((*sdpi)->sdpisolver);
    (*sdpi)->primalslater = SCIP_SDPSLATER_NOINFO;
    (*sdpi)->dualslater = SCIP_SDPSLATER_NOINFO;
@@ -1503,9 +1507,9 @@ SCIP_RETCODE SCIPsdpiFree(
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstrow), (*sdpi)->nsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpnblockvars), (*sdpi)->nsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpblocksizes), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->ub), (*sdpi)->nvars);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lb), (*sdpi)->nvars);
-   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->obj), (*sdpi)->nvars);
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->ub), (*sdpi)->nvars);/*lint !e737*/
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->lb), (*sdpi)->nvars);/*lint !e737*/
+   BMSfreeBlockMemoryArray((*sdpi)->blkmem, &((*sdpi)->obj), (*sdpi)->nvars);/*lint !e737*/
 
    /* free the solver */
    SCIP_CALL( SCIPsdpiSolverFree(&((*sdpi)->sdpisolver)) );
@@ -1941,11 +1945,11 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
    /* shorten the procedure if the whole LP-part is to be deleted */
    if (firstrow == 0 && lastrow == sdpi->nlpcons - 1)
    {
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lplhs), sdpi->nlpcons);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz);/*lint !e737*/
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz);/*lint !e737*/
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz);/*lint !e737*/
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons);/*lint !e737*/
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lplhs), sdpi->nlpcons);/*lint !e737*/
 
       sdpi->lplhs = NULL;
       sdpi->lprhs = NULL;
@@ -2502,7 +2506,7 @@ SCIP_RETCODE SCIPsdpiSolve(
       if ( ! SCIPsdpiIsInfinity(sdpi, solvertimelimit) )
       {
          currenttime = clock();
-         solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;
+         solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;/*lint !e620*/
       }
 
       /* try to solve the problem */
@@ -2537,7 +2541,7 @@ SCIP_RETCODE SCIPsdpiSolve(
          if ( ! SCIPsdpiIsInfinity(sdpi, solvertimelimit) )
          {
             currenttime = clock();
-            solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;
+            solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;/*lint !e620*/
          }
 
          /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if
@@ -2551,7 +2555,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                &feasorig, &penaltybound) );
 
          /* get objective value */
-         SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval);
+         SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
 
          if ( (SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && objval > sdpi->epsilon) || SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver))
          {
@@ -2582,7 +2586,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                if ( ! SCIPsdpiIsInfinity(sdpi, solvertimelimit) )
                {
                   currenttime = clock();
-                  solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;
+                  solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;/*lint !e620*/
                }
 
                SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, penaltyparam, TRUE, TRUE, sdpi->nvars, sdpi->obj,
@@ -2671,21 +2675,21 @@ SCIP_RETCODE SCIPsdpiSolve(
    /* empty the memory allocated here */
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpconstnblocknonz[block]);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpconstnblocknonz[block]);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpconstnblocknonz[block]);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(indchanges[block]), sdpi->sdpblocksizes[block]);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpconstnblocknonz[block]);/*lint !e737*/
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpconstnblocknonz[block]);/*lint !e737*/
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpconstnblocknonz[block]);/*lint !e737*/
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(indchanges[block]), sdpi->sdpblocksizes[block]);/*lint !e737*/
    }
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &rowsnactivevars, sdpi->nlpcons);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &lprhsafterfix, sdpi->nlpcons);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &lplhsafterfix, sdpi->nlpcons);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &blockindchanges, sdpi->nsdpblocks);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &nremovedinds, sdpi->nsdpblocks);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &indchanges, sdpi->nsdpblocks);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstval, sdpi->nsdpblocks);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstcol, sdpi->nsdpblocks);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstrow, sdpi->nsdpblocks);
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstnblocknonz, sdpi->nsdpblocks);
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &rowsnactivevars, sdpi->nlpcons);/*lint !e737*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &lprhsafterfix, sdpi->nlpcons);/*lint !e737*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &lplhsafterfix, sdpi->nlpcons);/*lint !e737*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &blockindchanges, sdpi->nsdpblocks);/*lint !e737*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &nremovedinds, sdpi->nsdpblocks);/*lint !e737*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &indchanges, sdpi->nsdpblocks);/*lint !e737*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstval, sdpi->nsdpblocks);/*lint !e737*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstcol, sdpi->nsdpblocks);/*lint !e737*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstrow, sdpi->nsdpblocks);/*lint !e737*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstnblocknonz, sdpi->nsdpblocks);/*lint !e737*/
 
    sdpi->sdpid++;
 

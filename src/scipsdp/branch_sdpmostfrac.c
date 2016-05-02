@@ -44,6 +44,8 @@
 
 #include "branch_sdpmostfrac.h"
 
+/* turn off lint warnings for whole file: */
+/*lint --e{788,818}*/
 
 #define BRANCHRULE_NAME            "sdpmostfrac"
 #define BRANCHRULE_DESC            "branch on the most fractional variable of the SDP"

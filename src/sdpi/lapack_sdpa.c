@@ -49,6 +49,9 @@
 #include "blockmemshell/memory.h"
 #include "scip/type_retcode.h"
 
+/* turn off lint warnings for whole file: */
+/*lint --e{788,818}*/
+
 typedef long long int LAPACKINTTYPE;
 
 /** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY */

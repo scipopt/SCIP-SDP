@@ -45,6 +45,9 @@
 #include <string.h>
 #include <assert.h>                          /*lint !e451*/
 
+/* turn off lint warnings for whole file: */
+/*lint --e{788,818}*/
+
 /**@name Propagator properties
  * @{
  */

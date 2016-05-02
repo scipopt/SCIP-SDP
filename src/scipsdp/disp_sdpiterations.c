@@ -42,6 +42,8 @@
 #include "disp_sdpiterations.h"
 #include "relax_sdp.h"
 
+/* turn off lint warnings for whole file: */
+/*lint --e{788,818}*/
 
 #define DISP_NAME             "sdpiterations"
 #define DISP_DESC             "number of SDP iterations"

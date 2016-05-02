@@ -42,6 +42,8 @@
 #include "disp_sdppenalty.h"
 #include "relax_sdp.h"
 
+/* turn off lint warnings for whole file: */
+/*lint --e{788,818}*/
 
 #define DISP_NAME             "sdppenalty"
 #define DISP_DESC             "percentage of penalty formulations for SDP solver"

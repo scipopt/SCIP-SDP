@@ -46,6 +46,8 @@
 #include "heur_sdprand.h"
 #include "relax_sdp.h"
 
+/* turn off lint warnings for whole file: */
+/*lint --e{788,818}*/
 
 #define HEUR_NAME             "sdprand"
 #define HEUR_DESC             "randomized rounding heuristic for SDPs"
@@ -162,7 +164,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
    SCIP_VAR** sdpcands;
    SCIP_VAR** vars;
    int nsdpcands = 0;
-   int ncontvars = 0;
+   int ncontvars;
    int nvars;
    int iter;
    int v;

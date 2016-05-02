@@ -46,7 +46,7 @@
 #include <cassert>                     // for assert
 #include <cctype>                      // for isspace
 #include <cstdio>                      // for printf
-#include <cstdlib>                     // for abs                      <- lint says this needs an include guard
+#include <cstdlib>                     // for abs                      /*lint !e10*//*lint !e129*/
 #include <istream>                      // for istream, etc
 #include <string>                       // for getline, string
 
@@ -57,6 +57,9 @@
 #include "scip/cons_linear.h"           // for SCIPaddCoefLinear, etc
 #include "scip/scip.h"                  // for SCIPinfinity, etc
 
+/* turn off lint warnings for whole file: */
+/*lint --e{788,818}*/
+
 namespace
 {
 
@@ -65,7 +68,7 @@ namespace
    {
       while(std::isspace(line.peek()) || line.peek() == '(' || line.peek() == '{' || line.peek() == ')' || line.peek() == '}' || line.peek() == ',')
       {
-         line.ignore(1);
+         line.ignore(1);/*lint !e747*//*lint !e534*/
       }
       return;
    }
@@ -73,7 +76,7 @@ namespace
    inline void drop_rest_line (std::istream& s)
    {
       std::string tmp;
-      std::getline(s, tmp);
+      std::getline(s, tmp);/*lint !e534*/
       return;
    }
 
@@ -89,11 +92,11 @@ namespace scip
       )
    {
       char fst_col('"');
-      fst_col = (*file).peek();
+      fst_col = (*file).peek();/*lint !e734*//*lint !e838*/
       while (fst_col == '"' || fst_col == '*')
       {
          drop_rest_line(*file);
-         fst_col = (*file).peek();
+         fst_col = (*file).peek();/*lint !e734*/
       }
       return SCIP_OKAY;
    }
@@ -109,7 +112,7 @@ namespace scip
       }
       while(std::isspace(line.peek()) || line.peek() == '(' || line.peek() == '{' || line.peek() == ')' || line.peek() == '}' || line.peek() == ',')
       {
-         line.ignore(1);
+         line.ignore(1);/*lint !e747*//*lint !e534*/
          if ( line.peek() == '\n' )
          {
             SCIPerrorMessage("Input File invalid, SDP/LP-block rows need to consist of five entries each, see data_format.txt\n");
@@ -129,7 +132,7 @@ namespace scip
       }
       while(std::isspace(line.peek()) || line.peek() == '(' || line.peek() == '{' || line.peek() == ')' || line.peek() == '}' || line.peek() == ',')
       {
-         line.ignore(1);
+         line.ignore(1);/*lint !e747*//*lint !e534*/
          if ( line.peek() == '\n' || line.peek() == '"' || line.peek() == '*' || line.peek() == EOF )
          {
             return SCIP_OKAY;
@@ -190,7 +193,7 @@ namespace scip
       const char*        filename,           /**< full path and name of file to read, or NULL if stdin should be used */
       SCIP_RESULT*       result              /**< pointer to store the result of the file reading call */
       )
-   {
+   {/*lint --e{715}*/
       *result = SCIP_DIDNOTRUN;
 
       int numvars;                        //Number of variables
@@ -200,6 +203,9 @@ namespace scip
       int alllpblocksize;                 //Size of all LP-blocks added
       int* nvarnonz;                      // nblockvarnonz[i] gives the number of nonzeros for variable i
       SCIP_Real feastol;                  // used to check for nonzeros
+#ifndef NDEBUG
+      int snprintfreturn;                 // to check return codes of snprintf
+#endif
 
       std::vector<int, BlockMemoryAllocator<int> > blockpattern =
       std::vector<int, BlockMemoryAllocator<int> >(BlockMemoryAllocator<int>(scip));      //Vector with the sizes of all blocks
@@ -253,29 +259,29 @@ namespace scip
 
       // read block pattern
       blockpattern = std::vector<int, BlockMemoryAllocator<int> >(numblocks, 0, BlockMemoryAllocator<int>(scip));
-      blockislp = std::vector<bool>(numblocks, false);
+      blockislp = std::vector<bool>(numblocks, false);/*lint !e747*//*lint !e732*/
       lp_block_num = std::vector<int>(numblocks, 0);
       lp_block_size = std::vector<int>(numblocks, 0);
 
       for (int j = 0; j < numblocks; ++j)
       {
          drop_space(file);
-         file >> blockpattern[j];
-         if (blockpattern[j] > 0)
+         file >> blockpattern[j];/*lint !e747*//*lint !e732*/
+         if (blockpattern[j] > 0)/*lint !e747*//*lint !e732*/
          {
             numsdpblocks++;
-            blockstruct.push_back(SDPBlock(blockpattern[j]));
+            blockstruct.push_back(SDPBlock(blockpattern[j]));/*lint !e747*//*lint !e732*/
 
          }
-         else if (blockpattern[j] < 0)
+         else if (blockpattern[j] < 0)/*lint !e747*//*lint !e732*/
          {
             //LP block has a negative coefficient!
             numlpblocks++;
-            alllpblocksize += abs(blockpattern[j]);
-            blockislp[j] = true;
+            alllpblocksize += abs(blockpattern[j]);/*lint !e747*//*lint !e732*/
+            blockislp[j] = true;/*lint !e747*//*lint !e732*/
             blockstruct.push_back(SDPBlock(0));
-            lp_block_num[j] = numlpblocks;
-            lp_block_size[numlpblocks - 1] = abs(blockpattern[j]);
+            lp_block_num[j] = numlpblocks;/*lint !e747*//*lint !e732*/
+            lp_block_size[numlpblocks - 1] = abs(blockpattern[j]);/*lint !e747*//*lint !e732*/
 
          }
          else
@@ -290,10 +296,10 @@ namespace scip
       SCIP_CALL(dropComments(&file));
 
       // read objective
-      object = std::vector<SCIP_Real>(numvars, 0.0);
+      object = std::vector<SCIP_Real>(numvars, 0.0);/*lint !e747*//*lint !e732*/
       for (int i = 0; i < numvars; ++i)
       {
-         file >> object[i];
+         file >> object[i];/*lint !e747*//*lint !e732*/
          drop_space(file);
       }
 
@@ -305,11 +311,10 @@ namespace scip
       // construct blocks
 
       //construct LP block
-      LPData.rows = std::vector<LProw>(alllpblocksize);
+      LPData.rows = std::vector<LProw>(alllpblocksize);/*lint !e747*//*lint !e732*/
       LPData.numrows = alllpblocksize;
       SCIPdebugMessage("Number of LP constraints: %d\n", alllpblocksize);
 
-      std::vector<int> for_indices;
       std::string commentline;
 
       // read data
@@ -317,7 +322,7 @@ namespace scip
       {
       	if(file.peek() == '*') // comment
       	{
-      		std::getline(file, commentline);
+      		std::getline(file, commentline);/*lint !e534*/
       		if (commentline.find("*INT") == 0) // if current line starts with *INT then go to Integer definitions
       		{
       			drop_space(file); // drop \newline
@@ -347,12 +352,12 @@ namespace scip
 
       		SCIP_CALL( testDigit(&file) );
       		file >> row_index;
-      		SCIP_CALL( checkIndex("row", row_index, (blockislp[block_index - 1] ? LPData.numrows : blockstruct[block_index - 1].blocksize)) );
+      		SCIP_CALL( checkIndex("row", row_index, (blockislp[block_index - 1] ? LPData.numrows : blockstruct[block_index - 1].blocksize)) );/*lint !e732*//*lint !e747*/
       		SCIP_CALL( dropSpaceNewlineError(file) );
 
       		SCIP_CALL( testDigit(&file) );
       		file >> col_index;
-            SCIP_CALL( checkIndex("column", col_index, (blockislp[block_index - 1] ? LPData.numrows : blockstruct[block_index - 1].blocksize)) );
+            SCIP_CALL( checkIndex("column", col_index, (blockislp[block_index - 1] ? LPData.numrows : blockstruct[block_index - 1].blocksize)) );/*lint !e732*//*lint !e747*/
       		SCIP_CALL( dropSpaceNewlineError(file) );
 
       		SCIP_CALL( testDigit(&file) );
@@ -367,7 +372,7 @@ namespace scip
       		}
 
       		//sdp-block
-      		if (!blockislp[block_index - 1])
+      		if (!blockislp[block_index - 1])/*lint !e732*//*lint !e747*/
       		{
       			if (row_index < col_index)
       			{
@@ -378,26 +383,26 @@ namespace scip
 
       			if (var_index == 0)
       			{
-      				blockstruct[block_index - 1].constcolumns.push_back(col_index);
-      				blockstruct[block_index - 1].constrows.push_back(row_index);
-      				blockstruct[block_index - 1].constvalues.push_back(val);
-      				blockstruct[block_index - 1].constnum_nonzeros++;
+      				blockstruct[block_index - 1].constcolumns.push_back(col_index);/*lint !e732*//*lint !e747*/
+      				blockstruct[block_index - 1].constrows.push_back(row_index);/*lint !e732*//*lint !e747*/
+      				blockstruct[block_index - 1].constvalues.push_back(val);/*lint !e732*//*lint !e747*/
+      				blockstruct[block_index - 1].constnum_nonzeros++;/*lint !e732*//*lint !e747*/
       			}
       			else
       			{
-      				blockstruct[block_index - 1].columns.push_back(col_index);
-      				blockstruct[block_index - 1].rows.push_back(row_index);
-      				blockstruct[block_index - 1].values.push_back(val);
-      				blockstruct[block_index - 1].variables.push_back(var_index);
-      				blockstruct[block_index - 1].num_nonzeros++;
+      				blockstruct[block_index - 1].columns.push_back(col_index);/*lint !e732*//*lint !e747*/
+      				blockstruct[block_index - 1].rows.push_back(row_index);/*lint !e732*//*lint !e747*/
+      				blockstruct[block_index - 1].values.push_back(val);/*lint !e732*//*lint !e747*/
+      				blockstruct[block_index - 1].variables.push_back(var_index);/*lint !e732*//*lint !e747*/
+      				blockstruct[block_index - 1].num_nonzeros++;/*lint !e732*//*lint !e747*/
       			}
-               SCIPdebugMessage("SDP entry: block_index: %d, row: %d, col: %d, var: %d, val: %g\n", block_index, row_index, col_index, var_index,val );
+               SCIPdebugMessage("SDP entry: block_index: %d, row: %d, col: %d, var: %d, val: %g\n", block_index, row_index, col_index, var_index,val );/*lint !e525*/
       		}
       		//lp-block
-      		else if (blockislp[block_index - 1])
+      		else if (blockislp[block_index - 1])/*lint !e732*//*lint !e747*/
       		{
       			assert(row_index == col_index);
-      			if ( lp_block_num[block_index - 1] == 1 )
+      			if ( lp_block_num[block_index - 1] == 1 )/*lint !e732*//*lint !e747*/
       			   new_row_index = row_index - 1;
       			else //we combine all lp blocks to a single one, so we add the total number of rows of earlier blocks to the row index
       			{
@@ -406,12 +411,12 @@ namespace scip
 
       			   rowoffset = 0;
 
-      			   for ( b = 0; b < lp_block_num[block_index - 1] - 1; b++ )
-      			      rowoffset += lp_block_size[b];
+      			   for ( b = 0; b < lp_block_num[block_index - 1] - 1; b++ )/*lint !e732*//*lint !e747*/
+      			      rowoffset += lp_block_size[b];/*lint !e732*//*lint !e747*/
 
       			   new_row_index = rowoffset + row_index - 1;
       			}
-      			LPData.rows[new_row_index].data.push_back(std::make_pair(var_index, val));
+      			LPData.rows[new_row_index].data.push_back(std::make_pair(var_index, val));/*lint !e732*//*lint !e747*/
       			SCIPdebugMessage("LP entry: row: %d, var: %d, val: %g\n", new_row_index, var_index,val );
       		}
 
@@ -425,11 +430,11 @@ namespace scip
 
       while(file.peek() == '*')
       {
-         int index;
-         file.ignore(1);
+         int index;/*lint !e578*/
+         file.ignore(1);/*lint !e534*//*lint !e747*/
          file >> index;
          //in the SDPA-file the variable numbers start at 1!
-         intvars[index - 1] = 1;
+         intvars[index - 1] = 1;/*lint !e732*//*lint !e747*/
          SCIPdebugMessage("Variable %d is integer.\n", index - 1);
          drop_rest_line(file);
          drop_space(file);
@@ -446,27 +451,32 @@ namespace scip
       /* add variables */
       /*****************/
 
-      std::vector<SCIP_VAR*> VariablesX ( numvars );
+      std::vector<SCIP_VAR*> VariablesX ( numvars );/*lint !e732*//*lint !e747*/
 
       for ( int i = 0; i < numvars; ++i)
       {
          SCIP_VAR* var;
-         char      var_name[255];
-         SCIPsnprintf(var_name, 255, "X_%d", i);
+         char      var_name[SCIP_MAXSTRLEN];
+#ifndef NDEBUG
+         snprintfreturn = SCIPsnprintf(var_name, SCIP_MAXSTRLEN, "X_%d", i);
+         assert( snprintfreturn < SCIP_MAXSTRLEN);
+#else
+         (void)SCIPsnprintf(var_name, SCIP_MAXSTRLEN, "X_%d", i);
+#endif
 
 
-         if (intvars[i] == 1)
+         if (intvars[i] == 1)/*lint !e732*//*lint !e747*/
          {
-            SCIP_CALL( SCIPcreateVar(scip, &var, var_name, -SCIPinfinity(scip), SCIPinfinity(scip), object[i], SCIP_VARTYPE_INTEGER, TRUE, FALSE, 0, 0, 0, 0, 0));
+            SCIP_CALL( SCIPcreateVar(scip, &var, var_name, -SCIPinfinity(scip), SCIPinfinity(scip), object[i], SCIP_VARTYPE_INTEGER, TRUE, FALSE, 0, 0, 0, 0, 0));/*lint !e732*//*lint !e747*/
          }
          else
          {
             SCIP_CALL( SCIPcreateVar(scip, &var, var_name,  -SCIPinfinity(scip), SCIPinfinity(scip), object[i],
-                  SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, 0, 0, 0, 0, 0));
+                  SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, 0, 0, 0, 0, 0));/*lint !e732*//*lint !e747*/
          }
 
          SCIP_CALL( SCIPaddVar(scip, var) );
-         VariablesX[i] = var;
+         VariablesX[i] = var;/*lint !e732*//*lint !e747*/
 
          /* release variable for the reader. */
          SCIP_CALL( SCIPreleaseVar(scip, &var) );
@@ -480,7 +490,7 @@ namespace scip
       lp_block_already_done = false;
       for (int bindex = 0; bindex < numblocks; ++bindex)
       {
-         if (!blockislp[bindex])
+         if (!blockislp[bindex])/*lint !e732*//*lint !e747*/
          {
             int nvars;
             int nnonz;
@@ -505,23 +515,23 @@ namespace scip
 
             SCIPdebugMessage("Begin construction of SDP constraint for block %d.\n", bindex);
 
-            blocksize = blockpattern[bindex];
-            nnonz = blockstruct[bindex].num_nonzeros;
+            blocksize = blockpattern[bindex];/*lint !e732*//*lint !e747*/
+            nnonz = blockstruct[bindex].num_nonzeros;/*lint !e732*//*lint !e747*/
             ind = 0;
 
             /* allocate memory */
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &varind, blockstruct[bindex].num_nonzeros) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &col, blockstruct[bindex].num_nonzeros) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &row, blockstruct[bindex].num_nonzeros) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &val, blockstruct[bindex].num_nonzeros) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &colpointer, numvars) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &rowpointer, numvars) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &valpointer, numvars) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &vars, numvars) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &varind, blockstruct[bindex].num_nonzeros) );/*lint !e732*//*lint !e530*/
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &col, blockstruct[bindex].num_nonzeros) );/*lint !e732*//*lint !e530*/
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &row, blockstruct[bindex].num_nonzeros) );/*lint !e732*//*lint !e530*/
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &val, blockstruct[bindex].num_nonzeros) );/*lint !e732*//*lint !e530*/
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &colpointer, numvars) );/*lint !e732*//*lint !e530*/
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &rowpointer, numvars) );/*lint !e732*//*lint !e530*/
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &valpointer, numvars) );/*lint !e732*//*lint !e530*/
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &vars, numvars) );/*lint !e732*//*lint !e530*/
 
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &constcol, blockstruct[bindex].constnum_nonzeros) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &constrow, blockstruct[bindex].constnum_nonzeros) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &constval, blockstruct[bindex].constnum_nonzeros) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &constcol, blockstruct[bindex].constnum_nonzeros) );/*lint !e732*//*lint !e530*/
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &constrow, blockstruct[bindex].constnum_nonzeros) );/*lint !e732*//*lint !e530*/
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &constval, blockstruct[bindex].constnum_nonzeros) );/*lint !e732*//*lint !e530*/
 
             /* allocate memory for nblockvarnonz & initialize it with zero */
             SCIP_CALL(SCIPallocBlockMemoryArray(scip, &nvarnonz, numvars));
@@ -529,13 +539,13 @@ namespace scip
                nvarnonz[i] = 0;
 
             /* prepare the constant arrays */
-            for (k = 0; k < blockstruct[bindex].constnum_nonzeros; ++k)
+            for (k = 0; k < blockstruct[bindex].constnum_nonzeros; ++k)/*lint !e732*//*lint !e747*/
             {
-               if (blockstruct[bindex].constvalues[k] > feastol || blockstruct[bindex].constvalues[k] < -feastol)
+               if (blockstruct[bindex].constvalues[k] > feastol || blockstruct[bindex].constvalues[k] < -feastol)/*lint !e732*//*lint !e747*/
                {
-                  constcol[ind] = blockstruct[bindex].constcolumns[k] - 1; /* the sdpa format counts from 1 to blocksize, we want to start from 0 */
-                  constrow[ind] = blockstruct[bindex].constrows[k] - 1;
-                  constval[ind] = blockstruct[bindex].constvalues[k];
+                  constcol[ind] = blockstruct[bindex].constcolumns[k] - 1;/*lint !e732*//*lint !e747*/ /* the sdpa format counts from 1 to blocksize, we want to start from 0 */
+                  constrow[ind] = blockstruct[bindex].constrows[k] - 1;/*lint !e732*//*lint !e747*/
+                  constval[ind] = blockstruct[bindex].constvalues[k];/*lint !e732*//*lint !e747*/
                   ind++;
                }
             }
@@ -545,12 +555,12 @@ namespace scip
             ind = 0;
             for (k = 0; k < nnonz; ++k)
             {
-               if (blockstruct[bindex].values[k] > feastol || blockstruct[bindex].values[k] < -feastol)
+               if (blockstruct[bindex].values[k] > feastol || blockstruct[bindex].values[k] < -feastol)/*lint !e732*//*lint !e747*/
                {
-                  varind[ind] = blockstruct[bindex].variables[k] - 1;
-                  col[ind] = blockstruct[bindex].columns[k] - 1;
-                  row[ind] = blockstruct[bindex].rows[k] - 1;
-                  val[ind] = blockstruct[bindex].values[k];
+                  varind[ind] = blockstruct[bindex].variables[k] - 1;/*lint !e732*//*lint !e747*/
+                  col[ind] = blockstruct[bindex].columns[k] - 1;/*lint !e732*//*lint !e747*/
+                  row[ind] = blockstruct[bindex].rows[k] - 1;/*lint !e732*//*lint !e747*/
+                  val[ind] = blockstruct[bindex].values[k];/*lint !e732*//*lint !e747*/
                   ind++;
                }
             }
@@ -573,7 +583,7 @@ namespace scip
                }
                if (varused)
                {
-                  vars[ind] = VariablesX[k]; /* if the variable is used, add it to the vars array */
+                  vars[ind] = VariablesX[k];/*lint !e732*//*lint !e747*/ /* if the variable is used, add it to the vars array */
                   colpointer[ind] = &col[firstindforvar]; /* save a pointer to the first nonzero belonging to this variable */
                   rowpointer[ind] = &row[firstindforvar];
                   valpointer[ind] = &val[firstindforvar];
@@ -584,13 +594,18 @@ namespace scip
             assert (nextindaftervar == nnonz);
 
             /* this was only needed to compute the vars arrays */
-            SCIPfreeBlockMemoryArray(scip, &varind, blockstruct[bindex].num_nonzeros);
+            SCIPfreeBlockMemoryArray(scip, &varind, blockstruct[bindex].num_nonzeros);/*lint !e747*/
 
             nvars = ind;
 
             SCIP_CONS* sdpcon;
-            char       sdpcon_name[255];
-            SCIPsnprintf(sdpcon_name, 255, "SDP-Constraint-%d", bindex);
+            char       sdpcon_name[SCIP_MAXSTRLEN];
+#ifndef NDEBUG
+            snprintfreturn = SCIPsnprintf(sdpcon_name, SCIP_MAXSTRLEN, "SDP-Constraint-%d", bindex);
+            assert( snprintfreturn < SCIP_MAXSTRLEN);
+#else
+            (void) SCIPsnprintf(sdpcon_name, SCIP_MAXSTRLEN, "SDP-Constraint-%d", bindex);
+#endif
             SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcon, sdpcon_name, nvars, nnonz, blocksize, nvarnonz, colpointer,
                   rowpointer, valpointer, vars, constnnonz, constcol, constrow, constval) );
 
@@ -604,16 +619,16 @@ namespace scip
 
             /* free the used arrays */
             SCIPfreeBlockMemoryArray(scip, &nvarnonz, numvars);
-            SCIPfreeBlockMemoryArray(scip, &constval, blockstruct[bindex].constnum_nonzeros);
-            SCIPfreeBlockMemoryArray(scip, &constrow, blockstruct[bindex].constnum_nonzeros);
-            SCIPfreeBlockMemoryArray(scip, &constcol, blockstruct[bindex].constnum_nonzeros);
+            SCIPfreeBlockMemoryArray(scip, &constval, blockstruct[bindex].constnum_nonzeros);/*lint !e747*/
+            SCIPfreeBlockMemoryArray(scip, &constrow, blockstruct[bindex].constnum_nonzeros);/*lint !e747*/
+            SCIPfreeBlockMemoryArray(scip, &constcol, blockstruct[bindex].constnum_nonzeros);/*lint !e747*/
             SCIPfreeBlockMemoryArray(scip, &vars, numvars);
             SCIPfreeBlockMemoryArray(scip, &valpointer, numvars);
             SCIPfreeBlockMemoryArray(scip, &rowpointer, numvars);
             SCIPfreeBlockMemoryArray(scip, &colpointer, numvars);
-            SCIPfreeBlockMemoryArray(scip, &val, blockstruct[bindex].num_nonzeros);
-            SCIPfreeBlockMemoryArray(scip, &row, blockstruct[bindex].num_nonzeros);
-            SCIPfreeBlockMemoryArray(scip, &col, blockstruct[bindex].num_nonzeros);
+            SCIPfreeBlockMemoryArray(scip, &val, blockstruct[bindex].num_nonzeros);/*lint !e747*/
+            SCIPfreeBlockMemoryArray(scip, &row, blockstruct[bindex].num_nonzeros);/*lint !e747*/
+            SCIPfreeBlockMemoryArray(scip, &col, blockstruct[bindex].num_nonzeros);/*lint !e747*/
 
             SCIPdebugMessage("Construction of SDP constraint for block %d completed.\n", bindex);
          }
@@ -628,17 +643,22 @@ namespace scip
                for (int row_i = 0; row_i < LPData.numrows; ++row_i)
                {
                   SCIP_CONS* LPcon;
-                  char       LPcon_name[255];
-                  SCIPsnprintf(LPcon_name, 255, "LP-Con-%d", row_i);
+                  char       LPcon_name[SCIP_MAXSTRLEN];
+#ifndef NDEBUG
+                  snprintfreturn = SCIPsnprintf(LPcon_name, SCIP_MAXSTRLEN, "LP-Con-%d", row_i);
+                  assert( snprintfreturn < SCIP_MAXSTRLEN );
+#else
+                  (void) SCIPsnprintf(LPcon_name, SCIP_MAXSTRLEN, "LP-Con-%d", row_i);
+#endif
 
                   //Get right hand side of the constraint
                   SCIP_Real LPlhs = 0.0;
 
-                  for (unsigned int var_i = 0; var_i < LPData.rows[row_i].data.size(); ++var_i)
+                  for (unsigned int var_i = 0; var_i < LPData.rows[row_i].data.size(); ++var_i)/*lint !e732*//*lint !e747*/
                   {
-                     if (LPData.rows[row_i].data[var_i].first == 0)
+                     if (LPData.rows[row_i].data[var_i].first == 0)/*lint !e732*//*lint !e747*/
                      {
-                        LPlhs = LPData.rows[row_i].data[var_i].second;
+                        LPlhs = LPData.rows[row_i].data[var_i].second;/*lint !e732*//*lint !e747*/
                      }
                   }
 
@@ -649,11 +669,11 @@ namespace scip
                   SCIP_CALL( SCIPaddCons(scip, LPcon) );
 
                   //Insert variables into constraint:
-                  for (unsigned int var_i = 0; var_i < LPData.rows[row_i].data.size(); ++var_i)
+                  for (unsigned int var_i = 0; var_i < LPData.rows[row_i].data.size(); ++var_i)/*lint !e732*//*lint !e747*/
                   {
-                     if (LPData.rows[row_i].data[var_i].first != 0)
+                     if (LPData.rows[row_i].data[var_i].first != 0)/*lint !e732*//*lint !e747*/
                      {
-                        SCIP_CALL( SCIPaddCoefLinear(scip, LPcon, VariablesX[LPData.rows[row_i].data[var_i].first - 1], LPData.rows[row_i].data[var_i].second) );
+                        SCIP_CALL( SCIPaddCoefLinear(scip, LPcon, VariablesX[LPData.rows[row_i].data[var_i].first - 1], LPData.rows[row_i].data[var_i].second) );/*lint !e732*//*lint !e747*/
                      }
                   }
 #ifdef SCIP_MORE_DEBUG

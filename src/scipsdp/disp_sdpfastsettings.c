@@ -42,6 +42,8 @@
 #include "disp_sdpfastsettings.h"
 #include "relax_sdp.h"
 
+/* turn off lint warnings for whole file: */
+/*lint --e{788,818}*/
 
 #define DISP_NAME             "sdpfastsettings"
 #define DISP_DESC             "percentage of fastsettings for SDP solver"

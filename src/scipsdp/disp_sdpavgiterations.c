@@ -42,6 +42,8 @@
 #include "disp_sdpavgiterations.h"
 #include "relax_sdp.h"
 
+/* turn off lint warnings for whole file: */
+/*lint --e{788,818}*/
 
 #define DISP_NAME             "sdpavgiterations"
 #define DISP_DESC             "average number of SDP iterations"

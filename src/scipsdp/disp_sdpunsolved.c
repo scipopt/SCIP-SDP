@@ -42,6 +42,8 @@
 #include "disp_sdpunsolved.h"
 #include "relax_sdp.h"
 
+/* turn off lint warnings for whole file: */
+/*lint --e{788,818}*/
 
 #define DISP_NAME             "sdpunsolved"
 #define DISP_DESC             "percentage of unsolved SDPs"

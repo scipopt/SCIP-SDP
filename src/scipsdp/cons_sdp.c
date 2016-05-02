@@ -59,6 +59,9 @@
 #include "omp.h"                        /* for changing the number of threads */
 #endif
 
+/* turn off lint warnings for whole file: */
+/*lint --e{788,818}*/
+
 #define CONSHDLR_NAME          "SDP"
 #define CONSHDLR_DESC          "SDP constraints of the form \\sum_{j} A_j y_j - A_0 psd"
 #define CONSHDLR_SEPAPRIORITY  +1000000 /**< priority of the constraint handler for separation */
@@ -74,9 +77,9 @@
 #define CONSHDLR_PRESOLTIMING     SCIP_PRESOLTIMING_FAST
 #define PARSE_STARTSIZE               1 /**< initial size of the consdata-arrays when parsing a problem */
 #define PARSE_SIZEFACTOR             10 /**< size of consdata-arrays is increased by this factor when parsing a problem */
-
+#ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
-
+#endif
 
 /** constraint data for sdp constraints */
 struct SCIP_ConsData
@@ -306,9 +309,9 @@ SCIP_RETCODE cutUsingEigenvector(
    blocksize = consdata->blocksize;
 
    SCIP_CALL( SCIPallocBufferArray(scip, &eigenvalues, blocksize) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1))/2 ) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize ) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &fullconstmatrix, blocksize * blocksize) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1))/2 ) ); /*lint !e647*/
+   SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize ) ); /*lint !e647*/
+   SCIP_CALL( SCIPallocBufferArray(scip, &fullconstmatrix, blocksize * blocksize) ); /*lint !e647*/
    SCIP_CALL( SCIPallocBufferArray(scip, &eigenvector, blocksize) );
    SCIP_CALL( SCIPallocBufferArray(scip, &output_vector, blocksize) );
 
@@ -372,8 +375,8 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    assert( consdata != NULL );
    blocksize = consdata->blocksize;
 
-   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1)) / 2) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1)) / 2) ); /*lint !e647*/
+   SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize) ); /*lint !e647*/
    SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix) );
    SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
 
@@ -540,10 +543,10 @@ SCIP_RETCODE diagGEzero(
       nvars = consdata->nvars;
       rhs = SCIPinfinity(scip);
 
-      SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize + 1)) / 2) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize + 1)) / 2) ); /*lint !e647*/
       SCIP_CALL( SCIPconsSdpGetLowerTriangConstMatrix(scip, conss[c], matrix) );
 
-      SCIP_CALL( SCIPallocBufferArray(scip, &cons_array, blocksize * nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &cons_array, blocksize * nvars) ); /*lint !e647*/
       SCIP_CALL( SCIPallocBufferArray(scip, &lhs_array, blocksize) );
 
       /* the lhs is the (k,k)-entry of the constant matrix */
@@ -1415,7 +1418,7 @@ SCIP_DECL_CONSLOCK(consLockSdp)
    blocksize = consdata->blocksize;
    nvars = consdata->nvars;
 
-   SCIP_CALL( SCIPallocBufferArray(scip, &Aj, blocksize * blocksize) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &Aj, blocksize * blocksize) ); /*lint !e647*/
 
    for (var = 0; var < nvars; var++)
    {

@@ -44,6 +44,9 @@
 #include "scip/type_misc.h" /* for SCIP Hashmap */
 #include "SdpVarmapper.h"
 
+/* turn off lint warnings for whole file: */
+/*lint --e{788,818}*/
+
 struct Sdpvarmapper
 {
    SCIP_VAR**            sdptoscip;          /**< array of SCIP variables indexed by their SDP indices */

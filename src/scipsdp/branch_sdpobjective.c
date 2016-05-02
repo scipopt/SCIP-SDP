@@ -44,6 +44,8 @@
 
 #include "branch_sdpobjective.h"
 
+/* turn off lint warnings for whole file: */
+/*lint --e{788,818}*/
 
 #define BRANCHRULE_NAME            "sdpobjective"
 #define BRANCHRULE_DESC            "branch on variable with highest absolute objective of the SDP"
@@ -310,7 +312,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
          currentobj = 0.0;
          for (v = 0; v < nvars; v++)
          {
-            if ( branchruledata->singlecoupledvars && singlecoupledvars[cand][v] )
+            if ( branchruledata->singlecoupledvars && singlecoupledvars[cand][v] ) /*lint !e644*/
                currentobj += REALABS(SCIPvarGetObj(vars[v]));
             else if ( coupledvars[cand][v] )
                currentobj += REALABS(SCIPvarGetObj(vars[v]));

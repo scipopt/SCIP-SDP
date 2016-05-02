@@ -40,6 +40,9 @@
 #include "scip/pub_misc.h" /* for sorting */
 #include "SdpVarfixer.h"
 
+/* turn off lint warnings for whole file: */
+/*lint --e{788,818}*/
+
 /** sort the given row, col and val arrays first by non-decreasing row-indices, then for those with identical
  *  row-indices by non-decreasing col-indices
  */

@@ -45,6 +45,8 @@
 #include "heur_sdpfracdiving.h"
 #include "relax_sdp.h"
 
+/* turn off lint warnings for whole file: */
+/*lint --e{788,818}*/
 
 #define HEUR_NAME             "sdpfracdiving"
 #define HEUR_DESC             "SDP diving heuristic that chooses fixings w.r.t. the fractionalities"
@@ -489,7 +491,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
          }
 
          /* apply rounding of best candidate */
-         if ( bestcandroundup == !backtracked )
+         if ( bestcandroundup != backtracked )
          {
             /* round variable up */
 #ifdef SCIP_MORE_DEBUG
