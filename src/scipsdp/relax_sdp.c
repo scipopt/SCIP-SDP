@@ -52,6 +52,8 @@
 #include "scipsdp/cons_sdp.h"
 #include "scipsdp/cons_savedsdpsettings.h"
 
+/* turn off lint warnings for whole file: */
+/*lint --e{788,818}*/
 
 #define RELAX_NAME                  "SDP"
 #define RELAX_DESC                  "SDP relaxator"
@@ -440,13 +442,9 @@ SCIP_RETCODE putLpDataInInterface(
                /* We want x - a z <= 0 or x - a z >= 0, where var1 = x and var2 = z; possibly swap variables otherwise */
                if ( ! SCIPisEQ(scip, val1, 1.0) || ! SCIPisNegative(scip, val2) )
                {
-                  SCIP_Real aval;
-
                   SCIPswapPointers((void**) &var1, (void**) &var2);
 
-                  aval = val1;
-                  val1 = val2;
-                  val2 = aval;
+                  val2 = val1;
                   swapped = TRUE;
                }
 
