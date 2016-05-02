@@ -34,6 +34,8 @@
 /* #define SCIP_MORE_DEBUG   *//* shows all added nonzero entries */
 /* #define SCIP_DEBUG_PRINTTOFILE  *//* prints each problem inserted into SDPA to the file sdpa.dat-s and the starting point to sdpa.ini-s */
 
+#define SDPA_RESETPARAMS
+
 /**@file   sdpisolver_sdpa.cpp
  * @brief  interface for SDPA
  * @author Tristan Gally
@@ -1183,7 +1185,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->sdpa->printParameters(stdout);
 #endif
       sdpisolver->sdpa->setInitPoint(false);
+#ifdef SDPA_RESETPARAMS
+      sdpisolver->sdpa->resetParameters();
+#else
       sdpisolver->sdpa->initializeSolve();
+#endif
       sdpisolver->sdpa->solve();
       sdpisolver->solved = TRUE;
 
@@ -1221,7 +1227,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->sdpa->printParameters(stdout);
 #endif
          sdpisolver->sdpa->setInitPoint(false);
-         sdpisolver->sdpa->initializeSolve();
+#ifdef SDPA_RESETPARAMS
+      sdpisolver->sdpa->resetParameters();
+#else
+      sdpisolver->sdpa->initializeSolve();
+#endif
          sdpisolver->sdpa->solve();
          sdpisolver->solved = TRUE;
 
