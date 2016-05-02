@@ -292,7 +292,7 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
             SCIPdebugMessage("Aborting sdp-obbt, as we were unable to solve a probing sdp!\n");
             if ( *result != SCIP_REDUCEDDOM )
                *result = SCIP_DIDNOTRUN;
-            goto TERMINATE;
+            break;
          }
 
          /* if the problem is infeasible, return with cutoff */
@@ -300,7 +300,7 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
          {
             SCIPdebugMessage("Probing sdp infeasible, so there can't be a better solution for this problem!\n");
             *result = SCIP_CUTOFF;
-            goto TERMINATE;
+            break;
          }
 
          /* check if we managed to tighten the bound */
@@ -406,7 +406,7 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
    {
       if ( newboundinds[i] < 0)
       {
-         SCIP_CALL( SCIPchgVarLb(scip, vars[-1 * newboundinds[i] - 1], newbounds[i]) );
+         SCIP_CALL( SCIPchgVarLb(scip, vars[-1 * newboundinds[i] - 1], newbounds[i]) ); /*lint !e679*/
       }
       else
       {
