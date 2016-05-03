@@ -1691,7 +1691,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          TRUE, DEFAULT_LAMBDASTAR, -1.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/slatercheck",
-         "should the Slater condition for the dual problem be check ahead of solving each SDP? 0: no, 1: yes and output statistics, 2: yes and print warning for "
+         "Should the Slater condition for the primal and dual problem be checked ahead of solving each SDP? 0: no, 1: yes and output statistics, 2: yes and print warning for "
          "every problem not satisfying primal and dual Slater condition", &(relaxdata->slatercheck), TRUE, DEFAULT_SLATERCHECK, 0, 2, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/sdpinfo",
