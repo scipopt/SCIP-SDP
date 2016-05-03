@@ -94,5 +94,8 @@
  * <tr><td>branching/sdpobjective/singlecoupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints in which no other candidate appears?</td></tr>
  * <tr><td>branching/sdpinfobjective/coupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints?</td></tr>
  * <tr><td>branching/sdpinfobjective/singlecoupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints in which no other candidate appears?</td></tr>
+ * <tr><td>display/sdpfastsettings/active = 0</td> <td>set this to 2 to display the number of SDP-relaxations solved with the fastest setting (SDPA) or the default formulation (DSDP)</td></tr>
+ * <tr><td>display/sdppenalty/active = 0</td> <td>set this to 2 to display the number of SDP-relaxations solved using a penalty formulation</td></tr>
+ * <tr><td>display/sdpunsolved/active = 1</td> <td>set this to 0 to no longer display the number of SDP-relaxations that could not be solved</td></tr>
  * </table>
  */
