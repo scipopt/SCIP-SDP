@@ -50,7 +50,7 @@
 #define DISP_HEADER           "SDP pen"
 #define DISP_WIDTH            8              /**< the width of the display column */
 #define DISP_PRIORITY         1001           /**< the priority of the display column */
-#define DISP_POSITION         3100           /**< the relative position of the display column */
+#define DISP_POSITION         1450           /**< the relative position of the display column */
 #define DISP_STRIPLINE        TRUE           /**< default for displaying column separated with a line from its right neighbor */
 
 
