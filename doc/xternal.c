@@ -67,21 +67,21 @@
  * <table>
  * <tr><td>relaxing/SDP/freq = 1</td> <td>set this to -1 and lp/solvefreq to 1 to solve LP relaxations with eigenvector cuts</td></tr>
  * <tr><td>propagating/sdpredcost/freq = 1</td> <td>set this to -1 to disable reduced cost fixing for SDPs</td></tr>
- * <tr><td>propagating/sdpredcost/forbins = TRUE</td> <td>should sdp reduced cost fixing be executed for binary variables?</tr>
- * <tr><td>propagating/sdpredcost/forintcons = TRUE</td> <td>should sdp reduced cost fixing be executed for integer and continuous variables?</tr>
- * <tr><td>propagating/obbt-sdp/tightcontboundsprobing = -1</td> <td>set this to 1 to enable SDP-OBBT</td></tr>
- * <tr><td>propagating/obbt/tightcontboundsprobing = FALSE</td> <td>should continuous bounds be tightened during the probing mode?</tr>
- * <tr><td>propagating/obbt/tightintboundsprobing = TRUE</td> <td>should integral bounds be tightened during the probing mode?</tr>
+ * <tr><td>propagating/sdpredcost/forbins = TRUE</td> <td>should sdp reduced cost fixing be executed for binary variables?</td></tr>
+ * <tr><td>propagating/sdpredcost/forintcons = TRUE</td> <td>should sdp reduced cost fixing be executed for integer and continuous variables?</td></tr>
+ * <tr><td>propagating/obbt-sdp/freq = -1</td> <td>set this to 0 or more to enable SDP-OBBT</td></tr>
+ * <tr><td>propagating/obbt/tightcontboundsprobing = FALSE</td> <td>should continuous bounds be tightened during the probing mode?</td></tr>
+ * <tr><td>propagating/obbt/tightintboundsprobing = TRUE</td> <td>should integral bounds be tightened during the probing mode?</td></tr>
  * <tr><td>heuristics/sdpfracdiving/freq = -1</td> <td>set this to >= 0 to enable a fractional diving heuristic for SDPs</td></tr>
  * <tr><td>heuristics/sdprand/freq = 10</td> <td>set this to -1 to disable the randomized rounding heuristic</td></tr>
  * <tr><td>heuristics/sdprand/nrounds = 5</td> <td>number of rounding rounds</td></tr>
  * <tr><td>heuristics/sdprand/generalints = FALSE</td> <td>Should randomized rounding also be applied if there are general integer variables and not only binary variables ?</td></tr>
- * <tr><td>relaxing/SDP/sdpsolverepsilon = 0.0001</td> <td>sets the bound for the duality gap in the SDP-Solver</td></tr>
- * <tr><td>relaxing/SDP/sdpsolverfeastol = 0.00001</td> <td>feasibility tolerance for the SDP-Solver (should be less or equal to numerics/feastol)</td></tr>
+ * <tr><td>relaxing/SDP/sdpsolverepsilon = 1e-04</td> <td>sets the bound for the duality gap in the SDP-Solver</td></tr>
+ * <tr><td>relaxing/SDP/sdpsolverfeastol = 1e-06</td> <td>feasibility tolerance for the SDP-Solver (should be less or equal to numerics/feastol)</td></tr>
  * <tr><td>relaxing/SDP/sdpinfo = FALSE</td> <td>Should output of the SDP-Solver be printed to the console?</td></tr>
  * <tr><td>relaxing/SDP/displaystatistics = TRUE</td> <td>Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ?</td></tr>
  * <tr><td>relaxing/SDP/objlimit = FALSE</td> <td>Should an objective limit be given to the SDP-Solver?</td></tr>
- * <tr><td>relaxing/SDP/slatercheck = 0</td> <td>Should the Slater condition for the dual problem be check ahead of solving each SDP? 0: no, 1: yes and output statistics, 2: yes and print warning for every problem not satisfying primal and dual Slater condition</td></tr>
+ * <tr><td>relaxing/SDP/slatercheck = 0</td> <td>Should the Slater condition for the primal and dual problem be checked ahead of solving each SDP? 0: no, 1: yes and output statistics, 2: yes and print warning for every problem not satisfying primal and dual Slater condition</td></tr>
  * <tr><td>relaxing/SDP/lambdastar = -1</td> <td>the parameter lambda star used by SDPA to set the initial point , set this to a negative value to compute the parameter depending on the given problem</td></tr>
  * <tr><td>relaxing/SDP/penaltyparam = -1</td> <td>the starting value of the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge, set this to a negative value to compute the parameter depending on the given problem</td></tr>
  * <tr><td>relaxing/SDP/maxpenaltyparam = -1</td> <td>the maximum value of the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge, set this to a negative value to compute the parameter depending on the given problem</td></tr>
