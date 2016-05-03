@@ -692,7 +692,7 @@ SCIP_RETCODE SCIPsdpiSolverGetIntpar(
    switch( type )
    {
    case SCIP_SDPPAR_SDPINFO:
-      *ival = sdpisolver->sdpinfo;
+      *ival = (int) sdpisolver->sdpinfo;
       SCIPdebugMessage("Getting sdpisolver information output (%d).\n", *ival);
       break;
    default:
@@ -714,7 +714,7 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
    switch( type )
    {
    case SCIP_SDPPAR_SDPINFO:
-      sdpisolver->sdpinfo = ival;
+      sdpisolver->sdpinfo = (SCIP_Bool) ival;
       SCIPdebugMessage("Setting sdpisolver information output (%d).\n", ival);
       break;
    default:

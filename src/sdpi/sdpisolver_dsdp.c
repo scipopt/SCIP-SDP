@@ -53,6 +53,9 @@
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
 
+/* turn off lint warnings for whole file: */
+/*lint --e{788,818}*/
+
 #define PENALTYBOUNDTOL 1E-3 /**< if the relative gap between Tr(X) and penaltyparam for a primal solution of the penaltyformulation
                                *  is bigger than this value, it will be reported to the sdpi */
 
@@ -98,7 +101,7 @@
                       }                                                                                      \
                       while( FALSE )
 
-/** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY. */
+/** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMORY. */
 #define BMS_CALL(x)   do                                                                                     \
                       {                                                                                      \
                          if( NULL == (x) )                                                                   \
@@ -265,14 +268,14 @@ int checkTimeLimitDSDP(
 
    startseconds = (SCIP_Real) (timings->starttime).tv_sec + (SCIP_Real) (timings->starttime).tv_usec / 1e6;
 
-   TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );
+   TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );/*lint !e438, !e550, !e641 */
    currentseconds = (SCIP_Real) currenttime.tv_sec + (SCIP_Real) currenttime.tv_usec / 1e6;
 
    elapsedtime = currentseconds - startseconds;
 
    if ( elapsedtime > timings->timelimit )
    {
-      DSDP_CALL( DSDPSetConvergenceFlag(dsdp, DSDP_USER_TERMINATION) );
+      DSDP_CALL( DSDPSetConvergenceFlag(dsdp, DSDP_USER_TERMINATION) );/*lint !e641 */
       timings->stopped = TRUE;
       SCIPdebugMessage("Time limit reached! Stopping DSDP.\n");
    }
@@ -388,10 +391,10 @@ SCIP_RETCODE SCIPsdpiSolverFree(
    }
 
    if ( (*sdpisolver)->nvars > 0 )
-      BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->inputtodsdpmapper, (*sdpisolver)->nvars);
+      BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->inputtodsdpmapper, (*sdpisolver)->nvars);/*lint !e737 */
 
    if ( (*sdpisolver)->nactivevars > 0 )
-      BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->dsdptoinputmapper, (*sdpisolver)->nactivevars);
+      BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->dsdptoinputmapper, (*sdpisolver)->nactivevars);/*lint !e737 */
 
    if ( (*sdpisolver)->nvars >= (*sdpisolver)->nactivevars )
       BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->fixedvarsval, (*sdpisolver)->nvars - (*sdpisolver)->nactivevars); /*lint !e776*/
@@ -630,7 +633,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
    /* start the timing */
-   TIMEOFDAY_CALL( gettimeofday(&(timings.starttime), NULL) );
+   TIMEOFDAY_CALL( gettimeofday(&(timings.starttime), NULL) );/*lint !e438, !e550, !e641 */
    timings.timelimit = timelimit;
    timings.stopped = FALSE;
 
@@ -1062,8 +1065,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       pos = 0;
       for (i = 0; i < nlpcons; i++)
       {
-    	   if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
-    	   {
+         if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
+         {
     	      if ( REALABS(lplhs[i]) > sdpisolver->epsilon )
     	      {
     		      dsdplprow[dsdpnlpnonz] = pos;
@@ -1192,7 +1195,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
 
       /* free the memory for the rowshifts-array */
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &rowmapper, 2*noldlpcons); /*lint !e647*/
+      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &rowmapper, 2*noldlpcons); /*lint !e647, !e737*/
 
       /* shrink the dsdplp-arrays */
       if ( SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
@@ -1287,35 +1290,35 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /*these arrays were used to give information to DSDP and were needed during solving and for computing X, so they may only be freed now*/
    if ( sdpconstnnonz > 0 )
    {
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpconstval, sdpconstnnonz);
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpconstind, sdpconstnnonz);
+      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpconstval, sdpconstnnonz);/*lint !e737 */
+      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpconstind, sdpconstnnonz);/*lint !e737 */
    }
 
    if ( sdpnnonz > 0 )
    {
       if ( penaltyparam > sdpisolver->epsilon && (! rbound) )
       {
-         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpval, sdpnnonz + nrnonz); /*lint !e776*/
-         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpind, sdpnnonz + nrnonz); /*lint !e776*/
+         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpval, sdpnnonz + nrnonz); /*lint !e737, !e776*/
+         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpind, sdpnnonz + nrnonz); /*lint !e737, !e776*/
       }
       else
       {
-         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpval, sdpnnonz);
-         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpind, sdpnnonz);
+         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpval, sdpnnonz);/*lint !e737 */
+         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpind, sdpnnonz);/*lint !e737 */
       }
    }
 
    if ( nlpcons > 0 || lpnnonz > 0 )
    {
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, dsdpnlpnonz); /*lint !e644*/
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, dsdpnlpnonz);
+      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplpval, dsdpnlpnonz);/*lint !e644, !e737*/
+      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplprow, dsdpnlpnonz);/*lint !e737 */
       if ( penaltyparam > sdpisolver->epsilon && (! rbound) )
       {
-         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplpbegcol, sdpisolver->nactivevars + 3); /*lint !e776*/
+         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplpbegcol, sdpisolver->nactivevars + 3); /*lint !e737, !e776*/
       }
       else
       {
-         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplpbegcol, sdpisolver->nactivevars + 2); /*lint !e776*/
+         BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdplpbegcol, sdpisolver->nactivevars + 2); /*lint !e737, !e776*/
       }
    }
 
@@ -1450,7 +1453,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
    return SCIP_OKAY;
-}
+}/*lint !e715 */
 /**@} */
 
 
@@ -1918,7 +1921,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
             dualsol[v] = sdpisolver->fixedvarsval[(-1 * sdpisolver->inputtodsdpmapper[v]) - 1]; /*lint !e679*/
          }
       }
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, dsdpnvars);
+      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, dsdpnvars);/*lint !e737 */
    }
    return SCIP_OKAY;
 }
@@ -2038,7 +2041,7 @@ SCIP_Real SCIPsdpiSolverInfinity(
    )
 {
    return 1E+20; /* default infinity from SCIP */
-}
+}/*lint !e715 */
 
 /** checks if given value is treated as (plus or minus) infinity in the SDP solver */
 SCIP_Bool SCIPsdpiSolverIsInfinity(
@@ -2129,7 +2132,7 @@ SCIP_RETCODE SCIPsdpiSolverGetIntpar(
    switch( type )/*lint --e{788}*/
    {
    case SCIP_SDPPAR_SDPINFO:
-      *ival = sdpisolver->sdpinfo;
+      *ival = (int) sdpisolver->sdpinfo;
       SCIPdebugMessage("Getting sdpisolver information output (%d).\n", *ival);
       break;
    default:
@@ -2170,7 +2173,7 @@ SCIP_RETCODE SCIPsdpiSolverComputeLambdastar(
    SCIPdebugMessage("Lambdastar parameter not used by DSDP"); /* this parameter is only used by SDPA */
 
    return SCIP_OKAY;
-}
+}/*lint !e715 */
 
 /** compute and set the penalty parameter */
 SCIP_RETCODE SCIPsdpiSolverComputePenaltyparam(

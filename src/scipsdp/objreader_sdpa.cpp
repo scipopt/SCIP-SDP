@@ -278,7 +278,7 @@ namespace scip
             //LP block has a negative coefficient!
             numlpblocks++;
             alllpblocksize += abs(blockpattern[j]);/*lint !e747*//*lint !e732*/
-            blockislp[j] = true;/*lint !e747*//*lint !e732*/
+            blockislp[j] = true;/*lint !e747*//*lint !e732*//*lint !e1793*/
             blockstruct.push_back(SDPBlock(0));
             lp_block_num[j] = numlpblocks;/*lint !e747*//*lint !e732*/
             lp_block_size[numlpblocks - 1] = abs(blockpattern[j]);/*lint !e747*//*lint !e732*/
@@ -534,7 +534,7 @@ namespace scip
             SCIP_CALL( SCIPallocBlockMemoryArray(scip, &constval, blockstruct[bindex].constnum_nonzeros) );/*lint !e732*//*lint !e530*/
 
             /* allocate memory for nblockvarnonz & initialize it with zero */
-            SCIP_CALL(SCIPallocBlockMemoryArray(scip, &nvarnonz, numvars));
+            SCIP_CALL(SCIPallocBlockMemoryArray(scip, &nvarnonz, numvars));/*lint !e530*/
             for (int i = 0; i < numvars; i++)
                nvarnonz[i] = 0;
 

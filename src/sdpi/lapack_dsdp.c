@@ -204,9 +204,9 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
 
    /* free memory */
    BMSfreeBlockMemoryArray(blkmem, &ISUPPZ, 2);
-   BMSfreeBlockMemoryArray(blkmem, &WTMP, N);
-   BMSfreeBlockMemoryArray(blkmem, &IWORK, LIWORK);
-   BMSfreeBlockMemoryArray(blkmem, &WORK, LWORK);
+   BMSfreeBlockMemoryArray(blkmem, &WTMP, N);/*lint !e737*/
+   BMSfreeBlockMemoryArray(blkmem, &IWORK, LIWORK);/*lint !e737*/
+   BMSfreeBlockMemoryArray(blkmem, &WORK, LWORK);/*lint !e737*/
 
    return SCIP_OKAY;
 }
