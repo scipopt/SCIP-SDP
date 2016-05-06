@@ -539,6 +539,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->sdpatoinputmapper), sdpisolver->nactivevars, nvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), sdpisolver->nvars - sdpisolver->nactivevars, nvars) ); /*lint !e776*/
 
+   /* free the old varboundpos-array, this was needed until now to find the positions of dual variables in SDPA */
+   if ( sdpisolver->varboundpos != NULL )
+   {
+      BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &(sdpisolver->varboundpos), 2 * sdpisolver->nvars); /*lint !e647*/
+   }
+
    sdpisolver->nvars = nvars;
    sdpisolver->nactivevars = 0;
    nfixedvars = 0;
@@ -631,10 +637,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->sdpa->setParameterLambdaStar(sdpisolver->lambdastar);
 
    /* compute number of variable bounds and save them in sdpavarbounds */
-   if ( sdpisolver->varboundpos != NULL )
-   {
-      BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &(sdpisolver->varboundpos), 2 * sdpisolver->nvars); /*lint !e647*/
-   }
    sdpisolver->nvarbounds = 0;
    BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &sdpavarbounds, 2 * sdpisolver->nactivevars) ); /*lint !e647*//*lint !e530*/
    BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->varboundpos), 2 * sdpisolver->nvars) ); /*lint !e647*/
