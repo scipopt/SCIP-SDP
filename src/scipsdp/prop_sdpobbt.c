@@ -50,8 +50,8 @@
 /*lint --e{788,818}*/
 
 /* fundamental propagator properties */
-#define PROP_NAME             "obbt-sdp"
-#define PROP_DESC             "optimization-based bound tightening for sdps"
+#define PROP_NAME             "sdp-obbt"
+#define PROP_DESC             "optimization-based bound tightening for SDPs"
 #define PROP_PRIORITY         -1100000 /**< propagator priority */
 #define PROP_FREQ             -1 /**< propagator frequency */
 #define PROP_DELAY            FALSE /**< should propagation method be delayed, if other propagators found reductions? */
@@ -461,11 +461,11 @@ SCIP_RETCODE SCIPincludePropSdpObbt(
 
    /* add SdpObbt propagator parameters */
    SCIP_CALL( SCIPaddBoolParam(scip, "propagating/" PROP_NAME "/propbin",
-         " Should obbt be done for binary variables ? ",
+         "Should optimization-based bound tightening be performed for binary variables?",
          &propdata->propbin, TRUE, DEFAULT_PROPBIN, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "propagating/" PROP_NAME "/propcont",
-         " Should obbt be done for continuous variables ? ",
+         "Should optimization-based bound tightening be performed for continuous variables?",
          &propdata->propcont, TRUE, DEFAULT_PROPCONT, NULL, NULL) );
 
    return SCIP_OKAY;

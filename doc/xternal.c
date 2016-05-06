@@ -81,9 +81,9 @@
  * <tr><td>heuristics/sdprand/freq = 10</td> <td>set this to -1 to disable the randomized rounding heuristic</td></tr>
  * <tr><td>heuristics/sdprand/generalints = FALSE</td> <td>Should randomized rounding also be applied if there are general integer variables and not only binary variables ?</td></tr>
  * <tr><td>heuristics/sdprand/nrounds = 5</td> <td>number of rounding rounds</td></tr>
- * <tr><td>propagating/obbt-sdp/freq = -1</td> <td>set this to 0 or more to enable optimization based bound tightening using SDP-relaxations</td></tr>
- * <tr><td>propagating/obbt/tightcontboundsprobing = FALSE</td> <td>Should continuous bounds be tightened during the probing mode?</td></tr>
- * <tr><td>propagating/obbt/tightintboundsprobing = TRUE</td> <td>Should integral bounds be tightened during the probing mode?</td></tr>
+ * <tr><td>propagating/sdp-obbt/freq = -1</td> <td>set this to 0 or more to enable optimization-based bound tightening using SDP-relaxations</td></tr>
+ * <tr><td>propagating/sdp-obbt/propcont = TRUE</td> <td>Should optimization-based bound tightening be performed for continuous variables ?</td></tr>
+ * <tr><td>propagating/sdp-obbt/propbin = FALSE</td> <td>Should optimization-based bound tightening be performed for binary variables ?</td></tr>
  * <tr><td>propagating/sdpredcost/freq = 1</td> <td>set this to -1 to disable reduced cost fixing for SDPs</td></tr>
  * <tr><td>propagating/sdpredcost/forbins = TRUE</td> <td>Should sdp reduced cost fixing be executed for binary variables?</td></tr>
  * <tr><td>propagating/sdpredcost/forintcons = TRUE</td> <td>Should sdp reduced cost fixing be executed for integer and continuous variables?</td></tr>
