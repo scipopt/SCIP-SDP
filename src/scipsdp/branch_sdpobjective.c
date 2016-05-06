@@ -31,8 +31,10 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   branch_sdpobjective.c
- * @brief  highest absolute objective branching rule for SCIPSDP
+ * @brief  highest absolute objective branching rule for SCIP-SDP
  * @author Tristan Gally
+ *
+ * Branch on the variable with the highest absolute objective coefficient in the SDP.
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/

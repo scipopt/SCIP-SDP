@@ -33,6 +33,9 @@
 /**@file   cons_savedsdpsettings.h
  * @brief  constraint handler for saving SDP settings
  * @author Tristan Gally
+ *
+ * A constraint that is always feasible which can be used to save and recover settings used
+ * to solve the SDP-relaxation at the current node.
  */
 
 #ifndef __SCIP_CONS_SAVEDSDPSETTINGS_H_
@@ -51,7 +54,7 @@ SCIP_RETCODE SCIPincludeConshdlrSavedsdpsettings(
    SCIP*                 scip                /**< SCIP data structure */
    );
 
-/** create a Savedsdpsol-Cons, i.e. save the current settings for the SDP-relaxation of this node */
+/** create a Savedsdpsol constraint, i.e. save the current settings for the SDP-relaxation of this node */
 EXTERN
 SCIP_RETCODE createConsSavedsdpsettings(
    SCIP*                 scip,               /**< SCIP data structure */

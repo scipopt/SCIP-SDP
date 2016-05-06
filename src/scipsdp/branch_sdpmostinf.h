@@ -34,6 +34,8 @@
  * @ingroup BRANCHINGRULES
  * @brief  most infeasible branching rule for SCIPSDP
  * @author Tristan Gally
+ *
+ * Branch on the most infeasible variable in the current SDP-relaxation, i.e. the variable maximizing \f$\max\{x - \lfloor x \rfloor, \lceil x \rceil - x\} \f$.
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/

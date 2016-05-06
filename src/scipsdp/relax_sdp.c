@@ -1703,7 +1703,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          &(relaxdata->objlimit), TRUE, DEFAULT_OBJLIMIT, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/resolve",
-         "Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing)?",
+         "Should the relaxation be resolved after bound-tightenings were found during propagation (outside of probing)?",
          &(relaxdata->resolve), TRUE, DEFAULT_RESOLVE, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/tightenvb",
