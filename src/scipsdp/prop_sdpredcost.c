@@ -377,9 +377,9 @@ SCIP_RETCODE SCIPincludePropSdpredcost(
    SCIP_CALL( SCIPsetPropFree(scip, prop, propFreeSdpredcost) );
 
    /* add additional parameters */
-   SCIP_CALL( SCIPaddBoolParam(scip, "propagating/sdpredcost/forbins", "should sdp reduced cost fixing be executed for binary variables?",
+   SCIP_CALL( SCIPaddBoolParam(scip, "propagating/sdpredcost/forbins", "Should SDP reduced cost fixing be executed for binary variables?",
          &(propdata->forbins), TRUE, DEFAULT_SDPRCBIN, NULL, NULL) );
-   SCIP_CALL( SCIPaddBoolParam(scip, "propagating/sdpredcost/forintconts", "should sdp reduced cost fixing be executed for integer and continuous variables?",
+   SCIP_CALL( SCIPaddBoolParam(scip, "propagating/sdpredcost/forintconts", "Should SDP reduced cost fixing be executed for integer and continuous variables?",
          &(propdata->forintconts), TRUE, DEFAULT_SDPRCINTCONT, NULL, NULL) );
 
    return SCIP_OKAY;

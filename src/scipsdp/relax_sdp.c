@@ -1677,12 +1677,12 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/penaltyparam",
          "the starting value of the penalty parameter Gamma used for the penalty formulation if the "
-         "SDP solver didn't converge, set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->penaltyparam),
+         "SDP solver didn't converge; set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->penaltyparam),
          TRUE, DEFAULT_PENALTYPARAM, -1.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/maxpenaltyparam",
          "the maximum value of the penalty parameter Gamma used for the penalty formulation if the "
-         "SDP solver didn't converge, set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->maxpenaltyparam),
+         "SDP solver didn't converge; set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->maxpenaltyparam),
          TRUE, DEFAULT_MAXPENALTYPARAM, -1.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/lambdastar",
