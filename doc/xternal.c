@@ -68,15 +68,15 @@
  * <tr><td>relaxing/SDP/freq = 1</td> <td>set this to -1 and lp/solvefreq to 1 to solve LP relaxations with eigenvector cuts</td></tr>
  * <tr><td>constraints/SDP/threads = 1</td> <td>number of threads used for openblas; only available with OpenBLAS/OpenMP and compile options SDPS=sdpa and MKL=true (default for SDPS=sdpa)</td></tr>
  * <tr><td>relaxing/SDP/displaystatistics = TRUE</td> <td>Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ?</td></tr>
- * <tr><td>relaxing/SDP/slatercheck = 0</td> <td>Should the Slater condition for the primal and dual problem be checked ahead of solving each SDP? 0: no, 1: yes and output statistics, 2: yes and print warning for every problem not satisfying primal and dual Slater condition</td></tr>
+ * <tr><td>relaxing/SDP/slatercheck = 0</td> <td>Should the Slater condition for the primal and dual problem be checked ahead of solving each SDP? [0: no, 1: yes and output statistics, 2: yes and print warning for every problem not satisfying primal and dual Slater condition]</td></tr>
  * <tr><td>relaxing/SDP/sdpinfo = FALSE</td> <td>Should output of the SDP-Solver be printed to the console?</td></tr>
  * <tr><td>branching/sdpinfobjective/coupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints?</td></tr>
  * <tr><td>branching/sdpinfobjective/singlecoupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints in which no other candidate appears?</td></tr>
  * <tr><td>branching/sdpobjective/coupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints?</td></tr>
  * <tr><td>branching/sdpobjective/singlecoupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints in which no other candidate appears?</td></tr>
- * <tr><td>display/sdpfastsettings/active = 0</td> <td>set this to 2 to display the number of SDP-relaxations solved with the fastest setting (SDPA) or the default formulation (DSDP)</td></tr>
- * <tr><td>display/sdppenalty/active = 0</td> <td>set this to 2 to display the number of SDP-relaxations solved using a penalty formulation</td></tr>
- * <tr><td>display/sdpunsolved/active = 1</td> <td>set this to 0 to no longer display the number of SDP-relaxations that could not be solved</td></tr>
+ * <tr><td>display/sdpfastsettings/active = 0</td> <td>Should the number of SDP-relaxations solved with the fastest setting (SDPA) or the default formulation (DSDP) be displayed in the console? [0: off, 1: auto, 2:on]</td></tr>
+ * <tr><td>display/sdppenalty/active = 0</td> <td>Should the number of SDP-relaxations solved using a penalty formulation be displayed in the console? [0: off, 1: auto, 2:on]</td></tr>
+ * <tr><td>display/sdpunsolved/active = 1</td> <td>Should the number of SDP-relaxations that could not be solved be displayed in the console? [0: off, 1: auto, 2:on]</td></tr>
  * <tr><td>heuristics/sdpfracdiving/freq = -1</td> <td>set this to >= 0 to enable a fractional diving heuristic for SDPs</td></tr>
  * <tr><td>heuristics/sdprand/freq = 10</td> <td>set this to -1 to disable the randomized rounding heuristic</td></tr>
  * <tr><td>heuristics/sdprand/generalints = FALSE</td> <td>Should randomized rounding also be applied if there are general integer variables and not only binary variables ?</td></tr>
@@ -94,7 +94,7 @@
  * <tr><td>relaxing/SDP/resolve = TRUE</td> <td>Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing)?</td></tr>
  * <tr><td>relaxing/SDP/sdpsolverepsilon = 1e-04</td> <td>sets the bound for the duality gap in the SDP-Solver</td></tr>
  * <tr><td>relaxing/SDP/sdpsolverfeastol = 1e-06</td> <td>feasibility tolerance for the SDP-Solver (should be less or equal to numerics/feastol)</td></tr>
- * <tr><td>relaxing/SDP/settingsresetfreq = -1</td> <td>frequency for resetting parameters in SDP solver and trying again with fastest settings (-1: never, 0: only at depth settingsresetofs)</td></tr>
+ * <tr><td>relaxing/SDP/settingsresetfreq = -1</td> <td>frequency for resetting parameters in SDP solver and trying again with fastest settings [-1: never, 0: only at depth settingsresetofs, n: all nodes with depth a multiple of n]</td></tr>
  * <tr><td>relaxing/SDP/settingsresetofs = 0</td> <td>frequency offset for resetting parameters in SDP solver and trying again with fastest settings</td></tr>
  * <tr><td>relaxing/SDP/tightenvb = TRUE</td> <td>Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ?</td></tr>
  * </table>
