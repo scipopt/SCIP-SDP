@@ -1,7 +1,0 @@
-SCIP-SDP version 2.2.0
-==================
-
-features:
-- added diving heuristic for SDPs (disabled by default)
-- added randomized rounding heuristic for SDPs
-- added optimization-based bound tightening for SDPs (disabled by default)

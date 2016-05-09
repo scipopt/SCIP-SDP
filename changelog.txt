@@ -15,6 +15,12 @@ fixed bugs:
 
 features:
 - added possibility to also check primal slater condition and output statistics in the end
+- added diving heuristic for SDPs (disabled by default) [please note: This requires SCIP version 3.3 or higher and is 
+  disabled for SCIP version 3.2.1 or lower]
+- added randomized rounding heuristic for SDPs [please note: This requires SCIP version 3.3 or higher and is 
+  disabled for SCIP version 3.2.1 or lower]
+- added optimization-based bound tightening for SDPs (disabled by default) [please note: This requires SCIP version 3.3 
+  or higher and is disabled for SCIP version 3.2.1 or lower]
 
 performance improvements:
 - in case of numerical problems, child nodes are no longer tried to solve with fast settings in SDPA, but instead with
