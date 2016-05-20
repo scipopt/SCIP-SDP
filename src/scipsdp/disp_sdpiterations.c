@@ -31,7 +31,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   disp_sdpiterations.c
- * @brief  Column to display the total number of SDP iterations
+ * @brief  Column to display the total number of SDP-iterations
  * @author Tristan Gally
  */
 

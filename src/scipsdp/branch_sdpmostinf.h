@@ -32,7 +32,7 @@
 
 /**@file   branch_sdpmostinf.h
  * @ingroup BRANCHINGRULES
- * @brief  most infeasible branching rule for SCIPSDP
+ * @brief  most infeasible branching rule for SCIP-SDP
  * @author Tristan Gally
  *
  * Branch on the most infeasible variable in the current SDP-relaxation, i.e. the variable maximizing \f$\max\{x - \lfloor x \rfloor, \lceil x \rceil - x\} \f$.

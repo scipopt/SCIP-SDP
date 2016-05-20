@@ -432,7 +432,7 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
  * propagator specific interface methods
  */
 
-/** creates the SdpObbt propagator and includes it in SCIP */
+/** creates the sdp-obbt propagator and includes it in SCIP */
 SCIP_RETCODE SCIPincludePropSdpObbt(
    SCIP*                 scip                /**< SCIP data structure */
    )

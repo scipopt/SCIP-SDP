@@ -99,7 +99,7 @@ void F77_FUNC(dgemv, DGEMV)(char* TRANS, int* M, int* N, SCIP_Real* ALPHA, SCIP_
 /**@name Functions */
 /**@{ */
 
-/** computes the i-th eigenvalue, where 1 is the smallest and n the largest, matrix has to be given with all n^2 entries */
+/** computes the i-th eigenvalue of a symmetric matrix using LAPACK, where 1 is the smallest and n the largest, matrix has to be given with all n^2 entries */
 SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    BMS_BLKMEM*           blkmem,             /**< block memory */
    SCIP_Bool             geteigenvectors,    /**< Should also the eigenvectors be computed? */

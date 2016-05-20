@@ -89,30 +89,30 @@ int SCIPsdpVarmapperGetNVars(
 /** Is the given SCIP variable included in the varmapper? */
 EXTERN
 SCIP_Bool SCIPsdpVarmapperExistsSCIPvar(
-   SdpVarmapper*         varmapper,          /**< varmapper to get variable index for */
-   SCIP_VAR*             var                 /**< SCIP variables to get sdp index for */
+   SdpVarmapper*         varmapper,          /**< varmapper to search in */
+   SCIP_VAR*             var                 /**< SCIP variable to search for */
    );
 
-/** gets the sdp index for the given SCIP variable */
+/** gets the SDP-index for the given SCIP variable */
 EXTERN
 int SCIPsdpVarmapperGetSdpIndex(
    SdpVarmapper*         varmapper,          /**< varmapper to get variable index for */
-   SCIP_VAR*             var                 /**< SCIP variables to get sdp index for */
+   SCIP_VAR*             var                 /**< SCIP variable to get SDP-index for */
    );
 
-/** gets the corresponding SCIP variable for the given sdp variable index */
+/** gets the corresponding SCIP variable for the given SDP variable-index */
 EXTERN
 SCIP_VAR* SCIPsdpVarmapperGetSCIPvar(
-   SdpVarmapper*         varmapper,          /**< varmapper to get variable index for */
-   int                   ind                 /**< index of the sdp variable */
+   SdpVarmapper*         varmapper,          /**< varmapper to extract variable from */
+   int                   ind                 /**< index of the SDP-variable */
    );
 
-/** removes the variable for the given Sdp index from the varmapper, decreasing the indices of all later variables by 1 */
+/** removes the variable for the given SDP-index from the varmapper, decreasing the indices of all later variables by 1 */
 EXTERN
 SCIP_RETCODE SCIPsdpVarmapperRemoveSdpIndex(
    SCIP*                 scip,               /**< SCIP data structure */
-   SdpVarmapper*         varmapper,          /**< varmapper to get variable index for */
-   int                   ind                 /**< index of the sdp variable */
+   SdpVarmapper*         varmapper,          /**< varmapper to remove variable from */
+   int                   ind                 /**< index of the SDP-variable */
    );
 
 /** swaps all SCIP variables for their transformed counterparts */

@@ -32,7 +32,7 @@
 
 /**@file   disp_sdpunsolved.h
  * @ingroup DISPLAYS
- * @brief  Column to display the percentage of SDP relaxations that could not be solved even using a penalty formulation
+ * @brief  Column to display the percentage of SDP-relaxations that could not be solved even using a penalty formulation
  * @author Tristan Gally
  */
 

@@ -32,7 +32,7 @@
 
 /**@file   branch_sdpinfobjective.h
  * @ingroup BRANCHINGRULES
- * @brief  combined infeasibility and absolute objective branching rule for SCIPSDP
+ * @brief  combined infeasibility and absolute objective branching rule for SCIP-SDP
  * @author Tristan Gally
  *
  * Branch on variable with highest product of fractionality/integral-infeasibility and absolute objective value in the SDP.

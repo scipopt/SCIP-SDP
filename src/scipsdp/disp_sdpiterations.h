@@ -32,7 +32,7 @@
 
 /**@file   disp_sdpiterations.h
  * @ingroup DISPLAYS
- * @brief  Column to display the total number of SDP iterations
+ * @brief  Column to display the total number of SDP-iterations
  * @author Tristan Gally
  */
 

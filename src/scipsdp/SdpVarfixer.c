@@ -43,8 +43,9 @@
 /* turn off lint warnings for whole file: */
 /*lint --e{788,818}*/
 
-/** sort the given row, col and val arrays first by non-decreasing row-indices, then for those with identical
- *  row-indices by non-decreasing col-indices
+/**
+ * sort the given row, col and val arrays first by non-decreasing row-indices, then for those with identical
+ * row-indices by non-decreasing col-indices
  */
 void SCIPsdpVarfixerSortRowCol(
    int*                  row,                /**< row indices */
@@ -75,20 +76,21 @@ void SCIPsdpVarfixerSortRowCol(
    }
 }
 
-/** Merges two three-tuple-arrays together.
+/**
+ * merges two three-tuple-arrays together
  *
- *  The original arrays (which may have multiple entries for the same row and col) will be mulitplied with
- *  scalar and then merged into the target arrays (which may not have multiple entries for the same row and col). If there is already an entry for
- *  a row/col combination, these two entries will be combined (their values added together), if they cancel each other out the nonzero entry will
- *  be removed. If you think of the matrices described by the two arrays, this is a matrix addition (but only working on the nonzeros for efficiency).
- *  The target arrays need to be long enough, otherwise targetlength returns the needed amount and a corresponding debug message is thrown.
+ * The original arrays (which may have multiple entries for the same row and col) will be mulitplied with
+ * scalar and then merged into the target arrays (which may not have multiple entries for the same row and col). If there is already an entry for
+ * a row/col combination, these two entries will be combined (their values added together), if they cancel each other out the nonzero entry will
+ * be removed. If you think of the matrices described by the two arrays, this is a matrix addition (but only working on the nonzeros for efficiency).
+ * The target arrays need to be long enough, otherwise targetlength returns the needed amount and a corresponding debug message is thrown.
  */
 SCIP_RETCODE SCIPsdpVarfixerMergeArrays(
    BMS_BLKMEM*           blkmem,             /**< block memory */
    SCIP_Real             feastol,            /**< only values bigger than this are counted as nonzeros */
-   int*                  originrow,          /**< original row-index-array that is going to be merged, may be NULL if originlength = NULL */
-   int*                  origincol,          /**< original column-index-array that is going to be merged, may be NULL if originlength = NULL */
-   SCIP_Real*            originval,          /**< original nonzero-values-array that is going to be merged, may be NULL if originlength = NULL */
+   int*                  originrow,          /**< original row-index-array that is going to be merged, may be NULL if originlength = 0 */
+   int*                  origincol,          /**< original column-index-array that is going to be merged, may be NULL if originlength = 0 */
+   SCIP_Real*            originval,          /**< original nonzero-values-array that is going to be merged, may be NULL if originlength = 0 */
    int                   originlength,       /**< length of the original arrays */
    SCIP_Bool             originsorted,       /**< are the origin arrays already sorted by non-decreasing row and in case of ties col */
    SCIP_Real             scalar,             /**< scalar that the original nonzero-values will be multiplied with before merging */
@@ -241,7 +243,8 @@ SCIP_RETCODE SCIPsdpVarfixerMergeArrays(
 }
 
 
-/** Merges two three-tuple-arrays together.
+/**
+ * merges two three-tuple-arrays together
  *
  * If there are multiple entries for a row/col combination, these will be combined (their values added
  * together), if they cancel each other out the nonzero entry will be removed. The first arrays are assumed to have unique row/col-combinations, the

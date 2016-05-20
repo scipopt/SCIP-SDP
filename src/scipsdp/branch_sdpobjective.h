@@ -32,7 +32,7 @@
 
 /**@file   branch_sdpobjective.h
  * @ingroup BRANCHINGRULES
- * @brief  highest absolute objective branching rule for SCIPSDP
+ * @brief  highest absolute objective branching rule for SCIP-SDP
  * @author Tristan Gally
  *
  * Branch on the variable with the highest absolute objective coefficient in the SDP.

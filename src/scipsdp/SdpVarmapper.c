@@ -81,7 +81,7 @@ SCIP_RETCODE SCIPsdpVarmapperCreate(
    return SCIP_OKAY;
 }
 
-/** frees the SDP Varmapper */
+/** frees the SDP varmapper */
 SCIP_RETCODE SCIPsdpVarmapperFree(
    SCIP*                 scip,               /**< SCIP data structure */
    SdpVarmapper**        varmapper           /**< Pointer to the varmapper that should be freed */
@@ -162,7 +162,7 @@ SCIP_RETCODE SCIPsdpVarmapperAddVars(
 /** adds the given variable (if not already existent) to the varmapper at the given position */
 SCIP_RETCODE SCIPsdpVarmapperInsertVar(
    SCIP*                 scip,               /**< SCIP data structure */
-   SdpVarmapper*         varmapper,          /**< varmapper to add variables to */
+   SdpVarmapper*         varmapper,          /**< varmapper to add variable to */
    SCIP_VAR*             var,                /**< SCIP variable to add to the varmapper */
    int                   pos                 /**< position where the variable should be added */
    )
@@ -216,8 +216,8 @@ int SCIPsdpVarmapperGetNVars(
 
 /** Is the given SCIP variable included in the varmapper? */
 SCIP_Bool SCIPsdpVarmapperExistsSCIPvar(
-   SdpVarmapper*         varmapper,          /**< varmapper to get variable index for */
-   SCIP_VAR*             var                 /**< SCIP variables to get sdp index for */
+   SdpVarmapper*         varmapper,          /**< varmapper to search in */
+   SCIP_VAR*             var                 /**< SCIP variable to search for */
    )
 {
    assert ( varmapper != NULL );
@@ -226,10 +226,10 @@ SCIP_Bool SCIPsdpVarmapperExistsSCIPvar(
    return SCIPhashmapExists(varmapper->sciptosdp, var);
 }
 
-/** gets the sdp index for the given SCIP variable */
+/** gets the SDP-index for the given SCIP variable */
 int SCIPsdpVarmapperGetSdpIndex(
    SdpVarmapper*         varmapper,          /**< varmapper to get variable index for */
-   SCIP_VAR*             var                 /**< SCIP variables to get sdp index for */
+   SCIP_VAR*             var                 /**< SCIP variable to get SDP-index for */
    )
 {
    assert ( varmapper != NULL );
@@ -238,10 +238,10 @@ int SCIPsdpVarmapperGetSdpIndex(
    return (int) (size_t) SCIPhashmapGetImage(varmapper->sciptosdp, (void*) var);
 }
 
-/** gets the corresponding SCIP variable for the given sdp variable index */
+/** gets the corresponding SCIP variable for the given SDP variable-index */
 SCIP_VAR* SCIPsdpVarmapperGetSCIPvar(
-   SdpVarmapper*         varmapper,          /**< varmapper to get variable index for */
-   int                   ind                 /**< index of the sdp variable */
+   SdpVarmapper*         varmapper,          /**< varmapper to extract variable from */
+   int                   ind                 /**< index of the SDP-variable */
    )
 {
    assert ( varmapper != NULL );
@@ -250,11 +250,11 @@ SCIP_VAR* SCIPsdpVarmapperGetSCIPvar(
    return varmapper->sdptoscip[ind];
 }
 
-/** removes the variable for the given Sdp index from the varmapper, decreasing the indices of all later variables by 1 */
+/** removes the variable for the given SDP-index from the varmapper, decreasing the indices of all later variables by 1 */
 SCIP_RETCODE SCIPsdpVarmapperRemoveSdpIndex(
    SCIP*                 scip,               /**< SCIP data structure */
-   SdpVarmapper*         varmapper,          /**< varmapper to get variable index for */
-   int                   ind                 /**< index of the sdp variable */
+   SdpVarmapper*         varmapper,          /**< varmapper to remove variable from */
+   int                   ind                 /**< index of the SDP-variable */
    )
 {
    SCIP_VAR* var;

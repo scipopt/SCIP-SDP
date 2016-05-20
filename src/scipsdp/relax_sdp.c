@@ -32,7 +32,7 @@
 
 /**@file   relax_sdp.c
  * @ingroup RELAXATORS
- * @brief  SDP relaxator
+ * @brief  SDP-relaxator
  * @author Sonja Mars
  * @author Tristan Gally
  */
@@ -56,7 +56,7 @@
 /*lint --e{788,818}*/
 
 #define RELAX_NAME                  "SDP"
-#define RELAX_DESC                  "SDP relaxator"
+#define RELAX_DESC                  "SDP-relaxator"
 #define RELAX_PRIORITY              1
 #define RELAX_FREQ                  1
 
@@ -87,7 +87,7 @@ struct SCIP_RelaxData
 {
    SCIP_SDPI*            sdpi;               /**< general SDP Interface that is given the data to presolve the SDP and give it so a solver specific interface */
    SdpVarmapper*         varmapper;          /**< maps SCIP variables to their global SDP indices and vice versa */
-   SCIP_Real             objval;             /**< objective value of the last SDP relaxation */
+   SCIP_Real             objval;             /**< objective value of the last SDP-relaxation */
    SCIP_Bool             origsolved;         /**< solved original problem to optimality (not only a penalty or probing formulation) */
    SCIP_Bool             probingsolved;      /**< was the last probing SDP solved successfully? */
    SCIP_Real             sdpsolverepsilon;   /**< the stopping criterion for the duality gap the sdpsolver should use */
@@ -338,7 +338,7 @@ static
 SCIP_RETCODE putLpDataInInterface(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SdpVarmapper*         varmapper           /**< data about fixed variables */
+   SdpVarmapper*         varmapper           /**< maps SCIP variables to their global SDP indices and vice versa */
    )
 {
    SCIP_VAR** vars;
@@ -1481,7 +1481,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    return SCIP_OKAY;
 }
 
-/** copy method for sdp relaxation handler (called when SCIP copies plugins) */
+/** copy method for SDP-relaxation handler (called when SCIP copies plugins) */
 static
 SCIP_DECL_RELAXCOPY(relaxCopySdp)
 {
@@ -1638,7 +1638,7 @@ SCIP_DECL_RELAXFREE(relaxFreeSdp)
    return SCIP_OKAY;
 }
 
-/** creates the SDP relaxator and includes it in SCIP */
+/** creates the SDP-relaxator and includes it in SCIP */
 SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP*                 scip                /**< SCIP data structure */
    )
@@ -1649,7 +1649,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
 
    assert( scip != NULL );
 
-   /* create SDP relaxator data */
+   /* create SDP-relaxator data */
    SCIP_CALL( SCIPallocMemory(scip, &relaxdata) );
    SCIP_CALL( SCIPsdpiCreate(&sdpi, SCIPgetMessagehdlr(scip), SCIPblkmem(scip)) );
 
@@ -1736,11 +1736,11 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
  *  The last input should specify the length of the arrays. If this is less than the number of variables, the needed
  *  length will be returned and a debug message thrown.
  *
- *  @note if a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent
+ *  @note If a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent
  *  primal variable.
  */
 SCIP_RETCODE SCIPrelaxSdpGetPrimalBoundVars(
-   SCIP_RELAX*           relax,              /**< SDP relaxator to information for */
+   SCIP_RELAX*           relax,              /**< SDP-relaxator to get information for */
    SCIP_Real*            lbvars,             /**< pointer to store the values of the variables corresponding to lower bounds in the dual problems */
    SCIP_Real*            ubvars,             /**< pointer to store the values of the variables corresponding to upper bounds in the dual problems */
    int*                  arraylength         /**< input: length of lbvars and ubvars <br>
@@ -1763,11 +1763,11 @@ SCIP_RETCODE SCIPrelaxSdpGetPrimalBoundVars(
    return SCIP_OKAY;
 }
 
-/** returns optimal objective value of the current SDP relaxation, if the last SDP relaxation was successfully solved */
+/** returns optimal objective value of the current SDP-relaxation if the last SDP-relaxation was successfully solved */
 SCIP_RETCODE SCIPrelaxSdpRelaxVal(
-   SCIP_RELAX*           relax,              /**< SDP relaxator to get objective value for */
-   SCIP_Bool*            success,            /**< pointer to store whether the last SDP relaxation solved successfully */
-   SCIP_Real*            objval              /**< pointer to store the optimal objective value of the SDP relaxation */
+   SCIP_RELAX*           relax,              /**< SDP-relaxator to get objective value for */
+   SCIP_Bool*            success,            /**< pointer to store whether the last SDP-relaxation was solved successfully */
+   SCIP_Real*            objval              /**< pointer to store the optimal objective value of the SDP-relaxation */
    )
 {
    SCIP_RELAXDATA* relaxdata;
@@ -1785,11 +1785,11 @@ SCIP_RETCODE SCIPrelaxSdpRelaxVal(
    return SCIP_OKAY;
 }
 
-/** returns values of all variables in the solution of the current SDP relaxation, if the last SDP relaxation was successfully solved */
+/** returns values of all variables in the solution of the current SDP-relaxation if the last SDP-relaxation was successfully solved */
 SCIP_RETCODE SCIPrelaxSdpGetRelaxSol(
    SCIP*                 scip,               /**< SCIP pointer */
-   SCIP_RELAX*           relax,              /**< SDP relaxator to get solution for */
-   SCIP_Bool*            success,            /**< pointer to store whether the last SDP relaxation solved successfully */
+   SCIP_RELAX*           relax,              /**< SDP-relaxator to get solution for */
+   SCIP_Bool*            success,            /**< pointer to store whether the last SDP-relaxation was solved successfully */
    SCIP_Real*            solarray,           /**< pointer to store the solution, this has to be at least length nvars */
    int*                  sollength           /**< length of the solarray */
    )
@@ -1820,7 +1820,7 @@ SCIP_RETCODE SCIPrelaxSdpGetRelaxSol(
 
 /** get the number of the SCIP-node to which the current SDP solution belongs */
 long int SCIPrelaxSdpGetSdpNode(
-   SCIP_RELAX*           relax               /**< SDP relaxator to get solution for */
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get solution for */
    )
 {
    assert( relax != NULL );
@@ -1829,9 +1829,9 @@ long int SCIPrelaxSdpGetSdpNode(
    return SCIPrelaxGetData(relax)->lastsdpnode;
 }
 
-/** was the original problem solved for the last SDP-Node (or a penalty or probing formulation) ? */
+/** Was the original problem solved for the last SDP-node (or a penalty or probing formulation) ? */
 SCIP_Bool SCIPrelaxSdpSolvedOrig(
-   SCIP_RELAX*           relax               /**< SDP relaxator to get solution for */
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get solution for */
    )
 {
    SCIP_RELAXDATA* relaxdata;
@@ -1846,9 +1846,9 @@ SCIP_Bool SCIPrelaxSdpSolvedOrig(
    return relaxdata->origsolved && SCIPsdpiSolvedOrig(relaxdata->sdpi);
 }
 
-/** was the last probing SDP solved successfully ? */
+/** Was the last probing SDP solved successfully ? */
 SCIP_Bool SCIPrelaxSdpSolvedProbing(
-   SCIP_RELAX*           relax               /**< SDP relaxator to get solution for */
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get solution for */
    )
 {
    SCIP_RELAXDATA* relaxdata;
@@ -1865,7 +1865,7 @@ SCIP_Bool SCIPrelaxSdpSolvedProbing(
 
 /** returns whether the last solved problem was feasible */
 SCIP_Bool SCIPrelaxSdpIsFeasible(
-   SCIP_RELAX*           relax               /**< SDP relaxator to get feasibility for */
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get feasibility for */
    )
 {
    assert( relax != NULL );
@@ -1874,9 +1874,9 @@ SCIP_Bool SCIPrelaxSdpIsFeasible(
    return ( SCIPrelaxGetData(relax)->feasible );
 }
 
-/** returns total number of SDP iterations */
+/** returns total number of SDP-iterations */
 int SCIPrelaxSdpGetNIterations(
-   SCIP_RELAX*           relax               /**< SDP relaxator to get the iterations for */
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get the iterations for */
    )
 {
    assert( relax != NULL );
@@ -1885,9 +1885,9 @@ int SCIPrelaxSdpGetNIterations(
    return SCIPrelaxGetData(relax)->sdpiterations;
 }
 
-/** returns number of solved SDP relaxations */
+/** returns number of solved SDP-relaxations */
 int SCIPrelaxSdpGetNSdpCalls(
-   SCIP_RELAX*           relax               /**< SDP relaxator to get the number of calls for */
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get the number of calls for */
    )
 {
    assert( relax != NULL );
@@ -1896,9 +1896,9 @@ int SCIPrelaxSdpGetNSdpCalls(
    return ( SCIPrelaxGetData(relax)->sdpcalls );
 }
 
-/** returns number of SDP relaxation solved with fast settings */
+/** returns number of SDP-relaxations solved with fast settings */
 int SCIPrelaxSdpGetNSdpFast(
-   SCIP_RELAX*           relax               /**< SDP relaxator to get the number of calls for */
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get the number of calls for */
    )
 {
    assert( relax != NULL );
@@ -1907,9 +1907,9 @@ int SCIPrelaxSdpGetNSdpFast(
    return ( SCIPrelaxGetData(relax)->solvedfast );
 }
 
-/** returns number of SDP relaxation solved with medium settings */
+/** returns number of SDP-relaxations solved with medium settings */
 int SCIPrelaxSdpGetNSdpMedium(
-   SCIP_RELAX*           relax               /**< SDP relaxator to get the number of calls for */
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get the number of calls for */
    )
 {
    assert( relax != NULL );
@@ -1918,9 +1918,9 @@ int SCIPrelaxSdpGetNSdpMedium(
    return ( SCIPrelaxGetData(relax)->solvedmedium );
 }
 
-/** returns number of SDP relaxation solved with stable settings */
+/** returns number of SDP-relaxations solved with stable settings */
 int SCIPrelaxSdpGetNSdpStable(
-   SCIP_RELAX*           relax               /**< SDP relaxator to get the number of calls for */
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get the number of calls for */
    )
 {
    assert( relax != NULL );
@@ -1929,9 +1929,9 @@ int SCIPrelaxSdpGetNSdpStable(
    return ( SCIPrelaxGetData(relax)->solvedstable );
 }
 
-/** returns number of SDP relaxation solved with penalty formulation */
+/** returns number of SDP-relaxations solved with penalty formulation */
 int SCIPrelaxSdpGetNSdpPenalty(
-   SCIP_RELAX*           relax               /**< SDP relaxator to get the number of calls for */
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get the number of calls for */
    )
 {
    assert( relax != NULL );
@@ -1940,9 +1940,9 @@ int SCIPrelaxSdpGetNSdpPenalty(
    return ( SCIPrelaxGetData(relax)->solvedpenalty );
 }
 
-/** returns number of SDP relaxation unsolved even when using a penalty formulation */
+/** returns number of SDP-relaxations unsolved even when using a penalty formulation */
 int SCIPrelaxSdpGetNSdpUnsolved(
-   SCIP_RELAX*           relax               /**< SDP relaxator to get the number of calls for */
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get the number of calls for */
    )
 {
    assert( relax != NULL );

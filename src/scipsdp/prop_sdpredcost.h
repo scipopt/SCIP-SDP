@@ -33,6 +33,15 @@
 /**@file   prop_sdpredcost.h
  * @brief  reduced cost / dual fixing for SDPs
  * @author Tristan Gally
+ *
+ *  Propagates bounds
+ *
+ *  \f$ y_j \leq \ell_j + \frac{v_{CO} - \bar{v}}{\bar{X}_{n+m+j,n+m+j}} \f$,
+ *
+ *  \f$ y_j \geq u_j - \frac{v_{CO} - \bar{v}}{\bar{X}_{n+j,n+j}} \f$
+ *
+ *  where \f$\bar{v}\f$ is the value of the current SDP-relaxation, \f$v_{CO}\f$ is the cutoffbound and \f$\bar{X}_{n+m+j,n+m+j}\f$ the value of the
+ *  corresponding primal solution.
  */
 
 #ifndef __SCIP_PROP_SDPREDCOST_H_

@@ -32,7 +32,7 @@
 
 /**@file   disp_sdpfastsettings.h
  * @ingroup DISPLAYS
- * @brief  Column to display the percentage of SDP relaxations that were solved using fast settings
+ * @brief  Column to display the percentage of SDP-relaxations that were solved using fast settings
  * @author Tristan Gally
  */
 

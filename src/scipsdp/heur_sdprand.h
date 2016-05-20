@@ -35,6 +35,11 @@
  * @brief  randomized rounding heuristic for SDPs
  * @author Marc Pfetsch
  * @author Tristan Gally
+ *
+ * Randomized Rounding heuristic for SDPs. Takes the solution of the SDP-relaxation and randomly rounds all integer
+ * variables. They are rounded up with probability equal to the fractional part and down otherwise. If the SDP includes
+ * continuous variables, the remaining SDP after the fixings is solved again. This process is repeated up to the number
+ * of rounds.
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
@@ -49,7 +54,7 @@
 extern "C" {
 #endif
 
-/** creates the randomized rounding heuristic and includes it in SCIP */
+/** creates the randomized rounding heuristic for SDPs and includes it in SCIP */
 EXTERN
 SCIP_RETCODE SCIPincludeHeurSdpRand(
    SCIP*                 scip                /**< SCIP data structure */

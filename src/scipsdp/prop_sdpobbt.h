@@ -35,7 +35,7 @@
  * @brief  optimization-based bound tightening propagator for semidefinite programs
  * @author Tristan Gally
  *
- * In Optimization-Based Bound Tightening (OBBT), we solve auxiliary LPs of the form
+ * In Optimization-Based Bound Tightening (OBBT), we solve auxiliary SDPs of the form
  * \f[
  *      \min / \max \, \{ y_i \mid y \in SDP' \},
  * \f]

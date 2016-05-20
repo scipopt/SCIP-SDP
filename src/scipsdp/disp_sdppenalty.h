@@ -32,7 +32,7 @@
 
 /**@file   disp_sdppenalty.h
  * @ingroup DISPLAYS
- * @brief  Column to display the percentage of SDP relaxations where a penalty formulation had to be used
+ * @brief  Column to display the percentage of SDP-relaxations where a penalty formulation had to be used
  * @author Tristan Gally
  */
 

@@ -142,7 +142,7 @@ SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
    SCIP_Real*            mat                 /**< pointer to store the lower triangular part of the constant matrix */
    );
 
-/** checks feasibility for a single SDP-Cone */
+/** checks feasibility for a single SDP constraint */
 EXTERN
 SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -154,10 +154,15 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    SCIP_RESULT*          result              /**< pointer to store the result of the feasibility checking call */
    );
 
-/** compute a heuristic guess for a good starting solution \f$ \lambda ^* \cdot I \f$ for SDPA, it is computed as
- * \f$ \max \{ S \cdot \max_i \{ \|A_i\|_\infty \}, \frac{ \max_i \{ b_i \} }{S \cdot \max_i \{ \|A_i\|_\infty \} } \},  \f$
- * where \f$ S = \frac{ | \text{nonzero-entries of all } A_i | }{0.5 \cdot \text{ blocksize } (\text{ blocksize } + 1)} \f$
- * measures the sparsity of the matrices
+/** Compute a heuristic guess for a good starting solution \f$ \lambda ^* \cdot I \f$.
+ *
+ *  The solution is computed as
+ *  \f[
+ *  \lambda^* = \max \Bigg\{S \cdot \max_{i \in [m]} \{|u_i|, |l_i|\} \cdot \max_{i \in [m]} \|A_i\|_\infty + \|C\|_\infty,
+ *  \frac{\max_{i \in [m]} b_i}{S \cdot \min_{i \in [m]} \min_{j, \ell \in [n]} (A_i)_{j\ell} } \Bigg\},
+ *  \f]
+ *  where \f$ S = \frac{ | \text{nonzero-entries of all } A_i | }{0.5 \cdot \text{ blocksize } (\text{ blocksize } + 1)} \f$
+ *  measures the sparsity of the matrices.
  */
 EXTERN
 SCIP_RETCODE SCIPconsSdpGuessInitialPoint(

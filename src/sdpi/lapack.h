@@ -35,8 +35,8 @@
  * @author Tristan Gally
  *
  * This file is used to call the LAPACK routine DSYEVR (double-symmetric-eigenvector computation) and the
- * BLAS routine DGEMV (double-general-matrix-vector multiplication). It is needed because different SDP-
- * solvers need different BLAS/LAPACK-versions with different data types (for example long long int for
+ * BLAS routine DGEMV (double-general-matrix-vector multiplication). It is needed because different SDP-solvers
+ * need different BLAS/LAPACK-versions with different data types (for example long long int for
  * Openblas/SDPA vs. int for ATLAS/DSDP).
  */
 
@@ -53,7 +53,7 @@
 extern "C" {
 #endif
 
-/** computes the i-th eigenvalue using LAPACK, where 1 is the smallest and n the largest, matrix has to be given with all n^2 entries */
+/** computes the i-th eigenvalue of a symmetric matrix using LAPACK, where 1 is the smallest and n the largest, matrix has to be given with all n^2 entries */
 EXTERN
 SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    BMS_BLKMEM*           blkmem,             /**< block memory */

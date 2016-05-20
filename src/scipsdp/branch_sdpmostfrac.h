@@ -32,7 +32,7 @@
 
 /**@file   branch_sdpmostfrac.h
  * @ingroup BRANCHINGRULES
- * @brief  most fractional branching rule for SCIPSDP
+ * @brief  most fractional branching rule for SCIP-SDP
  * @author Tristan Gally
  *
  * Branch on the most fractional variable in the current SDP-relaxation, i.e. the variable maximizing \f$x-\lfloor x \rfloor \f$.

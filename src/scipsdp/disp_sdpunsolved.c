@@ -31,7 +31,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   disp_sdpunsolved.c
- * @brief  Column to display the percentage of SDP relaxations that could not be solved even using a penalty formulation
+ * @brief  Column to display the percentage of SDP-relaxations that could not be solved even using a penalty formulation
  * @author Tristan Gally
  */
 
