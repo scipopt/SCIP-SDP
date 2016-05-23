@@ -49,9 +49,22 @@
 /* turn off lint warnings for whole file: */
 /*lint --e{715,788,818}*/
 
+/** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMORY. */
+#define BMS_CALL(x)   do                                                                                     \
+                      {                                                                                      \
+                         if( NULL == (x) )                                                                   \
+                         {                                                                                   \
+                            SCIPerrorMessage("No memory in function call.\n");                               \
+                            return SCIP_NOMEMORY;                                                            \
+                         }                                                                                   \
+                      }                                                                                      \
+                      while( FALSE )
+
 /** data used for SDP interface */
 struct SCIP_SDPiSolver
 {
+   SCIP_MESSAGEHDLR*     messagehdlr;        /**< messagehandler for printing messages, or NULL */
+   BMS_BLKMEM*           blkmem;             /**< block memory */
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
    SCIP_Real             objlimit;           /**< objective limit for SDP-solver */
@@ -138,8 +151,15 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    BMS_BLKMEM*           blkmem              /**< block memory */
    )
 {
+   assert( sdpisolver != NULL );
+   assert( blkmem != NULL );
    SCIPdebugMessage("Calling SCIPsdpiCreate \n");
    SCIPdebugMessage("Note that currently no SDP-Solver is linked to the binary. Ensure <relaxing/SDP/freq = -1>. \n");
+
+   BMS_CALL( BMSallocBlockMemory(blkmem, sdpisolver) );
+
+   (*sdpisolver)->messagehdlr = messagehdlr;
+   (*sdpisolver)->blkmem = blkmem;
 
    return SCIP_OKAY;
 }
@@ -149,7 +169,11 @@ SCIP_RETCODE SCIPsdpiSolverFree(
    SCIP_SDPISOLVER**     sdpisolver          /**< pointer to an SDP-solver interface */
    )
 {
+   assert( sdpisolver != NULL );
+   assert( *sdpisolver != NULL );
    SCIPdebugMessage("Freeing SDPISolver\n");
+
+   BMSfreeBlockMemory((*sdpisolver)->blkmem, sdpisolver);
 
    return SCIP_OKAY;
 }
