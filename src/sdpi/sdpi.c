@@ -3185,8 +3185,14 @@ SCIP_RETCODE SCIPsdpiGetLowerObjbound(
 
    /* if we could not solve it, but tried the penalty formulation, we take the best bound computed by the penalty approach */
    if ( sdpi->penalty )
+   {
       *objlb = sdpi->bestbound;
+      return SCIP_OKAY;
+   }
 
+   /* if we could not solve it and did not use the penalty formulation (e.g. because the time limit was reached), we have no information */
+
+   *objlb = -SCIPsdpiInfinity(sdpi);
    return SCIP_OKAY;
 }
 

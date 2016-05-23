@@ -130,6 +130,7 @@ struct SCIP_SDPiSolver
    int*                  varboundpos;        /**< maps position of variable bounds in the variable bound part of the LP-block in sdpa to the sdpa-indices
                                               *   of the corresponding variables, -n means lower bound of variable n, +n means upper bound */
    SCIP_Bool             solved;             /**< Was the SDP solved since the problem was last changed? */
+   SCIP_Bool             timelimit;          /**< Was the SDP not given to the solver because the time limit was already reached? */
    int                   sdpcounter;         /**< used for debug messages */
    int                   niterations;        /**< number of SDP-iterations since the last solve call */
    int                   nsdpcalls;          /**< number of SDP-calls since the last solve call */
@@ -244,6 +245,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->nvarbounds = 0;
    (*sdpisolver)->varboundpos = NULL;
    (*sdpisolver)->solved = FALSE;
+   (*sdpisolver)->timelimit = FALSE;
    (*sdpisolver)->sdpcounter = 0;
    (*sdpisolver)->niterations = 0;
    (*sdpisolver)->nsdpcalls = 0;
@@ -515,8 +517,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if ( timelimit <= 0.0 )
    {
       sdpisolver->solved = FALSE;
+      sdpisolver->timelimit = TRUE;
       return SCIP_OKAY;
    }
+   else
+      sdpisolver->timelimit = FALSE;
 
 #ifndef SCIP_NDEBUG
    checkinput = false;
@@ -1692,9 +1697,10 @@ SCIP_Bool SCIPsdpiSolverIsTimelimExc(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
 {/*lint !e1784*/
-   SCIPdebugMessage("Not implemented in SDPA!\n");
-   return FALSE;
-}/*lint !e715*/
+   assert( sdpisolver != NULL );
+
+   return sdpisolver->timelimit;
+}
 
 /** returns the internal solution status of the solver, which has the following meaning:<br>
  * -1: solver was not started<br>
@@ -1761,6 +1767,10 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL );
+
+   if ( sdpisolver->timelimit )
+      return FALSE;
+
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    phasetype = sdpisolver->sdpa->getPhaseValue();

@@ -1702,6 +1702,10 @@ SCIP_Bool SCIPsdpiSolverIsConverged(
    DSDPTerminationReason reason;
 
    assert( sdpisolver != NULL );
+
+   if ( sdpisolver->timelimit )
+      return FALSE;
+
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
    DSDP_CALL_BOOL( DSDPStopReason(sdpisolver->dsdp, &reason) );
@@ -1747,12 +1751,8 @@ SCIP_Bool SCIPsdpiSolverIsTimelimExc(
    )
 {
    assert( sdpisolver != NULL );
-   CHECK_IF_SOLVED_BOOL( sdpisolver );
 
-   if ( sdpisolver->timelimit )
-      return TRUE;
-
-   return FALSE;
+   return sdpisolver->timelimit;
 }
 
 /** returns the internal solution status of the solver, which has the following meaning:<br>
@@ -1836,10 +1836,7 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
 {
    assert( sdpisolver != NULL );
 
-   if ( SCIPsdpiSolverIsConverged(sdpisolver) )
-      return TRUE;
-
-   return FALSE;
+   return SCIPsdpiSolverIsConverged(sdpisolver);
 }
 
 /** tries to reset the internal status of the SDP-solver in order to ignore an instability of the last solving call */
@@ -2042,7 +2039,6 @@ SCIP_RETCODE SCIPsdpiSolverSettingsUsed(
 {
    assert( sdpisolver != NULL );
    assert( usedsetting != NULL );
-   CHECK_IF_SOLVED(sdpisolver);
 
    if ( ! SCIPsdpiSolverIsAcceptable(sdpisolver) )
       *usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;

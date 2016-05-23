@@ -655,7 +655,7 @@ SCIP_RETCODE calcRelax(
       timelimit -= SCIPgetSolvingTime(scip);
       if ( timelimit <= 0.0 )
       {
-         *result = SCIP_SUSPENDED;
+         *result = SCIP_DIDNOTRUN;
          return SCIP_OKAY;
       }
    }
@@ -845,80 +845,46 @@ SCIP_RETCODE calcRelax(
    SCIP_CALL( SCIPaddCons(scip, savedsetting) );
    SCIP_CALL( SCIPreleaseCons(scip, &savedsetting) );
 
-   if ( SCIPsdpiWasSolved(sdpi) && SCIPsdpiSolvedOrig(sdpi) )
-   {
-      if ( SCIPinProbing(scip) )
-         relaxdata->probingsolved = TRUE;
-      else
-         relaxdata->origsolved = TRUE;
-   }
-   else if ( ! SCIPsdpiWasSolved(sdpi) )
-   {
-      SCIP_Real objlb;
-
-      relaxdata->origsolved = FALSE;
-      if ( SCIPinProbing(scip) )
-         relaxdata->probingsolved = FALSE;
-
+   if ( ! SCIPsdpiWasSolved(sdpi) )
       relaxdata->feasible = FALSE;
 
-      /* if we used the penalty approach, we might have calculated a good lower bound, even if we did not produce a feasible solution, otherwise we
-       * keep the current bound, if the current bound is -infty, we abort */
-      objlb = -SCIPinfinity(scip);
-      SCIP_CALL( SCIPsdpiGetLowerObjbound(relaxdata->sdpi, &objlb) );
-      if ( ! SCIPisInfinity(scip, objlb) )
-      {
-         *lowerbound = objlb;
-         SCIPdebugMessage("The relaxation could not be solved, using best computed bound from penalty formulation.\n");
-      }
-      else if ( ! SCIPisInfinity(scip, -1 * SCIPnodeGetLowerbound(SCIPgetCurrentNode(scip))) )
-      {
-         *lowerbound = SCIPnodeGetLowerbound(SCIPgetCurrentNode(scip));
-         SCIPdebugMessage("The relaxation could not be solved, keeping old bound.\n");
-      }
-      else
-      {
-         *result = SCIP_SUSPENDED;
-         SCIPerrorMessage("The relaxation of the root node could not be solved, so there is no hope to solve this instance.\n");
-         return SCIP_ERROR;
-      }
+   if ( SCIPinProbing(scip) )
+      relaxdata->probingsolved = SCIPsdpiWasSolved(sdpi);
+   else
+      relaxdata->origsolved = SCIPsdpiSolvedOrig(sdpi);
 
-      *result = SCIP_SUCCESS;
-      SCIP_CALL( SCIPupdateLocalLowerbound(scip, *lowerbound) );
-      return SCIP_OKAY;
-   }
-
-#ifdef SCIP_MORE_DEBUG /* print the optimal solution */
-   {
-      int sollength;
-      SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
-      sollength = nvars;
-      SCIP_CALL( SCIPsdpiGetSol(sdpi, &objforscip, solforscip, &sollength) ); /* get both the objective and the solution from the SDP solver */
-
-      assert( sollength == nvars ); /* If this isn't true any longer, the getSol-call was unsuccessfull, because the given array wasn't long enough,
-                                   * but this can't happen, because the array has enough space for all SDP variables. */
-
-      if ( SCIPsdpiFeasibilityKnown(sdpi) )
-      {
-         SCIPdebugMessage("optimal solution: objective = %f, dual feasible: %d, primal feasible: %d.\n",
-            objforscip, SCIPsdpiIsDualFeasible(sdpi), SCIPsdpiIsPrimalFeasible(sdpi));
-      }
-      else
-      {
-         SCIPdebugMessage("The solver could not determine feasibility ! ");
-      }
-
-      /* output solution */
-      for (i = 0; i < nvars; ++i)
-      {
-         SCIPdebugMessage("<%s> = %f\n", SCIPvarGetName(vars[i]), solforscip[i]);
-      }
-      SCIPfreeBufferArray(scip, &solforscip);
-   }
-#endif
 
    if ( SCIPsdpiIsAcceptable(sdpi) )
    {
+#ifdef SCIP_MORE_DEBUG /* print the optimal solution */
+      {
+         int sollength;
+         SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
+         sollength = nvars;
+         SCIP_CALL( SCIPsdpiGetSol(sdpi, &objforscip, solforscip, &sollength) ); /* get both the objective and the solution from the SDP solver */
+
+         assert( sollength == nvars ); /* If this isn't true any longer, the getSol-call was unsuccessfull, because the given array wasn't long enough,
+                                        * but this can't happen, because the array has enough space for all SDP variables. */
+
+         if ( SCIPsdpiFeasibilityKnown(sdpi) )
+         {
+            SCIPdebugMessage("optimal solution: objective = %f, dual feasible: %d, primal feasible: %d.\n",
+                  objforscip, SCIPsdpiIsDualFeasible(sdpi), SCIPsdpiIsPrimalFeasible(sdpi));
+         }
+         else
+         {
+            SCIPdebugMessage("The solver could not determine feasibility ! ");
+         }
+
+         /* output solution */
+         for (i = 0; i < nvars; ++i)
+         {
+            SCIPdebugMessage("<%s> = %f\n", SCIPvarGetName(vars[i]), solforscip[i]);
+         }
+         SCIPfreeBufferArray(scip, &solforscip);
+      }
+#endif
+
       if ( SCIPsdpiIsDualInfeasible(sdpi) )
       {
          SCIPdebugMessage("Node cut off due to infeasibility.\n");
@@ -1037,6 +1003,41 @@ SCIP_RETCODE calcRelax(
          SCIPfreeBufferArray(scip, &solforscip);
          SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
       }
+   }
+   else
+   {
+      SCIP_Real objlb;
+
+      if ( SCIPsdpiIsTimelimExc(relaxdata->sdpi) )
+      {
+         *result = SCIP_DIDNOTRUN;
+         return SCIP_OKAY;
+      }
+
+      /* if we used the penalty approach, we might have calculated a good lower bound, even if we did not produce a feasible solution, otherwise we
+       * keep the current bound, if the current bound is -infty, we abort */
+      objlb = -SCIPinfinity(scip);
+      SCIP_CALL( SCIPsdpiGetLowerObjbound(relaxdata->sdpi, &objlb) );
+      if ( ! SCIPisInfinity(scip, objlb) )
+      {
+         *lowerbound = objlb;
+         SCIPdebugMessage("The relaxation could not be solved, using best computed bound from penalty formulation.\n");
+      }
+      else if ( ! SCIPisInfinity(scip, -1 * SCIPnodeGetLowerbound(SCIPgetCurrentNode(scip))) )
+      {
+         *lowerbound = SCIPnodeGetLowerbound(SCIPgetCurrentNode(scip));
+         SCIPdebugMessage("The relaxation could not be solved, keeping old bound.\n");
+      }
+      else
+      {
+         *result = SCIP_SUSPENDED;
+         SCIPerrorMessage("The relaxation of the root node could not be solved, so there is no hope to solve this instance.\n");
+         return SCIP_ERROR;
+      }
+
+      *result = SCIP_SUCCESS;
+      SCIP_CALL( SCIPupdateLocalLowerbound(scip, *lowerbound) );
+      return SCIP_OKAY;
    }
 
    return SCIP_OKAY;
