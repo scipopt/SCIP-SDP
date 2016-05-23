@@ -3017,7 +3017,6 @@ SCIP_Bool SCIPsdpiIsTimelimExc(
    )
 {
    assert( sdpi != NULL );
-   CHECK_IF_SOLVED_BOOL(sdpi);
 
    if ( sdpi->infeasible )
    {
@@ -3027,6 +3026,11 @@ SCIP_Bool SCIPsdpiIsTimelimExc(
    else if ( sdpi->allfixed )
    {
       SCIPdebugMessage("All variables were fixed during preprocessing, no time limit available.\n");
+      return FALSE;
+   }
+   else if ( ! sdpi->solved )
+   {
+      SCIPdebugMessage("Problem was not solved, time limit not exceeded.\n");
       return FALSE;
    }
 
@@ -3097,7 +3101,6 @@ SCIP_Bool SCIPsdpiIsAcceptable(
    )
 {
    assert( sdpi != NULL );
-   CHECK_IF_SOLVED_BOOL(sdpi);
 
    if ( sdpi->infeasible )
    {
@@ -3108,6 +3111,11 @@ SCIP_Bool SCIPsdpiIsAcceptable(
    {
       SCIPdebugMessage("All variables fixed during preprocessing, this is acceptable in a B&B context.\n");
       return TRUE;
+   }
+   else if ( ! sdpi->solved )
+   {
+      SCIPdebugMessage("Problem not solved succesfully, this is not acceptable in a B&B context.\n");
+      return FALSE;
    }
 
    return SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver);
@@ -3772,7 +3780,6 @@ SCIP_RETCODE SCIPsdpiSetRealpar(
    )
 {
    assert( sdpi != NULL );
-   assert( sdpi->sdpisolver != NULL );
 
    switch( type )/*lint --e{788}*/
    {
