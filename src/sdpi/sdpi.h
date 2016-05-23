@@ -543,6 +543,13 @@ SCIP_RETCODE SCIPsdpiGetIterations(
    int*                  iterations          /**< pointer to store the number of iterations of the last solve call */
    );
 
+/** gets the number of calls to the SDP-solver for the last solve call */
+EXTERN
+SCIP_RETCODE SCIPsdpiGetSdpCalls(
+   SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
+   int*                  calls               /**< pointer to store the number of calls to the SDP-solver for the last solve call */
+   );
+
 /** returns which settings the SDP-solver used in the last solve call */
 EXTERN
 SCIP_RETCODE SCIPsdpiSettingsUsed(

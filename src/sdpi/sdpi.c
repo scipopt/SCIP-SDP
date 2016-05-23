@@ -165,11 +165,13 @@ struct SCIP_SDPi
 
    /* other data */
    int                   slatercheck;        /**< should the Slater condition for the dual problem be checked ahead of each solving process */
+   int                   sdpid;              /**< counter for the number of SDPs solved */
+   int                   niterations;        /**< number of iterations since the last solve call */
+   int                   nsdpcalls;          /**< number of calls to the SDP-Solver since the last solve call */
    SCIP_Bool             solved;             /**< was the problem solved since the last change */
    SCIP_Bool             penalty;            /**< was the last solved problem a penalty formulation */
    SCIP_Bool             infeasible;         /**< was infeasibility detected in presolving? */
    SCIP_Bool             allfixed;           /**< could all variables be fixed during presolving? */
-   int                   sdpid;              /**< counter for the number of SDPs solved */
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
    SCIP_Real             penaltyparam;       /**< the starting penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
@@ -1403,6 +1405,8 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->messagehdlr = messagehdlr;
    (*sdpi)->blkmem = blkmem;
    (*sdpi)->sdpid = 1;
+   (*sdpi)->niterations = 0;
+   (*sdpi)->nsdpcalls = 0;
    (*sdpi)->nvars = 0;
    (*sdpi)->nsdpblocks = 0;
    (*sdpi)->sdpconstnnonz = 0;
@@ -1841,6 +1845,8 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    sdpi->solved = FALSE;
    sdpi->infeasible = FALSE;
    sdpi->allfixed = FALSE;
+   sdpi->nsdpcalls = 0;
+   sdpi->niterations = 0;
 
    return SCIP_OKAY;
 }
@@ -1907,6 +1913,8 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
 
    sdpi->solved = FALSE;
    sdpi->infeasible = FALSE;
+   sdpi->nsdpcalls = 0;
+   sdpi->niterations = 0;
 
    return SCIP_OKAY;
 }
@@ -1952,6 +1960,8 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
       sdpi->solved = FALSE;
       sdpi->infeasible = FALSE;
       sdpi->allfixed = FALSE;
+      sdpi->nsdpcalls = 0;
+      sdpi->niterations = 0;
 
       return SCIP_OKAY;
    }
@@ -2013,6 +2023,8 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
    sdpi->solved = FALSE;
    sdpi->infeasible = FALSE;
    sdpi->allfixed = FALSE;
+   sdpi->nsdpcalls = 0;
+   sdpi->niterations = 0;
 
    return SCIP_OKAY;
 }
@@ -2053,6 +2065,8 @@ SCIP_RETCODE SCIPsdpiDelLPRowset(
    sdpi->solved = FALSE;
    sdpi->infeasible = FALSE;
    sdpi->allfixed = FALSE;
+   sdpi->nsdpcalls = 0;
+   sdpi->niterations = 0;
 
    return SCIP_OKAY;
 }
@@ -2096,6 +2110,8 @@ SCIP_RETCODE SCIPsdpiChgObj(
    }
 
    sdpi->solved = FALSE;
+   sdpi->nsdpcalls = 0;
+   sdpi->niterations = 0;
 
    return SCIP_OKAY;
 }
@@ -2128,6 +2144,8 @@ SCIP_RETCODE SCIPsdpiChgBounds(
    sdpi->solved = FALSE;
    sdpi->infeasible = FALSE;
    sdpi->allfixed = FALSE;
+   sdpi->nsdpcalls = 0;
+   sdpi->niterations = 0;
 
    return SCIP_OKAY;
 }
@@ -2162,6 +2180,8 @@ SCIP_RETCODE SCIPsdpiChgLPLhRhSides(
    sdpi->solved = FALSE;
    sdpi->infeasible = FALSE;
    sdpi->allfixed = FALSE;
+   sdpi->nsdpcalls = 0;
+   sdpi->niterations = 0;
 
    return SCIP_OKAY;
 }
@@ -2393,6 +2413,8 @@ SCIP_RETCODE SCIPsdpiSolve(
    int nactivelpcons;
    int nremovedblocks = 0;
    int block;
+   int naddediterations;
+   int naddedsdpcalls;
 
    assert( sdpi != NULL );
 
@@ -2403,6 +2425,8 @@ SCIP_RETCODE SCIPsdpiSolve(
    sdpi->penalty = FALSE;
    sdpi->bestbound = -SCIPsdpiSolverInfinity(sdpi->sdpisolver);
    sdpi->solved = FALSE;
+   sdpi->nsdpcalls = 0;
+   sdpi->niterations = 0;
 
    /* allocate memory for computing the constant matrix after fixings and finding empty rows and columns, this is as much as might possibly be
     * needed, this will be shrinked again before solving */
@@ -2508,6 +2532,14 @@ SCIP_RETCODE SCIPsdpiSolve(
 
       sdpi->solved = TRUE;
 
+      /* add iterations and sdpcalls */
+      naddediterations = 0;
+      SCIP_CALL( SCIPsdpiSolverGetIterations(sdpi->sdpisolver, &naddediterations) );
+      sdpi->niterations += naddediterations;
+      naddedsdpcalls = 0;
+      SCIP_CALL( SCIPsdpiSolverGetSdpCalls(sdpi->sdpisolver, &naddedsdpcalls) );
+      sdpi->nsdpcalls += naddedsdpcalls;
+
       /* if the solver didn't produce a satisfactory result, we have to try with a penalty formulation */
       if ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && ! SCIPsdpiSolverIsTimelimExc(sdpi->sdpisolver) )
       {
@@ -2542,6 +2574,14 @@ SCIP_RETCODE SCIPsdpiSolve(
                sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
                rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit,
                &feasorig, &penaltybound) );
+
+         /* add iterations and sdpcalls */
+         naddediterations = 0;
+         SCIP_CALL( SCIPsdpiSolverGetIterations(sdpi->sdpisolver, &naddediterations) );
+         sdpi->niterations += naddediterations;
+         naddedsdpcalls = 0;
+         SCIP_CALL( SCIPsdpiSolverGetSdpCalls(sdpi->sdpisolver, &naddedsdpcalls) );
+         sdpi->nsdpcalls += naddedsdpcalls;
 
          /* get objective value */
          SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
@@ -2584,6 +2624,14 @@ SCIP_RETCODE SCIPsdpiSolve(
                      sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                      sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
                      rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, startsettings, solvertimelimit, &feasorig, &penaltybound) );
+
+               /* add iterations and sdpcalls */
+               naddediterations = 0;
+               SCIP_CALL( SCIPsdpiSolverGetIterations(sdpi->sdpisolver, &naddediterations) );
+               sdpi->niterations += naddediterations;
+               naddedsdpcalls = 0;
+               SCIP_CALL( SCIPsdpiSolverGetSdpCalls(sdpi->sdpisolver, &naddedsdpcalls) );
+               sdpi->nsdpcalls += naddedsdpcalls;
 
                /* If the solver did not converge, we increase the penalty parameter */
                if ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) )
@@ -3238,27 +3286,21 @@ SCIP_RETCODE SCIPsdpiGetIterations(
    assert( sdpi != NULL );
    assert( iterations != NULL );
 
-   /* check if the problem was solved (solved=FALSE, penalty=TRUE means we tried, but didnot succeed */
-   if ( ! sdpi->solved && ! sdpi->penalty )
-   {
-      SCIPerrorMessage("Tried to access solution information ahead of solving! \n");
-      return SCIP_LPERROR;
-   }
+   *iterations = sdpi->niterations;
 
-   if ( sdpi->infeasible && ! sdpi->penalty ) /* if we solved the penalty formulation, we may also set infeasible if it is infeasible for the original problem */
-   {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, no iterations needed.\n");
-      *iterations = 0;
-      return SCIP_OKAY;
-   }
-   else if ( sdpi->allfixed )
-   {
-      SCIPdebugMessage("All varialbes fixed during preprocessing, no iterations needed.\n");
-      *iterations = 0;
-      return SCIP_OKAY;
-   }
+   return SCIP_OKAY;
+}
 
-   SCIP_CALL( SCIPsdpiSolverGetIterations(sdpi->sdpisolver, iterations) );
+/** gets the number of calls to the SDP-solver for the last solve call */
+SCIP_RETCODE SCIPsdpiGetSdpCalls(
+   SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
+   int*                  calls               /**< pointer to store the number of calls to the SDP-solver for the last solve call */
+   )
+{
+   assert( sdpi != NULL );
+   assert( calls != NULL );
+
+   *calls = sdpi->nsdpcalls;
 
    return SCIP_OKAY;
 }

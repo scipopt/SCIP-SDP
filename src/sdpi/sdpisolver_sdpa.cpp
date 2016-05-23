@@ -131,6 +131,8 @@ struct SCIP_SDPiSolver
                                               *   of the corresponding variables, -n means lower bound of variable n, +n means upper bound */
    SCIP_Bool             solved;             /**< Was the SDP solved since the problem was last changed? */
    int                   sdpcounter;         /**< used for debug messages */
+   int                   niterations;        /**< number of SDP-iterations since the last solve call */
+   int                   nsdpcalls;          /**< number of SDP-calls since the last solve call */
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
    SCIP_Real             objlimit;           /**< objective limit for SDP-solver */
@@ -243,6 +245,8 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->varboundpos = NULL;
    (*sdpisolver)->solved = FALSE;
    (*sdpisolver)->sdpcounter = 0;
+   (*sdpisolver)->niterations = 0;
+   (*sdpisolver)->nsdpcalls = 0;
 
    (*sdpisolver)->epsilon = 1e-4;
    (*sdpisolver)->feastol = 1e-6;
@@ -503,6 +507,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( nlpcons == 0 || lprow != NULL );
    assert( nlpcons == 0 || lpcol != NULL );
    assert( nlpcons == 0 || lpval != NULL );
+
+   sdpisolver->niterations = 0;
+   sdpisolver->nsdpcalls = 0;
 
    /* immediately exit if the time limit is negative */
    if ( timelimit <= 0.0 )
@@ -1139,7 +1146,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* set the starting solution */
    if ( start != NULL && penaltyparam < sdpisolver->epsilon )
    {
-      /* TODO: needs to be changed to y, Z and penalty formulation */
       SCIPdebugMessage("Starting with a previous solution is not yet tested for the interface, only x-vector is given, not y and Z");
       for (i = 1; i <= sdpisolver->nactivevars; i++) /* we iterate over the variables in sdpa */
          sdpisolver->sdpa->inputInitXVec((long long) i, start[sdpisolver->sdpatoinputmapper[i] - 1]);/*lint !e747*/
@@ -1156,6 +1162,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIPdebugMessage("Calling SDPA solve (SDP: %d)\n", sdpisolver->sdpcounter);
    sdpisolver->sdpa->solve();
    sdpisolver->solved = TRUE;
+
+   /* update number of SDP-iterations and -calls */
+   sdpisolver->niterations += (int) sdpisolver->sdpa->getIteration();
+   sdpisolver->nsdpcalls += 1;
 
 #ifdef SCIP_DEBUG
    /* print the phase value , i.e. whether solving was successfull */
@@ -1202,6 +1212,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->sdpa->solve();
       sdpisolver->solved = TRUE;
 
+      /* update number of SDP-iterations and -calls */
+      sdpisolver->niterations += (int) sdpisolver->sdpa->getIteration();
+      sdpisolver->nsdpcalls += 1;
+
       /* remember setting */
       if ( SCIPsdpiSolverIsAcceptable(sdpisolver) )
          sdpisolver->usedsetting = SCIP_SDPSOLVERSETTING_MEDIUM;
@@ -1243,6 +1257,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
          sdpisolver->sdpa->solve();
          sdpisolver->solved = TRUE;
+
+         /* update number of SDP-iterations and -calls */
+         sdpisolver->niterations += (int) sdpisolver->sdpa->getIteration();
+         sdpisolver->nsdpcalls += 1;
 
          /* remember setting */
          if ( SCIPsdpiSolverIsAcceptable(sdpisolver) )
@@ -1955,9 +1973,24 @@ SCIP_RETCODE SCIPsdpiSolverGetIterations(
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL );
    assert( iterations != NULL );
-   CHECK_IF_SOLVED( sdpisolver );
 
-   *iterations = (int) sdpisolver->sdpa->getIteration();
+   *iterations = sdpisolver->niterations;
+
+   return SCIP_OKAY;
+}
+
+/** gets the number of calls to the SDP-solver for the last solve call */
+SCIP_RETCODE SCIPsdpiSolverGetSdpCalls(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
+   int*                  calls               /**< pointer to store the number of calls to the SDP-solver for the last solve call */
+   )
+{/*lint !e1784*/
+   assert( sdpisolver != NULL );
+   assert( sdpisolver->sdpa != NULL );
+   assert( calls != NULL );
+
+   *calls = sdpisolver->nsdpcalls;
+
    return SCIP_OKAY;
 }
 

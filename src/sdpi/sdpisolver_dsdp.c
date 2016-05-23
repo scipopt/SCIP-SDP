@@ -174,6 +174,7 @@ struct SCIP_SDPiSolver
    SCIP_Bool             penaltyworbound;    /**< Was a penalty formulation solved without bounding r? */
    SCIP_SDPSOLVERSETTING usedsetting;        /**< setting used to solve the last SDP */
    SCIP_Bool             timelimit;          /**< was the solver stopped because of the time limit? */
+   SCIP_Bool             timelimitinitial;   /**< was the problem not even given to the solver because of the time limit? */
 };
 
 typedef struct Timings
@@ -363,6 +364,8 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->fixedvarsval = NULL;
    (*sdpisolver)->fixedvarsobjcontr = 0.0;
    (*sdpisolver)->solved = FALSE;
+   (*sdpisolver)->timelimit = FALSE;
+   (*sdpisolver)->timelimitinitial = FALSE;
    (*sdpisolver)->sdpcounter = 0;
 
    (*sdpisolver)->epsilon = 1e-4;
@@ -628,9 +631,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if ( timelimit <= 0.0 )
    {
       sdpisolver->timelimit = TRUE;
+      sdpisolver->timelimitinitial = TRUE;
       sdpisolver->solved = FALSE;
       return SCIP_OKAY;
    }
+   else
+      sdpisolver->timelimitinitial = FALSE;
 
    /* start the timing */
    TIMEOFDAY_CALL( gettimeofday(&(timings.starttime), NULL) );/*lint !e438, !e550, !e641 */
@@ -1279,7 +1285,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* check if solving was stopped because of the time limit */
    if ( timings.stopped )
+   {
       sdpisolver->timelimit = TRUE;
+      sdpisolver->solved = FALSE;
+   }
    else
    {
       sdpisolver->timelimit = FALSE;
@@ -1999,9 +2008,29 @@ SCIP_RETCODE SCIPsdpiSolverGetIterations(
 {
    assert( sdpisolver != NULL );
    assert( iterations != NULL );
-   CHECK_IF_SOLVED( sdpisolver );
 
-   DSDP_CALL( DSDPGetIts(sdpisolver->dsdp, iterations) );
+   if ( sdpisolver->timelimitinitial )
+      *iterations = 0;
+   else
+      DSDP_CALL( DSDPGetIts(sdpisolver->dsdp, iterations) );
+
+   return SCIP_OKAY;
+}
+
+/** gets the number of calls to the SDP-solver for the last solve call */
+SCIP_RETCODE SCIPsdpiSolverGetSdpCalls(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
+   int*                  calls               /**< pointer to store the number of calls to the SDP-solver for the last solve call */
+   )
+{
+   assert( sdpisolver != NULL );
+   assert( calls != NULL );
+
+   if ( sdpisolver->timelimitinitial )
+      *calls = 0;
+   else
+      *calls = 1;
+
    return SCIP_OKAY;
 }
 

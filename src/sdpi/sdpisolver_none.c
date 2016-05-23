@@ -582,6 +582,17 @@ SCIP_RETCODE SCIPsdpiSolverGetIterations(
    return SCIP_PLUGINNOTFOUND;
 }
 
+/** gets the number of calls to the SDP-solver for the last solve call */
+SCIP_RETCODE SCIPsdpiSolverGetSdpCalls(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
+   int*                  calls               /**< pointer to store the number of calls to the SDP-solver for the last solve call */
+   )
+{
+   errorMessageAbort();
+
+   return SCIP_PLUGINNOTFOUND;
+}
+
 /** gets the settings used by the SDP solver for the last solve call */
 SCIP_RETCODE SCIPsdpiSolverSettingsUsed(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
