@@ -1,5 +1,10 @@
 <table class="desc">
    <tr>
+      <td class="w-120 val-t" width="30%">May 2016</td>
+      <td>SCIP-SDP 2.1.0 is released for SCIP 3.2.1 and DSDP 5.8 or SDPA 7.3.8
+      </td>
+   </tr>
+   <tr>
       <td class="w-120 val-t" width="30%">June 2015</td>
       <td>SCIP-SDP 2.0.0 is released for SCIP 3.2.0 and DSDP 5.8 or SDPA 7.3.8
       </td>
