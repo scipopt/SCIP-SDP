@@ -200,7 +200,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP, set this to
                                                *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP) */
-);/* TODO: start needs to include X,y,Z for SDPA */
+);
 
 /** loads and solves an SDP using a penalty formulation
  *
@@ -270,7 +270,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                                                *  (may be NULL if penaltyparam = 0) */
    SCIP_Bool*            penaltybound        /**< pointer to store if the primal solution reached the bound Tr(X) <= penaltyparam in the primal problem,
                                                *  this is also an indication of the penalty parameter being to small (may be NULL if not needed) */
-);/*TODO: start needs to include X,y,Z for SDPA*/
+);
 
 
 

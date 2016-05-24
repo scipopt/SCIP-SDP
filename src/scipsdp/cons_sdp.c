@@ -1491,7 +1491,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 #if 0
    if ( nrounds == 0 )
    {
-      SCIP_CALL( diagDominant(scip, conss, nconss, naddconss) ); /* TODO: could be activated for some problem classes but doesn't work in the general case */
+      SCIP_CALL( diagDominant(scip, conss, nconss, naddconss) ); /* could be activated for some problem classes but doesn't work in the general case */
    }
 #endif
 
@@ -1659,10 +1659,6 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
 #ifndef NDEBUG
    int snprintfreturn; /* used to check the return code of snprintf */
 #endif
-#if 0 /* TODO: see below */
-   SCIP_VAR** vars;
-   int count;
-#endif
 
    assert( result != NULL );
    *result = SCIP_FEASIBLE;
@@ -1732,19 +1728,6 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
 
    if ( separated )
       *result = SCIP_SEPARATED;
-
-#if 0 /* TODO: should this be done here or is it the task of the conshdlr_integer ? if we do it, we should use Feastol and also check for integrality of solution and the counter should obviously be removed */
-   vars = SCIPgetVars(scip);
-   count = 0;
-   for (i = 0; i < SCIPgetNVars(scip); ++i)
-   {
-      if ( !SCIPisRelEQ(scip, SCIPvarGetLbLocal(vars[i]), SCIPvarGetUbLocal(vars[i])) && SCIPvarIsIntegral(vars[i]))
-      {
-         SCIP_CALL( SCIPaddExternBranchCand(scip, vars[i], 10000.0, SCIP_INVALID) );
-         count++;
-      }
-   }
-#endif
 
    return SCIP_OKAY;
 }

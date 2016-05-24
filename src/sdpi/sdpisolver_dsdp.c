@@ -56,8 +56,8 @@
 /* turn off lint warnings for whole file: */
 /*lint --e{788,818}*/
 
-#define PENALTYBOUNDTOL 1E-3 /**< if the relative gap between Tr(X) and penaltyparam for a primal solution of the penaltyformulation
-                               *  is bigger than this value, it will be reported to the sdpi */
+#define PENALTYBOUNDTOL             1E-3     /**< if the relative gap between Tr(X) and penaltyparam for a primal solution of the penaltyformulation
+                                              *   is bigger than this value, it will be reported to the sdpi */
 
 #define MIN_PENALTYPARAM            1e5      /**< if the penalty parameter is to be computed, this is the minimum value it will take */
 #define MAX_PENALTYPARAM            1e12     /**< if the penalty parameter is to be computed, this is the maximum value it will take */

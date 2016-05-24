@@ -34,7 +34,7 @@
 /* #define SCIP_MORE_DEBUG   *//* shows all added nonzero entries */
 /* #define SCIP_DEBUG_PRINTTOFILE  *//* prints each problem inserted into SDPA to the file sdpa.dat-s and the starting point to sdpa.ini-s */
 
-#define SDPA_RESETPARAMS
+/* #define SDPA_RESETPARAMS */ /* this can be used together with an update to the SDPA source code to prevent memory leaks when using SCIP-SDP with SDPA */
 
 /**@file   sdpisolver_sdpa.cpp
  * @brief  interface for SDPA
@@ -1791,7 +1791,6 @@ SCIP_RETCODE SCIPsdpiSolverIgnoreInstability(
 {/*lint !e1784*/
    SCIPdebugMessage("Not implemented yet\n");
 
-   /* todo: change settings to stable */
    return SCIP_LPERROR;
 }/*lint !e715*/
 
