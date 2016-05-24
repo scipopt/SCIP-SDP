@@ -2584,7 +2584,12 @@ SCIP_RETCODE SCIPsdpiSolve(
          sdpi->nsdpcalls += naddedsdpcalls;
 
          /* get objective value */
-         SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
+         if ( SCIPsdpiSolverWasSolved(sdpi->sdpisolver) )
+         {
+            SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
+         }
+         else
+            objval = -SCIPsdpiInfinity(sdpi);
 
          if ( (SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && objval > sdpi->epsilon) || SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver))
          {
