@@ -116,7 +116,7 @@ SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_dsdp.o \
 			$(OBJDIR)/sdpi/lapack_dsdp.o
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/dsdpinc
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libdsdp.$(STATICLIBEXT)
-SDPIINSTMSG	=	"  -> \"dsdpinc\" is the path to the DSDP \"include\" directory, e.g., \"<DSDP-path>/include\".\n"
+SDPIINSTMSG	=	" -> \"dsdpinc\" is the path to the DSDP \"include\" directory, e.g., \"<DSDP-path>/include\".\n"
 SDPIINSTMSG	+=	" -> \"libdsdp.*\" is the path to the DSDP library, e.g., \"<DSDP-path>/lib/libdsdp.$(STATICLIBEXT)\""
 endif
 
@@ -133,7 +133,7 @@ SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mumpslibseq
 ifeq ($(OPENBLAS),true)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libopenblas.$(SHAREDLIBEXT).0
 endif
-SDPIINSTMSG	=	"  -> \"sdpainc\" is the path to the SDPA \"include\" directory, e.g., \"<SDPA-path>/include\".\n"
+SDPIINSTMSG	=	" -> \"sdpainc\" is the path to the SDPA \"include\" directory, e.g., \"<SDPA-path>/include\".\n"
 SDPIINSTMSG	+=	" -> \"libsdpa.*\" is the path to the SDPA library, e.g., \"<SDPA-path>/lib/libsdpa.a\".\n"
 SDPIINSTMSG	+=	" -> \"mumpsinc\" is the path to the Mumps \"include\" directory, e.g., \"<SDPA-path>/mumps/build/include\".\n"
 SDPIINSTMSG	+=	" -> \"mumpslib\" is the path to the Mumps \"lib\" directory, e.g., \"<SDPA-path>/mumps/build/lib\".\n"
