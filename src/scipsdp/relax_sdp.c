@@ -627,7 +627,7 @@ SCIP_RETCODE calcRelax(
    else
    {
       SCIP_CONSHDLR* conshdlr;
-      int lastconsind;
+      int parentconsind;
 
       /* get constraint handler */
       conshdlr = SCIPfindConshdlr(scip, "Savedsdpsettings");
@@ -637,14 +637,22 @@ SCIP_RETCODE calcRelax(
          return SCIP_PLUGINNOTFOUND;
       }
 
-      /* get constraints */
+      /* get startsettings of parent node, usually it will be the last active constraint of the corresponding constraint handler, so we iterate from
+       * the end of the list until we find the correct one */
       conss = SCIPconshdlrGetConss(conshdlr);
-      lastconsind = SCIPconshdlrGetNConss(conshdlr) - 1;
-      assert ( conss != NULL );
-      assert ( conss[lastconsind] != NULL ); /* we always use the last information we got (important e.g. in fracdiving) */
+      parentconsind = SCIPconshdlrGetNActiveConss(conshdlr) - 1;
+      (void) SCIPsnprintf(saveconsname, SCIP_MAXSTRLEN, "savedsettings_node_%d", SCIPnodeGetNumber(SCIPnodeGetParent(SCIPgetCurrentNode(scip))));
 
-      /* start with the settings of the parentnode */
-      startsetting = SCIPconsSavedsdpsettingsGetSettings(scip, conss[lastconsind]);
+      while ( parentconsind >= 0 && strcmp(saveconsname, SCIPconsGetName(conss[parentconsind])) )
+         parentconsind--;
+      if ( parentconsind >= 0 )
+         startsetting = SCIPconsSavedsdpsettingsGetSettings(scip, conss[parentconsind]);
+      else
+      {
+         SCIPdebugMessage("Startsetting from parent node not found, restarting with fastest settings!\n");
+         startsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
+      }
+
    }
 
    /* set time limit */

@@ -1,3 +1,21 @@
+SCIP-SDP version 2.1.1
+==================
+
+fixed bugs:
+- the SDPA interface incorrectly reused the settings of the last node instead of the parent node
+
+features:
+
+performance improvements:
+
+interface:
+
+parameters:
+
+core:
+
+misc:
+
 SCIP-SDP version 2.1.0
 ==================
 
