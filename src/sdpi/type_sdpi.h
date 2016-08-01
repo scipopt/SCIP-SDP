@@ -58,7 +58,8 @@ enum SCIP_SDPParam
    SCIP_SDPPAR_SLATERCHECK    = 4,      /**< Should the slater condition for the dual problem be checked before solving each SDP ? */
    SCIP_SDPPAR_PENALTYPARAM   = 5,      /**< the startingpenalty parameter Gamma used for the penalty formulation if the SDP-solver did not converge */
    SCIP_SDPPAR_MAXPENALTYPARAM= 6,      /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP-solver did not converge */
-   SCIP_SDPPAR_LAMBDASTAR     = 7       /**< the parameter lambda star used by SDPA to set the initial point */
+   SCIP_SDPPAR_LAMBDASTAR     = 7,      /**< the parameter lambda star used by SDPA to set the initial point */
+   SCIP_SDPPAR_NTHREADS       = 8       /**< number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores) */
 };
 typedef enum SCIP_SDPParam SCIP_SDPPARAM;
 

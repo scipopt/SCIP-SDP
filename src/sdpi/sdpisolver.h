@@ -116,7 +116,8 @@ EXTERN
 SCIP_RETCODE SCIPsdpiSolverCreate(
    SCIP_SDPISOLVER**     sdpisolver,         /**< SDP-solver interface */
    SCIP_MESSAGEHDLR*     messagehdlr,        /**< message handler to use for printing messages, or NULL */
-   BMS_BLKMEM*           blkmem              /**< block memory */
+   BMS_BLKMEM*           blkmem,             /**< block memory */
+   BMS_BUFMEM*           bufmem              /**< buffer memory */
    );
 
 /** deletes an SDP solver interface */

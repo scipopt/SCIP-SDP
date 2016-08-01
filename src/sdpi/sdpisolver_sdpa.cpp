@@ -117,6 +117,7 @@ struct SCIP_SDPiSolver
 {
    SCIP_MESSAGEHDLR*     messagehdlr;        /**< messagehandler for printing messages, or NULL */
    BMS_BLKMEM*           blkmem;             /**< block memory */
+   BMS_BUFMEM*           bufmem;             /**< buffer memory */
    SDPA*                 sdpa;               /**< solver-object */
    int                   nvars;              /**< number of input variables */
    int                   nactivevars;        /**< number of variables present in SDPA (nvars minus the number of variables with lb = ub) */
@@ -199,7 +200,7 @@ const char* SCIPsdpiSolverGetSolverDesc(
  *  doing. In general, it returns a pointer to the SDP-solver object.
  */
 void* SCIPsdpiSolverGetSolverPointer(
-   SCIP_SDPISOLVER*      sdpisolver           /**< pointer to an SDP-solver interface */
+   SCIP_SDPISOLVER*      sdpisolver          /**< pointer to an SDP-solver interface */
    )
 {/*lint !e1784*/
    assert( sdpisolver != NULL );
@@ -218,13 +219,15 @@ void* SCIPsdpiSolverGetSolverPointer(
 
 /** creates an SDP solver interface */
 SCIP_RETCODE SCIPsdpiSolverCreate(
-   SCIP_SDPISOLVER**     sdpisolver,        /**< pointer to an SDP-solver interface */
-   SCIP_MESSAGEHDLR*     messagehdlr,       /**< message handler to use for printing messages, or NULL */
-   BMS_BLKMEM*           blkmem             /**< block memory */
+   SCIP_SDPISOLVER**     sdpisolver,         /**< pointer to an SDP-solver interface */
+   SCIP_MESSAGEHDLR*     messagehdlr,        /**< message handler to use for printing messages, or NULL */
+   BMS_BLKMEM*           blkmem,             /**< block memory */
+   BMS_BUFMEM*           bufmem              /**< buffer memory */
    )
 {/*lint !e1784*/
    assert( sdpisolver != NULL );
    assert( blkmem != NULL );
+   assert( bufmem != NULL );
 
    SCIPdebugMessage("Calling SCIPsdpiCreate \n");
 
@@ -232,6 +235,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
 
    (*sdpisolver)->messagehdlr = messagehdlr;
    (*sdpisolver)->blkmem = blkmem;
+   (*sdpisolver)->bufmem = bufmem;
 
    /* this will be properly initialized then calling solve */
    (*sdpisolver)->sdpa = NULL;
@@ -1287,6 +1291,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if ( penaltyparam >= sdpisolver->epsilon )
    {
       SCIP_Real* sdpasol;
+      SCIP_Real* X;
+      int b;
+      int nblockssdpa;
+      int nrow;
+      SCIP_Real trace = 0.0;
 
       /* in the second case we have r as an additional variable */
       assert( (sdpisolver->nactivevars + 1 == sdpisolver->sdpa->getConstraintNumber()) );  /*lint !e776*/
@@ -1301,11 +1310,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       if ( ! *feasorig && penaltybound != NULL )
       {
 #endif
-         SCIP_Real* X;
-         int b;
-         int nblockssdpa;
-         int nrow;
-         SCIP_Real trace = 0.0;
 
          SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", sdpasol[sdpisolver->nactivevars]);
 

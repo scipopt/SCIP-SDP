@@ -139,6 +139,9 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/maxplungedepth", 0) );
    SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight", 0.0) );
 
+   /* we explicitly enable the use of a debug solution for this main SCIP instance */
+   SCIPenableDebugSol(scip);
+
    /* run interactive shell */
    SCIP_CALL( SCIPprocessShellArguments(scip, argc, argv, "scip.set") );
 

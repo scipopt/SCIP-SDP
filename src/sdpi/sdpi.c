@@ -127,6 +127,7 @@ struct SCIP_SDPi
    SCIP_SDPISOLVER*      sdpisolver;         /**< pointer to the interface for the SDP-solver */
    SCIP_MESSAGEHDLR*     messagehdlr;        /**< messagehandler to printing messages, or NULL */
    BMS_BLKMEM*           blkmem;             /**< block memory */
+   BMS_BUFMEM*           bufmem;             /**< buffer memory */
    int                   nvars;              /**< number of variables */
    SCIP_Real*            obj;                /**< objective function values of variables */
    SCIP_Real*            lb;                 /**< lower bounds of variables */
@@ -1056,7 +1057,9 @@ SCIP_RETCODE checkSlaterCondition(
             SCIPmessagePrintInfo(sdpi->messagehdlr, "Aborting due to failing to solve the root node relaxation, Slater condition for the dual problem holds "
                   "as smallest eigenvalue maximization problem is unbounded, ");
          else
-            SCIPdebugMessage("Slater condition for dual problem for SDP %d fullfilled, smallest eigenvalue maximization problem unbounded.\n", sdpi->sdpid);
+         {
+            SCIPdebugMessage("Slater condition for dual problem for SDP %d fullfilled, smallest eigenvalue maximization problem unbounded.\n", sdpi->sdpid);/*lint !e687*/
+         }
          sdpi->dualslater = SCIP_SDPSLATER_HOLDS;
       }
       else if ( SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) )
@@ -1082,7 +1085,7 @@ SCIP_RETCODE checkSlaterCondition(
                      "with smallest eigenvalue %f, ", -1.0 * objval);
             }
             else
-               SCIPdebugMessage("Slater condition for SDP %d is fullfilled for dual problem with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);
+               SCIPdebugMessage("Slater condition for SDP %d is fullfilled for dual problem with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);/*lint !e687*/
             sdpi->dualslater = SCIP_SDPSLATER_HOLDS;
          }
          else if ( objval < sdpi->epsilon )
@@ -1244,7 +1247,7 @@ SCIP_RETCODE checkSlaterCondition(
          SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problem holds since all variables have finite upper and lower bounds \n");
       }
       else
-         SCIPdebugMessage("Slater condition for primal problem for SDP %d fullfilled as all variables have finite upper and lower bounds \n",sdpi->sdpid);
+         SCIPdebugMessage("Slater condition for primal problem for SDP %d fullfilled as all variables have finite upper and lower bounds \n", sdpi->sdpid);/*lint !e687*/
       sdpi->primalslater = SCIP_SDPSLATER_HOLDS;
    }
    else
@@ -1293,7 +1296,7 @@ SCIP_RETCODE checkSlaterCondition(
                   "is unbounded \n");
          }
          else
-            SCIPdebugMessage("Slater condition for primal problem for SDP %d fullfilled, smallest eigenvalue maximization problem unbounded \n",sdpi->sdpid);
+            SCIPdebugMessage("Slater condition for primal problem for SDP %d fullfilled, smallest eigenvalue maximization problem unbounded \n", sdpi->sdpid);/*lint !e687*/
          sdpi->primalslater = SCIP_SDPSLATER_HOLDS;
       }
       else
@@ -1320,7 +1323,7 @@ SCIP_RETCODE checkSlaterCondition(
                SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problem fullfilled with smallest eigenvalue %f \n", -1.0 * objval);
             }
             else
-               SCIPdebugMessage("Slater condition for primal problem of SDP %d is fullfilled with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);
+               SCIPdebugMessage("Slater condition for primal problem of SDP %d is fullfilled with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);/*lint !e687*/
             sdpi->primalslater = SCIP_SDPSLATER_HOLDS;
          }
       }
@@ -1390,7 +1393,8 @@ void* SCIPsdpiGetSolverPointer(
 SCIP_RETCODE SCIPsdpiCreate(
    SCIP_SDPI**           sdpi,               /**< pointer to an SDP-interface structure */
    SCIP_MESSAGEHDLR*     messagehdlr,        /**< message handler to use for printing messages, or NULL */
-   BMS_BLKMEM*           blkmem              /**< block memory */
+   BMS_BLKMEM*           blkmem,             /**< block memory */
+   BMS_BUFMEM*           bufmem              /**< buffer memory */
    )
 {
    assert ( sdpi != NULL );
@@ -1400,10 +1404,11 @@ SCIP_RETCODE SCIPsdpiCreate(
 
    BMS_CALL( BMSallocBlockMemory(blkmem, sdpi) );
 
-   SCIP_CALL( SCIPsdpiSolverCreate(&((*sdpi)->sdpisolver), messagehdlr, blkmem) );
+   SCIP_CALL( SCIPsdpiSolverCreate(&((*sdpi)->sdpisolver), messagehdlr, blkmem, bufmem) );
 
    (*sdpi)->messagehdlr = messagehdlr;
    (*sdpi)->blkmem = blkmem;
+   (*sdpi)->bufmem = bufmem;
    (*sdpi)->sdpid = 1;
    (*sdpi)->niterations = 0;
    (*sdpi)->nsdpcalls = 0;
@@ -1540,7 +1545,7 @@ SCIP_RETCODE SCIPsdpiClone(
 
    BMS_CALL( BMSallocBlockMemory(blkmem, &newsdpi) );
 
-   SCIP_CALL( SCIPsdpiSolverCreate(&(newsdpi->sdpisolver), oldsdpi->messagehdlr, oldsdpi->blkmem) ); /* create new SDP-Solver Interface */
+   SCIP_CALL( SCIPsdpiSolverCreate(&(newsdpi->sdpisolver), oldsdpi->messagehdlr, oldsdpi->blkmem, oldsdpi->bufmem) ); /* create new SDP-Solver Interface */
 
    newsdpi->messagehdlr = oldsdpi->messagehdlr;
    newsdpi->blkmem = blkmem;
@@ -2591,7 +2596,8 @@ SCIP_RETCODE SCIPsdpiSolve(
          else
             objval = -SCIPsdpiInfinity(sdpi);
 
-         if ( (SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && objval > sdpi->epsilon) || SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver))
+         if ( (SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && objval > sdpi->epsilon) ||
+               (SCIPsdpiSolverWasSolved(sdpi->sdpisolver) && SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver)) )
          {
             SCIPdebugMessage("SDP %d found infeasible using penalty formulation, maximum of smallest eigenvalue is %f.\n", sdpi->sdpid, -1.0 * objval);
             sdpi->penalty = TRUE;
@@ -2621,6 +2627,9 @@ SCIP_RETCODE SCIPsdpiSolve(
                {
                   currenttime = clock();
                   solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;/*lint !e620*/
+
+                  if ( solvertimelimit <= 0 )
+                     break;
                }
 
                SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, penaltyparam, TRUE, TRUE, sdpi->nvars, sdpi->obj,
@@ -2705,11 +2714,13 @@ SCIP_RETCODE SCIPsdpiSolve(
                                  nremovedinds, lplhsafterfix, lprhsafterfix, rowsnactivevars, blockindchanges, sdpconstnnonz, nactivelpcons, nremovedblocks, TRUE) );
             }
             else if ( sdpi->solved == FALSE )
+            {
 #if 0
                SCIPmessagePrintInfo(sdpi->messagehdlr, "Numerical trouble\n");
 #else
-            SCIPdebugMessage("SDP-Interface was unable to solve SDP %d\n", sdpi->sdpid);
+               SCIPdebugMessage("SDP-Interface was unable to solve SDP %d\n", sdpi->sdpid);/*lint !e687*/
 #endif
+            }
          }
       }
    }
@@ -3830,6 +3841,7 @@ SCIP_RETCODE SCIPsdpiGetIntpar(
    switch( type )/*lint --e{788}*/
    {
    case SCIP_SDPPAR_SDPINFO:
+   case SCIP_SDPPAR_NTHREADS:
       SCIP_CALL_PARAM( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, ival) );
       break;
    case SCIP_SDPPAR_SLATERCHECK:
@@ -3867,6 +3879,9 @@ SCIP_RETCODE SCIPsdpiSetIntpar(
    {
    case SCIP_SDPPAR_SDPINFO:
       assert( ival == 0 || ival == 1 ); /* this is a boolean parameter */
+      SCIP_CALL_PARAM( SCIPsdpiSolverSetIntpar(sdpi->sdpisolver, type, ival) );
+      break;
+   case SCIP_SDPPAR_NTHREADS:
       SCIP_CALL_PARAM( SCIPsdpiSolverSetIntpar(sdpi->sdpisolver, type, ival) );
       break;
    case SCIP_SDPPAR_SLATERCHECK:

@@ -65,6 +65,7 @@ struct SCIP_SDPiSolver
 {
    SCIP_MESSAGEHDLR*     messagehdlr;        /**< messagehandler for printing messages, or NULL */
    BMS_BLKMEM*           blkmem;             /**< block memory */
+   BMS_BUFMEM*           bufmem;             /**< buffer memory */
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
    SCIP_Real             objlimit;           /**< objective limit for SDP-solver */
@@ -148,11 +149,13 @@ void* SCIPsdpiSolverGetSolverPointer(
 SCIP_RETCODE SCIPsdpiSolverCreate(
    SCIP_SDPISOLVER**     sdpisolver,         /**< pointer to an SDP-solver interface */
    SCIP_MESSAGEHDLR*     messagehdlr,        /**< message handler to use for printing messages, or NULL */
-   BMS_BLKMEM*           blkmem              /**< block memory */
+   BMS_BLKMEM*           blkmem,             /**< block memory */
+   BMS_BUFMEM*           bufmem              /**< buffer memory */
    )
 {
    assert( sdpisolver != NULL );
    assert( blkmem != NULL );
+   assert( bufmem != NULL );
    SCIPdebugMessage("Calling SCIPsdpiCreate \n");
    SCIPdebugMessage("Note that currently no SDP-Solver is linked to the binary. Ensure <relaxing/SDP/freq = -1>. \n");
 
@@ -160,6 +163,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
 
    (*sdpisolver)->messagehdlr = messagehdlr;
    (*sdpisolver)->blkmem = blkmem;
+   (*sdpisolver)->bufmem = bufmem;
 
    return SCIP_OKAY;
 }

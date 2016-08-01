@@ -152,6 +152,7 @@ struct SCIP_SDPiSolver
 {
    SCIP_MESSAGEHDLR*     messagehdlr;        /**< messagehandler for printing messages, or NULL */
    BMS_BLKMEM*           blkmem;             /**< block memory */
+   BMS_BUFMEM*           bufmem;             /**< buffer memory */
    DSDP                  dsdp;               /**< solver-object */
    SDPCone               sdpcone;            /**< sdpcone-object of DSDP for handling SDP-constraints */
    LPCone                lpcone;             /**< lpcone-object of DSDP for handling LP-constraints */
@@ -337,11 +338,13 @@ void* SCIPsdpiSolverGetSolverPointer(
 SCIP_RETCODE SCIPsdpiSolverCreate(
    SCIP_SDPISOLVER**     sdpisolver,         /**< pointer to an SDP-solver interface */
    SCIP_MESSAGEHDLR*     messagehdlr,        /**< message handler to use for printing messages, or NULL */
-   BMS_BLKMEM*           blkmem              /**< block memory */
+   BMS_BLKMEM*           blkmem,             /**< block memory */
+   BMS_BUFMEM*           bufmem              /**< buffer memory */
    )
 {
    assert( sdpisolver != NULL );
    assert( blkmem != NULL );
+   assert( bufmem != NULL );
 
    SCIPdebugMessage("Calling SCIPsdpiCreate \n");
 
@@ -349,6 +352,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
 
    (*sdpisolver)->messagehdlr = messagehdlr;
    (*sdpisolver)->blkmem = blkmem;
+   (*sdpisolver)->bufmem = bufmem;
 
    /* the following four variables will be properly initialized only immediatly prior to solving because DSDP and the
     * SDPCone need information about the number of variables and sdpblocks during creation */
