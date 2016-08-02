@@ -108,7 +108,6 @@ struct SCIP_ConshdlrData
 {
    int                   neigveccuts;        /**< this is used to give the eigenvector-cuts distinguishable names */
    int                   ndiaggezerocuts;    /**< this is used to give the diagGEzero-cuts distinguishable names */
-   int                   ndiagdomcuts;       /**< this is used to give the diagDominant-cuts distinguishable names */
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
 #ifdef OMP
    int                   nthreads;           /**< number of threads used for OpenBLAS */
@@ -615,14 +614,12 @@ SCIP_RETCODE diagGEzero(
    return SCIP_OKAY;
 }
 
-#if 0
-/** presolve-routine that adds some constraints for approximation of the sdpcone, if there is an entry (i,j) in the constant
- *  matrix, than some variable k with \f$ (A_k)_{ii} \f$ needs to be >0 because sdp-matrices are diagonal-dominant (and the same for j)
+/** Presolve-routine that enforces diagonal dominance of positive semidefinite matrices, namely that if \f$X_{ij} > 0\f$,
+ * then also \f$X_{ii} > 0\f$ and \f$X_{jj} > 0.
  *
- *  Not clear if this is really true for all SDPs, probably only works if A_i and A_0 are all semidefinite (or for A_0 at least
- *  have positive diagonal entries) and all variables appearing in the SDP constraint are integer, then sum_{A_i_kk >0}
- *  1*y_i >= 1 is feasible, because it means that (sum A_i)_kk > 0 because all diagonal entries are positive (they can't
- *  cancel each other) and at least one variable needs to be >=1 because this is equal to >0 for integers.
+ * More precisely, if \f$(A_0)_{k\ell} \neq 0\f$, \f$(A_0)_{kk} = 0\f$, \f$(A_i)_{k\ell} = 0\f$ for all \f$i \leq m\f$,
+ * \f$(A_0)_{kk} = 0\f$ for all continuous variables and \f$\ell_i \geq 0\f$ for all integer variables, we add the cut
+ * \f$\sum_{\substack{i \in \mathcal{I}:\\ (A_i)_{kk} > 0}} y_i \geq 1.\f$
  */
 static
 SCIP_RETCODE diagDominant(
@@ -633,16 +630,26 @@ SCIP_RETCODE diagDominant(
    )
 {
    char cutname[SCIP_MAXSTRLEN];
-   SCIP_Bool* nonzerorows;  /* entry i will be 1 if there is an entry (A_0)_ij \f$ for some \f$ j \neq i */
-   SCIP_CONSHDLRDATA* conshdlrdata;
+   /* if entry k is >= 0, gives the number of non-diagonal nonzero-entries in row k of the constant matrix (and the number
+    * of entries in constnonzeroentries), if -1 C_kk =!= 0 (which means we didnot allocate memory for diagvars), if -2
+    * either A_jk =!= 0 for all j with C_jk =!= 0 or A_kk =!= 0 for some continuous variable (which means we did allocate
+    * memory for diagvars but cannot use the cut */
+   int* nconstnonzeroentries;
+   int** constnonzeroentries;
+   SCIP_CONSDATA* consdata;
    SCIP_CONS* cons;
+   SCIP_VAR** vars;
+   SCIP_Real* vals;
    int** diagvars;
    int* ndiagvars;
    int blocksize;
    int i;
    int j;
    int nvars;
-   int var;
+   int v;
+   int k;
+   int l;
+   SCIP_Bool anycutvalid;
 #ifndef NDEBUG
    int snprintfreturn;
 #endif
@@ -657,85 +664,172 @@ SCIP_RETCODE diagDominant(
       assert( conss[i] != NULL );
       assert( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[i])), "SDP") == 0 );
 
-      SCIP_CONSDATA* consdata = SCIPconsGetData(conss[i]);
+      consdata = SCIPconsGetData(conss[i]);
       assert( consdata != NULL );
 
       blocksize = consdata->blocksize;
       nvars = consdata->nvars;
-      SCIP_CALL( SCIPallocBufferArray(scip, &nonzerorows, blocksize) );
-
-      /* initialize nonzerorows with FALSE */
+      SCIP_CALL( SCIPallocBufferArray(scip, &nconstnonzeroentries, blocksize) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &constnonzeroentries, blocksize) );
       for (j = 0; j < blocksize; j++)
-         nonzerorows[j] = FALSE;
+      {
+         nconstnonzeroentries[j] = 0;
+         SCIP_CALL( SCIPallocBufferArray(scip, &constnonzeroentries[j], blocksize) );
+      }
 
-      /* iterate over all nonzeros of the constant matrix and set all corresponding rows/cols to true */
+      /* iterate over all nonzeros of the constant matrix and check which diagonal and non-diagonal entries are nonzero */
       for (j = 0; j < consdata->constnnonz; j++)
       {
-         if ( consdata->constcol[j] != consdata->constrow[j] )
+         /* if it is a nondiagonal-entry we add this row/column to the constnonzeroentries entries unless we already found a
+          * diagonal entry for this row/column */
+         if ( (consdata->constcol[j] != consdata->constrow[j]) )
          {
-            assert( ! SCIPisEQ(scip, consdata->constval[j], 0.0) );
-            nonzerorows[consdata->constcol[j]] = TRUE;
-            nonzerorows[consdata->constrow[j]] = TRUE;
+            assert( ! SCIPisZero(scip, consdata->constval[j]) );
+            if ( nconstnonzeroentries[consdata->constcol[j]] >= 0 )
+            {
+               constnonzeroentries[consdata->constcol[j]][nconstnonzeroentries[consdata->constcol[j]]] = consdata->constrow[j];
+               nconstnonzeroentries[consdata->constcol[j]]++;
+            }
+            if ( nconstnonzeroentries[consdata->constrow[j]] >= 0 )
+            {
+               constnonzeroentries[consdata->constrow[j]][nconstnonzeroentries[consdata->constrow[j]]] = consdata->constcol[j];
+               nconstnonzeroentries[consdata->constrow[j]]++;
+            }
+         }
+         /* if we find a diagonal entry in the constant matrix, we remember that we cannot add a cut for this index */
+         else
+         {
+            assert( ! SCIPisZero(scip, consdata->constval[j]) );
+            nconstnonzeroentries[consdata->constcol[j]] = -1;
          }
       }
 
-      /* diagvars[i] is an array with all variables with a diagonal entry (i,i) in the corresponding matrix, if nonzerorows[i] is true or NULL otherwise
+      /* diagvars[j] is an array with all variables with a diagonal entry (j,j) in the corresponding matrix, if nconstnonzeroentries[j] =!= -1 or NULL otherwise
        * the outer array goes over all rows to ease the access, but only for those that are really needed memory will be allocated */
       SCIP_CALL( SCIPallocBufferArray(scip, &diagvars, blocksize) );
       SCIP_CALL( SCIPallocBufferArray(scip, &ndiagvars, blocksize) );
+      anycutvalid = FALSE;
       for (j = 0; j < blocksize; ++j)
       {
          ndiagvars[j] = 0;
-         if ( nonzerorows[j] )
+         if ( nconstnonzeroentries[j] > 0 )
          {
             SCIP_CALL( SCIPallocBufferArray(scip, &(diagvars[j]), nvars) );
+            anycutvalid = TRUE;
          }
       }
 
-      /* find all variables with corresponding diagonal entries for a row with nonzero non-diagonal constant entry */
-      for (var = 0; var < nvars; var++)
+      /* if no cuts are valid for this block, we free all memory and continue with the next block */
+      if ( ! anycutvalid )
       {
-         for (j = 0; j < consdata->nvarnonz[var]; j++)
+         SCIPfreeBufferArray(scip, &ndiagvars);
+         SCIPfreeBufferArray(scip, &diagvars);
+         for (j = blocksize - 1; j >= 0; j--)
          {
-            if ( consdata->col[var][j] == consdata->row[var][j] && nonzerorows[consdata->row[var][j]])
+            SCIPfreeBufferArray(scip, &constnonzeroentries[j]);
+         }
+         SCIPfreeBufferArray(scip, &constnonzeroentries);
+         SCIPfreeBufferArray(scip, &nconstnonzeroentries);
+         continue;
+      }
+
+      /* find all variables with corresponding diagonal entries for a row with nonzero non-diagonal constant entry, also check for entries
+       * that prevent the cut from being valid */
+      for (v = 0; v < nvars; v++)
+      {
+         for (j = 0; j < consdata->nvarnonz[v]; j++)
+         {
+            /* if it is a diagonal entry for an index that might have a valid cut, we add the variable to the corresponding array if it
+             * is an integer variable and mark the cut invalid otherwise */
+            if ( (consdata->col[v][j] == consdata->row[v][j]) && (nconstnonzeroentries[consdata->col[v][j]] > 0) )
             {
-               assert( ! SCIPisEQ(scip, consdata->val[var][j], 0.0) );
-               diagvars[consdata->col[var][j]][ndiagvars[consdata->col[var][j]]] = var;
-               ndiagvars[consdata->col[var][j]]++;
+               if ( SCIPvarIsIntegral(consdata->vars[v]) )
+               {
+                  assert( ! SCIPisEQ(scip, consdata->val[v][j], 0.0) );
+                  diagvars[consdata->col[v][j]][ndiagvars[consdata->col[v][j]]] = v;
+                  ndiagvars[consdata->col[v][j]]++;
+               }
+               else
+               {
+                  nconstnonzeroentries[consdata->col[v][j]] = -2;
+               }
+            }
+            /* If it is a non-diagonal entry, we can no longer use this entry for a cut. If the last entry is removed for a column/row,
+             * mark this column/row invalid (but we still have to free memory later, so we have to set it to -2 instead of 0) */
+            else if ( consdata->col[v][j] != consdata->row[v][j] )
+            {
+               if ( nconstnonzeroentries[consdata->col[v][j]] > 0 )
+               {
+                  /* search for the corresponding row-entry in constnonzeroentries */
+                  for (k = 0; k < nconstnonzeroentries[consdata->col[v][j]]; k++)
+                  {
+                     if ( constnonzeroentries[consdata->col[v][j]][k] == consdata->row[v][j] )
+                     {
+                        /* if there are remaining entries, we shift them back */
+                        if ( nconstnonzeroentries[consdata->col[v][j]] > k + 1 )
+                        {
+                           for (l = k + 1; l < nconstnonzeroentries[consdata->col[v][j]]; l++)
+                              constnonzeroentries[consdata->col[v][j]][l - 1] = constnonzeroentries[consdata->col[v][j]][l];
+                        }
+                        nconstnonzeroentries[consdata->col[v][j]]--;
+                        /* if this was the last entry for this index, we mark it invalid */
+                        if ( nconstnonzeroentries[consdata->col[v][j]] == 0 )
+                           nconstnonzeroentries[consdata->col[v][j]] = -2;
+                        break; /* we should not have another entry for this combination of row and column */
+                     }
+                  }
+               }
+               /* do the same for the row */
+               if ( nconstnonzeroentries[consdata->row[v][j]] > 0 )
+               {
+                  /* search for the corresponding row-entry in constnonzeroentries */
+                  for (k = 0; k < nconstnonzeroentries[consdata->row[v][j]]; k++)
+                  {
+                     if ( constnonzeroentries[consdata->row[v][j]][k] == consdata->col[v][j] )
+                     {
+                        /* if there are remaining entries, we shift them back */
+                        if ( nconstnonzeroentries[consdata->row[v][j]] > k + 1 )
+                        {
+                           for (l = k + 1; l < nconstnonzeroentries[consdata->row[v][j]]; l++)
+                              constnonzeroentries[consdata->row[v][j]][l - 1] = constnonzeroentries[consdata->row[v][j]][l];
+                        }
+                        nconstnonzeroentries[consdata->row[v][j]]--;
+                        /* if this was the last entry for this index, we mark it invalid */
+                        if ( nconstnonzeroentries[consdata->row[v][j]] == 0 )
+                           nconstnonzeroentries[consdata->row[v][j]] = -2;
+                        break; /* we should not have another entry for this combination of row and column */
+                     }
+                  }
+               }
             }
          }
       }
 
-      SCIP_VAR** vars;
-      SCIP_Real* vals;
-
       for (j = 0; j < blocksize; ++j)
       {
-         if ( nonzerorows[j] )
+         if ( nconstnonzeroentries[j] > 0 )
          {
             SCIP_CALL( SCIPallocBufferArray(scip, &vals, ndiagvars[j]) );
             SCIP_CALL( SCIPallocBufferArray(scip, &vars, ndiagvars[j]) );
 
             /* get the corresponding SCIP variables and set all coefficients to 1 */
-            for (var = 0; var < ndiagvars[j]; ++var)
+            for (v = 0; v < ndiagvars[j]; ++v)
             {
-               vars[var] = consdata->vars[diagvars[j][var]];
-               vals[var] = 1.0;
+               vars[v] = consdata->vars[diagvars[j][v]];
+               vals[v] = 1.0;
             }
-
-            conshdlrdata = SCIPconshdlrGetData(SCIPconsGetHdlr(conss[i]));
 #ifndef NDEBUG
-            snprintfreturn = SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "diag_dom_%d", ++(conshdlrdata->ndiagdomcuts));
+            snprintfreturn = SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "diag_dom_block_%d_row_%d", i, j);
             assert( snprintfreturn < SCIP_MAXSTRLEN );  /* check whether name fits into string */
 #else
-            (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "diag_dom_%d", ++(conshdlrdata->ndiagdomcuts));
+            (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "diag_dom_block_%d_row_%d", i, j);
 #endif
 
 #ifdef SCIP_MORE_DEBUG
             SCIPinfoMessage(scip, NULL, "Added lp-constraint %s: ", cutname);
-            SCIPinfoMessage(scip, NULL, "1 <= ");
+            SCIPinfoMessage(scip, NULL, "1 <=");
             for (i = 0; i < ndiagvars[j]; i++)
-               SCIPinfoMessage(scip, NULL, "+ (%f)*%s", vals[i], SCIPvarGetName(vars[i]));
+               SCIPinfoMessage(scip, NULL, " + (%f)*%s", vals[i], SCIPvarGetName(vars[i]));
             SCIPinfoMessage(scip, NULL, "\n");
 #endif
 
@@ -747,18 +841,25 @@ SCIP_RETCODE diagDominant(
 
             SCIPfreeBufferArray(scip, &vars);
             SCIPfreeBufferArray(scip, &vals);
+         }
+         if ( nconstnonzeroentries[j] == -2 || nconstnonzeroentries[j] > 0 )
+         {
             SCIPfreeBufferArray(scip, &diagvars[j]);
          }
       }
 
       SCIPfreeBufferArray(scip, &ndiagvars);
       SCIPfreeBufferArray(scip, &diagvars);
-      SCIPfreeBufferArray(scip, &nonzerorows);
+      for (j = blocksize - 1; j >= 0; j--)
+      {
+         SCIPfreeBufferArray(scip, &constnonzeroentries[j]);
+      }
+      SCIPfreeBufferArray(scip, &constnonzeroentries);
+      SCIPfreeBufferArray(scip, &nconstnonzeroentries);
    }
 
    return SCIP_OKAY;
 }
-#endif
 
 /** detects if there are blocks with size one and transfers them to lp-rows */
 static
@@ -1400,7 +1501,6 @@ SCIP_DECL_CONSINITPRE(consInitpreSdp)
 
    conshdlrdata->neigveccuts = 0; /* this is used to give the eigenvector-cuts distinguishable names */
    conshdlrdata->ndiaggezerocuts = 0; /* this is used to give the diagGEzero-cuts distinguishable names */
-   conshdlrdata->ndiagdomcuts = 0; /* this is used to give the diagDominant-cuts distinguishable names */
    conshdlrdata->n1x1blocks = 0; /* this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
 
    return SCIP_OKAY;
@@ -1488,12 +1588,10 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       SCIP_CALL( move_1x1_blocks_to_lp(scip, conss, nconss, naddconss, ndelconss, result) );
    }
 
-#if 0
    if ( nrounds == 0 )
    {
       SCIP_CALL( diagDominant(scip, conss, nconss, naddconss) ); /* could be activated for some problem classes but doesn't work in the general case */
    }
-#endif
 
    return SCIP_OKAY;
 }
