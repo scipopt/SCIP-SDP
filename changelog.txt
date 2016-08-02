@@ -1,14 +1,17 @@
-SCIP-SDP version 2.1.1
+SCIP-SDP version 3.0.0
 ==================
 
 fixed bugs:
 - the SDPA interface incorrectly reused the settings of the last node instead of the parent node
 
 features:
+- readded diagonal dominance cuts in presolving which enforce nonzero diagonal entries if a nonzero
+  entry exists in the constant matrix for the corresponding row or column (under some prerequisites)
 
 performance improvements:
 
 interface:
+- added interface to MOSEK
 
 parameters:
 
