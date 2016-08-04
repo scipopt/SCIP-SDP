@@ -654,11 +654,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
    if ( penaltyparam < sdpisolver->epsilon )
    {
-      MOSEK_CALLM( MSK_maketask(sdpisolver->mskenv, nvars, nsdpblocks + nlpcons + 2 * nvars, &(sdpisolver->msktask)) );/*lint !e641*/
+      MOSEK_CALLM( MSK_maketask(sdpisolver->mskenv, nvars, nsdpblocks - nremovedblocks + nlpcons + 2 * nvars, &(sdpisolver->msktask)) );/*lint !e641*/
    }
    else
    {
-      MOSEK_CALLM( MSK_maketask(sdpisolver->mskenv, nvars + 1, nsdpblocks + nlpcons + 2 * nvars, &(sdpisolver->msktask)) );/*lint !e641*/
+      MOSEK_CALLM( MSK_maketask(sdpisolver->mskenv, nvars + 1, nsdpblocks - nremovedblocks + nlpcons + 2 * nvars, &(sdpisolver->msktask)) );/*lint !e641*/
    }
 
 #ifdef SCIP_MORE_DEBUG
@@ -1144,11 +1144,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    {
       if ( rbound )
       {
-         MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, sdpisolver->nactivevars, MSK_BK_FX, penaltyparam, penaltyparam) );/*lint !e641*/
+         MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, sdpisolver->nactivevars, MSK_BK_UP, (double) -1 * MSK_DPAR_DATA_TOL_BOUND_INF, penaltyparam) );/*lint !e641*/
       }
       else
       {
-         MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, sdpisolver->nactivevars, MSK_BK_UP, (double) -1 * MSK_DPAR_DATA_TOL_BOUND_INF, penaltyparam) );/*lint !e641*/
+         MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, sdpisolver->nactivevars, MSK_BK_FX, penaltyparam, penaltyparam) );/*lint !e641*/
       }
    }
 
@@ -1242,7 +1242,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                MOSEK_CALL( MSK_getbarxj(sdpisolver->msktask, MSK_SOL_ITR, b - blockindchanges[b], X) );/*lint !e641*/
 
                /* iterate over all diagonal entries */
-               for (i = 0; i < sdpblocksizes[b] - nremovedinds[b]; i++)
+               for (i = 0; i < size; i++)
                {
                   /* get index in the lower triangular part */
                   ind = 0.5 * i * (i + 3);/*lint !e776*/ /*  i*(i+1)/2 + i  */
