@@ -15,7 +15,7 @@
 =opt= coloncancer_1401_1500_14 84.9513090146
 =opt= coloncancer_1501_1600_16 48.8512103066
 =best= coloncancer_1601_1700_18 90.1374440976
-=best= coloncancer_1701_1800_20 97.6503070232
+=best= coloncancer_1701_1800_20 97.6339058
 =opt= coloncancer_1801_1900_22 79.0940163415
 =opt= coloncancer_1901_2000_24 58.0004927769
 =opt= random_32_2_a 7.14854545617
@@ -81,7 +81,7 @@
 =opt= 3g_244_244_k8_4_4 -2351928.537
 =opt= 3pm_234_234_k4_6_6 -19.0
 =opt= clique_20_k3_6_7 146.999980302
-=best= clique_60_k20_3_3 79.9999747551
+=opt= clique_60_k20_3_3 79.9999976
 =opt= clique_60_k6_10_10 989.999998696
 =opt= 2g_5_25_k3_8_9 -1696261.00218
 =opt= 2g_6_701_k5_7_8 -2717145.0
@@ -102,7 +102,7 @@
 =opt= 3pm_234_234_k6_4_4 -17.0
 =opt= clique_40_k3_13_14 1182.99993468
 =opt= clique_60_k30_2_2 29.9999873717
-=best= clique_60_k8_7_8 559.999931008
+=opt= clique_60_k8_7_8 559.999928
 =opt= 2g_6_701_k18_2_2 -1872608.0
 =opt= 2g_6_701_k7_5_6 -2665214.00127
 =opt= 2pm_5_55_k3_8_9 -19.0
@@ -112,7 +112,7 @@
 =opt= 3pm_234_234_k7_3_4 -18.0000003728
 =opt= clique_50_k3_16_17 2311.99992256
 =opt= clique_60_k3_20_20 3989.99999161
-=best= clique_60_k9_6_7 1e+20
+=opt= clique_60_k9_6_7 440.999993
 =opt= 2g_6_701_k2_18_18 -2423530.00043
 =opt= 2g_6_701_k8_4_5 -2579312.0
 =opt= 2pm_5_55_k4_6_7 -19.0
@@ -138,7 +138,7 @@
 =opt= 3x3_5bars_2scen 4.02842712475
 =opt= 4x5_2bars 6.16227766017
 =opt= bridge_2x9_2bars 4.66274140481
-=best= bridge_3x9_2bars 14.4994931717
+=opt= bridge_3x9_2bars 14.4994949
 =opt= demonstsmall_3bar_2scen_nominal 2.07279184157
 =opt= 2x4_16bars 0.616227766017
 =opt= 2x5_1scen_6bars 3.73492407633
@@ -153,8 +153,8 @@
 =opt= 3x3_2scen_6bars 7.86198921779
 =opt= 3x4_1scen_6bars 0.765028153987
 =best= bridge_2x10_2bars_2scen 7.17695526217
-=best= bridge_3x5_4bars 9.01248672378
-=best= demonst_2bars_2scen 15.14368723
+=opt= bridge_3x5_4bars 9.01248917
+=opt= demonst_2bars_2scen 10.1289902
 =opt= test_bridge2 6.89116882454
 =opt= 2x4_2scen_6bars 3.97279220614
 =opt= 2x5_2scen_3bars 7.32842712475
@@ -186,7 +186,7 @@
 =opt= bridge_3x7_2bars_nominal 7.45685328749
 =opt= demonstsmall_2bar_3scen_nominal 2.96196586501
 =opt= 2x5_1scen_12bars 3.51421356237
-=best= 2x7_3bars 9.98741843011
+=opt= 2x7_3bars 8.35410197
 =opt= 3x3_3scen 1.02426406871
 =opt= 4x4_1bar 6.16227766017
 =opt= bridge_2x8_2bars_2scen_nominal 2.27279186252
