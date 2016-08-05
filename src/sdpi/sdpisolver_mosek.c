@@ -373,7 +373,7 @@ SCIP_RETCODE SCIPsdpiSolverFree(
       MOSEK_CALL( MSK_deleteenv(&((*sdpisolver)->mskenv)) );/*lint !e641*/
    }
 
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->varboundpos, 2 * (*sdpisolver)->nvars); /*lint !e647*/
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->varboundpos, 2 * (*sdpisolver)->nactivevars); /*lint !e647*/
 
    if ( (*sdpisolver)->nvars > 0 )
    {
@@ -570,7 +570,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int mosekind;
    SCIP_Real* mosekvarbounds;
    int nfixedvars;
-   int oldnvars;
+   int oldnactivevars;
    int* vartorowmapper; /* maps the lpvars to the corresponding left- and right-hand-sides of the LP constraints */
    int* vartolhsrhsmapper; /* maps the lpvars to the corresponding entries in lplhs and lprhs */
    int nlpvars;
@@ -701,7 +701,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->mosektoinputmapper), sdpisolver->nactivevars, nvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), sdpisolver->nvars - sdpisolver->nactivevars, nvars) ); /*lint !e776*/
 
-   oldnvars = sdpisolver->nvars; /* we need to save this to realloc the varboundpos-array if needed */
+   oldnactivevars = sdpisolver->nactivevars; /* we need to save this to realloc the varboundpos-array if needed */
    sdpisolver->nvars = nvars;
    sdpisolver->nactivevars = 0;
    nfixedvars = 0;
@@ -742,15 +742,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->nvarbounds = 0;
    BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekvarbounds, 2 * sdpisolver->nactivevars) ); /*lint !e647*/
 
-   if ( sdpisolver->nvars != oldnvars )
+   if ( sdpisolver->nactivevars != oldnactivevars )
    {
       if ( sdpisolver->varboundpos == NULL )
       {
-         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->varboundpos), 2 * sdpisolver->nvars) ); /*lint !e647*/
+         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->varboundpos), 2 * sdpisolver->nactivevars) ); /*lint !e647*/
       }
       else
       {
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->varboundpos), 2 * oldnvars, 2 * sdpisolver->nvars) ); /*lint !e647*/
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->varboundpos), 2 * oldnactivevars, 2 * sdpisolver->nactivevars) ); /*lint !e647*/
       }
    }
    assert( sdpisolver->varboundpos != NULL );
