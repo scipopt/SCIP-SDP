@@ -14,6 +14,8 @@ interface:
 - added interface to MOSEK
 
 parameters:
+- The diagonal dominance and diagonal >= 0 cuts of the SDP constraint handler can now be disabled through
+  the parameters "constraints/SDP/diagdominancecuts" and "constraints/SDP/diaggezerocuts".
 
 core:
 

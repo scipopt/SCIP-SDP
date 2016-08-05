@@ -76,11 +76,13 @@
                                          *   propagation and enforcement, -1 for no eager evaluations, 0 for first only */
 #define CONSHDLR_MAXPREROUNDS        -1 /**< maximal number of presolving rounds the constraint handler participates in (-1: no limit) */
 #define CONSHDLR_DELAYSEPA        FALSE /**< should separation method be delayed, if other separators found cuts? */
-#define CONSHDLR_NEEDSCONS        TRUE  /**< should the constraint handler be skipped, if no constraints are available? */
+#define CONSHDLR_NEEDSCONS         TRUE /**< should the constraint handler be skipped, if no constraints are available? */
 
 #define CONSHDLR_PRESOLTIMING     SCIP_PRESOLTIMING_FAST
 #define PARSE_STARTSIZE               1 /**< initial size of the consdata-arrays when parsing a problem */
 #define PARSE_SIZEFACTOR             10 /**< size of consdata-arrays is increased by this factor when parsing a problem */
+#define DEFAULT_DIAGGEZEROCUTS     TRUE /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
+#define DEFAULT_DIAGDOMINANCECUTS  TRUE /**< Should linear cuts enforcing the diagonal dominance (regarding zero-entries) of SDP-matrices be added? */
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
 #endif
@@ -107,8 +109,10 @@ struct SCIP_ConsData
 struct SCIP_ConshdlrData
 {
    int                   neigveccuts;        /**< this is used to give the eigenvector-cuts distinguishable names */
+   SCIP_Bool             diaggezerocuts;     /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
    int                   ndiaggezerocuts;    /**< this is used to give the diagGEzero-cuts distinguishable names */
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
+   SCIP_Bool             diagdominancecuts;  /**< Should linear cuts enforcing the diagonal dominance (regarding zero-entries) of SDP-matrices be added? */
 #ifdef OMP
    int                   nthreads;           /**< number of threads used for OpenBLAS */
 #endif
@@ -1580,17 +1584,25 @@ SCIP_DECL_CONSEXITPRE(consExitpreSdp)
 static
 SCIP_DECL_CONSPRESOL(consPresolSdp)
 {/*lint --e{715}*/
+   SCIP_CONSHDLRDATA* conshdlrdata;
+
+   assert( conshdlr != NULL );
    assert( result != 0 );
 
-   if ( nrounds == 0 )
-   {
-      SCIP_CALL( diagGEzero(scip, conss, nconss, naddconss) );
-      SCIP_CALL( move_1x1_blocks_to_lp(scip, conss, nconss, naddconss, ndelconss, result) );
-   }
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert( conshdlrdata != NULL );
 
    if ( nrounds == 0 )
    {
-      SCIP_CALL( diagDominant(scip, conss, nconss, naddconss) ); /* could be activated for some problem classes but doesn't work in the general case */
+      SCIP_CALL( move_1x1_blocks_to_lp(scip, conss, nconss, naddconss, ndelconss, result) );
+      if ( conshdlrdata->diaggezerocuts )
+      {
+         SCIP_CALL( diagGEzero(scip, conss, nconss, naddconss) );
+      }
+      if ( conshdlrdata->diagdominancecuts )
+      {
+         SCIP_CALL( diagDominant(scip, conss, nconss, naddconss) );
+      }
    }
 
    return SCIP_OKAY;
@@ -2403,6 +2415,12 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPaddIntParam(scip, "constraints/SDP/threads", "number of threads used for OpenBLAS",
          &(conshdlrdata->nthreads), TRUE, DEFAULT_NTHREADS, 1, INT_MAX, NULL, NULL) );
 #endif
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/diaggezerocuts",
+         "Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added?",
+         &(conshdlrdata->diaggezerocuts), TRUE, DEFAULT_DIAGGEZEROCUTS, NULL, NULL) );
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/diagdominancecuts",
+         "Should linear cuts enforcing the diagonal dominance (regarding zero-entries) of SDP-matrices be added?",
+         &(conshdlrdata->diagdominancecuts), TRUE, DEFAULT_DIAGDOMINANCECUTS, NULL, NULL) );
 
    return SCIP_OKAY;
 }

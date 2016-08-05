@@ -74,6 +74,8 @@
  * <tr><td>branching/sdpinfobjective/singlecoupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints in which no other candidate appears?</td></tr>
  * <tr><td>branching/sdpobjective/coupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints?</td></tr>
  * <tr><td>branching/sdpobjective/singlecoupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints in which no other candidate appears?</td></tr>
+ * <tr><td>constraints/SDP/diaggezerocuts = TRUE</td> <td>Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added?</td></tr>
+ * <tr><td>constraints/SDP/diagdominancecuts = TRUE</td> <td>Should linear cuts enforcing the diagonal dominance (regarding zero-entries) of SDP-matrices be added?</td></tr>
  * <tr><td>display/sdpfastsettings/active = 0</td> <td>Should the percentage of SDP-relaxations solved with the fastest setting (SDPA) or the default formulation (DSDP) be displayed in the console? [0: off, 1: auto, 2:on]</td></tr>
  * <tr><td>display/sdppenalty/active = 0</td> <td>Should the percentage of SDP-relaxations solved using a penalty formulation be displayed in the console? [0: off, 1: auto, 2:on]</td></tr>
  * <tr><td>display/sdpunsolved/active = 1</td> <td>Should the percentage of SDP-relaxations that could not be solved be displayed in the console? [0: off, 1: auto, 2:on]</td></tr>
