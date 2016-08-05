@@ -1,4 +1,6 @@
 ../testset/gas1.dat-s
+../testset/powerflow_14_1.dat-s
+../testset/powerflow_30_1.dat-s
 ../testset/maxcut1.dat-s
 ../testset/maxcut2.dat-s
 ../testset/RIPl1.dat-s
