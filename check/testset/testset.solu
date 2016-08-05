@@ -1,6 +1,6 @@
 =opt= gas1 219.336112
-=opt= powerflow_14_1.dat-s 75886.008781
-=opt= powerflow_30_1.dat-s 5044.005525
+=opt= powerflow_14_1 75886.008781
+=opt= powerflow_30_1 5044.005525
 =opt= maxcut1 6365.94404
 =opt= maxcut2 5863.79051
 =opt= RIPl1 0.0863960957
