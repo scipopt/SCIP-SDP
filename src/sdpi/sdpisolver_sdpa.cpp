@@ -646,7 +646,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* compute number of variable bounds and save them in sdpavarbounds */
    sdpisolver->nvarbounds = 0;
-   BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &sdpavarbounds, 2 * sdpisolver->nactivevars) ); /*lint !e647*//*lint !e530*/
+   BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &sdpavarbounds, 2 * sdpisolver->nactivevars) ); /*lint !e647*//*lint !e530*/
 
    if ( sdpisolver->nactivevars != oldnactivevars )
    {
@@ -681,7 +681,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if ( nlpcons > 0 )
    {
       /* allocate memory to save which lpconstraints are mapped to which index, entry 2i corresponds to the left hand side of row i, 2i+1 to the rhs */
-      BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &rowmapper, 2*noldlpcons) ); /*lint !e647*//*lint !e530*/
+      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &rowmapper, 2*noldlpcons) ); /*lint !e647*//*lint !e530*/
 
       /* compute the number of LP constraints after splitting the ranged rows and compute the rowmapper */
       pos = 1; /* SDPA starts counting the LP-inequalities at one */
@@ -1066,7 +1066,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* free the memory for the rowmapper */
    if ( nlpcons > 0 )
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &rowmapper, 2 * noldlpcons);/*lint !e647, !e737*/
+      BMSfreeBufferMemoryArray(sdpisolver->bufmem, &rowmapper);/*lint !e647, !e737*/
 
    /* insert variable bounds, these are also added as LP-constraints and therefore diagonal entries of the LP block
     * if we work with the penalty formulation, we get an extra entry for r >= 0, but this we will add afterwards */
@@ -1146,7 +1146,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
    /* free the arrays used for counting and saving variable bounds and LP-right-hand-sides */
-   BMSfreeBlockMemoryArray(sdpisolver->blkmem, &sdpavarbounds, 2 * sdpisolver->nactivevars); /*lint !e647, !e737*/
+   BMSfreeBufferMemoryArray(sdpisolver->bufmem, &sdpavarbounds); /*lint !e647, !e737*/
 
    /* transform the matrices to a more efficient form */
    sdpisolver->sdpa->initializeUpperTriangle();

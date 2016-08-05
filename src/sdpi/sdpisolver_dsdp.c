@@ -962,7 +962,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       assert( lpval != NULL );
 
       /* allocate memory to save which lpconstraints are mapped to which index, entry 2i corresponds to the left hand side of row i, 2i+1 to the rhs */
-      BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &rowmapper, 2*noldlpcons) ); /*lint !e647*/
+      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &rowmapper, 2*noldlpcons) ); /*lint !e647*/
 
       /* compute the rowmapper and the number of inequalities we have to add to DSDP (as we have to split the ranged rows) */
       pos = 0;
@@ -1205,7 +1205,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
 
       /* free the memory for the rowshifts-array */
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &rowmapper, 2*noldlpcons); /*lint !e647, !e737*/
+      BMSfreeBufferMemoryArray(sdpisolver->bufmem, &rowmapper); /*lint !e647, !e737*/
 
       /* shrink the dsdplp-arrays */
       if ( SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
@@ -1429,7 +1429,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          SCIP_Real* dsdpsol;
          SCIP_Real trace;
 
-         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, sdpisolver->nactivevars + 1) ); /*lint !e776*/
+         BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &dsdpsol, sdpisolver->nactivevars + 1) ); /*lint !e776*/
          /* last entry of DSDPGetY needs to be the number of variables, will return an error otherwise */
          DSDP_CALL( DSDPGetY(sdpisolver->dsdp, dsdpsol, sdpisolver->nactivevars + 1) );
 
@@ -1462,6 +1462,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #ifdef NDEBUG
          }
 #endif
+          BMSfreeBufferMemoryArray(sdpisolver->bufmem, &dsdpsol);
       }
    }
 
