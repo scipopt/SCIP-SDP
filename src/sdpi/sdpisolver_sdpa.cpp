@@ -637,12 +637,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
    else
       sdpisolver->sdpa->setParameterUpperBound(1e8);
-#ifdef SCIP_MORE_DEBUG
-   sdpisolver->sdpa->printParameters(stdout);
-#endif
 
    /* increase Lambda Star, this seems to help the numerics */
    sdpisolver->sdpa->setParameterLambdaStar(sdpisolver->lambdastar);
+
+#ifdef SCIP_MORE_DEBUG
+   sdpisolver->sdpa->printParameters(stdout);
+#endif
 
    /* compute number of variable bounds and save them in sdpavarbounds */
    sdpisolver->nvarbounds = 0;
@@ -1354,7 +1355,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
 #endif
    }
-
    return SCIP_OKAY;
 }
 
