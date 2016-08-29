@@ -469,14 +469,14 @@ Using this result on the projection of~\eqref{MISDP} onto the $X$ variables, yie
 
   Let $(X^\star, z^\star)$ be an optimal solution to \eqref{MISDP} with
   $\ell \define \sum_{i=1}^n z^\star_i \leq k$. Let $T \define \{i_1, i_2,
-  \dots, i_\ell\}$ be the support of $z^\star$, and define $\check{A} =
+  \dots, i_\ell\}$ be the support of $z^\star$, and define $\bar{A} =
   (A_{i_1}, A_{i_2}, \dots, A_{i_\ell})$ to be the submatrix of~$A$ formed by
   the columns indexed by~$T$. Then consider
   \begin{equation}\label{Proj}
    \begin{aligned}
-    \min \quad & \Tr(\check{A}\T \check{A} \check{X}), \\
-    \text{s.t.} \quad & \Tr(\check{X}) = 1, \\
-    & \check{X} \succeq 0,\; \check{X} \in S_\ell.
+    \min \quad & \Tr(\bar{A}\T \bar{A} \bar{X}), \\
+    \text{s.t.} \quad & \Tr(\bar{X}) = 1, \\
+    & \bar{X} \succeq 0,\; \bar{X} \in S_\ell.
    \end{aligned}
   \end{equation}
 
