@@ -284,10 +284,17 @@ MISDP, we will show that the rank constraint can be relaxed without
 changing the optimal value. We can then apply an MISDP solver.
 
 Our computational results show that the resulting problems are quite
-hard to solve, even for matrices of smaller size. However, this is true for
-the SDP relaxations of d'Aspremont et al.\ as well, and it allows for an
-evaluation of the quality of these bounds.  In fact, these bounds turn out
-to be quite tight or weak, depending on the instance. This complements the
+hard to solve, even for matrices of smaller size. However, they are
+still solvable for larger instances than a brute-force approach computing
+the eigenvalues of all submatrices of corresponding size. 
+
+Even if the techniques for solving MISDPs are not yet capable of solving
+large enough instances to be used for computing RICs in practical applications,
+by computing exact restricted isometry constants, our approach allows to evaluate
+relaxations like those proposed by d'Aspremont et al. in \cite{Asp08,Asp07}.
+In fact, these bounds turn out
+to be quite tight or weak, depending on the instance, while in parts requiring
+solution times comparable to those of the MISDP-approach. This complements the
 theoretical approximation guarantees developed by d'Aspremont et
 al. in~\cite{AspBG14}.
 
