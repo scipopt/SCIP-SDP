@@ -178,7 +178,7 @@ SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mosekh
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mosekbin
 SDPIINSTMSG	=	"  -> \"mosekh\" is the path to the MOSEK \"h\" directory, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/h\".\n"
 SDPIINSTMSG	+=	" -> \"libmosekbin.*\" is the path to the MOSEK bin directory that includes libmosek32.$(STATICLIBEXT), e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/bin/\""
-SDPILIB		= -m64 -L$(SCIPSDPLIBDIR)/mosekbin -lmosek32 -Wl,-rpath-link=$(SCIPSDPLIBDIR) -llapack -lblas -pthread -lc -lm
+SDPILIB		= -m32 -L$(SCIPSDPLIBDIR)/mosekbin -lmosek32 -Wl,-rpath-link=$(SCIPSDPLIBDIR) -llapack -lblas -pthread -lc -lm
 SDPICSRC 	= src/sdpi/sdpisolver_mosek.c src/sdpi/lapack_dsdp.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_mosek.o $(OBJDIR)/sdpi/lapack_dsdp.o
 endif
