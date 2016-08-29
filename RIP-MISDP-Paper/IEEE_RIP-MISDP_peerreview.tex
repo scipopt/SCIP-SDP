@@ -492,8 +492,8 @@ Using this result on the projection of~\eqref{MISDP} onto the $X$ variables, yie
   $(\hat{X}, \hat{z})$ for \eqref{MISDP} with identical objective value,
   since $\Tr(\check{X}) = 1$ and $\check{X} \in S_\ell$ imply $0 \leq
   \check{X}_{jj} = \hat{X}_{i_j i_j} \leq 1$ for $j = 1, \dots,
-  \ell$. Therefore, $\hat{X}_{ij} \leq \hat{z}_j$ by diagonal dominance of
-  semidefinite matrices.
+  \ell$. Therefore, $\hat{X}_{ij} \leq \sqrt{\hat{X}_{ii}\hat{X}_{jj}} \leq \hat{z}_j$ by 
+  nonnegativity of the minors of positive semidefinite matrices.
 
   Thus, the optimal objective values of \eqref{Proj} and \eqref{MISDP}
   agree and $\Rk(\hat{X}) = \Rk(\check{X})$.  Therefore, it
