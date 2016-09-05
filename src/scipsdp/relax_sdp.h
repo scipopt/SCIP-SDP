@@ -130,9 +130,15 @@ int SCIPrelaxSdpGetNIterations(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get the iterations for */
    );
 
-/** returns number of solved SDP-relaxations */
+/** returns number of SDPs solved by SDP-solver (including multiple calls for penalty formulation etc.) */
 EXTERN
 int SCIPrelaxSdpGetNSdpCalls(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get the number of calls for */
+   );
+
+/** returns number of solved SDP-relaxations */
+EXTERN
+int SCIPrelaxSdpGetNSdpInterfaceCalls(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get the number of calls for */
    );
 

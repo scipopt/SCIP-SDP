@@ -139,7 +139,7 @@ SCIP_DECL_DISPOUTPUT(dispOutputSdppenalty)
    else
    {
       SCIP_Real penaltypercent;
-      penaltypercent = (SCIP_Real) SCIPrelaxSdpGetNSdpPenalty(dispdata->relaxSDP) / (SCIP_Real) SCIPrelaxSdpGetNSdpCalls(dispdata->relaxSDP);
+      penaltypercent = (SCIP_Real) SCIPrelaxSdpGetNSdpPenalty(dispdata->relaxSDP) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(dispdata->relaxSDP);
       SCIPinfoMessage(scip, file, "%7.2f%%", 100.0 * penaltypercent);
    }
 

@@ -1923,7 +1923,7 @@ int SCIPrelaxSdpGetNIterations(
    return SCIPrelaxGetData(relax)->sdpiterations;
 }
 
-/** returns number of solved SDP-relaxations */
+/** returns number of SDPs solved by SDP-solver (including multiple calls for penalty formulation etc.) */
 int SCIPrelaxSdpGetNSdpCalls(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get the number of calls for */
    )
@@ -1932,6 +1932,17 @@ int SCIPrelaxSdpGetNSdpCalls(
    assert( SCIPrelaxGetData(relax) != NULL );
 
    return ( SCIPrelaxGetData(relax)->sdpcalls );
+}
+
+/** returns number of solved SDP-relaxations */
+int SCIPrelaxSdpGetNSdpInterfaceCalls(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get the number of calls for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->sdpinterfacecalls );
 }
 
 /** returns number of SDP-relaxations solved with fast settings */

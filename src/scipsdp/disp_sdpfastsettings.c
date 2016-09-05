@@ -140,7 +140,7 @@ SCIP_DECL_DISPOUTPUT(dispOutputSdpfastsettings)
    else
    {
       SCIP_Real fastpercent;
-      fastpercent = (SCIP_Real) SCIPrelaxSdpGetNSdpFast(dispdata->relaxSDP) / (SCIP_Real) SCIPrelaxSdpGetNSdpCalls(dispdata->relaxSDP);
+      fastpercent = (SCIP_Real) SCIPrelaxSdpGetNSdpFast(dispdata->relaxSDP) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(dispdata->relaxSDP);
       SCIPinfoMessage(scip, file, "%7.2f%%", 100.0 * fastpercent);
    }
 
