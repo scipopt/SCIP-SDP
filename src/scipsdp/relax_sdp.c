@@ -956,13 +956,13 @@ SCIP_RETCODE calcRelax(
 
          if ( allint ) /* if the solution is integer, we might have found a new best solution for the MISDP */
          {
-            SCIP_CALL( SCIPcheckSol(scip, scipsol, TRUE, TRUE, FALSE, FALSE, FALSE, &allfeas) ); /* is this really needed ? */
+            SCIP_CALL( SCIPcheckSol(scip, scipsol, TRUE, FALSE, FALSE, FALSE, &allfeas) ); /* is this really needed ? */
             if ( allfeas )
             {
                /* if we are not in probing give the solution to SCIP so that we can cut the node off, otherwise let the heuristic do it */
                if ( ! SCIPinProbing(scip) )
                {
-                  SCIP_CALL( SCIPtrySol(scip, scipsol, TRUE, TRUE, FALSE, FALSE, FALSE, &stored) );
+                  SCIP_CALL( SCIPtrySol(scip, scipsol, TRUE, FALSE, FALSE, FALSE, &stored) );
                   if (stored)
                   {
                      SCIPdebugMessage("feasible solution for MISDP found, cut node off, solution is stored.\n");
@@ -999,18 +999,18 @@ SCIP_RETCODE calcRelax(
          *result = SCIP_SUCCESS;
 
          /* if all int and binary vars are integral, nothing else needs to be done */
-         if ( ! allint )
+/*         if ( ! allint )
          {
             for (i = 0; i < nvars; ++i)
             {
                SCIP_VAR* var = vars[i];
                if ( SCIPvarIsIntegral(var) && ! SCIPisFeasIntegral(scip, solforscip[i]) && ! SCIPisEQ(scip, SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var)) )
                {
-                  /* we don't set a true score, we will just let the branching rule decide */
+                   we don't set a true score, we will just let the branching rule decide
                   SCIP_CALL( SCIPaddExternBranchCand(scip, var, 10000.0, solforscip[i]) );
                }
             }
-         }
+         }*/
 
          SCIPfreeBufferArray(scip, &solforscip);
          SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
@@ -1220,12 +1220,12 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       SCIP_CALL( SCIPmarkRelaxSolValid(scip) );
 
       /* check if the solution really is feasible */
-      SCIP_CALL( SCIPcheckSol(scip, scipsol, FALSE, FALSE, TRUE, TRUE, TRUE, &feasible) );
+      SCIP_CALL( SCIPcheckSol(scip, scipsol, FALSE, TRUE, TRUE, TRUE, &feasible) );
 
       stored = FALSE;
       if ( feasible )
       {
-         SCIP_CALL( SCIPtrySolFree(scip, &scipsol, FALSE, FALSE, FALSE, FALSE, FALSE, &stored) );
+         SCIP_CALL( SCIPtrySolFree(scip, &scipsol, FALSE, FALSE, FALSE, FALSE, &stored) );
       }
       else
       {
@@ -1690,7 +1690,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    relaxdata->lastsdpnode = -1;
 
    /* include relaxator */
-   SCIP_CALL( SCIPincludeRelaxBasic(scip, &relax, RELAX_NAME, RELAX_DESC, RELAX_PRIORITY, RELAX_FREQ, relaxExecSdp, relaxdata) );
+   SCIP_CALL( SCIPincludeRelaxBasic(scip, &relax, RELAX_NAME, RELAX_DESC, RELAX_PRIORITY, RELAX_FREQ, TRUE, relaxExecSdp, relaxdata) );
    assert( relax != NULL );
 
    /* include additional callbacks */
