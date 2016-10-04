@@ -156,7 +156,7 @@ namespace scip
    {
       if ( (! isdigit((*file).peek())) && (! ((*file).peek() == '-')) )
       {
-         SCIPerrorMessage("Input File invalid, only numerals allowed in SDP/LP-block rows, see data_format.txt\n");
+         SCIPerrorMessage("Input File invalid, got character '%c', but only numerals allowed in SDP/LP-block rows, see data_format.txt\n", (*file).peek());
          return SCIP_ERROR;
       }
 
