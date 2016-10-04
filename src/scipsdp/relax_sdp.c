@@ -956,13 +956,13 @@ SCIP_RETCODE calcRelax(
 
          if ( allint ) /* if the solution is integer, we might have found a new best solution for the MISDP */
          {
-            SCIP_CALL( SCIPcheckSol(scip, scipsol, TRUE, FALSE, FALSE, FALSE, &allfeas) ); /* is this really needed ? */
+            SCIP_CALL( SCIPcheckSol(scip, scipsol, TRUE, TRUE, FALSE, FALSE, FALSE, &allfeas) ); /* is this really needed ? */
             if ( allfeas )
             {
                /* if we are not in probing give the solution to SCIP so that we can cut the node off, otherwise let the heuristic do it */
                if ( ! SCIPinProbing(scip) )
                {
-                  SCIP_CALL( SCIPtrySol(scip, scipsol, TRUE, FALSE, FALSE, FALSE, &stored) );
+                  SCIP_CALL( SCIPtrySol(scip, scipsol, TRUE, TRUE, FALSE, FALSE, FALSE, &stored) );
                   if (stored)
                   {
                      SCIPdebugMessage("feasible solution for MISDP found, cut node off, solution is stored.\n");
@@ -1220,12 +1220,12 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       SCIP_CALL( SCIPmarkRelaxSolValid(scip) );
 
       /* check if the solution really is feasible */
-      SCIP_CALL( SCIPcheckSol(scip, scipsol, FALSE, TRUE, TRUE, TRUE, &feasible) );
+      SCIP_CALL( SCIPcheckSol(scip, scipsol, FALSE, FALSE, TRUE, TRUE, TRUE, &feasible) );
 
       stored = FALSE;
       if ( feasible )
       {
-         SCIP_CALL( SCIPtrySolFree(scip, &scipsol, FALSE, FALSE, FALSE, FALSE, &stored) );
+         SCIP_CALL( SCIPtrySolFree(scip, &scipsol, FALSE, FALSE, FALSE, FALSE, FALSE, &stored) );
       }
       else
       {
