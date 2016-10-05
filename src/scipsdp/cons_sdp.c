@@ -1492,6 +1492,105 @@ SCIP_RETCODE fixAndAggrVars(
    return SCIP_OKAY;
 }
 
+/** enforces the SDP constraints for a given solution (may be NULL to use the LP solution) */
+static
+SCIP_RETCODE EnforceConstraint(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONSHDLR*        conshdlr,           /**< constraint handler */
+   SCIP_CONS**           conss,              /**< constraints to process */
+   int                   nconss,             /**< number of constraints */
+   SCIP_SOL*             sol,                /**< solution to enforce (NULL for the LP solution) */
+   SCIP_RESULT*          result              /**< pointer to store the result of the enforcing call */
+   )
+{
+   char cutname[SCIP_MAXSTRLEN];
+   SCIP_CONSDATA* consdata;
+   SCIP_CONSHDLRDATA* conshdlrdata;
+   SCIP_Bool all_feasible = TRUE;
+   SCIP_Bool separated = FALSE;
+   SCIP_ROW* row;
+   SCIP_Bool infeasible;
+   SCIP_Real lhs;
+   SCIP_Real* coeff;
+   SCIP_Real rhs;
+   int nvars;
+   int i;
+   int j;
+#ifndef NDEBUG
+   int snprintfreturn; /* used to check the return code of snprintf */
+#endif
+
+   *result = SCIP_FEASIBLE;
+
+   for (i = 0; i < nconss; ++i)
+   {
+      consdata = SCIPconsGetData(conss[i]);
+      SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], sol, 0, 0, 0, result) );
+      if ( *result == SCIP_FEASIBLE )
+         continue;
+
+      all_feasible = FALSE;
+
+      nvars = consdata->nvars;
+      lhs = 0.0;
+      coeff = NULL;
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &coeff, nvars) );
+      SCIP_CALL( cutUsingEigenvector(scip, conss[i], sol, coeff, &lhs) );
+
+      rhs = SCIPinfinity(scip);
+      conshdlrdata = SCIPconshdlrGetData(conshdlr);
+
+#ifndef NDEBUG
+      snprintfreturn = SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
+      assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
+#else
+      (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
+#endif
+
+      SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname , lhs, rhs, FALSE, FALSE, TRUE) );
+      SCIP_CALL( SCIPcacheRowExtensions(scip, row) );
+
+      for (j = 0; j < nvars; ++j)
+      {
+         SCIP_CALL( SCIPaddVarToRow(scip, row, consdata->vars[j], coeff[j]) );
+      }
+
+      SCIP_CALL( SCIPflushRowExtensions(scip, row) );
+
+#ifdef SCIP_MORE_DEBUG
+      SCIPinfoMessage(scip, NULL, "Added cut %s: ", cutname);
+      SCIPinfoMessage(scip, NULL, "%f <= ", lhs);
+      for (j = 0; j < nvars; j++)
+         SCIPinfoMessage(scip, NULL, "+ (%f)*%s", coeff[j], SCIPvarGetName(consdata->vars[j]));
+      SCIPinfoMessage(scip, NULL, "\n");
+#endif
+
+      SCIP_CALL( SCIPaddCut(scip, sol, row, FALSE, &infeasible) );
+
+      if ( infeasible )
+         *result = SCIP_CUTOFF;
+      else
+      {
+         SCIP_CALL( SCIPaddPoolCut(scip, row) );
+
+         SCIP_CALL( SCIPresetConsAge(scip, conss[i]) );
+         *result = SCIP_SEPARATED;
+         separated = TRUE;
+      }
+      SCIP_CALL( SCIPreleaseRow(scip, &row) );
+      SCIPfreeBufferArray(scip, &coeff);
+   }
+
+   if ( all_feasible )
+      return SCIP_OKAY;
+
+   if ( separated )
+      *result = SCIP_SEPARATED;
+
+   return SCIP_OKAY;
+}
+
 /** informs constraint handler that the presolving process is being started */
 static
 SCIP_DECL_CONSINITPRE(consInitpreSdp)
@@ -1752,94 +1851,28 @@ SCIP_DECL_CONSENFOPS(consEnfopsSdp)
  */
 static
 SCIP_DECL_CONSENFOLP(consEnfolpSdp)
-{/*lint --e{715}*/
-   char cutname[SCIP_MAXSTRLEN];
-   SCIP_CONSDATA* consdata;
-   SCIP_CONSHDLRDATA* conshdlrdata;
-   SCIP_Bool all_feasible = TRUE;
-   SCIP_Bool separated = FALSE;
-   SCIP_ROW* row;
-   SCIP_Bool infeasible;
-   SCIP_Real lhs;
-   SCIP_Real* coeff;
-   SCIP_Real rhs;
-   int nvars;
-   int i;
-   int j;
-#ifndef NDEBUG
-   int snprintfreturn; /* used to check the return code of snprintf */
-#endif
-
+{
+   assert( scip != NULL );
+   assert( conshdlr != NULL );
+   assert( conss != NULL );
    assert( result != NULL );
-   *result = SCIP_FEASIBLE;
 
-   for (i = 0; i < nconss; ++i)
-   {
-      consdata = SCIPconsGetData(conss[i]);
-      SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], NULL, 0, 0, 0, result) );
-      if ( *result == SCIP_FEASIBLE )
-         continue;
+   return EnforceConstraint(scip, conshdlr, conss, nconss, NULL, result);
+}
 
-      all_feasible = FALSE;
+/** constraint enforcing method of constraint handler for LP solutions
+ *
+ *  Enforce relaxation solution method, if some block is not psd an eigenvector cut is added.
+ */
+static
+SCIP_DECL_CONSENFORELAX(consEnforelaxSdp)
+{
+   assert( scip != NULL );
+   assert( conshdlr != NULL );
+   assert( conss != NULL );
+   assert( result != NULL );
 
-      nvars = consdata->nvars;
-      lhs = 0.0;
-      coeff = NULL;
-
-      SCIP_CALL( SCIPallocBufferArray(scip, &coeff, nvars) );
-      SCIP_CALL( cutUsingEigenvector(scip, conss[i], NULL, coeff, &lhs) );
-
-      rhs = SCIPinfinity(scip);
-      conshdlrdata = SCIPconshdlrGetData(conshdlr);
-
-#ifndef NDEBUG
-      snprintfreturn = SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
-      assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
-#else
-      (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
-#endif
-
-      SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname , lhs, rhs, FALSE, FALSE, TRUE) );
-      SCIP_CALL( SCIPcacheRowExtensions(scip, row) );
-
-      for (j = 0; j < nvars; ++j)
-      {
-         SCIP_CALL( SCIPaddVarToRow(scip, row, consdata->vars[j], coeff[j]) );
-      }
-
-      SCIP_CALL( SCIPflushRowExtensions(scip, row) );
-
-#ifdef SCIP_MORE_DEBUG
-      SCIPinfoMessage(scip, NULL, "Added cut %s: ", cutname);
-      SCIPinfoMessage(scip, NULL, "%f <= ", lhs);
-      for (j = 0; j < nvars; j++)
-         SCIPinfoMessage(scip, NULL, "+ (%f)*%s", coeff[j], SCIPvarGetName(consdata->vars[j]));
-      SCIPinfoMessage(scip, NULL, "\n");
-#endif
-
-      SCIP_CALL( SCIPaddCut(scip, NULL, row, FALSE, &infeasible) );
-
-      if ( infeasible )
-         *result = SCIP_CUTOFF;
-      else
-      {
-         SCIP_CALL( SCIPaddPoolCut(scip, row) );
-
-         SCIP_CALL( SCIPresetConsAge(scip, conss[i]) );
-         *result = SCIP_SEPARATED;
-         separated = TRUE;
-      }
-      SCIP_CALL( SCIPreleaseRow(scip, &row) );
-      SCIPfreeBufferArray(scip, &coeff);
-   }
-
-   if ( all_feasible )
-      return SCIP_OKAY;
-
-   if ( separated )
-      *result = SCIP_SEPARATED;
-
-   return SCIP_OKAY;
+   return EnforceConstraint(scip, conshdlr, conss, nconss, sol, result);
 }
 
 /** separates a solution using constraint specific ideas, gives cuts to SCIP */
@@ -2404,6 +2437,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPsetConshdlrPresol(scip, conshdlr, consPresolSdp, CONSHDLR_MAXPREROUNDS, CONSHDLR_PRESOLTIMING) );
    SCIP_CALL( SCIPsetConshdlrSepa(scip, conshdlr, consSepalpSdp, consSepasolSdp, CONSHDLR_SEPAFREQ,
          CONSHDLR_SEPAPRIORITY, CONSHDLR_DELAYSEPA) );
+   SCIP_CALL( SCIPsetConshdlrEnforelax(scip, conshdlr, consEnforelaxSdp) );
    SCIP_CALL( SCIPsetConshdlrTrans(scip, conshdlr, consTransSdp) );
    SCIP_CALL( SCIPsetConshdlrPrint(scip, conshdlr, consPrintSdp) );
    SCIP_CALL( SCIPsetConshdlrParse(scip, conshdlr, consParseSdp) );
