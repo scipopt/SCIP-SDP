@@ -96,7 +96,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSavedsdpsettings)
 
 /** constraint enforcing method of constraint handler for LP solutions */
 static
-SCIP_DECL_CONSENFOLP(consEnforelaxSavedsdpsettings)
+SCIP_DECL_CONSENFORELAX(consEnforelaxSavedsdpsettings)
 {/*lint --e{715}*/
    assert( scip != NULL );
    assert( conshdlr != NULL );
