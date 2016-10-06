@@ -1451,7 +1451,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
             if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") == 0 )
             {
                SCIP_CALL( SCIPconsSdpGuessInitialPoint(scip, conss[c], &guess) );
-               if ( SCIPisGT(scip, guess, maxguess) )
+               if ( (! SCIPisInfinity(scip, maxguess) ) && SCIPisGT(scip, guess, maxguess) )
                   maxguess = guess;
             }
          }
