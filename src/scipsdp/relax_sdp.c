@@ -37,8 +37,8 @@
  * @author Tristan Gally
  */
 
- #define SCIP_DEBUG
- #define SCIP_MORE_DEBUG   /* displays complete solution for each relaxation */
+/* #define SCIP_DEBUG*/
+/* #define SCIP_MORE_DEBUG   *//* displays complete solution for each relaxation */
 /* #define SCIP_EVEN_MORE_DEBUG  *//* shows number of deleted empty cols/rows for every relaxation and variable status &
  * bounds as well as all constraints in the beginning */
 /* #define SLATERSOLVED_ABSOLUTE *//* uncomment this to return the absolute number of nodes for, e.g., solved fast with slater in addition to percentages */
