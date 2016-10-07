@@ -37,8 +37,8 @@
  * @author Tristan Gally
  */
 
-/* #define SCIP_DEBUG*/
-/* #define SCIP_MORE_DEBUG   *//* displays complete solution for each relaxation */
+ #define SCIP_DEBUG
+ #define SCIP_MORE_DEBUG   /* displays complete solution for each relaxation */
 /* #define SCIP_EVEN_MORE_DEBUG  *//* shows number of deleted empty cols/rows for every relaxation and variable status &
  * bounds as well as all constraints in the beginning */
 /* #define SLATERSOLVED_ABSOLUTE *//* uncomment this to return the absolute number of nodes for, e.g., solved fast with slater in addition to percentages */
@@ -583,6 +583,7 @@ SCIP_RETCODE calcRelax(
    SCIP_Bool enforceslater;
    SCIP_Real timelimit;
    SCIP_Real objforscip;
+   SCIP_Real feastol;
    SCIP_Real* solforscip;
    SCIP_Bool allint;
    SCIP_SDPSLATERSETTING slatersetting;
@@ -616,6 +617,10 @@ SCIP_RETCODE calcRelax(
       assert( SCIPgetUpperbound(scip) > -SCIPsdpiInfinity(sdpi) );
       SCIP_CALL( SCIPsdpiSetRealpar(sdpi, SCIP_SDPPAR_OBJLIMIT, SCIPgetUpperbound(scip)) );
    }
+
+   /* update feasibility tolerance, in case this was changed by enforelax callback of cons_sdp */
+   SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolverfeastol", &feastol) );
+   SCIP_CALL( SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_FEASTOL, feastol) );
 
    /* if this is the root node and we cannot solve the problem, we want to check for the Slater condition independent from the SCIP parameter */
    rootnode = ! SCIPnodeGetParent(SCIPgetCurrentNode(scip));
