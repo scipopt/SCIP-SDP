@@ -567,7 +567,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int v;
    int k;
    long long ind;
-   int mosekind;
+   int mosekind = 0;
    SCIP_Real* mosekvarbounds;
    int nfixedvars;
    int oldnactivevars;
@@ -838,45 +838,48 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* set objective values for the matrix variables */
    i = 0;
 
-   for (b = 0; b < nsdpblocks; b++)
+   if ( sdpconstnnonz > 0 )
    {
-      if ( blockindchanges[b] > -1 )
+      for (b = 0; b < nsdpblocks; b++)
       {
-         /* if some indices in the block were removed, we need to change indices accordingly */
-         if ( nremovedinds[b] > 0 )
+         if ( blockindchanges[b] > -1 )
          {
-            int* moseksdpconstrow;
-            int* moseksdpconstcol;
-
-            BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &moseksdpconstrow, sdpconstnblocknonz[b]) );
-            BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &moseksdpconstcol, sdpconstnblocknonz[b]) );
-
-            for (k = 0; k < sdpconstnblocknonz[b]; k++)
+            /* if some indices in the block were removed, we need to change indices accordingly */
+            if ( nremovedinds[b] > 0 )
             {
-               /* rows and cols with active nonzeros should not be removed */
-               assert( -1 < indchanges[b][sdpconstrow[b][k]] && indchanges[b][sdpconstrow[b][k]] <= sdpconstrow[b][k] );
-               assert( -1 < indchanges[b][sdpconstcol[b][k]] && indchanges[b][sdpconstcol[b][k]] <= sdpconstcol[b][k] );
+               int* moseksdpconstrow;
+               int* moseksdpconstcol;
 
-               assert( 0 <= sdpconstrow[b][k] && sdpconstrow[b][k] <= sdpblocksizes[b] );
-               assert( 0 <= sdpconstcol[b][k] && sdpconstcol[b][k] <= sdpblocksizes[b] );
+               BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &moseksdpconstrow, sdpconstnblocknonz[b]) );
+               BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &moseksdpconstcol, sdpconstnblocknonz[b]) );
 
-               moseksdpconstrow[k] = sdpconstrow[b][k] - indchanges[b][sdpconstrow[b][k]];
-               moseksdpconstcol[k] = sdpconstcol[b][k] - indchanges[b][sdpconstcol[b][k]];
+               for (k = 0; k < sdpconstnblocknonz[b]; k++)
+               {
+                  /* rows and cols with active nonzeros should not be removed */
+                  assert( -1 < indchanges[b][sdpconstrow[b][k]] && indchanges[b][sdpconstrow[b][k]] <= sdpconstrow[b][k] );
+                  assert( -1 < indchanges[b][sdpconstcol[b][k]] && indchanges[b][sdpconstcol[b][k]] <= sdpconstcol[b][k] );
+
+                  assert( 0 <= sdpconstrow[b][k] && sdpconstrow[b][k] <= sdpblocksizes[b] );
+                  assert( 0 <= sdpconstcol[b][k] && sdpconstcol[b][k] <= sdpblocksizes[b] );
+
+                  moseksdpconstrow[k] = sdpconstrow[b][k] - indchanges[b][sdpconstrow[b][k]];
+                  moseksdpconstcol[k] = sdpconstcol[b][k] - indchanges[b][sdpconstcol[b][k]];
+               }
+
+               MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], sdpconstnblocknonz[b],
+                     moseksdpconstrow, moseksdpconstcol, sdpconstval[b], &ind) );/*lint !e641, !e679, !e747*/
+
+               BMSfreeBufferMemoryArray(sdpisolver->bufmem, &moseksdpconstcol);
+               BMSfreeBufferMemoryArray(sdpisolver->bufmem, &moseksdpconstrow);
             }
-
-            MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], sdpconstnblocknonz[b],
-                  moseksdpconstrow, moseksdpconstcol, sdpconstval[b], &ind) );/*lint !e641, !e679, !e747*/
-
-            BMSfreeBufferMemoryArray(sdpisolver->bufmem, &moseksdpconstcol);
-            BMSfreeBufferMemoryArray(sdpisolver->bufmem, &moseksdpconstrow);
+            else
+            {
+               MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], sdpconstnblocknonz[b],
+                     sdpconstrow[b], sdpconstcol[b], sdpconstval[b], &ind) );/*lint !e641, !e679, !e747*/
+            }
+            MOSEK_CALL( MSK_putbarcj(sdpisolver->msktask, i, 1, &ind, &one) );/*lint !e641, !e747*/
+            i++;
          }
-         else
-         {
-            MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], sdpconstnblocknonz[b],
-                  sdpconstrow[b], sdpconstcol[b], sdpconstval[b], &ind) );/*lint !e641, !e679, !e747*/
-         }
-         MOSEK_CALL( MSK_putbarcj(sdpisolver->msktask, i, 1, &ind, &one) );/*lint !e641, !e747*/
-         i++;
       }
    }
 
@@ -1046,6 +1049,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             }
             ind++;
          }
+         assert( mosekind <= lpnnonz );
       }
       else /* right-hand side */
       {
@@ -1077,10 +1081,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                }
                ind++;
             }
+            assert( mosekind <= lpnnonz );
          }
       }
-
-      assert( mosekind <= lpnnonz );
 
       /* add the additional entry for the penalty constraint Trace = Gamma */
       if ( penaltyparam >= sdpisolver->epsilon )
