@@ -43,6 +43,7 @@
 #-----------------------------------------------------------------------------
 
 SCIPSDPVERSION	=	2.1.0
+SCIPSDPGITHASH	=
 SDPS		=	none
 
 GCCWARN		+= 	-Wextra
@@ -243,7 +244,8 @@ MAINCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/heur_sdpfracdiving.o \
 			scipsdp/heur_sdprand.o \
 			scipsdp/prop_sdpobbt.o \
-			sdpi/sdpi.o
+			sdpi/sdpi.o \
+			scipsdpgithash.o
 
 MAINCCOBJ 	=	scipsdp/main.o \
 			scipsdp/objreader_sdpa.o \
@@ -253,6 +255,8 @@ MAINCCOBJ 	=	scipsdp/main.o \
 MAINCSRC	=	$(addprefix $(SRCDIR)/,$(MAINCOBJ:.o=.c))
 MAINCCSRC 	=	$(addprefix $(SRCDIR)/,$(MAINCCOBJ:.o=.cpp))
 MAINDEP 	=	$(SRCDIR)/depend.cppmain.$(OPT)
+
+SCIPSDPGITHASHFILE	= 	$(SRCDIR)/scipsdpgithash.c
 
 # @todo possibly add LPS
 MAINFILE	=	$(BINDIR)/$(MAINNAME).$(BASE).$(SDPS)$(EXEEXTENSION)
@@ -294,6 +298,12 @@ preprocess:     checkdefines
 .PHONY: tags
 tags:
 		rm -f TAGS; ctags -e src/*/*.c src/*/*.cpp src/*/*.h $(SCIPDIR)/src/*/*.c $(SCIPDIR)/src/*/*.h;
+		
+# include target to detect the current git hash
+-include make/make.detectgithash
+
+# this empty target is needed for the SCIP release versions
+githash::      # do not remove the double-colon
 
 .PHONY: lint
 lint:		$(MAINCSRC) $(MAINCCSRC) $(SDPICSRC) $(SDPICCSRC)
@@ -380,6 +390,14 @@ endif
 ifneq ($(OMP),$(LAST_OMP))
 		@-touch -c $(SRCDIR)/scipsdp/cons_sdp.c
 endif
+ifneq ($(SCIPSDPGITHASH),$(LAST_SCIPSDPGITHASH))
+		@$(MAKE) githash
+endif
+		@$(SHELL) -ec 'if test ! -e $(SCIPGITHASHFILE) ; \
+			then \
+				echo "-> generating $(SCIPGITHASHFILE)" ; \
+				$(MAKE) githash ; \
+			fi'
 		@-rm -f $(LASTSETTINGS)
 		@echo "LAST_PARASCIP=$(PARASCIP)" >> $(LASTSETTINGS)
 		@echo "LAST_SHARED=$(SHARED)" >> $(LASTSETTINGS)
@@ -395,6 +413,7 @@ endif
 		@echo "LAST_NOBLKBUFMEM=$(NOBLKBUFMEM)" >> $(LASTSETTINGS)
 		@echo "LAST_SDPS=$(SDPS)" >> $(LASTSETTINGS)
 		@echo "LAST_OMP=$(OMP)" >> $(LASTSETTINGS)
+		@echo "LAST_SCIPGITHASH=$(SCIPSDPGITHASH)" >> $(LASTSETTINGS)
 
 $(LINKSMARKERFILE):
 		@$(MAKE) links

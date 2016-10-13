@@ -36,6 +36,8 @@
  * @author Tristan Gally
  */
 
+#define SCIPSDPVERSION              "2.1.0"
+
 #include "objscip/objscipdefplugins.h"
 
 #include "cons_sdp.h"
@@ -55,6 +57,7 @@
 #include "heur_sdpfracdiving.h"
 #include "heur_sdprand.h"
 #include "prop_sdpobbt.h"
+#include "scipsdpgithash.c"
 
 using namespace scip;
 
@@ -66,6 +69,8 @@ SCIP_RETCODE runSCIP(
    )
 {
    SCIP* scip = NULL;
+   char scipsdpname[SCIP_MAXSTRLEN];
+   char scipsdpdesc[SCIP_MAXSTRLEN];
 
    SCIP_CALL( SCIPcreate(&scip) );
 
@@ -82,6 +87,11 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPincludeHeurSdpFracdiving(scip) );
    SCIP_CALL( SCIPincludeHeurSdpRand(scip) );
    SCIP_CALL( SCIPincludePropSdpObbt(scip) );
+
+   /* add description */
+   (void) SCIPsnprintf(scipsdpname, SCIP_MAXSTRLEN, "SCIP-SDP %s", SCIPSDPVERSION);
+   (void) SCIPsnprintf(scipsdpdesc, SCIP_MAXSTRLEN, "Mixed Integer Semidefinite Programming Plugin for SCIP [GitHash: %s]", SCIPSDP_GITHASH);
+   SCIP_CALL( SCIPincludeExternalCodeInformation(scip, "SCIP-SDP 2.1.0", scipsdpdesc) );
 
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
