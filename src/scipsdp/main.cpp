@@ -90,7 +90,8 @@ SCIP_RETCODE runSCIP(
 
    /* add description */
    (void) SCIPsnprintf(scipsdpname, SCIP_MAXSTRLEN, "SCIP-SDP %s", SCIPSDPVERSION);
-   (void) SCIPsnprintf(scipsdpdesc, SCIP_MAXSTRLEN, "Mixed Integer Semidefinite Programming Plugin for SCIP [GitHash: %s]", SCIPSDP_GITHASH);
+   (void) SCIPsnprintf(scipsdpdesc, SCIP_MAXSTRLEN, "Mixed Integer Semidefinite Programming Plugin for SCIP "
+         "[GitHash: %s] (www.opt.tu-darmstadt.de/scipsdp/)", SCIPSDP_GITHASH);
    SCIP_CALL( SCIPincludeExternalCodeInformation(scip, "SCIP-SDP 2.1.0", scipsdpdesc) );
 
    /* include default SCIP plugins */
