@@ -583,7 +583,6 @@ SCIP_RETCODE calcRelax(
    SCIP_Bool enforceslater;
    SCIP_Real timelimit;
    SCIP_Real objforscip;
-   SCIP_Real feastol;
    SCIP_Real* solforscip;
    SCIP_Bool allint;
    SCIP_SDPSLATERSETTING slatersetting;
@@ -617,11 +616,6 @@ SCIP_RETCODE calcRelax(
       assert( SCIPgetUpperbound(scip) > -SCIPsdpiInfinity(sdpi) );
       SCIP_CALL( SCIPsdpiSetRealpar(sdpi, SCIP_SDPPAR_OBJLIMIT, SCIPgetUpperbound(scip)) );
    }
-
-   /* update feasibility tolerance, in case this was changed by enforelax callback of cons_sdp */
-   SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolverfeastol", &feastol) );
-   SCIP_CALL( SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_FEASTOL, feastol) );
-
    /* if this is the root node and we cannot solve the problem, we want to check for the Slater condition independent from the SCIP parameter */
    rootnode = ! SCIPnodeGetParent(SCIPgetCurrentNode(scip));
 

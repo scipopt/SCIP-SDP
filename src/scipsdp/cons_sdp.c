@@ -1531,28 +1531,6 @@ SCIP_RETCODE EnforceConstraint(
       if ( *result == SCIP_FEASIBLE )
          continue;
 
-      /* if we are sure the solution is from the SDP-relaxator, we try to decrease feasibility tolerance */
-      if ( sol != NULL && ( SCIPgetNRelaxs(scip) == 1 ) && ( SCIPfindRelax(scip, "SDP") != NULL ))
-      {
-         SCIP_Real sdpsolverfeastol;
-
-         SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolverfeastol", &sdpsolverfeastol) );
-
-         sdpsolverfeastol *= SDPSOLVERFEASTOLFACT;
-
-         /* Unless the feasibility tolerance is already minimal, adjust it and tell SCIP that we separated,
-          * so that the SDP relaxation is solved again.
-          */
-         if ( SCIPisGT(scip, sdpsolverfeastol, SDPSOLVERFEASTOLMIN ) )
-         {
-            SCIP_CALL( SCIPsetRealParam(scip, "relaxing/SDP/sdpsolverfeastol", sdpsolverfeastol) );
-
-            *result = SCIP_SEPARATED;
-
-            return SCIP_OKAY;
-         }
-      }
-
       all_feasible = FALSE;
 
       nvars = consdata->nvars;
