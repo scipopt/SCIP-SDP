@@ -56,7 +56,7 @@ extern "C" {
 /** computes the i-th eigenvalue of a symmetric matrix using LAPACK, where 1 is the smallest and n the largest, matrix has to be given with all n^2 entries */
 EXTERN
 SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
-   BMS_BLKMEM*           blkmem,             /**< block memory */
+   BMS_BUFMEM*           bufmem,             /**< buffer memory */
    SCIP_Bool             geteigenvectors,    /**< should also the eigenvectors be computed? */
    int                   n,                  /**< size of matrix */
    SCIP_Real*            A,                  /**< matrix for which eigenvalues should be computed */

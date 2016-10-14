@@ -101,7 +101,7 @@ void F77_FUNC(dgemv, DGEMV)(char* TRANS, int* M, int* N, SCIP_Real* ALPHA, SCIP_
 
 /** computes the i-th eigenvalue of a symmetric matrix using LAPACK, where 1 is the smallest and n the largest, matrix has to be given with all n^2 entries */
 SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
-   BMS_BLKMEM*           blkmem,             /**< block memory */
+   BMS_BUFMEM*           bufmem,             /**< buffer memory */
    SCIP_Bool             geteigenvectors,    /**< Should also the eigenvectors be computed? */
    int                   n,                  /**< size of matrix */
    SCIP_Real*            A,                  /**< matrix for which eigenvalues should be computed */
@@ -133,7 +133,7 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    int* ISUPPZ;
 
 
-   assert( blkmem != NULL );
+   assert( bufmem != NULL );
    assert( n > 0 );
    assert( A != NULL );
    assert( 0 < i && i <= n );
@@ -175,10 +175,10 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    LWORK = SCIP_RealTOINT(WSIZE);
    LIWORK = WISIZE;
 
-   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &WORK, LWORK) );
-   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &IWORK, LIWORK) );
-   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &WTMP, N) );
-   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &ISUPPZ, 2) );
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &WORK, LWORK) );
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &IWORK, LIWORK) );
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &WTMP, N) );
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &ISUPPZ, 2) );
 
    /* call the function */
    VL = -1e20;
@@ -203,10 +203,10 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    *eigenvalue = WTMP[0];
 
    /* free memory */
-   BMSfreeBlockMemoryArray(blkmem, &ISUPPZ, 2);
-   BMSfreeBlockMemoryArray(blkmem, &WTMP, N);/*lint !e737*/
-   BMSfreeBlockMemoryArray(blkmem, &IWORK, LIWORK);/*lint !e737*/
-   BMSfreeBlockMemoryArray(blkmem, &WORK, LWORK);/*lint !e737*/
+   BMSfreeBufferMemoryArray(bufmem, &ISUPPZ);
+   BMSfreeBufferMemoryArray(bufmem, &WTMP);/*lint !e737*/
+   BMSfreeBufferMemoryArray(bufmem, &IWORK);/*lint !e737*/
+   BMSfreeBufferMemoryArray(bufmem, &WORK);/*lint !e737*/
 
    return SCIP_OKAY;
 }

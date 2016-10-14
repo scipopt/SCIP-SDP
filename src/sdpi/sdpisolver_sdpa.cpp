@@ -57,12 +57,16 @@
 #include "blockmemshell/memory.h"            /* for memory allocation */
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
+#include "sdpi/sdpvarchecker.h"              /* to check solution with regards to feasibility tolerance */
 
 /* local defines */
-#define EPSILONCHANGE   1                    /**< change epsilon by this factor when switching from fast to default and from default to stable settings */
-#define FEASTOLCHANGE   1                    /**< change feastol by this factor when switching from fast to default and from default to stable settings */
-#define PENALTYBOUNDTOL 1E-3                 /**< if the relative gap between Tr(X) and penaltyparam for a primal solution of the penaltyformulation
+#define EPSILONCHANGE               1        /**< change epsilon by this factor when switching from fast to default and from default to stable settings */
+#define FEASTOLCHANGE               1        /**< change feastol by this factor when switching from fast to default and from default to stable settings */
+#define PENALTYBOUNDTOL             1E-3     /**< if the relative gap between Tr(X) and penaltyparam for a primal solution of the penaltyformulation
                                               *   is bigger than this value, it will be reported to the sdpi */
+
+#define INFEASFEASTOLCHANGE         0.1      /**< change feastol by this factor if the solution was found to be infeasible with regards to feastol */
+#define INFEASMINFEASTOL            1E-9     /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance */
 
 #define MIN_LAMBDASTAR              1e0      /**< if lambda star is to be computed, this is the minimum value it will take */
 #define MAX_LAMBDASTAR              1e8      /**< if lambda star is to be computed, this is the maximum value it will take */
@@ -168,6 +172,117 @@ SCIP_Bool isFixed(
 #define isFixed(sdpisolver,lb,ub) (REALABS(ub-lb) <= sdpisolver->feastol)
 #endif
 
+/** If the problem is feasible for SDPA but not within our feasibility tolerance, adjust feasibility tolerance in
+ *  SDPA and resolve until feasibility in SDPA and feasibility with regards to our tolerance match */
+static
+SCIP_RETCODE checkFeastolAndResolve(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
+   SCIP_Real             penaltyparam,       /**< penalty parameter Gamma */
+   int                   nvars,              /**< number of variables */
+   SCIP_Real*            lb,                 /**< lower bounds of variables */
+   SCIP_Real*            ub,                 /**< upper bounds of variables */
+   int                   nsdpblocks,         /**< number of SDP-blocks */
+   int*                  sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
+   int*                  sdpnblockvars,      /**< number of variables that exist in each block */
+   int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-blocks AFTER FIXINGS */
+   int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
+                                              *   number of entries  of sdpconst row/col/val [i] AFTER FIXINGS */
+   int**                 sdpconstrow,        /**< pointers to row-indices for each block AFTER FIXINGS*/
+   int**                 sdpconstcol,        /**< pointers to column-indices for each block AFTER FIXINGS */
+   SCIP_Real**           sdpconstval,        /**< pointers to the values of the nonzeros for each block AFTER FIXINGS */
+   int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint-matrix */
+   int**                 sdpnblockvarnonz,   /**< entry [i][j] gives the number of nonzeros for block i and variable j, this is exactly
+                                              *   the number of entries of sdp row/col/val [i][j] */
+   int**                 sdpvar,             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
+                                              *   in the i-th block */
+   int***                sdprow,             /**< pointer to the row-indices for each block and variable */
+   int***                sdpcol,             /**< pointer to the column-indices for each block and variable */
+   SCIP_Real***          sdpval,             /**< values of SDP-constraintmmatrix entries (may be NULL if sdpnnonz = 0) */
+   int**                 indchanges,         /**< changes needed to be done to the indices, if indchanges[block][ind]=-1, then the index can
+                                              *   be removed, otherwise it gives the number of indices removed before this */
+   int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
+   int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
+   int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
+   int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
+   SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
+   SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
+   int*                  rownactivevars,     /**< number of active variables for each LP-constraint */
+   int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
+   int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
+   int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
+   SCIP_Real*            lpval,              /**< values of LP-constraint-matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   SCIP_Real*            feastol             /**< current feasibility tolerance for SDPA */
+   )
+{
+#ifdef SCIP_DEBUG
+   char phase_string[15];
+#endif
+
+   assert( feastol != NULL );
+
+   while ( SCIPsdpiSolverIsAcceptable(sdpisolver) && SCIPsdpiSolverIsDualFeasible(sdpisolver) && penaltyparam < sdpisolver->epsilon && *feastol >= INFEASMINFEASTOL )
+   {
+      SCIP_Real* solvector;
+      int nvarspointer;
+      SCIP_Bool infeasible;
+
+      /* get current solution */
+      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &solvector, nvars) );
+      nvarspointer = nvars;
+      SCIP_CALL( SCIPsdpiSolverGetSol(sdpisolver, NULL, solvector, &nvarspointer) );
+      assert( nvarspointer == nvars );
+
+      /* check the solution for feasibility with regards to our tolerance */
+      SCIP_CALL( SCIPsdpVarcheckerCheck(sdpisolver->bufmem, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
+            sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
+            indchanges, nremovedinds, blockindchanges, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol, lpval,
+            solvector, sdpisolver->feastol, &infeasible) );
+
+      BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solvector);
+
+      if ( infeasible )
+      {
+         SCIPdebugMessage("Solution feasible for SDPA but outside feasibility tolerance, changing SDPA feasibility tolerance from %f to %f\n",
+               *feastol, *feastol * INFEASFEASTOLCHANGE);
+         *feastol *= INFEASFEASTOLCHANGE;
+
+         if ( *feastol >= INFEASMINFEASTOL )
+         {
+            /* update settings */
+            sdpisolver->sdpa->setParameterEpsilonDash(*feastol);
+
+#ifdef SCIP_MORE_DEBUG
+            sdpisolver->sdpa->printParameters(stdout);
+#endif
+            sdpisolver->sdpa->setInitPoint(false);
+#ifdef SDPA_RESETPARAMS
+            sdpisolver->sdpa->resetParameters();
+#else
+            sdpisolver->sdpa->initializeSolve();
+#endif
+            sdpisolver->sdpa->solve();
+
+            /* update number of SDP-iterations and -calls */
+            sdpisolver->niterations += (int) sdpisolver->sdpa->getIteration();
+            sdpisolver->nsdpcalls += 1;
+
+#ifdef SCIP_DEBUG
+            /* print the phase value , i.e. whether solving was successfull */
+            sdpisolver->sdpa->getPhaseString((char*)phase_string);
+            SCIPdebugMessage("SDPA solving finished with status %s (primal and dual here are switched in contrast to our formulation)\n", phase_string);
+#endif
+         }
+         else
+         {
+            sdpisolver->solved = FALSE;
+            SCIPmessagePrintInfo(sdpisolver->messagehdlr, "SDPA failed to reach required feasibility tolerance! \n");
+         }
+      }
+      else
+         break;
+   }
+   return SCIP_OKAY;
+}
 
 /*
  * Miscellaneous Methods
@@ -356,7 +471,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int**                 sdpconstcol,        /**< pointers to column-indices for each block AFTER FIXINGS */
    SCIP_Real**           sdpconstval,        /**< pointers to the values of the nonzeros for each block AFTER FIXINGS */
    int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint-matrix */
-   int**                 sdpnblockvarnonz,   /**< entry [i][j] gives the number of nonzeros for block i and variable j, this is exactly
+   int**                 sdpnblockvarnonz,   /**< entry [i][j] gives the number of nonzheckFeastolAndResolve(SCIP_SDPISOLVER*, int, double*, double*, int, int*, int*, int, int*, int**, int**, double**, int, int**, int**, int***, int***, double***, int**, int*, int, int, double*, double*, int*, int, int*, int*, double*, double*, int)’:
+src/sdpi/sdpisolver_sdpa.cpp:217:98: error: ‘penaltyparam’ was not declared in this scope
+   eros for block i and variable j, this is exactly
                                               *   the number of entries of sdp row/col/val [i][j] */
    int**                 sdpvar,             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
                                               *   in the i-th block */
@@ -427,7 +544,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int**                 sdpconstcol,        /**< pointers to column-indices for each block AFTER FIXINGS */
    SCIP_Real**           sdpconstval,        /**< pointers to the values of the nonzeros for each block AFTER FIXINGS */
    int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint-matrix */
-   int**                 sdpnblockvarnonz,   /**< entry [i][j] gives the number of nonzeros for block i and variable j, this is exactly
+   int**                 sdpnblockvarnonz,   /**< entry [i][j] gives the number of nonheckFeastolAndResolve(SCIP_SDPISOLVER*, int, double*, double*, int, int*, int*, int, int*, int**, int**, double**, int, int**, int**, int***, int***, double***, int**, int*, int, int, double*, double*, int*, int, int*, int*, double*, double*, int)’:
+src/sdpi/sdpisolver_sdpa.cpp:217:98: error: ‘penaltyparam’ was not declared in this scope
+   zeros for block i and variable j, this is exactly
                                               *   the number of entries of sdp row/col/val [i][j] */
    int**                 sdpvar,             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
                                               *   in the i-th block */
@@ -458,6 +577,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                                               *   this is also an indication of the penalty parameter being to small (may be NULL if not needed) */
    )
 {/*lint !e1784*/
+   SCIP_Real feastol;
    SCIP_Real* sdpavarbounds;
    int i;
    int k;
@@ -607,6 +727,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* as we want to solve with stable settings, we also update epsilon and the feasibility tolerance, as we skip the default settings, we multpy twice */
       sdpisolver->sdpa->setParameterEpsilonStar(EPSILONCHANGE * EPSILONCHANGE * sdpisolver->epsilon);
       sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->feastol);
+      feastol = FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->feastol;
       SCIPdebugMessage("Start solving process with stable settings\n");
    }
    else if ( startsettings == SCIP_SDPSOLVERSETTING_UNSOLVED || startsettings == SCIP_SDPSOLVERSETTING_FAST)
@@ -614,6 +735,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_UNSTABLE_BUT_FAST);
       sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->epsilon);
       sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->feastol);
+      feastol = sdpisolver->feastol;
       SCIPdebugMessage("Start solving process with fast settings\n");
    }
    else if ( startsettings == SCIP_SDPSOLVERSETTING_MEDIUM )
@@ -622,6 +744,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* as we want to solve with stable settings, we also update epsilon and the feasibility tolerance, as we skip the default settings, we multpy once */
       sdpisolver->sdpa->setParameterEpsilonStar(EPSILONCHANGE * sdpisolver->epsilon);
       sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * sdpisolver->feastol);
+      feastol = FEASTOLCHANGE * sdpisolver->feastol;
       SCIPdebugMessage("Start solving process with medium settings\n");
    }
    else
@@ -1189,6 +1312,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    else if ( penaltyparam >= sdpisolver->epsilon )
       sdpisolver->usedsetting = SCIP_SDPSOLVERSETTING_PENALTY;
 
+   /* if the problem has been stably solved but did not reach the required feasibility tolerance, even though the solver
+    * reports feasibility, resolve it with adjusted tolerance */
+   SCIP_CALL( checkFeastolAndResolve(sdpisolver, penaltyparam, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
+         sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
+         nremovedinds, blockindchanges, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol, lpval, &feastol) );
+
    /* check whether problem has been stably solved, if it wasn't and we didn't yet use the default parametersettings (for the penalty formulation we do so), try
     * again with more stable parameters */
    if ( ! SCIPsdpiSolverIsAcceptable(sdpisolver) && penaltyparam < sdpisolver->epsilon &&
@@ -1236,6 +1365,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       SCIPdebugMessage("SDPA solving finished with status %s (primal and dual here are switched in contrast to our formulation)\n", phase_string);
 #endif
 
+      /* if the problem has been stably solved but did not reach the required feasibility tolerance, even though the solver
+       * reports feasibility, resolve it with adjusted tolerance */
+      SCIP_CALL( checkFeastolAndResolve(sdpisolver, penaltyparam, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
+            sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
+            nremovedinds, blockindchanges, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol, lpval, &feastol) );
+
       /* if we still didn't converge, and did not yet use the stable settings, set the parameters even more conservativly */
       if ( (! SCIPsdpiSolverIsAcceptable(sdpisolver)) && penaltyparam < sdpisolver->epsilon &&
          (startsettings == SCIP_SDPSOLVERSETTING_UNSOLVED || startsettings == SCIP_SDPSOLVERSETTING_FAST || startsettings == SCIP_SDPSOLVERSETTING_MEDIUM) )
@@ -1281,6 +1416,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          sdpisolver->sdpa->getPhaseString((char*)phase_string);
          SCIPdebugMessage("SDPA solving finished with status %s (primal and dual here are switched in constrast to our formulation)\n", phase_string);
 #endif
+
+         /* if the problem has been stably solved but did not reach the required feasibility tolerance, even though the solver
+          * reports feasibility, resolve it with adjusted tolerance */
+         SCIP_CALL( checkFeastolAndResolve(sdpisolver, penaltyparam, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
+               sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
+               nremovedinds, blockindchanges, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol, lpval, &feastol) );
       }
    }
 

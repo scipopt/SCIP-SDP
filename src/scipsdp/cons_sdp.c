@@ -330,7 +330,7 @@ SCIP_RETCODE cutUsingEigenvector(
    /* expand it because LAPACK wants the full matrix instead of the lower triangular part */
    SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
 
-   SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPblkmem(scip), TRUE, blocksize, fullmatrix, 1, eigenvalues, eigenvector) );
+   SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, blocksize, fullmatrix, 1, eigenvalues, eigenvector) );
 
    /* get full constant matrix */
    SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, cons, fullconstmatrix) );
@@ -389,7 +389,7 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix) );
    SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
 
-   SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPblkmem(scip), FALSE, blocksize, fullmatrix, 1, &eigenvalue, NULL) );
+   SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, fullmatrix, 1, &eigenvalue, NULL) );
 
    /* This enables checking the second DIMACS Error Norm: err=max{0, -lambda_min(x)/(1+maximumentry of rhs)}, in that case it also needs
     * to be changed in the sdpi (and implemented there first), when checking feasibility of problems where all variables are fixed */
@@ -1634,7 +1634,7 @@ SCIP_DECL_CONSLOCK(consLockSdp)
       SCIP_CALL( SCIPconsSdpGetFullAj(scip, cons, var, Aj) );
 
       /* compute the smallest eigenvalue */
-      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPblkmem(scip), FALSE, blocksize, Aj, 1, &eigenvalue, NULL) );
+      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, 1, &eigenvalue, NULL) );
       if ( SCIPisNegative(scip, eigenvalue) )
       {
          /* as the lowest eigenvalue is negative, the matrix is not positive semidefinite, so adding more of it can remove positive
@@ -1652,7 +1652,7 @@ SCIP_DECL_CONSLOCK(consLockSdp)
       else
       {
          /* compute the biggest eigenvalue */
-         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPblkmem(scip), FALSE, blocksize, Aj, blocksize, &eigenvalue, NULL) );
+         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, blocksize, &eigenvalue, NULL) );
          if ( SCIPisPositive(scip, eigenvalue) )
          {
             /* as the biggest eigenvalue is positive, the matrix is not negative semidefinite, so substracting more of it can remove positive
