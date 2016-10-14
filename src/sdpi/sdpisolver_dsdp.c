@@ -52,6 +52,7 @@
 #include "blockmemshell/memory.h"            /* for memory allocation */
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
+#include "sdpi/sdpvarchecker.h"              /* to check solution with regards to feasibility tolerance */
 
 /* turn off lint warnings for whole file: */
 /*lint --e{788,818}*/
@@ -64,6 +65,8 @@
 #define PENALTYPARAM_FACTOR         1e4      /**< if the penalty parameter is to be computed, the maximal objective coefficient will be multiplied by this */
 #define MAX_MAXPENALTYPARAM         1e15     /**< if the maximum penaltyparameter is to be computed, this is the maximum value it will take */
 #define MAXPENALTYPARAM_FACTOR      1e6      /**< if the maximum penaltyparameter is to be computed, it will be set to penaltyparam * this */
+#define INFEASFEASTOLCHANGE         0.1      /**< change feastol by this factor if the solution was found to be infeasible with regards to feastol */
+#define INFEASMINFEASTOL            1E-9     /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance */
 
 /** Calls a DSDP-Function and transforms the return-code to a SCIP_LPERROR if needed. */
 #define DSDP_CALL(x)  do                                                                                     \
@@ -176,6 +179,8 @@ struct SCIP_SDPiSolver
    SCIP_SDPSOLVERSETTING usedsetting;        /**< setting used to solve the last SDP */
    SCIP_Bool             timelimit;          /**< was the solver stopped because of the time limit? */
    SCIP_Bool             timelimitinitial;   /**< was the problem not even given to the solver because of the time limit? */
+   int                   niterations;        /**< number of SDP-iterations since the last solve call */
+   int                   nsdpcalls;          /**< number of SDP-calls since the last solve call */
 };
 
 typedef struct Timings
@@ -371,6 +376,8 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->timelimit = FALSE;
    (*sdpisolver)->timelimitinitial = FALSE;
    (*sdpisolver)->sdpcounter = 0;
+   (*sdpisolver)->niterations = 0;
+   (*sdpisolver)->nsdpcalls = 0;
 
    (*sdpisolver)->epsilon = 1e-4;
    (*sdpisolver)->feastol = 1e-6;
@@ -591,6 +598,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int nfixedvars;
    int dsdpnlpnonz = 0;
    int nrnonz = 0;
+   SCIP_Real feastol;
    Timings timings;
 
 #ifdef SCIP_DEBUG
@@ -669,6 +677,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->nvars = nvars;
    sdpisolver->nactivevars = 0;
    nfixedvars = 0;
+   sdpisolver->niterations = 0;
+   sdpisolver->nsdpcalls = 0;
 
    /* find the fixed variables */
    sdpisolver->fixedvarsobjcontr = 0.0;
@@ -1287,6 +1297,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
    DSDP_CALL( DSDPSolve(sdpisolver->dsdp) );
 
+   sdpisolver->nsdpcalls++;
+   DSDP_CALL( DSDPGetIts(sdpisolver->dsdp, &(sdpisolver->niterations)) );
+
    /* check if solving was stopped because of the time limit */
    if ( timings.stopped )
    {
@@ -1298,6 +1311,72 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->timelimit = FALSE;
       DSDP_CALL( DSDPComputeX(sdpisolver->dsdp) ); /* computes X and determines feasibility and unboundedness of the solution */
       sdpisolver->solved = TRUE;
+   }
+
+   /* if the problem has been stably solved but did not reach the required feasibility tolerance, even though the solver
+    * reports feasibility, resolve it with adjusted tolerance */
+   feastol = sdpisolver->feastol;
+
+   while ( SCIPsdpiSolverIsAcceptable(sdpisolver) && SCIPsdpiSolverIsDualFeasible(sdpisolver) && penaltyparam < sdpisolver->epsilon && feastol >= INFEASMINFEASTOL )
+   {
+      SCIP_Real* solvector;
+      int nvarspointer;
+      SCIP_Bool infeasible;
+      int newiterations;
+
+      /* get current solution */
+      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &solvector, nvars) );
+      nvarspointer = nvars;
+      SCIP_CALL( SCIPsdpiSolverGetSol(sdpisolver, NULL, solvector, &nvarspointer) );
+      assert( nvarspointer == nvars );
+
+      /* check the solution for feasibility with regards to our tolerance */
+      SCIP_CALL( SCIPsdpVarcheckerCheck(sdpisolver->bufmem, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
+            sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
+            indchanges, nremovedinds, blockindchanges, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol, lpval,
+            solvector, sdpisolver->feastol, &infeasible) );
+
+      BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solvector);
+
+      if ( infeasible )
+      {
+         SCIPdebugMessage("Solution feasible for DSDP but outside feasibility tolerance, changing SDPA feasibility tolerance from %f to %f\n",
+               feastol, feastol * INFEASFEASTOLCHANGE);
+         feastol *= INFEASFEASTOLCHANGE;
+
+         if ( feastol >= INFEASMINFEASTOL )
+         {
+            /* update settings */
+            DSDP_CALL( DSDPSetRTolerance(sdpisolver->dsdp, feastol) );    /* set DSDP's tolerance for the SDP-constraints */
+
+            DSDP_CALL( DSDPSolve(sdpisolver->dsdp) );
+
+            /* update number of SDP-iterations and -calls */
+            sdpisolver->nsdpcalls++;
+            DSDP_CALL( DSDPGetIts(sdpisolver->dsdp, &newiterations) );
+            sdpisolver->niterations += newiterations;
+
+            /* check if solving was stopped because of the time limit */
+            if ( timings.stopped )
+            {
+               sdpisolver->timelimit = TRUE;
+               sdpisolver->solved = FALSE;
+            }
+            else
+            {
+               sdpisolver->timelimit = FALSE;
+               DSDP_CALL( DSDPComputeX(sdpisolver->dsdp) ); /* computes X and determines feasibility and unboundedness of the solution */
+               sdpisolver->solved = TRUE;
+            }
+         }
+         else
+         {
+            sdpisolver->solved = FALSE;
+            SCIPmessagePrintInfo(sdpisolver->messagehdlr, "SDPA failed to reach required feasibility tolerance! \n");
+         }
+      }
+      else
+         break;
    }
 
    /*these arrays were used to give information to DSDP and were needed during solving and for computing X, so they may only be freed now*/
@@ -2014,7 +2093,7 @@ SCIP_RETCODE SCIPsdpiSolverGetIterations(
    if ( sdpisolver->timelimitinitial )
       *iterations = 0;
    else
-      DSDP_CALL( DSDPGetIts(sdpisolver->dsdp, iterations) );
+      *iterations = sdpisolver->niterations;
 
    return SCIP_OKAY;
 }
@@ -2031,7 +2110,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSdpCalls(
    if ( sdpisolver->timelimitinitial )
       *calls = 0;
    else
-      *calls = 1;
+      *calls = sdpisolver->nsdpcalls;
 
    return SCIP_OKAY;
 }
