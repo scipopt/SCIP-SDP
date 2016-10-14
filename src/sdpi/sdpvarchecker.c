@@ -169,7 +169,7 @@ SCIP_RETCODE SCIPsdpVarcheckerCheck(
       {
          if ( rownactivevars[i] > 1 )
          {
-            if ( lpconsvals[i] < lplhs[ind] - feastol || lpconsvals[i] > lprhs[ind] - feastol)
+            if ( lpconsvals[i] < lplhs[ind] - feastol || lpconsvals[i] > lprhs[ind] + feastol)
             {
                SCIPdebugMessage("solution found infeasible (feastol=%f) for lp constraint: LP-%d = %f <|= [%f,%f]\n",
                      feastol, i, lpconsvals[i], lplhs[ind], lprhs[ind]);
