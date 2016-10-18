@@ -30,14 +30,14 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   sdpvarchecker.c
+/**@file   sdpsolchecker.c
  * @brief  checks a given SDP solution for feasibility
  * @author Tristan Gally
  */
 
 #define SCIP_DEBUG
 
-#include "sdpi/sdpvarchecker.h"
+#include "sdpi/sdpsolchecker.h"
 #include "sdpi/lapack.h"
 
 /** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY. */
@@ -54,7 +54,7 @@
 /** Given a solution, an SDP instance and a feasibility tolerance, checks whether
  *  the smallest eigenvalue is >= -feastol for a given feasibility tolerance.
  */
-SCIP_RETCODE SCIPsdpVarcheckerCheck(
+SCIP_RETCODE SCIPsdpSolcheckerCheck(
    BMS_BUFMEM*           bufmem,             /**< buffer memory */
    int                   nvars,              /**< number of variables */
    SCIP_Real*            lb,                 /**< lower bounds of variables */

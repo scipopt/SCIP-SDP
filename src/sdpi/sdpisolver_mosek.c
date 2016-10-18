@@ -70,7 +70,7 @@
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
 #include "mosek.h"                           /* for MOSEK routines */
-#include "sdpi/sdpvarchecker.h"              /* to check solution with regards to feasibility tolerance */
+#include "sdpi/sdpsolchecker.h"              /* to check solution with regards to feasibility tolerance */
 
 /* TODO: use  MSK_putexitfunc to catch errors
  * TODO: set objlimit via MSK_DPAR_LOWER_OBJ_CUT
@@ -1233,7 +1233,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          assert( nvarspointer == nvars );
 
          /* check the solution for feasibility with regards to our tolerance */
-         SCIP_CALL( SCIPsdpVarcheckerCheck(sdpisolver->bufmem, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
+         SCIP_CALL( SCIPsdpSolcheckerCheck(sdpisolver->bufmem, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
                indchanges, nremovedinds, blockindchanges, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol, lpval,
                solvector, sdpisolver->feastol, &infeasible) );

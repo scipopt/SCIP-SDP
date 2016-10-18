@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   sdpvarchecker.h
+/**@file   sdpsolchecker.h
  * @brief  checks a given SDP solution for feasibility
  * @author Tristan Gally
  *
@@ -53,7 +53,7 @@ extern "C" {
  *  the smallest eigenvalue is >= -feastol for a given feasibility tolerance.
  */
 EXTERN
-SCIP_RETCODE SCIPsdpVarcheckerCheck(
+SCIP_RETCODE SCIPsdpSolcheckerCheck(
    BMS_BUFMEM*           bufmem,             /**< buffer memory */
    int                   nvars,              /**< number of variables */
    SCIP_Real*            lb,                 /**< lower bounds of variables */
