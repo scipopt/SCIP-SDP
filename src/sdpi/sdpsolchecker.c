@@ -224,7 +224,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
             /* iterate over all non-fixed variables and add the corresponding nonzeros */
             for (v = 0; v < sdpnblockvars[b]; v++)
             {
-               if ( lb[v] < ub[v] - feastol )
+               if ( lb[sdpvar[b][v]] < ub[sdpvar[b][v]] - feastol )
                {
                   for (i = 0; i < sdpnblockvarnonz[b][v]; i++)
                   {
