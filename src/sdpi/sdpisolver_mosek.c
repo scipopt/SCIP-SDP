@@ -1242,7 +1242,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
          if ( infeasible )
          {
-            SCIPdebugMessage("Solution feasible for MOSEK but outside feasibility tolerance, changing SDPA feasibility tolerance from %f to %f\n",
+            SCIPdebugMessage("Solution feasible for MOSEK but outside feasibility tolerance, changing MOSEK feasibility tolerance from %f to %f\n",
                   feastol, feastol * INFEASFEASTOLCHANGE);
             feastol *= INFEASFEASTOLCHANGE;
 
@@ -1284,7 +1284,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             else
             {
                sdpisolver->solved = FALSE;
-               SCIPmessagePrintInfo(sdpisolver->messagehdlr, "SDPA failed to reach required feasibility tolerance! \n");
+               SCIPmessagePrintInfo(sdpisolver->messagehdlr, "MOSEK failed to reach required feasibility tolerance! \n");
             }
          }
          else
