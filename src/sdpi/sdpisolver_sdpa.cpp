@@ -1370,59 +1370,59 @@ src/sdpi/sdpisolver_sdpa.cpp:217:98: error: ‘penaltyparam’ was not declared 
       SCIP_CALL( checkFeastolAndResolve(sdpisolver, penaltyparam, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
             nremovedinds, blockindchanges, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol, lpval, &feastol) );
+   }
 
-      /* if we still didn't converge, and did not yet use the stable settings, set the parameters even more conservativly */
-      if ( (! SCIPsdpiSolverIsAcceptable(sdpisolver)) && penaltyparam < sdpisolver->epsilon &&
-         (startsettings == SCIP_SDPSOLVERSETTING_UNSOLVED || startsettings == SCIP_SDPSOLVERSETTING_FAST || startsettings == SCIP_SDPSOLVERSETTING_MEDIUM) )
-      {
-         SCIPdebugMessage("Numerical troubles -- solving SDP %d again^2 ...\n", sdpisolver->sdpcounter);
+   /* if we still didn't converge, and did not yet use the stable settings, set the parameters even more conservativly */
+   if ( (! SCIPsdpiSolverIsAcceptable(sdpisolver)) && penaltyparam < sdpisolver->epsilon &&
+      (startsettings == SCIP_SDPSOLVERSETTING_UNSOLVED || startsettings == SCIP_SDPSOLVERSETTING_FAST || startsettings == SCIP_SDPSOLVERSETTING_MEDIUM) )
+   {
+      SCIPdebugMessage("Numerical troubles -- solving SDP %d again^2 ...\n", sdpisolver->sdpcounter);
 
-         /* initialize settings */
-         sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_STABLE_BUT_SLOW);
-         sdpisolver->sdpa->setParameterEpsilonStar(EPSILONCHANGE * EPSILONCHANGE * sdpisolver->epsilon);
-         sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->feastol);
-         sdpisolver->sdpa->setParameterLowerBound(-1e20);
-         /* set the objective limit */
-         if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
-            sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
-         else
-            sdpisolver->sdpa->setParameterUpperBound(1e8);
+      /* initialize settings */
+      sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_STABLE_BUT_SLOW);
+      sdpisolver->sdpa->setParameterEpsilonStar(EPSILONCHANGE * EPSILONCHANGE * sdpisolver->epsilon);
+      sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->feastol);
+      sdpisolver->sdpa->setParameterLowerBound(-1e20);
+      /* set the objective limit */
+      if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
+         sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
+      else
+         sdpisolver->sdpa->setParameterUpperBound(1e8);
 
-         /* increase Lambda Star, this seems to help the numerics */
-         sdpisolver->sdpa->setParameterLambdaStar(sdpisolver->lambdastar);
+      /* increase Lambda Star, this seems to help the numerics */
+      sdpisolver->sdpa->setParameterLambdaStar(sdpisolver->lambdastar);
 
 #ifdef SCIP_MORE_DEBUG
-   sdpisolver->sdpa->printParameters(stdout);
+sdpisolver->sdpa->printParameters(stdout);
 #endif
-         sdpisolver->sdpa->setInitPoint(false);
+      sdpisolver->sdpa->setInitPoint(false);
 #ifdef SDPA_RESETPARAMS
-         sdpisolver->sdpa->resetParameters();
+      sdpisolver->sdpa->resetParameters();
 #else
-         sdpisolver->sdpa->initializeSolve();
+      sdpisolver->sdpa->initializeSolve();
 #endif
-         sdpisolver->sdpa->solve();
-         sdpisolver->solved = TRUE;
+      sdpisolver->sdpa->solve();
+      sdpisolver->solved = TRUE;
 
-         /* update number of SDP-iterations and -calls */
-         sdpisolver->niterations += (int) sdpisolver->sdpa->getIteration();
-         sdpisolver->nsdpcalls += 1;
+      /* update number of SDP-iterations and -calls */
+      sdpisolver->niterations += (int) sdpisolver->sdpa->getIteration();
+      sdpisolver->nsdpcalls += 1;
 
-         /* remember setting */
-         if ( SCIPsdpiSolverIsAcceptable(sdpisolver) )
-            sdpisolver->usedsetting = SCIP_SDPSOLVERSETTING_STABLE;
+      /* remember setting */
+      if ( SCIPsdpiSolverIsAcceptable(sdpisolver) )
+         sdpisolver->usedsetting = SCIP_SDPSOLVERSETTING_STABLE;
 
 #ifdef SCIP_DEBUG
-         /* print the phase value , i.e. whether solving was successfull */
-         sdpisolver->sdpa->getPhaseString((char*)phase_string);
-         SCIPdebugMessage("SDPA solving finished with status %s (primal and dual here are switched in constrast to our formulation)\n", phase_string);
+      /* print the phase value , i.e. whether solving was successfull */
+      sdpisolver->sdpa->getPhaseString((char*)phase_string);
+      SCIPdebugMessage("SDPA solving finished with status %s (primal and dual here are switched in constrast to our formulation)\n", phase_string);
 #endif
 
-         /* if the problem has been stably solved but did not reach the required feasibility tolerance, even though the solver
-          * reports feasibility, resolve it with adjusted tolerance */
-         SCIP_CALL( checkFeastolAndResolve(sdpisolver, penaltyparam, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
-               sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
-               nremovedinds, blockindchanges, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol, lpval, &feastol) );
-      }
+      /* if the problem has been stably solved but did not reach the required feasibility tolerance, even though the solver
+       * reports feasibility, resolve it with adjusted tolerance */
+      SCIP_CALL( checkFeastolAndResolve(sdpisolver, penaltyparam, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
+            sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
+            nremovedinds, blockindchanges, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol, lpval, &feastol) );
    }
 
 #ifdef SCIP_MORE_DEBUG
