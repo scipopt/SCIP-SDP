@@ -215,7 +215,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
             /* initialize lower triangular part of fullsdpmatrix with zero */
             for (i = 0; i < sdpblocksizes[b] - nremovedinds[b]; i++)
             {
-               for (j = 0; j < i; j++)
+               for (j = 0; j <= i; j++)
                {
                   fullsdpmatrix[i * (sdpblocksizes[b] - nremovedinds[b]) + j] = 0.0;
                }
@@ -256,7 +256,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
             if ( eigenvalue < - feastol )
             {
                SCIPdebugMessage("solution found infeasible (feastol=%f) for sdp constraint %d, smallest eigenvector %f\n",
-                     feastol, i, eigenvalue);
+                     feastol, b, eigenvalue);
                BMSfreeBufferMemoryArray(bufmem, &fullsdpmatrix);
                *infeasible = TRUE;
                return SCIP_OKAY;
