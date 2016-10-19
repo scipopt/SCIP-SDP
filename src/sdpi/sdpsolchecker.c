@@ -189,24 +189,21 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
    {
       SCIP_Real* fullsdpmatrix;
       SCIP_Real eigenvalue;
+      int maxblocksize = 0;
 
       /* allocate memory */
       if ( nsdpblocks == 1 )
-      {
-         BMS_CALL( BMSallocBufferMemoryArray(bufmem, &fullsdpmatrix, sdpblocksizes[0] - nremovedinds[0]) );
-      }
+         maxblocksize = sdpblocksizes[0] - nremovedinds[0];
       else
       {
-         int maxblocksize = 0;
-
          /* calculate maximum size of any SDP block to not have to reallocate memory in between */
          for (b = 0; b < nsdpblocks; b++)
          {
             maxblocksize = ((sdpblocksizes[b] - nremovedinds[b]) > maxblocksize) ? sdpblocksizes[b] - nremovedinds[b] : maxblocksize;
          }
-
-         BMS_CALL( BMSallocBufferMemoryArray(bufmem, &fullsdpmatrix, maxblocksize) );
       }
+
+      BMS_CALL( BMSallocBufferMemoryArray(bufmem, &fullsdpmatrix, maxblocksize * maxblocksize) );
 
       for (b = 0; b < nsdpblocks; b++)
       {
