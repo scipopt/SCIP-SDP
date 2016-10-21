@@ -1212,7 +1212,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       sdpisolver->solved = TRUE;
 
-      sdpisolver->nsdpcalls++;
+      sdpisolver->nsdpcalls = 1;
       MOSEK_CALL( MSK_getnaintinf(sdpisolver->msktask, "MSK_IINF_INTPNT_ITER", &(sdpisolver->niterations)) );/*lint !e641*/
 
       /* if the problem has been stably solved but did not reach the required feasibility tolerance, even though the solver
