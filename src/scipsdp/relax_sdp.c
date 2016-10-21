@@ -584,7 +584,6 @@ SCIP_RETCODE calcRelax(
    SCIP_Real timelimit;
    SCIP_Real objforscip;
    SCIP_Real* solforscip;
-   SCIP_Bool allint;
    SCIP_SDPSLATERSETTING slatersetting;
    SCIP_SDPSLATER primalslater;
    SCIP_SDPSLATER dualslater;
@@ -592,7 +591,6 @@ SCIP_RETCODE calcRelax(
    int naddedsdpcalls;
    int nvars;
    int i;
-   int v;
 
    SCIPdebugMessage("calcRelax called\n");
 
@@ -922,8 +920,6 @@ SCIP_RETCODE calcRelax(
       {
          SCIP_SOL* scipsol;
          SCIP_COL** cols;
-         SCIP_Bool stored;
-         SCIP_Bool allfeas;
          int ncols;
          int slength;
 
@@ -935,56 +931,15 @@ SCIP_RETCODE calcRelax(
          assert( slength == nvars ); /* If this isn't true any longer, the getSol-Call was unsuccessfull, because the given array wasn't long enough,
                                       * but this can't happen, because the array has enough space for all sdp variables. */
 
-         /* check if the solution is integral */
-         allint = TRUE;
-         for (v = 0; v < nvars; v++)
-         {
-            if ( SCIPvarIsIntegral(SCIPsdpVarmapperGetSCIPvar(varmapper, v)) && ! SCIPisFeasIntegral(scip, solforscip[v]) )
-            {
-               allint = FALSE;
-               break;
-            }
-         }
-
          /* create SCIP solution */
          SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
          SCIP_CALL( SCIPsetSolVals(scip, scipsol, nvars, vars, solforscip) );
 
-         *lowerbound = objforscip;
-         relaxdata->objval = objforscip;
-
-         if ( allint ) /* if the solution is integer, we might have found a new best solution for the MISDP */
-         {
-            SCIP_CALL( SCIPcheckSol(scip, scipsol, TRUE, FALSE, FALSE, FALSE, &allfeas) ); /* is this really needed ? */
-            if ( allfeas )
-            {
-               /* if we are not in probing give the solution to SCIP so that we can cut the node off, otherwise let the heuristic do it */
-               if ( ! SCIPinProbing(scip) )
-               {
-                  SCIP_CALL( SCIPtrySol(scip, scipsol, TRUE, FALSE, FALSE, FALSE, &stored) );
-                  if (stored)
-                  {
-                     SCIPdebugMessage("feasible solution for MISDP found, cut node off, solution is stored.\n");
-                  }
-                  else
-                  {
-                     SCIPdebugMessage("feasible solution for MISDP found, cut node off, solution is worse than earlier one.\n");
-                  }
-               }
-
-               /* set relax sol */
-               SCIP_CALL( SCIPsetRelaxSolVals(scip, nvars, vars, solforscip) );
-               SCIP_CALL( SCIPmarkRelaxSolValid(scip) );
-
-               SCIPfreeBufferArray(scip, &solforscip);
-               SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
-
-               relaxdata->feasible = TRUE;
-               *result = SCIP_CUTOFF;
-               return SCIP_OKAY;
-            }
-            SCIPdebugMessage("Found a solution that is feasible for the SDP-solver and integrality, but infeasible for SCIP!\n");
-         }
+         /* Update the lower bound. Note that we cannot use the objective value given by the SDP-solver since this might
+          * vary from the value SCIP computes internally because of rounding errors when extracting the solution from the
+          * SDP-solver */
+         *lowerbound = SCIPgetSolTransObj(scip, scipsol);
+         relaxdata->objval = SCIPgetSolTransObj(scip, scipsol);
 
          /* copy solution */
          SCIP_CALL( SCIPgetLPColsData(scip, &cols, &ncols) );
@@ -994,22 +949,9 @@ SCIP_RETCODE calcRelax(
          }
 
          SCIP_CALL( SCIPmarkRelaxSolValid(scip) );
+
          relaxdata->feasible = TRUE;
          *result = SCIP_SUCCESS;
-
-         /* if all int and binary vars are integral, nothing else needs to be done */
-/*         if ( ! allint )
-         {
-            for (i = 0; i < nvars; ++i)
-            {
-               SCIP_VAR* var = vars[i];
-               if ( SCIPvarIsIntegral(var) && ! SCIPisFeasIntegral(scip, solforscip[i]) && ! SCIPisEQ(scip, SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var)) )
-               {
-                   we don't set a true score, we will just let the branching rule decide
-                  SCIP_CALL( SCIPaddExternBranchCand(scip, var, 10000.0, solforscip[i]) );
-               }
-            }
-         }*/
 
          SCIPfreeBufferArray(scip, &solforscip);
          SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
@@ -1134,7 +1076,10 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
       SCIP_CALL( SCIPsetSolVals(scip, scipsol, nvars, vars, solforscip) );
 
-      *lowerbound = objforscip;
+      /* Update the lower bound. Note that we cannot use the objective value given by the SDP-solver since this might
+       * vary from the value SCIP computes internally because of rounding errors when extracting the solution from the
+       * SDP-solver */
+      *lowerbound = SCIPgetSolTransObj(scip, scipsol);
 
       /* copy solution */
       SCIP_CALL( SCIPgetLPColsData(scip, &cols, &ncols) );
