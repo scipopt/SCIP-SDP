@@ -938,7 +938,7 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
       }
 
       /* compute the smallest eigenvalue */
-      SCIP_CALL( SCIPlapackComputeIthEigenvalue(sdpi->blkmem, FALSE, size, fullmatrix, 1, &eigenvalue, NULL) );
+      SCIP_CALL( SCIPlapackComputeIthEigenvalue(sdpi->bufmem, FALSE, size, fullmatrix, 1, &eigenvalue, NULL) );
 
       /* check if the eigenvalue is negative */
       if ( eigenvalue < -1 * sdpi->feastol )
