@@ -35,6 +35,7 @@
  * @author Tristan Gally
  *
  * Branch on the most fractional variable in the current SDP-relaxation, i.e. the variable maximizing \f$x-\lfloor x \rfloor \f$.
+ * Will do nothing for continuous variables, since these are what the external callbacks of the SCIP branching rules are for.
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
@@ -110,7 +111,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
     * variables of different types with maximal score, so these return values are set to NULL */
    SCIP_CALL( SCIPgetExternBranchCands(scip, &cands, &candssol, &candsscore, &ncands, NULL, NULL, NULL, NULL) );
 
-   assert( ncands > 0 ); /* branchExecext should only be called if the list of extern branching candidate is non-empty */
+   assert( ncands > 0 ); /* branchExecext should only be called if the list of external branching candidates is non-empty */
 
 #ifdef SCIP_DEBUG
    SCIPdebugMessage("branching candidates for SDP-mostfrac:\n");
@@ -126,6 +127,13 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
    /* iterate over all solution candidates to find the one with the highest fractionality */
    for (i = 0; i < ncands; i++)
    {
+      /* we skip all continuous variables, since we first want to branch on integral variables */
+      if ( SCIPvarGetType(cands[i]) == SCIP_VARTYPE_CONTINUOUS )
+      {
+         SCIPdebugMessage("skipping continuous variable %s\n", SCIPvarGetName(cands[i]));
+         continue;
+      }
+
       /* a candidate is better than the current one if:
        * - the fractionality is (feastol-)bigger than before or
        * - the fractionality is (feastol-)equal and the score is (epsilon-)bigger or
@@ -147,8 +155,16 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
       }
    }
 
+   /* if all variables were continuous, we return DIDNOTRUN and let one of the SCIP branching rules decide */
+   if ( mostfracfrac == -1.0 )
+   {
+      SCIPdebugMessage("Skipping SDP-mostfrac branching rule since all branching variables are continuous\n");
+      *result = SCIP_DIDNOTFIND;
+      return SCIP_OKAY;
+   }
+
    assert( mostfracvar != NULL );
-   assert( SCIPisFeasGT(scip, mostfracfrac, 0.0) ); /* otherwise all variables are fixed and there is nothing to branch */
+   assert( SCIPisFeasGT(scip, mostfracfrac, 0.0) );
 
    /* branch */
    SCIPdebugMessage("branching on variable %s with value %f and score %f\n", SCIPvarGetName(mostfracvar), mostfracval, mostfracscore);
