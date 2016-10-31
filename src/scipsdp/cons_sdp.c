@@ -834,8 +834,8 @@ SCIP_RETCODE diagDominant(
 #ifdef SCIP_MORE_DEBUG
             SCIPinfoMessage(scip, NULL, "Added lp-constraint %s: ", cutname);
             SCIPinfoMessage(scip, NULL, "1 <=");
-            for (i = 0; i < ndiagvars[j]; i++)
-               SCIPinfoMessage(scip, NULL, " + (%f)*%s", vals[i], SCIPvarGetName(vars[i]));
+            for (l = 0; l < ndiagvars[j]; l++)
+               SCIPinfoMessage(scip, NULL, " + (%f)*%s", vals[l], SCIPvarGetName(vars[l]));
             SCIPinfoMessage(scip, NULL, "\n");
 #endif
 
