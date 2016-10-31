@@ -178,7 +178,16 @@ static
 SCIP_DECL_CONSCOPY(consCopySavedsdpsettings)
 {  /*lint --e{715}*/
 
-   /* do not do anything: no savedsdpsettings constraint should be present in the copy */
+   if ( name )
+   {
+      SCIP_CALL( createConsSavedsdpsettings(scip, cons, name, SCIPconsSavedsdpsettingsGetSettings(sourcescip, sourcecons)) );
+   }
+   else
+   {
+      SCIP_CALL( createConsSavedsdpsettings(scip, cons, SCIPconsGetName(sourcecons), SCIPconsSavedsdpsettingsGetSettings(sourcescip, sourcecons)) );
+   }
+
+   *valid = TRUE;
    return SCIP_OKAY;
 }
 
