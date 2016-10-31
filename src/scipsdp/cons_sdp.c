@@ -1571,7 +1571,14 @@ SCIP_RETCODE EnforceConstraint(
       SCIP_CALL( SCIPaddCut(scip, sol, row, FALSE, &infeasible) );
 
       if ( infeasible )
+      {
          *result = SCIP_CUTOFF;
+
+         SCIP_CALL( SCIPreleaseRow(scip, &row) );
+         SCIPfreeBufferArray(scip, &coeff);
+
+         return SCIP_OKAY;
+      }
       else
       {
          SCIP_CALL( SCIPaddPoolCut(scip, row) );
