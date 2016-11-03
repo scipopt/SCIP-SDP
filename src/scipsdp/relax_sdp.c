@@ -1148,8 +1148,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
          *lowerbound += SCIPvarGetObj(vars[i]) * ubs[i];
          assert( SCIPisFeasEQ(scip, SCIPvarGetUbLocal(vars[i]), SCIPvarGetLbLocal(vars[i])));
       }
-      if ( SCIPgetObjsense(scip) == SCIP_OBJSENSE_MAXIMIZE )
-         *lowerbound *= -1;
 
       SCIPdebugMessage("EVERYTHING IS FIXED, objective value = %f\n", *lowerbound);
 
