@@ -289,7 +289,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
          }
 
          /* try to add solution to SCIP - do not need to check integrality here */
-         SCIP_CALL( SCIPtrySol(scip, heurdata->sol, FALSE, FALSE, FALSE, TRUE, &success) );
+         SCIP_CALL( SCIPtrySol(scip, heurdata->sol, FALSE, FALSE, FALSE, FALSE, TRUE, &success) );
 
          if ( success )
             SCIPdebugMessage("Iteration %d: found solution for full binary instance.\n", iter);
@@ -360,7 +360,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
                SCIP_CALL( SCIPlinkRelaxSol(scip, heurdata->sol) );
 
                /* try to add solution to SCIP: check all constraints, including integrality */
-               SCIP_CALL( SCIPtrySol(scip, heurdata->sol, FALSE, TRUE, TRUE, TRUE, &success) );
+               SCIP_CALL( SCIPtrySol(scip, heurdata->sol, FALSE, TRUE, TRUE, TRUE, TRUE, &success) );
                /* check, if solution was feasible and good enough */
                if ( success )
                {
