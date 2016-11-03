@@ -2022,10 +2022,7 @@ SCIP_DECL_CONSCOPY(consCopySdp)
    {
       SCIP_CALL( SCIPgetVarCopy(sourcescip, scip, sourcedata->vars[i], &var, varmap, consmap, global, &success) );
       if ( success )
-      {
          targetvars[i] = var;
-         SCIP_CALL( SCIPcaptureVar(scip, targetvars[i]) );
-      }
       else
          *valid = FALSE;
    }
