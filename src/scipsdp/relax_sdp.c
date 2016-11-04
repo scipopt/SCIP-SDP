@@ -574,7 +574,6 @@ SCIP_RETCODE calcRelax(
    char saveconsname[SCIP_MAXSTRLEN];
    SCIP_SDPSOLVERSETTING startsetting;
    SCIP_SDPSOLVERSETTING usedsetting;
-   SdpVarmapper* varmapper;
    SCIP_CONS* savedsetting;
    SCIP_CONS** conss;
    SCIP_VAR** vars;
@@ -605,8 +604,6 @@ SCIP_RETCODE calcRelax(
 
    sdpi = relaxdata->sdpi;
    assert( sdpi != NULL );
-   varmapper = relaxdata->varmapper;
-   assert( varmapper != NULL );
 
    if ( relaxdata->objlimit )
    {
