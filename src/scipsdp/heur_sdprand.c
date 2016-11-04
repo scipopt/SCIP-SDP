@@ -64,13 +64,14 @@
 
 #define DEFAULT_NROUNDS                 5    /**< number rounding rounds */
 #define DEFAULT_GENERALINTS             FALSE/**< Should randomized rounding also be applied if there are general integer variables and not only binary variables ? */
+#define DEFAULT_RANDSEED                211  /**< default random seed */
 
 /* locally defined heuristic data */
 struct SCIP_HeurData
 {
    SCIP_SOL*             sol;                /**< working solution */
    int                   nrounds;            /**< number of rounding rounds */
-   unsigned int          randseed;           /**< seed for random numbers */
+   SCIP_RANDNUMGEN*      randnumgen;         /**< random number generator */
    SCIP_Bool             generalints;        /**< Should randomized rounding also be applied if there are general integer variables and not only binary variables ? */
 };
 
@@ -106,6 +107,7 @@ SCIP_DECL_HEURFREE(heurFreeSdprand)
    /* free heuristic data */
    heurdata = SCIPheurGetData(heur);
    assert(heurdata != NULL);
+   SCIPrandomFree(&(heurdata->randnumgen));
    SCIPfreeMemory(scip, &heurdata);
    SCIPheurSetData(heur, NULL);
 
@@ -274,7 +276,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
             /* if the variable is not fixed and its value is fractional */
             if ( SCIPvarGetLbLocal(var) < 0.5 && SCIPvarGetUbLocal(var) > 0.5 && ! SCIPisFeasIntegral(scip, sdpcandssol[v]) )
             {
-               r = SCIPgetRandomReal(0.0, 1.0, &heurdata->randseed);
+               r = SCIPrandomGetReal(heurdata->randnumgen, 0.0, 1.0);
 
                /* depending on random value, set variable to 0 or 1 */
                if ( SCIPfeasFrac(scip, sdpcandssol[v]) <= r )
@@ -311,7 +313,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
             /* if the variable is not fixed and its value is fractional */
             if ( SCIPvarGetLbLocal(var) < 0.5 && SCIPvarGetUbLocal(var) > 0.5 && SCIPvarIsIntegral(var) && ! SCIPisFeasIntegral(scip, val) )
             {
-               r = SCIPgetRandomReal(0.0, 1.0, &heurdata->randseed);
+               r = SCIPrandomGetReal(heurdata->randnumgen, 0.0, 1.0);
 
                /* depending on random value, fix variable to 0 or 1 */
                if ( val <= r )
@@ -409,7 +411,7 @@ SCIP_RETCODE SCIPincludeHeurSdpRand(
 
    /* create Fracdiving primal heuristic data */
    SCIP_CALL( SCIPallocMemory(scip, &heurdata) );
-   heurdata->randseed = 0;
+   SCIP_CALL( SCIPrandomCreate(&(heurdata->randnumgen), SCIPblkmem(scip), DEFAULT_RANDSEED) );
 
    /* include primal heuristic */
    SCIP_CALL( SCIPincludeHeurBasic(scip, &heur,
