@@ -107,7 +107,6 @@ SCIP_DECL_HEURFREE(heurFreeSdprand)
    /* free heuristic data */
    heurdata = SCIPheurGetData(heur);
    assert(heurdata != NULL);
-   SCIPrandomFree(&(heurdata->randnumgen));
    SCIPfreeMemory(scip, &heurdata);
    SCIPheurSetData(heur, NULL);
 
@@ -127,8 +126,9 @@ SCIP_DECL_HEURINIT(heurInitSdprand)
    heurdata = SCIPheurGetData(heur);
    assert( heurdata != NULL );
 
-   /* create working solution */
+   /* create working solution and random number generator */
    SCIP_CALL( SCIPcreateSol(scip, &heurdata->sol, heur) );
+   SCIP_CALL( SCIPrandomCreate(&(heurdata->randnumgen), SCIPblkmem(scip), SCIPinitializeRandomSeed(scip, DEFAULT_RANDSEED)) );
 
    return SCIP_OKAY;
 }
@@ -146,8 +146,9 @@ SCIP_DECL_HEUREXIT(heurExitSdprand)
    heurdata = SCIPheurGetData(heur);
    assert( heurdata != NULL );
 
-   /* free working solution */
+   /* free working solution and random number generator*/
    SCIP_CALL( SCIPfreeSol(scip, &heurdata->sol) );
+   SCIPrandomFree(&(heurdata->randnumgen));
 
    return SCIP_OKAY;
 }
@@ -411,7 +412,6 @@ SCIP_RETCODE SCIPincludeHeurSdpRand(
 
    /* create Fracdiving primal heuristic data */
    SCIP_CALL( SCIPallocMemory(scip, &heurdata) );
-   SCIP_CALL( SCIPrandomCreate(&(heurdata->randnumgen), SCIPblkmem(scip), DEFAULT_RANDSEED) );
 
    /* include primal heuristic */
    SCIP_CALL( SCIPincludeHeurBasic(scip, &heur,
