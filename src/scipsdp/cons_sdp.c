@@ -1725,10 +1725,16 @@ SCIP_DECL_CONSTRANS(consTransSdp)
 #ifdef OMP
    SCIP_CONSHDLRDATA* conshdlrdata;
 #endif
+#ifndef NDEBUG
+   int snprintfreturn; /* used to check the return code of snprintf */
+#endif
    int i;
+   char transname[SCIP_MAXSTRLEN];
 
    sourcedata = SCIPconsGetData(sourcecons);
    assert( sourcedata != NULL );
+
+  SCIPdebugMessage("Transforming constraint <%s>\n", SCIPconsGetName(sourcecons));
 
 #ifdef OMP
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
@@ -1784,8 +1790,16 @@ SCIP_DECL_CONSTRANS(consTransSdp)
    /* copy the maxrhsentry */
    targetdata->maxrhsentry = sourcedata->maxrhsentry;
 
+   /* name the transformed constraint */
+#ifndef NDEBUG
+      snprintfreturn = SCIPsnprintf(transname, SCIP_MAXSTRLEN, "t_%s", SCIPconsGetName(sourcecons));
+      assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
+#else
+      (void) SCIPsnprintf(transname, SCIP_MAXSTRLEN, "t_%s", SCIPconsGetName(sourcecons));
+#endif
+
    /* create target constraint */
-   SCIP_CALL( SCIPcreateCons(scip, targetcons, SCIPconsGetName(sourcecons), conshdlr, targetdata,
+   SCIP_CALL( SCIPcreateCons(scip, targetcons, transname, conshdlr, targetdata,
          SCIPconsIsInitial(sourcecons), SCIPconsIsSeparated(sourcecons), SCIPconsIsEnforced(sourcecons),
          SCIPconsIsChecked(sourcecons), SCIPconsIsPropagated(sourcecons),  SCIPconsIsLocal(sourcecons),
          SCIPconsIsModifiable(sourcecons), SCIPconsIsDynamic(sourcecons), SCIPconsIsRemovable(sourcecons),
@@ -2001,7 +2015,7 @@ SCIP_DECL_CONSCOPY(consCopySdp)
    assert( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(sourcecons)), CONSHDLR_NAME) == 0 );
    assert( valid != NULL );
 
-   SCIPdebugMessage("Copying SDP constraint %s\n", SCIPconsGetName(sourcecons));
+   SCIPdebugMessage("Copying SDP constraint <%s>\n", SCIPconsGetName(sourcecons));
 
    *valid = TRUE;
 
@@ -2027,15 +2041,39 @@ SCIP_DECL_CONSCOPY(consCopySdp)
          *valid = FALSE;
    }
 
-   /* create the new constraint, using the source name if no new name was given */
+   /* create the new constraint, using an adjusted source name if no new name was given */
    if ( name )
    {
-      SCIP_CALL( SCIPcreateConsSdp( scip, cons, name, sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize, sourcedata->nvarnonz,
+#ifndef NDEBUG
+   int snprintfreturn; /* used to check the return code of snprintf */
+#endif
+   char copyname[SCIP_MAXSTRLEN];
+
+      /* name the copied constraint */
+   #ifndef NDEBUG
+         snprintfreturn = SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", name);
+         assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
+   #else
+         (void) SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", name);
+   #endif
+      SCIP_CALL( SCIPcreateConsSdp( scip, cons, copyname, sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize, sourcedata->nvarnonz,
                  sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
                  sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
    }
    else
    {
+#ifndef NDEBUG
+   int snprintfreturn; /* used to check the return code of snprintf */
+#endif
+   char copyname[SCIP_MAXSTRLEN];
+
+      /* name the copied constraint */
+   #ifndef NDEBUG
+         snprintfreturn = SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", SCIPconsGetName(sourcecons));
+         assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
+   #else
+         (void) SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", SCIPconsGetName(sourcecons));
+   #endif
       SCIP_CALL( SCIPcreateConsSdp( scip, cons, SCIPconsGetName(sourcecons), sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize,
                  sourcedata->nvarnonz, sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
                  sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
@@ -2881,7 +2919,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
       consdata->vars[i] = vars[i];
       SCIP_CALL( SCIPcaptureVar(scip, consdata->vars[i]) );
    }
-
+   SCIPdebugMessage("creating cons %s\n", name);
    /* create constraint */
    SCIP_CALL( SCIPcreateCons(scip, cons, name, conshdlr, consdata, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) );
 
