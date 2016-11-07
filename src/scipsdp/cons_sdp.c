@@ -1382,6 +1382,11 @@ SCIP_RETCODE fixAndAggrVars(
                /* if the variable is fixed to zero, the nonzeros will just vanish, so we only reduce the number of nonzeros */
                consdata->nnonz -= consdata->nvarnonz[v];
             }
+            /* free the memory of the corresponding entries in col/row/val */
+            SCIPfreeBlockMemoryArrayNull(scip, &(consdata->val[v]), consdata->nvarnonz[v]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(consdata->row[v]), consdata->nvarnonz[v]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(consdata->col[v]), consdata->nvarnonz[v]);
+
             /* as the variables don't need to be sorted, we just put the last variable into the empty spot and decrease sizes by one (at the end) */
             SCIP_CALL( SCIPreleaseVar(scip, &(consdata->vars[v])) );
             consdata->col[v] = consdata->col[consdata->nvars - 1];
