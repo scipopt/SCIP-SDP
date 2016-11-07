@@ -1146,6 +1146,11 @@ SCIP_RETCODE multiaggrVar(
     * inserting, the number of elements added to the saved arrays for this variable is nfixednonz - startind */
    SCIPsdpVarfixerSortRowCol(savedrow + startind, savedcol + startind, savedval + startind, *nfixednonz - startind);
 
+   /* free the memory for the entries of the aggregated variable */
+   SCIPfreeBlockMemoryArray(scip, &(consdata->val[*v]), consdata->nvarnonz[*v]);
+   SCIPfreeBlockMemoryArray(scip, &(consdata->row[*v]), consdata->nvarnonz[*v]);
+   SCIPfreeBlockMemoryArray(scip, &(consdata->col[*v]), consdata->nvarnonz[*v]);
+
    /* fill the empty spot of the (multi-)aggregated variable with the last variable of this constraint (as they don't have to be sorted) */
    SCIP_CALL( SCIPreleaseVar(scip, &consdata->vars[*v]) );
    consdata->col[*v] = consdata->col[consdata->nvars - 1];
