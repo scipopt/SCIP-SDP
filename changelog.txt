@@ -5,6 +5,7 @@ fixed bugs:
 - the SDPA interface incorrectly reused the settings of the last node instead of the parent node
 - fixed fast/penalty/unsolved display columns to divide by number of interface calls instead of
   number of solver calls (which includes multiple calls for penalty formulation etc.)
+- fixed memory leaks for fixed and (multi-)aggregated variables
 
 features:
 - readded diagonal dominance cuts in presolving which enforce nonzero diagonal entries if a nonzero
