@@ -243,6 +243,7 @@ MAINCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/branch_sdpinfobjective.o \
 			scipsdp/heur_sdpfracdiving.o \
 			scipsdp/heur_sdprand.o \
+			scipsdp/reader_cbf.o \
 			scipsdp/prop_sdpobbt.o \
 			sdpi/sdpi.o \
 			sdpi/sdpsolchecker.o \

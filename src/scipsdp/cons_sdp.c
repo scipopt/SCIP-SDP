@@ -2639,6 +2639,23 @@ SCIP_RETCODE SCIPconsSdpGetNNonz(
    return SCIP_OKAY;
 }
 
+/** gets the blocksize of the SDP constraint */
+int SCIPconsSdpGetBlocksize(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons               /**< SDP constraint to get data of */
+   )
+{
+   SCIP_CONSDATA* consdata;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+
+   return consdata->blocksize;
+}
+
 /** gets the full constraint Matrix \f$ A_j \f$ for a given variable j */
 SCIP_RETCODE SCIPconsSdpGetFullAj(
    SCIP*                 scip,               /**< SCIP data structure */
