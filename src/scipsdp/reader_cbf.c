@@ -54,7 +54,9 @@
 #define CBF_VERSION_NR         1         /* version numberfor CBF format */
 #define CBF_CHECK_NONNEG       TRUE      /* when writing: check linear constraints and move nonnegativity(-positivity)
                                           * constraints to definition of variables (which are now defined in non-negative
-                                          * orthant) */
+                                          * orthant)
+                                          * TODO: currently doesn't work for ranged rows (which are not created by sdpa
+                                          * reader) */
 
 
 /*
@@ -229,6 +231,12 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
             nconsdisabled++;
             posorth[v] = TRUE;
             nposorth++;
+
+            if ( ! SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c])) )
+            {
+               SCIPerrorMessage("Detection of non-negativity constraints currently not supported for ranged rows!\n");
+               SCIPABORT(); /*lint --e{527}*/
+            }
          }
          else if ( SCIPisZero(scip, SCIPgetRhsLinear(scip, conss[c])) )
          {
@@ -429,7 +437,11 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
       if ( SCIPisInfinity(scip, -1 * SCIPgetLhsLinear(scip, conss[c]))
             || SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) )
          continue;
-      printf("cons %d geq; lhs %f, rhs %f\n", c, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c]));
+#ifdef CBF_CHECK_NONNEG
+      if ( consdisabled[c] )
+         continue;
+#endif
+
       nnonz += SCIPgetNVarsLinear(scip, conss[c]);
       nbnonz += ( ! SCIPisZero(scip, SCIPgetLhsLinear(scip, conss[c])));
    }
@@ -442,10 +454,13 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
       if ( SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c]))
             || SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) )
          continue;
+#ifdef CBF_CHECK_NONNEG
+      if ( consdisabled[c] )
+         continue;
+#endif
 
       nnonz += SCIPgetNVarsLinear(scip, conss[c]);
       nbnonz += ( ! SCIPisZero(scip, SCIPgetRhsLinear(scip, conss[c])));
-      printf("cons %d leq; lhs %f, rhs %f\n", c, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c]));
    }
    /* finally iterate over all equality constraints */
    for (c = 0; c < nconss; c++)
@@ -457,10 +472,13 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
             || SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c]))
             || ( ! SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c]))) )
          continue;
+#ifdef CBF_CHECK_NONNEG
+      if ( consdisabled[c] )
+         continue;
+#endif
 
       nnonz += SCIPgetNVarsLinear(scip, conss[c]);
       nbnonz += ( ! SCIPisZero(scip, SCIPgetLhsLinear(scip, conss[c])));
-      printf("cons %d eq; lhs %f, rhs %f\n", c, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c]));
    }
 
    /* write linear nonzero coefficients */
@@ -476,6 +494,10 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
       if ( SCIPisInfinity(scip, -1 * SCIPgetLhsLinear(scip, conss[c]))
             || SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) )
          continue;
+#ifdef CBF_CHECK_NONNEG
+      if ( consdisabled[c] )
+         continue;
+#endif
 
       linvars = SCIPgetVarsLinear(scip, conss[c]);
       linvals = SCIPgetValsLinear(scip, conss[c]);
@@ -495,6 +517,10 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
       if ( SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c]))
             || SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) )
          continue;
+#ifdef CBF_CHECK_NONNEG
+      if ( consdisabled[c] )
+         continue;
+#endif
 
       linvars = SCIPgetVarsLinear(scip, conss[c]);
       linvals = SCIPgetValsLinear(scip, conss[c]);
@@ -515,6 +541,10 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
             || SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c]))
             || ( ! SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c]))) )
          continue;
+#ifdef CBF_CHECK_NONNEG
+      if ( consdisabled[c] )
+         continue;
+#endif
 
       linvars = SCIPgetVarsLinear(scip, conss[c]);
       linvals = SCIPgetValsLinear(scip, conss[c]);
