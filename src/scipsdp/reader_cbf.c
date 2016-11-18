@@ -297,12 +297,18 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    /* write variables */
    if ( (nposorth == 0) && (nnegorth == 0) )
       SCIPinfoMessage(scip, file, "VAR\n%d 1\nF %d\n\n", nvars, nvars);
-   else if ( (nposorth > 0) && (nnegorth == 0) )
+   else if ( (nposorth > 0) && (nnegorth == 0) && (nposorth + nnegorth < nvars) )
       SCIPinfoMessage(scip, file, "VAR\n%d 2\nL+ %d\nF %d\n\n", nvars, nposorth, nvars - nposorth);
-   else if ( (nposorth == 0) && (nnegorth > 0) )
+   else if ( (nposorth == 0) && (nnegorth > 0) && (nposorth + nnegorth < nvars) )
       SCIPinfoMessage(scip, file, "VAR\n%d 2\nL- %d\nF %d\n\n", nvars, nposorth, nvars - nposorth);
-   else
+   else if ( nposorth + nnegorth < nvars )
       SCIPinfoMessage(scip, file, "VAR\n%d 3\nL+ %d\nL- %d\nF %d\n\n", nvars, nposorth, nnegorth, nvars - nposorth - nnegorth);
+   else if ( (nposorth > 0) && (nnegorth == 0) )
+      SCIPinfoMessage(scip, file, "VAR\n%d 1\nL+ %d\n\n", nvars, nposorth);
+   else if ( (nposorth == 0) && (nnegorth > 0) )
+      SCIPinfoMessage(scip, file, "VAR\n%d 1\nL- %d\n\n", nvars, nposorth);
+   else
+      SCIPinfoMessage(scip, file, "VAR\n%d 2\nL+ %d\nL- %d\n\n", nvars, nposorth, nnegorth);
 
 #else
    /* prepare varmapper that maps SCIP variables to indices for CBF format (3/4 is the load factor java uses) */
@@ -424,197 +430,200 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 
    SCIPinfoMessage(scip, file, "\n");
 
-   /* count number of nonzero coefficients in linear constraints */
-   nnonz = 0;
-   nbnonz = 0;
-
-   /* first iterate over all greater or equal constraints */
-   for (c = 0; c < nconss; c++)
+   if ( neqconss + ngeqconss + nleqconss > 0 )
    {
-      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0 )
-         continue;
+      /* count number of nonzero coefficients in linear constraints */
+      nnonz = 0;
+      nbnonz = 0;
 
-      if ( SCIPisInfinity(scip, -1 * SCIPgetLhsLinear(scip, conss[c]))
-            || SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) )
-         continue;
-#ifdef CBF_CHECK_NONNEG
-      if ( consdisabled[c] )
-         continue;
-#endif
-
-      nnonz += SCIPgetNVarsLinear(scip, conss[c]);
-      nbnonz += ( ! SCIPisZero(scip, SCIPgetLhsLinear(scip, conss[c])));
-   }
-   /* iterate over all less or equal constraints */
-   for (c = 0; c < nconss; c++)
-   {
-      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0 )
-         continue;
-
-      if ( SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c]))
-            || SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) )
-         continue;
-#ifdef CBF_CHECK_NONNEG
-      if ( consdisabled[c] )
-         continue;
-#endif
-
-      nnonz += SCIPgetNVarsLinear(scip, conss[c]);
-      nbnonz += ( ! SCIPisZero(scip, SCIPgetRhsLinear(scip, conss[c])));
-   }
-   /* finally iterate over all equality constraints */
-   for (c = 0; c < nconss; c++)
-   {
-      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0 )
-         continue;
-
-      if ( SCIPisInfinity(scip, -1 * SCIPgetLhsLinear(scip, conss[c]))
-            || SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c]))
-            || ( ! SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c]))) )
-         continue;
-#ifdef CBF_CHECK_NONNEG
-      if ( consdisabled[c] )
-         continue;
-#endif
-
-      nnonz += SCIPgetNVarsLinear(scip, conss[c]);
-      nbnonz += ( ! SCIPisZero(scip, SCIPgetLhsLinear(scip, conss[c])));
-   }
-
-   /* write linear nonzero coefficients */
-   SCIPinfoMessage(scip, file, "ACOORD\n%d\n", nnonz);
-   consind = 0;
-
-   /* first iterate over all greater or equal constraints */
-   for (c = 0; c < nconss; c++)
-   {
-      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0 )
-         continue;
-
-      if ( SCIPisInfinity(scip, -1 * SCIPgetLhsLinear(scip, conss[c]))
-            || SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) )
-         continue;
-#ifdef CBF_CHECK_NONNEG
-      if ( consdisabled[c] )
-         continue;
-#endif
-
-      linvars = SCIPgetVarsLinear(scip, conss[c]);
-      linvals = SCIPgetValsLinear(scip, conss[c]);
-
-      for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
+      /* first iterate over all greater or equal constraints */
+      for (c = 0; c < nconss; c++)
       {
-         SCIPinfoMessage(scip, file, "%d %d %f\n", consind, SCIPsdpVarmapperGetSdpIndex(varmapper, linvars[v]), linvals[v]);
-      }
-      consind++;
-   }
-   /* iterate over all less or equal constraints */
-   for (c = 0; c < nconss; c++)
-   {
-      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0 )
-         continue;
+         if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0 )
+            continue;
 
-      if ( SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c]))
-            || SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) )
-         continue;
+         if ( SCIPisInfinity(scip, -1 * SCIPgetLhsLinear(scip, conss[c]))
+               || SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) )
+            continue;
 #ifdef CBF_CHECK_NONNEG
-      if ( consdisabled[c] )
-         continue;
+         if ( consdisabled[c] )
+            continue;
 #endif
 
-      linvars = SCIPgetVarsLinear(scip, conss[c]);
-      linvals = SCIPgetValsLinear(scip, conss[c]);
-
-      for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
+         nnonz += SCIPgetNVarsLinear(scip, conss[c]);
+         nbnonz += ( ! SCIPisZero(scip, SCIPgetLhsLinear(scip, conss[c])));
+      }
+      /* iterate over all less or equal constraints */
+      for (c = 0; c < nconss; c++)
       {
-         SCIPinfoMessage(scip, file, "%d %d %f\n", consind, SCIPsdpVarmapperGetSdpIndex(varmapper, linvars[v]), linvals[v]);
-      }
-      consind++;
-   }
-   /* finally iterate over all equality constraints */
-   for (c = 0; c < nconss; c++)
-   {
-      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0 )
-         continue;
+         if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0 )
+            continue;
 
-      if ( SCIPisInfinity(scip, -1 * SCIPgetLhsLinear(scip, conss[c]))
-            || SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c]))
-            || ( ! SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c]))) )
-         continue;
+         if ( SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c]))
+               || SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) )
+            continue;
 #ifdef CBF_CHECK_NONNEG
-      if ( consdisabled[c] )
-         continue;
+         if ( consdisabled[c] )
+            continue;
 #endif
 
-      linvars = SCIPgetVarsLinear(scip, conss[c]);
-      linvals = SCIPgetValsLinear(scip, conss[c]);
-
-      for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
+         nnonz += SCIPgetNVarsLinear(scip, conss[c]);
+         nbnonz += ( ! SCIPisZero(scip, SCIPgetRhsLinear(scip, conss[c])));
+      }
+      /* finally iterate over all equality constraints */
+      for (c = 0; c < nconss; c++)
       {
-         SCIPinfoMessage(scip, file, "%d %d %f\n", consind, SCIPsdpVarmapperGetSdpIndex(varmapper, linvars[v]), linvals[v]);
+         if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0 )
+            continue;
+
+         if ( SCIPisInfinity(scip, -1 * SCIPgetLhsLinear(scip, conss[c]))
+               || SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c]))
+               || ( ! SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c]))) )
+            continue;
+#ifdef CBF_CHECK_NONNEG
+         if ( consdisabled[c] )
+            continue;
+#endif
+
+         nnonz += SCIPgetNVarsLinear(scip, conss[c]);
+         nbnonz += ( ! SCIPisZero(scip, SCIPgetLhsLinear(scip, conss[c])));
       }
-      consind++;
-   }
 
-   SCIPinfoMessage(scip, file, "\n");
+      /* write linear nonzero coefficients */
+      SCIPinfoMessage(scip, file, "ACOORD\n%d\n", nnonz);
+      consind = 0;
 
-   /* write constant part of linear constraints */
-   SCIPinfoMessage(scip, file, "BCOORD\n%d\n", nbnonz);
-   consind = 0;
+      /* first iterate over all greater or equal constraints */
+      for (c = 0; c < nconss; c++)
+      {
+         if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0 )
+            continue;
 
-   /* first iterate over all greater or equal constraints */
-   for (c = 0; c < nconss; c++)
-   {
-      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0 )
-         continue;
-
-      if ( SCIPisInfinity(scip, -1 * SCIPgetLhsLinear(scip, conss[c]))
-            || SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) )
-         continue;
+         if ( SCIPisInfinity(scip, -1 * SCIPgetLhsLinear(scip, conss[c]))
+               || SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) )
+            continue;
 #ifdef CBF_CHECK_NONNEG
-      if ( consdisabled[c] )
-         continue;
+         if ( consdisabled[c] )
+            continue;
 #endif
 
-      SCIPinfoMessage(scip, file, "%d %f\n", consind, SCIPgetLhsLinear(scip, conss[c]));
-      consind++;
-   }
-   /* iterate over all less or equal constraints */
-   for (c = 0; c < nconss; c++)
-   {
-      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0 )
-         continue;
+         linvars = SCIPgetVarsLinear(scip, conss[c]);
+         linvals = SCIPgetValsLinear(scip, conss[c]);
 
-      if ( SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c]))
-            || SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) )
-         continue;
+         for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
+         {
+            SCIPinfoMessage(scip, file, "%d %d %f\n", consind, SCIPsdpVarmapperGetSdpIndex(varmapper, linvars[v]), linvals[v]);
+         }
+         consind++;
+      }
+      /* iterate over all less or equal constraints */
+      for (c = 0; c < nconss; c++)
+      {
+         if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0 )
+            continue;
+
+         if ( SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c]))
+               || SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) )
+            continue;
 #ifdef CBF_CHECK_NONNEG
-      if ( consdisabled[c] )
-         continue;
+         if ( consdisabled[c] )
+            continue;
 #endif
 
-      SCIPinfoMessage(scip, file, "%d %f\n", consind, SCIPgetRhsLinear(scip, conss[c]));
-      consind++;
-   }
-   /* finally iterate over all equality constraints */
-   for (c = 0; c < nconss; c++)
-   {
-      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0 )
-         continue;
+         linvars = SCIPgetVarsLinear(scip, conss[c]);
+         linvals = SCIPgetValsLinear(scip, conss[c]);
 
-      if ( SCIPisInfinity(scip, -1 * SCIPgetLhsLinear(scip, conss[c]))
-            || SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c]))
-            || ( ! SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c]))) )
-         continue;
+         for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
+         {
+            SCIPinfoMessage(scip, file, "%d %d %f\n", consind, SCIPsdpVarmapperGetSdpIndex(varmapper, linvars[v]), linvals[v]);
+         }
+         consind++;
+      }
+      /* finally iterate over all equality constraints */
+      for (c = 0; c < nconss; c++)
+      {
+         if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0 )
+            continue;
+
+         if ( SCIPisInfinity(scip, -1 * SCIPgetLhsLinear(scip, conss[c]))
+               || SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c]))
+               || ( ! SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c]))) )
+            continue;
 #ifdef CBF_CHECK_NONNEG
-      if ( consdisabled[c] )
-         continue;
+         if ( consdisabled[c] )
+            continue;
 #endif
 
-      SCIPinfoMessage(scip, file, "%d %f\n", consind, SCIPgetLhsLinear(scip, conss[c]));
-      consind++;
+         linvars = SCIPgetVarsLinear(scip, conss[c]);
+         linvals = SCIPgetValsLinear(scip, conss[c]);
+
+         for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
+         {
+            SCIPinfoMessage(scip, file, "%d %d %f\n", consind, SCIPsdpVarmapperGetSdpIndex(varmapper, linvars[v]), linvals[v]);
+         }
+         consind++;
+      }
+
+      SCIPinfoMessage(scip, file, "\n");
+
+      /* write constant part of linear constraints */
+      SCIPinfoMessage(scip, file, "BCOORD\n%d\n", nbnonz);
+      consind = 0;
+
+      /* first iterate over all greater or equal constraints */
+      for (c = 0; c < nconss; c++)
+      {
+         if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0 )
+            continue;
+
+         if ( SCIPisInfinity(scip, -1 * SCIPgetLhsLinear(scip, conss[c]))
+               || SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) )
+            continue;
+#ifdef CBF_CHECK_NONNEG
+         if ( consdisabled[c] )
+            continue;
+#endif
+
+         SCIPinfoMessage(scip, file, "%d %f\n", consind, SCIPgetLhsLinear(scip, conss[c]));
+         consind++;
+      }
+      /* iterate over all less or equal constraints */
+      for (c = 0; c < nconss; c++)
+      {
+         if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0 )
+            continue;
+
+         if ( SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c]))
+               || SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) )
+            continue;
+#ifdef CBF_CHECK_NONNEG
+         if ( consdisabled[c] )
+            continue;
+#endif
+
+         SCIPinfoMessage(scip, file, "%d %f\n", consind, SCIPgetRhsLinear(scip, conss[c]));
+         consind++;
+      }
+      /* finally iterate over all equality constraints */
+      for (c = 0; c < nconss; c++)
+      {
+         if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0 )
+            continue;
+
+         if ( SCIPisInfinity(scip, -1 * SCIPgetLhsLinear(scip, conss[c]))
+               || SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c]))
+               || ( ! SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c]))) )
+            continue;
+#ifdef CBF_CHECK_NONNEG
+         if ( consdisabled[c] )
+            continue;
+#endif
+
+         SCIPinfoMessage(scip, file, "%d %f\n", consind, SCIPgetLhsLinear(scip, conss[c]));
+         consind++;
+      }
+      SCIPinfoMessage(scip, file, "\n");
    }
-   SCIPinfoMessage(scip, file, "\n");
 
    /*count SDP nonzeros */
    for (c = 0; c < nconss; c++)
