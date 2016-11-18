@@ -626,13 +626,14 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    }
 
    /*count SDP nonzeros */
+   totalsdpnnonz = 0;
+   totalsdpconstnnonz = 0;
    for (c = 0; c < nconss; c++)
    {
       if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])),"SDP") != 0 )
          continue;
 
       SCIPconsSdpGetNNonz(scip, conss[c], &sdpnnonz, &sdpconstnnonz);
-
       totalsdpnnonz += sdpnnonz;
       totalsdpconstnnonz += sdpconstnnonz;
    }
@@ -668,7 +669,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
       assert( sdpconstnnonz <= totalsdpconstnnonz );
       assert( sdparraylength <= totalsdpnnonz);
 
-      for (v = 0; v < nvars; v++)
+      for (v = 0; v < sdpnvars; v++)
       {
          for (i = 0; i < sdpnvarnonz[v]; i++)
          {
