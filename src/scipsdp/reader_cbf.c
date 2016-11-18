@@ -504,7 +504,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 
       for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
       {
-         SCIPinfoMessage(scip, file, "%d %d %f\n", consind, SCIPsdpVarmapperGetSdpIndex(varmapper, linvars[v]), linvals[c]);
+         SCIPinfoMessage(scip, file, "%d %d %f\n", consind, SCIPsdpVarmapperGetSdpIndex(varmapper, linvars[v]), linvals[v]);
       }
       consind++;
    }
@@ -527,7 +527,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 
       for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
       {
-         SCIPinfoMessage(scip, file, "%d %d %f\n", consind, SCIPsdpVarmapperGetSdpIndex(varmapper, linvars[v]), linvals[c]);
+         SCIPinfoMessage(scip, file, "%d %d %f\n", consind, SCIPsdpVarmapperGetSdpIndex(varmapper, linvars[v]), linvals[v]);
       }
       consind++;
    }
@@ -551,7 +551,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 
       for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
       {
-         SCIPinfoMessage(scip, file, "%d %d %f\n", consind, SCIPsdpVarmapperGetSdpIndex(varmapper, linvars[v]), linvals[c]);
+         SCIPinfoMessage(scip, file, "%d %d %f\n", consind, SCIPsdpVarmapperGetSdpIndex(varmapper, linvars[v]), linvals[v]);
       }
       consind++;
    }
@@ -571,6 +571,10 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
       if ( SCIPisInfinity(scip, -1 * SCIPgetLhsLinear(scip, conss[c]))
             || SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) )
          continue;
+#ifdef CBF_CHECK_NONNEG
+      if ( consdisabled[c] )
+         continue;
+#endif
 
       SCIPinfoMessage(scip, file, "%d %f\n", consind, SCIPgetLhsLinear(scip, conss[c]));
       consind++;
@@ -584,6 +588,10 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
       if ( SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c]))
             || SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) )
          continue;
+#ifdef CBF_CHECK_NONNEG
+      if ( consdisabled[c] )
+         continue;
+#endif
 
       SCIPinfoMessage(scip, file, "%d %f\n", consind, SCIPgetRhsLinear(scip, conss[c]));
       consind++;
@@ -598,6 +606,10 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
             || SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c]))
             || ( ! SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c]))) )
          continue;
+#ifdef CBF_CHECK_NONNEG
+      if ( consdisabled[c] )
+         continue;
+#endif
 
       SCIPinfoMessage(scip, file, "%d %f\n", consind, SCIPgetLhsLinear(scip, conss[c]));
       consind++;
