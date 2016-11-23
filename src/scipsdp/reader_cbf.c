@@ -1019,35 +1019,35 @@ SCIP_RETCODE CBFfreeData(
 
    for (b = 0; b < data->nsdpblocks; b++)
    {
-      SCIPfreeBufferArray(scip, &(data->sdpconstval[b]));
-      SCIPfreeBufferArray(scip, &(data->sdpconstcol[b]));
-      SCIPfreeBufferArray(scip, &(data->sdpconstrow[b]));
-      SCIPfreeBufferArray(scip, &(data->valpointer[b]));
-      SCIPfreeBufferArray(scip, &(data->colpointer[b]));
-      SCIPfreeBufferArray(scip, &(data->rowpointer[b]));
-      SCIPfreeBufferArray(scip, &(data->sdpval[b]));
-      SCIPfreeBufferArray(scip, &(data->sdpcol[b]));
-      SCIPfreeBufferArray(scip, &(data->sdprow[b]));
-      SCIPfreeBufferArray(scip, &(data->sdpblockvars[b]));
-      SCIPfreeBufferArray(scip, &(data->nvarnonz[b]));
+      SCIPfreeBufferArrayNull(scip, &(data->sdpconstval[b]));
+      SCIPfreeBufferArrayNull(scip, &(data->sdpconstcol[b]));
+      SCIPfreeBufferArrayNull(scip, &(data->sdpconstrow[b]));
+      SCIPfreeBufferArrayNull(scip, &(data->valpointer[b]));
+      SCIPfreeBufferArrayNull(scip, &(data->colpointer[b]));
+      SCIPfreeBufferArrayNull(scip, &(data->rowpointer[b]));
+      SCIPfreeBufferArrayNull(scip, &(data->sdpval[b]));
+      SCIPfreeBufferArrayNull(scip, &(data->sdpcol[b]));
+      SCIPfreeBufferArrayNull(scip, &(data->sdprow[b]));
+      SCIPfreeBufferArrayNull(scip, &(data->sdpblockvars[b]));
+      SCIPfreeBufferArrayNull(scip, &(data->nvarnonz[b]));
    }
-   SCIPfreeBufferArray(scip, &data->sdpconstval);
-   SCIPfreeBufferArray(scip, &data->sdpconstcol);
-   SCIPfreeBufferArray(scip, &data->sdpconstrow);
-   SCIPfreeBufferArray(scip, &data->sdpconstnblocknonz);
-   SCIPfreeBufferArray(scip, &data->valpointer);
-   SCIPfreeBufferArray(scip, &data->colpointer);
-   SCIPfreeBufferArray(scip, &data->rowpointer);
-   SCIPfreeBufferArray(scip, &data->sdpval);
-   SCIPfreeBufferArray(scip, &data->sdpcol);
-   SCIPfreeBufferArray(scip, &data->sdprow);
-   SCIPfreeBufferArray(scip, &data->sdpblockvars);
-   SCIPfreeBufferArray(scip, &data->nvarnonz);
-   SCIPfreeBufferArray(scip, &data->sdpnblockvars);
-   SCIPfreeBufferArray(scip, &data->sdpnblocknonz);
-   SCIPfreeBufferArray(scip, &data->sdpblocksizes);
-   SCIPfreeBufferArray(scip, &data->createdconss);
-   SCIPfreeBufferArray(scip, &data->createdvars);
+   SCIPfreeBufferArrayNull(scip, &data->sdpconstval);
+   SCIPfreeBufferArrayNull(scip, &data->sdpconstcol);
+   SCIPfreeBufferArrayNull(scip, &data->sdpconstrow);
+   SCIPfreeBufferArrayNull(scip, &data->sdpconstnblocknonz);
+   SCIPfreeBufferArrayNull(scip, &data->valpointer);
+   SCIPfreeBufferArrayNull(scip, &data->colpointer);
+   SCIPfreeBufferArrayNull(scip, &data->rowpointer);
+   SCIPfreeBufferArrayNull(scip, &data->sdpval);
+   SCIPfreeBufferArrayNull(scip, &data->sdpcol);
+   SCIPfreeBufferArrayNull(scip, &data->sdprow);
+   SCIPfreeBufferArrayNull(scip, &data->sdpblockvars);
+   SCIPfreeBufferArrayNull(scip, &data->nvarnonz);
+   SCIPfreeBufferArrayNull(scip, &data->sdpnblockvars);
+   SCIPfreeBufferArrayNull(scip, &data->sdpnblocknonz);
+   SCIPfreeBufferArrayNull(scip, &data->sdpblocksizes);
+   SCIPfreeBufferArrayNull(scip, &data->createdconss);
+   SCIPfreeBufferArrayNull(scip, &data->createdvars);
 
    return SCIP_OKAY;
 }
@@ -1762,8 +1762,11 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 #endif
 
          /* write the entry; *(-1) because we have Ax - lhs >= 0 */
-         SCIPinfoMessage(scip, file, "%d %f\n", consind, -1 * SCIPgetLhsLinear(scip, conss[c]));
-         consind++;
+         if ( ! SCIPisZero(scip, SCIPgetLhsLinear(scip, conss[c])) )
+         {
+            SCIPinfoMessage(scip, file, "%d %f\n", consind, -1 * SCIPgetLhsLinear(scip, conss[c]));
+         }
+         consind++; /* counting the constraint numbers is independent of whether the lhs is nonzero */
       }
       /* iterate over all less or equal constraints */
       for (c = 0; c < nconss; c++)
@@ -1780,8 +1783,11 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 #endif
 
          /* write the entry; *(-1) because we have Ax - rhs <= 0 */
-         SCIPinfoMessage(scip, file, "%d %f\n", consind, -1 * SCIPgetRhsLinear(scip, conss[c]));
-         consind++;
+         if ( ! SCIPisZero(scip, SCIPgetRhsLinear(scip, conss[c])) )
+         {
+            SCIPinfoMessage(scip, file, "%d %f\n", consind, -1 * SCIPgetRhsLinear(scip, conss[c]));
+         }
+         consind++; /* counting the constraint numbers is independent of whether the rhs is nonzero */
       }
       /* finally iterate over all equality constraints */
       for (c = 0; c < nconss; c++)
@@ -1799,8 +1805,11 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 #endif
 
          /* write the entry; *(-1) because we have Ax - lhs = 0 */
-         SCIPinfoMessage(scip, file, "%d %f\n", consind, -1 * SCIPgetLhsLinear(scip, conss[c]));
-         consind++;
+         if ( ! SCIPisZero(scip, SCIPgetLhsLinear(scip, conss[c])) )
+         {
+            SCIPinfoMessage(scip, file, "%d %f\n", consind, -1 * SCIPgetLhsLinear(scip, conss[c]));
+         }
+         consind++;/* counting the constraint numbers is independent of whether the lhs is nonzero */
       }
       SCIPinfoMessage(scip, file, "\n");
    }
