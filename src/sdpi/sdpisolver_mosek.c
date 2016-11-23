@@ -84,7 +84,7 @@
 #define MAX_MAXPENALTYPARAM         1e15     /**< if the maximum penaltyparameter is to be computed, this is the maximum value it will take */
 #define MAXPENALTYPARAM_FACTOR      1e6      /**< if the maximum penaltyparameter is to be computed, it will be set to penaltyparam * this */
 #define TOLERANCE_FACTOR            0.1      /**< all tolerances will be multiplied by this factor since MOSEK does not adhere to its own tolerances */
-#define PENALTYBOUNDTOL 1E-3                 /**< if the relative gap between Tr(X) and penaltyparam for a primal solution of the penaltyformulation
+#define PENALTYBOUNDTOL             1E-3     /**< if the relative gap between Tr(X) and penaltyparam for a primal solution of the penaltyformulation
                                               *   is bigger than this value, it will be reported to the sdpi */
 #define INFEASFEASTOLCHANGE         0.1      /**< change feastol by this factor if the solution was found to be infeasible with regards to feastol */
 #define INFEASMINFEASTOL            1E-9     /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance */
@@ -112,7 +112,8 @@ struct SCIP_SDPiSolver
                                                *  of the boundblock */
    SCIP_Bool             solved;             /**< Was the SDP solved since the problem was last changed? */
    int                   sdpcounter;         /**< used for debug messages */
-   SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
+   SCIP_Real             epsilon;            /**< tolerance used for absolute checks */
+   SCIP_Real             gaptol;            /**< this is used for checking if primal and dual objective are equal */
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
    SCIP_Real             objlimit;           /**< objective limit for SDP solver */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
@@ -347,7 +348,8 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->solved = FALSE;
    (*sdpisolver)->sdpcounter = 0;
 
-   (*sdpisolver)->epsilon = 1e-4;
+   (*sdpisolver)->epsilon = 1e-9;
+   (*sdpisolver)->gaptol = 1e-4;
    (*sdpisolver)->feastol = 1e-6;
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
    (*sdpisolver)->sdpinfo = FALSE;
@@ -668,8 +670,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_PFEAS, sdpisolver->feastol * TOLERANCE_FACTOR) );/*lint !e641*/
    MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_DFEAS, sdpisolver->feastol * TOLERANCE_FACTOR) );/*lint !e641*/
    MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_INFEAS, sdpisolver->feastol * TOLERANCE_FACTOR) );/*lint !e641*/
-   MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_MU_RED, sdpisolver->epsilon * TOLERANCE_FACTOR) );/*lint !e641*/
-   MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_REL_GAP, sdpisolver->epsilon * TOLERANCE_FACTOR) );/*lint !e641*/
+   MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_MU_RED, sdpisolver->gaptol * TOLERANCE_FACTOR) );/*lint !e641*/
+   MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_REL_GAP, sdpisolver->gaptol * TOLERANCE_FACTOR) );/*lint !e641*/
 
    /* set number of threads */
    if ( sdpisolver->nthreads > 0 )
@@ -2025,6 +2027,9 @@ SCIP_RETCODE SCIPsdpiSolverGetRealpar(
    case SCIP_SDPPAR_EPSILON:
       *dval = sdpisolver->epsilon;
       break;
+   case SCIP_SDPPAR_GAPTOL:
+         *dval = sdpisolver->gaptol;
+         break;
    case SCIP_SDPPAR_FEASTOL:
       *dval = sdpisolver->feastol;
       break;
@@ -2052,6 +2057,10 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    case SCIP_SDPPAR_EPSILON:
       sdpisolver->epsilon = dval;
       SCIPdebugMessage("Setting sdpisolver epsilon to %f.\n", dval);
+      break;
+   case SCIP_SDPPAR_GAPTOL:
+      sdpisolver->gaptol = dval;
+      SCIPdebugMessage("Setting sdpisolver gaptol to %f.\n", dval);
       break;
    case SCIP_SDPPAR_FEASTOL:
       sdpisolver->feastol = dval;

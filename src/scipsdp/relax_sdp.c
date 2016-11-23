@@ -63,7 +63,7 @@
 
 
 /* default values for parameters: */
-#define DEFAULT_SDPSOLVEREPSILON    1e-4     /**< the stopping criterion for the duality gap the sdpsolver should use */
+#define DEFAULT_SDPSOLVERGAPTOL     1e-4     /**< the stopping criterion for the duality gap the sdpsolver should use */
 #define DEFAULT_SDPSOLVERFEASTOL    1e-6     /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
 #define DEFAULT_PENALTYPARAM        -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 #define DEFAULT_LAMBDASTAR          -1.0     /**< the parameter lambda star used by SDPA to set the initial point */
@@ -90,7 +90,7 @@ struct SCIP_RelaxData
    SCIP_Real             objval;             /**< objective value of the last SDP-relaxation */
    SCIP_Bool             origsolved;         /**< solved original problem to optimality (not only a penalty or probing formulation) */
    SCIP_Bool             probingsolved;      /**< was the last probing SDP solved successfully? */
-   SCIP_Real             sdpsolverepsilon;   /**< the stopping criterion for the duality gap the sdpsolver should use */
+   SCIP_Real             sdpsolvergaptol;    /**< the stopping criterion for the duality gap the sdpsolver should use */
    SCIP_Real             sdpsolverfeastol;   /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
    SCIP_Real             penaltyparam;       /**< the starting penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
    SCIP_Real             maxpenaltyparam;    /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
@@ -182,7 +182,7 @@ SCIP_RETCODE putSdpDataInInterface(
    int i;
    int j;
 
-   SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolverepsilon", &param) );
+   SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolvergaptol", &param) );
 
    SCIPdebugMessage("Putting SDP Data in general SDP interface!\n");
 
@@ -986,7 +986,7 @@ SCIP_RETCODE calcRelax(
       }
 
       *result = SCIP_SUCCESS;
-      SCIP_CALL( SCIPupdateLocalLowerbound(scip, *lowerbound) );
+      //SCIP_CALL( SCIPupdateLocalLowerbound(scip, *lowerbound) );
       return SCIP_OKAY;
    }
 
@@ -1206,7 +1206,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    SCIP_RELAXDATA* relaxdata;
    SCIP_RETCODE retcode;
    SCIP_VAR** vars;
-   SCIP_Real epsilon;
+   SCIP_Real gaptol;
    SCIP_Real feastol;
    SCIP_Real penaltyparam;
    SCIP_Real maxpenaltyparam;
@@ -1270,12 +1270,12 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    }
 
    /* set the parameters of the SDP-Solver */
-   SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolverepsilon", &epsilon) );
-   retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_EPSILON, epsilon);
+   SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolvergaptol", &gaptol) );
+   retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_GAPTOL, gaptol);
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-         "SDP Solver <%s>: epsilon setting not available -- SCIP parameter has no effect.\n",
+         "SDP Solver <%s>: gaptol setting not available -- SCIP parameter has no effect.\n",
          SCIPsdpiGetSolverName());
    }
    else
@@ -1289,6 +1289,18 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
          "SDP Solver <%s>: feastol setting not available -- SCIP parameter has no effect.\n",
+         SCIPsdpiGetSolverName());
+   }
+   else
+   {
+      SCIP_CALL( retcode );
+   }
+
+   retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_EPSILON, SCIPepsilon(scip));
+   if ( retcode == SCIP_PARAMETERUNKNOWN )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
+         "SDP Solver <%s>: epsilon setting not available -- SCIP parameter has no effect.\n",
          SCIPsdpiGetSolverName());
    }
    else
@@ -1639,9 +1651,9 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPsetRelaxCopy(scip, relax, relaxCopySdp) );
 
    /* add parameters for SDP-solver */
-   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/sdpsolverepsilon",
+   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/sdpsolvergaptol",
          "the stopping criterion for the duality gap the sdpsolver should use",
-         &(relaxdata->sdpsolverepsilon), TRUE, DEFAULT_SDPSOLVEREPSILON, 1e-20, 0.001, NULL, NULL) );
+         &(relaxdata->sdpsolvergaptol), TRUE, DEFAULT_SDPSOLVERGAPTOL, 1e-20, 0.001, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/sdpsolverfeastol",
          "the feasibility tolerance the SDP solver should use for the SDP constraints",

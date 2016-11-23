@@ -67,6 +67,7 @@ struct SCIP_SDPiSolver
    BMS_BLKMEM*           blkmem;             /**< block memory */
    BMS_BUFMEM*           bufmem;             /**< buffer memory */
    SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
+   SCIP_Real             gaptol;             /**< this is used for checking if primal and dual objective are equal */
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
    SCIP_Real             objlimit;           /**< objective limit for SDP-solver */
    SCIP_Bool             sdpinfo;            /**< Should the SDP-solver output information to the screen? */
@@ -676,6 +677,9 @@ SCIP_RETCODE SCIPsdpiSolverGetRealpar(
    case SCIP_SDPPAR_EPSILON:
       *dval = sdpisolver->epsilon;
       break;
+   case SCIP_SDPPAR_GAPTOL:
+      *dval = sdpisolver->gaptol;
+      break;
    case SCIP_SDPPAR_FEASTOL:
       *dval = sdpisolver->feastol;
       break;
@@ -703,6 +707,10 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    case SCIP_SDPPAR_EPSILON:
       sdpisolver->epsilon = dval;
       SCIPdebugMessage("Setting sdpisolver epsilon to %f.\n", dval);
+      break;
+   case SCIP_SDPPAR_GAPTOL:
+      sdpisolver->gaptol = dval;
+      SCIPdebugMessage("Setting sdpisolver gaptol to %f.\n", dval);
       break;
    case SCIP_SDPPAR_FEASTOL:
       sdpisolver->feastol = dval;

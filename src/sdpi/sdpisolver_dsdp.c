@@ -170,7 +170,8 @@ struct SCIP_SDPiSolver
    SCIP_Real             fixedvarsobjcontr;  /**< total contribution to the objective of all fixed variables, computed as sum obj * val */
    SCIP_Bool             solved;             /**< Was the SDP solved since the problem was last changed? */
    int                   sdpcounter;         /**< used for debug messages */
-   SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
+   SCIP_Real             epsilon;            /**< tolerance for absolute checks */
+   SCIP_Real             gaptol;             /**< this is used for checking if primal and dual objective are equal */
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
    SCIP_Real             penaltyparam;       /**< the penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
    SCIP_Real             objlimit;           /**< objective limit for SDP-solver */
@@ -379,7 +380,8 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->niterations = 0;
    (*sdpisolver)->nsdpcalls = 0;
 
-   (*sdpisolver)->epsilon = 1e-4;
+   (*sdpisolver)->epsilon = 1e-9;
+   (*sdpisolver)->gaptol = 1e-4;
    (*sdpisolver)->feastol = 1e-6;
    (*sdpisolver)->penaltyparam = 1e5;
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
@@ -1261,7 +1263,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    SCIPdebugMessage("Calling DSDP-Solve for SDP (%d) \n", sdpisolver->sdpcounter);
 
-   DSDP_CALL( DSDPSetGapTolerance(sdpisolver->dsdp, sdpisolver->epsilon) );  /* set DSDP's tolerance for duality gap */
+   DSDP_CALL( DSDPSetGapTolerance(sdpisolver->dsdp, sdpisolver->gaptol) );  /* set DSDP's tolerance for duality gap */
    DSDP_CALL( DSDPSetRTolerance(sdpisolver->dsdp, sdpisolver->feastol) );    /* set DSDP's tolerance for the SDP-constraints */
    if ( sdpisolver-> sdpinfo )
    {
@@ -2176,6 +2178,9 @@ SCIP_RETCODE SCIPsdpiSolverGetRealpar(
    case SCIP_SDPPAR_EPSILON:
       *dval = sdpisolver->epsilon;
       break;
+   case SCIP_SDPPAR_GAPTOL:
+      *dval = sdpisolver->gaptol;
+      break;
    case SCIP_SDPPAR_FEASTOL:
       *dval = sdpisolver->feastol;
       break;
@@ -2206,6 +2211,10 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    case SCIP_SDPPAR_EPSILON:
       sdpisolver->epsilon = dval;
       SCIPdebugMessage("Setting sdpisolver epsilon to %f.\n", dval);
+      break;
+   case SCIP_SDPPAR_GAPTOL:
+      sdpisolver->gaptol = dval;
+      SCIPdebugMessage("Setting sdpisolver gaptol to %f.\n", dval);
       break;
    case SCIP_SDPPAR_FEASTOL:
       sdpisolver->feastol = dval;

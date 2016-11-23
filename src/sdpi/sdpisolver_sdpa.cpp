@@ -60,7 +60,7 @@
 #include "sdpi/sdpsolchecker.h"              /* to check solution with regards to feasibility tolerance */
 
 /* local defines */
-#define EPSILONCHANGE               1        /**< change epsilon by this factor when switching from fast to default and from default to stable settings */
+#define GAPTOLCHANGE                1        /**< change gaptol by this factor when switching from fast to default and from default to stable settings */
 #define FEASTOLCHANGE               1        /**< change feastol by this factor when switching from fast to default and from default to stable settings */
 #define PENALTYBOUNDTOL             1E-3     /**< if the relative gap between Tr(X) and penaltyparam for a primal solution of the penaltyformulation
                                               *   is bigger than this value, it will be reported to the sdpi */
@@ -139,7 +139,8 @@ struct SCIP_SDPiSolver
    int                   sdpcounter;         /**< used for debug messages */
    int                   niterations;        /**< number of SDP-iterations since the last solve call */
    int                   nsdpcalls;          /**< number of SDP-calls since the last solve call */
-   SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
+   SCIP_Real             epsilon;            /**< tolerance for absolute checks */
+   SCIP_Real             gaptol;             /**< this is used for checking if primal and dual objective are equal */
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
    SCIP_Real             objlimit;           /**< objective limit for SDP-solver */
    SCIP_Bool             sdpinfo;            /**< Should the SDP-solver output information to the screen? */
@@ -369,7 +370,8 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->niterations = 0;
    (*sdpisolver)->nsdpcalls = 0;
 
-   (*sdpisolver)->epsilon = 1e-4;
+   (*sdpisolver)->epsilon = 1e-9;
+   (*sdpisolver)->gaptol = 1e-4;
    (*sdpisolver)->feastol = 1e-6;
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
    (*sdpisolver)->sdpinfo = FALSE;
@@ -722,7 +724,7 @@ src/sdpi/sdpisolver_sdpa.cpp:217:98: error: ‘penaltyparam’ was not declared 
    {
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_STABLE_BUT_SLOW); /* if we already had problems with this problem, there is no reason to try fast */
       /* as we want to solve with stable settings, we also update epsilon and the feasibility tolerance, as we skip the default settings, we multpy twice */
-      sdpisolver->sdpa->setParameterEpsilonStar(EPSILONCHANGE * EPSILONCHANGE * sdpisolver->epsilon);
+      sdpisolver->sdpa->setParameterEpsilonStar(GAPTOLCHANGE * GAPTOLCHANGE * sdpisolver->gaptol);
       sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->feastol);
       feastol = FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->feastol;
       SCIPdebugMessage("Start solving process with stable settings\n");
@@ -730,7 +732,7 @@ src/sdpi/sdpisolver_sdpa.cpp:217:98: error: ‘penaltyparam’ was not declared 
    else if ( startsettings == SCIP_SDPSOLVERSETTING_UNSOLVED || startsettings == SCIP_SDPSOLVERSETTING_FAST)
    {
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_UNSTABLE_BUT_FAST);
-      sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->epsilon);
+      sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->gaptol);
       sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->feastol);
       feastol = sdpisolver->feastol;
       SCIPdebugMessage("Start solving process with fast settings\n");
@@ -739,7 +741,7 @@ src/sdpi/sdpisolver_sdpa.cpp:217:98: error: ‘penaltyparam’ was not declared 
    {
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_DEFAULT);
       /* as we want to solve with stable settings, we also update epsilon and the feasibility tolerance, as we skip the default settings, we multpy once */
-      sdpisolver->sdpa->setParameterEpsilonStar(EPSILONCHANGE * sdpisolver->epsilon);
+      sdpisolver->sdpa->setParameterEpsilonStar(GAPTOLCHANGE * sdpisolver->gaptol);
       sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * sdpisolver->feastol);
       feastol = FEASTOLCHANGE * sdpisolver->feastol;
       SCIPdebugMessage("Start solving process with medium settings\n");
@@ -1324,7 +1326,7 @@ src/sdpi/sdpisolver_sdpa.cpp:217:98: error: ‘penaltyparam’ was not declared 
 
       /* initialize settings */
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_DEFAULT);
-      sdpisolver->sdpa->setParameterEpsilonStar(EPSILONCHANGE * sdpisolver->epsilon);
+      sdpisolver->sdpa->setParameterEpsilonStar(GAPTOLCHANGE * sdpisolver->gaptol);
       sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * sdpisolver->feastol);
       sdpisolver->sdpa->setParameterLowerBound(-1e20);
       /* set the objective limit */
@@ -1377,7 +1379,7 @@ src/sdpi/sdpisolver_sdpa.cpp:217:98: error: ‘penaltyparam’ was not declared 
 
       /* initialize settings */
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_STABLE_BUT_SLOW);
-      sdpisolver->sdpa->setParameterEpsilonStar(EPSILONCHANGE * EPSILONCHANGE * sdpisolver->epsilon);
+      sdpisolver->sdpa->setParameterEpsilonStar(GAPTOLCHANGE * GAPTOLCHANGE * sdpisolver->gaptol);
       sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->feastol);
       sdpisolver->sdpa->setParameterLowerBound(-1e20);
       /* set the objective limit */
@@ -1952,7 +1954,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
 #ifndef NDEBUG
    SCIP_Real primalval = sdpisolver->sdpa->getDualObj();
    SCIP_Real gap = (REALABS(*objval - primalval) / (0.5 * (REALABS(primalval) + REALABS(*objval)))); /* duality gap used in SDPA */
-   if ( gap > sdpisolver->epsilon )
+   if ( gap > sdpisolver->gaptol )
       SCIPdebugMessage("Attention: got objective value (before adding values of fixed variables) of %f in SCIPsdpiSolverGetObjval, "
             "but primal objective is %f with duality gap %f!\n", *objval, primalval, gap );
 #endif
@@ -1990,7 +1992,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
 #ifndef NDEBUG
       SCIP_Real primalval = sdpisolver->sdpa->getDualObj();
       SCIP_Real gap = (REALABS(*objval - primalval) / (0.5 * (REALABS(primalval) + REALABS(*objval)))); /* duality gap used in SDPA */
-      if ( gap > sdpisolver->epsilon )
+      if ( gap > sdpisolver->gaptol )
       {
          SCIPdebugMessage("Attention: got objective value (before adding values of fixed variables) of %f in SCIPsdpiSolverGetSol, "
             "but primal objective is %f with duality gap %f!\n", *objval, primalval, gap );
@@ -2204,6 +2206,9 @@ SCIP_RETCODE SCIPsdpiSolverGetRealpar(
    case SCIP_SDPPAR_EPSILON:
       *dval = sdpisolver->epsilon;
       break;
+   case SCIP_SDPPAR_GAPTOL:
+         *dval = sdpisolver->gaptol;
+         break;
    case SCIP_SDPPAR_FEASTOL:
       *dval = sdpisolver->feastol;
       break;
@@ -2239,6 +2244,10 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
       sdpisolver->epsilon = dval;
       SCIPdebugMessage("Setting sdpisolver epsilon to %f.\n", dval);
       break;
+   case SCIP_SDPPAR_GAPTOL:
+         sdpisolver->gaptol = dval;
+         SCIPdebugMessage("Setting sdpisolver gaptol to %f.\n", dval);
+         break;
    case SCIP_SDPPAR_FEASTOL:
       sdpisolver->feastol = dval;
       SCIPdebugMessage("Setting sdpisolver feastol to %f.\n", dval);

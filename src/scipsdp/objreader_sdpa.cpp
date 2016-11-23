@@ -202,7 +202,6 @@ namespace scip
       int numlpblocks;                    //Number of LP-blocks
       int alllpblocksize;                 //Size of all LP-blocks added
       int* nvarnonz;                      // nblockvarnonz[i] gives the number of nonzeros for variable i
-      SCIP_Real feastol;                  // used to check for nonzeros
 #ifndef NDEBUG
       int snprintfreturn;                 // to check return codes of snprintf
 #endif
@@ -228,9 +227,6 @@ namespace scip
 
       // setup our stream from the new buffer
       std::istream file(&scip_buffer);
-
-      // initialize feastol
-      SCIP_CALL( SCIPgetRealParam(scip, "numerics/feastol", &feastol) );
 
       if( !file )
          return SCIP_READERROR;
@@ -541,7 +537,7 @@ namespace scip
             /* prepare the constant arrays */
             for (k = 0; k < blockstruct[bindex].constnum_nonzeros; ++k)/*lint !e732*//*lint !e747*/
             {
-               if (blockstruct[bindex].constvalues[k] > feastol || blockstruct[bindex].constvalues[k] < -feastol)/*lint !e732*//*lint !e747*/
+               if ( ! SCIPisZero(scip, blockstruct[bindex].constvalues[k]) )/*lint !e732*//*lint !e747*/
                {
                   constcol[ind] = blockstruct[bindex].constcolumns[k] - 1;/*lint !e732*//*lint !e747*/ /* the sdpa format counts from 1 to blocksize, we want to start from 0 */
                   constrow[ind] = blockstruct[bindex].constrows[k] - 1;/*lint !e732*//*lint !e747*/
@@ -555,7 +551,7 @@ namespace scip
             ind = 0;
             for (k = 0; k < nnonz; ++k)
             {
-               if (blockstruct[bindex].values[k] > feastol || blockstruct[bindex].values[k] < -feastol)/*lint !e732*//*lint !e747*/
+               if ( ! SCIPisZero(scip, blockstruct[bindex].values[k]) )/*lint !e732*//*lint !e747*/
                {
                   varind[ind] = blockstruct[bindex].variables[k] - 1;/*lint !e732*//*lint !e747*/
                   col[ind] = blockstruct[bindex].columns[k] - 1;/*lint !e732*//*lint !e747*/
