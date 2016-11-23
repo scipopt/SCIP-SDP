@@ -36,6 +36,9 @@
  * @author Henrik A. Friberg
  */
 
+/*#define SCIP_DEBUG*/
+/*#define SCIP_MORE_DEBUG*/
+
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
 #include <assert.h>
@@ -121,7 +124,7 @@ SCIP_RETCODE CBFfgets(
    assert( linecount != NULL );
 
   /* Find first non-commentary line */
-  while( fgets(CBF_LINE_BUFFER, sizeof(CBF_LINE_BUFFER), (FILE*) pFile) != NULL )
+  while( SCIPfgets(CBF_LINE_BUFFER, sizeof(CBF_LINE_BUFFER), pFile) != NULL )
   {
      ++(*linecount);
 
@@ -833,6 +836,9 @@ SCIP_RETCODE CBFreadHcoord(
          }
 
          /* construct pointer arrays */
+         SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpnblockvars), data->nsdpblocks) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpblockvars), data->nsdpblocks) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &(data->nvarnonz), data->nsdpblocks) );
          SCIP_CALL( SCIPallocBufferArray(scip, &(data->rowpointer), data->nsdpblocks) );
          SCIP_CALL( SCIPallocBufferArray(scip, &(data->colpointer), data->nsdpblocks) );
          SCIP_CALL( SCIPallocBufferArray(scip, &(data->valpointer), data->nsdpblocks) );
@@ -844,6 +850,8 @@ SCIP_RETCODE CBFreadHcoord(
             /* create the pointer arrays and insert used variables into vars-array */
             nextindaftervar = 0;
             data->sdpnblockvars[b] = 0;
+            SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpblockvars[b]), data->nvars) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &(data->nvarnonz[b]), data->nvars) );
             SCIP_CALL( SCIPallocBufferArray(scip, &(data->rowpointer[b]), data->nvars) );
             SCIP_CALL( SCIPallocBufferArray(scip, &(data->colpointer[b]), data->nvars) );
             SCIP_CALL( SCIPallocBufferArray(scip, &(data->valpointer[b]), data->nvars) );
@@ -852,7 +860,8 @@ SCIP_RETCODE CBFreadHcoord(
             {
                varused = FALSE;
                firstindforvar = nextindaftervar; /* this variable starts where the last one ended */
-               while (nextindaftervar < nnonz && sdpvar[b][nextindaftervar] == v) /* get the first index that doesn't belong to this variable */
+               data->nvarnonz[b][data->sdpnblockvars[b]] = 0;
+               while (nextindaftervar < data->sdpnblocknonz[b] && sdpvar[b][nextindaftervar] == v) /* get the first index that doesn't belong to this variable */
                {
                   nextindaftervar++;
                   varused = TRUE;
@@ -925,10 +934,16 @@ SCIP_RETCODE CBFreadDcoord(
    {
       if ( constnnonz >= 0 )
       {
-         /* allocate memory (sdpconstnnonz for each block, since we do not yet no the distribution) */
+         /* allocate memory (constnnonz for each block, since we do not yet no the distribution) */
          SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpconstrow), data->nsdpblocks) );
          SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpconstcol), data->nsdpblocks) );
          SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpconstval), data->nsdpblocks) );
+         for (b = 0; b < data->nsdpblocks; b++)
+         {
+            SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpconstrow[b]), constnnonz) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpconstcol[b]), constnnonz) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpconstval[b]), constnnonz) );
+         }
 
          for (i = 0; i < constnnonz; i++)
          {
@@ -972,9 +987,9 @@ SCIP_RETCODE CBFreadDcoord(
          for (b = 0; b < data->nsdpblocks; b++)
          {
             /* resize arrays */
-            SCIP_CALL( SCIPreallocBufferArray(scip, &(data->sdpconstrow), data->sdpconstnblocknonz[b]) );
-            SCIP_CALL( SCIPreallocBufferArray(scip, &(data->sdpconstcol), data->sdpconstnblocknonz[b]) );
-            SCIP_CALL( SCIPreallocBufferArray(scip, &(data->sdpconstval), data->sdpconstnblocknonz[b]) );
+            SCIP_CALL( SCIPreallocBufferArray(scip, &(data->sdpconstrow[b]), data->sdpconstnblocknonz[b]) );
+            SCIP_CALL( SCIPreallocBufferArray(scip, &(data->sdpconstcol[b]), data->sdpconstnblocknonz[b]) );
+            SCIP_CALL( SCIPreallocBufferArray(scip, &(data->sdpconstval[b]), data->sdpconstnblocknonz[b]) );
          }
 #endif
       }
@@ -1084,6 +1099,8 @@ SCIP_DECL_READERREAD(readerReadCbf)
    versionread = FALSE;
    objread = FALSE;
 
+   SCIPdebugMsg(scip, "Reading file %s\n", filename);
+
    scipfile = SCIPfopen(filename, "r");
 
    if ( ! scipfile )
@@ -1091,6 +1108,9 @@ SCIP_DECL_READERREAD(readerReadCbf)
 
    SCIP_CALL( SCIPallocBuffer(scip, &data) );
    data->nsdpblocks = 0;
+
+   /* create empty problem */
+   SCIP_CALL( SCIPcreateProb(scip, filename, NULL, NULL, NULL, NULL, NULL, NULL, NULL) );
 
    while( CBFfgets(scipfile, &linecount) == SCIP_OKAY )
    {
@@ -1108,6 +1128,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
 
                if ( sscanf(CBF_LINE_BUFFER, "%i", &ver) == 1 )
                {
+                  SCIPdebugMsg(scip, "file version %d\n", ver);
                   if ( ver != CBF_VERSION_NR )
                   {
                      SCIPerrorMessage("Only version number %d is supported!\n", CBF_VERSION_NR);
@@ -1129,23 +1150,28 @@ SCIP_DECL_READERREAD(readerReadCbf)
          {
             if ( strcmp(CBF_NAME_BUFFER, "OBJSENSE") == 0 )
             {
+               SCIPdebugMsg(scip, "Reading OBJSENSE\n");
                SCIP_CALL( CBFreadObjsense(scip, scipfile, &linecount) );
                objread = TRUE;
             }
             else if (strcmp(CBF_NAME_BUFFER, "VAR") == 0)
             {
+               SCIPdebugMsg(scip, "Reading VAR\n");
                SCIP_CALL( CBFreadVar(scip, scipfile, &linecount, data) );
             }
             else if (strcmp(CBF_NAME_BUFFER, "CON") == 0)
             {
+               SCIPdebugMsg(scip, "Reading CON\n");
                SCIP_CALL( CBFreadCon(scip, scipfile, &linecount, data) );
             }
             else if (strcmp(CBF_NAME_BUFFER, "INT") == 0)
             {
+               SCIPdebugMsg(scip, "Reading INT\n");
                SCIP_CALL( CBFreadInt(scip, scipfile, &linecount, data) );
             }
             else if (strcmp(CBF_NAME_BUFFER, "PSDCON") == 0)
             {
+               SCIPdebugMsg(scip, "Reading PSDCON\n");
                SCIP_CALL( CBFreadPsdcon(scip, scipfile, &linecount, data) );
             }
             else if (strcmp(CBF_NAME_BUFFER, "PSDVAR") == 0)
@@ -1163,6 +1189,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
             }
             else if (strcmp(CBF_NAME_BUFFER, "OBJACOORD") == 0)
             {
+               SCIPdebugMsg(scip, "Reading OBJACOORD\n");
                SCIP_CALL( CBFreadObjacoord(scip, scipfile, &linecount, data) );
             }
             else if (strcmp(CBF_NAME_BUFFER, "OBJBCOORD") == 0)
@@ -1177,18 +1204,22 @@ SCIP_DECL_READERREAD(readerReadCbf)
             }
             else if (strcmp(CBF_NAME_BUFFER, "ACOORD") == 0)
             {
+               SCIPdebugMsg(scip, "Reading ACOORD\n");
                SCIP_CALL( CBFreadAcoord(scip, scipfile, &linecount, data) );
             }
             else if (strcmp(CBF_NAME_BUFFER, "BCOORD") == 0)
             {
+               SCIPdebugMsg(scip, "Reading BCOORD\n");
                SCIP_CALL( CBFreadBcoord(scip, scipfile, &linecount, data) );
             }
-            else if (strcmp(CBF_NAME_BUFFER, "BCOORD") == 0)
+            else if (strcmp(CBF_NAME_BUFFER, "HCOORD") == 0)
             {
+               SCIPdebugMsg(scip, "Reading HCOORD\n");
                SCIP_CALL( CBFreadHcoord(scip, scipfile, &linecount, data) );
             }
             else if (strcmp(CBF_NAME_BUFFER, "DCOORD") == 0)
             {
+               SCIPdebugMsg(scip, "Reading DCOORD\n");
                SCIP_CALL( CBFreadDcoord(scip, scipfile, &linecount, data) );
             }
             else
@@ -1198,8 +1229,6 @@ SCIP_DECL_READERREAD(readerReadCbf)
             }
          }
       }
-      else
-         return SCIP_READERROR;
    }
 
    if ( !objread )
@@ -1211,6 +1240,13 @@ SCIP_DECL_READERREAD(readerReadCbf)
    /* close the file (and make sure SCIPfclose returns 0) */
    if ( SCIPfclose(scipfile) )
       return SCIP_READERROR;
+
+#ifdef SCIP_MORE_DEBUG
+   for (b = 0; b < SCIPgetNConss(scip); b++)
+   {
+      SCIP_CALL( SCIPprintCons(scip, SCIPgetConss(scip)[b], NULL) );
+   }
+#endif
 
    /* create SDP-constraints */
    for (b = 0; b < data->nsdpblocks; b++)
@@ -1245,7 +1281,9 @@ SCIP_CALL( SCIPprintCons(scip, sdpcons, NULL) );
    }
 
    SCIP_CALL( CBFfreeData(scip, data) );
-   SCIPfreeBuffer(scip, data);
+   SCIPfreeBufferNull(scip, &data);
+
+   *result = SCIP_SUCCESS;
 
    return SCIP_OKAY;
 }
