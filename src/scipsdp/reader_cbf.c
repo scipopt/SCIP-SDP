@@ -641,7 +641,7 @@ SCIP_RETCODE CBFreadAcoord(
                if ( SCIPisZero(scip, val) )
                {
                   SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Ignored linear coefficient of constraint %d, variable "
-                        "%d; value %lf is smaller than epsilon = %f.\n", c, v, val, SCIPepsilon(scip));
+                        "%d; value %f.9 is smaller than epsilon = %f.\n", c, v, val, SCIPepsilon(scip));
                }
                else
                {
@@ -701,7 +701,7 @@ SCIP_RETCODE CBFreadBcoord(
                }
                if ( SCIPisZero(scip, val) )
                {
-                  SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Ignored constant part of constraint %d; value %f is "
+                  SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Ignored constant part of constraint %d; value %f.9 is "
                         "smaller than epsilon = %f.\n", c, val, SCIPepsilon(scip));
                }
                else
@@ -820,7 +820,7 @@ SCIP_RETCODE CBFreadHcoord(
                if ( SCIPisZero(scip, val) )
                {
                   SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Ignored SDP-coefficient of SDP-constraint %d, variable "
-                        "%d, row %d, col %d; value %lf is smaller than epsilon = %f.\n", b, v, row, col, val, SCIPepsilon(scip));
+                        "%d, row %d, col %d; value %f.9 is smaller than epsilon = %f.\n", b, v, row, col, val, SCIPepsilon(scip));
                }
                else
                {
@@ -970,7 +970,7 @@ SCIP_RETCODE CBFreadDcoord(
                if ( SCIPisZero(scip, val) )
                {
                   SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Ignored constant entry of SDP-constraint %d, row %d,"
-                        " col %d; value %lf is smaller than epsilon = %f.\n", b, row, col, val, SCIPepsilon(scip));
+                        " col %d; value %f.9 is smaller than epsilon = %f.\n", b, row, col, val, SCIPepsilon(scip));
                }
                else
                {
