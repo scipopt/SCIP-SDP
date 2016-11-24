@@ -574,7 +574,7 @@ SCIP_RETCODE CBFreadObjacoord(
                if ( SCIPisZero(scip, val) )
                {
                   SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Ignored objective coefficient of variable %d; value"
-                        "%f is smaller than epsilon = %d.\n", v, val, SCIPepsilon(scip));
+                        "%f is smaller than epsilon = %f.\n", v, val, SCIPepsilon(scip));
                }
                else
                {
@@ -641,7 +641,7 @@ SCIP_RETCODE CBFreadAcoord(
                if ( SCIPisZero(scip, val) )
                {
                   SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Ignored linear coefficient of constraint %d, variable "
-                        "%d; value %lf is smaller than epsilon = %d.\n", c, v, val, SCIPepsilon(scip));
+                        "%d; value %lf is smaller than epsilon = %f.\n", c, v, val, SCIPepsilon(scip));
                }
                else
                {
@@ -702,7 +702,7 @@ SCIP_RETCODE CBFreadBcoord(
                if ( SCIPisZero(scip, val) )
                {
                   SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Ignored constant part of constraint %d; value %f is "
-                        "smaller than epsilon = %d.\n", c, val, SCIPepsilon(scip));
+                        "smaller than epsilon = %f.\n", c, val, SCIPepsilon(scip));
                }
                else
                {
@@ -820,7 +820,7 @@ SCIP_RETCODE CBFreadHcoord(
                if ( SCIPisZero(scip, val) )
                {
                   SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Ignored SDP-coefficient of SDP-constraint %d, variable "
-                        "%d, row %d, col %d; value %lf is smaller than epsilon = %d.\n", b, v, row, col, val, SCIPepsilon(scip));
+                        "%d, row %d, col %d; value %lf is smaller than epsilon = %f.\n", b, v, row, col, val, SCIPepsilon(scip));
                }
                else
                {
@@ -970,7 +970,7 @@ SCIP_RETCODE CBFreadDcoord(
                if ( SCIPisZero(scip, val) )
                {
                   SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Ignored constant entry of SDP-constraint %d, row %d,"
-                        " col %d; value %lf is smaller than epsilon = %d.\n", b, row, col, val, SCIPepsilon(scip));
+                        " col %d; value %lf is smaller than epsilon = %f.\n", b, row, col, val, SCIPepsilon(scip));
                }
                else
                {
@@ -1601,7 +1601,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    {
       if ( ! SCIPisZero(scip, SCIPvarGetObj(vars[v])) )
       {
-         SCIPinfoMessage(scip, file, "%d %f\n", SCIPsdpVarmapperGetSdpIndex(varmapper, vars[v]), SCIPvarGetObj(vars[v]));
+         SCIPinfoMessage(scip, file, "%d %f.9\n", SCIPsdpVarmapperGetSdpIndex(varmapper, vars[v]), SCIPvarGetObj(vars[v]));
       }
    }
 
@@ -1689,7 +1689,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 
          for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
          {
-            SCIPinfoMessage(scip, file, "%d %d %f\n", consind, SCIPsdpVarmapperGetSdpIndex(varmapper, linvars[v]), linvals[v]);
+            SCIPinfoMessage(scip, file, "%d %d %f.9\n", consind, SCIPsdpVarmapperGetSdpIndex(varmapper, linvars[v]), linvals[v]);
          }
          consind++;
       }
@@ -1712,7 +1712,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 
          for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
          {
-            SCIPinfoMessage(scip, file, "%d %d %f\n", consind, SCIPsdpVarmapperGetSdpIndex(varmapper, linvars[v]), linvals[v]);
+            SCIPinfoMessage(scip, file, "%d %d %f.9\n", consind, SCIPsdpVarmapperGetSdpIndex(varmapper, linvars[v]), linvals[v]);
          }
          consind++;
       }
@@ -1736,7 +1736,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 
          for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
          {
-            SCIPinfoMessage(scip, file, "%d %d %f\n", consind, SCIPsdpVarmapperGetSdpIndex(varmapper, linvars[v]), linvals[v]);
+            SCIPinfoMessage(scip, file, "%d %d %f.9\n", consind, SCIPsdpVarmapperGetSdpIndex(varmapper, linvars[v]), linvals[v]);
          }
          consind++;
       }
@@ -1764,7 +1764,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
          /* write the entry; *(-1) because we have Ax - lhs >= 0 */
          if ( ! SCIPisZero(scip, SCIPgetLhsLinear(scip, conss[c])) )
          {
-            SCIPinfoMessage(scip, file, "%d %f\n", consind, -1 * SCIPgetLhsLinear(scip, conss[c]));
+            SCIPinfoMessage(scip, file, "%d %f.9\n", consind, -1 * SCIPgetLhsLinear(scip, conss[c]));
          }
          consind++; /* counting the constraint numbers is independent of whether the lhs is nonzero */
       }
@@ -1785,7 +1785,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
          /* write the entry; *(-1) because we have Ax - rhs <= 0 */
          if ( ! SCIPisZero(scip, SCIPgetRhsLinear(scip, conss[c])) )
          {
-            SCIPinfoMessage(scip, file, "%d %f\n", consind, -1 * SCIPgetRhsLinear(scip, conss[c]));
+            SCIPinfoMessage(scip, file, "%d %f.9\n", consind, -1 * SCIPgetRhsLinear(scip, conss[c]));
          }
          consind++; /* counting the constraint numbers is independent of whether the rhs is nonzero */
       }
@@ -1807,7 +1807,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
          /* write the entry; *(-1) because we have Ax - lhs = 0 */
          if ( ! SCIPisZero(scip, SCIPgetLhsLinear(scip, conss[c])) )
          {
-            SCIPinfoMessage(scip, file, "%d %f\n", consind, -1 * SCIPgetLhsLinear(scip, conss[c]));
+            SCIPinfoMessage(scip, file, "%d %f.9\n", consind, -1 * SCIPgetLhsLinear(scip, conss[c]));
          }
          consind++;/* counting the constraint numbers is independent of whether the lhs is nonzero */
       }
@@ -1862,7 +1862,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
       {
          for (i = 0; i < sdpnvarnonz[v]; i++)
          {
-            SCIPinfoMessage(scip, file, "%d %d %d %d %f\n", consind, SCIPsdpVarmapperGetSdpIndex(varmapper, sdpvars[v]),
+            SCIPinfoMessage(scip, file, "%d %d %d %d %f.9\n", consind, SCIPsdpVarmapperGetSdpIndex(varmapper, sdpvars[v]),
                   sdprow[v][i], sdpcol[v][i], sdpval[v][i]);
          }
       }
@@ -1890,7 +1890,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 
       for (i = 0; i < sdpconstnnonz; i++)
       {
-         SCIPinfoMessage(scip, file, "%d %d %d %f\n", consind, sdpconstrow[i], sdpconstcol[i], sdpconstval[i]);
+         SCIPinfoMessage(scip, file, "%d %d %d %f.9\n", consind, sdpconstrow[i], sdpconstcol[i], sdpconstval[i]);
       }
       consind++;
    }
