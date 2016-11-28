@@ -2600,7 +2600,7 @@ SCIP_RETCODE SCIPsdpiSolve(
          else
             objval = -SCIPsdpiInfinity(sdpi);
 
-         if ( (SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && objval > sdpi->gaptol) ||
+         if ( (SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && objval > sdpi->feastol) ||
                (SCIPsdpiSolverWasSolved(sdpi->sdpisolver) && SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver)) )
          {
             SCIPdebugMessage("SDP %d found infeasible using penalty formulation, maximum of smallest eigenvalue is %f.\n", sdpi->sdpid, -1.0 * objval);
