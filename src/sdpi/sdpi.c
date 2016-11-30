@@ -2600,7 +2600,12 @@ SCIP_RETCODE SCIPsdpiSolve(
          else
             objval = -SCIPsdpiInfinity(sdpi);
 
-         if ( (SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && objval > sdpi->feastol) ||
+         /* If the penalty formulation was successfully solved and has a strictly positive objective value, we know that
+          * the problem is infeasible. Note that we need to check against the maximum of feastol and gaptol, since this
+          * is the objective of an SDP which is only exact up to gaptol, and cutting a feasible node off is an error
+          * while continueing with an infeasible problem only takes additional time until we found out again later.
+          */
+         if ( (SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && (objval > (sdpi->feastol > sdpi->gaptol ? sdpi->feastol : sdpi->gaptol))) ||
                (SCIPsdpiSolverWasSolved(sdpi->sdpisolver) && SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver)) )
          {
             SCIPdebugMessage("SDP %d found infeasible using penalty formulation, maximum of smallest eigenvalue is %f.\n", sdpi->sdpid, -1.0 * objval);
