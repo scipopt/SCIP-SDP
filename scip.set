@@ -1,4 +1,0 @@
-numerics/epsilon = 1e-05 
-numerics/feastol = 1e-05
-relaxing/SDP/sdpsolverepsilon = 1e-05
-relaxing/SDP/sdpsolverfeastol = 1e-05
