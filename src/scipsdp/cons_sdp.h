@@ -117,6 +117,13 @@ SCIP_RETCODE SCIPconsSdpGetNNonz(
    int*                  constnnonz          /**< pointer to store the number of nonzeros in the constant part of this SDP constraint */
    );
 
+/** gets the blocksize of the SDP constraint */
+EXTERN
+int SCIPconsSdpGetBlocksize(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons               /**< SDP constraint to get data of */
+   );
+
 /** gets the full constraint Matrix \f$ A_j \f$ for a given variable j */
 EXTERN
 SCIP_RETCODE SCIPconsSdpGetFullAj(

@@ -35,6 +35,7 @@
  * @author Tristan Gally
  *
  * Branch on the most infeasible variable in the current SDP-relaxation, i.e. the variable maximizing \f$\max\{x - \lfloor x \rfloor, \lceil x \rceil - x\} \f$.
+ * Will do nothing for continuous variables, since these are what the external callbacks of the SCIP branching rules are for.
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
@@ -112,7 +113,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostinf)
     * variables of different types with maximal score, so these return values are set to NULL */
    SCIP_CALL( SCIPgetExternBranchCands(scip, &cands, &candssol, &candsscore, &ncands, NULL, NULL, NULL, NULL) );
 
-   assert( ncands > 0 ); /* branchExecext should only be called if the list of extern branching candidate is non-empty */
+   assert( ncands > 0 ); /* branchExecext should only be called if the list of external branching candidates is non-empty */
 
 #ifdef SCIP_DEBUG
    SCIPdebugMessage("branching candidates for SDP-mostinf:\n");
@@ -128,6 +129,13 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostinf)
    /* iterate over all solution candidates to find the one with the highest infeasibility */
    for (i = 0; i < ncands; i++)
    {
+      /* we skip all continuous variables, since we first want to branch on integral variables */
+      if ( SCIPvarGetType(cands[i]) == SCIP_VARTYPE_CONTINUOUS )
+      {
+         SCIPdebugMessage("skipping continuous variable %s\n", SCIPvarGetName(cands[i]));
+         continue;
+      }
+
       currentfrac = SCIPfeasFrac(scip, candssol[i]);
       currentinf = (currentfrac <= 0.5) ? currentfrac : 1 - currentfrac;
       /* a candidate is better than the current one if:
@@ -148,6 +156,14 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostinf)
          mostinfscore = candsscore[i];
          mostinfvar = cands[i];
       }
+   }
+
+   /* if all variables were continuous, we return DIDNOTRUN and let one of the SCIP branching rules decide */
+   if ( mostinfinf == -1.0 )
+   {
+      SCIPdebugMessage("Skipping SDP-mostinf branching rule since all branching variables are continuous\n");
+      *result = SCIP_DIDNOTFIND;
+      return SCIP_OKAY;
    }
 
    assert( mostinfvar != NULL );

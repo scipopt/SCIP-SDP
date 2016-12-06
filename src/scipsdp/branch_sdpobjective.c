@@ -34,7 +34,8 @@
  * @brief  highest absolute objective branching rule for SCIP-SDP
  * @author Tristan Gally
  *
- * Branch on the variable with the highest absolute objective coefficient in the SDP.
+ * Branch on the integral variable with the highest absolute objective coefficient in the SDP.
+ * Will do nothing for continuous variables, since these are what the external callbacks of the SCIP branching rules are for.
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
@@ -127,7 +128,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
     * score, so these return values are set to NULL */
    SCIP_CALL( SCIPgetExternBranchCands(scip, &cands, &candssol, &candsscore, &ncands, NULL, NULL, NULL, NULL) );
 
-   assert( ncands > 0 ); /* branchExecext should only be called if the list of extern branching candidate is non-empty */
+   assert( ncands > 0 ); /* branchExecext should only be called if the list of external branching candidates is non-empty */
 
 #ifdef SCIP_DEBUG
    SCIPdebugMessage("branching candidates for SDP-objective:\n");
@@ -143,6 +144,13 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
    /* iterate over all candidates and find the one with the highest absolute objective, use score as tiebreaker */
    for (i = 0; i < ncands; i++)
    {
+      /* we skip all continuous variables, since we first want to branch on integral variables */
+      if ( SCIPvarGetType(cands[i]) == SCIP_VARTYPE_CONTINUOUS )
+      {
+         SCIPdebugMessage("skipping continuous variable %s\n", SCIPvarGetName(cands[i]));
+         continue;
+      }
+
       currentfrac = SCIPfeasFrac(scip, candssol[i]);
       currentinf = (currentfrac <= 0.5) ? currentfrac : 1 - currentfrac;
 
@@ -166,7 +174,16 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
       }
    }
 
-   assert( SCIPisGE(scip, maxobjobj, 0.0) );
+   /* if all variables were continuous, we return DIDNOTRUN and let one of the SCIP branching rules decide */
+   if ( maxobjobj == -1.0 )
+   {
+      SCIPdebugMessage("Skipping SDP-objective branching rule since all branching variables are continuous\n");
+      *result = SCIP_DIDNOTFIND;
+      return SCIP_OKAY;
+   }
+
+   assert( SCIPisFeasGE(scip, maxobjobj, 0.0) );
+   assert( maxobjvar != NULL );
 
    branchruledata = SCIPbranchruleGetData(branchrule);
    assert( branchruledata != NULL );

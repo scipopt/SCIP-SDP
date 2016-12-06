@@ -18,5 +18,5 @@ This program is free software; you can redistribute it and/or modify it under th
 <ul>
    <li><a href="http://www.optimization-online.org/DB_HTML/2016/04/5394.html">A Framework for Solving Mixed-Integer Semidefinite Programs</a> <br> <i> Tristan Gally, Marc E. Pfetsch, and Stefan Ulbrich </i> <br>  Technical report, Optimization-Online, 2016</li>
 </ul>
-   An <a href="http://www.opt.tu-darmstadt.de/scipsdp/downloads/OnlineSupplement-GallyPfetschUlbrich-FrameworkMISDP.pdf">online supplement with detailed results</a> and the <a href="http://www.opt.tu-darmstadt.de/scipsdp/downloads/FrameworkMISDP-instances.tar.gz">corresponding instances</a> are also available.
+   An <a href="http://www.opt.tu-darmstadt.de/scipsdp/downloads/OnlineSupplement-GallyPfetschUlbrich-FrameworkMISDP.pdf">online supplement with detailed results</a> and the corresponding instances (<a href="http://www.opt.tu-darmstadt.de/scipsdp/downloads/FrameworkMISDP-instances-CBF.tar.gz">CBF</a> / <a href="http://www.opt.tu-darmstadt.de/scipsdp/downloads/FrameworkMISDP-instances.tar.gz">SDPA</a>-format) are also available.
 </p>

@@ -94,6 +94,22 @@ SCIP_DECL_CONSENFOLP(consEnfolpSavedsdpsettings)
 }
 
 
+/** constraint enforcing method of constraint handler for LP solutions */
+static
+SCIP_DECL_CONSENFORELAX(consEnforelaxSavedsdpsettings)
+{/*lint --e{715}*/
+   assert( scip != NULL );
+   assert( conshdlr != NULL );
+   assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
+   assert( result != NULL );
+
+   /* do nothing */
+   *result = SCIP_FEASIBLE;
+
+   return SCIP_OKAY;
+}
+
+
 /** constraint enforcing method of constraint handler for pseudo solutions */
 static
 SCIP_DECL_CONSENFOPS(consEnfopsSavedsdpsettings)
@@ -162,7 +178,16 @@ static
 SCIP_DECL_CONSCOPY(consCopySavedsdpsettings)
 {  /*lint --e{715}*/
 
-   /* do not do anything: no savedsdpsettings constraint should be present in the copy */
+   if ( name )
+   {
+      SCIP_CALL( createConsSavedsdpsettings(scip, cons, name, SCIPconsSavedsdpsettingsGetSettings(sourcescip, sourcecons)) );
+   }
+   else
+   {
+      SCIP_CALL( createConsSavedsdpsettings(scip, cons, SCIPconsGetName(sourcecons), SCIPconsSavedsdpsettingsGetSettings(sourcescip, sourcecons)) );
+   }
+
+   *valid = TRUE;
    return SCIP_OKAY;
 }
 
@@ -184,6 +209,7 @@ SCIP_RETCODE SCIPincludeConshdlrSavedsdpsettings(
 
    /* set additional callbacks */
    SCIP_CALL( SCIPsetConshdlrDelete(scip, conshdlr, consDeleteSavedsdpsettings) );
+   SCIP_CALL( SCIPsetConshdlrEnforelax(scip, conshdlr, consEnforelaxSavedsdpsettings) );
    SCIP_CALL( SCIPsetConshdlrCopy(scip, conshdlr, conshdlrCopySavedsdpsettings, consCopySavedsdpsettings) );
 
    return SCIP_OKAY;

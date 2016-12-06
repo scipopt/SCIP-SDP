@@ -243,8 +243,10 @@ MAINCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/branch_sdpinfobjective.o \
 			scipsdp/heur_sdpfracdiving.o \
 			scipsdp/heur_sdprand.o \
+			scipsdp/reader_cbf.o \
 			scipsdp/prop_sdpobbt.o \
 			sdpi/sdpi.o \
+			sdpi/sdpsolchecker.o \
 			scipsdpgithash.o
 
 MAINCCOBJ 	=	scipsdp/main.o \
@@ -505,7 +507,7 @@ depend:		$(SCIPDIR)
 
 $(MAINFILE):	preprocess $(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(MAINCOBJFILES) $(MAINCCOBJFILES) $(SDPIOBJ) | $(SDPOBJSUBDIRS) $(BINDIR)
 		@echo "-> linking $@"
-		$(LINKCXX) $(MAINCOBJFILES) $(MAINCCOBJFILES) \
+		$(LINKCXX) $(MAINCOBJFILES) $(MAINCCOBJFILES) $(LINKCCSCIPALL) \
 		$(LINKCXX_L)$(SCIPDIR)/lib $(LINKCXX_l)$(SCIPLIB)$(LINKLIBSUFFIX) \
                 $(LINKCXX_l)$(OBJSCIPLIB)$(LINKLIBSUFFIX) $(LINKCXX_l)$(LPILIB)$(LINKLIBSUFFIX) $(LINKCXX_l)$(NLPILIB)$(LINKLIBSUFFIX) \
                 $(OFLAGS) $(LPSLDFLAGS) \

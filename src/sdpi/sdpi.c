@@ -114,10 +114,11 @@
 
 /* #define PRINTSLATER */
 #define NINCREASESGAMMA             2        /**< How often will Gamma at most be increased if penalty formulation failed */
-#define MIN_EPSILON                 1e-10    /**< minimum epsilon for SDP-solver if decreasing it for a penalty formulation */
+#define MIN_GAPTOL                  1e-10    /**< minimum gaptolerance for SDP-solver if decreasing it for a penalty formulation */
 
-#define DEFAULT_SDPSOLVEREPSILON    1e-4     /**< the stopping criterion for the duality gap the sdpsolver should use */
+#define DEFAULT_SDPSOLVERGAPTOL     1e-4     /**< the stopping criterion for the duality gap the sdpsolver should use */
 #define DEFAULT_SDPSOLVERFEASTOL    1e-6     /**< the feasibility tolerance the SDP-solver should use for the SDP constraints */
+#define DEFAULT_EPSILON             1e-9     /**< used to test whether given values are equal */
 #define DEFAULT_PENALTYPARAM        1e+5     /**< the starting penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
 #define DEFAULT_MAXPENALTYPARAM     1e+10    /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
 
@@ -173,7 +174,8 @@ struct SCIP_SDPi
    SCIP_Bool             penalty;            /**< was the last solved problem a penalty formulation */
    SCIP_Bool             infeasible;         /**< was infeasibility detected in presolving? */
    SCIP_Bool             allfixed;           /**< could all variables be fixed during presolving? */
-   SCIP_Real             epsilon;            /**< this is used for checking if primal and dual objective are equal */
+   SCIP_Real             epsilon;            /**< tolerance for absolute checks */
+   SCIP_Real             gaptol;             /**< (previous: sdpsolverepsilon) this is used for checking if primal and dual objective are equal */
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
    SCIP_Real             penaltyparam;       /**< the starting penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
    SCIP_Real             maxpenaltyparam;    /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
@@ -224,12 +226,12 @@ SCIP_Bool isFixed(
    lb = sdpi->lb[v];
    ub = sdpi->ub[v];
 
-   assert( lb < ub + sdpi->feastol || sdpi->infeasible );
+   assert( lb < ub + sdpi->epsilon || sdpi->infeasible );
 
-   return ( REALABS(ub-lb) <= sdpi->feastol );
+   return ( REALABS(ub-lb) <= sdpi->epsilon );
 }
 #else
-#define isFixed(sdpi, v) (REALABS(sdpi->ub[v] - sdpi->lb[v]) <= sdpi->feastol)
+#define isFixed(sdpi, v) (REALABS(sdpi->ub[v] - sdpi->lb[v]) <= sdpi->epsilon)
 #endif
 
 /** Computes the constant matrix after all variables with lb=ub have been fixed and their nonzeros were moved to the constant part. The five variables
@@ -329,7 +331,7 @@ SCIP_RETCODE compConstMatAfterFixings(
    *sdpconstnnonz = 0;
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
-      SCIP_CALL( SCIPsdpVarfixerMergeArraysIntoNew(sdpi->blkmem, sdpi->feastol, sdpi->sdpconstrow[block], sdpi->sdpconstcol[block], sdpi->sdpconstval[block],
+      SCIP_CALL( SCIPsdpVarfixerMergeArraysIntoNew(sdpi->blkmem, sdpi->epsilon, sdpi->sdpconstrow[block], sdpi->sdpconstcol[block], sdpi->sdpconstval[block],
                                                sdpi->sdpconstnblocknonz[block], fixedrows[block], fixedcols[block], fixedvals[block], nfixednonz[block],
                                                sdpconstrow[block], sdpconstcol[block], sdpconstval[block], &sdpconstnblocknonz[block]) );
       *sdpconstnnonz += sdpconstnblocknonz[block];
@@ -405,7 +407,7 @@ SCIP_RETCODE findEmptyRowColsSDP(
          {
             for (i = 0; i < sdpi->sdpnblockvarnonz[block][v]; i++)
             {
-               assert ( REALABS(sdpi->sdpval[block][v][i]) > sdpi->feastol); /* this should really be a nonzero */
+               assert ( REALABS(sdpi->sdpval[block][v][i]) > sdpi->epsilon); /* this should really be a nonzero */
                if ( indchanges[block][sdpi->sdprow[block][v][i]] == -1 )
                {
                   indchanges[block][sdpi->sdprow[block][v][i]] = 1;
@@ -429,7 +431,7 @@ SCIP_RETCODE findEmptyRowColsSDP(
          /* if some indices haven't been found yet, look in the constant part for them */
          for (i = 0; i < sdpconstnblocknonz[block]; i++)
          {
-            assert ( REALABS(sdpconstval[block][i]) > sdpi->feastol); /* this should really be a nonzero */
+            assert ( REALABS(sdpconstval[block][i]) > sdpi->epsilon); /* this should really be a nonzero */
             if ( indchanges[block][sdpconstrow[block][i]] == -1 )
             {
                indchanges[block][sdpconstrow[block][i]] = 1;
@@ -540,14 +542,14 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
             assert( 0 <= nonzcol && nonzcol < sdpi->nvars );
 
             nonzval = sdpi->lpval[nonzind];
-            assert( REALABS(nonzval) > sdpi->feastol );
+            assert( REALABS(nonzval) > sdpi->epsilon );
 
             /* we have to check if this is an improvement of the current bound */
             if ( nonzval < 0.0 ) /* we have to compare with the upper bound for lhs and lower bound for rhs */
             {
                /* check for the left-hand-side */
                if ( (lplhsafterfix[*nactivelpcons] > - SCIPsdpiInfinity(sdpi)) &&
-                  ( (lplhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->feastol) )
+                  ( (lplhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->epsilon) )
                {
                   /* this bound is sharper than the original one */
                   SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
@@ -555,7 +557,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
                   sdpi->ub[nonzcol] = lplhsafterfix[*nactivelpcons] / nonzval;
 
                   /* check if this leads to a fixing of this variable */
-                  if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->feastol )
+                  if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->epsilon )
                   {
                      *fixingsfound = TRUE;
                      SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
@@ -572,7 +574,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
                }
                /* check for the right-hand-side */
                if ( (lprhsafterfix[*nactivelpcons] < SCIPsdpiInfinity(sdpi)) &&
-                  ( (lprhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] + sdpi->feastol) )
+                  ( (lprhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] + sdpi->epsilon) )
                {
                   /* this bound is sharper than the original one */
                   SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
@@ -580,7 +582,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
                   sdpi->lb[nonzcol] = lprhsafterfix[*nactivelpcons] / nonzval;
 
                   /* check if this leads to a fixing of this variable */
-                  if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->feastol )
+                  if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->epsilon )
                   {
                      *fixingsfound = TRUE;
                      SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
@@ -601,7 +603,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
             {
                /* check for the left-hand-side */
                if ( (lplhsafterfix[*nactivelpcons] < SCIPsdpiInfinity(sdpi)) &&
-                  ( (lplhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] + sdpi->feastol) )
+                  ( (lplhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] + sdpi->epsilon) )
                {
                   /* this bound is sharper than the original one */
                   SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
@@ -609,7 +611,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
                   sdpi->lb[nonzcol] = lplhsafterfix[*nactivelpcons] / nonzval;
 
                   /* check if this leads to a fixing of this variable */
-                  if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->feastol )
+                  if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->epsilon )
                   {
                      *fixingsfound = TRUE;
                      SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
@@ -627,7 +629,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
                }
                /* check for the right-hand-side */
                if ( (lprhsafterfix[*nactivelpcons] > - SCIPsdpiInfinity(sdpi)) &&
-                  ( (lprhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->feastol) )
+                  ( (lprhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->epsilon) )
                {
                   /* this bound is sharper than the original one */
                   SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
@@ -635,7 +637,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
                   sdpi->ub[nonzcol] = lprhsafterfix[*nactivelpcons] / nonzval;
 
                   /* check if this leads to a fixing of this variable */
-                  if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->feastol )
+                  if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->epsilon )
                   {
                      *fixingsfound = TRUE;
                      SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
@@ -699,14 +701,14 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
       assert( 0 <= nonzcol && nonzcol < sdpi->nvars );
 
       nonzval = sdpi->lpval[nonzind];
-      assert( REALABS(nonzval) > sdpi->feastol );
+      assert( REALABS(nonzval) > sdpi->epsilon );
 
       /* we have to check if this is an improvement of the current bound */
       if ( nonzval < 0.0 ) /* we have to compare with the upper bound for lhs and lower bound for rhs */
       {
          /* check for the left-hand-side */
          if ( (lplhsafterfix[*nactivelpcons] > SCIPsdpiInfinity(sdpi)) &&
-            ( (lplhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->feastol) )
+            ( (lplhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->epsilon) )
          {
             /* this bound is sharper than the original one */
             SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
@@ -714,7 +716,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
             sdpi->ub[nonzcol] = lplhsafterfix[*nactivelpcons] / nonzval;
 
             /* check if this leads to a fixing of this variable */
-            if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->feastol )
+            if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->epsilon )
             {
                *fixingsfound = TRUE;
                SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
@@ -731,7 +733,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
          }
          /* check for the right-hand-side */
          if ( (lprhsafterfix[*nactivelpcons] < SCIPsdpiInfinity(sdpi)) &&
-            ( (lprhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] - sdpi->feastol) )
+            ( (lprhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] - sdpi->epsilon) )
          {
             /* this bound is sharper than the original one */
             SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
@@ -739,7 +741,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
             sdpi->lb[nonzcol] = lprhsafterfix[*nactivelpcons] / nonzval;
 
             /* check if this leads to a fixing of this variable */
-            if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->feastol )
+            if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->epsilon )
             {
                *fixingsfound = TRUE;
                SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
@@ -759,7 +761,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
       {
          /* check for the left-hand-side */
          if ( (lplhsafterfix[*nactivelpcons] < SCIPsdpiInfinity(sdpi)) &&
-            ( (lplhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] + sdpi->feastol) )
+            ( (lplhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] + sdpi->epsilon) )
          {
             /* this bound is sharper than the original one */
             SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
@@ -767,7 +769,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
             sdpi->lb[nonzcol] = lplhsafterfix[*nactivelpcons] / nonzval;
 
             /* check if this leads to a fixing of this variable */
-            if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->feastol )
+            if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->epsilon )
             {
                *fixingsfound = TRUE;
                SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
@@ -784,7 +786,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
          }
          /* check for the right-hand-side */
          if ( (lprhsafterfix[*nactivelpcons] > SCIPsdpiInfinity(sdpi)) &&
-            ( (lprhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->feastol) )
+            ( (lprhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->epsilon) )
          {
             /* this bound is sharper than the original one */
             SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
@@ -792,7 +794,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
             sdpi->ub[nonzcol] = lplhsafterfix[*nactivelpcons] / nonzval;
 
             /* check if this leads to a fixing of this variable */
-            if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->feastol )
+            if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->epsilon )
             {
                *fixingsfound = TRUE;
                SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d\n",
@@ -922,7 +924,7 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
          fixedval = sdpi->lb[sdpi->sdpvar[b][v]];
 
          /* if the variable is fixed to zero, we can ignore its contributions */
-         if ( REALABS(fixedval) < sdpi->feastol )
+         if ( REALABS(fixedval) < sdpi->epsilon )
             continue;
 
          /* iterate over all nonzeros */
@@ -938,7 +940,7 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
       }
 
       /* compute the smallest eigenvalue */
-      SCIP_CALL( SCIPlapackComputeIthEigenvalue(sdpi->blkmem, FALSE, size, fullmatrix, 1, &eigenvalue, NULL) );
+      SCIP_CALL( SCIPlapackComputeIthEigenvalue(sdpi->bufmem, FALSE, size, fullmatrix, 1, &eigenvalue, NULL) );
 
       /* check if the eigenvalue is negative */
       if ( eigenvalue < -1 * sdpi->feastol )
@@ -1088,7 +1090,7 @@ SCIP_RETCODE checkSlaterCondition(
                SCIPdebugMessage("Slater condition for SDP %d is fullfilled for dual problem with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);/*lint !e687*/
             sdpi->dualslater = SCIP_SDPSLATER_HOLDS;
          }
-         else if ( objval < sdpi->epsilon )
+         else if ( objval < sdpi->feastol )
          {
             if ( rootnodefailed )
             {
@@ -1167,7 +1169,7 @@ SCIP_RETCODE checkSlaterCondition(
    nremovedslaterlpinds = 0;
    for (v = 0; v < sdpi->nvars; v++)
    {
-      if ( REALABS(slaterlpval[sdpi->lpnnonz + v]) <= sdpi->feastol )/*lint !e679*/
+      if ( REALABS(slaterlpval[sdpi->lpnnonz + v]) <= sdpi->epsilon )/*lint !e679*/
          nremovedslaterlpinds++;
       else
       {
@@ -1444,7 +1446,8 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->lpcol = NULL;
    (*sdpi)->lpval = NULL;
 
-   (*sdpi)->epsilon = DEFAULT_SDPSOLVEREPSILON;
+   (*sdpi)->epsilon = DEFAULT_EPSILON;
+   (*sdpi)->gaptol = DEFAULT_SDPSOLVERGAPTOL;
    (*sdpi)->feastol = DEFAULT_SDPSOLVERFEASTOL;
    (*sdpi)->penaltyparam = DEFAULT_PENALTYPARAM;
    (*sdpi)->penaltyparam = DEFAULT_MAXPENALTYPARAM;
@@ -1620,6 +1623,7 @@ SCIP_RETCODE SCIPsdpiClone(
    newsdpi->allfixed = FALSE;
    newsdpi->sdpid = 1000000 + oldsdpi->sdpid; /* this is only used for debug output, setting it to this value should make it clear, that it is a new sdpi */
    newsdpi->epsilon = oldsdpi->epsilon;
+   newsdpi->gaptol = oldsdpi->gaptol;
    newsdpi->feastol = oldsdpi->feastol;
 
    return SCIP_OKAY;
@@ -2550,8 +2554,8 @@ SCIP_RETCODE SCIPsdpiSolve(
       {
          SCIP_Real penaltyparam;
          SCIP_Real penaltyparamfact;
-         SCIP_Real epsilon;
-         SCIP_Real epsilonfact;
+         SCIP_Real gaptol;
+         SCIP_Real gaptolfact;
          SCIP_Bool feasorig;
          SCIP_Bool penaltybound;
          SCIP_Real objbound;
@@ -2596,7 +2600,12 @@ SCIP_RETCODE SCIPsdpiSolve(
          else
             objval = -SCIPsdpiInfinity(sdpi);
 
-         if ( (SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && objval > sdpi->epsilon) ||
+         /* If the penalty formulation was successfully solved and has a strictly positive objective value, we know that
+          * the problem is infeasible. Note that we need to check against the maximum of feastol and gaptol, since this
+          * is the objective of an SDP which is only exact up to gaptol, and cutting a feasible node off is an error
+          * while continueing with an infeasible problem only takes additional time until we found out again later.
+          */
+         if ( (SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && (objval > (sdpi->feastol > sdpi->gaptol ? sdpi->feastol : sdpi->gaptol))) ||
                (SCIPsdpiSolverWasSolved(sdpi->sdpisolver) && SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver)) )
          {
             SCIPdebugMessage("SDP %d found infeasible using penalty formulation, maximum of smallest eigenvalue is %f.\n", sdpi->sdpid, -1.0 * objval);
@@ -2612,12 +2621,12 @@ SCIP_RETCODE SCIPsdpiSolve(
 
             /* we compute the factor to increase with as n-th root of the total increase until the maximum, where n is the number of iterations */
             penaltyparamfact = pow((sdpi->maxpenaltyparam / sdpi->penaltyparam), 1.0/NINCREASESGAMMA);
-            epsilon = sdpi->epsilon;
-            epsilonfact = pow((MIN_EPSILON / sdpi->epsilon), 1.0/NINCREASESGAMMA);
+            gaptol = sdpi->gaptol;
+            gaptolfact = pow((MIN_GAPTOL / sdpi->gaptol), 1.0/NINCREASESGAMMA);
 
             /* increase penalty-param and decrease feasibility tolerance until we find a feasible solution or reach the final bound for either one of them */
             while ( ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) || ! feasorig ) &&
-                  ( penaltyparam < sdpi->maxpenaltyparam + sdpi->epsilon ) && ( epsilon > 0.99 * MIN_EPSILON ) && ( ! SCIPsdpiSolverIsTimelimExc(sdpi->sdpisolver) ))
+                  ( penaltyparam < sdpi->maxpenaltyparam + sdpi->gaptol ) && ( gaptol > 0.99 * MIN_GAPTOL ) && ( ! SCIPsdpiSolverIsTimelimExc(sdpi->sdpisolver) ))
             {
                SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penaltyparameter %f\n", sdpi->sdpid, penaltyparam);
 
@@ -2657,11 +2666,11 @@ SCIP_RETCODE SCIPsdpiSolve(
 
                /* if we succeeded to solve the problem, update the bound */
                SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objbound) );
-               if ( objbound > sdpi->bestbound + sdpi->epsilon )
+               if ( objbound > sdpi->bestbound + sdpi->gaptol )
                   sdpi->bestbound = objbound;
 
                /* If we don't get a feasible solution to our original problem we have to update either Gamma (if the penalty bound was active
-                * in the primal problem) or epsilon (otherwise) */
+                * in the primal problem) or gaptol (otherwise) */
                if ( ! feasorig )
                {
                   if ( penaltybound )
@@ -2671,18 +2680,18 @@ SCIP_RETCODE SCIPsdpiSolve(
                   }
                   else
                   {
-                     epsilon *= epsilonfact;
-                     SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, SCIP_SDPPAR_EPSILON, epsilon) );
+                     gaptol *= gaptolfact;
+                     SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, SCIP_SDPPAR_GAPTOL, gaptol) );
                      SCIPdebugMessage("Penalty formulation produced a result which is infeasible for the original problem, even though primal penalty "
-                           "bound was not reached, decreasing epsilon value for duality gap in SDP-solver\n");
+                           "bound was not reached, decreasing tolerance for duality gap in SDP-solver\n");
                   }
                }
             }
 
-            /* reset the feasibility tolerance in the SDP-solver */
-            if ( epsilon > sdpi->epsilon )
+            /* reset the tolerance in the SDP-solver */
+            if ( gaptol > sdpi->gaptol )
             {
-               SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, SCIP_SDPPAR_EPSILON, sdpi->epsilon) );
+               SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, SCIP_SDPPAR_GAPTOL, sdpi->gaptol) );
             }
 
             /* check if we were able to solve the problem in the end */
@@ -3758,6 +3767,9 @@ SCIP_RETCODE SCIPsdpiGetRealpar(
    case SCIP_SDPPAR_EPSILON:
       *dval = sdpi->epsilon;
       break;
+   case SCIP_SDPPAR_GAPTOL:
+      *dval = sdpi->gaptol;
+      break;
    case SCIP_SDPPAR_FEASTOL:
       *dval = sdpi->feastol;
       break;
@@ -3781,7 +3793,7 @@ SCIP_RETCODE SCIPsdpiGetRealpar(
    {
       SCIP_Real val;
       SCIP_CALL_PARAM( SCIPsdpiSolverGetRealpar(sdpi->sdpisolver, type, &val) );
-      assert( REALABS(*dval - val) < sdpi->epsilon );
+      assert( REALABS(*dval - val) < sdpi->gaptol );
    }
 #endif
 
@@ -3801,6 +3813,10 @@ SCIP_RETCODE SCIPsdpiSetRealpar(
    {
    case SCIP_SDPPAR_EPSILON:
       sdpi->epsilon = dval;
+      SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
+      break;
+   case SCIP_SDPPAR_GAPTOL:
+      sdpi->gaptol = dval;
       SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
       break;
    case SCIP_SDPPAR_FEASTOL:

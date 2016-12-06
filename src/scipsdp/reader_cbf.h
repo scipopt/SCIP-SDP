@@ -30,49 +30,33 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   lapack.h
- * @brief  interface methods for eigenvector computation and matrix multiplication using different versions of LAPACK and BLAS
+/**@file   reader_cbf.h
+ * @ingroup FILEREADERS
+ * @brief  file reader for mixed-integer semidefinite programs in CBF format
  * @author Tristan Gally
+ * @author Henrik A. Friberg TODO
  *
- * This file is used to call the LAPACK routine DSYEVR (double-symmetric-eigenvector computation) and the
- * BLAS routine DGEMV (double-general-matrix-vector multiplication). It is needed because different SDP-solvers
- * need different BLAS/LAPACK-versions with different data types (for example long long int for
- * Openblas/SDPA vs. int for ATLAS/DSDP).
+ * This reader allows to parse and write CBF files with mixed-integer semidefinite programs in dual form (TODO: check this after finishing the reader)
+ * Writing is supported for original programs consisting of only linear and semidefinite constraints. Parsing is supported
+ * for instances consisting of only free scalar variables and linear and semidefinite constraints.
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
-#ifndef __SCIP_LAPACK_H__
-#define __SCIP_LAPACK_H__
+#ifndef __SCIP_READER_CBF_H__
+#define __SCIP_READER_CBF_H__
 
-#include "scip/def.h"
-#include "blockmemshell/memory.h"
-#include "scip/type_retcode.h"
+
+#include "scip/scip.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/** computes the i-th eigenvalue of a symmetric matrix using LAPACK, where 1 is the smallest and n the largest, matrix has to be given with all n^2 entries */
+/** includes the CBF file reader into SCIP */
 EXTERN
-SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
-   BMS_BUFMEM*           bufmem,             /**< buffer memory */
-   SCIP_Bool             geteigenvectors,    /**< should also the eigenvectors be computed? */
-   int                   n,                  /**< size of matrix */
-   SCIP_Real*            A,                  /**< matrix for which eigenvalues should be computed */
-   int                   i,                  /**< index of eigenvalue to be computed */
-   SCIP_Real*            eigenvalue,         /**< pointer to store eigenvalue */
-   SCIP_Real*            eigenvector         /**< pointer to store eigenvector */
-   );
-
-/** performs matrix-vector-multiplication using BLAS */
-EXTERN
-SCIP_RETCODE SCIPlapackMatrixVectorMult(
-   int                   nrows,              /**< number of rows in matrix */
-   int                   ncols,              /**< number of cols in matrix */
-   SCIP_Real*            matrix,             /**< the matrix we want to multiply */
-   SCIP_Real*            vector,             /**< vector we want to multiply with the matrix */
-   SCIP_Real*            result              /**< pointer to store the resulting vector */
+SCIP_RETCODE SCIPincludeReaderCbf(
+   SCIP*                 scip                /**< SCIP data structure */
    );
 
 #ifdef __cplusplus

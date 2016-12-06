@@ -44,6 +44,7 @@
 #include "cons_savedsdpsettings.h"
 #include "relax_sdp.h"
 #include "objreader_sdpa.h"
+#include "reader_cbf.h"
 #include "prop_sdpredcost.h"
 #include "disp_sdpiterations.h"
 #include "disp_sdpavgiterations.h"
@@ -76,6 +77,7 @@ SCIP_RETCODE runSCIP(
 
    /* include new plugins */
    SCIP_CALL( SCIPincludeObjReader(scip, new ObjReaderSDPA(scip), TRUE) );
+   SCIP_CALL( SCIPincludeReaderCbf(scip) );
    SCIP_CALL( SCIPincludeConshdlrSdp(scip) );
    SCIP_CALL( SCIPincludeConshdlrSavedsdpsettings(scip) );
    SCIP_CALL( SCIPincludeRelaxSdp(scip) );
@@ -125,8 +127,8 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPsetIntParam(scip, "display/sdppenalty/active", 0) );
 
    /* change epsilons for numerical stability */
-   SCIP_CALL( SCIPsetRealParam(scip, "numerics/epsilon", 1e-6) );
-   SCIP_CALL( SCIPsetRealParam(scip, "numerics/sumepsilon", 1e-4) );
+   SCIP_CALL( SCIPsetRealParam(scip, "numerics/epsilon", 1e-9) );
+   SCIP_CALL( SCIPsetRealParam(scip, "numerics/sumepsilon", 1e-6) );
    SCIP_CALL( SCIPsetRealParam(scip, "numerics/feastol", 1e-6) );
 
    /* parameters for separation */

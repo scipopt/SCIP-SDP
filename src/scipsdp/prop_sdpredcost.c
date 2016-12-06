@@ -308,16 +308,27 @@ SCIP_DECL_PROPFREE(propFreeSdpredcost)
 
    propdata = SCIPpropGetData(prop);
    assert( propdata != NULL );
+   SCIPfreeMemory(scip, &propdata);
+
+   SCIPpropSetData(prop, NULL);
+
+   return SCIP_OKAY;
+}
+
+/** free memory for the primal variable values */
+static
+SCIP_DECL_PROPEXIT(propExitSdpredcost)
+{
+   SCIP_PROPDATA* propdata;
+
+   propdata = SCIPpropGetData(prop);
+   assert( propdata != NULL );
 
    if ( propdata->nvars > 0 )
    {
       SCIPfreeBlockMemoryArrayNull(scip, &(propdata->lbvarvals), propdata->nvars);
       SCIPfreeBlockMemoryArrayNull(scip, &(propdata->ubvarvals), propdata->nvars);
    }
-
-   SCIPfreeMemory(scip, &propdata);
-
-   SCIPpropSetData(prop, NULL);
 
    return SCIP_OKAY;
 }
@@ -374,6 +385,7 @@ SCIP_RETCODE SCIPincludePropSdpredcost(
    /* set optional callbacks via setter functions */
    SCIP_CALL( SCIPsetPropCopy(scip, prop, propCopySdpredcost) );
    SCIP_CALL( SCIPsetPropInitsol(scip, prop, propInitsolSdpredcost) );
+   SCIP_CALL( SCIPsetPropExit(scip, prop, propExitSdpredcost) );
    SCIP_CALL( SCIPsetPropFree(scip, prop, propFreeSdpredcost) );
 
    /* add additional parameters */

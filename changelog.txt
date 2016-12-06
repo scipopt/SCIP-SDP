@@ -5,21 +5,30 @@ fixed bugs:
 - the SDPA interface incorrectly reused the settings of the last node instead of the parent node
 - fixed fast/penalty/unsolved display columns to divide by number of interface calls instead of
   number of solver calls (which includes multiple calls for penalty formulation etc.)
+- in SDPA interface if parent node used default settings, now continue with stable settings
+  afterwards instead of directly moving to penalty formulation
+- fixed memory leaks for fixed and (multi-)aggregated variables
+- input values are now checked against epsilon instead of feastol for detecting nonzeros
+- only fix variables locally if lb-ub < epsilon instead of feastol
 
 features:
-- readded diagonal dominance cuts in presolving which enforce nonzero diagonal entries if a nonzero
+- readded "diagonal dominance" cuts in presolving which enforce nonzero diagonal entries if a nonzero
   entry exists in the constant matrix for the corresponding row or column (under some prerequisites)
 
 performance improvements:
 
 interface:
 - added interface to MOSEK
+- added reader for CBF format
 
 parameters:
-- The diagonal dominance and diagonal >= 0 cuts of the SDP constraint handler can now be disabled through
+- The "diagonal dominance" and diagonal >= 0 cuts of the SDP constraint handler can now be disabled through
   the parameters "constraints/SDP/diagdominancecuts" and "constraints/SDP/diaggezerocuts".
+- "sdpsolverepsilon" has been renamed to "sdpsolvergaptol" to make the usage clearer
 
 core:
+- ajusted SCIP-SDP to new enforelax callback in SCIP; this now allows to combine SCIP-SDP with other nonlinear
+  constraints/constraint handlers
 
 misc:
 
