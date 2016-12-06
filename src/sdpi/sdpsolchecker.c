@@ -252,7 +252,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
 
             if ( eigenvalue < - feastol )
             {
-               SCIPdebugMessage("solution found infeasible (feastol=%f) for sdp constraint %d, smallest eigenvector %f\n",
+               SCIPdebugMessage("solution found infeasible (feastol=%.10f) for sdp constraint %d, smallest eigenvector %.10f\n",
                      feastol, b, eigenvalue);
                BMSfreeBufferMemoryArray(bufmem, &fullsdpmatrix);
                *infeasible = TRUE;
