@@ -113,7 +113,7 @@ struct SCIP_SDPiSolver
    SCIP_Bool             solved;             /**< Was the SDP solved since the problem was last changed? */
    int                   sdpcounter;         /**< used for debug messages */
    SCIP_Real             epsilon;            /**< tolerance used for absolute checks */
-   SCIP_Real             gaptol;            /**< this is used for checking if primal and dual objective are equal */
+   SCIP_Real             gaptol;             /**< this is used for checking if primal and dual objective are equal */
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
    SCIP_Real             objlimit;           /**< objective limit for SDP solver */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
@@ -589,6 +589,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int nmosekcones;
    char varname[SCIP_MAXSTRLEN];
 #endif
+   SCIP_Real maxrhscoef; /* MOSEK uses a relative feasibility tolerance, the largest rhs-coefficient is needed for converting the absolute tolerance */
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->mskenv != NULL );
@@ -641,6 +642,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    TIMEOFDAY_CALL( gettimeofday(&starttime, NULL) );/*lint !e438, !e550, !e641 */
 
    one = 1.0;
+   maxrhscoef = 0.0;
 
    /* create an empty task (second and third argument are guesses for maximum number of constraints and variables), if there already is one, delete it */
    if ((sdpisolver->msktask) != NULL)
@@ -665,13 +667,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       MOSEK_CALL( MSK_linkfunctotaskstream (sdpisolver->msktask, MSK_STREAM_LOG, NULL, printstr) );/*lint !e641*/
    }
 #endif
-
-   /* set epsilon and feasibility tolerance */
-   MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_PFEAS, sdpisolver->feastol * TOLERANCE_FACTOR) );/*lint !e641*/
-   MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_DFEAS, sdpisolver->feastol * TOLERANCE_FACTOR) );/*lint !e641*/
-   MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_INFEAS, sdpisolver->feastol * TOLERANCE_FACTOR) );/*lint !e641*/
-   MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_MU_RED, sdpisolver->gaptol * TOLERANCE_FACTOR) );/*lint !e641*/
-   MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_REL_GAP, sdpisolver->gaptol * TOLERANCE_FACTOR) );/*lint !e641*/
 
    /* set number of threads */
    if ( sdpisolver->nthreads > 0 )
@@ -788,12 +783,21 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                vartorowmapper[pos] = -(i+1);
                vartolhsrhsmapper[pos] = newpos;
                pos++;
+
+               /* update largest rhs-entry */
+               if ( REALABS(lplhs[newpos]) > maxrhscoef )
+                  maxrhscoef = REALABS(lplhs[newpos]);
+
             }
             if ( lprhs[newpos] < SCIPsdpiSolverInfinity(sdpisolver) )
             {
                vartorowmapper[pos] = i+1;
                vartolhsrhsmapper[pos] = newpos;
                pos++;
+
+               /* update largest rhs-entry */
+               if ( REALABS(lprhs[newpos]) > maxrhscoef )
+                  maxrhscoef = REALABS(lprhs[newpos]);
             }
             newpos++;
          }
@@ -859,6 +863,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
                   moseksdpconstrow[k] = sdpconstrow[b][k] - indchanges[b][sdpconstrow[b][k]];
                   moseksdpconstcol[k] = sdpconstcol[b][k] - indchanges[b][sdpconstcol[b][k]];
+
+                  /* update largest rhs-entry */
+                  if ( REALABS(sdpconstval[b][k]) > maxrhscoef )
+                     maxrhscoef = REALABS(sdpconstval[b][k]);
                }
 
                MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], sdpconstnblocknonz[b],
@@ -1184,6 +1192,17 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    {
       SCIP_Real feastol;
 
+      /* set epsilon and feasibility tolerance (note that the dual in MOSEK is the problem we are interested in, so this is where we use feastol,
+       * since MOSEK works with relative tolerance, we adjust our absolute tolerance accordingly, so that any solution satisfying the relative
+       * tolerance in MOSEK satisfies our absolute tolerance) */
+      MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_PFEAS, sdpisolver->gaptol) );/*lint !e641*/
+      MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_DFEAS, sdpisolver->feastol / (1 + maxrhscoef)) );/*lint !e641*/
+      MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_INFEAS, sdpisolver->feastol / (1 + maxrhscoef)) );/*lint !e641*/
+      MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_MU_RED, sdpisolver->gaptol) );/*lint !e641*/
+      MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_REL_GAP, sdpisolver->gaptol) );/*lint !e641*/
+      SCIPdebugMessage("Setting relative feasibility tolerance for MOSEK to %.10f / %f = %.12f\n", sdpisolver->feastol,
+            1+maxrhscoef, sdpisolver->feastol / (1 + maxrhscoef));
+
       if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, timelimit - elapsedtime) )
       {
          MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_OPTIMIZER_MAX_TIME, timelimit - elapsedtime) );/*lint !e641*/
@@ -1207,7 +1226,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       /* if the problem has been stably solved but did not reach the required feasibility tolerance, even though the solver
        * reports feasibility, resolve it with adjusted tolerance */
-      feastol = sdpisolver->feastol * TOLERANCE_FACTOR;
+      feastol = sdpisolver->feastol / (1 + maxrhscoef);
 
       while ( SCIPsdpiSolverIsAcceptable(sdpisolver) && SCIPsdpiSolverIsDualFeasible(sdpisolver) && penaltyparam < sdpisolver->epsilon && feastol >= INFEASMINFEASTOL )
       {
