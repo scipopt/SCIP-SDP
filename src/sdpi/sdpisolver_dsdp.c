@@ -1794,7 +1794,8 @@ SCIP_Bool SCIPsdpiSolverIsConverged(
    if ( sdpisolver->timelimit )
       return FALSE;
 
-   CHECK_IF_SOLVED_BOOL( sdpisolver );
+   if ( ! sdpisolver->solved )
+      return FALSE;
 
    DSDP_CALL_BOOL( DSDPStopReason(sdpisolver->dsdp, &reason) );
 

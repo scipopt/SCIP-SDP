@@ -1723,7 +1723,8 @@ SCIP_Bool SCIPsdpiSolverIsTimelimExc(
    if ( sdpisolver->timelimit )
       return TRUE;
 
-   CHECK_IF_SOLVED_BOOL( sdpisolver );
+   if ( ! sdpisolver->solved )
+      return FALSE;
 
    return sdpisolver->terminationcode == MSK_RES_TRM_MAX_TIME;
 }
@@ -1805,7 +1806,8 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
    if ( sdpisolver->timelimit )
       return FALSE;
 
-   CHECK_IF_SOLVED_BOOL( sdpisolver );
+   if ( ! sdpisolver->solved )
+      return FALSE;
 
    return SCIPsdpiSolverIsConverged(sdpisolver) && SCIPsdpiSolverFeasibilityKnown(sdpisolver);
 }

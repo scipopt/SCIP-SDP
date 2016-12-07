@@ -1913,7 +1913,8 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
    if ( sdpisolver->timelimit )
       return FALSE;
 
-   CHECK_IF_SOLVED_BOOL( sdpisolver );
+   if ( ! sdpisolver->solved )
+      return FALSE;
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
