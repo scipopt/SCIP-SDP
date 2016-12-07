@@ -166,12 +166,12 @@ SCIP_Bool isFixed(
    )
 {
    assert( sdpisolver != NULL );
-   assert( lb < ub + sdpisolver->feastol );
+   assert( lb < ub + sdpisolver->epsilon );
 
-   return (REALABS(ub-lb) <= sdpisolver->feastol);
+   return (REALABS(ub-lb) <= sdpisolver->epsilon);
 }
 #else
-#define isFixed(sdpisolver,lb,ub) (REALABS(ub-lb) <= sdpisolver->feastol)
+#define isFixed(sdpisolver,lb,ub) (REALABS(ub-lb) <= sdpisolver->epsilon)
 #endif
 
 /** If the problem is feasible for SDPA but not within our feasibility tolerance, adjust feasibility tolerance in
@@ -1045,7 +1045,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    {
       assert( 0 <= lprow[i] && lprow[i] < noldlpcons );
       assert( 0 <= lpcol[i] && lpcol[i] < nvars );
-      assert( REALABS(lpval[i]) > sdpisolver->feastol );
+      assert( REALABS(lpval[i]) > sdpisolver->epsilon );
 
       /* if the variable is active and the constraint is more than a bound, we add it */
       if ( sdpisolver->inputtosdpamapper[lpcol[i]] > 0 )

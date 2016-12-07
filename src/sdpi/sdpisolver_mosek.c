@@ -235,12 +235,12 @@ SCIP_Bool isFixed(
    )
 {/*lint --e{818}*/
    assert( sdpisolver != NULL );
-   assert( lb < ub + sdpisolver->feastol );
+   assert( lb < ub + sdpisolver->epsilon );
 
-   return (REALABS(ub-lb) <= sdpisolver->feastol);
+   return (REALABS(ub-lb) <= sdpisolver->epsilon);
 }
 #else
-#define isFixed(sdpisolver,lb,ub) (REALABS(ub-lb) <= sdpisolver->feastol)
+#define isFixed(sdpisolver,lb,ub) (REALABS(ub-lb) <= sdpisolver->epsilon)
 #endif
 
 /*
