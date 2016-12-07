@@ -88,6 +88,7 @@
                                               *   is bigger than this value, it will be reported to the sdpi */
 #define INFEASFEASTOLCHANGE         0.1      /**< change feastol by this factor if the solution was found to be infeasible with regards to feastol */
 #define INFEASMINFEASTOL            1E-9     /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance */
+#define CONVERT_ABSOLUTE_TOLERANCES TRUE     /**< should absolute tolerances be converted to relative tolerances for MOSEK */
 
 /** data used for SDP interface */
 struct SCIP_SDPiSolver
@@ -589,7 +590,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int nmosekcones;
    char varname[SCIP_MAXSTRLEN];
 #endif
+#if CONVERT_ABSOLUTE_TOLERANCES
    SCIP_Real maxrhscoef; /* MOSEK uses a relative feasibility tolerance, the largest rhs-coefficient is needed for converting the absolute tolerance */
+#endif
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->mskenv != NULL );
@@ -642,7 +645,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    TIMEOFDAY_CALL( gettimeofday(&starttime, NULL) );/*lint !e438, !e550, !e641 */
 
    one = 1.0;
+#if CONVERT_ABSOLUTE_TOLERANCES
    maxrhscoef = 0.0;
+#endif
 
    /* create an empty task (second and third argument are guesses for maximum number of constraints and variables), if there already is one, delete it */
    if ((sdpisolver->msktask) != NULL)
@@ -784,9 +789,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                vartolhsrhsmapper[pos] = newpos;
                pos++;
 
+#if CONVERT_ABSOLUTE_TOLERANCES
                /* update largest rhs-entry */
                if ( REALABS(lplhs[newpos]) > maxrhscoef )
                   maxrhscoef = REALABS(lplhs[newpos]);
+#endif
 
             }
             if ( lprhs[newpos] < SCIPsdpiSolverInfinity(sdpisolver) )
@@ -795,9 +802,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                vartolhsrhsmapper[pos] = newpos;
                pos++;
 
+#if CONVERT_ABSOLUTE_TOLERANCES
                /* update largest rhs-entry */
                if ( REALABS(lprhs[newpos]) > maxrhscoef )
                   maxrhscoef = REALABS(lprhs[newpos]);
+#endif
             }
             newpos++;
          }
@@ -864,9 +873,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                   moseksdpconstrow[k] = sdpconstrow[b][k] - indchanges[b][sdpconstrow[b][k]];
                   moseksdpconstcol[k] = sdpconstcol[b][k] - indchanges[b][sdpconstcol[b][k]];
 
+#if CONVERT_ABSOLUTE_TOLERANCES
                   /* update largest rhs-entry */
                   if ( REALABS(sdpconstval[b][k]) > maxrhscoef )
                      maxrhscoef = REALABS(sdpconstval[b][k]);
+#endif
                }
 
                MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], sdpconstnblocknonz[b],
@@ -1196,8 +1207,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
        * since MOSEK works with relative tolerance, we adjust our absolute tolerance accordingly, so that any solution satisfying the relative
        * tolerance in MOSEK satisfies our absolute tolerance) */
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_PFEAS, sdpisolver->gaptol) );/*lint !e641*/
+#if CONVERT_ABSOLUTE_TOLERANCES
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_DFEAS, sdpisolver->feastol / (1 + maxrhscoef)) );/*lint !e641*/
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_INFEAS, sdpisolver->feastol / (1 + maxrhscoef)) );/*lint !e641*/
+#else
+      MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_DFEAS, sdpisolver->feastol) );/*lint !e641*/
+      MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_INFEAS, sdpisolver->feastol) );/*lint !e641*/
+#endif
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_MU_RED, sdpisolver->gaptol) );/*lint !e641*/
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_REL_GAP, sdpisolver->gaptol) );/*lint !e641*/
       SCIPdebugMessage("Setting relative feasibility tolerance for MOSEK to %.10f / %f = %.12f\n", sdpisolver->feastol,
@@ -1226,7 +1242,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       /* if the problem has been stably solved but did not reach the required feasibility tolerance, even though the solver
        * reports feasibility, resolve it with adjusted tolerance */
+#if CONVERT_ABSOLUTE_TOLERANCES
       feastol = sdpisolver->feastol / (1 + maxrhscoef);
+#else
+      feastol = sdpisolver->feastol;
+#endif
 
       while ( SCIPsdpiSolverIsAcceptable(sdpisolver) && SCIPsdpiSolverIsDualFeasible(sdpisolver) && penaltyparam < sdpisolver->epsilon && feastol >= INFEASMINFEASTOL )
       {
