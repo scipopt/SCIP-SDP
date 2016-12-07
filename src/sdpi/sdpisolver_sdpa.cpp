@@ -141,7 +141,8 @@ struct SCIP_SDPiSolver
    int                   nsdpcalls;          /**< number of SDP-calls since the last solve call */
    SCIP_Real             epsilon;            /**< tolerance for absolute checks */
    SCIP_Real             gaptol;             /**< this is used for checking if primal and dual objective are equal */
-   SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
+   SCIP_Real             feastol;            /**< feasibility tolerance that should be achieved */
+   SCIP_Real             sdpsolverfeastol;   /**< feasibility tolerance given to SDP-solver */
    SCIP_Real             objlimit;           /**< objective limit for SDP-solver */
    SCIP_Bool             sdpinfo;            /**< Should the SDP-solver output information to the screen? */
    SCIP_Bool             penalty;            /**< was the problem last solved using a penalty formulation */
@@ -373,6 +374,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->epsilon = 1e-9;
    (*sdpisolver)->gaptol = 1e-4;
    (*sdpisolver)->feastol = 1e-6;
+   (*sdpisolver)->sdpsolverfeastol = 1e-6;
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
    (*sdpisolver)->sdpinfo = FALSE;
    (*sdpisolver)->usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
@@ -470,9 +472,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int**                 sdpconstcol,        /**< pointers to column-indices for each block AFTER FIXINGS */
    SCIP_Real**           sdpconstval,        /**< pointers to the values of the nonzeros for each block AFTER FIXINGS */
    int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint-matrix */
-   int**                 sdpnblockvarnonz,   /**< entry [i][j] gives the number of nonzheckFeastolAndResolve(SCIP_SDPISOLVER*, int, double*, double*, int, int*, int*, int, int*, int**, int**, double**, int, int**, int**, int***, int***, double***, int**, int*, int, int, double*, double*, int*, int, int*, int*, double*, double*, int)’:
-src/sdpi/sdpisolver_sdpa.cpp:217:98: error: ‘penaltyparam’ was not declared in this scope
-   eros for block i and variable j, this is exactly
+   int**                 sdpnblockvarnonz,   /**< entry [i][j] gives the number of nonzeros for block i and variable j, this is exactly
                                               *   the number of entries of sdp row/col/val [i][j] */
    int**                 sdpvar,             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
                                               *   in the i-th block */
@@ -543,9 +543,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int**                 sdpconstcol,        /**< pointers to column-indices for each block AFTER FIXINGS */
    SCIP_Real**           sdpconstval,        /**< pointers to the values of the nonzeros for each block AFTER FIXINGS */
    int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint-matrix */
-   int**                 sdpnblockvarnonz,   /**< entry [i][j] gives the number of nonheckFeastolAndResolve(SCIP_SDPISOLVER*, int, double*, double*, int, int*, int*, int, int*, int**, int**, double**, int, int**, int**, int***, int***, double***, int**, int*, int, int, double*, double*, int*, int, int*, int*, double*, double*, int)’:
-src/sdpi/sdpisolver_sdpa.cpp:217:98: error: ‘penaltyparam’ was not declared in this scope
-   zeros for block i and variable j, this is exactly
+   int**                 sdpnblockvarnonz,   /**< entry [i][j] gives the number of nonzeros for block i and variable j, this is exactly
                                               *   the number of entries of sdp row/col/val [i][j] */
    int**                 sdpvar,             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
                                               *   in the i-th block */
@@ -725,16 +723,16 @@ src/sdpi/sdpisolver_sdpa.cpp:217:98: error: ‘penaltyparam’ was not declared 
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_STABLE_BUT_SLOW); /* if we already had problems with this problem, there is no reason to try fast */
       /* as we want to solve with stable settings, we also update epsilon and the feasibility tolerance, as we skip the default settings, we multpy twice */
       sdpisolver->sdpa->setParameterEpsilonStar(GAPTOLCHANGE * GAPTOLCHANGE * sdpisolver->gaptol);
-      sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->feastol);
-      feastol = FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->feastol;
+      sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->sdpsolverfeastol);
+      feastol = FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->sdpsolverfeastol;
       SCIPdebugMessage("Start solving process with stable settings\n");
    }
    else if ( startsettings == SCIP_SDPSOLVERSETTING_UNSOLVED || startsettings == SCIP_SDPSOLVERSETTING_FAST)
    {
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_UNSTABLE_BUT_FAST);
       sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->gaptol);
-      sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->feastol);
-      feastol = sdpisolver->feastol;
+      sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->sdpsolverfeastol);
+      feastol = sdpisolver->sdpsolverfeastol;
       SCIPdebugMessage("Start solving process with fast settings\n");
    }
    else if ( startsettings == SCIP_SDPSOLVERSETTING_MEDIUM )
@@ -742,8 +740,8 @@ src/sdpi/sdpisolver_sdpa.cpp:217:98: error: ‘penaltyparam’ was not declared 
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_DEFAULT);
       /* as we want to solve with stable settings, we also update epsilon and the feasibility tolerance, as we skip the default settings, we multpy once */
       sdpisolver->sdpa->setParameterEpsilonStar(GAPTOLCHANGE * sdpisolver->gaptol);
-      sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * sdpisolver->feastol);
-      feastol = FEASTOLCHANGE * sdpisolver->feastol;
+      sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * sdpisolver->sdpsolverfeastol);
+      feastol = FEASTOLCHANGE * sdpisolver->sdpsolverfeastol;
       SCIPdebugMessage("Start solving process with medium settings\n");
    }
    else
@@ -1327,7 +1325,7 @@ src/sdpi/sdpisolver_sdpa.cpp:217:98: error: ‘penaltyparam’ was not declared 
       /* initialize settings */
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_DEFAULT);
       sdpisolver->sdpa->setParameterEpsilonStar(GAPTOLCHANGE * sdpisolver->gaptol);
-      sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * sdpisolver->feastol);
+      sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * sdpisolver->sdpsolverfeastol);
       sdpisolver->sdpa->setParameterLowerBound(-1e20);
       /* set the objective limit */
       if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
@@ -1380,7 +1378,7 @@ src/sdpi/sdpisolver_sdpa.cpp:217:98: error: ‘penaltyparam’ was not declared 
       /* initialize settings */
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_STABLE_BUT_SLOW);
       sdpisolver->sdpa->setParameterEpsilonStar(GAPTOLCHANGE * GAPTOLCHANGE * sdpisolver->gaptol);
-      sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->feastol);
+      sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->sdpsolverfeastol);
       sdpisolver->sdpa->setParameterLowerBound(-1e20);
       /* set the objective limit */
       if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
@@ -2212,6 +2210,9 @@ SCIP_RETCODE SCIPsdpiSolverGetRealpar(
    case SCIP_SDPPAR_FEASTOL:
       *dval = sdpisolver->feastol;
       break;
+   case SCIP_SDPPAR_SDPSOLVERFEASTOL:
+      *dval = sdpisolver->sdpsolverfeastol;
+      break;
    case SCIP_SDPPAR_PENALTYPARAM:
       *dval = 0.0;
       SCIPdebugMessage("Parameter SCIP_SDPPAR_PENALTYPARAM not used by SDPA"); /* this parameter is only used by DSDP */
@@ -2251,6 +2252,10 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    case SCIP_SDPPAR_FEASTOL:
       sdpisolver->feastol = dval;
       SCIPdebugMessage("Setting sdpisolver feastol to %f.\n", dval);
+      break;
+   case SCIP_SDPPAR_SDPSOLVERFEASTOL:
+      sdpisolver->sdpsolverfeastol = dval;
+      SCIPdebugMessage("Setting sdpisolver sdpsolverfeastol to %f.\n", dval);
       break;
    case SCIP_SDPPAR_PENALTYPARAM:
       SCIPdebugMessage("Parameter SCIP_SDPPAR_PENALTYPARAM not used by SDPA"); /* this parameter is only used by DSDP */

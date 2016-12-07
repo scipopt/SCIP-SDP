@@ -117,7 +117,8 @@
 #define MIN_GAPTOL                  1e-10    /**< minimum gaptolerance for SDP-solver if decreasing it for a penalty formulation */
 
 #define DEFAULT_SDPSOLVERGAPTOL     1e-4     /**< the stopping criterion for the duality gap the sdpsolver should use */
-#define DEFAULT_SDPSOLVERFEASTOL    1e-6     /**< the feasibility tolerance the SDP-solver should use for the SDP constraints */
+#define DEFAULT_SDPSOLVERFEASTOL    1e-6     /**< the feasibility tolerance the SDP-solver */
+#define DEFAULT_FEASTOL             1e-6     /**< used to test for feasibility */
 #define DEFAULT_EPSILON             1e-9     /**< used to test whether given values are equal */
 #define DEFAULT_PENALTYPARAM        1e+5     /**< the starting penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
 #define DEFAULT_MAXPENALTYPARAM     1e+10    /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
@@ -1448,7 +1449,7 @@ SCIP_RETCODE SCIPsdpiCreate(
 
    (*sdpi)->epsilon = DEFAULT_EPSILON;
    (*sdpi)->gaptol = DEFAULT_SDPSOLVERGAPTOL;
-   (*sdpi)->feastol = DEFAULT_SDPSOLVERFEASTOL;
+   (*sdpi)->feastol = DEFAULT_FEASTOL;
    (*sdpi)->penaltyparam = DEFAULT_PENALTYPARAM;
    (*sdpi)->penaltyparam = DEFAULT_MAXPENALTYPARAM;
    (*sdpi)->bestbound = -SCIPsdpiSolverInfinity((*sdpi)->sdpisolver);
@@ -3773,6 +3774,9 @@ SCIP_RETCODE SCIPsdpiGetRealpar(
    case SCIP_SDPPAR_FEASTOL:
       *dval = sdpi->feastol;
       break;
+   case SCIP_SDPPAR_SDPSOLVERFEASTOL:
+      SCIP_CALL_PARAM( SCIPsdpiSolverGetRealpar(sdpi->sdpisolver, type, dval) );
+      break;
    case SCIP_SDPPAR_OBJLIMIT:
       SCIP_CALL_PARAM( SCIPsdpiSolverGetRealpar(sdpi->sdpisolver, type, dval) );
       break;
@@ -3821,6 +3825,9 @@ SCIP_RETCODE SCIPsdpiSetRealpar(
       break;
    case SCIP_SDPPAR_FEASTOL:
       sdpi->feastol = dval;
+      SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
+      break;
+   case SCIP_SDPPAR_SDPSOLVERFEASTOL:
       SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
       break;
    case SCIP_SDPPAR_OBJLIMIT:

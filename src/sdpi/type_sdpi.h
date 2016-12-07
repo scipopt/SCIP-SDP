@@ -53,14 +53,15 @@ enum SCIP_SDPParam
    SCIP_SDPPAR_EPSILON        = 0,      /**< absolute tolerance */
    SCIP_SDPPAR_GAPTOL         = 1,      /**< convergence tolerance */
    SCIP_SDPPAR_FEASTOL        = 2,      /**< feasibility tolerance */
-   SCIP_SDPPAR_OBJLIMIT       = 3,      /**< objective limit, if the SDP-solver computes a lower bound for the minimzation
+   SCIP_SDPPAR_SDPSOLVERFEASTOL = 3,    /**< feasibility tolerance for SDP-solver */
+   SCIP_SDPPAR_OBJLIMIT       = 4,      /**< objective limit, if the SDP-solver computes a lower bound for the minimzation
                                          *   problem that is bigger than this, it may stop */
-   SCIP_SDPPAR_SDPINFO        = 4,      /**< Should the SDP-solver output information to the screen? */
-   SCIP_SDPPAR_SLATERCHECK    = 5,      /**< Should the slater condition for the dual problem be checked before solving each SDP ? */
-   SCIP_SDPPAR_PENALTYPARAM   = 6,      /**< the startingpenalty parameter Gamma used for the penalty formulation if the SDP-solver did not converge */
-   SCIP_SDPPAR_MAXPENALTYPARAM= 7,      /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP-solver did not converge */
-   SCIP_SDPPAR_LAMBDASTAR     = 8,      /**< the parameter lambda star used by SDPA to set the initial point */
-   SCIP_SDPPAR_NTHREADS       = 9       /**< number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores) */
+   SCIP_SDPPAR_SDPINFO        = 5,      /**< Should the SDP-solver output information to the screen? */
+   SCIP_SDPPAR_SLATERCHECK    = 6,      /**< Should the slater condition for the dual problem be checked before solving each SDP ? */
+   SCIP_SDPPAR_PENALTYPARAM   = 7,      /**< the startingpenalty parameter Gamma used for the penalty formulation if the SDP-solver did not converge */
+   SCIP_SDPPAR_MAXPENALTYPARAM= 8,      /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP-solver did not converge */
+   SCIP_SDPPAR_LAMBDASTAR     = 9,      /**< the parameter lambda star used by SDPA to set the initial point */
+   SCIP_SDPPAR_NTHREADS       = 10      /**< number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores) */
 };
 typedef enum SCIP_SDPParam SCIP_SDPPARAM;
 

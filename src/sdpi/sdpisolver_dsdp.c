@@ -172,7 +172,8 @@ struct SCIP_SDPiSolver
    int                   sdpcounter;         /**< used for debug messages */
    SCIP_Real             epsilon;            /**< tolerance for absolute checks */
    SCIP_Real             gaptol;             /**< this is used for checking if primal and dual objective are equal */
-   SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
+   SCIP_Real             feastol;            /**< feasibility tolerance that should be achieved */
+   SCIP_Real             sdpsolverfeastol;   /**< feasibility tolerance given to the SDP-solver */
    SCIP_Real             penaltyparam;       /**< the penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
    SCIP_Real             objlimit;           /**< objective limit for SDP-solver */
    SCIP_Bool             sdpinfo;            /**< Should the SDP-solver output information to the screen? */
@@ -383,6 +384,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->epsilon = 1e-9;
    (*sdpisolver)->gaptol = 1e-4;
    (*sdpisolver)->feastol = 1e-6;
+   (*sdpisolver)->sdpsolverfeastol = 1e-6;
    (*sdpisolver)->penaltyparam = 1e5;
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
    (*sdpisolver)->sdpinfo = FALSE;
@@ -1264,7 +1266,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIPdebugMessage("Calling DSDP-Solve for SDP (%d) \n", sdpisolver->sdpcounter);
 
    DSDP_CALL( DSDPSetGapTolerance(sdpisolver->dsdp, sdpisolver->gaptol) );  /* set DSDP's tolerance for duality gap */
-   DSDP_CALL( DSDPSetRTolerance(sdpisolver->dsdp, sdpisolver->feastol) );    /* set DSDP's tolerance for the SDP-constraints */
+   DSDP_CALL( DSDPSetRTolerance(sdpisolver->dsdp, sdpisolver->sdpsolverfeastol) );    /* set DSDP's tolerance for the SDP-constraints */
    if ( sdpisolver-> sdpinfo )
    {
       DSDP_CALL( DSDPSetStandardMonitor(sdpisolver->dsdp, 1) );   /* output DSDP information after every 1 iteration */
@@ -1317,7 +1319,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* if the problem has been stably solved but did not reach the required feasibility tolerance, even though the solver
     * reports feasibility, resolve it with adjusted tolerance */
-   feastol = sdpisolver->feastol;
+   feastol = sdpisolver->sdpsolverfeastol;
 
    while ( SCIPsdpiSolverIsAcceptable(sdpisolver) && SCIPsdpiSolverIsDualFeasible(sdpisolver) && penaltyparam < sdpisolver->epsilon && feastol >= INFEASMINFEASTOL )
    {
@@ -2184,6 +2186,9 @@ SCIP_RETCODE SCIPsdpiSolverGetRealpar(
    case SCIP_SDPPAR_FEASTOL:
       *dval = sdpisolver->feastol;
       break;
+   case SCIP_SDPPAR_SDPSOLVERFEASTOL:
+      *dval = sdpisolver->sdpsolverfeastol;
+      break;
    case SCIP_SDPPAR_PENALTYPARAM:
       *dval = sdpisolver->penaltyparam;
       break;
@@ -2219,6 +2224,10 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    case SCIP_SDPPAR_FEASTOL:
       sdpisolver->feastol = dval;
       SCIPdebugMessage("Setting sdpisolver feastol to %f.\n", dval);
+      break;
+   case SCIP_SDPPAR_SDPSOLVERFEASTOL:
+      sdpisolver->sdpsolverfeastol = dval;
+      SCIPdebugMessage("Setting sdpisolver sdpsolverfeastol to %f.\n", dval);
       break;
    case SCIP_SDPPAR_PENALTYPARAM:
       sdpisolver->penaltyparam = dval;
