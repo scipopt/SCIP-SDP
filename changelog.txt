@@ -10,6 +10,9 @@ fixed bugs:
 - fixed memory leaks for fixed and (multi-)aggregated variables
 - input values are now checked against epsilon instead of feastol for detecting nonzeros
 - only fix variables locally if lb-ub < epsilon instead of feastol
+- feasibility is no longer checked against sdpsolverfeastol but instead against feastol everywhere
+  (sdpsolverfeastol is now only used for communicating with the SDP-solver)
+- immediately resolve SDP-relaxations if the required tolerance was not met by the solver
 
 features:
 - readded "diagonal dominance" cuts in presolving which enforce nonzero diagonal entries if a nonzero
@@ -52,11 +55,11 @@ fixed bugs:
 
 features:
 - added possibility to also check primal slater condition and output statistics in the end
-- added diving heuristic for SDPs (disabled by default) [please note: This requires SCIP version 3.3 or higher and is 
+- added diving heuristic for SDPs (disabled by default) [please note: This requires SCIP version 4.0 or higher and is 
   disabled for SCIP version 3.2.1 or lower]
-- added randomized rounding heuristic for SDPs [please note: This requires SCIP version 3.3 or higher and is 
+- added randomized rounding heuristic for SDPs [please note: This requires SCIP version 4.0 or higher and is 
   disabled for SCIP version 3.2.1 or lower]
-- added optimization-based bound tightening for SDPs (disabled by default) [please note: This requires SCIP version 3.3 
+- added optimization-based bound tightening for SDPs (disabled by default) [please note: This requires SCIP version 4.0 
   or higher and is disabled for SCIP version 3.2.1 or lower]
 
 performance improvements:
