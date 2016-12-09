@@ -1009,7 +1009,7 @@ SCIP_Bool allVarsFixed(
    /* try to find a variable that is not fixed */
    for (i = 0; i < SCIPgetNVars(scip); i++)
    {
-      if ( SCIPisFeasLT(scip, SCIPvarGetLbLocal(vars[i]), SCIPvarGetUbLocal(vars[i])) )
+      if ( SCIPisLT(scip, SCIPvarGetLbLocal(vars[i]), SCIPvarGetUbLocal(vars[i])) )
          return FALSE;
    }
 
