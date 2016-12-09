@@ -1889,7 +1889,9 @@ SCIP_Bool SCIPsdpiSolverIsOptimal(
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL );
-   CHECK_IF_SOLVED_BOOL( sdpisolver );
+
+   if ( ! sdpisolver->solved )
+      return FALSE;
 
    phasetype = sdpisolver->sdpa->getPhaseValue();
 
