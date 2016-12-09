@@ -99,6 +99,12 @@ void* SCIPsdpiSolverGetSolverPointer(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
 
+/** gets default feasibility tolerance for SDP-solver in SCIP-SDP */
+EXTERN
+SCIP_Real SCIPsdpiSolverGetDefaultSdpiSolverFeastol(
+   void
+   );
+
 /**@} */
 
 
