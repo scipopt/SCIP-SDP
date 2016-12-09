@@ -103,7 +103,7 @@ SCIP_RETCODE SCIPsdpVarmapperFree(
    if ( (*varmapper)->nvars )
       SCIPhashmapFree(&((*varmapper)->sciptosdp));
 
-   SCIPfreeBlockMemoryArray(scip, &(*varmapper)->sdptoscip, (*varmapper)->nvars);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*varmapper)->sdptoscip, (*varmapper)->nvars);
    SCIPfreeBlockMemory(scip, varmapper);
 
    return SCIP_OKAY;
