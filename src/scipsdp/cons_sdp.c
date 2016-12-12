@@ -621,7 +621,7 @@ SCIP_RETCODE diagGEzero(
 }
 
 /** Presolve-routine that enforces diagonal dominance of positive semidefinite matrices, namely that if \f$X_{ij} > 0\f$,
- * then also \f$X_{ii} > 0\f$ and \f$X_{jj} > 0.
+ * then also \f$X_{ii} > 0\f$ and \f$X_{jj} > 0\f$.
  *
  * More precisely, if \f$(A_0)_{k\ell} \neq 0\f$, \f$(A_0)_{kk} = 0\f$, \f$(A_i)_{k\ell} = 0\f$ for all \f$i \leq m\f$,
  * \f$(A_0)_{kk} = 0\f$ for all continuous variables and \f$\ell_i \geq 0\f$ for all integer variables, we add the cut
