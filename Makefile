@@ -162,25 +162,25 @@ endif
 # MOSEK solver
 SDPIOPTIONS	+=	mosek64
 ifeq ($(SDPS),mosek64)
-SDPIINC		= -I$(SCIPSDPLIBDIR)/mosekh
+SDPIINC		= 	-I$(SCIPSDPLIBDIR)/mosekh
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mosekh
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mosekbin
 SDPIINSTMSG	=	"  -> \"mosekh\" is the path to the MOSEK \"h\" directory, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/h\".\n"
 SDPIINSTMSG	+=	" -> \"libdsdp.*\" is the path to the MOSEK bin directory that includes libmosek64.$(STATICLIBEXT), e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/bin/\""
-SDPILIB		= -m64 -L$(SCIPSDPLIBDIR)/mosekbin -lmosek64 -Wl,-rpath=$(SCIPSDPLIBDIR)/mosekbin -llapack -lblas -pthread -lc -lm
-SDPICSRC 	= src/sdpi/sdpisolver_mosek.c src/sdpi/lapack_dsdp.c
+SDPILIB		= 	-m64 -L$(SCIPSDPLIBDIR)/mosekbin -lmosek64 -Wl,-rpath=$(SCIPSDPLIBDIR)/mosekbin -llapack -lblas -pthread -lc -lm
+SDPICSRC 	= 	src/sdpi/sdpisolver_mosek.c src/sdpi/lapack_dsdp.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_mosek.o $(OBJDIR)/sdpi/lapack_dsdp.o
 endif
 
 SDPIOPTIONS	+=	mosek32
 ifeq ($(SDPS),mosek32)
-SDPIINC		= -I$(SCIPSDPLIBDIR)/mosekh
+SDPIINC		= 	-I$(SCIPSDPLIBDIR)/mosekh
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mosekh
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mosekbin
 SDPIINSTMSG	=	"  -> \"mosekh\" is the path to the MOSEK \"h\" directory, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/h\".\n"
 SDPIINSTMSG	+=	" -> \"libmosekbin.*\" is the path to the MOSEK bin directory that includes libmosek32.$(STATICLIBEXT), e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/bin/\""
-SDPILIB		= -m32 -L$(SCIPSDPLIBDIR)/mosekbin -lmosek32 -Wl,-rpath-link=$(SCIPSDPLIBDIR) -llapack -lblas -pthread -lc -lm
-SDPICSRC 	= src/sdpi/sdpisolver_mosek.c src/sdpi/lapack_dsdp.c
+SDPILIB		= 	-m32 -L$(SCIPSDPLIBDIR)/mosekbin -lmosek32 -Wl,-rpath-link=$(SCIPSDPLIBDIR) -llapack -lblas -pthread -lc -lm
+SDPICSRC 	= 	src/sdpi/sdpisolver_mosek.c src/sdpi/lapack_dsdp.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_mosek.o $(OBJDIR)/sdpi/lapack_dsdp.o
 endif
 
@@ -203,7 +203,7 @@ LINKSMARKERFILE	=	$(LIBDIR)/linkscreated.$(LPS)-$(LPSOPT).$(OSTYPE).$(ARCH).$(CO
 
 SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
 			$(OBJDIR)/sdpi
-			
+
 #-----------------------------------------------------------------------------
 # OMPSETTINGS
 #-----------------------------------------------------------------------------
@@ -300,7 +300,7 @@ preprocess:     checkdefines
 .PHONY: tags
 tags:
 		rm -f TAGS; ctags -e src/*/*.c src/*/*.cpp src/*/*.h $(SCIPDIR)/src/*/*.c $(SCIPDIR)/src/*/*.h;
-		
+
 # include target to detect the current git hash
 -include make/make.detectgithash
 
@@ -507,11 +507,7 @@ depend:		$(SCIPDIR)
 
 $(MAINFILE):	preprocess $(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(MAINCOBJFILES) $(MAINCCOBJFILES) $(SDPIOBJ) | $(SDPOBJSUBDIRS) $(BINDIR)
 		@echo "-> linking $@"
-		$(LINKCXX) $(MAINCOBJFILES) $(MAINCCOBJFILES) $(LINKCCSCIPALL) \
-		$(LINKCXX_L)$(SCIPDIR)/lib $(LINKCXX_l)$(SCIPLIB)$(LINKLIBSUFFIX) \
-                $(LINKCXX_l)$(OBJSCIPLIB)$(LINKLIBSUFFIX) $(LINKCXX_l)$(LPILIB)$(LINKLIBSUFFIX) $(LINKCXX_l)$(NLPILIB)$(LINKLIBSUFFIX) \
-                $(OFLAGS) $(LPSLDFLAGS) \
-		$(SDPIOBJ) $(SDPILIB) $(LDFLAGS) $(LINKCXX_o)$@
+		$(LINKCXX) $(MAINCOBJFILES) $(MAINCCOBJFILES) $(LINKCCSCIPALL) $(SDPIOBJ) $(SDPILIB) $(LINKCXX_o)$@
 
 $(OBJDIR)/%.o:	$(SRCDIR)/%.c | $(SDPOBJSUBDIRS)
 		@echo "-> compiling $@"
