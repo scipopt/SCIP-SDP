@@ -95,7 +95,7 @@
  * <tr><td>relaxing/SDP/penaltyparam = -1</td> <td>the starting value of the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge; set this to a negative value to compute the parameter depending on the given problem</td></tr>
  * <tr><td>relaxing/SDP/resolve = TRUE</td> <td>Should the relaxation be resolved after bound-tightenings were found during propagation (outside of probing)?</td></tr>
  * <tr><td>relaxing/SDP/sdpsolvergaptol = 1e-04</td> <td>sets the tolerance for the duality gap in the SDP-Solver</td></tr>
- * <tr><td>relaxing/SDP/sdpsolverfeastol = 1e-06</td> <td>feasibility tolerance for the SDP-Solver (should be less or equal to numerics/feastol)</td></tr>
+ * <tr><td>relaxing/SDP/sdpsolverfeastol = 1e-06 (DSDP,SDPA) / 1e-07 (MOSEK)</td> <td>feasibility tolerance for the SDP-Solver (should be less or equal to numerics/feastol)</td></tr>
  * <tr><td>relaxing/SDP/settingsresetfreq = -1</td> <td>frequency for resetting parameters in SDP solver and trying again with fastest settings [-1: never, 0: only at depth settingsresetofs, n: all nodes with depth a multiple of n]</td></tr>
  * <tr><td>relaxing/SDP/settingsresetofs = 0</td> <td>frequency offset for resetting parameters in SDP solver and trying again with fastest settings</td></tr>
  * <tr><td>relaxing/SDP/tightenvb = TRUE</td> <td>Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ?</td></tr>
