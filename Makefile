@@ -205,7 +205,7 @@ SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
 			$(OBJDIR)/sdpi
 
 #-----------------------------------------------------------------------------
-# OMPSETTINGS
+# OMPSETTINGS (used to set number of threads for Openblas)
 #-----------------------------------------------------------------------------
 
 ifeq ($(OMP),false)
