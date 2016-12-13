@@ -470,9 +470,24 @@ endif
 #-----------------------------------------------------------------------------
 .PHONY: test
 test:
+		@-(cd check && ln -fs $(SCIPDIR)/check/check.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/allcmpres.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/evalcheck.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/evalcheck_cluster.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/check_cluster.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/check.awk);
+		@-(cd check && ln -fs $(SCIPDIR)/check/cmpres.awk);
+		@-(cd check && ln -fs $(SCIPDIR)/check/getlastprob.awk);
+		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_cluster.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_set.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_logfiles.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_tmpfile_setup_scip.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/run.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/runcluster.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/testfiles.sh);
 		cd check; \
-		$(SHELL) ./check.sh $(TEST) $(MAINFILE) $(SETTINGS) $(notdir $(MAINFILE)) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) \
-		$(DISPFREQ) $(CONTINUE) $(LOCK) $(SCIPSDPVERSION) $(SDPS) $(VALGRIND) $(CLIENTTMPDIR) $(OPTCOMMAND);
+		$(SHELL) ./check.sh $(TEST) $(MAINFILE) $(SETTINGS) $(notdir $(MAINFILE)) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(DISPFREQ) \
+			$(CONTINUE) $(LOCK) $(SCIPSDPVERSION) $(SDPS) $(DEBUGTOOL) $(CLIENTTMPDIR) $(REOPT) $(OPTCOMMAND) $(SETCUTOFF) $(MAXJOBS) $(VISUALIZE) $(PERMUTE) $(SEEDS);
 
 # include local targets
 -include make/local/make.targets
