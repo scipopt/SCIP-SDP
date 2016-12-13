@@ -35,6 +35,9 @@ core:
 
 misc:
 
+makefile:
+- set links to mumps libraries instead of library folder
+
 SCIP-SDP version 2.1.0
 ==================
 

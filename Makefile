@@ -164,6 +164,7 @@ endif
 # MOSEK solver
 SDPIOPTIONS	+=	msk
 ifeq ($(SDPS),msk)
+# decide on 32 or 64 bit
 BITEXT     =  $(word 2, $(subst _, ,$(ARCH)))
 SDPIINC		= 	-I$(SCIPSDPLIBDIR)/mosekh
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mosekh
