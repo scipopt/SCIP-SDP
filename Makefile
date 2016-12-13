@@ -160,26 +160,15 @@ endif
 
 #-----------------------------------------------------------------------------
 # MOSEK solver
-SDPIOPTIONS	+=	mosek64
-ifeq ($(SDPS),mosek64)
+SDPIOPTIONS	+=	msk
+ifeq ($(SDPS),msk)
+BITEXT     =  $(word 2, $(subst _, ,$(ARCH)))
 SDPIINC		= 	-I$(SCIPSDPLIBDIR)/mosekh
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mosekh
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mosekbin
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libmosek$(BITEXT).$(SHAREDLIBEXT)
 SDPIINSTMSG	=	"  -> \"mosekh\" is the path to the MOSEK \"h\" directory, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/h\".\n"
-SDPIINSTMSG	+=	" -> \"libdsdp.*\" is the path to the MOSEK bin directory that includes libmosek64.$(STATICLIBEXT), e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/bin/\""
-SDPILIB		= 	-m64 -L$(SCIPSDPLIBDIR)/mosekbin -lmosek64 -Wl,-rpath=$(SCIPSDPLIBDIR)/mosekbin -llapack -lblas -pthread -lc -lm
-SDPICSRC 	= 	src/sdpi/sdpisolver_mosek.c src/sdpi/lapack_dsdp.c
-SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_mosek.o $(OBJDIR)/sdpi/lapack_dsdp.o
-endif
-
-SDPIOPTIONS	+=	mosek32
-ifeq ($(SDPS),mosek32)
-SDPIINC		= 	-I$(SCIPSDPLIBDIR)/mosekh
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mosekh
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mosekbin
-SDPIINSTMSG	=	"  -> \"mosekh\" is the path to the MOSEK \"h\" directory, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/h\".\n"
-SDPIINSTMSG	+=	" -> \"libmosekbin.*\" is the path to the MOSEK bin directory that includes libmosek32.$(STATICLIBEXT), e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/bin/\""
-SDPILIB		= 	-m32 -L$(SCIPSDPLIBDIR)/mosekbin -lmosek32 -Wl,-rpath-link=$(SCIPSDPLIBDIR) -llapack -lblas -pthread -lc -lm
+SDPIINSTMSG	+=	" -> \"libmosek.*\" is the path to the MOSEK library, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/bin/libmosek$(BITEXT).$(SHAREDLIBEXT)\""
+SDPILIB		= 	-m$(BITEXT) $(SCIPSDPLIBDIR)/libmosek$(BITEXT).$(SHAREDLIBEXT) -Wl,-rpath=$(SCIPSDPLIBDIR)/ -llapack -lblas -pthread -lc -lm
 SDPICSRC 	= 	src/sdpi/sdpisolver_mosek.c src/sdpi/lapack_dsdp.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_mosek.o $(OBJDIR)/sdpi/lapack_dsdp.o
 endif
