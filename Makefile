@@ -129,24 +129,26 @@ SOFTLINKS	+=	$(SCIPSDPLIBDIR)/sdpainc
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libsdpa.$(STATICLIBEXT)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libsdpa.$(SHAREDLIBEXT)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mumpsinc
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mumpslib
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mumpslibseq
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libdmumps.$(STATICLIBEXT)
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libmumps_common.$(STATICLIBEXT)
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libmpiseq.$(STATICLIBEXT)
 ifeq ($(OPENBLAS),true)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libopenblas.$(SHAREDLIBEXT).0
 endif
 SDPIINSTMSG	=	" -> \"sdpainc\" is the path to the SDPA \"include\" directory, e.g., \"<SDPA-path>/include\".\n"
 SDPIINSTMSG	+=	" -> \"libsdpa.*\" is the path to the SDPA library, e.g., \"<SDPA-path>/lib/libsdpa.a\".\n"
 SDPIINSTMSG	+=	" -> \"mumpsinc\" is the path to the Mumps \"include\" directory, e.g., \"<SDPA-path>/mumps/build/include\".\n"
-SDPIINSTMSG	+=	" -> \"mumpslib\" is the path to the Mumps \"lib\" directory, e.g., \"<SDPA-path>/mumps/build/lib\".\n"
-SDPIINSTMSG	+=	" -> \"mumpslibseq\" is the path to the Mumps \"libseq\" directory, e.g., \"<SDPA-path>/mumps/build/libseq\".\n"
+SDPIINSTMSG	+=	" -> \"libdmumps.*\" is the path to the dmumps library, e.g., \"<SDPA-path>/mumps/build/lib/libdmumps.$(STATICLIBEXT)\".\n"
+SDPIINSTMSG	+=	" -> \"libdmumps_common.*\" is the path to the mumps_common library, e.g., \"<SDPA-path>/mumps/build/lib/libmumps_common.$(STATICLIBEXT)\".\n"
+SDPIINSTMSG	+=	" -> \"libdmumps.*\" is the path to the mpiseq library, e.g., \"<SDPA-path>/mumps/build/libseq/libmpiseq.$(STATICLIBEXT)\".\n"
 ifeq ($(OPENBLAS),true)
 SDPIINSTMSG	+=	" -> \"libopenblas.$(SHAREDLIBEXT).0\" is the openblas library.\n"
-SDPILIB		=      	-L$(SCIPSDPLIBDIR) -lsdpa -L$(SCIPSDPLIBDIR)/mumpslib -ldmumps -lmumps_common -lpord -L$(SCIPSDPLIBDIR)/mumpslibseq -lmpiseq \
-			$(SCIPSDPLIBDIR)/libopenblas.$(SHAREDLIBEXT).0 -Wl,-rpath,$(SCIPSDPDIR)/$(SCIPSDPLIBDIR) \
+SDPILIB		=      	-L$(SCIPSDPLIBDIR) -lsdpa $(SCIPSDPLIBDIR)/libdmumps.$(STATICLIBEXT) $(SCIPSDPLIBDIR)/libmumps_common.$(STATICLIBEXT) -lpord \
+			$(SCIPSDPLIBDIR)/libmpiseq.$(STATICLIBEXT) $(SCIPSDPLIBDIR)/libopenblas.$(SHAREDLIBEXT).0 -Wl,-rpath,$(SCIPSDPDIR)/$(SCIPSDPLIBDIR) \
 			-lgfortran -L/lib/x86_64-linux-gnu -lpthread -lgomp
 else
-SDPILIB		=      	-L$(SCIPSDPLIBDIR) -lsdpa -L$(SCIPSDPLIBDIR)/mumpslip -ldmumps -lmumps_common -lpord -L$(SCIPSDPLIBDIR)/mumpslibseq -lmpiseq \
-			-lgfortran -llapack -lblas
+SDPILIB		=      	-L$(SCIPSDPLIBDIR) -lsdpa $(SCIPSDPLIBDIR)/libdmumps.$(STATICLIBEXT) $(SCIPSDPLIBDIR)/libmumps_common.$(STATICLIBEXT) -lpord \
+			$(SCIPSDPLIBDIR)/libmpiseq.$(STATICLIBEXT) -lgfortran -llapack -lblas
 endif
 SDPIINC		=      	-I$(SCIPSDPLIBDIR)/sdpainc -I$(SCIPSDPLIBDIR)/mumpsinc
 SDPICCSRC 	= 	src/sdpi/sdpisolver_sdpa.cpp
