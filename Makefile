@@ -355,9 +355,6 @@ endif
 
 .PHONY: touchexternal
 touchexternal:	$(SCIPSDPLIBDIR) $(OBJDIR)
-ifneq ($(SHARED),$(LAST_SHARED))
-		@-touch $(ALLSRC)
-endif
 ifneq ($(USRFLAGS),$(LAST_USRFLAGS))
 		@-touch $(ALLSRC)
 endif
@@ -401,7 +398,6 @@ endif
 			fi'
 		@-rm -f $(LASTSETTINGS)
 		@echo "LAST_PARASCIP=$(PARASCIP)" >> $(LASTSETTINGS)
-		@echo "LAST_SHARED=$(SHARED)" >> $(LASTSETTINGS)
 		@echo "LAST_USRFLAGS=$(USRFLAGS)" >> $(LASTSETTINGS)
 		@echo "LAST_USROFLAGS=$(USROFLAGS)" >> $(LASTSETTINGS)
 		@echo "LAST_USRCFLAGS=$(USRCFLAGS)" >> $(LASTSETTINGS)
