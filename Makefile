@@ -110,12 +110,12 @@ SDPICCOBJ	=
 SDPIOPTIONS	+=	dsdp
 ifeq ($(SDPS),dsdp)
 SDPILIB		= 	$(SCIPSDPLIBDIR)/static/libdsdp.$(STATICLIBEXT) -llapack -lblas
-SDPIINC		= 	-I$(SCIPSDPLIBDIR)/dsdpinc
+SDPIINC		= 	-I$(SCIPSDPLIBDIR)/include/dsdpinc
 SDPICSRC 	= 	src/sdpi/sdpisolver_dsdp.c \
 			src/sdpi/lapack_dsdp.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_dsdp.o \
 			$(OBJDIR)/sdpi/lapack_dsdp.o
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/dsdpinc
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/dsdpinc
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libdsdp.$(STATICLIBEXT)
 SDPIINSTMSG	=	" -> \"dsdpinc\" is the path to the DSDP \"include\" directory, e.g., \"<DSDP-path>/include\".\n"
 SDPIINSTMSG	+=	" -> \"libdsdp.*\" is the path to the DSDP library, e.g., \"<DSDP-path>/lib/libdsdp.$(STATICLIBEXT)\""
@@ -125,7 +125,7 @@ endif
 # SDPA solver
 SDPIOPTIONS	+=	sdpa
 ifeq ($(SDPS),sdpa)
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/sdpainc
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/sdpainc
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libsdpa.$(STATICLIBEXT)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/shared/libsdpa.$(SHAREDLIBEXT)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libdmumps.$(STATICLIBEXT)
@@ -148,7 +148,7 @@ else
 SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(SCIPSDPLIBDIR)/static/libdmumps.$(STATICLIBEXT) $(SCIPSDPLIBDIR)/static/libmumps_common.$(STATICLIBEXT) -lpord \
 			$(SCIPSDPLIBDIR)/static/libmpiseq.$(STATICLIBEXT) -lgfortran -llapack -lblas
 endif
-SDPIINC		=      	-I$(SCIPSDPLIBDIR)/sdpainc
+SDPIINC		=      	-I$(SCIPSDPLIBDIR)/include/sdpainc
 SDPICCSRC 	= 	src/sdpi/sdpisolver_sdpa.cpp
 SDPICSRC	=	src/sdpi/lapack_sdpa.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o $(OBJDIR)/sdpi/lapack_sdpa.o
@@ -164,8 +164,8 @@ SDPIOPTIONS	+=	msk
 ifeq ($(SDPS),msk)
 # decide on 32 or 64 bit
 BITEXT     =  $(word 2, $(subst _, ,$(ARCH)))
-SDPIINC		= 	-I$(SCIPSDPLIBDIR)/mosekh
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mosekh
+SDPIINC		= 	-I$(SCIPSDPLIBDIR)/include/mosekh
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/mosekh
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT)
 SDPIINSTMSG	=	"  -> \"mosekh\" is the path to the MOSEK \"h\" directory, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/h\".\n"
 SDPIINSTMSG	+=	" -> \"libmosek.*\" is the path to the MOSEK library, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/bin/libmosek$(BITEXT).$(SHAREDLIBEXT)\""
@@ -324,11 +324,14 @@ $(SDPOBJSUBDIRS):	| $(OBJDIR)
 $(SCIPSDPLIBDIR):
 		@-mkdir -p $(SCIPSDPLIBDIR)
 		
+$(SCIPSDPLIBDIR)/include: $(SCIPSDPLIBDIR)
+		@-mkdir -p $(SCIPSDPLIBDIR)/include
+		
 $(SCIPSDPLIBDIR)/static: $(SCIPSDPLIBDIR)
-		@-mkdir -p $(SCIPSDPLIBDIR)/shared
+		@-mkdir -p $(SCIPSDPLIBDIR)/static
 		
 $(SCIPSDPLIBDIR)/shared: $(SCIPSDPLIBDIR)
-		@-mkdir -p $(SCIPSDPLIBDIR)/static
+		@-mkdir -p $(SCIPSDPLIBDIR)/shared
 
 $(BINDIR):
 		-@test -d $(BINDIR) || { \
@@ -417,7 +420,7 @@ $(LINKSMARKERFILE):
 		@$(MAKE) links
 
 .PHONY: links
-links:		| $(SCIPSDPLIBDIR) $(SCIPSDPLIBDIR)/static $(SCIPSDPLIBDIR)/shared echosoftlinks $(SOFTLINKS)
+links:		| $(SCIPSDPLIBDIR) $(SCIPSDPLIBDIR)/include $(SCIPSDPLIBDIR)/static $(SCIPSDPLIBDIR)/shared echosoftlinks $(SOFTLINKS)
 		@rm -f $(LINKSMARKERFILE)
 		@echo "this is only a marker" > $(LINKSMARKERFILE)
 
