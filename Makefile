@@ -109,14 +109,14 @@ SDPICCOBJ	=
 # DSDP solver
 SDPIOPTIONS	+=	dsdp
 ifeq ($(SDPS),dsdp)
-SDPILIB		= 	-L$(SCIPSDPLIBDIR) -ldsdp -llapack -lblas
+SDPILIB		= 	$(SCIPSDPLIBDIR)/static/libdsdp.$(STATICLIBEXT) -llapack -lblas
 SDPIINC		= 	-I$(SCIPSDPLIBDIR)/dsdpinc
 SDPICSRC 	= 	src/sdpi/sdpisolver_dsdp.c \
 			src/sdpi/lapack_dsdp.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_dsdp.o \
 			$(OBJDIR)/sdpi/lapack_dsdp.o
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/dsdpinc
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libdsdp.$(STATICLIBEXT)
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libdsdp.$(STATICLIBEXT)
 SDPIINSTMSG	=	" -> \"dsdpinc\" is the path to the DSDP \"include\" directory, e.g., \"<DSDP-path>/include\".\n"
 SDPIINSTMSG	+=	" -> \"libdsdp.*\" is the path to the DSDP library, e.g., \"<DSDP-path>/lib/libdsdp.$(STATICLIBEXT)\""
 endif
@@ -126,14 +126,14 @@ endif
 SDPIOPTIONS	+=	sdpa
 ifeq ($(SDPS),sdpa)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/sdpainc
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libsdpa.$(STATICLIBEXT)
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libsdpa.$(SHAREDLIBEXT)
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libsdpa.$(STATICLIBEXT)
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/shared/libsdpa.$(SHAREDLIBEXT)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mumpsinc
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libdmumps.$(STATICLIBEXT)
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libmumps_common.$(STATICLIBEXT)
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libmpiseq.$(STATICLIBEXT)
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libdmumps.$(STATICLIBEXT)
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libmumps_common.$(STATICLIBEXT)
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libmpiseq.$(STATICLIBEXT)
 ifeq ($(OPENBLAS),true)
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libopenblas.$(SHAREDLIBEXT).0
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/shared/libopenblas.$(SHAREDLIBEXT).0
 endif
 SDPIINSTMSG	=	" -> \"sdpainc\" is the path to the SDPA \"include\" directory, e.g., \"<SDPA-path>/include\".\n"
 SDPIINSTMSG	+=	" -> \"libsdpa.*\" is the path to the SDPA library, e.g., \"<SDPA-path>/lib/libsdpa.a\".\n"
@@ -143,12 +143,12 @@ SDPIINSTMSG	+=	" -> \"libdmumps_common.*\" is the path to the mumps_common libra
 SDPIINSTMSG	+=	" -> \"libdmumps.*\" is the path to the mpiseq library, e.g., \"<SDPA-path>/mumps/build/libseq/libmpiseq.$(STATICLIBEXT)\".\n"
 ifeq ($(OPENBLAS),true)
 SDPIINSTMSG	+=	" -> \"libopenblas.$(SHAREDLIBEXT).0\" is the openblas library.\n"
-SDPILIB		=      	-L$(SCIPSDPLIBDIR) -lsdpa $(SCIPSDPLIBDIR)/libdmumps.$(STATICLIBEXT) $(SCIPSDPLIBDIR)/libmumps_common.$(STATICLIBEXT) -lpord \
-			$(SCIPSDPLIBDIR)/libmpiseq.$(STATICLIBEXT) $(SCIPSDPLIBDIR)/libopenblas.$(SHAREDLIBEXT).0 -Wl,-rpath,$(SCIPSDPDIR)/$(SCIPSDPLIBDIR) \
-			-lgfortran -L/lib/x86_64-linux-gnu -lpthread -lgomp
+SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(SCIPSDPLIBDIR)/static/libdmumps.$(STATICLIBEXT) $(SCIPSDPLIBDIR)/static/libmumps_common.$(STATICLIBEXT) -lpord \
+			$(SCIPSDPLIBDIR)/static/libmpiseq.$(STATICLIBEXT) $(SCIPSDPLIBDIR)/shared/libopenblas.$(SHAREDLIBEXT).0 -Wl,-rpath,$(SCIPSDPDIR)/$(SCIPSDPLIBDIR)/static \
+			-Wl,-rpath,$(SCIPSDPDIR)/$(SCIPSDPLIBDIR)/shared -lgfortran -L/lib/x86_64-linux-gnu -lpthread -lgomp
 else
-SDPILIB		=      	-L$(SCIPSDPLIBDIR) -lsdpa $(SCIPSDPLIBDIR)/libdmumps.$(STATICLIBEXT) $(SCIPSDPLIBDIR)/libmumps_common.$(STATICLIBEXT) -lpord \
-			$(SCIPSDPLIBDIR)/libmpiseq.$(STATICLIBEXT) -lgfortran -llapack -lblas
+SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(SCIPSDPLIBDIR)/static/libdmumps.$(STATICLIBEXT) $(SCIPSDPLIBDIR)/static/libmumps_common.$(STATICLIBEXT) -lpord \
+			$(SCIPSDPLIBDIR)/static/libmpiseq.$(STATICLIBEXT) -lgfortran -llapack -lblas
 endif
 SDPIINC		=      	-I$(SCIPSDPLIBDIR)/sdpainc -I$(SCIPSDPLIBDIR)/mumpsinc
 SDPICCSRC 	= 	src/sdpi/sdpisolver_sdpa.cpp
@@ -168,10 +168,10 @@ ifeq ($(SDPS),msk)
 BITEXT     =  $(word 2, $(subst _, ,$(ARCH)))
 SDPIINC		= 	-I$(SCIPSDPLIBDIR)/mosekh
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/mosekh
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/libmosek$(BITEXT).$(SHAREDLIBEXT)
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT)
 SDPIINSTMSG	=	"  -> \"mosekh\" is the path to the MOSEK \"h\" directory, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/h\".\n"
 SDPIINSTMSG	+=	" -> \"libmosek.*\" is the path to the MOSEK library, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/bin/libmosek$(BITEXT).$(SHAREDLIBEXT)\""
-SDPILIB		= 	-m$(BITEXT) $(SCIPSDPLIBDIR)/libmosek$(BITEXT).$(SHAREDLIBEXT) -Wl,-rpath=$(SCIPSDPLIBDIR)/ -llapack -lblas -pthread -lc -lm
+SDPILIB		= 	-m$(BITEXT) $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT) -Wl,-rpath=$(SCIPSDPLIBDIR)/shared -llapack -lblas -pthread -lc -lm
 SDPICSRC 	= 	src/sdpi/sdpisolver_mosek.c src/sdpi/lapack_dsdp.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_mosek.o $(OBJDIR)/sdpi/lapack_dsdp.o
 endif
@@ -325,6 +325,12 @@ $(SDPOBJSUBDIRS):	| $(OBJDIR)
 
 $(SCIPSDPLIBDIR):
 		@-mkdir -p $(SCIPSDPLIBDIR)
+		
+$(SCIPSDPLIBDIR)/static: $(SCIPSDPLIBDIR)
+		@-mkdir -p $(SCIPSDPLIBDIR)/shared
+		
+$(SCIPSDPLIBDIR)/shared: $(SCIPSDPLIBDIR)
+		@-mkdir -p $(SCIPSDPLIBDIR)/static
 
 $(BINDIR):
 		-@test -d $(BINDIR) || { \
@@ -413,7 +419,7 @@ $(LINKSMARKERFILE):
 		@$(MAKE) links
 
 .PHONY: links
-links:		| $(SCIPSDPLIBDIR) echosoftlinks $(SOFTLINKS)
+links:		| $(SCIPSDPLIBDIR) $(SCIPSDPLIBDIR)/static $(SCIPSDPLIBDIR)/shared echosoftlinks $(SOFTLINKS)
 		@rm -f $(LINKSMARKERFILE)
 		@echo "this is only a marker" > $(LINKSMARKERFILE)
 
