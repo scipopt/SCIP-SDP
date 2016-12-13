@@ -494,12 +494,25 @@ test:
 
 .PHONY: testcluster
 testcluster:
+		@-(cd check && ln -fs $(SCIPDIR)/check/check.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/allcmpres.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/evalcheck.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/evalcheck_cluster.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/check_cluster.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/check.awk);
+		@-(cd check && ln -fs $(SCIPDIR)/check/cmpres.awk);
+		@-(cd check && ln -fs $(SCIPDIR)/check/getlastprob.awk);
+		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_cluster.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_set.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_logfiles.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_tmpfile_setup_scip.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/run.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/runcluster.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/testfiles.sh);
 		cd check; \
-		$(SHELL) ./check_cluster.sh $(TEST) $(MAINFILE) $(SETTINGS) \
-		$(notdir $(MAINFILE)) $(TIME) $(NODES) $(MEM) \
-		$(THREADS) $(FEASTOL) $(LPS) $(DISPFREQ) $(CONTINUE) \
-		$(QUEUETYPE) $(QUEUE) $(PPN) $(CLIENTTMPDIR) \
-		$(NOWAITCLUSTER) $(EXCLUSIVE) $(PERMUTE) $(OPTCOMMAND);
+		$(SHELL) ./check_cluster.sh $(TEST) $(MAINFILE) $(SETTINGS) $(notdir $(MAINFILE)) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(SDPS) $(DISPFREQ) \
+			$(CONTINUE) $(QUEUETYPE) $(QUEUE) $(PPN) $(CLIENTTMPDIR) $(NOWAITCLUSTER) $(EXCLUSIVE) $(PERMUTE) $(SEEDS) $(DEBUGTOOL) $(REOPT) $(OPTCOMMAND) \
+			$(SETCUTOFF) $(VISUALIZE);
 
 #-----------------------------------------------------------------------------
 
