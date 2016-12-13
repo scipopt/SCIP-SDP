@@ -37,6 +37,8 @@ misc:
 
 makefile:
 - set links to mumps libraries instead of library folder
+- All internal and external libraries are placed in lib/static and lib/shared, the include files are in lib/include.
+- Current check scripts are now copied directly from the chosen SCIP directory.
 
 SCIP-SDP version 2.1.0
 ==================
