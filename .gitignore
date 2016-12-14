@@ -39,6 +39,8 @@ RIP-MISDP-Paper/*
 !RIP-MISDP-Paper/tables
 !RIP-MISDP-Paper/IEEE_RIP-MISDP.tex
 settings/*
+!settings/
+!settings/1thread.set
 sdpa.dat-s
 sdpa.ini-s
 .settings/*
