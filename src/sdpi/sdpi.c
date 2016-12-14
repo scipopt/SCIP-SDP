@@ -112,6 +112,21 @@
                       }                                                                                       \
                       while( FALSE )
 
+/** same as SCIP_CALL_PARAM, but ignores SCIP_PARAMETERUNKNOWN */
+#define SCIP_CALL_PARAM_IGNORE_UNKNOWN(x)   do                                                                \
+                      {                                                                                       \
+                         SCIP_RETCODE _restat_;                                                               \
+                         if ( (_restat_ = (x)) != SCIP_OKAY )                                                 \
+                         {                                                                                    \
+                            if ( _restat_ != SCIP_PARAMETERUNKNOWN )                                          \
+                            {                                                                                 \
+                               SCIPerrorMessage("Error <%d> in function call\n", _restat_);                   \
+                               SCIPABORT();                                                                   \
+                            }                                                                                 \
+                         }                                                                                    \
+                      }                                                                                       \
+                      while( FALSE )
+
 /* #define PRINTSLATER */
 #define NINCREASESGAMMA             2        /**< How often will Gamma at most be increased if penalty formulation failed */
 #define MIN_GAPTOL                  1e-10    /**< minimum gaptolerance for SDP-solver if decreasing it for a penalty formulation */
@@ -3843,7 +3858,7 @@ SCIP_RETCODE SCIPsdpiSetRealpar(
       break;
    case SCIP_SDPPAR_PENALTYPARAM:
       sdpi->penaltyparam = dval;
-      SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
+      SCIP_CALL_PARAM_IGNORE_UNKNOWN( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
       break;
    case SCIP_SDPPAR_MAXPENALTYPARAM:
       sdpi->maxpenaltyparam = dval;
