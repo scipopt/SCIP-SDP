@@ -169,8 +169,8 @@ SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/mosekh
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/shared/libiomp5.$(SHAREDLIBEXT)
 SDPIINSTMSG	=	"  -> \"mosekh\" is the path to the MOSEK \"h\" directory, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/h\".\n"
-SDPIINSTMSG	+=	" -> \"libmosek$(BITEXT).*\" is the path to the MOSEK library, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/bin/libmosek$(BITEXT).$(SHAREDLIBEXT)\""
-SDPIINSTMSG	+=	" -> \"libiomp.*\" is the path to the Intel OMP library, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/bin/libiomp5.$(SHAREDLIBEXT).$(SHAREDLIBEXT)\""
+SDPIINSTMSG	+=	" -> \"libmosek$(BITEXT).*\" is the path to the MOSEK library, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/bin/libmosek$(BITEXT).$(SHAREDLIBEXT)\".\n"
+SDPIINSTMSG	+=	" -> \"libiomp.*\" is the path to the Intel OMP library, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/bin/libiomp5.$(SHAREDLIBEXT).$(SHAREDLIBEXT)\".\n"
 SDPILIB		= 	-m$(BITEXT) $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT) -Wl,-rpath=$(SCIPSDPLIBDIR)/shared -llapack -lblas -pthread -lc -lm
 SDPICSRC 	= 	src/sdpi/sdpisolver_mosek.c src/sdpi/lapack_dsdp.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_mosek.o $(OBJDIR)/sdpi/lapack_dsdp.o
