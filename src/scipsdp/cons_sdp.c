@@ -82,7 +82,7 @@
 #define PARSE_STARTSIZE               1 /**< initial size of the consdata-arrays when parsing a problem */
 #define PARSE_SIZEFACTOR             10 /**< size of consdata-arrays is increased by this factor when parsing a problem */
 #define DEFAULT_DIAGGEZEROCUTS     TRUE /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
-#define DEFAULT_DIAGDOMINANCECUTS  TRUE /**< Should linear cuts enforcing the diagonal dominance (regarding zero-entries) of SDP-matrices be added? */
+#define DEFAULT_DIAGZEROIMPLCUTS   TRUE /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
 #endif
@@ -114,7 +114,7 @@ struct SCIP_ConshdlrData
    SCIP_Bool             diaggezerocuts;     /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
    int                   ndiaggezerocuts;    /**< this is used to give the diagGEzero-cuts distinguishable names */
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
-   SCIP_Bool             diagdominancecuts;  /**< Should linear cuts enforcing the diagonal dominance (regarding zero-entries) of SDP-matrices be added? */
+   SCIP_Bool             diagzeroimplcuts;   /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
 #ifdef OMP
    int                   nthreads;           /**< number of threads used for OpenBLAS */
 #endif
@@ -620,7 +620,7 @@ SCIP_RETCODE diagGEzero(
    return SCIP_OKAY;
 }
 
-/** Presolve-routine that enforces diagonal dominance of positive semidefinite matrices, namely that if \f$X_{ij} > 0\f$,
+/** Presolve-routine that enforces implications of diagonal entries of zero in SDP-matrices, namely that if \f$X_{ij} > 0\f$,
  * then also \f$X_{ii} > 0\f$ and \f$X_{jj} > 0\f$.
  *
  * More precisely, if \f$(A_0)_{k\ell} \neq 0\f$, \f$(A_0)_{kk} = 0\f$, \f$(A_i)_{k\ell} = 0\f$ for all \f$i \leq m\f$,
@@ -628,7 +628,7 @@ SCIP_RETCODE diagGEzero(
  * \f$\sum_{\substack{i \in \mathcal{I}:\\ (A_i)_{kk} > 0}} y_i \geq 1.\f$
  */
 static
-SCIP_RETCODE diagDominant(
+SCIP_RETCODE diagZeroImpl(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           conss,              /**< array of constraints */
    int                   nconss,             /**< number of constraints */
@@ -825,10 +825,10 @@ SCIP_RETCODE diagDominant(
                vals[v] = 1.0;
             }
 #ifndef NDEBUG
-            snprintfreturn = SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "diag_dom_block_%d_row_%d", i, j);
+            snprintfreturn = SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "diag_zero_impl_block_%d_row_%d", i, j);
             assert( snprintfreturn < SCIP_MAXSTRLEN );  /* check whether name fits into string */
 #else
-            (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "diag_dom_block_%d_row_%d", i, j);
+            (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "diag_zero_impl_block_%d_row_%d", i, j);
 #endif
 
 #ifdef SCIP_MORE_DEBUG
@@ -1717,9 +1717,9 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       {
          SCIP_CALL( diagGEzero(scip, conss, nconss, naddconss) );
       }
-      if ( conshdlrdata->diagdominancecuts )
+      if ( conshdlrdata->diagzeroimplcuts )
       {
-         SCIP_CALL( diagDominant(scip, conss, nconss, naddconss) );
+         SCIP_CALL( diagZeroImpl(scip, conss, nconss, naddconss) );
       }
    }
 
@@ -2506,9 +2506,9 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/diaggezerocuts",
          "Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added?",
          &(conshdlrdata->diaggezerocuts), TRUE, DEFAULT_DIAGGEZEROCUTS, NULL, NULL) );
-   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/diagdominancecuts",
-         "Should linear cuts enforcing the diagonal dominance (regarding zero-entries) of SDP-matrices be added?",
-         &(conshdlrdata->diagdominancecuts), TRUE, DEFAULT_DIAGDOMINANCECUTS, NULL, NULL) );
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/diagzeroimplcuts",
+         "Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added?",
+         &(conshdlrdata->diagzeroimplcuts), TRUE, DEFAULT_DIAGZEROIMPLCUTS, NULL, NULL) );
 
    return SCIP_OKAY;
 }

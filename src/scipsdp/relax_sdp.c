@@ -75,7 +75,7 @@
 #define DEFAULT_DISPLAYSTAT         TRUE     /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
 #define DEFAULT_SETTINGSRESETFREQ   -1       /**< frequency for resetting parameters in SDP solver and trying again with fastest settings */
 #define DEFAULT_SETTINGSRESETOFS    0        /**< frequency offset for resetting parameters in SDP solver and trying again with fastest settings */
-#define DEFAULT_SDPSOLVERNTHREADS   -1       /**< number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores) */
+#define DEFAULT_SDPSOLVERTHREADS    -1       /**< number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores) */
 
 /*
  * Data structures
@@ -108,7 +108,7 @@ struct SCIP_RelaxData
    SCIP_Bool             tightenvb;          /**< Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ? */
    int                   settingsresetfreq;  /**< frequency for resetting parameters in SDP solver and trying again with fastest settings */
    int                   settingsresetofs;   /**< frequency offset for resetting parameters in SDP solver and trying again with fastest settings */
-   int                   sdpsolvernthreads;  /**< number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores) */
+   int                   sdpsolverthreads;   /**< number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores) */
    int                   sdpcalls;           /**< number of solved SDPs (used to compute average SDP iterations), different settings tried are counted as multiple calls */
    int                   sdpinterfacecalls;  /**< number of times the SDP interfaces was called (used to compute slater statistics) */
    long int              lastsdpnode;        /**< number of the SCIP node the current SDP-solution belongs to */
@@ -1446,7 +1446,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       SCIP_CALL( retcode );
    }
 
-   SCIP_CALL( SCIPgetIntParam(scip, "relaxing/SDP/sdpsolvernthreads", &nthreads) );
+   SCIP_CALL( SCIPgetIntParam(scip, "relaxing/SDP/sdpsolverthreads", &nthreads) );
    retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_NTHREADS, (int) nthreads);
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
@@ -1684,7 +1684,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          TRUE, DEFAULT_MAXPENALTYPARAM, -1.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/lambdastar",
-         "the parameter lambda star used by SDPA to set the initial point , "
+         "the parameter lambda star used by SDPA to set the initial point;"
          "set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->lambdastar),
          TRUE, DEFAULT_LAMBDASTAR, -1.0, 1e+20, NULL, NULL) );
 
@@ -1713,16 +1713,17 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          &(relaxdata->displaystat), TRUE, DEFAULT_DISPLAYSTAT, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/settingsresetfreq",
-         "frequency for resetting parameters in SDP solver and trying again with fastest settings (-1: never, 0: only at depth settingsresetofs)",
+         "frequency for resetting parameters in SDP solver and trying again with fastest settings (-1: never, 0: only at depth settingsresetofs);"
+         "currently only supported for SDPA",
          &(relaxdata->settingsresetfreq), TRUE, DEFAULT_SETTINGSRESETFREQ, -1, INT_MAX, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/settingsresetofs",
-         "frequency offset for resetting parameters in SDP solver and trying again with fastest settings",
+         "frequency offset for resetting parameters in SDP solver and trying again with fastest settings; currently only supported for SDPA",
          &(relaxdata->settingsresetofs), TRUE, DEFAULT_SETTINGSRESETOFS, 0, INT_MAX, NULL, NULL) );
 
-   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/sdpsolvernthreads",
-         "number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores)",
-         &(relaxdata->sdpsolvernthreads), TRUE, DEFAULT_SDPSOLVERNTHREADS, -1, INT_MAX, NULL, NULL) );
+   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/sdpsolverthreads",
+         "number of threads the SDP solver should use (-1 = number of cores); currently only supported for MOSEK",
+         &(relaxdata->sdpsolverthreads), TRUE, DEFAULT_SDPSOLVERTHREADS, -1, INT_MAX, NULL, NULL) );
 
 
    /* add description of SDP-solver */
