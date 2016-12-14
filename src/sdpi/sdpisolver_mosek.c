@@ -73,7 +73,6 @@
 #include "sdpi/sdpsolchecker.h"              /* to check solution with regards to feasibility tolerance */
 
 /* TODO: use  MSK_putexitfunc to catch errors
- * TODO: set objlimit via MSK_DPAR_LOWER_OBJ_CUT
  * TODO: Think about what to do with near optimality etc. (If MOSEK cannot compute a solution that has the prescribed accuracy, then it will
  * multiply the termination tolerances with MSK_DPAR_INTPNT_CO_TOL_NEAR_REL. If the solution then satisfies the termination criteria, then
  * the solution is denoted near optimal, near feasible and so forth.) */
@@ -1232,6 +1231,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, timelimit - elapsedtime) )
       {
          MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_OPTIMIZER_MAX_TIME, timelimit - elapsedtime) );/*lint !e641*/
+      }
+
+      /* set objective cutoff */
+      if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
+      {
+         MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_UPPER_OBJ_CUT, sdpisolver->objlimit) );/*lint !e641*/
       }
 
       /* solve the problem */

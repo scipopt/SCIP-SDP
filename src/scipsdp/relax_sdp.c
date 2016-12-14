@@ -1472,6 +1472,9 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       SCIP_CALL( retcode );
    }
 
+   /* initialize objective limit in case it was set in an earlier optimize call */
+   SCIP_CALL( SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_OBJLIMIT, SCIPsdpiInfinity(relaxdata->sdpi)) );
+
    return SCIP_OKAY;
 }
 
