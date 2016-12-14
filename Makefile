@@ -474,6 +474,7 @@ endif
 test:
 		@-(cd check && ln -fs $(SCIPDIR)/check/check.sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/allcmpres.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/cmpres.awk);
 		@-(cd check && ln -fs $(SCIPDIR)/check/evalcheck.sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/evalcheck_cluster.sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/check_cluster.sh);
@@ -498,6 +499,7 @@ test:
 testcluster:
 		@-(cd check && ln -fs $(SCIPDIR)/check/check.sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/allcmpres.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/cmpres.awk);
 		@-(cd check && ln -fs $(SCIPDIR)/check/evalcheck.sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/evalcheck_cluster.sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/check_cluster.sh);
