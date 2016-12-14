@@ -186,12 +186,12 @@ SCIP_RETCODE CBFreadVar(
    int nvartypevars;
    int nposorthvars;
    int nnegorthvars;
-   int nfreevars;
    int t;
    int v;
    SCIP_VAR* var;
    char varname[SCIP_MAXSTRLEN];
 #ifndef NDEBUG
+   int nfreevars;
    int snprintfreturn;
 #endif
 
@@ -231,7 +231,9 @@ SCIP_RETCODE CBFreadVar(
    }
    nposorthvars = 0;
    nnegorthvars = 0;
+#ifndef NDEBUG
    nfreevars = 0;
+#endif
 
    for (t = 0; t < nvartypes; t++)
    {
@@ -259,6 +261,7 @@ SCIP_RETCODE CBFreadVar(
                SCIPABORT();
             }
          }
+#ifndef NDEBUG
          else if (strcmp(CBF_NAME_BUFFER, "F") == 0)
          {
             if ( nvartypevars >= 0 )
@@ -269,7 +272,8 @@ SCIP_RETCODE CBFreadVar(
                SCIPABORT();
             }
          }
-         else
+#endif
+         else if (strcmp(CBF_NAME_BUFFER, "F") != 0)
          {
             SCIPerrorMessage("CBF-Reader of SCIP-SDP currently only supports non-negative, non-positive and free variables!\n");
             SCIPABORT();
@@ -312,12 +316,12 @@ SCIP_RETCODE CBFreadCon(
    int nconstypeconss;
    int ngeqconss;
    int nleqconss;
-   int neqconss;
    int t;
    int c;
    SCIP_CONS* cons;
    char consname[SCIP_MAXSTRLEN];
 #ifndef NDEBUG
+   int neqconss;
    int snprintfreturn;
 #endif
 
@@ -358,7 +362,9 @@ SCIP_RETCODE CBFreadCon(
 
    ngeqconss = 0;
    nleqconss = 0;
+#ifndef NDEBUG
    neqconss = 0;
+#endif
 
    for (t = 0; t < nconstypes; t++)
    {
@@ -376,7 +382,7 @@ SCIP_RETCODE CBFreadCon(
                SCIPABORT();
             }
          }
-         else if (strcmp(CBF_NAME_BUFFER, "L+") == 0)
+         else if (strcmp(CBF_NAME_BUFFER, "L-") == 0)
          {
             if ( nconstypeconss >= 0 )
                nleqconss = nconstypeconss;
@@ -386,7 +392,8 @@ SCIP_RETCODE CBFreadCon(
                SCIPABORT();
             }
          }
-         else if (strcmp(CBF_NAME_BUFFER, "L+") == 0)
+#ifndef NDEBUG
+         else if (strcmp(CBF_NAME_BUFFER, "L=") == 0)
          {
             if ( nconstypeconss >= 0 )
                neqconss = nconstypeconss;
@@ -396,7 +403,8 @@ SCIP_RETCODE CBFreadCon(
                SCIPABORT();
             }
          }
-         else
+#endif
+         else if (strcmp(CBF_NAME_BUFFER, "L=") != 0)
          {
             SCIPerrorMessage("CBF-Reader of SCIP-SDP currently only supports linear greater or equal, less or equal and"
                   "equality constraints!\n");
@@ -1264,7 +1272,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
       snprintfreturn = SCIPsnprintf(sdpconname, SCIP_MAXSTRLEN, "SDP_%d", b);
       assert( snprintfreturn < SCIP_MAXSTRLEN);
 #else
-      (void) SCIPsnprintf(sdpcon_name, SCIP_MAXSTRLEN, "SDP_%d", b);
+      (void) SCIPsnprintf(sdpconname, SCIP_MAXSTRLEN, "SDP_%d", b);
 #endif
       SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcons, sdpconname, data->sdpnblockvars[b], data->sdpnblocknonz[b],
             data->sdpblocksizes[b], data->nvarnonz[b], data->colpointer[b], data->rowpointer[b], data->valpointer[b],
