@@ -78,8 +78,8 @@
  * the solution is denoted near optimal, near feasible and so forth.) */
 
 #define MIN_PENALTYPARAM            1e5      /**< if the penalty parameter is to be computed, this is the minimum value it will take */
-#define MAX_PENALTYPARAM            1e12     /**< if the penalty parameter is to be computed, this is the maximum value it will take */
-#define PENALTYPARAM_FACTOR         1e10      /**< if the penalty parameter is to be computed, the maximal objective coefficient will be multiplied by this */
+#define MAX_PENALTYPARAM            1e10     /**< if the penalty parameter is to be computed, this is the maximum value it will take */
+#define PENALTYPARAM_FACTOR         1e8      /**< if the penalty parameter is to be computed, the maximal objective coefficient will be multiplied by this */
 #define MAX_MAXPENALTYPARAM         1e15     /**< if the maximum penaltyparameter is to be computed, this is the maximum value it will take */
 #define MAXPENALTYPARAM_FACTOR      1e6      /**< if the maximum penaltyparameter is to be computed, it will be set to penaltyparam * this */
 #define TOLERANCE_FACTOR            0.1      /**< all tolerances will be multiplied by this factor since MOSEK does not adhere to its own tolerances */
