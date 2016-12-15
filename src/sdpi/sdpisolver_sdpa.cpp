@@ -166,12 +166,12 @@ SCIP_Bool isFixed(
    )
 {
    assert( sdpisolver != NULL );
-   assert( lb < ub + sdpisolver->epsilon );
+   assert( lb < ub + sdpisolver->feastol );
 
-   return (REALABS(ub-lb) <= sdpisolver->epsilon);
+   return (ub-lb <= sdpisolver->epsilon);
 }
 #else
-#define isFixed(sdpisolver,lb,ub) (REALABS(ub-lb) <= sdpisolver->epsilon)
+#define isFixed(sdpisolver,lb,ub) (ub-lb <= sdpisolver->epsilon)
 #endif
 
 /** If the problem is feasible for SDPA but not within our feasibility tolerance, adjust feasibility tolerance in
