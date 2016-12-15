@@ -85,9 +85,9 @@
  * <tr><td>display/sdppenalty/active = 0</td> <td>Should the percentage of SDP-relaxations solved using a penalty formulation be displayed in the console? [0: off, 1: auto, 2:on]</td></tr>
  * <tr><td>display/sdpunsolved/active = 1</td> <td>Should the percentage of SDP-relaxations that could not be solved be displayed in the console? [0: off, 1: auto, 2:on]</td></tr>
  * <tr><td>heuristics/sdpfracdiving/freq = -1</td> <td>set this to 0 or more to enable a fractional diving heuristic for SDPs</td></tr>
- * <tr><td>heuristics/sdprand/freq = 10</td> <td>set this to -1 to disable the randomized rounding heuristic</td></tr>
+ * <tr><td>heuristics/sdprand/freq = 1</td> <td>set this to -1 to disable the randomized rounding heuristic</td></tr>
  * <tr><td>heuristics/sdprand/generalints = FALSE</td> <td>Should randomized rounding also be applied if there are general integer variables and not only binary variables ?</td></tr>
- * <tr><td>heuristics/sdprand/nrounds = 5</td> <td>number of rounding rounds</td></tr>
+ * <tr><td>heuristics/sdprand/nrounds = 2</td> <td>number of rounding rounds</td></tr>
  * <tr><td>propagating/sdp-obbt/freq = -1</td> <td>set this to 0 or more to enable optimization-based bound tightening using SDP-relaxations</td></tr>
  * <tr><td>propagating/sdp-obbt/propcont = TRUE</td> <td>Should optimization-based bound tightening be performed for continuous variables ?</td></tr>
  * <tr><td>propagating/sdp-obbt/propbin = FALSE</td> <td>Should optimization-based bound tightening be performed for binary variables ?</td></tr>
