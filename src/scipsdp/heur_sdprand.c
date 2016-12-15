@@ -51,7 +51,7 @@
 #define HEUR_DESC             "randomized rounding heuristic for SDPs"
 #define HEUR_DISPCHAR         '~'
 #define HEUR_PRIORITY         -1001000
-#define HEUR_FREQ             10
+#define HEUR_FREQ             1
 #define HEUR_FREQOFS          0
 #define HEUR_MAXDEPTH         -1
 #define HEUR_TIMING           SCIP_HEURTIMING_AFTERNODE
@@ -62,7 +62,7 @@
  * Default parameter settings
  */
 
-#define DEFAULT_NROUNDS                 5    /**< number rounding rounds */
+#define DEFAULT_NROUNDS                 2    /**< number rounding rounds */
 #define DEFAULT_GENERALINTS             FALSE/**< Should randomized rounding also be applied if there are general integer variables and not only binary variables ? */
 #define DEFAULT_RANDSEED                211  /**< default random seed */
 
