@@ -13,6 +13,8 @@ fixed bugs:
 - feasibility is no longer checked against sdpsolverfeastol but instead against feastol everywhere
   (sdpsolverfeastol is now only used for communicating with the SDP-solver)
 - immediately resolve SDP-relaxations if the required tolerance was not met by the solver
+- fixed a problem which could lead to errors when the sdpredcost-propagator asked for information
+  after the SDP-solver hit the SCIP-timelimit
 
 features:
 - readded "diagzeroimpl" cuts in presolving which enforce nonzero diagonal entries if a nonzero

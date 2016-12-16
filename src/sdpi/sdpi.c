@@ -2792,14 +2792,14 @@ SCIP_RETCODE SCIPsdpiSolve(
 /**@name Solution Information Methods */
 /**@{ */
 
-/** returns whether a solve method was called after the last modification of the SDP */
+/** returns whether a solve method was successfully called after the last modification of the SDP */
 SCIP_Bool SCIPsdpiWasSolved(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    )
 {
    assert( sdpi != NULL );
 
-   return sdpi->solved;
+   return ( sdpi->solved && SCIPsdpiSolverWasSolved(sdpi->sdpisolver) );
 }
 
 /** returns whether the original problem was solved, if SCIPsdpiWasSolved = true and SCIPsdpiSolvedOrig = false, then a penalty formulation was solved */
@@ -2809,7 +2809,7 @@ SCIP_Bool SCIPsdpiSolvedOrig(
 {
    assert( sdpi != NULL );
 
-   return ( ! sdpi->penalty );
+   return ( SCIPsdpiWasSolved(sdpi) && (! sdpi->penalty) );
 }
 
 /** returns true if the solver could determine whether the problem is feasible, so it returns true if the
