@@ -2650,7 +2650,7 @@ SCIP_RETCODE SCIPsdpiSolve(
 
             /* increase penalty-param and decrease feasibility tolerance until we find a feasible solution or reach the final bound for either one of them */
             while ( ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) || ! feasorig ) &&
-                  ( penaltyparam < sdpi->maxpenaltyparam + sdpi->gaptol ) && ( gaptol > 0.99 * MIN_GAPTOL ) && ( ! SCIPsdpiSolverIsTimelimExc(sdpi->sdpisolver) ))
+                  ( penaltyparam < sdpi->maxpenaltyparam + sdpi->epsilon ) && ( gaptol > 0.99 * MIN_GAPTOL ) && ( ! SCIPsdpiSolverIsTimelimExc(sdpi->sdpisolver) ))
             {
                SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penaltyparameter %f\n", sdpi->sdpid, penaltyparam);
 
