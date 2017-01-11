@@ -3829,14 +3829,6 @@ SCIP_RETCODE SCIPsdpiGetRealpar(
       return SCIP_PARAMETERUNKNOWN;
    }
 
-#ifndef NDEBUG
-   {
-      SCIP_Real val;
-      SCIP_CALL_PARAM( SCIPsdpiSolverGetRealpar(sdpi->sdpisolver, type, &val) );
-      assert( REALABS(*dval - val) < sdpi->gaptol );
-   }
-#endif
-
    return SCIP_OKAY;
 }
 
@@ -3913,17 +3905,6 @@ SCIP_RETCODE SCIPsdpiGetIntpar(
       return SCIP_PARAMETERUNKNOWN;
    }
 
-#ifndef NDEBUG
-   {
-      if ( type != SCIP_SDPPAR_SLATERCHECK )
-      {
-         int val;
-         SCIP_CALL_PARAM( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, &val) );
-         assert( *ival == val );
-      }
-   }
-#endif
-
    return SCIP_OKAY;
 }
 
@@ -3955,17 +3936,6 @@ SCIP_RETCODE SCIPsdpiSetIntpar(
    default:
       return SCIP_PARAMETERUNKNOWN;
    }
-
-#ifndef NDEBUG
-   {
-      if ( type != SCIP_SDPPAR_SLATERCHECK )
-      {
-         int val;
-         SCIP_CALL_PARAM( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, &val) );
-         assert( ival == val );
-      }
-   }
-#endif
 
    return SCIP_OKAY;
 }
