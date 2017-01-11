@@ -128,7 +128,7 @@
                       while( FALSE )
 
 /* #define PRINTSLATER */
-#define NINCREASESGAMMA             5        /**< How often will Gamma at most be increased if penalty formulation failed */
+#define NINCREASESGAMMA             8        /**< How often will Gamma at most be increased if penalty formulation failed */
 #define MIN_GAPTOL                  1e-10    /**< minimum gaptolerance for SDP-solver if decreasing it for a penalty formulation */
 
 #define DEFAULT_SDPSOLVERGAPTOL     1e-4     /**< the stopping criterion for the duality gap the sdpsolver should use */
