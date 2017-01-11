@@ -31,6 +31,9 @@ parameters:
   the parameters "constraints/SDP/diagdominancecuts" and "constraints/SDP/diaggezerocuts".
 - "sdpsolverepsilon" has been renamed to "sdpsolvergaptol" to make the usage clearer
 - The number of threads for MOSEK can be set via "relaxing/SDP/sdpsolverthreads"
+- The maximum number of increases of the penaltyparameter and maximum number of decreases of the feasibility
+  tolerance before declaring a problem unsolvable and continueing with the bound of the parent node can now
+  be set via "relaxing/SDP/npenaltyincr"
 
 core:
 - ajusted SCIP-SDP to new enforelax callback in SCIP; this now allows to combine SCIP-SDP with other nonlinear

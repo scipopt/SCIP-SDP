@@ -105,6 +105,12 @@ SCIP_Real SCIPsdpiSolverGetDefaultSdpiSolverFeastol(
    void
    );
 
+/** gets default number of increases of penalty parameter for SDP-solver in SCIP-SDP */
+EXTERN
+int SCIPsdpiSolverGetDefaultSdpiSolverNpenaltyIncreases(
+   void
+   );
+
 /**@} */
 
 

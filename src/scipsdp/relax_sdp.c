@@ -93,6 +93,7 @@ struct SCIP_RelaxData
    SCIP_Real             sdpsolverfeastol;   /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
    SCIP_Real             penaltyparam;       /**< the starting penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
    SCIP_Real             maxpenaltyparam;    /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
+   int                   npenaltyincr;       /**< maximum number of times the penalty parameter will be increased if penalty formulation failed */
    SCIP_Real             lambdastar;         /**< the parameter lambda star used by SDPA to set the initial point */
    int                   sdpiterations;      /**< saves the total number of sdp-iterations */
    int                   solvedfast;         /**< number of SDPs solved with fast settings */
@@ -1209,6 +1210,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    SCIP_Real feastol;
    SCIP_Real penaltyparam;
    SCIP_Real maxpenaltyparam;
+   int npenaltyincr;
    SCIP_Bool sdpinfo;
    SCIP_Real givenpenaltyparam;
    int nthreads;
@@ -1383,6 +1385,20 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       SCIP_CALL( SCIPsdpiComputeMaxPenaltyparam(relaxdata->sdpi, givenpenaltyparam, &givenmaxpenaltyparam) );
    }
 
+   /* set maximum number of penalty increasing rounds */
+   SCIP_CALL( SCIPgetIntParam(scip, "relaxing/SDP/npenaltyincr", &npenaltyincr) );
+   retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_NPENALTYINCR, npenaltyincr);
+   if ( retcode == SCIP_PARAMETERUNKNOWN )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
+         "SDP Solver <%s>: npenaltyincr setting not available -- SCIP parameter has no effect.\n",
+         SCIPsdpiGetSolverName());
+   }
+   else
+   {
+      SCIP_CALL( retcode );
+   }
+
 
    /* set/compute lambda star if SDPA is used as the SDP-Solver */
    if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0.0 )
@@ -1447,7 +1463,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    }
 
    SCIP_CALL( SCIPgetIntParam(scip, "relaxing/SDP/sdpsolverthreads", &nthreads) );
-   retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_NTHREADS, (int) nthreads);
+   retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_NTHREADS, nthreads);
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
@@ -1682,6 +1698,10 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          "the maximum value of the penalty parameter Gamma used for the penalty formulation if the "
          "SDP solver didn't converge; set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->maxpenaltyparam),
          TRUE, DEFAULT_MAXPENALTYPARAM, -1.0, 1e+20, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/npenaltyincr",
+         "maximum number of times the penalty parameter will be increased if the penalty formulation failed", &(relaxdata->npenaltyincr), TRUE,
+         SCIPsdpiGetDefaultSdpiSolverNpenaltyIncreases(), 0, INT_MAX, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/lambdastar",
          "the parameter lambda star used by SDPA to set the initial point;"

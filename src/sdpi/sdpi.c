@@ -128,7 +128,6 @@
                       while( FALSE )
 
 /* #define PRINTSLATER */
-#define NINCREASESGAMMA             8        /**< How often will Gamma at most be increased if penalty formulation failed */
 #define MIN_GAPTOL                  1e-10    /**< minimum gaptolerance for SDP-solver if decreasing it for a penalty formulation */
 
 #define DEFAULT_SDPSOLVERGAPTOL     1e-4     /**< the stopping criterion for the duality gap the sdpsolver should use */
@@ -137,6 +136,7 @@
 #define DEFAULT_EPSILON             1e-9     /**< used to test whether given values are equal */
 #define DEFAULT_PENALTYPARAM        1e+5     /**< the starting penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
 #define DEFAULT_MAXPENALTYPARAM     1e+10    /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
+#define DEFAULT_NPENALTYINCR        8        /**< maximum number of times the penalty parameter will be increased if penalty formulation failed */
 
 /** data for SDPI */
 struct SCIP_SDPi
@@ -195,6 +195,7 @@ struct SCIP_SDPi
    SCIP_Real             feastol;            /**< this is used to check if the SDP-Constraint is feasible */
    SCIP_Real             penaltyparam;       /**< the starting penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
    SCIP_Real             maxpenaltyparam;    /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
+   int                   npenaltyincr;       /**< maximum number of times the penalty parameter will be increased if penalty formulation failed */
    SCIP_Real             bestbound;          /**< best bound computed with a penalty formulation */
    SCIP_SDPSLATER        primalslater;       /**< did the primal slater condition hold for the last problem */
    SCIP_SDPSLATER        dualslater;         /**< did the dual slater condition hold for the last problem */
@@ -1405,6 +1406,14 @@ SCIP_Real SCIPsdpiGetDefaultSdpiSolverFeastol(
    return SCIPsdpiSolverGetDefaultSdpiSolverFeastol();
 }
 
+/** gets default number of increases of penalty parameter for SDP-solver in SCIP-SDP */
+int SCIPsdpiGetDefaultSdpiSolverNpenaltyIncreases(
+   void
+   )
+{
+   return SCIPsdpiSolverGetDefaultSdpiSolverNpenaltyIncreases();
+}
+
 /**@} */
 
 
@@ -1474,7 +1483,8 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->gaptol = DEFAULT_SDPSOLVERGAPTOL;
    (*sdpi)->feastol = DEFAULT_FEASTOL;
    (*sdpi)->penaltyparam = DEFAULT_PENALTYPARAM;
-   (*sdpi)->penaltyparam = DEFAULT_MAXPENALTYPARAM;
+   (*sdpi)->maxpenaltyparam = DEFAULT_MAXPENALTYPARAM;
+   (*sdpi)->npenaltyincr = DEFAULT_NPENALTYINCR;
    (*sdpi)->bestbound = -SCIPsdpiSolverInfinity((*sdpi)->sdpisolver);
    (*sdpi)->primalslater = SCIP_SDPSLATER_NOINFO;
    (*sdpi)->dualslater = SCIP_SDPSLATER_NOINFO;
@@ -2643,10 +2653,13 @@ SCIP_RETCODE SCIPsdpiSolve(
 
             penaltyparam = sdpi->penaltyparam;
 
-            /* we compute the factor to increase with as n-th root of the total increase until the maximum, where n is the number of iterations */
-            penaltyparamfact = pow((sdpi->maxpenaltyparam / sdpi->penaltyparam), 1.0/NINCREASESGAMMA);
+            /* we compute the factor to increase with as n-th root of the total increase until the maximum, where n is the number of iterations
+             * (for npenaltyincr = 0 we make sure that the parameter is too large after the first change)
+             */
+            penaltyparamfact = sdpi->npenaltyincr > 0 ? pow((sdpi->maxpenaltyparam / sdpi->penaltyparam), 1.0/sdpi->npenaltyincr) :
+                  2*sdpi->maxpenaltyparam / sdpi->penaltyparam;
             gaptol = sdpi->gaptol;
-            gaptolfact = pow((MIN_GAPTOL / sdpi->gaptol), 1.0/NINCREASESGAMMA);
+            gaptolfact = sdpi->npenaltyincr > 0 ? pow((MIN_GAPTOL / sdpi->gaptol), 1.0/sdpi->npenaltyincr) : 0.5 * MIN_GAPTOL / sdpi->gaptol;
 
             /* increase penalty-param and decrease feasibility tolerance until we find a feasible solution or reach the final bound for either one of them */
             while ( ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) || ! feasorig ) &&
@@ -3893,6 +3906,9 @@ SCIP_RETCODE SCIPsdpiGetIntpar(
    case SCIP_SDPPAR_SLATERCHECK:
       *ival = sdpi->slatercheck;
       break;
+   case SCIP_SDPPAR_NPENALTYINCR:
+      *ival = sdpi->npenaltyincr;
+      break;
    default:
       return SCIP_PARAMETERUNKNOWN;
    }
@@ -3932,6 +3948,9 @@ SCIP_RETCODE SCIPsdpiSetIntpar(
       break;
    case SCIP_SDPPAR_SLATERCHECK:
       sdpi->slatercheck = ival;
+      break;
+   case SCIP_SDPPAR_NPENALTYINCR:
+      sdpi->npenaltyincr = ival;
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;

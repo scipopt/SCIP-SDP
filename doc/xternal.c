@@ -95,6 +95,7 @@
  * <tr><td>propagating/sdpredcost/forbins = TRUE</td> <td>Should SDP reduced cost fixing be executed for binary variables?</td></tr>
  * <tr><td>propagating/sdpredcost/forintcons = TRUE</td> <td>Should SDP reduced cost fixing be executed for integer and continuous variables?</td></tr>
  * <tr><td>relaxing/SDP/maxpenaltyparam = -1</td> <td>the maximum value of the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge; set this to a negative value to compute the parameter depending on the given problem</td></tr>
+ * <tr><td>relaxing/SDP/nparamincr = -1</td> <td>maximum number of times the penalty parameter will be increased if the penalty formulation failed</td></tr>
  * <tr><td>relaxing/SDP/objlimit = FALSE</td> <td>Should an objective limit be given to the SDP-Solver?</td></tr>
  * <tr><td>relaxing/SDP/resolve = TRUE</td> <td>Should the relaxation be resolved after bound-tightenings were found during propagation (outside of probing)?</td></tr>
  * <tr><td>relaxing/SDP/settingsresetfreq = -1</td> <td>frequency for resetting parameters in SDP solver and trying again with fastest settings [-1: never, 0: only at depth settingsresetofs, n: all nodes with depth a multiple of n]; currently only supported for SDPA</td></tr>
