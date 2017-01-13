@@ -932,10 +932,7 @@ SCIP_RETCODE calcRelax(
          SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
          SCIP_CALL( SCIPsetSolVals(scip, scipsol, nvars, vars, solforscip) );
 
-         /* Update the lower bound. Note that we cannot use the objective value given by the SDP-solver since this might
-          * vary from the value SCIP computes internally because of rounding errors when extracting the solution from the
-          * SDP-solver */
-         *lowerbound = SCIPgetSolTransObj(scip, scipsol);
+         *lowerbound = objforscip;
          relaxdata->objval = SCIPgetSolTransObj(scip, scipsol);
 
          /* copy solution */
