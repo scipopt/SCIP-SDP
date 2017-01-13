@@ -344,7 +344,7 @@ int SCIPsdpiSolverGetDefaultSdpiSolverNpenaltyIncreases(
    void
    )
 {
-   return 8;
+   return 10;
 }
 
 /**@} */
