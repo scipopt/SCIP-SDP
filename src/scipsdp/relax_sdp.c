@@ -933,7 +933,7 @@ SCIP_RETCODE calcRelax(
          SCIP_CALL( SCIPsetSolVals(scip, scipsol, nvars, vars, solforscip) );
 
          *lowerbound = objforscip;
-         relaxdata->objval = SCIPgetSolTransObj(scip, scipsol);
+         relaxdata->objval = objforscip;
 
          /* copy solution */
          SCIP_CALL( SCIPgetLPColsData(scip, &cols, &ncols) );
