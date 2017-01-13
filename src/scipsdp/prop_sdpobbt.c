@@ -414,8 +414,8 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
       }
    }
 
-   SCIPfreeBufferArray(scip, &newbounds);
    SCIPfreeBufferArray(scip, &newboundinds);
+   SCIPfreeBufferArray(scip, &newbounds);
 
    return SCIP_OKAY;
 
