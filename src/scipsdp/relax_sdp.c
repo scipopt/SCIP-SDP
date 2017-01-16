@@ -70,7 +70,7 @@
 #define DEFAULT_SLATERCHECK         0        /**< Should the Slater condition be checked ? */
 #define DEFAULT_OBJLIMIT            FALSE    /**< Should an objective limit be given to the SDP-Solver ? */
 #define DEFAULT_RESOLVE             TRUE     /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
-#define DEFAULT_TIGHTENVB           FALSE    /**< Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ? */
+#define DEFAULT_TIGHTENVB           TRUE     /**< Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ? */
 #define DEFAULT_SDPINFO             FALSE    /**< Should the SDP solver output information to the screen? */
 #define DEFAULT_DISPLAYSTAT         TRUE     /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
 #define DEFAULT_SETTINGSRESETFREQ   -1       /**< frequency for resetting parameters in SDP solver and trying again with fastest settings */
