@@ -105,6 +105,7 @@ struct SCIP_SDPiSolver
    int*                  mosektoinputmapper; /**< entry i gives the original index of the i-th variable in MOSEK (indices go from 0 to nactivevars-1) */
    SCIP_Real*            fixedvarsval;       /**< entry i gives the lower and upper bound of the i-th fixed variable */
    SCIP_Real             fixedvarsobjcontr;  /**< total contribution to the objective of all fixed variables, computed as sum obj * val */
+   SCIP_Real*            objcoefs;           /**< objective coefficients of all active variables */
    int                   nvarbounds;         /**< number of variable bounds given to MOSEK, length of varboundpos */
    int*                  varboundpos;        /**< maps position of primal variable corresponding to variable bound to the positions
                                                *  of the corresponding variables, -n means lower bound of variable n, +n means upper bound;
@@ -360,6 +361,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->mosektoinputmapper = NULL;
    (*sdpisolver)->fixedvarsval = NULL;
    (*sdpisolver)->fixedvarsobjcontr = 0.0;
+   (*sdpisolver)->objcoefs = NULL;
    (*sdpisolver)->nvarbounds = 0;
    (*sdpisolver)->varboundpos = NULL;
    (*sdpisolver)->solved = FALSE;
@@ -402,6 +404,7 @@ SCIP_RETCODE SCIPsdpiSolverFree(
    BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->inputtomosekmapper, (*sdpisolver)->nvars);/*lint !e737*/
    BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->mosektoinputmapper, (*sdpisolver)->nactivevars);/*lint !e737*/
    BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->fixedvarsval, (*sdpisolver)->nvars - (*sdpisolver)->nactivevars); /*lint !e776*/
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->objcoefs, (*sdpisolver)->nactivevars); /*lint !e776*/
 
    BMSfreeBlockMemory((*sdpisolver)->blkmem, sdpisolver);
 
@@ -707,11 +710,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->penalty = (penaltyparam < sdpisolver->epsilon) ? FALSE : TRUE;
    sdpisolver->rbound = rbound;
 
-   /* allocate memory for inputtomosekmapper, mosektoinputmapper and the fixed variable information, for the latter this will
+   /* allocate memory for inputtomosekmapper, mosektoinputmapper and the fixed and active variable information, for the latter this will
     * later be shrinked if the needed size is known */
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtomosekmapper), sdpisolver->nvars, nvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->mosektoinputmapper), sdpisolver->nactivevars, nvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), sdpisolver->nvars - sdpisolver->nactivevars, nvars) ); /*lint !e776*/
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->objcoefs), sdpisolver->nactivevars, nvars) ); /*lint !e776*/
 
    oldnactivevars = sdpisolver->nactivevars; /* we need to save this to realloc the varboundpos-array if needed */
    sdpisolver->nvars = nvars;
@@ -734,6 +738,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          sdpisolver->mosektoinputmapper[sdpisolver->nactivevars] = i;
          sdpisolver->inputtomosekmapper[i] = sdpisolver->nactivevars;
+         sdpisolver->objcoefs[sdpisolver->nactivevars] = obj[i];
          sdpisolver->nactivevars++;
 #ifdef SCIP_MORE_DEBUG
          SCIPdebugMessage("Variable %d becomes variable %d for SDP %d in MOSEK\n", i, sdpisolver->inputtomosekmapper[i], sdpisolver->sdpcounter);
@@ -746,7 +751,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if ( ! withobj )
       sdpisolver->fixedvarsobjcontr = 0.0;
 
-   /* shrink the fixedvars and mosektoinputmapper arrays to the right size */
+   /* shrink the fixedvars, objcoefs and mosektoinputmapper arrays to the right size */
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->objcoefs), nvars, sdpisolver->nactivevars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), nvars, nfixedvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->mosektoinputmapper), nvars, sdpisolver->nactivevars) );
 
@@ -1849,14 +1855,26 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    SCIP_Real*            objval              /**< pointer to store the objective value */
    )
 {/*lint --e{818}*/
+   int v;
+   SCIP_Real* moseksol;
+
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED( sdpisolver );
    assert( objval != NULL );
 
-   MOSEK_CALL( MSK_getdualobj(sdpisolver->msktask, MSK_SOL_ITR, objval) );/*lint !e641*/
+   /* since the objective value given by MOSEK sometimes differs slightly from the correct value for the given solution,
+    * we get the solution from MOSEK and compute the correct objective value */
+   BMSallocBufferMemoryArray(sdpisolver->bufmem, &moseksol, sdpisolver->nactivevars);
+   MOSEK_CALL( MSK_gety(sdpisolver->msktask, MSK_SOL_ITR, moseksol) );/*lint !e641*/
 
-   /* as we didn't add the fixed (lb = ub) variables to MOSEK, we have to add their contributions to the objective by hand */
+   *objval = 0.0;
+   for (v = 0; v < sdpisolver->nactivevars; v++)
+      *objval += moseksol[v] * sdpisolver->objcoefs[v];
+
+   /* as we didn't add the fixed (lb = ub) variables to MOSEK, we have to add their contributions to the objective as well */
    *objval += sdpisolver->fixedvarsobjcontr;
+
+   BMSfreeBufferMemoryArray(sdpisolver->bufmem, &moseksol);
 
    return SCIP_OKAY;
 }
@@ -1879,14 +1897,6 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED( sdpisolver );
    assert( dualsollength != NULL );
-
-   if ( objval != NULL )
-   {
-      MOSEK_CALL( MSK_getdualobj(sdpisolver->msktask, MSK_SOL_ITR, objval) );/*lint !e641*/
-
-      /* as we didn't add the fixed (lb = ub) variables to MOSEK, we have to add their contributions to the objective by hand */
-      *objval += sdpisolver->fixedvarsobjcontr;
-   }
 
    if ( *dualsollength > 0 )
    {
@@ -1917,7 +1927,24 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
          }
       }
 
+      /* if both solution and objective should be printed, we can use the solution to compute the objective */
+      if ( objval != NULL )
+      {
+         /* since the objective value given by MOSEK sometimes differs slightly from the correct value for the given solution,
+          * we get the solution from MOSEK and compute the correct objective value */
+         *objval = 0.0;
+         for (v = 0; v < sdpisolver->nactivevars; v++)
+            *objval += moseksol[v] * sdpisolver->objcoefs[v];
+
+         /* as we didn't add the fixed (lb = ub) variables to MOSEK, we have to add their contributions to the objective as well */
+         *objval += sdpisolver->fixedvarsobjcontr;
+      }
+
       BMSfreeBufferMemoryArray(sdpisolver->bufmem, &moseksol);
+   }
+   else if ( objval != NULL )
+   {
+      SCIP_CALL( SCIPsdpiSolverGetObjval(sdpisolver, objval) );
    }
 
    return SCIP_OKAY;
