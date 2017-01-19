@@ -864,6 +864,7 @@ SCIP_RETCODE calcRelax(
 #ifdef SCIP_MORE_DEBUG /* print the optimal solution */
       {
          int sollength;
+         int i;
          SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
          sollength = nvars;
          SCIP_CALL( SCIPsdpiGetSol(sdpi, &objforscip, solforscip, &sollength) ); /* get both the objective and the solution from the SDP solver */
