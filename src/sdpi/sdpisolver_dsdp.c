@@ -168,6 +168,7 @@ struct SCIP_SDPiSolver
    int*                  dsdptoinputmapper;  /**< entry i gives the original index of the (i+1)-th variable in dsdp (indices go from 0 to nactivevars-1) */
    SCIP_Real*            fixedvarsval;       /**< entry i gives the lower and upper bound of the i-th fixed variable */
    SCIP_Real             fixedvarsobjcontr;  /**< total contribution to the objective of all fixed variables, computed as sum obj * val */
+   SCIP_Real*            objcoefs;           /**< objective coefficients of all active variables */
    SCIP_Bool             solved;             /**< Was the SDP solved since the problem was last changed? */
    int                   sdpcounter;         /**< used for debug messages */
    SCIP_Real             epsilon;            /**< tolerance for absolute checks */
@@ -390,6 +391,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->dsdptoinputmapper = NULL;
    (*sdpisolver)->fixedvarsval = NULL;
    (*sdpisolver)->fixedvarsobjcontr = 0.0;
+   (*sdpisolver)->objcoefs = NULL;
    (*sdpisolver)->solved = FALSE;
    (*sdpisolver)->timelimit = FALSE;
    (*sdpisolver)->timelimitinitial = FALSE;
@@ -428,7 +430,10 @@ SCIP_RETCODE SCIPsdpiSolverFree(
       BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->inputtodsdpmapper, (*sdpisolver)->nvars);/*lint !e737 */
 
    if ( (*sdpisolver)->nactivevars > 0 )
+   {
       BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->dsdptoinputmapper, (*sdpisolver)->nactivevars);/*lint !e737 */
+      BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->objcoefs, (*sdpisolver)->nactivevars); /*lint !e776*/
+   }
 
    if ( (*sdpisolver)->nvars >= (*sdpisolver)->nactivevars )
       BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->fixedvarsval, (*sdpisolver)->nvars - (*sdpisolver)->nactivevars); /*lint !e776*/
@@ -688,11 +693,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->usedsetting = SCIP_SDPSOLVERSETTING_PENALTY;
    }
 
-   /* allocate memory for inputtodsdpmapper, dsdptoinputmapper and the fixed variable information, for the latter this will
+   /* allocate memory for inputtomosekmapper, mosektoinputmapper and the fixed and active variable information, for the latter this will
     * later be shrinked if the needed size is known */
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtodsdpmapper), sdpisolver->nvars, nvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->dsdptoinputmapper), sdpisolver->nactivevars, nvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), sdpisolver->nvars - sdpisolver->nactivevars, nvars) ); /*lint !e776*/
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->objcoefs), sdpisolver->nactivevars, nvars) ); /*lint !e776*/
 
    sdpisolver->nvars = nvars;
    sdpisolver->nactivevars = 0;
@@ -715,6 +721,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       else
       {
          sdpisolver->dsdptoinputmapper[sdpisolver->nactivevars] = i;
+         sdpisolver->objcoefs[sdpisolver->nactivevars] = obj[i];
          sdpisolver->nactivevars++;
          sdpisolver->inputtodsdpmapper[i] = sdpisolver->nactivevars; /* dsdp starts counting at 1, so we do this after increasing nactivevars */
          SCIPdebugMessage("Variable %d becomes variable %d for SDP %d in DSDP\n", i, sdpisolver->inputtodsdpmapper[i], sdpisolver->sdpcounter);
@@ -730,7 +737,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if ( ! withobj )
       sdpisolver->fixedvarsobjcontr = 0.0;
 
-   /* shrink the fixedvars and dsdptoinputmapper arrays to the right size */
+   /* shrink the fixedvars, objcoefs and mosektoinputmapper arrays to the right size */
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->objcoefs), nvars, sdpisolver->nactivevars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), nvars, nfixedvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->dsdptoinputmapper), nvars, sdpisolver->nactivevars) );
 
@@ -1960,15 +1968,33 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    SCIP_Real*            objval              /**< pointer to store the objective value */
    )
 {
+   SCIP_Real* dsdpsol;
+   int v;
+   int dsdpnvars;
+
    assert( sdpisolver != NULL );
    assert( objval != NULL );
    CHECK_IF_SOLVED( sdpisolver );
 
-   DSDP_CALL( DSDPGetDObjective(sdpisolver->dsdp, objval) );
-   *objval = -1*(*objval); /*DSDP maximizes instead of minimizing, so the objective values were multiplied by -1 when inserted */
+   /* since the objective value given by MOSEK sometimes differs slightly from the correct value for the given solution,
+    * we get the solution from MOSEK and compute the correct objective value */
+   dsdpnvars = sdpisolver->penaltyworbound ? sdpisolver->nactivevars + 1 : sdpisolver->nactivevars; /* in the first case we added r as an explicit var */
 
-   /* as we didn't add the fixed (lb = ub) variables to dsdp, we have to add their contributions to the objective by hand */
-   *objval += sdpisolver->fixedvarsobjcontr;
+   BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, dsdpnvars) );
+   DSDP_CALL( DSDPGetY(sdpisolver->dsdp, dsdpsol, dsdpnvars) ); /* last entry needs to be the number of variables, will return an error otherwise */
+
+   /* use the solution to compute the correct objective value */
+   if ( objval != NULL )
+   {
+      *objval = 0.0;
+      for (v = 0; v < sdpisolver->nactivevars; v++)
+         *objval += sdpisolver->objcoefs[v] * dsdpsol[v];
+
+      /* as we didn't add the fixed (lb = ub) variables to dsdp, we have to add their contributions to the objective as well */
+      *objval += sdpisolver->fixedvarsobjcontr;
+   }
+
+   BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, dsdpnvars);/*lint !e737 */
 
    return SCIP_OKAY;
 }
@@ -1994,15 +2020,6 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
    CHECK_IF_SOLVED( sdpisolver );
 
    dsdpnvars = sdpisolver->penaltyworbound ? sdpisolver->nactivevars + 1 : sdpisolver->nactivevars; /* in the first case we added r as an explicit var */
-
-   if ( objval != NULL )
-   {
-      DSDP_CALL( DSDPGetDObjective(sdpisolver->dsdp, objval) );
-      *objval *= -1; /* DSDP maximizes instead of minimizing, so the objective values were multiplied by -1 when inserted */
-
-      /* as we didn't add the fixed (lb = ub) variables to dsdp, we have to add their contributions to the objective by hand */
-      *objval += sdpisolver->fixedvarsobjcontr;
-   }
 
    if ( *dualsollength > 0 )
    {
@@ -2032,8 +2049,25 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
             dualsol[v] = sdpisolver->fixedvarsval[(-1 * sdpisolver->inputtodsdpmapper[v]) - 1]; /*lint !e679*/
          }
       }
+
+      /* use the solution to compute the correct objective value */
+      if ( objval != NULL )
+      {
+         *objval = 0.0;
+         for (v = 0; v < sdpisolver->nactivevars; v++)
+            *objval += sdpisolver->objcoefs[v] * dsdpsol[v];
+
+         /* as we didn't add the fixed (lb = ub) variables to dsdp, we have to add their contributions to the objective as well */
+         *objval += sdpisolver->fixedvarsobjcontr;
+      }
+
       BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, dsdpnvars);/*lint !e737 */
    }
+   else if ( objval != NULL )
+   {
+      SCIP_CALL( SCIPsdpiSolverGetObjval(sdpisolver, objval) );
+   }
+
    return SCIP_OKAY;
 }
 
