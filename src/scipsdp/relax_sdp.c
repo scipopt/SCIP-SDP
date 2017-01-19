@@ -589,7 +589,6 @@ SCIP_RETCODE calcRelax(
    int naddediters;
    int naddedsdpcalls;
    int nvars;
-   int i;
 
    SCIPdebugMessage("calcRelax called\n");
 
@@ -916,8 +915,6 @@ SCIP_RETCODE calcRelax(
       else if ( SCIPsdpiIsPrimalFeasible(sdpi) && SCIPsdpiIsDualFeasible(sdpi) )
       {
          SCIP_SOL* scipsol;
-         SCIP_COL** cols;
-         int ncols;
          int slength;
 
          /* get solution w.r.t. SCIP variables */
@@ -936,11 +933,7 @@ SCIP_RETCODE calcRelax(
          relaxdata->objval = objforscip;
 
          /* copy solution */
-         SCIP_CALL( SCIPgetLPColsData(scip, &cols, &ncols) );
-         for (i = 0; i < ncols; i++)
-         {
-            SCIP_CALL( SCIPsetRelaxSolVal(scip, SCIPcolGetVar(cols[i]), SCIPgetSolVal(scip, scipsol, SCIPcolGetVar(cols[i]))) );
-         }
+         SCIP_CALL( SCIPsetRelaxSolValsSol(scip, scipsol) );
 
          SCIP_CALL( SCIPmarkRelaxSolValid(scip) );
 
