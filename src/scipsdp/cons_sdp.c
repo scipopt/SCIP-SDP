@@ -2792,6 +2792,7 @@ SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
 
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
+   assert( consdata->nnonz > 0 );
 
    blocksize = consdata->blocksize;
 
