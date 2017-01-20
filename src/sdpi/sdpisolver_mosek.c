@@ -1869,7 +1869,10 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
 
    *objval = 0.0;
    for (v = 0; v < sdpisolver->nactivevars; v++)
-      *objval += moseksol[v] * sdpisolver->objcoefs[v];
+   {
+      if ( moseksol[v] > sdpisolver->epsilon )
+         *objval += moseksol[v] * sdpisolver->objcoefs[v];
+   }
 
    /* as we didn't add the fixed (lb = ub) variables to MOSEK, we have to add their contributions to the objective as well */
    *objval += sdpisolver->fixedvarsobjcontr;
@@ -1916,7 +1919,6 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
       /* insert the entries into dualsol, for non-fixed vars we copy those from MOSEK, the rest are the saved entries from inserting (they equal lb=ub) */
       for (v = 0; v < sdpisolver->nvars; v++)
       {
-
          if ( sdpisolver->inputtomosekmapper[v] >= 0 )
             dualsol[v] = moseksol[sdpisolver->inputtomosekmapper[v]];
          else
@@ -1934,7 +1936,10 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
           * we get the solution from MOSEK and compute the correct objective value */
          *objval = 0.0;
          for (v = 0; v < sdpisolver->nactivevars; v++)
-            *objval += moseksol[v] * sdpisolver->objcoefs[v];
+         {
+            if ( moseksol[v] > sdpisolver->epsilon )
+               *objval += moseksol[v] * sdpisolver->objcoefs[v];
+         }
 
          /* as we didn't add the fixed (lb = ub) variables to MOSEK, we have to add their contributions to the objective as well */
          *objval += sdpisolver->fixedvarsobjcontr;

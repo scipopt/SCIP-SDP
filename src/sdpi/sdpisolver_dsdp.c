@@ -1984,15 +1984,15 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    DSDP_CALL( DSDPGetY(sdpisolver->dsdp, dsdpsol, dsdpnvars) ); /* last entry needs to be the number of variables, will return an error otherwise */
 
    /* use the solution to compute the correct objective value */
-   if ( objval != NULL )
+   *objval = 0.0;
+   for (v = 0; v < sdpisolver->nactivevars; v++)
    {
-      *objval = 0.0;
-      for (v = 0; v < sdpisolver->nactivevars; v++)
+      if ( dsdpsol[v] > sdpisolver->epsilon )
          *objval += sdpisolver->objcoefs[v] * dsdpsol[v];
-
-      /* as we didn't add the fixed (lb = ub) variables to dsdp, we have to add their contributions to the objective as well */
-      *objval += sdpisolver->fixedvarsobjcontr;
    }
+
+   /* as we didn't add the fixed (lb = ub) variables to dsdp, we have to add their contributions to the objective as well */
+   *objval += sdpisolver->fixedvarsobjcontr;
 
    BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, dsdpnvars);/*lint !e737 */
 
@@ -2055,7 +2055,10 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
       {
          *objval = 0.0;
          for (v = 0; v < sdpisolver->nactivevars; v++)
-            *objval += sdpisolver->objcoefs[v] * dsdpsol[v];
+         {
+            if ( dsdpsol[v] > sdpisolver->epsilon )
+               *objval += sdpisolver->objcoefs[v] * dsdpsol[v];
+         }
 
          /* as we didn't add the fixed (lb = ub) variables to dsdp, we have to add their contributions to the objective as well */
          *objval += sdpisolver->fixedvarsobjcontr;
