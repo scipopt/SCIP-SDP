@@ -180,6 +180,8 @@ struct SCIP_SDPiSolver
    SCIP_Bool             sdpinfo;            /**< Should the SDP-solver output information to the screen? */
    SCIP_Bool             penalty;            /**< Did the last solve use a penalty formulation? */
    SCIP_Bool             penaltyworbound;    /**< Was a penalty formulation solved without bounding r? */
+   SCIP_Bool             feasorig;           /**< was the last problem solved with a penalty formulation and original objectives and
+                                               *  the solution was feasible for the original problem?*/
    SCIP_SDPSOLVERSETTING usedsetting;        /**< setting used to solve the last SDP */
    SCIP_Bool             timelimit;          /**< was the solver stopped because of the time limit? */
    SCIP_Bool             timelimitinitial;   /**< was the problem not even given to the solver because of the time limit? */
@@ -398,6 +400,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->timelimitinitial = FALSE;
    (*sdpisolver)->penalty = FALSE;
    (*sdpisolver)->penaltyworbound = FALSE;
+   (*sdpisolver)->feasorig = FALSE;
    (*sdpisolver)->sdpcounter = 0;
    (*sdpisolver)->niterations = 0;
    (*sdpisolver)->nsdpcalls = 0;
@@ -679,6 +682,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
    else
       sdpisolver->timelimitinitial = FALSE;
+
+   sdpisolver->feasorig = FALSE;
 
    /* start the timing */
    TIMEOFDAY_CALL( gettimeofday(&(timings.starttime), NULL) );/*lint !e438, !e550, !e641 */
@@ -1505,6 +1510,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          DSDP_CALL( DSDPGetR(sdpisolver->dsdp, &rval) );
 
          *feasorig = (rval < sdpisolver->feastol );
+         sdpisolver->feasorig = *feasorig;
 
          /* if r > 0 or we are in debug mode, also check the primal bound */
 #ifdef NDEBUG
@@ -1980,7 +1986,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    assert( objval != NULL );
    CHECK_IF_SOLVED( sdpisolver );
 
-   if ( sdpisolver->penalty )
+   if ( sdpisolver->penalty && ( ! sdpisolver->feasorig ))
    {
       /* in this case we cannot really trust the solution given by DSDP, since changes in the value of r much less than epsilon can
        * cause huge changes in the objective, so using the objective value given by DSDP is numerically more stable */
@@ -2010,7 +2016,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    /* as we didn't add the fixed (lb = ub) variables to dsdp, we have to add their contributions to the objective as well */
    *objval += sdpisolver->fixedvarsobjcontr;
 
-   if ( ! sdpisolver->penalty )
+   if ( ( ! sdpisolver->penalty ) || sdpisolver->feasorig )
    {
       BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, dsdpnvars);/*lint !e737 */
    }
@@ -2071,7 +2077,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
 
       if ( objval != NULL )
       {
-         if ( sdpisolver->penalty )
+         if ( sdpisolver->penalty && ( ! sdpisolver->feasorig ))
          {
             /* in this case we cannot really trust the solution given by DSDP, since changes in the value of r much less than epsilon can
              * cause huge changes in the objective, so using the objective value given by DSDP is numerically more stable */
