@@ -120,6 +120,8 @@ struct SCIP_SDPiSolver
    SCIP_Real             objlimit;           /**< objective limit for SDP solver */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             penalty;            /**< was the problem last solved using a penalty formulation */
+   SCIP_Bool             feasorig;           /**< was the last problem solved with a penalty formulation and original objectives and
+                                               *  the solution was feasible for the original problem?*/
    SCIP_Bool             rbound;             /**< was the penalty parameter bounded during the last solve call */
    MSKrescodee           terminationcode;    /**< reason for termination of the last call to the MOSEK-optimizer */
    SCIP_Bool             timelimit;          /**< was the solver stopped because of the time limit? */
@@ -660,6 +662,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
    sdpisolver->timelimit = FALSE;
    sdpisolver->timelimitinitial = FALSE;
+   sdpisolver->feasorig = FALSE;
 
    /* start the timing */
    TIMEOFDAY_CALL( gettimeofday(&starttime, NULL) );/*lint !e438, !e550, !e641 */
@@ -1366,6 +1369,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       *feasorig = (moseksol[sdpisolver->nactivevars] < sdpisolver->feastol); /*lint !e413*/
 
+      sdpisolver->feasorig = *feasorig;
+
       /* if r > 0 also check the primal bound */
       if ( ! *feasorig && penaltybound != NULL )
       {
@@ -1861,7 +1866,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    CHECK_IF_SOLVED( sdpisolver );
    assert( objval != NULL );
 
-   if ( sdpisolver->penalty )
+   if ( sdpisolver->penalty && ( ! sdpisolver->feasorig ) )
    {
       /* in this case we cannot really trust the solution given by MOSEK, since changes in the value of r much less than epsilon can
        * cause huge changes in the objective, so using the objective value given by MOSEK is numerically more stable */
@@ -1887,7 +1892,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    /* as we didn't add the fixed (lb = ub) variables to MOSEK, we have to add their contributions to the objective as well */
    *objval += sdpisolver->fixedvarsobjcontr;
 
-   if ( ! sdpisolver->penalty )
+   if ( ( ! sdpisolver->penalty ) || sdpisolver->feasorig)
    {
       BMSfreeBufferMemoryArray(sdpisolver->bufmem, &moseksol);
    }
@@ -1945,7 +1950,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
       /* if both solution and objective should be printed, we can use the solution to compute the objective */
       if ( objval != NULL )
       {
-         if ( sdpisolver->penalty )
+         if ( sdpisolver->penalty && ( ! sdpisolver->feasorig ))
          {
             /* in this case we cannot really trust the solution given by MOSEK, since changes in the value of r much less than epsilon can
              * cause huge changes in the objective, so using the objective value given by MOSEK is numerically more stable */
