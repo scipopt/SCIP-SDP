@@ -1945,13 +1945,22 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
       /* if both solution and objective should be printed, we can use the solution to compute the objective */
       if ( objval != NULL )
       {
-         /* since the objective value given by MOSEK sometimes differs slightly from the correct value for the given solution,
-          * we get the solution from MOSEK and compute the correct objective value */
-         *objval = 0.0;
-         for (v = 0; v < sdpisolver->nactivevars; v++)
+         if ( sdpisolver->penalty )
          {
-            if ( moseksol[v] > sdpisolver->epsilon )
-               *objval += moseksol[v] * sdpisolver->objcoefs[v];
+            /* in this case we cannot really trust the solution given by MOSEK, since changes in the value of r much less than epsilon can
+             * cause huge changes in the objective, so using the objective value given by MOSEK is numerically more stable */
+            MOSEK_CALL( MSK_getdualobj(sdpisolver->msktask, MSK_SOL_ITR, objval) );
+         }
+         else
+         {
+            /* since the objective value given by MOSEK sometimes differs slightly from the correct value for the given solution,
+             * we get the solution from MOSEK and compute the correct objective value */
+            *objval = 0.0;
+            for (v = 0; v < sdpisolver->nactivevars; v++)
+            {
+               if ( moseksol[v] > sdpisolver->epsilon )
+                  *objval += moseksol[v] * sdpisolver->objcoefs[v];
+            }
          }
 
          /* as we didn't add the fixed (lb = ub) variables to MOSEK, we have to add their contributions to the objective as well */
