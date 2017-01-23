@@ -1969,32 +1969,46 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    )
 {
    SCIP_Real* dsdpsol;
-   int v;
    int dsdpnvars;
 
    assert( sdpisolver != NULL );
    assert( objval != NULL );
    CHECK_IF_SOLVED( sdpisolver );
 
-   /* since the objective value given by MOSEK sometimes differs slightly from the correct value for the given solution,
-    * we get the solution from MOSEK and compute the correct objective value */
-   dsdpnvars = sdpisolver->penaltyworbound ? sdpisolver->nactivevars + 1 : sdpisolver->nactivevars; /* in the first case we added r as an explicit var */
-
-   BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, dsdpnvars) );
-   DSDP_CALL( DSDPGetY(sdpisolver->dsdp, dsdpsol, dsdpnvars) ); /* last entry needs to be the number of variables, will return an error otherwise */
-
-   /* use the solution to compute the correct objective value */
-   *objval = 0.0;
-   for (v = 0; v < sdpisolver->nactivevars; v++)
+   if ( sdpisolver->penaltyparam > sdpisolver->epsilon )
    {
-      if ( dsdpsol[v] > sdpisolver->epsilon )
-         *objval += sdpisolver->objcoefs[v] * dsdpsol[v];
+      /* in this case we cannot really trust the solution given by DSDP, since changes in the value of r much less than epsilon can
+       * cause huge changes in the objective, so using the objective value given by DSDP is numerically more stable */
+      DSDP_CALL( DSDPGetDObjective(sdpisolver->dsdp, objval) );
+      *objval = -1*(*objval); /*DSDP maximizes instead of minimizing, so the objective values were multiplied by -1 when inserted */
+   }
+   else
+   {
+      int v;
+
+      /* since the objective value given by DSDP sometimes differs slightly from the correct value for the given solution,
+       * we get the solution from DSDP and compute the correct objective value */
+      dsdpnvars = sdpisolver->penaltyworbound ? sdpisolver->nactivevars + 1 : sdpisolver->nactivevars; /* in the first case we added r as an explicit var */
+
+      BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, dsdpnvars) );
+      DSDP_CALL( DSDPGetY(sdpisolver->dsdp, dsdpsol, dsdpnvars) ); /* last entry needs to be the number of variables, will return an error otherwise */
+
+      /* use the solution to compute the correct objective value */
+      *objval = 0.0;
+      for (v = 0; v < sdpisolver->nactivevars; v++)
+      {
+         if ( dsdpsol[v] > sdpisolver->epsilon )
+            *objval += sdpisolver->objcoefs[v] * dsdpsol[v];
+      }
    }
 
    /* as we didn't add the fixed (lb = ub) variables to dsdp, we have to add their contributions to the objective as well */
    *objval += sdpisolver->fixedvarsobjcontr;
 
-   BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, dsdpnvars);/*lint !e737 */
+   if ( sdpisolver->penaltyparam <= sdpisolver->epsilon )
+   {
+      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, dsdpnvars);/*lint !e737 */
+   }
 
    return SCIP_OKAY;
 }
@@ -2050,14 +2064,24 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
          }
       }
 
-      /* use the solution to compute the correct objective value */
       if ( objval != NULL )
       {
-         *objval = 0.0;
-         for (v = 0; v < sdpisolver->nactivevars; v++)
+         if ( sdpisolver->penaltyparam > sdpisolver->epsilon )
          {
-            if ( dsdpsol[v] > sdpisolver->epsilon )
-               *objval += sdpisolver->objcoefs[v] * dsdpsol[v];
+            /* in this case we cannot really trust the solution given by DSDP, since changes in the value of r much less than epsilon can
+             * cause huge changes in the objective, so using the objective value given by DSDP is numerically more stable */
+            DSDP_CALL( DSDPGetDObjective(sdpisolver->dsdp, objval) );
+            *objval = -1*(*objval); /*DSDP maximizes instead of minimizing, so the objective values were multiplied by -1 when inserted */
+         }
+         else
+         {
+            /* use the solution to compute the correct objective value */
+            *objval = 0.0;
+            for (v = 0; v < sdpisolver->nactivevars; v++)
+            {
+               if ( dsdpsol[v] > sdpisolver->epsilon )
+                  *objval += sdpisolver->objcoefs[v] * dsdpsol[v];
+            }
          }
 
          /* as we didn't add the fixed (lb = ub) variables to dsdp, we have to add their contributions to the objective as well */
