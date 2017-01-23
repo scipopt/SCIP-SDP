@@ -1882,7 +1882,6 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
          if ( moseksol[v] > sdpisolver->epsilon )
             *objval += moseksol[v] * sdpisolver->objcoefs[v];
       }
-
    }
 
    /* as we didn't add the fixed (lb = ub) variables to MOSEK, we have to add their contributions to the objective as well */
