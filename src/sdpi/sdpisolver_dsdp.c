@@ -178,6 +178,7 @@ struct SCIP_SDPiSolver
    SCIP_Real             penaltyparam;       /**< the penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
    SCIP_Real             objlimit;           /**< objective limit for SDP-solver */
    SCIP_Bool             sdpinfo;            /**< Should the SDP-solver output information to the screen? */
+   SCIP_Bool             penalty;            /**< Did the last solve use a penalty formulation? */
    SCIP_Bool             penaltyworbound;    /**< Was a penalty formulation solved without bounding r? */
    SCIP_SDPSOLVERSETTING usedsetting;        /**< setting used to solve the last SDP */
    SCIP_Bool             timelimit;          /**< was the solver stopped because of the time limit? */
@@ -395,6 +396,8 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->solved = FALSE;
    (*sdpisolver)->timelimit = FALSE;
    (*sdpisolver)->timelimitinitial = FALSE;
+   (*sdpisolver)->penalty = FALSE;
+   (*sdpisolver)->penaltyworbound = FALSE;
    (*sdpisolver)->sdpcounter = 0;
    (*sdpisolver)->niterations = 0;
    (*sdpisolver)->nsdpcalls = 0;
@@ -664,6 +667,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( nlpcons == 0 || lprow != NULL );
    assert( nlpcons == 0 || lpcol != NULL );
    assert( nlpcons == 0 || lpval != NULL );
+
+   sdpisolver->penalty = penaltyparam > sdpisolver->epsilon;
 
    if ( timelimit <= 0.0 )
    {
@@ -1975,7 +1980,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    assert( objval != NULL );
    CHECK_IF_SOLVED( sdpisolver );
 
-   if ( sdpisolver->penaltyparam > sdpisolver->epsilon )
+   if ( sdpisolver->penalty )
    {
       /* in this case we cannot really trust the solution given by DSDP, since changes in the value of r much less than epsilon can
        * cause huge changes in the objective, so using the objective value given by DSDP is numerically more stable */
@@ -2005,7 +2010,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    /* as we didn't add the fixed (lb = ub) variables to dsdp, we have to add their contributions to the objective as well */
    *objval += sdpisolver->fixedvarsobjcontr;
 
-   if ( sdpisolver->penaltyparam <= sdpisolver->epsilon )
+   if ( ! sdpisolver->penalty )
    {
       BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, dsdpnvars);/*lint !e737 */
    }
@@ -2066,7 +2071,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
 
       if ( objval != NULL )
       {
-         if ( sdpisolver->penaltyparam > sdpisolver->epsilon )
+         if ( sdpisolver->penalty )
          {
             /* in this case we cannot really trust the solution given by DSDP, since changes in the value of r much less than epsilon can
              * cause huge changes in the objective, so using the objective value given by DSDP is numerically more stable */
