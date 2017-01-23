@@ -1874,6 +1874,13 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
          *objval += moseksol[v] * sdpisolver->objcoefs[v];
    }
 
+   if ( sdpisolver->penalty )
+   {
+      /* in this case we cannot really trust the solution given by MOSEK, since changes in the value of r much less than epsilon can
+       * cause huge changes in the objective, so using the objective value given by MOSEK is numerically more stable */
+      MOSEK_CALL( MSK_getdualobj(sdpisolver->msktask, MSK_SOL_ITR, objval) );
+   }
+
    /* as we didn't add the fixed (lb = ub) variables to MOSEK, we have to add their contributions to the objective as well */
    *objval += sdpisolver->fixedvarsobjcontr;
 
