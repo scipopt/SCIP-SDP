@@ -1864,7 +1864,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
 
    /* since the objective value given by MOSEK sometimes differs slightly from the correct value for the given solution,
     * we get the solution from MOSEK and compute the correct objective value */
-   BMSallocBufferMemoryArray(sdpisolver->bufmem, &moseksol, sdpisolver->nactivevars);
+   BMSallocBufferMemoryArray(sdpisolver->bufmem, &moseksol, sdpisolver->penalty ? sdpisolver->nactivevars + 1 : sdpisolver->nactivevars);
    MOSEK_CALL( MSK_gety(sdpisolver->msktask, MSK_SOL_ITR, moseksol) );/*lint !e641*/
 
    *objval = 0.0;
@@ -1919,7 +1919,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
          return SCIP_OKAY;
       }
 
-      BMSallocBufferMemoryArray(sdpisolver->bufmem, &moseksol, sdpisolver->nactivevars);
+      BMSallocBufferMemoryArray(sdpisolver->bufmem, &moseksol, sdpisolver->penalty ? sdpisolver->nactivevars + 1 : sdpisolver->nactivevars);
 
       MOSEK_CALL( MSK_gety(sdpisolver->msktask, MSK_SOL_ITR, moseksol) );/*lint !e641*/
 
