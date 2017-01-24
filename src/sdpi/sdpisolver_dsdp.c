@@ -180,8 +180,8 @@ struct SCIP_SDPiSolver
    SCIP_Bool             sdpinfo;            /**< Should the SDP-solver output information to the screen? */
    SCIP_Bool             penalty;            /**< Did the last solve use a penalty formulation? */
    SCIP_Bool             penaltyworbound;    /**< Was a penalty formulation solved without bounding r? */
-   SCIP_Bool             feasorig;           /**< was the last problem solved with a penalty formulation and original objectives and
-                                               *  the solution was feasible for the original problem?*/
+   SCIP_Bool             feasorig;           /**< was the last problem solved with a penalty formulation and with original objective coefficents
+                                               *  and the solution was feasible for the original problem? */
    SCIP_SDPSOLVERSETTING usedsetting;        /**< setting used to solve the last SDP */
    SCIP_Bool             timelimit;          /**< was the solver stopped because of the time limit? */
    SCIP_Bool             timelimitinitial;   /**< was the problem not even given to the solver because of the time limit? */
@@ -1510,7 +1510,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          DSDP_CALL( DSDPGetR(sdpisolver->dsdp, &rval) );
 
          *feasorig = (rval < sdpisolver->feastol );
-         sdpisolver->feasorig = *feasorig;
+
+         /* only set sdpisolver->feasorig to true if we solved with objective, because only in this case we want to compute
+          * the objective value by hand since it is numerically more stable then the result returned by DSDP */
+         if ( withobj )
+            sdpisolver->feasorig = *feasorig;
 
          /* if r > 0 or we are in debug mode, also check the primal bound */
 #ifdef NDEBUG
