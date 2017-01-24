@@ -7,7 +7,7 @@ fixed bugs:
   number of solver calls (which includes multiple calls for penalty formulation etc.)
 - in SDPA interface if parent node used default settings, now continue with stable settings
   afterwards instead of directly moving to penalty formulation
-- fixed memory leaks for fixed and (multi-)aggregated variables
+- fixed memory leaks for fixed and (multi-)aggregated variables and in sdp-obbt
 - input values are now checked against epsilon instead of feastol for detecting nonzeros
 - only fix variables locally if lb-ub < epsilon instead of feastol
 - feasibility is no longer checked against sdpsolverfeastol but instead against feastol everywhere
@@ -27,8 +27,8 @@ interface:
 - added reader for CBF format
 
 parameters:
-- The "diagonal dominance" and diagonal >= 0 cuts of the SDP constraint handler can now be disabled through
-  the parameters "constraints/SDP/diagdominancecuts" and "constraints/SDP/diaggezerocuts".
+- The "diagzeroimpl" and diagonal >= 0 cuts of the SDP constraint handler can now be disabled through
+  the parameters "constraints/SDP/diagzeroimplcuts" and "constraints/SDP/diaggezerocuts".
 - "sdpsolverepsilon" has been renamed to "sdpsolvergaptol" to make the usage clearer
 - The number of threads for MOSEK can be set via "relaxing/SDP/sdpsolverthreads"
 - The maximum number of increases of the penaltyparameter and maximum number of decreases of the feasibility
@@ -36,7 +36,7 @@ parameters:
   be set via "relaxing/SDP/npenaltyincr"
 
 core:
-- ajusted SCIP-SDP to new enforelax callback in SCIP; this now allows to combine SCIP-SDP with other nonlinear
+- adjusted SCIP-SDP to new enforelax callback in SCIP; this now allows to combine SCIP-SDP with other nonlinear
   constraints/constraint handlers
 
 misc:
@@ -74,7 +74,7 @@ features:
   or higher and is disabled for SCIP version 3.2.1 or lower]
 
 performance improvements:
-- in case of numerical problems, child nodes are no longer tried to solve with fast settings in SDPA, but instead with
+- in case of numerical problems in SDPA, child nodes are no longer tried to solve with fast settings in SDPA, but instead with
   whatever settings worked for the parent node (this can be controlled via parameter)
 
 interface:
