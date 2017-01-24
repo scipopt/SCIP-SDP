@@ -53,6 +53,7 @@
 /*lint --e{788,818}*/
 
 typedef long long int LAPACKINTTYPE;
+#define SDPA_VERSION          738
 
 /** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY */
 #define BMS_CALL(x)   do                                                                                      \
@@ -115,7 +116,11 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    )
 {
    LAPACKINTTYPE N;
+#if ( SDPA_VERSION == 740 )
+   LAPACKINTTYPE INFO;
+#else
    int INFO;
+#endif
    char JOBZ;
    char RANGE;
    char UPLO;
