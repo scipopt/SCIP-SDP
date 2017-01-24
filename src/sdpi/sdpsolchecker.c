@@ -91,6 +91,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
    SCIP_Real*            lpval,              /**< values of LP-constraint-matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            solvector,          /**< values of all variables (including fixed ones) in the solution that should be checked */
    SCIP_Real             feastol,            /**< feasibility tolerance to check feasibility for */
+   SCIP_Real             epsilon,            /**< tolerance used to check for fixed variables */
    SCIP_Bool*            infeasible          /**< pointer to store whether solution is feasible */
 )
 {
@@ -159,8 +160,8 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
       /* compute the values of all rows */
       for (i = 0; i < lpnnonz; i++)
       {
-         if ( lb[lpcol[i]] < ub[lpcol[i]] - feastol ) /* fixed variables are already included in lhs/rhs */
-         lpconsvals[lprow[i]] += solvector[lpcol[i]] * lpval[i];
+         if ( lb[lpcol[i]] < ub[lpcol[i]] - epsilon ) /* fixed variables are already included in lhs/rhs */
+            lpconsvals[lprow[i]] += solvector[lpcol[i]] * lpval[i];
       }
 
       /* check all active constraints for feasibility */
@@ -221,7 +222,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
             /* iterate over all non-fixed variables and add the corresponding nonzeros */
             for (v = 0; v < sdpnblockvars[b]; v++)
             {
-               if ( lb[sdpvar[b][v]] < ub[sdpvar[b][v]] - feastol )
+               if ( lb[sdpvar[b][v]] < ub[sdpvar[b][v]] - epsilon )
                {
                   for (i = 0; i < sdpnblockvarnonz[b][v]; i++)
                   {

@@ -238,7 +238,7 @@ SCIP_RETCODE checkFeastolAndResolve(
       SCIP_CALL( SCIPsdpSolcheckerCheck(sdpisolver->bufmem, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
             indchanges, nremovedinds, blockindchanges, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol, lpval,
-            solvector, sdpisolver->feastol, &infeasible) );
+            solvector, sdpisolver->feastol, sdpisolver->epsilon, &infeasible) );
 
       BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solvector);
 
