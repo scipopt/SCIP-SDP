@@ -113,6 +113,8 @@ SCIP_RETCODE addObjCutoff(
    /* add row to the LP-constraints */
    SCIP_CALL( SCIPaddRowProbing(scip, row) );
 
+   SCIP_CALL( SCIPreleaseRow(scip, &row) );
+
    return SCIP_OKAY;
 }
 #endif
