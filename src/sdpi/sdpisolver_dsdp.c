@@ -1990,6 +1990,8 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    assert( objval != NULL );
    CHECK_IF_SOLVED( sdpisolver );
 
+   dsdpnvars = sdpisolver->penaltyworbound ? sdpisolver->nactivevars + 1 : sdpisolver->nactivevars; /* in the first case we added r as an explicit var */
+
    if ( sdpisolver->penalty && ( ! sdpisolver->feasorig ))
    {
       /* in this case we cannot really trust the solution given by DSDP, since changes in the value of r much less than epsilon can
@@ -2003,8 +2005,6 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
 
       /* since the objective value given by DSDP sometimes differs slightly from the correct value for the given solution,
        * we get the solution from DSDP and compute the correct objective value */
-      dsdpnvars = sdpisolver->penaltyworbound ? sdpisolver->nactivevars + 1 : sdpisolver->nactivevars; /* in the first case we added r as an explicit var */
-
       BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, dsdpnvars) );
       DSDP_CALL( DSDPGetY(sdpisolver->dsdp, dsdpsol, dsdpnvars) ); /* last entry needs to be the number of variables, will return an error otherwise */
 
