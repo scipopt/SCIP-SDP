@@ -36,7 +36,7 @@
  * @author Tristan Gally
  */
 
-#define SCIPSDPVERSION              "2.1.0"
+#define SCIPSDPVERSION              "3.0.0"
 
 #include "objscip/objscipdefplugins.h"
 
@@ -94,7 +94,7 @@ SCIP_RETCODE runSCIP(
    (void) SCIPsnprintf(scipsdpname, SCIP_MAXSTRLEN, "SCIP-SDP %s", SCIPSDPVERSION);
    (void) SCIPsnprintf(scipsdpdesc, SCIP_MAXSTRLEN, "Mixed Integer Semidefinite Programming Plugin for SCIP "
          "[GitHash: %s] (www.opt.tu-darmstadt.de/scipsdp/)", SCIPSDP_GITHASH);
-   SCIP_CALL( SCIPincludeExternalCodeInformation(scip, "SCIP-SDP 2.1.0", scipsdpdesc) );
+   SCIP_CALL( SCIPincludeExternalCodeInformation(scip, scipsdpname, scipsdpdesc) );
 
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
