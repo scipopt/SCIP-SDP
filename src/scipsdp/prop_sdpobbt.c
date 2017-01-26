@@ -142,7 +142,7 @@ SCIP_DECL_PROPCOPY(propCopySdpObbt)
 /** destructor of propagator to free user data (called when SCIP is exiting) */
 static
 SCIP_DECL_PROPFREE(propFreeSdpObbt)
-{/*lint --e{715}*/
+{  /*lint --e{715}*/
    SCIP_PROPDATA* propdata;
 
    propdata = SCIPpropGetData(prop);

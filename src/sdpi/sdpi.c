@@ -131,7 +131,6 @@
 #define MIN_GAPTOL                  1e-10    /**< minimum gaptolerance for SDP-solver if decreasing it for a penalty formulation */
 
 #define DEFAULT_SDPSOLVERGAPTOL     1e-4     /**< the stopping criterion for the duality gap the sdpsolver should use */
-#define DEFAULT_SDPSOLVERFEASTOL    1e-6     /**< the feasibility tolerance the SDP-solver */
 #define DEFAULT_FEASTOL             1e-6     /**< used to test for feasibility */
 #define DEFAULT_EPSILON             1e-9     /**< used to test whether given values are equal */
 #define DEFAULT_PENALTYPARAM        1e+5     /**< the starting penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */

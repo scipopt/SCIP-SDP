@@ -303,7 +303,7 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
 /** free the propagator data */
 static
 SCIP_DECL_PROPFREE(propFreeSdpredcost)
-{
+{/*lint --e{715}*/
    SCIP_PROPDATA* propdata;
 
    propdata = SCIPpropGetData(prop);

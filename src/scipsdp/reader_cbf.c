@@ -124,7 +124,7 @@ SCIP_RETCODE CBFfgets(
    assert( linecount != NULL );
 
   /* Find first non-commentary line */
-  while( SCIPfgets(CBF_LINE_BUFFER, sizeof(CBF_LINE_BUFFER), pFile) != NULL )
+  while( SCIPfgets(CBF_LINE_BUFFER, (int) sizeof(CBF_LINE_BUFFER), pFile) != NULL )
   {
      ++(*linecount);
 
@@ -277,7 +277,6 @@ SCIP_RETCODE CBFreadVar(
          {
             SCIPerrorMessage("CBF-Reader of SCIP-SDP currently only supports non-negative, non-positive and free variables!\n");
             SCIPABORT();
-            break;
          }
       }
       else
@@ -409,7 +408,6 @@ SCIP_RETCODE CBFreadCon(
             SCIPerrorMessage("CBF-Reader of SCIP-SDP currently only supports linear greater or equal, less or equal and"
                   "equality constraints!\n");
             SCIPABORT();
-            break;
          }
       }
       else
@@ -443,7 +441,7 @@ SCIP_RETCODE CBFreadInt(
    long long int *       linecount,          /* current linecount */
    CBF_DATA*             data                /* data pointer to save the results in */
    )
-{
+{  /*lint --e{818}*/
    int nintvars;
    int i;
    int v;
@@ -551,7 +549,7 @@ SCIP_RETCODE CBFreadObjacoord(
    long long int *       linecount,          /* current linecount */
    CBF_DATA*             data                /* data pointer to save the results in */
    )
-{
+{  /*lint --e{818}*/
    int nobjcoefs;
    int i;
    int v;
@@ -613,7 +611,7 @@ SCIP_RETCODE CBFreadAcoord(
    long long int *       linecount,          /* current linecount */
    CBF_DATA*             data                /* data pointer to save the results in */
    )
-{
+{  /*lint --e{818}*/
    int ncoefs;
    int c;
    int i;
@@ -680,7 +678,7 @@ SCIP_RETCODE CBFreadBcoord(
    long long int *       linecount,          /* current linecount */
    CBF_DATA*             data                /* data pointer to save the results in */
    )
-{
+{  /*lint --e{818}*/
    int nsides;
    int c;
    int i;
@@ -1069,7 +1067,7 @@ SCIP_RETCODE CBFfreeData(
 /** copy method for reader plugins (called when SCIP copies plugins) */
 static
 SCIP_DECL_READERCOPY(readerCopyCbf)
-{
+{  /*lint --e{715,818}*/
    assert(scip != NULL);
 
    SCIP_CALL( SCIPincludeReaderCbf(scip) );
@@ -1077,24 +1075,10 @@ SCIP_DECL_READERCOPY(readerCopyCbf)
    return SCIP_OKAY;
 }
 
-/** destructor of reader to free user data (called when SCIP is exiting) */
-#if 0
-static
-SCIP_DECL_READERFREE(readerFreeCbf)
-{  /*lint --e{715}*/
-   SCIPerrorMessage("method of cbf reader not implemented yet\n");
-   SCIPABORT(); /*lint --e{527}*/
-
-   return SCIP_OKAY;
-}
-#else
-#define readerFreeCbf NULL
-#endif
-
 /** problem reading method of reader */
 static
 SCIP_DECL_READERREAD(readerReadCbf)
-{  /*lint --e{715}*/
+{  /*lint --e{715,818}*/
    SCIP_FILE* scipfile;
    long long int linecount;
    SCIP_Bool versionread;
@@ -1300,7 +1284,7 @@ SCIP_CALL( SCIPprintCons(scip, sdpcons, NULL) );
 /** problem writing method of reader */
 static
 SCIP_DECL_READERWRITE(readerWriteCbf)
-{  /*lint --e{715}*/
+{  /*lint --e{715,818}*/
    SdpVarmapper* varmapper;
    SCIP_VAR** linvars;
    SCIP_Real* linvals;
@@ -1331,7 +1315,6 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    int nnonz;
    int nbnonz;
 #ifdef CBF_CHECK_NONNEG
-   int nconsdisabled;
    SCIP_Bool* consdisabled;
    int nposorth;
    SCIP_Bool* posorth;
@@ -1388,7 +1371,6 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    }
    nposorth = 0;
    nnegorth = 0;
-   nconsdisabled = 0;
 
    for (c = 0; c < nconss; c++)
    {
@@ -1413,7 +1395,6 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
          if ( SCIPisZero(scip, SCIPgetLhsLinear(scip, conss[c])) )
          {
             consdisabled[c] = 1;
-            nconsdisabled++;
             posorth[v] = TRUE;
             nposorth++;
 
@@ -1426,7 +1407,6 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
          else if ( SCIPisZero(scip, SCIPgetRhsLinear(scip, conss[c])) )
          {
             consdisabled[c] = 1;
-            nconsdisabled++;
             negorth[v] = TRUE;
             nnegorth++;
          }
@@ -1436,14 +1416,12 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
          if ( SCIPisZero(scip, SCIPgetLhsLinear(scip, conss[c])) )
          {
             consdisabled[c] = 1;
-            nconsdisabled++;
             negorth[v] = TRUE;
             nnegorth++;
          }
          else if ( SCIPisZero(scip, SCIPgetRhsLinear(scip, conss[c])) )
          {
             consdisabled[c] = 1;
-            nconsdisabled++;
             posorth[v] = TRUE;
             nposorth++;
          }
@@ -1482,16 +1460,16 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    /* write variables */
    if ( (nposorth == 0) && (nnegorth == 0) )
       SCIPinfoMessage(scip, file, "VAR\n%d 1\nF %d\n\n", nvars, nvars);
-   else if ( (nposorth > 0) && (nnegorth == 0) && (nposorth + nnegorth < nvars) )
+   else if ( (nposorth > 0) && (nnegorth == 0) && (nposorth  < nvars) )
       SCIPinfoMessage(scip, file, "VAR\n%d 2\nL+ %d\nF %d\n\n", nvars, nposorth, nvars - nposorth);
-   else if ( (nposorth == 0) && (nnegorth > 0) && (nposorth + nnegorth < nvars) )
-      SCIPinfoMessage(scip, file, "VAR\n%d 2\nL- %d\nF %d\n\n", nvars, nposorth, nvars - nposorth);
+   else if ( (nposorth == 0) && (nnegorth > 0) && (nnegorth < nvars) )
+      SCIPinfoMessage(scip, file, "VAR\n%d 2\nL- %d\nF %d\n\n", nvars, nposorth, nvars - nnegorth);
    else if ( nposorth + nnegorth < nvars )
-      SCIPinfoMessage(scip, file, "VAR\n%d 3\nL+ %d\nL- %d\nF %d\n\n", nvars, nposorth, nnegorth, nvars - nposorth - nnegorth);
+      SCIPinfoMessage(scip, file, "VAR\n%d 3\nL+ %d\nL- %d\nF %d\n\n", nvars, nposorth, nnegorth, nvars - nposorth - nnegorth);/*lint !e834*/
    else if ( (nposorth > 0) && (nnegorth == 0) )
       SCIPinfoMessage(scip, file, "VAR\n%d 1\nL+ %d\n\n", nvars, nposorth);
    else if ( (nposorth == 0) && (nnegorth > 0) )
-      SCIPinfoMessage(scip, file, "VAR\n%d 1\nL- %d\n\n", nvars, nposorth);
+      SCIPinfoMessage(scip, file, "VAR\n%d 1\nL- %d\n\n", nvars, nnegorth);
    else
       SCIPinfoMessage(scip, file, "VAR\n%d 2\nL+ %d\nL- %d\n\n", nvars, nposorth, nnegorth);
 
@@ -1830,7 +1808,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
       if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])),"SDP") != 0 )
          continue;
 
-      SCIPconsSdpGetNNonz(scip, conss[c], &sdpnnonz, &sdpconstnnonz);
+      SCIP_CALL( SCIPconsSdpGetNNonz(scip, conss[c], &sdpnnonz, &sdpconstnnonz) );
       totalsdpnnonz += sdpnnonz;
       totalsdpconstnnonz += sdpconstnnonz;
    }

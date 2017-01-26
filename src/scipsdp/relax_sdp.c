@@ -674,6 +674,7 @@ SCIP_RETCODE calcRelax(
    relaxdata->sdpinterfacecalls++;
    naddedsdpcalls = 0;
    SCIP_CALL( SCIPsdpiGetSdpCalls(relaxdata->sdpi, &naddedsdpcalls) );
+   usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
    if ( naddedsdpcalls )
    {
       relaxdata->sdpcalls += naddedsdpcalls;
@@ -681,7 +682,6 @@ SCIP_RETCODE calcRelax(
       SCIP_CALL( SCIPsdpiGetIterations(relaxdata->sdpi, &naddediters) );
       relaxdata->sdpiterations += naddediters;
 
-      usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
       SCIP_CALL( SCIPsdpiSettingsUsed(relaxdata->sdpi, &usedsetting) );
 
       switch( usedsetting )/*lint --e{788}*/

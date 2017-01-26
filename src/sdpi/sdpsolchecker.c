@@ -94,7 +94,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
    SCIP_Real             epsilon,            /**< tolerance used to check for fixed variables */
    SCIP_Bool*            infeasible          /**< pointer to store whether solution is feasible */
 )
-{
+{/*lint --e{818}*/
    int i;
    int j;
    int b;
@@ -204,7 +204,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
          }
       }
 
-      BMS_CALL( BMSallocBufferMemoryArray(bufmem, &fullsdpmatrix, maxblocksize * maxblocksize) );
+      BMS_CALL( BMSallocBufferMemoryArray(bufmem, &fullsdpmatrix, maxblocksize * maxblocksize) );/*lint !e647*/
 
       for (b = 0; b < nsdpblocks; b++)
       {
@@ -215,7 +215,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
             {
                for (j = 0; j <= i; j++)
                {
-                  fullsdpmatrix[i * (sdpblocksizes[b] - nremovedinds[b]) + j] = 0.0;
+                  fullsdpmatrix[i * (sdpblocksizes[b] - nremovedinds[b]) + j] = 0.0; /*lint !e679*/
                }
             }
 
@@ -227,7 +227,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
                   for (i = 0; i < sdpnblockvarnonz[b][v]; i++)
                   {
                      fullsdpmatrix[((sdprow[b][v][i] - indchanges[b][sdprow[b][v][i]]) * (sdpblocksizes[b] - nremovedinds[b])) +
-                                   sdpcol[b][v][i] - indchanges[b][sdpcol[b][v][i]]] += solvector[sdpvar[b][v]] * sdpval[b][v][i];
+                                   sdpcol[b][v][i] - indchanges[b][sdpcol[b][v][i]]] += solvector[sdpvar[b][v]] * sdpval[b][v][i];/*lint !e679*/
                   }
                }
             }
@@ -236,7 +236,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
             for (i = 0; i < sdpconstnblocknonz[b]; i++)
             {
                fullsdpmatrix[((sdpconstrow[b][i] - indchanges[b][sdpconstrow[b][i]]) * (sdpblocksizes[b] - nremovedinds[b])) +
-                             sdpconstcol[b][i] - indchanges[b][sdpconstcol[b][i]]] -= sdpconstval[b][i];
+                             sdpconstcol[b][i] - indchanges[b][sdpconstcol[b][i]]] -= sdpconstval[b][i];/*lint !e679*/
             }
 
             /* extend to full symmetric matrix for LAPACK */
@@ -244,7 +244,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
             {
                for (j = 0; j < i; j++)
                {
-                  fullsdpmatrix[j * (sdpblocksizes[b] - nremovedinds[b]) + i] = fullsdpmatrix[i * (sdpblocksizes[b] - nremovedinds[b]) + j];
+                  fullsdpmatrix[j * (sdpblocksizes[b] - nremovedinds[b]) + i] = fullsdpmatrix[i * (sdpblocksizes[b] - nremovedinds[b]) + j];/*lint !e679*/
                }
             }
 

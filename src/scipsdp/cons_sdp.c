@@ -86,8 +86,6 @@
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
 #endif
-#define SDPSOLVERFEASTOLFACT        0.1 /**< factor to multiply sdpsolver feasibility tolerance with in case SDP-relaxator solution is infeasible */
-#define SDPSOLVERFEASTOLMIN       1e-10 /**< minimal allowed sdpsolver feasibility tolerance */
 
 /** constraint data for sdp constraints */
 struct SCIP_ConsData
@@ -1884,7 +1882,7 @@ SCIP_DECL_CONSENFOPS(consEnfopsSdp)
  */
 static
 SCIP_DECL_CONSENFOLP(consEnfolpSdp)
-{
+{/*lint --e{715}*/
    assert( scip != NULL );
    assert( conshdlr != NULL );
    assert( conss != NULL );
@@ -1899,7 +1897,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
  */
 static
 SCIP_DECL_CONSENFORELAX(consEnforelaxSdp)
-{
+{/*lint --e{715}*/
    assert( scip != NULL );
    assert( conshdlr != NULL );
    assert( conss != NULL );
