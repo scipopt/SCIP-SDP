@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION="2.1.0"
+VERSION="3.0.0"
 NAME="scipsdp-$VERSION"
 rm -f $NAME
 
@@ -22,7 +22,7 @@ tar --no-recursion --ignore-failed-read -cvzhf $NAME.tgz \
     $NAME/INSTALL \
     $NAME/license.txt \
     $NAME/changelog.txt \
-    $NAME/data_format.txt \
+    $NAME/sdpa_format.txt \
     $NAME/src/scipsdp/*.c $NAME/src/scipsdp/*.cpp $NAME/src/scipsdp/*.h \
     $NAME/src/sdpi/*.c $NAME/src/sdpi/*.cpp $NAME/src/sdpi/*.h \
     $NAME/check/*.sh \
