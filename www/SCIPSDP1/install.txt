@@ -1,0 +1,54 @@
+SDP-Plugin for SCIP
+
+Install-instructions
+=====================
+
+Additional Software (SCIP and DSDP)
+------------------------------------
+For using the SDP-Plugin for SCIP you need a installed and fully working version
+of SCIP 3.0 (http://scip.zib.de/) or higher. Additionally you need to install 
+DSDP 5.8 (http://www.mcs.anl.gov/hs/software/DSDP/).
+
+Build SDP-Plugin
+----------------
+Now you are able to install the SDP-Plugin. It uses the SCIP-Makefiles for 
+building. After unpacking the files you just have to change the file make.local.
+There you need to specify the path to the scip-installation and the path to the 
+dsdp-installation. 
+In the file make.project.override you can set additional options, for example y
+ou can change the compiler using
+CC=clang
+CXX=clang++
+
+Now you just use
+ 
+cd SDP-Plugin
+make
+
+and everything should be built. The executable can be found in the bin 
+directory. You can use the same options for the Makefile as you can use building
+ SCIP (i.e. make OPT=dbg)
+
+You can now use the SDP-Plugin in one of the following ways:
+./bin/main instancefile.dat-s
+or
+./bin/main instancefile.dat-s paramfile.set
+
+If you want to solve MISDPs "instancefile" should be a "dat-s"-file because SCIP 
+uses the file extension for deciding which reader to use. This data format is
+typical for SDPs, and most SDP-solvers can read it. We extended this format for
+Mixed-Integer SDPs. The format specifications can be found in the file 
+data_format.txt. Additionally you can define scip-parameters in a parameterfile,
+that is a "set"-file. How to define parameters is described on the scip-website.
+The most important parameters are 
+_________________________
+lp/solvefreq=1 
+relaxing/SDPRelax/freq=0
+-------------------------
+
+The first one tells scip how often LPs are solved. -1 means never, 0 solves a
+LP-relaxation only in the root node, 1 solves it in every node and every other 
+positive integer defines the depth in which LPs are solved. The same numbers can 
+be used for definig the SDP-solving-frequency, which is the second parameter.
+Default, SDPs are solved only in the root node and LPs in every node. 
+  
