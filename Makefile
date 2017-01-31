@@ -351,6 +351,7 @@ ifneq ($(OBJDIR),)
 		@-rm -f $(LASTSETTINGS)
 		@-rm -f $(OBJDIR)/scipsdp/*.o
 		@-rm -f $(OBJDIR)/sdpi/*.o
+		@-rm -f $(OBJDIR)/*.o
 		@-rmdir $(OBJDIR)/scipsdp
 	 	@-rmdir $(OBJDIR)/sdpi
 		@-rmdir $(OBJDIR)
