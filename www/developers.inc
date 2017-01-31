@@ -25,6 +25,10 @@
 <h3>Contributors</h3>
 <table class="desc">
    <tr>
+      <td><a href="https://www.linkedin.com/in/henrik-alsing-friberg">Henrik Alsing Friberg</a>
+      </td>
+   </tr>
+   <tr>
       <td><a href="http://www.zib.de/members/gleixner">Ambros Gleixner</a>
       </td>
    </tr>
