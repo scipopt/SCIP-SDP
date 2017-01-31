@@ -775,7 +775,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    DSDP_CALLM( DSDPCreateBCone(sdpisolver->dsdp, &(sdpisolver->bcone)) );
 
 #ifdef SCIP_MORE_DEBUG
-   SCIPmessagePrintInfo(sdpi->messagehdlr, "setting objective values for SDP %d:\n", sdpisolver->sdpcounter);
+   SCIPmessagePrintInfo(sdpisolver->messagehdlr, "setting objective values for SDP %d:\n", sdpisolver->sdpcounter);
 #endif
 
    for (i = 0; i < sdpisolver->nactivevars; i++)
@@ -785,7 +785,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          /* insert objective value, DSDP counts from 1 to n instead of 0 to n-1, *(-1) because DSDP maximizes instead of minimizing */
          DSDP_CALL( DSDPSetDualObjective(sdpisolver->dsdp, i+1, -1.0 * obj[sdpisolver->dsdptoinputmapper[i]]) );
 #ifdef SCIP_MORE_DEBUG
-         SCIPmessagePrintInfo(sdpi->messagehdlr, "var %d (was var %d): %f, ", i+1, sdpisolver->dsdptoinputmapper[i], obj[sdpisolver->dsdptoinputmapper[i]]);
+         SCIPmessagePrintInfo(sdpisolver->messagehdlr, "var %d (was var %d): %f, ", i+1, sdpisolver->dsdptoinputmapper[i], obj[sdpisolver->dsdptoinputmapper[i]]);
 #endif
       }
       else
@@ -811,12 +811,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    {
       DSDP_CALL( DSDPSetDualObjective(sdpisolver->dsdp, sdpisolver->nactivevars + 1, -1.0 * penaltyparam) );
 #ifdef SCIP_MORE_DEBUG
-      SCIPmessagePrintInfo(sdpi->messagehdlr, "slack variable r: %f, ", penaltyparam);
+      SCIPmessagePrintInfo(sdpisolver->messagehdlr, "slack variable r: %f, ", penaltyparam);
 #endif
    }
 
 #ifdef SCIP_MORE_DEBUG
-   SCIPmessagePrintInfo(sdpi->messagehdlr, "\n");
+   SCIPmessagePrintInfo(sdpisolver->messagehdlr, "\n");
    SCIPdebugMessage("ATTENTION: BConeView shows the WRONG sign for the lower bound!\n");
    BConeView(sdpisolver->bcone);
 #endif
