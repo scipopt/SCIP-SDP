@@ -1178,25 +1178,25 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                if ( lastrow >= 0 )
                {
                   if ( lprhs[ind] < SCIPsdpiSolverInfinity(sdpisolver) )
-                     SCIPmessagePrintInfo(sdpi->messagehdlr, " <= %f\n", lprhs[ind]);
+                     SCIPmessagePrintInfo(sdpisolver->messagehdlr, " <= %f\n", lprhs[ind]);
                   else
-                     SCIPmessagePrintInfo(sdpi->messagehdlr, "\n");
+                     SCIPmessagePrintInfo(sdpisolver->messagehdlr, "\n");
                }
                lastrow = lprow[i];
                ind++;
                if ( lplhs[ind] > - SCIPsdpiSolverInfinity(sdpisolver) )
-                  SCIPmessagePrintInfo(sdpi->messagehdlr, "%f <= ", lplhs[ind]);
+                  SCIPmessagePrintInfo(sdpisolver->messagehdlr, "%f <= ", lplhs[ind]);
             }
-            SCIPmessagePrintInfo(sdpi->messagehdlr, "+ %f <x%d> ", lpval[i], lpcol[i]);
+            SCIPmessagePrintInfo(sdpisolver->messagehdlr, "+ %f <x%d> ", lpval[i], lpcol[i]);
          }
       }
    }
    if ( lastrow >= 0 )
    {
       if ( lprhs[ind] < SCIPsdpiSolverInfinity(sdpisolver) )
-         SCIPmessagePrintInfo(sdpi->messagehdlr, " <= %f\n", lprhs[ind]);
+         SCIPmessagePrintInfo(sdpisolver->messagehdlr, " <= %f\n", lprhs[ind]);
       else
-         SCIPmessagePrintInfo(sdpi->messagehdlr, "\n");
+         SCIPmessagePrintInfo(sdpisolver->messagehdlr, "\n");
    }
    assert( ind == nlpcons - 1 ); /* -1 because we start indexing at zero and do not increase after the last row */
 #endif
