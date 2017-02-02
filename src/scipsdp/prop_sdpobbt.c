@@ -71,6 +71,7 @@ struct SCIP_PropData
    SCIP_Bool             propbin;            /**< should obbt be done for binary variables ? */
    SCIP_Bool             propcont;           /**< should obbt be done for continuous variables ? */
    long long int         lastnode;           /**< the last node we ran for */
+   SCIP_Real             sdpsolvergaptol;    /**< gap tolerance of the underlying SDP solver */
 };
 
 
@@ -169,6 +170,20 @@ SCIP_DECL_PROPEXIT(propExitSdpObbt)
    return SCIP_OKAY;
 }
 
+/** solving process initialization method of propagator (called when branch and bound process is about to begin) */
+static
+SCIP_DECL_PROPINITSOL(propInitsolSdpObbt)
+{  /*lint --e{715}*/
+   SCIP_PROPDATA* propdata;
+
+   assert( prop != NULL );
+
+   propdata = SCIPpropGetData(prop);
+
+   SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolvergaptol", &(propdata->sdpsolvergaptol)) );
+
+   return SCIP_OKAY;
+}
 
 /** execution method of propagator */
 static
@@ -309,7 +324,8 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
          success = FALSE; /* this will be ignored, we check solvedProbing instead */
          SCIP_CALL( SCIPrelaxSdpRelaxVal(relaxsdp, &success, &probingval) );
 
-         if ( SCIPisGT(scip, probingval, SCIPvarGetLbLocal(vars[v])) )
+         /* only update if we improved the bound by at least gaptol, everything else might be inexactness of the solver */
+         if ( SCIPisGT(scip, probingval, SCIPvarGetLbLocal(vars[v])) && probingval > SCIPvarGetLbLocal(vars[v]) + propdata->sdpsolvergaptol )
          {
             /* update bound TODO: check if this works or needs to be done outside of probing */
             SCIPdebugMessage("Obbt-Sdp tightened lower bound of variable %s from %f to %f !\n",
@@ -369,9 +385,9 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
          success = FALSE; /* this will be ignored, we check solvedProbing instead */
          SCIP_CALL( SCIPrelaxSdpRelaxVal(relaxsdp, &success, &probingval) );
 
-         if ( SCIPisLT(scip, -probingval, SCIPvarGetUbLocal(vars[v])) )
+         /* only update if we improved the bound by at least gaptol, everything else might be inexactness of the solver */
+         if ( SCIPisLT(scip, -probingval, SCIPvarGetUbLocal(vars[v])) && -probingval < SCIPvarGetUbLocal(vars[v]) - propdata->sdpsolvergaptol )
          {
-            /* update bound TODO: check if this works or needs to be done outside of probing */
             SCIPdebugMessage("Obbt-Sdp tightened upper bound of variable %s from %f to %f !\n",
                   SCIPvarGetName(vars[v]), SCIPvarGetUbLocal(vars[v]), -probingval);
 
@@ -460,6 +476,7 @@ SCIP_RETCODE SCIPincludePropSdpObbt(
    SCIP_CALL( SCIPsetPropCopy(scip, prop, propCopySdpObbt) );
    SCIP_CALL( SCIPsetPropFree(scip, prop, propFreeSdpObbt) );
    SCIP_CALL( SCIPsetPropExit(scip, prop, propExitSdpObbt) );
+   SCIP_CALL( SCIPsetPropInitsol(scip, prop, propInitsolSdpObbt) );
 
    /* add SdpObbt propagator parameters */
    SCIP_CALL( SCIPaddBoolParam(scip, "propagating/" PROP_NAME "/propbin",
