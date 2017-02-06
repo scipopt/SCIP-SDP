@@ -1,7 +1,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /*                                                                           */
 /* This file is part of SCIPSDP - a solving framework for mixed-integer      */
-/* semidefinite programms based on SCIP.                                     */
+/* semidefinite programs based on SCIP.                                      */
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
@@ -34,11 +34,11 @@
  * @ingroup FILEREADERS
  * @brief  file reader for mixed-integer semidefinite programs in CBF format
  * @author Tristan Gally
- * @author Henrik A. Friberg TODO
+ * @author Henrik A. Friberg
  *
- * This reader allows to parse and write CBF files with mixed-integer semidefinite programs in dual form (TODO: check this after finishing the reader)
+ * This reader allows to parse and write CBF files with mixed-integer semidefinite programs in dual form.
  * Writing is supported for original programs consisting of only linear and semidefinite constraints. Parsing is supported
- * for instances consisting of only free scalar variables and linear and semidefinite constraints.
+ * for instances consisting of only scalar variables and linear and semidefinite constraints.
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/

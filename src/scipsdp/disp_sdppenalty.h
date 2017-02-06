@@ -1,7 +1,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /*                                                                           */
 /* This file is part of SCIPSDP - a solving framework for mixed-integer      */
-/* semidefinite programms based on SCIP.                                     */
+/* semidefinite programs based on SCIP.                                      */
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
