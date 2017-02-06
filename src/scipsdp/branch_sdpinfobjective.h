@@ -36,6 +36,7 @@
  * @author Tristan Gally
  *
  * Branch on variable with highest product of fractionality/integral-infeasibility and absolute objective value in the SDP.
+ * Will do nothing for continuous variables, since these are what the external callbacks of the SCIP branching rules are for.
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
