@@ -75,8 +75,12 @@
  * <tr><td>relaxing/SDP/sdpsolverfeastol = 1e-06 (DSDP,SDPA) / 1e-07 (MOSEK)</td> <td>feasibility tolerance for the SDP-Solver (should be less or equal to numerics/feastol)</td></tr>
  * <tr><td>relaxing/SDP/penaltyparam = -1</td> <td>the starting value of the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge; set this to a negative value to compute the parameter depending on the given problem</td></tr>
  * <tr><td>relaxing/SDP/lambdastar = -1</td> <td>the parameter lambda star used by SDPA to set the initial point; set this to a negative value to compute the parameter depending on the given problem</td></tr>
+ * <tr><td>branching/sdpinfobjective/priority = 2e+06</td> <td>priority of combined infeasibility/objective branching rule; branching rule with highest priority is used</td></tr>
  * <tr><td>branching/sdpinfobjective/coupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints?</td></tr>
  * <tr><td>branching/sdpinfobjective/singlecoupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints in which no other candidate appears?</td></tr>
+ * <tr><td>branching/sdpmostfrac/priority = 5e+05</td> <td>priority of most fractional (largest fractional part) branching rule; branching rule with highest priority is used</td></tr>
+ * <tr><td>branching/sdpmostinf/priority = 1e+06</td> <td>priority of most infeasible (fractional part nearest to 0.5) branching rule; branching rule with highest priority is used</td></tr>
+ * <tr><td>branching/sdpobjective/priority = 1.5e+06</td> <td>priority of highest absolute objective branching rule; branching rule with highest priority is used</td></tr>
  * <tr><td>branching/sdpobjective/coupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints?</td></tr>
  * <tr><td>branching/sdpobjective/singlecoupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints in which no other candidate appears?</td></tr>
  * <tr><td>constraints/SDP/diaggezerocuts = TRUE</td> <td>Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added?</td></tr>
@@ -95,7 +99,7 @@
  * <tr><td>propagating/sdpredcost/forbins = TRUE</td> <td>Should SDP reduced cost fixing be executed for binary variables?</td></tr>
  * <tr><td>propagating/sdpredcost/forintcons = TRUE</td> <td>Should SDP reduced cost fixing be executed for integer and continuous variables?</td></tr>
  * <tr><td>relaxing/SDP/maxpenaltyparam = -1</td> <td>the maximum value of the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge; set this to a negative value to compute the parameter depending on the given problem</td></tr>
- * <tr><td>relaxing/SDP/nparamincr = -1</td> <td>maximum number of times the penalty parameter will be increased if the penalty formulation failed</td></tr>
+ * <tr><td>relaxing/SDP/npenaltyincr = -1</td> <td>maximum number of times the penalty parameter will be increased if the penalty formulation failed</td></tr>
  * <tr><td>relaxing/SDP/objlimit = FALSE</td> <td>Should an objective limit be given to the SDP-Solver?</td></tr>
  * <tr><td>relaxing/SDP/resolve = TRUE</td> <td>Should the relaxation be resolved after bound-tightenings were found during propagation (outside of probing)?</td></tr>
  * <tr><td>relaxing/SDP/settingsresetfreq = -1</td> <td>frequency for resetting parameters in SDP solver and trying again with fastest settings [-1: never, 0: only at depth settingsresetofs, n: all nodes with depth a multiple of n]; currently only supported for SDPA</td></tr>
