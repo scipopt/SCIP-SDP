@@ -53,7 +53,7 @@
 extern "C" {
 #endif
 
-/** includes the CBF file reader into SCIP */
+/** includes the CBF file reader in SCIP */
 EXTERN
 SCIP_RETCODE SCIPincludeReaderCbf(
    SCIP*                 scip                /**< SCIP data structure */

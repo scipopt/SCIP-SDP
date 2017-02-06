@@ -54,12 +54,12 @@
 #define READER_DESC             "file reader and writer for MISDPs in cbf format"
 #define READER_EXTENSION        "cbf"
 
-#define CBF_VERSION_NR         1         /* version number for CBF format */
-#define CBF_CHECK_NONNEG       TRUE      /* when writing: check linear constraints and move nonnegativity(-positivity)
-                                          * constraints to definition of variables (which are now defined in non-negative
-                                          * orthant)
-                                          * TODO: currently doesn't work for ranged rows (which are not created by sdpa
-                                          * reader) */
+#define CBF_VERSION_NR         1         /**< version number for CBF format */
+#define CBF_CHECK_NONNEG       TRUE      /**< when writing: check linear constraints and move nonnegativity(-positivity)
+                                           *  constraints to definition of variables (which are now defined in non-negative
+                                           *  orthant) */
+                                          /*  TODO: currently doesn't work for ranged rows (which are not created by sdpa
+                                           *  reader) */
 
 /* Use CBF_NAME_FORMAT instead of %s when parsing lines, to avoid buffer overflow. */
 #define MACRO_STR_EXPAND(tok) #tok
@@ -113,7 +113,7 @@ typedef struct CBF_Data CBF_DATA;
  * Local methods
  */
 
-/* finds first non-commentary line in given file */
+/** finds first non-commentary line in given file */
 static
 SCIP_RETCODE CBFfgets(
    SCIP_FILE*            pFile,              /* file to read from */
@@ -135,7 +135,7 @@ SCIP_RETCODE CBFfgets(
   return SCIP_READERROR;
 }
 
-/** reads the number and type of variables from given CBF-file */
+/** reads objective sense from given CBF-file */
 static
 SCIP_RETCODE CBFreadObjsense(
    SCIP*                 scip,               /* SCIP data structure */
