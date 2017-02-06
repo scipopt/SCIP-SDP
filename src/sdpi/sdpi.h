@@ -323,7 +323,7 @@ SCIP_RETCODE SCIPsdpiGetObj(
    SCIP_Real*            vals                /**< pointer to store objective coefficients (memory of size lastvar - firstvar + 1 needs to be allocated) */
    );
 
-/** gets current variable bounds from SDP-interface */
+/** gets current variable lower and/or upper bounds from SDP-interface */
 EXTERN
 SCIP_RETCODE SCIPsdpiGetBounds(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
@@ -369,11 +369,11 @@ EXTERN
 SCIP_RETCODE SCIPsdpiSolve(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
    SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
-   SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP, set this to
+   SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP or MOSEK, set this to
                                                *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Bool             enforceslatercheck, /**< always check for Slater condition in case the problem could not be solved and printf the solution
                                                   of this check */
-   SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP) */
+   SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
    );
 
 /**@} */
@@ -388,7 +388,7 @@ SCIP_RETCODE SCIPsdpiSolve(
 /**@name Solution Information Methods */
 /**@{ */
 
-/** returns whether a solve method was called after the last modification of the SDP */
+/** returns whether a solve method was successfully called after the last modification of the SDP */
 EXTERN
 SCIP_Bool SCIPsdpiWasSolved(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */

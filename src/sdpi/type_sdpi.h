@@ -58,7 +58,7 @@ enum SCIP_SDPParam
                                          *   problem that is bigger than this, it may stop */
    SCIP_SDPPAR_SDPINFO        = 5,      /**< Should the SDP-solver output information to the screen? */
    SCIP_SDPPAR_SLATERCHECK    = 6,      /**< Should the slater condition for the dual problem be checked before solving each SDP ? */
-   SCIP_SDPPAR_PENALTYPARAM   = 7,      /**< the startingpenalty parameter Gamma used for the penalty formulation if the SDP-solver did not converge */
+   SCIP_SDPPAR_PENALTYPARAM   = 7,      /**< the starting penalty parameter Gamma used for the penalty formulation if the SDP-solver did not converge */
    SCIP_SDPPAR_MAXPENALTYPARAM= 8,      /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP-solver did not converge */
    SCIP_SDPPAR_NPENALTYINCR   = 9,      /**< maximum number of times the penalty parameter will be increased if penalty formulation failed */
    SCIP_SDPPAR_LAMBDASTAR     = 10,     /**< the parameter lambda star used by SDPA to set the initial point */
@@ -81,21 +81,21 @@ typedef enum SCIP_SDPSolverSetting SCIP_SDPSOLVERSETTING;
 enum SCIP_SDPSlaterSetting
 {
    SCIP_SDPSLATERSETTING_NOINFO           = 0, /**< Slater check failed or problem not given to solver */
-   SCIP_SDPSLATERSETTING_STABLEWSLATER    = 1, /**< number of instances solved with fastest settings where primal and dual Slater held */
-   SCIP_SDPSLATERSETTING_UNSTABLEWSLATER  = 2, /**< number of instances solved with stable settings where primal and dual Slater held */
-   SCIP_SDPSLATERSETTING_PENALTYWSLATER   = 3, /**< number of instances solved with penalty formulation where primal and dual Slater held */
-   SCIP_SDPSLATERSETTING_BOUNDEDWSLATER   = 4, /**< number of instances we could compute a bound for via the penalty approach where primal and dual Slater held */
-   SCIP_SDPSLATERSETTING_UNSOLVEDWSLATER  = 5, /**< number of instances that could not be solved where primal and dual Slater held */
-   SCIP_SDPSLATERSETTING_STABLENOSLATER   = 6, /**< number of instances solved with fastest setting where either primal or dual Slater did not hold */
-   SCIP_SDPSLATERSETTING_UNSTABLENOSLATER = 7, /**< number of instances solved with stable settings where either primal or dual Slater did not hold */
-   SCIP_SDPSLATERSETTING_PENALTYNOSLATER  = 8, /**< number of instances solved with penalty formulation where either primal or dual Slater did not hold */
-   SCIP_SDPSLATERSETTING_BOUNDEDNOSLATER  = 9, /**< number of instances we could compute a bound for via the penalty approach where either primal or dual Slater did not hold  */
-   SCIP_SDPSLATERSETTING_UNSOLVEDNOSLATER = 10,/**< number of instances that could not be solved where either primal or dual Slater did not hold */
-   SCIP_SDPSLATERSETTING_STABLEINFEASIBLE = 11, /**< number of instances solved with fastest setting where the dual Slater check showed that the problem is infeasible */
-   SCIP_SDPSLATERSETTING_UNSTABLEINFEASIBLE= 12, /**< number of instances solved with stable settings where the dual Slater check showed that the problem is infeasible */
-   SCIP_SDPSLATERSETTING_PENALTYINFEASIBLE= 13, /**< number of instances solved with penalty formulation where the dual Slater check showed that the problem is infeasible */
-   SCIP_SDPSLATERSETTING_BOUNDEDINFEASIBLE= 14, /**< number of instances we could compute a bound for via the penalty approach where the dual Slater check showed that the problem is infeasible */
-   SCIP_SDPSLATERSETTING_UNSOLVEDINFEASIBLE= 15 /**< number of instances that could not be solved where the dual Slater check showed that the problem is infeasible */
+   SCIP_SDPSLATERSETTING_STABLEWSLATER    = 1, /**< solved with fastest settings and primal and dual Slater holding */
+   SCIP_SDPSLATERSETTING_UNSTABLEWSLATER  = 2, /**< solved with stable settings and primal and dual Slater holding */
+   SCIP_SDPSLATERSETTING_PENALTYWSLATER   = 3, /**< solved with penalty formulation and primal and dual Slater holding */
+   SCIP_SDPSLATERSETTING_BOUNDEDWSLATER   = 4, /**< bound computed via penalty approach with primal and dual Slater holding */
+   SCIP_SDPSLATERSETTING_UNSOLVEDWSLATER  = 5, /**< unsolved with primal and dual Slater holding */
+   SCIP_SDPSLATERSETTING_STABLENOSLATER   = 6, /**< solved with fastest setting and either primal or dual Slater not holding */
+   SCIP_SDPSLATERSETTING_UNSTABLENOSLATER = 7, /**< solved with stable settings and either primal or dual Slater not holding */
+   SCIP_SDPSLATERSETTING_PENALTYNOSLATER  = 8, /**< solved with penalty formulation and either primal or dual Slater not holding */
+   SCIP_SDPSLATERSETTING_BOUNDEDNOSLATER  = 9, /**< bound computed via penalty approach with either primal or dual Slater not holding  */
+   SCIP_SDPSLATERSETTING_UNSOLVEDNOSLATER = 10,/**< unsolved with either primal or dual Slater not holding */
+   SCIP_SDPSLATERSETTING_STABLEINFEASIBLE = 11, /**< solved with fastest setting and dual Slater check showing infeasibility */
+   SCIP_SDPSLATERSETTING_UNSTABLEINFEASIBLE= 12, /**< solved with stable settings and dual Slater check showing infeasibility */
+   SCIP_SDPSLATERSETTING_PENALTYINFEASIBLE= 13, /**< solved with penalty formulation and dual Slater check showing infeasibility */
+   SCIP_SDPSLATERSETTING_BOUNDEDINFEASIBLE= 14, /**< bound computed via penalty approach with dual Slater check showing infeasibility */
+   SCIP_SDPSLATERSETTING_UNSOLVEDINFEASIBLE= 15 /**< unsolved with dual Slater check showing infeasibility */
 };
 typedef enum SCIP_SDPSlaterSetting SCIP_SDPSLATERSETTING;
 

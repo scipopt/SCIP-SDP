@@ -260,12 +260,12 @@ SCIP_Bool isFixed(
 static
 SCIP_RETCODE compConstMatAfterFixings(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
-   int*                  sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-blocks */
-   int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
+   int*                  sdpconstnnonz,      /**< pointer to store number of nonzero elements in the constant matrices of the SDP-blocks */
+   int*                  sdpconstnblocknonz, /**< pointer to store number of nonzeros for each variable in the constant part, also the i-th entry gives the
                                               *   number of entries  of sdpconst row/col/val [i] */
-   int**                 sdpconstrow,        /**< pointers to row-indices for each block */
-   int**                 sdpconstcol,        /**< pointers to column-indices for each block */
-   SCIP_Real**           sdpconstval         /**< pointers to the values of the nonzeros for each block */
+   int**                 sdpconstrow,        /**< pointer to store row-indices for each block */
+   int**                 sdpconstcol,        /**< pointer to store column-indices for each block */
+   SCIP_Real**           sdpconstval         /**< pointer to store the values of the nonzeros for each block */
    )
 {
    int i;
@@ -977,7 +977,8 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
    return SCIP_OKAY;
 }
 
-/** checks primal and dual Slater condition and outputs result depending on Slater settings in sdpi
+/** checks primal and dual Slater condition and outputs result depending on Slater settings in sdpi as well as updating
+ *  sdpisolver->primalslater and sdpisolver->dualslater
  */
 static
 SCIP_RETCODE checkSlaterCondition(
@@ -2342,13 +2343,13 @@ SCIP_RETCODE SCIPsdpiGetObj(
    return SCIP_OKAY;
 }
 
-/** gets current variable bounds from SDP-interface */
+/** gets current variable lower and/or upper bounds from SDP-interface */
 SCIP_RETCODE SCIPsdpiGetBounds(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
    int                   firstvar,           /**< first variable to get bounds for */
    int                   lastvar,            /**< last variable to get bounds for */
-   SCIP_Real*            lbs,                /**< pointer to store lower bound values, or NULL (memory of size lastvar - firstvar + 1 needs to be allocated) */
-   SCIP_Real*            ubs                 /**< pointer to store upper bound values, or NULL (memory of size lastvar - firstvar + 1 needs to be allocated) */
+   SCIP_Real*            lbs,                /**< pointer to store lower bound values (memory of size lastvar - firstvar + 1 needs to be allocated), or NULL */
+   SCIP_Real*            ubs                 /**< pointer to store upper bound values (memory of size lastvar - firstvar + 1 needs to be allocated), or NULL */
    )
 {
    int i;
@@ -2430,11 +2431,11 @@ SCIP_RETCODE SCIPsdpiGetRhSides(
 SCIP_RETCODE SCIPsdpiSolve(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
    SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
-   SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP, set this to
+   SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP or MOSEK, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Bool             enforceslatercheck, /**< always check for Slater condition in case the problem could not be solved and printf the solution
                                               *   of this check */
-   SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP) */
+   SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
    )
 {
    int* sdpconstnblocknonz = NULL;

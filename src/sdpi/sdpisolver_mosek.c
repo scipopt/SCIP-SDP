@@ -254,7 +254,7 @@ SCIP_Bool isFixed(
 
 char name[SCIP_MAXSTRLEN];
 
-/** gets name and version (if available) of SDP solver */
+/** gets name and version (if available) of SDP-solver */
 const char* SCIPsdpiSolverGetSolverName(
    void
    )
@@ -283,7 +283,7 @@ const char* SCIPsdpiSolverGetSolverName(
    return name;
 }
 
-/** gets description of SDP solver (developer, webpage, ...) */
+/** gets description of SDP-solver (developer, webpage, ...) */
 const char* SCIPsdpiSolverGetSolverDesc(
    void
    )
@@ -292,11 +292,11 @@ const char* SCIPsdpiSolverGetSolverDesc(
          "(http://www.mosek.com)";
 }
 
-/** gets pointer for SDP solver - use only with great care
+/** gets pointer to SDP-solver - use only with great care
  *
  *  The behavior of this function depends on the solver and its use is
  *  therefore only recommended if you really know what you are
- *  doing. In general, it returns a pointer to the SDP solver object.
+ *  doing. In general, it returns a pointer to the SDP-solver object.
  */
 void* SCIPsdpiSolverGetSolverPointer(
    SCIP_SDPISOLVER*      sdpisolver           /**< pointer to an SDP interface solver structure */
@@ -332,7 +332,7 @@ int SCIPsdpiSolverGetDefaultSdpiSolverNpenaltyIncreases(
 /**@name SDPI Creation and Destruction Methods */
 /**@{ */
 
-/** creates an SDP problem object */
+/** creates an SDP solver interface */
 SCIP_RETCODE SCIPsdpiSolverCreate(
    SCIP_SDPISOLVER**     sdpisolver,         /**< pointer to an SDP interface solver structure */
    SCIP_MESSAGEHDLR*     messagehdlr,        /**< message handler to use for printing messages, or NULL */
@@ -382,7 +382,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    return SCIP_OKAY;
 }
 
-/** deletes an SDP problem object */
+/** deletes an SDP solver interface */
 SCIP_RETCODE SCIPsdpiSolverFree(
    SCIP_SDPISOLVER**     sdpisolver          /**< pointer to an SDP interface solver structure */
    )
@@ -453,7 +453,7 @@ SCIP_RETCODE SCIPsdpiSolverResetCounter(
  *  For the non-constant SDP- and the LP-part, the original arrays before fixings should be given, for the constant
  *  SDP-part the arrays AFTER fixings should be given. In addition, an array needs to be given, that for every block and
  *  every row/col index within that block either has value -1, meaning that this index should be deleted, or a
- *  non-negative integer stating the number of indices before it that are to be deleted, meaning that this index will
+ *  non-negative integer stating the number of indices before it that are to be deleated, meaning that this index will
  *  be decreased by that number, in addition to that the total number of deleted indices for each block should be given.
  *  Optionally an array start may be given with a starting point for the solver (if this is NULL then the solver should
  *  start from scratch).
@@ -498,9 +498,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
-   SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP, set this to
+   SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP and MOSEK, set this to
                                                *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
-   SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP) */
+   SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
    )
 {
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, FALSE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
@@ -569,9 +569,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
-   SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP, set this to
+   SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP and MOSEK, set this to
                                                *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
-   SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP) */
+   SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
    SCIP_Bool*            feasorig,           /**< pointer to store if the solution to the penalty-formulation is feasible for the original problem
                                                *  (may be NULL if penaltyparam = 0) */
    SCIP_Bool*            penaltybound        /**< pointer to store if the primal solution reached the bound Tr(X) <= penaltyparam in the primal problem,
@@ -1467,7 +1467,7 @@ SCIP_Bool SCIPsdpiSolverWasSolved(
 /** returns true if the solver could determine whether the problem is feasible
  *
  *  So it returns true if the solver knows that the problem is feasible/infeasible/unbounded, it returns false if the
- *  solver doesn't know anything about the feasibility status and thus the functions IsPrimalFeasible etc. shouldn't be
+ *  solver does not know anything about the feasibility status and thus the functions IsPrimalFeasible etc. should not be
  *  used.
  */
 SCIP_Bool SCIPsdpiSolverFeasibilityKnown(
@@ -1765,7 +1765,7 @@ SCIP_Bool SCIPsdpiSolverIsTimelimExc(
 }
 
 /** returns the internal solution status of the solver, which has the following meaning:<br>
- * -1: solver wasn't started<br>
+ * -1: solver was not started<br>
  *  0: converged<br>
  *  1: infeasible start<br>
  *  2: numerical problems<br>
@@ -1847,7 +1847,7 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
    return SCIPsdpiSolverIsConverged(sdpisolver) && SCIPsdpiSolverFeasibilityKnown(sdpisolver);
 }
 
-/** tries to reset the internal status of the SDP solver in order to ignore an instability of the last solving call */
+/** tries to reset the internal status of the SDP-solver in order to ignore an instability of the last solving call */
 SCIP_RETCODE SCIPsdpiSolverIgnoreInstability(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
    SCIP_Bool*            success             /**< pointer to store, whether the instability could be ignored */
@@ -1990,7 +1990,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
  *  The last input should specify the length of the arrays. If this is less than the number of variables, the needed
  *  length will be returned and a debug message thrown.
  *
- *  @note if a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent primal variable.
+ *  @note If a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent primal variable.
  */
 SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
@@ -2089,7 +2089,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSdpCalls(
    return SCIP_OKAY;
 }
 
-/** gets the settings used in the last call to the sdp solver */
+/** gets the settings used by the SDP solver for the last solve call */
 SCIP_RETCODE SCIPsdpiSolverSettingsUsed(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
    SCIP_SDPSOLVERSETTING* usedsetting        /**< the setting used by the SDP solver */
@@ -2120,7 +2120,7 @@ SCIP_RETCODE SCIPsdpiSolverSettingsUsed(
 /**@name Numerical Methods */
 /**@{ */
 
-/** returns value treated as infinity in the SDP solver */
+/** returns value treated as infinity in the SDP-solver */
 SCIP_Real SCIPsdpiSolverInfinity(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to an SDP interface solver structure */
    )
@@ -2128,7 +2128,7 @@ SCIP_Real SCIPsdpiSolverInfinity(
    return 1.0e16;
 }
 
-/** checks if given value is treated as (plus or minus) infinity in the SDP solver */
+/** checks if given value is treated as (plus or minus) infinity in the SDP-solver */
 SCIP_Bool SCIPsdpiSolverIsInfinity(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
    SCIP_Real             val                 /**< value to be checked for infinity */
