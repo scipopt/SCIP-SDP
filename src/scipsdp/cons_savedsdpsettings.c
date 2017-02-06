@@ -54,7 +54,7 @@
                                          *   propagation and enforcement, -1 for no eager evaluations, 0 for first only */
 #define CONSHDLR_NEEDSCONS         TRUE /**< should the constraint handler be skipped, if no constraints are available? */
 
-/** constraint data to store optimal solution */
+/** constraint data to store settings used to solve parent node */
 struct SCIP_ConsData
 {
    SCIP_SDPSOLVERSETTING settings;           /**< pointer to save settings */
@@ -192,7 +192,7 @@ SCIP_DECL_CONSCOPY(consCopySavedsdpsettings)
 }
 
 
-/** include store bool constraint handler */
+/** include Savedsdpsettings constraint handler */
 SCIP_RETCODE SCIPincludeConshdlrSavedsdpsettings(
    SCIP*                 scip                /**< SCIP data structure */
    )

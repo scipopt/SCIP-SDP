@@ -54,7 +54,7 @@ SCIP_RETCODE SCIPincludeConshdlrSavedsdpsettings(
    SCIP*                 scip                /**< SCIP data structure */
    );
 
-/** create a Savedsdpsol constraint, i.e. save the current settings for the SDP-relaxation of this node */
+/** create a savedsdpsettings constraint, i.e. save the current settings for the SDP-relaxation of this node */
 EXTERN
 SCIP_RETCODE createConsSavedsdpsettings(
    SCIP*                 scip,               /**< SCIP data structure */
