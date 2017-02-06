@@ -619,11 +619,11 @@ SCIP_RETCODE diagGEzero(
 }
 
 /** Presolve-routine that enforces implications of diagonal entries of zero in SDP-matrices, namely that if \f$X_{ij} > 0\f$,
- * then also \f$X_{ii} > 0\f$ and \f$X_{jj} > 0\f$.
+ *  then also \f$X_{ii} > 0\f$ and \f$ X_{jj} > 0\f$.
  *
- * More precisely, if \f$(A_0)_{k\ell} \neq 0\f$, \f$(A_0)_{kk} = 0\f$, \f$(A_i)_{k\ell} = 0\f$ for all \f$i \leq m\f$,
- * \f$(A_0)_{kk} = 0\f$ for all continuous variables and \f$\ell_i \geq 0\f$ for all integer variables, we add the cut
- * \f$\sum_{\substack{i \in \mathcal{I}:\\ (A_i)_{kk} > 0}} y_i \geq 1.\f$
+ *  More precisely, if \f$ (A_0)_{k\ell} \neq 0\f$, \f$ (A_0)_{kk} = 0\f$, \f$ (A_i)_{k\ell} = 0\f$ for all \f$ i \leq m\f$,
+ *  \f$ (A_0)_{kk} = 0\f$ for all continuous variables and \f$ \ell_i \geq 0\f$ for all integer variables, we add the cut
+ *  \f$ \sum_{\substack{i \in \mathcal{I}:\\ (A_i)_{kk} > 0}} y_i \geq 1.\f$
  */
 static
 SCIP_RETCODE diagZeroImpl(
@@ -865,7 +865,7 @@ SCIP_RETCODE diagZeroImpl(
    return SCIP_OKAY;
 }
 
-/** detects if there are blocks with size one and transfers them to lp-rows */
+/** detects if there are blocks with size one and transforms them to lp-rows */
 static
 SCIP_RETCODE move_1x1_blocks_to_lp(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -1876,9 +1876,7 @@ SCIP_DECL_CONSENFOPS(consEnfopsSdp)
 }
 
 
-/** constraint enforcing method of constraint handler for LP solutions
- *
- *  Enforce lp solution method, if some block is not psd an eigenvector cut is added.
+/** Enforce lp solution; if some block is not psd, an eigenvector cut is added.
  */
 static
 SCIP_DECL_CONSENFOLP(consEnfolpSdp)
@@ -1891,9 +1889,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
    return EnforceConstraint(scip, conshdlr, conss, nconss, NULL, result);
 }
 
-/** constraint enforcing method of constraint handler for LP solutions
- *
- *  Enforce relaxation solution method, if some block is not psd an eigenvector cut is added.
+/** Enforce relaxation solution; if some block is not psd, an eigenvector cut is added.
  */
 static
 SCIP_DECL_CONSENFORELAX(consEnforelaxSdp)
@@ -2406,7 +2402,7 @@ SCIP_DECL_CONSPARSE(consParseSdp)
    return SCIP_OKAY;
 }
 
-/** constraint method of constraint handler which returns the variables (if possible) */
+/** constraint method of constraint handler which returns the variables */
 static
 SCIP_DECL_CONSGETVARS(consGetVarsSdp)
 {/*lint --e{715}*/
@@ -2440,7 +2436,7 @@ SCIP_DECL_CONSGETVARS(consGetVarsSdp)
    return SCIP_OKAY;
 }
 
-/** constraint method of constraint handler which returns the number of variables (if possible) */
+/** constraint method of constraint handler which returns the number of variables */
 static
 SCIP_DECL_CONSGETNVARS(consGetNVarsSdp)
 {/*lint --e{715}*/
