@@ -36,6 +36,7 @@
  * @author Tristan Gally
  *
  * Branch on the variable with the highest absolute objective coefficient in the SDP.
+ *
  * Will do nothing for continuous variables, since these are what the external callbacks of the SCIP branching rules are for.
  */
 

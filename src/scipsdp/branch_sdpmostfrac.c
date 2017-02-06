@@ -35,6 +35,7 @@
  * @author Tristan Gally
  *
  * Branch on the most fractional variable in the current SDP-relaxation, i.e. the variable maximizing \f$x-\lfloor x \rfloor \f$.
+ *
  * Will do nothing for continuous variables, since these are what the external callbacks of the SCIP branching rules are for.
  */
 

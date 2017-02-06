@@ -36,6 +36,7 @@
  * @author Tristan Gally
  *
  * Branch on the most infeasible variable in the current SDP-relaxation, i.e. the variable maximizing \f$\max\{x - \lfloor x \rfloor, \lceil x \rceil - x\} \f$.
+ *
  * Will do nothing for continuous variables, since these are what the external callbacks of the SCIP branching rules are for.
  */
 
