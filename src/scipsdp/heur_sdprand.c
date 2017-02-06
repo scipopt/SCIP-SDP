@@ -62,7 +62,7 @@
  * Default parameter settings
  */
 
-#define DEFAULT_NROUNDS                 2    /**< number rounding rounds */
+#define DEFAULT_NROUNDS                 2    /**< default number of rounding rounds */
 #define DEFAULT_GENERALINTS             FALSE/**< Should randomized rounding also be applied if there are general integer variables and not only binary variables ? */
 #define DEFAULT_RANDSEED                211  /**< default random seed */
 
