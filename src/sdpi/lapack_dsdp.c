@@ -52,7 +52,7 @@
 /* turn off lint warnings for whole file: */
 /*lint --e{788,818}*/
 
-/** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY */
+/** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMORY */
 #define BMS_CALL(x)   do                                                                                      \
                       {                                                                                       \
                           if( NULL == (x) )                                                                   \

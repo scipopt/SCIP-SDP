@@ -82,7 +82,7 @@
 #define MAX_MAXPENALTYPARAM         1e15     /**< if the maximum penaltyparameter is to be computed, this is the maximum value it will take */
 #define MAXPENALTYPARAM_FACTOR      1e6      /**< if the maximum penaltyparameter is to be computed, it will be set to penaltyparam * this */
 
-/** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY. */
+/** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMORY. */
 #define BMS_CALL(x)   do                                                                                     \
                       {                                                                                      \
                          if( NULL == (x) )                                                                   \

@@ -55,7 +55,7 @@
 typedef long long int LAPACKINTTYPE;
 #define SDPA_VERSION          738
 
-/** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMRY */
+/** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMORY */
 #define BMS_CALL(x)   do                                                                                      \
                       {                                                                                       \
                           if( NULL == (x) )                                                                   \
