@@ -327,7 +327,7 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
          /* only update if we improved the bound by at least gaptol, everything else might be inexactness of the solver */
          if ( SCIPisGT(scip, probingval - propdata->sdpsolvergaptol, SCIPvarGetLbLocal(vars[v])) )
          {
-            /* update bound TODO: check if this works or needs to be done outside of probing */
+            /* update bound */
             SCIPdebugMessage("Obbt-Sdp tightened lower bound of variable %s from %f to %f !\n",
                   SCIPvarGetName(vars[v]), SCIPvarGetLbLocal(vars[v]), probingval - propdata->sdpsolvergaptol);
 
