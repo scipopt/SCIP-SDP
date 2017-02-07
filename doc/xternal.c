@@ -43,22 +43,33 @@
  * @author Tristan Gally, Marc Pfetsch; Sonja Mars, Lars Schewe
  * @date 2011-2017
  *
- * SCIP-SDP is a plugin for SCIP to solve mixed integer semidefinite programs (MISDPs). It combines the branch-and-bound
- * framework of SCIP with interior-point SDP-solvers. It provides the data handling, some presolving and propagation as
- * well as a reader for a modified sparse SDPA-format with additional lines for integrality constraints (see 
- * data_format.txt). It is possible to solve the resulting SDP-relaxations using a linear approximation procedure, but for
- * full functionality one of the following SDP-solvers needs to be installed:
+ * SCIP-SDP is a plugin for SCIP to solve mixed integer semidefinite programs (MISDPs) of the form
+ *
+ *   \f{equation*}{
+ * 	\begin{aligned}
+ *      \inf \quad & b^T y && \\
+ *      \mbox{s.t.} \quad & \sum_{i = 1}^m A_i y_i - A_0 \succeq 0,&& \\
+ *      & \ell_i \leq y_i \leq u_i && \forall \ i = 1, ..., m, \\
+ *	& y_i \in \mathbb{Z} && \forall \ i \in \mathcal{I}.
+ *	\end{aligned}
+ *   \f}
+ *
+ * It combines the branch-and-bound framework of SCIP with interior-point SDP-solvers to solve MISDPs using either a
+ * nonlinear branch-and-bound approach or an outer-approximation-based cutting-plane approach. In addition to providing
+ * a constraint handler for SDP-constraints and a relaxator to solve continuous SDP-relaxations using interior-point
+ * solvers, SCIPSDP adds several heuristics and propagators to SCIP. The MISDPs can be read in using either an extended
+ * SDPA-format or the CBF-format. To use the nonlinear branch-and-bound approach one of the following SDP-solvers needs
+ * to be installed:
  *
  * - DSDP
  * - SDPA
+ * - MOSEK
  *
  * The solution process of interior-point methods for SDPs is highly dependent on the Slater condition. One of the main
- * purposes of the code is ensuring that the slater condition is not harmed by fixing variables in the branch-and-bound
- * process. However in some cases the combination of variable fixings and specific linear or semidefinite constraints might
- * still lead to relaxations for which the Slater condition no longer holds. In this case the SDP-solvers may be unable to
- * solve the relaxations or even return wrong results, which cannot be compensated. For this purpose there is the 
- * possibility to check the Slater condition for the primal and dual problem before the solution of each SDP by setting a 
- * SCIP parameter, for details see the parameters tab.
+ * purposes of the code is handling cases where the Slater condition does not hold using a penalty approach. However, in
+ * some cases the SDP-solvers may still fail because of numerical difficulties or even return wrong results, which cannot
+ * be compensated. For this purpose there is the possibility to check the Slater condition for the primal and dual problem
+ * before the solution of each SDP by setting a SCIP parameter, for details see the parameters tab.
  */
 
 /** @page PARAMETERS Additional Parameters
