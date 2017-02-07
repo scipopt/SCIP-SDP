@@ -25,8 +25,6 @@ tar --no-recursion --ignore-failed-read -cvzhf $NAME.tgz \
     $NAME/sdpa_format.txt \
     $NAME/src/scipsdp/*.c $NAME/src/scipsdp/*.cpp $NAME/src/scipsdp/*.h \
     $NAME/src/sdpi/*.c $NAME/src/sdpi/*.cpp $NAME/src/sdpi/*.h \
-    $NAME/check/*.sh \
-    $NAME/check/*.awk \
     $NAME/check/testset/short.test \
     $NAME/check/testset/short.solu \
     $NAME/settings/lp_approx.set
