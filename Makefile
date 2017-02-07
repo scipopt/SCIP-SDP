@@ -171,14 +171,10 @@ ifeq ($(SDPS),msk)
 BITEXT     =  $(word 2, $(subst _, ,$(ARCH)))
 SDPIINC		= 	-I$(SCIPSDPLIBDIR)/include/mosekh
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/mosekh
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT).8.0
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/shared/libiomp5.$(SHAREDLIBEXT)
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/shared/libcilkrts.$(SHAREDLIBEXT).5
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT)
 SDPIINSTMSG	=	"  -> \"mosekh\" is the path to the MOSEK \"h\" directory, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/h\".\n"
 SDPIINSTMSG	+=	" -> \"libmosek$(BITEXT).*\" is the path to the MOSEK library, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/bin/libmosek$(BITEXT).$(SHAREDLIBEXT).8.0\".\n"
-SDPIINSTMSG	+=	" -> \"libiomp.*\" is the path to the Intel OMP library, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/bin/libiomp5.$(SHAREDLIBEXT).$(SHAREDLIBEXT)\".\n"
-SDPIINSTMSG	+=	" -> \"libcilkrts.*\" is the path to the Intel Cilk library, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/bin/libcilkrts.$(SHAREDLIBEXT).5\".\n"
-SDPILIB		= 	-m$(BITEXT) $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT).8.0 -Wl,-rpath=$(SCIPSDPDIR)/$(SCIPSDPLIBDIR)/shared -llapack -lblas -pthread -lc -lm
+SDPILIB		= 	-m$(BITEXT) $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT) -Wl,-rpath=$(dir $(realpath $(SCIPSDPDIR)/$(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) -llapack -lblas -pthread -lc -lm
 SDPICSRC 	= 	src/sdpi/sdpisolver_mosek.c src/sdpi/lapack_dsdp.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_mosek.o $(OBJDIR)/sdpi/lapack_dsdp.o
 endif
