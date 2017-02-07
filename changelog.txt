@@ -11,7 +11,7 @@ fixed bugs:
 - input values are now checked against epsilon instead of feastol for detecting nonzeros
 - only fix variables locally if lb-ub < epsilon instead of feastol
 - feasibility is no longer checked against sdpsolverfeastol but instead against feastol everywhere
-  (sdpsolverfeastol is now only used for communicating with the SDP-solver)
+  (sdpsolverfeastol is now only used internally for the SDP-solver)
 - immediately resolve SDP-relaxations if the required tolerance was not met by the solver
 - fixed a problem which could lead to errors when the sdpredcost-propagator asked for information
   after the SDP-solver hit the SCIP-timelimit
