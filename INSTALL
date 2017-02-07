@@ -6,11 +6,12 @@ Install-instructions
 Additional Software
 ------------------------------------
 For using the SDP-Plugin for SCIP you need an installed and fully working version
-of SCIP 3.2 (http://scip.zib.de/) or higher. Additionally you should install at
-least one of the following SDP-Solvers:
+of SCIP 4.0 (http://scip.zib.de/) or higher. Additionally you may want to install
+at least one of the following SDP-Solvers:
 
 DSDP 5.8 (http://www.mcs.anl.gov/hs/software/DSDP/).
 SDPA 7.3.8 (http://sdpa.sourceforge.net/)
+MOSEK 8.0.0.x (https://www.mosek.com/)
 
 Build SDP-Plugin
 ----------------
@@ -20,13 +21,13 @@ SCIP directory in the lib-subdirectory, this can be done via
 
 mkdir lib
 cd lib
-ln -s /home/username/scipoptsuite-3.2.1/scip-3.2.1/ scip
+ln -s /home/username/scipoptsuite-4.0/scip-4.0/ scip
 cd ..
 
-if /home/username/scipoptsuite-3.2.1/scip-3.2.1 is the path to your SCIP directory.
+if /home/username/scipoptsuite-4.0/scip-4.0 is the path to your SCIP directory.
 Afterwards you can use "make" to compile the plugin. For SCIP-SDP the option SDPS
 is mandatory, it defines the SDP-solver that should be used. You can choose between
-dsdp, sdpa and none. In the latter case you can then only use LP-relaxations with
+dsdp, sdpa, msk and none. In the latter case you can only use LP-relaxations with
 additional cutting planes enforcing the positive semidefiniteness and need to
 disable SDP-relaxations by setting the relaxing/SDP/freq to -1 and lp/solvefreq
 to 1. So for example to compile SCIP-SDP with DSDP, just type
@@ -34,8 +35,8 @@ to 1. So for example to compile SCIP-SDP with DSDP, just type
 make SDPS=dsdp
 
 in the main directory. Furthermore, you may need to set OMP=false if you do not have
-OpenMP. This then disables the possibility to set the number of threads dynamically
-via SCIP-parameter for SDPA/openblas. Additionally, you can use the same options for the 
+OpenMP. This disables the possibility to set the number of threads dynamically via
+SCIP-parameter for SDPA/openblas. Additionally, you can use the same options for the 
 Makefile as you can use for building SCIP (i.e. make SDPS=sdpa OPT=dbg LPS=cpx), note that 
 a compiled SCIP binary with the same settings needs to exist in the linked path. You may 
 also create a doxygen-documentation by calling i.e. make OPT=dbg SDPS=dsdp doc.
@@ -91,6 +92,23 @@ you do need to link to both lib and libseq for mumps):
 > Enter soft-link target file or directory for "lib/libopenblas.so.0" (return if not needed): 
 > /home/username/openblas/lib/libopenblas.so.0 
 
+Setting Links for MOSEK
+----------------------
+
+For SDPS=msk the following links need to be set:
+
+- preparing missing soft-link "lib/include/mosekh":
+> Enter soft-link target file or directory for "lib/include/mosekh" (return if not needed):
+> /home/username/mosek/8/tools/platform/linux64x86/h/
+
+- preparing missing soft-link "lib/shared/libmosek64.so":
+> Enter soft-link target file or directory for "lib/shared/libmosek64.so" (return if not needed): 
+> /home/username/mosek/8/tools/platform/linux64x86/bin/libmosek64.so
+
+- preparing missing soft-link "lib/shared/libiomp5.so":
+> Enter soft-link target file or directory for "lib/shared/libiomp5.so" (return if not needed): 
+> /home/username/mosek/8/tools/platform/linux64x86/bin/libiomp5.so
+
 Testing the Installation
 ------------------------
 
@@ -141,3 +159,15 @@ Alternatively, if you have OpenMP, you may also compile SCIP-SDP with OMP=true (
 the default for SDPS=sdpa). Then you can change the number of threads via SCIP-parameter:
 
 set constraints SDP advanced threads n
+
+Parallelization for MOSEK
+------------------------
+
+If you compiled SCIP-SDP with MOSEK, the SDP-solver of MOSEK can be run multithreaded using
+the parameter
+
+set relaxing SDP advanced sdpsolverthreads n
+
+By default this parameter is set to -1 to automatically detect the number of cores. Note that
+this will only parallelize the solution of the SDP-relaxations but not the eigenvalue
+computations in SCIP-SDP, unlike the parallelization for OpenBLAS/SDPA.
