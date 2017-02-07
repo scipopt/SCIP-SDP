@@ -50,3 +50,4 @@ test.set
 TODOs
 TrussTopology/*
 unboundedGrowth.dat-s
+/src/scipsdpgithash.c
