@@ -95,7 +95,9 @@ you do need to link to both lib and libseq for mumps):
 Setting Links for MOSEK
 ----------------------
 
-For SDPS=msk the following links need to be set:
+For SDPS=msk the following links need to be set, where /home/username/mosek is the path to the
+mosek directory. Please note that the omp and cilk (for MOSEK 8) libraries must be available
+in the same directory given for the mosek library.
 
 - preparing missing soft-link "lib/include/mosekh":
 > Enter soft-link target file or directory for "lib/include/mosekh" (return if not needed):
@@ -104,10 +106,6 @@ For SDPS=msk the following links need to be set:
 - preparing missing soft-link "lib/shared/libmosek64.so":
 > Enter soft-link target file or directory for "lib/shared/libmosek64.so" (return if not needed): 
 > /home/username/mosek/8/tools/platform/linux64x86/bin/libmosek64.so
-
-- preparing missing soft-link "lib/shared/libiomp5.so":
-> Enter soft-link target file or directory for "lib/shared/libiomp5.so" (return if not needed): 
-> /home/username/mosek/8/tools/platform/linux64x86/bin/libiomp5.so
 
 Testing the Installation
 ------------------------
