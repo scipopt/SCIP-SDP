@@ -97,7 +97,7 @@ Setting Links for MOSEK
 
 For SDPS=msk the following links need to be set, where /home/username/mosek is the path to the
 mosek directory. Please note that the omp and cilk (for MOSEK 8) libraries must be available
-in the same directory given for the mosek library.
+in the same directory as the given mosek library.
 
 - preparing missing soft-link "lib/include/mosekh":
 > Enter soft-link target file or directory for "lib/include/mosekh" (return if not needed):
