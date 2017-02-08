@@ -2786,7 +2786,16 @@ SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
 
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
-   assert( consdata->nnonz > 0 );
+
+   /* If there are no nonzeros, we cannot use the usual formula, since it divides through the number of nonzeros. In this case,
+    * however, we will not solve an SDP anyways but at most an LP (more likely the problem will be solved in local presolving,
+    * if all variables are fixed and not only those in the SDP-part), so we just take the default value of SDPA.
+    */
+   if ( consdata->nnonz == 0 )
+   {
+      *lambdastar = 100.0;
+      return SCIP_OKAY;
+   }
 
    blocksize = consdata->blocksize;
 
