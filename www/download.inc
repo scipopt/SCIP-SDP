@@ -9,4 +9,5 @@ The files you can download here come without any warranty. Use at your own risk!
 <ul>
 <li><a href="http://www.opt.tu-darmstadt.de/scipsdp/downloads/scipsdp-2.1.0.tgz">scipsdp-2.1.0.tgz</a></li>
 <li><a href="http://www.opt.tu-darmstadt.de/scipsdp/downloads/scipsdp-2.0.0.tgz">scipsdp-2.0.0.tgz</a></li>
+<li><a href="http://wwwopt.mathematik.tu-darmstadt.de/scipsdp/SCIPSDP1/SCIP_SDP.zip">scipsdp-1.0.zip</a></li>
 </ul>
