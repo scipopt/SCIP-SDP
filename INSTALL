@@ -6,7 +6,7 @@ Install-instructions
 Additional Software
 ------------------------------------
 For using the SDP-Plugin for SCIP you need an installed and fully working version
-of SCIP 4.0 (http://scip.zib.de/) or higher. Additionally you may want to install
+of SCIP 4.0.0 (http://scip.zib.de/) or higher. Additionally you may want to install
 at least one of the following SDP-Solvers:
 
 DSDP 5.8 (http://www.mcs.anl.gov/hs/software/DSDP/).
@@ -21,10 +21,10 @@ SCIP directory in the lib-subdirectory, this can be done via
 
 mkdir lib
 cd lib
-ln -s /home/username/scipoptsuite-4.0/scip-4.0/ scip
+ln -s /home/username/scipoptsuite-4.0.0/scip-4.0.0/ scip
 cd ..
 
-if /home/username/scipoptsuite-4.0/scip-4.0 is the path to your SCIP directory.
+if /home/username/scipoptsuite-4.0.0/scip-4.0.0 is the path to your SCIP directory.
 Afterwards you can use "make" to compile the plugin. For SCIP-SDP the option SDPS
 is mandatory, it defines the SDP-solver that should be used. You can choose between
 dsdp, sdpa, msk and none. In the latter case you can only use LP-relaxations with
