@@ -130,6 +130,12 @@ pFEAS_dINF criteria :: line 1211 in sdpa_parts.cpp
 between the SCIP output. This is output given by SDPA whenever a problem is infeasible
 and cannot be deactivated. Within a branch-and-bound context it is normal for infeasible
 problems to appear, so this is not a sign of an unsuccessfull installation or a bug.
+Furthermore, make test currently only works if SDPS is not "none". You can still run the
+shell if installing SCIP-SDP with SDPS=none and it is also possible to use the test scripts
+with the lp_approx settings disabling the SDP-solving, just the combination of SDPS=none
+and the testscripts does not work (this issue is caused by SCIP-SDP naming the results files
+using the SDPS instead of the LPS setting, which causes SCIP to automatically disable LP solving
+in case SDPS=none).
 
 Usage of SCIP-SDP
 -----------------
