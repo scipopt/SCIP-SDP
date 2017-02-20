@@ -488,7 +488,7 @@ test:
 		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_cluster.sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_set.sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_logfiles.sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_tmpfile_setup_scip.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_tmpfile_setup_scip.sh configuration_tmpfile_setup_$(MAINNAME).sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/run.sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/runcluster.sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/testfiles.sh);
@@ -513,7 +513,7 @@ testcluster:
 		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_cluster.sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_set.sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_logfiles.sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_tmpfile_setup_scip.sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_tmpfile_setup_scip.sh configuration_tmpfile_setup_$(MAINNAME).sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/run.sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/runcluster.sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/testfiles.sh);
