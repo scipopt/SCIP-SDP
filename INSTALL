@@ -34,8 +34,8 @@ to 1. So for example to compile SCIP-SDP with DSDP, just type
 
 make SDPS=dsdp
 
-in the main directory. Furthermore, you may need to set OMP=false if you do not have
-OpenMP. This disables the possibility to set the number of threads dynamically via
+in the main directory. Furthermore, for SDPA you may need to set OMP=false if you do not 
+have OpenMP. This disables the possibility to set the number of threads dynamically via
 SCIP-parameter for SDPA/openblas. Additionally, you can use the same options for the 
 Makefile as you can use for building SCIP (e.g., make SDPS=sdpa OPT=dbg LPS=cpx), note that 
 a compiled SCIP binary with the same settings needs to exist in the linked path. You may 
@@ -149,7 +149,8 @@ followed by
 optimize
 
 as in the usual SCIP shell (for more details about the SCIP shell please refer to the SCIP 
-documentation and FAQ). You can test this with the examples in the "instances"-subfolder.
+documentation and FAQ). Alternatively, CBF-Files can be used as well. You can test this with
+the examples in the "instances"-subfolder.
 
 Parallelization for SDPA
 ------------------------
