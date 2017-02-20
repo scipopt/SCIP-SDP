@@ -20,8 +20,6 @@ features:
 - readded "diagzeroimpl" cuts in presolving which enforce nonzero diagonal entries if a nonzero
   entry exists in the constant matrix for the corresponding row or column (under some prerequisites)
 
-performance improvements:
-
 interface:
 - added interface to MOSEK
 - added reader for CBF format
@@ -38,8 +36,6 @@ parameters:
 core:
 - adjusted SCIP-SDP to new enforelax callback in SCIP; this now allows to combine SCIP-SDP with other nonlinear
   constraints/constraint handlers
-
-misc:
 
 makefile:
 - set links to mumps libraries instead of library folder
