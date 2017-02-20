@@ -59,8 +59,9 @@ DSDP (assuming an installation path of /home/username/DSDP5.8 ) you need to ente
 Setting Links for SDPA
 ----------------------
 
-In case of SDPA you also need to install openblas and set the following links. Please note
-that you do not need to give the link to libsdpa.so if you linked to libsdpa.a.
+In case of SDPA you also need to link to openblas and mumps (these should be the same versions
+used to build SDPA). Please note that you do not need to give the link to libsdpa.so if you
+linked to libsdpa.a.
 
 - preparing missing soft-link "lib/include/sdpainc":
 > Enter soft-link target file or directory for "lib/include/sdpainc" (return if not needed): 
