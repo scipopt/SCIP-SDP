@@ -982,7 +982,7 @@ SCIP_RETCODE CBFreadDcoord(
                {
                   data->sdpconstrow[b][data->sdpconstnblocknonz[b]] = row;
                   data->sdpconstcol[b][data->sdpconstnblocknonz[b]] = col;
-                  data->sdpconstval[b][data->sdpconstnblocknonz[b]] = val;
+                  data->sdpconstval[b][data->sdpconstnblocknonz[b]] = -val;
                   data->sdpconstnblocknonz[b]++;
                }
             }
@@ -1876,7 +1876,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 
       for (i = 0; i < sdpconstnnonz; i++)
       {
-         SCIPinfoMessage(scip, file, "%d %d %d %.9f\n", consind, sdpconstrow[i], sdpconstcol[i], sdpconstval[i]);
+         SCIPinfoMessage(scip, file, "%d %d %d %.9f\n", consind, sdpconstrow[i], sdpconstcol[i], -1* sdpconstval[i]);
       }
       consind++;
    }
