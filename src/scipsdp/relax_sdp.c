@@ -73,6 +73,7 @@
 #define DEFAULT_RESOLVE             TRUE     /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
 #define DEFAULT_TIGHTENVB           TRUE     /**< Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ? */
 #define DEFAULT_SDPINFO             FALSE    /**< Should the SDP solver output information to the screen? */
+#define DEFAULT_WARMSTART           TRUE     /**< Should the SDP solver try to use warmstarts? */
 #define DEFAULT_DISPLAYSTAT         TRUE     /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
 #define DEFAULT_SETTINGSRESETFREQ   -1       /**< frequency for resetting parameters in SDP solver and trying again with fastest settings */
 #define DEFAULT_SETTINGSRESETOFS    0        /**< frequency offset for resetting parameters in SDP solver and trying again with fastest settings */
@@ -105,6 +106,7 @@ struct SCIP_RelaxData
    int                   slatercheck;        /**< Should the Slater condition for the dual problem be check ahead of solving every SDP ? */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             displaystat;        /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
+   SCIP_Bool             warmstart;          /**< Should the SDP solver try to use warmstarts? */
    SCIP_Bool             objlimit;           /**< Should an objective limit be given to the SDP solver? */
    SCIP_Bool             resolve;            /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
    SCIP_Bool             tightenvb;          /**< Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ? */
@@ -667,9 +669,9 @@ SCIP_RETCODE calcRelax(
     * to check the Slater condition in this case */
    enforceslater = SCIPisInfinity(scip, -1 * SCIPnodeGetLowerbound(SCIPgetCurrentNode(scip)));
 
-   /* solve the problem */
-   if (!SCIPnodeGetParent(SCIPgetCurrentNode(scip)))
-      SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, startsetting, enforceslater, timelimit)); /* we are in the root node, so there is no chance for a warmstart */
+   /* solve the problem (using warmstarts if parameter is true and we are not in the root node) */
+   if ( ( ! SCIPnodeGetParent(SCIPgetCurrentNode(scip))) || ( ! relaxdata->warmstart ))
+      SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, startsetting, enforceslater, timelimit));
    else
    {
       SCIP_CONSHDLR* conshdlr;
@@ -693,7 +695,7 @@ SCIP_RETCODE calcRelax(
       /* get constraints */
       conss = SCIPconshdlrGetConss(conshdlr);
 
-      assert ( conss != NULL );
+      assert ( conss != NULL ); //TODO: take care of case that parent node was not solved successfully
       assert ( conss[0] != NULL );
 
       /* because of stickingtonode we should only have one constraint of this type */
@@ -969,6 +971,7 @@ SCIP_RETCODE calcRelax(
       {
          SCIP_SOL* scipsol;
          int slength;
+         SCIP_CONS* savedcons;
 
          /* get solution w.r.t. SCIP variables */
          SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
@@ -992,6 +995,14 @@ SCIP_RETCODE calcRelax(
 
          relaxdata->feasible = TRUE;
          *result = SCIP_SUCCESS;
+
+         /* save solution for warmstarts */
+         if ( relaxdata->warmstart )
+         {
+            SCIP_CALL( createConsSavesdpsol(scip, &savedcons, "saved relaxation sol", nvars, solforscip) );
+            SCIP_CALL( SCIPaddCons(scip, savedcons) );
+            SCIP_CALL( SCIPreleaseCons(scip, &savedcons) );
+         }
 
          SCIPfreeBufferArray(scip, &solforscip);
          SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
@@ -1769,6 +1780,10 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/sdpinfo",
          "Should the SDP solver output information to the screen?",
          &(relaxdata->sdpinfo), TRUE, DEFAULT_SDPINFO, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstart",
+         "Should the SDP solver try to use warmstarts?",
+         &(relaxdata->warmstart), TRUE, DEFAULT_WARMSTART, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/objlimit",
          "Should an objective limit be given to the SDP-Solver?",
