@@ -51,6 +51,7 @@
 #include "SdpVarmapper.h"
 #include "sdpi/sdpi.h"
 #include "scipsdp/cons_sdp.h"
+#include "scipsdp/cons_savesdpsol.h"
 #include "scipsdp/cons_savedsdpsettings.h"
 
 /* turn off lint warnings for whole file: */
@@ -667,7 +668,57 @@ SCIP_RETCODE calcRelax(
    enforceslater = SCIPisInfinity(scip, -1 * SCIPnodeGetLowerbound(SCIPgetCurrentNode(scip)));
 
    /* solve the problem */
-   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, startsetting, enforceslater, timelimit) );
+   if (!SCIPnodeGetParent(SCIPgetCurrentNode(scip)))
+      SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, startsettings, enforceslater, timelimit)); /* we are in the root node, so there is no chance for a warmstart */
+   else
+   {
+      SCIP_CONSHDLR* conshdlr;
+      SCIP_Real* start;
+      int length;
+
+      /* find starting solution as optimal solution of parent node */
+
+      /* allocate memory */
+      SCIP_CALL( SCIPallocBufferArray(scip, &start, nvars) );
+
+      /* get constraint handler */
+      conshdlr = SCIPfindConshdlr(scip, "Savesdpsol");
+      if ( conshdlr == NULL )
+      {
+         SCIPerrorMessage("Savesdpsol constraint handler not found\n");
+         return SCIP_PLUGINNOTFOUND;
+      }
+
+      /* get constraints */
+      conss = SCIPconshdlrGetConss(conshdlr);
+
+      assert ( conss != NULL );
+      assert ( conss[0] != NULL );
+
+      /* because of stickingtonode we should only have one constraint of this type */
+      //assert( SCIPconshdlrGetNConss(conshdlr) == 1 );
+
+      /* get the solution */
+      length = nvars;
+      SCIP_CALL( getStartingPoint(scip, conss[0], start, &length) );
+
+      /* make sure that the memory was sufficient (this has to be the case as length = nvars */
+      assert ( length <= nvars );
+
+      /* check if start is still feasible for the variable bounds, otherwise round it */
+      for (i = 0; i < nvars; i++)
+      {
+         if (start[i] < SCIPvarGetLbLocal(SdpVarmapperGetSCIPvar(varmapper, i)))
+            start[i] = SCIPvarGetLbLocal(SdpVarmapperGetSCIPvar(varmapper, i));
+         else if (start[i] > SCIPvarGetUbLocal(SdpVarmapperGetSCIPvar(varmapper, i)))
+            start[i] = SCIPvarGetUbLocal(SdpVarmapperGetSCIPvar(varmapper, i));
+      }
+
+      /* solve with given starting point */
+      SCIP_CALL(SCIPsdpiSolve(sdpi, start));
+
+      SCIPfreeBufferArray(scip, &start);
+   }
    relaxdata->lastsdpnode = SCIPnodeGetNumber(SCIPgetCurrentNode(scip));
 
    /* update calls, iterations and stability numbers (only if the SDP-solver was actually called) */
