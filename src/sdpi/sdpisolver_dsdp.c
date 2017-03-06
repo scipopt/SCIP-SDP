@@ -1321,9 +1321,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* set the starting solution */
    if ( start != NULL )
    {
-      for (i = 1; i <= sdpisolver->nactivevars; i++) /* we iterate over the variables in DSDP */
+      for (i = 0; i < sdpisolver->nactivevars; i++) /* we iterate over the variables in DSDP */
       {
-         DSDP_CALL( DSDPSetY0(sdpisolver->dsdp, i, start[sdpisolver->dsdptoinputmapper[i]]) );
+         DSDP_CALL( DSDPSetY0(sdpisolver->dsdp, i + 1, start[sdpisolver->dsdptoinputmapper[i]]) ); /* i+1 since DSDP uses indices 1 to n */
       }
    }
 
