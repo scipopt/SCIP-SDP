@@ -89,6 +89,22 @@ SCIP_DECL_CONSDELETE(consDeleteSavesdpsol)
 
 /** constraint enforcing method of constraint handler for LP solutions */
 static
+SCIP_DECL_CONSENFORELAX(consEnforelaxSavesdpsol)
+{
+   assert( scip != NULL );
+   assert( conshdlr != NULL );
+   assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
+   assert( result != NULL );
+
+   /* do nothing */
+   *result = SCIP_FEASIBLE;
+
+   return SCIP_OKAY;
+}
+
+
+/** constraint enforcing method of constraint handler for LP solutions */
+static
 SCIP_DECL_CONSENFOLP(consEnfolpSavesdpsol)
 {
    assert( scip != NULL );
@@ -195,6 +211,7 @@ SCIP_RETCODE SCIPincludeConshdlrSavesdpsol(
    /* set additional callbacks */
    SCIP_CALL( SCIPsetConshdlrDelete(scip, conshdlr, consDeleteSavesdpsol) );
    SCIP_CALL( SCIPsetConshdlrCopy(scip, conshdlr, conshdlrCopySavesdpsol, consCopySavesdpsol) );
+   SCIP_CALL( SCIPsetConshdlrEnforelax(scip, conshdlr, consEnforelaxSavesdpsol) );
 
    return SCIP_OKAY;
 }
