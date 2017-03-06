@@ -669,12 +669,13 @@ SCIP_RETCODE calcRelax(
 
    /* solve the problem */
    if (!SCIPnodeGetParent(SCIPgetCurrentNode(scip)))
-      SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, startsettings, enforceslater, timelimit)); /* we are in the root node, so there is no chance for a warmstart */
+      SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, startsetting, enforceslater, timelimit)); /* we are in the root node, so there is no chance for a warmstart */
    else
    {
       SCIP_CONSHDLR* conshdlr;
       SCIP_Real* start;
       int length;
+      int v;
 
       /* find starting solution as optimal solution of parent node */
 
@@ -706,16 +707,16 @@ SCIP_RETCODE calcRelax(
       assert ( length <= nvars );
 
       /* check if start is still feasible for the variable bounds, otherwise round it */
-      for (i = 0; i < nvars; i++)
+      for (v = 0; v < nvars; v++)
       {
-         if (start[i] < SCIPvarGetLbLocal(SdpVarmapperGetSCIPvar(varmapper, i)))
-            start[i] = SCIPvarGetLbLocal(SdpVarmapperGetSCIPvar(varmapper, i));
-         else if (start[i] > SCIPvarGetUbLocal(SdpVarmapperGetSCIPvar(varmapper, i)))
-            start[i] = SCIPvarGetUbLocal(SdpVarmapperGetSCIPvar(varmapper, i));
+         if (start[v] < SCIPvarGetLbLocal(SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, v)))
+            start[v] = SCIPvarGetLbLocal(SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, v));
+         else if (start[v] > SCIPvarGetUbLocal(SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, v)))
+            start[v] = SCIPvarGetUbLocal(SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, v));
       }
 
       /* solve with given starting point */
-      SCIP_CALL(SCIPsdpiSolve(sdpi, start));
+      SCIP_CALL(SCIPsdpiSolve(sdpi, start, startsetting, enforceslater, timelimit));
 
       SCIPfreeBufferArray(scip, &start);
    }
