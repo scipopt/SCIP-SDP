@@ -1,11 +1,11 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /*                                                                           */
 /* This file is part of SCIPSDP - a solving framework for mixed-integer      */
-/* semidefinite programms based on SCIP.                                     */
+/* semidefinite programs based on SCIP.                                      */
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014      Discrete Optimization, TU Darmstadt               */
+/*               2014-2017 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or             */
@@ -24,17 +24,22 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2014 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2017 Zuse Institute Berlin                             */
 /* SCIP is distributed under the terms of the SCIP Academic Licence,         */
 /* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   cons_sdp.h
- * @brief  constraint handler for SDPs
+ * @brief  Constraint handler for SDP-constraints
  * @author Sonja Mars
  * @author Lars Schewe
  * @author Tristan Gally
+ *
+ * Constraint handler for semidefinite constraints of the form \f$ \sum_{j=1}^n A_j y_j - A_0 \succeq 0 \f$,
+ * where the matrices \f$A_j\f$ and \f$A_0\f$ need to be symmetric. Only the nonzero entries of the matrices
+ * are stored.
+ *
  */
 
 #ifndef __SCIP_CONSHDLR_SDP_H__
@@ -47,74 +52,80 @@
 extern "C" {
 #endif
 
-/** creates the handler for sdp constraints and includes it in SCIP */
+/** creates the handler for SDP constraints and includes it in SCIP */
 EXTERN
 SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP*                 scip                /**< SCIP data structure */
    );
 
-/** sort given arrays by nondecreasing rows and then cols */
+/** creates an SDP-constraint */
 EXTERN
-SCIP_RETCODE SCIPconsSDPsortRowsCols(
-   int*                  row,                /** array of row indices, will be returned in nondecreasing order */
-   int*                  col,                /** array of col indices, for equal rows this will be the tiebreaker */
-   SCIP_Real*            val,                /** this will be returned in the order of row and col */
-   int                   maxrow,             /** maximum value in the row array (values should go from 0 to maxrow */
-   int                   length              /** length of the arrays that should be sorted */
-   );
-
-/**creates an sdp-constraint*/
 SCIP_RETCODE SCIPcreateConsSdp(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
    const char*           name,               /**< name of constraint */
    int                   nvars,              /**< number of variables in this SDP constraint */
-   int                   nnonz,              /**< number of nonzeroes in this SDP constraint */
+   int                   nnonz,              /**< number of nonzeros in this SDP constraint */
    int                   blocksize,          /**< size of this SDP-block */
    int*                  nvarnonz,           /**< number of nonzeros for each variable, also length of the arrays col/row/val point to */
    int**                 col,                /**< pointer to column indices of the nonzeros for each variable */
    int**                 row,                /**< pointer to row indices of the nonzeros for each variable */
-   SCIP_Real**           val,                /**< pointer to values of the nonzeroes for each variable */
-   SCIP_Var**            vars,               /**< SCIP_Variables present in this SDP constraint, ordered by their begvar-indices */
-   int                   constnnonz,         /**< number of nonzeroes in the constant part of this SDP constraint */
-   int*                  constcol,           /**< column indices of the constant nonzeroes */
-   int*                  constrow,           /**< row indices of the constant nonzeroes */
-   SCIP_Real*            constval            /**< values of the constant nonzeroes */
+   SCIP_Real**           val,                /**< pointer to values of the nonzeros for each variable */
+   SCIP_VAR**            vars,               /**< SCIP_VARiables present in this SDP constraint that correspond to the indices in col/row/val */
+   int                   constnnonz,         /**< number of nonzeros in the constant part of this SDP constraint */
+   int*                  constcol,           /**< column indices of the constant nonzeros */
+   int*                  constrow,           /**< row indices of the constant nonzeros */
+   SCIP_Real*            constval            /**< values of the constant nonzeros */
    );
 
 /** get the data belonging to a single SDP-constraint
- *  in arraylength the length of the nvarnonz, col, row and val arrays has to be given, if it is not sufficient to store all block-pointers that
- *  need to be inserted, a debug message will be thrown and this variable will be set to the needed length
- *  constnnonz should give the length of the const arrays, if it is too short it will also give the needed number and a debug message is thrown */
+ *
+ *  In arraylength the length of the nvarnonz, col, row and val arrays has to be given, if it is not sufficient to store all block-pointers that
+ *  need to be inserted, a debug message will be thrown and this variable will be set to the needed length.
+ *  constnnonz should give the length of the const arrays, if it is too short it will also give the needed number and a debug message is thrown.
+ */
 EXTERN
 SCIP_RETCODE SCIPconsSdpGetData(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< SDP constraint to get data of */
-   int*                  nvars,              /**< number of variables in this SDP constraint */
-   int*                  nnonz,              /**< number of nonzeroes in this SDP constraint */
-   int*                  blocksize,          /**< size of this SDP-block */
+   int*                  nvars,              /**< pointer to store the number of variables in this SDP constraint */
+   int*                  nnonz,              /**< pointer to store the number of nonzeros in this SDP constraint */
+   int*                  blocksize,          /**< pointer to store the size of this SDP-block */
    int*                  arraylength,        /**< length of the given nvarnonz, col, row and val arrays, if this is too short this will return the needed length*/
-   int*                  nvarnonz,           /**< number of nonzeros for each variable, also length of the arrays col/row/val are pointing to */
-   int**                 col,                /**< pointers to column indices of the nonzeroes for each variable */
-   int**                 row,                /**< pointers to row indices of the nonzeroes for each variable */
-   SCIP_Real**           val,                /**< pointers to values of the nonzeroes for each variable */
-   SCIP_Var**            vars,               /**< the SCIP variables present in this constraint, indexing equals indices in col/row/val */
-   int*                  constnnonz,         /**< number of nonzeroes in the constant part of this SDP constraint, also length of the const arrays */
-   int*                  constcol,           /**< pointer to column indices of the constant nonzeroes */
-   int*                  constrow,           /**< pointer to row indices of the constant nonzeroes */
-   SCIP_Real*            constval            /**< pointer to values of the constant nonzeroes */
+   int*                  nvarnonz,           /**< pointer to store the number of nonzeros for each variable, also length of the arrays col/row/val are
+                                               *  pointing to */
+   int**                 col,                /**< pointer to store the column indices of the nonzeros for each variable */
+   int**                 row,                /**< pointer to store the row indices of the nonzeros for each variable */
+   SCIP_Real**           val,                /**< pointer to store the values of the nonzeros for each variable */
+   SCIP_VAR**            vars,               /**< pointer to store the SCIP variables present in this constraint that correspond to the indices in col/row/val */
+   int*                  constnnonz,         /**< pointer to store the number of nonzeros in the constant part of this SDP constraint, also length of
+                                               *  the const arrays */
+   int*                  constcol,           /**< pointer to store the column indices of the constant nonzeros */
+   int*                  constrow,           /**< pointer to store the row indices of the constant nonzeros */
+   SCIP_Real*            constval            /**< pointer to store the values of the constant nonzeros */
    );
 
-/** gets the number of nonzeroes and constant nonzeroes for this SDP constraint */
+/** gets the number of nonzeros and constant nonzeros for this SDP constraint
+ *
+ *  Either nnonz or constnnonz may be NULL if only the other one is needed.
+ */
 EXTERN
 SCIP_RETCODE SCIPconsSdpGetNNonz(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< SDP constraint to get data of */
-   int*                  nnonz,              /**< number of nonzeroes in this SDP constraint */
-   int*                  constnnonz         /**< number of nonzeroes in the constant part of this SDP constraint */
+   int*                  nnonz,              /**< pointer to store the number of nonzeros in this SDP constraint */
+   int*                  constnnonz          /**< pointer to store the number of nonzeros in the constant part of this SDP constraint */
    );
 
-/** gets the full constraint Matrix \f A_j \f for a given variable j */
+/** gets the blocksize of the SDP constraint */
+EXTERN
+int SCIPconsSdpGetBlocksize(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons               /**< SDP constraint to get data of */
+   );
+
+/** gets the full constraint Matrix \f$ A_j \f$ for a given variable j */
+EXTERN
 SCIP_RETCODE SCIPconsSdpGetFullAj(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< SDP constraint to get data of */
@@ -130,27 +141,45 @@ SCIP_RETCODE SCIPconsSdpGetFullConstMatrix(
    SCIP_Real*            mat                 /**< pointer to store the full constant matrix */
    );
 
-/** gives an 0.5*n*(n+1)-long array with the lower triangular part of the constant matrix indexed by compLowerTriangPos */
+/** gives a 0.5*n*(n+1)-long array with the lower triangular part of the constant matrix indexed by compLowerTriangPos */
+EXTERN
 SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< SDP constraint to get data of */
    SCIP_Real*            mat                 /**< pointer to store the lower triangular part of the constant matrix */
    );
 
-/** checks feasibility for a single SDP-Cone */
+/** checks feasibility for a single SDP constraint */
+EXTERN
 SCIP_RETCODE SCIPconsSdpCheckSdpCons(
-   SCIP*                scip,               /**< SCIP data structure */
-   SCIP_CONS*           cons,               /**< the constraint for which the Matrix should be assembled */
-   SCIP_SOL*            sol,                /**< the solution to check feasibility for */
-   SCIP_Bool            checkintegrality,   /**< has integrality to be checked? */
-   SCIP_Bool            checklprows,        /**< have current LP rows to be checked? */
-   SCIP_Bool            printreason,        /**< should the reason for the violation be printed? */
-   SCIP_RESULT*         result              /**< pointer to store the result of the feasibility checking call */
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons,               /**< the constraint for which the Matrix should be assembled */
+   SCIP_SOL*             sol,                /**< the solution to check feasibility for */
+   SCIP_Bool             checkintegrality,   /**< has integrality to be checked? */
+   SCIP_Bool             checklprows,        /**< have current LP rows to be checked? */
+   SCIP_Bool             printreason,        /**< should the reason for the violation be printed? */
+   SCIP_RESULT*          result              /**< pointer to store the result of the feasibility checking call */
+   );
+
+/** Compute a heuristic guess for a good starting solution \f$ \lambda ^* \cdot I \f$.
+ *
+ *  The solution is computed as
+ *  \f[
+ *  \lambda^* = \max \Bigg\{S \cdot \max_{i \in [m]} \{|u_i|, |l_i|\} \cdot \max_{i \in [m]} \|A_i\|_\infty + \|C\|_\infty,
+ *  \frac{\max_{i \in [m]} b_i}{S \cdot \min_{i \in [m]} \min_{j, \ell \in [n]} (A_i)_{j\ell} } \Bigg\},
+ *  \f]
+ *  where \f$ S = \frac{ | \text{nonzero-entries of all } A_i | }{0.5 \cdot \text{ blocksize } (\text{ blocksize } + 1)} \f$
+ *  measures the sparsity of the matrices.
+ */
+EXTERN
+SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons,               /**< the constraint for which the Matrix should be assembled */
+   SCIP_Real*            lambdastar          /**< pointer to store the guess for the initial point */
    );
 
 #ifdef __cplusplus
 }
 #endif
-
 
 #endif

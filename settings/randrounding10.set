@@ -1,0 +1,6 @@
+heuristics/sdprand/freq		=	0
+heuristics/sdprand/nrounds	=	10
+
+heuristics/sdpfracdiving/freq 	=	-1
+heuristics/crossover/freq	=	-1
+heuristics/trivial/freq		=	-1

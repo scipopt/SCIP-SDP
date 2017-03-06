@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION="1.0"
+VERSION="3.0.0"
 NAME="scipsdp-$VERSION"
 rm -f $NAME
 
@@ -17,7 +17,18 @@ tar --no-recursion --ignore-failed-read -cvzhf $NAME.tgz \
     $NAME/Makefile \
     $NAME/doc/scipsdp.dxy \
     $NAME/doc/xternal.c \
-    $NAME/src/*.c $NAME/src/*.cpp $NAME/src/*.h
+    $NAME/doc/layout.xml \
+    $NAME/instances/* \
+    $NAME/INSTALL \
+    $NAME/license.txt \
+    $NAME/changelog.txt \
+    $NAME/sdpa_format.txt \
+    $NAME/src/scipsdp/*.c $NAME/src/scipsdp/*.cpp $NAME/src/scipsdp/*.h \
+    $NAME/src/sdpi/*.c $NAME/src/sdpi/*.cpp $NAME/src/sdpi/*.h \
+    $NAME/src/scipsdpgithash.c \
+    $NAME/check/testset/short.test \
+    $NAME/check/testset/short.solu \
+    $NAME/settings/lp_approx.set
 
 echo ""
 echo "check version numbers in doc/scipsdp.dxy, doc/xternal.c, and Makefile:"

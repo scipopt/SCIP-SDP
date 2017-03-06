@@ -1,0 +1,11 @@
+heuristics/sdpfracdiving/freq = -1
+
+branching/sdpinfobjective/priority = 5000000
+
+propagating/sdpredcost/freq = -1
+
+heuristics/sdprand/freq = 0
+
+heuristics/crossover/freq = -1
+
+

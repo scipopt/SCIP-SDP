@@ -1,11 +1,11 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /*                                                                           */
 /* This file is part of SCIPSDP - a solving framework for mixed-integer      */
-/* semidefinite programms based on SCIP.                                     */
+/* semidefinite programs based on SCIP.                                      */
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014      Discrete Optimization, TU Darmstadt               */
+/*               2014-2017 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or             */
@@ -24,167 +24,143 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2014 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2017 Zuse Institute Berlin                             */
 /* SCIP is distributed under the terms of the SCIP Academic Licence,         */
 /* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   main.cpp
- * @brief  driver-file for solving MISDPs
+ * @brief  main file for solving MISDPs
  * @author Sonja Mars
+ * @author Tristan Gally
  */
-// standard library includes
-#include <string>
 
-#include "objscip/objscip.h"
+#define SCIPSDPVERSION              "3.0.0"
+
 #include "objscip/objscipdefplugins.h"
 
-#include "scipsdp/cons_sdp.h"
+#include "cons_sdp.h"
 #include "scipsdp/cons_savesdpsol.h"
-//#include "objconshdlr_sdp.h"
+#include "cons_savedsdpsettings.h"
 #include "relax_sdp.h"
 #include "objreader_sdpa.h"
+#include "reader_cbf.h"
+#include "prop_sdpredcost.h"
+#include "disp_sdpiterations.h"
+#include "disp_sdpavgiterations.h"
+#include "disp_sdpfastsettings.h"
+#include "disp_sdppenalty.h"
+#include "disp_sdpunsolved.h"
+#include "branch_sdpmostfrac.h"
+#include "branch_sdpmostinf.h"
+#include "branch_sdpobjective.h"
+#include "branch_sdpinfobjective.h"
+#include "heur_sdpfracdiving.h"
+#include "heur_sdprand.h"
+#include "prop_sdpobbt.h"
+#include "scipsdpgithash.c"
 
 using namespace scip;
 
-/**run scip and set some parameters*/
+/** run scip and set some parameters */
 static
 SCIP_RETCODE runSCIP(
-   int argc,
-   char** argv)
+   int                   argc,               /**< number of command line arguments */
+   char**                argv                /**< pointer to command line arguments */
+   )
 {
-
-   printf("Starting solver.\n");
    SCIP* scip = NULL;
-
+   char scipsdpname[SCIP_MAXSTRLEN];
+   char scipsdpdesc[SCIP_MAXSTRLEN];
 
    SCIP_CALL( SCIPcreate(&scip) );
-   SCIPprintVersion(scip, NULL);
 
-   //include new plugins
+   /* include new plugins */
    SCIP_CALL( SCIPincludeObjReader(scip, new ObjReaderSDPA(scip), TRUE) );
-
-   // SCIP_CALL( SCIPincludeObjConshdlr(scip, new ObjConshdlrSdp(scip), TRUE) );
+   SCIP_CALL( SCIPincludeReaderCbf(scip) );
    SCIP_CALL( SCIPincludeConshdlrSdp(scip) );
    SCIP_CALL( SCIPincludeConshdlrSavesdpsol(scip) );
+   SCIP_CALL( SCIPincludeConshdlrSavedsdpsettings(scip) );
+   SCIP_CALL( SCIPincludeRelaxSdp(scip) );
+   SCIP_CALL( SCIPincludePropSdpredcost(scip) );
+   SCIP_CALL( SCIPincludeBranchruleSdpmostfrac(scip) );
+   SCIP_CALL( SCIPincludeBranchruleSdpmostinf(scip) );
+   SCIP_CALL( SCIPincludeBranchruleSdpobjective(scip) );
+   SCIP_CALL( SCIPincludeBranchruleSdpinfobjective(scip) );
+   SCIP_CALL( SCIPincludeHeurSdpFracdiving(scip) );
+   SCIP_CALL( SCIPincludeHeurSdpRand(scip) );
+   SCIP_CALL( SCIPincludePropSdpObbt(scip) );
 
-   SCIP_CALL( SCIPincludeRelaxSDP(scip) );
-
-   const char* name = "sdpsolver";
-   const char * 	desc = "which sdpsolver should be called";
-
-   SCIP_PARAMDATA* 	paramdata = NULL;
-
-   SCIP_CALL( SCIPaddStringParam	(scip, name, desc, NULL, FALSE, "dsdp" , NULL, paramdata)	);
+   /* add description */
+   (void) SCIPsnprintf(scipsdpname, SCIP_MAXSTRLEN, "SCIP-SDP %s", SCIPSDPVERSION);
+   (void) SCIPsnprintf(scipsdpdesc, SCIP_MAXSTRLEN, "Mixed Integer Semidefinite Programming Plugin for SCIP "
+         "[GitHash: %s] (www.opt.tu-darmstadt.de/scipsdp/)", SCIPSDP_GITHASH);
+   SCIP_CALL( SCIPincludeExternalCodeInformation(scip, scipsdpname, scipsdpdesc) );
 
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
 
+   /* disable restarts - for the meantime */
+   SCIP_CALL( SCIPsetIntParam(scip, "limits/restarts", 0) );
 
-   /**********************************
-    * Process command line arguments *
-    **********************************/
+   /* set clocktype to walltime to not add multiple threads together */
+   SCIP_CALL( SCIPsetIntParam(scip, "timing/clocktype", 2) );
+
+   /* change certain paramters: */
    SCIP_CALL( SCIPsetIntParam(scip, "display/verblevel", 5) );
 
-   //Choose between LP and SDP relaxations
+   /* Choose between LP and SDP relaxations */
    SCIP_CALL( SCIPsetIntParam(scip, "lp/solvefreq", -1) );
-   SCIP_CALL( SCIPsetIntParam(scip,"relaxing/SDP/freq", 1) );
+   SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", 1) );
+   SCIP_CALL( SCIPincludeDispSdpiterations(scip) );
+   SCIP_CALL( SCIPincludeDispSdpavgiterations(scip) );
+   SCIP_CALL( SCIPsetIntParam(scip, "display/lpiterations/active", 0) );
+   SCIP_CALL( SCIPsetIntParam(scip, "display/lpavgiterations/active", 0) );
 
-   //Do some stuff to be numerically stable
-   SCIP_CALL( SCIPsetRealParam(scip, "numerics/epsilon", 1e-6) );
-   SCIP_CALL( SCIPsetRealParam(scip, "numerics/feastol", 1e-4) );
+   /* display numerical problems in SDPs instead of current columns and strong branching */
+   SCIP_CALL( SCIPsetIntParam(scip, "display/nfrac/active", 0) );
+   SCIP_CALL( SCIPsetIntParam(scip, "display/curcols/active", 0) );
+   SCIP_CALL( SCIPsetIntParam(scip, "display/strongbranchs/active", 0) );
+   SCIP_CALL( SCIPincludeDispSdpfastsettings(scip) );
+   SCIP_CALL( SCIPincludeDispSdppenalty(scip) );
+   SCIP_CALL( SCIPincludeDispSdpunsolved(scip) );
+   SCIP_CALL( SCIPsetIntParam(scip, "display/sdpfastsettings/active", 0) );
+   SCIP_CALL( SCIPsetIntParam(scip, "display/sdppenalty/active", 0) );
 
-   SCIP_CALL( SCIPsetStringParam(scip, "sdpsolver", "dsdp") );
+   /* change epsilons for numerical stability */
+   SCIP_CALL( SCIPsetRealParam(scip, "numerics/epsilon", 1e-9) );
+   SCIP_CALL( SCIPsetRealParam(scip, "numerics/sumepsilon", 1e-6) );
+   SCIP_CALL( SCIPsetRealParam(scip, "numerics/feastol", 1e-6) );
 
-   //parameters for separation
+   /* parameters for separation */
    SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprows", FALSE) );
    SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprowsroot", FALSE) );
    SCIP_CALL( SCIPsetIntParam(scip, "lp/rowagelimit", 10) );
 
-   //# maximum age a cut can reach before it is deleted from the global cut pool, or -1 to keep all cuts
-   //# [type: int, range: [-1,2147483647], default: 100]
-   SCIP_CALL( SCIPsetIntParam(scip, "separating/cutagelimit", 10));
+   /* maximum age a cut can reach before it is deleted from the global cut pool, or -1 to keep all cuts */
+   SCIP_CALL( SCIPsetIntParam(scip, "separating/cutagelimit", 10) );
 
+   SCIP_CALL( SCIPsetIntParam(scip, "separating/maxrounds", 20) );
 
-   SCIP_CALL( SCIPsetIntParam(scip, "separating/maxrounds", 20));
+   /* Parameters for node selection */
 
-   //Parameters for node selection
-      /* Because in the SDP-world there are no warmstarts as for LPs, the main advantage for DFS (that the change in the
-       * problem is minimal and therefore the Simplex can continue with the current Basis) is lost and best first search, which
-       * provably needs the least number of nodes (see the Dissertation of Tobias Achterberg, the node selection rule with
-       * the least number of nodes, allways has to be a best first search), is the optimal choice
-       */
-      SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/stdpriority", 1000000));
-      SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/maxplungedepth", 0));
-      SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight", 0.0));
+   /* Because in the SDP-world there are no warmstarts as for LPs, the main advantage for DFS (that the change in the
+    * problem is minimal and therefore the Simplex can continue with the current Basis) is lost and best first search, which
+    * provably needs the least number of nodes (see the Dissertation of Tobias Achterberg, the node selection rule with
+    * the least number of nodes, allways has to be a best first search), is the optimal choice
+    */
+   SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/stdpriority", 1000000) );
+   SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/maxplungedepth", 0) );
+   SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight", 0.0) );
 
-      /*
-       * this leaves Inference-Branching (branching of the variable which led to the most fixings of other variables in
-       * the past) [priority 1000] and pseudocost (branching on the variable which led to the least decrease in the objective
-       * in the past) [priority 2000] as the ones with the highest priority
-       */
-      //SCIP_CALL( SCIPsetIntParam(scip, "branching/pscost/priority",-2000000));
-      SCIP_CALL( SCIPsetIntParam(scip, "branching/relpscost/priority",-2000000));
-  // }
+   /* we explicitly enable the use of a debug solution for this main SCIP instance */
+   SCIPenableDebugSol(scip);
 
-   //turn off int-obj
-   SCIP_CALL( SCIPsetIntParam(scip, "separating/intobj/freq", -1));
+   /* run interactive shell */
+   SCIP_CALL( SCIPprocessShellArguments(scip, argc, argv, "scip.set") );
 
-   //read parameter file
-   if (argc > 2 )
-   {
-      SCIP_CALL( SCIPreadParams(scip,argv[2]));
-   }
-
-
-
-
-   printf("\n read problem\n");
-   printf("============\n");
-
-   if (argc > 1)
-   {
-      SCIP_CALL( SCIPreadProb(scip, argv[1], NULL) );
-   }
-   else
-   {
-      printf("Wrong call of main, not enough arguments. Call using: \
-      ./main instancefile.dat-s    or    ./main instancefile.dat-s parameterfile.set");
-   }
-
-   /* solve problem */
-   printf("\nsolve problem\n");
-   printf("=============\n");
-   SCIP_CALL( SCIPsolve(scip) );
-
-   SCIP_CALL( SCIPprintStatistics(scip, NULL));
-   printf("\nprimal solution:\n" );
-   printf("================\n\n");
-   SCIP_CALL( SCIPprintBestSol(scip, NULL, FALSE) );
-
-   FILE* solfile;
-   std::string solfilename = "Solution.sol";
-   if(argc > 1)
-   {
-      solfilename = std::string(argv[1]) + "_misdp.sol";
-   }
-
-
-   solfile = fopen(solfilename.c_str(), "w");
-   if( solfile == NULL )
-   {
-      SCIPerrorMessage("error creating file <%s>\n", solfilename.c_str());
-   }
-   else
-   {
-      SCIP_CALL( SCIPprintBestSol(scip, solfile, FALSE) );
-      fclose(solfile);
-   }
-
-   /********************
-    * Deinitialization *
-    ********************/
+   /* deinitialization */
    SCIP_CALL( SCIPfree(&scip) );
 
    BMScheckEmptyMemory();
@@ -192,10 +168,11 @@ SCIP_RETCODE runSCIP(
    return SCIP_OKAY;
 }
 
-/**main function */
+/** main function */
 int main (
-   int argc,
-   char** argv)
+   int                   argc,               /**< number of command line arguments */
+   char**                argv                /**< pointer to command line arguments */
+   )
 {
    SCIP_RETCODE retcode;
 

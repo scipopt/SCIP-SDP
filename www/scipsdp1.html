@@ -1,0 +1,94 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>scip_sdp</title>
+<style type="text/css">
+.pagecol {
+	<!--
+	background-color: #ffffe6;
+	-->
+}
+redtext {
+	color: red;
+}
+</style>
+</head> 
+<body class="pagecol">
+<table width="100%"> 
+<tr>
+	<td align="left">
+		<img src="SCIPSDP1/logo_do.png"/>
+	</td>
+	<td>
+		<h1 align="center">SDP-Package for SCIP</h1>
+		<p align="center">Version 1.0  -  July 2012</p>
+	</td>
+	<td  align="right">
+		<img src="SCIPSDP1/Logo_edom.png"/>
+	</td>
+</tr>
+<tr>
+	<td colspan="4" align="center">
+	<redtext>
+		For the current version of SCIP-SDP please visit the <a href="http://www.opt.tu-darmstadt.de/scipsdp/">new website</a>.
+	</redtext>
+</tr>
+</table>
+
+
+<br />
+<br />
+<hr />
+
+<div align="right"><img src="SCIPSDP1/truss.png"align="right"/> </div>
+<p align="left">The SCIP-SDP-Package is a plug-in for the Software SCIP. It is able to solve Mixed-Integer SDPs using the interior-point solver DSDP and SCIP as a branch and bound framework. It provides a lot of data handling, some presolve routines and an linear approximation procedure for MISDPs. Two examples for mixed-integer semidefinite programs are arising from truss topology design and maximum cut problems on graphs. We tested our code on a lot of instances, most of them are trusses or max-cuts. 
+<br />
+<br />
+This software is developed at <b>TU Darmstadt</b> and <b>Friedrich-Alexander-Universität Erlangen-Nürnberg</b>.
+
+</p>
+<br />
+
+
+<hr />
+<h3 align="left">Download:</h3>
+<p>Download the whole source code of the package: <a href="SCIPSDP1/SCIP_SDP.zip"> SCIP_SDP.zip</a>  </p>
+<p>Before installing our package you have to install DSDP and SCIP. Installation instructions for our code: <a href="SCIPSDP1/install.txt">install.txt.</a> </p>
+<p>The file format in which SDPs are given is the sdpa-format. We extended it for MISDPs: <a href="SCIPSDP1/data_format.txt">data_format.txt.</a> <a href="SCIPSDP1/example.dat-s">Here</a> is an example.<div align="center"> <img src="SCIPSDP1/maxcut.png"align="right"/> </div></p>
+<p>A detailled description of the code and the features: <a href="SCIPSDP1/scip_sdp_preprint.pdf">preprint.pdf.</a> Please cite this preprint if you use our code for your research.</p>
+
+<hr />
+<h3 align="left">Contact:</h3>
+<p align="left"><a href="http://www3.mathematik.tu-darmstadt.de/hp/optimierung/mars-sonja/startseite.html">Sonja Mars</a></p>
+<p align="left"><a href="http://www.mso.math.uni-erlangen.de/edom/team/schewe-lars/dr-lars-schewe.html">Lars Schewe</a></p>
+<hr />
+<h3 align="left">Important Links:</h3>
+<p align="left"><a href="http://www.mcs.anl.gov/hs/software/DSDP/">DSDP 5.8</a></p>
+<p align="left"><a href="http://scip.zib.de/">SCIP</a></p>
+<hr />
+<h3 align="left">Future Development:</h3>
+<p align="left">Currently we are working on an interface to the Augmented-Lagrange-Solver PENSDP. Additionally we are in contact with the SCIP developers for extending the possibilities to use SCIP-Features, such as branching rules and heuristics.</p>
+<hr />
+<h3 align="left">Thanks</h3>
+<p>We would like to thank the following people and organisations for a lot of support and discussions:</p>
+Alexander Martin  <br />
+Marc Pfetsch <br /> 
+Anne Philipp <br />
+Jakob Schelbert <br />
+Michael Stingl<br />
+<br />
+SCIP-Team <br /> 
+SFB 805 <br />
+<br />
+<br />
+<br />
+<br />
+<div align="center">
+<img src="SCIPSDP1/tud_weblogo.gif" align="left"/>
+<img src="SCIPSDP1/SFB.png" align="center"/>
+<img src="SCIPSDP1/Fau_logo.png" align="right"/>
+</div>
+
+</body>
+</html>

@@ -1,11 +1,11 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /*                                                                           */
 /* This file is part of SCIPSDP - a solving framework for mixed-integer      */
-/* semidefinite programms based on SCIP.                                     */
+/* semidefinite programs based on SCIP.                                      */
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014      Discrete Optimization, TU Darmstadt               */
+/*               2014-2017 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or             */
@@ -24,7 +24,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2014 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2017 Zuse Institute Berlin                             */
 /* SCIP is distributed under the terms of the SCIP Academic Licence,         */
 /* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
@@ -32,7 +32,8 @@
 
 /**@file   objreader_sdpa.h
  * @brief  Reader for SDPA-Files
- * @author Jakob Schelbert, Sonja Mars
+ * @author Jakob Schelbert
+ * @author Sonja Mars
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
@@ -51,12 +52,13 @@ class SdpVarMapper;
 
 namespace scip
 {
-   /**struct with the lp-rows-data*/
+   /** struct with the lp-rows-data */
    struct LProw
    {
-      std::vector< std::pair<int, double> > data;
+      std::vector< std::pair<int, SCIP_Real> > data;
    };
-   /**class of one sdpblock, very similar to sdpcone and the sdpa-format*/
+
+   /** class of one sdpblock, very similar to sdpcone and the sdpa-format */
    class SDPBlock
    {
    public:
@@ -68,15 +70,15 @@ namespace scip
       std::vector<int> variables;
       std::vector<int> columns;
       std::vector<int> rows;
-      std::vector<double> values;
+      std::vector<SCIP_Real> values;
 
       std::vector<int> constcolumns;
       std::vector<int> constrows;
-      std::vector<double> constvalues;
+      std::vector<SCIP_Real> constvalues;
       int constnum_nonzeros;
    };
 
-   /**class for the lp-blocks*/
+   /** class for the lp-blocks */
    class LPBlock
    {
    public:
@@ -93,7 +95,7 @@ namespace scip
    public:
 
       /** default constructor */
-   ObjReaderSDPA(SCIP* scip)
+      ObjReaderSDPA(SCIP* scip)
       : ObjReader(scip, "sdpareader", "file reader for SDPA files", "dat-s")
       {}
 

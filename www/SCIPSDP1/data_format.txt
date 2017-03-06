@@ -1,0 +1,62 @@
+========================
+  The SDPA-Data-Format
+========================
+
+SDP-solvers typically use the standard sdpa-format (*.dat-s) for the problem 
+instances. For solving mixed-integer SDPs we need to extend the format. The 
+sdpa-format is a sparse format, so zeros can be omitted. 
+The format models problems in the following standard form:
+	min c^T*x
+    s.t. sum_i A_i*x_i - A_0 =  Y
+                           Y >= 0
+
+Example:
+--------------------------------------------------------------------------------
+3 			= number of variables
+4 			= number of blocks
+5 5 5 -10	= block sizes, first three blocks are SDP-blocks with matrix size 
+			  5x5. Last block is an lp-block with 10 inequalities. In lp-blocks 
+			  only diagonal entries in the matrix are allowed.
+0 0 1 		= these are the coefficients c_i of the objective function. There 
+			  should be number of variables many.
+0 5 5 5 2
+1 1 1 1 5
+2 2 1 4 3
+3 5 5 5 1
+...
+*INTEGER*
+*1
+*3
+--------------------------------------------------------------------------------
+
+Matrix entries are given in the following format:
+n b i j v
+n = number of variables (0 stands for the rhs, i.e. the constant terms)
+b = number of block
+i j = position in matrix
+v = coefficient or value
+
+All inequalities are >=
+A detailled description of the SDPA-format can be found here: 
+http://euler.nmt.edu/~brian/sdplib/FORMAT. 
+
+All matrices must be symmetric, so only the upper or the lower triangle of a 
+matrix should be given. Only one entry per variable and position is allowed.
+
+*-------------*
+*  EXTENSION  *
+*-------------*
+Our extension starts with '*INTEGER*'. This signals a new section in the 
+sdpa-file. Afterwards there is one line per integer variable, beginning with 
+a '*'. Be careful as the format is 1-based. If your variables are binary, you  
+have to model the bounds on the variables in an lp-block, i.e. x_i >=0 and  
+-x_i>=-1. Lines beginning with '*' are treated as  comments by common  
+SDPA-readers, so they will have no problem with our files. Our extension will be
+ignored.
+
+________________________________________________________________________________
+References:
+
+[1] Borchers, Brian. SDPLIB 1.2, a library of semidefinite programming test 
+	problems. Optimization Methods and Software, volume 11, number 1-4, 
+    pages 683-690, 1999, doi = 10.1080/10556789908805769.

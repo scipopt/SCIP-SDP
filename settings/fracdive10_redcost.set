@@ -1,0 +1,5 @@
+heuristics/sdpfracdiving/freq = 10
+
+propagating/sdpredcost/freq = 1
+
+heuristics/crossover/freq = -1

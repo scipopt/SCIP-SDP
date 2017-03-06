@@ -1,0 +1,32 @@
+/* text of active navbar tab */
+.bs-docs-nav .navbar-nav > .active > a {
+    color: #27f;
+}
+.bs-docs-nav .navbar-nav > .active > a:hover {
+    color: #27f;
+    text-shadow: 0px 0px 2px #27f;
+}
+/* color for the header */
+.bs-docs-home, .bs-header {
+    color: #fff;
+    background-color: #11a;
+}
+/* All levels of nav */
+.bs-sidebar .nav > li > a {
+    display: block;
+    color: #11a;
+    padding: 5px 20px;
+}
+.bs-sidebar .nav > li > a:hover, .bs-sidebar .nav > li > a:focus {
+    text-decoration: none;
+    background-color: #eee;
+    border-right: 2px solid #11a;
+    border-left: 2px solid #11a;
+}
+.bs-sidebar .nav > .active > a, .bs-sidebar .nav > .active:hover > a, .bs-sidebar .nav > .active:focus > a {
+    font-weight: bold;
+    color: #11a;
+    background-color: #ddd;
+    border-right: 4px solid #11a;
+    border-left: 4px solid #11a;
+}

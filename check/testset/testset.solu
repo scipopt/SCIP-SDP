@@ -1,0 +1,13 @@
+=opt= gas1 219.336112
+=opt= powerflow_14_1 75886.008781
+=opt= powerflow_30_1 5044.005525
+=opt= maxcut1 6366
+=opt= maxcut2 5864
+=opt= RIPl1 0.0863960957
+=opt= RIPr1 -4.15822554
+=opt= TT_beam_opt 0.255094216
+=opt= TT_passive 24009.9972
+=opt= CLS_rand32 19.7225949526
+=opt= CLS_CC 127.471222141
+=opt= minK_vlsi -144.000019067
+=opt= minK_rand -1872608.0
