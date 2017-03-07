@@ -10,7 +10,7 @@ This program is free software; you can redistribute it and/or modify it under th
 <p>It is based on SCIP - Solving Constraint Integer Programs. SCIP is distributed under the terms of the SCIP Academic Licence, see file COPYING in the SCIP distribution.  </p>
 
 <table style="width:80%">
-  <tr><td>Copyright (C)</td><td> 2002-2016</td><td width="70%"> Zuse Institute Berlin </td></tr>
+  <tr><td>Copyright (C)</td><td> 2002-2017</td><td width="70%"> Zuse Institute Berlin </td></tr>
 </table>
 <br><br>
 <p>

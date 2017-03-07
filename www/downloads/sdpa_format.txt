@@ -7,16 +7,16 @@ instances. For solving mixed-integer SDPs we need to extend the format. The
 format is a sparse format, so zeros can be omitted. 
 The format models problems in the following standard form:
 
-	min c^T*x
-    s.t. sum_i A_i*x_i - A_0 =  Y
-                           Y >= 0
+    min  c^T*y
+    s.t. sum_i A_i*y_i - A_0 =  Z
+                           Z >= 0
 
 To allow for a more efficient solving strategy, a known block structure
-of Y may also be given, meaning that there are matrices Y_1 to Y_k which
-should be positive semidefinite and also an LP-block Y_(k+1), which has a
+of Z may also be given, meaning that there are matrices Z_1 to Z_k which
+should be positive semidefinite and also an LP-block Z_(k+1), which has a
 diagonal structure. As the LP-block is diagonal, positive semidefiniteness
 is equivalent to all diagonal entries being non-negative, so
-sum_i (A_i)_(jj)*x_i - (A_0)_(jj) >= 0 
+sum_i (A_i)_(jj)*y_i - (A_0)_(jj) >= 0 
 is an LP-constraint.
 
 The first line of the sdpa-format states the number of variables, the
@@ -33,7 +33,7 @@ b = index of block
 i j = position in matrix
 v = coefficient or value
 
-All inequalities are >=
+All inequalities are >= .
 A detailled description of the SDPA-format can be found here: 
 http://euler.nmt.edu/~brian/sdplib/FORMAT. 
 
@@ -43,12 +43,12 @@ matrix should be given. Only one entry per variable and position is allowed.
 *-------------*
 *  EXTENSION  *
 *-------------*
-Our extension starts with '*INTEGER*'. This signals a new section in the 
+Our extension starts with '*INTEGER'. This signals a new section in the 
 sdpa-file. Afterwards there is one line per integer variable, beginning with 
 a '*'. Be careful as the format is 1-based. If your variables are binary, you  
 have to model the bounds on the variables in an lp-block, i.e. x_i >=0 and  
--x_i>=-1. Lines beginning with '*' are treated as  comments by common  
-SDPA-readers, so they will have no problem with our files. Our extension will be
+-x_i>=-1. Lines beginning with '*' are treated as comments by common  
+SDPA-readers, so most should have no problem with our files. Our extension will be
 ignored.
 
 ________________________________________________________________________________
@@ -59,10 +59,10 @@ References:
     pages 683-690, 1999, doi = 10.1080/10556789908805769.
 ________________________________________________________________________________
 
-*----------------------------------------------------------------------------------------*
-* EXAMPLE (the sdpa-File is found at instances/example1.dat-s in the SCIPSDP directory): *
-*----------------------------------------------------------------------------------------*
-suppose we want to solve the following MISDP:
+*---------------------------------------------------------------------------------------------*
+* EXAMPLE (the sdpa-File is found at instances/example_small.dat-s in the SCIPSDP directory): *
+*---------------------------------------------------------------------------------------------*
+Suppose we want to solve the following MISDP:
 
  max   	-y_1 + 2*y_2 + y_3
 
@@ -77,9 +77,9 @@ suppose we want to solve the following MISDP:
 	y_1 + y_2 + y_3 >= 1
 	y_1 + y_2 + y_3 <= 8
 
-	y_1, y_2, y_3 integer
+	y_1, y_2, y_3 integer.
 
-then this reads in standard form with two SDP- and one LP-block (note that 
+Then this reads in standard form with two SDP- and one LP-block (note that 
 since we are now minimizing, the optimal objective value needs to be multiplied 
 by -1 afterwards):
 
