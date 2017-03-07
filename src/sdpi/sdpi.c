@@ -1054,8 +1054,8 @@ SCIP_RETCODE checkSlaterCondition(
          sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
          sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
          sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-         rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit,
-         &origfeas, &penaltybound) );
+         rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+         SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit, &origfeas, &penaltybound) );
 
    if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) )
    {
@@ -1280,8 +1280,8 @@ SCIP_RETCODE checkSlaterCondition(
             sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, 0, NULL, NULL, NULL, NULL,
             sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
             sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, slaternactivelpcons, sdpi->nlpcons + 1, slaterlplhs, slaterlprhs,
-            slaterrowsnactivevars, sdpi->lpnnonz + sdpi->nvars - nremovedslaterlpinds, slaterlprow, slaterlpcol, slaterlpval, NULL,
-            SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit) );
+            slaterrowsnactivevars, sdpi->lpnnonz + sdpi->nvars - nremovedslaterlpinds, slaterlprow, slaterlpcol, slaterlpval, NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit) );
 
       if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) && ! SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver) )
       {
@@ -1412,6 +1412,14 @@ int SCIPsdpiGetDefaultSdpiSolverNpenaltyIncreases(
    )
 {
    return SCIPsdpiSolverGetDefaultSdpiSolverNpenaltyIncreases();
+}
+
+/** Should primal solution values be saved for warmstarting purposes? */
+SCIP_Bool SCIPsdpiDoesWarmstartNeedPrimal(
+   void
+   )
+{
+   return SCIPsdpiSolverDoesWarmstartNeedPrimal();
 }
 
 /**@} */
@@ -1688,7 +1696,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    int*                  sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
    int*                  sdpnblockvars,      /**< number of variables in each SDP-block (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
    int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-blocks */
-   int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
+   int*                  sdpconstnblocknonz, /**< number of nonzeros for each block in the constant part, also the i-th entry gives the
                                                *  number of entries  of sdpconst row/col/val [i] */
    int**                 sdpconstrow,        /**< pointer to row-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
    int**                 sdpconstcol,        /**< pointer to column-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
@@ -2427,14 +2435,27 @@ SCIP_RETCODE SCIPsdpiGetRhSides(
 /**@name Solving Methods */
 /**@{ */
 
-/** solves the SDP, as start optionally a starting point for the solver may be given, if it is NULL, the solver will start from scratch */
+/** solves the SDP, as start optionally a starting point for the solver may be given, if it is NULL, the solver will start from scratch
+ *  @note starting point needs to be given with original indices (before any local presolving), for LP blocks the indices should be
+ *  lhs(row0), rhs(row0), lhs(row1), ... independant of some lhs/rhs being infinity (the starting point will later be adjusted accordingly)
+ */
 SCIP_RETCODE SCIPsdpiSolve(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
-   SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
+   SCIP_Real*            starty,             /**< NULL or dual vector y as starting point for the solver, this should have length nvars */
+   SCIP_Real*            startZnblocknonz,   /**< dual matrix Z = sum Ai yi as starting point for the solver: number of nonzeros for each block,
+                                               *  also length of corresponding row/col/val-arrays; or NULL */
+   SCIP_Real*            startZrow,          /**< dual matrix Z = sum Ai yi as starting point for the solver: row indices; may be NULL if startZnblocknonz = NULL */
+   SCIP_Real*            startZcol,          /**< dual matrix Z = sum Ai yi as starting point for the solver: column indices; may be NULL if startZnblocknonz = NULL */
+   SCIP_Real*            startZval,          /**< dual matrix Z = sum Ai yi as starting point for the solver: values; may be NULL if startZnblocknonz = NULL */
+   SCIP_Real*            startXnblocknonz,   /**< primal matrix X as starting point for the solver: number of nonzeros for each block,
+                                               *  also length of corresponding row/col/val-arrays; or NULL */
+   SCIP_Real*            startXrow,          /**< primal matrix X as starting point for the solver: row indices; may be NULL if startXnblocknonz = NULL */
+   SCIP_Real*            startXcol,          /**< primal matrix X as starting point for the solver: column indices; may be NULL if startXnblocknonz = NULL */
+   SCIP_Real*            startXval,          /**< primal matrix X as starting point for the solver: values; may be NULL if startXnblocknonz = NULL */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP or MOSEK, set this to
-                                              *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
+                                               *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Bool             enforceslatercheck, /**< always check for Slater condition in case the problem could not be solved and printf the solution
-                                              *   of this check */
+                                                  of this check */
    SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
    )
 {
@@ -2571,7 +2592,8 @@ SCIP_RETCODE SCIPsdpiSolve(
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
             sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
             sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-            rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, startsettings, solvertimelimit) );
+            rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, starty, startZnblocknonz, startZrow, startZcol, startZval,
+            startXnblocknonz, startXrow, startXcol, startXval, startsettings, solvertimelimit) );
 
       sdpi->solved = TRUE;
 
@@ -2615,8 +2637,8 @@ SCIP_RETCODE SCIPsdpiSolve(
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-               rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit,
-               &feasorig, &penaltybound) );
+               rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, starty, startZnblocknonz, startZrow, startZcol, startZval,
+               startXnblocknonz, startXrow, startXcol, startXval, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit, &feasorig, &penaltybound) );
 
          /* add iterations and sdpcalls */
          naddediterations = 0;
@@ -2683,7 +2705,8 @@ SCIP_RETCODE SCIPsdpiSolve(
                      sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                      sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                      sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-                     rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, startsettings, solvertimelimit, &feasorig, &penaltybound) );
+                     rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, starty, startZnblocknonz, startZrow, startZcol, startZval,
+                     startXnblocknonz, startXrow, startXcol, startXval, startsettings, solvertimelimit, &feasorig, &penaltybound) );
 
                /* add iterations and sdpcalls */
                naddediterations = 0;

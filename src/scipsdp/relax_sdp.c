@@ -671,18 +671,28 @@ SCIP_RETCODE calcRelax(
 
    /* solve the problem (using warmstarts if parameter is true and we are not in the root node) */
    if ( ( ! SCIPnodeGetParent(SCIPgetCurrentNode(scip))) || ( ! relaxdata->warmstart ))
-      SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, startsetting, enforceslater, timelimit));
+   {
+      SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit));
+   }
    else
    {
       SCIP_CONSHDLR* conshdlr;
-      SCIP_Real* start;
+      SCIP_Real* starty = NULL;
+      SCIP_Real* startZnblocknonz = NULL;
+      SCIP_Real* startZrow = NULL;
+      SCIP_Real* startZcol = NULL;
+      SCIP_Real* startZval = NULL;
+      SCIP_Real* startXnblocknonz = NULL;
+      SCIP_Real* startXrow = NULL;
+      SCIP_Real* startXcol = NULL;
+      SCIP_Real* startXval = NULL;
       int length;
       int v;
 
       /* find starting solution as optimal solution of parent node */
 
       /* allocate memory */
-      SCIP_CALL( SCIPallocBufferArray(scip, &start, nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &starty, nvars) );
 
       /* get constraint handler */
       conshdlr = SCIPfindConshdlr(scip, "Savesdpsol");
@@ -692,10 +702,18 @@ SCIP_RETCODE calcRelax(
          return SCIP_PLUGINNOTFOUND;
       }
 
+      /* if there are no savesdpsol constraints (e.g. because the parent node couldn't be solved successfully), solve
+       * without warmstart
+       */
+      if ( SCIPconshdlrGetNConss(conshdlr) == 0 )
+      {
+         SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit));
+      }
+
       /* get constraints */
       conss = SCIPconshdlrGetConss(conshdlr);
 
-      assert ( conss != NULL ); //TODO: take care of case that parent node was not solved successfully
+      assert ( conss != NULL );
       assert ( conss[0] != NULL );
 
       /* because of stickingtonode we should only have one constraint of this type */
@@ -703,7 +721,7 @@ SCIP_RETCODE calcRelax(
 
       /* get the solution */
       length = nvars;
-      SCIP_CALL( getStartingPoint(scip, conss[0], start, &length) );
+      SCIP_CALL( getDualVector(scip, conss[0], starty, &length) );
 
       /* make sure that the memory was sufficient (this has to be the case as length = nvars */
       assert ( length <= nvars );
@@ -711,16 +729,26 @@ SCIP_RETCODE calcRelax(
       /* check if start is still feasible for the variable bounds, otherwise round it */
       for (v = 0; v < nvars; v++)
       {
-         if (start[v] < SCIPvarGetLbLocal(SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, v)))
-            start[v] = SCIPvarGetLbLocal(SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, v));
-         else if (start[v] > SCIPvarGetUbLocal(SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, v)))
-            start[v] = SCIPvarGetUbLocal(SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, v));
+         if (starty[v] < SCIPvarGetLbLocal(SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, v)))
+            starty[v] = SCIPvarGetLbLocal(SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, v));
+         else if (starty[v] > SCIPvarGetUbLocal(SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, v)))
+            starty[v] = SCIPvarGetUbLocal(SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, v));
+      }
+
+      if ( SCIPsdpiDoesWarmstartNeedPrimal() )
+      {
+         assert(0);
       }
 
       /* solve with given starting point */
-      SCIP_CALL(SCIPsdpiSolve(sdpi, start, startsetting, enforceslater, timelimit));
+      SCIP_CALL(SCIPsdpiSolve(sdpi, starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow,
+            startXcol, startXval, startsetting, enforceslater, timelimit));
 
-      SCIPfreeBufferArray(scip, &start);
+      if ( SCIPsdpiDoesWarmstartNeedPrimal() )
+      {
+         /* free memory */
+      }
+      SCIPfreeBufferArray(scip, &starty);
    }
    relaxdata->lastsdpnode = SCIPnodeGetNumber(SCIPgetCurrentNode(scip));
 

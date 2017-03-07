@@ -47,13 +47,13 @@ extern "C" {
 #endif
 
 /** include Savedsdpsol constraint handler */
-extern
+EXTERN
 SCIP_RETCODE SCIPincludeConshdlrSavesdpsol(
    SCIP*                 scip                /**< SCIP data structure */
    );
 
 /** create a Savedsdpsol-Cons, i.e. save the current optimal solution for the SDP-relaxation of this node */
-extern
+EXTERN
 SCIP_RETCODE createConsSavesdpsol(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
@@ -62,13 +62,14 @@ SCIP_RETCODE createConsSavesdpsol(
    SCIP_Real*            sol                 /**< optimal solution for SDP-relaxation of this node */
    );
 
-/** for the given cons of type Savedsdpsol returns the previous solution, length should start with the length of the array, this needs to be atleast
- *  the number of variables in scip and will be overwritten by this value, if it wasn't sufficient a debugMessage will be thrown */
-extern
-SCIP_RETCODE getStartingPoint(
+/** for the given cons of type Savedsdpsol returns the previous dual solution vector y, length should start with the length of the array, this
+ *  needs to be atleast the number of variables in scip and will be overwritten by this value, if it wasn't sufficient a debugMessage will be thrown
+ */
+EXTERN
+SCIP_RETCODE getDualVector(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< constraint to get starting point for */
-   SCIP_Real*            sol,                /**< output: previous solution */
+   SCIP_Real*            sol,                /**< output: previous dual solution vector y */
    int*                  length              /**< input: length of sol-array, output: number of entries in sol-array */
    );
 

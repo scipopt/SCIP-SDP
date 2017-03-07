@@ -264,12 +264,13 @@ SCIP_RETCODE createConsSavesdpsol(
    return SCIP_OKAY;
 }
 
-/** for the given cons of type Savesdpsol returns the previous solution, length should start with the length of the array, this needs to be atleast
- *  the number of variables in scip and will be overwritten by this value, if it wasn't sufficient a debugMessage will be thrown */
-SCIP_RETCODE getStartingPoint(
+/** for the given cons of type Savedsdpsol returns the previous dual solution vector y, length should start with the length of the array, this
+ *  needs to be atleast the number of variables in scip and will be overwritten by this value, if it wasn't sufficient a debugMessage will be thrown
+ */
+SCIP_RETCODE getDualVector(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< constraint to get starting point for */
-   SCIP_Real*            sol,                /**< output: previous solution */
+   SCIP_Real*            sol,                /**< output: previous dual solution vector y */
    int*                  length              /**< input: length of sol-array, output: number of entries in sol-array */
    )
 {
