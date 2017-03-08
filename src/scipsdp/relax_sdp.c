@@ -1152,16 +1152,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       /* check if the solution really is feasible */
       SCIP_CALL( SCIPcheckSol(scip, scipsol, FALSE, TRUE, TRUE, TRUE, TRUE, &feasible) );
 
-      stored = FALSE;
-      if ( feasible )
-      {
-         SCIP_CALL( SCIPtrySolFree(scip, &scipsol, FALSE, FALSE, FALSE, FALSE, FALSE, &stored) );
-      }
-      else
-      {
-         SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
-      }
-
       relaxdata->feasible = feasible;
 
       if ( feasible && stored )
