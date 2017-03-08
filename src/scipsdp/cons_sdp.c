@@ -358,7 +358,7 @@ SCIP_RETCODE cutUsingEigenvector(
 /** checks feasibility for a single SDP constraint */
 SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< the constraint which should be checked */
+   SCIP_CONS*            cons,               /**< the constraint the solution should be checked for */
    SCIP_SOL*             sol,                /**< the solution to check feasibility for */
    SCIP_Bool             checkintegrality,   /**< has integrality to be checked? */
    SCIP_Bool             checklprows,        /**< have current LP rows to be checked? */
@@ -2607,7 +2607,7 @@ SCIP_RETCODE SCIPconsSdpGetData(
  */
 SCIP_RETCODE SCIPconsSdpGetNNonz(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< SDP constraint to get data of */
+   SCIP_CONS*            cons,               /**< SDP constraint to get number of nonzeros for */
    int*                  nnonz,              /**< pointer to store the number of nonzeros in this SDP constraint */
    int*                  constnnonz          /**< pointer to store the number of nonzeros in the constant part of this SDP constraint */
    )
@@ -2632,7 +2632,7 @@ SCIP_RETCODE SCIPconsSdpGetNNonz(
 /** gets the blocksize of the SDP constraint */
 int SCIPconsSdpGetBlocksize(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons               /**< SDP constraint to get data of */
+   SCIP_CONS*            cons                /**< SDP constraint to get blocksize for */
    )
 {
    SCIP_CONSDATA* consdata;
@@ -2649,7 +2649,7 @@ int SCIPconsSdpGetBlocksize(
 /** gets the full constraint Matrix \f$ A_j \f$ for a given variable j */
 SCIP_RETCODE SCIPconsSdpGetFullAj(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< SDP constraint to get data of */
+   SCIP_CONS*            cons,               /**< SDP constraint to get matrix for */
    int                   j,                  /**< the variable j to get the corresponding matrix \f$ A_j \f$ for */
    SCIP_Real*            Aj                  /**< pointer to store the full matrix \f$ A_j \f$ */
    )
@@ -2684,7 +2684,7 @@ SCIP_RETCODE SCIPconsSdpGetFullAj(
 /** gives an n*n-long array with the full constant matrix */
 SCIP_RETCODE SCIPconsSdpGetFullConstMatrix(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< SDP constraint to get data of */
+   SCIP_CONS*            cons,               /**< SDP constraint to get matrix for */
    SCIP_Real*            mat                 /**< pointer to store the full constant matrix */
    )
 {
@@ -2718,7 +2718,7 @@ SCIP_RETCODE SCIPconsSdpGetFullConstMatrix(
 /** gives a 0.5*n*(n+1)-long array with the lower triangular part of the constant matrix indexed by compLowerTriangPos */
 SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< SDP constraint to get data of */
+   SCIP_CONS*            cons,               /**< SDP constraint to get matrix for */
    SCIP_Real*            mat                 /**< pointer to store the lower triangular part of the constant matrix */
    )
 {
@@ -2757,7 +2757,7 @@ SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
  */
 SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< the constraint for which the Matrix should be assembled */
+   SCIP_CONS*            cons,               /**< the constraint for which the initial point should be constructed */
    SCIP_Real*            lambdastar          /**< pointer to store the guess for the initial point */
    )
 {
