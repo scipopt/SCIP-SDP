@@ -153,7 +153,7 @@ SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
 EXTERN
 SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< the constraint for which the Matrix should be assembled */
+   SCIP_CONS*            cons,               /**< the constraint which should be checked */
    SCIP_SOL*             sol,                /**< the solution to check feasibility for */
    SCIP_Bool             checkintegrality,   /**< has integrality to be checked? */
    SCIP_Bool             checklprows,        /**< have current LP rows to be checked? */
@@ -174,8 +174,30 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
 EXTERN
 SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< the constraint for which the Matrix should be assembled */
+   SCIP_CONS*            cons,               /**< the constraint to guess an initial point for */
    SCIP_Real*            lambdastar          /**< pointer to store the guess for the initial point */
+   );
+
+/** Computes an upper bound on the number of nonzeros of the (dual) SDP matrix \f$ Z = \sum_{j=1}^n A_j y_j - A_0 \f$,
+ *  this should be used to allocate enough memory before calling SCIPconsSdpComputeSparseSdpMatrix
+ */
+EXTERN
+int SCIPconsSdpComputeUbSparseSdpMatrixLength(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< the constraint for which the Matrix should be assembled */
+   );
+
+/** Computes (dual) SDP matrix \f$ Z = \sum_{j=1}^n A_j y_j - A_0 \f$ and returns it in sparse format */
+EXTERN
+SCIP_RETCODE SCIPconsSdpComputeSparseSdpMatrix(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons,               /**< the constraint for which the Matrix should be assembled */
+   SCIP_SOL*             sol,                /**< the solution to assemble the matrix for */
+   int*                  length,             /**< input: allocated memory for row/col/val arrays
+                                               *  output: number of nonzeros of the matrix / length of row/col/val arrays */
+   int*                  row,                /**< pointer to store row indices of SDP-matrix */
+   int*                  col,                /**< pointer to store column indices of SDP-matrix */
+   SCIP_Real*            val                 /**< pointer to store values of SDP-matrix */
    );
 
 #ifdef __cplusplus
