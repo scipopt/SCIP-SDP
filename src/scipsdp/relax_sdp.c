@@ -589,6 +589,7 @@ SCIP_RETCODE calcRelax(
    int naddediters;
    int naddedsdpcalls;
    int nvars;
+   int v;
 
    SCIPdebugMessage("calcRelax called\n");
 
@@ -928,7 +929,10 @@ SCIP_RETCODE calcRelax(
 
          /* create SCIP solution */
          SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
-         SCIP_CALL( SCIPsetSolVals(scip, scipsol, nvars, vars, solforscip) );
+         for (v = 0; v < nvars; v++)
+         {
+            SCIP_CALL( SCIPsetSolVal(scip, scipsol, vars[v], solforscip[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])]));
+         }
 
          *lowerbound = objforscip;
          relaxdata->objval = objforscip;
