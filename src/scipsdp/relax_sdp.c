@@ -1157,6 +1157,8 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
 
       relaxdata->feasible = feasible;
 
+      SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
+
       SCIPfreeBufferArray(scip, &ubs);
 
       return SCIP_OKAY;
