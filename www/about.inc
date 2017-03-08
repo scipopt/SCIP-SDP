@@ -1,10 +1,13 @@
 <p>
    SCIP-SDP is a plugin for SCIP to solve mixed integer semidefinite programs (MISDPs) of the form
-</p>
-<p style= "text-indent:1.5em;">
-   <img src="http://www.opt.tu-darmstadt.de/scipsdp/downloads/misdp.png">
-</p>
-<p>
+\[
+  \begin{aligned}
+    \inf \quad \thinspace & b^\top y \\
+    \text{s.t.} \quad & \sum_{i=1}^m A_i\, y_i - A_0 \succeq 0, \\
+    & \ell_i \leq y_i \leq u_i && \forall\, i = 1, \dots, m, \\
+    & y_i \in \mathbb{Z} && \forall\, i \in \mathcal{I}.
+  \end{aligned}
+\]
    It combines the branch-and-bound framework of SCIP with interior-point SDP-solvers to solve MISDPs using either a
    nonlinear branch-and-bound approach or an outer-approximation-based cutting-plane approach. In addition to providing
    a constraint handler for SDP-constraints and a relaxator to solve continuous SDP-relaxations using interior-point

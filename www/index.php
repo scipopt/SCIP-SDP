@@ -14,6 +14,9 @@
    <!-- Include all compiled plugins (below), or include individual files as needed -->
    <script src="bootstrap/js/custom.js"></script>
    <script src="bootstrap/js/bootstrap.min.js"></script>
+   <script type="text/javascript" async
+        src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_CHTML">
+   </script>
 </head>
 <body>
    <?php include('header.inc'); ?>
