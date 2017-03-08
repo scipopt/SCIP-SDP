@@ -1021,7 +1021,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    SCIP_Real* ubs;
    SCIP_Bool cutoff;
    SCIP_SOL* scipsol;
-   SCIP_Bool stored;
    int nconss;
    int nvars;
    int i;
