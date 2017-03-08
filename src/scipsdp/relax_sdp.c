@@ -1158,17 +1158,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
 
       relaxdata->feasible = feasible;
 
-      if ( feasible && stored )
-      {
-         *result = SCIP_CUTOFF;
-         SCIPdebugMessage("New solution was stored, node is cut off!\n");
-      }
-      else
-      {
-         *result = SCIP_CUTOFF;
-         SCIPdebugMessage("Fixed solution either infeasible or not good enough for storage, node cut off!\n");
-      }
-
       SCIPfreeBufferArray(scip, &ubs);
 
       return SCIP_OKAY;
