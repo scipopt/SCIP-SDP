@@ -87,7 +87,7 @@ void SCIPsdpVarfixerSortRowCol(
  */
 SCIP_RETCODE SCIPsdpVarfixerMergeArrays(
    BMS_BLKMEM*           blkmem,             /**< block memory */
-   SCIP_Real             feastol,            /**< only values bigger than this are counted as nonzeros */
+   SCIP_Real             epsilon,            /**< only values bigger than this are counted as nonzeros */
    int*                  originrow,          /**< original row-index-array that is going to be merged, may be NULL if originlength = 0 */
    int*                  origincol,          /**< original column-index-array that is going to be merged, may be NULL if originlength = 0 */
    SCIP_Real*            originval,          /**< original nonzero-values-array that is going to be merged, may be NULL if originlength = 0 */
@@ -171,7 +171,7 @@ SCIP_RETCODE SCIPsdpVarfixerMergeArrays(
             i++;
          }
 
-         if ( REALABS(targetval[ind - nleftshifts]) < feastol )
+         if ( REALABS(targetval[ind - nleftshifts]) < epsilon )
          {
             /* the nonzero became zero */
             nleftshifts++;
@@ -208,7 +208,7 @@ SCIP_RETCODE SCIPsdpVarfixerMergeArrays(
             }
 
             /* if there were indeed multiple entries, check if they did cancel each other out, in that case remove the entry */
-            if ( REALABS(targetval[insertionpos]) < feastol )
+            if ( REALABS(targetval[insertionpos]) < epsilon )
             {
                /* depending on where this actually zero nonzero was added, either add another leftshift to overwrite it or decrease the number of addednonz */
                if ( insertionpos < ind )
@@ -254,7 +254,7 @@ SCIP_RETCODE SCIPsdpVarfixerMergeArrays(
  */
 SCIP_RETCODE SCIPsdpVarfixerMergeArraysIntoNew(
    BMS_BLKMEM*           blkmem,             /**< block memory */
-   SCIP_Real             feastol,            /**< only values bigger than this are counted as nonzeros */
+   SCIP_Real             epsilon,            /**< only values bigger than this are counted as nonzeros */
    int*                  firstrow,           /**< first row-index-array that is going to be merged, may be NULL if firstlength = 0 */
    int*                  firstcol,           /**< first column-index-array that is going to be merged, may be NULL if firstlength = 0 */
    SCIP_Real*            firstval,           /**< first nonzero-values-array that is going to be merged, may be NULL if firstlength = 0 */
@@ -338,7 +338,7 @@ SCIP_RETCODE SCIPsdpVarfixerMergeArraysIntoNew(
 
          /* if we combined multiple fixed nonzeros, it is possible that they cancelled each other out, in that case, we shouldn't add a nonzero to the
           * target arrays (if the array was too short we didn't compute the entry, but we add it, as we want to get an upper bound on the needed size) */
-         if ( targetind >= *targetlength || REALABS(targetval[targetind]) >= feastol )
+         if ( targetind >= *targetlength || REALABS(targetval[targetind]) >= epsilon )
             targetind++;
       }
       /* if the next entries of both arrays are equal according to the row then col sorting, then they need to be combined */
@@ -366,7 +366,7 @@ SCIP_RETCODE SCIPsdpVarfixerMergeArraysIntoNew(
 
          /* as we combined multiple entires, it is possible that they cancelled each other out, in that case, we shouldn't add a nonzero to the
           * target arrays (if the array was too short we didn't compute the entry, but we add it, as we want to get an upper bound on the needed size) */
-         if ( targetind >= *targetlength || REALABS(targetval[targetind]) >= feastol )
+         if ( targetind >= *targetlength || REALABS(targetval[targetind]) >= epsilon )
             targetind++;
       }
    }
@@ -410,7 +410,7 @@ SCIP_RETCODE SCIPsdpVarfixerMergeArraysIntoNew(
 
       /* if we combined multiple fixed nonzeros, it is possible that they cancelled each other out, in that case, we shouldn't add a nonzero to the
        * target arrays */
-      if ( targetind >= *targetlength || REALABS(targetval[targetind]) >= feastol )
+      if ( targetind >= *targetlength || REALABS(targetval[targetind]) >= epsilon )
          targetind++;
    }
 

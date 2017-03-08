@@ -67,7 +67,7 @@ void SCIPsdpVarfixerSortRowCol(
  */
 SCIP_RETCODE SCIPsdpVarfixerMergeArrays(
    BMS_BLKMEM*           blkmem,             /**< block memory */
-   SCIP_Real             feastol,            /**< only values bigger than this are counted as nonzeros */
+   SCIP_Real             epsilon,            /**< only values bigger than this are counted as nonzeros */
    int*                  originrow,          /** original row-index-array that is going to be merged, may be NULL if originlength = 0 */
    int*                  origincol,          /** original column-index-array that is going to be merged, may be NULL if originlength = 0 */
    SCIP_Real*            originval,          /** original nonzero-values-array that is going to be merged, may be NULL if originlength = 0 */
@@ -95,7 +95,7 @@ SCIP_RETCODE SCIPsdpVarfixerMergeArrays(
 EXTERN
 SCIP_RETCODE SCIPsdpVarfixerMergeArraysIntoNew(
    BMS_BLKMEM*           blkmem,             /**< block memory */
-   SCIP_Real             feastol,            /**< only values bigger than this are counted as nonzeros */
+   SCIP_Real             epsilon,            /**< only values bigger than this are counted as nonzeros */
    int*                  firstrow,           /** first row-index-array that is going to be merged, may be NULL if firstlength = 0 */
    int*                  firstcol,           /** first column-index-array that is going to be merged, may be NULL if firstlength = 0 */
    SCIP_Real*            firstval,           /** first nonzero-values-array that is going to be merged, may be NULL if firstlength = 0 */
