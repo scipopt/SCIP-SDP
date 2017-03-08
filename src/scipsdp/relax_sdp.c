@@ -678,13 +678,13 @@ SCIP_RETCODE calcRelax(
    {
       SCIP_CONSHDLR* conshdlr;
       SCIP_Real* starty = NULL;
-      SCIP_Real* startZnblocknonz = NULL;
-      SCIP_Real* startZrow = NULL;
-      SCIP_Real* startZcol = NULL;
+      int* startZnblocknonz = NULL;
+      int* startZrow = NULL;
+      int* startZcol = NULL;
       SCIP_Real* startZval = NULL;
-      SCIP_Real* startXnblocknonz = NULL;
-      SCIP_Real* startXrow = NULL;
-      SCIP_Real* startXcol = NULL;
+      int* startXnblocknonz = NULL;
+      int* startXrow = NULL;
+      int* startXcol = NULL;
       SCIP_Real* startXval = NULL;
       int length;
       int v;

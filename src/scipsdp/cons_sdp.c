@@ -2905,7 +2905,7 @@ SCIP_RETCODE SCIPconsSdpComputeSparseSdpMatrix(
 
    assert( scip != NULL );
    assert( cons != NULL );
-   assert( solvals != NULL );
+   assert( sol != NULL );
    assert( length != NULL );
    assert( row != NULL );
    assert( col != NULL );
