@@ -981,7 +981,6 @@ SCIP_RETCODE calcRelax(
       }
 
       *result = SCIP_SUCCESS;
-      //SCIP_CALL( SCIPupdateLocalLowerbound(scip, *lowerbound) );
       return SCIP_OKAY;
    }
 
@@ -1161,6 +1160,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
 
       SCIPfreeBufferArray(scip, &ubs);
 
+      *result = SCIP_SUCCESS;
       return SCIP_OKAY;
    }
 
