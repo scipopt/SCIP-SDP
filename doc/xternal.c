@@ -49,7 +49,6 @@
  * 	\begin{aligned}
  *      \inf \quad & b^T y && \\
  *      \mbox{s.t.} \quad & \sum_{i = 1}^m A_i y_i - A_0 \succeq 0,&& \\
- *      & \ell_i \leq y_i \leq u_i && \forall \ i = 1, ..., m, \\
  *	& y_i \in \mathbb{Z} && \forall \ i \in \mathcal{I}.
  *	\end{aligned}
  *   \f}
