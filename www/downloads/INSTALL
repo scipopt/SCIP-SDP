@@ -145,7 +145,7 @@ To use the SDP-Plugin call
 ./bin/scipsdp
 
 to open a SCIP shell for solving MISDPs. There you can read a sparse SDPA-File with added
-integrality constraints (for details about the format see data_format.txt) named 
+integrality constraints (for details about the format see sdpa_format.txt) named 
 instancefile.dat-s by calling
 
 read instancefile.dat-s
