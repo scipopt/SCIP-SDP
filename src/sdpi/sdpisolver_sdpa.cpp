@@ -480,7 +480,8 @@ SCIP_RETCODE SCIPsdpiSolverResetCounter(
  *
  *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
  *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
- *  lhs(row0), rhs(row0), lhs(row1), ... independant of some lhs/rhs being infinity (the starting point will later be adjusted accordingly)
+ *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independant of some lhs/rhs being infinity (the starting point
+ *  will later be adjusted accordingly)
  */
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
@@ -567,7 +568,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *
  *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
  *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
- *  lhs(row0), rhs(row0), lhs(row1), ... independant of some lhs/rhs being infinity (the starting point will later be adjusted accordingly)
+ *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independant of some lhs/rhs being infinity (the starting point
+ *  will later be adjusted accordingly)
  */
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
@@ -973,7 +975,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
    /* if we want to use a starting point we have to tell SDPA to allocate memory for it */
-   if ( start != NULL )
+   if ( starty != NULL && startZnblocknonz != NULL && startXnblocknonz != NULL && penaltyparam < sdpisolver->epsilon )
       sdpisolver->sdpa->setInitPoint(true);
    else
       sdpisolver->sdpa->setInitPoint(false);
@@ -1339,21 +1341,29 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* set the starting solution */
    if ( starty != NULL && startZnblocknonz != NULL && startXnblocknonz != NULL && penaltyparam < sdpisolver->epsilon )
    {
+      int b;
+      int inputvar;
+      int arraypos;
+
       /* set dual vector */
       for (i = 1; i <= sdpisolver->nactivevars; i++)
-         sdpisolver->sdpa->inputInitXVec((long long) i, starty[sdpisolver->sdpatoinputmapper[i] - 1]);/*lint !e747*/
+         sdpisolver->sdpa->inputInitXVec((long long) i, starty[sdpisolver->sdpatoinputmapper[i - 1]]);/*lint !e747*/
 
       /* set SDP-blocks of dual matrix */
       for (b = 0; b < nsdpblocks; b++)
       {
          for (i = 0; i < startZnblocknonz[b];  i++)
          {
-            sdpisolver->sdpa->inputInitXMat((long long) b + 1 - blockindchanges[b], (long long) startZrow[b][i] + 1 - indchanges[b][startZrow[b][i]],
-                  (long long) startZcol[b][i] + 1 - indchanges[b][startZcol[b][i]], startZval[b][i]);
+            if ( blockindchanges[b] > -1)
+            {
+               sdpisolver->sdpa->inputInitXMat((long long) b + 1 - blockindchanges[b], (long long) startZrow[b][i] + 1 - indchanges[b][startZrow[b][i]],
+                                 (long long) startZcol[b][i] + 1 - indchanges[b][startZcol[b][i]], startZval[b][i]);
+            }
          }
       }
+
       /* set LP-block of dual matrix */
-      if ( nlpineqs + sdpisolver->nvarbounds > 0 )
+      if ( nlpineqs > 0 )
       {
          for (i = 0; i < noldlpcons; i++)
          {
@@ -1362,6 +1372,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             if ( rowmapper[2*i + 1] )
                sdpisolver->sdpa->inputInitXMat((long long) nsdpblocks + 1, rowmapper[2*i + 1], rowmapper[2*i + 1], startZval[nsdpblocks][2*i +1]);
          }
+      }
+
+      /* set varbound-block of dual matrix */
+      for (i = 0; i < sdpisolver->nvarbounds; i++)
+      {
+         inputvar = sdpisolver->sdpatoinputmapper[(sdpisolver->varboundpos[i] > 0 ? sdpisolver->varboundpos[i] - 1 : (-1 * sdpisolver->varboundpos[i]) - 1)];
+         assert( 0 <= inputvar && inputvar < nvars );
+         arraypos = sdpisolver->varboundpos[i] < 0 ? 2 * noldlpcons + 2 * inputvar : 2 * noldlpcons + 2 * inputvar + 1;
+         sdpisolver->sdpa->inputInitXMat((long long) nsdpblocks + 1, nlpineqs + i + 1, nlpineqs + i + 1, startZval[nsdpblocks][arraypos]);
       }
 
       /*set SDP-blocks of primal matrix */
@@ -1373,8 +1392,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                   (long long) startXcol[b][i] + 1 - indchanges[b][startXcol[b][i]], startXval[b][i]);
          }
       }
+
       /* set LP-block of primal matrix */
-      if ( nlpineqs + sdpisolver->nvarbounds > 0 )
+      if ( nlpineqs > 0 )
       {
          for (i = 0; i < noldlpcons; i++)
          {
@@ -1383,6 +1403,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             if ( rowmapper[2*i + 1] )
                sdpisolver->sdpa->inputInitYMat((long long) nsdpblocks + 1, rowmapper[2*i + 1], rowmapper[2*i + 1], startXval[nsdpblocks][2*i +1]);
          }
+      }
+
+      /* set varbound-block of primal matrix */
+      for (i = 0; i < sdpisolver->nvarbounds; i++)
+      {
+         inputvar = sdpisolver->sdpatoinputmapper[(sdpisolver->varboundpos[i] > 0 ? sdpisolver->varboundpos[i] - 1 : (-1 * sdpisolver->varboundpos[i]) - 1)];
+         arraypos = sdpisolver->varboundpos[i] < 0 ? 2 * noldlpcons + 2 * inputvar : 2 * noldlpcons + 2 * inputvar + 1;
+         sdpisolver->sdpa->inputInitXMat((long long) nsdpblocks + 1, nlpineqs + i + 1, nlpineqs + i + 1, startXval[nsdpblocks][arraypos]);
       }
    }
    else if ( penaltyparam >= sdpisolver->epsilon )
@@ -2256,11 +2284,11 @@ SCIP_Real SCIPsdpiSolverGetMaxPrimalEntry(
    for (b = 0; b < nblocks; b++)
    {
       /* get the length of the X-array, if it is an LP block, the array has length n, otherwise n*(n+1)/2 */
-      blocksize = (int) sdpisolver->sdpa->getBlockSize((long long) b);
-      arraylength = sdpisolver->sdpa->getBlockType((long long) b) == SDPA::LP ? blocksize : (blocksize * (blocksize + 1) / 2);
+      blocksize = (int) sdpisolver->sdpa->getBlockSize((long long) b + 1);
+      arraylength = sdpisolver->sdpa->getBlockType((long long) b + 1) == SDPA::LP ? blocksize : (blocksize * (blocksize + 1) / 2);
 
       /* iterate over all entries in this block */
-      X = sdpisolver->sdpa->getResultYMat((long long) b);/*lint !e747*/
+      X = sdpisolver->sdpa->getResultYMat((long long) b + 1);/*lint !e747*/
       for (i = 0; i < arraylength; i++)
       {
          if ( X[i] > maxentry )

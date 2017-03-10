@@ -2925,8 +2925,8 @@ SCIP_RETCODE SCIPconsSdpComputeSparseSdpMatrix(
    }
    for (i = 0; i < consdata->constnnonz; i++)
    {
-      row[i] = -1 * consdata->constrow[i];
-      col[i] = -1 * consdata->constcol[i];
+      row[i] = consdata->constrow[i];
+      col[i] = consdata->constcol[i];
       val[i] = -1 * consdata->constval[i];
    }
 

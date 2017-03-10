@@ -793,12 +793,13 @@ SCIP_RETCODE calcRelax(
 
          /** fill LP-block */
          SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startZrow[b], 2 * nrows) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startZcol[b], 2 * nrows) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startZval[b], 2 * nrows) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], 2 * nrows) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], 2 * nrows) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], 2 * nrows) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &startZrow[b], 2 * nrows + 2 * nvars) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &startZcol[b], 2 * nrows + 2 * nvars) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &startZval[b], 2 * nrows + 2 * nvars) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], 2 * nrows + 2 * nvars) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], 2 * nrows + 2 * nvars) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], 2 * nrows + 2 * nvars) );
+
          for (r = 0; r < nrows; r++)
          {
             /* compute row value for current solution */
@@ -811,16 +812,36 @@ SCIP_RETCODE calcRelax(
 
             startZrow[b][2*r] = 2*r;
             startZcol[b][2*r] = 2*r;
-            startZval[b][2*r] = SCIProwGetLhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
+            startZval[b][2*r] = rowval - (SCIProwGetLhs(rows[r]) - SCIProwGetConstant(rows[r]));
             startZrow[b][2*r + 1] = 2*r + 1;
             startZcol[b][2*r + 1] = 2*r + 1;
-            startZval[b][2*r + 1] = rowval - (SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]));
+            startZval[b][2*r + 1] = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
             startXrow[b][2*r] = 2*r;
             startXcol[b][2*r] = 2*r;
             startXval[b][2*r] = maxprimalentry;
             startXrow[b][2*r + 1] = 2*r + 1;
             startXcol[b][2*r + 1] = 2*r + 1;
             startXval[b][2*r + 1] = maxprimalentry;
+         }
+
+         for (v = 0; v < nvars; v++)
+         {
+            startZrow[b][2*nrows + 2*v] = 2*nrows + 2*v;
+            startZcol[b][2*nrows + 2*v] = 2*nrows + 2*v;
+            startZval[b][2*nrows + 2*v] = SCIPgetSolVal(scip, dualsol, vars[v]) - SCIPvarGetLbLocal(vars[v]);
+            if ( SCIPisLT(scip, startZval[b][2*nrows + 2*v], 0.0) )
+               startZval[b][2*nrows + 2*v] = 0.0; /* if bound changes make the solution infeasible, we still set the value to zero to keep the matrix psd */
+            startZrow[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
+            startZcol[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
+            startZval[b][2*nrows + 2*v + 1] = SCIPvarGetUbLocal(vars[v]) - SCIPgetSolVal(scip, dualsol, vars[v]);
+            if ( SCIPisLT(scip, startZval[b][2*nrows + 2*v], 0.0) )
+               startZval[b][2*nrows + 2*v + 1] = 0.0; /* if bound changes make the solution infeasible, we still set the value to zero to keep the matrix psd */
+            startXrow[b][2*nrows + 2*v] = 2*nrows + 2*v;
+            startXcol[b][2*nrows + 2*v] = 2*nrows + 2*v;
+            startXval[b][2*nrows + 2*v] = maxprimalentry;
+            startXrow[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
+            startXcol[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
+            startXval[b][2*nrows + 2*v + 1] = maxprimalentry;
          }
       }
 

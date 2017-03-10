@@ -504,7 +504,8 @@ SCIP_RETCODE SCIPsdpiSolverResetCounter(
  *
  *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
  *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
- *  lhs(row0), rhs(row0), lhs(row1), ... independant of some lhs/rhs being infinity (the starting point will later be adjusted accordingly)
+ *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independant of some lhs/rhs being infinity (the starting point
+ *  will later be adjusted accordingly)
  */
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
@@ -591,7 +592,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *
  *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
  *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
- *  lhs(row0), rhs(row0), lhs(row1), ... independant of some lhs/rhs being infinity (the starting point will later be adjusted accordingly)
+ *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independant of some lhs/rhs being infinity (the starting point
+ *  will later be adjusted accordingly)
  */
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */

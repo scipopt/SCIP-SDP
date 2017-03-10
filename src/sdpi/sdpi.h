@@ -372,7 +372,8 @@ SCIP_RETCODE SCIPsdpiGetRhSides(
 
 /** solves the SDP, as start optionally a starting point for the solver may be given, if it is NULL, the solver will start from scratch
  *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
- *  lhs(row0), rhs(row0), lhs(row1), ... independant of some lhs/rhs being infinity (the starting point will later be adjusted accordingly)
+ *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independant of some lhs/rhs being infinity (the starting point
+ *  will later be adjusted accordingly)
  */
 EXTERN
 SCIP_RETCODE SCIPsdpiSolve(
