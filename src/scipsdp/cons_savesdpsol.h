@@ -46,31 +46,34 @@
 extern "C" {
 #endif
 
-/** include Savedsdpsol constraint handler */
+/** include Savesdpsol constraint handler */
 EXTERN
 SCIP_RETCODE SCIPincludeConshdlrSavesdpsol(
    SCIP*                 scip                /**< SCIP data structure */
    );
 
-/** create a Savedsdpsol-Cons, i.e. save the current optimal solution for the SDP-relaxation of this node */
+/** create a Savesdpsol-Cons, i.e. save the current optimal solution for the SDP-relaxation of this node */
 EXTERN
 SCIP_RETCODE createConsSavesdpsol(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
    const char*           name,               /**< name of constraint */
-   int                   nvars,              /**< number of variables and therefore length of sol */
-   SCIP_Real*            sol                 /**< optimal solution for SDP-relaxation of this node */
+   SCIP_SOL*             sol,                /**< optimal solution for SDP-relaxation of this node */
+   SCIP_Real             maxprimalentry      /**< maximum absolute value of primal matrix */
    );
 
-/** for the given cons of type Savedsdpsol returns the previous dual solution vector y, length should start with the length of the array, this
- *  needs to be atleast the number of variables in scip and will be overwritten by this value, if it wasn't sufficient a debugMessage will be thrown
- */
+/** for the given cons of type Savesdpsol returns the previous dual solution vector y */
 EXTERN
-SCIP_RETCODE getDualVector(
+SCIP_SOL* SCIPconsSavesdpsolGetDualVector(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< constraint to get starting point for */
-   SCIP_Real*            sol,                /**< output: previous dual solution vector y */
-   int*                  length              /**< input: length of sol-array, output: number of entries in sol-array */
+   SCIP_CONS*            cons                /**< constraint to get starting point for */
+   );
+
+/** for the given cons of type Savesdpsol returns the previous dual solution vector y */
+EXTERN
+SCIP_Real SCIPconsSavesdpsolGetMaxPrimalEntry(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< constraint to get maximum primal entry for */
    );
 
 #ifdef __cplusplus

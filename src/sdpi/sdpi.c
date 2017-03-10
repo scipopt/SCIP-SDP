@@ -2436,7 +2436,7 @@ SCIP_RETCODE SCIPsdpiGetRhSides(
 /**@{ */
 
 /** solves the SDP, as start optionally a starting point for the solver may be given, if it is NULL, the solver will start from scratch
- *  @note starting point needs to be given with original indices (before any local presolving), for LP blocks the indices should be
+ *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
  *  lhs(row0), rhs(row0), lhs(row1), ... independant of some lhs/rhs being infinity (the starting point will later be adjusted accordingly)
  */
 SCIP_RETCODE SCIPsdpiSolve(
@@ -2444,14 +2444,20 @@ SCIP_RETCODE SCIPsdpiSolve(
    SCIP_Real*            starty,             /**< NULL or dual vector y as starting point for the solver, this should have length nvars */
    int*                  startZnblocknonz,   /**< dual matrix Z = sum Ai yi as starting point for the solver: number of nonzeros for each block,
                                                *  also length of corresponding row/col/val-arrays; or NULL */
-   int*                  startZrow,          /**< dual matrix Z = sum Ai yi as starting point for the solver: row indices; may be NULL if startZnblocknonz = NULL */
-   int*                  startZcol,          /**< dual matrix Z = sum Ai yi as starting point for the solver: column indices; may be NULL if startZnblocknonz = NULL */
-   SCIP_Real*            startZval,          /**< dual matrix Z = sum Ai yi as starting point for the solver: values; may be NULL if startZnblocknonz = NULL */
+   int**                 startZrow,          /**< dual matrix Z = sum Ai yi as starting point for the solver: row indices for each block;
+                                               *  may be NULL if startZnblocknonz = NULL */
+   int**                 startZcol,          /**< dual matrix Z = sum Ai yi as starting point for the solver: column indices for each block;
+                                               *  may be NULL if startZnblocknonz = NULL */
+   SCIP_Real**           startZval,          /**< dual matrix Z = sum Ai yi as starting point for the solver: values for each block;
+                                               *  may be NULL if startZnblocknonz = NULL */
    int*                  startXnblocknonz,   /**< primal matrix X as starting point for the solver: number of nonzeros for each block,
                                                *  also length of corresponding row/col/val-arrays; or NULL */
-   int*                  startXrow,          /**< primal matrix X as starting point for the solver: row indices; may be NULL if startXnblocknonz = NULL */
-   int*                  startXcol,          /**< primal matrix X as starting point for the solver: column indices; may be NULL if startXnblocknonz = NULL */
-   SCIP_Real*            startXval,          /**< primal matrix X as starting point for the solver: values; may be NULL if startXnblocknonz = NULL */
+   int**                 startXrow,          /**< primal matrix X as starting point for the solver: row indices for each block;
+                                               *  may be NULL if startXnblocknonz = NULL */
+   int**                 startXcol,          /**< primal matrix X as starting point for the solver: column indices for each block;
+                                               *  may be NULL if startXnblocknonz = NULL */
+   SCIP_Real**           startXval,          /**< primal matrix X as starting point for the solver: values for each block;
+                                               *  may be NULL if startXnblocknonz = NULL */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP or MOSEK, set this to
                                                *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Bool             enforceslatercheck, /**< always check for Slater condition in case the problem could not be solved and printf the solution
@@ -3374,6 +3380,16 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    SCIP_CALL( SCIPsdpiSolverGetPrimalBoundVars(sdpi->sdpisolver, lbvars, ubvars, arraylength) );
 
    return SCIP_OKAY;
+}
+
+/** return the maximum absolute value of the optimal primal matrix */
+SCIP_Real SCIPsdpiGetMaxPrimalEntry(
+   SCIP_SDPI*            sdpi                /**< pointer to an SDP-interface structure */
+   )
+{
+   assert( sdpi != NULL );
+
+   return SCIPsdpiSolverGetMaxPrimalEntry( sdpi->sdpisolver );
 }
 
 /** gets the number of SDP-iterations of the last solve call */

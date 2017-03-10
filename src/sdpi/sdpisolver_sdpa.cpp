@@ -479,7 +479,7 @@ SCIP_RETCODE SCIPsdpiSolverResetCounter(
  *  start from scratch).
  *
  *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
- *  @note starting point needs to be given with original indices (before any local presolving), for LP blocks the indices should be
+ *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
  *  lhs(row0), rhs(row0), lhs(row1), ... independant of some lhs/rhs being infinity (the starting point will later be adjusted accordingly)
  */
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
@@ -522,14 +522,20 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    SCIP_Real*            starty,             /**< NULL or dual vector y as starting point for the solver, this should have length nvars */
    int*                  startZnblocknonz,   /**< dual matrix Z = sum Ai yi as starting point for the solver: number of nonzeros for each block,
                                                *  also length of corresponding row/col/val-arrays; or NULL */
-   SCIP_Real*            startZrow,          /**< dual matrix Z = sum Ai yi as starting point for the solver: row indices; may be NULL if startZnblocknonz = NULL */
-   SCIP_Real*            startZcol,          /**< dual matrix Z = sum Ai yi as starting point for the solver: column indices; may be NULL if startZnblocknonz = NULL */
-   SCIP_Real*            startZval,          /**< dual matrix Z = sum Ai yi as starting point for the solver: values; may be NULL if startZnblocknonz = NULL */
+   int**                 startZrow,          /**< dual matrix Z = sum Ai yi as starting point for the solver: row indices for each block;
+                                               *  may be NULL if startZnblocknonz = NULL */
+   int**                 startZcol,          /**< dual matrix Z = sum Ai yi as starting point for the solver: column indices for each block;
+                                               *  may be NULL if startZnblocknonz = NULL */
+   SCIP_Real**           startZval,          /**< dual matrix Z = sum Ai yi as starting point for the solver: values for each block;
+                                               *  may be NULL if startZnblocknonz = NULL */
    int*                  startXnblocknonz,   /**< primal matrix X as starting point for the solver: number of nonzeros for each block,
                                                *  also length of corresponding row/col/val-arrays; or NULL */
-   SCIP_Real*            startXrow,          /**< primal matrix X as starting point for the solver: row indices; may be NULL if startXnblocknonz = NULL */
-   SCIP_Real*            startXcol,          /**< primal matrix X as starting point for the solver: column indices; may be NULL if startXnblocknonz = NULL */
-   SCIP_Real*            startXval,          /**< primal matrix X as starting point for the solver: values; may be NULL if startXnblocknonz = NULL */
+   int**                 startXrow,          /**< primal matrix X as starting point for the solver: row indices for each block;
+                                               *  may be NULL if startXnblocknonz = NULL */
+   int**                 startXcol,          /**< primal matrix X as starting point for the solver: column indices for each block;
+                                               *  may be NULL if startXnblocknonz = NULL */
+   SCIP_Real**           startXval,          /**< primal matrix X as starting point for the solver: values for each block;
+                                               *  may be NULL if startXnblocknonz = NULL */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP and MOSEK, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
@@ -560,7 +566,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *  An optional starting point for the solver may be given; if it is NULL, the solver will start from scratch.
  *
  *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
- *  @note starting point needs to be given with original indices (before any local presolving), for LP blocks the indices should be
+ *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
  *  lhs(row0), rhs(row0), lhs(row1), ... independant of some lhs/rhs being infinity (the starting point will later be adjusted accordingly)
  */
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
@@ -606,14 +612,20 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_Real*            starty,             /**< NULL or dual vector y as starting point for the solver, this should have length nvars */
    int*                  startZnblocknonz,   /**< dual matrix Z = sum Ai yi as starting point for the solver: number of nonzeros for each block,
                                                *  also length of corresponding row/col/val-arrays; or NULL */
-   int*                  startZrow,          /**< dual matrix Z = sum Ai yi as starting point for the solver: row indices; may be NULL if startZnblocknonz = NULL */
-   int*                  startZcol,          /**< dual matrix Z = sum Ai yi as starting point for the solver: column indices; may be NULL if startZnblocknonz = NULL */
-   SCIP_Real*            startZval,          /**< dual matrix Z = sum Ai yi as starting point for the solver: values; may be NULL if startZnblocknonz = NULL */
+   int**                 startZrow,          /**< dual matrix Z = sum Ai yi as starting point for the solver: row indices for each block;
+                                               *  may be NULL if startZnblocknonz = NULL */
+   int**                 startZcol,          /**< dual matrix Z = sum Ai yi as starting point for the solver: column indices for each block;
+                                               *  may be NULL if startZnblocknonz = NULL */
+   SCIP_Real**           startZval,          /**< dual matrix Z = sum Ai yi as starting point for the solver: values for each block;
+                                               *  may be NULL if startZnblocknonz = NULL */
    int*                  startXnblocknonz,   /**< primal matrix X as starting point for the solver: number of nonzeros for each block,
                                                *  also length of corresponding row/col/val-arrays; or NULL */
-   int*                  startXrow,          /**< primal matrix X as starting point for the solver: row indices; may be NULL if startXnblocknonz = NULL */
-   int*                  startXcol,          /**< primal matrix X as starting point for the solver: column indices; may be NULL if startXnblocknonz = NULL */
-   SCIP_Real*            startXval,          /**< primal matrix X as starting point for the solver: values; may be NULL if startXnblocknonz = NULL */
+   int**                 startXrow,          /**< primal matrix X as starting point for the solver: row indices for each block;
+                                               *  may be NULL if startXnblocknonz = NULL */
+   int**                 startXcol,          /**< primal matrix X as starting point for the solver: column indices for each block;
+                                               *  may be NULL if startXnblocknonz = NULL */
+   SCIP_Real**           startXval,          /**< primal matrix X as starting point for the solver: values for each block;
+                                               *  may be NULL if startXnblocknonz = NULL */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP and MOSEK, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
@@ -679,6 +691,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( nlpcons == 0 || lprow != NULL );
    assert( nlpcons == 0 || lpcol != NULL );
    assert( nlpcons == 0 || lpval != NULL );
+   assert( startZnblocknonz == NULL || startZrow != NULL );
+   assert( startZnblocknonz == NULL || startZcol != NULL );
+   assert( startZnblocknonz == NULL || startZval != NULL );
+   assert( startXnblocknonz == NULL || startXrow != NULL );
+   assert( startXnblocknonz == NULL || startXcol != NULL );
+   assert( startXnblocknonz == NULL || startXval != NULL );
 
    sdpisolver->niterations = 0;
    sdpisolver->nsdpcalls = 0;
@@ -1234,10 +1252,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( ind == nlpcons - 1 ); /* -1 because we start indexing at zero and do not increase after the last row */
 #endif
 
-   /* free the memory for the rowmapper */
-   if ( nlpcons > 0 )
-      BMSfreeBufferMemoryArray(sdpisolver->bufmem, &rowmapper);/*lint !e647, !e737*/
-
    /* insert variable bounds, these are also added as LP-constraints and therefore diagonal entries of the LP block
     * if we work with the penalty formulation, we get an extra entry for r >= 0, but this we will add afterwards */
    for (i = 0; i < ((penaltyparam < sdpisolver->epsilon) || (! rbound) ? sdpisolver->nvarbounds : sdpisolver->nvarbounds - 1); i++)
@@ -1323,14 +1337,56 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->sdpa->initializeSolve();
 
    /* set the starting solution */
-   if ( start != NULL && penaltyparam < sdpisolver->epsilon )
+   if ( starty != NULL && startZnblocknonz != NULL && startXnblocknonz != NULL && penaltyparam < sdpisolver->epsilon )
    {
-      SCIPdebugMessage("Starting with a previous solution is not yet tested for the interface, only x-vector is given, not y and Z");
-      for (i = 1; i <= sdpisolver->nactivevars; i++) /* we iterate over the variables in sdpa */
-         sdpisolver->sdpa->inputInitXVec((long long) i, start[sdpisolver->sdpatoinputmapper[i] - 1]);/*lint !e747*/
+      /* set dual vector */
+      for (i = 1; i <= sdpisolver->nactivevars; i++)
+         sdpisolver->sdpa->inputInitXVec((long long) i, starty[sdpisolver->sdpatoinputmapper[i] - 1]);/*lint !e747*/
+
+      /* set SDP-blocks of dual matrix */
+      for (b = 0; b < nsdpblocks; b++)
+      {
+         for (i = 0; i < startZnblocknonz[b];  i++)
+         {
+            sdpisolver->sdpa->inputInitXMat((long long) b + 1 - blockindchanges[b], (long long) startZrow[b][i] + 1 - indchanges[b][startZrow[b][i]],
+                  (long long) startZcol[b][i] + 1 - indchanges[b][startZcol[b][i]], startZval[b][i]);
+         }
+      }
+      /* set LP-block of dual matrix */
+      if ( nlpineqs + sdpisolver->nvarbounds > 0 )
+      {
+         for (i = 0; i < noldlpcons; i++)
+         {
+            if ( rowmapper[2*i] > -1 )
+               sdpisolver->sdpa->inputInitXMat((long long) nsdpblocks + 1, rowmapper[2*i], rowmapper[2*i], startZval[nsdpblocks][2*i]);
+            if ( rowmapper[2*i + 1] )
+               sdpisolver->sdpa->inputInitXMat((long long) nsdpblocks + 1, rowmapper[2*i + 1], rowmapper[2*i + 1], startZval[nsdpblocks][2*i +1]);
+         }
+      }
+
+      /*set SDP-blocks of primal matrix */
+      for (b = 0; b < nsdpblocks; b++)
+      {
+         for (i = 0; i < startXnblocknonz[b];  i++)
+         {
+            sdpisolver->sdpa->inputInitYMat((long long) b + 1 - blockindchanges[b], (long long) startXrow[b][i] + 1 - indchanges[b][startXrow[b][i]],
+                  (long long) startXcol[b][i] + 1 - indchanges[b][startXcol[b][i]], startXval[b][i]);
+         }
+      }
+      /* set LP-block of primal matrix */
+      if ( nlpineqs + sdpisolver->nvarbounds > 0 )
+      {
+         for (i = 0; i < noldlpcons; i++)
+         {
+            if ( rowmapper[2*i] > -1 )
+               sdpisolver->sdpa->inputInitYMat((long long) nsdpblocks + 1, rowmapper[2*i], rowmapper[2*i], startXval[nsdpblocks][2*i]);
+            if ( rowmapper[2*i + 1] )
+               sdpisolver->sdpa->inputInitYMat((long long) nsdpblocks + 1, rowmapper[2*i + 1], rowmapper[2*i + 1], startXval[nsdpblocks][2*i +1]);
+         }
+      }
    }
    else if ( penaltyparam >= sdpisolver->epsilon )
-      SCIPdebugMessage("Skipping insertion of starting point, as this is not yet supported for penalty formulation.\n");
+      SCIPdebugMessage("Skipping insertion of starting point  for penalty formulation.\n");
 
 #ifdef SCIP_DEBUG_PRINTTOFILE
    /* if necessary, dump input data and initial point */
@@ -1470,6 +1526,10 @@ sdpisolver->sdpa->printParameters(stdout);
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
             nremovedinds, blockindchanges, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol, lpval, &feastol) );
    }
+
+   /* free the memory for the rowmapper */
+   if ( nlpcons > 0 )
+      BMSfreeBufferMemoryArray(sdpisolver->bufmem, &rowmapper);/*lint !e647, !e737*/
 
 #ifdef SCIP_MORE_DEBUG
    (void) fclose(fpOut);
@@ -2139,7 +2199,13 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
 
    /* get the block of primal solution matrix corresponding to the LP-part from sdpa */
    lpblockind = (int) sdpisolver->sdpa->getBlockNumber(); /* the LP block is the last one and sdpa counts from one */
-   assert( sdpisolver->sdpa->getBlockType((long long) lpblockind) == SDPA::LP );/*lint !e747*/
+   if ( ! (sdpisolver->sdpa->getBlockType((long long) lpblockind) == SDPA::LP) )/*lint !e747*/
+   {
+      /* if the last block is not an LP-block, no variable bounds existed */
+      *arraylength = 0;
+
+      return SCIP_OKAY;
+   }
    nlpcons = (int) sdpisolver->sdpa->getBlockSize((long long) lpblockind);/*lint !e747*/
    assert( nlpcons >= 0 );
 
@@ -2165,6 +2231,44 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    }
 
    return SCIP_OKAY;
+}
+
+/** return the maximum absolute value of the optimal primal matrix */
+SCIP_Real SCIPsdpiSolverGetMaxPrimalEntry(
+   SCIP_SDPISOLVER*      sdpisolver          /**< pointer to an SDP-solver interface */
+   )
+{
+   SCIP_Real* X;
+   SCIP_Real maxentry;
+   int nblocks;
+   int blocksize;
+   int arraylength;
+   int b;
+   int i;
+
+   assert( sdpisolver != NULL );
+   assert( sdpisolver->sdpa != NULL );
+
+   nblocks = (int) sdpisolver->sdpa->getBlockNumber();
+   maxentry = 0.0;
+
+   /* iterate over all blocks */
+   for (b = 0; b < nblocks; b++)
+   {
+      /* get the length of the X-array, if it is an LP block, the array has length n, otherwise n*(n+1)/2 */
+      blocksize = (int) sdpisolver->sdpa->getBlockSize((long long) b);
+      arraylength = sdpisolver->sdpa->getBlockType((long long) b) == SDPA::LP ? blocksize : (blocksize * (blocksize + 1) / 2);
+
+      /* iterate over all entries in this block */
+      X = sdpisolver->sdpa->getResultYMat((long long) b);/*lint !e747*/
+      for (i = 0; i < arraylength; i++)
+      {
+         if ( X[i] > maxentry )
+            maxentry = X[i];
+      }
+   }
+
+   return maxentry;
 }
 
 /** gets the number of SDP iterations of the last solve call */

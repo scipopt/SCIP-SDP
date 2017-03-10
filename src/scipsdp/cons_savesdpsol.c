@@ -64,8 +64,8 @@
 /** constraint data to store optimal solution */
 struct SCIP_ConsData
 {
-   int                   nvars;              /**< number of variables and therefore length of sol */
-   SCIP_Real*            sol;                /**< optimal solution for SDP-relaxation of this node */
+   SCIP_SOL*             sol;                /**< optimal solution for SDP-relaxation of this node */
+   SCIP_Real             maxprimalentry;     /**< maximum absolute value of primal matrix */
 };
 
 /** frees specific constraint data */
@@ -80,7 +80,7 @@ SCIP_DECL_CONSDELETE(consDeleteSavesdpsol)
 
    SCIPdebugMessage("Deleting store node data constraint: <%s>.\n", SCIPconsGetName(cons));
 
-   SCIPfreeBlockMemoryArrayNull(scip, &((*consdata)->sol), (*consdata)->nvars);
+   SCIPfreeSol(scip, &((*consdata)->sol));
    SCIPfreeBlockMemory(scip, consdata);
 
    return SCIP_OKAY;
@@ -192,7 +192,7 @@ SCIP_DECL_CONSCOPY(consCopySavesdpsol)
 }
 
 
-/** include store bool constraint handler */
+/** include Savesdpsol constraint handler */
 extern
 SCIP_RETCODE SCIPincludeConshdlrSavesdpsol(
    SCIP*                 scip                /**< SCIP data structure */
@@ -227,17 +227,15 @@ SCIP_RETCODE createConsSavesdpsol(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
    const char*           name,               /**< name of constraint */
-   int                   nvars,              /**< number of variables and therefore length of sol */
-   SCIP_Real*            sol                 /**< optimal solution for SDP-relaxation of this node */
+   SCIP_SOL*             sol,                /**< optimal solution for SDP-relaxation of this node */
+   SCIP_Real             maxprimalentry      /**< maximum absolute value of primal matrix */
    )
 {
    SCIP_CONSDATA* consdata = NULL;
    SCIP_CONSHDLR* conshdlr;
-   int i;
 
    assert ( scip != NULL );
    assert ( name != NULL );
-   assert ( nvars >= 0 );
    assert ( sol != NULL );
 
    /* find the node data constraint handler */
@@ -250,10 +248,9 @@ SCIP_RETCODE createConsSavesdpsol(
 
    /* create constraint data */
    SCIP_CALL( SCIPallocBlockMemory(scip, &consdata) );
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(consdata->sol), nvars) );
-   consdata->nvars = nvars;
-   for (i = 0; i < nvars; i++)
-      consdata->sol[i] = sol[i];
+   SCIP_CALL( SCIPcreateSolCopy(scip, &(consdata->sol), sol) );
+   SCIP_CALL( SCIPunlinkSol(scip, consdata->sol) );
+   consdata->maxprimalentry = maxprimalentry;
 
    SCIPdebugMessage("Creating Savesdpsol constraint <%s>.\n", name);
 
@@ -264,38 +261,38 @@ SCIP_RETCODE createConsSavesdpsol(
    return SCIP_OKAY;
 }
 
-/** for the given cons of type Savedsdpsol returns the previous dual solution vector y, length should start with the length of the array, this
- *  needs to be atleast the number of variables in scip and will be overwritten by this value, if it wasn't sufficient a debugMessage will be thrown
- */
-SCIP_RETCODE getDualVector(
+/** for the given cons of type Savesdpsol returns the previous dual solution vector y */
+SCIP_SOL* SCIPconsSavesdpsolGetDualVector(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< constraint to get starting point for */
-   SCIP_Real*            sol,                /**< output: previous dual solution vector y */
-   int*                  length              /**< input: length of sol-array, output: number of entries in sol-array */
+   SCIP_CONS*            cons                /**< constraint to get starting point for */
    )
 {
    SCIP_CONSDATA* consdata;
-   int i;
 
    assert ( scip != NULL );
    assert ( cons != NULL );
-   assert ( sol != NULL );
-   assert ( length != NULL );
 
    consdata = SCIPconsGetData(cons);
 
    assert ( consdata != NULL );
 
-   if (*length < consdata->nvars)
-   {
-      SCIPdebugMessage("Not enough space for getStartingPoint in cons_savsdpsol, given %d, needed %d !\n", *length, consdata->nvars);
-      *length = consdata->nvars;
-      return SCIP_OKAY;
-   }
+   return consdata->sol;
+}
 
-   *length = consdata->nvars;
-   for (i = 0; i < consdata->nvars; i++)
-      sol[i] = consdata->sol[i];
+/** for the given cons of type Savesdpsol returns the previous dual solution vector y */
+SCIP_Real SCIPconsSavesdpsolGetMaxPrimalEntry(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< constraint to get maximum primal entry for */
+   )
+{
+   SCIP_CONSDATA* consdata;
 
-   return SCIP_OKAY;
+   assert ( scip != NULL );
+   assert ( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+
+   assert ( consdata != NULL );
+
+   return consdata->maxprimalentry;
 }

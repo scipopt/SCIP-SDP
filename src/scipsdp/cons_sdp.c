@@ -2935,7 +2935,6 @@ SCIP_RETCODE SCIPconsSdpComputeSparseSdpMatrix(
 
    for (v = 0; v < consdata->nvars; v++)
    {
-
       SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), epsilon, consdata->row[v], consdata->col[v], consdata->val[v], consdata->nvarnonz[v],
             FALSE, SCIPgetSolVal(scip, sol, consdata->vars[v]), row, col, val, &nnonz, *length) );
       if ( nnonz > *length )
