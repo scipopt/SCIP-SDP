@@ -203,7 +203,7 @@ SCIP_RETCODE checkFeastolAndResolve(
    int**                 indchanges,         /**< changes needed to be done to the indices, if indchanges[block][ind]=-1, then the index can
                                               *   be removed, otherwise it gives the number of indices removed before this */
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
-   int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
+   int*                  blockindchanges,    /**< block indices will be modified by these, see indchanges */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
    int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
@@ -1352,12 +1352,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* set SDP-blocks of dual matrix */
       for (b = 0; b < nsdpblocks; b++)
       {
-         for (i = 0; i < startZnblocknonz[b];  i++)
+         if ( blockindchanges[b] > -1)
          {
-            if ( blockindchanges[b] > -1)
+            for (i = 0; i < startZnblocknonz[b];  i++)
             {
-               sdpisolver->sdpa->inputInitXMat((long long) b + 1 - blockindchanges[b], (long long) startZrow[b][i] + 1 - indchanges[b][startZrow[b][i]],
-                                 (long long) startZcol[b][i] + 1 - indchanges[b][startZcol[b][i]], startZval[b][i]);
+               if ( indchanges[b][startZrow[b][i]] > -1 && indchanges[b][startZcol[b][i]] > -1 ) /* the row/col may have been fixed to zero in the meantime */
+               {
+                  sdpisolver->sdpa->inputInitXMat((long long) b + 1 - blockindchanges[b], (long long) startZrow[b][i] + 1 - indchanges[b][startZrow[b][i]],
+                                    (long long) startZcol[b][i] + 1 - indchanges[b][startZcol[b][i]], startZval[b][i]);
+               }
             }
          }
       }
@@ -1369,7 +1372,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          {
             if ( rowmapper[2*i] > -1 )
                sdpisolver->sdpa->inputInitXMat((long long) nsdpblocks + 1, rowmapper[2*i], rowmapper[2*i], startZval[nsdpblocks][2*i]);
-            if ( rowmapper[2*i + 1] )
+            if ( rowmapper[2*i + 1] > -1 )
                sdpisolver->sdpa->inputInitXMat((long long) nsdpblocks + 1, rowmapper[2*i + 1], rowmapper[2*i + 1], startZval[nsdpblocks][2*i +1]);
          }
       }
@@ -1386,10 +1389,16 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /*set SDP-blocks of primal matrix */
       for (b = 0; b < nsdpblocks; b++)
       {
-         for (i = 0; i < startXnblocknonz[b];  i++)
+         if ( blockindchanges[b] > -1)
          {
-            sdpisolver->sdpa->inputInitYMat((long long) b + 1 - blockindchanges[b], (long long) startXrow[b][i] + 1 - indchanges[b][startXrow[b][i]],
-                  (long long) startXcol[b][i] + 1 - indchanges[b][startXcol[b][i]], startXval[b][i]);
+            for (i = 0; i < startXnblocknonz[b];  i++)
+            {
+               if ( indchanges[b][startXrow[b][i]] > -1 && indchanges[b][startXcol[b][i]] > -1 ) /* the row/col may have been fixed to zero in the meantime */
+               {
+                  sdpisolver->sdpa->inputInitYMat((long long) b + 1 - blockindchanges[b], (long long) startXrow[b][i] + 1 - indchanges[b][startXrow[b][i]],
+                        (long long) startXcol[b][i] + 1 - indchanges[b][startXcol[b][i]], startXval[b][i]);
+               }
+            }
          }
       }
 
@@ -1400,7 +1409,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          {
             if ( rowmapper[2*i] > -1 )
                sdpisolver->sdpa->inputInitYMat((long long) nsdpblocks + 1, rowmapper[2*i], rowmapper[2*i], startXval[nsdpblocks][2*i]);
-            if ( rowmapper[2*i + 1] )
+            if ( rowmapper[2*i + 1] > -1 )
                sdpisolver->sdpa->inputInitYMat((long long) nsdpblocks + 1, rowmapper[2*i + 1], rowmapper[2*i + 1], startXval[nsdpblocks][2*i +1]);
          }
       }

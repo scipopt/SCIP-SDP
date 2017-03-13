@@ -2946,6 +2946,9 @@ SCIP_RETCODE SCIPconsSdpComputeSparseSdpMatrix(
       }
    }
 
+   /* update length pointer */
+   *length = nnonz;
+
    return SCIP_OKAY;
 }
 
