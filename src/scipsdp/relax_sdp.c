@@ -68,6 +68,7 @@
 #define DEFAULT_PENALTYPARAM        -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 #define DEFAULT_LAMBDASTAR          -1.0     /**< the parameter lambda star used by SDPA to set the initial point */
 #define DEFAULT_MAXPENALTYPARAM     -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
+#define DEFAULT_WARMSTARTIPFACTOR   0.01     /**< factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled */
 #define DEFAULT_SLATERCHECK         0        /**< Should the Slater condition be checked ? */
 #define DEFAULT_OBJLIMIT            FALSE    /**< Should an objective limit be given to the SDP-Solver ? */
 #define DEFAULT_RESOLVE             TRUE     /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
@@ -95,8 +96,9 @@ struct SCIP_RelaxData
    SCIP_Real             sdpsolverfeastol;   /**< the feasibility tolerance the SDP solver should use for the SDP constraints */
    SCIP_Real             penaltyparam;       /**< the starting penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
    SCIP_Real             maxpenaltyparam;    /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
-   int                   npenaltyincr;       /**< maximum number of times the penalty parameter will be increased if penalty formulation failed */
    SCIP_Real             lambdastar;         /**< the parameter lambda star used by SDPA to set the initial point */
+   SCIP_Real             warmstartipfactor;  /**< factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled */
+   int                   npenaltyincr;       /**< maximum number of times the penalty parameter will be increased if penalty formulation failed */
    int                   sdpiterations;      /**< saves the total number of sdp-iterations */
    int                   solvedfast;         /**< number of SDPs solved with fast settings */
    int                   solvedmedium;       /**< number of SDPs solved with medium settings */
@@ -745,13 +747,17 @@ SCIP_RETCODE calcRelax(
             SCIP_COL** rowcols;
             SCIP_ROW** rows;
             int nblocks;
+            int blocksize;
             int nrows;
             int rownnonz;
             int b;
             int r;
             SCIP_Real maxprimalentry;
+            SCIP_Real maxdualentry;
+            SCIP_Real identitydiagonal;
             SCIP_Real rowval;
             SCIP_Real* rowvals;
+            SCIP_Bool* diagentryexists;
 
             sdpconshdlr = SCIPfindConshdlr(scip, "SDP");
             nblocks = SCIPconshdlrGetNConss(sdpconshdlr);
@@ -766,12 +772,23 @@ SCIP_RETCODE calcRelax(
             SCIP_CALL( SCIPallocBufferArray(scip, &startXcol, nblocks + 1) );
             SCIP_CALL( SCIPallocBufferArray(scip, &startXval, nblocks + 1) );
 
+            /* compute the scaling factor for the dual identity matrix (for numerical stability, this should be at least 1) */
             maxprimalentry = SCIPconsSavesdpsolGetMaxPrimalEntry(scip, conss[0]);
+            if ( SCIPisLT(scip, maxprimalentry, 1.0) )
+               maxprimalentry = 1.0;
 
             /* iterate over all blocks and fill X and Z */
             for (b = 0; b < nblocks; b++)
             {
+               blocksize = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
+
                startZnblocknonz[b] = SCIPconsSdpComputeUbSparseSdpMatrixLength(scip, sdpblocks[b]);
+
+               /* since we take a convex combination with the identity matrix, we have to allocate memory for that as well */
+               if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
+               {
+                  startZnblocknonz[b] += blocksize;
+               }
 
                SCIP_CALL( SCIPallocBufferArray(scip, &startZrow[b], startZnblocknonz[b]) );
                SCIP_CALL( SCIPallocBufferArray(scip, &startZcol[b], startZnblocknonz[b]) );
@@ -780,8 +797,51 @@ SCIP_RETCODE calcRelax(
                /* compute Z matrix (based on unrounded solution to make sure that it's still positive semidefinite) */
                SCIP_CALL( SCIPconsSdpComputeSparseSdpMatrix(scip, sdpblocks[b], dualsol, &(startZnblocknonz[b]), startZrow[b], startZcol[b], startZval[b]) );
 
+               /* compute maxdualentry (should be at least one) */
+               maxdualentry = 1.0;
+               for (i = 0; i < startZnblocknonz[b]; i++)
+               {
+                  if ( REALABS(startZval[b][i]) > maxdualentry )
+                     maxdualentry = REALABS(startZval[b][i]);
+               }
+               identitydiagonal = relaxdata->warmstartipfactor * maxdualentry; /* the diagonal entries of the scaled identity matrix */
+
+               /* use convex combination between Z and scaled identity matrix to move solution to the interior */
+               if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
+               {
+                  SCIP_CALL( SCIPallocBufferArray(scip, &diagentryexists, blocksize) );
+                  for (i = 0; i < blocksize; i++)
+                     diagentryexists[i] = FALSE;
+
+                  for (i = 0; i < startZnblocknonz[b]; i++)
+                  {
+                     if ( startZrow[b][i] == startZcol[b][i] )
+                     {
+                        startZval[b][i] = startZval[b][i] * (1 - relaxdata->warmstartipfactor) + identitydiagonal; /* add identity for diagonal entries */
+                        assert( startZval[b][i] >= 0 ); /* since the original matrix should have been positive semidefinite, diagonal entries should be >= 0 */
+                        diagentryexists[startZrow[b][i]] = TRUE;
+                     }
+                     else
+                        startZval[b][i] *= (1 - relaxdata->warmstartipfactor); /* since this is an off-diagonal entry, we scale towards zero */
+                  }
+
+                  /* if a diagonal entry was missing (because we had a zero row before), we have to add it to the end */
+                  for (i = 0; i < blocksize; i++)
+                  {
+                     if ( ! diagentryexists[i] )
+                     {
+                        startZrow[b][startZnblocknonz[b]] = i;
+                        startZcol[b][startZnblocknonz[b]] = i;
+                        startZval[b][startZnblocknonz[b]] = identitydiagonal;
+                        startZnblocknonz[b]++;
+                     }
+                  }
+
+                  SCIPfreeBufferArrayNull(scip, &diagentryexists);
+               }
+
                /* we set X to maxprimalentry times the identity matrix */
-               startXnblocknonz[b] = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
+               startXnblocknonz[b] = blocksize;
                SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], startXnblocknonz[b]) );
                SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], startXnblocknonz[b]) );
                SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], startXnblocknonz[b]) );
@@ -815,9 +875,16 @@ SCIP_RETCODE calcRelax(
                startZrow[b][2*r] = 2*r;
                startZcol[b][2*r] = 2*r;
                startZval[b][2*r] = rowval - (SCIProwGetLhs(rows[r]) - SCIProwGetConstant(rows[r]));
+               /* we only take the convex combination if the value is less than one, since the maxblockentry is equal to the value
+                * otherwise, so taking the convex combination doesn't change anything in that case
+                */
+               if ( SCIPisLT(scip, startZval[b][2*r], 1.0) )
+                  startZval[b][2*r] = (1 - relaxdata->warmstartipfactor) * startZval[b][2*r] + relaxdata->warmstartipfactor;
                startZrow[b][2*r + 1] = 2*r + 1;
                startZcol[b][2*r + 1] = 2*r + 1;
                startZval[b][2*r + 1] = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
+               if ( SCIPisLT(scip, startZval[b][2*r + 1], 1.0) )
+                  startZval[b][2*r + 1] = (1 - relaxdata->warmstartipfactor) * startZval[b][2*r + 1] + relaxdata->warmstartipfactor;
                startXrow[b][2*r] = 2*r;
                startXcol[b][2*r] = 2*r;
                startXval[b][2*r] = maxprimalentry;
@@ -1936,6 +2003,10 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          "the maximum value of the penalty parameter Gamma used for the penalty formulation if the "
          "SDP solver didn't converge; set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->maxpenaltyparam),
          TRUE, DEFAULT_MAXPENALTYPARAM, -1.0, 1e+20, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartipfactor",
+         "factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled ", &(relaxdata->warmstartipfactor),
+         TRUE, DEFAULT_WARMSTARTIPFACTOR, 0.0, 1.0, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/npenaltyincr",
          "maximum number of times the penalty parameter will be increased if the penalty formulation failed", &(relaxdata->npenaltyincr), TRUE,
