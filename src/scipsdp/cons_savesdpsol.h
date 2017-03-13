@@ -58,8 +58,16 @@ SCIP_RETCODE createConsSavesdpsol(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
    const char*           name,               /**< name of constraint */
+   SCIP_Longint          node,               /**< index of the node the solution belongs to */
    SCIP_SOL*             sol,                /**< optimal solution for SDP-relaxation of this node */
    SCIP_Real             maxprimalentry      /**< maximum absolute value of primal matrix */
+   );
+
+/** for the given cons of type Savesdpsol returns the node the information belongs to */
+EXTERN
+SCIP_Longint SCIPconsSavesdpsolGetNodeIndex(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< constraint to get starting point for */
    );
 
 /** for the given cons of type Savesdpsol returns the previous dual solution vector y */

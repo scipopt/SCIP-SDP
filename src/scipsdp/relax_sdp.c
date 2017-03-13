@@ -650,7 +650,6 @@ SCIP_RETCODE calcRelax(
          SCIPdebugMessage("Startsetting from parent node not found, restarting with fastest settings!\n");
          startsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
       }
-
    }
 
    /* set time limit */
@@ -689,12 +688,11 @@ SCIP_RETCODE calcRelax(
       SCIP_Real** startXval = NULL;
       int v;
       int i;
+      int parentconsind;
+      SCIP_Longint parentnodenumber;
       SCIP_VAR* var;
 
       /* find starting solution as optimal solution of parent node */
-
-      /* allocate memory */
-      SCIP_CALL( SCIPallocBufferArray(scip, &starty, nvars) );
 
       /* get constraint handler */
       conshdlr = SCIPfindConshdlr(scip, "Savesdpsol");
@@ -704,187 +702,192 @@ SCIP_RETCODE calcRelax(
          return SCIP_PLUGINNOTFOUND;
       }
 
+      /* get saveconstraint of parent node, usually it will be the last active constraint of the corresponding constraint handler, so we iterate from
+       * the end of the list until we find the correct one */
+      conss = SCIPconshdlrGetConss(conshdlr);
+      parentconsind = SCIPconshdlrGetNActiveConss(conshdlr) - 1;
+      parentnodenumber = SCIPnodeGetNumber(SCIPnodeGetParent(SCIPgetCurrentNode(scip)));
+
+      while ( parentconsind >= 0 && SCIPconsSavesdpsolGetNodeIndex(scip, conss[parentconsind]) != parentnodenumber)
+         parentconsind--;
+
       /* if there are no savesdpsol constraints (e.g. because the parent node couldn't be solved successfully), solve
        * without warmstart
        */
-      if ( SCIPconshdlrGetNConss(conshdlr) == 0 )
+      if ( parentconsind < 0 )
       {
+         SCIPdebugMessage("Starting SDP-Solving from scratch since no warmstart information available for node %lld\n", parentnodenumber);
          SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit));
       }
-
-      /* get constraints */
-      conss = SCIPconshdlrGetConss(conshdlr);
-
-      assert ( conss != NULL );
-      assert ( conss[0] != NULL );
-
-      /* because of stickingtonode we should only have one constraint of this type */
-      //assert( SCIPconshdlrGetNConss(conshdlr) == 1 );
-
-      /* get the solution */
-      dualsol = SCIPconsSavesdpsolGetDualVector(scip, conss[0]);
-
-      /* transform solution to vector for SDPI and check if it is still feasible for the variable bounds, otherwise round it */
-      for (v = 0; v < nvars; v++)
+      else
       {
-         var = SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, v);
-         starty[v] = SCIPgetSolVal(scip, dualsol, var);
-         if (SCIPisLT(scip, starty[v], SCIPvarGetLbLocal(var)))
-            starty[v] = SCIPvarGetLbLocal(var);
-         else if (SCIPisGT(scip, starty[v], SCIPvarGetUbLocal(var)))
-            starty[v] = SCIPvarGetUbLocal(var);
+         /* get solution */
+         dualsol = SCIPconsSavesdpsolGetDualVector(scip, conss[parentconsind]);
 
-      }
+         /* allocate memory */
+         SCIP_CALL( SCIPallocBufferArray(scip, &starty, nvars) );
 
-      if ( SCIPsdpiDoesWarmstartNeedPrimal() )
-      {
-         SCIP_CONSHDLR* sdpconshdlr;
-         SCIP_CONS** sdpblocks;
-         SCIP_COL** rowcols;
-         SCIP_ROW** rows;
-         int nblocks;
-         int nrows;
-         int rownnonz;
-         int b;
-         int r;
-         SCIP_Real maxprimalentry;
-         SCIP_Real rowval;
-         SCIP_Real* rowvals;
-
-         sdpconshdlr = SCIPfindConshdlr(scip, "SDP");
-         nblocks = SCIPconshdlrGetNConss(sdpconshdlr);
-         sdpblocks = SCIPconshdlrGetConss(sdpconshdlr);
-
-         SCIP_CALL( SCIPallocBufferArray(scip, &startZnblocknonz, nblocks + 1) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startZrow, nblocks + 1) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startZcol, nblocks + 1) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startZval, nblocks + 1) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startXnblocknonz, nblocks + 1) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startXrow, nblocks + 1) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startXcol, nblocks + 1) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startXval, nblocks + 1) );
-
-         maxprimalentry = SCIPconsSavesdpsolGetMaxPrimalEntry(scip, conss[0]);
-
-         /* iterate over all blocks and fill X and Z */
-         for (b = 0; b < nblocks; b++)
+         /* transform solution to vector for SDPI and check if it is still feasible for the variable bounds, otherwise round it */
+         for (v = 0; v < nvars; v++)
          {
-            startZnblocknonz[b] = SCIPconsSdpComputeUbSparseSdpMatrixLength(scip, sdpblocks[b]);
+            var = SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, v);
+            starty[v] = SCIPgetSolVal(scip, dualsol, var);
+            if (SCIPisLT(scip, starty[v], SCIPvarGetLbLocal(var)))
+               starty[v] = SCIPvarGetLbLocal(var);
+            else if (SCIPisGT(scip, starty[v], SCIPvarGetUbLocal(var)))
+               starty[v] = SCIPvarGetUbLocal(var);
+         }
 
-            SCIP_CALL( SCIPallocBufferArray(scip, &startZrow[b], startZnblocknonz[b]) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &startZcol[b], startZnblocknonz[b]) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &startZval[b], startZnblocknonz[b]) );
+         if ( SCIPsdpiDoesWarmstartNeedPrimal() )
+         {
+            SCIP_CONSHDLR* sdpconshdlr;
+            SCIP_CONS** sdpblocks;
+            SCIP_COL** rowcols;
+            SCIP_ROW** rows;
+            int nblocks;
+            int nrows;
+            int rownnonz;
+            int b;
+            int r;
+            SCIP_Real maxprimalentry;
+            SCIP_Real rowval;
+            SCIP_Real* rowvals;
 
-            /* compute Z matrix (based on unrounded solution to make sure that it's still positive semidefinite) */
-            SCIP_CALL( SCIPconsSdpComputeSparseSdpMatrix(scip, sdpblocks[b], dualsol, &(startZnblocknonz[b]), startZrow[b], startZcol[b], startZval[b]) );
+            sdpconshdlr = SCIPfindConshdlr(scip, "SDP");
+            nblocks = SCIPconshdlrGetNConss(sdpconshdlr);
+            sdpblocks = SCIPconshdlrGetConss(sdpconshdlr);
 
-            /* we set X to maxprimalentry times the identity matrix */
-            startXnblocknonz[b] = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
-            SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], startXnblocknonz[b]) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], startXnblocknonz[b]) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], startXnblocknonz[b]) );
-            for (i = 0; i < startXnblocknonz[b]; i++)
+            SCIP_CALL( SCIPallocBufferArray(scip, &startZnblocknonz, nblocks + 1) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &startZrow, nblocks + 1) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &startZcol, nblocks + 1) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &startZval, nblocks + 1) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &startXnblocknonz, nblocks + 1) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &startXrow, nblocks + 1) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &startXcol, nblocks + 1) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &startXval, nblocks + 1) );
+
+            maxprimalentry = SCIPconsSavesdpsolGetMaxPrimalEntry(scip, conss[0]);
+
+            /* iterate over all blocks and fill X and Z */
+            for (b = 0; b < nblocks; b++)
             {
-               startXrow[b][i] = i;
-               startXcol[b][i] = i;
-               startXval[b][i] = maxprimalentry;
+               startZnblocknonz[b] = SCIPconsSdpComputeUbSparseSdpMatrixLength(scip, sdpblocks[b]);
+
+               SCIP_CALL( SCIPallocBufferArray(scip, &startZrow[b], startZnblocknonz[b]) );
+               SCIP_CALL( SCIPallocBufferArray(scip, &startZcol[b], startZnblocknonz[b]) );
+               SCIP_CALL( SCIPallocBufferArray(scip, &startZval[b], startZnblocknonz[b]) );
+
+               /* compute Z matrix (based on unrounded solution to make sure that it's still positive semidefinite) */
+               SCIP_CALL( SCIPconsSdpComputeSparseSdpMatrix(scip, sdpblocks[b], dualsol, &(startZnblocknonz[b]), startZrow[b], startZcol[b], startZval[b]) );
+
+               /* we set X to maxprimalentry times the identity matrix */
+               startXnblocknonz[b] = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
+               SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], startXnblocknonz[b]) );
+               SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], startXnblocknonz[b]) );
+               SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], startXnblocknonz[b]) );
+               for (i = 0; i < startXnblocknonz[b]; i++)
+               {
+                  startXrow[b][i] = i;
+                  startXcol[b][i] = i;
+                  startXval[b][i] = maxprimalentry;
+               }
+            }
+
+            /** fill LP-block */
+            SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &startZrow[b], 2 * nrows + 2 * nvars) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &startZcol[b], 2 * nrows + 2 * nvars) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &startZval[b], 2 * nrows + 2 * nvars) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], 2 * nrows + 2 * nvars) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], 2 * nrows + 2 * nvars) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], 2 * nrows + 2 * nvars) );
+
+            for (r = 0; r < nrows; r++)
+            {
+               /* compute row value for current solution */
+               rowval = 0.0;
+               rownnonz = SCIProwGetNNonz(rows[r]);
+               rowvals = SCIProwGetVals(rows[r]);
+               rowcols = SCIProwGetCols(rows[r]);
+               for (i = 0; i < rownnonz; i++)
+                  rowval += SCIPgetSolVal(scip, dualsol, SCIPcolGetVar(rowcols[i])) * rowvals[i];
+
+               startZrow[b][2*r] = 2*r;
+               startZcol[b][2*r] = 2*r;
+               startZval[b][2*r] = rowval - (SCIProwGetLhs(rows[r]) - SCIProwGetConstant(rows[r]));
+               startZrow[b][2*r + 1] = 2*r + 1;
+               startZcol[b][2*r + 1] = 2*r + 1;
+               startZval[b][2*r + 1] = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
+               startXrow[b][2*r] = 2*r;
+               startXcol[b][2*r] = 2*r;
+               startXval[b][2*r] = maxprimalentry;
+               startXrow[b][2*r + 1] = 2*r + 1;
+               startXcol[b][2*r + 1] = 2*r + 1;
+               startXval[b][2*r + 1] = maxprimalentry;
+            }
+
+            for (v = 0; v < nvars; v++)
+            {
+               startZrow[b][2*nrows + 2*v] = 2*nrows + 2*v;
+               startZcol[b][2*nrows + 2*v] = 2*nrows + 2*v;
+               startZval[b][2*nrows + 2*v] = SCIPgetSolVal(scip, dualsol, vars[v]) - SCIPvarGetLbLocal(vars[v]);
+               if ( SCIPisLT(scip, startZval[b][2*nrows + 2*v], 0.0) )
+                  startZval[b][2*nrows + 2*v] = 0.0; /* if bound changes make the solution infeasible, we still set the value to zero to keep the matrix psd */
+               startZrow[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
+               startZcol[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
+               startZval[b][2*nrows + 2*v + 1] = SCIPvarGetUbLocal(vars[v]) - SCIPgetSolVal(scip, dualsol, vars[v]);
+               if ( SCIPisLT(scip, startZval[b][2*nrows + 2*v], 0.0) )
+                  startZval[b][2*nrows + 2*v + 1] = 0.0; /* if bound changes make the solution infeasible, we still set the value to zero to keep the matrix psd */
+               startXrow[b][2*nrows + 2*v] = 2*nrows + 2*v;
+               startXcol[b][2*nrows + 2*v] = 2*nrows + 2*v;
+               startXval[b][2*nrows + 2*v] = maxprimalentry;
+               startXrow[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
+               startXcol[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
+               startXval[b][2*nrows + 2*v + 1] = maxprimalentry;
             }
          }
 
-         /** fill LP-block */
-         SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startZrow[b], 2 * nrows + 2 * nvars) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startZcol[b], 2 * nrows + 2 * nvars) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startZval[b], 2 * nrows + 2 * nvars) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], 2 * nrows + 2 * nvars) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], 2 * nrows + 2 * nvars) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], 2 * nrows + 2 * nvars) );
+         /* solve with given starting point */
+         SCIP_CALL(SCIPsdpiSolve(sdpi, starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow,
+               startXcol, startXval, startsetting, enforceslater, timelimit));
 
-         for (r = 0; r < nrows; r++)
+         if ( SCIPsdpiDoesWarmstartNeedPrimal() )
          {
-            /* compute row value for current solution */
-            rowval = 0.0;
-            rownnonz = SCIProwGetNNonz(rows[r]);
-            rowvals = SCIProwGetVals(rows[r]);
-            rowcols = SCIProwGetCols(rows[r]);
-            for (i = 0; i < rownnonz; i++)
-               rowval += SCIPgetSolVal(scip, dualsol, SCIPcolGetVar(rowcols[i])) * rowvals[i];
+            SCIP_CONSHDLR* sdpconshdlr;
+            int nblocks;
+            int b;
 
-            startZrow[b][2*r] = 2*r;
-            startZcol[b][2*r] = 2*r;
-            startZval[b][2*r] = rowval - (SCIProwGetLhs(rows[r]) - SCIProwGetConstant(rows[r]));
-            startZrow[b][2*r + 1] = 2*r + 1;
-            startZcol[b][2*r + 1] = 2*r + 1;
-            startZval[b][2*r + 1] = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
-            startXrow[b][2*r] = 2*r;
-            startXcol[b][2*r] = 2*r;
-            startXval[b][2*r] = maxprimalentry;
-            startXrow[b][2*r + 1] = 2*r + 1;
-            startXcol[b][2*r + 1] = 2*r + 1;
-            startXval[b][2*r + 1] = maxprimalentry;
-         }
+            sdpconshdlr = SCIPfindConshdlr(scip, "SDP");
+            nblocks = SCIPconshdlrGetNConss(sdpconshdlr);
 
-         for (v = 0; v < nvars; v++)
-         {
-            startZrow[b][2*nrows + 2*v] = 2*nrows + 2*v;
-            startZcol[b][2*nrows + 2*v] = 2*nrows + 2*v;
-            startZval[b][2*nrows + 2*v] = SCIPgetSolVal(scip, dualsol, vars[v]) - SCIPvarGetLbLocal(vars[v]);
-            if ( SCIPisLT(scip, startZval[b][2*nrows + 2*v], 0.0) )
-               startZval[b][2*nrows + 2*v] = 0.0; /* if bound changes make the solution infeasible, we still set the value to zero to keep the matrix psd */
-            startZrow[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
-            startZcol[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
-            startZval[b][2*nrows + 2*v + 1] = SCIPvarGetUbLocal(vars[v]) - SCIPgetSolVal(scip, dualsol, vars[v]);
-            if ( SCIPisLT(scip, startZval[b][2*nrows + 2*v], 0.0) )
-               startZval[b][2*nrows + 2*v + 1] = 0.0; /* if bound changes make the solution infeasible, we still set the value to zero to keep the matrix psd */
-            startXrow[b][2*nrows + 2*v] = 2*nrows + 2*v;
-            startXcol[b][2*nrows + 2*v] = 2*nrows + 2*v;
-            startXval[b][2*nrows + 2*v] = maxprimalentry;
-            startXrow[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
-            startXcol[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
-            startXval[b][2*nrows + 2*v + 1] = maxprimalentry;
+            SCIPfreeBufferArrayNull(scip, &startXval[nblocks]);
+            SCIPfreeBufferArrayNull(scip, &startXcol[nblocks]);
+            SCIPfreeBufferArrayNull(scip, &startXrow[nblocks]);
+            SCIPfreeBufferArrayNull(scip, &startZval[nblocks]);
+            SCIPfreeBufferArrayNull(scip, &startZcol[nblocks]);
+            SCIPfreeBufferArrayNull(scip, &startZrow[nblocks]);
+            /* free memory */
+            for (b = 0; b < nblocks; b++)
+            {
+               SCIPfreeBufferArrayNull(scip, &startXval[b]);
+               SCIPfreeBufferArrayNull(scip, &startXcol[b]);
+               SCIPfreeBufferArrayNull(scip, &startXrow[b]);
+               SCIPfreeBufferArrayNull(scip, &startZval[b]);
+               SCIPfreeBufferArrayNull(scip, &startZcol[b]);
+               SCIPfreeBufferArrayNull(scip, &startZrow[b]);
+            }
+
+            SCIPfreeBufferArrayNull(scip, &startXval);
+            SCIPfreeBufferArrayNull(scip, &startXcol);
+            SCIPfreeBufferArrayNull(scip, &startXrow);
+            SCIPfreeBufferArrayNull(scip, &startXnblocknonz);
+            SCIPfreeBufferArrayNull(scip, &startZval);
+            SCIPfreeBufferArrayNull(scip, &startZcol);
+            SCIPfreeBufferArrayNull(scip, &startZrow);
+            SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
          }
+         SCIPfreeBufferArray(scip, &starty);
       }
-
-      /* solve with given starting point */
-      SCIP_CALL(SCIPsdpiSolve(sdpi, starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow,
-            startXcol, startXval, startsetting, enforceslater, timelimit));
-
-      if ( SCIPsdpiDoesWarmstartNeedPrimal() )
-      {
-         SCIP_CONSHDLR* sdpconshdlr;
-         int nblocks;
-         int b;
-
-         sdpconshdlr = SCIPfindConshdlr(scip, "SDP");
-         nblocks = SCIPconshdlrGetNConss(sdpconshdlr);
-
-         SCIPfreeBufferArrayNull(scip, &startXval[nblocks]);
-         SCIPfreeBufferArrayNull(scip, &startXcol[nblocks]);
-         SCIPfreeBufferArrayNull(scip, &startXrow[nblocks]);
-         SCIPfreeBufferArrayNull(scip, &startZval[nblocks]);
-         SCIPfreeBufferArrayNull(scip, &startZcol[nblocks]);
-         SCIPfreeBufferArrayNull(scip, &startZrow[nblocks]);
-         /* free memory */
-         for (b = 0; b < nblocks; b++)
-         {
-            SCIPfreeBufferArrayNull(scip, &startXval[b]);
-            SCIPfreeBufferArrayNull(scip, &startXcol[b]);
-            SCIPfreeBufferArrayNull(scip, &startXrow[b]);
-            SCIPfreeBufferArrayNull(scip, &startZval[b]);
-            SCIPfreeBufferArrayNull(scip, &startZcol[b]);
-            SCIPfreeBufferArrayNull(scip, &startZrow[b]);
-         }
-
-         SCIPfreeBufferArrayNull(scip, &startXval);
-         SCIPfreeBufferArrayNull(scip, &startXcol);
-         SCIPfreeBufferArrayNull(scip, &startXrow);
-         SCIPfreeBufferArrayNull(scip, &startXnblocknonz);
-         SCIPfreeBufferArrayNull(scip, &startZval);
-         SCIPfreeBufferArrayNull(scip, &startZcol);
-         SCIPfreeBufferArrayNull(scip, &startZrow);
-         SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
-      }
-      SCIPfreeBufferArray(scip, &starty);
    }
    relaxdata->lastsdpnode = SCIPnodeGetNumber(SCIPgetCurrentNode(scip));
 
@@ -1169,7 +1172,7 @@ SCIP_RETCODE calcRelax(
                maxprimalentry = SCIPsdpiGetMaxPrimalEntry(relaxdata->sdpi);
             else
                maxprimalentry = 0.0;
-            SCIP_CALL( createConsSavesdpsol(scip, &savedcons, "saved relaxation sol", scipsol, maxprimalentry) );
+            SCIP_CALL( createConsSavesdpsol(scip, &savedcons, "saved relaxation sol", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), scipsol, maxprimalentry) );
             SCIP_CALL( SCIPaddCons(scip, savedcons) );
             SCIP_CALL( SCIPreleaseCons(scip, &savedcons) );
          }

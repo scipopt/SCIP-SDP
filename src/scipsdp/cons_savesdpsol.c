@@ -64,6 +64,7 @@
 /** constraint data to store optimal solution */
 struct SCIP_ConsData
 {
+   SCIP_Longint          node;               /**< index of the node the solution belongs to */
    SCIP_SOL*             sol;                /**< optimal solution for SDP-relaxation of this node */
    SCIP_Real             maxprimalentry;     /**< maximum absolute value of primal matrix */
 };
@@ -227,6 +228,7 @@ SCIP_RETCODE createConsSavesdpsol(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
    const char*           name,               /**< name of constraint */
+   SCIP_Longint          node,               /**< index of the node the solution belongs to */
    SCIP_SOL*             sol,                /**< optimal solution for SDP-relaxation of this node */
    SCIP_Real             maxprimalentry      /**< maximum absolute value of primal matrix */
    )
@@ -248,6 +250,7 @@ SCIP_RETCODE createConsSavesdpsol(
 
    /* create constraint data */
    SCIP_CALL( SCIPallocBlockMemory(scip, &consdata) );
+   consdata->node = node;
    SCIP_CALL( SCIPcreateSolCopy(scip, &(consdata->sol), sol) );
    SCIP_CALL( SCIPunlinkSol(scip, consdata->sol) );
    consdata->maxprimalentry = maxprimalentry;
@@ -259,6 +262,24 @@ SCIP_RETCODE createConsSavesdpsol(
          TRUE, FALSE, TRUE, FALSE, TRUE));
 
    return SCIP_OKAY;
+}
+
+/** for the given cons of type Savesdpsol returns the node the information belongs to */
+SCIP_Longint SCIPconsSavesdpsolGetNodeIndex(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< constraint to get starting point for */
+   )
+{
+   SCIP_CONSDATA* consdata;
+
+   assert ( scip != NULL );
+   assert ( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+
+   assert ( consdata != NULL );
+
+   return consdata->node;
 }
 
 /** for the given cons of type Savesdpsol returns the previous dual solution vector y */
