@@ -62,13 +62,13 @@
 #define RELAX_PRIORITY              1
 #define RELAX_FREQ                  1
 
-
 /* default values for parameters: */
 #define DEFAULT_SDPSOLVERGAPTOL     1e-4     /**< the stopping criterion for the duality gap the sdpsolver should use */
 #define DEFAULT_PENALTYPARAM        -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 #define DEFAULT_LAMBDASTAR          -1.0     /**< the parameter lambda star used by SDPA to set the initial point */
 #define DEFAULT_MAXPENALTYPARAM     -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 #define DEFAULT_WARMSTARTIPFACTOR   0.01     /**< factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled */
+#define DEFAULT_WARMSTARTPRIMALTYPE 2        /**< how to warmstart the primal problem? 1: scaled identity, 2: elementwise reciprocal, 3: saved primal sol */
 #define DEFAULT_SLATERCHECK         0        /**< Should the Slater condition be checked ? */
 #define DEFAULT_OBJLIMIT            FALSE    /**< Should an objective limit be given to the SDP-Solver ? */
 #define DEFAULT_RESOLVE             TRUE     /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
@@ -98,6 +98,7 @@ struct SCIP_RelaxData
    SCIP_Real             maxpenaltyparam;    /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
    SCIP_Real             lambdastar;         /**< the parameter lambda star used by SDPA to set the initial point */
    SCIP_Real             warmstartipfactor;  /**< factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled */
+   int                   warmstartprimaltype;/**< how to warmstart the primal problem? 1: scaled identity, 2: elementwise reciprocal, 3: saved primal sol */
    int                   npenaltyincr;       /**< maximum number of times the penalty parameter will be increased if penalty formulation failed */
    int                   sdpiterations;      /**< saves the total number of sdp-iterations */
    int                   solvedfast;         /**< number of SDPs solved with fast settings */
@@ -738,6 +739,10 @@ SCIP_RETCODE calcRelax(
                starty[v] = SCIPvarGetLbLocal(var);
             else if (SCIPisGT(scip, starty[v], SCIPvarGetUbLocal(var)))
                starty[v] = SCIPvarGetUbLocal(var);
+
+            /* if we take a convex combination (with the zero vector for y), scale starty accordingly */
+            if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
+               starty[v] *= 1 - relaxdata->warmstartipfactor;
          }
 
          if ( SCIPsdpiDoesWarmstartNeedPrimal() )
@@ -841,15 +846,35 @@ SCIP_RETCODE calcRelax(
                }
 
                /* we set X to maxprimalentry times the identity matrix */
-               startXnblocknonz[b] = blocksize;
-               SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], startXnblocknonz[b]) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], startXnblocknonz[b]) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], startXnblocknonz[b]) );
-               for (i = 0; i < startXnblocknonz[b]; i++)
+               if ( relaxdata->warmstartprimaltype == 1 )
                {
-                  startXrow[b][i] = i;
-                  startXcol[b][i] = i;
-                  startXval[b][i] = maxprimalentry;
+                  startXnblocknonz[b] = blocksize;
+                  SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], startXnblocknonz[b]) );
+                  SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], startXnblocknonz[b]) );
+                  SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], startXnblocknonz[b]) );
+                  for (i = 0; i < startXnblocknonz[b]; i++)
+                  {
+                     startXrow[b][i] = i;
+                     startXcol[b][i] = i;
+                     startXval[b][i] = maxprimalentry;
+                  }
+               }
+               else if ( relaxdata->warmstartprimaltype == 2 )
+               {
+                  startXnblocknonz[b] = startZnblocknonz[b];
+                  SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], startXnblocknonz[b]) );
+                  SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], startXnblocknonz[b]) );
+                  SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], startXnblocknonz[b]) );
+                  for (i = 0; i < startZnblocknonz[b]; i++)
+                  {
+                     startXrow[b][i] = startZrow[b][i];
+                     startXcol[b][i] = startZcol[b][i];
+                     startXval[b][i] = 1 / startXval[b][i];
+                  }
+               }
+               else
+               {
+                  assert( 0 );
                }
             }
 
@@ -885,12 +910,29 @@ SCIP_RETCODE calcRelax(
                startZval[b][2*r + 1] = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
                if ( SCIPisLT(scip, startZval[b][2*r + 1], 1.0) )
                   startZval[b][2*r + 1] = (1 - relaxdata->warmstartipfactor) * startZval[b][2*r + 1] + relaxdata->warmstartipfactor;
-               startXrow[b][2*r] = 2*r;
-               startXcol[b][2*r] = 2*r;
-               startXval[b][2*r] = maxprimalentry;
-               startXrow[b][2*r + 1] = 2*r + 1;
-               startXcol[b][2*r + 1] = 2*r + 1;
-               startXval[b][2*r + 1] = maxprimalentry;
+
+               if ( relaxdata->warmstartprimaltype == 1 )
+               {
+                  startXrow[b][2*r] = 2*r;
+                  startXcol[b][2*r] = 2*r;
+                  startXval[b][2*r] = maxprimalentry;
+                  startXrow[b][2*r + 1] = 2*r + 1;
+                  startXcol[b][2*r + 1] = 2*r + 1;
+                  startXval[b][2*r + 1] = maxprimalentry;
+               }
+               else if ( relaxdata->warmstartprimaltype == 2 )
+               {
+                  startXrow[b][2*r] = startZrow[b][2*r];
+                  startXcol[b][2*r] = startZcol[b][2*r];
+                  startXval[b][2*r] = 1 / startZval[b][2*r];
+                  startXrow[b][2*r + 1] = startZrow[b][2*r + 1];
+                  startXcol[b][2*r + 1] = startZcol[b][2*r + 1];
+                  startXval[b][2*r + 1] = 1 / startZval[b][2*r + 1];
+               }
+               else
+               {
+                  assert( 0 );
+               }
             }
 
             for (v = 0; v < nvars; v++)
@@ -905,12 +947,29 @@ SCIP_RETCODE calcRelax(
                startZval[b][2*nrows + 2*v + 1] = SCIPvarGetUbLocal(vars[v]) - SCIPgetSolVal(scip, dualsol, vars[v]);
                if ( SCIPisLT(scip, startZval[b][2*nrows + 2*v], 0.0) )
                   startZval[b][2*nrows + 2*v + 1] = 0.0; /* if bound changes make the solution infeasible, we still set the value to zero to keep the matrix psd */
-               startXrow[b][2*nrows + 2*v] = 2*nrows + 2*v;
-               startXcol[b][2*nrows + 2*v] = 2*nrows + 2*v;
-               startXval[b][2*nrows + 2*v] = maxprimalentry;
-               startXrow[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
-               startXcol[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
-               startXval[b][2*nrows + 2*v + 1] = maxprimalentry;
+
+               if ( relaxdata->warmstartprimaltype == 1 )
+               {
+                  startXrow[b][2*nrows + 2*v] = 2*nrows + 2*v;
+                  startXcol[b][2*nrows + 2*v] = 2*nrows + 2*v;
+                  startXval[b][2*nrows + 2*v] = maxprimalentry;
+                  startXrow[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
+                  startXcol[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
+                  startXval[b][2*nrows + 2*v + 1] = maxprimalentry;
+               }
+               else if ( relaxdata->warmstartprimaltype == 2 )
+               {
+                  startXrow[b][2*nrows + 2*v] = startZrow[b][2*nrows + 2*v];
+                  startXcol[b][2*nrows + 2*v] = startZcol[b][2*nrows + 2*v];
+                  startXval[b][2*nrows + 2*v] = 1 / startZval[b][2*nrows + 2*v];
+                  startXrow[b][2*nrows + 2*v + 1] = startZrow[b][2*nrows + 2*v + 1];
+                  startXcol[b][2*nrows + 2*v + 1] = startZcol[b][2*nrows + 2*v + 1];
+                  startXval[b][2*nrows + 2*v + 1] = 1 / startZval[b][2*nrows + 2*v + 1];
+               }
+               else
+               {
+                  assert( 0 );
+               }
             }
          }
 
@@ -2007,6 +2066,10 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartipfactor",
          "factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled ", &(relaxdata->warmstartipfactor),
          TRUE, DEFAULT_WARMSTARTIPFACTOR, 0.0, 1.0, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartprimaltype",
+         "how to warmstart the primal problem? 1: scaled identity, 2: elementwise reciprocal, 3: save primal sol", &(relaxdata->warmstartprimaltype), TRUE,
+         DEFAULT_WARMSTARTPRIMALTYPE, 1, 3, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/npenaltyincr",
          "maximum number of times the penalty parameter will be increased if the penalty formulation failed", &(relaxdata->npenaltyincr), TRUE,
