@@ -814,7 +814,7 @@ SCIP_RETCODE calcRelax(
                /* use convex combination between Z and scaled identity matrix to move solution to the interior */
                if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
                {
-                  SCIP_CALL( SCIPallocBufferArray(scip, &diagentryexists, blocksize) );
+                  SCIP_CALL( SCIPallocBufferArray(scip, &diagentryexists, blocksize) ); /* TODO: could allocate this once for Z and X with max-blocksize */
                   for (i = 0; i < blocksize; i++)
                      diagentryexists[i] = FALSE;
 
@@ -872,9 +872,10 @@ SCIP_RETCODE calcRelax(
                      startXval[b][i] = 1 / startXval[b][i];
                   }
                }
-               else
+               else if ( relaxdata->warmstartprimaltype != 3 )
                {
-                  assert( 0 );
+                  SCIPerrorMessage("Unknown value %d for warmstartprimaltype.\n", relaxdata->warmstartprimaltype);
+                  SCIPABORT();
                }
             }
 
@@ -929,9 +930,10 @@ SCIP_RETCODE calcRelax(
                   startXcol[b][2*r + 1] = startZcol[b][2*r + 1];
                   startXval[b][2*r + 1] = 1 / startZval[b][2*r + 1];
                }
-               else
+               else if ( relaxdata->warmstartprimaltype != 3 )
                {
-                  assert( 0 );
+                  SCIPerrorMessage("Unknown value %d for warmstartprimaltype.\n", relaxdata->warmstartprimaltype);
+                  SCIPABORT();
                }
             }
 
@@ -966,9 +968,107 @@ SCIP_RETCODE calcRelax(
                   startXcol[b][2*nrows + 2*v + 1] = startZcol[b][2*nrows + 2*v + 1];
                   startXval[b][2*nrows + 2*v + 1] = 1 / startZval[b][2*nrows + 2*v + 1];
                }
-               else
+               else if ( relaxdata->warmstartprimaltype != 3 )
                {
-                  assert( 0 );
+                  SCIPerrorMessage("Unknown value %d for warmstartprimaltype.\n", relaxdata->warmstartprimaltype);
+                  SCIPABORT();
+               }
+            }
+
+            /* if we saved the whole primal solution before, we can set it at once */
+            if ( relaxdata->warmstartprimaltype == 3 )
+            {
+               SCIP_CALL( SCIPconsSavesdpsolGetPrimalMatrixNonzeros(scip, conss[parentconsind], nblocks + 1, startXnblocknonz) );
+
+               /* allocate sufficient memory (memory for LP-block was already allocated); we allocate an extra blocksize for adding the diagonal matrix */
+               for (b = 0; b < nblocks + 1; b++)
+               {
+                  SCIP_CALL( SCIPallocBufferMemoryArray(scip, &startXrow[b], startXnblocknonz[b] + SCIPconsSdpGetBlocksize(scip, sdpblocks[b])) );
+                  SCIP_CALL( SCIPallocBufferMemoryArray(scip, &startXcol[b], startXnblocknonz[b] + SCIPconsSdpGetBlocksize(scip, sdpblocks[b])) );
+                  SCIP_CALL( SCIPallocBufferMemoryArray(scip, &startXval[b], startXnblocknonz[b] + SCIPconsSdpGetBlocksize(scip, sdpblocks[b])) );
+               }
+
+               SCIP_CALL( SCIPconsSavesdpsolGetPrimalMatrix(scip, conss[parentconsind], nblocks + 1, startXnblocknonz, startXrow, startXcol, startXval) );
+
+               for (b = 0; b < nblocks; b++)
+               {
+                  /* use convex combination between X and scaled identity matrix to move solution to the interior */
+                  if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
+                  {
+                     /* compute maxdualentry (should be at least one) */
+                     maxprimalentry = 1.0;
+                     for (i = 0; i < startXnblocknonz[b]; i++)
+                     {
+                        if ( REALABS(startXval[b][i]) > maxprimalentry )
+                           maxprimalentry = REALABS(startXval[b][i]);
+                     }
+                     identitydiagonal = relaxdata->warmstartipfactor * maxprimalentry; /* the diagonal entries of the scaled identity matrix */
+                     blocksize = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
+
+                     SCIP_CALL( SCIPallocBufferArray(scip, &diagentryexists, blocksize) ); /* TODO: could allocate this once for Z and X with max-blocksize */
+                     for (i = 0; i < blocksize; i++)
+                        diagentryexists[i] = FALSE;
+
+                     for (i = 0; i < startXnblocknonz[b]; i++)
+                     {
+                        if ( startXrow[b][i] == startXcol[b][i] )
+                        {
+                           startXval[b][i] = startXval[b][i] * (1 - relaxdata->warmstartipfactor) + identitydiagonal; /* add identity for diagonal entries */
+                           assert( startXval[b][i] >= 0 ); /* since the original matrix should have been positive semidefinite, diagonal entries should be >= 0 */
+                           diagentryexists[startXrow[b][i]] = TRUE;
+                        }
+                        else
+                           startXval[b][i] *= (1 - relaxdata->warmstartipfactor); /* since this is an off-diagonal entry, we scale towards zero */
+                     }
+
+                     /* if a diagonal entry was missing (because we had a zero row before), we have to add it to the end */
+                     for (i = 0; i < blocksize; i++)
+                     {
+                        if ( ! diagentryexists[i] )
+                        {
+                           startXrow[b][startXnblocknonz[b]] = i;
+                           startXcol[b][startXnblocknonz[b]] = i;
+                           startXval[b][startXnblocknonz[b]] = identitydiagonal;
+                           startXnblocknonz[b]++;
+                        }
+                     }
+
+                     SCIPfreeBufferArrayNull(scip, &diagentryexists);
+                  }
+               }
+               /* take convex combination for LP block */
+               if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
+               {
+                  int nsavedentries;
+                  int lastentry;
+                  int j;
+
+                  /* sort indices by row/col; TODO: check if this is necessary */
+                  SCIPsortIntIntReal(startXrow[nblocks], startXcol[nblocks], startXval[nblocks], startXnblocknonz[nblocks]);
+
+                  /* iterate over all entries */
+                  nsavedentries = startXnblocknonz[nblocks];
+                  lastentry = 0;
+
+                  for (i = 0; i < nsavedentries; i++)
+                  {
+                     assert( startXrow[nblocks][i] == startXcol[nblocks][i] ); /* this is the LP-block */
+                     /* if some entries are missing, we add them at the end */
+                     for (j = lastentry; j < startXrow[i]; j++)
+                     {
+                        assert( startXnblocknonz[nblocks] < 2 * nrows + 2 * nvars );
+                        startXrow[nblocks][startXnblocknonz[nblocks]] = j;
+                        startXcol[nblocks][startXnblocknonz[nblocks]] = j;
+                        startXval[nblocks][startXnblocknonz[nblocks]] = 1.0;
+                     }
+                     /* we only take the convex combination if the value is less than one, since the maxblockentry is equal to the value
+                      * otherwise, so taking the convex combination doesn't change anything in that case
+                      */
+                     if ( SCIPisLT(scip, startXval[b][j], 1.0) )
+                        startXval[b][j] = (1 - relaxdata->warmstartipfactor) * startXval[b][j] + relaxdata->warmstartipfactor;
+
+                     lastentry = startXrow[i];
+                  }
                }
             }
          }

@@ -505,6 +505,27 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
                                               *   output: number of elements inserted into lbvars/ubvars (or needed length if it wasn't sufficient) */
    );
 
+/** return number of nonzeros for each block of the primal solution matrix X */
+EXTERN
+SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
+   int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
+   int*                  startXnblocknonz,   /**< pointer to store number of nonzeros for row/col/val-arrays in each block */
+   );
+
+/** returns the primal matrix X
+ *  @note: If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is return in startXnblocknonz */
+EXTERN
+SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
+   int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
+   int*                  startXnblocknonz,   /**< input: allocated memory for row/col/val-arrays in each block
+                                                  output: number of nonzeros in each block */
+   int**                 startXrow,          /**< pointer to store row indices of X */
+   int**                 startXcol,          /**< pointer to store column indices of X */
+   SCIP_Real**           startXval           /**< pointer to store values of X */
+   );
+
 /** return the maximum absolute value of the optimal primal matrix */
 EXTERN
 SCIP_Real SCIPsdpiSolverGetMaxPrimalEntry(

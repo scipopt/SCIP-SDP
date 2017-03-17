@@ -3383,6 +3383,61 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    return SCIP_OKAY;
 }
 
+/** return number of nonzeros for each block of the primal solution matrix X */
+SCIP_RETCODE SCIPsdpiGetPrimalNonzeros(
+   SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
+   int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
+   int*                  startXnblocknonz,   /**< pointer to store number of nonzeros for row/col/val-arrays in each block */
+   )
+{
+   assert( sdpi != NULL );
+
+   if ( sdpi->infeasible )
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, no primal solution available.\n");
+      return SCIP_OKAY;
+   }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All variables fixed during preprocessing, no primal solution available.\n");
+      return SCIP_OKAY;
+   }
+
+   SCIP_CALL( SCIPsdpiSolverGetPrimalNonzeros(sdpi->sdpisolver, nblocks, startXnblocknonz) );
+
+   return SCIP_OKAY;
+}
+
+/** returns the primal matrix X
+ *  @note: If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is return in startXnblocknonz */
+SCIP_RETCODE SCIPsdpiGetPrimalMatrix(
+   SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
+   int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
+   int*                  startXnblocknonz,   /**< input: allocated memory for row/col/val-arrays in each block
+                                                  output: number of nonzeros in each block */
+   int**                 startXrow,          /**< pointer to store row indices of X */
+   int**                 startXcol,          /**< pointer to store column indices of X */
+   SCIP_Real**           startXval           /**< pointer to store values of X */
+   )
+{
+   assert( sdpi != NULL );
+
+   if ( sdpi->infeasible )
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, no primal solution available.\n");
+      return SCIP_OKAY;
+   }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All variables fixed during preprocessing, no primal solution available.\n");
+      return SCIP_OKAY;
+   }
+
+   SCIP_CALL( SCIPsdpiSolverGetPrimalMatrix(sdpi->sdpisolver, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
+
+   return SCIP_OKAY;
+}
+
 /** return the maximum absolute value of the optimal primal matrix */
 SCIP_Real SCIPsdpiGetMaxPrimalEntry(
    SCIP_SDPI*            sdpi                /**< pointer to an SDP-interface structure */
