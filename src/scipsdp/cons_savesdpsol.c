@@ -92,16 +92,16 @@ SCIP_DECL_CONSDELETE(consDeleteSavesdpsol)
 
    SCIPdebugMessage("Deleting store node data constraint: <%s>.\n", SCIPconsGetName(cons));
 
-   for (b = 0; b < nblocks; b++)
+   for (b = 0; b < (*consdata)->nblocks; b++)
    {
-      SCIPfreeBlockMemoryArray(scip, &startXval[b], startXnblocknonz[b]);
-      SCIPfreeBlockMemoryArray(scip, &startXcol[b], startXnblocknonz[b]);
-      SCIPfreeBlockMemoryArray(scip, &startXrow[b], startXnblocknonz[b]);
+      SCIPfreeBlockMemoryArray(scip, &((*consdata)->startXval[b]), (*consdata)->startXnblocknonz[b]);
+      SCIPfreeBlockMemoryArray(scip, &((*consdata)->startXcol[b]), (*consdata)->startXnblocknonz[b]);
+      SCIPfreeBlockMemoryArray(scip, &((*consdata)->startXrow[b]), (*consdata)->startXnblocknonz[b]);
    }
-   SCIPfreeBlockMemoryArray(scip, &startXval, nblocks);
-   SCIPfreeBlockMemoryArray(scip, &startXcol, nblocks);
-   SCIPfreeBlockMemoryArray(scip, &startXrow, nblocks);
-   SCIPfreeBlockMemoryArray(scip, &startXnblocknonz, nblocks);
+   SCIPfreeBlockMemoryArray(scip, &((*consdata)->startXval), (*consdata)->nblocks);
+   SCIPfreeBlockMemoryArray(scip, &((*consdata)->startXcol), (*consdata)->nblocks);
+   SCIPfreeBlockMemoryArray(scip, &((*consdata)->startXrow), (*consdata)->nblocks);
+   SCIPfreeBlockMemoryArray(scip, &((*consdata)->startXnblocknonz), (*consdata)->nblocks);
 
    SCIPfreeSol(scip, &((*consdata)->sol));
    SCIPfreeBlockMemory(scip, consdata);
@@ -254,22 +254,27 @@ SCIP_RETCODE createConsSavesdpsol(
    SCIP_Real             maxprimalentry,     /**< maximum absolute value of primal matrix */
    int                   nblocks,            /**< number of blocks INCLUDING lp-block */
    int*                  startXnblocknonz,   /**< primal matrix X as starting point for the solver: number of nonzeros for each block,
-                                               *  also length of corresponding row/col/val-arrays; or NULL */
+                                               *  also length of corresponding row/col/val-arrays; or NULL if nblocks = 0 */
    int**                 startXrow,          /**< primal matrix X as starting point for the solver: row indices for each block;
-                                               *  may be NULL if startXnblocknonz = NULL */
+                                               *  or NULL if nblocks = 0 */
    int**                 startXcol,          /**< primal matrix X as starting point for the solver: column indices for each block;
-                                               *  may be NULL if startXnblocknonz = NULL */
+                                               *  or NULL if nblocks = 0 */
    SCIP_Real**           startXval           /**< primal matrix X as starting point for the solver: values for each block;
-                                               *  may be NULL if startXnblocknonz = NULL */
+                                               *  or NULL if nblocks = 0 */
    )
 {
    SCIP_CONSDATA* consdata = NULL;
    SCIP_CONSHDLR* conshdlr;
    int b;
 
-   assert ( scip != NULL );
-   assert ( name != NULL );
-   assert ( sol != NULL );
+   assert( scip != NULL );
+   assert( name != NULL );
+   assert( sol != NULL );
+   assert( nblocks >= 0 );
+   assert( nblocks == 0 || startXnblocknonz != NULL );
+   assert( nblocks == 0 || startXrow != NULL );
+   assert( nblocks == 0 || startXcol != NULL );
+   assert( nblocks == 0 || startXval != NULL );
 
    SCIPdebugMessage("Creating Savesdpsol constraint <%s>.\n", name);
 
@@ -348,10 +353,9 @@ SCIP_SOL* SCIPconsSavesdpsolGetDualVector(
 }
 
 /** for the given cons of type Savesdpsol returns the previous number of nonzeros for each block of primal solution X */
-SCIP_RETCODE SCIPconsSavesdpsolGetMaxPrimalEntry(
+SCIP_Real SCIPconsSavesdpsolGetMaxPrimalEntry(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< constraint to get maximum primal entry for */
-   int*                  startXnblocknonz    /**< pointer to store number of nonzeros for each block */
+   SCIP_CONS*            cons                /**< constraint to get maximum primal entry for */
    )
 {
    SCIP_CONSDATA* consdata;

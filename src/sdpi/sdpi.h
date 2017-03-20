@@ -580,11 +580,11 @@ EXTERN
 SCIP_RETCODE SCIPsdpiGetPrimalNonzeros(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
    int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
-   int*                  startXnblocknonz,   /**< pointer to store number of nonzeros for row/col/val-arrays in each block */
+   int*                  startXnblocknonz    /**< pointer to store number of nonzeros for row/col/val-arrays in each block */
    );
 
 /** returns the primal matrix X
- *  @note: If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is return in startXnblocknonz */
+ *  @note: If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz */
 EXTERN
 SCIP_RETCODE SCIPsdpiGetPrimalMatrix(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */

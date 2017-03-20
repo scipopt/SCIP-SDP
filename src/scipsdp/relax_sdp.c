@@ -983,9 +983,9 @@ SCIP_RETCODE calcRelax(
                /* allocate sufficient memory (memory for LP-block was already allocated); we allocate an extra blocksize for adding the diagonal matrix */
                for (b = 0; b < nblocks + 1; b++)
                {
-                  SCIP_CALL( SCIPallocBufferMemoryArray(scip, &startXrow[b], startXnblocknonz[b] + SCIPconsSdpGetBlocksize(scip, sdpblocks[b])) );
-                  SCIP_CALL( SCIPallocBufferMemoryArray(scip, &startXcol[b], startXnblocknonz[b] + SCIPconsSdpGetBlocksize(scip, sdpblocks[b])) );
-                  SCIP_CALL( SCIPallocBufferMemoryArray(scip, &startXval[b], startXnblocknonz[b] + SCIPconsSdpGetBlocksize(scip, sdpblocks[b])) );
+                  SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], startXnblocknonz[b] + SCIPconsSdpGetBlocksize(scip, sdpblocks[b])) );
+                  SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], startXnblocknonz[b] + SCIPconsSdpGetBlocksize(scip, sdpblocks[b])) );
+                  SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], startXnblocknonz[b] + SCIPconsSdpGetBlocksize(scip, sdpblocks[b])) );
                }
 
                SCIP_CALL( SCIPconsSavesdpsolGetPrimalMatrix(scip, conss[parentconsind], nblocks + 1, startXnblocknonz, startXrow, startXcol, startXval) );
@@ -1054,7 +1054,7 @@ SCIP_RETCODE calcRelax(
                   {
                      assert( startXrow[nblocks][i] == startXcol[nblocks][i] ); /* this is the LP-block */
                      /* if some entries are missing, we add them at the end */
-                     for (j = lastentry; j < startXrow[i]; j++)
+                     for (j = lastentry; j < startXrow[nblocks][i]; j++)
                      {
                         assert( startXnblocknonz[nblocks] < 2 * nrows + 2 * nvars );
                         startXrow[nblocks][startXnblocknonz[nblocks]] = j;
@@ -1067,7 +1067,7 @@ SCIP_RETCODE calcRelax(
                      if ( SCIPisLT(scip, startXval[b][j], 1.0) )
                         startXval[b][j] = (1 - relaxdata->warmstartipfactor) * startXval[b][j] + relaxdata->warmstartipfactor;
 
-                     lastentry = startXrow[i];
+                     lastentry = startXrow[nblocks][i];
                   }
                }
             }
@@ -1393,14 +1393,69 @@ SCIP_RETCODE calcRelax(
          if ( relaxdata->warmstart )
          {
             SCIP_Real maxprimalentry;
+            int b;
+            int nblocks;
+            int* startXnblocknonz;
+            int** startXrow;
+            int** startXcol;
+            SCIP_Real** startXval;
+
+            startXnblocknonz = NULL;
+            startXrow = NULL;
+            startXcol = NULL;
+            startXval = NULL;
 
             if ( SCIPsdpiDoesWarmstartNeedPrimal() )
-               maxprimalentry = SCIPsdpiGetMaxPrimalEntry(relaxdata->sdpi);
-            else
+            {
                maxprimalentry = 0.0;
-            SCIP_CALL( createConsSavesdpsol(scip, &savedcons, "saved relaxation sol", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), scipsol, maxprimalentry) );
+               if ( relaxdata->warmstartprimaltype == 3 )
+               {
+                  nblocks = SCIPconshdlrGetNConss(SCIPfindConshdlr(scip, "SDP")) + 1; /* +1 for the LP part */
+                  SCIP_CALL( SCIPallocBufferArray(scip, &startXnblocknonz, nblocks) );
+                  SCIP_CALL( SCIPallocBufferArray(scip, &startXrow, nblocks) );
+                  SCIP_CALL( SCIPallocBufferArray(scip, &startXcol, nblocks) );
+                  SCIP_CALL( SCIPallocBufferArray(scip, &startXval, nblocks) );
+
+                  /* get amount of memory to allocate for row/col/val from sdpi */
+                  SCIP_CALL( SCIPsdpiGetPrimalNonzeros(relaxdata->sdpi, nblocks, startXnblocknonz) );
+
+                  /* allocate memory for different blocks in row/col/val */
+                  for (b = 0; b < nblocks; b++)
+                  {
+                     SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], startXnblocknonz[b]) );
+                     SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], startXnblocknonz[b]) );
+                     SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], startXnblocknonz[b]) );
+                  }
+               }
+               else
+               {
+                  nblocks = 0;
+                  maxprimalentry = SCIPsdpiGetMaxPrimalEntry(relaxdata->sdpi);
+               }
+            }
+            else
+            {
+               maxprimalentry = 0.0;
+               nblocks = 0;
+            }
+            SCIP_CALL( createConsSavesdpsol(scip, &savedcons, "saved relaxation sol", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), scipsol,
+                  maxprimalentry, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
             SCIP_CALL( SCIPaddCons(scip, savedcons) );
             SCIP_CALL( SCIPreleaseCons(scip, &savedcons) );
+
+            if ( SCIPsdpiDoesWarmstartNeedPrimal() )
+            {
+               /* free memory for primal matrix */
+               for (b = 0; b < nblocks; b++)
+               {
+                  SCIPfreeBufferArrayNull(scip, &startXval[b]);
+                  SCIPfreeBufferArrayNull(scip, &startXcol[b]);
+                  SCIPfreeBufferArrayNull(scip, &startXrow[b]);
+               }
+               SCIPfreeBufferArray(scip, &startXval);
+               SCIPfreeBufferArray(scip, &startXcol);
+               SCIPfreeBufferArray(scip, &startXrow);
+            }
          }
 
          SCIPfreeBufferArray(scip, &solforscip);

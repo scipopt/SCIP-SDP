@@ -63,13 +63,13 @@ SCIP_RETCODE createConsSavesdpsol(
    SCIP_Real             maxprimalentry,     /**< maximum absolute value of primal matrix */
    int                   nblocks,            /**< number of blocks INCLUDING lp-block */
    int*                  startXnblocknonz,   /**< primal matrix X as starting point for the solver: number of nonzeros for each block,
-                                               *  also length of corresponding row/col/val-arrays; or NULL */
+                                               *  also length of corresponding row/col/val-arrays; or NULL if nblocks = 0 */
    int**                 startXrow,          /**< primal matrix X as starting point for the solver: row indices for each block;
-                                               *  may be NULL if startXnblocknonz = NULL */
+                                               *  or NULL if nblocks = 0 */
    int**                 startXcol,          /**< primal matrix X as starting point for the solver: column indices for each block;
-                                               *  may be NULL if startXnblocknonz = NULL */
+                                               *  or NULL if nblocks = 0 */
    SCIP_Real**           startXval          /**< primal matrix X as starting point for the solver: values for each block;
-                                               *  may be NULL if startXnblocknonz = NULL */
+                                               *  or NULL if nblocks = 0 */
    );
 
 /** for the given cons of type Savesdpsol returns the node the information belongs to */

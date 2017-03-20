@@ -676,7 +676,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
 }
 
 /** returns the primal matrix X
- *  @note: If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is return in startXnblocknonz */
+ *  @note: If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz */
 SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */

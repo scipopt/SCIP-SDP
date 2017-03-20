@@ -428,7 +428,8 @@ SCIP_RETCODE SCIPsdpiSolverFree(
 
    SCIPdebugMessage("Freeing SDPISolver\n");
 
-   nsdpblocks = (*sdpisolver)->sdpa->getBlockType((*sdpisolver)->sdpa->getBlockNumber()) == SDPA::LP ? sdpa->getBlockNumber() - 1 : sdpa->getBlockNumber();
+   nsdpblocks = (*sdpisolver)->sdpa->getBlockType((*sdpisolver)->sdpa->getBlockNumber()) == SDPA::LP ?
+         (*sdpisolver)->sdpa->getBlockNumber() - 1 : (*sdpisolver)->sdpa->getBlockNumber();
    for (b = 0; b < nsdpblocks; b++)
    {
       BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &((*sdpisolver)->blockindmapper[b]), (*sdpisolver)->sdpa->getBlockSize(b + 1));
@@ -666,12 +667,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_Real* sdpavarbounds;
    int i;
    int k;
+   int b;
    int block;
    int nfixedvars;
    bool checkinput; /* should the input be checked for consistency in SDPA ? */
    int lpconsind;
    int lastrow;
-   int* rowmapper; /* maps the lhs- and rhs-inequalities of the old LP-cons to their constraint numbers in DSDP */
    int nlpineqs;
    int pos;
    int newpos;
@@ -813,7 +814,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
    }
 
-   nsdpasdpblocks = ((*sdpisolver)->sdpa->getBlockType((*sdpisolver)->sdpa->getBlockNumber()) < SDPA::LP ? sdpa->getBlockNumber() - 1 : sdpa->getBlockNumber());
+   nsdpasdpblocks = (sdpisolver->sdpa->getBlockType(sdpisolver->sdpa->getBlockNumber()) < SDPA::LP ?
+         sdpisolver->sdpa->getBlockNumber() - 1 : sdpisolver->sdpa->getBlockNumber());
 
    if ( nsdpblocks - nremovedblocks != nsdpasdpblocks )
    {
@@ -827,7 +829,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          /* if the number of blocks decreased, we first need to free memory for those blocks before reallocating memory for the outer array */
          for ( block = nsdpblocks - nremovedblocks; block < nsdpasdpblocks; block++ )
          {
-            BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &(sdpisolver->blockindmapper[b]), sdpisolver->sdpa->getBlockSize(block));
+            BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &(sdpisolver->blockindmapper[block]), sdpisolver->sdpa->getBlockSize(block));
          }
          BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->blockindmapper),
                nsdpasdpblocks, nsdpblocks - nremovedblocks) ); /*lint !e647*/
@@ -840,33 +842,33 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    {
       if ( blockindchanges[block] > -1 )
       {
-         sdpisolver->blocktoinputmapper[block] = ind;
-         if ( (long long) (blocksize[block] - nremovedinds[block]) != sdpisolver->sdpa->getBlockSize(ind) )
+         sdpisolver->inputtoblockmapper[block] = ind;
+         if ( (long long) (sdpblocksizes[block] - nremovedinds[block]) != sdpisolver->sdpa->getBlockSize(ind) )
          {
-            if ( sdpisolver->blockindmapper[b] == NULL )
+            if ( sdpisolver->blockindmapper[ind] == NULL )
             {
-               BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->blockindmapper[b]), blocksize[block] - nremovedinds[block]) ); /*lint !e647*/
+               BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->blockindmapper[ind]), sdpblocksizes[block] - nremovedinds[block]) ); /*lint !e647*/
             }
             else
             {
-               BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->blockindmapper[b]),
-                     (int) sdpisolver->sdpa->getBlockSize(ind), blocksize[block] - nremovedinds[block]) ); /*lint !e647*/
+               BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->blockindmapper[ind]),
+                     (int) sdpisolver->sdpa->getBlockSize(ind), sdpblocksizes[block] - nremovedinds[block]) ); /*lint !e647*/
             }
          }
          blockind = 0;
-         for (i = 0; i < blocksize[block] - nremovedinds[block]; i++)
+         for (i = 0; i < sdpblocksizes[block] - nremovedinds[block]; i++)
          {
-            if ( blockindchanges[ind][i] > -1 )
+            if ( indchanges[ind][i] > -1 )
             {
                sdpisolver->blockindmapper[ind][blockind] = i;
-               assert( i - blockindchanges[ind][i] == blockind );
+               assert( i - indchanges[ind][i] == blockind );
                blockind++;
             }
          }
          ind++;
       }
       else
-         sdpisolver->blocktoinputmapper[block] = -1;
+         sdpisolver->inputtoblockmapper[block] = -1;
    }
 
    /* insert data */
@@ -1468,7 +1470,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* set the starting solution */
    if ( starty != NULL && startZnblocknonz != NULL && startXnblocknonz != NULL && penaltyparam < sdpisolver->epsilon )
    {
-      int b;
       int inputvar;
       int arraypos;
 
@@ -1700,7 +1701,6 @@ sdpisolver->sdpa->printParameters(stdout);
    {
       SCIP_Real* sdpasol;
       SCIP_Real* X;
-      int b;
       int nblockssdpa;
       int nrow;
       SCIP_Real trace = 0.0;
@@ -2397,7 +2397,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
 SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    int                   nblocks,            /**< length of startXnblocknonz */
-   int*                  startXnblocknonz,   /**< pointer to store number of nonzeros for row/col/val-arrays in each block */
+   int*                  startXnblocknonz    /**< pointer to store number of nonzeros for row/col/val-arrays in each block */
    )
 {
    SCIP_Real* X;
@@ -2405,7 +2405,6 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
    int sdpablock;
    int i;
    int blocksize;
-   int inputblock;
 
    assert( sdpisolver != NULL );
    assert( nblocks > 0 );
@@ -2458,7 +2457,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
 }
 
 /** returns the primal matrix X
- *  @note: If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is return in startXnblocknonz */
+ *  @note: If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz */
 SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
@@ -2474,9 +2473,8 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    int r;
    int c;
    int sdpaind;
-
+   int sdpablock;
    int blocksize;
-   int inputblock;
    int blocknnonz;
    SCIP_Bool msgthrown;
 
@@ -2520,8 +2518,8 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
                {
                   if ( blocknnonz < startXnblocknonz[b] )
                   {
-                     startXrow[b][blocknnonz] = sdpisolver->blockindmapper[c];
-                     startXcol[b][blocknnonz] = sdpisolver->blockindmapper[r];
+                     startXrow[b][blocknnonz] = sdpisolver->blockindmapper[b][c];
+                     startXcol[b][blocknnonz] = sdpisolver->blockindmapper[b][r];
                      startXval[b][blocknnonz] = X[sdpaind];
                      blocknnonz++;
                   }
@@ -2547,11 +2545,13 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    }
 
    /* compute entries for the LP-block */
-   nblocknonz = 0;
+   blocknnonz = 0;
    sdpablock = sdpisolver->sdpa->getBlockNumber();
 
    if ( sdpisolver->sdpa->getBlockType(sdpablock) == SDPA::LP )
    {
+      int i;
+
       X = sdpisolver->sdpa->getResultXMat(sdpablock);
       blocksize = sdpisolver->sdpa->getBlockSize(sdpablock);
 
