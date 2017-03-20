@@ -1443,7 +1443,7 @@ SCIP_RETCODE calcRelax(
             SCIP_CALL( SCIPaddCons(scip, savedcons) );
             SCIP_CALL( SCIPreleaseCons(scip, &savedcons) );
 
-            if ( SCIPsdpiDoesWarmstartNeedPrimal() )
+            if ( SCIPsdpiDoesWarmstartNeedPrimal() && relaxdata->warmstartprimaltype == 3 )
             {
                /* free memory for primal matrix */
                for (b = 0; b < nblocks; b++)

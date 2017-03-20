@@ -680,6 +680,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int ind;
    int blockind;
    int nsdpasdpblocks;
+   SCIP_Bool newlyallocated;
 
 #ifdef SCIP_DEBUG
    char phase_string[15];
@@ -814,14 +815,24 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
    }
 
-   nsdpasdpblocks = (sdpisolver->sdpa->getBlockType(sdpisolver->sdpa->getBlockNumber()) < SDPA::LP ?
-         sdpisolver->sdpa->getBlockNumber() - 1 : sdpisolver->sdpa->getBlockNumber());
+   /* get number of blocks in sdpa for reallocating memory, for this first solve call this is 0 since no memory was allocated before */
+   if ( sdpisolver->sdpa == NULL )
+   {
+      nsdpasdpblocks = 0;
+   }
+   else
+   {
+      nsdpasdpblocks = (sdpisolver->sdpa->getBlockType(sdpisolver->sdpa->getBlockNumber()) == SDPA::LP ?
+               sdpisolver->sdpa->getBlockNumber() - 1 : sdpisolver->sdpa->getBlockNumber());
+   }
+
 
    if ( nsdpblocks - nremovedblocks != nsdpasdpblocks )
    {
       if ( sdpisolver->blockindmapper == NULL )
       {
          BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->blockindmapper), nsdpblocks - nremovedblocks) ); /*lint !e647*/
+         newlyallocated = TRUE;
       }
       else
       {
@@ -829,10 +840,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          /* if the number of blocks decreased, we first need to free memory for those blocks before reallocating memory for the outer array */
          for ( block = nsdpblocks - nremovedblocks; block < nsdpasdpblocks; block++ )
          {
-            BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &(sdpisolver->blockindmapper[block]), sdpisolver->sdpa->getBlockSize(block));
+            BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &(sdpisolver->blockindmapper[block]), sdpisolver->sdpa->getBlockSize(block + 1));
          }
          BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->blockindmapper),
                nsdpasdpblocks, nsdpblocks - nremovedblocks) ); /*lint !e647*/
+         newlyallocated = FALSE;
       }
    }
 
@@ -842,19 +854,19 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    {
       if ( blockindchanges[block] > -1 )
       {
-         sdpisolver->inputtoblockmapper[block] = ind;
-         if ( (long long) (sdpblocksizes[block] - nremovedinds[block]) != sdpisolver->sdpa->getBlockSize(ind) )
+         sdpisolver->inputtoblockmapper[block] = ind + 1; /* +1 because SDPA start counting at one */
+
+         /* realloc memory if necessary */
+         if ( newlyallocated )
          {
-            if ( sdpisolver->blockindmapper[ind] == NULL )
-            {
-               BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->blockindmapper[ind]), sdpblocksizes[block] - nremovedinds[block]) ); /*lint !e647*/
-            }
-            else
-            {
-               BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->blockindmapper[ind]),
-                     (int) sdpisolver->sdpa->getBlockSize(ind), sdpblocksizes[block] - nremovedinds[block]) ); /*lint !e647*/
-            }
+            BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->blockindmapper[ind]), sdpblocksizes[block] - nremovedinds[block]) ); /*lint !e647*/
          }
+         else if ( (long long) (sdpblocksizes[block] - nremovedinds[block]) != sdpisolver->sdpa->getBlockSize(ind + 1) )
+         {
+            BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->blockindmapper[ind]),
+                  (int) sdpisolver->sdpa->getBlockSize(ind + 1), sdpblocksizes[block] - nremovedinds[block]) ); /*lint !e647*/
+         }
+
          blockind = 0;
          for (i = 0; i < sdpblocksizes[block] - nremovedinds[block]; i++)
          {
@@ -2426,8 +2438,8 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
 
       if ( sdpablock != -1 )
       {
-         X = sdpisolver->sdpa->getResultXMat(sdpablock + 1);
-         blocksize = sdpisolver->sdpa->getBlockSize(sdpablock + 1);
+         X = sdpisolver->sdpa->getResultXMat(sdpablock);
+         blocksize = sdpisolver->sdpa->getBlockSize(sdpablock);
 
          for (i = 0; i < blocksize * (blocksize + 1) / 2; i++)
          {
@@ -2503,8 +2515,8 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
 
       if ( sdpablock != -1 )
       {
-         X = sdpisolver->sdpa->getResultXMat(sdpablock + 1);
-         blocksize = sdpisolver->sdpa->getBlockSize(sdpablock + 1);
+         X = sdpisolver->sdpa->getResultXMat(sdpablock);
+         blocksize = sdpisolver->sdpa->getBlockSize(sdpablock);
          blocknnonz = 0;
 
          /* iterate once over the upper triangular part of the matrix (saving the corresponding entries in the lower triangular part for the SDPI) */
