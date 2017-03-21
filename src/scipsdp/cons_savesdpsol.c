@@ -35,8 +35,8 @@
  * @author Tristan Gally
  */
 
-//#define SCIP_DEBUG
-//#define SCIP_MORE_DEBUG /* shows all cuts added */
+/*#define SCIP_DEBUG*/
+/*#define SCIP_MORE_DEBUG *//* shows all cuts added */
 
 #include "cons_savesdpsol.h"
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
@@ -294,8 +294,14 @@ SCIP_RETCODE createConsSavesdpsol(
    SCIP_CALL( SCIPunlinkSol(scip, consdata->sol) );
    consdata->maxprimalentry = maxprimalentry;
 
-   /* allocate memory for primal solution */
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->startXnblocknonz, nblocks) );
+   /* allocate memory for primal solution and copy startXnblocknonz*/
+   if ( startXnblocknonz != NULL )
+   {
+      SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &consdata->startXnblocknonz, startXnblocknonz, nblocks) );
+   }
+   else
+      consdata->startXnblocknonz = NULL;
+
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->startXrow, nblocks) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->startXcol, nblocks) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->startXval, nblocks) );

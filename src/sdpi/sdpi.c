@@ -3409,6 +3409,8 @@ SCIP_RETCODE SCIPsdpiGetPrimalNonzeros(
 }
 
 /** returns the primal matrix X
+ *  @note: last block will be the LP block (if one exists) with indices lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ...
+ *  independant of some lhs/rhs being infinity
  *  @note: If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz */
 SCIP_RETCODE SCIPsdpiGetPrimalMatrix(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
