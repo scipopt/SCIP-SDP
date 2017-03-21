@@ -894,6 +894,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                blockind++;
             }
          }
+         assert( blockind == sdpblocksizes[block] - nremovedinds[block] );
          ind++;
       }
       else
