@@ -885,7 +885,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          }
 
          blockind = 0;
-         for (i = 0; i < sdpblocksizes[block] - nremovedinds[block]; i++)
+         for (i = 0; i < sdpblocksizes[block]; i++)
          {
             if ( indchanges[ind][i] > -1 )
             {
