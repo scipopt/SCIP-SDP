@@ -864,6 +864,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          newlyallocated = FALSE;
       }
    }
+   else
+      newlyallocated = FALSE;
 
    /* compute blockmapper and blockindmapper (needs to be done before old sdpa is freed to have old memory length available to prevent unnecessary reallocs) */
    ind = 0;
