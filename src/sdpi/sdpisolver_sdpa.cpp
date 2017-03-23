@@ -453,7 +453,7 @@ SCIP_RETCODE SCIPsdpiSolverFree(
 
    BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->inputtoblockmapper, (*sdpisolver)->nsdpblocks);
 
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->rowtoinputmapper, (*sdpisolver)->nsdpalpcons);
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->rowtoinputmapper, 2 * (*sdpisolver)->nsdpalpcons); /*lint !e647*/
 
    BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->rowmapper, 2 * (*sdpisolver)->ninputlpcons); /*lint !e647*/
 
@@ -1038,14 +1038,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          if ( sdpisolver->rowtoinputmapper == NULL )
          {
-            BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->rowtoinputmapper), nlpcons) );
+            BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->rowtoinputmapper), 2 * nlpcons) );
          }
          else
          {
-            BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->rowtoinputmapper), sdpisolver->nsdpalpcons, nlpcons) );
+            BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->rowtoinputmapper), 2 * sdpisolver->nsdpalpcons, 2 * nlpcons) );
          }
       }
-      assert( sdpisolver->rowmapper != NULL );
+      assert( sdpisolver->rowtoinputmapper != NULL );
 
       sdpisolver->ninputlpcons = noldlpcons;
       sdpisolver->nsdpalpcons = nlpcons;
