@@ -51,6 +51,7 @@
 
 #include "SdpVarmapper.h"
 #include "sdpi/sdpi.h"
+#include "sdpi/lapack.h"
 #include "scipsdp/cons_sdp.h"
 #include "scipsdp/cons_savesdpsol.h"
 #include "scipsdp/cons_savedsdpsettings.h"
@@ -70,6 +71,7 @@
 #define DEFAULT_MAXPENALTYPARAM     -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 #define DEFAULT_WARMSTARTIPFACTOR   0.01     /**< factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled */
 #define DEFAULT_WARMSTARTPRIMALTYPE 3        /**< how to warmstart the primal problem? 1: scaled identity, 2: elementwise reciprocal, 3: saved primal sol */
+#define DEFAULT_WARMSTARTPROJECT    1        /**< how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and proejct on psd cone */
 #define DEFAULT_SLATERCHECK         0        /**< Should the Slater condition be checked ? */
 #define DEFAULT_OBJLIMIT            FALSE    /**< Should an objective limit be given to the SDP-Solver ? */
 #define DEFAULT_RESOLVE             TRUE     /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
@@ -100,6 +102,7 @@ struct SCIP_RelaxData
    SCIP_Real             lambdastar;         /**< the parameter lambda star used by SDPA to set the initial point */
    SCIP_Real             warmstartipfactor;  /**< factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled */
    int                   warmstartprimaltype;/**< how to warmstart the primal problem? 1: scaled identity, 2: elementwise reciprocal, 3: saved primal sol */
+   int                   warmstartproject;   /**< how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and proejct on psd cone */
    int                   npenaltyincr;       /**< maximum number of times the penalty parameter will be increased if penalty formulation failed */
    int                   sdpiterations;      /**< saves the total number of sdp-iterations */
    int                   solvedfast;         /**< number of SDPs solved with fast settings */
@@ -148,6 +151,67 @@ struct SCIP_RelaxData
    int                   boundedinfeasible;  /**< number of instances we could compute a bound for via the penalty approach where the dual slater check showed that the problem is infeasible */
    int                   unsolvedinfeasible; /**< number of instances that could not be solved where the dual slater check showed that the problem is infeasible */
 };
+
+/** expand sparse matrix to full matrix format needed by LAPACK */
+static
+SCIP_RETCODE expandSparseMatrix(
+   int                   nnonz,              /**< number of nonzeros and length of row/col/val arrays */
+   int                   blocksize,          /**< size of matrix (and squareroot of memory allocated for fullmat) */
+   int*                  row,                /**< row indices */
+   int*                  col,                /**< column indices */
+   SCIP_Real*            val,                /**< values */
+   SCIP_Real*            fullmat             /**< pointer to store full matrix */
+   )
+{
+   int i;
+   int matrixsize;
+
+   assert( nnonz >= 0 );
+   assert( row != NULL );
+   assert( col != NULL );
+   assert( val != NULL );
+   assert( fullmat != NULL );
+
+   matrixsize = blocksize * blocksize;
+
+   /* initialize matrix with zeros */
+   for (i = 0; i < matrixsize; i++)
+      fullmat[i] = 0.0;
+
+   for (i = 0; i < nnonz; i++)
+   {
+      fullmat[row[i] * blocksize + col[i]] = val[i];
+      fullmat[col[i] * blocksize + row[i]] = val[i];
+   }
+
+   return SCIP_OKAY;
+}
+
+/** multiplies all entries in the i-th column by scale[i] */
+static
+SCIP_RETCODE scaleTransposedMatrix(
+   int                   blocksize,          /* number of rows and columns */
+   SCIP_Real*            matrix,             /* matrix entries given as blocksize^2 array */
+   SCIP_Real*            scale               /* array of length blocksize to multiply the columns of matrix with */
+   )
+{
+   int r;
+   int c;
+
+   assert( blocksize >= 0 );
+   assert( matrix != NULL );
+   assert( scale != NULL );
+
+   for (r = 0; r < blocksize; r++)
+   {
+      for (c = 0; c < blocksize; c++)
+      {
+         matrix[r * blocksize + c] *= scale[c];
+      }
+   }
+
+   return SCIP_OKAY;
+}
 
 /** inserts all the SDP data into the corresponding SDP Interface */
 static
@@ -595,6 +659,7 @@ SCIP_RETCODE calcRelax(
    SCIP_SDPSLATER dualslater;
    int naddediters;
    int naddedsdpcalls;
+   int nblocks;
    int nvars;
 
    SCIPdebugMessage("calcRelax called\n");
@@ -739,9 +804,21 @@ SCIP_RETCODE calcRelax(
             var = SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, v);
             starty[v] = SCIPgetSolVal(scip, dualsol, var);
             if (SCIPisLT(scip, starty[v], SCIPvarGetLbLocal(var)))
+            {
                starty[v] = SCIPvarGetLbLocal(var);
+               if ( relaxdata->warmstartproject == 2 || relaxdata->warmstartproject == 3 )
+               {
+                  SCIP_CALL( SCIPsetSolVal(scip, dualsol, var, SCIPvarGetLbLocal(var)) );
+               }
+            }
             else if (SCIPisGT(scip, starty[v], SCIPvarGetUbLocal(var)))
+            {
                starty[v] = SCIPvarGetUbLocal(var);
+               if ( relaxdata->warmstartproject == 2 || relaxdata->warmstartproject == 3 )
+               {
+                  SCIP_CALL( SCIPsetSolVal(scip, dualsol, var, SCIPvarGetUbLocal(var)) );
+               }
+            }
 
             /* if we take a convex combination (with the zero vector for y), scale starty accordingly */
             if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
@@ -754,7 +831,6 @@ SCIP_RETCODE calcRelax(
             SCIP_CONS** sdpblocks;
             SCIP_COL** rowcols;
             SCIP_ROW** rows;
-            int nblocks;
             int blocksize;
             int nrows;
             int rownnonz;
@@ -790,12 +866,20 @@ SCIP_RETCODE calcRelax(
             {
                blocksize = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
 
-               startZnblocknonz[b] = SCIPconsSdpComputeUbSparseSdpMatrixLength(scip, sdpblocks[b]);
-
-               /* since we take a convex combination with the identity matrix, we have to allocate memory for that as well */
-               if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
+               if ( relaxdata->warmstartproject == 3 )
                {
-                  startZnblocknonz[b] += blocksize;
+                  /* since we later take the projection onto the psd cone, we cannot a priori determine the size, so we take the maximum possible */
+                  startZnblocknonz[b] = blocksize * (blocksize + 1) / 2;
+               }
+               else
+               {
+                  startZnblocknonz[b] = SCIPconsSdpComputeUbSparseSdpMatrixLength(scip, sdpblocks[b]);
+
+                  /* since we take a convex combination with the identity matrix, we have to allocate memory for that as well */
+                  if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
+                  {
+                     startZnblocknonz[b] += blocksize;
+                  }
                }
 
                SCIP_CALL( SCIPallocBufferArray(scip, &startZrow[b], startZnblocknonz[b]) );
@@ -804,6 +888,71 @@ SCIP_RETCODE calcRelax(
 
                /* compute Z matrix (based on unrounded solution to make sure that it's still positive semidefinite) */
                SCIP_CALL( SCIPconsSdpComputeSparseSdpMatrix(scip, sdpblocks[b], dualsol, &(startZnblocknonz[b]), startZrow[b], startZcol[b], startZval[b]) );
+
+               /* compute projection onto psd cone (computed as U * diag(lambda_i_+) * U^T where U consists of the eigenvectors of the matrix) */
+               if ( relaxdata->warmstartproject == 3 )
+               {
+                  SCIP_Real* fullZmatrix;
+                  SCIP_Real* eigenvalues;
+                  SCIP_Real* eigenvectors;
+                  SCIP_Real* scaledeigenvectors;
+                  SCIP_Real matrixsize;
+                  SCIP_Real epsilon;
+                  int c;
+                  int matrixpos;
+
+                  matrixsize = blocksize * blocksize;
+
+                  SCIP_CALL( SCIPallocBufferArray(scip, &fullZmatrix, matrixsize) );
+                  SCIP_CALL( SCIPallocBufferArray(scip, &eigenvalues, blocksize) );
+                  SCIP_CALL( SCIPallocBufferArray(scip, &eigenvectors, matrixsize) );
+
+                  SCIP_CALL( expandSparseMatrix(startZnblocknonz[b], blocksize, startZrow[b], startZcol[b], startZval[b], fullZmatrix) );
+
+                  SCIP_CALL( SCIPlapackComputeEigenvectorDecomposition(SCIPbuffer(scip), blocksize, fullZmatrix, eigenvalues, eigenvectors) );
+
+                  /* duplicate memory of eigenvectors to compute diag(lambda_i_+) * U^T */
+                  SCIP_CALL( SCIPduplicateBufferArray(scip, &scaledeigenvectors, eigenvectors, matrixsize) );
+
+                  /* set all negative eigenvalues to zero (using the property that LAPACK returns them in ascending order) */
+                  i = 0;
+                  while (i < blocksize && eigenvalues[i] < 0.0)
+                  {
+                     eigenvalues[i] = 0.0;
+                     i++;
+                  }
+
+                  /* compute diag(lambda_i_+) * U^T */
+                  SCIP_CALL( scaleTransposedMatrix(blocksize, scaledeigenvectors, eigenvalues) );
+
+                  /* compute U * [diag(lambda_i_+) * U^T] (note that transposes are switched because LAPACK uses column-first-format) */
+                  SCIP_CALL( SCIPlapackMatrixMatrixMult(blocksize, blocksize, eigenvectors, TRUE, blocksize, blocksize, scaledeigenvectors,
+                        FALSE, fullZmatrix) );
+
+                  /* extract sparse matrix from projection */
+                  startZnblocknonz[b] = 0;
+                  epsilon = SCIPepsilon(scip);
+                  for (r = 0; r < blocksize; r++)
+                  {
+                     for (c = r; c < blocksize; c++)
+                     {
+                        matrixpos = r * blocksize + c;
+                        if ( REALABS(fullZmatrix[matrixpos]) > epsilon )
+                        {
+                           startZrow[b][startZnblocknonz[b]] = r;
+                           startZcol[b][startZnblocknonz[b]] = c;
+                           startZval[b][startZnblocknonz[b]] = fullZmatrix[matrixpos];
+                           startZnblocknonz[b]++;
+                        }
+                     }
+                  }
+
+                  /* free memory */
+                  SCIPfreeBufferArray(scip, &scaledeigenvectors);
+                  SCIPfreeBufferArray(scip, &eigenvectors);
+                  SCIPfreeBufferArray(scip, &eigenvalues);
+                  SCIPfreeBufferArray(scip, &fullZmatrix);
+               }
 
                /* compute maxdualentry (should be at least one) */
                maxdualentry = 1.0;
@@ -1072,8 +1221,8 @@ SCIP_RETCODE calcRelax(
                      /* we only take the convex combination if the value is less than one, since the maxblockentry is equal to the value
                       * otherwise, so taking the convex combination doesn't change anything in that case
                       */
-                     if ( SCIPisLT(scip, startXval[b][j], 1.0) )
-                        startXval[b][j] = (1 - relaxdata->warmstartipfactor) * startXval[b][j] + relaxdata->warmstartipfactor;
+                     if ( SCIPisLT(scip, startXval[b][i], 1.0) )
+                        startXval[b][i] = (1 - relaxdata->warmstartipfactor) * startXval[b][i] + relaxdata->warmstartipfactor;
 
                      lastentry = startXrow[nblocks][i];
                   }
@@ -1089,26 +1238,26 @@ SCIP_RETCODE calcRelax(
                }
             }
          }
-         int nblocks = SCIPconshdlrGetNConss(SCIPfindConshdlr(scip, "SDP"));
 
 #ifdef SCIP_PRINT_WARMSTART
+         nblocks = SCIPconshdlrGetNConss(SCIPfindConshdlr(scip, "SDP"));
          for (i = 0; i < nvars; i++)
-            printf("y[%d]=%f\n", i, starty[i]);
+            SCIPdebugMessage("y[%d]=%f\n", i, starty[i]);
 
          for (int b = 0; b < nblocks + 1; b++)
          {
-            printf("dual block %d\n", b);
+            SCIPdebugMessage("dual block %d\n", b);
             for (i = 0; i < startZnblocknonz[b]; i++)
             {
-               printf("Z(%d,%d)=%f\n", startZrow[b][i], startZcol[b][i], startZval[b][i]);
+               SCIPdebugMessage("Z(%d,%d)=%f\n", startZrow[b][i], startZcol[b][i], startZval[b][i]);
             }
          }
          for (int b = 0; b < nblocks + 1; b++)
          {
-            printf("primal block %d\n", b);
+            SCIPdebugMessage("primal block %d\n", b);
             for (i = 0; i < startXnblocknonz[b]; i++)
             {
-               printf("X(%d,%d)=%f\n", startXrow[b][i], startXcol[b][i], startXval[b][i]);
+               SCIPdebugMessage("X(%d,%d)=%f\n", startXrow[b][i], startXcol[b][i], startXval[b][i]);
             }
          }
 #endif
@@ -1120,7 +1269,6 @@ SCIP_RETCODE calcRelax(
          if ( SCIPsdpiDoesWarmstartNeedPrimal() )
          {
             SCIP_CONSHDLR* sdpconshdlr;
-            int nblocks;
             int b;
 
             sdpconshdlr = SCIPfindConshdlr(scip, "SDP");
@@ -1428,7 +1576,6 @@ SCIP_RETCODE calcRelax(
          {
             SCIP_Real maxprimalentry;
             int b;
-            int nblocks;
             int* startXnblocknonz;
             int** startXrow;
             int** startXcol;
@@ -2271,6 +2418,10 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartprimaltype",
          "how to warmstart the primal problem? 1: scaled identity, 2: elementwise reciprocal, 3: save primal sol", &(relaxdata->warmstartprimaltype), TRUE,
          DEFAULT_WARMSTARTPRIMALTYPE, 1, 3, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartproject",
+         "how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and proejct on psd cone", &(relaxdata->warmstartproject), TRUE,
+         DEFAULT_WARMSTARTPROJECT, 1, 3, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/npenaltyincr",
          "maximum number of times the penalty parameter will be increased if the penalty formulation failed", &(relaxdata->npenaltyincr), TRUE,
