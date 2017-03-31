@@ -806,6 +806,7 @@ SCIP_RETCODE calcRelax(
             if (SCIPisLT(scip, starty[v], SCIPvarGetLbLocal(var)))
             {
                starty[v] = SCIPvarGetLbLocal(var);
+               /* update solution (used to compute dual matrix) according to new bounds if parameter is set */
                if ( relaxdata->warmstartproject == 2 || relaxdata->warmstartproject == 3 )
                {
                   SCIP_CALL( SCIPsetSolVal(scip, dualsol, var, SCIPvarGetLbLocal(var)) );
@@ -814,6 +815,7 @@ SCIP_RETCODE calcRelax(
             else if (SCIPisGT(scip, starty[v], SCIPvarGetUbLocal(var)))
             {
                starty[v] = SCIPvarGetUbLocal(var);
+               /* update solution (used to compute dual matrix) according to new bounds if parameter is set */
                if ( relaxdata->warmstartproject == 2 || relaxdata->warmstartproject == 3 )
                {
                   SCIP_CALL( SCIPsetSolVal(scip, dualsol, var, SCIPvarGetUbLocal(var)) );
@@ -886,7 +888,7 @@ SCIP_RETCODE calcRelax(
                SCIP_CALL( SCIPallocBufferArray(scip, &startZcol[b], startZnblocknonz[b]) );
                SCIP_CALL( SCIPallocBufferArray(scip, &startZval[b], startZnblocknonz[b]) );
 
-               /* compute Z matrix (based on unrounded solution to make sure that it's still positive semidefinite) */
+               /* compute Z matrix */
                SCIP_CALL( SCIPconsSdpComputeSparseSdpMatrix(scip, sdpblocks[b], dualsol, &(startZnblocknonz[b]), startZrow[b], startZcol[b], startZval[b]) );
 
                /* compute projection onto psd cone (computed as U * diag(lambda_i_+) * U^T where U consists of the eigenvectors of the matrix) */
