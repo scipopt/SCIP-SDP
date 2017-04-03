@@ -1063,12 +1063,24 @@ SCIP_RETCODE calcRelax(
                 * otherwise, so taking the convex combination doesn't change anything in that case
                 */
                if ( SCIPisLT(scip, startZval[b][2*r], 1.0) )
-                  startZval[b][2*r] = (1 - relaxdata->warmstartipfactor) * startZval[b][2*r] + relaxdata->warmstartipfactor;
+               {
+                  /* since we want the value to be strictly positive, if the original entry is negative we just set it to warmstartipfactor */
+                  if ( SCIPisLT(scip, startZval[b][2*r], 0.0) )
+                     startZval[b][2*r] = relaxdata->warmstartipfactor;
+                  else
+                     startZval[b][2*r] = (1 - relaxdata->warmstartipfactor) * startZval[b][2*r] + relaxdata->warmstartipfactor;
+               }
                startZrow[b][2*r + 1] = 2*r + 1;
                startZcol[b][2*r + 1] = 2*r + 1;
                startZval[b][2*r + 1] = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
                if ( SCIPisLT(scip, startZval[b][2*r + 1], 1.0) )
-                  startZval[b][2*r + 1] = (1 - relaxdata->warmstartipfactor) * startZval[b][2*r + 1] + relaxdata->warmstartipfactor;
+               {
+                  /* since we want the value to be strictly positive, if the original entry is negative we just set it to warmstartipfactor */
+                  if ( SCIPisLT(scip, startZval[b][2*r + 1], 0.0) )
+                     startZval[b][2*r + 1] = relaxdata->warmstartipfactor;
+                  else
+                     startZval[b][2*r + 1] = (1 - relaxdata->warmstartipfactor) * startZval[b][2*r + 1] + relaxdata->warmstartipfactor;
+               }
 
                if ( relaxdata->warmstartprimaltype == 1 )
                {
@@ -1100,14 +1112,25 @@ SCIP_RETCODE calcRelax(
                startZrow[b][2*nrows + 2*v] = 2*nrows + 2*v;
                startZcol[b][2*nrows + 2*v] = 2*nrows + 2*v;
                startZval[b][2*nrows + 2*v] = SCIPgetSolVal(scip, dualsol, vars[v]) - SCIPvarGetLbLocal(vars[v]);
-               if ( SCIPisLT(scip, startZval[b][2*nrows + 2*v], relaxdata->warmstartipfactor) )
-                  startZval[b][2*nrows + 2*v] = relaxdata->warmstartipfactor; /* if bound changes make the solution infeasible, we still set the value to warmstartipfactor to keep the matrix pd */
+               if ( SCIPisLT(scip, startZval[b][2*nrows + 2*v], 1.0) )
+               {
+                  /* since we want the value to be strictly positive, if the original entry is negative we just set it to warmstartipfactor */
+                  if ( SCIPisLT(scip, startZval[b][2*nrows + 2*v], 0.0) )
+                     startZval[b][2*nrows + 2*v] = relaxdata->warmstartipfactor;
+                  else
+                     startZval[b][2*nrows + 2*v] = (1 - relaxdata->warmstartipfactor) * startZval[b][2*nrows + 2*v] + relaxdata->warmstartipfactor;
+               }
                startZrow[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
                startZcol[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
                startZval[b][2*nrows + 2*v + 1] = SCIPvarGetUbLocal(vars[v]) - SCIPgetSolVal(scip, dualsol, vars[v]);
-               if ( SCIPisLT(scip, startZval[b][2*nrows + 2*v + 1], relaxdata->warmstartipfactor) )
-                  startZval[b][2*nrows + 2*v + 1] = relaxdata->warmstartipfactor; /* if bound changes make the solution infeasible, we still set the value to warmstartipfactor to keep the matrix pd */
-
+               if ( SCIPisLT(scip, startZval[b][2*nrows + 2*v + 1], 1.0) )
+               {
+                  /* since we want the value to be strictly positive, if the original entry is negative we just set it to warmstartipfactor */
+                  if ( SCIPisLT(scip, startZval[b][2*nrows + 2*v + 1], 0.0) )
+                     startZval[b][2*nrows + 2*v + 1] = relaxdata->warmstartipfactor;
+                  else
+                     startZval[b][2*nrows + 2*v + 1] = (1 - relaxdata->warmstartipfactor) * startZval[b][2*nrows + 2*v + 1] + relaxdata->warmstartipfactor;
+               }
                if ( relaxdata->warmstartprimaltype == 1 )
                {
                   startXrow[b][2*nrows + 2*v] = 2*nrows + 2*v;
