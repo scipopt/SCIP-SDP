@@ -29,7 +29,7 @@
 /* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-//#define SCIP_DEBUG
+
 /**@file   cons_sdp.cpp
  * @brief  constraint handler for sdp-constraints
  * @author Tristan Gally
