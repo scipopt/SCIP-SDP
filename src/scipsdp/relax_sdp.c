@@ -160,11 +160,13 @@ struct SCIP_RelaxData
    int                   warmstartproject;   /**< how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and proejct on psd cone */
    int                   warmstartiptype;    /**< which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center */
    int                   nblocks;            /**< number of blocks INCLUDING lp-block */
+   SCIP_Bool             ipXexists;          /**< has an interior point for primal matrix X been successfully computed */
    int*                  ipXnblocknonz;      /**< interior point for primal matrix X for convex combination for warmstarts: number of nonzeros for each block
                                               *   if computation of analytic center failed, first entry will be -1 */
    int**                 ipXrow;             /**< interior point for primal matrix X for convex combination for warmstarts: row indices */
    int**                 ipXcol;             /**< interior point for primal matrix X for convex combination for warmstarts: column indices */
    SCIP_Real**           ipXval;             /**< interior point for primal matrix X for convex combination for warmstarts: values */
+   SCIP_Bool             ipZexists;          /**< has an interior point for dual matrix Z (and corresponding vector y) been successfully computed */
    SCIP_SOL*             ipy;                /**< interior point for dual vector y for convex combination for warmstarts */
    int*                  ipZnblocknonz;      /**< interior point for dual matrix Z for convex combination for warmstarts: number of nonzeros for each block
                                                *   if computation of analytic center failed, first entry will be -1 */
@@ -772,8 +774,13 @@ SCIP_RETCODE calcRelax(
     * to check the Slater condition in this case */
    enforceslater = SCIPisInfinity(scip, -1 * SCIPnodeGetLowerbound(SCIPgetCurrentNode(scip)));
 
-   /* solve the problem (using warmstarts if parameter is true and we are not in the root node) */
-   if ( relaxdata->warmstart && (( ! relaxdata->warmstartprimaltype == 1 ) || ( ! relaxdata->warmstartiptype == 1 )))
+   /* solve the problem (using warmstarts if parameter is true and we are not in the root node and all neccessary data is available) */
+   if ( ( ! SCIPnodeGetParent(SCIPgetCurrentNode(scip))) || ( ! relaxdata->warmstart ) || ((relaxdata->warmstartiptype == 2) &&
+         SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) && ((SCIPsdpiDoesWarmstartNeedPrimal() && ! relaxdata->ipXexists) || (! relaxdata->ipZexists))) )
+   {
+      SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit));
+   }
+   else if ( relaxdata->warmstart && (relaxdata->warmstartprimaltype == 1) && (relaxdata->warmstartiptype == 2) && SCIPisEQ(scip, relaxdata->warmstartipfactor, 1.0) )
    {
       SCIP_Real* ipy;
 
@@ -787,10 +794,6 @@ SCIP_RETCODE calcRelax(
                         relaxdata->ipXrow, relaxdata->ipXcol, relaxdata->ipXval, startsetting, enforceslater, timelimit));
 
       SCIPfreeBufferArray(scip, &ipy);
-   }
-   else if ( ( ! SCIPnodeGetParent(SCIPgetCurrentNode(scip))) || ( ! relaxdata->warmstart ))
-   {
-      SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit));
    }
    else
    {
@@ -2088,7 +2091,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
 static
 SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
 {
-   SCIP_CONSHDLR* sdpconshdlr;
    SCIP_RELAXDATA* relaxdata;
    SCIP_RETCODE retcode;
    SCIP_VAR** vars;
@@ -2150,6 +2152,11 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    /* all SCIPvars will be added to this list, and 3/4 seems like a good load factor (java uses this factor) */
    SCIP_CALL( SCIPsdpVarmapperCreate(scip, &(relaxdata->varmapper), (int) ceil(1.33 * nvars)) );
    SCIP_CALL( SCIPsdpVarmapperAddVars(scip, relaxdata->varmapper, nvars, vars) );
+
+   if ( nvars > 0 )
+   {
+      SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE) );
+   }
 
    /* set the parameters of the SDP-Solver */
    SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolvergaptol", &gaptol) );
@@ -2376,27 +2383,363 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    /* initialize objective limit in case it was set in an earlier optimize call */
    SCIP_CALL( SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_OBJLIMIT, SCIPsdpiInfinity(relaxdata->sdpi)) );
 
-   /* if we want to warmstart using the analytic center, compute it now */
+   return SCIP_OKAY;
+}
+
+/** copy method for SDP-relaxation handler (called when SCIP copies plugins) */
+static
+SCIP_DECL_RELAXCOPY(relaxCopySdp)
+{
+   assert( scip != NULL );
+   assert( relax != NULL );
+   assert( strcmp(SCIPrelaxGetName(relax), RELAX_NAME) == 0 );
+
+   SCIP_CALL( SCIPincludeRelaxSdp(scip) );
+
+   return SCIP_OKAY;
+}
+
+/** reset the relaxator's data */
+static
+SCIP_DECL_RELAXEXIT(relaxExitSdp)
+{
+   SCIP_RELAXDATA* relaxdata;
+
+   assert( scip != NULL );
+   assert( relax != NULL );
+
+   relaxdata = SCIPrelaxGetData(relax);
+   assert( relaxdata != NULL );
+
+   SCIPdebugMessage("Exiting Relaxation Handler.\n");
+
+   if ( relaxdata->displaystat && SCIPgetSubscipDepth(scip) == 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "\nSDP iterations:\t\t\t\t%6d\n", relaxdata->sdpiterations);
+      if ( relaxdata->sdpcalls )
+      {
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Average SDP-iterations:\t\t\t%6.2f \n", (SCIP_Real) relaxdata->sdpiterations / (SCIP_Real) relaxdata->sdpcalls );
+      }
+      if ( relaxdata->sdpinterfacecalls )
+      {
+         if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0 )
+         {
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'fastest settings' solved:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->solvedfast / (SCIP_Real) relaxdata->sdpinterfacecalls);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'medium settings' solved:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->solvedmedium / (SCIP_Real) relaxdata->sdpinterfacecalls);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'stable settings' solved:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->solvedstable / (SCIP_Real) relaxdata->sdpinterfacecalls);
+         }
+         else
+         {
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'default formulation' solved:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->solvedfast / (SCIP_Real) relaxdata->sdpinterfacecalls);
+         }
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage penalty formulation used:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->solvedpenalty / (SCIP_Real) relaxdata->sdpinterfacecalls);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage unsolved even with penalty:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->unsolved / (SCIP_Real) relaxdata->sdpinterfacecalls);
+      }
+      if ( relaxdata->slatercheck )
+      {
+         if ( relaxdata->sdpinterfacecalls )
+         {
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage primal Slater condition held:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->npslaterholds / (SCIP_Real) relaxdata->sdpinterfacecalls);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage primal Slater condition did not hold:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->npnoslater / (SCIP_Real) relaxdata->sdpinterfacecalls);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage primal Slater check failed:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->npslatercheckfailed / (SCIP_Real) relaxdata->sdpinterfacecalls);
+
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage dual Slater condition held:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->ndslaterholds / (SCIP_Real) relaxdata->sdpinterfacecalls);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage dual Slater condition did not hold:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->ndnoslater / (SCIP_Real) relaxdata->sdpinterfacecalls);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage dual Slater check failed:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->ndslatercheckfailed / (SCIP_Real) relaxdata->sdpinterfacecalls);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage dual Slater check detected infeasibility:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->nslaterinfeasible / (SCIP_Real) relaxdata->sdpinterfacecalls);
+         }
+         if ( relaxdata->nslaterholds )
+         {
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'fastest settings' with primal and dual slater holding:\t%6.2f \n",
+                  100.0 * (SCIP_Real) relaxdata->stablewslater / (SCIP_Real) relaxdata->nslaterholds);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'stable settings' with primal and dual slater holding:\t%6.2f \n",
+                  100.0 * (SCIP_Real) relaxdata->unstablewslater / (SCIP_Real) relaxdata->nslaterholds);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'penalty' with primal and dual slater holding:\t%6.2f \n",
+                  100.0 * (SCIP_Real) relaxdata->penaltywslater / (SCIP_Real) relaxdata->nslaterholds);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'computed infeasible lower bound' with primal and dual slater holding:\t%6.2f \n",
+                  100.0 * (SCIP_Real) relaxdata->boundedwslater / (SCIP_Real) relaxdata->nslaterholds);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'unsolved' with primal and dual slater holding:\t%6.2f \n",
+                  100.0 * (SCIP_Real) relaxdata->unsolvedwslater / (SCIP_Real) relaxdata->nslaterholds);
+         }
+         if ( relaxdata->nnoslater )
+         {
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'fastest settings' with either primal or dual slater not holding:\t%6.2f \n",
+                  100.0 * (SCIP_Real) relaxdata->stablenoslater / (SCIP_Real) relaxdata->nnoslater);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'stable settings' with either primal or dual slater not holding:\t%6.2f \n",
+                  100.0 * (SCIP_Real) relaxdata->unstablenoslater / (SCIP_Real) relaxdata->nnoslater);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'penalty' with either primal or dual slater not holding:\t%6.2f \n",
+                  100.0 * (SCIP_Real) relaxdata->penaltynoslater / (SCIP_Real) relaxdata->nnoslater);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'computed infeasible lower bound' with either primal or dual slater not holding:\t%6.2f \n",
+                  100.0 * (SCIP_Real) relaxdata->boundednoslater / (SCIP_Real) relaxdata->nnoslater);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'unsolved' with either primal or dual slater not holding:\t%6.2f \n",
+                  100.0 * (SCIP_Real) relaxdata->unsolvednoslater / (SCIP_Real) relaxdata->nnoslater);
+         }
+         if ( relaxdata->nslaterinfeasible )
+         {
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'fastest settings' with slater check showing infeasibility:\t%6.2f \n",
+                  100.0 * (SCIP_Real) relaxdata->stableinfeasible / (SCIP_Real) relaxdata->nslaterinfeasible);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'stable settings' with slater check showing infeasibility:\t%6.2f \n",
+                  100.0 * (SCIP_Real) relaxdata->unstableinfeasible / (SCIP_Real) relaxdata->nslaterinfeasible);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'penalty' with slater check showing infeasibility:\t%6.2f \n",
+                  100.0 * (SCIP_Real) relaxdata->penaltyinfeasible / (SCIP_Real) relaxdata->nslaterinfeasible);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'computed infeasible lower bound' with slater check showing infeasibility:\t%6.2f \n",
+                  100.0 * (SCIP_Real) relaxdata->boundedinfeasible / (SCIP_Real) relaxdata->nslaterinfeasible);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'unsolved' with slater check showing infeasibility:\t%6.2f \n",
+                  100.0 * (SCIP_Real) relaxdata->unsolvedinfeasible / (SCIP_Real) relaxdata->nslaterinfeasible);
+         }
+#ifdef SLATERSOLVED_ABSOLUTE
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with primal and dual slater holding:\t%d \n", relaxdata->nslaterholds);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'fastest settings' and primal and dual slater holding:\t%d \n", relaxdata->stablewslater);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'stable settings' and primal and dual slater holding:\t%d \n", relaxdata->unstablewslater);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'penalty' and primal and dual slater holding:\t%d \n", relaxdata->penaltywslater);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'computed infeasible lower bound' and primal and dual slater holding:\t%d \n", relaxdata->boundedwslater);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'unsolved' and primal and dual slater holding:\t%d \n", relaxdata->unsolvedwslater);
+
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with either primal or dual slater not holding:\t%d \n", relaxdata->nnoslater);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'fastest settings' and either primal or dual slater not holding:\t%d \n", relaxdata->stablenoslater);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'stable settings' and either primal or dual slater not holding:\t%d \n", relaxdata->unstablenoslater);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'penalty' and either primal or dual slater not holding:\t%d \n", relaxdata->penaltynoslater);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'computed infeasible lower bound' and either primal or dual slater not holding:\t%d \n", relaxdata->boundednoslater);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'unsolved' and either primal or dual slater not holding:\t%d \n", relaxdata->unsolvednoslater);
+
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes:\t%d \n", relaxdata->nslaterinfeasible);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'fastest settings':\t%d \n", relaxdata->stableinfeasible);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'stable settings':\t%d \n", relaxdata->unstableinfeasible);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'penalty':\t%d \n", relaxdata->penaltyinfeasible);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'computed infeasible lower bound':\t%d \n", relaxdata->boundedinfeasible);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'unsolved':\t%d \n", relaxdata->unsolvedinfeasible);
+#endif
+      }
+   }
+
+   if ( relaxdata->varmapper != NULL )
+   {
+      SCIP_CALL( SCIPsdpVarmapperFree(scip, &(relaxdata->varmapper)) );
+   }
+
+   /* free warmstart data (the nblocks > 0 check is only needed in case the parameter was changed after initsol) */
+   if ( relaxdata->warmstart && SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) && relaxdata->nblocks > 0 )
+   {
+      int b;
+
+      for (b = 0; b < relaxdata->nblocks; b++)
+      {
+         if ( relaxdata->warmstartprimaltype != 2 && SCIPsdpiDoesWarmstartNeedPrimal() && relaxdata->ipXnblocknonz[b] > 0 )
+         {
+            SCIPfreeBlockMemoryArrayNull(scip, &(relaxdata->ipXval[b]), relaxdata->ipXnblocknonz[b]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(relaxdata->ipXcol[b]), relaxdata->ipXnblocknonz[b]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(relaxdata->ipXrow[b]), relaxdata->ipXnblocknonz[b]);
+         }
+         if ( relaxdata->ipZnblocknonz[b] > 0 )
+         {
+            SCIPfreeBlockMemoryArrayNull(scip, &(relaxdata->ipZval[b]), relaxdata->ipZnblocknonz[b]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(relaxdata->ipZcol[b]), relaxdata->ipZnblocknonz[b]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(relaxdata->ipZrow[b]), relaxdata->ipZnblocknonz[b]);
+         }
+      }
+      if ( relaxdata->warmstartprimaltype != 2 && SCIPsdpiDoesWarmstartNeedPrimal() )
+      {
+         SCIPfreeBlockMemoryArrayNull(scip, &relaxdata->ipXval, relaxdata->nblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &relaxdata->ipXcol, relaxdata->nblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &relaxdata->ipXrow, relaxdata->nblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &relaxdata->ipXnblocknonz, relaxdata->nblocks);
+      }
+      SCIPfreeBlockMemoryArrayNull(scip, &relaxdata->ipZval, relaxdata->nblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &relaxdata->ipZcol, relaxdata->nblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &relaxdata->ipZrow, relaxdata->nblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &relaxdata->ipZnblocknonz, relaxdata->nblocks);
+      SCIP_CALL( SCIPfreeSol(scip, &relaxdata->ipy) );
+   }
+
+   relaxdata->objval = 0.0;
+   relaxdata->origsolved = FALSE;
+   relaxdata->probingsolved = FALSE;
+   relaxdata->feasible = FALSE;
+   relaxdata->sdpiterations = 0;
+   relaxdata->sdpcalls = 0;
+   relaxdata->sdpinterfacecalls = 0;
+   relaxdata->lastsdpnode = 0;
+   SCIP_CALL( SCIPsdpiClear(relaxdata->sdpi) );
+
+   return SCIP_OKAY;
+}
+
+/** free the relaxator's data */
+static
+SCIP_DECL_RELAXFREE(relaxFreeSdp)
+{/*lint --e{715}*/
+   SCIP_RELAXDATA* relaxdata;
+
+   relaxdata = SCIPrelaxGetData(relax);
+   assert(relaxdata != NULL);
+
+   if ( relaxdata->sdpi != NULL )
+   {
+      SCIP_CALL( SCIPsdpiFree(&(relaxdata->sdpi)) );
+   }
+
+   SCIPfreeMemory(scip, &relaxdata);
+
+   SCIPrelaxSetData(relax, NULL);
+
+   return SCIP_OKAY;
+}
+
+/** creates the SDP-relaxator and includes it in SCIP */
+SCIP_RETCODE SCIPincludeRelaxSdp(
+   SCIP*                 scip                /**< SCIP data structure */
+   )
+{
+   SCIP_RELAXDATA* relaxdata = NULL;
+   SCIP_RELAX* relax;
+   SCIP_SDPI* sdpi;
+
+   assert( scip != NULL );
+
+   /* create SDP-relaxator data */
+   SCIP_CALL( SCIPallocMemory(scip, &relaxdata) );
+   SCIP_CALL( SCIPsdpiCreate(&sdpi, SCIPgetMessagehdlr(scip), SCIPblkmem(scip), SCIPbuffer(scip)) );
+
+   relaxdata->sdpi = sdpi;
+   relaxdata->lastsdpnode = -1;
+   relaxdata->nblocks = 0;
+   relaxdata->ipXexists = FALSE;
+   relaxdata->ipZexists = FALSE;
+
+   /* include relaxator */
+   SCIP_CALL( SCIPincludeRelaxBasic(scip, &relax, RELAX_NAME, RELAX_DESC, RELAX_PRIORITY, RELAX_FREQ, TRUE, relaxExecSdp, relaxdata) );
+   assert( relax != NULL );
+
+   /* include additional callbacks */
+   SCIP_CALL( SCIPsetRelaxInitsol(scip, relax, relaxInitSolSdp) );
+   SCIP_CALL( SCIPsetRelaxExit(scip, relax, relaxExitSdp) );
+   SCIP_CALL( SCIPsetRelaxFree(scip, relax, relaxFreeSdp) );
+   SCIP_CALL( SCIPsetRelaxCopy(scip, relax, relaxCopySdp) );
+
+   /* add parameters for SDP-solver */
+   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/sdpsolvergaptol",
+         "the stopping criterion for the duality gap the sdpsolver should use",
+         &(relaxdata->sdpsolvergaptol), TRUE, DEFAULT_SDPSOLVERGAPTOL, 1e-20, 0.001, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/sdpsolverfeastol",
+         "the feasibility tolerance for the SDP solver",
+         &(relaxdata->sdpsolverfeastol), TRUE, SCIPsdpiGetDefaultSdpiSolverFeastol(), 1e-17, 0.001, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/penaltyparam",
+         "the starting value of the penalty parameter Gamma used for the penalty formulation if the "
+         "SDP solver didn't converge; set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->penaltyparam),
+         TRUE, DEFAULT_PENALTYPARAM, -1.0, 1e+20, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/maxpenaltyparam",
+         "the maximum value of the penalty parameter Gamma used for the penalty formulation if the "
+         "SDP solver didn't converge; set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->maxpenaltyparam),
+         TRUE, DEFAULT_MAXPENALTYPARAM, -1.0, 1e+20, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartipfactor",
+         "factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled ", &(relaxdata->warmstartipfactor),
+         TRUE, DEFAULT_WARMSTARTIPFACTOR, 0.0, 1.0, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartprimaltype",
+         "how to warmstart the primal problem? 1: scaled identity/analytic center, 2: elementwise reciprocal, 3: save primal sol", &(relaxdata->warmstartprimaltype), TRUE,
+         DEFAULT_WARMSTARTPRIMALTYPE, 1, 3, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartiptype",
+         "which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center", &(relaxdata->warmstartiptype), TRUE,
+         DEFAULT_WARMSTARTIPTYPE, 1, 2, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartproject",
+         "how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and proejct on psd cone", &(relaxdata->warmstartproject), TRUE,
+         DEFAULT_WARMSTARTPROJECT, 1, 3, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/npenaltyincr",
+         "maximum number of times the penalty parameter will be increased if the penalty formulation failed", &(relaxdata->npenaltyincr), TRUE,
+         SCIPsdpiGetDefaultSdpiSolverNpenaltyIncreases(), 0, INT_MAX, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/lambdastar",
+         "the parameter lambda star used by SDPA to set the initial point;"
+         "set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->lambdastar),
+         TRUE, DEFAULT_LAMBDASTAR, -1.0, 1e+20, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/slatercheck",
+         "Should the Slater condition for the primal and dual problem be checked ahead of solving each SDP? 0: no, 1: yes and output statistics, 2: yes and print warning for "
+         "every problem not satisfying primal and dual Slater condition", &(relaxdata->slatercheck), TRUE, DEFAULT_SLATERCHECK, 0, 2, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/sdpinfo",
+         "Should the SDP solver output information to the screen?",
+         &(relaxdata->sdpinfo), TRUE, DEFAULT_SDPINFO, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstart",
+         "Should the SDP solver try to use warmstarts?",
+         &(relaxdata->warmstart), TRUE, DEFAULT_WARMSTART, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/objlimit",
+         "Should an objective limit be given to the SDP-Solver?",
+         &(relaxdata->objlimit), TRUE, DEFAULT_OBJLIMIT, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/resolve",
+         "Should the relaxation be resolved after bound-tightenings were found during propagation (outside of probing)?",
+         &(relaxdata->resolve), TRUE, DEFAULT_RESOLVE, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/tightenvb",
+         "Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ?",
+         &(relaxdata->tightenvb), TRUE, DEFAULT_TIGHTENVB, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/displaystatistics",
+         "Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ?",
+         &(relaxdata->displaystat), TRUE, DEFAULT_DISPLAYSTAT, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/settingsresetfreq",
+         "frequency for resetting parameters in SDP solver and trying again with fastest settings (-1: never, 0: only at depth settingsresetofs);"
+         "currently only supported for SDPA",
+         &(relaxdata->settingsresetfreq), TRUE, DEFAULT_SETTINGSRESETFREQ, -1, INT_MAX, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/settingsresetofs",
+         "frequency offset for resetting parameters in SDP solver and trying again with fastest settings; currently only supported for SDPA",
+         &(relaxdata->settingsresetofs), TRUE, DEFAULT_SETTINGSRESETOFS, 0, INT_MAX, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/sdpsolverthreads",
+         "number of threads the SDP solver should use (-1 = number of cores); currently only supported for MOSEK",
+         &(relaxdata->sdpsolverthreads), TRUE, DEFAULT_SDPSOLVERTHREADS, -1, INT_MAX, NULL, NULL) );
+
+
+   /* add description of SDP-solver */
+   SCIP_CALL( SCIPincludeExternalCodeInformation(scip, SCIPsdpiGetSolverName(), SCIPsdpiGetSolverDesc()) );
+
+   return SCIP_OKAY;
+}
+
+
+/* external functions */
+
+/** computes analytic centers of primal and dual feasible set and saves them in relaxdata
+ * @note This function should be called at the end of the root node (or at least after the solving stage starts and before the first non-root node).
+ */
+SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_RELAX*           relax               /**< SDP-relaxator to compute analytic centers for */
+   )
+{
+   SCIP_CONSHDLR* sdpconshdlr;
+   SCIP_RELAXDATA* relaxdata;
+
+   assert( scip != NULL );
+   assert( relax != NULL );
+   assert( SCIPgetStage(scip) == SCIP_STAGE_SOLVING );
+
+   relaxdata = SCIPrelaxGetData(relax);
+
+   /* this function should only be executed once */
+   if ( relaxdata->ipXexists || relaxdata->ipZexists )
+      return SCIP_OKAY;
+
    sdpconshdlr = SCIPfindConshdlr(scip, "SDP");
+
+   /* if we want to warmstart using the analytic center, compute it now */
    if ( relaxdata->warmstart && SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) && (SCIPconshdlrGetNConss(sdpconshdlr) + SCIPgetNLPRows(scip) > 0 ) )
    {
       int b;
 
       relaxdata->nblocks = SCIPgetNLPRows(scip) > 0 ? SCIPconshdlrGetNConss(sdpconshdlr) + 1 : SCIPconshdlrGetNConss(sdpconshdlr);
-
-      /* first allocate memory (memory inside the blocks has to be allocated later depending on number of nonzeros) */
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZnblocknonz, relaxdata->nblocks) );
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZrow, relaxdata->nblocks) );
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZcol, relaxdata->nblocks) );
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZval, relaxdata->nblocks) );
-
-      if ( relaxdata->warmstartprimaltype != 2 && SCIPsdpiDoesWarmstartNeedPrimal() )
-      {
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipXnblocknonz, relaxdata->nblocks) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipXrow, relaxdata->nblocks) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipXcol, relaxdata->nblocks) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipXval, relaxdata->nblocks) );
-      }
 
       if ( SCIPgetNVars(scip) > 0 )
       {
@@ -2615,7 +2958,14 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
 
             if ( SCIPsdpiWasSolved(relaxdata->sdpi) && SCIPsdpiSolvedOrig(relaxdata->sdpi) && SCIPsdpiIsPrimalFeasible(relaxdata->sdpi) )
             {
-               /* get amount of memory that needs to be allocated and allocate it */
+               relaxdata->ipXexists = TRUE;
+
+               /* allocate memory (for the different blocks the neccessary anount first needs to be computed) */
+               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipXnblocknonz, relaxdata->nblocks) );
+               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipXrow, relaxdata->nblocks) );
+               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipXcol, relaxdata->nblocks) );
+               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipXval, relaxdata->nblocks) );
+
                SCIP_CALL(SCIPsdpiGetPrimalNonzeros(relaxdata->sdpi, relaxdata->nblocks, relaxdata->ipXnblocknonz));
                for (b = 0; b < relaxdata->nblocks; b++)
                {
@@ -2631,14 +2981,11 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
                /* TODO check if they are already sorted (sorting is needed since they will later be merged into warmstart arrays) */
                SCIPsdpVarfixerSortRowCol(relaxdata->ipXrow[b], relaxdata->ipXcol[b], relaxdata->ipXval[b], relaxdata->ipXnblocknonz[b]);
             }
-            else if ( relaxdata->nblocks > 0 )
+            else
             {
-               /* set relaxdata->ipXnblocknonz[0] to -1 to remember that we did not solve successfully */
-               relaxdata->ipXnblocknonz[0] = -1;
-               for (b = 1; b < relaxdata->nblocks; b++)
-               {
-                  relaxdata->ipXnblocknonz[b] = 0;
-               }
+               relaxdata->ipXexists = FALSE;
+
+               SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL, "Failed to compute analytic center of primal feasible set, no warmstarts will be used.\n");
             }
          }
 
@@ -2823,411 +3170,110 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
             }
          }
 
-         /* get solution w.r.t. SCIP variables */
-         SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
-         slength = nvars;
-
-         SCIP_CALL( SCIPsdpiGetSol(relaxdata->sdpi, NULL, solforscip, &slength) ); /* get the solution from the SDP solver */
-
-         assert( slength == nvars ); /* If this isn't true any longer, the getSol-Call was unsuccessfull, because the given array wasn't long enough,
-                                      * but this can't happen, because the array has enough space for all sdp variables. */
-
-         /* create SCIP solution */
-         SCIP_CALL( SCIPcreateSol(scip, &relaxdata->ipy, NULL) );
-         SCIP_CALL( SCIPsetSolVals(scip, relaxdata->ipy, nvars, vars, solforscip) );
-
-         /* compute SDP blocks of dual analytic center */
-         sdpblocks = SCIPconshdlrGetConss(sdpconshdlr);
-         for (b = 0; b < relaxdata->nblocks - 1; b++)
+         if ( SCIPsdpiWasSolved(relaxdata->sdpi) && SCIPsdpiSolvedOrig(relaxdata->sdpi) && SCIPsdpiIsDualFeasible(relaxdata->sdpi) )
          {
-            relaxdata->ipZnblocknonz[b] = SCIPconsSdpComputeUbSparseSdpMatrixLength(scip, sdpblocks[b]);
-            arraylength = relaxdata->ipZnblocknonz[b];
+            int nvars;
+            SCIP_VAR** vars;
 
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZrow[b], relaxdata->ipZnblocknonz[b]) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZcol[b], relaxdata->ipZnblocknonz[b]) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZval[b], relaxdata->ipZnblocknonz[b]) );
+            relaxdata->ipZexists = TRUE;
 
-            /* compute Z matrix */
-            SCIP_CALL( SCIPconsSdpComputeSparseSdpMatrix(scip, sdpblocks[b], relaxdata->ipy, &(relaxdata->ipZnblocknonz[b]), relaxdata->ipZrow[b], relaxdata->ipZcol[b], relaxdata->ipZval[b]) );
+            nvars = SCIPgetNVars(scip);
+            vars = SCIPgetVars(scip);
 
-            assert( relaxdata->ipZnblocknonz[b] <= arraylength );
+            /* allocate memory */
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZnblocknonz, relaxdata->nblocks) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZrow, relaxdata->nblocks) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZcol, relaxdata->nblocks) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZval, relaxdata->nblocks) );
 
-            if ( relaxdata->ipZnblocknonz[b] < arraylength )
+            /* get solution w.r.t. SCIP variables */
+            SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
+            slength = nvars;
+
+            SCIP_CALL( SCIPsdpiGetSol(relaxdata->sdpi, NULL, solforscip, &slength) ); /* get the solution from the SDP solver */
+
+            assert( slength == nvars ); /* If this isn't true any longer, the getSol-Call was unsuccessfull, because the given array wasn't long enough,
+                                         * but this can't happen, because the array has enough space for all sdp variables. */
+
+            /* create SCIP solution */
+            SCIP_CALL( SCIPcreateSol(scip, &relaxdata->ipy, NULL) );
+            SCIP_CALL( SCIPsetSolVals(scip, relaxdata->ipy, nvars, vars, solforscip) );
+
+            /* compute SDP blocks of dual analytic center */
+            sdpblocks = SCIPconshdlrGetConss(sdpconshdlr);
+            for (b = 0; b < relaxdata->nblocks - 1; b++)
             {
-               SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &relaxdata->ipZrow[b], arraylength, relaxdata->ipZnblocknonz[b]) );
-               SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &relaxdata->ipZcol[b], arraylength, relaxdata->ipZnblocknonz[b]) );
-               SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &relaxdata->ipZval[b], arraylength, relaxdata->ipZnblocknonz[b]) );
+               relaxdata->ipZnblocknonz[b] = SCIPconsSdpComputeUbSparseSdpMatrixLength(scip, sdpblocks[b]);
+               arraylength = relaxdata->ipZnblocknonz[b];
+
+               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZrow[b], relaxdata->ipZnblocknonz[b]) );
+               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZcol[b], relaxdata->ipZnblocknonz[b]) );
+               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZval[b], relaxdata->ipZnblocknonz[b]) );
+
+               /* compute Z matrix */
+               SCIP_CALL( SCIPconsSdpComputeSparseSdpMatrix(scip, sdpblocks[b], relaxdata->ipy, &(relaxdata->ipZnblocknonz[b]), relaxdata->ipZrow[b], relaxdata->ipZcol[b], relaxdata->ipZval[b]) );
+
+               assert( relaxdata->ipZnblocknonz[b] <= arraylength );
+
+               if ( relaxdata->ipZnblocknonz[b] < arraylength )
+               {
+                  SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &relaxdata->ipZrow[b], arraylength, relaxdata->ipZnblocknonz[b]) );
+                  SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &relaxdata->ipZcol[b], arraylength, relaxdata->ipZnblocknonz[b]) );
+                  SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &relaxdata->ipZval[b], arraylength, relaxdata->ipZnblocknonz[b]) );
+               }
+
+               /* TODO check if they are already sorted (sorting is needed since they will later be merged into warmstart arrays) */
+               SCIPsdpVarfixerSortRowCol(relaxdata->ipZrow[b], relaxdata->ipZcol[b], relaxdata->ipZval[b], relaxdata->ipZnblocknonz[b]);
             }
 
-            /* TODO check if they are already sorted (sorting is needed since they will later be merged into warmstart arrays) */
-            SCIPsdpVarfixerSortRowCol(relaxdata->ipZrow[b], relaxdata->ipZcol[b], relaxdata->ipZval[b], relaxdata->ipZnblocknonz[b]);
-         }
+            /* compute LP block */
+            SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &relaxdata->ipZrow[b], 2 * nrows + 2 * nvars) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &relaxdata->ipZcol[b], 2 * nrows + 2 * nvars) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &relaxdata->ipZval[b], 2 * nrows + 2 * nvars) );
 
-         /* compute LP block */
-         SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &relaxdata->ipZrow[b], 2 * nrows + 2 * nvars) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &relaxdata->ipZcol[b], 2 * nrows + 2 * nvars) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &relaxdata->ipZval[b], 2 * nrows + 2 * nvars) );
+            /* for the analytic center all the entries should be strictly positive */
+            relaxdata->ipZnblocknonz[b] = 2 * nrows + 2 * nvars;
+            relaxdata->ipXnblocknonz[b] = 2 * nrows + 2 * nvars;
 
-         /* for the analytic center all the entries should be strictly positive */
-         relaxdata->ipZnblocknonz[b] = 2 * nrows + 2 * nvars;
-         relaxdata->ipXnblocknonz[b] = 2 * nrows + 2 * nvars;
+            for (r = 0; r < nrows; r++)
+            {
+               /* compute row value for current solution */
+               rowval = 0.0;
+               rownnonz = SCIProwGetNNonz(rows[r]);
+               rowvals = SCIProwGetVals(rows[r]);
+               rowcols = SCIProwGetCols(rows[r]);
+               for (i = 0; i < rownnonz; i++)
+                  rowval += SCIPgetSolVal(scip, relaxdata->ipy, SCIPcolGetVar(rowcols[i])) * rowvals[i];
 
-         for (r = 0; r < nrows; r++)
-         {
-            /* compute row value for current solution */
-            rowval = 0.0;
-            rownnonz = SCIProwGetNNonz(rows[r]);
-            rowvals = SCIProwGetVals(rows[r]);
-            rowcols = SCIProwGetCols(rows[r]);
-            for (i = 0; i < rownnonz; i++)
-               rowval += SCIPgetSolVal(scip, relaxdata->ipy, SCIPcolGetVar(rowcols[i])) * rowvals[i];
+               relaxdata->ipZrow[b][2*r] = 2*r;
+               relaxdata->ipZcol[b][2*r] = 2*r;
+               relaxdata->ipZval[b][2*r] = rowval - (SCIProwGetLhs(rows[r]) - SCIProwGetConstant(rows[r]));
+               relaxdata->ipZrow[b][2*r + 1] = 2*r + 1;
+               relaxdata->ipZcol[b][2*r + 1] = 2*r + 1;
+               relaxdata->ipZval[b][2*r + 1] = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
+            }
 
-            relaxdata->ipZrow[b][2*r] = 2*r;
-            relaxdata->ipZcol[b][2*r] = 2*r;
-            relaxdata->ipZval[b][2*r] = rowval - (SCIProwGetLhs(rows[r]) - SCIProwGetConstant(rows[r]));
-            relaxdata->ipZrow[b][2*r + 1] = 2*r + 1;
-            relaxdata->ipZcol[b][2*r + 1] = 2*r + 1;
-            relaxdata->ipZval[b][2*r + 1] = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
-         }
-
-         for (v = 0; v < nvars; v++)
-         {
-            relaxdata->ipZrow[b][2*nrows + 2*v] = 2*nrows + 2*v;
-            relaxdata->ipZcol[b][2*nrows + 2*v] = 2*nrows + 2*v;
-            relaxdata->ipZval[b][2*nrows + 2*v] = SCIPgetSolVal(scip, relaxdata->ipy, vars[v]) - SCIPvarGetLbLocal(vars[v]);
-            relaxdata->ipZrow[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
-            relaxdata->ipZcol[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
-            relaxdata->ipZval[b][2*nrows + 2*v + 1] = SCIPvarGetUbLocal(vars[v]) - SCIPgetSolVal(scip, relaxdata->ipy, vars[v]);
-         }
-      }
-   }
-
-   return SCIP_OKAY;
-}
-
-/** copy method for SDP-relaxation handler (called when SCIP copies plugins) */
-static
-SCIP_DECL_RELAXCOPY(relaxCopySdp)
-{
-   assert( scip != NULL );
-   assert( relax != NULL );
-   assert(strcmp(SCIPrelaxGetName(relax), RELAX_NAME) == 0);
-
-   SCIP_CALL( SCIPincludeRelaxSdp(scip) );
-
-   return SCIP_OKAY;
-}
-
-/** reset the relaxator's data */
-static
-SCIP_DECL_RELAXEXIT(relaxExitSdp)
-{
-   SCIP_RELAXDATA* relaxdata;
-
-   assert( scip != NULL );
-   assert( relax != NULL );
-
-   relaxdata = SCIPrelaxGetData(relax);
-   assert( relaxdata != NULL );
-
-   SCIPdebugMessage("Exiting Relaxation Handler.\n");
-
-   if ( relaxdata->displaystat && SCIPgetSubscipDepth(scip) == 0 )
-   {
-      SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "\nSDP iterations:\t\t\t\t%6d\n", relaxdata->sdpiterations);
-      if ( relaxdata->sdpcalls )
-      {
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Average SDP-iterations:\t\t\t%6.2f \n", (SCIP_Real) relaxdata->sdpiterations / (SCIP_Real) relaxdata->sdpcalls );
-      }
-      if ( relaxdata->sdpinterfacecalls )
-      {
-         if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0 )
-         {
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'fastest settings' solved:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->solvedfast / (SCIP_Real) relaxdata->sdpinterfacecalls);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'medium settings' solved:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->solvedmedium / (SCIP_Real) relaxdata->sdpinterfacecalls);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'stable settings' solved:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->solvedstable / (SCIP_Real) relaxdata->sdpinterfacecalls);
+            for (v = 0; v < nvars; v++)
+            {
+               relaxdata->ipZrow[b][2*nrows + 2*v] = 2*nrows + 2*v;
+               relaxdata->ipZcol[b][2*nrows + 2*v] = 2*nrows + 2*v;
+               relaxdata->ipZval[b][2*nrows + 2*v] = SCIPgetSolVal(scip, relaxdata->ipy, vars[v]) - SCIPvarGetLbLocal(vars[v]);
+               relaxdata->ipZrow[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
+               relaxdata->ipZcol[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
+               relaxdata->ipZval[b][2*nrows + 2*v + 1] = SCIPvarGetUbLocal(vars[v]) - SCIPgetSolVal(scip, relaxdata->ipy, vars[v]);
+            }
          }
          else
          {
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'default formulation' solved:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->solvedfast / (SCIP_Real) relaxdata->sdpinterfacecalls);
-         }
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage penalty formulation used:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->solvedpenalty / (SCIP_Real) relaxdata->sdpinterfacecalls);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage unsolved even with penalty:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->unsolved / (SCIP_Real) relaxdata->sdpinterfacecalls);
-      }
-      if ( relaxdata->slatercheck )
-      {
-         if ( relaxdata->sdpinterfacecalls )
-         {
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage primal Slater condition held:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->npslaterholds / (SCIP_Real) relaxdata->sdpinterfacecalls);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage primal Slater condition did not hold:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->npnoslater / (SCIP_Real) relaxdata->sdpinterfacecalls);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage primal Slater check failed:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->npslatercheckfailed / (SCIP_Real) relaxdata->sdpinterfacecalls);
+            relaxdata->ipZexists = FALSE;
 
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage dual Slater condition held:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->ndslaterholds / (SCIP_Real) relaxdata->sdpinterfacecalls);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage dual Slater condition did not hold:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->ndnoslater / (SCIP_Real) relaxdata->sdpinterfacecalls);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage dual Slater check failed:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->ndslatercheckfailed / (SCIP_Real) relaxdata->sdpinterfacecalls);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage dual Slater check detected infeasibility:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->nslaterinfeasible / (SCIP_Real) relaxdata->sdpinterfacecalls);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL, "Failed to compute analytic center of dual feasible set, no warmstarts will be used.\n");
          }
-         if ( relaxdata->nslaterholds )
-         {
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'fastest settings' with primal and dual slater holding:\t%6.2f \n",
-                  100.0 * (SCIP_Real) relaxdata->stablewslater / (SCIP_Real) relaxdata->nslaterholds);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'stable settings' with primal and dual slater holding:\t%6.2f \n",
-                  100.0 * (SCIP_Real) relaxdata->unstablewslater / (SCIP_Real) relaxdata->nslaterholds);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'penalty' with primal and dual slater holding:\t%6.2f \n",
-                  100.0 * (SCIP_Real) relaxdata->penaltywslater / (SCIP_Real) relaxdata->nslaterholds);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'computed infeasible lower bound' with primal and dual slater holding:\t%6.2f \n",
-                  100.0 * (SCIP_Real) relaxdata->boundedwslater / (SCIP_Real) relaxdata->nslaterholds);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'unsolved' with primal and dual slater holding:\t%6.2f \n",
-                  100.0 * (SCIP_Real) relaxdata->unsolvedwslater / (SCIP_Real) relaxdata->nslaterholds);
-         }
-         if ( relaxdata->nnoslater )
-         {
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'fastest settings' with either primal or dual slater not holding:\t%6.2f \n",
-                  100.0 * (SCIP_Real) relaxdata->stablenoslater / (SCIP_Real) relaxdata->nnoslater);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'stable settings' with either primal or dual slater not holding:\t%6.2f \n",
-                  100.0 * (SCIP_Real) relaxdata->unstablenoslater / (SCIP_Real) relaxdata->nnoslater);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'penalty' with either primal or dual slater not holding:\t%6.2f \n",
-                  100.0 * (SCIP_Real) relaxdata->penaltynoslater / (SCIP_Real) relaxdata->nnoslater);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'computed infeasible lower bound' with either primal or dual slater not holding:\t%6.2f \n",
-                  100.0 * (SCIP_Real) relaxdata->boundednoslater / (SCIP_Real) relaxdata->nnoslater);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'unsolved' with either primal or dual slater not holding:\t%6.2f \n",
-                  100.0 * (SCIP_Real) relaxdata->unsolvednoslater / (SCIP_Real) relaxdata->nnoslater);
-         }
-         if ( relaxdata->nslaterinfeasible )
-         {
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'fastest settings' with slater check showing infeasibility:\t%6.2f \n",
-                  100.0 * (SCIP_Real) relaxdata->stableinfeasible / (SCIP_Real) relaxdata->nslaterinfeasible);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'stable settings' with slater check showing infeasibility:\t%6.2f \n",
-                  100.0 * (SCIP_Real) relaxdata->unstableinfeasible / (SCIP_Real) relaxdata->nslaterinfeasible);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'penalty' with slater check showing infeasibility:\t%6.2f \n",
-                  100.0 * (SCIP_Real) relaxdata->penaltyinfeasible / (SCIP_Real) relaxdata->nslaterinfeasible);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'computed infeasible lower bound' with slater check showing infeasibility:\t%6.2f \n",
-                  100.0 * (SCIP_Real) relaxdata->boundedinfeasible / (SCIP_Real) relaxdata->nslaterinfeasible);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'unsolved' with slater check showing infeasibility:\t%6.2f \n",
-                  100.0 * (SCIP_Real) relaxdata->unsolvedinfeasible / (SCIP_Real) relaxdata->nslaterinfeasible);
-         }
-#ifdef SLATERSOLVED_ABSOLUTE
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with primal and dual slater holding:\t%d \n", relaxdata->nslaterholds);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'fastest settings' and primal and dual slater holding:\t%d \n", relaxdata->stablewslater);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'stable settings' and primal and dual slater holding:\t%d \n", relaxdata->unstablewslater);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'penalty' and primal and dual slater holding:\t%d \n", relaxdata->penaltywslater);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'computed infeasible lower bound' and primal and dual slater holding:\t%d \n", relaxdata->boundedwslater);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'unsolved' and primal and dual slater holding:\t%d \n", relaxdata->unsolvedwslater);
-
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with either primal or dual slater not holding:\t%d \n", relaxdata->nnoslater);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'fastest settings' and either primal or dual slater not holding:\t%d \n", relaxdata->stablenoslater);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'stable settings' and either primal or dual slater not holding:\t%d \n", relaxdata->unstablenoslater);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'penalty' and either primal or dual slater not holding:\t%d \n", relaxdata->penaltynoslater);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'computed infeasible lower bound' and either primal or dual slater not holding:\t%d \n", relaxdata->boundednoslater);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'unsolved' and either primal or dual slater not holding:\t%d \n", relaxdata->unsolvednoslater);
-
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes:\t%d \n", relaxdata->nslaterinfeasible);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'fastest settings':\t%d \n", relaxdata->stableinfeasible);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'stable settings':\t%d \n", relaxdata->unstableinfeasible);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'penalty':\t%d \n", relaxdata->penaltyinfeasible);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'computed infeasible lower bound':\t%d \n", relaxdata->boundedinfeasible);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'unsolved':\t%d \n", relaxdata->unsolvedinfeasible);
-#endif
       }
    }
-
-   if ( relaxdata->varmapper != NULL )
-   {
-      SCIP_CALL( SCIPsdpVarmapperFree(scip, &(relaxdata->varmapper)) );
-   }
-
-   /* free warmstart data (the nblocks > 0 check is only needed in case the parameter was changed after initsol) */
-   if ( relaxdata->warmstart && SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) && relaxdata->nblocks > 0 )
-   {
-      int b;
-
-      for (b = 0; b < relaxdata->nblocks; b++)
-      {
-         if ( relaxdata->warmstartprimaltype != 2 && SCIPsdpiDoesWarmstartNeedPrimal() && relaxdata->ipXnblocknonz[b] > 0 )
-         {
-            SCIPfreeBlockMemoryArrayNull(scip, &(relaxdata->ipXval[b]), relaxdata->ipXnblocknonz[b]);
-            SCIPfreeBlockMemoryArrayNull(scip, &(relaxdata->ipXcol[b]), relaxdata->ipXnblocknonz[b]);
-            SCIPfreeBlockMemoryArrayNull(scip, &(relaxdata->ipXrow[b]), relaxdata->ipXnblocknonz[b]);
-         }
-         if ( relaxdata->ipZnblocknonz[b] > 0 )
-         {
-            SCIPfreeBlockMemoryArrayNull(scip, &(relaxdata->ipZval[b]), relaxdata->ipZnblocknonz[b]);
-            SCIPfreeBlockMemoryArrayNull(scip, &(relaxdata->ipZcol[b]), relaxdata->ipZnblocknonz[b]);
-            SCIPfreeBlockMemoryArrayNull(scip, &(relaxdata->ipZrow[b]), relaxdata->ipZnblocknonz[b]);
-         }
-      }
-      if ( relaxdata->warmstartprimaltype != 2 && SCIPsdpiDoesWarmstartNeedPrimal() )
-      {
-         SCIPfreeBlockMemoryArrayNull(scip, &relaxdata->ipXval, relaxdata->nblocks);
-         SCIPfreeBlockMemoryArrayNull(scip, &relaxdata->ipXcol, relaxdata->nblocks);
-         SCIPfreeBlockMemoryArrayNull(scip, &relaxdata->ipXrow, relaxdata->nblocks);
-         SCIPfreeBlockMemoryArrayNull(scip, &relaxdata->ipXnblocknonz, relaxdata->nblocks);
-      }
-      SCIPfreeBlockMemoryArrayNull(scip, &relaxdata->ipZval, relaxdata->nblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &relaxdata->ipZcol, relaxdata->nblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &relaxdata->ipZrow, relaxdata->nblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &relaxdata->ipZnblocknonz, relaxdata->nblocks);
-      SCIP_CALL( SCIPfreeSol(scip, &relaxdata->ipy) );
-   }
-
-   relaxdata->objval = 0.0;
-   relaxdata->origsolved = FALSE;
-   relaxdata->probingsolved = FALSE;
-   relaxdata->feasible = FALSE;
-   relaxdata->sdpiterations = 0;
-   relaxdata->sdpcalls = 0;
-   relaxdata->sdpinterfacecalls = 0;
-   relaxdata->lastsdpnode = 0;
-   SCIP_CALL( SCIPsdpiClear(relaxdata->sdpi) );
-
    return SCIP_OKAY;
 }
-
-/** free the relaxator's data */
-static
-SCIP_DECL_RELAXFREE(relaxFreeSdp)
-{/*lint --e{715}*/
-   SCIP_RELAXDATA* relaxdata;
-
-   relaxdata = SCIPrelaxGetData(relax);
-   assert(relaxdata != NULL);
-
-   if ( relaxdata->sdpi != NULL )
-   {
-      SCIP_CALL( SCIPsdpiFree(&(relaxdata->sdpi)) );
-   }
-
-   SCIPfreeMemory(scip, &relaxdata);
-
-   SCIPrelaxSetData(relax, NULL);
-
-   return SCIP_OKAY;
-}
-
-/** creates the SDP-relaxator and includes it in SCIP */
-SCIP_RETCODE SCIPincludeRelaxSdp(
-   SCIP*                 scip                /**< SCIP data structure */
-   )
-{
-   SCIP_RELAXDATA* relaxdata = NULL;
-   SCIP_RELAX* relax;
-   SCIP_SDPI* sdpi;
-
-   assert( scip != NULL );
-
-   /* create SDP-relaxator data */
-   SCIP_CALL( SCIPallocMemory(scip, &relaxdata) );
-   SCIP_CALL( SCIPsdpiCreate(&sdpi, SCIPgetMessagehdlr(scip), SCIPblkmem(scip), SCIPbuffer(scip)) );
-
-   relaxdata->sdpi = sdpi;
-   relaxdata->lastsdpnode = -1;
-   relaxdata->nblocks = 0;
-
-   /* include relaxator */
-   SCIP_CALL( SCIPincludeRelaxBasic(scip, &relax, RELAX_NAME, RELAX_DESC, RELAX_PRIORITY, RELAX_FREQ, TRUE, relaxExecSdp, relaxdata) );
-   assert( relax != NULL );
-
-   /* include additional callbacks */
-   SCIP_CALL( SCIPsetRelaxInitsol(scip, relax, relaxInitSolSdp) );
-   SCIP_CALL( SCIPsetRelaxExit(scip, relax, relaxExitSdp) );
-   SCIP_CALL( SCIPsetRelaxFree(scip, relax, relaxFreeSdp) );
-   SCIP_CALL( SCIPsetRelaxCopy(scip, relax, relaxCopySdp) );
-
-   /* add parameters for SDP-solver */
-   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/sdpsolvergaptol",
-         "the stopping criterion for the duality gap the sdpsolver should use",
-         &(relaxdata->sdpsolvergaptol), TRUE, DEFAULT_SDPSOLVERGAPTOL, 1e-20, 0.001, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/sdpsolverfeastol",
-         "the feasibility tolerance for the SDP solver",
-         &(relaxdata->sdpsolverfeastol), TRUE, SCIPsdpiGetDefaultSdpiSolverFeastol(), 1e-17, 0.001, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/penaltyparam",
-         "the starting value of the penalty parameter Gamma used for the penalty formulation if the "
-         "SDP solver didn't converge; set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->penaltyparam),
-         TRUE, DEFAULT_PENALTYPARAM, -1.0, 1e+20, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/maxpenaltyparam",
-         "the maximum value of the penalty parameter Gamma used for the penalty formulation if the "
-         "SDP solver didn't converge; set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->maxpenaltyparam),
-         TRUE, DEFAULT_MAXPENALTYPARAM, -1.0, 1e+20, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartipfactor",
-         "factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled ", &(relaxdata->warmstartipfactor),
-         TRUE, DEFAULT_WARMSTARTIPFACTOR, 0.0, 1.0, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartprimaltype",
-         "how to warmstart the primal problem? 1: scaled identity/analytic center, 2: elementwise reciprocal, 3: save primal sol", &(relaxdata->warmstartprimaltype), TRUE,
-         DEFAULT_WARMSTARTPRIMALTYPE, 1, 3, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartiptype",
-         "which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center", &(relaxdata->warmstartiptype), TRUE,
-         DEFAULT_WARMSTARTIPTYPE, 1, 2, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartproject",
-         "how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and proejct on psd cone", &(relaxdata->warmstartproject), TRUE,
-         DEFAULT_WARMSTARTPROJECT, 1, 3, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/npenaltyincr",
-         "maximum number of times the penalty parameter will be increased if the penalty formulation failed", &(relaxdata->npenaltyincr), TRUE,
-         SCIPsdpiGetDefaultSdpiSolverNpenaltyIncreases(), 0, INT_MAX, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/lambdastar",
-         "the parameter lambda star used by SDPA to set the initial point;"
-         "set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->lambdastar),
-         TRUE, DEFAULT_LAMBDASTAR, -1.0, 1e+20, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/slatercheck",
-         "Should the Slater condition for the primal and dual problem be checked ahead of solving each SDP? 0: no, 1: yes and output statistics, 2: yes and print warning for "
-         "every problem not satisfying primal and dual Slater condition", &(relaxdata->slatercheck), TRUE, DEFAULT_SLATERCHECK, 0, 2, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/sdpinfo",
-         "Should the SDP solver output information to the screen?",
-         &(relaxdata->sdpinfo), TRUE, DEFAULT_SDPINFO, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstart",
-         "Should the SDP solver try to use warmstarts?",
-         &(relaxdata->warmstart), TRUE, DEFAULT_WARMSTART, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/objlimit",
-         "Should an objective limit be given to the SDP-Solver?",
-         &(relaxdata->objlimit), TRUE, DEFAULT_OBJLIMIT, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/resolve",
-         "Should the relaxation be resolved after bound-tightenings were found during propagation (outside of probing)?",
-         &(relaxdata->resolve), TRUE, DEFAULT_RESOLVE, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/tightenvb",
-         "Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ?",
-         &(relaxdata->tightenvb), TRUE, DEFAULT_TIGHTENVB, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/displaystatistics",
-         "Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ?",
-         &(relaxdata->displaystat), TRUE, DEFAULT_DISPLAYSTAT, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/settingsresetfreq",
-         "frequency for resetting parameters in SDP solver and trying again with fastest settings (-1: never, 0: only at depth settingsresetofs);"
-         "currently only supported for SDPA",
-         &(relaxdata->settingsresetfreq), TRUE, DEFAULT_SETTINGSRESETFREQ, -1, INT_MAX, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/settingsresetofs",
-         "frequency offset for resetting parameters in SDP solver and trying again with fastest settings; currently only supported for SDPA",
-         &(relaxdata->settingsresetofs), TRUE, DEFAULT_SETTINGSRESETOFS, 0, INT_MAX, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/sdpsolverthreads",
-         "number of threads the SDP solver should use (-1 = number of cores); currently only supported for MOSEK",
-         &(relaxdata->sdpsolverthreads), TRUE, DEFAULT_SDPSOLVERTHREADS, -1, INT_MAX, NULL, NULL) );
-
-
-   /* add description of SDP-solver */
-   SCIP_CALL( SCIPincludeExternalCodeInformation(scip, SCIPsdpiGetSolverName(), SCIPsdpiGetSolverDesc()) );
-
-   return SCIP_OKAY;
-}
-
-
-/* external functions */
 
 /** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem
  *

@@ -59,6 +59,7 @@
 #include "heur_sdpfracdiving.h"
 #include "heur_sdprand.h"
 #include "prop_sdpobbt.h"
+#include "prop_companalcent.h"
 #include "scipsdpgithash.c"
 
 using namespace scip;
@@ -91,6 +92,7 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPincludeHeurSdpFracdiving(scip) );
    SCIP_CALL( SCIPincludeHeurSdpRand(scip) );
    SCIP_CALL( SCIPincludePropSdpObbt(scip) );
+   SCIP_CALL( SCIPincludePropCompAnalCent(scip) );
 
    /* add description */
    (void) SCIPsnprintf(scipsdpname, SCIP_MAXSTRLEN, "SCIP-SDP %s", SCIPSDPVERSION);
