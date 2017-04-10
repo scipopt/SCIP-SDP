@@ -72,6 +72,7 @@
 #define DEFAULT_MAXPENALTYPARAM     -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 #define DEFAULT_WARMSTARTIPFACTOR   0.01     /**< factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled */
 #define DEFAULT_WARMSTARTPRIMALTYPE 3        /**< how to warmstart the primal problem? 1: scaled identity, 2: elementwise reciprocal, 3: saved primal sol */
+#define DEFAULT_WARMSTARTIPTYPE     2        /**< which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center */
 #define DEFAULT_WARMSTARTPROJECT    1        /**< how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and proejct on psd cone */
 #define DEFAULT_SLATERCHECK         0        /**< Should the Slater condition be checked ? */
 #define DEFAULT_OBJLIMIT            FALSE    /**< Should an objective limit be given to the SDP-Solver ? */
@@ -3159,6 +3160,10 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartprimaltype",
          "how to warmstart the primal problem? 1: scaled identity/analytic center, 2: elementwise reciprocal, 3: save primal sol", &(relaxdata->warmstartprimaltype), TRUE,
          DEFAULT_WARMSTARTPRIMALTYPE, 1, 3, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartiptype",
+         "which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center", &(relaxdata->warmstartiptype), TRUE,
+         DEFAULT_WARMSTARTIPTYPE, 1, 2, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartproject",
          "how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and proejct on psd cone", &(relaxdata->warmstartproject), TRUE,
