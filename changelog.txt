@@ -1,3 +1,22 @@
+SCIP-SDP version 3.0.1
+==================
+
+fixed bugs:
+- only declare problem infeasible in sdpredcost if lower bound exceeds upper bound by at least feastol (instead of epsilon)
+- only change bounds in sdpredcost if they changed by more than feastol instead of epsilon (could lead to asserts for
+  integer variables which are later rounded according to feastol)
+
+features:
+
+interface:
+
+parameters:
+
+core:
+
+makefile:
+
+
 SCIP-SDP version 3.0.0
 ==================
 
