@@ -37,6 +37,10 @@
 
 /*#define SCIP_DEBUG*/
 
+/* TODO: might want to add sdpsolvergaptol to parameters and only cut off / change bounds if values differ by more than gaptol, since
+ * the primal variable values may only be exact up to gaptol
+ */
+
 #include "prop_sdpredcost.h"
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "relax_sdp.h"                       /* to get relaxation value */
@@ -178,17 +182,17 @@ SCIP_RETCODE sdpRedcostFixingIntCont(
 
 
    /* if after propagation the upper bound is less than the lower bound, the current node is infeasible */
-   if ( SCIPisLT(scip, ub, lb) || SCIPisLT(scip, ub, SCIPvarGetLbLocal(var)) || SCIPisLT(scip, SCIPvarGetUbLocal(var), lb) )
+   if ( SCIPisFeasLT(scip, ub, lb) || SCIPisFeasLT(scip, ub, SCIPvarGetLbLocal(var)) || SCIPisFeasLT(scip, SCIPvarGetUbLocal(var), lb) )
    {
       SCIPdebugMessage("Infeasibility of current node detected by prop_sdpredcost! Updated bounds for variable %s: lb = %f > %f = ub !\n",
-            SCIPvarGetName(var), SCIPisGT(scip, lb, SCIPvarGetLbLocal(var))? lb : SCIPvarGetLbLocal(var),
-            SCIPisLT(scip, ub, SCIPvarGetLbLocal(var)) ? ub : SCIPvarGetUbLocal(var) );
+            SCIPvarGetName(var), SCIPisFeasGT(scip, lb, SCIPvarGetLbLocal(var))? lb : SCIPvarGetLbLocal(var),
+            SCIPisFeasLT(scip, ub, SCIPvarGetLbLocal(var)) ? ub : SCIPvarGetUbLocal(var) );
       *result = SCIP_CUTOFF;
       return SCIP_OKAY;
    }
 
    /* if the new upper bound is an enhancement, update it */
-   if ( SCIPisLT(scip, ub, SCIPvarGetUbLocal(var)) )
+   if ( SCIPisFeasLT(scip, ub, SCIPvarGetUbLocal(var)) )
    {
       SCIPdebugMessage("Changing upper bound of variable %s from %f to %f because of prop_sdpredcost \n",
             SCIPvarGetName(var), SCIPvarGetUbLocal(var), ub);
@@ -197,7 +201,7 @@ SCIP_RETCODE sdpRedcostFixingIntCont(
    }
 
    /* if the new lower bound is an enhancement, update it */
-   if ( SCIPisGT(scip, lb, SCIPvarGetLbLocal(var)) )
+   if ( SCIPisFeasGT(scip, lb, SCIPvarGetLbLocal(var)) )
    {
       SCIPdebugMessage("Changing lower bound of variable %s from %f to %f because of prop_sdpredcost \n",
             SCIPvarGetName(var), SCIPvarGetLbLocal(var), lb);
