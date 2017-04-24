@@ -27,12 +27,12 @@
 #include "relax_sdp.h"
 
 /* fundamental propagator properties */
-#define PROP_NAME              "compute analytic center"
+#define PROP_NAME              "companalcent"
 #define PROP_DESC              "computes analytic center and forwards it to SDP relaxation handler"
 #define PROP_PRIORITY                 0 /**< propagator priority */
 #define PROP_FREQ                     0 /**< propagator frequency */
 #define PROP_DELAY                FALSE /**< should propagation method be delayed, if other propagators found reductions? */
-#define PROP_TIMING             SCIP_PROPTIMING_AFTERLPNODE/**< propagation timing mask */
+#define PROP_TIMING             SCIP_PROPTIMING_AFTERLPLOOP/**< propagation timing mask */
 
 
 /*
