@@ -2504,7 +2504,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
 
       for (i = 0; i < blocksize; i++)
       {
-         if ( X[i] > sdpisolver->epsilon )
+         if ( REALABS(X[i]) > sdpisolver->epsilon )
             startXnblocknonz[b]++;
       }
    }
@@ -2613,7 +2613,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
       /* iterate over LP constraints */
       for (i = 0; i < blocksize - sdpisolver->nvarbounds; i++)
       {
-         if ( X[i] > sdpisolver->epsilon )
+         if ( REALABS(X[i]) > sdpisolver->epsilon )
          {
             if ( blocknnonz < startXnblocknonz[b] )
             {
@@ -2637,7 +2637,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
       /* iterate over varbounds */
       for (i = blocksize - sdpisolver->nvarbounds; i < blocksize; i++)
       {
-         if ( X[i] > sdpisolver->epsilon )
+         if ( REALABS(X[i]) > sdpisolver->epsilon )
          {
             if ( blocknnonz < startXnblocknonz[b] )
             {
