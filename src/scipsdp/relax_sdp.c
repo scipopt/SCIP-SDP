@@ -2813,7 +2813,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
    {
       int b;
 
-      relaxdata->nblocks = SCIPgetNLPRows(scip) > 0 ? SCIPconshdlrGetNConss(sdpconshdlr) + 1 : SCIPconshdlrGetNConss(sdpconshdlr);
+      relaxdata->nblocks = SCIPgetNLPRows(scip) + SCIPgetNVars(scip) > 0 ? SCIPconshdlrGetNConss(sdpconshdlr) + 1 : SCIPconshdlrGetNConss(sdpconshdlr);
 
       if ( SCIPgetNVars(scip) > 0 )
       {
@@ -3032,6 +3032,8 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
 
             if ( SCIPsdpiWasSolved(relaxdata->sdpi) && SCIPsdpiSolvedOrig(relaxdata->sdpi) && SCIPsdpiIsPrimalFeasible(relaxdata->sdpi) )
             {
+               int npenaltybounds = 0;
+
                relaxdata->ipXexists = TRUE;
 
                /* allocate memory (for the different blocks the neccessary anount first needs to be computed) */
@@ -3052,17 +3054,29 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
                SCIP_CALL( SCIPsdpiGetPrimalMatrix(relaxdata->sdpi, relaxdata->nblocks, relaxdata->ipXnblocknonz,
                      relaxdata->ipXrow, relaxdata->ipXcol, relaxdata->ipXval) );
 
-               /* remove the last two entries of the LP block since these correspond to the bounds of the penalty variable */
-               SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &relaxdata->ipXrow[relaxdata->nblocks - 1],
-                     relaxdata->ipXnblocknonz[relaxdata->nblocks - 1], relaxdata->ipXnblocknonz[relaxdata->nblocks - 1] - 2) );
-               SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &relaxdata->ipXcol[relaxdata->nblocks - 1],
-                     relaxdata->ipXnblocknonz[relaxdata->nblocks - 1], relaxdata->ipXnblocknonz[relaxdata->nblocks - 1] - 2) );
-               SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &relaxdata->ipXval[relaxdata->nblocks - 1],
-                     relaxdata->ipXnblocknonz[relaxdata->nblocks - 1], relaxdata->ipXnblocknonz[relaxdata->nblocks - 1] - 2) );
-               relaxdata->ipXnblocknonz[relaxdata->nblocks - 1] = relaxdata->ipXnblocknonz[relaxdata->nblocks - 1] - 2;
+               /* count the number of primal entries corresponding to bounds of the penalty variable and remove them */
+               for (i = 0; i < relaxdata->ipXnblocknonz[relaxdata->nblocks - 1]; i++)
+               {
+                  if ( relaxdata->ipXrow[relaxdata->nblocks - 1][i] == SCIPsdpVarmapperGetNVars(relaxdata->varmapper) )
+                     npenaltybounds++;
+               }
 
-               /* TODO check if they are already sorted (sorting is needed since they will later be merged into warmstart arrays) */
-               SCIPsdpVarfixerSortRowCol(relaxdata->ipXrow[b], relaxdata->ipXcol[b], relaxdata->ipXval[b], relaxdata->ipXnblocknonz[b]);
+               if ( npenaltybounds > 0 )
+               {
+                  SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &relaxdata->ipXrow[relaxdata->nblocks - 1],
+                        relaxdata->ipXnblocknonz[relaxdata->nblocks - 1], relaxdata->ipXnblocknonz[relaxdata->nblocks - 1] - npenaltybounds) );
+                  SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &relaxdata->ipXcol[relaxdata->nblocks - 1],
+                        relaxdata->ipXnblocknonz[relaxdata->nblocks - 1], relaxdata->ipXnblocknonz[relaxdata->nblocks - 1] - npenaltybounds) );
+                  SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &relaxdata->ipXval[relaxdata->nblocks - 1],
+                        relaxdata->ipXnblocknonz[relaxdata->nblocks - 1], relaxdata->ipXnblocknonz[relaxdata->nblocks - 1] - npenaltybounds) );
+                  relaxdata->ipXnblocknonz[relaxdata->nblocks - 1] = relaxdata->ipXnblocknonz[relaxdata->nblocks - 1] - npenaltybounds;
+               }
+
+               for (b = 0; b < relaxdata->nblocks; b++)
+               {
+                  /* TODO check if they are already sorted (sorting is needed since they will later be merged into warmstart arrays) */
+                  SCIPsdpVarfixerSortRowCol(relaxdata->ipXrow[b], relaxdata->ipXcol[b], relaxdata->ipXval[b], relaxdata->ipXnblocknonz[b]);
+               }
 
 #ifdef SCIP_PRINT_WARMSTART
                SCIPdebugMessage("Computed primal analytic center:\n");
