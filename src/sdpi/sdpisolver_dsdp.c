@@ -563,15 +563,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
                                                *  may be NULL if startXnblocknonz = NULL */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP ans MOSEK, set this to
                                                *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
-   SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
-   SCIP_Bool             disablepresolving   /**< should local presolving be disabled ? */
+   SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
    )
 {
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, TRUE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars,
            sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
            indchanges, nremovedinds, blockindchanges, nremovedblocks, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol,
            lpval, starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval, startsettings,
-           timelimit, NULL, NULL, disablepresolving);
+           timelimit, NULL, NULL);
 }
 
 /** loads and solves an SDP using a penalty formulation
@@ -658,9 +657,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
    SCIP_Bool*            feasorig,           /**< pointer to store if the solution to the penalty-formulation is feasible for the original problem
                                                *  (may be NULL if penaltyparam = 0) */
-   SCIP_Bool*            penaltybound,       /**< pointer to store if the primal solution reached the bound Tr(X) <= penaltyparam in the primal problem,
+   SCIP_Bool*            penaltybound        /**< pointer to store if the primal solution reached the bound Tr(X) <= penaltyparam in the primal problem,
                                                *  this is also an indication of the penalty parameter being to small (may be NULL if not needed) */
-   SCIP_Bool             disablepresolving   /**< should local presolving be disabled ? */
    )
 {/*lint --e{413}*/
    int* dsdpconstind = NULL;  /* indices for constant SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
@@ -719,7 +717,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( nlpcons == 0 || lprow != NULL );
    assert( nlpcons == 0 || lpcol != NULL );
    assert( nlpcons == 0 || lpval != NULL );
-   assert( ! disablepresolving ); /* not yet implemented for DSDP */
 
    sdpisolver->penalty = penaltyparam > sdpisolver->epsilon;
 

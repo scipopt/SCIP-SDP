@@ -309,8 +309,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
                                                *  may be NULL if startXnblocknonz = NULL */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP and MOSEK, set this to
                                                *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
-   SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
-   SCIP_Bool             disablepresolving   /**< should local presolving be disabled ? */
+   SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
    )
 {
    errorMessage();
@@ -402,9 +401,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
    SCIP_Bool*            feasorig,           /**< pointer to store if the solution to the penalty-formulation is feasible for the original problem
                                                *  (may be NULL if penaltyparam = 0) */
-   SCIP_Bool*            penaltybound,       /**< pointer to store if the primal solution reached the bound Tr(X) <= penaltyparam in the primal problem,
+   SCIP_Bool*            penaltybound        /**< pointer to store if the primal solution reached the bound Tr(X) <= penaltyparam in the primal problem,
                                                *  this is also an indication of the penalty parameter being to small (may be NULL if not needed) */
-   SCIP_Bool             disablepresolving   /**< should local presolving be disabled ? */
    )
 {
    errorMessage();
