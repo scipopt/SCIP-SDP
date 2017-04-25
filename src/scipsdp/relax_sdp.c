@@ -404,15 +404,15 @@ SCIP_RETCODE putSdpDataInInterface(
             nblockvarnonz[ind][nblockvars[ind]] = sdpblocksizes[ind];
 
             /* add identity matrix times penalty variable */
-            SCIP_CALL( SCIPallocBufferArray(scip, &col[i][nblockvars[ind]], sdpblocksizes[ind]) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &row[i][nblockvars[ind]], sdpblocksizes[ind]) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &val[i][nblockvars[ind]], sdpblocksizes[ind]) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &col[ind][nblockvars[ind]], sdpblocksizes[ind]) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &row[ind][nblockvars[ind]], sdpblocksizes[ind]) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &val[ind][nblockvars[ind]], sdpblocksizes[ind]) );
 
             for (j = 0; j < sdpblocksizes[ind]; j++)
             {
-               col[i][nblockvars[ind]][j] = j;
-               row[i][nblockvars[ind]][j] = j;
-               val[i][nblockvars[ind]][j] = 1.0;
+               col[ind][nblockvars[ind]][j] = j;
+               row[ind][nblockvars[ind]][j] = j;
+               val[ind][nblockvars[ind]][j] = 1.0;
             }
             nblockvars[ind]++;
          }
