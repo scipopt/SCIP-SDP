@@ -2487,7 +2487,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
 
          for (i = 0; i < blocksize * (blocksize + 1) / 2; i++)
          {
-            if ( X[i] > sdpisolver->epsilon )
+            if ( REALABS(X[i]) > sdpisolver->epsilon )
                startXnblocknonz[b]++;
          }
       }
@@ -2572,7 +2572,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
             {
                sdpaind = r + blocksize * c;
 
-               if ( X[sdpaind] > sdpisolver->epsilon )
+               if ( REALABS(X[sdpaind]) > sdpisolver->epsilon )
                {
                   if ( blocknnonz < startXnblocknonz[b] )
                   {
