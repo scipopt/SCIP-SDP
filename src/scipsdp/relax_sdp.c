@@ -242,7 +242,8 @@ SCIP_RETCODE putSdpDataInInterface(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SdpVarmapper*         varmapper,          /**< maps SCIP variables to their global SDP indices and vice versa */
-   SCIP_Bool             primalobj           /**< should the primal objective coefficients (constant part of the SDP constraint) be used ? */
+   SCIP_Bool             primalobj,          /**< should the primal objective coefficients (constant part of the SDP constraint) be used ? */
+   SCIP_Bool             boundprimal         /**< should the primal problem be bounded through a penalty term in the dual ? */
    )
 {
    SCIP_CONSHDLR* conshdlr;
@@ -272,6 +273,7 @@ SCIP_RETCODE putSdpDataInInterface(
    int nsdpblocks;
    int constlength;
    int nvars;
+   int nvarspen;
    int nconss;
    int ind;
    int i;
@@ -287,17 +289,24 @@ SCIP_RETCODE putSdpDataInInterface(
 
    vars = SCIPgetVars(scip);
    nvars = SCIPgetNVars(scip);
+   nvarspen = boundprimal ? nvars + 1 : nvars; /* if the primal should be bounded, an additional penalty variable is added to the dual */
 
    /* prepare arrays of objective values and bounds */
-   SCIP_CALL( SCIPallocBufferArray(scip, &obj, nvars) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &lb, nvars) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &ub, nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &obj, nvarspen) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &lb, nvarspen) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &ub, nvarspen) );
 
    for (i = 0; i < nvars; i++)
    {
       obj[i] = SCIPvarGetObj(vars[i]);
       lb[i] = SCIPvarGetLbLocal(vars[i]);
       ub[i] = SCIPvarGetUbLocal(vars[i]);
+   }
+   if ( boundprimal )
+   {
+      obj[nvars] = 1.0; /* this objective coefficient together with lb = 0 and the identity matrix leads to constraint Tr(X) <= 1 */
+      lb[nvars] = 0.0;
+      ub[nvars] = SCIPinfinity(scip);
    }
 
    nconss = SCIPgetNConss(scip);
@@ -345,10 +354,10 @@ SCIP_RETCODE putSdpDataInInterface(
 
    for (i = 0; i < nsdpblocks; i++)
    {
-      SCIP_CALL( SCIPallocBufferArray(scip, &(nblockvarnonz[i]), nvars) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &col[i], nvars) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &row[i], nvars) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &val[i], nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &(nblockvarnonz[i]), nvarspen) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &col[i], nvarspen) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &row[i], nvarspen) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &val[i], nvarspen) );
    }
 
    /* get the SDP-data */
@@ -381,11 +390,31 @@ SCIP_RETCODE putSdpDataInInterface(
          assert( nvars == SCIPgetNVars(scip) );
          assert( nconstblocknonz[ind] <= constlength );
 
-         SCIP_CALL( SCIPallocBufferArray(scip, &(sdpvar[ind]), nblockvars[ind]) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &(sdpvar[ind]), boundprimal ? nblockvars[ind] + 1 : nblockvars[ind]) );
 
          /* get global variable indices */
          for (j = 0; j < nblockvars[ind]; j++)
             sdpvar[ind][j] = SCIPsdpVarmapperGetSdpIndex(varmapper, blockvars[j]);
+
+         if ( boundprimal )
+         {
+            /* penalty variable is added as final variable */
+            sdpvar[ind][nblockvars[ind]] = SCIPsdpVarmapperGetNVars(varmapper);
+            nblockvarnonz[ind][nblockvars[ind]] = sdpblocksizes[ind];
+
+            /* add identity matrix times penalty variable */
+            SCIP_CALL( SCIPallocBufferArray(scip, &col[i][nblockvars[ind]], sdpblocksizes[ind]) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &row[i][nblockvars[ind]], sdpblocksizes[ind]) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &val[i][nblockvars[ind]], sdpblocksizes[ind]) );
+
+            for (j = 0; j < sdpblocksizes[ind]; j++)
+            {
+               col[i][nblockvars[ind]][j] = j;
+               row[i][nblockvars[ind]][j] = j;
+               val[i][nblockvars[ind]][j] = 1.0;
+            }
+            nblockvars[ind]++;
+         }
 
          ind++;
       }
@@ -397,8 +426,8 @@ SCIP_RETCODE putSdpDataInInterface(
    /* load data into SDPI */
    if ( primalobj )
    {
-      SCIP_CALL( SCIPsdpiLoadSDP(sdpi, nvars,  obj, lb, ub, nsdpblocks, sdpblocksizes, nblockvars, sdpconstnnonz, nconstblocknonz, constrow,
-                               constcol, constval, sdpnnonz, nblockvarnonz, sdpvar, row, col,  val, 0,
+      SCIP_CALL( SCIPsdpiLoadSDP(sdpi, nvarspen,  obj, lb, ub, nsdpblocks, sdpblocksizes, nblockvars, sdpconstnnonz, nconstblocknonz, constrow,
+                               constcol, constval, sdpnnonz, nblockvarnonz, sdpvar, row, col, val, 0,
                                NULL, NULL, 0, NULL, NULL, NULL) ); /* insert the SDP part, add an empty LP part */
    }
    else
@@ -407,7 +436,7 @@ SCIP_RETCODE putSdpDataInInterface(
       for (i = 0; i < nsdpblocks; i++)
          nconstblocknonz[i] = 0;
 
-      SCIP_CALL( SCIPsdpiLoadSDP(sdpi, nvars,  obj, lb, ub, nsdpblocks, sdpblocksizes, nblockvars, 0, nconstblocknonz, NULL,
+      SCIP_CALL( SCIPsdpiLoadSDP(sdpi, nvarspen,  obj, lb, ub, nsdpblocks, sdpblocksizes, nblockvars, 0, nconstblocknonz, NULL,
                                NULL, NULL, sdpnnonz, nblockvarnonz, sdpvar, row, col,  val, 0,
                                NULL, NULL, 0, NULL, NULL, NULL) ); /* insert the SDP part, add an empty LP part */
    }
@@ -416,6 +445,12 @@ SCIP_RETCODE putSdpDataInInterface(
    /* free the remaining memory */
    for (i = 0; i < nsdpblocks; i++)
    {
+      if ( boundprimal )
+      {
+         SCIPfreeBufferArrayNull(scip, &val[i][nblockvars[i] - 1]);
+         SCIPfreeBufferArrayNull(scip, &row[i][nblockvars[i] - 1]);
+         SCIPfreeBufferArrayNull(scip, &col[i][nblockvars[i] - 1]);
+      }
       SCIPfreeBufferArrayNull(scip, &(sdpvar[i]));
       SCIPfreeBufferArrayNull(scip, &val[i]);
       SCIPfreeBufferArrayNull(scip, &row[i]);
@@ -797,6 +832,7 @@ SCIP_RETCODE calcRelax(
          ipy[v] = SCIPgetSolVal(scip, relaxdata->ipy, SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, v));
 
 #ifdef SCIP_PRINT_WARMSTART
+      SCIPdebugMessage("warmstart using the following analytic centers:\n");
       for (v = 0; v < nvars; v++)
          SCIPdebugMessage("y[%d] = %f\n", v, ipy[v]);
       if ( SCIPsdpiDoesWarmstartNeedPrimal() )
@@ -1456,6 +1492,7 @@ SCIP_RETCODE calcRelax(
          }
 
 #ifdef SCIP_PRINT_WARMSTART
+         SCIPdebugMessage("warmstart using the following point:\n");
          nblocks = SCIPconshdlrGetNConss(SCIPfindConshdlr(scip, "SDP"));
          for (i = 0; i < nvars; i++)
             SCIPdebugMessage("y[%d]=%f\n", i, starty[i]);
@@ -2183,7 +2220,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
 
    if ( nvars > 0 )
    {
-      SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE) );
+      SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE, FALSE) );
    }
 
    /* set the parameters of the SDP-Solver */
@@ -2768,7 +2805,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
    sdpconshdlr = SCIPfindConshdlr(scip, "SDP");
 
    /* if we want to warmstart using the analytic center, compute it now */
-   if ( relaxdata->warmstart && SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) && (SCIPconshdlrGetNConss(sdpconshdlr) + SCIPgetNLPRows(scip) > 0 ) )
+   if ( relaxdata->warmstart && (relaxdata->warmstartiptype == 2) && SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) && (SCIPconshdlrGetNConss(sdpconshdlr) + SCIPgetNLPRows(scip) > 0 ) )
    {
       int b;
 
@@ -2797,10 +2834,10 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
          int naddediters;
          int naddedsdpcalls;
 
-         /* first solve SDP with primal objective (dual constant part)set  to zero to compute analytic center of primal feasible set */
+         /* first solve SDP with primal objective (dual constant part) set to zero to compute analytic center of primal feasible set */
          if ( relaxdata->warmstartprimaltype != 2 && SCIPsdpiDoesWarmstartNeedPrimal() )
          {
-            SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, FALSE) );
+            SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, FALSE, TRUE) );
             SCIP_CALL( putLpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, FALSE, TRUE) );
 
             /* set time limit */
@@ -3011,8 +3048,29 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
                SCIP_CALL( SCIPsdpiGetPrimalMatrix(relaxdata->sdpi, relaxdata->nblocks, relaxdata->ipXnblocknonz,
                      relaxdata->ipXrow, relaxdata->ipXcol, relaxdata->ipXval) );
 
+               /* remove the last two entries of the LP block since these correspond to the bounds of the penalty variable */
+               SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &relaxdata->ipXrow[relaxdata->nblocks - 1],
+                     relaxdata->ipXnblocknonz[relaxdata->nblocks - 1], relaxdata->ipXnblocknonz[relaxdata->nblocks - 1] - 2) );
+               SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &relaxdata->ipXcol[relaxdata->nblocks - 1],
+                     relaxdata->ipXnblocknonz[relaxdata->nblocks - 1], relaxdata->ipXnblocknonz[relaxdata->nblocks - 1] - 2) );
+               SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &relaxdata->ipXval[relaxdata->nblocks - 1],
+                     relaxdata->ipXnblocknonz[relaxdata->nblocks - 1], relaxdata->ipXnblocknonz[relaxdata->nblocks - 1] - 2) );
+               relaxdata->ipXnblocknonz[relaxdata->nblocks - 1] = relaxdata->ipXnblocknonz[relaxdata->nblocks - 1] - 2;
+
                /* TODO check if they are already sorted (sorting is needed since they will later be merged into warmstart arrays) */
                SCIPsdpVarfixerSortRowCol(relaxdata->ipXrow[b], relaxdata->ipXcol[b], relaxdata->ipXval[b], relaxdata->ipXnblocknonz[b]);
+
+#ifdef SCIP_PRINT_WARMSTART
+               SCIPdebugMessage("Computed primal analytic center:\n");
+               for (b = 0; b < relaxdata->nblocks; b++)
+               {
+                  SCIPdebugMessage("primal matrix, block %d:\n", b);
+                  for (i = 0; i < relaxdata->ipXnblocknonz[b]; i++)
+                  {
+                     SCIPdebugMessage("X_%d[%d,%d]: %f\n", b, relaxdata->ipXrow[b][i], relaxdata->ipXcol[b][i], relaxdata->ipXval[b][i]);
+                  }
+               }
+#endif
             }
             else
             {
@@ -3023,7 +3081,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
          }
 
          /* set dual objective coefficients to zero to compute analytic center of dual feasible set */
-         SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE) );
+         SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE, FALSE) );
          SCIP_CALL( putLpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE, FALSE) );
 
          /* set time limit */
@@ -3240,6 +3298,13 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
             /* create SCIP solution */
             SCIP_CALL( SCIPcreateSol(scip, &relaxdata->ipy, NULL) );
             SCIP_CALL( SCIPsetSolVals(scip, relaxdata->ipy, nvars, vars, solforscip) );
+#ifdef SCIP_PRINT_WARMSTART
+            SCIPdebugMessage("Computed dual analytic center:\n");
+            for (i = 0; i < nvars; i++)
+            {
+               SCIPdebugMessage("y[%d] = %f\n", i, solforscip[i]);
+            }
+#endif
 
             SCIPfreeBufferArray(scip, &solforscip);
 
@@ -3306,6 +3371,29 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
                relaxdata->ipZcol[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
                relaxdata->ipZval[b][2*nrows + 2*v + 1] = SCIPvarGetUbLocal(vars[v]) - SCIPgetSolVal(scip, relaxdata->ipy, vars[v]);
             }
+#ifdef SCIP_PRINT_WARMSTART
+            for (b = 0; b < relaxdata->nblocks - 1; b++)
+            {
+               SCIPdebugMessage("dual matrix, block %d:\n", b);
+               for (i = 0; i < relaxdata->ipZnblocknonz[b]; i++)
+               {
+                  SCIPdebugMessage("Z_%d[%d,%d]: %f\n", b, relaxdata->ipZrow[b][i], relaxdata->ipZcol[b][i], relaxdata->ipZval[b][i]);
+               }
+            }
+            SCIPdebugMessage("dual matrix, LP constraints:\n");
+            for (r = 0; r < nrows; r++)
+            {
+               SCIPdebugMessage("Z_%d[%d,%d]: %f\n", relaxdata->nblocks, relaxdata->ipZrow[b][2*r], relaxdata->ipZcol[b][2*r], relaxdata->ipZval[b][2*r]);
+               SCIPdebugMessage("Z_%d[%d,%d]: %f\n", relaxdata->nblocks, relaxdata->ipZrow[b][2*r+1], relaxdata->ipZcol[b][2*r+1], relaxdata->ipZval[b][2*r+1]);
+            }
+            for (v = 0; v < nvars; v++)
+            {
+               SCIPdebugMessage("Z_%d[%d,%d]: %f\n", relaxdata->nblocks,
+                     relaxdata->ipZrow[b][2*nrows + 2*v], relaxdata->ipZcol[b][2*nrows + 2*v], relaxdata->ipZval[b][2*nrows + 2*v]);
+               SCIPdebugMessage("Z_%d[%d,%d]: %f\n", relaxdata->nblocks,
+                     relaxdata->ipZrow[b][2*nrows + 2*v + 1], relaxdata->ipZcol[b][2*nrows + 2*v + 1], relaxdata->ipZval[b][2*nrows + 2*v + 1]);
+            }
+#endif
          }
          else
          {
