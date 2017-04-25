@@ -819,7 +819,7 @@ SCIP_RETCODE calcRelax(
    if ( ( ! SCIPnodeGetParent(SCIPgetCurrentNode(scip))) || ( ! relaxdata->warmstart ) || ((relaxdata->warmstartiptype == 2) &&
          SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) && ((SCIPsdpiDoesWarmstartNeedPrimal() && ! relaxdata->ipXexists) || (! relaxdata->ipZexists))) )
    {
-      SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit));
+      SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit, FALSE));
    }
    else if ( relaxdata->warmstart && (relaxdata->warmstartprimaltype != 2) && (relaxdata->warmstartiptype == 2) && SCIPisEQ(scip, relaxdata->warmstartipfactor, 1.0) )
    {
@@ -857,7 +857,7 @@ SCIP_RETCODE calcRelax(
 #endif
 
       SCIP_CALL(SCIPsdpiSolve(sdpi, ipy, relaxdata->ipZnblocknonz, relaxdata->ipZrow, relaxdata->ipZcol, relaxdata->ipZval, relaxdata->ipXnblocknonz,
-                        relaxdata->ipXrow, relaxdata->ipXcol, relaxdata->ipXval, startsetting, enforceslater, timelimit));
+                        relaxdata->ipXrow, relaxdata->ipXcol, relaxdata->ipXval, startsetting, enforceslater, timelimit, FALSE));
 
       SCIPfreeBufferArray(scip, &ipy);
    }
@@ -903,7 +903,7 @@ SCIP_RETCODE calcRelax(
       if ( parentconsind < 0 )
       {
          SCIPdebugMessage("Starting SDP-Solving from scratch since no warmstart information available for node %lld\n", parentnodenumber);
-         SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit));
+         SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit, FALSE));
       }
       else
       {
@@ -1520,7 +1520,7 @@ SCIP_RETCODE calcRelax(
 
          /* solve with given starting point */
             SCIP_CALL(SCIPsdpiSolve(sdpi, starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow,
-                  startXcol, startXval, startsetting, enforceslater, timelimit));
+                  startXcol, startXval, startsetting, enforceslater, timelimit, FALSE));
 
          if ( SCIPsdpiDoesWarmstartNeedPrimal() )
          {
@@ -2850,7 +2850,8 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
             }
 
             /* TODO: might want to add an additional parameter to solve to disable penalty, since we cannot use that here anyways */
-            SCIP_CALL(SCIPsdpiSolve(relaxdata->sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, timelimit));
+            /* solve with presolving disabled, since dual problem might have become trivial by setting constant part to zero */
+            SCIP_CALL(SCIPsdpiSolve(relaxdata->sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_STABLE, FALSE, timelimit, TRUE));
 
             /* update calls, iterations and stability numbers (only if the SDP-solver was actually called) */
             relaxdata->sdpinterfacecalls++;
@@ -3094,7 +3095,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
          }
 
          /* TODO: might want to add an additional parameter to solve to disable penalty, since we cannot use that here anyways */
-         SCIP_CALL(SCIPsdpiSolve(relaxdata->sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, timelimit));
+         SCIP_CALL(SCIPsdpiSolve(relaxdata->sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, timelimit, FALSE));
 
          /* update calls, iterations and stability numbers (only if the SDP-solver was actually called) */
          relaxdata->sdpinterfacecalls++;
