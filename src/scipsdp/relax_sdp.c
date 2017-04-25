@@ -72,8 +72,8 @@
 #define DEFAULT_MAXPENALTYPARAM     -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 #define DEFAULT_WARMSTARTIPFACTOR   0.01     /**< factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled */
 #define DEFAULT_WARMSTARTPRIMALTYPE 3        /**< how to warmstart the primal problem? 1: scaled identity, 2: elementwise reciprocal, 3: saved primal sol */
-#define DEFAULT_WARMSTARTIPTYPE     2        /**< which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center */
-#define DEFAULT_WARMSTARTPROJECT    1        /**< how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and proejct on psd cone */
+#define DEFAULT_WARMSTARTIPTYPE     1        /**< which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center */
+#define DEFAULT_WARMSTARTPROJECT    1        /**< how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone */
 #define DEFAULT_SLATERCHECK         0        /**< Should the Slater condition be checked ? */
 #define DEFAULT_OBJLIMIT            FALSE    /**< Should an objective limit be given to the SDP-Solver ? */
 #define DEFAULT_RESOLVE             TRUE     /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
@@ -108,6 +108,7 @@ struct SCIP_RelaxData
    SCIP_Real             penaltyparam;       /**< the starting penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
    SCIP_Real             maxpenaltyparam;    /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
    SCIP_Real             lambdastar;         /**< the parameter lambda star used by SDPA to set the initial point */
+   SCIP_Real             computedlambdastar; /**< computed value for lambda star parameter used by SDPA to set the initial point */
    int                   npenaltyincr;       /**< maximum number of times the penalty parameter will be increased if penalty formulation failed */
    int                   slatercheck;        /**< Should the Slater condition for the dual problem be check ahead of solving every SDP ? */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
@@ -2389,7 +2390,10 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
 
          SCIP_CALL( SCIPsdpiComputeLambdastar(relaxdata->sdpi, maxguess) );
       }
+      retcode = SCIPsdpiGetRealpar(relaxdata->sdpi, SCIP_SDPPAR_LAMBDASTAR, &relaxdata->lambdastar);
    }
+   else
+      relaxdata->lambdastar = 1.0;
 
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
@@ -3074,9 +3078,40 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
             }
             else
             {
-               relaxdata->ipXexists = FALSE;
+               relaxdata->ipXexists = TRUE;
 
-               SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL, "Failed to compute analytic center of primal feasible set, no warmstarts will be used.\n");
+               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipXnblocknonz, relaxdata->nblocks) );
+               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipXrow, relaxdata->nblocks) );
+               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipXcol, relaxdata->nblocks) );
+               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipXval, relaxdata->nblocks) );
+
+               sdpblocks = SCIPconshdlrGetConss(sdpconshdlr);
+
+               for (b = 0; b < relaxdata->nblocks; b++)
+               {
+                  if ( b < relaxdata->nblocks - 1 )
+                  {
+                     /* SDP block */
+                     relaxdata->ipXnblocknonz[b] = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
+                  }
+                  else
+                  {
+                     /* LP block */
+                     relaxdata->ipXnblocknonz[b] = SCIPgetNLPRows(scip) + 2 * SCIPgetNVars(scip);
+                  }
+                  SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipXrow[b], relaxdata->ipXnblocknonz[b]) );
+                  SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipXcol[b], relaxdata->ipXnblocknonz[b]) );
+                  SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipXval[b], relaxdata->ipXnblocknonz[b]) );
+
+                  for (i = 0; i < relaxdata->ipXnblocknonz[b]; i++)
+                  {
+                     relaxdata->ipXrow[b][i] = i;
+                     relaxdata->ipXcol[b][i] = i;
+                     relaxdata->ipXval[b][i] = relaxdata->lambdastar;
+                  }
+               }
+
+               SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL, "Failed to compute analytic center of primal feasible set, using scaled identity instead.\n");
             }
          }
 
@@ -3097,12 +3132,12 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
          SCIP_CALL(SCIPsdpiSolve(relaxdata->sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, timelimit));
 
          /* update calls, iterations and stability numbers (only if the SDP-solver was actually called) */
-         relaxdata->sdpinterfacecalls++;
          naddedsdpcalls = 0;
          SCIP_CALL( SCIPsdpiGetSdpCalls(relaxdata->sdpi, &naddedsdpcalls) );
          usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
          if ( naddedsdpcalls )
          {
+            relaxdata->sdpinterfacecalls++;
             relaxdata->sdpcalls += naddedsdpcalls;
             naddediters = 0;
             SCIP_CALL( SCIPsdpiGetIterations(relaxdata->sdpi, &naddediters) );
@@ -3397,9 +3432,41 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
          }
          else
          {
-            relaxdata->ipZexists = FALSE;
+            relaxdata->ipZexists = TRUE;
 
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL, "Failed to compute analytic center of dual feasible set, no warmstarts will be used.\n");
+            /* y is set to the zero vector */
+            SCIP_CALL( SCIPcreateSol(scip, &relaxdata->ipy, NULL) );
+
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZnblocknonz, relaxdata->nblocks) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZrow, relaxdata->nblocks) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZcol, relaxdata->nblocks) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZval, relaxdata->nblocks) );
+
+            for (b = 0; b < relaxdata->nblocks; b++)
+            {
+               if ( b < relaxdata->nblocks - 1 )
+               {
+                  /* SDP block */
+                  relaxdata->ipZnblocknonz[b] = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
+               }
+               else
+               {
+                  /* LP block */
+                  relaxdata->ipZnblocknonz[b] = SCIPgetNLPRows(scip) + 2 * SCIPgetNVars(scip);
+               }
+               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZrow[b], relaxdata->ipZnblocknonz[b]) );
+               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZcol[b], relaxdata->ipZnblocknonz[b]) );
+               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZval[b], relaxdata->ipZnblocknonz[b]) );
+
+               for (i = 0; i < relaxdata->ipXnblocknonz[b]; i++)
+               {
+                  relaxdata->ipZrow[b][i] = i;
+                  relaxdata->ipZcol[b][i] = i;
+                  relaxdata->ipZval[b][i] = relaxdata->lambdastar;
+               }
+            }
+
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL, "Failed to compute analytic center of dual feasible set, using scaled identity instead.\n");
          }
       }
    }
