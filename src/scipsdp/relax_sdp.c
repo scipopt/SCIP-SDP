@@ -70,10 +70,11 @@
 #define DEFAULT_PENALTYPARAM        -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 #define DEFAULT_LAMBDASTAR          -1.0     /**< the parameter lambda star used by SDPA to set the initial point */
 #define DEFAULT_MAXPENALTYPARAM     -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
-#define DEFAULT_WARMSTARTIPFACTOR   0.01     /**< factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled */
+#define DEFAULT_WARMSTARTIPFACTOR   0.00     /**< factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled */
 #define DEFAULT_WARMSTARTPRIMALTYPE 3        /**< how to warmstart the primal problem? 1: scaled identity, 2: elementwise reciprocal, 3: saved primal sol */
 #define DEFAULT_WARMSTARTIPTYPE     1        /**< which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center */
-#define DEFAULT_WARMSTARTPROJECT    1        /**< how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone */
+#define DEFAULT_WARMSTARTPROJECT    3        /**< how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone */
+#define DEFAULT_WARMSTARTPROJMINEV  0.01     /**< minimum eigenvector to allow when projecting onto the positive (semi-)definite cone */
 #define DEFAULT_SLATERCHECK         0        /**< Should the Slater condition be checked ? */
 #define DEFAULT_OBJLIMIT            FALSE    /**< Should an objective limit be given to the SDP-Solver ? */
 #define DEFAULT_RESOLVE             TRUE     /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
@@ -159,6 +160,7 @@ struct SCIP_RelaxData
    SCIP_Real             warmstartipfactor;  /**< factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled */
    int                   warmstartprimaltype;/**< how to warmstart the primal problem? 1: scaled identity/analytic center, 2: elementwise reciprocal, 3: saved primal sol */
    int                   warmstartproject;   /**< how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and proejct on psd cone */
+   SCIP_Real             warmstartprojminev; /**< minimum eigenvalue to allow when projecting onto the positive (semi-)definite cone */
    int                   warmstartiptype;    /**< which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center */
    int                   nblocks;            /**< number of blocks INCLUDING lp-block */
    SCIP_Bool             ipXexists;          /**< has an interior point for primal matrix X been successfully computed */
@@ -204,7 +206,9 @@ SCIP_RETCODE expandSparseMatrix(
 
    for (i = 0; i < nnonz; i++)
    {
+      assert( row[i] * blocksize + col[i] <= matrixsize );
       fullmat[row[i] * blocksize + col[i]] = val[i];
+      assert( col[i] * blocksize + row[i] <= matrixsize );
       fullmat[col[i] * blocksize + row[i]] = val[i];
    }
 
@@ -1053,9 +1057,9 @@ SCIP_RETCODE calcRelax(
 
                   /* set all negative eigenvalues to zero (using the property that LAPACK returns them in ascending order) */
                   i = 0;
-                  while (i < blocksize && eigenvalues[i] < 0.0)
+                  while (i < blocksize && SCIPisLT(scip, eigenvalues[i], relaxdata->warmstartprojminev) )
                   {
-                     eigenvalues[i] = 0.0;
+                     eigenvalues[i] = relaxdata->warmstartprojminev;
                      i++;
                   }
 
@@ -1091,23 +1095,20 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArray(scip, &fullZmatrix);
                }
 
-               /* compute maxdualentry (should be at least one) */
-               if ( relaxdata->warmstartiptype == 1 )
-               {
-                  maxdualentry = 1.0;
-                  for (i = 0; i < startZnblocknonz[b]; i++)
-                  {
-                     if ( REALABS(startZval[b][i]) > maxdualentry )
-                        maxdualentry = REALABS(startZval[b][i]);
-                  }
-                  identitydiagonal = relaxdata->warmstartipfactor * maxdualentry; /* the diagonal entries of the scaled identity matrix */
-               }
-
                /* use convex combination between Z and scaled identity matrix to move solution to the interior */
                if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
                {
                   if ( relaxdata->warmstartiptype == 1 )
                   {
+                     /* compute maxdualentry (should be at least one) */
+                     maxdualentry = 1.0;
+                     for (i = 0; i < startZnblocknonz[b]; i++)
+                     {
+                        if ( REALABS(startZval[b][i]) > maxdualentry )
+                           maxdualentry = REALABS(startZval[b][i]);
+                     }
+                     identitydiagonal = relaxdata->warmstartipfactor * maxdualentry; /* the diagonal entries of the scaled identity matrix */
+
                      SCIP_CALL( SCIPallocBufferArray(scip, &diagentryexists, blocksize) ); /* TODO: could allocate this once for Z and X with max-blocksize */
                      for (i = 0; i < blocksize; i++)
                         diagentryexists[i] = FALSE;
@@ -1213,10 +1214,13 @@ SCIP_RETCODE calcRelax(
                startZrow[b][2*r] = 2*r;
                startZcol[b][2*r] = 2*r;
                startZval[b][2*r] = rowval - (SCIProwGetLhs(rows[r]) - SCIProwGetConstant(rows[r]));
+
+               if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, startZval[b][2*r], relaxdata->warmstartprojminev) )
+                  startZval[b][2*r] = relaxdata->warmstartprojminev;
                /* we only take the convex combination if the value is less than one, since the maxblockentry is equal to the value
                 * otherwise, so taking the convex combination doesn't change anything in that case
                 */
-               if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, startZval[b][2*r], 1.0) )
+               else if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, startZval[b][2*r], 1.0) )
                {
                   /* since we want the value to be strictly positive, if the original entry is negative we just set it to warmstartipfactor */
                   if ( SCIPisLT(scip, startZval[b][2*r], 0.0) )
@@ -1236,7 +1240,10 @@ SCIP_RETCODE calcRelax(
                startZrow[b][2*r + 1] = 2*r + 1;
                startZcol[b][2*r + 1] = 2*r + 1;
                startZval[b][2*r + 1] = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
-               if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, startZval[b][2*r + 1], 1.0) )
+
+               if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, startZval[b][2*r + 1], relaxdata->warmstartprojminev) )
+                  startZval[b][2*r + 1] = relaxdata->warmstartprojminev;
+               else if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, startZval[b][2*r + 1], 1.0) )
                {
                   /* since we want the value to be strictly positive, if the original entry is negative we just set it to warmstartipfactor */
                   if ( SCIPisLT(scip, startZval[b][2*r + 1], 0.0) )
@@ -1283,7 +1290,9 @@ SCIP_RETCODE calcRelax(
                startZrow[b][2*nrows + 2*v] = 2*nrows + 2*v;
                startZcol[b][2*nrows + 2*v] = 2*nrows + 2*v;
                startZval[b][2*nrows + 2*v] = SCIPgetSolVal(scip, dualsol, vars[v]) - SCIPvarGetLbLocal(vars[v]);
-               if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, startZval[b][2*nrows + 2*v], 1.0) )
+               if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, startZval[b][2*nrows + 2*v], relaxdata->warmstartprojminev) )
+                  startZval[b][2*nrows + 2*v] = relaxdata->warmstartprojminev;
+               else if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, startZval[b][2*nrows + 2*v], 1.0) )
                {
                   /* since we want the value to be strictly positive, if the original entry is negative we just set it to warmstartipfactor */
                   if ( SCIPisLT(scip, startZval[b][2*nrows + 2*v], 0.0) )
@@ -1303,7 +1312,9 @@ SCIP_RETCODE calcRelax(
                startZrow[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
                startZcol[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
                startZval[b][2*nrows + 2*v + 1] = SCIPvarGetUbLocal(vars[v]) - SCIPgetSolVal(scip, dualsol, vars[v]);
-               if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, startZval[b][2*nrows + 2*v + 1], 1.0) )
+               if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, startZval[b][2*nrows + 2*v + 1], relaxdata->warmstartprojminev) )
+                  startZval[b][2*nrows + 2*v + 1] = relaxdata->warmstartprojminev;
+               else if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, startZval[b][2*nrows + 2*v + 1], 1.0) )
                {
                   /* since we want the value to be strictly positive, if the original entry is negative we just set it to warmstartipfactor */
                   if ( SCIPisLT(scip, startZval[b][2*nrows + 2*v + 1], 0.0) )
@@ -1351,7 +1362,22 @@ SCIP_RETCODE calcRelax(
                SCIP_CALL( SCIPconsSavesdpsolGetPrimalMatrixNonzeros(scip, conss[parentconsind], nblocks + 1, startXnblocknonz) );
 
                /* allocate sufficient memory (memory for LP-block was already allocated); we allocate an extra blocksize for adding the diagonal matrix or analytic center */
-               if ( relaxdata->warmstartiptype == 1 )
+               if ( relaxdata->warmstartproject == 3 )
+               {
+                  int matrixsize;
+
+                  /* since we cannot compute the number of nonzeros of the projection beforehand, we allocate the maximum possible (blocksize^2) */
+                  for (b = 0; b < nblocks; b++)
+                  {
+                     matrixsize = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
+                     matrixsize *= matrixsize;
+
+                     SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], matrixsize) );
+                     SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], matrixsize) );
+                     SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], matrixsize) );
+                  }
+               }
+               else if ( relaxdata->warmstartiptype == 1 )
                {
                   for (b = 0; b < nblocks; b++)
                   {
@@ -1374,13 +1400,81 @@ SCIP_RETCODE calcRelax(
 
                for (b = 0; b < nblocks; b++)
                {
+                  /* compute projection onto psd cone (computed as U * diag(lambda_i_+) * U^T where U consists of the eigenvectors of the matrix) */
+                  if ( relaxdata->warmstartproject == 3 )
+                  {
+                     SCIP_Real* fullXmatrix;
+                     SCIP_Real* eigenvalues;
+                     SCIP_Real* eigenvectors;
+                     SCIP_Real* scaledeigenvectors;
+                     SCIP_Real matrixsize;
+                     SCIP_Real epsilon;
+                     int c;
+                     int matrixpos;
+
+                     matrixsize = blocksize * blocksize;
+
+                     SCIP_CALL( SCIPallocBufferArray(scip, &fullXmatrix, matrixsize) );
+                     SCIP_CALL( SCIPallocBufferArray(scip, &eigenvalues, blocksize) );
+                     SCIP_CALL( SCIPallocBufferArray(scip, &eigenvectors, matrixsize) );
+
+                     SCIP_CALL( expandSparseMatrix(startXnblocknonz[b], blocksize, startXrow[b], startXcol[b], startXval[b], fullXmatrix) );
+
+                     SCIP_CALL( SCIPlapackComputeEigenvectorDecomposition(SCIPbuffer(scip), blocksize, fullXmatrix, eigenvalues, eigenvectors) );
+
+                     /* duplicate memory of eigenvectors to compute diag(lambda_i_+) * U^T */
+                     SCIP_CALL( SCIPduplicateBufferArray(scip, &scaledeigenvectors, eigenvectors, matrixsize) );
+
+                     /* set all negative eigenvalues to zero (using the property that LAPACK returns them in ascending order) */
+                     i = 0;
+                     while (i < blocksize && SCIPisLT(scip, eigenvalues[i], relaxdata->warmstartprojminev) )
+                     {
+                        eigenvalues[i] = relaxdata->warmstartprojminev;
+                        i++;
+                     }
+
+                     /* compute diag(lambda_i_+) * U^T */
+                     SCIP_CALL( scaleTransposedMatrix(blocksize, scaledeigenvectors, eigenvalues) );
+
+                     /* compute U * [diag(lambda_i_+) * U^T] (note that transposes are switched because LAPACK uses column-first-format) */
+                     SCIP_CALL( SCIPlapackMatrixMatrixMult(blocksize, blocksize, eigenvectors, TRUE, blocksize, blocksize, scaledeigenvectors,
+                           FALSE, fullXmatrix) );
+
+                     /* extract sparse matrix from projection */
+                     startXnblocknonz[b] = 0;
+                     epsilon = SCIPepsilon(scip);
+                     for (r = 0; r < blocksize; r++)
+                     {
+                        for (c = r; c < blocksize; c++)
+                        {
+                           matrixpos = r * blocksize + c;
+                           if ( REALABS(fullXmatrix[matrixpos]) > epsilon )
+                           {
+                              startXrow[b][startXnblocknonz[b]] = r;
+                              startXcol[b][startXnblocknonz[b]] = c;
+                              startXval[b][startXnblocknonz[b]] = fullXmatrix[matrixpos];
+                              startXnblocknonz[b]++;
+                           }
+                        }
+                     }
+
+                     /* free memory */
+                     SCIPfreeBufferArray(scip, &scaledeigenvectors);
+                     SCIPfreeBufferArray(scip, &eigenvectors);
+                     SCIPfreeBufferArray(scip, &eigenvalues);
+                     SCIPfreeBufferArray(scip, &fullXmatrix);
+                  }
+
                   /* use convex combination between X and scaled identity matrix to move solution to the interior */
                   if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
                   {
                      if ( relaxdata->warmstartiptype == 1 )
                      {
-                        /* compute maxdualentry (should be at least one) */
-                        maxprimalentry = 1.0;
+                        /* compute maxdualentry (should be at least one or warmstartprojminev) */
+                        if ( relaxdata->warmstartproject == 3 )
+                           maxprimalentry = relaxdata->warmstartprojminev;
+                        else
+                           maxprimalentry = 1.0;
                         for (i = 0; i < startXnblocknonz[b]; i++)
                         {
                            if ( REALABS(startXval[b][i]) > maxprimalentry )
@@ -1430,6 +1524,49 @@ SCIP_RETCODE calcRelax(
                      }
                   }
                }
+
+               /* compute projection for LP block */
+               if ( relaxdata->warmstartproject == 3 )
+               {
+                  int nsavedentries;
+                  int lastentry;
+                  int j;
+
+                  /* sort indices by row/col; TODO: check if this is necessary */
+                  SCIPsortIntIntReal(startXrow[nblocks], startXcol[nblocks], startXval[nblocks], startXnblocknonz[nblocks]);
+
+                  /* iterate over all entries */
+                  nsavedentries = startXnblocknonz[nblocks];
+                  lastentry = 0;
+
+                  for (i = 0; i < nsavedentries; i++)
+                  {
+                     assert( startXrow[nblocks][i] == startXcol[nblocks][i] ); /* this is the LP-block */
+                     /* if some entries are missing, we add them at the end */
+                     for (j = lastentry + 1; j < startXrow[nblocks][i]; j++)
+                     {
+                        assert( startXnblocknonz[nblocks] < 2 * nrows + 2 * nvars );
+                        startXrow[nblocks][startXnblocknonz[nblocks]] = j;
+                        startXcol[nblocks][startXnblocknonz[nblocks]] = j;
+                        startXval[nblocks][startXnblocknonz[nblocks]] = relaxdata->warmstartprojminev;
+                        startXnblocknonz[nblocks]++;
+                     }
+                     if ( SCIPisLT(scip, startXval[b][i], 1.0) )
+                        startXval[b][i] = relaxdata->warmstartprojminev;
+
+                     lastentry = startXrow[nblocks][i];
+                  }
+                  /* add missing entries at the end */
+                  for (j = lastentry + 1; j < 2 * nrows + 2 * nvars; j++)
+                  {
+                     assert( startXnblocknonz[nblocks] < 2 * nrows + 2 * nvars );
+                     startXrow[nblocks][startXnblocknonz[nblocks]] = j;
+                     startXcol[nblocks][startXnblocknonz[nblocks]] = j;
+                     startXval[nblocks][startXnblocknonz[nblocks]] = relaxdata->warmstartprojminev;
+                     startXnblocknonz[nblocks]++;
+                  }
+               }
+
                /* take convex combination for LP block */
                if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
                {
@@ -2719,6 +2856,10 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartproject",
          "how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and proejct on psd cone", &(relaxdata->warmstartproject), TRUE,
          DEFAULT_WARMSTARTPROJECT, 1, 3, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartprojminev",
+         "minimum eigenvalue to allow when projecting onto the positive (semi-)definite cone for warmstarting", &(relaxdata->warmstartprojminev),
+         TRUE, DEFAULT_WARMSTARTPROJMINEV, 0.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/npenaltyincr",
          "maximum number of times the penalty parameter will be increased if the penalty formulation failed", &(relaxdata->npenaltyincr), TRUE,
