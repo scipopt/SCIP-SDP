@@ -74,7 +74,7 @@
 #define DEFAULT_WARMSTARTPRIMALTYPE 3        /**< how to warmstart the primal problem? 1: scaled identity, 2: elementwise reciprocal, 3: saved primal sol */
 #define DEFAULT_WARMSTARTIPTYPE     1        /**< which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center */
 #define DEFAULT_WARMSTARTPROJECT    3        /**< how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone */
-#define DEFAULT_WARMSTARTPROJMINEV  0.01     /**< minimum eigenvector to allow when projecting onto the positive (semi-)definite cone */
+#define DEFAULT_WARMSTARTPROJMINEV  -1       /**< minimum eigenvector to allow when projecting onto the positive (semi-)definite cone */
 #define DEFAULT_SLATERCHECK         0        /**< Should the Slater condition be checked ? */
 #define DEFAULT_OBJLIMIT            FALSE    /**< Should an objective limit be given to the SDP-Solver ? */
 #define DEFAULT_RESOLVE             TRUE     /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
@@ -87,6 +87,8 @@
 #define DEFAULT_SDPSOLVERTHREADS    -1       /**< number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores) */
 
 #define WARMSTART_MINVAL            0.01     /**< if we get a value less than this when warmstarting (currently only for the linear part when combining with analytic center), the value is set to this */
+#define WARMSTART_PROJ_MINRHSOBJ    1        /**< minimum value for rhs/obj when computing minimum eigenvalue for warmstart-projection */
+#define WARMSTART_PROJ_FACTOR       0.1      /**< factor to multiply maximum rhs/obj with when computing minimum eigenvalue for warmstart-projection */
 
 /*
  * Data structures
@@ -160,6 +162,7 @@ struct SCIP_RelaxData
    SCIP_Real             warmstartipfactor;  /**< factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled */
    int                   warmstartprimaltype;/**< how to warmstart the primal problem? 1: scaled identity/analytic center, 2: elementwise reciprocal, 3: saved primal sol */
    int                   warmstartproject;   /**< how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and proejct on psd cone */
+   SCIP_Real             warmstartpmevpar;   /**< SCIP parameter for min eigenvalue when projecting onto positive definite cone; -1 for automatic computation */
    SCIP_Real             warmstartprojminev; /**< minimum eigenvalue to allow when projecting onto the positive (semi-)definite cone */
    int                   warmstartiptype;    /**< which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center */
    int                   nblocks;            /**< number of blocks INCLUDING lp-block */
@@ -2304,6 +2307,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    int npenaltyincr;
    SCIP_Bool sdpinfo;
    SCIP_Real givenpenaltyparam;
+   SCIP_Real projminev;
    int nthreads;
    int slatercheck;
    int nvars;
@@ -2541,6 +2545,51 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    else
    {
       SCIP_CALL( retcode );
+   }
+
+   /* set/compute the maximum penalty parameter */
+   SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/warmstartprojminev", &projminev) );
+   if ( SCIPisGE(scip, projminev, 0.0) )
+   {
+      relaxdata->warmstartprojminev = projminev;
+   }
+   else
+   {
+      SCIP_CONSHDLR* sdpconshdlr;
+      SCIP_CONS** sdpblocks;
+      int nsdpblocks;
+      int b;
+      int v;
+      SCIP_Real maxsdprhs; /* note that we only take the maximum value of the SDP constraints, since these tend to be the most problematic */
+      SCIP_Real maxobj;
+      SCIP_Real maxval;
+
+      /* compute value as WARMSTART_PROJ_FACTOR * max{maxrhs, maxobj} */
+
+      /* TODO: might want to set different values for primal and dual problem */
+      sdpconshdlr = SCIPfindConshdlr(scip, "SDP");
+      nsdpblocks = SCIPconshdlrGetNConss(sdpconshdlr);
+      sdpblocks = SCIPconshdlrGetConss(sdpconshdlr);
+
+      maxsdprhs = WARMSTART_PROJ_MINRHSOBJ;
+      for (b = 0; b < nsdpblocks; b++)
+      {
+         if ( SCIPisGT(scip, SCIPconsSdpGetMaxConstEntry(scip, sdpblocks[b]), maxsdprhs) )
+            maxsdprhs = SCIPconsSdpGetMaxConstEntry(scip, sdpblocks[b]);
+      }
+
+      maxobj = WARMSTART_PROJ_MINRHSOBJ;
+      for (v = 0; v < nvars; v++)
+      {
+         if ( SCIPisGT(scip, REALABS(SCIPvarGetObj(vars[v])), maxobj) )
+            maxobj = REALABS(SCIPvarGetObj(vars[v]));
+      }
+
+      maxval = SCIPisGT(scip, maxsdprhs, maxobj) ? maxsdprhs : maxobj;
+
+      relaxdata->warmstartprojminev = WARMSTART_PROJ_FACTOR * maxval;
+
+      printf("Setting warmstartprojminev to %f\n", relaxdata->warmstartprojminev);
    }
 
    SCIP_CALL( SCIPgetBoolParam(scip, "relaxing/SDP/sdpinfo", &sdpinfo) );
@@ -2858,8 +2907,8 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          DEFAULT_WARMSTARTPROJECT, 1, 3, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartprojminev",
-         "minimum eigenvalue to allow when projecting onto the positive (semi-)definite cone for warmstarting", &(relaxdata->warmstartprojminev),
-         TRUE, DEFAULT_WARMSTARTPROJMINEV, 0.0, 1e+20, NULL, NULL) );
+         "minimum eigenvalue to allow when projecting onto the positive (semi-)definite cone for warmstarting; -1 to compute automatically", &(relaxdata->warmstartpmevpar),
+         TRUE, DEFAULT_WARMSTARTPROJMINEV, -1.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/npenaltyincr",
          "maximum number of times the penalty parameter will be increased if the penalty formulation failed", &(relaxdata->npenaltyincr), TRUE,

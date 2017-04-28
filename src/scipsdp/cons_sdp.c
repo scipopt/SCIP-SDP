@@ -2854,6 +2854,22 @@ SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
    return SCIP_OKAY;
 }
 
+/** Gets maximum entry of constant matrix \f$ A_0 \f$ */
+SCIP_Real SCIPconsSdpGetMaxConstEntry(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< the constraint to get the maximum constant matrix entry for */
+   )
+{
+   SCIP_CONSDATA* consdata;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+
+   return consdata->maxrhsentry;
+}
+
 /** Computes an upper bound on the number of nonzeros of the (dual) SDP matrix \f$ Z = \sum_{j=1}^n A_j y_j - A_0 \f$,
  *  this should be used to allocate enough memory before calling SCIPconsSdpComputeSparseSdpMatrix
  *  upper bound is computed as \f$ \min \{ \sum_{v \leq m} \text{nvarnonz}(v) + \text{constnnonz}, n \cdot (n+1) / 2 \} \f$

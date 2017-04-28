@@ -178,6 +178,13 @@ SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
    SCIP_Real*            lambdastar          /**< pointer to store the guess for the initial point */
    );
 
+/** Gets maximum entry of constant matrix \f$ A_0 \f$ */
+EXTERN
+SCIP_Real SCIPconsSdpGetMaxConstEntry(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< the constraint to get the maximum constant matrix entry for */
+   );
+
 /** Computes an upper bound on the number of nonzeros of the (dual) SDP matrix \f$ Z = \sum_{j=1}^n A_j y_j - A_0 \f$,
  *  this should be used to allocate enough memory before calling SCIPconsSdpComputeSparseSdpMatrix
  */
