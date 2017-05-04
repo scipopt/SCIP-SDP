@@ -2610,7 +2610,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
          relaxdata->warmstartprojminevprimal = WARMSTART_PROJ_FACTOR * maxval;
          relaxdata->warmstartprojminevdual = WARMSTART_PROJ_FACTOR * maxval;
 
-         printf("Setting warmstartprojminev to %f\n", relaxdata->warmstartprojminevdual);
+         SCIPdebugMsg(scip, "Setting warmstartprojminev to %f\n", relaxdata->warmstartprojminevdual);
       }
       else
       {
@@ -2618,14 +2618,14 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
          {
             relaxdata->warmstartprojminevprimal = WARMSTART_PROJ_FACTOR_PRIMAL * maxobj;
 
-            printf("Setting warmstartprojminevprimal to %f\n", relaxdata->warmstartprojminevprimal);
+            SCIPdebugMsg(scip, "Setting warmstartprojminevprimal to %f\n", relaxdata->warmstartprojminevprimal);
          }
 
          if ( ! SCIPisGE(scip, projminevdual, 0.0) )
          {
             relaxdata->warmstartprojminevdual = WARMSTART_PROJ_FACTOR_DUAL * maxsdprhs;
 
-            printf("Setting warmstartprojminevdual to %f\n", relaxdata->warmstartprojminevdual);
+            SCIPdebugMsg(scip, "Setting warmstartprojminevdual to %f\n", relaxdata->warmstartprojminevdual);
          }
       }
    }
