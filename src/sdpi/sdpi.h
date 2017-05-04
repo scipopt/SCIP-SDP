@@ -562,6 +562,19 @@ SCIP_RETCODE SCIPsdpiGetSol(
                                                *  of variables in the SDP, a debug-message will be thrown and this is set to the needed value */
    );
 
+/** gets preoptimal dual solution vector for warmstarting purposes
+ *
+ *  If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
+ */
+EXTERN
+SCIP_RETCODE SCIPsdpiGetPreoptimalSol(
+   SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
+   SCIP_Bool*            success,            /**< could a preoptimal solution be returned ? */
+   SCIP_Real*            dualsol,            /**< pointer to store the dual solution vector, may be NULL if not needed */
+   int*                  dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
+                                              *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
+   );
+
 /** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem, the last input should specify the length
  *  of the arrays, if this is less than the number of variables, the needed length will be returned and a debug-message thrown
  *

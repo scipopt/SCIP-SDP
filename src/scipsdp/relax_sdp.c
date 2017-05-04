@@ -76,6 +76,7 @@
 #define DEFAULT_WARMSTARTPROJECT    3        /**< how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone */
 #define DEFAULT_WARMSTARTPROJMINEV  -1       /**< minimum eigenvector to allow when projecting onto the positive (semi-)definite cone */
 #define DEFAULT_WARMSTARTPROJPDSAME TRUE     /**< Should one shared minimum eigenvalue be computed for primal and dual problem instead of different ones if warmstartpmevpar = -1 ? */
+#define DEFAULT_WARMSTART_PREOPTIMAL_SOL FALSE /**< Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts (currently only implemented fo DSDP) */
 #define DEFAULT_SLATERCHECK         0        /**< Should the Slater condition be checked ? */
 #define DEFAULT_OBJLIMIT            FALSE    /**< Should an objective limit be given to the SDP-Solver ? */
 #define DEFAULT_RESOLVE             TRUE     /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
@@ -171,6 +172,7 @@ struct SCIP_RelaxData
    SCIP_Real             warmstartprojminevdual; /**< minimum eigenvalue to allow when projecting onto the positive (semi-)definite cone in the dual */
    SCIP_Bool             warmstartprojpdsame;/**< Should one shared minimum eigenvalue be computed for primal and dual problem instead of different ones if warmstartpmevpar = -1 ? */
    int                   warmstartiptype;    /**< which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center */
+   SCIP_Bool             warmstartpreoptsol; /**< Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts (currently only implemented fo DSDP) */
    int                   nblocks;            /**< number of blocks INCLUDING lp-block */
    SCIP_Bool             ipXexists;          /**< has an interior point for primal matrix X been successfully computed */
    int*                  ipXnblocknonz;      /**< interior point for primal matrix X for convex combination for warmstarts: number of nonzeros for each block
@@ -1945,8 +1947,10 @@ SCIP_RETCODE calcRelax(
       else if ( SCIPsdpiIsPrimalFeasible(sdpi) && SCIPsdpiIsDualFeasible(sdpi) )
       {
          SCIP_SOL* scipsol;
-         int slength;
+         SCIP_SOL* preoptimalsol;
          SCIP_CONS* savedcons;
+         int slength;
+         SCIP_Bool preoptimalsolsuccess;
 
          /* get solution w.r.t. SCIP variables */
          SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
@@ -1970,6 +1974,7 @@ SCIP_RETCODE calcRelax(
 
          relaxdata->feasible = TRUE;
          *result = SCIP_SUCCESS;
+         preoptimalsolsuccess = FALSE;
 
          /* save solution for warmstarts (only if we did not use the penalty formulation, since this would change the problem structure) */
          if ( relaxdata->warmstart && SCIPsdpiSolvedOrig(relaxdata->sdpi) )
@@ -1983,6 +1988,36 @@ SCIP_RETCODE calcRelax(
 #ifndef NDEBUG
             int snprintfreturn; /* this is used to assert that the SCIP string concatenation works */
 #endif
+
+            /* use preoptimal solution if using DSDP and parameter is set accordingly */
+            if ( relaxdata->warmstartpreoptsol )
+            {
+               if ( strcmp(SCIPsdpiGetSolverName(), "DSDP") == 0.0 )
+               {
+                  SCIP_Real* preoptimalvec;
+                  int nvarsgiven;
+
+                  SCIP_CALL( SCIPallocBufferArray(scip, &preoptimalvec, nvars) );
+                  nvarsgiven = nvars;
+
+                  SCIP_CALL( SCIPsdpiGetPreoptimalSol(relaxdata->sdpi, &preoptimalsolsuccess, preoptimalvec, &nvarsgiven) );
+
+                  if ( preoptimalsolsuccess )
+                  {
+                     assert( nvarsgiven == nvars ); /* length of solution should be nvars */
+
+                     /* create SCIP solution */
+                     SCIP_CALL( SCIPcreateSol(scip, &preoptimalsol, NULL) );
+                     SCIP_CALL( SCIPsetSolVals(scip, preoptimalsol, nvars, vars, preoptimalvec) );
+                  }
+
+                  SCIPfreeBufferArray(scip, &preoptimalvec);
+               }
+               else
+               {
+                  SCIPdebugMessage("Warmstarting with preoptimal solutions currently only supported for DSDP\n");
+               }
+            }
 
             startXnblocknonz = NULL;
             startXrow = NULL;
@@ -2029,8 +2064,17 @@ SCIP_RETCODE calcRelax(
 #else
    (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
 #endif
-            SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), scipsol,
-                  maxprimalentry, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
+            if ( preoptimalsolsuccess )
+            {
+               SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), preoptimalsol,
+                     maxprimalentry, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
+            }
+            else
+            {
+               SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), scipsol,
+                     maxprimalentry, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
+            }
+
             SCIP_CALL( SCIPaddCons(scip, savedcons) );
             SCIP_CALL( SCIPreleaseCons(scip, &savedcons) );
 
@@ -2052,6 +2096,10 @@ SCIP_RETCODE calcRelax(
 
          SCIPfreeBufferArray(scip, &solforscip);
          SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
+         if ( preoptimalsolsuccess )
+         {
+            SCIP_CALL( SCIPfreeSol(scip, &preoptimalsol) );
+         }
       }
    }
    else
@@ -2955,6 +3003,10 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstartprojpdsame",
          "Should one shared minimum eigenvalue be computed for primal and dual problem instead of different ones if warmstartpmevpar = -1",
          &(relaxdata->warmstartprojpdsame), TRUE, DEFAULT_WARMSTARTPROJPDSAME, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstartpreoptsol",
+         "Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts (currently only implemented fo DSDP)",
+         &(relaxdata->warmstartpreoptsol), TRUE, DEFAULT_WARMSTART_PREOPTIMAL_SOL, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/npenaltyincr",
          "maximum number of times the penalty parameter will be increased if the penalty formulation failed", &(relaxdata->npenaltyincr), TRUE,

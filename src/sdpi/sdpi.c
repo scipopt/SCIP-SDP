@@ -3348,6 +3348,58 @@ SCIP_RETCODE SCIPsdpiGetSol(
    return SCIP_OKAY;
 }
 
+/** gets preoptimal dual solution vector for warmstarting purposes
+ *
+ *  If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
+ */
+SCIP_RETCODE SCIPsdpiGetPreoptimalSol(
+   SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
+   SCIP_Bool*            success,            /**< could a preoptimal solution be returned ? */
+   SCIP_Real*            dualsol,            /**< pointer to store the dual solution vector, may be NULL if not needed */
+   int*                  dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
+                                              *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
+   )
+{
+   assert( sdpi != NULL );
+   assert( success != NULL );
+   assert( dualsol != NULL );
+   assert( dualsollength != NULL );
+   assert( *dualsollength >= 0 );
+
+   if ( sdpi->infeasible )
+   {
+      *success = FALSE;
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, no preoptimal solution available.\n");
+      return SCIP_OKAY;
+   }
+   else if ( sdpi->allfixed )
+   {
+      int v;
+
+      assert( dualsol != NULL );
+
+      *success = FALSE;
+
+      if ( *dualsollength < sdpi->nvars )
+      {
+         SCIPdebugMessage("The given array in SCIPsdpiGetPreoptimalSol only had length %d, but %d was needed", *dualsollength, sdpi->nvars);
+         *dualsollength = sdpi->nvars;
+
+         return SCIP_OKAY;
+      }
+
+      /* we give the fixed values as the solution */
+      for (v = 0; v < sdpi->nvars; v++)
+         dualsol[v] = sdpi->lb[v];
+
+      return SCIP_OKAY;
+   }
+
+   SCIP_CALL( SCIPsdpiSolverGetPreoptimalSol(sdpi->sdpisolver, success, dualsol, dualsollength) );
+
+   return SCIP_OKAY;
+}
+
 /** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem, the last input should specify the length
  *  of the arrays, if this is less than the number of variables, the needed length will be returned and a debug-message thrown
  *
