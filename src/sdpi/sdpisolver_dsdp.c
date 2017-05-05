@@ -67,7 +67,6 @@
 #define MAXPENALTYPARAM_FACTOR      1e6      /**< if the maximum penaltyparameter is to be computed, it will be set to penaltyparam * this */
 #define INFEASFEASTOLCHANGE         0.1      /**< change feastol by this factor if the solution was found to be infeasible with regards to feastol */
 #define INFEASMINFEASTOL            1E-9     /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance */
-#define PREOPTIMALGAP               1E-2     /**< after this gap is reached, current solution will be saved for warmstarting purposes */
 
 /** Calls a DSDP-Function and transforms the return-code to a SCIP_LPERROR if needed. */
 #define DSDP_CALL(x)  do                                                                                     \
@@ -188,8 +187,9 @@ struct SCIP_SDPiSolver
    SCIP_Bool             timelimitinitial;   /**< was the problem not even given to the solver because of the time limit? */
    int                   niterations;        /**< number of SDP-iterations since the last solve call */
    int                   nsdpcalls;          /**< number of SDP-calls since the last solve call */
-   SCIP_Real*            preoptimalsol;      /**< first feasible solution with gap less or equal PREOPTIMALGAP */
-   SCIP_Bool             preoptimalsolexists; /**< saved feasible solution with gap less or equal PREOPTIMALGAP */
+   SCIP_Real*            preoptimalsol;      /**< first feasible solution with gap less or equal preoptimalgap */
+   SCIP_Bool             preoptimalsolexists; /**< saved feasible solution with gap less or equal preoptimalgap */
+   SCIP_Real             preoptimalgap;      /**< gap at which a preoptimal solution should be saved for warmstarting purposes */
 };
 
 typedef struct Timings
@@ -327,7 +327,7 @@ int checkGapSetPreoptimalSol(
    /* check feasibility through penalty variable r */
    DSDP_CALL( DSDPGetR(dsdp,&r) );
 
-   if ( r < ((SCIP_SDPISOLVER*) ctx)->feastol && relgap < PREOPTIMALGAP )
+   if ( r < ((SCIP_SDPISOLVER*) ctx)->feastol && relgap < ((SCIP_SDPISOLVER*) ctx)->preoptimalgap )
    {
       DSDP_CALL( DSDPGetY(dsdp, ((SCIP_SDPISOLVER*) ctx)->preoptimalsol, ((SCIP_SDPISOLVER*) ctx)->nactivevars) );
       ((SCIP_SDPISOLVER*) ctx)->preoptimalsolexists = TRUE;
@@ -462,6 +462,8 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
    (*sdpisolver)->sdpinfo = FALSE;
    (*sdpisolver)->usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
+   (*sdpisolver)->preoptimalsolexists = FALSE;
+   (*sdpisolver)->preoptimalgap = -1.0;
 
    return SCIP_OKAY;
 }
@@ -2488,6 +2490,9 @@ SCIP_RETCODE SCIPsdpiSolverGetRealpar(
    case SCIP_SDPPAR_OBJLIMIT:
       *dval = sdpisolver->objlimit;
       break;
+   case SCIP_SDPPAR_WARMSTARTPOGAP:
+      *dval = sdpisolver->preoptimalgap;
+      break;
    default:
       return SCIP_PARAMETERUNKNOWN;
    }
@@ -2532,6 +2537,10 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
       break;
    case SCIP_SDPPAR_LAMBDASTAR:
       SCIPdebugMessage("Parameter SCIP_SDPPAR_LAMBDASTAR not used by DSDP"); /* this parameter is only used by SDPA */
+      break;
+   case SCIP_SDPPAR_WARMSTARTPOGAP:
+      SCIPdebugMessage("Setting sdpisolver preoptgap to %f.\n", dval);
+      sdpisolver->preoptimalgap = dval;
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;

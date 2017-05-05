@@ -77,6 +77,7 @@
 #define DEFAULT_WARMSTARTPROJMINEV  -1       /**< minimum eigenvector to allow when projecting onto the positive (semi-)definite cone */
 #define DEFAULT_WARMSTARTPROJPDSAME TRUE     /**< Should one shared minimum eigenvalue be computed for primal and dual problem instead of different ones if warmstartpmevpar = -1 ? */
 #define DEFAULT_WARMSTART_PREOPTIMAL_SOL FALSE /**< Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts (currently only implemented fo DSDP) */
+#define DEFAULT_WARMSTARTPREOPTGAP  1e-2     /**< If warmstartpreoptimalsol is TRUE, this is the gap where the preoptimal solution is saved (currently only implemented fo DSDP) */
 #define DEFAULT_SLATERCHECK         0        /**< Should the Slater condition be checked ? */
 #define DEFAULT_OBJLIMIT            FALSE    /**< Should an objective limit be given to the SDP-Solver ? */
 #define DEFAULT_RESOLVE             TRUE     /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
@@ -173,6 +174,7 @@ struct SCIP_RelaxData
    SCIP_Bool             warmstartprojpdsame;/**< Should one shared minimum eigenvalue be computed for primal and dual problem instead of different ones if warmstartpmevpar = -1 ? */
    int                   warmstartiptype;    /**< which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center */
    SCIP_Bool             warmstartpreoptsol; /**< Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts (currently only implemented fo DSDP) */
+   SCIP_Real             warmstartpreoptgap; /**< In case a preoptimal solution should be used for warmstarts, this gives the gap where the solution should be saved (currently only implemented fo DSDP) */
    int                   nblocks;            /**< number of blocks INCLUDING lp-block */
    SCIP_Bool             ipXexists;          /**< has an interior point for primal matrix X been successfully computed */
    int*                  ipXnblocknonz;      /**< interior point for primal matrix X for convex combination for warmstarts: number of nonzeros for each block
@@ -2363,6 +2365,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    SCIP_Real givenpenaltyparam;
    SCIP_Real projminevprimal;
    SCIP_Real projminevdual;
+   SCIP_Real preoptgap;
    int nthreads;
    int slatercheck;
    int nvars;
@@ -2724,6 +2727,23 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    /* initialize objective limit in case it was set in an earlier optimize call */
    SCIP_CALL( SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_OBJLIMIT, SCIPsdpiInfinity(relaxdata->sdpi)) );
 
+   /* set warmstartpreoptimal gap if DSDP is used as the SDP-Solver */
+   if ( strcmp(SCIPsdpiGetSolverName(), "DSDP") == 0.0 )
+   {
+      SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/warmstartpreoptgap", &preoptgap) );
+      retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_WARMSTARTPOGAP, preoptgap);
+      if ( retcode == SCIP_PARAMETERUNKNOWN )
+      {
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
+            "SDP Solver <%s>: warmstartpreoptgap setting not available -- SCIP parameter has no effect.\n",
+            SCIPsdpiGetSolverName());
+      }
+      else
+      {
+         SCIP_CALL( retcode );
+      }
+   }
+
    return SCIP_OKAY;
 }
 
@@ -3007,6 +3027,10 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstartpreoptsol",
          "Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts (currently only implemented fo DSDP)",
          &(relaxdata->warmstartpreoptsol), TRUE, DEFAULT_WARMSTART_PREOPTIMAL_SOL, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartpreoptgap",
+         "If warmstartpreoptsol is TRUE, this is the gap where the preoptimal solution will be saved (currently only implemented fo DSDP)", &(relaxdata->warmstartpreoptgap),
+         TRUE, DEFAULT_WARMSTARTPREOPTGAP, 0.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/npenaltyincr",
          "maximum number of times the penalty parameter will be increased if the penalty formulation failed", &(relaxdata->npenaltyincr), TRUE,

@@ -3974,6 +3974,9 @@ SCIP_RETCODE SCIPsdpiGetRealpar(
    case SCIP_SDPPAR_LAMBDASTAR:
       SCIP_CALL_PARAM( SCIPsdpiSolverGetRealpar(sdpi->sdpisolver, type, dval) );
       break;
+   case SCIP_SDPPAR_WARMSTARTPOGAP:
+      SCIP_CALL_PARAM( SCIPsdpiSolverGetRealpar(sdpi->sdpisolver, type, dval) );
+      break;
    default:
       return SCIP_PARAMETERUNKNOWN;
    }
@@ -4018,6 +4021,9 @@ SCIP_RETCODE SCIPsdpiSetRealpar(
       sdpi->maxpenaltyparam = dval;
       break;
    case SCIP_SDPPAR_LAMBDASTAR:
+      SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
+      break;
+   case SCIP_SDPPAR_WARMSTARTPOGAP:
       SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
       break;
    default:

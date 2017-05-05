@@ -62,7 +62,8 @@ enum SCIP_SDPParam
    SCIP_SDPPAR_MAXPENALTYPARAM= 8,      /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP-solver did not converge */
    SCIP_SDPPAR_NPENALTYINCR   = 9,      /**< maximum number of times the penalty parameter will be increased if penalty formulation failed */
    SCIP_SDPPAR_LAMBDASTAR     = 10,     /**< the parameter lambda star used by SDPA to set the initial point */
-   SCIP_SDPPAR_NTHREADS       = 11      /**< number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores) */
+   SCIP_SDPPAR_NTHREADS       = 11,     /**< number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores) */
+   SCIP_SDPPAR_WARMSTARTPOGAP = 12      /**< gap at which a preoptimal solution should be saved for warmstarting purposes (currently only supported for DSDP) */
 };
 typedef enum SCIP_SDPParam SCIP_SDPPARAM;
 
