@@ -312,8 +312,10 @@ int checkGapSetPreoptimalSol(
    SCIP_Real dobj;
    SCIP_Real r;
 
-   /* we only need to set the preoptimal solution once */
-   if ( ((SCIP_SDPISOLVER*) ctx)->preoptimalsolexists )
+   /* we only need to set the preoptimal solution once and we do not save it if the penalty formulation was used (in that case we won't warmstart
+    * anyways and, most importantly, if solving without bound on r, we added another variable, so the memory would not be enough)
+    */
+   if ( ((SCIP_SDPISOLVER*) ctx)->preoptimalsolexists || ((SCIP_SDPISOLVER*) ctx)->penalty || ((SCIP_SDPISOLVER*) ctx)->penaltyworbound )
       return 0;
 
    DSDP_CALL( DSDPGetPPObjective(dsdp,&pobj) );
@@ -329,6 +331,7 @@ int checkGapSetPreoptimalSol(
    {
       DSDP_CALL( DSDPGetY(dsdp, ((SCIP_SDPISOLVER*) ctx)->preoptimalsol, ((SCIP_SDPISOLVER*) ctx)->nactivevars) );
       ((SCIP_SDPISOLVER*) ctx)->preoptimalsolexists = TRUE;
+      SCIPdebugMessage("penalty variable %f, gap %f -> saving preoptimal solution\n", r, relgap);
    }
 
    return 0;
