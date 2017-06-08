@@ -223,6 +223,10 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
       return SCIP_OKAY;
    }
 
+   /* do not run if propagation w.r.t. objective is not allowed */
+   if( !SCIPallowObjProp(scip) )
+      return SCIP_OKAY;
+
    /* do not run in: presolving, repropagation, probing mode, if no objective propagation is allowed  */
    if( SCIPgetStage(scip) != SCIP_STAGE_SOLVING || SCIPinRepropagation(scip) || SCIPinProbing(scip) || !SCIPallowObjProp(scip) )
    {
