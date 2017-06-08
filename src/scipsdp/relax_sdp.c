@@ -616,7 +616,8 @@ SCIP_RETCODE calcRelax(
 
    /* find settings to use for this relaxation */
    if ( rootnode || (SCIPnodeGetDepth(SCIPgetCurrentNode(scip)) == relaxdata->settingsresetofs) ||
-      ( relaxdata->settingsresetfreq > 0 && ((SCIPnodeGetDepth(SCIPgetCurrentNode(scip)) - relaxdata->settingsresetofs) % relaxdata->settingsresetfreq == 0)) )
+      ( relaxdata->settingsresetfreq > 0 && ((SCIPnodeGetDepth(SCIPgetCurrentNode(scip)) - relaxdata->settingsresetofs) % relaxdata->settingsresetfreq == 0)) ||
+      (strcmp(SCIPsdpiGetSolverName(), "DSDP") == 0) || (strstr(SCIPsdpiGetSolverName(), "Mosek") != NULL))
    {
       startsetting = SCIP_SDPSOLVERSETTING_UNSOLVED; /* in the root node we have no information, at each multiple of resetfreq we reset */
    }
@@ -846,10 +847,13 @@ SCIP_RETCODE calcRelax(
    }
 
    /* remember settings */
-   (void) SCIPsnprintf(saveconsname, SCIP_MAXSTRLEN, "savedsettings_node_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
-   SCIP_CALL( createConsSavedsdpsettings(scip, &savedsetting, saveconsname, usedsetting) );
-   SCIP_CALL( SCIPaddCons(scip, savedsetting) );
-   SCIP_CALL( SCIPreleaseCons(scip, &savedsetting) );
+   if ( ! (strcmp(SCIPsdpiGetSolverName(), "DSDP") == 0) && ! (strstr(SCIPsdpiGetSolverName(), "MOSEK") != NULL) )
+   {
+      (void) SCIPsnprintf(saveconsname, SCIP_MAXSTRLEN, "savedsettings_node_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
+      SCIP_CALL( createConsSavedsdpsettings(scip, &savedsetting, saveconsname, usedsetting) );
+      SCIP_CALL( SCIPaddCons(scip, savedsetting) );
+      SCIP_CALL( SCIPreleaseCons(scip, &savedsetting) );
+   }
 
    if ( ! SCIPsdpiWasSolved(sdpi) )
       relaxdata->feasible = FALSE;
