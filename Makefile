@@ -265,6 +265,12 @@ ALLSRC		=	$(MAINCSRC) $(MAINCCSRC) $(SDPICSRC) $(SDPICCSRC)
 LINKSMARKERFILE =	$(SCIPSDPLIBDIR)/linkscreated.$(SDPS).$(LPS)-$(LPSOPT).$(OSTYPE).$(ARCH).$(COMP)$(LINKLIBSUFFIX)
 LASTSETTINGS 	=	$(OBJDIR)/make.lastsettings
 
+SCIPSDPLIBSHORTNAME = scipsdp
+SCIPSDPLIB = $(SCIPSDPLIBSHORTNAME)-$(SCIPSDPVERSION).$(SDPS).$(BASE)
+SCIPSDPLIBFILE = $(SCIPSDPLIBDIR)/$(LIBTYPE)/lib$(SCIPSDPLIB).$(LIBEXT)
+SCIPSDPLIBOBJFILES	=	$(addprefix $(OBJDIR)/,$(MAINCOBJ))
+SCIPSDPLIBOBJFILES	+=	$(addprefix $(OBJDIR)/,$(MAINCCOBJ))
+SCIPSDPLIBOBJFILES	+=	$(SDPIOBJ)
 
 #-----------------------------------------------------------------------------
 # rules
@@ -342,6 +348,18 @@ $(BINDIR):
 		-@test -d $(BINDIR) || { \
 		echo "-> Creating $(BINDIR) directory"; \
 		mkdir -p $(BINDIR); }
+		
+.PHONY: scipsdplib
+scipsdplib:		preprocess
+		@$(MAKE) $(SCIPSDPLIBFILE) $(SCIPSDPLIBLINK) $(SCIPSDPLIBSHORTLINK)
+
+$(SCIPSDPLIBFILE):	$(SCIPSDPLIBOBJFILES) | $(SCIPSDPLIBDIR)/$(LIBTYPE)
+		@echo "-> generating library $@"
+		-rm -f $@
+		$(LIBBUILD) $(LIBBUILDFLAGS) $(LIBBUILD_o)$@ $(SCIPSDPLIBOBJFILES) $(SCIPLIBEXTLIBS)
+ifneq ($(RANLIB),)
+		$(RANLIB) $@
+endif
 
 .PHONY: clean
 clean:
