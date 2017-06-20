@@ -152,7 +152,7 @@
 =opt= 2x5_1scen_8bars 4.99705627485
 =opt= 3x3_2scen_6bars 7.86198921779
 =opt= 3x4_1scen_6bars 0.765028153987
-=best= bridge_2x10_2bars_2scen 7.17695526217
+=opt= bridge_2x10_2bars_2scen 6.99411253591
 =opt= bridge_3x5_4bars 9.01248917
 =opt= demonst_2bars_2scen 10.1289902
 =opt= test_bridge2 6.89116882454
