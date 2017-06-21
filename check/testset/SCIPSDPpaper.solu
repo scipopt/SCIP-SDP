@@ -14,8 +14,8 @@
 =opt= coloncancer_1301_1400_12 36.5903942
 =opt= coloncancer_1401_1500_14 84.9513090146
 =opt= coloncancer_1501_1600_16 48.8512103066
-=best= coloncancer_1601_1700_18 90.1374440976
-=best= coloncancer_1701_1800_20 97.6339058
+=opt= coloncancer_1601_1700_18 90.1374423
+=opt= coloncancer_1701_1800_20 97.63391003651698
 =opt= coloncancer_1801_1900_22 79.0940163415
 =opt= coloncancer_1901_2000_24 58.0004927769
 =opt= random_32_2_a 7.14854545617
@@ -181,7 +181,7 @@
 =opt= 2x4_8bars_2scen 2.03245553203
 =opt= 2x6_3bars 6.19917281883
 =opt= 3x3_3scen_8bars 0.69464611135
-=best= 4x4_1bar_2scen 14.1224174949
+=opt= 4x4_1bar_2scen 12.16227766017
 =opt= bridge_2x8_2bars_2scen 5.31126930182
 =opt= bridge_3x7_2bars_nominal 7.45685328749
 =opt= demonstsmall_2bar_3scen_nominal 2.96196586501
