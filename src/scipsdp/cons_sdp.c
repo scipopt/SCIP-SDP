@@ -118,30 +118,11 @@ struct SCIP_ConshdlrData
 #endif
 };
 
-#ifndef NDEBUG
-/** for given row and column (i,j) computes the position in the lower triangular part, if
- *  these positions are numbered from 0 to n(n+1)/2 - 1, this needs to be called for i >= j
- */
-static
-int compLowerTriangPos(
-   int                   i,                  /**< row index */
-   int                   j                   /**< column index */
-   )
-{
-   assert( j >= 0 );
-   assert( i >= j );
-
-   return i*(i+1)/2 + j;
-}
-#else
-#define compLowerTriangPos(i, j) (i*(i+1)/2 + j)
-#endif
-
 /** takes a 0.5*n*(n+1) array of a symmetric matrix and expands it to an n*n array of the full matrix to input into LAPACK */
 static
 SCIP_RETCODE expandSymMatrix(
    int                   size,               /**< size of the matrix, named n above */
-   SCIP_Real*            symMat,             /**< symmetric matrix indexed via compLowerTriangPos that should be expanded */
+   SCIP_Real*            symMat,             /**< symmetric matrix indexed via SCIPconsSdpCompLowerTriangPos that should be expanded */
    SCIP_Real*            fullMat             /**< pointer to store the n*n matrix, that is the symmetric expansion of symMat */
    )
 {
@@ -158,7 +139,7 @@ SCIP_RETCODE expandSymMatrix(
    {
       for (j = 0; j <= i; j++)
       {
-         assert( ind == compLowerTriangPos(i,j) );
+         assert( ind == SCIPconsSdpCompLowerTriangPos(i,j) );
          fullMat[i*size + j] = symMat[ind]; /*lint !e679*/
          fullMat[j*size + i] = symMat[ind]; /*lint !e679*/
          ind++;
@@ -169,7 +150,7 @@ SCIP_RETCODE expandSymMatrix(
 }
 
 /** For a given vector \f$ y \f$ computes the (length of y) * (length of y + 1) /2 -long array of the lower-triangular part
- *  of the SDP-Matrix \f$ \sum_{j=1}^m A_j y_j - A_0 \f$ for this SDP block, indexed by compLowerTriangPos.
+ *  of the SDP-Matrix \f$ \sum_{j=1}^m A_j y_j - A_0 \f$ for this SDP block, indexed by SCIPconsSdpCompLowerTriangPos.
  */
 static
 SCIP_RETCODE computeSdpMatrix(
@@ -202,12 +183,12 @@ SCIP_RETCODE computeSdpMatrix(
    {
       yval = SCIPgetSolVal(scip, y, consdata->vars[i]);
       for (ind = 0; ind < consdata->nvarnonz[i]; ind++)
-         matrix[compLowerTriangPos(consdata->row[i][ind], consdata->col[i][ind])] += yval * consdata->val[i][ind];
+         matrix[SCIPconsSdpCompLowerTriangPos(consdata->row[i][ind], consdata->col[i][ind])] += yval * consdata->val[i][ind];
    }
 
    /* substract the constant part */
    for (ind = 0; ind < consdata->constnnonz; ind++)
-      matrix[compLowerTriangPos(consdata->constrow[ind], consdata->constcol[ind])] -= consdata->constval[ind];
+      matrix[SCIPconsSdpCompLowerTriangPos(consdata->constrow[ind], consdata->constcol[ind])] -= consdata->constval[ind];
 
    return SCIP_OKAY;
 }
@@ -558,7 +539,7 @@ SCIP_RETCODE diagGEzero(
 
       /* the lhs is the (k,k)-entry of the constant matrix */
       for (k = 0; k < blocksize; ++k)
-         lhs_array[k] = matrix[compLowerTriangPos(k,k)];
+         lhs_array[k] = matrix[SCIPconsSdpCompLowerTriangPos(k,k)];
 
       /* get the (k,k)-entry of every matrix A_j */
       for (j = 0; j < nvars; ++j)
@@ -2507,6 +2488,24 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    return SCIP_OKAY;
 }
 
+#ifndef NDEBUG
+/** for given row and column (i,j) computes the position in the lower triangular part, if
+ *  these positions are numbered from 0 to n(n+1)/2 - 1, this needs to be called for i >= j
+ */
+int SCIPconsSdpCompLowerTriangPos(
+   int                   i,                  /**< row index */
+   int                   j                   /**< column index */
+   )
+{
+   assert( j >= 0 );
+   assert( i >= j );
+
+   return i*(i+1)/2 + j;
+}
+#else
+#define SCIPconsSdpCompLowerTriangPos(i, j) (i*(i+1)/2 + j)
+#endif
+
 /** get the data belonging to a single SDP-constraint
  *
  *  In arraylength the length of the nvarnonz, col, row and val arrays has to be given, if it is not sufficient to store all block-pointers that
@@ -2719,7 +2718,7 @@ SCIP_RETCODE SCIPconsSdpGetFullConstMatrix(
    return SCIP_OKAY;
 }
 
-/** gives a 0.5*n*(n+1)-long array with the lower triangular part of the constant matrix indexed by compLowerTriangPos */
+/** gives a 0.5*n*(n+1)-long array with the lower triangular part of the constant matrix indexed by SCIPconsSdpCompLowerTriangPos */
 SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< SDP constraint to get data of */
@@ -2744,7 +2743,7 @@ SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
       mat[i] = 0.0;
 
    for (i = 0; i < consdata->constnnonz; i++)
-      mat[compLowerTriangPos(consdata->constrow[i], consdata->constcol[i])] = consdata->constval[i];
+      mat[SCIPconsSdpCompLowerTriangPos(consdata->constrow[i], consdata->constcol[i])] = consdata->constval[i];
 
    return SCIP_OKAY;
 }

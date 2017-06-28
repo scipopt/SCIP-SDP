@@ -78,6 +78,15 @@ SCIP_RETCODE SCIPcreateConsSdp(
    SCIP_Real*            constval            /**< values of the constant nonzeros */
    );
 
+/** for given row and column (i,j) computes the position in the lower triangular part, if
+ *  these positions are numbered from 0 to n(n+1)/2 - 1, this needs to be called for i >= j
+ */
+EXTERN
+int SCIPconsSdpCompLowerTriangPos(
+   int                   i,                  /**< row index */
+   int                   j                   /**< column index */
+   );
+
 /** get the data belonging to a single SDP-constraint
  *
  *  In arraylength the length of the nvarnonz, col, row and val arrays has to be given, if it is not sufficient to store all block-pointers that
