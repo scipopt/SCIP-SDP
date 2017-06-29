@@ -422,7 +422,7 @@ SCIP_RETCODE SCIPconsSavesdpsolGetPrimalMatrix(
    SCIP_CONSDATA* consdata;
    int b;
    int i;
-   SCIP_Bool msgthrown;
+   SCIP_Bool msgthrown = FALSE;
 
    assert ( scip != NULL );
    assert ( cons != NULL );
