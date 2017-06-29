@@ -37,8 +37,8 @@
  * @author Tristan Gally
  */
 
-/* #define SCIP_DEBUG*/
-/* #define SCIP_MORE_DEBUG   *//* displays complete solution for each relaxation */
+ #define SCIP_DEBUG
+ #define SCIP_MORE_DEBUG   /* displays complete solution for each relaxation */
 /* #define SCIP_EVEN_MORE_DEBUG  *//* shows number of deleted empty cols/rows for every relaxation and variable status &
  * bounds as well as all constraints in the beginning */
  #define SCIP_PRINT_WARMSTART  /* print initial point given for warmstarts */
@@ -70,10 +70,10 @@
 #define DEFAULT_PENALTYPARAM        -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 #define DEFAULT_LAMBDASTAR          -1.0     /**< the parameter lambda star used by SDPA to set the initial point */
 #define DEFAULT_MAXPENALTYPARAM     -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
-#define DEFAULT_WARMSTARTIPFACTOR   0.00     /**< factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled */
+#define DEFAULT_WARMSTARTIPFACTOR   0.50     /**< factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled */
 #define DEFAULT_WARMSTARTPRIMALTYPE 3        /**< how to warmstart the primal problem? 1: scaled identity, 2: elementwise reciprocal, 3: saved primal sol */
 #define DEFAULT_WARMSTARTIPTYPE     1        /**< which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center */
-#define DEFAULT_WARMSTARTPROJECT    3        /**< how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone */
+#define DEFAULT_WARMSTARTPROJECT    4        /**< how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone, 4: use new bounds and solve rounding problem */
 #define DEFAULT_WARMSTARTPROJMINEV  -1       /**< minimum eigenvector to allow when projecting onto the positive (semi-)definite cone */
 #define DEFAULT_WARMSTARTPROJPDSAME TRUE     /**< Should one shared minimum eigenvalue be computed for primal and dual problem instead of different ones if warmstartpmevpar = -1 ? */
 #define DEFAULT_WARMSTART_PREOPTIMAL_SOL FALSE /**< Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts (currently only implemented fo DSDP) */
@@ -994,6 +994,7 @@ SCIP_RETCODE calcRelax(
             sdpconshdlr = SCIPfindConshdlr(scip, "SDP");
             nblocks = SCIPconshdlrGetNConss(sdpconshdlr);
             sdpblocks = SCIPconshdlrGetConss(sdpconshdlr);
+            SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
 
             SCIP_CALL( SCIPallocBufferArray(scip, &startZnblocknonz, nblocks + 1) );
             SCIP_CALL( SCIPallocBufferArray(scip, &startZrow, nblocks + 1) );
@@ -1148,7 +1149,6 @@ SCIP_RETCODE calcRelax(
             if ( relaxdata->warmstartproject != 4 )
             {
                /** fill LP-block */
-               SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
                SCIP_CALL( SCIPallocBufferArray(scip, &startZrow[b], 2 * nrows + 2 * nvars) );
                SCIP_CALL( SCIPallocBufferArray(scip, &startZcol[b], 2 * nrows + 2 * nvars) );
                SCIP_CALL( SCIPallocBufferArray(scip, &startZval[b], 2 * nrows + 2 * nvars) );
@@ -1409,6 +1409,13 @@ SCIP_RETCODE calcRelax(
                   SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], matrixsize) );
                }
 
+               /* allocate memory for LP and variable bound block of warmstart matrix (note that we need to allocate the maximum, since additional
+                * entries may be generated through the convex comibnation */
+               SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[nblocks], 2 * nvars + 2 * nrows) );
+               SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[nblocks], 2 * nvars + 2 * nrows) );
+               SCIP_CALL( SCIPallocBufferArray(scip, &startXval[nblocks], 2 * nvars + 2 * nrows) );
+               startXnblocknonz[nblocks] = 2 * nvars + 2 * nrows;
+
                SCIP_CALL( SCIPconsSavesdpsolGetPrimalMatrix(scip, conss[parentconsind], nblocks + 1, startXnblocknonz, startXrow, startXcol, startXval) );
 
                SCIP_CALL( SCIPgetLPI(scip, &lpi) );
@@ -1562,13 +1569,6 @@ SCIP_RETCODE calcRelax(
                SCIPfreeBufferArray(scip, &lb);
                SCIPfreeBufferArray(scip, &obj);
 
-               /* allocate memory for LP and variable bound block of warmstart matrix (note that we need to allocate the maximum, since additional
-                * entries may be generated through the convex comibnation */
-               SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[nblocks], 2 * nvars + 2 * nrows) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[nblocks], 2 * nvars + 2 * nrows) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &startXval[nblocks], 2 * nvars + 2 * nrows) );
-               startXnblocknonz[nblocks] = roundingvars;
-
                /* finally add columns corresponding to SDP-constraints */
                for (b = 0; b < nblocks; b++)
                {
@@ -1673,7 +1673,7 @@ SCIP_RETCODE calcRelax(
                }
 
                /* solve the problem (since we do not want to use warmstart, we use the interior-point-solver without crossover) */
-               SCIP_CALL( SCIPlpiSolveBarrier(lpi, FALSE) );
+               SCIP_CALL( SCIPlpiSolveBarrier(lpi, FALSE) ); //solve Primal ???
 
                /* if the restricted primal problem is already dual infeasible, then the original primal has to be dual infeasible as
                 * well, so the dual we actually want to solve is infeasible and we can cut the node off
@@ -1684,8 +1684,6 @@ SCIP_RETCODE calcRelax(
                         SCIPnodeGetNumber(SCIPgetCurrentNode(scip))); //TODO  change to debugmsg
 
                   /* free memory */
-                  SCIPfreeBufferArray(scip, &blocksizes);
-
                   for (b = 0; b < nblocks; b++)
                   {
                      SCIPfreeBufferArrayNull(scip,&blockeigenvectors[b]);
@@ -1693,8 +1691,11 @@ SCIP_RETCODE calcRelax(
                      SCIPfreeBufferArrayNull(scip, &startXval[b]);
                      SCIPfreeBufferArrayNull(scip, &startXcol[b]);
                      SCIPfreeBufferArrayNull(scip, &startXrow[b]);
+                     SCIPfreeBufferArrayNull(scip, &startZval[b]);
+                     SCIPfreeBufferArrayNull(scip, &startZcol[b]);
+                     SCIPfreeBufferArrayNull(scip, &startZrow[b]);
                   }
-
+                  SCIPfreeBufferArray(scip, &blocksizes);
                   SCIPfreeBufferArray(scip, &blockeigenvectors);
                   SCIPfreeBufferArray(scip, &blockeigenvalues);
                   SCIPfreeBufferArrayNull(scip, &startXval);
@@ -1706,6 +1707,13 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArrayNull(scip, &startZrow);
                   SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
                   SCIPfreeBufferArray(scip, &starty);
+
+                  /* reset lpistate */
+                  if ( lpistate != NULL )
+                  {
+                     SCIP_CALL( SCIPlpiSetState(lpi, SCIPblkmem(scip), lpistate) );
+                     SCIP_CALL( SCIPlpiFreeState(lpi, SCIPblkmem(scip), &lpistate) );
+                  }
 
                   relaxdata->feasible = FALSE;
                   *result = SCIP_CUTOFF;
@@ -1713,16 +1721,26 @@ SCIP_RETCODE calcRelax(
                }
                else if ( ! SCIPlpiIsOptimal(lpi) )
                {
+                  printf("Solving without warmstart since solving of the primal rounding problem failed!\n");
                   /* since warmstart computation failed, we solve without warmstart, free memory and skip the remaining warmstarting code */
+                  SCIPfreeBufferArrayNull(scip, &startXval[nblocks]);
+                  SCIPfreeBufferArrayNull(scip, &startXcol[nblocks]);
+                  SCIPfreeBufferArrayNull(scip, &startXrow[nblocks]);
+                  SCIPfreeBufferArrayNull(scip, &startZval[nblocks]);
+                  SCIPfreeBufferArrayNull(scip, &startZcol[nblocks]);
+                  SCIPfreeBufferArrayNull(scip, &startZrow[nblocks]);
                   for (b = 0; b < nblocks; b++)
                   {
-                     SCIPfreeBufferArrayNull(scip,&blockeigenvectors[b]);
-                     SCIPfreeBufferArrayNull(scip,&blockeigenvalues[b]);
+                     SCIPfreeBufferArrayNull(scip, &blockeigenvectors[b]);
+                     SCIPfreeBufferArrayNull(scip, &blockeigenvalues[b]);
                      SCIPfreeBufferArrayNull(scip, &startXval[b]);
                      SCIPfreeBufferArrayNull(scip, &startXcol[b]);
                      SCIPfreeBufferArrayNull(scip, &startXrow[b]);
+                     SCIPfreeBufferArrayNull(scip, &startZval[b]);
+                     SCIPfreeBufferArrayNull(scip, &startZcol[b]);
+                     SCIPfreeBufferArrayNull(scip, &startZrow[b]);
                   }
-
+                  SCIPfreeBufferArray(scip, &blocksizes);
                   SCIPfreeBufferArray(scip, &blockeigenvectors);
                   SCIPfreeBufferArray(scip, &blockeigenvalues);
                   SCIPfreeBufferArrayNull(scip, &startXval);
@@ -1735,9 +1753,14 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
                   SCIPfreeBufferArray(scip, &starty);
 
+                  /* reset lpistate */
+                  if ( lpistate != NULL )
+                  {
+                     SCIP_CALL( SCIPlpiSetState(lpi, SCIPblkmem(scip), lpistate) );
+                     SCIP_CALL( SCIPlpiFreeState(lpi, SCIPblkmem(scip), &lpistate) );
+                  }
 
                   SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit));
-
                   goto solved;
                }
                else
@@ -1797,6 +1820,8 @@ SCIP_RETCODE calcRelax(
                   }
                   assert( pos == blocksizes[1] );
 
+                  startXnblocknonz[nblocks] = blocksizes[0] + blocksizes[1];
+
                   /* build SDP blocks */
                   pos = blocksizes[0] + blocksizes[1];
                   for (b = 0; b < nblocks; b++)
@@ -1835,6 +1860,7 @@ SCIP_RETCODE calcRelax(
                      pos += blocksizes[2 + b];
                      SCIPfreeBufferArray(scip, &fullXmatrix);
                      SCIPfreeBufferArray(scip, &scaledeigenvectors);
+                     SCIPfreeBufferArray(scip, &optev);
                   }
 
                }
@@ -1942,7 +1968,6 @@ SCIP_RETCODE calcRelax(
 
                   SCIP_CALL( SCIPallocBufferArray(scip, &lhs, nroundingrows) );
                   SCIP_CALL( SCIPallocBufferArray(scip, &rhs, nroundingrows) );
-                  SCIP_CALL( SCIPallocBufferArray(scip, &beg, nroundingrows) );
                   SCIP_CALL( SCIPallocBufferArray(scip, &nblockrownonz , nroundingrows) );
                   SCIP_CALL( SCIPallocBufferArray(scip, &blockrowcols , nroundingrows) );
                   SCIP_CALL( SCIPallocBufferArray(scip, &blockrowvals , nroundingrows) );
@@ -2031,8 +2056,6 @@ SCIP_RETCODE calcRelax(
                   SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit));
 
                   /* free memory */
-                  SCIPfreeBufferArray(scip, &blocksizes);
-
                   for (b = 0; b < nblocks; b++)
                   {
                      SCIPfreeBufferArrayNull(scip,&blockeigenvectors[b]);
@@ -2044,7 +2067,7 @@ SCIP_RETCODE calcRelax(
                      SCIPfreeBufferArrayNull(scip, &startXcol[b]);
                      SCIPfreeBufferArrayNull(scip, &startXrow[b]);
                   }
-
+                  SCIPfreeBufferArray(scip, &blocksizes);
                   SCIPfreeBufferArray(scip, &blockeigenvectors);
                   SCIPfreeBufferArray(scip, &blockeigenvalues);
                   SCIPfreeBufferArrayNull(scip, &startXval);
@@ -2056,6 +2079,13 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArrayNull(scip, &startZrow);
                   SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
                   SCIPfreeBufferArray(scip, &starty);
+
+                  /* reset lpistate */
+                  if ( lpistate != NULL )
+                  {
+                     SCIP_CALL( SCIPlpiSetState(lpi, SCIPblkmem(scip), lpistate) );
+                     SCIP_CALL( SCIPlpiFreeState(lpi, SCIPblkmem(scip), &lpistate) );
+                  }
 
                   goto solved;
                }
@@ -2120,14 +2150,16 @@ SCIP_RETCODE calcRelax(
                         }
                      }
                      pos += blocksize;
-                     SCIPfreeBufferArray(scip, &fullZmatrix);
-                     SCIPfreeBufferArray(scip, &scaledeigenvectors);
                      SCIPfreeBufferArrayNull(scip,&blockeigenvectors[b]);
                      SCIPfreeBufferArrayNull(scip,&blockeigenvalues[b]);
                   }
 
+                  SCIPfreeBufferArray(scip, &fullZmatrix);
+                  SCIPfreeBufferArray(scip, &scaledeigenvectors);
+                  SCIPfreeBufferArray(scip, &optev);
                   SCIPfreeBufferArray(scip, &blockeigenvectors);
                   SCIPfreeBufferArray(scip, &blockeigenvalues);
+                  SCIPfreeBufferArray(scip, &blocksizes);
 
                   /* build LP and varbound block of Z matrix */
                   SCIP_CALL( SCIPallocBufferArray(scip, &startZrow[b], 2 * nrows + 2 * nvars) );
