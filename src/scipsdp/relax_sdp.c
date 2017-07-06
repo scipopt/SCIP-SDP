@@ -1424,6 +1424,9 @@ SCIP_RETCODE calcRelax(
                /* clear the old LP */
                SCIP_CALL( SCIPlpiClear(lpi) );
 
+               /* we want to maximize for the primal rounding problem */
+               SCIP_CALL( SCIPlpiChgObjsen(lpi, SCIP_OBJSEN_MAXIMIZE) );
+
                /* if the varmapper has a different number of variables than SCIP, we might get problems with empty spots in the obj/lb/ub arrays */
                assert( SCIPsdpVarmapperGetNVars(relaxdata->varmapper) == nvars );
 
@@ -1673,7 +1676,7 @@ SCIP_RETCODE calcRelax(
                 */
                if ( SCIPlpiIsDualInfeasible(lpi) )
                {
-                  printf("Infeasibility of node %lld detected through primal rounding problem during warmstarting\n",
+                  SCIPdebugMsg(scip, "Infeasibility of node %lld detected through primal rounding problem during warmstarting\n",
                         SCIPnodeGetNumber(SCIPgetCurrentNode(scip))); //TODO  change to debugmsg
 
                   /* free memory */
@@ -1710,7 +1713,7 @@ SCIP_RETCODE calcRelax(
                }
                else if ( ! SCIPlpiIsOptimal(lpi) )
                {
-                  printf("Solving without warmstart since solving of the primal rounding problem failed!\n");
+                  SCIPdebugMsg(scip, "Solving without warmstart since solving of the primal rounding problem failed!\n");
                   /* since warmstart computation failed, we solve without warmstart, free memory and skip the remaining warmstarting code */
                   SCIPfreeBufferArrayNull(scip, &startXval[nblocks]);
                   SCIPfreeBufferArrayNull(scip, &startXcol[nblocks]);
@@ -1856,6 +1859,9 @@ SCIP_RETCODE calcRelax(
 
                /* clear the old LP */
                SCIP_CALL( SCIPlpiClear(lpi) );
+
+               /* we want to maximize for the primal rounding problem */
+               SCIP_CALL( SCIPlpiChgObjsen(lpi, SCIP_OBJSEN_MINIMIZE) );
 
                /* compute number of columns */
                roundingvars = nvars;
@@ -2035,6 +2041,8 @@ SCIP_RETCODE calcRelax(
 
                if ( ! SCIPlpiIsOptimal(lpi) )
                {
+                  SCIPdebugMsg(scip, "Solution of dual rounding problem failed, continuing without warmstart\n");
+
                   /* since warmstart computation failed, we solve without warmstart, free memory and skip the remaining warmstarting code */
                   SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit));
 
