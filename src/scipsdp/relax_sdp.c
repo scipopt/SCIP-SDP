@@ -1680,8 +1680,9 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArray(scip, &obj);
                }
 
-               /* solve the problem (since we do not want to use warmstart, we use the interior-point-solver without crossover) */
-               SCIP_CALL( SCIPlpiSolveBarrier(lpi, FALSE) ); //solve Primal ???
+               /* solve the problem (since we may encounter unboundedness, which sometimes causes trouble for the CPLEX interior-point solver,
+                * we use the dual Simplex solver) */
+               SCIP_CALL( SCIPlpiSolveDual(lpi) );
 
                /* if the restricted primal problem is already dual infeasible, then the original primal has to be dual infeasible as
                 * well, so the dual we actually want to solve is infeasible and we can cut the node off
@@ -1725,7 +1726,7 @@ SCIP_RETCODE calcRelax(
                }
                else if ( ! SCIPlpiIsOptimal(lpi) )
                {
-                  SCIPdebugMsg(scip, "Solving without warmstart since solving of the primal rounding problem failed!\n");
+                  SCIPdebugMsg(scip, "Solving without warmstart since solving of the primal rounding problem failed with status %d!\n", SCIPlpiGetInternalStatus(lpi));
                   /* since warmstart computation failed, we solve without warmstart, free memory and skip the remaining warmstarting code */
                   SCIPfreeBufferArrayNull(scip, &startXval[nblocks]);
                   SCIPfreeBufferArrayNull(scip, &startXcol[nblocks]);
@@ -2010,7 +2011,7 @@ SCIP_RETCODE calcRelax(
                   {
                      for (i = 0; i < blocksize; i++)
                      {
-                        for (j = 0; j < i; j++)
+                        for (j = 0; j <= i; j++)
                         {
                            /* for index (i,j) and every eigenvector v, we get an entry -V_iv *V_jv (we get the -1 by transferring this to the left-hand side of the equation)
                             * entry V_iv corresponds to entry i of the v-th eigenvector, which is given as the v-th row of the eigenvectors array */
@@ -2053,7 +2054,7 @@ SCIP_RETCODE calcRelax(
 
                if ( ! SCIPlpiIsOptimal(lpi) )
                {
-                  SCIPdebugMsg(scip, "Solution of dual rounding problem failed, continuing without warmstart\n");
+                  SCIPdebugMsg(scip, "Solution of dual rounding problem failed with status %d, continuing without warmstart\n", SCIPlpiGetInternalStatus(lpi));
 
                   /* since warmstart computation failed, we solve without warmstart, free memory and skip the remaining warmstarting code */
                   SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit));
