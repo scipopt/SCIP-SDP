@@ -1625,9 +1625,15 @@ SCIP_RETCODE calcRelax(
                   for (i = 0; i < blockconstnnonz; i++)
                   {
                      /* for every constant matrix entry (k,l) and every eigenvector i, we get an entry A_kl * V_ki *V_li
-                      * entry V_ki corresponds to entry k of the i-th eigenvector, which is given as the i-th row of the eigenvectors array */
+                      * entry V_ki corresponds to entry k of the i-th eigenvector, which is given as the i-th row of the eigenvectors array
+                      * note that we need to mulitply by two for non-diagonal entries to also account for entry (l,k) */
                      for (evind = 0; evind < blocksize; evind++)
-                        obj[evind] += blockconstval[i] * blockeigenvectors[b][evind * blocksize + blockconstrow[i]] * blockeigenvectors[b][evind * blocksize + blockconstcol[i]];
+                     {
+                        if ( blockconstrow[i] == blockconstcol[i] )
+                           obj[evind] += blockconstval[i] * blockeigenvectors[b][evind * blocksize + blockconstrow[i]] * blockeigenvectors[b][evind * blocksize + blockconstcol[i]];
+                        else
+                           obj[evind] += 2 * blockconstval[i] * blockeigenvectors[b][evind * blocksize + blockconstrow[i]] * blockeigenvectors[b][evind * blocksize + blockconstcol[i]];
+                     }
                   }
 
                   SCIPfreeBufferArray(scip, &blockconstval);
@@ -1641,9 +1647,15 @@ SCIP_RETCODE calcRelax(
                      for (evind = 0; evind < blocknvarnonz[v]; evind++)
                      {
                         /* for every matrix entry (k,l) and every eigenvector i, we get an entry A_kl * V_kj *V_lj
-                         * entry V_kj corresponds to entry k of the j-th eigenvector, which is given as the j-th row of the eigenvectors array */
+                         * entry V_kj corresponds to entry k of the j-th eigenvector, which is given as the j-th row of the eigenvectors array
+                         * note that we need to mulitply by two for non-diagonal entries to also account for entry (l,k) */
                         for (i = 0; i < blocksize; i++)
-                           val[i * nvars + varind] += blockval[v][evind] * blockeigenvectors[b][i * blocksize + blockrow[v][evind]] * blockeigenvectors[b][i * blocksize + blockcol[v][evind]];
+                        {
+                           if ( blockrow[v][evind] == blockcol[v][evind] )
+                              val[i * nvars + varind] += blockval[v][evind] * blockeigenvectors[b][i * blocksize + blockrow[v][evind]] * blockeigenvectors[b][i * blocksize + blockcol[v][evind]];
+                           else
+                              val[i * nvars + varind] += 2 * blockval[v][evind] * blockeigenvectors[b][i * blocksize + blockrow[v][evind]] * blockeigenvectors[b][i * blocksize + blockcol[v][evind]];
+                        }
                      }
                   }
 
