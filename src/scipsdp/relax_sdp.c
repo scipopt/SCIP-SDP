@@ -39,7 +39,7 @@
 
  #define SCIP_DEBUG
  #define SCIP_MORE_DEBUG   /* displays complete solution for each relaxation */
-/* #define SCIP_EVEN_MORE_DEBUG  *//* shows number of deleted empty cols/rows for every relaxation and variable status &
+ #define SCIP_EVEN_MORE_DEBUG  /* shows number of deleted empty cols/rows for every relaxation and variable status &
  * bounds as well as all constraints in the beginning */
  #define SCIP_PRINT_WARMSTART  /* print initial point given for warmstarts */
 /* #define SLATERSOLVED_ABSOLUTE *//* uncomment this to return the absolute number of nodes for, e.g., solved fast with slater in addition to percentages */
@@ -1540,7 +1540,7 @@ SCIP_RETCODE calcRelax(
                   /* since we assume >= constraints in the dual, we have to multiply all entries of <= constraints by -1 */
                   if ( ! SCIPisInfinity(scip, rowrhs) )
                   {
-                     obj[pos] = -1 * rowlhs;
+                     obj[pos] = -1 * rowrhs;
                      lb[pos] = 0.0;
                      ub[pos] = SCIPlpiInfinity(lpi);
                      beg[pos] = indpos;
