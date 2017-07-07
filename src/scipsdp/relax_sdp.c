@@ -1761,6 +1761,7 @@ SCIP_RETCODE calcRelax(
                else
                {
                   SCIP_Real* optev;
+                  int evpos;
 
                   /* the problem was solved to optimality: we construct the primal matrix using the computed eigenvalues */
                   SCIP_CALL( SCIPallocBufferArray(scip, &optev, roundingvars) );
@@ -1768,30 +1769,38 @@ SCIP_RETCODE calcRelax(
                   SCIP_CALL( SCIPlpiGetSol(lpi, NULL, optev, NULL, NULL, NULL) );
 
                   /* build varbound block */
-                  startpos = blocksizes[1]; /* to save some sorting later, the startX arrays should start with the LP block */
-                  pos = 0;
+                  pos = blocksizes[1]; /* to save some sorting later, the startX arrays should start with the LP block */
+                  evpos = 0;
                   for (v = 0; v < nvars; v++)
                   {
+                     startXrow[nblocks][pos] = 2 * nrows + 2 * v;
+                     startXcol[nblocks][pos] = 2 * nrows + 2 * v;
                      if ( ! SCIPisInfinity(scip, -1 * SCIPvarGetLbLocal(vars[v])) )
                      {
-                        startXrow[nblocks][startpos + pos] = 2 * nrows + 2 * v;
-                        startXcol[nblocks][startpos + pos] = 2 * nrows + 2 * v;
-                        startXval[nblocks][startpos + pos] = optev[pos];
-                        pos++;
+                        startXval[nblocks][pos] = optev[evpos];
+                        evpos++;
                      }
+                     else
+                        startXval[nblocks][pos] = SCIPinfinity(scip);
+                     pos++;
+
+                     startXrow[nblocks][pos] = 2 * nrows + 2 * v + 1;
+                     startXcol[nblocks][pos] = 2 * nrows + 2 * v + 1;
                      if ( ! SCIPisInfinity(scip, SCIPvarGetUbLocal(vars[v])) )
                      {
-                        startXrow[nblocks][startpos + pos] = 2 * nrows + 2 * v + 1;
-                        startXcol[nblocks][startpos + pos] = 2 * nrows + 2 * v + 1;
-                        startXval[nblocks][startpos + pos] = optev[pos];
-                        pos++;
+
+                        startXval[nblocks][pos] = optev[evpos];
+                        evpos++;
                      }
+                     else
+                        startXval[nblocks][pos] = SCIPinfinity(scip);
+                     pos++;
                   }
-                  assert( pos == blocksizes[0] );
+                  assert( evpos == blocksizes[0] );
 
                   /* build LP block */
                   pos = 0;
-                  startpos = blocksizes[0];
+                  evpos = blocksizes[0];
                   for (r = 0; r < nrows; r++)
                   {
                      row = rows[r];
@@ -1799,22 +1808,29 @@ SCIP_RETCODE calcRelax(
                      rowlhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
                      rowrhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
 
+                     startXrow[nblocks][pos] = 2 * r;
+                     startXcol[nblocks][pos] = 2 * r;
                      if ( ! SCIPisInfinity(scip, -1 * rowlhs) )
                      {
-                        startXrow[nblocks][pos] = 2 * r;
-                        startXcol[nblocks][pos] = 2 * r;
-                        startXval[nblocks][pos] = optev[startpos + pos];
-                        pos++;
+                        startXval[nblocks][pos] = optev[evpos];
+                        evpos++;
                      }
+                     else
+                        startXval[nblocks][pos] = SCIPinfinity(scip);
+                     pos++;
+
+                     startXrow[nblocks][pos] = 2 * r + 1;
+                     startXcol[nblocks][pos] = 2 * r + 1;
                      if ( ! SCIPisInfinity(scip, rowrhs) )
                      {
-                        startXrow[nblocks][pos] = 2 * r + 1;
-                        startXcol[nblocks][pos] = 2 * r + 1;
-                        startXval[nblocks][pos] = optev[startpos + pos];
-                        pos++;
+                        startXval[nblocks][pos] = optev[evpos];
+                        evpos++;
                      }
+                     else
+                        startXval[nblocks][pos] = SCIPinfinity(scip);
+                     pos++;
                   }
-                  assert( pos == blocksizes[1] );
+                  assert( evpos == blocksizes[0] + blocksizes[1] );
 
                   startXnblocknonz[nblocks] = blocksizes[0] + blocksizes[1];
 
@@ -2068,8 +2084,8 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArrayNull(scip, &startXrow[nblocks]);
                   for (b = 0; b < nblocks; b++)
                   {
-                     SCIPfreeBufferArrayNull(scip,&blockeigenvectors[b]);
-                     SCIPfreeBufferArrayNull(scip,&blockeigenvalues[b]);
+                     SCIPfreeBufferArrayNull(scip, &blockeigenvectors[b]);
+                     SCIPfreeBufferArrayNull(scip, &blockeigenvalues[b]);
                      SCIPfreeBufferArrayNull(scip, &startZval[b]);
                      SCIPfreeBufferArrayNull(scip, &startZcol[b]);
                      SCIPfreeBufferArrayNull(scip, &startZrow[b]);
@@ -2153,24 +2169,18 @@ SCIP_RETCODE calcRelax(
                         }
                      }
                      pos += blocksize;
-                     SCIPfreeBufferArrayNull(scip,&blockeigenvectors[b]);
-                     SCIPfreeBufferArrayNull(scip,&blockeigenvalues[b]);
+                     SCIPfreeBufferArray(scip, &fullZmatrix);
+                     SCIPfreeBufferArray(scip, &scaledeigenvectors);
+                     SCIPfreeBufferArray(scip, &blockeigenvectors[b]);
+                     SCIPfreeBufferArray(scip, &blockeigenvalues[b]);
                   }
 
-                  SCIPfreeBufferArray(scip, &fullZmatrix);
-                  SCIPfreeBufferArray(scip, &scaledeigenvectors);
                   SCIPfreeBufferArray(scip, &optev);
                   SCIPfreeBufferArray(scip, &blockeigenvectors);
                   SCIPfreeBufferArray(scip, &blockeigenvalues);
                   SCIPfreeBufferArray(scip, &blocksizes);
 
                   /* build LP and varbound block of Z matrix */
-                  SCIP_CALL( SCIPallocBufferArray(scip, &startZrow[b], 2 * nrows + 2 * nvars) );
-                  SCIP_CALL( SCIPallocBufferArray(scip, &startZcol[b], 2 * nrows + 2 * nvars) );
-                  SCIP_CALL( SCIPallocBufferArray(scip, &startZval[b], 2 * nrows + 2 * nvars) );
-                  SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], 2 * nrows + 2 * nvars) );
-                  SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], 2 * nrows + 2 * nvars) );
-                  SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], 2 * nrows + 2 * nvars) );
 
                   /* to get a positive definite matrix, all the entries need to be strictly positive */
                   startZnblocknonz[b] = 2 * nrows + 2 * nvars;
@@ -2235,7 +2245,7 @@ SCIP_RETCODE calcRelax(
                   {
                      startZrow[b][2*nrows + 2*v] = 2*nrows + 2*v;
                      startZcol[b][2*nrows + 2*v] = 2*nrows + 2*v;
-                     startZval[b][2*nrows + 2*v] = starty[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[i]))] - SCIPvarGetLbLocal(vars[v]);
+                     startZval[b][2*nrows + 2*v] = starty[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])] - SCIPvarGetLbLocal(vars[v]);
                      if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, startZval[b][2*nrows + 2*v], 1.0) )
                      {
                         /* since we want the value to be strictly positive, if the original entry is negative we just set it to warmstartipfactor */
@@ -2255,7 +2265,7 @@ SCIP_RETCODE calcRelax(
 
                      startZrow[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
                      startZcol[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
-                     startZval[b][2*nrows + 2*v + 1] = SCIPvarGetUbLocal(vars[v]) - starty[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[i]))];
+                     startZval[b][2*nrows + 2*v + 1] = SCIPvarGetUbLocal(vars[v]) - starty[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])];
                      if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, startZval[b][2*nrows + 2*v + 1], 1.0) )
                      {
                         /* since we want the value to be strictly positive, if the original entry is negative we just set it to warmstartipfactor */
@@ -2654,22 +2664,23 @@ SCIP_RETCODE calcRelax(
             /* free memory */
             for (b = 0; b < nblocks; b++)
             {
-               SCIPfreeBufferArrayNull(scip, &startXval[b]);
-               SCIPfreeBufferArrayNull(scip, &startXcol[b]);
-               SCIPfreeBufferArrayNull(scip, &startXrow[b]);
-               SCIPfreeBufferArrayNull(scip, &startZval[b]);
-               SCIPfreeBufferArrayNull(scip, &startZcol[b]);
-               SCIPfreeBufferArrayNull(scip, &startZrow[b]);
+               SCIPfreeBufferArray(scip, &startXval[b]);
+               SCIPfreeBufferArray(scip, &startXcol[b]);
+               SCIPfreeBufferArray(scip, &startXrow[b]);
+               SCIPfreeBufferArray(scip, &startZval[b]);
+               SCIPfreeBufferArray(scip, &startZcol[b]);
+               SCIPfreeBufferArray(scip, &startZrow[b]);
+
             }
 
-            SCIPfreeBufferArrayNull(scip, &startXval);
-            SCIPfreeBufferArrayNull(scip, &startXcol);
-            SCIPfreeBufferArrayNull(scip, &startXrow);
-            SCIPfreeBufferArrayNull(scip, &startXnblocknonz);
-            SCIPfreeBufferArrayNull(scip, &startZval);
-            SCIPfreeBufferArrayNull(scip, &startZcol);
-            SCIPfreeBufferArrayNull(scip, &startZrow);
-            SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
+            SCIPfreeBufferArray(scip, &startXval);
+            SCIPfreeBufferArray(scip, &startXcol);
+            SCIPfreeBufferArray(scip, &startXrow);
+            SCIPfreeBufferArray(scip, &startXnblocknonz);
+            SCIPfreeBufferArray(scip, &startZval);
+            SCIPfreeBufferArray(scip, &startZcol);
+            SCIPfreeBufferArray(scip, &startZrow);
+            SCIPfreeBufferArray(scip, &startZnblocknonz);
          }
          SCIPfreeBufferArray(scip, &starty);
       }
