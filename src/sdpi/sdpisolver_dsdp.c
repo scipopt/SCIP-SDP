@@ -115,7 +115,7 @@
                       }                                                                                      \
                       while( FALSE )
 
-/** Calls a DSDP-Function and transforms the return-code to a SCIP_LPERROR if needed. */
+/** Calls a gettimeofday and transforms the return-code to a SCIP_ERROR if needed. */
 #define TIMEOFDAY_CALL(x)  do                                                                                \
                       {                                                                                      \
                          int _errorcode_;                                                                    \
