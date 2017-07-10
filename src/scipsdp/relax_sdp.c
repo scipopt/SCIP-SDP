@@ -163,6 +163,7 @@ struct SCIP_RelaxData
    int                   penaltyinfeasible;  /**< number of instances solved with penalty formulation where the dual slater check showed that the problem is infeasible */
    int                   boundedinfeasible;  /**< number of instances we could compute a bound for via the penalty approach where the dual slater check showed that the problem is infeasible */
    int                   unsolvedinfeasible; /**< number of instances that could not be solved where the dual slater check showed that the problem is infeasible */
+   int                   roundingprobinf;    /**< number of nodes that where detected infeasible through the primal rounding problem */
 
    SCIP_Bool             warmstart;          /**< Should the SDP solver try to use warmstarts? */
    SCIP_Real             warmstartipfactor;  /**< factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled */
@@ -1690,7 +1691,9 @@ SCIP_RETCODE calcRelax(
                if ( SCIPlpiIsDualInfeasible(lpi) )
                {
                   SCIPdebugMsg(scip, "Infeasibility of node %lld detected through primal rounding problem during warmstarting\n",
-                        SCIPnodeGetNumber(SCIPgetCurrentNode(scip))); //TODO  change to debugmsg
+                        SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
+
+                  relaxdata->roundingprobinf++;
 
                   /* free memory */
                   SCIPfreeBufferArrayNull(scip, &startXval[nblocks]);
@@ -2066,7 +2069,7 @@ SCIP_RETCODE calcRelax(
                }
 
                /* solve the problem (since we do not want to use warmstarts, we use the interior-point-solver without crossover) */
-               SCIP_CALL( SCIPlpiSolveBarrier(lpi, FALSE) );
+               SCIP_CALL( SCIPlpiSolvePrimal(lpi) );
 
                if ( ! SCIPlpiIsOptimal(lpi) )
                {
@@ -3393,6 +3396,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    relaxdata->penaltyinfeasible = 0;
    relaxdata->boundedinfeasible = 0;
    relaxdata->unsolvedinfeasible = 0;
+   relaxdata->roundingprobinf = 0;
    relaxdata->unsolved = 0;
    relaxdata->feasible = FALSE;
 
@@ -3855,6 +3859,10 @@ SCIP_DECL_RELAXEXIT(relaxExitSdp)
          SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'computed infeasible lower bound':\t%d \n", relaxdata->boundedinfeasible);
          SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'unsolved':\t%d \n", relaxdata->unsolvedinfeasible);
 #endif
+      }
+      if ( relaxdata->warmstartproject == 4 )
+      {
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes detected infeasible through primal rounding problem:\t%d \n", relaxdata->roundingprobinf);
       }
    }
 
