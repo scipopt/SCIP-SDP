@@ -42,12 +42,13 @@
 /* #define SCIP_EVEN_MORE_DEBUG  *//* shows number of deleted empty cols/rows for every relaxation and variable status &
  * bounds as well as all constraints in the beginning */
 /* #define SCIP_PRINT_WARMSTART  *//* print initial point given for warmstarts */
-/* #define SLATERSOLVED_ABSOLUTE *//* uncomment this to return the absolute number of nodes for, e.g., solved fast with slater in addition to percentages */
+ #define SLATERSOLVED_ABSOLUTE /* uncomment this to return the absolute number of nodes for, e.g., solved fast with slater in addition to percentages */
 
 #include "relax_sdp.h"
 
 #include "assert.h"                     /*lint !e451*/
 #include "string.h"                     /* for strcmp */
+#include <sys/time.h>                   /* for timeofday */
 
 #include "SdpVarmapper.h"
 #include "SdpVarfixer.h"
@@ -94,6 +95,18 @@
 #define WARMSTART_PROJ_FACTOR       0.1      /**< factor to multiply maximum rhs/obj with when computing minimum eigenvalue for warmstart-projection */
 #define WARMSTART_PROJ_FACTOR_PRIMAL 0.1     /**< factor to multiply maximum obj with when computing minimum eigenvalue for warmstart-projection in the primal */
 #define WARMSTART_PROJ_FACTOR_DUAL  0.1      /**< factor to multiply maximum rhs with when computing minimum eigenvalue for warmstart-projection in the dual */
+
+/** Calls a gettimeofday and transforms the return-code to a SCIP_ERROR if needed. */
+#define TIMEOFDAY_CALL(x)  do                                                                                \
+                      {                                                                                      \
+                         int _errorcode_;                                                                    \
+                         if ( (_errorcode_ = (x)) != 0 )                                                     \
+                         {                                                                                   \
+                            SCIPerrorMessage("Error in gettimeofday! \n");                                   \
+                            return SCIP_ERROR;                                                               \
+                         }                                                                                   \
+                      }                                                                                      \
+                      while( FALSE )
 
 /*
  * Data structures
@@ -163,7 +176,11 @@ struct SCIP_RelaxData
    int                   penaltyinfeasible;  /**< number of instances solved with penalty formulation where the dual slater check showed that the problem is infeasible */
    int                   boundedinfeasible;  /**< number of instances we could compute a bound for via the penalty approach where the dual slater check showed that the problem is infeasible */
    int                   unsolvedinfeasible; /**< number of instances that could not be solved where the dual slater check showed that the problem is infeasible */
-   int                   roundingprobinf;    /**< number of nodes that where detected infeasible through the primal rounding problem */
+   int                   roundingprobinf;    /**< number of instances that where detected infeasible through the primal rounding problem */
+   int                   primalroundfails;   /**< number of instances where the primal rounding problem failed */
+   int                   dualroundfails;     /**< number of instances where the dual rounding problem failed */
+   int                   roundstartsuccess;  /**< number of instances that could be warmstarted using the solution of the rounding problems */
+   SCIP_Real             roundingprobtime;   /**< total time spent in rouding problems for warmstarting/infeasibility detection */
 
    SCIP_Bool             warmstart;          /**< Should the SDP solver try to use warmstarts? */
    SCIP_Real             warmstartipfactor;  /**< factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled */
@@ -1345,6 +1362,8 @@ SCIP_RETCODE calcRelax(
                SCIP_VAR** blockvars;
                SCIP_LPI* lpi;
                SCIP_ROW* row;
+               struct timeval starttime;
+               struct timeval currenttime;
                SCIP_Real** blockval;
                SCIP_Real** blockeigenvalues;
                SCIP_Real** blockeigenvectors;
@@ -1398,6 +1417,8 @@ SCIP_RETCODE calcRelax(
                   SCIPerrorMessage("Invalid parameter combination, use relax/warmstartproject = 4 only with relax/warmstartprimaltype = 3.\n");
                   return SCIP_PARAMETERWRONGVAL;
                }
+
+               TIMEOFDAY_CALL( gettimeofday(&starttime, NULL) );/*lint !e438, !e550, !e641 */
 
                /* since we cannot compute the number of nonzeros of the solution of the rounding problem beforehand, we allocate the maximum possible (blocksize * (blocksize + 1) / 2 */
                for (b = 0; b < nblocks; b++)
@@ -1645,17 +1666,17 @@ SCIP_RETCODE calcRelax(
                   for (v = 0; v < blocknvars; v++)
                   {
                      varind = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, blockvars[v]);
-                     for (evind = 0; evind < blocknvarnonz[v]; evind++)
+                     for (i = 0; i < blocknvarnonz[v]; i++)
                      {
                         /* for every matrix entry (k,l) and every eigenvector i, we get an entry A_kl * V_kj *V_lj
                          * entry V_kj corresponds to entry k of the j-th eigenvector, which is given as the j-th row of the eigenvectors array
                          * note that we need to mulitply by two for non-diagonal entries to also account for entry (l,k) */
-                        for (i = 0; i < blocksize; i++)
+                        for (evind = 0; evind < blocksize; evind++)
                         {
-                           if ( blockrow[v][evind] == blockcol[v][evind] )
-                              val[i * nvars + varind] += blockval[v][evind] * blockeigenvectors[b][i * blocksize + blockrow[v][evind]] * blockeigenvectors[b][i * blocksize + blockcol[v][evind]];
+                           if ( blockrow[v][i] == blockcol[v][i] )
+                              val[evind * nvars + varind] += blockval[v][i] * blockeigenvectors[b][evind * blocksize + blockrow[v][i]] * blockeigenvectors[b][evind * blocksize + blockcol[v][i]];
                            else
-                              val[i * nvars + varind] += 2 * blockval[v][evind] * blockeigenvectors[b][i * blocksize + blockrow[v][evind]] * blockeigenvectors[b][i * blocksize + blockcol[v][evind]];
+                              val[evind * nvars + varind] += 2 * blockval[v][i] * blockeigenvectors[b][evind * blocksize + blockrow[v][i]] * blockeigenvectors[b][evind * blocksize + blockcol[v][i]];
                         }
                      }
                   }
@@ -1723,6 +1744,9 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
                   SCIPfreeBufferArray(scip, &starty);
 
+                  TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );/*lint !e438, !e550, !e641 */
+                  relaxdata->roundingprobtime += (SCIP_Real) currenttime.tv_sec + (SCIP_Real) currenttime.tv_usec / 1e6 - (SCIP_Real) starttime.tv_sec - (SCIP_Real) starttime.tv_usec / 1e6;
+
                   relaxdata->feasible = FALSE;
                   *result = SCIP_CUTOFF;
                   return SCIP_OKAY;
@@ -1730,6 +1754,8 @@ SCIP_RETCODE calcRelax(
                else if ( ! SCIPlpiIsOptimal(lpi) )
                {
                   SCIPdebugMsg(scip, "Solving without warmstart since solving of the primal rounding problem failed with status %d!\n", SCIPlpiGetInternalStatus(lpi));
+                  relaxdata->primalroundfails++;
+
                   /* since warmstart computation failed, we solve without warmstart, free memory and skip the remaining warmstarting code */
                   SCIPfreeBufferArrayNull(scip, &startXval[nblocks]);
                   SCIPfreeBufferArrayNull(scip, &startXcol[nblocks]);
@@ -1757,6 +1783,9 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArrayNull(scip, &startZrow);
                   SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
                   SCIPfreeBufferArray(scip, &starty);
+
+                  TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );/*lint !e438, !e550, !e641 */
+                  relaxdata->roundingprobtime += (SCIP_Real) currenttime.tv_sec + (SCIP_Real) currenttime.tv_usec / 1e6 - (SCIP_Real) starttime.tv_sec - (SCIP_Real) starttime.tv_usec / 1e6;
 
                   SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit));
                   goto solved;
@@ -2068,15 +2097,13 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArray(scip, &blocknvarnonz);
                }
 
-               /* solve the problem (since we do not want to use warmstarts, we use the interior-point-solver without crossover) */
-               SCIP_CALL( SCIPlpiSolvePrimal(lpi) );
+               /* solve the problem (for some reason dual simplex seems to work better here) */
+               SCIP_CALL( SCIPlpiSolveDual(lpi) );
 
                if ( ! SCIPlpiIsOptimal(lpi) )
                {
                   SCIPdebugMsg(scip, "Solution of dual rounding problem failed with status %d, continuing without warmstart\n", SCIPlpiGetInternalStatus(lpi));
-
-                  /* since warmstart computation failed, we solve without warmstart, free memory and skip the remaining warmstarting code */
-                  SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit));
+                  relaxdata->dualroundfails++;
 
                   /* free memory */
                   SCIPfreeBufferArrayNull(scip, &startZval[nblocks]);
@@ -2109,11 +2136,19 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
                   SCIPfreeBufferArray(scip, &starty);
 
+                  TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );/*lint !e438, !e550, !e641 */
+                  relaxdata->roundingprobtime += (SCIP_Real) currenttime.tv_sec + (SCIP_Real) currenttime.tv_usec / 1e6 - (SCIP_Real) starttime.tv_sec - (SCIP_Real) starttime.tv_usec / 1e6;
+
+                  /* since warmstart computation failed, we solve without warmstart, free memory and skip the remaining warmstarting code */
+                  SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit));
+
                   goto solved;
                }
                else
                {
                   SCIP_Real* optev;
+
+                  relaxdata->roundstartsuccess++;
 
                   /* the problem was solved to optimality: we construct the dual vector and matrix using the computed eigenvalues */
                   SCIP_CALL( SCIPallocBufferArray(scip, &optev, nvars + roundingvars) );
@@ -2287,6 +2322,9 @@ SCIP_RETCODE calcRelax(
                      }
                   }
                }
+
+               TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );/*lint !e438, !e550, !e641 */
+               relaxdata->roundingprobtime += (SCIP_Real) currenttime.tv_sec + (SCIP_Real) currenttime.tv_usec / 1e6 - (SCIP_Real) starttime.tv_sec - (SCIP_Real) starttime.tv_usec / 1e6;
             }
 
             /* iterate over all blocks again to compute convex combination */
@@ -3397,6 +3435,10 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    relaxdata->boundedinfeasible = 0;
    relaxdata->unsolvedinfeasible = 0;
    relaxdata->roundingprobinf = 0;
+   relaxdata->primalroundfails = 0;
+   relaxdata->dualroundfails = 0;
+   relaxdata->roundstartsuccess = 0;
+   relaxdata->roundingprobtime = 0.0;
    relaxdata->unsolved = 0;
    relaxdata->feasible = FALSE;
 
@@ -3860,9 +3902,13 @@ SCIP_DECL_RELAXEXIT(relaxExitSdp)
          SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'unsolved':\t%d \n", relaxdata->unsolvedinfeasible);
 #endif
       }
-      if ( relaxdata->warmstartproject == 4 )
+      if ( relaxdata->warmstart && relaxdata->warmstartproject == 4 )
       {
          SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes detected infeasible through primal rounding problem:\t%d \n", relaxdata->roundingprobinf);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes that were successfully warmstarted using the rounding problems:\t%d \n", relaxdata->roundstartsuccess);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes where the primal rounding problem failed:\t%d \n", relaxdata->primalroundfails);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes where the dual rounding problem failed:\t%d \n", relaxdata->dualroundfails);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Time spent in rounding problems for warmstarting / detecting infeasibility:\t%f s \n", relaxdata->roundingprobtime);
       }
    }
 
