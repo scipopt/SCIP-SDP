@@ -181,6 +181,8 @@ struct SCIP_RelaxData
    int                   primalroundfails;   /**< number of instances where the primal rounding problem failed */
    int                   dualroundfails;     /**< number of instances where the dual rounding problem failed */
    int                   roundstartsuccess;  /**< number of instances that could be warmstarted using the solution of the rounding problems */
+   int                   roundingoptimal;    /**< number of instances where the optimal solution was found by the rounding problem */
+   int                   roundingcutoff;     /**< number of instances that could be cut off through bounding by the rounding problem */
    SCIP_Real             roundingprobtime;   /**< total time spent in rouding problems for warmstarting/infeasibility detection */
 
    SCIP_Bool             warmstart;          /**< Should the SDP solver try to use warmstarts? */
@@ -1384,6 +1386,8 @@ SCIP_RETCODE calcRelax(
                SCIP_Real rowrhs;
                SCIP_Real varobj;
                SCIP_Real epsilon;
+               SCIP_Real primalroundobj;
+               SCIP_Real dualroundobj;
                int** blockcol;
                int** blockrow;
                int** blockrowcols;
@@ -1835,8 +1839,8 @@ SCIP_RETCODE calcRelax(
 
                   /* the problem was solved to optimality: we construct the primal matrix using the computed eigenvalues */
                   SCIP_CALL( SCIPallocBufferArray(scip, &optev, roundingvars) );
-                  /* TODO: might save the objective value to use in case solving the whole problem fails later */
-                  SCIP_CALL( SCIPlpiGetSol(lpi, NULL, optev, NULL, NULL, NULL) );
+
+                  SCIP_CALL( SCIPlpiGetSol(lpi, &primalroundobj, optev, NULL, NULL, NULL) );
 
                   /* build varbound block */
                   pos = blocksizes[1]; /* to save some sorting later, the startX arrays should start with the LP block */
@@ -2190,8 +2194,91 @@ SCIP_RETCODE calcRelax(
 
                   /* the problem was solved to optimality: we construct the dual vector and matrix using the computed eigenvalues */
                   SCIP_CALL( SCIPallocBufferArray(scip, &optev, nvars + roundingvars) );
-                  /* TODO: might save the objective value to use in case solving the whole problem fails later */
-                  SCIP_CALL( SCIPlpiGetSol(lpi, NULL, optev, NULL, NULL, NULL) );
+                  SCIP_CALL( SCIPlpiGetSol(lpi, &dualroundobj, optev, NULL, NULL, NULL) );
+
+                  /* if the objective values of the primal and dual rounding problem agree, the problem has been solved to optimality,
+                   * since both of them are respective restrictions of the original primal and dual problem */
+                  if ( SCIPisEQ(scip, primalroundobj, dualroundobj) )
+                  {
+                     SCIP_SOL* scipsol;
+                     SCIP_CONS* savedcons;
+
+                     SCIPdebugMsg(scip, "Node %lld solved to optimality through rounding problems with optimal objective %f\n",
+                           SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), dualroundobj);
+
+                     relaxdata->roundingoptimal++;
+
+                     TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );/*lint !e438, !e550, !e641 */
+                     relaxdata->roundingprobtime += (SCIP_Real) currenttime.tv_sec + (SCIP_Real) currenttime.tv_usec / 1e6 - (SCIP_Real) starttime.tv_sec - (SCIP_Real) starttime.tv_usec / 1e6;
+
+                     /* create SCIP solution (first nvars entries of optev correspond to y variables) */
+                     SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
+                     SCIP_CALL( SCIPsetSolVals(scip, scipsol, nvars, vars, optev) );
+
+                     *lowerbound = dualroundobj;
+                     relaxdata->objval = dualroundobj;
+
+                     /* copy solution */
+                     SCIP_CALL( SCIPsetRelaxSolValsSol(scip, scipsol) );
+
+                     SCIP_CALL( SCIPmarkRelaxSolValid(scip) );
+
+                     relaxdata->feasible = TRUE;
+                     *result = SCIP_SUCCESS;
+
+                     /* save solution for warmstarts */
+                     if ( relaxdata->warmstart )
+                     {
+                        char consname[SCIP_MAXSTRLEN];
+#ifndef NDEBUG
+                        int snprintfreturn; /* this is used to assert that the SCIP string concatenation works */
+#endif
+
+#ifndef NDEBUG
+                        snprintfreturn = SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
+                        assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether name fit into string */
+#else
+                        (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
+#endif
+                        SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), scipsol,
+                                 maxprimalentry, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
+
+                        SCIP_CALL( SCIPaddCons(scip, savedcons) );
+                        SCIP_CALL( SCIPreleaseCons(scip, &savedcons) );
+                     }
+
+                     SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
+
+                     /* free memory */
+                     SCIPfreeBufferArrayNull(scip, &startXval[nblocks]);
+                     SCIPfreeBufferArrayNull(scip, &startXcol[nblocks]);
+                     SCIPfreeBufferArrayNull(scip, &startXrow[nblocks]);
+                     for (b = 0; b < nblocks; b++)
+                     {
+                        SCIPfreeBufferArrayNull(scip,&blockeigenvectors[b]);
+                        SCIPfreeBufferArrayNull(scip,&blockeigenvalues[b]);
+                        SCIPfreeBufferArrayNull(scip, &startXval[b]);
+                        SCIPfreeBufferArrayNull(scip, &startXcol[b]);
+                        SCIPfreeBufferArrayNull(scip, &startXrow[b]);
+                        SCIPfreeBufferArrayNull(scip, &startZval[b]);
+                        SCIPfreeBufferArrayNull(scip, &startZcol[b]);
+                        SCIPfreeBufferArrayNull(scip, &startZrow[b]);
+                     }
+                     SCIPfreeBufferArray(scip, &blocksizes);
+                     SCIPfreeBufferArray(scip, &blockeigenvectors);
+                     SCIPfreeBufferArray(scip, &blockeigenvalues);
+                     SCIPfreeBufferArrayNull(scip, &startXval);
+                     SCIPfreeBufferArrayNull(scip, &startXcol);
+                     SCIPfreeBufferArrayNull(scip, &startXrow);
+                     SCIPfreeBufferArrayNull(scip, &startXnblocknonz);
+                     SCIPfreeBufferArrayNull(scip, &startZval);
+                     SCIPfreeBufferArrayNull(scip, &startZcol);
+                     SCIPfreeBufferArrayNull(scip, &startZrow);
+                     SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
+                     SCIPfreeBufferArray(scip, &starty);
+
+                     return SCIP_OKAY;
+                  }
 
                   /* adjust dual vector */
                   for (v = 0; v < nvars; v++)
@@ -3476,6 +3563,8 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    relaxdata->primalroundfails = 0;
    relaxdata->dualroundfails = 0;
    relaxdata->roundstartsuccess = 0;
+   relaxdata->roundingoptimal = 0;
+   relaxdata->roundingcutoff = 0;
    relaxdata->roundingprobtime = 0.0;
    relaxdata->unsolved = 0;
    relaxdata->feasible = FALSE;
@@ -3946,6 +4035,8 @@ SCIP_DECL_RELAXEXIT(relaxExitSdp)
          SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes that were successfully warmstarted using the rounding problems:\t%d \n", relaxdata->roundstartsuccess);
          SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes where the primal rounding problem failed:\t%d \n", relaxdata->primalroundfails);
          SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes where the dual rounding problem failed:\t%d \n", relaxdata->dualroundfails);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes where the optimal solution was determined by the rounding problem:\t%d \n", relaxdata->roundingoptimal);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes cut off through bounding by the rounding problem:\t%d \n", relaxdata->roundingcutoff);
          SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Time spent in rounding problems for warmstarting / detecting infeasibility:\t%f s \n", relaxdata->roundingprobtime);
       }
    }
