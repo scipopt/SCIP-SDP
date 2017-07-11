@@ -79,6 +79,7 @@
 #define DEFAULT_WARMSTARTPROJPDSAME TRUE     /**< Should one shared minimum eigenvalue be computed for primal and dual problem instead of different ones if warmstartpmevpar = -1 ? */
 #define DEFAULT_WARMSTART_PREOPTIMAL_SOL FALSE /**< Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts (currently only implemented fo DSDP) */
 #define DEFAULT_WARMSTARTPREOPTGAP  1e-2     /**< If warmstartpreoptimalsol is TRUE, this is the gap where the preoptimal solution is saved (currently only implemented fo DSDP) */
+#define DEFAULT_WARMSTARTROUNDONLYINF TRUE   /**< Only use solution of roundingproblem to detect infeasibility (only has an effect for warmstartproject = 4) */
 #define DEFAULT_SLATERCHECK         0        /**< Should the Slater condition be checked ? */
 #define DEFAULT_OBJLIMIT            FALSE    /**< Should an objective limit be given to the SDP-Solver ? */
 #define DEFAULT_RESOLVE             TRUE     /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
@@ -194,6 +195,7 @@ struct SCIP_RelaxData
    int                   warmstartiptype;    /**< which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center */
    SCIP_Bool             warmstartpreoptsol; /**< Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts (currently only implemented fo DSDP) */
    SCIP_Real             warmstartpreoptgap; /**< In case a preoptimal solution should be used for warmstarts, this gives the gap where the solution should be saved (currently only implemented fo DSDP) */
+   SCIP_Bool             warmstartroundonlyinf; /**< Only use solution of roundingproblem to detect infeasibility (only has an effect for warmstartproject = 4) */
    int                   nblocks;            /**< number of blocks INCLUDING lp-block */
    SCIP_Bool             ipXexists;          /**< has an interior point for primal matrix X been successfully computed */
    int*                  ipXnblocknonz;      /**< interior point for primal matrix X for convex combination for warmstarts: number of nonzeros for each block
@@ -1750,6 +1752,42 @@ SCIP_RETCODE calcRelax(
                   relaxdata->feasible = FALSE;
                   *result = SCIP_CUTOFF;
                   return SCIP_OKAY;
+               }
+               else if ( relaxdata->warmstartroundonlyinf )
+               {
+                  /* in this case we only cared about checking infeasibility and coldstart now */
+                  SCIPfreeBufferArrayNull(scip, &startXval[nblocks]);
+                  SCIPfreeBufferArrayNull(scip, &startXcol[nblocks]);
+                  SCIPfreeBufferArrayNull(scip, &startXrow[nblocks]);
+                  for (b = 0; b < nblocks; b++)
+                  {
+                     SCIPfreeBufferArrayNull(scip, &blockeigenvectors[b]);
+                     SCIPfreeBufferArrayNull(scip, &blockeigenvalues[b]);
+                     SCIPfreeBufferArrayNull(scip, &startXval[b]);
+                     SCIPfreeBufferArrayNull(scip, &startXcol[b]);
+                     SCIPfreeBufferArrayNull(scip, &startXrow[b]);
+                     SCIPfreeBufferArrayNull(scip, &startZval[b]);
+                     SCIPfreeBufferArrayNull(scip, &startZcol[b]);
+                     SCIPfreeBufferArrayNull(scip, &startZrow[b]);
+                  }
+                  SCIPfreeBufferArray(scip, &blocksizes);
+                  SCIPfreeBufferArray(scip, &blockeigenvectors);
+                  SCIPfreeBufferArray(scip, &blockeigenvalues);
+                  SCIPfreeBufferArrayNull(scip, &startXval);
+                  SCIPfreeBufferArrayNull(scip, &startXcol);
+                  SCIPfreeBufferArrayNull(scip, &startXrow);
+                  SCIPfreeBufferArrayNull(scip, &startXnblocknonz);
+                  SCIPfreeBufferArrayNull(scip, &startZval);
+                  SCIPfreeBufferArrayNull(scip, &startZcol);
+                  SCIPfreeBufferArrayNull(scip, &startZrow);
+                  SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
+                  SCIPfreeBufferArray(scip, &starty);
+
+                  TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );/*lint !e438, !e550, !e641 */
+                  relaxdata->roundingprobtime += (SCIP_Real) currenttime.tv_sec + (SCIP_Real) currenttime.tv_usec / 1e6 - (SCIP_Real) starttime.tv_sec - (SCIP_Real) starttime.tv_usec / 1e6;
+
+                  SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit));
+                  goto solved;
                }
                else if ( ! SCIPlpiIsOptimal(lpi) )
                {
@@ -4077,6 +4115,10 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartpreoptgap",
          "If warmstartpreoptsol is TRUE, this is the gap where the preoptimal solution will be saved (currently only implemented fo DSDP)", &(relaxdata->warmstartpreoptgap),
          TRUE, DEFAULT_WARMSTARTPREOPTGAP, 0.0, 1e+20, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstartroundonlyinf",
+         "Only use solution of roundingproblem to detect infeasibility (only has an effect for warmstartproject = 4)",
+         &(relaxdata->warmstartroundonlyinf), TRUE, DEFAULT_WARMSTARTPROJPDSAME, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/npenaltyincr",
          "maximum number of times the penalty parameter will be increased if the penalty formulation failed", &(relaxdata->npenaltyincr), TRUE,
