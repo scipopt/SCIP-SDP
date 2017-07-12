@@ -79,7 +79,7 @@
 #define DEFAULT_WARMSTARTPROJPDSAME TRUE     /**< Should one shared minimum eigenvalue be computed for primal and dual problem instead of different ones if warmstartpmevpar = -1 ? */
 #define DEFAULT_WARMSTART_PREOPTIMAL_SOL FALSE /**< Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts (currently only implemented fo DSDP) */
 #define DEFAULT_WARMSTARTPREOPTGAP  1e-2     /**< If warmstartpreoptimalsol is TRUE, this is the gap where the preoptimal solution is saved (currently only implemented fo DSDP) */
-#define DEFAULT_WARMSTARTROUNDONLYINF TRUE   /**< Only use solution of roundingproblem to detect infeasibility (only has an effect for warmstartproject = 4) */
+#define DEFAULT_WARMSTARTROUNDONLYINF FALSE  /**< Only use solution of roundingproblem to detect infeasibility (only has an effect for warmstartproject = 4) */
 #define DEFAULT_SLATERCHECK         0        /**< Should the Slater condition be checked ? */
 #define DEFAULT_OBJLIMIT            FALSE    /**< Should an objective limit be given to the SDP-Solver ? */
 #define DEFAULT_RESOLVE             TRUE     /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
@@ -1712,15 +1712,28 @@ SCIP_RETCODE calcRelax(
                 * we use the dual Simplex solver) */
                SCIP_CALL( SCIPlpiSolveDual(lpi) );
 
+               /* get optimal objective value of the primal rounding problem (will be -infinity if infeasible) */
+               SCIP_CALL( SCIPlpiGetObjval(lpi, &primalroundobj) );
+
                /* if the restricted primal problem is already dual infeasible, then the original primal has to be dual infeasible as
                 * well, so the dual we actually want to solve is infeasible and we can cut the node off
-                */
-               if ( SCIPlpiIsDualInfeasible(lpi) )
+                * the same is true by weak duality if the restricted primal already has a larger objective value than the current cutoff-bound */
+               if ( SCIPlpiIsDualInfeasible(lpi) || SCIPisGT(scip, primalroundobj, SCIPgetCutoffbound(scip)) )
                {
-                  SCIPdebugMsg(scip, "Infeasibility of node %lld detected through primal rounding problem during warmstarting\n",
-                        SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
+                  if ( SCIPlpiIsDualInfeasible(lpi) )
+                  {
+                     SCIPdebugMsg(scip, "Infeasibility of node %lld detected through primal rounding problem during warmstarting\n",
+                           SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
 
-                  relaxdata->roundingprobinf++;
+                     relaxdata->roundingprobinf++;
+                  }
+                  else if ( SCIPisGT(scip, primalroundobj, SCIPgetCutoffbound(scip)) )
+                  {
+                     SCIPdebugMsg(scip, "Suboptimality of node %lld detected through primal rounding problem during warmstarting:"
+                           "lower bound = %f > %f = cutoffbound\n", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), primalroundobj, SCIPgetCutoffbound(scip));
+
+                     relaxdata->roundingcutoff++;
+                  }
 
                   /* free memory */
                   SCIPfreeBufferArrayNull(scip, &startXval[nblocks]);
@@ -1840,7 +1853,7 @@ SCIP_RETCODE calcRelax(
                   /* the problem was solved to optimality: we construct the primal matrix using the computed eigenvalues */
                   SCIP_CALL( SCIPallocBufferArray(scip, &optev, roundingvars) );
 
-                  SCIP_CALL( SCIPlpiGetSol(lpi, &primalroundobj, optev, NULL, NULL, NULL) );
+                  SCIP_CALL( SCIPlpiGetSol(lpi, NULL, optev, NULL, NULL, NULL) );
 
                   /* build varbound block */
                   pos = blocksizes[1]; /* to save some sorting later, the startX arrays should start with the LP block */
