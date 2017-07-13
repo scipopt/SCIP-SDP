@@ -1439,7 +1439,7 @@ SCIP_RETCODE calcRelax(
                }
 
                /* allocate memory for LP and variable bound block of warmstart matrix (note that we need to allocate the maximum, since additional
-                * entries may be generated through the convex comibnation */
+                * entries may be generated through the convex combination */
                SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[nblocks], 2 * nvars + 2 * nrows) );
                SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[nblocks], 2 * nvars + 2 * nrows) );
                SCIP_CALL( SCIPallocBufferArray(scip, &startXval[nblocks], 2 * nvars + 2 * nrows) );
@@ -1718,7 +1718,7 @@ SCIP_RETCODE calcRelax(
                /* if the restricted primal problem is already dual infeasible, then the original primal has to be dual infeasible as
                 * well, so the dual we actually want to solve is infeasible and we can cut the node off
                 * the same is true by weak duality if the restricted primal already has a larger objective value than the current cutoff-bound */
-               if ( SCIPlpiIsDualInfeasible(lpi) || SCIPisGT(scip, primalroundobj, SCIPgetCutoffbound(scip)) )
+               if ( SCIPlpiIsDualInfeasible(lpi) || SCIPisGE(scip, primalroundobj, SCIPgetCutoffbound(scip)) )
                {
                   if ( SCIPlpiIsDualInfeasible(lpi) )
                   {
@@ -2263,6 +2263,10 @@ SCIP_RETCODE calcRelax(
                      SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
 
                      /* free memory */
+                     SCIPfreeBufferArray(scip, &optev);
+                     SCIPfreeBufferArrayNull(scip, &startZval[nblocks]);
+                     SCIPfreeBufferArrayNull(scip, &startZcol[nblocks]);
+                     SCIPfreeBufferArrayNull(scip, &startZrow[nblocks]);
                      SCIPfreeBufferArrayNull(scip, &startXval[nblocks]);
                      SCIPfreeBufferArrayNull(scip, &startXcol[nblocks]);
                      SCIPfreeBufferArrayNull(scip, &startXrow[nblocks]);
