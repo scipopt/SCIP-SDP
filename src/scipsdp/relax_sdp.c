@@ -4222,7 +4222,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstartroundonlyinf",
          "Only use solution of roundingproblem to detect infeasibility (only has an effect for warmstartproject = 4)",
-         &(relaxdata->warmstartroundonlyinf), TRUE, DEFAULT_WARMSTARTPROJPDSAME, NULL, NULL) );
+         &(relaxdata->warmstartroundonlyinf), TRUE, DEFAULT_WARMSTARTROUNDONLYINF, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/npenaltyincr",
          "maximum number of times the penalty parameter will be increased if the penalty formulation failed", &(relaxdata->npenaltyincr), TRUE,
