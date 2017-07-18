@@ -194,7 +194,7 @@ struct SCIP_RelaxData
    SCIP_Real             warmstartpmevdualpar; /**< SCIP parameter for min eigenvalue when projecting dual onto positive definite cone; -1 for automatic computation */
    SCIP_Real             warmstartprojminevprimal; /**< minimum eigenvalue to allow when projecting onto the positive (semi-)definite cone in the primal */
    SCIP_Real             warmstartprojminevdual; /**< minimum eigenvalue to allow when projecting onto the positive (semi-)definite cone in the dual */
-   SCIP_Bool             warmstartprojpdsame;/**< Should one shared minimum eigenvalue be computed for primal and dual problem instead of different ones if warmstartpmevpar = -1 ? */
+   SCIP_Bool             warmstartprojpdsame;/**< Should one shared minimum eigenvalue respectively maximum entry be computed for primal and dual problem instead of different ones for projection or convex combination ? */
    int                   warmstartiptype;    /**< which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center */
    SCIP_Bool             warmstartpreoptsol; /**< Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts (currently only implemented fo DSDP) */
    SCIP_Real             warmstartpreoptgap; /**< In case a preoptimal solution should be used for warmstarts, this gives the gap where the solution should be saved (currently only implemented fo DSDP) */
@@ -1332,7 +1332,7 @@ SCIP_RETCODE calcRelax(
                      startXcol[b][2*nrows + 2*v + 1] = startZcol[b][2*nrows + 2*v + 1];
                      startXval[b][2*nrows + 2*v + 1] = 1 / startZval[b][2*nrows + 2*v + 1];
                   }
-                  else if ( relaxdata->warmstartprimaltype != 3 && relaxdata->warmstartproject != 4 )
+                  else if ( relaxdata->warmstartprimaltype != 3 && relaxdata->warmstartproject == 1 )
                   {
                      SCIPerrorMessage("Unknown value %d for warmstartprimaltype.\n", relaxdata->warmstartprimaltype);
                      SCIPABORT();
@@ -2382,43 +2382,9 @@ SCIP_RETCODE calcRelax(
                      startZcol[b][2*r] = 2*r;
                      startZval[b][2*r] = rowval - (SCIProwGetLhs(rows[r]) - SCIProwGetConstant(rows[r]));
 
-                     if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, startZval[b][2*r], 1.0) )
-                     {
-                        /* since we want the value to be strictly positive, if the original entry is negative we just set it to warmstartipfactor */
-                        if ( SCIPisLT(scip, startZval[b][2*r], 0.0) )
-                           startZval[b][2*r] = relaxdata->warmstartipfactor;
-                        else
-                           startZval[b][2*r] = (1 - relaxdata->warmstartipfactor) * startZval[b][2*r] + relaxdata->warmstartipfactor;
-                     }
-                     else if ( relaxdata->warmstartiptype == 2 )
-                     {
-                        startZval[b][2*r] = (1 - relaxdata->warmstartipfactor) * startZval[b][2*r] + relaxdata->warmstartipfactor * relaxdata->ipZval[b][2*r];
-
-                        /* if this is non-positive, we shift it to a strictly positive value */
-                        if ( SCIPisLT(scip, startZval[b][2*r], WARMSTART_MINVAL) )
-                           startZval[b][2*r] = WARMSTART_MINVAL;
-                     }
-
                      startZrow[b][2*r + 1] = 2*r + 1;
                      startZcol[b][2*r + 1] = 2*r + 1;
                      startZval[b][2*r + 1] = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
-
-                     if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, startZval[b][2*r + 1], 1.0) )
-                     {
-                        /* since we want the value to be strictly positive, if the original entry is negative we just set it to warmstartipfactor */
-                        if ( SCIPisLT(scip, startZval[b][2*r + 1], 0.0) )
-                           startZval[b][2*r + 1] = relaxdata->warmstartipfactor;
-                        else
-                           startZval[b][2*r + 1] = (1 - relaxdata->warmstartipfactor) * startZval[b][2*r + 1] + relaxdata->warmstartipfactor;
-                     }
-                     else if ( relaxdata->warmstartiptype == 2 )
-                     {
-                        startZval[b][2*r + 1] = (1 - relaxdata->warmstartipfactor) * startZval[b][2*r + 1] + relaxdata->warmstartipfactor * relaxdata->ipZval[b][2*r + 1];
-
-                        /* if this is non-positive, we shift it to a strictly positive value */
-                        if ( SCIPisLT(scip, startZval[b][2*r + 1], WARMSTART_MINVAL) )
-                           startZval[b][2*r + 1] = WARMSTART_MINVAL;
-                     }
                   }
 
                   /* fill varbound block */
@@ -2427,107 +2393,15 @@ SCIP_RETCODE calcRelax(
                      startZrow[b][2*nrows + 2*v] = 2*nrows + 2*v;
                      startZcol[b][2*nrows + 2*v] = 2*nrows + 2*v;
                      startZval[b][2*nrows + 2*v] = starty[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])] - SCIPvarGetLbLocal(vars[v]);
-                     if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, startZval[b][2*nrows + 2*v], 1.0) )
-                     {
-                        /* since we want the value to be strictly positive, if the original entry is negative we just set it to warmstartipfactor */
-                        if ( SCIPisLT(scip, startZval[b][2*nrows + 2*v], 0.0) )
-                           startZval[b][2*nrows + 2*v] = relaxdata->warmstartipfactor;
-                        else
-                           startZval[b][2*nrows + 2*v] = (1 - relaxdata->warmstartipfactor) * startZval[b][2*nrows + 2*v] + relaxdata->warmstartipfactor;
-                     }
-                     else if ( relaxdata->warmstartiptype == 2 )
-                     {
-                        startZval[b][2*nrows + 2*v] = (1 - relaxdata->warmstartipfactor) * startZval[b][2*nrows + 2*v] + relaxdata->warmstartipfactor * relaxdata->ipZval[b][2*nrows + 2*v];
-
-                        /* if this is non-positive, we shift it to a strictly positive value */
-                        if ( SCIPisLT(scip, startZval[b][2*nrows + 2*v], WARMSTART_MINVAL) )
-                           startZval[b][2*nrows + 2*v] = WARMSTART_MINVAL;
-                     }
 
                      startZrow[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
                      startZcol[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
                      startZval[b][2*nrows + 2*v + 1] = SCIPvarGetUbLocal(vars[v]) - starty[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])];
-                     if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, startZval[b][2*nrows + 2*v + 1], 1.0) )
-                     {
-                        /* since we want the value to be strictly positive, if the original entry is negative we just set it to warmstartipfactor */
-                        if ( SCIPisLT(scip, startZval[b][2*nrows + 2*v + 1], 0.0) )
-                           startZval[b][2*nrows + 2*v + 1] = relaxdata->warmstartipfactor;
-                        else
-                           startZval[b][2*nrows + 2*v + 1] = (1 - relaxdata->warmstartipfactor) * startZval[b][2*nrows + 2*v + 1] + relaxdata->warmstartipfactor;
-                     }
-                     else if ( relaxdata->warmstartiptype == 2 )
-                     {
-                        startZval[b][2*nrows + 2*v + 1] = (1 - relaxdata->warmstartipfactor) * startZval[b][2*nrows + 2*v] + relaxdata->warmstartipfactor * relaxdata->ipZval[b][2*nrows + 2*v + 1];
-
-                        /* if this is non-positive, we shift it to a strictly positive value */
-                        if ( SCIPisLT(scip, startZval[b][2*nrows + 2*v + 1], WARMSTART_MINVAL) )
-                           startZval[b][2*nrows + 2*v + 1] = WARMSTART_MINVAL;
-                     }
                   }
                }
 
                TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );/*lint !e438, !e550, !e641 */
                relaxdata->roundingprobtime += (SCIP_Real) currenttime.tv_sec + (SCIP_Real) currenttime.tv_usec / 1e6 - (SCIP_Real) starttime.tv_sec - (SCIP_Real) starttime.tv_usec / 1e6;
-            }
-
-            /* iterate over all blocks again to compute convex combination */
-            for (b = 0; b < nblocks; b++)
-            {
-               /* use convex combination between Z and scaled identity matrix to move solution to the interior */
-               if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
-               {
-                  if ( relaxdata->warmstartiptype == 1 )
-                  {
-                     /* compute maxdualentry (should be at least one) */
-                     maxdualentry = 1.0;
-                     for (i = 0; i < startZnblocknonz[b]; i++)
-                     {
-                        if ( REALABS(startZval[b][i]) > maxdualentry )
-                           maxdualentry = REALABS(startZval[b][i]);
-                     }
-                     identitydiagonal = relaxdata->warmstartipfactor * maxdualentry; /* the diagonal entries of the scaled identity matrix */
-
-                     SCIP_CALL( SCIPallocBufferArray(scip, &diagentryexists, blocksize) ); /* TODO: could allocate this once for Z and X with max-blocksize */
-                     for (i = 0; i < blocksize; i++)
-                        diagentryexists[i] = FALSE;
-
-                     for (i = 0; i < startZnblocknonz[b]; i++)
-                     {
-                        if ( startZrow[b][i] == startZcol[b][i] )
-                        {
-                           startZval[b][i] = startZval[b][i] * (1 - relaxdata->warmstartipfactor) + identitydiagonal; /* add identity for diagonal entries */
-                           assert( startZval[b][i] >= 0 ); /* since the original matrix should have been positive semidefinite, diagonal entries should be >= 0 */
-                           diagentryexists[startZrow[b][i]] = TRUE;
-                        }
-                        else
-                           startZval[b][i] *= (1 - relaxdata->warmstartipfactor); /* since this is an off-diagonal entry, we scale towards zero */
-                     }
-
-                     /* if a diagonal entry was missing (because we had a zero row before), we have to add it to the end */
-                     for (i = 0; i < blocksize; i++)
-                     {
-                        if ( ! diagentryexists[i] )
-                        {
-                           startZrow[b][startZnblocknonz[b]] = i;
-                           startZcol[b][startZnblocknonz[b]] = i;
-                           startZval[b][startZnblocknonz[b]] = identitydiagonal;
-                           startZnblocknonz[b]++;
-                        }
-                     }
-
-                     SCIPfreeBufferArrayNull(scip, &diagentryexists);
-                  }
-                  else if ( relaxdata->warmstartiptype == 2 )
-                  {
-                     /* iterate once over all entries to multiply them with (1 - warmstartipfactor) */
-                     for (i = 0; i < startZnblocknonz[b]; i++)
-                        startZval[b][i] *= 1 - relaxdata->warmstartipfactor;
-
-                     /* merge the scaled interior point array into the warmstart array */
-                     SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), SCIPepsilon(scip), relaxdata->ipZrow[b], relaxdata->ipZcol[b], relaxdata->ipZval[b], relaxdata->ipZnblocknonz[b], TRUE,
-                           relaxdata->warmstartipfactor, startZrow[b], startZcol[b], startZval[b], &(startZnblocknonz[b]), startZnblocknonz[b] + relaxdata->ipZnblocknonz[b]) );
-                  }
-               }
             }
 
             /* if we saved the whole primal solution before, we can set it at once */
@@ -2649,16 +2523,19 @@ SCIP_RETCODE calcRelax(
                      if ( relaxdata->warmstartiptype == 1 )
                      {
                         /* compute maxprimalentry (should be at least one or warmstartprojminevprimal) */
-                        if ( relaxdata->warmstartproject == 3 )
-                           maxprimalentry = relaxdata->warmstartprojminevprimal;
-                        else
-                           maxprimalentry = 1.0;
-                        for (i = 0; i < startXnblocknonz[b]; i++)
+                        if ( ! relaxdata->warmstartprojpdsame )
                         {
-                           if ( REALABS(startXval[b][i]) > maxprimalentry )
-                              maxprimalentry = REALABS(startXval[b][i]);
+                           if ( relaxdata->warmstartproject == 3 )
+                              maxprimalentry = relaxdata->warmstartprojminevprimal;
+                           else
+                              maxprimalentry = 1.0;
+                           for (i = 0; i < startXnblocknonz[b]; i++)
+                           {
+                              if ( REALABS(startXval[b][i]) > maxprimalentry )
+                                 maxprimalentry = REALABS(startXval[b][i]);
+                           }
+                           identitydiagonal = relaxdata->warmstartipfactor * maxprimalentry; /* the diagonal entries of the scaled identity matrix */
                         }
-                        identitydiagonal = relaxdata->warmstartipfactor * maxprimalentry; /* the diagonal entries of the scaled identity matrix */
                         blocksize = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
 
                         SCIP_CALL( SCIPallocBufferArray(scip, &diagentryexists, blocksize) ); /* TODO: could allocate this once for Z and X with max-blocksize */
@@ -2702,13 +2579,147 @@ SCIP_RETCODE calcRelax(
                      }
                   }
                }
+            }
 
-               /* compute projection for LP block */
-               if ( relaxdata->warmstartproject == 3 )
+            /* iterate over all blocks again to compute convex combination */
+
+            /* in case of warmstartprojpdsame first compute a single maximum value for all primal and dual blocks */
+            if ( relaxdata->warmstartprojpdsame && SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
+            {
+               identitydiagonal = 1.0;
+
+               for (b = 0; b < nblocks; b++)
+               {
+                  for (i = 0; i < startZnblocknonz[b]; i++)
+                  {
+                     if ( REALABS(startZval[b][i]) > identitydiagonal )
+                        identitydiagonal = REALABS(startZval[b][i]);
+                  }
+                  for (i = 0; i < startXnblocknonz[b]; i++)
+                  {
+                     if ( REALABS(startXval[b][i]) > identitydiagonal )
+                        identitydiagonal = REALABS(startXval[b][i]);
+                  }
+               }
+               identitydiagonal *= relaxdata->warmstartipfactor; /* the diagonal entries of the scaled identity matrix */
+            }
+
+            for (b = 0; b < nblocks; b++)
+            {
+               /* use convex combination between Z and scaled identity matrix to move solution to the interior */
+               if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
+               {
+                  if ( relaxdata->warmstartiptype == 1 )
+                  {
+                     if ( ! relaxdata->warmstartprojpdsame )
+                     {
+                        /* compute maxdualentry (should be at least one) */
+                        maxdualentry = 1.0;
+                        for (i = 0; i < startZnblocknonz[b]; i++)
+                        {
+                           if ( REALABS(startZval[b][i]) > maxdualentry )
+                              maxdualentry = REALABS(startZval[b][i]);
+                        }
+                        identitydiagonal = relaxdata->warmstartipfactor * maxdualentry; /* the diagonal entries of the scaled identity matrix */
+                     }
+
+                     SCIP_CALL( SCIPallocBufferArray(scip, &diagentryexists, blocksize) ); /* TODO: could allocate this once for Z and X with max-blocksize */
+                     for (i = 0; i < blocksize; i++)
+                        diagentryexists[i] = FALSE;
+
+                     for (i = 0; i < startZnblocknonz[b]; i++)
+                     {
+                        if ( startZrow[b][i] == startZcol[b][i] )
+                        {
+                           startZval[b][i] = startZval[b][i] * (1 - relaxdata->warmstartipfactor) + identitydiagonal; /* add identity for diagonal entries */
+                           assert( startZval[b][i] >= 0 ); /* since the original matrix should have been positive semidefinite, diagonal entries should be >= 0 */
+                           diagentryexists[startZrow[b][i]] = TRUE;
+                        }
+                        else
+                           startZval[b][i] *= (1 - relaxdata->warmstartipfactor); /* since this is an off-diagonal entry, we scale towards zero */
+                     }
+
+                     /* if a diagonal entry was missing (because we had a zero row before), we have to add it to the end */
+                     for (i = 0; i < blocksize; i++)
+                     {
+                        if ( ! diagentryexists[i] )
+                        {
+                           startZrow[b][startZnblocknonz[b]] = i;
+                           startZcol[b][startZnblocknonz[b]] = i;
+                           startZval[b][startZnblocknonz[b]] = identitydiagonal;
+                           startZnblocknonz[b]++;
+                        }
+                     }
+
+                     SCIPfreeBufferArrayNull(scip, &diagentryexists);
+                  }
+                  else if ( relaxdata->warmstartiptype == 2 )
+                  {
+                     /* iterate once over all entries to multiply them with (1 - warmstartipfactor) */
+                     for (i = 0; i < startZnblocknonz[b]; i++)
+                        startZval[b][i] *= 1 - relaxdata->warmstartipfactor;
+
+                     /* merge the scaled interior point array into the warmstart array */
+                     SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), SCIPepsilon(scip), relaxdata->ipZrow[b], relaxdata->ipZcol[b], relaxdata->ipZval[b], relaxdata->ipZnblocknonz[b], TRUE,
+                           relaxdata->warmstartipfactor, startZrow[b], startZcol[b], startZval[b], &(startZnblocknonz[b]), startZnblocknonz[b] + relaxdata->ipZnblocknonz[b]) );
+                  }
+               }
+            }
+
+            /* compute projection for LP block */
+            if ( relaxdata->warmstartproject == 3 )
+            {
+               int nsavedentries;
+               int lastentry;
+               int j;
+
+               /* sort indices by row/col; TODO: check if this is necessary */
+               SCIPsortIntIntReal(startXrow[nblocks], startXcol[nblocks], startXval[nblocks], startXnblocknonz[nblocks]);
+
+               /* iterate over all entries */
+               nsavedentries = startXnblocknonz[nblocks];
+               lastentry = 0;
+
+               for (i = 0; i < nsavedentries; i++)
+               {
+                  assert( startXrow[nblocks][i] == startXcol[nblocks][i] ); /* this is the LP-block */
+                  /* if some entries are missing, we add them at the end */
+                  for (j = lastentry + 1; j < startXrow[nblocks][i]; j++)
+                  {
+                     assert( startXnblocknonz[nblocks] < 2 * nrows + 2 * nvars );
+                     startXrow[nblocks][startXnblocknonz[nblocks]] = j;
+                     startXcol[nblocks][startXnblocknonz[nblocks]] = j;
+                     startXval[nblocks][startXnblocknonz[nblocks]] = relaxdata->warmstartprojminevprimal;
+                     startXnblocknonz[nblocks]++;
+                  }
+                  if ( SCIPisLT(scip, startXval[b][i], 1.0) )
+                     startXval[b][i] = relaxdata->warmstartprojminevprimal;
+
+                  lastentry = startXrow[nblocks][i];
+               }
+               /* add missing entries at the end */
+               for (j = lastentry + 1; j < 2 * nrows + 2 * nvars; j++)
+               {
+                  assert( startXnblocknonz[nblocks] < 2 * nrows + 2 * nvars );
+                  startXrow[nblocks][startXnblocknonz[nblocks]] = j;
+                  startXcol[nblocks][startXnblocknonz[nblocks]] = j;
+                  startXval[nblocks][startXnblocknonz[nblocks]] = relaxdata->warmstartprojminevprimal;
+                  startXnblocknonz[nblocks]++;
+               }
+            }
+
+            /* take convex combination for LP block */
+            if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
+            {
+               if ( relaxdata->warmstartiptype == 1 )
                {
                   int nsavedentries;
                   int lastentry;
                   int j;
+
+                  /* if warmstartprojpdsame is true we use the computed value, otherwise we use the maximum of this block, which is one */
+                  if ( ! relaxdata->warmstartprojpdsame )
+                     identitydiagonal = relaxdata->warmstartipfactor;
 
                   /* sort indices by row/col; TODO: check if this is necessary */
                   SCIPsortIntIntReal(startXrow[nblocks], startXcol[nblocks], startXval[nblocks], startXnblocknonz[nblocks]);
@@ -2726,11 +2737,20 @@ SCIP_RETCODE calcRelax(
                         assert( startXnblocknonz[nblocks] < 2 * nrows + 2 * nvars );
                         startXrow[nblocks][startXnblocknonz[nblocks]] = j;
                         startXcol[nblocks][startXnblocknonz[nblocks]] = j;
-                        startXval[nblocks][startXnblocknonz[nblocks]] = relaxdata->warmstartprojminevprimal;
+                        /* if warmstartprojpdsame is true we use the computed value, otherwise we use the maximum of this block, which is one */
+                        if ( relaxdata->warmstartprojpdsame )
+                           startXval[nblocks][startXnblocknonz[nblocks]] = identitydiagonal;
+                        else
+                           startXval[nblocks][startXnblocknonz[nblocks]] = relaxdata->warmstartipfactor;
                         startXnblocknonz[nblocks]++;
                      }
-                     if ( SCIPisLT(scip, startXval[b][i], 1.0) )
-                        startXval[b][i] = relaxdata->warmstartprojminevprimal;
+                     /* we only take the convex combination if the value is less than one, since the maxblockentry is equal to the value
+                      * otherwise, so taking the convex combination doesn't change anything in that case (unless warmstarprojpdsame)
+                      */
+                     if ( relaxdata->warmstartprojpdsame )
+                        startXval[b][i] = (1 - relaxdata->warmstartipfactor) * startXval[b][i] + identitydiagonal;
+                     else if ( SCIPisLT(scip, startXval[b][i], 1.0) )
+                        startXval[b][i] = (1 - relaxdata->warmstartipfactor) * startXval[b][i] + relaxdata->warmstartipfactor;
 
                      lastentry = startXrow[nblocks][i];
                   }
@@ -2740,69 +2760,91 @@ SCIP_RETCODE calcRelax(
                      assert( startXnblocknonz[nblocks] < 2 * nrows + 2 * nvars );
                      startXrow[nblocks][startXnblocknonz[nblocks]] = j;
                      startXcol[nblocks][startXnblocknonz[nblocks]] = j;
-                     startXval[nblocks][startXnblocknonz[nblocks]] = relaxdata->warmstartprojminevprimal;
+                     startXval[nblocks][startXnblocknonz[nblocks]] = identitydiagonal;
                      startXnblocknonz[nblocks]++;
                   }
                }
-
-               /* take convex combination for LP block */
-               if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
+               else if ( relaxdata->warmstartiptype == 2 )
                {
-                  if ( relaxdata->warmstartiptype == 1 )
+                  /* iterate once over all entries to multiply them with (1 - warmstartipfactor) */
+                  for (i = 0; i < startXnblocknonz[nblocks]; i++)
+                     startXval[nblocks][i] *= 1 - relaxdata->warmstartipfactor;
+
+                  /* merge the scaled interior point array into the warmstart array */
+                  SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), SCIPepsilon(scip), relaxdata->ipXrow[nblocks],
+                        relaxdata->ipXcol[nblocks], relaxdata->ipXval[nblocks], relaxdata->ipXnblocknonz[nblocks], TRUE,
+                        relaxdata->warmstartipfactor, startXrow[nblocks], startXcol[nblocks], startXval[nblocks],
+                        &(startXnblocknonz[nblocks]), startXnblocknonz[nblocks] + relaxdata->ipXnblocknonz[nblocks]) );
+               }
+
+               /* take the convex combination for the dual (in this case we do not need to check for missing entries since we added all of them ourselves) */
+               if ( relaxdata->warmstartiptype == 1 )
+               {
+                  for (r = 0; r < nrows; r++)
                   {
-                     int nsavedentries;
-                     int lastentry;
-                     int j;
-
-                     /* sort indices by row/col; TODO: check if this is necessary */
-                     SCIPsortIntIntReal(startXrow[nblocks], startXcol[nblocks], startXval[nblocks], startXnblocknonz[nblocks]);
-
-                     /* iterate over all entries */
-                     nsavedentries = startXnblocknonz[nblocks];
-                     lastentry = 0;
-
-                     for (i = 0; i < nsavedentries; i++)
+                     /* for the project we just set all values smaller than minev to minev */
+                     if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, startZval[b][2*r], relaxdata->warmstartprojminevdual) )
+                        startZval[nblocks][2*r] = relaxdata->warmstartprojminevdual;
+                     /* we only take the convex combination if the value is less than one, since the maxblockentry is equal to the value
+                      * otherwise, so taking the convex combination doesn't change anything in that case (unless projpdsame)
+                      */
+                     else if ( relaxdata->warmstartiptype == 1 && (SCIPisLT(scip, startZval[nblocks][2*r], 1.0) || relaxdata->warmstartprojpdsame) )
                      {
-                        assert( startXrow[nblocks][i] == startXcol[nblocks][i] ); /* this is the LP-block */
-                        /* if some entries are missing, we add them at the end */
-                        for (j = lastentry + 1; j < startXrow[nblocks][i]; j++)
-                        {
-                           assert( startXnblocknonz[nblocks] < 2 * nrows + 2 * nvars );
-                           startXrow[nblocks][startXnblocknonz[nblocks]] = j;
-                           startXcol[nblocks][startXnblocknonz[nblocks]] = j;
-                           startXval[nblocks][startXnblocknonz[nblocks]] = relaxdata->warmstartipfactor;
-                           startXnblocknonz[nblocks]++;
-                        }
-                        /* we only take the convex combination if the value is less than one, since the maxblockentry is equal to the value
-                         * otherwise, so taking the convex combination doesn't change anything in that case
-                         */
-                        if ( SCIPisLT(scip, startXval[b][i], 1.0) )
-                           startXval[b][i] = (1 - relaxdata->warmstartipfactor) * startXval[b][i] + relaxdata->warmstartipfactor;
-
-                        lastentry = startXrow[nblocks][i];
+                        /* since we want the value to be strictly positive, if the original entry is negative we just set it to identitydiagonal */
+                        if ( SCIPisLT(scip, startZval[nblocks][2*r], 0.0) )
+                           startZval[nblocks][2*r] = identitydiagonal;
+                        else
+                           startZval[nblocks][2*r] = (1 - relaxdata->warmstartipfactor) * startZval[nblocks][2*r] + identitydiagonal;
                      }
-                     /* add missing entries at the end */
-                     for (j = lastentry + 1; j < 2 * nrows + 2 * nvars; j++)
+
+                     if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, startZval[nblocks][2*r + 1], relaxdata->warmstartprojminevdual) )
+                        startZval[nblocks][2*r + 1] = relaxdata->warmstartprojminevdual;
+                     else if ( relaxdata->warmstartiptype == 1 && (SCIPisLT(scip, startZval[nblocks][2*r + 1], 1.0) || relaxdata->warmstartprojpdsame) )
                      {
-                        assert( startXnblocknonz[nblocks] < 2 * nrows + 2 * nvars );
-                        startXrow[nblocks][startXnblocknonz[nblocks]] = j;
-                        startXcol[nblocks][startXnblocknonz[nblocks]] = j;
-                        startXval[nblocks][startXnblocknonz[nblocks]] = relaxdata->warmstartipfactor;
-                        startXnblocknonz[nblocks]++;
+                        /* since we want the value to be strictly positive, if the original entry is negative we just set it to identitydiagonal */
+                        if ( SCIPisLT(scip, startZval[nblocks][2*r + 1], 0.0) )
+                           startZval[nblocks][2*r + 1] = identitydiagonal;
+                        else
+                           startZval[nblocks][2*r + 1] = (1 - relaxdata->warmstartipfactor) * startZval[nblocks][2*r + 1] + identitydiagonal;
                      }
                   }
-                  else if ( relaxdata->warmstartiptype == 2 )
-                  {
-                     /* iterate once over all entries to multiply them with (1 - warmstartipfactor) */
-                     for (i = 0; i < startXnblocknonz[nblocks]; i++)
-                        startXval[nblocks][i] *= 1 - relaxdata->warmstartipfactor;
 
-                     /* merge the scaled interior point array into the warmstart array */
-                     SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), SCIPepsilon(scip), relaxdata->ipXrow[nblocks],
-                           relaxdata->ipXcol[nblocks], relaxdata->ipXval[nblocks], relaxdata->ipXnblocknonz[nblocks], TRUE,
-                           relaxdata->warmstartipfactor, startXrow[nblocks], startXcol[nblocks], startXval[nblocks],
-                           &(startXnblocknonz[nblocks]), startXnblocknonz[nblocks] + relaxdata->ipXnblocknonz[nblocks]) );
+                  for (v = 0; v < nvars; v++)
+                  {
+                     if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, startZval[nblocks][2*nrows + 2*v], relaxdata->warmstartprojminevdual) )
+                        startZval[nblocks][2*nrows + 2*v] = relaxdata->warmstartprojminevdual;
+                     else if ( relaxdata->warmstartiptype == 1 && (SCIPisLT(scip, startZval[nblocks][2*nrows + 2*v], 1.0) || relaxdata->warmstartprojpdsame) )
+                     {
+                        /* since we want the value to be strictly positive, if the original entry is negative we just set it to identitydiagonal */
+                        if ( SCIPisLT(scip, startZval[nblocks][2*nrows + 2*v], 0.0) )
+                           startZval[nblocks][2*nrows + 2*v] = identitydiagonal;
+                        else
+                           startZval[nblocks][2*nrows + 2*v] = (1 - relaxdata->warmstartipfactor) * startZval[nblocks][2*nrows + 2*v] + identitydiagonal;
+                     }
+
+                     if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, startZval[nblocks][2*nrows + 2*v + 1], relaxdata->warmstartprojminevdual) )
+                        startZval[nblocks][2*nrows + 2*v + 1] = relaxdata->warmstartprojminevdual;
+                     else if ( relaxdata->warmstartiptype == 1 && (SCIPisLT(scip, startZval[nblocks][2*nrows + 2*v + 1], 1.0) || relaxdata->warmstartprojpdsame) )
+                     {
+                        /* since we want the value to be strictly positive, if the original entry is negative we just set it to identitydiagonal */
+                        if ( SCIPisLT(scip, startZval[nblocks][2*nrows + 2*v + 1], 0.0) )
+                           startZval[nblocks][2*nrows + 2*v + 1] = identitydiagonal;
+                        else
+                           startZval[nblocks][2*nrows + 2*v + 1] = (1 - relaxdata->warmstartipfactor) * startZval[nblocks][2*nrows + 2*v + 1] + identitydiagonal;
+                     }
                   }
+               }
+               else if ( relaxdata->warmstartiptype == 2 )
+               {
+                  /* iterate once over all entries to multiply them with (1 - warmstartipfactor) */
+                  for (i = 0; i < startXnblocknonz[nblocks]; i++)
+                     startZval[nblocks][i] *= 1 - relaxdata->warmstartipfactor;
+
+                  /* merge the scaled interior point array into the warmstart array */
+                  SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), SCIPepsilon(scip), relaxdata->ipZrow[nblocks],
+                        relaxdata->ipZcol[nblocks], relaxdata->ipZval[nblocks], relaxdata->ipZnblocknonz[nblocks], TRUE,
+                        relaxdata->warmstartipfactor, startZrow[nblocks], startXcol[nblocks], startZval[nblocks],
+                        &(startZnblocknonz[nblocks]), startZnblocknonz[nblocks] + relaxdata->ipZnblocknonz[nblocks]) );
                }
             }
          }
@@ -2854,7 +2896,6 @@ SCIP_RETCODE calcRelax(
                SCIPfreeBufferArray(scip, &startZval[b]);
                SCIPfreeBufferArray(scip, &startZcol[b]);
                SCIPfreeBufferArray(scip, &startZrow[b]);
-
             }
 
             SCIPfreeBufferArray(scip, &startXval);
@@ -4228,7 +4269,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          TRUE, DEFAULT_WARMSTARTPROJMINEV, -1.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstartprojpdsame",
-         "Should one shared minimum eigenvalue be computed for primal and dual problem instead of different ones if warmstartpmevpar = -1",
+         "Should one shared minimum eigenvalue respectively maximum entry be computed for primal and dual problem instead of different ones for projection or convex combination ?",
          &(relaxdata->warmstartprojpdsame), TRUE, DEFAULT_WARMSTARTPROJPDSAME, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstartpreoptsol",
