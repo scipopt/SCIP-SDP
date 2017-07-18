@@ -187,7 +187,8 @@ struct SCIP_RelaxData
 
    SCIP_Bool             warmstart;          /**< Should the SDP solver try to use warmstarts? */
    SCIP_Real             warmstartipfactor;  /**< factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled */
-   int                   warmstartprimaltype;/**< how to warmstart the primal problem? 1: scaled identity/analytic center, 2: elementwise reciprocal, 3: saved primal sol */
+   int                   warmstartprimaltype;/**< how to warmstart the primal problem? 1: scaled identity/analytic center, 2: elementwise reciprocal, 3: saved primal sol
+                                               *  TODO: should probably remove elementwise reciprocal, since this doesn't work from a theoretical point of view*/
    int                   warmstartproject;   /**< how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone, 4: use new bounds and solve rounding problem */
    SCIP_Real             warmstartpmevprimalpar; /**< SCIP parameter for min eigenvalue when projecting primal onto positive definite cone; -1 for automatic computation */
    SCIP_Real             warmstartpmevdualpar; /**< SCIP parameter for min eigenvalue when projecting dual onto positive definite cone; -1 for automatic computation */
@@ -1159,7 +1160,7 @@ SCIP_RETCODE calcRelax(
                   {
                      startXrow[b][i] = startZrow[b][i];
                      startXcol[b][i] = startZcol[b][i];
-                     startXval[b][i] = 1 / startXval[b][i];
+                     startXval[b][i] = 1 / startZval[b][i];
                   }
                }
                else if ( relaxdata->warmstartprimaltype != 3 && relaxdata->warmstartproject != 4 )
@@ -3808,13 +3809,25 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       int v;
       SCIP_Real maxsdprhs; /* note that we only take the maximum value of the SDP constraints, since these tend to be the most problematic */
       SCIP_Real maxobj;
+      SCIP_Real maxsdpcoef; /* note that we only take the maximum value of the SDP constraints, since these tend to be the most problematic */
       SCIP_Real maxval;
+      SCIP_Real sdpcoef;
 
-      /* compute value as WARMSTART_PROJ_FACTOR * maxrhs or WARMSTART_PROJ_FACTOR * maxobj */
+      /* compute value as WARMSTART_PROJ_FACTOR * max{maxrhs, maxobj, maxsdpcoef} */
       sdpconshdlr = SCIPfindConshdlr(scip, "SDP");
       nsdpblocks = SCIPconshdlrGetNConss(sdpconshdlr);
       sdpblocks = SCIPconshdlrGetConss(sdpconshdlr);
 
+      /* compute maxsdpcoef */
+      maxsdpcoef = WARMSTART_PROJ_MINRHSOBJ;
+      for (b = 0; b < nsdpblocks; b++)
+      {
+         sdpcoef = SCIPconsSdpGetMaxSdpCoef(scip, sdpblocks[b]);
+         if ( SCIPisGT(scip, sdpcoef, maxsdpcoef) )
+            maxsdpcoef = sdpcoef;
+      }
+
+      /* compute maxsdprhs */
       maxsdprhs = WARMSTART_PROJ_MINRHSOBJ;
       for (b = 0; b < nsdpblocks; b++)
       {
@@ -3822,6 +3835,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
             maxsdprhs = SCIPconsSdpGetMaxConstEntry(scip, sdpblocks[b]);
       }
 
+      /* compute maxobj */
       maxobj = WARMSTART_PROJ_MINRHSOBJ;
       for (v = 0; v < nvars; v++)
       {
@@ -3832,6 +3846,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       if ( relaxdata->warmstartprojpdsame )
       {
          maxval = SCIPisGT(scip, maxsdprhs, maxobj) ? maxsdprhs : maxobj;
+         maxval = SCIPisGT(scip, maxsdpcoef, maxval) ? maxsdpcoef : maxval;
 
          relaxdata->warmstartprojminevprimal = WARMSTART_PROJ_FACTOR * maxval;
          relaxdata->warmstartprojminevdual = WARMSTART_PROJ_FACTOR * maxval;
@@ -3842,14 +3857,14 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       {
          if ( ! SCIPisGE(scip, projminevprimal, 0.0) )
          {
-            relaxdata->warmstartprojminevprimal = WARMSTART_PROJ_FACTOR_PRIMAL * maxobj;
+            relaxdata->warmstartprojminevprimal = WARMSTART_PROJ_FACTOR_PRIMAL * (SCIPisGT(scip, maxobj, maxsdpcoef) ? maxobj : maxsdpcoef);
 
             SCIPdebugMsg(scip, "Setting warmstartprojminevprimal to %f\n", relaxdata->warmstartprojminevprimal);
          }
 
          if ( ! SCIPisGE(scip, projminevdual, 0.0) )
          {
-            relaxdata->warmstartprojminevdual = WARMSTART_PROJ_FACTOR_DUAL * maxsdprhs;
+            relaxdata->warmstartprojminevprimal = WARMSTART_PROJ_FACTOR_PRIMAL * (SCIPisGT(scip, maxsdprhs, maxsdpcoef) ? maxsdprhs : maxsdpcoef);
 
             SCIPdebugMsg(scip, "Setting warmstartprojminevdual to %f\n", relaxdata->warmstartprojminevdual);
          }

@@ -2853,7 +2853,7 @@ SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
    return SCIP_OKAY;
 }
 
-/** Gets maximum entry of constant matrix \f$ A_0 \f$ */
+/** Gets maximum absolute entry of constant matrix \f$ A_0 \f$ */
 SCIP_Real SCIPconsSdpGetMaxConstEntry(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons                /**< the constraint to get the maximum constant matrix entry for */
@@ -2867,6 +2867,36 @@ SCIP_Real SCIPconsSdpGetMaxConstEntry(
    consdata = SCIPconsGetData(cons);
 
    return consdata->maxrhsentry;
+}
+
+/** Gets maximum absolute entry of all matrices \f$ A_i \f$ */
+SCIP_Real SCIPconsSdpGetMaxSdpCoef(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< the constraint to get the maximum constant matrix entry for */
+   )
+{
+   SCIP_CONSDATA* consdata;
+   SCIP_Real maxcoef;
+   int v;
+   int i;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+
+   maxcoef = 0.0;
+
+   for (v = 0; v < consdata->nvars; v++)
+   {
+      for (i = 0; i < consdata->nvarnonz[v]; i++)
+      {
+         if ( SCIPisGT(scip, REALABS(consdata->val[v][i]), maxcoef) )
+            maxcoef = REALABS(consdata->val[v][i]);
+      }
+   }
+
+   return maxcoef;
 }
 
 /** Computes an upper bound on the number of nonzeros of the (dual) SDP matrix \f$ Z = \sum_{j=1}^n A_j y_j - A_0 \f$,

@@ -187,9 +187,16 @@ SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
    SCIP_Real*            lambdastar          /**< pointer to store the guess for the initial point */
    );
 
-/** Gets maximum entry of constant matrix \f$ A_0 \f$ */
+/** Gets maximum absolute entry of constant matrix \f$ A_0 \f$ */
 EXTERN
 SCIP_Real SCIPconsSdpGetMaxConstEntry(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< the constraint to get the maximum constant matrix entry for */
+   );
+
+/** Gets maximum absolute entry of all matrices \f$ A_i \f$ */
+EXTERN
+SCIP_Real SCIPconsSdpGetMaxSdpCoef(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons                /**< the constraint to get the maximum constant matrix entry for */
    );
