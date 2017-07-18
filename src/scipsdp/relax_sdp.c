@@ -1261,7 +1261,7 @@ SCIP_RETCODE calcRelax(
                      startXcol[b][2*r + 1] = startZcol[b][2*r + 1];
                      startXval[b][2*r + 1] = 1 / startZval[b][2*r + 1];
                   }
-                  else if ( relaxdata->warmstartprimaltype != 3 && relaxdata->warmstartproject != 4 )
+                  else if ( relaxdata->warmstartprimaltype != 3 && relaxdata->warmstartiptype == 1 )
                   {
                      SCIPerrorMessage("Unknown value %d for warmstartprimaltype.\n", relaxdata->warmstartprimaltype);
                      SCIPABORT();
@@ -2748,7 +2748,7 @@ SCIP_RETCODE calcRelax(
                /* take convex combination for LP block */
                if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
                {
-                  if ( relaxdata->warmstartipfactor == 1 )
+                  if ( relaxdata->warmstartiptype == 1 )
                   {
                      int nsavedentries;
                      int lastentry;
@@ -2791,7 +2791,7 @@ SCIP_RETCODE calcRelax(
                         startXnblocknonz[nblocks]++;
                      }
                   }
-                  else if ( relaxdata->warmstartipfactor == 2 )
+                  else if ( relaxdata->warmstartiptype == 2 )
                   {
                      /* iterate once over all entries to multiply them with (1 - warmstartipfactor) */
                      for (i = 0; i < startXnblocknonz[nblocks]; i++)
