@@ -3864,7 +3864,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
 
          if ( ! SCIPisGE(scip, projminevdual, 0.0) )
          {
-            relaxdata->warmstartprojminevprimal = WARMSTART_PROJ_FACTOR_PRIMAL * (SCIPisGT(scip, maxsdprhs, maxsdpcoef) ? maxsdprhs : maxsdpcoef);
+            relaxdata->warmstartprojminevdual = WARMSTART_PROJ_FACTOR_PRIMAL * (SCIPisGT(scip, maxsdprhs, maxsdpcoef) ? maxsdprhs : maxsdpcoef);
 
             SCIPdebugMsg(scip, "Setting warmstartprojminevdual to %f\n", relaxdata->warmstartprojminevdual);
          }
