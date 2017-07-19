@@ -3958,8 +3958,8 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    /* initialize objective limit in case it was set in an earlier optimize call */
    SCIP_CALL( SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_OBJLIMIT, SCIPsdpiInfinity(relaxdata->sdpi)) );
 
-   /* set warmstartpreoptimal gap if DSDP is used as the SDP-Solver */
-   if ( strcmp(SCIPsdpiGetSolverName(), "DSDP") == 0.0 )
+   /* set warmstartpreoptimal gap if DSDP is used as the SDP-Solver and preoptimal solutions should be saved */
+   if ( relaxdata->warmstartpreoptsol && strcmp(SCIPsdpiGetSolverName(), "DSDP") == 0.0 )
    {
       SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/warmstartpreoptgap", &preoptgap) );
       retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_WARMSTARTPOGAP, preoptgap);

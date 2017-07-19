@@ -1436,11 +1436,16 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* start the solving process */
    DSDP_CALLM( DSDPSetup(sdpisolver->dsdp) );
+   /* if there is a timelimit, set the corresponding callback */
    if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, timelimit) )
    {
       DSDP_CALLM( DSDPSetMonitor(sdpisolver->dsdp, checkTimeLimitDSDP, (void*) &timings) );
    }
-   DSDP_CALL( DSDPSetMonitor(sdpisolver->dsdp, checkGapSetPreoptimalSol, (void*) sdpisolver) );
+   /* if preoptimal solutions should be saved for warmstarting purposes, set the corresponding callback */
+   if ( sdpisolver->preoptimalgap >= 0.0 )
+   {
+      DSDP_CALL( DSDPSetMonitor(sdpisolver->dsdp, checkGapSetPreoptimalSol, (void*) sdpisolver) );
+   }
    DSDP_CALL( DSDPSolve(sdpisolver->dsdp) );
 
    sdpisolver->nsdpcalls++;
