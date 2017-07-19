@@ -93,7 +93,8 @@
 
 #define WARMSTART_MINVAL            0.01     /**< if we get a value less than this when warmstarting (currently only for the linear part when combining with analytic center), the value is set to this */
 #define WARMSTART_PROJ_MINRHSOBJ    1        /**< minimum value for rhs/obj when computing minimum eigenvalue for warmstart-projection */
-#define WARMSTART_PROJ_FACTOR       0.1      /**< factor to multiply maximum rhs/obj with when computing minimum eigenvalue for warmstart-projection */
+#define WARMSTART_PROJ_FACTOR       0.1      /**< factor to multiply maximum rhs/obj/coef with when computing minimum eigenvalue for warmstart-projection */
+#define WARMSTART_PROJ_FACTOR_LHS   10       /**< factor to multiply maximum SDP coefficient with before applying WARMSTART_PROJ_FACTOr (to account for summation of lhs entries) */
 #define WARMSTART_PROJ_FACTOR_PRIMAL 0.1     /**< factor to multiply maximum obj with when computing minimum eigenvalue for warmstart-projection in the primal */
 #define WARMSTART_PROJ_FACTOR_DUAL  0.1      /**< factor to multiply maximum rhs with when computing minimum eigenvalue for warmstart-projection in the dual */
 
@@ -3867,6 +3868,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
          if ( SCIPisGT(scip, sdpcoef, maxsdpcoef) )
             maxsdpcoef = sdpcoef;
       }
+      maxsdpcoef *= WARMSTART_PROJ_FACTOR_LHS; /* multiply by additional factor to account for summation of lhs entries */
 
       /* compute maxsdprhs */
       maxsdprhs = WARMSTART_PROJ_MINRHSOBJ;
