@@ -2838,13 +2838,13 @@ SCIP_RETCODE calcRelax(
                else if ( relaxdata->warmstartiptype == 2 )
                {
                   /* iterate once over all entries to multiply them with (1 - warmstartipfactor) */
-                  for (i = 0; i < startXnblocknonz[nblocks]; i++)
+                  for (i = 0; i < startZnblocknonz[nblocks]; i++)
                      startZval[nblocks][i] *= 1 - relaxdata->warmstartipfactor;
 
                   /* merge the scaled interior point array into the warmstart array */
                   SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), SCIPepsilon(scip), relaxdata->ipZrow[nblocks],
                         relaxdata->ipZcol[nblocks], relaxdata->ipZval[nblocks], relaxdata->ipZnblocknonz[nblocks], TRUE,
-                        relaxdata->warmstartipfactor, startZrow[nblocks], startXcol[nblocks], startZval[nblocks],
+                        relaxdata->warmstartipfactor, startZrow[nblocks], startZcol[nblocks], startZval[nblocks],
                         &(startZnblocknonz[nblocks]), startZnblocknonz[nblocks] + relaxdata->ipZnblocknonz[nblocks]) );
                }
             }
