@@ -2450,139 +2450,9 @@ SCIP_RETCODE calcRelax(
 
                   SCIP_CALL( SCIPconsSavesdpsolGetPrimalMatrix(scip, conss[parentconsind], nblocks + 1, startXnblocknonz, startXrow, startXcol, startXval) );
                }
-
-               for (b = 0; b < nblocks; b++)
-               {
-                  /* compute projection onto psd cone (computed as U * diag(lambda_i_+) * U^T where U consists of the eigenvectors of the matrix) */
-                  if ( relaxdata->warmstartproject == 3 )
-                  {
-                     SCIP_Real* fullXmatrix;
-                     SCIP_Real* eigenvalues;
-                     SCIP_Real* eigenvectors;
-                     SCIP_Real* scaledeigenvectors;
-                     SCIP_Real matrixsize;
-                     SCIP_Real epsilon;
-                     int c;
-                     int matrixpos;
-
-                     matrixsize = blocksize * blocksize;
-
-                     SCIP_CALL( SCIPallocBufferArray(scip, &fullXmatrix, matrixsize) );
-                     SCIP_CALL( SCIPallocBufferArray(scip, &eigenvalues, blocksize) );
-                     SCIP_CALL( SCIPallocBufferArray(scip, &eigenvectors, matrixsize) );
-
-                     SCIP_CALL( expandSparseMatrix(startXnblocknonz[b], blocksize, startXrow[b], startXcol[b], startXval[b], fullXmatrix) );
-
-                     SCIP_CALL( SCIPlapackComputeEigenvectorDecomposition(SCIPbuffer(scip), blocksize, fullXmatrix, eigenvalues, eigenvectors) );
-
-                     /* duplicate memory of eigenvectors to compute diag(lambda_i_+) * U^T */
-                     SCIP_CALL( SCIPduplicateBufferArray(scip, &scaledeigenvectors, eigenvectors, matrixsize) );
-
-                     /* set all negative eigenvalues to zero (using the property that LAPACK returns them in ascending order) */
-                     i = 0;
-                     while (i < blocksize && SCIPisLT(scip, eigenvalues[i], relaxdata->warmstartprojminevprimal) )
-                     {
-                        eigenvalues[i] = relaxdata->warmstartprojminevprimal;
-                        i++;
-                     }
-
-                     /* compute diag(lambda_i_+) * U^T */
-                     SCIP_CALL( scaleTransposedMatrix(blocksize, scaledeigenvectors, eigenvalues) );
-
-                     /* compute U * [diag(lambda_i_+) * U^T] (note that transposes are switched because LAPACK uses column-first-format) */
-                     SCIP_CALL( SCIPlapackMatrixMatrixMult(blocksize, blocksize, eigenvectors, TRUE, blocksize, blocksize, scaledeigenvectors,
-                           FALSE, fullXmatrix) );
-
-                     /* extract sparse matrix from projection */
-                     startXnblocknonz[b] = 0;
-                     epsilon = SCIPepsilon(scip);
-                     for (r = 0; r < blocksize; r++)
-                     {
-                        for (c = r; c < blocksize; c++)
-                        {
-                           matrixpos = r * blocksize + c;
-                           if ( REALABS(fullXmatrix[matrixpos]) > epsilon )
-                           {
-                              startXrow[b][startXnblocknonz[b]] = r;
-                              startXcol[b][startXnblocknonz[b]] = c;
-                              startXval[b][startXnblocknonz[b]] = fullXmatrix[matrixpos];
-                              startXnblocknonz[b]++;
-                           }
-                        }
-                     }
-
-                     /* free memory */
-                     SCIPfreeBufferArray(scip, &scaledeigenvectors);
-                     SCIPfreeBufferArray(scip, &eigenvectors);
-                     SCIPfreeBufferArray(scip, &eigenvalues);
-                     SCIPfreeBufferArray(scip, &fullXmatrix);
-                  }
-
-                  /* use convex combination between X and scaled identity matrix to move solution to the interior */
-                  if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
-                  {
-                     if ( relaxdata->warmstartiptype == 1 )
-                     {
-                        /* compute maxprimalentry (should be at least one or warmstartprojminevprimal) */
-                        if ( ! relaxdata->warmstartprojpdsame )
-                        {
-                           if ( relaxdata->warmstartproject == 3 )
-                              maxprimalentry = relaxdata->warmstartprojminevprimal;
-                           else
-                              maxprimalentry = 1.0;
-                           for (i = 0; i < startXnblocknonz[b]; i++)
-                           {
-                              if ( REALABS(startXval[b][i]) > maxprimalentry )
-                                 maxprimalentry = REALABS(startXval[b][i]);
-                           }
-                           identitydiagonal = relaxdata->warmstartipfactor * maxprimalentry; /* the diagonal entries of the scaled identity matrix */
-                        }
-                        blocksize = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
-
-                        SCIP_CALL( SCIPallocBufferArray(scip, &diagentryexists, blocksize) ); /* TODO: could allocate this once for Z and X with max-blocksize */
-                        for (i = 0; i < blocksize; i++)
-                           diagentryexists[i] = FALSE;
-
-                        for (i = 0; i < startXnblocknonz[b]; i++)
-                        {
-                           if ( startXrow[b][i] == startXcol[b][i] )
-                           {
-                              startXval[b][i] = startXval[b][i] * (1 - relaxdata->warmstartipfactor) + identitydiagonal; /* add identity for diagonal entries */
-                              assert( startXval[b][i] >= 0 ); /* since the original matrix should have been positive semidefinite, diagonal entries should be >= 0 */
-                              diagentryexists[startXrow[b][i]] = TRUE;
-                           }
-                           else
-                              startXval[b][i] *= (1 - relaxdata->warmstartipfactor); /* since this is an off-diagonal entry, we scale towards zero */
-                        }
-
-                        /* if a diagonal entry was missing (because we had a zero row before), we have to add it to the end */
-                        for (i = 0; i < blocksize; i++)
-                        {
-                           if ( ! diagentryexists[i] )
-                           {
-                              startXrow[b][startXnblocknonz[b]] = i;
-                              startXcol[b][startXnblocknonz[b]] = i;
-                              startXval[b][startXnblocknonz[b]] = identitydiagonal;
-                              startXnblocknonz[b]++;
-                           }
-                        }
-                        SCIPfreeBufferArrayNull(scip, &diagentryexists);
-                     }
-                     else if ( relaxdata->warmstartiptype == 2 )
-                     {
-                        /* iterate once over all entries to multiply them with (1 - warmstartipfactor) */
-                        for (i = 0; i < startXnblocknonz[b]; i++)
-                           startXval[b][i] *= 1 - relaxdata->warmstartipfactor;
-
-                        /* merge the scaled interior point array into the warmstart array */
-                        SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), SCIPepsilon(scip), relaxdata->ipXrow[b], relaxdata->ipXcol[b], relaxdata->ipXval[b], relaxdata->ipXnblocknonz[b], TRUE,
-                              relaxdata->warmstartipfactor, startXrow[b], startXcol[b], startXval[b], &(startXnblocknonz[b]), startXnblocknonz[b] + relaxdata->ipXnblocknonz[b]) );
-                     }
-                  }
-               }
             }
 
-            /* iterate over all blocks again to compute convex combination */
+            /* iterate over all blocks again to compute convex combination / projection */
 
             /* in case of warmstartprojpdsame first compute a single maximum value for all primal and dual blocks */
             if ( relaxdata->warmstartprojpdsame && SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
@@ -2603,6 +2473,136 @@ SCIP_RETCODE calcRelax(
                   }
                }
                identitydiagonal *= relaxdata->warmstartipfactor; /* the diagonal entries of the scaled identity matrix */
+            }
+
+            for (b = 0; b < nblocks; b++)
+            {
+               /* compute projection onto psd cone (computed as U * diag(lambda_i_+) * U^T where U consists of the eigenvectors of the matrix) */
+               if ( relaxdata->warmstartproject == 3 )
+               {
+                  SCIP_Real* fullXmatrix;
+                  SCIP_Real* eigenvalues;
+                  SCIP_Real* eigenvectors;
+                  SCIP_Real* scaledeigenvectors;
+                  SCIP_Real matrixsize;
+                  SCIP_Real epsilon;
+                  int c;
+                  int matrixpos;
+
+                  matrixsize = blocksize * blocksize;
+
+                  SCIP_CALL( SCIPallocBufferArray(scip, &fullXmatrix, matrixsize) );
+                  SCIP_CALL( SCIPallocBufferArray(scip, &eigenvalues, blocksize) );
+                  SCIP_CALL( SCIPallocBufferArray(scip, &eigenvectors, matrixsize) );
+
+                  SCIP_CALL( expandSparseMatrix(startXnblocknonz[b], blocksize, startXrow[b], startXcol[b], startXval[b], fullXmatrix) );
+
+                  SCIP_CALL( SCIPlapackComputeEigenvectorDecomposition(SCIPbuffer(scip), blocksize, fullXmatrix, eigenvalues, eigenvectors) );
+
+                  /* duplicate memory of eigenvectors to compute diag(lambda_i_+) * U^T */
+                  SCIP_CALL( SCIPduplicateBufferArray(scip, &scaledeigenvectors, eigenvectors, matrixsize) );
+
+                  /* set all negative eigenvalues to zero (using the property that LAPACK returns them in ascending order) */
+                  i = 0;
+                  while (i < blocksize && SCIPisLT(scip, eigenvalues[i], relaxdata->warmstartprojminevprimal) )
+                  {
+                     eigenvalues[i] = relaxdata->warmstartprojminevprimal;
+                     i++;
+                  }
+
+                  /* compute diag(lambda_i_+) * U^T */
+                  SCIP_CALL( scaleTransposedMatrix(blocksize, scaledeigenvectors, eigenvalues) );
+
+                  /* compute U * [diag(lambda_i_+) * U^T] (note that transposes are switched because LAPACK uses column-first-format) */
+                  SCIP_CALL( SCIPlapackMatrixMatrixMult(blocksize, blocksize, eigenvectors, TRUE, blocksize, blocksize, scaledeigenvectors,
+                        FALSE, fullXmatrix) );
+
+                  /* extract sparse matrix from projection */
+                  startXnblocknonz[b] = 0;
+                  epsilon = SCIPepsilon(scip);
+                  for (r = 0; r < blocksize; r++)
+                  {
+                     for (c = r; c < blocksize; c++)
+                     {
+                        matrixpos = r * blocksize + c;
+                        if ( REALABS(fullXmatrix[matrixpos]) > epsilon )
+                        {
+                           startXrow[b][startXnblocknonz[b]] = r;
+                           startXcol[b][startXnblocknonz[b]] = c;
+                           startXval[b][startXnblocknonz[b]] = fullXmatrix[matrixpos];
+                           startXnblocknonz[b]++;
+                        }
+                     }
+                  }
+
+                  /* free memory */
+                  SCIPfreeBufferArray(scip, &scaledeigenvectors);
+                  SCIPfreeBufferArray(scip, &eigenvectors);
+                  SCIPfreeBufferArray(scip, &eigenvalues);
+                  SCIPfreeBufferArray(scip, &fullXmatrix);
+               }
+
+               /* use convex combination between X and scaled identity matrix to move solution to the interior */
+               if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
+               {
+                  if ( relaxdata->warmstartiptype == 1 )
+                  {
+                     /* compute maxprimalentry (should be at least one or warmstartprojminevprimal) */
+                     if ( ! relaxdata->warmstartprojpdsame )
+                     {
+                        if ( relaxdata->warmstartproject == 3 )
+                           maxprimalentry = relaxdata->warmstartprojminevprimal;
+                        else
+                           maxprimalentry = 1.0;
+                        for (i = 0; i < startXnblocknonz[b]; i++)
+                        {
+                           if ( REALABS(startXval[b][i]) > maxprimalentry )
+                              maxprimalentry = REALABS(startXval[b][i]);
+                        }
+                        identitydiagonal = relaxdata->warmstartipfactor * maxprimalentry; /* the diagonal entries of the scaled identity matrix */
+                     }
+                     blocksize = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
+
+                     SCIP_CALL( SCIPallocBufferArray(scip, &diagentryexists, blocksize) ); /* TODO: could allocate this once for Z and X with max-blocksize */
+                     for (i = 0; i < blocksize; i++)
+                        diagentryexists[i] = FALSE;
+
+                     for (i = 0; i < startXnblocknonz[b]; i++)
+                     {
+                        if ( startXrow[b][i] == startXcol[b][i] )
+                        {
+                           startXval[b][i] = startXval[b][i] * (1 - relaxdata->warmstartipfactor) + identitydiagonal; /* add identity for diagonal entries */
+                           assert( startXval[b][i] >= 0.0 ); /* since the original matrix should have been positive semidefinite, diagonal entries should be >= 0 */
+                           diagentryexists[startXrow[b][i]] = TRUE;
+                        }
+                        else
+                           startXval[b][i] *= (1 - relaxdata->warmstartipfactor); /* since this is an off-diagonal entry, we scale towards zero */
+                     }
+
+                     /* if a diagonal entry was missing (because we had a zero row before), we have to add it to the end */
+                     for (i = 0; i < blocksize; i++)
+                     {
+                        if ( ! diagentryexists[i] )
+                        {
+                           startXrow[b][startXnblocknonz[b]] = i;
+                           startXcol[b][startXnblocknonz[b]] = i;
+                           startXval[b][startXnblocknonz[b]] = identitydiagonal;
+                           startXnblocknonz[b]++;
+                        }
+                     }
+                     SCIPfreeBufferArrayNull(scip, &diagentryexists);
+                  }
+                  else if ( relaxdata->warmstartiptype == 2 )
+                  {
+                     /* iterate once over all entries to multiply them with (1 - warmstartipfactor) */
+                     for (i = 0; i < startXnblocknonz[b]; i++)
+                        startXval[b][i] *= 1 - relaxdata->warmstartipfactor;
+
+                     /* merge the scaled interior point array into the warmstart array */
+                     SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), SCIPepsilon(scip), relaxdata->ipXrow[b], relaxdata->ipXcol[b], relaxdata->ipXval[b], relaxdata->ipXnblocknonz[b], TRUE,
+                           relaxdata->warmstartipfactor, startXrow[b], startXcol[b], startXval[b], &(startXnblocknonz[b]), startXnblocknonz[b] + relaxdata->ipXnblocknonz[b]) );
+                  }
+               }
             }
 
             for (b = 0; b < nblocks; b++)
