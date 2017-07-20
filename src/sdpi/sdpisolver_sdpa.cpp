@@ -957,8 +957,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* increase Lambda Star, this seems to help the numerics */
    sdpisolver->sdpa->setParameterLambdaStar(sdpisolver->lambdastar);
-   sdpisolver->sdpa->setParameterBetaStar(0.01);
-   sdpisolver->sdpa->setParameterBetaBar(0.02);
+   //sdpisolver->sdpa->setParameterBetaStar(0.01);
+   //sdpisolver->sdpa->setParameterBetaBar(0.02);
 
 #ifdef SCIP_MORE_DEBUG
    sdpisolver->sdpa->printParameters(stdout);
