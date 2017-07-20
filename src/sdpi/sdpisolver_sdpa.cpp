@@ -1119,14 +1119,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    {
       if ( blockindchanges[block] >= 0 )
       {
-
          SCIPdebugMessage("adding block %d to SDPA as block %d with size %d\n",
                block, block - blockindchanges[block] + 1, sdpblocksizes[block] - nremovedinds[block]); /*lint !e834*/
          sdpisolver->sdpa->inputBlockSize((long long) block - blockindchanges[block] + 1,/*lint !e747, !e834*/
                (long long) sdpblocksizes[block] - nremovedinds[block]); /*lint !e834, !e776, !e747*/
          sdpisolver->sdpa->inputBlockType((long long) block - blockindchanges[block] + 1, SDPA::SDP); /*lint !e834, !e776, !e747*/
-
-
       }
    }
    if ( nlpineqs + sdpisolver->nvarbounds > 0 )

@@ -233,6 +233,10 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    assert( prop != NULL );
    assert( result != NULL );
 
+   /* do not run if propagation w.r.t. objective is not allowed */
+   if( !SCIPallowObjProp(scip) )
+      return SCIP_OKAY;
+
    if ( SCIPgetStage(scip) == SCIP_STAGE_PRESOLVING )
    {
       /* we can't run before the relaxator is properly initialized */

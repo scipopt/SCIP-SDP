@@ -808,7 +808,8 @@ SCIP_RETCODE calcRelax(
 
    /* find settings to use for this relaxation */
    if ( rootnode || (SCIPnodeGetDepth(SCIPgetCurrentNode(scip)) == relaxdata->settingsresetofs) ||
-      ( relaxdata->settingsresetfreq > 0 && ((SCIPnodeGetDepth(SCIPgetCurrentNode(scip)) - relaxdata->settingsresetofs) % relaxdata->settingsresetfreq == 0)) )
+      ( relaxdata->settingsresetfreq > 0 && ((SCIPnodeGetDepth(SCIPgetCurrentNode(scip)) - relaxdata->settingsresetofs) % relaxdata->settingsresetfreq == 0)) ||
+      (strcmp(SCIPsdpiGetSolverName(), "DSDP") == 0) || (strstr(SCIPsdpiGetSolverName(), "Mosek") != NULL))
    {
       startsetting = SCIP_SDPSOLVERSETTING_UNSOLVED; /* in the root node we have no information, at each multiple of resetfreq we reset */
    }
@@ -3091,10 +3092,13 @@ SCIP_RETCODE calcRelax(
    }
 
    /* remember settings */
-   (void) SCIPsnprintf(saveconsname, SCIP_MAXSTRLEN, "savedsettings_node_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
-   SCIP_CALL( createConsSavedsdpsettings(scip, &savedsetting, saveconsname, usedsetting) );
-   SCIP_CALL( SCIPaddCons(scip, savedsetting) );
-   SCIP_CALL( SCIPreleaseCons(scip, &savedsetting) );
+   if ( ! (strcmp(SCIPsdpiGetSolverName(), "DSDP") == 0) && ! (strstr(SCIPsdpiGetSolverName(), "MOSEK") != NULL) )
+   {
+      (void) SCIPsnprintf(saveconsname, SCIP_MAXSTRLEN, "savedsettings_node_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
+      SCIP_CALL( createConsSavedsdpsettings(scip, &savedsetting, saveconsname, usedsetting) );
+      SCIP_CALL( SCIPaddCons(scip, savedsetting) );
+      SCIP_CALL( SCIPreleaseCons(scip, &savedsetting) );
+   }
 
    if ( ! SCIPsdpiWasSolved(sdpi) )
       relaxdata->feasible = FALSE;
@@ -3347,7 +3351,6 @@ SCIP_RETCODE calcRelax(
       }
 
       *result = SCIP_SUCCESS;
-      //SCIP_CALL( SCIPupdateLocalLowerbound(scip, *lowerbound) );
       return SCIP_OKAY;
    }
 
@@ -3387,7 +3390,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    SCIP_Real* ubs;
    SCIP_Bool cutoff;
    SCIP_SOL* scipsol;
-   SCIP_Bool stored;
    int nconss;
    int nvars;
    int i;
@@ -3522,31 +3524,13 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       /* check if the solution really is feasible */
       SCIP_CALL( SCIPcheckSol(scip, scipsol, FALSE, TRUE, TRUE, TRUE, TRUE, &feasible) );
 
-      stored = FALSE;
-      if ( feasible )
-      {
-         SCIP_CALL( SCIPtrySolFree(scip, &scipsol, FALSE, FALSE, FALSE, FALSE, FALSE, &stored) );
-      }
-      else
-      {
-         SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
-      }
-
       relaxdata->feasible = feasible;
 
-      if ( feasible && stored )
-      {
-         *result = SCIP_CUTOFF;
-         SCIPdebugMessage("New solution was stored, node is cut off!\n");
-      }
-      else
-      {
-         *result = SCIP_CUTOFF;
-         SCIPdebugMessage("Fixed solution either infeasible or not good enough for storage, node cut off!\n");
-      }
+      SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
 
       SCIPfreeBufferArray(scip, &ubs);
 
+      *result = SCIP_SUCCESS;
       return SCIP_OKAY;
    }
 

@@ -121,7 +121,7 @@ SCIP_RETCODE SCIPconsSdpGetData(
 EXTERN
 SCIP_RETCODE SCIPconsSdpGetNNonz(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< SDP constraint to get data of */
+   SCIP_CONS*            cons,               /**< SDP constraint to get number of nonzeros for */
    int*                  nnonz,              /**< pointer to store the number of nonzeros in this SDP constraint */
    int*                  constnnonz          /**< pointer to store the number of nonzeros in the constant part of this SDP constraint */
    );
@@ -130,14 +130,14 @@ SCIP_RETCODE SCIPconsSdpGetNNonz(
 EXTERN
 int SCIPconsSdpGetBlocksize(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons               /**< SDP constraint to get data of */
+   SCIP_CONS*            cons                /**< SDP constraint to get blocksize for */
    );
 
 /** gets the full constraint Matrix \f$ A_j \f$ for a given variable j */
 EXTERN
 SCIP_RETCODE SCIPconsSdpGetFullAj(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< SDP constraint to get data of */
+   SCIP_CONS*            cons,               /**< SDP constraint to get matrix for */
    int                   j,                  /**< the variable j to get the corresponding matrix \f A_j \f for */
    SCIP_Real*            Aj                  /**< pointer to store the full matrix \f A_j \f */
    );
@@ -146,7 +146,7 @@ SCIP_RETCODE SCIPconsSdpGetFullAj(
 EXTERN
 SCIP_RETCODE SCIPconsSdpGetFullConstMatrix(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< SDP constraint to get data of */
+   SCIP_CONS*            cons,               /**< SDP constraint to get matrix for */
    SCIP_Real*            mat                 /**< pointer to store the full constant matrix */
    );
 
@@ -154,7 +154,7 @@ SCIP_RETCODE SCIPconsSdpGetFullConstMatrix(
 EXTERN
 SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< SDP constraint to get data of */
+   SCIP_CONS*            cons,               /**< SDP constraint to get matrix for */
    SCIP_Real*            mat                 /**< pointer to store the lower triangular part of the constant matrix */
    );
 
@@ -162,7 +162,7 @@ SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
 EXTERN
 SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< the constraint which should be checked */
+   SCIP_CONS*            cons,               /**< the constraint the solution should be checked for */
    SCIP_SOL*             sol,                /**< the solution to check feasibility for */
    SCIP_Bool             checkintegrality,   /**< has integrality to be checked? */
    SCIP_Bool             checklprows,        /**< have current LP rows to be checked? */

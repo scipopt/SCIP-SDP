@@ -339,7 +339,7 @@ SCIP_RETCODE cutUsingEigenvector(
 /** checks feasibility for a single SDP constraint */
 SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< the constraint which should be checked */
+   SCIP_CONS*            cons,               /**< the constraint the solution should be checked for */
    SCIP_SOL*             sol,                /**< the solution to check feasibility for */
    SCIP_Bool             checkintegrality,   /**< has integrality to be checked? */
    SCIP_Bool             checklprows,        /**< have current LP rows to be checked? */
@@ -1075,7 +1075,7 @@ SCIP_RETCODE multiaggrVar(
    int aggrtargetlength;
    int globalnvars;
    int aggrconsind;
-   SCIP_Real feastol;
+   SCIP_Real epsilon;
 
    assert( scip != NULL );
    assert( cons != NULL );
@@ -1089,7 +1089,7 @@ SCIP_RETCODE multiaggrVar(
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
 
-   SCIP_CALL( SCIPgetRealParam(scip, "numerics/feastol", &feastol) );
+   SCIP_CALL( SCIPgetRealParam(scip, "numerics/epsilon", &epsilon) );
 
    /* save the current nfixednonz-index, all entries starting from here will need to be added to the variables this is aggregated to */
    startind = *nfixednonz;
@@ -1168,7 +1168,7 @@ SCIP_RETCODE multiaggrVar(
          {
             /* in this case we saved the original values in savedval, we add startind to the pointers to only add those from
              * the current variable, the number of entries is the current position minus the position whre we started */
-            SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), feastol, savedrow + startind, savedcol + startind, savedval + startind,
+            SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), epsilon, savedrow + startind, savedcol + startind, savedval + startind,
                         *nfixednonz - startind, TRUE, scalars[aggrind], consdata->row[aggrconsind], consdata->col[aggrconsind],
                         consdata->val[aggrconsind], &(consdata->nvarnonz[aggrconsind]), aggrtargetlength) );
          }
@@ -1176,7 +1176,7 @@ SCIP_RETCODE multiaggrVar(
          {
             /* in this case we saved the original values * constant, so we now have to divide by constant, we add startind to the pointers
              * to only add those from the current variable, the number of entries is the current position minus the position whre we started */
-            SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), feastol, savedrow + startind, savedcol + startind, savedval + startind,
+            SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), epsilon, savedrow + startind, savedcol + startind, savedval + startind,
                         *nfixednonz - startind, TRUE, scalars[aggrind] / constant, consdata->row[aggrconsind], consdata->col[aggrconsind],
                         consdata->val[aggrconsind], &(consdata->nvarnonz[aggrconsind]), aggrtargetlength) );
          }
@@ -1227,8 +1227,6 @@ SCIP_RETCODE multiaggrVar(
          }
          else  /* we have to multiply all entries by scalar before inserting them */
          {
-            SCIP_Real epsilon;
-
             SCIP_CALL( SCIPgetRealParam(scip, "numerics/epsilon", &epsilon) );
 
             SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(consdata->val[consdata->nvars]), *nfixednonz - startind) );
@@ -1288,7 +1286,7 @@ SCIP_RETCODE fixAndAggrVars(
    int globalnvars;
    int vararraylength;
    SCIP_Bool negated;
-   SCIP_Real feastol;
+   SCIP_Real epsilon;
 
 
    /* loop over all variables once, add all fixed to savedrow/col/val, for all multiaggregated variables, if constant-scalar =!= 0, add
@@ -1302,7 +1300,7 @@ SCIP_RETCODE fixAndAggrVars(
 
    SCIPdebugMessage("Calling fixAndAggrVars with aggregate = %u\n", aggregate);
 
-   SCIP_CALL( SCIPgetRealParam(scip, "numerics/feastol", &feastol) );
+   SCIP_CALL( SCIPgetRealParam(scip, "numerics/epsilon", &epsilon) );
 
    for (c = 0; c < nconss; ++c)
    {
@@ -1459,7 +1457,7 @@ SCIP_RETCODE fixAndAggrVars(
       SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constval), consdata->constnnonz, arraylength) );
 
       /* insert the fixed variables into the constant arrays, as we have +A_i but -A_0 we mutliply them by -1 */
-      SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), feastol, savedrow, savedcol, savedval, nfixednonz, FALSE, -1.0, consdata->constrow,
+      SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), epsilon, savedrow, savedcol, savedval, nfixednonz, FALSE, -1.0, consdata->constrow,
             consdata->constcol, consdata->constval, &(consdata->constnnonz), arraylength) );
 
       assert( consdata->constnnonz <= arraylength ); /* the allocated memory should always be sufficient */
@@ -2610,7 +2608,7 @@ SCIP_RETCODE SCIPconsSdpGetData(
  */
 SCIP_RETCODE SCIPconsSdpGetNNonz(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< SDP constraint to get data of */
+   SCIP_CONS*            cons,               /**< SDP constraint to get number of nonzeros for */
    int*                  nnonz,              /**< pointer to store the number of nonzeros in this SDP constraint */
    int*                  constnnonz          /**< pointer to store the number of nonzeros in the constant part of this SDP constraint */
    )
@@ -2635,7 +2633,7 @@ SCIP_RETCODE SCIPconsSdpGetNNonz(
 /** gets the blocksize of the SDP constraint */
 int SCIPconsSdpGetBlocksize(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons               /**< SDP constraint to get data of */
+   SCIP_CONS*            cons                /**< SDP constraint to get blocksize for */
    )
 {
    SCIP_CONSDATA* consdata;
@@ -2652,7 +2650,7 @@ int SCIPconsSdpGetBlocksize(
 /** gets the full constraint Matrix \f$ A_j \f$ for a given variable j */
 SCIP_RETCODE SCIPconsSdpGetFullAj(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< SDP constraint to get data of */
+   SCIP_CONS*            cons,               /**< SDP constraint to get matrix for */
    int                   j,                  /**< the variable j to get the corresponding matrix \f$ A_j \f$ for */
    SCIP_Real*            Aj                  /**< pointer to store the full matrix \f$ A_j \f$ */
    )
@@ -2687,7 +2685,7 @@ SCIP_RETCODE SCIPconsSdpGetFullAj(
 /** gives an n*n-long array with the full constant matrix */
 SCIP_RETCODE SCIPconsSdpGetFullConstMatrix(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< SDP constraint to get data of */
+   SCIP_CONS*            cons,               /**< SDP constraint to get matrix for */
    SCIP_Real*            mat                 /**< pointer to store the full constant matrix */
    )
 {
@@ -2760,7 +2758,7 @@ SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
  */
 SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< the constraint to guess an initial point for */
+   SCIP_CONS*            cons,               /**< the constraint for which the initial point should be constructed */
    SCIP_Real*            lambdastar          /**< pointer to store the guess for the initial point */
    )
 {

@@ -1,7 +1,7 @@
 <table class="desc">
    <tr>
-      <td class="w-120 val-t" width="30%">February 2017</td>
-      <td>SCIP-SDP 3.0.0 is released for SCIP 4.0 and DSDP 5.8 or SDPA 7.3.8 or MOSEK 8.0.0.x
+      <td class="w-120 val-t" width="30%">March 2017</td>
+      <td>SCIP-SDP 3.0.0 is released for SCIP 4.0.0 and DSDP 5.8 or SDPA 7.3.8 or MOSEK 8.0.0.x
       </td>
    </tr>
    <tr>
