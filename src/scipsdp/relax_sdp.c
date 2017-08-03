@@ -286,7 +286,7 @@ SCIP_RETCODE putSdpDataInInterface(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SdpVarmapper*         varmapper,          /**< maps SCIP variables to their global SDP indices and vice versa */
    SCIP_Bool             primalobj,          /**< should the primal objective coefficients (constant part of the SDP constraint) be used ? */
-   SCIP_Bool             boundprimal         /**< should the primal problem be bounded through a penalty term in the dual ? */
+   SCIP_Bool             boundprimal         /**< should the primal problem be bounded (Tr(X)<=1) through a penalty term in the dual ? */
    )
 {
    SCIP_CONSHDLR* conshdlr;
@@ -441,7 +441,7 @@ SCIP_RETCODE putSdpDataInInterface(
 
          if ( boundprimal )
          {
-            /* penalty variable is added as final variable */
+            /* penalty variable is added as final variable to bound the primal */
             sdpvar[ind][nblockvars[ind]] = SCIPsdpVarmapperGetNVars(varmapper);
             nblockvarnonz[ind][nblockvars[ind]] = sdpblocksizes[ind];
 
@@ -4996,6 +4996,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
          }
          else
          {
+            /* use a scaled identity matrix (and y=0) if the computation of the dual analytic center failed */
             relaxdata->ipZexists = TRUE;
 
             /* y is set to the zero vector */
