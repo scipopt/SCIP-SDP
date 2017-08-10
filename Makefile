@@ -90,6 +90,7 @@ endif
 # load SCIP project makefile
 include $(SCIPDIR)/make/make.project
 
+override DEBUGTOOL   =   none
 
 #-----------------------------------------------------------------------------
 # settings for SDP solver
