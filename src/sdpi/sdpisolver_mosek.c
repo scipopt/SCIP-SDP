@@ -1370,7 +1370,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       *feasorig = (moseksol[sdpisolver->nactivevars] < sdpisolver->feastol); /*lint !e413*/
 
       /* only set sdpisolver->feasorig to true if we solved with objective, because only in this case we want to compute
-       * the objective value by hand since it is numerically more stable then the result returned by DSDP */
+       * the objective value by hand since it is numerically more stable then the result returned by MOSEK */
       if ( withobj )
          sdpisolver->feasorig = *feasorig;
 
