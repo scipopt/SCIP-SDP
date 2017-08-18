@@ -5,6 +5,8 @@ fixed bugs:
 - only declare problem infeasible in sdpredcost if lower bound exceeds upper bound by at least feastol (instead of epsilon)
 - only change bounds in sdpredcost if they changed by more than feastol instead of epsilon (could lead to asserts for
   integer variables which are later rounded according to feastol)
+- also compute objective values by hand for SDPA (like for MOSEK and DSDP), since returned objective sometimes does not match
+  returned solution perfectly, which leads to errors inside SCIP
 
 features:
 

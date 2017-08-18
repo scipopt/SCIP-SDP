@@ -131,6 +131,7 @@ struct SCIP_SDPiSolver
    int*                  sdpatoinputmapper;  /**< entry i gives the original index of the (i+1)-th variable in sdpa (indices go from 0 to nactivevars-1) */
    SCIP_Real*            fixedvarsval;       /**< entry i gives the lower and upper bound of the i-th fixed variable */
    SCIP_Real             fixedvarsobjcontr;  /**< total contribution to the objective of all fixed variables, computed as sum obj * val */
+   SCIP_Real*            objcoefs;           /**< objective coefficients of all active variables */
    int                   nvarbounds;         /**< number of variable bounds given to sdpa, length of sdpavarboundpos */
    int*                  varboundpos;        /**< maps position of variable bounds in the variable bound part of the LP-block in sdpa to the sdpa-indices
                                               *   of the corresponding variables, -n means lower bound of variable n, +n means upper bound */
@@ -146,6 +147,8 @@ struct SCIP_SDPiSolver
    SCIP_Real             objlimit;           /**< objective limit for SDP-solver */
    SCIP_Bool             sdpinfo;            /**< Should the SDP-solver output information to the screen? */
    SCIP_Bool             penalty;            /**< was the problem last solved using a penalty formulation */
+   SCIP_Bool             feasorig;           /**< was the last problem solved with a penalty formulation and with original objective coefficents
+                                               *  and the solution was feasible for the original problem? */
    SCIP_Bool             rbound;             /**< was the penalty parameter bounded during the last solve call */
    SCIP_SDPSOLVERSETTING usedsetting;        /**< setting used to solve the last SDP */
    SCIP_Real             lambdastar;         /**< lambda star parameter to give to SDPA for initial point */
@@ -379,6 +382,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->sdpatoinputmapper = NULL;
    (*sdpisolver)->fixedvarsval = NULL;
    (*sdpisolver)->fixedvarsobjcontr = 0.0;
+   (*sdpisolver)->objcoefs = NULL;
    (*sdpisolver)->nvarbounds = 0;
    (*sdpisolver)->varboundpos = NULL;
    (*sdpisolver)->solved = FALSE;
@@ -419,6 +423,8 @@ SCIP_RETCODE SCIPsdpiSolverFree(
    BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->sdpatoinputmapper, (*sdpisolver)->nactivevars);/*lint !e737*/
 
    BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->fixedvarsval, (*sdpisolver)->nvars - (*sdpisolver)->nactivevars); /*lint !e776*/
+
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->objcoefs, (*sdpisolver)->nactivevars); /*lint !e776*/
 
    BMSfreeBlockMemory((*sdpisolver)->blkmem, sdpisolver);
 
@@ -649,6 +655,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    sdpisolver->niterations = 0;
    sdpisolver->nsdpcalls = 0;
+   sdpisolver->feasorig = FALSE;
 
    /* immediately exit if the time limit is negative */
    if ( timelimit <= 0.0 )
@@ -684,6 +691,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtosdpamapper), sdpisolver->nvars, nvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->sdpatoinputmapper), sdpisolver->nactivevars, nvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), sdpisolver->nvars - sdpisolver->nactivevars, nvars) ); /*lint !e776*/
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->objcoefs), sdpisolver->nactivevars, nvars) ); /*lint !e776*/
 
    oldnactivevars = sdpisolver->nactivevars; /* we need to save this to realloc the varboundpos-array if needed */
    sdpisolver->nvars = nvars;
@@ -705,6 +713,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       else
       {
          sdpisolver->sdpatoinputmapper[sdpisolver->nactivevars] = i;
+         sdpisolver->objcoefs[sdpisolver->nactivevars] = obj[i];
          sdpisolver->nactivevars++;
          sdpisolver->inputtosdpamapper[i] = sdpisolver->nactivevars; /* sdpa starts counting at 1, so we do this after increasing nactivevars */
 #ifdef SCIP_MORE_DEBUG
@@ -719,6 +728,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->fixedvarsobjcontr = 0.0;
 
    /* shrink the fixedvars and sdpatoinputmapper arrays to the right size */
+   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->objcoefs), nvars, sdpisolver->nactivevars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), nvars, nfixedvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->sdpatoinputmapper), nvars, sdpisolver->nactivevars) );
 
@@ -1460,6 +1470,11 @@ sdpisolver->sdpa->printParameters(stdout);
       /* we get r as the last variable in SDPA */
       *feasorig = (sdpasol[sdpisolver->nactivevars] < sdpisolver->feastol); /*lint !e413*/
 
+      /* only set sdpisolver->feasorig to true if we solved with objective, because only in this case we want to compute
+       * the objective value by hand since it is numerically more stable then the result returned by SDPA */
+      if ( withobj )
+         sdpisolver->feasorig = *feasorig;
+
       /* if r > 0 or we are in debug mode, also check the primal bound */
 #ifdef NDEBUG
       if ( ! *feasorig && penaltybound != NULL )
@@ -1966,15 +1981,37 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    assert( objval != NULL );
    CHECK_IF_SOLVED( sdpisolver );
 
-   *objval = sdpisolver->sdpa->getPrimalObj();
-
+   if ( sdpisolver->penalty && ( ! sdpisolver->feasorig ) )
+   {
+      *objval = sdpisolver->sdpa->getPrimalObj();
 #ifndef NDEBUG
    SCIP_Real primalval = sdpisolver->sdpa->getDualObj();
    SCIP_Real gap = (REALABS(*objval - primalval) / (0.5 * (REALABS(primalval) + REALABS(*objval)))); /* duality gap used in SDPA */
    if ( gap > sdpisolver->gaptol )
-      SCIPdebugMessage("Attention: got objective value (before adding values of fixed variables) of %f in SCIPsdpiSolverGetObjval, "
-            "but primal objective is %f with duality gap %f!\n", *objval, primalval, gap );
+   {
+      SCIPdebugMessage("Attention: got objective value (before adding values of fixed variables) of %f in SCIPsdpiSolverGetSol, "
+         "but primal objective is %f with duality gap %f!\n", *objval, primalval, gap );
+   }
 #endif
+   }
+   else
+   {
+      SCIP_Real* sdpasol;
+      int v;
+
+      /* since the objective value given by SDPA sometimes differs slightly from the correct value for the given solution,
+       * we get the solution from SDPA and compute the correct objective value */
+      assert( (sdpisolver->penalty && sdpisolver->nactivevars + 1 == sdpisolver->sdpa->getConstraintNumber()) || /*lint !e776*/
+               sdpisolver->nactivevars == sdpisolver->sdpa->getConstraintNumber() ); /* in the second case we have r as an additional variable */
+      sdpasol = sdpisolver->sdpa->getResultXVec();
+
+      *objval = 0.0;
+      for (v = 0; v < sdpisolver->nactivevars; v++)
+      {
+         if ( sdpasol[v] > sdpisolver->epsilon )
+            *objval += sdpasol[v] * sdpisolver->objcoefs[v];
+      }
+   }
 
    /* as we didn't add the fixed (lb = ub) variables to sdpa, we have to add their contributions to the objective by hand */
    *objval += sdpisolver->fixedvarsobjcontr;
@@ -2004,8 +2041,9 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
 
    if ( objval != NULL )
    {
-      *objval = sdpisolver->sdpa->getPrimalObj();
-
+      if ( sdpisolver->penalty && ( ! sdpisolver->feasorig ) )
+      {
+         *objval = sdpisolver->sdpa->getPrimalObj();
 #ifndef NDEBUG
       SCIP_Real primalval = sdpisolver->sdpa->getDualObj();
       SCIP_Real gap = (REALABS(*objval - primalval) / (0.5 * (REALABS(primalval) + REALABS(*objval)))); /* duality gap used in SDPA */
@@ -2015,6 +2053,22 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
             "but primal objective is %f with duality gap %f!\n", *objval, primalval, gap );
       }
 #endif
+      }
+      else
+      {
+         /* since the objective value given by SDPA sometimes differs slightly from the correct value for the given solution,
+          * we get the solution from SDPA and compute the correct objective value */
+         assert( (sdpisolver->penalty && sdpisolver->nactivevars + 1 == sdpisolver->sdpa->getConstraintNumber()) || /*lint !e776*/
+                  sdpisolver->nactivevars == sdpisolver->sdpa->getConstraintNumber() ); /* in the second case we have r as an additional variable */
+         sdpasol = sdpisolver->sdpa->getResultXVec();
+
+         *objval = 0.0;
+         for (v = 0; v < sdpisolver->nactivevars; v++)
+         {
+            if ( sdpasol[v] > sdpisolver->epsilon )
+               *objval += sdpasol[v] * sdpisolver->objcoefs[v];
+         }
+      }
 
       /* as we didn't add the fixed (lb = ub) variables to sdpa, we have to add their contributions to the objective by hand */
       *objval += sdpisolver->fixedvarsobjcontr;
