@@ -1887,7 +1887,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
       *objval = 0.0;
       for (v = 0; v < sdpisolver->nactivevars; v++)
       {
-         if ( moseksol[v] > sdpisolver->epsilon )
+         if ( REALABS(moseksol[v]) > sdpisolver->epsilon )
             *objval += moseksol[v] * sdpisolver->objcoefs[v];
       }
    }

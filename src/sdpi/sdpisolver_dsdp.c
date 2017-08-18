@@ -2012,7 +2012,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
       *objval = 0.0;
       for (v = 0; v < sdpisolver->nactivevars; v++)
       {
-         if ( dsdpsol[v] > sdpisolver->epsilon )
+         if ( REALABS(dsdpsol[v]) > sdpisolver->epsilon )
             *objval += sdpisolver->objcoefs[v] * dsdpsol[v];
       }
    }

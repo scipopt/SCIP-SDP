@@ -2008,7 +2008,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
       *objval = 0.0;
       for (v = 0; v < sdpisolver->nactivevars; v++)
       {
-         if ( sdpasol[v] > sdpisolver->epsilon )
+         if ( REALABS(sdpasol[v]) > sdpisolver->epsilon )
             *objval += sdpasol[v] * sdpisolver->objcoefs[v];
       }
    }
@@ -2065,7 +2065,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
          *objval = 0.0;
          for (v = 0; v < sdpisolver->nactivevars; v++)
          {
-            if ( sdpasol[v] > sdpisolver->epsilon )
+            if ( REALABS(sdpasol[v]) > sdpisolver->epsilon )
                *objval += sdpasol[v] * sdpisolver->objcoefs[v];
          }
       }
