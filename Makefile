@@ -62,6 +62,7 @@ CONTINUE	=	false
 LOCK		=	false
 VALGRIND	=	false
 CLIENTTMPDIR    =       /tmp
+OUTPUTDIR = /results
 OPTCOMMAND	=	optimize
 SOFTLINKS	=
 MAKESOFTLINKS	=	true
