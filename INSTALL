@@ -11,7 +11,7 @@ at least one of the following SDP-Solvers:
 
 DSDP 5.8 (http://www.mcs.anl.gov/hs/software/DSDP/).
 SDPA 7.3.8 (http://sdpa.sourceforge.net/)
-MOSEK 8.0.0.x (https://www.mosek.com/)
+MOSEK 8.1 (https://www.mosek.com/)
 
 Build SDP-Plugin
 ----------------
