@@ -8,13 +8,11 @@ fixed bugs:
 - also compute objective values by hand for SDPA (like for MOSEK and DSDP), since returned objective sometimes does not match
   returned solution perfectly, which leads to errors inside SCIP
 
-features:
-
-interface:
-
-parameters:
+performance improvements:
+- only create (and use) startsettings constraint handler for SDPA
 
 core:
+- disable dual propagators for reoptimization
 
 makefile:
 - added possibility to compile as library (needed, e.g., for parallelization via UG)
