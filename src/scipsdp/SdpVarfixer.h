@@ -65,6 +65,7 @@ void SCIPsdpVarfixerSortRowCol(
  * be removed. If you think of the matrices described by the two arrays, this is a matrix addition (but only working on the nonzeros for efficiency).
  * The target arrays need to be long enough, otherwise targetlength returns the needed amount and a corresponding debug message is thrown.
  */
+EXTERN
 SCIP_RETCODE SCIPsdpVarfixerMergeArrays(
    BMS_BLKMEM*           blkmem,             /**< block memory */
    SCIP_Real             epsilon,            /**< only values bigger than this are counted as nonzeros */
