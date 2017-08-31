@@ -35,7 +35,7 @@
  * @author Tristan Gally
  */
 
-#define SCIP_DEBUG
+/*#define SCIP_DEBUG*/
 
 #include "sdpi/sdpsolchecker.h"
 #include "sdpi/lapack.h"
