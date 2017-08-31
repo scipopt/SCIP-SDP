@@ -35,11 +35,6 @@
  * @author Tristan Gally
  */
 
-/*
-#ifndef __SDPVARMAPPER_H__
-#define __SDPVARMAPPER_H__
-*/
-
 #include "scip/scip.h"
 #include "scip/type_misc.h" /* for SCIP Hashmap */
 #include "SdpVarmapper.h"
