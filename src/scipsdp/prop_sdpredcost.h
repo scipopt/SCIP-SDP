@@ -47,7 +47,7 @@
 #ifndef __SCIP_PROP_SDPREDCOST_H_
 #define __SCIP_PROP_SDPREDCOST_H_
 
-#include <scip/scip.h>
+#include "scip/scip.h"
 
 #ifdef __cplusplus
 extern "C" {
