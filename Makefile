@@ -508,7 +508,7 @@ test:
 		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_tmpfile_setup_scip.sh configuration_tmpfile_setup_$(MAINNAME).sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/run.sh);
 		cd check; \
-		$(SHELL) ./check.sh $(TEST) $(MAINFILE) $(SETTINGS) $(notdir $(MAINFILE)) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(DISPFREQ) \
+		$(SHELL) ./check.sh $(TEST) $(MAINFILE) $(SETTINGS) $(notdir $(MAINFILE)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(DISPFREQ) \
 			$(CONTINUE) $(LOCK) $(SCIPSDPVERSION) $(SDPS) $(DEBUGTOOL) $(CLIENTTMPDIR) $(REOPT) $(OPTCOMMAND) $(SETCUTOFF) $(MAXJOBS) $(VISUALIZE) $(PERMUTE) $(SEEDS);
 
 # include local targets
@@ -533,7 +533,7 @@ testcluster:
 		@-(cd check && ln -fs $(SCIPDIR)/check/runcluster.sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/testfiles.sh);
 		cd check; \
-		$(SHELL) ./check_cluster.sh $(TEST) $(PWD)/$(MAINFILE) $(SETTINGS) $(notdir $(MAINFILE)) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(SDPS) $(DISPFREQ) \
+		$(SHELL) ./check_cluster.sh $(TEST) $(PWD)/$(MAINFILE) $(SETTINGS) $(notdir $(MAINFILE)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(SDPS) $(DISPFREQ) \
 			$(CONTINUE) $(QUEUETYPE) $(QUEUE) $(PPN) $(CLIENTTMPDIR) $(NOWAITCLUSTER) $(EXCLUSIVE) $(PERMUTE) $(SEEDS) $(DEBUGTOOL) $(REOPT) $(OPTCOMMAND) \
 			$(SETCUTOFF) $(VISUALIZE);
 
