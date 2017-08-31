@@ -351,7 +351,7 @@ $(BINDIR):
 		echo "-> Creating $(BINDIR) directory"; \
 		mkdir -p $(BINDIR); }
 		
-.PHONY: scipsdplib
+.PHONY: libscipsdp
 scipsdplib:		preprocess
 		@$(MAKE) $(SCIPSDPLIBFILE) $(SCIPSDPLIBLINK) $(SCIPSDPLIBSHORTLINK)
 

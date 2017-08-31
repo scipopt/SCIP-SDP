@@ -15,7 +15,7 @@ core:
 - disable dual propagators for reoptimization
 
 makefile:
-- added possibility to compile as library (needed, e.g., for parallelization via UG)
+- added "make libscipsdp" to compile as library (needed, e.g., for parallelization via UG)
 
 
 SCIP-SDP version 3.0.0
