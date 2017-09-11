@@ -352,7 +352,7 @@ $(BINDIR):
 		mkdir -p $(BINDIR); }
 		
 .PHONY: libscipsdp
-scipsdplib:		preprocess
+libscipsdp:		preprocess
 		@$(MAKE) $(SCIPSDPLIBFILE) $(SCIPSDPLIBLINK) $(SCIPSDPLIBSHORTLINK)
 
 $(SCIPSDPLIBFILE):	$(SCIPSDPLIBOBJFILES) | $(SCIPSDPLIBDIR)/$(LIBTYPE)
