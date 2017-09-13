@@ -2486,7 +2486,6 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    return SCIP_OKAY;
 }
 
-#ifndef NDEBUG
 /** for given row and column (i,j) computes the position in the lower triangular part, if
  *  these positions are numbered from 0 to n(n+1)/2 - 1, this needs to be called for i >= j
  */
@@ -2500,9 +2499,6 @@ int SCIPconsSdpCompLowerTriangPos(
 
    return i*(i+1)/2 + j;
 }
-#else
-#define SCIPconsSdpCompLowerTriangPos(i, j) (i*(i+1)/2 + j)
-#endif
 
 /** get the data belonging to a single SDP-constraint
  *
