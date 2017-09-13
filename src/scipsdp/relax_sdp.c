@@ -195,7 +195,7 @@ struct SCIP_RelaxData
    SCIP_Real             warmstartpmevdualpar; /**< SCIP parameter for min eigenvalue when projecting dual onto positive definite cone; -1 for automatic computation */
    SCIP_Real             warmstartprojminevprimal; /**< minimum eigenvalue to allow when projecting onto the positive (semi-)definite cone in the primal */
    SCIP_Real             warmstartprojminevdual; /**< minimum eigenvalue to allow when projecting onto the positive (semi-)definite cone in the dual */
-   SCIP_Bool             warmstartprojpdsame;/**< Should one shared minimum eigenvalue respectively maximum entry be computed for primal and dual problem instead of different ones for projection or convex combination ? */
+   SCIP_Bool             warmstartprojpdsame;/**< Should one shared minimum eigenvalue respectively maximum entry be computed for primal and dual problem instead of different ones for primal and dual and each block for projection or convex combination ? */
    int                   warmstartiptype;    /**< which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center */
    SCIP_Bool             warmstartpreoptsol; /**< Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts (currently only implemented fo DSDP) */
    SCIP_Real             warmstartpreoptgap; /**< In case a preoptimal solution should be used for warmstarts, this gives the gap where the solution should be saved (currently only implemented fo DSDP) */
@@ -1010,9 +1010,9 @@ SCIP_RETCODE calcRelax(
             int nrows;
             int rownnonz;
             int r;
-            SCIP_Real maxprimalentry;
+            SCIP_Real maxprimalentry = 0.0;
             SCIP_Real maxdualentry;
-            SCIP_Real identitydiagonal;
+            SCIP_Real identitydiagonal = 0.0;
             SCIP_Real rowval;
             SCIP_Real* rowvals;
             SCIP_Bool* diagentryexists;
@@ -1409,7 +1409,6 @@ SCIP_RETCODE calcRelax(
                int blocknnonz;
                int arraylength;
                int blockconstnnonz;
-               int savedblockconstnnonz;
                int varind;
                int roundingvars;
                int matrixsize;
@@ -1601,7 +1600,6 @@ SCIP_RETCODE calcRelax(
                {
                   /* get data for this SDP block */
                   SCIP_CALL( SCIPconsSdpGetNNonz(scip, sdpblocks[b], NULL, &blockconstnnonz) );
-                  savedblockconstnnonz = blockconstnnonz;
                   SCIP_CALL( SCIPallocBufferArray(scip, &blocknvarnonz, nvars) );
                   SCIP_CALL( SCIPallocBufferArray(scip, &blockcol, nvars) );
                   SCIP_CALL( SCIPallocBufferArray(scip, &blockrow, nvars) );
@@ -1615,7 +1613,6 @@ SCIP_RETCODE calcRelax(
                   SCIP_CALL( SCIPconsSdpGetData(scip, sdpblocks[b], &blocknvars, &blocknnonz, &blocksize, &arraylength, blocknvarnonz,
                                  blockcol, blockrow, blockval, blockvars, &blockconstnnonz, blockconstcol, blockconstrow, blockconstval) );
                   assert( arraylength == nvars ); /* arraylength should alwys be sufficient */
-                  assert( blockconstnnonz == savedblockconstnnonz ); /* we retrieved this earlier and it shouldn't have changed in between */
 
                   matrixsize = blocksize * blocksize;
 
@@ -2049,7 +2046,6 @@ SCIP_RETCODE calcRelax(
                {
                   /* get data for this SDP block */
                   SCIP_CALL( SCIPconsSdpGetNNonz(scip, sdpblocks[b], NULL, &blockconstnnonz) );
-                  savedblockconstnnonz = blockconstnnonz;
                   SCIP_CALL( SCIPallocBufferArray(scip, &blocknvarnonz, nvars) );
                   SCIP_CALL( SCIPallocBufferArray(scip, &blockcol, nvars) );
                   SCIP_CALL( SCIPallocBufferArray(scip, &blockrow, nvars) );
@@ -2311,7 +2307,7 @@ SCIP_RETCODE calcRelax(
                      else if ( relaxdata->warmstartiptype == 2 )
                      {
                         /* take the convex combination with the saved analytic center */
-                        starty[v] = (1 - relaxdata->warmstartipfactor) * optev[v] + relaxdata->warmstartipfactor * SCIPgetSolVal(scip, relaxdata->ipy, var);
+                        starty[v] = (1 - relaxdata->warmstartipfactor) * optev[v] + relaxdata->warmstartipfactor * SCIPgetSolVal(scip, relaxdata->ipy, vars[v]);
                      }
                   }
 
@@ -4255,7 +4251,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          TRUE, DEFAULT_WARMSTARTPROJMINEV, -1.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstartprojpdsame",
-         "Should one shared minimum eigenvalue respectively maximum entry be computed for primal and dual problem instead of different ones for projection or convex combination ?",
+         "Should one shared minimum eigenvalue respectively maximum entry be computed for primal and dual problem instead of different ones for primal and dual and each block for projection or convex combination ?",
          &(relaxdata->warmstartprojpdsame), TRUE, DEFAULT_WARMSTARTPROJPDSAME, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstartpreoptsol",
@@ -5006,6 +5002,8 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
             SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZrow, relaxdata->nblocks) );
             SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZcol, relaxdata->nblocks) );
             SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZval, relaxdata->nblocks) );
+
+            sdpblocks = SCIPconshdlrGetConss(sdpconshdlr);
 
             for (b = 0; b < relaxdata->nblocks; b++)
             {
