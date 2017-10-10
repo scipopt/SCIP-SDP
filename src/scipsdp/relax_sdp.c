@@ -74,7 +74,7 @@
 #define DEFAULT_WARMSTARTIPFACTOR   0.50     /**< factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled */
 #define DEFAULT_WARMSTARTPRIMALTYPE 3        /**< how to warmstart the primal problem? 1: scaled identity, 2: elementwise reciprocal, 3: saved primal sol */
 #define DEFAULT_WARMSTARTIPTYPE     1        /**< which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center */
-#define DEFAULT_WARMSTARTPROJECT    4        /**< how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone, 4: use new bounds and solve rounding problem */
+#define DEFAULT_WARMSTARTPROJECT    2        /**< how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone, 4: use new bounds and solve rounding problem */
 #define DEFAULT_WARMSTARTPROJMINEV  -1       /**< minimum eigenvector to allow when projecting onto the positive (semi-)definite cone */
 #define DEFAULT_WARMSTARTPROJPDSAME TRUE     /**< Should one shared minimum eigenvalue be computed for primal and dual problem instead of different ones if warmstartpmevpar = -1 ? */
 #define DEFAULT_WARMSTART_PREOPTIMAL_SOL FALSE /**< Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts (currently only implemented fo DSDP) */
@@ -85,7 +85,7 @@
 #define DEFAULT_RESOLVE             TRUE     /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
 #define DEFAULT_TIGHTENVB           TRUE     /**< Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ? */
 #define DEFAULT_SDPINFO             FALSE    /**< Should the SDP solver output information to the screen? */
-#define DEFAULT_WARMSTART           TRUE     /**< Should the SDP solver try to use warmstarts? */
+#define DEFAULT_WARMSTART           FALSE    /**< Should the SDP solver try to use warmstarts? */
 #define DEFAULT_DISPLAYSTAT         TRUE     /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
 #define DEFAULT_SETTINGSRESETFREQ   -1       /**< frequency for resetting parameters in SDP solver and trying again with fastest settings */
 #define DEFAULT_SETTINGSRESETOFS    0        /**< frequency offset for resetting parameters in SDP solver and trying again with fastest settings */
