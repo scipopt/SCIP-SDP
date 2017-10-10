@@ -86,8 +86,12 @@ void F77_FUNC(dsyevr, DSYEVR)(
 
 
 /** BLAS Fortran subroutine DGEMV */
-void F77_FUNC(dgemv, DGEMV)(char* TRANS, int* M, int* N, SCIP_Real* ALPHA, SCIP_Real* A, int* LDA, SCIP_Real* X, int* INCX, SCIP_Real* BETA, SCIP_Real* Y, int* INCY);
+void F77_FUNC(dgemv, DGEMV)(char* TRANS, int* M, int* N, SCIP_Real* ALPHA, SCIP_Real* A, int* LDA,
+      SCIP_Real* X, int* INCX, SCIP_Real* BETA, SCIP_Real* Y, int* INCY);
 
+/** BLAS Fortran subroutine DGEMM */
+void F77_FUNC(dgemm, DGEMM)(char* TRANSA, char* TRANSB, int* M, int* N, int* K, SCIP_Real* ALPHA,
+      SCIP_Real* A, int* LDA, SCIP_Real* B, int* LDB, SCIP_Real* BETA, SCIP_Real* C, int* LDC );
 
 /**@} */
 
@@ -211,6 +215,108 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    return SCIP_OKAY;
 }
 
+/** computes the eigenvector decomposition of a symmetric matrix using LAPACK */
+SCIP_RETCODE SCIPlapackComputeEigenvectorDecomposition(
+   BMS_BUFMEM*           bufmem,             /**< buffer memory */
+   int                   n,                  /**< size of matrix */
+   SCIP_Real*            A,                  /**< matrix for which the decomposition should be computed */
+   SCIP_Real*            eigenvalues,        /**< pointer to store eigenvalues (should be length n) */
+   SCIP_Real*            eigenvectors        /**< pointer to store eigenvectors (should be length n*n), eigenvectors are given as rows  */
+   )
+{
+   int N;
+#if ( SDPA_VERSION == 740 )
+   int INFO;
+#else
+   int INFO;
+#endif
+   char JOBZ;
+   char RANGE;
+   char UPLO;
+   int LDA;
+   SCIP_Real* WORK;
+   int LWORK;
+   int* IWORK;
+   int LIWORK;
+   SCIP_Real ABSTOL;
+   int M;
+   int LDZ;
+   SCIP_Real WSIZE;
+   int WISIZE;
+   SCIP_Real VL;
+   SCIP_Real VU;
+   int* ISUPPZ;
+
+   assert( bufmem != NULL );
+   assert( n > 0 );
+   assert( A != NULL );
+   assert( eigenvalues != NULL );
+   assert( eigenvectors != NULL );
+
+   N = n;
+   JOBZ = 'V';
+   RANGE = 'A';
+   UPLO = 'L';
+   LDA  = n;
+   ABSTOL = 0.0;
+   M = n;
+   LDZ = n;
+
+   /* standard LAPACK workspace query, to get the amount of needed memory */
+   LWORK = -1LL;
+   LIWORK = -1LL;
+
+   /* this computes the internally needed memory and returns this as (the first entries of [the 1x1 arrays]) WSIZE and WISIZE */
+   F77_FUNC(dsyevr, DSYEVR)( &JOBZ, &RANGE, &UPLO,
+      &N, NULL, &LDA,
+      NULL, NULL,
+      NULL, NULL,
+      &ABSTOL, &M, NULL, NULL,
+      &LDZ, NULL, &WSIZE,
+      &LWORK, &WISIZE, &LIWORK,
+      &INFO );
+
+   if ( INFO != 0 )
+   {
+      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d\n", INFO);
+      return SCIP_ERROR;
+   }
+
+   /* allocate workspace */
+   LWORK = SCIP_RealTOINT(WSIZE);
+   LIWORK = WISIZE;
+
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &WORK, (int) LWORK) );
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &IWORK, (int) LIWORK) );
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &ISUPPZ, (int) 2 * N) );
+
+   /* call the function */
+   VL = -1e20;
+   VU = 1e20;
+
+   F77_FUNC(dsyevr, DSYEVR)( &JOBZ, &RANGE, &UPLO,
+      &N, A, &LDA,
+      &VL, &VU,
+      NULL, NULL,
+      &ABSTOL, &M, eigenvalues, eigenvectors,
+      &LDZ, ISUPPZ, WORK,
+      &LWORK, IWORK, &LIWORK,
+      &INFO );
+
+   if ( INFO != 0 )
+   {
+      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d\n", INFO);
+      return SCIP_ERROR;
+   }
+
+   /* free memory */
+   BMSfreeBufferMemoryArray(bufmem, &ISUPPZ);
+   BMSfreeBufferMemoryArray(bufmem, &IWORK);/*lint !e737*/
+   BMSfreeBufferMemoryArray(bufmem, &WORK);/*lint !e737*/
+
+   return SCIP_OKAY;
+}
+
 /** performs matrix-vector-multiplication using BLAS */
 SCIP_RETCODE SCIPlapackMatrixVectorMult(
    int                   nrows,              /**< number of rows in matrix */
@@ -245,6 +351,49 @@ SCIP_RETCODE SCIPlapackMatrixVectorMult(
    INCY = 1;
 
    F77_FUNC(dgemv, DGEMV)(&TRANS, &M, &N, &ALPHA, A, &LDA, X, &INCX, &BETA, Y, &INCY);
+
+   return SCIP_OKAY;
+}
+
+/** performs matrix-matrix-multiplication A*B using BLAS */
+SCIP_RETCODE SCIPlapackMatrixMatrixMult(
+   int                   nrowsA,             /**< number of rows in matrix A */
+   int                   ncolsA,             /**< number of cols in matrix A */
+   SCIP_Real*            matrixA,            /**< matrix A given as nrowsA * ncolsA array */
+   SCIP_Bool             transposeA,         /**< should matrix A be transposed before multiplication? */
+   int                   nrowsB,             /**< number of rows in matrix B */
+   int                   ncolsB,             /**< number of cols in matrix B */
+   SCIP_Real*            matrixB,            /**< matrix B given as ncolsA * ncolsB array */
+   SCIP_Bool             transposeB,         /**< should matrix B be transposed before multiplication? */
+   SCIP_Real*            result              /**< pointer to nrowsA * nrowsB array to store the resulting matrix */
+   )
+{
+   char TRANSA;
+   char TRANSB;
+   int M;
+   int N;
+   int K;
+   SCIP_Real ALPHA;
+   int LDA;
+   int LDB;
+   SCIP_Real BETA;
+   int LDC;
+
+   assert( (transposeA && transposeB && (nrowsA == ncolsB)) || (transposeA && !transposeB && (nrowsA == nrowsB))
+         || (!transposeA && transposeB && (ncolsA == ncolsB)) || (!transposeA && !transposeB && (ncolsA == nrowsB)) );
+
+   TRANSA = transposeA ? 'T' : 'N';
+   TRANSB = transposeB ? 'T' : 'N';
+   M = transposeA ? ncolsA : nrowsA;
+   N = transposeB ? nrowsB : ncolsB;
+   K = transposeA ? nrowsA : ncolsA;
+   ALPHA = 1.0;
+   LDA = transposeA ? K : M;
+   LDB = transposeB ? N : K;
+   BETA = 1.0;
+   LDC = M;
+
+   F77_FUNC(dgemm, DGEMM)(&TRANSA, &TRANSB, &M, &N, &K, &ALPHA, matrixA, &LDA, matrixB, &LDB, &BETA, result, &LDC);
 
    return SCIP_OKAY;
 }

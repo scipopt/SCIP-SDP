@@ -64,6 +64,15 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP*                 scip                /**< SCIP data structure */
    );
 
+/** computes analytic centers of primal and dual feasible set and saves them in relaxdata
+ * @note This function should be called at the end of the root node (or at least after the solving stage starts and before the first non-root node).
+ */
+EXTERN
+SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_RELAX*           relax               /**< SDP-relaxator to compute analytic centers for */
+   );
+
 /** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem
  *
  *  The last input should specify the length of the arrays. If this is less than the number of variables, the needed

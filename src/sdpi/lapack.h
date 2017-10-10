@@ -65,6 +65,16 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    SCIP_Real*            eigenvector         /**< pointer to store eigenvector */
    );
 
+/** computes the eigenvector decomposition of a symmetric matrix using LAPACK */
+EXTERN
+SCIP_RETCODE SCIPlapackComputeEigenvectorDecomposition(
+   BMS_BUFMEM*           bufmem,             /**< buffer memory */
+   int                   n,                  /**< size of matrix */
+   SCIP_Real*            A,                  /**< matrix for which the decomposition should be computed */
+   SCIP_Real*            eigenvalues,        /**< pointer to store eigenvalues (should be length n) */
+   SCIP_Real*            eigenvectors        /**< pointer to store eigenvectors (should be length n*n), eigenvectors are given as rows  */
+   );
+
 /** performs matrix-vector-multiplication using BLAS */
 EXTERN
 SCIP_RETCODE SCIPlapackMatrixVectorMult(
@@ -73,6 +83,20 @@ SCIP_RETCODE SCIPlapackMatrixVectorMult(
    SCIP_Real*            matrix,             /**< the matrix we want to multiply */
    SCIP_Real*            vector,             /**< vector we want to multiply with the matrix */
    SCIP_Real*            result              /**< pointer to store the resulting vector */
+   );
+
+/** performs matrix-matrix-multiplication A*B using BLAS */
+EXTERN
+SCIP_RETCODE SCIPlapackMatrixMatrixMult(
+   int                   nrowsA,             /**< number of rows in matrix A */
+   int                   ncolsA,             /**< number of cols in matrix A */
+   SCIP_Real*            matrixA,            /**< matrix A given as nrowsA * ncolsA array */
+   SCIP_Bool             transposeA,         /**< should matrix A be transposed before multiplication? */
+   int                   nrowsB,             /**< number of rows in matrix B */
+   int                   ncolsB,             /**< number of cols in matrix B */
+   SCIP_Real*            matrixB,            /**< matrix B given as ncolsA * ncolsB array */
+   SCIP_Bool             transposeB,         /**< should matrix B be transposed before multiplication? */
+   SCIP_Real*            result              /**< pointer to nrowsA * nrowsB array to store the resulting matrix */
    );
 
 #ifdef __cplusplus

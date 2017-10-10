@@ -227,6 +227,7 @@ MAINCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/SdpVarfixer.o \
 			scipsdp/cons_sdp.o \
 			scipsdp/cons_savedsdpsettings.o \
+			scipsdp/cons_savesdpsol.o \
 			scipsdp/relax_sdp.o \
 			scipsdp/disp_sdpiterations.o \
 			scipsdp/disp_sdpavgiterations.o \
@@ -242,6 +243,7 @@ MAINCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/heur_sdprand.o \
 			scipsdp/reader_cbf.o \
 			scipsdp/prop_sdpobbt.o \
+			scipsdp/prop_companalcent.o \
 			sdpi/sdpi.o \
 			sdpi/sdpsolchecker.o \
 			scipsdpgithash.o

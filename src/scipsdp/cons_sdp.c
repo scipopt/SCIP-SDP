@@ -118,30 +118,11 @@ struct SCIP_ConshdlrData
 #endif
 };
 
-#ifndef NDEBUG
-/** for given row and column (i,j) computes the position in the lower triangular part, if
- *  these positions are numbered from 0 to n(n+1)/2 - 1, this needs to be called for i >= j
- */
-static
-int compLowerTriangPos(
-   int                   i,                  /**< row index */
-   int                   j                   /**< column index */
-   )
-{
-   assert( j >= 0 );
-   assert( i >= j );
-
-   return i*(i+1)/2 + j;
-}
-#else
-#define compLowerTriangPos(i, j) (i*(i+1)/2 + j)
-#endif
-
 /** takes a 0.5*n*(n+1) array of a symmetric matrix and expands it to an n*n array of the full matrix to input into LAPACK */
 static
 SCIP_RETCODE expandSymMatrix(
    int                   size,               /**< size of the matrix, named n above */
-   SCIP_Real*            symMat,             /**< symmetric matrix indexed via compLowerTriangPos that should be expanded */
+   SCIP_Real*            symMat,             /**< symmetric matrix indexed via SCIPconsSdpCompLowerTriangPos that should be expanded */
    SCIP_Real*            fullMat             /**< pointer to store the n*n matrix, that is the symmetric expansion of symMat */
    )
 {
@@ -158,7 +139,7 @@ SCIP_RETCODE expandSymMatrix(
    {
       for (j = 0; j <= i; j++)
       {
-         assert( ind == compLowerTriangPos(i,j) );
+         assert( ind == SCIPconsSdpCompLowerTriangPos(i,j) );
          fullMat[i*size + j] = symMat[ind]; /*lint !e679*/
          fullMat[j*size + i] = symMat[ind]; /*lint !e679*/
          ind++;
@@ -169,7 +150,7 @@ SCIP_RETCODE expandSymMatrix(
 }
 
 /** For a given vector \f$ y \f$ computes the (length of y) * (length of y + 1) /2 -long array of the lower-triangular part
- *  of the SDP-Matrix \f$ \sum_{j=1}^m A_j y_j - A_0 \f$ for this SDP block, indexed by compLowerTriangPos.
+ *  of the SDP-Matrix \f$ \sum_{j=1}^m A_j y_j - A_0 \f$ for this SDP block, indexed by SCIPconsSdpCompLowerTriangPos.
  */
 static
 SCIP_RETCODE computeSdpMatrix(
@@ -202,12 +183,12 @@ SCIP_RETCODE computeSdpMatrix(
    {
       yval = SCIPgetSolVal(scip, y, consdata->vars[i]);
       for (ind = 0; ind < consdata->nvarnonz[i]; ind++)
-         matrix[compLowerTriangPos(consdata->row[i][ind], consdata->col[i][ind])] += yval * consdata->val[i][ind];
+         matrix[SCIPconsSdpCompLowerTriangPos(consdata->row[i][ind], consdata->col[i][ind])] += yval * consdata->val[i][ind];
    }
 
    /* substract the constant part */
    for (ind = 0; ind < consdata->constnnonz; ind++)
-      matrix[compLowerTriangPos(consdata->constrow[ind], consdata->constcol[ind])] -= consdata->constval[ind];
+      matrix[SCIPconsSdpCompLowerTriangPos(consdata->constrow[ind], consdata->constcol[ind])] -= consdata->constval[ind];
 
    return SCIP_OKAY;
 }
@@ -558,7 +539,7 @@ SCIP_RETCODE diagGEzero(
 
       /* the lhs is the (k,k)-entry of the constant matrix */
       for (k = 0; k < blocksize; ++k)
-         lhs_array[k] = matrix[compLowerTriangPos(k,k)];
+         lhs_array[k] = matrix[SCIPconsSdpCompLowerTriangPos(k,k)];
 
       /* get the (k,k)-entry of every matrix A_j */
       for (j = 0; j < nvars; ++j)
@@ -1246,6 +1227,8 @@ SCIP_RETCODE multiaggrVar(
          }
          else  /* we have to multiply all entries by scalar before inserting them */
          {
+            SCIP_CALL( SCIPgetRealParam(scip, "numerics/epsilon", &epsilon) );
+
             SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(consdata->val[consdata->nvars]), *nfixednonz - startind) );
 
             consdata->nvarnonz[consdata->nvars] = 0;
@@ -2503,6 +2486,20 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    return SCIP_OKAY;
 }
 
+/** for given row and column (i,j) computes the position in the lower triangular part, if
+ *  these positions are numbered from 0 to n(n+1)/2 - 1, this needs to be called for i >= j
+ */
+int SCIPconsSdpCompLowerTriangPos(
+   int                   i,                  /**< row index */
+   int                   j                   /**< column index */
+   )
+{
+   assert( j >= 0 );
+   assert( i >= j );
+
+   return i*(i+1)/2 + j;
+}
+
 /** get the data belonging to a single SDP-constraint
  *
  *  In arraylength the length of the nvarnonz, col, row and val arrays has to be given, if it is not sufficient to store all block-pointers that
@@ -2715,10 +2712,10 @@ SCIP_RETCODE SCIPconsSdpGetFullConstMatrix(
    return SCIP_OKAY;
 }
 
-/** gives a 0.5*n*(n+1)-long array with the lower triangular part of the constant matrix indexed by compLowerTriangPos */
+/** gives a 0.5*n*(n+1)-long array with the lower triangular part of the constant matrix indexed by SCIPconsSdpCompLowerTriangPos */
 SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< SDP constraint to get matrix for */
+   SCIP_CONS*            cons,               /**< SDP constraint to get data of */
    SCIP_Real*            mat                 /**< pointer to store the lower triangular part of the constant matrix */
    )
 {
@@ -2740,7 +2737,7 @@ SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
       mat[i] = 0.0;
 
    for (i = 0; i < consdata->constnnonz; i++)
-      mat[compLowerTriangPos(consdata->constrow[i], consdata->constcol[i])] = consdata->constval[i];
+      mat[SCIPconsSdpCompLowerTriangPos(consdata->constrow[i], consdata->constcol[i])] = consdata->constval[i];
 
    return SCIP_OKAY;
 }
@@ -2846,6 +2843,150 @@ SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
       *lambdastar = primalguess;
    else
       *lambdastar = dualguess;
+
+   return SCIP_OKAY;
+}
+
+/** Gets maximum absolute entry of constant matrix \f$ A_0 \f$ */
+SCIP_Real SCIPconsSdpGetMaxConstEntry(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< the constraint to get the maximum constant matrix entry for */
+   )
+{
+   SCIP_CONSDATA* consdata;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+
+   return consdata->maxrhsentry;
+}
+
+/** Gets maximum absolute entry of all matrices \f$ A_i \f$ */
+SCIP_Real SCIPconsSdpGetMaxSdpCoef(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< the constraint to get the maximum constant matrix entry for */
+   )
+{
+   SCIP_CONSDATA* consdata;
+   SCIP_Real maxcoef;
+   int v;
+   int i;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+
+   maxcoef = 0.0;
+
+   for (v = 0; v < consdata->nvars; v++)
+   {
+      for (i = 0; i < consdata->nvarnonz[v]; i++)
+      {
+         if ( SCIPisGT(scip, REALABS(consdata->val[v][i]), maxcoef) )
+            maxcoef = REALABS(consdata->val[v][i]);
+      }
+   }
+
+   return maxcoef;
+}
+
+/** Computes an upper bound on the number of nonzeros of the (dual) SDP matrix \f$ Z = \sum_{j=1}^n A_j y_j - A_0 \f$,
+ *  this should be used to allocate enough memory before calling SCIPconsSdpComputeSparseSdpMatrix
+ *  upper bound is computed as \f$ \min \{ \sum_{v \leq m} \text{nvarnonz}(v) + \text{constnnonz}, n \cdot (n+1) / 2 \} \f$
+ */
+int SCIPconsSdpComputeUbSparseSdpMatrixLength(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< the constraint for which the Matrix should be assembled */
+   )
+{
+   SCIP_CONSDATA* consdata;
+   int v;
+   int ub;
+   int denselength;
+
+   assert( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+
+   ub = consdata->constnnonz;
+
+   for (v = 0; v < consdata->nvars; v++)
+      ub += consdata->nvarnonz[v];
+
+   denselength = consdata->blocksize * (consdata->blocksize + 1) / 2;
+
+   return (ub <= denselength ? ub : denselength);
+}
+
+/** Computes (dual) SDP matrix \f$ Z = \sum_{j=1}^n A_j y_j - A_0 \f$ and returns it in sparse format
+ *  @note: row, col and val should have memory allocated equal to SCIPconsSdpComputeUbSparseSdpMatrixLength(),
+ *         if the memory is not sufficient, length will be set to -1 and an error will be thrown*/
+SCIP_RETCODE SCIPconsSdpComputeSparseSdpMatrix(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons,               /**< the constraint for which the Matrix should be assembled */
+   SCIP_SOL*             sol,                /**< the solution to assemble the matrix for */
+   int*                  length,             /**< input: allocated memory for row/col/val arrays
+                                               *  output: number of nonzeros of the matrix / length of row/col/val arrays */
+   int*                  row,                /**< pointer to store row indices of SDP-matrix */
+   int*                  col,                /**< pointer to store column indices of SDP-matrix */
+   SCIP_Real*            val                 /**< pointer to store values of SDP-matrix */
+   )
+{
+   SCIP_CONSDATA* consdata;
+   int i;
+   int v;
+   int nnonz;
+   SCIP_Real epsilon;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+   assert( sol != NULL );
+   assert( length != NULL );
+   assert( row != NULL );
+   assert( col != NULL );
+   assert( val != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+
+   /* initialize nnonz/row/col/val with constant arrays */
+   nnonz = consdata->constnnonz;
+   if ( *length < nnonz )
+   {
+      *length = -1;
+      SCIPerrorMessage("Arrays not long enough in SCIPconsSdpComputeSparseSdpMatrix, length %d given, need at least %d (probably more)\n",
+            *length, nnonz);
+      return SCIP_ERROR;
+   }
+   for (i = 0; i < consdata->constnnonz; i++)
+   {
+      row[i] = consdata->constrow[i];
+      col[i] = consdata->constcol[i];
+      val[i] = -1 * consdata->constval[i];
+   }
+
+   /* add all variable arrays multiplied by corresponding solution value */
+   SCIP_CALL( SCIPgetRealParam(scip, "numerics/epsilon", &epsilon) );
+
+   for (v = 0; v < consdata->nvars; v++)
+   {
+      SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), epsilon, consdata->row[v], consdata->col[v], consdata->val[v], consdata->nvarnonz[v],
+            FALSE, SCIPgetSolVal(scip, sol, consdata->vars[v]), row, col, val, &nnonz, *length) );
+      if ( nnonz > *length )
+      {
+         *length = -1;
+         SCIPerrorMessage("Arrays not long enough in SCIPconsSdpComputeSparseSdpMatrix, length %d given, need at least %d (probably more)\n",
+               *length, nnonz);
+         return SCIP_ERROR;
+      }
+   }
+
+   /* update length pointer */
+   *length = nnonz;
 
    return SCIP_OKAY;
 }

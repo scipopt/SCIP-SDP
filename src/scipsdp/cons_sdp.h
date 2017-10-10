@@ -78,6 +78,15 @@ SCIP_RETCODE SCIPcreateConsSdp(
    SCIP_Real*            constval            /**< values of the constant nonzeros */
    );
 
+/** for given row and column (i,j) computes the position in the lower triangular part, if
+ *  these positions are numbered from 0 to n(n+1)/2 - 1, this needs to be called for i >= j
+ */
+EXTERN
+int SCIPconsSdpCompLowerTriangPos(
+   int                   i,                  /**< row index */
+   int                   j                   /**< column index */
+   );
+
 /** get the data belonging to a single SDP-constraint
  *
  *  In arraylength the length of the nvarnonz, col, row and val arrays has to be given, if it is not sufficient to store all block-pointers that
@@ -174,8 +183,44 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
 EXTERN
 SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< the constraint for which the initial point should be constructed */
+   SCIP_CONS*            cons,               /**< the constraint to guess an initial point for */
    SCIP_Real*            lambdastar          /**< pointer to store the guess for the initial point */
+   );
+
+/** Gets maximum absolute entry of constant matrix \f$ A_0 \f$ */
+EXTERN
+SCIP_Real SCIPconsSdpGetMaxConstEntry(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< the constraint to get the maximum constant matrix entry for */
+   );
+
+/** Gets maximum absolute entry of all matrices \f$ A_i \f$ */
+EXTERN
+SCIP_Real SCIPconsSdpGetMaxSdpCoef(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< the constraint to get the maximum constant matrix entry for */
+   );
+
+/** Computes an upper bound on the number of nonzeros of the (dual) SDP matrix \f$ Z = \sum_{j=1}^n A_j y_j - A_0 \f$,
+ *  this should be used to allocate enough memory before calling SCIPconsSdpComputeSparseSdpMatrix
+ */
+EXTERN
+int SCIPconsSdpComputeUbSparseSdpMatrixLength(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< the constraint for which the Matrix should be assembled */
+   );
+
+/** Computes (dual) SDP matrix \f$ Z = \sum_{j=1}^n A_j y_j - A_0 \f$ and returns it in sparse format */
+EXTERN
+SCIP_RETCODE SCIPconsSdpComputeSparseSdpMatrix(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons,               /**< the constraint for which the Matrix should be assembled */
+   SCIP_SOL*             sol,                /**< the solution to assemble the matrix for */
+   int*                  length,             /**< input: allocated memory for row/col/val arrays
+                                               *  output: number of nonzeros of the matrix / length of row/col/val arrays */
+   int*                  row,                /**< pointer to store row indices of SDP-matrix */
+   int*                  col,                /**< pointer to store column indices of SDP-matrix */
+   SCIP_Real*            val                 /**< pointer to store values of SDP-matrix */
    );
 
 #ifdef __cplusplus

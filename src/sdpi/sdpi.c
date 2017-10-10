@@ -1054,8 +1054,8 @@ SCIP_RETCODE checkSlaterCondition(
          sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
          sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
          sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-         rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit,
-         &origfeas, &penaltybound) );
+         rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+         SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit, &origfeas, &penaltybound) );
 
    if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) )
    {
@@ -1280,8 +1280,8 @@ SCIP_RETCODE checkSlaterCondition(
             sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, 0, NULL, NULL, NULL, NULL,
             sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
             sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, slaternactivelpcons, sdpi->nlpcons + 1, slaterlplhs, slaterlprhs,
-            slaterrowsnactivevars, sdpi->lpnnonz + sdpi->nvars - nremovedslaterlpinds, slaterlprow, slaterlpcol, slaterlpval, NULL,
-            SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit) );
+            slaterrowsnactivevars, sdpi->lpnnonz + sdpi->nvars - nremovedslaterlpinds, slaterlprow, slaterlpcol, slaterlpval, NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit) );
 
       if ( ! SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && ! SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) && ! SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver) )
       {
@@ -1412,6 +1412,14 @@ int SCIPsdpiGetDefaultSdpiSolverNpenaltyIncreases(
    )
 {
    return SCIPsdpiSolverGetDefaultSdpiSolverNpenaltyIncreases();
+}
+
+/** Should primal solution values be saved for warmstarting purposes? */
+SCIP_Bool SCIPsdpiDoesWarmstartNeedPrimal(
+   void
+   )
+{
+   return SCIPsdpiSolverDoesWarmstartNeedPrimal();
 }
 
 /**@} */
@@ -2427,14 +2435,34 @@ SCIP_RETCODE SCIPsdpiGetRhSides(
 /**@name Solving Methods */
 /**@{ */
 
-/** solves the SDP, as start optionally a starting point for the solver may be given, if it is NULL, the solver will start from scratch */
+/** solves the SDP, as start optionally a starting point for the solver may be given, if it is NULL, the solver will start from scratch
+ *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
+ *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independant of some lhs/rhs being infinity (the starting point
+ *  will later be adjusted accordingly)
+ */
 SCIP_RETCODE SCIPsdpiSolve(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
-   SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
+   SCIP_Real*            starty,             /**< NULL or dual vector y as starting point for the solver, this should have length nvars */
+   int*                  startZnblocknonz,   /**< dual matrix Z = sum Ai yi as starting point for the solver: number of nonzeros for each block,
+                                               *  also length of corresponding row/col/val-arrays; or NULL */
+   int**                 startZrow,          /**< dual matrix Z = sum Ai yi as starting point for the solver: row indices for each block;
+                                               *  may be NULL if startZnblocknonz = NULL */
+   int**                 startZcol,          /**< dual matrix Z = sum Ai yi as starting point for the solver: column indices for each block;
+                                               *  may be NULL if startZnblocknonz = NULL */
+   SCIP_Real**           startZval,          /**< dual matrix Z = sum Ai yi as starting point for the solver: values for each block;
+                                               *  may be NULL if startZnblocknonz = NULL */
+   int*                  startXnblocknonz,   /**< primal matrix X as starting point for the solver: number of nonzeros for each block,
+                                               *  also length of corresponding row/col/val-arrays; or NULL */
+   int**                 startXrow,          /**< primal matrix X as starting point for the solver: row indices for each block;
+                                               *  may be NULL if startXnblocknonz = NULL */
+   int**                 startXcol,          /**< primal matrix X as starting point for the solver: column indices for each block;
+                                               *  may be NULL if startXnblocknonz = NULL */
+   SCIP_Real**           startXval,          /**< primal matrix X as starting point for the solver: values for each block;
+                                               *  may be NULL if startXnblocknonz = NULL */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP or MOSEK, set this to
-                                              *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
+                                               *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Bool             enforceslatercheck, /**< always check for Slater condition in case the problem could not be solved and printf the solution
-                                              *   of this check */
+                                                  of this check */
    SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
    )
 {
@@ -2571,7 +2599,8 @@ SCIP_RETCODE SCIPsdpiSolve(
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
             sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
             sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-            rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, startsettings, solvertimelimit) );
+            rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, starty, startZnblocknonz, startZrow, startZcol, startZval,
+            startXnblocknonz, startXrow, startXcol, startXval, startsettings, solvertimelimit) );
 
       sdpi->solved = TRUE;
 
@@ -2615,8 +2644,8 @@ SCIP_RETCODE SCIPsdpiSolve(
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-               rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit,
-               &feasorig, &penaltybound) );
+               rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, starty, startZnblocknonz, startZrow, startZcol, startZval,
+               startXnblocknonz, startXrow, startXcol, startXval, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit, &feasorig, &penaltybound) );
 
          /* add iterations and sdpcalls */
          naddediterations = 0;
@@ -2683,7 +2712,8 @@ SCIP_RETCODE SCIPsdpiSolve(
                      sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                      sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                      sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
-                     rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, start, startsettings, solvertimelimit, &feasorig, &penaltybound) );
+                     rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, starty, startZnblocknonz, startZrow, startZcol, startZval,
+                     startXnblocknonz, startXrow, startXcol, startXval, startsettings, solvertimelimit, &feasorig, &penaltybound) );
 
                /* add iterations and sdpcalls */
                naddediterations = 0;
@@ -3318,6 +3348,58 @@ SCIP_RETCODE SCIPsdpiGetSol(
    return SCIP_OKAY;
 }
 
+/** gets preoptimal dual solution vector for warmstarting purposes
+ *
+ *  If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
+ */
+SCIP_RETCODE SCIPsdpiGetPreoptimalSol(
+   SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
+   SCIP_Bool*            success,            /**< could a preoptimal solution be returned ? */
+   SCIP_Real*            dualsol,            /**< pointer to store the dual solution vector, may be NULL if not needed */
+   int*                  dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
+                                              *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
+   )
+{
+   assert( sdpi != NULL );
+   assert( success != NULL );
+   assert( dualsol != NULL );
+   assert( dualsollength != NULL );
+   assert( *dualsollength >= 0 );
+
+   if ( sdpi->infeasible )
+   {
+      *success = FALSE;
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, no preoptimal solution available.\n");
+      return SCIP_OKAY;
+   }
+   else if ( sdpi->allfixed )
+   {
+      int v;
+
+      assert( dualsol != NULL );
+
+      *success = FALSE;
+
+      if ( *dualsollength < sdpi->nvars )
+      {
+         SCIPdebugMessage("The given array in SCIPsdpiGetPreoptimalSol only had length %d, but %d was needed", *dualsollength, sdpi->nvars);
+         *dualsollength = sdpi->nvars;
+
+         return SCIP_OKAY;
+      }
+
+      /* we give the fixed values as the solution */
+      for (v = 0; v < sdpi->nvars; v++)
+         dualsol[v] = sdpi->lb[v];
+
+      return SCIP_OKAY;
+   }
+
+   SCIP_CALL( SCIPsdpiSolverGetPreoptimalSol(sdpi->sdpisolver, success, dualsol, dualsollength) );
+
+   return SCIP_OKAY;
+}
+
 /** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem, the last input should specify the length
  *  of the arrays, if this is less than the number of variables, the needed length will be returned and a debug-message thrown
  *
@@ -3351,6 +3433,73 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    SCIP_CALL( SCIPsdpiSolverGetPrimalBoundVars(sdpi->sdpisolver, lbvars, ubvars, arraylength) );
 
    return SCIP_OKAY;
+}
+
+/** return number of nonzeros for each block of the primal solution matrix X */
+SCIP_RETCODE SCIPsdpiGetPrimalNonzeros(
+   SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
+   int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
+   int*                  startXnblocknonz    /**< pointer to store number of nonzeros for row/col/val-arrays in each block */
+   )
+{
+   assert( sdpi != NULL );
+
+   if ( sdpi->infeasible )
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, no primal solution available.\n");
+      return SCIP_OKAY;
+   }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All variables fixed during preprocessing, no primal solution available.\n");
+      return SCIP_OKAY;
+   }
+
+   SCIP_CALL( SCIPsdpiSolverGetPrimalNonzeros(sdpi->sdpisolver, nblocks, startXnblocknonz) );
+
+   return SCIP_OKAY;
+}
+
+/** returns the primal matrix X
+ *  @note: last block will be the LP block (if one exists) with indices lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ...
+ *  independant of some lhs/rhs being infinity
+ *  @note: If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz */
+SCIP_RETCODE SCIPsdpiGetPrimalMatrix(
+   SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
+   int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
+   int*                  startXnblocknonz,   /**< input: allocated memory for row/col/val-arrays in each block
+                                                  output: number of nonzeros in each block */
+   int**                 startXrow,          /**< pointer to store row indices of X */
+   int**                 startXcol,          /**< pointer to store column indices of X */
+   SCIP_Real**           startXval           /**< pointer to store values of X */
+   )
+{
+   assert( sdpi != NULL );
+
+   if ( sdpi->infeasible )
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, no primal solution available.\n");
+      return SCIP_OKAY;
+   }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All variables fixed during preprocessing, no primal solution available.\n");
+      return SCIP_OKAY;
+   }
+
+   SCIP_CALL( SCIPsdpiSolverGetPrimalMatrix(sdpi->sdpisolver, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
+
+   return SCIP_OKAY;
+}
+
+/** return the maximum absolute value of the optimal primal matrix */
+SCIP_Real SCIPsdpiGetMaxPrimalEntry(
+   SCIP_SDPI*            sdpi                /**< pointer to an SDP-interface structure */
+   )
+{
+   assert( sdpi != NULL );
+
+   return SCIPsdpiSolverGetMaxPrimalEntry( sdpi->sdpisolver );
 }
 
 /** gets the number of SDP-iterations of the last solve call */
@@ -3825,6 +3974,9 @@ SCIP_RETCODE SCIPsdpiGetRealpar(
    case SCIP_SDPPAR_LAMBDASTAR:
       SCIP_CALL_PARAM( SCIPsdpiSolverGetRealpar(sdpi->sdpisolver, type, dval) );
       break;
+   case SCIP_SDPPAR_WARMSTARTPOGAP:
+      SCIP_CALL_PARAM( SCIPsdpiSolverGetRealpar(sdpi->sdpisolver, type, dval) );
+      break;
    default:
       return SCIP_PARAMETERUNKNOWN;
    }
@@ -3869,6 +4021,9 @@ SCIP_RETCODE SCIPsdpiSetRealpar(
       sdpi->maxpenaltyparam = dval;
       break;
    case SCIP_SDPPAR_LAMBDASTAR:
+      SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
+      break;
+   case SCIP_SDPPAR_WARMSTARTPOGAP:
       SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
       break;
    default:

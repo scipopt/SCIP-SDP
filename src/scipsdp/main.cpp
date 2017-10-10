@@ -41,6 +41,7 @@
 #include "objscip/objscipdefplugins.h"
 
 #include "cons_sdp.h"
+#include "scipsdp/cons_savesdpsol.h"
 #include "cons_savedsdpsettings.h"
 #include "relax_sdp.h"
 #include "objreader_sdpa.h"
@@ -58,6 +59,7 @@
 #include "heur_sdpfracdiving.h"
 #include "heur_sdprand.h"
 #include "prop_sdpobbt.h"
+#include "prop_companalcent.h"
 #include "scipsdpgithash.c"
 
 using namespace scip;
@@ -79,6 +81,7 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPincludeObjReader(scip, new ObjReaderSDPA(scip), TRUE) );
    SCIP_CALL( SCIPincludeReaderCbf(scip) );
    SCIP_CALL( SCIPincludeConshdlrSdp(scip) );
+   SCIP_CALL( SCIPincludeConshdlrSavesdpsol(scip) );
    SCIP_CALL( SCIPincludeConshdlrSavedsdpsettings(scip) );
    SCIP_CALL( SCIPincludeRelaxSdp(scip) );
    SCIP_CALL( SCIPincludePropSdpredcost(scip) );
@@ -89,6 +92,7 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPincludeHeurSdpFracdiving(scip) );
    SCIP_CALL( SCIPincludeHeurSdpRand(scip) );
    SCIP_CALL( SCIPincludePropSdpObbt(scip) );
+   SCIP_CALL( SCIPincludePropCompAnalCent(scip) );
 
    /* add description */
    (void) SCIPsnprintf(scipsdpname, SCIP_MAXSTRLEN, "SCIP-SDP %s", SCIPSDPVERSION);

@@ -115,7 +115,7 @@
                       }                                                                                      \
                       while( FALSE )
 
-/** Calls a DSDP-Function and transforms the return-code to a SCIP_LPERROR if needed. */
+/** Calls a gettimeofday and transforms the return-code to a SCIP_ERROR if needed. */
 #define TIMEOFDAY_CALL(x)  do                                                                                \
                       {                                                                                      \
                          int _errorcode_;                                                                    \
@@ -187,6 +187,9 @@ struct SCIP_SDPiSolver
    SCIP_Bool             timelimitinitial;   /**< was the problem not even given to the solver because of the time limit? */
    int                   niterations;        /**< number of SDP-iterations since the last solve call */
    int                   nsdpcalls;          /**< number of SDP-calls since the last solve call */
+   SCIP_Real*            preoptimalsol;      /**< first feasible solution with gap less or equal preoptimalgap */
+   SCIP_Bool             preoptimalsolexists; /**< saved feasible solution with gap less or equal preoptimalgap */
+   SCIP_Real             preoptimalgap;      /**< gap at which a preoptimal solution should be saved for warmstarting purposes */
 };
 
 typedef struct Timings
@@ -296,6 +299,44 @@ int checkTimeLimitDSDP(
    return 0;
 }
 
+/** check gap and set preoptimal solution if small enough */
+static
+int checkGapSetPreoptimalSol(
+   DSDP                  dsdp,               /**< DSDP-pointer */
+   void*                 ctx                 /**< pointer to data of iteration monitor */
+   )
+{
+   SCIP_Real absgap;
+   SCIP_Real relgap;
+   SCIP_Real pobj;
+   SCIP_Real dobj;
+   SCIP_Real r;
+
+   /* we only need to set the preoptimal solution once and we do not save it if the penalty formulation was used (in that case we won't warmstart
+    * anyways and, most importantly, if solving without bound on r, we added another variable, so the memory would not be enough)
+    */
+   if ( ((SCIP_SDPISOLVER*) ctx)->preoptimalsolexists || ((SCIP_SDPISOLVER*) ctx)->penalty || ((SCIP_SDPISOLVER*) ctx)->penaltyworbound )
+      return 0;
+
+   DSDP_CALL( DSDPGetPPObjective(dsdp,&pobj) );
+   DSDP_CALL( DSDPGetDDObjective(dsdp,&dobj) );
+   DSDP_CALL( DSDPGetDualityGap(dsdp,&absgap) );
+
+   relgap = absgap / (1.0 + (REALABS(dobj)/2) + (REALABS(pobj)/2) ); /* compare dsdpconverge.c */
+
+   /* check feasibility through penalty variable r */
+   DSDP_CALL( DSDPGetR(dsdp,&r) );
+
+   if ( r < ((SCIP_SDPISOLVER*) ctx)->feastol && relgap < ((SCIP_SDPISOLVER*) ctx)->preoptimalgap )
+   {
+      DSDP_CALL( DSDPGetY(dsdp, ((SCIP_SDPISOLVER*) ctx)->preoptimalsol, ((SCIP_SDPISOLVER*) ctx)->nactivevars) );
+      ((SCIP_SDPISOLVER*) ctx)->preoptimalsolexists = TRUE;
+      SCIPdebugMessage("penalty variable %f, gap %f -> saving preoptimal solution\n", r, relgap);
+   }
+
+   return 0;
+}
+
 
 /*
  * Miscellaneous Methods
@@ -349,6 +390,14 @@ int SCIPsdpiSolverGetDefaultSdpiSolverNpenaltyIncreases(
    )
 {
    return 10;
+}
+
+/** Should primal solution values be saved for warmstarting purposes? */
+SCIP_Bool SCIPsdpiSolverDoesWarmstartNeedPrimal(
+   void
+   )
+{
+   return FALSE;
 }
 
 /**@} */
@@ -413,6 +462,8 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
    (*sdpisolver)->sdpinfo = FALSE;
    (*sdpisolver)->usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
+   (*sdpisolver)->preoptimalsolexists = FALSE;
+   (*sdpisolver)->preoptimalgap = -1.0;
 
    return SCIP_OKAY;
 }
@@ -437,6 +488,7 @@ SCIP_RETCODE SCIPsdpiSolverFree(
 
    if ( (*sdpisolver)->nactivevars > 0 )
    {
+      BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->preoptimalsol, (*sdpisolver)->nactivevars);
       BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->dsdptoinputmapper, (*sdpisolver)->nactivevars);/*lint !e737 */
       BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->objcoefs, (*sdpisolver)->nactivevars); /*lint !e776*/
    }
@@ -495,6 +547,9 @@ SCIP_RETCODE SCIPsdpiSolverResetCounter(
  *  start from scratch).
  *
  *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
+ *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
+ *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independant of some lhs/rhs being infinity (the starting point
+ *  will later be adjusted accordingly)
  */
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
@@ -533,7 +588,23 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            lpval,              /**< values of LP-constraint-matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
+   SCIP_Real*            starty,             /**< NULL or dual vector y as starting point for the solver, this should have length nvars */
+   int*                  startZnblocknonz,   /**< dual matrix Z = sum Ai yi as starting point for the solver: number of nonzeros for each block,
+                                               *  also length of corresponding row/col/val-arrays; or NULL */
+   int**                 startZrow,          /**< dual matrix Z = sum Ai yi as starting point for the solver: row indices for each block;
+                                               *  may be NULL if startZnblocknonz = NULL */
+   int**                 startZcol,          /**< dual matrix Z = sum Ai yi as starting point for the solver: column indices for each block;
+                                               *  may be NULL if startZnblocknonz = NULL */
+   SCIP_Real**           startZval,          /**< dual matrix Z = sum Ai yi as starting point for the solver: values for each block;
+                                               *  may be NULL if startZnblocknonz = NULL */
+   int*                  startXnblocknonz,   /**< primal matrix X as starting point for the solver: number of nonzeros for each block,
+                                               *  also length of corresponding row/col/val-arrays; or NULL */
+   int**                 startXrow,          /**< primal matrix X as starting point for the solver: row indices for each block;
+                                               *  may be NULL if startXnblocknonz = NULL */
+   int**                 startXcol,          /**< primal matrix X as starting point for the solver: column indices for each block;
+                                               *  may be NULL if startXnblocknonz = NULL */
+   SCIP_Real**           startXval,          /**< primal matrix X as starting point for the solver: values for each block;
+                                               *  may be NULL if startXnblocknonz = NULL */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP ans MOSEK, set this to
                                                *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
@@ -542,7 +613,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, TRUE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars,
            sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
            indchanges, nremovedinds, blockindchanges, nremovedblocks, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol,
-           lpval, start, startsettings, timelimit, NULL, NULL);
+           lpval, starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval, startsettings,
+           timelimit, NULL, NULL);
 }
 
 /** loads and solves an SDP using a penalty formulation
@@ -563,6 +635,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *  An optional starting point for the solver may be given; if it is NULL, the solver will start from scratch.
  *
  *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
+ *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
+ *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independant of some lhs/rhs being infinity (the starting point
+ *  will later be adjusted accordingly)
  */
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
@@ -604,7 +679,23 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            lpval,              /**< values of LP-constraint-matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
+   SCIP_Real*            starty,             /**< NULL or dual vector y as starting point for the solver, this should have length nvars */
+   int*                  startZnblocknonz,   /**< dual matrix Z = sum Ai yi as starting point for the solver: number of nonzeros for each block,
+                                               *  also length of corresponding row/col/val-arrays; or NULL */
+   int**                 startZrow,          /**< dual matrix Z = sum Ai yi as starting point for the solver: row indices for each block;
+                                               *  may be NULL if startZnblocknonz = NULL */
+   int**                 startZcol,          /**< dual matrix Z = sum Ai yi as starting point for the solver: column indices for each block;
+                                               *  may be NULL if startZnblocknonz = NULL */
+   SCIP_Real**           startZval,          /**< dual matrix Z = sum Ai yi as starting point for the solver: values for each block;
+                                               *  may be NULL if startZnblocknonz = NULL */
+   int*                  startXnblocknonz,   /**< primal matrix X as starting point for the solver: number of nonzeros for each block,
+                                               *  also length of corresponding row/col/val-arrays; or NULL */
+   int**                 startXrow,          /**< primal matrix X as starting point for the solver: row indices for each block;
+                                               *  may be NULL if startXnblocknonz = NULL */
+   int**                 startXcol,          /**< primal matrix X as starting point for the solver: column indices for each block;
+                                               *  may be NULL if startXnblocknonz = NULL */
+   SCIP_Real**           startXval,          /**< primal matrix X as starting point for the solver: values for each block;
+                                               *  may be NULL if startXnblocknonz = NULL */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP and MOSEK, set this to
                                                *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
@@ -629,6 +720,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int nfixedvars;
    int dsdpnlpnonz = 0;
    int nrnonz = 0;
+   int oldnactivevars;
    SCIP_Real feastol;
    Timings timings;
 
@@ -711,6 +803,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->objcoefs), sdpisolver->nactivevars, nvars) ); /*lint !e776*/
 
    sdpisolver->nvars = nvars;
+   oldnactivevars = sdpisolver->nactivevars;
    sdpisolver->nactivevars = 0;
    nfixedvars = 0;
    sdpisolver->niterations = 0;
@@ -751,6 +844,20 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->objcoefs), nvars, sdpisolver->nactivevars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), nvars, nfixedvars) );
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->dsdptoinputmapper), nvars, sdpisolver->nactivevars) );
+
+   /* adjust length of preoptimal solution array */
+   if ( sdpisolver->nactivevars != oldnactivevars )
+   {
+      if ( oldnactivevars == 0 )
+      {
+         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->preoptimalsol), sdpisolver->nactivevars) );
+      }
+      else
+      {
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->preoptimalsol), oldnactivevars, sdpisolver->nactivevars) );
+      }
+   }
+   sdpisolver->preoptimalsolexists = FALSE;
 
    /* insert data */
 
@@ -1319,19 +1426,25 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
    /* set the starting solution */
-   if ( start != NULL )
+   if ( starty != NULL )
    {
-      for (i = 1; i <= sdpisolver->nactivevars; i++) /* we iterate over the variables in DSDP */
+      for (i = 0; i < sdpisolver->nactivevars; i++) /* we iterate over the variables in DSDP */
       {
-         DSDP_CALL( DSDPSetY0(sdpisolver->dsdp, i, start[sdpisolver->dsdptoinputmapper[i]]) );
+         DSDP_CALL( DSDPSetY0(sdpisolver->dsdp, i + 1, starty[sdpisolver->dsdptoinputmapper[i]]) ); /* i+1 since DSDP uses indices 1 to n */
       }
    }
 
    /* start the solving process */
    DSDP_CALLM( DSDPSetup(sdpisolver->dsdp) );
+   /* if there is a timelimit, set the corresponding callback */
    if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, timelimit) )
    {
       DSDP_CALLM( DSDPSetMonitor(sdpisolver->dsdp, checkTimeLimitDSDP, (void*) &timings) );
+   }
+   /* if preoptimal solutions should be saved for warmstarting purposes, set the corresponding callback */
+   if ( sdpisolver->preoptimalgap >= 0.0 )
+   {
+      DSDP_CALL( DSDPSetMonitor(sdpisolver->dsdp, checkGapSetPreoptimalSol, (void*) sdpisolver) );
    }
    DSDP_CALL( DSDPSolve(sdpisolver->dsdp) );
 
@@ -2113,6 +2226,62 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
    return SCIP_OKAY;
 }
 
+/** gets preoptimal dual solution vector for warmstarting purposes
+ *
+ *  If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
+ */
+SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
+   SCIP_Bool*            success,            /**< could a preoptimal solution be returned ? */
+   SCIP_Real*            dualsol,            /**< pointer to store the dual solution vector, may be NULL if not needed */
+   int*                  dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
+                                              *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
+   )
+{
+   int v;
+
+   assert( sdpisolver != NULL );
+   assert( success != NULL );
+   assert( dualsol != NULL );
+   assert( dualsollength != NULL );
+   assert( *dualsollength >= 0 );
+
+   if ( ! sdpisolver->preoptimalsolexists )
+   {
+      SCIPdebugMessage("Failed to retrieve preoptimal solution for warmstarting purposes. \n");
+      *success = FALSE;
+      return SCIP_OKAY;
+   }
+
+   if ( *dualsollength < sdpisolver->nvars )
+   {
+      SCIPdebugMessage("Insufficient memory in SCIPsdpiSolverGetPreoptimalSol: needed %d, given %d\n", sdpisolver->nvars, *dualsollength);
+      *success = FALSE;
+      *dualsollength = sdpisolver->nvars;
+      return SCIP_OKAY;
+   }
+
+   for (v = 0; v < sdpisolver->nvars; v++)
+   {
+      if (sdpisolver->inputtodsdpmapper[v] > -1)
+      {
+         /* minus one because the inputtodsdpmapper gives the dsdp indices which start at one, but the array starts at 0 */
+         dualsol[v] = sdpisolver->preoptimalsol[sdpisolver->inputtodsdpmapper[v] - 1];
+      }
+      else
+      {
+         /* this is the value that was saved when inserting, as this variable has lb=ub */
+         dualsol[v] = sdpisolver->fixedvarsval[(-1 * sdpisolver->inputtodsdpmapper[v]) - 1]; /*lint !e679*/
+      }
+   }
+
+
+   *dualsollength = sdpisolver->nvars;
+   *success = TRUE;
+
+   return SCIP_OKAY;
+}
+
 /** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem
  *
  *  The last input should specify the length of the arrays. If this is less than the number of variables, the needed
@@ -2176,6 +2345,44 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &lbvarsdsdp, sdpisolver->nactivevars);
 
    return SCIP_OKAY;
+}
+
+/** return number of nonzeros for each block of the primal solution matrix X */
+SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
+   int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
+   int*                  startXnblocknonz    /**< pointer to store number of nonzeros for row/col/val-arrays in each block */
+   )
+{/*lint --e{715,818}*/
+   SCIPdebugMessage("Not implemented yet\n");
+   return SCIP_LPERROR;
+}
+
+/** returns the primal matrix X
+ *  @note: last block will be the LP block (if one exists) with indices lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ...
+ *  independant of some lhs/rhs being infinity
+ *  @note: If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz */
+SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
+   int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
+   int*                  startXnblocknonz,   /**< input: allocated memory for row/col/val-arrays in each block
+                                                  output: number of nonzeros in each block */
+   int**                 startXrow,          /**< pointer to store row indices of X */
+   int**                 startXcol,          /**< pointer to store column indices of X */
+   SCIP_Real**           startXval           /**< pointer to store values of X */
+   )
+{/*lint --e{715,818}*/
+   SCIPdebugMessage("Not implemented yet\n");
+   return SCIP_LPERROR;
+}
+
+/** return the maximum absolute value of the optimal primal matrix */
+SCIP_Real SCIPsdpiSolverGetMaxPrimalEntry(
+   SCIP_SDPISOLVER*      sdpisolver          /**< pointer to an SDP-solver interface */
+   )
+{/*lint --e{715}*/
+   SCIPdebugMessage("Not implemented yet\n");
+   return SCIP_LPERROR;
 }
 
 /** gets the number of SDP iterations of the last solve call */
@@ -2288,6 +2495,9 @@ SCIP_RETCODE SCIPsdpiSolverGetRealpar(
    case SCIP_SDPPAR_OBJLIMIT:
       *dval = sdpisolver->objlimit;
       break;
+   case SCIP_SDPPAR_WARMSTARTPOGAP:
+      *dval = sdpisolver->preoptimalgap;
+      break;
    default:
       return SCIP_PARAMETERUNKNOWN;
    }
@@ -2332,6 +2542,10 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
       break;
    case SCIP_SDPPAR_LAMBDASTAR:
       SCIPdebugMessage("Parameter SCIP_SDPPAR_LAMBDASTAR not used by DSDP"); /* this parameter is only used by SDPA */
+      break;
+   case SCIP_SDPPAR_WARMSTARTPOGAP:
+      SCIPdebugMessage("Setting sdpisolver preoptgap to %f.\n", dval);
+      sdpisolver->preoptimalgap = dval;
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;

@@ -108,6 +108,12 @@ int SCIPsdpiGetDefaultSdpiSolverNpenaltyIncreases(
    void
    );
 
+/** Should primal solution values be saved for warmstarting purposes? */
+EXTERN
+SCIP_Bool SCIPsdpiDoesWarmstartNeedPrimal(
+   void
+   );
+
 /**@} */
 
 
@@ -364,11 +370,31 @@ SCIP_RETCODE SCIPsdpiGetRhSides(
 /**@name Solving Methods */
 /**@{ */
 
-/** solves the SDP, as start optionally a starting point for the solver may be given, if it is NULL, the solver will start from scratch */
+/** solves the SDP, as start optionally a starting point for the solver may be given, if it is NULL, the solver will start from scratch
+ *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
+ *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independant of some lhs/rhs being infinity (the starting point
+ *  will later be adjusted accordingly)
+ */
 EXTERN
 SCIP_RETCODE SCIPsdpiSolve(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
-   SCIP_Real*            start,              /**< NULL or a starting point for the solver, this should have length nvars */
+   SCIP_Real*            starty,             /**< NULL or dual vector y as starting point for the solver, this should have length nvars */
+   int*                  startZnblocknonz,   /**< dual matrix Z = sum Ai yi as starting point for the solver: number of nonzeros for each block,
+                                               *  also length of corresponding row/col/val-arrays; or NULL */
+   int**                 startZrow,          /**< dual matrix Z = sum Ai yi as starting point for the solver: row indices for each block;
+                                               *  may be NULL if startZnblocknonz = NULL */
+   int**                 startZcol,          /**< dual matrix Z = sum Ai yi as starting point for the solver: column indices for each block;
+                                               *  may be NULL if startZnblocknonz = NULL */
+   SCIP_Real**           startZval,          /**< dual matrix Z = sum Ai yi as starting point for the solver: values for each block;
+                                               *  may be NULL if startZnblocknonz = NULL */
+   int*                  startXnblocknonz,   /**< primal matrix X as starting point for the solver: number of nonzeros for each block,
+                                               *  also length of corresponding row/col/val-arrays; or NULL */
+   int**                 startXrow,          /**< primal matrix X as starting point for the solver: row indices for each block;
+                                               *  may be NULL if startXnblocknonz = NULL */
+   int**                 startXcol,          /**< primal matrix X as starting point for the solver: column indices for each block;
+                                               *  may be NULL if startXnblocknonz = NULL */
+   SCIP_Real**           startXval,          /**< primal matrix X as starting point for the solver: values for each block;
+                                               *  may be NULL if startXnblocknonz = NULL */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP or MOSEK, set this to
                                                *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Bool             enforceslatercheck, /**< always check for Slater condition in case the problem could not be solved and printf the solution
@@ -536,6 +562,19 @@ SCIP_RETCODE SCIPsdpiGetSol(
                                                *  of variables in the SDP, a debug-message will be thrown and this is set to the needed value */
    );
 
+/** gets preoptimal dual solution vector for warmstarting purposes
+ *
+ *  If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
+ */
+EXTERN
+SCIP_RETCODE SCIPsdpiGetPreoptimalSol(
+   SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
+   SCIP_Bool*            success,            /**< could a preoptimal solution be returned ? */
+   SCIP_Real*            dualsol,            /**< pointer to store the dual solution vector, may be NULL if not needed */
+   int*                  dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
+                                              *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
+   );
+
 /** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem, the last input should specify the length
  *  of the arrays, if this is less than the number of variables, the needed length will be returned and a debug-message thrown
  *
@@ -547,6 +586,35 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    SCIP_Real*            ubvars,             /**< pointer to store the optimal values of the variables corresponding to upper bounds in the dual problems */
    int*                  arraylength         /**< input: length of lbvars and ubvars<br>
                                                *  output: number of elements inserted into lbvars/ubvars (or needed length if it was not sufficient) */
+   );
+
+/** return number of nonzeros for each block of the primal solution matrix X */
+EXTERN
+SCIP_RETCODE SCIPsdpiGetPrimalNonzeros(
+   SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
+   int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
+   int*                  startXnblocknonz    /**< pointer to store number of nonzeros for row/col/val-arrays in each block */
+   );
+
+/** returns the primal matrix X
+ *  @note: last block will be the LP block (if one exists) with indices lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ...
+ *  independant of some lhs/rhs being infinity
+ *  @note: If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz */
+EXTERN
+SCIP_RETCODE SCIPsdpiGetPrimalMatrix(
+   SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
+   int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
+   int*                  startXnblocknonz,   /**< input: allocated memory for row/col/val-arrays in each block
+                                                  output: number of nonzeros in each block */
+   int**                 startXrow,          /**< pointer to store row indices of X */
+   int**                 startXcol,          /**< pointer to store column indices of X */
+   SCIP_Real**           startXval           /**< pointer to store values of X */
+   );
+
+/** return the maximum absolute value of the optimal primal matrix */
+EXTERN
+SCIP_Real SCIPsdpiGetMaxPrimalEntry(
+   SCIP_SDPI*            sdpi               /**< pointer to an SDP-interface structure */
    );
 
 /** gets the number of SDP-iterations of the last solve call */
