@@ -128,7 +128,7 @@ SCIP_DECL_HEURINIT(heurInitSdprand)
 
    /* create working solution and random number generator */
    SCIP_CALL( SCIPcreateSol(scip, &heurdata->sol, heur) );
-   SCIP_CALL( SCIPrandomCreate(&(heurdata->randnumgen), SCIPblkmem(scip), SCIPinitializeRandomSeed(scip, DEFAULT_RANDSEED)) );
+   SCIP_CALL( SCIPcreateRandom(scip, &(heurdata->randnumgen), SCIPinitializeRandomSeed(scip, DEFAULT_RANDSEED)) );
 
    return SCIP_OKAY;
 }
@@ -148,7 +148,7 @@ SCIP_DECL_HEUREXIT(heurExitSdprand)
 
    /* free working solution and random number generator*/
    SCIP_CALL( SCIPfreeSol(scip, &heurdata->sol) );
-   SCIPrandomFree(&(heurdata->randnumgen));
+   SCIPfreeRandom(scip, &(heurdata->randnumgen));
 
    return SCIP_OKAY;
 }
