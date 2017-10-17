@@ -393,6 +393,9 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
 #endif
    }
 
+   if ( sol != NULL )
+      SCIPupdateSolConsViolation(scip, sol, -eigenvalue, (-eigenvalue) / (1.0 + consdata->maxrhsentry));
+
    SCIPfreeBufferArray(scip, &fullmatrix);
    SCIPfreeBufferArray(scip, &matrix);
 
