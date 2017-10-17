@@ -65,7 +65,7 @@
 struct SCIP_ConsData
 {
    SCIP_Longint          node;               /**< index of the node the solution belongs to */
-   SCIP_SOL*             sol;                /**< optimal solution for SDP-relaxation of this node */
+   SCIP_SOL*             sol;                /**< optimal solution for SDP-relaxation of this node; TODO: change to array*/
    SCIP_Real             maxprimalentry;     /**< maximum absolute value of primal matrix */
    int                   nblocks;            /**< number of blocks INCLUDING lp-block */
    int*                  startXnblocknonz;   /**< primal matrix X as starting point for the solver: number of nonzeros for each block,

@@ -2212,7 +2212,7 @@ SCIP_RETCODE calcRelax(
                    * since both of them are respective restrictions of the original primal and dual problem */
                   if ( SCIPisEQ(scip, primalroundobj, dualroundobj) )
                   {
-                     SCIP_SOL* scipsol;
+                     SCIP_SOL* scipsol; /* TODO: eliminate this */
                      SCIP_CONS* savedcons;
 
                      SCIPdebugMsg(scip, "Node %lld solved to optimality through rounding problems with optimal objective %f\n",
@@ -2231,9 +2231,9 @@ SCIP_RETCODE calcRelax(
                      relaxdata->objval = dualroundobj;
 
                      /* copy solution */
-                     SCIP_CALL( SCIPsetRelaxSolValsSol(scip, scipsol) );
+                     SCIP_CALL( SCIPsetRelaxSolVals(scip, nvars, vars, solforscip, TRUE) );
 
-                     SCIP_CALL( SCIPmarkRelaxSolValid(scip) );
+                     SCIP_CALL( SCIPmarkRelaxSolValid(scip, TRUE) );
 
                      relaxdata->feasible = TRUE;
                      *result = SCIP_SUCCESS;
@@ -3159,7 +3159,7 @@ SCIP_RETCODE calcRelax(
       }
       else if ( SCIPsdpiIsPrimalFeasible(sdpi) && SCIPsdpiIsDualFeasible(sdpi) )
       {
-         SCIP_SOL* scipsol;
+         SCIP_SOL* scipsol; /* TODO: eliminate this from warmstart and save array instead */
          SCIP_SOL* preoptimalsol;
          SCIP_CONS* savedcons;
          int slength;
@@ -3181,9 +3181,7 @@ SCIP_RETCODE calcRelax(
          relaxdata->objval = objforscip;
 
          /* copy solution */
-         SCIP_CALL( SCIPsetRelaxSolValsSol(scip, scipsol) );
-
-         SCIP_CALL( SCIPmarkRelaxSolValid(scip) );
+         SCIP_CALL( SCIPsetRelaxSolVals(scip, nvars, vars, solforscip, TRUE) );
 
          relaxdata->feasible = TRUE;
          *result = SCIP_SUCCESS;
@@ -3385,7 +3383,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    SCIP_VAR** vars;
    SCIP_Real* ubs;
    SCIP_Bool cutoff;
-   SCIP_SOL* scipsol;
+   SCIP_SOL* scipsol; /* TODO: eliminate this */
    int nconss;
    int nvars;
    int i;
@@ -3430,12 +3428,9 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
 
       /* create SCIP solution */
       SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
-      SCIP_CALL( SCIPsetSolVals(scip, scipsol, nvars, vars, solforscip) );
+      SCIP_CALL( SCIPsetRelaxSolVals(scip, nvars, vars, solforscip, TRUE) );
 
-      /* Update the lower bound. Note that we cannot use the objective value given by the SDP-solver since this might
-       * vary from the value SCIP computes internally because of rounding errors when extracting the solution from the
-       * SDP-solver */
-      *lowerbound = SCIPgetSolTransObj(scip, scipsol);
+      *lowerbound = objforscip;
 
       /* copy solution */
       SCIP_CALL( SCIPgetLPColsData(scip, &cols, &ncols) );
@@ -3444,7 +3439,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
          SCIP_CALL( SCIPsetRelaxSolVal(scip, SCIPcolGetVar(cols[i]), SCIPgetSolVal(scip, scipsol, SCIPcolGetVar(cols[i]))) );
       }
 
-      SCIP_CALL( SCIPmarkRelaxSolValid(scip) );
+      SCIP_CALL( SCIPmarkRelaxSolValid(scip, TRUE) );
       *result = SCIP_SUCCESS;
 
       SCIPfreeBufferArray(scip, &solforscip);
@@ -3515,7 +3510,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       {
          SCIP_CALL( SCIPsetRelaxSolVal(scip, vars[i], SCIPvarGetLbLocal(vars[i])) );
       }
-      SCIP_CALL( SCIPmarkRelaxSolValid(scip) );
+      SCIP_CALL( SCIPmarkRelaxSolValid(scip, TRUE) );
 
       /* check if the solution really is feasible */
       SCIP_CALL( SCIPcheckSol(scip, scipsol, FALSE, TRUE, TRUE, TRUE, TRUE, &feasible) );
@@ -4198,7 +4193,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    relaxdata->ipZexists = FALSE;
 
    /* include relaxator */
-   SCIP_CALL( SCIPincludeRelaxBasic(scip, &relax, RELAX_NAME, RELAX_DESC, RELAX_PRIORITY, RELAX_FREQ, TRUE, relaxExecSdp, relaxdata) );
+   SCIP_CALL( SCIPincludeRelaxBasic(scip, &relax, RELAX_NAME, RELAX_DESC, RELAX_PRIORITY, RELAX_FREQ, relaxExecSdp, relaxdata) );
    assert( relax != NULL );
 
    /* include additional callbacks */
