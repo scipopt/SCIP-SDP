@@ -2313,10 +2313,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
 
       *objval = 0.0;
       for (v = 0; v < sdpisolver->nactivevars; v++)
-      {
-         if ( REALABS(sdpasol[v]) > sdpisolver->epsilon )
-            *objval += sdpasol[v] * sdpisolver->objcoefs[v];
-      }
+         *objval += sdpasol[v] * sdpisolver->objcoefs[v];
    }
 
    /* as we didn't add the fixed (lb = ub) variables to sdpa, we have to add their contributions to the objective by hand */
@@ -2370,10 +2367,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
 
          *objval = 0.0;
          for (v = 0; v < sdpisolver->nactivevars; v++)
-         {
-            if ( REALABS(sdpasol[v]) > sdpisolver->epsilon )
-               *objval += sdpasol[v] * sdpisolver->objcoefs[v];
-         }
+            *objval += sdpasol[v] * sdpisolver->objcoefs[v];
       }
 
       /* as we didn't add the fixed (lb = ub) variables to sdpa, we have to add their contributions to the objective by hand */

@@ -1933,10 +1933,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
 
       *objval = 0.0;
       for (v = 0; v < sdpisolver->nactivevars; v++)
-      {
-         if ( REALABS(moseksol[v]) > sdpisolver->epsilon )
-            *objval += moseksol[v] * sdpisolver->objcoefs[v];
-      }
+         *objval += moseksol[v] * sdpisolver->objcoefs[v];
    }
 
    /* as we didn't add the fixed (lb = ub) variables to MOSEK, we have to add their contributions to the objective as well */
@@ -2012,10 +2009,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
              * we get the solution from MOSEK and compute the correct objective value */
             *objval = 0.0;
             for (v = 0; v < sdpisolver->nactivevars; v++)
-            {
-               if ( REALABS(moseksol[v]) > sdpisolver->epsilon )
-                  *objval += moseksol[v] * sdpisolver->objcoefs[v];
-            }
+               *objval += moseksol[v] * sdpisolver->objcoefs[v];
          }
 
          /* as we didn't add the fixed (lb = ub) variables to MOSEK, we have to add their contributions to the objective as well */
