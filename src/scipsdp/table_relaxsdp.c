@@ -30,8 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   disp_sdpiterations.c
- * @brief  Column to display the total number of SDP-iterations
+/**@file   table_relaxsdp.c
+ * @brief  advanced SDP relaxator statistics table
  * @author Tristan Gally
  */
 
@@ -39,127 +39,126 @@
 
 #include <assert.h>
 
-#include "disp_sdpiterations.h"
+#include "table_relaxsdp.h"
 #include "relax_sdp.h"
 
-/* turn off lint warnings for whole file: */
-/*lint --e{788,818}*/
 
-#define DISP_NAME             "sdpiterations"
-#define DISP_DESC             "number of SDP iterations"
-#define DISP_HEADER           "SDP iter"
-#define DISP_WIDTH            8              /**< the width of the display column */
-#define DISP_PRIORITY         30001          /**< the priority of the display column */
-#define DISP_POSITION         1000           /**< the relative position of the display column */
-#define DISP_STRIPLINE        TRUE           /**< default for displaying column separated with a line from its right neighbor */
-
-
+#define TABLE_NAME              "relaxsdp"
+#define TABLE_DESC              "advanced SDP relaxator statistics table"
+#define TABLE_POSITION          16000              /**< the position of the statistics table */
+#define TABLE_EARLIEST_STAGE    SCIP_STAGE_SOLVING /**< output of the statistics table is only printed from this stage onwards */
 
 
 /*
  * Data structures
  */
 
-/** display column data */
-struct SCIP_DispData
+/** statistics table data */
+struct SCIP_TableData
 {
    SCIP_RELAX*           relaxSDP;           /**< pointer to the SDP relaxator whose iterations should be displayed */
 };
 
 
-
 /*
- * Callback methods of display column
+ * Callback methods of statistics table
  */
 
-/** copy method for dialog plugins (called when SCIP copies plugins) */
+/** copy method for statistics table plugins (called when SCIP copies plugins) */
 static
-SCIP_DECL_DISPCOPY(dispCopySdpiterations)
+SCIP_DECL_TABLECOPY(tableCopyRelaxSdp)
 {  /*lint --e{715}*/
-   assert(scip != NULL);
-   assert(disp != NULL);
+   assert( scip != NULL );
+   assert( table != NULL );
 
-   /* call inclusion method of display column */
-   SCIP_CALL( SCIPincludeDispSdpiterations(scip) );
+   SCIP_CALL( SCIPincludeTableRelaxSdp(scip) );
 
    return SCIP_OKAY;
 }
 
-/** destructor of display column to free user data (called when SCIP is exiting) */
+
+/** destructor of statistics table to free user data (called when SCIP is exiting) */
 static
-SCIP_DECL_DISPFREE(dispFreeSdpiterations)
-{
-   SCIP_DISPDATA* dispdata;
+SCIP_DECL_TABLEFREE(tableFreeRelaxSdp)
+{  /*lint --e{715}*/
+   SCIP_TABLEDATA* tabledata;
 
    assert( scip != NULL );
-   assert( disp != NULL );
-   dispdata = SCIPdispGetData(disp);
-   assert( dispdata != NULL );
+   assert( table != NULL );
+   tabledata = SCIPtableGetData(table);
+   assert( tabledata != NULL );
 
-   SCIPfreeMemory(scip, &dispdata);
-   SCIPdispSetData(disp, NULL);
-
-   return SCIP_OKAY;
-}
-
-/** solving process initialization method of display column (called when branch and bound process is about to begin) */
-static
-SCIP_DECL_DISPINITSOL(dispInitsolSdpiterations)
-{  /*lint --e{715}*/
-   SCIP_DISPDATA* dispdata;
-
-   assert( disp != NULL );
-   dispdata = SCIPdispGetData(disp);
-   assert( dispdata != NULL );
-
-   dispdata->relaxSDP = SCIPfindRelax(scip, "SDP");
-   assert( dispdata->relaxSDP != NULL );
+   SCIPfreeMemory(scip, &tabledata);
+   SCIPtableSetData(table, NULL);
 
    return SCIP_OKAY;
 }
 
-/** output method of display column to output file stream 'file' */
+
+/** solving process initialization method of statistics table (called when branch and bound process is about to begin) */
 static
-SCIP_DECL_DISPOUTPUT(dispOutputSdpiterations)
+SCIP_DECL_TABLEINITSOL(tableInitsolRelaxSdp)
 {  /*lint --e{715}*/
-   SCIP_DISPDATA* dispdata;
+   SCIP_TABLEDATA* tabledata;
+
+   assert( table != NULL );
+   tabledata = SCIPtableGetData(table);
+   assert( tabledata != NULL );
+
+   tabledata->relaxSDP = SCIPfindRelax(scip, "SDP");
+   assert( tabledata->relaxSDP != NULL );
+
+   return SCIP_OKAY;
+}
+
+
+/** output method of statistics table to output file stream 'file' */
+static
+SCIP_DECL_TABLEOUTPUT(tableOutputRelaxSdp)
+{  /*lint --e{715}*/
+   SCIP_TABLEDATA* tabledata;
+   SCIP_RELAX* relaxsdp;
 
    assert( scip != NULL );
-   assert( disp != NULL );
+   assert( table != NULL );
 
-   dispdata = SCIPdispGetData(disp);
+   tabledata = SCIPtableGetData(table);
+   assert( tabledata != NULL );
 
-   assert( dispdata != NULL );
-   assert( dispdata->relaxSDP != NULL );
+   relaxsdp = tabledata->relaxSDP;
+   assert( relaxsdp != NULL );
 
-   SCIPdispLongint(SCIPgetMessagehdlr(scip), file, (long long) SCIPrelaxSdpGetNIterations(dispdata->relaxSDP), DISP_WIDTH);
+   SCIPinfoMessage(scip, file, "Relaxators         :       Time      Calls Iterations  Iter/call\n");
+
+   SCIPinfoMessage(scip, file, "  %-17.17s: %10.2f %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " %10.2f \n",
+         "SDP", SCIPrelaxGetTime(relaxsdp), SCIPrelaxGetNCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
+         (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpCalls(relaxsdp));
 
    return SCIP_OKAY;
 }
 
 
 /*
- * display column specific interface methods
+ * statistics table specific interface methods
  */
 
-/** creates the SDP-iterations display column and includes it in SCIP */
-SCIP_RETCODE SCIPincludeDispSdpiterations(
+/** creates the advanced SDP relaxator statistics table and includes it in SCIP */
+SCIP_RETCODE SCIPincludeTableRelaxSdp(
    SCIP*                 scip                /**< SCIP data structure */
    )
 {
-   SCIP_DISPDATA* dispdata = NULL;
+   SCIP_TABLEDATA* tabledata;
 
    assert( scip != NULL );
 
-   /* create display column data */
-   SCIP_CALL( SCIPallocMemory(scip, &dispdata) );
+   /* create statistics table data */
+   SCIP_CALL( SCIPallocMemory(scip, &tabledata) );
 
-   /* include display column */
-   SCIP_CALL( SCIPincludeDisp(scip, DISP_NAME, DISP_DESC, DISP_HEADER, SCIP_DISPSTATUS_AUTO,
-         dispCopySdpiterations,
-         dispFreeSdpiterations, NULL, NULL,
-         dispInitsolSdpiterations, NULL, dispOutputSdpiterations,
-         dispdata, DISP_WIDTH, DISP_PRIORITY, DISP_POSITION, DISP_STRIPLINE) );
+   /* include statistics table */
+   SCIP_CALL( SCIPincludeTable(scip, TABLE_NAME, TABLE_DESC, TRUE,
+         tableCopyRelaxSdp, tableFreeRelaxSdp, NULL, NULL,
+         tableInitsolRelaxSdp, NULL, tableOutputRelaxSdp,
+         tabledata, TABLE_POSITION, TABLE_EARLIEST_STAGE) );
 
    return SCIP_OKAY;
 }

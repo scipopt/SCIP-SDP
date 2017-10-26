@@ -79,7 +79,7 @@ SCIP_DECL_DISPCOPY(dispCopySdpfastsettings)
    assert(scip != NULL);
    assert(disp != NULL);
 
-   /* call inclusion method of dialog */
+   /* call inclusion method of display column */
    SCIP_CALL( SCIPincludeDispSdpfastsettings(scip) );
 
    return SCIP_OKAY;

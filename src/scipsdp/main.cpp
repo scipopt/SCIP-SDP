@@ -61,6 +61,9 @@
 #include "prop_sdpobbt.h"
 #include "prop_companalcent.h"
 #include "scipsdpgithash.c"
+#include "table_relaxsdp.h"
+#include "table_sdpsolversuccess.h"
+#include "table_slater.h"
 
 using namespace scip;
 
@@ -129,6 +132,12 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPincludeDispSdpunsolved(scip) );
    SCIP_CALL( SCIPsetIntParam(scip, "display/sdpfastsettings/active", 0) );
    SCIP_CALL( SCIPsetIntParam(scip, "display/sdppenalty/active", 0) );
+
+   /* display SDP statistics instead of default relaxator statistics */
+   SCIP_CALL( SCIPincludeTableRelaxSdp(scip) );
+   SCIP_CALL( SCIPincludeTableSdpSolverSuccess(scip) );
+   SCIP_CALL( SCIPincludeTableSlater(scip) );
+   SCIP_CALL( SCIPsetBoolParam(scip, "table/relaxator/active", FALSE) );
 
    /* change epsilons for numerical stability */
    SCIP_CALL( SCIPsetRealParam(scip, "numerics/epsilon", 1e-9) );
