@@ -541,7 +541,7 @@ testcluster:
 		cd check; \
 		$(SHELL) ./check_cluster.sh $(TEST) $(PWD)/$(MAINFILE) $(SETTINGS) $(notdir $(MAINFILE)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(SDPS) $(DISPFREQ) \
 			$(CONTINUE) $(QUEUETYPE) $(QUEUE) $(PPN) $(CLIENTTMPDIR) $(NOWAITCLUSTER) $(EXCLUSIVE) $(PERMUTE) $(SEEDS) $(GLBSEEDSHIFT) $(DEBUGTOOL) $(REOPT) $(OPTCOMMAND) \
-			$(SETCUTOFF) $(VISUALIZE);
+			$(SETCUTOFF) $(VISUALIZE) $(CLUSTERNODES);
 
 #-----------------------------------------------------------------------------
 
