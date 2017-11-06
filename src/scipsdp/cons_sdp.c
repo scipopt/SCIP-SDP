@@ -473,7 +473,7 @@ SCIP_RETCODE separateSol(
       SCIPinfoMessage(scip, NULL, "\n");
 #endif
 
-      SCIP_CALL( SCIPaddCut(scip, row, FALSE, &infeasible) );
+      SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
       if ( infeasible )
          *result = SCIP_CUTOFF;
       else
@@ -1558,7 +1558,7 @@ SCIP_RETCODE EnforceConstraint(
       SCIPinfoMessage(scip, NULL, "\n");
 #endif
 
-      SCIP_CALL( SCIPaddCut(scip, row, FALSE, &infeasible) );
+      SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
 
       if ( infeasible )
       {
