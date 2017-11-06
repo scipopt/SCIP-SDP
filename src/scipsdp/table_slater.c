@@ -316,8 +316,8 @@ SCIP_RETCODE SCIPincludeTableSlater(
    /* create statistics table data */
    SCIP_CALL( SCIPallocMemory(scip, &tabledata) );
 
-   /* include statistics table */
-   SCIP_CALL( SCIPincludeTable(scip, TABLE_NAME, TABLE_DESC, TRUE,
+   /* include statistics table (deactivated by default since it needs relax/slatercheck) */
+   SCIP_CALL( SCIPincludeTable(scip, TABLE_NAME, TABLE_DESC, FALSE,
          tableCopySlater, tableFreeSlater, NULL, NULL,
          tableInitsolSlater, NULL, tableOutputSlater,
          tabledata, TABLE_POSITION, TABLE_EARLIEST_STAGE) );
