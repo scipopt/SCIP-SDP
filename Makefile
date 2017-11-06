@@ -244,6 +244,9 @@ MAINCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/reader_cbf.o \
 			scipsdp/prop_sdpobbt.o \
 			scipsdp/prop_companalcent.o \
+			scipsdp/table_relaxsdp.o \
+			scipsdp/table_slater.o \
+			scipsdp/table_sdpsolversuccess.o \
 			sdpi/sdpi.o \
 			sdpi/sdpsolchecker.o \
 			scipsdpgithash.o

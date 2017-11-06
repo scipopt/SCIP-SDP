@@ -42,7 +42,7 @@
 /* #define SCIP_EVEN_MORE_DEBUG  *//* shows number of deleted empty cols/rows for every relaxation and variable status &
  * bounds as well as all constraints in the beginning */
 /* #define SCIP_PRINT_WARMSTART  *//* print initial point given for warmstarts */
- #define SLATERSOLVED_ABSOLUTE /* uncomment this to return the absolute number of nodes for, e.g., solved fast with slater in addition to percentages */
+#define SLATERSOLVED_ABSOLUTE /* uncomment this to return the absolute number of nodes for, e.g., solved fast with slater in addition to percentages */
 
 #include "relax_sdp.h"
 
@@ -86,7 +86,7 @@
 #define DEFAULT_TIGHTENVB           TRUE     /**< Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ? */
 #define DEFAULT_SDPINFO             FALSE    /**< Should the SDP solver output information to the screen? */
 #define DEFAULT_WARMSTART           FALSE    /**< Should the SDP solver try to use warmstarts? */
-#define DEFAULT_DISPLAYSTAT         TRUE     /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
+#define DEFAULT_DISPLAYSTAT         FALSE    /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
 #define DEFAULT_SETTINGSRESETFREQ   -1       /**< frequency for resetting parameters in SDP solver and trying again with fastest settings */
 #define DEFAULT_SETTINGSRESETOFS    0        /**< frequency offset for resetting parameters in SDP solver and trying again with fastest settings */
 #define DEFAULT_SDPSOLVERTHREADS    -1       /**< number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores) */
@@ -4271,7 +4271,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          TRUE, DEFAULT_LAMBDASTAR, -1.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/slatercheck",
-         "Should the Slater condition for the primal and dual problem be checked ahead of solving each SDP? 0: no, 1: yes and output statistics, 2: yes and print warning for "
+         "Should the Slater condition for the primal and dual problem be checked ahead of solving each SDP? 0: no, 1: yes but only for statistics, 2: yes and print warning for "
          "every problem not satisfying primal and dual Slater condition", &(relaxdata->slatercheck), TRUE, DEFAULT_SLATERCHECK, 0, 2, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/sdpinfo",
@@ -5260,4 +5260,268 @@ int SCIPrelaxSdpGetNSdpUnsolved(
    assert( SCIPrelaxGetData(relax) != NULL );
 
    return ( SCIPrelaxGetData(relax)->unsolved );
+}
+
+/** returns number of SDP-relaxations for which dual Slater condition held */
+int SCIPrelaxSdpGetNdualSlaterHolds(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->ndslaterholds );
+}
+
+/** returns number of SDP-relaxations for which dual Slater condition failed */
+int SCIPrelaxSdpGetNdualSlaterFails(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->ndnoslater );
+}
+
+/** returns number of SDP-relaxations for which dual Slater condition showed infeasibility */
+int SCIPrelaxSdpGetNdualSlaterInfeasible(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->nslaterinfeasible );
+}
+
+/** returns number of SDP-relaxations for which dual Slater condition could not be determined */
+int SCIPrelaxSdpGetNdualSlaterUnknown(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->ndslatercheckfailed );
+}
+
+/** returns number of SDP-relaxations for which primal Slater condition held */
+int SCIPrelaxSdpGetNprimalSlaterHolds(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->npslaterholds );
+}
+
+/** returns number of SDP-relaxations for which primal Slater condition failed */
+int SCIPrelaxSdpGetNprimalSlaterFails(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->npnoslater );
+}
+
+/** returns number of SDP-relaxations for which primal Slater condition could not be determined */
+int SCIPrelaxSdpGetNprimalSlaterUnknown(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->npslatercheckfailed );
+}
+
+/** returns number of SDP-relaxations with Slater condition holding for primal and dual */
+int SCIPrelaxSdpGetNSlaterHolds(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->nslaterholds );
+}
+
+/** returns number of SDP-relaxations with Slater condition holding for primal and dual, solved with fastest settings */
+int SCIPrelaxSdpGetNSlaterHoldsFast(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->stablewslater );
+}
+
+/** returns number of SDP-relaxations with Slater condition holding for primal and dual, solved with stable settings */
+int SCIPrelaxSdpGetNSlaterHoldsStable(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->unstablewslater );
+}
+
+/** returns number of SDP-relaxations with Slater condition holding for primal and dual, solved with penalty formulation */
+int SCIPrelaxSdpGetNSlaterHoldsPenalty(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->penaltywslater );
+}
+
+/** returns number of SDP-relaxations with Slater condition holding for primal and dual, for which an infeasible lower bound could be computed */
+int SCIPrelaxSdpGetNSlaterHoldsBounded(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->boundedwslater );
+}
+
+/** returns number of SDP-relaxations with Slater condition holding for primal and dual, unsolved even when using a penalty formulation */
+int SCIPrelaxSdpGetNSlaterHoldsUnsolved(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->unsolvedwslater );
+}
+
+/** returns number of SDP-relaxations with Slater condition failing for primal or dual */
+int SCIPrelaxSdpGetNSlaterFails(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->nnoslater );
+}
+
+/** returns number of SDP-relaxations with Slater condition failing for primal or dual, solved with fast settings */
+int SCIPrelaxSdpGetNSlaterFailsFast(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->stablenoslater );
+}
+
+/** returns number of SDP-relaxations with Slater condition failing for primal or dual, solved with stable settings */
+int SCIPrelaxSdpGetNSlaterFailsStable(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->unstablenoslater );
+}
+
+/** returns number of SDP-relaxations with Slater condition failing for primal or dual, solved with penalty formulation */
+int SCIPrelaxSdpGetNSlaterFailsPenalty(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->penaltynoslater );
+}
+
+/** returns number of SDP-relaxations with Slater condition failing for primal or dual, for which an infeasible lower bound could be computed */
+int SCIPrelaxSdpGetNSlaterFailsBounded(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->boundednoslater );
+}
+
+/** returns number of SDP-relaxations with Slater condition failing for primal or dual, unsolved even when using a penalty formulation */
+int SCIPrelaxSdpGetNSlaterFailsUnsolved(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->unsolvednoslater );
+}
+
+/** returns number of SDP-relaxations with Slatercheck showing infeasibility, solved with fast settings */
+int SCIPrelaxSdpGetNSlaterInfeasibleFast(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->stableinfeasible );
+}
+
+/** returns number of SDP-relaxations with Slatercheck showing infeasibility, solved with stable settings */
+int SCIPrelaxSdpGetNSlaterInfeasibleStable(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->unstableinfeasible );
+}
+
+/** returns number of SDP-relaxations with Slatercheck showing infeasibility, solved with penalty formulation */
+int SCIPrelaxSdpGetNSlaterInfeasiblePenalty(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->penaltyinfeasible );
+}
+
+/** returns number of SDP-relaxations with Slatercheck showing infeasibility, for which an infeasible lower bound could be computed */
+int SCIPrelaxSdpGetNSlaterInfeasibleBounded(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->boundedinfeasible );
+}
+
+/** returns number of SDP-relaxations with Slatercheck showing infeasibility, unsolved even when using a penalty formulation */
+int SCIPrelaxSdpGetNSlaterInfeasibleUnsolved(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return ( SCIPrelaxGetData(relax)->unsolvedinfeasible );
 }
