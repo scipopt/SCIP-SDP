@@ -6,6 +6,10 @@ fixed bugs:
 
 features:
 
+performance improvements:
+- accept solutions if Mosek stalled but solutions are (almost) feasible (which is rechecked in the sdp interface later for the dual
+  solution) and the duality gap is below the tolerance
+
 
 interface:
 
