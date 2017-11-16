@@ -81,7 +81,7 @@
  * <tr><td>relaxing/SDP/displaystatistics = TRUE</td> <td>Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ?</td></tr>
  * <tr><td>relaxing/SDP/slatercheck = 0</td> <td>Should the Slater condition for the primal and dual problem be checked ahead of solving each SDP? [0: no, 1: yes and output statistics, 2: yes and print warning for every problem not satisfying primal and dual Slater condition]</td></tr>
  * <tr><td>relaxing/SDP/sdpinfo = FALSE</td> <td>Should output of the SDP-Solver be printed to the console?</td></tr>
- * <tr><td>relaxing/SDP/sdpsolvergaptol = 1e-04</td> <td>sets the tolerance for the duality gap in the SDP-Solver</td></tr>
+ * <tr><td>relaxing/SDP/sdpsolvergaptol = 1e-04 (DSDP,SDPA) / 1e-05 (MOSEK)</td> <td>sets the tolerance for the duality gap in the SDP-Solver</td></tr>
  * <tr><td>relaxing/SDP/sdpsolverfeastol = 1e-06 (DSDP,SDPA) / 1e-07 (MOSEK)</td> <td>feasibility tolerance for the SDP-Solver (should be less or equal to numerics/feastol)</td></tr>
  * <tr><td>relaxing/SDP/penaltyparam = -1</td> <td>the starting value of the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge; set this to a negative value to compute the parameter depending on the given problem</td></tr>
  * <tr><td>relaxing/SDP/lambdastar = -1</td> <td>the parameter lambda star used by SDPA to set the initial point; set this to a negative value to compute the parameter depending on the given problem</td></tr>

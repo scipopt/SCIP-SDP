@@ -1,3 +1,25 @@
+SCIP-SDP version 3.1.0
+==================
+TODO: warmstarts, statistics tables, adjustment for SCIP relaxation enforcement
+fixed bugs:
+
+
+features:
+
+
+interface:
+
+
+parameters:
+- changed default duality gap tolerance for Mosek to 1e-5
+
+
+core:
+
+
+makefile:
+
+
 SCIP-SDP version 3.0.1
 ==================
 

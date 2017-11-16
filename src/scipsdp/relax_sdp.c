@@ -67,7 +67,6 @@
 #define RELAX_FREQ                  1
 
 /* default values for parameters: */
-#define DEFAULT_SDPSOLVERGAPTOL     1e-4     /**< the stopping criterion for the duality gap the sdpsolver should use */
 #define DEFAULT_PENALTYPARAM        -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 #define DEFAULT_LAMBDASTAR          -1.0     /**< the parameter lambda star used by SDPA to set the initial point */
 #define DEFAULT_MAXPENALTYPARAM     -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
@@ -4205,7 +4204,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    /* add parameters for SDP-solver */
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/sdpsolvergaptol",
          "the stopping criterion for the duality gap the sdpsolver should use",
-         &(relaxdata->sdpsolvergaptol), TRUE, DEFAULT_SDPSOLVERGAPTOL, 1e-20, 0.001, NULL, NULL) );
+         &(relaxdata->sdpsolvergaptol), TRUE, SCIPsdpiGetDefaultSdpiSolverGaptol(), 1e-20, 0.001, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/sdpsolverfeastol",
          "the feasibility tolerance for the SDP solver",

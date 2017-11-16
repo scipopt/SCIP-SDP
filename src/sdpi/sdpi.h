@@ -102,6 +102,12 @@ SCIP_Real SCIPsdpiGetDefaultSdpiSolverFeastol(
    void
    );
 
+/** gets default duality gap tolerance for SDP-solver in SCIP-SDP */
+EXTERN
+SCIP_Real SCIPsdpiGetDefaultSdpiSolverGaptol(
+   void
+   );
+
 /** gets default number of increases of penalty parameter for SDP-solver in SCIP-SDP */
 EXTERN
 int SCIPsdpiGetDefaultSdpiSolverNpenaltyIncreases(
