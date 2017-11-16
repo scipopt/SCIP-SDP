@@ -469,7 +469,10 @@ SCIP_RETCODE SCIPsdpiSolverFree(
    if ( (*sdpisolver)->sdpa != NULL)
       delete (*sdpisolver)->sdpa;
 
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->preoptimalsol, (*sdpisolver)->nactivevars);
+   if((*sdpisolver)->nactivevars > 0)
+   {
+      BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->preoptimalsol, (*sdpisolver)->nactivevars);
+   } /* TODO: may use the same construct for the remaining arrays */
 
    BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->inputtoblockmapper, (*sdpisolver)->nsdpblocks);
 
@@ -1655,12 +1658,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIPdebugMessage("Calling SDPA solve (SDP: %d)\n", sdpisolver->sdpcounter);
 
    /* check if we want to save a preoptimal solution for warmstarting purposes */
-   if ( sdpisolver->preoptimalgap >= 0.0 )
+   if ( sdpisolver->preoptimalgap >= 0.0 && (SCIP_SDPSOLVERSETTING_UNSOLVED || startsettings == SCIP_SDPSOLVERSETTING_FAST) )
    {
       SCIP_Real* sdpasol;
 
       /* first solve up to gaptol */
       sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->preoptimalgap);
+      sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->preoptimalgap);
       sdpisolver->sdpa->solve();
 
       /* save preoptimal solution */
@@ -1674,6 +1678,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->sdpa->setInitPoint(true);
       sdpisolver->sdpa->copyCurrentToInit();
       sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->gaptol);
+      sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->sdpsolverfeastol);
       sdpisolver->sdpa->solve();
    }
    else
