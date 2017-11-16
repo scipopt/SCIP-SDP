@@ -161,6 +161,9 @@ struct SCIP_SDPiSolver
    SCIP_Bool             rbound;             /**< was the penalty parameter bounded during the last solve call */
    SCIP_SDPSOLVERSETTING usedsetting;        /**< setting used to solve the last SDP */
    SCIP_Real             lambdastar;         /**< lambda star parameter to give to SDPA for initial point */
+   SCIP_Real*            preoptimalsol;      /**< first feasible solution with gap less or equal preoptimalgap */
+   SCIP_Bool             preoptimalsolexists; /**< saved feasible solution with gap less or equal preoptimalgap */
+   SCIP_Real             preoptimalgap;      /**< gap at which a preoptimal solution should be saved for warmstarting purposes */
 };
 
 
@@ -432,6 +435,9 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->sdpinfo = FALSE;
    (*sdpisolver)->usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
 
+   (*sdpisolver)->preoptimalsolexists = FALSE;
+   (*sdpisolver)->preoptimalgap = -1.0;
+
    return SCIP_OKAY;
 }
 
@@ -462,6 +468,8 @@ SCIP_RETCODE SCIPsdpiSolverFree(
    /* free SDPA object using destructor and free memory via blockmemshell */
    if ( (*sdpisolver)->sdpa != NULL)
       delete (*sdpisolver)->sdpa;
+
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->preoptimalsol, (*sdpisolver)->nactivevars);
 
    BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->inputtoblockmapper, (*sdpisolver)->nsdpblocks);
 
@@ -847,6 +855,20 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtoblockmapper), sdpisolver->nsdpblocks, nsdpblocks) );
       }
    }
+
+   /* adjust length of preoptimal solution array */
+   if ( sdpisolver->nactivevars != oldnactivevars )
+   {
+      if ( oldnactivevars == 0 )
+      {
+         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->preoptimalsol), sdpisolver->nactivevars) );
+      }
+      else
+      {
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->preoptimalsol), oldnactivevars, sdpisolver->nactivevars) );
+      }
+   }
+   sdpisolver->preoptimalsolexists = FALSE;
 
    sdpisolver->nsdpblocks = nsdpblocks;
 
@@ -1631,7 +1653,23 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
 
    SCIPdebugMessage("Calling SDPA solve (SDP: %d)\n", sdpisolver->sdpcounter);
-   sdpisolver->sdpa->solve();
+
+   /* check if we want to save a preoptimal solution for warmstarting purposes */
+   if ( sdpisolver->preoptimalgap >= 0.0 )
+   {
+      /* first solve up to gaptol */
+      sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->preoptimalgap);
+      sdpisolver->sdpa->solve();
+
+      /* copy current iterate and resolve with real tolerance */
+      sdpisolver->sdpa->setInitPoint(true);
+      sdpisolver->sdpa->copyCurrentToInit();
+      sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->gaptol);
+      sdpisolver->sdpa->solve();
+   }
+   else
+      sdpisolver->sdpa->solve();
+
    sdpisolver->solved = TRUE;
 
    /* update number of SDP-iterations and -calls */
@@ -2416,6 +2454,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
    return SCIP_OKAY;
 }
 
+
 /** gets preoptimal dual solution vector for warmstarting purposes
  *
  *  If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
@@ -2427,10 +2466,50 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
    int*                  dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
                                               *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
    )
-{/*lint !e1784*/
-   SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_LPERROR;
-}/*lint !e715*/
+{
+   int v;
+
+   assert( sdpisolver != NULL );
+   assert( success != NULL );
+   assert( dualsol != NULL );
+   assert( dualsollength != NULL );
+   assert( *dualsollength >= 0 );
+
+   if ( ! sdpisolver->preoptimalsolexists )
+   {
+      SCIPdebugMessage("Failed to retrieve preoptimal solution for warmstarting purposes. \n");
+      *success = FALSE;
+      return SCIP_OKAY;
+   }
+
+   if ( *dualsollength < sdpisolver->nvars )
+   {
+      SCIPdebugMessage("Insufficient memory in SCIPsdpiSolverGetPreoptimalSol: needed %d, given %d\n", sdpisolver->nvars, *dualsollength);
+      *success = FALSE;
+      *dualsollength = sdpisolver->nvars;
+      return SCIP_OKAY;
+   }
+
+   for (v = 0; v < sdpisolver->nvars; v++)
+   {
+      if (sdpisolver->inputtosdpamapper[v] > 0)
+      {
+         /* minus one because the inputtosdpamapper gives the dsdp indices which start at one, but the array starts at 0 */
+         dualsol[v] = sdpisolver->preoptimalsol[sdpisolver->inputtosdpamapper[v] - 1];
+      }
+      else
+      {
+         /* this is the value that was saved when inserting, as this variable has lb=ub */
+         dualsol[v] = sdpisolver->fixedvarsval[(-1 * sdpisolver->inputtosdpamapper[v]) - 1]; /*lint !e679*/
+      }
+   }
+
+
+   *dualsollength = sdpisolver->nvars;
+   *success = TRUE;
+
+   return SCIP_OKAY;
+}
 
 /** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem
  *
@@ -2890,6 +2969,9 @@ SCIP_RETCODE SCIPsdpiSolverGetRealpar(
    case SCIP_SDPPAR_LAMBDASTAR:
       *dval = sdpisolver->lambdastar;
       break;
+   case SCIP_SDPPAR_WARMSTARTPOGAP:
+      *dval = sdpisolver->preoptimalgap;
+      break;
    default:
       return SCIP_PARAMETERUNKNOWN;
    }
@@ -2934,6 +3016,10 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    case SCIP_SDPPAR_LAMBDASTAR:
       SCIPdebugMessage("Setting sdpisolver lambdastar parameter to %f.\n", dval);
       sdpisolver->lambdastar = dval;
+      break;
+   case SCIP_SDPPAR_WARMSTARTPOGAP:
+      SCIPdebugMessage("Setting sdpisolver preoptgap to %f.\n", dval);
+      sdpisolver->preoptimalgap = dval;
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;
