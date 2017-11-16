@@ -1657,9 +1657,18 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* check if we want to save a preoptimal solution for warmstarting purposes */
    if ( sdpisolver->preoptimalgap >= 0.0 )
    {
+      SCIP_Real* sdpasol;
+
       /* first solve up to gaptol */
       sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->preoptimalgap);
       sdpisolver->sdpa->solve();
+
+      /* save preoptimal solution */
+      SCIPdebugMessage("Saving preoptimal solution for warmstarting purposes\n");
+      sdpasol =  sdpisolver->sdpa->getResultXVec();
+
+      for (i = 0; i < sdpisolver->nactivevars; i++)
+         sdpisolver->preoptimalsol[i] = sdpasol[i];
 
       /* copy current iterate and resolve with real tolerance */
       sdpisolver->sdpa->setInitPoint(true);
