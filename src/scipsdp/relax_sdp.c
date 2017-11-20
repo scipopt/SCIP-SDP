@@ -96,6 +96,7 @@
 #define WARMSTART_PROJ_FACTOR_LHS   10       /**< factor to multiply maximum SDP coefficient with before applying WARMSTART_PROJ_FACTOr (to account for summation of lhs entries) */
 #define WARMSTART_PROJ_FACTOR_PRIMAL 0.1     /**< factor to multiply maximum obj with when computing minimum eigenvalue for warmstart-projection in the primal */
 #define WARMSTART_PROJ_FACTOR_DUAL  0.1      /**< factor to multiply maximum rhs with when computing minimum eigenvalue for warmstart-projection in the dual */
+#define WARMSTART_PREOPT_MIN_Z_LPVAL 0.01    /**< minimal (diagonal) entry for LP block of dual matrix for preoptimal warmstarts */
 
 /** Calls a gettimeofday and transforms the return-code to a SCIP_ERROR if needed. */
 #define TIMEOFDAY_CALL(x)  do                                                                                \
@@ -963,23 +964,18 @@ SCIP_RETCODE calcRelax(
          {
             var = SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, v);
             starty[v] = SCIPgetSolVal(scip, dualsol, var);
-            if (SCIPisLT(scip, starty[v], SCIPvarGetLbLocal(var)))
+            /* correct solution to new bounds unless warmstartproject == 1 */
+            if (SCIPisLT(scip, starty[v], SCIPvarGetLbLocal(var)) && (relaxdata->warmstartproject == 2 || relaxdata->warmstartproject == 3 || relaxdata->warmstartproject == 4))
             {
                starty[v] = SCIPvarGetLbLocal(var);
-               /* update solution (used to compute dual matrix) according to new bounds if parameter is set */
-               if ( relaxdata->warmstartproject == 2 || relaxdata->warmstartproject == 3 || relaxdata->warmstartproject == 4 )
-               {
-                  SCIP_CALL( SCIPsetSolVal(scip, dualsol, var, SCIPvarGetLbLocal(var)) );
-               }
+               /* update solution (used to compute dual matrix) according to new bounds */
+               SCIP_CALL( SCIPsetSolVal(scip, dualsol, var, SCIPvarGetLbLocal(var)) );
             }
-            else if (SCIPisGT(scip, starty[v], SCIPvarGetUbLocal(var)))
+            else if (SCIPisGT(scip, starty[v], SCIPvarGetUbLocal(var)) && (relaxdata->warmstartproject == 2 || relaxdata->warmstartproject == 3 || relaxdata->warmstartproject == 4))
             {
                starty[v] = SCIPvarGetUbLocal(var);
-               /* update solution (used to compute dual matrix) according to new bounds if parameter is set */
-               if ( relaxdata->warmstartproject == 2 || relaxdata->warmstartproject == 3 || relaxdata->warmstartproject == 4 )
-               {
-                  SCIP_CALL( SCIPsetSolVal(scip, dualsol, var, SCIPvarGetUbLocal(var)) );
-               }
+               /* update solution (used to compute dual matrix) according to new bounds */
+               SCIP_CALL( SCIPsetSolVal(scip, dualsol, var, SCIPvarGetUbLocal(var)) );
             }
 
             /* if we take a convex combination, adjust y accordingly (if we use rounding problems, we recompute y later anyways) */
@@ -1221,6 +1217,9 @@ SCIP_RETCODE calcRelax(
                         startZval[b][2*r] = WARMSTART_MINVAL;
                   }
 
+                  if ( relaxdata->warmstartpreoptsol && startZval[b][2*r] < WARMSTART_PREOPT_MIN_Z_LPVAL )
+                     startZval[b][2*r] = WARMSTART_PREOPT_MIN_Z_LPVAL;
+
                   startZrow[b][2*r + 1] = 2*r + 1;
                   startZcol[b][2*r + 1] = 2*r + 1;
                   startZval[b][2*r + 1] = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
@@ -1243,6 +1242,9 @@ SCIP_RETCODE calcRelax(
                      if ( SCIPisLT(scip, startZval[b][2*r + 1], WARMSTART_MINVAL) )
                         startZval[b][2*r + 1] = WARMSTART_MINVAL;
                   }
+
+                  if ( relaxdata->warmstartpreoptsol && startZval[b][2*r + 1] < WARMSTART_PREOPT_MIN_Z_LPVAL )
+                     startZval[b][2*r + 1] = WARMSTART_PREOPT_MIN_Z_LPVAL;
 
                   if ( relaxdata->warmstartprimaltype == 1 && relaxdata->warmstartiptype == 1 )
                   {
@@ -1293,6 +1295,9 @@ SCIP_RETCODE calcRelax(
                         startZval[b][2*nrows + 2*v] = WARMSTART_MINVAL;
                   }
 
+                  if ( relaxdata->warmstartpreoptsol && startZval[b][2*nrows + 2*v] < WARMSTART_PREOPT_MIN_Z_LPVAL )
+                     startZval[b][2*nrows + 2*v] = WARMSTART_PREOPT_MIN_Z_LPVAL;
+
                   startZrow[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
                   startZcol[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
                   startZval[b][2*nrows + 2*v + 1] = SCIPvarGetUbLocal(vars[v]) - SCIPgetSolVal(scip, dualsol, vars[v]);
@@ -1314,6 +1319,9 @@ SCIP_RETCODE calcRelax(
                      if ( SCIPisLT(scip, startZval[b][2*nrows + 2*v + 1], WARMSTART_MINVAL) )
                         startZval[b][2*nrows + 2*v + 1] = WARMSTART_MINVAL;
                   }
+
+                  if ( relaxdata->warmstartpreoptsol && startZval[b][2*nrows + 2*v + 1] < WARMSTART_PREOPT_MIN_Z_LPVAL )
+                     startZval[b][2*nrows + 2*v + 1] = WARMSTART_PREOPT_MIN_Z_LPVAL;
 
                   if ( relaxdata->warmstartprimaltype == 1 && relaxdata->warmstartiptype == 1 )
                   {
@@ -3199,10 +3207,15 @@ SCIP_RETCODE calcRelax(
             int snprintfreturn; /* this is used to assert that the SCIP string concatenation works */
 #endif
 
+            startXnblocknonz = NULL;
+            startXrow = NULL;
+            startXcol = NULL;
+            startXval = NULL;
+
             /* use preoptimal solution if using DSDP and parameter is set accordingly */
             if ( relaxdata->warmstartpreoptsol )
             {
-               if ( strcmp(SCIPsdpiGetSolverName(), "DSDP") == 0.0 )
+               if ( strcmp(SCIPsdpiGetSolverName(), "DSDP") == 0.0 || strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0.0 )
                {
                   SCIP_Real* preoptimalvec;
                   int nvarsgiven;
@@ -3210,7 +3223,53 @@ SCIP_RETCODE calcRelax(
                   SCIP_CALL( SCIPallocBufferArray(scip, &preoptimalvec, nvars) );
                   nvarsgiven = nvars;
 
-                  SCIP_CALL( SCIPsdpiGetPreoptimalSol(relaxdata->sdpi, &preoptimalsolsuccess, preoptimalvec, &nvarsgiven) );
+                  if ( SCIPsdpiDoesWarmstartNeedPrimal() )
+                  {
+                     maxprimalentry = 0.0;
+                     if ( relaxdata->warmstartprimaltype == 3 )
+                     {
+                        nblocks = SCIPconshdlrGetNConss(SCIPfindConshdlr(scip, "SDP")) + 1; /* +1 for the LP part */
+                        SCIP_CALL( SCIPallocBufferArray(scip, &startXnblocknonz, nblocks) );
+
+                        /* get amount of memory to allocate for row/col/val from sdpi */
+                        SCIP_CALL( SCIPsdpiGetPreoptimalPrimalNonzeros(relaxdata->sdpi, nblocks, startXnblocknonz) );
+
+                        /* check if the primal matrix exists, otherwise skip creation of the savedsol contraint */
+                        if ( startXnblocknonz[0] > -1 )
+                        {
+                           preoptimalsolsuccess = TRUE;
+
+                           SCIP_CALL( SCIPallocBufferArray(scip, &startXrow, nblocks) );
+                           SCIP_CALL( SCIPallocBufferArray(scip, &startXcol, nblocks) );
+                           SCIP_CALL( SCIPallocBufferArray(scip, &startXval, nblocks) );
+
+                           /* allocate memory for different blocks in row/col/val */
+                           for (b = 0; b < nblocks; b++)
+                           {
+                              SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], startXnblocknonz[b]) );
+                              SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], startXnblocknonz[b]) );
+                              SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], startXnblocknonz[b]) );
+                           }
+
+                           SCIP_CALL( SCIPsdpiGetPreoptimalSol(relaxdata->sdpi, &preoptimalsolsuccess, preoptimalvec, &nvarsgiven,
+                                 nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
+                        }
+                        else
+                           preoptimalsolsuccess = FALSE;
+                     }
+                     else
+                     {
+                        nblocks = 0;
+                        maxprimalentry = SCIPsdpiGetMaxPrimalEntry(relaxdata->sdpi);
+                     }
+                  }
+                  else
+                  {
+                     maxprimalentry = 0.0;
+                     SCIP_CALL( SCIPsdpiGetPreoptimalSol(relaxdata->sdpi, &preoptimalsolsuccess, preoptimalvec, &nvarsgiven,
+                           -1, NULL, NULL, NULL, NULL) );
+                     nblocks = 0;
+                  }
 
                   if ( preoptimalsolsuccess )
                   {
@@ -3225,16 +3284,11 @@ SCIP_RETCODE calcRelax(
                }
                else
                {
-                  SCIPdebugMessage("Warmstarting with preoptimal solutions currently only supported for DSDP\n");
+                  SCIPerrorMessage("Warmstarting with preoptimal solutions currently only supported for DSDP and SDPA \n");
+                  return SCIP_LPERROR;
                }
             }
-
-            startXnblocknonz = NULL;
-            startXrow = NULL;
-            startXcol = NULL;
-            startXval = NULL;
-
-            if ( SCIPsdpiDoesWarmstartNeedPrimal() )
+            else if ( SCIPsdpiDoesWarmstartNeedPrimal() )
             {
                maxprimalentry = 0.0;
                if ( relaxdata->warmstartprimaltype == 3 )
@@ -3274,19 +3328,26 @@ SCIP_RETCODE calcRelax(
 #else
    (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
 #endif
-            if ( preoptimalsolsuccess )
+            if ( relaxdata->warmstartpreoptsol )
             {
-               SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), preoptimalsol,
-                     maxprimalentry, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
+               /* only create constraint if the preoptimal solution exists, otherwise we don't want to warmstart at all */
+               if ( preoptimalsolsuccess )
+               {
+                  SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), preoptimalsol,
+                        maxprimalentry, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
+
+                  SCIP_CALL( SCIPaddCons(scip, savedcons) );
+                  SCIP_CALL( SCIPreleaseCons(scip, &savedcons) );
+               }
             }
             else
             {
                SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), scipsol,
                      maxprimalentry, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
-            }
 
-            SCIP_CALL( SCIPaddCons(scip, savedcons) );
-            SCIP_CALL( SCIPreleaseCons(scip, &savedcons) );
+               SCIP_CALL( SCIPaddCons(scip, savedcons) );
+               SCIP_CALL( SCIPreleaseCons(scip, &savedcons) );
+            }
 
             if ( SCIPsdpiDoesWarmstartNeedPrimal() && relaxdata->warmstartprimaltype == 3 )
             {
@@ -3935,7 +3996,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    SCIP_CALL( SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_OBJLIMIT, SCIPsdpiInfinity(relaxdata->sdpi)) );
 
    /* set warmstartpreoptimal gap if DSDP is used as the SDP-Solver and preoptimal solutions should be saved */
-   if ( relaxdata->warmstartpreoptsol && strcmp(SCIPsdpiGetSolverName(), "DSDP") == 0.0 )
+   if ( relaxdata->warmstartpreoptsol && (strcmp(SCIPsdpiGetSolverName(), "DSDP") == 0.0 || strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0.0) )
    {
       SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/warmstartpreoptgap", &preoptgap) );
       retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_WARMSTARTPOGAP, preoptgap);

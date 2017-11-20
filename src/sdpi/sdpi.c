@@ -3356,16 +3356,57 @@ SCIP_RETCODE SCIPsdpiGetSol(
    return SCIP_OKAY;
 }
 
-/** gets preoptimal dual solution vector for warmstarting purposes
+/** return number of nonzeros for each block of the primal solution matrix X for the preoptimal solution */
+SCIP_RETCODE SCIPsdpiGetPreoptimalPrimalNonzeros(
+   SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
+   int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
+   int*                  startXnblocknonz    /**< pointer to store number of nonzeros for row/col/val-arrays in each block
+                                              *   or first entry -1 if no primal solution is available */
+   )
+{
+   assert( sdpi != NULL );
+   assert( nblocks >= 0 );
+   assert( startXnblocknonz != NULL );
+
+   if ( sdpi->infeasible )
+   {
+      SCIPdebugMessage("Problem was found infeasible during preprocessing, no preoptimal solution available.\n");
+      startXnblocknonz[0] = -1;
+
+      return SCIP_OKAY;
+   }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("No primal solution available, as problem was solved during preprocessing\n");
+      startXnblocknonz[0] = -1;
+
+      return SCIP_OKAY;
+   }
+
+   SCIP_CALL( SCIPsdpiSolverGetPreoptimalPrimalNonzeros(sdpi->sdpisolver, nblocks, startXnblocknonz) );
+
+   return SCIP_OKAY;
+}
+
+/** gets preoptimal dual solution vector and primal matrix for warmstarting purposes
  *
- *  If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
+ *  @note: last block will be the LP block (if one exists) with indices lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ...
+ *  independant of some lhs/rhs being infinity
+ *  @note: If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
+ *  @note: If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz
  */
 SCIP_RETCODE SCIPsdpiGetPreoptimalSol(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
    SCIP_Bool*            success,            /**< could a preoptimal solution be returned ? */
    SCIP_Real*            dualsol,            /**< pointer to store the dual solution vector, may be NULL if not needed */
-   int*                  dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
+   int*                  dualsollength,      /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
                                               *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
+   int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) or -1 if no primal matrix should be returned */
+   int*                  startXnblocknonz,   /**< input: allocated memory for row/col/val-arrays in each block (or NULL if nblocks = -1)
+                                                  output: number of nonzeros in each block or first entry -1 if no primal solution is available */
+   int**                 startXrow,          /**< pointer to store row indices of X (or NULL if nblocks = -1) */
+   int**                 startXcol,          /**< pointer to store column indices of X (or NULL if nblocks = -1) */
+   SCIP_Real**           startXval           /**< pointer to store values of X (or NULL if nblocks = -1) */
    )
 {
    assert( sdpi != NULL );
@@ -3373,11 +3414,17 @@ SCIP_RETCODE SCIPsdpiGetPreoptimalSol(
    assert( dualsol != NULL );
    assert( dualsollength != NULL );
    assert( *dualsollength >= 0 );
+   assert( startXnblocknonz != NULL || nblocks == -1 );
+   assert( startXrow != NULL || nblocks == -1 );
+   assert( startXcol != NULL || nblocks == -1 );
+   assert( startXval != NULL || nblocks == -1 );
 
    if ( sdpi->infeasible )
    {
       *success = FALSE;
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no preoptimal solution available.\n");
+      startXnblocknonz[0] = -1;
+
       return SCIP_OKAY;
    }
    else if ( sdpi->allfixed )
@@ -3400,10 +3447,17 @@ SCIP_RETCODE SCIPsdpiGetPreoptimalSol(
       for (v = 0; v < sdpi->nvars; v++)
          dualsol[v] = sdpi->lb[v];
 
+      if ( nblocks > -1 )
+      {
+         SCIPdebugMessage("No primal solution available, as problem was solved during preprocessing\n");
+         startXnblocknonz[0] = -1;
+      }
+
       return SCIP_OKAY;
    }
 
-   SCIP_CALL( SCIPsdpiSolverGetPreoptimalSol(sdpi->sdpisolver, success, dualsol, dualsollength) );
+   SCIP_CALL( SCIPsdpiSolverGetPreoptimalSol(sdpi->sdpisolver, success, dualsol, dualsollength, nblocks, startXnblocknonz,
+         startXrow, startXcol, startXval) );
 
    return SCIP_OKAY;
 }
@@ -3481,7 +3535,7 @@ SCIP_RETCODE SCIPsdpiGetPrimalMatrix(
    int**                 startXcol,          /**< pointer to store column indices of X */
    SCIP_Real**           startXval           /**< pointer to store values of X */
    )
-{
+{/* TODO: should also set startXnblocknonz[0] = -1 in case the problem was solved in presolving */
    assert( sdpi != NULL );
 
    if ( sdpi->infeasible )

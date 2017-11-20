@@ -2034,16 +2034,38 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
    return SCIP_OKAY;
 }
 
-/** gets preoptimal dual solution vector for warmstarting purposes
+/** return number of nonzeros for each block of the primal solution matrix X for the preoptimal solution */
+SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
+   int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
+   int*                  startXnblocknonz    /**< pointer to store number of nonzeros for row/col/val-arrays in each block
+                                              *   or first entry -1 if no primal solution is available */
+   )
+{
+   SCIPdebugMessage("Not implemented yet\n");
+
+   return SCIP_PLUGINNOTFOUND;
+}
+
+/** gets preoptimal dual solution vector and primal matrix for warmstarting purposes
  *
- *  If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
+ *  @note: last block will be the LP block (if one exists) with indices lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ...
+ *  independant of some lhs/rhs being infinity
+ *  @note: If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
+ *  @note: If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz
  */
 SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    SCIP_Bool*            success,            /**< could a preoptimal solution be returned ? */
    SCIP_Real*            dualsol,            /**< pointer to store the dual solution vector, may be NULL if not needed */
-   int*                  dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
+   int*                  dualsollength,      /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
                                               *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
+   int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) or -1 if no primal matrix should be returned */
+   int*                  startXnblocknonz,   /**< input: allocated memory for row/col/val-arrays in each block (or NULL if nblocks = -1)
+                                                  output: number of nonzeros in each block or first entry -1 if no primal solution is available */
+   int**                 startXrow,          /**< pointer to store row indices of X (or NULL if nblocks = -1) */
+   int**                 startXcol,          /**< pointer to store column indices of X (or NULL if nblocks = -1) */
+   SCIP_Real**           startXval           /**< pointer to store values of X (or NULL if nblocks = -1) */
    )
 {/*lint !e1784*/
    SCIPdebugMessage("Not implemented yet\n");
