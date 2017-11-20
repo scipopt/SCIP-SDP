@@ -469,13 +469,14 @@ SCIP_RETCODE SCIPsdpiSolverFree(
          /* free the preoptimal solution X array TODO: there still some memory leaks in this case */
          if ( (*sdpisolver)->preoptimalgap > 0.0 )
          {
-            BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &((*sdpisolver)->blockindmapper[b]), blocksize * blocksize);
+            BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &((*sdpisolver)->preoptimalsolx[b]), blocksize * blocksize);
          }
       }
       /* free LP block of preoptimal solution X array */
       if ( (*sdpisolver)->preoptimalgap > 0.0  )
       {
-         BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &((*sdpisolver)->blockindmapper[nsdpblocks + 1]), 2 * (*sdpisolver)->nsdpalpcons + (*sdpisolver)->nvarbounds);
+         BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &((*sdpisolver)->preoptimalsolx[nsdpblocks + 1]), 2 * (*sdpisolver)->nsdpalpcons + (*sdpisolver)->nvarbounds);
+         BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->preoptimalsolx, nsdpblocks + 1);
       }
       BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->blockindmapper, nsdpblocks);
    }
