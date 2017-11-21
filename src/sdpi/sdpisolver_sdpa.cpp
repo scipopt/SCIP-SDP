@@ -467,13 +467,13 @@ SCIP_RETCODE SCIPsdpiSolverFree(
          BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &((*sdpisolver)->blockindmapper[b]), blocksize);
 
          /* free the preoptimal solution X array TODO: there still some memory leaks in this case */
-         if ( (*sdpisolver)->preoptimalgap > 0.0 )
+         if ( (*sdpisolver)->preoptimalgap >= 0.0 )
          {
             BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &((*sdpisolver)->preoptimalsolx[b]), blocksize * blocksize);
          }
       }
       /* free LP block of preoptimal solution X array */
-      if ( (*sdpisolver)->preoptimalgap > 0.0  )
+      if ( (*sdpisolver)->preoptimalgap >= 0.0  )
       {
          BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &((*sdpisolver)->preoptimalsolx[nsdpblocks + 1]), 2 * (*sdpisolver)->nsdpalpcons + (*sdpisolver)->nvarbounds);
          BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->preoptimalsolx, nsdpblocks + 1);
@@ -969,7 +969,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             if ( sdpisolver->preoptimalgap >= 0.0 )
             {
                BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->preoptimalsolx[ind]),
-                     (int) sdpisolver->sdpa->getBlockSize(ind + 1), (sdpblocksizes[block] - nremovedinds[block]) * (sdpblocksizes[block] - nremovedinds[block])) ); /*lint !e647*/
+                     (int) sdpisolver->sdpa->getBlockSize(ind + 1) * sdpisolver->sdpa->getBlockSize(ind + 1), (sdpblocksizes[block] - nremovedinds[block]) * (sdpblocksizes[block] - nremovedinds[block])) ); /*lint !e647*/
             }
          }
 
@@ -2580,6 +2580,13 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
    assert( nblocks > 0 );
    assert( startXnblocknonz != NULL );
    CHECK_IF_SOLVED( sdpisolver );
+
+   if ( ! sdpisolver->preoptimalsolexists )
+   {
+      SCIPdebugMessage("Failed to retrieve preoptimal solution for warmstarting purposes. \n");
+      startXnblocknonz[0] = -1;
+      return SCIP_OKAY;
+   }
 
    if ( nblocks != sdpisolver->nsdpblocks + 1 )
    {

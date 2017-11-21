@@ -3352,16 +3352,19 @@ SCIP_RETCODE calcRelax(
             if ( SCIPsdpiDoesWarmstartNeedPrimal() && relaxdata->warmstartprimaltype == 3 )
             {
                /* free memory for primal matrix */
-               for (b = 0; b < nblocks; b++)
+               if ( startXnblocknonz[0] > 1 ) /* no memory was allocated if computation of preoptimal solution failed */
                {
-                  SCIPfreeBufferArrayNull(scip, &startXval[b]);
-                  SCIPfreeBufferArrayNull(scip, &startXcol[b]);
-                  SCIPfreeBufferArrayNull(scip, &startXrow[b]);
+                  for (b = 0; b < nblocks; b++)
+                  {
+                     SCIPfreeBufferArrayNull(scip, &startXval[b]);
+                     SCIPfreeBufferArrayNull(scip, &startXcol[b]);
+                     SCIPfreeBufferArrayNull(scip, &startXrow[b]);
+                  }
+                  SCIPfreeBufferArrayNull(scip, &startXval);
+                  SCIPfreeBufferArrayNull(scip, &startXcol);
+                  SCIPfreeBufferArrayNull(scip, &startXrow);
                }
-               SCIPfreeBufferArray(scip, &startXval);
-               SCIPfreeBufferArray(scip, &startXcol);
-               SCIPfreeBufferArray(scip, &startXrow);
-               SCIPfreeBufferArray(scip, &startXnblocknonz);
+               SCIPfreeBufferArrayNull(scip, &startXnblocknonz);
             }
          }
 
