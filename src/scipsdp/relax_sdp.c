@@ -1424,6 +1424,7 @@ SCIP_RETCODE calcRelax(
                int matrixpos;
                int nroundingrows;
                int j;
+               int nremovedentries;
 
                /* since the main purpose of the rounding problem approach is detecting infeasibility through the restricted primal problem,
                 * it doesn't make sense to use this approach unless the whole primal solution is saved */
@@ -1648,7 +1649,7 @@ SCIP_RETCODE calcRelax(
                      for (v = 0; v < nvars; v++)
                      {
                         ind[i * nvars + v] = v;
-                        val[i * nvars + v] = 0;
+                        val[i * nvars + v] = 0.0;
                      }
 
                      /* make all eigenvalues non-negative, so that matrix stays positive semidefinite */
@@ -1701,8 +1702,26 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArray(scip, &blocknvarnonz);
                   SCIPfreeBufferArray(scip, &fullXmatrix);
 
-                  /* TODO: check if we need to remove zero entries */
-                  SCIP_CALL( SCIPlpiAddCols(lpi, blocksize, obj, lb, ub, NULL, blocksize*nvars, beg, ind, val) );
+                  /* remove zero entries */
+                  nremovedentries = 0;
+                  for (i = 0; i < blocksize; i++)
+                  {
+                     beg[i] = beg[i] - nremovedentries;
+                     for (v = 0; v < nvars; v++)
+                     {
+                        if ( REALABS(val[i * nvars + v]) < SCIPepsilon(scip) )
+                        {
+                           nremovedentries++;
+                        }
+                        else
+                        {
+                           val[i * nvars + v - nremovedentries] = val[i * nvars + v];
+                           ind[i * nvars + v - nremovedentries] = ind[i * nvars + v];
+                        }
+                     }
+                  }
+
+                  SCIP_CALL( SCIPlpiAddCols(lpi, blocksize, obj, lb, ub, NULL, blocksize*nvars - nremovedentries, beg, ind, val) );
 
                   blocksizes[2 + b] = blocksize;
                   roundingvars += blocksize;
