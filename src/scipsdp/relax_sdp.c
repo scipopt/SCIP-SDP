@@ -2238,9 +2238,7 @@ SCIP_RETCODE calcRelax(
                      relaxdata->objval = dualroundobj;
 
                      /* copy solution */
-                     SCIP_CALL( SCIPsetRelaxSolVals(scip, nvars, vars, solforscip, TRUE) );
-
-                     SCIP_CALL( SCIPmarkRelaxSolValid(scip, TRUE) );
+                     SCIP_CALL( SCIPsetRelaxSolValsSol(scip, scipsol, TRUE) );
 
                      relaxdata->feasible = TRUE;
                      *result = SCIP_SUCCESS;
