@@ -2143,10 +2143,13 @@ SCIP_RETCODE calcRelax(
                         {
                            /* for index (i,j) and every eigenvector v, we get an entry -V_iv *V_jv (we get the -1 by transferring this to the left-hand side of the equation)
                             * entry V_iv corresponds to entry i of the v-th eigenvector, which is given as the v-th row of the eigenvectors array */
-                           pos = SCIPconsSdpCompLowerTriangPos(i, j);
-                           blockrowcols[pos][nblockrownonz[pos]] = startpos + evind;
-                           blockrowvals[pos][nblockrownonz[pos]] = -1 * blockeigenvectors[b][evind * blocksize + i] * blockeigenvectors[b][evind * blocksize + j];
-                           nblockrownonz[pos]++;
+                           if ( SCIPisGT(scip, REALABS(-1 * blockeigenvectors[b][evind * blocksize + i] * blockeigenvectors[b][evind * blocksize + j]), 0.0) )
+                           {
+                              pos = SCIPconsSdpCompLowerTriangPos(i, j);
+                              blockrowcols[pos][nblockrownonz[pos]] = startpos + evind;
+                              blockrowvals[pos][nblockrownonz[pos]] = -1 * blockeigenvectors[b][evind * blocksize + i] * blockeigenvectors[b][evind * blocksize + j];
+                              nblockrownonz[pos]++;
+                           }
                         }
                      }
                   }
