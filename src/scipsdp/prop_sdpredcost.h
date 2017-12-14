@@ -31,6 +31,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   prop_sdpredcost.h
+ * @ingroup PROPAGATORS
  * @brief  reduced cost / dual fixing for SDPs
  * @author Tristan Gally
  *

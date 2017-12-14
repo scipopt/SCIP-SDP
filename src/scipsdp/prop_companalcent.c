@@ -14,7 +14,6 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   prop_companalcent.c
- * @ingroup PROPAGATORS
  * @brief  compute analytic center propagator
  * @author Tristan Gally
  */

@@ -31,19 +31,10 @@
 extern "C" {
 #endif
 
-/**@addtogroup PROPAGATORS
- *
- * @{
- */
-
-/* TODO place other public methods in this group to facilitate navigation through the documentation */
-
-/* @} */
-
 /** creates the compute analytic center propagator and includes it in SCIP
  *
  * @ingroup PropagatorIncludes
- */
+ *
 EXTERN
 SCIP_RETCODE SCIPincludePropCompAnalCent(
    SCIP*                 scip                /**< SCIP data structure */
