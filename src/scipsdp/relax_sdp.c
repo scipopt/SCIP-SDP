@@ -4305,7 +4305,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          TRUE, DEFAULT_MAXPENALTYPARAM, -1.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartipfactor",
-         "factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled ", &(relaxdata->warmstartipfactor),
+         "factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled", &(relaxdata->warmstartipfactor),
          TRUE, DEFAULT_WARMSTARTIPFACTOR, 0.0, 1.0, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartprimaltype",
@@ -4333,11 +4333,11 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          &(relaxdata->warmstartprojpdsame), TRUE, DEFAULT_WARMSTARTPROJPDSAME, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstartpreoptsol",
-         "Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts (currently only implemented fo DSDP)",
+         "Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts",
          &(relaxdata->warmstartpreoptsol), TRUE, DEFAULT_WARMSTART_PREOPTIMAL_SOL, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartpreoptgap",
-         "If warmstartpreoptsol is TRUE, this is the gap where the preoptimal solution will be saved (currently only implemented fo DSDP)", &(relaxdata->warmstartpreoptgap),
+         "If warmstartpreoptsol is TRUE, this is the gap where the preoptimal solution will be saved", &(relaxdata->warmstartpreoptgap),
          TRUE, DEFAULT_WARMSTARTPREOPTGAP, 0.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstartroundonlyinf",
