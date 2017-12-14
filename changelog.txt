@@ -1,27 +1,22 @@
 SCIP-SDP version 3.1.0
 ==================
-TODO: warmstarts, statistics tables, adjustment for SCIP relaxation enforcement
-fixed bugs:
-
 
 features:
+- added possibility to warmstart SDPA and DSDP (deactivated by default) in several different ways, for details see parameter list in
+  documentation and release report
+- SCIP-SDP statistics are now included in SCIP statistics through new statistics table plugin type (old statistics output can still be
+  activated via parameter relaxing/SDP/displaystatistics)
+- compute and output constraint violations also for SDP constraints
 
 performance improvements:
-- accept solutions if Mosek stalled but solutions are (almost) feasible (which is rechecked in the sdp interface later for the dual
+- accept solutions if MOSEK stalled but solutions are (almost) feasible (which is rechecked in the sdp interface later for the dual
   solution) and the duality gap is below the tolerance
-
-
-interface:
-
 
 parameters:
 - changed default duality gap tolerance for Mosek to 1e-5
 
-
 core:
-
-
-makefile:
+- adjustments for changes in SCIP relaxation solution enforcement
 
 
 SCIP-SDP version 3.0.1
