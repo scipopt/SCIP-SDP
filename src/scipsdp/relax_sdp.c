@@ -76,7 +76,7 @@
 #define DEFAULT_WARMSTARTPROJECT    2        /**< how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone, 4: use new bounds and solve rounding problem */
 #define DEFAULT_WARMSTARTPROJMINEV  -1       /**< minimum eigenvector to allow when projecting onto the positive (semi-)definite cone */
 #define DEFAULT_WARMSTARTPROJPDSAME TRUE     /**< Should one shared minimum eigenvalue be computed for primal and dual problem instead of different ones if warmstartpmevpar = -1 ? */
-#define DEFAULT_WARMSTART_PREOPTIMAL_SOL FALSE /**< Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts (currently only implemented fo DSDP) */
+#define DEFAULT_WARMSTART_PREOPTIMAL_SOL FALSE /**< Should a preoptimal solution (with larger gap) instead of the optimal solution be used for warmstarts (currently only implemented fo DSDP) */
 #define DEFAULT_WARMSTARTPREOPTGAP  1e-2     /**< If warmstartpreoptimalsol is TRUE, this is the gap where the preoptimal solution is saved (currently only implemented fo DSDP) */
 #define DEFAULT_WARMSTARTROUNDONLYINF FALSE  /**< Only use solution of roundingproblem to detect infeasibility (only has an effect for warmstartproject = 4) */
 #define DEFAULT_SLATERCHECK         0        /**< Should the Slater condition be checked ? */
@@ -197,7 +197,7 @@ struct SCIP_RelaxData
    SCIP_Real             warmstartprojminevdual; /**< minimum eigenvalue to allow when projecting onto the positive (semi-)definite cone in the dual */
    SCIP_Bool             warmstartprojpdsame;/**< Should one shared minimum eigenvalue respectively maximum entry be computed for primal and dual problem instead of different ones for primal and dual and each block for projection or convex combination ? */
    int                   warmstartiptype;    /**< which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center */
-   SCIP_Bool             warmstartpreoptsol; /**< Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts (currently only implemented fo DSDP) */
+   SCIP_Bool             warmstartpreoptsol; /**< Should a preoptimal solution (with larger gap) instead of the optimal solution be used for warmstarts (currently only implemented fo DSDP) */
    SCIP_Real             warmstartpreoptgap; /**< In case a preoptimal solution should be used for warmstarts, this gives the gap where the solution should be saved (currently only implemented fo DSDP) */
    SCIP_Bool             warmstartroundonlyinf; /**< Only use solution of roundingproblem to detect infeasibility (only has an effect for warmstartproject = 4) */
    int                   nblocks;            /**< number of blocks INCLUDING lp-block */
@@ -4333,7 +4333,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          &(relaxdata->warmstartprojpdsame), TRUE, DEFAULT_WARMSTARTPROJPDSAME, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstartpreoptsol",
-         "Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts",
+         "Should a preoptimal solution (with larger gap) instead of the optimal solution be used for warmstarts",
          &(relaxdata->warmstartpreoptsol), TRUE, DEFAULT_WARMSTART_PREOPTIMAL_SOL, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartpreoptgap",

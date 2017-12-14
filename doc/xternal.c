@@ -76,9 +76,8 @@
  *
  * <table>
  * <tr><td>relaxing/SDP/freq = 1</td> <td>set this to -1 and lp/solvefreq to 1 to solve LP relaxations with eigenvector cuts</td></tr>
- * <tr><td>constraints/SDP/threads = 1</td> <td>number of threads used for openblas; only available with OpenBLAS/OpenMP and compile option OMP=TRUE (default for SDPS=sdpa)</td></tr>
+ * <tr><td>constraints/SDP/threads = 1</td> <td>number of threads used for OpenBLAS; only available with OpenBLAS/OpenMP and compile option OMP=TRUE (default for SDPS=sdpa)</td></tr>
  * <tr><td>relaxing/SDP/sdpsolverthreads = -1</td> <td>number of threads the SDP solver should use (-1 = number of cores); currently only supported for MOSEK</td></tr>
- * <tr><td>relaxing/SDP/displaystatistics = TRUE</td> <td>Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ?</td></tr>
  * <tr><td>relaxing/SDP/slatercheck = 0</td> <td>Should the Slater condition for the primal and dual problem be checked ahead of solving each SDP? [0: no, 1: yes and output statistics, 2: yes and print warning for every problem not satisfying primal and dual Slater condition]</td></tr>
  * <tr><td>relaxing/SDP/sdpinfo = FALSE</td> <td>Should output of the SDP-Solver be printed to the console?</td></tr>
  * <tr><td>relaxing/SDP/displaystatistics = FALSE</td> <td>Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ?</td></tr>
@@ -90,7 +89,7 @@
  * <tr><td>relaxing/SDP/warmstartprimaltype = 3</td> <td>how to warmstart the primal problem? 1: scaled identity/analytic center, 2: elementwise reciprocal, 3: saved primal sol</td></tr>
  * <tr><td>relaxing/SDP/warmstartiptype = 1</td> <td>which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center</td></tr>
  * <tr><td>relaxing/SDP/warmstartproject = 2</td> <td>how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone, 4: use new bounds and solve rounding problem</td></tr>
- * <tr><td>relaxing/SDP/warmstartpreoptsol = FALSE</td> <td>Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts</td></tr>
+ * <tr><td>relaxing/SDP/warmstartpreoptsol = FALSE</td> <td>Should a preoptimal solution (with larger gap) instead of the optimal solution be used for warmstarts</td></tr>
  * <tr><td>relaxing/SDP/warmstartipfactor = 0.5</td> <td>factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled</td></tr>
  * <tr><td>relaxing/SDP/warmstartprminevpri = -1</td> <td>minimum eigenvalue to allow when projecting primal matrices onto the positive (semi-)definite cone for warmstarting; -1 to compute automatically</td></tr>
  * <tr><td>relaxing/SDP/warmstartprminevdu = -1</td> <td>minimum eigenvalue to allow when projecting dual matrices onto the positive (semi-)definite cone for warmstarting; -1 to compute automatically</td></tr>
