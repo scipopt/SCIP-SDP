@@ -30,8 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   cons_sdp.cpp
- * @brief  constraint handler for sdp-constraints
+/**@file   cons_savesdpsol.c
+ * @brief  constraint handler for saving SDP solutions in nodes
  * @author Tristan Gally
  */
 

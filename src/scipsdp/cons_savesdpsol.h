@@ -30,8 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   cons_sdp.h
- * @brief  constraint handler for SDPs
+/**@file   cons_savesdpsol.h
+ * @brief  constraint handler for saving SDP solutions in nodes
  * @author Sonja Mars
  * @author Lars Schewe
  * @author Tristan Gally
