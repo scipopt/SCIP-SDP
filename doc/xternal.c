@@ -81,10 +81,22 @@
  * <tr><td>relaxing/SDP/displaystatistics = TRUE</td> <td>Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ?</td></tr>
  * <tr><td>relaxing/SDP/slatercheck = 0</td> <td>Should the Slater condition for the primal and dual problem be checked ahead of solving each SDP? [0: no, 1: yes and output statistics, 2: yes and print warning for every problem not satisfying primal and dual Slater condition]</td></tr>
  * <tr><td>relaxing/SDP/sdpinfo = FALSE</td> <td>Should output of the SDP-Solver be printed to the console?</td></tr>
+ * <tr><td>relaxing/SDP/displaystatistics = FALSE</td> <td>Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ?</td></tr>
  * <tr><td>relaxing/SDP/sdpsolvergaptol = 1e-04 (DSDP,SDPA) / 1e-05 (MOSEK)</td> <td>sets the tolerance for the duality gap in the SDP-Solver</td></tr>
  * <tr><td>relaxing/SDP/sdpsolverfeastol = 1e-06 (DSDP,SDPA) / 1e-07 (MOSEK)</td> <td>feasibility tolerance for the SDP-Solver (should be less or equal to numerics/feastol)</td></tr>
  * <tr><td>relaxing/SDP/penaltyparam = -1</td> <td>the starting value of the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge; set this to a negative value to compute the parameter depending on the given problem</td></tr>
  * <tr><td>relaxing/SDP/lambdastar = -1</td> <td>the parameter lambda star used by SDPA to set the initial point; set this to a negative value to compute the parameter depending on the given problem</td></tr>
+ * <tr><td>relaxing/SDP/warmstart = FALSE</td> <td>Should the SDP solver try to use warmstarts?</td></tr>
+ * <tr><td>relaxing/SDP/warmstartprimaltype = </td> <td>how to warmstart the primal problem? 1: scaled identity/analytic center, 2: elementwise reciprocal, 3: save primal sol</td></tr>
+ * <tr><td>relaxing/SDP/warmstartiptype = </td> <td>which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center</td></tr>
+ * <tr><td>relaxing/SDP/warmstartproject = </td> <td>how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone, 4: use new bounds and solve rounding problem</td></tr>
+ * <tr><td>relaxing/SDP/warmstartpreoptsol = </td> <td>Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts</td></tr>
+ * <tr><td>relaxing/SDP/warmstartipfactor = </td> <td>factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled</td></tr>
+ * <tr><td>relaxing/SDP/warmstartprminevpri = </td> <td>minimum eigenvalue to allow when projecting primal matrices onto the positive (semi-)definite cone for warmstarting; -1 to compute automatically</td></tr>
+ * <tr><td>relaxing/SDP/warmstartprminevdu = </td> <td>minimum eigenvalue to allow when projecting dual matrices onto the positive (semi-)definite cone for warmstarting; -1 to compute automatically</td></tr>
+ * <tr><td>relaxing/SDP/warmstartprojpdsame = </td> <td>Should one shared minimum eigenvalue respectively maximum entry be computed for primal and dual problem instead of different ones for primal and dual and each block for projection or convex combination ?</td></tr>
+ * <tr><td>relaxing/SDP/warmstartpreoptgap = </td> <td>If warmstartpreoptsol is TRUE, this is the gap where the preoptimal solution will be saved</td></tr>
+ * <tr><td>relaxing/SDP/warmstartroundonlyinf = </td> <td>Only use solution of roundingproblem to detect infeasibility (only has an effect for warmstartproject = 4)</td></tr>
  * <tr><td>branching/sdpinfobjective/priority = 2e+06</td> <td>priority of combined infeasibility/objective branching rule; branching rule with highest priority is used</td></tr>
  * <tr><td>branching/sdpinfobjective/coupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints?</td></tr>
  * <tr><td>branching/sdpinfobjective/singlecoupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints in which no other candidate appears?</td></tr>
@@ -115,5 +127,10 @@
  * <tr><td>relaxing/SDP/settingsresetfreq = -1</td> <td>frequency for resetting parameters in SDP solver and trying again with fastest settings [-1: never, 0: only at depth settingsresetofs, n: all nodes with depth a multiple of n]; currently only supported for SDPA</td></tr>
  * <tr><td>relaxing/SDP/settingsresetofs = 0</td> <td>frequency offset for resetting parameters in SDP solver and trying again with fastest settings; currently only supported for SDPA</td></tr>
  * <tr><td>relaxing/SDP/tightenvb = TRUE</td> <td>Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ?</td></tr>
+ * <tr><td>table/relaxsdp/active = TRUE</td> <td>enable/disable advanced statistics for SDP relaxator (e.g., number of interior point iterations)</td></tr>
+ * <tr><td>table/sdpsolversuccess/active = TRUE</td> <td>enable/disable statistics about successes/failures during SDP-solves</td></tr>
+ * <tr><td>table/sdpsolversuccess/absolute = FALSE</td> <td>Should statistics be printed in absolute numbers (true) or percentages (false)?</td></tr>
+ * <tr><td>table/slater/active = TRUE</td> <td>enable/disable statistics about slater condition of SDP relaxation (needs relaxing/SDP/slatercheck > 0)</td></tr>
+ * <tr><td>table/slater/absolute = FALSE</td> <td>Should statistics be printed in absolute numbers (true) or percentages (false)?</td></tr>
  * </table>
  */
