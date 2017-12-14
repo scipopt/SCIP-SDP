@@ -4309,7 +4309,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          TRUE, DEFAULT_WARMSTARTIPFACTOR, 0.0, 1.0, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartprimaltype",
-         "how to warmstart the primal problem? 1: scaled identity/analytic center, 2: elementwise reciprocal, 3: save primal sol", &(relaxdata->warmstartprimaltype), TRUE,
+         "how to warmstart the primal problem? 1: scaled identity/analytic center, 2: elementwise reciprocal, 3: saved primal sol", &(relaxdata->warmstartprimaltype), TRUE,
          DEFAULT_WARMSTARTPRIMALTYPE, 1, 3, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartiptype",

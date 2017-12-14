@@ -87,16 +87,16 @@
  * <tr><td>relaxing/SDP/penaltyparam = -1</td> <td>the starting value of the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge; set this to a negative value to compute the parameter depending on the given problem</td></tr>
  * <tr><td>relaxing/SDP/lambdastar = -1</td> <td>the parameter lambda star used by SDPA to set the initial point; set this to a negative value to compute the parameter depending on the given problem</td></tr>
  * <tr><td>relaxing/SDP/warmstart = FALSE</td> <td>Should the SDP solver try to use warmstarts?</td></tr>
- * <tr><td>relaxing/SDP/warmstartprimaltype = </td> <td>how to warmstart the primal problem? 1: scaled identity/analytic center, 2: elementwise reciprocal, 3: save primal sol</td></tr>
- * <tr><td>relaxing/SDP/warmstartiptype = </td> <td>which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center</td></tr>
- * <tr><td>relaxing/SDP/warmstartproject = </td> <td>how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone, 4: use new bounds and solve rounding problem</td></tr>
- * <tr><td>relaxing/SDP/warmstartpreoptsol = </td> <td>Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts</td></tr>
- * <tr><td>relaxing/SDP/warmstartipfactor = </td> <td>factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled</td></tr>
- * <tr><td>relaxing/SDP/warmstartprminevpri = </td> <td>minimum eigenvalue to allow when projecting primal matrices onto the positive (semi-)definite cone for warmstarting; -1 to compute automatically</td></tr>
- * <tr><td>relaxing/SDP/warmstartprminevdu = </td> <td>minimum eigenvalue to allow when projecting dual matrices onto the positive (semi-)definite cone for warmstarting; -1 to compute automatically</td></tr>
- * <tr><td>relaxing/SDP/warmstartprojpdsame = </td> <td>Should one shared minimum eigenvalue respectively maximum entry be computed for primal and dual problem instead of different ones for primal and dual and each block for projection or convex combination ?</td></tr>
- * <tr><td>relaxing/SDP/warmstartpreoptgap = </td> <td>If warmstartpreoptsol is TRUE, this is the gap where the preoptimal solution will be saved</td></tr>
- * <tr><td>relaxing/SDP/warmstartroundonlyinf = </td> <td>Only use solution of roundingproblem to detect infeasibility (only has an effect for warmstartproject = 4)</td></tr>
+ * <tr><td>relaxing/SDP/warmstartprimaltype = 3</td> <td>how to warmstart the primal problem? 1: scaled identity/analytic center, 2: elementwise reciprocal, 3: saved primal sol</td></tr>
+ * <tr><td>relaxing/SDP/warmstartiptype = 1</td> <td>which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center</td></tr>
+ * <tr><td>relaxing/SDP/warmstartproject = 2</td> <td>how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone, 4: use new bounds and solve rounding problem</td></tr>
+ * <tr><td>relaxing/SDP/warmstartpreoptsol = FALSE</td> <td>Should a preoptimal solution (with higher epsilon) instead of the optimal solution be used for warmstarts</td></tr>
+ * <tr><td>relaxing/SDP/warmstartipfactor = 0.5</td> <td>factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled</td></tr>
+ * <tr><td>relaxing/SDP/warmstartprminevpri = -1</td> <td>minimum eigenvalue to allow when projecting primal matrices onto the positive (semi-)definite cone for warmstarting; -1 to compute automatically</td></tr>
+ * <tr><td>relaxing/SDP/warmstartprminevdu = -1</td> <td>minimum eigenvalue to allow when projecting dual matrices onto the positive (semi-)definite cone for warmstarting; -1 to compute automatically</td></tr>
+ * <tr><td>relaxing/SDP/warmstartprojpdsame = TRUE</td> <td>Should one shared minimum eigenvalue respectively maximum entry be computed for primal and dual problem instead of different ones for primal and dual and each block for projection or convex combination ?</td></tr>
+ * <tr><td>relaxing/SDP/warmstartpreoptgap = 0.01</td> <td>If warmstartpreoptsol is TRUE, this is the gap where the preoptimal solution will be saved</td></tr>
+ * <tr><td>relaxing/SDP/warmstartroundonlyinf = FALSE</td> <td>Only use solution of roundingproblem to detect infeasibility (only has an effect for warmstartproject = 4)</td></tr>
  * <tr><td>branching/sdpinfobjective/priority = 2e+06</td> <td>priority of combined infeasibility/objective branching rule; branching rule with highest priority is used</td></tr>
  * <tr><td>branching/sdpinfobjective/coupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints?</td></tr>
  * <tr><td>branching/sdpinfobjective/singlecoupledvars = FALSE</td> <td>If all branching candidates have objective zero, should we use the sum of the absolute objectives of all continuous variables coupled with the candidate through constraints in which no other candidate appears?</td></tr>
