@@ -6,7 +6,7 @@ Install-instructions
 Additional Software
 ------------------------------------
 For using the SDP-Plugin for SCIP you need an installed and fully working version
-of SCIP 4.0.1 (http://scip.zib.de/) or higher. Additionally you may want to install
+of SCIP 5.0.0 (http://scip.zib.de/) or higher. Additionally you may want to install
 at least one of the following SDP-Solvers:
 
 DSDP 5.8 (http://www.mcs.anl.gov/hs/software/DSDP/).
