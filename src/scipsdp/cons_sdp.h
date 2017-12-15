@@ -150,7 +150,7 @@ SCIP_RETCODE SCIPconsSdpGetFullConstMatrix(
    SCIP_Real*            mat                 /**< pointer to store the full constant matrix */
    );
 
-/** gives a 0.5*n*(n+1)-long array with the lower triangular part of the constant matrix indexed by compLowerTriangPos */
+/** gives a 0.5*n*(n+1)-long array with the lower triangular part of the constant matrix indexed by SCIPconsSdpCompLowerTriangPos */
 EXTERN
 SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -202,7 +202,9 @@ SCIP_Real SCIPconsSdpGetMaxSdpCoef(
    );
 
 /** Computes an upper bound on the number of nonzeros of the (dual) SDP matrix \f$ Z = \sum_{j=1}^n A_j y_j - A_0 \f$,
- *  this should be used to allocate enough memory before calling SCIPconsSdpComputeSparseSdpMatrix
+ *  this should be used to allocate enough memory before calling SCIPconsSdpComputeSparseSdpMatrix.
+ *
+ *  Upper bound is computed as \f$ \min \{ \sum_{v \leq m} \text{nvarnonz}(v) + \text{constnnonz}, n \cdot (n+1) / 2 \} \f$.
  */
 EXTERN
 int SCIPconsSdpComputeUbSparseSdpMatrixLength(

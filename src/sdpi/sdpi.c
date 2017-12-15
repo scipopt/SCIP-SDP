@@ -2445,7 +2445,7 @@ SCIP_RETCODE SCIPsdpiGetRhSides(
 
 /** solves the SDP, as start optionally a starting point for the solver may be given, if it is NULL, the solver will start from scratch
  *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
- *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independant of some lhs/rhs being infinity (the starting point
+ *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independent of some lhs/rhs being infinity (the starting point
  *  will later be adjusted accordingly)
  */
 SCIP_RETCODE SCIPsdpiSolve(
@@ -3390,10 +3390,10 @@ SCIP_RETCODE SCIPsdpiGetPreoptimalPrimalNonzeros(
 
 /** gets preoptimal dual solution vector and primal matrix for warmstarting purposes
  *
- *  @note: last block will be the LP block (if one exists) with indices lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ...
- *  independant of some lhs/rhs being infinity
- *  @note: If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
- *  @note: If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz
+ *  @note last block will be the LP block (if one exists) with indices lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ...
+ *  independent of some lhs/rhs being infinity
+ *  @note If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
+ *  @note If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz
  */
 SCIP_RETCODE SCIPsdpiGetPreoptimalSol(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
@@ -3523,9 +3523,9 @@ SCIP_RETCODE SCIPsdpiGetPrimalNonzeros(
 }
 
 /** returns the primal matrix X
- *  @note: last block will be the LP block (if one exists) with indices lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ...
- *  independant of some lhs/rhs being infinity
- *  @note: If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz */
+ *  @note last block will be the LP block (if one exists) with indices lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ...
+ *  independent of some lhs/rhs being infinity
+ *  @note If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz */
 SCIP_RETCODE SCIPsdpiGetPrimalMatrix(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
    int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */

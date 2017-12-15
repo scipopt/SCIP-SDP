@@ -2897,8 +2897,9 @@ SCIP_Real SCIPconsSdpGetMaxSdpCoef(
 }
 
 /** Computes an upper bound on the number of nonzeros of the (dual) SDP matrix \f$ Z = \sum_{j=1}^n A_j y_j - A_0 \f$,
- *  this should be used to allocate enough memory before calling SCIPconsSdpComputeSparseSdpMatrix
- *  upper bound is computed as \f$ \min \{ \sum_{v \leq m} \text{nvarnonz}(v) + \text{constnnonz}, n \cdot (n+1) / 2 \} \f$
+ *  this should be used to allocate enough memory before calling SCIPconsSdpComputeSparseSdpMatrix.
+ *
+ *  Upper bound is computed as \f$ \min \{ \sum_{v \leq m} \text{nvarnonz}(v) + \text{constnnonz}, n \cdot (n+1) / 2 \} \f$.
  */
 int SCIPconsSdpComputeUbSparseSdpMatrixLength(
    SCIP*                 scip,               /**< SCIP data structure */

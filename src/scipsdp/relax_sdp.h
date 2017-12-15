@@ -151,7 +151,7 @@ int SCIPrelaxSdpGetNSdpInterfaceCalls(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get the number of calls for */
    );
 
-/** returns number of SDP-relaxations solved with fast settings */
+/** returns number of SDP-relaxations solved with fastest settings */
 EXTERN
 int SCIPrelaxSdpGetNSdpFast(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get the number of calls for */
@@ -229,7 +229,7 @@ int SCIPrelaxSdpGetNSlaterHolds(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
-/** returns number of SDP-relaxations with Slater condition holding for primal and dual, solved with fast settings */
+/** returns number of SDP-relaxations with Slater condition holding for primal and dual, solved with fastest settings */
 EXTERN
 int SCIPrelaxSdpGetNSlaterHoldsFast(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */

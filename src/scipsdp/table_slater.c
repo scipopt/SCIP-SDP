@@ -304,7 +304,7 @@ SCIP_DECL_TABLEOUTPUT(tableOutputSlater)
  * statistics table specific interface methods
  */
 
-/** creates the advanced SDP relaxator statistics table and includes it in SCIP */
+/** creates the Slater statistics table and includes it in SCIP */
 SCIP_RETCODE SCIPincludeTableSlater(
    SCIP*                 scip                /**< SCIP data structure */
    )

@@ -1169,7 +1169,7 @@ SCIP_RETCODE calcRelax(
 
             if ( relaxdata->warmstartproject != 4 )
             {
-               /** fill LP-block */
+               /* fill LP-block */
                SCIP_CALL( SCIPallocBufferArray(scip, &startZrow[b], 2 * nrows + 2 * nvars) );
                SCIP_CALL( SCIPallocBufferArray(scip, &startZcol[b], 2 * nrows + 2 * nvars) );
                SCIP_CALL( SCIPallocBufferArray(scip, &startZval[b], 2 * nrows + 2 * nvars) );
@@ -5290,7 +5290,7 @@ int SCIPrelaxSdpGetNSdpInterfaceCalls(
    return ( SCIPrelaxGetData(relax)->sdpinterfacecalls );
 }
 
-/** returns number of SDP-relaxations solved with fast settings */
+/** returns number of SDP-relaxations solved with fastest settings */
 int SCIPrelaxSdpGetNSdpFast(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get the number of calls for */
    )

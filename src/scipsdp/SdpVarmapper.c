@@ -31,7 +31,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   SdpVarmapper.c
- * @brief  class that maps SCIP variables to SDP indices (the SCIP variables are given SDP indices in the order in which they were inserted)
+ * @brief  maps SCIP variables to SDP indices (the SCIP variables are given SDP indices in the order in which they were inserted)
  * @author Tristan Gally
  */
 

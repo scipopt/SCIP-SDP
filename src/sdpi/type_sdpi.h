@@ -78,7 +78,7 @@ enum SCIP_SDPSolverSetting
 };
 typedef enum SCIP_SDPSolverSetting SCIP_SDPSOLVERSETTING;
 
-/** SDP-solver settings and slater */
+/** SDP-solver settings used and Slater status */
 enum SCIP_SDPSlaterSetting
 {
    SCIP_SDPSLATERSETTING_NOINFO           = 0, /**< Slater check failed or problem not given to solver */
@@ -100,7 +100,7 @@ enum SCIP_SDPSlaterSetting
 };
 typedef enum SCIP_SDPSlaterSetting SCIP_SDPSLATERSETTING;
 
-/** SDP-solver settings used */
+/** SDP-solver Slater status */
 enum SCIP_SDPSlater
 {
    SCIP_SDPSLATER_INF    = -2, /**< problem is infeasible */
