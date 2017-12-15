@@ -21,10 +21,10 @@ SCIP directory in the lib-subdirectory, this can be done via
 
 mkdir lib
 cd lib
-ln -s /home/username/scipoptsuite-4.0.1/scip/ scip
+ln -s /home/username/scipoptsuite-5.0.0/scip/ scip
 cd ..
 
-if /home/username/scipoptsuite-4.0.1/scip is the path to your SCIP directory.
+if /home/username/scipoptsuite-5.0.0/scip is the path to your SCIP directory.
 Afterwards you can use "make" to compile the plugin. For SCIP-SDP the option SDPS
 is mandatory, it defines the SDP-solver that should be used. You can choose between
 dsdp, sdpa, msk and none. In the latter case you can only use LP-relaxations with
