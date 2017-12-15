@@ -13,7 +13,7 @@ performance improvements:
   solution) and the duality gap is below the tolerance
 
 parameters:
-- changed default duality gap tolerance for Mosek to 1e-5
+- changed default duality gap tolerance for MOSEK to 1e-5
 
 core:
 - adjustments for changes in SCIP relaxation solution enforcement
