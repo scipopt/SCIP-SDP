@@ -358,7 +358,7 @@ SCIP_SOL* SCIPconsSavesdpsolGetDualVector(
    return consdata->sol;
 }
 
-/** for the given cons of type Savesdpsol returns the previous number of nonzeros for each block of primal solution X */
+/** for the given cons of type Savesdpsol returns the maximum entry of primal solution X */
 SCIP_Real SCIPconsSavesdpsolGetMaxPrimalEntry(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons                /**< constraint to get maximum primal entry for */

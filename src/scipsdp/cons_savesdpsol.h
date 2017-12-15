@@ -86,7 +86,7 @@ SCIP_SOL* SCIPconsSavesdpsolGetDualVector(
    SCIP_CONS*            cons                /**< constraint to get starting point for */
    );
 
-/** for the given cons of type Savesdpsol returns the previous dual solution vector y */
+/** for the given cons of type Savesdpsol returns the maximum entry of primal solution X */
 EXTERN
 SCIP_Real SCIPconsSavesdpsolGetMaxPrimalEntry(
    SCIP*                 scip,               /**< SCIP data structure */

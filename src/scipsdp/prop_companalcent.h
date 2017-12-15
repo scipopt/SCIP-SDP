@@ -34,7 +34,7 @@ extern "C" {
 /** creates the compute analytic center propagator and includes it in SCIP
  *
  * @ingroup PropagatorIncludes
- *
+ */
 EXTERN
 SCIP_RETCODE SCIPincludePropCompAnalCent(
    SCIP*                 scip                /**< SCIP data structure */

@@ -210,7 +210,10 @@ int SCIPconsSdpComputeUbSparseSdpMatrixLength(
    SCIP_CONS*            cons                /**< the constraint for which the Matrix should be assembled */
    );
 
-/** Computes (dual) SDP matrix \f$ Z = \sum_{j=1}^n A_j y_j - A_0 \f$ and returns it in sparse format */
+/** Computes (dual) SDP matrix \f$ Z = \sum_{j=1}^n A_j y_j - A_0 \f$ and returns it in sparse format
+ *  @note row, col and val should have memory allocated equal to SCIPconsSdpComputeUbSparseSdpMatrixLength(),
+ *        if the memory is not sufficient, length will be set to -1 and an error will be thrown
+ */
 EXTERN
 SCIP_RETCODE SCIPconsSdpComputeSparseSdpMatrix(
    SCIP*                 scip,               /**< SCIP data structure */
