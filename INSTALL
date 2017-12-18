@@ -1,21 +1,19 @@
-SDP-Plugin for SCIP
-
-Install-instructions
+Installing SCIP-SDP
 =====================
 
 Additional Software
 ------------------------------------
-For using the SDP-Plugin for SCIP you need an installed and fully working version
-of SCIP 5.0.0 (http://scip.zib.de/) or higher. Additionally you may want to install
-at least one of the following SDP-Solvers:
+For using SCIP-SDP you need an installed and fully working version of SCIP 5.0.0
+(http://scip.zib.de/) or higher. Additionally you may want to install at least one
+of the following SDP-Solvers:
 
 DSDP 5.8 (http://www.mcs.anl.gov/hs/software/DSDP/).
 SDPA 7.3.8 (http://sdpa.sourceforge.net/)
 MOSEK 8.1 (https://www.mosek.com/)
 
-Build SDP-Plugin
+Building SCIP-SDP
 ----------------
-Now you are able to install the SDP-Plugin. It uses the SCIP-Makefiles for 
+Now you are ready to install SCIP-SDP. It uses the SCIP-Makefiles for 
 building. After unpacking the files you need to set a symbolic link to your
 SCIP directory in the lib-subdirectory, this can be done via
 
@@ -36,10 +34,10 @@ make SDPS=dsdp
 
 in the main directory. Furthermore, for SDPA you may need to set OMP=false if you do not 
 have OpenMP. This disables the possibility to set the number of threads dynamically via
-SCIP-parameter for SDPA/openblas. Additionally, you can use the same options for the 
+SCIP-parameter for SDPA/OpenBLAS. Additionally, you can use the same options for the 
 Makefile as you can use for building SCIP (e.g., make SDPS=sdpa OPT=dbg LPS=cpx), note that 
 a compiled SCIP binary with the same settings needs to exist in the linked path. You may 
-also create a doxygen-documentation by calling, e.g., make OPT=dbg SDPS=dsdp doc.
+also create a doxygen-documentation by calling, e.g., make OPT=dbg SDPS=dsdp doc .
 
 Setting Links for DSDP
 ----------------------
@@ -104,8 +102,8 @@ Setting Links for MOSEK
 ----------------------
 
 For SDPS=msk the following links need to be set, where /home/username/mosek is the path to the
-mosek directory. Please note that the omp and cilk (for MOSEK 8) libraries must be available
-in the same directory as the given mosek library.
+MOSEK directory. Please note that the omp and cilk (for MOSEK 8) libraries must be available
+in the same directory as the given MOSEK library.
 
 - preparing missing soft-link "lib/include/mosekh":
 > Enter soft-link target file or directory for "lib/include/mosekh" (return if not needed):
@@ -129,7 +127,7 @@ pFEAS_dINF criteria :: line 1211 in sdpa_parts.cpp
 
 between the SCIP output. This is output given by SDPA whenever a problem is infeasible
 and cannot be deactivated. Within a branch-and-bound context it is normal for infeasible
-problems to appear, so this is not a sign of an unsuccessfull installation or a bug.
+problems to appear, so this is not a sign of an unsuccessful installation or a bug.
 Furthermore, make test currently only works if SDPS is not "none". You can still run the
 shell if installing SCIP-SDP with SDPS=none and it is also possible to use the test scripts
 with the lp_approx settings disabling the SDP-solving, just the combination of SDPS=none
@@ -140,7 +138,7 @@ in case SDPS=none).
 Usage of SCIP-SDP
 -----------------
 
-To use the SDP-Plugin call
+To use SCIP-SDP call
 
 ./bin/scipsdp
 
@@ -184,3 +182,16 @@ set relaxing SDP advanced sdpsolverthreads n
 By default this parameter is set to -1 to automatically detect the number of cores. Note that
 this will only parallelize the solution of the SDP-relaxations but not the eigenvalue
 computations in SCIP-SDP, unlike the parallelization for OpenBLAS/SDPA.
+
+Parallelization using UG
+------------------------
+
+In addition to parallelizing the SDP solves, it is also possible to parallelize the branch-and-bound
+tree using the UG framework included in the SCIP-optimization-suite. In this case SCIP-SDP needs to
+be compiled as a library via, e.g.,
+
+make SDPS=msk libscipsdp
+
+before compiling the MISDP application within UG. For more information see the README file included
+in the MISDP application of UG. Please note, that the MISDP application within UG is still a very early
+beta version and far from bug free.
