@@ -14,7 +14,7 @@ This program is free software; you can redistribute it and/or modify it under th
 </table>
 <br><br>
 <p>
-   <b>Any publication for which SCIP-SDP is used should include an acknowledgment and a reference to the following article:</b>
+   <b>Any publication using SCIP-SDP should include an acknowledgment and a reference to the following article:</b>
 <ul>
    <li><a href="http://dx.doi.org/10.1080/10556788.2017.1322081">A Framework for Solving Mixed-Integer Semidefinite Programs</a> <br> <i> Tristan Gally, Marc E. Pfetsch, and Stefan Ulbrich </i> <br>  Optimization Methods and Software, to appear. http://dx.doi.org/10.1080/10556788.2017.1322081</li>
 </ul>
