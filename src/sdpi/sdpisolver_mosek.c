@@ -979,6 +979,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
    /* set objective values for the scalar variables */
+   /* TODO: check for equality constraints */
    /* first for those corresponding to LP constraints in the dual */
    for (i = 0; i < nlpvars; i++)
    {

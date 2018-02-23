@@ -89,6 +89,8 @@
 #define DEFAULT_SETTINGSRESETFREQ   -1       /**< frequency for resetting parameters in SDP solver and trying again with fastest settings */
 #define DEFAULT_SETTINGSRESETOFS    0        /**< frequency offset for resetting parameters in SDP solver and trying again with fastest settings */
 #define DEFAULT_SDPSOLVERTHREADS    -1       /**< number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores) */
+//TODO TODO test and/or change this for release
+#define DEFAULT_PENINFEASADJUST     100      /**< gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation */
 
 #define WARMSTART_MINVAL            0.01     /**< if we get a value less than this when warmstarting (currently only for the linear part when combining with analytic center), the value is set to this */
 #define WARMSTART_PROJ_MINRHSOBJ    1        /**< minimum value for rhs/obj when computing minimum eigenvalue for warmstart-projection */
@@ -134,6 +136,7 @@ struct SCIP_RelaxData
    SCIP_Real             lambdastar;         /**< the parameter lambda star used by SDPA to set the initial point */
    SCIP_Real             computedlambdastar; /**< computed value for lambda star parameter used by SDPA to set the initial point */
    int                   npenaltyincr;       /**< maximum number of times the penalty parameter will be increased if penalty formulation failed */
+   SCIP_Real             peninfeasadjust;    /**< gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation */
    int                   slatercheck;        /**< Should the Slater condition for the dual problem be check ahead of solving every SDP ? */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             displaystat;        /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
@@ -3630,6 +3633,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    SCIP_Real penaltyparam;
    SCIP_Real maxpenaltyparam;
    int npenaltyincr;
+   SCIP_Real peninfeasadjust;
    SCIP_Bool sdpinfo;
    SCIP_Real givenpenaltyparam;
    SCIP_Real projminevprimal;
@@ -3821,6 +3825,21 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
          "SDP Solver <%s>: npenaltyincr setting not available -- SCIP parameter has no effect.\n",
+         SCIPsdpiGetSolverName());
+   }
+   else
+   {
+      SCIP_CALL( retcode );
+   }
+
+   /* set penalty-infeasibility-adjustment */
+   SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/peninfeasadjust", &peninfeasadjust) );
+   retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENINFEASADJUST, peninfeasadjust);
+
+   if ( retcode == SCIP_PARAMETERUNKNOWN )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
+         "SDP Solver <%s>: peninfeasadjust setting not available -- SCIP parameter has no effect.\n",
          SCIPsdpiGetSolverName());
    }
    else
@@ -4303,6 +4322,10 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          "the maximum value of the penalty parameter Gamma used for the penalty formulation if the "
          "SDP solver didn't converge; set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->maxpenaltyparam),
          TRUE, DEFAULT_MAXPENALTYPARAM, -1.0, 1e+20, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/peninfeasadjust",
+         "gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation", &(relaxdata->peninfeasadjust),
+         TRUE, DEFAULT_PENINFEASADJUST, 0.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartipfactor",
          "factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled", &(relaxdata->warmstartipfactor),
