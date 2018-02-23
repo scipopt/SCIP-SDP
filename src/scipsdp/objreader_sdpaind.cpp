@@ -39,6 +39,7 @@
 
 /*#define SCIP_DEBUG*/
 /*#define SCIP_MORE_DEBUG*/
+/*#define SCIP_WARN_INDICATOR*/
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 #include "objreader_sdpaind.h"
@@ -738,8 +739,10 @@ namespace scip
                             * will throw an assert later and we cannot verify that it is binary now, so we print a warning
                             */
                            indvar = VariablesX[-1 * LPData.rows[row_i].data[var_i].first - 1];
+#ifdef SCIP_WARN_INDICATOR
                            SCIPwarningMessage(scip, "Changing type of variable %s to binary, since it appears as an indicator variable "
                                  "in constraint %s\n", SCIPvarGetName(indvar), LPcon_name);
+#endif
                            assert(SCIPvarIsIntegral( VariablesX[-1 * LPData.rows[row_i].data[var_i].first - 1] ));
                            SCIP_CALL( SCIPchgVarLbGlobal(scip, indvar, 0.0) );
                            SCIP_CALL( SCIPchgVarUbGlobal(scip, indvar, 1.0) );
@@ -761,7 +764,7 @@ namespace scip
                      SCIP_CALL( SCIPaddCons(scip, LPcon) );
                      SCIP_CALL( SCIPaddCons(scip, indcons) );
 
-#if 1
+#if SCIP_MORE_DEBUG
                      SCIP_CALL( SCIPprintCons(scip, indcons, NULL) );
 #endif
 
