@@ -195,6 +195,7 @@ struct SCIP_SDPi
    SCIP_Real             penaltyparam;       /**< the starting penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
    SCIP_Real             maxpenaltyparam;    /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
    int                   npenaltyincr;       /**< maximum number of times the penalty parameter will be increased if penalty formulation failed */
+   SCIP_Real             peninfeasadjust;    /**< gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation */
    SCIP_Real             bestbound;          /**< best bound computed with a penalty formulation */
    SCIP_SDPSLATER        primalslater;       /**< did the primal slater condition hold for the last problem */
    SCIP_SDPSLATER        dualslater;         /**< did the dual slater condition hold for the last problem */
@@ -2676,7 +2677,8 @@ SCIP_RETCODE SCIPsdpiSolve(
           * is the objective of an SDP which is only exact up to gaptol, and cutting a feasible node off is an error
           * while continueing with an infeasible problem only takes additional time until we found out again later.
           */
-         if ( (SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && (objval > (sdpi->feastol > sdpi->gaptol ? sdpi->feastol : sdpi->gaptol))) ||
+         if ( (SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && (objval > (sdpi->feastol > sdpi->gaptol ?
+               sdpi->peninfeasadjust * sdpi->feastol : sdpi->peninfeasadjust * sdpi->gaptol))) ||
                (SCIPsdpiSolverWasSolved(sdpi->sdpisolver) && SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver)) )
          {
             SCIPdebugMessage("SDP %d found infeasible using penalty formulation, maximum of smallest eigenvalue is %f.\n", sdpi->sdpid, -1.0 * objval);
@@ -4039,6 +4041,9 @@ SCIP_RETCODE SCIPsdpiGetRealpar(
    case SCIP_SDPPAR_WARMSTARTPOGAP:
       SCIP_CALL_PARAM( SCIPsdpiSolverGetRealpar(sdpi->sdpisolver, type, dval) );
       break;
+   case SCIP_SDPPAR_PENINFEASADJUST:
+      *dval = sdpi->peninfeasadjust;
+      break;
    default:
       return SCIP_PARAMETERUNKNOWN;
    }
@@ -4087,6 +4092,9 @@ SCIP_RETCODE SCIPsdpiSetRealpar(
       break;
    case SCIP_SDPPAR_WARMSTARTPOGAP:
       SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, type, dval) );
+      break;
+   case SCIP_SDPPAR_PENINFEASADJUST:
+      sdpi->peninfeasadjust = dval;
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;

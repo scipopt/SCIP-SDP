@@ -1,3 +1,10 @@
+SCIP-SDP version next
+==================
+
+parameters:
+- added additionak parameter "relaxing/SDP/peninfeasadjust" to increase numerical stability by only allowing cutoffs through the penalty
+  formulation if the objective value of the feasilibity problem is at least this factor larger than the gap- and feasibility tolerance
+
 SCIP-SDP version 3.1.0
 ==================
 
