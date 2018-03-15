@@ -332,8 +332,11 @@ SCIP_DECL_PROPEXIT(propExitSdpredcost)
    propdata = SCIPpropGetData(prop);
    assert( propdata != NULL );
 
-   SCIPfreeBlockMemoryArrayNull(scip, &(propdata->lbvarvals), propdata->nvars);
-   SCIPfreeBlockMemoryArrayNull(scip, &(propdata->ubvarvals), propdata->nvars);
+   if ( propdata->lbvarvals != NULL )
+   {
+      SCIPfreeBlockMemoryArrayNull(scip, &(propdata->lbvarvals), propdata->nvars);
+      SCIPfreeBlockMemoryArrayNull(scip, &(propdata->ubvarvals), propdata->nvars);
+   }
 
    return SCIP_OKAY;
 }
@@ -381,6 +384,8 @@ SCIP_RETCODE SCIPincludePropSdpredcost(
    /* create propagator data */
    SCIP_CALL( SCIPallocMemory(scip, &propdata) );
    propdata->nvars = 0;
+   propdata->lbvarvals = NULL;
+   propdata->ubvarvals = NULL;
 
    /* include propagator */
    SCIP_CALL( SCIPincludePropBasic(scip, &prop, PROP_NAME, PROP_DESC, PROP_PRIORITY, PROP_FREQ, PROP_DELAY, PROP_TIMING,
