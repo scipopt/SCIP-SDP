@@ -3904,7 +3904,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/warmstartprminevpri", &projminevprimal) );
    SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/warmstartprminevdu", &projminevdual) );
 
-   if ( SCIPisGE(scip, projminevprimal, 0.0) && SCIPisGE(scip, projminevdual, 0.0) )
+   if ( SCIPisGE(scip, projminevprimal, 0.0) && SCIPisGE(scip, projminevdual, 0.0) ) /* TODO: maybe only do these computations if warmstart = TRUE? */
    {
       relaxdata->warmstartprojminevprimal = projminevprimal;
       relaxdata->warmstartprojminevdual = projminevdual;
@@ -4293,6 +4293,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    relaxdata->nblocks = 0;
    relaxdata->ipXexists = FALSE;
    relaxdata->ipZexists = FALSE;
+   relaxdata->varmapper = NULL;
 
    /* include relaxator */
    SCIP_CALL( SCIPincludeRelaxBasic(scip, &relax, RELAX_NAME, RELAX_DESC, RELAX_PRIORITY, RELAX_FREQ, relaxExecSdp, relaxdata) );
