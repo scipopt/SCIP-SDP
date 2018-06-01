@@ -53,6 +53,7 @@
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
 #include "sdpi/sdpsolchecker.h"              /* to check solution with regards to feasibility tolerance */
+#include "scip/pub_message.h"                /* for debug and error message */
 
 /* turn off lint warnings for whole file: */
 /*lint --e{788,818}*/

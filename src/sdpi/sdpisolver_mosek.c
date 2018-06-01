@@ -71,6 +71,7 @@
 #include "scip/pub_misc.h"                   /* for sorting */
 #include "mosek.h"                           /* for MOSEK routines */
 #include "sdpi/sdpsolchecker.h"              /* to check solution with regards to feasibility tolerance */
+#include "scip/pub_message.h"                /* for debug and error message */
 
 /* TODO: use  MSK_putexitfunc to catch errors
  * TODO: Think about what to do with near optimality etc. (If MOSEK cannot compute a solution that has the prescribed accuracy, then it will

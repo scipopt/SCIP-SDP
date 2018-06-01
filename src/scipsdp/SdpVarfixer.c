@@ -37,6 +37,7 @@
 
 #include "scip/type_misc.h"
 #include "scip/def.h"
+#include "scip/pub_message.h"                /* for debug and error message */
 #include "scip/pub_misc.h" /* for sorting */
 #include "SdpVarfixer.h"
 

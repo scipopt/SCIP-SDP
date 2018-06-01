@@ -58,6 +58,7 @@
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
 #include "sdpi/sdpsolchecker.h"              /* to check solution with regards to feasibility tolerance */
+#include "scip/pub_message.h"                /* for debug and error message */
 
 /* local defines */
 #define GAPTOLCHANGE                1        /**< change gaptol by this factor when switching from fast to default and from default to stable settings */

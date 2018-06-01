@@ -46,6 +46,7 @@
 #include "config.h"                     /* for F77_FUNC */
 
 #include "scip/def.h"
+#include "scip/pub_message.h"                /* for debug and error message */
 #include "blockmemshell/memory.h"
 #include "scip/type_retcode.h"
 
@@ -53,7 +54,7 @@
 /*lint --e{788,818}*/
 
 typedef long long int LAPACKINTTYPE;
-#define SDPA_VERSION          738
+#define SDPA_VERSION          740
 
 /** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMORY */
 #define BMS_CALL(x)   do                                                                                      \
@@ -177,10 +178,10 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
       &LDZ, NULL, &WSIZE,
       &LWORK, &WISIZE, &LIWORK,
       &INFO );
-
+/* for some reason this code seems to be called with INFO=0 within UG */
    if ( INFO != 0 )
    {
-      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d\n", INFO);
+      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %lld\n", INFO);
       return SCIP_ERROR;
    }
 

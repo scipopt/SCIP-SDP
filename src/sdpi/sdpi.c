@@ -48,6 +48,7 @@
 #include "blockmemshell/memory.h"            /* for memory allocation */
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
+#include "scip/pub_message.h"                /* for debug and error message */
 
 /* turn off lint warnings for whole file: */
 /*lint --e{788,818}*/

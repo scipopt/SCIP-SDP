@@ -46,6 +46,7 @@
 #include "config.h"                     /* for F77_FUNC */
 
 #include "scip/def.h"
+#include "scip/pub_message.h"                /* for debug and error message */
 #include "blockmemshell/memory.h"
 #include "scip/type_retcode.h"
 
