@@ -253,6 +253,7 @@ MAINCOBJ	=	scipsdp/SdpVarmapper.o \
 
 MAINCCOBJ 	=	scipsdp/main.o \
 			scipsdp/objreader_sdpa.o \
+			scipsdp/objreader_sdpaind.o \
 			scipsdp/ScipStreamBuffer.o
 
 
