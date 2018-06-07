@@ -4,6 +4,9 @@ SCIP-SDP version next
 fixed bugs:
 - fixed potential segmentation fault if relaxator or redcost propagator were freed before initsol
 
+interface:
+- add dat-s-ind reader to read instances in extended sdpa format with negative sign of variable index for indicator variables
+
 parameters:
 - added additional parameter "relaxing/SDP/peninfeasadjust" to increase numerical stability by only allowing cutoffs through the penalty
   formulation if the objective value of the feasilibity problem is at least this factor larger than the gap- and feasibility tolerance

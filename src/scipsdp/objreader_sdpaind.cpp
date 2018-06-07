@@ -31,7 +31,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   objreader_sdpaind.cpp
- * @brief  Reader for SDPA-files with indicator constraints
+ * @brief  Reader for SDPA-Files with indicator constraints (-var in linear constraint => indicator constraint with var as indicator variable)
  * @author Jakob Schelbert
  * @author Sonja Mars
  * @author Tristan Gally
