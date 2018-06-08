@@ -1,11 +1,11 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /*                                                                           */
 /* This file is part of SCIPSDP - a solving framework for mixed-integer      */
-/* semidefinite programms based on SCIP.                                     */
+/* semidefinite programs based on SCIP.                                      */
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014      Discrete Optimization, TU Darmstadt               */
+/*               2014-2018 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or             */
@@ -24,7 +24,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2014 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2018 Zuse Institute Berlin                             */
 /* SCIP is distributed under the terms of the SCIP Academic Licence,         */
 /* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
