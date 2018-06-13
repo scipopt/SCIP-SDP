@@ -4,6 +4,7 @@ SCIP-SDP version 3.1.1
 fixed bugs:
 - fixed potential segmentation fault if relaxator or redcost propagator were freed before initsol
 - fixed potential segmentation fault caused by total number of nonzeros not being computed by SDP-constraint-parser for CIP format
+- do not run sdp-obbt if relaxation solution is not valid
 
 interface:
 - add dat-s-ind reader to read instances in extended sdpa format with negative sign of variable index for indicator variables

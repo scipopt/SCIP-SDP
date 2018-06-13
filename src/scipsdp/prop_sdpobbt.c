@@ -227,10 +227,11 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
    if( !SCIPallowObjProp(scip) )
       return SCIP_OKAY;
 
-   /* do not run in: presolving, repropagation, probing mode, if no objective propagation is allowed  */
-   if( SCIPgetStage(scip) != SCIP_STAGE_SOLVING || SCIPinRepropagation(scip) || SCIPinProbing(scip) || !SCIPallowObjProp(scip) )
+   /* do not run in: presolving, repropagation, probing mode, if no objective propagation is allowed, if no relaxation solution is available  */
+   if( SCIPgetStage(scip) != SCIP_STAGE_SOLVING || SCIPinRepropagation(scip) || SCIPinProbing(scip) || !SCIPallowObjProp(scip) || !SCIPisRelaxSolValid(scip) )
    {
-      SCIPdebugMessage("Aborting propExecSdpObbt because we are in presolving, repropagation, probing mode or no objective propagation is allowed!\n");
+      SCIPdebugMessage("Aborting propExecSdpObbt because we are in presolving, repropagation, probing mode or no objective "
+            "propagation is allowed or no valid relaxation solution available!\n");
       return SCIP_OKAY;
    }
 
