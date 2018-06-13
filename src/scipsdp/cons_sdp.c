@@ -2206,6 +2206,7 @@ SCIP_DECL_CONSPARSE(consParseSdp)
    int currentsize;
    int nvars;
    int i;
+   int v;
 
    assert( scip != NULL );
    assert( str != NULL );
@@ -2369,6 +2370,10 @@ SCIP_DECL_CONSPARSE(consParseSdp)
       while( isspace((unsigned char)*pos) )
          pos++;
    }
+
+   /* compute sdpnnonz */
+   for (v = 0; v < consdata->nvars; v++)
+      consdata->nnonz += consdata->nvarnonz[v];
 
    /* create the constraint */
    SCIP_CALL( SCIPcreateCons(scip, cons, name, conshdlr, consdata, initial, separate, enforce, check, propagate, local, modifiable,
