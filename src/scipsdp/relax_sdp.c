@@ -4195,6 +4195,7 @@ SCIP_DECL_RELAXEXIT(relaxExitSdp)
    if ( relaxdata->varmapper != NULL )
    {
       SCIP_CALL( SCIPsdpVarmapperFree(scip, &(relaxdata->varmapper)) );
+      relaxdata->varmapper = NULL;
    }
 
    /* free warmstart data (the nblocks > 0 check is only needed in case the parameter was changed after initsol) */
@@ -4239,6 +4240,7 @@ SCIP_DECL_RELAXEXIT(relaxExitSdp)
    relaxdata->sdpcalls = 0;
    relaxdata->sdpinterfacecalls = 0;
    relaxdata->lastsdpnode = 0;
+   relaxdata->unsolved = 0;
    SCIP_CALL( SCIPsdpiClear(relaxdata->sdpi) );
 
    return SCIP_OKAY;

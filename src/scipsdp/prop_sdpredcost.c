@@ -335,7 +335,9 @@ SCIP_DECL_PROPEXIT(propExitSdpredcost)
    if ( propdata->lbvarvals != NULL )
    {
       SCIPfreeBlockMemoryArrayNull(scip, &(propdata->lbvarvals), propdata->nvars);
+      propdata->lbvarvals = NULL;
       SCIPfreeBlockMemoryArrayNull(scip, &(propdata->ubvarvals), propdata->nvars);
+      propdata->ubvarvals = NULL;
    }
 
    return SCIP_OKAY;
