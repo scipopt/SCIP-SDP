@@ -89,7 +89,7 @@
 #define DEFAULT_SETTINGSRESETFREQ   -1       /**< frequency for resetting parameters in SDP solver and trying again with fastest settings */
 #define DEFAULT_SETTINGSRESETOFS    0        /**< frequency offset for resetting parameters in SDP solver and trying again with fastest settings */
 #define DEFAULT_SDPSOLVERTHREADS    -1       /**< number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores) */
-#define DEFAULT_PENINFEASADJUST     1        /**< gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation */
+#define DEFAULT_PENINFEASADJUST     10       /**< gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation */
 
 #define WARMSTART_MINVAL            0.01     /**< if we get a value less than this when warmstarting (currently only for the linear part when combining with analytic center), the value is set to this */
 #define WARMSTART_PROJ_MINRHSOBJ    1        /**< minimum value for rhs/obj when computing minimum eigenvalue for warmstart-projection */
