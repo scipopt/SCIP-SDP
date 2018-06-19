@@ -4071,7 +4071,7 @@ SCIP_DECL_RELAXCOPY(relaxCopySdp)
 
 /** reset the relaxator's data */
 static
-SCIP_DECL_RELAXEXIT(relaxExitSdp)
+SCIP_DECL_RELAXEXITSOL(relaxExitSolSdp)
 {
    SCIP_RELAXDATA* relaxdata;
 
@@ -4302,7 +4302,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
 
    /* include additional callbacks */
    SCIP_CALL( SCIPsetRelaxInitsol(scip, relax, relaxInitSolSdp) );
-   SCIP_CALL( SCIPsetRelaxExit(scip, relax, relaxExitSdp) );
+   SCIP_CALL( SCIPsetRelaxExitsol(scip, relax, relaxExitSolSdp) );
    SCIP_CALL( SCIPsetRelaxFree(scip, relax, relaxFreeSdp) );
    SCIP_CALL( SCIPsetRelaxCopy(scip, relax, relaxCopySdp) );
 
