@@ -108,9 +108,6 @@ SCIP_RETCODE runSCIP(
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
 
-   /* disable restarts - for the meantime */
-   SCIP_CALL( SCIPsetIntParam(scip, "limits/restarts", 0) );
-
    /* set clocktype to walltime to not add multiple threads together */
    SCIP_CALL( SCIPsetIntParam(scip, "timing/clocktype", 2) );
 
@@ -149,12 +146,6 @@ SCIP_RETCODE runSCIP(
    /* parameters for separation */
    SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprows", FALSE) );
    SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprowsroot", FALSE) );
-   SCIP_CALL( SCIPsetIntParam(scip, "lp/rowagelimit", 10) );
-
-   /* maximum age a cut can reach before it is deleted from the global cut pool, or -1 to keep all cuts */
-   SCIP_CALL( SCIPsetIntParam(scip, "separating/cutagelimit", 10) );
-
-   SCIP_CALL( SCIPsetIntParam(scip, "separating/maxrounds", 20) );
 
    /* Parameters for node selection */
 
