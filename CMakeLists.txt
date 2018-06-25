@@ -3,9 +3,6 @@ cmake_minimum_required(VERSION 3.0)
 set(PROJECT_NAME SCIP-SDP)
 project(${PROJECT_NAME})
 
-find_package(SCIP REQUIRED)
-include_directories(${SCIP_INCLUDE_DIRS})
-
 # set variables
 set(EXECUTABLE_NAME "scipsdp")
 set(SCIPSDP_VERSION_MAJOR 3)
@@ -16,10 +13,11 @@ set(DOC doc)
 set(CMAKE cmake)
 set(RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-#set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/${CMAKE})
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic -Wno-unused-but-set-variable -Wno-unused-variable")
-
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
+
+find_package(SCIP REQUIRED)
+include_directories(${SCIP_INCLUDE_DIRS})
 
 set(SDPS none CACHE STRING "options for SDP solver")  #create the variable
 set_property(CACHE SDPS PROPERTY STRINGS msk sdpa dsdp none )  #define list of values GUI will offer for the variable
