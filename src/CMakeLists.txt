@@ -112,16 +112,14 @@ setLibProperties(libscipsdp "scipsdp")
 if(SHARED)
     target_link_libraries(libscipsdp PRIVATE ${ZIMPL_PIC_LIBRARIES} ${SDPS_PIC_LIBRARIES})
     add_executable(scipsdp scipsdp/main.cpp ${scipsdpsources} ${objscipsdpsources} ${sdpisources})
+    target_link_libraries(scipsdp ${ZLIB_LIBRARIES} ${Readline_LIBRARY} ${GMP_LIBRARIES} ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES} ${SCIP_LIBRARIES})
 else()
     target_link_libraries(libscipsdp PRIVATE ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES})
     add_executable(scipsdp scipsdp/main.cpp)
-    target_link_libraries(scipsdp libscipsdp)
+    target_link_libraries(scipsdp libscipsdp ${SCIP_LIBRARIES})
 endif()
 
 target_compile_definitions(scipsdp PRIVATE EXTERN=extern)
-
-target_link_libraries(scipsdp ${ZLIB_LIBRARIES} ${Readline_LIBRARY} ${GMP_LIBRARIES}
-   ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES})
 
 add_dependencies(libscipsdp scipsdp_update_githash)
 add_dependencies(scipsdp scipsdp_update_githash)
