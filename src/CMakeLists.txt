@@ -59,13 +59,13 @@ set(sdpiheaders
     sdpi/type_sdpi.h
 )
 
-set(objscipheaders
+set(objscipsdpheaders
     scipsdp/objreader_sdpa.h
     scipsdp/objreader_sdpaind.h
     scipsdp/ScipStreamBuffer.h
 )
 
-set(scipheaders
+set(scipsdpheaders
     scipsdp/BlockMemoryAllocator.h
     scipsdp/SdpVarmapper.h
     scipsdp/SdpVarfixer.h
@@ -98,7 +98,7 @@ set(scipheaders
 
 # all source files should be compiled with a c++ compiler
 if(CXXONLY)
-    set_source_files_properties(main.cpp ${scipsdpsources} ${objscipsdpsources} ${sdpisources} PROPERTIES LANGUAGE CXX)
+    set_source_files_properties(scipsdp/main.cpp ${scipsdpsources} ${objscipsdpsources} ${sdpisources} PROPERTIES LANGUAGE CXX)
 
     # for the clang compiler this suppresses the warnings about treating 'c' input as 'c++' when CXXONLY is enabled
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -111,10 +111,10 @@ setLibProperties(libscipsdp "scipsdp")
 
 if(SHARED)
     target_link_libraries(libscipsdp PRIVATE ${ZIMPL_PIC_LIBRARIES} ${SDPS_PIC_LIBRARIES})
-    add_executable(scipsdp main.cpp ${scipsdpsources} ${objscipsdpsources} ${sdpisources})
+    add_executable(scipsdp scipsdp/main.cpp ${scipsdpsources} ${objscipsdpsources} ${sdpisources})
 else()
     target_link_libraries(libscipsdp PRIVATE ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES})
-    add_executable(scipsdp main.cpp)
+    add_executable(scipsdp scipsdp/main.cpp)
     target_link_libraries(scipsdp libscipsdp)
 endif()
 
@@ -138,8 +138,8 @@ set_target_properties(scipsdp PROPERTIES
 
 # install the header files of scip
 install(FILES ${sdpiheaders} DESTINATION include/sdpi)
-install(FILES ${objscipheaders} DESTINATION include/objscip)
-install(FILES ${scipheaders} DESTINATION include/scip)
+install(FILES ${objscipsdpheaders} DESTINATION include/objscip)
+install(FILES ${scipsdpheaders} DESTINATION include/scip)
 
 # install the binary and the library to appropriate lcoations and add them to an export group
 install(TARGETS scipsdp libscipsdp EXPORT scipsdp-targets
