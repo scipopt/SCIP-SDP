@@ -16,6 +16,10 @@ parameters:
   (default value is 10)
 - changed restarts, cutagelimits and separating/maxrounds back to their SCIP defaults
 
+Makefile:
+- added experimental cmake support
+
+
 SCIP-SDP version 3.1.0
 ==================
 

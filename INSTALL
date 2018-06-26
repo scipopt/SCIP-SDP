@@ -3,7 +3,7 @@ Installing SCIP-SDP
 
 Additional Software
 ------------------------------------
-For using SCIP-SDP you need an installed and fully working version of SCIP 5.0.0
+For using SCIP-SDP you need an installed and fully working version of SCIP 6.0.0
 (http://scip.zib.de/) or higher. Additionally you may want to install at least one
 of the following SDP-Solvers:
 
@@ -11,18 +11,18 @@ DSDP 5.8 (http://www.mcs.anl.gov/hs/software/DSDP/).
 SDPA 7.3.8 (http://sdpa.sourceforge.net/)
 MOSEK 8.1 (https://www.mosek.com/)
 
-Building SCIP-SDP
-----------------
-Now you are ready to install SCIP-SDP. It uses the SCIP-Makefiles for 
-building. After unpacking the files you need to set a symbolic link to your
-SCIP directory in the lib-subdirectory, this can be done via
+Building SCIP-SDP via Makefile
+------------------------------
+Now you are ready to install SCIP-SDP. This can be done either via Makefile (established)
+or via cmake (experimental). For building via Makefile, you need to set a symbolic link to your
+SCIP directory in the lib-subdirectory after unpacking the files, this can be done via
 
 mkdir lib
 cd lib
-ln -s /home/username/scipoptsuite-5.0.0/scip/ scip
+ln -s /home/username/scipoptsuite-6.0.0/scip/ scip
 cd ..
 
-if /home/username/scipoptsuite-5.0.0/scip is the path to your SCIP directory.
+if /home/username/scipoptsuite-6.0.0/scip is the path to your SCIP directory.
 Afterwards you can use "make" to compile the plugin. For SCIP-SDP the option SDPS
 is mandatory, it defines the SDP-solver that should be used. You can choose between
 dsdp, sdpa, msk and none. In the latter case you can only use LP-relaxations with
@@ -195,3 +195,23 @@ make SDPS=msk libscipsdp
 before compiling the MISDP application within UG. For more information see the README file included
 in the MISDP application of UG. Please note, that the MISDP application within UG is still a very early
 beta version and far from bug free.
+
+Building SCIP-SDP via cmake
+---------------------------
+
+With version 3.1.1 it is also possible to build SCIP-SDP via cmake. Note that this is still
+in experimental state and not fully tested. In this case also SCIP must have been built with
+cmake. CMake uses an out-of-source build, i.e., compiled binaries and object files are separated
+from the source tree and located in another directory. Usually this directory is called build
+or debug or whatever you prefer. From within this directory, run cmake <path/to/SCIPSDP> to
+configure your build, followed by make to compile the code according to the current configuration.
+In this case you need to set the additional option -DSDPS={none,msk,dsdp,sdpa}. Additionally, it
+may be necessary to give paths to find the SDP-solver. In case of MOSEK, the correpsonding option
+is -DMOSEK_DIR=<path to Mosek>, for DSDP it is -DDSDP_DIR=<path to DSDP> and for SDPA the options
+are -DSDPA_DIR=<path to SDPA> -DMUMPS_DIR=<path to mumps> -DOPENBLAS_DIR=<path to openblas>. So
+for example to build SCIP-SDPA via cmake using Mosek you should type
+
+mkdir build
+cd build
+cmake .. -DSDPS=msk -DMOSEK_DIR=/home/username/mosek/8/tools/platform/linux64x86/
+make
