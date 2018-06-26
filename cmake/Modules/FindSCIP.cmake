@@ -122,11 +122,11 @@ endif()
 
 # Root
 
-find_path(SCIP_ROOT_DIR NAMES include/scip/scip.h src/scip/scip.h HINTS ${_SCIP_ROOT_HINTS} PATHS ${_SCIP_ROOT_HINTS})
+find_path(SCIP_ROOT_DIR NAMES include/scip/solve.h src/scip/solve.h HINTS ${_SCIP_ROOT_HINTS} PATHS ${_SCIP_ROOT_HINTS})
 
 # Includes
 
-find_path(_SCIP_INCLUDE NAMES scip/scip.h PATHS ${SCIP_ROOT_DIR} PATH_SUFFIXES include src)
+find_path(_SCIP_INCLUDE NAMES scip/solve.h PATHS ${SCIP_ROOT_DIR} PATH_SUFFIXES include src)
 if (_SCIP_INCLUDE)
   set(SCIP_INCLUDE_DIRS ${_SCIP_INCLUDE})
 
@@ -142,12 +142,12 @@ if (_SCIP_INCLUDE)
   set(_SCIP_FOUND_ALL TRUE)
 
   # Check for ZIMPL.
-  if (NOT ZIMPL_FOUND)
-    set(_SCIP_FOUND_ALL FALSE)
-    if (NOT SCIP_FIND_QUIETLY)
-      message(STATUS "SCIP dependency ZIMPL was not found.")
-    endif()
-  endif()
+  #if (NOT ZIMPL_FOUND)
+  #  set(_SCIP_FOUND_ALL FALSE)
+  #  if (NOT SCIP_FIND_QUIETLY)
+  #    message(STATUS "SCIP dependency ZIMPL was not found.")
+  #  endif()
+  #endif()
 
   # Search for libscip corresponding to version.
   find_library(_SCIP_LIB_SCIP NAMES "scip-${SCIP_VERSION_STRING}" PATHS ${SCIP_ROOT_DIR} PATH_SUFFIXES lib)
