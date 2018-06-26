@@ -111,12 +111,6 @@ endif()
 # go to src/ and compile the code
 add_subdirectory(src)
 
-add_executable(${EXECUTABLE_NAME} ${SOURCE_FILES})
-target_link_libraries(scipsdp ${SCIP_LIBRARIES})
-if( TARGET applications )
-    add_dependencies( applications ${EXECUTABLE_NAME} )
-endif()
-
 include(CTest)
 
 #

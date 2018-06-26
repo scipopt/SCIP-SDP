@@ -118,15 +118,15 @@ else()
     target_link_libraries(scipsdp libscipsdp)
 endif()
 
-target_compile_definitions(scip PRIVATE EXTERN=extern)
+target_compile_definitions(scipsdp PRIVATE EXTERN=extern)
 
-target_link_libraries(scip ${ZLIB_LIBRARIES} ${Readline_LIBRARY} ${GMP_LIBRARIES}
+target_link_libraries(scipsdp ${ZLIB_LIBRARIES} ${Readline_LIBRARY} ${GMP_LIBRARIES}
    ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES})
 
 add_dependencies(libscipsdp scipsdp_update_githash)
 add_dependencies(scipsdp scipsdp_update_githash)
 
-set_target_properties(libscip PROPERTIES
+set_target_properties(libscipsdp PROPERTIES
     VERSION ${SCIPSDP_VERSION_MAJOR}.${SCIPSDP_VERSION_MINOR}.${SCIPSDP_VERSION_PATCH}
     SOVERSION ${SCIPSDP_VERSION_MAJOR}.${SCIPSDP_VERSION_MINOR}
     INSTALL_RPATH_USE_LINK_PATH TRUE)
@@ -149,5 +149,5 @@ install(TARGETS scipsdp libscipsdp EXPORT scipsdp-targets
         INCLUDES DESTINATION include)
 
 # Add all targets to the build-tree export set
-export(TARGETS scip libscipsdp
+export(TARGETS scipsdp libscipsdp
   FILE "${CMAKE_BINARY_DIR}/scipsdp-targets.cmake")
