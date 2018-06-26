@@ -137,7 +137,7 @@ if (_SCIP_INCLUDE)
   string(REGEX REPLACE "^.*SCIP_VERSION[\t ]+[0-9][0-9]([0-9]).*$" "\\1" SCIP_VERSION_PATCH "${_SCIP_VERSION_STR}")
   file(STRINGS "${_SCIP_INCLUDE}/scip/def.h" _SCIP_SUBVERSION_STR REGEX "^#define[\t ]+SCIP_SUBVERSION[\t ]+[0-9].*")
   string(REGEX REPLACE "^.*SCIP_SUBVERSION[\t ]+([0-9]).*$" "\\1" SCIP_VERSION_SUBVERSION "${_SCIP_SUBVERSION_STR}")
-  set(SCIP_VERSION_STRING "${SCIP_VERSION_MAJOR}.${SCIP_VERSION_MINOR}.${SCIP_VERSION_PATCH}.${SCIP_VERSION_SUBVERSION}.${_SCIP_OSTYPE}.${_SCIP_ARCH}.${_SCIP_COMP}.${_SCIP_BUILD}")
+  set(SCIP_VERSION_STRING "${SCIP_VERSION_MAJOR}.${SCIP_VERSION_MINOR}.${SCIP_VERSION_PATCH}.${_SCIP_OSTYPE}.${_SCIP_ARCH}.${_SCIP_COMP}.${_SCIP_BUILD}")
 
   set(_SCIP_FOUND_ALL TRUE)
 
@@ -149,8 +149,15 @@ if (_SCIP_INCLUDE)
   #  endif()
   #endif()
 
+  if(SHARED)
+    set(SCIP_PATH_SUFFIX lib/shared)
+  else()
+    set(SCIP_PATH_SUFFIX lib/static)
+  endif()
+
   # Search for libscip corresponding to version.
-  find_library(_SCIP_LIB_SCIP NAMES "scip-${SCIP_VERSION_STRING}" PATHS ${SCIP_ROOT_DIR} PATH_SUFFIXES lib)
+  find_library(_SCIP_LIB_SCIP NAMES "scip-${SCIP_VERSION_STRING}" PATHS ${SCIP_ROOT_DIR} PATH_SUFFIXES ${SCIP_PATH_SUFFIX})
+
   if (NOT ${_SCIP_LIB_SCIP} MATCHES "scip")
     set(_SCIP_FOUND_ALL FALSE)
     if (NOT SCIP_FIND_QUIETLY)
@@ -163,36 +170,36 @@ if (_SCIP_INCLUDE)
       endif()
     endif()
   endif()
-  
+
   # Search for libobjscip
-  find_library(_SCIP_LIB_OBJSCIP NAMES "objscip-${SCIP_VERSION_STRING}" PATHS ${SCIP_ROOT_DIR} PATH_SUFFIXES lib)
+  find_library(_SCIP_LIB_OBJSCIP NAMES "objscip-${SCIP_VERSION_STRING}" PATHS ${SCIP_ROOT_DIR} PATH_SUFFIXES ${SCIP_PATH_SUFFIX})
   if (NOT ${_SCIP_LIB_OBJSCIP} MATCHES "objscip")
     set(_SCIP_FOUND_ALL FALSE)
     if (NOT SCIP_FIND_QUIETLY)
       message(STATUS "SCIP library libobjscip-${SCIP_VERSION_STRING} was not found.")
     endif()
   endif()
-  
+
   # Search for nlpi. TODO: cppad is currently hard-coded, while ipopt is not recognized.
-  find_library(_SCIP_LIB_NLPI NAMES "nlpi.cppad-${SCIP_VERSION_STRING}" PATHS ${SCIP_ROOT_DIR} PATH_SUFFIXES lib)
+  find_library(_SCIP_LIB_NLPI NAMES "nlpi.cppad-${SCIP_VERSION_STRING}" PATHS ${SCIP_ROOT_DIR} PATH_SUFFIXES ${SCIP_PATH_SUFFIX})
   if (NOT ${_SCIP_LIB_NLPI} MATCHES "nlpi")
     set(_SCIP_FOUND_ALL FALSE)
     if (NOT SCIP_FIND_QUIETLY)
       message(STATUS "SCIP library libnlpi.cppad-${SCIP_VERSION_STRING} was not found.")
     endif()
   endif()
-  
+
   # Search for the LP solver: spx
   if (${_SCIP_LPS} STREQUAL "spx")
     # Search for liblpispx
-    find_library(_SCIP_LIB_LPI NAMES "lpispx-${SCIP_VERSION_STRING}" PATHS ${SCIP_ROOT_DIR} PATH_SUFFIXES lib)
+    find_library(_SCIP_LIB_LPI NAMES "lpispx-${SCIP_VERSION_STRING}" PATHS ${SCIP_ROOT_DIR} PATH_SUFFIXES ${SCIP_PATH_SUFFIX})
     if (NOT ${_SCIP_LIB_LPI} MATCHES "spx")
       set(_SCIP_FOUND_ALL FALSE)
       if (NOT SCIP_FIND_QUIETLY)
         message(STATUS "SCIP library liblpispx-${SCIP_VERSION_STRING} was not found.")
       endif()
     endif()
-  
+
     # Search for SoPlex.
     if (NOT SOPLEX_FOUND)
       set(SOPLEX_BUILD ${SCIP_LPS_BUILD})
@@ -207,18 +214,18 @@ if (_SCIP_INCLUDE)
       endif()
     endif()
   endif()
-  
+
   # Search for the LP solver: spx2
   if (${_SCIP_LPS} STREQUAL "spx2")
     # Search for liblpispx2
-    find_library(_SCIP_LIB_LPI NAMES "lpispx2-${SCIP_VERSION_STRING}" PATHS ${SCIP_ROOT_DIR} PATH_SUFFIXES lib)
+    find_library(_SCIP_LIB_LPI NAMES "lpispx2-${SCIP_VERSION_STRING}" PATHS ${SCIP_ROOT_DIR} PATH_SUFFIXES ${SCIP_PATH_SUFFIX})
     if (NOT ${_SCIP_LIB_LPI} MATCHES "spx2")
       set(_SCIP_FOUND_ALL FALSE)
       if (NOT SCIP_FIND_QUIETLY)
         message(STATUS "SCIP library liblpispx2-${SCIP_VERSION_STRING} was not found.")
       endif()
     endif()
-  
+
     # Search for SoPlex.
     if (NOT SOPLEX_FOUND)
       set(SOPLEX_BUILD ${SCIP_LPS_BUILD})
@@ -233,18 +240,18 @@ if (_SCIP_INCLUDE)
       endif()
     endif()
   endif()
-  
+
   # Search for the LP solver: spx1
   if (${_SCIP_LPS} STREQUAL "spx1")
     # Search for liblpispx1
-    find_library(_SCIP_LIB_LPI NAMES "lpispx1-${SCIP_VERSION_STRING}" PATHS ${SCIP_ROOT_DIR} PATH_SUFFIXES lib)
+    find_library(_SCIP_LIB_LPI NAMES "lpispx1-${SCIP_VERSION_STRING}" PATHS ${SCIP_ROOT_DIR} PATH_SUFFIXES ${SCIP_PATH_SUFFIX})
     if (NOT ${_SCIP_LIB_LPI} MATCHES "liblpispx1")
       set(_SCIP_FOUND_ALL FALSE)
       if (NOT SCIP_FIND_QUIETLY)
         message(STATUS "SCIP library liblpispx1-${SCIP_VERSION_STRING} was not found.")
       endif()
     endif()
-  
+
     # Search for SoPlex.
     if (NOT SOPLEX_FOUND)
       set(SOPLEX_BUILD ${SCIP_LPS_BUILD})
@@ -259,7 +266,7 @@ if (_SCIP_INCLUDE)
       endif()
     endif()
   endif()
-  
+
   if (_SCIP_FOUND_ALL)
     set(SCIP_LIBRARIES
       ${_SCIP_LIB_OBJSCIP} ${_SCIP_LIB_SCIP} ${_SCIP_LIB_LPI} ${_SCIP_LIB_NLPI} ${_SCIP_LIB_LPSOLVER}
@@ -274,4 +281,3 @@ endif()
 # Let cmake process everything.
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(SCIP REQUIRED_VARS SCIP_ROOT_DIR SCIP_INCLUDE_DIRS SCIP_LIBRARIES VERSION_VAR SCIP_VERSION_STRING)
-

@@ -8,19 +8,25 @@ set(EXECUTABLE_NAME "scipsdp")
 set(SCIPSDP_VERSION_MAJOR 3)
 set(SCIPSDP_VERSION_MINOR 1)
 set(SCIPSDP_VERSION_PATCH 1)
+
 set(SRC src)
 set(DOC doc)
 set(CMAKE cmake)
-set(RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
+
+option(SHARED "Build shared libraries" off)
+set(BUILD_SHARED_LIBS ${SHARED})
+message(STATUS "Build shared libraries: " ${SHARED})
+
+set(RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic -Wno-unused-but-set-variable -Wno-unused-variable")
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 
-find_package(SCIP REQUIRED)
+find_package(SCIP REQUIRED VARIABLES SHARED)
 include_directories(${SCIP_INCLUDE_DIRS})
 
-set(SDPS none CACHE STRING "options for SDP solver")  #create the variable
-set_property(CACHE SDPS PROPERTY STRINGS msk sdpa dsdp none )  #define list of values GUI will offer for the variable
+set(SDPS none CACHE STRING "options for SDP solver")          # create the variable
+set_property(CACHE SDPS PROPERTY STRINGS msk sdpa dsdp none)  # define list of values GUI will offer for the variable
 
 #set the correct rpath for OS X
 set(CMAKE_MACOSX_RPATH ON)
@@ -50,7 +56,7 @@ file(WRITE ${CMAKE_BINARY_DIR}/scip_update_githash.cmake "
 find_program(GIT git)
 if(EXISTS \${DST})
    file(STRINGS \${DST} GITHASH_OLD)
-   string(REGEX REPLACE \"#define SCIP_GITHASH \\\"(.*)\\\"\" \"\\\\1\" GITHASH_OLD \${GITHASH_OLD})
+   string(REGEX REPLACE \"#define SCIPSDP_GITHASH \\\"(.*)\\\"\" \"\\\\1\" GITHASH_OLD \${GITHASH_OLD})
 endif()
 if((GIT) AND (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/.git))
    execute_process(
@@ -59,7 +65,7 @@ if((GIT) AND (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/.git))
       OUTPUT_VARIABLE GITHASH OUTPUT_STRIP_TRAILING_WHITESPACE)
    string(REGEX REPLACE \"^.*-g\" \"\" GITHASH \${GITHASH})
    if(NOT \${GITHASH} STREQUAL \"\${GITHASH_OLD}\")
-      file(WRITE \${DST} \"#define SCIP_GITHASH \\\"\${GITHASH}\\\"\n\")
+      file(WRITE \${DST} \"#define SCIPSDP_GITHASH \\\"\${GITHASH}\\\"\n\")
    endif()
 else()
    set(GITHASH \${GITHASH_OLD})
@@ -67,10 +73,10 @@ endif()
 message(STATUS \"Git hash: \" \${GITHASH})
 ")
 add_custom_target(scip_update_githash
-                  COMMAND ${CMAKE_COMMAND} -DDST=${PROJECT_SOURCE_DIR}/src/scip/githash.c
+                  COMMAND ${CMAKE_COMMAND} -DDST=${PROJECT_SOURCE_DIR}/scipsdpgithash.c
                                            -P ${CMAKE_BINARY_DIR}/scip_update_githash.cmake)
 
-#search the selected SDP solver library
+# search for the selected SDP solver library
 if(SDPS STREQUAL "msk")
     find_package(MOSEK REQUIRED)
 elseif(SDPS STREQUAL "sdpa")
@@ -119,14 +125,16 @@ include(CTest)
 add_test(NAME applications-${EXECUTABLE_NAME}-build
         COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target ${EXECUTABLE_NAME}
         )
+
 #
 # avoid that several build jobs try to concurrently build the SCIP library
 # note that this ressource lock name is not the actual libscip target
 #
 set_tests_properties(applications-${EXECUTABLE_NAME}-build
                     PROPERTIES
-                        RESOURCE_LOCK libscip
+                    RESOURCE_LOCK libscip
                     )
+
 #
 # instances in the data subdirectory
 #
@@ -138,17 +146,17 @@ set(instances
     example_CLS.dat-s.gz
     example_MkP.dat-s.gz
 )
+
 #
 # loop over instances and define a test
 #
 foreach(instance ${instances})
-    add_test(NAME ${EXECUTABLE_NAME}-${instance}
-            COMMAND $<TARGET_FILE:${EXECUTABLE_NAME}> ${CMAKE_CURRENT_SOURCE_DIR}/instances/${instance}
-            )
-    set_tests_properties(${EXECUTABLE_NAME}-${instance}
-                        PROPERTIES
-                            PASS_REGULAR_EXPRESSION "SCIP-SDP Status: Successfully finished"
-                            DEPENDS applications-${EXECUTABLE_NAME}-build
-                        )
+  add_test(NAME ${EXECUTABLE_NAME}-${instance}
+    COMMAND $<TARGET_FILE:${EXECUTABLE_NAME}> ${CMAKE_CURRENT_SOURCE_DIR}/instances/${instance}
+    )
+  set_tests_properties(${EXECUTABLE_NAME}-${instance}
+    PROPERTIES
+    PASS_REGULAR_EXPRESSION "SCIP-SDP Status: Successfully finished"
+    DEPENDS applications-${EXECUTABLE_NAME}-build
+    )
 endforeach()
-
