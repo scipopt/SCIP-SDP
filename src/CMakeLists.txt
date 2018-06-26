@@ -50,6 +50,7 @@ set(objscipsdpsources
 
 set(sdpisources
    ${sdpi}
+   ${lapack}
    )
 
 set(sdpiheaders
@@ -109,20 +110,22 @@ endif()
 add_library(libscipsdp ${scipsdpsources} ${objscipsdpsources} ${sdpisources})
 setLibProperties(libscipsdp "scipsdp")
 
+#put binary in bin directory
+set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 if(SHARED)
     target_link_libraries(libscipsdp PRIVATE ${ZIMPL_PIC_LIBRARIES} ${SDPS_PIC_LIBRARIES})
     add_executable(scipsdp scipsdp/main.cpp ${scipsdpsources} ${objscipsdpsources} ${sdpisources})
     target_link_libraries(scipsdp ${ZLIB_LIBRARIES} ${Readline_LIBRARY} ${GMP_LIBRARIES} ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES} ${SCIP_LIBRARIES})
 else()
     target_link_libraries(libscipsdp PRIVATE ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES})
-    add_executable(scipsdp scipsdp/main.cpp)
+    add_executable(scipsdp scipsdp/main.cpp ${scipsdpsources} ${objscipsdpsources} ${sdpisources})
     target_link_libraries(scipsdp libscipsdp ${SCIP_LIBRARIES})
 endif()
 
 target_compile_definitions(scipsdp PRIVATE EXTERN=extern)
 
-add_dependencies(libscipsdp scipsdp_update_githash)
-add_dependencies(scipsdp scipsdp_update_githash)
+#add_dependencies(libscipsdp scipsdp_update_githash)
+#add_dependencies(scipsdp scipsdp_update_githash)
 
 set_target_properties(libscipsdp PROPERTIES
     VERSION ${SCIPSDP_VERSION_MAJOR}.${SCIPSDP_VERSION_MINOR}.${SCIPSDP_VERSION_PATCH}

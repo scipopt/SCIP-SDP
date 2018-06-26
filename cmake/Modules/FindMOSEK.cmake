@@ -13,7 +13,7 @@ find_library(IOMP5_LIBRARY
     HINTS ${MOSEK_DIR} $ENV{MOSEK_DIR}
     PATH_SUFFIXES bin)
 
-set(MOSEK_LIBRARIES ${MOSEK_LIBRARY} ${IOMP5_LIBRARY})
+set(MOSEK_LIBRARIES ${MOSEK_LIBRARY} ${IOMP5_LIBRARY} -llapack -lblas -pthread)
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(MOSEK DEFAULT_MSG MOSEK_INCLUDE_DIRS MOSEK_LIBRARIES)
