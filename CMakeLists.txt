@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 
-set(PROJECT_NAME SCIP-SDP)
-project(${PROJECT_NAME})
+set(PROJECT_NAME SCIPSDP)
+project(SCIP-SDP)
 
 # set variables
 set(EXECUTABLE_NAME "scipsdp")
@@ -27,6 +27,9 @@ include_directories(${SCIP_INCLUDE_DIRS})
 
 set(SDPS none CACHE STRING "options for SDP solver")          # create the variable
 set_property(CACHE SDPS PROPERTY STRINGS msk sdpa dsdp none)  # define list of values GUI will offer for the variable
+
+set(SCIP_LPS spx2 CACHE STRING "options for LP solver")        #create the variable
+set_property(CACHE SCIP_LPS PROPERTY STRINGS spx spx2 cpx grb xprs clp glop msk qso none )  #define list of values GUI will offer for the variable
 
 #set the correct rpath for OS X
 set(CMAKE_MACOSX_RPATH ON)
