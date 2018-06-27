@@ -28,10 +28,13 @@ tar --no-recursion --ignore-failed-read -cvzhf $NAME.tgz \
     $NAME/src/scipsdpgithash.c \
     $NAME/check/testset/short.test \
     $NAME/check/testset/short.solu \
-    $NAME/settings/lp_approx.set
+    $NAME/settings/lp_approx.set \
+    $NAME/CMakeLists.txt \
+    $NAME/src/CMakeLists.txt \
+    $NAME/cmake/Modules/*
 
 echo ""
-echo "check version numbers in doc/scipsdp.dxy, doc/xternal.c, and Makefile:"
+echo "check version numbers in doc/scipsdp.dxy, doc/xternal.c, Makefile, and CMakeLists.txt:"
 echo -n "scipsdp.dxy: "
 grep "^PROJECT\_NUMBER" doc/scipsdp.dxy
 echo -n "xternal.c:   "
