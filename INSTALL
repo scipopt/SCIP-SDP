@@ -206,12 +206,13 @@ from the source tree and located in another directory. Usually this directory is
 or debug or whatever you prefer. From within this directory, run cmake <path/to/SCIPSDP> to
 configure your build, followed by make to compile the code according to the current configuration.
 In this case you need to set the additional option -DSDPS={none,msk,dsdp,sdpa}. Additionally, it
-may be necessary to give paths to find the SDP-solver. In case of MOSEK, the correpsonding option
+may be necessary to give paths to find the SCIP and the SDP-solver. For SCIP the necessary option
+is -DSCIP_DIR=<path to SCIP build directory). In case of MOSEK, the correpsonding option
 is -DMOSEK_DIR=<path to Mosek>, for DSDP it is -DDSDP_DIR=<path to DSDP> and for SDPA the options
 are -DSDPA_DIR=<path to SDPA> -DMUMPS_DIR=<path to mumps> -DOPENBLAS_DIR=<path to openblas>. So
 for example to build SCIP-SDPA via cmake using Mosek you should type
 
 mkdir build
 cd build
-cmake .. -DSDPS=msk -DMOSEK_DIR=/home/username/mosek/8/tools/platform/linux64x86/
+cmake .. -DSCIP/DIR=/home/username/scipoptsuite-6.0.0/scip/build/ -DSDPS=msk -DMOSEK_DIR=/home/username/mosek/8/tools/platform/linux64x86/
 make
