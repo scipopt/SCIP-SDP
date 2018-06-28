@@ -76,6 +76,7 @@ add_custom_target(scip_update_githash
                   COMMAND ${CMAKE_COMMAND} -DDST=${PROJECT_SOURCE_DIR}/scipsdpgithash.c
                                            -P ${CMAKE_BINARY_DIR}/scip_update_githash.cmake)
 
+
 # search for the selected SDP solver library
 if(SDPS STREQUAL "msk")
     find_package(MOSEK REQUIRED)
@@ -143,7 +144,7 @@ add_test(NAME applications-${EXECUTABLE_NAME}-build
 #
 set_tests_properties(applications-${EXECUTABLE_NAME}-build
                     PROPERTIES
-                    RESOURCE_LOCK libscip
+                    RESOURCE_LOCK libscipsdp
                     )
 
 #
@@ -163,11 +164,11 @@ set(instances
 #
 foreach(instance ${instances})
   add_test(NAME ${EXECUTABLE_NAME}-${instance}
-    COMMAND $<TARGET_FILE:${EXECUTABLE_NAME}> ${CMAKE_CURRENT_SOURCE_DIR}/instances/${instance}
+    COMMAND $<TARGET_FILE:${EXECUTABLE_NAME}> -f ${CMAKE_CURRENT_SOURCE_DIR}/instances/${instance}
     )
   set_tests_properties(${EXECUTABLE_NAME}-${instance}
     PROPERTIES
-    PASS_REGULAR_EXPRESSION "SCIP-SDP Status: Successfully finished"
+    PASS_REGULAR_EXPRESSION "SCIP Status        : problem is solved"
     DEPENDS applications-${EXECUTABLE_NAME}-build
     )
 endforeach()
