@@ -3690,6 +3690,9 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    relaxdata->unsolved = 0;
    relaxdata->feasible = FALSE;
 
+   relaxdata->ipXexists = FALSE;
+   relaxdata->ipZexists = FALSE;
+
    nvars = SCIPgetNVars(scip);
    vars = SCIPgetVars(scip);
 
@@ -4292,8 +4295,6 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    relaxdata->lpi = lpi;
    relaxdata->lastsdpnode = -1;
    relaxdata->nblocks = 0;
-   relaxdata->ipXexists = FALSE;
-   relaxdata->ipZexists = FALSE;
    relaxdata->varmapper = NULL;
 
    /* include relaxator */

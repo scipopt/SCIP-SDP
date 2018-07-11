@@ -1,3 +1,10 @@
+SCIP-SDP version NEXT
+==================
+
+fixed bugs:
+- fixed bug that could lead to segmentation faults after restarts when using the analytic center warmstarts
+
+
 SCIP-SDP version 3.1.1
 ==================
 
