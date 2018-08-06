@@ -179,6 +179,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
    /* the current bugfix branch (3.2.1) does not have SCIPsolveProbingRelax() -> do nothing */
 #if ( (SCIP_VERSION > 321 || SCIP_SUBVERSION > 0) )
    SCIP_HEURDATA* heurdata;
+   SCIP_RELAX* relaxsdp;
    SCIP_VAR** vars;
    SCIP_VAR* var;
    SCIP_VAR** sdpcands;
@@ -221,8 +222,10 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
 
    *result = SCIP_DELAYED;
 
+   relaxsdp = SCIPfindRelax(scip, "SDP");
+
    /* do not run if relaxation solution is not available */
-   if ( ! SCIPisRelaxSolValid(scip) )
+   if ( ! SCIPisRelaxSolValid(scip) || SCIPrelaxSdpSolvedProbing(relaxsdp) )
       return SCIP_OKAY;
 
    /* do not call heuristic if node was already detected to be infeasible */
@@ -521,15 +524,11 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
          SCIP_CALL( SCIPpropagateProbing(scip, 0, &cutoff, NULL) );
          if ( !cutoff )
          {
-            SCIP_RELAX* relaxsdp;
 
             /* resolve the diving SDP */
             SCIP_CALL( SCIPsolveProbingRelax(scip, &cutoff) );
 
             /* as cutoff doesn't work for relax sdp, we have to check ourselves, if we didn't manage to solve successfully, we abort diving */
-            relaxsdp = SCIPfindRelax(scip, "SDP");
-
-            /* if solving was unsuccessfull, abort */
             if (! SCIPrelaxSdpSolvedProbing(relaxsdp))
             {
                SCIPdebugMessage("SDP fracdiving heuristic aborted, as we could not solve one of the diving SDPs.\n");

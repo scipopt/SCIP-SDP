@@ -3,6 +3,9 @@ SCIP-SDP version NEXT
 
 fixed bugs:
 - fixed bug that could lead to segmentation faults after restarts when using the analytic center warmstarts
+- sdpfracdiving only runs if the last SDP solve was outside of probing (before it could run directly after, e.g., sdp-obbt, which
+  could lead to solutions with wrong objective values given to SCIP, since the objective values could still relate to those of the
+  previous probing run)
 
 
 SCIP-SDP version 3.1.1
