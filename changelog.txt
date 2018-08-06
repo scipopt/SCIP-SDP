@@ -6,6 +6,9 @@ fixed bugs:
 - sdpfracdiving only runs if the last SDP solve was outside of probing (before it could run directly after, e.g., sdp-obbt, which
   could lead to solutions with wrong objective values given to SCIP, since the objective values could still relate to those of the
   previous probing run)
+- added additional tolerance factor (currently 1000) to sdp-obbt and only accept bound changes with improvement at least
+  tolerance factor * gaptol (before smaller changes were also accepted, which, especially on integer variables, could lead
+  to incorrect cutoffs or bound changes if these small differences were only caused by inaccuracy of the SDP solver)
 
 
 SCIP-SDP version 3.1.1

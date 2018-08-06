@@ -60,6 +60,9 @@
 #define DEFAULT_PROPBIN       FALSE /**< should obbt be done for binary variables ? */
 #define DEFAULT_PROPCONT      TRUE /**< should obbt be done for continuous variables ? */
 
+/* TODO: maybe make this a parameter */
+#define TOLERANCE_FACTOR      1000 /**< only if the improvement is larger than TOLERANCE_FACTOR * gaptol it will be accepted */
+
 
 /*
  * Data structures
@@ -330,7 +333,7 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
          SCIP_CALL( SCIPrelaxSdpRelaxVal(relaxsdp, &success, &probingval) );
 
          /* only update if we improved the bound by at least gaptol, everything else might be inexactness of the solver */
-         if ( SCIPisGT(scip, probingval - propdata->sdpsolvergaptol, SCIPvarGetLbLocal(vars[v])) )
+         if ( SCIPisGT(scip, probingval - TOLERANCE_FACTOR * propdata->sdpsolvergaptol, SCIPvarGetLbLocal(vars[v])) )
          {
             /* update bound */
             SCIPdebugMessage("Obbt-Sdp tightened lower bound of variable %s from %f to %f !\n",
@@ -391,7 +394,7 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
          SCIP_CALL( SCIPrelaxSdpRelaxVal(relaxsdp, &success, &probingval) );
 
          /* only update if we improved the bound by at least gaptol, everything else might be inexactness of the solver */
-         if ( SCIPisLT(scip, -probingval + propdata->sdpsolvergaptol, SCIPvarGetUbLocal(vars[v])) )
+         if ( SCIPisLT(scip, -probingval + TOLERANCE_FACTOR * propdata->sdpsolvergaptol, SCIPvarGetUbLocal(vars[v])) )
          {
             SCIPdebugMessage("Obbt-Sdp tightened upper bound of variable %s from %f to %f !\n",
                   SCIPvarGetName(vars[v]), SCIPvarGetUbLocal(vars[v]), -probingval + propdata->sdpsolvergaptol);
@@ -433,6 +436,17 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
       }
       else
       {
+         /* Check if the (rounded) new upper bound is smaller than the updated lower bound, in that case return cutoff.
+          * Note that this can only happen for integer variables, since by construction the lower bound computed by obbt
+          * has to be smaller than the upper bound, but it can happen through rounding. */
+         if ( SCIPvarIsBinary(vars[newboundinds[i] - 1]) && SCIPisLT(scip, SCIPfeasFloor(scip, newbounds[i]),
+               SCIPvarGetLbLocal(vars[newboundinds[i] - 1]) ))
+         {
+            SCIPdebugMessage("Probing sdp founded conflicting bounds for integer variable %s -> cutoff!\n",
+                  SCIPvarGetName(vars[newboundinds[i] - 1]));
+            *result = SCIP_CUTOFF;
+            break;
+         }
          SCIP_CALL( SCIPchgVarUb(scip, vars[newboundinds[i] - 1], newbounds[i]) );
       }
    }
