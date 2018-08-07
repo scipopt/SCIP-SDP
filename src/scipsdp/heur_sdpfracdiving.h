@@ -36,9 +36,9 @@
  * @author Marc Pfetsch
  *
  * Diving heuristic: Iteratively fixes some fractional variable and resolves the SDP-relaxation, thereby simulating a
- * depth-first-search in the tree. Fractional Diving chooses the variable with the highest fractionality and rounds it to the
- * nearest integer. One-level backtracking is applied: If the SDP gets infeasible, the last fixing is undone, and the
- * opposite fixing is tried. If this is infeasible, too, the procedure aborts.
+ * depth-first-search in the tree. Fractional Diving chooses the variable with the smallest fractionality (but larger than 
+ * 0.01) and rounds it to the nearest integer. One-level backtracking is applied: If the SDP gets infeasible, the last
+ * fixing is undone, and the opposite fixing is tried. If this is infeasible, too, the procedure aborts.
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
