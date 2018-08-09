@@ -60,8 +60,8 @@
 #define DEFAULT_PROPBIN       FALSE /**< should obbt be done for binary variables ? */
 #define DEFAULT_PROPCONT      TRUE /**< should obbt be done for continuous variables ? */
 
-/* TODO: maybe make this a parameter */
-#define TOLERANCE_FACTOR      1000 /**< only if the improvement is larger than TOLERANCE_FACTOR * gaptol it will be accepted */
+/* TODO: maybe make this a parameter and/or have different values for integral and continuous variables */
+#define TOLERANCE_FACTOR      2000 /**< only if the improvement is larger than TOLERANCE_FACTOR * gaptol it will be accepted */
 
 
 /*
