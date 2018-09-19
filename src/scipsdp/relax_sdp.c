@@ -3483,6 +3483,10 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    vars = SCIPgetVars(scip);
    nvars = SCIPgetNVars(scip);
 
+   /* set the solved flags to false in case a timeout happens */
+   relaxdata->origsolved = FALSE;
+   relaxdata->probingsolved = FALSE;
+
    /* don't run again if we already solved the current node (except during probing), and we solved the correct problem */
    if ( (relaxdata->lastsdpnode == SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) && ( ! SCIPinProbing(scip) ) ) && relaxdata->origsolved && ! relaxdata->resolve )
    {
