@@ -3538,12 +3538,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       return SCIP_OKAY;
    }
 
-   /* if we are solving a probing SDP, remember that we didn't solve the original problem */
-   relaxdata->origsolved = FALSE;
-
-   /* set probingsolved to FALSE in case we run into the timelimit */
-   relaxdata->probingsolved = FALSE;
-
    /* construct the lp and make sure, that everything is where it should be */
    SCIP_CALL( SCIPconstructLP(scip, &cutoff) );
 

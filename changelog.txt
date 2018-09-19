@@ -19,7 +19,6 @@ fixed bugs:
 - fixed potential segmentation fault if relaxator or redcost propagator were freed before initsol
 - fixed potential segmentation fault caused by total number of nonzeros not being computed by SDP-constraint-parser for CIP format
 - do not run sdp-obbt if relaxation solution is not valid
-- do not return cutoff in sdp-obbt if SDP solving runs into time limit
 - changed relaxexit-callback to relaxexitsol for consistency and to avoid missing releaseVariables in UG
 
 interface:
