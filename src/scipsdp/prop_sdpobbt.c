@@ -378,6 +378,7 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
             SCIPdebugMessage("Aborting sdp-obbt, as we were unable to solve a probing sdp!\n");
             if ( *result != SCIP_REDUCEDDOM )
                *result = SCIP_DIDNOTRUN;
+            goto ENDPROBING;
             break;
          }
 
@@ -386,6 +387,7 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
          {
             SCIPdebugMessage("Probing sdp infeasible, so there can't be a better solution for this problem!\n");
             *result = SCIP_CUTOFF;
+            goto ENDPROBING;
             break;
          }
 
@@ -424,10 +426,6 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
       SCIP_CALL( SCIPchgVarObjProbing(scip, vars[v], 0.0) );
    }
 
-   SCIP_CALL( SCIPendProbing(scip) );
-   SCIPdebugMessage("end probing\n");
-   SCIP_CALL( SCIPsetBoolParam(scip, "relaxing/SDP/objlimit", oldobjlimitparam) );
-
    for (i = 0; i < nnewbounds; i++)
    {
       if ( newboundinds[i] < 0)
@@ -450,6 +448,11 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
          SCIP_CALL( SCIPchgVarUb(scip, vars[newboundinds[i] - 1], newbounds[i]) );
       }
    }
+
+   ENDPROBING:
+   SCIP_CALL( SCIPendProbing(scip) );
+   SCIPdebugMessage("end probing\n");
+   SCIP_CALL( SCIPsetBoolParam(scip, "relaxing/SDP/objlimit", oldobjlimitparam) );
 
    SCIPfreeBufferArray(scip, &newboundinds);
    SCIPfreeBufferArray(scip, &newbounds);
