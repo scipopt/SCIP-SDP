@@ -10,6 +10,7 @@ fixed bugs:
   tolerance factor * gaptol (before smaller changes were also accepted, which, especially on integer variables, could lead
   to incorrect cutoffs or bound changes if these small differences were only caused by inaccuracy of the SDP solver)
 - check for time limit during probing SDP within obbt-propagator to not return wrong cutoffs
+- check for unboundedness in sdp-obbt problems
 
 
 SCIP-SDP version 3.1.1

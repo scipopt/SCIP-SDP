@@ -133,6 +133,12 @@ SCIP_Bool SCIPrelaxSdpIsFeasible(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get feasibility for */
    );
 
+/** returns whether the last solved problem was unbounded */
+EXTERN
+SCIP_Bool SCIPrelaxSdpIsUnbounded(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to check for unboundedness */
+   );
+
 /** returns total number of SDP-iterations */
 EXTERN
 int SCIPrelaxSdpGetNIterations(

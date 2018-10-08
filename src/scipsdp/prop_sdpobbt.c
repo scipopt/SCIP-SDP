@@ -328,27 +328,37 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
             break;
          }
 
-         /* check if we managed to tighten the bound */
-         success = FALSE; /* this will be ignored, we check solvedProbing instead */
-         SCIP_CALL( SCIPrelaxSdpRelaxVal(relaxsdp, &success, &probingval) );
-
-         /* only update if we improved the bound by at least gaptol, everything else might be inexactness of the solver */
-         if ( SCIPisGT(scip, probingval - TOLERANCE_FACTOR * propdata->sdpsolvergaptol, SCIPvarGetLbLocal(vars[v])) )
+         /* only check objective value if problem was bounded */
+         if ( ! SCIPrelaxSdpIsUnbounded(relaxsdp) )
          {
-            /* update bound */
-            SCIPdebugMessage("Obbt-Sdp tightened lower bound of variable %s from %f to %f !\n",
-                  SCIPvarGetName(vars[v]), SCIPvarGetLbLocal(vars[v]), probingval - propdata->sdpsolvergaptol);
+            /* check if we managed to tighten the bound */
+            success = FALSE; /* this will be ignored, we check solvedProbing instead */
+            SCIP_CALL( SCIPrelaxSdpRelaxVal(relaxsdp, &success, &probingval) );
 
-            newbounds[nnewbounds] = probingval;
-            newboundinds[nnewbounds] = -1 * (v+1);
-            nnewbounds++;
-            *result = SCIP_REDUCEDDOM;
+            /* only update if we improved the bound by at least gaptol, everything else might be inexactness of the solver */
+            if ( SCIPisGT(scip, probingval - TOLERANCE_FACTOR * propdata->sdpsolvergaptol, SCIPvarGetLbLocal(vars[v])) )
+            {
+               /* update bound */
+               SCIPdebugMessage("Obbt-Sdp tightened lower bound of variable %s from %f to %f !\n",
+                     SCIPvarGetName(vars[v]), SCIPvarGetLbLocal(vars[v]), probingval - propdata->sdpsolvergaptol);
+
+               newbounds[nnewbounds] = probingval;
+               newboundinds[nnewbounds] = -1 * (v+1);
+               nnewbounds++;
+               *result = SCIP_REDUCEDDOM;
+            }
+   #ifdef SCIP_MORE_DEBUG
+            else
+            {
+               SCIPdebugMessage("Obbt-Sdp found lower bound of %f for variable %s, worse than old bound %f !\n",
+                     probingval, SCIPvarGetName(vars[v]), SCIPvarGetLbLocal(vars[v]));
+            }
+   #endif
          }
 #ifdef SCIP_MORE_DEBUG
          else
          {
-            SCIPdebugMessage("Obbt-Sdp found lower bound of %f for variable %s, worse than old bound %f !\n",
-                  probingval, SCIPvarGetName(vars[v]), SCIPvarGetLbLocal(vars[v]));
+            SCIPdebugMessage("Obbt-Sdp problem unbounded for variable %s!\n", SCIPvarGetName(vars[v]));
          }
 #endif
       }
@@ -391,26 +401,36 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
             break;
          }
 
-         /* check if we managed to tighten the bound */
-         success = FALSE; /* this will be ignored, we check solvedProbing instead */
-         SCIP_CALL( SCIPrelaxSdpRelaxVal(relaxsdp, &success, &probingval) );
-
-         /* only update if we improved the bound by at least gaptol, everything else might be inexactness of the solver */
-         if ( SCIPisLT(scip, -probingval + TOLERANCE_FACTOR * propdata->sdpsolvergaptol, SCIPvarGetUbLocal(vars[v])) )
+         /* only check objective value if problem was bounded */
+         if ( ! SCIPrelaxSdpIsUnbounded(relaxsdp) )
          {
-            SCIPdebugMessage("Obbt-Sdp tightened upper bound of variable %s from %f to %f !\n",
-                  SCIPvarGetName(vars[v]), SCIPvarGetUbLocal(vars[v]), -probingval + propdata->sdpsolvergaptol);
+            /* check if we managed to tighten the bound */
+            success = FALSE; /* this will be ignored, we check solvedProbing instead */
+            SCIP_CALL( SCIPrelaxSdpRelaxVal(relaxsdp, &success, &probingval) );
 
-            newbounds[nnewbounds] = -probingval;
-            newboundinds[nnewbounds] = v + 1;
-            nnewbounds++;
-            *result = SCIP_REDUCEDDOM;
+            /* only update if we improved the bound by at least gaptol, everything else might be inexactness of the solver */
+            if ( SCIPisLT(scip, -probingval + TOLERANCE_FACTOR * propdata->sdpsolvergaptol, SCIPvarGetUbLocal(vars[v])) )
+            {
+               SCIPdebugMessage("Obbt-Sdp tightened upper bound of variable %s from %f to %f !\n",
+                     SCIPvarGetName(vars[v]), SCIPvarGetUbLocal(vars[v]), -probingval + propdata->sdpsolvergaptol);
+
+               newbounds[nnewbounds] = -probingval;
+               newboundinds[nnewbounds] = v + 1;
+               nnewbounds++;
+               *result = SCIP_REDUCEDDOM;
+            }
+   #ifdef SCIP_MORE_DEBUG
+            else
+            {
+               SCIPdebugMessage("Obbt-Sdp found upper bound of %f for variable %s, worse than old bound %f !\n",
+                     -probingval, SCIPvarGetName(vars[v]), SCIPvarGetUbLocal(vars[v]));
+            }
+   #endif
          }
 #ifdef SCIP_MORE_DEBUG
          else
          {
-            SCIPdebugMessage("Obbt-Sdp found upper bound of %f for variable %s, worse than old bound %f !\n",
-                  -probingval, SCIPvarGetName(vars[v]), SCIPvarGetUbLocal(vars[v]));
+            SCIPdebugMessage("Obbt-Sdp problem unbounded for variable %s!\n", SCIPvarGetName(vars[v]));
          }
 #endif
       }

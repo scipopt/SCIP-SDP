@@ -5284,6 +5284,23 @@ SCIP_Bool SCIPrelaxSdpIsFeasible(
    return ( SCIPrelaxGetData(relax)->feasible );
 }
 
+/** returns whether the last solved problem was unbounded */
+SCIP_Bool SCIPrelaxSdpIsUnbounded(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to check for unboundedness */
+   )
+{
+   SCIP_RELAXDATA* relaxdata;
+
+   assert( relax != NULL );
+
+   relaxdata = SCIPrelaxGetData(relax);
+
+   assert( SCIPrelaxGetData(relax) != NULL );
+   assert( relaxdata->sdpi != NULL );
+
+   return SCIPsdpiIsDualUnbounded(relaxdata->sdpi);
+}
+
 /** returns total number of SDP-iterations */
 int SCIPrelaxSdpGetNIterations(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get the iterations for */

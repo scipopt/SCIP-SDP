@@ -416,7 +416,7 @@ SCIP_Bool SCIPsdpiSolverIsDualFeasible(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
 
-/** returns TRUE iff the solver converged */
+/** returns TRUE iff the solver converged */ /*TODO: define this more precisely and adjust SDP-solvers (currently Mosek returns true for infeasibility and SDPA false) */
 EXTERN
 SCIP_Bool SCIPsdpiSolverIsConverged(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
