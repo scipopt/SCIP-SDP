@@ -2647,6 +2647,8 @@ SCIP_RETCODE SCIPsdpiSolve(
             solvertimelimit -= (SCIP_Real)(currenttime - starttime) / (SCIP_Real) CLOCKS_PER_SEC;/*lint !e620*/
          }
 
+         SCIPdebugMessage("SDP %d returned inacceptable result, trying penalty formulation.\n", sdpi->sdpid);
+
          /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if
           * the optimal objective is bigger than feastol, then we know that the problem is infeasible */
          SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
@@ -2692,6 +2694,8 @@ SCIP_RETCODE SCIPsdpiSolve(
             penaltybound = TRUE;
 
             penaltyparam = sdpi->penaltyparam;
+
+            SCIPdebugMessage("SDP %d not found infeasible using penalty formulation, maximum of smallest eigenvalue is %f.\n", sdpi->sdpid, -1.0 * objval);
 
             /* we compute the factor to increase with as n-th root of the total increase until the maximum, where n is the number of iterations
              * (for npenaltyincr = 0 we make sure that the parameter is too large after the first change)

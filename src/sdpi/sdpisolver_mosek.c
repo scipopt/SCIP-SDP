@@ -87,7 +87,7 @@
 #define PENALTYBOUNDTOL             1E-3     /**< if the relative gap between Tr(X) and penaltyparam for a primal solution of the penaltyformulation
                                               *   is bigger than this value, it will be reported to the sdpi */
 #define INFEASFEASTOLCHANGE         0.1      /**< change feastol by this factor if the solution was found to be infeasible with regards to feastol */
-#define INFEASMINFEASTOL            1E-9     /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance */
+#define INFEASMINFEASTOL            1E-9     /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance TODO: think about doing this for absolute feastol*/
 #define CONVERT_ABSOLUTE_TOLERANCES TRUE     /**< should absolute tolerances be converted to relative tolerances for MOSEK */
 
 /** data used for SDP interface */
@@ -662,6 +662,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_Real startseconds;
    SCIP_Real currentseconds;
    SCIP_Real elapsedtime;
+   MSKsolstae solstat;
 #ifdef SCIP_MORE_DEBUG
    int nmosekconss;
    int nmosekvars;
@@ -742,7 +743,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       MOSEK_CALLM( MSK_maketask(sdpisolver->mskenv, nvars + 1, nsdpblocks - nremovedblocks + nlpcons + 2 * nvars, &(sdpisolver->msktask)) );/*lint !e641*/
    }
 
-#ifdef SCIP_MORE_DEBUG
+#ifndef NDEBUG
    MOSEK_CALL( MSK_linkfunctotaskstream (sdpisolver->msktask, MSK_STREAM_LOG, NULL, printstr) ); /* output to console */
 #else
    /* if sdpinfo is true, redirect output to console */
@@ -1410,8 +1411,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
 
-   /* if using a penalty formulation, check if the solution is feasible for the original problem */
-   if ( penaltyparam >= sdpisolver->epsilon && ( ! sdpisolver->timelimit ) && ( sdpisolver->terminationcode != MSK_RES_TRM_MAX_TIME ) )
+   /* if using a penalty formulation, check if the solution is feasible for the original problem
+    * we should always count it as infeasible if the penalty problem was unbounded */
+   MOSEK_CALL_BOOL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
+   if ( penaltyparam >= sdpisolver->epsilon && ( (solstat == MSK_SOL_STA_PRIM_INFEAS_CER) || (solstat == MSK_SOL_STA_NEAR_PRIM_INFEAS_CER) ))
+   {
+      *feasorig = FALSE;
+      SCIPdebugMessage("Penalty Problem unbounded!\n");
+   }
+   else if ( penaltyparam >= sdpisolver->epsilon && ( ! sdpisolver->timelimit ) && ( sdpisolver->terminationcode != MSK_RES_TRM_MAX_TIME ) )
    {
       SCIP_Real* moseksol;
       SCIP_Real trace = 0.0;
@@ -1994,6 +2002,13 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED( sdpisolver );
    assert( objval != NULL );
+
+   /* check for unboundedness */
+   if ( SCIPsdpiSolverIsDualUnbounded(sdpisolver) )
+   {
+      *objval = -SCIPsdpiSolverInfinity(sdpisolver);
+      return SCIP_OKAY;
+   }
 
    if ( sdpisolver->penalty && ( ! sdpisolver->feasorig ) )
    {
