@@ -743,7 +743,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       MOSEK_CALLM( MSK_maketask(sdpisolver->mskenv, nvars + 1, nsdpblocks - nremovedblocks + nlpcons + 2 * nvars, &(sdpisolver->msktask)) );/*lint !e641*/
    }
 
-#ifndef NDEBUG
+#if SCIP_MORE_DEBUG
    MOSEK_CALL( MSK_linkfunctotaskstream (sdpisolver->msktask, MSK_STREAM_LOG, NULL, printstr) ); /* output to console */
 #else
    /* if sdpinfo is true, redirect output to console */
