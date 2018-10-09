@@ -852,6 +852,7 @@ SCIP_RETCODE calcRelax(
       timelimit -= SCIPgetSolvingTime(scip);
       if ( timelimit <= 0.0 )
       {
+         SCIPdebugMessage("Time limit reached, not running relax SDP!\n");
          *result = SCIP_DIDNOTRUN;
          return SCIP_OKAY;
       }
@@ -3129,9 +3130,9 @@ SCIP_RETCODE calcRelax(
       relaxdata->feasible = FALSE;
 
    if ( SCIPinProbing(scip) )
-      relaxdata->probingsolved = SCIPsdpiWasSolved(sdpi);
+      relaxdata->probingsolved = SCIPsdpiWasSolved(sdpi) && ( ! SCIPsdpiIsTimelimExc(sdpi) );
    else
-      relaxdata->origsolved = SCIPsdpiSolvedOrig(sdpi);
+      relaxdata->origsolved = SCIPsdpiSolvedOrig(sdpi) && ( ! SCIPsdpiIsTimelimExc(sdpi) );
 
    if ( SCIPsdpiIsAcceptable(sdpi) )
    {
