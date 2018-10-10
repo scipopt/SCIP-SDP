@@ -13,6 +13,10 @@ fixed bugs:
 - check for unboundedness in sdp-obbt problems
 - explicitly handle unboundedness of the penalty problem
 
+performance improvements:
+- delay sdp-obbt if cutoffbound resulted from objective propagation only or the trivial heuristic, instead rerun after cutoffbound changed
+  for the current node
+
 
 SCIP-SDP version 3.1.1
 ==================
