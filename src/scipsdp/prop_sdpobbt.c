@@ -73,7 +73,9 @@ struct SCIP_PropData
 {
    SCIP_Bool             propbin;            /**< should obbt be done for binary variables ? */
    SCIP_Bool             propcont;           /**< should obbt be done for continuous variables ? */
+   SCIP_Bool             delayed;            /**< did we delay the last call? */
    long long int         lastnode;           /**< the last node we ran for */
+   SCIP_Real             lastcufoffbound;    /**< the last cutoffbound we ran for */
    SCIP_Real             sdpsolvergaptol;    /**< gap tolerance of the underlying SDP solver */
 };
 
@@ -98,7 +100,7 @@ SCIP_RETCODE addObjCutoff(
    assert( scip != NULL );
    assert( SCIPinProbing(scip) );
 
-   SCIPdebugMessage("create objective cutoff and add it to the LP-constraints\n");
+   SCIPdebugMsg(scip, "create objective cutoff and add it to the LP-constraints\n");
 
    nvars = SCIPgetNVars(scip);
    vars = SCIPgetVars(scip);
@@ -215,48 +217,71 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
    assert( prop != NULL );
    assert( result != NULL );
 
-   *result = SCIP_DIDNOTRUN;
-
-   SCIPdebugMessage("Executing propExecSdpObbt! \n");
-
-   /* if there is no cutoff-bound, we don't want to run */
-   if ( SCIPisInfinity(scip, SCIPgetCutoffbound(scip)) )
-   {
-      SCIPdebugMessage("Aborting propExecSdpObbt because of lack of cutoff-bound!\n");
-      return SCIP_OKAY;
-   }
-
-   /* do not run if propagation w.r.t. objective is not allowed */
-   if( !SCIPallowObjProp(scip) )
-      return SCIP_OKAY;
-
-   /* do not run in: presolving, repropagation, probing mode, if no objective propagation is allowed, if no relaxation solution is available  */
-   if( SCIPgetStage(scip) != SCIP_STAGE_SOLVING || SCIPinRepropagation(scip) || SCIPinProbing(scip) || !SCIPallowObjProp(scip) || !SCIPisRelaxSolValid(scip) )
-   {
-      SCIPdebugMessage("Aborting propExecSdpObbt because we are in presolving, repropagation, probing mode or no objective "
-            "propagation is allowed or no valid relaxation solution available!\n");
-      return SCIP_OKAY;
-   }
-
-   vars = SCIPgetVars(scip);
-   nvars = SCIPgetNVars(scip);
    propdata = SCIPpropGetData(prop);
 
    assert( propdata != NULL );
 
-   if ( SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) == propdata->lastnode )
+   *result = SCIP_DIDNOTRUN;
+
+   SCIPdebugMsg(scip, "Executing propExecSdpObbt! \n");
+
+   /* do not run in: presolving, repropagation, probing mode, subscips, if no objective propagation is allowed */
+   if ( SCIPgetStage(scip) != SCIP_STAGE_SOLVING || SCIPinRepropagation(scip) || SCIPinProbing(scip) || !SCIPallowObjProp(scip) || (SCIPgetSubscipDepth(scip) > 0) )
    {
-      SCIPdebugMessage("Not running again for node %lld!\n", propdata->lastnode);
+      SCIPdebugMsg(scip, "Aborting propExecSdpObbt because we are in presolving, repropagation, probing mode, a subscip or no objective "
+            "propagation is allowed!\n");
+      return SCIP_OKAY;
+   }
+
+   /* delay if cutoffbound is infinite or no relaxation solution exists */
+   if ( SCIPisInfinity(scip, SCIPgetCutoffbound(scip)) || (! SCIPisRelaxSolValid(scip)) )
+   {
+      /* if we already delayed in the last call, abort to prevent an infinite loop */
+      if ( propdata->delayed )
+      {
+         SCIPdebugMsg(scip, "Aborting propExecSdpObbt since still cutoffbound is infinite or no relaxation solution exists\n");
+         return SCIP_OKAY;
+      }
+      *result = SCIP_DELAYED;
+      propdata->delayed = TRUE;
+      SCIPdebugMsg(scip, "Delaying propExecSdpObbt since cutoffbound is infinite or no relaxation solution exists\n");
+      return SCIP_OKAY;
+   }
+
+   /* delay if best solution was found by trivial heuristic (since in this case the cutoffbound will generally not be good enough */
+   if ( (SCIPsolGetHeur(SCIPgetBestSol(scip)) != NULL) && (strcmp(SCIPheurGetName(SCIPsolGetHeur(SCIPgetBestSol(scip))), "trivial") == 0) )
+   {
+      /* if we already delayed in the last call, abort to prevent an infinite loop */
+      if ( propdata->delayed )
+      {
+         SCIPdebugMsg(scip, "Aborting propExecSdpObbt since still best solution was found by trivial heuristic, which will not be good enough\n");
+         return SCIP_OKAY;
+      }
+      *result = SCIP_DELAYED;
+      propdata->delayed = TRUE;
+      SCIPdebugMsg(scip, "Delaying propExecSdpObbt since best solution was found by trivial heuristic, which will not be good enough\n");
+      return SCIP_OKAY;
+   }
+
+   if ( (SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) == propdata->lastnode) && (SCIPisEQ(scip, SCIPgetCutoffbound(scip), propdata->lastcufoffbound)) )
+   {
+      SCIPdebugMsg(scip, "Not running again for node %lld with cutoffbound &f!\n", propdata->lastnode, propdata->lastcufoffbound);
       return SCIP_OKAY;
    }
    else
    {
       propdata->lastnode = SCIPnodeGetNumber(SCIPgetCurrentNode(scip));
+      propdata->lastcufoffbound = SCIPgetCutoffbound(scip);
    }
+
+   propdata->delayed = FALSE;
+
+   vars = SCIPgetVars(scip);
+   nvars = SCIPgetNVars(scip);
 
    /* start probing */
    SCIP_CALL( SCIPstartProbing(scip) );
-   SCIPdebugMessage("start probing\n");
+   SCIPdebugMsg(scip, "start probing\n");
 
    SCIP_CALL( addObjCutoff(scip) );
 
@@ -286,11 +311,11 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
 #ifdef SCIP_MORE_DEBUG
          if ( SCIPvarIsBinary(vars[v]) )
          {
-            SCIPdebugMessage("Skipping binary variable %s\n", SCIPvarGetName(vars[v]));
+            SCIPdebugMsg(scip, "Skipping binary variable %s\n", SCIPvarGetName(vars[v]));
          }
          else
          {
-            SCIPdebugMessage("Skipping continuous variable %s\n", SCIPvarGetName(vars[v]));
+            SCIPdebugMsg(scip, "Skipping continuous variable %s\n", SCIPvarGetName(vars[v]));
          }
 #endif
          continue;
@@ -314,7 +339,7 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
 
          if (! SCIPrelaxSdpSolvedProbing(relaxsdp))
          {
-            SCIPdebugMessage("Aborting sdp-obbt, as we were unable to solve a probing sdp!\n");
+            SCIPdebugMsg(scip, "Aborting sdp-obbt, as we were unable to solve a probing sdp!\n");
             if ( *result != SCIP_REDUCEDDOM )
                *result = SCIP_DIDNOTRUN;
             break;
@@ -323,7 +348,7 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
          /* if the problem is infeasible, return with cutoff */
          if ( ! SCIPrelaxSdpIsFeasible(relaxsdp) )
          {
-            SCIPdebugMessage("Probing sdp infeasible, so there can't be a better solution for this problem!\n");
+            SCIPdebugMsg(scip, "Probing sdp infeasible, so there can't be a better solution for this problem!\n");
             *result = SCIP_CUTOFF;
             break;
          }
@@ -339,7 +364,7 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
             if ( SCIPisGT(scip, probingval - TOLERANCE_FACTOR * propdata->sdpsolvergaptol, SCIPvarGetLbLocal(vars[v])) )
             {
                /* update bound */
-               SCIPdebugMessage("Obbt-Sdp tightened lower bound of variable %s from %f to %f !\n",
+               SCIPdebugMsg(scip, "Obbt-Sdp tightened lower bound of variable %s from %f to %f !\n",
                      SCIPvarGetName(vars[v]), SCIPvarGetLbLocal(vars[v]), probingval - propdata->sdpsolvergaptol);
 
                newbounds[nnewbounds] = probingval;
@@ -350,7 +375,7 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
    #ifdef SCIP_MORE_DEBUG
             else
             {
-               SCIPdebugMessage("Obbt-Sdp found lower bound of %f for variable %s, worse than old bound %f !\n",
+               SCIPdebugMsg(scip, "Obbt-Sdp found lower bound of %f for variable %s, worse than old bound %f !\n",
                      probingval, SCIPvarGetName(vars[v]), SCIPvarGetLbLocal(vars[v]));
             }
    #endif
@@ -358,14 +383,14 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
 #ifdef SCIP_MORE_DEBUG
          else
          {
-            SCIPdebugMessage("Obbt-Sdp problem unbounded for variable %s!\n", SCIPvarGetName(vars[v]));
+            SCIPdebugMsg(scip, "Obbt-Sdp problem unbounded for variable %s!\n", SCIPvarGetName(vars[v]));
          }
 #endif
       }
 #ifdef SCIP_MORE_DEBUG
       else
       {
-         SCIPdebugMessage("Skipping obbt for lower bound %f of variable %s, as current relaxation's solution is tight.\n",
+         SCIPdebugMsg(scip, "Skipping obbt for lower bound %f of variable %s, as current relaxation's solution is tight.\n",
                SCIPvarGetLbLocal(vars[v]), SCIPvarGetName(vars[v]));
       }
 #endif
@@ -385,9 +410,10 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
 
          if (! SCIPrelaxSdpSolvedProbing(relaxsdp))
          {
-            SCIPdebugMessage("Aborting sdp-obbt, as we were unable to solve a probing sdp!\n");
+            SCIPdebugMsg(scip, "Aborting sdp-obbt, as we were unable to solve a probing sdp!\n");
             if ( *result != SCIP_REDUCEDDOM )
                *result = SCIP_DIDNOTRUN;
+            nnewbounds = 0;
             goto ENDPROBING;
             break;
          }
@@ -395,8 +421,9 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
          /* if the problem is infeasible, return with cutoff */
          if ( ! SCIPrelaxSdpIsFeasible(relaxsdp) )
          {
-            SCIPdebugMessage("Probing sdp infeasible, so there can't be a better solution for this problem!\n");
+            SCIPdebugMsg(scip, "Probing sdp infeasible, so there can't be a better solution for this problem!\n");
             *result = SCIP_CUTOFF;
+            nnewbounds = 0;
             goto ENDPROBING;
             break;
          }
@@ -411,18 +438,17 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
             /* only update if we improved the bound by at least gaptol, everything else might be inexactness of the solver */
             if ( SCIPisLT(scip, -probingval + TOLERANCE_FACTOR * propdata->sdpsolvergaptol, SCIPvarGetUbLocal(vars[v])) )
             {
-               SCIPdebugMessage("Obbt-Sdp tightened upper bound of variable %s from %f to %f !\n",
+               SCIPdebugMsg(scip, "Obbt-Sdp tightened upper bound of variable %s from %f to %f !\n",
                      SCIPvarGetName(vars[v]), SCIPvarGetUbLocal(vars[v]), -probingval + propdata->sdpsolvergaptol);
 
                newbounds[nnewbounds] = -probingval;
                newboundinds[nnewbounds] = v + 1;
                nnewbounds++;
-               *result = SCIP_REDUCEDDOM;
             }
    #ifdef SCIP_MORE_DEBUG
             else
             {
-               SCIPdebugMessage("Obbt-Sdp found upper bound of %f for variable %s, worse than old bound %f !\n",
+               SCIPdebugMsg(scip, "Obbt-Sdp found upper bound of %f for variable %s, worse than old bound %f !\n",
                      -probingval, SCIPvarGetName(vars[v]), SCIPvarGetUbLocal(vars[v]));
             }
    #endif
@@ -430,14 +456,14 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
 #ifdef SCIP_MORE_DEBUG
          else
          {
-            SCIPdebugMessage("Obbt-Sdp problem unbounded for variable %s!\n", SCIPvarGetName(vars[v]));
+            SCIPdebugMsg(scip, "Obbt-Sdp problem unbounded for variable %s!\n", SCIPvarGetName(vars[v]));
          }
 #endif
       }
 #ifdef SCIP_MORE_DEBUG
       else
       {
-         SCIPdebugMessage("Skipping obbt for upper bound %f of variable %s, as current relaxation's solution is tight.\n",
+         SCIPdebugMsg(scip, "Skipping obbt for upper bound %f of variable %s, as current relaxation's solution is tight.\n",
                SCIPvarGetUbLocal(vars[v]), SCIPvarGetName(vars[v]));
       }
 #endif
@@ -446,11 +472,17 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
       SCIP_CALL( SCIPchgVarObjProbing(scip, vars[v], 0.0) );
    }
 
+   ENDPROBING:
+   SCIP_CALL( SCIPendProbing(scip) );
+   SCIPdebugMsg(scip, "end probing\n");
+   SCIP_CALL( SCIPsetBoolParam(scip, "relaxing/SDP/objlimit", oldobjlimitparam) );
+
    for (i = 0; i < nnewbounds; i++)
    {
       if ( newboundinds[i] < 0)
       {
          SCIP_CALL( SCIPchgVarLb(scip, vars[-1 * newboundinds[i] - 1], newbounds[i]) ); /*lint !e679*/
+         *result = SCIP_REDUCEDDOM;
       }
       else
       {
@@ -460,19 +492,15 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
          if ( SCIPvarIsBinary(vars[newboundinds[i] - 1]) && SCIPisLT(scip, SCIPfeasFloor(scip, newbounds[i]),
                SCIPvarGetLbLocal(vars[newboundinds[i] - 1]) ))
          {
-            SCIPdebugMessage("Probing sdp founded conflicting bounds for integer variable %s -> cutoff!\n",
+            SCIPdebugMsg(scip, "Probing sdp founded conflicting bounds for integer variable %s -> cutoff!\n",
                   SCIPvarGetName(vars[newboundinds[i] - 1]));
             *result = SCIP_CUTOFF;
             break;
          }
          SCIP_CALL( SCIPchgVarUb(scip, vars[newboundinds[i] - 1], newbounds[i]) );
+         *result = SCIP_REDUCEDDOM;
       }
    }
-
-   ENDPROBING:
-   SCIP_CALL( SCIPendProbing(scip) );
-   SCIPdebugMessage("end probing\n");
-   SCIP_CALL( SCIPsetBoolParam(scip, "relaxing/SDP/objlimit", oldobjlimitparam) );
 
    SCIPfreeBufferArray(scip, &newboundinds);
    SCIPfreeBufferArray(scip, &newbounds);
