@@ -63,6 +63,8 @@
 /* TODO: maybe make this a parameter and/or have different values for integral and continuous variables */
 #define TOLERANCE_FACTOR      2000 /**< only if the improvement is larger than TOLERANCE_FACTOR * gaptol it will be accepted */
 
+/* TODO: fix memory error */
+
 
 /*
  * Data structures
@@ -248,18 +250,18 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
       return SCIP_OKAY;
    }
 
-   /* delay if best solution was found by trivial heuristic (since in this case the cutoffbound will generally not be good enough */
-   if ( (SCIPsolGetHeur(SCIPgetBestSol(scip)) != NULL) && (strcmp(SCIPheurGetName(SCIPsolGetHeur(SCIPgetBestSol(scip))), "trivial") == 0) )
+   /* delay if best solution was found by trivial heuristic (since in this case the cutoffbound will generally not be good enough) or objective propagation onky */
+   if ( (SCIPgetBestSol(scip) == NULL) || ((SCIPsolGetHeur(SCIPgetBestSol(scip)) != NULL) && (strcmp(SCIPheurGetName(SCIPsolGetHeur(SCIPgetBestSol(scip))), "trivial") == 0)) )
    {
       /* if we already delayed in the last call, abort to prevent an infinite loop */
       if ( propdata->delayed )
       {
-         SCIPdebugMsg(scip, "Aborting propExecSdpObbt since still best solution was found by trivial heuristic, which will not be good enough\n");
+         SCIPdebugMsg(scip, "Aborting propExecSdpObbt since still best solution was found by trivial heuristic or simple objective propagation, which will not be good enough\n");
          return SCIP_OKAY;
       }
       *result = SCIP_DELAYED;
       propdata->delayed = TRUE;
-      SCIPdebugMsg(scip, "Delaying propExecSdpObbt since best solution was found by trivial heuristic, which will not be good enough\n");
+      SCIPdebugMsg(scip, "Delaying propExecSdpObbt since best solution was found by trivial heuristic or simple objective propagation, which will not be good enough\n");
       return SCIP_OKAY;
    }
 
@@ -413,7 +415,6 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
             SCIPdebugMsg(scip, "Aborting sdp-obbt, as we were unable to solve a probing sdp!\n");
             if ( *result != SCIP_REDUCEDDOM )
                *result = SCIP_DIDNOTRUN;
-            nnewbounds = 0;
             goto ENDPROBING;
             break;
          }
