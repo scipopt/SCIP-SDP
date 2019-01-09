@@ -5,6 +5,7 @@ The files you can download here come without any warranty. Use at your own risk!
 <ul>
 <li><a href="http://www.opt.tu-darmstadt.de/scipsdp/downloads/scipsdp-3.1.1.tgz">scipsdp-3.1.1.tgz</a></li>
 </ul>
+<p style="margin-bottom:1cm;">If you want to compile via cmake, please also download this <a href="http://www.opt.tu-darmstadt.de/scipsdp/downloads/CMakeLists.txt">patch</a> and replace the corresponding file in the <b>src subdirectory</b>.</p>
 <p>Old versions from the following list can also be downloaded: </p>
 <ul>
 <li><a href="http://www.opt.tu-darmstadt.de/scipsdp/downloads/scipsdp-3.1.0.tgz">scipsdp-3.1.0.tgz</a></li>
