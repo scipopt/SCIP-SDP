@@ -89,6 +89,9 @@
 #define INFEASFEASTOLCHANGE         0.1      /**< change feastol by this factor if the solution was found to be infeasible with regards to feastol */
 #define INFEASMINFEASTOL            1E-9     /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance TODO: think about doing this for absolute feastol*/
 #define CONVERT_ABSOLUTE_TOLERANCES TRUE     /**< should absolute tolerances be converted to relative tolerances for MOSEK */
+#if MSK_VERSION_MAJOR >= 9
+#define NEAR_REL_TOLERANCE           1.0     /* MOSEK will multiply all tolerances with this factor after stalling */
+#endif
 
 /** data used for SDP interface */
 struct SCIP_SDPiSolver
@@ -222,7 +225,11 @@ struct SCIP_SDPiSolver
 static
 void MSKAPI printstr(
    void*                 handle,             /**< A user-defined handle which is passed to the user-defined function */
+#if MSK_VERSION_MAJOR >= 9
+   const char            str[]               /**< String to print */
+#else
    MSKCONST              char str[]          /**< String to print */
+#endif
    )
 {/*lint --e{715,818}*/
   printf("%s",str);
@@ -262,23 +269,37 @@ const char* SCIPsdpiSolverGetSolverName(
 {
    int major = 0;/*lint !e123*/
    int minor = 0;/*lint !e123*/
+#if MSK_VERSION_MAJOR < 9
    int build = 0;
+#endif
    int revision = 0;
    MSKrescodee rescodee;
 #ifndef NDEBUG
    int snprintfreturn; /* used to check the return code of snprintf */
 #endif
 
+#if MSK_VERSION_MAJOR < 9
    rescodee = MSK_getversion(&major, &minor, &build, &revision);/*lint !e123*/
+#else
+   rescodee = MSK_getversion(&major, &minor, &revision);/*lint !e123*/
+#endif
 
    if ( rescodee != MSK_RES_OK )
       return "MOSEK";
 
 #ifndef NDEBUG
+ #if MSK_VERSION_MAJOR < 9
    snprintfreturn = SCIPsnprintf(name, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d.%d", major, minor, build, revision);/*lint !e123*/
+ #else
+   snprintfreturn = SCIPsnprintf(name, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d", major, minor, revision);/*lint !e123*/
+ #endif
    assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
 #else
+ #if MSK_VERSION_MAJOR < 9
    (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d.%d", major, minor, build, revision);
+ #else
+   (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d", major, minor, revision);
+ #endif
 #endif
 
    return name;
@@ -742,6 +763,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    {
       MOSEK_CALLM( MSK_maketask(sdpisolver->mskenv, nvars + 1, nsdpblocks - nremovedblocks + nlpcons + 2 * nvars, &(sdpisolver->msktask)) );/*lint !e641*/
    }
+
+#if MSK_VERSION_MAJOR >= 9
+   MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_NEAR_REL, NEAR_REL_TOLERANCE) );
+#endif
 
 #if SCIP_MORE_DEBUG
    MOSEK_CALL( MSK_linkfunctotaskstream (sdpisolver->msktask, MSK_STREAM_LOG, NULL, printstr) ); /* output to console */
@@ -1414,7 +1439,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* if using a penalty formulation, check if the solution is feasible for the original problem
     * we should always count it as infeasible if the penalty problem was unbounded */
    MOSEK_CALL_BOOL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-   if ( penaltyparam >= sdpisolver->epsilon && ( (solstat == MSK_SOL_STA_PRIM_INFEAS_CER) || (solstat == MSK_SOL_STA_NEAR_PRIM_INFEAS_CER) ))
+   if ( penaltyparam >= sdpisolver->epsilon && (solstat == MSK_SOL_STA_PRIM_INFEAS_CER) )
    {
       *feasorig = FALSE;
       SCIPdebugMessage("Penalty Problem unbounded!\n");
@@ -1551,17 +1576,11 @@ SCIP_Bool SCIPsdpiSolverFeasibilityKnown(
    case MSK_SOL_STA_UNKNOWN:
    case MSK_SOL_STA_PRIM_FEAS:
    case MSK_SOL_STA_DUAL_FEAS:
-   case MSK_SOL_STA_NEAR_PRIM_FEAS:
-   case MSK_SOL_STA_NEAR_DUAL_FEAS:
       return FALSE;
    case MSK_SOL_STA_OPTIMAL:
-   case MSK_SOL_STA_NEAR_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
-   case MSK_SOL_STA_NEAR_PRIM_AND_DUAL_FEAS:
    case MSK_SOL_STA_PRIM_INFEAS_CER:
-   case MSK_SOL_STA_NEAR_PRIM_INFEAS_CER:
    case MSK_SOL_STA_DUAL_INFEAS_CER:
-   case MSK_SOL_STA_NEAR_DUAL_INFEAS_CER:
       return TRUE;
    default:
       SCIPdebugMessage("Unknown return code in SCIPsdpiSolverFeasibilityKnown\n"); /* TODO: add illposed_cer */
@@ -1588,19 +1607,15 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
    switch ( solstat )
    {
    case MSK_SOL_STA_OPTIMAL:
-   case MSK_SOL_STA_NEAR_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
-   case MSK_SOL_STA_NEAR_PRIM_AND_DUAL_FEAS:
       *primalfeasible = TRUE;
       *dualfeasible = TRUE;
       break;
    case MSK_SOL_STA_PRIM_INFEAS_CER:
-   case MSK_SOL_STA_NEAR_PRIM_INFEAS_CER:
       *primalfeasible = FALSE;
       *dualfeasible = TRUE;
       break;
    case MSK_SOL_STA_DUAL_INFEAS_CER:
-   case MSK_SOL_STA_NEAR_DUAL_INFEAS_CER:
       *primalfeasible = TRUE;
       *dualfeasible = FALSE;
       break;
@@ -1628,14 +1643,10 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
    switch ( solstat )
    {
    case MSK_SOL_STA_DUAL_INFEAS_CER:
-   case MSK_SOL_STA_NEAR_DUAL_INFEAS_CER:
       return TRUE;
    case MSK_SOL_STA_OPTIMAL:
-   case MSK_SOL_STA_NEAR_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
-   case MSK_SOL_STA_NEAR_PRIM_AND_DUAL_FEAS:
    case MSK_SOL_STA_PRIM_INFEAS_CER:
-   case MSK_SOL_STA_NEAR_PRIM_INFEAS_CER:
       break;
    default:
       SCIPdebugMessage("MOSEK does not know about feasibility of solutions\n");
@@ -1660,14 +1671,10 @@ SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
    switch ( solstat )
    {
    case MSK_SOL_STA_PRIM_INFEAS_CER:
-   case MSK_SOL_STA_NEAR_PRIM_INFEAS_CER:
       return TRUE;
    case MSK_SOL_STA_OPTIMAL:
-   case MSK_SOL_STA_NEAR_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
-   case MSK_SOL_STA_NEAR_PRIM_AND_DUAL_FEAS:
    case MSK_SOL_STA_DUAL_INFEAS_CER:
-   case MSK_SOL_STA_NEAR_DUAL_INFEAS_CER:
       break;
    default:
       SCIPdebugMessage("MOSEK does not know about feasibility of solutions\n");
@@ -1692,14 +1699,10 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
    switch ( solstat )
    {
    case MSK_SOL_STA_OPTIMAL:
-   case MSK_SOL_STA_NEAR_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
-   case MSK_SOL_STA_NEAR_PRIM_AND_DUAL_FEAS:
    case MSK_SOL_STA_DUAL_INFEAS_CER:
-   case MSK_SOL_STA_NEAR_DUAL_INFEAS_CER:
       return TRUE;
    case MSK_SOL_STA_PRIM_INFEAS_CER:
-   case MSK_SOL_STA_NEAR_PRIM_INFEAS_CER:
       break;
    default:
       SCIPdebugMessage("MOSEK does not know about feasibility of solutions\n");
@@ -1724,14 +1727,10 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
    switch ( solstat )
    {
    case MSK_SOL_STA_PRIM_INFEAS_CER:
-   case MSK_SOL_STA_NEAR_PRIM_INFEAS_CER:
       return TRUE;
    case MSK_SOL_STA_OPTIMAL:
-   case MSK_SOL_STA_NEAR_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
-   case MSK_SOL_STA_NEAR_PRIM_AND_DUAL_FEAS:
    case MSK_SOL_STA_DUAL_INFEAS_CER:
-   case MSK_SOL_STA_NEAR_DUAL_INFEAS_CER:
       break;
    default:
       SCIPdebugMessage("MOSEK does not know about feasibility of solutions\n");
@@ -1756,14 +1755,10 @@ SCIP_Bool SCIPsdpiSolverIsDualInfeasible(
    switch ( solstat )
    {
    case MSK_SOL_STA_DUAL_INFEAS_CER:
-   case MSK_SOL_STA_NEAR_DUAL_INFEAS_CER:
       return TRUE;
    case MSK_SOL_STA_OPTIMAL:
-   case MSK_SOL_STA_NEAR_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
-   case MSK_SOL_STA_NEAR_PRIM_AND_DUAL_FEAS:
    case MSK_SOL_STA_PRIM_INFEAS_CER:
-   case MSK_SOL_STA_NEAR_PRIM_INFEAS_CER:
       break;
    default:
       SCIPdebugMessage("MOSEK does not know about feasibility of solutions\n");
@@ -1788,14 +1783,10 @@ SCIP_Bool SCIPsdpiSolverIsDualFeasible(
    switch ( solstat )
    {
    case MSK_SOL_STA_OPTIMAL:
-   case MSK_SOL_STA_NEAR_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
-   case MSK_SOL_STA_NEAR_PRIM_AND_DUAL_FEAS:
    case MSK_SOL_STA_PRIM_INFEAS_CER:
-   case MSK_SOL_STA_NEAR_PRIM_INFEAS_CER:
       return TRUE;
    case MSK_SOL_STA_DUAL_INFEAS_CER:
-   case MSK_SOL_STA_NEAR_DUAL_INFEAS_CER:
       break;
    default:
       SCIPdebugMessage("MOSEK does not know about feasibility of solutions\n");
@@ -1832,17 +1823,11 @@ SCIP_Bool SCIPsdpiSolverIsConverged(
       case MSK_SOL_STA_UNKNOWN:
       case MSK_SOL_STA_PRIM_FEAS:
       case MSK_SOL_STA_DUAL_FEAS:
-      case MSK_SOL_STA_NEAR_PRIM_FEAS:
-      case MSK_SOL_STA_NEAR_DUAL_FEAS:
          return FALSE;
       case MSK_SOL_STA_OPTIMAL:
       case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
       case MSK_SOL_STA_PRIM_INFEAS_CER:
       case MSK_SOL_STA_DUAL_INFEAS_CER:
-      case MSK_SOL_STA_NEAR_OPTIMAL:
-      case MSK_SOL_STA_NEAR_PRIM_AND_DUAL_FEAS:
-      case MSK_SOL_STA_NEAR_PRIM_INFEAS_CER:
-      case MSK_SOL_STA_NEAR_DUAL_INFEAS_CER:
          /* check duality gap */
          MOSEK_CALL( MSK_getdualobj(sdpisolver->msktask, MSK_SOL_ITR, &dobj) );
          MOSEK_CALL( MSK_getprimalobj(sdpisolver->msktask, MSK_SOL_ITR, &pobj) );
