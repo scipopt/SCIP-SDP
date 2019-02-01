@@ -17,6 +17,9 @@ performance improvements:
 - delay sdp-obbt if cutoffbound resulted from objective propagation only or the trivial heuristic, instead rerun after cutoffbound changed
   for the current node
 
+interface:
+- updated MOSEK interface to MOSEK 9
+
 
 SCIP-SDP version 3.1.1
 ==================
