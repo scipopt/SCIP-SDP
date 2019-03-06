@@ -12,6 +12,7 @@ fixed bugs:
 - check for time limit during probing SDP within obbt-propagator to not return wrong cutoffs
 - check for unboundedness in sdp-obbt problems
 - explicitly handle unboundedness of the penalty problem
+- fixed potential segmentation fault when reading cbf-files without any (SDP-)constraints or constant part
 
 performance improvements:
 - delay sdp-obbt if cutoffbound resulted from objective propagation only or the trivial heuristic, instead rerun after cutoffbound changed

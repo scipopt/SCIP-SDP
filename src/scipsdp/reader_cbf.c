@@ -1019,40 +1019,74 @@ SCIP_RETCODE CBFfreeData(
    )
 {
    int b;
+   SCIP_Bool allocated = FALSE;
 
    assert( scip != NULL );
    assert( data != NULL );
 
-   for (b = 0; b < data->nsdpblocks; b++)
+   /* we only allocated memory for the const blocks if there were any nonzeros */
+   /* TODO: could also think about saving this in the struct instead, which would cost one bool and save some (unimportant) time here */
+   b = 0;
+   while (allocated == FALSE && b < data->nsdpblocks)
    {
-      SCIPfreeBufferArrayNull(scip, &(data->sdpconstval[b]));
-      SCIPfreeBufferArrayNull(scip, &(data->sdpconstcol[b]));
-      SCIPfreeBufferArrayNull(scip, &(data->sdpconstrow[b]));
-      SCIPfreeBufferArrayNull(scip, &(data->valpointer[b]));
-      SCIPfreeBufferArrayNull(scip, &(data->colpointer[b]));
-      SCIPfreeBufferArrayNull(scip, &(data->rowpointer[b]));
-      SCIPfreeBufferArrayNull(scip, &(data->sdpval[b]));
-      SCIPfreeBufferArrayNull(scip, &(data->sdpcol[b]));
-      SCIPfreeBufferArrayNull(scip, &(data->sdprow[b]));
-      SCIPfreeBufferArrayNull(scip, &(data->sdpblockvars[b]));
-      SCIPfreeBufferArrayNull(scip, &(data->nvarnonz[b]));
+      if (data->sdpconstnblocknonz[b] > 0)
+         allocated = TRUE;
+      b++;
    }
-   SCIPfreeBufferArrayNull(scip, &data->sdpconstval);
-   SCIPfreeBufferArrayNull(scip, &data->sdpconstcol);
-   SCIPfreeBufferArrayNull(scip, &data->sdpconstrow);
-   SCIPfreeBufferArrayNull(scip, &data->sdpconstnblocknonz);
-   SCIPfreeBufferArrayNull(scip, &data->valpointer);
-   SCIPfreeBufferArrayNull(scip, &data->colpointer);
-   SCIPfreeBufferArrayNull(scip, &data->rowpointer);
-   SCIPfreeBufferArrayNull(scip, &data->sdpval);
-   SCIPfreeBufferArrayNull(scip, &data->sdpcol);
-   SCIPfreeBufferArrayNull(scip, &data->sdprow);
-   SCIPfreeBufferArrayNull(scip, &data->sdpblockvars);
-   SCIPfreeBufferArrayNull(scip, &data->nvarnonz);
-   SCIPfreeBufferArrayNull(scip, &data->sdpnblockvars);
-   SCIPfreeBufferArrayNull(scip, &data->sdpnblocknonz);
-   SCIPfreeBufferArrayNull(scip, &data->sdpblocksizes);
-   SCIPfreeBufferArrayNull(scip, &data->createdconss);
+
+   if (allocated)
+   {
+      for (b = 0; b < data->nsdpblocks; b++)
+      {
+         SCIPfreeBufferArrayNull(scip, &(data->sdpconstval[b]));
+         SCIPfreeBufferArrayNull(scip, &(data->sdpconstcol[b]));
+         SCIPfreeBufferArrayNull(scip, &(data->sdpconstrow[b]));
+      }
+      SCIPfreeBufferArrayNull(scip, &data->sdpconstval);
+      SCIPfreeBufferArrayNull(scip, &data->sdpconstcol);
+      SCIPfreeBufferArrayNull(scip, &data->sdpconstrow);
+      SCIPfreeBufferArrayNull(scip, &data->sdpconstnblocknonz);
+   }
+
+   /* we only allocated memory for the sdpblocks if there were any nonzeros */
+   b = 0;
+   while (allocated == FALSE && b < data->nsdpblocks)
+   {
+      if (data->sdpnblocknonz[b] > 0)
+         allocated = TRUE;
+      b++;
+   }
+
+   if (allocated)
+   {
+      for (b = 0; b < data->nsdpblocks; b++)
+      {
+         SCIPfreeBufferArrayNull(scip, &(data->valpointer[b]));
+         SCIPfreeBufferArrayNull(scip, &(data->colpointer[b]));
+         SCIPfreeBufferArrayNull(scip, &(data->rowpointer[b]));
+         SCIPfreeBufferArrayNull(scip, &(data->sdpval[b]));
+         SCIPfreeBufferArrayNull(scip, &(data->sdpcol[b]));
+         SCIPfreeBufferArrayNull(scip, &(data->sdprow[b]));
+         SCIPfreeBufferArrayNull(scip, &(data->sdpblockvars[b]));
+         SCIPfreeBufferArrayNull(scip, &(data->nvarnonz[b]));
+      }
+      SCIPfreeBufferArrayNull(scip, &data->valpointer);
+      SCIPfreeBufferArrayNull(scip, &data->colpointer);
+      SCIPfreeBufferArrayNull(scip, &data->rowpointer);
+      SCIPfreeBufferArrayNull(scip, &data->sdpval);
+      SCIPfreeBufferArrayNull(scip, &data->sdpcol);
+      SCIPfreeBufferArrayNull(scip, &data->sdprow);
+      SCIPfreeBufferArrayNull(scip, &data->sdpblockvars);
+      SCIPfreeBufferArrayNull(scip, &data->nvarnonz);
+      SCIPfreeBufferArrayNull(scip, &data->sdpnblockvars);
+      SCIPfreeBufferArrayNull(scip, &data->sdpnblocknonz);
+      SCIPfreeBufferArrayNull(scip, &data->sdpblocksizes);
+   }
+
+   if (data->nconss > 0)
+   {
+      SCIPfreeBufferArrayNull(scip, &data->createdconss);
+   }
    SCIPfreeBufferArrayNull(scip, &data->createdvars);
 
    return SCIP_OKAY;
@@ -1100,6 +1134,8 @@ SCIP_DECL_READERREAD(readerReadCbf)
 
    SCIP_CALL( SCIPallocBuffer(scip, &data) );
    data->nsdpblocks = 0;
+   data->nconss = 0;
+   data->nvars = 0;
 
    /* create empty problem */
    SCIP_CALL( SCIPcreateProb(scip, filename, NULL, NULL, NULL, NULL, NULL, NULL, NULL) );
