@@ -428,6 +428,13 @@ SCIP_RETCODE CBFreadCon(
       SCIP_CALL( SCIPchgRhsLinear(scip, data->createdconss[c], 0.0) );
    }
 
+   /* set both sides for equality constraints */
+   for (c=data->firsteqcons; c < data->nconss; c++)
+   {
+      SCIP_CALL( SCIPchgLhsLinear(scip, data->createdconss[c], 0.0) );
+      SCIP_CALL( SCIPchgRhsLinear(scip, data->createdconss[c], 0.0) );
+   }
+
    assert( data->firsteqcons + neqconss == data->nconss );
 
    return SCIP_OKAY;
