@@ -1,0 +1,13 @@
+- Versionsnummern in main.cpp, changelog, doc/xternal.c und tools/makerelease.sh anpassen
+- gegebenenfalls Jahreszahlen bei Lizenz (und in allen Dateien) anpassen
+- tools/makerelease.sh ausführen
+- testen ob alles funktioniert hat
+- "make OPT=opt doc" ausführen um Dokumentation zu generieren
+- in www/download.inc alte Version in untere Liste verschieben und oben neue Version eintragen
+- in www/news.inc neuen Release verkünden
+- in www/license.inc gegebenenfalls Jahreszahlen ändern
+- in www/header.inc neue Dokumentation in Liste eintragen
+- doc Unterordner in "doc-VERSIONSNUMMER" umbenennen und nach USER@wwwopt:/www/webpages/optimierung/scipsdp/ kopieren
+- tarfile nach USER@wwwopt:/www/webpages/optimierung/scipsdp/downloads/ kopieren
+- alle veränderten www/xy.inc Dateien nach USER@wwwopt:/www/webpages/optimierung/scipsdp/ kopieren
+- irgendjemand am ZIB (default Benny) Bescheid sagen, dass SCIP-SDP Release fertig ist und gebenenfalls im git-issue einen Satz schreiben, der in der Release Email zu SCIP-SDP gesagt werden kann
