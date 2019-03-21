@@ -1,4 +1,4 @@
-function [time,obj] = sdpainttoyalmip(varargin)
+function [time,obj,nodes] = sdpainttoyalmip(varargin)
 %sdpainttoyalmip loads a problem definition in the SDPA with additional
 %integrality constraints and inserts it to yalmip for solving it with bnb
 %
@@ -8,11 +8,11 @@ function [time,obj] = sdpainttoyalmip(varargin)
 % the following code is copied from loadsdpafile.m in yalmip with only the 
 % integrality conditions newly added
 
-filename = varargin{1};
+filename = strtrim(varargin{1});
 
 % Does the file exist
 if ~exist(filename)
-    filename = [filename '.dat-s'];
+    %filename = [filename '.dat-s'];
     if ~exist(filename)
         error(['No such file.']);
     end
@@ -63,8 +63,11 @@ while true
    intpos = str2num(intpos);
    F = F + integer(x(intpos));
 end
-diagnostics = optimize(F,h,sdpsettings('bnb.maxiter', inf, 'bnb.inttol', 1e-6, 'bnb.feastol', 1e-6, 'bnb.gaptol', 1e-6, 'bnb.prunetol', 1e-6, 'mosek.MSK_DPAR_INTPNT_CO_TOL_PFEAS', 1e-7, 'mosek.MSK_DPAR_INTPNT_CO_TOL_DFEAS', 1e-7, 'mosek.MSK_DPAR_INTPNT_CO_TOL_INFEAS', 1e-7, 'mosek.MSK_DPAR_INTPNT_CO_TOL_MU_RED', 1e-5, 'mosek.MSK_DPAR_INTPNT_CO_TOL_REL_GAP', 1e-5))
+global yalmiptestnnodes;
+%diagnostics = optimize(F,h,sdpsettings('solver', 'cutsdp', 'cutsdp.maxtime', 3600, 'cutsdp.feastol', 1e-6, 'cplex.threads',1))
+diagnostics = optimize(F,h,sdpsettings('bnb.maxtime', 3600, 'bnb.inttol', 1e-6, 'bnb.feastol', 1e-6, 'bnb.gaptol', 1e-6, 'bnb.prunetol', 1e-9, 'mosek.MSK_DPAR_INTPNT_CO_TOL_PFEAS', 1e-7, 'mosek.MSK_DPAR_INTPNT_CO_TOL_DFEAS', 1e-7, 'mosek.MSK_DPAR_INTPNT_CO_TOL_INFEAS', 1e-7, 'mosek.MSK_DPAR_INTPNT_CO_TOL_MU_RED', 1e-5, 'mosek.MSK_DPAR_INTPNT_CO_TOL_REL_GAP', 1e-5, 'mosek.MSK_IPAR_NUM_THREADS', 1, 'mosek.MSK_IPAR_INTPNT_MULTI_THREAD', 0))
 %value(x)
 time = diagnostics.yalmiptime + diagnostics.solvertime;
 obj = value(h);
+nodes = yalmiptestnnodes
 yalmip('clear')

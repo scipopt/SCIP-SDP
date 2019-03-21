@@ -1,0 +1,32 @@
+# Example C.4 from the CBF documentation version 2
+VER
+2
+
+OBJSENSE
+MAX
+
+VAR
+2 1
+L+ 2
+
+CON
+2 2
+L- 1
+L+ 1
+
+OBJACOORD
+2
+0 1.0
+1 0.64
+
+ACOORD
+4
+0 0 50.0
+1 0 3.0
+0 1 31.0
+1 1 -2.0
+
+BCOORD
+2
+0 -250.0
+1 4.0
