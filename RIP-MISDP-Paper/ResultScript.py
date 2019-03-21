@@ -2,6 +2,7 @@ import os
 import sys
 import math
 from decimal import Decimal
+from numpy import inf
 
 #TODO: write tables for online supplement
 
@@ -15,13 +16,14 @@ Rtimes = 0
 LRtimes = 0
 printFails = 0
 completeTable = 0
-CompleteRICtable = 1
+CompleteRICtable = 0
+completeResultsTable=1
 
-MISDPfilename = "/local/gally/results/RIP-MISDP-Paper/160311/RIP-results/check.RIPMISDP.scipsdp.linux.x86_64.gnu.opt.sdpa.extra.branchinfobj_nofracdive.out"
-Asp0708path = "/local/gally/results/RIP-MISDP-Paper/160311/SDPA-results/"
+MISDPfilename = "/workopt/gally/results/RIP-results/check.RIPMISDP.scipsdp.linux.x86_64.gnu.opt.sdpa.extra.branchinfobj_nofracdive.out"
+Asp0708path = "/workopt/gally/results/SDPA-results/"
 Asp07filenames = ["0+-115305A_07l.out", "0+-115305A_07r.out", "0+-115305B_07l.out", "0+-115305B_07r.out", "0+-115305C_07l.out", "0+-115305C_07r.out", "0+-125354A_07l.out", "0+-125354A_07r.out", "0+-125354B_07l.out", "0+-125354B_07r.out", "0+-125354C_07l.out", "0+-125354C_07r.out", "0+-130403A_07l.out", "0+-130403A_07r.out", "0+-130403B_07l.out", "0+-130403B_07r.out", "0+-130403C_07l.out", "0+-130403C_07r.out", "bina15305A_07l.out", "bina15305A_07r.out", "bina15305B_07l.out", "bina15305B_07r.out", "bina15305C_07l.out", "bina15305C_07r.out", "bina25354A_07l.out", "bina25354A_07r.out", "bina25354B_07l.out", "bina25354B_07r.out", "bina25354C_07l.out", "bina25354C_07r.out", "bina30403A_07l.out", "bina30403A_07r.out", "bina30403B_07l.out", "bina30403B_07r.out", "bina30403C_07l.out", "bina30403C_07r.out", "bern15305A_07l.out", "bern15305A_07r.out", "bern15305B_07l.out", "bern15305B_07r.out", "bern15305C_07l.out", "bern15305C_07r.out", "bern25354A_07l.out", "bern25354A_07r.out", "bern25354B_07l.out", "bern25354B_07r.out", "bern25354C_07l.out", "bern25354C_07r.out", "bern30403A_07l.out", "bern30403A_07r.out", "bern30403B_07l.out", "bern30403B_07r.out", "bern30403C_07l.out", "bern30403C_07r.out", "norm15305A_07l.out", "norm15305A_07r.out", "norm15305B_07l.out", "norm15305B_07r.out", "norm15305C_07l.out", "norm15305C_07r.out", "norm25354A_07l.out", "norm25354A_07r.out", "norm25354B_07l.out", "norm25354B_07r.out", "norm25354C_07l.out", "norm25354C_07r.out", "norm30403A_07l.out", "norm30403A_07r.out", "norm30403B_07l.out", "norm30403B_07r.out", "norm30403C_07l.out", "norm30403C_07r.out", "wish15305A_07l.out", "wish15305A_07r.out", "wish15305B_07l.out", "wish15305B_07r.out", "wish15305C_07l.out", "wish15305C_07r.out", "wish25354A_07l.out", "wish25354A_07r.out", "wish25354B_07l.out", "wish25354B_07r.out", "wish25354C_07l.out", "wish25354C_07r.out", "wish30403A_07l.out", "wish30403A_07r.out", "wish30403B_07l.out", "wish30403B_07r.out", "wish30403C_07l.out", "wish30403C_07r.out", "band30305A_07l.out", "band30305A_07r.out", "band30305B_07l.out", "band30305B_07r.out", "band30305C_07l.out", "band30305C_07r.out", "band35354A_07l.out", "band35354A_07r.out", "band35354B_07l.out", "band35354B_07r.out", "band35354C_07l.out", "band35354C_07r.out", "band40403A_07l.out", "band40403A_07r.out", "band40403B_07l.out", "band40403B_07r.out", "band40403C_07l.out", "band40403C_07r.out", "rnk130305A_07l.out", "rnk130305A_07r.out", "rnk130305B_07l.out", "rnk130305B_07r.out", "rnk130305C_07l.out", "rnk130305C_07r.out", "rnk135354A_07l.out", "rnk135354A_07r.out", "rnk135354B_07l.out", "rnk135354B_07r.out", "rnk135354C_07l.out", "rnk135354C_07r.out", "rnk140403A_07l.out", "rnk140403A_07r.out", "rnk140403B_07l.out", "rnk140403B_07r.out", "rnk140403C_07l.out", "rnk140403C_07r.out"]
 Asp08basenames = ["0+-115305A_08l", "0+-115305A_08r", "0+-115305B_08l", "0+-115305B_08r", "0+-115305C_08l", "0+-115305C_08r", "0+-125354A_08l", "0+-125354A_08r", "0+-125354B_08l", "0+-125354B_08r", "0+-125354C_08l", "0+-125354C_08r", "0+-130403A_08l", "0+-130403A_08r", "0+-130403B_08l", "0+-130403B_08r", "0+-130403C_08l", "0+-130403C_08r", "bina15305A_08l", "bina15305A_08r", "bina15305B_08l", "bina15305B_08r", "bina15305C_08l", "bina15305C_08r", "bina25354A_08l", "bina25354A_08r", "bina25354B_08l", "bina25354B_08r", "bina25354C_08l", "bina25354C_08r", "bina30403A_08l", "bina30403A_08r", "bina30403B_08l", "bina30403B_08r", "bina30403C_08l", "bina30403C_08r", "bern15305A_08l", "bern15305A_08r", "bern15305B_08l", "bern15305B_08r", "bern15305C_08l", "bern15305C_08r", "bern25354A_08l", "bern25354A_08r", "bern25354B_08l", "bern25354B_08r", "bern25354C_08l", "bern25354C_08r", "bern30403A_08l", "bern30403A_08r", "bern30403B_08l", "bern30403B_08r", "bern30403C_08l", "bern30403C_08r", "norm15305A_08l", "norm15305A_08r", "norm15305B_08l", "norm15305B_08r", "norm15305C_08l", "norm15305C_08r", "norm25354A_08l", "norm25354A_08r", "norm25354B_08l", "norm25354B_08r", "norm25354C_08l", "norm25354C_08r", "norm30403A_08l", "norm30403A_08r", "norm30403B_08l", "norm30403B_08r", "norm30403C_08l", "norm30403C_08r", "wish15305A_08l", "wish15305A_08r", "wish15305B_08l", "wish15305B_08r", "wish15305C_08l", "wish15305C_08r", "wish25354A_08l", "wish25354A_08r", "wish25354B_08l", "wish25354B_08r", "wish25354C_08l", "wish25354C_08r", "wish30403A_08l", "wish30403A_08r", "wish30403B_08l", "wish30403B_08r", "wish30403C_08l", "wish30403C_08r", "band30305A_08l", "band30305A_08r", "band30305B_08l", "band30305B_08r", "band30305C_08l", "band30305C_08r", "band35354A_08l", "band35354A_08r", "band35354B_08l", "band35354B_08r", "band35354C_08l", "band35354C_08r", "band40403A_08l", "band40403A_08r", "band40403B_08l", "band40403B_08r", "band40403C_08l", "band40403C_08r", "rnk130305A_08l", "rnk130305A_08r", "rnk130305B_08l", "rnk130305B_08r", "rnk130305C_08l", "rnk130305C_08r", "rnk135354A_08l", "rnk135354A_08r", "rnk135354B_08l", "rnk135354B_08r", "rnk135354C_08l", "rnk135354C_08r", "rnk140403A_08l", "rnk140403A_08r", "rnk140403B_08l", "rnk140403B_08r", "rnk140403C_08l", "rnk140403C_08r"]
-Asp08Datapath = "/local/gally/instances/RIP-MISDP-Paper/Asp08/"
+Asp08Datapath = "/workopt/gally/results/SDPA-results/"
 nAsp08Steps = 15
 epsilon = 0.0001
 timeshift = 10
@@ -40,12 +42,12 @@ def readFileMISDP(arg):
 		assert(substring.find("@01 ") > -1)
 		names[0][j] = os.path.basename(substring[substring.find("@01 ") + 3:].split()[0])
 		if substring.find("Solving Time (sec) : ") == -1:
-			times[0][j] = 3600
+			times[0][j] = 14400
 		else:
 			time = substring[substring.find("Solving Time (sec) : ") + 21:].split()[0]
 			times[0][j] = float(time)
-			if times[0][j] > 3600.0:
-				times[0][j] = 3600
+			if times[0][j] > 14400.0:
+				times[0][j] = 14400
 		if substring.find("Solving Nodes      : ") == -1:
 			nodes[0][j] = "-"
 		else:
@@ -74,6 +76,16 @@ def readFileMISDP(arg):
 		if j % 2 == 1:
 			primalresults[0][j] *= -1
 			dualresults[0][j] *= -1
+		if substring.find("Percentage penalty formulation used:	 ") == -1:
+			penalties[0][j] = "-"
+		else:
+			penalty = substring[substring.find("Percentage penalty formulation used:") + 38:].split()[0]
+			penalties[0][j] = float(penalty)
+		if substring.find("Percentage unsolved even with penalty:	") == -1:
+			unsolved[0][j] = "-"
+		else:
+			unsolv = substring[substring.find("Percentage unsolved even with penalty:") + 40:].split()[0]
+			unsolved[0][j] = float(unsolv)
 		filestring = filestring[filestring.find("@04")+3:]
 		j = j+1
 	assert(j == 126)
@@ -106,6 +118,7 @@ def readFileAsp07(filename, j, rhs):
 	file.close()
 
 def readFileAsp08(basename, datafilename, j, rhs):
+	print("reading Asp08 instance " + str(j))
 	for i in range(nAsp08Steps):
 		filename = basename + "_" + str(i+1) + ".out"
 		file=open(Asp0708path + filename , "r")
@@ -147,17 +160,18 @@ def readFileAsp08(basename, datafilename, j, rhs):
 	datafilename = basename + "_1" + ".dat-s"
 	file=open(Asp08Datapath + datafilename , "r")
 	fileString = file.read()
-	kString = fileString[fileString.find("order k=") + 8:].split()[0] 
+	kString = fileString[fileString.find("order k=") + 8:].split()[0]
 	k = int(kString)
 	if rhs:
 		dualresults[2][j] = float("inf")
 	else:
 		dualresults[2][j] = float("-inf")
-		alphaString = fileString[fileString.find("alpha =") + 7:].split()[0] 
+		alphaString = fileString[fileString.find("alpha =") + 7:].split()[0]
 		alpha = float(alphaString)
 	file.close()
-	times[2][j] = 14400
+	times[2][j] = 0
 	for i in range(nAsp08Steps):
+		times[2][j] = times[2][j] + Asp08times[j][i]
 		if Asp08dualresults[j][i] == "-":
 			continue
 		datafilename = basename + "_" + str(i+1) + ".dat-s"
@@ -170,15 +184,262 @@ def readFileAsp08(basename, datafilename, j, rhs):
 			result = Asp08dualresults[j][i] + rho * k
 			if result < dualresults[2][j]:
 				dualresults[2][j] = result
-				times[2][j] = Asp08times[j][i]
 				sdpiters[2][j] = Asp08sdpiters[j][i]
 		else:
 			result = alpha - Asp08dualresults[j][i] - rho * k
 			if result > dualresults[2][j]:
 				dualresults[2][j] = result
-				times[2][j] = Asp08times[j][i]
 				sdpiters[2][j] = Asp08sdpiters[j][i]
-				
+
+
+def CompleteResultsTable():
+	#RIP-MISDP
+	file.write("\\newpage \n \\begin{scriptsize} \n  \\setlength{\\tabcolsep}{2pt} \n \\tablehead{\\toprule \n")
+	file.write("problem & dbound &  pbound & gap & nodes & time & iters & pen & uns ")
+	dive = 0
+	rand = 0
+	fix = 0
+	if dive:
+		file.write("& dive ")
+	if rand:
+		file.write("& rand ")
+	if fix:
+		file.write("& fix ")
+	file.write("\\\ \\midrule} \n \\tabletail{ \\midrule \\multicolumn{3}{@{}l}{continued on next page \\dots}\\\ \\bottomrule} \n \\tablelasttail{\\bottomrule} \n \\tablecaption[")
+	file.write("RIP-MISDP")
+	file.write("]{")
+	file.write("Full results for MISDP formulation of RIP with \sdpa~7.3.8 on a Linux cluster with Intel i3 CPUs with \SI{3.20}{GHz} and \SI{8}{GB} memory")
+	file.write("}\label{")
+	file.write("RIPMISDP")
+	file.write("}\n")
+	file.write("\\begin{xtabular*}{\\textwidth}{@{\extracolsep{\\fill}}lrrrrrrrr")
+	if dive:
+		file.write("r")
+	if rand:
+		file.write("r")
+	if fix:
+		file.write("r")
+	file.write("@{}} \n ")
+	for j in range(126):
+		file.write(names[0][j].replace("_", "\\_").split(".")[0] + "& ")
+		if dualresults[0][j] > -1e20:
+			file.write("\\num{" + "%.2f" % float(dualresults[0][j]) + "} ")
+		else:
+			file.write(" $-\infty$ ")
+		file.write("& ")
+		if primalresults[0][j] < 1e20:
+			file.write("\\num{" + "%.2f" % float(primalresults[0][j]) + "}")
+		else:
+			file.write(" $\infty$ ")
+		file.write("& ")
+		if gaps[0][j] != "infinite":
+			if gaps[0][j] != "-":
+				file.write("\\num{" + "%.2f" % float(gaps[0][j]) + "}\,\% & ")
+			else:
+				file.write("-- & ")
+		else:
+			file.write("$\infty$ & ")
+		if nodes[0][j] == "-":
+			file.write("-- & ")
+		else:
+			file.write("\\num{" + "%.0f" % float(nodes[0][j]) + "} &")
+		if times[0][j] == "-":
+			file.write("-- & ")
+		else:
+			file.write("\\num{" + "%.1f" % float(times[0][j]) + "} &")
+		if sdpiters[0][j] == "-":
+			file.write("-- & ")
+		else:
+			file.write("\\num{" + "%.0f" % float(sdpiters[0][j]) + "} &")
+		if penalties[0][j] == "-":
+			file.write("-- & ")
+		else:
+			file.write("\\SI{" + "%.2f" % float(penalties[0][j]) + "}{\percent} &")
+		if unsolved[0][j] == "-":
+			file.write("-- ")
+		else:
+			file.write("\\SI{" + "%.2f" % float(unsolved[0][j]) + "}{\percent}")
+		if dive:
+			if fracdivefound[0][j] == "-":
+				file.write("& -- ")
+			else:
+				file.write("& \\num{" + "%.0f" % float(fracdivefound[0][j]) + "}")
+		if rand:
+			if randfound[0][j] == "-":
+				file.write("& -- ")
+			else:
+				file.write("& \\num{" + "%.0f" % float(randfound[0][j]) + "}")
+		if fix:
+			if sdpredcostfixings[0][j] == "-":
+				file.write("& -- ")
+			else:
+				file.write("& \\num{" + "%.0f" % float(sdpredcostfixings[0][j]) + "} ")
+		file.write("\\\ \n")
+	file.write("  \\end{xtabular*} \n \\end{scriptsize} \n")
+	#A07
+	file.write("\\newpage \n \\begin{scriptsize} \n  \\setlength{\\tabcolsep}{2pt} \n \\tablehead{\\toprule \n")
+	file.write("problem & dbound &  pbound & gap & time & iters  ")
+	dive = 0
+	rand = 0
+	fix = 0
+	if dive:
+		file.write("& dive ")
+	if rand:
+		file.write("& rand ")
+	if fix:
+		file.write("& fix ")
+	file.write("\\\ \\midrule} \n \\tabletail{ \\midrule \\multicolumn{3}{@{}l}{continued on next page \\dots}\\\ \\bottomrule} \n \\tablelasttail{\\bottomrule} \n \\tablecaption[")
+	file.write("RIP-(A07)")
+	file.write("]{")
+	file.write("Full results for (A07) with \sdpa~7.3.8 on a Linux cluster with Intel i3 CPUs with \SI{3.20}{GHz} and \SI{8}{GB} memory")
+	file.write("}\label{")
+	file.write("RIPA07")
+	file.write("}\n")
+	file.write("\\begin{xtabular*}{\\textwidth}{@{\extracolsep{\\fill}}lrrrrr")
+	if dive:
+		file.write("r")
+	if rand:
+		file.write("r")
+	if fix:
+		file.write("r")
+	file.write("@{}} \n ")
+	for j in range(126):
+		file.write(names[0][j].replace("_", "\\_").split(".")[0] + "& ")
+		if dualresults[1][j] > -1e20:
+			file.write("\\num{" + "%.2f" % float(dualresults[1][j]) + "} ")
+		else:
+			file.write(" $-\infty$ ")
+		file.write("& ")
+		if primalresults[1][j] < 1e20:
+			file.write("\\num{" + "%.2f" % float(primalresults[1][j]) + "}")
+		else:
+			file.write(" $\infty$ ")
+		file.write("& ")
+		if gaps[1][j] != "infinite":
+			if gaps[1][j] != "-":
+				file.write("\\num{" + "%.2f" % float(gaps[1][j]) + "}\,\% & ")
+			else:
+				file.write("-- & ")
+		else:
+			file.write("$\infty$ & ")
+		if times[1][j] == "-":
+			file.write("-- & ")
+		else:
+			file.write("\\num{" + "%.1f" % float(times[1][j]) + "} &")
+		if sdpiters[1][j] == "-":
+			file.write("-- ")
+		else:
+			file.write("\\num{" + "%.0f" % float(sdpiters[1][j]) + "}")
+		file.write("\\\ \n")
+	file.write("  \\end{xtabular*} \n \\end{scriptsize} \n")
+	#A08
+	file.write("\\newpage \n \\begin{scriptsize} \n  \\setlength{\\tabcolsep}{2pt} \n \\tablehead{\\toprule \n")
+	file.write("problem & dbound &  pbound & gap & time & iters  ")
+	dive = 0
+	rand = 0
+	fix = 0
+	if dive:
+		file.write("& dive ")
+	if rand:
+		file.write("& rand ")
+	if fix:
+		file.write("& fix ")
+	file.write("\\\ \\midrule} \n \\tabletail{ \\midrule \\multicolumn{3}{@{}l}{continued on next page \\dots}\\\ \\bottomrule} \n \\tablelasttail{\\bottomrule} \n \\tablecaption[")
+	file.write("RIP-(A08)")
+	file.write("]{")
+	file.write("Full results for (A08D) subproblems with \sdpa~7.3.8 on a Linux cluster with Intel i3 CPUs with \SI{3.20}{GHz} and \SI{8}{GB} memory")
+	file.write("}\label{")
+	file.write("RIPA08D")
+	file.write("}\n")
+	file.write("\\begin{xtabular*}{\\textwidth}{@{\extracolsep{\\fill}}lrrrrr")
+	if dive:
+		file.write("r")
+	if rand:
+		file.write("r")
+	if fix:
+		file.write("r")
+	file.write("@{}} \n ")
+	for j in range(126):
+		for i in range(nAsp08Steps):
+			file.write((names[0][j] + "_" + str(i+1)).replace("_", "\\_").split(".")[0] + "& ")
+			if Asp08dualresults[j][i] == "-":
+				file.write("-- ")
+			elif Asp08dualresults[j][i] > -1e20:
+				file.write("\\num{" + "%.2f" % float(Asp08dualresults[j][i]) + "} ")
+			else:
+				file.write(" $-\infty$ ")
+			file.write("& ")
+			if Asp08primalresults[j][i] == "-":
+				file.write("-- ")
+			elif Asp08primalresults[j][i] < 1e20:
+				file.write("\\num{" + "%.2f" % float(Asp08primalresults[j][i]) + "}")
+			else:
+				file.write(" $\infty$ ")
+			file.write("& ")
+			if Asp08gaps[j][i] != "infinite":
+				if Asp08gaps[j][i] != "-":
+					file.write("\\num{" + "%.2f" % float(Asp08gaps[j][i]) + "}\,\% & ")
+				else:
+					file.write("-- & ")
+			else:
+				file.write("$\infty$ & ")
+			if Asp08times[j][i] == "-":
+				file.write("-- & ")
+			else:
+				file.write("\\num{" + "%.1f" % float(Asp08times[j][i]) + "} &")
+			if Asp08sdpiters[j][i] == "-":
+				file.write("-- ")
+			else:
+				file.write("\\num{" + "%.0f" % float(Asp08sdpiters[j][i]) + "}")
+			file.write("\\\ \n")
+	file.write("  \\end{xtabular*} \n \\end{scriptsize} \n")
+	#A08-total
+	file.write("\\newpage \n \\begin{scriptsize} \n  \\setlength{\\tabcolsep}{2pt} \n \\tablehead{\\toprule \n")
+	file.write("problem & bound & time & iters  ")
+	dive = 0
+	rand = 0
+	fix = 0
+	if dive:
+		file.write("& dive ")
+	if rand:
+		file.write("& rand ")
+	if fix:
+		file.write("& fix ")
+	file.write("\\\ \\midrule} \n \\tabletail{ \\midrule \\multicolumn{3}{@{}l}{continued on next page \\dots}\\\ \\bottomrule} \n \\tablelasttail{\\bottomrule} \n \\tablecaption[")
+	file.write("RIP-(A08)")
+	file.write("]{")
+	file.write("Full results for (A08) (as sum over all subproblems) with \sdpa~7.3.8 on a Linux cluster with Intel i3 CPUs with \SI{3.20}{GHz} and \SI{8}{GB} memory")
+	file.write("}\label{")
+	file.write("RIPA07")
+	file.write("}\n")
+	file.write("\\begin{xtabular*}{\\textwidth}{@{\extracolsep{\\fill}}lrrr")
+	if dive:
+		file.write("r")
+	if rand:
+		file.write("r")
+	if fix:
+		file.write("r")
+	file.write("@{}} \n ")
+	for j in range(126):
+		file.write(names[0][j].replace("_", "\\_").split(".")[0] + "& ")
+		if float(dualresults[2][j]) == inf:
+			file.write(" $\infty$ ")
+		elif dualresults[2][j] > -1e20:
+			file.write("\\num{" + "%.2f" % float(dualresults[2][j]) + "} ")
+		else:
+			file.write(" $-\infty$ ")
+		file.write("& ")
+		if times[2][j] == "-":
+			file.write("-- & ")
+		else:
+			file.write("\\num{" + "%.1f" % float(times[2][j]) + "} &")
+		if sdpiters[2][j] == "-":
+			file.write("-- ")
+		else:
+			file.write("\\num{" + "%.0f" % float(sdpiters[2][j]) + "}")
+		file.write("\\\ \n")
+	file.write("  \\end{xtabular*} \n \\end{scriptsize} \n")
+
 
 
 def makeCompleteTableCaptionMISDP(shortcaption, caption, label, file, i):
@@ -203,7 +464,7 @@ def makeCompleteTableCaptionMISDP(shortcaption, caption, label, file, i):
 			file.write("\\num{" + "%.2f" % primalresults[i][j] + "}")
 		else:
 			file.write(" $\infty$ ")
-		file.write("& $") 
+		file.write("& $")
 		if gaps[i][j] != "infinite":
 			file.write(str(gaps[i][j]))
 		else:
@@ -461,7 +722,7 @@ def LhsRhsResultsTable(instancesets, instancesetnames, caption, label):
 	else:
 		file.write("- \\\ \n")
 	file.write("\\bottomrule \n \\end{tabular*} \n \end{scriptsize} \n \\end{table} \n")
-		
+
 
 def TimeTable(instancesets, instancesetnames, caption, label):
 	file.write("\\begin{table} \n \\begin{scriptsize} \\caption{" + caption + "} \n \\label{" + label + "} \n \\begin{tabular*}{\\linewidth}{@{}l@{\\;\\;\extracolsep{\\fill}}rrr")
@@ -671,6 +932,7 @@ def printUnsolved(instanceset):
 
 if __name__=="__main__":
 	"""give any number of .out-files for the same testset, then loops over them and returns a .tex-file given as first argument with some tables and a performance graph """
+# only one argument: the tex-File
 	ninstances=[0 for x in range(len(sys.argv) -2)] #initialize ninstances matrix
 	names=[[0 for x in range(126)] for x in range(3)] #initialize names matrix
 	dualresults=[[0 for x in range(126)] for x in range(3)] #initialize dual results matrix
@@ -679,13 +941,15 @@ if __name__=="__main__":
 	times=[[0 for x in range(126)] for x in range(3)]   #initialize solvingtime matrix (for Asp08 gives time of best mu)
 	sdpiters=[[0 for x in range(126)] for x in range(3)]   #initialize sdp iterations matrix (for Asp08 gives iters of best mu)
 	nodes=[[0 for x in range(126)] for x in range(1)]   #initialize nodes matrix
-	Asp08dualresults=[[0 for x in range(15)] for x in range(126)] #initialize dual results matrix for Asp08 
-	Asp08primalresults=[[0 for x in range(15)] for x in range(126)] #initialize primal results matrix for Asp08 
-	Asp08gaps=[[0 for x in range(15)] for x in range(126)]   #initialize gaps matrix for Asp08 
-	Asp08times=[[0 for x in range(15)] for x in range(126)]   #initialize solvingtime matrix for Asp08 
-	Asp08sdpiters=[[0 for x in range(15)] for x in range(126)]   #initialize sdp iterations matrix for Asp08 
+	unsolved=[[0 for x in range(126)] for x in range(1)]   #initialize unsolved matrix
+	penalties=[[0 for x in range(126)] for x in range(1)]   #initialize penalties matrix
+	Asp08dualresults=[[0 for x in range(15)] for x in range(126)] #initialize dual results matrix for Asp08
+	Asp08primalresults=[[0 for x in range(15)] for x in range(126)] #initialize primal results matrix for Asp08
+	Asp08gaps=[[0 for x in range(15)] for x in range(126)]   #initialize gaps matrix for Asp08
+	Asp08times=[[0 for x in range(15)] for x in range(126)]   #initialize solvingtime matrix for Asp08
+	Asp08sdpiters=[[0 for x in range(15)] for x in range(126)]   #initialize sdp iterations matrix for Asp08
 	Asp08unsolved=[[0 for x in range(15)] for x in range(126)]	#initialize unsolved matrix for Asp08 | -1 = memory limit +1 = not converged
-	Asp07unsolved=[0 for x in range(126)]	#initialize unsolved matrix for Asp07 
+	Asp07unsolved=[0 for x in range(126)]	#initialize unsolved matrix for Asp07
 
 	#read the results
 	readFileMISDP(MISDPfilename)
@@ -696,6 +960,10 @@ if __name__=="__main__":
 
 	texfilename = sys.argv[1]
 	file=open(texfilename, "w")
+	if completeResultsTable:
+		file.write("\\documentclass[landscape]{article} \n \\usepackage{amsmath} \n \\usepackage{amsthm} \n \\usepackage{xspace} \n \\usepackage{dsfont} \n \\usepackage[dvipsnames]{xcolor} \n \\usepackage{booktabs} \n \\usepackage{multirow} \n \\usepackage{mathtools} \n \\usepackage{xtab} \n \usepackage{tikz} \n \usepackage{pgfplots} \n  \usepackage[margin=1in,footskip=0.25in]{geometry} \n \\extrafloats{100} \n \\usepackage[detect-weight,group-minimum-digits = 4]{siunitx} \n \\usepackage{tabularx} \n \\newcommand{\\setting}[1]{\\texttt{#1}} \n \\newcommand{\\sdpa}{\\textsc{SDPA}\\xspace} \n \\begin{document} \n")
+		CompleteResultsTable()
+
 	if texfile:
 		file.write("\\documentclass[landscape]{article} \n \\usepackage{amsmath} \n \\usepackage{amsthm} \n \\usepackage{dsfont} \n \\usepackage[dvipsnames]{xcolor} \n \\usepackage{booktabs} \n \\usepackage{multirow} \n \\usepackage{mathtools} \n \\usepackage{xtab} \n \usepackage{tikz} \n \usepackage{pgfplots} \n  \usepackage[margin=1in,footskip=0.25in]{geometry} \n \\extrafloats{100} \n \\usepackage{sistyle} \n \\usepackage{tabularx} \n \\newcommand{\\setting}[1]{\\texttt{#1}} \n \\begin{document} \n")
 
@@ -722,6 +990,7 @@ if __name__=="__main__":
 	if CompleteRICtable:
 		RICtable([[54,55],[56,57],[58,59],[60,61],[62,63],[64,65],[66,67],[68,69],[70,71],[18,19],[20,21],[22,23],[24,25],[26,27],[28,29],[30,31],[32,33],[34,35],[90,91],[92,93],[94,95],[96,97],[98,99],[100,101],[102,103],[104,105],[106,107],[108,109],[110,111],[112,113],[114,115],[116,117],[118,119],[120,121],[122,123],[124,125],[72,73],[74,75],[76,77],[78,79],[80,81],[82,83],[84,85],[86,87],[88,89],[36,37],[38,39],[40,41],[42,43],[44,45],[46,47],[48,49],[50,51],[52,53],[0,1],[2,3],[4,5],[6,7],[8,9],[10,11],[12,13],[14,15],[16,17]], "List of all created matrices", "MatrixList",1)
 
-	if texfile:
+	if texfile  or completeResultsTable:
 		file.write("\\end{document}")
+
 	file.close()
