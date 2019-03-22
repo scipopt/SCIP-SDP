@@ -38,6 +38,7 @@ output.tmp
 RIP-MISDP-Paper/*
 !RIP-MISDP-Paper/tables
 !RIP-MISDP-Paper/IEEE_RIP-MISDP.tex
+!RIP-MISDP-Paper/scripts
 settings/*
 !settings/lp_approx.set
 !settings/1thread.set
@@ -47,7 +48,6 @@ sdpa.ini-s
 src/depend.cppmain.dbg
 TAGS
 test.set
-TODOs
 TrussTopology/*
 unboundedGrowth.dat-s
 /src/scipsdpgithash.c
