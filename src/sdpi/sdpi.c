@@ -3430,6 +3430,7 @@ SCIP_RETCODE SCIPsdpiGetPreoptimalSol(
    {
       *success = FALSE;
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no preoptimal solution available.\n");
+      assert( startXnblocknonz != NULL );
       startXnblocknonz[0] = -1;
 
       return SCIP_OKAY;
@@ -3457,6 +3458,7 @@ SCIP_RETCODE SCIPsdpiGetPreoptimalSol(
       if ( nblocks > -1 )
       {
          SCIPdebugMessage("No primal solution available, as problem was solved during preprocessing\n");
+         assert( startXnblocknonz != NULL );
          startXnblocknonz[0] = -1;
       }
 

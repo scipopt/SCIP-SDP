@@ -416,7 +416,6 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
             if ( *result != SCIP_REDUCEDDOM )
                *result = SCIP_DIDNOTRUN;
             goto ENDPROBING;
-            break;
          }
 
          /* if the problem is infeasible, return with cutoff */
@@ -426,7 +425,6 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
             *result = SCIP_CUTOFF;
             nnewbounds = 0;
             goto ENDPROBING;
-            break;
          }
 
          /* only check objective value if problem was bounded */

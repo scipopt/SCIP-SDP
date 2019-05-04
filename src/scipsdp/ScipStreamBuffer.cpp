@@ -60,7 +60,8 @@ ScipStreamBuffer::~ScipStreamBuffer()
 
    if (close_on_exit_)
    {
-      SCIPfclose(file_);
+      (void) SCIPfclose(file_);
+      file_ = NULL;
    }
 }
 
@@ -103,7 +104,7 @@ std::streamsize ScipStreamBuffer::xsgetn(char *dest, std::streamsize request)
          }
       }
 
-      int available = std::min(in_avail(), request);
+      int available = (int) std::min(in_avail(), request);
 
       // copy the available bytes
       memcpy(dest + ndone, gptr(), available);
