@@ -30,6 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+/* #define SCIP_MORE_DEBUG */
+
 /**@file   reader_cbf.c
  * @brief  file reader for mixed-integer semidefinite programs in CBF format
  * @author Tristan Gally
