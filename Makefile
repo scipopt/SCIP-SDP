@@ -345,12 +345,21 @@ githash::      # do not remove the double-colon
 .PHONY: lint
 lint:		$(MAINCSRC) $(MAINCCSRC) $(SDPICSRC) $(SDPICCSRC)
 		-rm -f lint.out
+ifeq ($(FILES),)
 		$(SHELL) -ec 'for i in $^; \
 			do \
-			echo $$i; \
-			$(LINT) -i lint co-gcc.lnt +os\(lint.out\) -u -zero \
-			$(FLAGS) -UNDEBUG -UWITH_READLINE -UROUNDING_FE $$i; \
+				echo $$i; \
+				$(LINT) lint/co-gcc.lnt +os\(lint.out\) -u -zero \
+				$(FLAGS) -I/usr/include -UNDEBUG -UWITH_READLINE -UROUNDING_FE -D_BSD_SOURCE $$i; \
 			done'
+else
+		$(SHELL) -ec  'for i in $(FILES); \
+			do \
+				echo $$i; \
+				$(LINT) lint/co-gcc.lnt +os\(lint.out\) -u -zero \
+				$(FLAGS) -I/usr/include -UNDEBUG -UWITH_READLINE -UROUNDING_FE -D_BSD_SOURCE $$i; \
+			done'
+endif
 
 .PHONY: doc
 doc:
@@ -368,13 +377,13 @@ $(SDPOBJSUBDIRS):	| $(OBJDIR)
 
 $(SCIPSDPLIBDIR):
 		@-mkdir -p $(SCIPSDPLIBDIR)
-		
+
 $(SCIPSDPLIBDIR)/include: $(SCIPSDPLIBDIR)
 		@-mkdir -p $(SCIPSDPLIBDIR)/include
-		
+
 $(SCIPSDPLIBDIR)/static: $(SCIPSDPLIBDIR)
 		@-mkdir -p $(SCIPSDPLIBDIR)/static
-		
+
 $(SCIPSDPLIBDIR)/shared: $(SCIPSDPLIBDIR)
 		@-mkdir -p $(SCIPSDPLIBDIR)/shared
 
@@ -382,7 +391,7 @@ $(BINDIR):
 		-@test -d $(BINDIR) || { \
 		echo "-> Creating $(BINDIR) directory"; \
 		mkdir -p $(BINDIR); }
-		
+
 .PHONY: libscipsdp
 libscipsdp:		preprocess
 		@$(MAKE) $(SCIPSDPLIBFILE) $(SCIPSDPLIBLINK) $(SCIPSDPLIBSHORTLINK)
