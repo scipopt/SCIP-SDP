@@ -161,6 +161,7 @@ SCIP_RETCODE CBFreadObjsense(
       {
          SCIPerrorMessage("OBJSENSE should be either MIN or MAX.\n");
          SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
       }
    }
    else
@@ -248,6 +249,7 @@ SCIP_RETCODE CBFreadVar(
             {
                SCIPerrorMessage("Number of non-negative variables %d should be non-negative!\n", nvartypevars);
                SCIPABORT();
+               return SCIP_READERROR; /*lint !e527*/
             }
          }
          else if ( strcmp(CBF_NAME_BUFFER, "L-") == 0 )
@@ -258,6 +260,7 @@ SCIP_RETCODE CBFreadVar(
             {
                SCIPerrorMessage("Number of non-positive variables %d should be non-negative!\n", nvartypevars);
                SCIPABORT();
+               return SCIP_READERROR; /*lint !e527*/
             }
          }
 #ifndef NDEBUG
@@ -269,6 +272,7 @@ SCIP_RETCODE CBFreadVar(
             {
                SCIPerrorMessage("Number of free variables %d should be non-negative!\n", nvartypevars);
                SCIPABORT();
+               return SCIP_READERROR; /*lint !e527*/
             }
          }
 #endif
@@ -276,6 +280,7 @@ SCIP_RETCODE CBFreadVar(
          {
             SCIPerrorMessage("CBF-Reader of SCIP-SDP currently only supports non-negative, non-positive and free variables!\n");
             SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
          }
       }
       else
@@ -379,6 +384,7 @@ SCIP_RETCODE CBFreadCon(
             {
                SCIPerrorMessage("Number of greater or equal constraints %d should be non-negative!\n", nconstypeconss);
                SCIPABORT();
+               return SCIP_READERROR; /*lint !e527*/
             }
          }
          else if ( strcmp(CBF_NAME_BUFFER, "L-") == 0 )
@@ -389,6 +395,7 @@ SCIP_RETCODE CBFreadCon(
             {
                SCIPerrorMessage("Number of less or equal constraints %d should be non-negative!\n", nconstypeconss);
                SCIPABORT();
+               return SCIP_READERROR; /*lint !e527*/
             }
          }
 #ifndef NDEBUG
@@ -400,6 +407,7 @@ SCIP_RETCODE CBFreadCon(
             {
                SCIPerrorMessage("Number of equality constraints %d should be non-negative!\n", nconstypeconss);
                SCIPABORT();
+               return SCIP_READERROR; /*lint !e527*/
             }
          }
 #endif
@@ -408,6 +416,7 @@ SCIP_RETCODE CBFreadCon(
             SCIPerrorMessage("CBF-Reader of SCIP-SDP currently only supports linear greater or equal, less or equal and"
                "equality constraints!\n");
             SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
          }
       }
       else
@@ -482,6 +491,7 @@ SCIP_RETCODE CBFreadInt(
             {
                SCIPerrorMessage("Number of integrality constraints %d should be non-negative!\n", nintvars);
                SCIPABORT();
+               return SCIP_READERROR; /*lint !e527*/
             }
          }
       }
@@ -489,6 +499,7 @@ SCIP_RETCODE CBFreadInt(
       {
          SCIPerrorMessage("Number of integrality constraints %d should be non-negative!\n", nintvars);
          SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
       }
    }
    else
@@ -530,6 +541,7 @@ SCIP_RETCODE CBFreadPsdcon(
                {
                   SCIPerrorMessage("Size %d of SDP-block %d should be positive!\n", data->sdpblocksizes[b], b);
                   SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
                }
             }
             else
@@ -540,6 +552,7 @@ SCIP_RETCODE CBFreadPsdcon(
       {
          SCIPerrorMessage("Number of SDP-blocks %d should be non-negative!\n", data->nsdpblocks);
          SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
       }
    }
    else
@@ -582,6 +595,7 @@ SCIP_RETCODE CBFreadObjacoord(
                {
                   SCIPerrorMessage("Given objective coefficient for variable %d which does not exist!\n", v);
                   SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
                }
 
                if ( SCIPisZero(scip, val) )
@@ -602,6 +616,7 @@ SCIP_RETCODE CBFreadObjacoord(
       {
          SCIPerrorMessage("Number of objective coefficients %d should be non-negative!\n", nobjcoefs);
          SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
       }
    }
    else
@@ -645,16 +660,18 @@ SCIP_RETCODE CBFreadAcoord(
                {
                   SCIPerrorMessage("Given linear coefficient for constraint %d which does not exist!\n", c);
                   SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
                }
                if ( v < 0 || v >= data->nvars )
                {
                   SCIPerrorMessage("Given linear coefficient for variable %d which does not exist!\n", v);
                   SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
                }
                if ( SCIPisZero(scip, val) )
                {
                   SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Ignored linear coefficient of constraint %d, variable "
-                        "%d; value %.9f is smaller than epsilon = %f.\n", c, v, val, SCIPepsilon(scip));
+                     "%d; value %.9f is smaller than epsilon = %f.\n", c, v, val, SCIPepsilon(scip));
                }
                else
                {
@@ -669,6 +686,7 @@ SCIP_RETCODE CBFreadAcoord(
       {
          SCIPerrorMessage("Number of linear coefficients %d should be non-negative!\n", ncoefs);
          SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
       }
    }
    else
@@ -711,11 +729,12 @@ SCIP_RETCODE CBFreadBcoord(
                {
                   SCIPerrorMessage("Given constant part for constraint %d which does not exist!\n", c);
                   SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
                }
                if ( SCIPisZero(scip, val) )
                {
                   SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Ignored constant part of constraint %d; value %.9f is "
-                        "smaller than epsilon = %f.\n", c, val, SCIPepsilon(scip));
+                     "smaller than epsilon = %f.\n", c, val, SCIPepsilon(scip));
                }
                else
                {
@@ -745,6 +764,7 @@ SCIP_RETCODE CBFreadBcoord(
       {
          SCIPerrorMessage("Number of left- and right-hand sides %d should be non-negative!\n", nsides);
          SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
       }
    }
    else
@@ -813,12 +833,14 @@ SCIP_RETCODE CBFreadHcoord(
                {
                   SCIPerrorMessage("Given SDP-coefficient for SDP-constraint %d which does not exist!\n", b);
                   SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
                }
 
                if ( v < 0 || v >= data->nvars )
                {
                   SCIPerrorMessage("Given SDP-coefficient for variable %d which does not exist!\n", v);
                   SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
                }
 
                if ( row < 0 || row >= data->sdpblocksizes[b] )
@@ -826,6 +848,7 @@ SCIP_RETCODE CBFreadHcoord(
                   SCIPerrorMessage("Row index %d of given SDP coefficient is negative or larger than blocksize %d!\n",
                      row, data->sdpblocksizes[b]);
                   SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
                }
 
                if ( col < 0 || col >= data->sdpblocksizes[b] )
@@ -833,6 +856,7 @@ SCIP_RETCODE CBFreadHcoord(
                   SCIPerrorMessage("Column index %d of given SDP coefficient is negative or larger than blocksize %d!\n",
                      col, data->sdpblocksizes[b]);
                   SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
                }
 
                if ( SCIPisZero(scip, val) )
@@ -916,6 +940,7 @@ SCIP_RETCODE CBFreadHcoord(
       {
          SCIPerrorMessage("Number of nonzero coefficients of SDP-constraints %d should be non-negative!\n", nnonz);
          SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
       }
    }
    else
@@ -977,26 +1002,29 @@ SCIP_RETCODE CBFreadDcoord(
                {
                   SCIPerrorMessage("Given constant entry for SDP-constraint %d which does not exist!\n", b);
                   SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
                }
 
                if ( row < 0 || row >= data->sdpblocksizes[b] )
                {
                   SCIPerrorMessage("Row index %d of given constant SDP-entry is negative or larger than blocksize %d!\n",
-                        row, data->sdpblocksizes[b]);
+                     row, data->sdpblocksizes[b]);
                   SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
                }
 
                if ( col < 0 || col >= data->sdpblocksizes[b] )
                {
                   SCIPerrorMessage("Column index %d of given constant SDP-entry is negative or larger than blocksize %d!\n",
-                        col, data->sdpblocksizes[b]);
+                     col, data->sdpblocksizes[b]);
                   SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
                }
 
                if ( SCIPisZero(scip, val) )
                {
                   SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Ignored constant entry of SDP-constraint %d, row %d,"
-                        " col %d; value %.9f is smaller than epsilon = %f.\n", b, row, col, val, SCIPepsilon(scip));
+                     " col %d; value %.9f is smaller than epsilon = %f.\n", b, row, col, val, SCIPepsilon(scip));
                }
                else
                {
@@ -1023,6 +1051,7 @@ SCIP_RETCODE CBFreadDcoord(
       {
          SCIPerrorMessage("Number of constant entries of SDP-constraints %d should be non-negative!\n", constnnonz);
          SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
       }
    }
    else
@@ -1180,6 +1209,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
                   {
                      SCIPerrorMessage("Only version number %d is supported!\n", CBF_VERSION_NR);
                      SCIPABORT();
+                     return SCIP_READERROR; /*lint !e527*/
                   }
                   else
                      versionread = TRUE;
@@ -1191,6 +1221,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
             {
                SCIPerrorMessage("First keyword should be VER.\n");
                SCIPABORT();
+               return SCIP_READERROR; /*lint !e527*/
             }
          }
          else
@@ -1228,11 +1259,13 @@ SCIP_DECL_READERREAD(readerReadCbf)
                 */
                SCIPerrorMessage("SDPs in primal form currently not supported, please use PSDCON!\n");
                SCIPABORT();
+               return SCIP_READERROR; /*lint !e527*/
             }
             else if ( strcmp(CBF_NAME_BUFFER, "OBJFCOORD") == 0 )
             {
                SCIPerrorMessage("SDPs in primal form currently not supported, please use PSDCON!\n");
                SCIPABORT();
+               return SCIP_READERROR; /*lint !e527*/
             }
             else if ( strcmp(CBF_NAME_BUFFER, "OBJACOORD") == 0 )
             {
@@ -1243,11 +1276,13 @@ SCIP_DECL_READERREAD(readerReadCbf)
             {
                SCIPerrorMessage("constant part in objective value not supported by SCIP!\n");
                SCIPABORT();
+               return SCIP_READERROR; /*lint !e527*/
             }
             else if ( strcmp(CBF_NAME_BUFFER, "FCOORD") == 0 )
             {
                SCIPerrorMessage("SDPs in primal form currently not supported, please use PSDCON!\n");
                SCIPABORT();
+               return SCIP_READERROR; /*lint !e527*/
             }
             else if ( strcmp(CBF_NAME_BUFFER, "ACOORD") == 0 )
             {
@@ -1273,6 +1308,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
             {
                SCIPerrorMessage("Keyword %s not recognized!\n", CBF_NAME_BUFFER);
                SCIPABORT();
+               return SCIP_READERROR; /*lint !e527*/
             }
          }
       }
@@ -1282,6 +1318,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
    {
       SCIPerrorMessage("Keyword OBJSENSE is missing!\n");
       SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
    }
 
    /* close the file (and make sure SCIPfclose returns 0) */
@@ -1385,7 +1422,8 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    if ( transformed )
    {
       SCIPerrorMessage("CBF reader currently only supports writing original problems!\n");
-      SCIPABORT(); /*lint --e{527}*/
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
    }
 
    for (c = 0; c < nconss; c++)
@@ -1394,7 +1432,8 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
          && (strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0 ) )
       {
          SCIPerrorMessage("CBF reader currently only supports linear and SDP constraints!\n");
-         SCIPABORT(); /*lint --e{527}*/
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
       }
    }
 
@@ -1455,7 +1494,8 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
             if ( ! SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c])) )
             {
                SCIPerrorMessage("Detection of non-negativity constraints currently not supported for ranged rows!\n");
-               SCIPABORT(); /*lint --e{527}*/
+               SCIPABORT();
+               return SCIP_READERROR; /*lint !e527*/
             }
          }
          else if ( SCIPisZero(scip, SCIPgetRhsLinear(scip, conss[c])) )
