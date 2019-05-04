@@ -23,6 +23,9 @@ performance improvements:
 interface:
 - updated MOSEK interface to MOSEK 9
 
+features:
+- when reading CBF files, we now also allow that the conic parts appear multiple times, which are then aggregated
+
 
 SCIP-SDP version 3.1.1
 ==================
