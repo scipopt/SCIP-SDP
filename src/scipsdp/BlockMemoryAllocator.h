@@ -100,9 +100,10 @@ public:
   template<typename S> friend inline bool operator==(const BlockMemoryAllocator<S>& left, const BlockMemoryAllocator<S>& right);
   template<typename S> friend inline bool operator!=(const BlockMemoryAllocator<S>& left, const BlockMemoryAllocator<S>& right);
 
-  void operator=(BlockMemoryAllocator const &b)
+  BlockMemoryAllocator operator=(BlockMemoryAllocator const &b)
   {
      scip_ = b.scip_;
+     return *this;
   }
 
  private:
