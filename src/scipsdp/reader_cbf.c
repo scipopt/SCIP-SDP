@@ -54,7 +54,7 @@
 #define READER_DESC             "file reader and writer for MISDPs in cbf format"
 #define READER_EXTENSION        "cbf"
 
-#define CBF_VERSION_NR         1         /**< version number for CBF format */
+#define CBF_VERSION_NR         2         /**< version number for CBF format */
 #define CBF_CHECK_NONNEG       TRUE      /**< when writing: check linear constraints and move nonnegativity(-positivity)
                                            *  constraints to definition of variables (which are now defined in non-negative
                                            *  orthant) */
@@ -1220,9 +1220,15 @@ SCIP_DECL_READERREAD(readerReadCbf)
                if ( sscanf(CBF_LINE_BUFFER, "%i", &ver) == 1 )
                {
                   SCIPdebugMsg(scip, "file version %d\n", ver);
-                  if ( ver != CBF_VERSION_NR )
+                  if ( ver < 1 )
                   {
-                     SCIPerrorMessage("Only version number %d is supported!\n", CBF_VERSION_NR);
+                     SCIPerrorMessage("Strange version number %d; need at least version 1.\n", ver);
+                     SCIPABORT();
+                     return SCIP_READERROR; /*lint !e527*/
+                  }
+                  else if ( ver > CBF_VERSION_NR )
+                  {
+                     SCIPerrorMessage("Version %d too new; only supported up to version %d.\n", CBF_VERSION_NR);
                      SCIPABORT();
                      return SCIP_READERROR; /*lint !e527*/
                   }
