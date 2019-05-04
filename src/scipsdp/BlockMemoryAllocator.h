@@ -45,69 +45,77 @@
 template <class T> class BlockMemoryAllocator
 {
 public:
-  typedef T                 value_type;
-  typedef value_type*       pointer;
-  typedef const value_type* const_pointer;
-  typedef value_type&       reference;
-  typedef const value_type& const_reference;
-  typedef std::size_t       size_type;
-  typedef std::ptrdiff_t    difference_type;
+   typedef T                 value_type;
+   typedef value_type*       pointer;
+   typedef const value_type* const_pointer;
+   typedef value_type&       reference;
+   typedef const value_type& const_reference;
+   typedef std::size_t       size_type;
+   typedef std::ptrdiff_t    difference_type;
 
-  template <class U>
-  struct rebind { typedef BlockMemoryAllocator<U> other; };
+   template <class U>
+   struct rebind { typedef BlockMemoryAllocator<U> other; };
 
- BlockMemoryAllocator(SCIP* scip) : scip_(scip) {}
+   BlockMemoryAllocator(SCIP* scip) : scip_(scip) {}
 
- BlockMemoryAllocator(const BlockMemoryAllocator& other) : scip_(other.scip_) {}
-  template <class U>
-     BlockMemoryAllocator(const BlockMemoryAllocator<U>& other) : scip_(other.scip_) {}
-  ~BlockMemoryAllocator()
-  {
-     scip_ = NULL;
-  }
+   BlockMemoryAllocator(const BlockMemoryAllocator& other) : scip_(other.scip_) {}
 
-  pointer address(reference x) const { return &x; }
+   template <class U>
+   BlockMemoryAllocator(const BlockMemoryAllocator<U>& other) : scip_(other.scip_) {}
 
-  const_pointer address(const_reference x) const
-  {
-    return x;
-  }
+   ~BlockMemoryAllocator()
+   {
+      scip_ = NULL;
+   }
 
-  pointer allocate(size_type n, const_pointer = 0)
-  {
-     void* p;
-     SCIP_CALL_ABORT(SCIPallocBlockMemorySize(scip_, &p, n * sizeof(T)));
+   pointer address(reference x) const { return &x; }
 
-     if (!p)
-        throw std::bad_alloc();
-     return static_cast<pointer>(p);
-  }
+   const_pointer address(const_reference x) const
+   {
+      return x;
+   }
 
-  void deallocate(pointer p, size_type n)
-  {
-     SCIPfreeBlockMemorySize(scip_, &p, n * sizeof(T));
-  }
+   pointer allocate(size_type n, const_pointer = 0)
+   {
+      void* p;
+      SCIP_CALL_ABORT(SCIPallocBlockMemorySize(scip_, &p, n * sizeof(T)));
 
-  size_type max_size() const {
-    return static_cast<size_type>(-1) / sizeof(T);
-  }
+      if ( ! p )
+         throw std::bad_alloc();
+      return static_cast<pointer>(p);
+   }
 
-  void construct(pointer p, const value_type& x) {
-     new(p) value_type(x);
-  }
-  void destroy(pointer p) { p->~value_type(); }
+   void deallocate(pointer p, size_type n)
+   {
+      SCIPfreeBlockMemorySize(scip_, &p, n * sizeof(T));
+   }
 
-  template<typename S> friend inline bool operator==(const BlockMemoryAllocator<S>& left, const BlockMemoryAllocator<S>& right);
-  template<typename S> friend inline bool operator!=(const BlockMemoryAllocator<S>& left, const BlockMemoryAllocator<S>& right);
+   size_type max_size() const
+   {
+      return static_cast<size_type>(-1) / sizeof(T);
+   }
 
-  BlockMemoryAllocator operator=(BlockMemoryAllocator const &b)
-  {
-     scip_ = b.scip_;
-     return *this;
-  }
+   void construct(pointer p, const value_type& x)
+   {
+      new(p) value_type(x);
+   }
 
- private:
-  SCIP* scip_;
+   void destroy(pointer p)
+   {
+      p->~value_type();
+   }
+
+   template<typename S> friend inline bool operator==(const BlockMemoryAllocator<S>& left, const BlockMemoryAllocator<S>& right);
+   template<typename S> friend inline bool operator!=(const BlockMemoryAllocator<S>& left, const BlockMemoryAllocator<S>& right);
+
+   BlockMemoryAllocator& operator=(BlockMemoryAllocator const &b)
+   {
+      scip_ = b.scip_;
+      return *this;
+   }
+
+private:
+   SCIP* scip_;
 };
 
 template<> class BlockMemoryAllocator<void>
