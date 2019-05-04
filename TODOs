@@ -34,3 +34,8 @@
 - think about ways of sparsifying the eigenvector cuts (compare paper by Ruth Misener and ???, see, e.g., Plenary talk at SCIP Workshop 2018)
 - try Feasibility Pump (planned as Masterthesis to compare approaches where SDP-constraint is part of relaxation or part of rounding)
 - think about using SDP-relaxations when solving QPs in SCIP
+
+From Email with Chuen Teck See: Locking computes eigenvalues and it
+make a quite long time if there are many variables. Think about
+computing the eigenvalues at the beginning and reusing the
+information.
