@@ -18,8 +18,14 @@
 
 -esym(578,scip)           // Declaration of symbol hides symbol
 
+// The following happens quite often (and might be useful), but clutters the output
+-e679  // Suspicious Truncation in arithmetic expression combining with pointer
+-e451  // Header file repeatedly included but does not have a standard include guard
+
 -emacro(506,SCIPdebugMessage) // Constant value Boolean
 -emacro(681,SCIPdebugMessage) // Loop is not entered
+-emacro(506,SCIPdebugMsg)         // Constant value Boolean
+-emacro(681,SCIPdebugMsg)         // Loop is not entered
 -emacro(506,SCIPdebugPrintf) // Constant value Boolean
 -emacro(681,SCIPdebugPrintf) // Loop is not entered
 
@@ -33,11 +39,21 @@
 -emacro(571,BMSreallocBlockMemoryArray)   // Suspicious cast
 -emacro(571,SCIPallocBlockMemoryArray)   // Suspicious cast
 -emacro(571,BMSallocBlockMemoryArray)   // Suspicious cast
--emacro(647,SCIPallocBlockMemoryArray)     // Suspicious truncation
--emacro(647,SCIPfreeBlockMemoryArray)      // Suspicious truncation
--emacro(647,SCIPfreeBlockMemoryArrayNull)  // Suspicious truncation
--emacro(647,SCIPduplicateBlockMemoryArray) // Suspicious truncation
--emacro(647,SCIPreallocBlockMemoryArray) // Suspicious truncation
+
+// Suspicious truncation:
+-emacro(647,BMSclearMemoryArray)
+-emacro(647,BMSallocMemorySize)
+-emacro(647,BMSallocClearMemoryArray)
+-emacro(647,SCIPallocMemoryArray)
+-emacro(647,SCIPallocBlockMemoryArray)
+-emacro(647,SCIPfreeBlockMemoryArray)
+-emacro(647,SCIPfreeBlockMemoryArrayNull)
+-emacro(647,SCIPduplicateBlockMemoryArray)
+-emacro(647,SCIPreallocBlockMemoryArray)
+-emacro(647,SCIPallocBufferArray)
+-emacro(647,SCIPreallocBufferArray)
+-emacro(647,SCIPallocCleanBufferArray)
+
 -emacro(732,SCIPfreeBlockMemoryArray)    // Loss of sign
 -emacro(737,SCIPallocBlockMemoryArray)     // Loss of sign in promotion
 -emacro(737,SCIPfreeBlockMemoryArray)     // Loss of sign in promotion
@@ -46,9 +62,26 @@
 -emacro(737,BMSallocBlockMemoryArray)   // Loss of sign in promotion
 -emacro(737,BMSfreeBlockMemoryArrayNull)   // Loss of sign in promotion
 -emacro(737,SCIPduplicateBlockMemoryArray)   // Loss of sign in promotion
--emacro(776,SCIPallocBlockMemoryArray)   // Suspicious truncation (addition)
--emacro(776,SCIPfreeBlockMemoryArray)    // Suspicious truncation
--emacro(776,SCIPreallocBlockMemoryArray)    // Suspicious truncation
+
+// Avoid "Possible truncation of addition" - this might give interesting information, but clutters the output
+-emacro(776,BMSmoveMemoryArray)
+-emacro(776,BMSallocMemorySize)
+-emacro(776,BMSclearMemoryArray)
+-emacro(776,BMSallocMemoryArray)
+-emacro(776,BMSfreeBlockMemoryArray)
+-emacro(776,BMSallocBlockMemoryArray)
+-emacro(776,BMSallocBufferMemoryArray)
+-emacro(776,BMSreallocBlockMemoryArray)
+-emacro(776,BMSreallocBufferMemoryArray)
+-emacro(776,BMSduplicateBlockMemoryArray)
+-emacro(776,BMSduplicateBufferMemoryArray)
+-emacro(776,SCIPallocMemoryArray)
+-emacro(776,SCIPallocBlockMemoryArray)
+-emacro(776,SCIPreallocBlockMemoryArray)
+-emacro(776,SCIPfreeBlockMemoryArrayNull)
+-emacro(776,SCIPduplicateMemoryArray)
+-emacro(776,SCIPallocClearBufferArray)
+
 -emacro(747,SCIPallocBlockMemoryArray)    // Significant prototype coercion
 
 -emacro(681,SCIPdebugMessage) // Loop is not entered
