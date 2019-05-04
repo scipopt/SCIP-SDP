@@ -750,7 +750,7 @@ SCIP_Real SCIPsdpiSolverGetMaxPrimalEntry(
 {
    errorMessageAbort();
 
-   return SCIP_PLUGINNOTFOUND;
+   return 0.0;
 }
 
 /** gets the number of SDP iterations of the last solve call */

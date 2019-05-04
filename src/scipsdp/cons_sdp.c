@@ -2910,7 +2910,7 @@ int SCIPconsSdpComputeUbSparseSdpMatrixLength(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons                /**< the constraint for which the Matrix should be assembled */
    )
-{
+{  /*lint --e{715}*/
    SCIP_CONSDATA* consdata;
    int v;
    int ub;

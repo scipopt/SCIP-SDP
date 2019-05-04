@@ -247,9 +247,9 @@ SCIP_RETCODE expandSparseMatrix(
    for (i = 0; i < nnonz; i++)
    {
       assert( row[i] * blocksize + col[i] <= matrixsize );
-      fullmat[row[i] * blocksize + col[i]] = val[i];
+      fullmat[row[i] * blocksize + col[i]] = val[i];  /*lint !e679*/
       assert( col[i] * blocksize + row[i] <= matrixsize );
-      fullmat[col[i] * blocksize + row[i]] = val[i];
+      fullmat[col[i] * blocksize + row[i]] = val[i];  /*lint !e679*/
    }
 
    return SCIP_OKAY;
@@ -274,7 +274,7 @@ SCIP_RETCODE scaleTransposedMatrix(
    {
       for (c = 0; c < blocksize; c++)
       {
-         matrix[r * blocksize + c] *= scale[c];
+         matrix[r * blocksize + c] *= scale[c];  /*lint !e679*/
       }
    }
 
@@ -1075,8 +1075,8 @@ SCIP_RETCODE calcRelax(
                   SCIP_Real* eigenvalues;
                   SCIP_Real* eigenvectors;
                   SCIP_Real* scaledeigenvectors;
-                  SCIP_Real matrixsize;
                   SCIP_Real epsilon;
+                  int matrixsize;
                   int c;
                   int matrixpos;
 

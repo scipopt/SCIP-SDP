@@ -1710,7 +1710,8 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 #endif
 
          nnonz += SCIPgetNVarsLinear(scip, conss[c]);
-         nbnonz += ( ! SCIPisZero(scip, SCIPgetLhsLinear(scip, conss[c])));
+         if ( ! SCIPisZero(scip, SCIPgetLhsLinear(scip, conss[c])) )
+            ++nbnonz;
       }
       /* iterate over all less or equal constraints */
       for (c = 0; c < nconss; c++)
@@ -1727,7 +1728,8 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 #endif
 
          nnonz += SCIPgetNVarsLinear(scip, conss[c]);
-         nbnonz += ( ! SCIPisZero(scip, SCIPgetRhsLinear(scip, conss[c])));
+         if ( ! SCIPisZero(scip, SCIPgetRhsLinear(scip, conss[c])) )
+            ++nbnonz;
       }
       /* finally iterate over all equality constraints */
       for (c = 0; c < nconss; c++)
@@ -1745,7 +1747,8 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 #endif
 
          nnonz += SCIPgetNVarsLinear(scip, conss[c]);
-         nbnonz += ( ! SCIPisZero(scip, SCIPgetLhsLinear(scip, conss[c])));
+         if ( ! SCIPisZero(scip, SCIPgetLhsLinear(scip, conss[c])) )
+            ++nbnonz;
       }
 
       /* write linear nonzero coefficients */
