@@ -1090,14 +1090,14 @@ SCIP_RETCODE CBFfreeData(
 
    /* we only allocated memory for the const blocks if there were any nonzeros */
    /* TODO: could also think about saving this in the struct instead, which would cost one bool and save some (unimportant) time here */
-   while (allocated == FALSE && b < data->nsdpblocks)
+   while ( data->sdpconstnblocknonz != NULL && allocated == FALSE && b < data->nsdpblocks)
    {
       if (data->sdpconstnblocknonz[b] > 0)
          allocated = TRUE;
       b++;
    }
 
-   if (allocated)
+   if ( allocated )
    {
       for (b = 0; b < data->nsdpblocks; b++)
       {
@@ -1199,6 +1199,18 @@ SCIP_DECL_READERREAD(readerReadCbf)
    data->nsdpblocks = 0;
    data->nconss = 0;
    data->nvars = 0;
+
+   data->sdpblocksizes = NULL;
+   data->sdpnblocknonz = NULL;
+   data->sdpnblockvars = NULL;
+   data->sdpblockvars = NULL;
+   data->sdprow = NULL;
+   data->sdpcol = NULL;
+   data->sdpval = NULL;
+   data->sdpconstnblocknonz = NULL;
+   data->sdpconstrow = NULL;
+   data->sdpconstcol = NULL;
+   data->sdpconstval = NULL;
 
    /* create empty problem */
    SCIP_CALL( SCIPcreateProb(scip, filename, NULL, NULL, NULL, NULL, NULL, NULL, NULL) );
@@ -1364,7 +1376,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
 #endif
 
       assert( data->sdpblocksizes[b] > 0 );
-      assert( ((data->sdpnblockvars[b] > 0) && data->sdpnblocknonz[b] > 0) || (data->sdpconstnblocknonz[b] > 0) );
+      assert( (data->sdpnblockvars[b] > 0 && data->sdpnblocknonz[b] > 0) || (data->sdpconstnblocknonz[b] > 0) );
 
 #ifndef NDEBUG
       snprintfreturn = SCIPsnprintf(sdpconname, SCIP_MAXSTRLEN, "SDP_%d", b);
@@ -1372,10 +1384,21 @@ SCIP_DECL_READERREAD(readerReadCbf)
 #else
       (void) SCIPsnprintf(sdpconname, SCIP_MAXSTRLEN, "SDP_%d", b);
 #endif
-      SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcons, sdpconname, data->sdpnblockvars[b], data->sdpnblocknonz[b],
-            data->sdpblocksizes[b], data->nvarnonz[b], data->colpointer[b], data->rowpointer[b], data->valpointer[b],
-            data->sdpblockvars[b], data->sdpconstnblocknonz[b], data->sdpconstcol[b], data->sdpconstrow[b],
-            data->sdpconstval[b]) );
+
+      /* special treatment of case without constant PSD blocks */
+      if ( data->sdpconstnblocknonz == NULL )
+      {
+         SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcons, sdpconname, data->sdpnblockvars[b], data->sdpnblocknonz[b],
+               data->sdpblocksizes[b], data->nvarnonz[b], data->colpointer[b], data->rowpointer[b], data->valpointer[b],
+               data->sdpblockvars[b], 0, NULL, NULL, NULL) );
+      }
+      else
+      {
+         SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcons, sdpconname, data->sdpnblockvars[b], data->sdpnblocknonz[b],
+               data->sdpblocksizes[b], data->nvarnonz[b], data->colpointer[b], data->rowpointer[b], data->valpointer[b],
+               data->sdpblockvars[b], data->sdpconstnblocknonz[b], data->sdpconstcol[b], data->sdpconstrow[b],
+               data->sdpconstval[b]) );
+      }
 
 #ifdef SCIP_MORE_DEBUG
       SCIP_CALL( SCIPprintCons(scip, sdpcons, NULL) );

@@ -15,6 +15,7 @@ fixed bugs:
 - fixed potential segmentation fault when reading cbf-files without any (SDP-)constraints or constant part
 - fixed bug in cbf reader where equality constraints with right hand side zero were ignored
 - return with reader error in optimized mode in CBF reader
+- fixed bug with empty DCOORD section in CBF file reader
 
 performance improvements:
 - delay sdp-obbt if cutoffbound resulted from objective propagation only or the trivial heuristic, instead rerun after cutoffbound changed
