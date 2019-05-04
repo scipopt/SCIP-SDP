@@ -74,7 +74,7 @@
 #define DEFAULT_WARMSTARTPRIMALTYPE 3        /**< how to warmstart the primal problem? 1: scaled identity, 2: elementwise reciprocal, 3: saved primal sol */
 #define DEFAULT_WARMSTARTIPTYPE     1        /**< which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center */
 #define DEFAULT_WARMSTARTPROJECT    2        /**< how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone, 4: use new bounds and solve rounding problem */
-#define DEFAULT_WARMSTARTPROJMINEV  -1       /**< minimum eigenvector to allow when projecting onto the positive (semi-)definite cone */
+#define DEFAULT_WARMSTARTPROJMINEV  -1.0     /**< minimum eigenvector to allow when projecting onto the positive (semi-)definite cone */
 #define DEFAULT_WARMSTARTPROJPDSAME TRUE     /**< Should one shared minimum eigenvalue be computed for primal and dual problem instead of different ones if warmstartpmevpar = -1 ? */
 #define DEFAULT_WARMSTART_PREOPTIMAL_SOL FALSE /**< Should a preoptimal solution (with larger gap) instead of the optimal solution be used for warmstarts (currently only implemented fo DSDP) */
 #define DEFAULT_WARMSTARTPREOPTGAP  1e-2     /**< If warmstartpreoptimalsol is TRUE, this is the gap where the preoptimal solution is saved (currently only implemented fo DSDP) */
@@ -89,14 +89,13 @@
 #define DEFAULT_SETTINGSRESETFREQ   -1       /**< frequency for resetting parameters in SDP solver and trying again with fastest settings */
 #define DEFAULT_SETTINGSRESETOFS    0        /**< frequency offset for resetting parameters in SDP solver and trying again with fastest settings */
 #define DEFAULT_SDPSOLVERTHREADS    -1       /**< number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores) */
-#define DEFAULT_PENINFEASADJUST     10       /**< gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation */
+#define DEFAULT_PENINFEASADJUST     10.0     /**< gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation */
 
 #define WARMSTART_MINVAL            0.01     /**< if we get a value less than this when warmstarting (currently only for the linear part when combining with analytic center), the value is set to this */
 #define WARMSTART_PROJ_MINRHSOBJ    1        /**< minimum value for rhs/obj when computing minimum eigenvalue for warmstart-projection */
 #define WARMSTART_PROJ_FACTOR       0.1      /**< factor to multiply maximum rhs/obj/coef with when computing minimum eigenvalue for warmstart-projection */
 #define WARMSTART_PROJ_FACTOR_LHS   10       /**< factor to multiply maximum SDP coefficient with before applying WARMSTART_PROJ_FACTOr (to account for summation of lhs entries) */
 #define WARMSTART_PROJ_FACTOR_PRIMAL 0.1     /**< factor to multiply maximum obj with when computing minimum eigenvalue for warmstart-projection in the primal */
-#define WARMSTART_PROJ_FACTOR_DUAL  0.1      /**< factor to multiply maximum rhs with when computing minimum eigenvalue for warmstart-projection in the dual */
 #define WARMSTART_PREOPT_MIN_Z_LPVAL 0.01    /**< minimal (diagonal) entry for LP block of dual matrix for preoptimal warmstarts */
 
 /** Calls a gettimeofday and transforms the return-code to a SCIP_ERROR if needed. */
@@ -2511,10 +2510,10 @@ SCIP_RETCODE calcRelax(
                   SCIP_Real* eigenvalues;
                   SCIP_Real* eigenvectors;
                   SCIP_Real* scaledeigenvectors;
-                  SCIP_Real matrixsize;
                   SCIP_Real epsilon;
-                  int c;
+                  int matrixsize;
                   int matrixpos;
+                  int c;
 
                   matrixsize = blocksize * blocksize;
 
@@ -2906,7 +2905,7 @@ SCIP_RETCODE calcRelax(
 
          /* solve with given starting point */
          SCIP_CALL(SCIPsdpiSolve(sdpi, starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow,
-                  startXcol, startXval, startsetting, enforceslater, timelimit));
+               startXcol, startXval, startsetting, enforceslater, timelimit));
 
          if ( SCIPsdpiDoesWarmstartNeedPrimal() )
          {
@@ -2914,6 +2913,13 @@ SCIP_RETCODE calcRelax(
 
             sdpconshdlr = SCIPfindConshdlr(scip, "SDP");
             nblocks = SCIPconshdlrGetNConss(sdpconshdlr) + 1; /* +1 for LP block */
+
+            assert( startXval != NULL );
+            assert( startXcol != NULL );
+            assert( startXrow != NULL );
+            assert( startZval != NULL );
+            assert( startZcol != NULL );
+            assert( startZrow != NULL );
 
             /* free memory */
             for (b = 0; b < nblocks; b++)
@@ -3190,7 +3196,7 @@ SCIP_RETCODE calcRelax(
       else if ( SCIPsdpiIsPrimalFeasible(sdpi) && SCIPsdpiIsDualFeasible(sdpi) )
       {
          SCIP_SOL* scipsol; /* TODO: eliminate this from warmstart and save array instead */
-         SCIP_SOL* preoptimalsol;
+         SCIP_SOL* preoptimalsol = NULL;
          SCIP_CONS* savedcons;
          int slength;
          SCIP_Bool preoptimalsolsuccess;
@@ -3349,7 +3355,7 @@ SCIP_RETCODE calcRelax(
             snprintfreturn = SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
             assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether name fit into string */
 #else
-   (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
+            (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
 #endif
             if ( relaxdata->warmstartpreoptsol )
             {
@@ -3379,6 +3385,10 @@ SCIP_RETCODE calcRelax(
                {
                   for (b = 0; b < nblocks; b++)
                   {
+                     assert( startXval != NULL ); /* for lint */
+                     assert( startXcol != NULL ); /* for lint */
+                     assert( startXrow != NULL ); /* for lint */
+
                      SCIPfreeBufferArrayNull(scip, &startXval[b]);
                      SCIPfreeBufferArrayNull(scip, &startXcol[b]);
                      SCIPfreeBufferArrayNull(scip, &startXrow[b]);
@@ -3887,8 +3897,8 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
          }
 
          SCIP_CALL( SCIPsdpiComputeLambdastar(relaxdata->sdpi, maxguess) );
+         retcode = SCIPsdpiGetRealpar(relaxdata->sdpi, SCIP_SDPPAR_LAMBDASTAR, &relaxdata->lambdastar);
       }
-      retcode = SCIPsdpiGetRealpar(relaxdata->sdpi, SCIP_SDPPAR_LAMBDASTAR, &relaxdata->lambdastar);
    }
    else
       relaxdata->lambdastar = 1.0;
