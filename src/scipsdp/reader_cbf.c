@@ -1209,7 +1209,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
          /* first line should be version number */
          if ( ! versionread )
          {
-            if (strcmp(CBF_NAME_BUFFER, "VER") == 0)
+            if ( strcmp(CBF_NAME_BUFFER, "VER") == 0 )
             {
                int ver;
 
@@ -1342,6 +1342,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
    for (b = 0; b < SCIPgetNConss(scip); b++)
    {
       SCIP_CALL( SCIPprintCons(scip, SCIPgetConss(scip)[b], NULL) );
+      SCIPinfoMessage(scip, NULL, "\n");
    }
 #endif
 
@@ -1428,8 +1429,9 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 #endif
 
    assert( scip != NULL );
+   assert( result != NULL );
 
-   SCIPdebugMsg(scip, "Writing problem in CBF format to %s\n", file);
+   SCIPdebugMsg(scip, "Writing problem in CBF format to file.\n");
    *result = SCIP_DIDNOTRUN;
 
    if ( transformed )
@@ -1620,13 +1622,15 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
          continue;
 #endif
 
-      if ( ( ! SCIPisInfinity(scip, -1 * SCIPgetLhsLinear(scip, conss[c])))
-         && ( ! SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c])) )
-         && SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) )
+      if ( SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) )
+      {
+         assert( ! SCIPisInfinity(scip, -SCIPgetLhsLinear(scip, conss[c])) );
+         assert( ! SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c])) );
          neqconss++;
+      }
       else
       {
-         if ( ! SCIPisInfinity(scip, -1 * SCIPgetLhsLinear(scip, conss[c])) )
+         if ( ! SCIPisInfinity(scip, -SCIPgetLhsLinear(scip, conss[c])) )
             ngeqconss++;
          if ( ! SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c])) )
             nleqconss++;
@@ -2023,16 +2027,13 @@ SCIP_RETCODE SCIPincludeReaderCbf(
    SCIP*                 scip                /**< SCIP data structure */
    )
 {
-   SCIP_READERDATA* readerdata;
+   SCIP_READERDATA* readerdata = NULL;
    SCIP_READER* reader;
-
-   /* create reader data */
-   readerdata = NULL;
 
    /* include reader */
    SCIP_CALL( SCIPincludeReaderBasic(scip, &reader, READER_NAME, READER_DESC, READER_EXTENSION, readerdata) );
 
-   assert(reader != NULL);
+   assert( reader != NULL );
 
    /* set non fundamental callbacks via setter functions */
    SCIP_CALL( SCIPsetReaderCopy(scip, reader, readerCopyCbf) );
