@@ -34,6 +34,7 @@
  * @brief  file reader for mixed-integer semidefinite programs in CBF format
  * @author Tristan Gally
  * @author Henrik A. Friberg
+ * @author Marc Pfetsch
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
@@ -114,7 +115,7 @@ typedef struct CBF_Data CBF_DATA;
 static
 SCIP_RETCODE CBFfgets(
    SCIP_FILE*            pFile,              /**< file to read from */
-   long long int*        linecount           /**< current linecount */
+   SCIP_Longint*         linecount           /**< current linecount */
    )
 {
    assert( pFile != NULL );
@@ -137,7 +138,7 @@ static
 SCIP_RETCODE CBFreadObjsense(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pfile,              /**< file to read from */
-   long long int*        linecount           /**< current linecount */
+   SCIP_Longint*         linecount           /**< current linecount */
    )
 {
    assert( scip != NULL );
@@ -175,7 +176,7 @@ static
 SCIP_RETCODE CBFreadVar(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pfile,              /**< file to read from */
-   long long int*        linecount,          /**< current linecount */
+   SCIP_Longint*         linecount,          /**< current linecount */
    CBF_DATA*             data                /**< data pointer to save the results in */
    )
 {
@@ -305,7 +306,7 @@ static
 SCIP_RETCODE CBFreadCon(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pfile,              /**< file to read from */
-   long long int*        linecount,          /**< current linecount */
+   SCIP_Longint*         linecount,          /**< current linecount */
    CBF_DATA*             data                /**< data pointer to save the results in */
    )
 {
@@ -444,7 +445,7 @@ static
 SCIP_RETCODE CBFreadInt(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pfile,              /**< file to read from */
-   long long int*        linecount,          /**< current linecount */
+   SCIP_Longint*         linecount,          /**< current linecount */
    CBF_DATA*             data                /**< data pointer to save the results in */
    )
 {  /*lint --e{818}*/
@@ -501,7 +502,7 @@ static
 SCIP_RETCODE CBFreadPsdcon(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pfile,              /**< file to read from */
-   long long int*        linecount,          /**< current linecount */
+   SCIP_Longint*         linecount,          /**< current linecount */
    CBF_DATA*             data                /**< data pointer to save the results in */
    )
 {
@@ -552,7 +553,7 @@ static
 SCIP_RETCODE CBFreadObjacoord(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pfile,              /**< file to read from */
-   long long int*        linecount,          /**< current linecount */
+   SCIP_Longint*         linecount,          /**< current linecount */
    CBF_DATA*             data                /**< data pointer to save the results in */
    )
 {  /*lint --e{818}*/
@@ -614,7 +615,7 @@ static
 SCIP_RETCODE CBFreadAcoord(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pfile,              /**< file to read from */
-   long long int*        linecount,          /**< current linecount */
+   SCIP_Longint*         linecount,          /**< current linecount */
    CBF_DATA*             data                /**< data pointer to save the results in */
    )
 {  /*lint --e{818}*/
@@ -681,7 +682,7 @@ static
 SCIP_RETCODE CBFreadBcoord(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pfile,              /**< file to read from */
-   long long int *       linecount,          /**< current linecount */
+   SCIP_Longint*         linecount,          /**< current linecount */
    CBF_DATA*             data                /**< data pointer to save the results in */
    )
 {  /*lint --e{818}*/
@@ -757,7 +758,7 @@ static
 SCIP_RETCODE CBFreadHcoord(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pfile,              /**< file to read from */
-   long long int*        linecount,          /**< current linecount */
+   SCIP_Longint*         linecount,          /**< current linecount */
    CBF_DATA*             data                /**< data pointer to save the results in */
    )
 {
@@ -928,7 +929,7 @@ static
 SCIP_RETCODE CBFreadDcoord(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pfile,              /**< file to read from */
-   long long int*        linecount,          /**< current linecount */
+   SCIP_Longint*         linecount,          /**< current linecount */
    CBF_DATA*             data                /**< data pointer to save the results in */
    )
 {
@@ -1132,7 +1133,7 @@ static
 SCIP_DECL_READERREAD(readerReadCbf)
 {  /*lint --e{715,818}*/
    SCIP_FILE* scipfile;
-   long long int linecount;
+   SCIP_Longint linecount;
    SCIP_Bool versionread;
    SCIP_Bool objread;
    CBF_DATA* data;
