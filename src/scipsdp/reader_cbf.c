@@ -1531,6 +1531,10 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 
       if ( SCIPgetValsLinear(scip, conss[c])[0] > 0.0 )
       {
+         assert( SCIPgetVarsLinear(scip, conss[c]) != NULL );
+         v = SCIPvarGetProbindex(SCIPgetVarsLinear(scip, conss[c])[0]);
+         assert( 0 <= v && v < nvars );
+
          if ( SCIPisZero(scip, SCIPgetLhsLinear(scip, conss[c])) )
          {
             consdisabled[c] = 1;
