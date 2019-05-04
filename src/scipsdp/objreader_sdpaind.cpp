@@ -695,8 +695,8 @@ namespace scip
                   }
                   else
                   {
-                     SCIP_VAR* indvar;
-                     SCIP_VAR* slackvar;
+                     SCIP_VAR* indvar = 0;
+                     SCIP_VAR* slackvar = 0;
                      SCIP_CONS* indcons;
                      char      cons_name[SCIP_MAXSTRLEN];
 
@@ -759,12 +759,14 @@ namespace scip
                      }
 
                      /* add constraint */
+                     assert( indvar != 0 );
+                     assert( slackvar != 0 );
                      SCIP_CALL( SCIPcreateConsIndicatorLinCons( scip, &indcons, cons_name, indvar, LPcon, slackvar,
-                          TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE) );
+                           TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE) );
                      SCIP_CALL( SCIPaddCons(scip, LPcon) );
                      SCIP_CALL( SCIPaddCons(scip, indcons) );
 
-#if SCIP_MORE_DEBUG
+#ifdef SCIP_MORE_DEBUG
                      SCIP_CALL( SCIPprintCons(scip, indcons, NULL) );
 #endif
 
