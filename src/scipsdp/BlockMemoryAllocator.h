@@ -120,24 +120,26 @@ private:
 
 template<> class BlockMemoryAllocator<void>
 {
-  typedef void        value_type;
-  typedef void*       pointer;
-  typedef const void* const_pointer;
+   typedef void        value_type;
+   typedef void*       pointer;
+   typedef const void* const_pointer;
 
-  template <class U>
-  struct rebind { typedef BlockMemoryAllocator<U> other; };
+   template <class U>
+   struct rebind { typedef BlockMemoryAllocator<U> other; };
 };
 
 
 template <class T>
 inline bool operator==(const BlockMemoryAllocator<T>& left,
-                       const BlockMemoryAllocator<T>& right) {
+                       const BlockMemoryAllocator<T>& right)
+{
    return left.scip_ == right.scip_;
 }
 
 template <class T>
 inline bool operator!=(const BlockMemoryAllocator<T>& left,
-                       const BlockMemoryAllocator<T>& right) {
+                       const BlockMemoryAllocator<T>& right)
+{
    return !(left == right);
 }
 
