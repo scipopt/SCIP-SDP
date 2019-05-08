@@ -791,7 +791,7 @@ SCIP_RETCODE CBFreadHcoord(
    {
       if ( nnonz >= 0 )
       {
-         /* allocate memory (nnonz for each block, since we do not yet no the distribution) */
+         /* allocate memory (nnonz for each block, since we do not yet know the distribution) */
          SCIP_CALL( SCIPallocBufferArray(scip, &sdpvar, data->nsdpblocks) );
          SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdprow), data->nsdpblocks) );
          SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpcol), data->nsdpblocks) );
@@ -848,8 +848,19 @@ SCIP_RETCODE CBFreadHcoord(
                else
                {
                   sdpvar[b][data->sdpnblocknonz[b]] = v;
-                  data->sdprow[b][data->sdpnblocknonz[b]] = row;
-                  data->sdpcol[b][data->sdpnblocknonz[b]] = col;
+
+                  /* make sure matrix is in lower triangular form */
+                  if ( col > row )
+                  {
+                     data->sdprow[b][data->sdpnblocknonz[b]] = col;
+                     data->sdpcol[b][data->sdpnblocknonz[b]] = row;
+                  }
+                  else
+                  {
+                     data->sdprow[b][data->sdpnblocknonz[b]] = row;
+                     data->sdpcol[b][data->sdpnblocknonz[b]] = col;
+                  }
+
                   data->sdpval[b][data->sdpnblocknonz[b]] = val;
                   data->sdpnblocknonz[b]++;
                }
@@ -1009,8 +1020,17 @@ SCIP_RETCODE CBFreadDcoord(
                }
                else
                {
-                  data->sdpconstrow[b][data->sdpconstnblocknonz[b]] = row;
-                  data->sdpconstcol[b][data->sdpconstnblocknonz[b]] = col;
+                  /* make sure matrix is in lower triangular form */
+                  if ( col > row )
+                  {
+                     data->sdpconstrow[b][data->sdpconstnblocknonz[b]] = col;
+                     data->sdpconstcol[b][data->sdpconstnblocknonz[b]] = row;
+                  }
+                  else
+                  {
+                     data->sdpconstrow[b][data->sdpconstnblocknonz[b]] = row;
+                     data->sdpconstcol[b][data->sdpconstnblocknonz[b]] = col;
+                  }
                   data->sdpconstval[b][data->sdpconstnblocknonz[b]] = -val;
                   data->sdpconstnblocknonz[b]++;
                }
