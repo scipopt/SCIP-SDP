@@ -13,7 +13,7 @@
 -e717       // allow do ... while (0) constructs (appears in SCIP_CALL(...))
 -e1702      // operator 'Name' is both an ordinary function 'String' and a member function 'String'
 -e1725      // class member is a reference
-
+-e834       // Operator followed by operator is confusing
 -e866       // Unusual use of 'SYM' in argument to sizeof
 
 -esym(578,scip)           // Declaration of symbol hides symbol
@@ -21,6 +21,10 @@
 // The following happens quite often (and might be useful), but clutters the output
 -e679  // Suspicious Truncation in arithmetic expression combining with pointer
 -e451  // Header file repeatedly included but does not have a standard include guard
+
+// temporary
+-e818  // Pointer parameter could be declared as pointing to const
+-e801  // Use of goto is deprecated
 
 -emacro(506,SCIPdebugMessage) // Constant value Boolean
 -emacro(681,SCIPdebugMessage) // Loop is not entered
