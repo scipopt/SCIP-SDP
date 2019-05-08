@@ -73,15 +73,9 @@ char CBF_NAME_BUFFER[CBF_MAX_NAME];
 
 struct CBF_Data
 {
-   int                   firstnegorthvar;    /**< first variable in the createdvars-array which should be non-positive
-                                              *   (variables 0 to firstnegorthvar-1 should be non-negative) */
-   int                   firstfreevar;       /**< first variable in the createdvars-array which should be free
-                                              *   (variables firstnegorthvar to firstfreevar-1 should be non-negative) */
-   int                   nvars;              /**< number of variables and length of createdvars-array
-                                              *   (variables firstfreevar to nvars-1 should be free) */
+   int                   nvars;              /**< number of variables and length of createdvars-array */
    SCIP_VAR**            createdvars;        /**< array of variables created by the CBF reader */
-   int                   nconss;             /**< number of constraints and length of createdconss-array
-                                              *   (constraints firsteqcons to nconss-1 should be equalities) */
+   int                   nconss;             /**< number of constraints and length of createdconss-array */
    SCIP_CONS**           createdconss;       /**< array of constraints created by the CBF reader */
    int                   nsdpblocks;         /**< number of SDP constraints/blocks */
    int*                  sdpblocksizes;      /**< sizes of the SDP blocks */
@@ -179,16 +173,14 @@ SCIP_RETCODE CBFreadVar(
    CBF_DATA*             data                /**< data pointer to save the results in */
    )
 {
-   int nvartypes;
+   char varname[SCIP_MAXSTRLEN];
+   SCIP_VAR* var;
    int nvartypevars;
-   int nposorthvars = 0;
-   int nnegorthvars = 0;
+   int nvartypes;
+   int cnt = 0;
    int t;
    int v;
-   SCIP_VAR* var;
-   char varname[SCIP_MAXSTRLEN];
 #ifndef NDEBUG
-   int nfreevars = 0;
    int snprintfreturn;
 #endif
 
@@ -209,6 +201,7 @@ SCIP_RETCODE CBFreadVar(
          SCIPABORT();
          return SCIP_READERROR; /*lint !e527*/
       }
+
       if ( nvartypes < 0 )
       {
          SCIPerrorMessage("Number of conic variable domains %d should be non-negative!\n", nvartypes);
@@ -216,97 +209,74 @@ SCIP_RETCODE CBFreadVar(
          return SCIP_READERROR; /*lint !e527*/
       }
       assert( data->nvars >= 0 && nvartypes >= 0 );
-
-      /* create variables */
-      SCIP_CALL( SCIPallocBufferArray(scip, &(data->createdvars), data->nvars) );
-      for (v = 0; v < data->nvars; v++)
-      {
-#ifndef NDEBUG
-         snprintfreturn = SCIPsnprintf(varname, SCIP_MAXSTRLEN, "x_%d", v);
-         assert( snprintfreturn < SCIP_MAXSTRLEN);
-#else
-         (void)SCIPsnprintf(varname, SCIP_MAXSTRLEN, "x_%d", v);
-#endif
-
-         SCIP_CALL( SCIPcreateVar(scip, &var, varname, -SCIPinfinity(scip), SCIPinfinity(scip), 0.0,
-               SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));/*lint !e732*//*lint !e747*/
-
-         SCIP_CALL( SCIPaddVar(scip, var) );
-         data->createdvars[v] = var;/*lint !e732*//*lint !e747*/
-
-         /* release variable for the reader. */
-         SCIP_CALL( SCIPreleaseVar(scip, &var) );
-      }
    }
 
-   /* we accumulate the types, i.e., cones may appear several times */
+   /* loop through different variable types */
+   SCIP_CALL( SCIPallocBufferArray(scip, &(data->createdvars), data->nvars) );
    for (t = 0; t < nvartypes; t++)
    {
       SCIP_CALL( CBFfgets(pfile, linecount) );
 
       if ( sscanf(CBF_LINE_BUFFER, CBF_NAME_FORMAT" %i", CBF_NAME_BUFFER, &nvartypevars) == 2 )
       {
+         SCIP_Real lb;
+         SCIP_Real ub;
+
+         if ( nvartypevars <= 0 )
+         {
+            SCIPerrorMessage("Number of variables %d should be positive!\n", nvartypevars);
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+
+         lb = -SCIPinfinity(scip);
+         ub = SCIPinfinity(scip);
+
          if ( strcmp(CBF_NAME_BUFFER, "L+") == 0 )
          {
-            if ( nvartypevars >= 1 )
-               nposorthvars += nvartypevars;
-            else
-            {
-               SCIPerrorMessage("Number of non-negative variables %d should be positive!\n", nvartypevars);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
+            lb = 0.0;
          }
          else if ( strcmp(CBF_NAME_BUFFER, "L-") == 0 )
          {
-            if ( nvartypevars >= 1 )
-               nnegorthvars += nvartypevars;
-            else
-            {
-               SCIPerrorMessage("Number of non-positive variables %d should be positive!\n", nvartypevars);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
+            ub = 0.0;
          }
-#ifndef NDEBUG
-         else if ( strcmp(CBF_NAME_BUFFER, "F") == 0 )
-         {
-            if ( nvartypevars >= 1 )
-               nfreevars += nvartypevars;
-            else
-            {
-               SCIPerrorMessage("Number of free variables %d should be positive!\n", nvartypevars);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
-         }
-#endif
          else if ( strcmp(CBF_NAME_BUFFER, "F") != 0 )
          {
             SCIPerrorMessage("CBF-Reader of SCIP-SDP currently only supports non-negative, non-positive and free variables!\n");
             SCIPABORT();
             return SCIP_READERROR; /*lint !e527*/
          }
+
+         /* create corresponding variables */
+         for (v = 0; v < nvartypevars; v++)
+         {
+#ifndef NDEBUG
+            snprintfreturn = SCIPsnprintf(varname, SCIP_MAXSTRLEN, "x_%d", cnt);
+            assert( snprintfreturn < SCIP_MAXSTRLEN);
+#else
+            (void)SCIPsnprintf(varname, SCIP_MAXSTRLEN, "x_%d", cnt);
+#endif
+
+            SCIP_CALL( SCIPcreateVar(scip, &var, varname, lb, ub, 0.0, SCIP_VARTYPE_CONTINUOUS,
+                  TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));/*lint !e732*//*lint !e747*/
+
+            SCIP_CALL( SCIPaddVar(scip, var) );
+            data->createdvars[cnt++] = var;/*lint !e732*//*lint !e747*/
+
+            /* release variable for the reader. */
+            SCIP_CALL( SCIPreleaseVar(scip, &var) );
+         }
       }
       else
          return SCIP_READERROR;
    }
 
-   /* set lower bound for non-negative variables */
-   data->firstnegorthvar = nposorthvars;
-   for (v = 0; v < nposorthvars; v++)
+   if ( cnt != data->nvars )
    {
-      SCIP_CALL( SCIPchgVarLbGlobal(scip, data->createdvars[v], 0.0) );
+      SCIPerrorMessage("Total number of variables for different cone types not equal to total number of variables!\n");
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
    }
-
-   /* set upper bound for non-positive variables */
-   data->firstfreevar = data->firstnegorthvar + nnegorthvars;
-   for (v = data->firstnegorthvar; v < data->firstfreevar; v++)
-   {
-      SCIP_CALL( SCIPchgVarUbGlobal(scip, data->createdvars[v], 0.0) );
-   }
-
-   assert( data->firstfreevar + nfreevars == data->nvars );
 
    return SCIP_OKAY;
 }
@@ -348,6 +318,7 @@ SCIP_RETCODE CBFreadCon(
          SCIPABORT();
          return SCIP_READERROR; /*lint !e527*/
       }
+
       if ( nconstypes < 0 )
       {
          SCIPerrorMessage("Number of conic constraint domains %d should be non-negative!\n", nconstypes);
@@ -357,7 +328,7 @@ SCIP_RETCODE CBFreadCon(
       assert( data->nconss >= 0 && nconstypes >= 0 );
    }
 
-   /* we accumulate the types, i.e., cones may appear several times */
+   /* loop through different constraint types */
    SCIP_CALL( SCIPallocBufferArray(scip, &(data->createdconss), data->nconss) );
    for (t = 0; t < nconstypes; t++)
    {
@@ -415,7 +386,7 @@ SCIP_RETCODE CBFreadCon(
             SCIP_CALL( SCIPaddCons(scip, cons) );
             data->createdconss[cnt++] = cons;
 
-            /* release variable for the reader. */
+            /* release constraint for the reader. */
             SCIP_CALL( SCIPreleaseCons(scip, &cons) );
          }
       }
