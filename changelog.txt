@@ -27,6 +27,7 @@ interface:
 features:
 - when reading CBF files, we now also allow that the conic parts appear multiple times, which are then aggregated
 - allow to read CBF file version 2 (but do not support additional cones)
+- allow conic parts of constraints in different order
 
 
 SCIP-SDP version 3.1.1

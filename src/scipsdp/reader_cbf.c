@@ -80,10 +80,6 @@ struct CBF_Data
    int                   nvars;              /**< number of variables and length of createdvars-array
                                               *   (variables firstfreevar to nvars-1 should be free) */
    SCIP_VAR**            createdvars;        /**< array of variables created by the CBF reader */
-   int                   firstleqcons;       /**< first less or equal constraint in the createdconss-array
-                                              *   (constraints 0 to firstleqcons-1 should be greater or equal) */
-   int                   firsteqcons;        /**< first equality constraint in the createdconss-array
-                                              *   (constrains firstleqcons to firsteqcons-1 should be less or equal) */
    int                   nconss;             /**< number of constraints and length of createdconss-array
                                               *   (constraints firsteqcons to nconss-1 should be equalities) */
    SCIP_CONS**           createdconss;       /**< array of constraints created by the CBF reader */
@@ -324,16 +320,14 @@ SCIP_RETCODE CBFreadCon(
    CBF_DATA*             data                /**< data pointer to save the results in */
    )
 {
+   char consname[SCIP_MAXSTRLEN];
+   SCIP_CONS* cons;
    int nconstypes;
    int nconstypeconss;
-   int ngeqconss = 0;
-   int nleqconss = 0;
    int t;
    int c;
-   SCIP_CONS* cons;
-   char consname[SCIP_MAXSTRLEN];
+   int cnt = 0;
 #ifndef NDEBUG
-   int neqconss = 0;
    int snprintfreturn;
 #endif
 
@@ -361,105 +355,80 @@ SCIP_RETCODE CBFreadCon(
          return SCIP_READERROR; /*lint !e527*/
       }
       assert( data->nconss >= 0 && nconstypes >= 0 );
-
-      /* create constraints */
-      SCIP_CALL( SCIPallocBufferArray(scip, &(data->createdconss), data->nconss) );
-      for (c = 0; c < data->nconss; c++)
-      {
-#ifndef NDEBUG
-         snprintfreturn = SCIPsnprintf(consname, SCIP_MAXSTRLEN, "LP_%d", c);
-         assert( snprintfreturn < SCIP_MAXSTRLEN);
-#else
-         (void)SCIPsnprintf(consname, SCIP_MAXSTRLEN, "linear_%d", c);
-#endif
-
-         SCIP_CALL( SCIPcreateConsLinear(scip, &cons, consname, 0, NULL, NULL, -SCIPinfinity(scip), SCIPinfinity(scip),
-               TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
-
-         SCIP_CALL( SCIPaddCons(scip, cons) );
-         data->createdconss[c] = cons;/*lint !e732*//*lint !e747*/
-
-         /* release variable for the reader. */
-         SCIP_CALL( SCIPreleaseCons(scip, &cons) );
-      }
    }
 
    /* we accumulate the types, i.e., cones may appear several times */
+   SCIP_CALL( SCIPallocBufferArray(scip, &(data->createdconss), data->nconss) );
    for (t = 0; t < nconstypes; t++)
    {
       SCIP_CALL( CBFfgets(pfile, linecount) );
 
       if ( sscanf(CBF_LINE_BUFFER, CBF_NAME_FORMAT" %i", CBF_NAME_BUFFER, &nconstypeconss) == 2 )
       {
+         SCIP_Real lhs;
+         SCIP_Real rhs;
+
+         if ( nconstypeconss <= 0 )
+         {
+            SCIPerrorMessage("Number of constraints %d should be positive!\n", nconstypeconss);
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+
+         lhs = -SCIPinfinity(scip);
+         rhs = SCIPinfinity(scip);
+
          if ( strcmp(CBF_NAME_BUFFER, "L+") == 0 )
          {
-            if ( nconstypeconss >= 1 )
-               ngeqconss += nconstypeconss;
-            else
-            {
-               SCIPerrorMessage("Number of greater or equal constraints %d should be positive!\n", nconstypeconss);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
+            lhs = 0.0;
          }
          else if ( strcmp(CBF_NAME_BUFFER, "L-") == 0 )
          {
-            if ( nconstypeconss >= 1 )
-               nleqconss += nconstypeconss;
-            else
-            {
-               SCIPerrorMessage("Number of less or equal constraints %d should be positive!\n", nconstypeconss);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
+            rhs = 0.0;
          }
-#ifndef NDEBUG
          else if ( strcmp(CBF_NAME_BUFFER, "L=") == 0 )
          {
-            if ( nconstypeconss >= 1 )
-               neqconss += nconstypeconss;
-            else
-            {
-               SCIPerrorMessage("Number of equality constraints %d should be positive!\n", nconstypeconss);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
+            lhs = 0.0;
+            rhs = 0.0;
          }
-#endif
-         else if ( strcmp(CBF_NAME_BUFFER, "L=") != 0 )
+         else
          {
             SCIPerrorMessage("CBF-Reader of SCIP-SDP currently only supports linear greater or equal, less or equal and"
                "equality constraints!\n");
             SCIPABORT();
             return SCIP_READERROR; /*lint !e527*/
          }
+
+         /* create corresponding constraints */
+         for (c = 0; c < nconstypeconss; c++)
+         {
+#ifndef NDEBUG
+            snprintfreturn = SCIPsnprintf(consname, SCIP_MAXSTRLEN, "LP_%d", cnt);
+            assert( snprintfreturn < SCIP_MAXSTRLEN);
+#else
+            (void)SCIPsnprintf(consname, SCIP_MAXSTRLEN, "linear_%d", cnt);
+#endif
+
+            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, consname, 0, NULL, NULL, lhs, rhs,
+                  TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
+
+            SCIP_CALL( SCIPaddCons(scip, cons) );
+            data->createdconss[cnt++] = cons;
+
+            /* release variable for the reader. */
+            SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+         }
       }
       else
          return SCIP_READERROR;
    }
 
-   /* set left-hand side for greater or equal constraints */
-   data->firstleqcons = ngeqconss;
-   for (c = 0; c < ngeqconss; c++)
+   if ( cnt != data->nconss )
    {
-      SCIP_CALL( SCIPchgLhsLinear(scip, data->createdconss[c], 0.0) );
+      SCIPerrorMessage("Total number of constraints for different cone types not equal to total number of constraints!\n");
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
    }
-
-   /* set right-hand side for less or equal constraints */
-   data->firsteqcons = data->firstleqcons + nleqconss;
-   for (c = data->firstleqcons; c < data->firsteqcons; c++)
-   {
-      SCIP_CALL( SCIPchgRhsLinear(scip, data->createdconss[c], 0.0) );
-   }
-
-   /* set both sides for equality constraints */
-   for (c=data->firsteqcons; c < data->nconss; c++)
-   {
-      SCIP_CALL( SCIPchgLhsLinear(scip, data->createdconss[c], 0.0) );
-      SCIP_CALL( SCIPchgRhsLinear(scip, data->createdconss[c], 0.0) );
-   }
-
-   assert( data->firsteqcons + neqconss == data->nconss );
 
    return SCIP_OKAY;
 }
@@ -746,6 +715,7 @@ SCIP_RETCODE CBFreadBcoord(
                   SCIPABORT();
                   return SCIP_READERROR; /*lint !e527*/
                }
+
                if ( SCIPisZero(scip, val) )
                {
                   SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Ignored constant part of constraint %d; value %.9f is "
@@ -753,20 +723,16 @@ SCIP_RETCODE CBFreadBcoord(
                }
                else
                {
-                  if ( c < data->firstleqcons )
+                  /* check type */
+                  if ( ! SCIPisInfinity(scip, -SCIPgetLhsLinear(scip, data->createdconss[c])) )
                   {
                      /* greater or equal constraint -> left-hand side (minus since we have Ax + b >= 0) */
                      SCIP_CALL( SCIPchgLhsLinear(scip, data->createdconss[c], -val) );
                   }
-                  else if ( c < data->firsteqcons )
+
+                  if ( ! SCIPisInfinity(scip, SCIPgetRhsLinear(scip, data->createdconss[c]) ) )
                   {
                      /* less or equal constraint -> right-hand side (minus since we have Ax + b <= 0) */
-                     SCIP_CALL( SCIPchgRhsLinear(scip, data->createdconss[c], -val) );
-                  }
-                  else
-                  {
-                     /* equality constraint -> left- and right-hand side (minus since we have Ax + b = 0) */
-                     SCIP_CALL( SCIPchgLhsLinear(scip, data->createdconss[c], -val) );
                      SCIP_CALL( SCIPchgRhsLinear(scip, data->createdconss[c], -val) );
                   }
                }
