@@ -2172,7 +2172,10 @@ SCIP_DECL_CONSPRINT(consPrintSdp)
 
       for (i = 0; i < consdata->constnnonz; i++)
       {
-         SCIPinfoMessage(scip, file, "(%d,%d):%.9f, ", consdata->constrow[i], consdata->constcol[i], consdata->constval[i]);
+         if ( i < consdata->constnnonz - 1 )
+            SCIPinfoMessage(scip, file, "(%d,%d):%.9f, ", consdata->constrow[i], consdata->constcol[i], consdata->constval[i]);
+         else
+            SCIPinfoMessage(scip, file, "(%d,%d):%.9f", consdata->constrow[i], consdata->constcol[i], consdata->constval[i]);
       }
       SCIPinfoMessage(scip, file, "\n");
    }
@@ -2183,7 +2186,10 @@ SCIP_DECL_CONSPRINT(consPrintSdp)
       SCIPinfoMessage(scip, file, "<%s>: ", SCIPvarGetName(consdata->vars[v]));
       for (i = 0; i < consdata->nvarnonz[v]; i++)
       {
-         SCIPinfoMessage(scip, file, "(%d,%d):%f.9, ", consdata->row[v][i], consdata->col[v][i], consdata->val[v][i]);
+         if ( i < consdata->nvarnonz[v] - 1 || v < consdata->nvars - 1 )
+            SCIPinfoMessage(scip, file, "(%d,%d):%.9f, ", consdata->row[v][i], consdata->col[v][i], consdata->val[v][i]);
+         else
+            SCIPinfoMessage(scip, file, "(%d,%d):%.9f", consdata->row[v][i], consdata->col[v][i], consdata->val[v][i]);
       }
       /* if this is not the last variable, add a newline */
       if (v < consdata->nvars - 1)
