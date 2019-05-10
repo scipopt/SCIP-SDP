@@ -1026,18 +1026,25 @@ SCIP_RETCODE CBFreadDcoord(
       return SCIP_READERROR; /*lint !e527*/
    }
 
-   /* initialize sdpconstnblocknonz with 0 */
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstnblocknonz), data->nsdpblocks) );
-   for (b = 0; b < data->nsdpblocks; b++)
-      data->sdpconstnblocknonz[b] = 0;
-
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
    if ( sscanf(CBF_LINE_BUFFER, "%i", &constnnonz) == 1 )
    {
-      data->constnnonz = constnnonz;
-      if ( constnnonz >= 0 )
+      if ( constnnonz < 0 )
       {
+         SCIPerrorMessage("Number of constant entries of SDP-constraints %d should be non-negative!\n", constnnonz);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
+
+      data->constnnonz = constnnonz;
+      if ( constnnonz > 1 )
+      {
+         /* initialize sdpconstnblocknonz with 0 */
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstnblocknonz), data->nsdpblocks) );
+         for (b = 0; b < data->nsdpblocks; b++)
+            data->sdpconstnblocknonz[b] = 0;
+
          /* allocate memory (constnnonz for each block, since we do not yet no the distribution) */
          SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstrow), data->nsdpblocks) );
          SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstcol), data->nsdpblocks) );
@@ -1102,12 +1109,6 @@ SCIP_RETCODE CBFreadDcoord(
             else
                return SCIP_READERROR;
          }
-      }
-      else
-      {
-         SCIPerrorMessage("Number of constant entries of SDP-constraints %d should be non-negative!\n", constnnonz);
-         SCIPABORT();
-         return SCIP_READERROR; /*lint !e527*/
       }
    }
    else
