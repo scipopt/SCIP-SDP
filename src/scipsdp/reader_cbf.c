@@ -87,6 +87,7 @@ struct CBF_Data
    int**                 sdprow;             /**< array of all row indices for each SDP block */
    int**                 sdpcol;             /**< array of all column indices for each SDP block */
    SCIP_Real**           sdpval;             /**< array of all values of SDP nonzeros for each SDP block */
+   int                   nnonz;              /**< number of nonzeros in blocks */
    int***                rowpointer;         /**< array of pointers to first entries in row-array for each block and variable */
    int***                colpointer;         /**< array of pointers to first entries in row-array for each block and variable */
    SCIP_Real***          valpointer;         /**< array of pointers to first entries in row-array for each block and variable */
@@ -95,6 +96,7 @@ struct CBF_Data
    int**                 sdpconstrow;        /**< pointers to row-indices for each block */
    int**                 sdpconstcol;        /**< pointers to column-indices for each block */
    SCIP_Real**           sdpconstval;        /**< pointers to the values of the nonzeros for each block */
+   int                   constnnonz;         /**< number of nonzeros in const block */
 };
 
 typedef struct CBF_Data CBF_DATA;
@@ -213,7 +215,7 @@ SCIP_RETCODE CBFreadVar(
    }
 
    /* loop through different variable types */
-   SCIP_CALL( SCIPallocBufferArray(scip, &(data->createdvars), data->nvars) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdvars), data->nvars) );
    for (t = 0; t < nvartypes; t++)
    {
       SCIP_CALL( CBFfgets(pfile, linecount) );
@@ -330,7 +332,7 @@ SCIP_RETCODE CBFreadCon(
    }
 
    /* loop through different constraint types */
-   SCIP_CALL( SCIPallocBufferArray(scip, &(data->createdconss), data->nconss) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdconss), data->nconss) );
    for (t = 0; t < nconstypes; t++)
    {
       SCIP_CALL( CBFfgets(pfile, linecount) );
@@ -495,7 +497,7 @@ SCIP_RETCODE CBFreadPsdcon(
    {
       if ( data->nsdpblocks >= 0 )
       {
-         SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpblocksizes), data->nsdpblocks) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblocksizes), data->nsdpblocks) );
 
          for (b = 0; b < data->nsdpblocks; b++)
          {
@@ -827,7 +829,7 @@ SCIP_RETCODE CBFreadHcoord(
    }
 
    /* initialize sdpnblocknonz with 0 */
-   SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpnblocknonz), data->nsdpblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpnblocknonz), data->nsdpblocks) );
    for (b = 0; b < data->nsdpblocks; b++)
       data->sdpnblocknonz[b] = 0;
 
@@ -835,20 +837,21 @@ SCIP_RETCODE CBFreadHcoord(
 
    if ( sscanf(CBF_LINE_BUFFER, "%i", &nnonz) == 1 )
    {
+      data->nnonz = nnonz;
       if ( nnonz >= 0 )
       {
          /* allocate memory (nnonz for each block, since we do not yet know the distribution) */
-         SCIP_CALL( SCIPallocBufferArray(scip, &sdpvar, data->nsdpblocks) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdprow), data->nsdpblocks) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpcol), data->nsdpblocks) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpval), data->nsdpblocks) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &sdpvar, data->nsdpblocks) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdprow), data->nsdpblocks) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpcol), data->nsdpblocks) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpval), data->nsdpblocks) );
 
          for (b = 0; b < data->nsdpblocks; b++)
          {
-            SCIP_CALL( SCIPallocBufferArray(scip, &(sdpvar[b]), nnonz) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdprow[b]), nnonz) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpcol[b]), nnonz) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpval[b]), nnonz) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpvar[b]), nnonz) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdprow[b]), nnonz) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpcol[b]), nnonz) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpval[b]), nnonz) );
          }
 
          for (i = 0; i < nnonz; i++)
@@ -915,12 +918,12 @@ SCIP_RETCODE CBFreadHcoord(
          }
 
          /* construct pointer arrays */
-         SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpnblockvars), data->nsdpblocks) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpblockvars), data->nsdpblocks) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &(data->nvarnonz), data->nsdpblocks) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &(data->rowpointer), data->nsdpblocks) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &(data->colpointer), data->nsdpblocks) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &(data->valpointer), data->nsdpblocks) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpnblockvars), data->nsdpblocks) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblockvars), data->nsdpblocks) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->nvarnonz), data->nsdpblocks) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->rowpointer), data->nsdpblocks) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->colpointer), data->nsdpblocks) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->valpointer), data->nsdpblocks) );
 
          for (b = 0; b < data->nsdpblocks; b++)
          {
@@ -930,11 +933,11 @@ SCIP_RETCODE CBFreadHcoord(
             /* create the pointer arrays and insert used variables into vars-array */
             nextindaftervar = 0;
             data->sdpnblockvars[b] = 0;
-            SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpblockvars[b]), data->nvars) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &(data->nvarnonz[b]), data->nvars) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &(data->rowpointer[b]), data->nvars) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &(data->colpointer[b]), data->nvars) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &(data->valpointer[b]), data->nvars) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblockvars[b]), data->nvars) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->nvarnonz[b]), data->nvars) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->rowpointer[b]), data->nvars) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->colpointer[b]), data->nvars) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->valpointer[b]), data->nvars) );
 
             for (v = 0; v < data->nvars; v++)
             {
@@ -962,11 +965,11 @@ SCIP_RETCODE CBFreadHcoord(
 
             assert( nextindaftervar == data->sdpnblocknonz[b] );
 
-            SCIPfreeBufferArray(scip, &(sdpvar[b]));
+            SCIPfreeBlockMemoryArray(scip, &(sdpvar[b]), nnonz);
          }
 
          /* free SDP-var array which is no longer needed */
-         SCIPfreeBufferArray(scip, &sdpvar);
+         SCIPfreeBlockMemoryArray(scip, &sdpvar, data->nsdpblocks);
       }
       else
       {
@@ -1024,7 +1027,7 @@ SCIP_RETCODE CBFreadDcoord(
    }
 
    /* initialize sdpconstnblocknonz with 0 */
-   SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpconstnblocknonz), data->nsdpblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstnblocknonz), data->nsdpblocks) );
    for (b = 0; b < data->nsdpblocks; b++)
       data->sdpconstnblocknonz[b] = 0;
 
@@ -1032,18 +1035,19 @@ SCIP_RETCODE CBFreadDcoord(
 
    if ( sscanf(CBF_LINE_BUFFER, "%i", &constnnonz) == 1 )
    {
+      data->constnnonz = constnnonz;
       if ( constnnonz >= 0 )
       {
          /* allocate memory (constnnonz for each block, since we do not yet no the distribution) */
-         SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpconstrow), data->nsdpblocks) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpconstcol), data->nsdpblocks) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpconstval), data->nsdpblocks) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstrow), data->nsdpblocks) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstcol), data->nsdpblocks) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstval), data->nsdpblocks) );
 
          for (b = 0; b < data->nsdpblocks; b++)
          {
-            SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpconstrow[b]), constnnonz) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpconstcol[b]), constnnonz) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpconstval[b]), constnnonz) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstrow[b]), constnnonz) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstcol[b]), constnnonz) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstval[b]), constnnonz) );
          }
 
          for (i = 0; i < constnnonz; i++)
@@ -1144,14 +1148,14 @@ SCIP_RETCODE CBFfreeData(
    {
       for (b = 0; b < data->nsdpblocks; b++)
       {
-         SCIPfreeBufferArrayNull(scip, &(data->sdpconstval[b]));
-         SCIPfreeBufferArrayNull(scip, &(data->sdpconstcol[b]));
-         SCIPfreeBufferArrayNull(scip, &(data->sdpconstrow[b]));
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstval[b]), data->constnnonz);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstcol[b]), data->constnnonz);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstrow[b]), data->constnnonz);
       }
-      SCIPfreeBufferArrayNull(scip, &data->sdpconstval);
-      SCIPfreeBufferArrayNull(scip, &data->sdpconstcol);
-      SCIPfreeBufferArrayNull(scip, &data->sdpconstrow);
-      SCIPfreeBufferArrayNull(scip, &data->sdpconstnblocknonz);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstval, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstcol, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstrow, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstnblocknonz, data->nsdpblocks);
    }
 
    /* we only allocated memory for the sdpblocks if there were any nonzeros */
@@ -1167,33 +1171,33 @@ SCIP_RETCODE CBFfreeData(
    {
       for (b = 0; b < data->nsdpblocks; b++)
       {
-         SCIPfreeBufferArrayNull(scip, &(data->valpointer[b]));
-         SCIPfreeBufferArrayNull(scip, &(data->colpointer[b]));
-         SCIPfreeBufferArrayNull(scip, &(data->rowpointer[b]));
-         SCIPfreeBufferArrayNull(scip, &(data->sdpval[b]));
-         SCIPfreeBufferArrayNull(scip, &(data->sdpcol[b]));
-         SCIPfreeBufferArrayNull(scip, &(data->sdprow[b]));
-         SCIPfreeBufferArrayNull(scip, &(data->sdpblockvars[b]));
-         SCIPfreeBufferArrayNull(scip, &(data->nvarnonz[b]));
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->valpointer[b]), data->nvars);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->colpointer[b]), data->nvars);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->rowpointer[b]), data->nvars);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpval[b]), data->nnonz);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpcol[b]), data->nnonz);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdprow[b]), data->nnonz);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpblockvars[b]), data->nvars);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->nvarnonz[b]), data->nvars);
       }
-      SCIPfreeBufferArrayNull(scip, &data->valpointer);
-      SCIPfreeBufferArrayNull(scip, &data->colpointer);
-      SCIPfreeBufferArrayNull(scip, &data->rowpointer);
-      SCIPfreeBufferArrayNull(scip, &data->sdpval);
-      SCIPfreeBufferArrayNull(scip, &data->sdpcol);
-      SCIPfreeBufferArrayNull(scip, &data->sdprow);
-      SCIPfreeBufferArrayNull(scip, &data->sdpblockvars);
-      SCIPfreeBufferArrayNull(scip, &data->nvarnonz);
-      SCIPfreeBufferArrayNull(scip, &data->sdpnblockvars);
-      SCIPfreeBufferArrayNull(scip, &data->sdpnblocknonz);
-      SCIPfreeBufferArrayNull(scip, &data->sdpblocksizes);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->valpointer, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->colpointer, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->rowpointer, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpval, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpcol, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdprow, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblockvars, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->nvarnonz, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblockvars, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblocknonz, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblocksizes, data->nsdpblocks);
    }
 
    if (data->nconss > 0)
    {
-      SCIPfreeBufferArrayNull(scip, &data->createdconss);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->createdconss, data->nconss);
    }
-   SCIPfreeBufferArrayNull(scip, &data->createdvars);
+   SCIPfreeBlockMemoryArrayNull(scip, &data->createdvars, data->nvars);
 
    return SCIP_OKAY;
 }
@@ -1241,6 +1245,8 @@ SCIP_DECL_READERREAD(readerReadCbf)
    data->nsdpblocks = -1;
    data->nconss = -1;
    data->nvars = -1;
+   data->constnnonz = 0;
+   data->nnonz = 0;
 
    data->sdpblocksizes = NULL;
    data->sdpnblocknonz = NULL;
