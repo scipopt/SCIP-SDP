@@ -37,6 +37,8 @@
  * @author Tristan Gally
  * @author Henrik A. Friberg
  * @author Marc Pfetsch
+ *
+ * @todo Allow to read SOC constraints in CBF format.
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
