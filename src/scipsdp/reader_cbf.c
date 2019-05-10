@@ -423,6 +423,14 @@ SCIP_RETCODE CBFreadInt(
    assert( linecount != NULL );
    assert( data != NULL );
 
+   if ( data->createdvars == NULL )
+   {
+      SCIPerrorMessage("Need to have 'VAR' section before 'INT' section!\n");
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+   assert( data->nvars >= 0 );
+
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
    if ( sscanf(CBF_LINE_BUFFER, "%i", &nintvars) == 1 )
@@ -438,8 +446,9 @@ SCIP_RETCODE CBFreadInt(
 
                if ( infeasible )
                {
-                  SCIPinfoMessage(scip, NULL, "Infeasibility detected because of integrality of variable %s\n",
-                     SCIPvarGetName(data->createdvars[v]));
+                  SCIPerrorMessage("Infeasibility detected because of integrality of variable %s!\n", SCIPvarGetName(data->createdvars[v]));
+                  SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
                }
             }
             else
@@ -525,15 +534,24 @@ SCIP_RETCODE CBFreadObjacoord(
    CBF_DATA*             data                /**< data pointer to save the results in */
    )
 {  /*lint --e{818}*/
+   SCIP_Real val;
    int nobjcoefs;
+   int nzerocoef = 0;
    int i;
    int v;
-   SCIP_Real val;
 
    assert( scip != NULL );
    assert( pfile != NULL );
    assert( linecount != NULL );
    assert( data != NULL );
+
+   if ( data->createdvars == NULL )
+   {
+      SCIPerrorMessage("Need to have 'VAR' section before 'OBJACOORD' section!\n");
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+   assert( data->nvars >= 0 );
 
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
@@ -555,8 +573,7 @@ SCIP_RETCODE CBFreadObjacoord(
 
                if ( SCIPisZero(scip, val) )
                {
-                  SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Ignored objective coefficient of variable %d; value"
-                     "%f is smaller than epsilon = %f.\n", v, val, SCIPepsilon(scip));
+                  ++nzerocoef;
                }
                else
                {
@@ -577,6 +594,12 @@ SCIP_RETCODE CBFreadObjacoord(
    else
       return SCIP_READERROR;
 
+   if ( nzerocoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
+         "OBJACOORD: Found %d coefficients with absolute value less than epsilon = %f.\n", nzerocoef, SCIPepsilon(scip));
+   }
+
    return SCIP_OKAY;
 }
 
@@ -589,16 +612,33 @@ SCIP_RETCODE CBFreadAcoord(
    CBF_DATA*             data                /**< data pointer to save the results in */
    )
 {  /*lint --e{818}*/
+   SCIP_Real val;
+   int nzerocoef = 0;
    int ncoefs;
    int c;
    int i;
    int v;
-   SCIP_Real val;
 
    assert( scip != NULL );
    assert( pfile != NULL );
    assert( linecount != NULL );
    assert( data != NULL );
+
+   if ( data->createdvars == NULL )
+   {
+      SCIPerrorMessage("Need to have 'VAR' section before 'ACOORD' section!\n");
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+   assert( data->nvars >= 0 );
+
+   if ( data->createdconss == NULL )
+   {
+      SCIPerrorMessage("Need to have 'CON' section before 'ACOORD' section!\n");
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+   assert( data->nconss >= 0 );
 
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
@@ -625,8 +665,7 @@ SCIP_RETCODE CBFreadAcoord(
                }
                if ( SCIPisZero(scip, val) )
                {
-                  SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Ignored linear coefficient of constraint %d, variable "
-                     "%d; value %.9f is smaller than epsilon = %f.\n", c, v, val, SCIPepsilon(scip));
+                  ++nzerocoef;
                }
                else
                {
@@ -647,6 +686,12 @@ SCIP_RETCODE CBFreadAcoord(
    else
       return SCIP_READERROR;
 
+   if ( nzerocoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
+         "ACOORD: Found %d coefficients with absolute value less than epsilon = %f.\n", nzerocoef, SCIPepsilon(scip));
+   }
+
    return SCIP_OKAY;
 }
 
@@ -659,15 +704,24 @@ SCIP_RETCODE CBFreadBcoord(
    CBF_DATA*             data                /**< data pointer to save the results in */
    )
 {  /*lint --e{818}*/
+   SCIP_Real val;
+   int nzerocoef = 0;
    int nsides;
    int c;
    int i;
-   SCIP_Real val;
 
    assert( scip != NULL );
    assert( pfile != NULL );
    assert( linecount != NULL );
    assert( data != NULL );
+
+   if ( data->createdconss == NULL )
+   {
+      SCIPerrorMessage("Need to have 'CON' section before 'BCOORD' section!\n");
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+   assert( data->nconss >= 0 );
 
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
@@ -689,8 +743,7 @@ SCIP_RETCODE CBFreadBcoord(
 
                if ( SCIPisZero(scip, val) )
                {
-                  SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Ignored constant part of constraint %d; value %.9f is "
-                     "smaller than epsilon = %f.\n", c, val, SCIPepsilon(scip));
+                  ++nzerocoef;
                }
                else
                {
@@ -722,6 +775,12 @@ SCIP_RETCODE CBFreadBcoord(
    else
       return SCIP_READERROR;
 
+   if ( nzerocoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
+         "BCOORD: Found %d coefficients with absolute value less than epsilon = %f.\n", nzerocoef, SCIPepsilon(scip));
+   }
+
    return SCIP_OKAY;
 }
 
@@ -734,22 +793,37 @@ SCIP_RETCODE CBFreadHcoord(
    CBF_DATA*             data                /**< data pointer to save the results in */
    )
 {
+   SCIP_Real val;
+   int** sdpvar;
    int nnonz;
    int i;
    int b;
    int v;
    int row;
    int col;
-   SCIP_Real val;
-   int** sdpvar;
    int firstindforvar;
    int nextindaftervar;
-   SCIP_Bool varused;
+   int nzerocoef = 0;
 
    assert( scip != NULL );
    assert( pfile != NULL );
    assert( linecount != NULL );
    assert( data != NULL );
+
+   if ( data->nsdpblocks < 0 )
+   {
+      SCIPerrorMessage("Need to have 'PSDVAR' section before 'HCOORD' section!\n");
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+   assert( data->nvars >= 0 );
+
+   if ( data->nvars < 0 )
+   {
+      SCIPerrorMessage("Need to have 'VAR' section before 'HCOORD' section!\n");
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
 
    /* initialize sdpnblocknonz with 0 */
    SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpnblocknonz), data->nsdpblocks) );
@@ -813,8 +887,7 @@ SCIP_RETCODE CBFreadHcoord(
 
                if ( SCIPisZero(scip, val) )
                {
-                  SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Ignored SDP-coefficient of SDP-constraint %d, variable "
-                     "%d, row %d, col %d; value %.9f is smaller than epsilon = %f.\n", b, v, row, col, val, SCIPepsilon(scip));
+                  ++nzerocoef;
                }
                else
                {
@@ -864,7 +937,8 @@ SCIP_RETCODE CBFreadHcoord(
 
             for (v = 0; v < data->nvars; v++)
             {
-               varused = FALSE;
+               SCIP_Bool varused = FALSE;
+
                firstindforvar = nextindaftervar; /* this variable starts where the last one ended */
                data->nvarnonz[b][data->sdpnblockvars[b]] = 0;
 
@@ -875,7 +949,7 @@ SCIP_RETCODE CBFreadHcoord(
                   data->nvarnonz[b][data->sdpnblockvars[b]]++;
                }
 
-               if (varused)
+               if ( varused )
                {
                   data->sdpblockvars[b][data->sdpnblockvars[b]] = data->createdvars[v];/*lint !e732*//*lint !e747*/ /* if the variable is used, add it to the vars array */
                   data->rowpointer[b][data->sdpnblockvars[b]] = &(data->sdprow[b][firstindforvar]); /* save a pointer to the first nonzero belonging to this variable */
@@ -885,14 +959,8 @@ SCIP_RETCODE CBFreadHcoord(
                }
             }
 
-            assert (nextindaftervar == data->sdpnblocknonz[b]);
+            assert( nextindaftervar == data->sdpnblocknonz[b] );
 
-#ifdef SCIP_DISABLED_CODE
-            /* resize arrays and free sdpvar array which is no longer needed */
-            SCIP_CALL( SCIPreallocBufferArray(scip, &(data->rowpointer[b]), data->sdpnblocknonz[b]) );
-            SCIP_CALL( SCIPreallocBufferArray(scip, &(data->colpointer[b]), data->sdpnblocknonz[b]) );
-            SCIP_CALL( SCIPreallocBufferArray(scip, &(data->valpointer[b]), data->sdpnblocknonz[b]) );
-#endif
             SCIPfreeBufferArray(scip, &(sdpvar[b]));
          }
 
@@ -909,6 +977,12 @@ SCIP_RETCODE CBFreadHcoord(
    else
       return SCIP_READERROR;
 
+   if ( nzerocoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
+         "HCOORD: Found %d coefficients with absolute value less than epsilon = %f.\n", nzerocoef, SCIPepsilon(scip));
+   }
+
    return SCIP_OKAY;
 }
 
@@ -921,17 +995,32 @@ SCIP_RETCODE CBFreadDcoord(
    CBF_DATA*             data                /**< data pointer to save the results in */
    )
 {
+   SCIP_Real val;
+   int nzerocoef = 0;
    int constnnonz;
    int b;
    int i;
    int row;
    int col;
-   SCIP_Real val;
 
    assert( scip != NULL );
    assert( pfile != NULL );
    assert( linecount != NULL );
    assert( data != NULL );
+
+   if ( data->nsdpblocks < 0 )
+   {
+      SCIPerrorMessage("Need to have 'PSDVAR' section before 'DCOORD' section!\n");
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+
+   if ( data->nvars < 0 )
+   {
+      SCIPerrorMessage("Need to have 'VAR' section before 'DCOORD' section!\n");
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
 
    /* initialize sdpconstnblocknonz with 0 */
    SCIP_CALL( SCIPallocBufferArray(scip, &(data->sdpconstnblocknonz), data->nsdpblocks) );
@@ -986,8 +1075,7 @@ SCIP_RETCODE CBFreadDcoord(
 
                if ( SCIPisZero(scip, val) )
                {
-                  SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Ignored constant entry of SDP-constraint %d, row %d,"
-                     " col %d; value %.9f is smaller than epsilon = %f.\n", b, row, col, val, SCIPepsilon(scip));
+                  ++nzerocoef;
                }
                else
                {
@@ -1009,15 +1097,6 @@ SCIP_RETCODE CBFreadDcoord(
             else
                return SCIP_READERROR;
          }
-#ifdef SCIP_DISABLED_CODE
-         for (b = 0; b < data->nsdpblocks; b++)
-         {
-            /* resize arrays */
-            SCIP_CALL( SCIPreallocBufferArray(scip, &(data->sdpconstrow[b]), data->sdpconstnblocknonz[b]) );
-            SCIP_CALL( SCIPreallocBufferArray(scip, &(data->sdpconstcol[b]), data->sdpconstnblocknonz[b]) );
-            SCIP_CALL( SCIPreallocBufferArray(scip, &(data->sdpconstval[b]), data->sdpconstnblocknonz[b]) );
-         }
-#endif
       }
       else
       {
@@ -1028,6 +1107,12 @@ SCIP_RETCODE CBFreadDcoord(
    }
    else
       return SCIP_READERROR;
+
+   if ( nzerocoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
+         "DCOORD: Found %d coefficients with absolute value less than epsilon = %f.\n", nzerocoef, SCIPepsilon(scip));
+   }
 
    return SCIP_OKAY;
 }
@@ -1077,7 +1162,7 @@ SCIP_RETCODE CBFfreeData(
       b++;
    }
 
-   if (allocated)
+   if ( allocated )
    {
       for (b = 0; b < data->nsdpblocks; b++)
       {
@@ -1134,18 +1219,17 @@ static
 SCIP_DECL_READERREAD(readerReadCbf)
 {  /*lint --e{715,818}*/
    SCIP_FILE* scipfile;
-   SCIP_Longint linecount;
-   SCIP_Bool versionread;
-   SCIP_Bool objread;
+   SCIP_Longint linecount = 0;
+   SCIP_Bool versionread = FALSE;
+   SCIP_Bool objread = FALSE;
    CBF_DATA* data;
    int b;
 
-   *result = SCIP_DIDNOTRUN;
-   linecount = 0;
-   versionread = FALSE;
-   objread = FALSE;
+   assert( result != NULL );
 
-   SCIPdebugMsg(scip, "Reading file %s\n", filename);
+   *result = SCIP_DIDNOTRUN;
+
+   SCIPdebugMsg(scip, "Reading file %s ...\n", filename);
 
    scipfile = SCIPfopen(filename, "r");
 
@@ -1153,9 +1237,9 @@ SCIP_DECL_READERREAD(readerReadCbf)
       return SCIP_READERROR;
 
    SCIP_CALL( SCIPallocBuffer(scip, &data) );
-   data->nsdpblocks = 0;
-   data->nconss = 0;
-   data->nvars = 0;
+   data->nsdpblocks = -1;
+   data->nconss = -1;
+   data->nvars = -1;
 
    data->sdpblocksizes = NULL;
    data->sdpnblocknonz = NULL;
@@ -1188,7 +1272,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
 
                if ( sscanf(CBF_LINE_BUFFER, "%i", &ver) == 1 )
                {
-                  SCIPdebugMsg(scip, "file version %d\n", ver);
+                  SCIPdebugMsg(scip, "file version %d.\n", ver);
                   if ( ver < 1 )
                   {
                      SCIPerrorMessage("Strange version number %d; need at least version 1.\n", ver);
