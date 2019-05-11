@@ -146,7 +146,7 @@ struct SCIP_SDPiSolver
 #define MOSEK_CALL(x)  do                                                                                    \
                       {                                                                                      \
                          int _mosekerrorcode_;                                                               \
-                         if ( (_mosekerrorcode_ = (x)) != MSK_RES_OK )                                       \
+                         if ( (_mosekerrorcode_ = (int)(x)) != MSK_RES_OK ) \
                          {                                                                                   \
                             SCIPerrorMessage("MOSEK-Error <%d> in function call.\n", _mosekerrorcode_);      \
                             return SCIP_LPERROR;                                                             \
@@ -158,7 +158,7 @@ struct SCIP_SDPiSolver
 #define MOSEK_CALL_BOOL(x)  do                                                                               \
                       {                                                                                      \
                          int _mosekerrorcode_;                                                               \
-                         if ( (_mosekerrorcode_ = (x)) != MSK_RES_OK )                                       \
+                         if ( (_mosekerrorcode_ = (int)(x)) != MSK_RES_OK ) \
                          {                                                                                   \
                             SCIPerrorMessage("MOSEK-Error <%d> in function call.\n", _mosekerrorcode_);      \
                             return FALSE;                                                                    \
@@ -170,7 +170,7 @@ struct SCIP_SDPiSolver
 #define MOSEK_CALLM(x) do                                                                                    \
                       {                                                                                      \
                          int _mosekerrorcode_;                                                               \
-                         if ( (_mosekerrorcode_ = (x)) != MSK_RES_OK )                                       \
+                         if ( (_mosekerrorcode_ = (int)(x)) != MSK_RES_OK ) \
                          {                                                                                   \
                             SCIPerrorMessage("MOSEK-Error <%d> in function call.\n", _mosekerrorcode_);      \
                             return SCIP_NOMEMORY;                                                            \
@@ -218,7 +218,7 @@ struct SCIP_SDPiSolver
                          if (!(sdpisolver->solved))                                                          \
                          {                                                                                   \
                             SCIPerrorMessage("Tried to access solution information for SDP %d ahead of solving!\n", sdpisolver->sdpcounter);  \
-                            assert( 0 );                                                                     \
+                            assert( 0 ); /*lint !e{527}*/                                                    \
                             return FALSE;                                                                    \
                          }                                                                                   \
                       }                                                                                      \
@@ -272,8 +272,8 @@ const char* SCIPsdpiSolverGetSolverName(
    )
 {
    MSKrescodee rescodee;
-   int major = 0;
-   int minor = 0;
+   int majorver = 0;
+   int minorver = 0;
 #if MSK_VERSION_MAJOR < 9
    int build = 0;
 #endif
@@ -283,9 +283,9 @@ const char* SCIPsdpiSolverGetSolverName(
 #endif
 
 #if MSK_VERSION_MAJOR < 9
-   rescodee = MSK_getversion(&major, &minor, &build, &revision);/*lint !e123*/
+   rescodee = MSK_getversion(&majorver, &minorver, &build, &revision);/*lint !e123*/
 #else
-   rescodee = MSK_getversion(&major, &minor, &revision);/*lint !e123*/
+   rescodee = MSK_getversion(&majorver, &minorver, &revision);/*lint !e123*/
 #endif
 
    if ( rescodee != MSK_RES_OK )
@@ -293,16 +293,16 @@ const char* SCIPsdpiSolverGetSolverName(
 
 #ifndef NDEBUG
  #if MSK_VERSION_MAJOR < 9
-   snprintfreturn = SCIPsnprintf(name, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d.%d", major, minor, build, revision);/*lint !e123*/
+   snprintfreturn = SCIPsnprintf(name, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d.%d", majorver, minorver, build, revision);/*lint !e123*/
  #else
-   snprintfreturn = SCIPsnprintf(name, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d", major, minor, revision);/*lint !e123*/
+   snprintfreturn = SCIPsnprintf(name, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d", majorver, minorver, revision);/*lint !e123*/
  #endif
    assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
 #else
  #if MSK_VERSION_MAJOR < 9
-   (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d.%d", major, minor, build, revision);
+   (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d.%d", majorver, minorver, build, revision);
  #else
-   (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d", major, minor, revision);
+   (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d", majorver, minorver, revision);
  #endif
 #endif
 
@@ -772,7 +772,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_NEAR_REL, NEAR_REL_TOLERANCE) );
 #endif
 
-#if SCIP_MORE_DEBUG
+#ifdef SCIP_MORE_DEBUG
    MOSEK_CALL( MSK_linkfunctotaskstream (sdpisolver->msktask, MSK_STREAM_LOG, NULL, printstr) ); /* output to console */
 #else
    /* if sdpinfo is true, redirect output to console */
@@ -1442,9 +1442,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* if using a penalty formulation, check if the solution is feasible for the original problem
     * we should always count it as infeasible if the penalty problem was unbounded */
-   MOSEK_CALL_BOOL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
+   MOSEK_CALL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
    if ( penaltyparam >= sdpisolver->epsilon && (solstat == MSK_SOL_STA_PRIM_INFEAS_CER) )
    {
+      assert( feasorig != NULL );
       *feasorig = FALSE;
       SCIPdebugMessage("Penalty Problem unbounded!\n");
    }
@@ -1493,7 +1494,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                for (i = 0; i < size; i++)
                {
                   /* get index in the lower triangular part */
-                  ind = 0.5 * i * (i + 3);/*lint !e776*/ /*  i*(i+1)/2 + i  */
+                  ind = i * (i + 3) / 2;/*lint !e776*/ /*  i*(i+1)/2 + i  */
                   assert( ind < 0.5 * size * (size + 1) );
                   trace += X[ind];
                }
@@ -1518,7 +1519,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             if ( penaltybound != NULL )
                *penaltybound = TRUE;
             SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible\n",
-                  trace, penaltyparam);
+               trace, penaltyparam);
          }
          else if ( penaltybound != NULL )
             *penaltybound = FALSE;
@@ -1839,8 +1840,8 @@ SCIP_Bool SCIPsdpiSolverIsConverged(
       case MSK_SOL_STA_PRIM_INFEAS_CER:
       case MSK_SOL_STA_DUAL_INFEAS_CER:
          /* check duality gap */
-         MOSEK_CALL( MSK_getdualobj(sdpisolver->msktask, MSK_SOL_ITR, &dobj) );
-         MOSEK_CALL( MSK_getprimalobj(sdpisolver->msktask, MSK_SOL_ITR, &pobj) );
+         MOSEK_CALL_BOOL( MSK_getdualobj(sdpisolver->msktask, MSK_SOL_ITR, &dobj) );
+         MOSEK_CALL_BOOL( MSK_getprimalobj(sdpisolver->msktask, MSK_SOL_ITR, &pobj) );
          /* for the relative gap we divide by max(1.0, min(pobj, dobj)), as this is also done in Mosek */
          gapnormalization = dobj > pobj ? (pobj > 1.0 ? pobj : 1.0) : (dobj > 1.0 ? dobj : 1.0);
          if ( REALABS((pobj-dobj) / gapnormalization) < sdpisolver->gaptol )
@@ -2124,7 +2125,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
    int*                  startXnblocknonz    /**< pointer to store number of nonzeros for row/col/val-arrays in each block
                                               *   or first entry -1 if no primal solution is available */
    )
-{
+{ /*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
 
    return SCIP_PLUGINNOTFOUND;
