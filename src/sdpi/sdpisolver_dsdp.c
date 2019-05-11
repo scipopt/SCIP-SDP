@@ -55,8 +55,6 @@
 #include "sdpi/sdpsolchecker.h"              /* to check solution with regards to feasibility tolerance */
 #include "scip/pub_message.h"                /* for debug and error message */
 
-/* turn off lint warnings for whole file: */
-/*lint --e{788,818}*/
 
 #define PENALTYBOUNDTOL             1E-3     /**< if the relative gap between Tr(X) and penaltyparam for a primal solution of the penaltyformulation
                                               *   is bigger than this value, it will be reported to the sdpi */

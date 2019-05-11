@@ -42,9 +42,6 @@
  * @author Ambros Gleixner
  */
 
-/* turn off lint warnings for whole file: */
-/*lint --e{750,788,818}*/
-
 #include <assert.h>
 
 #include "sdpi/sdpisolver.h"

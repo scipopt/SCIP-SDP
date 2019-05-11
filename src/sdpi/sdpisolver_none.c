@@ -47,8 +47,6 @@
 #include "scip/pub_misc.h"                   /* for sorting */
 #include "scip/pub_message.h"                /* for debug and error message */
 
-/* turn off lint warnings for whole file: */
-/*lint --e{715,788,818}*/
 
 /** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMORY. */
 #define BMS_CALL(x)   do                                                                                     \
