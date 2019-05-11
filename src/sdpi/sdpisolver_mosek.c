@@ -144,10 +144,10 @@ struct SCIP_SDPiSolver
 /** Calls a MOSEK function and transforms the return-code to a SCIP_LPERROR if needed. */
 #define MOSEK_CALL(x)  do                                                                                    \
                       {                                                                                      \
-                         int _mosekerrorcode_;                                                               \
-                         if ( (_mosekerrorcode_ = (int)(x)) != MSK_RES_OK ) \
+                         MSKrescodee _mosekerrorcode_;                                                               \
+                         if ( (_mosekerrorcode_ = (x)) != MSK_RES_OK ) \
                          {                                                                                   \
-                            SCIPerrorMessage("MOSEK-Error <%d> in function call.\n", _mosekerrorcode_);      \
+                            SCIPerrorMessage("MOSEK-Error <%d> in function call.\n", (int)_mosekerrorcode_); \
                             return SCIP_LPERROR;                                                             \
                          }                                                                                   \
                       }                                                                                      \
@@ -156,10 +156,10 @@ struct SCIP_SDPiSolver
 /** Same as MOSEK_CALL, but used for functions returning a boolean. */
 #define MOSEK_CALL_BOOL(x)  do                                                                               \
                       {                                                                                      \
-                         int _mosekerrorcode_;                                                               \
-                         if ( (_mosekerrorcode_ = (int)(x)) != MSK_RES_OK ) \
+                         MSKrescodee _mosekerrorcode_;                                                               \
+                         if ( (_mosekerrorcode_ = (x)) != MSK_RES_OK ) \
                          {                                                                                   \
-                            SCIPerrorMessage("MOSEK-Error <%d> in function call.\n", _mosekerrorcode_);      \
+                            SCIPerrorMessage("MOSEK-Error <%d> in function call.\n", (int)_mosekerrorcode_); \
                             return FALSE;                                                                    \
                          }                                                                                   \
                       }                                                                                      \
@@ -168,10 +168,10 @@ struct SCIP_SDPiSolver
 /** Same as MOSEK_CALL, but this will be used for initialization methods with memory allocation and return a SCIP_NOMEMORY if an error is produced. */
 #define MOSEK_CALLM(x) do                                                                                    \
                       {                                                                                      \
-                         int _mosekerrorcode_;                                                               \
-                         if ( (_mosekerrorcode_ = (int)(x)) != MSK_RES_OK ) \
+                         MSKrescodee _mosekerrorcode_;                                                               \
+                         if ( (_mosekerrorcode_ = (x)) != MSK_RES_OK ) \
                          {                                                                                   \
-                            SCIPerrorMessage("MOSEK-Error <%d> in function call.\n", _mosekerrorcode_);      \
+                            SCIPerrorMessage("MOSEK-Error <%d> in function call.\n", (int)_mosekerrorcode_); \
                             return SCIP_NOMEMORY;                                                            \
                          }                                                                                   \
                       }                                                                                      \
@@ -217,7 +217,7 @@ struct SCIP_SDPiSolver
                          if (!(sdpisolver->solved))                                                          \
                          {                                                                                   \
                             SCIPerrorMessage("Tried to access solution information for SDP %d ahead of solving!\n", sdpisolver->sdpcounter);  \
-                            assert( 0 ); /*lint !e{527}*/                                                    \
+                            assert( 0 );                                                                     \
                             return FALSE;                                                                    \
                          }                                                                                   \
                       }                                                                                      \
@@ -2266,7 +2266,7 @@ SCIP_Real SCIPsdpiSolverGetMaxPrimalEntry(
    )
 {/*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_LPERROR;
+   return SCIP_INVALID;
 }
 
 /** gets the number of SDP iterations of the last solve call */

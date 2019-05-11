@@ -26,6 +26,8 @@
 -e818  // Pointer parameter could be declared as pointing to const
 -e801  // Use of goto is deprecated
 
+-emacro(527,CHECK_IF_SOLVED_BOOL) // Unreachable code
+
 -emacro(506,SCIPdebugMessage) // Constant value Boolean
 -emacro(681,SCIPdebugMessage) // Loop is not entered
 -emacro(506,SCIPdebugMsg)         // Constant value Boolean
