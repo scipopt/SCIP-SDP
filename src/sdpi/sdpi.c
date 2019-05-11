@@ -202,6 +202,7 @@ struct SCIP_SDPi
    SCIP_SDPSLATER        dualslater;         /**< did the dual slater condition hold for the last problem */
 };
 
+
 /*
  * Local Functions
  */
@@ -350,8 +351,8 @@ SCIP_RETCODE compConstMatAfterFixings(
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
       SCIP_CALL( SCIPsdpVarfixerMergeArraysIntoNew(sdpi->blkmem, sdpi->epsilon, sdpi->sdpconstrow[block], sdpi->sdpconstcol[block], sdpi->sdpconstval[block],
-                                               sdpi->sdpconstnblocknonz[block], fixedrows[block], fixedcols[block], fixedvals[block], nfixednonz[block],
-                                               sdpconstrow[block], sdpconstcol[block], sdpconstval[block], &sdpconstnblocknonz[block]) );
+            sdpi->sdpconstnblocknonz[block], fixedrows[block], fixedcols[block], fixedvals[block], nfixednonz[block],
+            sdpconstrow[block], sdpconstcol[block], sdpconstval[block], &sdpconstnblocknonz[block]) );
       *sdpconstnnonz += sdpconstnblocknonz[block];
    }
 
@@ -845,8 +846,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
    return SCIP_OKAY;
 }
 
-/** checks whether all variables are fixed (lb=ub), in that case changes the sdpi->allfixed pointer accordingly
- */
+/** checks whether all variables are fixed (lb=ub), in that case changes the sdpi->allfixed pointer accordingly */
 static
 SCIP_RETCODE checkAllFixed(
    SCIP_SDPI*            sdpi                /**< pointer to an SDP-interface structure */
@@ -993,7 +993,7 @@ SCIP_RETCODE checkSlaterCondition(
    int**                 sdpconstcol,        /**< pointer to column-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
    SCIP_Real**           sdpconstval,        /**< pointer to values of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
    int**                 indchanges,         /**< index changes for each variable in each block; variable v is removed in block b if indchanges[b][v] = -1,
-                                                  otherwise it gives the number of removed variables with smaller indices (may be NULL if sdpi->nsdpblocks = 0)*/
+                                              *   otherwise it gives the number of removed variables with smaller indices (may be NULL if sdpi->nsdpblocks = 0)*/
    int*                  nremovedinds,       /**< number of removed variables for each block (may be NULL if sdpi->nsdpblocks = 0) */
    SCIP_Real*            lplhsafterfix,      /**< left-hand sides of LP-constraints after fixing variables (may be NULL if nactivelpcons = 0) */
    SCIP_Real*            lprhsafterfix,      /**< right-hand sides of LP-constraints after fixing variables (may be NULL if nactivelpcons = 0) */
@@ -1707,21 +1707,21 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    int*                  sdpnblockvars,      /**< number of variables in each SDP-block (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
    int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-blocks */
    int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
-                                               *  number of entries  of sdpconst row/col/val [i] */
+                                              *   number of entries  of sdpconst row/col/val [i] */
    int**                 sdpconstrow,        /**< pointer to row-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
    int**                 sdpconstcol,        /**< pointer to column-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
    SCIP_Real**           sdpconstval,        /**< pointer to values of entries of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
    int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint-matrices */
    int**                 sdpnblockvarnonz,   /**< sdpnblockvarnonz[i][j] gives the number of nonzeros for the j-th variable (not necessarly
-                                               *  variable j) in the i-th block, this is also the length of row/col/val[i][j] */
+                                              *   variable j) in the i-th block, this is also the length of row/col/val[i][j] */
    int**                 sdpvar,             /**< sdpvar[i][j] gives the global index of the j-th variable (according to the sorting for row/col/val)
-                                               *  in the i-th block */
+                                              *   in the i-th block */
    int***                sdprow,             /**< pointer to the row-indices for each block and variable in this block, so row[i][j][k] gives
-                                               *  the k-th nonzero of the j-th variable (not necessarly variable j) in the i-th block
-                                               *  (may be NULL if sdptnnonz = 0)*/
+                                              *   the k-th nonzero of the j-th variable (not necessarly variable j) in the i-th block
+                                              *   (may be NULL if sdptnnonz = 0)*/
    int***                sdpcol,             /**< pointer to the column-indices for each block and variable in this block (may be NULL if sdpnnonz = 0)*/
    SCIP_Real***          sdpval,             /**< pointer to the values of the nonzeros for each block and variable in this
-                                               *  block (may be NULL if sdpnnonz = 0)*/
+                                              *   block (may be NULL if sdpnnonz = 0)*/
    int                   nlpcons,            /**< number of LP-constraints */
    SCIP_Real*            lplhs,              /**< left-hand sides of LP rows (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of LP rows (may be NULL if nlpcons = 0) */
@@ -1923,7 +1923,7 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
    const SCIP_Real*      rhs,                /**< right-hand sides of new rows */
    int                   nnonz,              /**< number of nonzero elements to be added to the LP constraint matrix */
    const int*            row,                /**< row-indices of constraint-matrix entries, going from 0 to nrows - 1, these will be changed
-                                               *  to nlpcons + i */
+                                              *   to nlpcons + i */
    const int*            col,                /**< column-indices of constraint-matrix entries */
    const SCIP_Real*      val                 /**< values of constraint-matrix entries */
    )
@@ -2446,6 +2446,7 @@ SCIP_RETCODE SCIPsdpiGetRhSides(
 /**@{ */
 
 /** solves the SDP, as start optionally a starting point for the solver may be given, if it is NULL, the solver will start from scratch
+ *
  *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
  *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independent of some lhs/rhs being infinity (the starting point
  *  will later be adjusted accordingly)
@@ -2454,25 +2455,25 @@ SCIP_RETCODE SCIPsdpiSolve(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
    SCIP_Real*            starty,             /**< NULL or dual vector y as starting point for the solver, this should have length nvars */
    int*                  startZnblocknonz,   /**< dual matrix Z = sum Ai yi as starting point for the solver: number of nonzeros for each block,
-                                               *  also length of corresponding row/col/val-arrays; or NULL */
+                                              *   also length of corresponding row/col/val-arrays; or NULL */
    int**                 startZrow,          /**< dual matrix Z = sum Ai yi as starting point for the solver: row indices for each block;
-                                               *  may be NULL if startZnblocknonz = NULL */
+                                              *   may be NULL if startZnblocknonz = NULL */
    int**                 startZcol,          /**< dual matrix Z = sum Ai yi as starting point for the solver: column indices for each block;
-                                               *  may be NULL if startZnblocknonz = NULL */
+                                              *   may be NULL if startZnblocknonz = NULL */
    SCIP_Real**           startZval,          /**< dual matrix Z = sum Ai yi as starting point for the solver: values for each block;
-                                               *  may be NULL if startZnblocknonz = NULL */
+                                              *   may be NULL if startZnblocknonz = NULL */
    int*                  startXnblocknonz,   /**< primal matrix X as starting point for the solver: number of nonzeros for each block,
-                                               *  also length of corresponding row/col/val-arrays; or NULL */
+                                              *   also length of corresponding row/col/val-arrays; or NULL */
    int**                 startXrow,          /**< primal matrix X as starting point for the solver: row indices for each block;
-                                               *  may be NULL if startXnblocknonz = NULL */
+                                              *   may be NULL if startXnblocknonz = NULL */
    int**                 startXcol,          /**< primal matrix X as starting point for the solver: column indices for each block;
-                                               *  may be NULL if startXnblocknonz = NULL */
+                                              *   may be NULL if startXnblocknonz = NULL */
    SCIP_Real**           startXval,          /**< primal matrix X as starting point for the solver: values for each block;
-                                               *  may be NULL if startXnblocknonz = NULL */
+                                              *   may be NULL if startXnblocknonz = NULL */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP or MOSEK, set this to
-                                               *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
+                                              *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Bool             enforceslatercheck, /**< always check for Slater condition in case the problem could not be solved and printf the solution
-                                                  of this check */
+                                              *   of this check */
    SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
    )
 {
@@ -2872,7 +2873,8 @@ SCIP_Bool SCIPsdpiSolvedOrig(
 
 /** returns true if the solver could determine whether the problem is feasible, so it returns true if the
  *  solver knows that the problem is feasible/infeasible/unbounded, it returns false if the solver does not know
- *  anything about the feasibility status and thus the functions IsPrimalFeasible etc. should not be used */
+ *  anything about the feasibility status and thus the functions IsPrimalFeasible etc. should not be used
+ */
 SCIP_Bool SCIPsdpiFeasibilityKnown(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    )
@@ -2915,7 +2917,8 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
 }
 
 /** returns TRUE iff SDP is proven to be primal unbounded;
- *  returns FALSE with a debug-message if the solver could not determine feasibility */
+ *  returns FALSE with a debug-message if the solver could not determine feasibility
+ */
 SCIP_Bool SCIPsdpiIsPrimalUnbounded(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    )
@@ -2938,7 +2941,8 @@ SCIP_Bool SCIPsdpiIsPrimalUnbounded(
 }
 
 /** returns TRUE iff SDP is proven to be primal infeasible;
- *  returns FALSE with a debug-message if the solver could not determine feasibility */
+ *  returns FALSE with a debug-message if the solver could not determine feasibility
+ */
 SCIP_Bool SCIPsdpiIsPrimalInfeasible(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    )
@@ -2961,7 +2965,8 @@ SCIP_Bool SCIPsdpiIsPrimalInfeasible(
 }
 
 /** returns TRUE iff SDP is proven to be primal feasible;
- *  returns FALSE with a debug-message if the solver could not determine feasibility */
+ *  returns FALSE with a debug-message if the solver could not determine feasibility
+ */
 SCIP_Bool SCIPsdpiIsPrimalFeasible(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    )
@@ -2984,7 +2989,8 @@ SCIP_Bool SCIPsdpiIsPrimalFeasible(
 }
 
 /** returns TRUE iff SDP is proven to be dual unbounded;
- *  returns FALSE with a debug-message if the solver could not determine feasibility */
+ *  returns FALSE with a debug-message if the solver could not determine feasibility
+ */
 SCIP_Bool SCIPsdpiIsDualUnbounded(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    )
@@ -3007,7 +3013,8 @@ SCIP_Bool SCIPsdpiIsDualUnbounded(
 }
 
 /** returns TRUE iff SDP is proven to be dual infeasible;
- *  returns FALSE with a debug-message if the solver could not determine feasibility */
+ *  returns FALSE with a debug-message if the solver could not determine feasibility
+ */
 SCIP_Bool SCIPsdpiIsDualInfeasible(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    )
@@ -3030,7 +3037,8 @@ SCIP_Bool SCIPsdpiIsDualInfeasible(
 }
 
 /** returns TRUE iff SDP is proven to be dual feasible;
- *  returns FALSE with a debug-message if the solver could not determine feasibility */
+ *  returns FALSE with a debug-message if the solver could not determine feasibility
+ */
 SCIP_Bool SCIPsdpiIsDualFeasible(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    )
@@ -3153,7 +3161,8 @@ SCIP_Bool SCIPsdpiIsTimelimExc(
  *  4: iteration limit reached<br>
  *  5: time limit reached<br>
  *  6: user termination<br>
- *  7: other */
+ *  7: other
+ */
 int SCIPsdpiGetInternalStatus(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    )
@@ -3202,7 +3211,8 @@ SCIP_Bool SCIPsdpiIsOptimal(
 }
 
 /** returns TRUE iff SDP was solved to optimality or some other status was reached
- * that is still acceptable inside a Branch & Bound framework */
+ * that is still acceptable inside a Branch & Bound framework
+ */
 SCIP_Bool SCIPsdpiIsAcceptable(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    )
@@ -3263,7 +3273,8 @@ SCIP_RETCODE SCIPsdpiGetObjval(
 }
 
 /** gets the best lower bound on the objective (this is equal to objval, if the problem was solved successfully, but can also give a bound
- *  if we did not get a feasible solution using the penalty approach) */
+ *  if we did not get a feasible solution using the penalty approach)
+ */
 SCIP_RETCODE SCIPsdpiGetLowerObjbound(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
    SCIP_Real*            objlb               /**< pointer to store the lower bound on the objective value */
@@ -3312,13 +3323,14 @@ SCIP_RETCODE SCIPsdpiGetLowerObjbound(
 }
 
 /** gets dual solution vector for feasible SDPs, if dualsollength isn't equal to the number of variables this will return the needed length and
- *  a debug message */
+ *  a debug message
+ */
 SCIP_RETCODE SCIPsdpiGetSol(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
    SCIP_Real*            objval,             /**< pointer to store the objective value, may be NULL if not needed */
    SCIP_Real*            dualsol,            /**< pointer to store the dual solution vector, may be NULL if not needed */
    int*                  dualsollength       /**< length of the dualsol vector, must be 0 if dualsol is NULL, if this is less than the number
-                                               *  of variables in the SDP, a debug-message will be thrown and this is set to the needed value */
+                                              *   of variables in the SDP, a debug-message will be thrown and this is set to the needed value */
    )
 {
    assert( sdpi != NULL );
@@ -3410,7 +3422,7 @@ SCIP_RETCODE SCIPsdpiGetPreoptimalSol(
                                               *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
    int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) or -1 if no primal matrix should be returned */
    int*                  startXnblocknonz,   /**< input: allocated memory for row/col/val-arrays in each block (or NULL if nblocks = -1)
-                                                  output: number of nonzeros in each block or first entry -1 if no primal solution is available */
+                                              *   output: number of nonzeros in each block or first entry -1 if no primal solution is available */
    int**                 startXrow,          /**< pointer to store row indices of X (or NULL if nblocks = -1) */
    int**                 startXcol,          /**< pointer to store column indices of X (or NULL if nblocks = -1) */
    SCIP_Real**           startXval           /**< pointer to store values of X (or NULL if nblocks = -1) */
@@ -3474,13 +3486,14 @@ SCIP_RETCODE SCIPsdpiGetPreoptimalSol(
 /** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem, the last input should specify the length
  *  of the arrays, if this is less than the number of variables, the needed length will be returned and a debug-message thrown
  *
- *  @note If a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent primal variable. */
+ *  @note If a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent primal variable.
+ */
 SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
    SCIP_Real*            lbvars,             /**< pointer to store the values of the variables corresponding to lower bounds in the dual problems */
    SCIP_Real*            ubvars,             /**< pointer to store the values of the variables corresponding to upper bounds in the dual problems */
    int*                  arraylength         /**< input: length of lbvars and ubvars<br>
-                                                  output: number of elements inserted into lbvars/ubvars (or needed length if it was not sufficient) */
+                                              *   output: number of elements inserted into lbvars/ubvars (or needed length if it was not sufficient) */
    )
 {
    assert( sdpi != NULL );
@@ -3532,14 +3545,16 @@ SCIP_RETCODE SCIPsdpiGetPrimalNonzeros(
 }
 
 /** returns the primal matrix X
+ *
  *  @note last block will be the LP block (if one exists) with indices lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ...
  *  independent of some lhs/rhs being infinity
- *  @note If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz */
+ *  @note If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz
+ */
 SCIP_RETCODE SCIPsdpiGetPrimalMatrix(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
    int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
    int*                  startXnblocknonz,   /**< input: allocated memory for row/col/val-arrays in each block
-                                                  output: number of nonzeros in each block */
+                                              *   output: number of nonzeros in each block */
    int**                 startXrow,          /**< pointer to store row indices of X */
    int**                 startXcol,          /**< pointer to store column indices of X */
    SCIP_Real**           startXval           /**< pointer to store values of X */
@@ -3661,35 +3676,35 @@ SCIP_RETCODE SCIPsdpiSlaterSettings(
          {
             switch( sdpi->primalslater )/*lint --e{788}*/
             {
+            case SCIP_SDPSLATER_NOINFO:
+               if ( sdpi->dualslater == SCIP_SDPSLATER_NOT )
+                  *slatersetting = SCIP_SDPSLATERSETTING_BOUNDEDNOSLATER;
+               else
+                  *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+               break;
+            case SCIP_SDPSLATER_NOT:
+               *slatersetting = SCIP_SDPSLATERSETTING_BOUNDEDNOSLATER;
+               break;
+            case SCIP_SDPSLATER_HOLDS:
+               switch( sdpi->dualslater )/*lint --e{788}*/
+               {
                case SCIP_SDPSLATER_NOINFO:
-                  if ( sdpi->dualslater == SCIP_SDPSLATER_NOT )
-                     *slatersetting = SCIP_SDPSLATERSETTING_BOUNDEDNOSLATER;
-                  else
-                     *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+                  *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
                   break;
                case SCIP_SDPSLATER_NOT:
                   *slatersetting = SCIP_SDPSLATERSETTING_BOUNDEDNOSLATER;
                   break;
                case SCIP_SDPSLATER_HOLDS:
-                  switch( sdpi->dualslater )/*lint --e{788}*/
-                  {
-                     case SCIP_SDPSLATER_NOINFO:
-                        *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
-                        break;
-                     case SCIP_SDPSLATER_NOT:
-                        *slatersetting = SCIP_SDPSLATERSETTING_BOUNDEDNOSLATER;
-                        break;
-                     case SCIP_SDPSLATER_HOLDS:
-                        *slatersetting = SCIP_SDPSLATERSETTING_BOUNDEDWSLATER;
-                        break;
-                     default:
-                        *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
-                        break;
-                  }
+                  *slatersetting = SCIP_SDPSLATERSETTING_BOUNDEDWSLATER;
                   break;
-                  default:
-                     *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
-                     break;
+               default:
+                  *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+                  break;
+               }
+               break;
+            default:
+               *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+               break;
             }
          }
       }
@@ -3702,35 +3717,35 @@ SCIP_RETCODE SCIPsdpiSlaterSettings(
          {
             switch( sdpi->primalslater )/*lint --e{788}*/
             {
+            case SCIP_SDPSLATER_NOINFO:
+               if ( sdpi->dualslater == SCIP_SDPSLATER_NOT )
+                  *slatersetting = SCIP_SDPSLATERSETTING_UNSOLVEDNOSLATER;
+               else
+                  *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+               break;
+            case SCIP_SDPSLATER_NOT:
+               *slatersetting = SCIP_SDPSLATERSETTING_UNSOLVEDNOSLATER;
+               break;
+            case SCIP_SDPSLATER_HOLDS:
+               switch( sdpi->dualslater )/*lint --e{788}*/
+               {
                case SCIP_SDPSLATER_NOINFO:
-                  if ( sdpi->dualslater == SCIP_SDPSLATER_NOT )
-                     *slatersetting = SCIP_SDPSLATERSETTING_UNSOLVEDNOSLATER;
-                  else
-                     *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+                  *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
                   break;
                case SCIP_SDPSLATER_NOT:
                   *slatersetting = SCIP_SDPSLATERSETTING_UNSOLVEDNOSLATER;
                   break;
                case SCIP_SDPSLATER_HOLDS:
-                  switch( sdpi->dualslater )/*lint --e{788}*/
-                  {
-                     case SCIP_SDPSLATER_NOINFO:
-                        *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
-                        break;
-                     case SCIP_SDPSLATER_NOT:
-                        *slatersetting = SCIP_SDPSLATERSETTING_UNSOLVEDNOSLATER;
-                        break;
-                     case SCIP_SDPSLATER_HOLDS:
-                        *slatersetting = SCIP_SDPSLATERSETTING_UNSOLVEDWSLATER;
-                        break;
-                     default:
-                        *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
-                        break;
-                  }
+                  *slatersetting = SCIP_SDPSLATERSETTING_UNSOLVEDWSLATER;
                   break;
                default:
                   *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
                   break;
+               }
+               break;
+            default:
+               *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+               break;
             }
          }
       }
@@ -3752,43 +3767,43 @@ SCIP_RETCODE SCIPsdpiSlaterSettings(
    {
       switch( sdpi->primalslater )/*lint --e{788}*/
       {
+      case SCIP_SDPSLATER_NOINFO:
+         if ( sdpi->dualslater == SCIP_SDPSLATER_NOT )
+            *slatersetting = SCIP_SDPSLATERSETTING_PENALTYNOSLATER;
+         else if ( sdpi->dualslater == SCIP_SDPSLATER_INF )
+            *slatersetting = SCIP_SDPSLATERSETTING_PENALTYINFEASIBLE;
+         else
+            *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+         break;
+      case SCIP_SDPSLATER_NOT:
+         if ( sdpi->dualslater == SCIP_SDPSLATER_INF )
+            *slatersetting = SCIP_SDPSLATERSETTING_PENALTYINFEASIBLE;
+         else
+            *slatersetting = SCIP_SDPSLATERSETTING_PENALTYNOSLATER;
+         break;
+      case SCIP_SDPSLATER_HOLDS:
+         switch( sdpi->dualslater )/*lint --e{788}*/
+         {
          case SCIP_SDPSLATER_NOINFO:
-            if ( sdpi->dualslater == SCIP_SDPSLATER_NOT )
-               *slatersetting = SCIP_SDPSLATERSETTING_PENALTYNOSLATER;
-            else if ( sdpi->dualslater == SCIP_SDPSLATER_INF )
-               *slatersetting = SCIP_SDPSLATERSETTING_PENALTYINFEASIBLE;
-            else
-               *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+            *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
             break;
          case SCIP_SDPSLATER_NOT:
-            if ( sdpi->dualslater == SCIP_SDPSLATER_INF )
-               *slatersetting = SCIP_SDPSLATERSETTING_PENALTYINFEASIBLE;
-            else
-               *slatersetting = SCIP_SDPSLATERSETTING_PENALTYNOSLATER;
+            *slatersetting = SCIP_SDPSLATERSETTING_PENALTYNOSLATER;
             break;
          case SCIP_SDPSLATER_HOLDS:
-            switch( sdpi->dualslater )/*lint --e{788}*/
-            {
-               case SCIP_SDPSLATER_NOINFO:
-                  *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
-                  break;
-               case SCIP_SDPSLATER_NOT:
-                  *slatersetting = SCIP_SDPSLATERSETTING_PENALTYNOSLATER;
-                  break;
-               case SCIP_SDPSLATER_HOLDS:
-                  *slatersetting = SCIP_SDPSLATERSETTING_PENALTYWSLATER;
-                  break;
-               case SCIP_SDPSLATER_INF:
-                  *slatersetting = SCIP_SDPSLATERSETTING_PENALTYINFEASIBLE;
-                  break;
-               default:
-                  *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
-                  break;
-            }
+            *slatersetting = SCIP_SDPSLATERSETTING_PENALTYWSLATER;
+            break;
+         case SCIP_SDPSLATER_INF:
+            *slatersetting = SCIP_SDPSLATERSETTING_PENALTYINFEASIBLE;
             break;
          default:
             *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
             break;
+         }
+         break;
+      default:
+         *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+         break;
       }
       return SCIP_OKAY;
    }
@@ -3802,16 +3817,16 @@ SCIP_RETCODE SCIPsdpiSlaterSettings(
          SCIP_CALL( SCIPsdpiSolverSettingsUsed(sdpi->sdpisolver, &usedsetting) );
          switch( usedsetting )/*lint --e{788}*/
          {
-            case SCIP_SDPSOLVERSETTING_FAST:
-               *slatersetting = SCIP_SDPSLATERSETTING_STABLENOSLATER;
-               break;
-            case SCIP_SDPSOLVERSETTING_MEDIUM:
-            case SCIP_SDPSOLVERSETTING_STABLE:
-               *slatersetting = SCIP_SDPSLATERSETTING_UNSTABLENOSLATER;
-               break;
-            default:
-               *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
-               break;
+         case SCIP_SDPSOLVERSETTING_FAST:
+            *slatersetting = SCIP_SDPSLATERSETTING_STABLENOSLATER;
+            break;
+         case SCIP_SDPSOLVERSETTING_MEDIUM:
+         case SCIP_SDPSOLVERSETTING_STABLE:
+            *slatersetting = SCIP_SDPSLATERSETTING_UNSTABLENOSLATER;
+            break;
+         default:
+            *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+            break;
          }
       }
       if ( sdpi->dualslater == SCIP_SDPSLATER_INF )
@@ -3820,16 +3835,16 @@ SCIP_RETCODE SCIPsdpiSlaterSettings(
          SCIP_CALL( SCIPsdpiSolverSettingsUsed(sdpi->sdpisolver, &usedsetting) );
          switch( usedsetting )/*lint --e{788}*/
          {
-            case SCIP_SDPSOLVERSETTING_FAST:
-               *slatersetting = SCIP_SDPSLATERSETTING_STABLEINFEASIBLE;
-               break;
-            case SCIP_SDPSOLVERSETTING_MEDIUM:
-            case SCIP_SDPSOLVERSETTING_STABLE:
-               *slatersetting = SCIP_SDPSLATERSETTING_UNSTABLEINFEASIBLE;
-               break;
-            default:
-               *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
-               break;
+         case SCIP_SDPSOLVERSETTING_FAST:
+            *slatersetting = SCIP_SDPSLATERSETTING_STABLEINFEASIBLE;
+            break;
+         case SCIP_SDPSOLVERSETTING_MEDIUM:
+         case SCIP_SDPSOLVERSETTING_STABLE:
+            *slatersetting = SCIP_SDPSLATERSETTING_UNSTABLEINFEASIBLE;
+            break;
+         default:
+            *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+            break;
          }
       }
       else
@@ -3842,16 +3857,16 @@ SCIP_RETCODE SCIPsdpiSlaterSettings(
          SCIP_CALL( SCIPsdpiSolverSettingsUsed(sdpi->sdpisolver, &usedsetting) );
          switch( usedsetting )/*lint --e{788}*/
          {
-            case SCIP_SDPSOLVERSETTING_FAST:
-               *slatersetting = SCIP_SDPSLATERSETTING_STABLEINFEASIBLE;
-               break;
-            case SCIP_SDPSOLVERSETTING_MEDIUM:
-            case SCIP_SDPSOLVERSETTING_STABLE:
-               *slatersetting = SCIP_SDPSLATERSETTING_UNSTABLEINFEASIBLE;
-               break;
-            default:
-               *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
-               break;
+         case SCIP_SDPSOLVERSETTING_FAST:
+            *slatersetting = SCIP_SDPSLATERSETTING_STABLEINFEASIBLE;
+            break;
+         case SCIP_SDPSOLVERSETTING_MEDIUM:
+         case SCIP_SDPSOLVERSETTING_STABLE:
+            *slatersetting = SCIP_SDPSLATERSETTING_UNSTABLEINFEASIBLE;
+            break;
+         default:
+            *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+            break;
          }
       }
       else
@@ -3860,16 +3875,16 @@ SCIP_RETCODE SCIPsdpiSlaterSettings(
          SCIP_CALL( SCIPsdpiSolverSettingsUsed(sdpi->sdpisolver, &usedsetting) );
          switch( usedsetting )/*lint --e{788}*/
          {
-            case SCIP_SDPSOLVERSETTING_FAST:
-               *slatersetting = SCIP_SDPSLATERSETTING_STABLENOSLATER;
-               break;
-            case SCIP_SDPSOLVERSETTING_MEDIUM:
-            case SCIP_SDPSOLVERSETTING_STABLE:
-               *slatersetting = SCIP_SDPSLATERSETTING_UNSTABLENOSLATER;
-               break;
-            default:
-               *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
-               break;
+         case SCIP_SDPSOLVERSETTING_FAST:
+            *slatersetting = SCIP_SDPSLATERSETTING_STABLENOSLATER;
+            break;
+         case SCIP_SDPSOLVERSETTING_MEDIUM:
+         case SCIP_SDPSOLVERSETTING_STABLE:
+            *slatersetting = SCIP_SDPSLATERSETTING_UNSTABLENOSLATER;
+            break;
+         default:
+            *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+            break;
          }
       }
       break;
@@ -3884,16 +3899,16 @@ SCIP_RETCODE SCIPsdpiSlaterSettings(
          SCIP_CALL( SCIPsdpiSolverSettingsUsed(sdpi->sdpisolver, &usedsetting) );
          switch( usedsetting )/*lint --e{788}*/
          {
-            case SCIP_SDPSOLVERSETTING_FAST:
-               *slatersetting = SCIP_SDPSLATERSETTING_STABLENOSLATER;
-               break;
-            case SCIP_SDPSOLVERSETTING_MEDIUM:
-            case SCIP_SDPSOLVERSETTING_STABLE:
-               *slatersetting = SCIP_SDPSLATERSETTING_UNSTABLENOSLATER;
-               break;
-            default:
-               *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
-               break;
+         case SCIP_SDPSOLVERSETTING_FAST:
+            *slatersetting = SCIP_SDPSLATERSETTING_STABLENOSLATER;
+            break;
+         case SCIP_SDPSOLVERSETTING_MEDIUM:
+         case SCIP_SDPSOLVERSETTING_STABLE:
+            *slatersetting = SCIP_SDPSLATERSETTING_UNSTABLENOSLATER;
+            break;
+         default:
+            *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+            break;
          }
          break;
          case SCIP_SDPSLATER_INF:
@@ -3901,16 +3916,16 @@ SCIP_RETCODE SCIPsdpiSlaterSettings(
             SCIP_CALL( SCIPsdpiSolverSettingsUsed(sdpi->sdpisolver, &usedsetting) );
             switch( usedsetting )/*lint --e{788}*/
             {
-               case SCIP_SDPSOLVERSETTING_FAST:
-                  *slatersetting = SCIP_SDPSLATERSETTING_STABLEINFEASIBLE;
-                  break;
-               case SCIP_SDPSOLVERSETTING_MEDIUM:
-               case SCIP_SDPSOLVERSETTING_STABLE:
-                  *slatersetting = SCIP_SDPSLATERSETTING_UNSTABLEINFEASIBLE;
-                  break;
-               default:
-                  *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
-                  break;
+            case SCIP_SDPSOLVERSETTING_FAST:
+               *slatersetting = SCIP_SDPSLATERSETTING_STABLEINFEASIBLE;
+               break;
+            case SCIP_SDPSOLVERSETTING_MEDIUM:
+            case SCIP_SDPSOLVERSETTING_STABLE:
+               *slatersetting = SCIP_SDPSLATERSETTING_UNSTABLEINFEASIBLE;
+               break;
+            default:
+               *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+               break;
             }
             break;
          case SCIP_SDPSLATER_HOLDS:
@@ -3918,21 +3933,21 @@ SCIP_RETCODE SCIPsdpiSlaterSettings(
             SCIP_CALL( SCIPsdpiSolverSettingsUsed(sdpi->sdpisolver, &usedsetting) );
             switch( usedsetting )/*lint --e{788}*/
             {
-               case SCIP_SDPSOLVERSETTING_FAST:
-                  *slatersetting = SCIP_SDPSLATERSETTING_STABLEWSLATER;
-                  break;
-               case SCIP_SDPSOLVERSETTING_MEDIUM:
-               case SCIP_SDPSOLVERSETTING_STABLE:
-                  *slatersetting = SCIP_SDPSLATERSETTING_UNSTABLEWSLATER;
-                  break;
-               default:
-                  *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
-                  break;
+            case SCIP_SDPSOLVERSETTING_FAST:
+               *slatersetting = SCIP_SDPSLATERSETTING_STABLEWSLATER;
+               break;
+            case SCIP_SDPSOLVERSETTING_MEDIUM:
+            case SCIP_SDPSOLVERSETTING_STABLE:
+               *slatersetting = SCIP_SDPSLATERSETTING_UNSTABLEWSLATER;
+               break;
+            default:
+               *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+               break;
             }
             break;
-         default:
-            *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
-            break;
+      default:
+         *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+         break;
       }
       break;
    default:
@@ -3953,7 +3968,6 @@ SCIP_RETCODE SCIPsdpiSlater(
    assert( sdpi != NULL );
    assert( primalslater != NULL );
    assert( dualslater != NULL );
-
 
    if ( sdpi->infeasible )
    {
