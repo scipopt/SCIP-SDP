@@ -50,6 +50,9 @@
 -emacro(647,BMSclearMemoryArray)
 -emacro(647,BMSallocMemorySize)
 -emacro(647,BMSallocClearMemoryArray)
+-emacro(647,BMSallocBufferMemoryArray)
+-emacro(647,BMSallocBlockMemoryArray)
+-emacro(647,BMSreallocBlockMemoryArray)
 -emacro(647,BMSfreeBlockMemoryArray)
 -emacro(647,BMSfreeBlockMemoryArrayNull)
 -emacro(647,SCIPallocMemoryArray)
@@ -68,6 +71,7 @@
 -emacro(737,SCIPreallocBlockMemoryArray)   // Loss of sign in promotion
 -emacro(737,SCIPfreeBlockMemoryArrayNull)   // Loss of sign in promotion
 -emacro(737,BMSallocBlockMemoryArray)   // Loss of sign in promotion
+-emacro(737,BMSfreeBlockMemoryArray)   // Loss of sign in promotion
 -emacro(737,BMSfreeBlockMemoryArrayNull)   // Loss of sign in promotion
 -emacro(737,SCIPduplicateBlockMemoryArray)   // Loss of sign in promotion
 

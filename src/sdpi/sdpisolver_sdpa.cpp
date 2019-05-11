@@ -57,6 +57,10 @@
 #include "sdpi/sdpsolchecker.h"              /* to check solution with regards to feasibility tolerance */
 #include "scip/pub_message.h"                /* for debug and error message */
 
+/* turn off lint warnings for whole file: */
+/*lint --e{1784}*/
+
+
 /* local defines */
 #define GAPTOLCHANGE                1        /**< change gaptol by this factor when switching from fast to default and from default to stable settings */
 #define FEASTOLCHANGE               1        /**< change feastol by this factor when switching from fast to default and from default to stable settings */
@@ -1710,7 +1714,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIPdebugMessage("Calling SDPA solve (SDP: %d)\n", sdpisolver->sdpcounter);
 
    /* check if we want to save a preoptimal solution for warmstarting purposes */
-   if ( sdpisolver->preoptimalgap >= 0.0 && (SCIP_SDPSOLVERSETTING_UNSOLVED || startsettings == SCIP_SDPSOLVERSETTING_FAST) )
+   if ( sdpisolver->preoptimalgap >= 0.0 && (startsettings == SCIP_SDPSOLVERSETTING_UNSOLVED || startsettings == SCIP_SDPSOLVERSETTING_FAST) )
    {
       SCIP_Real* sdpasol;
       int sdpablocksize;
@@ -1919,6 +1923,7 @@ sdpisolver->sdpa->printParameters(stdout);
       sdpasol = sdpisolver->sdpa->getResultXVec();
 
       /* we get r as the last variable in SDPA */
+      assert( feasorig != NULL );
       *feasorig = (sdpasol[sdpisolver->nactivevars] < sdpisolver->feastol); /*lint !e413*/
 
       /* only set sdpisolver->feasorig to true if we solved with objective, because only in this case we want to compute
@@ -2668,7 +2673,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
    int sdpablock;
    int blocksize;
    int blocknnonz;
-   SCIP_Bool msgthrown;
+   SCIP_Bool msgthrown = FALSE;
 
    assert( sdpisolver != NULL );
    assert( success != NULL );
@@ -2713,9 +2718,18 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
 
    if ( nblocks > -1 )
    {
+      assert( startXnblocknonz != NULL );
+      assert( startXrow != NULL );
+      assert( startXcol != NULL );
+      assert( startXval != NULL );
+
       /* iterate over all SDP-blocks and get the solution */
       for (b = 0; b < sdpisolver->nsdpblocks; b++)
       {
+         assert( startXrow[b] != NULL );
+         assert( startXcol[b] != NULL );
+         assert( startXval[b] != NULL );
+
          sdpablock = sdpisolver->inputtoblockmapper[b];
 
          blocknnonz = 0;
@@ -3023,7 +3037,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    int sdpablock;
    int blocksize;
    int blocknnonz;
-   SCIP_Bool msgthrown;
+   SCIP_Bool msgthrown = FALSE;
 
    assert( sdpisolver != NULL );
    assert( nblocks > 0 );
@@ -3032,8 +3046,6 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    assert( startXcol != NULL );
    assert( startXval != NULL );
    CHECK_IF_SOLVED( sdpisolver );
-
-   msgthrown = FALSE;
 
    if ( nblocks != sdpisolver->nsdpblocks + 1 )
    {
@@ -3263,7 +3275,7 @@ SCIP_RETCODE SCIPsdpiSolverSettingsUsed(
 SCIP_Real SCIPsdpiSolverInfinity(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to an SDP-solver interface */
    )
-{  /*lint --e{715,e1784}*/
+{  /*lint --e{715}*/
    return 1E+20; /* default infinity from SCIP */
 }
 
@@ -3282,7 +3294,7 @@ SCIP_RETCODE SCIPsdpiSolverGetRealpar(
    SCIP_SDPPARAM         type,               /**< parameter number */
    SCIP_Real*            dval                /**< buffer to store the parameter value */
    )
-{  /*lint --e{e1784}*/
+{
    assert( sdpisolver != NULL );
    assert( dval != NULL );
 
@@ -3531,7 +3543,7 @@ SCIP_RETCODE SCIPsdpiSolverReadSDP(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    const char*           fname               /**< file name */
    )
-{  /*lint --e{715,e1784}*/
+{  /*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
    return SCIP_LPERROR;
 }

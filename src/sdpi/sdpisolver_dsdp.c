@@ -92,6 +92,18 @@
                       }                                                                                      \
                       while( FALSE )
 
+/** Same as DSDP_CALL, but used for functions returning an int. */
+#define DSDP_CALL_INT(x)  do                                                                                 \
+                      {                                                                                      \
+                         int _dsdperrorcode_;                                                                \
+                         if ( (_dsdperrorcode_ = (x)) != 0 )                                                 \
+                         {                                                                                   \
+                            SCIPerrorMessage("DSDP-Error <%d> in function call.\n", _dsdperrorcode_);        \
+                            return _dsdperrorcode_;                                                          \
+                         }                                                                                   \
+                      }                                                                                      \
+                      while( FALSE )
+
 /** Same as DSDP_CALL, but this will be used for initialization methods with memory allocation and return a SCIP_NOMEMORY if an error is produced. */
 #define DSDP_CALLM(x) do                                                                                     \
                       {                                                                                      \
@@ -319,18 +331,18 @@ int checkGapSetPreoptimalSol(
    if ( ((SCIP_SDPISOLVER*) ctx)->preoptimalsolexists || ((SCIP_SDPISOLVER*) ctx)->penalty || ((SCIP_SDPISOLVER*) ctx)->penaltyworbound )
       return 0;
 
-   DSDP_CALL( DSDPGetPPObjective(dsdp,&pobj) );
-   DSDP_CALL( DSDPGetDDObjective(dsdp,&dobj) );
-   DSDP_CALL( DSDPGetDualityGap(dsdp,&absgap) );
+   DSDP_CALL_INT( DSDPGetPPObjective(dsdp,&pobj) );
+   DSDP_CALL_INT( DSDPGetDDObjective(dsdp,&dobj) );
+   DSDP_CALL_INT( DSDPGetDualityGap(dsdp,&absgap) );
 
    relgap = absgap / (1.0 + (REALABS(dobj)/2) + (REALABS(pobj)/2) ); /* compare dsdpconverge.c */
 
    /* check feasibility through penalty variable r */
-   DSDP_CALL( DSDPGetR(dsdp,&r) );
+   DSDP_CALL_INT( DSDPGetR(dsdp,&r) );
 
    if ( r < ((SCIP_SDPISOLVER*) ctx)->feastol && relgap < ((SCIP_SDPISOLVER*) ctx)->preoptimalgap )
    {
-      DSDP_CALL( DSDPGetY(dsdp, ((SCIP_SDPISOLVER*) ctx)->preoptimalsol, ((SCIP_SDPISOLVER*) ctx)->nactivevars) );
+      DSDP_CALL_INT( DSDPGetY(dsdp, ((SCIP_SDPISOLVER*) ctx)->preoptimalsol, ((SCIP_SDPISOLVER*) ctx)->nactivevars) );
       ((SCIP_SDPISOLVER*) ctx)->preoptimalsolexists = TRUE;
       SCIPdebugMessage("penalty variable %f, gap %f -> saving preoptimal solution\n", r, relgap);
    }
@@ -714,7 +726,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_Bool*            penaltybound        /**< pointer to store if the primal solution reached the bound Tr(X) <= penaltyparam in the primal problem,
                                               *   this is also an indication of the penalty parameter being to small (may be NULL if not needed) */
    )
-{/*lint --e{413}*/
+{  /*lint --e{413,715}*/
    int* dsdpconstind = NULL;  /* indices for constant SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
    SCIP_Real* dsdpconstval = NULL; /* non-zero values for constant SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
    int* dsdpind = NULL;       /* indices for SDP-constraint-matrices, needs to be stored for DSDP during solving and be freed only afterwards */
@@ -1712,7 +1724,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
    return SCIP_OKAY;
-}/*lint !e715 */
+}
 /**@} */
 
 
@@ -1976,7 +1988,7 @@ SCIP_Bool SCIPsdpiSolverIsConverged(
 SCIP_Bool SCIPsdpiSolverIsObjlimExc(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
-{/*lint --e{715}*/
+{  /*lint --e{715}*/
    SCIPdebugMessage("Method not implemented for DSDP, as objective limit is given as an ordinary LP-constraint, so in case the objective limit was "
       "exceeded, the problem will be reported as infeasible ! \n");
 
@@ -2103,7 +2115,7 @@ SCIP_RETCODE SCIPsdpiSolverIgnoreInstability(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    SCIP_Bool*            success             /**< pointer to store, whether the instability could be ignored */
    )
-{/*lint --e{715}*/
+{  /*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
    return SCIP_LPERROR;
 }
@@ -2245,7 +2257,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
    int*                  startXnblocknonz    /**< pointer to store number of nonzeros for row/col/val-arrays in each block
                                               *   or first entry -1 if no primal solution is available */
    )
-{
+{  /*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
 
    return SCIP_PLUGINNOTFOUND;
@@ -2271,7 +2283,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
    int**                 startXcol,          /**< pointer to store column indices of X (or NULL if nblocks = -1) */
    SCIP_Real**           startXval           /**< pointer to store values of X (or NULL if nblocks = -1) */
    )
-{
+{  /*lint --e{715}*/
    int v;
 
    assert( sdpisolver != NULL );
@@ -2390,7 +2402,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
    int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
    int*                  startXnblocknonz    /**< pointer to store number of nonzeros for row/col/val-arrays in each block */
    )
-{/*lint --e{715}*/
+{  /*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
    return SCIP_LPERROR;
 }
@@ -2410,7 +2422,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    int**                 startXcol,          /**< pointer to store column indices of X */
    SCIP_Real**           startXval           /**< pointer to store values of X */
    )
-{/*lint --e{715}*/
+{  /*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
    return SCIP_LPERROR;
 }
@@ -2419,9 +2431,9 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
 SCIP_Real SCIPsdpiSolverGetMaxPrimalEntry(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to an SDP-solver interface */
    )
-{/*lint --e{715}*/
+{  /*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_LPERROR;
+   return SCIP_INVALID;
 }
 
 /** gets the number of SDP iterations of the last solve call */
@@ -2491,9 +2503,9 @@ SCIP_RETCODE SCIPsdpiSolverSettingsUsed(
 SCIP_Real SCIPsdpiSolverInfinity(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to an SDP-solver interface */
    )
-{
+{  /*lint --e{715}*/
    return 1E+20; /* default infinity from SCIP */
-}/*lint !e715 */
+}
 
 /** checks if given value is treated as (plus or minus) infinity in the SDP-solver */
 SCIP_Bool SCIPsdpiSolverIsInfinity(
@@ -2642,7 +2654,7 @@ SCIP_RETCODE SCIPsdpiSolverComputeLambdastar(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    SCIP_Real             maxguess            /**< maximum guess for lambda star of all SDP-constraints */
    )
-{  /*lint !e715 */
+{  /*lint --e{715}*/
    SCIPdebugMessage("Lambdastar parameter not used by DSDP"); /* this parameter is only used by SDPA */
 
    return SCIP_OKAY;
