@@ -299,23 +299,23 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    SCIP_Real*            lpval,              /**< values of LP-constraint-matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            starty,             /**< NULL or dual vector y as starting point for the solver, this should have length nvars */
    int*                  startZnblocknonz,   /**< dual matrix Z = sum Ai yi as starting point for the solver: number of nonzeros for each block,
-                                               *  also length of corresponding row/col/val-arrays; or NULL */
+                                              *   also length of corresponding row/col/val-arrays; or NULL */
    int**                 startZrow,          /**< dual matrix Z = sum Ai yi as starting point for the solver: row indices for each block;
-                                               *  may be NULL if startZnblocknonz = NULL */
+                                              *   may be NULL if startZnblocknonz = NULL */
    int**                 startZcol,          /**< dual matrix Z = sum Ai yi as starting point for the solver: column indices for each block;
-                                               *  may be NULL if startZnblocknonz = NULL */
+                                              *   may be NULL if startZnblocknonz = NULL */
    SCIP_Real**           startZval,          /**< dual matrix Z = sum Ai yi as starting point for the solver: values for each block;
-                                               *  may be NULL if startZnblocknonz = NULL */
+                                              *   may be NULL if startZnblocknonz = NULL */
    int*                  startXnblocknonz,   /**< primal matrix X as starting point for the solver: number of nonzeros for each block,
-                                               *  also length of corresponding row/col/val-arrays; or NULL */
+                                              *   also length of corresponding row/col/val-arrays; or NULL */
    int**                 startXrow,          /**< primal matrix X as starting point for the solver: row indices for each block;
-                                               *  may be NULL if startXnblocknonz = NULL */
+                                              *   may be NULL if startXnblocknonz = NULL */
    int**                 startXcol,          /**< primal matrix X as starting point for the solver: column indices for each block;
-                                               *  may be NULL if startXnblocknonz = NULL */
+                                              *   may be NULL if startXnblocknonz = NULL */
    SCIP_Real**           startXval,          /**< primal matrix X as starting point for the solver: values for each block;
-                                               *  may be NULL if startXnblocknonz = NULL */
+                                              *   may be NULL if startXnblocknonz = NULL */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP and MOSEK, set this to
-                                               *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
+                                              *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
    )
 {
@@ -388,28 +388,28 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_Real*            lpval,              /**< values of LP-constraint-matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            starty,             /**< NULL or dual vector y as starting point for the solver, this should have length nvars */
    int*                  startZnblocknonz,   /**< dual matrix Z = sum Ai yi as starting point for the solver: number of nonzeros for each block,
-                                               *  also length of corresponding row/col/val-arrays; or NULL */
+                                              *   also length of corresponding row/col/val-arrays; or NULL */
    int**                 startZrow,          /**< dual matrix Z = sum Ai yi as starting point for the solver: row indices for each block;
-                                               *  may be NULL if startZnblocknonz = NULL */
+                                              *   may be NULL if startZnblocknonz = NULL */
    int**                 startZcol,          /**< dual matrix Z = sum Ai yi as starting point for the solver: column indices for each block;
-                                               *  may be NULL if startZnblocknonz = NULL */
+                                              *   may be NULL if startZnblocknonz = NULL */
    SCIP_Real**           startZval,          /**< dual matrix Z = sum Ai yi as starting point for the solver: values for each block;
-                                               *  may be NULL if startZnblocknonz = NULL */
+                                              *   may be NULL if startZnblocknonz = NULL */
    int*                  startXnblocknonz,   /**< primal matrix X as starting point for the solver: number of nonzeros for each block,
-                                               *  also length of corresponding row/col/val-arrays; or NULL */
+                                              *   also length of corresponding row/col/val-arrays; or NULL */
    int**                 startXrow,          /**< primal matrix X as starting point for the solver: row indices for each block;
-                                               *  may be NULL if startXnblocknonz = NULL */
+                                              *   may be NULL if startXnblocknonz = NULL */
    int**                 startXcol,          /**< primal matrix X as starting point for the solver: column indices for each block;
-                                               *  may be NULL if startXnblocknonz = NULL */
+                                              *   may be NULL if startXnblocknonz = NULL */
    SCIP_Real**           startXval,          /**< primal matrix X as starting point for the solver: values for each block;
-                                               *  may be NULL if startXnblocknonz = NULL */
+                                              *   may be NULL if startXnblocknonz = NULL */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP and MOSEK, set this to
-                                               *  SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
+                                              *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
    SCIP_Bool*            feasorig,           /**< pointer to store if the solution to the penalty-formulation is feasible for the original problem
-                                               *  (may be NULL if penaltyparam = 0) */
+                                              *   (may be NULL if penaltyparam = 0) */
    SCIP_Bool*            penaltybound        /**< pointer to store if the primal solution reached the bound Tr(X) <= penaltyparam in the primal problem,
-                                               *  this is also an indication of the penalty parameter being to small (may be NULL if not needed) */
+                                              *   this is also an indication of the penalty parameter being to small (may be NULL if not needed) */
    )
 {
    errorMessage();
@@ -466,7 +466,8 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
 }
 
 /** returns TRUE iff SDP is proven to be primal unbounded,
- *  returns FALSE with a debug-message if the solver could not determine feasibility */
+ *  returns FALSE with a debug-message if the solver could not determine feasibility
+ */
 SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    )
@@ -477,7 +478,8 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
 }
 
 /** returns TRUE iff SDP is proven to be primal infeasible,
- *  returns FALSE with a debug-message if the solver could not determine feasibility */
+ *  returns FALSE with a debug-message if the solver could not determine feasibility
+ */
 SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
@@ -488,7 +490,8 @@ SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
 }
 
 /** returns TRUE iff SDP is proven to be primal feasible,
- *  returns FALSE with a debug-message if the solver could not determine feasibility */
+ *  returns FALSE with a debug-message if the solver could not determine feasibility
+ */
 SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
@@ -499,7 +502,8 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
 }
 
 /** returns TRUE iff SDP is proven to be dual unbounded,
- *  returns FALSE with a debug-message if the solver could not determine feasibility */
+ *  returns FALSE with a debug-message if the solver could not determine feasibility
+ */
 SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
@@ -510,7 +514,8 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
 }
 
 /** returns TRUE iff SDP is proven to be dual infeasible,
- *  returns FALSE with a debug-message if the solver could not determine feasibility */
+ *  returns FALSE with a debug-message if the solver could not determine feasibility
+ */
 SCIP_Bool SCIPsdpiSolverIsDualInfeasible(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
@@ -521,7 +526,8 @@ SCIP_Bool SCIPsdpiSolverIsDualInfeasible(
 }
 
 /** returns TRUE iff SDP is proven to be dual feasible,
- *  returns FALSE with a debug-message if the solver could not determine feasibility */
+ *  returns FALSE with a debug-message if the solver could not determine feasibility
+ */
 SCIP_Bool SCIPsdpiSolverIsDualFeasible(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
@@ -580,7 +586,8 @@ SCIP_Bool SCIPsdpiSolverIsTimelimExc(
  *  4: iteration limit reached<br>
  *  5: time limit reached<br>
  *  6: user termination<br>
- *  7: other */
+ *  7: other
+ */
 int SCIPsdpiSolverGetInternalStatus(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
@@ -601,7 +608,8 @@ SCIP_Bool SCIPsdpiSolverIsOptimal(
 }
 
 /** returns TRUE iff SDP was solved to optimality or some other status was reached
- *  that is still acceptable inside a Branch & Bound framework */
+ *  that is still acceptable inside a Branch & Bound framework
+ */
 SCIP_Bool SCIPsdpiSolverIsAcceptable(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
@@ -679,7 +687,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
                                               *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
    int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) or -1 if no primal matrix should be returned */
    int*                  startXnblocknonz,   /**< input: allocated memory for row/col/val-arrays in each block (or NULL if nblocks = -1)
-                                                  output: number of nonzeros in each block or first entry -1 if no primal solution is available */
+                                              *   output: number of nonzeros in each block or first entry -1 if no primal solution is available */
    int**                 startXrow,          /**< pointer to store row indices of X (or NULL if nblocks = -1) */
    int**                 startXcol,          /**< pointer to store column indices of X (or NULL if nblocks = -1) */
    SCIP_Real**           startXval           /**< pointer to store values of X (or NULL if nblocks = -1) */
@@ -723,14 +731,16 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
 }
 
 /** returns the primal matrix X
+ *
  *  @note last block will be the LP block (if one exists) with indices lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ...
  *  independant of some lhs/rhs being infinity
- *  @note If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz */
+ *  @note If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz
+ */
 SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
    int*                  startXnblocknonz,   /**< input: allocated memory for row/col/val-arrays in each block
-                                                  output: number of nonzeros in each block */
+                                              *   output: number of nonzeros in each block */
    int**                 startXrow,          /**< pointer to store row indices of X */
    int**                 startXcol,          /**< pointer to store column indices of X */
    SCIP_Real**           startXval           /**< pointer to store values of X */
