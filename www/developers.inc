@@ -1,10 +1,6 @@
 <h3>Main developers</h3>
 <table class="desc">
    <tr>
-      <td><a href="http://www3.mathematik.tu-darmstadt.de/index.php?id=2575">Tristan Gally</a>
-      </td>
-   </tr>
-   <tr>
       <td>
       <a href="http://www.mathematik.tu-darmstadt.de/~pfetsch/">Marc Pfetsch</a>
       </td>
@@ -13,28 +9,28 @@
 <h3>Former main developers</h3>
 <table class="desc">
    <tr>
-      <td><a href="http://www3.mathematik.tu-darmstadt.de/index.php?id=675">Sonja Mars</a>
-      </td>
+      <td>Tristan Gally&nbsp;&nbsp;&nbsp;</td>
+      <td>(main development from version 2.0.0 to 3.1.1)</td>
    </tr>
    <tr>
-      <td>
-      <a href="http://www.mso.math.uni-erlangen.de/edom/team/schewe-lars/dr-lars-schewe.html">Lars Schewe</a>
-      </td>
+      <td>Sonja Mars</td>
+      <td>(original program creator, version 1.0)</td>
+   </tr>
+   <tr>
+      <td>Lars Schewe</td>
+      <td>(support for version 1.0)</td>
    </tr>
 </table>
 <h3>Contributors</h3>
 <table class="desc">
    <tr>
-      <td><a href="https://www.linkedin.com/in/henrik-alsing-friberg">Henrik Alsing Friberg</a>
-      </td>
+      <td>Henrik Alsing Friberg</td>
    </tr>
    <tr>
       <td><a href="http://www.zib.de/members/gleixner">Ambros Gleixner</a>
       </td>
    </tr>
    <tr>
-      <td>
-      <a href="http://www.mso.math.fau.de/edom/team/schelbert-jakob/jakob-schelbert/">Jakob Schelbert</a>
-      </td>
+      <td>Jakob Schelbert</td>
    </tr>
 </table>
