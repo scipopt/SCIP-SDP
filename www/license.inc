@@ -4,13 +4,13 @@ This program is free software; you can redistribute it and/or modify it under th
 <table style="width:80%">
 <tr><td>Copyright (C)</td><td> 2011-2013</td><td width="70%"> Discrete Optimization, TU Darmstadt   </td> </tr>          
 <tr><td></td><td></td><td>                         EDOM, FAU Erlangen-N&uuml;rnberg   </td></tr>                   
-<tr><td></td><td>             2014-2018</td><td> Discrete Optimization, TU Darmstadt </td></tr>          
+<tr><td></td><td>             2014-2019</td><td> Discrete Optimization, TU Darmstadt </td></tr>          
 </table>
 <br><br>
 <p>It is based on SCIP - Solving Constraint Integer Programs. SCIP is distributed under the terms of the SCIP Academic Licence, see file COPYING in the SCIP distribution.  </p>
 
 <table style="width:80%">
-  <tr><td>Copyright (C)</td><td> 2002-2018</td><td width="70%"> Zuse Institute Berlin </td></tr>
+  <tr><td>Copyright (C)</td><td> 2002-2019</td><td width="70%"> Zuse Institute Berlin </td></tr>
 </table>
 <br><br>
 <p>
