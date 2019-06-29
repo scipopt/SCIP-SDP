@@ -1,4 +1,4 @@
-- Versionsnummern in main.cpp, changelog, doc/xternal.c und tools/makerelease.sh anpassen
+- Versionsnummern in main.cpp, changelog, doc/xternal.c, Makefile und tools/makerelease.sh anpassen
 - gegebenenfalls Jahreszahlen bei Lizenz (und in allen Dateien) anpassen
 - tools/makerelease.sh ausführen
 - testen ob alles funktioniert hat
