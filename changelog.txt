@@ -1,5 +1,5 @@
-SCIP-SDP version NEXT
-==================
+SCIP-SDP version 3.1.2
+======================
 
 fixed bugs:
 - fixed bug that could lead to segmentation faults after restarts when using the analytic center warmstarts
@@ -33,7 +33,7 @@ features:
 
 
 SCIP-SDP version 3.1.1
-==================
+======================
 
 fixed bugs:
 - fixed potential segmentation fault if relaxator or redcost propagator were freed before initsol
@@ -55,7 +55,7 @@ Makefile:
 
 
 SCIP-SDP version 3.1.0
-==================
+======================
 
 features:
 - added possibility to warmstart SDPA and DSDP (deactivated by default) in several different ways, for details see parameter list in
@@ -76,7 +76,7 @@ core:
 
 
 SCIP-SDP version 3.0.1
-==================
+======================
 
 fixed bugs:
 - only declare problem infeasible in sdpredcost if lower bound exceeds upper bound by at least feastol (instead of epsilon)
@@ -96,7 +96,7 @@ makefile:
 
 
 SCIP-SDP version 3.0.0
-==================
+======================
 
 fixed bugs:
 - the SDPA interface incorrectly reused the settings of the last node instead of the parent node
@@ -140,7 +140,7 @@ makefile:
 - Current check scripts are now copied directly from the chosen SCIP directory.
 
 SCIP-SDP version 2.1.0
-==================
+======================
 
 fixed bugs:
 - current iterate is now correctly reset when changing parameters in SDPA
@@ -201,7 +201,7 @@ misc:
 
 
 SCIP-SDP version 2.0.0
-==================
+======================
 
 fixed bugs:
 - if DSDP does not converge but produces primal and dual feasible solutions, these are no longer accepted as optimal

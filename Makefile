@@ -42,7 +42,7 @@
 # own variables
 #-----------------------------------------------------------------------------
 
-SCIPSDPVERSION	=	3.1.1
+SCIPSDPVERSION	=	3.1.2
 SCIPSDPGITHASH	=
 SDPS		=	none
 

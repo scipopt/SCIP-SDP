@@ -36,7 +36,7 @@
  * @author Tristan Gally
  */
 
-#define SCIPSDPVERSION              "3.1.1"
+#define SCIPSDPVERSION              "3.1.2"
 
 #include "objscip/objscipdefplugins.h"
 
