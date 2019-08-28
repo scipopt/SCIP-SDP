@@ -1038,7 +1038,7 @@ SCIP_RETCODE CBFreadDcoord(
       }
 
       data->constnnonz = constnnonz;
-      if ( constnnonz > 1 )
+      if ( constnnonz > 0 )
       {
          /* initialize sdpconstnblocknonz with 0 */
          SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstnblocknonz), data->nsdpblocks) );
