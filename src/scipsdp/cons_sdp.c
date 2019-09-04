@@ -103,6 +103,8 @@ struct SCIP_ConsData
    int*                  constrow;           /**< row indices of the constant nonzeros */
    SCIP_Real*            constval;           /**< values of the constant nonzeros */
    SCIP_Real             maxrhsentry;        /**< maximum entry of constant matrix (needed for DIMACS error norm) */
+   SCIP_Bool			 rankone;			 /**< should matrix be rank one? */
+   int*					 maxevsubmat;		 /**< two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] */
 };
 
 /** SDP constraint handler data */
@@ -191,6 +193,17 @@ SCIP_RETCODE computeSdpMatrix(
       matrix[SCIPconsSdpCompLowerTriangPos(consdata->constrow[ind], consdata->constcol[ind])] -= consdata->constval[ind];
 
    return SCIP_OKAY;
+}
+
+/** Check whether current matrix is rank one, if so, sets maxevsubmat */
+static
+SCIP_RETCODE isMatrixRankOne(
+   SCIP_CONS*            cons,               /**< the SDP constraint to check the rank for */
+   SCIP_SOL*			 sol,				 /**< solution to check for rank one */
+   SCIP_Bool*    		 result				 /**< result pointer to return whether matrix is rank one */
+   )
+{
+	TODO TODO
 }
 
 /** For a given variable-index j and a Vector v computes \f$ v^T A_j v \f$. */
@@ -1581,11 +1594,29 @@ SCIP_RETCODE EnforceConstraint(
       SCIPfreeBufferArray(scip, &coeff);
    }
 
-   if ( all_feasible )
-      return SCIP_OKAY;
-
    if ( separated )
-      *result = SCIP_SEPARATED;
+   {
+	   *result = SCIP_SEPARATED;
+	   return SCIP_OKAY;
+   }
+   
+   /* check for rank one if necessary */
+   for (i = 0; i < nconss; ++i)
+   {
+	   consdata = SCIPconshdlrGetData(conss[i]);
+	   if ( consdata->rankone )
+	   {
+		   SCIP_Bool isRankOne = FALSE;
+		   
+		   SCIP_CALL( isMatrixRankOne(conss[i], sol, &isRankOne) );
+		   if ( ! isRankOne )
+		   {
+			   /* TODO immediately branch here and add cuts for these subproblems */
+			   *result == SCIP_BRANCHED;
+			   return SCIP_OKAY;
+		   }
+	   }
+   }
 
    return SCIP_OKAY;
 }
@@ -1676,6 +1707,26 @@ SCIP_DECL_CONSEXITPRE(consExitpreSdp)
    SCIP_CALL( fixAndAggrVars(scip, conss, nconss, TRUE) );
 
    return SCIP_OKAY;
+}
+
+/** at the beginning of the solution process the stored rank one submatrix is reset*/
+static
+SCIP_DECL_CONSINITSOL(consInitsolSdp)
+{/*lint --e{715}*/
+	SCIP_CONSHDLRDATA* conshdlrdata;
+	
+	assert( scip != NULL );
+	
+	if ( conss == NULL )
+	   return SCIP_OKAY;
+	
+	conshdlrdata = SCIPconshdlrGetData(conshdlr);
+	   assert( conshdlrdata != NULL );
+	   
+	consdata->maxevsubmat[0] = -1;
+	consdata->maxevsubmat[1] = -1;
+	
+	return SCIP_OKAY;
 }
 
 /** presolving method of constraint handler */
@@ -1803,17 +1854,37 @@ static
 SCIP_DECL_CONSCHECK(consCheckSdp)
 {/*lint --e{715}*/
    int i;
+   SCIP_CONSHDLRDATA* consdata;
 
    assert( scip != NULL );
    assert( result != NULL );
+   assert( conss != NULL );
 
    *result = SCIP_FEASIBLE;
 
+   /* check positive semidefiniteness */
    for (i = 0; i < nconss; ++i)
    {
       SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], sol, checkintegrality, checklprows, printreason, result) );
       if ( *result == SCIP_INFEASIBLE )
          return SCIP_OKAY;
+   }
+   
+   /* check for rank one if necessary */
+   for (i = 0; i < nconss; ++i)
+   {
+	   consdata = SCIPconshdlrGetData(conss[i]);
+	   if ( consdata->rankone )
+	   {
+		   SCIP_Bool isRankOne = FALSE;
+		   
+		   SCIP_CALL( isMatrixRankOne(conss[i], sol, &isRankOne) );
+		   if ( isRankOne )
+		   {
+			   *result == SCIP_INFEASIBLE;
+			   return SCIP_OKAY;
+		   }
+	   }
    }
 
    return SCIP_OKAY;
@@ -1850,6 +1921,24 @@ SCIP_DECL_CONSENFOPS(consEnfopsSdp)
          SCIPdebugMessage("-> pseudo solution infeasible for SDP-constraint %s, return.\n", SCIPconsGetName(conss[i]));
          return SCIP_OKAY;
       }
+   }
+   
+   /* check for rank one if necessary */
+   for (i = 0; i < nconss; ++i)
+   {
+	   consdata = SCIPconshdlrGetData(conss[i]);
+	   if ( consdata->rankone )
+	   {
+		   SCIP_Bool isRankOne = FALSE;
+		   
+		   SCIP_CALL( isMatrixRankOne(conss[i], sol, &isRankOne) );
+		   if ( isRankOne )
+		   {
+			   /* TODO immediately branch here and add cuts for these subproblems */
+			   *result == SCIP_BRANCHED;
+			   return SCIP_OKAY;
+		   }
+	   }
    }
 
    SCIPdebugMessage("-> pseudo solution feasible for all SDP-constraints.\n");
@@ -1928,6 +2017,9 @@ SCIP_DECL_CONSDELETE(consDeleteSdp)
    assert( consdata != NULL );
 
    SCIPdebugMessage("deleting SDP constraint <%s>.\n", SCIPconsGetName(cons));
+   
+   /* release memory for rank one constraint */
+   SCIPfreeBlockMemoryArray(scip, &(*consdata)->maxevsubmat, 2);
 
    for (i = 0; i < (*consdata)->nvars; i++)
    {
@@ -2475,6 +2567,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPsetConshdlrCopy(scip, conshdlr, conshdlrCopySdp, consCopySdp) );
    SCIP_CALL( SCIPsetConshdlrInitpre(scip, conshdlr,consInitpreSdp) );
    SCIP_CALL( SCIPsetConshdlrExitpre(scip, conshdlr, consExitpreSdp) );
+   SCIP_CALL( SCIPsetConshdlrInitsol(scip, conshdlr, consInitsolSdp) );
    SCIP_CALL( SCIPsetConshdlrPresol(scip, conshdlr, consPresolSdp, CONSHDLR_MAXPREROUNDS, CONSHDLR_PRESOLTIMING) );
    SCIP_CALL( SCIPsetConshdlrSepa(scip, conshdlr, consSepalpSdp, consSepasolSdp, CONSHDLR_SEPAFREQ,
          CONSHDLR_SEPAPRIORITY, CONSHDLR_DELAYSEPA) );
@@ -3007,6 +3100,22 @@ SCIP_RETCODE SCIPconsSdpComputeSparseSdpMatrix(
    return SCIP_OKAY;
 }
 
+/** returns wheter matrix should be rank one */
+SCIP_Bool SCIPconsSdpShouldBeRankOne(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< the constraint for which the existence of a rank one constraint should be checked */
+   )
+{
+	SCIP_CONSDATA* consdata;
+	
+	assert( cons != NULL );
+	
+	consdata = SCIPconsGetData(cons);
+	assert( consdata != NULL );
+	
+	return consdata->rankone;
+}
+
 /** creates an SDP-constraint */
 SCIP_RETCODE SCIPcreateConsSdp(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -3104,6 +3213,12 @@ SCIP_RETCODE SCIPcreateConsSdp(
       SCIP_CALL( SCIPcaptureVar(scip, consdata->vars[i]) );
    }
    SCIPdebugMessage("creating cons %s\n", name);
+   
+   /* allocate memory for rank one constraint */
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->maxevsubmat, 2) );
+   consdata->maxevsubmat[0] = -1;
+   consdata->maxevsubmat[1] = -1;
+   
    /* create constraint */
    SCIP_CALL( SCIPcreateCons(scip, cons, name, conshdlr, consdata, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) );
 
