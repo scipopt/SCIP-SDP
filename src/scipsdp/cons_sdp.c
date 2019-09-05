@@ -103,8 +103,8 @@ struct SCIP_ConsData
    int*                  constrow;           /**< row indices of the constant nonzeros */
    SCIP_Real*            constval;           /**< values of the constant nonzeros */
    SCIP_Real             maxrhsentry;        /**< maximum entry of constant matrix (needed for DIMACS error norm) */
-   SCIP_Bool			 rankone;			 /**< should matrix be rank one? */
-   int*					 maxevsubmat;		 /**< two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] */
+   SCIP_Bool             rankone;            /**< should matrix be rank one? */
+   int*                  maxevsubmat;        /**< two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] */
 };
 
 /** SDP constraint handler data */
@@ -198,12 +198,83 @@ SCIP_RETCODE computeSdpMatrix(
 /** Check whether current matrix is rank one, if so, sets maxevsubmat */
 static
 SCIP_RETCODE isMatrixRankOne(
+   SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< the SDP constraint to check the rank for */
-   SCIP_SOL*			 sol,				 /**< solution to check for rank one */
-   SCIP_Bool*    		 result				 /**< result pointer to return whether matrix is rank one */
+   SCIP_SOL*		 sol,                /**< solution to check for rank one */
+   SCIP_Bool*    	 result              /**< result pointer to return whether matrix is rank one */
    )
 {
-	TODO TODO
+   SCIP_CONSDATA* consdata;
+   SCIP_Real* matrix = NULL;
+   SCIP_Real* fullmatrix = NULL;
+   SCIP_Real eigenvalue;
+   int blocksize;
+   /* SCIP_RESULT* resultSDPtest; */
+
+   assert( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+
+   blocksize = consdata->blocksize;
+
+   /* *resultSDPtest = SCIP_INFEASIBLE; */
+
+   /* SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, cons, sol, 0, 0, 0, resultSDPtest) ); */
+   /* if ( *resultSDPtest == SCIP_INFEASIBLE ) */
+   /* { */
+   /*    SCIPerrorMessage("Try to check for a matrix to be rank 1 even if the matrix is not psd.\n"); */
+   /*    return SCIP_ERROR; */
+   /* } */
+
+
+   /* allocate memory to store full matrix */
+   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1))/2 ) ); /*lint !e647*/
+   SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize ) ); /*lint !e647*/
+
+   /* compute the matrix \f$ \sum_j A_j y_j - A_0 \f$ */
+   SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix) );
+
+   /* expand it because LAPACK wants the full matrix instead of the lower triangular part */
+   SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
+
+#if 0
+   SCIP_Real* eigenvalues;
+   SCIP_Real* eigenvectors;
+
+   SCIP_CALL( SCIPallocBufferArray(scip, &eigenvalues, blocksize) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &eigenvectors, blocksize) );
+
+   /* compute eigenvalues */
+   SCIP_CALL( SCIPlapackComputeEigenvectorDecomposition(SCIPbuffer(scip), blocksize, fullmatrix, eigenvalues, eigenvectors) );
+
+   /* sort eigenvalues in non-increasing order */
+   SCIPsortDownReal(eigenvalues, blocksize);
+
+   /* the matrix is rank 1 iff the second largest eigenvalue is zero (since the matrix is symmetric and psd) */
+   if ( SCIPisFeasEQ(scip, eigenvalues[1], 0.0) )
+      *result = TRUE;
+   else
+      *result = FALSE;
+
+   SCIPfreeBufferArray(scip, &eigenvector);
+   SCIPfreeBufferArray(scip, &eigenvalues);
+
+#endif
+
+   /* alternative: directly compute the second smallest eigenvalue */
+   SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, fullmatrix, 2, &eigenvalue, NULL) );
+
+   /* the matrix is rank 1 iff the second largest eigenvalue is zero (since the matrix is symmetric and psd) */
+   if ( SCIPisFeasEQ(scip, eigenvalue, 0.0) )
+      *result = TRUE;
+   else
+      *result = FALSE;
+
+   SCIPfreeBufferArray(scip, &fullmatrix);
+   SCIPfreeBufferArray(scip, &matrix);
+
+   return SCIP_OKAY;
 }
 
 /** For a given variable-index j and a Vector v computes \f$ v^T A_j v \f$. */
@@ -1599,21 +1670,22 @@ SCIP_RETCODE EnforceConstraint(
 	   *result = SCIP_SEPARATED;
 	   return SCIP_OKAY;
    }
-   
+
    /* check for rank one if necessary */
    for (i = 0; i < nconss; ++i)
    {
-	   consdata = SCIPconshdlrGetData(conss[i]);
+	   consdata = SCIPconsGetData(conss[i]);
 	   if ( consdata->rankone )
 	   {
 		   SCIP_Bool isRankOne = FALSE;
-		   
-		   SCIP_CALL( isMatrixRankOne(conss[i], sol, &isRankOne) );
+
+		   SCIP_CALL( isMatrixRankOne(scip, conss[i], sol, &isRankOne) );
 		   if ( ! isRankOne )
 		   {
-			   /* TODO immediately branch here and add cuts for these subproblems */
-			   *result == SCIP_BRANCHED;
-			   return SCIP_OKAY;
+                      /* TODO immediately branch here and add cuts for these subproblems */
+                      /* *result = SCIP_BRANCHED; */
+                      printf("Matrix is not rank 1!");
+                      return SCIP_OKAY;
 		   }
 	   }
    }
@@ -1713,20 +1785,33 @@ SCIP_DECL_CONSEXITPRE(consExitpreSdp)
 static
 SCIP_DECL_CONSINITSOL(consInitsolSdp)
 {/*lint --e{715}*/
-	SCIP_CONSHDLRDATA* conshdlrdata;
-	
-	assert( scip != NULL );
-	
-	if ( conss == NULL )
-	   return SCIP_OKAY;
-	
-	conshdlrdata = SCIPconshdlrGetData(conshdlr);
-	   assert( conshdlrdata != NULL );
-	   
-	consdata->maxevsubmat[0] = -1;
-	consdata->maxevsubmat[1] = -1;
-	
-	return SCIP_OKAY;
+   SCIP_CONSHDLRDATA* conshdlrdata;
+   int c;
+
+   assert( scip != NULL );
+
+   if ( conss == NULL )
+      return SCIP_OKAY;
+
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert( conshdlrdata != NULL );
+
+   for (c = 0; c < nconss; ++c)
+   {
+      SCIP_CONSDATA* consdata;
+      /* int*           maxevsubmat; */
+
+      consdata = SCIPconsGetData(conss[c]);
+      assert( consdata != NULL );
+      assert( consdata->maxevsubmat != NULL );
+
+      /* SCIP_CALL( SCIPallocBlockMemory(scip, &maxevsubmat) ); */
+
+      consdata->maxevsubmat[0] = -1;
+      consdata->maxevsubmat[1] = -1;
+   }
+
+   return SCIP_OKAY;
 }
 
 /** presolving method of constraint handler */
@@ -1831,6 +1916,12 @@ SCIP_DECL_CONSTRANS(consTransSdp)
    /* copy the maxrhsentry */
    targetdata->maxrhsentry = sourcedata->maxrhsentry;
 
+   /* copy rankone */
+   targetdata->rankone = sourcedata->rankone;
+
+   /* copy maxevsubmat */
+   SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->maxevsubmat), sourcedata->maxevsubmat, 2) );
+
    /* name the transformed constraint */
 #ifndef NDEBUG
       snprintfreturn = SCIPsnprintf(transname, SCIP_MAXSTRLEN, "t_%s", SCIPconsGetName(sourcecons));
@@ -1854,7 +1945,7 @@ static
 SCIP_DECL_CONSCHECK(consCheckSdp)
 {/*lint --e{715}*/
    int i;
-   SCIP_CONSHDLRDATA* consdata;
+   SCIP_CONSDATA* consdata;
 
    assert( scip != NULL );
    assert( result != NULL );
@@ -1869,20 +1960,21 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
       if ( *result == SCIP_INFEASIBLE )
          return SCIP_OKAY;
    }
-   
+
    /* check for rank one if necessary */
    for (i = 0; i < nconss; ++i)
    {
-	   consdata = SCIPconshdlrGetData(conss[i]);
+	   consdata = SCIPconsGetData(conss[i]);
 	   if ( consdata->rankone )
 	   {
 		   SCIP_Bool isRankOne = FALSE;
-		   
-		   SCIP_CALL( isMatrixRankOne(conss[i], sol, &isRankOne) );
-		   if ( isRankOne )
+
+		   SCIP_CALL( isMatrixRankOne(scip, conss[i], sol, &isRankOne) );
+		   if ( ! isRankOne )
 		   {
-			   *result == SCIP_INFEASIBLE;
-			   return SCIP_OKAY;
+                      /* *result = SCIP_INFEASIBLE; */
+                      printf("Matrix is not rank 1!");
+                      return SCIP_OKAY;
 		   }
 	   }
    }
@@ -1898,6 +1990,8 @@ static
 SCIP_DECL_CONSENFOPS(consEnfopsSdp)
 {/*lint --e{715}*/
    int i;
+   SCIP_CONSDATA* consdata;
+   SCIP_SOL* sol;
 
    assert( scip != NULL );
    assert( result != NULL );
@@ -1922,21 +2016,22 @@ SCIP_DECL_CONSENFOPS(consEnfopsSdp)
          return SCIP_OKAY;
       }
    }
-   
+
    /* check for rank one if necessary */
    for (i = 0; i < nconss; ++i)
    {
-	   consdata = SCIPconshdlrGetData(conss[i]);
+	   consdata = SCIPconsGetData(conss[i]);
 	   if ( consdata->rankone )
 	   {
 		   SCIP_Bool isRankOne = FALSE;
-		   
-		   SCIP_CALL( isMatrixRankOne(conss[i], sol, &isRankOne) );
-		   if ( isRankOne )
+
+		   SCIP_CALL( isMatrixRankOne(scip, conss[i], sol, &isRankOne) );
+		   if ( ! isRankOne )
 		   {
-			   /* TODO immediately branch here and add cuts for these subproblems */
-			   *result == SCIP_BRANCHED;
-			   return SCIP_OKAY;
+                      /* TODO immediately branch here and add cuts for these subproblems */
+                      /* *result = SCIP_BRANCHED; */
+                      printf("The matrix is not rank 1");
+                      return SCIP_OKAY;
 		   }
 	   }
    }
@@ -2017,7 +2112,7 @@ SCIP_DECL_CONSDELETE(consDeleteSdp)
    assert( consdata != NULL );
 
    SCIPdebugMessage("deleting SDP constraint <%s>.\n", SCIPconsGetName(cons));
-   
+
    /* release memory for rank one constraint */
    SCIPfreeBlockMemoryArray(scip, &(*consdata)->maxevsubmat, 2);
 
@@ -2127,16 +2222,16 @@ SCIP_DECL_CONSCOPY(consCopySdp)
 #endif
    char copyname[SCIP_MAXSTRLEN];
 
-      /* name the copied constraint */
-   #ifndef NDEBUG
-         snprintfreturn = SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", name);
-         assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
-   #else
-         (void) SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", name);
-   #endif
-      SCIP_CALL( SCIPcreateConsSdp( scip, cons, copyname, sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize, sourcedata->nvarnonz,
-                 sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
-                 sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
+   /* name the copied constraint */
+#ifndef NDEBUG
+   snprintfreturn = SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", name);
+   assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
+#else
+   (void) SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", name);
+#endif
+   SCIP_CALL( SCIPcreateConsSdp( scip, cons, copyname, sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize, sourcedata->nvarnonz,
+         sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
+         sourcedata->constcol, sourcedata->constrow, sourcedata->constval, sourcedata->rankone, sourcedata->maxevsubmat) );
    }
    else
    {
@@ -2145,16 +2240,16 @@ SCIP_DECL_CONSCOPY(consCopySdp)
 #endif
    char copyname[SCIP_MAXSTRLEN];
 
-      /* name the copied constraint */
-   #ifndef NDEBUG
-         snprintfreturn = SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", SCIPconsGetName(sourcecons));
-         assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
-   #else
-         (void) SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", SCIPconsGetName(sourcecons));
-   #endif
-      SCIP_CALL( SCIPcreateConsSdp( scip, cons, SCIPconsGetName(sourcecons), sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize,
-                 sourcedata->nvarnonz, sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
-                 sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
+   /* name the copied constraint */
+#ifndef NDEBUG
+   snprintfreturn = SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", SCIPconsGetName(sourcecons));
+   assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
+#else
+   (void) SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", SCIPconsGetName(sourcecons));
+#endif
+   SCIP_CALL( SCIPcreateConsSdp( scip, cons, SCIPconsGetName(sourcecons), sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize,
+         sourcedata->nvarnonz, sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
+         sourcedata->constcol, sourcedata->constrow, sourcedata->constval, sourcedata->rankone, sourcedata->maxevsubmat) );
    }
 
    SCIPfreeBufferArray(scip, &targetvars);
@@ -3106,14 +3201,14 @@ SCIP_Bool SCIPconsSdpShouldBeRankOne(
    SCIP_CONS*            cons                /**< the constraint for which the existence of a rank one constraint should be checked */
    )
 {
-	SCIP_CONSDATA* consdata;
-	
-	assert( cons != NULL );
-	
-	consdata = SCIPconsGetData(cons);
-	assert( consdata != NULL );
-	
-	return consdata->rankone;
+   SCIP_CONSDATA* consdata;
+
+   assert( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+
+   return consdata->rankone;
 }
 
 /** creates an SDP-constraint */
@@ -3132,7 +3227,9 @@ SCIP_RETCODE SCIPcreateConsSdp(
    int                   constnnonz,         /**< number of nonzeros in the constant part of this SDP constraint */
    int*                  constcol,           /**< column indices of the constant nonzeros */
    int*                  constrow,           /**< row indices of the constant nonzeros */
-   SCIP_Real*            constval            /**< values of the constant nonzeros */
+   SCIP_Real*            constval,           /**< values of the constant nonzeros */
+   SCIP_Bool             rankone,            /**< should matrix be rank one? */
+   int*                  maxevsubmat         /**< two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] */
    )
 {
    SCIP_CONSHDLR* conshdlr;
@@ -3213,12 +3310,15 @@ SCIP_RETCODE SCIPcreateConsSdp(
       SCIP_CALL( SCIPcaptureVar(scip, consdata->vars[i]) );
    }
    SCIPdebugMessage("creating cons %s\n", name);
-   
+
+   /* rank 1 ? */
+   consdata->rankone = rankone;
+
    /* allocate memory for rank one constraint */
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->maxevsubmat, 2) );
    consdata->maxevsubmat[0] = -1;
    consdata->maxevsubmat[1] = -1;
-   
+
    /* create constraint */
    SCIP_CALL( SCIPcreateCons(scip, cons, name, conshdlr, consdata, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) );
 
