@@ -1439,14 +1439,14 @@ SCIP_DECL_READERREAD(readerReadCbf)
       {
          SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcons, sdpconname, data->sdpnblockvars[b], data->sdpnblocknonz[b],
                data->sdpblocksizes[b], data->nvarnonz[b], data->colpointer[b], data->rowpointer[b], data->valpointer[b],
-               data->sdpblockvars[b], 0, NULL, NULL, NULL) );
+               data->sdpblockvars[b], 0, NULL, NULL, NULL, FALSE) );
       }
       else
       {
          SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcons, sdpconname, data->sdpnblockvars[b], data->sdpnblocknonz[b],
                data->sdpblocksizes[b], data->nvarnonz[b], data->colpointer[b], data->rowpointer[b], data->valpointer[b],
                data->sdpblockvars[b], data->sdpconstnblocknonz[b], data->sdpconstcol[b], data->sdpconstrow[b],
-               data->sdpconstval[b]) );
+               data->sdpconstval[b], FALSE) );
       }
 
 #ifdef SCIP_MORE_DEBUG

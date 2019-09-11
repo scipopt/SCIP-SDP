@@ -603,7 +603,7 @@ namespace scip
             (void) SCIPsnprintf(sdpcon_name, SCIP_MAXSTRLEN, "SDP-Constraint-%d", bindex);
 #endif
             SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcon, sdpcon_name, nvars, nnonz, blocksize, nvarnonz, colpointer,
-                  rowpointer, valpointer, vars, constnnonz, constcol, constrow, constval) );
+                  rowpointer, valpointer, vars, constnnonz, constcol, constrow, constval, FALSE) );
 
 #ifdef SCIP_MORE_DEBUG
       SCIP_CALL( SCIPprintCons(scip, sdpcon, NULL) );

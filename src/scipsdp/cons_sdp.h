@@ -76,8 +76,8 @@ SCIP_RETCODE SCIPcreateConsSdp(
    int*                  constcol,           /**< column indices of the constant nonzeros */
    int*                  constrow,           /**< row indices of the constant nonzeros */
    SCIP_Real*            constval,           /**< values of the constant nonzeros */
-   SCIP_Bool             rankone,            /**< should matrix be rank one? */
-   int*                  maxevsubmat         /**< two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] */
+   SCIP_Bool             rankone             /**< should matrix be rank one? */
+   /* int*                  maxevsubmat         /\**< two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] *\/ */
    );
 
 /** for given row and column (i,j) computes the position in the lower triangular part, if
@@ -114,6 +114,8 @@ SCIP_RETCODE SCIPconsSdpGetData(
    int*                  constcol,           /**< pointer to store the column indices of the constant nonzeros */
    int*                  constrow,           /**< pointer to store the row indices of the constant nonzeros */
    SCIP_Real*            constval            /**< pointer to store the values of the constant nonzeros */
+   /* SCIP_Bool*            rankone,            /\**< pointer to store if matrix should be rank one *\/ */
+   /* int**                 maxevsubmat         /\**< pointer to store two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] *\/ */
    );
 
 /** gets the number of nonzeros and constant nonzeros for this SDP constraint
@@ -235,6 +237,15 @@ EXTERN
 SCIP_Bool SCIPconsSdpShouldBeRankOne(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons                /**< the constraint for which the existence of a rank one constraint should be checked */
+   );
+
+/** returns two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] */
+EXTERN
+SCIP_RETCODE SCIPconsSdpGetMaxEVSubmat(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons,               /**< the constraint for which the existence of a rank one constraint should be checked */
+   int**                 maxevsubmat         /**< pointer to store the two row indices of 2x2 subdeterminant with
+                                                maximal eigenvalue [or -1,-1 if not available] */
    );
 
 #ifdef __cplusplus
