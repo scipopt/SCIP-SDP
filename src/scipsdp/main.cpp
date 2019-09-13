@@ -66,6 +66,9 @@
 #include "table_sdpsolversuccess.h"
 #include "table_slater.h"
 
+/* hack to allow to change the name of the dialog without needing to copy everything */
+#include "scip/struct_dialog.h"
+
 using namespace scip;
 
 /** run scip and set some parameters */
@@ -78,6 +81,7 @@ SCIP_RETCODE runSCIP(
    SCIP* scip = NULL;
    char scipsdpname[SCIP_MAXSTRLEN];
    char scipsdpdesc[SCIP_MAXSTRLEN];
+   SCIP_DIALOG* dialog;
 
    SCIP_CALL( SCIPcreate(&scip) );
 
@@ -107,6 +111,12 @@ SCIP_RETCODE runSCIP(
 
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
+
+   /* change name of dialog */
+   dialog = SCIPgetRootDialog(scip);
+   BMSfreeMemoryArrayNull(&dialog->name);
+   SCIP_ALLOC( BMSallocMemoryArray(&dialog->name, 9) );
+   (void) SCIPstrncpy(dialog->name, "SCIP-SDP", 9);
 
    /* set clocktype to walltime to not add multiple threads together */
    SCIP_CALL( SCIPsetIntParam(scip, "timing/clocktype", 2) );
