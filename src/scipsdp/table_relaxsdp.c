@@ -130,9 +130,17 @@ SCIP_DECL_TABLEOUTPUT(tableOutputRelaxSdp)
 
    SCIPinfoMessage(scip, file, "Relaxators         :       Time      Calls Iterations  Iter/call\n");
 
-   SCIPinfoMessage(scip, file, "  %-17.17s: %10.2f %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " %10.2f \n",
+   if ( SCIPrelaxSdpGetNSdpCalls(relaxsdp) > 0 )
+   {
+      SCIPinfoMessage(scip, file, "  %-17.17s: %10.2f %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " %10.2f \n",
          "SDP", SCIPrelaxGetTime(relaxsdp), SCIPrelaxGetNCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
          (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpCalls(relaxsdp));
+   }
+   else
+   {
+      SCIPinfoMessage(scip, file, "  %-17.17s: %10.2f %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " %10s \n",
+         "SDP", SCIPrelaxGetTime(relaxsdp), SCIPrelaxGetNCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp), "-");
+   }
 
    return SCIP_OKAY;
 }
