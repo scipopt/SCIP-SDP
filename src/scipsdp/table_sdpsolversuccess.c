@@ -165,11 +165,18 @@ SCIP_DECL_TABLEOUTPUT(tableOutputSdpSolverSuccess)
       }
       else
       {
-         SCIPinfoMessage(scip, file, "     %-14.14s: %8.2f %% %8.2f %% %8.2f %%\n",
+         if ( SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp) > 0 )
+         {
+            SCIPinfoMessage(scip, file, "     %-14.14s: %8.2f %% %8.2f %% %8.2f %%\n",
                SCIPsdpiGetSolverName(),
                100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpFast(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
                100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpPenalty(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
                100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpUnsolved(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp));
+         }
+         else
+         {
+            SCIPinfoMessage(scip, file, "     %-14.14s:   %8s   %8s   %8s\n", SCIPsdpiGetSolverName(), "-", "-", "-");
+         }
       }
    }
 
