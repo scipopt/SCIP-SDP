@@ -35,15 +35,16 @@
  * @author Sonja Mars
  * @author Lars Schewe
  * @author Tristan Gally
+ * @author Frederic Matter
  *
  * Constraint handler for semidefinite constraints of the form \f$ \sum_{j=1}^n A_j y_j - A_0 \succeq 0 \f$,
  * where the matrices \f$A_j\f$ and \f$A_0\f$ need to be symmetric. Only the nonzero entries of the matrices
  * are stored.
  */
 
-/* #define SCIP_DEBUG*/
-/* #define SCIP_MORE_DEBUG *//* shows all cuts added and prints constraint after parsing */
-/* #define PRINT_HUMAN_READABLE *//* change the output of PRINTCONS to a better readable format (dense instead of sparse), WHICH CAN NO LONGER BE PARSED */
+/* #define SCIP_DEBUG */
+/* #define SCIP_MORE_DEBUG         /\* shows all cuts added and prints constraint after parsing *\/ */
+/* #define PRINT_HUMAN_READABLE /\* change the output of PRINTCONS to a better readable format (dense instead of sparse), WHICH CAN NO LONGER BE PARSED *\/ */
 
 #include "cons_sdp.h"
 
@@ -61,7 +62,7 @@
 #include "scip/scip_cons.h"             /* for SCIPgetConsVars */
 #include "scip/scip.h"                  /* for SCIPallocBufferArray, etc */
 #include "scip/def.h"
-
+/* #include "scip/cons.c"                  /\* for SCIPconsGetTransformed *\/ */
 #ifdef OMP
 #include "omp.h"                        /* for changing the number of threads */
 #endif
@@ -87,8 +88,8 @@
 #define DEFAULT_DIAGGEZEROCUTS     TRUE /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
 #define DEFAULT_DIAGZEROIMPLCUTS   TRUE /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
 #define DEFAULT_BRANCHBNDCHG        0.5 /**< Parameter for branching on the variable bounds in the rank-1 case */
-#define DEFAULT_VALIDINEQSRANK1   FALSE /**< Should valid inequalities from Chen et al. be checked in the rank-1 case? */
-#define DEFAULT_QUADCONSRANK1     FALSE /**< Should quadratic cons for 2x2 minors be added and separated in the rank-1 case? */
+#define DEFAULT_VALIDINEQSRANK1    TRUE /**< Should valid inequalities from Chen et al. be checked in the rank-1 case? */
+#define DEFAULT_QUADCONSRANK1      TRUE /**< Should quadratic cons for 2x2 minors be added in the rank-1 case? */
 #define DEFAULT_BRANCHRANK1        TRUE /**< Should be branched on the matrix variables of 2x2 submatrices in the rank-1 case? */
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
@@ -112,6 +113,7 @@ struct SCIP_ConsData
    SCIP_Real             maxrhsentry;        /**< maximum entry of constant matrix (needed for DIMACS error norm) */
    SCIP_Bool             rankone;            /**< should matrix be rank one? */
    int*                  maxevsubmat;        /**< two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] */
+   SCIP_CONS***          quadconss;          /**< quadratic constraints for all 2x2 principal minors to be equal to 0 */
 };
 
 /** SDP constraint handler data */
@@ -124,7 +126,7 @@ struct SCIP_ConshdlrData
    SCIP_Bool             diagzeroimplcuts;   /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
    SCIP_Real             branchbndchg;       /**< Parameter for branching on the variable bounds in the rank-1 case */
    SCIP_Bool             validineqsrank1;    /**< Should valid inequalities from Chen et al. be checked in the rank-1 case? */
-   SCIP_Bool             quadconsrank1;      /**< Should quadratic cons for 2x2 minors be added and separated in the rank-1 case? */
+   SCIP_Bool             quadconsrank1;      /**< Should quadratic cons for 2x2 minors be added in the rank-1 case? */
    SCIP_Bool             branchrank1;        /**< Should be branched on the matrix variables of 2x2 submatrices in the rank-1 case? */
 #ifdef OMP
    int                   nthreads;           /**< number of threads used for OpenBLAS */
@@ -206,7 +208,7 @@ SCIP_RETCODE computeSdpMatrix(
    return SCIP_OKAY;
 }
 
-/** Check whether current matrix is rank one, if so, sets maxevsubmat */
+/** Check whether current matrix is rank one, if not so, sets maxevsubmat */
 static
 SCIP_RETCODE isMatrixRankOne(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -221,6 +223,12 @@ SCIP_RETCODE isMatrixRankOne(
    SCIP_Real eigenvalue;
    int blocksize;
    SCIP_RESULT resultSDPtest;
+   int i;
+   int j;
+   int ind1;
+   int ind2;
+   SCIP_Real submatrix[4];
+   SCIP_Real largestminev = 0.0;
 
    assert( cons != NULL );
 
@@ -267,21 +275,74 @@ SCIP_RETCODE isMatrixRankOne(
    if ( SCIPisFeasEQ(scip, eigenvalues[1], 0.0) )
       *result = TRUE;
    else
+   {
       *result = FALSE;
+      /* if the matrix is not rank 1, compute minimal eigenvalues of 2x2 minors */
+      for (i = 0; i < blocksize; ++i)
+      {
+         for (j = 0; j < i; ++j)
+         {
+            submatrix[0] = matrix[SCIPconsSdpCompLowerTriangPos(i,i)];
+            submatrix[1] = matrix[SCIPconsSdpCompLowerTriangPos(i,j)];
+            submatrix[2] = matrix[SCIPconsSdpCompLowerTriangPos(i,j)];
+            submatrix[3] = matrix[SCIPconsSdpCompLowerTriangPos(j,j)];
 
-   SCIPfreeBufferArray(scip, &eigenvector);
+            SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, 2, submatrix, 1, &eigenvalue, NULL) );
+            /* TODO: Compute eigenvalues by solving quadratic constraint */
+
+            if ( SCIPisFeasGT(scip, eigenvalue, largestminev) )
+            {
+               largestminev = eigenvalue;
+               ind1 = i;
+               ind2 = j;
+            }
+         }
+      }
+
+      /* save indices for submatrix with largest minimal eigenvalue */
+      consdata->maxevsubmat[0] = ind1;
+      consdata->maxevsubmat[1] = ind2;
+   }
+
+   SCIPfreeBufferArray(scip, &eigenvectors);
    SCIPfreeBufferArray(scip, &eigenvalues);
-
 #endif
 
-   /* alternative: directly compute the second smallest eigenvalue */
-   SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, fullmatrix, 2, &eigenvalue, NULL) );
+   /* compute the second largest eigenvalue */
+   SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, fullmatrix, blocksize - 1, &eigenvalue, NULL) );
 
    /* the matrix is rank 1 iff the second largest eigenvalue is zero (since the matrix is symmetric and psd) */
    if ( SCIPisFeasEQ(scip, eigenvalue, 0.0) )
       *result = TRUE;
    else
+   {
       *result = FALSE;
+      /* if the matrix is not rank 1, compute minimal eigenvalues of 2x2 minors */
+      for (i = 0; i < blocksize; ++i)
+      {
+         for (j = 0; j < i; ++j)
+         {
+            submatrix[0] = matrix[SCIPconsSdpCompLowerTriangPos(i,i)];
+            submatrix[1] = matrix[SCIPconsSdpCompLowerTriangPos(i,j)];
+            submatrix[2] = matrix[SCIPconsSdpCompLowerTriangPos(i,j)];
+            submatrix[3] = matrix[SCIPconsSdpCompLowerTriangPos(j,j)];
+
+            SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, 2, submatrix, 1, &eigenvalue, NULL) );
+            /* TODO: Compute eigenvalues by solving quadratic constraint */
+
+            if ( SCIPisFeasGT(scip, eigenvalue, largestminev) )
+            {
+               largestminev = eigenvalue;
+               ind1 = i;
+               ind2 = j;
+            }
+         }
+      }
+
+      /* save indices for submatrix with largest minimal eigenvalue */
+      consdata->maxevsubmat[0] = ind1;
+      consdata->maxevsubmat[1] = ind2;
+   }
 
    SCIPfreeBufferArray(scip, &fullmatrix);
    SCIPfreeBufferArray(scip, &matrix);
@@ -1592,14 +1653,10 @@ SCIP_RETCODE EnforceRankOne(
 {
    SCIP_CONSHDLRDATA* conshdlrdata;
    SCIP_CONSDATA* consdata;
-   SCIP_CONS* quadcons;
    SCIP_VAR*  quadvars1[2];
    SCIP_VAR*  quadvars2[2];
-   SCIP_VAR** consvars;
-   SCIP_Real  quadcoefs[2];
    SCIP_Real* matrix;
    SCIP_Real* submatrix;
-   SCIP_Real eigenvalue;
    SCIP_Real largestminev = 0.0;
    SCIP_Real  lbii;
    SCIP_Real  ubii;
@@ -1614,13 +1671,7 @@ SCIP_RETCODE EnforceRankOne(
    SCIP_Real  val2;
    SCIP_Real  val3;
    SCIP_Real  val4;
-   SCIP_Bool success;
-   SCIP_Bool  validineqsrank1;
-   SCIP_Bool  quadconsrank1;
-   SCIP_Bool  branchrank1;
    int blocksize;
-   int i;
-   int j;
    int ind1;
    int ind2;
 
@@ -1638,62 +1689,23 @@ SCIP_RETCODE EnforceRankOne(
 
    SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1)) / 2) ); /*lint !e647*/
    SCIP_CALL( SCIPallocBufferArray(scip, &submatrix, 4) ); /*lint !e647*/
-   SCIP_CALL( SCIPallocBufferArray(scip, &consvars, (blocksize * (blocksize+1)) / 2) ); /*lint !e647*/
-
-   validineqsrank1 = conshdlrdata->validineqsrank1;
-   quadconsrank1 = conshdlrdata->quadconsrank1;
-   branchrank1 = conshdlrdata->branchrank1;
 
    *result = SCIP_FEASIBLE;
 
    SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix) );
 
-   /* compute minimal eigenvalues of 2x2 minors */
-   for (i = 0; i < blocksize; i++)
-   {
-      for (j = 0; j <= i; j++)
-      {
-         submatrix[0] = matrix[SCIPconsSdpCompLowerTriangPos(i,i)];
-         submatrix[1] = matrix[SCIPconsSdpCompLowerTriangPos(i,j)];
-         submatrix[2] = matrix[SCIPconsSdpCompLowerTriangPos(i,j)];
-         submatrix[3] = matrix[SCIPconsSdpCompLowerTriangPos(j,j)];
-
-         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, 2, submatrix, 1, &eigenvalue, NULL) );
-
-         if ( SCIPisFeasGT(scip, eigenvalue, largestminev) )
-         {
-            largestminev = eigenvalue;
-            ind1 = i;
-            ind2 = j;
-         }
-      }
-   }
-
-   /* save indices for submatrix with largest minimal eigenvalue */
-   consdata->maxevsubmat[0] = ind1;
-   consdata->maxevsubmat[1] = ind2;
-
-   if (SCIPisFeasEQ(scip, largestminev, 0.0) )
-   {
-      return SCIP_OKAY;
-   }
-
-   SCIP_CALL( SCIPgetConsVars(scip, cons, consvars, (blocksize * (blocksize+1)) / 2, &success) );
-
-   if ( ! success )
-   {
-      SCIPerrorMessage("Variables could not be retrieved for current constraint.\n");
-      return SCIP_ERROR;
-   }
+   ind1 = consdata->maxevsubmat[0];
+   ind2 = consdata->maxevsubmat[1];
+   /* if (SCIPisFeasEQ(scip, largestminev, 0.0) ) */
+   /* { */
+   /*    return SCIP_OKAY; */
+   /* } */
 
    /* get variables and coefficients corresponding to indices (i,i), (j,j) and (i,j) for branching */
-   quadvars1[0] = consvars[SCIPconsSdpCompLowerTriangPos(ind1,ind1)];            /* variable corresponding to entry (i,i) */
-   quadvars2[0] = consvars[SCIPconsSdpCompLowerTriangPos(ind2,ind2)];            /* variable corresponding to entry (j,j) */
-   quadvars1[1] = consvars[SCIPconsSdpCompLowerTriangPos(ind1,ind2)];            /* variable corresponding to entry (i,j) */
-   quadvars2[1] = consvars[SCIPconsSdpCompLowerTriangPos(ind1,ind2)];            /* variable corresponding to entry (i,j) */
-
-   quadcoefs[0] = 1.0;          /* coefficient for quadvars1[0]*quadvars2[0] */
-   quadcoefs[1] = -1.0;         /* coefficient for quadvars1[1]*quadvars1[1] */
+   quadvars1[0] = consdata->vars[SCIPconsSdpCompLowerTriangPos(ind1,ind1)];            /* variable corresponding to entry (i,i) */
+   quadvars2[0] = consdata->vars[SCIPconsSdpCompLowerTriangPos(ind2,ind2)];            /* variable corresponding to entry (j,j) */
+   quadvars1[1] = consdata->vars[SCIPconsSdpCompLowerTriangPos(ind1,ind2)];            /* variable corresponding to entry (i,j) */
+   quadvars2[1] = consdata->vars[SCIPconsSdpCompLowerTriangPos(ind1,ind2)];            /* variable corresponding to entry (i,j) */
 
    /* check if one of the valid inequalities is violated for the current solution */
    lbii = SCIPvarGetLbLocal(quadvars1[0]); /* lower bound for variable corresponding to matrix entry (i,i) */
@@ -1709,7 +1721,7 @@ SCIP_RETCODE EnforceRankOne(
    solvaljj = SCIPgetSolVal(scip, sol, quadvars2[0]);
    solvalij = SCIPgetSolVal(scip, sol, quadvars1[1]);
 
-   if ( validineqsrank1 )
+   if ( conshdlrdata->validineqsrank1 )
    {
       /* Check valid inequalities from Chen, Atamtürk and Oren  */
       val1 = (SQRT(lbii) + SQRT(ubii)) * (SQRT(lbjj) + SQRT(ubjj));
@@ -1721,6 +1733,23 @@ SCIP_RETCODE EnforceRankOne(
       {
          SCIP_ROW* cut;
          SCIP_Bool infeasible;
+
+         /* SCIP_VAR* linvars[3]; */
+         /* SCIP_Real linvals[3]; */
+         /* char name[SCIP_MAXSTRLEN]; */
+         /* SCIP_CONS* lincons; */
+
+         /* linvars[0] = quadvars1[0]; */
+         /* linvars[1] = quadvars2[0]; */
+         /* linvars[2] = quadvars1[1]; */
+         /* linvals[0] = ubjj + val2; */
+         /* linvals[1] = ubii + val3; */
+         /* linvals[2] = -val1; */
+
+         /* (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lincut1#%d#%d", ind1, ind2); */
+         /* SCIP_CALL( SCIPcreateConsBasicLinear(scip, &lincons, name, 3, linvars, linvals, -SCIPinfinity(scip), -val4 + ubii * ubjj) ); */
+         /* SCIP_CALL( SCIPaddCons(scip, lincons) ); */
+         /* SCIP_CALL( SCIPreleaseCons(scip, &lincons) ); */
 
          SCIP_CALL( SCIPcreateEmptyRowCons(scip, &cut, conshdlr, "", -SCIPinfinity(scip), -val4 + ubii * ubjj, FALSE, FALSE, TRUE) );
 
@@ -1742,20 +1771,39 @@ SCIP_RETCODE EnforceRankOne(
                *result = SCIP_SEPARATED;
 
             SCIPdebug( SCIP_CALL( SCIPprintRow(scip, cut, NULL) ) );
-            printf("Succesfully added valid cut based on first valid inequality\n");
+            /* printf("Succesfully added valid cut based on first valid inequality\n"); */
             SCIP_CALL( SCIPreleaseRow(scip, &cut) );
 
             SCIP_CALL( SCIPresetConsAge(scip, cons) );
          }
          else
          {
-            printf("Cut based on first inequality is not efficacious\n");
+            /* printf("Cut based on first inequality is not efficacious\n"); */
+            SCIP_CALL( SCIPreleaseRow(scip, &cut) );
          }
       }
       else if ( ! SCIPisFeasGE(scip, solvalij * val1, solvalii * (lbjj + val2) + solvaljj * (lbii + val3) + val4 - lbii * lbjj) )
       {
          SCIP_ROW* cut;
          SCIP_Bool infeasible;
+
+         /* SCIP_VAR* linvars[3]; */
+         /* SCIP_Real linvals[3]; */
+         /* char name[SCIP_MAXSTRLEN]; */
+         /* SCIP_CONS* lincons; */
+
+         /* linvars[0] = quadvars1[0]; */
+         /* linvars[1] = quadvars2[0]; */
+         /* linvars[2] = quadvars1[1]; */
+         /* linvals[0] = lbjj + val2; */
+         /* linvals[1] = lbii + val3; */
+         /* linvals[2] = -val1; */
+
+         /* (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lincut2#%d#%d", ind1, ind2); */
+         /* SCIP_CALL( SCIPcreateConsBasicLinear(scip, &lincons, name, 3, linvars, linvals, -SCIPinfinity(scip), -val4 + lbii * lbjj) ); */
+         /* SCIP_CALL( SCIPaddCons(scip, lincons) ); */
+         /* SCIP_CALL( SCIPreleaseCons(scip, &lincons) ); */
+
 
          SCIP_CALL( SCIPcreateEmptyRowCons(scip, &cut, conshdlr, "", -SCIPinfinity(scip), -val4 + lbii * lbjj, FALSE, FALSE, TRUE) );
 
@@ -1777,51 +1825,31 @@ SCIP_RETCODE EnforceRankOne(
                *result = SCIP_SEPARATED;
 
             SCIPdebug( SCIP_CALL( SCIPprintRow(scip, cut, NULL) ) );
-            printf("Succesfully added valid cut based on second valid inequality\n");
+            /* printf("Succesfully added valid cut based on second valid inequality\n"); */
             SCIP_CALL( SCIPreleaseRow(scip, &cut) );
 
             SCIP_CALL( SCIPresetConsAge(scip, cons) );
          }
          else
          {
-            printf("Cut based on second inequality is not efficacious\n");
+            /* printf("Cut based on second inequality is not efficacious\n"); */
+            SCIP_CALL( SCIPreleaseRow(scip, &cut) );
          }
       }
       else
       {
-         printf("None of the two inequalities are valid\n");
+         /* printf("None of the two inequalities are valid\n"); */
       }
 
       if ( *result == SCIP_CUTOFF || *result == SCIP_SEPARATED )
       {
          SCIPfreeBufferArray(scip, &submatrix);
          SCIPfreeBufferArray(scip, &matrix);
-         SCIPfreeBufferArray(scip, &consvars);
          return SCIP_OKAY;
       }
    }
 
-   if ( quadconsrank1 )
-   {
-      SCIP_SOL* relaxsol = NULL;
-      SCIP_RESULT separesult;
-
-      /* create quadratic constraint that 2x2 minor must be smaller than or equal to 0 */
-      SCIP_CALL( SCIPcreateConsBasicQuadratic(scip, &quadcons, "quadcons", 0, NULL, NULL, 2, quadvars1, quadvars2, quadcoefs, -SCIPinfinity(scip), 0.0) );
-
-      SCIP_CALL( SCIPaddCons(scip, quadcons) );
-
-      /* create relaxation solution */
-      SCIP_CALL( SCIPcreateRelaxSol(scip, &relaxsol, NULL) );
-
-      /* call separation routine on the created quadratic constraint */
-      SCIP_CALL( SCIPsepasolCons(scip, quadcons, relaxsol, &separesult) );
-
-      /* release constraint */
-      SCIP_CALL( SCIPreleaseCons(scip, &quadcons) );
-   }
-
-   if ( branchrank1 )
+   if ( conshdlrdata->branchrank1 )
    {
       SCIP_NODE* node1 = NULL;
       SCIP_NODE* node2 = NULL;
@@ -1886,8 +1914,6 @@ SCIP_RETCODE EnforceRankOne(
 
    SCIPfreeBufferArray(scip, &submatrix);
    SCIPfreeBufferArray(scip, &matrix);
-   SCIPfreeBufferArray(scip, &consvars);
-
 
    return SCIP_OKAY;
 }
@@ -2005,7 +2031,7 @@ SCIP_RETCODE EnforceConstraint(
 		   {
                       /* TODO: raise ERROR, if in the matrix the LMI is representing, there are entries that do not have
                          exactly one variable! */
-                      printf("EnforceConstraint: Matrix is not rank 1!\n");
+                      /* printf("EnforceConstraint: Matrix is not rank 1!\n"); */
                       SCIP_CALL( EnforceRankOne(scip, conshdlr, conss[i], sol, result) );
 
                       return SCIP_OKAY;
@@ -2110,6 +2136,7 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
 {/*lint --e{715}*/
    SCIP_CONSHDLRDATA* conshdlrdata;
    int c;
+   int i;
 
    assert( scip != NULL );
 
@@ -2126,16 +2153,176 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
 
       consdata = SCIPconsGetData(conss[c]);
       assert( consdata != NULL );
-      assert( consdata->maxevsubmat != NULL );
+      assert( &consdata->maxevsubmat != NULL );
+      assert( &consdata->rankone != NULL );
+      assert( &consdata->quadconss != NULL );
 
       /* SCIP_CALL( SCIPallocBlockMemory(scip, &maxevsubmat) ); */
 
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->quadconss, consdata->blocksize) );
+
+      for (i = 0; i < consdata->blocksize; ++i)
+      {
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->quadconss[i], i + 1));
+      }
+
       consdata->maxevsubmat[0] = -1;
       consdata->maxevsubmat[1] = -1;
-   }
 
+      /* For each constraint, if it should be rank one, store all quadratic constraints given by the 2x2 principal
+         minors in an array. */
+      if ( consdata->rankone && conshdlrdata->quadconsrank1 )
+      {
+         SCIP_VAR**  quadvars1;
+         SCIP_VAR**  quadvars2;
+         SCIP_VAR**  linvars;
+         SCIP_CONS* quadcons;
+         SCIP_Real*  lincoefs;
+         SCIP_Real*  quadcoefs;
+         SCIP_Real* constmatrix;
+         SCIP_Real** matrixAk;
+         SCIP_Real lhs;
+         SCIP_Real aiik;
+         SCIP_Real ajjk;
+         SCIP_Real aijk;
+         SCIP_Real ajjl;
+         SCIP_Real aijl;
+         SCIP_Real  cii;
+         SCIP_Real  cjj;
+         SCIP_Real  cij;
+         char name[SCIP_MAXSTRLEN];
+         int cnt;
+         int j;
+         int k;
+         int l;
+         int blocksize;
+
+         blocksize = consdata->blocksize;
+
+         SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, (consdata->blocksize * (consdata->blocksize + 1)) / 2) ); /*lint !e647*/
+         SCIP_CALL( SCIPconsSdpGetLowerTriangConstMatrix(scip, conss[c], constmatrix) );
+
+         SCIP_CALL( SCIPallocBufferArray(scip, &quadvars1, consdata->nvars * consdata->nvars) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &quadvars2, consdata->nvars * consdata->nvars) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &linvars, consdata->nvars) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &quadcoefs, consdata->nvars * consdata->nvars) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &lincoefs, consdata->nvars) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &matrixAk, consdata->nvars) );
+
+         for (i = 0; i < consdata->nvars; ++i)
+         {
+            SCIP_CALL( SCIPallocBufferArray(scip, &matrixAk[i], consdata->blocksize * consdata->blocksize) );
+            SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrixAk[i]) );
+         }
+
+         for (i = 0; i < blocksize; ++i)
+         {
+            for (j = 0; j < i; ++j)
+            {
+               cii = constmatrix[SCIPconsSdpCompLowerTriangPos(i,i)];
+               cjj = constmatrix[SCIPconsSdpCompLowerTriangPos(j,j)];
+               cij = constmatrix[SCIPconsSdpCompLowerTriangPos(i,j)];
+
+               cnt = 0;
+               for (k = 0; k < consdata->nvars; ++k)
+               {
+                  ajjk = matrixAk[k][j * consdata->blocksize + j];
+                  aiik = matrixAk[k][i * consdata->blocksize + i];
+                  aijk = matrixAk[k][j * consdata->blocksize + i];
+
+                  linvars[k] = consdata->vars[k];
+                  lincoefs[k] = cii * ajjk + cjj * aiik - cij * aijk;
+
+                  for (l = 0; l < consdata->nvars; ++l)
+                  {
+                     ajjl = matrixAk[l][j * consdata->blocksize + j];
+                     aijl = matrixAk[l][j * consdata->blocksize + i];
+
+                     quadvars1[cnt] = consdata->vars[k];
+                     quadvars2[cnt] = consdata->vars[l];
+                     quadcoefs[cnt] = aiik * ajjl - aijk * aijl;
+                     ++cnt;
+                  }
+               }
+               assert( cnt == consdata->nvars * consdata->nvars );
+
+               /* printf("ind1 = %d, ind2 = %d, quadvars1[0] = %s, quadvars2[0] = %s, quadvars1[1] = %s, quadvars2[1] = %s\n", i, j, SCIPvarGetName(quadvars1[0]), SCIPvarGetName(quadvars2[0]), SCIPvarGetName(quadvars1[1]), SCIPvarGetName(quadvars2[1]) ); */
+
+               lhs = cij * cij - cii * cjj;
+
+               (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "quadcons#%d#%d#%d", i, j, c);
+               /* create quadratic constraint, with initial=FALSE, separate=FALSE, enforce=FALSE, check=FALSE, propagate=TRUE, local=FALSE, modifiable=FALSE, dynamic=FALSE, removable=TRUE */
+               SCIP_CALL( SCIPcreateConsQuadratic(scip, &quadcons, name, consdata->nvars, linvars, lincoefs, consdata->nvars * consdata->nvars, quadvars1, quadvars2, quadcoefs, lhs, lhs, FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE) );
+
+#ifdef SCIP_MORE_DEBUG
+               SCIP_CALL( SCIPprintCons(scip, quadcons, NULL) );
+               SCIPinfoMessage(scip, NULL, "\n");
+#endif
+
+               SCIP_CALL( SCIPaddCons(scip, quadcons) );
+
+               /* save created constraint in array */
+               consdata->quadconss[i][j] = quadcons;
+            }
+         }
+         for (i = 0; i < consdata->nvars; ++i)
+            SCIPfreeBufferArray(scip, &matrixAk[i]);
+
+         SCIPfreeBufferArray(scip, &matrixAk);
+         SCIPfreeBufferArray(scip, &lincoefs);
+         SCIPfreeBufferArray(scip, &quadcoefs);
+         SCIPfreeBufferArray(scip, &linvars);
+         SCIPfreeBufferArray(scip, &quadvars2);
+         SCIPfreeBufferArray(scip, &quadvars1);
+         SCIPfreeBufferArray(scip, &constmatrix);
+      }
+   }
    return SCIP_OKAY;
 }
+
+/** at the end of the solution process the stored rank one submatrix is reset and the quadratic constraints for the 2x2
+    principal minors are freed */
+static
+SCIP_DECL_CONSEXITSOL(consExitsolSdp)
+{  /*lint --e{715}*/
+   SCIP_CONSHDLRDATA* conshdlrdata;
+   int c;
+
+   assert( scip != NULL );
+   assert( conshdlr != NULL );
+   assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
+
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert(conshdlrdata != NULL);
+
+   /* free quadratic constraints for 2x2 principal minors */
+   if ( conshdlrdata->quadconsrank1 )
+   {
+      for (c = 0; c < nconss; ++c)
+      {
+         SCIP_CONSDATA* consdata;
+         int i;
+         int j;
+
+         consdata = SCIPconsGetData(conss[c]);
+         assert( consdata != NULL );
+         assert( &consdata->quadconss != NULL );
+
+         for (i = 0; i < consdata->blocksize; ++i)
+         {
+            for (j = 0; j < i; ++j)
+            {
+               SCIP_CALL( SCIPreleaseCons(scip, &consdata->quadconss[i][j]) );
+            }
+            SCIPfreeBlockMemoryArray(scip, &consdata->quadconss[i], i+1);
+         }
+
+         SCIPfreeBlockMemoryArrayNull(scip, &consdata->quadconss, consdata->blocksize);
+      }
+   }
+   return SCIP_OKAY;
+}
+
 
 /** presolving method of constraint handler */
 static
@@ -2236,6 +2423,19 @@ SCIP_DECL_CONSTRANS(consTransSdp)
       targetdata->constval = NULL;
    }
 
+   /* /\* copy & transform the quadratic constraints for the 2x2 principal minors *\/ */
+   /* SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->quadconss), sourcedata->blocksize) ); */
+
+   /* for (i = 0; i < sourcedata->blocksize; ++i) */
+   /* { */
+   /*    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->quadconss[i]), i + 1) ); */
+   /*    for (j = 0; j < i; ++j) */
+   /*    { */
+   /*       targetdata->quadconss[i][j] = SCIPconsGetTransformed(sourcedata->quadconss[i][j]); */
+   /*       SCIPcaptureCons(scip, targetdata->quadconss[i][j]); */
+   /*    } */
+   /* } */
+
    /* copy the maxrhsentry */
    targetdata->maxrhsentry = sourcedata->maxrhsentry;
 
@@ -2288,19 +2488,19 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
    /* check for rank one if necessary */
    for (i = 0; i < nconss; ++i)
    {
-	   consdata = SCIPconsGetData(conss[i]);
-	   if ( consdata->rankone )
-	   {
-		   SCIP_Bool isRankOne = FALSE;
+      consdata = SCIPconsGetData(conss[i]);
+      if ( consdata->rankone )
+      {
+         SCIP_Bool isRankOne = FALSE;
 
-		   SCIP_CALL( isMatrixRankOne(scip, conss[i], sol, &isRankOne) );
-		   if ( ! isRankOne )
-		   {
-                         *result = SCIP_INFEASIBLE;
-                         SCIPdebugMessage("CONSCHECK: Matrix is not rank 1!\n");
-                         return SCIP_OKAY;
-		   }
-	   }
+         SCIP_CALL( isMatrixRankOne(scip, conss[i], sol, &isRankOne) );
+         if ( ! isRankOne )
+         {
+            *result = SCIP_INFEASIBLE;
+            SCIPdebugMessage("CONSCHECK: Matrix is not rank 1!\n");
+            return SCIP_OKAY;
+         }
+      }
    }
 
    return SCIP_OKAY;
@@ -2354,7 +2554,7 @@ SCIP_DECL_CONSENFOPS(consEnfopsSdp)
 		   {
                       /* TODO: raise ERROR, if in the matrix the LMI is representing, there are entries that do not have
                          exactly one variable! */
-                      printf("ENFOPS: Matrix is not rank 1!\n");
+                      /* printf("ENFOPS: Matrix is not rank 1!\n"); */
                       SCIP_CALL( EnforceRankOne(scip, conshdlr, conss[i], sol, result) );
 
                       return SCIP_OKAY;
@@ -2440,7 +2640,7 @@ SCIP_DECL_CONSDELETE(consDeleteSdp)
    SCIPdebugMessage("deleting SDP constraint <%s>.\n", SCIPconsGetName(cons));
 
    /* release memory for rank one constraint */
-   SCIPfreeBlockMemoryArray(scip, &(*consdata)->maxevsubmat, 2);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->maxevsubmat, 2);
 
    for (i = 0; i < (*consdata)->nvars; i++)
    {
@@ -2989,6 +3189,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPsetConshdlrInitpre(scip, conshdlr,consInitpreSdp) );
    SCIP_CALL( SCIPsetConshdlrExitpre(scip, conshdlr, consExitpreSdp) );
    SCIP_CALL( SCIPsetConshdlrInitsol(scip, conshdlr, consInitsolSdp) );
+   SCIP_CALL( SCIPsetConshdlrExitsol(scip, conshdlr, consExitsolSdp) );
    SCIP_CALL( SCIPsetConshdlrPresol(scip, conshdlr, consPresolSdp, CONSHDLR_MAXPREROUNDS, CONSHDLR_PRESOLTIMING) );
    SCIP_CALL( SCIPsetConshdlrSepa(scip, conshdlr, consSepalpSdp, consSepasolSdp, CONSHDLR_SEPAFREQ,
          CONSHDLR_SEPAPRIORITY, CONSHDLR_DELAYSEPA) );
@@ -3017,7 +3218,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          "Should valid inequalities from Chen et al. be checked in the rank-1 case?",
          &(conshdlrdata->validineqsrank1), TRUE, DEFAULT_VALIDINEQSRANK1, NULL, NULL) );
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/quadconsrank1",
-         "Should quadratic cons for 2x2 minors be added and separated in the rank-1 case?",
+         "Should quadratic cons for 2x2 minors be added in the rank-1 case?",
          &(conshdlrdata->quadconsrank1), TRUE, DEFAULT_QUADCONSRANK1, NULL, NULL) );
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/branchrank1",
          "Should be branched on the matrix variables of 2x2 submatrices in the rank-1 case?",
@@ -3582,6 +3783,37 @@ SCIP_RETCODE SCIPconsSdpGetMaxEVSubmat(
    return SCIP_OKAY;
 }
 
+/* /\** returns array with quadratic constraints for 2x2 principal minors [only available, if conshdlrdata->quadconsrank1 = 1] *\/ */
+/* SCIP_RETCODE SCIPconsSdpGetQuadconss( */
+/*    SCIP*                 scip,               /\**< SCIP data structure *\/ */
+/*    SCIP_CONS*            cons,               /\**< the constraint for which the quadratic constraints should be returned *\/ */
+/*    SCIP_CONS****         quadconss           /\**< pointer to store quadratic constraints for all 2x2 principal minors *\/ */
+/* ) */
+/* { */
+/*    SCIP_CONSDATA* consdata; */
+/*    SCIP_CONSHDLR* conshdlr; */
+/*    SCIP_CONSHDLRDATA* conshdlrdata; */
+
+/*    assert( cons != NULL ); */
+
+/*    consdata = SCIPconsGetData(cons); */
+/*    assert( consdata != NULL ); */
+/*    assert( quadconss != NULL ); */
+
+/*    conshdlr = SCIPconsGetHdlr(cons); */
+/*    conshdlrdata = SCIPconshdlrGetData(conshdlr); */
+
+/*    if ( conshdlrdata->quadconsrank1 && consdata->rankone ) */
+/*       *quadconss = consdata->quadconss; */
+/*    else */
+/*    { */
+/*       SCIPerrorMessage("Tried to get quadratic constraints for 2x2 principal minors even if  constraint should not be rank1 or quadratic constraints are turned off!\n"); */
+/*       return SCIP_ERROR; */
+/*    } */
+
+/*    return SCIP_OKAY; */
+/* } */
+
 /** creates an SDP-constraint */
 SCIP_RETCODE SCIPcreateConsSdp(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -3635,7 +3867,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->constcol, constnnonz) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->constrow, constnnonz) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->constval, constnnonz) );
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->vars, nvars));
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->vars, nvars) );
 
    for (i = 0; i < nvars; i++)
    {
