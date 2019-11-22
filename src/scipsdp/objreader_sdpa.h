@@ -47,9 +47,6 @@
 #include "objscip/objreader.h"          // for ObjReader
 #include "scip/scip.h"
 
-class SdpProblem;
-class SdpVarMapper;
-
 namespace scip
 {
    /** struct with the lp-rows-data */

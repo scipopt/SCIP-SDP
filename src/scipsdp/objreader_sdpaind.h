@@ -48,9 +48,6 @@
 #include "objreader_sdpa.h"             // for LProw, LPblock, SDPblock
 #include "scip/scip.h"
 
-class SdpProblem;
-class SdpVarMapper;
-
 namespace scip
 {
    /** C++ wrapper object for file readers */
