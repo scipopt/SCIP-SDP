@@ -430,16 +430,21 @@ namespace scip
       // read integer variables
       intvars = std::vector<int>(numvars, 0);
 
-      while(file.peek() == '*')
+      std::string str;
+      (void) std::getline(file, str);
+      while ( str[0] == '*' && isdigit(str[1]) )
       {
-         int index;/*lint !e578*/
-         file.ignore(1);/*lint !e534*//*lint !e747*/
-         file >> index;
-         //in the SDPA-file the variable numbers start at 1!
-         intvars[index - 1] = 1;/*lint !e732*//*lint !e747*/
-         SCIPdebugMessage("Variable %d is integer.\n", index - 1);
-         drop_rest_line(file);
-         drop_space(file);
+         // get index of integer variable
+         int idx;
+         (void) str.erase(0, 1);  /*lint !e747*/
+         idx = atoi(str.c_str());
+         SCIP_CALL( checkIndex("variable", idx, 1, numvars) );
+
+         // in the SDPA-file the variable numbers start at 1!
+         intvars[idx - 1] = 1;  /*lint !e732*//*lint !e747*/
+         SCIPdebugMessage("Variable %d is integer.\n", idx - 1);
+
+         (void) std::getline(file, str);
       }
 
 
