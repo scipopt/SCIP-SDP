@@ -1345,7 +1345,7 @@ SCIP_RETCODE CBFreadHcoord(
          if ( data->npsdvars > 0 )
          {
             int varidx;
-            
+
             assert( data->nsdpblocks = ncbfsdpblocks + data->npsdvars );
             for (v = 0; v < data->npsdvars; v++)
             {
@@ -1599,14 +1599,14 @@ SCIP_RETCODE CBFfreeData(
 
          for (b = 0; b < data->nsdpblocks; b++)
          {
-            SCIPfreeBlockMemoryArrayNull(scip, &(data->valpointer[b]), data->sdpblocksizes[b]);
-            SCIPfreeBlockMemoryArrayNull(scip, &(data->colpointer[b]), data->sdpblocksizes[b]);
-            SCIPfreeBlockMemoryArrayNull(scip, &(data->rowpointer[b]), data->sdpblocksizes[b]);
-            SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpval[b]), data->sdpblocksizes[b]);
-            SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpcol[b]), data->sdpblocksizes[b]);
-            SCIPfreeBlockMemoryArrayNull(scip, &(data->sdprow[b]), data->sdpblocksizes[b]);
-            SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpblockvars[b]), data->sdpblocksizes[b]);
-            SCIPfreeBlockMemoryArrayNull(scip, &(data->nvarnonz[b]), data->sdpblocksizes[b]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->valpointer[b]), data->sdpnblocknonz[b]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->colpointer[b]), data->sdpnblocknonz[b]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->rowpointer[b]), data->sdpnblocknonz[b]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpval[b]), data->sdpnblocknonz[b]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpcol[b]), data->sdpnblocknonz[b]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->sdprow[b]), data->sdpnblocknonz[b]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpblockvars[b]), data->sdpnblocknonz[b]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->nvarnonz[b]), data->sdpnblocknonz[b]);
          }
 
          SCIPfreeBlockMemoryArrayNull(scip, &data->valpointer, data->nsdpblocks);
@@ -1671,7 +1671,9 @@ SCIP_RETCODE CBFfreeData(
    {
       SCIPfreeBlockMemoryArrayNull(scip, &data->createdconss, data->nconss);
    }
-   SCIPfreeBlockMemoryArrayNull(scip, &data->createdvars, data->nvars);
+
+   if (data->nvars > 0)
+      SCIPfreeBlockMemoryArrayNull(scip, &data->createdvars, data->nvars);
 
    if ( data-> npsdvars > 0 )
    {
@@ -1900,7 +1902,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
       int varidx;
       int row;
       int col;
-      int v;
+      int val;
 
       assert( data->nsdpblocks == -1 );
       assert( data->createdpsdvars != NULL );
@@ -1942,10 +1944,15 @@ SCIP_DECL_READERREAD(readerReadCbf)
          SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->colpointer[b]),  nauxvars) );
          SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->valpointer[b]),  nauxvars) );
 
-         for (row = 0; row < data->psdvarsizes[v]; row++)
+         val = 1;
+         for (row = 0; row < data->psdvarsizes[b]; row++)
          {
             for (col = 0; col <= row; col++)
             {
+               data->sdprow[b][varidx] = row;
+               data->sdpcol[b][varidx] = col;
+               data->sdpval[b][varidx] = val;
+
                data->nvarnonz[b][varidx] = 1;
                data->sdpblockvars[b][varidx] = data->createdpsdvars[b][row][col];
                data->rowpointer[b][varidx] = &(data->sdprow[b][varidx]);
