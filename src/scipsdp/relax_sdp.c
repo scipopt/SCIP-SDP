@@ -132,7 +132,6 @@ struct SCIP_RelaxData
    SCIP_Real             penaltyparam;       /**< the starting penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
    SCIP_Real             maxpenaltyparam;    /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
    SCIP_Real             lambdastar;         /**< the parameter lambda star used by SDPA to set the initial point */
-   SCIP_Real             computedlambdastar; /**< computed value for lambda star parameter used by SDPA to set the initial point */
    int                   npenaltyincr;       /**< maximum number of times the penalty parameter will be increased if penalty formulation failed */
    SCIP_Real             peninfeasadjust;    /**< gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation */
    int                   slatercheck;        /**< Should the Slater condition for the dual problem be check ahead of solving every SDP ? */
@@ -1442,7 +1441,7 @@ SCIP_RETCODE calcRelax(
                for (b = 0; b < nblocks; b++)
                {
                   matrixsize = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
-                  matrixsize *= (matrixsize + 1) * 0.5;
+                  matrixsize *= (matrixsize + 1) / 2;
                   startXnblocknonz[b] = matrixsize;
 
                   SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], matrixsize) );
@@ -2095,7 +2094,7 @@ SCIP_RETCODE calcRelax(
                   SCIP_CALL( SCIPconsSdpGetData(scip, sdpblocks[b], &blocknvars, &blocknnonz, &blocksize, &arraylength, blocknvarnonz,
                                  blockcol, blockrow, blockval, blockvars, &blockconstnnonz, blockconstcol, blockconstrow, blockconstval) );
 
-                  nroundingrows = blocksize * (blocksize + 1) * 0.5;
+                  nroundingrows = (blocksize * (blocksize + 1)) / 2;
 
                   SCIP_CALL( SCIPallocBufferArray(scip, &lhs, nroundingrows) );
                   SCIP_CALL( SCIPallocBufferArray(scip, &rhs, nroundingrows) );
@@ -2448,7 +2447,7 @@ SCIP_RETCODE calcRelax(
                      for (b = 0; b < nblocks; b++)
                      {
                         matrixsize = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
-                        matrixsize *= (matrixsize + 1) * 0.5;
+                        matrixsize *= (matrixsize + 1) / 2;
 
                         SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], matrixsize) );
                         SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], matrixsize) );
@@ -2515,6 +2514,7 @@ SCIP_RETCODE calcRelax(
                   int matrixpos;
                   int c;
 
+                  blocksize = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
                   matrixsize = blocksize * blocksize;
 
                   SCIP_CALL( SCIPallocBufferArray(scip, &fullXmatrix, matrixsize) );
@@ -2650,6 +2650,7 @@ SCIP_RETCODE calcRelax(
                         identitydiagonal = relaxdata->warmstartipfactor * maxdualentry; /* the diagonal entries of the scaled identity matrix */
                      }
 
+                     blocksize = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
                      SCIP_CALL( SCIPallocBufferArray(scip, &diagentryexists, blocksize) ); /* TODO: could allocate this once for Z and X with max-blocksize */
                      for (i = 0; i < blocksize; i++)
                         diagentryexists[i] = FALSE;
@@ -3227,19 +3228,14 @@ SCIP_RETCODE calcRelax(
          if ( relaxdata->warmstart && SCIPsdpiSolvedOrig(relaxdata->sdpi) )
          {
             SCIP_Real maxprimalentry;
-            int* startXnblocknonz;
-            int** startXrow;
-            int** startXcol;
-            SCIP_Real** startXval;
+            int* startXnblocknonz = NULL;
+            int** startXrow = NULL;
+            int** startXcol = NULL;
+            SCIP_Real** startXval = NULL;
             char consname[SCIP_MAXSTRLEN];
 #ifndef NDEBUG
             int snprintfreturn; /* this is used to assert that the SCIP string concatenation works */
 #endif
-
-            startXnblocknonz = NULL;
-            startXrow = NULL;
-            startXcol = NULL;
-            startXval = NULL;
 
             /* use preoptimal solution if using DSDP and parameter is set accordingly */
             if ( relaxdata->warmstartpreoptsol )
@@ -3381,6 +3377,7 @@ SCIP_RETCODE calcRelax(
             if ( SCIPsdpiDoesWarmstartNeedPrimal() && relaxdata->warmstartprimaltype == 3 )
             {
                /* free memory for primal matrix */
+               assert( startXnblocknonz != NULL );
                if ( startXnblocknonz[0] > 1 ) /* no memory was allocated if computation of preoptimal solution failed */
                {
                   for (b = 0; b < nblocks; b++)
