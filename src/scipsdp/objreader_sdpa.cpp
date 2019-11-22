@@ -246,7 +246,7 @@ namespace scip
       // read numblocks
       drop_space(file);
       file >> numblocks;
-      if ( numvars < 0 )
+      if ( numblocks < 0 )
       {
          SCIPerrorMessage("Number of blocks is negative!\n");
          return SCIP_READERROR;
@@ -274,7 +274,7 @@ namespace scip
             numsdpblocks++;
             blockstruct.push_back(SDPBlock(blockpattern[j]));/*lint !e747*//*lint !e732*/
          }
-         else if (blockpattern[j] < 0)/*lint !e747*//*lint !e732*/
+         else if ( blockpattern[j] < 0 )/*lint !e747*//*lint !e732*/
          {
             // LP block has a negative coefficient!
             numlpblocks++;
@@ -398,7 +398,7 @@ namespace scip
                SCIPdebugMessage("SDP entry: block_index: %d, row: %d, col: %d, var: %d, val: %g\n", block_index, row_index, col_index, var_index,val );/*lint !e525*/
             }
             // lp-block
-            else if (blockislp[block_index - 1])/*lint !e732*//*lint !e747*/
+            else if ( blockislp[block_index - 1] )/*lint !e732*//*lint !e747*/
             {
                assert( row_index == col_index );
                if ( lp_block_num[block_index - 1] == 1 )   /*lint !e732*//*lint !e747*/
@@ -575,7 +575,7 @@ namespace scip
             {
                varused = FALSE;
                firstindforvar = nextindaftervar; /* this variable starts where the last one ended */
-               while (nextindaftervar < nnonz && varind[nextindaftervar] == k) /* get the first index that doesn't belong to this variable */
+               while ( nextindaftervar < nnonz && varind[nextindaftervar] == k ) /* get the first index that doesn't belong to this variable */
                {
                   nextindaftervar++;
                   varused = TRUE;
@@ -635,7 +635,7 @@ namespace scip
          else
          {
             // construct lp-block only once
-            if ( ! lp_block_already_done)
+            if ( ! lp_block_already_done )
             {
                lp_block_already_done = true;
                SCIPdebugMessage("Begin construction of LP (block %d).\n", bindex);
@@ -653,7 +653,6 @@ namespace scip
 
                   // Get right hand side of the constraint
                   SCIP_Real LPlhs = 0.0;
-
                   for (unsigned int var_i = 0; var_i < LPData.rows[row_i].data.size(); ++var_i)/*lint !e732*//*lint !e747*/
                   {
                      if (LPData.rows[row_i].data[var_i].first == 0)/*lint !e732*//*lint !e747*/
