@@ -75,12 +75,7 @@ namespace scip
        *
        *  If the reader detected an error in the input file, it should return with RETCODE SCIP_READERR or SCIP_NOFILE.
        */
-      virtual SCIP_RETCODE scip_read(
-         SCIP*              scip,               /**< SCIP data structure */
-         SCIP_READER*       reader,             /**< the file reader itself */
-         const char*        filename,           /**< full path and name of file to read, or NULL if stdin should be used */
-         SCIP_RESULT*       result              /**< pointer to store the result of the file reading call */
-         );
+      virtual SCIP_DECL_READERREAD(scip_read);
 
    };
 
