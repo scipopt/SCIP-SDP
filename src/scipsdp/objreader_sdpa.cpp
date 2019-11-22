@@ -35,18 +35,17 @@
  * @author Jakob Schelbert
  * @author Sonja Mars
  * @author Tristan Gally
+ * @author Marc Pfetsch
  */
 
-/*#define SCIP_DEBUG*/
-/*#define SCIP_MORE_DEBUG*/
-
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
+
 #include "objreader_sdpa.h"
 
-#include <cassert>                     // for assert
-#include <cctype>                      // for isspace
-#include <cstdio>                      // for printf
-#include <cstdlib>                     // for abs                      /*lint !e10*//*lint !e129*/
+#include <cassert>                      // for assert
+#include <cctype>                       // for isspace
+#include <cstdio>                       // for printf
+#include <cstdlib>                      // for abs                      /*lint !e10*//*lint !e129*/
 #include <istream>                      // for istream, etc
 #include <string>                       // for getline, string
 
@@ -189,12 +188,7 @@ namespace scip
     *
     *  If the reader detected an error in the input file, it should return with RETCODE SCIP_READERR or SCIP_NOFILE.
     */
-   SCIP_RETCODE ObjReaderSDPA::scip_read(
-      SCIP*              scip,               /**< SCIP data structure */
-      SCIP_READER*       reader,             /**< the file reader itself */
-      const char*        filename,           /**< full path and name of file to read, or NULL if stdin should be used */
-      SCIP_RESULT*       result              /**< pointer to store the result of the file reading call */
-      )
+   SCIP_DECL_READERREAD(ObjReaderSDPA::scip_read)
    {/*lint --e{715}*/
       int numvars;                        // Number of variables
       int numblocks;                      // Number of all blocks (SDP + LP)
