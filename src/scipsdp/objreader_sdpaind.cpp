@@ -702,10 +702,10 @@ namespace scip
                      char      cons_name[SCIP_MAXSTRLEN];
 
 #ifndef NDEBUG
-                     int snprintfreturn = SCIPsnprintf(cons_name, SCIP_MAXSTRLEN, "cons_indicator_%d", nindconss);
+                     snprintfreturn = SCIPsnprintf(cons_name, SCIP_MAXSTRLEN, "cons_indicator_%d", nindconss);
                      assert( snprintfreturn < SCIP_MAXSTRLEN);
 #else
-                     (void)SCIPsnprintf(cons_name, SCIP_MAXSTRLEN, "cons_indicator_%d", nindconss);
+                     (void) SCIPsnprintf(cons_name, SCIP_MAXSTRLEN, "cons_indicator_%d", nindconss);
 #endif
 
                      /* indicator constraint */
@@ -729,7 +729,7 @@ namespace scip
                            char      var_name[SCIP_MAXSTRLEN];
                            SCIP_Bool infeasible;
 #ifndef NDEBUG
-                           int snprintfreturn = SCIPsnprintf(var_name, SCIP_MAXSTRLEN, "s_%d", nindconss);
+                           snprintfreturn = SCIPsnprintf(var_name, SCIP_MAXSTRLEN, "s_%d", nindconss);
                            assert( snprintfreturn < SCIP_MAXSTRLEN);
 #else
                            (void) SCIPsnprintf(var_name, SCIP_MAXSTRLEN, "s_%d", nindconss);
