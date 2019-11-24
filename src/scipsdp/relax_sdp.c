@@ -48,7 +48,6 @@
 
 #include "assert.h"                     /*lint !e451*/
 #include "string.h"                     /* for strcmp */
-#include <sys/time.h>                   /* for timeofday */
 
 #include "SdpVarmapper.h"
 #include "SdpVarfixer.h"
@@ -98,17 +97,6 @@
 #define WARMSTART_PROJ_FACTOR_PRIMAL 0.1     /**< factor to multiply maximum obj with when computing minimum eigenvalue for warmstart-projection in the primal */
 #define WARMSTART_PREOPT_MIN_Z_LPVAL 0.01    /**< minimal (diagonal) entry for LP block of dual matrix for preoptimal warmstarts */
 
-/** Calls a gettimeofday and transforms the return-code to a SCIP_ERROR if needed. */
-#define TIMEOFDAY_CALL(x)  do                                                                                \
-                      {                                                                                      \
-                         int _errorcode_;                                                                    \
-                         if ( (_errorcode_ = (x)) != 0 )                                                     \
-                         {                                                                                   \
-                            SCIPerrorMessage("Error in gettimeofday!\n");                                    \
-                            return SCIP_ERROR;                                                               \
-                         }                                                                                   \
-                      }                                                                                      \
-                      while( FALSE )
 
 /*
  * Data structures
@@ -184,8 +172,7 @@ struct SCIP_RelaxData
    int                   roundstartsuccess;  /**< number of instances that could be warmstarted using the solution of the rounding problems */
    int                   roundingoptimal;    /**< number of instances where the optimal solution was found by the rounding problem */
    int                   roundingcutoff;     /**< number of instances that could be cut off through bounding by the rounding problem */
-   SCIP_Real             roundingprobtime;   /**< total time spent in rouding problems for warmstarting/infeasibility detection */
-
+   SCIP_CLOCK*           roundingprobtime;   /**< total time spent in rounding problems for warmstarting/infeasibility detection */
    SCIP_Bool             warmstart;          /**< Should the SDP solver try to use warmstarts? */
    SCIP_Real             warmstartipfactor;  /**< factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled */
    int                   warmstartprimaltype;/**< how to warmstart the primal problem? 1: scaled identity/analytic center, 2: elementwise reciprocal, 3: saved primal sol
@@ -1377,8 +1364,6 @@ SCIP_RETCODE calcRelax(
                SCIP_VAR** blockvars;
                SCIP_LPI* lpi;
                SCIP_ROW* row;
-               struct timeval starttime;
-               struct timeval currenttime;
                SCIP_Real** blockval;
                SCIP_Real** blockeigenvalues;
                SCIP_Real** blockeigenvectors;
@@ -1435,7 +1420,7 @@ SCIP_RETCODE calcRelax(
                   return SCIP_PARAMETERWRONGVAL;
                }
 
-               TIMEOFDAY_CALL( gettimeofday(&starttime, NULL) );/*lint !e438, !e550, !e641 */
+               SCIP_CALL( SCIPstartClock(scip, relaxdata->roundingprobtime) );
 
                /* since we cannot compute the number of nonzeros of the solution of the rounding problem beforehand, we allocate the maximum possible (blocksize * (blocksize + 1) / 2 */
                for (b = 0; b < nblocks; b++)
@@ -1742,6 +1727,8 @@ SCIP_RETCODE calcRelax(
                /* get optimal objective value of the primal rounding problem (will be -infinity if infeasible) */
                SCIP_CALL( SCIPlpiGetObjval(lpi, &primalroundobj) );
 
+               SCIP_CALL( SCIPstopClock(scip, relaxdata->roundingprobtime) );
+
                /* if the restricted primal problem is already dual infeasible, then the original primal has to be dual infeasible as
                 * well, so the dual we actually want to solve is infeasible and we can cut the node off
                 * the same is true by weak duality if the restricted primal already has a larger objective value than the current cutoff-bound */
@@ -1790,9 +1777,6 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
                   SCIPfreeBufferArray(scip, &starty);
 
-                  TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );/*lint !e438, !e550, !e641 */
-                  relaxdata->roundingprobtime += (SCIP_Real) currenttime.tv_sec + (SCIP_Real) currenttime.tv_usec / 1e6 - (SCIP_Real) starttime.tv_sec - (SCIP_Real) starttime.tv_usec / 1e6;
-
                   relaxdata->feasible = FALSE;
                   *result = SCIP_CUTOFF;
                   return SCIP_OKAY;
@@ -1827,10 +1811,7 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
                   SCIPfreeBufferArray(scip, &starty);
 
-                  TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );/*lint !e438, !e550, !e641 */
-                  relaxdata->roundingprobtime += (SCIP_Real) currenttime.tv_sec + (SCIP_Real) currenttime.tv_usec / 1e6 - (SCIP_Real) starttime.tv_sec - (SCIP_Real) starttime.tv_usec / 1e6;
-
-                  SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit));
+                  SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit) );
                   goto solved;
                }
                else if ( ! SCIPlpiIsOptimal(lpi) )
@@ -1866,10 +1847,7 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
                   SCIPfreeBufferArray(scip, &starty);
 
-                  TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );/*lint !e438, !e550, !e641 */
-                  relaxdata->roundingprobtime += (SCIP_Real) currenttime.tv_sec + (SCIP_Real) currenttime.tv_usec / 1e6 - (SCIP_Real) starttime.tv_sec - (SCIP_Real) starttime.tv_usec / 1e6;
-
-                  SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit));
+                  SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit) );
                   goto solved;
                }
                else
@@ -2181,7 +2159,9 @@ SCIP_RETCODE calcRelax(
                }
 
                /* solve the problem (for some reason dual simplex seems to work better here) */
+               SCIP_CALL( SCIPstartClock(scip, relaxdata->roundingprobtime) );
                SCIP_CALL( SCIPlpiSolveDual(lpi) );
+               SCIP_CALL( SCIPstopClock(scip, relaxdata->roundingprobtime) );
 
                if ( ! SCIPlpiIsOptimal(lpi) )
                {
@@ -2219,11 +2199,8 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
                   SCIPfreeBufferArray(scip, &starty);
 
-                  TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );/*lint !e438, !e550, !e641 */
-                  relaxdata->roundingprobtime += (SCIP_Real) currenttime.tv_sec + (SCIP_Real) currenttime.tv_usec / 1e6 - (SCIP_Real) starttime.tv_sec - (SCIP_Real) starttime.tv_usec / 1e6;
-
                   /* since warmstart computation failed, we solve without warmstart, free memory and skip the remaining warmstarting code */
-                  SCIP_CALL(SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit));
+                  SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit) );
 
                   goto solved;
                }
@@ -2248,9 +2225,6 @@ SCIP_RETCODE calcRelax(
                            SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), dualroundobj);
 
                      relaxdata->roundingoptimal++;
-
-                     TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );/*lint !e438, !e550, !e641 */
-                     relaxdata->roundingprobtime += (SCIP_Real) currenttime.tv_sec + (SCIP_Real) currenttime.tv_usec / 1e6 - (SCIP_Real) starttime.tv_sec - (SCIP_Real) starttime.tv_usec / 1e6;
 
                      /* create SCIP solution (first nvars entries of optev correspond to y variables) */
                      SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
@@ -2424,9 +2398,6 @@ SCIP_RETCODE calcRelax(
                      startZval[b][2*nrows + 2*v + 1] = SCIPvarGetUbLocal(vars[v]) - starty[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])];
                   }
                }
-
-               TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );/*lint !e438, !e550, !e641 */
-               relaxdata->roundingprobtime += (SCIP_Real) currenttime.tv_sec + (SCIP_Real) currenttime.tv_usec / 1e6 - (SCIP_Real) starttime.tv_sec - (SCIP_Real) starttime.tv_usec / 1e6;
             }
 
             /* if we saved the whole primal solution before, we can set it at once */
@@ -3702,7 +3673,21 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    relaxdata->roundstartsuccess = 0;
    relaxdata->roundingoptimal = 0;
    relaxdata->roundingcutoff = 0;
-   relaxdata->roundingprobtime = 0.0;
+   if ( relaxdata->warmstart && relaxdata->warmstartproject == 4 )
+   {
+      if ( relaxdata->roundingprobtime == NULL )
+      {
+         SCIP_CALL( SCIPcreateClock(scip, &relaxdata->roundingprobtime) );
+      }
+      else
+      {
+         SCIP_CALL( SCIPresetClock(scip, relaxdata->roundingprobtime) );
+      }
+   }
+   else
+   {
+      assert( relaxdata->roundingprobtime == NULL );
+   }
    relaxdata->unsolved = 0;
    relaxdata->feasible = FALSE;
 
@@ -4220,8 +4205,14 @@ SCIP_DECL_RELAXEXITSOL(relaxExitSolSdp)
          SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes where the dual rounding problem failed:\t%d\n", relaxdata->dualroundfails);
          SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes where the optimal solution was determined by the rounding problem:\t%d\n", relaxdata->roundingoptimal);
          SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes cut off through bounding by the rounding problem:\t%d\n", relaxdata->roundingcutoff);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Time spent in rounding problems for warmstarting / detecting infeasibility:\t%f s\n", relaxdata->roundingprobtime);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Time spent in rounding problems for warmstarting / detecting infeasibility:\t%f s\n",
+            SCIPgetClockTime(scip, relaxdata->roundingprobtime));
       }
+   }
+
+   if ( relaxdata->roundingprobtime != NULL )
+   {
+      SCIP_CALL( SCIPfreeClock(scip, &relaxdata->roundingprobtime) );
    }
 
    if ( relaxdata->varmapper != NULL )
@@ -4325,6 +4316,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    relaxdata->lastsdpnode = -1;
    relaxdata->nblocks = 0;
    relaxdata->varmapper = NULL;
+   relaxdata->roundingprobtime = NULL;
 
    /* include relaxator */
    SCIP_CALL( SCIPincludeRelaxBasic(scip, &relax, RELAX_NAME, RELAX_DESC, RELAX_PRIORITY, RELAX_FREQ, relaxExecSdp, relaxdata) );
