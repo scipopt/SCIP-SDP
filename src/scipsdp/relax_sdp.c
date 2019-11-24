@@ -1426,7 +1426,7 @@ SCIP_RETCODE calcRelax(
                for (b = 0; b < nblocks; b++)
                {
                   matrixsize = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
-                  matrixsize *= (matrixsize + 1) / 2;
+                  matrixsize = (matrixsize * (matrixsize + 1)) / 2;
                   startXnblocknonz[b] = matrixsize;
 
                   SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], matrixsize) );
@@ -2418,7 +2418,7 @@ SCIP_RETCODE calcRelax(
                      for (b = 0; b < nblocks; b++)
                      {
                         matrixsize = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
-                        matrixsize *= (matrixsize + 1) / 2;
+                        matrixsize = (matrixsize * (matrixsize + 1)) / 2;
 
                         SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], matrixsize) );
                         SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], matrixsize) );

@@ -7,6 +7,7 @@ interface:
 fixed bugs:
 - fixed bug with statistics output when no SDPs were solved
 - fixed minor bug in CBF-reader when reading DCOORD
+- fixed bug with wrong matrix sizes in warmstarting code
 
 features:
 - add error messages to SDPA-format reader
