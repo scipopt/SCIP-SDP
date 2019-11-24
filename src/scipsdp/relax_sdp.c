@@ -104,7 +104,7 @@
                          int _errorcode_;                                                                    \
                          if ( (_errorcode_ = (x)) != 0 )                                                     \
                          {                                                                                   \
-                            SCIPerrorMessage("Error in gettimeofday! \n");                                   \
+                            SCIPerrorMessage("Error in gettimeofday!\n");                                    \
                             return SCIP_ERROR;                                                               \
                          }                                                                                   \
                       }                                                                                      \
@@ -345,6 +345,7 @@ SCIP_RETCODE putSdpDataInInterface(
       lb[i] = SCIPvarGetLbLocal(vars[i]);
       ub[i] = SCIPvarGetUbLocal(vars[i]);
    }
+
    if ( boundprimal )
    {
       obj[nvars] = 1.0; /* this objective coefficient together with lb = 0 and the identity matrix leads to constraint Tr(X) <= 1 */
@@ -470,8 +471,8 @@ SCIP_RETCODE putSdpDataInInterface(
    if ( primalobj )
    {
       SCIP_CALL( SCIPsdpiLoadSDP(sdpi, nvarspen,  obj, lb, ub, nsdpblocks, sdpblocksizes, nblockvars, sdpconstnnonz, nconstblocknonz, constrow,
-                               constcol, constval, sdpnnonz, nblockvarnonz, sdpvar, row, col, val, 0,
-                               NULL, NULL, 0, NULL, NULL, NULL) ); /* insert the SDP part, add an empty LP part */
+            constcol, constval, sdpnnonz, nblockvarnonz, sdpvar, row, col, val, 0,
+            NULL, NULL, 0, NULL, NULL, NULL) ); /* insert the SDP part, add an empty LP part */
    }
    else
    {
@@ -480,10 +481,9 @@ SCIP_RETCODE putSdpDataInInterface(
          nconstblocknonz[i] = 0;
 
       SCIP_CALL( SCIPsdpiLoadSDP(sdpi, nvarspen,  obj, lb, ub, nsdpblocks, sdpblocksizes, nblockvars, 0, nconstblocknonz, NULL,
-                               NULL, NULL, sdpnnonz, nblockvarnonz, sdpvar, row, col,  val, 0,
-                               NULL, NULL, 0, NULL, NULL, NULL) ); /* insert the SDP part, add an empty LP part */
+            NULL, NULL, sdpnnonz, nblockvarnonz, sdpvar, row, col,  val, 0,
+            NULL, NULL, 0, NULL, NULL, NULL) ); /* insert the SDP part, add an empty LP part */
    }
-
 
    /* free the remaining memory */
    for (i = 0; i < nsdpblocks; i++)
@@ -902,7 +902,7 @@ SCIP_RETCODE calcRelax(
 #endif
 
       SCIP_CALL(SCIPsdpiSolve(sdpi, ipy, relaxdata->ipZnblocknonz, relaxdata->ipZrow, relaxdata->ipZcol, relaxdata->ipZval, relaxdata->ipXnblocknonz,
-                        relaxdata->ipXrow, relaxdata->ipXcol, relaxdata->ipXval, startsetting, enforceslater, timelimit));
+            relaxdata->ipXrow, relaxdata->ipXcol, relaxdata->ipXval, startsetting, enforceslater, timelimit));
 
       SCIPfreeBufferArray(scip, &ipy);
    }
@@ -942,9 +942,8 @@ SCIP_RETCODE calcRelax(
       while ( parentconsind >= 0 && SCIPconsSavesdpsolGetNodeIndex(scip, conss[parentconsind]) != parentnodenumber)
          parentconsind--;
 
-      /* if there are no savesdpsol constraints (e.g. because the parent node couldn't be solved successfully), solve
-       * without warmstart
-       */
+      /* If there are no savesdpsol constraints (e.g. because the parent node couldn't be solved successfully), solve
+       * without warmstart. */
       if ( parentconsind < 0 )
       {
          SCIPdebugMessage("Starting SDP-Solving from scratch since no warmstart information available for node %lld\n", parentnodenumber);
@@ -965,6 +964,7 @@ SCIP_RETCODE calcRelax(
          {
             var = SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, v);
             starty[v] = SCIPgetSolVal(scip, dualsol, var);
+
             /* correct solution to new bounds unless warmstartproject == 1 */
             if (SCIPisLT(scip, starty[v], SCIPvarGetLbLocal(var)) && (relaxdata->warmstartproject == 2 || relaxdata->warmstartproject == 3 || relaxdata->warmstartproject == 4))
             {
@@ -1902,7 +1902,6 @@ SCIP_RETCODE calcRelax(
                      startXcol[nblocks][pos] = 2 * nrows + 2 * v + 1;
                      if ( ! SCIPisInfinity(scip, SCIPvarGetUbLocal(vars[v])) )
                      {
-
                         startXval[nblocks][pos] = optev[evpos];
                         evpos++;
                      }
@@ -2281,7 +2280,7 @@ SCIP_RETCODE calcRelax(
                         (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
 #endif
                         SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), scipsol,
-                                 maxprimalentry, nblocks + 1, startXnblocknonz, startXrow, startXcol, startXval) );
+                              maxprimalentry, nblocks + 1, startXnblocknonz, startXrow, startXcol, startXval) );
 
                         SCIP_CALL( SCIPaddCons(scip, savedcons) );
                         SCIP_CALL( SCIPreleaseCons(scip, &savedcons) );
@@ -2625,8 +2624,9 @@ SCIP_RETCODE calcRelax(
                         startXval[b][i] *= 1 - relaxdata->warmstartipfactor;
 
                      /* merge the scaled interior point array into the warmstart array */
-                     SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), SCIPepsilon(scip), relaxdata->ipXrow[b], relaxdata->ipXcol[b], relaxdata->ipXval[b], relaxdata->ipXnblocknonz[b], TRUE,
-                           relaxdata->warmstartipfactor, startXrow[b], startXcol[b], startXval[b], &(startXnblocknonz[b]), startXnblocknonz[b] + relaxdata->ipXnblocknonz[b]) );
+                     SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), SCIPepsilon(scip), relaxdata->ipXrow[b], relaxdata->ipXcol[b],
+                           relaxdata->ipXval[b], relaxdata->ipXnblocknonz[b], TRUE, relaxdata->warmstartipfactor,
+                           startXrow[b], startXcol[b], startXval[b], &(startXnblocknonz[b]), startXnblocknonz[b] + relaxdata->ipXnblocknonz[b]) );
                   }
                }
             }
@@ -2688,8 +2688,9 @@ SCIP_RETCODE calcRelax(
                         startZval[b][i] *= 1 - relaxdata->warmstartipfactor;
 
                      /* merge the scaled interior point array into the warmstart array */
-                     SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), SCIPepsilon(scip), relaxdata->ipZrow[b], relaxdata->ipZcol[b], relaxdata->ipZval[b], relaxdata->ipZnblocknonz[b], TRUE,
-                           relaxdata->warmstartipfactor, startZrow[b], startZcol[b], startZval[b], &(startZnblocknonz[b]), startZnblocknonz[b] + relaxdata->ipZnblocknonz[b]) );
+                     SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), SCIPepsilon(scip), relaxdata->ipZrow[b],
+                           relaxdata->ipZcol[b], relaxdata->ipZval[b], relaxdata->ipZnblocknonz[b], TRUE, relaxdata->warmstartipfactor,
+                           startZrow[b], startZcol[b], startZval[b], &(startZnblocknonz[b]), startZnblocknonz[b] + relaxdata->ipZnblocknonz[b]) );
                   }
                }
             }
@@ -2984,143 +2985,149 @@ SCIP_RETCODE calcRelax(
       default:
          break;
       }
+
       primalslater = SCIP_SDPSLATER_NOINFO;
       dualslater = SCIP_SDPSLATER_NOINFO;
       SCIP_CALL( SCIPsdpiSlater(relaxdata->sdpi, &primalslater, &dualslater) );
+
       switch( primalslater )/*lint --e{788}*/
       {
+      case SCIP_SDPSLATER_NOINFO:
+         relaxdata->npslatercheckfailed++;
+         switch( dualslater )/*lint --e{788}*/
+         {
          case SCIP_SDPSLATER_NOINFO:
-            relaxdata->npslatercheckfailed++;
-            switch( dualslater )/*lint --e{788}*/
-            {
-               case SCIP_SDPSLATER_NOINFO:
-                  relaxdata->ndslatercheckfailed++;
-                  relaxdata->nslatercheckfailed++;
-                  break;
-               case SCIP_SDPSLATER_NOT:
-                  relaxdata->ndnoslater++;
-                  relaxdata->nnoslater++;
-                  break;
-               case SCIP_SDPSLATER_HOLDS:
-                  relaxdata->ndslaterholds++;
-                  relaxdata->nslatercheckfailed++;
-                  break;
-               case SCIP_SDPSLATER_INF:
-                  relaxdata->nslaterinfeasible++;
-                  break;
-               default:
-                  relaxdata->ndslatercheckfailed++;
-                  relaxdata->nslatercheckfailed++;
-                  break;
-            }
+            relaxdata->ndslatercheckfailed++;
+            relaxdata->nslatercheckfailed++;
             break;
          case SCIP_SDPSLATER_NOT:
-            relaxdata->npnoslater++;
-            switch( dualslater )/*lint --e{788}*/
-            {
-               case SCIP_SDPSLATER_NOINFO:
-                  relaxdata->ndslatercheckfailed++;
-                  relaxdata->nnoslater++;
-                  break;
-               case SCIP_SDPSLATER_NOT:
-                  relaxdata->ndnoslater++;
-                  relaxdata->nnoslater++;
-                  break;
-               case SCIP_SDPSLATER_HOLDS:
-                  relaxdata->ndslaterholds++;
-                  relaxdata->nnoslater++;
-                  break;
-               case SCIP_SDPSLATER_INF:
-                  relaxdata->nslaterinfeasible++;
-                  break;
-               default:
-                  relaxdata->ndslatercheckfailed++;
-                  relaxdata->nnoslater++;
-                  break;
-            }
+            relaxdata->ndnoslater++;
+            relaxdata->nnoslater++;
             break;
          case SCIP_SDPSLATER_HOLDS:
-            relaxdata->npslaterholds++;
-            switch( dualslater )/*lint --e{788}*/
-            {
-               case SCIP_SDPSLATER_NOINFO:
-                  relaxdata->ndslatercheckfailed++;
-                  relaxdata->nslatercheckfailed++;
-                  break;
-               case SCIP_SDPSLATER_NOT:
-                  relaxdata->ndnoslater++;
-                  relaxdata->nnoslater++;
-                  break;
-               case SCIP_SDPSLATER_HOLDS:
-                  relaxdata->ndslaterholds++;
-                  relaxdata->nslaterholds++;
-                  break;
-               case SCIP_SDPSLATER_INF:
-                  relaxdata->nslaterinfeasible++;
-                  break;
-               default:
-                  relaxdata->ndslatercheckfailed++;
-                  relaxdata->nslatercheckfailed++;
-                  break;
-            }
+            relaxdata->ndslaterholds++;
+            relaxdata->nslatercheckfailed++;
             break;
-            default:
-               relaxdata->npslatercheckfailed++;
-               relaxdata->ndslatercheckfailed++;
-               relaxdata->nslatercheckfailed++;
-               break;
-      }
-      slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
-      SCIP_CALL( SCIPsdpiSlaterSettings(relaxdata->sdpi, &slatersetting) );
-      switch( slatersetting )/*lint --e{788}*/
-      {
-         case SCIP_SDPSLATERSETTING_STABLEWSLATER:
-            relaxdata->stablewslater++;
-            break;
-         case SCIP_SDPSLATERSETTING_UNSTABLEWSLATER:
-            relaxdata->unstablewslater++;
-            break;
-         case SCIP_SDPSLATERSETTING_PENALTYWSLATER:
-            relaxdata->penaltywslater++;
-            break;
-         case SCIP_SDPSLATERSETTING_BOUNDEDWSLATER:
-            relaxdata->boundedwslater++;
-            break;
-         case SCIP_SDPSLATERSETTING_UNSOLVEDWSLATER:
-            relaxdata->unsolvedwslater++;
-            break;
-         case SCIP_SDPSLATERSETTING_STABLENOSLATER:
-            relaxdata->stablenoslater++;
-            break;
-         case SCIP_SDPSLATERSETTING_UNSTABLENOSLATER:
-            relaxdata->unstablenoslater++;
-            break;
-         case SCIP_SDPSLATERSETTING_PENALTYNOSLATER:
-            relaxdata->penaltynoslater++;
-            break;
-         case SCIP_SDPSLATERSETTING_BOUNDEDNOSLATER:
-            relaxdata->boundednoslater++;
-            break;
-         case SCIP_SDPSLATERSETTING_UNSOLVEDNOSLATER:
-            relaxdata->unsolvednoslater++;
-            break;
-         case SCIP_SDPSLATERSETTING_STABLEINFEASIBLE:
-            relaxdata->stableinfeasible++;
-            break;
-         case SCIP_SDPSLATERSETTING_UNSTABLEINFEASIBLE:
-            relaxdata->unstableinfeasible++;
-            break;
-         case SCIP_SDPSLATERSETTING_PENALTYINFEASIBLE:
-            relaxdata->penaltyinfeasible++;
-            break;
-         case SCIP_SDPSLATERSETTING_BOUNDEDINFEASIBLE:
-            relaxdata->boundedinfeasible++;
-            break;
-         case SCIP_SDPSLATERSETTING_UNSOLVEDINFEASIBLE:
-            relaxdata->unsolvedinfeasible++;
+         case SCIP_SDPSLATER_INF:
+            relaxdata->nslaterinfeasible++;
             break;
          default:
+            relaxdata->ndslatercheckfailed++;
+            relaxdata->nslatercheckfailed++;
             break;
+         }
+         break;
+
+      case SCIP_SDPSLATER_NOT:
+         relaxdata->npnoslater++;
+         switch( dualslater )/*lint --e{788}*/
+         {
+         case SCIP_SDPSLATER_NOINFO:
+            relaxdata->ndslatercheckfailed++;
+            relaxdata->nnoslater++;
+            break;
+         case SCIP_SDPSLATER_NOT:
+            relaxdata->ndnoslater++;
+            relaxdata->nnoslater++;
+            break;
+         case SCIP_SDPSLATER_HOLDS:
+            relaxdata->ndslaterholds++;
+            relaxdata->nnoslater++;
+            break;
+         case SCIP_SDPSLATER_INF:
+            relaxdata->nslaterinfeasible++;
+            break;
+         default:
+            relaxdata->ndslatercheckfailed++;
+            relaxdata->nnoslater++;
+            break;
+         }
+         break;
+
+      case SCIP_SDPSLATER_HOLDS:
+         relaxdata->npslaterholds++;
+         switch( dualslater )/*lint --e{788}*/
+         {
+         case SCIP_SDPSLATER_NOINFO:
+            relaxdata->ndslatercheckfailed++;
+            relaxdata->nslatercheckfailed++;
+            break;
+         case SCIP_SDPSLATER_NOT:
+            relaxdata->ndnoslater++;
+            relaxdata->nnoslater++;
+            break;
+         case SCIP_SDPSLATER_HOLDS:
+            relaxdata->ndslaterholds++;
+            relaxdata->nslaterholds++;
+            break;
+         case SCIP_SDPSLATER_INF:
+            relaxdata->nslaterinfeasible++;
+            break;
+         default:
+            relaxdata->ndslatercheckfailed++;
+            relaxdata->nslatercheckfailed++;
+            break;
+         }
+         break;
+      default:
+         relaxdata->npslatercheckfailed++;
+         relaxdata->ndslatercheckfailed++;
+         relaxdata->nslatercheckfailed++;
+         break;
+      }
+
+      slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+      SCIP_CALL( SCIPsdpiSlaterSettings(relaxdata->sdpi, &slatersetting) );
+
+      switch( slatersetting )/*lint --e{788}*/
+      {
+      case SCIP_SDPSLATERSETTING_STABLEWSLATER:
+         relaxdata->stablewslater++;
+         break;
+      case SCIP_SDPSLATERSETTING_UNSTABLEWSLATER:
+         relaxdata->unstablewslater++;
+         break;
+      case SCIP_SDPSLATERSETTING_PENALTYWSLATER:
+         relaxdata->penaltywslater++;
+         break;
+      case SCIP_SDPSLATERSETTING_BOUNDEDWSLATER:
+         relaxdata->boundedwslater++;
+         break;
+      case SCIP_SDPSLATERSETTING_UNSOLVEDWSLATER:
+         relaxdata->unsolvedwslater++;
+         break;
+      case SCIP_SDPSLATERSETTING_STABLENOSLATER:
+         relaxdata->stablenoslater++;
+         break;
+      case SCIP_SDPSLATERSETTING_UNSTABLENOSLATER:
+         relaxdata->unstablenoslater++;
+         break;
+      case SCIP_SDPSLATERSETTING_PENALTYNOSLATER:
+         relaxdata->penaltynoslater++;
+         break;
+      case SCIP_SDPSLATERSETTING_BOUNDEDNOSLATER:
+         relaxdata->boundednoslater++;
+         break;
+      case SCIP_SDPSLATERSETTING_UNSOLVEDNOSLATER:
+         relaxdata->unsolvednoslater++;
+         break;
+      case SCIP_SDPSLATERSETTING_STABLEINFEASIBLE:
+         relaxdata->stableinfeasible++;
+         break;
+      case SCIP_SDPSLATERSETTING_UNSTABLEINFEASIBLE:
+         relaxdata->unstableinfeasible++;
+         break;
+      case SCIP_SDPSLATERSETTING_PENALTYINFEASIBLE:
+         relaxdata->penaltyinfeasible++;
+         break;
+      case SCIP_SDPSLATERSETTING_BOUNDEDINFEASIBLE:
+         relaxdata->boundedinfeasible++;
+         break;
+      case SCIP_SDPSLATERSETTING_UNSOLVEDINFEASIBLE:
+         relaxdata->unsolvedinfeasible++;
+         break;
+      default:
+         break;
       }
    }
 
@@ -3309,7 +3316,7 @@ SCIP_RETCODE calcRelax(
                }
                else
                {
-                  SCIPerrorMessage("Warmstarting with preoptimal solutions currently only supported for DSDP and SDPA \n");
+                  SCIPerrorMessage("Warmstarting with preoptimal solutions currently only supported for DSDP and SDPA\n");
                   return SCIP_LPERROR;
                }
             }
@@ -3565,7 +3572,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
 #ifdef SCIP_EVEN_MORE_DEBUG
    for (i = 0; i < nvarsfordebug; i++)
    {
-      SCIPdebugMessage("variable %s: status = %u, integral = %u, bounds = [%f, %f] \n", SCIPvarGetName(varsfordebug[i]), SCIPvarGetStatus(varsfordebug[i]),
+      SCIPdebugMessage("variable %s: status = %u, integral = %u, bounds = [%f, %f]\n", SCIPvarGetName(varsfordebug[i]), SCIPvarGetStatus(varsfordebug[i]),
          SCIPvarIsIntegral(varsfordebug[i]), SCIPvarGetLbLocal(varsfordebug[i]), SCIPvarGetUbLocal(varsfordebug[i]));
    }
 #endif
@@ -3818,7 +3825,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       /* check if the starting value is not bigger than the maximum one, otherwise update it */
       if ( SCIPisLT(scip, givenpenaltyparam, maxpenaltyparam) )
       {
-         SCIPdebugMessage("Penalty parameter %f overwritten by maxpenaltyparam %f! \n", givenpenaltyparam, maxpenaltyparam);
+         SCIPdebugMessage("Penalty parameter %f overwritten by maxpenaltyparam %f!\n", givenpenaltyparam, maxpenaltyparam);
          SCIP_CALL( SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, maxpenaltyparam) );
       }
    }
@@ -3857,7 +3864,6 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    {
       SCIP_CALL( retcode );
    }
-
 
    /* set/compute lambda star if SDPA is used as the SDP-Solver */
    if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0.0 )
@@ -4100,107 +4106,121 @@ SCIP_DECL_RELAXEXITSOL(relaxExitSolSdp)
       SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "\nSDP iterations:\t\t\t\t%6d\n", relaxdata->sdpiterations);
       if ( relaxdata->sdpcalls )
       {
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Average SDP-iterations:\t\t\t%6.2f \n", (SCIP_Real) relaxdata->sdpiterations / (SCIP_Real) relaxdata->sdpcalls );
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Average SDP-iterations:\t\t\t%6.2f\n",
+            (SCIP_Real) relaxdata->sdpiterations / (SCIP_Real) relaxdata->sdpcalls );
       }
       if ( relaxdata->sdpinterfacecalls )
       {
          if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0 )
          {
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'fastest settings' solved:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->solvedfast / (SCIP_Real) relaxdata->sdpinterfacecalls);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'medium settings' solved:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->solvedmedium / (SCIP_Real) relaxdata->sdpinterfacecalls);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'stable settings' solved:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->solvedstable / (SCIP_Real) relaxdata->sdpinterfacecalls);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'fastest settings' solved:\t%6.2f\n",
+               100.0 * (SCIP_Real) relaxdata->solvedfast / (SCIP_Real) relaxdata->sdpinterfacecalls);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'medium settings' solved:\t%6.2f\n",
+               100.0 * (SCIP_Real) relaxdata->solvedmedium / (SCIP_Real) relaxdata->sdpinterfacecalls);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'stable settings' solved:\t%6.2f\n",
+               100.0 * (SCIP_Real) relaxdata->solvedstable / (SCIP_Real) relaxdata->sdpinterfacecalls);
          }
          else
          {
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'default formulation' solved:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->solvedfast / (SCIP_Real) relaxdata->sdpinterfacecalls);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'default formulation' solved:\t%6.2f\n",
+               100.0 * (SCIP_Real) relaxdata->solvedfast / (SCIP_Real) relaxdata->sdpinterfacecalls);
          }
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage penalty formulation used:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->solvedpenalty / (SCIP_Real) relaxdata->sdpinterfacecalls);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage unsolved even with penalty:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->unsolved / (SCIP_Real) relaxdata->sdpinterfacecalls);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage penalty formulation used:\t%6.2f\n",
+            100.0 * (SCIP_Real) relaxdata->solvedpenalty / (SCIP_Real) relaxdata->sdpinterfacecalls);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage unsolved even with penalty:\t%6.2f\n",
+            100.0 * (SCIP_Real) relaxdata->unsolved / (SCIP_Real) relaxdata->sdpinterfacecalls);
       }
       if ( relaxdata->slatercheck )
       {
          if ( relaxdata->sdpinterfacecalls )
          {
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage primal Slater condition held:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->npslaterholds / (SCIP_Real) relaxdata->sdpinterfacecalls);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage primal Slater condition did not hold:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->npnoslater / (SCIP_Real) relaxdata->sdpinterfacecalls);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage primal Slater check failed:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->npslatercheckfailed / (SCIP_Real) relaxdata->sdpinterfacecalls);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage primal Slater condition held:\t%6.2f\n",
+               100.0 * (SCIP_Real) relaxdata->npslaterholds / (SCIP_Real) relaxdata->sdpinterfacecalls);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage primal Slater condition did not hold:\t%6.2f\n",
+               100.0 * (SCIP_Real) relaxdata->npnoslater / (SCIP_Real) relaxdata->sdpinterfacecalls);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage primal Slater check failed:\t%6.2f\n",
+               100.0 * (SCIP_Real) relaxdata->npslatercheckfailed / (SCIP_Real) relaxdata->sdpinterfacecalls);
 
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage dual Slater condition held:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->ndslaterholds / (SCIP_Real) relaxdata->sdpinterfacecalls);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage dual Slater condition did not hold:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->ndnoslater / (SCIP_Real) relaxdata->sdpinterfacecalls);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage dual Slater check failed:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->ndslatercheckfailed / (SCIP_Real) relaxdata->sdpinterfacecalls);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage dual Slater check detected infeasibility:\t%6.2f \n", 100.0 * (SCIP_Real) relaxdata->nslaterinfeasible / (SCIP_Real) relaxdata->sdpinterfacecalls);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage dual Slater condition held:\t%6.2f\n",
+               100.0 * (SCIP_Real) relaxdata->ndslaterholds / (SCIP_Real) relaxdata->sdpinterfacecalls);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage dual Slater condition did not hold:\t%6.2f\n",
+               100.0 * (SCIP_Real) relaxdata->ndnoslater / (SCIP_Real) relaxdata->sdpinterfacecalls);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage dual Slater check failed:\t%6.2f\n",
+               100.0 * (SCIP_Real) relaxdata->ndslatercheckfailed / (SCIP_Real) relaxdata->sdpinterfacecalls);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage dual Slater check detected infeasibility:\t%6.2f\n",
+               100.0 * (SCIP_Real) relaxdata->nslaterinfeasible / (SCIP_Real) relaxdata->sdpinterfacecalls);
          }
          if ( relaxdata->nslaterholds )
          {
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'fastest settings' with primal and dual slater holding:\t%6.2f \n",
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'fastest settings' with primal and dual slater holding:\t%6.2f\n",
                   100.0 * (SCIP_Real) relaxdata->stablewslater / (SCIP_Real) relaxdata->nslaterholds);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'stable settings' with primal and dual slater holding:\t%6.2f \n",
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'stable settings' with primal and dual slater holding:\t%6.2f\n",
                   100.0 * (SCIP_Real) relaxdata->unstablewslater / (SCIP_Real) relaxdata->nslaterholds);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'penalty' with primal and dual slater holding:\t%6.2f \n",
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'penalty' with primal and dual slater holding:\t%6.2f\n",
                   100.0 * (SCIP_Real) relaxdata->penaltywslater / (SCIP_Real) relaxdata->nslaterholds);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'computed infeasible lower bound' with primal and dual slater holding:\t%6.2f \n",
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'computed infeasible lower bound' with primal and dual slater holding:\t%6.2f\n",
                   100.0 * (SCIP_Real) relaxdata->boundedwslater / (SCIP_Real) relaxdata->nslaterholds);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'unsolved' with primal and dual slater holding:\t%6.2f \n",
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'unsolved' with primal and dual slater holding:\t%6.2f\n",
                   100.0 * (SCIP_Real) relaxdata->unsolvedwslater / (SCIP_Real) relaxdata->nslaterholds);
          }
          if ( relaxdata->nnoslater )
          {
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'fastest settings' with either primal or dual slater not holding:\t%6.2f \n",
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'fastest settings' with either primal or dual slater not holding:\t%6.2f\n",
                   100.0 * (SCIP_Real) relaxdata->stablenoslater / (SCIP_Real) relaxdata->nnoslater);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'stable settings' with either primal or dual slater not holding:\t%6.2f \n",
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'stable settings' with either primal or dual slater not holding:\t%6.2f\n",
                   100.0 * (SCIP_Real) relaxdata->unstablenoslater / (SCIP_Real) relaxdata->nnoslater);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'penalty' with either primal or dual slater not holding:\t%6.2f \n",
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'penalty' with either primal or dual slater not holding:\t%6.2f\n",
                   100.0 * (SCIP_Real) relaxdata->penaltynoslater / (SCIP_Real) relaxdata->nnoslater);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'computed infeasible lower bound' with either primal or dual slater not holding:\t%6.2f \n",
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'computed infeasible lower bound' with either primal or dual slater not holding:\t%6.2f\n",
                   100.0 * (SCIP_Real) relaxdata->boundednoslater / (SCIP_Real) relaxdata->nnoslater);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'unsolved' with either primal or dual slater not holding:\t%6.2f \n",
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'unsolved' with either primal or dual slater not holding:\t%6.2f\n",
                   100.0 * (SCIP_Real) relaxdata->unsolvednoslater / (SCIP_Real) relaxdata->nnoslater);
          }
          if ( relaxdata->nslaterinfeasible )
          {
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'fastest settings' with slater check showing infeasibility:\t%6.2f \n",
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'fastest settings' with slater check showing infeasibility:\t%6.2f\n",
                   100.0 * (SCIP_Real) relaxdata->stableinfeasible / (SCIP_Real) relaxdata->nslaterinfeasible);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'stable settings' with slater check showing infeasibility:\t%6.2f \n",
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'stable settings' with slater check showing infeasibility:\t%6.2f\n",
                   100.0 * (SCIP_Real) relaxdata->unstableinfeasible / (SCIP_Real) relaxdata->nslaterinfeasible);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'penalty' with slater check showing infeasibility:\t%6.2f \n",
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'penalty' with slater check showing infeasibility:\t%6.2f\n",
                   100.0 * (SCIP_Real) relaxdata->penaltyinfeasible / (SCIP_Real) relaxdata->nslaterinfeasible);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'computed infeasible lower bound' with slater check showing infeasibility:\t%6.2f \n",
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'computed infeasible lower bound' with slater check showing infeasibility:\t%6.2f\n",
                   100.0 * (SCIP_Real) relaxdata->boundedinfeasible / (SCIP_Real) relaxdata->nslaterinfeasible);
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'unsolved' with slater check showing infeasibility:\t%6.2f \n",
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Percentage 'unsolved' with slater check showing infeasibility:\t%6.2f\n",
                   100.0 * (SCIP_Real) relaxdata->unsolvedinfeasible / (SCIP_Real) relaxdata->nslaterinfeasible);
          }
 #ifdef SLATERSOLVED_ABSOLUTE
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with primal and dual slater holding:\t%d \n", relaxdata->nslaterholds);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'fastest settings' and primal and dual slater holding:\t%d \n", relaxdata->stablewslater);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'stable settings' and primal and dual slater holding:\t%d \n", relaxdata->unstablewslater);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'penalty' and primal and dual slater holding:\t%d \n", relaxdata->penaltywslater);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'computed infeasible lower bound' and primal and dual slater holding:\t%d \n", relaxdata->boundedwslater);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'unsolved' and primal and dual slater holding:\t%d \n", relaxdata->unsolvedwslater);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with primal and dual slater holding:\t%d\n", relaxdata->nslaterholds);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'fastest settings' and primal and dual slater holding:\t%d\n", relaxdata->stablewslater);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'stable settings' and primal and dual slater holding:\t%d\n", relaxdata->unstablewslater);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'penalty' and primal and dual slater holding:\t%d\n", relaxdata->penaltywslater);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'computed infeasible lower bound' and primal and dual slater holding:\t%d\n", relaxdata->boundedwslater);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'unsolved' and primal and dual slater holding:\t%d\n", relaxdata->unsolvedwslater);
 
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with either primal or dual slater not holding:\t%d \n", relaxdata->nnoslater);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'fastest settings' and either primal or dual slater not holding:\t%d \n", relaxdata->stablenoslater);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'stable settings' and either primal or dual slater not holding:\t%d \n", relaxdata->unstablenoslater);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'penalty' and either primal or dual slater not holding:\t%d \n", relaxdata->penaltynoslater);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'computed infeasible lower bound' and either primal or dual slater not holding:\t%d \n", relaxdata->boundednoslater);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'unsolved' and either primal or dual slater not holding:\t%d \n", relaxdata->unsolvednoslater);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with either primal or dual slater not holding:\t%d\n", relaxdata->nnoslater);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'fastest settings' and either primal or dual slater not holding:\t%d\n", relaxdata->stablenoslater);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'stable settings' and either primal or dual slater not holding:\t%d\n", relaxdata->unstablenoslater);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'penalty' and either primal or dual slater not holding:\t%d\n", relaxdata->penaltynoslater);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'computed infeasible lower bound' and either primal or dual slater not holding:\t%d\n", relaxdata->boundednoslater);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes with 'unsolved' and either primal or dual slater not holding:\t%d\n", relaxdata->unsolvednoslater);
 
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes:\t%d \n", relaxdata->nslaterinfeasible);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'fastest settings':\t%d \n", relaxdata->stableinfeasible);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'stable settings':\t%d \n", relaxdata->unstableinfeasible);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'penalty':\t%d \n", relaxdata->penaltyinfeasible);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'computed infeasible lower bound':\t%d \n", relaxdata->boundedinfeasible);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'unsolved':\t%d \n", relaxdata->unsolvedinfeasible);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes:\t%d\n", relaxdata->nslaterinfeasible);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'fastest settings':\t%d\n", relaxdata->stableinfeasible);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'stable settings':\t%d\n", relaxdata->unstableinfeasible);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'penalty':\t%d\n", relaxdata->penaltyinfeasible);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'computed infeasible lower bound':\t%d\n", relaxdata->boundedinfeasible);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of infeasible nodes with 'unsolved':\t%d\n", relaxdata->unsolvedinfeasible);
 #endif
       }
       if ( relaxdata->warmstart && relaxdata->warmstartproject == 4 )
       {
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes detected infeasible through primal rounding problem:\t%d \n", relaxdata->roundingprobinf);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes that were successfully warmstarted using the rounding problems:\t%d \n", relaxdata->roundstartsuccess);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes where the primal rounding problem failed:\t%d \n", relaxdata->primalroundfails);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes where the dual rounding problem failed:\t%d \n", relaxdata->dualroundfails);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes where the optimal solution was determined by the rounding problem:\t%d \n", relaxdata->roundingoptimal);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes cut off through bounding by the rounding problem:\t%d \n", relaxdata->roundingcutoff);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Time spent in rounding problems for warmstarting / detecting infeasibility:\t%f s \n", relaxdata->roundingprobtime);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes detected infeasible through primal rounding problem:\t%d\n", relaxdata->roundingprobinf);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes that were successfully warmstarted using the rounding problems:\t%d\n", relaxdata->roundstartsuccess);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes where the primal rounding problem failed:\t%d\n", relaxdata->primalroundfails);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes where the dual rounding problem failed:\t%d\n", relaxdata->dualroundfails);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes where the optimal solution was determined by the rounding problem:\t%d\n", relaxdata->roundingoptimal);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of nodes cut off through bounding by the rounding problem:\t%d\n", relaxdata->roundingcutoff);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Time spent in rounding problems for warmstarting / detecting infeasibility:\t%f s\n", relaxdata->roundingprobtime);
       }
    }
 
@@ -4327,41 +4347,41 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/penaltyparam",
          "the starting value of the penalty parameter Gamma used for the penalty formulation if the "
-         "SDP solver didn't converge; set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->penaltyparam),
-         TRUE, DEFAULT_PENALTYPARAM, -1.0, 1e+20, NULL, NULL) );
+         "SDP solver didn't converge; set this to a negative value to compute the parameter depending on the given problem",
+         &(relaxdata->penaltyparam), TRUE, DEFAULT_PENALTYPARAM, -1.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/maxpenaltyparam",
          "the maximum value of the penalty parameter Gamma used for the penalty formulation if the "
-         "SDP solver didn't converge; set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->maxpenaltyparam),
-         TRUE, DEFAULT_MAXPENALTYPARAM, -1.0, 1e+20, NULL, NULL) );
+         "SDP solver didn't converge; set this to a negative value to compute the parameter depending on the given problem",
+         &(relaxdata->maxpenaltyparam), TRUE, DEFAULT_MAXPENALTYPARAM, -1.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/peninfeasadjust",
-         "gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation", &(relaxdata->peninfeasadjust),
-         TRUE, DEFAULT_PENINFEASADJUST, 0.0, 1e+20, NULL, NULL) );
+         "gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation",
+         &(relaxdata->peninfeasadjust), TRUE, DEFAULT_PENINFEASADJUST, 0.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartipfactor",
-         "factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled", &(relaxdata->warmstartipfactor),
-         TRUE, DEFAULT_WARMSTARTIPFACTOR, 0.0, 1.0, NULL, NULL) );
+         "factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled",
+         &(relaxdata->warmstartipfactor), TRUE, DEFAULT_WARMSTARTIPFACTOR, 0.0, 1.0, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartprimaltype",
-         "how to warmstart the primal problem? 1: scaled identity/analytic center, 2: elementwise reciprocal, 3: saved primal sol", &(relaxdata->warmstartprimaltype), TRUE,
-         DEFAULT_WARMSTARTPRIMALTYPE, 1, 3, NULL, NULL) );
+         "how to warmstart the primal problem? 1: scaled identity/analytic center, 2: elementwise reciprocal, 3: saved primal sol",
+         &(relaxdata->warmstartprimaltype), TRUE, DEFAULT_WARMSTARTPRIMALTYPE, 1, 3, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartiptype",
-         "which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center", &(relaxdata->warmstartiptype), TRUE,
-         DEFAULT_WARMSTARTIPTYPE, 1, 2, NULL, NULL) );
+         "which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center",
+         &(relaxdata->warmstartiptype), TRUE, DEFAULT_WARMSTARTIPTYPE, 1, 2, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartproject",
-         "how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone, 4: use new bounds and solve rounding problem", &(relaxdata->warmstartproject), TRUE,
-         DEFAULT_WARMSTARTPROJECT, 1, 4, NULL, NULL) );
+         "how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone, 4: use new bounds and solve rounding problem",
+         &(relaxdata->warmstartproject), TRUE, DEFAULT_WARMSTARTPROJECT, 1, 4, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartprminevpri",
-         "minimum eigenvalue to allow when projecting primal matrices onto the positive (semi-)definite cone for warmstarting; -1 to compute automatically", &(relaxdata->warmstartpmevprimalpar),
-         TRUE, DEFAULT_WARMSTARTPROJMINEV, -1.0, 1e+20, NULL, NULL) );
+         "minimum eigenvalue to allow when projecting primal matrices onto the positive (semi-)definite cone for warmstarting; -1 to compute automatically",
+         &(relaxdata->warmstartpmevprimalpar), TRUE, DEFAULT_WARMSTARTPROJMINEV, -1.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartprminevdu",
-         "minimum eigenvalue to allow when projecting dual matrices onto the positive (semi-)definite cone for warmstarting; -1 to compute automatically", &(relaxdata->warmstartpmevdualpar),
-         TRUE, DEFAULT_WARMSTARTPROJMINEV, -1.0, 1e+20, NULL, NULL) );
+         "minimum eigenvalue to allow when projecting dual matrices onto the positive (semi-)definite cone for warmstarting; -1 to compute automatically",
+         &(relaxdata->warmstartpmevdualpar), TRUE, DEFAULT_WARMSTARTPROJMINEV, -1.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstartprojpdsame",
          "Should one shared minimum eigenvalue respectively maximum entry be computed for primal and dual problem instead of different ones for primal and dual and each block for projection or convex combination ?",
@@ -4372,25 +4392,26 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          &(relaxdata->warmstartpreoptsol), TRUE, DEFAULT_WARMSTART_PREOPTIMAL_SOL, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartpreoptgap",
-         "If warmstartpreoptsol is TRUE, this is the gap where the preoptimal solution will be saved", &(relaxdata->warmstartpreoptgap),
-         TRUE, DEFAULT_WARMSTARTPREOPTGAP, 0.0, 1e+20, NULL, NULL) );
+         "If warmstartpreoptsol is TRUE, this is the gap where the preoptimal solution will be saved",
+         &(relaxdata->warmstartpreoptgap), TRUE, DEFAULT_WARMSTARTPREOPTGAP, 0.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstartroundonlyinf",
          "Only use solution of roundingproblem to detect infeasibility (only has an effect for warmstartproject = 4)",
          &(relaxdata->warmstartroundonlyinf), TRUE, DEFAULT_WARMSTARTROUNDONLYINF, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/npenaltyincr",
-         "maximum number of times the penalty parameter will be increased if the penalty formulation failed", &(relaxdata->npenaltyincr), TRUE,
-         SCIPsdpiGetDefaultSdpiSolverNpenaltyIncreases(), 0, INT_MAX, NULL, NULL) );
+         "maximum number of times the penalty parameter will be increased if the penalty formulation failed",
+         &(relaxdata->npenaltyincr), TRUE, SCIPsdpiGetDefaultSdpiSolverNpenaltyIncreases(), 0, INT_MAX, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/lambdastar",
          "the parameter lambda star used by SDPA to set the initial point;"
-         "set this to a negative value to compute the parameter depending on the given problem", &(relaxdata->lambdastar),
-         TRUE, DEFAULT_LAMBDASTAR, -1.0, 1e+20, NULL, NULL) );
+         "set this to a negative value to compute the parameter depending on the given problem",
+         &(relaxdata->lambdastar), TRUE, DEFAULT_LAMBDASTAR, -1.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/slatercheck",
          "Should the Slater condition for the primal and dual problem be checked ahead of solving each SDP? 0: no, 1: yes but only for statistics, 2: yes and print warning for "
-         "every problem not satisfying primal and dual Slater condition", &(relaxdata->slatercheck), TRUE, DEFAULT_SLATERCHECK, 0, 2, NULL, NULL) );
+         "every problem not satisfying primal and dual Slater condition",
+         &(relaxdata->slatercheck), TRUE, DEFAULT_SLATERCHECK, 0, 2, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/sdpinfo",
          "Should the SDP solver output information to the screen?",
@@ -4428,7 +4449,6 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/sdpsolverthreads",
          "number of threads the SDP solver should use (-1 = number of cores); currently only supported for MOSEK",
          &(relaxdata->sdpsolverthreads), TRUE, DEFAULT_SDPSOLVERTHREADS, -1, INT_MAX, NULL, NULL) );
-
 
    /* add description of SDP-solver */
    SCIP_CALL( SCIPincludeExternalCodeInformation(scip, SCIPsdpiGetSolverName(), SCIPsdpiGetSolverDesc()) );
@@ -4554,138 +4574,144 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
                SCIP_CALL( SCIPsdpiSlater(relaxdata->sdpi, &primalslater, &dualslater) );
                switch( primalslater )/*lint --e{788}*/
                {
+               case SCIP_SDPSLATER_NOINFO:
+                  relaxdata->npslatercheckfailed++;
+
+                  switch( dualslater )/*lint --e{788}*/
+                  {
                   case SCIP_SDPSLATER_NOINFO:
-                     relaxdata->npslatercheckfailed++;
-                     switch( dualslater )/*lint --e{788}*/
-                     {
-                        case SCIP_SDPSLATER_NOINFO:
-                           relaxdata->ndslatercheckfailed++;
-                           relaxdata->nslatercheckfailed++;
-                           break;
-                        case SCIP_SDPSLATER_NOT:
-                           relaxdata->ndnoslater++;
-                           relaxdata->nnoslater++;
-                           break;
-                        case SCIP_SDPSLATER_HOLDS:
-                           relaxdata->ndslaterholds++;
-                           relaxdata->nslatercheckfailed++;
-                           break;
-                        case SCIP_SDPSLATER_INF:
-                           relaxdata->nslaterinfeasible++;
-                           break;
-                        default:
-                           relaxdata->ndslatercheckfailed++;
-                           relaxdata->nslatercheckfailed++;
-                           break;
-                     }
-                  break;
+                     relaxdata->ndslatercheckfailed++;
+                     relaxdata->nslatercheckfailed++;
+                     break;
                   case SCIP_SDPSLATER_NOT:
-                     relaxdata->npnoslater++;
-                     switch( dualslater )/*lint --e{788}*/
-                     {
-                        case SCIP_SDPSLATER_NOINFO:
-                           relaxdata->ndslatercheckfailed++;
-                           relaxdata->nnoslater++;
-                           break;
-                        case SCIP_SDPSLATER_NOT:
-                           relaxdata->ndnoslater++;
-                           relaxdata->nnoslater++;
-                           break;
-                        case SCIP_SDPSLATER_HOLDS:
-                           relaxdata->ndslaterholds++;
-                           relaxdata->nnoslater++;
-                           break;
-                        case SCIP_SDPSLATER_INF:
-                           relaxdata->nslaterinfeasible++;
-                           break;
-                        default:
-                           relaxdata->ndslatercheckfailed++;
-                           relaxdata->nnoslater++;
-                           break;
-                     }
+                     relaxdata->ndnoslater++;
+                     relaxdata->nnoslater++;
                      break;
                   case SCIP_SDPSLATER_HOLDS:
-                     relaxdata->npslaterholds++;
-                     switch( dualslater )/*lint --e{788}*/
-                     {
-                        case SCIP_SDPSLATER_NOINFO:
-                           relaxdata->ndslatercheckfailed++;
-                           relaxdata->nslatercheckfailed++;
-                           break;
-                        case SCIP_SDPSLATER_NOT:
-                           relaxdata->ndnoslater++;
-                           relaxdata->nnoslater++;
-                           break;
-                        case SCIP_SDPSLATER_HOLDS:
-                           relaxdata->ndslaterholds++;
-                           relaxdata->nslaterholds++;
-                           break;
-                        case SCIP_SDPSLATER_INF:
-                           relaxdata->nslaterinfeasible++;
-                           break;
-                        default:
-                           relaxdata->ndslatercheckfailed++;
-                           relaxdata->nslatercheckfailed++;
-                           break;
-                     }
+                     relaxdata->ndslaterholds++;
+                     relaxdata->nslatercheckfailed++;
                      break;
-                     default:
-                        relaxdata->npslatercheckfailed++;
-                        relaxdata->ndslatercheckfailed++;
-                        relaxdata->nslatercheckfailed++;
-                        break;
+                  case SCIP_SDPSLATER_INF:
+                     relaxdata->nslaterinfeasible++;
+                     break;
+                  default:
+                     relaxdata->ndslatercheckfailed++;
+                     relaxdata->nslatercheckfailed++;
+                     break;
+                  }
+                  break;
+
+               case SCIP_SDPSLATER_NOT:
+                  relaxdata->npnoslater++;
+
+                  switch( dualslater )/*lint --e{788}*/
+                  {
+                  case SCIP_SDPSLATER_NOINFO:
+                     relaxdata->ndslatercheckfailed++;
+                     relaxdata->nnoslater++;
+                     break;
+                  case SCIP_SDPSLATER_NOT:
+                     relaxdata->ndnoslater++;
+                     relaxdata->nnoslater++;
+                     break;
+                  case SCIP_SDPSLATER_HOLDS:
+                     relaxdata->ndslaterholds++;
+                     relaxdata->nnoslater++;
+                     break;
+                  case SCIP_SDPSLATER_INF:
+                     relaxdata->nslaterinfeasible++;
+                     break;
+                  default:
+                     relaxdata->ndslatercheckfailed++;
+                     relaxdata->nnoslater++;
+                     break;
+                  }
+                  break;
+
+               case SCIP_SDPSLATER_HOLDS:
+                  relaxdata->npslaterholds++;
+                  switch( dualslater )/*lint --e{788}*/
+                  {
+                  case SCIP_SDPSLATER_NOINFO:
+                     relaxdata->ndslatercheckfailed++;
+                     relaxdata->nslatercheckfailed++;
+                     break;
+                  case SCIP_SDPSLATER_NOT:
+                     relaxdata->ndnoslater++;
+                     relaxdata->nnoslater++;
+                     break;
+                  case SCIP_SDPSLATER_HOLDS:
+                     relaxdata->ndslaterholds++;
+                     relaxdata->nslaterholds++;
+                     break;
+                  case SCIP_SDPSLATER_INF:
+                     relaxdata->nslaterinfeasible++;
+                     break;
+                  default:
+                     relaxdata->ndslatercheckfailed++;
+                     relaxdata->nslatercheckfailed++;
+                     break;
+                  }
+                  break;
+
+               default:
+                  relaxdata->npslatercheckfailed++;
+                  relaxdata->ndslatercheckfailed++;
+                  relaxdata->nslatercheckfailed++;
+                  break;
                }
                slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
                SCIP_CALL( SCIPsdpiSlaterSettings(relaxdata->sdpi, &slatersetting) );
+
                switch( slatersetting )/*lint --e{788}*/
                {
-                  case SCIP_SDPSLATERSETTING_STABLEWSLATER:
-                     relaxdata->stablewslater++;
-                     break;
-                  case SCIP_SDPSLATERSETTING_UNSTABLEWSLATER:
-                     relaxdata->unstablewslater++;
-                     break;
-                  case SCIP_SDPSLATERSETTING_PENALTYWSLATER:
-                     relaxdata->penaltywslater++;
-                     break;
-                  case SCIP_SDPSLATERSETTING_BOUNDEDWSLATER:
-                     relaxdata->boundedwslater++;
-                     break;
-                  case SCIP_SDPSLATERSETTING_UNSOLVEDWSLATER:
-                     relaxdata->unsolvedwslater++;
-                     break;
-                  case SCIP_SDPSLATERSETTING_STABLENOSLATER:
-                     relaxdata->stablenoslater++;
-                     break;
-                  case SCIP_SDPSLATERSETTING_UNSTABLENOSLATER:
-                     relaxdata->unstablenoslater++;
-                     break;
-                  case SCIP_SDPSLATERSETTING_PENALTYNOSLATER:
-                     relaxdata->penaltynoslater++;
-                     break;
-                  case SCIP_SDPSLATERSETTING_BOUNDEDNOSLATER:
-                     relaxdata->boundednoslater++;
-                     break;
-                  case SCIP_SDPSLATERSETTING_UNSOLVEDNOSLATER:
-                     relaxdata->unsolvednoslater++;
-                     break;
-                  case SCIP_SDPSLATERSETTING_STABLEINFEASIBLE:
-                     relaxdata->stableinfeasible++;
-                     break;
-                  case SCIP_SDPSLATERSETTING_UNSTABLEINFEASIBLE:
-                     relaxdata->unstableinfeasible++;
-                     break;
-                  case SCIP_SDPSLATERSETTING_PENALTYINFEASIBLE:
-                     relaxdata->penaltyinfeasible++;
-                     break;
-                  case SCIP_SDPSLATERSETTING_BOUNDEDINFEASIBLE:
-                     relaxdata->boundedinfeasible++;
-                     break;
-                  case SCIP_SDPSLATERSETTING_UNSOLVEDINFEASIBLE:
-                     relaxdata->unsolvedinfeasible++;
-                     break;
-                  default:
-                     break;
+               case SCIP_SDPSLATERSETTING_STABLEWSLATER:
+                  relaxdata->stablewslater++;
+                  break;
+               case SCIP_SDPSLATERSETTING_UNSTABLEWSLATER:
+                  relaxdata->unstablewslater++;
+                  break;
+               case SCIP_SDPSLATERSETTING_PENALTYWSLATER:
+                  relaxdata->penaltywslater++;
+                  break;
+               case SCIP_SDPSLATERSETTING_BOUNDEDWSLATER:
+                  relaxdata->boundedwslater++;
+                  break;
+               case SCIP_SDPSLATERSETTING_UNSOLVEDWSLATER:
+                  relaxdata->unsolvedwslater++;
+                  break;
+               case SCIP_SDPSLATERSETTING_STABLENOSLATER:
+                  relaxdata->stablenoslater++;
+                  break;
+               case SCIP_SDPSLATERSETTING_UNSTABLENOSLATER:
+                  relaxdata->unstablenoslater++;
+                  break;
+               case SCIP_SDPSLATERSETTING_PENALTYNOSLATER:
+                  relaxdata->penaltynoslater++;
+                  break;
+               case SCIP_SDPSLATERSETTING_BOUNDEDNOSLATER:
+                  relaxdata->boundednoslater++;
+                  break;
+               case SCIP_SDPSLATERSETTING_UNSOLVEDNOSLATER:
+                  relaxdata->unsolvednoslater++;
+                  break;
+               case SCIP_SDPSLATERSETTING_STABLEINFEASIBLE:
+                  relaxdata->stableinfeasible++;
+                  break;
+               case SCIP_SDPSLATERSETTING_UNSTABLEINFEASIBLE:
+                  relaxdata->unstableinfeasible++;
+                  break;
+               case SCIP_SDPSLATERSETTING_PENALTYINFEASIBLE:
+                  relaxdata->penaltyinfeasible++;
+                  break;
+               case SCIP_SDPSLATERSETTING_BOUNDEDINFEASIBLE:
+                  relaxdata->boundedinfeasible++;
+                  break;
+               case SCIP_SDPSLATERSETTING_UNSOLVEDINFEASIBLE:
+                  relaxdata->unsolvedinfeasible++;
+                  break;
+               default:
+                  break;
                }
             }
 
@@ -4841,140 +4867,145 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
             primalslater = SCIP_SDPSLATER_NOINFO;
             dualslater = SCIP_SDPSLATER_NOINFO;
             SCIP_CALL( SCIPsdpiSlater(relaxdata->sdpi, &primalslater, &dualslater) );
+
             switch( primalslater )/*lint --e{788}*/
             {
+            case SCIP_SDPSLATER_NOINFO:
+               relaxdata->npslatercheckfailed++;
+
+               switch( dualslater )/*lint --e{788}*/
+               {
                case SCIP_SDPSLATER_NOINFO:
-                  relaxdata->npslatercheckfailed++;
-                  switch( dualslater )/*lint --e{788}*/
-                  {
-                     case SCIP_SDPSLATER_NOINFO:
-                        relaxdata->ndslatercheckfailed++;
-                        relaxdata->nslatercheckfailed++;
-                        break;
-                     case SCIP_SDPSLATER_NOT:
-                        relaxdata->ndnoslater++;
-                        relaxdata->nnoslater++;
-                        break;
-                     case SCIP_SDPSLATER_HOLDS:
-                        relaxdata->ndslaterholds++;
-                        relaxdata->nslatercheckfailed++;
-                        break;
-                     case SCIP_SDPSLATER_INF:
-                        relaxdata->nslaterinfeasible++;
-                        break;
-                     default:
-                        relaxdata->ndslatercheckfailed++;
-                        relaxdata->nslatercheckfailed++;
-                        break;
-                  }
-               break;
+                  relaxdata->ndslatercheckfailed++;
+                  relaxdata->nslatercheckfailed++;
+                  break;
                case SCIP_SDPSLATER_NOT:
-                  relaxdata->npnoslater++;
-                  switch( dualslater )/*lint --e{788}*/
-                  {
-                     case SCIP_SDPSLATER_NOINFO:
-                        relaxdata->ndslatercheckfailed++;
-                        relaxdata->nnoslater++;
-                        break;
-                     case SCIP_SDPSLATER_NOT:
-                        relaxdata->ndnoslater++;
-                        relaxdata->nnoslater++;
-                        break;
-                     case SCIP_SDPSLATER_HOLDS:
-                        relaxdata->ndslaterholds++;
-                        relaxdata->nnoslater++;
-                        break;
-                     case SCIP_SDPSLATER_INF:
-                        relaxdata->nslaterinfeasible++;
-                        break;
-                     default:
-                        relaxdata->ndslatercheckfailed++;
-                        relaxdata->nnoslater++;
-                        break;
-                  }
+                  relaxdata->ndnoslater++;
+                  relaxdata->nnoslater++;
                   break;
                case SCIP_SDPSLATER_HOLDS:
-                  relaxdata->npslaterholds++;
-                  switch( dualslater )/*lint --e{788}*/
-                  {
-                     case SCIP_SDPSLATER_NOINFO:
-                        relaxdata->ndslatercheckfailed++;
-                        relaxdata->nslatercheckfailed++;
-                        break;
-                     case SCIP_SDPSLATER_NOT:
-                        relaxdata->ndnoslater++;
-                        relaxdata->nnoslater++;
-                        break;
-                     case SCIP_SDPSLATER_HOLDS:
-                        relaxdata->ndslaterholds++;
-                        relaxdata->nslaterholds++;
-                        break;
-                     case SCIP_SDPSLATER_INF:
-                        relaxdata->nslaterinfeasible++;
-                        break;
-                     default:
-                        relaxdata->ndslatercheckfailed++;
-                        relaxdata->nslatercheckfailed++;
-                        break;
-                  }
+                  relaxdata->ndslaterholds++;
+                  relaxdata->nslatercheckfailed++;
                   break;
-                  default:
-                     relaxdata->npslatercheckfailed++;
-                     relaxdata->ndslatercheckfailed++;
-                     relaxdata->nslatercheckfailed++;
-                     break;
+               case SCIP_SDPSLATER_INF:
+                  relaxdata->nslaterinfeasible++;
+                  break;
+               default:
+                  relaxdata->ndslatercheckfailed++;
+                  relaxdata->nslatercheckfailed++;
+                  break;
+               }
+               break;
+
+            case SCIP_SDPSLATER_NOT:
+               relaxdata->npnoslater++;
+               switch( dualslater )/*lint --e{788}*/
+               {
+               case SCIP_SDPSLATER_NOINFO:
+                  relaxdata->ndslatercheckfailed++;
+                  relaxdata->nnoslater++;
+                  break;
+               case SCIP_SDPSLATER_NOT:
+                  relaxdata->ndnoslater++;
+                  relaxdata->nnoslater++;
+                  break;
+               case SCIP_SDPSLATER_HOLDS:
+                  relaxdata->ndslaterholds++;
+                  relaxdata->nnoslater++;
+                  break;
+               case SCIP_SDPSLATER_INF:
+                  relaxdata->nslaterinfeasible++;
+                  break;
+               default:
+                  relaxdata->ndslatercheckfailed++;
+                  relaxdata->nnoslater++;
+                  break;
+               }
+               break;
+
+            case SCIP_SDPSLATER_HOLDS:
+               relaxdata->npslaterholds++;
+               switch( dualslater )/*lint --e{788}*/
+               {
+               case SCIP_SDPSLATER_NOINFO:
+                  relaxdata->ndslatercheckfailed++;
+                  relaxdata->nslatercheckfailed++;
+                  break;
+               case SCIP_SDPSLATER_NOT:
+                  relaxdata->ndnoslater++;
+                  relaxdata->nnoslater++;
+                  break;
+               case SCIP_SDPSLATER_HOLDS:
+                  relaxdata->ndslaterholds++;
+                  relaxdata->nslaterholds++;
+                  break;
+               case SCIP_SDPSLATER_INF:
+                  relaxdata->nslaterinfeasible++;
+                  break;
+               default:
+                  relaxdata->ndslatercheckfailed++;
+                  relaxdata->nslatercheckfailed++;
+                  break;
+               }
+               break;
+            default:
+               relaxdata->npslatercheckfailed++;
+               relaxdata->ndslatercheckfailed++;
+               relaxdata->nslatercheckfailed++;
+               break;
             }
             slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
             SCIP_CALL( SCIPsdpiSlaterSettings(relaxdata->sdpi, &slatersetting) );
+
             switch( slatersetting )/*lint --e{788}*/
             {
-               case SCIP_SDPSLATERSETTING_STABLEWSLATER:
-                  relaxdata->stablewslater++;
-                  break;
-               case SCIP_SDPSLATERSETTING_UNSTABLEWSLATER:
-                  relaxdata->unstablewslater++;
-                  break;
-               case SCIP_SDPSLATERSETTING_PENALTYWSLATER:
-                  relaxdata->penaltywslater++;
-                  break;
-               case SCIP_SDPSLATERSETTING_BOUNDEDWSLATER:
-                  relaxdata->boundedwslater++;
-                  break;
-               case SCIP_SDPSLATERSETTING_UNSOLVEDWSLATER:
-                  relaxdata->unsolvedwslater++;
-                  break;
-               case SCIP_SDPSLATERSETTING_STABLENOSLATER:
-                  relaxdata->stablenoslater++;
-                  break;
-               case SCIP_SDPSLATERSETTING_UNSTABLENOSLATER:
-                  relaxdata->unstablenoslater++;
-                  break;
-               case SCIP_SDPSLATERSETTING_PENALTYNOSLATER:
-                  relaxdata->penaltynoslater++;
-                  break;
-               case SCIP_SDPSLATERSETTING_BOUNDEDNOSLATER:
-                  relaxdata->boundednoslater++;
-                  break;
-               case SCIP_SDPSLATERSETTING_UNSOLVEDNOSLATER:
-                  relaxdata->unsolvednoslater++;
-                  break;
-               case SCIP_SDPSLATERSETTING_STABLEINFEASIBLE:
-                  relaxdata->stableinfeasible++;
-                  break;
-               case SCIP_SDPSLATERSETTING_UNSTABLEINFEASIBLE:
-                  relaxdata->unstableinfeasible++;
-                  break;
-               case SCIP_SDPSLATERSETTING_PENALTYINFEASIBLE:
-                  relaxdata->penaltyinfeasible++;
-                  break;
-               case SCIP_SDPSLATERSETTING_BOUNDEDINFEASIBLE:
-                  relaxdata->boundedinfeasible++;
-                  break;
-               case SCIP_SDPSLATERSETTING_UNSOLVEDINFEASIBLE:
-                  relaxdata->unsolvedinfeasible++;
-                  break;
-               default:
-                  break;
+            case SCIP_SDPSLATERSETTING_STABLEWSLATER:
+               relaxdata->stablewslater++;
+               break;
+            case SCIP_SDPSLATERSETTING_UNSTABLEWSLATER:
+               relaxdata->unstablewslater++;
+               break;
+            case SCIP_SDPSLATERSETTING_PENALTYWSLATER:
+               relaxdata->penaltywslater++;
+               break;
+            case SCIP_SDPSLATERSETTING_BOUNDEDWSLATER:
+               relaxdata->boundedwslater++;
+               break;
+            case SCIP_SDPSLATERSETTING_UNSOLVEDWSLATER:
+               relaxdata->unsolvedwslater++;
+               break;
+            case SCIP_SDPSLATERSETTING_STABLENOSLATER:
+               relaxdata->stablenoslater++;
+               break;
+            case SCIP_SDPSLATERSETTING_UNSTABLENOSLATER:
+               relaxdata->unstablenoslater++;
+               break;
+            case SCIP_SDPSLATERSETTING_PENALTYNOSLATER:
+               relaxdata->penaltynoslater++;
+               break;
+            case SCIP_SDPSLATERSETTING_BOUNDEDNOSLATER:
+               relaxdata->boundednoslater++;
+               break;
+            case SCIP_SDPSLATERSETTING_UNSOLVEDNOSLATER:
+               relaxdata->unsolvednoslater++;
+               break;
+            case SCIP_SDPSLATERSETTING_STABLEINFEASIBLE:
+               relaxdata->stableinfeasible++;
+               break;
+            case SCIP_SDPSLATERSETTING_UNSTABLEINFEASIBLE:
+               relaxdata->unstableinfeasible++;
+               break;
+            case SCIP_SDPSLATERSETTING_PENALTYINFEASIBLE:
+               relaxdata->penaltyinfeasible++;
+               break;
+            case SCIP_SDPSLATERSETTING_BOUNDEDINFEASIBLE:
+               relaxdata->boundedinfeasible++;
+               break;
+            case SCIP_SDPSLATERSETTING_UNSOLVEDINFEASIBLE:
+               relaxdata->unsolvedinfeasible++;
+               break;
+            default:
+               break;
             }
          }
 
