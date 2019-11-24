@@ -2974,6 +2974,7 @@ SCIP_RETCODE SCIPconsSdpComputeSparseSdpMatrix(
             *length, nnonz);
       return SCIP_ERROR;
    }
+
    for (i = 0; i < consdata->constnnonz; i++)
    {
       row[i] = consdata->constrow[i];
