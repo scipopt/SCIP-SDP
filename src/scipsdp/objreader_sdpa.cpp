@@ -158,10 +158,10 @@ SCIP_RETCODE testDigit(
 /** function to check whether the given index is within the given bounds, if not an error message for the given string will be thrown */
 static
 SCIP_RETCODE checkIndex(
-   const char*        indexname,          /**< name of the index that will be used in the error message */
-   int                value,              /**< value to check against the upper bound */
-   int                lb,                 /**< lower bound to check against */
-   int                ub                  /**< upper bound to check against */
+   const char*           indexname,          /**< name of the index that will be used in the error message */
+   int                   value,              /**< value to check against the upper bound */
+   int                   lb,                 /**< lower bound to check against */
+   int                   ub                  /**< upper bound to check against */
    )
 {
    if ( value < lb )

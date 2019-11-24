@@ -124,7 +124,6 @@ SCIP_DECL_DISPOUTPUT(dispOutputSdpunsolved)
 {  /*lint --e{715}*/
    SCIP_DISPDATA* dispdata;
 
-
    assert( scip != NULL );
    assert( disp != NULL );
 

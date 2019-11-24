@@ -524,7 +524,6 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
          SCIP_CALL( SCIPpropagateProbing(scip, 0, &cutoff, NULL) );
          if ( !cutoff )
          {
-
             /* resolve the diving SDP */
             SCIP_CALL( SCIPsolveProbingRelax(scip, &cutoff) );
 

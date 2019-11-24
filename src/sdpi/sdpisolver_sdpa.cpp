@@ -901,7 +901,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                sdpisolver->sdpa->getBlockNumber() - 1 : sdpisolver->sdpa->getBlockNumber());
    }
 
-
    if ( nsdpblocks - nremovedblocks != nsdpasdpblocks )
    {
       if ( sdpisolver->blockindmapper == NULL )
@@ -916,7 +915,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
       else
       {
-
          /* if the number of blocks decreased, we first need to free memory for those blocks before reallocating memory for the outer array */
          for ( block = nsdpblocks - nremovedblocks; block < nsdpasdpblocks; block++ )
          {
@@ -1031,7 +1029,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       return SCIP_LPERROR;
    }
    sdpisolver->sdpa->setParameterLowerBound(-1e20);
-
 
    /* set the objective limit */
    if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
