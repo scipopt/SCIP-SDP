@@ -6,6 +6,7 @@ interface:
 
 fixed bugs:
 - fixed bug with statistics output when no SDPs were solved
+- fixed minor bug in CBF-reader when reading DCOORD
 
 SCIP-SDP version 3.1.2
 ======================
