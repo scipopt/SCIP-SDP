@@ -1,0 +1,95 @@
+# batch file to transform files for the CBLIB from SDPA-format to CBF-format
+#
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_128_2_a.dat-s.gz
+write problem clsq_random_128_2_a.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_128_2_b.dat-s.gz
+write problem clsq_random_128_2_b.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_128_2_c.dat-s.gz
+write problem clsq_random_128_2_c.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_128_4_a.dat-s.gz
+write problem clsq_random_128_4_a.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_128_4_b.dat-s.gz
+write problem clsq_random_128_4_b.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_128_4_c.dat-s.gz
+write problem clsq_random_128_4_c.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_128_6_a.dat-s.gz
+write problem clsq_random_128_6_a.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_128_6_b.dat-s.gz
+write problem clsq_random_128_6_b.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_128_6_c.dat-s.gz
+write problem clsq_random_128_6_c.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_32_2_a.dat-s.gz
+write problem clsq_random_32_2_a.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_32_2_b.dat-s.gz
+write problem clsq_random_32_2_b.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_32_2_c.dat-s.gz
+write problem clsq_random_32_2_c.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_32_4_a.dat-s.gz
+write problem clsq_random_32_4_a.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_32_4_b.dat-s.gz
+write problem clsq_random_32_4_b.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_32_4_c.dat-s.gz
+write problem clsq_random_32_4_c.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_32_6_a.dat-s.gz
+write problem clsq_random_32_6_a.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_32_6_b.dat-s.gz
+write problem clsq_random_32_6_b.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_32_6_c.dat-s.gz
+write problem clsq_random_32_6_c.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_32_8_a.dat-s.gz
+write problem clsq_random_32_8_a.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_32_8_b.dat-s.gz
+write problem clsq_random_32_8_b.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_32_8_c.dat-s.gz
+write problem clsq_random_32_8_c.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_64_2_a.dat-s.gz
+write problem clsq_random_64_2_a.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_64_2_b.dat-s.gz
+write problem clsq_random_64_2_b.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_64_2_c.dat-s.gz
+write problem clsq_random_64_2_c.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_64_4_a.dat-s.gz
+write problem clsq_random_64_4_a.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_64_4_b.dat-s.gz
+write problem clsq_random_64_4_b.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_64_4_c.dat-s.gz
+write problem clsq_random_64_4_c.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_64_6_a.dat-s.gz
+write problem clsq_random_64_6_a.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_64_6_b.dat-s.gz
+write problem clsq_random_64_6_b.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_64_6_c.dat-s.gz
+write problem clsq_random_64_6_c.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_64_8_a.dat-s.gz
+write problem clsq_random_64_8_a.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_64_8_b.dat-s.gz
+write problem clsq_random_64_8_b.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_64_8_c.dat-s.gz
+write problem clsq_random_64_8_c.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_96_2_a.dat-s.gz
+write problem clsq_random_96_2_a.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_96_2_b.dat-s.gz
+write problem clsq_random_96_2_b.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_96_2_c.dat-s.gz
+write problem clsq_random_96_2_c.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_96_4_a.dat-s.gz
+write problem clsq_random_96_4_a.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_96_4_b.dat-s.gz
+write problem clsq_random_96_4_b.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_96_4_c.dat-s.gz
+write problem clsq_random_96_4_c.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_96_6_a.dat-s.gz
+write problem clsq_random_96_6_a.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_96_6_b.dat-s.gz
+write problem clsq_random_96_6_b.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_96_6_c.dat-s.gz
+write problem clsq_random_96_6_c.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_96_8_a.dat-s.gz
+write problem clsq_random_96_8_a.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_96_8_b.dat-s.gz
+write problem clsq_random_96_8_b.cbf
+read MISDP/SCIPSDP-Paper/cardLeastSquares/random_96_8_c.dat-s.gz
+write problem clsq_random_96_8_c.cbf
+quit
+
+

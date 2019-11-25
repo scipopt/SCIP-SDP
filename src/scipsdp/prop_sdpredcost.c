@@ -180,7 +180,6 @@ SCIP_RETCODE sdpRedcostFixingIntCont(
    else if ( SCIPisInfinity(scip, -lb) )
       lb = -SCIPinfinity(scip);
 
-
    /* if after propagation the upper bound is less than the lower bound, the current node is infeasible */
    if ( SCIPisFeasLT(scip, ub, lb) || SCIPisFeasLT(scip, ub, SCIPvarGetLbLocal(var)) || SCIPisFeasLT(scip, SCIPvarGetUbLocal(var), lb) )
    {

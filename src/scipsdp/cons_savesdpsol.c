@@ -200,7 +200,6 @@ SCIP_DECL_CONSHDLRCOPY(conshdlrCopySavesdpsol)
 static
 SCIP_DECL_CONSCOPY(consCopySavesdpsol)
 {  /*lint --e{715}*/
-
    /* do not do anything: no Savesdpsol constraint should be present in the copy */
    return SCIP_OKAY;
 }

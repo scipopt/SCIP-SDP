@@ -47,9 +47,11 @@
 #include "sdpi/sdpisolver.h"
 
 /* turn off warnings for sdpa (doesn't seem to work) */
-#pragma GCC diagnostic ignored "-Wstrict-prototypes"
+#pragma GCC diagnostic ignored "-Wcast-qual"
+#pragma GCC diagnostic ignored "-Wpedantic"
 #include "sdpa_call.h"                       /* SDPA callable library interface */
-#pragma GCC diagnostic warning "-Wstrict-prototypes"
+#pragma GCC diagnostic warning "-Wcast-qual"
+#pragma GCC diagnostic warning "-Wpedantic"
 
 #include "blockmemshell/memory.h"            /* for memory allocation */
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
@@ -901,7 +903,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                sdpisolver->sdpa->getBlockNumber() - 1 : sdpisolver->sdpa->getBlockNumber());
    }
 
-
    if ( nsdpblocks - nremovedblocks != nsdpasdpblocks )
    {
       if ( sdpisolver->blockindmapper == NULL )
@@ -916,7 +917,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
       else
       {
-
          /* if the number of blocks decreased, we first need to free memory for those blocks before reallocating memory for the outer array */
          for ( block = nsdpblocks - nremovedblocks; block < nsdpasdpblocks; block++ )
          {
@@ -1031,7 +1031,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       return SCIP_LPERROR;
    }
    sdpisolver->sdpa->setParameterLowerBound(-1e20);
-
 
    /* set the objective limit */
    if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )

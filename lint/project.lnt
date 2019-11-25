@@ -40,6 +40,13 @@
 -ecall(679,SCIPhashmapSetImage)   // Suspicious Truncation
 -ecall(776,SCIPhashmapSetImage)   // Possible truncation of addition
 
+-emacro(505,SCIPreallocBlockMemoryArray)   // Redundant left argument to comma
+-emacro(505,SCIPfreeBlockMemoryArray)   // Redundant left argument to comma
+-emacro(505,SCIPfreeBlockMemoryArrayNull)   // Redundant left argument to comma
+-emacro(505,BMSfreeBlockMemoryArrayNull)   // Redundant left argument to comma
+-emacro(505,BMSfreeBlockMemoryArray)   // Redundant left argument to comma
+-emacro(505,BMSreallocBlockMemoryArray)   // Redundant left argument to comma
+
 -emacro(506,SCIPallocBlockMemoryArray)     // Constant value Boolean
 -emacro(571,SCIPreallocBlockMemoryArray)   // Suspicious cast
 -emacro(571,BMSreallocBlockMemoryArray)   // Suspicious cast

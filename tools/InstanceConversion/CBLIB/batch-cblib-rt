@@ -1,0 +1,124 @@
+# batch file to transform files for the CBLIB from SDPA-format to CBF-format
+#
+read MISDP/SCIPSDP-Paper/TrussTopology/2x3_3bars.dat-s.gz
+write problem rt_2x3_3bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/2x4_16bars.dat-s.gz
+write problem rt_2x4_16bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/2x4_2scen_3bars.dat-s.gz
+write problem rt_2x4_2scen_3bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/2x4_2scen_6bars.dat-s.gz
+write problem rt_2x4_2scen_6bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/2x4_3bars.dat-s.gz
+write problem rt_2x4_3bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/2x4_3bars_nominal.dat-s.gz
+write problem rt_2x4_3bars_nominal.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/2x4_8bars_2scen.dat-s.gz
+write problem rt_2x4_8bars_2scen.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/2x5_1scen_12bars.dat-s.gz
+write problem rt_2x5_1scen_12bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/2x5_1scen_3bars_nominal.dat-s.gz
+write problem rt_2x5_1scen_3bars_nominal.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/2x5_1scen_6bars.dat-s.gz
+write problem rt_2x5_1scen_6bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/2x5_1scen_8bars.dat-s.gz
+write problem rt_2x5_1scen_8bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/2x5_2scen_3bars.dat-s.gz
+write problem rt_2x5_2scen_3bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/2x5_2scen_4bars.dat-s.gz
+write problem rt_2x5_2scen_4bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/2x5_3bars.dat-s.gz
+write problem rt_2x5_3bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/2x6_3bars.dat-s.gz
+write problem rt_2x6_3bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/2x7_3bars.dat-s.gz
+write problem rt_2x7_3bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/3x3_2bars_3scen.dat-s.gz
+write problem rt_3x3_2bars_3scen.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/3x3_2fixed_8bars.dat-s.gz
+write problem rt_3x3_2fixed_8bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/3x3_2scen_6bars.dat-s.gz
+write problem rt_3x3_2scen_6bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/3x3_2scen_8bars.dat-s.gz
+write problem rt_3x3_2scen_8bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/3x3_2scen_small_rob.dat-s.gz
+write problem rt_3x3_2scen_small_rob.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/3x3_3scen_6bars.dat-s.gz
+write problem rt_3x3_3scen_6bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/3x3_3scen_8bars.dat-s.gz
+write problem rt_3x3_3scen_8bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/3x3_3scen.dat-s.gz
+write problem rt_3x3_3scen.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/3x3_5bars_2scen.dat-s.gz
+write problem rt_3x3_5bars_2scen.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/3x4_1scen_4bars.dat-s.gz
+write problem rt_3x4_1scen_4bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/3x4_1scen_6bars.dat-s.gz
+write problem rt_3x4_1scen_6bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/3x4_1scen_8bars.dat-s.gz
+write problem rt_3x4_1scen_8bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/3x4_2fixed_4bars_nominal.dat-s.gz
+write problem rt_3x4_2fixed_4bars_nominal.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/4x3_2bars_3scen.dat-s.gz
+write problem rt_4x3_2bars_3scen.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/4x4_1bar_2scen.dat-s.gz
+write problem rt_4x4_1bar_2scen.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/4x4_1bar.dat-s.gz
+write problem rt_4x4_1bar.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/4x5_2bars.dat-s.gz
+write problem rt_4x5_2bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/5x5_1bar.dat-s.gz
+write problem rt_5x5_1bar.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/bridge_2x10_2bars_2scen.dat-s.gz
+write problem rt_bridge_2x10_2bars_2scen.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/bridge_2x5_5bars.dat-s.gz
+write problem rt_bridge_2x5_5bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/bridge_2x6_4bars_2scen.dat-s.gz
+write problem rt_bridge_2x6_4bars_2scen.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/bridge_2x7_4bars.dat-s.gz
+write problem rt_bridge_2x7_4bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/bridge_2x8_2bars_2scen.dat-s.gz
+write problem rt_bridge_2x8_2bars_2scen.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/bridge_2x8_2bars_2scen_nominal.dat-s.gz
+write problem rt_bridge_2x8_2bars_2scen_nominal.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/bridge_2x9_2bars.dat-s.gz
+write problem rt_bridge_2x9_2bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/bridge_2x9_2bars_nominal.dat-s.gz
+write problem rt_bridge_2x9_2bars_nominal.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/bridge_3x5_4bars.dat-s.gz
+write problem rt_bridge_3x5_4bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/bridge_3x5_4bars_nominal.dat-s.gz
+write problem rt_bridge_3x5_4bars_nominal.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/bridge_3x6_2bars_2scen.dat-s.gz
+write problem rt_bridge_3x6_2bars_2scen.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/bridge_3x7_2bars.dat-s.gz
+write problem rt_bridge_3x7_2bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/bridge_3x7_2bars_nominal.dat-s.gz
+write problem rt_bridge_3x7_2bars_nominal.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/bridge_3x8_1bar_2scen.dat-s.gz
+write problem rt_bridge_3x8_1bar_2scen.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/bridge_3x9_2bars.dat-s.gz
+write problem rt_bridge_3x9_2bars.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/demonst_1bar_3scen.dat-s.gz
+write problem rt_demonst_1bar_3scen.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/demonst_2bars_2scen.dat-s.gz
+write problem rt_demonst_2bars_2scen.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/demonstsmall_1bar_4scen.dat-s.gz
+write problem rt_demonstsmall_1bar_4scen.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/demonstsmall_2bar_2scen_nominal.dat-s.gz
+write problem rt_demonstsmall_2bar_2scen_nominal.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/demonstsmall_2bar_3scen.dat-s.gz
+write problem rt_demonstsmall_2bar_3scen.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/demonstsmall_2bar_3scen_nominal.dat-s.gz
+write problem rt_demonstsmall_2bar_3scen_nominal.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/demonstsmall_2bars_2scen.dat-s.gz
+write problem rt_demonstsmall_2bars_2scen.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/demonstsmall_3bar_2scen_nominal.dat-s.gz
+write problem rt_demonstsmall_3bar_2scen_nominal.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/demonstsmall_5bar_1scen_nominal.dat-s.gz
+write problem rt_demonstsmall_5bar_1scen_nominal.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/test_bridge2.dat-s.gz
+write problem rt_test_bridge2.cbf
+read MISDP/SCIPSDP-Paper/TrussTopology/test_bridge3.dat-s.gz
+write problem rt_test_bridge3.cbf
+quit
+
