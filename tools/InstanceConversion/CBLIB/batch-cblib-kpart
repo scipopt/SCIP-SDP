@@ -1,0 +1,122 @@
+# batch file to transform files for the CBLIB from SDPA-format to CBF-format
+#
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2g_4_164_k3_5_6.dat-s.gz
+write problem kpart_2g_4_164_k3_5_6.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2g_5_25_k3_8_9.dat-s.gz
+write problem kpart_2g_5_25_k3_8_9.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2g_6_701_k10_3_4.dat-s.gz
+write problem kpart_2g_6_701_k10_3_4.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2g_6_701_k18_2_2.dat-s.gz
+write problem kpart_2g_6_701_k18_2_2.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2g_6_701_k2_18_18.dat-s.gz
+write problem kpart_2g_6_701_k2_18_18.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2g_6_701_k3_12_12.dat-s.gz
+write problem kpart_2g_6_701_k3_12_12.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2g_6_701_k4_9_9.dat-s.gz
+write problem kpart_2g_6_701_k4_9_9.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2g_6_701_k5_7_8.dat-s.gz
+write problem kpart_2g_6_701_k5_7_8.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2g_6_701_k6_6_6.dat-s.gz
+write problem kpart_2g_6_701_k6_6_6.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2g_6_701_k7_5_6.dat-s.gz
+write problem kpart_2g_6_701_k7_5_6.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2g_6_701_k8_4_5.dat-s.gz
+write problem kpart_2g_6_701_k8_4_5.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2g_6_701_k9_4_4.dat-s.gz
+write problem kpart_2g_6_701_k9_4_4.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2g_7_77_k3_16_17.dat-s.gz
+write problem kpart_2g_7_77_k3_16_17.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2pm_5_55_k10_2_3.dat-s.gz
+write problem kpart_2pm_5_55_k10_2_3.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2pm_5_55_k2_12_13.dat-s.gz
+write problem kpart_2pm_5_55_k2_12_13.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2pm_5_55_k3_8_9.dat-s.gz
+write problem kpart_2pm_5_55_k3_8_9.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2pm_5_55_k4_6_7.dat-s.gz
+write problem kpart_2pm_5_55_k4_6_7.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2pm_5_55_k5_5_5.dat-s.gz
+write problem kpart_2pm_5_55_k5_5_5.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2pm_5_55_k6_4_5.dat-s.gz
+write problem kpart_2pm_5_55_k6_4_5.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2pm_5_55_k7_3_4.dat-s.gz
+write problem kpart_2pm_5_55_k7_3_4.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2pm_5_55_k8_3_4.dat-s.gz
+write problem kpart_2pm_5_55_k8_3_4.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/2pm_5_55_k9_2_3.dat-s.gz
+write problem kpart_2pm_5_55_k9_2_3.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/3g_244_244_k10_3_4.dat-s.gz
+write problem kpart_3g_244_244_k10_3_4.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/3g_244_244_k16_2_2.dat-s.gz
+write problem kpart_3g_244_244_k16_2_2.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/3g_244_244_k2_16_16.dat-s.gz
+write problem kpart_3g_244_244_k2_16_16.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/3g_244_244_k3_10_11.dat-s.gz
+write problem kpart_3g_244_244_k3_10_11.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/3g_244_244_k4_8_8.dat-s.gz
+write problem kpart_3g_244_244_k4_8_8.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/3g_244_244_k5_6_7.dat-s.gz
+write problem kpart_3g_244_244_k5_6_7.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/3g_244_244_k6_5_6.dat-s.gz
+write problem kpart_3g_244_244_k6_5_6.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/3g_244_244_k7_4_5.dat-s.gz
+write problem kpart_3g_244_244_k7_4_5.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/3g_244_244_k8_4_4.dat-s.gz
+write problem kpart_3g_244_244_k8_4_4.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/3g_244_244_k9_3_4.dat-s.gz
+write problem kpart_3g_244_244_k9_3_4.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/3pm_234_234_k10_2_3.dat-s.gz
+write problem kpart_3pm_234_234_k10_2_3.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/3pm_234_234_k12_2_2.dat-s.gz
+write problem kpart_3pm_234_234_k12_2_2.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/3pm_234_234_k2_12_12.dat-s.gz
+write problem kpart_3pm_234_234_k2_12_12.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/3pm_234_234_k3_8_8.dat-s.gz
+write problem kpart_3pm_234_234_k3_8_8.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/3pm_234_234_k4_6_6.dat-s.gz
+write problem kpart_3pm_234_234_k4_6_6.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/3pm_234_234_k5_5_6.dat-s.gz
+write problem kpart_3pm_234_234_k5_5_6.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/3pm_234_234_k6_4_4.dat-s.gz
+write problem kpart_3pm_234_234_k6_4_4.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/3pm_234_234_k7_3_4.dat-s.gz
+write problem kpart_3pm_234_234_k7_3_4.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/3pm_234_234_k8_3_3.dat-s.gz
+write problem kpart_3pm_234_234_k8_3_3.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/3pm_234_234_k9_2_3.dat-s.gz
+write problem kpart_3pm_234_234_k9_2_3.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/clique_20_k3_6_7.dat-s.gz
+write problem kpart_clique_20_k3_6_7.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/clique_30_k3_10_10.dat-s.gz
+write problem kpart_clique_30_k3_10_10.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/clique_40_k3_13_14.dat-s.gz
+write problem kpart_clique_40_k3_13_14.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/clique_50_k3_16_17.dat-s.gz
+write problem kpart_clique_50_k3_16_17.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/clique_60_k10_6_6.dat-s.gz
+write problem kpart_clique_60_k10_6_6.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/clique_60_k15_4_4.dat-s.gz
+write problem kpart_clique_60_k15_4_4.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/clique_60_k20_3_3.dat-s.gz
+write problem kpart_clique_60_k20_3_3.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/clique_60_k2_30_30.dat-s.gz
+write problem kpart_clique_60_k2_30_30.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/clique_60_k30_2_2.dat-s.gz
+write problem kpart_clique_60_k30_2_2.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/clique_60_k3_20_20.dat-s.gz
+write problem kpart_clique_60_k3_20_20.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/clique_60_k4_15_15.dat-s.gz
+write problem kpart_clique_60_k4_15_15.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/clique_60_k5_12_12.dat-s.gz
+write problem kpart_clique_60_k5_12_12.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/clique_60_k6_10_10.dat-s.gz
+write problem kpart_clique_60_k6_10_10.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/clique_60_k7_8_9.dat-s.gz
+write problem kpart_clique_60_k7_8_9.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/clique_60_k8_7_8.dat-s.gz
+write problem kpart_clique_60_k8_7_8.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/clique_60_k9_6_7.dat-s.gz
+write problem kpart_clique_60_k9_6_7.cbf
+read MISDP/SCIPSDP-Paper/minKPartition/randomGraphs/clique_70_k3_23_24.dat-s.gz
+write problem kpart_clique_70_k3_23_24.cbf
+quit
+

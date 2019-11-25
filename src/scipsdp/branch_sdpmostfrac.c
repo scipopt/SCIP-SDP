@@ -102,7 +102,6 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
    SCIP_Real mostfracval; /* value of the current most fractional variable */
    SCIP_VAR* mostfracvar = NULL; /* variable with the highest current fractionality */
 
-
    assert( scip != NULL );
    assert( result != NULL );
 

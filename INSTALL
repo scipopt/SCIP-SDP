@@ -9,7 +9,7 @@ of the following SDP-Solvers:
 
 DSDP 5.8 (http://www.mcs.anl.gov/hs/software/DSDP/).
 SDPA 7.3.8 (http://sdpa.sourceforge.net/)
-MOSEK 8.1 (https://www.mosek.com/)
+MOSEK at least version 8.1 (https://www.mosek.com/)
 
 Building SCIP-SDP via Makefile
 ------------------------------
@@ -199,7 +199,7 @@ beta version and far from bug free.
 Building SCIP-SDP via cmake
 ---------------------------
 
-With version 3.1.1 it is also possible to build SCIP-SDP via cmake. Note that this is still
+Since version 3.1.1 it is also possible to build SCIP-SDP via cmake. Note that this is still
 in experimental state and not fully tested. In this case also SCIP must have been built with
 cmake. CMake uses an out-of-source build, i.e., compiled binaries and object files are separated
 from the source tree and located in another directory. Usually this directory is called build

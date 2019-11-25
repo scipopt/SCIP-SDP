@@ -345,19 +345,31 @@ githash::      # do not remove the double-colon
 .PHONY: lint
 lint:		$(MAINCSRC) $(MAINCCSRC) $(SDPICSRC) $(SDPICCSRC)
 		-rm -f lint.out
+
+		@$(SHELL) -ec 'if test ! -e lint/gcc-include-path.lnt ; \
+			then \
+				if test -e lint/co-gcc.mak ; \
+				then \
+					echo "-> generating gcc-include-path lint-file" ; \
+					cd lint; $(MAKE) -f co-gcc.mak ; \
+				else \
+					echo "-> lint Makefile not found"; \
+				fi \
+			fi'
 ifeq ($(FILES),)
-		$(SHELL) -ec 'for i in $^; \
+
+	$(SHELL) -ec 'for i in $^; \
 			do \
 				echo $$i; \
 				$(LINT) lint/co-gcc.lnt +os\(lint.out\) -u -zero \
-				$(FLAGS) -I/usr/include $(SDPIINC) -UNDEBUG -UWITH_READLINE -UROUNDING_FE -D_BSD_SOURCE $$i; \
+				$(USRFLAGS) $(FLAGS) -I/usr/include $(SDPIINC) -UNDEBUG -UWITH_READLINE -UROUNDING_FE -D_BSD_SOURCE $$i; \
 			done'
 else
 		$(SHELL) -ec  'for i in $(FILES); \
 			do \
 				echo $$i; \
 				$(LINT) lint/co-gcc.lnt +os\(lint.out\) -u -zero \
-				$(FLAGS) -I/usr/include $(SDPIINC) -UNDEBUG -UWITH_READLINE -UROUNDING_FE -D_BSD_SOURCE $$i; \
+				$(USRFLAGS) $(FLAGS) -I/usr/include $(SDPIINC) -UNDEBUG -UWITH_READLINE -UROUNDING_FE -D_BSD_SOURCE $$i; \
 			done'
 endif
 
@@ -551,7 +563,8 @@ test:
 		@-(cd check && ln -fs $(SCIPDIR)/check/run.sh);
 		cd check; \
 		$(SHELL) ./check.sh $(TEST) $(MAINFILE) $(SETTINGS) $(notdir $(MAINFILE)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(DISPFREQ) \
-			$(CONTINUE) $(LOCK) $(SCIPSDPVERSION) $(SDPS) $(DEBUGTOOL) $(CLIENTTMPDIR) $(REOPT) $(OPTCOMMAND) $(SETCUTOFF) $(MAXJOBS) $(VISUALIZE) $(PERMUTE) $(SEEDS) $(GLBSEEDSHIFT);
+			$(CONTINUE) $(LOCK) $(SCIPSDPVERSION) $(SDPS) $(DEBUGTOOL) $(CLIENTTMPDIR) $(REOPT) $(OPTCOMMAND) $(SETCUTOFF) $(MAXJOBS) $(VISUALIZE) \
+			$(PERMUTE) $(SEEDS) $(GLBSEEDSHIFT) $(STARTPERM);
 
 # include local targets
 -include make/local/make.targets

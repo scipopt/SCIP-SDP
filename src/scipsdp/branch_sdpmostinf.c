@@ -104,7 +104,6 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostinf)
    SCIP_Real mostinfval; /* value of the current most infeasible variable */
    SCIP_VAR* mostinfvar = NULL; /* variable with the highest current infeasibility */
 
-
    assert( scip != NULL );
    assert( result != NULL );
 

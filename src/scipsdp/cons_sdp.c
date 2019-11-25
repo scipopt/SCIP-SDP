@@ -1429,7 +1429,6 @@ SCIP_RETCODE fixAndAggrVars(
 {
    SCIP_CONSDATA* consdata;
    int i;
-   int nfixednonz;
    int* savedcol;
    int* savedrow;
    SCIP_Real* savedval;
@@ -1445,14 +1444,12 @@ SCIP_RETCODE fixAndAggrVars(
    int requiredsize;
    int globalnvars;
    int vararraylength;
-   SCIP_Bool negated;
    SCIP_Real epsilon;
 
-
-   /* loop over all variables once, add all fixed to savedrow/col/val, for all multiaggregated variables, if constant-scalar =!= 0, add
-    * constant-scalar * entry to savedrow/col/val and call mergeArrays for all aggrvars for savedrow[startindex of this var] and scalar/constant-scalar,
-    * if constant-scalar = 0, add 1*entry to savedrow/col/val, call mergeArrays for all aggrvars for savedrow[startindex of this var] and scalar and later
-    * reduze the saved size of savedrow/col/val by the number of nonzeros of the mutliagrregated variable to not add them to the constant part later */
+   /* Loop over all variables once, add all fixed to savedrow/col/val; for all multiaggregated variables, if constant-scalar != 0, add
+    * constant-scalar * entry to savedrow/col/val and call mergeArrays for all aggrvars for savedrow[startindex of this var] and scalar/constant-scalar;
+    * if constant-scalar == 0, add 1*entry to savedrow/col/val, call mergeArrays for all aggrvars for savedrow[startindex of this var] and scalar and later
+    * reduce the saved size of savedrow/col/val by the number of nonzeros of the mutliagrregated variable to not add them to the constant part later. */
 
    assert( scip != NULL );
    assert( conss != NULL );
@@ -1464,6 +1461,8 @@ SCIP_RETCODE fixAndAggrVars(
 
    for (c = 0; c < nconss; ++c)
    {
+      int nfixednonz = 0;
+
       assert( conss[c] != NULL );
       assert( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") == 0);
 
@@ -1475,15 +1474,13 @@ SCIP_RETCODE fixAndAggrVars(
       SCIP_CALL( SCIPallocBufferArray(scip, &savedrow, consdata->nnonz) );
       SCIP_CALL( SCIPallocBufferArray(scip, &savedval, consdata->nnonz) );
 
-      /* initialize this with zero for each block */
-      nfixednonz = 0;
-
       vararraylength = consdata->nvars;
       globalnvars = SCIPgetNVars(scip);
 
       for (v = 0; v < consdata->nvars; v++)/*lint --e{850}*/
       {
-         negated = FALSE;
+         SCIP_Bool negated = FALSE;
+
          /* if the variable is negated, get the negation var */
          if ( SCIPvarIsBinary(consdata->vars[v]) && SCIPvarIsNegated(consdata->vars[v]) )
          {
@@ -1498,9 +1495,9 @@ SCIP_RETCODE fixAndAggrVars(
          {
             assert( SCIPisEQ(scip, SCIPvarGetLbGlobal(var), SCIPvarGetUbGlobal(var)) );
 
-            SCIPdebugMessage("Globally fixing Variable %s to value %f !\n", SCIPvarGetName(var), SCIPvarGetLbGlobal(var));
+            SCIPdebugMessage("Treating globally fixed variable %s with value %f!\n", SCIPvarGetName(var), SCIPvarGetLbGlobal(var));
 
-            if ( ((! negated) && (! SCIPisEQ(scip, SCIPvarGetLbGlobal(var), 0.0))) || (negated && SCIPisEQ(scip, SCIPvarGetLbGlobal(var), 0.0)) )
+            if ( (! negated && ! SCIPisEQ(scip, SCIPvarGetLbGlobal(var), 0.0)) || (negated && SCIPisEQ(scip, SCIPvarGetLbGlobal(var), 0.0)) )
             {
                /* the nonzeros are saved to later be inserted into the constant part (this is only done after all nonzeros of fixed variables have been
                 * assembled, because we need to sort the constant nonzeros and loop over them, which we only want to do once and not once for each fixed
@@ -1509,6 +1506,7 @@ SCIP_RETCODE fixAndAggrVars(
                {
                   savedcol[nfixednonz] = consdata->col[v][i];
                   savedrow[nfixednonz] = consdata->row[v][i];
+
                   /* this is the final value to add, we no longer have to remember from which variable this comes, minus because we have +A_i but -A_0 */
                   if ( ! negated )
                      savedval[nfixednonz] = consdata->val[v][i] * SCIPvarGetLbGlobal(var);
@@ -1524,6 +1522,7 @@ SCIP_RETCODE fixAndAggrVars(
                /* if the variable is fixed to zero, the nonzeros will just vanish, so we only reduce the number of nonzeros */
                consdata->nnonz -= consdata->nvarnonz[v];
             }
+
             /* free the memory of the corresponding entries in col/row/val */
             SCIPfreeBlockMemoryArrayNull(scip, &(consdata->val[v]), consdata->nvarnonz[v]);
             SCIPfreeBlockMemoryArrayNull(scip, &(consdata->row[v]), consdata->nvarnonz[v]);
@@ -1539,15 +1538,13 @@ SCIP_RETCODE fixAndAggrVars(
             consdata->nvars--;
             v--; /* we need to check again if the variable we just shifted to this position also needs to be fixed */
          }
-         else if ( (SCIPvarGetStatus(var) == SCIP_VARSTATUS_AGGREGATED ||
-                   SCIPvarGetStatus(var) == SCIP_VARSTATUS_MULTAGGR)
-                  && aggregate )
+         else if ( aggregate && (SCIPvarGetStatus(var) == SCIP_VARSTATUS_AGGREGATED || SCIPvarGetStatus(var) == SCIP_VARSTATUS_MULTAGGR) )
          {
             SCIP_CALL( SCIPallocBufferArray(scip, &aggrvars, globalnvars) );
             SCIP_CALL( SCIPallocBufferArray(scip, &scalars, globalnvars) );
 
             /* this is how they should be initialized before calling SCIPgetProbvarLinearSum */
-            if (! negated)
+            if ( ! negated )
             {
                aggrvars[0] = consdata->vars[v];
                naggrvars = 1;
@@ -1556,7 +1553,7 @@ SCIP_RETCODE fixAndAggrVars(
             }
             else
             {
-               /* if this variable is the negation of var, than we look for a representation of 1-var */
+               /* if this variable is the negation of var, than we look for a representation of 1.0 - var */
                aggrvars[0] = consdata->vars[v];
                naggrvars = 1;
                constant = 1.0;
@@ -1586,12 +1583,11 @@ SCIP_RETCODE fixAndAggrVars(
             SCIPfreeBufferArray(scip, &aggrvars);
             SCIPfreeBufferArray(scip, &scalars);
          }
-         else if ( negated && (SCIPvarGetStatus(var) == SCIP_VARSTATUS_LOOSE || SCIPvarGetStatus(var) == SCIP_VARSTATUS_COLUMN)
-                  && aggregate)
+         else if ( negated && (SCIPvarGetStatus(var) == SCIP_VARSTATUS_LOOSE || SCIPvarGetStatus(var) == SCIP_VARSTATUS_COLUMN) && aggregate)
          {
              /* if var1 is the negation of var2, then this is equivalent to it being aggregated to -var2 + 1 = 1 - var2 */
 
-            SCIPdebugMessage("Changing variable %s to negation of variable %s !\n", SCIPvarGetName(consdata->vars[v]), SCIPvarGetName(var));
+            SCIPdebugMessage("Changing variable %s to negation of variable <%s>!\n", SCIPvarGetName(consdata->vars[v]), SCIPvarGetName(var));
 
             scalar = -1.0;
 
@@ -3716,6 +3712,7 @@ SCIP_RETCODE SCIPconsSdpComputeSparseSdpMatrix(
             *length, nnonz);
       return SCIP_ERROR;
    }
+
    for (i = 0; i < consdata->constnnonz; i++)
    {
       row[i] = consdata->constrow[i];
