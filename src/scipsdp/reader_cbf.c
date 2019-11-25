@@ -909,9 +909,11 @@ SCIP_RETCODE CBFreadFcoord(
                      SCIPABORT();
                      return SCIP_READERROR; /*lint !e527*/
                   }
+                  else if ( row == col )
+                     SCIP_CALL( SCIPaddCoefLinear(scip, data->createdconss[c], data->createdpsdvars[v][row][col], val) );/*lint !e732*//*lint !e747*/
                   else
                   {
-                     SCIP_CALL( SCIPaddCoefLinear(scip, data->createdconss[c], data->createdpsdvars[v][row][col], val) );/*lint !e732*//*lint !e747*/
+                     SCIP_CALL( SCIPaddCoefLinear(scip, data->createdconss[c], data->createdpsdvars[v][row][col], 2*val) );/*lint !e732*//*lint !e747*/
                   }
                }
             }
