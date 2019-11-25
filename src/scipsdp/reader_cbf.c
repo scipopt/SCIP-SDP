@@ -1339,8 +1339,6 @@ SCIP_RETCODE CBFreadHcoord(
             }
 
             assert( nextindaftervar == data->sdpnblocknonz[b] );
-
-            SCIPfreeBlockMemoryArray(scip, &(sdpvar[b]), nnonz);
          }
 
          /* auxiliary sdp blocks (reformulation of psd variables) */
@@ -1377,12 +1375,13 @@ SCIP_RETCODE CBFreadHcoord(
                   }
                }
                assert( varidx == data->sdpnblocknonz[b] );
-
-               SCIPfreeBlockMemoryArray(scip, &(sdpvar[b]), nnonz);
             }
          }
 
          /* free SDP-var array which is no longer needed */
+         for (b = 0; b < data->nsdpblocks; b++)
+            SCIPfreeBlockMemoryArray(scip, &(sdpvar[b]), data->nnonz);
+
          SCIPfreeBlockMemoryArray(scip, &sdpvar, data->nsdpblocks);
       }
       else
