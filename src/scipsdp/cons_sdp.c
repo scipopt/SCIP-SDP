@@ -112,8 +112,7 @@ struct SCIP_ConsData
    SCIP_Real*            constval;           /**< values of the constant nonzeros */
    SCIP_Real             maxrhsentry;        /**< maximum entry of constant matrix (needed for DIMACS error norm) */
    SCIP_Bool             rankone;            /**< should matrix be rank one? */
-   int*                  maxevsubmat;        /**< two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] */
-   SCIP_CONS***          quadconss;          /**< quadratic constraints for all 2x2 principal minors to be equal to 0 */
+   int*                  maxevsubmat         /**< two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] */
 };
 
 /** SDP constraint handler data */
@@ -2151,22 +2150,14 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
       assert( consdata != NULL );
       assert( &consdata->maxevsubmat != NULL );
       assert( &consdata->rankone != NULL );
-      assert( &consdata->quadconss != NULL );
 
       /* SCIP_CALL( SCIPallocBlockMemory(scip, &maxevsubmat) ); */
-
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->quadconss, consdata->blocksize) );
-
-      for (i = 0; i < consdata->blocksize; ++i)
-      {
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->quadconss[i], i + 1));
-      }
 
       consdata->maxevsubmat[0] = -1;
       consdata->maxevsubmat[1] = -1;
 
-      /* For each constraint, if it should be rank one, store all quadratic constraints given by the 2x2 principal
-         minors in an array. */
+      /* For each constraint, if it should be rank one, add all quadratic constraints given by the 2x2 principal
+         minors. */
       if ( consdata->rankone && conshdlrdata->quadconsrank1 )
       {
          SCIP_VAR**  quadvars1;
@@ -2256,9 +2247,7 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
 #endif
 
                SCIP_CALL( SCIPaddCons(scip, quadcons) );
-
-               /* save created constraint in array */
-               consdata->quadconss[i][j] = quadcons;
+               SCIP_CALL( SCIPreleaseCons(scip, &quadcons) );
             }
          }
          for (i = 0; i < consdata->nvars; ++i)
@@ -2276,13 +2265,11 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
    return SCIP_OKAY;
 }
 
-/** at the end of the solution process the stored rank one submatrix is reset and the quadratic constraints for the 2x2
-    principal minors are freed */
+/** at the end of the solution process the stored rank one submatrix is reset */
 static
 SCIP_DECL_CONSEXITSOL(consExitsolSdp)
 {  /*lint --e{715}*/
    SCIP_CONSHDLRDATA* conshdlrdata;
-   int c;
 
    assert( scip != NULL );
    assert( conshdlr != NULL );
@@ -2291,31 +2278,6 @@ SCIP_DECL_CONSEXITSOL(consExitsolSdp)
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert(conshdlrdata != NULL);
 
-   /* free quadratic constraints for 2x2 principal minors */
-   if ( conshdlrdata->quadconsrank1 )
-   {
-      for (c = 0; c < nconss; ++c)
-      {
-         SCIP_CONSDATA* consdata;
-         int i;
-         int j;
-
-         consdata = SCIPconsGetData(conss[c]);
-         assert( consdata != NULL );
-         assert( &consdata->quadconss != NULL );
-
-         for (i = 0; i < consdata->blocksize; ++i)
-         {
-            for (j = 0; j < i; ++j)
-            {
-               SCIP_CALL( SCIPreleaseCons(scip, &consdata->quadconss[i][j]) );
-            }
-            SCIPfreeBlockMemoryArray(scip, &consdata->quadconss[i], i+1);
-         }
-
-         SCIPfreeBlockMemoryArrayNull(scip, &consdata->quadconss, consdata->blocksize);
-      }
-   }
    return SCIP_OKAY;
 }
 
