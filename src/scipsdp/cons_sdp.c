@@ -3052,6 +3052,11 @@ SCIP_DECL_CONSPARSE(consParseSdp)
    for (v = 0; v < consdata->nvars; v++)
       consdata->nnonz += consdata->nvarnonz[v];
 
+   /* set maxevsubmat */
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->maxevsubmat, 2) );
+   consdata->maxevsubmat[0] = -1;
+   consdata->maxevsubmat[1] = -1;
+
    /* create the constraint */
    SCIP_CALL( SCIPcreateCons(scip, cons, name, conshdlr, consdata, initial, separate, enforce, check, propagate, local, modifiable,
          dynamic, removable, stickingatnode) );
