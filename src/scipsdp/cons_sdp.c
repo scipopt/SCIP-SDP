@@ -2510,15 +2510,15 @@ SCIP_DECL_CONSENFOPS(consEnfopsSdp)
 		   SCIP_CALL( isMatrixRankOne(scip, conss[i], sol, &isRankOne) );
 		   if ( ! isRankOne )
 		   {
-                      /* TODO: raise ERROR, if in the matrix the LMI is representing, there are entries that do not have
-                         exactly one variable! */
-                      /* printf("ENFOPS: Matrix is not rank 1!\n"); */
-                      SCIP_CALL( EnforceRankOne(scip, conshdlr, conss[i], sol, result) );
+                      /* SCIP_CALL( EnforceRankOne(scip, conshdlr, conss[i], sol, result) ); */
+                      *result = SCIP_INFEASIBLE;
 
                       return SCIP_OKAY;
 		   }
 	   }
    }
+
+   *result = SCIP_FEASIBLE;
 
    SCIPdebugMessage("-> pseudo solution feasible for all SDP-constraints.\n");
 
