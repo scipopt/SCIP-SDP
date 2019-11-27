@@ -1756,7 +1756,7 @@ SCIP_RETCODE EnforceRankOne(
 
          SCIP_CALL( SCIPflushRowExtensions(scip, cut) );
 
-         if ( SCIPisCutEfficacious(scip, NULL, cut) )
+         if ( SCIPisCutEfficacious(scip, sol, cut) )
          {
             SCIP_CALL( SCIPaddRow(scip, cut, FALSE, &infeasible) );
 
@@ -1810,7 +1810,7 @@ SCIP_RETCODE EnforceRankOne(
 
          SCIP_CALL( SCIPflushRowExtensions(scip, cut) );
 
-         if ( SCIPisCutEfficacious(scip, NULL, cut) )
+         if ( SCIPisCutEfficacious(scip, sol, cut) )
          {
             SCIP_CALL( SCIPaddRow(scip, cut, FALSE, &infeasible) );
 
