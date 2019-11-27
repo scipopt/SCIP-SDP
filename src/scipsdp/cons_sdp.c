@@ -90,7 +90,7 @@
 #define DEFAULT_BRANCHBNDCHG        0.5 /**< Parameter for branching on the variable bounds in the rank-1 case */
 #define DEFAULT_VALIDINEQSRANK1    TRUE /**< Should valid inequalities from Chen et al. be checked in the rank-1 case? */
 #define DEFAULT_QUADCONSRANK1      TRUE /**< Should quadratic cons for 2x2 minors be added in the rank-1 case? */
-#define DEFAULT_BRANCHRANK1        TRUE /**< Should be branched on the matrix variables of 2x2 submatrices in the rank-1 case? */
+#define DEFAULT_BRANCHRANK1        FALSE /**< Should be branched on the matrix variables of 2x2 submatrices in the rank-1 case? */
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
 #endif
