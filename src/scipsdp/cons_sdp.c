@@ -2820,6 +2820,9 @@ SCIP_DECL_CONSPRINT(consPrintSdp)
    }
    SCIPinfoMessage(scip, file, ">=0\n");
 
+   /* print rank1 information */
+   SCIPinfoMessage(scip, file, "rank-1? %d\n", consdata->rankone);
+
    SCIPfreeBufferArray(scip, &fullmatrix);
 
    return SCIP_OKAY;
@@ -2835,6 +2838,9 @@ SCIP_DECL_CONSPRINT(consPrintSdp)
 
    /* print blocksize */
    SCIPinfoMessage(scip, file, "%d\n", consdata->blocksize);
+
+   /* print rank1 information */
+   SCIPinfoMessage(scip, file, "rank-1? %d\n", consdata->rankone);
 
    /* print A_0 if it exists */
    if ( consdata->constnnonz > 0 )
@@ -2884,6 +2890,7 @@ SCIP_DECL_CONSPARSE(consParseSdp)
    int nvars;
    int i;
    int v;
+   int rankoneint;
 
    assert( scip != NULL );
    assert( str != NULL );
@@ -2898,6 +2905,7 @@ SCIP_DECL_CONSPARSE(consParseSdp)
    consdata->nvars = 0;
    consdata->nnonz = 0;
    consdata->constnnonz = 0;
+   consdata->rankone = 0;
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->nvarnonz, nvars) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->col, nvars) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->row, nvars) );
@@ -2914,6 +2922,23 @@ SCIP_DECL_CONSPARSE(consParseSdp)
    /* skip whitespace */
    while( isspace((unsigned char)*pos) )
       pos++;
+
+   /* parse the rank1-information */
+   /* if ( strncmp(pos, 'rank-1?', 10) == 0 ) */
+   if ( pos[0] == 'r' && pos[1] == 'a' && pos[2] == 'n' && pos[3] == 'k' && pos[4] == '-' && pos[5] == '1' && pos[6] == '?')
+   {
+      pos += 8;                 /* we skip "rank1-? " */
+      parsesuccess = SCIPstrToIntValue(pos, &rankoneint, &pos);
+      consdata->rankone = (SCIP_Bool) rankoneint;
+      *success = *success && parsesuccess;
+
+      printf("rank-1? %d\n", rankoneint);
+   }
+
+   /* skip whitespace */
+   while( isspace((unsigned char)*pos) )
+      pos++;
+
 
    /* check if there is a constant part */
    if ( pos[0] == 'A' && pos[1] == '_' && pos[2] == '0' )
