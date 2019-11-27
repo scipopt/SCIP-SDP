@@ -3234,6 +3234,7 @@ int SCIPconsSdpCompLowerTriangPos(
  *  In arraylength the length of the nvarnonz, col, row and val arrays has to be given, if it is not sufficient to store all block-pointers that
  *  need to be inserted, a debug message will be thrown and this variable will be set to the needed length.
  *  constnnonz should give the length of the const arrays, if it is too short it will also give the needed number and a debug message is thrown.
+ *  rankone and maxevsubmat can be NULL-pointers, if the corresponding information is not needed.
  */
 SCIP_RETCODE SCIPconsSdpGetData(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -3252,9 +3253,9 @@ SCIP_RETCODE SCIPconsSdpGetData(
                                                *  the const arrays */
    int*                  constcol,           /**< pointer to store the column indices of the constant nonzeros */
    int*                  constrow,           /**< pointer to store the row indices of the constant nonzeros */
-   SCIP_Real*            constval            /**< pointer to store the values of the constant nonzeros */
-   /* SCIP_Bool*            rankone,            /\**< pointer to store if matrix should be rank one *\/ */
-   /* int**                 maxevsubmat         /\**< pointer to store two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] *\/ */
+   SCIP_Real*            constval,           /**< pointer to store the values of the constant nonzeros */
+   SCIP_Bool*            rankone,            /**< pointer to store if matrix should be rank one */
+   int**                 maxevsubmat         /**< pointer to store two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] */
    )
 {
    SCIP_CONSDATA* consdata;
@@ -3273,8 +3274,6 @@ SCIP_RETCODE SCIPconsSdpGetData(
    assert( val != NULL );
    assert( vars != NULL );
    assert( constnnonz != NULL );
-   /* assert( rankone != NULL ); */
-   /* assert( maxevsubmat != NULL ); */
 
    consdata = SCIPconsGetData(cons);
    name = SCIPconsGetName(cons);
@@ -3328,12 +3327,14 @@ SCIP_RETCODE SCIPconsSdpGetData(
 
    *constnnonz = consdata->constnnonz;
 
-   /* @TODO: Is it needed to get the rankone and maxevsubmat information elsewhere? If yes, this should be included in
-      SCIPconsSdpGetData, and the calls to this function need to be modified. Else, no changes are required. */
-
-   /* *rankone = consdata->rankone; */
-   /* *maxevsubmat[0] = consdata->maxevsubmat[0]; */
-   /* *maxevsubmat[1] = consdata->maxevsubmat[1]; */
+   /* set the information about rankone and the current submatrix with largest minimal eigenvalue ([-1,-1] if not yet
+      computed) */
+   if ( rankone != NULL && maxevsubmat != NULL )
+   {
+      *rankone = consdata->rankone;
+      *maxevsubmat[0] = consdata->maxevsubmat[0];
+      *maxevsubmat[1] = consdata->maxevsubmat[1];
+   }
 
    return SCIP_OKAY;
 }
@@ -3772,37 +3773,6 @@ SCIP_RETCODE SCIPconsSdpGetMaxEVSubmat(
    return SCIP_OKAY;
 }
 
-/* /\** returns array with quadratic constraints for 2x2 principal minors [only available, if conshdlrdata->quadconsrank1 = 1] *\/ */
-/* SCIP_RETCODE SCIPconsSdpGetQuadconss( */
-/*    SCIP*                 scip,               /\**< SCIP data structure *\/ */
-/*    SCIP_CONS*            cons,               /\**< the constraint for which the quadratic constraints should be returned *\/ */
-/*    SCIP_CONS****         quadconss           /\**< pointer to store quadratic constraints for all 2x2 principal minors *\/ */
-/* ) */
-/* { */
-/*    SCIP_CONSDATA* consdata; */
-/*    SCIP_CONSHDLR* conshdlr; */
-/*    SCIP_CONSHDLRDATA* conshdlrdata; */
-
-/*    assert( cons != NULL ); */
-
-/*    consdata = SCIPconsGetData(cons); */
-/*    assert( consdata != NULL ); */
-/*    assert( quadconss != NULL ); */
-
-/*    conshdlr = SCIPconsGetHdlr(cons); */
-/*    conshdlrdata = SCIPconshdlrGetData(conshdlr); */
-
-/*    if ( conshdlrdata->quadconsrank1 && consdata->rankone ) */
-/*       *quadconss = consdata->quadconss; */
-/*    else */
-/*    { */
-/*       SCIPerrorMessage("Tried to get quadratic constraints for 2x2 principal minors even if  constraint should not be rank1 or quadratic constraints are turned off!\n"); */
-/*       return SCIP_ERROR; */
-/*    } */
-
-/*    return SCIP_OKAY; */
-/* } */
-
 /** creates an SDP-constraint */
 SCIP_RETCODE SCIPcreateConsSdp(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -3821,7 +3791,6 @@ SCIP_RETCODE SCIPcreateConsSdp(
    int*                  constrow,           /**< row indices of the constant nonzeros */
    SCIP_Real*            constval,           /**< values of the constant nonzeros */
    SCIP_Bool             rankone             /**< should matrix be rank one? */
-   /* int*                  maxevsubmat         /\**< two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] *\/ */
    )
 {
    SCIP_CONSHDLR* conshdlr;
