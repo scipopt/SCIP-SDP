@@ -1766,14 +1766,14 @@ SCIP_RETCODE EnforceRankOne(
                *result = SCIP_SEPARATED;
 
             SCIPdebug( SCIP_CALL( SCIPprintRow(scip, cut, NULL) ) );
-            /* printf("Succesfully added valid cut based on first valid inequality\n"); */
+            SCIPdebugMessage("Succesfully added valid cut based on first valid inequality\n");
             SCIP_CALL( SCIPreleaseRow(scip, &cut) );
 
             SCIP_CALL( SCIPresetConsAge(scip, cons) );
          }
          else
          {
-            /* printf("Cut based on first inequality is not efficacious\n"); */
+            SCIPdebugMessage("Cut based on first inequality is not efficacious\n");
             SCIP_CALL( SCIPreleaseRow(scip, &cut) );
          }
       }
@@ -1820,14 +1820,14 @@ SCIP_RETCODE EnforceRankOne(
                *result = SCIP_SEPARATED;
 
             SCIPdebug( SCIP_CALL( SCIPprintRow(scip, cut, NULL) ) );
-            /* printf("Succesfully added valid cut based on second valid inequality\n"); */
+            SCIPdebugMessage("Succesfully added valid cut based on second valid inequality\n");
             SCIP_CALL( SCIPreleaseRow(scip, &cut) );
 
             SCIP_CALL( SCIPresetConsAge(scip, cons) );
          }
          else
          {
-            /* printf("Cut based on second inequality is not efficacious\n"); */
+            SCIPdebugMessage("Cut based on second inequality is not efficacious\n");
             SCIP_CALL( SCIPreleaseRow(scip, &cut) );
          }
       }
@@ -2016,22 +2016,22 @@ SCIP_RETCODE EnforceConstraint(
    /* check for rank one if necessary */
    for (i = 0; i < nconss; ++i)
    {
-	   consdata = SCIPconsGetData(conss[i]);
-	   if ( consdata->rankone )
-           {
-		   SCIP_Bool isRankOne = FALSE;
+      consdata = SCIPconsGetData(conss[i]);
+      if ( consdata->rankone )
+      {
+         SCIP_Bool isRankOne = FALSE;
 
-		   SCIP_CALL( isMatrixRankOne(scip, conss[i], sol, &isRankOne) );
-		   if ( ! isRankOne )
-		   {
-                      /* TODO: raise ERROR, if in the matrix the LMI is representing, there are entries that do not have
-                         exactly one variable! */
-                      /* printf("EnforceConstraint: Matrix is not rank 1!\n"); */
-                      SCIP_CALL( EnforceRankOne(scip, conshdlr, conss[i], sol, result) );
+         SCIP_CALL( isMatrixRankOne(scip, conss[i], sol, &isRankOne) );
+         if ( ! isRankOne )
+         {
+            /* TODO: raise ERROR, if in the matrix the LMI is representing, there are entries that do not have
+               exactly one variable! */
+            /* printf("EnforceConstraint: Matrix is not rank 1!\n"); */
+            SCIP_CALL( EnforceRankOne(scip, conshdlr, conss[i], sol, result) );
 
-                      return SCIP_OKAY;
-		   }
-	   }
+            return SCIP_OKAY;
+         }
+      }
    }
 
    return SCIP_OKAY;
@@ -2238,8 +2238,18 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
                lhs = cij * cij - cii * cjj;
 
                (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "quadcons#%d#%d#%d", i, j, c);
-               /* create quadratic constraint, with initial=FALSE, separate=FALSE, enforce=FALSE, check=FALSE, propagate=TRUE, local=FALSE, modifiable=FALSE, dynamic=FALSE, removable=TRUE */
-               SCIP_CALL( SCIPcreateConsQuadratic(scip, &quadcons, name, consdata->nvars, linvars, lincoefs, consdata->nvars * consdata->nvars, quadvars1, quadvars2, quadcoefs, lhs, lhs, FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE) );
+
+               /* create quadratic constraint */
+               SCIP_CALL( SCIPcreateConsQuadratic(scip, &quadcons, name, consdata->nvars, linvars, lincoefs, consdata->nvars * consdata->nvars, quadvars1, quadvars2, quadcoefs, lhs, lhs,
+                     FALSE,     /* initial */
+                     FALSE,     /* separate */
+                     FALSE,     /* enforce */
+                     FALSE,     /* check */
+                     TRUE,      /* propagate */
+                     FALSE,     /* local */
+                     FALSE,     /* modifiable */
+                     FALSE,     /* dynamic */
+                     TRUE) );   /* removable */
 
 #ifdef SCIP_MORE_DEBUG
                SCIP_CALL( SCIPprintCons(scip, quadcons, NULL) );
@@ -2502,20 +2512,20 @@ SCIP_DECL_CONSENFOPS(consEnfopsSdp)
    /* check for rank one if necessary */
    for (i = 0; i < nconss; ++i)
    {
-	   consdata = SCIPconsGetData(conss[i]);
-	   if ( consdata->rankone )
-	   {
-		   SCIP_Bool isRankOne = FALSE;
+      consdata = SCIPconsGetData(conss[i]);
+      if ( consdata->rankone )
+      {
+         SCIP_Bool isRankOne = FALSE;
 
-		   SCIP_CALL( isMatrixRankOne(scip, conss[i], sol, &isRankOne) );
-		   if ( ! isRankOne )
-		   {
-                      /* SCIP_CALL( EnforceRankOne(scip, conshdlr, conss[i], sol, result) ); */
-                      *result = SCIP_INFEASIBLE;
+         SCIP_CALL( isMatrixRankOne(scip, conss[i], sol, &isRankOne) );
+         if ( ! isRankOne )
+         {
+            /* SCIP_CALL( EnforceRankOne(scip, conshdlr, conss[i], sol, result) ); */
+            *result = SCIP_INFEASIBLE;
 
-                      return SCIP_OKAY;
-		   }
-	   }
+            return SCIP_OKAY;
+         }
+      }
    }
 
    *result = SCIP_FEASIBLE;
