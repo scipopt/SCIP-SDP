@@ -2212,8 +2212,6 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
                }
                assert( cnt == consdata->nvars * consdata->nvars );
 
-               /* printf("ind1 = %d, ind2 = %d, quadvars1[0] = %s, quadvars2[0] = %s, quadvars1[1] = %s, quadvars2[1] = %s\n", i, j, SCIPvarGetName(quadvars1[0]), SCIPvarGetName(quadvars2[0]), SCIPvarGetName(quadvars1[1]), SCIPvarGetName(quadvars2[1]) ); */
-
                lhs = cij * cij - cii * cjj;
 
                (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "quadcons#%d#%d#%d", i, j, c);
@@ -2221,9 +2219,9 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
                /* create quadratic constraint */
                SCIP_CALL( SCIPcreateConsQuadratic(scip, &quadcons, name, consdata->nvars, linvars, lincoefs, consdata->nvars * consdata->nvars, quadvars1, quadvars2, quadcoefs, lhs, lhs,
                      FALSE,     /* initial */
-                     FALSE,     /* separate */
-                     FALSE,     /* enforce */
-                     FALSE,     /* check */
+                     TRUE,     /* separate */
+                     TRUE,     /* enforce */
+                     TRUE,     /* check */
                      TRUE,      /* propagate */
                      FALSE,     /* local */
                      FALSE,     /* modifiable */
