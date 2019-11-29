@@ -79,6 +79,7 @@ struct SCIP_PropData
    long long int         lastnode;           /**< the last node we ran for */
    SCIP_Real             lastcufoffbound;    /**< the last cutoffbound we ran for */
    SCIP_Real             sdpsolvergaptol;    /**< gap tolerance of the underlying SDP solver */
+   SCIP_Bool             propenabled;        /**< whether propagator is enabled */
 };
 
 
@@ -187,7 +188,13 @@ SCIP_DECL_PROPINITSOL(propInitsolSdpObbt)
 
    propdata = SCIPpropGetData(prop);
 
-   SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolvergaptol", &(propdata->sdpsolvergaptol)) );
+   if ( SCIPfindRelax(scip, "SDP") == NULL )
+      propdata->propenabled = FALSE;
+   else
+   {
+      propdata->propenabled = TRUE;
+      SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolvergaptol", &(propdata->sdpsolvergaptol)) );
+   }
 
    return SCIP_OKAY;
 }
@@ -224,6 +231,9 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
    assert( propdata != NULL );
 
    *result = SCIP_DIDNOTRUN;
+
+   if ( ! propdata->propenabled )
+      return SCIP_OKAY;
 
    SCIPdebugMsg(scip, "Executing propExecSdpObbt! \n");
 
@@ -531,6 +541,7 @@ SCIP_RETCODE SCIPincludePropSdpObbt(
    propdata = NULL;
    SCIP_CALL( SCIPallocMemory(scip, &propdata) );
    propdata->lastnode = -1;
+   propdata->propenabled = TRUE;
 
    /* include propagator */
    /* use SCIPincludePropBasic() plus setter functions if you want to set callbacks one-by-one and your code should
