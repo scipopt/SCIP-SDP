@@ -2013,27 +2013,6 @@ SCIP_RETCODE EnforceConstraint(
 	   return SCIP_OKAY;
    }
 
-   /* check for rank one if necessary */
-   for (i = 0; i < nconss; ++i)
-   {
-      consdata = SCIPconsGetData(conss[i]);
-      if ( consdata->rankone )
-      {
-         SCIP_Bool isRankOne = FALSE;
-
-         SCIP_CALL( isMatrixRankOne(scip, conss[i], sol, &isRankOne) );
-         if ( ! isRankOne )
-         {
-            /* TODO: raise ERROR, if in the matrix the LMI is representing, there are entries that do not have
-               exactly one variable! */
-            /* printf("EnforceConstraint: Matrix is not rank 1!\n"); */
-            SCIP_CALL( EnforceRankOne(scip, conshdlr, conss[i], sol, result) );
-
-            return SCIP_OKAY;
-         }
-      }
-   }
-
    return SCIP_OKAY;
 }
 
@@ -2452,25 +2431,6 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
          return SCIP_OKAY;
    }
 
-
-   /* check for rank one if necessary */
-   for (i = 0; i < nconss; ++i)
-   {
-      consdata = SCIPconsGetData(conss[i]);
-      if ( consdata->rankone )
-      {
-         SCIP_Bool isRankOne = FALSE;
-
-         SCIP_CALL( isMatrixRankOne(scip, conss[i], sol, &isRankOne) );
-         if ( ! isRankOne )
-         {
-            *result = SCIP_INFEASIBLE;
-            SCIPdebugMessage("CONSCHECK: Matrix is not rank 1!\n");
-            return SCIP_OKAY;
-         }
-      }
-   }
-
    return SCIP_OKAY;
 }
 
@@ -2506,25 +2466,6 @@ SCIP_DECL_CONSENFOPS(consEnfopsSdp)
          /* if it is infeasible for one SDP constraint, it is infeasible for the whole problem */
          SCIPdebugMessage("-> pseudo solution infeasible for SDP-constraint %s, return.\n", SCIPconsGetName(conss[i]));
          return SCIP_OKAY;
-      }
-   }
-
-   /* check for rank one if necessary */
-   for (i = 0; i < nconss; ++i)
-   {
-      consdata = SCIPconsGetData(conss[i]);
-      if ( consdata->rankone )
-      {
-         SCIP_Bool isRankOne = FALSE;
-
-         SCIP_CALL( isMatrixRankOne(scip, conss[i], sol, &isRankOne) );
-         if ( ! isRankOne )
-         {
-            /* SCIP_CALL( EnforceRankOne(scip, conshdlr, conss[i], sol, result) ); */
-            *result = SCIP_INFEASIBLE;
-
-            return SCIP_OKAY;
-         }
       }
    }
 
