@@ -76,7 +76,6 @@ struct CBF_Data
 {
    int                   npsdvars;           /**< number of psd variables and length of createdpsdvars-array  */
    int*                  psdvarsizes;        /**< sizes of the psd variables */
-   /* int                   maxpsdvarsize;      /\**< size of the largest psd variable *\/ */
    SCIP_VAR****          createdpsdvars;     /**< array of psd variables created by the CBF reader */
    SCIP_Bool             noorigsdpcons;      /**< are there SDP constraints specified in the CBF file?  */
 
@@ -338,8 +337,6 @@ SCIP_RETCODE CBFreadPsdvar(
       assert( data->npsdvars >= 0 );
    }
 
-   /* assert( data->maxpsdvarsize < 0 ); */
-
    /* loop through different psd variables */
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdpsdvars), data->npsdvars) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->psdvarsizes), data->npsdvars) );
@@ -356,11 +353,6 @@ SCIP_RETCODE CBFreadPsdvar(
          int nscalarvars = sizepsdvar * (sizepsdvar + 1) * 0.5;
 
          data->psdvarsizes[t] = sizepsdvar;
-
-         /* if ( sizepsdvar > data->maxpsdvarsize ) */
-         /* { */
-         /*    data->maxpsdvarsize = sizepsdvar; */
-         /* } */
 
          SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdpsdvars[t]), sizepsdvar) );
 
@@ -433,8 +425,6 @@ SCIP_RETCODE CBFreadCon(
    assert( data != NULL );
 
    SCIP_CALL( CBFfgets(pfile, linecount) );
-
-   /* TODO: can only be used after PSDVAR, VAR! */
 
    if ( sscanf(CBF_LINE_BUFFER, "%i %i", &(data->nconss), &nconstypes) != 2 )
       return SCIP_READERROR;
@@ -1736,7 +1726,6 @@ SCIP_DECL_READERREAD(readerReadCbf)
    data->nconss = -1;
    data->nvars = -1;
    data->npsdvars = -1;
-   /* data->maxpsdvarsize = -1; */
    data->constnnonz = 0;
    data->nnonz = 0;
    data->noorigsdpcons= FALSE;
@@ -1831,18 +1820,11 @@ SCIP_DECL_READERREAD(readerReadCbf)
             {
                SCIPdebugMsg(scip, "Reading PSDVAR\n");
                SCIP_CALL( CBFreadPsdvar(scip, scipfile, &linecount, data) );
-
-               /* SCIPerrorMessage("SDPs in primal form currently not supported, please use PSDCON!\n"); */
-               /* SCIPABORT(); */
-               /* return SCIP_READERROR; /\*lint !e527*\/ */
             }
             else if ( strcmp(CBF_NAME_BUFFER, "OBJFCOORD") == 0 )
             {
                SCIPdebugMsg(scip, "Reading OBJFCOORD\n");
                SCIP_CALL( CBFreadObjfcoord(scip, scipfile, &linecount, data) );
-               /* SCIPerrorMessage("SDPs in primal form currently not supported, please use PSDCON!\n"); */
-               /* SCIPABORT(); */
-               /* return SCIP_READERROR; /\*lint !e527*\/ */
             }
             else if ( strcmp(CBF_NAME_BUFFER, "OBJACOORD") == 0 )
             {
@@ -1859,9 +1841,6 @@ SCIP_DECL_READERREAD(readerReadCbf)
             {
                SCIPdebugMsg(scip, "Reading FCOORD\n");
                SCIP_CALL( CBFreadFcoord(scip, scipfile, &linecount, data) );
-               /* SCIPerrorMessage("SDPs in primal form currently not supported, please use PSDCON!\n"); */
-               /* SCIPABORT(); */
-               /* return SCIP_READERROR; /\*lint !e527*\/ */
             }
             else if ( strcmp(CBF_NAME_BUFFER, "ACOORD") == 0 )
             {
