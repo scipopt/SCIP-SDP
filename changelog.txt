@@ -3,6 +3,7 @@ SCIP-SDP version 3.1.3
 
 interface:
 - changed name of shell to "SCIP-SDP"
+- increase output precision of CBF-files to 15 digits
 
 fixed bugs:
 - fixed bug with statistics output when no SDPs were solved
@@ -13,6 +14,12 @@ fixed bugs:
 features:
 - add error messages to SDPA-format reader
 - fix parsing of integer variables in SDPA-format
+
+makefile:
+- add project makefile in make/make.scipsdpproj
+- reorganize main makefile to use make.scipsdpproj
+- fix some minor issues in makefile concerning building with shared libraries
+- use lint files from SCIP
 
 
 SCIP-SDP version 3.1.2

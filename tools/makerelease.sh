@@ -15,6 +15,7 @@ tar --no-recursion --ignore-failed-read -cvzhf $NAME.tgz \
     --exclude="*~" \
     --exclude=".*" \
     $NAME/Makefile \
+    $NAME/make/make.scipsdpproj \
     $NAME/doc/scipsdp.dxy \
     $NAME/doc/xternal.c \
     $NAME/doc/layout.xml \

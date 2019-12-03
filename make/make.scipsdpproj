@@ -1,0 +1,212 @@
+#/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+#/*                                                                           */
+#/* This file is part of SCIPSDP - a solving framework for mixed-integer      */
+#/* semidefinite programs based on SCIP.                                      */
+#/*                                                                           */
+#/* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
+#/*                         EDOM, FAU Erlangen-Nürnberg                       */
+#/*               2014-2019 Discrete Optimization, TU Darmstadt               */
+#/*                                                                           */
+#/*                                                                           */
+#/* This program is free software; you can redistribute it and/or             */
+#/* modify it under the terms of the GNU Lesser General Public License        */
+#/* as published by the Free Software Foundation; either version 3            */
+#/* of the License, or (at your option) any later version.                    */
+#/*                                                                           */
+#/* This program is distributed in the hope that it will be useful,           */
+#/* but WITHOUT ANY WARRANTY; without even the implied warranty of            */
+#/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             */
+#/* GNU Lesser General Public License for more details.                       */
+#/*                                                                           */
+#/* You should have received a copy of the GNU Lesser General Public License  */
+#/* along with this program; if not, write to the Free Software               */
+#/* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.*/
+#/*                                                                           */
+#/*                                                                           */
+#/* Based on SCIP - Solving Constraint Integer Programs                       */
+#/* Copyright (C) 2002-2019 Zuse Institute Berlin                             */
+#/* SCIP is distributed under the terms of the SCIP Academic Licence,         */
+#/* see file COPYING in the SCIP distribution.                                */
+#/*                                                                           */
+#/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#@file    Makefile
+#@brief   Makefile to include in SCIP projects
+#@author  Sonja Mars
+#@author  Lars Schewe
+#@author  Marc Pfetsch
+#@author  Tristan Gally
+#@author  Ambros Gleixner
+#
+# This file contains the core methods to compile SCIPSDP. When using this
+# makefile for external projects, you need to define the makefile
+# variables SCIPSDPDIR prior to inclusion.
+#
+# The necessary SCIPSDP and SCIP libraries can be linked by adding
+# $(LINKCXXSCIPSDPALL) or $(LINKCCSCIPSDPALL) to your local linking command,
+# e.g. $(LINKCXX) ... $(LINKCXXSCIPSDPALL) $(LDFLAGS) if you use the C++ interface.
+
+# check whether SCIPSDPDIR exists
+ifeq ("$(wildcard $(SCIPSDPDIR))","")
+$(error Please set the makefile variable SCIPSDPDIR)
+endif
+
+SCIPSDPLIBDIR	=	$(SCIPSDPDIR)/lib
+
+#-----------------------------------------------------------------------------
+# own variables
+#-----------------------------------------------------------------------------
+
+SCIPSDPVERSION	=	3.1.2
+SCIPSDPGITHASH	=
+SDPS		=	none
+
+GCCWARN		+= 	-Wextra
+
+# parameters
+TIME     	=  	3600
+NODES           =       2100000000
+MEM		=	6144
+THREADS         =       1
+PERMUTE         =       0
+DISPFREQ	=	10000
+FEASTOL		=	default
+TEST		=	short
+SETTINGS        =       default
+CONTINUE	=	false
+LOCK		=	false
+VALGRIND	=	false
+CLIENTTMPDIR    =       /tmp
+OUTPUTDIR 	= 	/results
+OPTCOMMAND	=	optimize
+SOFTLINKS	=
+MAKESOFTLINKS	=	true
+OPENBLAS	=	true
+
+
+#-----------------------------------------------------------------------------
+# include default project Makefile from SCIP
+#-----------------------------------------------------------------------------
+
+SCIPDIR		= 	$(SCIPSDPDIR)/lib/scip
+
+# check whether SCIPDIR exists
+ifeq ("$(wildcard $(SCIPDIR))","")
+$(error Please add a soft-link to the SCIP directory as $(SCIPSDPDIR)/lib/scip)
+endif
+
+#-----------------------------------------------------------------------------
+# include default project Makefile from SCIP (need to do this twice, once to
+# find the correct binary, then, after getting the correct flags from the
+# binary (which is necessary since the ZIMPL flags differ from the default
+# if compiled with the SCIP Optsuite instead of SCIP), we need to set the
+# compile flags, e.g., for the ZIMPL library, which is again done in make.project
+#-----------------------------------------------------------------------------
+include $(SCIPDIR)/make/make.project
+
+# check whether SCIP binary exists
+ifeq ("$(wildcard $(SCIPDIR)/bin/scip.$(BASE).$(LPS).$(TPI)$(EXEEXTENSION))","")
+$(error Please compile SCIP with options LPS=$(LPS) SUFFIX=$(LINKLIBSUFFIX) OSTYPE=$(OSTYPE) ARCH=$(ARCH) COMP=$(COMP))
+endif
+
+SCIPVERSION		:=$(shell $(SCIPDIR)/bin/scip.$(BASE).$(LPS).$(TPI)$(EXEEXTENSION) -v | sed -e 's/$$/@/')
+override ARCH		:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* ARCH=\([^@]*\).*/\1/')
+override EXPRINT	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* EXPRINT=\([^@]*\).*/\1/')
+override GAMS		:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* GAMS=\([^@]*\).*/\1/')
+override GMP		:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* GMP=\([^@]*\).*/\1/')
+override SYM		:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* SYM=\([^@]*\).*/\1/')
+override IPOPT		:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* IPOPT=\([^@]*\).*/\1/')
+override IPOPTOPT	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* IPOPTOPT=\([^@]*\).*/\1/')
+override LPSCHECK	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* LPSCHECK=\([^@]*\).*/\1/')
+override LPSOPT 	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* LPSOPT=\([^@]*\).*/\1/')
+override NOBLKBUFMEM	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* NOBLKBUFMEM=\([^@]*\).*/\1/')
+override NOBLKMEM	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* NOBLKMEM=\([^@]*\).*/\1/')
+override NOBUFMEM	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* NOBUFMEM=\([^@]*\).*/\1/')
+override PARASCIP	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* PARASCIP=\([^@]*\).*/\1/')
+override READLINE	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* READLINE=\([^@]*\).*/\1/')
+override SANITIZE	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* SANITIZE=\([^@]*\).*/\1/')
+override ZIMPL		:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* ZIMPL=\([^@]*\).*/\1/')
+override ZIMPLOPT	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* ZIMPLOPT=\([^@]*\).*/\1/')
+override ZLIB		:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* ZLIB=\([^@]*\).*/\1/')
+include $(SCIPDIR)/make/make.project
+
+override DEBUGTOOL   =   none
+
+#-----------------------------------------------------------------------------
+# settings for SDP solver
+#-----------------------------------------------------------------------------
+
+ifeq ($(SHARED),true)
+LDFLAGS 	+= -lubsan
+ifneq ($(LINKRPATH),)
+ifneq ($(SCIPSDPINTERNAL),true)
+# If this makefile is used to build an external project, we use SCIPREALPATH.
+SCIPSDPREALPATH	=	$(realpath $(SCIPSDPDIR))
+LDFLAGS		+=	$(LINKRPATH)$(SCIPSDPREALPATH)/$(LIBDIR)/shared
+else
+# If this makefile is used to build SCIP, we use the variable ORIGIN,
+# which is replaced by the path of the binary at execution time.
+LDFLAGS		+=	$(LINKRPATH)\$$ORIGIN/../$(LIBDIR)/shared
+endif
+endif
+endif
+
+
+SDPIOPTIONS	=
+SDPIINC		=
+SDPILIB		=
+SDPICSRC	=
+SDPICCSRC	=
+SDPICCOBJ	=
+
+#-----------------------------------------------------------------------------
+# DSDP solver
+ifeq ($(SDPS),dsdp)
+SDPILIB		= 	$(SCIPSDPLIBDIR)/static/libdsdp.$(STATICLIBEXT) -llapack -lblas
+endif
+
+#-----------------------------------------------------------------------------
+# SDPA solver
+ifeq ($(SDPS),sdpa)
+ifeq ($(OPENBLAS),true)
+SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(SCIPSDPLIBDIR)/static/libdmumps.$(STATICLIBEXT) $(SCIPSDPLIBDIR)/static/libmumps_common.$(STATICLIBEXT) \
+			$(SCIPSDPLIBDIR)/static/libpord.$(STATICLIBEXT)	$(SCIPSDPLIBDIR)/static/libmpiseq.$(STATICLIBEXT) $(SCIPSDPLIBDIR)/shared/libopenblas.$(SHAREDLIBEXT).0 \
+			-Wl,-rpath,$(SCIPSDPDIR)/$(SCIPSDPLIBDIR)/static -Wl,-rpath,$(SCIPSDPDIR)/$(SCIPSDPLIBDIR)/shared -lgfortran -L/lib/x86_64-linux-gnu -lpthread -lgomp
+else
+SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(SCIPSDPLIBDIR)/static/libdmumps.$(STATICLIBEXT) $(SCIPSDPLIBDIR)/static/libmumps_common.$(STATICLIBEXT) \
+			$(SCIPSDPLIBDIR)/static/libpord.$(STATICLIBEXT)	$(SCIPSDPLIBDIR)/static/libmpiseq.$(STATICLIBEXT) -lgfortran -llapack -lblas
+endif
+endif
+
+#-----------------------------------------------------------------------------
+# MOSEK solver
+ifeq ($(SDPS),msk)
+BITEXT     	=  	$(word 2, $(subst _, ,$(ARCH)))
+SDPILIB		= 	-m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -Wl,-rpath=$(dir $(realpath $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) -llapack -lblas -pthread -lc -lm
+endif
+
+#-----------------------------------------------------------------------------
+# no solver
+ifeq ($(SDPS),none)
+SDPILIB		= 	-L$(SCIPSDPLIBDIR) -llapack -lblas
+endif
+
+#-----------------------------------------------------------------------------
+# SCIPSDP Library
+#-----------------------------------------------------------------------------
+
+SCIPSDPLIBSHORTNAME 	= 	scipsdp
+SCIPSDPLIB 		= 	$(SCIPSDPLIBSHORTNAME)-$(SCIPSDPVERSION).$(SDPS).$(BASE)
+SCIPSDPLIBFILE 		= 	$(SCIPSDPLIBDIR)/$(LIBTYPE)/lib$(SCIPSDPLIB).$(LIBEXT)
+
+#-----------------------------------------------------------------------------
+# total linking part for all of SCIPSDP
+#-----------------------------------------------------------------------------
+
+# link SCIPSDP for C++ projects
+LINKCXXSCIPSDPALL	=	$(LINKCXX_L)$(SCIPSDPDIR)/lib/$(LIBTYPE) $(LINKCXX_l)$(SCIPSDPLIB)$(LINKLIBSUFFIX) \
+				$(SDPILIB) $(LINKCXXSCIPALL)
+
+# link SCIP for C projects (including libobjscip)
+LINKCCSCIPSDPALL	=	$(LINKCXX_L)$(SCIPSDPDIR)/lib/$(LIBTYPE) $(LINKCXX_l)$(SCIPSDPLIB)$(LINKLIBSUFFIX) \
+				$(SDPILIB) $(LINKCCSCIPALL)

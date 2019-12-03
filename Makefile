@@ -32,112 +32,21 @@
 
 #@file    Makefile
 #@brief   Makefile for C++ SDP-Interface for SCIP
-#@author  Sonja Mars
-#@author  Lars Schewe
-#@author  Marc Pfetsch
-#@author  Tristan Gally
-#@author  Ambros Gleixner
-
-#-----------------------------------------------------------------------------
-# own variables
-#-----------------------------------------------------------------------------
-
-SCIPSDPVERSION	=	3.1.2
-SCIPSDPGITHASH	=
-SDPS		=	none
-
-GCCWARN		+= 	-Wextra
-
-# parameters
-TIME     	=  	3600
-NODES           =       2100000000
-MEM		=	6144
-THREADS         =       1
-PERMUTE         =       0
-DISPFREQ	=	10000
-FEASTOL		=	default
-TEST		=	short
-SETTINGS        =       default
-CONTINUE	=	false
-LOCK		=	false
-VALGRIND	=	false
-CLIENTTMPDIR    =       /tmp
-OUTPUTDIR = /results
-OPTCOMMAND	=	optimize
-SOFTLINKS	=
-MAKESOFTLINKS	=	true
-OPENBLAS	=	true
 
 
-#-----------------------------------------------------------------------------
-# include default project Makefile from SCIP
-#-----------------------------------------------------------------------------
-
-# save directory to be able to locate library files
-ifeq ($(OSTYPE),mingw)
 SCIPSDPDIR	=	./
-else
-SCIPSDPDIR	=	$(realpath .)
-endif
-SCIPSDPLIBDIR	=	lib
 
-SCIPDIR		= 	$(SCIPSDPDIR)/lib/scip
+# mark that this is a SCIPSDP internal makefile
+SCIPSDPINTERNAL	=	true
 
-# check whether SCIPDIR exists
-ifeq ("$(wildcard $(SCIPDIR))","")
-$(error Please add a soft-link to the SCIP directory as $(SCIPSDPDIR)/lib/scip)
-endif
-
-#-----------------------------------------------------------------------------
-# include default project Makefile from SCIP (need to do this twice, once to
-# find the correct binary, then, after getting the correct flags from the
-# binary (which is necessary since the ZIMPL flags differ from the default
-# if compiled with the SCIP Optsuite instead of SCIP), we need to set the
-# compile flags, e.g., for the ZIMPL library, which is again done in make.project
-#-----------------------------------------------------------------------------
-include $(SCIPDIR)/make/make.project
-SCIPVERSION			:=$(shell $(SCIPDIR)/bin/scip.$(BASE).$(LPS).$(TPI)$(EXEEXTENSION) -v | sed -e 's/$$/@/')
-override ARCH		:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* ARCH=\([^@]*\).*/\1/')
-override EXPRINT	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* EXPRINT=\([^@]*\).*/\1/')
-override GAMS		:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* GAMS=\([^@]*\).*/\1/')
-override GMP		:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* GMP=\([^@]*\).*/\1/')
-override SYM		:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* SYM=\([^@]*\).*/\1/')
-override IPOPT		:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* IPOPT=\([^@]*\).*/\1/')
-override IPOPTOPT	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* IPOPTOPT=\([^@]*\).*/\1/')
-override LPSCHECK	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* LPSCHECK=\([^@]*\).*/\1/')
-override LPSOPT 	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* LPSOPT=\([^@]*\).*/\1/')
-override NOBLKBUFMEM	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* NOBLKBUFMEM=\([^@]*\).*/\1/')
-override NOBLKMEM	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* NOBLKMEM=\([^@]*\).*/\1/')
-override NOBUFMEM	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* NOBUFMEM=\([^@]*\).*/\1/')
-override PARASCIP	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* PARASCIP=\([^@]*\).*/\1/')
-override READLINE	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* READLINE=\([^@]*\).*/\1/')
-override SANITIZE	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* SANITIZE=\([^@]*\).*/\1/')
-override ZIMPL		:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* ZIMPL=\([^@]*\).*/\1/')
-override ZIMPLOPT	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* ZIMPLOPT=\([^@]*\).*/\1/')
-override ZLIB		:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* ZLIB=\([^@]*\).*/\1/')
-include $(SCIPDIR)/make/make.project
-
-override DEBUGTOOL   =   none
-
-#-----------------------------------------------------------------------------
-# settings for SDP solver
-#-----------------------------------------------------------------------------
-
-LDFLAGS 	+= 	-lobjscip
-
-SDPIOPTIONS	=
-SDPIINC		=
-SDPILIB		=
-SDPICSRC	=
-SDPICCSRC	=
-SDPICCOBJ	=
+# load project makefile
+include $(SCIPSDPDIR)/make/make.scipsdpproj
 
 
 #-----------------------------------------------------------------------------
 # DSDP solver
-SDPIOPTIONS	+=	dsdp
+SDPIOPTIONS	=	dsdp
 ifeq ($(SDPS),dsdp)
-SDPILIB		= 	$(SCIPSDPLIBDIR)/static/libdsdp.$(STATICLIBEXT) -llapack -lblas
 SDPIINC		= 	-I$(SCIPSDPLIBDIR)/include/dsdpinc
 SDPICSRC 	= 	src/sdpi/sdpisolver_dsdp.c \
 			src/sdpi/lapack_dsdp.c
@@ -173,15 +82,10 @@ SDPIINSTMSG	+=	" -> \"libpord.*\" is the path to the pord library, e.g., \"<SDPA
 SDPIINSTMSG	+=	" -> \"libmpiseq.*\" is the path to the mpiseq library, e.g., \"<SDPA-path>/mumps/build/libseq/libmpiseq.$(STATICLIBEXT)\".\n"
 ifeq ($(OPENBLAS),true)
 SDPIINSTMSG	+=	" -> \"libopenblas.$(SHAREDLIBEXT).0\" is the openblas library.\n"
-SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(SCIPSDPLIBDIR)/static/libdmumps.$(STATICLIBEXT) $(SCIPSDPLIBDIR)/static/libmumps_common.$(STATICLIBEXT) \
-			$(SCIPSDPLIBDIR)/static/libpord.$(STATICLIBEXT)	$(SCIPSDPLIBDIR)/static/libmpiseq.$(STATICLIBEXT) $(SCIPSDPLIBDIR)/shared/libopenblas.$(SHAREDLIBEXT).0 \
-			-Wl,-rpath,$(SCIPSDPDIR)/$(SCIPSDPLIBDIR)/static -Wl,-rpath,$(SCIPSDPDIR)/$(SCIPSDPLIBDIR)/shared -lgfortran -L/lib/x86_64-linux-gnu -lpthread -lgomp
 else
-SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(SCIPSDPLIBDIR)/static/libdmumps.$(STATICLIBEXT) $(SCIPSDPLIBDIR)/static/libmumps_common.$(STATICLIBEXT) \
-			$(SCIPSDPLIBDIR)/static/libpord.$(STATICLIBEXT)	$(SCIPSDPLIBDIR)/static/libmpiseq.$(STATICLIBEXT) -lgfortran -llapack -lblas
 endif
-SDPIINC	=  -I$(SCIPSDPLIBDIR)/include/sdpainc
-SDPIINC	+= -I$(SCIPSDPLIBDIR)/include/mumpsinc
+SDPIINC		=  	-I$(SCIPSDPLIBDIR)/include/sdpainc
+SDPIINC		+= 	-I$(SCIPSDPLIBDIR)/include/mumpsinc
 SDPICCSRC 	= 	src/sdpi/sdpisolver_sdpa.cpp
 SDPICSRC	=	src/sdpi/lapack_sdpa.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o $(OBJDIR)/sdpi/lapack_sdpa.o
@@ -196,13 +100,12 @@ endif
 SDPIOPTIONS	+=	msk
 ifeq ($(SDPS),msk)
 # decide on 32 or 64 bit
-BITEXT     =  $(word 2, $(subst _, ,$(ARCH)))
+BITEXT     	=  	$(word 2, $(subst _, ,$(ARCH)))
 SDPIINC		= 	-I$(SCIPSDPLIBDIR)/include/mosekh
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/mosekh
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT)
 SDPIINSTMSG	=	"  -> \"mosekh\" is the path to the MOSEK \"h\" directory, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/h\".\n"
 SDPIINSTMSG	+=	" -> \"libmosek$(BITEXT).*\" is the path to the MOSEK library, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/bin/libmosek$(BITEXT).$(SHAREDLIBEXT)\".\n"
-SDPILIB		= 	-m$(BITEXT) $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT) -Wl,-rpath=$(dir $(realpath $(SCIPSDPDIR)/$(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) -llapack -lblas -pthread -lc -lm
 SDPICSRC 	= 	src/sdpi/sdpisolver_mosek.c src/sdpi/lapack_dsdp.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_mosek.o $(OBJDIR)/sdpi/lapack_dsdp.o
 endif
@@ -216,9 +119,6 @@ SDPICSRC 	= 	src/sdpi/sdpisolver_none.c src/sdpi/lapack_dsdp.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_none.o $(OBJDIR)/sdpi/lapack_dsdp.o
 SETTINGS	= 	lp_approx
 endif
-
-# include install/uninstall targets
--include make/make.install
 
 LINKSMARKERFILE	=	$(LIBDIR)/linkscreated.$(LPS)-$(LPSOPT).$(OSTYPE).$(ARCH).$(COMP)$(LINKLIBSUFFIX).$(ZIMPL)-$(ZIMPLOPT).$(IPOPT)-$(IPOPTOPT).$(GAMS)
 
@@ -245,11 +145,11 @@ OMPFLAGS += -DOMP
 endif
 
 #-----------------------------------------------------------------------------
-# main program
+# SCIPSDP
 #-----------------------------------------------------------------------------
 
-MAINNAME	=	scipsdp
-MAINCOBJ	=	scipsdp/SdpVarmapper.o \
+SCIPSDPNAME	=	scipsdp
+SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/SdpVarfixer.o \
 			scipsdp/cons_sdp.o \
 			scipsdp/cons_savedsdpsettings.o \
@@ -277,33 +177,32 @@ MAINCOBJ	=	scipsdp/SdpVarmapper.o \
 			sdpi/sdpsolchecker.o \
 			scipsdpgithash.o
 
-MAINCCOBJ 	=	scipsdp/main.o \
-			scipsdp/objreader_sdpa.o \
+SCIPSDPCCOBJ 	=	scipsdp/objreader_sdpa.o \
 			scipsdp/objreader_sdpaind.o \
 			scipsdp/ScipStreamBuffer.o
 
-
-MAINCSRC	=	$(addprefix $(SRCDIR)/,$(MAINCOBJ:.o=.c))
-MAINCCSRC 	=	$(addprefix $(SRCDIR)/,$(MAINCCOBJ:.o=.cpp))
-MAINDEP 	=	$(SRCDIR)/depend.cppmain.$(OPT)
+SCIPSDPCSRC	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCOBJ:.o=.c))
+SCIPSDPCCSRC 	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCCOBJ:.o=.cpp))
+SCIPSDPDEP 	=	$(SRCDIR)/depend.cppmain.$(OPT)
 
 SCIPSDPGITHASHFILE	= 	$(SRCDIR)/scipsdpgithash.c
 
 # @todo possibly add LPS
-MAINFILE	=	$(BINDIR)/$(MAINNAME).$(BASE).$(SDPS)$(EXEEXTENSION)
-MAINSHORTLINK	=	$(BINDIR)/$(MAINNAME)
-MAINCOBJFILES	=	$(addprefix $(OBJDIR)/,$(MAINCOBJ))
-MAINCCOBJFILES	=	$(addprefix $(OBJDIR)/,$(MAINCCOBJ))
+SCIPSDPFILE		=	$(BINDIR)/$(SCIPSDPNAME).$(BASE).$(SDPS)$(EXEEXTENSION)
+SCIPSDPSHORTLINK	=	$(BINDIR)/$(SCIPSDPNAME)
+SCIPSDPCOBJFILES	=	$(addprefix $(OBJDIR)/,$(SCIPSDPCOBJ))
+SCIPSDPCCOBJFILES	=	$(addprefix $(OBJDIR)/,$(SCIPSDPCCOBJ))
 
-ALLSRC		=	$(MAINCSRC) $(MAINCCSRC) $(SDPICSRC) $(SDPICCSRC)
+MAINOBJ		=	scipsdp/main.o
+MAINSRC		=	$(addprefix $(SRCDIR)/,$(MAINOBJ:.o=.cpp))
+MAINOBJFILES  	=	$(addprefix $(OBJDIR)/,$(MAINOBJ))
+
+ALLSRC		=	$(SCIPSDPCSRC) $(SCIPSDPCCSRC) $(SDPICSRC) $(SDPICCSRC) $(MAINSRC)
 LINKSMARKERFILE =	$(SCIPSDPLIBDIR)/linkscreated.$(SDPS).$(LPS)-$(LPSOPT).$(OSTYPE).$(ARCH).$(COMP)$(LINKLIBSUFFIX)
 LASTSETTINGS 	=	$(OBJDIR)/make.lastsettings
 
-SCIPSDPLIBSHORTNAME = scipsdp
-SCIPSDPLIB = $(SCIPSDPLIBSHORTNAME)-$(SCIPSDPVERSION).$(SDPS).$(BASE)
-SCIPSDPLIBFILE = $(SCIPSDPLIBDIR)/$(LIBTYPE)/lib$(SCIPSDPLIB).$(LIBEXT)
-SCIPSDPLIBOBJFILES	=	$(addprefix $(OBJDIR)/,$(MAINCOBJ))
-SCIPSDPLIBOBJFILES	+=	$(addprefix $(OBJDIR)/,$(MAINCCOBJ))
+SCIPSDPLIBOBJFILES	=	$(addprefix $(OBJDIR)/,$(SCIPSDPCOBJ))
+SCIPSDPLIBOBJFILES	+=	$(addprefix $(OBJDIR)/,$(SCIPSDPCCOBJ))
 SCIPSDPLIBOBJFILES	+=	$(SDPIOBJ)
 
 #-----------------------------------------------------------------------------
@@ -311,11 +210,11 @@ SCIPSDPLIBOBJFILES	+=	$(SDPIOBJ)
 #-----------------------------------------------------------------------------
 
 ifeq ($(VERBOSE),false)
-.SILENT:	$(MAINFILE) $(MAINCOBJFILES) $(MAINCCOBJFILES) $(SDPIOBJ) $(MAINSHORTLINK)
+.SILENT:	$(SCIPSDPFILE) $(SCIPSDPCOBJFILES) $(SCIPSDPCCOBJFILES) $(SDPIOBJ) $(SCIPSDPSHORTLINK)
 endif
 
 .PHONY: all
-all:            $(SCIPDIR) $(MAINFILE) $(MAINSHORTLINK)
+all:            $(SCIPDIR) $(SCIPSDPFILE) $(SCIPSDPSHORTLINK)
 
 .PHONY: checkdefines
 checkdefines:
@@ -334,7 +233,7 @@ preprocess:     checkdefines
 
 .PHONY: tags
 tags:
-		rm -f TAGS; ctags -e src/*/*.c src/*/*.cpp src/*/*.h $(SCIPDIR)/src/*/*.c $(SCIPDIR)/src/*/*.h;
+		rm -f TAGS; ctags -e src/*/*.c src/*/*.cpp src/*/*.h $(SCIPDIR)/src/*/*.c $(SCIPDIR)/src/*/*.h; sed -i 's!\#undef .*!!g' TAGS
 
 # include target to detect the current git hash
 -include make/make.detectgithash
@@ -343,43 +242,54 @@ tags:
 githash::      # do not remove the double-colon
 
 .PHONY: lint
-lint:		$(MAINCSRC) $(MAINCCSRC) $(SDPICSRC) $(SDPICCSRC)
+lint:		$(SCIPSDPCSRC) $(SCIPSDPCCSRC) $(SDPICSRC) $(SDPICCSRC) $(MAINSRC)
 		-rm -f lint.out
-
-		@$(SHELL) -ec 'if test ! -e lint/gcc-include-path.lnt ; \
-			then \
-				if test -e lint/co-gcc.mak ; \
-				then \
-					echo "-> generating gcc-include-path lint-file" ; \
-					cd lint; $(MAKE) -f co-gcc.mak ; \
-				else \
-					echo "-> lint Makefile not found"; \
-				fi \
-			fi'
 ifeq ($(FILES),)
-
 	$(SHELL) -ec 'for i in $^; \
 			do \
 				echo $$i; \
-				$(LINT) lint/co-gcc.lnt +os\(lint.out\) -u -zero \
-				$(USRFLAGS) $(FLAGS) -I/usr/include $(SDPIINC) -UNDEBUG -UWITH_READLINE -UROUNDING_FE -D_BSD_SOURCE $$i; \
+				$(LINT) -I$(SCIPDIR) lint/main-gcc.lnt +os\(lint.out\) -u -zero \
+				$(USRFLAGS) $(FLAGS) $(SDPIINC) -I/usr/include -UNDEBUG -USCIP_WITH_READLINE -USCIP_ROUNDING_FE -D_BSD_SOURCE $$i; \
 			done'
 else
 		$(SHELL) -ec  'for i in $(FILES); \
 			do \
 				echo $$i; \
-				$(LINT) lint/co-gcc.lnt +os\(lint.out\) -u -zero \
-				$(USRFLAGS) $(FLAGS) -I/usr/include $(SDPIINC) -UNDEBUG -UWITH_READLINE -UROUNDING_FE -D_BSD_SOURCE $$i; \
+				$(LINT) -I$(SCIPDIR) lint/main-gcc.lnt +os\(lint.out\) -u -zero \
+				$(USRFLAGS) $(FLAGS) $(SDPIINC) -I/usr/include -UNDEBUG -USCIP_WITH_READLINE -USCIP_ROUNDING_FE -D_BSD_SOURCE $$i; \
 			done'
 endif
 
+.PHONY: pclint
+pclint:		$(SCIPSDPCSRC) $(SCIPSDPCCSRC) $(SDPICSRC) $(SDPICCSRC) $(MAINSRC)
+		-rm -f pclint.out
+
+ifeq ($(FILES),)
+		@$(SHELL) -ec 'echo "-> running pclint ..."; \
+			for i in $^; \
+			do \
+				echo $$i; \
+				$(PCLINT) -I$(SCIPDIR) pclint/main-gcc.lnt +os\(pclint.out\) -b -u -zero \
+				$(USRFLAGS) $(FLAGS) -uNDEBUG -uSCIP_WITH_READLINE -uSCIP_ROUNDING_FE -D_BSD_SOURCE $$i; \
+			done'
+else
+		@$(SHELL) -ec  'echo "-> running pclint on specified files ..."; \
+			for i in $(FILES); \
+			do \
+				echo $$i; \
+				$(PCLINT) -I$(SCIPDIR) pclint/main-gcc.lnt +os\(pclint.out\) -b -u -zero \
+				$(USRFLAGS) $(FLAGS) -uNDEBUG -uSCIP_WITH_READLINE -uSCIP_ROUNDING_FE -D_BSD_SOURCE $$i; \
+			done'
+endif
+
+
 .PHONY: doc
 doc:
-		cd doc; $(DOXY) $(MAINNAME).dxy
+		cd doc; $(DOXY) $(SCIPSDPNAME).dxy
 
-$(MAINSHORTLINK): $(MAINFILE)
+$(SCIPSDPSHORTLINK): $(SCIPSDPFILE)
 		@rm -f $@
-		cd $(dir $@) && ln -s $(notdir $(MAINFILE)) $(notdir $@)
+		cd $(dir $@) && ln -s $(notdir $(SCIPSDPFILE)) $(notdir $@)
 
 $(OBJDIR):
 		@mkdir -p $(OBJDIR);
@@ -405,13 +315,13 @@ $(BINDIR):
 		mkdir -p $(BINDIR); }
 
 .PHONY: libscipsdp
-libscipsdp:		preprocess
+libscipsdp:	preprocess
 		@$(MAKE) $(SCIPSDPLIBFILE) $(SCIPSDPLIBLINK) $(SCIPSDPLIBSHORTLINK)
 
 $(SCIPSDPLIBFILE):	$(SCIPSDPLIBOBJFILES) | $(SCIPSDPLIBDIR)/$(LIBTYPE)
 		@echo "-> generating library $@"
 		-rm -f $@
-		$(LIBBUILD) $(LIBBUILDFLAGS) $(LIBBUILD_o)$@ $(SCIPSDPLIBOBJFILES) $(SCIPLIBEXTLIBS)
+		$(LIBBUILD) $(LIBBUILDFLAGS) $(LIBBUILD_o)$@ $(SCIPSDPLIBOBJFILES)
 ifneq ($(RANLIB),)
 		$(RANLIB) $@
 endif
@@ -427,7 +337,7 @@ ifneq ($(OBJDIR),)
 	 	@-rmdir $(OBJDIR)/sdpi
 		@-rmdir $(OBJDIR)
 endif
-		-rm -f $(MAINFILE)
+		-rm -f $(SCIPSDPFILE)
 
 #-----------------------------------------------------------------------------
 -include $(LASTSETTINGS)
@@ -559,10 +469,10 @@ test:
 		@-(cd check && ln -fs $(SCIPDIR)/check/getlastprob.awk);
 		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_set.sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_logfiles.sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_tmpfile_setup_scip.sh configuration_tmpfile_setup_$(MAINNAME).sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_tmpfile_setup_scip.sh configuration_tmpfile_setup_$(SCIPSDPNAME).sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/run.sh);
 		cd check; \
-		$(SHELL) ./check.sh $(TEST) $(MAINFILE) $(SETTINGS) $(notdir $(MAINFILE)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(DISPFREQ) \
+		$(SHELL) ./check.sh $(TEST) $(SCIPSDPFILE) $(SETTINGS) $(notdir $(SCIPSDPFILE)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(DISPFREQ) \
 			$(CONTINUE) $(LOCK) $(SCIPSDPVERSION) $(SDPS) $(DEBUGTOOL) $(CLIENTTMPDIR) $(REOPT) $(OPTCOMMAND) $(SETCUTOFF) $(MAXJOBS) $(VISUALIZE) \
 			$(PERMUTE) $(SEEDS) $(GLBSEEDSHIFT) $(STARTPERM);
 
@@ -583,12 +493,12 @@ testcluster:
 		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_cluster.sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_set.sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_logfiles.sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_tmpfile_setup_scip.sh configuration_tmpfile_setup_$(MAINNAME).sh);
+		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_tmpfile_setup_scip.sh configuration_tmpfile_setup_$(SCIPSDPNAME).sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/run.sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/runcluster.sh);
 		@-(cd check && ln -fs $(SCIPDIR)/check/testfiles.sh);
 		cd check; \
-		$(SHELL) ./check_cluster.sh $(TEST) $(PWD)/$(MAINFILE) $(SETTINGS) $(notdir $(MAINFILE)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(SDPS) $(DISPFREQ) \
+		$(SHELL) ./check_cluster.sh $(TEST) $(PWD)/$(SCIPSDPFILE) $(SETTINGS) $(notdir $(SCIPSDPFILE)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(SDPS) $(DISPFREQ) \
 			$(CONTINUE) $(QUEUETYPE) $(QUEUE) $(PPN) $(CLIENTTMPDIR) $(NOWAITCLUSTER) $(EXCLUSIVE) $(PERMUTE) $(SEEDS) $(GLBSEEDSHIFT) $(DEBUGTOOL) $(REOPT) $(OPTCOMMAND) \
 			$(SETCUTOFF) $(VISUALIZE) $(CLUSTERNODES);
 
@@ -596,19 +506,19 @@ testcluster:
 
 .PHONY: depend
 depend:		$(SCIPDIR)
-		$(SHELL) -ec '$(DCXX) $(FLAGS) $(SDPIINC) $(DFLAGS) $(MAINCCSRC) $(SDPICCSRC) \
+		$(SHELL) -ec '$(DCXX) $(FLAGS) $(SDPIINC) $(DFLAGS) $(SCIPSDPCCSRC) $(SDPICCSRC) \
 		| sed '\''s|^\([0-9A-Za-z\_]\{1,\}\)\.o *: *$(SRCDIR)/scipsdp/\([0-9A-Za-z\_]*\).cpp|$$\(OBJDIR\)/\2.o: $(SRCDIR)/scipsdp/\2.cpp|g'\'' \
-		>$(MAINDEP)'
-		$(SHELL) -ec '$(DCXX) $(FLAGS) $(SDPIINC) $(DFLAGS) $(MAINCSRC) $(SDPICSRC) \
+		>$(SCIPSDPDEP)'
+		$(SHELL) -ec '$(DCXX) $(FLAGS) $(SDPIINC) $(DFLAGS) $(SCIPSDPCSRC) $(SDPICSRC) \
 		| sed '\''s|^\([0-9A-Za-z\_]\{1,\}\)\.o *: *$(SRCDIR)/scipsdp/\([0-9A-Za-z\_]*\).c|$$\(OBJDIR\)/\2.o: $(SRCDIR)/scipsdp/\2.c|g'\'' \
 		| sed '\''s|^\([0-9A-Za-z\_]\{1,\}\)\.o *: *$(SRCDIR)/sdpi/\([0-9A-Za-z\_]*\).c|$$\(OBJDIR\)/\2.o: $(SRCDIR)/sdpi/\2.c|g'\'' \
-		>>$(MAINDEP)'
+		>>$(SCIPSDPDEP)'
 
--include	$(MAINDEP)
+-include	$(SCIPSDPDEP)
 
-$(MAINFILE):	preprocess $(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(MAINCOBJFILES) $(MAINCCOBJFILES) $(SDPIOBJ) | $(SDPOBJSUBDIRS) $(BINDIR)
+$(SCIPSDPFILE):	preprocess $(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(SCIPSDPCOBJFILES) $(SCIPSDPCCOBJFILES) $(SDPIOBJ) $(MAINOBJFILES) | $(SDPOBJSUBDIRS) $(BINDIR)
 		@echo "-> linking $@"
-		$(LINKCXX) $(MAINCOBJFILES) $(MAINCCOBJFILES) $(LINKCCSCIPALL) $(SDPIOBJ) $(SDPILIB) $(LINKCXX_o)$@
+		$(LINKCXX) $(SCIPSDPCOBJFILES) $(SCIPSDPCCOBJFILES) $(MAINOBJFILES) $(SDPIOBJ) $(SDPILIB) $(LINKCXXSCIPALL) $(LINKCXX_o)$@
 
 $(OBJDIR)/%.o:	$(SRCDIR)/%.c | $(SDPOBJSUBDIRS)
 		@echo "-> compiling $@"
