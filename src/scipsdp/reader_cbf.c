@@ -713,11 +713,10 @@ SCIP_RETCODE CBFreadObjfcoord(
                }
                else
                {
+                  /* make sure matrix is in lower triangular form */
                   if ( row < col )
                   {
-                     SCIPerrorMessage("Position (%d,%d) of given objective coefficient for matrix variable %d is not in lower triangular part!\n", row, col, v);
-                     SCIPABORT();
-                     return SCIP_READERROR; /*lint !e527*/
+                     SCIP_CALL( SCIPchgVarObj(scip, data->createdpsdvars[v][col][row], val) );
                   }
                   else
                   {
@@ -893,11 +892,10 @@ SCIP_RETCODE CBFreadFcoord(
                }
                else
                {
+                  /* make sure matrix is in lower triangular form */
                   if ( row < col )
                   {
-                     SCIPerrorMessage("Position (%d,%d) of given coefficient for matrix variable %d in constraint %d is not in lower triangular part!\n", row, col, v, c);
-                     SCIPABORT();
-                     return SCIP_READERROR; /*lint !e527*/
+                     SCIP_CALL( SCIPaddCoefLinear(scip, data->createdconss[c], data->createdpsdvars[v][col][row], 2*val) );/*lint !e732*//*lint !e747*/
                   }
                   else if ( row == col )
                      SCIP_CALL( SCIPaddCoefLinear(scip, data->createdconss[c], data->createdpsdvars[v][row][col], val) );/*lint !e732*//*lint !e747*/
