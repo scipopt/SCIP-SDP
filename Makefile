@@ -242,35 +242,46 @@ tags:
 githash::      # do not remove the double-colon
 
 .PHONY: lint
-lint:		$(MAINCSRC) $(MAINCCSRC) $(SDPICSRC) $(SDPICCSRC)
+lint:		$(SCIPSDPCSRC) $(SCIPSDPCCSRC) $(SDPICSRC) $(SDPICCSRC) $(MAINSRC)
 		-rm -f lint.out
-
-		@$(SHELL) -ec 'if test ! -e lint/gcc-include-path.lnt ; \
-			then \
-				if test -e lint/co-gcc.mak ; \
-				then \
-					echo "-> generating gcc-include-path lint-file" ; \
-					cd lint; $(MAKE) -f co-gcc.mak ; \
-				else \
-					echo "-> lint Makefile not found"; \
-				fi \
-			fi'
 ifeq ($(FILES),)
-
 	$(SHELL) -ec 'for i in $^; \
 			do \
 				echo $$i; \
-				$(LINT) lint/co-gcc.lnt +os\(lint.out\) -u -zero \
-				$(USRFLAGS) $(FLAGS) -I/usr/include $(SDPIINC) -UNDEBUG -UWITH_READLINE -UROUNDING_FE -D_BSD_SOURCE $$i; \
+				$(LINT) -I$(SCIPDIR) lint/main-gcc.lnt +os\(lint.out\) -u -zero \
+				$(USRFLAGS) $(FLAGS) $(SDPIINC) -I/usr/include -UNDEBUG -USCIP_WITH_READLINE -USCIP_ROUNDING_FE -D_BSD_SOURCE $$i; \
 			done'
 else
 		$(SHELL) -ec  'for i in $(FILES); \
 			do \
 				echo $$i; \
-				$(LINT) lint/co-gcc.lnt +os\(lint.out\) -u -zero \
-				$(USRFLAGS) $(FLAGS) -I/usr/include $(SDPIINC) -UNDEBUG -UWITH_READLINE -UROUNDING_FE -D_BSD_SOURCE $$i; \
+				$(LINT) -I$(SCIPDIR) lint/main-gcc.lnt +os\(lint.out\) -u -zero \
+				$(USRFLAGS) $(FLAGS) $(SDPIINC) -I/usr/include -UNDEBUG -USCIP_WITH_READLINE -USCIP_ROUNDING_FE -D_BSD_SOURCE $$i; \
 			done'
 endif
+
+.PHONY: pclint
+pclint:		$(SCIPSDPCSRC) $(SCIPSDPCCSRC) $(SDPICSRC) $(SDPICCSRC) $(MAINSRC)
+		-rm -f pclint.out
+
+ifeq ($(FILES),)
+		@$(SHELL) -ec 'echo "-> running pclint ..."; \
+			for i in $^; \
+			do \
+				echo $$i; \
+				$(PCLINT) -I$(SCIPDIR) pclint/main-gcc.lnt +os\(pclint.out\) -b -u -zero \
+				$(USRFLAGS) $(FLAGS) -uNDEBUG -uSCIP_WITH_READLINE -uSCIP_ROUNDING_FE -D_BSD_SOURCE $$i; \
+			done'
+else
+		@$(SHELL) -ec  'echo "-> running pclint on specified files ..."; \
+			for i in $(FILES); \
+			do \
+				echo $$i; \
+				$(PCLINT) -I$(SCIPDIR) pclint/main-gcc.lnt +os\(pclint.out\) -b -u -zero \
+				$(USRFLAGS) $(FLAGS) -uNDEBUG -uSCIP_WITH_READLINE -uSCIP_ROUNDING_FE -D_BSD_SOURCE $$i; \
+			done'
+endif
+
 
 .PHONY: doc
 doc:

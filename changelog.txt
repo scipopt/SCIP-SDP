@@ -18,6 +18,7 @@ makefile:
 - add project makefile in make/make.scipsdpproj
 - reorganize main makefile to use make.scipsdpproj
 - fix some minor issues in makefile concerning building with shared libraries
+- use lint files from SCIP
 
 
 SCIP-SDP version 3.1.2
