@@ -39,6 +39,9 @@
  * @author Marc Pfetsch
  *
  * @todo Allow to read SOC constraints in CBF format.
+ * @todo Allow to write varbounds as linear constraints.
+ * @todo Allow to write a transformed problem.
+ * @todo Allow to write a problem in primal form.
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
