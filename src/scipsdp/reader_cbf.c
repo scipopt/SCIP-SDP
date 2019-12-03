@@ -37,6 +37,7 @@
  * @author Tristan Gally
  * @author Henrik A. Friberg
  * @author Marc Pfetsch
+ * @author Frederic Matter
  *
  * @todo Allow to read SOC constraints in CBF format.
  * @todo Allow to write varbounds as linear constraints.
