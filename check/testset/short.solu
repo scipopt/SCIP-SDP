@@ -5,3 +5,5 @@
 =opt= example_TT 2.11803
 =opt= example_CLS 7.1485
 =opt= example_MkP -95
+=opt= example_cbf_primal 0.75
+=opt= example_cbf_mix 4.0
