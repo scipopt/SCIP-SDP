@@ -13,7 +13,7 @@ fixed bugs:
 features:
 - add error messages to SDPA-format reader
 - fix parsing of integer variables in SDPA-format
-
+- add support for CBF-files in primal and mixed primal-dual form
 
 SCIP-SDP version 3.1.2
 ======================
