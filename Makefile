@@ -42,6 +42,8 @@ SCIPSDPINTERNAL	=	true
 # load project makefile
 include $(SCIPSDPDIR)/make/make.scipsdpproj
 
+SCIPREALPATH	=	$(realpath $(SCIPDIR))
+
 
 #-----------------------------------------------------------------------------
 # DSDP solver
@@ -459,18 +461,18 @@ endif
 #-----------------------------------------------------------------------------
 .PHONY: test
 test:
-		@-(cd check && ln -fs $(SCIPDIR)/check/check.sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/allcmpres.sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/cmpres.awk);
-		@-(cd check && ln -fs $(SCIPDIR)/check/evalcheck.sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/evalcheck_cluster.sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/check.awk);
-		@-(cd check && ln -fs $(SCIPDIR)/check/cmpres.awk);
-		@-(cd check && ln -fs $(SCIPDIR)/check/getlastprob.awk);
-		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_set.sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_logfiles.sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_tmpfile_setup_scip.sh configuration_tmpfile_setup_$(SCIPSDPNAME).sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/run.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/check.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/allcmpres.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/cmpres.awk);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/evalcheck.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/evalcheck_cluster.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/check.awk);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/cmpres.awk);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/getlastprob.awk);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_set.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_logfiles.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_tmpfile_setup_scip.sh configuration_tmpfile_setup_$(SCIPSDPNAME).sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/run.sh);
 		cd check; \
 		$(SHELL) ./check.sh $(TEST) $(SCIPSDPFILE) $(SETTINGS) $(notdir $(SCIPSDPFILE)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(DISPFREQ) \
 			$(CONTINUE) $(LOCK) $(SCIPSDPVERSION) $(SDPS) $(DEBUGTOOL) $(CLIENTTMPDIR) $(REOPT) $(OPTCOMMAND) $(SETCUTOFF) $(MAXJOBS) $(VISUALIZE) \
@@ -481,22 +483,22 @@ test:
 
 .PHONY: testcluster
 testcluster:
-		@-(cd check && ln -fs $(SCIPDIR)/check/check.sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/allcmpres.sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/cmpres.awk);
-		@-(cd check && ln -fs $(SCIPDIR)/check/evalcheck.sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/evalcheck_cluster.sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/check_cluster.sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/check.awk);
-		@-(cd check && ln -fs $(SCIPDIR)/check/cmpres.awk);
-		@-(cd check && ln -fs $(SCIPDIR)/check/getlastprob.awk);
-		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_cluster.sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_set.sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_logfiles.sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/configuration_tmpfile_setup_scip.sh configuration_tmpfile_setup_$(SCIPSDPNAME).sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/run.sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/runcluster.sh);
-		@-(cd check && ln -fs $(SCIPDIR)/check/testfiles.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/check.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/allcmpres.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/cmpres.awk);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/evalcheck.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/evalcheck_cluster.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/check_cluster.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/check.awk);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/cmpres.awk);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/getlastprob.awk);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_cluster.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_set.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_logfiles.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_tmpfile_setup_scip.sh configuration_tmpfile_setup_$(SCIPSDPNAME).sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/run.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/runcluster.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/testfiles.sh);
 		cd check; \
 		$(SHELL) ./check_cluster.sh $(TEST) $(PWD)/$(SCIPSDPFILE) $(SETTINGS) $(notdir $(SCIPSDPFILE)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(SDPS) $(DISPFREQ) \
 			$(CONTINUE) $(QUEUETYPE) $(QUEUE) $(PPN) $(CLIENTTMPDIR) $(NOWAITCLUSTER) $(EXCLUSIVE) $(PERMUTE) $(SEEDS) $(GLBSEEDSHIFT) $(DEBUGTOOL) $(REOPT) $(OPTCOMMAND) \
