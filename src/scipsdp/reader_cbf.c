@@ -600,7 +600,7 @@ SCIP_RETCODE CBFreadObjacoord(
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "OBJACOORD: Found %d coefficients with absolute value less than epsilon = %f.\n", nzerocoef, SCIPepsilon(scip));
+         "OBJACOORD: Found %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
    }
 
    return SCIP_OKAY;
@@ -692,7 +692,7 @@ SCIP_RETCODE CBFreadAcoord(
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "ACOORD: Found %d coefficients with absolute value less than epsilon = %f.\n", nzerocoef, SCIPepsilon(scip));
+         "ACOORD: Found %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
    }
 
    return SCIP_OKAY;
@@ -1117,7 +1117,7 @@ SCIP_RETCODE CBFreadDcoord(
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "DCOORD: Found %d coefficients with absolute value less than epsilon = %f.\n", nzerocoef, SCIPepsilon(scip));
+         "DCOORD: Found %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
    }
 
    return SCIP_OKAY;
@@ -1809,7 +1809,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
       obj = SCIPvarGetObj(vars[v]);
       if ( ! SCIPisZero(scip, obj) )
       {
-         SCIPinfoMessage(scip, file, "%d %.9g\n", v, obj);
+         SCIPinfoMessage(scip, file, "%d %.15g\n", v, obj);
       }
    }
    SCIPinfoMessage(scip, file, "\n");
@@ -1861,7 +1861,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
             {
                i = SCIPvarGetProbindex(linvars[v]);
                assert( 0 <= i && i < nvars );
-               SCIPinfoMessage(scip, file, "%d %d %.9g\n", consind, i, linvals[v]);
+               SCIPinfoMessage(scip, file, "%d %d %.15g\n", consind, i, linvals[v]);
             }
             ++consind;
          }
@@ -1878,21 +1878,21 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
          {
             val = SCIPgetRhsLinear(scip, conss[c]);
             if ( ! SCIPisZero(scip, val) )
-               SCIPinfoMessage(scip, file, "%d %.9g\n", consind, -val);
+               SCIPinfoMessage(scip, file, "%d %.15g\n", consind, -val);
             consind++;
          }
          else if ( consssenses[c] == 1 )
          {
             val = SCIPgetLhsLinear(scip, conss[c]);
             if ( ! SCIPisZero(scip, val) )
-               SCIPinfoMessage(scip, file, "%d %.9g\n", consind, -val);
+               SCIPinfoMessage(scip, file, "%d %.15g\n", consind, -val);
             consind++;
          }
          else if ( consssenses[c] == 0 )
          {
             val = SCIPgetLhsLinear(scip, conss[c]);
             if ( ! SCIPisZero(scip, val) )
-               SCIPinfoMessage(scip, file, "%d %.9g\n", consind, -val);
+               SCIPinfoMessage(scip, file, "%d %.15g\n", consind, -val);
             consind++;
          }
       }
@@ -1952,7 +1952,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
                int ind;
                ind = SCIPvarGetProbindex(sdpvars[v]);
                assert( 0 <= ind && ind < nvars );
-               SCIPinfoMessage(scip, file, "%d %d %d %d %.9g\n", consind, ind, sdprow[v][i], sdpcol[v][i], sdpval[v][i]);
+               SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", consind, ind, sdprow[v][i], sdpcol[v][i], sdpval[v][i]);
             }
          }
          consind++;
@@ -1982,7 +1982,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 
          for (i = 0; i < sdpconstnnonz; i++)
          {
-            SCIPinfoMessage(scip, file, "%d %d %d %.9g\n", consind, sdpconstrow[i], sdpconstcol[i], -sdpconstval[i]);
+            SCIPinfoMessage(scip, file, "%d %d %d %.15g\n", consind, sdpconstrow[i], sdpconstcol[i], -sdpconstval[i]);
          }
          consind++;
       }
