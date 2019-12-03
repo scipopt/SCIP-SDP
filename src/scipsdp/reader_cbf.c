@@ -719,11 +719,15 @@ SCIP_RETCODE CBFreadObjfcoord(
                   /* make sure matrix is in lower triangular form */
                   if ( row < col )
                   {
+                     SCIP_CALL( SCIPchgVarObj(scip, data->createdpsdvars[v][col][row], 2*val) );
+                  }
+                  else if ( row == col )
+                  {
                      SCIP_CALL( SCIPchgVarObj(scip, data->createdpsdvars[v][col][row], val) );
                   }
                   else
                   {
-                     SCIP_CALL( SCIPchgVarObj(scip, data->createdpsdvars[v][row][col], val) );
+                     SCIP_CALL( SCIPchgVarObj(scip, data->createdpsdvars[v][row][col], 2*val) );
                   }
                }
             }
