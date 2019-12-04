@@ -113,6 +113,7 @@ struct SCIP_ConsData
    SCIP_Real             maxrhsentry;        /**< maximum entry of constant matrix (needed for DIMACS error norm) */
    SCIP_Bool             rankone;            /**< should matrix be rank one? */
    int*                  maxevsubmat;        /**< two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] */
+   SCIP_Bool             addedquadcons;      /**< are the quadratic 2x2-minor constraints already added (in the rank1-case)?  */
 };
 
 /** SDP constraint handler data */
@@ -2129,6 +2130,7 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
       assert( consdata != NULL );
       assert( &consdata->maxevsubmat != NULL );
       assert( &consdata->rankone != NULL );
+      assert( &consdata->addedquadcons != NULL );
 
       /* SCIP_CALL( SCIPallocBlockMemory(scip, &maxevsubmat) ); */
 
@@ -2137,7 +2139,7 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
 
       /* For each constraint, if it should be rank one, add all quadratic constraints given by the 2x2 principal
          minors. */
-      if ( consdata->rankone && conshdlrdata->quadconsrank1 )
+      if ( consdata->rankone && conshdlrdata->quadconsrank1 && ! consdata->addedquadcons && SCIPgetSubscipDepth(scip) == 0 )
       {
          SCIP_VAR**  quadvars1;
          SCIP_VAR**  quadvars2;
@@ -2248,6 +2250,7 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
          SCIPfreeBufferArray(scip, &quadvars1);
          SCIPfreeBufferArray(scip, &constmatrix);
       }
+      consdata->addedquadcons = TRUE;
    }
    return SCIP_OKAY;
 }
@@ -2389,6 +2392,9 @@ SCIP_DECL_CONSTRANS(consTransSdp)
 
    /* copy maxevsubmat */
    SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->maxevsubmat), sourcedata->maxevsubmat, 2) );
+
+   /* copy addedquadcons */
+   targetdata->addedquadcons = sourcedata->addedquadcons;
 
    /* name the transformed constraint */
 #ifndef NDEBUG
@@ -2855,6 +2861,8 @@ SCIP_DECL_CONSPARSE(consParseSdp)
    consdata->nnonz = 0;
    consdata->constnnonz = 0;
    consdata->rankone = 0;
+   consdata->addedquadcons = FALSE;
+
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->nvarnonz, nvars) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->col, nvars) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->row, nvars) );
@@ -3203,8 +3211,9 @@ SCIP_RETCODE SCIPconsSdpGetData(
    int*                  constcol,           /**< pointer to store the column indices of the constant nonzeros */
    int*                  constrow,           /**< pointer to store the row indices of the constant nonzeros */
    SCIP_Real*            constval,           /**< pointer to store the values of the constant nonzeros */
-   SCIP_Bool*            rankone,            /**< pointer to store if matrix should be rank one */
-   int**                 maxevsubmat         /**< pointer to store two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] */
+   SCIP_Bool*            rankone,            /**< pointer to store if matrix should be rank one (or NULL, if information not necessary) */
+   int**                 maxevsubmat,        /**< pointer to store two row indices of 2x2 subdeterminant with maximal eigenvalue [-1,-1 if not yet computed] (or NULL, if information not necessary) */
+   SCIP_Bool*            addedquadcons       /**< pointer to store if the quadratic 2x2-minor constraints already added (in the rank1-case) (or NULL, if information not necessary) */
    )
 {
    SCIP_CONSDATA* consdata;
@@ -3276,13 +3285,14 @@ SCIP_RETCODE SCIPconsSdpGetData(
 
    *constnnonz = consdata->constnnonz;
 
-   /* set the information about rankone and the current submatrix with largest minimal eigenvalue ([-1,-1] if not yet
-      computed) */
+   /* set the information about rankone, the current submatrix with largest minimal eigenvalue ([-1,-1] if not yet
+      computed), and the quadratic 2x2-minor constraints if desired */
    if ( rankone != NULL && maxevsubmat != NULL )
    {
       *rankone = consdata->rankone;
       *maxevsubmat[0] = consdata->maxevsubmat[0];
       *maxevsubmat[1] = consdata->maxevsubmat[1];
+      *addedquadcons = consdata->addedquadcons;
    }
 
    return SCIP_OKAY;
@@ -3684,7 +3694,7 @@ SCIP_RETCODE SCIPconsSdpComputeSparseSdpMatrix(
    return SCIP_OKAY;
 }
 
-/** returns wheter matrix should be rank one */
+/** returns whether the matrix should be rank one */
 SCIP_Bool SCIPconsSdpShouldBeRankOne(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons                /**< the constraint for which the existence of a rank one constraint should be checked */
@@ -3720,6 +3730,22 @@ SCIP_RETCODE SCIPconsSdpGetMaxEVSubmat(
    *maxevsubmat[1] = consdata->maxevsubmat[1];
 
    return SCIP_OKAY;
+}
+
+/** returns whether the quadratic 2x2-minor constraints are already added (in the rank1-case) */
+SCIP_Bool SCIPconsSdpAddedQuadCons(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< the constraint for which it should be checked whether the quadratic 2x2-minor constraints are already added (in the rank1-case) */
+   )
+{
+   SCIP_CONSDATA* consdata;
+
+   assert( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+
+   return consdata->addedquadcons;
 }
 
 /** creates an SDP-constraint */
@@ -3828,6 +3854,9 @@ SCIP_RETCODE SCIPcreateConsSdp(
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->maxevsubmat, 2) );
    consdata->maxevsubmat[0] = -1;
    consdata->maxevsubmat[1] = -1;
+
+   /* quadratic 2x2-minor constraints added? */
+   consdata->addedquadcons = FALSE;
 
    /* create constraint */
    SCIP_CALL( SCIPcreateCons(scip, cons, name, conshdlr, consdata, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) );

@@ -113,8 +113,9 @@ SCIP_RETCODE SCIPconsSdpGetData(
    int*                  constcol,           /**< pointer to store the column indices of the constant nonzeros */
    int*                  constrow,           /**< pointer to store the row indices of the constant nonzeros */
    SCIP_Real*            constval,           /**< pointer to store the values of the constant nonzeros */
-   SCIP_Bool*            rankone,            /**< pointer to store if matrix should be rank one */
-   int**                 maxevsubmat         /**< pointer to store two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] */
+   SCIP_Bool*            rankone,            /**< pointer to store if matrix should be rank one (or NULL, if information not necessary) */
+   int**                 maxevsubmat,        /**< pointer to store two row indices of 2x2 subdeterminant with maximal eigenvalue [-1,-1 if not yet computed] (or NULL, if information not necessary) */
+   SCIP_Bool*            addedquadcons       /**< pointer to store if the quadratic 2x2-minor constraints already added (in the rank1-case) (or NULL, if information not necessary) */
    );
 
 /** gets the number of nonzeros and constant nonzeros for this SDP constraint
@@ -246,6 +247,14 @@ SCIP_RETCODE SCIPconsSdpGetMaxEVSubmat(
    int**                 maxevsubmat         /**< pointer to store the two row indices of 2x2 subdeterminant with
                                                 maximal eigenvalue [or -1,-1 if not available] */
    );
+
+/** returns whether the quadratic 2x2-minor constraints are already added (in the rank1-case) */
+EXTERN
+SCIP_Bool SCIPconsSdpAddedQuadCons(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< the constraint for which it should be checked whether the quadratic 2x2-minor constraints are already added (in the rank1-case) */
+   );
+
 SCIP_RETCODE SCIPconsSdpGetQuadconss(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< the constraint for which the quadratic constraints should be returned */
