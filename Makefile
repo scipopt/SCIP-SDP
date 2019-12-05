@@ -190,7 +190,7 @@ SCIPSDPDEP 	=	$(SRCDIR)/depend.cppmain.$(OPT)
 SCIPSDPGITHASHFILE	= 	$(SRCDIR)/scipsdpgithash.c
 
 # @todo possibly add LPS
-SCIPSDPFILE		=	$(BINDIR)/$(SCIPSDPNAME).$(BASE).$(SDPS)$(EXEEXTENSION)
+SCIPSDPBIN		=	$(BINDIR)/$(SCIPSDPNAME).$(BASE).$(SDPS)$(EXEEXTENSION)
 SCIPSDPSHORTLINK	=	$(BINDIR)/$(SCIPSDPNAME)
 SCIPSDPCOBJFILES	=	$(addprefix $(OBJDIR)/,$(SCIPSDPCOBJ))
 SCIPSDPCCOBJFILES	=	$(addprefix $(OBJDIR)/,$(SCIPSDPCCOBJ))
@@ -212,11 +212,11 @@ SCIPSDPLIBOBJFILES	+=	$(SDPIOBJ)
 #-----------------------------------------------------------------------------
 
 ifeq ($(VERBOSE),false)
-.SILENT:	$(SCIPSDPFILE) $(SCIPSDPCOBJFILES) $(SCIPSDPCCOBJFILES) $(MAINOBJFILES) $(SDPIOBJ) $(SCIPSDPSHORTLINK)
+.SILENT:	$(SCIPSDPBIN) $(SCIPSDPCOBJFILES) $(SCIPSDPCCOBJFILES) $(MAINOBJFILES) $(SCIPSDPLIBFILE) $(SDPIOBJ) $(SCIPSDPSHORTLINK)
 endif
 
 .PHONY: all
-all:            $(SCIPDIR) $(SCIPSDPFILE) $(SCIPSDPSHORTLINK)
+all:            $(SCIPDIR) $(SCIPSDPBIN) $(SCIPSDPSHORTLINK)
 
 .PHONY: checkdefines
 checkdefines:
@@ -289,9 +289,9 @@ endif
 doc:
 		cd doc; $(DOXY) $(SCIPSDPNAME).dxy
 
-$(SCIPSDPSHORTLINK): $(SCIPSDPFILE)
+$(SCIPSDPSHORTLINK): $(SCIPSDPBIN)
 		@rm -f $@
-		cd $(dir $@) && ln -s $(notdir $(SCIPSDPFILE)) $(notdir $@)
+		cd $(dir $@) && ln -s $(notdir $(SCIPSDPBIN)) $(notdir $@)
 
 $(OBJDIR):
 		@mkdir -p $(OBJDIR);
@@ -339,7 +339,7 @@ ifneq ($(OBJDIR),)
 	 	@-rmdir $(OBJDIR)/sdpi
 		@-rmdir $(OBJDIR)
 endif
-		-rm -f $(SCIPSDPFILE)
+		-rm -f $(SCIPSDPBIN)
 
 #-----------------------------------------------------------------------------
 -include $(LASTSETTINGS)
@@ -382,9 +382,9 @@ endif
 ifneq ($(SCIPSDPGITHASH),$(LAST_SCIPSDPGITHASH))
 		@$(MAKE) githash
 endif
-		@$(SHELL) -ec 'if test ! -e $(SCIPGITHASHFILE) ; \
+		@$(SHELL) -ec 'if test ! -e $(SCIPSDPGITHASHFILE) ; \
 			then \
-				echo "-> generating $(SCIPGITHASHFILE)" ; \
+				echo "-> generating $(SCIPSDPGITHASHFILE)" ; \
 				$(MAKE) githash ; \
 			fi'
 		@-rm -f $(LASTSETTINGS)
@@ -401,7 +401,7 @@ endif
 		@echo "LAST_NOBLKBUFMEM=$(NOBLKBUFMEM)" >> $(LASTSETTINGS)
 		@echo "LAST_SDPS=$(SDPS)" >> $(LASTSETTINGS)
 		@echo "LAST_OMP=$(OMP)" >> $(LASTSETTINGS)
-		@echo "LAST_SCIPGITHASH=$(SCIPSDPGITHASH)" >> $(LASTSETTINGS)
+		@echo "LAST_SCIPSDPGITHASH=$(SCIPSDPGITHASH)" >> $(LASTSETTINGS)
 
 $(LINKSMARKERFILE):
 		@$(MAKE) links
@@ -474,7 +474,7 @@ test:
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_tmpfile_setup_scip.sh configuration_tmpfile_setup_$(SCIPSDPNAME).sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/run.sh);
 		cd check; \
-		$(SHELL) ./check.sh $(TEST) $(SCIPSDPFILE) $(SETTINGS) $(notdir $(SCIPSDPFILE)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(DISPFREQ) \
+		$(SHELL) ./check.sh $(TEST) $(SCIPSDPBIN) $(SETTINGS) $(notdir $(SCIPSDPBIN)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(DISPFREQ) \
 			$(CONTINUE) $(LOCK) $(SCIPSDPVERSION) $(SDPS) $(DEBUGTOOL) $(CLIENTTMPDIR) $(REOPT) $(OPTCOMMAND) $(SETCUTOFF) $(MAXJOBS) $(VISUALIZE) \
 			$(PERMUTE) $(SEEDS) $(GLBSEEDSHIFT) $(STARTPERM);
 
@@ -500,7 +500,7 @@ testcluster:
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/runcluster.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/testfiles.sh);
 		cd check; \
-		$(SHELL) ./check_cluster.sh $(TEST) $(PWD)/$(SCIPSDPFILE) $(SETTINGS) $(notdir $(SCIPSDPFILE)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(SDPS) $(DISPFREQ) \
+		$(SHELL) ./check_cluster.sh $(TEST) $(PWD)/$(SCIPSDPBIN) $(SETTINGS) $(notdir $(SCIPSDPBIN)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(SDPS) $(DISPFREQ) \
 			$(CONTINUE) $(QUEUETYPE) $(QUEUE) $(PPN) $(CLIENTTMPDIR) $(NOWAITCLUSTER) $(EXCLUSIVE) $(PERMUTE) $(SEEDS) $(GLBSEEDSHIFT) $(DEBUGTOOL) $(REOPT) $(OPTCOMMAND) \
 			$(SETCUTOFF) $(VISUALIZE) $(CLUSTERNODES);
 
@@ -518,9 +518,9 @@ depend:		$(SCIPDIR)
 
 -include	$(SCIPSDPDEP)
 
-$(SCIPSDPFILE):	preprocess $(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(SCIPSDPCOBJFILES) $(SCIPSDPCCOBJFILES) $(SDPIOBJ) $(MAINOBJFILES) | $(SDPOBJSUBDIRS) $(BINDIR)
+$(SCIPSDPBIN):	$(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(SCIPSDPLIBFILE) $(MAINOBJFILES) | $(SDPOBJSUBDIRS) $(BINDIR)
 		@echo "-> linking $@"
-		$(LINKCXX) $(SCIPSDPCOBJFILES) $(SCIPSDPCCOBJFILES) $(MAINOBJFILES) $(SDPIOBJ) $(SDPILIB) $(LINKCXXSCIPALL) $(LINKCXX_o)$@
+		$(LINKCXX) $(MAINOBJFILES) -L$(SCIPSDPLIBDIR) -l$(SCIPSDPLIB) $(SCIPSDPLIBFILE) $(SDPILIB) $(LINKCXXSCIPALL) $(LINKCXX_o)$@
 
 $(OBJDIR)/%.o:	$(SRCDIR)/%.c | $(SDPOBJSUBDIRS)
 		@echo "-> compiling $@"
