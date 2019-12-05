@@ -1342,7 +1342,7 @@ SCIP_RETCODE CBFreadHcoord(
          {
             int varidx;
 
-            assert( data->nsdpblocks = ncbfsdpblocks + data->npsdvars );
+            assert( data->nsdpblocks == ncbfsdpblocks + data->npsdvars );
             for (v = 0; v < data->npsdvars; v++)
             {
                /* create the pointer arrays and insert used variables into vars-array */
