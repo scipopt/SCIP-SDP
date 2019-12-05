@@ -43,7 +43,7 @@
 # One would need to add more flags (eg $(LDFLAGS)) when linking
 #-----------------------------------------------------------------------------
 
-UNITTESTSSRC	=	$(shell find src/ -name *.cpp)
+UNITTESTSSRC	=	$(shell find src/ -name "*.cpp")
 
 # removes `src/` prefix and file.cpp postfix, then sorts, which removes duplicates!
 TESTDIRS 	= $(sort $(dir $(patsubst src/%,%,$(UNITTESTSSRC))))
