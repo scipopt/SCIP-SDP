@@ -58,7 +58,7 @@ extern "C" {
 #endif
 
 /** creates the sdp-obbt propagator and includes it in SCIP */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPincludePropSdpObbt(
    SCIP*                 scip                /**< SCIP data structure */
    );

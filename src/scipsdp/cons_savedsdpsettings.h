@@ -49,13 +49,13 @@ extern "C" {
 #endif
 
 /** include Savedsdpsettings constraint handler */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPincludeConshdlrSavedsdpsettings(
    SCIP*                 scip                /**< SCIP data structure */
    );
 
 /** create a savedsdpsettings constraint, i.e. save the current settings for the SDP-relaxation of this node */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE createConsSavedsdpsettings(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
@@ -64,7 +64,7 @@ SCIP_RETCODE createConsSavedsdpsettings(
    );
 
 /** get the settings used to solve the SDP relaxation in this node */
-EXTERN
+SCIP_EXPORT
 SCIP_SDPSOLVERSETTING SCIPconsSavedsdpsettingsGetSettings(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons                /**< constraint to get starting point for */

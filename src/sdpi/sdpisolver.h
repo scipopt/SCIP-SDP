@@ -77,13 +77,13 @@ typedef struct SCIP_SDPiSolver SCIP_SDPISOLVER;                 /**< solver depe
 /**@{ */
 
 /** gets name and version (if available) of SDP-solver */
-EXTERN
+SCIP_EXPORT
 const char* SCIPsdpiSolverGetSolverName(
    void
    );
 
 /** gets description of SDP-solver (developer, webpage, ...) */
-EXTERN
+SCIP_EXPORT
 const char* SCIPsdpiSolverGetSolverDesc(
    void
    );
@@ -94,31 +94,31 @@ const char* SCIPsdpiSolverGetSolverDesc(
  *  therefore only recommended if you really know what you are
  *  doing. In general, it returns a pointer to the SDP-solver object.
  */
-EXTERN
+SCIP_EXPORT
 void* SCIPsdpiSolverGetSolverPointer(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
 
 /** gets default feasibility tolerance for SDP-solver in SCIP-SDP */
-EXTERN
+SCIP_EXPORT
 SCIP_Real SCIPsdpiSolverGetDefaultSdpiSolverFeastol(
    void
    );
 
 /** gets default duality gap tolerance for SDP-solver in SCIP-SDP */
-EXTERN
+SCIP_EXPORT
 SCIP_Real SCIPsdpiSolverGetDefaultSdpiSolverGaptol(
    void
    );
 
 /** gets default number of increases of penalty parameter for SDP-solver in SCIP-SDP */
-EXTERN
+SCIP_EXPORT
 int SCIPsdpiSolverGetDefaultSdpiSolverNpenaltyIncreases(
    void
    );
 
 /** Should primal solution values be saved for warmstarting purposes? */
-EXTERN
+SCIP_EXPORT
 SCIP_Bool SCIPsdpiSolverDoesWarmstartNeedPrimal(
    void
    );
@@ -136,7 +136,7 @@ SCIP_Bool SCIPsdpiSolverDoesWarmstartNeedPrimal(
 /**@{ */
 
 /** creates an SDP solver interface */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverCreate(
    SCIP_SDPISOLVER**     sdpisolver,         /**< SDP-solver interface */
    SCIP_MESSAGEHDLR*     messagehdlr,        /**< message handler to use for printing messages, or NULL */
@@ -145,19 +145,19 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    );
 
 /** deletes an SDP solver interface */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverFree(
    SCIP_SDPISOLVER**     sdpisolver          /**< SDP-solver interface */
    );
 
 /** increases the SDP-Counter */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverIncreaseCounter(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
 
 /** reset the SDP-Counter to zero */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverResetCounter(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
@@ -186,7 +186,7 @@ SCIP_RETCODE SCIPsdpiSolverResetCounter(
  *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independant of some lhs/rhs being infinity (the starting point
  *  will later be adjusted accordingly)
  */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
    int                   nvars,              /**< number of variables */
@@ -268,7 +268,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independant of some lhs/rhs being infinity (the starting point
  *  will later be adjusted accordingly)
  */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
    SCIP_Real             penaltyparam,       /**< the Gamma above, needs to be >= 0 */
@@ -350,7 +350,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 /**@{ */
 
 /** returns whether a solve method was called after the last modification of the SDP */
-EXTERN
+SCIP_EXPORT
 SCIP_Bool SCIPsdpiSolverWasSolved(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
@@ -361,13 +361,13 @@ SCIP_Bool SCIPsdpiSolverWasSolved(
  *  solver does not know anything about the feasibility status and thus the functions IsPrimalFeasible etc. should not be
  *  used.
  */
-EXTERN
+SCIP_EXPORT
 SCIP_Bool SCIPsdpiSolverFeasibilityKnown(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
 
 /** gets information about primal and dual feasibility of the current SDP solution */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
    SCIP_Bool*            primalfeasible,     /**< stores primal feasibility status */
@@ -377,7 +377,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
 /** returns TRUE iff SDP is proven to be primal unbounded,
  *  returns FALSE with a debug-message if the solver could not determine feasibility
  */
-EXTERN
+SCIP_EXPORT
 SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
@@ -385,7 +385,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
 /** returns TRUE iff SDP is proven to be primal infeasible,
  *  returns FALSE with a debug-message if the solver could not determine feasibility
  */
-EXTERN
+SCIP_EXPORT
 SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
@@ -393,7 +393,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
 /** returns TRUE iff SDP is proven to be primal feasible,
  *  returns FALSE with a debug-message if the solver could not determine feasibility
  */
-EXTERN
+SCIP_EXPORT
 SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
@@ -401,7 +401,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
 /** returns TRUE iff SDP is proven to be dual unbounded,
  *  returns FALSE with a debug-message if the solver could not determine feasibility
  */
-EXTERN
+SCIP_EXPORT
 SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
@@ -409,7 +409,7 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
 /** returns TRUE iff SDP is proven to be dual infeasible,
  *  returns FALSE with a debug-message if the solver could not determine feasibility
  */
-EXTERN
+SCIP_EXPORT
 SCIP_Bool SCIPsdpiSolverIsDualInfeasible(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
@@ -417,7 +417,7 @@ SCIP_Bool SCIPsdpiSolverIsDualInfeasible(
 /** returns TRUE iff SDP is proven to be dual feasible,
  *  returns FALSE with a debug-message if the solver could not determine feasibility
  */
-EXTERN
+SCIP_EXPORT
 SCIP_Bool SCIPsdpiSolverIsDualFeasible(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
@@ -426,25 +426,25 @@ SCIP_Bool SCIPsdpiSolverIsDualFeasible(
  *
  * @todo Define this more precisely and adjust SDP-solvers (currently Mosek returns true for infeasibility and SDPA false).
  */
-EXTERN
+SCIP_EXPORT
 SCIP_Bool SCIPsdpiSolverIsConverged(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
 
 /** returns TRUE iff the objective limit was reached */
-EXTERN
+SCIP_EXPORT
 SCIP_Bool SCIPsdpiSolverIsObjlimExc(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
 
 /** returns TRUE iff the iteration limit was reached */
-EXTERN
+SCIP_EXPORT
 SCIP_Bool SCIPsdpiSolverIsIterlimExc(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
 
 /** returns TRUE iff the time limit was reached */
-EXTERN
+SCIP_EXPORT
 SCIP_Bool SCIPsdpiSolverIsTimelimExc(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
@@ -460,13 +460,13 @@ SCIP_Bool SCIPsdpiSolverIsTimelimExc(
  *  6: user termination<br>
  *  7: other
  */
-EXTERN
+SCIP_EXPORT
 int SCIPsdpiSolverGetInternalStatus(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
 
 /** returns TRUE iff SDP was solved to optimality, meaning the solver converged and returned primal and dual feasible solutions */
-EXTERN
+SCIP_EXPORT
 SCIP_Bool SCIPsdpiSolverIsOptimal(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
@@ -474,20 +474,20 @@ SCIP_Bool SCIPsdpiSolverIsOptimal(
 /** returns TRUE iff SDP was solved to optimality or some other status was reached
  *  that is still acceptable inside a Branch & Bound framework
  */
-EXTERN
+SCIP_EXPORT
 SCIP_Bool SCIPsdpiSolverIsAcceptable(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
 
 /** tries to reset the internal status of the SDP-solver in order to ignore an instability of the last solving call */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverIgnoreInstability(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
    SCIP_Bool*            success             /**< pointer to store, whether the instability could be ignored */
    );
 
 /** gets objective value of solution */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverGetObjval(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
    SCIP_Real*            objval              /**< pointer to store the objective value */
@@ -497,7 +497,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
  *
  *  If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
  */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverGetSol(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    SCIP_Real*            objval,             /**< pointer to store the objective value, may be NULL if not needed */
@@ -507,7 +507,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
    );
 
 /** return number of nonzeros for each block of the primal solution matrix X for the preoptimal solution */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
@@ -522,7 +522,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
  *  @note If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
  *  @note If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz
  */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    SCIP_Bool*            success,            /**< could a preoptimal solution be returned ? */
@@ -544,7 +544,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
  *
  *  @note If a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent primal variable.
  */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    SCIP_Real*            lbvars,             /**< pointer to store the values of the variables corresponding to lower bounds in the dual problems */
@@ -554,7 +554,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    );
 
 /** return number of nonzeros for each block of the primal solution matrix X (including lp block) */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
@@ -567,7 +567,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
  *  independant of some lhs/rhs being infinity
  *  @note If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz
  */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
@@ -579,27 +579,27 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    );
 
 /** return the maximum absolute value of the optimal primal matrix */
-EXTERN
+SCIP_EXPORT
 SCIP_Real SCIPsdpiSolverGetMaxPrimalEntry(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to an SDP-solver interface */
    );
 
 /** gets the number of SDP iterations of the last solve call */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverGetIterations(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
    int*                  iterations          /**< pointer to store the number of iterations of the last solve call */
    );
 
 /** gets the number of calls to the SDP-solver for the last solve call */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverGetSdpCalls(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
    int*                  calls               /**< pointer to store the number of calls to the SDP-solver for the last solve call */
    );
 
 /** gets the settings used by the SDP solver for the last solve call */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverSettingsUsed(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
    SCIP_SDPSOLVERSETTING* usedsetting        /**< the setting used by the SDP-solver */
@@ -624,20 +624,20 @@ SCIP_RETCODE SCIPsdpiSolverSettingsUsed(
 /**@{ */
 
 /** returns value treated as infinity in the SDP-solver */
-EXTERN
+SCIP_EXPORT
 SCIP_Real SCIPsdpiSolverInfinity(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
 
 /** checks if given value is treated as (plus or minus) infinity in the SDP-solver */
-EXTERN
+SCIP_EXPORT
 SCIP_Bool SCIPsdpiSolverIsInfinity(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
    SCIP_Real             val                 /**< value to be checked for infinity */
    );
 
 /** gets floating point parameter of SDP-Solver */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverGetRealpar(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
    SCIP_SDPPARAM         type,               /**< parameter number */
@@ -645,7 +645,7 @@ SCIP_RETCODE SCIPsdpiSolverGetRealpar(
    );
 
 /** sets floating point parameter of SDP-Solver */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
    SCIP_SDPPARAM         type,               /**< parameter number */
@@ -653,7 +653,7 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    );
 
 /** gets integer parameter of SDP-Solver */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverGetIntpar(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    SCIP_SDPPARAM         type,               /**< parameter number */
@@ -661,7 +661,7 @@ SCIP_RETCODE SCIPsdpiSolverGetIntpar(
    );
 
 /** sets integer parameter of SDP-Solver */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverSetIntpar(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    SCIP_SDPPARAM         type,               /**< parameter number */
@@ -669,14 +669,14 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
    );
 
 /** compute and set lambdastar (only used for SDPA) */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverComputeLambdastar(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    SCIP_Real             maxguess            /**< maximum guess for lambda star of all SDP-constraints */
    );
 
 /** compute and set the penalty parameter */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverComputePenaltyparam(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    SCIP_Real             maxcoeff,           /**< maximum objective coefficient */
@@ -684,7 +684,7 @@ SCIP_RETCODE SCIPsdpiSolverComputePenaltyparam(
    );
 
 /** compute and set the maximum penalty parameter */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverComputeMaxPenaltyparam(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    SCIP_Real             penaltyparam,       /**< the initial penalty parameter */
@@ -704,14 +704,14 @@ SCIP_RETCODE SCIPsdpiSolverComputeMaxPenaltyparam(
 /**@{ */
 
 /** reads SDP from a file */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverReadSDP(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
    const char*           fname               /**< file name */
    );
 
 /** writes SDP to a file */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverWriteSDP(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
    const char*           fname               /**< file name */

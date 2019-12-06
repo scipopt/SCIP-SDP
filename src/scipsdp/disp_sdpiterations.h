@@ -49,7 +49,7 @@ extern "C" {
 #endif
 
 /** creates the SDP-iterations display column and includes it in SCIP */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPincludeDispSdpiterations(
    SCIP*                 scip                /**< SCIP data structure */
    );

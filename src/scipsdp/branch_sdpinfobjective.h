@@ -53,7 +53,7 @@ extern "C" {
 #endif
 
 /** creates the SDP combined infeasibility and absolute objective branching rule and includes it in SCIP */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPincludeBranchruleSdpinfobjective(
    SCIP*                 scip                /**< SCIP data structure */
    );

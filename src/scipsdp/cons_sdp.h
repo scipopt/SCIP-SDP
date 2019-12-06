@@ -53,13 +53,13 @@ extern "C" {
 #endif
 
 /** creates the handler for SDP constraints and includes it in SCIP */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP*                 scip                /**< SCIP data structure */
    );
 
 /** creates an SDP-constraint */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPcreateConsSdp(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
@@ -81,7 +81,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
 /** for given row and column (i,j) computes the position in the lower triangular part, if
  *  these positions are numbered from 0 to n(n+1)/2 - 1, this needs to be called for i >= j
  */
-EXTERN
+SCIP_EXPORT
 int SCIPconsSdpCompLowerTriangPos(
    int                   i,                  /**< row index */
    int                   j                   /**< column index */
@@ -93,7 +93,7 @@ int SCIPconsSdpCompLowerTriangPos(
  *  need to be inserted, a debug message will be thrown and this variable will be set to the needed length.
  *  constnnonz should give the length of the const arrays, if it is too short it will also give the needed number and a debug message is thrown.
  */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPconsSdpGetData(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< SDP constraint to get data of */
@@ -118,7 +118,7 @@ SCIP_RETCODE SCIPconsSdpGetData(
  *
  *  Either nnonz or constnnonz may be NULL if only the other one is needed.
  */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPconsSdpGetNNonz(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< SDP constraint to get number of nonzeros for */
@@ -127,14 +127,14 @@ SCIP_RETCODE SCIPconsSdpGetNNonz(
    );
 
 /** gets the blocksize of the SDP constraint */
-EXTERN
+SCIP_EXPORT
 int SCIPconsSdpGetBlocksize(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons                /**< SDP constraint to get blocksize for */
    );
 
 /** gets the full constraint Matrix \f$ A_j \f$ for a given variable j */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPconsSdpGetFullAj(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< SDP constraint to get matrix for */
@@ -143,7 +143,7 @@ SCIP_RETCODE SCIPconsSdpGetFullAj(
    );
 
 /** gives an n*n-long array with the full constant matrix */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPconsSdpGetFullConstMatrix(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< SDP constraint to get matrix for */
@@ -151,7 +151,7 @@ SCIP_RETCODE SCIPconsSdpGetFullConstMatrix(
    );
 
 /** gives a 0.5*n*(n+1)-long array with the lower triangular part of the constant matrix indexed by SCIPconsSdpCompLowerTriangPos */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< SDP constraint to get matrix for */
@@ -159,7 +159,7 @@ SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
    );
 
 /** checks feasibility for a single SDP constraint */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< the constraint the solution should be checked for */
@@ -180,7 +180,7 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
  *  where \f$ S = \frac{ | \text{nonzero-entries of all } A_i | }{0.5 \cdot \text{ blocksize } (\text{ blocksize } + 1)} \f$
  *  measures the sparsity of the matrices.
  */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< the constraint to guess an initial point for */
@@ -188,14 +188,14 @@ SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
    );
 
 /** Gets maximum absolute entry of constant matrix \f$ A_0 \f$ */
-EXTERN
+SCIP_EXPORT
 SCIP_Real SCIPconsSdpGetMaxConstEntry(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons                /**< the constraint to get the maximum constant matrix entry for */
    );
 
 /** Gets maximum absolute entry of all matrices \f$ A_i \f$ */
-EXTERN
+SCIP_EXPORT
 SCIP_Real SCIPconsSdpGetMaxSdpCoef(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons                /**< the constraint to get the maximum constant matrix entry for */
@@ -206,7 +206,7 @@ SCIP_Real SCIPconsSdpGetMaxSdpCoef(
  *
  *  Upper bound is computed as \f$ \min \{ \sum_{v \leq m} \text{nvarnonz}(v) + \text{constnnonz}, n \cdot (n+1) / 2 \} \f$.
  */
-EXTERN
+SCIP_EXPORT
 int SCIPconsSdpComputeUbSparseSdpMatrixLength(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons                /**< the constraint for which the Matrix should be assembled */
@@ -216,7 +216,7 @@ int SCIPconsSdpComputeUbSparseSdpMatrixLength(
  *  @note row, col and val should have memory allocated equal to SCIPconsSdpComputeUbSparseSdpMatrixLength(),
  *        if the memory is not sufficient, length will be set to -1 and an error will be thrown
  */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPconsSdpComputeSparseSdpMatrix(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< the constraint for which the Matrix should be assembled */
