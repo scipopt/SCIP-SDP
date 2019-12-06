@@ -1990,7 +1990,7 @@ SCIP_DECL_CONSHDLRCOPY(conshdlrCopySdp)
    return SCIP_OKAY;
 }
 
-/** copy an SDP constraint*/
+/** copy an SDP constraint */
 static
 SCIP_DECL_CONSCOPY(consCopySdp)
 {/*lint --e{715}*/
@@ -2036,38 +2036,38 @@ SCIP_DECL_CONSCOPY(consCopySdp)
    if ( name )
    {
 #ifndef NDEBUG
-   int snprintfreturn; /* used to check the return code of snprintf */
+      int snprintfreturn; /* used to check the return code of snprintf */
 #endif
-   char copyname[SCIP_MAXSTRLEN];
+      char copyname[SCIP_MAXSTRLEN];
 
-      /* name the copied constraint */
-   #ifndef NDEBUG
-         snprintfreturn = SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", name);
-         assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
-   #else
-         (void) SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", name);
-   #endif
-      SCIP_CALL( SCIPcreateConsSdp( scip, cons, copyname, sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize, sourcedata->nvarnonz,
-                 sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
-                 sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
+   /* name the copied constraint */
+#ifndef NDEBUG
+      snprintfreturn = SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", name);
+      assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
+#else
+      (void) SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", name);
+#endif
+      SCIP_CALL( SCIPcreateConsSdp(scip, cons, copyname, sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize, sourcedata->nvarnonz,
+            sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
+            sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
    }
    else
    {
 #ifndef NDEBUG
-   int snprintfreturn; /* used to check the return code of snprintf */
+      int snprintfreturn; /* used to check the return code of snprintf */
 #endif
-   char copyname[SCIP_MAXSTRLEN];
+      char copyname[SCIP_MAXSTRLEN];
 
       /* name the copied constraint */
-   #ifndef NDEBUG
-         snprintfreturn = SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", SCIPconsGetName(sourcecons));
-         assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
-   #else
-         (void) SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", SCIPconsGetName(sourcecons));
-   #endif
-      SCIP_CALL( SCIPcreateConsSdp( scip, cons, SCIPconsGetName(sourcecons), sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize,
-                 sourcedata->nvarnonz, sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
-                 sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
+#ifndef NDEBUG
+      snprintfreturn = SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", SCIPconsGetName(sourcecons));
+      assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
+#else
+      (void) SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", SCIPconsGetName(sourcecons));
+#endif
+      SCIP_CALL( SCIPcreateConsSdp(scip, cons, SCIPconsGetName(sourcecons), sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize,
+            sourcedata->nvarnonz, sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
+            sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
    }
 
    SCIPfreeBufferArray(scip, &targetvars);
