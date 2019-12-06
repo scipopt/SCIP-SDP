@@ -233,8 +233,13 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    assert( result != NULL );
 
    /* do not run if propagation w.r.t. objective is not allowed */
-   if( !SCIPallowObjProp(scip) )
+#if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
+   if( ! SCIPallowWeakDualReds(scip) )
       return SCIP_OKAY;
+#else
+   if( ! SCIPallowObjProp(scip) )
+      return SCIP_OKAY;
+#endif
 
    if ( SCIPgetStage(scip) == SCIP_STAGE_PRESOLVING )
    {
