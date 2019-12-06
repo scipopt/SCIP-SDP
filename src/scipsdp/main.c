@@ -30,68 +30,59 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   readwrite.c
- * @brief  unit test for checking reading and writing of MISDPs
- * @author Marc Pfetsch
+/**@file   main.cpp
+ * @brief  main file for solving MISDPs
+ * @author Sonja Mars
+ * @author Tristan Gally
  */
 
-/*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
-
 #include "scipsdp/scipsdpdefplugins.h"
-#include "include/scip_test.h"
 
-/* global SCIP data structure */
-SCIP* scipsdp;
-
-#define EPS  1e-6
-
-/** setup of test suite */
+/** run scip and set some parameters */
 static
-void setup(void)
+SCIP_RETCODE runSCIP(
+   int                   argc,               /**< number of command line arguments */
+   char**                argv                /**< pointer to command line arguments */
+   )
 {
-   SCIP_CALL( SCIPcreate(&scipsdp) );
+   SCIP* scip = NULL;
 
-   /* include default SCIP-SDP plugins */
-   SCIP_CALL( SCIPSDPincludeDefaultPlugins(scipsdp) );
-}
+   SCIP_CALL( SCIPcreate(&scip) );
 
-/** deinitialization method of test */
-static
-void teardown(void)
-{
+   /* include plugins */
+   SCIP_CALL( SCIPSDPincludeDefaultPlugins(scip) );
+
+   /* change certain paramters: */
+   SCIP_CALL( SCIPsetIntParam(scip, "display/verblevel", 5) );
+
+   /* we explicitly enable the use of a debug solution for this main SCIP instance */
+   SCIPenableDebugSol(scip);
+
+   /* run interactive shell */
+   SCIP_CALL( SCIPprocessShellArguments(scip, argc, argv, "scip.set") );
+
    /* deinitialization */
-   SCIP_CALL( SCIPfree(&scipsdp) );
+   SCIP_CALL( SCIPfree(&scip) );
 
-   cr_assert_eq(BMSgetMemoryUsed(), 0, "There is a memory leak!");
+   BMScheckEmptyMemory();
+
+   return SCIP_OKAY;
 }
 
-TestSuite(readwrite, .init = setup, .fini = teardown);
-
-
-/** TESTS **/
-
-/** Test 1 */
-Test(readwrite, readSDPAwriteCBF)
+/** main function */
+int main (
+   int                   argc,               /**< number of command line arguments */
+   char**                argv                /**< pointer to command line arguments */
+   )
 {
-   SCIP_Real obj1;
-   SCIP_Real obj2;
+   SCIP_RETCODE retcode;
 
-   /* read problem and solve it */
-   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_small.dat-s", NULL) );
+   retcode = runSCIP(argc, argv);
+   if( retcode != SCIP_OKAY )
+   {
+      SCIPprintError(retcode);
+      return -1;
+   }
 
-   SCIP_CALL( SCIPsolve(scipsdp) );
-
-   obj1 = SCIPgetDualbound(scipsdp);
-
-   /* write problem in CBF format */
-   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "example_small.cbf", "cbf", FALSE) );
-
-   /* read problem again */
-   SCIP_CALL( SCIPreadProb(scipsdp, "example_small.cbf", NULL) );
-
-   SCIP_CALL( SCIPsolve(scipsdp) );
-
-   obj2 = SCIPgetDualbound(scipsdp);
-
-   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (SDPA) != %g (CBF)\n", obj1, obj2);
+   return 0;
 }

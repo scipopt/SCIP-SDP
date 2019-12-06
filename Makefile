@@ -181,6 +181,7 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 
 SCIPSDPCCOBJ 	=	scipsdp/objreader_sdpa.o \
 			scipsdp/objreader_sdpaind.o \
+			scipsdp/scipsdpdefplugins.o \
 			scipsdp/ScipStreamBuffer.o
 
 SCIPSDPCSRC	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCOBJ:.o=.c))
@@ -196,7 +197,7 @@ SCIPSDPCOBJFILES	=	$(addprefix $(OBJDIR)/,$(SCIPSDPCOBJ))
 SCIPSDPCCOBJFILES	=	$(addprefix $(OBJDIR)/,$(SCIPSDPCCOBJ))
 
 MAINOBJ		=	scipsdp/main.o
-MAINSRC		=	$(addprefix $(SRCDIR)/,$(MAINOBJ:.o=.cpp))
+MAINSRC		=	$(addprefix $(SRCDIR)/,$(MAINOBJ:.o=.c))
 MAINOBJFILES  	=	$(addprefix $(OBJDIR)/,$(MAINOBJ))
 
 ALLSRC		=	$(SCIPSDPCSRC) $(SCIPSDPCCSRC) $(SDPICSRC) $(SDPICCSRC) $(MAINSRC)
