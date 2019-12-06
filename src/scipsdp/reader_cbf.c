@@ -360,7 +360,7 @@ SCIP_RETCODE CBFreadPsdvar(
          }
 
          /* for each psd variable of size n_i create 1/2*n_i*(n_i+1) scalar variables */
-         nscalarvars = sizepsdvar * (sizepsdvar + 1) * 0.5;
+         nscalarvars = sizepsdvar * (sizepsdvar + 1) / 2;
          data->psdvarsizes[t] = sizepsdvar;
 
          SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdpsdvars[t]), sizepsdvar) );
@@ -1168,7 +1168,7 @@ SCIP_RETCODE CBFreadHcoord(
    int nextindaftervar;
    int nzerocoef = 0;
    int ncbfsdpblocks;
-   int nauxnonz;                /* number of nonzeros in each auxiliary sdp block for reformulating matrix variables using
+   int nauxnonz = 0;            /* number of nonzeros in each auxiliary sdp block for reformulating matrix variables using
                                  * scalar variables */
 
    assert( scip != NULL );
@@ -1197,7 +1197,7 @@ SCIP_RETCODE CBFreadHcoord(
    {
       ncbfsdpblocks = data->nsdpblocks - data->npsdvars;
       for (i = 0; i < data->npsdvars; i++)
-         nauxnonz += data->psdvarsizes[i] * (data->psdvarsizes[i] + 1) * 0.5;
+         nauxnonz += data->psdvarsizes[i] * (data->psdvarsizes[i] + 1) / 2;
    }
    else
    {
@@ -1313,7 +1313,7 @@ SCIP_RETCODE CBFreadHcoord(
                      data->sdpnblocknonz[b]++;
                   }
                }
-               assert( data->sdpnblocknonz[b] == data->psdvarsizes[v] * (data->psdvarsizes[v] + 1) * 0.5 );
+               assert( data->sdpnblocknonz[b] == data->psdvarsizes[v] * (data->psdvarsizes[v] + 1) / 2 );
                assert( b == data->nsdpblocks - 1 );
             }
          }
@@ -1913,7 +1913,6 @@ SCIP_DECL_READERREAD(readerReadCbf)
    if ( data->npsdvars > data->nsdpblocks )
    {
       int nauxvars;
-      int nnonz;
       int varidx;
       int row;
       int col;
@@ -1942,8 +1941,8 @@ SCIP_DECL_READERREAD(readerReadCbf)
 
       for (b = 0; b < data->nsdpblocks; b++)
       {
-         nauxvars = data->psdvarsizes[b] * (data->psdvarsizes[b] + 1) * 0.5;
-         nnonz += nauxvars;
+         nauxvars = data->psdvarsizes[b] * (data->psdvarsizes[b] + 1) / 2;
+         data->nnonz += nauxvars;
          varidx = 0;
 
          data->sdpblocksizes[b] = data->psdvarsizes[b];
