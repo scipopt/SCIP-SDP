@@ -705,6 +705,22 @@ SCIP_RETCODE CBFreadObjfcoord(
                   return SCIP_READERROR; /*lint !e527*/
                }
 
+               if ( row < 0 || row >= data->psdvarsizes[v] )
+               {
+                  SCIPerrorMessage("Row index %d of given coefficient for matrix variable %d in objective function is negative or larger than varsize %d!\n",
+                     row, v, data->psdvarsizes[v]);
+                  SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
+               }
+
+               if ( col < 0 || col >= data->psdvarsizes[v] )
+               {
+                  SCIPerrorMessage("Column index %d of given coefficient for matrix variable %d in objective function is negative or larger than varsize %d!\n",
+                     col, v, data->psdvarsizes[v]);
+                  SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
+               }
+
                if ( SCIPisZero(scip, val) )
                {
                   ++nzerocoef;
@@ -888,6 +904,22 @@ SCIP_RETCODE CBFreadFcoord(
                if ( v < 0 || v >= data->npsdvars )
                {
                   SCIPerrorMessage("Given coefficient for matrix variable %d which does not exist!\n", v);
+                  SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
+               }
+
+               if ( row < 0 || row >= data->psdvarsizes[v] )
+               {
+                  SCIPerrorMessage("Row index %d of given coefficient for matrix variable %d in scalar constraint %d is negative or larger than varsize %d!\n",
+                     row, v, c, data->psdvarsizes[v]);
+                  SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
+               }
+
+               if ( col < 0 || col >= data->psdvarsizes[v] )
+               {
+                  SCIPerrorMessage("Column index %d of given coefficient for matrix variable %d in scalar constraint %d is negative or larger than varsize %d!\n",
+                     col, v, c, data->psdvarsizes[v]);
                   SCIPABORT();
                   return SCIP_READERROR; /*lint !e527*/
                }
