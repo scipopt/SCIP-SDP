@@ -6,3 +6,4 @@
 ../instances/example_MkP.dat-s.gz
 ../instances/example_cbf_primal.cbf
 ../instances/example_cbf_mix.cbf
+../instances/example_cbf_dual.cbf
