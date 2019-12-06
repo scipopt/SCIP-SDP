@@ -98,6 +98,7 @@ struct SCIP_ConsData
    int**                 row;                /**< pointers to the row indices of the nonzeros for each variable */
    SCIP_Real**           val;                /**< pointers to the values of the nonzeros for each variable */
    SCIP_VAR**            vars;               /**< SCIP_VARiables present in this SDP constraint, ordered by their begvar-indices */
+   int*                  locks;              /**< whether each variable is up-locked (1), down-locked (-1) or both (0); -2 if not locked (yet) */
    int                   constnnonz;         /**< number of nonzeros in the constant part of this SDP constraint */
    int*                  constcol;           /**< column indices of the constant nonzeros */
    int*                  constrow;           /**< row indices of the constant nonzeros */
@@ -1145,6 +1146,7 @@ SCIP_RETCODE multiaggrVar(
    consdata->val[*v] = consdata->val[consdata->nvars - 1];
    consdata->nvarnonz[*v] = consdata->nvarnonz[consdata->nvars - 1];
    consdata->vars[*v] = consdata->vars[consdata->nvars - 1];
+   consdata->locks[*v] = -2;
    (consdata->nvars)--;
    (*v)--; /* we need to check again if the variable we just shifted to this position also needs to be (multi-)aggregated */
 
@@ -1212,6 +1214,7 @@ SCIP_RETCODE multiaggrVar(
             SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->val, *vararraylength, globalnvars) );
             SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->nvarnonz, *vararraylength, globalnvars) );
             SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->vars, *vararraylength, globalnvars) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->locks, *vararraylength, globalnvars) );
             *vararraylength = globalnvars;
          }
 
@@ -1376,6 +1379,22 @@ SCIP_RETCODE fixAndAggrVars(
             SCIPfreeBlockMemoryArrayNull(scip, &(consdata->row[v]), consdata->nvarnonz[v]);
             SCIPfreeBlockMemoryArrayNull(scip, &(consdata->col[v]), consdata->nvarnonz[v]);
 
+            /* undo locks */
+            assert( consdata->locks != NULL );
+            assert( consdata->locks[v] == -2 || consdata->locks[v] == -1 || consdata->locks[v] == 0 || consdata->locks[v] == 1 );
+            if ( consdata->locks[v] == 1 )
+            {
+               SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], 0, -1) );
+            }
+            else if ( consdata->locks[v] == - 1 )
+            {
+               SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], -1, 0) );
+            }
+            else if ( consdata->locks[v] == 0 )
+            {
+               SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], -1, -1) );
+            }
+
             /* as the variables don't need to be sorted, we just put the last variable into the empty spot and decrease sizes by one (at the end) */
             SCIP_CALL( SCIPreleaseVar(scip, &(consdata->vars[v])) );
             consdata->col[v] = consdata->col[consdata->nvars - 1];
@@ -1383,6 +1402,7 @@ SCIP_RETCODE fixAndAggrVars(
             consdata->val[v] = consdata->val[consdata->nvars - 1];
             consdata->nvarnonz[v] = consdata->nvarnonz[consdata->nvars - 1];
             consdata->vars[v] = consdata->vars[consdata->nvars - 1];
+            consdata->locks[v] = consdata->locks[consdata->nvars - 1];
             consdata->nvars--;
             v--; /* we need to check again if the variable we just shifted to this position also needs to be fixed */
          }
@@ -1431,7 +1451,7 @@ SCIP_RETCODE fixAndAggrVars(
             SCIPfreeBufferArray(scip, &aggrvars);
             SCIPfreeBufferArray(scip, &scalars);
          }
-         else if ( negated && (SCIPvarGetStatus(var) == SCIP_VARSTATUS_LOOSE || SCIPvarGetStatus(var) == SCIP_VARSTATUS_COLUMN) && aggregate)
+         else if ( negated && (SCIPvarGetStatus(var) == SCIP_VARSTATUS_LOOSE || SCIPvarGetStatus(var) == SCIP_VARSTATUS_COLUMN) && aggregate )
          {
              /* if var1 is the negation of var2, then this is equivalent to it being aggregated to -var2 + 1 = 1 - var2 */
 
@@ -1452,6 +1472,7 @@ SCIP_RETCODE fixAndAggrVars(
          SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->val, vararraylength, consdata->nvars) );
          SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->nvarnonz, vararraylength, consdata->nvars) );
          SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->vars, vararraylength, consdata->nvars) );
+         SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->locks, vararraylength, consdata->nvars) );
       }
 
       /* allocate the maximally needed memory for inserting the fixed variables into the constant part */
@@ -1619,10 +1640,10 @@ SCIP_DECL_CONSLOCK(consLockSdp)
 {/*lint --e{715}*/
    SCIP_Real* Aj;
    SCIP_CONSDATA* consdata;
-   int blocksize;
-   int var;
-   int nvars;
    SCIP_Real eigenvalue;
+   int blocksize;
+   int nvars;
+   int v;
 
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
@@ -1631,9 +1652,9 @@ SCIP_DECL_CONSLOCK(consLockSdp)
 
    SCIP_CALL( SCIPallocBufferArray(scip, &Aj, blocksize * blocksize) ); /*lint !e647*/
 
-   for (var = 0; var < nvars; var++)
+   for (v = 0; v < nvars; v++)
    {
-      SCIP_CALL( SCIPconsSdpGetFullAj(scip, cons, var, Aj) );
+      SCIP_CALL( SCIPconsSdpGetFullAj(scip, cons, v, Aj) );
 
       /* compute the smallest eigenvalue */
       SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, 1, &eigenvalue, NULL) );
@@ -1641,7 +1662,8 @@ SCIP_DECL_CONSLOCK(consLockSdp)
       {
          /* as the lowest eigenvalue is negative, the matrix is not positive semidefinite, so adding more of it can remove positive
           * semidefiniteness of the SDP-matrix */
-         SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[var], nlocksneg, nlockspos) );
+         SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], nlocksneg, nlockspos) );
+         consdata->locks[v] = 1; /* up-lock */
       }
 
       /* if the smallest eigenvalue is already positive, we don't need to compute the biggest one */
@@ -1649,7 +1671,8 @@ SCIP_DECL_CONSLOCK(consLockSdp)
       {
          /* as an eigenvalue is positive, the matrix is not negative semidefinite, so substracting more of it can remove positive
           * semidefiniteness of the SDP-matrix */
-         SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[var], nlockspos, nlocksneg) );
+         SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], nlockspos, nlocksneg) );
+         consdata->locks[v] = -1; /* down-lock */
       }
       else
       {
@@ -1659,7 +1682,11 @@ SCIP_DECL_CONSLOCK(consLockSdp)
          {
             /* as the biggest eigenvalue is positive, the matrix is not negative semidefinite, so substracting more of it can remove positive
              * semidefiniteness of the SDP-matrix */
-            SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[var], nlockspos, nlocksneg) );
+            SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], nlockspos, nlocksneg) );
+            if ( consdata->locks[v] == 1 )
+               consdata->locks[v] = 0;  /* up- and down-lock */
+            else
+               consdata->locks[v] = -1; /* down-lock */
          }
       }
    }
@@ -1757,13 +1784,15 @@ SCIP_DECL_CONSTRANS(consTransSdp)
       SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->row[i]), sourcedata->row[i], sourcedata->nvarnonz[i]) );
       SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->val[i]), sourcedata->val[i], sourcedata->nvarnonz[i]) );
    }
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->vars), sourcedata->nvars));
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->vars), sourcedata->nvars) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->locks), sourcedata->nvars) );
 
    /* copy & transform the vars array */
    for (i = 0; i < sourcedata->nvars; i++)
    {
       targetdata->vars[i] = SCIPvarGetTransVar(sourcedata->vars[i]);
       SCIP_CALL( SCIPcaptureVar(scip, targetdata->vars[i]) );
+      targetdata->locks[i] = -2;
    }
 
    /* copy the constant nonzeros */
@@ -1948,6 +1977,7 @@ SCIP_DECL_CONSDELETE(consDeleteSdp)
    }
 
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->vars, (*consdata)->nvars);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->locks, (*consdata)->nvars);
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->constval, (*consdata)->constnnonz);
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->constrow, (*consdata)->constnnonz);
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->constcol, (*consdata)->constnnonz);
@@ -2012,7 +2042,7 @@ SCIP_DECL_CONSCOPY(consCopySdp)
 
    /* as we can only map active variables, we have to make sure, that the constraint contains no fixed or (multi-)aggregated vars, after
     * exitpresolve (stage 6) this should always be the case, earlier than that we need to call fixAndAggrVars */
-   if ( SCIPgetStage(sourcescip)  <= SCIP_STAGE_EXITPRESOLVE )
+   if ( SCIPgetStage(sourcescip) <= SCIP_STAGE_EXITPRESOLVE )
    {
       SCIP_CALL( fixAndAggrVars(sourcescip, &sourcecons, 1, TRUE) );
    }
@@ -3079,6 +3109,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
    consdata->nnonz = nnonz;
    consdata->constnnonz = constnnonz;
    consdata->blocksize = blocksize;
+   consdata->locks = NULL;
 
    for (i = 0; i < nvars; i++)
    {
@@ -3110,6 +3141,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
       SCIP_CALL( SCIPcaptureVar(scip, consdata->vars[i]) );
    }
    SCIPdebugMessage("creating cons %s\n", name);
+
    /* create constraint */
    SCIP_CALL( SCIPcreateCons(scip, cons, name, conshdlr, consdata, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) );
 
