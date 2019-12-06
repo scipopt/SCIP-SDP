@@ -1940,7 +1940,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
          sdpconstnnonz = totalsdpconstnnonz;
 
          SCIP_CALL( SCIPconsSdpGetData(scip, conss[c], &sdpnvars, &sdpnnonz, &sdpblocksize, &sdparraylength, sdpnvarnonz,
-               sdpcol, sdprow, sdpval, sdpvars, &sdpconstnnonz, sdpconstcol, sdpconstrow, sdpconstval, NULL, NULL) );
+               sdpcol, sdprow, sdpval, sdpvars, &sdpconstnnonz, sdpconstcol, sdpconstrow, sdpconstval, NULL, NULL, NULL) );
 
          assert( sdpconstnnonz <= totalsdpconstnnonz );
          assert( sdparraylength <= totalsdpnnonz);
@@ -1975,7 +1975,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
          sdpconstnnonz = totalsdpconstnnonz;
 
          SCIP_CALL( SCIPconsSdpGetData(scip, conss[c], &sdpnvars, &sdpnnonz, &sdpblocksize, &sdparraylength, sdpnvarnonz,
-               sdpcol, sdprow, sdpval, sdpvars, &sdpconstnnonz, sdpconstcol, sdpconstrow, sdpconstval, NULL, NULL) );
+               sdpcol, sdprow, sdpval, sdpvars, &sdpconstnnonz, sdpconstcol, sdpconstrow, sdpconstval, NULL, NULL, NULL) );
 
          assert( sdpconstnnonz <= totalsdpconstnnonz );
          assert( sdparraylength <= totalsdpnnonz);

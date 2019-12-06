@@ -415,7 +415,7 @@ SCIP_RETCODE putSdpDataInInterface(
 
          /* get the data */
          SCIP_CALL( SCIPconsSdpGetData(scip, conss[i], &nblockvars[ind], &blocknnonz, &sdpblocksizes[ind], &nvars, nblockvarnonz[ind], col[ind],
-               row[ind], val[ind], blockvars, &nconstblocknonz[ind], constcol[ind], constrow[ind], constval[ind], NULL, NULL) );
+               row[ind], val[ind], blockvars, &nconstblocknonz[ind], constcol[ind], constrow[ind], constval[ind], NULL, NULL, NULL) );
 
          /* nvars and nconstblocknonz[ind] would have been overwritten if the space in the given arrays hadn't been sufficient */
          assert( nvars == SCIPgetNVars(scip) );
@@ -1605,7 +1605,7 @@ SCIP_RETCODE calcRelax(
 
                   arraylength = nvars;
                   SCIP_CALL( SCIPconsSdpGetData(scip, sdpblocks[b], &blocknvars, &blocknnonz, &blocksize, &arraylength, blocknvarnonz,
-                        blockcol, blockrow, blockval, blockvars, &blockconstnnonz, blockconstcol, blockconstrow, blockconstval, NULL, NULL) );
+                        blockcol, blockrow, blockval, blockvars, &blockconstnnonz, blockconstcol, blockconstrow, blockconstval, NULL, NULL, NULL) );
                   assert( arraylength == nvars ); /* arraylength should alwys be sufficient */
 
                   matrixsize = blocksize * blocksize;
@@ -2069,7 +2069,7 @@ SCIP_RETCODE calcRelax(
 
                   arraylength = nvars;
                   SCIP_CALL( SCIPconsSdpGetData(scip, sdpblocks[b], &blocknvars, &blocknnonz, &blocksize, &arraylength, blocknvarnonz,
-                        blockcol, blockrow, blockval, blockvars, &blockconstnnonz, blockconstcol, blockconstrow, blockconstval, NULL, NULL) );
+                        blockcol, blockrow, blockval, blockvars, &blockconstnnonz, blockconstcol, blockconstrow, blockconstval, NULL, NULL, NULL) );
 
                   nroundingrows = (blocksize * (blocksize + 1)) / 2;
 
