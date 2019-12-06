@@ -81,12 +81,13 @@ struct CBF_Data
    int                   npsdvars;           /**< number of psd variables and length of createdpsdvars-array  */
    int*                  psdvarsizes;        /**< sizes of the psd variables */
    SCIP_VAR****          createdpsdvars;     /**< array of psd variables created by the CBF reader */
-   SCIP_Bool             noorigsdpcons;      /**< are there SDP constraints specified in the CBF file?  */
+   SCIP_Bool             noorigsdpcons;      /**< Are there SDP constraints specified in the CBF file?  */
 
    int                   nvars;              /**< number of variables and length of createdvars-array */
    SCIP_VAR**            createdvars;        /**< array of variables created by the CBF reader */
    int                   nconss;             /**< number of constraints and length of createdconss-array */
    SCIP_CONS**           createdconss;       /**< array of constraints created by the CBF reader */
+
    int                   nsdpblocks;         /**< number of SDP constraints/blocks */
    int*                  sdpblocksizes;      /**< sizes of the SDP blocks */
    int*                  sdpnblocknonz;      /**< number of nonzeros for each SDP block */
@@ -205,23 +206,21 @@ SCIP_RETCODE CBFreadVar(
 
    if ( sscanf(CBF_LINE_BUFFER, "%i %i", &(data->nvars), &nvartypes) != 2 )
       return SCIP_READERROR;
-   else
-   {
-      if ( data->nvars < 0 )
-      {
-         SCIPerrorMessage("Number of scalar variables %d should be non-negative!\n", data->nvars);
-         SCIPABORT();
-         return SCIP_READERROR; /*lint !e527*/
-      }
 
-      if ( nvartypes < 0 )
-      {
-         SCIPerrorMessage("Number of conic variable domains %d should be non-negative!\n", nvartypes);
-         SCIPABORT();
-         return SCIP_READERROR; /*lint !e527*/
-      }
-      assert( data->nvars >= 0 && nvartypes >= 0 );
+   if ( data->nvars < 0 )
+   {
+      SCIPerrorMessage("Number of scalar variables %d should be non-negative!\n", data->nvars);
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
    }
+
+   if ( nvartypes < 0 )
+   {
+      SCIPerrorMessage("Number of conic variable domains %d should be non-negative!\n", nvartypes);
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+   assert( data->nvars >= 0 && nvartypes >= 0 );
 
    /* loop through different variable types */
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdvars), data->nvars) );
@@ -275,7 +274,7 @@ SCIP_RETCODE CBFreadVar(
             SCIP_CALL( SCIPaddVar(scip, var) );
             data->createdvars[cnt++] = var;/*lint !e732*//*lint !e747*/
 
-            /* release variable for the reader. */
+            /* release variable for the reader */
             SCIP_CALL( SCIPreleaseVar(scip, &var) );
          }
       }
@@ -308,7 +307,6 @@ SCIP_RETCODE CBFreadPsdvar(
    int j;
    int t;
    int sizepsdvar;
-   int cnt;
 #ifndef NDEBUG
    int snprintfreturn;
 #endif
@@ -330,16 +328,14 @@ SCIP_RETCODE CBFreadPsdvar(
 
    if ( sscanf(CBF_LINE_BUFFER, "%i", &(data->npsdvars)) != 1 )
       return SCIP_READERROR;
-   else
+
+   if ( data->npsdvars < 0 )
    {
-      if ( data->npsdvars < 0 )
-      {
-         SCIPerrorMessage("Number of psd variables %d should be non-negative!\n", data->npsdvars);
-         SCIPABORT();
-         return SCIP_READERROR; /*lint !e527*/
-      }
-      assert( data->npsdvars >= 0 );
+      SCIPerrorMessage("Number of psd variables %d should be non-negative!\n", data->npsdvars);
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
    }
+   assert( data->npsdvars >= 0 );
 
    /* loop through different psd variables */
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdpsdvars), data->npsdvars) );
@@ -351,14 +347,10 @@ SCIP_RETCODE CBFreadPsdvar(
 
       if ( sscanf(CBF_LINE_BUFFER, "%i", &sizepsdvar) == 1 )
       {
-         /* for each psd variable of size n_i create 1/2*n_i*(n_i+1) scalar variables */
          SCIP_Real lb;
          SCIP_Real ub;
-         int nscalarvars = sizepsdvar * (sizepsdvar + 1) * 0.5;
-
-         data->psdvarsizes[t] = sizepsdvar;
-
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdpsdvars[t]), sizepsdvar) );
+         int nscalarvars;
+         int cnt = 0;
 
          if ( sizepsdvar <= 0 )
          {
@@ -367,9 +359,14 @@ SCIP_RETCODE CBFreadPsdvar(
             return SCIP_READERROR; /*lint !e527*/
          }
 
+         /* for each psd variable of size n_i create 1/2*n_i*(n_i+1) scalar variables */
+         nscalarvars = sizepsdvar * (sizepsdvar + 1) * 0.5;
+         data->psdvarsizes[t] = sizepsdvar;
+
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdpsdvars[t]), sizepsdvar) );
+
          lb = -SCIPinfinity(scip);
          ub = SCIPinfinity(scip);
-         cnt = 0;
 
          for (i = 0; i < sizepsdvar; ++i)
          {
@@ -390,7 +387,7 @@ SCIP_RETCODE CBFreadPsdvar(
                data->createdpsdvars[t][i][j] = var;/*lint !e732*//*lint !e747*/
                ++cnt;
 
-               /* release variable for the reader. */
+               /* release variable for the reader */
                SCIP_CALL( SCIPreleaseVar(scip, &var) );
             }
          }
@@ -618,13 +615,13 @@ SCIP_RETCODE CBFreadPsdcon(
       if ( ncbfsdpblocks >= 0 )
       {
          /* increase number of sdp blocks by number of psd variables that need to be transformed into a psd constraint
-            with scalar variables */
+          * with scalar variables */
          if ( data->npsdvars > 0 )
             data->nsdpblocks = ncbfsdpblocks + data->npsdvars;
          else
             data->nsdpblocks = ncbfsdpblocks;
 
-         data->noorigsdpcons= FALSE;
+         data->noorigsdpcons = FALSE;
          SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblocksizes), data->nsdpblocks) );
 
          for (b = 0; b < ncbfsdpblocks; b++)
@@ -643,13 +640,8 @@ SCIP_RETCODE CBFreadPsdcon(
                return SCIP_READERROR;
          }
 
-         if ( data->npsdvars > 0 )
-         {
-            for (b = 0; b < data->npsdvars; b++)
-            {
-               data->sdpblocksizes[ncbfsdpblocks + b] = data->psdvarsizes[b];
-            }
-         }
+         for (b = 0; b < data->npsdvars; b++)
+            data->sdpblocksizes[ncbfsdpblocks + b] = data->psdvarsizes[b];
       }
       else
       {
@@ -663,6 +655,7 @@ SCIP_RETCODE CBFreadPsdcon(
 
    return SCIP_OKAY;
 }
+
 /** reads objective values for matrix variables from given CBF-file */
 static
 SCIP_RETCODE CBFreadObjfcoord(
@@ -702,6 +695,7 @@ SCIP_RETCODE CBFreadObjfcoord(
          for (i = 0; i < nobjcoefs; i++)
          {
             SCIP_CALL( CBFfgets(pfile, linecount) );
+
             if ( sscanf(CBF_LINE_BUFFER, "%i %i %i %lf", &v, &row, &col, &val) == 4 )
             {
                if ( v < 0 || v >= data->npsdvars )
@@ -832,6 +826,7 @@ SCIP_RETCODE CBFreadObjacoord(
 
    return SCIP_OKAY;
 }
+
 /** reads matrix variable coefficients from given CBF-file */
 static
 SCIP_RETCODE CBFreadFcoord(
@@ -880,6 +875,7 @@ SCIP_RETCODE CBFreadFcoord(
          for (i = 0; i < ncoefs; i++)
          {
             SCIP_CALL( CBFfgets(pfile, linecount) );
+
             if ( sscanf(CBF_LINE_BUFFER, "%i %i %i %i %lf", &c, &v, &row, &col, &val) == 5 )
             {
                if ( c < 0 || c >= data->nconss )
@@ -888,12 +884,14 @@ SCIP_RETCODE CBFreadFcoord(
                   SCIPABORT();
                   return SCIP_READERROR; /*lint !e527*/
                }
+
                if ( v < 0 || v >= data->npsdvars )
                {
                   SCIPerrorMessage("Given coefficient for matrix variable %d which does not exist!\n", v);
                   SCIPABORT();
                   return SCIP_READERROR; /*lint !e527*/
                }
+
                if ( SCIPisZero(scip, val) )
                {
                   ++nzerocoef;
@@ -1139,7 +1137,7 @@ SCIP_RETCODE CBFreadHcoord(
    int nzerocoef = 0;
    int ncbfsdpblocks;
    int nauxnonz;                /* number of nonzeros in each auxiliary sdp block for reformulating matrix variables using
-                                   scalar variables */
+                                 * scalar variables */
 
    assert( scip != NULL );
    assert( pfile != NULL );
@@ -1162,7 +1160,7 @@ SCIP_RETCODE CBFreadHcoord(
    }
 
    /* get number of sdp blocks specified by PSDCON (without auxiliary sdp blocks for reformulating matrix variables
-      using scalar variables), save number of nonzeros needed for the auxiliary sdp blocks in nauxnonz */
+    * using scalar variables), save number of nonzeros needed for the auxiliary sdp blocks in nauxnonz */
    if ( data->npsdvars > 0 )
    {
       ncbfsdpblocks = data->nsdpblocks - data->npsdvars;
@@ -1204,6 +1202,7 @@ SCIP_RETCODE CBFreadHcoord(
          for (i = 0; i < nnonz; i++)
          {
             SCIP_CALL( CBFfgets(pfile, linecount) );
+
             if ( sscanf(CBF_LINE_BUFFER, "%i %i %i %i %lf", &b, &v, &row, &col, &val) == 5 )
             {
                if ( b < 0 || b >= ncbfsdpblocks )
@@ -1267,7 +1266,7 @@ SCIP_RETCODE CBFreadHcoord(
          /* construct entries for auxiliary sdp blocks (reformulation of psdvars) */
          if ( data->npsdvars > 0 )
          {
-            val = 1;
+            val = 1.0;
             for (v = 0; v < data->npsdvars; v++)
             {
                b = ncbfsdpblocks + v;
@@ -1340,15 +1339,13 @@ SCIP_RETCODE CBFreadHcoord(
          /* auxiliary sdp blocks (reformulation of psd variables) */
          if ( data->npsdvars > 0 )
          {
-            int varidx;
-
             assert( data->nsdpblocks == ncbfsdpblocks + data->npsdvars );
             for (v = 0; v < data->npsdvars; v++)
             {
-               /* create the pointer arrays and insert used variables into vars-array */
+               int varidx = 0;
 
+               /* create the pointer arrays and insert used variables into vars-array */
                b = ncbfsdpblocks + v;
-               varidx = 0;
 
                data->sdpnblockvars[b] = data->sdpnblocknonz[b];
 
@@ -1583,7 +1580,7 @@ SCIP_RETCODE CBFfreeData(
    if ( allocated )
    {
       /* get number of sdp blocks specified by PSDCON (without auxiliary sdp blocks for reformulating matrix variables
-         using scalar variables), save number of nonzeros needed for the auxiliary sdp blocks in nauxnonz */
+       * using scalar variables), save number of nonzeros needed for the auxiliary sdp blocks in nauxnonz */
       if ( data->npsdvars > 0 )
          ncbfsdpblocks = data->nsdpblocks - data->npsdvars;
       else
@@ -1879,8 +1876,8 @@ SCIP_DECL_READERREAD(readerReadCbf)
    }
 
    /* Psd vars are created using scalar vars and a corresponding psd constraint that gets created in the function
-      CBFreadPsdcon. If there no psd cons in the original problem, then the psd constraint for the reformulation of the
-      original psd vars needs to be created at this point! */
+    * CBFreadPsdcon. If there no psd cons in the original problem, then the psd constraint for the reformulation of the
+    * original psd vars needs to be created at this point! */
    if ( data->npsdvars > data->nsdpblocks )
    {
       int nauxvars;
