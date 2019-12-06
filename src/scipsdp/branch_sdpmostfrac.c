@@ -105,7 +105,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
    assert( scip != NULL );
    assert( result != NULL );
 
-   SCIPdebugMessage("Executing External Branching method of SDP-mostfrac!\n");
+   SCIPdebugMsg(scip, "Executing External Branching method of SDP-mostfrac!\n");
 
    /* get the external candidates, as we use the score only as a tiebreaker, we aren't interested in the number of
     * variables of different types with maximal score, so these return values are set to NULL */
@@ -114,9 +114,9 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
    assert( ncands > 0 ); /* branchExecext should only be called if the list of external branching candidates is non-empty */
 
 #ifdef SCIP_DEBUG
-   SCIPdebugMessage("branching candidates for SDP-mostfrac:\n");
+   SCIPdebugMsg(scip, "branching candidates for SDP-mostfrac:\n");
    for (i = 0; i < ncands; i++)
-      SCIPdebugMessage("%s, value = %f, score = %f\n", SCIPvarGetName(cands[i]), candssol[i], candsscore[i]);
+      SCIPdebugMsg(scip, "%s, value = %f, score = %f\n", SCIPvarGetName(cands[i]), candssol[i], candsscore[i]);
 #endif
 
    mostfracfrac = -1.0;
@@ -130,7 +130,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
       /* we skip all continuous variables, since we first want to branch on integral variables */
       if ( SCIPvarGetType(cands[i]) == SCIP_VARTYPE_CONTINUOUS )
       {
-         SCIPdebugMessage("skipping continuous variable %s\n", SCIPvarGetName(cands[i]));
+         SCIPdebugMsg(scip, "skipping continuous variable %s\n", SCIPvarGetName(cands[i]));
          continue;
       }
 
@@ -158,7 +158,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
    /* if all variables were continuous, we return DIDNOTRUN and let one of the SCIP branching rules decide */
    if ( mostfracfrac == -1.0 )
    {
-      SCIPdebugMessage("Skipping SDP-mostfrac branching rule since all branching variables are continuous\n");
+      SCIPdebugMsg(scip, "Skipping SDP-mostfrac branching rule since all branching variables are continuous\n");
       *result = SCIP_DIDNOTFIND;
       return SCIP_OKAY;
    }
@@ -167,7 +167,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpmostfrac)
    assert( SCIPisFeasGT(scip, mostfracfrac, 0.0) );
 
    /* branch */
-   SCIPdebugMessage("branching on variable %s with value %f and score %f\n", SCIPvarGetName(mostfracvar), mostfracval, mostfracscore);
+   SCIPdebugMsg(scip, "branching on variable %s with value %f and score %f\n", SCIPvarGetName(mostfracvar), mostfracval, mostfracscore);
    SCIP_CALL( SCIPbranchVarVal(scip, mostfracvar, mostfracval, NULL, NULL, NULL) );
 
    *result = SCIP_BRANCHED;

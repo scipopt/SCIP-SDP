@@ -55,7 +55,7 @@ extern "C" {
 #endif
 
 /** creates the Sdpredcost propagator and includes it in SCIP */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPincludePropSdpredcost(
    SCIP*                 scip                /**< SCIP data structure */
    );

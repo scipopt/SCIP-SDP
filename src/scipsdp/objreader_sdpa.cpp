@@ -301,17 +301,17 @@ namespace scip
          drop_space(file);
       }
 
-      SCIPdebugMessage("Number of variables: %d \n", numvars);
-      SCIPdebugMessage("Number of blocks: %d \n", numblocks);
-      SCIPdebugMessage("Number of SDP-cones: %d\n", numsdpblocks);
-      SCIPdebugMessage("Number of LP-cones: %d\n", numlpblocks);
+      SCIPdebugMsg(scip, "Number of variables: %d \n", numvars);
+      SCIPdebugMsg(scip, "Number of blocks: %d \n", numblocks);
+      SCIPdebugMsg(scip, "Number of SDP-cones: %d\n", numsdpblocks);
+      SCIPdebugMsg(scip, "Number of LP-cones: %d\n", numlpblocks);
 
       // construct blocks
 
       // construct LP block
       LPData.rows = std::vector<LProw>(alllpblocksize);/*lint !e747*//*lint !e732*/
       LPData.numrows = alllpblocksize;
-      SCIPdebugMessage("Number of LP constraints: %d\n", alllpblocksize);
+      SCIPdebugMsg(scip, "Number of LP constraints: %d\n", alllpblocksize);
 
       std::string commentline;
 
@@ -395,7 +395,7 @@ namespace scip
                   blockstruct[block_index - 1].variables.push_back(var_index);/*lint !e732*//*lint !e747*/
                   blockstruct[block_index - 1].num_nonzeros++;/*lint !e732*//*lint !e747*/
                }
-               SCIPdebugMessage("SDP entry: block_index: %d, row: %d, col: %d, var: %d, val: %g\n", block_index, row_index, col_index, var_index,val );/*lint !e525*/
+               SCIPdebugMsg(scip, "SDP entry: block_index: %d, row: %d, col: %d, var: %d, val: %g\n", block_index, row_index, col_index, var_index,val );/*lint !e525*/
             }
             // lp-block
             else if ( blockislp[block_index - 1] )/*lint !e732*//*lint !e747*/
@@ -413,7 +413,7 @@ namespace scip
                   new_row_index = rowoffset + row_index - 1;
                }
                LPData.rows[new_row_index].data.push_back(std::make_pair(var_index, val));/*lint !e732*//*lint !e747*/
-               SCIPdebugMessage("LP entry: row: %d, var: %d, val: %g\n", new_row_index, var_index,val );
+               SCIPdebugMsg(scip, "LP entry: row: %d, var: %d, val: %g\n", new_row_index, var_index,val );
             }
 
             drop_rest_line(file);
@@ -436,7 +436,7 @@ namespace scip
 
          // in the SDPA-file the variable numbers start at 1!
          intvars[idx - 1] = 1;  /*lint !e732*//*lint !e747*/
-         SCIPdebugMessage("Variable %d is integer.\n", idx - 1);
+         SCIPdebugMsg(scip, "Variable %d is integer.\n", idx - 1);
 
          (void) std::getline(file, str);
       }
@@ -513,7 +513,7 @@ namespace scip
             int firstindforvar;
             SCIP_Bool varused;
 
-            SCIPdebugMessage("Begin construction of SDP constraint for block %d.\n", bindex);
+            SCIPdebugMsg(scip, "Begin construction of SDP constraint for block %d.\n", bindex);
 
             blocksize = blockpattern[bindex];/*lint !e732*//*lint !e747*/
             nnonz = blockstruct[bindex].num_nonzeros;/*lint !e732*//*lint !e747*/
@@ -630,7 +630,7 @@ namespace scip
             SCIPfreeBlockMemoryArray(scip, &row, blockstruct[bindex].num_nonzeros);/*lint !e747*/
             SCIPfreeBlockMemoryArray(scip, &col, blockstruct[bindex].num_nonzeros);/*lint !e747*/
 
-            SCIPdebugMessage("Construction of SDP constraint for block %d completed.\n", bindex);
+            SCIPdebugMsg(scip, "Construction of SDP constraint for block %d completed.\n", bindex);
          }
          else
          {
@@ -638,7 +638,7 @@ namespace scip
             if ( ! lp_block_already_done )
             {
                lp_block_already_done = true;
-               SCIPdebugMessage("Begin construction of LP (block %d).\n", bindex);
+               SCIPdebugMsg(scip, "Begin construction of LP (block %d).\n", bindex);
 
                for (int row_i = 0; row_i < LPData.numrows; ++row_i)
                {

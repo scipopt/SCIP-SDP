@@ -44,6 +44,8 @@ include $(SCIPSDPDIR)/make/make.scipsdpproj
 
 SCIPREALPATH	=	$(realpath $(SCIPDIR))
 
+# overwrite flags for dependencies
+DFLAGS		=       -MM
 
 #-----------------------------------------------------------------------------
 # DSDP solver
@@ -181,6 +183,7 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 
 SCIPSDPCCOBJ 	=	scipsdp/objreader_sdpa.o \
 			scipsdp/objreader_sdpaind.o \
+			scipsdp/scipsdpdefplugins.o \
 			scipsdp/ScipStreamBuffer.o
 
 SCIPSDPCSRC	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCOBJ:.o=.c))
@@ -196,7 +199,7 @@ SCIPSDPCOBJFILES	=	$(addprefix $(OBJDIR)/,$(SCIPSDPCOBJ))
 SCIPSDPCCOBJFILES	=	$(addprefix $(OBJDIR)/,$(SCIPSDPCCOBJ))
 
 MAINOBJ		=	scipsdp/main.o
-MAINSRC		=	$(addprefix $(SRCDIR)/,$(MAINOBJ:.o=.cpp))
+MAINSRC		=	$(addprefix $(SRCDIR)/,$(MAINOBJ:.o=.c))
 MAINOBJFILES  	=	$(addprefix $(OBJDIR)/,$(MAINOBJ))
 
 ALLSRC		=	$(SCIPSDPCSRC) $(SCIPSDPCCSRC) $(SDPICSRC) $(SDPICCSRC) $(MAINSRC)
@@ -507,10 +510,10 @@ testcluster:
 
 .PHONY: depend
 depend:		$(SCIPDIR)
-		$(SHELL) -ec '$(DCXX) $(FLAGS) $(SDPIINC) $(DFLAGS) $(SCIPSDPCCSRC) $(SDPICCSRC) \
+		$(SHELL) -ec '$(DCXX) $(DFLAGS) $(FLAGS) $(SDPIINC) $(DFLAGS) $(SCIPSDPCCSRC) $(SDPICCSRC) \
 		| sed '\''s|^\([0-9A-Za-z\_]\{1,\}\)\.o *: *$(SRCDIR)/scipsdp/\([0-9A-Za-z\_]*\).cpp|$$\(OBJDIR\)/\2.o: $(SRCDIR)/scipsdp/\2.cpp|g'\'' \
 		>$(SCIPSDPDEP)'
-		$(SHELL) -ec '$(DCXX) $(FLAGS) $(SDPIINC) $(DFLAGS) $(SCIPSDPCSRC) $(SDPICSRC) \
+		$(SHELL) -ec '$(DCXX) $(DFLAGS) $(FLAGS) $(SDPIINC) $(DFLAGS) $(SCIPSDPCSRC) $(SDPICSRC) \
 		| sed '\''s|^\([0-9A-Za-z\_]\{1,\}\)\.o *: *$(SRCDIR)/scipsdp/\([0-9A-Za-z\_]*\).c|$$\(OBJDIR\)/\2.o: $(SRCDIR)/scipsdp/\2.c|g'\'' \
 		| sed '\''s|^\([0-9A-Za-z\_]\{1,\}\)\.o *: *$(SRCDIR)/sdpi/\([0-9A-Za-z\_]*\).c|$$\(OBJDIR\)/\2.o: $(SRCDIR)/sdpi/\2.c|g'\'' \
 		>>$(SCIPSDPDEP)'
@@ -519,7 +522,7 @@ depend:		$(SCIPDIR)
 
 $(SCIPSDPBIN):	$(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(SCIPSDPLIBFILE) $(MAINOBJFILES) | $(SDPOBJSUBDIRS) $(BINDIR)
 		@echo "-> linking $@"
-		$(LINKCXX) $(MAINOBJFILES) -L$(SCIPSDPLIBDIR) -l$(SCIPSDPLIB) $(SCIPSDPLIBFILE) $(SDPILIB) $(LINKCXXSCIPALL) $(LINKCXX_o)$@
+		$(LINKCXX) $(MAINOBJFILES) -L$(SCIPSDPLIBDIR)/$(LIBTYPE) -l$(SCIPSDPLIB) $(SCIPSDPLIBFILE) $(SDPILIB) $(LINKCXXSCIPALL) $(LINKCXX_o)$@
 
 $(OBJDIR)/%.o:	$(SRCDIR)/%.c | $(SDPOBJSUBDIRS)
 		@echo "-> compiling $@"

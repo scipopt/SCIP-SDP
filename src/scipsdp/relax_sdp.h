@@ -59,7 +59,7 @@ extern "C" {
 #endif
 
 /** creates the SDP-relaxator and includes it in SCIP */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP*                 scip                /**< SCIP data structure */
    );
@@ -67,7 +67,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
 /** computes analytic centers of primal and dual feasible set and saves them in relaxdata
  * @note This function should be called at the end of the root node (or at least after the solving stage starts and before the first non-root node).
  */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_RELAX*           relax               /**< SDP-relaxator to compute analytic centers for */
@@ -81,7 +81,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
  *  @note If a variable is either fixed or unbounded in the dual
  *  problem, a zero will be returned for the non-existent primal variable.
  */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPrelaxSdpGetPrimalBoundVars(
    SCIP_RELAX*           relax,              /**< SDP-relaxator to get information for */
    SCIP_Real*            lbvars,             /**< pointer to store the values of the variables corresponding to lower bounds in the dual problems */
@@ -91,7 +91,7 @@ SCIP_RETCODE SCIPrelaxSdpGetPrimalBoundVars(
    );
 
 /** returns optimal objective value of the current SDP-relaxation if the last SDP-relaxation was successfully solved */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPrelaxSdpRelaxVal(
    SCIP_RELAX*           relax,              /**< SDP-relaxator to get objective value for */
    SCIP_Bool*            success,            /**< pointer to store whether the last SDP-relaxation was solved successfully */
@@ -99,7 +99,7 @@ SCIP_RETCODE SCIPrelaxSdpRelaxVal(
    );
 
 /** returns values of all variables in the solution of the current SDP-relaxation if the last SDP-relaxation was successfully solved */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPrelaxSdpGetRelaxSol(
    SCIP*                 scip,               /**< SCIP pointer */
    SCIP_RELAX*           relax,              /**< SDP-relaxator to get solution for */
@@ -110,223 +110,223 @@ SCIP_RETCODE SCIPrelaxSdpGetRelaxSol(
    );
 
 /** get the number of the SCIP-node which the current SDP solution belongs to */
-EXTERN
+SCIP_EXPORT
 long int SCIPrelaxSdpGetSdpNode(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get solution for */
    );
 
 /** Was the original problem solved for the last SDP-node (or a penalty or probing formulation) ? */
-EXTERN
+SCIP_EXPORT
 SCIP_Bool SCIPrelaxSdpSolvedOrig(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get solution for */
    );
 
 /** Was the last probing SDP solved successfully ? */
-EXTERN
+SCIP_EXPORT
 SCIP_Bool SCIPrelaxSdpSolvedProbing(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get solution for */
    );
 
 /** returns whether the last solved problem was feasible */
-EXTERN
+SCIP_EXPORT
 SCIP_Bool SCIPrelaxSdpIsFeasible(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get feasibility for */
    );
 
 /** returns whether the last solved problem was unbounded */
-EXTERN
+SCIP_EXPORT
 SCIP_Bool SCIPrelaxSdpIsUnbounded(
    SCIP_RELAX*           relax               /**< SDP-relaxator to check for unboundedness */
    );
 
 /** returns total number of SDP-iterations */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNIterations(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get the iterations for */
    );
 
 /** returns number of SDPs solved by SDP-solver (including multiple calls for penalty formulation etc.) */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSdpCalls(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get the number of calls for */
    );
 
 /** returns number of solved SDP-relaxations */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSdpInterfaceCalls(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get the number of calls for */
    );
 
 /** returns number of SDP-relaxations solved with fastest settings */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSdpFast(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get the number of calls for */
    );
 
 /** returns number of SDP-relaxations solved with medium settings */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSdpMedium(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get the number of calls for */
    );
 
 /** returns number of SDP-relaxations solved with stable settings */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSdpStable(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get the number of calls for */
    );
 
 /** returns number of SDP-relaxations solved with penalty formulation */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSdpPenalty(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get the number of calls for */
    );
 
 /** returns number of SDP-relaxations unsolved even when using a penalty formulation */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSdpUnsolved(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get the number of calls for */
    );
 
 /** returns number of SDP-relaxations for which dual Slater condition held */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNdualSlaterHolds(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations for which dual Slater condition failed */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNdualSlaterFails(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations for which dual Slater condition showed infeasibility */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNdualSlaterInfeasible(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations for which dual Slater condition could not be determined */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNdualSlaterUnknown(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations for which primal Slater condition held */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNprimalSlaterHolds(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations for which primal Slater condition failed */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNprimalSlaterFails(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations for which primal Slater condition could not be determined */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNprimalSlaterUnknown(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations with Slater condition holding for primal and dual */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSlaterHolds(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations with Slater condition holding for primal and dual, solved with fastest settings */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSlaterHoldsFast(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations with Slater condition holding for primal and dual, solved with stable settings */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSlaterHoldsStable(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations with Slater condition holding for primal and dual, solved with penalty formulation */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSlaterHoldsPenalty(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations with Slater condition holding for primal and dual, for which an infeasible lower bound could be computed */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSlaterHoldsBounded(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations with Slater condition holding for primal and dual, unsolved even when using a penalty formulation */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSlaterHoldsUnsolved(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations with Slater condition failing for primal or dual */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSlaterFails(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations with Slater condition failing for primal or dual, solved with fast settings */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSlaterFailsFast(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations with Slater condition failing for primal or dual, solved with stable settings */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSlaterFailsStable(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations with Slater condition failing for primal or dual, solved with penalty formulation */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSlaterFailsPenalty(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations with Slater condition failing for primal or dual, for which an infeasible lower bound could be computed */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSlaterFailsBounded(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations with Slater condition failing for primal or dual, unsolved even when using a penalty formulation */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSlaterFailsUnsolved(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations with Slatercheck showing infeasibility, solved with fast settings */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSlaterInfeasibleFast(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations with Slatercheck showing infeasibility, solved with stable settings */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSlaterInfeasibleStable(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations with Slatercheck showing infeasibility, solved with penalty formulation */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSlaterInfeasiblePenalty(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations with Slatercheck showing infeasibility, for which an infeasible lower bound could be computed */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSlaterInfeasibleBounded(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
 /** returns number of SDP-relaxations with Slatercheck showing infeasibility, unsolved even when using a penalty formulation */
-EXTERN
+SCIP_EXPORT
 int SCIPrelaxSdpGetNSlaterInfeasibleUnsolved(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );

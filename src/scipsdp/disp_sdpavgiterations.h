@@ -49,7 +49,7 @@ extern "C" {
 #endif
 
 /** creates the SDP-average-iterations display column and includes it in SCIP */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPincludeDispSdpavgiterations(
    SCIP*                 scip                /**< SCIP data structure */
    );

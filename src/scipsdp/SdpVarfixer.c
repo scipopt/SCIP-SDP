@@ -236,7 +236,7 @@ SCIP_RETCODE SCIPsdpVarfixerMergeArrays(
 
    if ( debugmsg )
       SCIPdebugMessage("insufficient memory given for SCIPsdpVarfixerMergeArrays, targetmemorys had length %d, would have needed up to %d\n",
-                                    targetmemory, *targetlength + naddednonz);
+         targetmemory, *targetlength + naddednonz);
 
    *targetlength = *targetlength + naddednonz - nleftshifts;
 
@@ -418,7 +418,7 @@ SCIP_RETCODE SCIPsdpVarfixerMergeArraysIntoNew(
    if ( debugmsg )
    {
       SCIPdebugMessage("Insufficient arraylength in SCIPsdpVarfixerMergeArraysIntoNew, given targetarray-length was %d, would have needed %d",
-                                  *targetlength, targetind);
+         *targetlength, targetind);
    }
 
    *targetlength = targetind;

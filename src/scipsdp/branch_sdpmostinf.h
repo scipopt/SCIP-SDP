@@ -53,7 +53,7 @@ extern "C" {
 #endif
 
 /** creates the SDP most infeasible branching rule and includes it in SCIP */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPincludeBranchruleSdpmostinf(
    SCIP*                 scip                /**< SCIP data structure */
    );

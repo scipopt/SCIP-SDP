@@ -238,7 +238,11 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
    SCIPdebugMsg(scip, "Executing propExecSdpObbt! \n");
 
    /* do not run in: presolving, repropagation, probing mode, subscips, if no objective propagation is allowed */
+#if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
+   if ( SCIPgetStage(scip) != SCIP_STAGE_SOLVING || SCIPinRepropagation(scip) || SCIPinProbing(scip) || !SCIPallowWeakDualReds(scip) || (SCIPgetSubscipDepth(scip) > 0) )
+#else
    if ( SCIPgetStage(scip) != SCIP_STAGE_SOLVING || SCIPinRepropagation(scip) || SCIPinProbing(scip) || !SCIPallowObjProp(scip) || (SCIPgetSubscipDepth(scip) > 0) )
+#endif
    {
       SCIPdebugMsg(scip, "Aborting propExecSdpObbt because we are in presolving, repropagation, probing mode, a subscip or no objective "
             "propagation is allowed!\n");

@@ -48,7 +48,7 @@ extern "C" {
 typedef struct Sdpvarmapper SdpVarmapper;
 
 /** creates the SDP varmapper */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpVarmapperCreate(
    SCIP*                 scip,               /**< SCIP data structure */
    SdpVarmapper**        varmapper,          /**< Pointer to the varmapper that should be created */
@@ -56,14 +56,14 @@ SCIP_RETCODE SCIPsdpVarmapperCreate(
    );
 
 /** frees the SDP varmapper */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpVarmapperFree(
    SCIP*                 scip,               /**< SCIP data structure */
    SdpVarmapper**        varmapper           /**< Pointer to the varmapper that should be freed */
    );
 
 /** adds the given variables (if not already existent) to the end of the varmapper */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpVarmapperAddVars(
    SCIP*                 scip,               /**< SCIP data structure */
    SdpVarmapper*         varmapper,          /**< varmapper to add variables to */
@@ -72,7 +72,7 @@ SCIP_RETCODE SCIPsdpVarmapperAddVars(
    );
 
 /** adds the given variable (if not already existent) to the varmapper at the given position */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpVarmapperInsertVar(
    SCIP*                 scip,               /**< SCIP data structure */
    SdpVarmapper*         varmapper,          /**< varmapper to add variables to */
@@ -81,34 +81,34 @@ SCIP_RETCODE SCIPsdpVarmapperInsertVar(
    );
 
 /** gets the number of variables */
-EXTERN
+SCIP_EXPORT
 int SCIPsdpVarmapperGetNVars(
    SdpVarmapper*         varmapper           /**< varmapper to get number of variables for */
    );
 
 /** Is the given SCIP variable included in the varmapper? */
-EXTERN
+SCIP_EXPORT
 SCIP_Bool SCIPsdpVarmapperExistsSCIPvar(
    SdpVarmapper*         varmapper,          /**< varmapper to search in */
    SCIP_VAR*             var                 /**< SCIP variable to search for */
    );
 
 /** gets the SDP-index for the given SCIP variable */
-EXTERN
+SCIP_EXPORT
 int SCIPsdpVarmapperGetSdpIndex(
    SdpVarmapper*         varmapper,          /**< varmapper to get variable index for */
    SCIP_VAR*             var                 /**< SCIP variable to get SDP-index for */
    );
 
 /** gets the corresponding SCIP variable for the given SDP variable-index */
-EXTERN
+SCIP_EXPORT
 SCIP_VAR* SCIPsdpVarmapperGetSCIPvar(
    SdpVarmapper*         varmapper,          /**< varmapper to extract variable from */
    int                   ind                 /**< index of the SDP-variable */
    );
 
 /** removes the variable for the given SDP-index from the varmapper, decreasing the indices of all later variables by 1 */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpVarmapperRemoveSdpIndex(
    SCIP*                 scip,               /**< SCIP data structure */
    SdpVarmapper*         varmapper,          /**< varmapper to remove variable from */
@@ -116,14 +116,14 @@ SCIP_RETCODE SCIPsdpVarmapperRemoveSdpIndex(
    );
 
 /** swaps all SCIP variables for their transformed counterparts */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpVarmapperTransform(
    SCIP*                 scip,               /**< SCIP data structure */
    SdpVarmapper*         varmapper           /**< pointer to the varmapper that should be transformed */
    );
 
 /** clones the varmapper in the second argument to the varmapper in the third argument */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpVarmapperClone(
    SCIP*                 scip,               /**< SCIP data structure */
    SdpVarmapper*         oldmapper,          /**< pointer to the varmapper that should be cloned */

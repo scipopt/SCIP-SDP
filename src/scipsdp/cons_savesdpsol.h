@@ -47,13 +47,13 @@ extern "C" {
 #endif
 
 /** include Savesdpsol constraint handler */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPincludeConshdlrSavesdpsol(
    SCIP*                 scip                /**< SCIP data structure */
    );
 
 /** create a Savesdpsol-Cons, i.e. save the current optimal solution for the SDP-relaxation of this node */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE createConsSavesdpsol(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
@@ -73,28 +73,28 @@ SCIP_RETCODE createConsSavesdpsol(
    );
 
 /** for the given cons of type Savesdpsol returns the node the information belongs to */
-EXTERN
+SCIP_EXPORT
 SCIP_Longint SCIPconsSavesdpsolGetNodeIndex(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons                /**< constraint to get starting point for */
    );
 
 /** for the given cons of type Savesdpsol returns the previous dual solution vector y */
-EXTERN
+SCIP_EXPORT
 SCIP_SOL* SCIPconsSavesdpsolGetDualVector(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons                /**< constraint to get starting point for */
    );
 
 /** for the given cons of type Savesdpsol returns the maximum entry of primal solution X */
-EXTERN
+SCIP_EXPORT
 SCIP_Real SCIPconsSavesdpsolGetMaxPrimalEntry(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons                /**< constraint to get maximum primal entry for */
    );
 
 /** for the given cons of type Savesdpsol returns the number of nonzeros for each block of previous primal solution X */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPconsSavesdpsolGetPrimalMatrixNonzeros(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< constraint to get maximum primal entry for */
@@ -104,7 +104,7 @@ SCIP_RETCODE SCIPconsSavesdpsolGetPrimalMatrixNonzeros(
    );
 
 /** for the given cons of type Savesdpsol returns the previous primal solution X */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPconsSavesdpsolGetPrimalMatrix(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< constraint to get maximum primal entry for */

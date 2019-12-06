@@ -53,7 +53,7 @@ extern "C" {
 #endif
 
 /** creates the SDP most fractional branching rule and includes it in SCIP */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPincludeBranchruleSdpmostfrac(
    SCIP*                 scip                /**< SCIP data structure */
    );

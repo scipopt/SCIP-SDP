@@ -54,7 +54,7 @@ extern "C" {
 #endif
 
 /** computes the i-th eigenvalue of a symmetric matrix using LAPACK, where 1 is the smallest and n the largest, matrix has to be given with all \f$n^2\f$ entries */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    BMS_BUFMEM*           bufmem,             /**< buffer memory */
    SCIP_Bool             geteigenvectors,    /**< should also the eigenvectors be computed? */
@@ -66,7 +66,7 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    );
 
 /** computes the eigenvector decomposition of a symmetric matrix using LAPACK */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPlapackComputeEigenvectorDecomposition(
    BMS_BUFMEM*           bufmem,             /**< buffer memory */
    int                   n,                  /**< size of matrix */
@@ -76,7 +76,7 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorDecomposition(
    );
 
 /** performs matrix-vector-multiplication using BLAS */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPlapackMatrixVectorMult(
    int                   nrows,              /**< number of rows in matrix */
    int                   ncols,              /**< number of cols in matrix */
@@ -86,7 +86,7 @@ SCIP_RETCODE SCIPlapackMatrixVectorMult(
    );
 
 /** performs matrix-matrix-multiplication A*B using BLAS */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPlapackMatrixMatrixMult(
    int                   nrowsA,             /**< number of rows in matrix A */
    int                   ncolsA,             /**< number of cols in matrix A */
