@@ -52,3 +52,8 @@ TrussTopology/*
 unboundedGrowth.dat-s
 /src/scipsdpgithash.c
 build/*
+unittests/Testing/*
+unittests/bin/*
+unittests/Criterion/*
+unittests/CTestTestfile.cmake
+unittests/obj/*
