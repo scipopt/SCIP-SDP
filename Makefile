@@ -265,22 +265,21 @@ endif
 .PHONY: pclint
 pclint:		$(SCIPSDPCSRC) $(SCIPSDPCCSRC) $(SDPICSRC) $(SDPICCSRC) $(MAINSRC)
 		-rm -f pclint.out
-
 ifeq ($(FILES),)
 		@$(SHELL) -ec 'echo "-> running pclint ..."; \
 			for i in $^; \
 			do \
 				echo $$i; \
-				$(PCLINT) -I$(SCIPDIR) pclint/main-gcc.lnt +os\(pclint.out\) -b -u -zero \
-				$(USRFLAGS) $(FLAGS) -uNDEBUG -uSCIP_WITH_READLINE -uSCIP_ROUNDING_FE -D_BSD_SOURCE $$i; \
+				$(PCLINT) -I$(SCIPDIR) -I$(SCIPDIR)/pclint pclint/main-gcc.lnt +os\(pclint.out\) -b -u -zero \
+				$(USRFLAGS) $(FLAGS) $(SDPIINC) -uNDEBUG -uSCIP_WITH_READLINE -uSCIP_ROUNDING_FE -D_BSD_SOURCE $$i; \
 			done'
 else
 		@$(SHELL) -ec  'echo "-> running pclint on specified files ..."; \
 			for i in $(FILES); \
 			do \
 				echo $$i; \
-				$(PCLINT) -I$(SCIPDIR) pclint/main-gcc.lnt +os\(pclint.out\) -b -u -zero \
-				$(USRFLAGS) $(FLAGS) -uNDEBUG -uSCIP_WITH_READLINE -uSCIP_ROUNDING_FE -D_BSD_SOURCE $$i; \
+				$(PCLINT) -I$(SCIPDIR) -I$(SCIPDIR)/pclint pclint/main-gcc.lnt +os\(pclint.out\) -b -u -zero \
+				$(USRFLAGS) $(FLAGS) $(SDPIINC) -uNDEBUG -uSCIP_WITH_READLINE -uSCIP_ROUNDING_FE -D_BSD_SOURCE $$i; \
 			done'
 endif
 

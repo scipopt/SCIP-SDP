@@ -36,9 +36,9 @@
  * @author Tristan Gally
  * @author Henrik A. Friberg
  *
- * This reader allows to parse and write CBF files with mixed-integer semidefinite programs in dual form.
+ * This reader allows to parse and write CBF files with mixed-integer semidefinite programs in primal and dual form.
  * Writing is supported for original programs consisting of only linear and semidefinite constraints. Parsing is supported
- * for instances consisting of only scalar variables and linear and semidefinite constraints.
+ * for instances consisting of scalar variables, matrix variables and linear and semidefinite constraints.
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
