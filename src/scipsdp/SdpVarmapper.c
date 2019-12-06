@@ -66,7 +66,7 @@ SCIP_RETCODE SCIPsdpVarmapperCreate(
 
    if ( size == 0 )
    {
-      SCIPdebugMessage("SCIPsdpVarmapperCreate called for size 0!\n");
+      SCIPdebugMsg(scip, "SCIPsdpVarmapperCreate called for size 0!\n");
 
       return SCIP_OKAY;
    }
@@ -84,7 +84,7 @@ SCIP_RETCODE SCIPsdpVarmapperFree(
 {
    int i;
 
-   SCIPdebugMessage("Freeing SdpVarmapper \n");
+   SCIPdebugMsg(scip, "Freeing SdpVarmapper \n");
 
    assert ( scip != NULL );
    assert ( varmapper != NULL );
@@ -141,7 +141,7 @@ SCIP_RETCODE SCIPsdpVarmapperAddVars(
       }
       else
       {
-         SCIPdebugMessage("variable %s was not added to the varmapper as it was already part of it \n", SCIPvarGetName(vars[i]));
+         SCIPdebugMsg(scip, "variable %s was not added to the varmapper as it was already part of it \n", SCIPvarGetName(vars[i]));
          reallocneeded = TRUE;
       }
    }
@@ -194,7 +194,7 @@ SCIP_RETCODE SCIPsdpVarmapperInsertVar(
       }
    }
    else
-      SCIPdebugMessage("variable %s was not added to the varmapper as it was already part of it.\n", SCIPvarGetName(var));
+      SCIPdebugMsg(scip, "variable %s was not added to the varmapper as it was already part of it.\n", SCIPvarGetName(var));
 
    return SCIP_OKAY;
 }

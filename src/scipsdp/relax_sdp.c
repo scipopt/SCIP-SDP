@@ -311,7 +311,7 @@ SCIP_RETCODE putSdpDataInInterface(
 
    SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolvergaptol", &param) );
 
-   SCIPdebugMessage("Putting SDP Data in general SDP interface!\n");
+   SCIPdebugMsg(scip, "Putting SDP Data in general SDP interface!\n");
 
    assert( scip != NULL );
    assert( sdpi != NULL );
@@ -556,7 +556,7 @@ SCIP_RETCODE putLpDataInInterface(
    SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
    SCIP_CALL( SCIPgetBoolParam(scip, "relaxing/SDP/tightenvb", &tightenvb) );
 
-   SCIPdebugMessage("inserting %d LPRows into the interface.\n", nrows);
+   SCIPdebugMsg(scip, "inserting %d LPRows into the interface.\n", nrows);
 
    /* compute the total number of LP nonzeroes in SCIP */
    scipnnonz = 0;
@@ -633,7 +633,7 @@ SCIP_RETCODE putLpDataInInterface(
                   {
                      if ( SCIPisLT(scip, SCIPvarGetUbLocal(var1), REALABS(val2)) )
                      {
-                        SCIPdebugMessage("Big-M in %s changed from %f to %f\n", SCIProwGetName(row), REALABS(val2), SCIPvarGetUbLocal(var1));
+                        SCIPdebugMsg(scip, "Big-M in %s changed from %f to %f\n", SCIProwGetName(row), REALABS(val2), SCIPvarGetUbLocal(var1));
 
                         tightened = TRUE;
                         tightenedval = -SCIPvarGetUbLocal(var1); /* negative sign because the coefficient needs to be negative */
@@ -644,7 +644,7 @@ SCIP_RETCODE putLpDataInInterface(
                   {
                      if ( SCIPisGT(scip, SCIPvarGetLbLocal(var1), REALABS(val2)) )
                      {
-                        SCIPdebugMessage("Big-M in %s changed from %f to %f\n", SCIProwGetName(row), REALABS(val2), SCIPvarGetLbLocal(var1));
+                        SCIPdebugMsg(scip, "Big-M in %s changed from %f to %f\n", SCIProwGetName(row), REALABS(val2), SCIPvarGetLbLocal(var1));
 
                         tightened = TRUE;
                         tightenedval = -SCIPvarGetUbLocal(var1); /* negative sign because the coefficient needs to be negative */
@@ -771,7 +771,7 @@ SCIP_RETCODE calcRelax(
    int i;
    int v;
 
-   SCIPdebugMessage("calcRelax called\n");
+   SCIPdebugMsg(scip, "calcRelax called\n");
 
    assert( scip != NULL );
    assert( relax != NULL );
@@ -829,7 +829,7 @@ SCIP_RETCODE calcRelax(
          startsetting = SCIPconsSavedsdpsettingsGetSettings(scip, conss[parentconsind]);
       else
       {
-         SCIPdebugMessage("Startsetting from parent node not found, restarting with fastest settings!\n");
+         SCIPdebugMsg(scip, "Startsetting from parent node not found, restarting with fastest settings!\n");
          startsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
       }
    }
@@ -841,7 +841,7 @@ SCIP_RETCODE calcRelax(
       timelimit -= SCIPgetSolvingTime(scip);
       if ( timelimit <= 0.0 )
       {
-         SCIPdebugMessage("Time limit reached, not running relax SDP!\n");
+         SCIPdebugMsg(scip, "Time limit reached, not running relax SDP!\n");
          *result = SCIP_DIDNOTRUN;
          return SCIP_OKAY;
       }
@@ -868,25 +868,25 @@ SCIP_RETCODE calcRelax(
          ipy[v] = SCIPgetSolVal(scip, relaxdata->ipy, SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, v));
 
 #ifdef SCIP_PRINT_WARMSTART
-      SCIPdebugMessage("warmstart using the following analytic centers:\n");
+      SCIPdebugMsg(scip, "warmstart using the following analytic centers:\n");
       for (v = 0; v < nvars; v++)
-         SCIPdebugMessage("y[%d] = %f\n", v, ipy[v]);
+         SCIPdebugMsg(scip, "y[%d] = %f\n", v, ipy[v]);
       if ( SCIPsdpiDoesWarmstartNeedPrimal() )
       {
          for (b = 0; b < relaxdata->nblocks; b++)
          {
-            SCIPdebugMessage("dual block %d\n", b);
+            SCIPdebugMsg(scip, "dual block %d\n", b);
             for (i = 0; i < relaxdata->ipZnblocknonz[b]; i++)
             {
-               SCIPdebugMessage("Z(%d,%d)=%f\n", relaxdata->ipZrow[b][i], relaxdata->ipZcol[b][i], relaxdata->ipZval[b][i]);
+               SCIPdebugMsg(scip, "Z(%d,%d)=%f\n", relaxdata->ipZrow[b][i], relaxdata->ipZcol[b][i], relaxdata->ipZval[b][i]);
             }
          }
          for (b = 0; b < relaxdata->nblocks; b++)
          {
-            SCIPdebugMessage("primal block %d\n", b);
+            SCIPdebugMsg(scip, "primal block %d\n", b);
             for (i = 0; i < relaxdata->ipXnblocknonz[b]; i++)
             {
-               SCIPdebugMessage("X(%d,%d)=%f\n", relaxdata->ipXrow[b][i], relaxdata->ipXcol[b][i], relaxdata->ipXval[b][i]);
+               SCIPdebugMsg(scip, "X(%d,%d)=%f\n", relaxdata->ipXrow[b][i], relaxdata->ipXcol[b][i], relaxdata->ipXval[b][i]);
             }
          }
       }
@@ -937,12 +937,12 @@ SCIP_RETCODE calcRelax(
        * without warmstart. */
       if ( parentconsind < 0 )
       {
-         SCIPdebugMessage("Starting SDP-Solving from scratch since no warmstart information available for node %lld\n", parentnodenumber);
+         SCIPdebugMsg(scip, "Starting SDP-Solving from scratch since no warmstart information available for node %lld\n", parentnodenumber);
          SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit) );
       }
       else
       {
-         SCIPdebugMessage("Using warmstartinformation from node %lld\n", parentnodenumber);
+         SCIPdebugMsg(scip, "Using warmstartinformation from node %lld\n", parentnodenumber);
 
          /* get solution */
          dualsol = SCIPconsSavesdpsolGetDualVector(scip, conss[parentconsind]);
@@ -1741,14 +1741,14 @@ SCIP_RETCODE calcRelax(
                   if ( SCIPlpiIsDualInfeasible(lpi) )
                   {
                      SCIPdebugMsg(scip, "Infeasibility of node %lld detected through primal rounding problem during warmstarting\n",
-                           SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
+                        SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
 
                      relaxdata->roundingprobinf++;
                   }
                   else if ( SCIPisGT(scip, primalroundobj, SCIPgetCutoffbound(scip)) )
                   {
                      SCIPdebugMsg(scip, "Suboptimality of node %lld detected through primal rounding problem during warmstarting:"
-                           "lower bound = %f > %f = cutoffbound\n", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), primalroundobj, SCIPgetCutoffbound(scip));
+                        "lower bound = %f > %f = cutoffbound\n", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), primalroundobj, SCIPgetCutoffbound(scip));
 
                      relaxdata->roundingcutoff++;
                   }
@@ -2226,7 +2226,7 @@ SCIP_RETCODE calcRelax(
                      SCIP_CONS* savedcons;
 
                      SCIPdebugMsg(scip, "Node %lld solved to optimality through rounding problems with optimal objective %f\n",
-                           SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), dualroundobj);
+                        SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), dualroundobj);
 
                      relaxdata->roundingoptimal++;
 
@@ -2859,27 +2859,27 @@ SCIP_RETCODE calcRelax(
          }
 
 #ifdef SCIP_PRINT_WARMSTART
-         SCIPdebugMessage("warmstart using the following point:\n");
+         SCIPdebugMsg(scip, "warmstart using the following point:\n");
          nblocks = SCIPconshdlrGetNConss(SCIPfindConshdlr(scip, "SDP"));
          for (i = 0; i < nvars; i++)
-            SCIPdebugMessage("y[%d]=%f\n", i, starty[i]);
+            SCIPdebugMsg(scip, "y[%d]=%f\n", i, starty[i]);
 
          if ( SCIPsdpiDoesWarmstartNeedPrimal() )
          {
             for (b = 0; b < nblocks + 1; b++)
             {
-               SCIPdebugMessage("dual block %d\n", b);
+               SCIPdebugMsg(scip, "dual block %d\n", b);
                for (i = 0; i < startZnblocknonz[b]; i++)
                {
-                  SCIPdebugMessage("Z(%d,%d)=%f\n", startZrow[b][i], startZcol[b][i], startZval[b][i]);
+                  SCIPdebugMsg(scip, "Z(%d,%d)=%f\n", startZrow[b][i], startZcol[b][i], startZval[b][i]);
                }
             }
             for (b = 0; b < nblocks + 1; b++)
             {
-               SCIPdebugMessage("primal block %d\n", b);
+               SCIPdebugMsg(scip, "primal block %d\n", b);
                for (i = 0; i < startXnblocknonz[b]; i++)
                {
-                  SCIPdebugMessage("X(%d,%d)=%f\n", startXrow[b][i], startXcol[b][i], startXval[b][i]);
+                  SCIPdebugMsg(scip, "X(%d,%d)=%f\n", startXrow[b][i], startXcol[b][i], startXval[b][i]);
                }
             }
          }
@@ -3142,18 +3142,18 @@ SCIP_RETCODE calcRelax(
 
          if ( SCIPsdpiFeasibilityKnown(sdpi) )
          {
-            SCIPdebugMessage("optimal solution: objective = %f, dual feasible: %u, primal feasible: %u.\n",
-                  objforscip, SCIPsdpiIsDualFeasible(sdpi), SCIPsdpiIsPrimalFeasible(sdpi));
+            SCIPdebugMsg(scip, "optimal solution: objective = %f, dual feasible: %u, primal feasible: %u.\n",
+               objforscip, SCIPsdpiIsDualFeasible(sdpi), SCIPsdpiIsPrimalFeasible(sdpi));
          }
          else
          {
-            SCIPdebugMessage("The solver could not determine feasibility ! ");
+            SCIPdebugMsg(scip, "The solver could not determine feasibility ! ");
          }
 
          /* output solution */
          for (i = 0; i < nvars; ++i)
          {
-            SCIPdebugMessage("<%s> = %f\n", SCIPvarGetName(vars[i]), solforscip[i]);
+            SCIPdebugMsg(scip, "<%s> = %f\n", SCIPvarGetName(vars[i]), solforscip[i]);
          }
          SCIPfreeBufferArray(scip, &solforscip);
       }
@@ -3161,21 +3161,21 @@ SCIP_RETCODE calcRelax(
 
       if ( SCIPsdpiIsDualInfeasible(sdpi) )
       {
-         SCIPdebugMessage("Node cut off due to infeasibility.\n");
+         SCIPdebugMsg(scip, "Node cut off due to infeasibility.\n");
          relaxdata->feasible = FALSE;
          *result = SCIP_CUTOFF;
          return SCIP_OKAY;
       }
       else if ( SCIPsdpiIsObjlimExc(sdpi) )
       {
-         SCIPdebugMessage("Node cut off due to objective limit.\n");
+         SCIPdebugMsg(scip, "Node cut off due to objective limit.\n");
          relaxdata->feasible = FALSE;
          *result = SCIP_CUTOFF;
          return SCIP_OKAY;
       }
       else if ( SCIPsdpiIsDualUnbounded(sdpi) )
       {
-         SCIPdebugMessage("Node unbounded.");
+         SCIPdebugMsg(scip, "Node unbounded.");
          relaxdata->feasible = TRUE;
          *result = SCIP_SUCCESS;
          *lowerbound = -SCIPinfinity(scip);
@@ -3414,12 +3414,12 @@ SCIP_RETCODE calcRelax(
       if ( ! SCIPisInfinity(scip, objlb) )
       {
          *lowerbound = objlb;
-         SCIPdebugMessage("The relaxation could not be solved, using best computed bound from penalty formulation.\n");
+         SCIPdebugMsg(scip, "The relaxation could not be solved, using best computed bound from penalty formulation.\n");
       }
       else if ( ! SCIPisInfinity(scip, -1 * SCIPnodeGetLowerbound(SCIPgetCurrentNode(scip))) )
       {
          *lowerbound = SCIPnodeGetLowerbound(SCIPgetCurrentNode(scip));
-         SCIPdebugMessage("The relaxation could not be solved, keeping old bound.\n");
+         SCIPdebugMsg(scip, "The relaxation could not be solved, keeping old bound.\n");
       }
       else
       {
@@ -3476,7 +3476,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    const int nvarsfordebug = SCIPgetNVars(scip);
 #endif
 
-   SCIPdebugMessage("Calling relaxExecSdp.\n");
+   SCIPdebugMsg(scip, "Calling relaxExecSdp.\n");
 
    relaxdata = SCIPrelaxGetData(relax);
    vars = SCIPgetVars(scip);
@@ -3495,8 +3495,8 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       int ncols;
       int slength;
 
-      SCIPdebugMessage("Already solved SDP-relaxation for node %ld, returning with SCIP_SUCCESS so that no other relaxator is called.\n",
-            SCIPrelaxGetData(relax)->lastsdpnode);
+      SCIPdebugMsg(scip, "Already solved SDP-relaxation for node %ld, returning with SCIP_SUCCESS so that no other relaxator is called.\n",
+         SCIPrelaxGetData(relax)->lastsdpnode);
 
       if ( SCIPsdpiIsDualUnbounded(relaxdata->sdpi) )
       {
@@ -3567,7 +3567,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
 #ifdef SCIP_EVEN_MORE_DEBUG
    for (i = 0; i < nvarsfordebug; i++)
    {
-      SCIPdebugMessage("variable %s: status = %u, integral = %u, bounds = [%f, %f]\n", SCIPvarGetName(varsfordebug[i]), SCIPvarGetStatus(varsfordebug[i]),
+      SCIPdebugMsg(scip, "variable %s: status = %u, integral = %u, bounds = [%f, %f]\n", SCIPvarGetName(varsfordebug[i]), SCIPvarGetStatus(varsfordebug[i]),
          SCIPvarIsIntegral(varsfordebug[i]), SCIPvarGetLbLocal(varsfordebug[i]), SCIPvarGetUbLocal(varsfordebug[i]));
    }
 #endif
@@ -3596,7 +3596,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
          assert( SCIPisFeasEQ(scip, SCIPvarGetUbLocal(vars[i]), SCIPvarGetLbLocal(vars[i])));
       }
 
-      SCIPdebugMessage("EVERYTHING IS FIXED, objective value = %f\n", *lowerbound);
+      SCIPdebugMsg(scip, "EVERYTHING IS FIXED, objective value = %f\n", *lowerbound);
 
       SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
       SCIP_CALL( SCIPsetSolVals(scip, scipsol, nvars, vars, ubs) );
@@ -3842,7 +3842,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       /* check if the starting value is not bigger than the maximum one, otherwise update it */
       if ( SCIPisLT(scip, givenpenaltyparam, maxpenaltyparam) )
       {
-         SCIPdebugMessage("Penalty parameter %f overwritten by maxpenaltyparam %f!\n", givenpenaltyparam, maxpenaltyparam);
+         SCIPdebugMsg(scip, "Penalty parameter %f overwritten by maxpenaltyparam %f!\n", givenpenaltyparam, maxpenaltyparam);
          SCIP_CALL( SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, maxpenaltyparam) );
       }
    }
@@ -4116,7 +4116,7 @@ SCIP_DECL_RELAXEXITSOL(relaxExitSolSdp)
    relaxdata = SCIPrelaxGetData(relax);
    assert( relaxdata != NULL );
 
-   SCIPdebugMessage("Exiting Relaxation Handler.\n");
+   SCIPdebugMsg(scip, "Exiting Relaxation Handler.\n");
 
    if ( relaxdata->displaystat && SCIPgetSubscipDepth(scip) == 0 )
    {
@@ -4788,13 +4788,13 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
                }
 
 #ifdef SCIP_PRINT_WARMSTART
-               SCIPdebugMessage("Computed primal analytic center:\n");
+               SCIPdebugMsg(scip, "Computed primal analytic center:\n");
                for (b = 0; b < relaxdata->nblocks; b++)
                {
-                  SCIPdebugMessage("primal matrix, block %d:\n", b);
+                  SCIPdebugMsg(scip, "primal matrix, block %d:\n", b);
                   for (i = 0; i < relaxdata->ipXnblocknonz[b]; i++)
                   {
-                     SCIPdebugMessage("X_%d[%d,%d]: %f\n", b, relaxdata->ipXrow[b][i], relaxdata->ipXcol[b][i], relaxdata->ipXval[b][i]);
+                     SCIPdebugMsg(scip, "X_%d[%d,%d]: %f\n", b, relaxdata->ipXrow[b][i], relaxdata->ipXcol[b][i], relaxdata->ipXval[b][i]);
                   }
                }
 #endif
@@ -5062,10 +5062,10 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
             SCIP_CALL( SCIPcreateSol(scip, &relaxdata->ipy, NULL) );
             SCIP_CALL( SCIPsetSolVals(scip, relaxdata->ipy, nvars, vars, solforscip) );
 #ifdef SCIP_PRINT_WARMSTART
-            SCIPdebugMessage("Computed dual analytic center:\n");
+            SCIPdebugMsg(scip, "Computed dual analytic center:\n");
             for (i = 0; i < nvars; i++)
             {
-               SCIPdebugMessage("y[%d] = %f\n", i, solforscip[i]);
+               SCIPdebugMsg(scip, "y[%d] = %f\n", i, solforscip[i]);
             }
 #endif
 
@@ -5137,23 +5137,23 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
 #ifdef SCIP_PRINT_WARMSTART
             for (b = 0; b < relaxdata->nblocks - 1; b++)
             {
-               SCIPdebugMessage("dual matrix, block %d:\n", b);
+               SCIPdebugMsg(scip, "dual matrix, block %d:\n", b);
                for (i = 0; i < relaxdata->ipZnblocknonz[b]; i++)
                {
-                  SCIPdebugMessage("Z_%d[%d,%d]: %f\n", b, relaxdata->ipZrow[b][i], relaxdata->ipZcol[b][i], relaxdata->ipZval[b][i]);
+                  SCIPdebugMsg(scip, "Z_%d[%d,%d]: %f\n", b, relaxdata->ipZrow[b][i], relaxdata->ipZcol[b][i], relaxdata->ipZval[b][i]);
                }
             }
-            SCIPdebugMessage("dual matrix, LP constraints:\n");
+            SCIPdebugMsg(scip, "dual matrix, LP constraints:\n");
             for (r = 0; r < nrows; r++)
             {
-               SCIPdebugMessage("Z_%d[%d,%d]: %f\n", relaxdata->nblocks, relaxdata->ipZrow[b][2*r], relaxdata->ipZcol[b][2*r], relaxdata->ipZval[b][2*r]);
-               SCIPdebugMessage("Z_%d[%d,%d]: %f\n", relaxdata->nblocks, relaxdata->ipZrow[b][2*r+1], relaxdata->ipZcol[b][2*r+1], relaxdata->ipZval[b][2*r+1]);
+               SCIPdebugMsg(scip, "Z_%d[%d,%d]: %f\n", relaxdata->nblocks, relaxdata->ipZrow[b][2*r], relaxdata->ipZcol[b][2*r], relaxdata->ipZval[b][2*r]);
+               SCIPdebugMsg(scip, "Z_%d[%d,%d]: %f\n", relaxdata->nblocks, relaxdata->ipZrow[b][2*r+1], relaxdata->ipZcol[b][2*r+1], relaxdata->ipZval[b][2*r+1]);
             }
             for (v = 0; v < nvars; v++)
             {
-               SCIPdebugMessage("Z_%d[%d,%d]: %f\n", relaxdata->nblocks,
+               SCIPdebugMsg(scip, "Z_%d[%d,%d]: %f\n", relaxdata->nblocks,
                      relaxdata->ipZrow[b][2*nrows + 2*v], relaxdata->ipZcol[b][2*nrows + 2*v], relaxdata->ipZval[b][2*nrows + 2*v]);
-               SCIPdebugMessage("Z_%d[%d,%d]: %f\n", relaxdata->nblocks,
+               SCIPdebugMsg(scip, "Z_%d[%d,%d]: %f\n", relaxdata->nblocks,
                      relaxdata->ipZrow[b][2*nrows + 2*v + 1], relaxdata->ipZcol[b][2*nrows + 2*v + 1], relaxdata->ipZval[b][2*nrows + 2*v + 1]);
             }
 #endif
@@ -5284,7 +5284,7 @@ SCIP_RETCODE SCIPrelaxSdpGetRelaxSol(
    }
    else
    {
-      SCIPdebugMessage("Called SCIPrelaxSdpGetRelaxSol with an array that wasn't big enough, needed length %d, given %d!\n", SCIPgetNVars(scip), *sollength);
+      SCIPdebugMsg(scip, "Called SCIPrelaxSdpGetRelaxSol with an array that wasn't big enough, needed length %d, given %d!\n", SCIPgetNVars(scip), *sollength);
       *sollength = SCIPgetNVars(scip);
    }
 

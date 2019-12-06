@@ -967,10 +967,10 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
                   /* check if the changed bound renders the problem infeasible */
                   if( SCIPisFeasGT(scip, rhs / coeffs[0], SCIPvarGetUbLocal(vars[0])) )
                   {
-                     SCIPdebugMessage("Problem detected to be infeasible during presolving, 1x1-SDP-constraint %s caused change"
-                           "of lower bound for variable %s from %f to %f, which is bigger than upper bound of %f\n",
-                           SCIPconsGetName(conss[i]), SCIPvarGetName(vars[0]), SCIPvarGetLbLocal(vars[0]), rhs / coeffs[0],
-                           SCIPvarGetUbLocal(vars[0]));
+                     SCIPdebugMsg(scip, "Problem detected to be infeasible during presolving, 1x1-SDP-constraint %s caused change"
+                        "of lower bound for variable %s from %f to %f, which is bigger than upper bound of %f\n",
+                        SCIPconsGetName(conss[i]), SCIPvarGetName(vars[0]), SCIPvarGetLbLocal(vars[0]), rhs / coeffs[0],
+                        SCIPvarGetUbLocal(vars[0]));
 
                      *result = SCIP_CUTOFF;
 
@@ -984,14 +984,14 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
                      return SCIP_OKAY; /* the node is infeasible, we don't care for the other constraints */
                   }
 
-                  SCIPdebugMessage("Changing lower bound of variable %s from %f to %f because of 1x1-SDP-constraint %s!\n",
-                        SCIPvarGetName(vars[0]), SCIPvarGetLbLocal(vars[0]), rhs / coeffs[0], SCIPconsGetName(conss[i]));
+                  SCIPdebugMsg(scip, "Changing lower bound of variable %s from %f to %f because of 1x1-SDP-constraint %s!\n",
+                     SCIPvarGetName(vars[0]), SCIPvarGetLbLocal(vars[0]), rhs / coeffs[0], SCIPconsGetName(conss[i]));
                   SCIP_CALL( SCIPchgVarLb(scip, vars[0], rhs / coeffs[0]) );
                }
                else
                {
-                  SCIPdebugMessage("Deleting 1x1-SDP-constraint %s, new lower bound %f for variable %s no improvement over old bound %f!\n",
-                        SCIPconsGetName(conss[i]), rhs / coeffs[0], SCIPvarGetName(vars[0]), SCIPvarGetLbLocal(vars[0]));
+                  SCIPdebugMsg(scip, "Deleting 1x1-SDP-constraint %s, new lower bound %f for variable %s no improvement over old bound %f!\n",
+                     SCIPconsGetName(conss[i]), rhs / coeffs[0], SCIPvarGetName(vars[0]), SCIPvarGetLbLocal(vars[0]));
                }
             }
             else if ( coeffs[0] < 0.0 )
@@ -1002,10 +1002,10 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
                   /* check if the changed bound renders the problem infeasible */
                   if( SCIPisFeasLT(scip, rhs / coeffs[0], SCIPvarGetLbLocal(vars[0])) )
                   {
-                     SCIPdebugMessage("Problem detected to be infeasible during presolving, 1x1-SDP-constraint %s caused change"
-                           "of upper bound for variable %s from %f to %f, which is less than lower bound of %f\n",
-                           SCIPconsGetName(conss[i]), SCIPvarGetName(vars[0]), SCIPvarGetUbLocal(vars[0]), rhs / coeffs[0],
-                           SCIPvarGetLbLocal(vars[0]));
+                     SCIPdebugMsg(scip, "Problem detected to be infeasible during presolving, 1x1-SDP-constraint %s caused change"
+                        "of upper bound for variable %s from %f to %f, which is less than lower bound of %f\n",
+                        SCIPconsGetName(conss[i]), SCIPvarGetName(vars[0]), SCIPvarGetUbLocal(vars[0]), rhs / coeffs[0],
+                        SCIPvarGetLbLocal(vars[0]));
 
                      *result = SCIP_CUTOFF;
 
@@ -1019,22 +1019,22 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
                      return SCIP_OKAY; /* the node is infeasible, we don't care for the other constraints */
                   }
 
-                  SCIPdebugMessage("Changing upper bound of variable %s from %f to %f because of 1x1-SDP-constraint %s!\n",
+                  SCIPdebugMsg(scip, "Changing upper bound of variable %s from %f to %f because of 1x1-SDP-constraint %s!\n",
                      SCIPvarGetName(vars[0]), SCIPvarGetUbLocal(vars[0]), -rhs / coeffs[0], SCIPconsGetName(conss[i]));
                   SCIP_CALL( SCIPchgVarUb(scip, vars[0], rhs / coeffs[0]) );
                }
                else
                {
-                  SCIPdebugMessage("Deleting 1x1-SDP-constraint %s, new upper bound %f for variable %s no improvement over old bound %f!\n",
+                  SCIPdebugMsg(scip, "Deleting 1x1-SDP-constraint %s, new upper bound %f for variable %s no improvement over old bound %f!\n",
                      SCIPconsGetName(conss[i]), rhs / coeffs[0], SCIPvarGetName(vars[0]), SCIPvarGetUbLocal(vars[0]));
                }
             }
             else
             {
-               SCIPdebugMessage("Detected 1x1 SDP-block without any nonzero coefficients \n");
+               SCIPdebugMsg(scip, "Detected 1x1 SDP-block without any nonzero coefficients \n");
                if ( SCIPisFeasGT(scip, rhs, 0.0) )
                {
-                  SCIPdebugMessage("Detected infeasibility in 1x1 SDP-block without any nonzero coefficients but with strictly positive rhs\n");
+                  SCIPdebugMsg(scip, "Detected infeasibility in 1x1 SDP-block without any nonzero coefficients but with strictly positive rhs\n");
                   *result = SCIP_CUTOFF;
 
                   /* delete old 1x1 sdpcone */
@@ -1201,7 +1201,7 @@ SCIP_RETCODE multiaggrVar(
       {
          /* the variable has to be added to this constraint */
 
-         SCIPdebugMessage("adding variable %s to SDP constraint %s because of (multi-)aggregation\n", SCIPvarGetName(aggrvars[aggrind]), SCIPconsGetName(cons));
+         SCIPdebugMsg(scip, "adding variable %s to SDP constraint %s because of (multi-)aggregation\n", SCIPvarGetName(aggrvars[aggrind]), SCIPconsGetName(cons));
 
          /* check if we have to enlarge the arrays */
          if ( consdata->nvars == *vararraylength )
@@ -1306,7 +1306,7 @@ SCIP_RETCODE fixAndAggrVars(
    assert( conss != NULL );
    assert( nconss >= 0 );
 
-   SCIPdebugMessage("Calling fixAndAggrVars with aggregate = %u\n", aggregate);
+   SCIPdebugMsg(scip, "Calling fixAndAggrVars with aggregate = %u\n", aggregate);
 
    SCIP_CALL( SCIPgetRealParam(scip, "numerics/epsilon", &epsilon) );
 
@@ -1346,7 +1346,7 @@ SCIP_RETCODE fixAndAggrVars(
          {
             assert( SCIPisEQ(scip, SCIPvarGetLbGlobal(var), SCIPvarGetUbGlobal(var)) );
 
-            SCIPdebugMessage("Treating globally fixed variable %s with value %f!\n", SCIPvarGetName(var), SCIPvarGetLbGlobal(var));
+            SCIPdebugMsg(scip, "Treating globally fixed variable %s with value %f!\n", SCIPvarGetName(var), SCIPvarGetLbGlobal(var));
 
             if ( (! negated && ! SCIPisEQ(scip, SCIPvarGetLbGlobal(var), 0.0)) || (negated && SCIPisEQ(scip, SCIPvarGetLbGlobal(var), 0.0)) )
             {
@@ -1436,12 +1436,12 @@ SCIP_RETCODE fixAndAggrVars(
             /* Debugmessages for the (multi-)aggregation */
 #ifdef SCIP_DEBUG
             if ( SCIPvarGetStatus(consdata->vars[v]) == SCIP_VARSTATUS_AGGREGATED )
-               SCIPdebugMessage("aggregating variable %s to ", SCIPvarGetName(var));
+               SCIPdebugMsg(scip, "aggregating variable %s to ", SCIPvarGetName(var));
             else
-               SCIPdebugMessage("multiaggregating variable %s to ", SCIPvarGetName(var));
+               SCIPdebugMsg(scip, "multiaggregating variable %s to ", SCIPvarGetName(var));
             for (i = 0; i < naggrvars; i++)
-               SCIPdebugMessage("+ (%f2) * %s ", scalars[i], SCIPvarGetName(aggrvars[i]));
-            SCIPdebugMessage("+ (%f2) \n", constant);
+               SCIPdebugMsg(scip, "+ (%f2) * %s ", scalars[i], SCIPvarGetName(aggrvars[i]));
+            SCIPdebugMsg(scip, "+ (%f2) \n", constant);
 #endif
 
             /* add the nonzeros to the saved-arrays for the constant part, remove the nonzeros for the old variables and add them to the variables this variable
@@ -1455,7 +1455,7 @@ SCIP_RETCODE fixAndAggrVars(
          {
              /* if var1 is the negation of var2, then this is equivalent to it being aggregated to -var2 + 1 = 1 - var2 */
 
-            SCIPdebugMessage("Changing variable %s to negation of variable <%s>!\n", SCIPvarGetName(consdata->vars[v]), SCIPvarGetName(var));
+            SCIPdebugMsg(scip, "Changing variable %s to negation of variable <%s>!\n", SCIPvarGetName(consdata->vars[v]), SCIPvarGetName(var));
 
             scalar = -1.0;
 
@@ -1756,11 +1756,11 @@ SCIP_DECL_CONSTRANS(consTransSdp)
    sourcedata = SCIPconsGetData(sourcecons);
    assert( sourcedata != NULL );
 
-  SCIPdebugMessage("Transforming constraint <%s>\n", SCIPconsGetName(sourcecons));
+  SCIPdebugMsg(scip, "Transforming constraint <%s>\n", SCIPconsGetName(sourcecons));
 
 #ifdef OMP
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
-   SCIPdebugMessage("Setting number of threads to %d via OpenMP in Openblas.\n", conshdlrdata->nthreads);
+   SCIPdebugMsg(scip, "Setting number of threads to %d via OpenMP in Openblas.\n", conshdlrdata->nthreads);
    omp_set_num_threads(conshdlrdata->nthreads);
 #endif
 
@@ -1870,7 +1870,7 @@ SCIP_DECL_CONSENFOPS(consEnfopsSdp)
 
    if ( objinfeasible )
    {
-      SCIPdebugMessage("-> pseudo solution is objective infeasible, return.\n");
+      SCIPdebugMsg(scip, "-> pseudo solution is objective infeasible, return.\n");
       return SCIP_OKAY;
    }
 
@@ -1881,12 +1881,12 @@ SCIP_DECL_CONSENFOPS(consEnfopsSdp)
       if (*result == SCIP_INFEASIBLE)
       {
          /* if it is infeasible for one SDP constraint, it is infeasible for the whole problem */
-         SCIPdebugMessage("-> pseudo solution infeasible for SDP-constraint %s, return.\n", SCIPconsGetName(conss[i]));
+         SCIPdebugMsg(scip, "-> pseudo solution infeasible for SDP-constraint %s, return.\n", SCIPconsGetName(conss[i]));
          return SCIP_OKAY;
       }
    }
 
-   SCIPdebugMessage("-> pseudo solution feasible for all SDP-constraints.\n");
+   SCIPdebugMsg(scip, "-> pseudo solution feasible for all SDP-constraints.\n");
 
    return SCIP_OKAY;
 }
@@ -1961,7 +1961,7 @@ SCIP_DECL_CONSDELETE(consDeleteSdp)
    assert( cons != NULL );
    assert( consdata != NULL );
 
-   SCIPdebugMessage("deleting SDP constraint <%s>.\n", SCIPconsGetName(cons));
+   SCIPdebugMsg(scip, "deleting SDP constraint <%s>.\n", SCIPconsGetName(cons));
 
    for (i = 0; i < (*consdata)->nvars; i++)
    {
@@ -2036,7 +2036,7 @@ SCIP_DECL_CONSCOPY(consCopySdp)
    assert( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(sourcecons)), CONSHDLR_NAME) == 0 );
    assert( valid != NULL );
 
-   SCIPdebugMessage("Copying SDP constraint <%s>\n", SCIPconsGetName(sourcecons));
+   SCIPdebugMsg(scip, "Copying SDP constraint <%s>\n", SCIPconsGetName(sourcecons));
 
    *valid = TRUE;
 
@@ -2451,7 +2451,7 @@ SCIP_DECL_CONSGETVARS(consGetVarsSdp)
 
    if ( nvars > varssize )
    {
-      SCIPdebugMessage("consGetVarsIndicator called for array of size %d, needed size %d.\n", varssize, nvars);
+      SCIPdebugMsg(scip, "consGetVarsIndicator called for array of size %d, needed size %d.\n", varssize, nvars);
       *success = FALSE;
       return SCIP_OKAY;
    }
@@ -2607,8 +2607,8 @@ SCIP_RETCODE SCIPconsSdpGetData(
    /* check that the sdp-arrays are long enough to store the information */
    if ( *arraylength < consdata->nvars )
    {
-      SCIPdebugMessage("nvarnonz, col, row and val arrays were not long enough to store the information for cons %s, they need to be at least"
-                       "size %d, given was only length %d! \n", name, consdata->nvars, *arraylength);
+      SCIPdebugMsg(scip, "nvarnonz, col, row and val arrays were not long enough to store the information for cons %s, they need to be at least"
+         "size %d, given was only length %d! \n", name, consdata->nvars, *arraylength);
       *arraylength = consdata->nvars;
    }
    else
@@ -2628,8 +2628,8 @@ SCIP_RETCODE SCIPconsSdpGetData(
    {
       if ( consdata->constnnonz > *constnnonz )
       {
-         SCIPdebugMessage("The constant nonzeros arrays were not long enough to store the information for cons %s, they need to be at least"
-                                "size %d, given was only length %d! \n", name, consdata->constnnonz, *constnnonz);
+         SCIPdebugMsg(scip, "The constant nonzeros arrays were not long enough to store the information for cons %s, they need to be at least"
+            "size %d, given was only length %d! \n", name, consdata->constnnonz, *constnnonz);
       }
       else
       {
@@ -3140,7 +3140,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
       consdata->vars[i] = vars[i];
       SCIP_CALL( SCIPcaptureVar(scip, consdata->vars[i]) );
    }
-   SCIPdebugMessage("creating cons %s\n", name);
+   SCIPdebugMsg(scip, "creating cons %s\n", name);
 
    /* create constraint */
    SCIP_CALL( SCIPcreateCons(scip, cons, name, conshdlr, consdata, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) );

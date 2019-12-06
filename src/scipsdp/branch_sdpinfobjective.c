@@ -121,7 +121,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
    assert( branchrule != NULL );
    assert( result != NULL );
 
-   SCIPdebugMessage("Executing External Branching method of SDP-integer-infeasibility-objective!\n");
+   SCIPdebugMsg(scip, "Executing External Branching method of SDP-integer-infeasibility-objective!\n");
 
    /* Get the external candidates, as we use the score only as a tiebreaker, we aren't interested in the number of
     * variables of different types with maximal score, so these return values are set to NULL. */
@@ -129,7 +129,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
 
    assert( ncands > 0 ); /* branchExecext should only be called if the list of external branching candidates is non-empty */
 
-   SCIPdebugMessage("branching candidates for SDP-objective:\n");
+   SCIPdebugMsg(scip, "branching candidates for SDP-objective:\n");
 
    /* iterate over all candidates and find the one with the highest absolute objective times integral infeasibility, use score as tiebreaker */
    for (i = 0; i < ncands; i++)
@@ -137,14 +137,14 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
       /* we skip all continuous variables, since we first want to branch on integral variables */
       if ( SCIPvarGetType(cands[i]) == SCIP_VARTYPE_CONTINUOUS )
       {
-         SCIPdebugMessage("skipping continuous variable %s\n", SCIPvarGetName(cands[i]));
+         SCIPdebugMsg(scip, "skipping continuous variable %s\n", SCIPvarGetName(cands[i]));
          continue;
       }
       /* compute the infeasibility for the integrality constraint */
       currentfrac = SCIPfeasFrac(scip, candssol[i]);
       currenttarget = (currentfrac <= 0.5) ? (currentfrac * REALABS(SCIPvarGetObj(cands[i]))) : ((1.0 - currentfrac) * REALABS(SCIPvarGetObj(cands[i])));
 
-      SCIPdebugMessage("%s, value = %f, objective = %f, objective * integer infeasibility = %f, score = %f\n",
+      SCIPdebugMsg(scip, "%s, value = %f, objective = %f, objective * integer infeasibility = %f, score = %f\n",
          SCIPvarGetName(cands[i]), candssol[i], SCIPvarGetObj(cands[i]), currenttarget, candsscore[i]);
 
       /* a candidate is better than the current one if:
@@ -166,7 +166,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
    /* if all variables were continuous, we return DIDNOTRUN and let one of the SCIP branching rules decide */
    if ( maxtargettarget == -1.0 )
    {
-      SCIPdebugMessage("Skipping SDP-infobj branching rule since all branching variables are continuous\n");
+      SCIPdebugMsg(scip, "Skipping SDP-infobj branching rule since all branching variables are continuous\n");
       *result = SCIP_DIDNOTFIND;
       return SCIP_OKAY;
    }
@@ -200,8 +200,8 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
       int c;
       int v;
 
-      SCIPdebugMessage("All branching candidates have objective 0.0, combined integral infeasibility and objective branching proceeds to check coupled "
-                       "variables, updated values for candidates:\n");
+      SCIPdebugMsg(scip, "All branching candidates have objective 0.0, combined integral infeasibility and objective branching proceeds to check coupled "
+         "variables, updated values for candidates:\n");
 
       nvars = SCIPgetNVars(scip);
       vars = SCIPgetVars(scip);
@@ -237,7 +237,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
          SCIP_CALL( SCIPgetConsNVars(scip, conss[c], &nvarsincons, &success) );
          if ( ! success )
          {
-            SCIPdebugMessage("couldn't get variable information from constraint %s, so ignoring it for computing coupled variables\n", SCIPconsGetName(conss[c]));
+            SCIPdebugMsg(scip, "couldn't get variable information from constraint %s, so ignoring it for computing coupled variables\n", SCIPconsGetName(conss[c]));
             continue; /* if we can't get the variables of this constraint, we can't include variables coupled through this constraint */
          }
 
@@ -337,20 +337,20 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
          assert( SCIPisGE(scip, currentobj, 0.0) );
 
 #ifdef SCIP_DEBUG
-         SCIPdebugMessage("candidate %s, coupled with ", SCIPvarGetName(cands[cand]));
+         SCIPdebugMsg(scip, "candidate %s, coupled with ", SCIPvarGetName(cands[cand]));
          for (v = 0; v < nvars; v++)
          {
             if (coupledvars[cand][v])
-               SCIPdebugMessage("%s, ", SCIPvarGetName(vars[v]));
+               SCIPdebugMsg(scip, "%s, ", SCIPvarGetName(vars[v]));
          }
-         SCIPdebugMessage("out of those ");
+         SCIPdebugMsg(scip, "out of those ");
          for (v = 0; v < nvars; v++)
          {
             if (singlecoupledvars[cand][v])
-               SCIPdebugMessage("%s, ", SCIPvarGetName(vars[v]));
+               SCIPdebugMsg(scip, "%s, ", SCIPvarGetName(vars[v]));
          }
-         SCIPdebugMessage("are only coupled with this candidate, total objective = %f, integral infeasibility = %f, total objective * candidate's fractionality = %f,"
-                  "score = %f\n", currentobj, (currentfrac <= 0.5) ? currentfrac : (1 - currentfrac), currenttarget, candsscore[cand]);
+         SCIPdebugMsg(scip, "are only coupled with this candidate, total objective = %f, integral infeasibility = %f, total objective * candidate's fractionality = %f,"
+            "score = %f\n", currentobj, (currentfrac <= 0.5) ? currentfrac : (1 - currentfrac), currenttarget, candsscore[cand]);
 #endif
 
          /* a candidate is better than the current one if:
@@ -396,8 +396,8 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpinfobjective)
    if ( SCIPisGT(scip, maxtargettarget, 0.0) )
    {
       /* branch */
-      SCIPdebugMessage("branching on variable %s with value %f, absolute objective * integer infeasibility = %f and score %f\n",
-            SCIPvarGetName(maxtargetvar), maxtargetval, maxtargettarget, maxtargetscore);
+      SCIPdebugMsg(scip, "branching on variable %s with value %f, absolute objective * integer infeasibility = %f and score %f\n",
+         SCIPvarGetName(maxtargetvar), maxtargetval, maxtargettarget, maxtargetscore);
       SCIP_CALL( SCIPbranchVarVal(scip, maxtargetvar, maxtargetval, NULL, NULL, NULL) );
 
       *result = SCIP_BRANCHED;
