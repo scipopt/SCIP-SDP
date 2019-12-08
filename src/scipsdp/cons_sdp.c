@@ -1179,16 +1179,16 @@ SCIP_RETCODE multiaggrVar(
             /* in this case we saved the original values in savedval, we add startind to the pointers to only add those from
              * the current variable, the number of entries is the current position minus the position whre we started */
             SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), epsilon, savedrow + startind, savedcol + startind, savedval + startind,
-                        *nfixednonz - startind, TRUE, scalars[aggrind], consdata->row[aggrconsind], consdata->col[aggrconsind],
-                        consdata->val[aggrconsind], &(consdata->nvarnonz[aggrconsind]), aggrtargetlength) );
+                  *nfixednonz - startind, TRUE, scalars[aggrind], consdata->row[aggrconsind], consdata->col[aggrconsind],
+                  consdata->val[aggrconsind], &(consdata->nvarnonz[aggrconsind]), aggrtargetlength) );
          }
          else
          {
             /* in this case we saved the original values * constant, so we now have to divide by constant, we add startind to the pointers
              * to only add those from the current variable, the number of entries is the current position minus the position whre we started */
             SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), epsilon, savedrow + startind, savedcol + startind, savedval + startind,
-                        *nfixednonz - startind, TRUE, scalars[aggrind] / constant, consdata->row[aggrconsind], consdata->col[aggrconsind],
-                        consdata->val[aggrconsind], &(consdata->nvarnonz[aggrconsind]), aggrtargetlength) );
+                  *nfixednonz - startind, TRUE, scalars[aggrind] / constant, consdata->row[aggrconsind], consdata->col[aggrconsind],
+                  consdata->val[aggrconsind], &(consdata->nvarnonz[aggrconsind]), aggrtargetlength) );
          }
 
          /* shrink them again if nonzeros could be combined */
@@ -1200,7 +1200,6 @@ SCIP_RETCODE multiaggrVar(
       else
       {
          /* the variable has to be added to this constraint */
-
          SCIPdebugMsg(scip, "adding variable %s to SDP constraint %s because of (multi-)aggregation\n", SCIPvarGetName(aggrvars[aggrind]), SCIPconsGetName(cons));
 
          /* check if we have to enlarge the arrays */
@@ -1306,7 +1305,7 @@ SCIP_RETCODE fixAndAggrVars(
    assert( conss != NULL );
    assert( nconss >= 0 );
 
-   SCIPdebugMsg(scip, "Calling fixAndAggrVars with aggregate = %u\n", aggregate);
+   SCIPdebugMsg(scip, "Calling fixAndAggrVars with aggregate = %u.\n", aggregate);
 
    SCIP_CALL( SCIPgetRealParam(scip, "numerics/epsilon", &epsilon) );
 
@@ -1342,7 +1341,7 @@ SCIP_RETCODE fixAndAggrVars(
             var = consdata->vars[v];
 
          /* check if the variable is fixed in SCIP */
-         if ( SCIPvarGetStatus(var) == SCIP_VARSTATUS_FIXED || SCIPisEQ(scip, SCIPvarGetLbGlobal(var), SCIPvarGetUbGlobal(var)))
+         if ( SCIPvarGetStatus(var) == SCIP_VARSTATUS_FIXED || SCIPisEQ(scip, SCIPvarGetLbGlobal(var), SCIPvarGetUbGlobal(var)) )
          {
             assert( SCIPisEQ(scip, SCIPvarGetLbGlobal(var), SCIPvarGetUbGlobal(var)) );
 

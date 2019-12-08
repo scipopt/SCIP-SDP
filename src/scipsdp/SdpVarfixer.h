@@ -44,9 +44,8 @@
 extern "C" {
 #endif
 
-/**
- * sort the given row, col and val arrays first by non-decreasing row-indices, then for those with identical
- * row-indices by non-decreasing col-indices
+/** sort the given row, col and val arrays first by non-decreasing row-indices, then for those with identical
+ *  row-indices by non-decreasing col-indices
  */
 SCIP_EXPORT
 void SCIPsdpVarfixerSortRowCol(
@@ -56,14 +55,13 @@ void SCIPsdpVarfixerSortRowCol(
    int                   length              /* length of the given arrays */
    );
 
-/**
- * merges two three-tuple-arrays together
+/** merges two three-tuple-arrays together
  *
- * The original arrays (which may have multiple entries for the same row and col) will be mulitplied with
- * scalar and then merged into the target arrays (which may not have multiple entries for the same row and col). If there is already an entry for
- * a row/col combination, these two entries will be combined (their values added together), if they cancel each other out the nonzero entry will
- * be removed. If you think of the matrices described by the two arrays, this is a matrix addition (but only working on the nonzeros for efficiency).
- * The target arrays need to be long enough, otherwise targetlength returns the needed amount and a corresponding debug message is thrown.
+ *  The original arrays (which may have multiple entries for the same row and col) will be mulitplied with
+ *  scalar and then merged into the target arrays (which may not have multiple entries for the same row and col). If there is already an entry for
+ *  a row/col combination, these two entries will be combined (their values added together), if they cancel each other out the nonzero entry will
+ *  be removed. If you think of the matrices described by the two arrays, this is a matrix addition (but only working on the nonzeros for efficiency).
+ *  The target arrays need to be long enough, otherwise targetlength returns the needed amount and a corresponding debug message is thrown.
  */
 SCIP_EXPORT
 SCIP_RETCODE SCIPsdpVarfixerMergeArrays(
@@ -84,14 +82,13 @@ SCIP_RETCODE SCIPsdpVarfixerMergeArrays(
                                                * return the needed amount and a corresponding debug message will be thrown */
    );
 
-/**
- * merges two three-tuple-arrays together
+/** merges two three-tuple-arrays together
  *
- * If there are multiple entries for a row/col combination, these will be combined (their values added
- * together), if they cancel each other out the nonzero entry will be removed. The first arrays are assumed to have unique row/col-combinations, the
- * second arrays may have duplicates of the same row/col-combination. In constrast to MergeArrays, here the combined arrays will be inserted in
- * the new targetarrays, and not overwrite one of the old arrays. targetlength should give the length of the target arrays, if this is not sufficient,
- * the needed length is returned there and a debug message is thrown.
+ *  If there are multiple entries for a row/col combination, these will be combined (their values added
+ *  together), if they cancel each other out the nonzero entry will be removed. The first arrays are assumed to have unique row/col-combinations, the
+ *  second arrays may have duplicates of the same row/col-combination. In constrast to MergeArrays, here the combined arrays will be inserted in
+ *  the new targetarrays, and not overwrite one of the old arrays. targetlength should give the length of the target arrays, if this is not sufficient,
+ *  the needed length is returned there and a debug message is thrown.
  */
 SCIP_EXPORT
 SCIP_RETCODE SCIPsdpVarfixerMergeArraysIntoNew(
