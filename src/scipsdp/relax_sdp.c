@@ -41,7 +41,7 @@
 /* #define SCIP_MORE_DEBUG   *//* displays complete solution for each relaxation */
 /* #define SCIP_EVEN_MORE_DEBUG  *//* shows number of deleted empty cols/rows for every relaxation and variable status &
  * bounds as well as all constraints in the beginning */
-/* #define SCIP_PRINT_WARMSTART  *//* print initial point given for warmstarts */
+/* #define SCIP_PRINT_WARMSTART */ /* print initial point given for warmstarts */
 #define SLATERSOLVED_ABSOLUTE /* uncomment this to return the absolute number of nodes for, e.g., solved fast with slater in addition to percentages */
 
 #include "relax_sdp.h"
@@ -3711,10 +3711,6 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       {
          SCIP_CALL( SCIPcreateClock(scip, &relaxdata->roundingprobtime) );
       }
-      else
-      {
-         SCIP_CALL( SCIPresetClock(scip, relaxdata->roundingprobtime) );
-      }
    }
    else
    {
@@ -4242,11 +4238,6 @@ SCIP_DECL_RELAXEXITSOL(relaxExitSolSdp)
       }
    }
 
-   if ( relaxdata->roundingprobtime != NULL )
-   {
-      SCIP_CALL( SCIPfreeClock(scip, &relaxdata->roundingprobtime) );
-   }
-
    if ( relaxdata->varmapper != NULL )
    {
       SCIP_CALL( SCIPsdpVarmapperFree(scip, &(relaxdata->varmapper)) );
@@ -4299,6 +4290,23 @@ SCIP_DECL_RELAXEXITSOL(relaxExitSolSdp)
    SCIP_CALL( SCIPsdpiClear(relaxdata->sdpi) );
 
    return SCIP_OKAY;
+}
+
+/** deinitialization method of relaxator (called before transformed problem is freed) */
+static
+SCIP_DECL_RELAXEXIT(relaxExitSdp)
+{
+   SCIP_RELAXDATA* relaxdata;
+
+   assert( relax != NULL );
+
+   relaxdata = SCIPrelaxGetData(relax);
+   assert( relaxdata != NULL );
+
+   if ( relaxdata->roundingprobtime != NULL )
+   {
+      SCIP_CALL( SCIPfreeClock(scip, &relaxdata->roundingprobtime) );
+   }
 }
 
 /** free the relaxator's data */
@@ -4357,6 +4365,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    /* include additional callbacks */
    SCIP_CALL( SCIPsetRelaxInitsol(scip, relax, relaxInitSolSdp) );
    SCIP_CALL( SCIPsetRelaxExitsol(scip, relax, relaxExitSolSdp) );
+   SCIP_CALL( SCIPsetRelaxExit(scip, relax, relaxExitSdp) );
    SCIP_CALL( SCIPsetRelaxFree(scip, relax, relaxFreeSdp) );
    SCIP_CALL( SCIPsetRelaxCopy(scip, relax, relaxCopySdp) );
 
