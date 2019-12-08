@@ -4307,6 +4307,8 @@ SCIP_DECL_RELAXEXIT(relaxExitSdp)
    {
       SCIP_CALL( SCIPfreeClock(scip, &relaxdata->roundingprobtime) );
    }
+
+   return SCIP_OKAY;
 }
 
 /** free the relaxator's data */

@@ -1060,6 +1060,36 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
    return SCIP_OKAY;
 }
 
+/** unlock variable */
+static
+SCIP_RETCODE unlockVar(
+   SCIP*                 scip,               /**< SCIP pointer */
+   SCIP_CONSDATA*        consdata,           /**< data of constraint */
+   int                   v                   /**< index of variable */
+   )
+{
+   assert( scip != NULL );
+   assert( consdata != NULL );
+   assert( 0 <= v && v < consdata->nvars );
+   assert( consdata->locks != NULL );
+   assert( consdata->locks[v] == -2 || consdata->locks[v] == -1 || consdata->locks[v] == 0 || consdata->locks[v] == 1 );
+
+   if ( consdata->locks[v] == 1 )
+   {
+      SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], 0, -1) );
+   }
+   else if ( consdata->locks[v] == - 1 )
+   {
+      SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], -1, 0) );
+   }
+   else if ( consdata->locks[v] == 0 )
+   {
+      SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], -1, -1) );
+   }
+
+   return SCIP_OKAY;
+}
+
 /** local function to perform (parts of) multiaggregation of a single variable within fixAndAggrVars */
 static
 SCIP_RETCODE multiaggrVar(
@@ -1139,6 +1169,9 @@ SCIP_RETCODE multiaggrVar(
    SCIPfreeBlockMemoryArray(scip, &(consdata->row[*v]), consdata->nvarnonz[*v]);
    SCIPfreeBlockMemoryArray(scip, &(consdata->col[*v]), consdata->nvarnonz[*v]);
 
+   /* unlock variable */
+   SCIP_CALL( unlockVar(scip, consdata, *v) );
+
    /* fill the empty spot of the (multi-)aggregated variable with the last variable of this constraint (as they don't have to be sorted) */
    SCIP_CALL( SCIPreleaseVar(scip, &consdata->vars[*v]) );
    consdata->col[*v] = consdata->col[consdata->nvars - 1];
@@ -1146,7 +1179,7 @@ SCIP_RETCODE multiaggrVar(
    consdata->val[*v] = consdata->val[consdata->nvars - 1];
    consdata->nvarnonz[*v] = consdata->nvarnonz[consdata->nvars - 1];
    consdata->vars[*v] = consdata->vars[consdata->nvars - 1];
-   consdata->locks[*v] = -2;
+   consdata->locks[*v] = consdata->locks[consdata->nvars - 1];
    (consdata->nvars)--;
    (*v)--; /* we need to check again if the variable we just shifted to this position also needs to be (multi-)aggregated */
 
@@ -1378,21 +1411,8 @@ SCIP_RETCODE fixAndAggrVars(
             SCIPfreeBlockMemoryArrayNull(scip, &(consdata->row[v]), consdata->nvarnonz[v]);
             SCIPfreeBlockMemoryArrayNull(scip, &(consdata->col[v]), consdata->nvarnonz[v]);
 
-            /* undo locks */
-            assert( consdata->locks != NULL );
-            assert( consdata->locks[v] == -2 || consdata->locks[v] == -1 || consdata->locks[v] == 0 || consdata->locks[v] == 1 );
-            if ( consdata->locks[v] == 1 )
-            {
-               SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], 0, -1) );
-            }
-            else if ( consdata->locks[v] == - 1 )
-            {
-               SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], -1, 0) );
-            }
-            else if ( consdata->locks[v] == 0 )
-            {
-               SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], -1, -1) );
-            }
+            /* unlock variable */
+            SCIP_CALL( unlockVar(scip, consdata, v) );
 
             /* as the variables don't need to be sorted, we just put the last variable into the empty spot and decrease sizes by one (at the end) */
             SCIP_CALL( SCIPreleaseVar(scip, &(consdata->vars[v])) );
