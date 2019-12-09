@@ -53,7 +53,7 @@ extern "C" {
 #endif
 
 /** creates the SDP highest absolute objective branching rule and includes it in SCIP */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPincludeBranchruleSdpobjective(
    SCIP*                 scip                /**< SCIP data structure */
    );

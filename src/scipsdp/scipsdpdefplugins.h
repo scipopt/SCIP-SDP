@@ -30,44 +30,27 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   cons_savedsdpsettings.h
- * @brief  constraint handler for saving SDP settings
- * @author Tristan Gally
- *
- * A constraint that is always feasible which can be used to save and recover settings used
- * to solve the SDP-relaxation at the current node.
+/**@file   scipsdpdefplugins.h
+ * @brief  default SCIP-SDP plugins
+ * @author Marc Pfetsch
  */
 
-#ifndef __SCIP_CONS_SAVEDSDPSETTINGS_H_
-#define __SCIP_CONS_SAVEDSDPSETTINGS_H_
+/*--+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
+
+#ifndef __SCIP_SCIPSDPDEFPLUGINS_H__
+#define __SCIP_SCIPSDPDEFPLUGINS_H__
 
 #include "scip/scip.h"
-#include "sdpi/type_sdpi.h"
+#include "scip/scipshell.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/** include Savedsdpsettings constraint handler */
+/** includes default SCIP-SDP plugins */
 SCIP_EXPORT
-SCIP_RETCODE SCIPincludeConshdlrSavedsdpsettings(
+SCIP_RETCODE SCIPSDPincludeDefaultPlugins(
    SCIP*                 scip                /**< SCIP data structure */
-   );
-
-/** create a savedsdpsettings constraint, i.e. save the current settings for the SDP-relaxation of this node */
-SCIP_EXPORT
-SCIP_RETCODE createConsSavedsdpsettings(
-   SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
-   const char*           name,               /**< name of constraint */
-   SCIP_SDPSOLVERSETTING settings            /**< settings to save */
-   );
-
-/** get the settings used to solve the SDP relaxation in this node */
-SCIP_EXPORT
-SCIP_SDPSOLVERSETTING SCIPconsSavedsdpsettingsGetSettings(
-   SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons                /**< constraint to get starting point for */
    );
 
 #ifdef __cplusplus

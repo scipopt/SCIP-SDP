@@ -30,13 +30,18 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   main.cpp
- * @brief  main file for solving MISDPs
- * @author Sonja Mars
- * @author Tristan Gally
+/**@file   scipsdpdefplugins.cpp
+ * @brief  default SCIP-SCP plugins
+ * @author Marc Pfetsch
  */
 
+/*--+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
+
 #define SCIPSDPVERSION              "3.1.2"
+
+
+#include "scipsdp/scipsdpdefplugins.h"
+#include "scip/scipdefplugins.h"
 
 #include "objscip/objscipdefplugins.h"
 
@@ -71,19 +76,23 @@
 
 using namespace scip;
 
-/** run scip and set some parameters */
-static
-SCIP_RETCODE runSCIP(
-   int                   argc,               /**< number of command line arguments */
-   char**                argv                /**< pointer to command line arguments */
+/** includes default SCIP-SDP plugins */
+SCIP_RETCODE SCIPSDPincludeDefaultPlugins(
+   SCIP*                 scip                /**< SCIP data structure */
    )
 {
-   SCIP* scip = NULL;
    char scipsdpname[SCIP_MAXSTRLEN];
    char scipsdpdesc[SCIP_MAXSTRLEN];
    SCIP_DIALOG* dialog;
 
-   SCIP_CALL( SCIPcreate(&scip) );
+   /* add description */
+   (void) SCIPsnprintf(scipsdpname, SCIP_MAXSTRLEN, "SCIP-SDP %s", SCIPSDPVERSION);
+   (void) SCIPsnprintf(scipsdpdesc, SCIP_MAXSTRLEN, "Mixed Integer Semidefinite Programming Plugin for SCIP "
+         "[GitHash: %s] (www.opt.tu-darmstadt.de/scipsdp/)", SCIPSDP_GITHASH);
+   SCIP_CALL( SCIPincludeExternalCodeInformation(scip, scipsdpname, scipsdpdesc) );
+
+   /* include default SCIP plugins */
+   SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
 
    /* include new plugins */
    SCIP_CALL( SCIPincludeObjReader(scip, new ObjReaderSDPAind(scip), TRUE) );
@@ -103,32 +112,30 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPincludePropSdpObbt(scip) );
    SCIP_CALL( SCIPincludePropCompAnalCent(scip) );
 
-   /* add description */
-   (void) SCIPsnprintf(scipsdpname, SCIP_MAXSTRLEN, "SCIP-SDP %s", SCIPSDPVERSION);
-   (void) SCIPsnprintf(scipsdpdesc, SCIP_MAXSTRLEN, "Mixed Integer Semidefinite Programming Plugin for SCIP "
-         "[GitHash: %s] (www.opt.tu-darmstadt.de/scipsdp/)", SCIPSDP_GITHASH);
-   SCIP_CALL( SCIPincludeExternalCodeInformation(scip, scipsdpname, scipsdpdesc) );
-
-   /* include default SCIP plugins */
-   SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
-
    /* change name of dialog */
    dialog = SCIPgetRootDialog(scip);
    BMSfreeMemoryArrayNull(&dialog->name);
    SCIP_ALLOC( BMSallocMemoryArray(&dialog->name, 9) );
    (void) SCIPstrncpy(dialog->name, "SCIP-SDP", 9);
 
+   /* include displays */
+   SCIP_CALL( SCIPincludeDispSdpiterations(scip) );
+   SCIP_CALL( SCIPincludeDispSdpavgiterations(scip) );
+   SCIP_CALL( SCIPincludeDispSdpfastsettings(scip) );
+   SCIP_CALL( SCIPincludeDispSdppenalty(scip) );
+   SCIP_CALL( SCIPincludeDispSdpunsolved(scip) );
+
+   /* include tables */
+   SCIP_CALL( SCIPincludeTableRelaxSdp(scip) );
+   SCIP_CALL( SCIPincludeTableSdpSolverSuccess(scip) );
+   SCIP_CALL( SCIPincludeTableSlater(scip) );
+
    /* set clocktype to walltime to not add multiple threads together */
    SCIP_CALL( SCIPsetIntParam(scip, "timing/clocktype", 2) );
-
-   /* change certain paramters: */
-   SCIP_CALL( SCIPsetIntParam(scip, "display/verblevel", 5) );
 
    /* Choose between LP and SDP relaxations */
    SCIP_CALL( SCIPsetIntParam(scip, "lp/solvefreq", -1) );
    SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", 1) );
-   SCIP_CALL( SCIPincludeDispSdpiterations(scip) );
-   SCIP_CALL( SCIPincludeDispSdpavgiterations(scip) );
    SCIP_CALL( SCIPsetIntParam(scip, "display/lpiterations/active", 0) );
    SCIP_CALL( SCIPsetIntParam(scip, "display/lpavgiterations/active", 0) );
 
@@ -136,16 +143,10 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPsetIntParam(scip, "display/nfrac/active", 0) );
    SCIP_CALL( SCIPsetIntParam(scip, "display/curcols/active", 0) );
    SCIP_CALL( SCIPsetIntParam(scip, "display/strongbranchs/active", 0) );
-   SCIP_CALL( SCIPincludeDispSdpfastsettings(scip) );
-   SCIP_CALL( SCIPincludeDispSdppenalty(scip) );
-   SCIP_CALL( SCIPincludeDispSdpunsolved(scip) );
    SCIP_CALL( SCIPsetIntParam(scip, "display/sdpfastsettings/active", 0) );
    SCIP_CALL( SCIPsetIntParam(scip, "display/sdppenalty/active", 0) );
 
    /* display SDP statistics instead of default relaxator statistics */
-   SCIP_CALL( SCIPincludeTableRelaxSdp(scip) );
-   SCIP_CALL( SCIPincludeTableSdpSolverSuccess(scip) );
-   SCIP_CALL( SCIPincludeTableSlater(scip) );
    SCIP_CALL( SCIPsetBoolParam(scip, "table/relaxator/active", FALSE) );
 
    /* change epsilons for numerical stability */
@@ -157,8 +158,6 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprows", FALSE) );
    SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprowsroot", FALSE) );
 
-   /* Parameters for node selection */
-
    /* Because in the SDP-world there are no warmstarts as for LPs, the main advantage for DFS (that the change in the
     * problem is minimal and therefore the Simplex can continue with the current Basis) is lost and best first search, which
     * provably needs the least number of nodes (see the Dissertation of Tobias Achterberg, the node selection rule with
@@ -168,34 +167,5 @@ SCIP_RETCODE runSCIP(
    SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/maxplungedepth", 0) );
    SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight", 0.0) );
 
-   /* we explicitly enable the use of a debug solution for this main SCIP instance */
-   SCIPenableDebugSol(scip);
-
-   /* run interactive shell */
-   SCIP_CALL( SCIPprocessShellArguments(scip, argc, argv, "scip.set") );
-
-   /* deinitialization */
-   SCIP_CALL( SCIPfree(&scip) );
-
-   BMScheckEmptyMemory();
-
    return SCIP_OKAY;
-}
-
-/** main function */
-int main (
-   int                   argc,               /**< number of command line arguments */
-   char**                argv                /**< pointer to command line arguments */
-   )
-{
-   SCIP_RETCODE retcode;
-
-   retcode = runSCIP(argc, argv);
-   if( retcode != SCIP_OKAY )
-   {
-      SCIPprintError(retcode);
-      return -1;
-   }
-
-   return 0;
 }

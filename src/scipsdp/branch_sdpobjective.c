@@ -123,7 +123,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
    assert( branchrule != NULL );
    assert( result != NULL );
 
-   SCIPdebugMessage("Executing External Branching method of SDP-objective!\n");
+   SCIPdebugMsg(scip, "Executing External Branching method of SDP-objective!\n");
 
    /* get the external candidates, as we use the score only as a tiebreaker, we aren't interested in the number of variables of different types with maximal
     * score, so these return values are set to NULL */
@@ -132,9 +132,9 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
    assert( ncands > 0 ); /* branchExecext should only be called if the list of external branching candidates is non-empty */
 
 #ifdef SCIP_DEBUG
-   SCIPdebugMessage("branching candidates for SDP-objective:\n");
+   SCIPdebugMsg(scip, "branching candidates for SDP-objective:\n");
    for (i = 0; i < ncands; i++)
-      SCIPdebugMessage("%s, value = %f, objective = %f, score = %f\n", SCIPvarGetName(cands[i]), candssol[i], SCIPvarGetObj(cands[i]), candsscore[i]);
+      SCIPdebugMsg(scip, "%s, value = %f, objective = %f, score = %f\n", SCIPvarGetName(cands[i]), candssol[i], SCIPvarGetObj(cands[i]), candsscore[i]);
 #endif
 
    maxobjobj = -1.0;
@@ -148,7 +148,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
       /* we skip all continuous variables, since we first want to branch on integral variables */
       if ( SCIPvarGetType(cands[i]) == SCIP_VARTYPE_CONTINUOUS )
       {
-         SCIPdebugMessage("skipping continuous variable %s\n", SCIPvarGetName(cands[i]));
+         SCIPdebugMsg(scip, "skipping continuous variable %s\n", SCIPvarGetName(cands[i]));
          continue;
       }
 
@@ -178,7 +178,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
    /* if all variables were continuous, we return DIDNOTRUN and let one of the SCIP branching rules decide */
    if ( maxobjobj == -1.0 )
    {
-      SCIPdebugMessage("Skipping SDP-objective branching rule since all branching variables are continuous\n");
+      SCIPdebugMsg(scip, "Skipping SDP-objective branching rule since all branching variables are continuous\n");
       *result = SCIP_DIDNOTFIND;
       return SCIP_OKAY;
    }
@@ -212,7 +212,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
       SCIP_Bool success;
       int coupledcand;
 
-      SCIPdebugMessage("All branching candidates have objective 0.0, objective branching proceeds to check coupled variables, updated values for candidates: \n");
+      SCIPdebugMsg(scip, "All branching candidates have objective 0.0, objective branching proceeds to check coupled variables, updated values for candidates: \n");
 
       nvars = SCIPgetNVars(scip);
       vars = SCIPgetVars(scip);
@@ -248,7 +248,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
          SCIP_CALL( SCIPgetConsNVars(scip, conss[c], &nvarsincons, &success) );
          if ( ! success )
          {
-            SCIPdebugMessage("couldn't get variable information from constraint %s, so ignoring it for computing coupled variables\n", SCIPconsGetName(conss[c]));
+            SCIPdebugMsg(scip, "couldn't get variable information from constraint %s, so ignoring it for computing coupled variables\n", SCIPconsGetName(conss[c]));
             continue; /* if we can't get the variables of this constraint, we can't include variables coupled through this constraint */
          }
          /* nothing to do for this constraint if there are no variables (this can happen if all vars are fixed, as the constraint is non-trivial to check) */
@@ -344,19 +344,19 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
          currentinf = (currentfrac <= 0.5) ? currentfrac : 1 - currentfrac;
 
 #ifdef SCIP_DEBUG
-         SCIPdebugMessage("candidate %s, coupled with ", SCIPvarGetName(cands[cand]));
+         SCIPdebugMsg(scip, "candidate %s, coupled with ", SCIPvarGetName(cands[cand]));
          for (v = 0; v < nvars; v++)
          {
             if (coupledvars[cand][v])
-               SCIPdebugMessage("%s, ", SCIPvarGetName(vars[v]));
+               SCIPdebugMsg(scip, "%s, ", SCIPvarGetName(vars[v]));
          }
-         SCIPdebugMessage("out of those ");
+         SCIPdebugMsg(scip, "out of those ");
          for (v = 0; v < nvars; v++)
          {
             if (singlecoupledvars[cand][v])
-               SCIPdebugMessage("%s, ", SCIPvarGetName(vars[v]));
+               SCIPdebugMsg(scip, "%s, ", SCIPvarGetName(vars[v]));
          }
-         SCIPdebugMessage("are only coupled with this candidate, total objective = %f, score = %f\n", currentobj, candsscore[cand]);
+         SCIPdebugMsg(scip, "are only coupled with this candidate, total objective = %f, score = %f\n", currentobj, candsscore[cand]);
 
 #endif
 
@@ -406,7 +406,7 @@ SCIP_DECL_BRANCHEXECEXT(branchExecextSdpobjective)
    if ( SCIPisGT(scip, maxobjobj, 0.0) )
    {
       /* branch */
-      SCIPdebugMessage("branching on variable %s with value %f, absolute objective %f and score %f\n", SCIPvarGetName(maxobjvar), maxobjval, maxobjobj, maxobjscore);
+      SCIPdebugMsg(scip, "branching on variable %s with value %f, absolute objective %f and score %f\n", SCIPvarGetName(maxobjvar), maxobjval, maxobjobj, maxobjscore);
       SCIP_CALL( SCIPbranchVarVal(scip, maxobjvar, maxobjval, NULL, NULL, NULL) );
 
       *result = SCIP_BRANCHED;

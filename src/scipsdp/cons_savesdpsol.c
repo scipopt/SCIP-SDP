@@ -81,7 +81,7 @@ SCIP_DECL_CONSDELETE(consDeleteSavesdpsol)
    assert( consdata != NULL );
    assert( *consdata != NULL );
 
-   SCIPdebugMessage("Deleting store node data constraint: <%s>.\n", SCIPconsGetName(cons));
+   SCIPdebugMsg(scip, "Deleting store node data constraint: <%s>.\n", SCIPconsGetName(cons));
 
    for (b = 0; b < (*consdata)->nblocks; b++)
    {
@@ -265,7 +265,7 @@ SCIP_RETCODE createConsSavesdpsol(
    assert( nblocks == 0 || startXcol != NULL );
    assert( nblocks == 0 || startXval != NULL );
 
-   SCIPdebugMessage("Creating Savesdpsol constraint <%s>.\n", name);
+   SCIPdebugMsg(scip, "Creating Savesdpsol constraint <%s>.\n", name);
 
    /* find the node data constraint handler */
    conshdlr = SCIPfindConshdlr(scip, "Savesdpsol");
@@ -433,8 +433,8 @@ SCIP_RETCODE SCIPconsSavesdpsolGetPrimalMatrix(
       {
          if ( ! msgthrown )
          {
-            SCIPdebugMessage("Unsufficient arraylength %d for block %d in SCIPconsSavesdpsolGetPrimalMatrix, need at least %d!\n",
-                  startXnblocknonz[b], b, consdata->startXnblocknonz[b]);
+            SCIPdebugMsg(scip, "Unsufficient arraylength %d for block %d in SCIPconsSavesdpsolGetPrimalMatrix, need at least %d!\n",
+               startXnblocknonz[b], b, consdata->startXnblocknonz[b]);
             msgthrown = TRUE;
          }
          startXnblocknonz[b] = consdata->startXnblocknonz[b];

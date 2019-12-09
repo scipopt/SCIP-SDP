@@ -55,7 +55,7 @@ extern "C" {
 #endif
 
 /** creates the randomized rounding heuristic for SDPs and includes it in SCIP */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPincludeHeurSdpRand(
    SCIP*                 scip                /**< SCIP data structure */
    );

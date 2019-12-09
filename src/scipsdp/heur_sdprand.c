@@ -251,7 +251,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
 
    *result = SCIP_DIDNOTFIND;
 
-   SCIPdebugMessage("node %"SCIP_LONGINT_FORMAT") executing SDP randomized rounding heuristic: depth=%d, %d fractionals.\n",
+   SCIPdebugMsg(scip, "node %"SCIP_LONGINT_FORMAT") executing SDP randomized rounding heuristic: depth=%d, %d fractionals.\n",
       SCIPgetNNodes(scip), SCIPgetDepth(scip), nsdpcands);
 
    /* perform rounding rounds */
@@ -295,9 +295,9 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
          SCIP_CALL( SCIPtrySol(scip, heurdata->sol, FALSE, FALSE, FALSE, FALSE, TRUE, &success) );
 
          if ( success )
-            SCIPdebugMessage("Iteration %d: found solution for full binary instance.\n", iter);
+            SCIPdebugMsg(scip, "Iteration %d: found solution for full binary instance.\n", iter);
          else
-            SCIPdebugMessage("Iteration %d: solution not feasible for full binary instance.\n", iter);
+            SCIPdebugMsg(scip, "Iteration %d: solution not feasible for full binary instance.\n", iter);
       }
       else
       {
@@ -345,7 +345,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
          if ( cnt == 0 )
          {
             /* We can exit since there will be no chance to be successful in future runs. */
-            SCIPdebugMessage("Iteration %d: All variables were fixed or their values were integral -> exit.\n", iter);
+            SCIPdebugMsg(scip, "Iteration %d: All variables were fixed or their values were integral -> exit.\n", iter);
             break;
          }
 
@@ -367,11 +367,11 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
                /* check, if solution was feasible and good enough */
                if ( success )
                {
-                  SCIPdebugMessage("Iteration %d: solution was feasible and good enough.\n", iter);
+                  SCIPdebugMsg(scip, "Iteration %d: solution was feasible and good enough.\n", iter);
                   *result = SCIP_FOUNDSOL;
                }
                else
-                  SCIPdebugMessage("Iteration %d: solution was not feasible.\n", iter);
+                  SCIPdebugMsg(scip, "Iteration %d: solution was not feasible.\n", iter);
             }
          }
 
@@ -386,7 +386,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
    SCIPfreeBufferArray(scip, &sdpcandssol);
    SCIPfreeBufferArray(scip, &sdpcands);
 
-   SCIPdebugMessage("finished randomized rounding heuristic.\n");
+   SCIPdebugMsg(scip, "finished randomized rounding heuristic.\n");
 
    return SCIP_OKAY;
 

@@ -1,0 +1,36 @@
+# batch file to transform files for the CBLIB from SDPA-format to CBF-format
+#
+# Renaming problem, so that they obtain the name in the original data set
+# http://www.ic.unicamp.br/~cid/Problem-instances/Graph-Partition/
+#
+read MISDP/SCIPSDP-Paper/minKPartition/VLSI/diw_15.dat-s.gz
+write problem kpart_diw.15.4.29.cbf
+#
+read MISDP/SCIPSDP-Paper/minKPartition/VLSI/diw_34.dat-s.gz
+write problem kpart_diw.34.4.71.cbf
+#
+read MISDP/SCIPSDP-Paper/minKPartition/VLSI/diw_37.dat-s.gz
+write problem kpart_diw.37.4.92.cbf
+#
+read MISDP/SCIPSDP-Paper/minKPartition/VLSI/diw_38.dat-s.gz
+write problem kpart_diw.38.4.105.cbf
+#
+read MISDP/SCIPSDP-Paper/minKPartition/VLSI/diw_42.dat-s.gz
+write problem kpart_diw.42.4.132.cbf
+#
+read MISDP/SCIPSDP-Paper/minKPartition/VLSI/diw_43.dat-s.gz
+write problem kpart_diw.43.4.105.cbf
+#
+read MISDP/SCIPSDP-Paper/minKPartition/VLSI/diw_44.dat-s.gz
+write problem kpart_diw.44.4.105.cbf
+#
+read MISDP/SCIPSDP-Paper/minKPartition/VLSI/diw_46.dat-s.gz
+write problem kpart_diw.46.4.79.cbf
+#
+read MISDP/SCIPSDP-Paper/minKPartition/VLSI/diw_48.dat-s.gz
+write problem kpart_diw.48.4.81.cbf
+#
+read MISDP/SCIPSDP-Paper/minKPartition/VLSI/ven_17.dat-s.gz
+write problem kpart_ven.17.4.39.cbf
+#
+quit

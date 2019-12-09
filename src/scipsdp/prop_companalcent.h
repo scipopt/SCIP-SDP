@@ -52,7 +52,7 @@ extern "C" {
  *
  * @ingroup PropagatorIncludes
  */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPincludePropCompAnalCent(
    SCIP*                 scip                /**< SCIP data structure */
    );

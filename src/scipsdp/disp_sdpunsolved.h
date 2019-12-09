@@ -49,7 +49,7 @@ extern "C" {
 #endif
 
 /** creates the SDP-fastsettings display column and includes it in SCIP */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPincludeDispSdpunsolved(
    SCIP*                 scip                /**< SCIP data structure */
    );

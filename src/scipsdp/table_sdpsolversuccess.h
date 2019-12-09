@@ -48,7 +48,7 @@ extern "C" {
 #endif
 
 /** creates the SDP solver success statistics table and includes it in SCIP */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPincludeTableSdpSolverSuccess(
    SCIP*                 scip                /**< SCIP data structure */
    );

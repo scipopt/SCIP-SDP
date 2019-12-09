@@ -70,7 +70,7 @@ SCIP_DECL_CONSDELETE(consDeleteSavedsdpsettings)
    assert( consdata != NULL );
    assert( *consdata != NULL );
 
-   SCIPdebugMessage("Deleting store node data constraint: <%s>.\n", SCIPconsGetName(cons));
+   SCIPdebugMsg(scip, "Deleting store node data constraint: <%s>.\n", SCIPconsGetName(cons));
 
    SCIPfreeBlockMemory(scip, consdata);
 
@@ -247,7 +247,7 @@ SCIP_RETCODE createConsSavedsdpsettings(
    SCIP_CALL( SCIPallocBlockMemory(scip, &consdata) );
    consdata->settings = settings;
 
-   SCIPdebugMessage("Creating savedsdpsettings constraint <%s>.\n", name);
+   SCIPdebugMsg(scip, "Creating savedsdpsettings constraint <%s>.\n", name);
 
    /* create constraint */
    SCIP_CALL( SCIPcreateCons(scip, cons, name, conshdlr, consdata, FALSE, FALSE, FALSE, FALSE, FALSE,

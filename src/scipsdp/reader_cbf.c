@@ -37,8 +37,12 @@
  * @author Tristan Gally
  * @author Henrik A. Friberg
  * @author Marc Pfetsch
+ * @author Frederic Matter
  *
  * @todo Allow to read SOC constraints in CBF format.
+ * @todo Allow to write varbounds as linear constraints.
+ * @todo Allow to write a transformed problem.
+ * @todo Allow to write a problem in primal form.
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
@@ -74,10 +78,16 @@ char CBF_NAME_BUFFER[CBF_MAX_NAME];
 
 struct CBF_Data
 {
+   int                   npsdvars;           /**< number of psd variables and length of createdpsdvars-array  */
+   int*                  psdvarsizes;        /**< sizes of the psd variables */
+   SCIP_VAR****          createdpsdvars;     /**< array of psd variables created by the CBF reader */
+   SCIP_Bool             noorigsdpcons;      /**< Are there SDP constraints specified in the CBF file?  */
+
    int                   nvars;              /**< number of variables and length of createdvars-array */
    SCIP_VAR**            createdvars;        /**< array of variables created by the CBF reader */
    int                   nconss;             /**< number of constraints and length of createdconss-array */
    SCIP_CONS**           createdconss;       /**< array of constraints created by the CBF reader */
+
    int                   nsdpblocks;         /**< number of SDP constraints/blocks */
    int*                  sdpblocksizes;      /**< sizes of the SDP blocks */
    int*                  sdpnblocknonz;      /**< number of nonzeros for each SDP block */
@@ -167,7 +177,7 @@ SCIP_RETCODE CBFreadObjsense(
    return SCIP_OKAY;
 }
 
-/** reads the number and type of variables from given CBF-file */
+/** reads the number and type of scalar variables from given CBF-file */
 static
 SCIP_RETCODE CBFreadVar(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -196,23 +206,21 @@ SCIP_RETCODE CBFreadVar(
 
    if ( sscanf(CBF_LINE_BUFFER, "%i %i", &(data->nvars), &nvartypes) != 2 )
       return SCIP_READERROR;
-   else
-   {
-      if ( data->nvars < 0 )
-      {
-         SCIPerrorMessage("Number of variables %d should be non-negative!\n", data->nvars);
-         SCIPABORT();
-         return SCIP_READERROR; /*lint !e527*/
-      }
 
-      if ( nvartypes < 0 )
-      {
-         SCIPerrorMessage("Number of conic variable domains %d should be non-negative!\n", nvartypes);
-         SCIPABORT();
-         return SCIP_READERROR; /*lint !e527*/
-      }
-      assert( data->nvars >= 0 && nvartypes >= 0 );
+   if ( data->nvars < 0 )
+   {
+      SCIPerrorMessage("Number of scalar variables %d should be non-negative!\n", data->nvars);
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
    }
+
+   if ( nvartypes < 0 )
+   {
+      SCIPerrorMessage("Number of conic variable domains %d should be non-negative!\n", nvartypes);
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+   assert( data->nvars >= 0 && nvartypes >= 0 );
 
    /* loop through different variable types */
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdvars), data->nvars) );
@@ -227,7 +235,7 @@ SCIP_RETCODE CBFreadVar(
 
          if ( nvartypevars <= 0 )
          {
-            SCIPerrorMessage("Number of variables %d should be positive!\n", nvartypevars);
+            SCIPerrorMessage("Number of scalar variables %d should be positive!\n", nvartypevars);
             SCIPABORT();
             return SCIP_READERROR; /*lint !e527*/
          }
@@ -266,7 +274,7 @@ SCIP_RETCODE CBFreadVar(
             SCIP_CALL( SCIPaddVar(scip, var) );
             data->createdvars[cnt++] = var;/*lint !e732*//*lint !e747*/
 
-            /* release variable for the reader. */
+            /* release variable for the reader */
             SCIP_CALL( SCIPreleaseVar(scip, &var) );
          }
       }
@@ -276,9 +284,117 @@ SCIP_RETCODE CBFreadVar(
 
    if ( cnt != data->nvars )
    {
-      SCIPerrorMessage("Total number of variables for different cone types not equal to total number of variables!\n");
+      SCIPerrorMessage("Total number of scalar variables for different cone types not equal to total number of scalar variables!\n");
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
+   }
+
+   return SCIP_OKAY;
+}
+
+/** reads the number and type of psd variables from given CBF-file */
+static
+SCIP_RETCODE CBFreadPsdvar(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_FILE*            pfile,              /**< file to read from */
+   SCIP_Longint*         linecount,          /**< current linecount */
+   CBF_DATA*             data                /**< data pointer to save the results in */
+   )
+{  /*lint --e{818}*/
+   char varname[SCIP_MAXSTRLEN];
+   SCIP_VAR* var;
+   int i;
+   int j;
+   int t;
+   int sizepsdvar;
+#ifndef NDEBUG
+   int snprintfreturn;
+#endif
+
+   assert( scip != NULL );
+   assert( pfile != NULL );
+   assert( linecount != NULL );
+   assert( data != NULL );
+
+   /* PSDVAR need to be in front of PSDCON! */
+   if ( data->nsdpblocks > -1 )
+   {
+      SCIPerrorMessage("Need to have 'PSDVAR' section before 'PSDCON' section!\n");
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+
+   SCIP_CALL( CBFfgets(pfile, linecount) );
+
+   if ( sscanf(CBF_LINE_BUFFER, "%i", &(data->npsdvars)) != 1 )
+      return SCIP_READERROR;
+
+   if ( data->npsdvars < 0 )
+   {
+      SCIPerrorMessage("Number of psd variables %d should be non-negative!\n", data->npsdvars);
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+   assert( data->npsdvars >= 0 );
+
+   /* loop through different psd variables */
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdpsdvars), data->npsdvars) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->psdvarsizes), data->npsdvars) );
+
+   for (t = 0; t < data->npsdvars; t++)
+   {
+      SCIP_CALL( CBFfgets(pfile, linecount) );
+
+      if ( sscanf(CBF_LINE_BUFFER, "%i", &sizepsdvar) == 1 )
+      {
+         SCIP_Real lb;
+         SCIP_Real ub;
+         int nscalarvars;
+         int cnt = 0;
+
+         if ( sizepsdvar <= 0 )
+         {
+            SCIPerrorMessage("Size %d of psd variable should be positive!\n", sizepsdvar);
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+
+         /* for each psd variable of size n_i create 1/2*n_i*(n_i+1) scalar variables */
+         nscalarvars = sizepsdvar * (sizepsdvar + 1) / 2;
+         data->psdvarsizes[t] = sizepsdvar;
+
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdpsdvars[t]), sizepsdvar) );
+
+         lb = -SCIPinfinity(scip);
+         ub = SCIPinfinity(scip);
+
+         for (i = 0; i < sizepsdvar; ++i)
+         {
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdpsdvars[t][i]), i+1) );
+            for (j = 0; j <= i; ++j)
+            {
+#ifndef NDEBUG
+               snprintfreturn = SCIPsnprintf(varname, SCIP_MAXSTRLEN, "y_%d%d%d", t, i, j);
+               assert( snprintfreturn < SCIP_MAXSTRLEN);
+#else
+               (void)SCIPsnprintf(varname, SCIP_MAXSTRLEN, "y_%d%d%d", t, i, j);
+#endif
+
+               SCIP_CALL( SCIPcreateVar(scip, &var, varname, lb, ub, 0.0, SCIP_VARTYPE_CONTINUOUS,
+                     TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));/*lint !e732*//*lint !e747*/
+
+               SCIP_CALL( SCIPaddVar(scip, var) );
+               data->createdpsdvars[t][i][j] = var;/*lint !e732*//*lint !e747*/
+               ++cnt;
+
+               /* release variable for the reader */
+               SCIP_CALL( SCIPreleaseVar(scip, &var) );
+            }
+         }
+         assert( cnt == nscalarvars );
+      }
+      else
+         return SCIP_READERROR;
    }
 
    return SCIP_OKAY;
@@ -485,6 +601,7 @@ SCIP_RETCODE CBFreadPsdcon(
    )
 {
    int b;
+   int ncbfsdpblocks;
 
    assert( scip != NULL );
    assert( pfile != NULL );
@@ -493,13 +610,21 @@ SCIP_RETCODE CBFreadPsdcon(
 
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
-   if ( sscanf(CBF_LINE_BUFFER, "%i", &(data->nsdpblocks)) == 1 )
+   if ( sscanf(CBF_LINE_BUFFER, "%i", &ncbfsdpblocks) == 1 )
    {
-      if ( data->nsdpblocks >= 0 )
+      if ( ncbfsdpblocks >= 0 )
       {
+         /* increase number of sdp blocks by number of psd variables that need to be transformed into a psd constraint
+          * with scalar variables */
+         if ( data->npsdvars > 0 )
+            data->nsdpblocks = ncbfsdpblocks + data->npsdvars;
+         else
+            data->nsdpblocks = ncbfsdpblocks;
+
+         data->noorigsdpcons = FALSE;
          SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblocksizes), data->nsdpblocks) );
 
-         for (b = 0; b < data->nsdpblocks; b++)
+         for (b = 0; b < ncbfsdpblocks; b++)
          {
             SCIP_CALL( CBFfgets(pfile, linecount) );
             if ( sscanf(CBF_LINE_BUFFER, "%i", &(data->sdpblocksizes[b])) == 1 )
@@ -514,6 +639,9 @@ SCIP_RETCODE CBFreadPsdcon(
             else
                return SCIP_READERROR;
          }
+
+         for (b = 0; b < data->npsdvars; b++)
+            data->sdpblocksizes[ncbfsdpblocks + b] = data->psdvarsizes[b];
       }
       else
       {
@@ -528,7 +656,116 @@ SCIP_RETCODE CBFreadPsdcon(
    return SCIP_OKAY;
 }
 
-/** reads objective values from given CBF-file */
+/** reads objective values for matrix variables from given CBF-file */
+static
+SCIP_RETCODE CBFreadObjfcoord(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_FILE*            pfile,              /**< file to read from */
+   SCIP_Longint*         linecount,          /**< current linecount */
+   CBF_DATA*             data                /**< data pointer to save the results in */
+   )
+{  /*lint --e{818}*/
+   SCIP_Real val;
+   int nobjcoefs;
+   int nzerocoef = 0;
+   int i;
+   int v;
+   int row;
+   int col;
+
+   assert( scip != NULL );
+   assert( pfile != NULL );
+   assert( linecount != NULL );
+   assert( data != NULL );
+
+   if ( data->createdpsdvars == NULL )
+   {
+      SCIPerrorMessage("Need to have 'PSDVAR' section before 'OBJFCOORD' section!\n");
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+   assert( data->npsdvars >= 0 );
+
+   SCIP_CALL( CBFfgets(pfile, linecount) );
+
+   if ( sscanf(CBF_LINE_BUFFER, "%i", &nobjcoefs) == 1 )
+   {
+      if ( nobjcoefs >= 0 )
+      {
+         for (i = 0; i < nobjcoefs; i++)
+         {
+            SCIP_CALL( CBFfgets(pfile, linecount) );
+
+            if ( sscanf(CBF_LINE_BUFFER, "%i %i %i %lf", &v, &row, &col, &val) == 4 )
+            {
+               if ( v < 0 || v >= data->npsdvars )
+               {
+                  SCIPerrorMessage("Given objective coefficient for matrix variable %d which does not exist!\n", v);
+                  SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
+               }
+
+               if ( row < 0 || row >= data->psdvarsizes[v] )
+               {
+                  SCIPerrorMessage("Row index %d of given coefficient for matrix variable %d in objective function is negative or larger than varsize %d!\n",
+                     row, v, data->psdvarsizes[v]);
+                  SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
+               }
+
+               if ( col < 0 || col >= data->psdvarsizes[v] )
+               {
+                  SCIPerrorMessage("Column index %d of given coefficient for matrix variable %d in objective function is negative or larger than varsize %d!\n",
+                     col, v, data->psdvarsizes[v]);
+                  SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
+               }
+
+               if ( SCIPisZero(scip, val) )
+               {
+                  ++nzerocoef;
+               }
+               else
+               {
+                  /* make sure matrix is in lower triangular form */
+                  if ( row < col )
+                  {
+                     SCIP_CALL( SCIPchgVarObj(scip, data->createdpsdvars[v][col][row], 2*val) );
+                  }
+                  else if ( row == col )
+                  {
+                     SCIP_CALL( SCIPchgVarObj(scip, data->createdpsdvars[v][col][row], val) );
+                  }
+                  else
+                  {
+                     SCIP_CALL( SCIPchgVarObj(scip, data->createdpsdvars[v][row][col], 2*val) );
+                  }
+               }
+            }
+            else
+               return SCIP_READERROR;
+         }
+      }
+      else
+      {
+         SCIPerrorMessage("Number of objective coefficients for matrix variables %d should be non-negative!\n", nobjcoefs);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
+   }
+   else
+      return SCIP_READERROR;
+
+   if ( nzerocoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
+         "OBJFCOORD: Found %d coefficients with absolute value less than epsilon = %f.\n", nzerocoef, SCIPepsilon(scip));
+   }
+
+   return SCIP_OKAY;
+}
+
+/** reads objective values for scalar variables from given CBF-file */
 static
 SCIP_RETCODE CBFreadObjacoord(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -569,7 +806,7 @@ SCIP_RETCODE CBFreadObjacoord(
             {
                if ( v < 0 || v >= data->nvars )
                {
-                  SCIPerrorMessage("Given objective coefficient for variable %d which does not exist!\n", v);
+                  SCIPerrorMessage("Given objective coefficient for scalar variable %d which does not exist!\n", v);
                   SCIPABORT();
                   return SCIP_READERROR; /*lint !e527*/
                }
@@ -589,7 +826,7 @@ SCIP_RETCODE CBFreadObjacoord(
       }
       else
       {
-         SCIPerrorMessage("Number of objective coefficients %d should be non-negative!\n", nobjcoefs);
+         SCIPerrorMessage("Number of objective coefficients for scalar variables %d should be non-negative!\n", nobjcoefs);
          SCIPABORT();
          return SCIP_READERROR; /*lint !e527*/
       }
@@ -601,6 +838,129 @@ SCIP_RETCODE CBFreadObjacoord(
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
          "OBJACOORD: Found %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
+   }
+
+   return SCIP_OKAY;
+}
+
+/** reads matrix variable coefficients from given CBF-file */
+static
+SCIP_RETCODE CBFreadFcoord(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_FILE*            pfile,              /**< file to read from */
+   SCIP_Longint*         linecount,          /**< current linecount */
+   CBF_DATA*             data                /**< data pointer to save the results in */
+   )
+{  /*lint --e{818}*/
+   SCIP_Real val;
+   int nzerocoef = 0;
+   int ncoefs;
+   int c;
+   int i;
+   int v;
+   int row;
+   int col;
+
+   assert( scip != NULL );
+   assert( pfile != NULL );
+   assert( linecount != NULL );
+   assert( data != NULL );
+
+   if ( data->createdpsdvars == NULL )
+   {
+      SCIPerrorMessage("Need to have 'PSDVAR' section before 'FCOORD' section!\n");
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+   assert( data->npsdvars >= 0 );
+
+   if ( data->createdconss == NULL )
+   {
+      SCIPerrorMessage("Need to have 'CON' section before 'FCOORD' section!\n");
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+   assert( data->nconss >= 0 );
+
+   SCIP_CALL( CBFfgets(pfile, linecount) );
+
+   if ( sscanf(CBF_LINE_BUFFER, "%i", &ncoefs) == 1 )
+   {
+      if ( ncoefs >= 0 )
+      {
+         for (i = 0; i < ncoefs; i++)
+         {
+            SCIP_CALL( CBFfgets(pfile, linecount) );
+
+            if ( sscanf(CBF_LINE_BUFFER, "%i %i %i %i %lf", &c, &v, &row, &col, &val) == 5 )
+            {
+               if ( c < 0 || c >= data->nconss )
+               {
+                  SCIPerrorMessage("Given matrix variable coefficient for constraint %d which does not exist!\n", c);
+                  SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
+               }
+
+               if ( v < 0 || v >= data->npsdvars )
+               {
+                  SCIPerrorMessage("Given coefficient for matrix variable %d which does not exist!\n", v);
+                  SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
+               }
+
+               if ( row < 0 || row >= data->psdvarsizes[v] )
+               {
+                  SCIPerrorMessage("Row index %d of given coefficient for matrix variable %d in scalar constraint %d is negative or larger than varsize %d!\n",
+                     row, v, c, data->psdvarsizes[v]);
+                  SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
+               }
+
+               if ( col < 0 || col >= data->psdvarsizes[v] )
+               {
+                  SCIPerrorMessage("Column index %d of given coefficient for matrix variable %d in scalar constraint %d is negative or larger than varsize %d!\n",
+                     col, v, c, data->psdvarsizes[v]);
+                  SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
+               }
+
+               if ( SCIPisZero(scip, val) )
+               {
+                  ++nzerocoef;
+               }
+               else
+               {
+                  /* make sure matrix is in lower triangular form */
+                  if ( row < col )
+                  {
+                     SCIP_CALL( SCIPaddCoefLinear(scip, data->createdconss[c], data->createdpsdvars[v][col][row], 2*val) );/*lint !e732*//*lint !e747*/
+                  }
+                  else if ( row == col )
+                     SCIP_CALL( SCIPaddCoefLinear(scip, data->createdconss[c], data->createdpsdvars[v][row][col], val) );/*lint !e732*//*lint !e747*/
+                  else
+                  {
+                     SCIP_CALL( SCIPaddCoefLinear(scip, data->createdconss[c], data->createdpsdvars[v][row][col], 2*val) );/*lint !e732*//*lint !e747*/
+                  }
+               }
+            }
+            else
+               return SCIP_READERROR;
+         }
+      }
+      else
+      {
+         SCIPerrorMessage("Number of matrix variable coefficients %d should be non-negative!\n", ncoefs);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
+   }
+   else
+      return SCIP_READERROR;
+
+   if ( nzerocoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
+         "FCOORD: Found %d coefficients with absolute value less than epsilon = %f.\n", nzerocoef, SCIPepsilon(scip));
    }
 
    return SCIP_OKAY;
@@ -807,6 +1167,9 @@ SCIP_RETCODE CBFreadHcoord(
    int firstindforvar;
    int nextindaftervar;
    int nzerocoef = 0;
+   int ncbfsdpblocks;
+   int nauxnonz = 0;            /* number of nonzeros in each auxiliary sdp block for reformulating matrix variables using
+                                 * scalar variables */
 
    assert( scip != NULL );
    assert( pfile != NULL );
@@ -815,7 +1178,7 @@ SCIP_RETCODE CBFreadHcoord(
 
    if ( data->nsdpblocks < 0 )
    {
-      SCIPerrorMessage("Need to have 'PSDVAR' section before 'HCOORD' section!\n");
+      SCIPerrorMessage("Need to have 'PSDCON' section before 'HCOORD' section!\n");
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
@@ -828,6 +1191,20 @@ SCIP_RETCODE CBFreadHcoord(
       return SCIP_READERROR; /*lint !e527*/
    }
 
+   /* get number of sdp blocks specified by PSDCON (without auxiliary sdp blocks for reformulating matrix variables
+    * using scalar variables), save number of nonzeros needed for the auxiliary sdp blocks in nauxnonz */
+   if ( data->npsdvars > 0 )
+   {
+      ncbfsdpblocks = data->nsdpblocks - data->npsdvars;
+      for (i = 0; i < data->npsdvars; i++)
+         nauxnonz += data->psdvarsizes[i] * (data->psdvarsizes[i] + 1) / 2;
+   }
+   else
+   {
+      ncbfsdpblocks = data->nsdpblocks;
+      nauxnonz = 0;
+   }
+
    /* initialize sdpnblocknonz with 0 */
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpnblocknonz), data->nsdpblocks) );
    for (b = 0; b < data->nsdpblocks; b++)
@@ -837,7 +1214,7 @@ SCIP_RETCODE CBFreadHcoord(
 
    if ( sscanf(CBF_LINE_BUFFER, "%i", &nnonz) == 1 )
    {
-      data->nnonz = nnonz;
+      data->nnonz = nnonz + nauxnonz;
       if ( nnonz >= 0 )
       {
          /* allocate memory (nnonz for each block, since we do not yet know the distribution) */
@@ -848,18 +1225,19 @@ SCIP_RETCODE CBFreadHcoord(
 
          for (b = 0; b < data->nsdpblocks; b++)
          {
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpvar[b]), nnonz) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdprow[b]), nnonz) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpcol[b]), nnonz) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpval[b]), nnonz) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpvar[b]), data->nnonz) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdprow[b]), data->nnonz) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpcol[b]), data->nnonz) );
+            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpval[b]), data->nnonz) );
          }
 
          for (i = 0; i < nnonz; i++)
          {
             SCIP_CALL( CBFfgets(pfile, linecount) );
+
             if ( sscanf(CBF_LINE_BUFFER, "%i %i %i %i %lf", &b, &v, &row, &col, &val) == 5 )
             {
-               if ( b < 0 || b >= data->nsdpblocks )
+               if ( b < 0 || b >= ncbfsdpblocks )
                {
                   SCIPerrorMessage("Given SDP-coefficient for SDP-constraint %d which does not exist!\n", b);
                   SCIPABORT();
@@ -917,6 +1295,29 @@ SCIP_RETCODE CBFreadHcoord(
                return SCIP_READERROR;
          }
 
+         /* construct entries for auxiliary sdp blocks (reformulation of psdvars) */
+         if ( data->npsdvars > 0 )
+         {
+            val = 1.0;
+            for (v = 0; v < data->npsdvars; v++)
+            {
+               b = ncbfsdpblocks + v;
+               for (row = 0; row < data->psdvarsizes[v]; row++)
+               {
+                  for (col = 0; col <= row; col++)
+                  {
+                     sdpvar[b][data->sdpnblocknonz[b]] = data->nvars + 1;
+                     data->sdprow[b][data->sdpnblocknonz[b]] = row;
+                     data->sdpcol[b][data->sdpnblocknonz[b]] = col;
+                     data->sdpval[b][data->sdpnblocknonz[b]] = val;
+                     data->sdpnblocknonz[b]++;
+                  }
+               }
+               assert( data->sdpnblocknonz[b] == data->psdvarsizes[v] * (data->psdvarsizes[v] + 1) / 2 );
+               assert( b == data->nsdpblocks - 1 );
+            }
+         }
+
          /* construct pointer arrays */
          SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpnblockvars), data->nsdpblocks) );
          SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblockvars), data->nsdpblocks) );
@@ -925,7 +1326,8 @@ SCIP_RETCODE CBFreadHcoord(
          SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->colpointer), data->nsdpblocks) );
          SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->valpointer), data->nsdpblocks) );
 
-         for (b = 0; b < data->nsdpblocks; b++)
+         /* sdp blocks as specified in cbf file in HCOORD */
+         for (b = 0; b < ncbfsdpblocks; b++)
          {
             /* sort the nonzeroes by non-decreasing variable indices */
             SCIPsortIntIntIntReal(sdpvar[b], data->sdprow[b], data->sdpcol[b], data->sdpval[b], data->sdpnblocknonz[b]);
@@ -964,11 +1366,47 @@ SCIP_RETCODE CBFreadHcoord(
             }
 
             assert( nextindaftervar == data->sdpnblocknonz[b] );
+         }
 
-            SCIPfreeBlockMemoryArray(scip, &(sdpvar[b]), nnonz);
+         /* auxiliary sdp blocks (reformulation of psd variables) */
+         if ( data->npsdvars > 0 )
+         {
+            assert( data->nsdpblocks == ncbfsdpblocks + data->npsdvars );
+            for (v = 0; v < data->npsdvars; v++)
+            {
+               int varidx = 0;
+
+               /* create the pointer arrays and insert used variables into vars-array */
+               b = ncbfsdpblocks + v;
+
+               data->sdpnblockvars[b] = data->sdpnblocknonz[b];
+
+               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblockvars[b]),  data->sdpnblocknonz[b]) );
+               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->nvarnonz[b]),  data->sdpnblocknonz[b]) );
+               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->rowpointer[b]),  data->sdpnblocknonz[b]) );
+               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->colpointer[b]),  data->sdpnblocknonz[b]) );
+               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->valpointer[b]),  data->sdpnblocknonz[b]) );
+
+               for (row = 0; row < data->psdvarsizes[v]; row++)
+               {
+                  for (col = 0; col <= row; col++)
+                  {
+                     data->nvarnonz[b][varidx] = 1;
+                     data->sdpblockvars[b][varidx] = data->createdpsdvars[v][row][col];
+                     data->rowpointer[b][varidx] = &(data->sdprow[b][varidx]);
+                     data->colpointer[b][varidx] = &(data->sdpcol[b][varidx]);
+                     data->valpointer[b][varidx] = &(data->sdpval[b][varidx]);
+                     varidx++;
+                  }
+               }
+               assert( varidx == data->sdpnblocknonz[b] );
+            }
          }
 
          /* free SDP-var array which is no longer needed */
+         for (b = 0; b < data->nsdpblocks; b++)
+            SCIPfreeBlockMemoryArray(scip, &(sdpvar[b]), data->nnonz);
+
          SCIPfreeBlockMemoryArray(scip, &sdpvar, data->nsdpblocks);
       }
       else
@@ -1014,7 +1452,7 @@ SCIP_RETCODE CBFreadDcoord(
 
    if ( data->nsdpblocks < 0 )
    {
-      SCIPerrorMessage("Need to have 'PSDVAR' section before 'DCOORD' section!\n");
+      SCIPerrorMessage("Need to have 'PSDCON' section before 'DCOORD' section!\n");
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
@@ -1045,7 +1483,7 @@ SCIP_RETCODE CBFreadDcoord(
          for (b = 0; b < data->nsdpblocks; b++)
             data->sdpconstnblocknonz[b] = 0;
 
-         /* allocate memory (constnnonz for each block, since we do not yet no the distribution) */
+         /* allocate memory (constnnonz for each block, since we do not yet know the distribution) */
          SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstrow), data->nsdpblocks) );
          SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstcol), data->nsdpblocks) );
          SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstval), data->nsdpblocks) );
@@ -1132,6 +1570,9 @@ SCIP_RETCODE CBFfreeData(
 {
    SCIP_Bool allocated = FALSE;
    int b = 0;
+   int i;
+   int t;
+   int ncbfsdpblocks;
 
    assert( scip != NULL );
    assert( data != NULL );
@@ -1170,35 +1611,108 @@ SCIP_RETCODE CBFfreeData(
 
    if ( allocated )
    {
-      for (b = 0; b < data->nsdpblocks; b++)
+      /* get number of sdp blocks specified by PSDCON (without auxiliary sdp blocks for reformulating matrix variables
+       * using scalar variables), save number of nonzeros needed for the auxiliary sdp blocks in nauxnonz */
+      if ( data->npsdvars > 0 )
+         ncbfsdpblocks = data->nsdpblocks - data->npsdvars;
+      else
+         ncbfsdpblocks = data->nsdpblocks;
+
+      if ( data->noorigsdpcons )
       {
-         SCIPfreeBlockMemoryArrayNull(scip, &(data->valpointer[b]), data->nvars);
-         SCIPfreeBlockMemoryArrayNull(scip, &(data->colpointer[b]), data->nvars);
-         SCIPfreeBlockMemoryArrayNull(scip, &(data->rowpointer[b]), data->nvars);
-         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpval[b]), data->nnonz);
-         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpcol[b]), data->nnonz);
-         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdprow[b]), data->nnonz);
-         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpblockvars[b]), data->nvars);
-         SCIPfreeBlockMemoryArrayNull(scip, &(data->nvarnonz[b]), data->nvars);
+         /* no SDP constraints specified in the CBF file! */
+         assert( ncbfsdpblocks == 0 );
+
+         for (b = 0; b < data->nsdpblocks; b++)
+         {
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->valpointer[b]), data->sdpnblocknonz[b]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->colpointer[b]), data->sdpnblocknonz[b]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->rowpointer[b]), data->sdpnblocknonz[b]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpval[b]), data->sdpnblocknonz[b]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpcol[b]), data->sdpnblocknonz[b]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->sdprow[b]), data->sdpnblocknonz[b]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpblockvars[b]), data->sdpnblocknonz[b]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->nvarnonz[b]), data->sdpnblocknonz[b]);
+         }
+
+         SCIPfreeBlockMemoryArrayNull(scip, &data->valpointer, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->colpointer, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->rowpointer, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->sdpval, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->sdpcol, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->sdprow, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblockvars, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->nvarnonz, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblockvars, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblocknonz, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblocksizes, data->nsdpblocks);
       }
-      SCIPfreeBlockMemoryArrayNull(scip, &data->valpointer, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->colpointer, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->rowpointer, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpval, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpcol, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdprow, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblockvars, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->nvarnonz, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblockvars, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblocknonz, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblocksizes, data->nsdpblocks);
+      else
+      {
+         /* some SDP constraints specified in the CBF file! */
+         assert( ncbfsdpblocks > 0 );
+
+         for (b = 0; b < ncbfsdpblocks; b++)
+         {
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->valpointer[b]), data->nvars);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->colpointer[b]), data->nvars);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->rowpointer[b]), data->nvars);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpval[b]), data->nnonz);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpcol[b]), data->nnonz);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->sdprow[b]), data->nnonz);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpblockvars[b]), data->nvars);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->nvarnonz[b]), data->nvars);
+         }
+
+         if ( data->npsdvars > 0 )
+         {
+            for (b = ncbfsdpblocks; b < data->nsdpblocks; b++)
+            {
+               SCIPfreeBlockMemoryArrayNull(scip, &(data->valpointer[b]), data->sdpnblocknonz[b]);
+               SCIPfreeBlockMemoryArrayNull(scip, &(data->colpointer[b]), data->sdpnblocknonz[b]);
+               SCIPfreeBlockMemoryArrayNull(scip, &(data->rowpointer[b]), data->sdpnblocknonz[b]);
+               SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpval[b]), data->nnonz);
+               SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpcol[b]), data->nnonz);
+               SCIPfreeBlockMemoryArrayNull(scip, &(data->sdprow[b]), data->nnonz);
+               SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpblockvars[b]), data->sdpnblocknonz[b]);
+               SCIPfreeBlockMemoryArrayNull(scip, &(data->nvarnonz[b]), data->sdpnblocknonz[b]);
+            }
+         }
+
+         SCIPfreeBlockMemoryArrayNull(scip, &data->valpointer, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->colpointer, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->rowpointer, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->sdpval, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->sdpcol, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->sdprow, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblockvars, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->nvarnonz, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblockvars, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblocknonz, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblocksizes, data->nsdpblocks);
+      }
    }
 
    if (data->nconss > 0)
    {
       SCIPfreeBlockMemoryArrayNull(scip, &data->createdconss, data->nconss);
    }
-   SCIPfreeBlockMemoryArrayNull(scip, &data->createdvars, data->nvars);
+
+   if (data->nvars > 0)
+      SCIPfreeBlockMemoryArrayNull(scip, &data->createdvars, data->nvars);
+
+   if ( data-> npsdvars > 0 )
+   {
+      for (t = 0; t < data->npsdvars; t++)
+      {
+         for (i = 0; i < data->psdvarsizes[t]; ++i)
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->createdpsdvars[t][i]), i+1);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->createdpsdvars[t]), data->psdvarsizes[t]);
+      }
+
+      SCIPfreeBlockMemoryArrayNull(scip, &(data->psdvarsizes), data->npsdvars);
+      SCIPfreeBlockMemoryArrayNull(scip, &(data->createdpsdvars), data->npsdvars);
+   }
 
    return SCIP_OKAY;
 }
@@ -1246,9 +1760,12 @@ SCIP_DECL_READERREAD(readerReadCbf)
    data->nsdpblocks = -1;
    data->nconss = -1;
    data->nvars = -1;
+   data->npsdvars = -1;
    data->constnnonz = 0;
    data->nnonz = 0;
+   data->noorigsdpcons= FALSE;
 
+   data->psdvarsizes = NULL;
    data->sdpblocksizes = NULL;
    data->sdpnblocknonz = NULL;
    data->sdpnblockvars = NULL;
@@ -1336,18 +1853,13 @@ SCIP_DECL_READERREAD(readerReadCbf)
             }
             else if ( strcmp(CBF_NAME_BUFFER, "PSDVAR") == 0 )
             {
-               /* TODO: automatically transform to dual form by introducing a new variable for all elements in the upper
-                * triangular part and an SDP-constraint enforcing positive semidefiniteness of the PSD-variable
-                */
-               SCIPerrorMessage("SDPs in primal form currently not supported, please use PSDCON!\n");
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
+               SCIPdebugMsg(scip, "Reading PSDVAR\n");
+               SCIP_CALL( CBFreadPsdvar(scip, scipfile, &linecount, data) );
             }
             else if ( strcmp(CBF_NAME_BUFFER, "OBJFCOORD") == 0 )
             {
-               SCIPerrorMessage("SDPs in primal form currently not supported, please use PSDCON!\n");
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
+               SCIPdebugMsg(scip, "Reading OBJFCOORD\n");
+               SCIP_CALL( CBFreadObjfcoord(scip, scipfile, &linecount, data) );
             }
             else if ( strcmp(CBF_NAME_BUFFER, "OBJACOORD") == 0 )
             {
@@ -1362,9 +1874,8 @@ SCIP_DECL_READERREAD(readerReadCbf)
             }
             else if ( strcmp(CBF_NAME_BUFFER, "FCOORD") == 0 )
             {
-               SCIPerrorMessage("SDPs in primal form currently not supported, please use PSDCON!\n");
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
+               SCIPdebugMsg(scip, "Reading FCOORD\n");
+               SCIP_CALL( CBFreadFcoord(scip, scipfile, &linecount, data) );
             }
             else if ( strcmp(CBF_NAME_BUFFER, "ACOORD") == 0 )
             {
@@ -1393,6 +1904,78 @@ SCIP_DECL_READERREAD(readerReadCbf)
                return SCIP_READERROR; /*lint !e527*/
             }
          }
+      }
+   }
+
+   /* Psd vars are created using scalar vars and a corresponding psd constraint that gets created in the function
+    * CBFreadPsdcon. If there no psd cons in the original problem, then the psd constraint for the reformulation of the
+    * original psd vars needs to be created at this point! */
+   if ( data->npsdvars > data->nsdpblocks )
+   {
+      int nauxvars;
+      int varidx;
+      int row;
+      int col;
+      int val;
+
+      assert( data->nsdpblocks == -1 );
+      assert( data->createdpsdvars != NULL );
+
+      data->noorigsdpcons = TRUE;
+
+      data->nsdpblocks = data->npsdvars;
+      data->nnonz = 0;
+
+      /* allocate memory for auxiliary sdp blocks */
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblocksizes), data->nsdpblocks) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpnblocknonz), data->nsdpblocks) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpnblockvars), data->nsdpblocks) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->nvarnonz), data->nsdpblocks) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblockvars), data->nsdpblocks) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdprow), data->nsdpblocks) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpcol), data->nsdpblocks) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpval), data->nsdpblocks) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->rowpointer), data->nsdpblocks) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->colpointer), data->nsdpblocks) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->valpointer), data->nsdpblocks) );
+
+      for (b = 0; b < data->nsdpblocks; b++)
+      {
+         nauxvars = data->psdvarsizes[b] * (data->psdvarsizes[b] + 1) / 2;
+         data->nnonz += nauxvars;
+         varidx = 0;
+
+         data->sdpblocksizes[b] = data->psdvarsizes[b];
+         data->sdpnblocknonz[b] = nauxvars;
+         data->sdpnblockvars[b] = nauxvars;
+
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->nvarnonz[b]), nauxvars) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblockvars[b]), nauxvars) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdprow[b]), nauxvars) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpcol[b]), nauxvars) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpval[b]), nauxvars) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->rowpointer[b]),  nauxvars) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->colpointer[b]),  nauxvars) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->valpointer[b]),  nauxvars) );
+
+         val = 1;
+         for (row = 0; row < data->psdvarsizes[b]; row++)
+         {
+            for (col = 0; col <= row; col++)
+            {
+               data->sdprow[b][varidx] = row;
+               data->sdpcol[b][varidx] = col;
+               data->sdpval[b][varidx] = val;
+
+               data->nvarnonz[b][varidx] = 1;
+               data->sdpblockvars[b][varidx] = data->createdpsdvars[b][row][col];
+               data->rowpointer[b][varidx] = &(data->sdprow[b][varidx]);
+               data->colpointer[b][varidx] = &(data->sdpcol[b][varidx]);
+               data->valpointer[b][varidx] = &(data->sdpval[b][varidx]);
+               varidx++;
+            }
+         }
+         assert( varidx == nauxvars );
       }
    }
 

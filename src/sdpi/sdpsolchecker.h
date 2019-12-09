@@ -52,7 +52,7 @@ extern "C" {
 /** Given a solution, an SDP instance and a feasibility tolerance, checks whether
  *  the smallest eigenvalue is >= -feastol for a given feasibility tolerance.
  */
-EXTERN
+SCIP_EXPORT
 SCIP_RETCODE SCIPsdpSolcheckerCheck(
    BMS_BUFMEM*           bufmem,             /**< buffer memory */
    int                   nvars,              /**< number of variables */

@@ -325,7 +325,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
    /* get SDP objective value*/
    objval = SCIPgetRelaxSolObj(scip);
 
-   SCIPdebugMessage("(node %"SCIP_LONGINT_FORMAT") executing SDP fracdiving heuristic: depth=%d, %d fractionals, dualbound=%g, searchbound=%g\n",
+   SCIPdebugMsg(scip, "(node %"SCIP_LONGINT_FORMAT") executing SDP fracdiving heuristic: depth=%d, %d fractionals, dualbound=%g, searchbound=%g\n",
       SCIPgetNNodes(scip), SCIPgetDepth(scip), nsdpcands, SCIPgetDualbound(scip), SCIPretransformObj(scip, searchbound));
 
    /* dive as long we are in the given objective, depth and iteration limits and fractional variables exist, but
@@ -454,7 +454,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
 
          if ( success )
          {
-            SCIPdebugMessage("SDP fracdiving found roundable primal solution: obj=%g\n", SCIPgetSolOrigObj(scip, heurdata->sol));
+            SCIPdebugMsg(scip, "SDP fracdiving found roundable primal solution: obj=%g\n", SCIPgetSolOrigObj(scip, heurdata->sol));
 
             /* try to add solution to SCIP */
             SCIP_CALL( SCIPtrySol(scip, heurdata->sol, FALSE, FALSE, FALSE, FALSE, FALSE, &success) );
@@ -462,7 +462,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
             /* check, if solution was feasible and good enough */
             if ( success )
             {
-               SCIPdebugMessage(" -> solution was feasible and good enough\n");
+               SCIPdebugMsg(scip, " -> solution was feasible and good enough\n");
                *result = SCIP_FOUNDSOL;
             }
          }
@@ -479,14 +479,14 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
           */
          if ( SCIPvarGetLbLocal(var) >= SCIPvarGetUbLocal(var) - 0.5 )
          {
-            SCIPdebugMessage("Selected variable <%s> already fixed to [%g,%g] (solval: %.9f), diving aborted \n",
+            SCIPdebugMsg(scip, "Selected variable <%s> already fixed to [%g,%g] (solval: %.9f), diving aborted \n",
                SCIPvarGetName(var), SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var), sdpcandssol[bestcand]);
             cutoff = TRUE;
             break;
          }
          if ( SCIPisFeasLT(scip, sdpcandssol[bestcand], SCIPvarGetLbLocal(var)) || SCIPisFeasGT(scip, sdpcandssol[bestcand], SCIPvarGetUbLocal(var)) )
          {
-            SCIPdebugMessage("selected variable's <%s> solution value is outside the domain [%g,%g] (solval: %.9f), diving aborted\n",
+            SCIPdebugMsg(scip, "selected variable's <%s> solution value is outside the domain [%g,%g] (solval: %.9f), diving aborted\n",
                SCIPvarGetName(var), SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var), sdpcandssol[bestcand]);
 #if 0
             assert( backtracked ); /* this may happen if we didn't resolve after propagation, in that case we will also abort (or resolve now and start again?) */
@@ -499,7 +499,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
          {
             /* round variable up */
 #ifdef SCIP_MORE_DEBUG
-            SCIPdebugMessage("  dive %d/%d: var <%s>, round=%u/%u, sol=%g, oldbounds=[%g,%g], newbounds=[%g,%g]\n",
+            SCIPdebugMsg(scip, "  dive %d/%d: var <%s>, round=%u/%u, sol=%g, oldbounds=[%g,%g], newbounds=[%g,%g]\n",
                divedepth, maxdivedepth, SCIPvarGetName(var), bestcandmayrounddown, bestcandmayroundup,
                sdpcandssol[bestcand], SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var),
                SCIPfeasCeil(scip, sdpcandssol[bestcand]), SCIPvarGetUbLocal(var));
@@ -511,7 +511,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
          {
             /* round variable down */
 #ifdef SCIP_MORE_DEBUG
-            SCIPdebugMessage("  dive %d/%d: var <%s>, round=%u/%u, sol=%g, oldbounds=[%g,%g], newbounds=[%g,%g]\n",
+            SCIPdebugMsg(scip, "  dive %d/%d: var <%s>, round=%u/%u, sol=%g, oldbounds=[%g,%g], newbounds=[%g,%g]\n",
                divedepth, maxdivedepth, SCIPvarGetName(var), bestcandmayrounddown, bestcandmayroundup,
                sdpcandssol[bestcand], SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var),
                SCIPvarGetLbLocal(var), SCIPfeasFloor(scip, sdpcandssol[bestcand]));
@@ -530,7 +530,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
             /* as cutoff doesn't work for relax sdp, we have to check ourselves, if we didn't manage to solve successfully, we abort diving */
             if (! SCIPrelaxSdpSolvedProbing(relaxsdp))
             {
-               SCIPdebugMessage("SDP fracdiving heuristic aborted, as we could not solve one of the diving SDPs.\n");
+               SCIPdebugMsg(scip, "SDP fracdiving heuristic aborted, as we could not solve one of the diving SDPs.\n");
 
                SCIPfreeBufferArray(scip, &sdpcandsfrac);
                SCIPfreeBufferArray(scip, &sdpcandssol);
@@ -549,7 +549,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
          if ( cutoff && ! backtracked && heurdata->backtrack )
          {
 #ifdef SCIP_MORE_DEBUG
-            SCIPdebugMessage("  *** cutoff detected at level %d - backtracking\n", SCIPgetProbingDepth(scip));
+            SCIPdebugMsg(scip, "  *** cutoff detected at level %d - backtracking\n", SCIPgetProbingDepth(scip));
 #endif
             SCIP_CALL( SCIPbacktrackProbing(scip, SCIPgetProbingDepth(scip)-1) );
             SCIP_CALL( SCIPnewProbingNode(scip) );
@@ -601,7 +601,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
          }
       }
 #ifdef SCIP_MORE_DEBUG
-      SCIPdebugMessage("   -> objval=%g/%g, nfrac=%d\n", objval, searchbound, nsdpcands);
+      SCIPdebugMsg(scip, "   -> objval=%g/%g, nfrac=%d\n", objval, searchbound, nsdpcands);
 #endif
    }
 
@@ -612,7 +612,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
 
       /* create solution from diving SDP */
       SCIP_CALL( SCIPlinkRelaxSol(scip, heurdata->sol) );
-      SCIPdebugMessage("SDP fracdiving found primal solution: obj=%g\n", SCIPgetSolOrigObj(scip, heurdata->sol));
+      SCIPdebugMsg(scip, "SDP fracdiving found primal solution: obj=%g\n", SCIPgetSolOrigObj(scip, heurdata->sol));
 
       /* try to add solution to SCIP */
       SCIP_CALL( SCIPtrySol(scip, heurdata->sol, FALSE, FALSE, FALSE, FALSE, FALSE, &success) );
@@ -620,7 +620,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
       /* check, if solution was feasible and good enough */
       if ( success )
       {
-         SCIPdebugMessage(" -> solution was feasible and good enough\n");
+         SCIPdebugMsg(scip, " -> solution was feasible and good enough\n");
          *result = SCIP_FOUNDSOL;
       }
    }
@@ -631,7 +631,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
    if ( *result == SCIP_FOUNDSOL )
       heurdata->nsuccess++;
 
-   SCIPdebugMessage("SDP fracdiving heuristic finished\n");
+   SCIPdebugMsg(scip, "SDP fracdiving heuristic finished\n");
 
    SCIPfreeBufferArray(scip, &sdpcandsfrac);
    SCIPfreeBufferArray(scip, &sdpcandssol);

@@ -110,7 +110,7 @@ SCIP_RETCODE sdpRedcostFixingBinary(
    if ( SCIPisGT(scip, primallbval, cutoffbound - relaxval) )
    {
       SCIP_CALL( SCIPchgVarUb(scip, var, 0.0) );
-      SCIPdebugMessage("Variable %s fixed to zero by reduced cost fixing ! \n", SCIPvarGetName(var));
+      SCIPdebugMsg(scip, "Variable %s fixed to zero by reduced cost fixing ! \n", SCIPvarGetName(var));
       *result = SCIP_REDUCEDDOM;
 
       /* check if we would also have to fix the variable to one, in that case, we can cut the node off, as there can't be a new optimal solution */
@@ -126,7 +126,7 @@ SCIP_RETCODE sdpRedcostFixingBinary(
    if ( SCIPisGT(scip, primalubval, cutoffbound - relaxval) )
    {
       SCIP_CALL( SCIPchgVarLb(scip, var, 1.0) );
-      SCIPdebugMessage("Variable %s fixed to one by reduced cost fixing ! \n", SCIPvarGetName(var));
+      SCIPdebugMsg(scip, "Variable %s fixed to one by reduced cost fixing ! \n", SCIPvarGetName(var));
       *result = SCIP_REDUCEDDOM;
       return SCIP_OKAY;
    }
@@ -183,9 +183,9 @@ SCIP_RETCODE sdpRedcostFixingIntCont(
    /* if after propagation the upper bound is less than the lower bound, the current node is infeasible */
    if ( SCIPisFeasLT(scip, ub, lb) || SCIPisFeasLT(scip, ub, SCIPvarGetLbLocal(var)) || SCIPisFeasLT(scip, SCIPvarGetUbLocal(var), lb) )
    {
-      SCIPdebugMessage("Infeasibility of current node detected by prop_sdpredcost! Updated bounds for variable %s: lb = %f > %f = ub !\n",
-            SCIPvarGetName(var), SCIPisFeasGT(scip, lb, SCIPvarGetLbLocal(var))? lb : SCIPvarGetLbLocal(var),
-            SCIPisFeasLT(scip, ub, SCIPvarGetLbLocal(var)) ? ub : SCIPvarGetUbLocal(var) );
+      SCIPdebugMsg(scip, "Infeasibility of current node detected by prop_sdpredcost! Updated bounds for variable %s: lb = %f > %f = ub !\n",
+         SCIPvarGetName(var), SCIPisFeasGT(scip, lb, SCIPvarGetLbLocal(var))? lb : SCIPvarGetLbLocal(var),
+         SCIPisFeasLT(scip, ub, SCIPvarGetLbLocal(var)) ? ub : SCIPvarGetUbLocal(var) );
       *result = SCIP_CUTOFF;
       return SCIP_OKAY;
    }
@@ -193,8 +193,8 @@ SCIP_RETCODE sdpRedcostFixingIntCont(
    /* if the new upper bound is an enhancement, update it */
    if ( SCIPisFeasLT(scip, ub, SCIPvarGetUbLocal(var)) )
    {
-      SCIPdebugMessage("Changing upper bound of variable %s from %f to %f because of prop_sdpredcost \n",
-            SCIPvarGetName(var), SCIPvarGetUbLocal(var), ub);
+      SCIPdebugMsg(scip, "Changing upper bound of variable %s from %f to %f because of prop_sdpredcost \n",
+         SCIPvarGetName(var), SCIPvarGetUbLocal(var), ub);
       SCIP_CALL( SCIPchgVarUb(scip, var, ub) );
       *result =  SCIP_REDUCEDDOM;
    }
@@ -202,8 +202,8 @@ SCIP_RETCODE sdpRedcostFixingIntCont(
    /* if the new lower bound is an enhancement, update it */
    if ( SCIPisFeasGT(scip, lb, SCIPvarGetLbLocal(var)) )
    {
-      SCIPdebugMessage("Changing lower bound of variable %s from %f to %f because of prop_sdpredcost \n",
-            SCIPvarGetName(var), SCIPvarGetLbLocal(var), lb);
+      SCIPdebugMsg(scip, "Changing lower bound of variable %s from %f to %f because of prop_sdpredcost \n",
+         SCIPvarGetName(var), SCIPvarGetLbLocal(var), lb);
       SCIP_CALL( SCIPchgVarLb(scip, var, lb) );
       *result =  SCIP_REDUCEDDOM;
    }
@@ -226,15 +226,20 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    SCIP_PROPDATA* propdata;
    int length;
 
-   SCIPdebugMessage("Calling propExecSdpredcost \n");
+   SCIPdebugMsg(scip, "Calling propExecSdpredcost \n");
 
    assert( scip != NULL );
    assert( prop != NULL );
    assert( result != NULL );
 
    /* do not run if propagation w.r.t. objective is not allowed */
-   if( !SCIPallowObjProp(scip) )
+#if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
+   if( ! SCIPallowWeakDualReds(scip) )
       return SCIP_OKAY;
+#else
+   if( ! SCIPallowObjProp(scip) )
+      return SCIP_OKAY;
+#endif
 
    if ( SCIPgetStage(scip) == SCIP_STAGE_PRESOLVING )
    {
@@ -249,7 +254,7 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    /* we can only propagate for the last node for which the SDP was solved */
    if ( SCIPrelaxSdpGetSdpNode(relax) != SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) )
    {
-      SCIPdebugMessage("Stopped propExecRedcost because current SDP-relaxation doesn't belong to the node the propagator was called for!\n");
+      SCIPdebugMsg(scip, "Stopped propExecRedcost because current SDP-relaxation doesn't belong to the node the propagator was called for!\n");
       *result = SCIP_DIDNOTRUN;
       return SCIP_OKAY;
    }
@@ -257,7 +262,7 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    /* we can only propagate if the SDP in the last node was solved in its original formulation */
    if ( ! SCIPrelaxSdpSolvedOrig(relax) )
    {
-      SCIPdebugMessage("Stopped propExecRedcost because current SDP-relaxation was solved using a penalty formulation!\n");
+      SCIPdebugMsg(scip, "Stopped propExecRedcost because current SDP-relaxation was solved using a penalty formulation!\n");
       *result = SCIP_DIDNOTRUN;
       return SCIP_OKAY;
    }
@@ -265,7 +270,7 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    SCIP_CALL( SCIPrelaxSdpRelaxVal(relax, &sdpsolved, &relaxval) );
    if ( ! sdpsolved )
    {
-      SCIPdebugMessage("Stopped propExecRedcost because SDP-relaxation wasn't properly solved!\n");
+      SCIPdebugMsg(scip, "Stopped propExecRedcost because SDP-relaxation wasn't properly solved!\n");
       *result = SCIP_DIDNOTRUN;
       return SCIP_OKAY;
    }

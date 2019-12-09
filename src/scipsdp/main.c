@@ -30,48 +30,59 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   cons_savedsdpsettings.h
- * @brief  constraint handler for saving SDP settings
+/**@file   main.cpp
+ * @brief  main file for solving MISDPs
+ * @author Sonja Mars
  * @author Tristan Gally
- *
- * A constraint that is always feasible which can be used to save and recover settings used
- * to solve the SDP-relaxation at the current node.
  */
 
-#ifndef __SCIP_CONS_SAVEDSDPSETTINGS_H_
-#define __SCIP_CONS_SAVEDSDPSETTINGS_H_
+#include "scipsdp/scipsdpdefplugins.h"
 
-#include "scip/scip.h"
-#include "sdpi/type_sdpi.h"
+/** run scip and set some parameters */
+static
+SCIP_RETCODE runSCIP(
+   int                   argc,               /**< number of command line arguments */
+   char**                argv                /**< pointer to command line arguments */
+   )
+{
+   SCIP* scip = NULL;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+   SCIP_CALL( SCIPcreate(&scip) );
 
-/** include Savedsdpsettings constraint handler */
-SCIP_EXPORT
-SCIP_RETCODE SCIPincludeConshdlrSavedsdpsettings(
-   SCIP*                 scip                /**< SCIP data structure */
-   );
+   /* include plugins */
+   SCIP_CALL( SCIPSDPincludeDefaultPlugins(scip) );
 
-/** create a savedsdpsettings constraint, i.e. save the current settings for the SDP-relaxation of this node */
-SCIP_EXPORT
-SCIP_RETCODE createConsSavedsdpsettings(
-   SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
-   const char*           name,               /**< name of constraint */
-   SCIP_SDPSOLVERSETTING settings            /**< settings to save */
-   );
+   /* change certain paramters: */
+   SCIP_CALL( SCIPsetIntParam(scip, "display/verblevel", 5) );
 
-/** get the settings used to solve the SDP relaxation in this node */
-SCIP_EXPORT
-SCIP_SDPSOLVERSETTING SCIPconsSavedsdpsettingsGetSettings(
-   SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons                /**< constraint to get starting point for */
-   );
+   /* we explicitly enable the use of a debug solution for this main SCIP instance */
+   SCIPenableDebugSol(scip);
 
-#ifdef __cplusplus
+   /* run interactive shell */
+   SCIP_CALL( SCIPprocessShellArguments(scip, argc, argv, "scip.set") );
+
+   /* deinitialization */
+   SCIP_CALL( SCIPfree(&scip) );
+
+   BMScheckEmptyMemory();
+
+   return SCIP_OKAY;
 }
-#endif
 
-#endif
+/** main function */
+int main (
+   int                   argc,               /**< number of command line arguments */
+   char**                argv                /**< pointer to command line arguments */
+   )
+{
+   SCIP_RETCODE retcode;
+
+   retcode = runSCIP(argc, argv);
+   if( retcode != SCIP_OKAY )
+   {
+      SCIPprintError(retcode);
+      return -1;
+   }
+
+   return 0;
+}
