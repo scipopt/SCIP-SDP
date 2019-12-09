@@ -3904,7 +3904,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
       consdata->vars[i] = vars[i];
       SCIP_CALL( SCIPcaptureVar(scip, consdata->vars[i]) );
    }
-   SCIPdebugMsg("creating cons %s\n", name);
+   SCIPdebugMsg(scip, "creating cons %s\n", name);
 
    /* rank 1 ? */
    consdata->rankone = rankone;
