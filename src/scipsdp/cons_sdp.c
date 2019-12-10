@@ -1792,8 +1792,11 @@ SCIP_RETCODE EnforceRankOne(
          /* SCIP_CALL( SCIPaddCons(scip, lincons) ); */
          /* SCIP_CALL( SCIPreleaseCons(scip, &lincons) ); */
 
+#if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
+         SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &cut, conshdlr, "", -SCIPinfinity(scip), -val4 + ubii * ubjj, FALSE, FALSE, TRUE) );
+#else
          SCIP_CALL( SCIPcreateEmptyRowCons(scip, &cut, conshdlr, "", -SCIPinfinity(scip), -val4 + ubii * ubjj, FALSE, FALSE, TRUE) );
-
+#endif
          SCIP_CALL( SCIPcacheRowExtensions(scip, cut) );
 
          SCIP_CALL( SCIPaddVarToRow(scip, cut, quadvars1[0], ubjj + val2) );
@@ -1846,8 +1849,11 @@ SCIP_RETCODE EnforceRankOne(
          /* SCIP_CALL( SCIPreleaseCons(scip, &lincons) ); */
 
 
+#if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
+         SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &cut, conshdlr, "", -SCIPinfinity(scip), -val4 + lbii * lbjj, FALSE, FALSE, TRUE) );
+#else
          SCIP_CALL( SCIPcreateEmptyRowCons(scip, &cut, conshdlr, "", -SCIPinfinity(scip), -val4 + lbii * lbjj, FALSE, FALSE, TRUE) );
-
+#endif
          SCIP_CALL( SCIPcacheRowExtensions(scip, cut) );
 
          SCIP_CALL( SCIPaddVarToRow(scip, cut, quadvars1[0], lbjj + val2) );
