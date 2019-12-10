@@ -447,7 +447,7 @@ ifeq ($(MAKESOFTLINKS), true)
 				echo -n "> " ; \
 				cd $$DIRNAME ; \
 				eval $(READ) TARGET ; \
-				cd $(SCIPSDPDIR) ; \
+				cd $(SCIPSDPREALPATH) ; \
 				if test "$$TARGET" != "" ; \
 				then \
 					echo "-> creating softlink \"$@\" -> \"$$TARGET\"" ; \
@@ -520,7 +520,7 @@ depend:		$(SCIPDIR)
 
 -include	$(SCIPSDPDEP)
 
-$(SCIPSDPBIN):	$(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(SCIPSDPLIBFILE) $(MAINOBJFILES) | $(SDPOBJSUBDIRS) $(BINDIR)
+$(SCIPSDPBIN):	$(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) libscipsdp $(MAINOBJFILES) | $(SDPOBJSUBDIRS) $(BINDIR)
 		@echo "-> linking $@"
 		$(LINKCXX) $(MAINOBJFILES) -L$(SCIPSDPLIBDIR)/$(LIBTYPE) -l$(SCIPSDPLIB) $(SCIPSDPLIBFILE) $(SDPILIB) $(LINKCXXSCIPALL) $(LINKCXX_o)$@
 
