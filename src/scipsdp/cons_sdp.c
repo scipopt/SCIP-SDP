@@ -2926,6 +2926,7 @@ SCIP_DECL_CONSPARSE(consParseSdp)
    consdata->constnnonz = 0;
    consdata->rankone = 0;
    consdata->addedquadcons = FALSE;
+   consdata->locks = NULL;
 
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->nvarnonz, nvars) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->col, nvars) );
