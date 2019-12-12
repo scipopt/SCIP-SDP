@@ -78,10 +78,13 @@ char CBF_NAME_BUFFER[CBF_MAX_NAME];
 
 struct CBF_Data
 {
-   int                   npsdvars;           /**< number of psd variables and length of createdpsdvars-array  */
+   int                   npsdvars;           /**< number of psd variables and length of createdpsdvars, psdvarsizes and psdvarrank1 arrays */
    int*                  psdvarsizes;        /**< sizes of the psd variables */
+   SCIP_Bool*            psdvarrank1;        /**< rank-1 information for each psd variable (TRUE = should be rank 1)  */
    SCIP_VAR****          createdpsdvars;     /**< array of psd variables created by the CBF reader */
    SCIP_Bool             noorigsdpcons;      /**< Are there SDP constraints specified in the CBF file?  */
+   SCIP_Bool*            sdpblockrank1;      /**< rank-1 information for each SDP block (TRUE = should be rank 1) */
+   int                   nsdpblocksrank1;    /**< number of SDP constraints/blocks that should be rank 1 */
 
    int                   nvars;              /**< number of variables and length of createdvars-array */
    SCIP_VAR**            createdvars;        /**< array of variables created by the CBF reader */
@@ -340,6 +343,7 @@ SCIP_RETCODE CBFreadPsdvar(
    /* loop through different psd variables */
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdpsdvars), data->npsdvars) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->psdvarsizes), data->npsdvars) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->psdvarrank1), data->npsdvars) );
 
    for (t = 0; t < data->npsdvars; t++)
    {
@@ -362,6 +366,8 @@ SCIP_RETCODE CBFreadPsdvar(
          /* for each psd variable of size n_i create 1/2*n_i*(n_i+1) scalar variables */
          nscalarvars = sizepsdvar * (sizepsdvar + 1) / 2;
          data->psdvarsizes[t] = sizepsdvar;
+         /* initialize rank-1 information for each psd variable with FALSE, will eventually be changed when reading PSDVARRANK1 */
+         data->psdvarrank1[t] = FALSE;
 
          SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdpsdvars[t]), sizepsdvar) );
 
@@ -395,6 +401,70 @@ SCIP_RETCODE CBFreadPsdvar(
       }
       else
          return SCIP_READERROR;
+   }
+
+   return SCIP_OKAY;
+}
+
+/** reads the rank-1 information of psd variables from given CBF-file */
+static
+SCIP_RETCODE CBFreadPsdvarrank1(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_FILE*            pfile,              /**< file to read from */
+   SCIP_Longint*         linecount,          /**< current linecount */
+   CBF_DATA*             data                /**< data pointer to save the results in */
+   )
+{  /*lint --e{818}*/
+   int nrank1psdvars;
+   int i;
+   int v;
+
+   assert( scip != NULL );
+   assert( pfile != NULL );
+   assert( linecount != NULL );
+   assert( data != NULL );
+
+   /* PSDVAR need to be in front of PSDVARRANK1! */
+   if ( data->npsdvars < 0 )
+   {
+      SCIPerrorMessage("Need to have 'PSDVAR' section before 'PSDVARRANK1' section!\n");
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+
+   SCIP_CALL( CBFfgets(pfile, linecount) );
+
+   if ( sscanf(CBF_LINE_BUFFER, "%i", &(nrank1psdvars)) != 1 )
+      return SCIP_READERROR;
+
+   if ( nrank1psdvars < 0 )
+   {
+      SCIPerrorMessage("Number of psd variables with a rank-1 constraint %d should be non-negative!\n", nrank1psdvars);
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+
+   assert( nrank1psdvars >= 0 );
+   assert( data->nsdpblocksrank1 >= 0 );
+
+   data->nsdpblocksrank1 += nrank1psdvars;
+
+   for (i = 0; i < nrank1psdvars; i++)
+   {
+      SCIP_CALL( CBFfgets(pfile, linecount) );
+      if ( sscanf(CBF_LINE_BUFFER, "%i", &v) == 1 )
+      {
+         if ( v < 0 || v >= data->npsdvars )
+         {
+            SCIPerrorMessage("Given rank-1 constraint for matrix variable %d which does not exist!\n", v);
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+         else
+            data->psdvarrank1[v] = TRUE;
+      }
+      else
+         return SCIP_READERROR; /*lint !e527*/
    }
 
    return SCIP_OKAY;
@@ -572,6 +642,7 @@ SCIP_RETCODE CBFreadInt(
             }
             else
             {
+               /* TODO wrong error message?? Should be SCIP_READERROR? */
                SCIPerrorMessage("Number of integrality constraints %d should be non-negative!\n", nintvars);
                SCIPABORT();
                return SCIP_READERROR; /*lint !e527*/
@@ -623,6 +694,7 @@ SCIP_RETCODE CBFreadPsdcon(
 
          data->noorigsdpcons = FALSE;
          SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblocksizes), data->nsdpblocks) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblockrank1), data->nsdpblocks) );
 
          for (b = 0; b < ncbfsdpblocks; b++)
          {
@@ -635,23 +707,97 @@ SCIP_RETCODE CBFreadPsdcon(
                   SCIPABORT();
                   return SCIP_READERROR; /*lint !e527*/
                }
+               else
+               {
+                  /* initialize rank-1 information to FALSE, will eventually be changed in PSDCONRANK1 */
+                  data->sdpblockrank1[b] = FALSE;
+               }
             }
             else
                return SCIP_READERROR;
          }
 
          for (b = 0; b < data->npsdvars; b++)
+         {
+            /* read rank-1 information and size for psd variables (if existing, recall PSDVAR needs to be in front of
+               PSDCON) */
             data->sdpblocksizes[ncbfsdpblocks + b] = data->psdvarsizes[b];
+            data->sdpblockrank1[ncbfsdpblocks + b] = data->psdvarrank1[b];
+         }
       }
       else
       {
-         SCIPerrorMessage("Number of SDP-blocks %d should be non-negative!\n", data->nsdpblocks);
+         SCIPerrorMessage("Number of SDP-blocks %d should be non-negative!\n", ncbfsdpblocks);
          SCIPABORT();
          return SCIP_READERROR; /*lint !e527*/
       }
    }
    else
       return SCIP_READERROR;
+
+   return SCIP_OKAY;
+}
+
+/** reads rank-1 information of SDP-constraints from given CBF-file */
+static
+SCIP_RETCODE CBFreadPsdconrank1(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_FILE*            pfile,              /**< file to read from */
+   SCIP_Longint*         linecount,          /**< current linecount */
+   CBF_DATA*             data                /**< data pointer to save the results in */
+   )
+{
+   int c;
+   int i;
+   int nrank1sdpblocks;
+
+   assert( scip != NULL );
+   assert( pfile != NULL );
+   assert( linecount != NULL );
+   assert( data != NULL );
+
+   /* PSDCON need to be in front of PSDCONRANK1! */
+   if ( data->nsdpblocks < 0 )
+   {
+      SCIPerrorMessage("Need to have 'PSDCON' section before 'PSDCONRANK1' section!\n");
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+
+   SCIP_CALL( CBFfgets(pfile, linecount) );
+
+   if ( sscanf(CBF_LINE_BUFFER, "%i", &(nrank1sdpblocks)) != 1 )
+      return SCIP_READERROR;
+
+   if ( nrank1sdpblocks < 0 )
+   {
+      SCIPerrorMessage("Number of psd constraints with a rank-1 constraint %d should be non-negative!\n", nrank1sdpblocks);
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+
+   assert( nrank1sdpblocks >= 0 );
+   assert( data->nsdpblocksrank1 >= 0 );
+
+   data->nsdpblocksrank1 += nrank1sdpblocks;
+
+   for (i = 0; i < nrank1sdpblocks; i++)
+   {
+      SCIP_CALL( CBFfgets(pfile, linecount) );
+      if ( sscanf(CBF_LINE_BUFFER, "%i", &c) == 1 )
+      {
+         if ( c < 0 || c >= data->nsdpblocks )
+         {
+            SCIPerrorMessage("Given rank-1 constraint for sdp constraint %d which does not exist!\n", c);
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+         else
+            data->sdpblockrank1[c] = TRUE;
+      }
+      else
+         return SCIP_READERROR; /*lint !e527*/
+   }
 
    return SCIP_OKAY;
 }
@@ -1645,6 +1791,7 @@ SCIP_RETCODE CBFfreeData(
          SCIPfreeBlockMemoryArrayNull(scip, &data->nvarnonz, data->nsdpblocks);
          SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblockvars, data->nsdpblocks);
          SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblocknonz, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblockrank1, data->nsdpblocks);
          SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblocksizes, data->nsdpblocks);
       }
       else
@@ -1689,6 +1836,7 @@ SCIP_RETCODE CBFfreeData(
          SCIPfreeBlockMemoryArrayNull(scip, &data->nvarnonz, data->nsdpblocks);
          SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblockvars, data->nsdpblocks);
          SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblocknonz, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblockrank1, data->nsdpblocks);
          SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblocksizes, data->nsdpblocks);
       }
    }
@@ -1710,6 +1858,7 @@ SCIP_RETCODE CBFfreeData(
          SCIPfreeBlockMemoryArrayNull(scip, &(data->createdpsdvars[t]), data->psdvarsizes[t]);
       }
 
+      SCIPfreeBlockMemoryArrayNull(scip, &(data->psdvarrank1), data->npsdvars);
       SCIPfreeBlockMemoryArrayNull(scip, &(data->psdvarsizes), data->npsdvars);
       SCIPfreeBlockMemoryArrayNull(scip, &(data->createdpsdvars), data->npsdvars);
    }
@@ -1758,6 +1907,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
 
    SCIP_CALL( SCIPallocBuffer(scip, &data) );
    data->nsdpblocks = -1;
+   data->nsdpblocksrank1 = 0;
    data->nconss = -1;
    data->nvars = -1;
    data->npsdvars = -1;
@@ -1766,6 +1916,8 @@ SCIP_DECL_READERREAD(readerReadCbf)
    data->noorigsdpcons= FALSE;
 
    data->psdvarsizes = NULL;
+   data->psdvarrank1 = NULL;
+   data->sdpblockrank1 = NULL;
    data->sdpblocksizes = NULL;
    data->sdpnblocknonz = NULL;
    data->sdpnblockvars = NULL;
@@ -1856,6 +2008,16 @@ SCIP_DECL_READERREAD(readerReadCbf)
                SCIPdebugMsg(scip, "Reading PSDVAR\n");
                SCIP_CALL( CBFreadPsdvar(scip, scipfile, &linecount, data) );
             }
+            else if ( strcmp(CBF_NAME_BUFFER, "PSDCONRANK1") == 0 )
+            {
+               SCIPdebugMsg(scip, "Reading PSDCONRANK1\n");
+               SCIP_CALL( CBFreadPsdconrank1(scip, scipfile, &linecount, data) );
+            }
+            else if ( strcmp(CBF_NAME_BUFFER, "PSDVARRANK1") == 0 )
+            {
+               SCIPdebugMsg(scip, "Reading PSDVARRANK1\n");
+               SCIP_CALL( CBFreadPsdvarrank1(scip, scipfile, &linecount, data) );
+            }
             else if ( strcmp(CBF_NAME_BUFFER, "OBJFCOORD") == 0 )
             {
                SCIPdebugMsg(scip, "Reading OBJFCOORD\n");
@@ -1908,7 +2070,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
    }
 
    /* Psd vars are created using scalar vars and a corresponding psd constraint that gets created in the function
-    * CBFreadPsdcon. If there no psd cons in the original problem, then the psd constraint for the reformulation of the
+    * CBFreadPsdcon. If there are no psd cons in the original problem, then the psd constraint for the reformulation of the
     * original psd vars needs to be created at this point! */
    if ( data->npsdvars > data->nsdpblocks )
    {
@@ -1920,6 +2082,8 @@ SCIP_DECL_READERREAD(readerReadCbf)
 
       assert( data->nsdpblocks == -1 );
       assert( data->createdpsdvars != NULL );
+      assert( data->psdvarrank1 != NULL );
+      assert( data->npsdvars >= 0 );
 
       data->noorigsdpcons = TRUE;
 
@@ -1928,6 +2092,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
 
       /* allocate memory for auxiliary sdp blocks */
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblocksizes), data->nsdpblocks) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblockrank1), data->nsdpblocks) );
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpnblocknonz), data->nsdpblocks) );
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpnblockvars), data->nsdpblocks) );
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->nvarnonz), data->nsdpblocks) );
@@ -1946,6 +2111,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
          varidx = 0;
 
          data->sdpblocksizes[b] = data->psdvarsizes[b];
+         data->sdpblockrank1[b] = data->psdvarrank1[b];
          data->sdpnblocknonz[b] = nauxvars;
          data->sdpnblockvars[b] = nauxvars;
 
@@ -2022,14 +2188,14 @@ SCIP_DECL_READERREAD(readerReadCbf)
       {
          SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcons, sdpconname, data->sdpnblockvars[b], data->sdpnblocknonz[b],
                data->sdpblocksizes[b], data->nvarnonz[b], data->colpointer[b], data->rowpointer[b], data->valpointer[b],
-               data->sdpblockvars[b], 0, NULL, NULL, NULL, FALSE) );
+               data->sdpblockvars[b], 0, NULL, NULL, NULL, data->sdpblockrank1[b]) );
       }
       else
       {
          SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcons, sdpconname, data->sdpnblockvars[b], data->sdpnblocknonz[b],
                data->sdpblocksizes[b], data->nvarnonz[b], data->colpointer[b], data->rowpointer[b], data->valpointer[b],
                data->sdpblockvars[b], data->sdpconstnblocknonz[b], data->sdpconstcol[b], data->sdpconstrow[b],
-               data->sdpconstval[b], FALSE) );
+               data->sdpconstval[b], data->sdpblockrank1[b]) );
       }
 
 #ifdef SCIP_MORE_DEBUG
@@ -2084,6 +2250,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    int c;
    int i;
    int v;
+   int nrank1sdpblocks;
 
    assert( scip != NULL );
    assert( result != NULL );
@@ -2373,6 +2540,31 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    }
 
    SCIPinfoMessage(scip, file, "\n");
+
+   /* count number of rank-1 SDP constraints */
+   nrank1sdpblocks = 0;
+   for (c = 0; c < nconss; c++)
+   {
+      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") == 0 && SCIPconsSdpShouldBeRankOne(scip, conss[c]) )
+         ++nrank1sdpblocks;
+   }
+
+   /* write rank-1 SDP constraints (if existing) */
+   if ( nrank1sdpblocks > 0 )
+   {
+      SCIPinfoMessage(scip, file, "PSDCONRANK1\n%d\n", nrank1sdpblocks);
+
+      for (c = 0; c < nconss; c++)
+      {
+         if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0 )
+            continue;
+
+         if ( SCIPconsSdpShouldBeRankOne(scip, conss[c]) )
+            SCIPinfoMessage(scip, file, "%d\n", SCIPconsSdpGetBlocksize(scip, conss[c]));
+      }
+
+      SCIPinfoMessage(scip, file, "\n");
+   }
 
    /* count number of nonzero objective coefficients */
    nobjnonz = 0;
