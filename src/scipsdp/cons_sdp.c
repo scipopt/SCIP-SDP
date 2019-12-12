@@ -3099,6 +3099,14 @@ SCIP_DECL_CONSPARSE(consParseSdp)
          pos++;
    }
 
+   /* resize the arrays to their final size */
+   SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->nvarnonz, nvars, consdata->nvars) );
+   SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->col, nvars, consdata->nvars) );
+   SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->row, nvars, consdata->nvars) );
+   SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->val, nvars, consdata->nvars) );
+   SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->locks, nvars, consdata->nvars) );
+   SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->vars, nvars, consdata->nvars));
+
    /* compute sdpnnonz */
    for (v = 0; v < consdata->nvars; v++)
       consdata->nnonz += consdata->nvarnonz[v];
