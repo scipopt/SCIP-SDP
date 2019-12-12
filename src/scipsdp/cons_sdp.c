@@ -2926,13 +2926,14 @@ SCIP_DECL_CONSPARSE(consParseSdp)
    consdata->constnnonz = 0;
    consdata->rankone = 0;
    consdata->addedquadcons = FALSE;
-   consdata->locks = NULL;
 
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->nvarnonz, nvars) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->col, nvars) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->row, nvars) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->val, nvars) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->locks, nvars));
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->vars, nvars));
+
    consdata->constcol = NULL;
    consdata->constrow = NULL;
    consdata->constval = NULL;
@@ -3032,6 +3033,9 @@ SCIP_DECL_CONSPARSE(consParseSdp)
       /* add the variable to consdata->vars and create the corresponding nonzero arrays */
       SCIP_CALL( SCIPparseVarName(scip, pos, &(consdata->vars[consdata->nvars]), &pos) );
       SCIP_CALL( SCIPcaptureVar(scip, consdata->vars[consdata->nvars]) );
+
+      /* initialize locks to -2 */
+      consdata->locks[consdata->nvars] = -2;
 
       consdata->nvarnonz[consdata->nvars] = 0;
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(consdata->col[consdata->nvars]), PARSE_STARTSIZE));
@@ -3865,6 +3869,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->constcol, constnnonz) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->constrow, constnnonz) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->constval, constnnonz) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->locks, nvars));
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->vars, nvars) );
 
    for (i = 0; i < nvars; i++)
@@ -3880,7 +3885,6 @@ SCIP_RETCODE SCIPcreateConsSdp(
    consdata->nnonz = nnonz;
    consdata->constnnonz = constnnonz;
    consdata->blocksize = blocksize;
-   consdata->locks = NULL;
 
    for (i = 0; i < nvars; i++)
    {
@@ -3908,6 +3912,8 @@ SCIP_RETCODE SCIPcreateConsSdp(
 
    for (i = 0; i < nvars; i++)
    {
+      /* initialize locks to -2 */
+      consdata->locks[i] = -2;
       consdata->vars[i] = vars[i];
       SCIP_CALL( SCIPcaptureVar(scip, consdata->vars[i]) );
    }
