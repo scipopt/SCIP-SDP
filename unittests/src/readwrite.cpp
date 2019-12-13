@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   readwrite.c
+/**@file   readwrite.cpp
  * @brief  unit test for checking reading and writing of MISDPs
  * @author Marc Pfetsch
  */
