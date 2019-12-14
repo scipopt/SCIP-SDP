@@ -1757,16 +1757,40 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
 
+   *result = SCIP_DIDNOTRUN;
+
    if ( nrounds == 0 )
    {
-      SCIP_CALL( move_1x1_blocks_to_lp(scip, conss, nconss, naddconss, ndelconss, result) );
-      if ( conshdlrdata->diaggezerocuts )
+      int noldaddconss;
+      int nolddelconss;
+      int noldchgbds;
+
+      *result = SCIP_DIDNOTFIND;
+
+      noldaddconss = *naddconss;
+      nolddelconss = *ndelconss;
+      noldchgbds = *nchgbds;
+      SCIP_CALL( move_1x1_blocks_to_lp(scip, conshdlr, conss, nconss, naddconss, ndelconss, nchgbds, result) );
+      if ( *result != SCIP_CUTOFF && (noldaddconss != *naddconss || nolddelconss != *ndelconss || noldchgbds != *nchgbds) )
+         *result = SCIP_SUCCESS;
+
+      if ( *result != SCIP_CUTOFF && conshdlrdata->diaggezerocuts )
       {
-         SCIP_CALL( diagGEzero(scip, conss, nconss, naddconss) );
+         noldaddconss = *naddconss;
+         noldchgbds = *nchgbds;
+         SCIP_CALL( diagGEzero(scip, conshdlr, conss, nconss, naddconss, nchgbds, result) );
+         SCIPdebugMsg(scip, "Diagonal entries: added %d cuts and changed %d bounds.\n", *naddconss - noldaddconss, *nchgbds - noldchgbds);
+         if ( *result != SCIP_CUTOFF && ( noldaddconss != *naddconss || noldchgbds != *nchgbds ) )
+            *result = SCIP_SUCCESS;
       }
-      if ( conshdlrdata->diagzeroimplcuts )
+
+      if ( *result != SCIP_CUTOFF && conshdlrdata->diagzeroimplcuts )
       {
+         noldaddconss = *naddconss;
          SCIP_CALL( diagZeroImpl(scip, conss, nconss, naddconss) );
+         SCIPdebugMsg(scip, "Added %d cuts for implication from 0 diagonal.\n", *naddconss - noldaddconss);
+         if ( noldaddconss != *naddconss )
+            *result = SCIP_SUCCESS;
       }
    }
 
@@ -2567,6 +2591,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/diaggezerocuts",
          "Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added?",
          &(conshdlrdata->diaggezerocuts), TRUE, DEFAULT_DIAGGEZEROCUTS, NULL, NULL) );
+
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/diagzeroimplcuts",
          "Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added?",
          &(conshdlrdata->diagzeroimplcuts), TRUE, DEFAULT_DIAGZEROIMPLCUTS, NULL, NULL) );
