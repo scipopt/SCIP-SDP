@@ -1071,20 +1071,23 @@ SCIP_RETCODE unlockVar(
    assert( scip != NULL );
    assert( consdata != NULL );
    assert( 0 <= v && v < consdata->nvars );
-   assert( consdata->locks != NULL );
-   assert( consdata->locks[v] == -2 || consdata->locks[v] == -1 || consdata->locks[v] == 0 || consdata->locks[v] == 1 );
 
-   if ( consdata->locks[v] == 1 )
+   if ( consdata->locks != NULL )
    {
-      SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], 0, -1) );
-   }
-   else if ( consdata->locks[v] == - 1 )
-   {
-      SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], -1, 0) );
-   }
-   else if ( consdata->locks[v] == 0 )
-   {
-      SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], -1, -1) );
+      assert( consdata->locks[v] == -2 || consdata->locks[v] == -1 || consdata->locks[v] == 0 || consdata->locks[v] == 1 );
+
+      if ( consdata->locks[v] == 1 )
+      {
+         SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], 0, -1) );
+      }
+      else if ( consdata->locks[v] == - 1 )
+      {
+         SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], -1, 0) );
+      }
+      else if ( consdata->locks[v] == 0 )
+      {
+         SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], -1, -1) );
+      }
    }
 
    return SCIP_OKAY;
@@ -1126,6 +1129,7 @@ SCIP_RETCODE multiaggrVar(
 
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
+   assert( consdata->locks != NULL );
 
    /* save the current nfixednonz-index, all entries starting from here will need to be added to the variables this is aggregated to */
    startind = *nfixednonz;
@@ -1343,6 +1347,7 @@ SCIP_RETCODE fixAndAggrVars(
 
       consdata = SCIPconsGetData(conss[c]);
       assert( consdata != NULL );
+      assert( consdata->locks != NULL );
 
       /* allocate memory to save nonzeros that need to be fixed */
       SCIP_CALL( SCIPallocBufferArray(scip, &savedcol, consdata->nnonz) );
@@ -1627,6 +1632,10 @@ SCIP_RETCODE EnforceConstraint(
    return SCIP_OKAY;
 }
 
+/*
+ * callbacks
+ */
+
 /** informs constraint handler that the presolving process is being started */
 static
 SCIP_DECL_CONSINITPRE(consInitpreSdp)
@@ -1651,58 +1660,91 @@ SCIP_DECL_CONSLOCK(consLockSdp)
 {/*lint --e{715}*/
    SCIP_Real* Aj;
    SCIP_CONSDATA* consdata;
-   SCIP_Real eigenvalue;
-   int blocksize;
    int nvars;
    int v;
 
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
-   blocksize = consdata->blocksize;
    nvars = consdata->nvars;
 
-   SCIP_CALL( SCIPallocBufferArray(scip, &Aj, blocksize * blocksize) ); /*lint !e647*/
+   SCIPdebugMsg(scip, "locking method of <%s>.\n", SCIPconsGetName(cons));
 
-   for (v = 0; v < nvars; v++)
+   /* if locks have not yet been computed */
+   if ( consdata->locks == NULL )
    {
-      SCIP_CALL( SCIPconsSdpGetFullAj(scip, cons, v, Aj) );
+      SCIP_Real eigenvalue;
+      int blocksize;
 
-      /* compute the smallest eigenvalue */
-      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, 1, &eigenvalue, NULL) );
-      if ( SCIPisNegative(scip, eigenvalue) )
-      {
-         /* as the lowest eigenvalue is negative, the matrix is not positive semidefinite, so adding more of it can remove positive
-          * semidefiniteness of the SDP-matrix */
-         SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], nlocksneg, nlockspos) );
-         consdata->locks[v] = 1; /* up-lock */
-      }
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->locks, nvars) );
 
-      /* if the smallest eigenvalue is already positive, we don't need to compute the biggest one */
-      if ( SCIPisPositive(scip, eigenvalue) )
+      blocksize = consdata->blocksize;
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &Aj, blocksize * blocksize) ); /*lint !e647*/
+
+      for (v = 0; v < nvars; v++)
       {
-         /* as an eigenvalue is positive, the matrix is not negative semidefinite, so substracting more of it can remove positive
-          * semidefiniteness of the SDP-matrix */
-         SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], nlockspos, nlocksneg) );
-         consdata->locks[v] = -1; /* down-lock */
-      }
-      else
-      {
-         /* compute the biggest eigenvalue */
-         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, blocksize, &eigenvalue, NULL) );
+         SCIP_CALL( SCIPconsSdpGetFullAj(scip, cons, v, Aj) );
+         consdata->locks[v] = -2;  /* unintitialized */
+
+         /* compute the smallest eigenvalue */
+         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, 1, &eigenvalue, NULL) );
+         if ( SCIPisNegative(scip, eigenvalue) )
+         {
+            /* as the lowest eigenvalue is negative, the matrix is not positive semidefinite, so adding more of it can remove positive
+             * semidefiniteness of the SDP-matrix */
+            SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], nlocksneg, nlockspos) );
+            consdata->locks[v] = 1; /* up-lock */
+         }
+
+         /* if the smallest eigenvalue is already positive, we don't need to compute the biggest one */
          if ( SCIPisPositive(scip, eigenvalue) )
          {
-            /* as the biggest eigenvalue is positive, the matrix is not negative semidefinite, so substracting more of it can remove positive
+            /* as an eigenvalue is positive, the matrix is not negative semidefinite, so substracting more of it can remove positive
              * semidefiniteness of the SDP-matrix */
             SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], nlockspos, nlocksneg) );
-            if ( consdata->locks[v] == 1 )
-               consdata->locks[v] = 0;  /* up- and down-lock */
-            else
-               consdata->locks[v] = -1; /* down-lock */
+            consdata->locks[v] = -1; /* down-lock */
+         }
+         else
+         {
+            /* compute the biggest eigenvalue */
+            SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, blocksize, &eigenvalue, NULL) );
+            if ( SCIPisPositive(scip, eigenvalue) )
+            {
+               /* as the biggest eigenvalue is positive, the matrix is not negative semidefinite, so substracting more of it can remove positive
+                * semidefiniteness of the SDP-matrix */
+               SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], nlockspos, nlocksneg) );
+               if ( consdata->locks[v] == 1 )
+               {
+                  consdata->locks[v] = 0;  /* up- and down-lock */
+               }
+               else
+                  consdata->locks[v] = -1; /* down-lock */
+            }
          }
       }
-   }
 
-   SCIPfreeBufferArray(scip, &Aj);
+      SCIPfreeBufferArray(scip, &Aj);
+   }
+   else
+   {
+      for (v = 0; v < nvars; v++)
+      {
+         if ( consdata->locks[v] == 1 )  /* up-lock */
+         {
+            SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], nlocksneg, nlockspos) );
+         }
+         else if ( consdata->locks[v] == -1 )  /* down-lock */
+         {
+            SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], nlockspos, nlocksneg) );
+         }
+         else if ( consdata->locks[v] == 0 )  /* up and down lock */
+         {
+            SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], nlockspos + nlocksneg, nlockspos + nlocksneg) );
+         }
+         else
+            assert( consdata->locks[v] == -2 );
+      }
+   }
 
    return SCIP_OKAY;
 }
@@ -1796,14 +1838,18 @@ SCIP_DECL_CONSTRANS(consTransSdp)
       SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->val[i]), sourcedata->val[i], sourcedata->nvarnonz[i]) );
    }
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->vars), sourcedata->nvars) );
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->locks), sourcedata->nvars) );
+   if ( sourcedata->locks )
+   {
+      SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->locks), sourcedata->locks, sourcedata->nvars) );
+   }
+   else
+      targetdata->locks = NULL;
 
    /* copy & transform the vars array */
    for (i = 0; i < sourcedata->nvars; i++)
    {
       targetdata->vars[i] = SCIPvarGetTransVar(sourcedata->vars[i]);
       SCIP_CALL( SCIPcaptureVar(scip, targetdata->vars[i]) );
-      targetdata->locks[i] = -2;
    }
 
    /* copy the constant nonzeros */
