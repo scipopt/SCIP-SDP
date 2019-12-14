@@ -191,8 +191,7 @@ struct SCIP_SDPiSolver
 /** Calls gettimeofday and transforms the return-code to a SCIP_ERROR if needed. */
 #define TIMEOFDAY_CALL(x)  do                                                                                \
                       {                                                                                      \
-                         int _errorcode_;                                                                    \
-                         if ( (_errorcode_ = (x)) != 0 )                                                     \
+                         if ( (x) != 0 )                                                                     \
                          {                                                                                   \
                             SCIPerrorMessage("Error in gettimeofday! \n");                                   \
                             return SCIP_ERROR;                                                               \
@@ -1013,6 +1012,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* first for those corresponding to LP constraints in the dual */
    for (i = 0; i < nlpvars; i++)
    {
+      assert( vartolhsrhsmapper != NULL ); /* for lint */
       if ( vartorowmapper[i] > 0 )/*lint !e644*/ /* right-hand side */
       {
          MOSEK_CALL( MSK_putcj(sdpisolver->msktask, i, -1 * lprhs[vartolhsrhsmapper[i]]) );/*lint !e641, !e644*/
@@ -1515,8 +1515,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          /* if the relative gap is smaller than the tolerance, we return equality */
          if ( (penaltyparam - trace) / penaltyparam < PENALTYBOUNDTOL )/*lint !e414*/
          {
-            if ( penaltybound != NULL )
-               *penaltybound = TRUE;
+            assert( penaltybound != NULL );
+            *penaltybound = TRUE;
             SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible\n",
                trace, penaltyparam);
          }
