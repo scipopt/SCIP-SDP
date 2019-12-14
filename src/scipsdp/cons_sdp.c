@@ -561,7 +561,7 @@ SCIP_RETCODE diagGEzero(
       {
          SCIP_CONS* cons;
          SCIP_Real lhs;
-         SCIP_Real lastnonzval;
+         SCIP_Real lastnonzval = SCIP_INVALID;
          SCIP_VAR* lastnonzvar = NULL;
          int cnt = 0;
 
@@ -586,7 +586,7 @@ SCIP_RETCODE diagGEzero(
          }
          else if ( cnt == 1 )
          {
-            SCIP_Bool infeasible;
+            SCIP_Bool infeasible = FALSE;
             SCIP_Bool tightened;
 
             assert( lastnonzvar != NULL );
@@ -625,7 +625,7 @@ SCIP_RETCODE diagGEzero(
             (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "diag_ge_zero_%d", ++(conshdlrdata->ndiaggezerocuts));
 #endif
 
-            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, cutname, consdata->nvars, consdata->vars, consvals + k * consdata->nvars, lhs, SCIPinfinity(scip),
+            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, cutname, consdata->nvars, consdata->vars, &consvals[k * consdata->nvars], lhs, SCIPinfinity(scip),
                   TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) ); /*lint !e679*/
 
             SCIP_CALL( SCIPaddCons(scip, cons) );
@@ -987,7 +987,7 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
          }
          else if ( cnt == 1 )
          {
-            SCIP_Bool infeasible;
+            SCIP_Bool infeasible = FALSE;
             SCIP_Bool tightened;
 
             /* try to tighten bound */
@@ -1675,7 +1675,7 @@ SCIP_RETCODE EnforceConstraint(
    for (i = 0; i < nconss; ++i)
    {
       consdata = SCIPconsGetData(conss[i]);
-      SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], sol, 0, 0, 0, result) );
+      SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], sol, FALSE, result) );
       if ( *result == SCIP_FEASIBLE )
          continue;
 
@@ -1893,7 +1893,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
    SCIP_CONSHDLRDATA* conshdlrdata;
 
    assert( conshdlr != NULL );
-   assert( result != 0 );
+   assert( result != NULL );
 
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
@@ -2049,7 +2049,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
 
    for (i = 0; i < nconss; ++i)
    {
-      SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], sol, checkintegrality, checklprows, printreason, result) );
+      SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], sol, printreason, result) );
       if ( *result == SCIP_INFEASIBLE )
          return SCIP_OKAY;
    }
@@ -2080,7 +2080,7 @@ SCIP_DECL_CONSENFOPS(consEnfopsSdp)
 
    for (i = 0; i < nconss; ++i)
    {
-      SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], NULL, 0, 0, 0, result) );
+      SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], NULL, FALSE, result) );
 
       if (*result == SCIP_INFEASIBLE)
       {
@@ -2696,7 +2696,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CONSHDLR* conshdlr = NULL;
    SCIP_CONSHDLRDATA* conshdlrdata = NULL;
 
-   assert( scip != 0 );
+   assert( scip != NULL );
 
    /* allocate memory for the conshdlrdata */
    SCIP_CALL( SCIPallocMemory(scip, &conshdlrdata) );
@@ -2781,7 +2781,6 @@ SCIP_RETCODE SCIPconsSdpGetData(
    )
 {
    SCIP_CONSDATA* consdata;
-   const char* name;
    int i;
 
    assert( scip != NULL );
@@ -2798,7 +2797,6 @@ SCIP_RETCODE SCIPconsSdpGetData(
    assert( constnnonz != NULL );
 
    consdata = SCIPconsGetData(cons);
-   name = SCIPconsGetName(cons);
 
    assert( consdata->constnnonz == 0 || ( constcol != NULL && constrow != NULL && constval != NULL ) );
 
@@ -2813,7 +2811,7 @@ SCIP_RETCODE SCIPconsSdpGetData(
    if ( *arraylength < consdata->nvars )
    {
       SCIPdebugMsg(scip, "nvarnonz, col, row and val arrays were not long enough to store the information for cons %s, they need to be at least"
-         "size %d, given was only length %d! \n", name, consdata->nvars, *arraylength);
+         "size %d, given was only length %d! \n", SCIPconsGetName(cons), consdata->nvars, *arraylength);
       *arraylength = consdata->nvars;
    }
    else
@@ -2834,7 +2832,7 @@ SCIP_RETCODE SCIPconsSdpGetData(
       if ( consdata->constnnonz > *constnnonz )
       {
          SCIPdebugMsg(scip, "The constant nonzeros arrays were not long enough to store the information for cons %s, they need to be at least"
-            "size %d, given was only length %d! \n", name, consdata->constnnonz, *constnnonz);
+            "size %d, given was only length %d! \n", SCIPconsGetName(cons), consdata->constnnonz, *constnnonz);
       }
       else
       {
