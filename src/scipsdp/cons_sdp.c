@@ -895,15 +895,16 @@ SCIP_RETCODE diagZeroImpl(
 static
 SCIP_RETCODE move_1x1_blocks_to_lp(
    SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONSHDLR*        conshdlr,           /**< constraint handler */
    SCIP_CONS**           conss,              /**< array of constraints to check */
    int                   nconss,             /**< number of constraints to check */
    int*                  naddconss,          /**< pointer to store how many constraints were added */
    int*                  ndelconss,          /**< pointer to store how many constraints were deleted */
+   int*                  nchgbds,            /**< pointer to store how many bounds were changed */
    SCIP_RESULT*          result              /**< pointer to store if this routine was successfull or if it detected infeasibility */
    )
 {
    char cutname[SCIP_MAXSTRLEN];
-   SCIP_CONSHDLR* hdlr;
    SCIP_CONSDATA* consdata;
    SCIP_CONSHDLRDATA* conshdlrdata;
    SCIP_CONS* cons;
@@ -914,48 +915,48 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
    int nvars;
    int i;
    int j;
-   int count;
-   int var;
+   int v;
 #ifndef NDEBUG
    int snprintfreturn; /* used to assert the return code of snprintf */
 #endif
 
+   assert( scip != NULL );
+   assert( conshdlr != NULL );
+   assert( strcmp(SCIPconshdlrGetName(conshdlr), "SDP") == 0);
    assert( result != NULL );
-   *result = SCIP_SUCCESS;
 
-   for (i = 0; i < nconss; ++i)
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert( conshdlrdata != NULL );
+
+   for (i = 0; i < nconss && *result != SCIP_CUTOFF; ++i)
    {
-      hdlr = SCIPconsGetHdlr(conss[i]);
-      assert(hdlr != NULL);
-
-#ifndef NDEBUG
-      assert( strcmp(SCIPconshdlrGetName(hdlr), "SDP") == 0);
-#endif
-
       consdata = SCIPconsGetData(conss[i]);
       assert( consdata != NULL );
 
       /* if there is a 1x1 SDP-Block */
       if ( consdata->blocksize == 1 )
       {
+         int cnt = 0;
+
          nvars = consdata->nvars;
          nnonz = consdata->nnonz;
          SCIP_CALL( SCIPallocBufferArray(scip, &vars, nvars) );
          SCIP_CALL( SCIPallocBufferArray(scip, &coeffs, nnonz) );
 
          /* get all lhs-entries */
-         count = 0;
-
-         for (var = 0; var < nvars; var++)
+         for (v = 0; v < nvars; v++)
          {
-            assert( consdata->nvarnonz[var] <= 1 ); /* in a 1x1 block there may be at most one entry per variable */
+            assert( consdata->nvarnonz[v] <= 1 ); /* in a 1x1 block there may be at most one entry per variable */
 
-            for (j = 0; j < consdata->nvarnonz[var]; j++)
+            for (j = 0; j < consdata->nvarnonz[v]; j++)
             {
-               assert( consdata->col[var][j] == 0 && consdata->row[var][j] == 0 ); /* if the block is size one, all entries should have row and col equal to 0 */
-               coeffs[count] = consdata->val[var][j];
-               vars[count] = consdata->vars[var];
-               count++;
+               assert( consdata->col[v][j] == 0 && consdata->row[v][j] == 0 ); /* if the block has size 1, all entries should have row and col equal to 0 */
+               if ( ! SCIPisZero(scip, consdata->val[v][j]) )
+               {
+                  coeffs[cnt] = consdata->val[v][j];
+                  vars[cnt] = consdata->vars[v];
+                  ++cnt;
+               }
             }
          }
 
@@ -964,11 +965,10 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
 
          rhs = (consdata->constnnonz == 1) ? consdata->constval[0] : 0.0; /* if this one entry is not 0, than this is the rhs, otherwise it's 0 */
 
-         /* if there is more than one left-hand-side-entry, add a linear constraint, otherwise update the variable bound */
-         if ( count > 1 )
+         /* if there is more than one nonzero left-hand-side-entry, add a linear constraint, otherwise update the variable bound */
+         if ( cnt > 1 )
          {
             /* add new linear cons */
-            conshdlrdata = SCIPconshdlrGetData(hdlr);
 #ifndef NDEBUG
             snprintfreturn = SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "1x1block_%d", ++(conshdlrdata->n1x1blocks));
             assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether name fits into string */
@@ -976,112 +976,58 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
             (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "1x1block_%d", ++(conshdlrdata->n1x1blocks));
 #endif
 
-#ifdef SCIP_MORE_DEBUG
-            SCIPinfoMessage(scip, NULL, "Added lp-constraint %s: ", cutname);
-            for (i = 0; i < consdata->nvars; i++)
-               SCIPinfoMessage(scip, NULL, "+ (%f)*%s", coeffs[i], SCIPvarGetName(vars[i]));
-            SCIPinfoMessage(scip, NULL, " <= %f \n", rhs);
-#endif
-
-            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, cutname, consdata->nvars, vars, coeffs, rhs, SCIPinfinity(scip),
+            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, cutname, cnt, vars, coeffs, rhs, SCIPinfinity(scip),
                   TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
 
             SCIP_CALL( SCIPaddCons(scip, cons) );
+#ifdef SCIP_MORE_DEBUG
+            SCIPinfoMessage(scip, NULL, "Added lp-constraint: ");
+            SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
+            SCIPinfoMessage(scip, NULL, "\n");
+#endif
             SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
             (*naddconss)++;
          }
-         else
+         else if ( cnt == 1 )
          {
-            /* we compare this new variable with the current (local) bounds, we don't do an epsilon check here, because 10^(-21)*x >= 10^(-19) for
-             * epsilon = 10^(-20) would be infeasible then, even though it only says x >= 100 */
-            if ( coeffs[0] > 0.0 )
+            SCIP_Bool infeasible;
+            SCIP_Bool tightened;
+
+            /* try to tighten bound */
+            if ( SCIPisPositive(scip, coeffs[0]) )
             {
-               /* this gives a lower bound, if it is bigger than the current one, we need to update it */
-               if ( SCIPisFeasGT(scip, rhs / coeffs[0], SCIPvarGetLbLocal(vars[0])) )
+               SCIP_CALL( SCIPtightenVarLb(scip, vars[0], rhs / coeffs[0], FALSE, &infeasible, &tightened) );
+               if ( tightened )
                {
-                  /* check if the changed bound renders the problem infeasible */
-                  if( SCIPisFeasGT(scip, rhs / coeffs[0], SCIPvarGetUbLocal(vars[0])) )
-                  {
-                     SCIPdebugMsg(scip, "Problem detected to be infeasible during presolving, 1x1-SDP-constraint %s caused change"
-                        "of lower bound for variable %s from %f to %f, which is bigger than upper bound of %f\n",
-                        SCIPconsGetName(conss[i]), SCIPvarGetName(vars[0]), SCIPvarGetLbLocal(vars[0]), rhs / coeffs[0],
-                        SCIPvarGetUbLocal(vars[0]));
-
-                     *result = SCIP_CUTOFF;
-
-                     /* delete old 1x1 sdpcone */
-                     SCIP_CALL( SCIPdelCons(scip, conss[i]) );
-                     (*ndelconss)++;
-
-                     SCIPfreeBufferArray(scip, &coeffs);
-                     SCIPfreeBufferArray(scip, &vars);
-
-                     return SCIP_OKAY; /* the node is infeasible, we don't care for the other constraints */
-                  }
-
-                  SCIPdebugMsg(scip, "Changing lower bound of variable %s from %f to %f because of 1x1-SDP-constraint %s!\n",
-                     SCIPvarGetName(vars[0]), SCIPvarGetLbLocal(vars[0]), rhs / coeffs[0], SCIPconsGetName(conss[i]));
-                  SCIP_CALL( SCIPchgVarLb(scip, vars[0], rhs / coeffs[0]) );
-               }
-               else
-               {
-                  SCIPdebugMsg(scip, "Deleting 1x1-SDP-constraint %s, new lower bound %f for variable %s no improvement over old bound %f!\n",
-                     SCIPconsGetName(conss[i]), rhs / coeffs[0], SCIPvarGetName(vars[0]), SCIPvarGetLbLocal(vars[0]));
-               }
-            }
-            else if ( coeffs[0] < 0.0 )
-            {
-               /* this gives an upper bound, if it is lower than the current one, we need to update it */
-               if (SCIPisFeasLT(scip, rhs / coeffs[0], SCIPvarGetUbLocal(vars[0])))
-               {
-                  /* check if the changed bound renders the problem infeasible */
-                  if( SCIPisFeasLT(scip, rhs / coeffs[0], SCIPvarGetLbLocal(vars[0])) )
-                  {
-                     SCIPdebugMsg(scip, "Problem detected to be infeasible during presolving, 1x1-SDP-constraint %s caused change"
-                        "of upper bound for variable %s from %f to %f, which is less than lower bound of %f\n",
-                        SCIPconsGetName(conss[i]), SCIPvarGetName(vars[0]), SCIPvarGetUbLocal(vars[0]), rhs / coeffs[0],
-                        SCIPvarGetLbLocal(vars[0]));
-
-                     *result = SCIP_CUTOFF;
-
-                     /* delete old 1x1 sdpcone */
-                     SCIP_CALL( SCIPdelCons(scip, conss[i]) );
-                     (*ndelconss)++;
-
-                     SCIPfreeBufferArray(scip, &coeffs);
-                     SCIPfreeBufferArray(scip, &vars);
-
-                     return SCIP_OKAY; /* the node is infeasible, we don't care for the other constraints */
-                  }
-
-                  SCIPdebugMsg(scip, "Changing upper bound of variable %s from %f to %f because of 1x1-SDP-constraint %s!\n",
-                     SCIPvarGetName(vars[0]), SCIPvarGetUbLocal(vars[0]), -rhs / coeffs[0], SCIPconsGetName(conss[i]));
-                  SCIP_CALL( SCIPchgVarUb(scip, vars[0], rhs / coeffs[0]) );
-               }
-               else
-               {
-                  SCIPdebugMsg(scip, "Deleting 1x1-SDP-constraint %s, new upper bound %f for variable %s no improvement over old bound %f!\n",
-                     SCIPconsGetName(conss[i]), rhs / coeffs[0], SCIPvarGetName(vars[0]), SCIPvarGetUbLocal(vars[0]));
+                  SCIPdebugMsg(scip, "Tightend lower bound of <%s> to %g because of diagonal values of SDP-constraint %s!\n",
+                     SCIPvarGetName(vars[0]), SCIPvarGetLbGlobal(vars[0]), SCIPconsGetName(conss[i]));
+                  ++(*nchgbds);
                }
             }
             else
             {
-               SCIPdebugMsg(scip, "Detected 1x1 SDP-block without any nonzero coefficients \n");
-               if ( SCIPisFeasGT(scip, rhs, 0.0) )
+               assert( SCIPisNegative(scip, coeffs[0]) );
+               SCIP_CALL( SCIPtightenVarUb(scip, vars[0], rhs / coeffs[0], FALSE, &infeasible, &tightened) );
+               if ( tightened )
                {
-                  SCIPdebugMsg(scip, "Detected infeasibility in 1x1 SDP-block without any nonzero coefficients but with strictly positive rhs\n");
-                  *result = SCIP_CUTOFF;
-
-                  /* delete old 1x1 sdpcone */
-                  SCIP_CALL( SCIPdelCons(scip, conss[i]) );
-                  (*ndelconss)++;
-
-                  SCIPfreeBufferArray(scip, &coeffs);
-                  SCIPfreeBufferArray(scip, &vars);
-
-                  return SCIP_OKAY; /* the node is infeasible, we don't care for the other constraints */
+                  SCIPdebugMsg(scip, "Tightend upper bound of <%s> to %g because of diagonal values of SDP-constraint %s!\n",
+                     SCIPvarGetName(vars[0]), SCIPvarGetUbGlobal(vars[0]), SCIPconsGetName(conss[i]));
+                  ++(*nchgbds);
                }
+            }
+
+            if ( infeasible )
+               *result = SCIP_CUTOFF;
+         }
+         else
+         {
+            assert( cnt == 0 );
+            SCIPdebugMsg(scip, "Detected 1x1 SDP-block without any nonzero coefficients \n");
+            if ( SCIPisFeasGT(scip, rhs, 0.0) )
+            {
+               SCIPdebugMsg(scip, "Detected infeasibility in 1x1 SDP-block without any nonzero coefficients but with strictly positive rhs\n");
+               *result = SCIP_CUTOFF;
             }
          }
 
