@@ -590,7 +590,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
  *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independant of some lhs/rhs being infinity (the starting point
  *  will later be adjusted accordingly)
- */
+ */ /*lint --e{715}*/
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP interface solver structure */
    SCIP_Real             penaltyparam,       /**< the Gamma above, needs to be >= 0 */
@@ -1521,7 +1521,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible\n",
                trace, penaltyparam);
          }
-         else if ( penaltybound != NULL )
+         else
             *penaltybound = FALSE;
       }
       BMSfreeBufferMemoryArray(sdpisolver->bufmem, &moseksol);
