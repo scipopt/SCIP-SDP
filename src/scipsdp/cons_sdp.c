@@ -383,14 +383,11 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    else
    {
       *result = SCIP_INFEASIBLE;
-#ifdef SCIP_DEBUG
       if ( printreason )
       {
+         SCIPinfoMessage(scip, NULL, "SDP-constraint <%s> violated: non psd matrix (eigenvalue %f, dimacs error norm = %f).\n", SCIPconsGetName(cons), eigenvalue, check_value);
          SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
-         SCIP_CALL( SCIPprintSol(scip, sol, NULL, FALSE) );
-         SCIPinfoMessage(scip, NULL, "non psd matrix (eigenvalue %f, dimacs error norm = %f).\n", eigenvalue, check_value);
       }
-#endif
    }
 
    if ( sol != NULL )
