@@ -1156,6 +1156,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    ind = 0;
    for (i = 0; i < nlpvars; i++)
    {
+      assert( vartorowmapper != NULL ); /* for lint */
       if ( vartorowmapper[i] < 0 ) /* left-hand side */
       {
          mosekind = 0;
