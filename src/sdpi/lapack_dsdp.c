@@ -226,11 +226,7 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorDecomposition(
    )
 {
    int N;
-#if ( SDPA_VERSION == 740 )
    int INFO;
-#else
-   int INFO;
-#endif
    char JOBZ;
    char RANGE;
    char UPLO;
