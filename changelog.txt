@@ -5,6 +5,8 @@ interface:
 - changed name of shell to "SCIP-SDP"
 - increase output precision of CBF-files to 15 digits
 - introduced function SCIPSDPincludeDefaultPlugins() that includes everything needed for SCIP-SDP
+- SCIPconsSdpCheckSdpCons(): removed parameters checkintegrality, checklprows
+- SCIPconsSdpComputeUbSparseSdpMatrixLength(): remove parameter scip
 
 fixed bugs:
 - fixed bug with statistics output when no SDPs were solved

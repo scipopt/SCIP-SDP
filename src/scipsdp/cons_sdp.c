@@ -343,8 +343,6 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< the constraint the solution should be checked for */
    SCIP_SOL*             sol,                /**< the solution to check feasibility for */
-   SCIP_Bool             checkintegrality,   /**< has integrality to be checked? */
-   SCIP_Bool             checklprows,        /**< have current LP rows to be checked? */
    SCIP_Bool             printreason,        /**< should the reason for the violation be printed? */
    SCIP_RESULT*          result              /**< pointer to store the result of the feasibility checking call */
    )
@@ -3158,7 +3156,6 @@ SCIP_Real SCIPconsSdpGetMaxSdpCoef(
  *  Upper bound is computed as \f$ \min \{ \sum_{v \leq m} \text{nvarnonz}(v) + \text{constnnonz}, n \cdot (n+1) / 2 \} \f$.
  */
 int SCIPconsSdpComputeUbSparseSdpMatrixLength(
-   SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons                /**< the constraint for which the Matrix should be assembled */
    )
 {  /*lint --e{715}*/
