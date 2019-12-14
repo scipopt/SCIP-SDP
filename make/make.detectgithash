@@ -21,4 +21,4 @@ SCIPSDPGITHASH	=	$(shell git describe --always --dirty  | sed 's/^.*-g//')
 
 .PHONY: githash
 githash::	# do not remove the double-colon
-		@printf "#define SCIPSDP_GITHASH \"$(SCIPSDPGITHASH)\"\ntypedef int make_iso_compilers_happy;" > $(SCIPSDPGITHASHFILE)
+		@printf "#define SCIPSDP_GITHASH \"$(SCIPSDPGITHASH)\"\ntypedef int make_iso_compilers_happy;\n" > $(SCIPSDPGITHASHFILE)
