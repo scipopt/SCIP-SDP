@@ -35,6 +35,7 @@
  * @author Sonja Mars
  * @author Lars Schewe
  * @author Tristan Gally
+ * @author Marc Pfetsch
  *
  * Constraint handler for semidefinite constraints of the form \f$ \sum_{j=1}^n A_j y_j - A_0 \succeq 0 \f$,
  * where the matrices \f$A_j\f$ and \f$A_0\f$ need to be symmetric. Only the nonzero entries of the matrices
