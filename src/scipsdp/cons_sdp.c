@@ -1075,6 +1075,137 @@ SCIP_RETCODE unlockVar(
    return SCIP_OKAY;
 }
 
+/** update locks of variable after aggregation */
+static
+SCIP_RETCODE updateVarLocks(
+   SCIP*                 scip,               /**< SCIP pointer */
+   SCIP_CONS*            cons,               /**< constraint */
+   int                   v                   /**< index of variable */
+   )
+{
+   SCIP_CONSDATA* consdata;
+   SCIP_Real eigenvalue;
+   SCIP_Real* Aj;
+   int blocksize;
+   int newlock = -2;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+   assert( consdata->locks != NULL );
+   assert( 0 <= v && v < consdata->nvars );
+
+   blocksize = consdata->blocksize;
+   SCIP_CALL( SCIPallocBufferArray(scip, &Aj, blocksize * blocksize) );
+
+   SCIP_CALL( SCIPconsSdpGetFullAj(scip, cons, v, Aj) );
+
+   /* compute new lock as in consLockSdp */
+   SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, 1, &eigenvalue, NULL) );
+   if ( SCIPisNegative(scip, eigenvalue) )
+      newlock = 1;  /* up-lock */
+
+   if ( SCIPisPositive(scip, eigenvalue) )
+      newlock = -1; /* down-lock */
+   else
+   {
+      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, blocksize, &eigenvalue, NULL) );
+      if ( SCIPisPositive(scip, eigenvalue) )
+      {
+         if ( newlock == 1 )
+            newlock = 0; /* up- and down-lock */
+         else
+            newlock = -1; /* down-lock */
+      }
+   }
+
+   SCIPfreeBufferArray(scip, &Aj);
+
+   /* if new lock is not equal to the old one, unlock variable and add new locks */
+   if ( newlock != consdata->locks[v] )
+   {
+      SCIP_CALL( unlockVar(scip, consdata, v) );
+      if ( newlock == 1 )  /* up-lock */
+      {
+         SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], SCIP_LOCKTYPE_MODEL, 0, 1) );
+      }
+      else if ( newlock == -1 )  /* down-lock */
+      {
+         SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], SCIP_LOCKTYPE_MODEL, 1, 0) );
+      }
+      else if ( newlock == 0 )  /* up and down lock */
+      {
+         SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], SCIP_LOCKTYPE_MODEL, 1, 1) );
+      }
+      else
+         assert( newlock == -2 );
+
+      consdata->locks[v] = newlock;
+   }
+
+   return SCIP_OKAY;
+}
+
+#ifndef NDEBUG
+/** check whether variable locks are correctly set */
+static
+SCIP_RETCODE checkVarsLocks(
+   SCIP*                 scip,               /**< SCIP pointer */
+   SCIP_CONS*            cons                /**< constraint */
+   )
+{
+   SCIP_CONSDATA* consdata;
+   SCIP_Real* Aj;
+   int blocksize;
+   int v;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+   assert( consdata->locks != NULL );
+
+   blocksize = consdata->blocksize;
+   SCIP_CALL( SCIPallocBufferArray(scip, &Aj, blocksize * blocksize) );
+
+   for (v = 0; v < consdata->nvars; ++v)
+   {
+      SCIP_Real eigenvalue;
+      int newlock = -2;
+
+      SCIP_CALL( SCIPconsSdpGetFullAj(scip, cons, v, Aj) );
+
+      /* compute new lock as in consLockSdp */
+      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, 1, &eigenvalue, NULL) );
+      if ( SCIPisNegative(scip, eigenvalue) )
+         newlock = 1;  /* up-lock */
+
+      if ( SCIPisPositive(scip, eigenvalue) )
+         newlock = -1; /* down-lock */
+      else
+      {
+         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, blocksize, &eigenvalue, NULL) );
+         if ( SCIPisPositive(scip, eigenvalue) )
+         {
+            if ( newlock == 1 )
+               newlock = 0; /* up- and down-lock */
+            else
+               newlock = -1; /* down-lock */
+         }
+      }
+
+      assert( newlock == consdata->locks[v] );
+   }
+
+   SCIPfreeBufferArray(scip, &Aj);
+
+   return SCIP_OKAY;
+}
+#endif
+
 /** local function to perform (parts of) multiaggregation of a single variable within fixAndAggrVars */
 static
 SCIP_RETCODE multiaggrVar(
@@ -1212,6 +1343,8 @@ SCIP_RETCODE multiaggrVar(
          SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->row[aggrconsind]), aggrtargetlength, consdata->nvarnonz[aggrconsind]) );
          SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->col[aggrconsind]), aggrtargetlength, consdata->nvarnonz[aggrconsind]) );
          SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->val[aggrconsind]), aggrtargetlength, consdata->nvarnonz[aggrconsind]) );
+
+         SCIP_CALL( updateVarLocks(scip, cons, aggrconsind) );
       }
       else
       {
@@ -1268,8 +1401,11 @@ SCIP_RETCODE multiaggrVar(
             }
          }
 
+         consdata->locks[consdata->nvars] = -2;
          if ( consdata->nvarnonz[consdata->nvars] > 0 ) /* if scalar and all savedvals were to small */
             consdata->nvars++;
+
+         SCIP_CALL( updateVarLocks(scip, cons, consdata->nvars-1) );
       }
    }
 
@@ -1277,6 +1413,10 @@ SCIP_RETCODE multiaggrVar(
     * it started, so that these entries will be overwritten */
    if ( SCIPisEQ(scip, constant, 0.0) )
       *nfixednonz = startind;
+
+#ifndef NDEBUG
+   SCIP_CALL( checkVarsLocks(scip, cons) );
+#endif
 
    return SCIP_OKAY;
 }
@@ -1711,6 +1851,9 @@ SCIP_DECL_CONSLOCK(consLockSdp)
    }
    else
    {
+#ifndef NDEBUG
+      SCIP_CALL( checkVarsLocks(scip, cons) );
+#endif
       for (v = 0; v < nvars; v++)
       {
          if ( consdata->locks[v] == 1 )  /* up-lock */
