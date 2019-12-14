@@ -33,6 +33,7 @@
 #@file    Makefile
 #@brief   Makefile for unit tests
 #@author  Felipe Serrano
+#@author  Marc Pfetsch
 #
 # Copied from SCIP and then modified.
 
@@ -91,15 +92,11 @@ override VERSION	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* VERSION=\([^@]*\
 override ZIMPL		:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* ZIMPL=\([^@]*\).*/\1/')
 override ZIMPLOPT	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* ZIMPLOPT=\([^@]*\).*/\1/')
 override ZLIB		:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* ZLIB=\([^@]*\).*/\1/')
-ifeq ($(SHARED), false)
-$(error Please compile SCIPSDP with SHARED=true)
-endif
 ifneq ($(OPT), dbg)
 $(error Please compile SCIPSDP with OPT=dbg)
 endif
 else
 override OPT	=	dbg
-override SHARED	=	true
 endif
 
 #-----------------------------------------------------------------------------
