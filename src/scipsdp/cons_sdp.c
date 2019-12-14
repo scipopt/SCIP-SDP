@@ -1078,15 +1078,15 @@ SCIP_RETCODE unlockVar(
 
       if ( consdata->locks[v] == 1 )
       {
-         SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], 0, -1) );
+         SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], SCIP_LOCKTYPE_MODEL, 0, -1) );
       }
       else if ( consdata->locks[v] == - 1 )
       {
-         SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], -1, 0) );
+         SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], SCIP_LOCKTYPE_MODEL, -1, 0) );
       }
       else if ( consdata->locks[v] == 0 )
       {
-         SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], -1, -1) );
+         SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], SCIP_LOCKTYPE_MODEL, -1, -1) );
       }
    }
 
@@ -1692,7 +1692,7 @@ SCIP_DECL_CONSLOCK(consLockSdp)
          {
             /* as the lowest eigenvalue is negative, the matrix is not positive semidefinite, so adding more of it can remove positive
              * semidefiniteness of the SDP-matrix */
-            SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], nlocksneg, nlockspos) );
+            SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], locktype, nlocksneg, nlockspos) );
             consdata->locks[v] = 1; /* up-lock */
          }
 
@@ -1701,7 +1701,7 @@ SCIP_DECL_CONSLOCK(consLockSdp)
          {
             /* as an eigenvalue is positive, the matrix is not negative semidefinite, so substracting more of it can remove positive
              * semidefiniteness of the SDP-matrix */
-            SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], nlockspos, nlocksneg) );
+            SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], locktype, nlockspos, nlocksneg) );
             consdata->locks[v] = -1; /* down-lock */
          }
          else
@@ -1712,7 +1712,7 @@ SCIP_DECL_CONSLOCK(consLockSdp)
             {
                /* as the biggest eigenvalue is positive, the matrix is not negative semidefinite, so substracting more of it can remove positive
                 * semidefiniteness of the SDP-matrix */
-               SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], nlockspos, nlocksneg) );
+               SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], locktype, nlockspos, nlocksneg) );
                if ( consdata->locks[v] == 1 )
                {
                   consdata->locks[v] = 0;  /* up- and down-lock */
@@ -1731,15 +1731,15 @@ SCIP_DECL_CONSLOCK(consLockSdp)
       {
          if ( consdata->locks[v] == 1 )  /* up-lock */
          {
-            SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], nlocksneg, nlockspos) );
+            SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], locktype, nlocksneg, nlockspos) );
          }
          else if ( consdata->locks[v] == -1 )  /* down-lock */
          {
-            SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], nlockspos, nlocksneg) );
+            SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], locktype, nlockspos, nlocksneg) );
          }
          else if ( consdata->locks[v] == 0 )  /* up and down lock */
          {
-            SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], nlockspos + nlocksneg, nlockspos + nlocksneg) );
+            SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], locktype, nlockspos + nlocksneg, nlockspos + nlocksneg) );
          }
          else
             assert( consdata->locks[v] == -2 );
