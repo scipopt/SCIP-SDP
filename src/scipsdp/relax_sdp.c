@@ -1038,7 +1038,7 @@ SCIP_RETCODE calcRelax(
                }
                else
                {
-                  startZnblocknonz[b] = SCIPconsSdpComputeUbSparseSdpMatrixLength(scip, sdpblocks[b]);
+                  startZnblocknonz[b] = SCIPconsSdpComputeUbSparseSdpMatrixLength(sdpblocks[b]);
 
                   /* since we take a convex combination with either the identity matrix or the analytic center, we have to allocate memory for that as well */
                   if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
@@ -5086,7 +5086,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
             sdpblocks = SCIPconshdlrGetConss(sdpconshdlr);
             for (b = 0; b < relaxdata->nblocks - 1; b++)
             {
-               relaxdata->ipZnblocknonz[b] = SCIPconsSdpComputeUbSparseSdpMatrixLength(scip, sdpblocks[b]);
+               relaxdata->ipZnblocknonz[b] = SCIPconsSdpComputeUbSparseSdpMatrixLength(sdpblocks[b]);
                arraylength = relaxdata->ipZnblocknonz[b];
 
                SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZrow[b], relaxdata->ipZnblocknonz[b]) );
