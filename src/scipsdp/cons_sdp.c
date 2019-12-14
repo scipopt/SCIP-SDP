@@ -1080,7 +1080,7 @@ static
 SCIP_RETCODE multiaggrVar(
    SCIP*                 scip,               /**< SCIP pointer */
    SCIP_CONS*            cons,               /**< constraint to multiaggregate for */
-   int*                  v,                  /**< position of the variable that gets (multi-)aggregated */
+   int                   v,                  /**< position of the variable that gets (multi-)aggregated */
    SCIP_VAR**            aggrvars,           /**< variables this has to be (multi-)aggregated to */
    SCIP_Real*            scalars,            /**< scalar parts to multiply with for each variable this is aggregated to */
    int                   naggrvars,          /**< number of variables this is (multi-)aggregated to */
@@ -1092,13 +1092,13 @@ SCIP_RETCODE multiaggrVar(
    int*                  vararraylength      /**< length of the variable array */
    )
 {
-   int i;
    SCIP_CONSDATA* consdata;
    int startind;
    int aggrind;
    int aggrtargetlength;
    int globalnvars;
    int aggrconsind;
+   int i;
 
    assert( scip != NULL );
    assert( cons != NULL );
@@ -1112,6 +1112,7 @@ SCIP_RETCODE multiaggrVar(
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
    assert( consdata->locks != NULL );
+   assert( 0 <= v && v < consdata->nvars );
 
    /* save the current nfixednonz-index, all entries starting from here will need to be added to the variables this is aggregated to */
    startind = *nfixednonz;
@@ -1122,25 +1123,25 @@ SCIP_RETCODE multiaggrVar(
        * the nonzero-arrays for this variable to be able to fill it with a newly inserted variable, as copying all variables, if we created an empty
        * gap in the variable arrays, will be more time consuming then copying all variables (as we will usually have more variables than nonzeros per
        * variable */
-      for (i = 0; i < consdata->nvarnonz[*v]; i++)
+      for (i = 0; i < consdata->nvarnonz[v]; i++)
       {
-         savedcol[*nfixednonz] = consdata->col[*v][i];
-         savedrow[*nfixednonz] = consdata->row[*v][i];
-         savedval[*nfixednonz] = consdata->val[*v][i];
+         savedcol[*nfixednonz] = consdata->col[v][i];
+         savedrow[*nfixednonz] = consdata->row[v][i];
+         savedval[*nfixednonz] = consdata->val[v][i];
          (*nfixednonz)++;
       }
    }
    else
    {
-      for (i = 0; i < consdata->nvarnonz[*v]; i++)
+      for (i = 0; i < consdata->nvarnonz[v]; i++)
       {
-         savedcol[*nfixednonz] = consdata->col[*v][i];
-         savedrow[*nfixednonz] = consdata->row[*v][i];
-         savedval[*nfixednonz] = consdata->val[*v][i] * constant;
+         savedcol[*nfixednonz] = consdata->col[v][i];
+         savedrow[*nfixednonz] = consdata->row[v][i];
+         savedval[*nfixednonz] = consdata->val[v][i] * constant;
          (*nfixednonz)++;
       }
    }
-   assert( *nfixednonz - startind == consdata->nvarnonz[*v] );
+   assert( *nfixednonz - startind == consdata->nvarnonz[v] );
 
    /* sort them by nondecreasing row and then col to make the search for already existing entries easier (this is done here, because it
     * only needs to be done once and not for each variable this is multiaggregated to), we add startind to the pointers to only start where we started
@@ -1148,23 +1149,22 @@ SCIP_RETCODE multiaggrVar(
    SCIPsdpVarfixerSortRowCol(savedrow + startind, savedcol + startind, savedval + startind, *nfixednonz - startind);
 
    /* free the memory for the entries of the aggregated variable */
-   SCIPfreeBlockMemoryArray(scip, &(consdata->val[*v]), consdata->nvarnonz[*v]);
-   SCIPfreeBlockMemoryArray(scip, &(consdata->row[*v]), consdata->nvarnonz[*v]);
-   SCIPfreeBlockMemoryArray(scip, &(consdata->col[*v]), consdata->nvarnonz[*v]);
+   SCIPfreeBlockMemoryArray(scip, &(consdata->val[v]), consdata->nvarnonz[v]);
+   SCIPfreeBlockMemoryArray(scip, &(consdata->row[v]), consdata->nvarnonz[v]);
+   SCIPfreeBlockMemoryArray(scip, &(consdata->col[v]), consdata->nvarnonz[v]);
 
    /* unlock variable */
-   SCIP_CALL( unlockVar(scip, consdata, *v) );
+   SCIP_CALL( unlockVar(scip, consdata, v) );
 
    /* fill the empty spot of the (multi-)aggregated variable with the last variable of this constraint (as they don't have to be sorted) */
-   SCIP_CALL( SCIPreleaseVar(scip, &consdata->vars[*v]) );
-   consdata->col[*v] = consdata->col[consdata->nvars - 1];
-   consdata->row[*v] = consdata->row[consdata->nvars - 1];
-   consdata->val[*v] = consdata->val[consdata->nvars - 1];
-   consdata->nvarnonz[*v] = consdata->nvarnonz[consdata->nvars - 1];
-   consdata->vars[*v] = consdata->vars[consdata->nvars - 1];
-   consdata->locks[*v] = consdata->locks[consdata->nvars - 1];
+   SCIP_CALL( SCIPreleaseVar(scip, &consdata->vars[v]) );
+   consdata->col[v] = consdata->col[consdata->nvars - 1];
+   consdata->row[v] = consdata->row[consdata->nvars - 1];
+   consdata->val[v] = consdata->val[consdata->nvars - 1];
+   consdata->nvarnonz[v] = consdata->nvarnonz[consdata->nvars - 1];
+   consdata->vars[v] = consdata->vars[consdata->nvars - 1];
+   consdata->locks[v] = consdata->locks[consdata->nvars - 1];
    (consdata->nvars)--;
-   (*v)--; /* we need to check again if the variable we just shifted to this position also needs to be (multi-)aggregated */
 
    /* iterate over all variables this was aggregated to and insert the corresponding nonzeros */
    for (aggrind = 0; aggrind < naggrvars; aggrind++)
@@ -1438,13 +1438,14 @@ SCIP_RETCODE fixAndAggrVars(
             else
                SCIPdebugMsg(scip, "multiaggregating variable %s to ", SCIPvarGetName(var));
             for (i = 0; i < naggrvars; i++)
-               SCIPdebugMsg(scip, "+ (%f2) * %s ", scalars[i], SCIPvarGetName(aggrvars[i]));
-            SCIPdebugMsg(scip, "+ (%f2) \n", constant);
+               SCIPdebugMessagePrint(scip, "+ %g %s ", scalars[i], SCIPvarGetName(aggrvars[i]));
+            SCIPdebugMessagePrint(scip, "+ %g.\n", constant);
 #endif
 
             /* add the nonzeros to the saved-arrays for the constant part, remove the nonzeros for the old variables and add them to the variables this variable
              * was (multi-)aggregated to */
-            SCIP_CALL( multiaggrVar(scip, conss[c], &v, aggrvars, scalars, naggrvars, constant, savedcol, savedrow, savedval, &nfixednonz, &vararraylength) );
+            SCIP_CALL( multiaggrVar(scip, conss[c], v, aggrvars, scalars, naggrvars, constant, savedcol, savedrow, savedval, &nfixednonz, &vararraylength) );
+            v--; /* we need to check again if the variable we just shifted to this position also needs to be fixed */
 
             SCIPfreeBufferArray(scip, &aggrvars);
             SCIPfreeBufferArray(scip, &scalars);
@@ -1457,7 +1458,8 @@ SCIP_RETCODE fixAndAggrVars(
 
             scalar = -1.0;
 
-            SCIP_CALL( multiaggrVar(scip, conss[c], &v, &var, &scalar, 1, 1.0, savedcol, savedrow, savedval, &nfixednonz, &vararraylength) );
+            SCIP_CALL( multiaggrVar(scip, conss[c], v, &var, &scalar, 1, 1.0, savedcol, savedrow, savedval, &nfixednonz, &vararraylength) );
+            v--; /* we need to check again if the variable we just shifted to this position also needs to be fixed */
          }
       }
 
