@@ -366,6 +366,7 @@ SCIP_RETCODE CBFreadPsdvar(
          /* for each psd variable of size n_i create 1/2*n_i*(n_i+1) scalar variables */
          nscalarvars = sizepsdvar * (sizepsdvar + 1) / 2;
          data->psdvarsizes[t] = sizepsdvar;
+
          /* initialize rank-1 information for each psd variable with FALSE, will eventually be changed when reading PSDVARRANK1 */
          data->psdvarrank1[t] = FALSE;
 
