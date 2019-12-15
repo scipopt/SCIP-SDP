@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   rank1.cpp
+/**@file   rank1.c
  * @brief  unit test for checking reading of rank1-information in CBF-files
  * @author Marc Pfetsch
  * @author Frederic Matter
