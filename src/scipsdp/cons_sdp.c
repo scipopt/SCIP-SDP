@@ -1949,14 +1949,14 @@ SCIP_RETCODE enforceRankOne(
                *result = SCIP_SEPARATED;
 
             SCIPdebug( SCIP_CALL( SCIPprintRow(scip, cut, NULL) ) );
-            SCIPdebugMessage("Succesfully added valid cut based on first valid inequality.\n");
+            SCIPdebugMsg(scip, "Succesfully added valid cut based on first valid inequality.\n");
             SCIP_CALL( SCIPreleaseRow(scip, &cut) );
 
             SCIP_CALL( SCIPresetConsAge(scip, cons) );
          }
          else
          {
-            SCIPdebugMessage("Cut based on first inequality is not efficacious.\n");
+            SCIPdebugMsg(scip, "Cut based on first inequality is not efficacious.\n");
             SCIP_CALL( SCIPreleaseRow(scip, &cut) );
          }
       }
@@ -2005,14 +2005,14 @@ SCIP_RETCODE enforceRankOne(
                *result = SCIP_SEPARATED;
 
             SCIPdebug( SCIP_CALL( SCIPprintRow(scip, cut, NULL) ) );
-            SCIPdebugMessage("Succesfully added valid cut based on second valid inequality.\n");
+            SCIPdebugMsg(scip, "Succesfully added valid cut based on second valid inequality.\n");
             SCIP_CALL( SCIPreleaseRow(scip, &cut) );
 
             SCIP_CALL( SCIPresetConsAge(scip, cons) );
          }
          else
          {
-            SCIPdebugMessage("Cut based on second inequality is not efficacious.\n");
+            SCIPdebugMsg(scip, "Cut based on second inequality is not efficacious.\n");
             SCIP_CALL( SCIPreleaseRow(scip, &cut) );
          }
       }
