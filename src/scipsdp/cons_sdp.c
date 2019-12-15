@@ -1252,6 +1252,13 @@ SCIP_RETCODE updateVarLocks(
    assert( consdata->locks != NULL );
    assert( 0 <= v && v < consdata->nvars );
 
+   /* rank-1 constraints are always up- and down-locked */
+   if ( consdata->rankone )
+   {
+      consdata->locks[v] = 0;
+      SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], SCIP_LOCKTYPE_MODEL, 1, 1) );
+   }
+
    blocksize = consdata->blocksize;
    SCIP_CALL( SCIPallocBufferArray(scip, &Aj, blocksize * blocksize) );
 
@@ -1322,6 +1329,13 @@ SCIP_RETCODE checkVarsLocks(
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
    assert( consdata->locks != NULL );
+
+   /* rank-1 constraints should always be up- and down-locked */
+   if ( consdata->rankone )
+   {
+      for (v = 0; v < consdata->nvars; ++v)
+         assert( consdata->locks[v] == 0 );
+   }
 
    blocksize = consdata->blocksize;
    SCIP_CALL( SCIPallocBufferArray(scip, &Aj, blocksize * blocksize) );
@@ -2229,6 +2243,20 @@ SCIP_DECL_CONSLOCK(consLockSdp)
 
    SCIPdebugMsg(scip, "locking method of <%s>.\n", SCIPconsGetName(cons));
 
+   /* rank-1 constraints are always up- and down-locked */
+   if ( consdata->rankone )
+   {
+      if ( consdata->locks == NULL )
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->locks, nvars) );
+
+      for (v = 0; v < consdata->nvars; ++v)
+      {
+         consdata->locks[v] = 0;
+         SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], locktype, nlockspos + nlocksneg, nlockspos + nlocksneg) );
+      }
+      return SCIP_OKAY;
+   }
+
    /* if locks have not yet been computed */
    if ( consdata->locks == NULL )
    {
@@ -3121,12 +3149,12 @@ SCIP_DECL_CONSPARSE(consParseSdp)
    consdata->constnnonz = 0;
    consdata->rankone = 0;
    consdata->addedquadcons = FALSE;
+   consdata->locks = NULL;
 
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->nvarnonz, nvars) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->col, nvars) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->row, nvars) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->val, nvars) );
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->locks, nvars));
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->vars, nvars));
 
    consdata->constcol = NULL;
@@ -3138,7 +3166,7 @@ SCIP_DECL_CONSPARSE(consParseSdp)
    *success = *success && parsesuccess;
 
    /* skip whitespace */
-   while( isspace((unsigned char)*pos) )
+   while ( isspace((unsigned char)*pos) )
       pos++;
 
    /* parse the rank1-information */
@@ -3228,9 +3256,6 @@ SCIP_DECL_CONSPARSE(consParseSdp)
       SCIP_CALL( SCIPparseVarName(scip, pos, &(consdata->vars[consdata->nvars]), &pos) );
       SCIP_CALL( SCIPcaptureVar(scip, consdata->vars[consdata->nvars]) );
 
-      /* initialize locks to -2 */
-      consdata->locks[consdata->nvars] = -2;
-
       consdata->nvarnonz[consdata->nvars] = 0;
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(consdata->col[consdata->nvars]), PARSE_STARTSIZE));
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(consdata->row[consdata->nvars]), PARSE_STARTSIZE));
@@ -3289,7 +3314,7 @@ SCIP_DECL_CONSPARSE(consParseSdp)
       SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->val[consdata->nvars - 1], currentsize, consdata->nvarnonz[consdata->nvars - 1]) );
 
       /* skip whitespace */
-      while( isspace((unsigned char)*pos) )
+      while ( isspace((unsigned char)*pos) )
          pos++;
    }
 
@@ -3298,7 +3323,6 @@ SCIP_DECL_CONSPARSE(consParseSdp)
    SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->col, nvars, consdata->nvars) );
    SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->row, nvars, consdata->nvars) );
    SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->val, nvars, consdata->nvars) );
-   SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->locks, nvars, consdata->nvars) );
    SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->vars, nvars, consdata->nvars));
 
    /* compute sdpnnonz */
@@ -4066,7 +4090,6 @@ SCIP_RETCODE SCIPcreateConsSdp(
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->constcol, constnnonz) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->constrow, constnnonz) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->constval, constnnonz) );
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->locks, nvars));
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->vars, nvars) );
 
    for (i = 0; i < nvars; i++)
@@ -4082,6 +4105,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
    consdata->nnonz = nnonz;
    consdata->constnnonz = constnnonz;
    consdata->blocksize = blocksize;
+   consdata->locks = NULL;
 
    for (i = 0; i < nvars; i++)
    {
@@ -4109,12 +4133,10 @@ SCIP_RETCODE SCIPcreateConsSdp(
 
    for (i = 0; i < nvars; i++)
    {
-      /* initialize locks to -2 */
-      consdata->locks[i] = -2;
       consdata->vars[i] = vars[i];
       SCIP_CALL( SCIPcaptureVar(scip, consdata->vars[i]) );
    }
-   SCIPdebugMsg(scip, "creating cons %s\n", name);
+   SCIPdebugMsg(scip, "creating cons %s %s\n", name, rankone ? "(rank 1)" : "");
 
    /* rank 1 ? */
    consdata->rankone = rankone;
