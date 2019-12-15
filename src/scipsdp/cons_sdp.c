@@ -242,7 +242,7 @@ SCIP_RETCODE isMatrixRankOne(
 
    resultSDPtest = SCIP_INFEASIBLE;
 
-   SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, cons, sol, 0, 0, 0, &resultSDPtest) );
+   SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, cons, sol, FALSE, &resultSDPtest) );
 
    if ( resultSDPtest == SCIP_INFEASIBLE )
    {
@@ -2749,7 +2749,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
    assert( conss != NULL );
    assert( result != NULL );
 
-   return EnforceConstraint(scip, conshdlr, conss, nconss, NULL, result);
+   return enforceConstraint(scip, conshdlr, conss, nconss, NULL, result);
 }
 
 /** Enforce relaxation solution; if some block is not psd, an eigenvector cut is added.
@@ -2762,7 +2762,7 @@ SCIP_DECL_CONSENFORELAX(consEnforelaxSdp)
    assert( conss != NULL );
    assert( result != NULL );
 
-   return EnforceConstraint(scip, conshdlr, conss, nconss, sol, result);
+   return enforceConstraint(scip, conshdlr, conss, nconss, sol, result);
 }
 
 /** separates a solution using constraint specific ideas, gives cuts to SCIP */
