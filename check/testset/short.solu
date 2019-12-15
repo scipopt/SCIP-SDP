@@ -8,3 +8,4 @@
 =opt= example_cbf_primal 0.75
 =opt= example_cbf_mix 4.0
 =opt= example_cbf_dual 4.0
+=opt= example_multaggr -1.0

@@ -5,6 +5,8 @@ interface:
 - changed name of shell to "SCIP-SDP"
 - increase output precision of CBF-files to 15 digits
 - introduced function SCIPSDPincludeDefaultPlugins() that includes everything needed for SCIP-SDP
+- SCIPconsSdpCheckSdpCons(): removed parameters checkintegrality, checklprows
+- SCIPconsSdpComputeUbSparseSdpMatrixLength(): remove parameter scip
 
 fixed bugs:
 - fixed bug with statistics output when no SDPs were solved
@@ -16,12 +18,18 @@ features:
 - add error messages to SDPA-format reader
 - fix parsing of integer variables in SDPA-format
 - add support for CBF-files in primal and mixed primal-dual form
+- the variable locks are now updated in presolving
+- presolving techniques directly update bounds instead of adding constraints if possible
+- unlocking variables is now faster (do not need to recompute eigenvalues in this case)
+- adapted several code parts to newer SCIP versions and using new features
 
 makefile:
 - add project makefile in make/make.scipsdpproj
 - reorganize main makefile to use make.scipsdpproj
 - fix some minor issues in makefile concerning building with shared libraries
 - use lint files from SCIP
+
+
 
 SCIP-SDP version 3.1.2
 ======================

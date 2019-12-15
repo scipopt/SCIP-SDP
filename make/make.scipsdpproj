@@ -51,6 +51,7 @@ ifeq ("$(wildcard $(SCIPSDPDIR))","")
 $(error Please set the makefile variable SCIPSDPDIR)
 endif
 
+SCIPSDPREALPATH	=	$(realpath $(SCIPSDPDIR))
 SCIPSDPLIBDIR	=	$(SCIPSDPDIR)/lib
 
 #-----------------------------------------------------------------------------
@@ -141,7 +142,6 @@ LDFLAGS 	+= -lubsan
 ifneq ($(LINKRPATH),)
 ifneq ($(SCIPSDPINTERNAL),true)
 # If this makefile is used to build an external project, we use SCIPREALPATH.
-SCIPSDPREALPATH	=	$(realpath $(SCIPSDPDIR))
 LDFLAGS		+=	$(LINKRPATH)$(SCIPSDPREALPATH)/$(LIBDIR)/shared
 else
 # If this makefile is used to build SCIP, we use the variable ORIGIN,

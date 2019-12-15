@@ -7,3 +7,4 @@
 ../instances/example_cbf_primal.cbf
 ../instances/example_cbf_mix.cbf
 ../instances/example_cbf_dual.cbf
+../instances/example_multaggr.cbf

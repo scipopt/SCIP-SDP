@@ -319,107 +319,107 @@ namespace scip
       // read data
       while ( ! file.eof() )
       {
-      	if ( file.peek() == '*' ) // comment
-      	{
-           (void) std::getline(file, commentline);
-           if ( commentline.find("*INT") == 0 ) // if current line starts with *INT then go to Integer definitions
-           {
-              drop_space(file); // drop \newline
-              break;
-           }
-           else // usual comment line
-           {
-              drop_space(file);
-           }
-      	}
-      	else
-      	{
-           int var_index, block_index; // block id
-           int row_index, col_index; // position in matrix
-           SCIP_Real val;
+         if ( file.peek() == '*' ) // comment
+         {
+            (void) std::getline(file, commentline);
+            if ( commentline.find("*INT") == 0 ) // if current line starts with *INT then go to Integer definitions
+            {
+               drop_space(file); // drop \newline
+               break;
+            }
+            else // usual comment line
+            {
+               drop_space(file);
+            }
+         }
+         else
+         {
+            int var_index, block_index; // block id
+            int row_index, col_index; // position in matrix
+            SCIP_Real val;
 
-           drop_space(file);
+            drop_space(file);
 
-           SCIP_CALL( testDigit(&file) );
-           file >> var_index;
-           SCIP_CALL( checkIndex("variable", var_index, 0, numvars) );
-           SCIP_CALL( dropSpaceNewlineError(file) );
+            SCIP_CALL( testDigit(&file) );
+            file >> var_index;
+            SCIP_CALL( checkIndex("variable", var_index, 0, numvars) );
+            SCIP_CALL( dropSpaceNewlineError(file) );
 
-           SCIP_CALL( testDigit(&file) );
-           file >> block_index;
-           SCIP_CALL( checkIndex("block", block_index, 1, numblocks) );
-           SCIP_CALL( dropSpaceNewlineError(file) );
+            SCIP_CALL( testDigit(&file) );
+            file >> block_index;
+            SCIP_CALL( checkIndex("block", block_index, 1, numblocks) );
+            SCIP_CALL( dropSpaceNewlineError(file) );
 
-           SCIP_CALL( testDigit(&file) );
-           file >> row_index;
-           SCIP_CALL( checkIndex("row", row_index, 1, (blockislp[block_index - 1] ? LPData.numrows : blockstruct[block_index - 1].blocksize)) );/*lint !e732*//*lint !e747*/
-           SCIP_CALL( dropSpaceNewlineError(file) );
+            SCIP_CALL( testDigit(&file) );
+            file >> row_index;
+            SCIP_CALL( checkIndex("row", row_index, 1, (blockislp[block_index - 1] ? LPData.numrows : blockstruct[block_index - 1].blocksize)) );/*lint !e732*//*lint !e747*/
+            SCIP_CALL( dropSpaceNewlineError(file) );
 
-           SCIP_CALL( testDigit(&file) );
-           file >> col_index;
-           SCIP_CALL( checkIndex("column", col_index, 1, (blockislp[block_index - 1] ? LPData.numrows : blockstruct[block_index - 1].blocksize)) );/*lint !e732*//*lint !e747*/
-           SCIP_CALL( dropSpaceNewlineError(file) );
+            SCIP_CALL( testDigit(&file) );
+            file >> col_index;
+            SCIP_CALL( checkIndex("column", col_index, 1, (blockislp[block_index - 1] ? LPData.numrows : blockstruct[block_index - 1].blocksize)) );/*lint !e732*//*lint !e747*/
+            SCIP_CALL( dropSpaceNewlineError(file) );
 
-           SCIP_CALL( testDigit(&file) );
-           file >> val;
-           SCIP_CALL( checkForLineEnd(file) );
+            SCIP_CALL( testDigit(&file) );
+            file >> val;
+            SCIP_CALL( checkForLineEnd(file) );
 
-           if ( SCIPisEQ(scip, val, 0.0) )
-           {
-              drop_rest_line(file);
-              drop_space(file);
-              continue;
-           }
+            if ( SCIPisEQ(scip, val, 0.0) )
+            {
+               drop_rest_line(file);
+               drop_space(file);
+               continue;
+            }
 
-           // sdp-block
-           if ( ! blockislp[block_index - 1] )/*lint !e732*//*lint !e747*/
-           {
-              if ( row_index < col_index )
-              {
-                 int save_row = row_index;
-                 row_index = col_index;
-                 col_index = save_row;
-              }
+            // sdp-block
+            if ( ! blockislp[block_index - 1] )/*lint !e732*//*lint !e747*/
+            {
+               if ( row_index < col_index )
+               {
+                  int save_row = row_index;
+                  row_index = col_index;
+                  col_index = save_row;
+               }
 
-              if ( var_index == 0 )
-              {
-                 blockstruct[block_index - 1].constcolumns.push_back(col_index);/*lint !e732*//*lint !e747*/
-                 blockstruct[block_index - 1].constrows.push_back(row_index);/*lint !e732*//*lint !e747*/
-                 blockstruct[block_index - 1].constvalues.push_back(val);/*lint !e732*//*lint !e747*/
-                 blockstruct[block_index - 1].constnum_nonzeros++;/*lint !e732*//*lint !e747*/
-              }
-              else
-              {
-                 blockstruct[block_index - 1].columns.push_back(col_index);/*lint !e732*//*lint !e747*/
-                 blockstruct[block_index - 1].rows.push_back(row_index);/*lint !e732*//*lint !e747*/
-                 blockstruct[block_index - 1].values.push_back(val);/*lint !e732*//*lint !e747*/
-                 blockstruct[block_index - 1].variables.push_back(var_index);/*lint !e732*//*lint !e747*/
-                 blockstruct[block_index - 1].num_nonzeros++;/*lint !e732*//*lint !e747*/
-              }
-              SCIPdebugMsg(scip, "SDP entry: block_index: %d, row: %d, col: %d, var: %d, val: %g\n", block_index, row_index, col_index, var_index,val );/*lint !e525*/
-           }
-           // lp-block
-           else if ( blockislp[block_index - 1] )/*lint !e732*//*lint !e747*/
-           {
-              assert( row_index == col_index );
-              if ( lp_block_num[block_index - 1] == 1 )   /*lint !e732*//*lint !e747*/
-                 new_row_index = row_index - 1;
-              else // we combine all lp blocks to a single one, so we add the total number of rows of earlier blocks to the row index
-              {
-                 int rowoffset = 0;
+               if ( var_index == 0 )
+               {
+                  blockstruct[block_index - 1].constcolumns.push_back(col_index);/*lint !e732*//*lint !e747*/
+                  blockstruct[block_index - 1].constrows.push_back(row_index);/*lint !e732*//*lint !e747*/
+                  blockstruct[block_index - 1].constvalues.push_back(val);/*lint !e732*//*lint !e747*/
+                  blockstruct[block_index - 1].constnum_nonzeros++;/*lint !e732*//*lint !e747*/
+               }
+               else
+               {
+                  blockstruct[block_index - 1].columns.push_back(col_index);/*lint !e732*//*lint !e747*/
+                  blockstruct[block_index - 1].rows.push_back(row_index);/*lint !e732*//*lint !e747*/
+                  blockstruct[block_index - 1].values.push_back(val);/*lint !e732*//*lint !e747*/
+                  blockstruct[block_index - 1].variables.push_back(var_index);/*lint !e732*//*lint !e747*/
+                  blockstruct[block_index - 1].num_nonzeros++;/*lint !e732*//*lint !e747*/
+               }
+               SCIPdebugMsg(scip, "SDP entry: block_index: %d, row: %d, col: %d, var: %d, val: %g\n", block_index, row_index, col_index, var_index,val );/*lint !e525*/
+            }
+            // lp-block
+            else if ( blockislp[block_index - 1] )/*lint !e732*//*lint !e747*/
+            {
+               assert( row_index == col_index );
+               if ( lp_block_num[block_index - 1] == 1 )   /*lint !e732*//*lint !e747*/
+                  new_row_index = row_index - 1;
+               else // we combine all lp blocks to a single one, so we add the total number of rows of earlier blocks to the row index
+               {
+                  int rowoffset = 0;
 
-                 for (int b = 0; b < lp_block_num[block_index - 1] - 1; b++)  /*lint !e732*//*lint !e747*/
-                    rowoffset += lp_block_size[b];  /*lint !e732*//*lint !e747*/
+                  for (int b = 0; b < lp_block_num[block_index - 1] - 1; b++)  /*lint !e732*//*lint !e747*/
+                     rowoffset += lp_block_size[b];  /*lint !e732*//*lint !e747*/
 
-                 new_row_index = rowoffset + row_index - 1;
-              }
-              LPData.rows[new_row_index].data.push_back(std::make_pair(var_index, val));/*lint !e732*//*lint !e747*/
-              SCIPdebugMsg(scip, "LP entry: row: %d, var: %d, val: %g\n", new_row_index, var_index,val );
-           }
+                  new_row_index = rowoffset + row_index - 1;
+               }
+               LPData.rows[new_row_index].data.push_back(std::make_pair(var_index, val));/*lint !e732*//*lint !e747*/
+               SCIPdebugMsg(scip, "LP entry: row: %d, var: %d, val: %g\n", new_row_index, var_index,val );
+            }
 
-           drop_rest_line(file);
-           drop_space(file);
-      	}
+            drop_rest_line(file);
+            drop_space(file);
+         }
       }
 
       // read integer variables

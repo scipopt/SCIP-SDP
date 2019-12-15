@@ -36,6 +36,7 @@
  * @author Lars Schewe
  * @author Tristan Gally
  * @author Frederic Matter
+ * @author Marc Pfetsch
  *
  * Constraint handler for semidefinite constraints of the form \f$ \sum_{j=1}^n A_j y_j - A_0 \succeq 0 \f$,
  * where the matrices \f$A_j\f$ and \f$A_0\f$ need to be symmetric. Only the nonzero entries of the matrices
@@ -501,8 +502,6 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< the constraint the solution should be checked for */
    SCIP_SOL*             sol,                /**< the solution to check feasibility for */
-   SCIP_Bool             checkintegrality,   /**< has integrality to be checked? */
-   SCIP_Bool             checklprows,        /**< have current LP rows to be checked? */
    SCIP_Bool             printreason,        /**< should the reason for the violation be printed? */
    SCIP_RESULT*          result              /**< pointer to store the result of the feasibility checking call */
    )
@@ -543,14 +542,11 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    else
    {
       *result = SCIP_INFEASIBLE;
-#ifdef SCIP_DEBUG
       if ( printreason )
       {
+         SCIPinfoMessage(scip, NULL, "SDP-constraint <%s> violated: non psd matrix (eigenvalue %f, dimacs error norm = %f).\n", SCIPconsGetName(cons), eigenvalue, check_value);
          SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
-         SCIP_CALL( SCIPprintSol(scip, sol, NULL, FALSE) );
-         SCIPinfoMessage(scip, NULL, "non psd matrix (eigenvalue %f, dimacs error norm = %f).\n", eigenvalue, check_value);
       }
-#endif
    }
 
    if ( sol != NULL )
@@ -661,17 +657,19 @@ SCIP_RETCODE separateSol(
 static
 SCIP_RETCODE diagGEzero(
    SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONSHDLR*        conshdlr,           /**< constraint handler */
    SCIP_CONS**           conss,              /**< array of constraints to add cuts for */
    int                   nconss,             /**< number of constraints to add cuts for */
-   int*                  naddconss           /**< pointer to store how many constraints were added */
+   int*                  naddconss,          /**< pointer to store how many constraints were added */
+   int*                  nchgbds,            /**< pointer to store how many bounds were changed */
+   SCIP_RESULT*          result              /**< result pointer */
    )
 {
    char cutname[SCIP_MAXSTRLEN];
+   SCIP_CONSHDLRDATA* conshdlrdata;
    SCIP_CONSDATA* consdata;
    SCIP_Real* matrix;
-   SCIP_Real* cons_array;
-   SCIP_Real* lhs_array;
-   SCIP_Real rhs;
+   SCIP_Real* consvals;
    int blocksize;
    int nvars;
    int i;
@@ -682,85 +680,125 @@ SCIP_RETCODE diagGEzero(
    int snprintfreturn; /* used to check if sdnprintf worked */
 #endif
 
+   assert( scip != NULL );
+   assert( strcmp(SCIPconshdlrGetName(conshdlr), "SDP") == 0);
+   assert( naddconss != NULL );
+   assert( nchgbds != NULL );
+   assert( result != NULL );
+   assert( *result != SCIP_CUTOFF );
+
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert( conshdlrdata != NULL );
+
    for (c = 0; c < nconss; ++c)
    {
-      SCIP_CONSHDLR* conshdlr;
-
-      conshdlr = SCIPconsGetHdlr(conss[c]);
-      assert( conshdlr != NULL );
-#ifndef NDEBUG
-      assert( strcmp(SCIPconshdlrGetName(conshdlr), "SDP") == 0);
-#endif
-
       consdata = SCIPconsGetData(conss[c]);
       assert( consdata != NULL );
 
       blocksize = consdata->blocksize;
       nvars = consdata->nvars;
-      rhs = SCIPinfinity(scip);
 
       SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize + 1)) / 2) ); /*lint !e647*/
       SCIP_CALL( SCIPconsSdpGetLowerTriangConstMatrix(scip, conss[c], matrix) );
 
-      SCIP_CALL( SCIPallocBufferArray(scip, &cons_array, blocksize * nvars) ); /*lint !e647*/
-      SCIP_CALL( SCIPallocBufferArray(scip, &lhs_array, blocksize) );
-
-      /* the lhs is the (k,k)-entry of the constant matrix */
-      for (k = 0; k < blocksize; ++k)
-         lhs_array[k] = matrix[SCIPconsSdpCompLowerTriangPos(k,k)];
+      /* allocate coefficients and intit coefficients to 0.0 */
+      SCIP_CALL( SCIPallocClearBufferArray(scip, &consvals, blocksize * nvars) ); /*lint !e647*/
 
       /* get the (k,k)-entry of every matrix A_j */
       for (j = 0; j < nvars; ++j)
       {
-         for (k = 0; k < blocksize; ++k)
-         {
-            /* initialize these with 0 */
-            cons_array[k * nvars + j] = 0.0; /*lint !e679*/
-         }
-
          /* go through the nonzeros of A_j and look for diagonal entries */
          for (i = 0; i < consdata->nvarnonz[j]; i++)
          {
             if ( consdata->col[j][i] == consdata->row[j][i] )
-               cons_array[consdata->col[j][i] * nvars + j] = consdata->val[j][i]; /*lint !e679*/
+               consvals[consdata->col[j][i] * nvars + j] = consdata->val[j][i]; /*lint !e679*/
          }
       }
 
       /* add the LP-cuts to SCIP */
-      for (k = 0; k < blocksize; ++k)
+      for (k = 0; k < blocksize && *result != SCIP_CUTOFF; ++k)
       {
          SCIP_CONS* cons;
-         SCIP_CONSHDLRDATA* conshdlrdata;
+         SCIP_Real lhs;
+         SCIP_Real lastnonzval = SCIP_INVALID;
+         SCIP_VAR* lastnonzvar = NULL;
+         int cnt = 0;
 
-         conshdlrdata = SCIPconshdlrGetData(conshdlr);
-#ifndef NDEBUG
-         snprintfreturn = SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "diag_ge_zero_%d", ++(conshdlrdata->ndiaggezerocuts));
-         assert( snprintfreturn < SCIP_MAXSTRLEN );
-#else
-         (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "diag_ge_zero_%d", ++(conshdlrdata->ndiaggezerocuts));
-#endif
-
-#ifdef SCIP_MORE_DEBUG
-         SCIPinfoMessage(scip, NULL, "Added lp-constraint %s: ", cutname);
-         SCIPinfoMessage(scip, NULL, "%f <= ", lhs_array[k]);
-         for (i = 0; i < consdata->nvars; i++)
+         for ( j = 0; j < nvars; ++j)
          {
-            if ( ! SCIPisZero(scip, cons_array[k * consdata->nvars + i]) )
-               SCIPinfoMessage(scip, NULL, "+ (%f)*%s", cons_array[k * consdata->nvars + i], SCIPvarGetName(consdata->vars[i]));
+            if ( ! SCIPisZero(scip, consvals[k * nvars + j]) )
+            {
+               ++cnt;
+               lastnonzval = consvals[k * nvars + j];
+               lastnonzvar = consdata->vars[j];
+            }
          }
-         SCIPinfoMessage(scip, NULL, "\n");
+
+         /* the lhs is the (k,k)-entry of the constant matrix */
+         lhs = matrix[SCIPconsSdpCompLowerTriangPos(k,k)];
+
+         if ( cnt == 0 )
+         {
+            /* if there are not variables but the lhs is positive, we are infeasible */
+            if ( SCIPisPositive(scip, lhs) )
+               *result = SCIP_CUTOFF;
+         }
+         else if ( cnt == 1 )
+         {
+            SCIP_Bool infeasible = FALSE;
+            SCIP_Bool tightened;
+
+            assert( lastnonzvar != NULL );
+
+            /* try to tighten bound */
+            if ( SCIPisPositive(scip, lastnonzval) )
+            {
+               SCIP_CALL( SCIPtightenVarLb(scip, lastnonzvar, lhs / lastnonzval, FALSE, &infeasible, &tightened) );
+               if ( tightened )
+               {
+                  SCIPdebugMsg(scip, "Tightend lower bound of <%s> to %g because of diagonal values of SDP-constraint %s!\n",
+                     SCIPvarGetName(lastnonzvar), SCIPvarGetLbGlobal(lastnonzvar), SCIPconsGetName(conss[c]));
+                  ++(*nchgbds);
+               }
+            }
+            else if ( SCIPisNegative(scip, lastnonzval) )
+            {
+               SCIP_CALL( SCIPtightenVarUb(scip, lastnonzvar, lhs / lastnonzval, FALSE, &infeasible, &tightened) );
+               if ( tightened )
+               {
+                  SCIPdebugMsg(scip, "Tightend upper bound of <%s> to %g because of diagonal values of SDP-constraint %s!\n",
+                     SCIPvarGetName(lastnonzvar), SCIPvarGetUbGlobal(lastnonzvar), SCIPconsGetName(conss[c]));
+                  ++(*nchgbds);
+               }
+            }
+
+            if ( infeasible )
+               *result = SCIP_CUTOFF;
+         }
+         else
+         {
+#ifndef NDEBUG
+            snprintfreturn = SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "diag_ge_zero_%d", ++(conshdlrdata->ndiaggezerocuts));
+            assert( snprintfreturn < SCIP_MAXSTRLEN );
+#else
+            (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "diag_ge_zero_%d", ++(conshdlrdata->ndiaggezerocuts));
 #endif
 
-         SCIP_CALL( SCIPcreateConsLinear(scip, &cons, cutname, consdata->nvars, consdata->vars, cons_array + k * consdata->nvars, lhs_array[k], rhs,
-               TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) ); /*lint !e679*/
+            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, cutname, consdata->nvars, consdata->vars, &consvals[k * consdata->nvars], lhs, SCIPinfinity(scip),
+                  TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) ); /*lint !e679*/
 
-         SCIP_CALL( SCIPaddCons(scip, cons) );
-         SCIP_CALL( SCIPreleaseCons(scip, &cons) );
-         ++(*naddconss);
+            SCIP_CALL( SCIPaddCons(scip, cons) );
+#ifdef SCIP_MORE_DEBUG
+            SCIPinfoMessage(scip, NULL, "Added diagonal lp-constraint: ");
+            SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
+            SCIPinfoMessage(scip, NULL, "\n");
+#endif
+            SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+            ++(*naddconss);
+         }
       }
 
-      SCIPfreeBufferArray(scip, &lhs_array);
-      SCIPfreeBufferArray(scip, &cons_array);
+      SCIPfreeBufferArray(scip, &consvals);
       SCIPfreeBufferArray(scip, &matrix);
    }
 
@@ -808,15 +846,11 @@ SCIP_RETCODE diagZeroImpl(
 #endif
 
    assert( scip != NULL );
-   assert( conss != NULL );
-   assert( nconss >= 0 );
    assert( naddconss != NULL );
 
    for (i = 0; i < nconss; ++i)
    {
       assert( conss[i] != NULL );
-      assert( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[i])), "SDP") == 0 );
-
       consdata = SCIPconsGetData(conss[i]);
       assert( consdata != NULL );
 
@@ -843,6 +877,7 @@ SCIP_RETCODE diagZeroImpl(
                constnonzeroentries[consdata->constcol[j]][nconstnonzeroentries[consdata->constcol[j]]] = consdata->constrow[j];
                nconstnonzeroentries[consdata->constcol[j]]++;
             }
+
             if ( nconstnonzeroentries[consdata->constrow[j]] >= 0 )
             {
                constnonzeroentries[consdata->constrow[j]][nconstnonzeroentries[consdata->constrow[j]]] = consdata->constcol[j];
@@ -978,17 +1013,14 @@ SCIP_RETCODE diagZeroImpl(
             (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "diag_zero_impl_block_%d_row_%d", i, j);
 #endif
 
-#ifdef SCIP_MORE_DEBUG
-            SCIPinfoMessage(scip, NULL, "Added lp-constraint %s: ", cutname);
-            SCIPinfoMessage(scip, NULL, "1 <=");
-            for (l = 0; l < ndiagvars[j]; l++)
-               SCIPinfoMessage(scip, NULL, " + (%f)*%s", vals[l], SCIPvarGetName(vars[l]));
-            SCIPinfoMessage(scip, NULL, "\n");
-#endif
-
             /* add the linear constraint sum_j 1.0 * diagvars[j] >= 1.0 */
             SCIP_CALL(SCIPcreateConsLinear(scip, &cons, cutname , ndiagvars[j], vars, vals, 1.0, SCIPinfinity(scip), TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE));
             SCIP_CALL(SCIPaddCons(scip, cons));
+#ifdef SCIP_MORE_DEBUG
+            SCIPinfoMessage(scip, NULL, "Added lp-constraint: ");
+            SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
+            SCIPinfoMessage(scip, NULL, "\n");
+#endif
             SCIP_CALL(SCIPreleaseCons(scip, &cons));
             (*naddconss)++;
 
@@ -1018,15 +1050,16 @@ SCIP_RETCODE diagZeroImpl(
 static
 SCIP_RETCODE move_1x1_blocks_to_lp(
    SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONSHDLR*        conshdlr,           /**< constraint handler */
    SCIP_CONS**           conss,              /**< array of constraints to check */
    int                   nconss,             /**< number of constraints to check */
    int*                  naddconss,          /**< pointer to store how many constraints were added */
    int*                  ndelconss,          /**< pointer to store how many constraints were deleted */
+   int*                  nchgbds,            /**< pointer to store how many bounds were changed */
    SCIP_RESULT*          result              /**< pointer to store if this routine was successfull or if it detected infeasibility */
    )
 {
    char cutname[SCIP_MAXSTRLEN];
-   SCIP_CONSHDLR* hdlr;
    SCIP_CONSDATA* consdata;
    SCIP_CONSHDLRDATA* conshdlrdata;
    SCIP_CONS* cons;
@@ -1037,48 +1070,48 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
    int nvars;
    int i;
    int j;
-   int count;
-   int var;
+   int v;
 #ifndef NDEBUG
    int snprintfreturn; /* used to assert the return code of snprintf */
 #endif
 
+   assert( scip != NULL );
+   assert( conshdlr != NULL );
+   assert( strcmp(SCIPconshdlrGetName(conshdlr), "SDP") == 0);
    assert( result != NULL );
-   *result = SCIP_SUCCESS;
 
-   for (i = 0; i < nconss; ++i)
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert( conshdlrdata != NULL );
+
+   for (i = 0; i < nconss && *result != SCIP_CUTOFF; ++i)
    {
-      hdlr = SCIPconsGetHdlr(conss[i]);
-      assert(hdlr != NULL);
-
-#ifndef NDEBUG
-      assert( strcmp(SCIPconshdlrGetName(hdlr), "SDP") == 0);
-#endif
-
       consdata = SCIPconsGetData(conss[i]);
       assert( consdata != NULL );
 
       /* if there is a 1x1 SDP-Block */
       if ( consdata->blocksize == 1 )
       {
+         int cnt = 0;
+
          nvars = consdata->nvars;
          nnonz = consdata->nnonz;
          SCIP_CALL( SCIPallocBufferArray(scip, &vars, nvars) );
          SCIP_CALL( SCIPallocBufferArray(scip, &coeffs, nnonz) );
 
          /* get all lhs-entries */
-         count = 0;
-
-         for (var = 0; var < nvars; var++)
+         for (v = 0; v < nvars; v++)
          {
-            assert( consdata->nvarnonz[var] <= 1 ); /* in a 1x1 block there may be at most one entry per variable */
+            assert( consdata->nvarnonz[v] <= 1 ); /* in a 1x1 block there may be at most one entry per variable */
 
-            for (j = 0; j < consdata->nvarnonz[var]; j++)
+            for (j = 0; j < consdata->nvarnonz[v]; j++)
             {
-               assert( consdata->col[var][j] == 0 && consdata->row[var][j] == 0 ); /* if the block is size one, all entries should have row and col equal to 0 */
-               coeffs[count] = consdata->val[var][j];
-               vars[count] = consdata->vars[var];
-               count++;
+               assert( consdata->col[v][j] == 0 && consdata->row[v][j] == 0 ); /* if the block has size 1, all entries should have row and col equal to 0 */
+               if ( ! SCIPisZero(scip, consdata->val[v][j]) )
+               {
+                  coeffs[cnt] = consdata->val[v][j];
+                  vars[cnt] = consdata->vars[v];
+                  ++cnt;
+               }
             }
          }
 
@@ -1087,11 +1120,10 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
 
          rhs = (consdata->constnnonz == 1) ? consdata->constval[0] : 0.0; /* if this one entry is not 0, than this is the rhs, otherwise it's 0 */
 
-         /* if there is more than one left-hand-side-entry, add a linear constraint, otherwise update the variable bound */
-         if ( count > 1 )
+         /* if there is more than one nonzero left-hand-side-entry, add a linear constraint, otherwise update the variable bound */
+         if ( cnt > 1 )
          {
             /* add new linear cons */
-            conshdlrdata = SCIPconshdlrGetData(hdlr);
 #ifndef NDEBUG
             snprintfreturn = SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "1x1block_%d", ++(conshdlrdata->n1x1blocks));
             assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether name fits into string */
@@ -1099,112 +1131,58 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
             (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "1x1block_%d", ++(conshdlrdata->n1x1blocks));
 #endif
 
-#ifdef SCIP_MORE_DEBUG
-            SCIPinfoMessage(scip, NULL, "Added lp-constraint %s: ", cutname);
-            for (i = 0; i < consdata->nvars; i++)
-               SCIPinfoMessage(scip, NULL, "+ (%f)*%s", coeffs[i], SCIPvarGetName(vars[i]));
-            SCIPinfoMessage(scip, NULL, " <= %f \n", rhs);
-#endif
-
-            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, cutname, consdata->nvars, vars, coeffs, rhs, SCIPinfinity(scip),
+            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, cutname, cnt, vars, coeffs, rhs, SCIPinfinity(scip),
                   TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
 
             SCIP_CALL( SCIPaddCons(scip, cons) );
+#ifdef SCIP_MORE_DEBUG
+            SCIPinfoMessage(scip, NULL, "Added lp-constraint: ");
+            SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
+            SCIPinfoMessage(scip, NULL, "\n");
+#endif
             SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
             (*naddconss)++;
          }
-         else
+         else if ( cnt == 1 )
          {
-            /* we compare this new variable with the current (local) bounds, we don't do an epsilon check here, because 10^(-21)*x >= 10^(-19) for
-             * epsilon = 10^(-20) would be infeasible then, even though it only says x >= 100 */
-            if ( coeffs[0] > 0.0 )
+            SCIP_Bool infeasible = FALSE;
+            SCIP_Bool tightened;
+
+            /* try to tighten bound */
+            if ( SCIPisPositive(scip, coeffs[0]) )
             {
-               /* this gives a lower bound, if it is bigger than the current one, we need to update it */
-               if ( SCIPisFeasGT(scip, rhs / coeffs[0], SCIPvarGetLbLocal(vars[0])) )
+               SCIP_CALL( SCIPtightenVarLb(scip, vars[0], rhs / coeffs[0], FALSE, &infeasible, &tightened) );
+               if ( tightened )
                {
-                  /* check if the changed bound renders the problem infeasible */
-                  if( SCIPisFeasGT(scip, rhs / coeffs[0], SCIPvarGetUbLocal(vars[0])) )
-                  {
-                     SCIPdebugMsg(scip, "Problem detected to be infeasible during presolving, 1x1-SDP-constraint %s caused change"
-                        "of lower bound for variable %s from %f to %f, which is bigger than upper bound of %f\n",
-                        SCIPconsGetName(conss[i]), SCIPvarGetName(vars[0]), SCIPvarGetLbLocal(vars[0]), rhs / coeffs[0],
-                        SCIPvarGetUbLocal(vars[0]));
-
-                     *result = SCIP_CUTOFF;
-
-                     /* delete old 1x1 sdpcone */
-                     SCIP_CALL( SCIPdelCons(scip, conss[i]) );
-                     (*ndelconss)++;
-
-                     SCIPfreeBufferArray(scip, &coeffs);
-                     SCIPfreeBufferArray(scip, &vars);
-
-                     return SCIP_OKAY; /* the node is infeasible, we don't care for the other constraints */
-                  }
-
-                  SCIPdebugMsg(scip, "Changing lower bound of variable %s from %f to %f because of 1x1-SDP-constraint %s!\n",
-                     SCIPvarGetName(vars[0]), SCIPvarGetLbLocal(vars[0]), rhs / coeffs[0], SCIPconsGetName(conss[i]));
-                  SCIP_CALL( SCIPchgVarLb(scip, vars[0], rhs / coeffs[0]) );
-               }
-               else
-               {
-                  SCIPdebugMsg(scip, "Deleting 1x1-SDP-constraint %s, new lower bound %f for variable %s no improvement over old bound %f!\n",
-                     SCIPconsGetName(conss[i]), rhs / coeffs[0], SCIPvarGetName(vars[0]), SCIPvarGetLbLocal(vars[0]));
-               }
-            }
-            else if ( coeffs[0] < 0.0 )
-            {
-               /* this gives an upper bound, if it is lower than the current one, we need to update it */
-               if (SCIPisFeasLT(scip, rhs / coeffs[0], SCIPvarGetUbLocal(vars[0])))
-               {
-                  /* check if the changed bound renders the problem infeasible */
-                  if( SCIPisFeasLT(scip, rhs / coeffs[0], SCIPvarGetLbLocal(vars[0])) )
-                  {
-                     SCIPdebugMsg(scip, "Problem detected to be infeasible during presolving, 1x1-SDP-constraint %s caused change"
-                        "of upper bound for variable %s from %f to %f, which is less than lower bound of %f\n",
-                        SCIPconsGetName(conss[i]), SCIPvarGetName(vars[0]), SCIPvarGetUbLocal(vars[0]), rhs / coeffs[0],
-                        SCIPvarGetLbLocal(vars[0]));
-
-                     *result = SCIP_CUTOFF;
-
-                     /* delete old 1x1 sdpcone */
-                     SCIP_CALL( SCIPdelCons(scip, conss[i]) );
-                     (*ndelconss)++;
-
-                     SCIPfreeBufferArray(scip, &coeffs);
-                     SCIPfreeBufferArray(scip, &vars);
-
-                     return SCIP_OKAY; /* the node is infeasible, we don't care for the other constraints */
-                  }
-
-                  SCIPdebugMsg(scip, "Changing upper bound of variable %s from %f to %f because of 1x1-SDP-constraint %s!\n",
-                     SCIPvarGetName(vars[0]), SCIPvarGetUbLocal(vars[0]), -rhs / coeffs[0], SCIPconsGetName(conss[i]));
-                  SCIP_CALL( SCIPchgVarUb(scip, vars[0], rhs / coeffs[0]) );
-               }
-               else
-               {
-                  SCIPdebugMsg(scip, "Deleting 1x1-SDP-constraint %s, new upper bound %f for variable %s no improvement over old bound %f!\n",
-                     SCIPconsGetName(conss[i]), rhs / coeffs[0], SCIPvarGetName(vars[0]), SCIPvarGetUbLocal(vars[0]));
+                  SCIPdebugMsg(scip, "Tightend lower bound of <%s> to %g because of diagonal values of SDP-constraint %s!\n",
+                     SCIPvarGetName(vars[0]), SCIPvarGetLbGlobal(vars[0]), SCIPconsGetName(conss[i]));
+                  ++(*nchgbds);
                }
             }
             else
             {
-               SCIPdebugMsg(scip, "Detected 1x1 SDP-block without any nonzero coefficients \n");
-               if ( SCIPisFeasGT(scip, rhs, 0.0) )
+               assert( SCIPisNegative(scip, coeffs[0]) );
+               SCIP_CALL( SCIPtightenVarUb(scip, vars[0], rhs / coeffs[0], FALSE, &infeasible, &tightened) );
+               if ( tightened )
                {
-                  SCIPdebugMsg(scip, "Detected infeasibility in 1x1 SDP-block without any nonzero coefficients but with strictly positive rhs\n");
-                  *result = SCIP_CUTOFF;
-
-                  /* delete old 1x1 sdpcone */
-                  SCIP_CALL( SCIPdelCons(scip, conss[i]) );
-                  (*ndelconss)++;
-
-                  SCIPfreeBufferArray(scip, &coeffs);
-                  SCIPfreeBufferArray(scip, &vars);
-
-                  return SCIP_OKAY; /* the node is infeasible, we don't care for the other constraints */
+                  SCIPdebugMsg(scip, "Tightend upper bound of <%s> to %g because of diagonal values of SDP-constraint %s!\n",
+                     SCIPvarGetName(vars[0]), SCIPvarGetUbGlobal(vars[0]), SCIPconsGetName(conss[i]));
+                  ++(*nchgbds);
                }
+            }
+
+            if ( infeasible )
+               *result = SCIP_CUTOFF;
+         }
+         else
+         {
+            assert( cnt == 0 );
+            SCIPdebugMsg(scip, "Detected 1x1 SDP-block without any nonzero coefficients \n");
+            if ( SCIPisFeasGT(scip, rhs, 0.0) )
+            {
+               SCIPdebugMsg(scip, "Detected infeasibility in 1x1 SDP-block without any nonzero coefficients but with strictly positive rhs\n");
+               *result = SCIP_CUTOFF;
             }
          }
 
@@ -1230,31 +1208,165 @@ SCIP_RETCODE unlockVar(
    assert( scip != NULL );
    assert( consdata != NULL );
    assert( 0 <= v && v < consdata->nvars );
-   assert( consdata->locks != NULL );
-   assert( consdata->locks[v] == -2 || consdata->locks[v] == -1 || consdata->locks[v] == 0 || consdata->locks[v] == 1 );
 
-   if ( consdata->locks[v] == 1 )
+   if ( consdata->locks != NULL )
    {
-      SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], 0, -1) );
-   }
-   else if ( consdata->locks[v] == - 1 )
-   {
-      SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], -1, 0) );
-   }
-   else if ( consdata->locks[v] == 0 )
-   {
-      SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], -1, -1) );
+      assert( consdata->locks[v] == -2 || consdata->locks[v] == -1 || consdata->locks[v] == 0 || consdata->locks[v] == 1 );
+
+      if ( consdata->locks[v] == 1 )
+      {
+         SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], SCIP_LOCKTYPE_MODEL, 0, -1) );
+      }
+      else if ( consdata->locks[v] == - 1 )
+      {
+         SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], SCIP_LOCKTYPE_MODEL, -1, 0) );
+      }
+      else if ( consdata->locks[v] == 0 )
+      {
+         SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], SCIP_LOCKTYPE_MODEL, -1, -1) );
+      }
    }
 
    return SCIP_OKAY;
 }
+
+/** update locks of variable after aggregation */
+static
+SCIP_RETCODE updateVarLocks(
+   SCIP*                 scip,               /**< SCIP pointer */
+   SCIP_CONS*            cons,               /**< constraint */
+   int                   v                   /**< index of variable */
+   )
+{
+   SCIP_CONSDATA* consdata;
+   SCIP_Real eigenvalue;
+   SCIP_Real* Aj;
+   int blocksize;
+   int newlock = -2;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+   assert( consdata->locks != NULL );
+   assert( 0 <= v && v < consdata->nvars );
+
+   blocksize = consdata->blocksize;
+   SCIP_CALL( SCIPallocBufferArray(scip, &Aj, blocksize * blocksize) );
+
+   SCIP_CALL( SCIPconsSdpGetFullAj(scip, cons, v, Aj) );
+
+   /* compute new lock as in consLockSdp */
+   SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, 1, &eigenvalue, NULL) );
+   if ( SCIPisNegative(scip, eigenvalue) )
+      newlock = 1;  /* up-lock */
+
+   if ( SCIPisPositive(scip, eigenvalue) )
+      newlock = -1; /* down-lock */
+   else
+   {
+      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, blocksize, &eigenvalue, NULL) );
+      if ( SCIPisPositive(scip, eigenvalue) )
+      {
+         if ( newlock == 1 )
+            newlock = 0; /* up- and down-lock */
+         else
+            newlock = -1; /* down-lock */
+      }
+   }
+
+   SCIPfreeBufferArray(scip, &Aj);
+
+   /* if new lock is not equal to the old one, unlock variable and add new locks */
+   if ( newlock != consdata->locks[v] )
+   {
+      SCIP_CALL( unlockVar(scip, consdata, v) );
+      if ( newlock == 1 )  /* up-lock */
+      {
+         SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], SCIP_LOCKTYPE_MODEL, 0, 1) );
+      }
+      else if ( newlock == -1 )  /* down-lock */
+      {
+         SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], SCIP_LOCKTYPE_MODEL, 1, 0) );
+      }
+      else if ( newlock == 0 )  /* up and down lock */
+      {
+         SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], SCIP_LOCKTYPE_MODEL, 1, 1) );
+      }
+      else
+         assert( newlock == -2 );
+
+      consdata->locks[v] = newlock;
+   }
+
+   return SCIP_OKAY;
+}
+
+#ifndef NDEBUG
+/** check whether variable locks are correctly set */
+static
+SCIP_RETCODE checkVarsLocks(
+   SCIP*                 scip,               /**< SCIP pointer */
+   SCIP_CONS*            cons                /**< constraint */
+   )
+{
+   SCIP_CONSDATA* consdata;
+   SCIP_Real* Aj;
+   int blocksize;
+   int v;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+   assert( consdata->locks != NULL );
+
+   blocksize = consdata->blocksize;
+   SCIP_CALL( SCIPallocBufferArray(scip, &Aj, blocksize * blocksize) );
+
+   for (v = 0; v < consdata->nvars; ++v)
+   {
+      SCIP_Real eigenvalue;
+      int newlock = -2;
+
+      SCIP_CALL( SCIPconsSdpGetFullAj(scip, cons, v, Aj) );
+
+      /* compute new lock as in consLockSdp */
+      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, 1, &eigenvalue, NULL) );
+      if ( SCIPisNegative(scip, eigenvalue) )
+         newlock = 1;  /* up-lock */
+
+      if ( SCIPisPositive(scip, eigenvalue) )
+         newlock = -1; /* down-lock */
+      else
+      {
+         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, blocksize, &eigenvalue, NULL) );
+         if ( SCIPisPositive(scip, eigenvalue) )
+         {
+            if ( newlock == 1 )
+               newlock = 0; /* up- and down-lock */
+            else
+               newlock = -1; /* down-lock */
+         }
+      }
+
+      assert( newlock == consdata->locks[v] );
+   }
+
+   SCIPfreeBufferArray(scip, &Aj);
+
+   return SCIP_OKAY;
+}
+#endif
 
 /** local function to perform (parts of) multiaggregation of a single variable within fixAndAggrVars */
 static
 SCIP_RETCODE multiaggrVar(
    SCIP*                 scip,               /**< SCIP pointer */
    SCIP_CONS*            cons,               /**< constraint to multiaggregate for */
-   int*                  v,                  /**< position of the variable that gets (multi-)aggregated */
+   int                   v,                  /**< position of the variable that gets (multi-)aggregated */
    SCIP_VAR**            aggrvars,           /**< variables this has to be (multi-)aggregated to */
    SCIP_Real*            scalars,            /**< scalar parts to multiply with for each variable this is aggregated to */
    int                   naggrvars,          /**< number of variables this is (multi-)aggregated to */
@@ -1266,14 +1378,13 @@ SCIP_RETCODE multiaggrVar(
    int*                  vararraylength      /**< length of the variable array */
    )
 {
-   int i;
    SCIP_CONSDATA* consdata;
    int startind;
    int aggrind;
    int aggrtargetlength;
    int globalnvars;
    int aggrconsind;
-   SCIP_Real epsilon;
+   int i;
 
    assert( scip != NULL );
    assert( cons != NULL );
@@ -1286,8 +1397,8 @@ SCIP_RETCODE multiaggrVar(
 
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
-
-   SCIP_CALL( SCIPgetRealParam(scip, "numerics/epsilon", &epsilon) );
+   assert( consdata->locks != NULL );
+   assert( 0 <= v && v < consdata->nvars );
 
    /* save the current nfixednonz-index, all entries starting from here will need to be added to the variables this is aggregated to */
    startind = *nfixednonz;
@@ -1298,25 +1409,25 @@ SCIP_RETCODE multiaggrVar(
        * the nonzero-arrays for this variable to be able to fill it with a newly inserted variable, as copying all variables, if we created an empty
        * gap in the variable arrays, will be more time consuming then copying all variables (as we will usually have more variables than nonzeros per
        * variable */
-      for (i = 0; i < consdata->nvarnonz[*v]; i++)
+      for (i = 0; i < consdata->nvarnonz[v]; i++)
       {
-         savedcol[*nfixednonz] = consdata->col[*v][i];
-         savedrow[*nfixednonz] = consdata->row[*v][i];
-         savedval[*nfixednonz] = consdata->val[*v][i];
+         savedcol[*nfixednonz] = consdata->col[v][i];
+         savedrow[*nfixednonz] = consdata->row[v][i];
+         savedval[*nfixednonz] = consdata->val[v][i];
          (*nfixednonz)++;
       }
    }
    else
    {
-      for (i = 0; i < consdata->nvarnonz[*v]; i++)
+      for (i = 0; i < consdata->nvarnonz[v]; i++)
       {
-         savedcol[*nfixednonz] = consdata->col[*v][i];
-         savedrow[*nfixednonz] = consdata->row[*v][i];
-         savedval[*nfixednonz] = consdata->val[*v][i] * constant;
+         savedcol[*nfixednonz] = consdata->col[v][i];
+         savedrow[*nfixednonz] = consdata->row[v][i];
+         savedval[*nfixednonz] = consdata->val[v][i] * constant;
          (*nfixednonz)++;
       }
    }
-   assert( *nfixednonz - startind == consdata->nvarnonz[*v] );
+   assert( *nfixednonz - startind == consdata->nvarnonz[v] );
 
    /* sort them by nondecreasing row and then col to make the search for already existing entries easier (this is done here, because it
     * only needs to be done once and not for each variable this is multiaggregated to), we add startind to the pointers to only start where we started
@@ -1324,23 +1435,22 @@ SCIP_RETCODE multiaggrVar(
    SCIPsdpVarfixerSortRowCol(savedrow + startind, savedcol + startind, savedval + startind, *nfixednonz - startind);
 
    /* free the memory for the entries of the aggregated variable */
-   SCIPfreeBlockMemoryArray(scip, &(consdata->val[*v]), consdata->nvarnonz[*v]);
-   SCIPfreeBlockMemoryArray(scip, &(consdata->row[*v]), consdata->nvarnonz[*v]);
-   SCIPfreeBlockMemoryArray(scip, &(consdata->col[*v]), consdata->nvarnonz[*v]);
+   SCIPfreeBlockMemoryArray(scip, &(consdata->val[v]), consdata->nvarnonz[v]);
+   SCIPfreeBlockMemoryArray(scip, &(consdata->row[v]), consdata->nvarnonz[v]);
+   SCIPfreeBlockMemoryArray(scip, &(consdata->col[v]), consdata->nvarnonz[v]);
 
    /* unlock variable */
-   SCIP_CALL( unlockVar(scip, consdata, *v) );
+   SCIP_CALL( unlockVar(scip, consdata, v) );
 
    /* fill the empty spot of the (multi-)aggregated variable with the last variable of this constraint (as they don't have to be sorted) */
-   SCIP_CALL( SCIPreleaseVar(scip, &consdata->vars[*v]) );
-   consdata->col[*v] = consdata->col[consdata->nvars - 1];
-   consdata->row[*v] = consdata->row[consdata->nvars - 1];
-   consdata->val[*v] = consdata->val[consdata->nvars - 1];
-   consdata->nvarnonz[*v] = consdata->nvarnonz[consdata->nvars - 1];
-   consdata->vars[*v] = consdata->vars[consdata->nvars - 1];
-   consdata->locks[*v] = consdata->locks[consdata->nvars - 1];
+   SCIP_CALL( SCIPreleaseVar(scip, &consdata->vars[v]) );
+   consdata->col[v] = consdata->col[consdata->nvars - 1];
+   consdata->row[v] = consdata->row[consdata->nvars - 1];
+   consdata->val[v] = consdata->val[consdata->nvars - 1];
+   consdata->nvarnonz[v] = consdata->nvarnonz[consdata->nvars - 1];
+   consdata->vars[v] = consdata->vars[consdata->nvars - 1];
+   consdata->locks[v] = consdata->locks[consdata->nvars - 1];
    (consdata->nvars)--;
-   (*v)--; /* we need to check again if the variable we just shifted to this position also needs to be (multi-)aggregated */
 
    /* iterate over all variables this was aggregated to and insert the corresponding nonzeros */
    for (aggrind = 0; aggrind < naggrvars; aggrind++)
@@ -1370,7 +1480,7 @@ SCIP_RETCODE multiaggrVar(
          {
             /* in this case we saved the original values in savedval, we add startind to the pointers to only add those from
              * the current variable, the number of entries is the current position minus the position whre we started */
-            SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), epsilon, savedrow + startind, savedcol + startind, savedval + startind,
+            SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), SCIPepsilon(scip), savedrow + startind, savedcol + startind, savedval + startind,
                   *nfixednonz - startind, TRUE, scalars[aggrind], consdata->row[aggrconsind], consdata->col[aggrconsind],
                   consdata->val[aggrconsind], &(consdata->nvarnonz[aggrconsind]), aggrtargetlength) );
          }
@@ -1378,7 +1488,7 @@ SCIP_RETCODE multiaggrVar(
          {
             /* in this case we saved the original values * constant, so we now have to divide by constant, we add startind to the pointers
              * to only add those from the current variable, the number of entries is the current position minus the position whre we started */
-            SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), epsilon, savedrow + startind, savedcol + startind, savedval + startind,
+            SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), SCIPepsilon(scip), savedrow + startind, savedcol + startind, savedval + startind,
                   *nfixednonz - startind, TRUE, scalars[aggrind] / constant, consdata->row[aggrconsind], consdata->col[aggrconsind],
                   consdata->val[aggrconsind], &(consdata->nvarnonz[aggrconsind]), aggrtargetlength) );
          }
@@ -1388,6 +1498,8 @@ SCIP_RETCODE multiaggrVar(
          SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->row[aggrconsind]), aggrtargetlength, consdata->nvarnonz[aggrconsind]) );
          SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->col[aggrconsind]), aggrtargetlength, consdata->nvarnonz[aggrconsind]) );
          SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->val[aggrconsind]), aggrtargetlength, consdata->nvarnonz[aggrconsind]) );
+
+         SCIP_CALL( updateVarLocks(scip, cons, aggrconsind) );
       }
       else
       {
@@ -1429,8 +1541,6 @@ SCIP_RETCODE multiaggrVar(
          }
          else  /* we have to multiply all entries by scalar before inserting them */
          {
-            SCIP_CALL( SCIPgetRealParam(scip, "numerics/epsilon", &epsilon) );
-
             SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(consdata->val[consdata->nvars]), *nfixednonz - startind) );
 
             consdata->nvarnonz[consdata->nvars] = 0;
@@ -1438,7 +1548,7 @@ SCIP_RETCODE multiaggrVar(
             for (i = 0; i < *nfixednonz - startind; i++)
             {
                /* if both scalar and savedval are small this might become too small */
-               if ( (scalars[i] / constant) * savedval[startind + i] >= epsilon )  /*lint !e679*/
+               if ( SCIPisPositive(scip, (scalars[i] / constant) * savedval[startind + i]) )
                {
                   consdata->val[consdata->nvars][consdata->nvarnonz[consdata->nvars]] = (scalars[i] / constant) * savedval[startind + i]; /*lint !e679*/
                   consdata->nvarnonz[consdata->nvars]++;
@@ -1446,8 +1556,11 @@ SCIP_RETCODE multiaggrVar(
             }
          }
 
+         consdata->locks[consdata->nvars] = -2;
          if ( consdata->nvarnonz[consdata->nvars] > 0 ) /* if scalar and all savedvals were to small */
             consdata->nvars++;
+
+         SCIP_CALL( updateVarLocks(scip, cons, consdata->nvars-1) );
       }
    }
 
@@ -1455,6 +1568,10 @@ SCIP_RETCODE multiaggrVar(
     * it started, so that these entries will be overwritten */
    if ( SCIPisEQ(scip, constant, 0.0) )
       *nfixednonz = startind;
+
+#ifndef NDEBUG
+   SCIP_CALL( checkVarsLocks(scip, cons) );
+#endif
 
    return SCIP_OKAY;
 }
@@ -1486,7 +1603,6 @@ SCIP_RETCODE fixAndAggrVars(
    int requiredsize;
    int globalnvars;
    int vararraylength;
-   SCIP_Real epsilon;
 
    /* Loop over all variables once, add all fixed to savedrow/col/val; for all multiaggregated variables, if constant-scalar != 0, add
     * constant-scalar * entry to savedrow/col/val and call mergeArrays for all aggrvars for savedrow[startindex of this var] and scalar/constant-scalar;
@@ -1499,8 +1615,6 @@ SCIP_RETCODE fixAndAggrVars(
 
    SCIPdebugMsg(scip, "Calling fixAndAggrVars with aggregate = %u.\n", aggregate);
 
-   SCIP_CALL( SCIPgetRealParam(scip, "numerics/epsilon", &epsilon) );
-
    for (c = 0; c < nconss; ++c)
    {
       int nfixednonz = 0;
@@ -1510,6 +1624,7 @@ SCIP_RETCODE fixAndAggrVars(
 
       consdata = SCIPconsGetData(conss[c]);
       assert( consdata != NULL );
+      assert( consdata->locks != NULL );
 
       /* allocate memory to save nonzeros that need to be fixed */
       SCIP_CALL( SCIPallocBufferArray(scip, &savedcol, consdata->nnonz) );
@@ -1618,13 +1733,14 @@ SCIP_RETCODE fixAndAggrVars(
             else
                SCIPdebugMsg(scip, "multiaggregating variable %s to ", SCIPvarGetName(var));
             for (i = 0; i < naggrvars; i++)
-               SCIPdebugMsg(scip, "+ (%f2) * %s ", scalars[i], SCIPvarGetName(aggrvars[i]));
-            SCIPdebugMsg(scip, "+ (%f2) \n", constant);
+               SCIPdebugMessagePrint(scip, "+ %g %s ", scalars[i], SCIPvarGetName(aggrvars[i]));
+            SCIPdebugMessagePrint(scip, "+ %g.\n", constant);
 #endif
 
             /* add the nonzeros to the saved-arrays for the constant part, remove the nonzeros for the old variables and add them to the variables this variable
              * was (multi-)aggregated to */
-            SCIP_CALL( multiaggrVar(scip, conss[c], &v, aggrvars, scalars, naggrvars, constant, savedcol, savedrow, savedval, &nfixednonz, &vararraylength) );
+            SCIP_CALL( multiaggrVar(scip, conss[c], v, aggrvars, scalars, naggrvars, constant, savedcol, savedrow, savedval, &nfixednonz, &vararraylength) );
+            v--; /* we need to check again if the variable we just shifted to this position also needs to be fixed */
 
             SCIPfreeBufferArray(scip, &aggrvars);
             SCIPfreeBufferArray(scip, &scalars);
@@ -1637,7 +1753,8 @@ SCIP_RETCODE fixAndAggrVars(
 
             scalar = -1.0;
 
-            SCIP_CALL( multiaggrVar(scip, conss[c], &v, &var, &scalar, 1, 1.0, savedcol, savedrow, savedval, &nfixednonz, &vararraylength) );
+            SCIP_CALL( multiaggrVar(scip, conss[c], v, &var, &scalar, 1, 1.0, savedcol, savedrow, savedval, &nfixednonz, &vararraylength) );
+            v--; /* we need to check again if the variable we just shifted to this position also needs to be fixed */
          }
       }
 
@@ -1660,7 +1777,7 @@ SCIP_RETCODE fixAndAggrVars(
       SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &(consdata->constval), consdata->constnnonz, arraylength) );
 
       /* insert the fixed variables into the constant arrays, as we have +A_i but -A_0 we mutliply them by -1 */
-      SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), epsilon, savedrow, savedcol, savedval, nfixednonz, FALSE, -1.0, consdata->constrow,
+      SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), SCIPepsilon(scip), savedrow, savedcol, savedval, nfixednonz, FALSE, -1.0, consdata->constrow,
             consdata->constcol, consdata->constval, &(consdata->constnnonz), arraylength) );
 
       assert( consdata->constnnonz <= arraylength ); /* the allocated memory should always be sufficient */
@@ -2000,7 +2117,7 @@ SCIP_RETCODE enforceConstraint(
    for (i = 0; i < nconss; ++i)
    {
       consdata = SCIPconsGetData(conss[i]);
-      SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], sol, 0, 0, 0, result) );
+      SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], sol, FALSE, result) );
       if ( *result == SCIP_FEASIBLE )
          continue;
 
@@ -2075,6 +2192,10 @@ SCIP_RETCODE enforceConstraint(
    return SCIP_OKAY;
 }
 
+/*
+ * callbacks
+ */
+
 /** informs constraint handler that the presolving process is being started */
 static
 SCIP_DECL_CONSINITPRE(consInitpreSdp)
@@ -2099,58 +2220,94 @@ SCIP_DECL_CONSLOCK(consLockSdp)
 {/*lint --e{715}*/
    SCIP_Real* Aj;
    SCIP_CONSDATA* consdata;
-   SCIP_Real eigenvalue;
-   int blocksize;
    int nvars;
    int v;
 
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
-   blocksize = consdata->blocksize;
    nvars = consdata->nvars;
 
-   SCIP_CALL( SCIPallocBufferArray(scip, &Aj, blocksize * blocksize) ); /*lint !e647*/
+   SCIPdebugMsg(scip, "locking method of <%s>.\n", SCIPconsGetName(cons));
 
-   for (v = 0; v < nvars; v++)
+   /* if locks have not yet been computed */
+   if ( consdata->locks == NULL )
    {
-      SCIP_CALL( SCIPconsSdpGetFullAj(scip, cons, v, Aj) );
+      SCIP_Real eigenvalue;
+      int blocksize;
 
-      /* compute the smallest eigenvalue */
-      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, 1, &eigenvalue, NULL) );
-      if ( SCIPisNegative(scip, eigenvalue) )
-      {
-         /* as the lowest eigenvalue is negative, the matrix is not positive semidefinite, so adding more of it can remove positive
-          * semidefiniteness of the SDP-matrix */
-         SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], nlocksneg, nlockspos) );
-         consdata->locks[v] = 1; /* up-lock */
-      }
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->locks, nvars) );
 
-      /* if the smallest eigenvalue is already positive, we don't need to compute the biggest one */
-      if ( SCIPisPositive(scip, eigenvalue) )
+      blocksize = consdata->blocksize;
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &Aj, blocksize * blocksize) ); /*lint !e647*/
+
+      for (v = 0; v < nvars; v++)
       {
-         /* as an eigenvalue is positive, the matrix is not negative semidefinite, so substracting more of it can remove positive
-          * semidefiniteness of the SDP-matrix */
-         SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], nlockspos, nlocksneg) );
-         consdata->locks[v] = -1; /* down-lock */
-      }
-      else
-      {
-         /* compute the biggest eigenvalue */
-         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, blocksize, &eigenvalue, NULL) );
+         SCIP_CALL( SCIPconsSdpGetFullAj(scip, cons, v, Aj) );
+         consdata->locks[v] = -2;  /* unintitialized */
+
+         /* compute the smallest eigenvalue */
+         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, 1, &eigenvalue, NULL) );
+         if ( SCIPisNegative(scip, eigenvalue) )
+         {
+            /* as the lowest eigenvalue is negative, the matrix is not positive semidefinite, so adding more of it can remove positive
+             * semidefiniteness of the SDP-matrix */
+            SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], locktype, nlocksneg, nlockspos) );
+            consdata->locks[v] = 1; /* up-lock */
+         }
+
+         /* if the smallest eigenvalue is already positive, we don't need to compute the biggest one */
          if ( SCIPisPositive(scip, eigenvalue) )
          {
-            /* as the biggest eigenvalue is positive, the matrix is not negative semidefinite, so substracting more of it can remove positive
+            /* as an eigenvalue is positive, the matrix is not negative semidefinite, so substracting more of it can remove positive
              * semidefiniteness of the SDP-matrix */
-            SCIP_CALL( SCIPaddVarLocks(scip, consdata->vars[v], nlockspos, nlocksneg) );
-            if ( consdata->locks[v] == 1 )
-               consdata->locks[v] = 0;  /* up- and down-lock */
-            else
-               consdata->locks[v] = -1; /* down-lock */
+            SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], locktype, nlockspos, nlocksneg) );
+            consdata->locks[v] = -1; /* down-lock */
+         }
+         else
+         {
+            /* compute the biggest eigenvalue */
+            SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, blocksize, &eigenvalue, NULL) );
+            if ( SCIPisPositive(scip, eigenvalue) )
+            {
+               /* as the biggest eigenvalue is positive, the matrix is not negative semidefinite, so substracting more of it can remove positive
+                * semidefiniteness of the SDP-matrix */
+               SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], locktype, nlockspos, nlocksneg) );
+               if ( consdata->locks[v] == 1 )
+               {
+                  consdata->locks[v] = 0;  /* up- and down-lock */
+               }
+               else
+                  consdata->locks[v] = -1; /* down-lock */
+            }
          }
       }
-   }
 
-   SCIPfreeBufferArray(scip, &Aj);
+      SCIPfreeBufferArray(scip, &Aj);
+   }
+   else
+   {
+#ifndef NDEBUG
+      SCIP_CALL( checkVarsLocks(scip, cons) );
+#endif
+      for (v = 0; v < nvars; v++)
+      {
+         if ( consdata->locks[v] == 1 )  /* up-lock */
+         {
+            SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], locktype, nlocksneg, nlockspos) );
+         }
+         else if ( consdata->locks[v] == -1 )  /* down-lock */
+         {
+            SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], locktype, nlockspos, nlocksneg) );
+         }
+         else if ( consdata->locks[v] == 0 )  /* up and down lock */
+         {
+            SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], locktype, nlockspos + nlocksneg, nlockspos + nlocksneg) );
+         }
+         else
+            assert( consdata->locks[v] == -2 );
+      }
+   }
 
    return SCIP_OKAY;
 }
@@ -2350,21 +2507,45 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
    SCIP_CONSHDLRDATA* conshdlrdata;
 
    assert( conshdlr != NULL );
-   assert( result != 0 );
+   assert( result != NULL );
 
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
 
+   *result = SCIP_DIDNOTRUN;
+
    if ( nrounds == 0 )
    {
-      SCIP_CALL( move_1x1_blocks_to_lp(scip, conss, nconss, naddconss, ndelconss, result) );
-      if ( conshdlrdata->diaggezerocuts )
+      int noldaddconss;
+      int nolddelconss;
+      int noldchgbds;
+
+      *result = SCIP_DIDNOTFIND;
+
+      noldaddconss = *naddconss;
+      nolddelconss = *ndelconss;
+      noldchgbds = *nchgbds;
+      SCIP_CALL( move_1x1_blocks_to_lp(scip, conshdlr, conss, nconss, naddconss, ndelconss, nchgbds, result) );
+      if ( *result != SCIP_CUTOFF && (noldaddconss != *naddconss || nolddelconss != *ndelconss || noldchgbds != *nchgbds) )
+         *result = SCIP_SUCCESS;
+
+      if ( *result != SCIP_CUTOFF && conshdlrdata->diaggezerocuts )
       {
-         SCIP_CALL( diagGEzero(scip, conss, nconss, naddconss) );
+         noldaddconss = *naddconss;
+         noldchgbds = *nchgbds;
+         SCIP_CALL( diagGEzero(scip, conshdlr, conss, nconss, naddconss, nchgbds, result) );
+         SCIPdebugMsg(scip, "Diagonal entries: added %d cuts and changed %d bounds.\n", *naddconss - noldaddconss, *nchgbds - noldchgbds);
+         if ( *result != SCIP_CUTOFF && ( noldaddconss != *naddconss || noldchgbds != *nchgbds ) )
+            *result = SCIP_SUCCESS;
       }
-      if ( conshdlrdata->diagzeroimplcuts )
+
+      if ( *result != SCIP_CUTOFF && conshdlrdata->diagzeroimplcuts )
       {
+         noldaddconss = *naddconss;
          SCIP_CALL( diagZeroImpl(scip, conss, nconss, naddconss) );
+         SCIPdebugMsg(scip, "Added %d cuts for implication from 0 diagonal.\n", *naddconss - noldaddconss);
+         if ( noldaddconss != *naddconss )
+            *result = SCIP_SUCCESS;
       }
    }
 
@@ -2418,14 +2599,18 @@ SCIP_DECL_CONSTRANS(consTransSdp)
       SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->val[i]), sourcedata->val[i], sourcedata->nvarnonz[i]) );
    }
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->vars), sourcedata->nvars) );
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->locks), sourcedata->nvars) );
+   if ( sourcedata->locks )
+   {
+      SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->locks), sourcedata->locks, sourcedata->nvars) );
+   }
+   else
+      targetdata->locks = NULL;
 
    /* copy & transform the vars array */
    for (i = 0; i < sourcedata->nvars; i++)
    {
       targetdata->vars[i] = SCIPvarGetTransVar(sourcedata->vars[i]);
       SCIP_CALL( SCIPcaptureVar(scip, targetdata->vars[i]) );
-      targetdata->locks[i] = -2;
    }
 
    /* copy the constant nonzeros */
@@ -2503,7 +2688,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
    /* check positive semidefiniteness */
    for (i = 0; i < nconss; ++i)
    {
-      SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], sol, checkintegrality, checklprows, printreason, result) );
+      SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], sol, printreason, result) );
       if ( *result == SCIP_INFEASIBLE )
          return SCIP_OKAY;
    }
@@ -2536,7 +2721,7 @@ SCIP_DECL_CONSENFOPS(consEnfopsSdp)
 
    for (i = 0; i < nconss; ++i)
    {
-      SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], NULL, 0, 0, 0, result) );
+      SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], NULL, FALSE, result) );
 
       if (*result == SCIP_INFEASIBLE)
       {
@@ -3201,7 +3386,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CONSHDLR* conshdlr = NULL;
    SCIP_CONSHDLRDATA* conshdlrdata = NULL;
 
-   assert( scip != 0 );
+   assert( scip != NULL );
 
    /* allocate memory for the conshdlrdata */
    SCIP_CALL( SCIPallocMemory(scip, &conshdlrdata) );
@@ -3239,6 +3424,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/diaggezerocuts",
          "Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added?",
          &(conshdlrdata->diaggezerocuts), TRUE, DEFAULT_DIAGGEZEROCUTS, NULL, NULL) );
+
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/diagzeroimplcuts",
          "Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added?",
          &(conshdlrdata->diagzeroimplcuts), TRUE, DEFAULT_DIAGZEROIMPLCUTS, NULL, NULL) );
@@ -3303,7 +3489,6 @@ SCIP_RETCODE SCIPconsSdpGetData(
    )
 {
    SCIP_CONSDATA* consdata;
-   const char* name;
    int i;
 
    assert( scip != NULL );
@@ -3320,7 +3505,6 @@ SCIP_RETCODE SCIPconsSdpGetData(
    assert( constnnonz != NULL );
 
    consdata = SCIPconsGetData(cons);
-   name = SCIPconsGetName(cons);
 
    assert( consdata->constnnonz == 0 || ( constcol != NULL && constrow != NULL && constval != NULL ) );
 
@@ -3335,7 +3519,7 @@ SCIP_RETCODE SCIPconsSdpGetData(
    if ( *arraylength < consdata->nvars )
    {
       SCIPdebugMsg(scip, "nvarnonz, col, row and val arrays were not long enough to store the information for cons %s, they need to be at least"
-         "size %d, given was only length %d! \n", name, consdata->nvars, *arraylength);
+         "size %d, given was only length %d! \n", SCIPconsGetName(cons), consdata->nvars, *arraylength);
       *arraylength = consdata->nvars;
    }
    else
@@ -3356,7 +3540,7 @@ SCIP_RETCODE SCIPconsSdpGetData(
       if ( consdata->constnnonz > *constnnonz )
       {
          SCIPdebugMsg(scip, "The constant nonzeros arrays were not long enough to store the information for cons %s, they need to be at least"
-            "size %d, given was only length %d! \n", name, consdata->constnnonz, *constnnonz);
+            "size %d, given was only length %d! \n", SCIPconsGetName(cons), consdata->constnnonz, *constnnonz);
       }
       else
       {
@@ -3685,7 +3869,6 @@ SCIP_Real SCIPconsSdpGetMaxSdpCoef(
  *  Upper bound is computed as \f$ \min \{ \sum_{v \leq m} \text{nvarnonz}(v) + \text{constnnonz}, n \cdot (n+1) / 2 \} \f$.
  */
 int SCIPconsSdpComputeUbSparseSdpMatrixLength(
-   SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons                /**< the constraint for which the Matrix should be assembled */
    )
 {  /*lint --e{715}*/
@@ -3728,7 +3911,6 @@ SCIP_RETCODE SCIPconsSdpComputeSparseSdpMatrix(
    int i;
    int v;
    int nnonz;
-   SCIP_Real epsilon;
 
    assert( scip != NULL );
    assert( cons != NULL );
@@ -3759,11 +3941,9 @@ SCIP_RETCODE SCIPconsSdpComputeSparseSdpMatrix(
    }
 
    /* add all variable arrays multiplied by corresponding solution value */
-   SCIP_CALL( SCIPgetRealParam(scip, "numerics/epsilon", &epsilon) );
-
    for (v = 0; v < consdata->nvars; v++)
    {
-      SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), epsilon, consdata->row[v], consdata->col[v], consdata->val[v], consdata->nvarnonz[v],
+      SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), SCIPepsilon(scip), consdata->row[v], consdata->col[v], consdata->val[v], consdata->nvarnonz[v],
             FALSE, SCIPgetSolVal(scip, sol, consdata->vars[v]), row, col, val, &nnonz, *length) );
       if ( nnonz > *length )
       {
