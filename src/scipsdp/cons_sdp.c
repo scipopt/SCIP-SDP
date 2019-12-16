@@ -260,57 +260,6 @@ SCIP_RETCODE isMatrixRankOne(
    /* expand it because LAPACK wants the full matrix instead of the lower triangular part */
    SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
 
-#if 0
-   SCIP_Real* eigenvalues;
-   SCIP_Real* eigenvectors;
-
-   SCIP_CALL( SCIPallocBufferArray(scip, &eigenvalues, blocksize) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &eigenvectors, blocksize) );
-
-   /* compute eigenvalues */
-   SCIP_CALL( SCIPlapackComputeEigenvectorDecomposition(SCIPbuffer(scip), blocksize, fullmatrix, eigenvalues, eigenvectors) );
-
-   /* sort eigenvalues in non-increasing order */
-   SCIPsortDownReal(eigenvalues, blocksize);
-
-   /* the matrix is rank 1 iff the second largest eigenvalue is zero (since the matrix is symmetric and psd) */
-   if ( SCIPisFeasEQ(scip, eigenvalues[1], 0.0) )
-      *result = TRUE;
-   else
-   {
-      *result = FALSE;
-
-      /* if the matrix is not rank 1, compute minimal eigenvalues of 2x2 minors */
-      for (i = 0; i < blocksize; ++i)
-      {
-         for (j = 0; j < i; ++j)
-         {
-            submatrix[0] = matrix[SCIPconsSdpCompLowerTriangPos(i,i)];
-            submatrix[1] = matrix[SCIPconsSdpCompLowerTriangPos(i,j)];
-            submatrix[2] = matrix[SCIPconsSdpCompLowerTriangPos(i,j)];
-            submatrix[3] = matrix[SCIPconsSdpCompLowerTriangPos(j,j)];
-
-            SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, 2, submatrix, 1, &eigenvalue, NULL) );
-            /* TODO: Compute eigenvalues by solving quadratic constraint */
-
-            if ( SCIPisFeasGT(scip, eigenvalue, largestminev) )
-            {
-               largestminev = eigenvalue;
-               ind1 = i;
-               ind2 = j;
-            }
-         }
-      }
-
-      /* save indices for submatrix with largest minimal eigenvalue */
-      consdata->maxevsubmat[0] = ind1;
-      consdata->maxevsubmat[1] = ind2;
-   }
-
-   SCIPfreeBufferArray(scip, &eigenvectors);
-   SCIPfreeBufferArray(scip, &eigenvalues);
-#endif
-
    /* compute the second largest eigenvalue */
    SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, fullmatrix, blocksize - 1, &eigenvalue, NULL) );
 
@@ -1871,10 +1820,6 @@ SCIP_RETCODE enforceRankOne(
 
    ind1 = consdata->maxevsubmat[0];
    ind2 = consdata->maxevsubmat[1];
-   /* if (SCIPisFeasEQ(scip, largestminev, 0.0) ) */
-   /* { */
-   /*    return SCIP_OKAY; */
-   /* } */
 
    /* get variables and coefficients corresponding to indices (i,i), (j,j) and (i,j) for branching */
    quadvars1[0] = consdata->vars[SCIPconsSdpCompLowerTriangPos(ind1,ind1)];            /* variable corresponding to entry (i,i) */
@@ -1908,23 +1853,6 @@ SCIP_RETCODE enforceRankOne(
       {
          SCIP_ROW* cut;
          SCIP_Bool infeasible;
-
-         /* SCIP_VAR* linvars[3]; */
-         /* SCIP_Real linvals[3]; */
-         /* char name[SCIP_MAXSTRLEN]; */
-         /* SCIP_CONS* lincons; */
-
-         /* linvars[0] = quadvars1[0]; */
-         /* linvars[1] = quadvars2[0]; */
-         /* linvars[2] = quadvars1[1]; */
-         /* linvals[0] = ubjj + val2; */
-         /* linvals[1] = ubii + val3; */
-         /* linvals[2] = -val1; */
-
-         /* (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lincut1#%d#%d", ind1, ind2); */
-         /* SCIP_CALL( SCIPcreateConsBasicLinear(scip, &lincons, name, 3, linvars, linvals, -SCIPinfinity(scip), -val4 + ubii * ubjj) ); */
-         /* SCIP_CALL( SCIPaddCons(scip, lincons) ); */
-         /* SCIP_CALL( SCIPreleaseCons(scip, &lincons) ); */
 
 #if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
          SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &cut, conshdlr, "", -SCIPinfinity(scip), -val4 + ubii * ubjj, FALSE, FALSE, TRUE) );
@@ -1965,23 +1893,6 @@ SCIP_RETCODE enforceRankOne(
          SCIP_ROW* cut;
          SCIP_Bool infeasible;
 
-         /* SCIP_VAR* linvars[3]; */
-         /* SCIP_Real linvals[3]; */
-         /* char name[SCIP_MAXSTRLEN]; */
-         /* SCIP_CONS* lincons; */
-
-         /* linvars[0] = quadvars1[0]; */
-         /* linvars[1] = quadvars2[0]; */
-         /* linvars[2] = quadvars1[1]; */
-         /* linvals[0] = lbjj + val2; */
-         /* linvals[1] = lbii + val3; */
-         /* linvals[2] = -val1; */
-
-         /* (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lincut2#%d#%d", ind1, ind2); */
-         /* SCIP_CALL( SCIPcreateConsBasicLinear(scip, &lincons, name, 3, linvars, linvals, -SCIPinfinity(scip), -val4 + lbii * lbjj) ); */
-         /* SCIP_CALL( SCIPaddCons(scip, lincons) ); */
-         /* SCIP_CALL( SCIPreleaseCons(scip, &lincons) ); */
-
 #if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
          SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &cut, conshdlr, "", -SCIPinfinity(scip), -val4 + lbii * lbjj, FALSE, FALSE, TRUE) );
 #else
@@ -2015,10 +1926,6 @@ SCIP_RETCODE enforceRankOne(
             SCIPdebugMsg(scip, "Cut based on second inequality is not efficacious.\n");
             SCIP_CALL( SCIPreleaseRow(scip, &cut) );
          }
-      }
-      else
-      {
-         /* printf("None of the two inequalities are valid\n"); */
       }
 
       if ( *result == SCIP_CUTOFF || *result == SCIP_SEPARATED )
@@ -2377,15 +2284,12 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
    for (c = 0; c < nconss; ++c)
    {
       SCIP_CONSDATA* consdata;
-      /* int*           maxevsubmat; */
 
       consdata = SCIPconsGetData(conss[c]);
       assert( consdata != NULL );
       assert( &consdata->maxevsubmat != NULL );
       assert( &consdata->rankone != NULL );
       assert( &consdata->addedquadcons != NULL );
-
-      /* SCIP_CALL( SCIPallocBlockMemory(scip, &maxevsubmat) ); */
 
       consdata->maxevsubmat[0] = -1;
       consdata->maxevsubmat[1] = -1;
@@ -2656,19 +2560,6 @@ SCIP_DECL_CONSTRANS(consTransSdp)
       targetdata->constrow = NULL;
       targetdata->constval = NULL;
    }
-
-   /* /\* copy & transform the quadratic constraints for the 2x2 principal minors *\/ */
-   /* SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->quadconss), sourcedata->blocksize) ); */
-
-   /* for (i = 0; i < sourcedata->blocksize; ++i) */
-   /* { */
-   /*    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->quadconss[i]), i + 1) ); */
-   /*    for (j = 0; j < i; ++j) */
-   /*    { */
-   /*       targetdata->quadconss[i][j] = SCIPconsGetTransformed(sourcedata->quadconss[i][j]); */
-   /*       SCIPcaptureCons(scip, targetdata->quadconss[i][j]); */
-   /*    } */
-   /* } */
 
    /* copy the maxrhsentry */
    targetdata->maxrhsentry = sourcedata->maxrhsentry;
@@ -3170,7 +3061,6 @@ SCIP_DECL_CONSPARSE(consParseSdp)
       pos++;
 
    /* parse the rank1-information */
-   /* if ( strncmp(pos, 'rank-1?', 10) == 0 ) */
    if ( pos[0] == 'r' && pos[1] == 'a' && pos[2] == 'n' && pos[3] == 'k' && pos[4] == '-' && pos[5] == '1' && pos[6] == '?' )
    {
       pos += 8;                 /* we skip "rank1-? " */
