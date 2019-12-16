@@ -2546,7 +2546,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    nrank1sdpblocks = 0;
    for (c = 0; c < nconss; c++)
    {
-      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") == 0 && SCIPconsSdpShouldBeRankOne(scip, conss[c]) )
+      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") == 0 && SCIPconsSdpShouldBeRankOne(conss[c]) )
          ++nrank1sdpblocks;
    }
 
@@ -2560,7 +2560,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
          if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0 )
             continue;
 
-         if ( SCIPconsSdpShouldBeRankOne(scip, conss[c]) )
+         if ( SCIPconsSdpShouldBeRankOne(conss[c]) )
             SCIPinfoMessage(scip, file, "%d\n", SCIPconsSdpGetBlocksize(scip, conss[c]));
       }
 

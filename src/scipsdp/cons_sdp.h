@@ -232,14 +232,12 @@ SCIP_RETCODE SCIPconsSdpComputeSparseSdpMatrix(
 /** returns wheter matrix should be rank one */
 SCIP_EXPORT
 SCIP_Bool SCIPconsSdpShouldBeRankOne(
-   SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons                /**< the constraint for which the existence of a rank one constraint should be checked */
    );
 
 /** returns two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] */
 SCIP_EXPORT
 SCIP_RETCODE SCIPconsSdpGetMaxEVSubmat(
-   SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< the constraint for which the existence of a rank one constraint should be checked */
    int**                 maxevsubmat         /**< pointer to store the two row indices of 2x2 subdeterminant with
                                                 maximal eigenvalue [or -1,-1 if not available] */
@@ -248,7 +246,6 @@ SCIP_RETCODE SCIPconsSdpGetMaxEVSubmat(
 /** returns whether the quadratic 2x2-minor constraints are already added (in the rank1-case) */
 SCIP_EXPORT
 SCIP_Bool SCIPconsSdpAddedQuadCons(
-   SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons                /**< the constraint for which it should be checked whether the quadratic 2x2-minor constraints are already added (in the rank1-case) */
    );
 
