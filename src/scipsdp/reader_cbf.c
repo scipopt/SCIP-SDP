@@ -155,26 +155,26 @@ SCIP_RETCODE CBFreadObjsense(
 
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
-   if ( sscanf(CBF_LINE_BUFFER, CBF_NAME_FORMAT, CBF_NAME_BUFFER) == 1 )
+   if ( sscanf(CBF_LINE_BUFFER, CBF_NAME_FORMAT, CBF_NAME_BUFFER) != 1 )
    {
-      if ( strcmp(CBF_NAME_BUFFER, "MIN") == 0 )
-      {
-         SCIP_CALL( SCIPsetObjsense(scip, SCIP_OBJSENSE_MINIMIZE) );
-      }
-      else if ( strcmp(CBF_NAME_BUFFER, "MAX") == 0 )
-      {
-         SCIP_CALL( SCIPsetObjsense(scip, SCIP_OBJSENSE_MAXIMIZE) );
-      }
-      else
-      {
-         SCIPerrorMessage("OBJSENSE should be either MIN or MAX.\n");
-         SCIPABORT();
-         return SCIP_READERROR; /*lint !e527*/
-      }
+      SCIPerrorMessage("Could not read OBJSENSE in line &d.\n", linecount);
+      SCIPABORT();
+      return SCIP_READERROR;
+   }
+
+   if ( strcmp(CBF_NAME_BUFFER, "MIN") == 0 )
+   {
+      SCIP_CALL( SCIPsetObjsense(scip, SCIP_OBJSENSE_MINIMIZE) );
+   }
+   else if ( strcmp(CBF_NAME_BUFFER, "MAX") == 0 )
+   {
+      SCIP_CALL( SCIPsetObjsense(scip, SCIP_OBJSENSE_MAXIMIZE) );
    }
    else
    {
-      return SCIP_READERROR;
+      SCIPerrorMessage("OBJSENSE in line %d should be either MIN or MAX.\n", linecount);
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
    }
 
    return SCIP_OKAY;
@@ -208,18 +208,22 @@ SCIP_RETCODE CBFreadVar(
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
    if ( sscanf(CBF_LINE_BUFFER, "%i %i", &(data->nvars), &nvartypes) != 2 )
+   {
+      SCIPerrorMessage("Could not read number of scalar variables and conic domains in line %d.\n", linecount);
+      SCIPABORT();
       return SCIP_READERROR;
+   }
 
    if ( data->nvars < 0 )
    {
-      SCIPerrorMessage("Number of scalar variables %d should be non-negative!\n", data->nvars);
+      SCIPerrorMessage("Number of scalar variables %d in line %d should be non-negative!\n", data->nvars, linecount);
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
 
    if ( nvartypes < 0 )
    {
-      SCIPerrorMessage("Number of conic variable domains %d should be non-negative!\n", nvartypes);
+      SCIPerrorMessage("Number of conic variable domains %d in line %d should be non-negative!\n", nvartypes, linecount);
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
@@ -229,60 +233,62 @@ SCIP_RETCODE CBFreadVar(
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdvars), data->nvars) );
    for (t = 0; t < nvartypes; t++)
    {
+      SCIP_Real lb;
+      SCIP_Real ub;
+
       SCIP_CALL( CBFfgets(pfile, linecount) );
 
-      if ( sscanf(CBF_LINE_BUFFER, CBF_NAME_FORMAT" %i", CBF_NAME_BUFFER, &nvartypevars) == 2 )
+      if ( sscanf(CBF_LINE_BUFFER, CBF_NAME_FORMAT" %i", CBF_NAME_BUFFER, &nvartypevars) != 2 )
       {
-         SCIP_Real lb;
-         SCIP_Real ub;
+         SCIPerrorMessage("Could not read conic domain and number of corresponding scalar variables in line %d.\n", linecount);
+         SCIPABORT();
+         return SCIP_READERROR;
+      }
 
-         if ( nvartypevars <= 0 )
-         {
-            SCIPerrorMessage("Number of scalar variables %d should be positive!\n", nvartypevars);
-            SCIPABORT();
-            return SCIP_READERROR; /*lint !e527*/
-         }
+      if ( nvartypevars <= 0 )
+      {
+         SCIPerrorMessage("Number of scalar variables %d in line %d should be positive!\n", nvartypevars, linecount);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
 
-         lb = -SCIPinfinity(scip);
-         ub = SCIPinfinity(scip);
+      lb = -SCIPinfinity(scip);
+      ub = SCIPinfinity(scip);
 
-         if ( strcmp(CBF_NAME_BUFFER, "L+") == 0 )
-         {
-            lb = 0.0;
-         }
-         else if ( strcmp(CBF_NAME_BUFFER, "L-") == 0 )
-         {
-            ub = 0.0;
-         }
-         else if ( strcmp(CBF_NAME_BUFFER, "F") != 0 )
-         {
-            SCIPerrorMessage("CBF-Reader of SCIP-SDP currently only supports non-negative, non-positive and free variables!\n");
-            SCIPABORT();
-            return SCIP_READERROR; /*lint !e527*/
-         }
+      if ( strcmp(CBF_NAME_BUFFER, "L+") == 0 )
+      {
+         lb = 0.0;
+      }
+      else if ( strcmp(CBF_NAME_BUFFER, "L-") == 0 )
+      {
+         ub = 0.0;
+      }
+      else if ( strcmp(CBF_NAME_BUFFER, "F") != 0 )
+      {
+         SCIPerrorMessage("CBF-Reader of SCIP-SDP currently only supports non-negative, non-positive and free variables!\n");
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
 
-         /* create corresponding variables */
-         for (v = 0; v < nvartypevars; v++)
-         {
+      /* create corresponding variables */
+      for (v = 0; v < nvartypevars; v++)
+      {
 #ifndef NDEBUG
-            snprintfreturn = SCIPsnprintf(varname, SCIP_MAXSTRLEN, "x_%d", cnt);
-            assert( snprintfreturn < SCIP_MAXSTRLEN);
+         snprintfreturn = SCIPsnprintf(varname, SCIP_MAXSTRLEN, "x_%d", cnt);
+         assert( snprintfreturn < SCIP_MAXSTRLEN);
 #else
-            (void)SCIPsnprintf(varname, SCIP_MAXSTRLEN, "x_%d", cnt);
+         (void)SCIPsnprintf(varname, SCIP_MAXSTRLEN, "x_%d", cnt);
 #endif
 
-            SCIP_CALL( SCIPcreateVar(scip, &var, varname, lb, ub, 0.0, SCIP_VARTYPE_CONTINUOUS,
-                  TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));/*lint !e732*//*lint !e747*/
+         SCIP_CALL( SCIPcreateVar(scip, &var, varname, lb, ub, 0.0, SCIP_VARTYPE_CONTINUOUS,
+               TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));/*lint !e732*//*lint !e747*/
 
-            SCIP_CALL( SCIPaddVar(scip, var) );
-            data->createdvars[cnt++] = var;/*lint !e732*//*lint !e747*/
+         SCIP_CALL( SCIPaddVar(scip, var) );
+         data->createdvars[cnt++] = var;/*lint !e732*//*lint !e747*/
 
-            /* release variable for the reader */
-            SCIP_CALL( SCIPreleaseVar(scip, &var) );
-         }
+         /* release variable for the reader */
+         SCIP_CALL( SCIPreleaseVar(scip, &var) );
       }
-      else
-         return SCIP_READERROR;
    }
 
    if ( cnt != data->nvars )
@@ -310,6 +316,8 @@ SCIP_RETCODE CBFreadPsdVar(
    int j;
    int t;
    int sizepsdvar;
+   int nscalarvars;
+   int cnt = 0;
 #ifndef NDEBUG
    int snprintfreturn;
 #endif
@@ -330,11 +338,15 @@ SCIP_RETCODE CBFreadPsdVar(
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
    if ( sscanf(CBF_LINE_BUFFER, "%i", &(data->npsdvars)) != 1 )
+   {
+      SCIPerrorMessage("Could not read number of psd variables in line %d.\n", linecount);
+      SCIPABORT();
       return SCIP_READERROR;
+   }
 
    if ( data->npsdvars < 0 )
    {
-      SCIPerrorMessage("Number of psd variables %d should be non-negative!\n", data->npsdvars);
+      SCIPerrorMessage("Number of psd variables %d in line %d should be non-negative!\n", data->npsdvars, linecount);
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
@@ -347,61 +359,62 @@ SCIP_RETCODE CBFreadPsdVar(
 
    for (t = 0; t < data->npsdvars; t++)
    {
+      SCIP_Real lb;
+      SCIP_Real ub;
+
       SCIP_CALL( CBFfgets(pfile, linecount) );
 
-      if ( sscanf(CBF_LINE_BUFFER, "%i", &sizepsdvar) == 1 )
+      if ( sscanf(CBF_LINE_BUFFER, "%i", &sizepsdvar) != 1 )
       {
-         SCIP_Real lb;
-         SCIP_Real ub;
-         int nscalarvars;
-         int cnt = 0;
+         SCIPerrorMessage("Could not read the size of psd variable %d in line %d.\n", t, linecount);
+         SCIPABORT();
+         return SCIP_READERROR;
 
-         if ( sizepsdvar <= 0 )
+      }
+
+      if ( sizepsdvar <= 0 )
+      {
+         SCIPerrorMessage("Size %d of psd variable %d in line %d should be positive!\n", sizepsdvar, t, linecount);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
+
+      /* for each psd variable of size n_i create 1/2*n_i*(n_i+1) scalar variables */
+      nscalarvars = sizepsdvar * (sizepsdvar + 1) / 2;
+      data->psdvarsizes[t] = sizepsdvar;
+
+      /* initialize rank-1 information for each psd variable with FALSE, will eventually be changed when reading PSDVARRANK1 */
+      data->psdvarrank1[t] = FALSE;
+
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdpsdvars[t]), sizepsdvar) );
+
+      lb = -SCIPinfinity(scip);
+      ub = SCIPinfinity(scip);
+
+      for (i = 0; i < sizepsdvar; ++i)
+      {
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdpsdvars[t][i]), i+1) );
+         for (j = 0; j <= i; ++j)
          {
-            SCIPerrorMessage("Size %d of psd variable should be positive!\n", sizepsdvar);
-            SCIPABORT();
-            return SCIP_READERROR; /*lint !e527*/
-         }
-
-         /* for each psd variable of size n_i create 1/2*n_i*(n_i+1) scalar variables */
-         nscalarvars = sizepsdvar * (sizepsdvar + 1) / 2;
-         data->psdvarsizes[t] = sizepsdvar;
-
-         /* initialize rank-1 information for each psd variable with FALSE, will eventually be changed when reading PSDVARRANK1 */
-         data->psdvarrank1[t] = FALSE;
-
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdpsdvars[t]), sizepsdvar) );
-
-         lb = -SCIPinfinity(scip);
-         ub = SCIPinfinity(scip);
-
-         for (i = 0; i < sizepsdvar; ++i)
-         {
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdpsdvars[t][i]), i+1) );
-            for (j = 0; j <= i; ++j)
-            {
 #ifndef NDEBUG
-               snprintfreturn = SCIPsnprintf(varname, SCIP_MAXSTRLEN, "y_%d%d%d", t, i, j);
-               assert( snprintfreturn < SCIP_MAXSTRLEN);
+            snprintfreturn = SCIPsnprintf(varname, SCIP_MAXSTRLEN, "y_%d%d%d", t, i, j);
+            assert( snprintfreturn < SCIP_MAXSTRLEN);
 #else
-               (void)SCIPsnprintf(varname, SCIP_MAXSTRLEN, "y_%d%d%d", t, i, j);
+            (void)SCIPsnprintf(varname, SCIP_MAXSTRLEN, "y_%d%d%d", t, i, j);
 #endif
 
-               SCIP_CALL( SCIPcreateVar(scip, &var, varname, lb, ub, 0.0, SCIP_VARTYPE_CONTINUOUS,
-                     TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));/*lint !e732*//*lint !e747*/
+            SCIP_CALL( SCIPcreateVar(scip, &var, varname, lb, ub, 0.0, SCIP_VARTYPE_CONTINUOUS,
+                  TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));/*lint !e732*//*lint !e747*/
 
-               SCIP_CALL( SCIPaddVar(scip, var) );
-               data->createdpsdvars[t][i][j] = var;/*lint !e732*//*lint !e747*/
-               ++cnt;
+            SCIP_CALL( SCIPaddVar(scip, var) );
+            data->createdpsdvars[t][i][j] = var;/*lint !e732*//*lint !e747*/
+            ++cnt;
 
-               /* release variable for the reader */
-               SCIP_CALL( SCIPreleaseVar(scip, &var) );
-            }
+            /* release variable for the reader */
+            SCIP_CALL( SCIPreleaseVar(scip, &var) );
          }
-         assert( cnt == nscalarvars );
       }
-      else
-         return SCIP_READERROR;
+      assert( cnt == nscalarvars );
    }
 
    return SCIP_OKAY;
@@ -436,11 +449,15 @@ SCIP_RETCODE CBFreadPsdVarRank1(
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
    if ( sscanf(CBF_LINE_BUFFER, "%i", &(nrank1psdvars)) != 1 )
+   {
+      SCIPerrorMessage("Could not read number of psd variables with a rank-1 constraint in line %d.\n", linecount);
+      SCIPABORT();
       return SCIP_READERROR;
+   }
 
    if ( nrank1psdvars < 0 )
    {
-      SCIPerrorMessage("Number of psd variables with a rank-1 constraint %d should be non-negative!\n", nrank1psdvars);
+      SCIPerrorMessage("Number of psd variables with a rank-1 constraint %d in line %d should be non-negative!\n", nrank1psdvars, linecount);
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
@@ -453,19 +470,22 @@ SCIP_RETCODE CBFreadPsdVarRank1(
    for (i = 0; i < nrank1psdvars; i++)
    {
       SCIP_CALL( CBFfgets(pfile, linecount) );
-      if ( sscanf(CBF_LINE_BUFFER, "%i", &v) == 1 )
+
+      if ( sscanf(CBF_LINE_BUFFER, "%i", &v) != 1 )
       {
-         if ( v < 0 || v >= data->npsdvars )
-         {
-            SCIPerrorMessage("Given rank-1 constraint for matrix variable %d which does not exist!\n", v);
-            SCIPABORT();
-            return SCIP_READERROR; /*lint !e527*/
-         }
-         else
-            data->psdvarrank1[v] = TRUE;
+         SCIPerrorMessage("Could not read index of psd variable with a rank-1 constraint in line %d.\n", linecount);
+         SCIPABORT();
+         return SCIP_READERROR;
       }
-      else
+
+      if ( v < 0 || v >= data->npsdvars )
+      {
+         SCIPerrorMessage("Given rank-1 constraint in line %d for matrix variable %d which does not exist!\n", linecount, v);
+         SCIPABORT();
          return SCIP_READERROR; /*lint !e527*/
+      }
+
+      data->psdvarrank1[v] = TRUE;
    }
 
    return SCIP_OKAY;
@@ -499,89 +519,93 @@ SCIP_RETCODE CBFreadCon(
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
    if ( sscanf(CBF_LINE_BUFFER, "%i %i", &(data->nconss), &nconstypes) != 2 )
-      return SCIP_READERROR;
-   else
    {
-      if ( data->nconss < 0 )
-      {
-         SCIPerrorMessage("Number of scalar constraints %d should be non-negative!\n", data->nconss);
-         SCIPABORT();
-         return SCIP_READERROR; /*lint !e527*/
-      }
-
-      if ( nconstypes < 0 )
-      {
-         SCIPerrorMessage("Number of conic constraint domains %d should be non-negative!\n", nconstypes);
-         SCIPABORT();
-         return SCIP_READERROR; /*lint !e527*/
-      }
-      assert( data->nconss >= 0 && nconstypes >= 0 );
+      SCIPerrorMessage("Could not read number of scalar constraints and conic domains in line %d.\n", linecount);
+      SCIPABORT();
+      return SCIP_READERROR;
    }
+
+   if ( data->nconss < 0 )
+   {
+      SCIPerrorMessage("Number of scalar constraints %d in line %d should be non-negative!\n", data->nconss, linecount);
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+
+   if ( nconstypes < 0 )
+   {
+      SCIPerrorMessage("Number of conic constraint domains %d in line %d should be non-negative!\n", nconstypes, linecount);
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+   assert( data->nconss >= 0 && nconstypes >= 0 );
 
    /* loop through different constraint types */
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdconss), data->nconss) );
    for (t = 0; t < nconstypes; t++)
    {
+      SCIP_Real lhs;
+      SCIP_Real rhs;
+
       SCIP_CALL( CBFfgets(pfile, linecount) );
 
-      if ( sscanf(CBF_LINE_BUFFER, CBF_NAME_FORMAT" %i", CBF_NAME_BUFFER, &nconstypeconss) == 2 )
+      if ( sscanf(CBF_LINE_BUFFER, CBF_NAME_FORMAT" %i", CBF_NAME_BUFFER, &nconstypeconss) != 2 )
       {
-         SCIP_Real lhs;
-         SCIP_Real rhs;
+         SCIPerrorMessage("Could not read conic domain and number of corresponding scalar constraints in line %d.\n", linecount);
+         SCIPABORT();
+         return SCIP_READERROR;
+      }
 
-         if ( nconstypeconss <= 0 )
-         {
-            SCIPerrorMessage("Number of constraints %d should be positive!\n", nconstypeconss);
-            SCIPABORT();
-            return SCIP_READERROR; /*lint !e527*/
-         }
+      if ( nconstypeconss <= 0 )
+      {
+         SCIPerrorMessage("Number of constraints %d in line %d should be positive!\n", nconstypeconss, linecount);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
 
-         lhs = -SCIPinfinity(scip);
-         rhs = SCIPinfinity(scip);
+      lhs = -SCIPinfinity(scip);
+      rhs = SCIPinfinity(scip);
 
-         if ( strcmp(CBF_NAME_BUFFER, "L+") == 0 )
-         {
-            lhs = 0.0;
-         }
-         else if ( strcmp(CBF_NAME_BUFFER, "L-") == 0 )
-         {
-            rhs = 0.0;
-         }
-         else if ( strcmp(CBF_NAME_BUFFER, "L=") == 0 )
-         {
-            lhs = 0.0;
-            rhs = 0.0;
-         }
-         else
-         {
-            SCIPerrorMessage("CBF-Reader of SCIP-SDP currently only supports linear greater or equal, less or equal and"
-               "equality constraints!\n");
-            SCIPABORT();
-            return SCIP_READERROR; /*lint !e527*/
-         }
-
-         /* create corresponding constraints */
-         for (c = 0; c < nconstypeconss; c++)
-         {
-#ifndef NDEBUG
-            snprintfreturn = SCIPsnprintf(consname, SCIP_MAXSTRLEN, "LP_%d", cnt);
-            assert( snprintfreturn < SCIP_MAXSTRLEN);
-#else
-            (void)SCIPsnprintf(consname, SCIP_MAXSTRLEN, "linear_%d", cnt);
-#endif
-
-            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, consname, 0, NULL, NULL, lhs, rhs,
-                  TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
-
-            SCIP_CALL( SCIPaddCons(scip, cons) );
-            data->createdconss[cnt++] = cons;
-
-            /* release constraint for the reader. */
-            SCIP_CALL( SCIPreleaseCons(scip, &cons) );
-         }
+      if ( strcmp(CBF_NAME_BUFFER, "L+") == 0 )
+      {
+         lhs = 0.0;
+      }
+      else if ( strcmp(CBF_NAME_BUFFER, "L-") == 0 )
+      {
+         rhs = 0.0;
+      }
+      else if ( strcmp(CBF_NAME_BUFFER, "L=") == 0 )
+      {
+         lhs = 0.0;
+         rhs = 0.0;
       }
       else
-         return SCIP_READERROR;
+      {
+         SCIPerrorMessage("CBF-Reader of SCIP-SDP currently only supports linear greater or equal, less or equal and"
+            "equality constraints!\n");
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
+
+      /* create corresponding constraints */
+      for (c = 0; c < nconstypeconss; c++)
+      {
+#ifndef NDEBUG
+         snprintfreturn = SCIPsnprintf(consname, SCIP_MAXSTRLEN, "LP_%d", cnt);
+         assert( snprintfreturn < SCIP_MAXSTRLEN);
+#else
+         (void)SCIPsnprintf(consname, SCIP_MAXSTRLEN, "linear_%d", cnt);
+#endif
+
+         SCIP_CALL( SCIPcreateConsLinear(scip, &cons, consname, 0, NULL, NULL, lhs, rhs,
+               TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
+
+         SCIP_CALL( SCIPaddCons(scip, cons) );
+         data->createdconss[cnt++] = cons;
+
+         /* release constraint for the reader. */
+         SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+      }
    }
 
    if ( cnt != data->nconss )
@@ -623,42 +647,40 @@ SCIP_RETCODE CBFreadInt(
 
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
-   if ( sscanf(CBF_LINE_BUFFER, "%i", &nintvars) == 1 )
+   if ( sscanf(CBF_LINE_BUFFER, "%i", &nintvars) != 1 )
    {
-      if ( nintvars >= 0 )
-      {
-         for (i = 0; i < nintvars; i++)
-         {
-            SCIP_CALL( CBFfgets(pfile, linecount) );
-            if ( sscanf(CBF_LINE_BUFFER, "%i", &v) == 1 )
-            {
-               SCIP_CALL( SCIPchgVarType(scip, data->createdvars[v], SCIP_VARTYPE_INTEGER, &infeasible)   );
+      SCIPerrorMessage("Could not read number of integer variables in line %d.\n", linecount);
+      SCIPABORT();
+      return SCIP_READERROR;
+   }
 
-               if ( infeasible )
-               {
-                  SCIPerrorMessage("Infeasibility detected because of integrality of variable %s!\n", SCIPvarGetName(data->createdvars[v]));
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
-            }
-            else
-            {
-               /* TODO wrong error message?? Should be SCIP_READERROR? */
-               SCIPerrorMessage("Number of integrality constraints %d should be non-negative!\n", nintvars);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
-         }
-      }
-      else
+   if ( nintvars < 0 )
+   {
+      SCIPerrorMessage("Number of integrality constraints %d in line %d should be non-negative.\n", nintvars, linecount);
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+
+   for (i = 0; i < nintvars; i++)
+   {
+      SCIP_CALL( CBFfgets(pfile, linecount) );
+
+      if ( sscanf(CBF_LINE_BUFFER, "%i", &v) != 1 )
       {
-         SCIPerrorMessage("Number of integrality constraints %d should be non-negative!\n", nintvars);
+         SCIPerrorMessage("Could not read variable index in line %d.\n", linecount);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
+
+      SCIP_CALL( SCIPchgVarType(scip, data->createdvars[v], SCIP_VARTYPE_INTEGER, &infeasible)   );
+
+      if ( infeasible )
+      {
+         SCIPerrorMessage("Infeasibility detected because of integrality of variable %s!\n", SCIPvarGetName(data->createdvars[v]));
          SCIPABORT();
          return SCIP_READERROR; /*lint !e527*/
       }
    }
-   else
-      return SCIP_READERROR;
 
    return SCIP_OKAY;
 }
@@ -682,59 +704,59 @@ SCIP_RETCODE CBFreadPsdCon(
 
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
-   if ( sscanf(CBF_LINE_BUFFER, "%i", &ncbfsdpblocks) == 1 )
+   if ( sscanf(CBF_LINE_BUFFER, "%i", &ncbfsdpblocks) != 1 )
    {
-      if ( ncbfsdpblocks >= 0 )
+      SCIPerrorMessage("Could not read number of psd constraints in line %d.\n", linecount);
+      SCIPABORT();
+      return SCIP_READERROR;
+   }
+
+   if ( ncbfsdpblocks < 0 )
+   {
+      SCIPerrorMessage("Number of SDP-blocks %d in line %d should be non-negative!\n", ncbfsdpblocks, linecount);
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+
+   /* increase number of sdp blocks by number of psd variables that need to be transformed into a psd constraint
+    * with scalar variables */
+   if ( data->npsdvars > 0 )
+      data->nsdpblocks = ncbfsdpblocks + data->npsdvars;
+   else
+      data->nsdpblocks = ncbfsdpblocks;
+
+   data->noorigsdpcons = FALSE;
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblocksizes), data->nsdpblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblockrank1), data->nsdpblocks) );
+
+   for (b = 0; b < ncbfsdpblocks; b++)
+   {
+      SCIP_CALL( CBFfgets(pfile, linecount) );
+      if ( sscanf(CBF_LINE_BUFFER, "%i", &(data->sdpblocksizes[b])) != 1 )
       {
-         /* increase number of sdp blocks by number of psd variables that need to be transformed into a psd constraint
-          * with scalar variables */
-         if ( data->npsdvars > 0 )
-            data->nsdpblocks = ncbfsdpblocks + data->npsdvars;
-         else
-            data->nsdpblocks = ncbfsdpblocks;
-
-         data->noorigsdpcons = FALSE;
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblocksizes), data->nsdpblocks) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblockrank1), data->nsdpblocks) );
-
-         for (b = 0; b < ncbfsdpblocks; b++)
-         {
-            SCIP_CALL( CBFfgets(pfile, linecount) );
-            if ( sscanf(CBF_LINE_BUFFER, "%i", &(data->sdpblocksizes[b])) == 1 )
-            {
-               if ( data->sdpblocksizes[b] <= 0 )
-               {
-                  SCIPerrorMessage("Size %d of SDP-block %d should be positive!\n", data->sdpblocksizes[b], b);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
-               else
-               {
-                  /* initialize rank-1 information to FALSE, will eventually be changed in PSDCONRANK1 */
-                  data->sdpblockrank1[b] = FALSE;
-               }
-            }
-            else
-               return SCIP_READERROR;
-         }
-
-         for (b = 0; b < data->npsdvars; b++)
-         {
-            /* read rank-1 information and size for psd variables (if existing, recall PSDVAR needs to be in front of
-               PSDCON) */
-            data->sdpblocksizes[ncbfsdpblocks + b] = data->psdvarsizes[b];
-            data->sdpblockrank1[ncbfsdpblocks + b] = data->psdvarrank1[b];
-         }
+         SCIPerrorMessage("Could not read size of psd constraint %d in line %d.\n", b, linecount);
+         SCIPABORT();
+         return SCIP_READERROR;
       }
-      else
+
+      if ( data->sdpblocksizes[b] <= 0 )
       {
-         SCIPerrorMessage("Number of SDP-blocks %d should be non-negative!\n", ncbfsdpblocks);
+         SCIPerrorMessage("Size %d of SDP-block %d in line %d should be positive!\n", data->sdpblocksizes[b], b, linecount);
          SCIPABORT();
          return SCIP_READERROR; /*lint !e527*/
       }
+
+      /* initialize rank-1 information to FALSE, will eventually be changed in PSDCONRANK1 */
+      data->sdpblockrank1[b] = FALSE;
    }
-   else
-      return SCIP_READERROR;
+
+   for (b = 0; b < data->npsdvars; b++)
+   {
+      /* read rank-1 information and size for psd variables (if existing, recall PSDVAR needs to be in front of
+         PSDCON) */
+      data->sdpblocksizes[ncbfsdpblocks + b] = data->psdvarsizes[b];
+      data->sdpblockrank1[ncbfsdpblocks + b] = data->psdvarrank1[b];
+   }
 
    return SCIP_OKAY;
 }
@@ -768,11 +790,15 @@ SCIP_RETCODE CBFreadPsdConRank1(
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
    if ( sscanf(CBF_LINE_BUFFER, "%i", &(nrank1sdpblocks)) != 1 )
+   {
+      SCIPerrorMessage("Could not read number of psd constraints with a rank-1 constraint in line %d.\n", linecount);
+      SCIPABORT();
       return SCIP_READERROR;
+   }
 
    if ( nrank1sdpblocks < 0 )
    {
-      SCIPerrorMessage("Number of psd constraints with a rank-1 constraint %d should be non-negative!\n", nrank1sdpblocks);
+      SCIPerrorMessage("Number of psd constraints with a rank-1 constraint %d in line %d should be non-negative!\n", nrank1sdpblocks, linecount);
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
@@ -785,19 +811,21 @@ SCIP_RETCODE CBFreadPsdConRank1(
    for (i = 0; i < nrank1sdpblocks; i++)
    {
       SCIP_CALL( CBFfgets(pfile, linecount) );
-      if ( sscanf(CBF_LINE_BUFFER, "%i", &c) == 1 )
+      if ( sscanf(CBF_LINE_BUFFER, "%i", &c) != 1 )
       {
-         if ( c < 0 || c >= data->nsdpblocks )
-         {
-            SCIPerrorMessage("Given rank-1 constraint for sdp constraint %d which does not exist!\n", c);
-            SCIPABORT();
-            return SCIP_READERROR; /*lint !e527*/
-         }
-         else
-            data->sdpblockrank1[c] = TRUE;
+         SCIPerrorMessage("Could not read index of psd constraint with a rank-1 constraint in line %d.\n", linecount);
+         SCIPABORT();
+         return SCIP_READERROR;
       }
-      else
+
+      if ( c < 0 || c >= data->nsdpblocks )
+      {
+         SCIPerrorMessage("Given rank-1 constraint in line %d for sdp constraint %d which does not exist!\n", linecount, c);
+         SCIPABORT();
          return SCIP_READERROR; /*lint !e527*/
+      }
+
+      data->sdpblockrank1[c] = TRUE;
    }
 
    return SCIP_OKAY;
@@ -835,73 +863,75 @@ SCIP_RETCODE CBFreadObjFcoord(
 
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
-   if ( sscanf(CBF_LINE_BUFFER, "%i", &nobjcoefs) == 1 )
+   if ( sscanf(CBF_LINE_BUFFER, "%i", &nobjcoefs) != 1 )
    {
-      if ( nobjcoefs >= 0 )
+      SCIPerrorMessage("Could not read number of objective coefficients for matrix variables in line %d.\n", linecount);
+      SCIPABORT();
+      return SCIP_READERROR;
+   }
+
+   if ( nobjcoefs < 0 )
+   {
+      SCIPerrorMessage("Number of objective coefficients for matrix variables %d in line %d should be non-negative!\n", nobjcoefs, linecount);
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+
+   for (i = 0; i < nobjcoefs; i++)
+   {
+      SCIP_CALL( CBFfgets(pfile, linecount) );
+
+      if ( sscanf(CBF_LINE_BUFFER, "%i %i %i %lf", &v, &row, &col, &val) != 4 )
       {
-         for (i = 0; i < nobjcoefs; i++)
-         {
-            SCIP_CALL( CBFfgets(pfile, linecount) );
-
-            if ( sscanf(CBF_LINE_BUFFER, "%i %i %i %lf", &v, &row, &col, &val) == 4 )
-            {
-               if ( v < 0 || v >= data->npsdvars )
-               {
-                  SCIPerrorMessage("Given objective coefficient for matrix variable %d which does not exist!\n", v);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
-
-               if ( row < 0 || row >= data->psdvarsizes[v] )
-               {
-                  SCIPerrorMessage("Row index %d of given coefficient for matrix variable %d in objective function is negative or larger than varsize %d!\n",
-                     row, v, data->psdvarsizes[v]);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
-
-               if ( col < 0 || col >= data->psdvarsizes[v] )
-               {
-                  SCIPerrorMessage("Column index %d of given coefficient for matrix variable %d in objective function is negative or larger than varsize %d!\n",
-                     col, v, data->psdvarsizes[v]);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
-
-               if ( SCIPisZero(scip, val) )
-               {
-                  ++nzerocoef;
-               }
-               else
-               {
-                  /* make sure matrix is in lower triangular form */
-                  if ( row < col )
-                  {
-                     SCIP_CALL( SCIPchgVarObj(scip, data->createdpsdvars[v][col][row], 2*val) );
-                  }
-                  else if ( row == col )
-                  {
-                     SCIP_CALL( SCIPchgVarObj(scip, data->createdpsdvars[v][col][row], val) );
-                  }
-                  else
-                  {
-                     SCIP_CALL( SCIPchgVarObj(scip, data->createdpsdvars[v][row][col], 2*val) );
-                  }
-               }
-            }
-            else
-               return SCIP_READERROR;
-         }
+         SCIPerrorMessage("Could not read entry of OBJFCOORD in line %d.\n", linecount);
+         SCIPABORT();
+         return SCIP_READERROR;
       }
-      else
+
+      if ( v < 0 || v >= data->npsdvars )
       {
-         SCIPerrorMessage("Number of objective coefficients for matrix variables %d should be non-negative!\n", nobjcoefs);
+         SCIPerrorMessage("Given objective coefficient in line %d for matrix variable %d which does not exist!\n", linecount, v);
          SCIPABORT();
          return SCIP_READERROR; /*lint !e527*/
       }
+
+      if ( row < 0 || row >= data->psdvarsizes[v] )
+      {
+         SCIPerrorMessage("Row index %d of given coefficient in line %d for matrix variable %d in objective function is negative or larger than varsize %d!\n",
+            row, linecount, v, data->psdvarsizes[v]);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
+
+      if ( col < 0 || col >= data->psdvarsizes[v] )
+      {
+         SCIPerrorMessage("Column index %d of given coefficient in line %d for matrix variable %d in objective function is negative or larger than varsize %d!\n",
+            col, linecount, v, data->psdvarsizes[v]);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
+
+      if ( SCIPisZero(scip, val) )
+      {
+         ++nzerocoef;
+      }
+      else
+      {
+         /* make sure matrix is in lower triangular form */
+         if ( row < col )
+         {
+            SCIP_CALL( SCIPchgVarObj(scip, data->createdpsdvars[v][col][row], 2*val) );
+         }
+         else if ( row == col )
+         {
+            SCIP_CALL( SCIPchgVarObj(scip, data->createdpsdvars[v][col][row], val) );
+         }
+         else
+         {
+            SCIP_CALL( SCIPchgVarObj(scip, data->createdpsdvars[v][row][col], 2*val) );
+         }
+      }
    }
-   else
-      return SCIP_READERROR;
 
    if ( nzerocoef > 0 )
    {
@@ -942,44 +972,46 @@ SCIP_RETCODE CBFreadObjAcoord(
 
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
-   if ( sscanf(CBF_LINE_BUFFER, "%i", &nobjcoefs) == 1 )
+   if ( sscanf(CBF_LINE_BUFFER, "%i", &nobjcoefs) != 1 )
    {
-      if ( nobjcoefs >= 0 )
-      {
-         for (i = 0; i < nobjcoefs; i++)
-         {
-            SCIP_CALL( CBFfgets(pfile, linecount) );
-            if ( sscanf(CBF_LINE_BUFFER, "%i %lf", &v, &val) == 2 )
-            {
-               if ( v < 0 || v >= data->nvars )
-               {
-                  SCIPerrorMessage("Given objective coefficient for scalar variable %d which does not exist!\n", v);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
+      SCIPerrorMessage("Could not read number of objective coefficients for scalar variables in line %d.\n", linecount);
+      SCIPABORT();
+      return SCIP_READERROR;
+   }
 
-               if ( SCIPisZero(scip, val) )
-               {
-                  ++nzerocoef;
-               }
-               else
-               {
-                  SCIP_CALL( SCIPchgVarObj(scip, data->createdvars[v], val) );
-               }
-            }
-            else
-               return SCIP_READERROR;
-         }
-      }
-      else
+   if ( nobjcoefs < 0 )
+   {
+      SCIPerrorMessage("Number of objective coefficients for scalar variables %d in line %d should be non-negative!\n", nobjcoefs, linecount);
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+
+   for (i = 0; i < nobjcoefs; i++)
+   {
+      SCIP_CALL( CBFfgets(pfile, linecount) );
+      if ( sscanf(CBF_LINE_BUFFER, "%i %lf", &v, &val) != 2 )
       {
-         SCIPerrorMessage("Number of objective coefficients for scalar variables %d should be non-negative!\n", nobjcoefs);
+         SCIPerrorMessage("Could not read entry of OBJACOORD in line %d.\n", linecount);
+         SCIPABORT();
+         return SCIP_READERROR;
+      }
+
+      if ( v < 0 || v >= data->nvars )
+      {
+         SCIPerrorMessage("Given objective coefficient in line %d for scalar variable %d which does not exist!\n", linecount, v);
          SCIPABORT();
          return SCIP_READERROR; /*lint !e527*/
       }
+
+      if ( SCIPisZero(scip, val) )
+      {
+         ++nzerocoef;
+      }
+      else
+      {
+         SCIP_CALL( SCIPchgVarObj(scip, data->createdvars[v], val) );
+      }
    }
-   else
-      return SCIP_READERROR;
 
    if ( nzerocoef > 0 )
    {
@@ -1031,78 +1063,80 @@ SCIP_RETCODE CBFreadFcoord(
 
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
-   if ( sscanf(CBF_LINE_BUFFER, "%i", &ncoefs) == 1 )
+   if ( sscanf(CBF_LINE_BUFFER, "%i", &ncoefs) != 1 )
    {
-      if ( ncoefs >= 0 )
+      SCIPerrorMessage("Could not read number of coefficients for psd variables in line %d.\n", linecount);
+      SCIPABORT();
+      return SCIP_READERROR;
+   }
+
+   if ( ncoefs < 0 )
+   {
+      SCIPerrorMessage("Number of matrix variable coefficients %d in line %d should be non-negative!\n", ncoefs, linecount);
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+
+   for (i = 0; i < ncoefs; i++)
+   {
+      SCIP_CALL( CBFfgets(pfile, linecount) );
+
+      if ( sscanf(CBF_LINE_BUFFER, "%i %i %i %i %lf", &c, &v, &row, &col, &val) != 5 )
       {
-         for (i = 0; i < ncoefs; i++)
-         {
-            SCIP_CALL( CBFfgets(pfile, linecount) );
-
-            if ( sscanf(CBF_LINE_BUFFER, "%i %i %i %i %lf", &c, &v, &row, &col, &val) == 5 )
-            {
-               if ( c < 0 || c >= data->nconss )
-               {
-                  SCIPerrorMessage("Given matrix variable coefficient for constraint %d which does not exist!\n", c);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
-
-               if ( v < 0 || v >= data->npsdvars )
-               {
-                  SCIPerrorMessage("Given coefficient for matrix variable %d which does not exist!\n", v);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
-
-               if ( row < 0 || row >= data->psdvarsizes[v] )
-               {
-                  SCIPerrorMessage("Row index %d of given coefficient for matrix variable %d in scalar constraint %d is negative or larger than varsize %d!\n",
-                     row, v, c, data->psdvarsizes[v]);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
-
-               if ( col < 0 || col >= data->psdvarsizes[v] )
-               {
-                  SCIPerrorMessage("Column index %d of given coefficient for matrix variable %d in scalar constraint %d is negative or larger than varsize %d!\n",
-                     col, v, c, data->psdvarsizes[v]);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
-
-               if ( SCIPisZero(scip, val) )
-               {
-                  ++nzerocoef;
-               }
-               else
-               {
-                  /* make sure matrix is in lower triangular form */
-                  if ( row < col )
-                  {
-                     SCIP_CALL( SCIPaddCoefLinear(scip, data->createdconss[c], data->createdpsdvars[v][col][row], 2*val) );/*lint !e732*//*lint !e747*/
-                  }
-                  else if ( row == col )
-                     SCIP_CALL( SCIPaddCoefLinear(scip, data->createdconss[c], data->createdpsdvars[v][row][col], val) );/*lint !e732*//*lint !e747*/
-                  else
-                  {
-                     SCIP_CALL( SCIPaddCoefLinear(scip, data->createdconss[c], data->createdpsdvars[v][row][col], 2*val) );/*lint !e732*//*lint !e747*/
-                  }
-               }
-            }
-            else
-               return SCIP_READERROR;
-         }
+         SCIPerrorMessage("Could not read entry of FCOORD in line %d.\n", linecount);
+         SCIPABORT();
+         return SCIP_READERROR;
       }
-      else
+
+      if ( c < 0 || c >= data->nconss )
       {
-         SCIPerrorMessage("Number of matrix variable coefficients %d should be non-negative!\n", ncoefs);
+         SCIPerrorMessage("Given matrix variable coefficient in line %d for constraint %d which does not exist!\n", linecount, c);
          SCIPABORT();
          return SCIP_READERROR; /*lint !e527*/
       }
+
+      if ( v < 0 || v >= data->npsdvars )
+      {
+         SCIPerrorMessage("Given coefficient in line %d for matrix variable %d which does not exist!\n", linecount, v);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
+
+      if ( row < 0 || row >= data->psdvarsizes[v] )
+      {
+         SCIPerrorMessage("Row index %d of given coefficient in line %d for matrix variable %d in scalar constraint %d is negative or larger than varsize %d!\n",
+            row, linecount, v, c, data->psdvarsizes[v]);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
+
+      if ( col < 0 || col >= data->psdvarsizes[v] )
+      {
+         SCIPerrorMessage("Column index %d of given coefficient in line %d for matrix variable %d in scalar constraint %d is negative or larger than varsize %d!\n",
+            col, linecount, v, c, data->psdvarsizes[v]);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
+
+      if ( SCIPisZero(scip, val) )
+      {
+         ++nzerocoef;
+      }
+      else
+      {
+         /* make sure matrix is in lower triangular form */
+         if ( row < col )
+         {
+            SCIP_CALL( SCIPaddCoefLinear(scip, data->createdconss[c], data->createdpsdvars[v][col][row], 2*val) );/*lint !e732*//*lint !e747*/
+         }
+         else if ( row == col )
+            SCIP_CALL( SCIPaddCoefLinear(scip, data->createdconss[c], data->createdpsdvars[v][row][col], val) );/*lint !e732*//*lint !e747*/
+         else
+         {
+            SCIP_CALL( SCIPaddCoefLinear(scip, data->createdconss[c], data->createdpsdvars[v][row][col], 2*val) );/*lint !e732*//*lint !e747*/
+         }
+      }
    }
-   else
-      return SCIP_READERROR;
 
    if ( nzerocoef > 0 )
    {
@@ -1152,49 +1186,53 @@ SCIP_RETCODE CBFreadAcoord(
 
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
-   if ( sscanf(CBF_LINE_BUFFER, "%i", &ncoefs) == 1 )
+   if ( sscanf(CBF_LINE_BUFFER, "%i", &ncoefs) != 1 )
    {
-      if ( ncoefs >= 0 )
+      SCIPerrorMessage("Could not read number of linear coefficients in line %d.\n", linecount);
+      SCIPABORT();
+      return SCIP_READERROR;
+   }
+
+   if ( ncoefs < 0 )
+   {
+      SCIPerrorMessage("Number of linear coefficients %d in line %d should be non-negative!\n", ncoefs, linecount);
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+
+   for (i = 0; i < ncoefs; i++)
+   {
+      SCIP_CALL( CBFfgets(pfile, linecount) );
+      if ( sscanf(CBF_LINE_BUFFER, "%i %i %lf", &c, &v, &val) != 3 )
       {
-         for (i = 0; i < ncoefs; i++)
-         {
-            SCIP_CALL( CBFfgets(pfile, linecount) );
-            if ( sscanf(CBF_LINE_BUFFER, "%i %i %lf", &c, &v, &val) == 3 )
-            {
-               if ( c < 0 || c >= data->nconss )
-               {
-                  SCIPerrorMessage("Given linear coefficient for constraint %d which does not exist!\n", c);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
-               if ( v < 0 || v >= data->nvars )
-               {
-                  SCIPerrorMessage("Given linear coefficient for variable %d which does not exist!\n", v);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
-               if ( SCIPisZero(scip, val) )
-               {
-                  ++nzerocoef;
-               }
-               else
-               {
-                  SCIP_CALL( SCIPaddCoefLinear(scip, data->createdconss[c], data->createdvars[v], val) );/*lint !e732*//*lint !e747*/
-               }
-            }
-            else
-               return SCIP_READERROR;
-         }
+         SCIPerrorMessage("Could not read entry of ACOORD in line %d.\n", linecount);
+         SCIPABORT();
+         return SCIP_READERROR;
       }
-      else
+
+      if ( c < 0 || c >= data->nconss )
       {
-         SCIPerrorMessage("Number of linear coefficients %d should be non-negative!\n", ncoefs);
+         SCIPerrorMessage("Given linear coefficient in line %d for constraint %d which does not exist!\n", linecount, c);
          SCIPABORT();
          return SCIP_READERROR; /*lint !e527*/
       }
+
+      if ( v < 0 || v >= data->nvars )
+      {
+         SCIPerrorMessage("Given linear coefficient in line %d for variable %d which does not exist!\n", linecount, v);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
+
+      if ( SCIPisZero(scip, val) )
+      {
+         ++nzerocoef;
+      }
+      else
+      {
+         SCIP_CALL( SCIPaddCoefLinear(scip, data->createdconss[c], data->createdvars[v], val) );/*lint !e732*//*lint !e747*/
+      }
    }
-   else
-      return SCIP_READERROR;
 
    if ( nzerocoef > 0 )
    {
@@ -1235,55 +1273,58 @@ SCIP_RETCODE CBFreadBcoord(
 
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
-   if ( sscanf(CBF_LINE_BUFFER, "%i", &nsides) == 1 )
+   if ( sscanf(CBF_LINE_BUFFER, "%i", &nsides) != 1 )
    {
-      if ( nsides >= 0 )
+      SCIPerrorMessage("Could not read number of constant parts in scalar constraints in line %d.\n", linecount);
+      SCIPABORT();
+      return SCIP_READERROR;
+   }
+
+   if ( nsides < 0 )
+   {
+      SCIPerrorMessage("Number of constant parts %d in line %d should be non-negative!\n", nsides, linecount);
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+
+   for (i = 0; i < nsides; i++)
+   {
+      SCIP_CALL( CBFfgets(pfile, linecount) );
+
+      if ( sscanf(CBF_LINE_BUFFER, "%i %lf", &c, &val) != 2 )
       {
-         for (i = 0; i < nsides; i++)
-         {
-            SCIP_CALL( CBFfgets(pfile, linecount) );
-            if ( sscanf(CBF_LINE_BUFFER, "%i %lf", &c, &val) == 2 )
-            {
-               if ( c < 0 || c >= data->nconss )
-               {
-                  SCIPerrorMessage("Given constant part for constraint %d which does not exist!\n", c);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
-
-               if ( SCIPisZero(scip, val) )
-               {
-                  ++nzerocoef;
-               }
-               else
-               {
-                  /* check type */
-                  if ( ! SCIPisInfinity(scip, -SCIPgetLhsLinear(scip, data->createdconss[c])) )
-                  {
-                     /* greater or equal constraint -> left-hand side (minus since we have Ax + b >= 0) */
-                     SCIP_CALL( SCIPchgLhsLinear(scip, data->createdconss[c], -val) );
-                  }
-
-                  if ( ! SCIPisInfinity(scip, SCIPgetRhsLinear(scip, data->createdconss[c]) ) )
-                  {
-                     /* less or equal constraint -> right-hand side (minus since we have Ax + b <= 0) */
-                     SCIP_CALL( SCIPchgRhsLinear(scip, data->createdconss[c], -val) );
-                  }
-               }
-            }
-            else
-               return SCIP_READERROR;
-         }
+         SCIPerrorMessage("Could not read entry of BCOORD in line %d.\n", linecount);
+         SCIPABORT();
+         return SCIP_READERROR;
       }
-      else
+
+      if ( c < 0 || c >= data->nconss )
       {
-         SCIPerrorMessage("Number of left- and right-hand sides %d should be non-negative!\n", nsides);
+         SCIPerrorMessage("Given constant part in line %d for scalar constraint %d which does not exist!\n", linecount, c);
          SCIPABORT();
          return SCIP_READERROR; /*lint !e527*/
       }
+
+      if ( SCIPisZero(scip, val) )
+      {
+         ++nzerocoef;
+      }
+      else
+      {
+         /* check type */
+         if ( ! SCIPisInfinity(scip, -SCIPgetLhsLinear(scip, data->createdconss[c])) )
+         {
+            /* greater or equal constraint -> left-hand side (minus since we have Ax + b >= 0) */
+            SCIP_CALL( SCIPchgLhsLinear(scip, data->createdconss[c], -val) );
+         }
+
+         if ( ! SCIPisInfinity(scip, SCIPgetRhsLinear(scip, data->createdconss[c]) ) )
+         {
+            /* less or equal constraint -> right-hand side (minus since we have Ax + b <= 0) */
+            SCIP_CALL( SCIPchgRhsLinear(scip, data->createdconss[c], -val) );
+         }
+      }
    }
-   else
-      return SCIP_READERROR;
 
    if ( nzerocoef > 0 )
    {
@@ -1359,212 +1400,214 @@ SCIP_RETCODE CBFreadHcoord(
 
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
-   if ( sscanf(CBF_LINE_BUFFER, "%i", &nnonz) == 1 )
+   if ( sscanf(CBF_LINE_BUFFER, "%i", &nnonz) != 1 )
    {
-      data->nnonz = nnonz + nauxnonz;
-      if ( nnonz >= 0 )
+      SCIPerrorMessage("Could not read number of nonzero coefficients of SDP-constraints in line %d.\n", linecount);
+      SCIPABORT();
+      return SCIP_READERROR;
+   }
+
+   data->nnonz = nnonz + nauxnonz;
+   if ( nnonz < 0 )
+   {
+      SCIPerrorMessage("Number of nonzero coefficients of SDP-constraints %d in line %d should be non-negative!\n", nnonz, linecount);
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+
+   /* allocate memory (nnonz for each block, since we do not yet know the distribution) */
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &sdpvar, data->nsdpblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdprow), data->nsdpblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpcol), data->nsdpblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpval), data->nsdpblocks) );
+
+   for (b = 0; b < data->nsdpblocks; b++)
+   {
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpvar[b]), data->nnonz) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdprow[b]), data->nnonz) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpcol[b]), data->nnonz) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpval[b]), data->nnonz) );
+   }
+
+   for (i = 0; i < nnonz; i++)
+   {
+      SCIP_CALL( CBFfgets(pfile, linecount) );
+
+      if ( sscanf(CBF_LINE_BUFFER, "%i %i %i %i %lf", &b, &v, &row, &col, &val) != 5 )
       {
-         /* allocate memory (nnonz for each block, since we do not yet know the distribution) */
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &sdpvar, data->nsdpblocks) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdprow), data->nsdpblocks) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpcol), data->nsdpblocks) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpval), data->nsdpblocks) );
-
-         for (b = 0; b < data->nsdpblocks; b++)
-         {
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpvar[b]), data->nnonz) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdprow[b]), data->nnonz) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpcol[b]), data->nnonz) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpval[b]), data->nnonz) );
-         }
-
-         for (i = 0; i < nnonz; i++)
-         {
-            SCIP_CALL( CBFfgets(pfile, linecount) );
-
-            if ( sscanf(CBF_LINE_BUFFER, "%i %i %i %i %lf", &b, &v, &row, &col, &val) == 5 )
-            {
-               if ( b < 0 || b >= ncbfsdpblocks )
-               {
-                  SCIPerrorMessage("Given SDP-coefficient for SDP-constraint %d which does not exist!\n", b);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
-
-               if ( v < 0 || v >= data->nvars )
-               {
-                  SCIPerrorMessage("Given SDP-coefficient for variable %d which does not exist!\n", v);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
-
-               if ( row < 0 || row >= data->sdpblocksizes[b] )
-               {
-                  SCIPerrorMessage("Row index %d of given SDP coefficient is negative or larger than blocksize %d!\n",
-                     row, data->sdpblocksizes[b]);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
-
-               if ( col < 0 || col >= data->sdpblocksizes[b] )
-               {
-                  SCIPerrorMessage("Column index %d of given SDP coefficient is negative or larger than blocksize %d!\n",
-                     col, data->sdpblocksizes[b]);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
-
-               if ( SCIPisZero(scip, val) )
-               {
-                  ++nzerocoef;
-               }
-               else
-               {
-                  sdpvar[b][data->sdpnblocknonz[b]] = v;
-
-                  /* make sure matrix is in lower triangular form */
-                  if ( col > row )
-                  {
-                     data->sdprow[b][data->sdpnblocknonz[b]] = col;
-                     data->sdpcol[b][data->sdpnblocknonz[b]] = row;
-                  }
-                  else
-                  {
-                     data->sdprow[b][data->sdpnblocknonz[b]] = row;
-                     data->sdpcol[b][data->sdpnblocknonz[b]] = col;
-                  }
-
-                  data->sdpval[b][data->sdpnblocknonz[b]] = val;
-                  data->sdpnblocknonz[b]++;
-               }
-            }
-            else
-               return SCIP_READERROR;
-         }
-
-         /* construct entries for auxiliary sdp blocks (reformulation of psdvars) */
-         if ( data->npsdvars > 0 )
-         {
-            val = 1.0;
-            for (v = 0; v < data->npsdvars; v++)
-            {
-               b = ncbfsdpblocks + v;
-               for (row = 0; row < data->psdvarsizes[v]; row++)
-               {
-                  for (col = 0; col <= row; col++)
-                  {
-                     sdpvar[b][data->sdpnblocknonz[b]] = data->nvars + 1;
-                     data->sdprow[b][data->sdpnblocknonz[b]] = row;
-                     data->sdpcol[b][data->sdpnblocknonz[b]] = col;
-                     data->sdpval[b][data->sdpnblocknonz[b]] = val;
-                     data->sdpnblocknonz[b]++;
-                  }
-               }
-               assert( data->sdpnblocknonz[b] == data->psdvarsizes[v] * (data->psdvarsizes[v] + 1) / 2 );
-               assert( b == data->nsdpblocks - 1 );
-            }
-         }
-
-         /* construct pointer arrays */
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpnblockvars), data->nsdpblocks) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblockvars), data->nsdpblocks) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->nvarnonz), data->nsdpblocks) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->rowpointer), data->nsdpblocks) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->colpointer), data->nsdpblocks) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->valpointer), data->nsdpblocks) );
-
-         /* sdp blocks as specified in cbf file in HCOORD */
-         for (b = 0; b < ncbfsdpblocks; b++)
-         {
-            /* sort the nonzeroes by non-decreasing variable indices */
-            SCIPsortIntIntIntReal(sdpvar[b], data->sdprow[b], data->sdpcol[b], data->sdpval[b], data->sdpnblocknonz[b]);
-
-            /* create the pointer arrays and insert used variables into vars-array */
-            nextindaftervar = 0;
-            data->sdpnblockvars[b] = 0;
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblockvars[b]), data->nvars) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->nvarnonz[b]), data->nvars) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->rowpointer[b]), data->nvars) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->colpointer[b]), data->nvars) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->valpointer[b]), data->nvars) );
-
-            for (v = 0; v < data->nvars; v++)
-            {
-               SCIP_Bool varused = FALSE;
-
-               firstindforvar = nextindaftervar; /* this variable starts where the last one ended */
-               data->nvarnonz[b][data->sdpnblockvars[b]] = 0;
-
-               while (nextindaftervar < data->sdpnblocknonz[b] && sdpvar[b][nextindaftervar] == v) /* get the first index that doesn't belong to this variable */
-               {
-                  nextindaftervar++;
-                  varused = TRUE;
-                  data->nvarnonz[b][data->sdpnblockvars[b]]++;
-               }
-
-               if ( varused )
-               {
-                  data->sdpblockvars[b][data->sdpnblockvars[b]] = data->createdvars[v];/*lint !e732*//*lint !e747*/ /* if the variable is used, add it to the vars array */
-                  data->rowpointer[b][data->sdpnblockvars[b]] = &(data->sdprow[b][firstindforvar]); /* save a pointer to the first nonzero belonging to this variable */
-                  data->colpointer[b][data->sdpnblockvars[b]] = &(data->sdpcol[b][firstindforvar]);
-                  data->valpointer[b][data->sdpnblockvars[b]] = &(data->sdpval[b][firstindforvar]);
-                  data->sdpnblockvars[b]++;
-               }
-            }
-
-            assert( nextindaftervar == data->sdpnblocknonz[b] );
-         }
-
-         /* auxiliary sdp blocks (reformulation of psd variables) */
-         if ( data->npsdvars > 0 )
-         {
-            assert( data->nsdpblocks == ncbfsdpblocks + data->npsdvars );
-            for (v = 0; v < data->npsdvars; v++)
-            {
-               int varidx = 0;
-
-               /* create the pointer arrays and insert used variables into vars-array */
-               b = ncbfsdpblocks + v;
-
-               data->sdpnblockvars[b] = data->sdpnblocknonz[b];
-
-               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblockvars[b]),  data->sdpnblocknonz[b]) );
-               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->nvarnonz[b]),  data->sdpnblocknonz[b]) );
-               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->rowpointer[b]),  data->sdpnblocknonz[b]) );
-               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->colpointer[b]),  data->sdpnblocknonz[b]) );
-               SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->valpointer[b]),  data->sdpnblocknonz[b]) );
-
-               for (row = 0; row < data->psdvarsizes[v]; row++)
-               {
-                  for (col = 0; col <= row; col++)
-                  {
-                     data->nvarnonz[b][varidx] = 1;
-                     data->sdpblockvars[b][varidx] = data->createdpsdvars[v][row][col];
-                     data->rowpointer[b][varidx] = &(data->sdprow[b][varidx]);
-                     data->colpointer[b][varidx] = &(data->sdpcol[b][varidx]);
-                     data->valpointer[b][varidx] = &(data->sdpval[b][varidx]);
-                     varidx++;
-                  }
-               }
-               assert( varidx == data->sdpnblocknonz[b] );
-            }
-         }
-
-         /* free SDP-var array which is no longer needed */
-         for (b = 0; b < data->nsdpblocks; b++)
-            SCIPfreeBlockMemoryArray(scip, &(sdpvar[b]), data->nnonz);
-
-         SCIPfreeBlockMemoryArray(scip, &sdpvar, data->nsdpblocks);
+         SCIPerrorMessage("Could not read entry of HCOORD in line %d.\n", linecount);
+         SCIPABORT();
+         return SCIP_READERROR;
       }
-      else
+
+      if ( b < 0 || b >= ncbfsdpblocks )
       {
-         SCIPerrorMessage("Number of nonzero coefficients of SDP-constraints %d should be non-negative!\n", nnonz);
+         SCIPerrorMessage("Given SDP-coefficient in line %d for SDP-constraint %d which does not exist!\n", linecount, b);
          SCIPABORT();
          return SCIP_READERROR; /*lint !e527*/
       }
+
+      if ( v < 0 || v >= data->nvars )
+      {
+         SCIPerrorMessage("Given SDP-coefficient in line %d for variable %d which does not exist!\n", linecount, v);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
+
+      if ( row < 0 || row >= data->sdpblocksizes[b] )
+      {
+         SCIPerrorMessage("Row index %d of given SDP coefficient in line %d is negative or larger than blocksize %d!\n",
+            row, linecount, data->sdpblocksizes[b]);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
+
+      if ( col < 0 || col >= data->sdpblocksizes[b] )
+      {
+         SCIPerrorMessage("Column index %d of given SDP coefficient in line %d is negative or larger than blocksize %d!\n",
+            col, linecount, data->sdpblocksizes[b]);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
+
+      if ( SCIPisZero(scip, val) )
+      {
+         ++nzerocoef;
+      }
+      else
+      {
+         sdpvar[b][data->sdpnblocknonz[b]] = v;
+
+         /* make sure matrix is in lower triangular form */
+         if ( col > row )
+         {
+            data->sdprow[b][data->sdpnblocknonz[b]] = col;
+            data->sdpcol[b][data->sdpnblocknonz[b]] = row;
+         }
+         else
+         {
+            data->sdprow[b][data->sdpnblocknonz[b]] = row;
+            data->sdpcol[b][data->sdpnblocknonz[b]] = col;
+         }
+
+         data->sdpval[b][data->sdpnblocknonz[b]] = val;
+         data->sdpnblocknonz[b]++;
+      }
    }
-   else
-      return SCIP_READERROR;
+
+   /* construct entries for auxiliary sdp blocks (reformulation of psdvars) */
+   if ( data->npsdvars > 0 )
+   {
+      val = 1.0;
+      for (v = 0; v < data->npsdvars; v++)
+      {
+         b = ncbfsdpblocks + v;
+         for (row = 0; row < data->psdvarsizes[v]; row++)
+         {
+            for (col = 0; col <= row; col++)
+            {
+               sdpvar[b][data->sdpnblocknonz[b]] = data->nvars + 1;
+               data->sdprow[b][data->sdpnblocknonz[b]] = row;
+               data->sdpcol[b][data->sdpnblocknonz[b]] = col;
+               data->sdpval[b][data->sdpnblocknonz[b]] = val;
+               data->sdpnblocknonz[b]++;
+            }
+         }
+         assert( data->sdpnblocknonz[b] == data->psdvarsizes[v] * (data->psdvarsizes[v] + 1) / 2 );
+         assert( b == data->nsdpblocks - 1 );
+      }
+   }
+
+   /* construct pointer arrays */
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpnblockvars), data->nsdpblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblockvars), data->nsdpblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->nvarnonz), data->nsdpblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->rowpointer), data->nsdpblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->colpointer), data->nsdpblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->valpointer), data->nsdpblocks) );
+
+   /* sdp blocks as specified in cbf file in HCOORD */
+   for (b = 0; b < ncbfsdpblocks; b++)
+   {
+      /* sort the nonzeroes by non-decreasing variable indices */
+      SCIPsortIntIntIntReal(sdpvar[b], data->sdprow[b], data->sdpcol[b], data->sdpval[b], data->sdpnblocknonz[b]);
+
+      /* create the pointer arrays and insert used variables into vars-array */
+      nextindaftervar = 0;
+      data->sdpnblockvars[b] = 0;
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblockvars[b]), data->nvars) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->nvarnonz[b]), data->nvars) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->rowpointer[b]), data->nvars) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->colpointer[b]), data->nvars) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->valpointer[b]), data->nvars) );
+
+      for (v = 0; v < data->nvars; v++)
+      {
+         SCIP_Bool varused = FALSE;
+
+         firstindforvar = nextindaftervar; /* this variable starts where the last one ended */
+         data->nvarnonz[b][data->sdpnblockvars[b]] = 0;
+
+         while (nextindaftervar < data->sdpnblocknonz[b] && sdpvar[b][nextindaftervar] == v) /* get the first index that doesn't belong to this variable */
+         {
+            nextindaftervar++;
+            varused = TRUE;
+            data->nvarnonz[b][data->sdpnblockvars[b]]++;
+         }
+
+         if ( varused )
+         {
+            data->sdpblockvars[b][data->sdpnblockvars[b]] = data->createdvars[v];/*lint !e732*//*lint !e747*/ /* if the variable is used, add it to the vars array */
+            data->rowpointer[b][data->sdpnblockvars[b]] = &(data->sdprow[b][firstindforvar]); /* save a pointer to the first nonzero belonging to this variable */
+            data->colpointer[b][data->sdpnblockvars[b]] = &(data->sdpcol[b][firstindforvar]);
+            data->valpointer[b][data->sdpnblockvars[b]] = &(data->sdpval[b][firstindforvar]);
+            data->sdpnblockvars[b]++;
+         }
+      }
+
+      assert( nextindaftervar == data->sdpnblocknonz[b] );
+   }
+
+   /* auxiliary sdp blocks (reformulation of psd variables) */
+   if ( data->npsdvars > 0 )
+   {
+      assert( data->nsdpblocks == ncbfsdpblocks + data->npsdvars );
+      for (v = 0; v < data->npsdvars; v++)
+      {
+         int varidx = 0;
+
+         /* create the pointer arrays and insert used variables into vars-array */
+         b = ncbfsdpblocks + v;
+
+         data->sdpnblockvars[b] = data->sdpnblocknonz[b];
+
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblockvars[b]),  data->sdpnblocknonz[b]) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->nvarnonz[b]),  data->sdpnblocknonz[b]) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->rowpointer[b]),  data->sdpnblocknonz[b]) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->colpointer[b]),  data->sdpnblocknonz[b]) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->valpointer[b]),  data->sdpnblocknonz[b]) );
+
+         for (row = 0; row < data->psdvarsizes[v]; row++)
+         {
+            for (col = 0; col <= row; col++)
+            {
+               data->nvarnonz[b][varidx] = 1;
+               data->sdpblockvars[b][varidx] = data->createdpsdvars[v][row][col];
+               data->rowpointer[b][varidx] = &(data->sdprow[b][varidx]);
+               data->colpointer[b][varidx] = &(data->sdpcol[b][varidx]);
+               data->valpointer[b][varidx] = &(data->sdpval[b][varidx]);
+               varidx++;
+            }
+         }
+         assert( varidx == data->sdpnblocknonz[b] );
+      }
+   }
+
+   /* free SDP-var array which is no longer needed */
+   for (b = 0; b < data->nsdpblocks; b++)
+      SCIPfreeBlockMemoryArray(scip, &(sdpvar[b]), data->nnonz);
+
+   SCIPfreeBlockMemoryArray(scip, &sdpvar, data->nsdpblocks);
 
    if ( nzerocoef > 0 )
    {
@@ -1574,7 +1617,6 @@ SCIP_RETCODE CBFreadHcoord(
 
    return SCIP_OKAY;
 }
-
 /** reads constant entries of SDP-constraints from given CBF-file */
 static
 SCIP_RETCODE CBFreadDcoord(
@@ -1613,91 +1655,95 @@ SCIP_RETCODE CBFreadDcoord(
 
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
-   if ( sscanf(CBF_LINE_BUFFER, "%i", &constnnonz) == 1 )
+   if ( sscanf(CBF_LINE_BUFFER, "%i", &constnnonz) != 1 )
    {
-      if ( constnnonz < 0 )
+      SCIPerrorMessage("Could not read number of constant entries of SDP-constraints in line %d.\n", linecount);
+      SCIPABORT();
+      return SCIP_READERROR;
+   }
+
+   if ( constnnonz < 0 )
+   {
+      SCIPerrorMessage("Number of constant entries of SDP-constraints %d in line %d should be non-negative!\n", constnnonz, linecount);
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+
+   data->constnnonz = constnnonz;
+   if ( constnnonz > 0 )
+   {
+      /* initialize sdpconstnblocknonz with 0 */
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstnblocknonz), data->nsdpblocks) );
+      for (b = 0; b < data->nsdpblocks; b++)
+         data->sdpconstnblocknonz[b] = 0;
+
+      /* allocate memory (constnnonz for each block, since we do not yet know the distribution) */
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstrow), data->nsdpblocks) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstcol), data->nsdpblocks) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstval), data->nsdpblocks) );
+
+      for (b = 0; b < data->nsdpblocks; b++)
       {
-         SCIPerrorMessage("Number of constant entries of SDP-constraints %d should be non-negative!\n", constnnonz);
-         SCIPABORT();
-         return SCIP_READERROR; /*lint !e527*/
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstrow[b]), constnnonz) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstcol[b]), constnnonz) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstval[b]), constnnonz) );
       }
 
-      data->constnnonz = constnnonz;
-      if ( constnnonz > 0 )
+      for (i = 0; i < constnnonz; i++)
       {
-         /* initialize sdpconstnblocknonz with 0 */
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstnblocknonz), data->nsdpblocks) );
-         for (b = 0; b < data->nsdpblocks; b++)
-            data->sdpconstnblocknonz[b] = 0;
-
-         /* allocate memory (constnnonz for each block, since we do not yet know the distribution) */
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstrow), data->nsdpblocks) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstcol), data->nsdpblocks) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstval), data->nsdpblocks) );
-
-         for (b = 0; b < data->nsdpblocks; b++)
+         SCIP_CALL( CBFfgets(pfile, linecount) );
+         if ( sscanf(CBF_LINE_BUFFER, "%i %i %i %lf", &b, &row, &col, &val) != 4 )
          {
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstrow[b]), constnnonz) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstcol[b]), constnnonz) );
-            SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstval[b]), constnnonz) );
+            SCIPerrorMessage("Could not read entry of DCOORD in line %d.\n", linecount);
+         SCIPABORT();
+         return SCIP_READERROR;
          }
 
-         for (i = 0; i < constnnonz; i++)
+         if ( b < 0 || b >= data->nsdpblocks )
          {
-            SCIP_CALL( CBFfgets(pfile, linecount) );
-            if ( sscanf(CBF_LINE_BUFFER, "%i %i %i %lf", &b, &row, &col, &val) == 4 )
+            SCIPerrorMessage("Given constant entry in line %d for SDP-constraint %d which does not exist!\n", linecount, b);
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+
+         if ( row < 0 || row >= data->sdpblocksizes[b] )
+         {
+            SCIPerrorMessage("Row index %d of given constant SDP-entry in line %d is negative or larger than blocksize %d!\n",
+               row, linecount, data->sdpblocksizes[b]);
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+
+         if ( col < 0 || col >= data->sdpblocksizes[b] )
+         {
+            SCIPerrorMessage("Column index %d of given constant SDP-entry in line %d is negative or larger than blocksize %d!\n",
+               col, linecount, data->sdpblocksizes[b]);
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+
+         if ( SCIPisZero(scip, val) )
+         {
+            ++nzerocoef;
+         }
+         else
+         {
+            /* make sure matrix is in lower triangular form */
+            if ( col > row )
             {
-               if ( b < 0 || b >= data->nsdpblocks )
-               {
-                  SCIPerrorMessage("Given constant entry for SDP-constraint %d which does not exist!\n", b);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
-
-               if ( row < 0 || row >= data->sdpblocksizes[b] )
-               {
-                  SCIPerrorMessage("Row index %d of given constant SDP-entry is negative or larger than blocksize %d!\n",
-                     row, data->sdpblocksizes[b]);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
-
-               if ( col < 0 || col >= data->sdpblocksizes[b] )
-               {
-                  SCIPerrorMessage("Column index %d of given constant SDP-entry is negative or larger than blocksize %d!\n",
-                     col, data->sdpblocksizes[b]);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
-
-               if ( SCIPisZero(scip, val) )
-               {
-                  ++nzerocoef;
-               }
-               else
-               {
-                  /* make sure matrix is in lower triangular form */
-                  if ( col > row )
-                  {
-                     data->sdpconstrow[b][data->sdpconstnblocknonz[b]] = col;
-                     data->sdpconstcol[b][data->sdpconstnblocknonz[b]] = row;
-                  }
-                  else
-                  {
-                     data->sdpconstrow[b][data->sdpconstnblocknonz[b]] = row;
-                     data->sdpconstcol[b][data->sdpconstnblocknonz[b]] = col;
-                  }
-                  data->sdpconstval[b][data->sdpconstnblocknonz[b]] = -val;
-                  data->sdpconstnblocknonz[b]++;
-               }
+               data->sdpconstrow[b][data->sdpconstnblocknonz[b]] = col;
+               data->sdpconstcol[b][data->sdpconstnblocknonz[b]] = row;
             }
             else
-               return SCIP_READERROR;
+            {
+               data->sdpconstrow[b][data->sdpconstnblocknonz[b]] = row;
+               data->sdpconstcol[b][data->sdpconstnblocknonz[b]] = col;
+            }
+            data->sdpconstval[b][data->sdpconstnblocknonz[b]] = -val;
+            data->sdpconstnblocknonz[b]++;
          }
       }
    }
-   else
-      return SCIP_READERROR;
 
    if ( nzerocoef > 0 )
    {
@@ -2062,7 +2108,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
             }
             else
             {
-               SCIPerrorMessage("Keyword %s not recognized!\n", CBF_NAME_BUFFER);
+               SCIPerrorMessage("Keyword %s in line %d not recognized!\n", CBF_NAME_BUFFER, linecount);
                SCIPABORT();
                return SCIP_READERROR; /*lint !e527*/
             }
