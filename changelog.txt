@@ -18,10 +18,27 @@ features:
 - add error messages to SDPA-format reader
 - fix parsing of integer variables in SDPA-format
 - add support for CBF-files in primal and mixed primal-dual form
+- unify nomenclature in CBF reader
+- add more error messages to CBF reader
+- add linenumbers to error messages in CBF reader
 - the variable locks are now updated in presolving
 - presolving techniques directly update bounds instead of adding constraints if possible
 - unlocking variables is now faster (do not need to recompute eigenvalues in this case)
 - adapted several code parts to newer SCIP versions and using new features
+- add support for rank-1 constraints for psd variables and SDP-constraints by extending the SDP constraint handler, which now includes the following:
+  - add 4 new parameters branchbndchg, validineqsrank1, quadconsrank1, branchrank1 to ConshdlrData
+  - add 3 new parameters rankone, maxevsubmat, addedquadcons to ConsData
+  - introduce function isMatrixRankOne() to check whether a matrix has rank 1
+  - adapt locking mechanism to rank-1 constraints
+  - introduce function enforceRankeOne() to enforce the rank-1 constraint for a given solution
+  - for each constraint, if it should be rank one, all quadratic constraints given by the 2x2 principal minors are added in ConsInitSol, since a positive semidefinite matrix has rank 1 if and only if all its 2x2 principal minors are zero.
+  - add printing and parsing of rank-1 information in .cip-format as "rank1? 0/1"
+  - SCIPconsSdpGetData(): add parameter rankone, maxevsubmat, addedquadcons
+  - SCIPcreateConsSdp(): add parameter rankone
+  - introduce function SCIPconsSdpShouldBeRankOne()
+  - introduce function SCIPconsSdpGetMaxEVSubmat()
+  - introduce function SCIPconsSdpAddedQuadCons()
+  - introduce keywords PSDVARRANK1 and PSDCONRANK1 in reader_cbf.c for specifying psd variables and SDP-constraints with a rank-1 constraint
 
 makefile:
 - add project makefile in make/make.scipsdpproj
