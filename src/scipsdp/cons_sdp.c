@@ -227,8 +227,8 @@ SCIP_RETCODE isMatrixRankOne(
    SCIP_RESULT resultSDPtest;
    int i;
    int j;
-   int ind1;
-   int ind2;
+   int ind1 = 0;
+   int ind2 = 0;
    SCIP_Real submatrix[4];
    SCIP_Real largestminev = 0.0;
 
@@ -283,7 +283,7 @@ SCIP_RETCODE isMatrixRankOne(
             SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, 2, submatrix, 1, &eigenvalue, NULL) );
             /* TODO: Compute eigenvalues by solving quadratic constraint */
 
-            if ( SCIPisFeasGT(scip, eigenvalue, largestminev) )
+            if ( eigenvalue > largestminev )
             {
                largestminev = eigenvalue;
                ind1 = i;
@@ -291,6 +291,9 @@ SCIP_RETCODE isMatrixRankOne(
             }
          }
       }
+
+      assert( ind1 > 0 && ind2 > 0 );
+      assert( SCIPisFeasPositive(scip, largestminev) );
 
       /* save indices for submatrix with largest minimal eigenvalue */
       consdata->maxevsubmat[0] = ind1;
