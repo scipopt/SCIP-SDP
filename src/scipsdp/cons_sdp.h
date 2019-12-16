@@ -249,12 +249,6 @@ SCIP_Bool SCIPconsSdpAddedQuadCons(
    SCIP_CONS*            cons                /**< the constraint for which it should be checked whether the quadratic 2x2-minor constraints are already added (in the rank1-case) */
    );
 
-SCIP_RETCODE SCIPconsSdpGetQuadconss(
-   SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< the constraint for which the quadratic constraints should be returned */
-   SCIP_CONS****         quadconss           /**< pointer to store quadratic constraints for all 2x2 principal minors */
-   );
-
 #ifdef __cplusplus
 }
 #endif
