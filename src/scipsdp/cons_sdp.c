@@ -1949,6 +1949,7 @@ SCIP_RETCODE enforceRankOne(
       SCIP_NODE* node6 = NULL;
       SCIP_Real  newbound;
       SCIP_Real  alpha;
+      SCIP_Bool  branched = FALSE;
 
       alpha = conshdlrdata->branchbndchg;
 
@@ -1956,51 +1957,65 @@ SCIP_RETCODE enforceRankOne(
          nodes */
 
       /* Up-Branch for variable corresponding to index (i,i) (quadvars1[0]) */
-      SCIP_CALL( SCIPcreateChild(scip, &node1, 1.0, SCIPgetLocalTransEstimate(scip)) );
-
       newbound = alpha * lbii + (1 - alpha) * ubii;
 
       if ( SCIPisFeasLT(scip, lbii, newbound) )
+      {
+         SCIP_CALL( SCIPcreateChild(scip, &node1, 1.0, SCIPgetLocalTransEstimate(scip)) );
          SCIP_CALL( SCIPchgVarLbNode(scip, node1, quadvars1[0], newbound) );
+         branched = TRUE;
+      }
 
       /* Down-Branch for variable corresponding to index (i,i) (quadvars1[0]) */
-      SCIP_CALL( SCIPcreateChild(scip, &node2, 1.0, SCIPgetLocalTransEstimate(scip)) );
-
       if ( SCIPisFeasGT(scip, ubii, newbound) )
+      {
+         SCIP_CALL( SCIPcreateChild(scip, &node2, 1.0, SCIPgetLocalTransEstimate(scip)) );
          SCIP_CALL( SCIPchgVarUbNode(scip, node2, quadvars1[0], newbound) );
+         branched = TRUE;
+      }
 
       /* Up-Branch for variable corresponding to index (j,j) (quadvars1[1]) */
-      SCIP_CALL( SCIPcreateChild(scip, &node3, 1.0, SCIPgetLocalTransEstimate(scip)) );
-
       newbound = alpha * lbjj + (1 - alpha) * ubjj;
 
       if ( SCIPisFeasLT(scip, lbjj, newbound) )
+      {
+         SCIP_CALL( SCIPcreateChild(scip, &node3, 1.0, SCIPgetLocalTransEstimate(scip)) );
          SCIP_CALL( SCIPchgVarLbNode(scip, node3, quadvars2[0], newbound) );
+         branched = TRUE;
+      }
 
       /* Down-Branch for variable corresponding to index (j,j) (quadvars1[1]) */
-      SCIP_CALL( SCIPcreateChild(scip, &node4, 1.0, SCIPgetLocalTransEstimate(scip)) );
-
       if ( SCIPisFeasGT(scip, ubjj, newbound) )
+      {
+         SCIP_CALL( SCIPcreateChild(scip, &node4, 1.0, SCIPgetLocalTransEstimate(scip)) );
          SCIP_CALL( SCIPchgVarUbNode(scip, node4, quadvars2[0], newbound) );
+         branched = TRUE;
+      }
 
       /* Up-Branch for variable corresponding to index (i,j) (quadvars2[0]) */
-      SCIP_CALL( SCIPcreateChild(scip, &node5, 1.0, SCIPgetLocalTransEstimate(scip)) );
-
       newbound = alpha * lbij + (1 - alpha) * ubij;
 
       if ( SCIPisFeasLT(scip, lbij, newbound) )
+      {
+         SCIP_CALL( SCIPcreateChild(scip, &node5, 1.0, SCIPgetLocalTransEstimate(scip)) );
          SCIP_CALL( SCIPchgVarLbNode(scip, node5, quadvars1[1], newbound) );
+         branched = TRUE;
+      }
 
       /* Down-Branch for variable corresponding to index (i,j) (quadvars2[0]) */
-      SCIP_CALL( SCIPcreateChild(scip, &node6, 1.0, SCIPgetLocalTransEstimate(scip)) );
-
       if ( SCIPisFeasGT(scip, ubij, newbound) )
+      {
+         SCIP_CALL( SCIPcreateChild(scip, &node6, 1.0, SCIPgetLocalTransEstimate(scip)) );
          SCIP_CALL( SCIPchgVarUbNode(scip, node6, quadvars1[1], newbound) );
+         branched = TRUE;
+      }
 
-      /* reset age of constraint that we selected for branching*/
-      SCIP_CALL( SCIPresetConsAge(scip, cons) );
-
-      *result = SCIP_BRANCHED;
+      if ( branched )
+      {
+         /* reset age of constraint that we selected for branching*/
+         SCIP_CALL( SCIPresetConsAge(scip, cons) );
+         *result = SCIP_BRANCHED;
+      }
    }
 
    SCIPfreeBufferArray(scip, &submatrix);
