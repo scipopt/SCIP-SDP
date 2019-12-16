@@ -39,6 +39,26 @@
  * @author Marc Pfetsch
  * @author Frederic Matter
  *
+ * As an extension of the original CBF format it is possible to specify the constraint that a psd variable and/or a
+ * SDP-constraint has rank 1. This is done by using the two new keywords PSDCONRANK1 and PSDVARRANK1 with the following
+ * structure:
+ *
+ * PSDCONRANK1
+ * r
+ * m_1
+ * \vdots
+ * m_r,
+ * where \f$r\f$ is the number of SDP-constraints with a rank-1 constraint, and \f$m_1, \dots, m_r\f$ are the indices of the
+ * SDP-constraints with a rank-1 constraints.
+ *
+ * PSDVARRANK1
+ * r
+ * v_1
+ * \vdots
+ * v_r,
+ * where \f$r\f$ is the number of psd variables with a rank-1 constraint, and \f$v_1, \dots, v_r\f$ are the indices of the psd
+ * variables with a rank-1 constraints.
+ *
  * @todo Allow to read SOC constraints in CBF format.
  * @todo Allow to write varbounds as linear constraints.
  * @todo Allow to write a transformed problem.
