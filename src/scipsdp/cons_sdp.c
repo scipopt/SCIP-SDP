@@ -293,7 +293,7 @@ SCIP_RETCODE isMatrixRankOne(
       }
 
       assert( ind1 > 0 && ind2 > 0 );
-      assert( SCIPisFeasPositive(scip, largestminev) );
+      assert( SCIPisFeasPositive(scip, largestminev) ); /* because the second largest eigenvalue satisfies SCIPisFeasPositive. */
 
       /* save indices for submatrix with largest minimal eigenvalue */
       consdata->maxevsubmat[0] = ind1;
@@ -2276,6 +2276,8 @@ SCIP_DECL_CONSEXITPRE(consExitpreSdp)
 
    SCIP_CALL( fixAndAggrVars(scip, conss, nconss, TRUE) );
 
+   /* TODO: test if branching and/or separation of Chen et al. can be applied */
+
    return SCIP_OKAY;
 }
 
@@ -2296,6 +2298,9 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
    if ( conss == NULL )
       return SCIP_OKAY;
 
+   if ( SCIPgetSubscipDepth(scip) > 0 || ! conshdlrdata->quadconsrank1 )
+      return SCIP_OKAY;
+
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
 
@@ -2314,7 +2319,7 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
 
       /* For each constraint, if it should be rank one, add all quadratic constraints given by the 2x2 principal
        * minors. */
-      if ( consdata->rankone && conshdlrdata->quadconsrank1 && ! consdata->addedquadcons && SCIPgetSubscipDepth(scip) == 0 )
+      if ( consdata->rankone && ! consdata->addedquadcons )
       {
          SCIP_VAR** quadvars1;
          SCIP_VAR** quadvars2;
