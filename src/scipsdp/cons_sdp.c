@@ -2412,26 +2412,6 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
    return SCIP_OKAY;
 }
 
-/** solving process deinitialization method of constraint handler (called before branch and bound process data is freed)
- *
- *  At the end of the solution process the stored rank one submatrix is reset.
- */
-static
-SCIP_DECL_CONSEXITSOL(consExitsolSdp)
-{  /*lint --e{715}*/
-   SCIP_CONSHDLRDATA* conshdlrdata;
-
-   assert( scip != NULL );
-   assert( conshdlr != NULL );
-   assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
-
-   conshdlrdata = SCIPconshdlrGetData(conshdlr);
-   assert( conshdlrdata != NULL );
-
-   return SCIP_OKAY;
-}
-
-
 /** presolving method of constraint handler */
 static
 SCIP_DECL_CONSPRESOL(consPresolSdp)
@@ -3319,7 +3299,6 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPsetConshdlrInitpre(scip, conshdlr,consInitpreSdp) );
    SCIP_CALL( SCIPsetConshdlrExitpre(scip, conshdlr, consExitpreSdp) );
    SCIP_CALL( SCIPsetConshdlrInitsol(scip, conshdlr, consInitsolSdp) );
-   SCIP_CALL( SCIPsetConshdlrExitsol(scip, conshdlr, consExitsolSdp) );
    SCIP_CALL( SCIPsetConshdlrPresol(scip, conshdlr, consPresolSdp, CONSHDLR_MAXPREROUNDS, CONSHDLR_PRESOLTIMING) );
    SCIP_CALL( SCIPsetConshdlrSepa(scip, conshdlr, consSepalpSdp, consSepasolSdp, CONSHDLR_SEPAFREQ,
          CONSHDLR_SEPAPRIORITY, CONSHDLR_DELAYSEPA) );
