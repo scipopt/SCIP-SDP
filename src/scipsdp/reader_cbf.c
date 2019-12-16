@@ -297,7 +297,7 @@ SCIP_RETCODE CBFreadVar(
 
 /** reads the number and type of psd variables from given CBF-file */
 static
-SCIP_RETCODE CBFreadPsdvar(
+SCIP_RETCODE CBFreadPsdVar(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pfile,              /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
@@ -409,7 +409,7 @@ SCIP_RETCODE CBFreadPsdvar(
 
 /** reads the rank-1 information of psd variables from given CBF-file */
 static
-SCIP_RETCODE CBFreadPsdvarrank1(
+SCIP_RETCODE CBFreadPsdVarRank1(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pfile,              /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
@@ -665,7 +665,7 @@ SCIP_RETCODE CBFreadInt(
 
 /** reads SDP-constraint sizes from given CBF-file */
 static
-SCIP_RETCODE CBFreadPsdcon(
+SCIP_RETCODE CBFreadPsdCon(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pfile,              /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
@@ -741,7 +741,7 @@ SCIP_RETCODE CBFreadPsdcon(
 
 /** reads rank-1 information of SDP-constraints from given CBF-file */
 static
-SCIP_RETCODE CBFreadPsdconrank1(
+SCIP_RETCODE CBFreadPsdConRank1(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pfile,              /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
@@ -805,7 +805,7 @@ SCIP_RETCODE CBFreadPsdconrank1(
 
 /** reads objective values for matrix variables from given CBF-file */
 static
-SCIP_RETCODE CBFreadObjfcoord(
+SCIP_RETCODE CBFreadObjFcoord(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pfile,              /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
@@ -914,7 +914,7 @@ SCIP_RETCODE CBFreadObjfcoord(
 
 /** reads objective values for scalar variables from given CBF-file */
 static
-SCIP_RETCODE CBFreadObjacoord(
+SCIP_RETCODE CBFreadObjAcoord(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pfile,              /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
@@ -2002,32 +2002,32 @@ SCIP_DECL_READERREAD(readerReadCbf)
             else if ( strcmp(CBF_NAME_BUFFER, "PSDCON") == 0 )
             {
                SCIPdebugMsg(scip, "Reading PSDCON\n");
-               SCIP_CALL( CBFreadPsdcon(scip, scipfile, &linecount, data) );
+               SCIP_CALL( CBFreadPsdCon(scip, scipfile, &linecount, data) );
             }
             else if ( strcmp(CBF_NAME_BUFFER, "PSDVAR") == 0 )
             {
                SCIPdebugMsg(scip, "Reading PSDVAR\n");
-               SCIP_CALL( CBFreadPsdvar(scip, scipfile, &linecount, data) );
+               SCIP_CALL( CBFreadPsdVar(scip, scipfile, &linecount, data) );
             }
             else if ( strcmp(CBF_NAME_BUFFER, "PSDCONRANK1") == 0 )
             {
                SCIPdebugMsg(scip, "Reading PSDCONRANK1\n");
-               SCIP_CALL( CBFreadPsdconrank1(scip, scipfile, &linecount, data) );
+               SCIP_CALL( CBFreadPsdConRank1(scip, scipfile, &linecount, data) );
             }
             else if ( strcmp(CBF_NAME_BUFFER, "PSDVARRANK1") == 0 )
             {
                SCIPdebugMsg(scip, "Reading PSDVARRANK1\n");
-               SCIP_CALL( CBFreadPsdvarrank1(scip, scipfile, &linecount, data) );
+               SCIP_CALL( CBFreadPsdVarRank1(scip, scipfile, &linecount, data) );
             }
             else if ( strcmp(CBF_NAME_BUFFER, "OBJFCOORD") == 0 )
             {
                SCIPdebugMsg(scip, "Reading OBJFCOORD\n");
-               SCIP_CALL( CBFreadObjfcoord(scip, scipfile, &linecount, data) );
+               SCIP_CALL( CBFreadObjFcoord(scip, scipfile, &linecount, data) );
             }
             else if ( strcmp(CBF_NAME_BUFFER, "OBJACOORD") == 0 )
             {
                SCIPdebugMsg(scip, "Reading OBJACOORD\n");
-               SCIP_CALL( CBFreadObjacoord(scip, scipfile, &linecount, data) );
+               SCIP_CALL( CBFreadObjAcoord(scip, scipfile, &linecount, data) );
             }
             else if ( strcmp(CBF_NAME_BUFFER, "OBJBCOORD") == 0 )
             {
@@ -2071,7 +2071,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
    }
 
    /* Psd vars are created using scalar vars and a corresponding psd constraint that gets created in the function
-    * CBFreadPsdcon. If there are no psd cons in the original problem, then the psd constraint for the reformulation of the
+    * CBFreadPsdCon. If there are no psd cons in the original problem, then the psd constraint for the reformulation of the
     * original psd vars needs to be created at this point! */
    if ( data->npsdvars > data->nsdpblocks )
    {
