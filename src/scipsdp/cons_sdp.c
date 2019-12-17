@@ -3185,7 +3185,8 @@ SCIP_DECL_CONSPARSE(consParseSdp)
          pos += 2; /* remove the "):" */
          parsesuccess = SCIPstrToRealValue(pos, &(consdata->val[consdata->nvars - 1][consdata->nvarnonz[consdata->nvars - 1]]), &pos);
          *success = *success && parsesuccess;
-         pos ++; /* remove the "," */
+         if ( *pos != '\0' )
+            pos ++; /* remove the "," */
 
          /* if we got an entry in the upper triangular part, switch the entries for lower triangular */
          if ( consdata->col[consdata->nvars - 1][consdata->nvarnonz[consdata->nvars - 1]] >
