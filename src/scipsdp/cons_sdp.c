@@ -2298,11 +2298,11 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
    if ( conss == NULL )
       return SCIP_OKAY;
 
-   if ( SCIPgetSubscipDepth(scip) > 0 || ! conshdlrdata->quadconsrank1 )
-      return SCIP_OKAY;
-
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
+
+   if ( SCIPgetSubscipDepth(scip) > 0 || ! conshdlrdata->quadconsrank1 )
+      return SCIP_OKAY;
 
    for (c = 0; c < nconss; ++c)
    {
