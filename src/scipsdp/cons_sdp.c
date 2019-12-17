@@ -2896,6 +2896,9 @@ SCIP_DECL_CONSPRINT(consPrintSdp)
 
    SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, consdata->blocksize * consdata->blocksize) );
 
+   /* print rank1 information */
+   SCIPinfoMessage(scip, file, "rank-1? %d\n", consdata->rankone);
+
    /* print the non-constant matrices, for this they first have to be assembled in fullmatrix */
    for (v = 0; v < consdata->nvars; v++)
    {
@@ -2921,7 +2924,7 @@ SCIP_DECL_CONSPRINT(consPrintSdp)
       {
          SCIPinfoMessage(scip, file, "( ");
          for (j = 0; j < consdata->blocksize; j++)
-            SCIPinfoMessage(scip, file, "%f ", fullmatrix[i * consdata->blocksize + j]); /*lint !e679*/
+            SCIPinfoMessage(scip, file, "%g ", fullmatrix[i * consdata->blocksize + j]); /*lint !e679*/
          SCIPinfoMessage(scip, file, ")\n");
       }
       SCIPinfoMessage(scip, file, "* %s\n", SCIPvarGetName(consdata->vars[v]));
@@ -2951,10 +2954,10 @@ SCIP_DECL_CONSPRINT(consPrintSdp)
    {
       SCIPinfoMessage(scip, file, "( ");
       for (j = 0; j < consdata->blocksize; j++)
-         SCIPinfoMessage(scip, file, "%f ", fullmatrix[i * consdata->blocksize + j]); /*lint !e679*/
+         SCIPinfoMessage(scip, file, "%g ", fullmatrix[i * consdata->blocksize + j]); /*lint !e679*/
       SCIPinfoMessage(scip, file, ")\n");
    }
-   SCIPinfoMessage(scip, file, ">=0\n");
+   SCIPinfoMessage(scip, file, ">= 0\n");
 
    /* print rank1 information */
    SCIPinfoMessage(scip, file, "rank-1? %d\n", consdata->rankone);
@@ -2976,19 +2979,19 @@ SCIP_DECL_CONSPRINT(consPrintSdp)
    SCIPinfoMessage(scip, file, "%d\n", consdata->blocksize);
 
    /* print rank1 information */
-   SCIPinfoMessage(scip, file, "rank-1? %d\n", consdata->rankone);
+   SCIPinfoMessage(scip, file, "    rank-1? %d\n", consdata->rankone);
 
    /* print A_0 if it exists */
    if ( consdata->constnnonz > 0 )
    {
-      SCIPinfoMessage(scip, file, "A_0: ");
+      SCIPinfoMessage(scip, file, "    A_0: ");
 
       for (i = 0; i < consdata->constnnonz; i++)
       {
          if ( i < consdata->constnnonz - 1 )
-            SCIPinfoMessage(scip, file, "(%d,%d):%.9f, ", consdata->constrow[i], consdata->constcol[i], consdata->constval[i]);
+            SCIPinfoMessage(scip, file, "(%d,%d):%.15g, ", consdata->constrow[i], consdata->constcol[i], consdata->constval[i]);
          else
-            SCIPinfoMessage(scip, file, "(%d,%d):%.9f", consdata->constrow[i], consdata->constcol[i], consdata->constval[i]);
+            SCIPinfoMessage(scip, file, "(%d,%d):%.15g", consdata->constrow[i], consdata->constcol[i], consdata->constval[i]);
       }
       SCIPinfoMessage(scip, file, "\n");
    }
@@ -2996,13 +2999,13 @@ SCIP_DECL_CONSPRINT(consPrintSdp)
    /* print other matrices */
    for (v = 0; v < consdata->nvars; v++)
    {
-      SCIPinfoMessage(scip, file, "<%s>: ", SCIPvarGetName(consdata->vars[v]));
+      SCIPinfoMessage(scip, file, "    <%s>: ", SCIPvarGetName(consdata->vars[v]));
       for (i = 0; i < consdata->nvarnonz[v]; i++)
       {
          if ( i < consdata->nvarnonz[v] - 1 || v < consdata->nvars - 1 )
-            SCIPinfoMessage(scip, file, "(%d,%d):%.9f, ", consdata->row[v][i], consdata->col[v][i], consdata->val[v][i]);
+            SCIPinfoMessage(scip, file, "(%d,%d):%.15g, ", consdata->row[v][i], consdata->col[v][i], consdata->val[v][i]);
          else
-            SCIPinfoMessage(scip, file, "(%d,%d):%.9f", consdata->row[v][i], consdata->col[v][i], consdata->val[v][i]);
+            SCIPinfoMessage(scip, file, "(%d,%d):%.15g", consdata->row[v][i], consdata->col[v][i], consdata->val[v][i]);
       }
       /* if this is not the last variable, add a newline */
       if (v < consdata->nvars - 1)
