@@ -956,7 +956,7 @@ SCIP_RETCODE CBFreadObjFcoord(
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "OBJFCOORD: Found %d coefficients with absolute value less than epsilon = %f.\n", nzerocoef, SCIPepsilon(scip));
+         "OBJFCOORD: Found %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
    }
 
    return SCIP_OKAY;
@@ -1161,7 +1161,7 @@ SCIP_RETCODE CBFreadFcoord(
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "FCOORD: Found %d coefficients with absolute value less than epsilon = %f.\n", nzerocoef, SCIPepsilon(scip));
+         "FCOORD: Found %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
    }
 
    return SCIP_OKAY;
@@ -1349,7 +1349,7 @@ SCIP_RETCODE CBFreadBcoord(
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "BCOORD: Found %d coefficients with absolute value less than epsilon = %f.\n", nzerocoef, SCIPepsilon(scip));
+         "BCOORD: Found %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
    }
 
    return SCIP_OKAY;
@@ -1632,7 +1632,7 @@ SCIP_RETCODE CBFreadHcoord(
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "HCOORD: Found %d coefficients with absolute value less than epsilon = %f.\n", nzerocoef, SCIPepsilon(scip));
+         "HCOORD: Found %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
    }
 
    return SCIP_OKAY;
@@ -2774,7 +2774,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
       consind = 0;
       for (c = 0; c < nconss; c++)
       {
-         if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])),"SDP") != 0 )
+         if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0 )
             continue;
 
          /* initialization for SDPconsSDPGetData-call */
