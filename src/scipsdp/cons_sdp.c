@@ -1207,8 +1207,10 @@ SCIP_RETCODE updateVarLocks(
    /* rank-1 constraints are always up- and down-locked */
    if ( consdata->rankone )
    {
+      SCIP_CALL( unlockVar(scip, consdata, v) );
       consdata->locks[v] = 0;
       SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], SCIP_LOCKTYPE_MODEL, 1, 1) );
+      return SCIP_OKAY;
    }
 
    blocksize = consdata->blocksize;
@@ -1287,6 +1289,7 @@ SCIP_RETCODE checkVarsLocks(
    {
       for (v = 0; v < consdata->nvars; ++v)
          assert( consdata->locks[v] == 0 );
+      return SCIP_OKAY;
    }
 
    blocksize = consdata->blocksize;
@@ -1524,9 +1527,12 @@ SCIP_RETCODE multiaggrVar(
 
          consdata->locks[consdata->nvars] = -2;
          if ( consdata->nvarnonz[consdata->nvars] > 0 ) /* if scalar and all savedvals were to small */
+         {
             consdata->nvars++;
-
-         SCIP_CALL( updateVarLocks(scip, cons, consdata->nvars-1) );
+            SCIP_CALL( updateVarLocks(scip, cons, consdata->nvars-1) );
+         }
+         else
+            SCIP_CALL( updateVarLocks(scip, cons, consdata->nvars) );
       }
    }
 
