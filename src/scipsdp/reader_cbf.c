@@ -337,7 +337,6 @@ SCIP_RETCODE CBFreadPsdVar(
    int t;
    int sizepsdvar;
    int nscalarvars;
-   int cnt = 0;
 #ifndef NDEBUG
    int snprintfreturn;
 #endif
@@ -381,6 +380,7 @@ SCIP_RETCODE CBFreadPsdVar(
    {
       SCIP_Real lb;
       SCIP_Real ub;
+      int cnt = 0;
 
       SCIP_CALL( CBFfgets(pfile, linecount) );
 
@@ -389,7 +389,6 @@ SCIP_RETCODE CBFreadPsdVar(
          SCIPerrorMessage("Could not read the size of psd variable %d in line %d.\n", t, linecount);
          SCIPABORT();
          return SCIP_READERROR;
-
       }
 
       if ( sizepsdvar <= 0 )
