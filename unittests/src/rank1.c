@@ -30,9 +30,10 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   readwrite.cpp
- * @brief  unit test for checking reading and writing of MISDPs
+/**@file   rank1.c
+ * @brief  unit test for checking reading of rank1-information in CBF-files
  * @author Marc Pfetsch
+ * @author Frederic Matter
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
@@ -65,33 +66,30 @@ void teardown(void)
    cr_assert_eq(BMSgetMemoryUsed(), 0, "There is a memory leak!");
 }
 
-TestSuite(readwrite, .init = setup, .fini = teardown);
+TestSuite(rank1, .init = setup, .fini = teardown);
 
 
 /** TESTS **/
 
 /** Test 1 */
-Test(readwrite, readSDPAwriteCBF)
+Test(rank1, readPrimalDualRank1)
 {
    SCIP_Real obj1;
    SCIP_Real obj2;
 
-   /* read problem and solve it */
-   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_small.dat-s", NULL) );
+   /* read problem in primal form and solve it */
+   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_rank1_primal.cbf", NULL) );
 
    SCIP_CALL( SCIPsolve(scipsdp) );
 
    obj1 = SCIPgetDualbound(scipsdp);
 
-   /* write problem in CBF format */
-   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "example_small.cbf", "cbf", FALSE) );
-
-   /* read problem again */
-   SCIP_CALL( SCIPreadProb(scipsdp, "example_small.cbf", NULL) );
+   /* read problem in dual form and solve it again */
+   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_rank1_dual.cbf", NULL) );
 
    SCIP_CALL( SCIPsolve(scipsdp) );
 
    obj2 = SCIPgetDualbound(scipsdp);
 
-   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (SDPA) != %g (CBF)\n", obj1, obj2);
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (CBF primal) != %g (CBF dual)\n", obj1, obj2);
 }

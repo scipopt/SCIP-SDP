@@ -75,7 +75,8 @@ SCIP_RETCODE SCIPcreateConsSdp(
    int                   constnnonz,         /**< number of nonzeros in the constant part of this SDP constraint */
    int*                  constcol,           /**< column indices of the constant nonzeros */
    int*                  constrow,           /**< row indices of the constant nonzeros */
-   SCIP_Real*            constval            /**< values of the constant nonzeros */
+   SCIP_Real*            constval,           /**< values of the constant nonzeros */
+   SCIP_Bool             rankone             /**< should matrix be rank one? */
    );
 
 /** for given row and column (i,j) computes the position in the lower triangular part, if
@@ -111,7 +112,10 @@ SCIP_RETCODE SCIPconsSdpGetData(
                                                *  the const arrays */
    int*                  constcol,           /**< pointer to store the column indices of the constant nonzeros */
    int*                  constrow,           /**< pointer to store the row indices of the constant nonzeros */
-   SCIP_Real*            constval            /**< pointer to store the values of the constant nonzeros */
+   SCIP_Real*            constval,           /**< pointer to store the values of the constant nonzeros */
+   SCIP_Bool*            rankone,            /**< pointer to store if matrix should be rank one (or NULL, if information not necessary) */
+   int**                 maxevsubmat,        /**< pointer to store two row indices of 2x2 subdeterminant with maximal eigenvalue [-1,-1 if not yet computed] (or NULL, if information not necessary) */
+   SCIP_Bool*            addedquadcons       /**< pointer to store if the quadratic 2x2-minor constraints already added (in the rank1-case) (or NULL, if information not necessary) */
    );
 
 /** gets the number of nonzeros and constant nonzeros for this SDP constraint
@@ -223,6 +227,26 @@ SCIP_RETCODE SCIPconsSdpComputeSparseSdpMatrix(
    int*                  row,                /**< pointer to store row indices of SDP-matrix */
    int*                  col,                /**< pointer to store column indices of SDP-matrix */
    SCIP_Real*            val                 /**< pointer to store values of SDP-matrix */
+   );
+
+/** returns wheter matrix should be rank one */
+SCIP_EXPORT
+SCIP_Bool SCIPconsSdpShouldBeRankOne(
+   SCIP_CONS*            cons                /**< the constraint for which the existence of a rank one constraint should be checked */
+   );
+
+/** returns two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] */
+SCIP_EXPORT
+SCIP_RETCODE SCIPconsSdpGetMaxEVSubmat(
+   SCIP_CONS*            cons,               /**< the constraint for which the existence of a rank one constraint should be checked */
+   int**                 maxevsubmat         /**< pointer to store the two row indices of 2x2 subdeterminant with
+                                                maximal eigenvalue [or -1,-1 if not available] */
+   );
+
+/** returns whether the quadratic 2x2-minor constraints are already added (in the rank1-case) */
+SCIP_EXPORT
+SCIP_Bool SCIPconsSdpAddedQuadCons(
+   SCIP_CONS*            cons                /**< the constraint for which it should be checked whether the quadratic 2x2-minor constraints are already added (in the rank1-case) */
    );
 
 #ifdef __cplusplus

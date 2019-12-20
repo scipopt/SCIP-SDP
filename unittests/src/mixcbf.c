@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   mixcbf.c
+/**@file   mixcbf.cpp
  * @brief  unit test for checking reading MISDPs in primal, dual and mixed form
  * @author Marc Pfetsch
  * @author Frederic Matter

@@ -79,7 +79,7 @@ SOFTLINKS	+=	$(SCIPSDPLIBDIR)/shared/libopenblas.$(SHAREDLIBEXT).0
 endif
 SDPIINSTMSG	=	" -> \"sdpainc\" is the path to the SDPA \"include\" directory, e.g., \"<SDPA-path>/include\".\n"
 SDPIINSTMSG	+=	" -> \"libsdpa.*\" is the path to the SDPA library, e.g., \"<SDPA-path>/lib/libsdpa.a\".\n"
-SDPIINSTMSG	=	" -> \"mumpsinc\" is the path to the mumps \"include\" directory, e.g., \"<SDPA-path>/mumps/include\".\n"
+SDPIINSTMSG	+=	" -> \"mumpsinc\" is the path to the mumps \"include\" directory, e.g., \"<SDPA-path>/mumps/include\".\n"
 SDPIINSTMSG	+=	" -> \"libdmumps.*\" is the path to the dmumps library, e.g., \"<SDPA-path>/mumps/build/lib/libdmumps.$(STATICLIBEXT)\".\n"
 SDPIINSTMSG	+=	" -> \"libdmumps_common.*\" is the path to the mumps_common library, e.g., \"<SDPA-path>/mumps/build/lib/libmumps_common.$(STATICLIBEXT)\".\n"
 SDPIINSTMSG	+=	" -> \"libpord.*\" is the path to the pord library, e.g., \"<SDPA-path>/mumps/build/lib/libpord.$(STATICLIBEXT)\".\n"
@@ -503,7 +503,7 @@ testcluster:
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/testfiles.sh);
 		cd check; \
 		$(SHELL) ./check_cluster.sh $(TEST) $(PWD)/$(SCIPSDPBIN) $(SETTINGS) $(notdir $(SCIPSDPBIN)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(SDPS) $(DISPFREQ) \
-			$(CONTINUE) $(QUEUETYPE) $(QUEUE) $(PPN) $(CLIENTTMPDIR) $(NOWAITCLUSTER) $(EXCLUSIVE) $(PERMUTE) $(SEEDS) $(GLBSEEDSHIFT) $(DEBUGTOOL) $(REOPT) $(OPTCOMMAND) \
+			$(CONTINUE) $(QUEUETYPE) $(QUEUE) $(PPN) $(CLIENTTMPDIR) $(NOWAITCLUSTER) $(EXCLUSIVE) $(PERMUTE) $(SEEDS) $(GLBSEEDSHIFT) $(STARTPERM) $(DEBUGTOOL) $(REOPT) $(OPTCOMMAND) \
 			$(SETCUTOFF) $(VISUALIZE) $(CLUSTERNODES);
 
 #-----------------------------------------------------------------------------
@@ -522,7 +522,7 @@ depend:		$(SCIPDIR)
 
 $(SCIPSDPBIN):	$(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) libscipsdp $(MAINOBJFILES) | $(SDPOBJSUBDIRS) $(BINDIR)
 		@echo "-> linking $@"
-		$(LINKCXX) $(MAINOBJFILES) -L$(SCIPSDPLIBDIR)/$(LIBTYPE) -l$(SCIPSDPLIB) $(SCIPSDPLIBFILE) $(SDPILIB) $(LINKCXXSCIPALL) $(LINKCXX_o)$@
+		$(LINKCXX) $(MAINOBJFILES) -L$(SCIPSDPLIBDIR)/$(LIBTYPE) -l$(SCIPSDPLIB) $(SDPILIB) $(LINKCXXSCIPALL) $(LINKCXX_o)$@
 
 $(OBJDIR)/%.o:	$(SRCDIR)/%.c | $(SDPOBJSUBDIRS)
 		@echo "-> compiling $@"
