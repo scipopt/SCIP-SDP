@@ -63,7 +63,7 @@
 #include "scip/scip_cons.h"             /* for SCIPgetConsVars */
 #include "scip/scip.h"                  /* for SCIPallocBufferArray, etc */
 #include "scip/def.h"
-/* #include "scip/cons.c"                  /\* for SCIPconsGetTransformed *\/ */
+
 #ifdef OMP
 #include "omp.h"                        /* for changing the number of threads */
 #endif
@@ -1930,7 +1930,7 @@ SCIP_DECL_CONSEXITPRE(consExitpreSdp)
 
 /** solving process initialization method of constraint handler (called when branch and bound process is about to begin)
  *
- * At the beginning of the solution process the stored rank one submatrix is reset.
+ *  At the beginning of the solution process the stored rank one submatrix is reset.
  */
 static
 SCIP_DECL_CONSINITSOL(consInitsolSdp)
@@ -2790,7 +2790,7 @@ SCIP_DECL_CONSPARSE(consParseSdp)
    /* parse the non-constant part */
 
    /* while there is another variable, parse it */
-   while (pos[0] == '<')
+   while ( pos[0] == '<' )
    {
       /* add the variable to consdata->vars and create the corresponding nonzero arrays */
       SCIP_CALL( SCIPparseVarName(scip, pos, &(consdata->vars[consdata->nvars]), &pos) );
@@ -2992,6 +2992,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/diagzeroimplcuts",
          "Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added?",
          &(conshdlrdata->diagzeroimplcuts), TRUE, DEFAULT_DIAGZEROIMPLCUTS, NULL, NULL) );
+
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/quadconsrank1",
          "Should quadratic cons for 2x2 minors be added in the rank-1 case?",
          &(conshdlrdata->quadconsrank1), TRUE, DEFAULT_QUADCONSRANK1, NULL, NULL) );
