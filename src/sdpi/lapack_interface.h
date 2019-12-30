@@ -30,20 +30,16 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   lapack.h
- * @brief  interface methods for eigenvector computation and matrix multiplication using different versions of LAPACK and BLAS
+/**@file   lapack_interface.h
+ * @brief  interface methods for eigenvector computation and matrix multiplication using openblas
  * @author Tristan Gally
- *
- * This file is used to call the LAPACK routine DSYEVR (double-symmetric-eigenvector computation) and the
- * BLAS routine DGEMV (double-general-matrix-vector multiplication). It is needed because different SDP-solvers
- * need different BLAS/LAPACK-versions with different data types (for example long long int for
- * Openblas/SDPA vs. int for ATLAS/DSDP).
+ * @author Marc Pfetsch
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
-#ifndef __SCIP_LAPACK_H__
-#define __SCIP_LAPACK_H__
+#ifndef __SCIP_LAPACK_INTERFACE_H__
+#define __SCIP_LAPACK_INTERFACE_H__
 
 #include "scip/def.h"
 #include "blockmemshell/memory.h"
@@ -57,7 +53,7 @@ extern "C" {
 SCIP_EXPORT
 SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    BMS_BUFMEM*           bufmem,             /**< buffer memory */
-   SCIP_Bool             geteigenvectors,    /**< should also the eigenvectors be computed? */
+   SCIP_Bool             geteigenvectors,    /**< Should also the eigenvectors be computed? */
    int                   n,                  /**< size of matrix */
    SCIP_Real*            A,                  /**< matrix for which eigenvalues should be computed */
    int                   i,                  /**< index of eigenvalue to be computed */
@@ -91,11 +87,11 @@ SCIP_RETCODE SCIPlapackMatrixMatrixMult(
    int                   nrowsA,             /**< number of rows in matrix A */
    int                   ncolsA,             /**< number of cols in matrix A */
    SCIP_Real*            matrixA,            /**< matrix A given as nrowsA * ncolsA array */
-   SCIP_Bool             transposeA,         /**< should matrix A be transposed before multiplication? */
+   SCIP_Bool             transposeA,         /**< Should matrix A be transposed before multiplication? */
    int                   nrowsB,             /**< number of rows in matrix B */
    int                   ncolsB,             /**< number of cols in matrix B */
    SCIP_Real*            matrixB,            /**< matrix B given as ncolsA * ncolsB array */
-   SCIP_Bool             transposeB,         /**< should matrix B be transposed before multiplication? */
+   SCIP_Bool             transposeB,         /**< Should matrix B be transposed before multiplication? */
    SCIP_Real*            result              /**< pointer to nrowsA * nrowsB array to store the resulting matrix */
    );
 

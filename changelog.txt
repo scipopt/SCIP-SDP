@@ -39,6 +39,7 @@ features:
   - introduce function SCIPconsSdpGetMaxEVSubmat()
   - introduce function SCIPconsSdpAddedQuadCons()
   - introduce keywords PSDVARRANK1 and PSDCONRANK1 in reader_cbf.c for specifying psd variables and SDP-constraints with a rank-1 constraint
+- unify handling of lapack calls: there now is only one file "lapack_interface" instead of two (lpapack_sdpa, lapack_dsdp).
 
 makefile:
 - add project makefile in make/make.scipsdpproj

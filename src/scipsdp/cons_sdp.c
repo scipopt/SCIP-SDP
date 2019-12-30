@@ -53,7 +53,7 @@
 #include <string.h>                     /* for NULL, strcmp */
 #include <ctype.h>                      /* for isspace */
 #include <math.h>
-#include "sdpi/lapack.h"
+#include "sdpi/lapack_interface.h"
 
 #include "scipsdp/SdpVarmapper.h"
 #include "scipsdp/SdpVarfixer.h"

@@ -30,20 +30,25 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* #define SCIP_DEBUG*/
-/* #define SCIP_MORE_DEBUG*/
-
 /**@file   lapack_sdpa.c
  * @brief  interface methods for eigenvector computation and matrix multiplication using openblas
  * @author Sonja Mars
  * @author Lars Schewe
  * @author Tristan Gally
+ * @author Marc Pfetsch
+ *
+ * This file is used to call the LAPACK routine DSYEVR (double-symmetric-eigenvector computation) and the
+ * BLAS routine DGEMV (double-general-matrix-vector multiplication).
+ *
+ * If a version of openblas/lapack with 64 bit integers is used in connection with SDPA, then one should define
+ * LAPACK_LONGLONGINT. Note that one cannot detect the precision with which openblas/lapack is compiled, so this
+ * define is essential for correct functioning (resulting in a segmentation fault otherwise).
  */
 
 #include <assert.h>
 
-#include "lapack.h"
-#include "config.h"                     /* for F77_FUNC */
+#include "lapack_interface.h"
+#include "config.h"                          /* for F77_FUNC */
 
 #include "scip/def.h"
 #include "scip/pub_message.h"                /* for debug and error message */
@@ -53,8 +58,14 @@
 /* turn off lint warnings for whole file: */
 /*lint --e{788,818}*/
 
+
+/* if we use 64 bit integers then use long long int, otherwise int */
+#ifdef LAPACK_LONGLONGINT
 typedef long long int LAPACKINTTYPE;
-#define SDPA_VERSION          740
+#else
+typedef int LAPACKINTTYPE;
+#endif
+
 
 /** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMORY */
 #define BMS_CALL(x)   do                                                                                      \
@@ -113,20 +124,16 @@ void F77_FUNC(dgemm, DGEMM)(char* TRANSA, char* TRANSB, LAPACKINTTYPE* M, LAPACK
 /** computes the i-th eigenvalue of a symmetric matrix using LAPACK, where 1 is the smallest and n the largest, matrix has to be given with all \f$n^2\f$ entries */
 SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    BMS_BUFMEM*           bufmem,             /**< buffer memory */
-   SCIP_Bool             geteigenvectors,    /**< should also the eigenvectors be computed? */
+   SCIP_Bool             geteigenvectors,    /**< Should also the eigenvectors be computed? */
    int                   n,                  /**< size of matrix */
    SCIP_Real*            A,                  /**< matrix for which eigenvalues should be computed */
    int                   i,                  /**< index of eigenvalue to be computed */
    SCIP_Real*            eigenvalue,         /**< pointer to store eigenvalue */
-   SCIP_Real*            eigenvector         /**< pointer to store eigenvector */
+   SCIP_Real*            eigenvector         /**< pointer to array to store eigenvector */
    )
 {
    LAPACKINTTYPE N;
-#if ( SDPA_VERSION == 740 )
    LAPACKINTTYPE INFO;
-#else
-   int INFO;
-#endif
    char JOBZ;
    char RANGE;
    char UPLO;
@@ -166,8 +173,13 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    LDZ = n;
 
    /* standard LAPACK workspace query, to get the amount of needed memory */
+#ifdef LAPACK_LONGLONGINT
    LWORK = -1LL;
    LIWORK = -1LL;
+#else
+   LWORK = -1;
+   LIWORK = -1;
+#endif
 
    /* this computes the internally needed memory and returns this as (the first entries of [the 1x1 arrays]) WSIZE and WISIZE */
    F77_FUNC(dsyevr, DSYEVR)( &JOBZ, &RANGE, &UPLO,
@@ -177,11 +189,12 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
       &ABSTOL, &M, NULL, NULL,
       &LDZ, NULL, &WSIZE,
       &LWORK, &WISIZE, &LIWORK,
-      &INFO );
-/* for some reason this code seems to be called with INFO=0 within UG */
+      &INFO);
+
+   /* for some reason this code seems to be called with INFO=0 within UG */
    if ( INFO != 0 )
    {
-      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %lld\n", INFO);
+      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %lld.\n", INFO);
       return SCIP_ERROR;
    }
 
@@ -209,7 +222,7 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
 
    if ( INFO != 0 )
    {
-      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d\n", INFO);
+      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d.\n", INFO);
       return SCIP_ERROR;
    }
 
@@ -236,11 +249,7 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorDecomposition(
    )
 {
    LAPACKINTTYPE N;
-#if ( SDPA_VERSION == 740 )
    LAPACKINTTYPE INFO;
-#else
-   int INFO;
-#endif
    char JOBZ;
    char RANGE;
    char UPLO;
@@ -274,8 +283,13 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorDecomposition(
    LDZ = n;
 
    /* standard LAPACK workspace query, to get the amount of needed memory */
+#ifdef LAPACK_LONGLONGINT
    LWORK = -1LL;
    LIWORK = -1LL;
+#else
+   LWORK = -1;
+   LIWORK = -1;
+#endif
 
    /* this computes the internally needed memory and returns this as (the first entries of [the 1x1 arrays]) WSIZE and WISIZE */
    F77_FUNC(dsyevr, DSYEVR)( &JOBZ, &RANGE, &UPLO,
@@ -289,7 +303,7 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorDecomposition(
 
    if ( INFO != 0 )
    {
-      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d\n", INFO);
+      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d.\n", INFO);
       return SCIP_ERROR;
    }
 
@@ -316,7 +330,7 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorDecomposition(
 
    if ( INFO != 0 )
    {
-      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d\n", INFO);
+      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d.\n", INFO);
       return SCIP_ERROR;
    }
 
@@ -367,16 +381,17 @@ SCIP_RETCODE SCIPlapackMatrixVectorMult(
    return SCIP_OKAY;
 }
 
+
 /** performs matrix-matrix-multiplication A*B using BLAS */
 SCIP_RETCODE SCIPlapackMatrixMatrixMult(
    int                   nrowsA,             /**< number of rows in matrix A */
    int                   ncolsA,             /**< number of cols in matrix A */
    SCIP_Real*            matrixA,            /**< matrix A given as nrowsA * ncolsA array */
-   SCIP_Bool             transposeA,         /**< should matrix A be transposed before multiplication? */
+   SCIP_Bool             transposeA,         /**< Should matrix A be transposed before multiplication? */
    int                   nrowsB,             /**< number of rows in matrix B */
    int                   ncolsB,             /**< number of cols in matrix B */
    SCIP_Real*            matrixB,            /**< matrix B given as ncolsA * ncolsB array */
-   SCIP_Bool             transposeB,         /**< should matrix B be transposed before multiplication? */
+   SCIP_Bool             transposeB,         /**< Should matrix B be transposed before multiplication? */
    SCIP_Real*            result              /**< pointer to nrowsA * nrowsB array to store the resulting matrix */
    )
 {
@@ -392,7 +407,7 @@ SCIP_RETCODE SCIPlapackMatrixMatrixMult(
    LAPACKINTTYPE LDC;
 
    assert( (transposeA && transposeB && (nrowsA == ncolsB)) || (transposeA && !transposeB && (nrowsA == nrowsB))
-         || (!transposeA && transposeB && (ncolsA == ncolsB)) || (!transposeA && !transposeB && (ncolsA == nrowsB)) );
+      || (!transposeA && transposeB && (ncolsA == ncolsB)) || (!transposeA && !transposeB && (ncolsA == nrowsB)) );
 
    TRANSA = transposeA ? 'T' : 'N';
    TRANSB = transposeB ? 'T' : 'N';

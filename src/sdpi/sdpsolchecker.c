@@ -38,7 +38,7 @@
 /*#define SCIP_DEBUG*/
 
 #include "sdpi/sdpsolchecker.h"
-#include "sdpi/lapack.h"
+#include "sdpi/lapack_interface.h"
 #include "scip/pub_message.h"                /* for debug and error message */
 
 /** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMORY. */

@@ -53,9 +53,7 @@ SDPIOPTIONS	=	dsdp
 ifeq ($(SDPS),dsdp)
 SDPIINC		= 	-I$(SCIPSDPLIBDIR)/include/dsdpinc
 SDPICSRC 	= 	src/sdpi/sdpisolver_dsdp.c \
-			src/sdpi/lapack_dsdp.c
-SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_dsdp.o \
-			$(OBJDIR)/sdpi/lapack_dsdp.o
+SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_dsdp.o
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/dsdpinc
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libdsdp.$(STATICLIBEXT)
 SDPIINSTMSG	=	" -> \"dsdpinc\" is the path to the DSDP \"include\" directory, e.g., \"<DSDP-path>/include\".\n"
@@ -91,8 +89,8 @@ endif
 SDPIINC		=  	-I$(SCIPSDPLIBDIR)/include/sdpainc
 SDPIINC		+= 	-I$(SCIPSDPLIBDIR)/include/mumpsinc
 SDPICCSRC 	= 	src/sdpi/sdpisolver_sdpa.cpp
-SDPICSRC	=	src/sdpi/lapack_sdpa.c
-SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o $(OBJDIR)/sdpi/lapack_sdpa.o
+SDPICSRC	=
+SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o
 endif
 
 ifneq ($(SDPS),sdpa)
@@ -110,8 +108,8 @@ SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/mosekh
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT)
 SDPIINSTMSG	=	"  -> \"mosekh\" is the path to the MOSEK \"h\" directory, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/h\".\n"
 SDPIINSTMSG	+=	" -> \"libmosek$(BITEXT).*\" is the path to the MOSEK library, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/bin/libmosek$(BITEXT).$(SHAREDLIBEXT)\".\n"
-SDPICSRC 	= 	src/sdpi/sdpisolver_mosek.c src/sdpi/lapack_dsdp.c
-SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_mosek.o $(OBJDIR)/sdpi/lapack_dsdp.o
+SDPICSRC 	= 	src/sdpi/sdpisolver_mosek.c
+SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_mosek.o
 endif
 
 #-----------------------------------------------------------------------------
@@ -119,8 +117,8 @@ endif
 SDPIOPTIONS	+=	none
 ifeq ($(SDPS),none)
 SDPILIB		= 	-L$(SCIPSDPLIBDIR) -llapack -lblas
-SDPICSRC 	= 	src/sdpi/sdpisolver_none.c src/sdpi/lapack_dsdp.c
-SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_none.o $(OBJDIR)/sdpi/lapack_dsdp.o
+SDPICSRC 	= 	src/sdpi/sdpisolver_none.c
+SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_none.o
 SETTINGS	= 	lp_approx
 endif
 
@@ -179,6 +177,7 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/table_sdpsolversuccess.o \
 			sdpi/sdpi.o \
 			sdpi/sdpsolchecker.o \
+			sdpi/lapack_interface.o \
 			scipsdpgithash.o
 
 SCIPSDPCCOBJ 	=	scipsdp/objreader_sdpa.o \
