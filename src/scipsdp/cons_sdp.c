@@ -2465,11 +2465,15 @@ SCIP_DECL_CONSHDLRCOPY(conshdlrCopySdpRank1)
 static
 SCIP_DECL_CONSCOPY(consCopySdp)
 {/*lint --e{715}*/
+   char copyname[SCIP_MAXSTRLEN];
    SCIP_CONSDATA* sourcedata;
    SCIP_Bool success;
    SCIP_VAR** targetvars;
    SCIP_VAR* var;
    int i;
+#ifndef NDEBUG
+   int snprintfreturn; /* used to check the return code of snprintf */
+#endif
 
    assert( scip != NULL );
    assert( sourcescip != NULL );
@@ -2504,62 +2508,26 @@ SCIP_DECL_CONSCOPY(consCopySdp)
          *valid = FALSE;
    }
 
-   /* create the new constraint, using an adjusted source name if no new name was given */
-   if ( name )
-   {
-#ifndef NDEBUG
-      int snprintfreturn; /* used to check the return code of snprintf */
-#endif
-      char copyname[SCIP_MAXSTRLEN];
-
    /* name the copied constraint */
 #ifndef NDEBUG
-      snprintfreturn = SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", name);
-      assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
+   snprintfreturn = SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", name == NULL ? SCIPconsGetName(sourcecons) : name);
+   assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
 #else
-      (void) SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", name);
+   (void) SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", name == NULL ? SCIPconsGetName(sourcecons) : name);
 #endif
 
-      if ( ! sourcedata->rankone )
-      {
-         SCIP_CALL( SCIPcreateConsSdp(scip, cons, copyname, sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize, sourcedata->nvarnonz,
-               sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
-               sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
-      }
-      else
-      {
-         SCIP_CALL( SCIPcreateConsSdpRank1(scip, cons, copyname, sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize, sourcedata->nvarnonz,
-               sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
-               sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
-      }
+   /* create the new constraint */
+   if ( ! sourcedata->rankone )
+   {
+      SCIP_CALL( SCIPcreateConsSdp(scip, cons, copyname, sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize, sourcedata->nvarnonz,
+            sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
+            sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
    }
    else
    {
-#ifndef NDEBUG
-      int snprintfreturn; /* used to check the return code of snprintf */
-#endif
-      char copyname[SCIP_MAXSTRLEN];
-
-      /* name the copied constraint */
-#ifndef NDEBUG
-      snprintfreturn = SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", SCIPconsGetName(sourcecons));
-      assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
-#else
-      (void) SCIPsnprintf(copyname, SCIP_MAXSTRLEN, "c_%s", SCIPconsGetName(sourcecons));
-#endif
-
-      if ( ! sourcedata->rankone )
-      {
-         SCIP_CALL( SCIPcreateConsSdp(scip, cons, SCIPconsGetName(sourcecons), sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize,
-               sourcedata->nvarnonz, sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
-               sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
-      }
-      else
-      {
-         SCIP_CALL( SCIPcreateConsSdpRank1(scip, cons, SCIPconsGetName(sourcecons), sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize,
-               sourcedata->nvarnonz, sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
-               sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
-      }
+      SCIP_CALL( SCIPcreateConsSdpRank1(scip, cons, copyname, sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize, sourcedata->nvarnonz,
+            sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
+            sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
    }
 
    SCIPfreeBufferArray(scip, &targetvars);
