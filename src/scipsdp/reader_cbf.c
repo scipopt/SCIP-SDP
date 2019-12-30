@@ -2252,16 +2252,35 @@ SCIP_DECL_READERREAD(readerReadCbf)
       /* special treatment of case without constant PSD blocks */
       if ( data->sdpconstnblocknonz == NULL )
       {
-         SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcons, sdpconname, data->sdpnblockvars[b], data->sdpnblocknonz[b],
-               data->sdpblocksizes[b], data->nvarnonz[b], data->colpointer[b], data->rowpointer[b], data->valpointer[b],
-               data->sdpblockvars[b], 0, NULL, NULL, NULL, data->sdpblockrank1[b]) );
+         if ( ! data->sdpblockrank1[b] )
+         {
+            SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcons, sdpconname, data->sdpnblockvars[b], data->sdpnblocknonz[b],
+                  data->sdpblocksizes[b], data->nvarnonz[b], data->colpointer[b], data->rowpointer[b], data->valpointer[b],
+                  data->sdpblockvars[b], 0, NULL, NULL, NULL) );
+         }
+         else
+         {
+            SCIP_CALL( SCIPcreateConsSdpRank1(scip, &sdpcons, sdpconname, data->sdpnblockvars[b], data->sdpnblocknonz[b],
+                  data->sdpblocksizes[b], data->nvarnonz[b], data->colpointer[b], data->rowpointer[b], data->valpointer[b],
+                  data->sdpblockvars[b], 0, NULL, NULL, NULL) );
+         }
       }
       else
       {
-         SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcons, sdpconname, data->sdpnblockvars[b], data->sdpnblocknonz[b],
-               data->sdpblocksizes[b], data->nvarnonz[b], data->colpointer[b], data->rowpointer[b], data->valpointer[b],
-               data->sdpblockvars[b], data->sdpconstnblocknonz[b], data->sdpconstcol[b], data->sdpconstrow[b],
-               data->sdpconstval[b], data->sdpblockrank1[b]) );
+         if ( ! data->sdpblockrank1[b] )
+         {
+            SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcons, sdpconname, data->sdpnblockvars[b], data->sdpnblocknonz[b],
+                  data->sdpblocksizes[b], data->nvarnonz[b], data->colpointer[b], data->rowpointer[b], data->valpointer[b],
+                  data->sdpblockvars[b], data->sdpconstnblocknonz[b], data->sdpconstcol[b], data->sdpconstrow[b],
+                  data->sdpconstval[b]) );
+         }
+         else
+         {
+            SCIP_CALL( SCIPcreateConsSdpRank1(scip, &sdpcons, sdpconname, data->sdpnblockvars[b], data->sdpnblocknonz[b],
+                  data->sdpblocksizes[b], data->nvarnonz[b], data->colpointer[b], data->rowpointer[b], data->valpointer[b],
+                  data->sdpblockvars[b], data->sdpconstnblocknonz[b], data->sdpconstcol[b], data->sdpconstrow[b],
+                  data->sdpconstval[b]) );
+         }
       }
 
 #ifdef SCIP_MORE_DEBUG

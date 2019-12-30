@@ -99,6 +99,7 @@ SCIP_RETCODE SCIPSDPincludeDefaultPlugins(
    SCIP_CALL( SCIPincludeObjReader(scip, new ObjReaderSDPA(scip), TRUE) );
    SCIP_CALL( SCIPincludeReaderCbf(scip) );
    SCIP_CALL( SCIPincludeConshdlrSdp(scip) );
+   SCIP_CALL( SCIPincludeConshdlrSdpRank1(scip) );
    SCIP_CALL( SCIPincludeConshdlrSavesdpsol(scip) );
    SCIP_CALL( SCIPincludeConshdlrSavedsdpsettings(scip) );
    SCIP_CALL( SCIPincludeRelaxSdp(scip) );
