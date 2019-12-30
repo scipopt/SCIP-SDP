@@ -124,6 +124,7 @@ endif
 
 LINKSMARKERFILE	=	$(LIBDIR)/linkscreated.$(LPS)-$(LPSOPT).$(OSTYPE).$(ARCH).$(COMP)$(LINKLIBSUFFIX).$(ZIMPL)-$(ZIMPLOPT).$(IPOPT)-$(IPOPTOPT).$(GAMS)
 
+
 #-----------------------------------------------------------------------------
 
 SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
@@ -144,6 +145,11 @@ endif
 OMPFLAGS =
 ifneq ($(DISABLEOMP),1)
 OMPFLAGS += -DOMP
+endif
+
+# handle long long int option
+ifeq ($(LAPACKLONGINT),true)
+CFLAGS		+=	-DLAPACK_LONGLONGINT
 endif
 
 #-----------------------------------------------------------------------------
