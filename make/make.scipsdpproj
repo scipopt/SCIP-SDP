@@ -82,6 +82,7 @@ OUTPUTDIR 	= 	/results
 OPTCOMMAND	=	optimize
 SOFTLINKS	=
 MAKESOFTLINKS	=	true
+OMP		=	false
 OPENBLAS	=	true
 LAPACKLONGINT	=	false
 MUMPSSEQ	=	true

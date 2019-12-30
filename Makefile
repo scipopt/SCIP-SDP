@@ -52,7 +52,7 @@ DFLAGS		=       -MM
 SDPIOPTIONS	=	dsdp
 ifeq ($(SDPS),dsdp)
 SDPIINC		= 	-I$(SCIPSDPLIBDIR)/include/dsdpinc
-SDPICSRC 	= 	src/sdpi/sdpisolver_dsdp.c \
+SDPICSRC 	= 	src/sdpi/sdpisolver_dsdp.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_dsdp.o
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/dsdpinc
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libdsdp.$(STATICLIBEXT)
@@ -84,7 +84,6 @@ SDPIINSTMSG	+=	" -> \"libpord.*\" is the path to the pord library, e.g., \"<SDPA
 SDPIINSTMSG	+=	" -> \"libmpiseq.*\" is the path to the mpiseq library, e.g., \"<SDPA-path>/mumps/build/libseq/libmpiseq.$(STATICLIBEXT)\".\n"
 ifeq ($(OPENBLAS),true)
 SDPIINSTMSG	+=	" -> \"libopenblas.$(SHAREDLIBEXT).0\" is the openblas library.\n"
-else
 endif
 SDPIINC		=  	-I$(SCIPSDPLIBDIR)/include/sdpainc
 SDPIINC		+= 	-I$(SCIPSDPLIBDIR)/include/mumpsinc
@@ -93,7 +92,6 @@ SDPICSRC	=
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o
 
 # disable OMP
-DISABLEOMP	=	1
 ifeq ($(MUMPSSEQ),true)
 OMP 		= 	false
 endif
@@ -136,16 +134,7 @@ SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
 # OMPSETTINGS (used to set number of threads for Openblas)
 #-----------------------------------------------------------------------------
 
-ifeq ($(OMP),false)
-DISABLEOMP=1
-endif
-
 ifeq ($(OMP),true)
-DISABLEOMP=0
-endif
-
-OMPFLAGS =
-ifneq ($(DISABLEOMP),1)
 OMPFLAGS += -DOMP
 endif
 
@@ -231,7 +220,7 @@ all:            $(SCIPDIR) $(SCIPSDPBIN) $(SCIPSDPSHORTLINK)
 .PHONY: checkdefines
 checkdefines:
 ifeq ($(SDPIOBJ),)
-		$(error invalid SDP solver selected: SDPS=$(SDPIS). Possible options are: $(SDPIOPTIONS))
+		$(error invalid SDP solver selected: SDPS=$(SDPS). Possible options are: $(SDPIOPTIONS))
 endif
 
 .PHONY: preprocess
@@ -245,7 +234,7 @@ preprocess:     checkdefines
 
 .PHONY: tags
 tags:
-		rm -f TAGS; ctags -e src/*/*.c src/*/*.cpp src/*/*.h $(SCIPDIR)/src/*/*.c $(SCIPDIR)/src/*/*.h; sed -i 's!\#undef .*!!g' TAGS
+		rm -f TAGS; ctags -e src/*/*.c src/*/*.cpp src/*/*.h $(SCIPREALPATH)/src/*/*.c $(SCIPREALPATH)/src/*/*.h; sed -i 's!\#undef .*!!g' TAGS
 
 # include target to detect the current git hash
 -include make/make.detectgithash
