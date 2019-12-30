@@ -52,7 +52,7 @@ $(error Please set the makefile variable SCIPSDPDIR)
 endif
 
 SCIPSDPREALPATH	=	$(realpath $(SCIPSDPDIR))
-SCIPSDPLIBDIR	=	$(SCIPSDPDIR)/lib
+SCIPSDPLIBDIR	=	$(SCIPSDPREALPATH)/lib
 
 #-----------------------------------------------------------------------------
 # own variables
@@ -84,6 +84,7 @@ SOFTLINKS	=
 MAKESOFTLINKS	=	true
 OPENBLAS	=	true
 LAPACKLONGINT	=	false
+MUMPSSEQ	=	true
 
 #-----------------------------------------------------------------------------
 # include default project Makefile from SCIP
@@ -168,16 +169,20 @@ SDPILIB		= 	$(SCIPSDPLIBDIR)/static/libdsdp.$(STATICLIBEXT) -llapack -lblas
 endif
 
 #-----------------------------------------------------------------------------
-# SDPA solver
+# SDPA solver version >= 7.3.8
 ifeq ($(SDPS),sdpa)
 ifeq ($(OPENBLAS),true)
-SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(SCIPSDPLIBDIR)/static/libdmumps.$(STATICLIBEXT) $(SCIPSDPLIBDIR)/static/libmumps_common.$(STATICLIBEXT) \
-			$(SCIPSDPLIBDIR)/static/libpord.$(STATICLIBEXT)	$(SCIPSDPLIBDIR)/static/libmpiseq.$(STATICLIBEXT) $(SCIPSDPLIBDIR)/shared/libopenblas.$(SHAREDLIBEXT).0 \
-			-Wl,-rpath,$(SCIPSDPDIR)/$(SCIPSDPLIBDIR)/static -Wl,-rpath,$(SCIPSDPDIR)/$(SCIPSDPLIBDIR)/shared -lgfortran -L/lib/x86_64-linux-gnu -lpthread -lgomp
+BLASLIB		=	-lopenblas
 else
-SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(SCIPSDPLIBDIR)/static/libdmumps.$(STATICLIBEXT) $(SCIPSDPLIBDIR)/static/libmumps_common.$(STATICLIBEXT) \
-			$(SCIPSDPLIBDIR)/static/libpord.$(STATICLIBEXT)	$(SCIPSDPLIBDIR)/static/libmpiseq.$(STATICLIBEXT) -lgfortran -llapack -lblas
+BLASLIB		-	-lblas
 endif
+ifeq ($(MUMPSSEQ),true)
+MUMPSLIB	=	-ldmumps_seq -lmumps_common_seq
+else
+MUMPSLIB	=	-ldmumps -lmumps_common -lpord -lgomp -lpthread
+endif
+
+SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(MUMPSLIB) $(BLASLIB) -Wl,-rpath,$(SCIPSDPLIBDIR)/shared -lgfortran
 endif
 
 #-----------------------------------------------------------------------------

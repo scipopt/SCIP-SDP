@@ -61,7 +61,7 @@ SDPIINSTMSG	+=	" -> \"libdsdp.*\" is the path to the DSDP library, e.g., \"<DSDP
 endif
 
 #-----------------------------------------------------------------------------
-# SDPA solver
+# SDPA solver version >= 7.3.8
 SDPIOPTIONS	+=	sdpa
 ifeq ($(SDPS),sdpa)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/sdpainc
@@ -91,10 +91,12 @@ SDPIINC		+= 	-I$(SCIPSDPLIBDIR)/include/mumpsinc
 SDPICCSRC 	= 	src/sdpi/sdpisolver_sdpa.cpp
 SDPICSRC	=
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o
-endif
 
-ifneq ($(SDPS),sdpa)
-DISABLEOMP=1
+# disable OMP
+DISABLEOMP	=	1
+ifeq ($(MUMPSSEQ),true)
+OMP 		= 	false
+endif
 endif
 
 #-----------------------------------------------------------------------------
@@ -536,5 +538,22 @@ $(OBJDIR)/%.o:	$(SRCDIR)/%.c | $(SDPOBJSUBDIRS)
 $(OBJDIR)/%.o:	$(SRCDIR)/%.cpp | $(SDPOBJSUBDIRS)
 		@echo "-> compiling $@"
 		$(CXX) $(FLAGS) $(OFLAGS) $(SDPIINC) $(BINOFLAGS) $(CXXFLAGS) $(OMPFLAGS) -c $< $(CXX_o)$@
+
+
+.PHONY: help
+help:
+		@echo "Use the SCIP-SDP makefile system."
+		@echo
+		@echo "  All options of the SCIP makefile apply here as well."
+		@echo
+		@echo "  Additional SCIP-SDP options:"
+		@echo "  - SDPS={msk|dsdp|sdpa|sdpa740|none}: Determine SDP-solver."
+		@echo "      msk: Mosek SDP-solver"
+		@echo "      dsdp: DSDP SDP-solver"
+		@echo "      sdpa: version >= 7.3.8 of the SDPA SDP-solver"
+		@echo "      none: no SDP-solver"
+		@echo "  - OPENBLAS={true|false}: use openblas"
+		@echo "  - OMP={true|false}: use OMP"
+		@echo "  - LAPACKLONGINT={true|false}: use long long ints for lapack (e.g., with SDPA 7.4.0 and openblas)"
 
 #---- EOF --------------------------------------------------------------------
