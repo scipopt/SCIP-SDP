@@ -37,8 +37,10 @@ set(scipsdpsources
     scipsdp/table_relaxsdp.c
     scipsdp/table_slater.c
     scipsdp/table_sdpsolversuccess.c
+    scipsdp/scipsdpdefplugins.cpp
     sdpi/sdpi.c
     sdpi/sdpsolchecker.c
+    sdpi/lapack_interface.c
     scipsdpgithash.c
 )
 
@@ -50,13 +52,12 @@ set(objscipsdpsources
 
 set(sdpisources
    ${sdpi}
-   ${sdpi_lapack}
    )
 
 set(sdpiheaders
     sdpi/config.h
     sdpi/sdpisolver.h
-    sdpi/lapack.h
+    sdpi/lapack_interface.h
     sdpi/type_sdpi.h
 )
 
@@ -92,6 +93,7 @@ set(scipsdpheaders
     scipsdp/table_relaxsdp.h
     scipsdp/table_slater.h
     scipsdp/table_sdpsolversuccess.h
+    scipsdp/scipsdpdefplugins.h
     sdpi/sdpi.h
     sdpi/sdpsolchecker.h
     scipsdpgithash.h
@@ -99,7 +101,7 @@ set(scipsdpheaders
 
 # all source files should be compiled with a c++ compiler
 if(CXXONLY)
-    set_source_files_properties(scipsdp/main.cpp ${scipsdpsources} ${objscipsdpsources} ${sdpisources} PROPERTIES LANGUAGE CXX)
+    set_source_files_properties(scipsdp/main.c ${scipsdpsources} ${objscipsdpsources} ${sdpisources} PROPERTIES LANGUAGE CXX)
 
     # for the clang compiler this suppresses the warnings about treating 'c' input as 'c++' when CXXONLY is enabled
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -114,11 +116,11 @@ setLibProperties(libscipsdp "scipsdp")
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 if(SHARED)
     target_link_libraries(libscipsdp PRIVATE ${ZIMPL_PIC_LIBRARIES} ${SDPS_PIC_LIBRARIES} ${LAPACK_LIBRARY} ${BLAS_LIBRARY})
-    add_executable(scipsdp scipsdp/main.cpp ${scipsdpsources} ${objscipsdpsources} ${sdpisources})
+    add_executable(scipsdp scipsdp/main.c ${scipsdpsources} ${objscipsdpsources} ${sdpisources})
     target_link_libraries(scipsdp ${ZLIB_LIBRARIES} ${Readline_LIBRARY} ${GMP_LIBRARIES} ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES} ${SCIP_LIBRARIES})
 else()
     target_link_libraries(libscipsdp PRIVATE ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES} ${LAPACK_LIBRARY} ${BLAS_LIBRARY})
-    add_executable(scipsdp scipsdp/main.cpp ${scipsdpsources} ${objscipsdpsources} ${sdpisources})
+    add_executable(scipsdp scipsdp/main.c ${scipsdpsources} ${objscipsdpsources} ${sdpisources})
     target_link_libraries(scipsdp libscipsdp ${SCIP_LIBRARIES})
 endif()
 
