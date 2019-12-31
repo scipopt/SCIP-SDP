@@ -1780,10 +1780,7 @@ SCIP_RETCODE enforceConstraint(
    }
 
    if ( separated )
-   {
-	   *result = SCIP_SEPARATED;
-	   return SCIP_OKAY;
-   }
+      *result = SCIP_SEPARATED;
 
    return SCIP_OKAY;
 }
