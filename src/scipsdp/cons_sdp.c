@@ -1951,21 +1951,28 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
       {
          SCIP_Real lb1;
          SCIP_Real ub1;
+         SCIP_VAR* var1;
 
-         lb1 = SCIPvarGetLbGlobal(conshdlrdata->quadconsvars[i]);
-         ub1 = SCIPvarGetUbGlobal(conshdlrdata->quadconsvars[i]);
+         var1 = conshdlrdata->quadconsvars[i];
+         assert( var1 != NULL );
+         lb1 = SCIPvarGetLbGlobal(var1);
+         ub1 = SCIPvarGetUbGlobal(var1);
 
          SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conshdlrdata->X[i], nsdpvars) );
 
          for (j = 0; j <= i; ++j)
          {
+            SCIP_VARTYPE vartype;
+            SCIP_VAR* var2;
             SCIP_Real lb2;
             SCIP_Real ub2;
             SCIP_Real lb;
             SCIP_Real ub;
 
-            lb2 = SCIPvarGetLbGlobal(conshdlrdata->quadconsvars[j]);
-            ub2 = SCIPvarGetUbGlobal(conshdlrdata->quadconsvars[j]);
+            var2 = conshdlrdata->quadconsvars[j];
+            assert( var2 != NULL );
+            lb2 = SCIPvarGetLbGlobal(var2);
+            ub2 = SCIPvarGetUbGlobal(var2);
 
             SCIPsnprintf(name, SCIP_MAXSTRLEN, "X%d#%d", i, j);
 
@@ -1974,8 +1981,15 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
             ub = MAX3(lb1 * lb2, lb1 * ub2, ub1 * lb2);
             ub = MAX(ub, ub1 * ub2);
 
+            if ( SCIPvarIsBinary(var1) && SCIPvarIsBinary(var2) )
+               vartype = SCIP_VARTYPE_BINARY;
+            else if ( SCIPvarIsIntegral(var1) && SCIPvarIsIntegral(var2) )
+               vartype = SCIP_VARTYPE_INTEGER;
+            else
+               vartype = SCIP_VARTYPE_CONTINUOUS;
+
             /* todo: adapt vartype */
-            SCIP_CALL( SCIPcreateVarBasic(scip, &(conshdlrdata->X[i][j]), name, lb, ub, 0.0, SCIP_VARTYPE_CONTINUOUS) );
+            SCIP_CALL( SCIPcreateVarBasic(scip, &(conshdlrdata->X[i][j]), name, lb, ub, 0.0, vartype) );
             SCIP_CALL( SCIPaddVar(scip, conshdlrdata->X[i][j]) );
          }
       }
