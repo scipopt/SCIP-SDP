@@ -1872,7 +1872,7 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
       int nvarscnt;
       int constcol = 0;
       int constrow = 0;
-      SCIP_Real constval = 1.0;
+      SCIP_Real constval = -1.0;
 
       nvars = SCIPgetNVars(scip);
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conshdlrdata->quadconsidx, nvars) );
@@ -2011,7 +2011,7 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
          nvarnonz[j] = 1;
          cols[j][0] = 0;
          rows[j][0] = 1 + j;
-         vals[j][0] = -1.0;
+         vals[j][0] = 1.0;
          vars[j] = conshdlrdata->quadconsvars[j];
       }
 
@@ -2027,7 +2027,7 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
             nvarnonz[nvarscnt] = 1;
             cols[nvarscnt][0] = 1 + j;
             rows[nvarscnt][0] = 1 + i;
-            vals[nvarscnt][0] = -1.0;
+            vals[nvarscnt][0] = 1.0;
             vars[nvarscnt] = conshdlrdata->X[i][j];
             ++nvarscnt;
          }
