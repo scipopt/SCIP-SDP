@@ -95,6 +95,8 @@
 #define PARSE_SIZEFACTOR             10 /**< size of consdata-arrays is increased by this factor when parsing a problem */
 #define DEFAULT_DIAGGEZEROCUTS     TRUE /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
 #define DEFAULT_DIAGZEROIMPLCUTS   TRUE /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
+#define DEFAULT_TWOMINORLINCONSS  FALSe /**< Should linear cuts corresponding to 2 by 2 minors be added? */
+#define DEFAULT_TWOMINORPRODCONSS FALSE /**< Should linear cuts corresponding to products of 2 by 2 minors be added? */
 #define DEFAULT_QUADCONSRANK1      TRUE /**< Should quadratic cons for 2x2 minors be added in the rank-1 case? */
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
@@ -130,6 +132,8 @@ struct SCIP_ConshdlrData
    int                   ndiaggezerocuts;    /**< this is used to give the diagGEzero-cuts distinguishable names */
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
    SCIP_Bool             diagzeroimplcuts;   /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
+   SCIP_Bool             twominorlinconss;   /**< Should linear cuts corresponding to 2 by 2 minors be added? */
+   SCIP_Bool             twominorprodconss;  /**< Should linear cuts corresponding to products of 2 by 2 minors be added? */
    SCIP_Bool             quadconsrank1;      /**< Should quadratic cons for 2x2 minors be added in the rank-1 case? */
 #ifdef OMP
    int                   nthreads;           /**< number of threads used for OpenBLAS */
@@ -900,6 +904,291 @@ SCIP_RETCODE diagZeroImpl(
       }
       SCIPfreeBufferArray(scip, &constnonzeroentries);
       SCIPfreeBufferArray(scip, &nconstnonzeroentries);
+   }
+
+   return SCIP_OKAY;
+}
+
+/** presolve-routine that adds linear constraints arising from 2 by 2 minor inequalities
+ *
+ *  For a positive semidefinite matrix \f$X\f$ the following two inequalities hold: \f$X_{ss} + X_{tt} - 2\, X_{st} \geq
+ *  0\f$ and \f$X_{ss} + X_{tt} + 2\, X_{st} \geq 0\f$. This follows by using a 2 by 2 minor and multiplying from left
+ *  and right by the all-ones vector and \f$[1,-1]\f$, respectively. We add the corresponding linear constraint only to
+ *  be propagated.
+ *
+ *  Translated to the matrix pencil notation the cut looks as follows:
+ *  \f[
+ *  \sum_{i=1}^m (A_i)_{ss}\, y_i - (A_0)_{ss} + \sum_{i=1}^m (A_i)_{tt}\, y_i - (A_0)_{tt} - 2 \Big(\sum_{i=1}^m (A_i)_{st}\, y_i - (A_0)_{st}\Big) \geq 0
+ *  \quad\Leftrightarrow\quad
+ *  \sum_{i=1}^m \Big((A_i)_{ss} + (A_i)_{tt} - 2\, (A_i)_{st}\Big)\, y_i \geq (A_0)_{ss} + (A_0)_{tt} - 2 (A_0)_{st}.
+ *  \f]
+ */
+static
+SCIP_RETCODE addTwoMinorLinConstraints(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS**           conss,              /**< array of constraints */
+   int                   nconss,             /**< number of constraints */
+   int*                  naddconss           /**< pointer to store how many constraints were added */
+   )
+{
+   char name[SCIP_MAXSTRLEN];
+   SCIP_VAR** consvars;
+   SCIP_Real* consvals;
+   int blocksize;
+   int nvars;
+   int c;
+   int i;
+
+   assert( scip != NULL );
+   assert( naddconss != NULL );
+
+   for (c = 0; c < nconss; ++c)
+   {
+      SCIP_CONSDATA* consdata;
+      SCIP_Real** matrices = NULL;
+      SCIP_Real* constmatrix;
+      SCIP_Real* coef;
+      int s;
+      int t;
+
+      assert( conss[c] != NULL );
+      consdata = SCIPconsGetData(conss[c]);
+      assert( consdata != NULL );
+
+      blocksize = consdata->blocksize;
+      nvars = consdata->nvars;
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &consvars, nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &consvals, nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &coef, nvars) );
+
+      /* get matrices */
+      SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, blocksize * blocksize) );
+      SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, conss[c], constmatrix) );
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &matrices, nvars) );
+      for (i = 0; i < nvars; ++i)
+      {
+         SCIP_CALL( SCIPallocBufferArray(scip, &matrices[i], blocksize * blocksize) );
+         SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrices[i]) );
+      }
+
+      /* loop over all possible entries */
+      for (s = 0; s < blocksize; ++s)
+      {
+         for (t = 0; t < s; ++t)
+         {
+            SCIP_CONS* cons;
+            SCIP_Real val;
+            SCIP_Real lhs;
+            int nconsvars = 0;
+            int cnt = 0;
+
+            /* skip diagonal entries */
+            if ( s == t )
+               continue;
+
+            /* collect coefficients */
+            BMSclearMemoryArray(coef, nvars);
+            for (i = 0; i < nvars; ++i)
+            {
+               val = matrices[i][s * blocksize + t];
+               if ( ! SCIPisZero(scip, val) )
+               {
+                  coef[i] = -2.0 * val;
+                  ++cnt;
+               }
+            }
+
+            /* only proceed if off-diagonal is nonempty */
+            if ( cnt == 0 )
+               continue;
+
+            /* add diagonal entries for s */
+            for (i = 0; i < nvars; ++i)
+            {
+               val = matrices[i][s * blocksize + s];
+               if ( ! SCIPisZero(scip, val) )
+                  coef[i] += val;
+            }
+
+            /* add diagonal entries for t */
+            for (i = 0; i < nvars; ++i)
+            {
+               val = matrices[i][t * blocksize + t];
+               if ( ! SCIPisZero(scip, val) )
+                  coef[i] += val;
+            }
+
+            /* get constraint */
+            for (i = 0; i < nvars; ++i)
+            {
+               if ( ! SCIPisZero(scip, coef[i]) )
+               {
+                  consvals[nconsvars] = coef[i];
+                  consvars[nconsvars] = consdata->vars[i];
+                  ++nconsvars;
+               }
+            }
+
+            /* only proceed if cut is nontrivial */
+            if ( nconsvars <= 0 )
+               continue;
+
+            /* compute rhs */
+            lhs = constmatrix[s * blocksize + s] + constmatrix[t * blocksize + t] - 2.0 * constmatrix[s * blocksize + t];
+
+            /* add linear constraint (only propagate) */
+            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "2x2minorlin#%d#%d", s, t);
+            SCIP_CALL(SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, lhs, SCIPinfinity(scip),
+                  FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
+            SCIP_CALL(SCIPaddCons(scip, cons));
+#ifdef SCIP_MORE_DEBUG
+            SCIPinfoMessage(scip, NULL, "Added 2x2 minor linear constraint: ");
+            SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
+            SCIPinfoMessage(scip, NULL, "\n");
+#endif
+            SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+            ++(*naddconss);
+         }
+      }
+
+      for (i = 0; i < nvars; ++i)
+         SCIPfreeBufferArray(scip, &matrices[i]);
+      SCIPfreeBufferArray(scip, &matrices);
+      SCIPfreeBufferArray(scip, &constmatrix);
+      SCIPfreeBufferArray(scip, &coef);
+      SCIPfreeBufferArray(scip, &consvals);
+      SCIPfreeBufferArray(scip, &consvars);
+   }
+
+   return SCIP_OKAY;
+}
+
+/** Presolve-routine that adds a linear cut arising from 2 by 2 minor inequalities \f$\sum_{i=1}^m (A_i)_{st} y_i \geq (A_0)_{st} - \sqrt{(A_0)_{ss} (A_0)_{tt}}\f$,
+ *  if \f$(A_i)_{ss} = (A_i)_{tt} = 0\f$ and \f$(A_0)_{ss} (A_0)_{tt} > 0\f$ for all \f$i,s,t\f$.
+ *
+ *  See the dissertation of T. Gally, page 150.
+ */
+static
+SCIP_RETCODE addTwoMinorProdConstraints(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS**           conss,              /**< array of constraints */
+   int                   nconss,             /**< number of constraints */
+   int*                  naddconss           /**< pointer to store how many constraints were added */
+   )
+{
+   char name[SCIP_MAXSTRLEN];
+   SCIP_VAR** consvars;
+   SCIP_Real* consvals;
+   int blocksize;
+   int nvars;
+   int c;
+   int i;
+   int j;
+
+   assert( scip != NULL );
+   assert( naddconss != NULL );
+
+   for (c = 0; c < nconss; ++c)
+   {
+      SCIP_CONSDATA* consdata;
+      SCIP_Real** matrices = NULL;
+      SCIP_Real* constmatrix;
+
+      assert( conss[c] != NULL );
+      consdata = SCIPconsGetData(conss[c]);
+      assert( consdata != NULL );
+
+      blocksize = consdata->blocksize;
+      nvars = consdata->nvars;
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &consvars, nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &consvals, nvars) );
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, blocksize * blocksize) );
+      SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, conss[c], constmatrix) );
+
+      /* loop over all nonzero matrix entries in the constant part */
+      for (j = 0; j < consdata->constnnonz; ++j)
+      {
+         SCIP_Real val;
+         SCIP_Real prod;
+         int s;
+         int t;
+
+         s = consdata->constrow[j];
+         t = consdata->constcol[j];
+
+         /* skip diagonal entries */
+         if ( s == t )
+            continue;
+
+         /* compute matrices if not yet done */
+         if ( matrices == NULL )
+         {
+            SCIP_CALL( SCIPallocBufferArray(scip, &matrices, nvars) );
+            for (i = 0; i < nvars; ++i)
+            {
+               SCIP_CALL( SCIPallocBufferArray(scip, &matrices[i], blocksize * blocksize) );
+               SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrices[i]) );
+            }
+         }
+
+         /* check whether diagonal entries in the matrices are all 0 */
+         for (i = 0; i < nvars; ++i)
+         {
+            if ( ! SCIPisZero(scip, matrices[i][s * blocksize + s]) )
+               break;
+            if ( ! SCIPisZero(scip, matrices[i][t * blocksize + t]) )
+               break;
+         }
+         if ( i < nvars )
+            continue;
+
+         /* check if product is sufficiently positive */
+         prod = constmatrix[s * blocksize + s] * constmatrix[t * blocksize + t];
+         if ( SCIPisEfficacious(scip, prod) )
+         {
+            SCIP_CONS* cons;
+            int nconsvars = 0;
+
+            /* fill in constraint */
+            for (i = 0; i < nvars; ++i)
+            {
+               val = matrices[i][s * blocksize + t];
+               if ( ! SCIPisZero(scip, val) )
+               {
+                  consvals[nconsvars] = val;
+                  consvars[nconsvars] = consdata->vars[i];
+                  ++nconsvars;
+               }
+            }
+
+            /* add linear constraint (only propagate) */
+            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "2x2minorprod#%d#%d", s, t);
+            SCIP_CALL(SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, consdata->constval[j] - sqrt(prod), SCIPinfinity(scip),
+                  FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
+            SCIP_CALL(SCIPaddCons(scip, cons));
+#ifdef SCIP_MORE_DEBUG
+            SCIPinfoMessage(scip, NULL, "Added 2x2 minor product constraint: ");
+            SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
+            SCIPinfoMessage(scip, NULL, "\n");
+#endif
+            SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+            ++(*naddconss);
+         }
+      }
+
+      if ( matrices != NULL )
+      {
+         for (i = 0; i < nvars; ++i)
+            SCIPfreeBufferArray(scip, &matrices[i]);
+         SCIPfreeBufferArray(scip, &matrices);
+      }
+      SCIPfreeBufferArray(scip, &constmatrix);
+      SCIPfreeBufferArray(scip, &consvals);
+      SCIPfreeBufferArray(scip, &consvars);
    }
 
    return SCIP_OKAY;
@@ -2118,23 +2407,45 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       if ( *result != SCIP_CUTOFF && (noldaddconss != *naddconss || nolddelconss != *ndelconss || noldchgbds != *nchgbds) )
          *result = SCIP_SUCCESS;
 
-      if ( *result != SCIP_CUTOFF && conshdlrdata->diaggezerocuts )
+      /* In the following, we add linear constraints to be propagated. We assume that this is only necessary in the main SCIP instance. */
+      if ( SCIPgetSubscipDepth(scip) == 0 )
       {
-         noldaddconss = *naddconss;
-         noldchgbds = *nchgbds;
-         SCIP_CALL( diagGEzero(scip, conshdlr, conss, nconss, naddconss, nchgbds, result) );
-         SCIPdebugMsg(scip, "Diagonal entries: added %d cuts and changed %d bounds.\n", *naddconss - noldaddconss, *nchgbds - noldchgbds);
-         if ( *result != SCIP_CUTOFF && ( noldaddconss != *naddconss || noldchgbds != *nchgbds ) )
-            *result = SCIP_SUCCESS;
-      }
+         if ( *result != SCIP_CUTOFF && conshdlrdata->diaggezerocuts )
+         {
+            noldaddconss = *naddconss;
+            noldchgbds = *nchgbds;
+            SCIP_CALL( diagGEzero(scip, conshdlr, conss, nconss, naddconss, nchgbds, result) );
+            SCIPdebugMsg(scip, "Diagonal entries: added %d cuts and changed %d bounds.\n", *naddconss - noldaddconss, *nchgbds - noldchgbds);
+            if ( *result != SCIP_CUTOFF && ( noldaddconss != *naddconss || noldchgbds != *nchgbds ) )
+               *result = SCIP_SUCCESS;
+         }
 
-      if ( *result != SCIP_CUTOFF && conshdlrdata->diagzeroimplcuts )
-      {
-         noldaddconss = *naddconss;
-         SCIP_CALL( diagZeroImpl(scip, conss, nconss, naddconss) );
-         SCIPdebugMsg(scip, "Added %d cuts for implication from 0 diagonal.\n", *naddconss - noldaddconss);
-         if ( noldaddconss != *naddconss )
-            *result = SCIP_SUCCESS;
+         if ( *result != SCIP_CUTOFF && conshdlrdata->diagzeroimplcuts )
+         {
+            noldaddconss = *naddconss;
+            SCIP_CALL( diagZeroImpl(scip, conss, nconss, naddconss) );
+            SCIPdebugMsg(scip, "Added %d cuts for implication from 0 diagonal.\n", *naddconss - noldaddconss);
+            if ( noldaddconss != *naddconss )
+               *result = SCIP_SUCCESS;
+         }
+
+         if ( *result != SCIP_CUTOFF && conshdlrdata->twominorlinconss )
+         {
+            noldaddconss = *naddconss;
+            SCIP_CALL( addTwoMinorLinConstraints(scip, conss, nconss, naddconss) );
+            SCIPdebugMsg(scip, "Added %d linear constraints for 2 by 2 minors.\n", *naddconss - noldaddconss);
+            if ( noldaddconss != *naddconss )
+               *result = SCIP_SUCCESS;
+         }
+
+         if ( *result != SCIP_CUTOFF && conshdlrdata->twominorprodconss )
+         {
+            noldaddconss = *naddconss;
+            SCIP_CALL( addTwoMinorProdConstraints(scip, conss, nconss, naddconss) );
+            SCIPdebugMsg(scip, "Added %d linear constraints for products of 2 by 2 minors.\n", *naddconss - noldaddconss);
+            if ( noldaddconss != *naddconss )
+               *result = SCIP_SUCCESS;
+         }
       }
    }
 
@@ -3004,6 +3315,14 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/diagzeroimplcuts",
          "Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added?",
          &(conshdlrdata->diagzeroimplcuts), TRUE, DEFAULT_DIAGZEROIMPLCUTS, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/twominorlinconss",
+         "Should linear cuts corresponding to 2 by 2 minors be added?",
+         &(conshdlrdata->twominorlinconss), TRUE, DEFAULT_TWOMINORLINCONSS, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/twominorprodconss",
+         "Should linear cuts corresponding to products of 2 by 2 minors be added?",
+         &(conshdlrdata->twominorprodconss), TRUE, DEFAULT_TWOMINORPRODCONSS, NULL, NULL) );
 
    return SCIP_OKAY;
 }

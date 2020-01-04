@@ -40,6 +40,8 @@ features:
   - introduce function SCIPconsSdpAddedQuadCons()
   - introduce keywords PSDVARRANK1 and PSDCONRANK1 in reader_cbf.c for specifying psd variables and SDP-constraints with a rank-1 constraint
 - unify handling of lapack calls: there now is only one file "lapack_interface" instead of two (lpapack_sdpa, lapack_dsdp).
+- two new presolving routines that add linear constraints, which are then propagated to possibly improve variable bounds
+  (applied with parameters "constraints/SDP/twominorlinconss" and "constraints/SDP/twominorprodconss")
 
 makefile:
 - add project makefile in make/make.scipsdpproj
