@@ -52,10 +52,8 @@ DFLAGS		=       -MM
 SDPIOPTIONS	=	dsdp
 ifeq ($(SDPS),dsdp)
 SDPIINC		= 	-I$(SCIPSDPLIBDIR)/include/dsdpinc
-SDPICSRC 	= 	src/sdpi/sdpisolver_dsdp.c \
-			src/sdpi/lapack_dsdp.c
-SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_dsdp.o \
-			$(OBJDIR)/sdpi/lapack_dsdp.o
+SDPICSRC 	= 	src/sdpi/sdpisolver_dsdp.c
+SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_dsdp.o
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/dsdpinc
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libdsdp.$(STATICLIBEXT)
 SDPIINSTMSG	=	" -> \"dsdpinc\" is the path to the DSDP \"include\" directory, e.g., \"<DSDP-path>/include\".\n"
@@ -63,7 +61,7 @@ SDPIINSTMSG	+=	" -> \"libdsdp.*\" is the path to the DSDP library, e.g., \"<DSDP
 endif
 
 #-----------------------------------------------------------------------------
-# SDPA solver
+# SDPA solver version >= 7.3.8
 SDPIOPTIONS	+=	sdpa
 ifeq ($(SDPS),sdpa)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/sdpainc
@@ -86,17 +84,17 @@ SDPIINSTMSG	+=	" -> \"libpord.*\" is the path to the pord library, e.g., \"<SDPA
 SDPIINSTMSG	+=	" -> \"libmpiseq.*\" is the path to the mpiseq library, e.g., \"<SDPA-path>/mumps/build/libseq/libmpiseq.$(STATICLIBEXT)\".\n"
 ifeq ($(OPENBLAS),true)
 SDPIINSTMSG	+=	" -> \"libopenblas.$(SHAREDLIBEXT).0\" is the openblas library.\n"
-else
 endif
 SDPIINC		=  	-I$(SCIPSDPLIBDIR)/include/sdpainc
 SDPIINC		+= 	-I$(SCIPSDPLIBDIR)/include/mumpsinc
 SDPICCSRC 	= 	src/sdpi/sdpisolver_sdpa.cpp
-SDPICSRC	=	src/sdpi/lapack_sdpa.c
-SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o $(OBJDIR)/sdpi/lapack_sdpa.o
-endif
+SDPICSRC	=
+SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_sdpa.o
 
-ifneq ($(SDPS),sdpa)
-DISABLEOMP=1
+# disable OMP
+ifeq ($(MUMPSSEQ),true)
+OMP 		= 	false
+endif
 endif
 
 #-----------------------------------------------------------------------------
@@ -110,8 +108,8 @@ SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/mosekh
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT)
 SDPIINSTMSG	=	"  -> \"mosekh\" is the path to the MOSEK \"h\" directory, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/h\".\n"
 SDPIINSTMSG	+=	" -> \"libmosek$(BITEXT).*\" is the path to the MOSEK library, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/bin/libmosek$(BITEXT).$(SHAREDLIBEXT)\".\n"
-SDPICSRC 	= 	src/sdpi/sdpisolver_mosek.c src/sdpi/lapack_dsdp.c
-SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_mosek.o $(OBJDIR)/sdpi/lapack_dsdp.o
+SDPICSRC 	= 	src/sdpi/sdpisolver_mosek.c
+SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_mosek.o
 endif
 
 #-----------------------------------------------------------------------------
@@ -119,12 +117,13 @@ endif
 SDPIOPTIONS	+=	none
 ifeq ($(SDPS),none)
 SDPILIB		= 	-L$(SCIPSDPLIBDIR) -llapack -lblas
-SDPICSRC 	= 	src/sdpi/sdpisolver_none.c src/sdpi/lapack_dsdp.c
-SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_none.o $(OBJDIR)/sdpi/lapack_dsdp.o
+SDPICSRC 	= 	src/sdpi/sdpisolver_none.c
+SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_none.o
 SETTINGS	= 	lp_approx
 endif
 
 LINKSMARKERFILE	=	$(LIBDIR)/linkscreated.$(LPS)-$(LPSOPT).$(OSTYPE).$(ARCH).$(COMP)$(LINKLIBSUFFIX).$(ZIMPL)-$(ZIMPLOPT).$(IPOPT)-$(IPOPTOPT).$(GAMS)
+
 
 #-----------------------------------------------------------------------------
 
@@ -135,17 +134,13 @@ SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
 # OMPSETTINGS (used to set number of threads for Openblas)
 #-----------------------------------------------------------------------------
 
-ifeq ($(OMP),false)
-DISABLEOMP=1
-endif
-
 ifeq ($(OMP),true)
-DISABLEOMP=0
+OMPFLAGS += -DOMP
 endif
 
-OMPFLAGS =
-ifneq ($(DISABLEOMP),1)
-OMPFLAGS += -DOMP
+# handle long long int option
+ifeq ($(LAPACKLONGINT),true)
+CFLAGS		+=	-DLAPACK_LONGLONGINT
 endif
 
 #-----------------------------------------------------------------------------
@@ -179,6 +174,7 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/table_sdpsolversuccess.o \
 			sdpi/sdpi.o \
 			sdpi/sdpsolchecker.o \
+			sdpi/lapack_interface.o \
 			scipsdpgithash.o
 
 SCIPSDPCCOBJ 	=	scipsdp/objreader_sdpa.o \
@@ -224,7 +220,7 @@ all:            $(SCIPDIR) $(SCIPSDPBIN) $(SCIPSDPSHORTLINK)
 .PHONY: checkdefines
 checkdefines:
 ifeq ($(SDPIOBJ),)
-		$(error invalid SDP solver selected: SDPS=$(SDPIS). Possible options are: $(SDPIOPTIONS))
+		$(error invalid SDP solver selected: SDPS=$(SDPS). Possible options are: $(SDPIOPTIONS))
 endif
 
 .PHONY: preprocess
@@ -238,7 +234,7 @@ preprocess:     checkdefines
 
 .PHONY: tags
 tags:
-		rm -f TAGS; ctags -e src/*/*.c src/*/*.cpp src/*/*.h $(SCIPDIR)/src/*/*.c $(SCIPDIR)/src/*/*.h; sed -i 's!\#undef .*!!g' TAGS
+		rm -f TAGS; ctags -e src/*/*.c src/*/*.cpp src/*/*.h $(SCIPREALPATH)/src/*/*.c $(SCIPREALPATH)/src/*/*.h; sed -i 's!\#undef .*!!g' TAGS
 
 # include target to detect the current git hash
 -include make/make.detectgithash
@@ -531,5 +527,22 @@ $(OBJDIR)/%.o:	$(SRCDIR)/%.c | $(SDPOBJSUBDIRS)
 $(OBJDIR)/%.o:	$(SRCDIR)/%.cpp | $(SDPOBJSUBDIRS)
 		@echo "-> compiling $@"
 		$(CXX) $(FLAGS) $(OFLAGS) $(SDPIINC) $(BINOFLAGS) $(CXXFLAGS) $(OMPFLAGS) -c $< $(CXX_o)$@
+
+
+.PHONY: help
+help:
+		@echo "Use the SCIP-SDP makefile system."
+		@echo
+		@echo "  All options of the SCIP makefile apply here as well."
+		@echo
+		@echo "  Additional SCIP-SDP options:"
+		@echo "  - SDPS={msk|dsdp|sdpa|sdpa740|none}: Determine SDP-solver."
+		@echo "      msk: Mosek SDP-solver"
+		@echo "      dsdp: DSDP SDP-solver"
+		@echo "      sdpa: version >= 7.3.8 of the SDPA SDP-solver"
+		@echo "      none: no SDP-solver"
+		@echo "  - OPENBLAS={true|false}: use openblas"
+		@echo "  - OMP={true|false}: use OMP"
+		@echo "  - LAPACKLONGINT={true|false}: use long long ints for lapack (e.g., with SDPA 7.4.0 and openblas)"
 
 #---- EOF --------------------------------------------------------------------

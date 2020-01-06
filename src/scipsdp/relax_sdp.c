@@ -52,7 +52,7 @@
 #include "SdpVarmapper.h"
 #include "SdpVarfixer.h"
 #include "sdpi/sdpi.h"
-#include "sdpi/lapack.h"
+#include "sdpi/lapack_interface.h"
 #include "scipsdp/cons_sdp.h"
 #include "scipsdp/cons_savesdpsol.h"
 #include "scipsdp/cons_savedsdpsettings.h"

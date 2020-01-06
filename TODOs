@@ -1,7 +1,6 @@
 - Allocate memory only once and reuse it instead of continually reallocating in many places.
-- Safe varbounds in a sparse way in sdpi.
+- Save varbounds in a sparse way in sdpi.
 - MATLAB interface (will perhaps be done by Bin Liu from The University of New South Wales)
-- replace EXTERN by SCIP_EXPORT for compatibility to newest SCIP version
 - unify SDPsolverIsConverged (returns true if infeasible for Mosek but false for SDPA) and fix copy-paste error in ?IsDualFeasble? in SDPA [note that these are not used by SCIP-SDP, but only if someone would use sdpi as a standalone]
 - rewrite SDPA-reader in C and make it more tailored to the data structures used since SCIP-SDP 2.0.0
 - maybe also keep LP part in SDPI and only update for boundchanges

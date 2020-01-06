@@ -201,15 +201,19 @@ Building SCIP-SDP via cmake
 
 Since version 3.1.1 it is also possible to build SCIP-SDP via cmake. Note that this is still
 in experimental state and not fully tested. In this case also SCIP must have been built with
-cmake. CMake uses an out-of-source build, i.e., compiled binaries and object files are separated
-from the source tree and located in another directory. Usually this directory is called build
-or debug or whatever you prefer. From within this directory, run cmake <path/to/SCIPSDP> to
-configure your build, followed by make to compile the code according to the current configuration.
-In this case you need to set the additional option -DSDPS={none,msk,dsdp,sdpa}. Additionally, it
+cmake.
+
+CMake uses an out-of-source build, i.e., compiled binaries and object files are separated
+from the source tree and located in another directory, which you have to create. Usually this
+directory is called build or debug or whatever you prefer. From within this directory, run
+"cmake <path/to/SCIPSDP>" to configure your build, followed by "make" to compile the code according
+to the current configuration.
+
+You need to set the additional option "-DSDPS={none,msk,dsdp,sdpa}". Additionally, it
 may be necessary to give paths to find the SCIP and the SDP-solver. For SCIP the necessary option
-is -DSCIP_DIR=<path to SCIP build directory). In case of MOSEK, the correpsonding option
-is -DMOSEK_DIR=<path to Mosek>, for DSDP it is -DDSDP_DIR=<path to DSDP> and for SDPA the options
-are -DSDPA_DIR=<path to SDPA> -DMUMPS_DIR=<path to mumps> -DOPENBLAS_DIR=<path to openblas>. So
+is "-DSCIP_DIR=<path to SCIP build directory)". In case of MOSEK, the correpsonding option
+is "-DMOSEK_DIR=<path to Mosek>", for DSDP it is "-DDSDP_DIR=<path to DSDP>" and for SDPA the options
+are "-DSDPA_DIR=<path to SDPA> -DMUMPS_DIR=<path to mumps> -DOPENBLAS_DIR=<path to openblas>". So
 for example to build SCIP-SDP via cmake using Mosek you should type
 
 mkdir build

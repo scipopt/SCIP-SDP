@@ -43,7 +43,7 @@
 #include "sdpi/sdpisolver.h"
 #include "sdpi/sdpi.h"
 #include "scipsdp/SdpVarfixer.h"
-#include "sdpi/lapack.h"                     /* to check feasibility if all variables are fixed during preprocessing */
+#include "sdpi/lapack_interface.h"           /* to check feasibility if all variables are fixed during preprocessing */
 
 #include "blockmemshell/memory.h"            /* for memory allocation */
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */

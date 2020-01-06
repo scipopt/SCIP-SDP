@@ -58,6 +58,12 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP*                 scip                /**< SCIP data structure */
    );
 
+/** creates the handler for rank 1 SDP constraints and includes it in SCIP */
+SCIP_EXPORT
+SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
+   SCIP*                 scip                /**< SCIP data structure */
+   );
+
 /** creates an SDP-constraint */
 SCIP_EXPORT
 SCIP_RETCODE SCIPcreateConsSdp(
@@ -75,8 +81,27 @@ SCIP_RETCODE SCIPcreateConsSdp(
    int                   constnnonz,         /**< number of nonzeros in the constant part of this SDP constraint */
    int*                  constcol,           /**< column indices of the constant nonzeros */
    int*                  constrow,           /**< row indices of the constant nonzeros */
-   SCIP_Real*            constval,           /**< values of the constant nonzeros */
-   SCIP_Bool             rankone             /**< should matrix be rank one? */
+   SCIP_Real*            constval            /**< values of the constant nonzeros */
+   );
+
+/** creates a rank 1 SDP-constraint */
+SCIP_EXPORT
+SCIP_RETCODE SCIPcreateConsSdpRank1(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
+   const char*           name,               /**< name of constraint */
+   int                   nvars,              /**< number of variables in this SDP constraint */
+   int                   nnonz,              /**< number of nonzeros in this SDP constraint */
+   int                   blocksize,          /**< size of this SDP-block */
+   int*                  nvarnonz,           /**< number of nonzeros for each variable, also length of the arrays col/row/val point to */
+   int**                 col,                /**< pointer to column indices of the nonzeros for each variable */
+   int**                 row,                /**< pointer to row indices of the nonzeros for each variable */
+   SCIP_Real**           val,                /**< pointer to values of the nonzeros for each variable */
+   SCIP_VAR**            vars,               /**< SCIP_VARiables present in this SDP constraint that correspond to the indices in col/row/val */
+   int                   constnnonz,         /**< number of nonzeros in the constant part of this SDP constraint */
+   int*                  constcol,           /**< column indices of the constant nonzeros */
+   int*                  constrow,           /**< row indices of the constant nonzeros */
+   SCIP_Real*            constval            /**< values of the constant nonzeros */
    );
 
 /** for given row and column (i,j) computes the position in the lower triangular part, if
