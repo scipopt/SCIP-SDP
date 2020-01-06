@@ -475,7 +475,7 @@ SCIP_RETCODE separateSol(
    (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
 #endif
 
-#if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
    SCIP_CALL( SCIPcreateRowConshdlr(scip, &row, conshdlr, cutname , len, cols, vals, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
 #else
    SCIP_CALL( SCIPcreateRowCons(scip, &row, conshdlr, cutname , len, cols, vals, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
@@ -1734,7 +1734,7 @@ SCIP_RETCODE enforceConstraint(
       (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
 #endif
 
-#if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
       SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname , lhs, rhs, FALSE, FALSE, TRUE) );
 #else
       SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname , lhs, rhs, FALSE, FALSE, TRUE) );

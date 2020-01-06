@@ -233,7 +233,7 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    assert( result != NULL );
 
    /* do not run if propagation w.r.t. objective is not allowed */
-#if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
    if( ! SCIPallowWeakDualReds(scip) )
       return SCIP_OKAY;
 #else
