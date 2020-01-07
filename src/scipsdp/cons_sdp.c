@@ -95,7 +95,10 @@
 #define PARSE_SIZEFACTOR             10 /**< size of consdata-arrays is increased by this factor when parsing a problem */
 #define DEFAULT_DIAGGEZEROCUTS     TRUE /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
 #define DEFAULT_DIAGZEROIMPLCUTS   TRUE /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
+#define DEFAULT_BRANCHBNDCHG        0.5 /**< parameter for branching on the variable bounds in the rank-1 case */
+#define DEFAULT_VALIDINEQSRANK1    TRUE /**< Should valid inequalities from Chen et al. be checked in the rank-1 case? */
 #define DEFAULT_QUADCONSRANK1      TRUE /**< Should quadratic cons for 2x2 minors be added in the rank-1 case? */
+#define DEFAULT_BRANCHRANK1       FALSE /**< Should branching on the matrix variables of 2x2 submatrices in the rank-1 case be performed? */
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
 #endif
@@ -130,7 +133,10 @@ struct SCIP_ConshdlrData
    int                   ndiaggezerocuts;    /**< this is used to give the diagGEzero-cuts distinguishable names */
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
    SCIP_Bool             diagzeroimplcuts;   /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
+   SCIP_Real             branchbndchg;       /**< parameter for branching on the variable bounds in the rank-1 case */
+   SCIP_Bool             validineqsrank1;    /**< Should valid inequalities from Chen et al. be checked in the rank-1 case? */
    SCIP_Bool             quadconsrank1;      /**< Should quadratic cons for 2x2 minors be added in the rank-1 case? */
+   SCIP_Bool             branchrank1;        /**< Should branching on the matrix variables of 2x2 submatrices in the rank-1 case be performed? */
 #ifdef OMP
    int                   nthreads;           /**< number of threads used for OpenBLAS */
 #endif
@@ -3937,9 +3943,18 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    SCIP_CALL( SCIPsetConshdlrGetNVars(scip, conshdlr, consGetNVarsSdp) );
 
    /* add parameter */
+   SCIP_CALL( SCIPaddRealParam(scip, "constraints/SDP/branchbndchg",
+         "Parameter for branching on the variable bounds in the rank-1 case",
+         &(conshdlrdata->branchbndchg), TRUE, DEFAULT_BRANCHBNDCHG, 0.0, 1.0, NULL, NULL) );
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/validineqsrank1",
+         "Should valid inequalities from Chen et al. be checked in the rank-1 case?",
+         &(conshdlrdata->validineqsrank1), TRUE, DEFAULT_VALIDINEQSRANK1, NULL, NULL) );
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/quadconsrank1",
          "Should quadratic cons for 2x2 minors be added in the rank-1 case?",
          &(conshdlrdata->quadconsrank1), TRUE, DEFAULT_QUADCONSRANK1, NULL, NULL) );
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/branchrank1",
+         "Should be branched on the matrix variables of 2x2 submatrices in the rank-1 case?",
+         &(conshdlrdata->branchrank1), TRUE, DEFAULT_BRANCHRANK1, NULL, NULL) );
 
    return SCIP_OKAY;
 }
