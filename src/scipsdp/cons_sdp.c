@@ -1988,7 +1988,6 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
             else
                vartype = SCIP_VARTYPE_CONTINUOUS;
 
-            /* todo: adapt vartype */
             SCIP_CALL( SCIPcreateVarBasic(scip, &(conshdlrdata->X[i][j]), name, lb, ub, 0.0, vartype) );
             SCIP_CALL( SCIPaddVar(scip, conshdlrdata->X[i][j]) );
          }
