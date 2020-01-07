@@ -1649,7 +1649,7 @@ SCIP_RETCODE fixAndAggrVars(
    /* Loop over all variables once, add all fixed to savedrow/col/val; for all multiaggregated variables, if constant-scalar != 0, add
     * constant-scalar * entry to savedrow/col/val and call mergeArrays for all aggrvars for savedrow[startindex of this var] and scalar/constant-scalar;
     * if constant-scalar == 0, add 1*entry to savedrow/col/val, call mergeArrays for all aggrvars for savedrow[startindex of this var] and scalar and later
-    * reduce the saved size of savedrow/col/val by the number of nonzeros of the mutliagrregated variable to not add them to the constant part later. */
+    * reduce the saved size of savedrow/col/val by the number of nonzeros of the multiaggregated variable to not add them to the constant part later. */
 
    assert( scip != NULL );
    assert( conss != NULL );
@@ -2693,7 +2693,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
    SCIP_Real* colmatrix;
    SCIP_Bool rank1result;
    SCIP_Bool stored;
-   SCIP_Bool usesubscip = FALSE;        /* use a subscip insetad of an LP to solve linear equation system in best rank-1
+   SCIP_Bool usesubscip = FALSE;        /* use a subscip instead of an LP to solve linear equation system in best rank-1
                                            approximation heuristic */
    int i;
    int j;
