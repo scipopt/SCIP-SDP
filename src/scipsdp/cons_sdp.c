@@ -139,7 +139,7 @@ struct SCIP_ConshdlrData
    int*                  quadconsidx;        /**< store index of variables appearing in quadratic constraints for upgrading */
    SCIP_VAR**            quadconsvars;       /**< temporary array to store variables appearing in quadratic constraints for upgrading */
    int                   nquadconsidx;       /**< size of quadconsidx/quadconsvars arrays */
-   SCIP_VAR***           X;                  /**< matrix varaibles added within upgrading */
+   SCIP_VAR***           X;                  /**< matrix variables added within upgrading */
    int                   nsdpvars;           /**< number of variables in SDP constraint for quadratic constraints */
    SCIP_CONS*            sdpcons;            /**< SDP rank 1 constraint for quadratic constraints */
 };
