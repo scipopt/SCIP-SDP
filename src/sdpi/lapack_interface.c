@@ -45,6 +45,8 @@
  * define is essential for correct functioning (resulting in a segmentation fault otherwise).
  */
 
+/* #define PRINTMATRICES     /\* Should all matrices appearing in best rank-1 approximation heuristic be printed? *\/ */
+
 #include <assert.h>
 
 #include "lapack_interface.h"
@@ -458,7 +460,9 @@ SCIP_RETCODE SCIPlapackLinearSolve(
    int INFO;
    SCIP_Real WSIZE;
    int WISIZE;
+#ifdef PRINTMATRICES
    SCIP_Real residual = 0.0;
+#endif
 
    assert( bufmem != NULL );
    assert( m > 0 );
@@ -503,7 +507,7 @@ SCIP_RETCODE SCIPlapackLinearSolve(
       A, &LDA, b, &LDB, S, &RCOND, &RANK,
       WORK, &LWORK, IWORK, &INFO );
 
-#if 0
+#ifdef PRINTMATRICES
    printf("LWORK = %d\n", LWORK);
    printf("LIWORK = %d\n", LIWORK);
    printf("A has size (%d,%d), is of rank %d\n", M, N, RANK);

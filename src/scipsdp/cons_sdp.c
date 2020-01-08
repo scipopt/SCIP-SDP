@@ -49,6 +49,7 @@
 /* #define SCIP_DEBUG */
 /* #define SCIP_MORE_DEBUG         /\* shows all cuts added and prints constraint after parsing *\/ */
 /* #define PRINT_HUMAN_READABLE /\* change the output of PRINTCONS to a better readable format (dense instead of sparse), WHICH CAN NO LONGER BE PARSED *\/ */
+/* #define PRINTMATRICES     /\* Should all matrices appearing in best rank-1 approximation heuristic be printed? *\/ */
 
 #include "cons_sdp.h"
 
@@ -2702,8 +2703,10 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
    int j;
    int k;
    int l;
+#ifdef PRINTMATRICES
    int r;
    int s;
+#endif
    int blocksize;
    int nviolrank1 = 0;
    int cnt;
@@ -2720,15 +2723,13 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
    SCIP_CONS* lincons;
    SCIP_SOL* subscipsol;
 
-   SCIP_Bool printmatrices;     /* Should all matrices appearing in best rank-1 approximation heuristic be printed? */
-
    assert( scip != NULL );
    assert( result != NULL );
    assert( conss != NULL );
 
    *result = SCIP_FEASIBLE;
 
-#if printmatrices
+#ifdef PRINTMATRICES
    SCIP_CALL( SCIPprintSol(scip, sol, NULL, FALSE) );
 #endif
 
@@ -2736,7 +2737,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
    for (i = 0; i < nconss; ++i)
    {
       SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], sol, printreason, result) );
-#if printmatrices
+#ifdef PRINTMATRICES
       SCIPinfoMessage(scip, NULL, "Solution is %d for constraint %s.\n", *result, SCIPconsGetName(conss[i]) );
 #endif
       if ( *result == SCIP_INFEASIBLE )
@@ -2884,7 +2885,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
       /* expand it because LAPACK wants the full matrix instead of the lower triangular part */
       SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
 
-#if printmatrices
+#ifdef PRINTMATRICES
       /* SCIPSDP uses row-first format! */
       printf("Full SDP-constraint matrix Z: \n");
       for (j = 0; j < blocksize; ++j)
@@ -2904,7 +2905,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
       /* compute EVD */
       SCIP_CALL( SCIPlapackComputeEigenvectorDecomposition(SCIPbuffer(scip), blocksize, fullmatrix, eigenvalues, eigenvectors) );
 
-#if printmatrices
+#ifdef PRINTMATRICES
       /* caution: LAPACK uses column-first format! */
       printf("Eigenvectors of Z: \n");
       for (j = 0; j < blocksize; ++j)
@@ -2942,7 +2943,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
          row-first format. */
       SCIP_CALL( scaleRowsMatrix(blocksize, scaledeigenvectors, eigenvalues) );
 
-#if printmatrices
+#ifdef PRINTMATRICES
       printf("Scaled eigenvectors of Z (only keep largest eigenvalue and corresponding eigenvector) : \n");
       for (j = 0; j < blocksize; ++j)
       {
@@ -2968,7 +2969,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
             TRUE, fullmatrix) );
       cnt = 0;
 
-#if printmatrices
+#ifdef PRINTMATRICES
       printf("Best rank-1 approximation of Z: \n");
       for (j = 0; j < blocksize; ++j)
       {
@@ -2989,7 +2990,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
       /* compute constant matrix C in row-first format*/
       SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, violcons, matrixC) );
 
-#if printmatrices
+#ifdef PRINTMATRICES
       printf("Constant matrix A_0 of SDP-constraint: \n");
       for (j = 0; j < blocksize; ++j)
       {
@@ -3063,7 +3064,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
                   /* compute matrix A_j in row-first format */
                   SCIP_CALL( SCIPconsSdpGetFullAj(scip, violcons, l, matrixAj) );
 
-#if printmatrices
+#ifdef PRINTMATRICES
                   printf("Coefficient matrix A_%d of SDP-constraint: \n", l+1);
                   for (r = 0; r < blocksize; ++r)
                   {
@@ -3087,7 +3088,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
          }
       }
 
-#if printmatrices
+#ifdef PRINTMATRICES
       printf("Matrix for linear equation system, in row-first format:\n");
       for (j = 0; j < blocksize; ++j)
       {
@@ -3142,7 +3143,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
 
    SCIP_CALL( convertRowToColFormatFullMatrix(blocksize * blocksize, consdata->nvars, linmatrix, colmatrix) );
 
-#if printmatrices
+#ifdef PRINTMATRICES
    printf("Matrix for linear equation system, in col-first format:\n");
    for (j = 0; j < blocksize*blocksize; ++j)
    {
