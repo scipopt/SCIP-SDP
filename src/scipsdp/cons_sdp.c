@@ -2828,7 +2828,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
 
    /* initialize matrix of linear equation system */
    SCIP_CALL( SCIPallocClearBufferArray(scip, &linmatrix, linrows * nrank1vars) );
-   SCIP_CALL( SCIPallocClearBufferArray(scip, &rhsmatrix, nrank1vars) );
+   SCIP_CALL( SCIPallocClearBufferArray(scip, &rhsmatrix, MAX(linrows,nrank1vars)) );
 
    for (i = 0; i < nviolrank1; ++i)
    {

@@ -440,7 +440,7 @@ SCIP_RETCODE SCIPlapackLinearSolve(
    int                   m,                  /**< number of rows of A */
    int                   n,                  /**< number of columns of A */
    SCIP_Real*            A,                  /**< coefficient matrix of the linear system */
-   SCIP_Real*            b,                  /**< right-hand side of the linear system (should be length n) */
+   SCIP_Real*            b,                  /**< right-hand side of the linear system (should be length max(m,n)) */
    SCIP_Real*            x                   /**< pointer to store values for x (should be length n) */
    )
 {
@@ -475,7 +475,7 @@ SCIP_RETCODE SCIPlapackLinearSolve(
    N = n;
    NRHS = 1;
    LDA = m;
-   LDB = m;
+   LDB = MAX(M,N);
    RCOND = 0.0;
 
    BMS_CALL( BMSallocBufferMemoryArray(bufmem, &S, MIN(m,n)) );
@@ -513,7 +513,7 @@ SCIP_RETCODE SCIPlapackLinearSolve(
    printf("A has size (%d,%d), is of rank %d\n", M, N, RANK);
    printf("Minimum l2-norm solution of linear equation system:\n");
 
-   for (i = 0; i < m; ++i)
+   for (i = 0; i < n; ++i)
    {
       printf("(%d, %f)   ", i, b[i]);
    }
