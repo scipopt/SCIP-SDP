@@ -2791,8 +2791,8 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
       return SCIP_OKAY;
    }
 
-   SCIPdebugMsg(scip, "Found at least one violated rank-1 constraint, thus apply rank-1 approximation heuristic!\n");
-   SCIPinfoMessage(scip, NULL, "Found at least one violated rank-1 constraint, thus apply rank-1 approximation heuristic!\n");
+   SCIPdebugMsg(scip, "Found %d violated rank-1 constraints, thus apply rank-1 approximation heuristic!\n", nviolrank1);
+   SCIPinfoMessage(scip, NULL, "Found %d violated rank-1 constraints, thus apply rank-1 approximation heuristic!\n", nviolrank1);
 
    /* we have to collect all variables appearing in violated SDPrank1-constraints first */
    nvars = SCIPgetNVars(scip);
