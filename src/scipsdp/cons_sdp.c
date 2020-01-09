@@ -994,6 +994,7 @@ SCIP_RETCODE addTwoMinorLinConstraints(
             SCIP_CONS* cons;
             SCIP_Real val;
             SCIP_Real lhs;
+            SCIP_Real activitylb = 0.0;
             int nconsvars = 0;
             int cnt = 0;
 
@@ -1041,6 +1042,12 @@ SCIP_RETCODE addTwoMinorLinConstraints(
                   consvals[nconsvars] = coef[i];
                   consvars[nconsvars] = consdata->vars[i];
                   ++nconsvars;
+
+                  /* compute lower bound on activity */
+                  if ( coef[i] > 0 )
+                     activitylb += coef[i] * SCIPvarGetLbGlobal(consdata->vars[i]);
+                  else
+                     activitylb += coef[i] * SCIPvarGetUbGlobal(consdata->vars[i]);
                }
             }
 
@@ -1050,6 +1057,10 @@ SCIP_RETCODE addTwoMinorLinConstraints(
 
             /* compute rhs */
             lhs = constmatrix[s * blocksize + s] + constmatrix[t * blocksize + t] - 2.0 * constmatrix[s * blocksize + t];
+
+            /* only proceed if constraint is not redundant */
+            if ( SCIPisGE(scip, activitylb, lhs) )
+               continue;
 
             /* add linear constraint (only propagate) */
             (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "2x2minorlin#%d#%d", s, t);
