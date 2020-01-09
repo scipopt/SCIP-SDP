@@ -602,7 +602,7 @@ SCIP_RETCODE diagGEzero(
 
          if ( cnt == 0 )
          {
-            /* if there are not variables but the lhs is positive, we are infeasible */
+            /* if there are no variables, but the lhs is positive, we are infeasible */
             if ( SCIPisPositive(scip, lhs) )
                *result = SCIP_CUTOFF;
          }
@@ -1040,9 +1040,9 @@ SCIP_RETCODE addTwoMinorLinConstraints(
 
             /* add linear constraint (only propagate) */
             (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "2x2minorlin#%d#%d", s, t);
-            SCIP_CALL(SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, lhs, SCIPinfinity(scip),
-                  FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
-            SCIP_CALL(SCIPaddCons(scip, cons));
+            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, lhs, SCIPinfinity(scip),
+                  FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE) );
+            SCIP_CALL( SCIPaddCons(scip, cons) );
 #ifdef SCIP_MORE_DEBUG
             SCIPinfoMessage(scip, NULL, "Added 2x2 minor linear constraint: ");
             SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
@@ -1167,8 +1167,8 @@ SCIP_RETCODE addTwoMinorProdConstraints(
 
             /* add linear constraint (only propagate) */
             (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "2x2minorprod#%d#%d", s, t);
-            SCIP_CALL(SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, consdata->constval[j] - sqrt(prod), SCIPinfinity(scip),
-                  FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
+            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, consdata->constval[j] - sqrt(prod), SCIPinfinity(scip),
+                  FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE) );
             SCIP_CALL(SCIPaddCons(scip, cons));
 #ifdef SCIP_MORE_DEBUG
             SCIPinfoMessage(scip, NULL, "Added 2x2 minor product constraint: ");
