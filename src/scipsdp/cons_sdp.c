@@ -2031,6 +2031,14 @@ SCIP_RETCODE enforceConstraint(
          continue;
 
       nvars = consdata->nvars;
+
+      /* if the number of variables is 0, but the constraint is not feasible, we can cut off the node */
+      if ( nvars == 0 )
+      {
+         *result = SCIP_CUTOFF;
+         return SCIP_OKAY;
+      }
+
       lhs = 0.0;
       coeff = NULL;
 
