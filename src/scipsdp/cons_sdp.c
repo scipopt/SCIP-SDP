@@ -142,6 +142,7 @@ struct SCIP_ConshdlrData
    SCIP_VAR***           X;                  /**< matrix variables added within upgrading */
    int                   nsdpvars;           /**< number of variables in SDP constraint for quadratic constraints */
    SCIP_CONS*            sdpcons;            /**< SDP rank 1 constraint for quadratic constraints */
+   SCIP_CONSHDLRDATA*    sdpconshdlrdata;    /**< possibly store SDP constraint handler for retrieving parameters */
 };
 
 /** takes a 0.5*n*(n+1) array of a symmetric matrix and expands it to an n*n array of the full matrix to input into LAPACK */
@@ -483,7 +484,7 @@ SCIP_RETCODE separateSol(
    (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
 #endif
 
-#if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
    SCIP_CALL( SCIPcreateRowConshdlr(scip, &row, conshdlr, cutname , len, cols, vals, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
 #else
    SCIP_CALL( SCIPcreateRowCons(scip, &row, conshdlr, cutname , len, cols, vals, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
@@ -1742,7 +1743,7 @@ SCIP_RETCODE enforceConstraint(
       (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
 #endif
 
-#if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
       SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname , lhs, rhs, FALSE, FALSE, TRUE) );
 #else
       SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname , lhs, rhs, FALSE, FALSE, TRUE) );
@@ -2346,7 +2347,7 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
 
-   if ( SCIPgetSubscipDepth(scip) > 0 || ! conshdlrdata->quadconsrank1 )
+   if ( SCIPgetSubscipDepth(scip) > 0 || ! conshdlrdata->sdpconshdlrdata->quadconsrank1 )
       return SCIP_OKAY;
 
    for (c = 0; c < nconss; ++c)
@@ -2355,9 +2356,6 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
 
       consdata = SCIPconsGetData(conss[c]);
       assert( consdata != NULL );
-      assert( &consdata->maxevsubmat != NULL );
-      assert( &consdata->rankone != NULL );
-      assert( &consdata->addedquadcons != NULL );
 
       consdata->maxevsubmat[0] = -1;
       consdata->maxevsubmat[1] = -1;
@@ -2509,7 +2507,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       if ( *result != SCIP_CUTOFF && (noldaddconss != *naddconss || nolddelconss != *ndelconss || noldchgbds != *nchgbds) )
          *result = SCIP_SUCCESS;
 
-      if ( *result != SCIP_CUTOFF && conshdlrdata->diaggezerocuts )
+      if ( *result != SCIP_CUTOFF && conshdlrdata->sdpconshdlrdata->diaggezerocuts )
       {
          noldaddconss = *naddconss;
          noldchgbds = *nchgbds;
@@ -2519,7 +2517,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
             *result = SCIP_SUCCESS;
       }
 
-      if ( *result != SCIP_CUTOFF && conshdlrdata->diagzeroimplcuts )
+      if ( *result != SCIP_CUTOFF && conshdlrdata->sdpconshdlrdata->diagzeroimplcuts )
       {
          noldaddconss = *naddconss;
          SCIP_CALL( diagZeroImpl(scip, conss, nconss, naddconss) );
@@ -3367,6 +3365,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    conshdlrdata->X = NULL;
    conshdlrdata->nsdpvars = 0;
    conshdlrdata->sdpcons = NULL;
+   conshdlrdata->sdpconshdlrdata = conshdlrdata;  /* set this to itself to simplify access of parameters */
 
    /* include constraint handler */
    SCIP_CALL( SCIPincludeConshdlrBasic(scip, &conshdlr, CONSHDLR_NAME, CONSHDLR_DESC,
@@ -3405,6 +3404,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          "Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added?",
          &(conshdlrdata->diagzeroimplcuts), TRUE, DEFAULT_DIAGZEROIMPLCUTS, NULL, NULL) );
 
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/quadconsrank1",
+         "Should quadratic cons for 2x2 minors be added in the rank-1 case?",
+         &(conshdlrdata->quadconsrank1), TRUE, DEFAULT_QUADCONSRANK1, NULL, NULL) );
+
    return SCIP_OKAY;
 }
 
@@ -3414,6 +3417,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    )
 {
    SCIP_CONSHDLR* conshdlr = NULL;
+   SCIP_CONSHDLR* sdpconshdlr = NULL;
    SCIP_CONSHDLRDATA* conshdlrdata = NULL;
 
    assert( scip != NULL );
@@ -3424,6 +3428,17 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    /* only use one parameter */
    conshdlrdata->diaggezerocuts = FALSE;
    conshdlrdata->diagzeroimplcuts = FALSE;
+   conshdlrdata->quadconsrank1 = FALSE;
+
+   /* parameters are retrieved through the SDP constraint handler */
+   sdpconshdlr = SCIPfindConshdlr(scip, CONSHDLR_NAME);
+   if ( sdpconshdlr == NULL )
+   {
+      SCIPerrorMessage("Needs constraint handler <%s> to work.\n", CONSHDLR_NAME);
+      return SCIP_PLUGINNOTFOUND;
+   }
+   conshdlrdata->sdpconshdlrdata = SCIPconshdlrGetData(sdpconshdlr);
+   assert( conshdlrdata->sdpconshdlrdata != NULL );
 
    conshdlrdata->quadconsidx = NULL;
    conshdlrdata->quadconsvars = NULL;
@@ -3455,18 +3470,6 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    SCIP_CALL( SCIPsetConshdlrParse(scip, conshdlr, consParseSdp) );
    SCIP_CALL( SCIPsetConshdlrGetVars(scip, conshdlr, consGetVarsSdp) );
    SCIP_CALL( SCIPsetConshdlrGetNVars(scip, conshdlr, consGetNVarsSdp) );
-
-   /* add parameter */
-   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/quadconsrank1",
-         "Should quadratic cons for 2x2 minors be added in the rank-1 case?",
-         &(conshdlrdata->quadconsrank1), TRUE, DEFAULT_QUADCONSRANK1, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/upgradquadconss",
-         "Should quadratic constraints be upgraded to a rank 1 SDP?",
-         &(conshdlrdata->upgradquadconss), TRUE, DEFAULT_UPGRADQUADCONSS, NULL, NULL) );
-
-   /* include upgrading function for quadratic constraints */
-   SCIP_CALL( SCIPincludeQuadconsUpgrade(scip, consQuadConsUpgdSdp, 0, TRUE, CONSHDLRRANK1_NAME) );
 
    return SCIP_OKAY;
 }

@@ -13,6 +13,7 @@ fixed bugs:
 - fixed minor bug in CBF-reader when reading DCOORD
 - fixed bug with wrong matrix sizes in warmstarting code
 - disabled the sdpobbt propagator if the SDP-relaxator is not available
+- fixed memory leak in prop_sdpredcost with restarts
 
 features:
 - add error messages to SDPA-format reader

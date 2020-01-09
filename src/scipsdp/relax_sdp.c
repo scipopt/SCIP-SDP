@@ -2238,7 +2238,7 @@ SCIP_RETCODE calcRelax(
                      relaxdata->objval = dualroundobj;
 
                      /* copy solution */
-#if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
                      SCIP_CALL( SCIPsetRelaxSolValsSol(scip, relax, scipsol, TRUE) );
 #else
                      SCIP_CALL( SCIPsetRelaxSolValsSol(scip, scipsol, TRUE) );
@@ -3205,7 +3205,7 @@ SCIP_RETCODE calcRelax(
          relaxdata->objval = objforscip;
 
          /* copy solution */
-#if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
          SCIP_CALL( SCIPsetRelaxSolVals(scip, relax, nvars, vars, solforscip, TRUE) );
 #else
          SCIP_CALL( SCIPsetRelaxSolVals(scip, nvars, vars, solforscip, TRUE) );
@@ -3516,7 +3516,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
 
       /* create SCIP solution */
       SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
-#if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
       SCIP_CALL( SCIPsetRelaxSolVals(scip, relax, nvars, vars, solforscip, TRUE) );
 #else
       SCIP_CALL( SCIPsetRelaxSolVals(scip, nvars, vars, solforscip, TRUE) );
@@ -3527,14 +3527,14 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       SCIP_CALL( SCIPgetLPColsData(scip, &cols, &ncols) );
       for (i = 0; i < ncols; i++)
       {
-#if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
          SCIP_CALL( SCIPsetRelaxSolVal(scip, relax, SCIPcolGetVar(cols[i]), SCIPgetSolVal(scip, scipsol, SCIPcolGetVar(cols[i]))) );
 #else
          SCIP_CALL( SCIPsetRelaxSolVal(scip, SCIPcolGetVar(cols[i]), SCIPgetSolVal(scip, scipsol, SCIPcolGetVar(cols[i]))) );
 #endif
       }
 
-#if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
       SCIP_CALL( SCIPmarkRelaxSolValid(scip, relax, TRUE) );
 #else
       SCIP_CALL( SCIPmarkRelaxSolValid(scip, TRUE) );
@@ -3604,13 +3604,13 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       /* set the relaxation solution */
       for (i = 0; i < nvars; i++)
       {
-#if SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
          SCIP_CALL( SCIPsetRelaxSolVal(scip, relax, vars[i], SCIPvarGetLbLocal(vars[i])) );
 #else
          SCIP_CALL( SCIPsetRelaxSolVal(scip, vars[i], SCIPvarGetLbLocal(vars[i])) );
 #endif
       }
-#if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
       SCIP_CALL( SCIPmarkRelaxSolValid(scip, relax, TRUE) );
 #else
       SCIP_CALL( SCIPmarkRelaxSolValid(scip, TRUE) );
