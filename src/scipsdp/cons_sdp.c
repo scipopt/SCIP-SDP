@@ -3471,6 +3471,9 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    SCIP_CALL( SCIPsetConshdlrGetVars(scip, conshdlr, consGetVarsSdp) );
    SCIP_CALL( SCIPsetConshdlrGetNVars(scip, conshdlr, consGetNVarsSdp) );
 
+   /* include upgrading function for quadratic constraints */
+   SCIP_CALL( SCIPincludeQuadconsUpgrade(scip, consQuadConsUpgdSdp, 0, TRUE, CONSHDLRRANK1_NAME) );
+
    return SCIP_OKAY;
 }
 
