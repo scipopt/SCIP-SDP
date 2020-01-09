@@ -532,15 +532,14 @@ SCIP_RETCODE diagGEzero(
    SCIP_CONSDATA* consdata;
    SCIP_Real* matrix;
    SCIP_Real* consvals;
+   SCIP_VAR** consvars;
+   SCIP_Real* diagentries;
    int blocksize;
    int nvars;
    int i;
    int j;
    int k;
    int c;
-#ifndef NDEBUG
-   int snprintfreturn; /* used to check if sdnprintf worked */
-#endif
 
    assert( scip != NULL );
    assert( naddconss != NULL );
@@ -561,11 +560,14 @@ SCIP_RETCODE diagGEzero(
       blocksize = consdata->blocksize;
       nvars = consdata->nvars;
 
+      SCIP_CALL( SCIPallocBufferArray(scip, &consvars, nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &consvals, nvars) );
+
       SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize + 1)) / 2) ); /*lint !e647*/
       SCIP_CALL( SCIPconsSdpGetLowerTriangConstMatrix(scip, conss[c], matrix) );
 
-      /* allocate coefficients and intit coefficients to 0.0 */
-      SCIP_CALL( SCIPallocClearBufferArray(scip, &consvals, blocksize * nvars) ); /*lint !e647*/
+      /* allocate diagonal entries and intit to 0.0 */
+      SCIP_CALL( SCIPallocClearBufferArray(scip, &diagentries, blocksize * nvars) ); /*lint !e647*/
 
       /* get the (k,k)-entry of every matrix A_j */
       for (j = 0; j < nvars; ++j)
@@ -574,7 +576,7 @@ SCIP_RETCODE diagGEzero(
          for (i = 0; i < consdata->nvarnonz[j]; i++)
          {
             if ( consdata->col[j][i] == consdata->row[j][i] )
-               consvals[consdata->col[j][i] * nvars + j] = consdata->val[j][i]; /*lint !e679*/
+               diagentries[consdata->col[j][i] * nvars + j] = consdata->val[j][i]; /*lint !e679*/
          }
       }
 
@@ -583,17 +585,25 @@ SCIP_RETCODE diagGEzero(
       {
          SCIP_CONS* cons;
          SCIP_Real lhs;
-         SCIP_Real lastnonzval = SCIP_INVALID;
-         SCIP_VAR* lastnonzvar = NULL;
+         SCIP_Real activitylb = 0.0;
          int cnt = 0;
 
          for ( j = 0; j < nvars; ++j)
          {
-            if ( ! SCIPisZero(scip, consvals[k * nvars + j]) )
+            SCIP_Real val;
+            SCIP_VAR* var;
+
+            val = diagentries[k * nvars + j];
+            if ( ! SCIPisZero(scip, val) )
             {
-               ++cnt;
-               lastnonzval = consvals[k * nvars + j];
-               lastnonzvar = consdata->vars[j];
+               var = consdata->vars[j];
+               consvals[cnt] = val;
+               consvars[cnt++] = var;
+               /* compute lower bound on activity */
+               if ( val > 0 )
+                  activitylb += val * SCIPvarGetLbGlobal(var);
+               else
+                  activitylb += val * SCIPvarGetUbGlobal(var);
             }
          }
 
@@ -610,27 +620,31 @@ SCIP_RETCODE diagGEzero(
          {
             SCIP_Bool infeasible = FALSE;
             SCIP_Bool tightened;
+            SCIP_VAR* var;
+            SCIP_Real val;
 
-            assert( lastnonzvar != NULL );
+            var = consvars[0];
+            val = consvals[0];
+            assert( var != NULL );
 
             /* try to tighten bound */
-            if ( SCIPisPositive(scip, lastnonzval) )
+            if ( SCIPisPositive(scip, val) )
             {
-               SCIP_CALL( SCIPtightenVarLb(scip, lastnonzvar, lhs / lastnonzval, FALSE, &infeasible, &tightened) );
+               SCIP_CALL( SCIPtightenVarLb(scip, var, lhs / val, FALSE, &infeasible, &tightened) );
                if ( tightened )
                {
                   SCIPdebugMsg(scip, "Tightend lower bound of <%s> to %g because of diagonal values of SDP-constraint %s!\n",
-                     SCIPvarGetName(lastnonzvar), SCIPvarGetLbGlobal(lastnonzvar), SCIPconsGetName(conss[c]));
+                     SCIPvarGetName(var), SCIPvarGetLbGlobal(var), SCIPconsGetName(conss[c]));
                   ++(*nchgbds);
                }
             }
-            else if ( SCIPisNegative(scip, lastnonzval) )
+            else if ( SCIPisNegative(scip, val) )
             {
-               SCIP_CALL( SCIPtightenVarUb(scip, lastnonzvar, lhs / lastnonzval, FALSE, &infeasible, &tightened) );
+               SCIP_CALL( SCIPtightenVarUb(scip, var, lhs / val, FALSE, &infeasible, &tightened) );
                if ( tightened )
                {
                   SCIPdebugMsg(scip, "Tightend upper bound of <%s> to %g because of diagonal values of SDP-constraint %s!\n",
-                     SCIPvarGetName(lastnonzvar), SCIPvarGetUbGlobal(lastnonzvar), SCIPconsGetName(conss[c]));
+                     SCIPvarGetName(var), SCIPvarGetUbGlobal(var), SCIPconsGetName(conss[c]));
                   ++(*nchgbds);
                }
             }
@@ -638,16 +652,12 @@ SCIP_RETCODE diagGEzero(
             if ( infeasible )
                *result = SCIP_CUTOFF;
          }
-         else
+         /* generate linear inequality if lower bound on activity is less than the lhs, so the cut is not redundant */
+         else if ( SCIPisLT(scip, activitylb, lhs) )
          {
-#ifndef NDEBUG
-            snprintfreturn = SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "diag_ge_zero_%d", ++(conshdlrdata->ndiaggezerocuts));
-            assert( snprintfreturn < SCIP_MAXSTRLEN );
-#else
             (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "diag_ge_zero_%d", ++(conshdlrdata->ndiaggezerocuts));
-#endif
 
-            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, cutname, consdata->nvars, consdata->vars, &consvals[k * consdata->nvars], lhs, SCIPinfinity(scip),
+            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, cutname, cnt, consvars, consvals, lhs, SCIPinfinity(scip),
                   TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) ); /*lint !e679*/
 
             SCIP_CALL( SCIPaddCons(scip, cons) );
@@ -661,8 +671,10 @@ SCIP_RETCODE diagGEzero(
          }
       }
 
-      SCIPfreeBufferArray(scip, &consvals);
+      SCIPfreeBufferArray(scip, &diagentries);
       SCIPfreeBufferArray(scip, &matrix);
+      SCIPfreeBufferArray(scip, &consvals);
+      SCIPfreeBufferArray(scip, &consvars);
    }
 
    return SCIP_OKAY;
