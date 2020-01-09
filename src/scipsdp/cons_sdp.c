@@ -2424,7 +2424,7 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
                   aijk = matrixAk[k][j * consdata->blocksize + i];
 
                   linvars[k] = consdata->vars[k];
-                  lincoefs[k] = cii * ajjk + cjj * aiik - cij * aijk;
+                  lincoefs[k] = -cii * ajjk - cjj * aiik + cij * aijk;
 
                   for (l = 0; l < consdata->nvars; ++l)
                   {
