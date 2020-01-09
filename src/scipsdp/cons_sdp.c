@@ -1175,6 +1175,8 @@ SCIP_RETCODE addTwoMinorProdConstraints(
          if ( SCIPisEfficacious(scip, prod) )
          {
             SCIP_CONS* cons;
+            SCIP_Real activitylb = 0.0;
+            SCIP_Real lhs;
             int nconsvars = 0;
 
             /* fill in constraint */
@@ -1186,12 +1188,24 @@ SCIP_RETCODE addTwoMinorProdConstraints(
                   consvals[nconsvars] = val;
                   consvars[nconsvars] = consdata->vars[i];
                   ++nconsvars;
+
+                  /* compute lower bound on activity */
+                  if ( val > 0 )
+                     activitylb += val * SCIPvarGetLbGlobal(consdata->vars[i]);
+                  else
+                     activitylb += val * SCIPvarGetUbGlobal(consdata->vars[i]);
                }
             }
 
+            lhs = consdata->constval[j] - sqrt(prod);
+
+            /* only proceed if constraint is not redundant */
+            if ( SCIPisGE(scip, activitylb, lhs) )
+               continue;
+
             /* add linear constraint (only propagate) */
             (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "2x2minorprod#%d#%d", s, t);
-            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, consdata->constval[j] - sqrt(prod), SCIPinfinity(scip),
+            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, lhs, SCIPinfinity(scip),
                   TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
             SCIP_CALL( SCIPaddCons(scip, cons) );
 #ifdef SCIP_MORE_DEBUG
