@@ -3016,7 +3016,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    )
 {
    SCIP_CONSHDLR* conshdlr = NULL;
-   SCIP_CONSHDLR* sdpconshdlr = NULL;
+   SCIP_CONSHDLR* sdpconshdlr;
    SCIP_CONSHDLRDATA* conshdlrdata = NULL;
 
    assert( scip != NULL );
