@@ -1895,6 +1895,10 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
       for (c = 0; c < nconss; ++c)
       {
          assert( conss[c] != NULL );
+#ifdef SCIP_MORE_DEBUG
+         SCIP_CALL( SCIPprintCons(scip, conss[c], NULL) );
+         SCIPinfoMessage(scip, NULL, "\n");
+#endif
          nquadvarterms = SCIPgetNQuadVarTermsQuadratic(scip, conss[c]);
          quadvarterms = SCIPgetQuadVarTermsQuadratic(scip, conss[c]);
 
@@ -1943,7 +1947,7 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
          }
       }
 
-      /* create bililnear variables */
+      /* create bilinear variables */
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conshdlrdata->X, nsdpvars) );
       conshdlrdata->nsdpvars = nsdpvars;
 
@@ -2114,6 +2118,11 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
    SCIP_CALL( SCIPcreateConsLinear(scip, &lincons, name, cnt, linconsvars, linconsvals, SCIPgetLhsQuadratic(scip, cons), SCIPgetRhsQuadratic(scip, cons),
          SCIPconsIsInitial(cons), SCIPconsIsSeparated(cons), SCIPconsIsEnforced(cons), SCIPconsIsChecked(cons), SCIPconsIsPropagated(cons), SCIPconsIsLocal(cons),
          FALSE, SCIPconsIsDynamic(cons), SCIPconsIsRemovable(cons), FALSE) );
+
+#ifdef SCIP_MORE_DEBUG
+   SCIP_CALL( SCIPprintCons(scip, lincons, NULL) );
+   SCIPinfoMessage(scip, NULL, "\n");
+#endif
 
    /* fill in upgdconss - do not mention SDP constraint, since this has been added already */
    upgdconss[0] = lincons;
