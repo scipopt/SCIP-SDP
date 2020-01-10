@@ -1850,7 +1850,7 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
    assert( conshdlrdata != NULL );
 
    /* check whether upgrading should be performed */
-   if ( ! conshdlrdata->upgradquadconss )
+   if ( ! conshdlrdata->sdpconshdlrdata->upgradquadconss )
       return SCIP_OKAY;
 
    /* we have to collect all variables appearing in quadratic constraints first */
@@ -3407,6 +3407,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/quadconsrank1",
          "Should quadratic cons for 2x2 minors be added in the rank-1 case?",
          &(conshdlrdata->quadconsrank1), TRUE, DEFAULT_QUADCONSRANK1, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/upgradquadconss",
+         "Should quadratic constraints be upgraded to a rank 1 SDP?",
+         &(conshdlrdata->upgradquadconss), TRUE, DEFAULT_UPGRADQUADCONSS, NULL, NULL) );
 
    return SCIP_OKAY;
 }
