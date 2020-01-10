@@ -1714,8 +1714,8 @@ SCIP_RETCODE CBFreadDcoord(
          if ( sscanf(CBF_LINE_BUFFER, "%i %i %i %lf", &b, &row, &col, &val) != 4 )
          {
             SCIPerrorMessage("Could not read entry of DCOORD in line %d.\n", linecount);
-         SCIPABORT();
-         return SCIP_READERROR;
+            SCIPABORT();
+            return SCIP_READERROR;
          }
 
          if ( b < 0 || b >= data->nsdpblocks )

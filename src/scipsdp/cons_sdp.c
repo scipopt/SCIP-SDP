@@ -143,6 +143,7 @@ struct SCIP_ConshdlrData
 #ifdef OMP
    int                   nthreads;           /**< number of threads used for OpenBLAS */
 #endif
+   SCIP_CONSHDLRDATA*    sdpconshdlrdata;    /**< possibly store SDP constraint handler for retrieving parameters */
 };
 
 /** generates matrix in colum-first format (needed by LAPACK) from matrix given in full row-first format (SCIP-SDP
@@ -644,7 +645,7 @@ SCIP_RETCODE separateSol(
    (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
 #endif
 
-#if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
    SCIP_CALL( SCIPcreateRowConshdlr(scip, &row, conshdlr, cutname , len, cols, vals, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
 #else
    SCIP_CALL( SCIPcreateRowCons(scip, &row, conshdlr, cutname , len, cols, vals, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
@@ -1928,7 +1929,7 @@ SCIP_RETCODE enforceRankOne(
    solvaljj = SCIPgetSolVal(scip, sol, quadvars2[0]);
    solvalij = SCIPgetSolVal(scip, sol, quadvars1[1]);
 
-   if ( conshdlrdata->validineqsrank1 )
+   if ( conshdlrdata->sdpconshdlrdata->validineqsrank1 )
    {
       /* Check valid inequalities from Chen, Atamtürk and Oren  */
       val1 = (SQRT(lbii) + SQRT(ubii)) * (SQRT(lbjj) + SQRT(ubjj));
@@ -2023,7 +2024,7 @@ SCIP_RETCODE enforceRankOne(
       }
    }
 
-   if ( conshdlrdata->branchrank1 )
+   if ( conshdlrdata->sdpconshdlrdata->branchrank1 )
    {
       SCIP_NODE* node1 = NULL;
       SCIP_NODE* node2 = NULL;
@@ -2035,7 +2036,7 @@ SCIP_RETCODE enforceRankOne(
       SCIP_Real  alpha;
       SCIP_Bool  branched = FALSE;
 
-      alpha = conshdlrdata->branchbndchg;
+      alpha = conshdlrdata->sdpconshdlrdata->branchbndchg;
 
       /* Branch on the three matrix entries of the 2x2 submatrix with largest minimal eigenvalue -> create six branching
          nodes */
@@ -2162,7 +2163,7 @@ SCIP_RETCODE enforceConstraint(
       (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
 #endif
 
-#if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
       SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname , lhs, rhs, FALSE, FALSE, TRUE) );
 #else
       SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname , lhs, rhs, FALSE, FALSE, TRUE) );
@@ -2383,7 +2384,7 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
 
-   if ( SCIPgetSubscipDepth(scip) > 0 || ! conshdlrdata->quadconsrank1 )
+   if ( SCIPgetSubscipDepth(scip) > 0 || ! conshdlrdata->sdpconshdlrdata->quadconsrank1 )
       return SCIP_OKAY;
 
    for (c = 0; c < nconss; ++c)
@@ -2392,9 +2393,6 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
 
       consdata = SCIPconsGetData(conss[c]);
       assert( consdata != NULL );
-      assert( &consdata->maxevsubmat != NULL );
-      assert( &consdata->rankone != NULL );
-      assert( &consdata->addedquadcons != NULL );
 
       consdata->maxevsubmat[0] = -1;
       consdata->maxevsubmat[1] = -1;
@@ -2546,7 +2544,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       if ( *result != SCIP_CUTOFF && (noldaddconss != *naddconss || nolddelconss != *ndelconss || noldchgbds != *nchgbds) )
          *result = SCIP_SUCCESS;
 
-      if ( *result != SCIP_CUTOFF && conshdlrdata->diaggezerocuts )
+      if ( *result != SCIP_CUTOFF && conshdlrdata->sdpconshdlrdata->diaggezerocuts )
       {
          noldaddconss = *naddconss;
          noldchgbds = *nchgbds;
@@ -2556,7 +2554,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
             *result = SCIP_SUCCESS;
       }
 
-      if ( *result != SCIP_CUTOFF && conshdlrdata->diagzeroimplcuts )
+      if ( *result != SCIP_CUTOFF && conshdlrdata->sdpconshdlrdata->diagzeroimplcuts )
       {
          noldaddconss = *naddconss;
          SCIP_CALL( diagZeroImpl(scip, conss, nconss, naddconss) );
@@ -2750,7 +2748,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
    /* check if heuristic should be executed */
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
-   if ( ! conshdlrdata->rank1approxheur )
+   if ( ! conshdlrdata->sdpconshdlrdata->rank1approxheur )
    {
       return SCIP_OKAY;
    }
@@ -3810,8 +3808,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
 
    /* allocate memory for the conshdlrdata */
    SCIP_CALL( SCIPallocMemory(scip, &conshdlrdata) );
-   conshdlrdata->quadconsrank1 = FALSE;
-   conshdlrdata->rank1approxheur = FALSE;
+   conshdlrdata->sdpconshdlrdata = conshdlrdata;  /* set this to itself to simplify access of parameters */
 
    /* include constraint handler */
    SCIP_CALL( SCIPincludeConshdlrBasic(scip, &conshdlr, CONSHDLR_NAME, CONSHDLR_DESC,
@@ -3850,6 +3847,26 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          "Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added?",
          &(conshdlrdata->diagzeroimplcuts), TRUE, DEFAULT_DIAGZEROIMPLCUTS, NULL, NULL) );
 
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/quadconsrank1",
+         "Should quadratic cons for 2x2 minors be added in the rank-1 case?",
+         &(conshdlrdata->quadconsrank1), TRUE, DEFAULT_QUADCONSRANK1, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddRealParam(scip, "constraints/SDP/branchbndchg",
+         "Parameter for branching on the variable bounds in the rank-1 case",
+         &(conshdlrdata->branchbndchg), TRUE, DEFAULT_BRANCHBNDCHG, 0.0, 1.0, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/validineqsrank1",
+         "Should valid inequalities from Chen et al. be checked in the rank-1 case?",
+         &(conshdlrdata->validineqsrank1), TRUE, DEFAULT_VALIDINEQSRANK1, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/branchrank1",
+         "Should be branched on the matrix variables of 2x2 submatrices in the rank-1 case?",
+         &(conshdlrdata->branchrank1), TRUE, DEFAULT_BRANCHRANK1, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/rank1approxheur",
+         "Should the heuristic that computes the best rank-1 approximation for a given solution be executed?",
+         &(conshdlrdata->rank1approxheur), TRUE, DEFAULT_RANK1APPROXHEUR, NULL, NULL) );
+
    return SCIP_OKAY;
 }
 
@@ -3859,6 +3876,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    )
 {
    SCIP_CONSHDLR* conshdlr = NULL;
+   SCIP_CONSHDLR* sdpconshdlr;
    SCIP_CONSHDLRDATA* conshdlrdata = NULL;
 
    assert( scip != NULL );
@@ -3869,6 +3887,21 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    /* only use one parameter */
    conshdlrdata->diaggezerocuts = FALSE;
    conshdlrdata->diagzeroimplcuts = FALSE;
+   conshdlrdata->quadconsrank1 = FALSE;
+   conshdlrdata->branchbndchg = FALSE;
+   conshdlrdata->validineqsrank1 = FALSE;
+   conshdlrdata->branchrank1 = FALSE;
+   conshdlrdata->rank1approxheur = FALSE;
+
+   /* parameters are retrieved through the SDP constraint handler */
+   sdpconshdlr = SCIPfindConshdlr(scip, CONSHDLR_NAME);
+   if ( sdpconshdlr == NULL )
+   {
+      SCIPerrorMessage("Needs constraint handler <%s> to work.\n", CONSHDLR_NAME);
+      return SCIP_PLUGINNOTFOUND;
+   }
+   conshdlrdata->sdpconshdlrdata = SCIPconshdlrGetData(sdpconshdlr);
+   assert( conshdlrdata->sdpconshdlrdata != NULL );
 
    /* include constraint handler */
    SCIP_CALL( SCIPincludeConshdlrBasic(scip, &conshdlr, CONSHDLRRANK1_NAME, CONSHDLRRANK1_DESC,
@@ -3893,23 +3926,6 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    SCIP_CALL( SCIPsetConshdlrParse(scip, conshdlr, consParseSdp) );
    SCIP_CALL( SCIPsetConshdlrGetVars(scip, conshdlr, consGetVarsSdp) );
    SCIP_CALL( SCIPsetConshdlrGetNVars(scip, conshdlr, consGetNVarsSdp) );
-
-   /* add parameter */
-   SCIP_CALL( SCIPaddRealParam(scip, "constraints/SDP/branchbndchg",
-         "Parameter for branching on the variable bounds in the rank-1 case",
-         &(conshdlrdata->branchbndchg), TRUE, DEFAULT_BRANCHBNDCHG, 0.0, 1.0, NULL, NULL) );
-   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/validineqsrank1",
-         "Should valid inequalities from Chen et al. be checked in the rank-1 case?",
-         &(conshdlrdata->validineqsrank1), TRUE, DEFAULT_VALIDINEQSRANK1, NULL, NULL) );
-   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/quadconsrank1",
-         "Should quadratic cons for 2x2 minors be added in the rank-1 case?",
-         &(conshdlrdata->quadconsrank1), TRUE, DEFAULT_QUADCONSRANK1, NULL, NULL) );
-   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/branchrank1",
-         "Should be branched on the matrix variables of 2x2 submatrices in the rank-1 case?",
-         &(conshdlrdata->branchrank1), TRUE, DEFAULT_BRANCHRANK1, NULL, NULL) );
-   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/rank1approxheur",
-         "Should the heuristic that computes the best rank-1 approximation for a given solution be executed?",
-         &(conshdlrdata->rank1approxheur), TRUE, DEFAULT_RANK1APPROXHEUR, NULL, NULL) );
 
    return SCIP_OKAY;
 }
