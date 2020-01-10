@@ -243,9 +243,9 @@ SCIP_RETCODE expandSparseMatrix(
 /** multiplies all entries in the i-th column by scale[i] */
 static
 SCIP_RETCODE scaleTransposedMatrix(
-   int                   blocksize,          /* number of rows and columns */
-   SCIP_Real*            matrix,             /* matrix entries given as blocksize^2 array */
-   SCIP_Real*            scale               /* array of length blocksize to multiply the columns of matrix with */
+   int                   blocksize,          /**< number of rows and columns */
+   SCIP_Real*            matrix,             /**< matrix entries given as blocksize^2 array */
+   SCIP_Real*            scale               /**< array of length blocksize to multiply the columns of matrix with */
    )
 {
    int r;
@@ -3705,6 +3705,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    relaxdata->roundstartsuccess = 0;
    relaxdata->roundingoptimal = 0;
    relaxdata->roundingcutoff = 0;
+
    if ( relaxdata->warmstart && relaxdata->warmstartproject == 4 )
    {
       if ( relaxdata->roundingprobtime == NULL )
@@ -4419,7 +4420,8 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          &(relaxdata->warmstartpmevdualpar), TRUE, DEFAULT_WARMSTARTPROJMINEV, -1.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstartprojpdsame",
-         "Should one shared minimum eigenvalue respectively maximum entry be computed for primal and dual problem instead of different ones for primal and dual and each block for projection or convex combination ?",
+         "Should one shared minimum eigenvalue respectively maximum entry be computed for primal and dual problem instead "
+         "of different ones for primal and dual and each block for projection or convex combination ?",
          &(relaxdata->warmstartprojpdsame), TRUE, DEFAULT_WARMSTARTPROJPDSAME, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstartpreoptsol",
@@ -4495,7 +4497,8 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
 /* external functions */
 
 /** computes analytic centers of primal and dual feasible set and saves them in relaxdata
- * @note This function should be called at the end of the root node (or at least after the solving stage starts and before the first non-root node).
+ *
+ *  @note This function should be called at the end of the root node (or at least after the solving stage starts and before the first non-root node).
  */
 SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
    SCIP*                 scip,               /**< SCIP data structure */
