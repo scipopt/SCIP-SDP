@@ -488,7 +488,6 @@ SCIP_RETCODE putSdpDataInInterface(
    SCIP_Real* obj;
    SCIP_Real* lb;
    SCIP_Real* ub;
-   SCIP_Real param;
    int*** row;
    int*** col;
    int** nblockvarnonz;
@@ -511,13 +510,11 @@ SCIP_RETCODE putSdpDataInInterface(
    int i;
    int j;
 
-   SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolvergaptol", &param) );
-
-   SCIPdebugMsg(scip, "Putting SDP Data in general SDP interface!\n");
-
    assert( scip != NULL );
    assert( sdpi != NULL );
    assert( varmapper != NULL );
+
+   SCIPdebugMsg(scip, "Putting SDP Data in general SDP interface!\n");
 
    vars = SCIPgetVars(scip);
    nvars = SCIPgetNVars(scip);
@@ -715,8 +712,7 @@ SCIP_RETCODE putSdpDataInInterface(
 static
 SCIP_RETCODE putLpDataInInterface(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_SDPI*            sdpi,               /**< SDP interface structure */
-   SdpVarmapper*         varmapper,          /**< maps SCIP variables to their global SDP indices and vice versa */
+   SCIP_RELAXDATA*       relaxdata,          /**< relaxator data */
    SCIP_Bool             primalobj,          /**< should the primal objective coefficients (lhs/rhs of LP-constraints) be used ? */
    SCIP_Bool             dualobj             /**< should the dual objective coefficients be used ? */
    )
@@ -724,7 +720,6 @@ SCIP_RETCODE putLpDataInInterface(
    SCIP_VAR** vars;
    SCIP_COL** rowcols;
    SCIP_ROW** rows;
-   SCIP_Bool tightenvb;
    SCIP_Real* rowvals;
    SCIP_Real* lhs;
    SCIP_Real* rhs;
@@ -749,14 +744,12 @@ SCIP_RETCODE putLpDataInInterface(
    int j;
 
    assert( scip != NULL );
-   assert( sdpi != NULL );
-   assert( varmapper != NULL );
+   assert( relaxdata != NULL );
 
    nvars = SCIPgetNVars(scip);
    assert( nvars > 0 );
 
    SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
-   SCIP_CALL( SCIPgetBoolParam(scip, "relaxing/SDP/tightenvb", &tightenvb) );
 
    SCIPdebugMsg(scip, "inserting %d LPRows into the interface.\n", nrows);
 
@@ -796,7 +789,7 @@ SCIP_RETCODE putLpDataInInterface(
       sciprhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
 
       /* check whether we have a variable bound and can strenghten the big-M */
-      if ( tightenvb && rownnonz == 2 && (SCIPisZero(scip, sciplhs) || SCIPisZero(scip, sciprhs) ) )
+      if ( relaxdata->tightenvb && rownnonz == 2 && (SCIPisZero(scip, sciplhs) || SCIPisZero(scip, sciprhs) ) )
       {
          SCIP_VAR* var1;
          SCIP_VAR* var2;
@@ -865,7 +858,7 @@ SCIP_RETCODE putLpDataInInterface(
             if ( SCIPisFeasGT(scip, REALABS(tightenedval), 0.0) )
             {
                assert( SCIPcolGetVar(rowcols[j]) != 0 );
-               colind[nnonz] = SCIPsdpVarmapperGetSdpIndex(varmapper, SCIPcolGetVar(rowcols[j]));
+               colind[nnonz] = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[j]));
                rowind[nnonz] = nconss;
                val[nnonz] = tightenedval;
                nnonz++;
@@ -874,7 +867,7 @@ SCIP_RETCODE putLpDataInInterface(
          else if ( SCIPisFeasGT(scip, REALABS(rowvals[j]), 0.0))
          {
             assert( SCIPcolGetVar(rowcols[j]) != 0 );
-            colind[nnonz] = SCIPsdpVarmapperGetSdpIndex(varmapper, SCIPcolGetVar(rowcols[j]));
+            colind[nnonz] = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[j]));
             rowind[nnonz] = nconss;
             val[nnonz] = rowvals[j];
             nnonz++;
@@ -886,14 +879,14 @@ SCIP_RETCODE putLpDataInInterface(
    }
 
    /* delete the old LP-block from the sdpi */
-   SCIP_CALL( SCIPsdpiGetNLPRows(sdpi, &nrowssdpi) );
+   SCIP_CALL( SCIPsdpiGetNLPRows(relaxdata->sdpi, &nrowssdpi) );
    if ( nrowssdpi > 0 )
    {
-      SCIP_CALL( SCIPsdpiDelLPRows(sdpi, 0, nrowssdpi - 1) );
+      SCIP_CALL( SCIPsdpiDelLPRows(relaxdata->sdpi, 0, nrowssdpi - 1) );
    }
 
    /* add the LP-block to the sdpi */
-   SCIP_CALL( SCIPsdpiAddLPRows(sdpi, nconss, lhs, rhs, nnonz, (const int*)rowind, (const int*)colind, val) );
+   SCIP_CALL( SCIPsdpiAddLPRows(relaxdata->sdpi, nconss, lhs, rhs, nnonz, (const int*)rowind, (const int*)colind, val) );
 
    /* free the remaining arrays */
    SCIPfreeBufferArray(scip, &val);
@@ -927,8 +920,8 @@ SCIP_RETCODE putLpDataInInterface(
    }
 
    /* inform interface */
-   SCIP_CALL( SCIPsdpiChgBounds(sdpi, nvars, inds, lb, ub) );
-   SCIP_CALL( SCIPsdpiChgObj(sdpi, nvars, objinds, obj) );
+   SCIP_CALL( SCIPsdpiChgBounds(relaxdata->sdpi, nvars, inds, lb, ub) );
+   SCIP_CALL( SCIPsdpiChgObj(relaxdata->sdpi, nvars, objinds, obj) );
 
    /* free the bounds-arrays */
    SCIPfreeBufferArray(scip, &objinds);
@@ -3678,7 +3671,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    }
 
    /* update LP Data in Interface */
-   SCIP_CALL( putLpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE, TRUE) );
+   SCIP_CALL( putLpDataInInterface(scip, relaxdata, TRUE, TRUE) );
 
    SCIP_CALL( calcRelax(scip, relax, result, lowerbound));
 
@@ -3694,19 +3687,9 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    SCIP_RELAXDATA* relaxdata;
    SCIP_RETCODE retcode;
    SCIP_VAR** vars;
-   SCIP_Real gaptol;
-   SCIP_Real feastol;
-   SCIP_Real penaltyparam;
-   SCIP_Real maxpenaltyparam;
-   int npenaltyincr;
-   SCIP_Real peninfeasadjust;
-   SCIP_Bool sdpinfo;
    SCIP_Real givenpenaltyparam;
    SCIP_Real projminevprimal;
    SCIP_Real projminevdual;
-   SCIP_Real preoptgap;
-   int nthreads;
-   int slatercheck;
    int nvars;
 
    assert( relax != NULL );
@@ -3791,8 +3774,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    }
 
    /* set the parameters of the SDP-Solver */
-   SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolvergaptol", &gaptol) );
-   retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_GAPTOL, gaptol);
+   retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_GAPTOL, relaxdata->sdpsolvergaptol);
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
@@ -3804,8 +3786,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       SCIP_CALL( retcode );
    }
 
-   SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/sdpsolverfeastol", &feastol) );
-   retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_SDPSOLVERFEASTOL, feastol);
+   retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_SDPSOLVERFEASTOL, relaxdata->sdpsolverfeastol);
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
@@ -3842,11 +3823,10 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    }
 
    /* set/compute the starting penalty parameter */
-   SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/penaltyparam", &penaltyparam) );
-   if ( SCIPisGE(scip, penaltyparam, 0.0) )
+   if ( SCIPisGE(scip, relaxdata->penaltyparam, 0.0) )
    {
-      retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, penaltyparam);
-      givenpenaltyparam = penaltyparam;
+      retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, relaxdata->penaltyparam);
+      givenpenaltyparam = relaxdata->penaltyparam;
       if ( retcode == SCIP_PARAMETERUNKNOWN )
       {
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
@@ -3875,10 +3855,9 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    }
 
    /* set/compute the maximum penalty parameter */
-   SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/maxpenaltyparam", &maxpenaltyparam) );
-   if ( SCIPisGE(scip, maxpenaltyparam, 0.0) )
+   if ( SCIPisGE(scip, relaxdata->maxpenaltyparam, 0.0) )
    {
-      retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_MAXPENALTYPARAM, maxpenaltyparam);
+      retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_MAXPENALTYPARAM, relaxdata->maxpenaltyparam);
 
       if ( retcode == SCIP_PARAMETERUNKNOWN )
       {
@@ -3892,10 +3871,10 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       }
 
       /* check if the starting value is not bigger than the maximum one, otherwise update it */
-      if ( SCIPisLT(scip, givenpenaltyparam, maxpenaltyparam) )
+      if ( SCIPisLT(scip, givenpenaltyparam, relaxdata->maxpenaltyparam) )
       {
-         SCIPdebugMsg(scip, "Penalty parameter %f overwritten by maxpenaltyparam %f!\n", givenpenaltyparam, maxpenaltyparam);
-         SCIP_CALL( SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, maxpenaltyparam) );
+         SCIPdebugMsg(scip, "Penalty parameter %f overwritten by maxpenaltyparam %f!\n", givenpenaltyparam, relaxdata->maxpenaltyparam);
+         SCIP_CALL( SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, relaxdata->maxpenaltyparam) );
       }
    }
    else
@@ -3906,8 +3885,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    }
 
    /* set maximum number of penalty increasing rounds */
-   SCIP_CALL( SCIPgetIntParam(scip, "relaxing/SDP/npenaltyincr", &npenaltyincr) );
-   retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_NPENALTYINCR, npenaltyincr);
+   retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_NPENALTYINCR, relaxdata->npenaltyincr);
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
@@ -3920,8 +3898,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    }
 
    /* set penalty-infeasibility-adjustment */
-   SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/peninfeasadjust", &peninfeasadjust) );
-   retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENINFEASADJUST, peninfeasadjust);
+   retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENINFEASADJUST, relaxdata->peninfeasadjust);
 
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
@@ -3937,12 +3914,9 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    /* set/compute lambda star if SDPA is used as the SDP-Solver */
    if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0.0 )
    {
-      SCIP_Real lambdastar;
-
-      SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/lambdastar", &lambdastar) );
-      if ( SCIPisGE(scip, lambdastar, 0.0) )
+      if ( SCIPisGE(scip, relaxdata->lambdastar, 0.0) )
       {
-         retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_LAMBDASTAR, lambdastar);
+         retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_LAMBDASTAR, relaxdata->lambdastar);
       }
       else
       {
@@ -4097,8 +4071,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       SCIPfreeBufferArray(scip, &sdpblocks);
    }
 
-   SCIP_CALL( SCIPgetBoolParam(scip, "relaxing/SDP/sdpinfo", &sdpinfo) );
-   retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_SDPINFO, (int) sdpinfo);
+   retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_SDPINFO, (int) relaxdata->sdpinfo);
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
@@ -4110,11 +4083,10 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       SCIP_CALL( retcode );
    }
 
-   SCIP_CALL( SCIPgetIntParam(scip, "relaxing/SDP/sdpsolverthreads", &nthreads) );
    /* only try to set nthreads if the value differs from the default to prevent unnecessary warning messages for unknown parameter */
-   if ( nthreads != DEFAULT_SDPSOLVERTHREADS )
+   if ( relaxdata->sdpsolverthreads != DEFAULT_SDPSOLVERTHREADS )
    {
-      retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_NTHREADS, nthreads);
+      retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_NTHREADS, relaxdata->sdpsolverthreads);
       if ( retcode == SCIP_PARAMETERUNKNOWN )
       {
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
@@ -4127,8 +4099,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       }
    }
 
-   SCIP_CALL( SCIPgetIntParam(scip, "relaxing/SDP/slatercheck", &slatercheck) );
-   retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_SLATERCHECK, slatercheck);
+   retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_SLATERCHECK, relaxdata->slatercheck);
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
@@ -4146,8 +4117,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    /* set warmstartpreoptimal gap if DSDP is used as the SDP-Solver and preoptimal solutions should be saved */
    if ( relaxdata->warmstartpreoptsol && (strcmp(SCIPsdpiGetSolverName(), "DSDP") == 0.0 || strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0.0) )
    {
-      SCIP_CALL( SCIPgetRealParam(scip, "relaxing/SDP/warmstartpreoptgap", &preoptgap) );
-      retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_WARMSTARTPOGAP, preoptgap);
+      retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_WARMSTARTPOGAP, relaxdata->warmstartpreoptgap);
       if ( retcode == SCIP_PARAMETERUNKNOWN )
       {
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
@@ -4642,7 +4612,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
    if ( relaxdata->warmstartprimaltype != 2 && SCIPsdpiDoesWarmstartNeedPrimal() )
    {
       SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, FALSE, TRUE) );
-      SCIP_CALL( putLpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, FALSE, TRUE) );
+      SCIP_CALL( putLpDataInInterface(scip, relaxdata, FALSE, TRUE) );
 
       /* set time limit */
       SCIP_CALL( SCIPgetRealParam(scip, "limits/time", &timelimit) );
@@ -4773,7 +4743,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
 
    /* set dual objective coefficients to zero to compute analytic center of dual feasible set */
    SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE, FALSE) );
-   SCIP_CALL( putLpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE, FALSE) );
+   SCIP_CALL( putLpDataInInterface(scip, relaxdata, TRUE, FALSE) );
 
    /* set time limit */
    SCIP_CALL( SCIPgetRealParam(scip, "limits/time", &timelimit) );
