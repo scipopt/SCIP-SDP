@@ -2353,7 +2353,8 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    for (c = 0; c < nconss; c++)
    {
       if ( (strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0)
-         && (strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0 ) )
+         && (strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0 )
+         && (strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") != 0 ) )
       {
          SCIPerrorMessage("CBF reader currently only supports linear and SDP constraints!\n");
          SCIPABORT();
@@ -2609,7 +2610,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    nsdpconss = 0;
    for (c = 0; c < nconss; c++)
    {
-      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") == 0 )
+      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") == 0 || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") == 0 )
          ++nsdpconss;
    }
 
@@ -2618,7 +2619,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 
    for (c = 0; c < nconss; c++)
    {
-      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0 )
+      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0 && strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") != 0 )
          continue;
 
       SCIPinfoMessage(scip, file, "%d\n", SCIPconsSdpGetBlocksize(scip, conss[c]));
@@ -2630,7 +2631,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    nrank1sdpblocks = 0;
    for (c = 0; c < nconss; c++)
    {
-      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") == 0 && SCIPconsSdpShouldBeRankOne(conss[c]) )
+      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") == 0 )
          ++nrank1sdpblocks;
    }
 
@@ -2641,11 +2642,11 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 
       for (c = 0; c < nconss; c++)
       {
-         if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0 )
+         if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") != 0 )
             continue;
 
-         if ( SCIPconsSdpShouldBeRankOne(conss[c]) )
-            SCIPinfoMessage(scip, file, "%d\n", SCIPconsSdpGetBlocksize(scip, conss[c]));
+         assert( SCIPconsSdpShouldBeRankOne(conss[c]) );
+         SCIPinfoMessage(scip, file, "%d\n", SCIPconsSdpGetBlocksize(scip, conss[c]));
       }
 
       SCIPinfoMessage(scip, file, "\n");
@@ -2764,7 +2765,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    totalsdpconstnnonz = 0;
    for (c = 0; c < nconss; c++)
    {
-      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])),"SDP") != 0 )
+      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])),"SDP") != 0 && strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])),"SDPrank1") != 0 )
          continue;
 
       SCIP_CALL( SCIPconsSdpGetNNonz(scip, conss[c], &sdpnnonz, &sdpconstnnonz) );
@@ -2792,7 +2793,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
       consind = 0;
       for (c = 0; c < nconss; c++)
       {
-         if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0 )
+         if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0 && strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") != 0 )
             continue;
 
          /* initialization for SDPconsSDPGetData-call */
@@ -2827,7 +2828,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
       consind = 0;
       for (c = 0; c < nconss; c++)
       {
-         if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0 )
+         if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0 && strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") != 0 )
             continue;
 
          /* initialization for SDPconsSDPGetData-call */

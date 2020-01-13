@@ -360,7 +360,7 @@ SCIP_RETCODE putSdpDataInInterface(
       SCIPinfoMessage(scip, NULL, "\n");
 #endif
 
-      if ( strcmp(conshdlrname, "SDP") == 0 )
+      if ( strcmp(conshdlrname, "SDP") == 0 || strcmp(conshdlrname, "SDPrank1") == 0 )
       {
          nsdpblocks++;
 
@@ -402,7 +402,7 @@ SCIP_RETCODE putSdpDataInInterface(
 
       conshdlrname = SCIPconshdlrGetName(conshdlr);
 
-      if ( strcmp(conshdlrname, "SDP") == 0 )
+      if ( strcmp(conshdlrname, "SDP") == 0 || strcmp(conshdlrname, "SDPrank1") == 0 )
       {
          assert( ind < nsdpblocks );
 
@@ -901,6 +901,7 @@ SCIP_RETCODE calcRelax(
    {
       SCIP_CONSHDLR* conshdlr;
       SCIP_SOL* dualsol;
+      SCIP_CONS** sdpblocks = NULL;
       SCIP_Real* starty = NULL;
       int* startZnblocknonz = NULL;
       int** startZrow = NULL;
@@ -990,13 +991,17 @@ SCIP_RETCODE calcRelax(
          if ( SCIPsdpiDoesWarmstartNeedPrimal() )
          {
             SCIP_CONSHDLR* sdpconshdlr;
-            SCIP_CONS** sdpblocks;
+            SCIP_CONSHDLR* sdprank1conshdlr;
+            SCIP_CONS** sdporigblocks;
+            SCIP_CONS** sdprank1blocks;
             SCIP_COL** rowcols;
             SCIP_ROW** rows;
             int blocksize;
             int nrows;
             int rownnonz;
             int r;
+            int nsdpblocks;
+            int nrank1blocks;
             SCIP_Real maxprimalentry = 0.0;
             SCIP_Real maxdualentry;
             SCIP_Real identitydiagonal = 0.0;
@@ -1005,8 +1010,21 @@ SCIP_RETCODE calcRelax(
             SCIP_Bool* diagentryexists;
 
             sdpconshdlr = SCIPfindConshdlr(scip, "SDP");
-            nblocks = SCIPconshdlrGetNConss(sdpconshdlr);
-            sdpblocks = SCIPconshdlrGetConss(sdpconshdlr);
+            sdprank1conshdlr = SCIPfindConshdlr(scip, "SDPrank1");
+            nsdpblocks = SCIPconshdlrGetNConss(sdpconshdlr);
+            nrank1blocks = SCIPconshdlrGetNConss(sdprank1conshdlr);
+            sdporigblocks = SCIPconshdlrGetConss(sdpconshdlr);
+            sdprank1blocks = SCIPconshdlrGetConss(sdprank1conshdlr);
+
+            nblocks = nsdpblocks + nrank1blocks;
+
+            SCIP_CALL( SCIPallocBufferArray(scip, &sdpblocks, nblocks) );
+            for (r = 0; r < nsdpblocks; ++r)
+               sdpblocks[r] = sdporigblocks[r];
+
+            for (r = 0; r < nrank1blocks; ++r)
+               sdpblocks[nsdpblocks + r] = sdprank1blocks[r];
+
             SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
 
             SCIP_CALL( SCIPallocBufferArray(scip, &startZnblocknonz, nblocks + 1) );
@@ -1779,6 +1797,7 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArrayNull(scip, &startZcol);
                   SCIPfreeBufferArrayNull(scip, &startZrow);
                   SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
+                  SCIPfreeBufferArrayNull(scip, &sdpblocks);
                   SCIPfreeBufferArray(scip, &starty);
 
                   relaxdata->feasible = FALSE;
@@ -1813,6 +1832,7 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArrayNull(scip, &startZcol);
                   SCIPfreeBufferArrayNull(scip, &startZrow);
                   SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
+                  SCIPfreeBufferArrayNull(scip, &sdpblocks);
                   SCIPfreeBufferArray(scip, &starty);
 
                   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit) );
@@ -1849,6 +1869,7 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArrayNull(scip, &startZcol);
                   SCIPfreeBufferArrayNull(scip, &startZrow);
                   SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
+                  SCIPfreeBufferArrayNull(scip, &sdpblocks);
                   SCIPfreeBufferArray(scip, &starty);
 
                   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit) );
@@ -2201,6 +2222,7 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArrayNull(scip, &startZcol);
                   SCIPfreeBufferArrayNull(scip, &startZrow);
                   SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
+                  SCIPfreeBufferArrayNull(scip, &sdpblocks);
                   SCIPfreeBufferArray(scip, &starty);
 
                   /* since warmstart computation failed, we solve without warmstart, free memory and skip the remaining warmstarting code */
@@ -2300,6 +2322,7 @@ SCIP_RETCODE calcRelax(
                      SCIPfreeBufferArrayNull(scip, &startZcol);
                      SCIPfreeBufferArrayNull(scip, &startZrow);
                      SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
+                     SCIPfreeBufferArrayNull(scip, &sdpblocks);
                      SCIPfreeBufferArray(scip, &starty);
 
                      return SCIP_OKAY;
@@ -2860,7 +2883,7 @@ SCIP_RETCODE calcRelax(
 
 #ifdef SCIP_PRINT_WARMSTART
          SCIPdebugMsg(scip, "warmstart using the following point:\n");
-         nblocks = SCIPconshdlrGetNConss(SCIPfindConshdlr(scip, "SDP"));
+         nblocks = SCIPconshdlrGetNConss(SCIPfindConshdlr(scip, "SDP")) + SCIPconshdlrGetNConss(SCIPfindConshdlr(scip, "SDPrank1"));
          for (i = 0; i < nvars; i++)
             SCIPdebugMsg(scip, "y[%d]=%f\n", i, starty[i]);
 
@@ -2892,9 +2915,11 @@ SCIP_RETCODE calcRelax(
          if ( SCIPsdpiDoesWarmstartNeedPrimal() )
          {
             SCIP_CONSHDLR* sdpconshdlr;
+            SCIP_CONSHDLR* sdprank1conshdlr;
 
             sdpconshdlr = SCIPfindConshdlr(scip, "SDP");
-            nblocks = SCIPconshdlrGetNConss(sdpconshdlr) + 1; /* +1 for LP block */
+            sdprank1conshdlr = SCIPfindConshdlr(scip, "SDPrank1");
+            nblocks = SCIPconshdlrGetNConss(sdpconshdlr) + SCIPconshdlrGetNConss(sdprank1conshdlr) + 1; /* +1 for LP block */
 
             assert( startXval != NULL );
             assert( startXcol != NULL );
@@ -2922,6 +2947,7 @@ SCIP_RETCODE calcRelax(
             SCIPfreeBufferArray(scip, &startZcol);
             SCIPfreeBufferArray(scip, &startZrow);
             SCIPfreeBufferArray(scip, &startZnblocknonz);
+            SCIPfreeBufferArray(scip, &sdpblocks);
          }
          SCIPfreeBufferArray(scip, &starty);
       }
@@ -3244,7 +3270,7 @@ SCIP_RETCODE calcRelax(
                      maxprimalentry = 0.0;
                      if ( relaxdata->warmstartprimaltype == 3 )
                      {
-                        nblocks = SCIPconshdlrGetNConss(SCIPfindConshdlr(scip, "SDP")) + 1; /* +1 for the LP part */
+                        nblocks = SCIPconshdlrGetNConss(SCIPfindConshdlr(scip, "SDP")) + SCIPconshdlrGetNConss(SCIPfindConshdlr(scip, "SDPrank1")) + 1; /* +1 for the LP part */
                         SCIP_CALL( SCIPallocBufferArray(scip, &startXnblocknonz, nblocks) );
 
                         /* get amount of memory to allocate for row/col/val from sdpi */
@@ -3309,7 +3335,7 @@ SCIP_RETCODE calcRelax(
                maxprimalentry = 0.0;
                if ( relaxdata->warmstartprimaltype == 3 )
                {
-                  nblocks = SCIPconshdlrGetNConss(SCIPfindConshdlr(scip, "SDP")) + 1; /* +1 for the LP part */
+                  nblocks = SCIPconshdlrGetNConss(SCIPfindConshdlr(scip, "SDP")) + SCIPconshdlrGetNConss(SCIPfindConshdlr(scip, "SDPrank1")) + 1; /* +1 for the LP part */
                   SCIP_CALL( SCIPallocBufferArray(scip, &startXnblocknonz, nblocks) );
                   SCIP_CALL( SCIPallocBufferArray(scip, &startXrow, nblocks) );
                   SCIP_CALL( SCIPallocBufferArray(scip, &startXcol, nblocks) );
@@ -3903,8 +3929,8 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
 
          for (c = 0; c < nconss; c++)
          {
-            /* only check the SDP constraints */
-            if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") == 0 )
+            /* only check the SDP constraints (including SDPrank1-Constraints) */
+            if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") == 0 || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") == 0 )
             {
                SCIP_CALL( SCIPconsSdpGuessInitialPoint(scip, conss[c], &guess) );
                if ( (! SCIPisInfinity(scip, maxguess) ) && SCIPisGT(scip, guess, maxguess) )
@@ -3952,9 +3978,15 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    else
    {
       SCIP_CONSHDLR* sdpconshdlr;
+      SCIP_CONSHDLR* sdprank1conshdlr;
       SCIP_CONS** sdpblocks;
+      SCIP_CONS** sdporigblocks;
+      SCIP_CONS** sdprank1blocks;
       int nsdpblocks;
+      int nsdporigblocks;
+      int nrank1blocks;
       int b;
+      int c;
       int v;
       SCIP_Real maxsdprhs; /* note that we only take the maximum value of the SDP constraints, since these tend to be the most problematic */
       SCIP_Real maxobj;
@@ -3964,8 +3996,21 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
 
       /* compute value as WARMSTART_PROJ_FACTOR * max{maxrhs, maxobj, maxsdpcoef} */
       sdpconshdlr = SCIPfindConshdlr(scip, "SDP");
-      nsdpblocks = SCIPconshdlrGetNConss(sdpconshdlr);
-      sdpblocks = SCIPconshdlrGetConss(sdpconshdlr);
+      sdprank1conshdlr = SCIPfindConshdlr(scip, "SDPrank1");
+
+      nsdporigblocks = SCIPconshdlrGetNConss(sdpconshdlr);
+      nrank1blocks = SCIPconshdlrGetNConss(sdprank1conshdlr);
+      sdporigblocks = SCIPconshdlrGetConss(sdpconshdlr);
+      sdprank1blocks = SCIPconshdlrGetConss(sdprank1conshdlr);
+
+      nsdpblocks = nsdporigblocks + nrank1blocks;
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &sdpblocks, nsdpblocks) );
+      for (c = 0; c < nsdporigblocks; ++c)
+         sdpblocks[c] = sdporigblocks[c];
+
+      for (c = 0; c < nrank1blocks; ++c)
+         sdpblocks[nsdporigblocks + c] = sdprank1blocks[c];
 
       /* compute maxsdpcoef */
       maxsdpcoef = WARMSTART_PROJ_MINRHSOBJ;
@@ -4019,6 +4064,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
             SCIPdebugMsg(scip, "Setting warmstartprojminevdual to %f\n", relaxdata->warmstartprojminevdual);
          }
       }
+      SCIPfreeBufferArray(scip, &sdpblocks);
    }
 
    SCIP_CALL( SCIPgetBoolParam(scip, "relaxing/SDP/sdpinfo", &sdpinfo) );
@@ -4503,6 +4549,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
    )
 {
    SCIP_CONSHDLR* sdpconshdlr;
+   SCIP_CONSHDLR* sdprank1conshdlr;
    SCIP_RELAXDATA* relaxdata;
 
    assert( scip != NULL );
@@ -4521,13 +4568,14 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
    }
 
    sdpconshdlr = SCIPfindConshdlr(scip, "SDP");
+   sdprank1conshdlr = SCIPfindConshdlr(scip, "SDPrank1");
 
    /* if we want to warmstart using the analytic center, compute it now */
-   if ( relaxdata->warmstart && (relaxdata->warmstartiptype == 2) && SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) && (SCIPconshdlrGetNConss(sdpconshdlr) + SCIPgetNLPRows(scip) > 0 ) )
+   if ( relaxdata->warmstart && (relaxdata->warmstartiptype == 2) && SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) && (SCIPconshdlrGetNConss(sdpconshdlr) + (SCIPconshdlrGetNConss(sdprank1conshdlr) + SCIPgetNLPRows(scip) > 0 )) )
    {
       int b;
 
-      relaxdata->nblocks = SCIPgetNLPRows(scip) + SCIPgetNVars(scip) > 0 ? SCIPconshdlrGetNConss(sdpconshdlr) + 1 : SCIPconshdlrGetNConss(sdpconshdlr);
+      relaxdata->nblocks = SCIPgetNLPRows(scip) + SCIPgetNVars(scip) > 0 ? SCIPconshdlrGetNConss(sdpconshdlr) + SCIPconshdlrGetNConss(sdprank1conshdlr) + 1 : SCIPconshdlrGetNConss(sdpconshdlr) + SCIPconshdlrGetNConss(sdprank1conshdlr);
 
       if ( SCIPgetNVars(scip) > 0 )
       {
@@ -4551,6 +4599,11 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
          SCIP_SDPSLATER dualslater;
          int naddediters;
          int naddedsdpcalls;
+
+         SCIP_CONS** sdporigblocks;
+         SCIP_CONS** sdprank1blocks;
+         int nsdpblocks;
+         int nrank1blocks;
 
          /* first solve SDP with primal objective (dual constant part) set to zero to compute analytic center of primal feasible set */
          if ( relaxdata->warmstartprimaltype != 2 && SCIPsdpiDoesWarmstartNeedPrimal() )
@@ -4819,7 +4872,19 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
                SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipXcol, relaxdata->nblocks) );
                SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipXval, relaxdata->nblocks) );
 
-               sdpblocks = SCIPconshdlrGetConss(sdpconshdlr);
+               nsdpblocks = SCIPconshdlrGetNConss(sdpconshdlr);
+               nrank1blocks = SCIPconshdlrGetNConss(sdprank1conshdlr);
+               sdporigblocks = SCIPconshdlrGetConss(sdpconshdlr);
+               sdprank1blocks = SCIPconshdlrGetConss(sdprank1conshdlr);
+
+               SCIP_CALL( SCIPallocBufferArray(scip, &sdpblocks, nsdpblocks + nrank1blocks) );
+               for (r = 0; r < nsdpblocks; ++r)
+                  sdpblocks[r] = sdporigblocks[r];
+
+               for (r = 0; r < nrank1blocks; ++r)
+                  sdpblocks[nsdpblocks + r] = sdprank1blocks[r];
+
+               nsdpblocks += nrank1blocks;
 
                for (b = 0; b < relaxdata->nblocks; b++)
                {
@@ -4846,6 +4911,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
                }
 
                SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL, "Failed to compute analytic center of primal feasible set, using scaled identity instead.\n");
+               SCIPfreeBufferArray(scip, &sdpblocks);
             }
          }
 
@@ -5083,7 +5149,20 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
             SCIPfreeBufferArray(scip, &solforscip);
 
             /* compute SDP blocks of dual analytic center */
-            sdpblocks = SCIPconshdlrGetConss(sdpconshdlr);
+            nsdpblocks = SCIPconshdlrGetNConss(sdpconshdlr);
+            nrank1blocks = SCIPconshdlrGetNConss(sdprank1conshdlr);
+            sdporigblocks = SCIPconshdlrGetConss(sdpconshdlr);
+            sdprank1blocks = SCIPconshdlrGetConss(sdprank1conshdlr);
+
+            SCIP_CALL( SCIPallocBufferArray(scip, &sdpblocks, nsdpblocks + nrank1blocks) );
+            for (r = 0; r < nsdpblocks; ++r)
+               sdpblocks[r] = sdporigblocks[r];
+
+            for (r = 0; r < nrank1blocks; ++r)
+               sdpblocks[nsdpblocks + r] = sdprank1blocks[r];
+
+            nsdpblocks += nrank1blocks;
+
             for (b = 0; b < relaxdata->nblocks - 1; b++)
             {
                relaxdata->ipZnblocknonz[b] = SCIPconsSdpComputeUbSparseSdpMatrixLength(sdpblocks[b]);
@@ -5168,6 +5247,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
                      relaxdata->ipZrow[b][2*nrows + 2*v + 1], relaxdata->ipZcol[b][2*nrows + 2*v + 1], relaxdata->ipZval[b][2*nrows + 2*v + 1]);
             }
 #endif
+            SCIPfreeBufferArray(scip, &sdpblocks);
          }
          else
          {
@@ -5182,7 +5262,19 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
             SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZcol, relaxdata->nblocks) );
             SCIP_CALL( SCIPallocBlockMemoryArray(scip, &relaxdata->ipZval, relaxdata->nblocks) );
 
-            sdpblocks = SCIPconshdlrGetConss(sdpconshdlr);
+            nsdpblocks = SCIPconshdlrGetNConss(sdpconshdlr);
+            nrank1blocks = SCIPconshdlrGetNConss(sdprank1conshdlr);
+            sdporigblocks = SCIPconshdlrGetConss(sdpconshdlr);
+            sdprank1blocks = SCIPconshdlrGetConss(sdprank1conshdlr);
+
+            SCIP_CALL( SCIPallocBufferArray(scip, &sdpblocks, nsdpblocks + nrank1blocks) );
+            for (r = 0; r < nsdpblocks; ++r)
+               sdpblocks[r] = sdporigblocks[r];
+
+            for (r = 0; r < nrank1blocks; ++r)
+               sdpblocks[nsdpblocks + r] = sdprank1blocks[r];
+
+            nsdpblocks += nrank1blocks;
 
             for (b = 0; b < relaxdata->nblocks; b++)
             {
@@ -5209,6 +5301,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
             }
 
             SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL, "Failed to compute analytic center of dual feasible set, using scaled identity instead.\n");
+            SCIPfreeBufferArray(scip, &sdpblocks);
          }
       }
    }
