@@ -2639,6 +2639,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    if ( nrank1sdpblocks > 0 )
    {
       SCIPinfoMessage(scip, file, "PSDCONRANK1\n%d\n", nrank1sdpblocks);
+      consind = 0;
 
       for (c = 0; c < nconss; c++)
       {
@@ -2646,7 +2647,8 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
             continue;
 
          assert( SCIPconsSdpShouldBeRankOne(conss[c]) );
-         SCIPinfoMessage(scip, file, "%d\n", SCIPconsSdpGetBlocksize(scip, conss[c]));
+         SCIPinfoMessage(scip, file, "%d\n", consind);
+         consind++;
       }
 
       SCIPinfoMessage(scip, file, "\n");
