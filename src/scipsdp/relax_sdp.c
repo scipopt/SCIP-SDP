@@ -203,6 +203,9 @@ struct SCIP_RelaxData
    int**                 ipZrow;             /**< interior point for dual matrix Z for convex combination for warmstarts: row indices */
    int**                 ipZcol;             /**< interior point for dual matrix Z for convex combination for warmstarts: column indices */
    SCIP_Real**           ipZval;             /**< interior point for dual matrix Z for convex combination for warmstarts: values */
+
+   SCIP_CONSHDLR*        sdpconshdlr;        /**< SDP constraint handler */
+   SCIP_CONSHDLR*        sdprank1conshdlr;   /**< SDP rank 1 constraint handler */
 };
 
 /** expand sparse matrix to full matrix format needed by LAPACK */
@@ -1202,8 +1205,8 @@ SCIP_RETCODE calcRelax(
             SCIP_Real* rowvals;
             SCIP_Bool* diagentryexists;
 
-            sdpconshdlr = SCIPfindConshdlr(scip, "SDP");
-            sdprank1conshdlr = SCIPfindConshdlr(scip, "SDPrank1");
+            sdpconshdlr = relaxdata->sdpconshdlr;
+            sdprank1conshdlr = relaxdata->sdprank1conshdlr;
             nsdpblocks = SCIPconshdlrGetNConss(sdpconshdlr);
             nrank1blocks = SCIPconshdlrGetNConss(sdprank1conshdlr);
             sdporigblocks = SCIPconshdlrGetConss(sdpconshdlr);
@@ -3076,7 +3079,7 @@ SCIP_RETCODE calcRelax(
 
 #ifdef SCIP_PRINT_WARMSTART
          SCIPdebugMsg(scip, "warmstart using the following point:\n");
-         nblocks = SCIPconshdlrGetNConss(SCIPfindConshdlr(scip, "SDP")) + SCIPconshdlrGetNConss(SCIPfindConshdlr(scip, "SDPrank1"));
+         nblocks = SCIPconshdlrGetNConss(relaxdata->sdpconshdlr) + SCIPconshdlrGetNConss(relaxdata->sdprank1conshdlr);
          for (i = 0; i < nvars; i++)
             SCIPdebugMsg(scip, "y[%d]=%f\n", i, starty[i]);
 
@@ -3110,8 +3113,8 @@ SCIP_RETCODE calcRelax(
             SCIP_CONSHDLR* sdpconshdlr;
             SCIP_CONSHDLR* sdprank1conshdlr;
 
-            sdpconshdlr = SCIPfindConshdlr(scip, "SDP");
-            sdprank1conshdlr = SCIPfindConshdlr(scip, "SDPrank1");
+            sdpconshdlr = relaxdata->sdpconshdlr;
+            sdprank1conshdlr = relaxdata->sdprank1conshdlr;
             nblocks = SCIPconshdlrGetNConss(sdpconshdlr) + SCIPconshdlrGetNConss(sdprank1conshdlr) + 1; /* +1 for LP block */
 
             assert( startXval != NULL );
@@ -3289,7 +3292,7 @@ SCIP_RETCODE calcRelax(
                      maxprimalentry = 0.0;
                      if ( relaxdata->warmstartprimaltype == 3 )
                      {
-                        nblocks = SCIPconshdlrGetNConss(SCIPfindConshdlr(scip, "SDP")) + SCIPconshdlrGetNConss(SCIPfindConshdlr(scip, "SDPrank1")) + 1; /* +1 for the LP part */
+                        nblocks = SCIPconshdlrGetNConss(relaxdata->sdpconshdlr) + SCIPconshdlrGetNConss(relaxdata->sdprank1conshdlr) + 1; /* +1 for the LP part */
                         SCIP_CALL( SCIPallocBufferArray(scip, &startXnblocknonz, nblocks) );
 
                         /* get amount of memory to allocate for row/col/val from sdpi */
@@ -3354,7 +3357,7 @@ SCIP_RETCODE calcRelax(
                maxprimalentry = 0.0;
                if ( relaxdata->warmstartprimaltype == 3 )
                {
-                  nblocks = SCIPconshdlrGetNConss(SCIPfindConshdlr(scip, "SDP")) + SCIPconshdlrGetNConss(SCIPfindConshdlr(scip, "SDPrank1")) + 1; /* +1 for the LP part */
+                  nblocks = SCIPconshdlrGetNConss(relaxdata->sdpconshdlr) + SCIPconshdlrGetNConss(relaxdata->sdprank1conshdlr) + 1; /* +1 for the LP part */
                   SCIP_CALL( SCIPallocBufferArray(scip, &startXnblocknonz, nblocks) );
                   SCIP_CALL( SCIPallocBufferArray(scip, &startXrow, nblocks) );
                   SCIP_CALL( SCIPallocBufferArray(scip, &startXcol, nblocks) );
@@ -3767,6 +3770,14 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    relaxdata->ipXexists = FALSE;
    relaxdata->ipZexists = FALSE;
 
+   relaxdata->sdpconshdlr = SCIPfindConshdlr(scip, "SDP");
+   if ( relaxdata->sdpconshdlr == NULL )
+      return SCIP_PLUGINNOTFOUND;
+
+   relaxdata->sdprank1conshdlr = SCIPfindConshdlr(scip, "SDPrank1");
+   if ( relaxdata->sdprank1conshdlr == NULL )
+      return SCIP_PLUGINNOTFOUND;
+
    nvars = SCIPgetNVars(scip);
    vars = SCIPgetVars(scip);
 
@@ -4014,8 +4025,8 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       SCIP_Real sdpcoef;
 
       /* compute value as WARMSTART_PROJ_FACTOR * max{maxrhs, maxobj, maxsdpcoef} */
-      sdpconshdlr = SCIPfindConshdlr(scip, "SDP");
-      sdprank1conshdlr = SCIPfindConshdlr(scip, "SDPrank1");
+      sdpconshdlr = relaxdata->sdpconshdlr;
+      sdprank1conshdlr = relaxdata->sdprank1conshdlr;
 
       nsdporigblocks = SCIPconshdlrGetNConss(sdpconshdlr);
       nrank1blocks = SCIPconshdlrGetNConss(sdprank1conshdlr);
@@ -4424,6 +4435,8 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    relaxdata->nblocks = 0;
    relaxdata->varmapper = NULL;
    relaxdata->roundingprobtime = NULL;
+   relaxdata->sdpconshdlr = NULL;
+   relaxdata->sdprank1conshdlr = NULL;
 
    /* include relaxator */
    SCIP_CALL( SCIPincludeRelaxBasic(scip, &relax, RELAX_NAME, RELAX_DESC, RELAX_PRIORITY, RELAX_FREQ, relaxExecSdp, relaxdata) );
@@ -4586,8 +4599,8 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
       return SCIP_OKAY;
    }
 
-   sdpconshdlr = SCIPfindConshdlr(scip, "SDP");
-   sdprank1conshdlr = SCIPfindConshdlr(scip, "SDPrank1");
+   sdpconshdlr = relaxdata->sdpconshdlr;
+   sdprank1conshdlr = relaxdata->sdprank1conshdlr;
 
    /* if we want to warmstart using the analytic center, compute it now */
    if ( relaxdata->warmstart && (relaxdata->warmstartiptype == 2) && SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) && (SCIPconshdlrGetNConss(sdpconshdlr) + (SCIPconshdlrGetNConss(sdprank1conshdlr) + SCIPgetNLPRows(scip) > 0 )) )
