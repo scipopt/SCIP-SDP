@@ -85,6 +85,9 @@ void F77_FUNC(dsyevr, DSYEVR)(
    int* LWORK, int* IWORK, int* LIWORK,
    int* INFO );
 
+void F77_FUNC(dgelsd, DGELSD)(int* M, int* N, int* NRHS,
+      SCIP_Real* A, int* LDA, SCIP_Real* b, int* LDB, SCIP_Real* S, SCIP_Real* RCOND, int* RANK,
+      SCIP_Real* WORK, int* LWORK, int* IWORK, int* INFO );
 
 /** BLAS Fortran subroutine DGEMV */
 void F77_FUNC(dgemv, DGEMV)(char* TRANS, int* M, int* N, SCIP_Real* ALPHA, SCIP_Real* A, int* LDA,
@@ -387,10 +390,118 @@ SCIP_RETCODE SCIPlapackMatrixMatrixMult(
    ALPHA = 1.0;
    LDA = transposeA ? K : M;
    LDB = transposeB ? N : K;
-   BETA = 1.0;
+   BETA = 0.0;
    LDC = M;
 
    F77_FUNC(dgemm, DGEMM)(&TRANSA, &TRANSB, &M, &N, &K, &ALPHA, matrixA, &LDA, matrixB, &LDB, &BETA, result, &LDC);
+
+   return SCIP_OKAY;
+}
+
+/** computes the minimum-norm solution to a real linear least squares problem: minimize 2-norm(| b - A*x |) using LAPACK
+ *  (uses singular value decomposition of A). A is an M-by-N matrix which may be rank-deficient.
+ */
+SCIP_RETCODE SCIPlapackLinearSolve(
+   BMS_BUFMEM*           bufmem,             /**< buffer memory */
+   int                   m,                  /**< number of rows of A */
+   int                   n,                  /**< number of columns of A */
+   SCIP_Real*            A,                  /**< coefficient matrix of the linear system */
+   SCIP_Real*            b,                  /**< right-hand side of the linear system (should be length n) */
+   SCIP_Real*            x                   /**< pointer to store values for x (should be length n) */
+   )
+{
+   int i;
+   int M;
+   int N;
+   int NRHS;
+   int LDA;
+   int LDB;
+   SCIP_Real* S;
+   SCIP_Real RCOND;
+   int RANK;
+   SCIP_Real* WORK;
+   int LWORK;
+   int LIWORK;
+   int* IWORK;
+   int INFO;
+   SCIP_Real WSIZE;
+   int WISIZE;
+   SCIP_Real residual = 0.0;
+
+   assert( bufmem != NULL );
+   assert( m > 0 );
+   assert( n > 0 );
+   assert( A != NULL );
+   assert( b != NULL );
+   assert( x != NULL );
+
+   M = m;
+   N = n;
+   NRHS = 1;
+   LDA = m;
+   LDB = m;
+   RCOND = 0.0;
+
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &S, MIN(m,n)) );
+
+   /* standard LAPACK workspace query, to get the amount of needed memory */
+   LWORK = -1LL;
+
+   /* this computes the internally needed memory and returns this as (the first entry of [the 1x1 array]) WSIZE */
+   F77_FUNC(dgelsd, DGELSD)( &M, &N, &NRHS,
+      NULL, &LDA, NULL, &LDB, NULL,
+      &RCOND, &RANK, &WSIZE, &LWORK,
+      &WISIZE, &INFO );
+
+   if ( INFO != 0 )
+   {
+      SCIPerrorMessage("There was an error when calling DGELSD. INFO = %d\n", INFO);
+      return SCIP_ERROR;
+   }
+
+   /* allocate workspace */
+   LWORK = SCIP_RealTOINT(WSIZE);
+   LIWORK = WISIZE;
+
+   printf("LWORK = %d\n", LWORK);
+   printf("LIWORK = %d\n", LIWORK);
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &WORK, (int) LWORK) );
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &IWORK, (int) LIWORK) );
+
+   /* call the function */
+   F77_FUNC(dgelsd, DGELSD)( &M, &N, &NRHS,
+      A, &LDA, b, &LDB, S, &RCOND, &RANK,
+      WORK, &LWORK, IWORK, &INFO );
+
+   printf("A has size (%d,%d), is of rank %d\n", M, N, RANK);
+   printf("Minimum l2-norm solution of linear equation system:\n");
+
+   for (i = 0; i < m; ++i)
+   {
+      printf("(%d, %f)   ", i, b[i]);
+   }
+
+   for (i = n; i < m; ++i)
+   {
+      residual += b[i] * b[i];
+   }
+
+   printf("Residual sum-of-squares for the solution is %f\n", residual);
+
+   if ( INFO != 0 )
+   {
+      SCIPerrorMessage("There was an error when calling DGELSD. INFO = %d\n", INFO);
+      return SCIP_ERROR;
+   }
+
+   /* LAPACK overwrites the right-hand side with the result */
+   for (i = 0; i < n; ++i)
+      x[i] = b[i];
+
+   /* free memory */
+   BMSfreeBufferMemoryArray(bufmem, &IWORK);/*lint !e737*/
+   BMSfreeBufferMemoryArray(bufmem, &WORK);/*lint !e737*/
+   BMSfreeBufferMemoryArray(bufmem, &S);/*lint !e737*/
 
    return SCIP_OKAY;
 }
