@@ -2784,13 +2784,11 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
    if ( nviolrank1 == 0 )
    {
       SCIPdebugMsg(scip, "Found no violated rank-1 constraints.\n");
-      SCIPinfoMessage(scip, NULL, "Found no violated rank-1 constraints.\n");
       SCIPfreeBufferArray(scip, &indviolrank1conss);
       return SCIP_OKAY;
    }
 
    SCIPdebugMsg(scip, "Found %d violated rank-1 constraints, thus apply rank-1 approximation heuristic!\n", nviolrank1);
-   SCIPinfoMessage(scip, NULL, "Found %d violated rank-1 constraints, thus apply rank-1 approximation heuristic!\n", nviolrank1);
 
    /* we have to collect all variables appearing in violated SDPrank1-constraints first */
    nvars = SCIPgetNVars(scip);
@@ -3102,9 +3100,9 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
    stored = FALSE;
 
    if ( stored )
-      SCIPinfoMessage(scip, NULL, "Best Rank-1 Approximation Heuristic found feasible primal solution\n");
+      SCIPdebugMsg(scip, "Best Rank-1 Approximation Heuristic found feasible primal solution\n");
    else
-      SCIPinfoMessage(scip, NULL, "Primal solution found by Best Rank-1 Approximation Heuristic is not feasible!\n");
+      SCIPdebugMsg(scip, "Primal solution found by Best Rank-1 Approximation Heuristic is not feasible!\n");
 
    SCIPfreeBufferArray(scip, &rank1consvars);
    SCIPfreeBufferArray(scip, &rank1considx);
