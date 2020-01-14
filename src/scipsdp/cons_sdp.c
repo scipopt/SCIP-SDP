@@ -96,10 +96,7 @@
 #define PARSE_SIZEFACTOR             10 /**< size of consdata-arrays is increased by this factor when parsing a problem */
 #define DEFAULT_DIAGGEZEROCUTS     TRUE /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
 #define DEFAULT_DIAGZEROIMPLCUTS   TRUE /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
-#define DEFAULT_BRANCHBNDCHG        0.5 /**< parameter for branching on the variable bounds in the rank-1 case */
-#define DEFAULT_VALIDINEQSRANK1    TRUE /**< Should valid inequalities from Chen et al. be checked in the rank-1 case? */
 #define DEFAULT_QUADCONSRANK1      TRUE /**< Should quadratic cons for 2x2 minors be added in the rank-1 case? */
-#define DEFAULT_BRANCHRANK1       FALSE /**< Should branching on the matrix variables of 2x2 submatrices in the rank-1 case be performed? */
 #define DEFAULT_RANK1APPROXHEUR   FALSE /**< Should the heuristic that computes the best rank-1 approximation for a given solution be executed? */
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
@@ -135,10 +132,7 @@ struct SCIP_ConshdlrData
    int                   ndiaggezerocuts;    /**< this is used to give the diagGEzero-cuts distinguishable names */
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
    SCIP_Bool             diagzeroimplcuts;   /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
-   SCIP_Real             branchbndchg;       /**< parameter for branching on the variable bounds in the rank-1 case */
-   SCIP_Bool             validineqsrank1;    /**< Should valid inequalities from Chen et al. be checked in the rank-1 case? */
    SCIP_Bool             quadconsrank1;      /**< Should quadratic cons for 2x2 minors be added in the rank-1 case? */
-   SCIP_Bool             branchrank1;        /**< Should branching on the matrix variables of 2x2 submatrices in the rank-1 case be performed? */
    SCIP_Bool             rank1approxheur;    /**< Should the heuristic that computes the best rank-1 approximation for a given solution be executed? */
 #ifdef OMP
    int                   nthreads;           /**< number of threads used for OpenBLAS */
@@ -1850,265 +1844,6 @@ SCIP_RETCODE fixAndAggrVars(
 
    return SCIP_OKAY;
 }
-
-#if 0
-/** enforces the rank 1 constraint for a given solution  */
-static
-SCIP_RETCODE enforceRankOne(
-   SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONSHDLR*        conshdlr,           /**< constraint handler */
-   SCIP_CONS*            cons,               /**< constraint to process */
-   SCIP_SOL*             sol,                /**< solution to enforce (NULL for the LP solution) */
-   SCIP_RESULT*          result              /**< pointer to store the result of the enforcing call */
-   )
-{
-   SCIP_CONSHDLRDATA* conshdlrdata;
-   SCIP_CONSDATA* consdata;
-   SCIP_VAR*  quadvars1[2];
-   SCIP_VAR*  quadvars2[2];
-   SCIP_Real* matrix;
-   SCIP_Real* submatrix;
-   SCIP_Real largestminev = 0.0;
-   SCIP_Real  lbii;
-   SCIP_Real  ubii;
-   SCIP_Real  lbjj;
-   SCIP_Real  ubjj;
-   SCIP_Real  lbij;
-   SCIP_Real  ubij;
-   SCIP_Real  solvalii;
-   SCIP_Real  solvaljj;
-   SCIP_Real  solvalij;
-   SCIP_Real  val1;
-   SCIP_Real  val2;
-   SCIP_Real  val3;
-   SCIP_Real  val4;
-   int blocksize;
-   int ind1;
-   int ind2;
-
-   assert( conshdlr != NULL );
-   assert( scip != NULL );
-   assert( conshdlr != NULL );
-   assert( cons != NULL );
-   assert( result != NULL );
-
-   consdata = SCIPconsGetData(cons);
-   assert( consdata != NULL );
-   blocksize = consdata->blocksize;
-
-   conshdlrdata = SCIPconshdlrGetData(conshdlr);
-   assert( conshdlrdata != NULL );
-
-   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1)) / 2) ); /*lint !e647*/
-   SCIP_CALL( SCIPallocBufferArray(scip, &submatrix, 4) ); /*lint !e647*/
-
-   *result = SCIP_FEASIBLE;
-
-   SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix) );
-
-   ind1 = consdata->maxevsubmat[0];
-   ind2 = consdata->maxevsubmat[1];
-
-   /* get variables and coefficients corresponding to indices (i,i), (j,j) and (i,j) for branching */
-   quadvars1[0] = consdata->vars[SCIPconsSdpCompLowerTriangPos(ind1,ind1)];            /* variable corresponding to entry (i,i) */
-   quadvars2[0] = consdata->vars[SCIPconsSdpCompLowerTriangPos(ind2,ind2)];            /* variable corresponding to entry (j,j) */
-   quadvars1[1] = consdata->vars[SCIPconsSdpCompLowerTriangPos(ind1,ind2)];            /* variable corresponding to entry (i,j) */
-   quadvars2[1] = consdata->vars[SCIPconsSdpCompLowerTriangPos(ind1,ind2)];            /* variable corresponding to entry (i,j) */
-
-   /* check if one of the valid inequalities is violated for the current solution */
-   lbii = SCIPvarGetLbLocal(quadvars1[0]); /* lower bound for variable corresponding to matrix entry (i,i) */
-   ubii = SCIPvarGetUbLocal(quadvars1[0]); /* upper bound for variable corresponding to matrix entry (i,i) */
-
-   lbjj = SCIPvarGetLbLocal(quadvars2[0]); /* lower bound for variable corresponding to matrix entry (j,j) */
-   ubjj = SCIPvarGetUbLocal(quadvars2[0]); /* upper bound for variable corresponding to matrix entry (j,j) */
-
-   lbij = SCIPvarGetLbLocal(quadvars1[1]); /* lower bound for variable corresponding to matrix entry (i,j) */
-   ubij = SCIPvarGetUbLocal(quadvars1[1]); /* upper bound for variable corresponding to matrix entry (i,j) */
-
-   solvalii = SCIPgetSolVal(scip, sol, quadvars1[0]);
-   solvaljj = SCIPgetSolVal(scip, sol, quadvars2[0]);
-   solvalij = SCIPgetSolVal(scip, sol, quadvars1[1]);
-
-   if ( conshdlrdata->sdpconshdlrdata->validineqsrank1 )
-   {
-      /* Check valid inequalities from Chen, Atamtürk and Oren  */
-      val1 = (SQRT(lbii) + SQRT(ubii)) * (SQRT(lbjj) + SQRT(ubjj));
-      val2 = SQRT(lbjj * ubjj);
-      val3 = SQRT(lbii * ubii);
-      val4 = SQRT(lbii * lbjj * ubii * ubjj);
-
-      if ( ! SCIPisFeasGE(scip, solvalij * val1, solvalii * (ubjj + val2) + solvaljj * (ubii + val3) + val4 - ubii * ubjj) )
-      {
-         SCIP_ROW* cut;
-         SCIP_Bool infeasible;
-
-#if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
-         SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &cut, conshdlr, "", -SCIPinfinity(scip), -val4 + ubii * ubjj, FALSE, FALSE, TRUE) );
-#else
-         SCIP_CALL( SCIPcreateEmptyRowCons(scip, &cut, conshdlr, "", -SCIPinfinity(scip), -val4 + ubii * ubjj, FALSE, FALSE, TRUE) );
-#endif
-         SCIP_CALL( SCIPcacheRowExtensions(scip, cut) );
-
-         SCIP_CALL( SCIPaddVarToRow(scip, cut, quadvars1[0], ubjj + val2) );
-         SCIP_CALL( SCIPaddVarToRow(scip, cut, quadvars2[0], ubii + val3) );
-         SCIP_CALL( SCIPaddVarToRow(scip, cut, quadvars1[1], -val1) );
-
-         SCIP_CALL( SCIPflushRowExtensions(scip, cut) );
-
-         if ( SCIPisCutEfficacious(scip, sol, cut) )
-         {
-            SCIP_CALL( SCIPaddRow(scip, cut, FALSE, &infeasible) );
-
-            if ( infeasible )
-               *result = SCIP_CUTOFF;
-            else
-               *result = SCIP_SEPARATED;
-
-            SCIPdebug( SCIP_CALL( SCIPprintRow(scip, cut, NULL) ) );
-            SCIPdebugMsg(scip, "Succesfully added valid cut based on first valid inequality.\n");
-            SCIP_CALL( SCIPreleaseRow(scip, &cut) );
-
-            SCIP_CALL( SCIPresetConsAge(scip, cons) );
-         }
-         else
-         {
-            SCIPdebugMsg(scip, "Cut based on first inequality is not efficacious.\n");
-            SCIP_CALL( SCIPreleaseRow(scip, &cut) );
-         }
-      }
-      else if ( ! SCIPisFeasGE(scip, solvalij * val1, solvalii * (lbjj + val2) + solvaljj * (lbii + val3) + val4 - lbii * lbjj) )
-      {
-         SCIP_ROW* cut;
-         SCIP_Bool infeasible;
-
-#if ( SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0 )
-         SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &cut, conshdlr, "", -SCIPinfinity(scip), -val4 + lbii * lbjj, FALSE, FALSE, TRUE) );
-#else
-         SCIP_CALL( SCIPcreateEmptyRowCons(scip, &cut, conshdlr, "", -SCIPinfinity(scip), -val4 + lbii * lbjj, FALSE, FALSE, TRUE) );
-#endif
-         SCIP_CALL( SCIPcacheRowExtensions(scip, cut) );
-
-         SCIP_CALL( SCIPaddVarToRow(scip, cut, quadvars1[0], lbjj + val2) );
-         SCIP_CALL( SCIPaddVarToRow(scip, cut, quadvars2[0], lbii + val3) );
-         SCIP_CALL( SCIPaddVarToRow(scip, cut, quadvars1[1], -val1) );
-
-         SCIP_CALL( SCIPflushRowExtensions(scip, cut) );
-
-         if ( SCIPisCutEfficacious(scip, sol, cut) )
-         {
-            SCIP_CALL( SCIPaddRow(scip, cut, FALSE, &infeasible) );
-
-            if ( infeasible )
-               *result = SCIP_CUTOFF;
-            else
-               *result = SCIP_SEPARATED;
-
-            SCIPdebug( SCIP_CALL( SCIPprintRow(scip, cut, NULL) ) );
-            SCIPdebugMsg(scip, "Succesfully added valid cut based on second valid inequality.\n");
-            SCIP_CALL( SCIPreleaseRow(scip, &cut) );
-
-            SCIP_CALL( SCIPresetConsAge(scip, cons) );
-         }
-         else
-         {
-            SCIPdebugMsg(scip, "Cut based on second inequality is not efficacious.\n");
-            SCIP_CALL( SCIPreleaseRow(scip, &cut) );
-         }
-      }
-
-      if ( *result == SCIP_CUTOFF || *result == SCIP_SEPARATED )
-      {
-         SCIPfreeBufferArray(scip, &submatrix);
-         SCIPfreeBufferArray(scip, &matrix);
-         return SCIP_OKAY;
-      }
-   }
-
-   if ( conshdlrdata->sdpconshdlrdata->branchrank1 )
-   {
-      SCIP_NODE* node1 = NULL;
-      SCIP_NODE* node2 = NULL;
-      SCIP_NODE* node3 = NULL;
-      SCIP_NODE* node4 = NULL;
-      SCIP_NODE* node5 = NULL;
-      SCIP_NODE* node6 = NULL;
-      SCIP_Real  newbound;
-      SCIP_Real  alpha;
-      SCIP_Bool  branched = FALSE;
-
-      alpha = conshdlrdata->sdpconshdlrdata->branchbndchg;
-
-      /* Branch on the three matrix entries of the 2x2 submatrix with largest minimal eigenvalue -> create six branching
-         nodes */
-
-      /* Up-Branch for variable corresponding to index (i,i) (quadvars1[0]) */
-      newbound = alpha * lbii + (1 - alpha) * ubii;
-
-      if ( SCIPisFeasLT(scip, lbii, newbound) )
-      {
-         SCIP_CALL( SCIPcreateChild(scip, &node1, 1.0, SCIPgetLocalTransEstimate(scip)) );
-         SCIP_CALL( SCIPchgVarLbNode(scip, node1, quadvars1[0], newbound) );
-         branched = TRUE;
-      }
-
-      /* Down-Branch for variable corresponding to index (i,i) (quadvars1[0]) */
-      if ( SCIPisFeasGT(scip, ubii, newbound) )
-      {
-         SCIP_CALL( SCIPcreateChild(scip, &node2, 1.0, SCIPgetLocalTransEstimate(scip)) );
-         SCIP_CALL( SCIPchgVarUbNode(scip, node2, quadvars1[0], newbound) );
-         branched = TRUE;
-      }
-
-      /* Up-Branch for variable corresponding to index (j,j) (quadvars1[1]) */
-      newbound = alpha * lbjj + (1 - alpha) * ubjj;
-
-      if ( SCIPisFeasLT(scip, lbjj, newbound) )
-      {
-         SCIP_CALL( SCIPcreateChild(scip, &node3, 1.0, SCIPgetLocalTransEstimate(scip)) );
-         SCIP_CALL( SCIPchgVarLbNode(scip, node3, quadvars2[0], newbound) );
-         branched = TRUE;
-      }
-
-      /* Down-Branch for variable corresponding to index (j,j) (quadvars1[1]) */
-      if ( SCIPisFeasGT(scip, ubjj, newbound) )
-      {
-         SCIP_CALL( SCIPcreateChild(scip, &node4, 1.0, SCIPgetLocalTransEstimate(scip)) );
-         SCIP_CALL( SCIPchgVarUbNode(scip, node4, quadvars2[0], newbound) );
-         branched = TRUE;
-      }
-
-      /* Up-Branch for variable corresponding to index (i,j) (quadvars2[0]) */
-      newbound = alpha * lbij + (1 - alpha) * ubij;
-
-      if ( SCIPisFeasLT(scip, lbij, newbound) )
-      {
-         SCIP_CALL( SCIPcreateChild(scip, &node5, 1.0, SCIPgetLocalTransEstimate(scip)) );
-         SCIP_CALL( SCIPchgVarLbNode(scip, node5, quadvars1[1], newbound) );
-         branched = TRUE;
-      }
-
-      /* Down-Branch for variable corresponding to index (i,j) (quadvars2[0]) */
-      if ( SCIPisFeasGT(scip, ubij, newbound) )
-      {
-         SCIP_CALL( SCIPcreateChild(scip, &node6, 1.0, SCIPgetLocalTransEstimate(scip)) );
-         SCIP_CALL( SCIPchgVarUbNode(scip, node6, quadvars1[1], newbound) );
-         branched = TRUE;
-      }
-
-      if ( branched )
-      {
-         /* reset age of constraint that we selected for branching*/
-         SCIP_CALL( SCIPresetConsAge(scip, cons) );
-         *result = SCIP_BRANCHED;
-      }
-   }
-
-   SCIPfreeBufferArray(scip, &submatrix);
-   SCIPfreeBufferArray(scip, &matrix);
-
-   return SCIP_OKAY;
-}
-#endif
 
 /** enforces the SDP constraints for a given solution */
 static
@@ -3849,18 +3584,6 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          "Should quadratic cons for 2x2 minors be added in the rank-1 case?",
          &(conshdlrdata->quadconsrank1), TRUE, DEFAULT_QUADCONSRANK1, NULL, NULL) );
 
-   SCIP_CALL( SCIPaddRealParam(scip, "constraints/SDP/branchbndchg",
-         "Parameter for branching on the variable bounds in the rank-1 case",
-         &(conshdlrdata->branchbndchg), TRUE, DEFAULT_BRANCHBNDCHG, 0.0, 1.0, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/validineqsrank1",
-         "Should valid inequalities from Chen et al. be checked in the rank-1 case?",
-         &(conshdlrdata->validineqsrank1), TRUE, DEFAULT_VALIDINEQSRANK1, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/branchrank1",
-         "Should be branched on the matrix variables of 2x2 submatrices in the rank-1 case?",
-         &(conshdlrdata->branchrank1), TRUE, DEFAULT_BRANCHRANK1, NULL, NULL) );
-
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/rank1approxheur",
          "Should the heuristic that computes the best rank-1 approximation for a given solution be executed?",
          &(conshdlrdata->rank1approxheur), TRUE, DEFAULT_RANK1APPROXHEUR, NULL, NULL) );
@@ -3886,9 +3609,6 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->diaggezerocuts = FALSE;
    conshdlrdata->diagzeroimplcuts = FALSE;
    conshdlrdata->quadconsrank1 = FALSE;
-   conshdlrdata->branchbndchg = FALSE;
-   conshdlrdata->validineqsrank1 = FALSE;
-   conshdlrdata->branchrank1 = FALSE;
    conshdlrdata->rank1approxheur = FALSE;
 
    /* parameters are retrieved through the SDP constraint handler */
