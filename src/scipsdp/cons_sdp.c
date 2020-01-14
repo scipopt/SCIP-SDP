@@ -2586,20 +2586,29 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
       idx = SCIPvarGetProbindex(quadvarterms[j].var);
       idx = conshdlrdata->quadconsidx[idx];
       assert( 0 <= idx && idx < conshdlrdata->nsdpvars );
+
       /* add coefficient for linear term corresponding to the current variable (may be zero) */
-      linconsvals[cnt] = quadvarterms[j].lincoef;
-      linconsvars[cnt] = quadvarterms[j].var;
-      assert( linconsvars[cnt] != NULL );
-      ++cnt;
+      if ( ! SCIPisZero(scip, quadvarterms[j].lincoef) )
+      {
+         linconsvals[cnt] = quadvarterms[j].lincoef;
+         linconsvars[cnt] = quadvarterms[j].var;
+         assert( linconsvars[cnt] != NULL );
+         ++cnt;
+      }
+
       /* add coefficient for quadratic term corresponding to the current variable (may be zero) */
-      linconsvals[cnt] = quadvarterms[j].sqrcoef;
-      linconsvars[cnt] = conshdlrdata->X[idx][idx];
-      assert( linconsvars[cnt] != NULL );
-      ++cnt;
+      if ( ! SCIPisZero(scip, quadvarterms[j].sqrcoef) )
+      {
+         linconsvals[cnt] = quadvarterms[j].sqrcoef;
+         linconsvars[cnt] = conshdlrdata->X[idx][idx];
+         assert( linconsvars[cnt] != NULL );
+         ++cnt;
+      }
 
       SCIPdebugMsg(scip, "New variable %s corresponds to squared original variable %s\n", SCIPvarGetName(conshdlrdata->X[idx][idx]), SCIPvarGetName(quadvarterms[j].var));
    }
-   assert( cnt == nlinvarterms + 2 * nquadvarterms );
+   assert( cnt <= nlinvarterms + 2 * nquadvarterms );
+
    for (j = 0; j < nbilinterms; ++j)
    {
       int idx1;
@@ -2623,7 +2632,7 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
 
       SCIPdebugMsg(scip, "New variable %s corresponds to product of original variables %s and %s\n", SCIPvarGetName(conshdlrdata->X[idx1][idx2]), SCIPvarGetName(bilinterms[j].var1), SCIPvarGetName(bilinterms[j].var2));
    }
-   assert( cnt == nlinvarterms + 2 * nquadvarterms + nbilinterms );
+   assert( cnt <= nlinvarterms + 2 * nquadvarterms + nbilinterms );
 
    SCIPsnprintf(name, SCIP_MAXSTRLEN, "lin_%s", SCIPconsGetName(cons));
    SCIP_CALL( SCIPcreateConsLinear(scip, &lincons, name, cnt, linconsvars, linconsvals, SCIPgetLhsQuadratic(scip, cons), SCIPgetRhsQuadratic(scip, cons),
