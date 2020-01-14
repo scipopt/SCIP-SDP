@@ -327,40 +327,33 @@ SCIP_DECL_PROPFREE(propFreeSdpredcost)
    return SCIP_OKAY;
 }
 
-/** free memory for the primal variable values */
+/** allocate memory for the primal variable values */
 static
-SCIP_DECL_PROPEXIT(propExitSdpredcost)
+SCIP_DECL_PROPINITSOL(propInitsolSdpredcost)
+{
+   SCIP_PROPDATA* propdata;
+
+   propdata = SCIPpropGetData(prop);
+   assert(propdata != NULL);
+
+   propdata->nvars = SCIPgetNVars(scip);
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(propdata->lbvarvals), propdata->nvars) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(propdata->ubvarvals), propdata->nvars) );
+
+   return SCIP_OKAY;
+}
+
+/** solving process deinitialization method of propagator (called before branch and bound process data is freed) */
+static
+SCIP_DECL_PROPEXITSOL(propExitsolSdpredcost)
 {
    SCIP_PROPDATA* propdata;
 
    propdata = SCIPpropGetData(prop);
    assert( propdata != NULL );
 
-   if ( propdata->lbvarvals != NULL )
-   {
-      SCIPfreeBlockMemoryArrayNull(scip, &(propdata->lbvarvals), propdata->nvars);
-      propdata->lbvarvals = NULL;
-      SCIPfreeBlockMemoryArrayNull(scip, &(propdata->ubvarvals), propdata->nvars);
-      propdata->ubvarvals = NULL;
-   }
-
-   return SCIP_OKAY;
-}
-
-/** allocate memory for the primal variable values */
-static
-SCIP_DECL_PROPINITSOL(propInitsolSdpredcost)
-{
-   SCIP_PROPDATA* propdata;
-   int nvars;
-
-   propdata = SCIPpropGetData(prop);
-   assert(propdata != NULL);
-   nvars = SCIPgetNVars(scip);
-
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(propdata->lbvarvals), nvars) );
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(propdata->ubvarvals), nvars) );
-   propdata->nvars = nvars;
+   SCIPfreeBlockMemoryArrayNull(scip, &(propdata->lbvarvals), propdata->nvars);
+   SCIPfreeBlockMemoryArrayNull(scip, &(propdata->ubvarvals), propdata->nvars);
 
    return SCIP_OKAY;
 }
@@ -401,7 +394,7 @@ SCIP_RETCODE SCIPincludePropSdpredcost(
    /* set optional callbacks via setter functions */
    SCIP_CALL( SCIPsetPropCopy(scip, prop, propCopySdpredcost) );
    SCIP_CALL( SCIPsetPropInitsol(scip, prop, propInitsolSdpredcost) );
-   SCIP_CALL( SCIPsetPropExit(scip, prop, propExitSdpredcost) );
+   SCIP_CALL( SCIPsetPropExitsol(scip, prop, propExitsolSdpredcost) );
    SCIP_CALL( SCIPsetPropFree(scip, prop, propFreeSdpredcost) );
 
    /* add additional parameters */

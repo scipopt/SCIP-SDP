@@ -8,3 +8,5 @@
 ../instances/example_cbf_mix.cbf
 ../instances/example_cbf_dual.cbf
 ../instances/example_multaggr.cbf
+../instances/example_rank1_primal.cbf
+../instances/example_rank1_dual.cbf

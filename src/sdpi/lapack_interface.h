@@ -95,6 +95,17 @@ SCIP_RETCODE SCIPlapackMatrixMatrixMult(
    SCIP_Real*            result              /**< pointer to nrowsA * nrowsB array to store the resulting matrix */
    );
 
+/** computes the minimum-norm solution to a real linear least squares problem: minimize 2-norm(| b - A*x |) using LAPACK
+ (uses singular value decomposition of A). A is an M-by-N matrix which may be rank-deficient. */
+SCIP_RETCODE SCIPlapackLinearSolve(
+   BMS_BUFMEM*           bufmem,             /**< buffer memory */
+   int                   m,                  /**< number of rows of A */
+   int                   n,                  /**< number of columns of A */
+   SCIP_Real*            A,                  /**< coefficient matrix of the linear system */
+   SCIP_Real*            b,                  /**< right-hand side of the linear system (should be length n) */
+   SCIP_Real*            x                   /**< pointer to store values for x (should be length n) */
+   );
+
 #ifdef __cplusplus
 }
 #endif
