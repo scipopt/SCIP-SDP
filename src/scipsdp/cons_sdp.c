@@ -2937,7 +2937,8 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
          {
             for (j = 0; j < i; ++j)
             {
-               int cnt = 0;
+               int lincnt = 0;
+               int quadcnt = 0;
 
                cii = constmatrix[SCIPconsSdpCompLowerTriangPos(i,i)];
                cjj = constmatrix[SCIPconsSdpCompLowerTriangPos(j,j)];
@@ -2949,28 +2950,35 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
                   aiik = matrixAk[k][i * consdata->blocksize + i];
                   aijk = matrixAk[k][j * consdata->blocksize + i];
 
-                  linvars[k] = consdata->vars[k];
-                  lincoefs[k] = -cii * ajjk - cjj * aiik + cij * aijk;
-
+                  if ( ! SCIPisZero(scip, -cii * ajjk - cjj * aiik + cij * aijk) )
+                  {
+                     linvars[lincnt] = consdata->vars[k];
+                     lincoefs[lincnt] = -cii * ajjk - cjj * aiik + cij * aijk;
+                     ++lincnt;
+                  }
                   for (l = 0; l < consdata->nvars; ++l)
                   {
                      ajjl = matrixAk[l][j * consdata->blocksize + j];
                      aijl = matrixAk[l][j * consdata->blocksize + i];
 
-                     quadvars1[cnt] = consdata->vars[k];
-                     quadvars2[cnt] = consdata->vars[l];
-                     quadcoefs[cnt] = aiik * ajjl - aijk * aijl;
-                     ++cnt;
+                     if ( ! SCIPisZero(scip, aiik * ajjl - aijk * aijl) )
+                     {
+                        quadvars1[quadcnt] = consdata->vars[k];
+                        quadvars2[quadcnt] = consdata->vars[l];
+                        quadcoefs[quadcnt] = aiik * ajjl - aijk * aijl;
+                        ++quadcnt;
+                     }
                   }
                }
-               assert( cnt == consdata->nvars * consdata->nvars );
+               assert( quadcnt <= consdata->nvars * consdata->nvars );
+               assert( lincnt <= consdata->nvars );
 
                lhs = cij * cij - cii * cjj;
 
                (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "quadcons#%d#%d#%d", i, j, c);
 
                /* create quadratic constraint */
-               SCIP_CALL( SCIPcreateConsQuadratic(scip, &quadcons, name, consdata->nvars, linvars, lincoefs, consdata->nvars * consdata->nvars, quadvars1, quadvars2, quadcoefs, lhs, lhs,
+               SCIP_CALL( SCIPcreateConsQuadratic(scip, &quadcons, name, lincnt, linvars, lincoefs, quadcnt, quadvars1, quadvars2, quadcoefs, lhs, lhs,
                      FALSE,     /* initial */
                      TRUE,      /* separate */
                      TRUE,      /* enforce */
