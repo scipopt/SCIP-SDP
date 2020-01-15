@@ -100,6 +100,7 @@
 #define DEFAULT_TWOMINORPRODCONSS FALSE /**< Should linear cuts corresponding to products of 2 by 2 minors be added? */
 #define DEFAULT_QUADCONSRANK1      TRUE /**< Should quadratic cons for 2x2 minors be added in the rank-1 case? */
 #define DEFAULT_UPGRADQUADCONSS   FALSE /**< Should quadratic constraints be upgraded to a rank 1 SDP? */
+#define DEFAULT_MAXNVARSQUADUPGD   1000 /**< maximal number of quadratic constraints and appearing variables so that the QUADCONSUPGD is performed */
 #define DEFAULT_RANK1APPROXHEUR   FALSE /**< Should the heuristic that computes the best rank-1 approximation for a given solution be executed? */
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
@@ -139,6 +140,7 @@ struct SCIP_ConshdlrData
    SCIP_Bool             twominorprodconss;  /**< Should linear cuts corresponding to products of 2 by 2 minors be added? */
    SCIP_Bool             quadconsrank1;      /**< Should quadratic cons for 2x2 minors be added in the rank-1 case? */
    SCIP_Bool             upgradquadconss;    /**< Should quadratic constraints be upgraded to a rank 1 SDP? */
+   int                   maxnvarsquadupgd;   /**< maximal number of quadratic constraints and appearing variables so that the QUADCONSUPGD is performed */
    SCIP_Bool             triedlinearconss;   /**< Have we tried to add linear constraints? */
    SCIP_Bool             rank1approxheur;    /**< Should the heuristic that computes the best rank-1 approximation for a given solution be executed? */
 #ifdef OMP
@@ -2391,6 +2393,15 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
       conss = SCIPconshdlrGetConss(quadconshdlr);
       nconss = SCIPconshdlrGetNConss(quadconshdlr);
 
+      /* Do not perform upgrade, if there are too many quadratic constraints present. */
+      if ( nconss > conshdlrdata->sdpconshdlrdata->maxnvarsquadupgd )
+      {
+         SCIPdebugMsg(scip, "There are %d many quadratic constraints present in the problem, thus do not upgrade quadratic constraints to an SDPrank1 constraint\n", nconss);
+         SCIPfreeBlockMemoryArray(scip, &conshdlrdata->quadconsvars, nvars);
+         SCIPfreeBlockMemoryArray(scip, &conshdlrdata->quadconsidx, nvars);
+         return SCIP_OKAY;
+      }
+
       for (c = 0; c < nconss; ++c)
       {
          assert( conss[c] != NULL );
@@ -2444,6 +2455,16 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
                conshdlrdata->quadconsidx[idx] = nsdpvars++;
             }
          }
+      }
+
+      /* do not perform upgrade, if there are too many variables in the quadratic constraints, since we need sdpvars *
+         sdpvars many variables for the (dual) SDPrank1 constraint */
+      if ( nsdpvars > conshdlrdata->sdpconshdlrdata->maxnvarsquadupgd )
+      {
+         SCIPdebugMsg(scip, "There are %d many variables present in the quadratic constraints, thus do not upgrade quadratic constraints to an SDPrank1 constraint\n", nsdpvars);
+         SCIPfreeBlockMemoryArray(scip, &conshdlrdata->quadconsvars, nvars);
+         SCIPfreeBlockMemoryArray(scip, &conshdlrdata->quadconsidx, nvars);
+         return SCIP_OKAY;
       }
 
       /* create bilinear variables */
@@ -4366,6 +4387,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          "Should quadratic constraints be upgraded to a rank 1 SDP?",
          &(conshdlrdata->upgradquadconss), TRUE, DEFAULT_UPGRADQUADCONSS, NULL, NULL) );
 
+   SCIP_CALL( SCIPaddIntParam(scip, "constraints/SDP/maxnvarsquadupgd",
+         "maximal number of quadratic constraints and appearing variables so that the QUADCONSUPGD is performed",
+         &(conshdlrdata->maxnvarsquadupgd), TRUE, DEFAULT_MAXNVARSQUADUPGD, 0, INT_MAX, NULL, NULL) );
+
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/rank1approxheur",
          "Should the heuristic that computes the best rank-1 approximation for a given solution be executed?",
          &(conshdlrdata->rank1approxheur), TRUE, DEFAULT_RANK1APPROXHEUR, NULL, NULL) );
@@ -4393,6 +4418,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->triedlinearconss = FALSE;
    conshdlrdata->quadconsrank1 = FALSE;
    conshdlrdata->rank1approxheur = FALSE;
+   conshdlrdata->maxnvarsquadupgd = 0;
 
    /* parameters are retrieved through the SDP constraint handler */
    sdpconshdlr = SCIPfindConshdlr(scip, CONSHDLR_NAME);
