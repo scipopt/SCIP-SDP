@@ -2619,7 +2619,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       if ( SCIPgetSubscipDepth(scip) == 0 && ! conshdlrdata->triedlinearconss )
       {
          conshdlrdata->triedlinearconss = TRUE;
-         if ( *result != SCIP_CUTOFF && conshdlrdata->diaggezerocuts )
+         if ( *result != SCIP_CUTOFF && conshdlrdata->sdpconshdlrdata->diaggezerocuts )
          {
             noldaddconss = *naddconss;
             noldchgbds = *nchgbds;
@@ -2629,7 +2629,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
                *result = SCIP_SUCCESS;
          }
 
-         if ( *result != SCIP_CUTOFF && conshdlrdata->diagzeroimplcuts )
+         if ( *result != SCIP_CUTOFF && conshdlrdata->sdpconshdlrdata->diagzeroimplcuts )
          {
             noldaddconss = *naddconss;
             SCIP_CALL( diagZeroImpl(scip, conss, nconss, naddconss) );
@@ -2638,7 +2638,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
                *result = SCIP_SUCCESS;
          }
 
-         if ( *result != SCIP_CUTOFF && conshdlrdata->twominorlinconss )
+         if ( *result != SCIP_CUTOFF && conshdlrdata->sdpconshdlrdata->twominorlinconss )
          {
             noldaddconss = *naddconss;
             SCIP_CALL( addTwoMinorLinConstraints(scip, conss, nconss, naddconss) );
@@ -2647,7 +2647,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
                *result = SCIP_SUCCESS;
          }
 
-         if ( *result != SCIP_CUTOFF && conshdlrdata->twominorprodconss )
+         if ( *result != SCIP_CUTOFF && conshdlrdata->sdpconshdlrdata->twominorprodconss )
          {
             noldaddconss = *naddconss;
             SCIP_CALL( addTwoMinorProdConstraints(scip, conss, nconss, naddconss) );
