@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2019 Discrete Optimization, TU Darmstadt               */
+/*               2014-2020 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or             */
@@ -24,7 +24,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2019 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2020 Zuse Institute Berlin                             */
 /* SCIP is distributed under the terms of the SCIP Academic Licence,         */
 /* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
@@ -135,7 +135,11 @@ SCIP_RETCODE SCIPsdpVarmapperAddVars(
       if ( ! (SCIPhashmapExists(varmapper->sciptosdp, vars[i])) ) /* make sure, that there are no duplicates in the lists */
       {
          varmapper->sdptoscip[varmapper->nvars] = vars[i];
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
          SCIP_CALL( SCIPhashmapInsertInt(varmapper->sciptosdp, (void*) vars[i], varmapper->nvars) );
+#else
+         SCIP_CALL( SCIPhashmapInsert(varmapper->sciptosdp, (void*) vars[i], (void*) (size_t) varmapper->nvars) );
+#endif
          varmapper->nvars++;
          SCIP_CALL( SCIPcaptureVar(scip, vars[i]) );
       }
@@ -184,11 +188,19 @@ SCIP_RETCODE SCIPsdpVarmapperInsertVar(
          for (i = varmapper->nvars - 1; i >= pos; i--)
          {
             varmapper->sdptoscip[i + 1] = varmapper->sdptoscip[i]; /*lint !e679*/
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
             SCIP_CALL( SCIPhashmapSetImageInt(varmapper->sciptosdp, varmapper->sdptoscip[i + 1], i + 1) );
+#else
+            SCIP_CALL( SCIPhashmapSetImage(varmapper->sciptosdp, varmapper->sdptoscip[i + 1], (void*) (size_t) (i + 1)) );
+#endif
          }
 
          varmapper->sdptoscip[pos] = var;
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
          SCIP_CALL( SCIPhashmapInsertInt(varmapper->sciptosdp, var, pos) );
+#else
+         SCIP_CALL( SCIPhashmapInsert(varmapper->sciptosdp, var, (void*) (size_t) pos) );
+#endif
          varmapper->nvars++;
          SCIP_CALL( SCIPcaptureVar(scip, var) );
       }
@@ -230,7 +242,11 @@ int SCIPsdpVarmapperGetSdpIndex(
    assert ( varmapper != NULL );
    assert ( var != NULL );
 
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
    return SCIPhashmapGetImageInt(varmapper->sciptosdp, (void*) var);
+#else
+   return (int) (size_t) SCIPhashmapGetImage(varmapper->sciptosdp, (void*) var);
+#endif
 }
 
 /** gets the corresponding SCIP variable for the given SDP variable-index */
@@ -270,7 +286,11 @@ SCIP_RETCODE SCIPsdpVarmapperRemoveSdpIndex(
    for (i = ind + 1; i < varmapper->nvars; i++)
    {
       varmapper->sdptoscip[i - 1] = varmapper->sdptoscip[i];
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
       SCIP_CALL( SCIPhashmapSetImageInt(varmapper->sciptosdp, varmapper->sdptoscip[i - 1], i - 1) );
+#else
+      SCIP_CALL( SCIPhashmapSetImage(varmapper->sciptosdp, varmapper->sdptoscip[i - 1], (void*) (size_t) (i - 1)) );
+#endif
    }
 
    /* reallocate memory */
@@ -299,8 +319,11 @@ SCIP_RETCODE SCIPsdpVarmapperTransform(
       SCIP_CALL( SCIPcaptureVar(scip, var) );
 
       SCIP_CALL( SCIPhashmapRemove(varmapper->sciptosdp, varmapper->sdptoscip[k]) );
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
       SCIP_CALL( SCIPhashmapInsertInt(varmapper->sciptosdp, var, k) );
-
+#else
+      SCIP_CALL( SCIPhashmapInsert(varmapper->sciptosdp, var, (void*) (size_t) k) );
+#endif
       SCIP_CALL( SCIPreleaseVar(scip, &varmapper->sdptoscip[k]) );
 
       varmapper->sdptoscip[k] = var;
@@ -331,7 +354,11 @@ SCIP_RETCODE SCIPsdpVarmapperClone(
    for (i = 0; i < nvars; i++)
    {
       newmapper->sdptoscip[i] = oldmapper->sdptoscip[i];
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
       SCIP_CALL( SCIPhashmapInsertInt(newmapper->sciptosdp, oldmapper->sdptoscip[i], i) );
+#else
+      SCIP_CALL( SCIPhashmapInsert(newmapper->sciptosdp, oldmapper->sdptoscip[i], (void*) (size_t) i) );
+#endif
       SCIP_CALL( SCIPcaptureVar(scip, newmapper->sdptoscip[i]) );
    }
 
