@@ -2418,6 +2418,26 @@ SCIP_DECL_CONSLOCK(consLockSdp)
    return SCIP_OKAY;
 }
 
+/** deinitialization method of constraint handler (called before transformed problem is freed)
+ *
+ * At the end of the solution process, the parameter for adding linear constraints in presolving needs to be reset.
+ */
+static
+SCIP_DECL_CONSEXIT(consExitSdp)
+{
+   SCIP_CONSHDLRDATA* conshdlrdata;
+
+   assert(scip != NULL);
+
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert(conshdlrdata != NULL);
+
+   /* reset parameter triedlinearconss */
+   conshdlrdata->sdpconshdlrdata->triedlinearconss = FALSE;
+
+   return SCIP_OKAY;
+}
+
 /** after presolving variables are fixed and multiaggregated */
 static
 SCIP_DECL_CONSEXITPRE(consExitpreSdp)
@@ -2616,9 +2636,9 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 
       /* In the following, we add linear constraints to be propagated. This is needed only once. We assume that this is
        * only necessary in the main SCIP instance. */
-      if ( SCIPgetSubscipDepth(scip) == 0 && ! conshdlrdata->triedlinearconss )
+      if ( SCIPgetSubscipDepth(scip) == 0 && ! conshdlrdata->sdpconshdlrdata->triedlinearconss )
       {
-         conshdlrdata->triedlinearconss = TRUE;
+         conshdlrdata->sdpconshdlrdata->triedlinearconss = TRUE;
          if ( *result != SCIP_CUTOFF && conshdlrdata->sdpconshdlrdata->diaggezerocuts )
          {
             noldaddconss = *naddconss;
@@ -3916,6 +3936,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPsetConshdlrFree(scip, conshdlr, consFreeSdp) );
    SCIP_CALL( SCIPsetConshdlrCopy(scip, conshdlr, conshdlrCopySdp, consCopySdp) );
    SCIP_CALL( SCIPsetConshdlrInitpre(scip, conshdlr,consInitpreSdp) );
+   SCIP_CALL( SCIPsetConshdlrExit(scip, conshdlr, consExitSdp) );
    SCIP_CALL( SCIPsetConshdlrExitpre(scip, conshdlr, consExitpreSdp) );
    SCIP_CALL( SCIPsetConshdlrInitsol(scip, conshdlr, consInitsolSdp) );
    SCIP_CALL( SCIPsetConshdlrPresol(scip, conshdlr, consPresolSdp, CONSHDLR_MAXPREROUNDS, CONSHDLR_PRESOLTIMING) );
@@ -4003,6 +4024,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    SCIP_CALL( SCIPsetConshdlrFree(scip, conshdlr, consFreeSdp) );
    SCIP_CALL( SCIPsetConshdlrCopy(scip, conshdlr, conshdlrCopySdpRank1, consCopySdp) );
    SCIP_CALL( SCIPsetConshdlrInitpre(scip, conshdlr,consInitpreSdp) );
+   SCIP_CALL( SCIPsetConshdlrExit(scip, conshdlr, consExitSdp) );
    SCIP_CALL( SCIPsetConshdlrExitpre(scip, conshdlr, consExitpreSdp) );
    SCIP_CALL( SCIPsetConshdlrInitsol(scip, conshdlr, consInitsolSdp) );
    SCIP_CALL( SCIPsetConshdlrPresol(scip, conshdlr, consPresolSdp, CONSHDLR_MAXPREROUNDS, CONSHDLR_PRESOLTIMING) );
