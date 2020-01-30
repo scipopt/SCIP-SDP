@@ -2406,6 +2406,7 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
       {
          assert( conss[c] != NULL );
 #ifdef SCIP_MORE_DEBUG
+         SCIPinfoMessage(scip, NULL, "Found quadratic constraint to upgrade: \n");
          SCIP_CALL( SCIPprintCons(scip, conss[c], NULL) );
          SCIPinfoMessage(scip, NULL, "\n");
 #endif
@@ -2562,6 +2563,12 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
             cols, rows, vals, vars, 1, &constcol, &constrow, &constval) );
       SCIP_CALL( SCIPaddCons(scip, conshdlrdata->sdpcons) );
 
+#ifdef SCIP_MORE_DEBUG
+   SCIPinfoMessage(scip, NULL, "In upgrade of quadratic constraint the following SDPrank1 constraint has been added:\n");
+   SCIP_CALL( SCIPprintCons(scip, conshdlrdata->sdpcons, NULL) );
+   SCIPinfoMessage(scip, NULL, "\n");
+#endif
+
       /* free local memory */
       for (j = nvarscnt - 1; j >= 0; --j)
       {
@@ -2661,6 +2668,7 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
          FALSE, SCIPconsIsDynamic(cons), SCIPconsIsRemovable(cons), FALSE) );
 
 #ifdef SCIP_MORE_DEBUG
+   SCIPinfoMessage(scip, NULL, "In upgrade of quadratic constraint the following linear constraint has been added:\n");
    SCIP_CALL( SCIPprintCons(scip, lincons, NULL) );
    SCIPinfoMessage(scip, NULL, "\n");
 #endif
