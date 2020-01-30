@@ -1289,6 +1289,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* print whole problem and parameters if asked to */
 #ifdef SCIP_MORE_DEBUG
+#if MSK_VERSION_MAJOR < 9
    MOSEK_CALL( MSK_getnumcon (sdpisolver->msktask, &nmosekconss) );
    MOSEK_CALL( MSK_getnumvar (sdpisolver->msktask, &nmosekvars) );
    MOSEK_CALL( MSK_getnumcone (sdpisolver->msktask, &nmosekcones) );
@@ -1296,6 +1297,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    MOSEK_CALL( MSK_printdata (sdpisolver->msktask, MSK_STREAM_LOG, 0, nmosekconss, 0, nmosekvars, 0, nmosekcones, 1, 1, 1, 1, 1, 1, 1, 1) );
 #ifdef SCIP_PRINT_PARAMETERS
    MOSEK_CALL( MSK_printparam (sdpisolver->msktask) );
+#endif
 #endif
 #endif
 
