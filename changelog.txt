@@ -14,9 +14,10 @@ fixed bugs:
 - fixed bug with wrong matrix sizes in warmstarting code
 - disabled the sdpobbt propagator if the SDP-relaxator is not available
 - fixed memory leak in prop_sdpredcost with restarts
+- only add presolving linear constraints once
 
 features:
-- add error messages to SDPA-format reader
+- add some error messages to SDPA-format reader
 - fix parsing of integer variables in SDPA-format
 - add support for CBF-files in primal and mixed primal-dual form
 - unify nomenclature in CBF reader
@@ -32,7 +33,8 @@ features:
   - introduce function isMatrixRankOne() to check whether a matrix has rank 1
   - adapt locking mechanism to rank-1 constraints
   - introduce function enforceRankeOne() to enforce the rank-1 constraint for a given solution
-  - for each constraint, if it should be rank one, all quadratic constraints given by the 2x2 principal minors are added in ConsInitSol, since a positive semidefinite matrix has rank 1 if and only if all its 2x2 principal minors are zero.
+  - for each constraint, if it should be rank one, all quadratic constraints given by the 2x2 principal minors are added in ConsInitSol,
+    since a psd matrix has rank 1 if and only if all its 2x2 principal minors are zero.
   - add printing and parsing of rank-1 information in .cip-format as "rank1? 0/1"
   - SCIPconsSdpGetData(): add parameter rankone, maxevsubmat, addedquadcons
   - SCIPcreateConsSdp(): add parameter rankone
@@ -40,9 +42,15 @@ features:
   - introduce function SCIPconsSdpGetMaxEVSubmat()
   - introduce function SCIPconsSdpAddedQuadCons()
   - introduce keywords PSDVARRANK1 and PSDCONRANK1 in reader_cbf.c for specifying psd variables and SDP-constraints with a rank-1 constraint
+  - the new features are accessible via the virtual constraint handler SDPrank1 (SCIPcreateConsSdpRank1)
+  - a new heuristic tries to construct rank1 solutions (parameter rank1approxheur; disabled by default)
 - unify handling of lapack calls: there now is only one file "lapack_interface" instead of two (lpapack_sdpa, lapack_dsdp).
 - two new presolving routines that add linear constraints, which are then propagated to possibly improve variable bounds
   (applied with parameters "constraints/SDP/twominorlinconss" and "constraints/SDP/twominorprodconss")
+- add support for upgrading quadratic constraints to SDP rank1 constraints:
+  - parameter upgradquadconss: turns upgrading on
+  - in addition: parameter upgradekeepquad only adds SDP constraint as a relaxation
+  - the upgrading is only performed if the number of variables and constraints is at most maxnvarsquadupgd
 
 makefile:
 - add project makefile in make/make.scipsdpproj
