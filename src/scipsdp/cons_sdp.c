@@ -3713,19 +3713,15 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
    }
 
    SCIP_CALL( SCIPtrySolFree(scip, &bestrank1approx, FALSE, TRUE, TRUE, TRUE, TRUE, &stored) );
-
-   SCIPfreeBufferArray(scip, &colmatrix);
-   SCIPfreeBufferArray(scip, &lssolu);
-   SCIPfreeBufferArray(scip, &rhsmatrix);
-   SCIPfreeBufferArray(scip, &linmatrix);
-
-   stored = FALSE;
-
    if ( stored )
       SCIPdebugMsg(scip, "Best Rank-1 Approximation Heuristic found feasible primal solution\n");
    else
       SCIPdebugMsg(scip, "Primal solution found by Best Rank-1 Approximation Heuristic is not feasible!\n");
 
+   SCIPfreeBufferArray(scip, &colmatrix);
+   SCIPfreeBufferArray(scip, &lssolu);
+   SCIPfreeBufferArray(scip, &rhsmatrix);
+   SCIPfreeBufferArray(scip, &linmatrix);
    SCIPfreeBufferArray(scip, &rank1consvars);
    SCIPfreeBufferArray(scip, &rank1considx);
    SCIPfreeBufferArray(scip, &indviolrank1conss);
