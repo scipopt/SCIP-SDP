@@ -4248,7 +4248,10 @@ SCIP_RETCODE SCIPsdpiReadSDP(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
    const char*           fname               /**< file name */
    )
-{/*lint --e{715}*/
+{
+   assert( sdpi != NULL );
+   assert( fname != NULL );
+
    SCIPdebugMessage("Not implemented yet\n");
    return SCIP_LPERROR;
 }
@@ -4258,7 +4261,10 @@ SCIP_RETCODE SCIPsdpiWriteSDP(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
    const char*           fname               /**< file name */
    )
-{/*lint --e{715}*/
+{
+   assert( sdpi != NULL );
+   assert( fname != NULL );
+
    SCIPdebugMessage("Not implemented yet\n");
    return SCIP_LPERROR;
 }

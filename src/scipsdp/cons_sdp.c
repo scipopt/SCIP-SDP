@@ -1334,6 +1334,7 @@ SCIP_RETCODE addTwoMinorProdConstraints(
                SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrices[i]) );
             }
          }
+         assert( matrices != NULL );
 
          /* check whether diagonal entries in the matrices are all 0 */
          for (i = 0; i < nvars; ++i)
@@ -2500,7 +2501,7 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
             lb2 = SCIPvarGetLbGlobal(var2);
             ub2 = SCIPvarGetUbGlobal(var2);
 
-            SCIPsnprintf(name, SCIP_MAXSTRLEN, "X%d#%d", i, j);
+            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "X%d#%d", i, j);
 
             lb = MIN3(lb1 * lb2, lb1 * ub2, ub1 * lb2);
             lb = MIN(lb, ub1 * ub2);
@@ -2676,7 +2677,7 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
       }
       assert( cnt <= nlinvarterms + 2 * nquadvarterms + nbilinterms );
 
-      SCIPsnprintf(name, SCIP_MAXSTRLEN, "lin_%s", SCIPconsGetName(cons));
+      (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lin_%s", SCIPconsGetName(cons));
       SCIP_CALL( SCIPcreateConsLinear(scip, &lincons, name, cnt, linconsvars, linconsvals, SCIPgetLhsQuadratic(scip, cons), SCIPgetRhsQuadratic(scip, cons),
             SCIPconsIsInitial(cons), SCIPconsIsSeparated(cons), SCIPconsIsEnforced(cons), SCIPconsIsChecked(cons), SCIPconsIsPropagated(cons), SCIPconsIsLocal(cons),
             FALSE, SCIPconsIsDynamic(cons), SCIPconsIsRemovable(cons), FALSE) );
@@ -3333,7 +3334,6 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
    int idx;
    int blocksize;
    int nviolrank1 = 0;
-   int cnt;
    int nvars;
    int nrank1vars = 0;
    int linrows = 0; /* the number of rows of the linear equation system is given by the total number of entries
@@ -3558,7 +3558,6 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
          transposed for LAPACK! */
       SCIP_CALL( SCIPlapackMatrixMatrixMult(blocksize, blocksize, eigenvectors, FALSE, blocksize, blocksize, scaledeigenvectors,
             TRUE, fullmatrix) );
-      cnt = 0;
 
 #ifdef PRINTMATRICES
       printf("Best rank-1 approximation of Z: \n");
@@ -3597,7 +3596,6 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
       printf("\n");
 #endif
 
-      cnt = 0;
       for (j = 0; j < blocksize; ++j)
       {
          for (k = 0; k <= j; ++k)
@@ -3630,7 +3628,6 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
                linmatrix[lincnt * nrank1vars + idx] = matrixAj[j * blocksize + k];
             }
             rhsmatrix[lincnt] = matrixC[j * blocksize + k] + fullmatrix[j * blocksize + k];
-            ++cnt;
             ++lincnt;
          }
       }
