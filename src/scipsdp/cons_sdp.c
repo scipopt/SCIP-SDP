@@ -2953,20 +2953,26 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
          SCIP_Real aiik;
          SCIP_Real ajjk;
          SCIP_Real aijk;
+         SCIP_Real aiil;
          SCIP_Real ajjl;
          SCIP_Real aijl;
          SCIP_Real cii;
          SCIP_Real cjj;
          SCIP_Real cij;
          char name[SCIP_MAXSTRLEN];
+         int* nnonzvars;
+         int** nonzvars;
          int j;
          int k;
          int l;
          int blocksize;
+         int varcnt;
+         int varind1;
+         int varind2;
 
          blocksize = consdata->blocksize;
 
-         SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, (consdata->blocksize * (consdata->blocksize + 1)) / 2) ); /*lint !e647*/
+         SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, (blocksize * (blocksize + 1)) / 2) ); /*lint !e647*/
          SCIP_CALL( SCIPconsSdpGetLowerTriangConstMatrix(scip, conss[c], constmatrix) );
 
          SCIP_CALL( SCIPallocBufferArray(scip, &quadvars1, consdata->nvars * consdata->nvars) );
@@ -2978,8 +2984,33 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
 
          for (i = 0; i < consdata->nvars; ++i)
          {
-            SCIP_CALL( SCIPallocBufferArray(scip, &matrixAk[i], consdata->blocksize * consdata->blocksize) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &matrixAk[i], blocksize * blocksize) );
             SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrixAk[i]) );
+         }
+
+         SCIP_CALL( SCIPallocBufferArray(scip, &nnonzvars, (blocksize * (blocksize + 1)) / 2) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &nonzvars, (blocksize * (blocksize + 1)) / 2) );
+         /* SCIP_CALL( SCIPallocBufferArray(scip, &nonzcoefs, (blocksize * (blocksize + 1)) / 2) ); */
+
+         for (i = 0; i < blocksize; ++i)
+         {
+            for (j = 0; j <= i; ++j)
+            {
+               SCIP_CALL( SCIPallocBufferArray(scip, &nonzvars[SCIPconsSdpCompLowerTriangPos(i,j)], consdata->nvars) );
+               /* SCIP_CALL( SCIPallocBufferArray(scip, &nonzcoefs[i * blocksize + j], consdata->nvars) ); */
+
+               varcnt = 0;
+               for (k = 0; k < consdata->nvars; ++k)
+               {
+                  if ( ! SCIPisZero(scip, matrixAk[k][i * blocksize + j]) || ! SCIPisZero(scip, matrixAk[k][i * blocksize + i]) || ! SCIPisZero(scip, matrixAk[k][j * blocksize + j]) )
+                  {
+                     nonzvars[SCIPconsSdpCompLowerTriangPos(i,j)][varcnt] = k;
+                     /* nonzcoefs[i * blocksize + j][varcnt] = matrixAk[k][i * blocksize + j]; */
+                     varcnt++;
+                  }
+               }
+               nnonzvars[SCIPconsSdpCompLowerTriangPos(i,j)] = varcnt;
+            }
          }
 
          for (i = 0; i < blocksize; ++i)
@@ -2993,30 +3024,43 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
                cjj = constmatrix[SCIPconsSdpCompLowerTriangPos(j,j)];
                cij = constmatrix[SCIPconsSdpCompLowerTriangPos(i,j)];
 
-               for (k = 0; k < consdata->nvars; ++k)
+               for (k = 0; k < nnonzvars[SCIPconsSdpCompLowerTriangPos(i,j)]; ++k)
                {
-                  ajjk = matrixAk[k][j * consdata->blocksize + j];
-                  aiik = matrixAk[k][i * consdata->blocksize + i];
-                  aijk = matrixAk[k][j * consdata->blocksize + i];
+                  varind1 = nonzvars[SCIPconsSdpCompLowerTriangPos(i,j)][k];
+                  ajjk = matrixAk[varind1][j * consdata->blocksize + j];
+                  aiik = matrixAk[varind1][i * consdata->blocksize + i];
+                  aijk = matrixAk[varind1][j * consdata->blocksize + i];
 
                   if ( ! SCIPisZero(scip, -cii * ajjk - cjj * aiik + cij * aijk) )
                   {
-                     linvars[lincnt] = consdata->vars[k];
+                     linvars[lincnt] = consdata->vars[varind1];
                      lincoefs[lincnt] = -cii * ajjk - cjj * aiik + cij * aijk;
                      ++lincnt;
                   }
-                  for (l = 0; l < consdata->nvars; ++l)
-                  {
-                     ajjl = matrixAk[l][j * consdata->blocksize + j];
-                     aijl = matrixAk[l][j * consdata->blocksize + i];
 
-                     if ( ! SCIPisZero(scip, aiik * ajjl - aijk * aijl) )
+                  for (l = 0; l < k; ++l)
+                  {
+                     varind2 = nonzvars[SCIPconsSdpCompLowerTriangPos(i,j)][l];
+                     ajjl = matrixAk[varind2][j * consdata->blocksize + j];
+                     aiil = matrixAk[varind2][i * consdata->blocksize + i];
+                     aijl = matrixAk[varind2][j * consdata->blocksize + i];
+
+                     if ( ! SCIPisZero(scip, aiik * ajjl + ajjk * aiil - 2 * aijk * aijl) )
                      {
-                        quadvars1[quadcnt] = consdata->vars[k];
-                        quadvars2[quadcnt] = consdata->vars[l];
-                        quadcoefs[quadcnt] = aiik * ajjl - aijk * aijl;
+                        quadvars1[quadcnt] = consdata->vars[varind1];
+                        quadvars2[quadcnt] = consdata->vars[varind2];
+                        quadcoefs[quadcnt] = aiik * ajjl + ajjk * aiil - 2 * aijk * aijl;
                         ++quadcnt;
                      }
+                  }
+
+                  /* case l == k needs special treatment */
+                  if ( ! SCIPisZero(scip, aiik * ajjk - aijk * aijk) )
+                  {
+                     quadvars1[quadcnt] = consdata->vars[varind1];
+                     quadvars2[quadcnt] = consdata->vars[varind1];
+                     quadcoefs[quadcnt] = aiik * ajjk - aijk * aijk;
+                     ++quadcnt;
                   }
                }
                assert( quadcnt <= consdata->nvars * consdata->nvars );
@@ -3047,6 +3091,16 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
                SCIP_CALL( SCIPreleaseCons(scip, &quadcons) );
             }
          }
+
+         for (i = 0; i < blocksize; ++i)
+         {
+            for (j = 0; j <= i; ++j)
+               SCIPfreeBufferArray(scip, &nonzvars[SCIPconsSdpCompLowerTriangPos(i,j)]);
+         }
+
+         SCIPfreeBufferArray(scip, &nonzvars);
+         SCIPfreeBufferArray(scip, &nnonzvars);
+
          for (i = 0; i < consdata->nvars; ++i)
             SCIPfreeBufferArray(scip, &matrixAk[i]);
 
