@@ -93,3 +93,55 @@ Test(rank1, readPrimalDualRank1)
 
    cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (CBF primal) != %g (CBF dual)\n", obj1, obj2);
 }
+
+/** Test 2 */
+Test(rank1, readWritePrimalRank)
+{
+   SCIP_Real obj1;
+   SCIP_Real obj2;
+
+   /* read problem in primal form and solve it */
+   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_rank1_primal.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj1 = SCIPgetDualbound(scipsdp);
+
+   /* write problem in CBF format */
+   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "example_rank1.cbf", "cbf", FALSE) );
+
+   /* read problem again */
+   SCIP_CALL( SCIPreadProb(scipsdp, "example_rank1.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj2 = SCIPgetDualbound(scipsdp);
+
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (CBF primal original) != %g (CBF primal after writing)\n", obj1, obj2);
+}
+
+/** Test 3 */
+Test(rank1, readWriteDualRank)
+{
+   SCIP_Real obj1;
+   SCIP_Real obj2;
+
+   /* read problem in dual form and solve it */
+   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_rank1_dual.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj1 = SCIPgetDualbound(scipsdp);
+
+   /* write problem in CBF format */
+   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "example_rank1.cbf", "cbf", FALSE) );
+
+   /* read problem again */
+   SCIP_CALL( SCIPreadProb(scipsdp, "example_rank1.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj2 = SCIPgetDualbound(scipsdp);
+
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (CBF dual original) != %g (CBF dual after writing)\n", obj1, obj2);
+}
