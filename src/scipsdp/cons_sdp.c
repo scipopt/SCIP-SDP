@@ -2377,7 +2377,9 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
       int constrow = 0;
       SCIP_Real constval = -1.0;
 
-      nvars = SCIPgetNVars(scip);
+      /* todo: The arrays quadconsidx and quadconsvars are needed to check if variables have already been seen in a
+         quadratic constraint. This could be replaced with a hashmap. */
+      nvars = SCIPgetNTotalVars(scip);
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsidx, nvars) );
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsvars, nvars) );
       conshdlrdata->sdpconshdlrdata->nquadconsidx = nvars;
@@ -2408,7 +2410,7 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
       {
          assert( conss[c] != NULL );
 #ifdef SCIP_MORE_DEBUG
-         SCIPinfoMessage(scip, NULL, "Found quadratic constraint to upgrade: \n");
+         SCIPinfoMessage(scip, NULL, "Found quadratic constraint to upgrade:\n");
          SCIP_CALL( SCIPprintCons(scip, conss[c], NULL) );
          SCIPinfoMessage(scip, NULL, "\n");
 #endif
@@ -2422,7 +2424,7 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
 
             assert( quadvarterms != NULL );
             var = quadvarterms[i].var;
-            idx = SCIPvarGetProbindex(var);
+            idx = SCIPvarGetIndex(var);
             assert( 0 <= idx && idx < nvars );
             if ( conshdlrdata->sdpconshdlrdata->quadconsidx[idx] < 0 )
             {
@@ -2441,7 +2443,7 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
 
             assert( bilinterms != NULL );
             var = bilinterms[i].var1;
-            idx = SCIPvarGetProbindex(var);
+            idx = SCIPvarGetIndex(var);
             assert( 0 <= idx && idx < nvars );
             if ( conshdlrdata->sdpconshdlrdata->quadconsidx[idx] < 0 )
             {
@@ -2450,7 +2452,7 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
             }
 
             var = bilinterms[i].var2;
-            idx = SCIPvarGetProbindex(var);
+            idx = SCIPvarGetIndex(var);
             assert( 0 <= idx && idx < nvars );
             if ( conshdlrdata->sdpconshdlrdata->quadconsidx[idx] < 0 )
             {
@@ -2626,7 +2628,7 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
       {
          int idx;
 
-         idx = SCIPvarGetProbindex(quadvarterms[j].var);
+         idx = SCIPvarGetIndex(quadvarterms[j].var);
          idx = conshdlrdata->sdpconshdlrdata->quadconsidx[idx];
          assert( 0 <= idx && idx < conshdlrdata->sdpconshdlrdata->nsdpvars );
 
@@ -2657,11 +2659,11 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
          int idx1;
          int idx2;
 
-         idx1 = SCIPvarGetProbindex(bilinterms[j].var1);
+         idx1 = SCIPvarGetIndex(bilinterms[j].var1);
          idx1 = conshdlrdata->sdpconshdlrdata->quadconsidx[idx1];
          assert( 0 <= idx1 && idx1 < conshdlrdata->sdpconshdlrdata->nsdpvars );
 
-         idx2 = SCIPvarGetProbindex(bilinterms[j].var2);
+         idx2 = SCIPvarGetIndex(bilinterms[j].var2);
          idx2 = conshdlrdata->sdpconshdlrdata->quadconsidx[idx2];
          assert( 0 <= idx2 && idx2 < conshdlrdata->sdpconshdlrdata->nsdpvars );
 
