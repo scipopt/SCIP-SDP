@@ -4879,7 +4879,7 @@ SCIP_RETCODE SCIPconsSdpGuessInitialPoint(
    assert( scip != NULL );
    assert( cons != NULL );
    assert( lambdastar != NULL );
-   assert( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(cons)), CONSHDLR_NAME) == 0 );
+   assert( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(cons)), CONSHDLR_NAME) == 0 || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(cons)), CONSHDLRRANK1_NAME) == 0 );
 
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
