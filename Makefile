@@ -68,12 +68,21 @@ SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/sdpainc
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libsdpa.$(STATICLIBEXT)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/shared/libsdpa.$(SHAREDLIBEXT)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/mumpsinc
+ifeq ($(MUMPSSEQ),true)
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libdmumps_seq.$(STATICLIBEXT)
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libmumps_common_seq.$(STATICLIBEXT)
+else
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libdmumps.$(STATICLIBEXT)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libmumps_common.$(STATICLIBEXT)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libpord.$(STATICLIBEXT)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libmpiseq.$(STATICLIBEXT)
+endif
 ifeq ($(OPENBLAS),true)
+ifeq ($(SHARED),true)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/shared/libopenblas.$(SHAREDLIBEXT).0
+else
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libopenblas.$(STATICLIBEXT)
+endif
 endif
 SDPIINSTMSG	=	" -> \"sdpainc\" is the path to the SDPA \"include\" directory, e.g., \"<SDPA-path>/include\".\n"
 SDPIINSTMSG	+=	" -> \"libsdpa.*\" is the path to the SDPA library, e.g., \"<SDPA-path>/lib/libsdpa.a\".\n"
@@ -83,7 +92,11 @@ SDPIINSTMSG	+=	" -> \"libdmumps_common.*\" is the path to the mumps_common libra
 SDPIINSTMSG	+=	" -> \"libpord.*\" is the path to the pord library, e.g., \"<SDPA-path>/mumps/build/lib/libpord.$(STATICLIBEXT)\".\n"
 SDPIINSTMSG	+=	" -> \"libmpiseq.*\" is the path to the mpiseq library, e.g., \"<SDPA-path>/mumps/build/libseq/libmpiseq.$(STATICLIBEXT)\".\n"
 ifeq ($(OPENBLAS),true)
+ifeq ($(SHARED),true)
 SDPIINSTMSG	+=	" -> \"libopenblas.$(SHAREDLIBEXT).0\" is the openblas library.\n"
+else
+SDPIINSTMSG	+=	" -> \"libopenblas.$(STATICLIBEXT)\" is the openblas library.\n"
+endif
 endif
 SDPIINC		=  	-I$(SCIPSDPLIBDIR)/include/sdpainc
 SDPIINC		+= 	-I$(SCIPSDPLIBDIR)/include/mumpsinc
@@ -464,9 +477,11 @@ test:
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/cmpres.awk);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/evalcheck.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/evalcheck_cluster.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/evaluate.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/check.awk);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/cmpres.awk);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/getlastprob.awk);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_solufile.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_set.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_logfiles.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_tmpfile_setup_scip.sh configuration_tmpfile_setup_$(SCIPSDPNAME).sh);
@@ -486,10 +501,12 @@ testcluster:
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/cmpres.awk);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/evalcheck.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/evalcheck_cluster.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/evaluate.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/check_cluster.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/check.awk);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/cmpres.awk);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/getlastprob.awk);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_solufile.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_cluster.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_set.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_logfiles.sh);
