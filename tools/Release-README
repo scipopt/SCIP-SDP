@@ -1,4 +1,4 @@
-- Versionsnummern in main.cpp, changelog, doc/xternal.c, Makefile und tools/makerelease.sh anpassen
+- Versionsnummern in scipsdpdefplugins.cpp, changelog, doc/xternal.c, make/make.scipsdpproj und tools/makerelease.sh anpassen
 - gegebenenfalls Jahreszahlen bei Lizenz (und in allen Dateien) anpassen
 - im git einen Tag setzen, z.B. git tag -a v3.2.0 -m 'version 3.2.0'; dann git push origin --tags
 - tools/makerelease.sh ausführen
