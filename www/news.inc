@@ -1,5 +1,10 @@
 <table class="desc">
    <tr>
+      <td class="w-120 val-t" width="30%">February 2020</td>
+      <td>SCIP-SDP 3.2.0 is released for SCIP 7.0.0 and DSDP 5.8 or SDPA 7.3.8 or MOSEK 9.x
+      </td>
+   </tr>
+   <tr>
       <td class="w-120 val-t" width="30%">June 2019</td>
       <td>SCIP-SDP 3.1.2 is released for SCIP 6.0.2 and DSDP 5.8 or SDPA 7.3.8 or MOSEK 9.x
       </td>
