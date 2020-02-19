@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   lapack_sdpa.c
+/**@file   lapack_interface.c
  * @brief  interface methods for eigenvector computation and matrix multiplication using openblas
  * @author Sonja Mars
  * @author Lars Schewe

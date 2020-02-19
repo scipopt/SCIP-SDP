@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   main.cpp
+/**@file   main.c
  * @brief  main file for solving MISDPs
  * @author Sonja Mars
  * @author Tristan Gally

@@ -46,7 +46,7 @@
  * PSDCONRANK1
  * r
  * m_1
- * \vdots
+ * ...
  * m_r,
  * where \f$r\f$ is the number of SDP-constraints with a rank-1 constraint, and \f$m_1, \dots, m_r\f$ are the indices of the
  * SDP-constraints with a rank-1 constraints.
@@ -54,7 +54,7 @@
  * PSDVARRANK1
  * r
  * v_1
- * \vdots
+ * ...
  * v_r,
  * where \f$r\f$ is the number of psd variables with a rank-1 constraint, and \f$v_1, \dots, v_r\f$ are the indices of the psd
  * variables with a rank-1 constraints.
