@@ -17,10 +17,10 @@ fixed bugs:
 - only add presolving linear constraints once
 
 features:
-- add some error messages to SDPA-format reader
+- add error messages to SDPA-format reader
 - fix parsing of integer variables in SDPA-format
-- add support for CBF-files in primal and mixed primal-dual form
-- unify nomenclature in CBF reader
+- add support for reading CBF-files in primal and mixed primal-dual form
+- unify nomenclature, e.g., variable names, in CBF reader
 - add more error messages to CBF reader
 - add linenumbers to error messages in CBF reader
 - the variable locks are now updated in presolving
@@ -28,8 +28,8 @@ features:
 - unlocking variables is now faster (do not need to recompute eigenvalues in this case)
 - adapted several code parts to newer SCIP versions and using new features
 - add support for rank-1 constraints for psd variables and SDP-constraints by extending the SDP constraint handler, which now includes the following:
-  - add 4 new parameters branchbndchg, validineqsrank1, quadconsrank1, branchrank1 to ConshdlrData
-  - add 3 new parameters rankone, maxevsubmat, addedquadcons to ConsData
+  - add one new parameter quadconsrank1 to ConshdlrData of cons_sdp
+  - add three new variables rankone, maxevsubmat, addedquadcons to ConsData of cons_sdp
   - introduce function isMatrixRankOne() to check whether a matrix has rank 1
   - adapt locking mechanism to rank-1 constraints
   - introduce function enforceRankeOne() to enforce the rank-1 constraint for a given solution
@@ -44,7 +44,7 @@ features:
   - introduce keywords PSDVARRANK1 and PSDCONRANK1 in reader_cbf.c for specifying psd variables and SDP-constraints with a rank-1 constraint
   - the new features are accessible via the virtual constraint handler SDPrank1 (SCIPcreateConsSdpRank1)
   - a new heuristic tries to construct rank1 solutions (parameter rank1approxheur; disabled by default)
-- unify handling of lapack calls: there now is only one file "lapack_interface" instead of two (lpapack_sdpa, lapack_dsdp).
+- unify handling of LAPACK calls: there now is only one file "lapack_interface" instead of two (lpapack_sdpa, lapack_dsdp).
 - two new presolving routines that add linear constraints, which are then propagated to possibly improve variable bounds
   (applied with parameters "constraints/SDP/twominorlinconss" and "constraints/SDP/twominorprodconss")
 - add support for upgrading quadratic constraints to SDP rank1 constraints:
@@ -56,7 +56,7 @@ makefile:
 - add project makefile in make/make.scipsdpproj
 - reorganize main makefile to use make.scipsdpproj
 - fix some minor issues in makefile concerning building with shared libraries
-- use lint files from SCIP
+- use (pc)lint files from SCIP
 
 
 
