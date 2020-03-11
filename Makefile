@@ -35,7 +35,6 @@
 
 
 SCIPSDPDIR	=	./
-
 # mark that this is a SCIPSDP internal makefile
 SCIPSDPINTERNAL	=	true
 
@@ -512,12 +511,11 @@ testcluster:
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_logfiles.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_tmpfile_setup_scip.sh configuration_tmpfile_setup_$(SCIPSDPNAME).sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/run.sh);
-		@-(cd check && ln -fs $(SCIPREALPATH)/check/runcluster.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/testfiles.sh);
 		cd check; \
 		$(SHELL) ./check_cluster.sh $(TEST) $(PWD)/$(SCIPSDPBIN) $(SETTINGS) $(notdir $(SCIPSDPBIN)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(SDPS) $(DISPFREQ) \
 			$(CONTINUE) $(QUEUETYPE) $(QUEUE) $(PPN) $(CLIENTTMPDIR) $(NOWAITCLUSTER) $(EXCLUSIVE) $(PERMUTE) $(SEEDS) $(GLBSEEDSHIFT) $(STARTPERM) $(DEBUGTOOL) $(REOPT) $(OPTCOMMAND) \
-			$(SETCUTOFF) $(VISUALIZE) $(CLUSTERNODES);
+			$(SETCUTOFF) $(VISUALIZE) $(CLUSTERNODES) $(SLURMACCOUNT);
 
 #-----------------------------------------------------------------------------
 
