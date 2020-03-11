@@ -2333,6 +2333,10 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
    if ( SCIPgetSubscipDepth(scip) > 0 )
       return SCIP_OKAY;
 
+   /* do not upgrade after a restart */
+   if ( SCIPgetNRuns(scip) > 1 )
+      return SCIP_OKAY;
+
    /* make sure there is enough space to store the replacing constraints */
    if ( upgdconsssize < 1 )
    {
@@ -2460,6 +2464,15 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
                conshdlrdata->sdpconshdlrdata->quadconsidx[idx] = nsdpvars++;
             }
          }
+      }
+
+      /* do not perform upgrade, if no sdpvars have been added */
+      if ( nsdpvars == 0 )
+      {
+         SCIPdebugMsg(scip, "No sdp variables have been added\n");
+         SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsvars, nvars);
+         SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsidx, nvars);
+         return SCIP_OKAY;
       }
 
       /* do not perform upgrade, if there are too many variables in the quadratic constraints, since we need sdpvars *
