@@ -55,7 +55,7 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    BMS_BUFMEM*           bufmem,             /**< buffer memory */
    SCIP_Bool             geteigenvectors,    /**< Should also the eigenvectors be computed? */
    int                   n,                  /**< size of matrix */
-   SCIP_Real*            A,                  /**< matrix for which eigenvalues should be computed */
+   SCIP_Real*            A,                  /**< matrix for which eigenvalues should be computed - will be destroyed! */
    int                   i,                  /**< index of eigenvalue to be computed */
    SCIP_Real*            eigenvalue,         /**< pointer to store eigenvalue */
    SCIP_Real*            eigenvector         /**< pointer to store eigenvector */
@@ -66,7 +66,7 @@ SCIP_EXPORT
 SCIP_RETCODE SCIPlapackComputeEigenvectorDecomposition(
    BMS_BUFMEM*           bufmem,             /**< buffer memory */
    int                   n,                  /**< size of matrix */
-   SCIP_Real*            A,                  /**< matrix for which the decomposition should be computed */
+   SCIP_Real*            A,                  /**< matrix for which the decomposition should be computed - will be destroyed! */
    SCIP_Real*            eigenvalues,        /**< pointer to store eigenvalues (should be length n) */
    SCIP_Real*            eigenvectors        /**< pointer to store eigenvectors (should be length n*n), eigenvectors are given as rows  */
    );
