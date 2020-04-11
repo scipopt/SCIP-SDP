@@ -64,6 +64,7 @@
 
 #include "scip/cons_linear.h"           /* for SCIPcreateConsLinear */
 #include "scip/cons_quadratic.h"        /* for SCIPcreateConsBasicQuadratic */
+#include "scip/cons_soc.h"              /* for SCIPcreateConsSOC */
 #include "scip/scip_cons.h"             /* for SCIPgetConsVars */
 #include "scip/scip.h"                  /* for SCIPallocBufferArray, etc */
 #include "scip/def.h"
@@ -104,6 +105,7 @@
 #define DEFAULT_MAXNVARSQUADUPGD   1000 /**< maximal number of quadratic constraints and appearing variables so that the QUADCONSUPGD is performed */
 #define DEFAULT_RANK1APPROXHEUR   FALSE /**< Should the heuristic that computes the best rank-1 approximation for a given solution be executed? */
 #define DEFAULT_SEPARATEONECUT    FALSE /**< Should only one cut corresponding to the most negative eigenvalue be separated? */
+#define DEFAULT_ADDSOCRELAX       FALSE /**< Should a relaxation of SOC constraints be added */
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
 #endif
@@ -144,6 +146,7 @@ struct SCIP_ConshdlrData
    SCIP_Bool             upgradquadconss;    /**< Should quadratic constraints be upgraded to a rank 1 SDP? */
    SCIP_Bool             upgradekeepquad;    /**< Should the quadratic constraints be kept in the problem after upgrading and the corresponding SDP constraint be added without the rank 1 constraint? */
    SCIP_Bool             separateonecut;     /**< Should only one cut corresponding to the most negative eigenvalue be separated? */
+   SCIP_Bool             addsocrelax;        /**< Should a relaxation of SOC constraints be added */
    int                   maxnvarsquadupgd;   /**< maximal number of quadratic constraints and appearing variables so that the QUADCONSUPGD is performed */
    SCIP_Bool             triedlinearconss;   /**< Have we tried to add linear constraints? */
    SCIP_Bool             rank1approxheur;    /**< Should the heuristic that computes the best rank-1 approximation for a given solution be executed? */
@@ -1329,6 +1332,241 @@ SCIP_RETCODE addTwoMinorLinConstraints(
       SCIPfreeBufferArray(scip, &matrices);
       SCIPfreeBufferArray(scip, &constmatrix);
       SCIPfreeBufferArray(scip, &coef);
+      SCIPfreeBufferArray(scip, &consvals);
+      SCIPfreeBufferArray(scip, &consvars);
+   }
+
+   return SCIP_OKAY;
+}
+
+/** presolve-routine that adds SOC constraints arising from 2 by 2 minor inequalities
+ *
+ *  For a positive semidefinite matrix \f$X\f$ the following quadratic inequality holds by using the 2 by 2 minor:
+ *  \f$X_{st}^2 \leq X_{ss} + X_{tt}\f$. This constraint is SOC representable:
+ *  \f[
+ *     \left\|\binom{2\,X_{s,t}}{X_{ss} - X_{tt}}\right\| \leq X_{ss} + X_{tt}.
+ *  \f]
+ *
+ *  Translated to the matrix pencil notation the cut looks as follows:
+ *  \f[
+ *  \left\|\binom{2\, \sum_{i=1}^m (A_i)_{st}\, y_i - 2\, (A_0)_{st}}{
+ *          \sum_{i=1}^m (A_i)_{ss}\, y_i - (A_0)_{ss} - \sum_{i=1}^m (A_i)_{tt}\, y_i + (A_0)_{tt}}\right\| \leq
+ *  \sum_{i=1}^m (A_i)_{ss}\, y_i - (A_0)_{ss} + \sum_{i=1}^m (A_i)_{tt}\, y_i - (A_0)_{tt}.
+ *  \f]
+ *  We add add new variables for \f$X_{st}\f$ and corresponding linear constraints. Then we add SOC-constraints.
+ */
+static
+SCIP_RETCODE addTwoMinorSOCConstraints(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONSHDLR*        conshdlr,           /**< constraint handler */
+   SCIP_CONS**           conss,              /**< array of constraints */
+   int                   nconss,             /**< number of constraints */
+   int*                  naddconss           /**< pointer to store how many constraints were added */
+   )
+{
+   char name[SCIP_MAXSTRLEN];
+   SCIP_CONSHDLRDATA* conshdlrdata;
+   SCIP_VAR*** matrixvars;
+   SCIP_VAR** consvars;
+   SCIP_Real* consvals;
+   int blocksize;
+   int nvars;
+   int c;
+   int i;
+
+   assert( scip != NULL );
+   assert( conshdlr != NULL );
+   assert( naddconss != NULL );
+
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert( conshdlrdata != NULL );
+
+   for (c = 0; c < nconss; ++c)
+   {
+      SCIP_CONSDATA* consdata;
+      SCIP_Real** matrices = NULL;
+      SCIP_Real* constmatrix;
+      int size;
+      int s;
+      int t;
+
+      assert( conss[c] != NULL );
+      consdata = SCIPconsGetData(conss[c]);
+      assert( consdata != NULL );
+
+      blocksize = consdata->blocksize;
+      nvars = consdata->nvars;
+
+      size = MAX(nvars + 1, 3);
+      SCIP_CALL( SCIPallocBufferArray(scip, &consvars, size) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &consvals, size) );
+
+      /* get matrices */
+      SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, blocksize * blocksize) );
+      SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, conss[c], constmatrix) );
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &matrices, nvars) );
+      for (i = 0; i < nvars; ++i)
+      {
+         SCIP_CALL( SCIPallocBufferArray(scip, &matrices[i], blocksize * blocksize) );
+         SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrices[i]) );
+      }
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &matrixvars, blocksize) );
+
+      /* loop over all possible entries */
+      for (s = 0; s < blocksize; ++s)
+      {
+         SCIP_CALL( SCIPallocClearBufferArray(scip, &matrixvars[s], blocksize) );
+
+         for (t = s; t >= 0; --t)
+         {
+            SCIP_VAR* matrixvar = NULL;
+            SCIP_VAR* matrixsumvar;
+            SCIP_VAR* matrixdiffvar;
+            SCIP_CONS* cons;
+            SCIP_Real val;
+            SCIP_Real lhs;
+            int nconsvars = 0;
+
+            /* create linear constraint defining matrix variable */
+            for (i = 0; i < nvars; ++i)
+            {
+               val = matrices[i][s * blocksize + t];
+               if ( ! SCIPisZero(scip, val) )
+               {
+                  consvals[nconsvars] = val;
+                  consvars[nconsvars++] = consdata->vars[i];
+               }
+            }
+
+            /* only proceed if entry is nontrivial */
+            if ( nconsvars == 0 )
+               continue;
+
+            /* if only one variable is involved */
+            if ( nconsvars == 1 )
+            {
+               matrixvar = consvars[0];
+               SCIP_CALL( SCIPcaptureVar(scip, matrixvar) );
+            }
+            else
+            {
+               /* create matrix variable */
+               (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "M%d#%d", s, t);
+               SCIP_CALL( SCIPcreateVarBasic(scip, &matrixvar, name, -SCIPinfinity(scip), SCIPinfinity(scip), 0.0, SCIP_VARTYPE_CONTINUOUS) );
+               SCIP_CALL( SCIPaddVar(scip, matrixvar) );
+
+               consvals[nconsvars] = -1.0;
+               consvars[nconsvars++] = matrixvar;
+
+               /* compute rhs */
+               lhs = constmatrix[s * blocksize + t];
+
+               /* create linear constraint */
+               (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "C%d#%d", s, t);
+               SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, lhs, lhs,
+                     TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+               SCIP_CALL( SCIPaddCons(scip, cons) );
+               SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+            }
+            assert( matrixvar != NULL );
+
+            /* store variable (variable is captured) */
+            matrixvars[s][t] = matrixvar;
+
+            /* skip diagonal entries */
+            if ( s == t )
+               continue;
+
+            /* skip if any of the variables is trivial */
+            if ( matrixvars[s][s] == NULL || matrixvars[t][t] == NULL || matrixvars[s][t] == NULL )
+               continue;
+
+            /* create variable for sum of two matrix varialbes (note they they are nonnegative) */
+            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "sum%d#%d", s, t);
+            SCIP_CALL( SCIPcreateVarBasic(scip, &matrixsumvar, name, 0.0, SCIPinfinity(scip), 0.0, SCIP_VARTYPE_CONTINUOUS) );
+            SCIP_CALL( SCIPaddVar(scip, matrixsumvar) );
+
+            consvars[0] = matrixvars[s][s];
+            consvars[1] = matrixvars[t][t];
+            consvars[2] = matrixsumvar;
+
+            consvals[0] = 1.0;
+            consvals[1] = 1.0;
+            consvals[2] = -1.0;
+
+            /* create linear constraint */
+            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "Sum%d#%d", s, t);
+            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, 3, consvars, consvals, 0.0, 0.0,
+                  TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+            SCIP_CALL( SCIPaddCons(scip, cons) );
+            SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+
+            /* create variable for differenc of two matrix varialbes */
+            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "diff%d#%d", s, t);
+            SCIP_CALL( SCIPcreateVarBasic(scip, &matrixdiffvar, name, -SCIPinfinity(scip), SCIPinfinity(scip), 0.0, SCIP_VARTYPE_CONTINUOUS) );
+            SCIP_CALL( SCIPaddVar(scip, matrixdiffvar) );
+
+            consvars[0] = matrixvars[s][s];
+            consvars[1] = matrixvars[t][t];
+            consvars[2] = matrixdiffvar;
+
+            consvals[0] = 1.0;
+            consvals[1] = -1.0;
+            consvals[2] = -1.0;
+
+            /* create linear constraint */
+            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "Diff%d#%d", s, t);
+            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, 3, consvars, consvals, 0.0, 0.0,
+                  TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+            SCIP_CALL( SCIPaddCons(scip, cons) );
+            SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+
+            /* construct SOC constraint */
+            consvars[0] = matrixvars[s][t];
+            consvars[1] = matrixdiffvar;
+
+            consvals[0] = 2.0;
+            consvals[1] = 1.0;
+
+            /* add linear constraint (only propagate) */
+            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "2x2minorSOC#%d#%d", s, t);
+
+            SCIP_CALL( SCIPcreateConsSOC(scip, &cons, name, 2, consvars, consvals, NULL, 0.0, matrixsumvar, 1.0, 0.0,
+                  TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE) );
+            SCIP_CALL( SCIPaddCons(scip, cons) );
+
+#ifdef SCIP_MORE_DEBUG
+            SCIPinfoMessage(scip, NULL, "Added 2x2 minor linear constraint: ");
+            SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
+            SCIPinfoMessage(scip, NULL, "\n");
+#endif
+            SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+            ++(*naddconss);
+
+            SCIP_CALL( SCIPreleaseVar(scip, &matrixsumvar) );
+            SCIP_CALL( SCIPreleaseVar(scip, &matrixdiffvar) );
+         }
+      }
+
+      for (s = blocksize - 1; s >= 0; --s)
+      {
+         for (t = 0; t <= s; ++t)
+         {
+            if ( matrixvars[s][t] != NULL )
+            {
+               SCIP_CALL( SCIPreleaseVar(scip, &matrixvars[s][t]) );
+            }
+         }
+         SCIPfreeBufferArray(scip, &matrixvars[s]);
+      }
+      SCIPfreeBufferArray(scip, &matrixvars);
+
+      for (i = 0; i < nvars; ++i)
+         SCIPfreeBufferArray(scip, &matrices[i]);
+      SCIPfreeBufferArray(scip, &matrices);
+      SCIPfreeBufferArray(scip, &constmatrix);
       SCIPfreeBufferArray(scip, &consvals);
       SCIPfreeBufferArray(scip, &consvars);
    }
@@ -3285,6 +3523,16 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
                *result = SCIP_SUCCESS;
          }
       }
+
+      /* add SOCP-approximation if required */
+      if ( *result != SCIP_CUTOFF && conshdlrdata->sdpconshdlrdata->addsocrelax )
+      {
+         noldaddconss = *naddconss;
+         SCIP_CALL( addTwoMinorSOCConstraints(scip, conshdlr, conss, nconss, naddconss) );
+         SCIPdebugMsg(scip, "Added %d SOC constraints for 2 by 2 minors.\n", *naddconss - noldaddconss);
+         if ( noldaddconss != *naddconss )
+            *result = SCIP_SUCCESS;
+      }
    }
 
    return SCIP_OKAY;
@@ -4596,6 +4844,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/separateonecut",
          "Should only one cut corresponding to the most negative eigenvalue be separated?",
          &(conshdlrdata->separateonecut), TRUE, DEFAULT_SEPARATEONECUT, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/addsocrelax",
+         "Should a relaxation of SOC constraints be added?",
+         &(conshdlrdata->addsocrelax), TRUE, DEFAULT_ADDSOCRELAX, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "constraints/SDP/maxnvarsquadupgd",
          "maximal number of quadratic constraints and appearing variables so that the QUADCONSUPGD is performed",

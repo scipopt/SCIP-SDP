@@ -4,10 +4,11 @@ SCIP-SDP version NEXT
 features:
 - separate cuts for all negative eigenvalues when solving with LP
 - new function SCIPlapackComputeEigenvectorsNegative() to compute only eigenvectors for negative eigenvalues
+- allow to add SOC relaxation based on 2 by 2 minors
 
 parameters:
 - new parameter <constraints/SDP/separateonecut> to separate only one cut for the smallest eigenvalue (default: FALSE)
-
+- new parameter <constraints/SDP/addsocrelax> to add SOC relaxation (default: FALSE)
 
 SCIP-SDP version 3.2.0
 ======================
