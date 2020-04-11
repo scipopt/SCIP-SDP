@@ -3629,10 +3629,10 @@ SCIP_DECL_CONSTRANS(consTransSdp)
 
    /* name the transformed constraint */
 #ifndef NDEBUG
-      snprintfreturn = SCIPsnprintf(transname, SCIP_MAXSTRLEN, "t_%s", SCIPconsGetName(sourcecons));
-      assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
+   snprintfreturn = SCIPsnprintf(transname, SCIP_MAXSTRLEN, "t_%s", SCIPconsGetName(sourcecons));
+   assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
 #else
-      (void) SCIPsnprintf(transname, SCIP_MAXSTRLEN, "t_%s", SCIPconsGetName(sourcecons));
+   (void) SCIPsnprintf(transname, SCIP_MAXSTRLEN, "t_%s", SCIPconsGetName(sourcecons));
 #endif
 
    /* create target constraint */
@@ -4781,6 +4781,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    conshdlrdata->nsdpvars = 0;
    conshdlrdata->sdpcons = NULL;
    conshdlrdata->triedlinearconss = FALSE;
+   conshdlrdata->solvelp = FALSE;
    conshdlrdata->sdpconshdlrdata = conshdlrdata;  /* set this to itself to simplify access of parameters */
 
    /* include constraint handler */
