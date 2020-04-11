@@ -29,7 +29,7 @@
 /* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-#define SCIP_DEBUG
+
 /**@file   cons_sdp.c
  * @brief  Constraint handler for SDP-constraints
  * @author Sonja Mars
@@ -691,7 +691,7 @@ SCIP_RETCODE separateSol(
       int cnt = 0;
 
       /* get pointer to current eigenvector */
-      eigenvector = eigenvectors + i * blocksize;
+      eigenvector = &(eigenvectors[i * blocksize]);
 
       /* multiply eigenvector with constant matrix to get lhs (after multiplying again with eigenvector from the left) */
       SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullconstmatrix, eigenvector, vector) );
