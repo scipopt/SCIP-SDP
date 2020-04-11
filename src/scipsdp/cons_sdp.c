@@ -29,7 +29,7 @@
 /* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
+#define SCIP_DEBUG
 /**@file   cons_sdp.c
  * @brief  Constraint handler for SDP-constraints
  * @author Sonja Mars
@@ -658,7 +658,7 @@ SCIP_RETCODE separateSol(
    /* expand it because LAPACK wants the full matrix instead of the lower triangular part */
    SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
 
-   if ( conshdlrdata->separateonecut )
+   if ( conshdlrdata->sdpconshdlrdata->separateonecut )
    {
       /* compute smalles eigenvalue */
       SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, blocksize, fullmatrix, 1, eigenvalues, eigenvectors) );
