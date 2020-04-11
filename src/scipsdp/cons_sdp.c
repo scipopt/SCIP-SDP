@@ -103,6 +103,7 @@
 #define DEFAULT_UPGRADEKEEPQUAD   FALSE /**< Should the quadratic constraints be kept in the problem after upgrading and the corresponding SDP constraint be added without the rank 1 constraint? */
 #define DEFAULT_MAXNVARSQUADUPGD   1000 /**< maximal number of quadratic constraints and appearing variables so that the QUADCONSUPGD is performed */
 #define DEFAULT_RANK1APPROXHEUR   FALSE /**< Should the heuristic that computes the best rank-1 approximation for a given solution be executed? */
+#define DEFAULT_SEPARATEONECUT    FALSE /**< Should only one cut corresponding to the most negative eigenvalue be separated? */
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
 #endif
@@ -142,6 +143,7 @@ struct SCIP_ConshdlrData
    SCIP_Bool             quadconsrank1;      /**< Should quadratic cons for 2x2 minors be added in the rank-1 case? */
    SCIP_Bool             upgradquadconss;    /**< Should quadratic constraints be upgraded to a rank 1 SDP? */
    SCIP_Bool             upgradekeepquad;    /**< Should the quadratic constraints be kept in the problem after upgrading and the corresponding SDP constraint be added without the rank 1 constraint? */
+   SCIP_Bool             separateonecut;     /**< Should only one cut corresponding to the most negative eigenvalue be separated? */
    int                   maxnvarsquadupgd;   /**< maximal number of quadratic constraints and appearing variables so that the QUADCONSUPGD is performed */
    SCIP_Bool             triedlinearconss;   /**< Have we tried to add linear constraints? */
    SCIP_Bool             rank1approxheur;    /**< Should the heuristic that computes the best rank-1 approximation for a given solution be executed? */
@@ -610,81 +612,142 @@ SCIP_RETCODE separateSol(
    char cutname[SCIP_MAXSTRLEN];
    SCIP_CONSDATA* consdata;
    SCIP_CONSHDLRDATA* conshdlrdata;
-   SCIP_Real lhs = 0.0;
-   SCIP_Real* coeff = NULL;
-   SCIP_COL** cols;
-   SCIP_Real* vals;
    SCIP_ROW* row;
+   SCIP_VAR** vars;
+   SCIP_Real* vals;
+   SCIP_Real* coeff;
+   SCIP_Real* eigenvectors;
+   SCIP_Real* vector;
+   SCIP_Real* matrix;
+   SCIP_Real* fullmatrix;
+   SCIP_Real* fullconstmatrix = NULL;
+   SCIP_Real* eigenvalues;
+   int neigenvalues;
+   int blocksize;
    int nvars;
+   int i;
    int j;
-   int len;
-#ifndef NDEBUG
-   int snprintfreturn; /* this is used to assert that the SCIP string concatenation works */
-#endif
 
    assert( cons != NULL );
+   assert( result != NULL );
 
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
 
-   nvars = consdata->nvars;
-   SCIP_CALL( SCIPallocBufferArray(scip, &coeff, nvars ) );
-
-   SCIP_CALL( cutUsingEigenvector(scip, cons, sol, coeff, &lhs) );
-
-   SCIP_CALL( SCIPallocBufferArray(scip, &cols, nvars ) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &vals, nvars ) );
-
-   len = 0;
-   for (j = 0; j < nvars; ++j)
-   {
-      if ( SCIPisZero(scip, coeff[j]) )
-         continue;
-
-      cols[len] = SCIPvarGetCol(SCIPvarGetProbvar(consdata->vars[j]));
-      vals[len] = coeff[j];
-      ++len;
-   }
-
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
 
-#ifndef NDEBUG
-   snprintfreturn = SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
-   assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether name fit into string */
-#else
-   (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
-#endif
+   /* prepare computations */
+   nvars = consdata->nvars;
+   blocksize = consdata->blocksize;
 
-#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
-   SCIP_CALL( SCIPcreateRowConshdlr(scip, &row, conshdlr, cutname , len, cols, vals, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
-#else
-   SCIP_CALL( SCIPcreateRowCons(scip, &row, conshdlr, cutname , len, cols, vals, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
-#endif
+   SCIP_CALL( SCIPallocBufferArray(scip, &coeff, nvars ) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &vars, nvars ) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &vals, nvars ) );
 
-   if ( SCIPisCutEfficacious(scip, sol, row) )
+   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1))/2 ) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize ) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &eigenvectors, blocksize * blocksize) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &eigenvalues, blocksize) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &vector, blocksize) );
+
+   /* compute the matrix \f$ \sum_j A_j y_j - A_0 \f$ */
+   SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix) );
+
+   /* expand it because LAPACK wants the full matrix instead of the lower triangular part */
+   SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
+
+   if ( conshdlrdata->separateonecut )
    {
-      SCIP_Bool infeasible;
-#ifdef SCIP_MORE_DEBUG
-      SCIPinfoMessage(scip, NULL, "Added cut %s: ", cutname);
-      SCIPinfoMessage(scip, NULL, "%f <= ", lhs);
-      for (j = 0; j < len; j++)
-         SCIPinfoMessage(scip, NULL, "+ (%f)*%s", vals[j], SCIPvarGetName(SCIPcolGetVar(cols[j])));
-      SCIPinfoMessage(scip, NULL, "\n");
-#endif
-
-      SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
-      if ( infeasible )
-         *result = SCIP_CUTOFF;
+      /* compute smalles eigenvalue */
+      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, blocksize, fullmatrix, 1, eigenvalues, eigenvectors) );
+      if ( SCIPisFeasNegative(scip, eigenvalues[0]) )
+         neigenvalues = 1;
       else
-         *result = SCIP_SEPARATED;
-      SCIP_CALL( SCIPresetConsAge(scip, cons) );
+         neigenvalues = 0;
+   }
+   else
+   {
+      /* compute all eigenvectors for negative eigenvalues */
+      SCIP_CALL( SCIPlapackComputeEigenvectorsNegative(SCIPbuffer(scip), blocksize, fullmatrix, &neigenvalues, eigenvalues, eigenvectors) );
    }
 
-   SCIP_CALL( SCIPreleaseRow(scip, &row) );
+   if ( neigenvalues > 0 )
+   {
+      /* get full constant matrix */
+      SCIP_CALL( SCIPallocBufferArray(scip, &fullconstmatrix, blocksize * blocksize) );
+      SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, cons, fullconstmatrix) );
+   }
+
+   /* loop through eigenvectors and add cuts as long as cut is violated */
+   for (i = 0; i < neigenvalues && *result != SCIP_CUTOFF; ++i)
+   {
+      SCIP_Real* eigenvector;
+      SCIP_Real lhs = 0.0;
+      int cnt = 0;
+
+      /* get pointer to current eigenvector */
+      eigenvector = eigenvectors + i * blocksize;
+
+      /* multiply eigenvector with constant matrix to get lhs (after multiplying again with eigenvector from the left) */
+      SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullconstmatrix, eigenvector, vector) );
+
+      for (j = 0; j < blocksize; ++j)
+         lhs += eigenvector[j] * vector[j];
+
+      /* compute \f$ v^T A_j v \f$ for eigenvector v and each matrix \f$ A_j \f$ to get the coefficients of the LP cut */
+      for (j = 0; j < consdata->nvars; ++j)
+      {
+         SCIP_CALL( multiplyConstraintMatrix(cons, j, eigenvector, &coeff[j]) );
+
+         if ( SCIPisFeasZero(scip, coeff[j]) )
+            continue;
+
+         vars[cnt] = consdata->vars[j];
+         vals[cnt++] = coeff[j];
+      }
+
+      (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
+      SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
+#else
+      SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
+#endif
+
+      SCIP_CALL( SCIPaddVarsToRow(scip, row, cnt, vars, vals) );
+
+      if ( SCIPisCutEfficacious(scip, sol, row) )
+      {
+         SCIP_Bool infeasible;
+#ifdef SCIP_MORE_DEBUG
+         SCIPinfoMessage(scip, NULL, "Added cut %s: ", cutname);
+         SCIPinfoMessage(scip, NULL, "%f <= ", lhs);
+         for (j = 0; j < cnt; j++)
+            SCIPinfoMessage(scip, NULL, "+ (%f)*%s", vals[j], SCIPvarGetName(vars[j]));
+         SCIPinfoMessage(scip, NULL, "\n");
+#endif
+
+         SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
+         if ( infeasible )
+            *result = SCIP_CUTOFF;
+         else
+            *result = SCIP_SEPARATED;
+         SCIP_CALL( SCIPresetConsAge(scip, cons) );
+      }
+
+      SCIP_CALL( SCIPreleaseRow(scip, &row) );
+   }
+   SCIPdebugMsg(scip, "<%s>: Separated cuts = %d.\n", SCIPconsGetName(cons), i - 1);
+
+   SCIPfreeBufferArrayNull(scip, &fullconstmatrix);
+   SCIPfreeBufferArray(scip, &vector);
+   SCIPfreeBufferArray(scip, &eigenvalues);
+   SCIPfreeBufferArray(scip, &eigenvectors);
+   SCIPfreeBufferArray(scip, &fullmatrix);
+   SCIPfreeBufferArray(scip, &matrix);
 
    SCIPfreeBufferArray(scip, &vals);
-   SCIPfreeBufferArray(scip, &cols);
+   SCIPfreeBufferArray(scip, &vars);
    SCIPfreeBufferArray(scip, &coeff);
 
    return SCIP_OKAY;
@@ -4509,6 +4572,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/upgradekeepquad",
          "Should the quadratic constraints be kept in the problem after upgrading and the corresponding SDP constraint be added without the rank 1 constraint?",
          &(conshdlrdata->upgradekeepquad), TRUE, DEFAULT_UPGRADEKEEPQUAD, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/separateonecut",
+         "Should only one cut corresponding to the most negative eigenvalue be separated?",
+         &(conshdlrdata->separateonecut), TRUE, DEFAULT_SEPARATEONECUT, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "constraints/SDP/maxnvarsquadupgd",
          "maximal number of quadratic constraints and appearing variables so that the QUADCONSUPGD is performed",

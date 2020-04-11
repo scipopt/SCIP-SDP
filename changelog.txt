@@ -1,3 +1,14 @@
+SCIP-SDP version NEXT
+======================
+
+features:
+- separate cuts for all negative eigenvalues when solving with LP
+- new function SCIPlapackComputeEigenvectorsNegative() to compute only eigenvectors for negative eigenvalues
+
+parameters:
+- new parameter <constraints/SDP/separateonecut> to separate only one cut for the smallest eigenvalue (default: FALSE)
+
+
 SCIP-SDP version 3.2.0
 ======================
 
