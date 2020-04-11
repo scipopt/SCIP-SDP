@@ -245,6 +245,114 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    return SCIP_OKAY;
 }
 
+/** computes eigenvectors corresponding to negative eigenvalues of a symmetric matrix using LAPACK, matrix has to be given with all \f$n^2\f$ entries */
+SCIP_RETCODE SCIPlapackComputeEigenvectorsNegative(
+   BMS_BUFMEM*           bufmem,             /**< buffer memory */
+   int                   n,                  /**< size of matrix */
+   SCIP_Real*            A,                  /**< matrix for which eigenvectors should be computed - will be destroyed! */
+   int*                  neigenvalues,       /**< pointer to store the number of negative eigenvalues */
+   SCIP_Real*            eigenvalues,        /**< array for eigenvalues (should be length n) */
+   SCIP_Real*            eigenvectors        /**< array for eigenvectors (should be length n*n), eigenvectors are given as rows  */
+   )
+{
+   LAPACKINTTYPE N;
+   LAPACKINTTYPE INFO;
+   char JOBZ;
+   char RANGE;
+   char UPLO;
+   LAPACKINTTYPE LDA;
+   SCIP_Real* WORK;
+   LAPACKINTTYPE LWORK;
+   LAPACKINTTYPE* IWORK;
+   LAPACKINTTYPE LIWORK;
+   SCIP_Real ABSTOL;
+   LAPACKINTTYPE M;
+   LAPACKINTTYPE LDZ;
+   SCIP_Real WSIZE;
+   LAPACKINTTYPE WISIZE;
+   SCIP_Real VL;
+   SCIP_Real VU;
+   LAPACKINTTYPE* ISUPPZ;
+
+   assert( bufmem != NULL );
+   assert( n > 0 );
+   assert( A != NULL );
+   assert( neigenvalues != NULL );
+   assert( eigenvalues != NULL );
+   assert( eigenvectors != NULL );
+
+   N = n;
+   JOBZ = 'V';
+   RANGE = 'V';
+   UPLO = 'L';
+   LDA  = n;
+   ABSTOL = 0.0;
+   LDZ = n;
+   M = -1;
+
+   /* interval of allowed values */
+   VL = -1e20;
+   VU = 1e-6;
+
+   /* standard LAPACK workspace query, to get the amount of needed memory */
+#ifdef LAPACK_LONGLONGINT
+   LWORK = -1LL;
+   LIWORK = -1LL;
+#else
+   LWORK = -1;
+   LIWORK = -1;
+#endif
+
+   /* this computes the internally needed memory and returns this as (the first entries of [the 1x1 arrays]) WSIZE and WISIZE */
+   F77_FUNC(dsyevr, DSYEVR)( &JOBZ, &RANGE, &UPLO,
+      &N, NULL, &LDA,
+      &VL, &VU,
+      NULL, NULL,
+      &ABSTOL, &M, NULL, NULL,
+      &LDZ, NULL, &WSIZE,
+      &LWORK, &WISIZE, &LIWORK,
+      &INFO);
+
+   /* for some reason this code seems to be called with INFO=0 within UG */
+   if ( INFO != 0 )
+   {
+      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %lld.\n", INFO);
+      return SCIP_ERROR;
+   }
+
+   /* allocate workspace */
+   LWORK = SCIP_RealTOINT(WSIZE);
+   LIWORK = WISIZE;
+
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &WORK, (int) LWORK) );
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &IWORK, (int) LIWORK) );
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &ISUPPZ, (int) 2 * N) );
+
+   /* call the function */
+   F77_FUNC(dsyevr, DSYEVR)( &JOBZ, &RANGE, &UPLO,
+      &N, A, &LDA,
+      &VL, &VU,
+      NULL, NULL,
+      &ABSTOL, &M, eigenvalues, eigenvectors,
+      &LDZ, ISUPPZ, WORK,
+      &LWORK, IWORK, &LIWORK,
+      &INFO );
+
+   if ( INFO != 0 )
+   {
+      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d.\n", INFO);
+      return SCIP_ERROR;
+   }
+
+   *neigenvalues = (int) M;
+
+   /* free memory */
+   BMSfreeBufferMemoryArray(bufmem, &ISUPPZ);
+   BMSfreeBufferMemoryArray(bufmem, &IWORK);/*lint !e737*/
+   BMSfreeBufferMemoryArray(bufmem, &WORK);/*lint !e737*/
+
+   return SCIP_OKAY;
+}
 
 /** computes the eigenvector decomposition of a symmetric matrix using LAPACK */
 SCIP_RETCODE SCIPlapackComputeEigenvectorDecomposition(

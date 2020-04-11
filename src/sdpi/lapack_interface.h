@@ -61,6 +61,17 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    SCIP_Real*            eigenvector         /**< pointer to store eigenvector */
    );
 
+/** computes eigenvectors corresponding to negative eigenvalues of a symmetric matrix using LAPACK, matrix has to be given with all \f$n^2\f$ entries */
+SCIP_EXPORT
+SCIP_RETCODE SCIPlapackComputeEigenvectorsNegative(
+   BMS_BUFMEM*           bufmem,             /**< buffer memory */
+   int                   n,                  /**< size of matrix */
+   SCIP_Real*            A,                  /**< matrix for which eigenvectors should be computed - will be destroyed! */
+   int*                  neigenvalues,       /**< pointer to store the number of negative eigenvalues */
+   SCIP_Real*            eigenvalues,        /**< array for eigenvalues (should be length n) */
+   SCIP_Real*            eigenvectors        /**< array for eigenvectors (should be length n*n), eigenvectors are given as rows  */
+   );
+
 /** computes the eigenvector decomposition of a symmetric matrix using LAPACK */
 SCIP_EXPORT
 SCIP_RETCODE SCIPlapackComputeEigenvectorDecomposition(
