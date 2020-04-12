@@ -468,81 +468,6 @@ SCIP_RETCODE setMaxRhsEntry(
    return SCIP_OKAY;
 }
 
-
-/** separate current solution with a cut using the eigenvectors and -values of the solution matrix
- *
- *  This function computes the eigenvectors of the matrix, takes the one corresponding to the smallest eigenvalue and
- *  multiplies the matrix with it such that \f$ coeff[i] = x^TA_ix , lhs = x^TA_0x \f$.
- */
-static
-SCIP_RETCODE cutUsingEigenvector(
-   SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< the constraint to compute the cut for */
-   SCIP_SOL*             sol,                /**< solution to separate */
-   SCIP_Real*            coeff,              /**< pointer to store the coefficients of the computed cut */
-   SCIP_Real*            lhs                 /**< pointer to store the lhs of the computed cut */
-   )
-{
-   SCIP_CONSDATA* consdata;
-   SCIP_Real* eigenvalues = NULL;
-   SCIP_Real* matrix = NULL;
-   SCIP_Real* fullmatrix = NULL;
-   SCIP_Real* fullconstmatrix = NULL;
-   SCIP_Real* eigenvector = NULL;
-   SCIP_Real* output_vector = NULL;
-   int blocksize;
-   int j;
-
-   assert( cons != NULL );
-   assert( lhs != NULL );
-
-   *lhs = 0.0;
-
-   consdata = SCIPconsGetData(cons);
-   assert( consdata != NULL );
-
-   blocksize = consdata->blocksize;
-
-   SCIP_CALL( SCIPallocBufferArray(scip, &eigenvalues, blocksize) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1))/2 ) ); /*lint !e647*/
-   SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize ) ); /*lint !e647*/
-   SCIP_CALL( SCIPallocBufferArray(scip, &fullconstmatrix, blocksize * blocksize) ); /*lint !e647*/
-   SCIP_CALL( SCIPallocBufferArray(scip, &eigenvector, blocksize) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &output_vector, blocksize) );
-
-   /* compute the matrix \f$ \sum_j A_j y_j - A_0 \f$ */
-   SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix) );
-
-   /* expand it because LAPACK wants the full matrix instead of the lower triangular part */
-   SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
-
-   SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, blocksize, fullmatrix, 1, eigenvalues, eigenvector) );
-
-   /* get full constant matrix */
-   SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, cons, fullconstmatrix) );
-
-   /* multiply eigenvector with constant matrix to get lhs (after multiplying again with eigenvector from the left) */
-   SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullconstmatrix, eigenvector, output_vector) );
-
-   for (j = 0; j < blocksize; ++j)
-      *lhs += eigenvector[j] * output_vector[j];
-
-   /* compute \f$ v^T A_j v \f$ for eigenvector v and each matrix \f$ A_j \f$ to get the coefficients of the LP cut */
-   for (j = 0; j < consdata->nvars; ++j)
-   {
-      SCIP_CALL( multiplyConstraintMatrix(cons, j, eigenvector, &coeff[j]) );
-   }
-
-   SCIPfreeBufferArray(scip, &output_vector);
-   SCIPfreeBufferArray(scip, &eigenvector);
-   SCIPfreeBufferArray(scip, &fullconstmatrix);
-   SCIPfreeBufferArray(scip, &fullmatrix);
-   SCIPfreeBufferArray(scip, &matrix);
-   SCIPfreeBufferArray(scip, &eigenvalues);
-
-   return SCIP_OKAY;
-}
-
 /** checks feasibility for a single SDP constraint */
 SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -2514,119 +2439,6 @@ SCIP_RETCODE fixAndAggrVars(
    return SCIP_OKAY;
 }
 
-/** enforces the SDP constraints for a given solution */
-static
-SCIP_RETCODE enforceConstraint(
-   SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONSHDLR*        conshdlr,           /**< constraint handler */
-   SCIP_CONS**           conss,              /**< constraints to process */
-   int                   nconss,             /**< number of constraints */
-   SCIP_SOL*             sol,                /**< solution to enforce (NULL for the LP solution) */
-   SCIP_RESULT*          result              /**< pointer to store the result of the enforcing call */
-   )
-{
-   char cutname[SCIP_MAXSTRLEN];
-   SCIP_CONSDATA* consdata;
-   SCIP_CONSHDLRDATA* conshdlrdata;
-   SCIP_Bool separated = FALSE;
-   SCIP_ROW* row;
-   SCIP_Bool infeasible;
-   SCIP_Real lhs;
-   SCIP_Real* coeff;
-   SCIP_Real rhs;
-   int nvars;
-   int i;
-   int j;
-#ifndef NDEBUG
-   int snprintfreturn; /* used to check the return code of snprintf */
-#endif
-
-   *result = SCIP_FEASIBLE;
-
-   for (i = 0; i < nconss; ++i)
-   {
-      consdata = SCIPconsGetData(conss[i]);
-      SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], sol, FALSE, result) );
-      if ( *result == SCIP_FEASIBLE )
-         continue;
-
-      nvars = consdata->nvars;
-
-      /* if the number of variables is 0, but the constraint is not feasible, we can cut off the node */
-      if ( nvars == 0 )
-      {
-         *result = SCIP_CUTOFF;
-         return SCIP_OKAY;
-      }
-
-      lhs = 0.0;
-      coeff = NULL;
-
-      SCIP_CALL( SCIPallocBufferArray(scip, &coeff, nvars) );
-      SCIP_CALL( cutUsingEigenvector(scip, conss[i], sol, coeff, &lhs) );
-
-      rhs = SCIPinfinity(scip);
-      conshdlrdata = SCIPconshdlrGetData(conshdlr);
-
-#ifndef NDEBUG
-      snprintfreturn = SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
-      assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
-#else
-      (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
-#endif
-
-#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
-      SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname , lhs, rhs, FALSE, FALSE, TRUE) );
-#else
-      SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname , lhs, rhs, FALSE, FALSE, TRUE) );
-#endif
-      SCIP_CALL( SCIPcacheRowExtensions(scip, row) );
-
-      for (j = 0; j < nvars; ++j)
-      {
-         SCIP_CALL( SCIPaddVarToRow(scip, row, consdata->vars[j], coeff[j]) );
-      }
-
-      SCIP_CALL( SCIPflushRowExtensions(scip, row) );
-
-#ifdef SCIP_MORE_DEBUG
-      SCIPinfoMessage(scip, NULL, "Added cut %s: ", cutname);
-      SCIPinfoMessage(scip, NULL, "%f <= ", lhs);
-      for (j = 0; j < nvars; j++)
-         SCIPinfoMessage(scip, NULL, "+ (%f)*%s", coeff[j], SCIPvarGetName(consdata->vars[j]));
-      SCIPinfoMessage(scip, NULL, "\n");
-#endif
-
-      SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
-
-      if ( infeasible )
-      {
-         *result = SCIP_CUTOFF;
-
-         SCIP_CALL( SCIPreleaseRow(scip, &row) );
-         SCIPfreeBufferArray(scip, &coeff);
-
-         return SCIP_OKAY;
-      }
-      else
-      {
-         SCIP_CALL( SCIPaddPoolCut(scip, row) );
-
-         SCIP_CALL( SCIPresetConsAge(scip, conss[i]) );
-         *result = SCIP_SEPARATED;
-         separated = TRUE;
-      }
-      SCIP_CALL( SCIPreleaseRow(scip, &row) );
-      SCIPfreeBufferArray(scip, &coeff);
-   }
-
-   if ( separated )
-      *result = SCIP_SEPARATED;
-
-   return SCIP_OKAY;
-}
-
-
 /** upgrade quadratic constraints to an SDP constraint with rank 1 */
 static
 SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
@@ -4134,12 +3946,21 @@ SCIP_DECL_CONSENFOPS(consEnfopsSdp)
 static
 SCIP_DECL_CONSENFOLP(consEnfolpSdp)
 {/*lint --e{715}*/
+   int c;
+
    assert( scip != NULL );
    assert( conshdlr != NULL );
    assert( conss != NULL );
    assert( result != NULL );
 
-   return enforceConstraint(scip, conshdlr, conss, nconss, NULL, result);
+   *result = SCIP_FEASIBLE;
+
+   for (c = 0; c < nconss; ++c)
+   {
+      SCIP_CALL( separateSol(scip, conshdlr, conss[c], NULL, SCIPfeastol(scip), result) );
+   }
+
+   return SCIP_OKAY;
 }
 
 /** Enforce relaxation solution; if some block is not psd, an eigenvector cut is added.
@@ -4147,12 +3968,22 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
 static
 SCIP_DECL_CONSENFORELAX(consEnforelaxSdp)
 {/*lint --e{715}*/
+   int c;
+
    assert( scip != NULL );
    assert( conshdlr != NULL );
    assert( conss != NULL );
    assert( result != NULL );
 
-   return enforceConstraint(scip, conshdlr, conss, nconss, sol, result);
+   *result = SCIP_FEASIBLE;
+
+   /*****  Is this correct? Relaxation solutions should be feasible. */
+   for (c = 0; c < nconss; ++c)
+   {
+      SCIP_CALL( separateSol(scip, conshdlr, conss[c], sol, SCIPfeastol(scip), result) );
+   }
+
+   return SCIP_OKAY;
 }
 
 /** separates a solution using constraint specific ideas, gives cuts to SCIP */
