@@ -8,6 +8,7 @@ features:
 
 parameters:
 - new parameter <constraints/SDP/separateonecut> to separate only one cut for the smallest eigenvalue (default: FALSE)
+- new parameter <constraints/SDP/cutstopool> to add cuts to the pool (default: TRUE)
 - new parameter <constraints/SDP/addsocrelax> to add SOC relaxation (default: FALSE)
 
 SCIP-SDP version 3.2.0

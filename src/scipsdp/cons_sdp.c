@@ -105,6 +105,7 @@
 #define DEFAULT_MAXNVARSQUADUPGD   1000 /**< maximal number of quadratic constraints and appearing variables so that the QUADCONSUPGD is performed */
 #define DEFAULT_RANK1APPROXHEUR   FALSE /**< Should the heuristic that computes the best rank-1 approximation for a given solution be executed? */
 #define DEFAULT_SEPARATEONECUT    FALSE /**< Should only one cut corresponding to the most negative eigenvalue be separated? */
+#define DEFAULT_CUTSTOPOOL         TRUE /**< Should the cuts be added to the pool? */
 #define DEFAULT_ADDSOCRELAX       FALSE /**< Should a relaxation of SOC constraints be added */
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
@@ -146,6 +147,7 @@ struct SCIP_ConshdlrData
    SCIP_Bool             upgradquadconss;    /**< Should quadratic constraints be upgraded to a rank 1 SDP? */
    SCIP_Bool             upgradekeepquad;    /**< Should the quadratic constraints be kept in the problem after upgrading and the corresponding SDP constraint be added without the rank 1 constraint? */
    SCIP_Bool             separateonecut;     /**< Should only one cut corresponding to the most negative eigenvalue be separated? */
+   SCIP_Bool             cutstopool;         /**< Should the cuts be added to the pool? */
    SCIP_Bool             addsocrelax;        /**< Should a relaxation of SOC constraints be added */
    int                   maxnvarsquadupgd;   /**< maximal number of quadratic constraints and appearing variables so that the QUADCONSUPGD is performed */
    SCIP_Bool             triedlinearconss;   /**< Have we tried to add linear constraints? */
@@ -744,6 +746,11 @@ SCIP_RETCODE separateSol(
          else
             *result = SCIP_SEPARATED;
          SCIP_CALL( SCIPresetConsAge(scip, cons) );
+
+         if ( conshdlrdata->cutstopool )
+         {
+            SCIP_CALL( SCIPaddPoolCut(scip, row) );
+         }
       }
 
       SCIP_CALL( SCIPreleaseRow(scip, &row) );
@@ -4852,6 +4859,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/separateonecut",
          "Should only one cut corresponding to the most negative eigenvalue be separated?",
          &(conshdlrdata->separateonecut), TRUE, DEFAULT_SEPARATEONECUT, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/cutstopool",
+         "Should the cuts be added to the pool?",
+         &(conshdlrdata->cutstopool), TRUE, DEFAULT_CUTSTOPOOL, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/addsocrelax",
          "Should a relaxation of SOC constraints be added?",
