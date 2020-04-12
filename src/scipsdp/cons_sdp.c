@@ -1304,7 +1304,6 @@ SCIP_RETCODE addTwoMinorSOCConstraints(
    )
 {
    char name[SCIP_MAXSTRLEN];
-   SCIP_CONSHDLRDATA* conshdlrdata;
    SCIP_VAR*** matrixvars;
    SCIP_VAR** consvars;
    SCIP_Real* consvals;
@@ -1316,9 +1315,6 @@ SCIP_RETCODE addTwoMinorSOCConstraints(
    assert( scip != NULL );
    assert( conshdlr != NULL );
    assert( naddconss != NULL );
-
-   conshdlrdata = SCIPconshdlrGetData(conshdlr);
-   assert( conshdlrdata != NULL );
 
    for (c = 0; c < nconss; ++c)
    {
