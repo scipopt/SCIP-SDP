@@ -610,6 +610,7 @@ SCIP_RETCODE separateSol(
    SCIP_CONSHDLR*        conshdlr,           /**< the constraint handler itself */
    SCIP_CONS*            cons,               /**< constraint to process */
    SCIP_SOL*             sol,                /**< primal solution that should be separated */
+   SCIP_Real             tol,                /**< tolerance: accepted negative eigenvalues will be in the interval (-1e20, -tol] */
    SCIP_RESULT*          result              /**< pointer to store the result of the separation call */
    )
 {
@@ -673,7 +674,7 @@ SCIP_RETCODE separateSol(
    else
    {
       /* compute all eigenvectors for negative eigenvalues */
-      SCIP_CALL( SCIPlapackComputeEigenvectorsNegative(SCIPbuffer(scip), blocksize, fullmatrix, &neigenvalues, eigenvalues, eigenvectors) );
+      SCIP_CALL( SCIPlapackComputeEigenvectorsNegative(SCIPbuffer(scip), blocksize, fullmatrix, tol, &neigenvalues, eigenvalues, eigenvectors) );
    }
 
    if ( neigenvalues > 0 )
@@ -4152,7 +4153,7 @@ SCIP_DECL_CONSSEPASOL(consSepasolSdp)
 
    for (i = 0; i < nusefulconss; ++i)
    {
-      SCIP_CALL( separateSol(scip, conshdlr, conss[i], sol, result) );
+      SCIP_CALL( separateSol(scip, conshdlr, conss[i], sol, SCIPgetSepaMinEfficacy(scip), result) );
    }
 
    return SCIP_OKAY;
@@ -4169,7 +4170,7 @@ SCIP_DECL_CONSSEPALP(consSepalpSdp)
 
    for (i = 0; i < nusefulconss; ++i)
    {
-      SCIP_CALL( separateSol(scip, conshdlr, conss[i], NULL, result) );
+      SCIP_CALL( separateSol(scip, conshdlr, conss[i], NULL, SCIPgetSepaMinEfficacy(scip), result) );
    }
 
    return SCIP_OKAY;

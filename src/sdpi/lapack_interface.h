@@ -67,6 +67,7 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorsNegative(
    BMS_BUFMEM*           bufmem,             /**< buffer memory */
    int                   n,                  /**< size of matrix */
    SCIP_Real*            A,                  /**< matrix for which eigenvectors should be computed - will be destroyed! */
+   SCIP_Real             tol,                /**< tolerance; the eigenvalues will be in the interval (-1e20, -tol] */
    int*                  neigenvalues,       /**< pointer to store the number of negative eigenvalues */
    SCIP_Real*            eigenvalues,        /**< array for eigenvalues (should be length n) */
    SCIP_Real*            eigenvectors        /**< array for eigenvectors (should be length n*n), eigenvectors are given as rows  */
