@@ -679,9 +679,15 @@ SCIP_RETCODE separateSol(
 
    if ( neigenvalues > 0 )
    {
-      /* get full constant matrix */
-      SCIP_CALL( SCIPallocBufferArray(scip, &fullconstmatrix, blocksize * blocksize) );
-      SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, cons, fullconstmatrix) );
+      /* there are no variables, but the matrix is negative definite -> cutoff */
+      if ( consdata->nvars == 0 )
+         *result = SCIP_CUTOFF;
+      else
+      {
+         /* get full constant matrix */
+         SCIP_CALL( SCIPallocBufferArray(scip, &fullconstmatrix, blocksize * blocksize) );
+         SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, cons, fullconstmatrix) );
+      }
    }
 
    /* loop through eigenvectors and add cuts as long as cut is violated */
