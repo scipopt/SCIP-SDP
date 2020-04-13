@@ -537,7 +537,7 @@ SCIP_RETCODE separateSol(
    SCIP_CONSHDLR*        conshdlr,           /**< the constraint handler itself */
    SCIP_CONS*            cons,               /**< constraint to process */
    SCIP_SOL*             sol,                /**< primal solution that should be separated */
-   SCIP_Real             tol,                /**< tolerance: accepted negative eigenvalues will be in the interval (-1e20, -tol] */
+   SCIP_Bool             enforce,            /**< whether we are enforcing cuts */
    SCIP_RESULT*          result              /**< pointer to store the result of the separation call */
    )
 {
@@ -554,6 +554,7 @@ SCIP_RETCODE separateSol(
    SCIP_Real* fullmatrix;
    SCIP_Real* fullconstmatrix = NULL;
    SCIP_Real* eigenvalues;
+   SCIP_Real tol;
    int neigenvalues;
    int blocksize;
    int nvars;
@@ -589,6 +590,13 @@ SCIP_RETCODE separateSol(
    /* expand it because LAPACK wants the full matrix instead of the lower triangular part */
    SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
 
+   /* determine tolerance */
+   if ( enforce )
+      tol = SCIPfeastol(scip);
+   else
+      tol = SCIPgetSepaMinEfficacy(scip);
+
+   /* compute eigenvector(s) */
    if ( conshdlrdata->sdpconshdlrdata->separateonecut )
    {
       /* compute smalles eigenvalue */
@@ -654,7 +662,8 @@ SCIP_RETCODE separateSol(
 
       SCIP_CALL( SCIPaddVarsToRow(scip, row, cnt, vars, vals) );
 
-      if ( SCIPisCutEfficacious(scip, sol, row) )
+      /* if we are enforcing, we take any of the cuts, otherwise only efficious cuts */
+      if ( enforce || SCIPisCutEfficacious(scip, sol, row) )
       {
          SCIP_Bool infeasible;
 #ifdef SCIP_MORE_DEBUG
@@ -3955,7 +3964,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
 
    for (c = 0; c < nconss; ++c)
    {
-      SCIP_CALL( separateSol(scip, conshdlr, conss[c], NULL, SCIPfeastol(scip), result) );
+      SCIP_CALL( separateSol(scip, conshdlr, conss[c], NULL, TRUE, result) );
    }
 
    return SCIP_OKAY;
@@ -3978,7 +3987,7 @@ SCIP_DECL_CONSENFORELAX(consEnforelaxSdp)
    /*****  Is this correct? Relaxation solutions should be feasible. */
    for (c = 0; c < nconss; ++c)
    {
-      SCIP_CALL( separateSol(scip, conshdlr, conss[c], sol, SCIPfeastol(scip), result) );
+      SCIP_CALL( separateSol(scip, conshdlr, conss[c], sol, TRUE, result) );
    }
 
    return SCIP_OKAY;
@@ -3995,7 +4004,7 @@ SCIP_DECL_CONSSEPASOL(consSepasolSdp)
 
    for (i = 0; i < nusefulconss; ++i)
    {
-      SCIP_CALL( separateSol(scip, conshdlr, conss[i], sol, SCIPgetSepaMinEfficacy(scip), result) );
+      SCIP_CALL( separateSol(scip, conshdlr, conss[i], sol, FALSE, result) );
    }
 
    return SCIP_OKAY;
@@ -4012,7 +4021,7 @@ SCIP_DECL_CONSSEPALP(consSepalpSdp)
 
    for (i = 0; i < nusefulconss; ++i)
    {
-      SCIP_CALL( separateSol(scip, conshdlr, conss[i], NULL, SCIPgetSepaMinEfficacy(scip), result) );
+      SCIP_CALL( separateSol(scip, conshdlr, conss[i], NULL, FALSE, result) );
    }
 
    return SCIP_OKAY;
