@@ -106,6 +106,8 @@
 #define DEFAULT_RANK1APPROXHEUR   FALSE /**< Should the heuristic that computes the best rank-1 approximation for a given solution be executed? */
 #define DEFAULT_SEPARATEONECUT    FALSE /**< Should only one cut corresponding to the most negative eigenvalue be separated? */
 #define DEFAULT_CUTSTOPOOL         TRUE /**< Should the cuts be added to the pool? */
+#define DEFAULT_SPARSIFYCUT        TRUE /**< Should the eigenvector cuts be sparsified? */
+#define DEFAULT_SPARSIFYFACTOR      0.1 /**< target size for sparsification in relation to number of variables */
 #define DEFAULT_ADDSOCRELAX       FALSE /**< Should a relaxation of SOC constraints be added */
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
@@ -148,6 +150,8 @@ struct SCIP_ConshdlrData
    SCIP_Bool             upgradekeepquad;    /**< Should the quadratic constraints be kept in the problem after upgrading and the corresponding SDP constraint be added without the rank 1 constraint? */
    SCIP_Bool             separateonecut;     /**< Should only one cut corresponding to the most negative eigenvalue be separated? */
    SCIP_Bool             cutstopool;         /**< Should the cuts be added to the pool? */
+   SCIP_Bool             sparsifycut;        /**< Should the eigenvector cuts be sparsified? */
+   SCIP_Real             sparsifyfactor;     /**< target size for sparsification in relation to number of variables */
    SCIP_Bool             addsocrelax;        /**< Should a relaxation of SOC constraints be added */
    int                   maxnvarsquadupgd;   /**< maximal number of quadratic constraints and appearing variables so that the QUADCONSUPGD is performed */
    SCIP_Bool             triedlinearconss;   /**< Have we tried to add linear constraints? */
@@ -163,6 +167,7 @@ struct SCIP_ConshdlrData
    SCIP_CONS*            sdpcons;            /**< SDP rank 1 constraint for quadratic constraints */
    SCIP_CONSHDLRDATA*    sdpconshdlrdata;    /**< possibly store SDP constraint handler for retrieving parameters */
    SCIP_Bool             solvelp;            /**< Are LPs solved? */
+   SCIP_RANDNUMGEN*      randnumgen;         /**< random number generator (for sparsifyCut) */
 };
 
 /** generates matrix in colum-first format (needed by LAPACK) from matrix given in full row-first format (SCIP-SDP
@@ -530,6 +535,128 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    return SCIP_OKAY;
 }
 
+/** try to sparsify cut
+ *
+ *  We currently take a small subset of the components of a given eigenvector and check whether the cut is
+ *  violated. Note that this does not necessarily yield a sparse cut because the resulting vector has to be multiplied
+ *  with the matrix pencil.
+ */
+static
+SCIP_RETCODE sparsifyCut(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONSHDLR*        conshdlr,           /**< the constraint handler itself */
+   SCIP_CONS*            cons,               /**< constraint */
+   SCIP_CONSDATA*        consdata,           /**< constraint data */
+   SCIP_SOL*             sol,                /**< primal solution that should be separated */
+   int                   blocksize,          /**< size of block */
+   SCIP_Real*            fullconstmatrix,    /**< precomputed full constant matrix */
+   SCIP_Real*            eigenvector,        /**< original eigenvector */
+   SCIP_Real*            vector,             /**< temporary workspace (length blocksize) */
+   SCIP_VAR**            vars,               /**< temporary workspace */
+   SCIP_Real*            vals,               /**< temporary workspace */
+   SCIP_Bool*            infeasible,         /**< pointer to store whether cut proved infeasibility */
+   SCIP_Bool*            success             /**< pointer to store whether we produced a sparsified cut */
+   )
+{
+   char cutname[SCIP_MAXSTRLEN];
+   SCIP_CONSHDLRDATA* conshdlrdata;
+   SCIP_ROW* row;
+   SCIP_Real* ev;
+   SCIP_Real norm = 0.0;
+   SCIP_Real lhs = 0.0;
+   SCIP_Real coef;
+   int cnt = 0;
+   int size;
+   int* idx;
+   int j;
+
+   assert( scip != NULL );
+   assert( conshdlr != NULL );
+   assert( fullconstmatrix != NULL );
+   assert( eigenvector != NULL );
+   assert( vector != NULL );
+   assert( success != NULL );
+
+   *success = FALSE;
+
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert( conshdlrdata != NULL );
+
+   /* produce random indices */
+   SCIP_CALL( SCIPallocBufferArray(scip, &idx, blocksize) );
+   for (j = 0; j < blocksize; ++j)
+      idx[j] = j;
+
+   /* the following should only be allocated once */
+   assert( conshdlrdata->randnumgen != NULL );
+   SCIPrandomPermuteIntArray(conshdlrdata->randnumgen, idx, 0, blocksize);
+
+   /* compute target size */
+   size = MAX(10, (int) conshdlrdata->sparsifyfactor * consdata->nvars);
+
+   /* take random subset of eigenvector - the remaining entries are 0 */
+   SCIP_CALL( SCIPallocClearBufferArray(scip, &ev, blocksize) );
+   for (j = 0; j < size; ++j)
+   {
+      ev[idx[j]] = eigenvector[j];
+      norm += eigenvector[j] * eigenvector[j];
+   }
+
+   /* normalize */
+   norm = sqrt(norm);
+   for (j = 0; j < size; ++j)
+      ev[idx[j]] /= norm;
+
+   /* multiply eigenvector with constant matrix to get lhs (after multiplying again with eigenvector from the left) */
+   SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullconstmatrix, ev, vector) );
+
+   for (j = 0; j < blocksize; ++j)
+      lhs += ev[j] * vector[j];
+
+   /* compute \f$ v^T A_j v \f$ for eigenvector v and each matrix \f$ A_j \f$ to get the coefficients of the LP cut */
+   for (j = 0; j < consdata->nvars; ++j)
+   {
+      SCIP_CALL( multiplyConstraintMatrix(cons, j, ev, &coef) );
+
+      if ( SCIPisFeasZero(scip, coef) )
+         continue;
+
+      vars[cnt] = consdata->vars[j];
+      vals[cnt++] = coef;
+   }
+
+   (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
+   SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
+#else
+   SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
+#endif
+
+   SCIP_CALL( SCIPaddVarsToRow(scip, row, cnt, vars, vals) );
+
+   /* if we are enforcing, we take any of the cuts, otherwise only efficious cuts */
+   if ( SCIPisCutEfficacious(scip, sol, row) )
+   {
+#ifdef SCIP_MORE_DEBUG
+      SCIP_CALL( SCIPprintRow(scip, row, NULL) );
+#endif
+      SCIP_CALL( SCIPaddRow(scip, row, FALSE, infeasible) );
+      SCIP_CALL( SCIPresetConsAge(scip, cons) );
+      *success = TRUE;
+
+      if ( conshdlrdata->cutstopool )
+      {
+         SCIP_CALL( SCIPaddPoolCut(scip, row) );
+      }
+   }
+   SCIP_CALL( SCIPreleaseRow(scip, &row) );
+
+   SCIPfreeBufferArray(scip, &ev);
+   SCIPfreeBufferArray(scip, &idx);
+
+   return SCIP_OKAY;
+}
+
 /** separates the current solution */
 static
 SCIP_RETCODE separateSol(
@@ -630,10 +757,30 @@ SCIP_RETCODE separateSol(
    {
       SCIP_Real* eigenvector;
       SCIP_Real lhs = 0.0;
+      SCIP_Bool success;
+      SCIP_Bool infeasible = FALSE;
       int cnt = 0;
 
       /* get pointer to current eigenvector */
       eigenvector = &(eigenvectors[i * blocksize]);
+
+      /* if we want to sparsify the cut */
+      if ( ! enforce && conshdlrdata->sparsifycut )
+      {
+         SCIP_CALL( sparsifyCut(scip, conshdlr, cons, consdata, sol, blocksize, fullconstmatrix, eigenvector, vector, vars, vals, &infeasible, &success) );
+
+         if ( infeasible )
+         {
+            *result = SCIP_CUTOFF;
+            continue;
+         }
+
+         if ( success )
+         {
+            *result = SCIP_SEPARATED;
+            continue;
+         }
+      }
 
       /* multiply eigenvector with constant matrix to get lhs (after multiplying again with eigenvector from the left) */
       SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullconstmatrix, eigenvector, vector) );
@@ -665,7 +812,6 @@ SCIP_RETCODE separateSol(
       /* if we are enforcing, we take any of the cuts, otherwise only efficious cuts */
       if ( enforce || SCIPisCutEfficacious(scip, sol, row) )
       {
-         SCIP_Bool infeasible;
 #ifdef SCIP_MORE_DEBUG
          SCIPinfoMessage(scip, NULL, "Added cut %s: ", cutname);
          SCIPinfoMessage(scip, NULL, "%f <= ", lhs);
@@ -3095,6 +3241,11 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
 
+   if ( conshdlrdata->sparsifycut && conshdlrdata->randnumgen == NULL )
+   {
+      SCIP_CALL( SCIPcreateRandom(scip, &conshdlrdata->randnumgen, 64293, FALSE) );
+   }
+
    if ( SCIPgetSubscipDepth(scip) > 0 || ! conshdlrdata->sdpconshdlrdata->quadconsrank1 )
       return SCIP_OKAY;
 
@@ -4079,6 +4230,11 @@ SCIP_DECL_CONSFREE(consFreeSdp)
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
 
+   if ( conshdlrdata->randnumgen != NULL )
+   {
+      SCIPfreeRandom(scip, &conshdlrdata->randnumgen);
+   }
+
    SCIPfreeMemory(scip, &conshdlrdata);
    SCIPconshdlrSetData(conshdlr, NULL);
 
@@ -4634,6 +4790,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    conshdlrdata->sdpcons = NULL;
    conshdlrdata->triedlinearconss = FALSE;
    conshdlrdata->solvelp = FALSE;
+   conshdlrdata->randnumgen = NULL;
    conshdlrdata->sdpconshdlrdata = conshdlrdata;  /* set this to itself to simplify access of parameters */
 
    /* include constraint handler */
@@ -4702,6 +4859,14 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          "Should the cuts be added to the pool?",
          &(conshdlrdata->cutstopool), TRUE, DEFAULT_CUTSTOPOOL, NULL, NULL) );
 
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/sparsifycut",
+         "Should the eigenvector cuts be sparsified?",
+         &(conshdlrdata->sparsifycut), TRUE, DEFAULT_SPARSIFYCUT, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddRealParam(scip, "constraints/SDP/sparsifyfactor",
+         "target size for sparsification in relation to number of variables",
+         &(conshdlrdata->sparsifyfactor), TRUE, DEFAULT_SPARSIFYFACTOR, 0.0, 1.0, NULL, NULL) );
+
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/addsocrelax",
          "Should a relaxation of SOC constraints be added?",
          &(conshdlrdata->addsocrelax), TRUE, DEFAULT_ADDSOCRELAX, NULL, NULL) );
@@ -4756,6 +4921,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->nsdpvars = 0;
    conshdlrdata->sdpcons = NULL;
    conshdlrdata->solvelp = FALSE;
+   conshdlrdata->randnumgen = NULL;
 
    /* include constraint handler */
    SCIP_CALL( SCIPincludeConshdlrBasic(scip, &conshdlr, CONSHDLRRANK1_NAME, CONSHDLRRANK1_DESC,
