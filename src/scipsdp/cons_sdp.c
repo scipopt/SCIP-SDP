@@ -2727,9 +2727,9 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
       }
 
 #ifdef SCIP_MORE_DEBUG
-   SCIPinfoMessage(scip, NULL, "In upgrade of quadratic constraint the following SDPrank1 constraint has been added:\n");
-   SCIP_CALL( SCIPprintCons(scip, conshdlrdata->sdpconshdlrdata->sdpcons, NULL) );
-   SCIPinfoMessage(scip, NULL, "\n");
+      SCIPinfoMessage(scip, NULL, "In upgrade of quadratic constraint the following SDPrank1 constraint has been added:\n");
+      SCIP_CALL( SCIPprintCons(scip, conshdlrdata->sdpconshdlrdata->sdpcons, NULL) );
+      SCIPinfoMessage(scip, NULL, "\n");
 #endif
 
       /* free local memory */
@@ -2800,7 +2800,8 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
             ++cnt;
          }
 
-         SCIPdebugMsg(scip, "New variable %s corresponds to squared original variable %s\n", SCIPvarGetName(conshdlrdata->sdpconshdlrdata->X[idx][idx]), SCIPvarGetName(quadvarterms[j].var));
+         SCIPdebugMsg(scip, "New variable %s corresponds to squared original variable %s\n",
+            SCIPvarGetName(conshdlrdata->sdpconshdlrdata->X[idx][idx]), SCIPvarGetName(quadvarterms[j].var));
       }
       assert( cnt <= nlinvarterms + 2 * nquadvarterms );
 
@@ -2825,7 +2826,8 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
          assert( linconsvars[cnt] != NULL );
          ++cnt;
 
-         SCIPdebugMsg(scip, "New variable %s corresponds to product of original variables %s and %s\n", SCIPvarGetName(conshdlrdata->sdpconshdlrdata->X[idx1][idx2]), SCIPvarGetName(bilinterms[j].var1), SCIPvarGetName(bilinterms[j].var2));
+         SCIPdebugMsg(scip, "New variable %s corresponds to product of original variables %s and %s\n",
+            SCIPvarGetName(conshdlrdata->sdpconshdlrdata->X[idx1][idx2]), SCIPvarGetName(bilinterms[j].var1), SCIPvarGetName(bilinterms[j].var2));
       }
       assert( cnt <= nlinvarterms + 2 * nquadvarterms + nbilinterms );
 
