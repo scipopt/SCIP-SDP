@@ -919,28 +919,35 @@ SCIP_RETCODE diagZeroImpl(
       /* iterate over all nonzeros of the constant matrix and check which diagonal and non-diagonal entries are nonzero */
       for (j = 0; j < consdata->constnnonz; j++)
       {
+         int constcolidx;
+         int constrowidx;
+
+         constrowidx = consdata->constrow[j];
+         constcolidx = consdata->constcol[j];
+         assert( 0 <= constcolidx && constcolidx < blocksize );
+         assert( 0 <= constrowidx && constrowidx < blocksize );
+         assert( ! SCIPisZero(scip, consdata->constval[j]) );
+
          /* if it is a nondiagonal-entry we add this row/column to the constnonzeroentries entries unless we already found a
           * diagonal entry for this row/column */
-         if ( (consdata->constcol[j] != consdata->constrow[j]) )
+         if ( constcolidx != constrowidx )
          {
-            assert( ! SCIPisZero(scip, consdata->constval[j]) );
-            if ( nconstnonzeroentries[consdata->constcol[j]] >= 0 )
+            if ( nconstnonzeroentries[constcolidx] >= 0 )
             {
-               constnonzeroentries[consdata->constcol[j]][nconstnonzeroentries[consdata->constcol[j]]] = consdata->constrow[j];
-               nconstnonzeroentries[consdata->constcol[j]]++;
+               constnonzeroentries[constcolidx][nconstnonzeroentries[constcolidx]] = constrowidx;
+               nconstnonzeroentries[constcolidx]++;
             }
 
-            if ( nconstnonzeroentries[consdata->constrow[j]] >= 0 )
+            if ( nconstnonzeroentries[constrowidx] >= 0 )
             {
-               constnonzeroentries[consdata->constrow[j]][nconstnonzeroentries[consdata->constrow[j]]] = consdata->constcol[j];
-               nconstnonzeroentries[consdata->constrow[j]]++;
+               constnonzeroentries[constrowidx][nconstnonzeroentries[constrowidx]] = constcolidx;
+               nconstnonzeroentries[constrowidx]++;
             }
          }
-         /* if we find a diagonal entry in the constant matrix, we remember that we cannot add a cut for this index */
          else
          {
-            assert( ! SCIPisZero(scip, consdata->constval[j]) );
-            nconstnonzeroentries[consdata->constcol[j]] = -1;
+            /* if we find a diagonal entry in the constant matrix, we remember that we cannot add a cut for this index */
+            nconstnonzeroentries[constcolidx] = -1;
          }
       }
 
