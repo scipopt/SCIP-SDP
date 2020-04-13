@@ -674,7 +674,6 @@ SCIP_RETCODE separateSol(
    SCIP_ROW* row;
    SCIP_VAR** vars;
    SCIP_Real* vals;
-   SCIP_Real* coeff;
    SCIP_Real* eigenvectors;
    SCIP_Real* vector;
    SCIP_Real* matrix;
@@ -701,7 +700,6 @@ SCIP_RETCODE separateSol(
    nvars = consdata->nvars;
    blocksize = consdata->blocksize;
 
-   SCIP_CALL( SCIPallocBufferArray(scip, &coeff, nvars ) );
    SCIP_CALL( SCIPallocBufferArray(scip, &vars, nvars ) );
    SCIP_CALL( SCIPallocBufferArray(scip, &vals, nvars ) );
 
@@ -791,13 +789,15 @@ SCIP_RETCODE separateSol(
       /* compute \f$ v^T A_j v \f$ for eigenvector v and each matrix \f$ A_j \f$ to get the coefficients of the LP cut */
       for (j = 0; j < consdata->nvars; ++j)
       {
-         SCIP_CALL( multiplyConstraintMatrix(cons, j, eigenvector, &coeff[j]) );
+         SCIP_Real coef;
 
-         if ( SCIPisFeasZero(scip, coeff[j]) )
-            continue;
+         SCIP_CALL( multiplyConstraintMatrix(cons, j, eigenvector, &coef) );
 
-         vars[cnt] = consdata->vars[j];
-         vals[cnt++] = coeff[j];
+         if ( ! SCIPisFeasZero(scip, coef) )
+         {
+            vars[cnt] = consdata->vars[j];
+            vals[cnt++] = coef;
+         }
       }
 
       (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
@@ -846,7 +846,6 @@ SCIP_RETCODE separateSol(
 
    SCIPfreeBufferArray(scip, &vals);
    SCIPfreeBufferArray(scip, &vars);
-   SCIPfreeBufferArray(scip, &coeff);
 
    return SCIP_OKAY;
 }
