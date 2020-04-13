@@ -813,13 +813,8 @@ SCIP_RETCODE separateSol(
       if ( enforce || SCIPisCutEfficacious(scip, sol, row) )
       {
 #ifdef SCIP_MORE_DEBUG
-         SCIPinfoMessage(scip, NULL, "Added cut %s: ", cutname);
-         SCIPinfoMessage(scip, NULL, "%f <= ", lhs);
-         for (j = 0; j < cnt; j++)
-            SCIPinfoMessage(scip, NULL, "+ (%f)*%s", vals[j], SCIPvarGetName(vars[j]));
-         SCIPinfoMessage(scip, NULL, "\n");
+         SCIP_CALL( SCIPprintRow(scip, row, NULL) );
 #endif
-
          SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
          if ( infeasible )
             *result = SCIP_CUTOFF;
