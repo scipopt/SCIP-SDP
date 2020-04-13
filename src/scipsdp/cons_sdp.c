@@ -913,7 +913,7 @@ SCIP_RETCODE diagZeroImpl(
       for (j = 0; j < blocksize; j++)
       {
          nconstnonzeroentries[j] = 0;
-         SCIP_CALL( SCIPallocBufferArray(scip, &constnonzeroentries[j], blocksize) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &constnonzeroentries[j], 2 * blocksize) );
       }
 
       /* iterate over all nonzeros of the constant matrix and check which diagonal and non-diagonal entries are nonzero */
