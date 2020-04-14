@@ -990,7 +990,7 @@ SCIP_RETCODE diagZeroImpl(
              * is an integer variable and mark the cut invalid otherwise */
             if ( (consdata->col[v][j] == consdata->row[v][j]) && (nconstnonzeroentries[consdata->col[v][j]] > 0) )
             {
-               if ( SCIPvarIsIntegral(consdata->vars[v]) && SCIPisGE(scip, SCIPvarGetLbGlobal(consdata-vars[v]), 0.0) )
+               if ( SCIPvarIsIntegral(consdata->vars[v]) && SCIPisGE(scip, SCIPvarGetLbGlobal(consdata->vars[v]), 0.0) )
                {
                   assert( ! SCIPisEQ(scip, consdata->val[v][j], 0.0) );
                   diagvars[consdata->col[v][j]][ndiagvars[consdata->col[v][j]]] = v;
