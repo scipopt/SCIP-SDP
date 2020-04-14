@@ -11,3 +11,4 @@
 =opt= example_multaggr -1.0
 =opt= example_rank1_primal 0.6537946
 =opt= example_rank1_dual 0.6537946
+=opt= example_diagzeroimpl -1.0
