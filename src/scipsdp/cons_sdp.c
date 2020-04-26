@@ -58,10 +58,12 @@
 #include <ctype.h>                      /* for isspace */
 #include <math.h>
 #include "sdpi/lapack_interface.h"
+#include "relax_sdp.h"
 
 #include "scipsdp/SdpVarmapper.h"
 #include "scipsdp/SdpVarfixer.h"
 
+#include "scip/heur_trysol.h"
 #include "scip/cons_linear.h"           /* for SCIPcreateConsLinear */
 #include "scip/cons_quadratic.h"        /* for SCIPcreateConsBasicQuadratic */
 #include "scip/cons_soc.h"              /* for SCIPcreateConsSOC */
@@ -108,6 +110,8 @@
 #define DEFAULT_CUTSTOPOOL         TRUE /**< Should the cuts be added to the pool? */
 #define DEFAULT_SPARSIFYCUT        TRUE /**< Should the eigenvector cuts be sparsified? */
 #define DEFAULT_SPARSIFYFACTOR      0.1 /**< target size for sparsification in relation to number of variables */
+#define DEFAULT_ENFORCESDP        FALSE /**< Solve SDP if we do lp-solving and have an integral solution in enforcing? */
+#define DEFAULT_ONLYFIXEDINTSSDP  FALSE /**< Should solving an SDP only be applied if all integral variables are fixed (instead of having integral values)? */
 #define DEFAULT_ADDSOCRELAX       FALSE /**< Should a relaxation of SOC constraints be added */
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
@@ -152,6 +156,8 @@ struct SCIP_ConshdlrData
    SCIP_Bool             cutstopool;         /**< Should the cuts be added to the pool? */
    SCIP_Bool             sparsifycut;        /**< Should the eigenvector cuts be sparsified? */
    SCIP_Real             sparsifyfactor;     /**< target size for sparsification in relation to number of variables */
+   SCIP_Bool             enforcesdp;         /**< Solve SDP if we do lp-solving and have an integral solution in enforcing? */
+   SCIP_Bool             onlyfixedintssdp;   /**< Should solving an SDP only be applied if all integral variables are fixed (instead of having integral values)? */
    SCIP_Bool             addsocrelax;        /**< Should a relaxation of SOC constraints be added */
    int                   maxnvarsquadupgd;   /**< maximal number of quadratic constraints and appearing variables so that the QUADCONSUPGD is performed */
    SCIP_Bool             triedlinearconss;   /**< Have we tried to add linear constraints? */
@@ -4098,6 +4104,7 @@ SCIP_DECL_CONSENFOPS(consEnfopsSdp)
 static
 SCIP_DECL_CONSENFOLP(consEnfolpSdp)
 {/*lint --e{715}*/
+   SCIP_CONSHDLRDATA* conshdlrdata;
    int c;
 
    assert( scip != NULL );
@@ -4105,11 +4112,149 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
    assert( conss != NULL );
    assert( result != NULL );
 
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert( conshdlrdata != NULL );
+
    *result = SCIP_FEASIBLE;
 
-   for (c = 0; c < nconss; ++c)
+   /* if all integer variables have integral values, then possibly solve SDP */
+   if ( conshdlrdata->enforcesdp && conshdlrdata->solvelp )
    {
-      SCIP_CALL( separateSol(scip, conshdlr, conss[c], NULL, TRUE, result) );
+      SCIP_RELAX* relaxsdp;
+      SCIP_Bool cutoff;
+      SCIP_VAR** vars;
+      int nfixed = 0;
+      int nintvars;
+      int v;
+
+      /* get relaxator, do normal separation if not found */
+      relaxsdp = SCIPfindRelax(scip, "SDP");
+      if ( relaxsdp == NULL )
+      {
+         SCIP_CALL( separateSol(scip, conshdlr, conss[c], NULL, TRUE, result) );
+         return SCIP_OKAY;
+      }
+
+      /* all integer variables should have integer values, because enforcing is called after the integrality constraint handler */
+      vars = SCIPgetVars(scip);
+      nintvars = SCIPgetNBinVars(scip) + SCIPgetNIntVars(scip);
+
+      /* check integer variables which are fixed or have integeral values (integer variables are first in list) */
+      for (v = 0; v < nintvars; ++v)
+      {
+         SCIP_Real val;
+         SCIP_VAR* var;
+
+         var = vars[v];
+         assert( SCIPvarIsIntegral(var) );
+
+         val = SCIPgetSolVal(scip, NULL, var);
+         assert( SCIPisFeasIntegral(scip, val) );
+         assert( SCIPisFeasIntegral(scip, SCIPvarGetLbLocal(var)) );
+         assert( SCIPisFeasIntegral(scip, SCIPvarGetUbLocal(var)) );
+
+         if ( SCIPvarGetLbLocal(var) + 0.5 < SCIPvarGetUbLocal(var) )
+            ++nfixed;
+      }
+
+      /* solve SPD if either all integer variables are fixed or if required */
+      if ( ! conshdlrdata->onlyfixedintssdp || nfixed == nintvars )
+      {
+         /* start probing */
+         SCIP_CALL( SCIPstartProbing(scip) );
+
+         /* apply domain propagation (use parameter settings for maximal number of rounds) */
+         SCIP_CALL( SCIPpropagateProbing(scip, 0, &cutoff, NULL) );
+         if ( ! cutoff )
+         {
+            int freq;
+
+            /* temporarily change relaxator frequency, since otherwise relaxation will not be solved */
+            freq = SCIPrelaxGetFreq(relaxsdp);
+            SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", 1) );
+
+            /* solve SDP */
+            SCIP_CALL( SCIPsolveProbingRelax(scip, &cutoff) );
+
+            /* reset frequency of relaxator */
+            SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", freq) );
+
+            /* if solving was successfull */
+            if ( SCIPrelaxSdpSolvedProbing(relaxsdp) )
+            {
+               /* if we are infeasible, we can cut off the node */
+               if ( ! SCIPrelaxSdpIsFeasible(relaxsdp) )
+               {
+                  SCIPdebugMsg(scip, "Cut off node in enforcing, because remaining SDP was infeasible.\n");
+                  *result = SCIP_CUTOFF;
+               }
+               else
+               {
+                  SCIP_SOL* enfosol;
+                  SCIP_Bool feasible;
+
+                  /* if we are feasible, we check whether the solution is valid */
+                  SCIP_CALL( SCIPcreateSol(scip, &enfosol, NULL) );
+                  SCIP_CALL( SCIPlinkRelaxSol(scip, enfosol) );
+
+                  /* Check solution to SCIP: check all constraints, including integrality */
+                  SCIP_CALL( SCIPcheckSol(scip, enfosol, FALSE, TRUE, TRUE, TRUE, TRUE, &feasible) );
+
+                  /* If the solution is feasible and all integer variables are fixed, we can cut off the node. */
+                  if ( feasible )
+                  {
+                     SCIP_Bool stored;
+
+                     if ( nfixed == nintvars )
+                     {
+                        /* tell SCIP about solution */
+                        SCIP_CALL( SCIPtrySol(scip, enfosol, FALSE, FALSE, FALSE, FALSE, FALSE, &stored) );
+
+                        /* SCIP knows the solution, so we can cut off the node */
+                        *result = SCIP_CUTOFF;
+                     }
+                     else
+                     {
+                        /* If not all integer variables are fixed, we have to check whether all integer variables attain integer values */
+                        for (v = 0; v < nintvars; ++v)
+                        {
+                           SCIP_Real val;
+                           SCIP_VAR* var;
+
+                           var = vars[v];
+                           assert( SCIPvarIsIntegral(var) );
+
+                           val = SCIPgetRelaxSolVal(scip, var);
+                           if ( ! SCIPisFeasIntegral(scip, val) )
+                              break;
+                        }
+
+                        /* if all integer variables are integer, we can cut off the node */
+                        if ( v == nintvars )
+                        {
+                           /* tell SCIP about solution */
+                           SCIP_CALL( SCIPtrySol(scip, enfosol, FALSE, FALSE, FALSE, FALSE, FALSE, &stored) );
+
+                           *result = SCIP_CUTOFF;
+                        }
+                     }
+                  }
+                  SCIP_CALL( SCIPfreeSol(scip, &enfosol) );
+               }
+            }
+         }
+
+         /* free local problem */
+         SCIP_CALL( SCIPendProbing(scip) );
+      }
+   }
+
+   if ( *result == SCIP_FEASIBLE )
+   {
+      for (c = 0; c < nconss; ++c)
+      {
+         SCIP_CALL( separateSol(scip, conshdlr, conss[c], NULL, TRUE, result) );
+      }
    }
 
    return SCIP_OKAY;
@@ -4860,6 +5005,14 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPaddRealParam(scip, "constraints/SDP/sparsifyfactor",
          "target size for sparsification in relation to number of variables",
          &(conshdlrdata->sparsifyfactor), TRUE, DEFAULT_SPARSIFYFACTOR, 0.0, 1.0, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/enforcesdp",
+         "Solve SDP if we do lp-solving and have an integral solution in enforcing?",
+         &(conshdlrdata->enforcesdp), TRUE, DEFAULT_ENFORCESDP, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/onlyfixedintssdp",
+         "Should solving an SDP only be applied if all integral variables are fixed (instead of having integral values)?",
+         &(conshdlrdata->onlyfixedintssdp), TRUE, DEFAULT_ONLYFIXEDINTSSDP, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/addsocrelax",
          "Should a relaxation of SOC constraints be added?",
