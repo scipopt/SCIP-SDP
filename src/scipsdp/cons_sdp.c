@@ -4241,7 +4241,17 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
 
                            *result = SCIP_CUTOFF;
                         }
+                        else
+                        {
+                           /* We have to invalidate the relaxation solution, because SCIP will otherwise not check the relaxation solution for feasibility. */
+                           SCIP_CALL( SCIPmarkRelaxSolInvalid(scip) );
+                        }
                      }
+                  }
+                  else
+                  {
+                     /* We have to invalidate the relaxation solution, because SCIP will otherwise not check the relaxation solution for feasibility. */
+                     SCIP_CALL( SCIPmarkRelaxSolInvalid(scip) );
                   }
                   SCIP_CALL( SCIPfreeSol(scip, &enfosol) );
                }
