@@ -690,6 +690,7 @@ SCIP_RETCODE separateSol(
    int neigenvalues;
    int blocksize;
    int nvars;
+   int ngen = 0;
    int i;
    int j;
 
@@ -832,11 +833,12 @@ SCIP_RETCODE separateSol(
          {
             SCIP_CALL( SCIPaddPoolCut(scip, row) );
          }
+         ++ngen;
       }
 
       SCIP_CALL( SCIPreleaseRow(scip, &row) );
    }
-   SCIPdebugMsg(scip, "<%s>: Separated cuts = %d.\n", SCIPconsGetName(cons), i - 1);
+   SCIPdebugMsg(scip, "<%s>: Separated cuts = %d.\n", SCIPconsGetName(cons), ngen);
 
    SCIPfreeBufferArrayNull(scip, &fullconstmatrix);
    SCIPfreeBufferArray(scip, &vector);
@@ -4169,6 +4171,8 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
          {
             int freq;
 
+            SCIPdebugMsg(scip, "Solving relaxation because all integer variable have integral values.\n");
+
             /* temporarily change relaxator frequency, since otherwise relaxation will not be solved */
             freq = SCIPrelaxGetFreq(relaxsdp);
             SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", 1) );
@@ -4200,7 +4204,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
                   /* Check solution to SCIP: check all constraints, including integrality */
                   SCIP_CALL( SCIPcheckSol(scip, enfosol, FALSE, TRUE, TRUE, TRUE, TRUE, &feasible) );
 
-                  /* If the solution is feasible and all integer variables are fixed, we can cut off the node. */
+                  /* If the solution is feasible, we check whether it is also integer feasible. */
                   if ( feasible )
                   {
                      SCIP_Bool stored;
