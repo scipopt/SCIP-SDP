@@ -4144,14 +4144,12 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
       /* check integer variables which are fixed or have integeral values (integer variables are first in list) */
       for (v = 0; v < nintvars; ++v)
       {
-         SCIP_Real val;
          SCIP_VAR* var;
 
          var = vars[v];
          assert( SCIPvarIsIntegral(var) );
 
-         val = SCIPgetSolVal(scip, NULL, var);
-         assert( SCIPisFeasIntegral(scip, val) );
+         assert( SCIPisFeasIntegral(scip, SCIPgetSolVal(scip, NULL, var)) );
          assert( SCIPisFeasIntegral(scip, SCIPvarGetLbLocal(var)) );
          assert( SCIPisFeasIntegral(scip, SCIPvarGetUbLocal(var)) );
 
