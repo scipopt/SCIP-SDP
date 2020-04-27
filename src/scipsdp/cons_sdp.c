@@ -4182,7 +4182,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
             SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", freq) );
 
             /* if solving was successfull */
-            if ( SCIPrelaxSdpSolvedProbing(relaxsdp) )
+            if ( SCIPrelaxSdpSolvedProbing(relaxsdp) && SCIPisRelaxSolValid(scip) )
             {
                /* if we are infeasible, we can cut off the node */
                if ( ! SCIPrelaxSdpIsFeasible(relaxsdp) )
