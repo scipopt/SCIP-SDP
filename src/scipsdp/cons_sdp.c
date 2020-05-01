@@ -4239,18 +4239,57 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
 
                            *result = SCIP_CUTOFF;
                         }
-                        else
+                     }
+                  }
+
+                  /* if we do not obtain a feasible solution, we try to round it */
+                  if ( *result != SCIP_CUTOFF && nfixed < nintvars )
+                  {
+                     for (v = 0; v < nintvars; ++v)
+                     {
+                        SCIP_Real val;
+                        SCIP_VAR* var;
+
+                        var = vars[v];
+                        assert( SCIPvarIsIntegral(var) );
+
+                        /* fix all unfixed variables */
+                        if ( SCIPvarGetLbLocal(var) + 0.5 < SCIPvarGetUbLocal(var) )
                         {
-                           /* We have to invalidate the relaxation solution, because SCIP will otherwise not check the relaxation solution for feasibility. */
-                           SCIP_CALL( SCIPmarkRelaxSolInvalid(scip) );
+                           val = SCIPgetRelaxSolVal(scip, var);
+                           if ( val < 0.5 )
+                           {
+                              SCIP_CALL( SCIPchgVarUbProbing(scip, var, SCIPfeasFloor(scip, val)) );
+                           }
+                           else
+                           {
+                              SCIP_CALL( SCIPchgVarLbProbing(scip, var, SCIPfeasCeil(scip, val)) );
+                           }
+                        }
+                     }
+
+                     /* solve SDP again */
+                     SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", 1) );
+                     SCIP_CALL( SCIPsolveProbingRelax(scip, &cutoff) );
+                     SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", freq) );
+
+                     /* if solving was successfull */
+                     if ( SCIPrelaxSdpSolvedProbing(relaxsdp) && SCIPisRelaxSolValid(scip) )
+                     {
+                        if ( SCIPrelaxSdpIsFeasible(relaxsdp) )
+                        {
+                           /* if we are feasible, we check whether the solution is valid */
+                           assert( enfosol != NULL );
+                           SCIP_CALL( SCIPlinkRelaxSol(scip, enfosol) );
+
+                           /* Check solution to SCIP: check all constraints, including integrality */
+                           SCIP_CALL( SCIPtrySol(scip, enfosol, TRUE, TRUE, TRUE, TRUE, TRUE, &feasible) );
                         }
                      }
                   }
-                  else
-                  {
-                     /* We have to invalidate the relaxation solution, because SCIP will otherwise not check the relaxation solution for feasibility. */
-                     SCIP_CALL( SCIPmarkRelaxSolInvalid(scip) );
-                  }
+
+                  /* We have to invalidate the relaxation solution, because SCIP will otherwise not check the relaxation solution for feasibility. */
+                  SCIP_CALL( SCIPmarkRelaxSolInvalid(scip) );
                   SCIP_CALL( SCIPfreeSol(scip, &enfosol) );
                }
             }
