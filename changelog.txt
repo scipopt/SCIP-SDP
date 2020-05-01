@@ -6,11 +6,13 @@ features:
 - new function SCIPlapackComputeEigenvectorsNegative() to compute only eigenvectors for negative eigenvalues
 - allow to add SOC relaxation based on 2 by 2 minors
 - revised handling of LP-solving: use one function for separation and enforcement
+- heur_sdpfracdiving and heur_sdprand now can also run for problems in which LPs are solved
 
 parameters:
 - new parameter <constraints/SDP/separateonecut> to separate only one cut for the smallest eigenvalue (default: FALSE)
 - new parameter <constraints/SDP/cutstopool> to add cuts to the pool (default: TRUE)
 - new parameter <constraints/SDP/addsocrelax> to add SOC relaxation (default: FALSE)
+- new parameter <heuristics/sdpfracdiving/runforlp> and <heuristics/sdprand/runforlp> to use heuristics starting from LP solution (default: FALSE)
 
 SCIP-SDP version 3.2.0
 ======================

@@ -63,8 +63,9 @@
  */
 
 #define DEFAULT_NROUNDS                 2    /**< default number of rounding rounds */
-#define DEFAULT_GENERALINTS             FALSE/**< Should randomized rounding also be applied if there are general integer variables and not only binary variables ? */
+#define DEFAULT_GENERALINTS             FALSE/**< Should randomized rounding also be applied if there are general integer variables and not only binary variables? */
 #define DEFAULT_RANDSEED                211  /**< default random seed */
+#define DEFAULT_RUNFORLP                FALSE/**< Should randomized rounding be applied if we are solving LPs? */
 
 /* locally defined heuristic data */
 struct SCIP_HeurData
@@ -72,7 +73,8 @@ struct SCIP_HeurData
    SCIP_SOL*             sol;                /**< working solution */
    int                   nrounds;            /**< number of rounding rounds */
    SCIP_RANDNUMGEN*      randnumgen;         /**< random number generator */
-   SCIP_Bool             generalints;        /**< Should randomized rounding also be applied if there are general integer variables and not only binary variables ? */
+   SCIP_Bool             generalints;        /**< Should randomized rounding also be applied if there are general integer variables and not only binary variables? */
+   SCIP_Bool             runforlp;           /**< Should randomized rounding be applied if we are solving LPs? */
 };
 
 
@@ -160,12 +162,16 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
    /* the current bugfix branch (3.2.1) does not have SCIPsolveProbingRelax() -> do nothing */
 #if ( (SCIP_VERSION > 321 || SCIP_SUBVERSION > 0) )
    SCIP_HEURDATA* heurdata;
+   SCIP_CONSHDLR* conshdlrsdp;
    SCIP_RELAX* relaxsdp;
    SCIP_Real* sdpcandssol;
    SCIP_VAR** sdpcands;
    SCIP_VAR** vars;
+   SCIP_SOL* relaxsol = NULL;
+   SCIP_Bool usesdp = TRUE;
    int nsdpcands = 0;
    int ncontvars;
+   int freq = -1;
    int nvars;
    int iter;
    int v;
@@ -177,10 +183,6 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
 
    *result = SCIP_DELAYED;
 
-   /* do not run if relaxation solution is not available */
-   if ( ! SCIPisRelaxSolValid(scip) )
-      return SCIP_OKAY;
-
    /* do not call heuristic if node was already detected to be infeasible */
    if ( nodeinfeasible )
       return SCIP_OKAY;
@@ -191,6 +193,24 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
    heurdata = SCIPheurGetData(heur);
    assert( heurdata != NULL );
 
+   /* do not run if relaxation solution is not available and we do not want to run for LPs or no LP solution is available */
+   if ( ! SCIPisRelaxSolValid(scip) )
+   {
+      /* exit if we do not want to run for LPs */
+      if ( ! heurdata->runforlp )
+         return SCIP_OKAY;
+
+      /* exit if LP is not solved */
+      if ( SCIPgetLPSolstat(scip) != SCIP_LPSOLSTAT_OPTIMAL )
+         return SCIP_OKAY;
+
+      /* avoid solving for sub-SCIPs */
+      if ( SCIPgetSubscipDepth(scip) > 0 )
+         return SCIP_OKAY;
+
+      usesdp = FALSE;
+   }
+
    /* only run if there are no general integer variables or the corresponding parameter is set */
    if ( (! heurdata->generalints) && SCIPgetNIntVars(scip) > 0 )
       return SCIP_OKAY;
@@ -200,8 +220,22 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
    if ( relaxsdp == NULL )
       return SCIP_OKAY;
 
+   conshdlrsdp = SCIPfindConshdlr(scip, "SDP");
+   if ( conshdlrsdp == NULL )
+      return SCIP_OKAY;
+
+   /* exit if there are no SDP constraints */
+   if ( SCIPconshdlrGetNConss(conshdlrsdp) <= 0 )
+      return SCIP_OKAY;
+
    /* get number of continuous variables */
    ncontvars = SCIPgetNContVars(scip) +  SCIPgetNImplVars(scip);
+
+   /* decide with solution to use */
+   if ( usesdp )
+   {
+      SCIP_CALL( SCIPcreateRelaxSol(scip, &relaxsol, heur) );
+   }
 
    /* save old SDP solution */
    vars = SCIPgetVars(scip);
@@ -215,7 +249,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
       {
          SCIP_Real val;
 
-         val = SCIPgetRelaxSolVal(scip, vars[v]);
+         val = SCIPgetSolVal(scip, relaxsol, vars[v]);
          if ( SCIPvarIsIntegral(vars[v]) && ! SCIPisFeasIntegral(scip, val) )
          {
             sdpcands[nsdpcands] = vars[v];
@@ -231,7 +265,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
       {
          SCIP_Real val;
 
-         val = SCIPgetRelaxSolVal(scip, vars[v]);
+         val = SCIPgetSolVal(scip, relaxsol, vars[v]);
          sdpcands[v] = vars[v];
          sdpcandssol[v] = val;
          if ( SCIPvarIsIntegral(vars[v]) && ! SCIPisFeasIntegral(scip, val) )
@@ -239,6 +273,12 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
             ++nsdpcands;
          }
       }
+   }
+
+   /* possibly free relaxtion (LP or SDP) solution */
+   if ( relaxsol != NULL )
+   {
+      SCIP_CALL( SCIPfreeSol(scip, &relaxsol) );
    }
 
    /* do not proceed, if there are no fractional variables */
@@ -251,8 +291,15 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
 
    *result = SCIP_DIDNOTFIND;
 
-   SCIPdebugMsg(scip, "node %"SCIP_LONGINT_FORMAT") executing SDP randomized rounding heuristic: depth=%d, %d fractionals.\n",
+   SCIPdebugMsg(scip, "node %"SCIP_LONGINT_FORMAT" executing SDP randomized rounding heuristic: depth=%d, %d fractionals.\n",
       SCIPgetNNodes(scip), SCIPgetDepth(scip), nsdpcands);
+
+   if ( ! usesdp )
+   {
+      /* temporarily change relaxator frequency, since otherwise relaxation will not be solved */
+      freq = SCIPrelaxGetFreq(relaxsdp);
+      SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", 1) );
+   }
 
    /* perform rounding rounds */
    for (iter = 0; iter < heurdata->nrounds; ++iter)
@@ -383,6 +430,12 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
       }
    }
 
+   /* reset frequency of relaxator */
+   if ( ! usesdp )
+   {
+      SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", freq) );
+   }
+
    SCIPfreeBufferArray(scip, &sdpcandssol);
    SCIPfreeBufferArray(scip, &sdpcands);
 
@@ -431,10 +484,16 @@ SCIP_RETCODE SCIPincludeHeurSdpRand(
          "heuristics/sdprand/nrounds",
          "number of rounding rounds",
          &heurdata->nrounds, FALSE, DEFAULT_NROUNDS, 0, 10000, NULL, NULL) );
+
    SCIP_CALL( SCIPaddBoolParam(scip,
          "heuristics/sdprand/generalints",
-         "Should randomized rounding also be applied if there are general integer variables and not only binary variables ?",
+         "Should randomized rounding also be applied if there are general integer variables and not only binary variables?",
          &heurdata->generalints, FALSE, DEFAULT_GENERALINTS, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip,
+         "heuristics/sdprand/runforlp",
+         "Should randomized rounding be applied if we are solving LPs?",
+         &heurdata->runforlp, FALSE, DEFAULT_RUNFORLP, NULL, NULL) );
 
    return SCIP_OKAY;
 }
