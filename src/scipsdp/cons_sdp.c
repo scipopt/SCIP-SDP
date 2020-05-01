@@ -174,6 +174,8 @@ struct SCIP_ConshdlrData
    SCIP_CONSHDLRDATA*    sdpconshdlrdata;    /**< possibly store SDP constraint handler for retrieving parameters */
    SCIP_Bool             solvelp;            /**< Are LPs solved? */
    SCIP_RANDNUMGEN*      randnumgen;         /**< random number generator (for sparsifyCut) */
+   SCIP_RELAX*           relaxsdp;           /**< SDP relaxator */
+   SCIP_HEUR*            heurtrysol;         /**< Trysol heuristic */
 };
 
 /** generates matrix in colum-first format (needed by LAPACK) from matrix given in full row-first format (SCIP-SDP
@@ -3248,6 +3250,9 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
       SCIP_CALL( SCIPcreateRandom(scip, &conshdlrdata->randnumgen, 64293, FALSE) );
    }
 
+   conshdlrdata->relaxsdp = SCIPfindRelax(scip, "SDP");
+   conshdlrdata->heurtrysol = SCIPfindHeur(scip, "trysol");
+
    if ( SCIPgetSubscipDepth(scip) > 0 || ! conshdlrdata->sdpconshdlrdata->quadconsrank1 )
       return SCIP_OKAY;
 
@@ -4122,16 +4127,14 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
    /* if all integer variables have integral values, then possibly solve SDP */
    if ( conshdlrdata->enforcesdp && conshdlrdata->solvelp )
    {
-      SCIP_RELAX* relaxsdp;
       SCIP_Bool cutoff;
       SCIP_VAR** vars;
       int nfixed = 0;
       int nintvars;
       int v;
 
-      /* get relaxator, do normal separation if not found */
-      relaxsdp = SCIPfindRelax(scip, "SDP");
-      if ( relaxsdp == NULL )
+      /* do normal separation if no SDP relaxator is present */
+      if ( conshdlrdata->relaxsdp == NULL )
       {
          SCIP_CALL( separateSol(scip, conshdlr, conss[c], NULL, TRUE, result) );
          return SCIP_OKAY;
@@ -4172,7 +4175,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
             SCIPdebugMsg(scip, "Solving relaxation because all integer variable have integral values.\n");
 
             /* temporarily change relaxator frequency, since otherwise relaxation will not be solved */
-            freq = SCIPrelaxGetFreq(relaxsdp);
+            freq = SCIPrelaxGetFreq(conshdlrdata->relaxsdp);
             SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", 1) );
 
             /* solve SDP */
@@ -4182,10 +4185,10 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
             SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", freq) );
 
             /* if solving was successfull */
-            if ( SCIPrelaxSdpSolvedProbing(relaxsdp) && SCIPisRelaxSolValid(scip) )
+            if ( SCIPrelaxSdpSolvedProbing(conshdlrdata->relaxsdp) && SCIPisRelaxSolValid(scip) )
             {
                /* if we are infeasible, we can cut off the node */
-               if ( ! SCIPrelaxSdpIsFeasible(relaxsdp) )
+               if ( ! SCIPrelaxSdpIsFeasible(conshdlrdata->relaxsdp) )
                {
                   SCIPdebugMsg(scip, "Cut off node in enforcing, because remaining SDP was infeasible.\n");
                   *result = SCIP_CUTOFF;
@@ -4274,9 +4277,9 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
                      SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", freq) );
 
                      /* if solving was successfull */
-                     if ( SCIPrelaxSdpSolvedProbing(relaxsdp) && SCIPisRelaxSolValid(scip) )
+                     if ( SCIPrelaxSdpSolvedProbing(conshdlrdata->relaxsdp) && SCIPisRelaxSolValid(scip) )
                      {
-                        if ( SCIPrelaxSdpIsFeasible(relaxsdp) )
+                        if ( SCIPrelaxSdpIsFeasible(conshdlrdata->relaxsdp) )
                         {
                            /* if we are feasible, we check whether the solution is valid */
                            assert( enfosol != NULL );
@@ -4981,6 +4984,8 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    conshdlrdata->triedlinearconss = FALSE;
    conshdlrdata->solvelp = FALSE;
    conshdlrdata->randnumgen = NULL;
+   conshdlrdata->relaxsdp = NULL;
+   conshdlrdata->heurtrysol = NULL;
    conshdlrdata->sdpconshdlrdata = conshdlrdata;  /* set this to itself to simplify access of parameters */
 
    /* include constraint handler */
@@ -5120,6 +5125,8 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->sdpcons = NULL;
    conshdlrdata->solvelp = FALSE;
    conshdlrdata->randnumgen = NULL;
+   conshdlrdata->relaxsdp = NULL;
+   conshdlrdata->heurtrysol = NULL;
 
    /* include constraint handler */
    SCIP_CALL( SCIPincludeConshdlrBasic(scip, &conshdlr, CONSHDLRRANK1_NAME, CONSHDLRRANK1_DESC,
