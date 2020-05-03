@@ -37,7 +37,7 @@
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
-/*#define SCIP_DEBUG*/
+
 #include <assert.h>
 #include <string.h>
 
@@ -109,7 +109,7 @@ SCIP_DECL_HEURFREE(heurFreeSdprand)
    /* free heuristic data */
    heurdata = SCIPheurGetData(heur);
    assert(heurdata != NULL);
-   SCIPfreeMemory(scip, &heurdata);
+   SCIPfreeBlockMemory(scip, &heurdata);
    SCIPheurSetData(heur, NULL);
 
    return SCIP_OKAY;
@@ -463,8 +463,8 @@ SCIP_RETCODE SCIPincludeHeurSdpRand(
    SCIP_HEURDATA* heurdata;
    SCIP_HEUR* heur;
 
-   /* create Fracdiving primal heuristic data */
-   SCIP_CALL( SCIPallocMemory(scip, &heurdata) );
+   /* create randomized rounding primal heuristic data */
+   SCIP_CALL( SCIPallocBlockMemory(scip, &heurdata) );
 
    /* include primal heuristic */
    SCIP_CALL( SCIPincludeHeurBasic(scip, &heur,
@@ -479,7 +479,7 @@ SCIP_RETCODE SCIPincludeHeurSdpRand(
    SCIP_CALL( SCIPsetHeurInit(scip, heur, heurInitSdprand) );
    SCIP_CALL( SCIPsetHeurExit(scip, heur, heurExitSdprand) );
 
-   /* fracdiving heuristic parameters */
+   /* randomized rounding heuristic parameters */
    SCIP_CALL( SCIPaddIntParam(scip,
          "heuristics/sdprand/nrounds",
          "number of rounding rounds",
