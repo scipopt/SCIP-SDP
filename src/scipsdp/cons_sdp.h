@@ -155,6 +155,20 @@ SCIP_RETCODE SCIPconsSdpGetNNonz(
    int*                  constnnonz          /**< pointer to store the number of nonzeros in the constant part of this SDP constraint */
    );
 
+/** gets the number of variables of the SDP constraint */
+SCIP_EXPORT
+int SCIPconsSdpGetNVars(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< SDP constraint to get blocksize for */
+   );
+
+/** gets the variables of the SDP constraint */
+SCIP_EXPORT
+SCIP_VAR** SCIPconsSdpGetVars(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< SDP constraint to get blocksize for */
+   );
+
 /** gets the blocksize of the SDP constraint */
 SCIP_EXPORT
 int SCIPconsSdpGetBlocksize(

@@ -7,6 +7,7 @@ features:
 - allow to add SOC relaxation based on 2 by 2 minors
 - revised handling of LP-solving: use one function for separation and enforcement
 - heur_sdpfracdiving and heur_sdprand now can also run for problems in which LPs are solved
+- new functions SCIPconsSdpGetNVars and SCIPconsSdpGetVars in cons_sdp.c
 
 parameters:
 - new parameter <constraints/SDP/separateonecut> to separate only one cut for the smallest eigenvalue (default: FALSE)

@@ -5311,6 +5311,40 @@ SCIP_RETCODE SCIPconsSdpGetNNonz(
    return SCIP_OKAY;
 }
 
+/** gets the number of variables of the SDP constraint */
+int SCIPconsSdpGetNVars(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< SDP constraint to get blocksize for */
+   )
+{
+   SCIP_CONSDATA* consdata;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+
+   return consdata->nvars;
+}
+
+/** gets the variables of the SDP constraint */
+SCIP_VAR** SCIPconsSdpGetVars(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< SDP constraint to get blocksize for */
+   )
+{
+   SCIP_CONSDATA* consdata;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+
+   return consdata->vars;
+}
+
 /** gets the blocksize of the SDP constraint */
 int SCIPconsSdpGetBlocksize(
    SCIP*                 scip,               /**< SCIP data structure */
