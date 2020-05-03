@@ -4208,12 +4208,11 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
                   /* If the solution is feasible, we check whether it is also integer feasible. */
                   if ( feasible )
                   {
-                     SCIP_Bool stored;
-
                      if ( nfixed == nintvars )
                      {
-                        /* tell SCIP about solution */
-                        SCIP_CALL( SCIPtrySol(scip, enfosol, FALSE, FALSE, FALSE, FALSE, FALSE, &stored) );
+                        /* tell trysol heuristic about solution */
+                        SCIP_CALL( SCIPheurPassSolTrySol(scip, conshdlrdata->heurtrysol, enfosol) );
+                        /* SCIP_CALL( SCIPtrySol(scip, enfosol, FALSE, FALSE, FALSE, FALSE, FALSE, &stored) ); */
 
                         /* SCIP knows the solution, so we can cut off the node */
                         *result = SCIP_CUTOFF;
@@ -4238,7 +4237,8 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
                         if ( v == nintvars )
                         {
                            /* tell SCIP about solution */
-                           SCIP_CALL( SCIPtrySol(scip, enfosol, FALSE, FALSE, FALSE, FALSE, FALSE, &stored) );
+                           SCIP_CALL( SCIPheurPassSolTrySol(scip, conshdlrdata->heurtrysol, enfosol) );
+                           /* SCIP_CALL( SCIPtrySol(scip, enfosol, FALSE, FALSE, FALSE, FALSE, FALSE, &stored) ); */
 
                            *result = SCIP_CUTOFF;
                         }
@@ -4286,7 +4286,12 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
                            SCIP_CALL( SCIPlinkRelaxSol(scip, enfosol) );
 
                            /* Check solution to SCIP: check all constraints, including integrality */
-                           SCIP_CALL( SCIPtrySol(scip, enfosol, TRUE, TRUE, TRUE, TRUE, TRUE, &feasible) );
+                           SCIP_CALL( SCIPcheckSol(scip, enfosol, FALSE, TRUE, TRUE, TRUE, TRUE, &feasible) );
+                           if ( feasible )
+                           {
+                              SCIP_CALL( SCIPheurPassSolTrySol(scip, conshdlrdata->heurtrysol, enfosol) );
+                           }
+                           /* SCIP_CALL( SCIPtrySol(scip, enfosol, FALSE, TRUE, TRUE, TRUE, TRUE, &feasible) ); */
                         }
                      }
                   }
