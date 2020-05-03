@@ -201,9 +201,9 @@ SCIP_DECL_HEUREXEC(heurExecSdpInnerlp)
    /* free hash map */
    SCIPhashmapFree(&varmapfw);
 
-   /* get orginal constraints */
-   conss = SCIPgetConss(subscip);
+   /* get orginal constraints: we have to copy them, because we are adding constraints which possibly leads to a reallocation */
    nconss = SCIPgetNConss(subscip);
+   SCIP_CALL( SCIPduplicateBufferArray(scip, &conss, SCIPgetConss(subscip), nconss) );
 
    /* loop through all constraints */
    for (c = 0; c < nconss; ++c)
@@ -425,6 +425,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpInnerlp)
 
    SCIP_CALL( SCIPfree(&subscip) );
 
+   SCIPfreeBufferArray(scip, &conss);
    SCIPfreeBufferArray(scip, &subvars);
 
    return SCIP_OKAY;
