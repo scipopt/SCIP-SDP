@@ -27,7 +27,9 @@
 /* Copyright (C) 2002-2020 Zuse Institute Berlin                             */
 /* SCIP is distributed under the terms of the SCIP Academic Licence,         */
 /* see file COPYING in the SCIP distribution.                                */
-/*                                                                           */
+/*                                                 				*/
+/*	Test									*/
+/*										*/
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /* #define SCIP_MORE_DEBUG */
