@@ -108,7 +108,7 @@
 #define DEFAULT_RANK1APPROXHEUR   FALSE /**< Should the heuristic that computes the best rank-1 approximation for a given solution be executed? */
 #define DEFAULT_SEPARATEONECUT    FALSE /**< Should only one cut corresponding to the most negative eigenvalue be separated? */
 #define DEFAULT_CUTSTOPOOL         TRUE /**< Should the cuts be added to the pool? */
-#define DEFAULT_SPARSIFYCUT        TRUE /**< Should the eigenvector cuts be sparsified? */
+#define DEFAULT_SPARSIFYCUT       FALSE /**< Should the eigenvector cuts be sparsified? */
 #define DEFAULT_SPARSIFYFACTOR      0.1 /**< target size for sparsification in relation to number of variables */
 #define DEFAULT_ENFORCESDP        FALSE /**< Solve SDP if we do lp-solving and have an integral solution in enforcing? */
 #define DEFAULT_ONLYFIXEDINTSSDP  FALSE /**< Should solving an SDP only be applied if all integral variables are fixed (instead of having integral values)? */
