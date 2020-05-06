@@ -610,6 +610,14 @@ SCIP_RETCODE sparsifyCut(
       norm += eigenvector[j] * eigenvector[j];
    }
 
+   /* if we by chance selected a zero subvector */
+   if ( SCIPisFeasZero(scip, norm) )
+   {
+      SCIPfreeBufferArray(scip, &ev);
+      SCIPfreeBufferArray(scip, &idx);
+      return SCIP_OKAY;
+   }
+
    /* normalize */
    norm = sqrt(norm);
    for (j = 0; j < size; ++j)
