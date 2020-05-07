@@ -16,6 +16,12 @@ parameters:
 - new parameter <constraints/SDP/addsocrelax> to add SOC relaxation (default: FALSE)
 - new parameter <heuristics/sdpfracdiving/runforlp> and <heuristics/sdprand/runforlp> to use heuristics starting from LP solution (default: FALSE)
 
+fixed bugs:
+- fixed the output of the line number when reading CBF files
+- fixed one memory bug and one missing check in diagZeroImpl()
+- fixed bug in multiaggrVar() with negative coefficients and locking
+
+
 SCIP-SDP version 3.2.0
 ======================
 

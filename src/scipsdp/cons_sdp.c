@@ -1086,34 +1086,41 @@ SCIP_RETCODE diagZeroImpl(
       for (j = 0; j < blocksize; j++)
       {
          nconstnonzeroentries[j] = 0;
-         SCIP_CALL( SCIPallocBufferArray(scip, &constnonzeroentries[j], blocksize) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &constnonzeroentries[j], 2 * blocksize) );
       }
 
       /* iterate over all nonzeros of the constant matrix and check which diagonal and non-diagonal entries are nonzero */
       for (j = 0; j < consdata->constnnonz; j++)
       {
+         int constcolidx;
+         int constrowidx;
+
+         constrowidx = consdata->constrow[j];
+         constcolidx = consdata->constcol[j];
+         assert( 0 <= constcolidx && constcolidx < blocksize );
+         assert( 0 <= constrowidx && constrowidx < blocksize );
+         assert( ! SCIPisZero(scip, consdata->constval[j]) );
+
          /* if it is a nondiagonal-entry we add this row/column to the constnonzeroentries entries unless we already found a
           * diagonal entry for this row/column */
-         if ( (consdata->constcol[j] != consdata->constrow[j]) )
+         if ( constcolidx != constrowidx )
          {
-            assert( ! SCIPisZero(scip, consdata->constval[j]) );
-            if ( nconstnonzeroentries[consdata->constcol[j]] >= 0 )
+            if ( nconstnonzeroentries[constcolidx] >= 0 )
             {
-               constnonzeroentries[consdata->constcol[j]][nconstnonzeroentries[consdata->constcol[j]]] = consdata->constrow[j];
-               nconstnonzeroentries[consdata->constcol[j]]++;
+               constnonzeroentries[constcolidx][nconstnonzeroentries[constcolidx]] = constrowidx;
+               nconstnonzeroentries[constcolidx]++;
             }
 
-            if ( nconstnonzeroentries[consdata->constrow[j]] >= 0 )
+            if ( nconstnonzeroentries[constrowidx] >= 0 )
             {
-               constnonzeroentries[consdata->constrow[j]][nconstnonzeroentries[consdata->constrow[j]]] = consdata->constcol[j];
-               nconstnonzeroentries[consdata->constrow[j]]++;
+               constnonzeroentries[constrowidx][nconstnonzeroentries[constrowidx]] = constcolidx;
+               nconstnonzeroentries[constrowidx]++;
             }
          }
-         /* if we find a diagonal entry in the constant matrix, we remember that we cannot add a cut for this index */
          else
          {
-            assert( ! SCIPisZero(scip, consdata->constval[j]) );
-            nconstnonzeroentries[consdata->constcol[j]] = -1;
+            /* if we find a diagonal entry in the constant matrix, we remember that we cannot add a cut for this index */
+            nconstnonzeroentries[constcolidx] = -1;
          }
       }
 
@@ -1156,7 +1163,7 @@ SCIP_RETCODE diagZeroImpl(
              * is an integer variable and mark the cut invalid otherwise */
             if ( (consdata->col[v][j] == consdata->row[v][j]) && (nconstnonzeroentries[consdata->col[v][j]] > 0) )
             {
-               if ( SCIPvarIsIntegral(consdata->vars[v]) )
+               if ( SCIPvarIsIntegral(consdata->vars[v]) && SCIPisGE(scip, SCIPvarGetLbGlobal(consdata->vars[v]), 0.0) )
                {
                   assert( ! SCIPisEQ(scip, consdata->val[v][j], 0.0) );
                   diagvars[consdata->col[v][j]][ndiagvars[consdata->col[v][j]]] = v;
@@ -2345,7 +2352,7 @@ SCIP_RETCODE multiaggrVar(
             for (i = 0; i < *nfixednonz - startind; i++)
             {
                /* if both scalar and savedval are small this might become too small */
-               if ( SCIPisPositive(scip, (scalars[i] / constant) * savedval[startind + i]) )
+               if ( ! SCIPisZero(scip, (scalars[i] / constant) * savedval[startind + i]) )
                {
                   consdata->val[consdata->nvars][consdata->nvarnonz[consdata->nvars]] = (scalars[i] / constant) * savedval[startind + i]; /*lint !e679*/
                   consdata->nvarnonz[consdata->nvars]++;
@@ -2354,13 +2361,8 @@ SCIP_RETCODE multiaggrVar(
          }
 
          consdata->locks[consdata->nvars] = -2;
-         if ( consdata->nvarnonz[consdata->nvars] > 0 ) /* if scalar and all savedvals were to small */
-         {
-            consdata->nvars++;
-            SCIP_CALL( updateVarLocks(scip, cons, consdata->nvars-1) );
-         }
-         else
-            SCIP_CALL( updateVarLocks(scip, cons, consdata->nvars) );
+         consdata->nvars++;
+         SCIP_CALL( updateVarLocks(scip, cons, consdata->nvars-1) );
       }
    }
 
