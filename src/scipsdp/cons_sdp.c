@@ -1935,7 +1935,7 @@ SCIP_RETCODE multiaggrVar(
             for (i = 0; i < *nfixednonz - startind; i++)
             {
                /* if both scalar and savedval are small this might become too small */
-               if ( SCIPisPositive(scip, (scalars[i] / constant) * savedval[startind + i]) )
+               if ( ! SCIPisZero(scip, (scalars[i] / constant) * savedval[startind + i]) )
                {
                   consdata->val[consdata->nvars][consdata->nvarnonz[consdata->nvars]] = (scalars[i] / constant) * savedval[startind + i]; /*lint !e679*/
                   consdata->nvarnonz[consdata->nvars]++;
@@ -1944,13 +1944,8 @@ SCIP_RETCODE multiaggrVar(
          }
 
          consdata->locks[consdata->nvars] = -2;
-         if ( consdata->nvarnonz[consdata->nvars] > 0 ) /* if scalar and all savedvals were to small */
-         {
-            consdata->nvars++;
-            SCIP_CALL( updateVarLocks(scip, cons, consdata->nvars-1) );
-         }
-         else
-            SCIP_CALL( updateVarLocks(scip, cons, consdata->nvars) );
+         consdata->nvars++;
+         SCIP_CALL( updateVarLocks(scip, cons, consdata->nvars-1) );
       }
    }
 
