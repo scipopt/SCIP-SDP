@@ -84,6 +84,7 @@
 #define CONSHDLR_SEPAPRIORITY  +1000000 /**< priority of the constraint handler for separation */
 #define CONSHDLR_ENFOPRIORITY  -2000000 /**< priority of the constraint handler for constraint enforcing */
 #define CONSHDLR_CHECKPRIORITY -2000000 /**< priority of the constraint handler for checking feasibility */
+#define CONSHDLR_PROPFREQ             1 /**< priority of the constraint handler for propagation */
 #define CONSHDLR_SEPAFREQ             1 /**< frequency for separating cuts; zero means to separate only in the root node */
 #define CONSHDLR_EAGERFREQ          100 /**< frequency for using all instead of only the useful constraints in separation,
                                          *   propagation and enforcement, -1 for no eager evaluations, 0 for first only */
@@ -91,9 +92,12 @@
 #define CONSHDLR_DELAYSEPA        FALSE /**< should separation method be delayed, if other separators found cuts? */
 #define CONSHDLR_NEEDSCONS         TRUE /**< should the constraint handler be skipped, if no constraints are available? */
 
-#define CONSHDLR_PRESOLTIMING     SCIP_PRESOLTIMING_FAST
+#define CONSHDLR_PRESOLTIMING     SCIP_PRESOLTIMING_EXHAUSTIVE
+#define CONSHDLR_PROPTIMING       SCIP_PROPTIMING_BEFORELP
+
 #define PARSE_STARTSIZE               1 /**< initial size of the consdata-arrays when parsing a problem */
 #define PARSE_SIZEFACTOR             10 /**< size of consdata-arrays is increased by this factor when parsing a problem */
+#define DEFAULT_PROPAGATE          TRUE /**< Should we perform propagation? */
 #define DEFAULT_DIAGGEZEROCUTS     TRUE /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
 #define DEFAULT_DIAGZEROIMPLCUTS   TRUE /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
 #define DEFAULT_TWOMINORLINCONSS  FALSE /**< Should linear cuts corresponding to 2 by 2 minors be added? */
@@ -127,6 +131,10 @@ struct SCIP_ConsData
    SCIP_Bool             rankone;            /**< Should matrix be rank one? */
    int*                  maxevsubmat;        /**< two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] */
    SCIP_Bool             addedquadcons;      /**< Are the quadratic 2x2-minor constraints already added (in the rank1-case)?  */
+   /* alternative view via matrix entries for propagation */
+   SCIP_VAR**            matrixvar;          /**< pointer to variable if given position is uniquely covered, NULL otherwise */
+   SCIP_Real*            matrixval;          /**< value at given position of unique covering variable */
+   int                   nsingle;            /**< number of matrix entries that depend on a single variable only */
 };
 
 /** SDP constraint handler data */
@@ -136,6 +144,7 @@ struct SCIP_ConshdlrData
    SCIP_Bool             diaggezerocuts;     /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
    int                   ndiaggezerocuts;    /**< this is used to give the diagGEzero-cuts distinguishable names */
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
+   SCIP_Bool             propagate;          /**< Should we perform propagation? */
    SCIP_Bool             diagzeroimplcuts;   /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
    SCIP_Bool             twominorlinconss;   /**< Should linear cuts corresponding to 2 by 2 minors be added? */
    SCIP_Bool             twominorprodconss;  /**< Should linear cuts corresponding to products of 2 by 2 minors be added? */
@@ -2038,7 +2047,9 @@ SCIP_RETCODE fixAndAggrVars(
          {
             assert( SCIPisEQ(scip, SCIPvarGetLbGlobal(var), SCIPvarGetUbGlobal(var)) );
 
+#ifdef SCIP_MORE_DEBUG
             SCIPdebugMsg(scip, "Treating globally fixed variable %s with value %f!\n", SCIPvarGetName(var), SCIPvarGetLbGlobal(var));
+#endif
 
             if ( (! negated && ! SCIPisEQ(scip, SCIPvarGetLbGlobal(var), 0.0)) || (negated && SCIPisEQ(scip, SCIPvarGetLbGlobal(var), 0.0)) )
             {
@@ -2295,6 +2306,176 @@ SCIP_RETCODE enforceConstraint(
 
    if ( separated )
       *result = SCIP_SEPARATED;
+
+   return SCIP_OKAY;
+}
+
+/** propagates SDP constraints */
+static
+SCIP_RETCODE propConstraints(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONSHDLR*        conshdlr,           /**< constraint handler */
+   SCIP_CONS**           conss,              /**< constraints to process */
+   int                   nconss,             /**< number of constraints */
+   SCIP_Bool*            infeasible,         /**< pointer to store whether infeasibility was detected */
+   int*                  nprop               /**< pointer to store the number of propagations performed */
+   )
+{
+   int c;
+
+   assert( infeasible != NULL );
+   assert( nprop != NULL );
+
+   *infeasible = FALSE;
+   *nprop = 0;
+
+   for (c = 0; c < nconss; ++c)
+   {
+      SCIP_CONSDATA* consdata;
+      SCIP_Real* constmatrix;
+      SCIP_Real** matrices;
+      int blocksize;
+      int cnt = 0;
+      int i;
+      int s;
+      int t;
+
+      assert( conss[c] != NULL );
+      consdata = SCIPconsGetData(conss[c]);
+      blocksize = consdata->blocksize;
+
+      /* build matrix if not yet done */
+      if ( consdata->matrixvar == NULL )
+      {
+         consdata->nsingle = 0;
+
+         /* get matrices */
+         SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, blocksize * blocksize) );
+         SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, conss[c], constmatrix) );
+
+         SCIP_CALL( SCIPallocBufferArray(scip, &matrices, consdata->nvars) );
+         for (i = 0; i < consdata->nvars; ++i)
+         {
+            SCIP_CALL( SCIPallocBufferArray(scip, &matrices[i], blocksize * blocksize) );
+            SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrices[i]) );
+         }
+
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->matrixvar, blocksize * (blocksize+1)/2) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->matrixval, blocksize * (blocksize+1)/2) );
+
+         for (s = 0; s < blocksize; ++s)
+         {
+            for (t = 0; t <= s; ++t)
+            {
+               SCIP_VAR* var = NULL;
+               SCIP_Real val = SCIP_INVALID;
+               int pos;
+
+               pos = s * blocksize + t;
+
+               for (i = 0; i < consdata->nvars; ++i)
+               {
+                  if ( ! SCIPisZero(scip, matrices[i][pos]) )
+                  {
+                     if ( var == NULL )
+                     {
+                        var = consdata->vars[i];
+                        val = matrices[i][pos];
+                     }
+                     else
+                        break;
+                  }
+               }
+
+               /* if exaclty one entry was found */
+               if ( i >= consdata->nvars && var != NULL && SCIPisZero(scip, constmatrix[pos]) )
+               {
+                  consdata->matrixvar[cnt] = var;
+                  consdata->matrixval[cnt] = val;
+                  ++consdata->nsingle;
+               }
+               else
+               {
+                  consdata->matrixvar[cnt] = NULL;
+                  consdata->matrixval[cnt] = SCIP_INVALID;
+               }
+               ++cnt;
+            }
+         }
+         assert( cnt == blocksize * (blocksize + 1)/2 );
+
+         SCIPfreeBufferArray(scip, &constmatrix);
+         for (i = consdata->nvars -1; i >= 0; --i)
+            SCIPfreeBufferArray(scip, &matrices[i]);
+         SCIPfreeBufferArray(scip, &matrices);
+      }
+      assert( consdata->matrixvar != NULL );
+      assert( consdata->matrixval != NULL );
+
+      /* if there is at least one entry that only depends on a single variable */
+      if ( consdata->nsingle > 0 )
+      {
+         /* check all off-diagonal positions */
+         cnt = 0;
+         for (s = 0; s < blocksize; ++s)
+         {
+            int diags;
+
+            diags = s * (s + 1)/2 + s;
+            if ( consdata->matrixvar[diags] == NULL )
+               continue;
+
+            for (t = 0; t < s; ++t)
+            {
+               SCIP_Bool tightened;
+               SCIP_VAR* vars;
+               SCIP_VAR* vart;
+               SCIP_VAR* varst;
+               SCIP_Real bound;
+               int diagt;
+               int pos;
+
+               diagt = t * (t + 1)/2 + t;
+               if ( consdata->matrixvar[diagt] == NULL )
+                  continue;
+
+               pos = s * (s + 1)/2 + t;
+               if ( consdata->matrixvar[pos] == NULL )
+                  continue;
+
+               vars = consdata->matrixvar[diags];
+               vart = consdata->matrixvar[diagt];
+               varst = consdata->matrixvar[pos];
+               assert( vars != NULL );
+               assert( vart != NULL );
+               assert( varst != NULL );
+
+               /* the upper bounds could be negative if other propagation has not yet been applied */
+               if ( SCIPisLT(scip, SCIPvarGetUbLocal(vars), 0.0) || SCIPisLT(scip, SCIPvarGetUbLocal(vart), 0.0) )
+                  continue;
+
+               bound = sqrt(consdata->matrixval[diags] * SCIPvarGetUbLocal(vars) * consdata->matrixval[diagt] * SCIPvarGetUbLocal(vart) / consdata->matrixval[pos]);
+               if ( SCIPisLT(scip, bound, SCIPvarGetUbLocal(varst)) )
+               {
+                  SCIP_CALL( SCIPinferVarUbCons(scip, varst, bound, conss[c], s * consdata->nvars + t, FALSE, infeasible, &tightened) );
+                  if ( *infeasible )
+                     return SCIP_OKAY;
+                  if ( tightened )
+                     ++(*nprop);
+               }
+
+               if ( SCIPisGT(scip, -bound, SCIPvarGetLbLocal(varst)) )
+               {
+                  SCIP_CALL( SCIPinferVarLbCons(scip, varst, -bound, conss[c], s * consdata->nvars + t, FALSE, infeasible, &tightened) );
+                  if ( *infeasible )
+                     return SCIP_OKAY;
+                  if ( tightened )
+                     ++(*nprop);
+               }
+            }
+         }
+      }
+   }
 
    return SCIP_OKAY;
 }
@@ -3133,11 +3314,13 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
    return SCIP_OKAY;
 }
 
-/** presolving method of constraint handler */
+/** domain propagation method of constraint handler */
 static
-SCIP_DECL_CONSPRESOL(consPresolSdp)
-{/*lint --e{715}*/
+SCIP_DECL_CONSPROP(consPropSdp)
+{
    SCIP_CONSHDLRDATA* conshdlrdata;
+   SCIP_Bool infeasible;
+   int nprop = 0;
 
    assert( conshdlr != NULL );
    assert( result != NULL );
@@ -3147,6 +3330,102 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 
    *result = SCIP_DIDNOTRUN;
 
+   if ( ! conshdlrdata->propagate )
+      return SCIP_OKAY;
+
+   *result = SCIP_DIDNOTFIND;
+
+   SCIPdebugMsg(scip, "propagation method of conshdlr <%s> ...\n", SCIPconshdlrGetName(conshdlr));
+
+   SCIP_CALL( propConstraints(scip, conshdlr, conss, nconss, &infeasible, &nprop) );
+
+   if ( infeasible )
+   {
+      SCIPdebugMsg(scip, "Propagation detected cutoff.\n");
+      *result = SCIP_CUTOFF;
+   }
+   else
+   {
+      SCIPdebugMsg(scip, "Propagated bounds: %d.\n", nprop);
+      if ( nprop > 0 )
+      {
+         *result = SCIP_REDUCEDDOM;
+         if ( SCIPgetSubscipDepth(scip) == 0 )
+            printf("propagated: %d\n", nprop);
+      }
+   }
+
+   return SCIP_OKAY;
+}
+
+/** propagation conflict resolving method of constraint handler */
+static
+SCIP_DECL_CONSRESPROP(consRespropSdp)
+{
+   SCIP_CONSDATA* consdata;
+   int s;
+   int t;
+
+   assert( conshdlr != NULL );
+   assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
+   assert( cons != NULL );
+   assert( infervar != NULL );
+   assert( result != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+
+   SCIPdebugMsg(scip, "Conflict resolving method of <%s> constraint handler.\n", SCIPconshdlrGetName(conshdlr));
+
+   s = inferinfo / consdata->nvars;
+   t = inferinfo % consdata->nvars;
+   assert( 0 <= s && s < consdata->nvars );
+   assert( 0 <= t && t < consdata->nvars );
+
+   SCIP_CALL( SCIPaddConflictUb(scip, consdata->vars[s], bdchgidx) );
+   SCIP_CALL( SCIPaddConflictUb(scip, consdata->vars[t], bdchgidx) );
+
+   *result = SCIP_SUCCESS;
+
+   return SCIP_OKAY;
+}
+
+/** presolving method of constraint handler */
+static
+SCIP_DECL_CONSPRESOL(consPresolSdp)
+{/*lint --e{715}*/
+   SCIP_CONSHDLRDATA* conshdlrdata;
+   SCIP_Bool infeasible;
+   int nprop;
+
+   assert( conshdlr != NULL );
+   assert( result != NULL );
+
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert( conshdlrdata != NULL );
+
+   *result = SCIP_DIDNOTRUN;
+
+   /* call propagation */
+   SCIP_CALL( propConstraints(scip, conshdlr, conss, nconss, &infeasible, &nprop) );
+
+   if ( infeasible )
+   {
+      SCIPdebugMsg(scip, "Presolving detected cutoff.\n");
+      *result = SCIP_CUTOFF;
+      return SCIP_OKAY;
+   }
+   else
+   {
+      SCIPdebugMsg(scip, "Propagated bounds: %d.\n", nprop);
+      if ( nprop > 0 )
+      {
+         *nchgbds += nprop;
+         *result = SCIP_SUCCESS;
+      }
+   }
+
+   /* add constraints in initial round */
    if ( nrounds == 0 )
    {
       int noldaddconss;
@@ -3241,6 +3520,9 @@ SCIP_DECL_CONSTRANS(consTransSdp)
    targetdata->nvars = sourcedata->nvars;
    targetdata->nnonz = sourcedata->nnonz;
    targetdata->blocksize = sourcedata->blocksize;
+   targetdata->matrixvar = NULL;
+   targetdata->matrixval = NULL;
+   targetdata->nsingle = 0;
 
    SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->nvarnonz), sourcedata->nvarnonz, sourcedata->nvars) );
 
@@ -3882,6 +4164,8 @@ SCIP_DECL_CONSDELETE(consDeleteSdp)
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->row, (*consdata)->nvars);
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->col, (*consdata)->nvars);
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->nvarnonz, (*consdata)->nvars);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->matrixval, (*consdata)->blocksize * ((*consdata)->blocksize + 1) / 2);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->matrixvar, (*consdata)->blocksize * ((*consdata)->blocksize + 1) / 2);
    SCIPfreeBlockMemory(scip, consdata);
 
    return SCIP_OKAY;
@@ -4470,6 +4754,8 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPsetConshdlrExitpre(scip, conshdlr, consExitpreSdp) );
    SCIP_CALL( SCIPsetConshdlrInitsol(scip, conshdlr, consInitsolSdp) );
    SCIP_CALL( SCIPsetConshdlrPresol(scip, conshdlr, consPresolSdp, CONSHDLR_MAXPREROUNDS, CONSHDLR_PRESOLTIMING) );
+   SCIP_CALL( SCIPsetConshdlrProp(scip, conshdlr, consPropSdp, CONSHDLR_PROPFREQ, FALSE, CONSHDLR_PROPTIMING) );
+   SCIP_CALL( SCIPsetConshdlrResprop(scip, conshdlr, consRespropSdp) );
    SCIP_CALL( SCIPsetConshdlrSepa(scip, conshdlr, consSepalpSdp, consSepasolSdp, CONSHDLR_SEPAFREQ,
          CONSHDLR_SEPAPRIORITY, CONSHDLR_DELAYSEPA) );
    SCIP_CALL( SCIPsetConshdlrEnforelax(scip, conshdlr, consEnforelaxSdp) );
@@ -4484,6 +4770,11 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPaddIntParam(scip, "constraints/SDP/threads", "number of threads used for OpenBLAS",
          &(conshdlrdata->nthreads), TRUE, DEFAULT_NTHREADS, 1, INT_MAX, NULL, NULL) );
 #endif
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/propagate",
+         "Should we perform propagation?",
+         &(conshdlrdata->propagate), TRUE, DEFAULT_PROPAGATE, NULL, NULL) );
+
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/diaggezerocuts",
          "Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added?",
          &(conshdlrdata->diaggezerocuts), TRUE, DEFAULT_DIAGGEZEROCUTS, NULL, NULL) );
@@ -5227,6 +5518,9 @@ SCIP_RETCODE SCIPcreateConsSdp(
    consdata->constnnonz = constnnonz;
    consdata->blocksize = blocksize;
    consdata->locks = NULL;
+   consdata->matrixvar = NULL;
+   consdata->matrixval = NULL;
+   consdata->nsingle = 0;
 
    for (i = 0; i < nvars; i++)
    {
@@ -5270,7 +5564,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
    consdata->addedquadcons = FALSE;
 
    /* create constraint */
-   SCIP_CALL( SCIPcreateCons(scip, cons, name, conshdlr, consdata, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) );
+   SCIP_CALL( SCIPcreateCons(scip, cons, name, conshdlr, consdata, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE) );
 
    /* compute maximum rhs entry for later use in the DIMACS Error Norm */
    SCIP_CALL( setMaxRhsEntry(*cons) );
@@ -5346,6 +5640,9 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
    consdata->constnnonz = constnnonz;
    consdata->blocksize = blocksize;
    consdata->locks = NULL;
+   consdata->matrixvar = NULL;
+   consdata->matrixval = NULL;
+   consdata->nsingle = 0;
 
    for (i = 0; i < nvars; i++)
    {
@@ -5388,7 +5685,7 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
    consdata->addedquadcons = FALSE;
 
    /* create constraint */
-   SCIP_CALL( SCIPcreateCons(scip, cons, name, conshdlr, consdata, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) );
+   SCIP_CALL( SCIPcreateCons(scip, cons, name, conshdlr, consdata, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE) );
 
    /* compute maximum rhs entry for later use in the DIMACS Error Norm */
    SCIP_CALL( setMaxRhsEntry(*cons) );
