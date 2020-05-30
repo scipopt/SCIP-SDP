@@ -3427,11 +3427,7 @@ SCIP_DECL_CONSPROP(consPropSdp)
    {
       SCIPdebugMsg(scip, "Propagated bounds: %d.\n", nprop);
       if ( nprop > 0 )
-      {
          *result = SCIP_REDUCEDDOM;
-         if ( SCIPgetSubscipDepth(scip) == 0 )
-            printf("propagated: %d\n", nprop);
-      }
    }
 
    return SCIP_OKAY;
