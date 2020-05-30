@@ -2887,12 +2887,15 @@ SCIP_DECL_CONSEXITPRE(consExitpreSdp)
    assert( scip != NULL );
    assert( conshdlr != NULL );
 
-   SCIPdebugMsg(scip, "Exitpre method of conshdlr <%s>.\n", SCIPconshdlrGetName(conshdlr));
-
    if ( conss == NULL )
       return SCIP_OKAY;
 
-   SCIP_CALL( fixAndAggrVars(scip, conss, nconss, TRUE) );
+   SCIPdebugMsg(scip, "Exitpre method of conshdlr <%s>.\n", SCIPconshdlrGetName(conshdlr));
+
+   if ( SCIPgetStatus(scip) != SCIP_STATUS_OPTIMAL && SCIPgetStatus(scip) != SCIP_STATUS_INFEASIBLE )
+   {
+      SCIP_CALL( fixAndAggrVars(scip, conss, nconss, TRUE) );
+   }
 
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
@@ -2912,6 +2915,7 @@ SCIP_DECL_CONSEXITPRE(consExitpreSdp)
       }
       SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->X, conshdlrdata->sdpconshdlrdata->nsdpvars);
    }
+
    if ( conshdlrdata->sdpconshdlrdata->sdpcons != NULL )
    {
       SCIPdebugMsg(scip, "Releasing constraint %s from upgrading method\n", SCIPconsGetName(conshdlrdata->sdpconshdlrdata->sdpcons) );
