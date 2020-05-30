@@ -1455,9 +1455,11 @@ SCIP_RETCODE addTwoMinorLinConstraints(
 /** presolve-routine that adds SOC constraints arising from 2 by 2 minor inequalities
  *
  *  For a positive semidefinite matrix \f$X\f$ the following quadratic inequality holds by using the 2 by 2 minor:
- *  \f$X_{st}^2 \leq X_{ss} + X_{tt}\f$. This constraint is SOC representable:
+ *  \f$X_{st}^2 \leq X_{ss} X_{tt}\f$. This constraint is SOC representable:
  *  \f[
- *     \left\|\binom{2\,X_{s,t}}{X_{ss} - X_{tt}}\right\| \leq X_{ss} + X_{tt}.
+ *     \left\|\binom{2\,X_{st}}{X_{ss} - X_{tt}}\right\| \leq X_{ss} + X_{tt}.
+ *     \quad\Leftrightarrow\quad
+ *     4\, X_{st}^2 + (X_{ss}^2 - 2\,X_{ss}\, X_{tt} + X_{tt}^2) \leq X_{ss}^2 + 2\, X_{ss}\,X_{tt} + X_{tt}^2.
  *  \f]
  *
  *  Translated to the matrix pencil notation the cut looks as follows:
