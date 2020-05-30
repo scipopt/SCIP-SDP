@@ -135,6 +135,7 @@ struct SCIP_ConsData
    SCIP_VAR**            matrixvar;          /**< pointer to variable if given position is uniquely covered, NULL otherwise */
    SCIP_Real*            matrixval;          /**< value at given position of unique covering variable */
    int                   nsingle;            /**< number of matrix entries that depend on a single variable only */
+   SCIP_Real             tracebound;         /**< possible bound on the trace */
 };
 
 /** SDP constraint handler data */
@@ -2412,6 +2413,75 @@ SCIP_RETCODE propConstraints(
       assert( consdata->matrixvar != NULL );
       assert( consdata->matrixval != NULL );
 
+      /* search for trace constraint */
+      if ( consdata->tracebound < -1.5 )
+      {
+         SCIP_CONSHDLR* linconshdlr;
+         linconshdlr = SCIPfindConshdlr(scip, "linear");
+         if ( linconshdlr != NULL )
+         {
+            SCIP_CONS** linconss;
+            int nlinconss;
+
+            linconss = SCIPconshdlrGetConss(linconshdlr);
+            nlinconss = SCIPconshdlrGetNConss(linconshdlr);
+
+            for (i = 0; i < nlinconss; ++i)
+            {
+               SCIP_Real* linvals;
+               SCIP_VAR** linvars;
+               SCIP_Bool coefok = TRUE;
+               int nlinvars;
+               int j;
+
+               nlinvars = SCIPgetNVarsLinear(scip, linconss[i]);
+
+               /* if the number of variables is not equal to the dimension, we do not have a trace bound */
+               if ( nlinvars != consdata->blocksize )
+                  continue;
+
+               linvars = SCIPgetVarsLinear(scip, linconss[i]);
+               linvals = SCIPgetValsLinear(scip, linconss[i]);
+
+               /* check whether all variables are diagonal entries */
+               for (j = 0; j < nlinvars; ++j)
+               {
+                  SCIP_VAR* var;
+                  int k;
+
+                  if ( ! SCIPisEQ(scip, linvals[j], 1.0) )
+                  {
+                     coefok = FALSE;
+                     break;
+                  }
+
+                  var = linvars[j];
+                  for (k = 0; k < consdata->blocksize; ++k)
+                  {
+                     if ( consdata->matrixvar[k * (k + 1)/2 + k] == var )
+                        break;
+                  }
+
+                  if ( k >= consdata->blocksize )
+                  {
+                     SCIPdebugMsg(scip, "Could not find variable <%s>.\n", SCIPvarGetName(linvars[j]));
+                     break;
+                  }
+               }
+
+               /* did not find variables or coefficients != 1 -> consider next linear constraint */
+               if ( j < nlinvars || ! coefok )
+                  continue;
+
+               consdata->tracebound = SCIPgetRhsLinear(scip, linconss[i]);
+               SCIPdebugMsg(scip, "Found tracebound constraint with bound = %g.\n", consdata->tracebound);
+               break;
+            }
+         }
+         if ( consdata->tracebound < -1.5 )
+            consdata->tracebound = -1.0;
+      }
+
       /* if there is at least one entry that only depends on a single variable */
       if ( consdata->nsingle > 0 )
       {
@@ -2454,7 +2524,16 @@ SCIP_RETCODE propConstraints(
                if ( SCIPisLT(scip, SCIPvarGetUbLocal(vars), 0.0) || SCIPisLT(scip, SCIPvarGetUbLocal(vart), 0.0) )
                   continue;
 
+               /* first compute bound without trace bound */
                bound = sqrt(consdata->matrixval[diags] * SCIPvarGetUbLocal(vars) * consdata->matrixval[diagt] * SCIPvarGetUbLocal(vart) / consdata->matrixval[pos]);
+
+               /* check for stronger bound with trace bound */
+               if ( consdata->tracebound > 0.0 )
+               {
+                  if ( consdata->tracebound/2.0 < bound )
+                     bound = consdata->tracebound/2.0;
+               }
+
                if ( SCIPisLT(scip, bound, SCIPvarGetUbLocal(varst)) )
                {
                   SCIP_CALL( SCIPinferVarUbCons(scip, varst, bound, conss[c], s * consdata->nvars + t, FALSE, infeasible, &tightened) );
@@ -3523,6 +3602,7 @@ SCIP_DECL_CONSTRANS(consTransSdp)
    targetdata->matrixvar = NULL;
    targetdata->matrixval = NULL;
    targetdata->nsingle = 0;
+   targetdata->tracebound = -2.0;
 
    SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->nvarnonz), sourcedata->nvarnonz, sourcedata->nvars) );
 
@@ -5521,6 +5601,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
    consdata->matrixvar = NULL;
    consdata->matrixval = NULL;
    consdata->nsingle = 0;
+   consdata->tracebound = -2.0;
 
    for (i = 0; i < nvars; i++)
    {
@@ -5643,6 +5724,7 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
    consdata->matrixvar = NULL;
    consdata->matrixval = NULL;
    consdata->nsingle = 0;
+   consdata->tracebound = -2.0;
 
    for (i = 0; i < nvars; i++)
    {
