@@ -2485,7 +2485,6 @@ SCIP_RETCODE propConstraints(
       if ( consdata->nsingle > 0 )
       {
          /* check all off-diagonal positions */
-         cnt = 0;
          for (s = 0; s < blocksize; ++s)
          {
             int diags;
