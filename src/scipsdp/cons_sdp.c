@@ -3508,7 +3508,8 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       int nolddelconss;
       int noldchgbds;
 
-      *result = SCIP_DIDNOTFIND;
+      if ( *result == SCIP_DIDNOTRUN )
+         *result = SCIP_DIDNOTFIND;
 
       noldaddconss = *naddconss;
       nolddelconss = *ndelconss;
