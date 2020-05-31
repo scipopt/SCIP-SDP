@@ -97,7 +97,7 @@
 
 #define PARSE_STARTSIZE               1 /**< initial size of the consdata-arrays when parsing a problem */
 #define PARSE_SIZEFACTOR             10 /**< size of consdata-arrays is increased by this factor when parsing a problem */
-#define DEFAULT_PROPAGATE          TRUE /**< Should we perform propagation? */
+#define DEFAULT_PROPAGATE         FALSE /**< Should we perform propagation? */
 #define DEFAULT_DIAGGEZEROCUTS     TRUE /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
 #define DEFAULT_DIAGZEROIMPLCUTS   TRUE /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
 #define DEFAULT_TWOMINORLINCONSS  FALSE /**< Should linear cuts corresponding to 2 by 2 minors be added? */
@@ -2315,7 +2315,6 @@ SCIP_RETCODE enforceConstraint(
 static
 SCIP_RETCODE propConstraints(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONSHDLR*        conshdlr,           /**< constraint handler */
    SCIP_CONS**           conss,              /**< constraints to process */
    int                   nconss,             /**< number of constraints */
    SCIP_Bool*            infeasible,         /**< pointer to store whether infeasibility was detected */
@@ -3416,7 +3415,7 @@ SCIP_DECL_CONSPROP(consPropSdp)
 
    SCIPdebugMsg(scip, "propagation method of conshdlr <%s> ...\n", SCIPconshdlrGetName(conshdlr));
 
-   SCIP_CALL( propConstraints(scip, conshdlr, conss, nconss, &infeasible, &nprop) );
+   SCIP_CALL( propConstraints(scip, conss, nconss, &infeasible, &nprop) );
 
    if ( infeasible )
    {
@@ -3482,21 +3481,24 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
    *result = SCIP_DIDNOTRUN;
 
    /* call propagation */
-   SCIP_CALL( propConstraints(scip, conshdlr, conss, nconss, &infeasible, &nprop) );
+   if ( conshdlrdata->propagate )
+   {
+      SCIP_CALL( propConstraints(scip, conss, nconss, &infeasible, &nprop) );
 
-   if ( infeasible )
-   {
-      SCIPdebugMsg(scip, "Presolving detected cutoff.\n");
-      *result = SCIP_CUTOFF;
-      return SCIP_OKAY;
-   }
-   else
-   {
-      SCIPdebugMsg(scip, "Propagated bounds: %d.\n", nprop);
-      if ( nprop > 0 )
+      if ( infeasible )
       {
-         *nchgbds += nprop;
-         *result = SCIP_SUCCESS;
+         SCIPdebugMsg(scip, "Presolving detected cutoff.\n");
+         *result = SCIP_CUTOFF;
+         return SCIP_OKAY;
+      }
+      else
+      {
+         SCIPdebugMsg(scip, "Propagated bounds: %d.\n", nprop);
+         if ( nprop > 0 )
+         {
+            *nchgbds += nprop;
+            *result = SCIP_SUCCESS;
+         }
       }
    }
 
