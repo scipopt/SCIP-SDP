@@ -134,6 +134,7 @@ struct SCIP_ConsData
    /* alternative view via matrix entries for propagation */
    SCIP_VAR**            matrixvar;          /**< pointer to variable if given position is uniquely covered, NULL otherwise */
    SCIP_Real*            matrixval;          /**< value at given position of unique covering variable */
+   SCIP_Real*            matrixconst;        /**< value of constant matrix */
    int                   nsingle;            /**< number of matrix entries that depend on a single variable only */
    SCIP_Real             tracebound;         /**< possible bound on the trace */
 };
@@ -2362,13 +2363,14 @@ SCIP_RETCODE propConstraints(
 
          SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->matrixvar, blocksize * (blocksize+1)/2) );
          SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->matrixval, blocksize * (blocksize+1)/2) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->matrixconst, blocksize * (blocksize+1)/2) );
 
          for (s = 0; s < blocksize; ++s)
          {
             for (t = 0; t <= s; ++t)
             {
                SCIP_VAR* var = NULL;
-               SCIP_Real val = SCIP_INVALID;
+               SCIP_Real val = 0.0;
                int pos;
 
                pos = s * blocksize + t;
@@ -2388,16 +2390,18 @@ SCIP_RETCODE propConstraints(
                }
 
                /* if exaclty one entry was found */
-               if ( i >= consdata->nvars && var != NULL && SCIPisZero(scip, constmatrix[pos]) )
+               if ( i >= consdata->nvars )
                {
-                  consdata->matrixvar[cnt] = var;
+                  consdata->matrixvar[cnt] = var;  /* note that var == NULL is possible */
                   consdata->matrixval[cnt] = val;
+                  consdata->matrixconst[cnt] = constmatrix[pos];
                   ++consdata->nsingle;
                }
                else
                {
                   consdata->matrixvar[cnt] = NULL;
                   consdata->matrixval[cnt] = SCIP_INVALID;
+                  consdata->matrixconst[cnt] = SCIP_INVALID;
                }
                ++cnt;
             }
@@ -2408,9 +2412,13 @@ SCIP_RETCODE propConstraints(
          for (i = consdata->nvars -1; i >= 0; --i)
             SCIPfreeBufferArray(scip, &matrices[i]);
          SCIPfreeBufferArray(scip, &matrices);
+
+         if ( SCIPgetSubscipDepth(scip) == 0 )
+            SCIPinfoMessage(scip, NULL, "Number of entries depending on a single variable: %d.\n", consdata->nsingle);
       }
       assert( consdata->matrixvar != NULL );
       assert( consdata->matrixval != NULL );
+      assert( consdata->matrixconst != NULL );
 
       /* search for trace constraint */
       if ( consdata->tracebound < -1.5 )
@@ -2487,43 +2495,68 @@ SCIP_RETCODE propConstraints(
          /* check all off-diagonal positions */
          for (s = 0; s < blocksize; ++s)
          {
+            SCIP_VAR* vars;
+            SCIP_Real ubs = 0.0;
             int diags;
 
             diags = s * (s + 1)/2 + s;
-            if ( consdata->matrixvar[diags] == NULL )
+            if ( consdata->matrixval[diags] == SCIP_INVALID )
                continue;
+
+            vars = consdata->matrixvar[diags];
+            if ( vars != NULL )
+            {
+               /* the upper bounds could be negative if other propagation has not yet been applied */
+               if ( SCIPisLT(scip, SCIPvarGetUbLocal(vars), 0.0) )
+                  continue;
+
+               if ( consdata->matrixval[diags] > 0.0 )
+                  ubs = consdata->matrixval[diags] * SCIPvarGetUbLocal(vars);
+               else
+                  ubs = - consdata->matrixval[diags] * SCIPvarGetLbLocal(vars);
+            }
+            assert( consdata->matrixconst[diags] != SCIP_INVALID );
+
+            ubs -= consdata->matrixconst[diags];
 
             for (t = 0; t < s; ++t)
             {
                SCIP_Bool tightened;
-               SCIP_VAR* vars;
                SCIP_VAR* vart;
                SCIP_VAR* varst;
                SCIP_Real bound;
+               SCIP_Real ubt = 0.0;
                int diagt;
                int pos;
 
-               diagt = t * (t + 1)/2 + t;
-               if ( consdata->matrixvar[diagt] == NULL )
-                  continue;
-
                pos = s * (s + 1)/2 + t;
-               if ( consdata->matrixvar[pos] == NULL )
+               varst = consdata->matrixvar[pos];
+               if ( varst == NULL )
                   continue;
 
-               vars = consdata->matrixvar[diags];
+               diagt = t * (t + 1)/2 + t;
+               if ( consdata->matrixval[diagt] == SCIP_INVALID )
+                  continue;
+
                vart = consdata->matrixvar[diagt];
-               varst = consdata->matrixvar[pos];
-               assert( vars != NULL );
-               assert( vart != NULL );
+               if ( vart != NULL )
+               {
+                  /* the upper bounds could be negative if other propagation has not yet been applied */
+                  if ( SCIPisLT(scip, SCIPvarGetUbLocal(vart), 0.0) )
+                     continue;
+
+                  if ( consdata->matrixval[diagt] > 0.0 )
+                     ubt = consdata->matrixval[diagt] * SCIPvarGetUbLocal(vart);
+                  else
+                     ubt = - consdata->matrixval[diagt] * SCIPvarGetLbLocal(vart);
+               }
+               assert( consdata->matrixconst[diagt] != SCIP_INVALID );
+               ubt -= consdata->matrixconst[diagt];
+
                assert( varst != NULL );
 
-               /* the upper bounds could be negative if other propagation has not yet been applied */
-               if ( SCIPisLT(scip, SCIPvarGetUbLocal(vars), 0.0) || SCIPisLT(scip, SCIPvarGetUbLocal(vart), 0.0) )
-                  continue;
-
-               /* first compute bound without trace bound */
-               bound = sqrt(consdata->matrixval[diags] * SCIPvarGetUbLocal(vars) * consdata->matrixval[diagt] * SCIPvarGetUbLocal(vart) / consdata->matrixval[pos]);
+               /* compute upper bound without trace bound */
+               bound = (sqrt(ubs * ubt) + consdata->matrixconst[pos]) /  consdata->matrixval[pos];
 
                /* check for stronger bound with trace bound */
                if ( consdata->tracebound > 0.0 )
@@ -2532,7 +2565,7 @@ SCIP_RETCODE propConstraints(
                      bound = consdata->tracebound/2.0;
                }
 
-               if ( SCIPisLT(scip, bound, SCIPvarGetUbLocal(varst)) )
+               if ( SCIPisFeasLT(scip, bound, SCIPvarGetUbLocal(varst)) )
                {
                   SCIP_CALL( SCIPinferVarUbCons(scip, varst, bound, conss[c], s * consdata->nvars + t, FALSE, infeasible, &tightened) );
                   if ( *infeasible )
@@ -2541,9 +2574,19 @@ SCIP_RETCODE propConstraints(
                      ++(*nprop);
                }
 
-               if ( SCIPisGT(scip, -bound, SCIPvarGetLbLocal(varst)) )
+               /* compute lower bound without trace bound */
+               bound = (- sqrt(ubs * ubt) + consdata->matrixconst[pos]) /  consdata->matrixval[pos];
+
+               /* check for stronger bound with trace bound */
+               if ( consdata->tracebound > 0.0 )
                {
-                  SCIP_CALL( SCIPinferVarLbCons(scip, varst, -bound, conss[c], s * consdata->nvars + t, FALSE, infeasible, &tightened) );
+                  if ( -consdata->tracebound/2.0 > bound )
+                     bound = -consdata->tracebound/2.0;
+               }
+
+               if ( SCIPisFeasGT(scip, bound, SCIPvarGetLbLocal(varst)) )
+               {
+                  SCIP_CALL( SCIPinferVarLbCons(scip, varst, bound, conss[c], s * consdata->nvars + t, FALSE, infeasible, &tightened) );
                   if ( *infeasible )
                      return SCIP_OKAY;
                   if ( tightened )
@@ -3455,8 +3498,14 @@ SCIP_DECL_CONSRESPROP(consRespropSdp)
    assert( 0 <= s && s < consdata->nvars );
    assert( 0 <= t && t < consdata->nvars );
 
-   SCIP_CALL( SCIPaddConflictUb(scip, consdata->vars[s], bdchgidx) );
-   SCIP_CALL( SCIPaddConflictUb(scip, consdata->vars[t], bdchgidx) );
+   if ( consdata->vars[s] != NULL )
+   {
+      SCIP_CALL( SCIPaddConflictUb(scip, consdata->vars[s], bdchgidx) );
+   }
+   if ( consdata->vars[t] != NULL )
+   {
+      SCIP_CALL( SCIPaddConflictUb(scip, consdata->vars[t], bdchgidx) );
+   }
 
    *result = SCIP_SUCCESS;
 
@@ -3599,6 +3648,7 @@ SCIP_DECL_CONSTRANS(consTransSdp)
    targetdata->blocksize = sourcedata->blocksize;
    targetdata->matrixvar = NULL;
    targetdata->matrixval = NULL;
+   targetdata->matrixconst = NULL;
    targetdata->nsingle = 0;
    targetdata->tracebound = -2.0;
 
@@ -4244,6 +4294,7 @@ SCIP_DECL_CONSDELETE(consDeleteSdp)
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->nvarnonz, (*consdata)->nvars);
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->matrixval, (*consdata)->blocksize * ((*consdata)->blocksize + 1) / 2);
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->matrixvar, (*consdata)->blocksize * ((*consdata)->blocksize + 1) / 2);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->matrixconst, (*consdata)->blocksize * ((*consdata)->blocksize + 1) / 2);
    SCIPfreeBlockMemory(scip, consdata);
 
    return SCIP_OKAY;
@@ -5598,6 +5649,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
    consdata->locks = NULL;
    consdata->matrixvar = NULL;
    consdata->matrixval = NULL;
+   consdata->matrixconst = NULL;
    consdata->nsingle = 0;
    consdata->tracebound = -2.0;
 
@@ -5721,6 +5773,7 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
    consdata->locks = NULL;
    consdata->matrixvar = NULL;
    consdata->matrixval = NULL;
+   consdata->matrixconst = NULL;
    consdata->nsingle = 0;
    consdata->tracebound = -2.0;
 
