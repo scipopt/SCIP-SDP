@@ -262,8 +262,8 @@ SCIP_RETCODE CBFfgets(
 while ( SCIPfgets(CBF_LINE_BUFFER, (int) sizeof(CBF_LINE_BUFFER), pFile) != NULL ) //FRAGE: Wie kommt hier linecount ins Spiel?
     {
         ++(*linecount);
-        if(strcmp(CBF_LINE_BUFFER,"*INTEGER")==0){
-
+        if(strncmp(CBF_LINE_BUFFER,"*INTEGER",8)==0){
+	SCIPerrorMessage("Integer erkannt!");
         return SCIP_OKAY;
         }
 
@@ -762,7 +762,7 @@ SCIP_RETCODE SDPAreadHcoord(
     while( CBFfgets(scipfile, &linecount) == SCIP_OKAY )
     {
 
-        if(strcmp(CBF_LINE_BUFFER,"*INTEGER")==0){
+        if(strncmp(CBF_LINE_BUFFER,"*INTEGER",8)==0){
         break;
 
         }
@@ -1029,6 +1029,8 @@ SCIP_RETCODE SDPAreadInt(
 {  /*lint --e{818}*/
 
 
+
+
     int v;
     SCIP_Bool infeasible;
 
@@ -1045,6 +1047,7 @@ SCIP_RETCODE SDPAreadInt(
     }
     assert( data->nvars >= 0 );
 
+
     while( fIntgets(scipfile, &linecount) == SCIP_OKAY )
     {
         char *ps = CBF_LINE_BUFFER+1;
@@ -1054,8 +1057,13 @@ SCIP_RETCODE SDPAreadInt(
             SCIPABORT();
             return SCIP_READERROR; /*lint !e527*/
         }
+        
+        v=v-1;
+
 
         SCIP_CALL( SCIPchgVarType(scip, data->createdvars[v], SCIP_VARTYPE_INTEGER, &infeasible)   );
+
+
 
         if ( infeasible )
         {
@@ -1305,6 +1313,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
         SCIPdebugMsg(scip, "Reading INT\n");                    //TODO: Abfrage
         SCIP_CALL( SDPAreadInt(scip, scipfile, &linecount, data) );
 
+	SCIPerrorMessage("aus der Methode \n");
                 /**
                     SCIPerrorMessage("Keyword %s in line %" SCIP_LONGINT_FORMAT " not recognized!\n", CBF_NAME_BUFFER, linecount);
                     SCIPABORT();
@@ -1368,7 +1377,10 @@ if ( ! data->sdpblockrank1[b] )
 SCIPerrorMessage("Hier wird die Constraint erstellt b: %i Nvarnonz: %i  Blocksize: %i  Constblocknonz: %i\n", b,data->nvarnonz[b][data->sdpnblockvars[b]],data->sdpblocksizes[b],data->sdpconstnblocknonz[b]);
 
 
-data->sdpconstnblocknonz[b]=1;
+SCIPerrorMessage("Hier wird die Constraint erstellt row: %i col: %i  val: %i \n", data->sdpconstrow[b][data->sdpconstnblocknonz[b]],data->sdpconstcol[b][data->sdpconstnblocknonz[b]], data->sdpconstval[b][data->sdpconstnblocknonz[b]]);
+
+//data->sdpconstnblocknonz[b]=1;//1; TIM: Versuch den richtigen Speicher zu treffen
+
 SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcons, sdpconname, data->sdpnblockvars[b], data->sdpnblocknonz[b],
 data->sdpblocksizes[b], data->nvarnonz[b], data->colpointer[b], data->rowpointer[b], data->valpointer[b],
 data->sdpblockvars[b], data->sdpconstnblocknonz[b], data->sdpconstcol[b], data->sdpconstrow[b],
