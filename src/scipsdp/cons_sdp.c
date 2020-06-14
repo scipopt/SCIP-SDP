@@ -3392,7 +3392,8 @@ SCIP_DECL_CONSLOCK(consLockSdp)
       if ( SCIPisFeasGE(scip, mineigenvalue, 0.0) )
       {
          consdata->allmatricespsd = TRUE;
-         SCIPinfoMessage(scip, NULL, "All matrices are positive semidefinite (minimial eigenvalue: %g).\n", mineigenvalue);
+         if ( SCIPgetSubscipDepth(scip) == 0 )
+            SCIPinfoMessage(scip, NULL, "All matrices are positive semidefinite (minimial eigenvalue: %g).\n", mineigenvalue);
       }
 
       SCIPfreeBufferArray(scip, &Aj);
