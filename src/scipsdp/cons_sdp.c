@@ -975,7 +975,7 @@ SCIP_RETCODE diagGEzero(
    int                   nconss,             /**< number of constraints to add cuts for */
    int*                  naddconss,          /**< pointer to store how many constraints were added */
    int*                  nchgbds,            /**< pointer to store how many bounds were changed */
-   SCIP_RESULT*          result              /**< result pointer */
+   SCIP_Bool*            infeasible          /**< pointer to store whether infeasibility was detected */
    )
 {
    char cutname[SCIP_MAXSTRLEN];
@@ -995,8 +995,9 @@ SCIP_RETCODE diagGEzero(
    assert( scip != NULL );
    assert( naddconss != NULL );
    assert( nchgbds != NULL );
-   assert( result != NULL );
-   assert( *result != SCIP_CUTOFF );
+   assert( infeasible != NULL );
+
+   *infeasible = FALSE;
 
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
@@ -1032,7 +1033,7 @@ SCIP_RETCODE diagGEzero(
       }
 
       /* add the LP-cuts to SCIP */
-      for (k = 0; k < blocksize && *result != SCIP_CUTOFF; ++k)
+      for (k = 0; k < blocksize && !(*infeasible); ++k)
       {
          SCIP_CONS* cons;
          SCIP_Real lhs;
@@ -1065,11 +1066,10 @@ SCIP_RETCODE diagGEzero(
          {
             /* if there are no variables, but the lhs is positive, we are infeasible */
             if ( SCIPisPositive(scip, lhs) )
-               *result = SCIP_CUTOFF;
+               *infeasible = TRUE;
          }
          else if ( cnt == 1 )
          {
-            SCIP_Bool infeasible = FALSE;
             SCIP_Bool tightened;
             SCIP_VAR* var;
             SCIP_Real val;
@@ -1081,7 +1081,7 @@ SCIP_RETCODE diagGEzero(
             /* try to tighten bound */
             if ( SCIPisPositive(scip, val) )
             {
-               SCIP_CALL( SCIPtightenVarLb(scip, var, lhs / val, FALSE, &infeasible, &tightened) );
+               SCIP_CALL( SCIPtightenVarLb(scip, var, lhs / val, FALSE, infeasible, &tightened) );
                if ( tightened )
                {
                   SCIPdebugMsg(scip, "Tightend lower bound of <%s> to %g because of diagonal values of SDP-constraint %s!\n",
@@ -1091,7 +1091,7 @@ SCIP_RETCODE diagGEzero(
             }
             else if ( SCIPisNegative(scip, val) )
             {
-               SCIP_CALL( SCIPtightenVarUb(scip, var, lhs / val, FALSE, &infeasible, &tightened) );
+               SCIP_CALL( SCIPtightenVarUb(scip, var, lhs / val, FALSE, infeasible, &tightened) );
                if ( tightened )
                {
                   SCIPdebugMsg(scip, "Tightend upper bound of <%s> to %g because of diagonal values of SDP-constraint %s!\n",
@@ -1099,9 +1099,6 @@ SCIP_RETCODE diagGEzero(
                   ++(*nchgbds);
                }
             }
-
-            if ( infeasible )
-               *result = SCIP_CUTOFF;
          }
          /* generate linear inequality if lower bound on activity is less than the lhs, so the cut is not redundant */
          else if ( SCIPisLT(scip, activitylb, lhs) )
@@ -1700,7 +1697,7 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
    int*                  naddconss,          /**< pointer to store how many constraints were added */
    int*                  ndelconss,          /**< pointer to store how many constraints were deleted */
    int*                  nchgbds,            /**< pointer to store how many bounds were changed */
-   SCIP_RESULT*          result              /**< pointer to store if this routine was successfull or if it detected infeasibility */
+   SCIP_Bool*            infeasible          /**< pointer to store whether infeasibility was detected */
    )
 {
    char cutname[SCIP_MAXSTRLEN];
@@ -1722,12 +1719,14 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
    assert( scip != NULL );
    assert( conshdlr != NULL );
    assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 || strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLRRANK1_NAME) == 0 );
-   assert( result != NULL );
+   assert( infeasible != NULL );
+
+   *infeasible = FALSE;
 
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
 
-   for (i = 0; i < nconss && *result != SCIP_CUTOFF; ++i)
+   for (i = 0; i < nconss && !(*infeasible); ++i)
    {
       consdata = SCIPconsGetData(conss[i]);
       assert( consdata != NULL );
@@ -1790,13 +1789,12 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
          }
          else if ( cnt == 1 )
          {
-            SCIP_Bool infeasible = FALSE;
             SCIP_Bool tightened;
 
             /* try to tighten bound */
             if ( SCIPisPositive(scip, coeffs[0]) )
             {
-               SCIP_CALL( SCIPtightenVarLb(scip, vars[0], rhs / coeffs[0], FALSE, &infeasible, &tightened) );
+               SCIP_CALL( SCIPtightenVarLb(scip, vars[0], rhs / coeffs[0], FALSE, infeasible, &tightened) );
                if ( tightened )
                {
                   SCIPdebugMsg(scip, "Tightend lower bound of <%s> to %g because of diagonal values of SDP-constraint %s!\n",
@@ -1807,7 +1805,7 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
             else
             {
                assert( SCIPisNegative(scip, coeffs[0]) );
-               SCIP_CALL( SCIPtightenVarUb(scip, vars[0], rhs / coeffs[0], FALSE, &infeasible, &tightened) );
+               SCIP_CALL( SCIPtightenVarUb(scip, vars[0], rhs / coeffs[0], FALSE, infeasible, &tightened) );
                if ( tightened )
                {
                   SCIPdebugMsg(scip, "Tightend upper bound of <%s> to %g because of diagonal values of SDP-constraint %s!\n",
@@ -1815,9 +1813,6 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
                   ++(*nchgbds);
                }
             }
-
-            if ( infeasible )
-               *result = SCIP_CUTOFF;
          }
          else
          {
@@ -1826,7 +1821,7 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
             if ( SCIPisFeasGT(scip, rhs, 0.0) )
             {
                SCIPdebugMsg(scip, "Detected infeasibility in 1x1 SDP-block without any nonzero coefficients but with strictly positive rhs\n");
-               *result = SCIP_CUTOFF;
+               *infeasible = TRUE;
             }
          }
 
@@ -3838,8 +3833,13 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       noldchgbds = *nchgbds;
       noldchgcoefs = *nchgcoefs;
 
-      SCIP_CALL( move_1x1_blocks_to_lp(scip, conshdlr, conss, nconss, naddconss, ndelconss, nchgbds, result) );
-      if ( *result != SCIP_CUTOFF && (noldaddconss != *naddconss || nolddelconss != *ndelconss || noldchgbds != *nchgbds) )
+      SCIP_CALL( move_1x1_blocks_to_lp(scip, conshdlr, conss, nconss, naddconss, ndelconss, nchgbds, &infeasible) );
+      if ( infeasible )
+      {
+         *result = SCIP_CUTOFF;
+         return SCIP_OKAY;
+      }
+      if ( noldaddconss != *naddconss || nolddelconss != *ndelconss || noldchgbds != *nchgbds )
          *result = SCIP_SUCCESS;
 
       /* possibly compute tightening of matrices */
@@ -3855,8 +3855,12 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       {
          SCIP_CALL( tightenBounds(scip, conss, nconss, nchgbds, &infeasible) );
          if ( infeasible )
+         {
             *result = SCIP_CUTOFF;
-         else if ( noldchgbds != *nchgbds )
+            return SCIP_OKAY;
+         }
+
+         if ( noldchgbds != *nchgbds )
             *result = SCIP_SUCCESS;
       }
 
@@ -3865,13 +3869,20 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       if ( SCIPgetSubscipDepth(scip) == 0 && ! conshdlrdata->sdpconshdlrdata->triedlinearconss )
       {
          conshdlrdata->sdpconshdlrdata->triedlinearconss = TRUE;
-         if ( *result != SCIP_CUTOFF && conshdlrdata->sdpconshdlrdata->diaggezerocuts )
+         if ( conshdlrdata->sdpconshdlrdata->diaggezerocuts )
          {
             noldaddconss = *naddconss;
             noldchgbds = *nchgbds;
-            SCIP_CALL( diagGEzero(scip, conshdlr, conss, nconss, naddconss, nchgbds, result) );
+            SCIP_CALL( diagGEzero(scip, conshdlr, conss, nconss, naddconss, nchgbds, &infeasible) );
             SCIPdebugMsg(scip, "Diagonal entries: added %d cuts and changed %d bounds.\n", *naddconss - noldaddconss, *nchgbds - noldchgbds);
-            if ( *result != SCIP_CUTOFF && ( noldaddconss != *naddconss || noldchgbds != *nchgbds ) )
+
+            if ( infeasible )
+            {
+               *result = SCIP_CUTOFF;
+               return SCIP_OKAY;
+            }
+
+            if ( noldaddconss != *naddconss || noldchgbds != *nchgbds )
                *result = SCIP_SUCCESS;
          }
 
