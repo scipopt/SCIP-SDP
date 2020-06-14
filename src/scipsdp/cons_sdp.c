@@ -98,6 +98,7 @@
 #define PARSE_STARTSIZE               1 /**< initial size of the consdata-arrays when parsing a problem */
 #define PARSE_SIZEFACTOR             10 /**< size of consdata-arrays is increased by this factor when parsing a problem */
 #define DEFAULT_PROPAGATE         FALSE /**< Should we perform propagation? */
+#define DEFAULT_TIGHTENMATRICES    TRUE /**< If all matrices are psd, whould the matrices be tightened if possible? */
 #define DEFAULT_DIAGGEZEROCUTS     TRUE /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
 #define DEFAULT_DIAGZEROIMPLCUTS   TRUE /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
 #define DEFAULT_TWOMINORLINCONSS  FALSE /**< Should linear cuts corresponding to 2 by 2 minors be added? */
@@ -137,6 +138,7 @@ struct SCIP_ConsData
    SCIP_Real*            matrixconst;        /**< value of constant matrix */
    int                   nsingle;            /**< number of matrix entries that depend on a single variable only */
    SCIP_Real             tracebound;         /**< possible bound on the trace */
+   SCIP_Bool             allmatricespsd;     /**< true if all varaibles are positive semidefinite (excluding the constant matrix) */
 };
 
 /** SDP constraint handler data */
@@ -147,6 +149,7 @@ struct SCIP_ConshdlrData
    int                   ndiaggezerocuts;    /**< this is used to give the diagGEzero-cuts distinguishable names */
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
    SCIP_Bool             propagate;          /**< Should we perform propagation? */
+   SCIP_Bool             tightenmatrices;    /**< If all matrices are psd, whould the matrices be tightened if possible? */
    SCIP_Bool             diagzeroimplcuts;   /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
    SCIP_Bool             twominorlinconss;   /**< Should linear cuts corresponding to 2 by 2 minors be added? */
    SCIP_Bool             twominorprodconss;  /**< Should linear cuts corresponding to products of 2 by 2 minors be added? */
@@ -472,6 +475,79 @@ SCIP_RETCODE setMaxRhsEntry(
 }
 
 
+/** compute tightening factor */
+static
+SCIP_RETCODE computeTighteningFactor(
+   SCIP*                 scip,               /**< SCIP data structure */
+   int                   blocksize,          /**< size of block */
+   SCIP_Real*            A,                  /**< matrix for which the factor should be computed */
+   SCIP_Real*            Aconst,             /**< the constant matrix */
+   SCIP_Real*            factor              /**< pointer to store the factor */
+   )
+{
+   SCIP_Real* matrix;
+   SCIP_Real eigenvalue;
+   SCIP_Real lb = 0.0;
+   SCIP_Real ub = 1.0;
+   SCIP_Real scalar = 1.0;
+   SCIP_Real tol;
+
+   assert( scip != NULL );
+   assert( blocksize > 0 );
+   assert( A != NULL );
+   assert( Aconst != NULL );
+   assert( factor != NULL );
+
+   *factor = 1.0;
+
+   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, blocksize * blocksize) );
+
+   /* bisection loop */
+   tol = SCIPfeastol(scip);
+   while ( ub - lb > tol )
+   {
+      int pos;
+      int i;
+      int j;
+
+      /* fill in matrix */
+      for (i = 0; i < blocksize; ++i)
+      {
+         for (j = 0; j < blocksize; ++j)
+         {
+            pos = i * blocksize + j;
+            matrix[pos] = scalar * A[pos] + Aconst[pos];
+         }
+      }
+
+      /* compute smalles eigentvalue */
+      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, matrix, 1, &eigenvalue, NULL) );
+
+      /* if the smallest eigenvalue is positive, we can decrease the value */
+      if ( SCIPisFeasPositive(scip, eigenvalue) )
+      {
+         ub = scalar;
+         scalar = (ub + lb) / 2.0;
+      }
+      else
+      {
+         /* in the space case in which the scalar is 1, we exit */
+         if ( SCIPisEQ(scip, scalar, 1.0) )
+            break;
+
+         lb = scalar;
+         scalar = (ub + lb) / 2.0;
+      }
+   }
+
+   SCIPfreeBufferArray(scip, &matrix);
+
+   *factor = scalar;
+
+   return SCIP_OKAY;
+}
+
+
 /** separate current solution with a cut using the eigenvectors and -values of the solution matrix
  *
  *  This function computes the eigenvectors of the matrix, takes the one corresponding to the smallest eigenvalue and
@@ -697,6 +773,86 @@ SCIP_RETCODE separateSol(
    SCIPfreeBufferArray(scip, &vals);
    SCIPfreeBufferArray(scip, &cols);
    SCIPfreeBufferArray(scip, &coeff);
+
+   return SCIP_OKAY;
+}
+
+/** try to tighten matrices */
+static
+SCIP_RETCODE tightenMatrices(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS**           conss,              /**< array of constraints to add cuts for */
+   int                   nconss,             /**< number of constraints to add cuts for */
+   int*                  nchgcoefs           /**< pointer to store how many matrices were tightened */
+   )
+{
+   int c;
+
+   assert( scip != NULL );
+   assert( nchgcoefs != NULL );
+
+   for (c = 0; c < nconss; ++c)
+   {
+      SCIP_CONSDATA* consdata;
+      SCIP_Real* matrix;
+      SCIP_Real* constmatrix;
+      SCIP_Real factor;
+      int blocksize;
+      int nvars;
+      int i;
+
+      assert( conss != NULL );
+      assert( conss[c] != NULL );
+
+      consdata = SCIPconsGetData(conss[c]);
+      assert( consdata != NULL );
+      assert( consdata->rankone || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), CONSHDLR_NAME) == 0 );
+      assert( ! consdata->rankone || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), CONSHDLRRANK1_NAME) == 0 );
+
+      /* skip constraints in which not all matrices are psd */
+      if ( ! consdata->allmatricespsd )
+         continue;
+
+      /* make sure that all variables are binary */
+      nvars = consdata->nvars;
+      for (i = 0; i < nvars; ++i)
+      {
+         if ( ! SCIPvarIsBinary(consdata->vars[i]) )
+            break;
+      }
+      if ( i < nvars )
+         continue;
+
+      /* get matrices */
+      blocksize = consdata->blocksize;
+      SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, blocksize * blocksize) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &matrix, blocksize * blocksize) );
+
+      SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, conss[c], constmatrix) );
+
+      for (i = 0; i < nvars; ++i)
+      {
+         SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrix) );
+
+         SCIP_CALL( computeTighteningFactor(scip, blocksize, matrix, constmatrix, &factor) );
+
+         if ( ! SCIPisEQ(scip, factor, 1.0) )
+         {
+            int j;
+
+            SCIPinfoMessage(scip, NULL, "%d: tightening factor = %g.\n", i, factor);
+
+            /* tighten matrix */
+            for (j = 0; j < consdata->nvarnonz[i]; j++)
+               consdata->val[i][j] *= factor;
+
+            ++(*nchgcoefs);
+         }
+      }
+
+      SCIPfreeBufferArray(scip, &matrix);
+      SCIPfreeBufferArray(scip, &constmatrix);
+   }
 
    return SCIP_OKAY;
 }
@@ -3077,6 +3233,7 @@ SCIP_DECL_CONSLOCK(consLockSdp)
    /* if locks have not yet been computed */
    if ( consdata->locks == NULL )
    {
+      SCIP_Real mineigenvalue = SCIP_REAL_MAX;
       SCIP_Real eigenvalue;
       int blocksize;
 
@@ -3100,6 +3257,8 @@ SCIP_DECL_CONSLOCK(consLockSdp)
             SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], locktype, nlocksneg, nlockspos) );
             consdata->locks[v] = 1; /* up-lock */
          }
+         if ( eigenvalue < mineigenvalue )
+            mineigenvalue = eigenvalue;
 
          /* if the smallest eigenvalue is already positive, we don't need to compute the biggest one */
          if ( SCIPisPositive(scip, eigenvalue) )
@@ -3126,6 +3285,12 @@ SCIP_DECL_CONSLOCK(consLockSdp)
                   consdata->locks[v] = -1; /* down-lock */
             }
          }
+      }
+
+      if ( SCIPisFeasGE(scip, mineigenvalue, 0.0) )
+      {
+         consdata->allmatricespsd = TRUE;
+         SCIPinfoMessage(scip, NULL, "All matrices are positive semidefinite (minimial eigenvalue: %g).\n", mineigenvalue);
       }
 
       SCIPfreeBufferArray(scip, &Aj);
@@ -3556,6 +3721,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       int noldaddconss;
       int nolddelconss;
       int noldchgbds;
+      int noldchgcoefs;
 
       if ( *result == SCIP_DIDNOTRUN )
          *result = SCIP_DIDNOTFIND;
@@ -3563,9 +3729,19 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       noldaddconss = *naddconss;
       nolddelconss = *ndelconss;
       noldchgbds = *nchgbds;
+      noldchgcoefs = *nchgcoefs;
+
       SCIP_CALL( move_1x1_blocks_to_lp(scip, conshdlr, conss, nconss, naddconss, ndelconss, nchgbds, result) );
       if ( *result != SCIP_CUTOFF && (noldaddconss != *naddconss || nolddelconss != *ndelconss || noldchgbds != *nchgbds) )
          *result = SCIP_SUCCESS;
+
+      /* possibly compute tightening */
+      if ( conshdlrdata->tightenmatrices )
+      {
+         SCIP_CALL( tightenMatrices(scip, conss, nconss, nchgcoefs) );
+         if ( noldchgcoefs != *nchgcoefs )
+            *result = SCIP_SUCCESS;
+      }
 
       /* In the following, we add linear constraints to be propagated. This is needed only once. We assume that this is
        * only necessary in the main SCIP instance. */
@@ -3651,6 +3827,7 @@ SCIP_DECL_CONSTRANS(consTransSdp)
    targetdata->matrixconst = NULL;
    targetdata->nsingle = 0;
    targetdata->tracebound = -2.0;
+   targetdata->allmatricespsd = sourcedata->allmatricespsd;
 
    SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->nvarnonz), sourcedata->nvarnonz, sourcedata->nvars) );
 
@@ -4904,6 +5081,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          "Should we perform propagation?",
          &(conshdlrdata->propagate), TRUE, DEFAULT_PROPAGATE, NULL, NULL) );
 
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/tightenmatrices",
+         "If all matrices are psd, whould the matrices be tightened if possible?",
+         &(conshdlrdata->tightenmatrices), TRUE, DEFAULT_TIGHTENMATRICES, NULL, NULL) );
+
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/diaggezerocuts",
          "Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added?",
          &(conshdlrdata->diaggezerocuts), TRUE, DEFAULT_DIAGGEZEROCUTS, NULL, NULL) );
@@ -5652,6 +5833,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
    consdata->matrixconst = NULL;
    consdata->nsingle = 0;
    consdata->tracebound = -2.0;
+   consdata->allmatricespsd = FALSE;
 
    for (i = 0; i < nvars; i++)
    {
@@ -5776,6 +5958,7 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
    consdata->matrixconst = NULL;
    consdata->nsingle = 0;
    consdata->tracebound = -2.0;
+   consdata->allmatricespsd = FALSE;
 
    for (i = 0; i < nvars; i++)
    {
