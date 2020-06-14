@@ -98,7 +98,8 @@
 #define PARSE_STARTSIZE               1 /**< initial size of the consdata-arrays when parsing a problem */
 #define PARSE_SIZEFACTOR             10 /**< size of consdata-arrays is increased by this factor when parsing a problem */
 #define DEFAULT_PROPAGATE         FALSE /**< Should we perform propagation? */
-#define DEFAULT_TIGHTENMATRICES    TRUE /**< If all matrices are psd, whould the matrices be tightened if possible? */
+#define DEFAULT_TIGHTENMATRICES    TRUE /**< If all matrices are psd, should the matrices be tightened if possible? */
+#define DEFAULT_TIGHTENBOUNDS      TRUE /**< If all matrices are psd, should the bounds be tightened if possible? */
 #define DEFAULT_DIAGGEZEROCUTS     TRUE /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
 #define DEFAULT_DIAGZEROIMPLCUTS   TRUE /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
 #define DEFAULT_TWOMINORLINCONSS  FALSE /**< Should linear cuts corresponding to 2 by 2 minors be added? */
@@ -149,7 +150,8 @@ struct SCIP_ConshdlrData
    int                   ndiaggezerocuts;    /**< this is used to give the diagGEzero-cuts distinguishable names */
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
    SCIP_Bool             propagate;          /**< Should we perform propagation? */
-   SCIP_Bool             tightenmatrices;    /**< If all matrices are psd, whould the matrices be tightened if possible? */
+   SCIP_Bool             tightenmatrices;    /**< If all matrices are psd, should the matrices be tightened if possible? */
+   SCIP_Bool             tightenbounds;      /**< If all matrices are psd, should the bounds be tightened if possible? */
    SCIP_Bool             diagzeroimplcuts;   /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
    SCIP_Bool             twominorlinconss;   /**< Should linear cuts corresponding to 2 by 2 minors be added? */
    SCIP_Bool             twominorprodconss;  /**< Should linear cuts corresponding to products of 2 by 2 minors be added? */
@@ -475,20 +477,22 @@ SCIP_RETCODE setMaxRhsEntry(
 }
 
 
-/** compute tightening factor */
+/** compute scaling factor that makes the matrix A minus $const psd via bisection */
 static
-SCIP_RETCODE computeTighteningFactor(
+SCIP_RETCODE computeScalingFactor(
    SCIP*                 scip,               /**< SCIP data structure */
    int                   blocksize,          /**< size of block */
    SCIP_Real*            A,                  /**< matrix for which the factor should be computed */
    SCIP_Real*            Aconst,             /**< the constant matrix */
+   SCIP_Real             lower,              /**< lower bound on factor */
+   SCIP_Real             upper,              /**< upper bound on factor */
    SCIP_Real*            factor              /**< pointer to store the factor */
    )
 {
    SCIP_Real* matrix;
    SCIP_Real eigenvalue;
-   SCIP_Real lb = 0.0;
-   SCIP_Real ub = 1.0;
+   SCIP_Real lb;
+   SCIP_Real ub;
    SCIP_Real scalar = 1.0;
    SCIP_Real tol;
 
@@ -498,7 +502,9 @@ SCIP_RETCODE computeTighteningFactor(
    assert( Aconst != NULL );
    assert( factor != NULL );
 
-   *factor = 1.0;
+   *factor = upper;
+   lb = lower;
+   ub = upper;
 
    SCIP_CALL( SCIPallocBufferArray(scip, &matrix, blocksize * blocksize) );
 
@@ -532,7 +538,7 @@ SCIP_RETCODE computeTighteningFactor(
       else
       {
          /* in the space case in which the scalar is 1, we exit */
-         if ( SCIPisEQ(scip, scalar, 1.0) )
+         if ( SCIPisEQ(scip, scalar, upper) )
             break;
 
          lb = scalar;
@@ -823,6 +829,8 @@ SCIP_RETCODE tightenMatrices(
       if ( i < nvars )
          continue;
 
+      SCIPdebugMsg(scip, "Trying to tighten matrices for constraint <%s>.\n", SCIPconsGetName(conss[c]));
+
       /* get matrices */
       blocksize = consdata->blocksize;
       SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, blocksize * blocksize) );
@@ -834,7 +842,7 @@ SCIP_RETCODE tightenMatrices(
       {
          SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrix) );
 
-         SCIP_CALL( computeTighteningFactor(scip, blocksize, matrix, constmatrix, &factor) );
+         SCIP_CALL( computeScalingFactor(scip, blocksize, matrix, constmatrix, 0.0, 1.0, &factor) );
 
          if ( ! SCIPisEQ(scip, factor, 1.0) )
          {
@@ -847,6 +855,105 @@ SCIP_RETCODE tightenMatrices(
                consdata->val[i][j] *= factor;
 
             ++(*nchgcoefs);
+         }
+      }
+
+      SCIPfreeBufferArray(scip, &matrix);
+      SCIPfreeBufferArray(scip, &constmatrix);
+   }
+
+   return SCIP_OKAY;
+}
+
+/** try to tighten bounds if all matrices are psd */
+static
+SCIP_RETCODE tightenBounds(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS**           conss,              /**< array of constraints to add cuts for */
+   int                   nconss,             /**< number of constraints to add cuts for */
+   int*                  nchgbds,            /**< pointer to store how bounds were tightened */
+   SCIP_Bool*            infeasible          /**< pointer to store whether infeasibility was detected */
+   )
+{
+   int c;
+
+   assert( scip != NULL );
+   assert( nchgbds != NULL );
+   assert( infeasible != NULL );
+
+   *infeasible = FALSE;
+
+   for (c = 0; c < nconss && !(*infeasible); ++c)
+   {
+      SCIP_CONSDATA* consdata;
+      SCIP_Real* matrix;
+      SCIP_Real* constmatrix;
+      SCIP_Real factor;
+      int blocksize;
+      int nvars;
+      int i;
+
+      assert( conss != NULL );
+      assert( conss[c] != NULL );
+
+      consdata = SCIPconsGetData(conss[c]);
+      assert( consdata != NULL );
+      assert( consdata->rankone || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), CONSHDLR_NAME) == 0 );
+      assert( ! consdata->rankone || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), CONSHDLRRANK1_NAME) == 0 );
+
+      /* skip constraints in which not all matrices are psd */
+      if ( ! consdata->allmatricespsd )
+         continue;
+
+      /* make sure that all lower bounds are nonnegative */
+      nvars = consdata->nvars;
+      for (i = 0; i < nvars; ++i)
+      {
+         if ( SCIPisNegative(scip, SCIPvarGetLbGlobal(consdata->vars[i])) )
+            break;
+      }
+      if ( i < nvars )
+         continue;
+
+      SCIPdebugMsg(scip, "Trying to tighten bounds for constraint <%s>.\n", SCIPconsGetName(conss[c]));
+
+      /* get matrices */
+      blocksize = consdata->blocksize;
+      SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, blocksize * blocksize) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &matrix, blocksize * blocksize) );
+
+      SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, conss[c], constmatrix) );
+
+      for (i = 0; i < nvars; ++i)
+      {
+         SCIP_Real lb;
+         SCIP_Real ub;
+
+         SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrix) );
+
+         /* skip fixed variables */
+         lb = SCIPvarGetLbGlobal(consdata->vars[i]);
+         ub = SCIPvarGetUbGlobal(consdata->vars[i]);
+         if ( SCIPisEQ(scip, lb, ub) )
+            continue;
+
+         /* compute scaling factor */
+         SCIP_CALL( computeScalingFactor(scip, blocksize, matrix, constmatrix, lb, ub, &factor) );
+
+         if ( SCIPisLT(scip, factor, ub) )
+         {
+            SCIP_Bool tightened;
+
+            SCIP_CALL( SCIPtightenVarUb(scip, consdata->vars[i], factor, FALSE, infeasible, &tightened) );
+
+            if ( *infeasible )
+               break;
+
+            if ( tightened )
+            {
+               SCIPinfoMessage(scip, NULL, "Tightened upper bound of variable <%s> to %g.\n", SCIPvarGetName(consdata->vars[i]), factor);
+               ++(*nchgbds);
+            }
          }
       }
 
@@ -3735,11 +3842,21 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       if ( *result != SCIP_CUTOFF && (noldaddconss != *naddconss || nolddelconss != *ndelconss || noldchgbds != *nchgbds) )
          *result = SCIP_SUCCESS;
 
-      /* possibly compute tightening */
+      /* possibly compute tightening of matrices */
       if ( conshdlrdata->tightenmatrices )
       {
          SCIP_CALL( tightenMatrices(scip, conss, nconss, nchgcoefs) );
          if ( noldchgcoefs != *nchgcoefs )
+            *result = SCIP_SUCCESS;
+      }
+
+      /* possibly tighten bounds */
+      if ( conshdlrdata->tightenbounds )
+      {
+         SCIP_CALL( tightenBounds(scip, conss, nconss, nchgbds, &infeasible) );
+         if ( infeasible )
+            *result = SCIP_CUTOFF;
+         else if ( noldchgbds != *nchgbds )
             *result = SCIP_SUCCESS;
       }
 
@@ -5084,6 +5201,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/tightenmatrices",
          "If all matrices are psd, whould the matrices be tightened if possible?",
          &(conshdlrdata->tightenmatrices), TRUE, DEFAULT_TIGHTENMATRICES, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/tightenbounds",
+         "If all matrices are psd, should the bounds be tightened if possible?",
+         &(conshdlrdata->tightenbounds), TRUE, DEFAULT_TIGHTENBOUNDS, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/diaggezerocuts",
          "Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added?",

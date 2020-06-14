@@ -6,6 +6,7 @@ fixed bugs:
 
 features:
 - add possiblitiy to tighten matrices if all matrices are positive semidefinite
+- add possiblitiy to tighten bounds if all matrices are positive semidefinite
 
 SCIP-SDP version 3.2.0
 ======================
