@@ -3551,7 +3551,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
    }
 
    /* add constraints in initial round */
-   if ( nrounds == 0 )
+   if ( SCIPconshdlrGetNPresolCalls(conshdlr) == 0 )
    {
       int noldaddconss;
       int nolddelconss;

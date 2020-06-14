@@ -2,6 +2,7 @@ fixed bugs:
 - fixed the output of the line number when reading CBF files
 - fixed one memory bug and one missing check in diagZeroImpl()
 - fixed bug in multiaggrVar() with negative coefficients and locking
+- fixed bug in presolving which sometimes avoided the addition of linear constraints
 
 
 SCIP-SDP version 3.2.0
