@@ -98,6 +98,7 @@
 #define PARSE_STARTSIZE               1 /**< initial size of the consdata-arrays when parsing a problem */
 #define PARSE_SIZEFACTOR             10 /**< size of consdata-arrays is increased by this factor when parsing a problem */
 #define DEFAULT_PROPAGATE         FALSE /**< Should we perform propagation? */
+#define DEFAULT_PROPPRESOL        FALSE /**< Should we perform propagation in presolving? */
 #define DEFAULT_TIGHTENMATRICES    TRUE /**< If all matrices are psd, should the matrices be tightened if possible? */
 #define DEFAULT_TIGHTENBOUNDS      TRUE /**< If all matrices are psd, should the bounds be tightened if possible? */
 #define DEFAULT_DIAGGEZEROCUTS     TRUE /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
@@ -150,6 +151,7 @@ struct SCIP_ConshdlrData
    int                   ndiaggezerocuts;    /**< this is used to give the diagGEzero-cuts distinguishable names */
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
    SCIP_Bool             propagate;          /**< Should we perform propagation? */
+   SCIP_Bool             proppresol;         /**< Should we perform propagation in presolving? */
    SCIP_Bool             tightenmatrices;    /**< If all matrices are psd, should the matrices be tightened if possible? */
    SCIP_Bool             tightenbounds;      /**< If all matrices are psd, should the bounds be tightened if possible? */
    SCIP_Bool             diagzeroimplcuts;   /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
@@ -3797,7 +3799,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
    *result = SCIP_DIDNOTRUN;
 
    /* call propagation */
-   if ( conshdlrdata->propagate )
+   if ( conshdlrdata->proppresol )
    {
       SCIP_CALL( propConstraints(scip, conss, nconss, &infeasible, &nprop) );
 
@@ -5209,6 +5211,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/propagate",
          "Should we perform propagation?",
          &(conshdlrdata->propagate), TRUE, DEFAULT_PROPAGATE, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/proppresol",
+         "Should we perform propagation in presolving?",
+         &(conshdlrdata->proppresol), TRUE, DEFAULT_PROPPRESOL, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/tightenmatrices",
          "If all matrices are psd, whould the matrices be tightened if possible?",
