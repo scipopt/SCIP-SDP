@@ -1963,6 +1963,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
    CBF_DATA* data;
    int b;
 
+
    assert( result != NULL );
 
    *result = SCIP_DIDNOTRUN;

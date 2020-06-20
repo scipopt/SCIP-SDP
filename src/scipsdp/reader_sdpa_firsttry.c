@@ -32,7 +32,8 @@
 /*										*/
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* #define SCIP_MORE_DEBUG */
+//#define SCIP_MORE_DEBUG 
+//#define SCIP_DEBUG
 
 /**@file   reader_cbf.c
  * @brief  file reader for mixed-integer semidefinite programs in CBF format
@@ -96,6 +97,7 @@
 #define CBF_MAX_NAME  512
 
 char CBF_LINE_BUFFER[CBF_MAX_LINE];//TIM:Hälfte würde wohl auch reichen
+char CBF_LINE_BUFFER2[CBF_MAX_LINE];//TIM:Hälfte würde wohl auch reichen
 char CBF_NAME_BUFFER[CBF_MAX_NAME];
 double OBJ_VALUE_BUFFER[CBF_MAX_LINE];
 int BLOCK_SIZE_BUFFER[CBF_MAX_LINE];
@@ -139,6 +141,7 @@ struct CBF_Data
    
    int*		  memorysizessdp;
    int*		  memorysizescon;
+   int 		  locationConBlock;
 
 };
 
@@ -234,7 +237,7 @@ SCIP_RETCODE fIntgets(
     assert( linecount != NULL );
 
     /* Find first non-commentary line */
-    while ( SCIPfgets(CBF_LINE_BUFFER, (int) sizeof(CBF_LINE_BUFFER), pFile) != NULL ) //FRAGE: Wie wie kommt hier linecount ins Spiel?
+    while ( SCIPfgets(CBF_LINE_BUFFER, (int) sizeof(CBF_LINE_BUFFER), pFile) != NULL ) //FRAGE: Wie kommt hier linecount ins Spiel?
     {
         ++(*linecount);
         return SCIP_OKAY;
@@ -269,6 +272,35 @@ while ( SCIPfgets(CBF_LINE_BUFFER, (int) sizeof(CBF_LINE_BUFFER), pFile) != NULL
 
 
         if ( CBF_LINE_BUFFER[0] != '*' ){
+            return SCIP_OKAY;}
+    }
+
+    return SCIP_READERROR;
+}
+
+
+/** finds first non-commentary line in given file */
+static
+SCIP_RETCODE CBFfgets2(
+        SCIP_FILE*            pFile,              /**< file to read from */
+        SCIP_Longint*         linecount           /**< current linecount */
+)
+
+{
+    assert( pFile != NULL );
+    assert( linecount != NULL );
+
+    /* Find first non-commentary line */
+while ( SCIPfgets(CBF_LINE_BUFFER2, (int) sizeof(CBF_LINE_BUFFER2), pFile) != NULL ) //FRAGE: Wie kommt hier linecount ins Spiel?
+    {
+        ++(*linecount);
+        if(strncmp(CBF_LINE_BUFFER2,"*INTEGER",8)==0){
+	SCIPerrorMessage("Integer erkannt!");
+        return SCIP_OKAY;
+        }
+
+
+        if ( CBF_LINE_BUFFER2[0] != '*' ){
             return SCIP_OKAY;}
     }
 
@@ -441,6 +473,7 @@ SCIP_RETCODE SDPAreadPsdCon(
 
     for(int i=0; i<nblocks;i++){
     if(*(blockVals+i)<0){
+    	data->locationConBlock=i;
         data->nconss=*(blockVals+i)*-1;
     }else{
         *(blockValsPsd+ncbfsdpblocks)=*(blockVals+i);
@@ -535,11 +568,9 @@ SCIP_RETCODE SDPAreadPsdCon(
     }
 
 
-   SCIPfreeBufferArray(scip, &blockVals) ;//TIM:Die Hälfte würde wohl auch reichen.
-   SCIPfreeBufferArray(scip, &blockValsLp) ;
-   SCIPfreeBufferArray(scip, &blockValsPsd) ;
-   
-
+  	 SCIPfreeBufferArray(scip, &blockValsPsd) ;
+   	SCIPfreeBufferArray(scip, &blockValsLp) ;
+	SCIPfreeBufferArray(scip, &blockVals) ;//TIM:Die Hälfte würde wohl auch reichen.
 
     return SCIP_OKAY;
 }
@@ -622,13 +653,16 @@ SCIP_RETCODE SDPAreadHcoord(
         SCIP*                 scip,               /**< SCIP data structure */
         SCIP_FILE*            scipfile,              /**< file to read from */
         SCIP_Longint*         linecount,          /**< current linecount */
-        CBF_DATA*             data                /**< data pointer to save the results in */
+        CBF_DATA*             data,                /**< data pointer to save the results in */
+
+
+	char *			filename
 )
 {
 
     SCIP_Real val;
     int** sdpvar;
-    int nnonz;
+    int nnonz =0;
 
     int b;
     int v;
@@ -648,6 +682,69 @@ SCIP_RETCODE SDPAreadHcoord(
     assert( scipfile != NULL );
     assert( linecount != NULL );
     assert( data != NULL );
+    
+    //SCIP_FILE scip_file_copy =scipfile;
+		
+		
+	SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->memorysizessdp), data->nsdpblocks) );	
+	SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->memorysizescon), data->nsdpblocks) );		
+
+	SCIP_Longint linecount_copy=0;
+	SCIP_FILE* scip_file_copy = SCIPfopen(filename, "r");
+	
+	for (b = 0; b < data->nsdpblocks; b++) //TODO: mehr: var*block*(block-1)/2 oder komplett durch
+    {
+      	data->memorysizessdp[b]=0;
+      	data->memorysizescon[b]=0;
+    }
+	
+	
+	int s=0;	
+	while( CBFfgets2(scip_file_copy, &linecount_copy) == SCIP_OKAY )
+	    {
+	    
+	  s=s+1;  
+	   if(strncmp(CBF_LINE_BUFFER2,"*INTEGER",8)==0){
+        break;
+
+       }
+    
+	    int b2;
+	    int v2;
+	    int row2;
+	    int col2;
+	    int val2;
+	    
+	    if(s>4){
+	    if (sscanf(CBF_LINE_BUFFER2, "%i %i %i %i %lf", &v2, &b2, &row2, &col2, &val2) != 5) { //TIM: passt so
+            SCIPerrorMessage("Could not read entry of HCOORD in line %"
+            SCIP_LONGINT_FORMAT
+            ".\n", *linecount);
+            SCIPABORT();
+            return SCIP_READERROR;
+            	           
+
+
+            }
+
+		if(b2-1!=data->locationConBlock){
+        	if(b2-1>data->locationConBlock &&data->locationConBlock>=0){
+       	 b2=b2-1;
+        }
+        	
+        	if(v2==0){
+        	      	data->memorysizescon[b2-1]+=1;
+        	}else{
+        	      	data->memorysizessdp[b2-1]+=1;
+        	
+        	}}
+        	
+	    SCIPerrorMessage("Found %i %i %i %i %lf \n",v2,b2,row2,col2,val2);
+	    }
+	    } 
+        SCIPerrorMessage("Nach dem Durchlaufen kriegt er noch hin.\n");
+
+
 
     if ( data->nsdpblocks < 0 )
     {
@@ -674,10 +771,8 @@ SCIP_RETCODE SDPAreadHcoord(
 
     /* get number of sdp blocks specified by PSDCON (without auxiliary sdp blocks for reformulating matrix variables
      * using scalar variables), save number of nonzeros needed for the auxiliary sdp blocks in nauxnonz */
-  
-        SCIPerrorMessage("Das ist nsdpblocks: %i \n",data->nsdpblocks);
-  
-  
+ 
+   
         ncbfsdpblocks = data->nsdpblocks;
         nauxnonz = 0;
     
@@ -700,12 +795,12 @@ SCIP_RETCODE SDPAreadHcoord(
 	//TODO: Woher kommt nnonz wenn wir es nicht am anfang einlesen können? (vorher war hier ein CbfGets) 
 
     data->nnonz = nnonz + nauxnonz;
-    if ( nnonz < 0 )
-    {
-        SCIPerrorMessage("Number of nonzero coefficients of SDP-constraints %d in line %" SCIP_LONGINT_FORMAT " should be non-negative!\n", nnonz, *linecount);
-        SCIPABORT();
-        return SCIP_READERROR; /*lint !e527*/
-    }
+   // if ( nnonz < 0 )
+    //{
+     //   SCIPerrorMessage("Number of nonzero coefficients of SDP-constraints %d in line %" SCIP_LONGINT_FORMAT " should be non-negative!\n", nnonz, *linecount);
+     //   SCIPABORT();
+     //   return SCIP_READERROR; /*lint !e527*/
+    //}
 
     /* allocate memory (nnonz for each block, since we do not yet know the distribution) */
     SCIP_CALL( SCIPallocBlockMemoryArray(scip, &sdpvar, data->nsdpblocks) );  
@@ -713,11 +808,12 @@ SCIP_RETCODE SDPAreadHcoord(
     SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpcol), data->nsdpblocks) );
     SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpval), data->nsdpblocks) );
     
-    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->memorysizessdp), data->nsdpblocks) );
+    //SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->memorysizessdp), data->nsdpblocks) );
 
     for (b = 0; b < data->nsdpblocks; b++) //TODO: mehr: var*block*(block-1)/2 oder komplett durch
     {
-    	data->memorysizessdp[b]=((data->sdpblocksizes[b]*data->sdpblocksizes[b])/2)*data->nvars; //TODO: aus der Datei Abzählen
+            SCIPerrorMessage("memorySdp %i\n",data->memorysizessdp[b]);
+    	//data->memorysizessdp[b]=((data->sdpblocksizes[b]*data->sdpblocksizes[b])/2)*data->nvars; //TODO: aus der Datei Abzählen
         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpvar[b]), data->memorysizessdp[b]) );//TIM: Früher nnonz jetzt data->sdpblocksizes[b]**2
         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdprow[b]), data->memorysizessdp[b]) );
         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpcol[b]), data->memorysizessdp[b]) ); 
@@ -728,7 +824,7 @@ SCIP_RETCODE SDPAreadHcoord(
     //data->constnnonz = constnnonz; //TIM:macht keinen Sinn, da Constnnonz ein array ist
     /* initialize sdpconstnblocknonz with 0 */
         SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data->sdpconstnblocknonz), data->nsdpblocks));
-        for (b = 0; b < data->nsdpblocks; b++){
+        for (b = 0; b < data->nsdpblocks; b++){ //TIM: müsste sdpconstblocknonz nicht das gleiche sein wie memorysizecon[b]
 
         data->sdpconstnblocknonz[b] = 0;
 
@@ -744,24 +840,24 @@ SCIP_RETCODE SDPAreadHcoord(
         SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data->sdpconstcol), data->nsdpblocks));
         SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data->sdpconstval), data->nsdpblocks));
 	
-	SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->memorysizescon), data->nsdpblocks) );
+	//SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->memorysizescon), data->nsdpblocks) );
 
 
         for (b = 0; b < data->nsdpblocks; b++) { 
-        data->memorysizescon[b]=data->sdpblocksizes[b]*data->sdpblocksizes[b];//constnnonz[b]*constnnonz[b]
+            SCIPerrorMessage("memoryCon %i\n",data->memorysizescon[b]);
+        //data->memorysizescon[b]=data->sdpblocksizes[b]*data->sdpblocksizes[b];//constnnonz[b]*constnnonz[b]
             SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data->sdpconstrow[b]), data->memorysizescon[b]));
             SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data->sdpconstcol[b]), data->memorysizescon[b]));
             SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data->sdpconstval[b]), data->memorysizescon[b]));
         }
 
     
+	        SCIPerrorMessage("Bis zum nächsten kriegt er hin.\n");
+		
 
-
-
-    //for (i = 0; i < nnonz; i++) {//FRAGE: woher weiß ich, dass nnonz aussagt was es soll?
     while( CBFfgets(scipfile, &linecount) == SCIP_OKAY )
     {
-
+      //  SCIPerrorMessage("Hier sollte er gefailt sein.");
         if(strncmp(CBF_LINE_BUFFER,"*INTEGER",8)==0){
         break;
 
@@ -782,7 +878,11 @@ SCIP_RETCODE SDPAreadHcoord(
 
 
 
-        if(b< ncbfsdpblocks) { //TIM: ob Sdp oder Cons
+        if(b!=data->locationConBlock) { //TIM: ob Sdp oder Cons
+        if(b>data->locationConBlock &&data->locationConBlock>=0){
+        b=b-1;
+        }
+        
             if (v >= 0) {  //TIM: checke ob Hcoord oder Dcoord
 
                 if (b < 0 || b  >= ncbfsdpblocks) { 
@@ -869,8 +969,6 @@ SCIP_RETCODE SDPAreadHcoord(
                     ++nzerocoef;
                 } else {
                     /* make sure matrix is in lower triangular form */
-                    SCIPerrorMessage("Das ist der colum: %i Das ist die Row: %i Das ist der val: %lf Das ist der Block %i \n", col, row,val,b);
-		
 
                     if (col > row) {
                         data->sdpconstrow[b][data->sdpconstnblocknonz[b]] = col;
@@ -879,7 +977,7 @@ SCIP_RETCODE SDPAreadHcoord(
                         data->sdpconstrow[b][data->sdpconstnblocknonz[b]] = row;
                         data->sdpconstcol[b][data->sdpconstnblocknonz[b]] = col;
                     }
-                    SCIPerrorMessage("Das ist sdpconstnblocknonz: %i ",data->sdpconstnblocknonz[b]);
+
                     
                     data->sdpconstval[b][data->sdpconstnblocknonz[b]] = val; 
                     data->sdpconstnblocknonz[b]++;
@@ -935,14 +1033,14 @@ SCIP_RETCODE SDPAreadHcoord(
                     /* check type */
                     if ( ! SCIPisInfinity(scip, -SCIPgetLhsLinear(scip, data->createdconss[c])) )
                     {
-                        /* greater or equal constraint -> left-hand side (minus since we have Ax + b >= 0) */
-                        SCIP_CALL( SCIPchgLhsLinear(scip, data->createdconss[c], -val) );
+                        /* greater or equal constraint -> left-hand side (minus since we have Ax + b >= 0) */  //Tim: Ich glaube nicht..
+                        SCIP_CALL( SCIPchgLhsLinear(scip, data->createdconss[c], val) );
                     }
 
                     if ( ! SCIPisInfinity(scip, SCIPgetRhsLinear(scip, data->createdconss[c]) ) )
                     {
-                        /* less or equal constraint -> right-hand side (minus since we have Ax + b <= 0) */
-                        SCIP_CALL( SCIPchgRhsLinear(scip, data->createdconss[c], -val) );
+                        /* less or equal constraint -> right-hand side (minus since we have Ax + b <= 0) */ //Tim: Ich glaube nicht..
+                        SCIP_CALL( SCIPchgRhsLinear(scip, data->createdconss[c], val) );
                     }
                 }
 
@@ -1004,7 +1102,7 @@ SCIP_RETCODE SDPAreadHcoord(
 
         /* free SDP-var array which is no longer needed */
         for (b = 0; b < data->nsdpblocks; b++)
-            SCIPfreeBlockMemoryArray(scip, &(sdpvar[b]), data->nnonz);
+            SCIPfreeBlockMemoryArray(scip, &(sdpvar[b]), data->memorysizessdp[b]);
 
         SCIPfreeBlockMemoryArray(scip, &sdpvar, data->nsdpblocks);
 
@@ -1107,15 +1205,16 @@ SCIP_RETCODE CBFfreeData(
    {
       for (b = 0; b < data->nsdpblocks; b++)
       {
-         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstval[b]), data->memorysizescon[b]); //TODO: rausfinden, womit ich sie initialisiert habe
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstval[b]), data->memorysizescon[b]); 
          SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstcol[b]), data->memorysizescon[b]);
          SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstrow[b]), data->memorysizescon[b]);
       }
-      SCIPfreeBlockMemoryArrayNull(scip, &data->memorysizescon, data->nsdpblocks);
+
       SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstval, data->nsdpblocks);
       SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstcol, data->nsdpblocks);
       SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstrow, data->nsdpblocks);
       SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstnblocknonz, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->memorysizescon, data->nsdpblocks);      
 
    }
 
@@ -1135,7 +1234,7 @@ SCIP_RETCODE CBFfreeData(
       
         ncbfsdpblocks = data->nsdpblocks;
 
-      if ( data->noorigsdpcons )
+      if ( data->noorigsdpcons )   //TODO: Rausschmeisen
       {
          /* no SDP constraints specified in the CBF file! */
          assert( ncbfsdpblocks == 0 );  //TODO:Gucken ob das weg kann
@@ -1148,8 +1247,9 @@ SCIP_RETCODE CBFfreeData(
             SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpval[b]), data->memorysizessdp[b]);
             SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpcol[b]), data->memorysizessdp[b]);
             SCIPfreeBlockMemoryArrayNull(scip, &(data->sdprow[b]), data->memorysizessdp[b]);
-            SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpblockvars[b]), data->sdpnblocknonz[b]);
             SCIPfreeBlockMemoryArrayNull(scip, &(data->nvarnonz[b]), data->sdpnblocknonz[b]);
+            SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpblockvars[b]), data->sdpnblocknonz[b]);
+
          }
 
          SCIPfreeBlockMemoryArrayNull(scip, &data->memorysizessdp, data->nsdpblocks);
@@ -1166,7 +1266,7 @@ SCIP_RETCODE CBFfreeData(
          SCIPfreeBlockMemoryArrayNull(scip, &data->nvarnonz, data->nsdpblocks);
          SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblockvars, data->nsdpblocks);
          SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblocknonz, data->nsdpblocks);
-         //SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblockrank1, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblockrank1, data->nsdpblocks);
          SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblocksizes, data->nsdpblocks);
       }
       else
@@ -1182,7 +1282,7 @@ SCIP_RETCODE CBFfreeData(
             SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpval[b]), data->memorysizessdp[b]);
             SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpcol[b]), data->memorysizessdp[b]);
             SCIPfreeBlockMemoryArrayNull(scip, &(data->sdprow[b]), data->memorysizessdp[b]);
-            SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpblockvars[b]), data->nvars);
+           SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpblockvars[b]), data->nvars);
             SCIPfreeBlockMemoryArrayNull(scip, &(data->nvarnonz[b]), data->nvars);
          }
 
@@ -1197,7 +1297,7 @@ SCIP_RETCODE CBFfreeData(
          SCIPfreeBlockMemoryArrayNull(scip, &data->nvarnonz, data->nsdpblocks);
          SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblockvars, data->nsdpblocks);
          SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblocknonz, data->nsdpblocks);
-         //SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblockrank1, data->nsdpblocks);
+         SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblockrank1, data->nsdpblocks);
          SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblocksizes, data->nsdpblocks);
       }
    }
@@ -1259,7 +1359,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
         SCIP_CALL( SCIPallocBuffer(scip, &data) );
         data->nsdpblocks = -1;
         data->nsdpblocksrank1 = 0;
-        data->nconss = -1;
+        data->nconss = 0;
         data->nvars = -1;
         //data->npsdvars = -1;
         data->constnnonz = 0;
@@ -1280,6 +1380,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
         data->sdpconstrow = NULL;
         data->sdpconstcol = NULL;
         data->sdpconstval = NULL;
+	data->locationConBlock=-1;
 
         /* create empty problem */
         SCIP_CALL( SCIPcreateProb(scip, filename, NULL, NULL, NULL, NULL, NULL, NULL, NULL) );
@@ -1307,7 +1408,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
 
 	SCIPerrorMessage("HCOORD read\n" );
         SCIPdebugMsg(scip, "Reading HCOORD\n");				//Tim: Alles gut bis auf A_0 in der SDP
-        SCIP_CALL( SDPAreadHcoord(scip, scipfile, &linecount, data) );
+        SCIP_CALL( SDPAreadHcoord(scip, scipfile, &linecount, data,filename) );
 
 	SCIPerrorMessage("INT read\n" );					//Tim: Wird iwie noch nicht gemacht
         SCIPdebugMsg(scip, "Reading INT\n");                    //TODO: Abfrage
