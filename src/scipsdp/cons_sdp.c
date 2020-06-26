@@ -4899,6 +4899,12 @@ SCIP_DECL_CONSPARSE(consParseSdp)
    consdata->rankone = 0;
    consdata->addedquadcons = FALSE;
    consdata->locks = NULL;
+   consdata->matrixvar = NULL;
+   consdata->matrixval = NULL;
+   consdata->matrixconst = NULL;
+   consdata->nsingle = 0;
+   consdata->tracebound = -2.0;
+   consdata->allmatricespsd = FALSE;
 
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->nvarnonz, nvars) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->col, nvars) );
