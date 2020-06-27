@@ -524,7 +524,7 @@ SCIP_RETCODE computeScalingFactor(
          for (j = 0; j < blocksize; ++j)
          {
             pos = i * blocksize + j;
-            matrix[pos] = scalar * A[pos] + Aconst[pos];
+            matrix[pos] = scalar * A[pos] - Aconst[pos];
          }
       }
 
