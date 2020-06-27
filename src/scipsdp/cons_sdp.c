@@ -821,16 +821,6 @@ SCIP_RETCODE tightenMatrices(
       if ( ! consdata->allmatricespsd )
          continue;
 
-      /* make sure that all variables are binary */
-      nvars = consdata->nvars;
-      for (i = 0; i < nvars; ++i)
-      {
-         if ( ! SCIPvarIsBinary(consdata->vars[i]) )
-            break;
-      }
-      if ( i < nvars )
-         continue;
-
       SCIPdebugMsg(scip, "Trying to tighten matrices for constraint <%s>.\n", SCIPconsGetName(conss[c]));
 
       /* get matrices */
@@ -840,8 +830,12 @@ SCIP_RETCODE tightenMatrices(
 
       SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, conss[c], constmatrix) );
 
+      nvars = consdata->nvars;
       for (i = 0; i < nvars; ++i)
       {
+         if ( ! SCIPvarIsBinary(consdata->vars[i]) )
+            continue;
+
          SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrix) );
 
          SCIP_CALL( computeScalingFactor(scip, blocksize, matrix, constmatrix, 0.0, 1.0, &factor) );
