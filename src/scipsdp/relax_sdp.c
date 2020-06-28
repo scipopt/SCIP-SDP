@@ -750,7 +750,7 @@ SCIP_RETCODE tightenRowCoefs(
    SCIP_Real QUAD(maxactquad);
    SCIP_Bool minactinf = FALSE;
    SCIP_Bool maxactinf = FALSE;
-   SCIP_Bool maxintabsval = 0.0;
+   SCIP_Real maxintabsval = 0.0;
    SCIP_Bool hasintvar = FALSE;
    int i;
 
