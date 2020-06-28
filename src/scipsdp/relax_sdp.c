@@ -930,10 +930,17 @@ SCIP_RETCODE tightenRowCoefs(
 
             if ( SCIPisPositive(scip, newval) )
             {
-               SCIPquadprecSumQQ(maxactquad, maxactquad, rhsdeltaquad);
-               SCIPquadprecSumQQ(minactquad, minactquad, lhsdeltaquad);
-               maxact = QUAD_TO_DBL(maxactquad);
-               minact = QUAD_TO_DBL(minactquad);
+               if ( ! SCIPisInfinity(scip, *rowlhs) )
+               {
+                  SCIPquadprecSumQQ(minactquad, minactquad, lhsdeltaquad);
+                  minact = QUAD_TO_DBL(minactquad);
+               }
+               if ( ! SCIPisInfinity(scip, *rowrhs) )
+               {
+                  SCIPquadprecSumQQ(maxactquad, maxactquad, rhsdeltaquad);
+                  maxact = QUAD_TO_DBL(maxactquad);
+               }
+
                rowvals[i] = newval;
             }
             else
@@ -1099,7 +1106,7 @@ SCIP_RETCODE putLpDataInInterface(
       {
          rowvals = SCIProwGetVals(row);
          rowcols = SCIProwGetCols(row);
-}
+      }
 
       /* if the row is not completely redundant - still use lhs/rhs even if redundant if one side is non-redundant */
       if ( ! lhsredundant || ! rhsredundant )
