@@ -999,7 +999,7 @@ SCIP_RETCODE tightenRowCoefs(
                   SCIPquadprecSumQQ(minactquad, minactquad, lhsdeltaquad);
                   minact = QUAD_TO_DBL(minactquad);
                }
-               if ( ! SCIPisInfinity(scip, *rowlhs) )
+               if ( ! SCIPisInfinity(scip, *rowrhs) )
                {
                   SCIPquadprecSumQQ(maxactquad, maxactquad, rhsdeltaquad);
                   maxact = QUAD_TO_DBL(maxactquad);
