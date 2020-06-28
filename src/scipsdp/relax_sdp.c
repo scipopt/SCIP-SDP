@@ -83,7 +83,7 @@
 #define DEFAULT_SLATERCHECK         0        /**< Should the Slater condition be checked ? */
 #define DEFAULT_OBJLIMIT            FALSE    /**< Should an objective limit be given to the SDP-Solver ? */
 #define DEFAULT_RESOLVE             TRUE     /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
-#define DEFAULT_TIGHTENVB           TRUE     /**< Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ? */
+#define DEFAULT_TIGHTENROWS         TRUE     /**< Should we perform coefficient tightening on the LP rows before giving them to the SDP-solver? */
 #define DEFAULT_SDPINFO             FALSE    /**< Should the SDP solver output information to the screen? */
 #define DEFAULT_WARMSTART           FALSE    /**< Should the SDP solver try to use warmstarts? */
 #define DEFAULT_DISPLAYSTAT         FALSE    /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
@@ -129,7 +129,7 @@ struct SCIP_RelaxData
    SCIP_Bool             displaystat;        /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
    SCIP_Bool             objlimit;           /**< Should an objective limit be given to the SDP solver? */
    SCIP_Bool             resolve;            /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
-   SCIP_Bool             tightenvb;          /**< Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ? */
+   SCIP_Bool             tightenrows;        /**< Should we perform coefficient tightening on the LP rows before giving them to the SDP-solver? */
    int                   settingsresetfreq;  /**< frequency for resetting parameters in SDP solver and trying again with fastest settings */
    int                   settingsresetofs;   /**< frequency offset for resetting parameters in SDP solver and trying again with fastest settings */
    int                   sdpsolverthreads;   /**< number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores) */
@@ -1084,7 +1084,7 @@ SCIP_RETCODE putLpDataInInterface(
       rowrhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
 
       /* try to tighten cut */
-      if ( relaxdata->tightenvb )
+      if ( relaxdata->tightenrows )
       {
          SCIP_CALL( SCIPduplicateBufferArray(scip, &rowvals, SCIProwGetVals(row), rownnonz) );
          SCIP_CALL( SCIPduplicateBufferArray(scip, &rowcols, SCIProwGetCols(row), rownnonz) );
@@ -1116,7 +1116,7 @@ SCIP_RETCODE putLpDataInInterface(
          nconss++;
       }
 
-      if ( relaxdata->tightenvb )
+      if ( relaxdata->tightenrows )
       {
          SCIPfreeBufferArray(scip, &rowcols);
          SCIPfreeBufferArray(scip, &rowvals);
@@ -4759,9 +4759,9 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          "Should the relaxation be resolved after bound-tightenings were found during propagation (outside of probing)?",
          &(relaxdata->resolve), TRUE, DEFAULT_RESOLVE, NULL, NULL) );
 
-   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/tightenvb",
-         "Should Big-Ms in varbound-like constraints be tightened before giving them to the SDP-solver ?",
-         &(relaxdata->tightenvb), TRUE, DEFAULT_TIGHTENVB, NULL, NULL) );
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/tightenrows",
+         "Should we perform coefficient tightening on the LP rows before giving them to the SDP-solver?",
+         &(relaxdata->tightenrows), TRUE, DEFAULT_TIGHTENROWS, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/displaystatistics",
          "Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ?",
