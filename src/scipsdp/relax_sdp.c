@@ -994,10 +994,17 @@ SCIP_RETCODE tightenRowCoefs(
 
             if ( SCIPisNegative(scip, newval) )
             {
-               SCIPquadprecSumQQ(maxactquad, maxactquad, rhsdeltaquad);
-               SCIPquadprecSumQQ(minactquad, minactquad, lhsdeltaquad);
-               maxact = QUAD_TO_DBL(maxactquad);
-               minact = QUAD_TO_DBL(minactquad);
+               if ( ! SCIPisInfinity(scip, *rowlhs) )
+               {
+                  SCIPquadprecSumQQ(minactquad, minactquad, lhsdeltaquad);
+                  minact = QUAD_TO_DBL(minactquad);
+               }
+               if ( ! SCIPisInfinity(scip, *rowlhs) )
+               {
+                  SCIPquadprecSumQQ(maxactquad, maxactquad, rhsdeltaquad);
+                  maxact = QUAD_TO_DBL(maxactquad);
+               }
+
                rowvals[i] = newval;
             }
             else
