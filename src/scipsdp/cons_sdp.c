@@ -4624,7 +4624,7 @@ SCIP_RETCODE SCIPconsSdpGetData(
    int*                  nvars,              /**< pointer to store the number of variables in this SDP constraint */
    int*                  nnonz,              /**< pointer to store the number of nonzeros in this SDP constraint */
    int*                  blocksize,          /**< pointer to store the size of this SDP-block */
-   int*                  arraylength,        /**< length of the given nvarnonz, col, row and val arrays, if this is too short this will return the needed length*/
+   int*                  arraylength,        /**< length of the given nvarnonz, col, row and val arrays; if this is too short, this will return the needed length */
    int*                  nvarnonz,           /**< pointer to store the number of nonzeros for each variable, also length of the arrays col/row/val are
                                               *   pointing to */
    int**                 col,                /**< pointer to store the column indices of the nonzeros for each variable */
@@ -4672,7 +4672,7 @@ SCIP_RETCODE SCIPconsSdpGetData(
    if ( *arraylength < consdata->nvars )
    {
       SCIPdebugMsg(scip, "nvarnonz, col, row and val arrays were not long enough to store the information for cons %s, they need to be at least"
-         "size %d, given was only length %d! \n", SCIPconsGetName(cons), consdata->nvars, *arraylength);
+         "size %d, given was only length %d!\n", SCIPconsGetName(cons), consdata->nvars, *arraylength);
       *arraylength = consdata->nvars;
    }
    else
