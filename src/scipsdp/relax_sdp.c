@@ -603,6 +603,8 @@ SCIP_RETCODE putSdpDataInInterface(
 
       if ( strcmp(conshdlrname, "SDP") == 0 || strcmp(conshdlrname, "SDPrank1") == 0 )
       {
+         int arraylength;
+
          assert( ind < nsdpblocks );
 
          /* allocate memory for the constant nonzeros */
@@ -613,11 +615,13 @@ SCIP_RETCODE putSdpDataInInterface(
          SCIP_CALL( SCIPallocBufferArray(scip, &(constval[ind]), constlength) );
 
          /* get the data */
-         SCIP_CALL( SCIPconsSdpGetData(scip, conss[i], &nblockvars[ind], &blocknnonz, &sdpblocksizes[ind], &nvars, nblockvarnonz[ind], col[ind],
+         arraylength = nvars;
+         SCIP_CALL( SCIPconsSdpGetData(scip, conss[i], &nblockvars[ind], &blocknnonz, &sdpblocksizes[ind], &arraylength, nblockvarnonz[ind], col[ind],
                row[ind], val[ind], blockvars, &nconstblocknonz[ind], constcol[ind], constrow[ind], constval[ind], NULL, NULL, NULL) );
 
          /* nvars and nconstblocknonz[ind] would have been overwritten if the space in the given arrays hadn't been sufficient */
-         assert( nvars == SCIPgetNVars(scip) );
+         assert( arraylength == nblockvars[ind] );
+         assert( nblockvars[ind] <= nvars );
          assert( nconstblocknonz[ind] <= constlength );
 
          SCIP_CALL( SCIPallocBufferArray(scip, &(sdpvar[ind]), boundprimal ? nblockvars[ind] + 1 : nblockvars[ind]) );
