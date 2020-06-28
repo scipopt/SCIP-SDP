@@ -3986,6 +3986,10 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    relaxdata->roundingoptimal = 0;
    relaxdata->roundingcutoff = 0;
 
+   if ( SCIPgetStatus(scip) == SCIP_STATUS_OPTIMAL || SCIPgetStatus(scip) == SCIP_STATUS_INFEASIBLE
+      || SCIPgetStatus(scip) == SCIP_STATUS_UNBOUNDED || SCIPgetStatus(scip) == SCIP_STATUS_INFORUNBD )
+      return SCIP_OKAY;
+
    if ( relaxdata->warmstart && relaxdata->warmstartproject == 4 )
    {
       if ( relaxdata->roundingprobtime == NULL )
