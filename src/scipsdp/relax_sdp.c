@@ -137,6 +137,7 @@ struct SCIP_RelaxData
    int                   sdpcalls;           /**< number of solved SDPs (used to compute average SDP iterations), different settings tried are counted as multiple calls */
    int                   sdpinterfacecalls;  /**< number of times the SDP interfaces was called (used to compute slater statistics) */
    int                   sdpiterations;      /**< saves the total number of sdp-iterations */
+   int                   ntightenedrows;     /**< number of tightened rows */
    int                   solvedfast;         /**< number of SDPs solved with fast settings */
    int                   solvedmedium;       /**< number of SDPs solved with medium settings */
    int                   solvedstable;       /**< number of SDPs solved with stable settings */
@@ -1044,7 +1045,6 @@ SCIP_RETCODE putLpDataInInterface(
    int* objinds;
    int* rowind;
    int* colind;
-   int nchgcoefs = 0;
    int nrowssdpi;
    int nrows;
    int nvars;
@@ -1107,7 +1107,7 @@ SCIP_RETCODE putLpDataInInterface(
          SCIP_CALL( SCIPduplicateBufferArray(scip, &rowvals, SCIProwGetVals(row), rownnonz) );
          SCIP_CALL( SCIPduplicateBufferArray(scip, &rowcols, SCIProwGetCols(row), rownnonz) );
 
-         SCIP_CALL( tightenRowCoefs(scip, rowvals, rowcols, &rownnonz, &rowlhs, &rowrhs, &lhsredundant, &rhsredundant, &nchgcoefs) );
+         SCIP_CALL( tightenRowCoefs(scip, rowvals, rowcols, &rownnonz, &rowlhs, &rowrhs, &lhsredundant, &rhsredundant, &relaxdata->ntightenedrows) );
       }
       else
       {
@@ -3966,6 +3966,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    relaxdata->sdpcalls = 0;
    relaxdata->sdpinterfacecalls = 0;
    relaxdata->sdpiterations = 0;
+   relaxdata->ntightenedrows = 0;
    relaxdata->solvedfast = 0;
    relaxdata->solvedmedium = 0;
    relaxdata->solvedstable = 0;
@@ -4427,6 +4428,12 @@ SCIP_DECL_RELAXEXITSOL(relaxExitSolSdp)
    assert( relaxdata != NULL );
 
    SCIPdebugMsg(scip, "Exiting Relaxation Handler.\n");
+
+   if ( SCIPgetSubscipDepth(scip) == 0 )
+   {
+      if ( relaxdata->tightenrows )
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of tightened rows: %d.\n", relaxdata->ntightenedrows);
+   }
 
    if ( relaxdata->displaystat && SCIPgetSubscipDepth(scip) == 0 )
    {
