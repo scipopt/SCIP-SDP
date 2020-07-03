@@ -740,8 +740,8 @@ SCIP_RETCODE tightenRowCoefs(
    int*                  rownnonz,           /**< pointer to store the number of nonzero coefficients */
    SCIP_Real*            rowlhs,             /**< lhs of row */
    SCIP_Real*            rowrhs,             /**< rhs of row */
-   SCIP_Bool*            lhsredundant,       /**< pointer to store whether lower side of row is redundant */
-   SCIP_Bool*            rhsredundant,       /**< pointer to store whether upper side of row is redundant */
+   SCIP_Bool*            lhsredundant,       /**< pointer to store whether lhs of row is redundant */
+   SCIP_Bool*            rhsredundant,       /**< pointer to store whether rhs of row is redundant */
    int*                  nchgcoefs           /**< pointer to count total number of changed coefficients */
    )
 {
