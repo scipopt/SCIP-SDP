@@ -4429,12 +4429,6 @@ SCIP_DECL_RELAXEXITSOL(relaxExitSolSdp)
 
    SCIPdebugMsg(scip, "Exiting Relaxation Handler.\n");
 
-   if ( SCIPgetSubscipDepth(scip) == 0 )
-   {
-      if ( relaxdata->tightenrows )
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of tightened rows: %d.\n", relaxdata->ntightenedrows);
-   }
-
    if ( relaxdata->displaystat && SCIPgetSubscipDepth(scip) == 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "\nSDP iterations:\t\t\t\t%6d\n", relaxdata->sdpiterations);
@@ -4557,6 +4551,8 @@ SCIP_DECL_RELAXEXITSOL(relaxExitSolSdp)
          SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Time spent in rounding problems for warmstarting / detecting infeasibility:\t%f s\n",
             SCIPgetClockTime(scip, relaxdata->roundingprobtime));
       }
+      if ( relaxdata->tightenrows )
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of tightened rows: %d.\n", relaxdata->ntightenedrows);
    }
 
    if ( relaxdata->varmapper != NULL )
