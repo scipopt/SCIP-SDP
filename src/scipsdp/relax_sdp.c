@@ -824,7 +824,7 @@ SCIP_RETCODE tightenRowCoefs(
       }
    }
 
-   /* if the constraint has not integer variable, we cannot tighten the coefficients */
+   /* if the constraint has no integer variable, we cannot tighten the coefficients */
    if ( ! hasintvar )
       return SCIP_OKAY;
 
@@ -843,13 +843,13 @@ SCIP_RETCODE tightenRowCoefs(
    else
       maxact = QUAD_TO_DBL(maxactquad);
 
-   /* if cut is redundant in activity bounds for lhs */
+   /* if row is redundant in activity bounds for lhs */
    if ( SCIPisInfinity(scip, - (*rowlhs)) )
       *lhsredundant = TRUE;
    else if ( SCIPisFeasGE(scip, minact, *rowlhs) )
       *lhsredundant = TRUE;
 
-   /* if cut is redundant in activity bounds for rhs */
+   /* if row is redundant in activity bounds for rhs */
    if ( SCIPisInfinity(scip, *rowrhs) )
       *rhsredundant = TRUE;
    else if ( SCIPisFeasLE(scip, maxact, *rowrhs) )
