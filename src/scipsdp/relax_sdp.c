@@ -900,7 +900,7 @@ SCIP_RETCODE tightenRowCoefs(
          if ( ! SCIPisSumRelEQ(scip, newval, rowvals[i]) )
          {
             /* compute new lhs: lhs - (oldval - newval) * lb = lhs + (newval - oldval) * lb */
-            if ( ! SCIPisInfinity(scip, *rowlhs) )
+            if ( ! SCIPisInfinity(scip, - (*rowlhs) ) )
             {
                SCIPquadprecSumDD(lhsdeltaquad, newval, -rowvals[i]);
                SCIPquadprecProdQD(lhsdeltaquad, lhsdeltaquad, lb);
@@ -931,7 +931,7 @@ SCIP_RETCODE tightenRowCoefs(
 
             if ( SCIPisPositive(scip, newval) )
             {
-               if ( ! SCIPisInfinity(scip, *rowlhs) )
+               if ( ! SCIPisInfinity(scip, - (*rowlhs)) )
                {
                   SCIPquadprecSumQQ(minactquad, minactquad, lhsdeltaquad);
                   minact = QUAD_TO_DBL(minactquad);
@@ -964,7 +964,7 @@ SCIP_RETCODE tightenRowCoefs(
          if ( ! SCIPisSumRelEQ(scip, newval, rowvals[i]) )
          {
             /* compute new lhs: lhs - (oldval - newval) * ub = lhs + (newval - oldval) * ub */
-            if ( ! SCIPisInfinity(scip, *rowlhs) )
+            if ( ! SCIPisInfinity(scip, - (*rowlhs)) )
             {
                SCIPquadprecSumDD(lhsdeltaquad, newval, -rowvals[i]);
                SCIPquadprecProdQD(lhsdeltaquad, lhsdeltaquad, ub);
@@ -995,7 +995,7 @@ SCIP_RETCODE tightenRowCoefs(
 
             if ( SCIPisNegative(scip, newval) )
             {
-               if ( ! SCIPisInfinity(scip, *rowlhs) )
+               if ( ! SCIPisInfinity(scip, - (*rowlhs)) )
                {
                   SCIPquadprecSumQQ(minactquad, minactquad, lhsdeltaquad);
                   minact = QUAD_TO_DBL(minactquad);
