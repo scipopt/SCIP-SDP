@@ -620,8 +620,8 @@ SCIP_RETCODE putSdpDataInInterface(
          SCIP_CALL( SCIPconsSdpGetData(scip, conss[i], &nblockvars[ind], &blocknnonz, &sdpblocksizes[ind], &arraylength, nblockvarnonz[ind], col[ind],
                row[ind], val[ind], blockvars, &nconstblocknonz[ind], constcol[ind], constrow[ind], constval[ind], NULL, NULL, NULL) );
 
-         /* nvars and nconstblocknonz[ind] would have been overwritten if the space in the given arrays hadn't been sufficient */
-         assert( arraylength == nblockvars[ind] );
+         /* arraylength and nconstblocknonz[ind] would have been overwritten if the space in the given arrays hadn't been sufficient */
+         assert( arraylength == nvars );
          assert( nblockvars[ind] <= nvars );
          assert( nconstblocknonz[ind] <= constlength );
 
