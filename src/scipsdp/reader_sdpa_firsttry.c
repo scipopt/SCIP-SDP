@@ -649,21 +649,21 @@ SCIP_RETCODE SDPAreadHcoord(
    SCIP_Real val;
    int **sdpvar;
 
-
    int b; //current block
    int v; //current variable
    int c; //location of the linear constraint block
    int row;
    int col;
+   
    int firstindforvar; 
    int nextindaftervar;
    int nzerocoef = 0;
    int ncbfsdpblocks;
    int nauxnonz = 0;            /* TODO: finde number of nonzeros in each auxiliary sdp block for reformulating matrix variables using
                                 * scalar variables */
-   int *currentEntriesCon; 
+
    int *currentEntriesSdp; 
-   
+   int *currentEntriesCon;    
    
    assert(scip != NULL);
    assert(scipfile != NULL);
@@ -672,72 +672,19 @@ SCIP_RETCODE SDPAreadHcoord(
 
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> memorysizessdp), data -> nsdpblocks));
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> memorysizescon), data -> nsdpblocks));
-   SCIP_CALL( SCIPallocBufferArray(scip, &currentEntriesCon, data->nsdpblocks));
+
    SCIP_CALL( SCIPallocBufferArray(scip, &currentEntriesSdp, data->nsdpblocks));
-
+   SCIP_CALL( SCIPallocBufferArray(scip, &currentEntriesCon, data->nsdpblocks));
    
    
-   SCIP_Longint linecount_copy = 0;
-   SCIP_FILE *scip_file_copy = SCIPfopen(filename, "r");
-
+  
    for( b = 0; b < data -> nsdpblocks; b ++ ) 
    {
       data -> memorysizessdp[b] = 2;
-      data -> memorysizescon[b] = 2;
+      data -> memorysizescon[b] = 10;
 	  currentEntriesCon[b]=0;
 	  currentEntriesSdp[b]=0;
    }
-   
-   
-   
-/**
-   int s = 0;
-   while( SDPAfgets2(scip_file_copy, &linecount_copy) == SCIP_OKAY )
-   {
-   
-      s = s + 1;
-      if( strncmp(SDPA_LINE_BUFFER2, "*INTEGER", 8) == 0 )
-      {
-         break;
-      }
-
-      int b2;
-      int v2;
-      int row2;
-      int col2;
-      double val2;
-
-      if( s > 4 ){
-         if( sscanf(SDPA_LINE_BUFFER2, "%i %i %i %i %lf", &v2, &b2, &row2, &col2, &val2) != 5 )
-         { 
-            SCIPerrorMessage("Could not read entry of HCOORD in line %"
-            SCIP_LONGINT_FORMAT
-            ". Wrong number of arguments. \n", linecount_copy);
-            SCIPABORT();
-            return SCIP_READERROR;
-         }
-
-         if( b2 - 1 != data -> locationConBlock ){
-            if( b2 - 1 > data -> locationConBlock && data -> locationConBlock >= 0 )
-            {
-               b2 = b2 - 1;
-            }
-
-            if( v2 == 0 )
-            {
-               data -> memorysizescon[b2 - 1] += 1;
-            }
-            else
-            {
-               data -> memorysizessdp[b2 - 1] += 1;
-            }
-         }
-
-
-      }
-   }
-
-**/
    
    
    if( data -> nsdpblocks < 0 )
@@ -842,7 +789,7 @@ SCIP_RETCODE SDPAreadHcoord(
          return SCIP_READERROR;
       }
 
-
+SCIPerrorMessage("val %lf \n", val);
       v = v - 1;
       b = b - 1;
       row = row - 1;
@@ -895,7 +842,7 @@ SCIP_RETCODE SDPAreadHcoord(
             if( SCIPisZero(scip, val)){
                ++ nzerocoef;
             }else{
-           
+           		SCIPerrorMessage("SDP: row %d, colum %d, vall %lf \n",row, col, val);
             
                currentEntriesSdp[b] ++;
                if( currentEntriesSdp[b] >= data -> memorysizessdp[b] ){
@@ -959,9 +906,9 @@ SCIP_RETCODE SDPAreadHcoord(
             }else{
                /* make sure matrix is in lower triangular form */
 
+		SCIPerrorMessage("row %d, colum %d, vall %lf",row, col, val);
 
-
-               currentEntriesCon ++;
+               currentEntriesCon[b] ++;
                if( currentEntriesCon[b] >= data -> memorysizescon[b] ){
                   int newsize = SCIPcalcMemGrowSize(scip, data -> memorysizescon[b] + 1);
                   assert(newsize > data -> memorysizescon[b]);
@@ -1044,7 +991,12 @@ SCIP_RETCODE SDPAreadHcoord(
       }
    }
 
+   
 
+   SCIPfreeBufferArray(scip, &currentEntriesSdp);
+   SCIPfreeBufferArray(scip, &currentEntriesCon);
+   	
+	
    /* construct pointer arrays */
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpnblockvars), data -> nsdpblocks));
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpblockvars), data -> nsdpblocks));
@@ -1052,7 +1004,6 @@ SCIP_RETCODE SDPAreadHcoord(
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> rowpointer), data -> nsdpblocks));
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> colpointer), data -> nsdpblocks));
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> valpointer), data -> nsdpblocks));
-
 
    /* sdp blocks as specified in cbf file in HCOORD */
    for( b = 0; b < ncbfsdpblocks; b ++ ){
@@ -1068,9 +1019,6 @@ SCIP_RETCODE SDPAreadHcoord(
       SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> rowpointer[b]), data -> nvars));
       SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> colpointer[b]), data -> nvars));
       SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> valpointer[b]), data -> nvars));
-
-
-
 
       for( v = 0; v < data -> nvars; v ++ )
       {
@@ -1115,6 +1063,7 @@ SCIP_RETCODE SDPAreadHcoord(
    }
 
    return SCIP_OKAY;
+
 }
 
 
@@ -1487,17 +1436,12 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
         int sdparraylength;
         int totalsdpconstnnonz;
         int sdpconstnnonz;
-        int nobjnonz;
         int nnonz;
-        int nbnonz;
-        int nsenses;
-        int nconsssenses;
-        int lastsense;
         int consind;
         int c;
         int i;
         int v;
-        int nrank1sdpblocks;
+
 
         assert(scip != NULL);
         assert(result != NULL);
@@ -1514,12 +1458,48 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 
         for(c = 0; c < nconss; c++)
         {
+        
+
+        
            if((strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0)
               && (strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0)){
               SCIPerrorMessage("SDPA reader currently only supports linear and SDP constraints!\n");
               SCIPABORT();
               return SCIP_READERROR; /*lint !e527*/
            }
+           
+
+      /* only count linear constraints */
+      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0 )
+         continue;
+
+      SCIP_Real lhs = SCIPgetLhsLinear(scip, conss[c]);
+      SCIP_Real rhs = SCIPgetRhsLinear(scip, conss[c]); 
+           
+           
+           
+          if ( SCIPisEQ(scip, lhs, rhs) )
+      	{
+      	SCIPerrorMessage("SDPA reader currently only supports  constraints!\n");}
+      	
+      else
+      {
+         if ( ! SCIPisInfinity(scip, -lhs) && ! SCIPisInfinity(scip, rhs) )
+         {
+            SCIPerrorMessage("Cannot handle ranged rows.\n");
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+         else{ if ( ! SCIPisInfinity(scip, rhs) )
+         {
+	SCIPerrorMessage("Cannot handle constrained righthandside.\n");
+	}else{
+	if(SCIPisInfinity(scip, -lhs)){
+	SCIPerrorMessage("Cannot handle unconstrained lefthandside.\n");
+	
+	}
+	}}
+          } 
         }
 
 #ifndef NDEBUG
@@ -1528,6 +1508,11 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
            assert(SCIPvarGetStatus(vars[v]) == SCIP_VARSTATUS_ORIGINAL);
         }
 #endif
+
+
+
+
+
 
 		//NVARS////////////////
 
@@ -1547,25 +1532,20 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
            ub = SCIPvarGetUbOriginal(vars[v]);
 
            varsenses[v] = 0;
-           if( SCIPisZero(scip, lb))
-              varsenses[v] = 1;
-           else{
-              if( ! SCIPisInfinity(scip, - lb)){ //TODO: Abfrage, dass nur welche gehen mit beiden unendlich
-												//Frage: Variable constraints als Contraint schreiben?
-                 SCIPerrorMessage("Can only handle variables with lower bound 0 or minus infinity.\n");
+          
+              if( ! SCIPisInfinity(scip, - lb)){ //TODO: andere Fälle durch Constraint abfragen
+                 SCIPerrorMessage("Can only handle variables with lower bound minus infinity.\n");
                  SCIPABORT();
                  return SCIP_READERROR; /*lint !e527*/
               }
-           }
+           
 
-           if( SCIPisZero(scip, ub))
-              varsenses[v] = - 1;
-           else{
+          
               if( ! SCIPisInfinity(scip, ub)){
-                 SCIPerrorMessage("Can only handle variables with upper bound 0 or infinity.\n");
+                 SCIPerrorMessage("Can only handle variables with upper infinity.\n");
                  SCIPABORT();
                  return SCIP_READERROR; /*lint !e527*/
-              }
+              
            }
         }
 
@@ -1583,8 +1563,6 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
       
    }
    
-   		
-		
         /* count number of SDP constraints (conshdlrGetNConss doesn't seem to work before transformation) */
         nsdpconss = 0;
         for(c = 0; c < nconss; c++)
@@ -1644,16 +1622,13 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    totalsdpconstnnonz = 0;
    for (c = 0; c < nconss; c++)
    {
-      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])),"SDP") != 0 && strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])),"SDPrank1") != 0 )
+      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])),"SDP") != 0 )
          continue;
 
       SCIP_CALL( SCIPconsSdpGetNNonz(scip, conss[c], &sdpnnonz, &sdpconstnnonz) );
       totalsdpnnonz += sdpnnonz;
       totalsdpconstnnonz += sdpconstnnonz;
    }
-
-
-
 
         /* allocate memory for SDPdata */
         SCIP_CALL( SCIPallocBufferArray(scip, &sdpnvarnonz, nvars));
@@ -1782,6 +1757,10 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
          SCIPinfoMessage(scip, file, "*%d\n", v+1);
       }
    }
+   
+  
+   
+   
 
         SCIPfreeBufferArray(scip, &sdpconstval);
         SCIPfreeBufferArray(scip, &sdpconstrow);
@@ -1791,7 +1770,6 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
         SCIPfreeBufferArray(scip, &sdprow);
         SCIPfreeBufferArray(scip, &sdpcol);
         SCIPfreeBufferArray(scip, &sdpnvarnonz);
-        SCIPfreeBufferArray(scip, &consssenses);
         SCIPfreeBufferArray(scip, &varsenses);
 
         *result = SCIP_SUCCESS;
