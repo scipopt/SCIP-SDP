@@ -660,10 +660,22 @@ SCIP_RETCODE SDPAreadHcoord(
    int nzerocoef = 0;
    int ncbfsdpblocks;
    int nauxnonz = 0;            /* TODO: finde number of nonzeros in each auxiliary sdp block for reformulating matrix variables using
-                                * scalar variables */
+                                /* scalar variables */
 
    int *currentEntriesSdp; 
    int *currentEntriesCon;    
+   
+   int **sdprow_local;             /**< array of all row indices for each SDP block */
+   int **sdpcol_local;             /**< array of all column indices for each SDP block */
+   SCIP_Real **sdpval_local;             /**< array of all values of SDP nonzeros for each SDP block */
+                                             /**   number of entries of sdpconst row/col/val [i] */
+   int **sdpconstrow_local;        /**< pointers to row-indices for each block */
+   int **sdpconstcol_local;        /**< pointers to column-indices for each block */
+   SCIP_Real **sdpconstval_local;
+   
+   
+   
+   
    
    assert(scip != NULL);
    assert(scipfile != NULL);
@@ -737,19 +749,21 @@ SCIP_RETCODE SDPAreadHcoord(
 
 
    /* allocate memory */
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &sdpvar, data -> nsdpblocks));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdprow), data -> nsdpblocks));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpcol), data -> nsdpblocks));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpval), data -> nsdpblocks));
+   SCIP_CALL(SCIPallocBufferArray(scip, &sdpvar, data -> nsdpblocks));
+   SCIP_CALL(SCIPallocBufferArray(scip, &(sdprow_local), data -> nsdpblocks));
+   SCIP_CALL(SCIPallocBufferArray(scip, &(sdpcol_local), data -> nsdpblocks));
+   SCIP_CALL(SCIPallocBufferArray(scip, &(sdpval_local), data -> nsdpblocks));
 
 
    for( b = 0; b < data -> nsdpblocks; b ++ ) 
    {
-      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(sdpvar[b]), data -> memorysizessdp[b]));
-      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdprow[b]), data -> memorysizessdp[b]));
-      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpcol[b]), data -> memorysizessdp[b]));
-      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpval[b]), data -> memorysizessdp[b]));
-   }
+   
+      SCIP_CALL(SCIPallocBufferArray(scip, &(sdpvar[b]), data -> memorysizessdp[b]));
+      SCIP_CALL(SCIPallocBufferArray(scip, &(sdprow_local[b]), data -> memorysizessdp[b]));
+      SCIP_CALL(SCIPallocBufferArray(scip, &(sdpcol_local[b]), data -> memorysizessdp[b]));
+      SCIP_CALL(SCIPallocBufferArray(scip, &(sdpval_local[b]), data -> memorysizessdp[b]));
+   
+      }
 
 
    /* initialize sdpconstnblocknonz with 0 */
@@ -761,16 +775,16 @@ SCIP_RETCODE SDPAreadHcoord(
 
 
    /* allocate memory (constnnonz for each block, since we do not yet know the distribution) */
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpconstrow), data -> nsdpblocks));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpconstcol), data -> nsdpblocks));
-   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpconstval), data -> nsdpblocks));
+   SCIP_CALL(SCIPallocBufferArray(scip, &(sdpconstrow_local), data -> nsdpblocks));
+   SCIP_CALL(SCIPallocBufferArray(scip, &(sdpconstcol_local), data -> nsdpblocks));
+   SCIP_CALL(SCIPallocBufferArray(scip, &(sdpconstval_local), data -> nsdpblocks));
 
 
    for( b = 0; b < data -> nsdpblocks; b ++ )
    {
-      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpconstrow[b]), data -> memorysizescon[b]));
-      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpconstcol[b]), data -> memorysizescon[b]));
-      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpconstval[b]), data -> memorysizescon[b]));
+      SCIP_CALL(SCIPallocBufferArray(scip, &(sdpconstrow_local[b]), data -> memorysizescon[b]));
+      SCIP_CALL(SCIPallocBufferArray(scip, &(sdpconstcol_local[b]), data -> memorysizescon[b]));
+      SCIP_CALL(SCIPallocBufferArray(scip, &(sdpconstval_local[b]), data -> memorysizescon[b]));
    }
 
 
@@ -848,13 +862,13 @@ SCIPerrorMessage("val %lf \n", val);
                if( currentEntriesSdp[b] >= data -> memorysizessdp[b] ){
                   int newsize = SCIPcalcMemGrowSize(scip, data -> memorysizessdp[b] + 1);
                   assert(newsize > data -> memorysizessdp[b]);
-                  SCIP_CALL(SCIPreallocBlockMemoryArray(scip, &(sdpvar[b]), data -> memorysizessdp[b], newsize));
+                  SCIP_CALL(SCIPreallocBufferArray(scip, &(sdpvar[b]), newsize));
                   SCIP_CALL(
-                          SCIPreallocBlockMemoryArray(scip, &(data -> sdprow[b]), data -> memorysizessdp[b], newsize));
+                          SCIPreallocBufferArray(scip, &(sdprow_local[b]), newsize));
                   SCIP_CALL(
-                          SCIPreallocBlockMemoryArray(scip, &(data -> sdpcol[b]), data -> memorysizessdp[b], newsize));
+                          SCIPreallocBufferArray(scip, &(sdpcol_local[b]), newsize));
                   SCIP_CALL(
-                          SCIPreallocBlockMemoryArray(scip, &(data -> sdpval[b]), data -> memorysizessdp[b], newsize));
+                          SCIPreallocBufferArray(scip, &(sdpval_local[b]), newsize));
                   data -> memorysizessdp[b] = newsize;
                }
 
@@ -862,14 +876,14 @@ SCIPerrorMessage("val %lf \n", val);
 
                /* make sure matrix is in lower triangular form */
                if( col > row ){
-                  data -> sdprow[b][data -> sdpnblocknonz[b]] = col;
-                  data -> sdpcol[b][data -> sdpnblocknonz[b]] = row;
+                  sdprow_local[b][data -> sdpnblocknonz[b]] = col;
+                  sdpcol_local[b][data -> sdpnblocknonz[b]] = row;
                }else{
-                  data -> sdprow[b][data -> sdpnblocknonz[b]] = row;
-                  data -> sdpcol[b][data -> sdpnblocknonz[b]] = col;
+                  sdprow_local[b][data -> sdpnblocknonz[b]] = row;
+                  sdpcol_local[b][data -> sdpnblocknonz[b]] = col;
                }
 
-               data -> sdpval[b][data -> sdpnblocknonz[b]] = val;
+               sdpval_local[b][data -> sdpnblocknonz[b]] = val;
                data -> sdpnblocknonz[b] ++;
             }
 
@@ -912,12 +926,9 @@ SCIPerrorMessage("val %lf \n", val);
                if( currentEntriesCon[b] >= data -> memorysizescon[b] ){
                   int newsize = SCIPcalcMemGrowSize(scip, data -> memorysizescon[b] + 1);
                   assert(newsize > data -> memorysizescon[b]);
-                  SCIP_CALL(SCIPreallocBlockMemoryArray(scip, &(data -> sdpconstrow[b]), data -> memorysizescon[b],
-                                                      newsize));
-                  SCIP_CALL(SCIPreallocBlockMemoryArray(scip, &(data -> sdpconstcol[b]), data -> memorysizescon[b],
-                                                      newsize));
-                  SCIP_CALL(SCIPreallocBlockMemoryArray(scip, &(data -> sdpconstval[b]), data -> memorysizescon[b],
-                                                      newsize));
+                  SCIP_CALL(SCIPreallocBufferArray(scip, &(sdpconstrow_local[b]), newsize));
+                  SCIP_CALL(SCIPreallocBufferArray(scip, &(sdpconstcol_local[b]), newsize));
+                  SCIP_CALL(SCIPreallocBufferArray(scip, &(sdpconstval_local[b]), newsize));
                data -> memorysizescon[b] = newsize;               
 	}
 
@@ -926,13 +937,13 @@ SCIPerrorMessage("val %lf \n", val);
 
 
             if( col > row ){
-               data -> sdpconstrow[b][data -> sdpconstnblocknonz[b]] = col;
-               data -> sdpconstcol[b][data -> sdpconstnblocknonz[b]] = row;
+               sdpconstrow_local[b][data -> sdpconstnblocknonz[b]] = col;
+               sdpconstcol_local[b][data -> sdpconstnblocknonz[b]] = row;
             }else{
-               data -> sdpconstrow[b][data -> sdpconstnblocknonz[b]] = row;
-               data -> sdpconstcol[b][data -> sdpconstnblocknonz[b]] = col;
+               sdpconstrow_local[b][data -> sdpconstnblocknonz[b]] = row;
+               sdpconstcol_local[b][data -> sdpconstnblocknonz[b]] = col;
             }
-            data -> sdpconstval[b][data -> sdpconstnblocknonz[b]] = val;
+            sdpconstval_local[b][data -> sdpconstnblocknonz[b]] = val;
             data -> sdpconstnblocknonz[b] ++;
          }
 
@@ -995,7 +1006,82 @@ SCIPerrorMessage("val %lf \n", val);
 
    SCIPfreeBufferArray(scip, &currentEntriesSdp);
    SCIPfreeBufferArray(scip, &currentEntriesCon);
-   	
+   
+   
+   
+   	      SCIPerrorMessage("5\n");
+   
+
+
+   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdprow), data -> nsdpblocks));
+   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpcol), data -> nsdpblocks));
+   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpval), data -> nsdpblocks));
+
+   
+   
+   for( b = 0; b < data -> nsdpblocks; b ++ ) 
+   {
+
+      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdprow[b]), data -> memorysizessdp[b]));
+      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpcol[b]), data -> memorysizessdp[b]));
+      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpval[b]), data -> memorysizessdp[b]));
+   }
+   
+   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpconstrow), data -> nsdpblocks));
+   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpconstcol), data -> nsdpblocks));
+   SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpconstval), data -> nsdpblocks));
+
+   
+
+   for( b = 0; b < data -> nsdpblocks; b ++ )
+   {
+      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpconstrow[b]), data -> memorysizescon[b]));
+      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpconstcol[b]), data -> memorysizescon[b]));
+      SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpconstval[b]), data -> memorysizescon[b]));
+   }
+   
+   
+   
+         SCIPerrorMessage("4\n");
+   
+   for (b=0;b<data -> nsdpblocks; b++){
+   
+   int nonz=0;
+   for(nonz=0;nonz<data -> sdpnblocknonz[b]; nonz++){
+   
+    if( sdpcol_local[b][nonz] > sdprow_local[b][nonz]){
+                  data -> sdprow[b][nonz] = sdpcol_local[b][nonz];
+                  data -> sdpcol[b][nonz] = sdprow_local[b][nonz];;
+               }else{
+                  data -> sdprow[b][nonz] = sdprow_local[b][nonz];;
+                  data -> sdpcol[b][nonz] = sdpcol_local[b][nonz];;
+               }
+
+               data -> sdpval[b][nonz] = sdpval_local[b][nonz];
+               
+   
+   }
+   
+      for(nonz=0;nonz<data -> sdpconstnblocknonz[b]; nonz++){
+   
+   if(  sdpconstcol_local[b][nonz] > sdpconstrow_local[b][nonz] ){
+               data -> sdpconstrow[b][nonz] = sdpconstcol_local[b][nonz];
+               data -> sdpconstcol[b][nonz] = sdpconstrow_local[b][nonz];
+            }else{
+               data -> sdpconstrow[b][nonz] = sdpconstrow_local[b][nonz];
+               data -> sdpconstcol[b][nonz] = sdpconstcol_local[b][nonz];
+            }
+            data -> sdpconstval[b][nonz] = sdpconstval_local[b][nonz];
+       
+            
+            
+            }
+            
+   
+   }
+	
+	      SCIPerrorMessage("3\n");
+	
 	
    /* construct pointer arrays */
    SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> sdpnblockvars), data -> nsdpblocks));
@@ -1011,6 +1097,9 @@ SCIPerrorMessage("val %lf \n", val);
       SCIPsortIntIntIntReal(sdpvar[b], data -> sdprow[b], data -> sdpcol[b], data -> sdpval[b],
                             data -> sdpnblocknonz[b]);
 
+
+	
+
       /* create the pointer arrays and insert used variables into vars-array */
       nextindaftervar = 0;
       data -> sdpnblockvars[b] = 0;
@@ -1020,8 +1109,14 @@ SCIPerrorMessage("val %lf \n", val);
       SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> colpointer[b]), data -> nvars));
       SCIP_CALL(SCIPallocBlockMemoryArray(scip, &(data -> valpointer[b]), data -> nvars));
 
+      SCIPerrorMessage("2\n");
+
       for( v = 0; v < data -> nvars; v ++ )
       {
+      
+      
+         SCIPerrorMessage("Block: %d, nonz %d", b, data->sdpnblocknonz[b]);
+      
          SCIP_Bool varused = FALSE;
 
          firstindforvar = nextindaftervar; /* this variable starts where the last one ended */
@@ -1034,6 +1129,8 @@ SCIPerrorMessage("val %lf \n", val);
             varused = TRUE;
             data -> nvarnonz[b][data -> sdpnblockvars[b]] ++;
          }
+
+
 
          if( varused )
          {
@@ -1049,18 +1146,55 @@ SCIPerrorMessage("val %lf \n", val);
    }
 
 
-   /* free SDP-var array which is no longer needed */
-   for( b = 0; b < data -> nsdpblocks; b ++ )
-      SCIPfreeBlockMemoryArray(scip, &(sdpvar[b]), data -> memorysizessdp[b]);
-
-   SCIPfreeBlockMemoryArray(scip, &sdpvar, data -> nsdpblocks);
-
+  
    if( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
                       "HCOORD: Found %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef,
                       SCIPepsilon(scip));
    }
+   
+      SCIPerrorMessage("1\n");
+   
+   
+   
+   for( b = 0; b < data -> nsdpblocks; b ++ ) 
+   {
+   
+      SCIPfreeBufferArray(scip, &(sdpvar[b]));
+      SCIPfreeBufferArray(scip, &(sdprow_local[b]));
+      SCIPfreeBufferArray(scip, &(sdpcol_local[b]));
+      SCIPfreeBufferArray(scip, &(sdpval_local[b]));
+   
+      }
+   
+   /* allocate memory */
+   SCIPfreeBufferArray(scip, &sdpvar);
+   SCIPfreeBufferArray(scip, &(sdprow_local));
+   SCIPfreeBufferArray(scip, &(sdpcol_local));
+   SCIPfreeBufferArray(scip, &(sdpval_local));
+
+
+
+   for( b = 0; b < data -> nsdpblocks; b ++ )
+   {
+      SCIPfreeBufferArray(scip, &(sdpconstrow_local[b]));
+      SCIPfreeBufferArray(scip, &(sdpconstcol_local[b]));
+      SCIPfreeBufferArray(scip, &(sdpconstval_local[b]));
+   }
+   
+
+
+
+   /* allocate memory (constnnonz for each block, since we do not yet know the distribution) */
+   SCIPfreeBufferArray(scip, &(sdpconstrow_local));
+   SCIPfreeBufferArray(scip, &(sdpconstcol_local));
+   SCIPfreeBufferArray(scip, &(sdpconstval_local));
+
+
+
+   SCIPerrorMessage("Verlesst die Methose\n");
+   
 
    return SCIP_OKAY;
 
