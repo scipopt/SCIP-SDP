@@ -92,14 +92,14 @@
 #define MACRO_STR_EXPAND(tok) #tok
 #define MACRO_STR(tok) MACRO_STR_EXPAND(tok)
 #define SDPA_NAME_FORMAT "%" MACRO_STR(SDPA_MAX_NAME) "s"
-#define SDPA_MAX_LINE  1200//600       /* Last 3 chars reserved for '\r\n\0' */
+#define SDPA_MAX_LINE  20       /* Last 3 chars reserved for '\r\n\0' */
 #define SDPA_MAX_NAME  512	//Frage: sind die vielfachen von 2 wirklich nötig? (vorher 512)
 
 char SDPA_LINE_BUFFER[SDPA_MAX_LINE];
-char SDPA_LINE_BUFFER2[SDPA_MAX_LINE];
 char SDPA_NAME_BUFFER[SDPA_MAX_NAME];
 double OBJ_VALUE_BUFFER[SDPA_MAX_LINE];
 int BLOCK_SIZE_BUFFER[SDPA_MAX_LINE];
+int SDPA_IS_COMMENT =0;
 
 struct SDPA_Data{
    SCIP_Bool *sdpblockrank1;      /**< rank-1 information for each SDP block (TRUE = should be rank 1) */
@@ -151,7 +151,8 @@ static
 int readLineDouble(
         char *LINE_BUFFER,              /** Line as text */
         SCIP_Real *values,
-        int number_of_vars           /** Number of vars to read from line  */
+        int number_of_vars,             /** Number of vars to read from line  */
+        SCIP_FILE *pFile              /**< file to read from */
 ){
 
    int i = 0;
@@ -161,12 +162,18 @@ int readLineDouble(
    SCIP_Real val;
    char* nonconstendptr;
       
-    char* rest = LINE_BUFFER; 
+    char* rest; 
+  
+  
+  do{
+  
+    rest = SDPA_LINE_BUFFER; 
+  
   
     while ((token = SCIPstrtok(rest, " ", &rest))) {
 	
     SCIPstrToRealValue (token,&val, &nonconstendptr ) ;			
-    *(values + i) = strtod(token, &end);
+    *(values + i) = val;//strtod(token, &end);
 
      
      
@@ -179,6 +186,8 @@ int readLineDouble(
       }
 
    }
+     
+      }while(i<number_of_vars &&  SCIPfgets(SDPA_LINE_BUFFER, (int) sizeof(SDPA_LINE_BUFFER), pFile) != NULL);
    return i;
 
 }
@@ -193,7 +202,8 @@ static
 int readLineInt(
         char *LINE_BUFFER,              /** Line as text */
         int *values,					/** array to save the found values*/
-        int number_of_vars           /** Number of vars to read from line  */
+        int number_of_vars,           /** Number of vars to read from line  */
+        SCIP_FILE *pFile              /**< file to read from */
 ){
    int i = 0;
    const char s[2] = " ";
@@ -203,18 +213,27 @@ int readLineInt(
    char* nonconstendptr;
 
    
-    char* rest = LINE_BUFFER; 
+    char* rest;  
+  
+  
+    do{
+  
+    rest = SDPA_LINE_BUFFER; 
   
     while ((token = SCIPstrtok(rest, " ", &rest))) {
     SCIPstrToIntValue (token,&val, &nonconstendptr ) ;	
 	
-    *(values + i) = val;     
+    *(values + i) = val;   
+
     i = i + 1;
     if( i >= number_of_vars )
     {
     break;
     }
    }
+   }while(i<number_of_vars &&  SCIPfgets(SDPA_LINE_BUFFER, (int) sizeof(SDPA_LINE_BUFFER), pFile) != NULL);
+   
+   
    return i;
 }
 
@@ -249,23 +268,87 @@ SCIP_RETCODE fIntgets(
 static
 SCIP_RETCODE SDPAfgets(
         SCIP_FILE *pFile,              /**< file to read from */
-        SCIP_Longint *linecount           /**< current linecount */
+        SCIP_Longint *linecount           /**< current linecount */ 
+       
 ){
    assert(pFile != NULL);
    assert(linecount != NULL);
+   int linepos=0;
+   int isNewline=0;
+
+
+/* read next line */
+   SDPA_LINE_BUFFER[SDPA_MAX_LINE-2] = '\0'; 
+
 
    /* Find first non-commentary line */
    while( SCIPfgets(SDPA_LINE_BUFFER, (int) sizeof(SDPA_LINE_BUFFER), pFile) != NULL) 
    {
+  
+  
       ++ (*linecount);
       if( strncmp(SDPA_LINE_BUFFER, "*INTEGER", 8) == 0 )
       {
          return SCIP_OKAY;
       }
-      if( SDPA_LINE_BUFFER[0] != '*' && SDPA_LINE_BUFFER[0] != '"')
+      if( SDPA_LINE_BUFFER[0] != '*' && SDPA_LINE_BUFFER[0] != '"' &&SDPA_IS_COMMENT==0 )
       {
-         return SCIP_OKAY;
+
+	if(!(strrchr(SDPA_LINE_BUFFER, '*')==NULL)||!(strrchr(SDPA_LINE_BUFFER, '"')==NULL)||!(strrchr(SDPA_LINE_BUFFER, '=')==NULL)){
+  	SDPA_IS_COMMENT=1;
+
+  	}
+  	
+  	if(!(strrchr(SDPA_LINE_BUFFER, '\n')==NULL)){  
+  	SDPA_IS_COMMENT=0;
+  	}	
+  
+     SCIPerrorMessage("OUT2 %s \n",SDPA_LINE_BUFFER);
+     
+     
+
+   /* if line is too long for our buffer correct the buffer and correct position in file */
+   if(SDPA_LINE_BUFFER[SDPA_MAX_LINE-2] != '\0' )
+   {
+   
+      char* last;
+
+      /* buffer is full; erase last token since it might be incomplete */
+      //lpinput->endline = FALSE;
+      last = strrchr(SDPA_LINE_BUFFER, ' ');
+
+      if( last == NULL )
+      {
+       //  SCIPwarningMessage(scip, "we read %d characters from the file; this might indicate a corrupted input file!",
+        //   SDPA_MAXLINE - 2);
+         SDPA_LINE_BUFFER[SDPA_MAX_LINE-2] = '\0';
+       //  SCIPdebugMsg(scip, "the buffer might be corrupted\n");
       }
+      else
+      {
+         SCIPfseek(pFile, -(long) strlen(last), SEEK_CUR);
+
+       //  SCIPdebugMsg(scip, "correct buffer, reread the last %ld characters\n", (long) strlen(last));
+         *last = '\0';
+
+      }   
+      return SCIP_OKAY;
+   }
+   else
+   {
+	return SCIP_OKAY;
+   }      
+
+      }
+      
+     if(!(strrchr(SDPA_LINE_BUFFER, '*')==NULL)||!(strrchr(SDPA_LINE_BUFFER, '"')==NULL)||!(strrchr(SDPA_LINE_BUFFER, '=')==NULL)){
+  	SDPA_IS_COMMENT=1;
+  	}
+  	
+  	if(!(strrchr(SDPA_LINE_BUFFER, '\n')==NULL)){ 
+  	SDPA_IS_COMMENT=0;
+  	}
+        SDPA_LINE_BUFFER[SDPA_MAX_LINE-2] = '\0';        
    }
 
    return SCIP_READERROR;
@@ -420,9 +503,9 @@ SCIP_RETCODE SDPAreadPsdCon(
    int snprintfreturn;
 #endif
 
-   SCIP_CALL(SCIPallocBufferArray(scip, &blockVals, SDPA_MAX_LINE/2));
-   SCIP_CALL(SCIPallocBufferArray(scip, &blockValsLp, SDPA_MAX_LINE/2));
-   SCIP_CALL(SCIPallocBufferArray(scip, &blockValsPsd, SDPA_MAX_LINE/2));
+   SCIP_CALL(SCIPallocBufferArray(scip, &blockVals, data -> nsdpaconstblock));
+   SCIP_CALL(SCIPallocBufferArray(scip, &blockValsLp, data -> nsdpaconstblock));
+   SCIP_CALL(SCIPallocBufferArray(scip, &blockValsPsd, data -> nsdpaconstblock));
 
 
    assert(scip != NULL);
@@ -433,7 +516,7 @@ SCIP_RETCODE SDPAreadPsdCon(
    SCIP_CALL(SDPAfgets(pfile, linecount));
 
    nblocks = readLineInt(SDPA_LINE_BUFFER, blockVals,
-                         data -> nsdpaconstblock); 
+                         data -> nsdpaconstblock,pfile); 
 
    if( data -> nsdpaconstblock != nblocks ){
       SCIPerrorMessage("Number of nblocks returned by readLineInt in line %"
@@ -568,7 +651,7 @@ SCIP_RETCODE SDPAreadObjAcoord(
    assert(linecount != NULL);
    assert(data != NULL);
 
-   SCIP_CALL(SCIPallocBufferArray(scip, &objVals, SDPA_MAX_LINE/2));
+   SCIP_CALL(SCIPallocBufferArray(scip, &objVals, data -> nvars ));
 
    if( data -> createdvars == NULL)
    {
@@ -580,7 +663,7 @@ SCIP_RETCODE SDPAreadObjAcoord(
 
    SCIP_CALL(SDPAfgets(pfile, linecount));
 
-   readLineDouble(SDPA_LINE_BUFFER, objVals, data -> nvars);
+   readLineDouble(SDPA_LINE_BUFFER, objVals, data -> nvars,pfile);
 
    for( v = 0; v <
                data -> nvars; v ++ )              
@@ -654,7 +737,6 @@ SCIP_RETCODE SDPAreadHcoord(
    
    
    
-   
    assert(scip != NULL);
    assert(scipfile != NULL);
    assert(linecount != NULL);
@@ -665,8 +747,7 @@ SCIP_RETCODE SDPAreadHcoord(
 
    SCIP_CALL( SCIPallocBufferArray(scip, &currentEntriesSdp, data->nsdpblocks));
    SCIP_CALL( SCIPallocBufferArray(scip, &currentEntriesCon, data->nsdpblocks));
-   
-   
+
   
    for( b = 0; b < data -> nsdpblocks; b ++ ) 
    {
@@ -675,6 +756,7 @@ SCIP_RETCODE SDPAreadHcoord(
 	  currentEntriesCon[b]=0;
 	  currentEntriesSdp[b]=0;
    }
+   
    
    
    if( data -> nsdpblocks < 0 )
@@ -726,11 +808,10 @@ SCIP_RETCODE SDPAreadHcoord(
 
 
    /* allocate memory */
-   SCIP_CALL(SCIPallocBufferArray(scip, &sdpvar, data -> nsdpblocks));
+   SCIP_CALL(SCIPallocBufferArray(scip, &(sdpvar), data -> nsdpblocks));
    SCIP_CALL(SCIPallocBufferArray(scip, &(sdprow_local), data -> nsdpblocks));
    SCIP_CALL(SCIPallocBufferArray(scip, &(sdpcol_local), data -> nsdpblocks));
    SCIP_CALL(SCIPallocBufferArray(scip, &(sdpval_local), data -> nsdpblocks));
-
 
    for( b = 0; b < data -> nsdpblocks; b ++ ) 
    {
@@ -763,7 +844,6 @@ SCIP_RETCODE SDPAreadHcoord(
       SCIP_CALL(SCIPallocBufferArray(scip, &(sdpconstcol_local[b]), data -> memorysizescon[b]));
       SCIP_CALL(SCIPallocBufferArray(scip, &(sdpconstval_local[b]), data -> memorysizescon[b]));
    }
-
 
 
    while( SDPAfgets(scipfile, linecount) == SCIP_OKAY ){
@@ -829,6 +909,7 @@ SCIP_RETCODE SDPAreadHcoord(
                SCIPABORT();
                return SCIP_READERROR; /*lint !e527*/
             }
+            
 
             if( SCIPisZero(scip, val)){
                ++ nzerocoef;
@@ -847,6 +928,7 @@ SCIP_RETCODE SDPAreadHcoord(
                           SCIPreallocBufferArray(scip, &(sdpval_local[b]), newsize));
                   data -> memorysizessdp[b] = newsize;
                }
+               
 
                sdpvar[b][data -> sdpnblocknonz[b]] = v;
 
@@ -1374,20 +1456,22 @@ SCIP_DECL_READERREAD(readerReadCbf)
 
         /* create empty problem */
         SCIP_CALL( SCIPcreateProb(scip, filename, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
-
+      SCIPerrorMessage("Sind schon in Obj!\n");
         SCIP_CALL( SCIPsetObjsense(scip, SCIP_OBJSENSE_MINIMIZE));
-
+      SCIPerrorMessage("Sind schon in Var!\n");
         SCIPdebugMsg(scip, "Reading VAR\n");             
         SCIP_CALL( SDPAreadVar(scip, scipfile, &linecount, data));
-
+      SCIPerrorMessage("Sind schon in Con!\n");
         SCIPdebugMsg(scip, "Reading CON\n");               
         SCIP_CALL( SDPAreadCon(scip, scipfile, &linecount, data));
-
+      SCIPerrorMessage("Sind schon in Psd con!\n");
         SCIPdebugMsg(scip, "Reading PSDCON\n");        
         SCIP_CALL( SDPAreadPsdCon(scip, scipfile, &linecount, data));
-
+      SCIPerrorMessage("Sind schon in Acoord!\n");
         SCIPdebugMsg(scip, "Reading OBJACOORD\n");           
         SCIP_CALL( SDPAreadObjAcoord(scip, scipfile, &linecount, data));
+
+      SCIPerrorMessage("Sind schon in Hcoord!\n");
 
         SCIPdebugMsg(scip, "Reading HCOORD\n");          
         SCIP_CALL( SDPAreadHcoord(scip, scipfile, &linecount, data, filename));
