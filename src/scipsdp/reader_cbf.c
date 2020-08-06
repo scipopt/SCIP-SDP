@@ -338,7 +338,6 @@ SCIP_RETCODE CBFreadPsdVar(
    int j;
    int t;
    int sizepsdvar;
-   int nscalarvars;
 #ifndef NDEBUG
    int snprintfreturn;
 #endif
@@ -401,7 +400,6 @@ SCIP_RETCODE CBFreadPsdVar(
       }
 
       /* for each psd variable of size n_i create 1/2*n_i*(n_i+1) scalar variables */
-      nscalarvars = sizepsdvar * (sizepsdvar + 1) / 2;
       data->psdvarsizes[t] = sizepsdvar;
 
       /* initialize rank-1 information for each psd variable with FALSE, will eventually be changed when reading PSDVARRANK1 */
@@ -435,7 +433,7 @@ SCIP_RETCODE CBFreadPsdVar(
             SCIP_CALL( SCIPreleaseVar(scip, &var) );
          }
       }
-      assert( cnt == nscalarvars );
+      assert( cnt == sizepsdvar * (sizepsdvar + 1) / 2 );
    }
 
    return SCIP_OKAY;

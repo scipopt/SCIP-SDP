@@ -810,7 +810,7 @@ SCIP_RETCODE diagGEzero(
                SCIP_CALL( SCIPtightenVarLb(scip, var, lhs / val, FALSE, &infeasible, &tightened) );
                if ( tightened )
                {
-                  SCIPdebugMsg(scip, "Tightend lower bound of <%s> to %g because of diagonal values of SDP-constraint %s!\n",
+                  SCIPdebugMsg(scip, "Tightend lower bound of <%s> to %g because of diagonal values of SDP-constraint <%s>!\n",
                      SCIPvarGetName(var), SCIPvarGetLbGlobal(var), SCIPconsGetName(conss[c]));
                   ++(*nchgbds);
                }
@@ -820,7 +820,7 @@ SCIP_RETCODE diagGEzero(
                SCIP_CALL( SCIPtightenVarUb(scip, var, lhs / val, FALSE, &infeasible, &tightened) );
                if ( tightened )
                {
-                  SCIPdebugMsg(scip, "Tightend upper bound of <%s> to %g because of diagonal values of SDP-constraint %s!\n",
+                  SCIPdebugMsg(scip, "Tightend upper bound of <%s> to %g because of diagonal values of SDP-constraint <%s>!\n",
                      SCIPvarGetName(var), SCIPvarGetUbGlobal(var), SCIPconsGetName(conss[c]));
                   ++(*nchgbds);
                }
@@ -1935,7 +1935,7 @@ SCIP_RETCODE multiaggrVar(
             for (i = 0; i < *nfixednonz - startind; i++)
             {
                /* if both scalar and savedval are small this might become too small */
-               if ( SCIPisPositive(scip, (scalars[i] / constant) * savedval[startind + i]) )
+               if ( ! SCIPisZero(scip, (scalars[i] / constant) * savedval[startind + i]) )
                {
                   consdata->val[consdata->nvars][consdata->nvarnonz[consdata->nvars]] = (scalars[i] / constant) * savedval[startind + i]; /*lint !e679*/
                   consdata->nvarnonz[consdata->nvars]++;
@@ -1944,13 +1944,8 @@ SCIP_RETCODE multiaggrVar(
          }
 
          consdata->locks[consdata->nvars] = -2;
-         if ( consdata->nvarnonz[consdata->nvars] > 0 ) /* if scalar and all savedvals were to small */
-         {
-            consdata->nvars++;
-            SCIP_CALL( updateVarLocks(scip, cons, consdata->nvars-1) );
-         }
-         else
-            SCIP_CALL( updateVarLocks(scip, cons, consdata->nvars) );
+         consdata->nvars++;
+         SCIP_CALL( updateVarLocks(scip, cons, consdata->nvars-1) );
       }
    }
 
@@ -2892,12 +2887,15 @@ SCIP_DECL_CONSEXITPRE(consExitpreSdp)
    assert( scip != NULL );
    assert( conshdlr != NULL );
 
-   SCIPdebugMsg(scip, "Exitpre method of conshdlr <%s>.\n", SCIPconshdlrGetName(conshdlr));
-
    if ( conss == NULL )
       return SCIP_OKAY;
 
-   SCIP_CALL( fixAndAggrVars(scip, conss, nconss, TRUE) );
+   SCIPdebugMsg(scip, "Exitpre method of conshdlr <%s>.\n", SCIPconshdlrGetName(conshdlr));
+
+   if ( SCIPgetStatus(scip) != SCIP_STATUS_OPTIMAL && SCIPgetStatus(scip) != SCIP_STATUS_INFEASIBLE )
+   {
+      SCIP_CALL( fixAndAggrVars(scip, conss, nconss, TRUE) );
+   }
 
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
@@ -2917,6 +2915,7 @@ SCIP_DECL_CONSEXITPRE(consExitpreSdp)
       }
       SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->X, conshdlrdata->sdpconshdlrdata->nsdpvars);
    }
+
    if ( conshdlrdata->sdpconshdlrdata->sdpcons != NULL )
    {
       SCIPdebugMsg(scip, "Releasing constraint %s from upgrading method\n", SCIPconsGetName(conshdlrdata->sdpconshdlrdata->sdpcons) );
@@ -4625,7 +4624,7 @@ SCIP_RETCODE SCIPconsSdpGetData(
    int*                  nvars,              /**< pointer to store the number of variables in this SDP constraint */
    int*                  nnonz,              /**< pointer to store the number of nonzeros in this SDP constraint */
    int*                  blocksize,          /**< pointer to store the size of this SDP-block */
-   int*                  arraylength,        /**< length of the given nvarnonz, col, row and val arrays, if this is too short this will return the needed length*/
+   int*                  arraylength,        /**< length of the given nvarnonz, col, row and val arrays; if this is too short, this will return the needed length */
    int*                  nvarnonz,           /**< pointer to store the number of nonzeros for each variable, also length of the arrays col/row/val are
                                               *   pointing to */
    int**                 col,                /**< pointer to store the column indices of the nonzeros for each variable */
@@ -4673,7 +4672,7 @@ SCIP_RETCODE SCIPconsSdpGetData(
    if ( *arraylength < consdata->nvars )
    {
       SCIPdebugMsg(scip, "nvarnonz, col, row and val arrays were not long enough to store the information for cons %s, they need to be at least"
-         "size %d, given was only length %d! \n", SCIPconsGetName(cons), consdata->nvars, *arraylength);
+         "size %d, given was only length %d!\n", SCIPconsGetName(cons), consdata->nvars, *arraylength);
       *arraylength = consdata->nvars;
    }
    else
