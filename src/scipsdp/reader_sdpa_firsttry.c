@@ -92,7 +92,7 @@
 #define MACRO_STR_EXPAND(tok) #tok
 #define MACRO_STR(tok) MACRO_STR_EXPAND(tok)
 #define SDPA_NAME_FORMAT "%" MACRO_STR(SDPA_MAX_NAME) "s"
-#define SDPA_MAX_LINE  512       /* Last 3 chars reserved for '\r\n\0' */
+#define SDPA_MAX_LINE  100       /* Last 3 chars reserved for '\r\n\0' */
 #define SDPA_MAX_NAME  512	//Frage: sind die vielfachen von 2 wirklich nötig? (vorher 512)
 
 char SDPA_LINE_BUFFER[SDPA_MAX_LINE];
@@ -310,10 +310,12 @@ SCIP_RETCODE SDPAfgets(
          *last = '\0';
 
       }   
+         SCIPerrorMessage("Out 1: %s \n",SDPA_LINE_BUFFER);
       return SCIP_OKAY;
    }
    else
    {
+      SCIPerrorMessage("Out 2: %s \n",SDPA_LINE_BUFFER);
 	return SCIP_OKAY;
    }      
 
@@ -334,6 +336,9 @@ SCIP_RETCODE SDPAfgets(
    { 
    SDPA_LINE_BUFFER[SDPA_MAX_LINE-2] = '\0';        
    }
+   
+   SCIPerrorMessage("Not: %s \n",SDPA_LINE_BUFFER);
+   
    }
    
    return SCIP_READERROR;
@@ -1632,7 +1637,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
            
             if ( SCIPisEQ(scip, lhs, rhs) )
             {
-               SCIPerrorMessage("SDPA reader currently only supports  constraints!\n");  //TODO: richtigen Namen finden  	
+               SCIPerrorMessage("SDPA reader currently only supports constraints!\n");  //TODO: richtigen Namen finden  	
             }
             else
             {
