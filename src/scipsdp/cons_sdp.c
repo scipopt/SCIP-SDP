@@ -3315,6 +3315,7 @@ SCIP_DECL_CONSLOCK(consLockSdp)
    SCIPdebugMsg(scip, "locking method of <%s>.\n", SCIPconsGetName(cons));
 
    /* rank-1 constraints are always up- and down-locked */
+   /* TODO: consdata->allmatricespsd is not set in this case */
    if ( consdata->rankone )
    {
       if ( consdata->locks == NULL )
