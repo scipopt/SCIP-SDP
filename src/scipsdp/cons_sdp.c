@@ -140,7 +140,7 @@ struct SCIP_ConsData
    SCIP_Real*            matrixconst;        /**< value of constant matrix */
    int                   nsingle;            /**< number of matrix entries that depend on a single variable only */
    SCIP_Real             tracebound;         /**< possible bound on the trace */
-   SCIP_Bool             allmatricespsd;     /**< true if all varaibles are positive semidefinite (excluding the constant matrix) */
+   SCIP_Bool             allmatricespsd;     /**< true if all variables are positive semidefinite (excluding the constant matrix) */
 };
 
 /** SDP constraint handler data */
@@ -479,7 +479,7 @@ SCIP_RETCODE setMaxRhsEntry(
 }
 
 
-/** compute scaling factor that makes the matrix A minus $const psd via bisection */
+/** compute scaling factor that makes the matrix A minus Aconst psd via bisection */
 static
 SCIP_RETCODE computeScalingFactor(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -528,7 +528,7 @@ SCIP_RETCODE computeScalingFactor(
          }
       }
 
-      /* compute smalles eigentvalue */
+      /* compute smallest eigenvalue */
       SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, matrix, 1, &eigenvalue, NULL) );
 
       /* if the smallest eigenvalue is positive, we can decrease the value */
@@ -539,7 +539,7 @@ SCIP_RETCODE computeScalingFactor(
       }
       else
       {
-         /* in the space case in which the scalar is 1, we exit */
+         /* in the space case in which the scalar is equal to its upper bound, we exit */
          if ( SCIPisEQ(scip, scalar, upper) )
             break;
 
@@ -785,7 +785,7 @@ SCIP_RETCODE separateSol(
    return SCIP_OKAY;
 }
 
-/** try to tighten matrices */
+/** try to tighten matrices if all matrices are psd */
 static
 SCIP_RETCODE tightenMatrices(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -867,7 +867,7 @@ SCIP_RETCODE tightenBounds(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           conss,              /**< array of constraints to add cuts for */
    int                   nconss,             /**< number of constraints to add cuts for */
-   int*                  nchgbds,            /**< pointer to store how bounds were tightened */
+   int*                  nchgbds,            /**< pointer to store how many bounds were tightened */
    SCIP_Bool*            infeasible          /**< pointer to store whether infeasibility was detected */
    )
 {
@@ -2643,7 +2643,7 @@ SCIP_RETCODE propConstraints(
                   }
                }
 
-               /* if exaclty one entry was found */
+               /* if exactly one entry was found */
                if ( i >= consdata->nvars )
                {
                   consdata->matrixvar[cnt] = var;  /* note that var == NULL is possible */
@@ -5217,7 +5217,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          &(conshdlrdata->proppresol), TRUE, DEFAULT_PROPPRESOL, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/tightenmatrices",
-         "If all matrices are psd, whould the matrices be tightened if possible?",
+         "If all matrices are psd, should the matrices be tightened if possible?",
          &(conshdlrdata->tightenmatrices), TRUE, DEFAULT_TIGHTENMATRICES, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/tightenbounds",
