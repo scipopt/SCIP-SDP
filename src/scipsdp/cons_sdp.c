@@ -821,6 +821,16 @@ SCIP_RETCODE tightenMatrices(
       if ( ! consdata->allmatricespsd )
          continue;
 
+      /* make sure that all lower bounds are nonnegative */
+      nvars = consdata->nvars;
+      for (i = 0; i < nvars; ++i)
+      {
+         if ( SCIPisNegative(scip, SCIPvarGetLbGlobal(consdata->vars[i])) )
+            break;
+      }
+      if ( i < nvars )
+         continue;
+
       SCIPdebugMsg(scip, "Trying to tighten matrices for constraint <%s>.\n", SCIPconsGetName(conss[c]));
 
       /* get matrices */
@@ -830,7 +840,6 @@ SCIP_RETCODE tightenMatrices(
 
       SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, conss[c], constmatrix) );
 
-      nvars = consdata->nvars;
       for (i = 0; i < nvars; ++i)
       {
          if ( ! SCIPvarIsBinary(consdata->vars[i]) )
