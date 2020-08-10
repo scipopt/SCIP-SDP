@@ -30,10 +30,10 @@ for i=1:1:n
     for j=i:1:n 
         if i==j
             T=[T Sigma(j,i)];
-            S= [S '%-4.6g '];   
+            S= [S '%-.15g '];   
         else
             T=[T Sigma(j,i) + Sigma(i,j)];
-            S= [S '%-4.6g '];  
+            S= [S '%-.15g '];  
         end
     end
 end
@@ -43,65 +43,65 @@ for i=1:1:n
     for j=i:1:n 
         if i==j
             T=[T -1*(Sigma(j,i))];
-            S= [S '%-4.6g '];   
+            S= [S '%-.15g '];   
         else
             T=[T -1*(Sigma(j,i) + Sigma(i,j))];
-            S= [S '%-4.6g '];  
+            S= [S '%-.15g '];  
         end
     end
 end
 end
 for i=1:1:(n+1)*n*0.5
         T=[T 0];
-        S= [S '%-4.6g '];     
+        S= [S '%-.15g '];     
 end
 
 %% X positiv semidefinit
 for i=1:1:n 
     for j=i:1:n
     T=[T RIPPos(n,i,j) 1 i j 1];
-    S= [S '\n%8.4g %8.4g %8.4g %8.4g %8.4g'];
+    S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
     end
 end
 
 %% Spur von X >=1 nur falls minimiert wird
 if side=='l'
 T=[T 0 2 1 1 1];
-S= [S '\n%8.4g %8.4g %8.4g %8.4g %8.4g'];
+S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
 for i=1:1:n
     T=[T RIPPos(n,i,i) 2 1 1 1];
-    S= [S '\n%8.4g %8.4g %8.4g %8.4g %8.4g'];
+    S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
 end
 end
 %% Spur von -X >=-1 nur falls maximiert wird
 if side=='r'
 T=[T 0 2 1 1 -1];
-S= [S '\n%8.4g %8.4g %8.4g %8.4g %8.4g'];
+S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
 for i=1:1:n
     T=[T RIPPos(n,i,i) 2 1 1 -1];
-    S= [S '\n%8.4g %8.4g %8.4g %8.4g %8.4g'];
+    S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
 end
 end
 %% 1^T*|X|*1 <= k <=> Summe aller Beträge <= k
 T=[T 0 2 2 2 -k];
-S= [S '\n%8.4g %8.4g %8.4g %8.4g %8.4g'];
+S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
 for i=1:1:n*(n+1)*0.5
     T=[T n*(n+1)*0.5+i 2 2 2 -1];
-    S= [S '\n%8.4g %8.4g %8.4g %8.4g %8.4g'];
+    S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
 end
 
 %% zweite Hälfte der Variablen Beträge der ersten Hälfte
 z=1;
 for i=1:1:n*(n+1)*0.5
     T=[T i 2 2+z 2+z -1];
-    S= [S '\n%8.4g %8.4g %8.4g %8.4g %8.4g'];
+    S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
     T=[T n*(n+1)*0.5+i 2 2+z 2+z 1];                  % Betrag-Eintrag >=0
-    S= [S '\n%8.4g %8.4g %8.4g %8.4g %8.4g']; 
+    S= [S '\n%.15g %.15g %.15g %.15g %.15g']; 
     z=z+1;
     T=[T i 2 2+z 2+z 1];
-    S= [S '\n%8.4g %8.4g %8.4g %8.4g %8.4g'];
+    S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
     T=[T n*(n+1)*0.5+i 2 2+z 2+z 1];                  % Betrag+Eintrag >=0, also Betrag >= -Eintrag
-    S= [S '\n%8.4g %8.4g %8.4g %8.4g %8.4g']; 
+    S= [S '\n%.15g %.15g %.15g %.15g %.15g']; 
     z=z+1;
 end
 
