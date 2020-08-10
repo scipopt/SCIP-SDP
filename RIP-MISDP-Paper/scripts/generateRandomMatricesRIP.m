@@ -5,12 +5,16 @@ seed = 1234;
 instances = 3; % number of instances per (type,m,n,k)
 types = ['0+-1';'band';'bern';'bina';'norm';'rnk1';'wish'];
 
+mkdir Matrices
+mkdir Asp07
+mkdir MISDP
+
 for t=1:length(types)
     type = types(t,:);
     for i=1:3
         if strcmp(type,'band')
             m = valsn(i);
-            bandwidth = 3 + 2*i;
+            bandwidth = 1 + 2*i;
         elseif strcmp(type,'rnk1')
             m = valsn(i);
             bandwidth = 0;

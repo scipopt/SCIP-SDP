@@ -1,4 +1,4 @@
-function [S,T,A] = generateRIPA(m,n,k,seed,instances,type,bandwidth)
+function [] = generateRIPA(m,n,k,seed,instances,type,bandwidth)
 %generiert zufällige Matrizen zum Berechnen der RIP
 %Optionen:
 %m = Zeilen der zufälligen Matrix
@@ -18,10 +18,10 @@ function [S,T,A] = generateRIPA(m,n,k,seed,instances,type,bandwidth)
 % initialize random number generator with given seed
 rng('default')
 rng(seed)
-instance = 1;
 
 for instance=1:instances
-    fid = fopen(sprintf('%s%d%d%d%s',type,m,n,k,char(instance+64)),'w');
+    file = sprintf('%s%d%d%d%s',type,m,n,k,char(instance+64));
+    fid = fopen(strcat('Matrices/',file),'w');
     
     % generate random matrix A depending on type
     switch type
@@ -82,7 +82,7 @@ for instance=1:instances
             a = randn(m,1);
             A = a*a';
         case 'wish'
-            fprintf('randomization = N(0,1/m)\n');
+            fprintf(fid,'randomization = N(0,1/m)\n');
             A = 1/sqrt(m).*randn(m,n);
         otherwise
             fclose(fid);
@@ -90,22 +90,23 @@ for instance=1:instances
     end
     
     % write matrix A to file
-    S = [];
-    T = [];
     fprintf(fid,'m = %d  n = %d  k = %d\n',m,n,k);
     for i=1:m
         for j=1:n-1
             fprintf(fid,"%.15g ",A(i,j));
-            %         S = [S "%.15g "];
-            %         T = [T A(i,j)]fclose(fileID);
         end
         fprintf(fid,"%.15g\n",A(i,n));
-        %     S = [S "%.15g\n"];
-        %     T = [T A(i,n)];
     end
-    % fid = fopen(name,'w');
-    % fprintf(fid,output);
     fclose(fid);
+    
+    % generate SDPA-file of MISDP-formulation
+    RIPSDPA(A,k,'l',strcat('MISDP/',file,'_MISDPl.dat-s'),0);
+    RIPSDPA(A,k,'r',strcat('MISDP/',file,'_MISDPr.dat-s'),0);
+    
+    % generate SDPA-file of SDP-Relaxation from d'Aspremont 2007
+    Aspr07SDPA(A,k,'l',strcat('Asp07/',file,'_Asp07l.dat-s'),0);
+    Aspr07SDPA(A,k,'r',strcat('Asp07/',file,'_Asp07r.dat-s'),0);
+    
 end
 end
         
