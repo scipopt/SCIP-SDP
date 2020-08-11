@@ -45,10 +45,11 @@
  * \f[
  *   \sum_{j=1}^n A_j y_j - A_0 = \sum_{i=1}^t B_i \alpha_i,\; \alpha \geq 0.
  * \f]
- * We use all \f$n^2\f$ matrices \f$B_i\f$ that arise as \f$u u^T\f$, where \f$u\f$ has only \f$\pm 1\f$ entries. It can
- * be shown that this choice suffices to represent all diagonally dominant matrices. The given constraints are actually
- * linear in the \f$y\f$-variables. We set up a MIP and solve it. If it is feasible, it should provide a feasible
- * solution for the original problem. However, often the problem is infeasible or only provides a weak solution.
+ * We use all \f$n^2\f$ matrices \f$B_i\f$ that arise as \f$u u^T\f$, where \f$u\f$ has at most 2 nonzero entries \f$\pm
+ * 1\f$. It can be shown that this choice suffices to represent all diagonally dominant matrices. The given constraints
+ * are actually linear in the \f$y\f$-variables. We set up a MIP and solve it. If it is feasible, it should provide a
+ * feasible solution for the original problem. However, often the problem is infeasible or only provides a weak
+ * solution.
  *
  * We currently do not use the column generation aspect of the paper mentioned above.
  */
@@ -256,7 +257,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpInnerlp)
          {
             SCIP_Bool nonzero = FALSE;
 
-            /* check whether entry (s,t) has a nonerzo somewher - otherwise we do not need variables or constraints */
+            /* check whether entry (s,t) has a nonzero somewhere - otherwise we do not need variables or constraints */
             if ( SCIPisZero(subscip, constmatrix[s * blocksize + t]) )
             {
                for (i = 0; i < nsdpvars; ++i)
@@ -436,7 +437,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpInnerlp)
  * heuristic specific interface methods
  */
 
-/** creates the randomized rounding heuristic for SDPs and includes it in SCIP */
+/** creates the innerlp heuristic for SDPs and includes it in SCIP */
 SCIP_RETCODE SCIPincludeHeurSdpInnerlp(
    SCIP*                 scip                /**< SCIP data structure */
    )
@@ -444,7 +445,7 @@ SCIP_RETCODE SCIPincludeHeurSdpInnerlp(
    SCIP_HEURDATA* heurdata;
    SCIP_HEUR* heur;
 
-   /* create Fracdiving primal heuristic data */
+   /* create innerlp primal heuristic data */
    SCIP_CALL( SCIPallocBlockMemory(scip, &heurdata) );
 
    /* include primal heuristic */

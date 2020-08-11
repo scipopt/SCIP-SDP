@@ -650,7 +650,7 @@ SCIP_RETCODE sparsifyCut(
 
    SCIP_CALL( SCIPaddVarsToRow(scip, row, cnt, vars, vals) );
 
-   /* if we are enforcing, we take any of the cuts, otherwise only efficious cuts */
+   /* if we are enforcing, we take any of the cuts, otherwise only efficacious cuts */
    if ( SCIPisCutEfficacious(scip, sol, row) )
    {
 #ifdef SCIP_MORE_DEBUG
@@ -741,7 +741,7 @@ SCIP_RETCODE separateSol(
    /* compute eigenvector(s) */
    if ( conshdlrdata->sdpconshdlrdata->separateonecut )
    {
-      /* compute smalles eigenvalue */
+      /* compute smallest eigenvalue */
       SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, blocksize, fullmatrix, 1, eigenvalues, eigenvectors) );
       if ( SCIPisFeasNegative(scip, eigenvalues[0]) )
          neigenvalues = 1;
@@ -826,7 +826,7 @@ SCIP_RETCODE separateSol(
 
       SCIP_CALL( SCIPaddVarsToRow(scip, row, cnt, vars, vals) );
 
-      /* if we are enforcing, we take any of the cuts, otherwise only efficious cuts */
+      /* if we are enforcing, we take any of the cuts, otherwise only efficacious cuts */
       if ( enforce || SCIPisCutEfficacious(scip, sol, row) )
       {
 #ifdef SCIP_MORE_DEBUG
@@ -1571,7 +1571,7 @@ SCIP_RETCODE addTwoMinorSOCConstraints(
                consvals[nconsvars] = -1.0;
                consvars[nconsvars++] = matrixvar;
 
-               /* compute rhs */
+               /* compute lhs and rhs */
                lhs = constmatrix[s * blocksize + t];
 
                /* create linear constraint */
@@ -1594,7 +1594,7 @@ SCIP_RETCODE addTwoMinorSOCConstraints(
             if ( matrixvars[s][s] == NULL || matrixvars[t][t] == NULL || matrixvars[s][t] == NULL )
                continue;
 
-            /* create variable for sum of two matrix varialbes (note they they are nonnegative) */
+            /* create variable for sum of two matrix variables (note they they are nonnegative) */
             (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "sum%d#%d", s, t);
             SCIP_CALL( SCIPcreateVarBasic(scip, &matrixsumvar, name, 0.0, SCIPinfinity(scip), 0.0, SCIP_VARTYPE_CONTINUOUS) );
             SCIP_CALL( SCIPaddVar(scip, matrixsumvar) );
@@ -1614,7 +1614,7 @@ SCIP_RETCODE addTwoMinorSOCConstraints(
             SCIP_CALL( SCIPaddCons(scip, cons) );
             SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
-            /* create variable for differenc of two matrix varialbes */
+            /* create variable for difference of two matrix variablees */
             (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "diff%d#%d", s, t);
             SCIP_CALL( SCIPcreateVarBasic(scip, &matrixdiffvar, name, -SCIPinfinity(scip), SCIPinfinity(scip), 0.0, SCIP_VARTYPE_CONTINUOUS) );
             SCIP_CALL( SCIPaddVar(scip, matrixdiffvar) );
@@ -1641,7 +1641,7 @@ SCIP_RETCODE addTwoMinorSOCConstraints(
             consvals[0] = 2.0;
             consvals[1] = 1.0;
 
-            /* add linear constraint (only propagate) */
+            /* add SOC constraint (only propagate) */
             (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "2x2minorSOC#%d#%d", s, t);
 
             SCIP_CALL( SCIPcreateConsSOC(scip, &cons, name, 2, consvars, consvals, NULL, 0.0, matrixsumvar, 1.0, 0.0,
@@ -5331,7 +5331,7 @@ SCIP_RETCODE SCIPconsSdpGetNNonz(
 /** gets the number of variables of the SDP constraint */
 int SCIPconsSdpGetNVars(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons                /**< SDP constraint to get blocksize for */
+   SCIP_CONS*            cons                /**< SDP constraint to get number of variables for */
    )
 {
    SCIP_CONSDATA* consdata;
@@ -5348,7 +5348,7 @@ int SCIPconsSdpGetNVars(
 /** gets the variables of the SDP constraint */
 SCIP_VAR** SCIPconsSdpGetVars(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons                /**< SDP constraint to get blocksize for */
+   SCIP_CONS*            cons                /**< SDP constraint to get variables for */
    )
 {
    SCIP_CONSDATA* consdata;

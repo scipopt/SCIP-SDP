@@ -159,14 +159,14 @@ SCIP_RETCODE SCIPconsSdpGetNNonz(
 SCIP_EXPORT
 int SCIPconsSdpGetNVars(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons                /**< SDP constraint to get blocksize for */
+   SCIP_CONS*            cons                /**< SDP constraint to get number of variables for */
    );
 
 /** gets the variables of the SDP constraint */
 SCIP_EXPORT
 SCIP_VAR** SCIPconsSdpGetVars(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons                /**< SDP constraint to get blocksize for */
+   SCIP_CONS*            cons                /**< SDP constraint to get variables for */
    );
 
 /** gets the blocksize of the SDP constraint */
