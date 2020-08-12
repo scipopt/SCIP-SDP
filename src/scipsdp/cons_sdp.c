@@ -2575,6 +2575,60 @@ SCIP_RETCODE enforceConstraint(
    return SCIP_OKAY;
 }
 
+/** analyzes conflicting assignment on given constraint, and adds conflict constraint to problem */
+static
+SCIP_RETCODE analyzeConflict(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons,               /**< SDP constraint */
+   int                   diags,              /**< index for diagonal entry corresponding to s */
+   int                   diagt,              /**< index for diagonal entry corresponding to t */
+   int                   pos,                /**< index for off-diagonal entry corresponding to (s,t) */
+   SCIP_Bool             upperbound          /**< whether upper bound on pos caused infeasibility */
+   )
+{
+   SCIP_CONSDATA* consdata;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+
+   /* conflict analysis can only be applied in solving stage and if it is applicable */
+   if ( (SCIPgetStage(scip) != SCIP_STAGE_SOLVING && ! SCIPinProbing(scip)) || ! SCIPisConflictAnalysisApplicable(scip) )
+      return SCIP_OKAY;
+
+   /* initialize conflict analysis, and add all variables of infeasible constraint to conflict candidate queue */
+   SCIP_CALL( SCIPinitConflictAnalysis(scip, SCIP_CONFTYPE_PROPAGATION, FALSE) );
+
+   assert( consdata->matrixvar[diags] != NULL );
+   assert( consdata->matrixvar[diagt] != NULL );
+   assert( consdata->matrixvar[pos] != NULL );
+   assert( consdata->matrixval[diags] != SCIP_INVALID );
+   assert( consdata->matrixval[diagt] != SCIP_INVALID );
+   assert( consdata->matrixval[pos] != SCIP_INVALID );
+
+   if ( consdata->matrixval[diags] > 0.0 )
+      SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diags], NULL) );
+   else
+      SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diags], NULL) );
+
+   if ( consdata->matrixval[diagt] > 0.0 )
+      SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diagt], NULL) );
+   else
+      SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diagt], NULL) );
+
+   if ( upperbound )
+      SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[pos], NULL) );
+   else
+      SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[pos], NULL) );
+
+   /* analyze the conflict */
+   SCIP_CALL( SCIPanalyzeConflictCons(scip, cons, NULL) );
+
+   return SCIP_OKAY;
+}
+
 /** propagates SDP constraints */
 static
 SCIP_RETCODE propConstraints(
@@ -2830,9 +2884,12 @@ SCIP_RETCODE propConstraints(
 
                if ( SCIPisFeasLT(scip, bound, SCIPvarGetUbLocal(varst)) )
                {
-                  SCIP_CALL( SCIPinferVarUbCons(scip, varst, bound, conss[c], s * consdata->nvars + t, FALSE, infeasible, &tightened) );
+                  SCIP_CALL( SCIPinferVarUbCons(scip, varst, bound, conss[c], s * blocksize + t, FALSE, infeasible, &tightened) );
                   if ( *infeasible )
+                  {
+                     SCIP_CALL( analyzeConflict(scip, conss[c], diags, diagt, pos, TRUE) );
                      return SCIP_OKAY;
+                  }
                   if ( tightened )
                      ++(*nprop);
                }
@@ -2849,9 +2906,12 @@ SCIP_RETCODE propConstraints(
 
                if ( SCIPisFeasGT(scip, bound, SCIPvarGetLbLocal(varst)) )
                {
-                  SCIP_CALL( SCIPinferVarLbCons(scip, varst, bound, conss[c], s * consdata->nvars + t, FALSE, infeasible, &tightened) );
+                  SCIP_CALL( SCIPinferVarLbCons(scip, varst, bound, conss[c], s * blocksize + t, FALSE, infeasible, &tightened) );
                   if ( *infeasible )
+                  {
+                     SCIP_CALL( analyzeConflict(scip, conss[c], diags, diagt, pos, FALSE) );
                      return SCIP_OKAY;
+                  }
                   if ( tightened )
                      ++(*nprop);
                }
