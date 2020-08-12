@@ -1,5 +1,5 @@
-valsm = [15,25,30];
-valsn = [30,35,40];
+valsm = [5,7,9];
+valsn = [10,14,18];
 valsk = [5,4,3];
 seed = 1234;
 instances = 3; % number of instances per (type,m,n,k)
@@ -9,7 +9,11 @@ mkdir Matrices
 mkdir Asp07
 mkdir MISDP
 
-for t=1:length(types)
+% initialize random number generator with given seed
+rng('default')
+rng(seed)
+
+for t=1:1
     type = types(t,:);
     for i=1:3
         if strcmp(type,'band')

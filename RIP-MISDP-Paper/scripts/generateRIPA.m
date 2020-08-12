@@ -4,7 +4,7 @@ function [] = generateRIPA(m,n,k,seed,instances,type,bandwidth)
 %m = Zeilen der zufälligen Matrix
 %n = Spalten der zufälligen Matrix
 %k = Ordnung der RIC
-%seed = random seed zur Reproduzierbarkeit der Matrizen
+%seed = benutzter seed in generateRandomMatricesRIP.m
 %instances = Anzahl der zu erzeugenden Matrizen
 %type = '0+-1' : Einträge in 0 (prob 2/3), +/-sqrt(3/m) (prob 1/6)
 %type = 'band' : Band-Matrix mit bandwidth, Einträge Unif({0,1})
@@ -15,10 +15,6 @@ function [] = generateRIPA(m,n,k,seed,instances,type,bandwidth)
 %type = 'wish' : Einträge in N(0,1/m)
 %bandwidth = Bandbreite, falls type = 'band'
 
-% initialize random number generator with given seed
-rng('default')
-rng(seed)
-
 for instance=1:instances
     file = sprintf('%s%d%d%d%s',type,m,n,k,char(instance+64));
     fid = fopen(strcat('Matrices/',file),'w');
@@ -26,7 +22,7 @@ for instance=1:instances
     % generate random matrix A depending on type
     switch type
         case '0+-1'
-            fprintf(fid,'randomization = P(+sqrt(3/m))=1/6, P(0)=2/3, P(-sqrt(3/m))=1/6\n');
+            fprintf(fid,'randomization = P(+sqrt(3/m))=1/6, P(0)=2/3, P(-sqrt(3/m))=1/6, seed = %d\n',seed);
             A = randi([0 5],m,n);
             for i=1:m
                 for j=1:n
@@ -55,7 +51,7 @@ for instance=1:instances
                 fclose(fid);
                 error('Error: "type=bandwidth", but bandwidth is no odd integer!')
             end
-            fprintf(fid,'mxm band matrix with entries uniformly in {0,1}, bandwith= %d\n',bandwidth);
+            fprintf(fid,'mxm band matrix with entries uniformly in {0,1}, bandwith= %d, seed = %d\n',bandwidth,seed);
             A = randi([0 1],m,n);
             for i=1:m
                 for j=1:n
@@ -65,24 +61,24 @@ for instance=1:instances
                 end
             end
         case 'bern'
-            fprintf(fid,'randomization = uniformly in +/- 1/sqrt(m)\n');
+            fprintf(fid,'randomization = uniformly in +/- 1/sqrt(m), seed = %d\n',seed);
             A = randi([0 1],m,n) * 2/sqrt(m) - 1/sqrt(m);
         case 'bina'
-            fprintf(fid,'randomization = uniformly in 0/1\n');
+            fprintf(fid,'randomization = uniformly in 0/1, seed = %d\n',seed);
             A = randi([0 1],m,n);
         case 'norm'
-            fprintf(fid,'randomization = N(0,1)\n');
+            fprintf(fid,'randomization = N(0,1), seed = %d\n',seed);
             A = randn(m,n);
         case 'rnk1'
             if m~=n
                 fclose(fid);
                 error('Error: "type = rnk1", but "m ~= n"')
             end
-            fprintf(fid,'rank 1 Matrix aa^T, randomization for a = N(0,1)\n');
+            fprintf(fid,'rank 1 Matrix aa^T, randomization for a = N(0,1), seed = %d\n',seed);
             a = randn(m,1);
             A = a*a';
         case 'wish'
-            fprintf(fid,'randomization = N(0,1/m)\n');
+            fprintf(fid,'randomization = N(0,1/m), seed = %d\n',seed);
             A = 1/sqrt(m).*randn(m,n);
         otherwise
             fclose(fid);
