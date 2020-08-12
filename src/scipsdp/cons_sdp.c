@@ -3753,6 +3753,8 @@ static
 SCIP_DECL_CONSRESPROP(consRespropSdp)
 {
    SCIP_CONSDATA* consdata;
+   int diags;
+   int diagt;
    int s;
    int t;
 
@@ -3767,19 +3769,29 @@ SCIP_DECL_CONSRESPROP(consRespropSdp)
 
    SCIPdebugMsg(scip, "Conflict resolving method of <%s> constraint handler.\n", SCIPconshdlrGetName(conshdlr));
 
-   s = inferinfo / consdata->nvars;
-   t = inferinfo % consdata->nvars;
-   assert( 0 <= s && s < consdata->nvars );
-   assert( 0 <= t && t < consdata->nvars );
+   s = inferinfo / consdata->blocksize;
+   t = inferinfo % consdata->blocksize;
+   assert( 0 <= s && s < consdata->blocksize );
+   assert( 0 <= t && t < consdata->blocksize );
+   assert( consdata->matrixvar[s * (s + 1)/2 + t] == infervar );
 
-   if ( consdata->vars[s] != NULL )
-   {
-      SCIP_CALL( SCIPaddConflictUb(scip, consdata->vars[s], bdchgidx) );
-   }
-   if ( consdata->vars[t] != NULL )
-   {
-      SCIP_CALL( SCIPaddConflictUb(scip, consdata->vars[t], bdchgidx) );
-   }
+   diags = s * (s + 1)/2 + s;
+   diagt = t * (t + 1)/2 + t;
+
+   assert( consdata->matrixvar[diags] != NULL );
+   assert( consdata->matrixvar[diagt] != NULL );
+   assert( consdata->matrixval[diags] != SCIP_INVALID );
+   assert( consdata->matrixval[diagt] != SCIP_INVALID );
+
+   if ( consdata->matrixval[diags] > 0.0 )
+      SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diags], bdchgidx) );
+   else
+      SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diags], bdchgidx) );
+
+   if ( consdata->matrixval[diagt] > 0.0 )
+      SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diagt], bdchgidx) );
+   else
+      SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diagt], bdchgidx) );
 
    *result = SCIP_SUCCESS;
 
