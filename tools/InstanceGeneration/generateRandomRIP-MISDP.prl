@@ -1,0 +1,240 @@
+#!/usr/bin/perl
+#
+# Generate random MISDP instances for computing the lower RIP constant
+#
+use Math::Random;
+
+random_set_seed(random_seed_from_phrase('Hello'));
+
+# check arguments
+my $narg = @ARGV;
+if ( $narg != 3 )
+{
+   printf("usage: <.> <m> <n> <k>\n");
+   exit(1);
+}
+
+# read parameters
+my $m = $ARGV[0];        # number of rows
+my $n = $ARGV[1];        # number of columns
+my $k = $ARGV[2];        # sparsity
+
+# define type of random matrix
+my $binary = 1;
+
+printf("Generating RIP MISDP for random maxtrix of size %d x %d with sparsity %d.\n", $m, $n, $k);
+
+# ------------------------------------------------------------
+# generate random matrix (as a vector)
+my @A;
+for (my $i = 0; $i < $m; ++$i)
+{
+   for (my $j = 0; $j < $n; ++$j)
+   {
+      # create random matrix entry
+      my $c;
+      if ( $binary == 1 )
+      {
+	 $c = random_uniform_integer(1, 0, 1);
+      }
+      else
+      {
+	 $c = random_normal(1, 0.0, 1.0);
+      }
+
+      $A[$i * $m + $j] = $c;
+   }
+}
+
+# compute A^T A
+my $B;
+for (my $i = 0; $i < $n; ++$i)
+{
+   for (my $j = 0; $j < $n; ++$j)
+   {
+      my $s = 0.0;
+      for (my $k = 0; $k < $m; ++$k)
+      {
+	 $s += $A[$k * $m + $i] * $A[$k * $m + $j];
+      }
+      $B[$i * $n + $j] = $s;
+   }
+}
+
+# ------------------------------------------------------------
+# output file
+my $filename = "randomRIP_".$m."_".$n."_".$k.".cbf";
+printf("Writing problem to file <%s> ...\n", $filename);
+open(OUTFILE, ">", $filename) or die $!;
+
+printf(OUTFILE "VER\n1\n\n");
+
+printf(OUTFILE "OBJSENSE\nMIN\n\n");
+
+# add scalar variables z
+printf(OUTFILE "VAR\n");
+printf(OUTFILE "%d 1\n", $n);
+printf(OUTFILE "L+ %d\n", $n);
+printf(OUTFILE "\n");
+
+# add Matrix variables X
+printf(OUTFILE "PSDVAR\n");
+printf(OUTFILE "1\n");
+printf(OUTFILE "%d\n", $n);
+printf(OUTFILE "\n");
+
+# objective
+printf(OUTFILE "OBJFCOORD\n");
+printf(OUTFILE "%d\n", $n * ($n + 1)/2);
+for (my $i = 0; $i < $n; ++$i)
+{
+   for (my $j = 0; $j <= $i; ++$j)
+   {
+      printf(OUTFILE "0 %d %d %.15g\n", $i, $j, $B[$i * $n + $j]);
+      # check that matrix is symmetric
+      if ( abs($B[$i * $n + $j] - $B[$j * $n + $i]) > 1e-6 )
+      {
+	 printf(OUTFILE "Error: B matrix not symmetric!\n");
+	 exit(1);
+      }
+   }
+}
+printf(OUTFILE "\n");
+
+# all scalar variables z are binary
+printf(OUTFILE "INT\n");
+printf(OUTFILE "%d\n", $n);
+for (my $j = 0; $j < $n; ++$j)
+{
+   printf(OUTFILE "%d\n", $j);
+}
+printf(OUTFILE "\n");
+
+# ------------------------------------------
+# constraints
+printf(OUTFILE "CON\n");
+printf(OUTFILE "%d 5\n", $n + 2 * $n * $n + 2);
+printf(OUTFILE "L+ %d\n", $n);         # z <= 1
+printf(OUTFILE "L- %d\n", $n * $n);    # x_j - X_{ij} <= 0
+printf(OUTFILE "L+ %d\n", $n * $n);    # x_j - X_{ij} >= 0
+printf(OUTFILE "L= 1\n");              # \sum_j X_{jj} == 1
+printf(OUTFILE "L- 1\n");              # \sum_j z_j <= k
+printf(OUTFILE "\n");
+
+printf(OUTFILE "ACOORD\n");
+printf(OUTFILE "%d\n", $n + 2 * $n * $n + $n);
+
+# add upper bounds on z
+my $c = 0;
+for (my $j = 0; $j < $n; ++$j)
+{
+   printf(OUTFILE "%d %d -1.0\n", $c++, $j);
+}
+# add coupling constraints z_j - X_{ij} <= 0
+for (my $j = 0; $j < $n; ++$j)
+{
+   for (my $i = 0; $i < $n; ++$i)
+   {
+      if ( $i != $j )
+      {
+	 printf(OUTFILE "%d %d -0.5\n", $c++, $j);
+      }
+      else
+      {
+	 printf(OUTFILE "%d %d -1.0\n", $c++, $j);
+      }
+   }
+}
+# add coupling constraints z_j - X_{ij} >= 0
+for (my $j = 0; $j < $n; ++$j)
+{
+   for (my $i = 0; $i < $n; ++$i)
+   {
+      if ( $i != $j )
+      {
+	 printf(OUTFILE "%d %d 0.5\n", $c++, $j);
+      }
+      else
+      {
+	 printf(OUTFILE "%d %d 1.0\n", $c++, $j);
+      }
+   }
+}
+# sparsity constraint
+$c++;
+for (my $j = 0; $j < $n; ++$j)
+{
+   printf(OUTFILE "%d %d 1.0\n", $c, $j);
+}
+printf(OUTFILE "\n");
+
+printf(OUTFILE "FCOORD\n");
+printf(OUTFILE "%d\n", 2 * $n * $n + $n);
+$c = $n;
+for (my $i = 0; $i < $n; ++$i)
+{
+   for (my $j = 0; $j < $n; ++$j)
+   {
+      if ( $i != $j )
+      {
+	 printf(OUTFILE "%d 0 %d %d 0.5\n", $c++, $i, $j);
+      }
+      else
+      {
+	 printf(OUTFILE "%d 0 %d %d 1.0\n", $c++, $i, $j);
+      }
+   }
+}
+for (my $i = 0; $i < $n; ++$i)
+{
+   for (my $j = 0; $j < $n; ++$j)
+   {
+      if ( $i != $j )
+      {
+	 printf(OUTFILE "%d 0 %d %d 0.5\n", $c++, $i, $j);
+      }
+      else
+      {
+	 printf(OUTFILE "%d 0 %d %d 1.0\n", $c++, $i, $j);
+      }
+   }
+}
+# trace constraint
+for (my $i = 0; $i < $n; ++$i)
+{
+   printf(OUTFILE "%d 0 %d %d 1.0\n", $c, $i, $i);
+}
+
+# add rhs
+printf(OUTFILE "BCOORD\n");
+printf(OUTFILE "%d\n", $n + 2 * $n * $n + 2);
+
+# z < = 1
+$c = 0;
+for (my $j = 0; $j < $n; ++$j)
+{
+   printf(OUTFILE "%d 1.0\n", $c++);
+}
+# add coupling constraints z_j - X_{ij} <= 0
+for (my $j = 0; $j < $n; ++$j)
+{
+   for (my $i = 0; $i < $n; ++$i)
+   {
+      printf(OUTFILE "%d 0.0\n", $c++);
+   }
+}
+# add coupling constraints z_j - X_{ij} >= 0
+for (my $j = 0; $j < $n; ++$j)
+{
+   for (my $i = 0; $i < $n; ++$i)
+   {
+      printf(OUTFILE "%d 0.0\n", $c++);
+   }
+}
+# trace constraint
+printf(OUTFILE "%d -1.0\n", $c++);
+printf(OUTFILE "%d %d\n", $c++, -$k);
+printf(OUTFILE "\n");
+
+close(OUTFILE);
+
