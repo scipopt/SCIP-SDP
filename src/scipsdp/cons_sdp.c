@@ -2583,7 +2583,9 @@ SCIP_RETCODE analyzeConflict(
    int                   diags,              /**< index for diagonal entry corresponding to s */
    int                   diagt,              /**< index for diagonal entry corresponding to t */
    int                   pos,                /**< index for off-diagonal entry corresponding to (s,t) */
-   SCIP_Bool             upperbound          /**< whether upper bound on pos caused infeasibility */
+   SCIP_Bool             upperbound,         /**< whether upper bound on pos caused infeasibility */
+   SCIP_Bool             usepos              /**< whether the off-diagonal entry corresponding to (s,t) is
+                                              *   necessary for analysis */
    )
 {
    SCIP_CONSDATA* consdata;
@@ -2603,10 +2605,10 @@ SCIP_RETCODE analyzeConflict(
 
    assert( consdata->matrixvar[diags] != NULL );
    assert( consdata->matrixvar[diagt] != NULL );
-   assert( consdata->matrixvar[pos] != NULL );
+   assert( ! usepos || consdata->matrixvar[pos] != NULL);
    assert( consdata->matrixval[diags] != SCIP_INVALID );
    assert( consdata->matrixval[diagt] != SCIP_INVALID );
-   assert( consdata->matrixval[pos] != SCIP_INVALID );
+   assert( ! usepos || consdata->matrixval[pos] != SCIP_INVALID);
 
    if ( consdata->matrixval[diags] > 0.0 )
       SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diags], NULL) );
@@ -2618,10 +2620,13 @@ SCIP_RETCODE analyzeConflict(
    else
       SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diagt], NULL) );
 
-   if ( upperbound )
-      SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[pos], NULL) );
-   else
-      SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[pos], NULL) );
+   if ( usepos )
+   {
+      if ( upperbound )
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[pos], NULL) );
+      else
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[pos], NULL) );
+   }
 
    /* analyze the conflict */
    SCIP_CALL( SCIPanalyzeConflictCons(scip, cons, NULL) );
@@ -2823,10 +2828,6 @@ SCIP_RETCODE propConstraints(
             vars = consdata->matrixvar[diags];
             if ( vars != NULL )
             {
-               /* the upper bounds could be negative if other propagation has not yet been applied */
-               if ( SCIPisLT(scip, SCIPvarGetUbLocal(vars), 0.0) )
-                  continue;
-
                if ( consdata->matrixval[diags] > 0.0 )
                   ubs = consdata->matrixval[diags] * SCIPvarGetUbLocal(vars);
                else
@@ -2858,10 +2859,6 @@ SCIP_RETCODE propConstraints(
                vart = consdata->matrixvar[diagt];
                if ( vart != NULL )
                {
-                  /* the upper bounds could be negative if other propagation has not yet been applied */
-                  if ( SCIPisLT(scip, SCIPvarGetUbLocal(vart), 0.0) )
-                     continue;
-
                   if ( consdata->matrixval[diagt] > 0.0 )
                      ubt = consdata->matrixval[diagt] * SCIPvarGetUbLocal(vart);
                   else
@@ -2869,6 +2866,13 @@ SCIP_RETCODE propConstraints(
                }
                assert( consdata->matrixconst[diagt] != SCIP_INVALID );
                ubt -= consdata->matrixconst[diagt];
+
+               if( SCIPisFeasLT(scip, ubs, 0.0) || SCIPisFeasLT(scip, ubt, 0.0) )
+               {
+                  *infeasible = TRUE;
+                  SCIP_CALL( analyzeConflict(scip, conss[c], diags, diagt, pos, TRUE, FALSE) );
+                  return SCIP_OKAY;
+               }
 
                assert( varst != NULL );
 
@@ -2890,7 +2894,7 @@ SCIP_RETCODE propConstraints(
                   SCIP_CALL( SCIPinferVarUbCons(scip, varst, bound, conss[c], s * blocksize + t, FALSE, infeasible, &tightened) );
                   if ( *infeasible )
                   {
-                     SCIP_CALL( analyzeConflict(scip, conss[c], diags, diagt, pos, TRUE) );
+                     SCIP_CALL( analyzeConflict(scip, conss[c], diags, diagt, pos, TRUE, TRUE) );
                      return SCIP_OKAY;
                   }
                   if ( tightened )
@@ -2915,7 +2919,7 @@ SCIP_RETCODE propConstraints(
                   SCIP_CALL( SCIPinferVarLbCons(scip, varst, bound, conss[c], s * blocksize + t, FALSE, infeasible, &tightened) );
                   if ( *infeasible )
                   {
-                     SCIP_CALL( analyzeConflict(scip, conss[c], diags, diagt, pos, FALSE) );
+                     SCIP_CALL( analyzeConflict(scip, conss[c], diags, diagt, pos, FALSE, TRUE) );
                      return SCIP_OKAY;
                   }
                   if ( tightened )
