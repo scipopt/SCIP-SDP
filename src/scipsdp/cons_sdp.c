@@ -2589,12 +2589,15 @@ SCIP_RETCODE analyzeConflict(
    )
 {
    SCIP_CONSDATA* consdata;
+   SCIP_Bool success;
 
    assert( scip != NULL );
    assert( cons != NULL );
 
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
+
+   SCIPinfoMessage(scip, NULL, "Analyzing a conflict during propagation\n");
 
    /* conflict analysis can only be applied in solving stage and if it is applicable */
    if ( (SCIPgetStage(scip) != SCIP_STAGE_SOLVING && ! SCIPinProbing(scip)) || ! SCIPisConflictAnalysisApplicable(scip) )
@@ -2630,6 +2633,9 @@ SCIP_RETCODE analyzeConflict(
 
    /* analyze the conflict */
    SCIP_CALL( SCIPanalyzeConflictCons(scip, cons, NULL) );
+
+   if( success )
+      SCIPinfoMessage(scip, NULL, "Succesfully analyzed and resolved conflict!\n");
 
    return SCIP_OKAY;
 }
