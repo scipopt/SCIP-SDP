@@ -2830,7 +2830,7 @@ SCIP_RETCODE propConstraints(
                if ( consdata->matrixval[diags] > 0.0 )
                   ubs = consdata->matrixval[diags] * SCIPvarGetUbLocal(vars);
                else
-                  ubs = - consdata->matrixval[diags] * SCIPvarGetLbLocal(vars);
+                  ubs = consdata->matrixval[diags] * SCIPvarGetLbLocal(vars);
             }
             assert( consdata->matrixconst[diags] != SCIP_INVALID );
 
@@ -2865,7 +2865,7 @@ SCIP_RETCODE propConstraints(
                   if ( consdata->matrixval[diagt] > 0.0 )
                      ubt = consdata->matrixval[diagt] * SCIPvarGetUbLocal(vart);
                   else
-                     ubt = - consdata->matrixval[diagt] * SCIPvarGetLbLocal(vart);
+                     ubt = consdata->matrixval[diagt] * SCIPvarGetLbLocal(vart);
                }
                assert( consdata->matrixconst[diagt] != SCIP_INVALID );
                ubt -= consdata->matrixconst[diagt];
@@ -2873,7 +2873,10 @@ SCIP_RETCODE propConstraints(
                assert( varst != NULL );
 
                /* compute upper bound without trace bound */
-               bound = (sqrt(ubs * ubt) + consdata->matrixconst[pos]) /  consdata->matrixval[pos];
+               if( consdata->matrixval[pos] > 0.0 )
+                  bound = (sqrt(ubs * ubt) + consdata->matrixconst[pos]) /  consdata->matrixval[pos];
+               else
+                  bound = (- sqrt(ubs * ubt) + consdata->matrixconst[pos]) /  consdata->matrixval[pos];
 
                /* check for stronger bound with trace bound */
                if ( consdata->tracebound > 0.0 )
@@ -2895,7 +2898,10 @@ SCIP_RETCODE propConstraints(
                }
 
                /* compute lower bound without trace bound */
-               bound = (- sqrt(ubs * ubt) + consdata->matrixconst[pos]) /  consdata->matrixval[pos];
+               if( consdata->matrixval[pos] > 0.0 )
+                  bound = (- sqrt(ubs * ubt) + consdata->matrixconst[pos]) /  consdata->matrixval[pos];
+               else
+                  bound = (sqrt(ubs * ubt) + consdata->matrixconst[pos]) /  consdata->matrixval[pos];
 
                /* check for stronger bound with trace bound */
                if ( consdata->tracebound > 0.0 )
