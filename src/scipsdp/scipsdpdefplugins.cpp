@@ -150,11 +150,6 @@ SCIP_RETCODE SCIPSDPincludeDefaultPlugins(
    /* display SDP statistics instead of default relaxator statistics */
    SCIP_CALL( SCIPsetBoolParam(scip, "table/relaxator/active", FALSE) );
 
-   /* change epsilons for numerical stability */
-   SCIP_CALL( SCIPsetRealParam(scip, "numerics/epsilon", 1e-9) );
-   SCIP_CALL( SCIPsetRealParam(scip, "numerics/sumepsilon", 1e-6) );
-   SCIP_CALL( SCIPsetRealParam(scip, "numerics/feastol", 1e-6) );
-
    /* parameters for separation */
    SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprows", FALSE) );
    SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprowsroot", FALSE) );
