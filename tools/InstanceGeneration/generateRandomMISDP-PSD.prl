@@ -1,0 +1,209 @@
+#!/usr/bin/perl
+#
+# Generate random MISDP instances with psd matrices
+#
+# The basic procedure is described in
+#
+# Yamashita, M., Fujisawa, K., Kojima, M.: Implementation and evaluation of SDPA 6.0 (semidefinite
+# programming algorithm 6.0). Optim. Methods Softw. 18(4), 491–505 (2003)
+#
+# and also used by
+#
+# Ken Kobayashi and Yuich Takano: A branch-and-cut algorithm for solving mixed-integer
+# semidefinite optimization problems, Computational Optimization and Applications (2020) 75:493–513
+#
+# Note that we make sure that the matrices are symmetric. We also make sure that all matrices are psd.
+
+use Math::Random;
+
+random_set_seed(random_seed_from_phrase('Hello'));
+
+# check arguments
+my $narg = @ARGV;
+if ( $narg != 4 )
+{
+   printf("usage: <.> <n> <mb> <mc> <alpha>\n");
+   exit(1);
+}
+
+# define parameters:
+my $n = $ARGV[0];       # dimension of matrices
+my $mb = $ARGV[1];      # number of binary variables
+my $mc = $ARGV[2];      # number of continuous variables
+my $alpha = $ARGV[3];   # scaling
+
+my $rank = 1;     # rank of psd matrices
+
+my $m = $mb + $mc;  # number of matrices
+
+# ------------------------------------------------------------
+# generate random vector
+my @y;
+for (my $j = 0; $j < $mb; ++$j)
+{
+   $y[$j] = random_uniform_integer(1, 0, 1);
+}
+for (my $j = $mb; $j < $m; ++$j)
+{
+   $y[$j] = random_uniform(1, 0, 1);
+}
+
+# ------------------------------------------------------------
+# generate random matrices (as a vector)
+my @A;
+for (my $i = 0; $i < $m; ++$i)
+{
+   # first generate matrix of up to given rank
+   my @V;
+   for (my $i = 0; $i < $rank; ++$i)
+   {
+      for (my $j = 0; $j < $n; ++$j)
+      {
+	 # create random matrix entry
+	 my $c = random_uniform(1, -1.0, 1.0);
+	 $V[$i * $rank + $j] = $c;
+      }
+   }
+
+   # now create matrix as product of V^T V
+   for (my $k = 0; $k < $n; ++$k)
+   {
+      for (my $j = 0; $j <= $k; ++$j)
+      {
+	 # compute value
+	 my $c = 0.0;
+	 for (my $l = 0; $l < $rank; ++$l)
+	 {
+	    $c += $V[$l * $rank + $k] * $V[$l * $rank + $j]
+	 }
+
+	 # make matrix symmetric
+	 $A[$i][$k * $n + $j] = $c;
+	 $A[$i][$j * $n + $k] = $c;
+      }
+   }
+}
+
+# compute constant matrix
+my $C;
+for (my $k = 0; $k < $n; ++$k)
+{
+   for (my $j = 0; $j <= $k; ++$j)
+   {
+      my $sum = 0.0;
+      for (my $i = 0; $i < $m; ++$i)
+      {
+	 $sum += $A[$i][$k * $n + $j] * $y[$i];
+      }
+      if ( $k == $j )
+      {
+	 $C[$k * $n + $j] = $sum - $alpha;
+      }
+      else
+      {
+	 $C[$k * $n + $j] = $sum;
+	 $C[$j * $n + $k] = $sum;
+      }
+   }
+}
+
+# compute objective
+my @b;
+for (my $i = 0; $i < $m; ++$i)
+{
+   my $sum = 0.0;
+   for (my $k = 0; $k < $n; ++$k)
+   {
+      $sum += $A[$i][$k * $n + $k];
+   }
+   $b[$i] = $sum;
+}
+
+# ------------------------------------------------------------
+# output file
+my $filename = "randomMISDP_PSD_".$n."_".$mb."_".$mc."_".$alpha.".cbf";
+printf("Writing problem to file <%s> ...\n", $filename);
+open(OUTFILE, ">", $filename) or die $!;
+
+printf(OUTFILE "VER\n1\n\n");
+
+printf(OUTFILE "OBJSENSE\nMIN\n\n");
+
+printf(OUTFILE "VAR\n");
+printf(OUTFILE "%d 1\n", $m);
+printf(OUTFILE "L+ %d\n", $m);
+printf(OUTFILE "\n");
+
+printf(OUTFILE "INT\n");
+printf(OUTFILE "%d\n", $mb);
+for (my $j = 0; $j < $mb; ++$j)
+{
+   printf(OUTFILE "%d\n", $j);
+}
+printf(OUTFILE "\n");
+
+# add upper bounds
+printf(OUTFILE "CON\n");
+printf(OUTFILE "%d 1\n", $m);
+printf(OUTFILE "L- %d\n", $m);
+printf(OUTFILE "\n");
+
+printf(OUTFILE "ACOORD\n");
+printf(OUTFILE "%d\n", $m);
+for (my $j = 0; $j < $m; ++$j)
+{
+   printf(OUTFILE "%d %d 1\n", $j, $j);
+}
+printf(OUTFILE "\n");
+
+printf(OUTFILE "BCOORD\n");
+printf(OUTFILE "%d\n", $m);
+for (my $j = 0; $j < $m; ++$j)
+{
+   printf(OUTFILE "%d -1.0\n", $j);
+}
+printf(OUTFILE "\n");
+
+# add PSD constraints
+printf(OUTFILE "PSDCON\n");
+printf(OUTFILE "1\n");
+printf(OUTFILE "%d\n", $n);
+printf(OUTFILE "\n");
+
+printf(OUTFILE "OBJACOORD\n");
+printf(OUTFILE "%d\n", $m);
+for (my $i = 0; $i < $m; ++$i)
+{
+   printf(OUTFILE "%d %g\n", $i, $b[$i]);
+}
+printf(OUTFILE "\n");
+
+# matrices in SDP constraint: constant part
+printf(OUTFILE "DCOORD\n");
+printf(OUTFILE "%d\n", ($n + 1 ) * $n / 2);
+for (my $k = 0; $k < $n; ++$k)
+{
+   for (my $j = 0; $j <= $k; ++$j)
+   {
+      # take negative for CBF format
+      printf(OUTFILE "0 %d %d %.15g\n", $k, $j, -$C[$k * $n + $j]);
+   }
+}
+printf(OUTFILE "\n");
+
+# matrices in SDP constraint: other matrices
+printf(OUTFILE "HCOORD\n");
+printf(OUTFILE "%d\n", $m * ($n + 1) * $n / 2);
+for (my $i = 0; $i < $m; ++$i)
+{
+   for (my $k = 0; $k < $n; ++$k)
+   {
+      for (my $j = 0; $j <= $k; ++$j)
+      {
+	 printf(OUTFILE "0 %d %d %d %.15g\n", $i, $k, $j, $A[$i][$k * $n + $j]);
+      }
+   }
+}
+printf(OUTFILE "\n");
+
+close(OUTFILE);

@@ -74,7 +74,60 @@
 /* hack to allow to change the name of the dialog without needing to copy everything */
 #include "scip/struct_dialog.h"
 
+/* hack to change default parameter values */
+#include <scip/paramset.h>
+
 using namespace scip;
+
+/** reset some default parameter values */
+SCIP_RETCODE SCIPSDPsetDefaultParams(
+   SCIP*                 scip                /**< SCIP data structure */
+   )
+{
+   SCIP_PARAM* param;
+
+   /* turn off LP solving - note that the SDP relaxator is on by default */
+   param = SCIPgetParam(scip, "lp/solvefreq");
+   SCIPparamSetDefaultInt(param, -1);
+
+   param = SCIPgetParam(scip, "lp/cleanuprows");
+   SCIPparamSetDefaultBool(param, FALSE);
+
+   param = SCIPgetParam(scip, "lp/cleanuprowsroot");
+   SCIPparamSetDefaultBool(param, FALSE);
+
+   /* change default display */
+   param = SCIPgetParam(scip, "display/lpiterations/active");
+   SCIPparamSetDefaultInt(param, 0);
+
+   param = SCIPgetParam(scip, "display/lpavgiterations/active");
+   SCIPparamSetDefaultInt(param, 0);
+
+   param = SCIPgetParam(scip, "display/nfrac/active");
+   SCIPparamSetDefaultInt(param, 0);
+
+   param = SCIPgetParam(scip, "display/curcols/active");
+   SCIPparamSetDefaultInt(param, 0);
+
+   param = SCIPgetParam(scip, "display/strongbranchs/active");
+   SCIPparamSetDefaultInt(param, 0);
+
+   /* Because in the SDP-world there are no warmstarts as for LPs, the main advantage for DFS (that the change in the
+    * problem is minimal and therefore the Simplex can continue with the current Basis) is lost and best first search, which
+    * provably needs the least number of nodes (see the Dissertation of Tobias Achterberg, the node selection rule with
+    * the least number of nodes, allways has to be a best first search), is the optimal choice
+    */
+   param = SCIPgetParam(scip, "nodeselection/hybridestim/stdpriority");
+   SCIPparamSetDefaultInt(param, 1000000);
+
+   param = SCIPgetParam(scip, "nodeselection/hybridestim/maxplungedepth");
+   SCIPparamSetDefaultInt(param, 0);
+
+   /* The function SCIPparamSetDefaultReal() does not yet exist. We therefore just set the parameter */
+   SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight", 0.0) );
+
+   return SCIP_OKAY;
+}
 
 /** includes default SCIP-SDP plugins */
 SCIP_RETCODE SCIPSDPincludeDefaultPlugins(
@@ -93,6 +146,9 @@ SCIP_RETCODE SCIPSDPincludeDefaultPlugins(
 
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
+
+   /* change default parameter settings */
+   SCIP_CALL( SCIPSDPsetDefaultParams(scip) );
 
    /* include new plugins */
    SCIP_CALL( SCIPincludeObjReader(scip, new ObjReaderSDPAind(scip), TRUE) );
@@ -130,43 +186,6 @@ SCIP_RETCODE SCIPSDPincludeDefaultPlugins(
    SCIP_CALL( SCIPincludeTableRelaxSdp(scip) );
    SCIP_CALL( SCIPincludeTableSdpSolverSuccess(scip) );
    SCIP_CALL( SCIPincludeTableSlater(scip) );
-
-   /* set clocktype to walltime to not add multiple threads together */
-   SCIP_CALL( SCIPsetIntParam(scip, "timing/clocktype", 2) );
-
-   /* Choose between LP and SDP relaxations */
-   SCIP_CALL( SCIPsetIntParam(scip, "lp/solvefreq", -1) );
-   SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", 1) );
-   SCIP_CALL( SCIPsetIntParam(scip, "display/lpiterations/active", 0) );
-   SCIP_CALL( SCIPsetIntParam(scip, "display/lpavgiterations/active", 0) );
-
-   /* display numerical problems in SDPs instead of current columns and strong branching */
-   SCIP_CALL( SCIPsetIntParam(scip, "display/nfrac/active", 0) );
-   SCIP_CALL( SCIPsetIntParam(scip, "display/curcols/active", 0) );
-   SCIP_CALL( SCIPsetIntParam(scip, "display/strongbranchs/active", 0) );
-   SCIP_CALL( SCIPsetIntParam(scip, "display/sdpfastsettings/active", 0) );
-   SCIP_CALL( SCIPsetIntParam(scip, "display/sdppenalty/active", 0) );
-
-   /* display SDP statistics instead of default relaxator statistics */
-   SCIP_CALL( SCIPsetBoolParam(scip, "table/relaxator/active", FALSE) );
-
-   /* change epsilons for numerical stability */
-   SCIP_CALL( SCIPsetRealParam(scip, "numerics/epsilon", 1e-9) );
-   SCIP_CALL( SCIPsetRealParam(scip, "numerics/sumepsilon", 1e-6) );
-   SCIP_CALL( SCIPsetRealParam(scip, "numerics/feastol", 1e-6) );
-
-   /* parameters for separation */
-   SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprows", FALSE) );
-   SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprowsroot", FALSE) );
-
-   /* Because in the SDP-world there are no warmstarts as for LPs, the main advantage for DFS (that the change in the
-    * problem is minimal and therefore the Simplex can continue with the current Basis) is lost and best first search, which
-    * provably needs the least number of nodes (see the Dissertation of Tobias Achterberg, the node selection rule with
-    * the least number of nodes, allways has to be a best first search), is the optimal choice
-    */
-   SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/stdpriority", 1000000) );
-   SCIP_CALL( SCIPsetIntParam(scip, "nodeselection/hybridestim/maxplungedepth", 0) );
-   SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight", 0.0) );
 
    return SCIP_OKAY;
 }
