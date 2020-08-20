@@ -76,8 +76,6 @@
 
 /* hack to change default parameter values */
 #include <scip/paramset.h>
-#include <scip/set.h>
-#include <scip/struct_scip.h>
 
 using namespace scip;
 
@@ -86,34 +84,46 @@ SCIP_RETCODE SCIPSDPsetDefaultParams(
    SCIP*                 scip                /**< SCIP data structure */
    )
 {
-   SCIP_SET* set;
-
-   /* hack to change default parameter values */
-   set = scip->set;
+   SCIP_PARAM* param;
 
    /* turn off LP solving - note that the SDP relaxator is on by default */
-   SCIP_CALL( SCIPsetSetDefaultIntParam(set, "lp/solvefreq", -1) );
-   SCIP_CALL( SCIPsetSetDefaultBoolParam(set, "lp/cleanuprows", FALSE) );
-   SCIP_CALL( SCIPsetSetDefaultBoolParam(set, "lp/cleanuprowsroot", FALSE) );
+   param = SCIPgetParam(scip, "lp/solvefreq");
+   SCIPparamSetDefaultInt(param, -1);
+
+   param = SCIPgetParam(scip, "lp/cleanuprows");
+   SCIPparamSetDefaultBool(param, FALSE);
+
+   param = SCIPgetParam(scip, "lp/cleanuprowsroot");
+   SCIPparamSetDefaultBool(param, FALSE);
 
    /* change default display */
-   SCIP_CALL( SCIPsetSetDefaultIntParam(set, "display/lpiterations/active", 0) );
-   SCIP_CALL( SCIPsetSetDefaultIntParam(set, "display/lpavgiterations/active", 0) );
-   SCIP_CALL( SCIPsetSetDefaultIntParam(set, "display/nfrac/active", 0) );
-   SCIP_CALL( SCIPsetSetDefaultIntParam(set, "display/curcols/active", 0) );
-   SCIP_CALL( SCIPsetSetDefaultIntParam(set, "display/strongbranchs/active", 0) );
+   param = SCIPgetParam(scip, "display/lpiterations/active");
+   SCIPparamSetDefaultInt(param, 0);
+
+   param = SCIPgetParam(scip, "display/lpavgiterations/active");
+   SCIPparamSetDefaultInt(param, 0);
+
+   param = SCIPgetParam(scip, "display/nfrac/active");
+   SCIPparamSetDefaultInt(param, 0);
+
+   param = SCIPgetParam(scip, "display/curcols/active");
+   SCIPparamSetDefaultInt(param, 0);
+
+   param = SCIPgetParam(scip, "display/strongbranchs/active");
+   SCIPparamSetDefaultInt(param, 0);
 
    /* Because in the SDP-world there are no warmstarts as for LPs, the main advantage for DFS (that the change in the
     * problem is minimal and therefore the Simplex can continue with the current Basis) is lost and best first search, which
     * provably needs the least number of nodes (see the Dissertation of Tobias Achterberg, the node selection rule with
     * the least number of nodes, allways has to be a best first search), is the optimal choice
     */
-   SCIP_CALL( SCIPsetSetDefaultIntParam(set, "nodeselection/hybridestim/stdpriority", 1000000) );
-   SCIP_CALL( SCIPsetSetDefaultIntParam(set, "nodeselection/hybridestim/maxplungedepth", 0) );
+   param = SCIPgetParam(scip, "nodeselection/hybridestim/stdpriority");
+   SCIPparamSetDefaultInt(param, 1000000);
 
-   /* The following function does not yet exist: */
-   /* SCIP_CALL( SCIPsetSetDefaultRealParam(set, "nodeselection/hybridestim/estimweight", 0.0) ); */
-   /* We therefore just set the parameter */
+   param = SCIPgetParam(scip, "nodeselection/hybridestim/maxplungedepth");
+   SCIPparamSetDefaultInt(param, 0);
+
+   /* The function SCIPparamSetDefaultReal() does not yet exist. We therefore just set the parameter */
    SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight", 0.0) );
 
    return SCIP_OKAY;
