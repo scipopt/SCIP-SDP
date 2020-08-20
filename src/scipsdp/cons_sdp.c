@@ -2584,8 +2584,7 @@ SCIP_RETCODE analyzeConflict(
    int                   diagt,              /**< index for diagonal entry corresponding to t */
    int                   pos,                /**< index for off-diagonal entry corresponding to (s,t) */
    SCIP_Bool             upperbound,         /**< whether upper bound on pos caused infeasibility */
-   SCIP_Bool             usepos              /**< whether the off-diagonal entry corresponding to (s,t) is
-                                              *   necessary for analysis */
+   SCIP_Bool             usepos              /**< whether the off-diagonal entry for (s,t) is necessary for analysis */
    )
 {
    SCIP_CONSDATA* consdata;
@@ -2634,7 +2633,7 @@ SCIP_RETCODE analyzeConflict(
    /* analyze the conflict */
    SCIP_CALL( SCIPanalyzeConflictCons(scip, cons, NULL) );
 
-   if( success )
+   if ( success )
       SCIPinfoMessage(scip, NULL, "Succesfully analyzed and resolved conflict!\n");
 
    return SCIP_OKAY;
@@ -2871,19 +2870,18 @@ SCIP_RETCODE propConstraints(
                      ubt = consdata->matrixval[diagt] * SCIPvarGetLbLocal(vart);
                }
                assert( consdata->matrixconst[diagt] != SCIP_INVALID );
+
                ubt -= consdata->matrixconst[diagt];
 
-               if( SCIPisFeasLT(scip, ubs, 0.0) || SCIPisFeasLT(scip, ubt, 0.0) )
+               if ( SCIPisFeasLT(scip, ubs, 0.0) || SCIPisFeasLT(scip, ubt, 0.0) )
                {
                   *infeasible = TRUE;
                   SCIP_CALL( analyzeConflict(scip, conss[c], diags, diagt, pos, TRUE, FALSE) );
                   return SCIP_OKAY;
                }
 
-               assert( varst != NULL );
-
                /* compute upper bound without trace bound */
-               if( consdata->matrixval[pos] > 0.0 )
+               if ( consdata->matrixval[pos] > 0.0 )
                   bound = (sqrt(ubs * ubt) + consdata->matrixconst[pos]) /  consdata->matrixval[pos];
                else
                   bound = (- sqrt(ubs * ubt) + consdata->matrixconst[pos]) /  consdata->matrixval[pos];
@@ -2895,6 +2893,7 @@ SCIP_RETCODE propConstraints(
                      bound = consdata->tracebound/2.0;
                }
 
+               assert( varst != NULL );
                if ( SCIPisFeasLT(scip, bound, SCIPvarGetUbLocal(varst)) )
                {
                   SCIP_CALL( SCIPinferVarUbCons(scip, varst, bound, conss[c], s * blocksize + t, FALSE, infeasible, &tightened) );
@@ -2908,7 +2907,7 @@ SCIP_RETCODE propConstraints(
                }
 
                /* compute lower bound without trace bound */
-               if( consdata->matrixval[pos] > 0.0 )
+               if ( consdata->matrixval[pos] > 0.0 )
                   bound = (- sqrt(ubs * ubt) + consdata->matrixconst[pos]) /  consdata->matrixval[pos];
                else
                   bound = (sqrt(ubs * ubt) + consdata->matrixconst[pos]) /  consdata->matrixval[pos];
