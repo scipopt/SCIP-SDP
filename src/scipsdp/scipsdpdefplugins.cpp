@@ -123,6 +123,9 @@ SCIP_RETCODE SCIPSDPsetDefaultParams(
    param = SCIPgetParam(scip, "nodeselection/hybridestim/maxplungedepth");
    SCIPparamSetDefaultInt(param, 0);
 
+   /* now set parameters to their default value */
+   SCIP_CALL( SCIPresetParams(scip) );
+
    /* The function SCIPparamSetDefaultReal() does not yet exist. We therefore just set the parameter */
    SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight", 0.0) );
 
