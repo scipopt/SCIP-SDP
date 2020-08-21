@@ -1,7 +1,8 @@
+constraints/SDP/propagate = true
 constraints/SDP/proppresol = true
-constraints/SDP/tightenmatrices = true
-constraints/SDP/tightenbounds = true
 constraints/SDP/diaggezerocuts = true
 constraints/SDP/diagzeroimplcuts = true
+constraints/SDP/tightenbounds = true
+constraints/SDP/tightenmatrices = true
 constraints/SDP/twominorlinconss = true
 constraints/SDP/twominorprodconss = true
