@@ -117,73 +117,6 @@ typedef struct SDPA_Data SDPA_DATA;
 
 
 
-/*
- * Local methods
- */
-
-/** method for reading a line of double values with fixed length*/
-static
-int readLineDouble(
-   char*                 LINE_BUFFER,        /** Line as text */
-   SCIP_Real*            values,
-   int                   number_of_vars,     /** Number of vars to read from line  */
-   SCIP_FILE*            pFile               /**< file to read from */
-   )
-{
-   int i = 0;
-   char* token;
-   SCIP_Real val;
-   char* nonconstendptr;
-   char* rest;
-
-   do
-   {
-      rest = SDPA_LINE_BUFFER;
-      while(( token = SCIPstrtok(rest, " ", &rest) ))
-      {
-         SCIPstrToRealValue(token,&val, &nonconstendptr);
-         *(values + i) = val; /* strtod(token, &end); */
-         i = i + 1;
-         if( i >= number_of_vars )
-            break;
-      }
-   }
-   while( i < number_of_vars &&  SCIPfgets(SDPA_LINE_BUFFER, (int) sizeof(SDPA_LINE_BUFFER), pFile) != NULL );
-   return i;
-}
-
-
-/** method for reading a line of integer values with fixed length*/
-static
-int readLineInt(
-   char*            LINE_BUFFER,        /** Line as text */
-   int*             values,	     /** array to save the found values*/
-   int              number_of_vars,     /** Number of vars to read from line  */
-   SCIP_FILE*       pFile               /**< file to read from */
-   )
-{
-   int i = 0;
-   char* token;
-   int val;
-   char* nonconstendptr;
-   char* rest;
-
-   do
-   {
-      rest = SDPA_LINE_BUFFER;
-      while(( token = SCIPstrtok(rest, " ", &rest) ))
-      {
-         SCIPstrToIntValue(token,&val, &nonconstendptr);
-         *(values + i) = val;
-         i = i + 1;
-         if( i >= number_of_vars )
-            break;
-      }
-   }
-   while( i < number_of_vars &&  SCIPfgets(SDPA_LINE_BUFFER, (int) sizeof(SDPA_LINE_BUFFER), pFile) != NULL );
-
-   return i;
-}
 
 
 /** find next line in the integer description */
@@ -213,7 +146,7 @@ SCIP_RETCODE SDPAfgets(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pFile,              /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
-   int                   readLongLine 
+   int                   readLongLine        /**< zero in case of long line */
    )
 {
    assert(pFile != NULL);
@@ -296,6 +229,79 @@ SCIP_RETCODE SDPAfgets(
          }
    }
    return SCIP_READERROR;
+}
+
+
+/*
+ * Local methods
+ */
+
+/** method for reading a line of double values with fixed length*/
+static
+int readLineDouble(
+   SCIP*                 scip,
+   SCIP_FILE*            pfile,               /**< file to read from */
+   SCIP_Longint*         linecount,
+   int                   number_of_vars,      /** Number of vars to read from line  */
+   SCIP_Real*            values
+   )
+{
+   int i = 0;
+   char* token;
+   SCIP_Real val;
+   char* nonconstendptr;
+   char* rest;
+
+   do
+   {
+      SCIP_CALL( SDPAfgets(scip, pfile, linecount,0) );   
+      rest = SDPA_LINE_BUFFER;
+      while(( token = SCIPstrtok(rest, " ", &rest) ))
+      {
+         SCIPstrToRealValue(token,&val, &nonconstendptr);
+         *(values + i) = val; /* strtod(token, &end); */
+         i = i + 1;
+         if( i >= number_of_vars )
+            break;
+      }
+   }
+   while( i < number_of_vars );
+   return i;
+}
+
+
+/** method for reading a line of integer values with fixed length*/
+static
+int readLineInt(
+   SCIP*                 scip,
+   SCIP_FILE*            pfile,               /**< file to read from */
+   SCIP_Longint*         linecount,
+   int                   number_of_vars,      /** Number of vars to read from line  */
+   int*                  values
+   )
+{
+   int i = 0;
+   char* token;
+   int val;
+   char* nonconstendptr;
+   char* rest;
+
+   do
+   {
+      SCIP_CALL( SDPAfgets(scip, pfile, linecount,0) );
+      rest = SDPA_LINE_BUFFER;
+      while(( token = SCIPstrtok(rest, " ", &rest) ))
+      {
+         SCIPstrToIntValue(token,&val, &nonconstendptr);
+         *(values + i) = val;
+         i = i + 1;
+         if( i >= number_of_vars )
+            break;
+      }
+   }
+   while( i < number_of_vars );
+
+   return i;
 }
 
 
@@ -446,9 +452,7 @@ SCIP_RETCODE SDPAreadBlockSize(
    assert(linecount != NULL);
    assert(data != NULL);
 
-   SCIP_CALL( SDPAfgets(scip, pfile, linecount,0) );
-
-   nblocks = readLineInt(SDPA_LINE_BUFFER, blockVals, data->nsdpaconstblock,pfile);
+   nblocks = readLineInt( scip, pfile, linecount, data->nsdpaconstblock, blockVals);
 
    if( data->nsdpaconstblock != nblocks )
    {
@@ -585,10 +589,8 @@ SCIP_RETCODE SDPAreadObjVals(
       return SCIP_READERROR; /*lint !e527*/
    }
    assert(data->nvars >= 0);
-
-   SCIP_CALL( SDPAfgets(scip, pfile, linecount,0) );
-
-   readLineDouble(SDPA_LINE_BUFFER, objVals, data->nvars,pfile);
+   
+   readLineDouble( scip, pfile, linecount, data->nvars, objVals);
 
    for( v = 0; v < data->nvars; v ++ )
    {
