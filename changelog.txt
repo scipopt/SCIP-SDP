@@ -9,6 +9,7 @@ features:
 
 parameters:
 - Rename parameter relaxing/SDP/tightenvb to relaxing/SDP/tightenrows.
+- New parameter misc/solvesdps to choose between SDP and LP solving
 
 SCIP-SDP version 3.2.0
 ======================

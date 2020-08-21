@@ -1,2 +1,1 @@
-relaxing/SDP/freq = -1
-lp/solvefreq = 1
+misc/solvesdps = 0

@@ -132,6 +132,34 @@ SCIP_RETCODE SCIPSDPsetDefaultParams(
    return SCIP_OKAY;
 }
 
+/** callback function to adapt further parameters once changed */
+SCIP_DECL_PARAMCHGD(SCIPparamChgdSolvesdps)
+{
+   int value;
+
+   value = SCIPparamGetInt(param);
+   if ( value == 1 )
+   {
+      /* turn on SDP solving, turn off LP solving */
+      SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", 1) );
+      SCIP_CALL( SCIPsetIntParam(scip, "lp/solvefreq", -1) );
+      SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprows", FALSE) );
+      SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprowsroot", FALSE) );
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Turning on SDP solving, turning off LP solving, cleanuprows(root) = FALSE.\n");
+   }
+   else
+   {
+      /* turn off SDP solving, turn on LP solving */
+      SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", -1) );
+      SCIP_CALL( SCIPsetIntParam(scip, "lp/solvefreq", 0) );
+      SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprows", TRUE) );
+      SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprowsroot", TRUE) );
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Turning on LP solving, turning off SDP solving, cleanuprows(root) = TRUE.\n");
+   }
+
+   return SCIP_OKAY;
+}
+
 /** includes default SCIP-SDP plugins */
 SCIP_RETCODE SCIPSDPincludeDefaultPlugins(
    SCIP*                 scip                /**< SCIP data structure */
@@ -149,6 +177,9 @@ SCIP_RETCODE SCIPSDPincludeDefaultPlugins(
 
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
+
+   /* add parameter to decide whether SDPs or LPs are solved */
+   SCIP_CALL( SCIPaddIntParam(scip, "misc/solvesdps", "solve SDPs (1) or LPs (0)", NULL, FALSE, 1, 0, 1, SCIPparamChgdSolvesdps, NULL) );
 
    /* change default parameter settings */
    SCIP_CALL( SCIPSDPsetDefaultParams(scip) );
