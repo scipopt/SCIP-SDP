@@ -151,7 +151,7 @@ SCIP_DECL_PARAMCHGD(SCIPparamChgdSolvesdps)
    {
       /* turn off SDP solving, turn on LP solving */
       SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", -1) );
-      SCIP_CALL( SCIPsetIntParam(scip, "lp/solvefreq", 0) );
+      SCIP_CALL( SCIPsetIntParam(scip, "lp/solvefreq", 1) );
       SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprows", TRUE) );
       SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprowsroot", TRUE) );
       SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Turning on LP solving, turning off SDP solving, cleanuprows(root) = TRUE.\n");
