@@ -2889,6 +2889,8 @@ SCIP_RETCODE propConstraints(
                /* check for stronger bound with trace bound */
                if ( consdata->tracebound > 0.0 )
                {
+                  /* Note that tracebound is only computed for a primal SDP, thus it does not need to be retransformed
+                   * to matrix pencil notation. */
                   if ( consdata->tracebound/2.0 < bound )
                      bound = consdata->tracebound/2.0;
                }
