@@ -2631,7 +2631,7 @@ SCIP_RETCODE analyzeConflict(
    }
 
    /* analyze the conflict */
-   SCIP_CALL( SCIPanalyzeConflictCons(scip, cons, NULL) );
+   SCIP_CALL( SCIPanalyzeConflictCons(scip, cons, &success) );
 
    if ( success )
       SCIPinfoMessage(scip, NULL, "Succesfully analyzed and resolved conflict!\n");
