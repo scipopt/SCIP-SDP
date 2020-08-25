@@ -115,8 +115,8 @@ printf(OUTFILE "\n");
 printf(OUTFILE "CON\n");
 printf(OUTFILE "%d 5\n", $n + 2 * $n * $n + 2);
 printf(OUTFILE "L+ %d\n", $n);         # z <= 1
-printf(OUTFILE "L- %d\n", $n * $n);    # x_j - X_{ij} <= 0
-printf(OUTFILE "L+ %d\n", $n * $n);    # x_j - X_{ij} >= 0
+printf(OUTFILE "L- %d\n", $n * $n);    # -z_j - X_{ij} <= 0
+printf(OUTFILE "L+ %d\n", $n * $n);    # z_j - X_{ij} >= 0
 printf(OUTFILE "L= 1\n");              # \sum_j X_{jj} == 1
 printf(OUTFILE "L- 1\n");              # \sum_j z_j <= k
 printf(OUTFILE "\n");
@@ -130,7 +130,7 @@ for (my $j = 0; $j < $n; ++$j)
 {
    printf(OUTFILE "%d %d -1.0\n", $c++, $j);
 }
-# add coupling constraints z_j - X_{ij} <= 0
+# add coupling constraints -z_j - X_{ij} <= 0
 for (my $j = 0; $j < $n; ++$j)
 {
    for (my $i = 0; $i < $n; ++$i)
@@ -175,28 +175,15 @@ for (my $i = 0; $i < $n; ++$i)
 {
    for (my $j = 0; $j < $n; ++$j)
    {
-      if ( $i != $j )
-      {
-	 printf(OUTFILE "%d 0 %d %d 0.5\n", $c++, $i, $j);
-      }
-      else
-      {
-	 printf(OUTFILE "%d 0 %d %d 1.0\n", $c++, $i, $j);
-      }
+      printf(OUTFILE "%d 0 %d %d -1.0\n", $c++, $i, $j);
    }
 }
 for (my $i = 0; $i < $n; ++$i)
 {
    for (my $j = 0; $j < $n; ++$j)
    {
-      if ( $i != $j )
-      {
-	 printf(OUTFILE "%d 0 %d %d 0.5\n", $c++, $i, $j);
-      }
-      else
-      {
-	 printf(OUTFILE "%d 0 %d %d 1.0\n", $c++, $i, $j);
-      }
+      printf(OUTFILE "%d 0 %d %d -1.0\n", $c++, $i, $j);
+
    }
 }
 # trace constraint
