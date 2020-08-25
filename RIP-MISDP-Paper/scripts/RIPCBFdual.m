@@ -12,13 +12,19 @@ function [] = RIPCBFdual(A, k, side, file, Rank, socp, bounds)
     m=length(A(:,1));
     n=length(A(1,:));
     
-    % check if A is entrywise nonnegative:
+    % check if A is entrywise nonnegative
     if bounds == 1 && ~all(A >= 0, 'all')
         bounds = 0;
         fprintf("Setting bounds = 0, since matrix A is not nonnegative!\n");
     elseif bounds == 1 && ~side == 'r'
         bounds = 0;
         fprintf("Setting bounds = 0, since  only works for right side of RIP!\n");
+    end
+    
+    % SOCP-inequality is only valid for right side of the RIP
+    if socp == 1 && ~side == 'r'
+        socp = 0;
+        fprintf("Setting socp = 0, since this only works for right side of RIP!\n");
     end
         
     % compute B = A^T A

@@ -114,11 +114,9 @@ for instance=1:instances
     % 2. CBF primal
     RIPCBFprimal(A,k,'l',strcat('MISDP/',file,'_MISDPlp000.cbf'),0,0,0);
     RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp000.cbf'),0,0,0);
-    RIPCBFprimal(A,k,'l',strcat('MISDP/',file,'_MISDPlp010.cbf'),0,1,0);
     RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp010.cbf'),0,1,0);
     RIPCBFprimal(A,k,'l',strcat('MISDP/',file,'_MISDPlp100.cbf'),1,0,0);
     RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp100.cbf'),1,0,0);
-    RIPCBFprimal(A,k,'l',strcat('MISDP/',file,'_MISDPlp110.cbf'),1,1,0);
     RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp110.cbf'),1,1,0);
     if all(A >= 0, 'all')
         RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp001.cbf'),0,0,1);
@@ -130,11 +128,9 @@ for instance=1:instances
     % 3. CBF dual
     RIPCBFdual(A,k,'l',strcat('MISDP/',file,'_MISDPld000.cbf'),0,0,0);
     RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd000.cbf'),0,0,0);
-    RIPCBFdual(A,k,'l',strcat('MISDP/',file,'_MISDPld010.cbf'),0,1,0);
     RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd010.cbf'),0,1,0);
     RIPCBFdual(A,k,'l',strcat('MISDP/',file,'_MISDPld100.cbf'),1,0,0);
     RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd100.cbf'),1,0,0);
-    RIPCBFdual(A,k,'l',strcat('MISDP/',file,'_MISDPld110.cbf'),1,1,0);
     RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd110.cbf'),1,1,0);
     if all(A >= 0, 'all')
         RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd001.cbf'),0,0,1);

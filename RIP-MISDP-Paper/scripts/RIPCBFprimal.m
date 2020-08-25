@@ -20,6 +20,12 @@ function [] = RIPCBFprimal(A, k, side, file, Rank, socp, bounds)
         bounds = 0;
         fprintf("Setting bounds = 0, since  only works for right side of RIP!\n");
     end
+    
+    % SOCP-inequality is only valid for right side of the RIP
+    if socp == 1 && ~side == 'r'
+        socp = 0;
+        fprintf("Setting socp = 0, since this only works for right side of RIP!\n");
+    end
 
     % compute B = A^T A
     B = transpose(A)*A;
