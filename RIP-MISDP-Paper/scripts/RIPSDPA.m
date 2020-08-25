@@ -17,7 +17,7 @@ T=[(n+1)*n*0.5+n 2 n -1*(2+2*n^2+2*n)]; %Anzahl Variablen, Blöcke und Blockgrö
 S= '%-9.0f\n%-9.0f\n%-9.0f%-9.0f\n';
 %% Zielfunktionswerte
 Z=zeros(n);
-B=transpose(A)*A
+B=transpose(A)*A;
 if side=='l'
     for i=1:1:n
         for j=i:1:n

@@ -1,24 +1,35 @@
 function [] = generateRIPA(m,n,k,seed,instances,type,bandwidth)
 %generiert zufällige Matrizen zum Berechnen der RIP
-%Optionen:
-%m = Zeilen der zufälligen Matrix
-%n = Spalten der zufälligen Matrix
-%k = Ordnung der RIC
-%seed = benutzter seed in generateRandomMatricesRIP.m
-%instances = Anzahl der zu erzeugenden Matrizen
-%type = '0+-1' : Einträge in 0 (prob 2/3), +/-sqrt(3/m) (prob 1/6)
-%type = 'band' : Band-Matrix mit bandwidth, Einträge Unif({0,1})
-%type = 'bern' : Einträge Unif({+/-1/sqrt(m)})
-%type = 'bina' : Einträge Unif({0,1})
-%type = 'norm' : Einträge N(0,1)
-%type = 'rnk1' : rank1-Matrix A = aa^T, Einträge von a in N(0,1)
-%type = 'wish' : Einträge in N(0,1/m)
-%bandwidth = Bandbreite, falls type = 'band'
+% Optionen:
+% m = Zeilen der zufälligen Matrix
+% n = Spalten der zufälligen Matrix
+% k = Ordnung der RIC
+% seed = benutzter seed in generateRandomMatricesRIP.m
+% instances = Anzahl der zu erzeugenden Matrizen
+% type = '0+-1' : Einträge in 0 (prob 2/3), +/-sqrt(3/m) (prob 1/6)
+% type = 'band' : Band-Matrix mit bandwidth, Einträge Unif({0,1})
+% type = 'bern' : Einträge Unif({+/-1/sqrt(m)})
+% type = 'bina' : Einträge Unif({0,1})
+% type = 'norm' : Einträge N(0,1)
+% type = 'rnk1' : rank1-Matrix A = aa^T, Einträge von a in N(0,1)
+% type = 'wish' : Einträge in N(0,1/m)
+% bandwidth = Bandbreite, falls type = 'band'
+% Output:
+% Matrizen werden nach 'Matrices/type.m.n.k' geschrieben
+% Kodierung der erzeugten Probleminstanzen im Ordner MISDP:
+% type.m.n.k_MISDP.side.pd.rank.socp.bounds, wobei
+% type, m, n, k : wie oben
+% side          : l (linke Seite/alpha_k), r (rechte Seite/beta_k)
+% pd            : p (primal, Matrixvariablen), d (dual, Skalarvariablen)
+% rank          : 1 (mit zusätzlicher Rank-1-Cons), 0 (ohne)
+% socp          : 1 (mit gültiger SOCP-Ungleichung von Li/Xie), 0 (ohne)
+% bounds        : 1 (mit verstärkter unterer Schranke falls A
+%                 nichtnegativ), 0 (ohne)
 
 for instance=1:instances
     file = sprintf('%s%d%d%d%s',type,m,n,k,char(instance+64));
     fid = fopen(strcat('Matrices/',file),'w');
-    
+
     % generate random matrix A depending on type
     switch type
         case '0+-1'
@@ -95,15 +106,47 @@ for instance=1:instances
     end
     fclose(fid);
     
-    % generate SDPA-file of MISDP-formulation
+    % generate various variants of MISDP-formulation
+    % 1. SDPA from Tristan:
     RIPSDPA(A,k,'l',strcat('MISDP/',file,'_MISDPl.dat-s'),0);
     RIPSDPA(A,k,'r',strcat('MISDP/',file,'_MISDPr.dat-s'),0);
     
-    % generate SDPA-file of SDP-Relaxation from d'Aspremont 2007
-    Aspr07SDPA(A,k,'l',strcat('Asp07/',file,'_Asp07l.dat-s'),0);
-    Aspr07SDPA(A,k,'r',strcat('Asp07/',file,'_Asp07r.dat-s'),0);
+    % 2. CBF primal
+    RIPCBFprimal(A,k,'l',strcat('MISDP/',file,'_MISDPlp000.cbf'),0,0,0);
+    RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp000.cbf'),0,0,0);
+    RIPCBFprimal(A,k,'l',strcat('MISDP/',file,'_MISDPlp010.cbf'),0,1,0);
+    RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp010.cbf'),0,1,0);
+    RIPCBFprimal(A,k,'l',strcat('MISDP/',file,'_MISDPlp100.cbf'),1,0,0);
+    RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp100.cbf'),1,0,0);
+    RIPCBFprimal(A,k,'l',strcat('MISDP/',file,'_MISDPlp110.cbf'),1,1,0);
+    RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp110.cbf'),1,1,0);
+    if all(A >= 0, 'all')
+        RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp001.cbf'),0,0,1);
+        RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp011.cbf'),0,1,1);
+        RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp101.cbf'),1,0,1);
+        RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp111.cbf'),1,1,1);
+    end
+
+    % 3. CBF dual
+    RIPCBFdual(A,k,'l',strcat('MISDP/',file,'_MISDPld000.cbf'),0,0,0);
+    RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd000.cbf'),0,0,0);
+    RIPCBFdual(A,k,'l',strcat('MISDP/',file,'_MISDPld010.cbf'),0,1,0);
+    RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd010.cbf'),0,1,0);
+    RIPCBFdual(A,k,'l',strcat('MISDP/',file,'_MISDPld100.cbf'),1,0,0);
+    RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd100.cbf'),1,0,0);
+    RIPCBFdual(A,k,'l',strcat('MISDP/',file,'_MISDPld110.cbf'),1,1,0);
+    RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd110.cbf'),1,1,0);
+    if all(A >= 0, 'all')
+        RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd001.cbf'),0,0,1);
+        RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd011.cbf'),0,1,1);
+        RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd101.cbf'),1,0,1);
+        RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd111.cbf'),1,1,1);
+    end
+
+%     % generate SDPA-file of SDP-Relaxation from d'Aspremont 2007
+%     Aspr07SDPA(A,k,'l',strcat('Asp07/',file,'_Asp07l.dat-s'),0);
+%     Aspr07SDPA(A,k,'r',strcat('Asp07/',file,'_Asp07r.dat-s'),0);
     
 end
 end
-        
         
