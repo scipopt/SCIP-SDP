@@ -3805,7 +3805,7 @@ SCIP_DECL_CONSPROP(consPropSdp)
 
    *result = SCIP_DIDNOTRUN;
 
-   if ( ! conshdlrdata->propagate )
+   if ( ! conshdlrdata->sdpconshdlrdata->propagate )
       return SCIP_OKAY;
 
    *result = SCIP_DIDNOTFIND;
@@ -3840,13 +3840,14 @@ SCIP_DECL_CONSRESPROP(consRespropSdp)
    int t;
 
    assert( conshdlr != NULL );
-   assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 );
    assert( cons != NULL );
    assert( infervar != NULL );
    assert( result != NULL );
 
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
+   assert( consdata->rankone || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(cons)), CONSHDLR_NAME) == 0 );
+   assert( ! consdata->rankone || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(cons)), CONSHDLRRANK1_NAME) == 0 );
 
    SCIPdebugMsg(scip, "Conflict resolving method of <%s> constraint handler.\n", SCIPconshdlrGetName(conshdlr));
 
@@ -3896,7 +3897,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
    *result = SCIP_DIDNOTRUN;
 
    /* call propagation */
-   if ( conshdlrdata->proppresol )
+   if ( conshdlrdata->sdpconshdlrdata->proppresol )
    {
       SCIP_CALL( propConstraints(scip, conss, nconss, &infeasible, &nprop) );
 
@@ -3943,7 +3944,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
          *result = SCIP_SUCCESS;
 
       /* possibly compute tightening of matrices */
-      if ( conshdlrdata->tightenmatrices )
+      if ( conshdlrdata->sdpconshdlrdata->tightenmatrices )
       {
          SCIP_CALL( tightenMatrices(scip, conss, nconss, nchgcoefs) );
          if ( noldchgcoefs != *nchgcoefs )
@@ -3951,7 +3952,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       }
 
       /* possibly tighten bounds */
-      if ( conshdlrdata->tightenbounds )
+      if ( conshdlrdata->sdpconshdlrdata->tightenbounds )
       {
          SCIP_CALL( tightenBounds(scip, conss, nconss, nchgbds, &infeasible) );
          if ( infeasible )
@@ -5382,10 +5383,18 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
 
    /* only use one parameter */
    conshdlrdata->diaggezerocuts = FALSE;
+   conshdlrdata->propagate = FALSE;
+   conshdlrdata->proppresol = FALSE;
+   conshdlrdata->tightenmatrices = FALSE;
+   conshdlrdata->tightenbounds = FALSE;
    conshdlrdata->diagzeroimplcuts = FALSE;
-   conshdlrdata->triedlinearconss = FALSE;
+   conshdlrdata->twominorlinconss = FALSE;
+   conshdlrdata->twominorprodconss = FALSE;
    conshdlrdata->quadconsrank1 = FALSE;
+   conshdlrdata->upgradquadconss = FALSE;
+   conshdlrdata->upgradekeepquad = FALSE;
    conshdlrdata->rank1approxheur = FALSE;
+   conshdlrdata->triedlinearconss = FALSE;
    conshdlrdata->maxnvarsquadupgd = 0;
 
    /* parameters are retrieved through the SDP constraint handler */
@@ -5421,6 +5430,8 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    SCIP_CALL( SCIPsetConshdlrExitpre(scip, conshdlr, consExitpreSdp) );
    SCIP_CALL( SCIPsetConshdlrInitsol(scip, conshdlr, consInitsolSdp) );
    SCIP_CALL( SCIPsetConshdlrPresol(scip, conshdlr, consPresolSdp, CONSHDLR_MAXPREROUNDS, CONSHDLR_PRESOLTIMING) );
+   SCIP_CALL( SCIPsetConshdlrProp(scip, conshdlr, consPropSdp, CONSHDLR_PROPFREQ, FALSE, CONSHDLR_PROPTIMING) );
+   SCIP_CALL( SCIPsetConshdlrResprop(scip, conshdlr, consRespropSdp) );
    SCIP_CALL( SCIPsetConshdlrSepa(scip, conshdlr, consSepalpSdp, consSepasolSdp, CONSHDLR_SEPAFREQ,
          CONSHDLR_SEPAPRIORITY, CONSHDLR_DELAYSEPA) );
    SCIP_CALL( SCIPsetConshdlrEnforelax(scip, conshdlr, consEnforelaxSdp) );
