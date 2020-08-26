@@ -853,7 +853,7 @@ SCIP_RETCODE tightenMatrices(
          {
             int j;
 
-            SCIPinfoMessage(scip, NULL, "%d: tightening factor = %g.\n", i, factor);
+            SCIPinfoMessage(scip, NULL, "Tightened coefficent matrix of variable <%s> with tightening factor %g.\n", SCIPvarGetName(consdata->vars[i]), factor);
 
             /* tighten matrix */
             for (j = 0; j < consdata->nvarnonz[i]; j++)
@@ -2907,11 +2907,15 @@ SCIP_RETCODE propConstraints(
                   SCIP_CALL( SCIPinferVarUbCons(scip, varst, bound, conss[c], s * blocksize + t, FALSE, infeasible, &tightened) );
                   if ( *infeasible )
                   {
+                     SCIPinfoMessage(scip, NULL, "Propagation detected infeasibility, call analyzeConfilct.\n");
                      SCIP_CALL( analyzeConflict(scip, conss[c], diags, diagt, pos, TRUE, TRUE) );
                      return SCIP_OKAY;
                   }
                   if ( tightened )
+                  {
+                     SCIPinfoMessage(scip, NULL, "Propagation successfully tightened a bound.\n");
                      ++(*nprop);
+                  }
                }
 
                /* compute lower bound without trace bound */
@@ -2932,11 +2936,15 @@ SCIP_RETCODE propConstraints(
                   SCIP_CALL( SCIPinferVarLbCons(scip, varst, bound, conss[c], s * blocksize + t, FALSE, infeasible, &tightened) );
                   if ( *infeasible )
                   {
+                     SCIPinfoMessage(scip, NULL, "Propagation detected infeasibility, call analyzeConfilct.\n");
                      SCIP_CALL( analyzeConflict(scip, conss[c], diags, diagt, pos, FALSE, TRUE) );
                      return SCIP_OKAY;
                   }
                   if ( tightened )
+                  {
+                     SCIPinfoMessage(scip, NULL, "Propagation successfully tightened a bound.\n");
                      ++(*nprop);
+                  }
                }
             }
          }
@@ -3822,14 +3830,17 @@ SCIP_DECL_CONSPROP(consPropSdp)
 
    if ( infeasible )
    {
-      SCIPdebugMsg(scip, "Propagation detected cutoff.\n");
+      SCIPinfoMessage(scip, NULL, "Propagation detected cutoff.\n");
       *result = SCIP_CUTOFF;
    }
    else
    {
       SCIPdebugMsg(scip, "Propagated bounds: %d.\n", nprop);
       if ( nprop > 0 )
+      {
+         SCIPinfoMessage(scip, NULL, "Propagation tightened %d bounds.\n", nprop);
          *result = SCIP_REDUCEDDOM;
+      }
    }
 
    return SCIP_OKAY;
@@ -3855,7 +3866,7 @@ SCIP_DECL_CONSRESPROP(consRespropSdp)
    assert( consdata->rankone || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(cons)), CONSHDLR_NAME) == 0 );
    assert( ! consdata->rankone || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(cons)), CONSHDLRRANK1_NAME) == 0 );
 
-   SCIPdebugMsg(scip, "Conflict resolving method of <%s> constraint handler.\n", SCIPconshdlrGetName(conshdlr));
+   SCIPinfoMessage(scip, NULL, "Executing conflict resolving method of <%s> constraint handler.\n", SCIPconshdlrGetName(conshdlr));
 
    s = inferinfo / consdata->blocksize;
    t = inferinfo % consdata->blocksize;
@@ -3909,6 +3920,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 
       if ( infeasible )
       {
+         SCIPinfoMessage(scip, NULL, "Propagation during presolving detected cutoff.\n");
          SCIPdebugMsg(scip, "Presolving detected cutoff.\n");
          *result = SCIP_CUTOFF;
          return SCIP_OKAY;
@@ -3918,6 +3930,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
          SCIPdebugMsg(scip, "Propagated bounds: %d.\n", nprop);
          if ( nprop > 0 )
          {
+            SCIPinfoMessage(scip, NULL, "Propagation during presolving successfully propagated %d bounds.\n", nprop);
             *nchgbds += nprop;
             *result = SCIP_SUCCESS;
          }
@@ -3954,7 +3967,10 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       {
          SCIP_CALL( tightenMatrices(scip, conss, nconss, nchgcoefs) );
          if ( noldchgcoefs != *nchgcoefs )
+         {
+            SCIPinfoMessage("TightenMatrices successfully tightened %d coefficient matrices.\n", noldchgcoefs - *nchgcoefs);
             *result = SCIP_SUCCESS;
+         }
       }
 
       /* possibly tighten bounds */
@@ -3963,12 +3979,16 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
          SCIP_CALL( tightenBounds(scip, conss, nconss, nchgbds, &infeasible) );
          if ( infeasible )
          {
+            SCIPinfoMessage(scip, NULL, "TightenBounds detected infeasiblity during presolving.\n");
             *result = SCIP_CUTOFF;
             return SCIP_OKAY;
          }
 
          if ( noldchgbds != *nchgbds )
+         {
+            SCIPinfoMessage("TightenBounds successfully tightened %d bounds.\n", noldchgbds - *nchgbds);
             *result = SCIP_SUCCESS;
+         }
       }
 
       /* In the following, we add linear constraints to be propagated. This is needed only once. We assume that this is
@@ -3985,12 +4005,16 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 
             if ( infeasible )
             {
+               SCIPinfoMessage(scip, NULL, "Diaggezero detected infeasibility during presolving.\n");
                *result = SCIP_CUTOFF;
                return SCIP_OKAY;
             }
 
             if ( noldaddconss != *naddconss || noldchgbds != *nchgbds )
+            {
+               SCIPinfoMsg(scip, NULL, "Diaggezero added %d cuts and changed %d bounds.\n", *naddconss - noldaddconss, *nchgbds - noldchgbds);
                *result = SCIP_SUCCESS;
+            }
          }
 
          if ( *result != SCIP_CUTOFF && conshdlrdata->sdpconshdlrdata->diagzeroimplcuts )
@@ -3999,7 +4023,10 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
             SCIP_CALL( diagZeroImpl(scip, conss, nconss, naddconss) );
             SCIPdebugMsg(scip, "Added %d cuts for implication from 0 diagonal.\n", *naddconss - noldaddconss);
             if ( noldaddconss != *naddconss )
+            {
+               SCIPinfoMessage(scip, NULL, "Diagzeroimpl added %d cuts.\n", *naddconss - noldaddconss);
                *result = SCIP_SUCCESS;
+            }
          }
 
          if ( *result != SCIP_CUTOFF && conshdlrdata->sdpconshdlrdata->twominorlinconss )
@@ -4008,7 +4035,10 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
             SCIP_CALL( addTwoMinorLinConstraints(scip, conss, nconss, naddconss) );
             SCIPdebugMsg(scip, "Added %d linear constraints for 2 by 2 minors.\n", *naddconss - noldaddconss);
             if ( noldaddconss != *naddconss )
+            {
+               SCIPinfoMessage(scip, NULL, "Twominorlinconss added %d cuts.\n", *naddconss - noldaddconss);
                *result = SCIP_SUCCESS;
+            }
          }
 
          if ( *result != SCIP_CUTOFF && conshdlrdata->sdpconshdlrdata->twominorprodconss )
@@ -4017,7 +4047,10 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
             SCIP_CALL( addTwoMinorProdConstraints(scip, conss, nconss, naddconss) );
             SCIPdebugMsg(scip, "Added %d linear constraints for products of 2 by 2 minors.\n", *naddconss - noldaddconss);
             if ( noldaddconss != *naddconss )
+            {
+               SCIPinfoMessage(scip, NULL, "Twominorprodconss added %d cuts.\n", *naddconss - noldaddconss);
                *result = SCIP_SUCCESS;
+            }
          }
       }
    }
