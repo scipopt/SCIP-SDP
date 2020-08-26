@@ -3968,7 +3968,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
          SCIP_CALL( tightenMatrices(scip, conss, nconss, nchgcoefs) );
          if ( noldchgcoefs != *nchgcoefs )
          {
-            SCIPinfoMessage("TightenMatrices successfully tightened %d coefficient matrices.\n", noldchgcoefs - *nchgcoefs);
+            SCIPinfoMessage(scip, NULL, "TightenMatrices successfully tightened %d coefficient matrices.\n", noldchgcoefs - *nchgcoefs);
             *result = SCIP_SUCCESS;
          }
       }
@@ -3986,7 +3986,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 
          if ( noldchgbds != *nchgbds )
          {
-            SCIPinfoMessage("TightenBounds successfully tightened %d bounds.\n", noldchgbds - *nchgbds);
+            SCIPinfoMessage(scip, NULL, "TightenBounds successfully tightened %d bounds.\n", noldchgbds - *nchgbds);
             *result = SCIP_SUCCESS;
          }
       }
@@ -4012,7 +4012,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 
             if ( noldaddconss != *naddconss || noldchgbds != *nchgbds )
             {
-               SCIPinfoMsg(scip, NULL, "Diaggezero added %d cuts and changed %d bounds.\n", *naddconss - noldaddconss, *nchgbds - noldchgbds);
+               SCIPinfoMessage(scip, NULL, "Diaggezero added %d cuts and changed %d bounds.\n", *naddconss - noldaddconss, *nchgbds - noldchgbds);
                *result = SCIP_SUCCESS;
             }
          }
