@@ -2840,6 +2840,9 @@ SCIP_RETCODE propConstraints(
             }
             assert( consdata->matrixconst[diags] != SCIP_INVALID );
 
+            if ( SCIPisInfinity(scip, ubs) )
+               continue;
+
             ubs -= consdata->matrixconst[diags];
 
             for (t = 0; t < s; ++t)
@@ -2870,6 +2873,9 @@ SCIP_RETCODE propConstraints(
                      ubt = consdata->matrixval[diagt] * SCIPvarGetLbLocal(vart);
                }
                assert( consdata->matrixconst[diagt] != SCIP_INVALID );
+
+               if ( SCIPisInfinity(scip, ubt) )
+                  continue;
 
                ubt -= consdata->matrixconst[diagt];
 
