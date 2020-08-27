@@ -1,11 +1,13 @@
-function [] = RIPCBFprimal(A, k, side, file, Rank, socp, bounds)
+function [] = RIPCBFprimal(A, k, side, file, Rank, socp, strgbnds,nobnds)
 % schreibt SDP-File für ganzzahlige RIP-SDP-Relaxierung in primaler Form
 % (mit PSD-Variablen) für Matrix A, Ordnung k, schreibt in 'file' 
 % side ='l' für linke Seite/alpha_k, side='r' für rechte Seite/beta_k
 % Rank = 1 für zusätzliche Rang-NB, sonst Rank = 0
 % socp = 1 für zusätzliche gültige SOCP-Ungleichung von Li/Xie, sonst = 0
-% bounds = 1 falls für nichtnegative Matrizen A die Schranke 0 <= X_{ij}
+% strgbnds = 1 falls für nichtnegative Matrizen A die Schranke 0 <= X_{ij}
 % statt -z_j <= X_{ij} für alle i,j benutzt werden soll, sonst = 0
+% nonbds = 1 für -z_j <= X_{ij} <= z_j statt -0.5*z_j <= X_{ij} <= 0.5*z_j
+% für i ~= j, sonst 0
 % ACHTUNG: schreibt untere Dreiecksmatrizen!
 
     fid = fopen(file, 'w');
@@ -13,12 +15,12 @@ function [] = RIPCBFprimal(A, k, side, file, Rank, socp, bounds)
     n=length(A(1,:));
 
     % check if A is entrywise nonnegative:
-    if bounds == 1 && ~all(A >= 0, 'all')
-        bounds = 0;
-        fprintf("Setting bounds = 0, since matrix A is not nonnegative!\n");
-    elseif bounds == 1 && ~side == 'r'
-        bounds = 0;
-        fprintf("Setting bounds = 0, since this only works for right side of RIP!\n");
+    if strgbnds == 1 && ~all(A >= 0, 'all')
+        strgbnds = 0;
+        fprintf("Setting strgbnds = 0, since matrix A is not nonnegative!\n");
+    elseif strgbnds == 1 && ~side == 'r'
+        strgbnds = 0;
+        fprintf("Setting strgbnds = 0, since this only works for right side of RIP!\n");
     end
     
     % SOCP-inequality is only valid for right side of the RIP
@@ -212,10 +214,10 @@ function [] = RIPCBFprimal(A, k, side, file, Rank, socp, bounds)
 
     %% ACOORD
     fprintf(fid, "ACOORD\n");
-    if bounds ~= 0 && bounds ~= 1
-        error("Error: Option <%s> for parameter bounds not valid!\n", bounds);
+    if strgbnds ~= 0 && strgbnds ~= 1
+        error("Error: Option <%s> for parameter strgbnds not valid!\n", strgbnds);
     end
-    nACOORD = n*(n+1)+2*n + socp*(2*n) - bounds*(0.5*n*(n+1));
+    nACOORD = n*(n+1)+2*n + socp*(2*n) - strgbnds*(0.5*n*(n+1));
     fprintf(fid, "%d\n", nACOORD);
     cnt = 0;
     conscnt = 0;
@@ -236,19 +238,19 @@ function [] = RIPCBFprimal(A, k, side, file, Rank, socp, bounds)
         error("Error while writing ACOORD for SOCP constraint!\n");
     end  
     
-    % add upper bounds on z
+    % add upper strgbnds on z
     for j = 0:n-1
         fprintf(fid, "%d %d -1.0\n", conscnt, j);
         conscnt = conscnt + 1;
         cnt = cnt + 1;
     end
 
-    % add coupling constraints -z_j - X_{ij} <= 0 (if bounds = 1, this
+    % add coupling constraints -z_j - X_{ij} <= 0 (if strgbnds = 1, this
     % changes to -X_{ij} <= 0, so that nothing needs to be specified here
-    if bounds == 0
+    if strgbnds == 0
         for i = 0:n-1
             for j = 0:i
-                if ( i ~= j )
+                if ( i ~= j && nobnds == 0 )
                     fprintf(fid, "%d %d -0.5\n", conscnt, j);
                 else
                     fprintf(fid, "%d %d -1.0\n", conscnt, j);
@@ -264,7 +266,7 @@ function [] = RIPCBFprimal(A, k, side, file, Rank, socp, bounds)
     % add coupling constraints z_j - X_{ij} >= 0
     for i = 0:n-1
         for j = 0:i
-            if ( i ~= j )
+            if ( i ~= j && nobnds == 0 )
                 fprintf(fid, "%d %d 0.5\n", conscnt, j);
             else
                 fprintf(fid, "%d %d 1.0\n", conscnt, j);
