@@ -18,7 +18,7 @@ function [] = RIPCBFdual(A, k, side, file, Rank, socp, bounds)
         fprintf("Setting bounds = 0, since matrix A is not nonnegative!\n");
     elseif bounds == 1 && ~side == 'r'
         bounds = 0;
-        fprintf("Setting bounds = 0, since  only works for right side of RIP!\n");
+        fprintf("Setting bounds = 0, since this only works for right side of RIP!\n");
     end
     
     % SOCP-inequality is only valid for right side of the RIP
@@ -60,15 +60,15 @@ function [] = RIPCBFdual(A, k, side, file, Rank, socp, bounds)
     % objective
     fprintf(fid, "OBJACOORD\n");
     fprintf(fid, "%d\n", 0.5*n*(n+1));
-    cnt = n;
+    cnt = 0;
     for i = 0:n-1
         for j = 0:i
             if i ~= j
-                fprintf(fid, "%d %.15g\n", 0.5*i*(i+1)+j, B(i+1,j+1)+B(j+1,i+1));
-                cnt = cnt + 1;
+                fprintf(fid, "%d %.15g\n", n+cnt, B(i+1,j+1)+B(j+1,i+1));
             else
-                fprintf(fid, "%d %.15g\n", 0.5*i*(i+1)+j, B(i+1,j+1));
+                fprintf(fid, "%d %.15g\n", n+cnt, B(i+1,j+1));
             end
+            cnt = cnt + 1;
             % check that matrix is symmetric
             if ( abs(B(i+1,j+1) - B(j+1,i+1)) > 1e-6 )
                 error("Error: B matrix not symmetric!\n");
@@ -76,6 +76,10 @@ function [] = RIPCBFdual(A, k, side, file, Rank, socp, bounds)
         end
     end
     fprintf(fid, "\n");
+    
+    if cnt ~= 0.5*n*(n+1)
+        error("Error while writing OBJACOORD!");
+    end
 
     % all scalar variables z are binary
     fprintf(fid, "INT\n");
@@ -115,7 +119,8 @@ function [] = RIPCBFdual(A, k, side, file, Rank, socp, bounds)
     % constraints
     fprintf(fid, "CON\n");
     ncons = n*(n+1)+n+2 - bounds*0.5*n*(n+1);
-    fprintf(fid, "%d 5\n", ncons);
+    ncones = 5 - bounds;
+    fprintf(fid, "%d %d\n", ncons,ncones);
     fprintf(fid, "L+ %d\n", n);         % -z_j + 1 >= 0
     if bounds == 0
         fprintf(fid, "L- %d\n", 0.5*n*(n+1));  % -z_j - X_{ij} <= 0
@@ -128,7 +133,8 @@ function [] = RIPCBFdual(A, k, side, file, Rank, socp, bounds)
     
     % write ACOORD
     fprintf(fid, "ACOORD\n");
-    fprintf(fid, "%d\n", 2*n*(n+1)+3*n - bounds*n*(n+1));
+    nACOORD = 2*n*(n+1)+3*n - bounds*n*(n+1);
+    fprintf(fid, "%d\n", nACOORD);
     cnt = 0;       % counts number of specified entries
     conscnt = 0;   % counts number of specified constraints 
 
@@ -184,8 +190,8 @@ function [] = RIPCBFdual(A, k, side, file, Rank, socp, bounds)
     conscnt = conscnt + 1;
 
     fprintf(fid, "\n");
-    if (cnt ~= 2*n*(n+1)+3*n - bounds*n*(n+1) || conscnt ~= ncons)
-        fprintf("cnt is = %d, should be = %d\n",cnt, 2*n*(n+1)+3*n - bounds*n*(n+1));
+    if (cnt ~= nACOORD || conscnt ~= ncons)
+        fprintf("cnt is = %d, should be = %d\n",cnt, nACOORD);
         fprintf("conscnt = %d, should be = %d\n",conscnt, ncons);
         error("Error: Something went wrong when writing ACOORD!\n");
     end
@@ -198,7 +204,7 @@ function [] = RIPCBFdual(A, k, side, file, Rank, socp, bounds)
 
     % z < = 1
     for j = 0:n-1
-        fprintf(fid, "%d 1.0\n", cnt);
+        fprintf(fid, "%d 1.0\n", conscnt);
         cnt = cnt + 1;
         conscnt = conscnt + 1;
     end
@@ -222,12 +228,12 @@ function [] = RIPCBFdual(A, k, side, file, Rank, socp, bounds)
     end
 
     % trace constraint
-    fprintf(fid, "%d -1.0\n", cnt);
+    fprintf(fid, "%d -1.0\n", conscnt);
     cnt = cnt + 1;
     conscnt = conscnt + 1;
 
     % sparsity constraint
-    fprintf(fid, "%d %d\n", cnt, -k);
+    fprintf(fid, "%d %d\n", conscnt, -k);
     cnt = cnt + 1;
     conscnt = conscnt + 1;
 
@@ -242,11 +248,8 @@ function [] = RIPCBFdual(A, k, side, file, Rank, socp, bounds)
 
     % write HCOORD
     fprintf(fid, "HCOORD\n");
-    if socp == 1
-        fprintf(fid, "%d\n", 0.5*n*(n+1) + 4*n+n^2);
-    else
-        fprintf(fid, "%d\n", 0.5*n*(n+1));
-    end
+    nHCOORD = 0.5*n*(n+1) + socp*(4*n+n^2);
+    fprintf(fid, "%d\n", nHCOORD);
 
     cnt = 0;       % counts number of specified entries
     for i = 0:n-1
@@ -256,8 +259,8 @@ function [] = RIPCBFdual(A, k, side, file, Rank, socp, bounds)
         end
     end
 
+    socpcnt = 0;
     if socp == 1
-        socpcnt = 0;
         for i = 0:n-1
             fprintf(fid, "%d %d 0 0 0.5\n", i+1,i);
             fprintf(fid, "%d %d %d 0 -0.5\n", i+1,i,n+1);
@@ -273,11 +276,9 @@ function [] = RIPCBFdual(A, k, side, file, Rank, socp, bounds)
                 socpcnt = socpcnt + 1;
             end
         end
-    else
-        socpcnt = 4*n+n^2;
     end
 
-    if cnt + socpcnt ~= 0.5*n*(n+1) + 4*n+n^2
+    if cnt + socpcnt ~= nHCOORD
         error("Error: Something went wrong when writing HCOORD!\n");
     end
 

@@ -18,7 +18,7 @@ function [] = RIPCBFprimal(A, k, side, file, Rank, socp, bounds)
         fprintf("Setting bounds = 0, since matrix A is not nonnegative!\n");
     elseif bounds == 1 && ~side == 'r'
         bounds = 0;
-        fprintf("Setting bounds = 0, since  only works for right side of RIP!\n");
+        fprintf("Setting bounds = 0, since this only works for right side of RIP!\n");
     end
     
     % SOCP-inequality is only valid for right side of the RIP
@@ -43,29 +43,31 @@ function [] = RIPCBFprimal(A, k, side, file, Rank, socp, bounds)
         error("Error: Option <%s> for parameter side not valid!\n", side);
     end
 
-    % add scalar variables z
+    %% add scalar variables z
     fprintf(fid, "VAR\n");
     fprintf(fid, "%d 1\n", n);
     fprintf(fid, "L+ %d\n", n);
     fprintf(fid, "\n");
 
-    % add Matrix variables X
+    %% add Matrix variables X
     fprintf(fid, "PSDVAR\n");
     if socp == 0
         fprintf(fid, "1\n");
         fprintf(fid, "%d\n", n);
     elseif socp == 1
-        fprintf(fid, "2\n");
+        fprintf(fid, "%d\n", n+1);
         fprintf(fid, "%d\n", n);
-        fprintf(fid, "%d\n", n+2);
+        for j = 0:n-1
+            fprintf(fid, "%d\n", n+2);
+        end
     else
         error("Error: Option <%s> for parameter socp not valid!\n", socp);
     end
     fprintf(fid, "\n");
 
-    % objective
+    %% objective
     fprintf(fid, "OBJFCOORD\n");
-    fprintf(fid, "%d\n", n * (n + 1)/2);
+    fprintf(fid, "%d\n", 0.5*n*(n+1));
     for i = 0:n-1
         for j = 0:i
             fprintf(fid, "0 %d %d %.15g\n", i, j, B(i+1,j+1));
@@ -78,7 +80,7 @@ function [] = RIPCBFprimal(A, k, side, file, Rank, socp, bounds)
 
     fprintf(fid, "\n");
 
-    % all scalar variables z are binary
+    %% all scalar variables z are binary
     fprintf(fid, "INT\n");
     fprintf(fid, "%d\n", n);
     for j = 0:n-1
@@ -86,7 +88,7 @@ function [] = RIPCBFprimal(A, k, side, file, Rank, socp, bounds)
     end
     fprintf(fid, "\n");
 
-    % add rank1-constraint
+    %% add rank1-constraint
     if ( Rank == 1 )
         fprintf(fid, "PSDVARRANK1\n");
         fprintf(fid, "1\n");
@@ -94,127 +96,146 @@ function [] = RIPCBFprimal(A, k, side, file, Rank, socp, bounds)
         fprintf(fid, "\n");
     end
 
-    % ------------------------------------------
-    % constraints
+    %% constraints
     fprintf(fid, "CON\n");
-    ncons = 2*n^2+n+2;
-    if socp == 0
-        fprintf(fid, "%d 5\n", ncons);
-    else
+    nsocpcons = 0.5*n*(n+3)*(n+2);
+    ncons = n*(n+1)+n+2 + socp*nsocpcons;
+    ncones = 5 + socp;
+    fprintf(fid, "%d %d\n", ncons, ncones);
+    if socp == 1
         % SOCP constraint is the first constraint
-        nsocpcons = n*(2*n+3+0.5*n*(n+1));
-        fprintf(fid, "%d 6\n", ncons + nsocpcons);
-        fprintf(fid, "L= %d\n", nsocpcons);
+        fprintf(fid, "L= %d\n", nsocpcons);  % \sum_j X_{ij}^2 <= X_{ii}z_i
     end
-    fprintf(fid, "L+ %d\n", n);         % -z_j + 1 >= 0
-    fprintf(fid, "L- %d\n", n * n);     % -z_j - X_{ij} <= 0
-    fprintf(fid, "L+ %d\n", n * n);     % z_j - X_{ij} >= 0
-    fprintf(fid, "L= 1\n");             % \sum_j X_{jj} == 1
-    fprintf(fid, "L- 1\n");             % \sum_j z_j <= k
-    if socp == 1                        % \sum_j X_{ij}^2 <= X_{ii}z_i
-    end
+    fprintf(fid, "L+ %d\n", n);              % -z_j + 1 >= 0
+    fprintf(fid, "L- %d\n", 0.5*n*(n+1));    % -z_j - X_{ij} <= 0
+    fprintf(fid, "L+ %d\n", 0.5*n*(n+1));    % z_j - X_{ij} >= 0
+    fprintf(fid, "L= 1\n");                  % \sum_j X_{jj} == 1
+    fprintf(fid, "L- 1\n");                  % \sum_j z_j <= k
     fprintf(fid, "\n");
 
-
-    % ------------------------------------------
-    % precompute stuff for valid socp constraint
-    FCOORDcnt = 0;
-    ACOORDcnt = 0;
-    BCOORDcnt = 0;
-    socpcnt = 0;
+    %% write FCOORD
+    fprintf(fid, "FCOORD\n");
+    nFCOORD = n*(n+1)+n + socp*(n*(3*n+5+0.5*n*(n+1)));
+    fprintf(fid, "%d\n", nFCOORD);
+    cnt = 0;
+    conscnt = 0;
+    
+    % SOCP constraint
     if socp == 1
-        % FCOORD
-        socpFCOORD = "";
         for i = 0:n-1
             for j = 0:n
-                socpFCOORD = socpFCOORD + sprintf("%d 1 %d %d 1.0\n",socpcnt,j+1,j+1);
-                socpcnt = socpcnt + 1;
-                FCOORDcnt = FCOORDcnt + 1;
+                fprintf(fid, "%d %d %d %d 1.0\n",conscnt,i+1,j+1,j+1);
+                cnt = cnt + 1;
+                conscnt = conscnt + 1;
             end
-            socpFCOORD = socpFCOORD + sprintf("%d 1 0 0 1.0\n",socpcnt);
-            socpFCOORD = socpFCOORD + sprintf("%d 0 %d %d -0.5\n",socpcnt,i,i);
-            socpcnt = socpcnt + 1;
-            FCOORDcnt = FCOORDcnt + 2;
+            fprintf(fid, "%d %d 0 0 1.0\n",conscnt,i+1);
+            fprintf(fid, "%d 0 %d %d -0.5\n",conscnt,i,i);
+            conscnt = conscnt + 1;
+            cnt = cnt + 2;
             for j = 0:n-1
-                socpFCOORD = socpFCOORD + sprintf("%d 1 %d 0 1.0\n",socpcnt,j+1);
-                if j <= i
-                    socpFCOORD = socpFCOORD + sprintf("%d 0 %d %d -1.0\n",socpcnt,i,j);
+                if j == i
+                    fprintf(fid, "%d %d %d 0 0.5\n",conscnt,i+1,j+1);
                 else
-                    socpFCOORD = socpFCOORD + sprintf("%d 0 %d %d -1.0\n",socpcnt,j,i);
+                    fprintf(fid, "%d %d %d 0 1.0\n",conscnt,i+1,j+1); 
                 end
-                socpcnt = socpcnt + 1;
-                FCOORDcnt = FCOORDcnt + 2;
+                if j <= i
+                    fprintf(fid, "%d 0 %d %d -1.0\n",conscnt,i,j);
+                else
+                    fprintf(fid, "%d 0 %d %d -1.0\n",conscnt,j,i);
+                end
+                conscnt = conscnt + 1;
+                cnt = cnt + 2;
             end
-            socpFCOORD = socpFCOORD + sprintf("%d 1 %d 0 0.5\n",socpcnt,n+1);
-            socpFCOORD = socpFCOORD + sprintf("%d 0 %d %d -0.5\n",socpcnt,i,i);
-            socpcnt = socpcnt + 1;
-            FCOORDcnt = FCOORDcnt + 2;
+            fprintf(fid, "%d %d %d 0 0.5\n",conscnt,i+1,n+1);
+            fprintf(fid, "%d 0 %d %d -0.5\n",conscnt,i,i);
+            conscnt = conscnt + 1;
+            cnt = cnt + 2;
             for k = 0:n
                 for j = 0:k-1
-                    socpFCOORD = socpFCOORD + sprintf("%d 1 %d %d 1.0\n",socpcnt,k+1,j+1);
-                    socpcnt = socpcnt + 1;
-                    FCOORDcnt = FCOORDcnt + 1;
+                    fprintf(fid, "%d %d %d %d 1.0\n",conscnt,i+1,k+1,j+1);
+                    conscnt = conscnt + 1;
+                    cnt = cnt + 1;
                 end
             end
         end
-        if ( socpcnt ~= nsocpcons || FCOORDcnt ~= n*(3*n+5+0.5*n*(n+1)) )
-            fprintf("socpcnt is = %d, should be = %d\n",socpcnt, nsocpcons);
-            fprintf("FCOORDcnt is = %d, should be = %d\n",FCOORDcnt,n*(3*n+5+0.5*n*(n+1)));
-            error("Error!\n");
-        else
-            socpFCOORD = socpFCOORD + "\n";
-        end
-        
-        %ACOORD
-        socpACOORD = "";
-        for i = 0:n-1
-            pos = i*(2*n+3+0.5*n*(n-1));
-            socpACOORD = socpACOORD + sprintf("%d %d -0.5\n",pos+n+1,i);
-            ACOORDcnt = ACOORDcnt + 1;
-            socpACOORD = socpACOORD + sprintf("%d %d -0.5\n",pos+2*n+2,i);
-            ACOORDcnt = ACOORDcnt + 1;
-        end
-        if ACOORDcnt ~= 2*n
-            error("Error!\n");
-        else
-            socpACOORD = socpACOORD + "\n";
-        end
-        
-        % BCOORD
-        socpBCOORD = "";
-        for i = 0:n-1
-            for j = 0:n-1
-                pos = i*(2*n+3+0.5*n*(n-1));
-                socpBCOORD = socpBCOORD + sprintf("%d -1.0\n",pos+j);
-                BCOORDcnt = BCOORDcnt + 1;
-            end
-        end
-        if BCOORDcnt ~= n^2
-            error("Error!\n");
-        else
-            socpBCOORD = socpBCOORD + "\n";
-        end        
     end
-    
-    
-    % write ACOORD
+    if ( conscnt ~= socp*nsocpcons || cnt ~= socp*(n*(3*n+5+0.5*n*(n+1))) )
+        fprintf("conscnt is = %d, should be = %d\n",conscnt, socp*nsocpcons);
+        fprintf("cnt is = %d, should be = %d\n",cnt,socp*(n*(3*n+5+0.5*n*(n+1))));
+        error("Error while writing FCOORD for SOCP constraint!\n");
+    end
 
+    % no FCOORD for -z_j + 1 >= 0
+    conscnt = conscnt + n;
+
+    % add coupling constraints -z_j - X_{ij} <= 0
+    for i = 0:n-1
+        for j = 0:i
+            if i ~= j
+                fprintf(fid, "%d 0 %d %d -0.5\n", conscnt, i, j);
+            else
+                fprintf(fid, "%d 0 %d %d -1.0\n", conscnt, i, j);
+            end
+            cnt = cnt + 1;
+            conscnt = conscnt + 1;
+        end
+    end
+
+    % add coupling constraints z_j - X_{ij} >= 0
+    for i = 0:n-1
+        for j = 0:i
+            if i ~= j
+                fprintf(fid, "%d 0 %d %d -0.5\n", conscnt, i, j);
+            else
+                fprintf(fid, "%d 0 %d %d -1.0\n", conscnt, i, j);
+            end
+            cnt = cnt + 1;
+            conscnt = conscnt + 1;
+        end
+    end
+
+    % trace constraint
+    for i = 0:n-1
+        fprintf(fid, "%d 0 %d %d 1.0\n", conscnt, i, i);
+        cnt = cnt + 1;
+    end
+    conscnt = conscnt + 1;
+
+    % no FCOORD for sparsity constraint
+    conscnt = conscnt + 1;
+
+    fprintf(fid, "\n");
+
+    if ( conscnt ~= ncons || cnt ~= nFCOORD )
+        error("Error: Something went wrong when writing FCOORD!\n");
+    end
+
+    %% ACOORD
     fprintf(fid, "ACOORD\n");
-    if bounds == 0
-        fprintf(fid, "%d\n", 2*n^2+2*n + ACOORDcnt);
-    elseif bounds == 1
-        fprintf(fid, "%d\n", n^2+2*n + ACOORDcnt);
-    else
+    if bounds ~= 0 && bounds ~= 1
         error("Error: Option <%s> for parameter bounds not valid!\n", bounds);
     end
+    nACOORD = n*(n+1)+2*n + socp*(2*n) - bounds*(0.5*n*(n+1));
+    fprintf(fid, "%d\n", nACOORD);
     cnt = 0;
-    conscnt = socpcnt;       % SOCP constraint comes first
+    conscnt = 0;
 
     % SOCP constraint
     if socp == 1
-        fprintf(fid, socpACOORD);
+        for i = 0:n-1
+            pos = i*(0.5*(n+3)*(n+2));
+            fprintf(fid, "%d %d -0.5\n",pos+n+1,i);
+            cnt = cnt + 1;
+            fprintf(fid, "%d %d 0.5\n",pos+2*n+2,i);
+            cnt = cnt + 1;
+        end        
     end
 
+    conscnt = socp*nsocpcons;
+    if cnt ~= socp*(2*n)
+        error("Error while writing ACOORD for SOCP constraint!\n");
+    end  
+    
     % add upper bounds on z
     for j = 0:n-1
         fprintf(fid, "%d %d -1.0\n", conscnt, j);
@@ -225,8 +246,8 @@ function [] = RIPCBFprimal(A, k, side, file, Rank, socp, bounds)
     % add coupling constraints -z_j - X_{ij} <= 0 (if bounds = 1, this
     % changes to -X_{ij} <= 0, so that nothing needs to be specified here
     if bounds == 0
-        for j = 0:n-1
-            for i = 0:n-1
+        for i = 0:n-1
+            for j = 0:i
                 if ( i ~= j )
                     fprintf(fid, "%d %d -0.5\n", conscnt, j);
                 else
@@ -237,12 +258,12 @@ function [] = RIPCBFprimal(A, k, side, file, Rank, socp, bounds)
             end
         end
     else
-        conscnt = conscnt + n^2;
+        conscnt = conscnt + 0.5*n*(n+1);
     end
     
     % add coupling constraints z_j - X_{ij} >= 0
-    for j = 0:n-1
-        for i = 0:n-1
+    for i = 0:n-1
+        for j = 0:i
             if ( i ~= j )
                 fprintf(fid, "%d %d 0.5\n", conscnt, j);
             else
@@ -264,70 +285,32 @@ function [] = RIPCBFprimal(A, k, side, file, Rank, socp, bounds)
     conscnt = conscnt + 1;
 
     fprintf(fid, "\n");
-    if ( conscnt ~= ncons + socpcnt || cnt ~= 2*n^2+2*n - bounds*n^2)
+    if ( conscnt ~= ncons || cnt ~= nACOORD )
         error("Error: Something went wrong when writing ACOORD!\n");
     end
 
-
-    % write FCOORD
-    fprintf(fid, "FCOORD\n");
-    fprintf(fid, "%d\n", 2*n^2+n + FCOORDcnt);
-    cnt = 0;
-    conscnt = socpcnt;      % SOCP constraint comes first
-
-    % SOCP constraint
-    if socp == 1
-        fprintf(fid, socpFCOORD);
-    end
-
-    % no FCOORD for -z_j + 1 >= 0
-    conscnt = conscnt + n;
-
-    % add coupling constraints -z_j - X_{ij} <= 0
-    for j = 0:n-1
-        for i = 0:n-1
-            fprintf(fid, "%d 0 %d %d -1.0\n", conscnt, i, j);
-            cnt = cnt + 1;
-            conscnt = conscnt + 1;
-        end
-    end
-
-    % add coupling constraints z_j - X_{ij} >= 0
-    for j = 0:n-1
-        for i = 0:n-1
-            fprintf(fid, "%d 0 %d %d -1.0\n", conscnt, i, j);
-            cnt = cnt + 1;
-            conscnt = conscnt + 1;
-        end
-    end
-
-    % trace constraint
-    for i = 0:n-1
-        fprintf(fid, "%d 0 %d %d 1.0\n", cnt, i, i);
-        cnt = cnt + 1;
-    end
-    conscnt = conscnt + 1;
-
-    % no FCOORD for sparsity constraint
-    conscnt = conscnt + 1;
-
-    fprintf(fid, "\n");
-
-    if ( conscnt ~= ncons + socpcnt || cnt ~= 2*n^2+n )
-        error("Error: Something went wrong when writing FCOORD!\n");
-    end
-
-    % write BCOORD
+    %% write BCOORD
     fprintf(fid, "BCOORD\n");
-    fprintf(fid, "%d\n", n+2 + BCOORDcnt);
-    conscnt = socpcnt;      % SOCP constraint comes first
+    nBCOORD = n+2 + socp*(n*(n+1));
+    fprintf(fid, "%d\n", nBCOORD);
+    conscnt = 0;
     cnt = 0;
 
     % SOCP constraint
     if socp == 1
-        fprintf(fid, socpBCOORD);
+        for i = 0:n-1
+            for j = 0:n
+                pos = i*(0.5*(n+3)*(n+2));
+                fprintf(fid, "%d -1.0\n",pos+j);
+                cnt = cnt + 1;
+            end
+        end
     end
-
+    if cnt ~= socp*n*(n+1)
+        error("Error while writing BCOORD for SOCP constraint!\n");
+    end        
+    conscnt = socp*nsocpcons;
+    
     % z < = 1
     for j = 0:n-1
         fprintf(fid, "%d 1.0\n", conscnt);
@@ -336,19 +319,20 @@ function [] = RIPCBFprimal(A, k, side, file, Rank, socp, bounds)
     end
 
     % nothing to add for coupling constraints -z_j - X_{ij} <= 0
-    for j = 0:n-1
-        for i = 0:n-1
+    for i = 0:n-1
+        for j = 0:i
             conscnt = conscnt + 1;
         end
     end
 
         
     % nothing to add for coupling constraints z_j - X_{ij} >= 0
-    for j = 0:n-1
-        for i = 0:n-1
+    for i = 0:n-1
+        for j = 0:i
             conscnt = conscnt + 1;
         end
     end
+
 
     % trace constraint
     fprintf(fid, "%d -1.0\n", conscnt);
@@ -361,10 +345,10 @@ function [] = RIPCBFprimal(A, k, side, file, Rank, socp, bounds)
     cnt = cnt + 1;
 
     fprintf(fid, "\n");
-    if ( conscnt ~= ncons + socpcnt || cnt ~= n+2 )
+    if ( conscnt ~= ncons || cnt ~= nBCOORD )
         error("Error: Something went wrong when writing BCOORD!\n");
     end
 
-    % close file
+    %% close file
     fclose(fid);
 end
