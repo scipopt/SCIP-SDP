@@ -193,7 +193,7 @@ endif
 # MOSEK solver
 ifeq ($(SDPS),msk)
 BITEXT     	=  	$(word 2, $(subst _, ,$(ARCH)))
-SDPILIB		= 	-m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -Wl,-rpath=$(dir $(realpath $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) -llapack -lblas -pthread -lc -lm
+SDPILIB		= 	-m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -Wl,-rpath,$(dir $(realpath $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) -llapack -lblas -pthread -lc -lm
 endif
 
 #-----------------------------------------------------------------------------
