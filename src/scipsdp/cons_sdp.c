@@ -1023,7 +1023,7 @@ SCIP_RETCODE diagGEzero(
       SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize + 1)) / 2) ); /*lint !e647*/
       SCIP_CALL( SCIPconsSdpGetLowerTriangConstMatrix(scip, conss[c], matrix) );
 
-      /* allocate diagonal entries and intit to 0.0 */
+      /* allocate diagonal entries and init to 0.0 */
       SCIP_CALL( SCIPallocClearBufferArray(scip, &diagentries, blocksize * nvars) ); /*lint !e647*/
 
       /* get the (k,k)-entry of every matrix A_j */
@@ -1073,7 +1073,7 @@ SCIP_RETCODE diagGEzero(
             if ( SCIPisPositive(scip, lhs) )
                *infeasible = TRUE;
          }
-         else if ( cnt == 1 )
+         else if ( cnt == 1 && SCIPvarGetStatus(consvars[0]) != SCIP_VARSTATUS_MULTAGGR )
          {
             SCIP_Bool tightened;
             SCIP_VAR* var;
