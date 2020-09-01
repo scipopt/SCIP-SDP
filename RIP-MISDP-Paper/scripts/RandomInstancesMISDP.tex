@@ -1,0 +1,800 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[american]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{dsfont}
+\usepackage{mathtools}
+\usepackage{booktabs}
+\usepackage{url}
+\usepackage[inline]{enumitem}
+\usepackage{xcolor}
+\usepackage{todonotes}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{tikz}
+\usepackage{etoolbox}
+% \usepackage{enumerate}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage[top=35mm,bottom=30mm,left=30mm,right=30mm]{geometry}
+\usepackage[breaklinks,colorlinks,citecolor=blue,linkcolor=blue,
+  pdftitle={Random MISDP Instances},pdfauthor={Frederic Matter}]{hyperref}
+
+\usepackage[breaklinks,colorlinks,citecolor=blue,linkcolor=blue]{hyperref}
+\usepackage{multirow}
+\usepackage{xspace}         % must be loaded last
+
+% % number types
+\newcommand{\R}{\mathds{R}}
+\newcommand{\C}{\mathds{C}}
+\newcommand{\Q}{\mathds{Q}}
+\newcommand{\N}{\mathds{N}}
+\newcommand{\Z}{\mathds{Z}}
+\newcommand{\E}{\mathds{E}}
+\newcommand{\ones}{\mathds{1}}
+
+\newcommand{\classP}{\mathcal{P}}
+\newcommand{\NP}{\mathcal{N}\mathcal{P}}
+
+% % general commands
+\newcommand{\define}{\coloneqq}
+\newcommand{\enifed}{\eqqcolon}
+\newcommand{\bs}{\backslash}
+\newcommand{\card}[1]{\lvert{#1}\rvert}
+\newcommand{\abs}[1]{\lvert{#1}\rvert}
+\newcommand{\norm}[1]{\lVert{#1}\rVert}
+\newcommand{\sym}{\mathcal{S}}
+\newcommand{\psd}{\mathcal{S}_{+}}
+\newcommand{\pd}{\mathcal{S}_{++}}
+\newcommand{\suchthat}{\, : \,}
+\newcommand{\T}{^\top}
+\newcommand{\ceil}[1]{\lceil{#1}\rceil}
+\newcommand{\floor}[1]{\lfloor{#1}\rfloor}
+\newcommand{\size}[1]{\langle{#1}\rangle}
+\newcommand{\sprod}[2]{{#1} \bullet {#2}}
+\newcommand{\charac}[1]{\ensuremath{\chi^{#1}}}
+\newcommand{\encode}[1]{\langle #1 \rangle}
+\renewcommand{\L}{\mathcal{L}}
+\newcommand{\A}{\mathcal{A}}
+\renewcommand{\Re}{\textnormal{Re}}
+\renewcommand{\Im}{\textnormal{Im}}
+\newcommand{\id}{\mathds{I}} % identity matrix (since $I$ collides with
+% index set $I$)
+\newcommand{\nullspace}{\textnormal{null}} % null space
+\newcommand{\sphere}{\mathds{S}} % unit sphere
+\newcommand{\ball}{\mathds{B}}   % unit ball
+\newcommand{\prob}{\mathds{P}}   % probability
+\newcommand{\dc}{\mathcal{T}}    % descent cone
+\newcommand{\normal}{\mathcal{N}}
+
+% math operators
+\DeclareMathOperator{\conv}{conv}
+\DeclareMathOperator{\cone}{cone}
+\DeclareMathOperator{\supp}{supp}
+\DeclareMathOperator{\dist}{dist}
+\DeclareMathOperator{\lin}{lin}
+\DeclareMathOperator{\aff}{aff}
+\DeclareMathOperator{\poly}{poly}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator{\rank}{rank}
+\DeclareMathOperator{\sign}{sign}
+\DeclareMathOperator{\spark}{spark}
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator{\linspan}{span}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\blkdiag}{blkdiag}
+\DeclareMathOperator{\unif}{Unif}
+
+
+% useful environments
+\newenvironment{dense_itemize}{%
+  \begin{list}{$\circ$}%
+    {\setlength{\topsep}{1mm}%
+      \setlength{\partopsep}{0mm}%
+      \setlength{\parskip}{0mm}%
+      \setlength{\parsep}{0mm}%
+      \setlength{\itemsep}{0mm}%
+      \setlength{\labelwidth}{4mm}%
+      \setlength{\leftmargin}{0mm}%
+      \addtolength{\leftmargin}{\labelwidth}%
+      \addtolength{\leftmargin}{\labelsep}%
+      \setlength{\itemindent}{0mm}}}%
+  {\end{list}}
+
+% % alternative definitions for enumerate, itemize, etc.
+% \setlist[itemize]{label=$\triangleright$,leftmargin=2ex,itemsep=0ex,parsep=0ex,topsep=0.5ex}
+% \setlist[enumerate]{leftmargin=3ex,itemsep=0ex,parsep=0.25ex,topsep=0.5ex}
+% \setlist[description]{labelwidth=0pt,leftmargin=30pt,itemindent=\dimexpr-20pt-\labelsep\relax}
+
+
+
+\newtheorem{lemma}{Lemma}
+\newtheorem{proposition}[lemma]{Proposition}
+\newtheorem{corollary}[lemma]{Corollary}
+\newtheorem{theorem}[lemma]{Theorem}
+\newtheorem{corrollary}[lemma]{Corrollary}
+\newtheorem{remark}[lemma]{Remark}
+\newtheorem{conjecture}[lemma]{Conjecture}
+\newtheorem*{questions}{Questions}
+\theoremstyle{definition}
+\newtheorem{definition}[lemma]{Definition}
+\newtheorem{observation}[lemma]{Observation}
+\newtheorem{fact}[lemma]{Fact}
+\newtheorem*{note}{Note}
+\newtheorem{example}[lemma]{Example}
+
+
+% TO DO's
+% \renewcommand{\todo}{\footnote}
+\newcommand{\ter}[1]{\textcolor{red}{#1}}
+
+
+% remove indentation at beginning of section
+\makeatletter
+\patchcmd{\@startsection}
+  {\@afterindenttrue}
+  {\@afterindentfalse}
+  {}{}
+\makeatother
+
+\title{Documentation of Scripts for Generating Random MISDP Instances}
+
+\author{Frederic Matter}
+
+\date{\today}
+
+
+\begin{document}
+
+\maketitle
+
+This document describes the various routines used for generating random
+instances of general (dual) MISDP, see Section~\ref{sec:RandomMISDP} and
+random instances for computing the RIP, see Section~\ref{sec:RandomRIP}.
+
+\section{General Random (Dual) MISDP}
+\label{sec:RandomMISDP}
+We consider the following general (dual) form of an MISDP:
+\begin{align}\label{eq:DualMISDP}
+  \max\, \{b\T y \suchthat \sum_{k=1}^m A^{(k)}y_k - A^{(0)} \succeq 0,\; y
+  \in \{0,1\}^{m_b} \times \R^{m_c}\},
+\end{align}
+where~$m = m_b + m_c$ and~$A^{(k)} \in \sym^n$ for~$0\leq k\leq m$.
+
+Kobayashi and Takano~\cite{Kob20} create random instances
+of~\eqref{eq:DualMISDP} as follows:
+\begin{align*}
+  y_k &\sim \unif(\{0,1\}), \, k \leq m_b,\\
+  y_k &\sim \unif([0,1]),\, k > m_b, \\
+  A^{(k)}_{i,j} &\sim \unif([-1,1]),\, 1\leq j \leq i \leq n, k \in [m],\\
+  A^{(0)} &= \sum_{i=1}^m A^{(k)}y_k - \alpha \id,\\
+  b_k &= A^{(k)}\bullet \id, \; k \in [m],
+\end{align*}
+so that~$\sum_{k=1}^m A^{(k)}y_k - A^{(0)} = \alpha\id \succeq 0$
+for~$\alpha \geq 0$. They use the following parameters:
+\begin{table}[h]
+  \centering
+  \begin{tabular}{cccc}
+    $n$ & $m_c$ & $m_b$ & $\alpha$ \\
+    \toprule
+    30 & 30 & 30 & $\{1.0,0.1,10\}$ \\
+    45 & 45 & 45 & 1.0 \\
+    60 & 60 & 60 & 1.0 \\
+    $\{15,60\}$ & 30 & 30 & 1.0 \\
+    30 & $\{15,60\}$ & 30 & 1.0 \\
+    30 & 30 & $\{15,60\}$ & 1.0
+  \end{tabular}
+\end{table}
+
+The
+script~\textsf{SCIPSDP/tools/InstanceGeneration/generateRandomMISDP.prl}
+takes as input~$(n,m_b,m_c,\alpha)$ and generates the
+instance~\textsf{randomMISDP\_n\_mb\_mc\_alpha.cbf} of the
+form~\eqref{eq:DualMISDP} in the CBF-format,
+see~\url{http://cblib.zib.de/}.
+
+The
+script~\textsf{SCIPSDP/tools/InstanceGeneration/generateRandomMISDP-PSD.prl}
+generates random instances of~\eqref{eq:DualMISDP} where all
+matrices~$A^{(k)}$ are positive semidefinite. This is ensured by
+using~$A^{(k)} = aa\T$, where~$a_i \sim \unif([-1,1])$.
+
+
+\section{MISDP for RIP}
+\label{sec:RandomRIP}
+
+The RIP can be computed by computing~$\alpha_k$ and~$\beta_k$ defined as
+\begin{align}
+  \alpha_k &= \min\, \{\norm{Ax}_2^2 \suchthat \norm{x}_2^2 = 1, \;
+             \norm{x}_0 \leq k\}, \label{eq:RIPalpha} \\
+  \beta_k &=  \max\, \{\norm{Ax}_2^2 \suchthat \norm{x}_2^2 = 1, \;
+             \norm{x}_0 \leq k\}. \label{eq:RIPbeta}
+\end{align}
+Note that the problem for computing~$\beta_k$ is also called sparse PCA (SPCA).
+The exact MISDP-formulation reads
+\begin{align}\label{eq:MISDPRIP}
+  \max/\min\, \Big\{\tr(A\T AX) \suchthat
+  &\tr(X) = 1, \, -z_i \leq X_{ii} \leq
+  z_i,\, -\tfrac{1}{2}z_j \leq X_{ij} \leq \tfrac{1}{2}z_j, \text{ for } i
+    \neq j, \\
+  &\sum_{i=1}^k z_i\leq k,\, X \succeq 0,\, z_i \in \{0,1\}\Big\}.
+\end{align}
+Note that there always is an optimal solution~$X \succeq 0$ that has
+rank~$1$, so that no rank-$1$-constraint is needed in the
+MISDP-formulation, see~\cite[Theorem 4]{GalP16}. Moreover, for the
+validity of the stronger bounds~$-\tfrac{1}{2}z_j \leq X_{ij} \leq
+\tfrac{1}{2}z_j$ for $i \neq j$, see~\cite[Lemma 1]{GalP16}.
+
+Kobayashi and Takano~\cite{Kob20} create random instances
+with~$A_{i,j} \sim \normal(0,1)$. They use the following parameters with
+three instances per each triple~$(m,n,k)$:
+\begin{table}[h]
+  \centering
+  \begin{tabular}{ccc}
+    $m$ & $n$ & $k$ \\
+    \toprule
+    10 & $\{10,15,20,25,30,35\}$ & $\{3,5\}$
+  \end{tabular}
+\end{table}
+
+
+Li and Xie~\cite{LiX20} propose two valid inequalities for strengthening the MISDP:
+\begin{align*}
+  \sum_{j=1}^n X_{ij}^2 &\leq X_{ii}z_i,\quad \forall \; i \in [n],\\
+  \big(\sum_{j=1}^n \abs{X_{ij}}\big)^2 &\leq kX_{ii}z_i, \quad \forall \;
+                                          i \in [n].
+\end{align*}
+Both inequalities are SOC-representable and can thus be formulated as an SDP-constraint:
+\begin{align}\label{eq:ValidSOCPineqSDP}
+  \sum_{j=1}^n X_{ij}^2 \leq X_{ii}z_i \; \Leftrightarrow \;
+  \begin{pmatrix}
+    \tfrac{X_{ii}+z_I}{2} & X_{i1} & \cdots & X_{in} & \tfrac{X_{ii}-z_i}{2}
+    \\
+    X_{i1} & 1 & & 0 & 0 \\
+    \vdots &\vdots & \ddots & \vdots & \vdots \\
+    X_{in} & 0 & & 1 & 0 \\
+    \tfrac{X_{ii}-z_i}{2} & 0 & \cdots & 0 & 1
+  \end{pmatrix} \succeq 0.
+\end{align}
+This gives rise to the following weaker inequalities:
+\begin{align*}
+  \sum_{j=1}^n X_{ij}^2 \leq z_i^2 \; \Leftrightarrow \;
+  \begin{pmatrix}
+    z_i & X_{i1} & \cdots & X_{in} \\
+    X_{i1} & 1 & & 0 \\
+    \vdots &\vdots & \ddots & \vdots \\
+    X_{in} & 0 & & 1
+  \end{pmatrix} \succeq 0, \qquad
+                   X_{ij}^2 \leq z_iX_{ii}  \; \Leftrightarrow \;
+                   \begin{pmatrix}
+                     z_i & X_{ij} \\
+                     X_{ij} & X_{ii}
+                   \end{pmatrix} \succeq 0,
+\end{align*}
+where the second inequality can be added for all~$0\leq j < i\leq n$.
+
+The
+script~\textsf{SCIPSDP/tools/InstanceGeneration/generateRandomRIP-MISDP.prl}
+takes as input~$(m,n,k)$ and generates the
+instance~\textsf{randomRIP\_m\_n\_k.cbf}, which is the cbf-file for the
+MISDP-formulation of~$\alpha_k$, i.e., the lower bound for the RIP.
+
+\begin{table}
+  \begin{center}
+    \begin{tabular}[h]{l c}
+      0+-1 & $A_{ij} = 0$ (probability~$\tfrac{2}{3}$) or
+             $A_{ij} = \pm \sqrt{3/m}$ (probability~$\tfrac{1}{6}$) \\
+      band & $A_{ij}\sim$ Unif($\{0,1\}$), band matrix with specified bandwidth \\
+      bern & $A_{ij}\sim$ Unif($\{\pm \sqrt{}\}$) \\
+      bina & $A_{ij}\sim$ Unif($\{0,1\}$) \\
+      norm & $A_{ij}\sim$ $\mathcal{N}(0,1)$ \\
+      rnk1 & $A = aa^\top$ $a_i \sim
+             \mathcal{N}(0,1)$ \\
+      wish & $A_{ij}\sim$ $\mathcal{N}(0,\tfrac{1}{m})$
+    \end{tabular}
+  \end{center}
+  \caption{The seven types of random matrices used in~\cite{GalP16}.}
+  \label{tab:MatrixTypesRIP}
+\end{table}
+
+Gally and Pfetsch~\cite{GalP16} use seven types of random matrices for the
+computation of the RIP, which are summarized in
+Table~\ref{tab:MatrixTypesRIP}. Additionally, they test the exact
+MISDP-formulation~\eqref{eq:MISDPRIP} against two relaxations used
+by~\cite{dAspEtAl08,dAspEtAl07}. The scripts to generate such matrices in
+SDPA- or CBF-format, and for computing the two relaxations
+from~\cite{dAspEtAl08,dAspEtAl07} are contained in the
+folder~\textsf{SCIPSDP/RIP-MISDP-Paper/scripts}. In the following, there is
+a short documentation of these scripts:
+\begin{itemize}
+\item \textsf{Aspr07SDPA.m}: This scripts writes the SDP-relaxation of~\cite{dAspEtAl07} in the SDPA-format to the file given by ``file''.\\
+  Input: Matrix~$A$; order~$k$ of the RIC~$\alpha_k$, $\beta_k$; side
+  $\in \{"\ell",\, "r"\}$ for the left side/lower bound/$\alpha_k$ or the
+  right side/upper bound/$\beta_k$, respectively; Rank $\in \{0,1\}$, where
+  Rank = 1 adds a rank-1 constraint for the positive semidefinite
+  matrix~$X$.
+\item \textsf{Aspr08LagrangeRelaxSDP.m}: This script computes a single
+  SDP-relaxation for the Lagrange-relaxation of the RIP, as described
+  in~\cite{dAspEtAl08}.\\
+  Input: $A,\, k,\, \rho,\, \alpha$ as in~\cite{dAspEtAl08}; ``side''
+  (``l'' for left side/lower bound/$\alpha_k$; ``r'' for right
+  side/upper bound/$\beta_k$)
+\item \textsf{Aspr08Subgradient.m}: This script computes a bound for
+  $alpha_k, \, beta_k$ using a subgradient approach for the
+  Lagrange-relaxation of the RIP described in~\cite{dAspEtAl08}.\\
+  Input: $A,\, k,\, \rho,\, \alpha$ as in~\cite{dAspEtAl08}; ``side''
+  (``l'' for left side/lower bound/$\alpha_k$; ``r'' for right
+  side/upper bound/$\beta_k$)
+\item \textsf{generateRandomMatricesRIP.m}: This script
+  calls~\textsf{generateRIPA.m}. Therefore, it defines values
+  for~$m,\, n,\, k$, the number of instances of each type to be generated,
+  and a random seed to be used.
+\item \textsf{generateRIPA.m}: This script generates random matrices~$A$
+  for computing the RIP. Input:
+  \begin{dense_itemize}
+  \item $m$ = number of rows of the random matrix~$A$. 
+  \item $n$ = number of columns of the random matrix~$A$. 
+  \item $k$ = order~$k$ for~$\alpha_k, \, \beta_k$.
+  \item ``seed'' = random seed used in \textsf{generateRandomMatricesRIP.m}.
+  \item ``instances'' = number of matrices~$A$ to be generated.
+  \item ``type'' = type of randomness used for generating~$A$, see Table~\ref{tab:MatrixTypesRIP}.
+  \item ``bandwidth'' = bandwidth of~$A$, if ``type'' is ``band''.
+  \end{dense_itemize}
+  Output: Instances~\textsf{Matrices/type.m.n.k\_MISDP.side.pd.rank.socp.strgbnds[.nb]}, where
+  \begin{dense_itemize}
+  \item ``type'', $m$, $n$, $k$ : as above
+  \item ``side''          : ``l'' (left side/$\alpha_k$), ``r'' (right side/$\beta_k$)
+  \item ``pd''            : p (primal form using matrix variables), d (dual
+    form using scalar variables)
+  \item ``rank''          : 1 (with rank-1 constraint), 0 (without)
+  \item ``socp''          : 1 (with valid inequalities from~\cite{LiX20}, see~\eqref{eq:ValidSOCPineqSDP}), 0 (without)
+  \item ``strgbnds''      : 1 (with stronger lower bounds~$X_{ij} \geq 0$
+    if~$A \geq 0$ entrywise), 0 (with)
+  \item ``nobnds'' : ``nb'' (without stronger bounds~$-\tfrac{1}{2}z_j \leq X_{ij} \leq
+\tfrac{1}{2}z_j$ for $i \neq j$), else nothing is added to the filename.
+  \end{dense_itemize}
+\item \textsf{generateTestsets.sh}: This script generates testset-files
+  \textsf{\*.test} for the instances generated
+  by~\textsf{generateRandomMatricesRIP.m}.
+\item \textsf{NSPAZimpl.m}: This script generates a zimpl-file for
+  computing~$\alpha_k$ for the NSP of a given matrix~$A$ and order~$k$ as
+  MINLP.
+\item \textsf{RIPAZimpl.m}: This script generates a zimpl-file for
+  computing~$\alpha_k,\, \beta_k$ for the RIP of a given matrix~$A$ and
+  order~$k$ as MINLP.
+\item \textsf{RIPCBFdual.m}: This script generates the MISDP formulation
+  for computing~$\alpha_k,\, \beta_k$ of the RIP for a given matrix~$A$ and
+  a given order~$k$ in the CBF-format using scalar variables (dual
+  form). The instance is written to ``file''. See Section~\ref{sec:CBFdual}
+  for the structure of
+  this cbf-file. \\
+  Input:
+  \begin{dense_itemize}
+  \item $A$: matrix 
+  \item $k$: order
+  \item ``side'', ``Rank'', ``socp'', ``strgbnds'', ``nobnds'': see Output
+    of \textsf{generateRIPA.m} or Section~\ref{sec:CBFdual}.
+  \end{dense_itemize}
+  Attention: The instances generated by this script are written as lower
+  triangular matrices.
+\item \textsf{RIPCBFprimal.m}: This script generates the MISDP formulation
+  for computing~$\alpha_k,\, \beta_k$ of the RIP for a given matrix~$A$ and
+  a given order~$k$ in the CBF-format using matrix variables (primal
+  form). The instance is written to ``file''. See
+  Section~\ref{sec:CBFprimal} for the structure of
+  this cbf-file. \\
+  Input:
+  \begin{dense_itemize}
+  \item $A$: matrix 
+  \item $k$: order
+  \item ``side'', ``Rank'', ``socp'', ``strgbnds'', ``nobnds'': see Output
+    of \textsf{generateRIPA.m}, or Section~\ref{sec:CBFprimal}.
+  \end{dense_itemize}
+  Attention: The instances generated by this script are written as lower
+  triangular matrices. 
+\item \textsf{RIPSDPAcont.m}: This script
+  generates the continous relaxation of the MISDP formulation for
+  computing~$\alpha_k,\, \beta_k$ of the RIP for a given matrix~$A$ and a
+  given order~$k$ in the SDPA-format. That is, the integral
+  constraints~$z_j \in \{0,1\}$ are replaced by~$z_j \in [0,1]$.  The
+  instance is written to ``file''. \\
+  Input:
+  \begin{dense_itemize}
+  \item $A$: matrix 
+  \item $k$: order
+  \item ``side'', ``Rank'': see Output of \textsf{generateRIPA.m}
+  \end{dense_itemize}
+
+\item \textsf{RIPSDPA.m}: This script generates the MISDP formulation
+  for computing~$\alpha_k,\, \beta_k$ of the RIP for a given matrix~$A$ and
+  a given order~$k$ in the SDPA-format. The instance is written to
+  ``file''. \\
+  Input:
+  \begin{dense_itemize}
+  \item $A$: matrix 
+  \item $k$: order
+  \item ``side'', ``Rank'': see Output of \textsf{generateRIPA.m}
+  \end{dense_itemize}
+\end{itemize}
+
+
+\subsection{CBF-file for dual MISDP-formulation of RIP}
+\label{sec:CBFdual}
+This section describes the structure of the CBF-file for the
+MISDP-formulation~\eqref{eq:MISDPRIP} in dual form (using scalar variables)
+generated by
+\textsf{SCIPSDP/RIP-MISDP-Paper/scripts/RIPCBFdual.m}.\\
+
+
+{\footnotesize
+\noindent
+\textbf{VER} \\
+1 \\
+\textbf{OBJSENSE} \\
+MIN (if ``side'' = l) \; or \; MAX (if ``side'' = r) \\
+\textbf{VAR} \\
+\# vars:  $n+\tfrac{1}{2}n(n+1)$, \qquad \# cones: $2$ \\
+\[
+  \begin{aligned}
+    &\text{L+} &n \qquad & z_0,\dots,z_{n-1} \\
+    &\text{F}\quad{\color{blue} (L+)}  &\tfrac{1}{2}n(n+1) \qquad & X_{ij},\;
+    {\color{blue} (X_{ij} \geq 0)} \qquad 0 \leq j \leq i \leq n-1
+  \end{aligned}
+\]
+\textbf{CON} \\
+\# cons: $n(n+1)+n+2 \quad {\color{blue}(\tfrac{1}{2}n(n+1)+n+2)}$, \qquad
+\# cones = $5 \quad {\color{blue} (4)}$\\
+\[
+  \begin{aligned}
+    &\text{L+} &n \qquad & -z_i + 1 \geq 0, \quad & i = 0,\dots,n-1 \\
+    &\text{L-} &\tfrac{1}{2}n(n+1) \qquad & {\color{blue}-z_i - X_{ij} \leq 0},\quad & 0
+    \leq j \leq i \leq n-1 &\qquad {\color{blue} \text{(this line is cancelled)}}\\
+    &\text{L+} &\tfrac{1}{2}n(n+1) \qquad & z_i - X_{ij} \geq 0,\quad & 0
+    \leq j \leq i \leq n-1 \\
+    &\text{L=}  &1 \qquad & \tr(X) - 1 = 0 \\
+    &\text{L-}  &1 \qquad & \sum z_i - k \leq 0
+  \end{aligned}
+\]
+\textbf{INT} \\
+$n$ \\
+$i \qquad z_i \in \{0,1\}, \quad i = 0,\dots,n-1$ \\
+\textbf{PSDCON} \\
+$1$ \quad {\color{red} ($n+1$)} \\
+$n \qquad \qquad X \succeq 0$ \\
+{\color{red}($n+2 \qquad \; P_i \succeq 0 \qquad i = 0,\dots,n-1$)} \\
+{\color{green}\textbf{PSDCONRANK1} (optional, Rank=1) \\
+1 \\
+0\\}
+\textbf{OBJACOORD} (index scalar var | coeff) \\
+\# entries: $\tfrac{1}{2}n(n+1)$\\
+\[
+  \begin{aligned}
+    &n+\tfrac{1}{2}i(i+1)+j \qquad & B_{ij} \; (i=j) \text{ or } B_{ij} +
+    B_{ji} \; (i\neq j) \qquad & 0 \leq j \leq i \leq n-1
+  \end{aligned}
+\]
+\textbf{ACOORD} (scalar cons $i$ | scalar var $j$ | val) \\
+\# entries: $2n(n+1)+3n \quad {\color{blue} (- n(n+1))}$ \\
+{\color{blue} If strgbnds = 1, then $\tfrac{1}{2}n(n+1)$ constraints are cancelled, so
+  that $\tfrac{1}{2}n(n+1)$ needs to be subtracted from the first column
+  (scalar cons $i$) in the fourth to seventh line.}
+\[
+  \begin{aligned}
+    & i \quad & i \quad & -1.0 \quad & -z_i + 1 \geq 0 \quad & i =
+    0,\dots,n-1 \\
+    & n+\tfrac{1}{2}i(i+1)+j \quad & i \quad & -1.0\; (i = j),\,
+    {\color{orange} -\tfrac{1}{2}\; (i\neq j)} \quad & {\color{blue}-z_j -
+      X_{ij} \leq 0}
+    \quad & 0 \leq j \leq i \leq n-1\\
+    & n+\tfrac{1}{2}i(i+1)+j \quad & n+\tfrac{1}{2}i(i+1)+j \quad & -1.0
+    \quad & {\color{blue}-z_j - X_{ij} \leq 0} \quad & 0 \leq j \leq i \leq n-1 \\
+    & n+\tfrac{1}{2}n(n+1)+\tfrac{1}{2}i(i+1)+j \quad & i \quad & 1.0\; (i
+    = j),\, {\color{orange} \tfrac{1}{2}\; (i\neq j)} \quad & z_j - X_{ij} \geq 0
+    \quad & 0
+    \leq j \leq i \leq n-1 \\
+    & n+\tfrac{1}{2}n(n+1)+\tfrac{1}{2}i(i+1)+j \quad &
+    n+\tfrac{1}{2}i(i+1)+j \quad & -1.0 \quad & z_j - X_{ij} \geq 0 \quad &
+    0 \leq j \leq i \leq n-1 \\
+    & n+n(n+1) \quad & n+\tfrac{1}{2}i(i+1)+i \quad & 1.0 \quad & \tr(X) -
+    1 = 0 \quad & i = 0,\dots,n-1 \\
+    & n+n(n+1)+1 \quad & i \quad & 1.0 \quad & \sum z_i - k \geq 0 \quad &
+    i = 0,\dots,n-1
+  \end{aligned}
+\]
+\textbf{BCOORD} (scalar cons $i$ | val) \\
+\# entries: $n+2$ \\
+{\color{blue} If strgbnds = 1, then $\tfrac{1}{2}n(n+1)$ constraints are cancelled, so
+  that $\tfrac{1}{2}n(n+1)$ needs to be subtracted from the first column
+  (scalar cons $i$) in the second and third line.}
+\[
+  \begin{aligned}
+    & i \quad & -1.0 \quad & -z_i + 1 \geq 0 \quad & i = 0,\dots,n-1 \\
+    & n+n(n+1) \quad & 1.0 \quad & \tr(X) - 1 = 0 \quad & i = 0,\dots,n-1
+    \\
+    & n+n(n+1)+1 \quad & 1.0 \quad & \sum z_i - k \geq 0 \quad & i =
+    0,\dots,n-1
+  \end{aligned}
+\]
+\textbf{HCOORD} (psd cons $i$ | scalar var $j$ | row | col | val) \\
+\# entries: $\tfrac{1}{2}n(n+1)$ {\color{red} $(+n(n+4))$} \\
+\[
+  \begin{aligned}
+    &0 \qquad &n+\tfrac{1}{2}i(i+1)+j \qquad &i \qquad &j \qquad &1.0
+    \qquad &X \succeq 0 \qquad &0 \leq j \leq i \leq n-1 \\
+    &{\color{red}i+1} \qquad &{\color{red}i} \qquad &{\color{red}0} \qquad
+    &{\color{red}0} \qquad &{\color{red}\tfrac{1}{2}} \qquad
+    &{\color{red}P_i \succeq 0} \qquad & \\
+    &{\color{red}i+1} \qquad &{\color{red}i} \qquad &{\color{red}n+1} \qquad
+    &{\color{red}0} \qquad &{\color{red}-\tfrac{1}{2}} \qquad
+    &{\color{red}P_i \succeq 0} \qquad &\\
+    &{\color{red}i+1} \qquad &{\color{red}n+\tfrac{1}{2}i(i+1)+i} \qquad &{\color{red}0} \qquad
+    &{\color{red}0} \qquad &{\color{red}\tfrac{1}{2}} \qquad
+    &{\color{red}P_i \succeq 0} \qquad &\\
+    &{\color{red}i+1} \qquad &{\color{red}n+\tfrac{1}{2}i(i+1)+i} \qquad &{\color{red}n+1} \qquad
+    &{\color{red}0} \qquad &{\color{red}\tfrac{1}{2}} \qquad
+    &{\color{red}P_i \succeq 0} \qquad &\\
+    &{\color{red}i+1} \qquad &{\color{red}i} \qquad &{\color{red}0} \qquad
+    &{\color{red}0} \qquad &{\color{red}\tfrac{1}{2}} \qquad
+    &{\color{red}P_i \succeq 0} \qquad &\\
+    &{\color{red}i+1} \qquad &{\color{red}n+\tfrac{1}{2}i(i+1)+j} \qquad &{\color{red}j+1} \qquad
+    &{\color{red}0} \qquad &{\color{red}1.0} \qquad
+    &{\color{red}P_i \succeq 0} \qquad &{\color{red}0 \leq j \leq i}\\ 
+    &{\color{red}i+1} \qquad &{\color{red}n+\tfrac{1}{2}j(j+1)+i} \qquad &{\color{red}j+1} \qquad
+    &{\color{red}0} \qquad &{\color{red}1.0} \qquad
+    &{\color{red}P_i \succeq 0} \qquad &{\color{red}i < j \leq
+      n-1 }
+  \end{aligned}
+\]
+{\color{red}\textbf{DCOORD} (psd cons $i$ | row | col | val) \\
+  \# entries: $n(n+1)$\\
+  \[
+    \begin{aligned}
+      {\color{red} i+1} \qquad & {\color{red} j+1} \qquad & {\color{red}
+        1.0} \qquad & {\color{red} P_i \succeq 0} \qquad & {\color{red} i =
+        0, \dots, n-1}
+    \end{aligned}
+    \]
+
+  }
+}
+
+Options in \textsf{SCIPSDP/RIP-MISDP-Paper/scripts/RIPCBFdual.m}:
+\begin{itemize}
+\item If Rank = 1: \textcolor{green}{PSDCONRANK1} is added.
+\item If nobnds = 1: {\color{orange}
+    $-\tfrac{1}{2}z_j \leq X_{ij} \leq \tfrac{1}{2}z_j$ for $i \neq j$} is
+  weakened to {\color{orange}$-z_j \leq X_{ij} \leq z_j$}, so that the
+  {\color{orange} $-\tfrac{1}{2}$} is changed to $-1.0$ in ACOORD.
+\item If strgbnds = 1: If A is nonnegative, then the stronger lower
+  bounds~$X_{ij} \geq 0$ for all $i,j =0,\dots,n-1$ are used. See the
+  changes in \textcolor{blue}{blue} for VAR, CON. Additionally, the two
+  lines in ACOORD with a \textcolor{blue}{blue constraint} are cancelled
+  as well.
+\item If socp = 1: The valid SOCP inequalities
+  $\sum_{j=0}^{n-1}X_{ij}^2 \leq X_{ii}z_i$ for $i = 0,\dots,n-1$
+  from~\cite{LiX20} are added. See the changes in PSDCON, HCOORD, DCOORD in
+  \textcolor{red}{red}. These inequalities are SDP-representable via
+  \begin{align*}
+    \sum_{j=1}^n X_{ij}^2 \leq X_{ii}z_i \; \Leftrightarrow \;
+    P_i \define \begin{pmatrix}
+      \tfrac{X_{ii}+z_I}{2} & X_{i1} & \cdots & X_{in} & \tfrac{X_{ii}-z_i}{2}
+      \\
+      X_{i1} & 1 & & 0 & 0 \\
+      \vdots &\vdots & \ddots & \vdots & \vdots \\
+      X_{in} & 0 & & 1 & 0 \\
+      \tfrac{X_{ii}-z_i}{2} & 0 & \cdots & 0 & 1
+    \end{pmatrix} \succeq 0.
+  \end{align*}
+  See the last two columns in FCOORD, ACOORD, BCOORD for a description on
+  how to write these inequalities in the CBF-format. Here, $E_{ij}$ is a
+  symmetric matrix of suitable dimension with ones at positions $(i,j)$ and
+  $(j,i)$, and zeros else.
+\end{itemize}
+
+\subsection{CBF-file for primal MISDP-formulation of RIP}
+\label{sec:CBFprimal}
+This section describes the structure of the CBF-file for the
+MISDP-formulation~\eqref{eq:MISDPRIP} in primal form (using matrix variables)
+generated by
+\textsf{SCIPSDP/RIP-MISDP-Paper/scripts/RIPCBFdual.m}.\\
+
+{\footnotesize
+\noindent
+\textbf{VER} \\
+1 \\
+\textbf{OBJSENSE} \\
+MIN (if ``side'' = l) \; or \; MAX (if ``side'' = r) \\
+\textbf{VAR} \\
+\# vars:  $n$, \qquad \# cones: $1$ \\
+\[
+  \begin{aligned}
+    &\text{L+} &n \qquad & z_0,\dots,z_{n-1}
+  \end{aligned}
+\]
+\textbf{PSDVAR} \\
+1 \qquad {\color{red}(n+1)} \\
+$n \qquad \qquad X$ \\
+{\color{red} ($n+2 \qquad \; P_i, \qquad i = 0,\dots,n-1$)}\\
+{\color{green}\textbf{PSDVARRANK1}  \\
+1 \\
+0\\}
+\textbf{INT} \\
+$n$ \\
+$i \qquad z_i \in \{0,1\}, \quad i = 0,\dots,n-1$ \\
+\textbf{OBJFCOORD} (psd var $i$ | row | col | val) \\
+\# entries: $\tfrac{1}{2}n(n+1)$\\
+\[
+  \begin{aligned}
+    &0 \qquad &i \qquad &j \qquad B_{i,j} \qquad & 0\leq j \leq i \leq n-1
+  \end{aligned}
+\]
+\textbf{CON} \\
+\# cons: $n(n+1)+n+2 \quad {\color{red}(+\tfrac{1}{2}n(n+3)(n+2))}$, \qquad
+\# cones = $5 \quad {\color{red} (6)}$\\
+\[
+  \begin{aligned}
+    &{\color{red}\text{L=}} & {\color{red}\tfrac{1}{2}n(n+3)(n+2)} \qquad 
+    &{\color{red} \sum_{j=0}^{n-1} X_{ij}^2 \leq X_{ii}z_i}, \quad &
+    {\color{red} i = 0,\dots, n-1} \\
+    &\text{L+} &n \qquad & -z_i + 1 \geq 0, \quad & i = 0,\dots,n-1 \\
+    &\text{L-} &\tfrac{1}{2}n(n+1) \qquad & -z_i - X_{ij} \leq 0,\;
+    {\color{blue} (-X_{ij} \leq 0)}\quad & 0
+    \leq j \leq i \leq n-1 \\
+    &\text{L+} &\tfrac{1}{2}n(n+1) \qquad & z_i - X_{ij} \geq 0,\quad & 0
+    \leq j \leq i \leq n-1 \\
+    &\text{L=}  &1 \qquad & \tr(X) - 1 = 0 \\
+    &\text{L-}  &1 \qquad & \sum z_i - k \leq 0
+  \end{aligned}
+\]
+\textbf{FCOORD} (scalar cons $i$ | psd var $j$ | row | col | val) \\
+\# entries: $n(n+1)+n$ \quad {\color{red} $+
+  n\cdot(3n+5+\tfrac{1}{2}n(n+1))$ }\\
+{\color{red} The following entries need to be added for all~$i = 0,\dots,n-1$}:
+\[
+  \begin{aligned}
+    &{\color{red}j} \quad &{\color{red}i+1} \quad & {\color{red}j+1} \quad
+    & {\color{red}j+1} \quad & {\color{red}1.0} \quad & {\color{red}
+      \langle P_i,
+      E_{j+1,j+1} \rangle - 1 = 0} \quad & {\color{red} j = 0,\dots,n} \\
+    &{\color{red}n+1} \quad &{\color{red}i+1} \quad & {\color{red}0} \quad
+    & {\color{red}0} \quad & {\color{red}1.0} \quad & {\color{red} \langle
+      P_i, E_{00} \rangle - \tfrac{1}{2}\langle X,E_{ii}\rangle -
+      \tfrac{1}{2}z_i = 0} \quad & \\
+    &{\color{red}n+1} \quad &{\color{red}0} \quad & {\color{red}i} \quad
+    & {\color{red}i} \quad & {\color{red}-\tfrac{1}{2}} \quad & {\color{red} \langle
+      P_i, E_{00} \rangle - \tfrac{1}{2}\langle X,E_{ii}\rangle -
+      \tfrac{1}{2}z_i = 0} \quad & \\
+    &{\color{red}n+2+k} \quad &{\color{red}i+1} \quad & {\color{red}k+1} \quad
+    & {\color{red}0} \quad & {\color{red}1.0\, (i\neq k),\; 0.5\, (i=k)} \quad & {\color{red} \langle
+      P_i, E_{k+1,0} \rangle - \langle X,E_{ki}\rangle = 0} \quad &
+    {\color{red} k = 0,\dots,n-1} \\
+    &{\color{red}n+2+k} \quad &{\color{red}0} \quad & {\color{red}i} \quad
+    & {\color{red}k} \quad & {\color{red}-1.0} \quad & {\color{red} \langle
+      P_i, E_{k+1,0} \rangle - \langle X,E_{ki}\rangle = 0} \quad &
+    {\color{red} k = 0,\dots,i} \\
+    &{\color{red}n+2+k} \quad &{\color{red}0} \quad & {\color{red}k} \quad
+    & {\color{red}i} \quad & {\color{red}-1.0} \quad & {\color{red} \langle
+      P_i, E_{k+1,0} \rangle - \langle X,E_{ki}\rangle = 0} \quad &
+    {\color{red} k = i+1,\dots,n-1} \\    
+    &{\color{red}2n+2} \quad &{\color{red}i+1} \quad & {\color{red}n+1} \quad
+    & {\color{red}0} \quad & {\color{red}\tfrac{1}{2}} \quad & {\color{red}
+      \tfrac{1}{2}\langle P_i, E_{n+1,0} \rangle - \tfrac{1}{2} \langle
+      X,E_{ii}\rangle + \tfrac{1}{2}z_i = 0} \quad & \\
+    &{\color{red}2n+2} \quad &{\color{red}0} \quad & {\color{red}i} \quad
+    & {\color{red}i} \quad & {\color{red}-\tfrac{1}{2}} \quad & {\color{red}
+      \tfrac{1}{2}\langle P_i, E_{n+1,0} \rangle - \tfrac{1}{2} \langle
+      X,E_{ii}\rangle + \tfrac{1}{2}z_i = 0} \quad & \\
+    &{\color{red}2n+3+...} \quad &{\color{red}i+1} \quad & {\color{red}k+1} \quad
+    & {\color{red}j+1} \quad & {\color{red}1.0} \quad & {\color{red}
+     \langle P_i, E_{k+1,j+1} \rangle = 0} \quad & {\color{red} 0 \leq j < k \leq n}
+  \end{aligned}
+\]
+\noindent
+{\color{red} If the valid SOCP-inequality is added, then $\tfrac{1}{2}n(n+3)(n+2)$ needs
+to be added to the entries in the first column (scalar cons $i$).}
+\[
+  \begin{aligned}
+    &n+\tfrac{1}{2}i(i+1)+j \quad & 0 \quad & i \quad & j \quad & -1.0\,
+    (i\neq j),\; -\tfrac{1}{2}\, (i=j) \quad & -z_j - X_{ij} \leq 0 \quad &
+    0 \leq j \leq i \leq n-1 \\
+    &n+\tfrac{1}{2}n(n+1)+\tfrac{1}{2}i(i+1)+j \quad & 0 \quad & i \quad &
+    j \quad & -1.0\, (i\neq j),\; -\tfrac{1}{2}\, (i=j) \quad & +z_j -
+    X_{ij} \geq 0 \quad & 0 \leq j \leq i \leq n-1 \\
+    &n+n(n+1)\quad & 0 \quad & i \quad & i \quad & 1.0 \quad & \tr(X) - 1
+    \leq 0 \quad & i = 0,\dots,n-1
+  \end{aligned}
+\]
+\textbf{ACOORD} (scalar cons $i$ | scalar var $j$ val) \\
+\# entries: $n(n+1)+2n$ \qquad {\color{red} $(+2n)$} \qquad {\color{blue}
+  $-(\tfrac{1}{2}n(n+1))$} \\
+\[
+  \begin{aligned}
+    &{\color{red}i\cdot\tfrac{1}{2}(n+3)(n+2) + n+1} \quad & {\color{red}i} \quad &
+    {\color{red}-\tfrac{1}{2}} \quad & {\color{red} \langle P_i, E_{00}
+      \rangle - \tfrac{1}{2}\langle X,E_{ii}\rangle - \tfrac{1}{2}z_i = 0}
+    \quad &{\color{red} i = 0,\dots,n-1} \\
+    &{\color{red}i\cdot\tfrac{1}{2}(n+3)(n+2) + 2n+2} \quad & {\color{red}i} \quad &
+    {\color{red}\tfrac{1}{2}} \quad & {\color{red} \langle P_i, E_{00}
+      \rangle - \tfrac{1}{2}\langle X,E_{ii}\rangle + \tfrac{1}{2}z_i = 0}
+    \quad &{\color{red} i = 0,\dots,n-1} \\
+  \end{aligned}
+\]
+{\color{red} If the valid SOCP-inequality is added, then $\tfrac{1}{2}n(n+3)(n+2)$ needs
+  to be added to the entries in the first column (scalar cons $i$).}
+\[
+  \begin{aligned}
+    &i \quad & i \quad & -1.0 \quad & -z_i + 1 = 0 \quad & i = 0,\dots,n-1
+    \\
+    &n+\tfrac{1}{2}i(i+1)+j \quad & i \quad & -1.0\, (i =
+    j),\; {\color{orange} -\tfrac{1}{2},\,(i \neq j)} \quad & {\color{blue}-z_i - X_{ij}
+    \leq 0} \quad & 0 \leq j \leq i \leq n-1 \quad {\color{blue}
+    (\text{this line is cancelled})} \\
+    &n+\tfrac{1}{2}n(n+1)+\tfrac{1}{2}i(i+1)+j \quad & i \quad & 1.0\, (i =
+    j),\; {\color{orange} \tfrac{1}{2},\,(i \neq j)}\quad & z_i - X_{ij}
+    \geq 0 \quad & 0 \leq j \leq i \leq n-1 \\
+    &in+n(n+1)+1 \quad & i \quad & 1.0 \quad & \sum z_i - k \leq 0 \quad &
+    i = 0,\dots,n-1 \\
+  \end{aligned}
+\]
+\textbf{BCOORD} (scalar cons $i$ | val) \\
+\# entries: $n+2 \qquad {\color{red} (+n(n+1))}$ \\
+\[
+\begin{aligned}
+  &{\color{red}i\cdot\tfrac{1}{2}(n+3)(n+2) + j} \quad & {\color{red}-1.0}
+  \quad & {\color{red} \langle P_i, E_{j+1,j+1} \rangle - 1 = 0} \quad & {\color{red} j
+  = 0,\dots,n,\; i = 0,\dots,n-1} \\
+  \end{aligned}
+\]
+{\color{red} If the valid SOCP-inequality is added, then $\tfrac{1}{2}n(n+3)(n+2)$ needs
+  to be added to the entries in the first column (scalar cons $i$).}
+\[
+  \begin{aligned}
+    &i \quad & 1.0 \quad & -z_i + 1 \geq 0 \quad & i = 0,\dots,n-1 \\
+    &n(n+1)+n \quad & -1.0 \quad & \tr(X) -1 = 0 \quad & \\
+    &n(n+1)+n+1 \quad & k \quad & \sum z_i - k \leq 0 \quad & \\
+  \end{aligned}
+\]
+}
+
+Options in \textsf{SCIPSDP/RIP-MISDP-Paper/scripts/RIPCBFdual.m}:
+\begin{itemize}
+\item If Rank = 1: \textcolor{green}{PSDVARRANK1} is added.
+\item If nobnds = 1: {\color{orange}
+    $-\tfrac{1}{2}z_j \leq X_{ij} \leq \tfrac{1}{2}z_j$ for $i \neq j$} is
+  weakened to {\color{orange}$-z_j \leq X_{ij} \leq z_j$}, so that the
+  {\color{orange} $-\tfrac{1}{2}$} is changed to $-1.0$ in ACOORD.
+\item If strgbnds = 1: If A is nonnegative, then the stronger lower
+  bounds~$X_{ij} \geq 0$ for all $i,j =0,\dots,n-1$ are used. See the
+  changes in \textcolor{blue}{blue} in ACOORD.
+\item If socp = 1: The valid SOCP inequalities
+  $\sum_{j=0}^{n-1}X_{ij}^2 \leq X_{ii}z_i$ for $i = 0,\dots,n-1$
+  from~\cite{LiX20} are added. See the changes in PSDVAR, CON, FCOORD,
+  ACOORD and BCOORD in \textcolor{red}{red}. These inequalities are
+  SDP-representable via
+  \begin{align*}
+    \sum_{j=1}^n X_{ij}^2 \leq X_{ii}z_i \; \Leftrightarrow \;
+    P_i \define \begin{pmatrix}
+      \tfrac{X_{ii}+z_I}{2} & X_{i1} & \cdots & X_{in} & \tfrac{X_{ii}-z_i}{2}
+      \\
+      X_{i1} & 1 & & 0 & 0 \\
+      \vdots &\vdots & \ddots & \vdots & \vdots \\
+      X_{in} & 0 & & 1 & 0 \\
+      \tfrac{X_{ii}-z_i}{2} & 0 & \cdots & 0 & 1
+    \end{pmatrix} \succeq 0.
+  \end{align*}
+  See the last two columns in FCOORD, ACOORD, BCOORD for a description on
+  how to write these inequalities in the CBF-format. Here, $E_{ij}$ is a
+  symmetric matrix of suitable dimension with ones at positions $(i,j)$ and
+  $(j,i)$, and zeros else.
+\end{itemize}
+
+\begin{small}
+  \bibliographystyle{abbrv}
+  \bibliography{RandomInstancesMISDP.bib}
+\end{small}
+
+\end{document}
