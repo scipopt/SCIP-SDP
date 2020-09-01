@@ -160,7 +160,7 @@ This has the following two implications (see, e.g., Observation 1.1.5 and
 \begin{question}
   Is the second condition enforced somehow -- in the sense that the bounds
   are fixed? For example if we branch variables in~\eqref{MISDP} such that
-  a diagonal entry becomes 0, are the other entries in the column and row
+  a diagonal entry of~$A(y)$ becomes 0, are the other entries in the column and row
   fixed to 0 as well?
 \end{question}
 
@@ -211,7 +211,7 @@ All the above methods are implemented and help for some instances.
 \begin{lemma}
   Consider a solution $X$ to~\eqref{MISDP-P}. Then
   \[
-    -\sqrt{U_{ii}\, U_{jj}} \leq X_{ij} \leq \sqrt{U_{ij}\, U_{jj}}
+    -\sqrt{U_{ii}\, U_{jj}} \leq X_{ij} \leq \sqrt{U_{ii}\, U_{jj}}
   \]
   holds for all $i$, $j \in [n]$.
 \end{lemma}
@@ -236,8 +236,8 @@ All the above methods are implemented and help for some instances.
 
 This result can partly be translated to the matrix pencil format by defining
 \[
-  \tilde{U}_{ij} \define \sum_{k \in [m]: A^k_{ij} > 0} A^k_{ij}\, u_i -
-  \sum_{k \in [m]: A^k_{ij} < 0} A^k_{ij}\, \ell_i - A^0_{ij}.
+  \tilde{U}_{ij} \define \sum_{k \in [m]: A^k_{ij} > 0} A^k_{ij}\, u_k -
+  \sum_{k \in [m]: A^k_{ij} < 0} A^k_{ij}\, \ell_k - A^0_{ij}.
 \]
 Thus for any $y \in [\ell,u]$ we have $A(y)_{ij} \leq \tilde{U}_{ij}$. This
 directly yields:
@@ -251,7 +251,7 @@ directly yields:
 \end{lemma}
 
 Currently this method is implemented for the case in which each entry
-$(i,j)$ is contained in exactly on matrix, i.e., there exists
+$(i,j)$ is contained in exactly one matrix, i.e., there exists
 $k = k(i,j) \in [m]$ such that
 \[
   A(y)_{ij} = A^k_{ij}\, y_k - A^0_{ij}.
@@ -403,12 +403,13 @@ We now turn to the computation of $\mu_k$.
   $B \in \R^{n \times n}$ we have $A \succeq 0$ if and only if
   $B\T A B \succeq 0$ (see, e.g., Helmberg~\cite[Prop.~1.1.7]{Hel00}).
   Thus, $\mu\, A^k - A^0 \succeq 0$ if and only if
-  \[
-    0 \preceq V^{-\top} (\mu\, A^k - A^0) V^{-1} = \mu\,
-    V^{-\top} A^k V^{-1} - V^{-\top} A^0 V^{-1} = \mu\, I - V^{-\top} A^0 V^{-1}.
-  \]
+  \begin{align*}
+    0 \preceq (V^{-1})^\top (\mu\, A^k - A^0) V^{-1} &= \mu\,
+    (V^{-1})^\top A^k V^{-1} - (V^{-1})^\top A^0 V^{-1} \\
+    &= \mu\, I - (V^{-1})^\top A^0 V^{-1}.
+  \end{align*}
   The eigenvalues of $\mu\, I - B$ for some matrix $B$ are $\mu - \lambda$
-  for eigenvalues $\mu$ of $B$.\footnote{This follows, for example, by the
+  for eigenvalues $\lambda$ of $B$.\footnote{This follows, for example, by the
     general theorem that if $g(t) \in \R[t]$ is a scalar polynomial and
     $\lambda_1, \dots, \lambda_n$ are the eigenvalues of $B$, then the
     eigenvalues of $g(B)$ are $g(\lambda_1), \dots, g(\lambda_n)$, see
@@ -486,7 +487,7 @@ are psd, but $y_k$ does not need to be binary. We need the following:
     A(y) \succeq 0 \quad\Leftrightarrow\quad
     \alpha\, A^{\ell} + \sum_{\substack{k=1\\k \neq \ell}}^m A^k\, y_k - A^0 \succeq 0,
   \]
-  where $\alpha = \min\,\{y_{\ell},\mu_{\ell}\}$.
+  where $\alpha = \min\,\{y_{\ell},\hat{\mu}_{\ell}\}$.
 \end{lemma}
 
 \begin{proof}
@@ -494,8 +495,8 @@ are psd, but $y_k$ does not need to be binary. We need the following:
   true. Thus, let $\alpha = \hat{\mu}_k < y_{\ell}$.
 
   First assume that
-  $\alpha\, A^{\ell} + \sum_{k=1,k \neq \ell}^m \mu_k\, A^k\, y_k - A^0
-  \succeq 0$.  Then for every $x \in \R_+^n$
+  $\alpha\, A^{\ell} + \sum_{k=1,k \neq \ell}^m \hat{\mu}_k\, A^k\, y_k - A^0
+  \succeq 0$.  Then for every $x \in \R^n$
   \begin{align*}
     0 & \leq x\T \bigg(\alpha\, A^{\ell} + \sum_{\substack{k=1\\k \neq \ell}}^m A^k\, y_k - A^0\bigg) x =
         \alpha\, \underbrace{x\T A^{\ell} x}_{\geq 0} + \sum_{\substack{k=1\\k \neq \ell}}^m x\T A^k
@@ -682,7 +683,7 @@ again the matrix $D$ from above. Then
   D \succeq 0 \quad\Leftrightarrow\quad
   A \succeq 0,\; (I - AA^{+})B\T = 0,\; C - B A^{+} B\T \succeq 0,
 \]
-where $A^+$ is the pseudo-inverse of $C$. Reversing the roles of $A$ and
+where $A^+$ is the pseudo-inverse of $A$. Reversing the roles of $A$ and
 $C$ we get:
 \[
   D \succeq 0 \quad\Leftrightarrow\quad
@@ -760,7 +761,7 @@ A formulation for the sparse PCA problem is
   \end{align}
 \end{subequations}
 In~\cite{GalP16} (and~\cite{LiX20}) it is proved that there exists an
-optimal solution rank-1 solution~$X^*$. Thus, $X^* = x^* (x^*)\T$ for some
+optimal rank-1 solution~$X^*$. Thus, $X^* = x^* (x^*)\T$ for some
 $x^* \in \R^n$ with $\Norm{x^*}{0} \leq k$. Let $S = \supp(x^*)$. Then
 $x^*_S$ is an eigenvector for a maximal eigenvalue of
 $A_S\T A_S^{\phantom{T}}$.
@@ -901,7 +902,7 @@ Unfortunately, by Lemma~\ref{lemma:PFNegative}, a vector for an eigenvalue
 that is not equal to the (unique) maximal eigenvalue always has positive
 and negative entries.
 
-Nevertheless if the matrix $A\T A$ is \emph{positive definite}, we get
+Nevertheless if the matrix $A\T A$ is \emph{positive definite}, we can
 solve the maximization version in~\eqref{eq:SPCA} where $A\T A$ is replaced
 by $(A\T A)^{-1}$. This holds since $\lambda$ is an eigenvalue of $A$ if
 and only if $1/\lambda$ is an eigenvalue of $A^{-1}$. This transformation
