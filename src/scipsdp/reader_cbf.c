@@ -27,9 +27,7 @@
 /* Copyright (C) 2002-2020 Zuse Institute Berlin                             */
 /* SCIP is distributed under the terms of the SCIP Academic Licence,         */
 /* see file COPYING in the SCIP distribution.                                */
-/*                                                 				*/
-/*	Test									*/
-/*										*/
+/*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /* #define SCIP_MORE_DEBUG */
@@ -1960,7 +1958,6 @@ SCIP_DECL_READERREAD(readerReadCbf)
    SCIP_Bool objread = FALSE;
    CBF_DATA* data;
    int b;
-
 
    assert( result != NULL );
 
