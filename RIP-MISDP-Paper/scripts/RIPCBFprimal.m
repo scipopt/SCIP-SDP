@@ -1,4 +1,4 @@
-function [] = RIPCBFprimal(A, k, side, file, Rank, socp, strgbnds,nobnds)
+function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds,nobnds)
 % schreibt SDP-File für ganzzahlige RIP-SDP-Relaxierung in primaler Form
 % (mit PSD-Variablen) für Matrix A, Ordnung k, schreibt in 'file' 
 % side ='l' für linke Seite/alpha_k, side='r' für rechte Seite/beta_k
@@ -342,7 +342,7 @@ function [] = RIPCBFprimal(A, k, side, file, Rank, socp, strgbnds,nobnds)
     cnt = cnt + 1;
 
     % sparsity constraint
-    fprintf(fid, "%d %d\n", conscnt, -k);
+    fprintf(fid, "%d %d\n", conscnt, -order);
     conscnt = conscnt + 1;
     cnt = cnt + 1;
 

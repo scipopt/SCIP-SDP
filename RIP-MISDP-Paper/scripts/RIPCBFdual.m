@@ -1,4 +1,4 @@
-function [] = RIPCBFdual(A, k, side, file, Rank, socp, strgbnds,nobnds)
+function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds,nobnds)
 % schreibt SDP-File für ganzzahlige RIP-SDP-Relaxierung in dualer Form
 % (mit Skalarvariablen) für Matrix A, Ordnung k, schreibt in 'file' 
 % side ='l' für linke Seite/alpha_k, side='r' für rechte Seite/beta_k
@@ -235,7 +235,7 @@ function [] = RIPCBFdual(A, k, side, file, Rank, socp, strgbnds,nobnds)
     conscnt = conscnt + 1;
 
     % sparsity constraint
-    fprintf(fid, "%d %d\n", conscnt, -k);
+    fprintf(fid, "%d %d\n", conscnt, -order);
     cnt = cnt + 1;
     conscnt = conscnt + 1;
 
