@@ -166,7 +166,7 @@ SCIP_RETCODE SDPAfgets(
       }
 
       /* skip line if it is a comment */
-      if ( SDPA_LINE_BUFFER[0] != '*' && SDPA_LINE_BUFFER[0] != '"' &&SDPA_IS_COMMENT==0 )
+      if ( SDPA_LINE_BUFFER[0] != '*' && SDPA_LINE_BUFFER[0] != '"' && SDPA_IS_COMMENT == 0 )
       {
          /* set SDPA_IS_COMMENT if the line ends with a comment */
          if ( ! (strrchr(SDPA_LINE_BUFFER, '*') == NULL) || ! (strrchr(SDPA_LINE_BUFFER, '"') == NULL)
@@ -186,7 +186,7 @@ SCIP_RETCODE SDPAfgets(
          }
 
          /* if line is too long for our buffer correct the buffer and correct position in file */
-         if ( SDPA_LINE_BUFFER[SDPA_MAX_LINE-2] != '\0' && readLongLine == 0 )
+         if ( SDPA_LINE_BUFFER[SDPA_MAX_LINE - 2] != '\0' && readLongLine == 0 )
          {
             char* last;
 
@@ -197,7 +197,7 @@ SCIP_RETCODE SDPAfgets(
             {
                SCIPwarningMessage(scip, "we read %d characters from the file; this might indicate a corrupted input file!",
                   SDPA_MAX_LINE - 2);
-               SDPA_LINE_BUFFER[SDPA_MAX_LINE-2] = '\0';
+               SDPA_LINE_BUFFER[SDPA_MAX_LINE - 2] = '\0';
                SCIPdebugMsg(scip, "the buffer might be corrupted\n");
             }
             else
@@ -224,7 +224,7 @@ SCIP_RETCODE SDPAfgets(
       if ( ! (strrchr(SDPA_LINE_BUFFER, '\n') == NULL) )
          SDPA_IS_COMMENT = 0;
       else
-         SDPA_LINE_BUFFER[SDPA_MAX_LINE-2] = '\0';
+         SDPA_LINE_BUFFER[SDPA_MAX_LINE - 2] = '\0';
    }
    return SCIP_READERROR;
 }
@@ -359,7 +359,7 @@ SCIP_RETCODE SDPAreadNVars(
       (void)SCIPsnprintf(varname, SCIP_MAXSTRLEN, "x_%d", cnt);
 #endif
 
-      SCIP_CALL( SCIPcreateVar(scip, &var, varname, lb, ub, 0.0,SCIP_VARTYPE_CONTINUOUS,TRUE, FALSE, NULL, NULL, NULL,
+      SCIP_CALL( SCIPcreateVar(scip, &var, varname, lb, ub, 0.0, SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, NULL, NULL, NULL,
             NULL, NULL) );
 
       SCIP_CALL( SCIPaddVar(scip, var) );
@@ -458,7 +458,7 @@ SCIP_RETCODE SDPAreadBlockSize(
 
    for (int i = 0; i < nblocks; i++)
    {
-   /* if the entry is smaller zero it describes the LP blocks */
+   /* if the entry is less than zero it describes the LP blocks */
       if ( *(blockVals + i) < 0 )
       {
          nlpblocks++;
@@ -471,6 +471,7 @@ SCIP_RETCODE SDPAreadBlockSize(
          ncbfsdpblocks ++;
       }
    }
+
    if ( data->nconss < 0 )
    {
       SCIPerrorMessage("Number of scalar constraints %d in line %" SCIP_LONGINT_FORMAT " should be non-negative!\n",
@@ -575,7 +576,7 @@ SCIP_RETCODE SDPAreadObjVals(
 
    if ( data->createdvars == NULL)
    {
-      SCIPerrorMessage("Need to have 'VAR' section before 'OBJACOORD' section!\n");
+      SCIPerrorMessage("Number of variables needs to be specified before objective values!\n");
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
@@ -665,7 +666,7 @@ SCIP_RETCODE SDPAreadBlocks(
 
    if ( data->nsdpblocks < 0 )
    {
-      SCIPerrorMessage("Need to have 'PSDCON' section before 'HCOORD' section!\n");
+      SCIPerrorMessage("Number of blocks needs to be specified before entries of the blocks!\n");
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
@@ -673,21 +674,21 @@ SCIP_RETCODE SDPAreadBlocks(
 
    if ( data->nvars < 0 )
    {
-      SCIPerrorMessage("Need to have 'VAR' section before 'HCOORD' section!\n");
+      SCIPerrorMessage("Number of variables needs to be specified before entries of the blocks!\n");
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
 
    if ( data->createdvars == NULL )
    {
-      SCIPerrorMessage("Need to have 'VAR' section before 'ACOORD' section!\n");
+      SCIPerrorMessage("Number of variables needs to be specified before entries of the blocks!\n");
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
 
    /* get number of sdp blocks specified by PSDCON (without auxiliary sdp blocks for reformulating matrix variables
     * using scalar variables), save number of nonzeros needed for the auxiliary sdp blocks in nauxnonz */
-   /* TODO: noch aktuell? */
+   /* TODO: noch aktuell? Nein, kann entfernt werden */
    ncbfsdpblocks = data->nsdpblocks;
 
    if ( data->createdconss == NULL )
@@ -748,10 +749,10 @@ SCIP_RETCODE SDPAreadBlocks(
       }
 
       /* switch from sdpa counting (starting from 1) to scip counting (starting from 0) */
-      v = v - 1;
-      b = b - 1;
-      row = row - 1;
-      col = col - 1;
+      v -= 1;
+      b -= 1;
+      row -= 1;
+      col -= 1;
 
       /* check if it is the LP block (FALSE) or a SDP block (TRUE)*/
       if ( b != data->locationConBlock )
@@ -1124,7 +1125,7 @@ SCIP_RETCODE SDPAreadInt(
 
    if ( data->createdvars == NULL )
    {
-      SCIPerrorMessage("Need to have 'VAR' section before 'INT' section!\n");
+      SCIPerrorMessage("Number of variables needs to be specified before integer section!\n");
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
@@ -1150,7 +1151,7 @@ SCIP_RETCODE SDPAreadInt(
          return SCIP_READERROR;
       }
 
-      v = v - 1;
+      v -= 1;
 
       SCIP_CALL( SCIPchgVarType(scip, data->createdvars[v], SCIP_VARTYPE_INTEGER, &infeasible) );
 
@@ -1325,22 +1326,22 @@ SCIP_DECL_READERREAD(readerReadSdpa)
    SCIP_CALL( SCIPsetObjsense(scip, SCIP_OBJSENSE_MINIMIZE) );
 
    /* read the file */
-   SCIPdebugMsg(scip, "Reading VAR\n");
+   SCIPdebugMsg(scip, "Reading number of variables\n");
    SCIP_CALL( SDPAreadNVars(scip, scipfile, &linecount, data) );
 
-   SCIPdebugMsg(scip, "Reading CON\n");
+   SCIPdebugMsg(scip, "Reading number of blocks\n");
    SCIP_CALL( SDPAreadNBlocks(scip, scipfile, &linecount, data) );
 
-   SCIPdebugMsg(scip, "Reading PSDCON\n");
+   SCIPdebugMsg(scip, "Reading blocksizes\n");
    SCIP_CALL( SDPAreadBlockSize(scip, scipfile, &linecount, data) );
 
-   SCIPdebugMsg(scip, "Reading OBJACOORD\n");
+   SCIPdebugMsg(scip, "Reading objective values\n");
    SCIP_CALL( SDPAreadObjVals(scip, scipfile, &linecount, data) );
 
-   SCIPdebugMsg(scip, "Reading HCOORD\n");
+   SCIPdebugMsg(scip, "Reading block entries\n");
    SCIP_CALL( SDPAreadBlocks(scip, scipfile, &linecount, data, filename) );
 
-   SCIPdebugMsg(scip, "Reading INT\n");
+   SCIPdebugMsg(scip, "Reading integer section\n");
    SCIP_CALL( SDPAreadInt(scip, scipfile, &linecount, data) );
 
    /* close the file (and make sure SCIPfclose returns 0) */
@@ -1664,7 +1665,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
                int ind;
                ind = SCIPvarGetProbindex(sdpvars[v]);
                assert( 0 <= ind && ind < nvars );
-               SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n",  ind+1,consind+1, sdprow[v][i]+1, sdpcol[v][i]+1,
+               SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n",  ind + 1, consind + 1, sdprow[v][i]+ 1 , sdpcol[v][i] + 1,
                   sdpval[v][i]);
             }
          }
@@ -1679,7 +1680,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
 
          for (i = 0; i < sdpconstnnonz; i++)
          {
-            SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n",0, consind+1, sdpconstrow[i]+1, sdpconstcol[i]+1,
+            SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n",0, consind + 1, sdpconstrow[i] + 1, sdpconstcol[i] + 1,
                sdpconstval[i]);
          }
          consind++;
@@ -1698,7 +1699,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
       const_sign = 1;
 
       /* in case of unconstrained left side and constrained right side swap the inequality by multipling with -1 */
-      if ( ! SCIPisInfinity(scip, rhs) &&SCIPisInfinity(scip, -lhs) )
+      if ( ! SCIPisInfinity(scip, rhs) && SCIPisInfinity(scip, -lhs) )
       {
       	  const_sign = -1;
       	  nChangedConstraints++;
@@ -1711,7 +1712,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
       {
          i = SCIPvarGetProbindex(linvars[v]);
          assert( 0 <= i && i < nvars );
-         SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n",  i+1,consind+1,c+1,c+1, linvals[v]*const_sign);
+         SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", i + 1, consind + 1, c + 1, c + 1, linvals[v] * const_sign);
       }
 
       /* write the constant part of the LP block */
@@ -1722,7 +1723,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
          val = SCIPgetLhsLinear(scip, conss[c]);
 
       if ( ! SCIPisZero(scip, val) )
-         SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n",  0,consind+1,c+1,c+1, val*const_sign);
+         SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", 0, consind + 1, c + 1, c + 1, val * const_sign);
    }
    if ( nChangedConstraints > 0 )
    	SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Changed the sign of %d constraints. \n", nChangedConstraints);
@@ -1734,7 +1735,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
       for (v = 0; v < nbinvars + nintvars; v++)
       {
          assert( SCIPvarIsIntegral(vars[v]) );
-         SCIPinfoMessage(scip, file, "*%d\n", v+1);
+         SCIPinfoMessage(scip, file, "*%d\n", v + 1);
       }
    }
 
