@@ -234,10 +234,10 @@ SCIP_RETCODE SDPAfgets(
 /** method for reading a line of double values with fixed length */
 static
 int readLineDouble(
-   SCIP*                 scip,
-   SCIP_FILE*            pfile,               /**< file to read from */
-   SCIP_Longint*         linecount,
-   int                   number_of_vars,      /** Number of vars to read from line  */
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_FILE*            pfile,              /**< file to read from */
+   SCIP_Longint*         linecount,          /**< current linecount */
+   int                   nvars,              /**< number of variables to read  */
    SCIP_Real*            values
    )
 {
@@ -256,11 +256,11 @@ int readLineDouble(
          SCIPstrToRealValue(token, &val, &nonconstendptr);
          *(values + i) = val;
          i = i + 1;
-         if ( i >= number_of_vars )
+         if ( i >= nvars )
             break;
       }
    }
-   while ( i < number_of_vars );
+   while ( i < nvars );
 
    return i;
 }
@@ -269,10 +269,10 @@ int readLineDouble(
 /** method for reading a line of integer values with fixed length*/
 static
 int readLineInt(
-   SCIP*                 scip,
-   SCIP_FILE*            pfile,               /**< file to read from */
-   SCIP_Longint*         linecount,
-   int                   number_of_vars,      /** Number of vars to read from line  */
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_FILE*            pfile,              /**< file to read from */
+   SCIP_Longint*         linecount,          /**< current linecount */
+   int                   nvars,              /**< number of variables to read  */
    int*                  values
    )
 {
@@ -291,11 +291,11 @@ int readLineInt(
          SCIPstrToIntValue(token, &val, &nonconstendptr);
          *(values + i) = val;
          i = i + 1;
-         if ( i >= number_of_vars )
+         if ( i >= nvars )
             break;
       }
    }
-   while ( i < number_of_vars );
+   while ( i < nvars );
 
    return i;
 }
