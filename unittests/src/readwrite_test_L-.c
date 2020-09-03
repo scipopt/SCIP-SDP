@@ -30,8 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   readwrite.cpp
- * @brief  unit test for checking reading and writing of MISDPs
+/**@file   readwrite_test_L-.c
+ * @brief  unit test for checking reading and writing of MISDPs in CBF format using L+ and L-
  * @author Marc Pfetsch
  */
 
@@ -71,38 +71,36 @@ TestSuite(readwrite, .init = setup, .fini = teardown);
 /** TESTS **/
 
 /** Test 1 */
-Test(readwrite, readSDPAwriteCBF)
+Test(readwrite, readCBFwriteSDPA)
 {
    SCIP_Real obj1;
    SCIP_Real obj2;
 
-   /* read problem and solve it */
+   /* read problem in CBF format with L+ */
    SCIP_CALL( SCIPreadProb(scipsdp, "example_small_L-.cbf", NULL) );
 
-/* write problem in SDPA format */
+   /* write problem in SDPA format */
    SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "example_small_L-.dat-s", "dat-s", FALSE) );
 
-   /* read problem and solve it */
+   /* read problem in CBF format with L- */
    SCIP_CALL( SCIPreadProb(scipsdp, "example_small_L+.cbf", NULL) );
 
-/* write problem in SDPA format */
+   /* write problem in SDPA format */
    SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "example_small_L+.dat-s", "dat-s", FALSE) );
 
-
- /* read problem again */
+   /* read problem with L- in SDPA format and solve it */
    SCIP_CALL( SCIPreadProb(scipsdp, "example_small_L-.dat-s", NULL) );
 
    SCIP_CALL( SCIPsolve(scipsdp) );
 
    obj1 = SCIPgetDualbound(scipsdp);
 
-   
-   /* read problem again */
+   /* read problem with L+ in SDPA format and solve it */
    SCIP_CALL( SCIPreadProb(scipsdp, "example_small_L+.dat-s", NULL) );
 
    SCIP_CALL( SCIPsolve(scipsdp) );
 
    obj2 = SCIPgetDualbound(scipsdp);
 
-   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (SDPA) != %g (CBF)\n", obj1, obj2);
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (SDPA from CBF with L-) != %g (SDPA from CBF with L+)\n", obj1, obj2);
 }

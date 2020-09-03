@@ -30,8 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   readwrite.cpp
- * @brief  unit test for checking reading and writing of MISDPs
+/**@file   readwrite_test.c
+ * @brief  unit test for checking reading and writing of MISDPs in SDPA format
  * @author Marc Pfetsch
  */
 
@@ -71,19 +71,19 @@ TestSuite(readwrite, .init = setup, .fini = teardown);
 /** TESTS **/
 
 /** Test 1 */
-Test(readwrite, readSDPAwriteCBF)
+Test(readwrite, readSDPAwriteSDPA)
 {
    SCIP_Real obj1;
    SCIP_Real obj2;
 
-   /* read problem and solve it */
+   /* read problem in SDPA format and solve it */
    SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_small.dat-s", NULL) );
 
    SCIP_CALL( SCIPsolve(scipsdp) );
 
    obj1 = SCIPgetDualbound(scipsdp);
 
-   /* write problem in CBF format */
+   /* write problem in SDPA format */
    SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "example_small2.dat-s", "dat-s", FALSE) );
 
    /* read problem again */
@@ -93,5 +93,5 @@ Test(readwrite, readSDPAwriteCBF)
 
    obj2 = SCIPgetDualbound(scipsdp);
 
-   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (SDPA) != %g (CBF)\n", obj1, obj2);
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (SDPA original) != %g (SDPA after writing)\n", obj1, obj2);
 }
