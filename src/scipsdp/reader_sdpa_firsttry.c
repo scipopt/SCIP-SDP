@@ -1251,11 +1251,8 @@ SCIP_RETCODE SDPAfreeData(
       SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblocksizes, data->nsdpblocks);
    }
 
-   if ( data->nconss > 0 )
-      SCIPfreeBlockMemoryArrayNull(scip, &data->createdconss, data->nconss);
-
-   if ( data->nvars > 0 )
-      SCIPfreeBlockMemoryArrayNull(scip, &data->createdvars, data->nvars);
+   SCIPfreeBlockMemoryArrayNull(scip, &data->createdconss, data->nconss);
+   SCIPfreeBlockMemoryArrayNull(scip, &data->createdvars, data->nvars);
 
    return SCIP_OKAY;
 }
