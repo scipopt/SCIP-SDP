@@ -54,6 +54,8 @@
 #include "scipsdp/cons_sdp.h"
 #include "scip/cons_linear.h"
 
+#undef SCIPABORT
+#define SCIPABORT() {}
 
 #define READER_NAME             "sdpareader"
 #define READER_DESC             "file reader and writer for MISDPs in sdpa format"

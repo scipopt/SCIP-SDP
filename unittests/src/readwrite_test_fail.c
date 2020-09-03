@@ -33,15 +33,18 @@
 /**@file   readwrite_test_fail.c
  * @brief  unit test for checking reading and writing of MISDPs in SDPA format
  * @author Marc Pfetsch
+ *
+ *  @todo: In order for this test to pass correctly, the calls to SCIPABORT() in reader_sdpa_firsttry.c (and also
+ *  reader_cbf.c) need to be removed. Otherwise SCIPABORT() breaks the program before the retcode SCIP_READERROR is
+ *  returned.
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
-
+#include <signal.h>
 #include "scipsdp/scipsdpdefplugins.h"
 #include "include/scip_test.h"
 
 /* global SCIP data structure */
-SCIP* scipsdp2;
 SCIP* scipsdp;
 
 #define EPS  1e-6
@@ -50,11 +53,9 @@ SCIP* scipsdp;
 static
 void setup(void)
 {
-   SCIP_CALL( SCIPcreate(&scipsdp2) );
    SCIP_CALL( SCIPcreate(&scipsdp) );
 
    /* include default SCIP-SDP plugins */
-   SCIP_CALL( SCIPSDPincludeDefaultPlugins(scipsdp2) );
    SCIP_CALL( SCIPSDPincludeDefaultPlugins(scipsdp) );
 }
 
@@ -63,7 +64,6 @@ static
 void teardown(void)
 {
    /* deinitialization */
-      SCIP_CALL( SCIPfree(&scipsdp2) );
    SCIP_CALL( SCIPfree(&scipsdp) );
 
    cr_assert_eq(BMSgetMemoryUsed(), 0, "There is a memory leak!");
@@ -79,25 +79,10 @@ Test(readwrite, readSDPAfail)
 {
    /* SCIP_Real obj1; */
    /* SCIP_Real obj2; */
+   SCIP_RETCODE retcode = 0;
 
-   /* read problem (this should fail) */
-   SCIP_CALL( SCIPreadProb(scipsdp2, "example_small_fail.dat-s", NULL) );
+   /* read problem, this should fail with a SCIP_READERROR. */
+   retcode = SCIPreadProb(scipsdp, "example_small_fail.dat-s", NULL);
 
-   /* SCIP_CALL( SCIPreadProb(scipsdp, "example_small.dat-s", NULL) ); */
-
-   /* SCIP_CALL( SCIPsolve(scipsdp) ); */
-
-   /* obj1 = SCIPgetDualbound(scipsdp); */
-
-   /* /\* write problem in CBF format *\/ */
-   /* SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "example_small.dat-s", "dat-s", FALSE) ); */
-
-   /* /\* read problem again *\/ */
-   /* SCIP_CALL( SCIPreadProb(scipsdp, "example_small.dat-s", NULL) ); */
-
-   /* SCIP_CALL( SCIPsolve(scipsdp) ); */
-
-   /* obj2 = SCIPgetDualbound(scipsdp); */
-
-   /* cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (SDPA) != %g (CBF)\n", obj1, obj2); */
+   cr_expect(retcode == SCIP_READERROR);
 }
