@@ -497,12 +497,16 @@ SCIP_RETCODE computeScalingFactor(
    SCIP_Real ub;
    SCIP_Real scalar = 1.0;
    SCIP_Real tol;
+   const int maxiter = 50;
+   int iter = 0;
 
    assert( scip != NULL );
    assert( blocksize > 0 );
    assert( A != NULL );
    assert( Aconst != NULL );
    assert( factor != NULL );
+   assert( SCIPisLE(scip, lb, ub) );
+   assert( SCIPisGE(scip, lb, 0.0) );
 
    *factor = upper;
    lb = lower;
@@ -544,13 +548,24 @@ SCIP_RETCODE computeScalingFactor(
             break;
 
          lb = scalar;
-         scalar = (ub + lb) / 2.0;
+         if ( SCIPisInfinity(scip, ub) )
+            scalar *= 2.0;
+         else
+            scalar = (ub + lb) / 2.0;
       }
+
+      /* stop if unsuccessful, e.g., if matrix has minimal eigenvalue 0 and cannot compensate constant part */
+      ++iter;
+      if ( iter >= maxiter )
+         break;
    }
 
    SCIPfreeBufferArray(scip, &matrix);
 
-   *factor = scalar;
+   if ( iter >= maxiter )
+      *factor = SCIP_INVALID;
+   else
+      *factor = scalar;
 
    return SCIP_OKAY;
 }
@@ -848,6 +863,8 @@ SCIP_RETCODE tightenMatrices(
          SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrix) );
 
          SCIP_CALL( computeScalingFactor(scip, blocksize, matrix, constmatrix, 0.0, 1.0, &factor) );
+         if ( factor == SCIP_INVALID )
+            continue;
 
          if ( ! SCIPisEQ(scip, factor, 1.0) )
          {
@@ -944,6 +961,8 @@ SCIP_RETCODE tightenBounds(
 
          /* compute scaling factor */
          SCIP_CALL( computeScalingFactor(scip, blocksize, matrix, constmatrix, lb, ub, &factor) );
+         if ( factor == SCIP_INVALID )
+            continue;
 
          if ( SCIPisLT(scip, factor, ub) )
          {
