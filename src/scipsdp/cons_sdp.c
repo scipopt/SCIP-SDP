@@ -3968,7 +3968,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
          SCIP_CALL( tightenMatrices(scip, conss, nconss, nchgcoefs) );
          if ( noldchgcoefs != *nchgcoefs )
          {
-            SCIPinfoMessage(scip, NULL, "TightenMatrices successfully tightened %d coefficient matrices.\n", noldchgcoefs - *nchgcoefs);
+            SCIPinfoMessage(scip, NULL, "TightenMatrices successfully tightened %d coefficient matrices.\n", *nchgcoefs - noldchgcoefs);
             *result = SCIP_SUCCESS;
          }
       }
@@ -3986,7 +3986,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 
          if ( noldchgbds != *nchgbds )
          {
-            SCIPinfoMessage(scip, NULL, "TightenBounds successfully tightened %d bounds.\n", noldchgbds - *nchgbds);
+            SCIPinfoMessage(scip, NULL, "TightenBounds successfully tightened %d bounds.\n", *nchgbds - noldchgbds);
             *result = SCIP_SUCCESS;
          }
       }
