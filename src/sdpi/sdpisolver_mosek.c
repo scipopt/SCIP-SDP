@@ -671,10 +671,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int* vartorowmapper; /* maps the lpvars to the corresponding left- and right-hand-sides of the LP constraints */
    int* vartolhsrhsmapper; /* maps the lpvars to the corresponding entries in lplhs and lprhs */
    int nlpvars;
-   int pos;
-   int newpos;
    int* mosekblocksizes;
-   SCIP_Real one; /* MOSEK always wants a pointer to factors for a sum of matrices, we always use a single matrix with factor one */
+   SCIP_Real one = 1.0; /* MOSEK always wants a pointer to factors for a sum of matrices, we always use a single matrix with factor one */
    int* mosekrow;
    int* mosekcol;
    SCIP_Real* mosekval;
@@ -693,7 +691,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    char varname[SCIP_MAXSTRLEN];
 #endif
 #if CONVERT_ABSOLUTE_TOLERANCES
-   SCIP_Real maxrhscoef; /* MOSEK uses a relative feasibility tolerance, the largest rhs-coefficient is needed for converting the absolute tolerance */
+   SCIP_Real maxrhscoef = 0.0; /* MOSEK uses a relative feasibility tolerance, the largest rhs-coefficient is needed for converting the absolute tolerance */
 #endif
 
    assert( sdpisolver != NULL );
@@ -747,23 +745,18 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* start the timing */
    TIMEOFDAY_CALL( gettimeofday(&starttime, NULL) );/*lint !e438, !e550, !e641 */
 
-   one = 1.0;
-#if CONVERT_ABSOLUTE_TOLERANCES
-   maxrhscoef = 0.0;
-#endif
-
    /* create an empty task (second and third argument are guesses for maximum number of constraints and variables), if there already is one, delete it */
-   if ((sdpisolver->msktask) != NULL)
+   if ( sdpisolver->msktask != NULL )
    {
-      MOSEK_CALL( MSK_deletetask(&(sdpisolver->msktask)) );/*lint !e641*/
+      MOSEK_CALL( MSK_deletetask(&sdpisolver->msktask) );/*lint !e641*/
    }
    if ( penaltyparam < sdpisolver->epsilon )
    {
-      MOSEK_CALLM( MSK_maketask(sdpisolver->mskenv, nvars, nsdpblocks - nremovedblocks + nlpcons + 2 * nvars, &(sdpisolver->msktask)) );/*lint !e641*/
+      MOSEK_CALLM( MSK_maketask(sdpisolver->mskenv, nvars, nsdpblocks - nremovedblocks + nlpcons + 2 * nvars, &sdpisolver->msktask) );/*lint !e641*/
    }
    else
    {
-      MOSEK_CALLM( MSK_maketask(sdpisolver->mskenv, nvars + 1, nsdpblocks - nremovedblocks + nlpcons + 2 * nvars, &(sdpisolver->msktask)) );/*lint !e641*/
+      MOSEK_CALLM( MSK_maketask(sdpisolver->mskenv, nvars + 1, nsdpblocks - nremovedblocks + nlpcons + 2 * nvars, &sdpisolver->msktask) );/*lint !e641*/
    }
 
 #if MSK_VERSION_MAJOR >= 9
@@ -789,9 +782,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* only increase the counter if we don't use the penalty formulation to stay in line with the numbers in the general interface (where this is still the
     * same SDP) */
    if ( penaltyparam < sdpisolver->epsilon )
-      SCIPdebugMessage("Inserting Data into MOSEK for SDP (%d) \n", ++sdpisolver->sdpcounter);
+      SCIPdebugMessage("Inserting data into MOSEK for SDP (%d) \n", ++sdpisolver->sdpcounter);
    else
-      SCIPdebugMessage("Inserting Data again into MOSEK for SDP (%d) \n", sdpisolver->sdpcounter);
+      SCIPdebugMessage("Inserting data again into MOSEK for SDP (%d) \n", sdpisolver->sdpcounter);
 
    /* set the penalty and rbound flags accordingly */
    sdpisolver->penalty = (penaltyparam < sdpisolver->epsilon) ? FALSE : TRUE;
@@ -866,19 +859,20 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, lb[sdpisolver->mosektoinputmapper[i]]) )
       {
          mosekvarbounds[sdpisolver->nvarbounds] = lb[sdpisolver->mosektoinputmapper[i]];
-         sdpisolver->varboundpos[sdpisolver->nvarbounds] = -(i + 1); /* negative sign means lower bound */
-         (sdpisolver->nvarbounds)++;
+         sdpisolver->varboundpos[sdpisolver->nvarbounds++] = -(i + 1); /* negative sign means lower bound */
       }
       if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, ub[sdpisolver->mosektoinputmapper[i]]) )
       {
          mosekvarbounds[sdpisolver->nvarbounds] = -1 * ub[sdpisolver->mosektoinputmapper[i]]; /* we give the upper bounds a negative sign for the objective */
-         sdpisolver->varboundpos[sdpisolver->nvarbounds] = +(i + 1); /* positive sign means upper bound */
-         (sdpisolver->nvarbounds)++;
+         sdpisolver->varboundpos[sdpisolver->nvarbounds++] = +(i + 1); /* positive sign means upper bound */
       }
    }
 
    if ( nlpcons > 0 )
    {
+      int newpos = 0; /* the position in the lhs and rhs arrays */
+      int pos = 0;
+
       /* allocate memory to save which lpvariable corresponds to which lp constraint, negative signs correspond to left-hand-sides of lp constraints,
        * entry i or -i corresponds to the constraint in position |i|-1, as we have to add +1 to make the entries strictly positive or strictly negative */
       BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &vartorowmapper, 2*noldlpcons) ); /*lint !e647*/ /*lint !e530*/
@@ -886,8 +880,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &vartolhsrhsmapper, 2*noldlpcons) ); /*lint !e647*/ /*lint !e530*/
 
       /* compute the number of LP constraints after splitting the ranged rows and compute the rowtovarmapper */
-      pos = 0;
-      newpos = 0; /* the position in the lhs and rhs arrays */
       for (i = 0; i < noldlpcons; i++)
       {
          assert( newpos <= nlpcons );
@@ -896,8 +888,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             if ( lplhs[newpos] > - SCIPsdpiSolverInfinity(sdpisolver) )
             {
                vartorowmapper[pos] = -(i+1);
-               vartolhsrhsmapper[pos] = newpos;
-               pos++;
+               vartolhsrhsmapper[pos++] = newpos;
 
 #if CONVERT_ABSOLUTE_TOLERANCES
                /* update largest rhs-entry */
@@ -909,8 +900,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             if ( lprhs[newpos] < SCIPsdpiSolverInfinity(sdpisolver) )
             {
                vartorowmapper[pos] = i+1;
-               vartolhsrhsmapper[pos] = newpos;
-               pos++;
+               vartolhsrhsmapper[pos++] = newpos;
 
 #if CONVERT_ABSOLUTE_TOLERANCES
                /* update largest rhs-entry */
@@ -1203,8 +1193,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                if ( v > -1 )
                {
                   mosekrow[mosekind] = v;
-                  mosekval[mosekind] = -1 * lpval[ind]; /* because we need to change the <= to a >= constraint */
-                  mosekind++;
+                  mosekval[mosekind++] = -1 * lpval[ind]; /* because we need to change the <= to a >= constraint */
                }
                ind++;
             }
@@ -1220,8 +1209,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          if ( ! (i > 0 && vartorowmapper[i] == -1 * vartorowmapper[i - 1] ))
          {
             mosekrow[mosekind] = sdpisolver->nactivevars;
-            mosekval[mosekind] = 1.0;
-            mosekind++;
+            mosekval[mosekind++] = 1.0;
          }
          assert( mosekind <= lpnnonz + 1 );
       }
