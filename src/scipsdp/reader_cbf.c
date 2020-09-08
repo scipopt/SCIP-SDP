@@ -689,6 +689,13 @@ SCIP_RETCODE CBFreadInt(
          return SCIP_READERROR; /*lint !e527*/
       }
 
+      if ( v < 0 || v >= data->nvars )
+      {
+         SCIPerrorMessage("Given integrality contraint in line %" SCIP_LONGINT_FORMAT " for variable %d which does not exist!\n", *linecount, v);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
+
       SCIP_CALL( SCIPchgVarType(scip, data->createdvars[v], SCIP_VARTYPE_INTEGER, &infeasible)   );
 
       if ( infeasible )
