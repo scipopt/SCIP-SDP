@@ -2562,47 +2562,57 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
       }
    }
 
-   /* write constraint senses */
-   SCIPinfoMessage(scip, file, "CON\n%d %d\n", i, nsenses);
-   nconsssenses = nsenses;
-   c = 0;
-   while (c < nconss && consssenses[c] == 2)
-      ++c;
-   if ( c < nconss )
-   {
-      lastsense = consssenses[c];
-      nsenses = 1;
-      ++c;
-      for (; c < nconss; ++c)
-      {
-         if ( consssenses[c] == 2 )
-            continue;
+   assert( nsenses == 0 || i > 0 );
+   assert( nsenses > 0 || i == 0 );
 
-         if ( consssenses[c] != lastsense )
+   /* write constraint senses if there are any linear constraints */
+   if ( nsenses > 0 )
+   {
+      SCIPinfoMessage(scip, file, "CON\n%d %d\n", i, nsenses);
+      nconsssenses = nsenses;
+      c = 0;
+      while (c < nconss && consssenses[c] == 2)
+         ++c;
+      if ( c < nconss )
+      {
+         lastsense = consssenses[c];
+         nsenses = 1;
+         ++c;
+         for (; c < nconss; ++c)
          {
-            if ( lastsense == 0 )
-               SCIPinfoMessage(scip, file, "L= %d\n", nsenses);
-            else if ( lastsense == -1 )
-               SCIPinfoMessage(scip, file, "L- %d\n", nsenses);
-            else
+            if ( consssenses[c] == 2 )
+               continue;
+
+            if ( consssenses[c] != lastsense )
             {
-               assert( lastsense == 1 );
-               SCIPinfoMessage(scip, file, "L+ %d\n", nsenses);
+               if ( lastsense == 0 )
+                  SCIPinfoMessage(scip, file, "L= %d\n", nsenses);
+               else if ( lastsense == -1 )
+                  SCIPinfoMessage(scip, file, "L- %d\n", nsenses);
+               else
+               {
+                  assert( lastsense == 1 );
+                  SCIPinfoMessage(scip, file, "L+ %d\n", nsenses);
+               }
+               nsenses = 0;
+               lastsense = consssenses[c];
             }
-            nsenses = 0;
-            lastsense = consssenses[c];
+            ++nsenses;
          }
-         ++nsenses;
+      }
+      if ( lastsense == 0 )
+         SCIPinfoMessage(scip, file, "L= %d\n\n", nsenses);
+      else if ( lastsense == -1 )
+         SCIPinfoMessage(scip, file, "L- %d\n\n", nsenses);
+      else
+      {
+         assert( lastsense == 1 );
+         SCIPinfoMessage(scip, file, "L+ %d\n\n", nsenses);
       }
    }
-   if ( lastsense == 0 )
-      SCIPinfoMessage(scip, file, "L= %d\n\n", nsenses);
-   else if ( lastsense == -1 )
-      SCIPinfoMessage(scip, file, "L- %d\n\n", nsenses);
    else
    {
-      assert( lastsense == 1 );
-      SCIPinfoMessage(scip, file, "L+ %d\n\n", nsenses);
+      nconsssenses = 0;
    }
 
    /* count number of SDP constraints (conshdlrGetNConss doesn't seem to work before transformation) */
@@ -2613,18 +2623,21 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
          ++nsdpconss;
    }
 
-   /* write SDP constraints */
-   SCIPinfoMessage(scip, file, "PSDCON\n%d\n", nsdpconss);
-
-   for (c = 0; c < nconss; c++)
+   /* write SDP constraints if there are any */
+   if ( nsdpconss > 0 )
    {
-      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0 && strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") != 0 )
-         continue;
+      SCIPinfoMessage(scip, file, "PSDCON\n%d\n", nsdpconss);
 
-      SCIPinfoMessage(scip, file, "%d\n", SCIPconsSdpGetBlocksize(scip, conss[c]));
+      for (c = 0; c < nconss; c++)
+      {
+         if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0 && strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") != 0 )
+            continue;
+
+         SCIPinfoMessage(scip, file, "%d\n", SCIPconsSdpGetBlocksize(scip, conss[c]));
+      }
+
+      SCIPinfoMessage(scip, file, "\n");
    }
-
-   SCIPinfoMessage(scip, file, "\n");
 
    /* count number of rank-1 SDP constraints */
    nrank1sdpblocks = 0;
