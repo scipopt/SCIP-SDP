@@ -1423,97 +1423,100 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             else
             {
                sdpisolver->solved = FALSE;
-               SCIPmessagePrintInfo(sdpisolver->messagehdlr, "MOSEK failed to reach required feasibility tolerance! \n");
+               SCIPmessagePrintInfo(sdpisolver->messagehdlr, "MOSEK failed to reach required feasibility tolerance!\n");
             }
          }
          else
             break;
       }
 
-      /* if using a penalty formulation, check if the solution is feasible for the original problem
-       * we should always count it as infeasible if the penalty problem was unbounded */
-      MOSEK_CALL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-      if ( penaltyparam >= sdpisolver->epsilon && (solstat == MSK_SOL_STA_PRIM_INFEAS_CER) )
+      if ( sdpisolver->solved )
       {
-         assert( feasorig != NULL );
-         *feasorig = FALSE;
-         SCIPdebugMessage("Penalty Problem unbounded!\n");
-      }
-      else if ( penaltyparam >= sdpisolver->epsilon && ( ! sdpisolver->timelimit ) && ( sdpisolver->terminationcode != MSK_RES_TRM_MAX_TIME ) )
-      {
-         SCIP_Real* moseksol;
-         SCIP_Real trace = 0.0;
-         SCIP_Real* x;
-
-         assert( feasorig != NULL );
-
-         /* get the r variable in the dual problem */
-         BMSallocBufferMemoryArray(sdpisolver->bufmem, &moseksol, sdpisolver->nactivevars + 1);/*lint !e776*/
-
-         MOSEK_CALL( MSK_gety(sdpisolver->msktask, MSK_SOL_ITR, moseksol) );/*lint !e641*/
-
-         *feasorig = (moseksol[sdpisolver->nactivevars] < sdpisolver->feastol); /*lint !e413*/
-
-         /* only set sdpisolver->feasorig to true if we solved with objective, because only in this case we want to compute
-          * the objective value by hand since it is numerically more stable then the result returned by MOSEK */
-         if ( withobj )
-            sdpisolver->feasorig = *feasorig;
-
-         /* if r > 0 also check the primal bound */
-         if ( ! *feasorig && penaltybound != NULL )
+         /* if using a penalty formulation, check if the solution is feasible for the original problem
+          * we should always count it as infeasible if the penalty problem was unbounded */
+         MOSEK_CALL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
+         if ( penaltyparam >= sdpisolver->epsilon && (solstat == MSK_SOL_STA_PRIM_INFEAS_CER) )
          {
-            SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", moseksol[sdpisolver->nactivevars]);
-
-            /* compute Tr(X) */
-
-            /* start with the diagonal entries of the primal semidefinite variables */
-            for (b = 0; b < nsdpblocks; b++)
-            {
-               if ( blockindchanges[b] > -1 )
-               {
-                  SCIP_Real* X; /* the upper triangular entries of matrix X */
-                  int size;
-
-                  size = sdpblocksizes[b] - nremovedinds[b];
-
-                  BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &X, 0.5 * size * (size + 1)) );
-                  MOSEK_CALL( MSK_getbarxj(sdpisolver->msktask, MSK_SOL_ITR, b - blockindchanges[b], X) );/*lint !e641*/
-
-                  /* iterate over all diagonal entries */
-                  for (i = 0; i < size; i++)
-                  {
-                     /* get index in the lower triangular part */
-                     ind = i * (i + 3) / 2;/*lint !e776*/ /*  i*(i+1)/2 + i  */
-                     assert( ind < 0.5 * size * (size + 1) );
-                     trace += X[ind];
-                  }
-
-                  BMSfreeBufferMemoryArray(sdpisolver->bufmem, &X);
-               }
-            }
-
-            /* add primal lp-variables */
-            BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &x, nlpvars + sdpisolver->nvarbounds) );
-
-            MOSEK_CALL( MSK_getxx(sdpisolver->msktask, MSK_SOL_ITR, x) );/*lint !e641*/
-
-            for (i = 0; i < nlpvars; i++)
-               trace += x[i];
-
-            BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &x);
-
-            /* if the relative gap is smaller than the tolerance, we return equality */
-            if ( (penaltyparam - trace) / penaltyparam < PENALTYBOUNDTOL )/*lint !e414*/
-            {
-               assert( penaltybound != NULL );
-               *penaltybound = TRUE;
-               SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible\n",
-                  trace, penaltyparam);
-            }
-            else
-               *penaltybound = FALSE;
+            assert( feasorig != NULL );
+            *feasorig = FALSE;
+            SCIPdebugMessage("Penalty Problem unbounded!\n");
          }
-         BMSfreeBufferMemoryArray(sdpisolver->bufmem, &moseksol);
+         else if ( penaltyparam >= sdpisolver->epsilon && ( ! sdpisolver->timelimit ) && ( sdpisolver->terminationcode != MSK_RES_TRM_MAX_TIME ) )
+         {
+            SCIP_Real* moseksol;
+            SCIP_Real trace = 0.0;
+            SCIP_Real* x;
+
+            assert( feasorig != NULL );
+
+            /* get the r variable in the dual problem */
+            BMSallocBufferMemoryArray(sdpisolver->bufmem, &moseksol, sdpisolver->nactivevars + 1);/*lint !e776*/
+
+            MOSEK_CALL( MSK_gety(sdpisolver->msktask, MSK_SOL_ITR, moseksol) );/*lint !e641*/
+
+            *feasorig = (moseksol[sdpisolver->nactivevars] < sdpisolver->feastol); /*lint !e413*/
+
+            /* only set sdpisolver->feasorig to true if we solved with objective, because only in this case we want to compute
+             * the objective value by hand since it is numerically more stable then the result returned by MOSEK */
+            if ( withobj )
+               sdpisolver->feasorig = *feasorig;
+
+            /* if r > 0 also check the primal bound */
+            if ( ! *feasorig && penaltybound != NULL )
+            {
+               SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", moseksol[sdpisolver->nactivevars]);
+
+               /* compute Tr(X) */
+
+               /* start with the diagonal entries of the primal semidefinite variables */
+               for (b = 0; b < nsdpblocks; b++)
+               {
+                  if ( blockindchanges[b] > -1 )
+                  {
+                     SCIP_Real* X; /* the upper triangular entries of matrix X */
+                     int size;
+
+                     size = sdpblocksizes[b] - nremovedinds[b];
+
+                     BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &X, 0.5 * size * (size + 1)) );
+                     MOSEK_CALL( MSK_getbarxj(sdpisolver->msktask, MSK_SOL_ITR, b - blockindchanges[b], X) );/*lint !e641*/
+
+                     /* iterate over all diagonal entries */
+                     for (i = 0; i < size; i++)
+                     {
+                        /* get index in the lower triangular part */
+                        ind = i * (i + 3) / 2;/*lint !e776*/ /*  i*(i+1)/2 + i  */
+                        assert( ind < 0.5 * size * (size + 1) );
+                        trace += X[ind];
+                     }
+
+                     BMSfreeBufferMemoryArray(sdpisolver->bufmem, &X);
+                  }
+               }
+
+               /* add primal lp-variables */
+               BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &x, nlpvars + sdpisolver->nvarbounds) );
+
+               MOSEK_CALL( MSK_getxx(sdpisolver->msktask, MSK_SOL_ITR, x) );/*lint !e641*/
+
+               for (i = 0; i < nlpvars; i++)
+                  trace += x[i];
+
+               BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &x);
+
+               /* if the relative gap is smaller than the tolerance, we return equality */
+               if ( (penaltyparam - trace) / penaltyparam < PENALTYBOUNDTOL )/*lint !e414*/
+               {
+                  assert( penaltybound != NULL );
+                  *penaltybound = TRUE;
+                  SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible\n",
+                     trace, penaltyparam);
+               }
+               else
+                  *penaltybound = FALSE;
+            }
+            BMSfreeBufferMemoryArray(sdpisolver->bufmem, &moseksol);
+         }
       }
    }
 
