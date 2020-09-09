@@ -120,14 +120,14 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds,nobnds)
     % ------------------------------------------
     % constraints
     fprintf(fid, "CON\n");
-    ncons = n*(n+1)+n+2 - strgbnds*0.5*n*(n+1);
+    ncons = 2*n^2+n+2 - strgbnds*n^2;
     ncones = 5 - strgbnds;
     fprintf(fid, "%d %d\n", ncons,ncones);
-    fprintf(fid, "L+ %d\n", n);         % -z_j + 1 >= 0
+    fprintf(fid, "L+ %d\n", n);                % -z_j + 1 >= 0
     if strgbnds == 0
-        fprintf(fid, "L- %d\n", 0.5*n*(n+1));  % -z_j - X_{ij} <= 0
+        fprintf(fid, "L- %d\n", n^2);           % -z_j - X_{ij} <= 0
     end
-    fprintf(fid, "L+ %d\n", 0.5*n*(n+1));       % z_j - X_{ij} >= 0
+    fprintf(fid, "L+ %d\n", n^2);               % z_j - X_{ij} >= 0
     fprintf(fid, "L= 1\n");                    % \sum_j X_{jj} == 1
     fprintf(fid, "L- 1\n");                    % \sum_j z_j <= k
     fprintf(fid, "\n");
@@ -135,7 +135,7 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds,nobnds)
     
     % write ACOORD
     fprintf(fid, "ACOORD\n");
-    nACOORD = 2*n*(n+1)+3*n - strgbnds*n*(n+1);
+    nACOORD = 4*n^2+3*n - strgbnds*2*n^2;
     fprintf(fid, "%d\n", nACOORD);
     cnt = 0;       % counts number of specified entries
     conscnt = 0;   % counts number of specified constraints 
@@ -150,8 +150,9 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds,nobnds)
     % add coupling constraints -z_j - X_{ij} <= 0 (only if strgbnds = 0)
     if strgbnds == 0
         for i = 0:n-1
-            for j = 0:i
-                if ( j ~= i && nobnds == 0)
+            % case i > j
+            for j = 0:i-1
+                if nobnds == 0
                     fprintf(fid, "%d %d -0.5\n", conscnt, j);
                 else
                     fprintf(fid, "%d %d -1.0\n", conscnt, j);
@@ -159,19 +160,52 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds,nobnds)
                 fprintf(fid, "%d %d -1.0\n", conscnt, n+0.5*i*(i+1)+j);
                 cnt = cnt + 2;
                 conscnt = conscnt + 1;
-            end   
+            end
+            % case i == j
+            fprintf(fid, "%d %d -1.0\n", conscnt, i);
+            fprintf(fid, "%d %d -1.0\n", conscnt, n+0.5*i*(i+1)+i);
+            cnt = cnt + 2;
+            conscnt = conscnt + 1;
+            % case i < j
+            for j = i+1:n-1
+                if nobnds == 0
+                    fprintf(fid, "%d %d -0.5\n", conscnt, j);
+                else
+                    fprintf(fid, "%d %d -1.0\n", conscnt, j);
+                end
+                fprintf(fid, "%d %d -1.0\n", conscnt, n+0.5*j*(j+1)+i);
+                cnt = cnt + 2;
+                conscnt = conscnt + 1;
+            end
         end
     end
     
     % add coupling constraints z_j - X_{ij} >= 0
     for i = 0:n-1
-        for j = 0:i
-            if ( j ~= i && nobnds == 0 )
+        % case i > j
+        for j = 0:i-1
+            if nobnds == 0
                 fprintf(fid, "%d %d 0.5\n", conscnt, j);
             else
                 fprintf(fid, "%d %d 1.0\n", conscnt, j);
             end
             fprintf(fid, "%d %d -1.0\n", conscnt, n+0.5*i*(i+1)+j);
+            cnt = cnt + 2;
+            conscnt = conscnt + 1;
+        end
+        % case i == j
+        fprintf(fid, "%d %d 1.0\n", conscnt, i);
+        fprintf(fid, "%d %d -1.0\n", conscnt, n+0.5*i*(i+1)+i);
+        cnt = cnt + 2;
+        conscnt = conscnt + 1;       
+        % case i < j
+        for j = i+1:n-1
+            if nobnds == 0
+                fprintf(fid, "%d %d 0.5\n", conscnt, j);
+            else
+                fprintf(fid, "%d %d 1.0\n", conscnt, j);
+            end
+            fprintf(fid, "%d %d -1.0\n", conscnt, n+0.5*j*(j+1)+i);
             cnt = cnt + 2;
             conscnt = conscnt + 1;
         end
@@ -215,7 +249,7 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds,nobnds)
     % strgbnds = 0)
     if strgbnds == 0
         for i = 0:n-1
-            for j = 0:i
+            for j = 0:n-1
                 conscnt = conscnt + 1;
             end
         end
@@ -224,7 +258,7 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds,nobnds)
     
     % nothing to add for coupling constraints z_j - X_{ij} >= 0
     for i = 0:n-1
-        for j = 0:i
+        for j = 0:n-1
             conscnt = conscnt + 1;
         end
     end

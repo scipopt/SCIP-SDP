@@ -1,9 +1,14 @@
-valsm = [15,25,30];
-valsn = [30,35,40];
-valsk = [5,4,3];
+% valsm = [15,25,30];
+% valsn = [30,35,40];
+% valsk = [5,4,3];
+% 
+valsm = [15];
+valsn = [30];
+valsk = [5];
+
 
 seed = 1234;
-instances = 3; % number of instances per (type,m,n,k)
+instances = 1; % number of instances per (type,m,n,k)
 types = ['0+-1';'band';'bern';'bina';'norm';'rnk1';'wish'];
 
 mkdir Matrices

@@ -101,7 +101,7 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds,nobnds)
     %% constraints
     fprintf(fid, "CON\n");
     nsocpcons = 0.5*n*(n+3)*(n+2);
-    ncons = n*(n+1)+n+2 + socp*nsocpcons;
+    ncons = 2*n^2+n+2 + socp*nsocpcons - strgbnds*0.5*n*(n-1);
     ncones = 5 + socp;
     fprintf(fid, "%d %d\n", ncons, ncones);
     if socp == 1
@@ -109,15 +109,18 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds,nobnds)
         fprintf(fid, "L= %d\n", nsocpcons);  % \sum_j X_{ij}^2 <= X_{ii}z_i
     end
     fprintf(fid, "L+ %d\n", n);              % -z_j + 1 >= 0
-    fprintf(fid, "L- %d\n", 0.5*n*(n+1));    % -z_j - X_{ij} <= 0
-    fprintf(fid, "L+ %d\n", 0.5*n*(n+1));    % z_j - X_{ij} >= 0
+    fprintf(fid, "L- %d\n", n^2 - strgbnds*0.5*n*(n-1));    % -z_j - X_{ij} <= 0
+    fprintf(fid, "L+ %d\n", n^2);             % z_j - X_{ij} >= 0
     fprintf(fid, "L= 1\n");                  % \sum_j X_{jj} == 1
     fprintf(fid, "L- 1\n");                  % \sum_j z_j <= k
     fprintf(fid, "\n");
 
     %% write FCOORD
     fprintf(fid, "FCOORD\n");
-    nFCOORD = n*(n+1)+n + socp*(n*(3*n+5+0.5*n*(n+1)));
+    if strgbnds ~= 0 && strgbnds ~= 1
+        error("Error: Option <%s> for parameter strgbnds not valid!\n", strgbnds);
+    end
+    nFCOORD = 2*n^2+n + socp*(n*(3*n+5+0.5*n*(n+1))) - strgbnds*0.5*n*(n-1);
     fprintf(fid, "%d\n", nFCOORD);
     cnt = 0;
     conscnt = 0;
@@ -170,27 +173,44 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds,nobnds)
     % no FCOORD for -z_j + 1 >= 0
     conscnt = conscnt + n;
 
-    % add coupling constraints -z_j - X_{ij} <= 0
+    % add coupling constraints -z_j - X_{ij} <= 0 (if strgbnds = 1, only
+    % half of them are needed for -X_{ij} <= 0)
     for i = 0:n-1
-        for j = 0:i
-            if i ~= j
-                fprintf(fid, "%d 0 %d %d -0.5\n", conscnt, i, j);
-            else
-                fprintf(fid, "%d 0 %d %d -1.0\n", conscnt, i, j);
-            end
+        % case i > j
+        for j = 0:i-1
+            fprintf(fid, "%d 0 %d %d -0.5\n", conscnt, i, j);
             cnt = cnt + 1;
             conscnt = conscnt + 1;
+        end
+        % case i == j
+        fprintf(fid, "%d 0 %d %d -1.0\n", conscnt, i, i);
+        cnt = cnt + 1;
+        conscnt = conscnt + 1;
+        % case i < j (only if strgbnds = 0)
+        if strgbnds == 0
+            for j = i+1:n-1
+                fprintf(fid, "%d 0 %d %d -0.5\n", conscnt, j, i);
+                cnt = cnt + 1;
+                conscnt = conscnt + 1;
+            end
         end
     end
 
     % add coupling constraints z_j - X_{ij} >= 0
     for i = 0:n-1
-        for j = 0:i
-            if i ~= j
-                fprintf(fid, "%d 0 %d %d -0.5\n", conscnt, i, j);
-            else
-                fprintf(fid, "%d 0 %d %d -1.0\n", conscnt, i, j);
-            end
+        % case i > j
+        for j = 0:i-1
+            fprintf(fid, "%d 0 %d %d -0.5\n", conscnt, i, j);
+            cnt = cnt + 1;
+            conscnt = conscnt + 1;
+        end
+        % case i == j
+        fprintf(fid, "%d 0 %d %d -1.0\n", conscnt, i, i);
+        cnt = cnt + 1;
+        conscnt = conscnt + 1;
+        % case i < j
+        for j = i+1:n-1
+            fprintf(fid, "%d 0 %d %d -0.5\n", conscnt, j, i);
             cnt = cnt + 1;
             conscnt = conscnt + 1;
         end
@@ -209,15 +229,14 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds,nobnds)
     fprintf(fid, "\n");
 
     if ( conscnt ~= ncons || cnt ~= nFCOORD )
+        fprintf("conscnt is = %d, should be = %d\n",conscnt, ncons);
+        fprintf("cnt is = %d, should be = %d\n",cnt,nFCOORD);
         error("Error: Something went wrong when writing FCOORD!\n");
     end
 
     %% ACOORD
     fprintf(fid, "ACOORD\n");
-    if strgbnds ~= 0 && strgbnds ~= 1
-        error("Error: Option <%s> for parameter strgbnds not valid!\n", strgbnds);
-    end
-    nACOORD = n*(n+1)+2*n + socp*(2*n) - strgbnds*(0.5*n*(n+1));
+    nACOORD = 2*n^2+2*n + socp*(2*n) - strgbnds*(n^2);
     fprintf(fid, "%d\n", nACOORD);
     cnt = 0;
     conscnt = 0;
@@ -246,10 +265,10 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds,nobnds)
     end
 
     % add coupling constraints -z_j - X_{ij} <= 0 (if strgbnds = 1, this
-    % changes to -X_{ij} <= 0, so that nothing needs to be specified here
+    % changes to -X_{ij} <= 0, so that nothing needs to be specified here)
     if strgbnds == 0
         for i = 0:n-1
-            for j = 0:i
+            for j = 0:n-1
                 if ( i ~= j && nobnds == 0 )
                     fprintf(fid, "%d %d -0.5\n", conscnt, j);
                 else
@@ -265,7 +284,7 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds,nobnds)
     
     % add coupling constraints z_j - X_{ij} >= 0
     for i = 0:n-1
-        for j = 0:i
+        for j = 0:n-1
             if ( i ~= j && nobnds == 0 )
                 fprintf(fid, "%d %d 0.5\n", conscnt, j);
             else
@@ -322,15 +341,21 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds,nobnds)
 
     % nothing to add for coupling constraints -z_j - X_{ij} <= 0
     for i = 0:n-1
-        for j = 0:i
-            conscnt = conscnt + 1;
+        if strgbnds == 0
+            for j = 0:n-1
+                conscnt = conscnt + 1;
+            end
+        else   
+            for j = 0:i
+                conscnt = conscnt + 1;
+            end
         end
     end
 
         
     % nothing to add for coupling constraints z_j - X_{ij} >= 0
     for i = 0:n-1
-        for j = 0:i
+        for j = 0:n-1
             conscnt = conscnt + 1;
         end
     end
@@ -348,6 +373,8 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds,nobnds)
 
     fprintf(fid, "\n");
     if ( conscnt ~= ncons || cnt ~= nBCOORD )
+        fprintf("conscnt is = %d, should be = %d\n",conscnt, ncons);
+        fprintf("cnt is = %d, should be = %d\n",cnt,nBCOORD);
         error("Error: Something went wrong when writing BCOORD!\n");
     end
 
