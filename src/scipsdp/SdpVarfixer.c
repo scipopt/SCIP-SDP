@@ -44,6 +44,13 @@
 /* turn off lint warnings for whole file: */
 /*lint --e{788,818}*/
 
+/* defines for lexicographic sorting macros */
+#define SORTTPL_NAMEEXT     IntIntReal
+#define SORTTPL_KEYTYPE     int
+#define SORTTPL_FIELD1TYPE  SCIP_Real
+#include "sorttpllex.c" /*lint !e451*/
+
+
 /** sort the given row, col and val arrays first by non-decreasing row-indices, then for those with identical
  *  row-indices by non-decreasing col-indices
  */
@@ -54,26 +61,18 @@ void SCIPsdpVarfixerSortRowCol(
    int                   length              /**< length of the given arrays */
    )
 {
-   int firstentry;
-   int nextentry;
+   SCIPlexSortIntIntReal(row, col, val, length);
 
-   /* first sort by row indices */
-   SCIPsortIntIntReal(row, col, val, length);
-
-   /* for those with identical row-indices now sort by non-decreasing col-index, first find all entries with the same row-index */
-   nextentry = 0;
-   while (nextentry < length)
+#ifndef NDEBUG
    {
-      firstentry = nextentry; /* the next row starts where the last one ended*/
-
-      while (nextentry < length && row[nextentry] == row[firstentry]) /* as long as the row still matches, increase nextentry */
+      int j;
+      for (j = 0; j < length-1; ++j)
       {
-         nextentry++;
+         assert( row[j] <= row[j] );
+         assert( row[j] != row[j] || col[j] <= col[j] );
       }
-
-      /* now sort all entries between firstentry and nextentry-1 by their col-indices */
-      SCIPsortIntReal(col + firstentry, val + firstentry, nextentry - firstentry);
    }
+#endif
 }
 
 /** merges two three-tuple-arrays together
