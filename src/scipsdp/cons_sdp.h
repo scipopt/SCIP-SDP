@@ -81,7 +81,8 @@ SCIP_RETCODE SCIPcreateConsSdp(
    int                   constnnonz,         /**< number of nonzeros in the constant part of this SDP constraint */
    int*                  constcol,           /**< column indices of the constant nonzeros */
    int*                  constrow,           /**< row indices of the constant nonzeros */
-   SCIP_Real*            constval            /**< values of the constant nonzeros */
+   SCIP_Real*            constval,           /**< values of the constant nonzeros */
+   SCIP_Bool             removeduplicates    /**< Should duplicate entries in the matrices be removed (order of col/row/val is changed)? */
    );
 
 /** creates a rank 1 SDP-constraint */
@@ -101,7 +102,8 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
    int                   constnnonz,         /**< number of nonzeros in the constant part of this SDP constraint */
    int*                  constcol,           /**< column indices of the constant nonzeros */
    int*                  constrow,           /**< row indices of the constant nonzeros */
-   SCIP_Real*            constval            /**< values of the constant nonzeros */
+   SCIP_Real*            constval,           /**< values of the constant nonzeros */
+   SCIP_Bool             removeduplicates    /**< Should duplicate entries in the matrices be removed (order of col/row/val is changed)? */
    );
 
 /** for given row and column (i,j) computes the position in the lower triangular part, if

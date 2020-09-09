@@ -7,6 +7,7 @@ features:
 - The relaxator strengthened the rows of the LP corresponding to variable bounds before adding them to the current SDP.
   This has been extended by a full coefficient tightening procedure.
 - Use lexicographic sorting to sort matrix entries
+- SCIPcreateConsSdp() and SCIPcreateConsSdpRank1() allow to remove duplicates in matrices
 
 parameters:
 - Rename parameter relaxing/SDP/tightenvb to relaxing/SDP/tightenrows.
