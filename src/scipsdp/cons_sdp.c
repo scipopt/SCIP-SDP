@@ -5164,7 +5164,10 @@ SCIP_Bool SCIPconsSdpAddedQuadCons(
    return consdata->addedquadcons;
 }
 
-/** creates an SDP-constraint */
+/** creates an SDP-constraint
+ *
+ *  The matrices should be lower triangular.
+ */
 SCIP_RETCODE SCIPcreateConsSdp(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
@@ -5176,12 +5179,12 @@ SCIP_RETCODE SCIPcreateConsSdp(
    int**                 col,                /**< pointer to column indices of the nonzeros for each variable */
    int**                 row,                /**< pointer to row indices of the nonzeros for each variable */
    SCIP_Real**           val,                /**< pointer to values of the nonzeros for each variable */
-   SCIP_VAR**            vars,               /**< SCIP_VARiables present in this SDP constraint that correspond to the indices in col/row/val */
+   SCIP_VAR**            vars,               /**< variables present in this SDP constraint that correspond to the indices in col/row/val */
    int                   constnnonz,         /**< number of nonzeros in the constant part of this SDP constraint */
    int*                  constcol,           /**< column indices of the constant nonzeros */
    int*                  constrow,           /**< row indices of the constant nonzeros */
    SCIP_Real*            constval,           /**< values of the constant nonzeros */
-   SCIP_Bool             removeduplicates    /**< Should duplicate entries in the matrices be removed (order of col/row/val is changed)? */
+   SCIP_Bool             removeduplicates    /**< Should duplicate matrix entries be removed (then order of col/row/val might change)? */
    )
 {
    SCIP_CONSHDLR* conshdlr;
@@ -5249,6 +5252,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
 
             assert( 0 <= row[i][0] && row[i][0] < blocksize );
             assert( 0 <= col[i][0] && col[i][0] < blocksize );
+            assert( row[i][0] >= col[i][0] );
 
             consdata->row[i][0] = row[i][0];
             consdata->col[i][0] = col[i][0];
@@ -5258,6 +5262,8 @@ SCIP_RETCODE SCIPcreateConsSdp(
             {
                assert( 0 <= row[i][cnt] && row[i][cnt] < blocksize );
                assert( 0 <= col[i][cnt] && col[i][cnt] < blocksize );
+               assert( row[i][cnt] >= col[i][cnt] );
+
                while ( row[i][cnt] == row[i][cnt-1] && col[i][cnt] == col[i][cnt-1] )
                {
                   if ( ! SCIPisEQ(scip, val[i][cnt], val[i][cnt-1]) )
@@ -5280,6 +5286,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
             {
                assert( 0 <= row[i][j] && row[i][j] < blocksize );
                assert( 0 <= col[i][j] && col[i][j] < blocksize );
+               assert( row[i][j] >= col[i][j] );
 
                consdata->row[i][j] = row[i][j];
                consdata->col[i][j] = col[i][j];
@@ -5301,6 +5308,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
 
          assert( 0 <= constrow[0] && constrow[0] < blocksize );
          assert( 0 <= constcol[0] && constcol[0] < blocksize );
+         assert( constrow[0] >= constcol[0] );
 
          consdata->constcol[0] = constcol[0];
          consdata->constrow[0] = constrow[0];
@@ -5310,6 +5318,8 @@ SCIP_RETCODE SCIPcreateConsSdp(
          {
             assert( 0 <= constrow[cnt] && constrow[cnt] < blocksize );
             assert( 0 <= constcol[cnt] && constcol[cnt] < blocksize );
+            assert( constrow[cnt] >= constcol[cnt] );
+
             while ( constrow[cnt] == constrow[cnt-1] && constcol[cnt] == constcol[cnt-1] )
             {
                if ( ! SCIPisEQ(scip, constval[cnt], constval[cnt-1]) )
@@ -5330,6 +5340,10 @@ SCIP_RETCODE SCIPcreateConsSdp(
       {
          for (i = 0; i < constnnonz; i++)
          {
+            assert( 0 <= constrow[j] && constrow[j] < blocksize );
+            assert( 0 <= constcol[j] && constcol[j] < blocksize );
+            assert( constrow[j] >= constcol[j] );
+
             consdata->constrow[i] = constrow[i];
             consdata->constcol[i] = constcol[i];
             consdata->constval[i] = constval[i];
@@ -5364,7 +5378,10 @@ SCIP_RETCODE SCIPcreateConsSdp(
 }
 
 
-/** creates a rank 1 SDP-constraint */
+/** creates a rank 1 SDP-constraint
+ *
+ *  The matrices should be lower triangular.
+ */
 SCIP_RETCODE SCIPcreateConsSdpRank1(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
@@ -5376,12 +5393,12 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
    int**                 col,                /**< pointer to column indices of the nonzeros for each variable */
    int**                 row,                /**< pointer to row indices of the nonzeros for each variable */
    SCIP_Real**           val,                /**< pointer to values of the nonzeros for each variable */
-   SCIP_VAR**            vars,               /**< SCIP_VARiables present in this SDP constraint that correspond to the indices in col/row/val */
+   SCIP_VAR**            vars,               /**< variables present in this SDP constraint that correspond to the indices in col/row/val */
    int                   constnnonz,         /**< number of nonzeros in the constant part of this SDP constraint */
    int*                  constcol,           /**< column indices of the constant nonzeros */
    int*                  constrow,           /**< row indices of the constant nonzeros */
    SCIP_Real*            constval,           /**< values of the constant nonzeros */
-   SCIP_Bool             removeduplicates    /**< Should duplicate entries in the matrices be removed (order of col/row/val is changed)? */
+   SCIP_Bool             removeduplicates    /**< Should duplicate matrix entries be removed (then order of col/row/val might change)? */
    )
 {
    SCIP_CONSHDLR* conshdlr;
@@ -5444,11 +5461,19 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
          {
             int cnt = 1;
 
+            /* make sure matrices are lower triangular */
+            for (j = 0; j < nvarnonz[i]; ++j)
+            {
+               if ( consdata->row[i][j] < consdata->col[i][j] )
+                  SCIPswapInts(&consdata->row[i][j], &consdata->col[i][j]);
+            }
+
             /* sort by rows, then columns */
             SCIPsdpVarfixerSortRowCol(row[i], col[i], val[i], nvarnonz[i]);
 
             assert( 0 <= row[i][0] && row[i][0] < blocksize );
             assert( 0 <= col[i][0] && col[i][0] < blocksize );
+            assert( row[i][0] >= col[i][0] );
 
             consdata->row[i][0] = row[i][0];
             consdata->col[i][0] = col[i][0];
@@ -5458,6 +5483,8 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
             {
                assert( 0 <= row[i][cnt] && row[i][cnt] < blocksize );
                assert( 0 <= col[i][cnt] && col[i][cnt] < blocksize );
+               assert( row[i][cnt] >= col[i][cnt] );
+
                while ( row[i][cnt] == row[i][cnt-1] && col[i][cnt] == col[i][cnt-1] )
                {
                   if ( ! SCIPisEQ(scip, val[i][cnt], val[i][cnt-1]) )
@@ -5480,6 +5507,7 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
             {
                assert( 0 <= row[i][j] && row[i][j] < blocksize );
                assert( 0 <= col[i][j] && col[i][j] < blocksize );
+               assert( row[i][j] >= col[i][j] );
 
                consdata->row[i][j] = row[i][j];
                consdata->col[i][j] = col[i][j];
@@ -5501,6 +5529,7 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
 
          assert( 0 <= constrow[0] && constrow[0] < blocksize );
          assert( 0 <= constcol[0] && constcol[0] < blocksize );
+         assert( constrow[0] >= constcol[0] );
 
          consdata->constcol[0] = constcol[0];
          consdata->constrow[0] = constrow[0];
@@ -5510,6 +5539,8 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
          {
             assert( 0 <= constrow[cnt] && constrow[cnt] < blocksize );
             assert( 0 <= constcol[cnt] && constcol[cnt] < blocksize );
+            assert( constrow[cnt] >= constcol[cnt] );
+
             while ( constrow[cnt] == constrow[cnt-1] && constcol[cnt] == constcol[cnt-1] )
             {
                if ( ! SCIPisEQ(scip, constval[cnt], constval[cnt-1]) )
@@ -5530,6 +5561,10 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
       {
          for (i = 0; i < constnnonz; i++)
          {
+            assert( 0 <= constrow[j] && constrow[j] < blocksize );
+            assert( 0 <= constcol[j] && constcol[j] < blocksize );
+            assert( constrow[j] >= constcol[j] );
+
             consdata->constrow[i] = constrow[i];
             consdata->constcol[i] = constcol[i];
             consdata->constval[i] = constval[i];
