@@ -68,8 +68,8 @@ void SCIPsdpVarfixerSortRowCol(
       int j;
       for (j = 0; j < length-1; ++j)
       {
-         assert( row[j] <= row[j] );
-         assert( row[j] != row[j] || col[j] <= col[j] );
+         assert( row[j] <= row[j+1] );
+         assert( row[j] != row[j+1] || col[j] <= col[j+1] );
       }
    }
 #endif
