@@ -167,7 +167,7 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
     % write ACOORD
     fprintf(fid, "ACOORD\n");
     if boundver == 0
-        nACOORD = 7*n - strgbnds*2*n^2;
+        nACOORD = 7*n - strgbnds*2*n;
     else
         nACOORD = 4*n^2+3*n - strgbnds*2*n^2;
     end

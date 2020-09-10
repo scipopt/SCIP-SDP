@@ -131,7 +131,8 @@ for instance=1:instances
                     name = strcat('MISDP/',file,'_MISDPlp',string(r),"0","0",...
                         string(t),string(b),'.cbf');
                     RIPCBFprimal(A,k,'l',name,r,0,0,t,b);
-                elseif primaldual == "d" || primaldual == "pd"
+                end
+                if primaldual == "d" || primaldual == "pd"
                     name = strcat('MISDP/',file,'_MISDPld',string(r),"0","0",...
                         string(t),string(b),'.cbf');
                     RIPCBFdual(A,k,'l',name,r,0,0,t,b);
@@ -141,7 +142,8 @@ for instance=1:instances
                         name = strcat('MISDP/',file,'_MISDPrp',string(r),...
                             string(so),"0",string(t),string(b),'.cbf');
                         RIPCBFprimal(A,k,'r',name,r,so,0,t,b);
-                    elseif primaldual == "d" || primaldual == "pd"
+                    end
+                    if primaldual == "d" || primaldual == "pd"
                         name = strcat('MISDP/',file,'_MISDPrd',string(r),...
                             string(so),"0",string(t),string(b),'.cbf');
                         RIPCBFdual(A,k,'r',name,r,so,0,t,b);
@@ -151,7 +153,8 @@ for instance=1:instances
                             name = strcat('MISDP/',file,'_MISDPrp',string(r),...
                                 string(so),"1",string(t),string(b),'.cbf');
                             RIPCBFprimal(A,k,'r',name,r,so,1,t,b);
-                        elseif primaldual == "d" || primaldual == "pd"
+                        end
+                        if primaldual == "d" || primaldual == "pd"
                             name = strcat('MISDP/',file,'_MISDPrd',string(r),...
                                 string(so),"1",string(t),string(b),'.cbf');
                             RIPCBFdual(A,k,'r',name,r,so,1,t,b);
