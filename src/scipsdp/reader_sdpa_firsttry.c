@@ -71,7 +71,7 @@
 #define MACRO_STR_EXPAND(tok) #tok
 #define MACRO_STR(tok) MACRO_STR_EXPAND(tok)
 #define SDPA_NAME_FORMAT "%" MACRO_STR(SDPA_MAX_NAME) "s"
-#define SDPA_MAX_LINE  100      /* Last 3 chars reserved for '\r\n\0' */
+#define SDPA_MAX_LINE  512      /* Last 3 chars reserved for '\r\n\0' */
 #define SDPA_MAX_NAME  512	/* Frage: sind die vielfachen von 2 wirklich nötig? (vorher 512) */
 
 
@@ -264,6 +264,8 @@ int readLineDouble(
    }
    while ( i < nvars );
 
+   assert(i == nvars );
+	
    return i;
 }
 
@@ -298,6 +300,8 @@ int readLineInt(
       }
    }
    while ( i < nvars );
+
+   assert(i == nvars );
 
    return i;
 }
@@ -338,7 +342,7 @@ SCIP_RETCODE SDPAreadNVars(
       return SCIP_READERROR;
    }
 
-   if ( data->nvars < 0 )
+   if ( data->nvars < 0 ) 
    {
       SCIPerrorMessage("Number of scalar variables %d in line %" SCIP_LONGINT_FORMAT " should be non-negative!\n",
          data->nvars, *linecount);
@@ -346,7 +350,7 @@ SCIP_RETCODE SDPAreadNVars(
       return SCIP_READERROR; /*lint !e527*/
    }
 
-   assert( data->nvars >= 0 );
+   assert( data->nvars >= 0 ); //TODO: wird doppelt abgefragt
 
    /* loop through different variable types */
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdvars), data->nvars) );
@@ -370,6 +374,8 @@ SCIP_RETCODE SDPAreadNVars(
       /* release variable for the reader */
       SCIP_CALL( SCIPreleaseVar(scip, &var) );
    }
+   
+   assert(v == data->nvars); //TODO:Sinnvoll?
 
    return SCIP_OKAY;
 }
@@ -425,7 +431,7 @@ SCIP_RETCODE SDPAreadBlockSize(
    SCIP_CONS* cons;
    int b;
    int cnt = 0;
-   int ncbfsdpblocks = 0;
+   int nsdpblocks = 0;
    int nlpblocks = 0;
    int* blockVals;
    int nblocks;
@@ -469,10 +475,12 @@ SCIP_RETCODE SDPAreadBlockSize(
       }
       else
       {
-         *(blockValsPsd + ncbfsdpblocks) = *(blockVals + i);
-         ncbfsdpblocks ++;
+         *(blockValsPsd + nsdpblocks) = *(blockVals + i);
+         nsdpblocks ++;
       }
    }
+
+   assert(!(data->locationConBlock == -1) != !(data->nconss > 0) );	
 
    if ( data->nconss < 0 )
    {
@@ -492,22 +500,22 @@ SCIP_RETCODE SDPAreadBlockSize(
 
    assert( data->nconss >= 0 );
 
-   if ( ncbfsdpblocks < 0 )
+   if ( nsdpblocks < 0 )
    {
-      SCIPerrorMessage("Number of SDP-blocks %d in line %" SCIP_LONGINT_FORMAT " should be non-negative!\n", ncbfsdpblocks,
+      SCIPerrorMessage("Number of SDP-blocks %d in line %" SCIP_LONGINT_FORMAT " should be non-negative!\n", nsdpblocks,
          *linecount);
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
 
-   data->nsdpblocks = ncbfsdpblocks;
+   data->nsdpblocks = nsdpblocks;
 
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblocksizes), data->nsdpblocks) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblockrank1), data->nsdpblocks) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdconss), data->nconss) );
 
 
-   for (b = 0; b < ncbfsdpblocks; b++)
+   for (b = 0; b < nsdpblocks; b++)
    {
       data->sdpblocksizes[b] = *(blockValsPsd + b);
       if ( data->sdpblocksizes[b] <= 0 )
@@ -567,6 +575,7 @@ SCIP_RETCODE SDPAreadObjVals(
 {  /*lint --e{818}*/
    int nzerocoef = 0;
    int v;
+   int nValsRead = 0;
    SCIP_Real* objVals;
 
    assert( scip != NULL );
@@ -584,7 +593,9 @@ SCIP_RETCODE SDPAreadObjVals(
    }
    assert( data->nvars >= 0 );
 
-   readLineDouble(scip, pfile, linecount, data->nvars, objVals);
+   nValsRead = readLineDouble(scip, pfile, linecount, data->nvars, objVals);
+
+   assert(data->nvars == nValsRead); 	
 
    for (v = 0; v < data->nvars; v++)
    {
@@ -633,7 +644,7 @@ SCIP_RETCODE SDPAreadBlocks(
    int firstindforvar;
    int nextindaftervar;
    int nzerocoef = 0;
-   int ncbfsdpblocks;          /* TODO: find number of nonzeros in each auxiliary sdp block for reformulating matrix variables using scalar variables */
+   int nsdpblocks;          /* TODO: find number of nonzeros in each auxiliary sdp block for reformulating matrix variables using scalar variables */
 
    int* currentEntriesSdp;
    int* currentEntriesCon;
@@ -691,7 +702,7 @@ SCIP_RETCODE SDPAreadBlocks(
    /* get number of sdp blocks specified by PSDCON (without auxiliary sdp blocks for reformulating matrix variables
     * using scalar variables), save number of nonzeros needed for the auxiliary sdp blocks in nauxnonz */
    /* TODO: noch aktuell? Nein, kann entfernt werden */
-   ncbfsdpblocks = data->nsdpblocks;
+   nsdpblocks = data->nsdpblocks;
 
    if ( data->createdconss == NULL )
    {
@@ -774,7 +785,7 @@ SCIP_RETCODE SDPAreadBlocks(
          /* check if is the constant part of the SDP block (FALSE) or not (TRUE) */
          if ( v >= 0 )
          {
-            if ( b < 0 || b >= ncbfsdpblocks )
+            if ( b < 0 || b >= nsdpblocks )
             {
                SCIPerrorMessage("Given SDP-coefficient in line %" SCIP_LONGINT_FORMAT
                   " for SDP-constraint %d which does not exist!\n", *linecount, b);
@@ -809,6 +820,7 @@ SCIP_RETCODE SDPAreadBlocks(
                {
                   int newsize = SCIPcalcMemGrowSize(scip, data->memorysizessdp[b] + 1);
                   assert( newsize > data->memorysizessdp[b] );
+                  assert( newsize > currentEntriesSdp[b] );
 
                   SCIP_CALL( SCIPreallocBufferArray(scip, &(sdpvar[b]), newsize) );
                   SCIP_CALL( SCIPreallocBufferArray(scip, &(sdprow_local[b]), newsize) );
@@ -872,7 +884,8 @@ SCIP_RETCODE SDPAreadBlocks(
                {
                   int newsize = SCIPcalcMemGrowSize(scip, data->memorysizescon[b] + 1);
                   assert( newsize > data->memorysizescon[b] );
-
+                  assert( newsize > currentEntriesCon[b] );
+                  
                   SCIP_CALL( SCIPreallocBufferArray(scip, &(sdpconstrow_local[b]), newsize) );
                   SCIP_CALL( SCIPreallocBufferArray(scip, &(sdpconstcol_local[b]), newsize) );
                   SCIP_CALL( SCIPreallocBufferArray(scip, &(sdpconstval_local[b]), newsize) );
@@ -948,10 +961,12 @@ SCIP_RETCODE SDPAreadBlocks(
                   SCIP_CALL( SCIPchgLhsLinear(scip, data->createdconss[c], val) );
                }
 
+
+		/*Das hier sollte immer falsch sein!*/			
                if ( ! SCIPisInfinity(scip, SCIPgetRhsLinear(scip, data->createdconss[c])) )
                {
-                  /* less or equal constraint->right-hand side*/
-                  SCIP_CALL( SCIPchgRhsLinear(scip, data->createdconss[c], val) );
+                  SCIPerrorMessage("Constraint %d has a non infinit right hand side which should not be possible!\n", c);
+               SCIPABORT();
                }
             }
          }
@@ -1028,7 +1043,7 @@ SCIP_RETCODE SDPAreadBlocks(
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->valpointer), data->nsdpblocks) );
 
    /* sdp blocks as specified in cbf file in HCOORD */
-   for (b = 0; b < ncbfsdpblocks; b++)
+   for (b = 0; b < nsdpblocks; b++)
    {
       /* sort the nonzeroes by non-decreasing variable indices */
       SCIPsortIntIntIntReal(sdpvar[b], data->sdprow[b], data->sdpcol[b], data->sdpval[b], data->sdpnblocknonz[b]);
@@ -1197,6 +1212,8 @@ SCIP_RETCODE SDPAfreeData(
    {
       for (b = 0; b < data->nsdpblocks; b++)
       {
+         assert( data->memorysizescon[b] > 0);
+      
          SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstval[b]), data->memorysizescon[b]);
          SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstcol[b]), data->memorysizescon[b]);
          SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstrow[b]), data->memorysizescon[b]);
@@ -1226,9 +1243,12 @@ SCIP_RETCODE SDPAfreeData(
 
       /* some SDP constraints specified in the SDPA file! */
       assert( ncbfsdpblocks > 0 );
+      assert( data->nvars > 0 );
 
       for (b = 0; b < ncbfsdpblocks; b++)
       {
+      	 assert( data->memorysizessdp[b] > 0);
+      
          SCIPfreeBlockMemoryArrayNull(scip, &(data->valpointer[b]), data->nvars);
          SCIPfreeBlockMemoryArrayNull(scip, &(data->colpointer[b]), data->nvars);
          SCIPfreeBlockMemoryArrayNull(scip, &(data->rowpointer[b]), data->nvars);
@@ -1458,6 +1478,8 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
 
    assert( scip != NULL );
    assert( result != NULL );
+   assert( nvars > 0 ); 
+   assert( nconss >= 0 ); 
 
    SCIPdebugMsg(scip, "Writing problem in SDPA format to file.\n");
    *result = SCIP_DIDNOTRUN;
