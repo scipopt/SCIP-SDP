@@ -336,8 +336,7 @@ SCIP_RETCODE SDPAreadNVars(
 
    if ( sscanf(SDPA_LINE_BUFFER, "%i", &(data->nvars)) != 1 )
    {
-      SCIPerrorMessage("Could not read number of scalar variables and conic domains in line %" SCIP_LONGINT_FORMAT ".\n",
-         *linecount);
+      SCIPerrorMessage("Could not read number of scalar variables in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
       SCIPABORT();
       return SCIP_READERROR;
    }
@@ -399,8 +398,7 @@ SCIP_RETCODE SDPAreadNBlocks(
 
    if ( sscanf(SDPA_LINE_BUFFER, "%i", &(data->nsdpaconstblock)) != 1 )
    {
-      SCIPerrorMessage("Could not read number of scalar constraints and conic domains in line %" SCIP_LONGINT_FORMAT ".\n",
-         *linecount);
+      SCIPerrorMessage("Could not read number of scalar constraints in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
       SCIPABORT();
       return SCIP_READERROR;
    }
@@ -457,9 +455,8 @@ SCIP_RETCODE SDPAreadBlockSize(
 
    if ( data->nsdpaconstblock != nblocks )
    {
-      SCIPerrorMessage("Number of nblocks returned by readLineInt in line %" SCIP_LONGINT_FORMAT
-         " should equal data->nsdpaconstblock. Expected: %i, got: %i\n",
-         *linecount,data->nsdpaconstblock, data->nconss);
+      SCIPerrorMessage("Number of blocks returned by readLineInt in line %" SCIP_LONGINT_FORMAT
+         " should equal data->nsdpaconstblock. Expected: %i, got: %i\n", *linecount, data->nsdpaconstblock, data->nconss);
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
@@ -615,7 +612,7 @@ SCIP_RETCODE SDPAreadObjVals(
 
    if ( nzerocoef > 0 )
    {
-      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "OBJACOORD: Found %d coefficients with absolute value less than epsilon = %g.\n",
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Found %d objective coefficients with absolute value less than epsilon = %g.\n",
          nzerocoef, SCIPepsilon(scip));
    }
 
@@ -756,7 +753,7 @@ SCIP_RETCODE SDPAreadBlocks(
 
       if ( sscanf(SDPA_LINE_BUFFER, "%i %i %i %i %lf", &v, &b, &row, &col, &val) != 5 )
       {
-         SCIPerrorMessage("Could not read entry of HCOORD in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
+         SCIPerrorMessage("Could not read block entry in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
          SCIPABORT();
          return SCIP_READERROR;
       }
@@ -1089,7 +1086,7 @@ SCIP_RETCODE SDPAreadBlocks(
 
    if ( nzerocoef > 0 )
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "HCOORD: Found %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
+         "Found %d block coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
 
    /* free buffer memory */
    for (b = 0; b < data->nsdpblocks; b++)
