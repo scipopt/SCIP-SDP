@@ -1,4 +1,4 @@
-function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds,nobnds)
+function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, boundver)
 % schreibt SDP-File für ganzzahlige RIP-SDP-Relaxierung in primaler Form
 % (mit PSD-Variablen) für Matrix A, Ordnung k, schreibt in 'file' 
 % side ='l' für linke Seite/alpha_k, side='r' für rechte Seite/beta_k
@@ -6,8 +6,12 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds,nobnds)
 % socp = 1 für zusätzliche gültige SOCP-Ungleichung von Li/Xie, sonst = 0
 % strgbnds = 1 falls für nichtnegative Matrizen A die Schranke 0 <= X_{ij}
 % statt -z_j <= X_{ij} für alle i,j benutzt werden soll, sonst = 0
-% nonbds = 1 für -z_j <= X_{ij} <= z_j statt -0.5*z_j <= X_{ij} <= 0.5*z_j
-% für i ~= j, sonst 0
+% trineq = 1 falls trace(X) <= 1 (rechte Seite) bzw trace(X) >= 1 (linke
+% Seite) statt trace(X) == 1 geschrieben werden soll, sonst 0.
+% boundver = Version der Constraints -z_j <= X_{ij} <= z_j, i,j = 1,...,n
+%            0: -z_i <= X_{ii} <= z_i, i = 1,...,n (schwächste Variante)
+%            1: Standard, -z_j <= X_{ij} <= z_j, i,j = 1,...,n
+%            2: -0.5*z_j <= X_{ij} <= 0.5*z_j, i ~= j (stärkste Variante)
 % ACHTUNG: schreibt untere Dreiecksmatrizen!
 
     fid = fopen(file, 'w');
@@ -15,7 +19,7 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds,nobnds)
     n=length(A(1,:));
 
     % check if A is entrywise nonnegative:
-    if strgbnds == 1 && ~all(A >= 0, 'all')
+    if strgbnds == 1 && ~all(A(:) >= 0)
         strgbnds = 0;
         fprintf("Setting strgbnds = 0, since matrix A is not nonnegative!\n");
     elseif strgbnds == 1 && ~side == 'r'
@@ -27,6 +31,11 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds,nobnds)
     if socp == 1 && ~side == 'r'
         socp = 0;
         fprintf("Setting socp = 0, since this only works for right side of RIP!\n");
+    end
+    
+    % check boundver parameter
+    if boundver ~= 0 && boundver ~= 1 && boundver ~= 2
+        error("Error: Option <%s> for parameter boundver not valid!\n", boundver);
     end
 
     % compute B = A^T A
@@ -99,28 +108,53 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds,nobnds)
     end
 
     %% constraints
+    if strgbnds ~= 0 && strgbnds ~= 1
+        error("Error: Option <%s> for parameter strgbnds not valid!\n", strgbnds);
+    end
+
     fprintf(fid, "CON\n");
     nsocpcons = 0.5*n*(n+3)*(n+2);
-    ncons = 2*n^2+n+2 + socp*nsocpcons - strgbnds*0.5*n*(n-1);
+    if boundver == 0
+        ncons = 3*n+2 + socp*nsocpcons;
+    else
+        ncons = 2*n^2+n+2 + socp*nsocpcons - strgbnds*0.5*n*(n-1);
+    end
     ncones = 5 + socp;
     fprintf(fid, "%d %d\n", ncons, ncones);
     if socp == 1
         % SOCP constraint is the first constraint
-        fprintf(fid, "L= %d\n", nsocpcons);  % \sum_j X_{ij}^2 <= X_{ii}z_i
+        fprintf(fid, "L= %d\n", nsocpcons);    % \sum_j X_{ij}^2 <= X_{ii}z_i
     end
-    fprintf(fid, "L+ %d\n", n);              % -z_j + 1 >= 0
-    fprintf(fid, "L- %d\n", n^2 - strgbnds*0.5*n*(n-1));    % -z_j - X_{ij} <= 0
-    fprintf(fid, "L+ %d\n", n^2);             % z_j - X_{ij} >= 0
-    fprintf(fid, "L= 1\n");                  % \sum_j X_{jj} == 1
-    fprintf(fid, "L- 1\n");                  % \sum_j z_j <= k
+    fprintf(fid, "L+ %d\n", n);                % -z_j + 1 >= 0
+
+    if boundver == 0
+        fprintf(fid, "L- %d\n", n);            % -z_j - X_{ij} <= 0
+        fprintf(fid, "L+ %d\n", n);            % z_j - X_{ij} >= 0
+    else
+        fprintf(fid, "L- %d\n", n^2 - strgbnds*0.5*n*(n-1));    % -z_j - X_{ij} <= 0
+        fprintf(fid, "L+ %d\n", n^2);          % z_j - X_{ij} >= 0
+    end
+    if trineq == 0
+        fprintf(fid, "L= 1\n");                % \sum_j X_{jj} == 1
+    elseif trineq == 1
+        if side == 'l'
+            fprintf(fid, "L+ 1\n");            % \sum_j X_{jj} >= 1
+        else
+            fprintf(fid, "L- 1\n");            % \sum_j X_{jj} <= 1
+        end
+    else
+        error("Error: Option <%s> for parameter trineq not valid!\n", trineq);
+    end              
+    fprintf(fid, "L- 1\n");                    % \sum_j z_j <= k
     fprintf(fid, "\n");
 
     %% write FCOORD
     fprintf(fid, "FCOORD\n");
-    if strgbnds ~= 0 && strgbnds ~= 1
-        error("Error: Option <%s> for parameter strgbnds not valid!\n", strgbnds);
+    if boundver == 0
+        nFCOORD = 3*n + socp*(n*(3*n+5+0.5*n*(n+1)));
+    else
+        nFCOORD = 2*n^2+n + socp*(n*(3*n+5+0.5*n*(n+1))) - strgbnds*0.5*n*(n-1);
     end
-    nFCOORD = 2*n^2+n + socp*(n*(3*n+5+0.5*n*(n+1))) - strgbnds*0.5*n*(n-1);
     fprintf(fid, "%d\n", nFCOORD);
     cnt = 0;
     conscnt = 0;
@@ -176,43 +210,55 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds,nobnds)
     % add coupling constraints -z_j - X_{ij} <= 0 (if strgbnds = 1, only
     % half of them are needed for -X_{ij} <= 0)
     for i = 0:n-1
-        % case i > j
-        for j = 0:i-1
-            fprintf(fid, "%d 0 %d %d -0.5\n", conscnt, i, j);
+        if boundver == 0
+            fprintf(fid, "%d 0 %d %d -1.0\n", conscnt, i, i);
             cnt = cnt + 1;
             conscnt = conscnt + 1;
-        end
-        % case i == j
-        fprintf(fid, "%d 0 %d %d -1.0\n", conscnt, i, i);
-        cnt = cnt + 1;
-        conscnt = conscnt + 1;
-        % case i < j (only if strgbnds = 0)
-        if strgbnds == 0
-            for j = i+1:n-1
-                fprintf(fid, "%d 0 %d %d -0.5\n", conscnt, j, i);
+        else
+            % case i > j
+            for j = 0:i-1
+                fprintf(fid, "%d 0 %d %d -0.5\n", conscnt, i, j);
                 cnt = cnt + 1;
                 conscnt = conscnt + 1;
+            end
+            % case i == j
+            fprintf(fid, "%d 0 %d %d -1.0\n", conscnt, i, i);
+            cnt = cnt + 1;
+            conscnt = conscnt + 1;
+            % case i < j (only if strgbnds = 0)
+            if strgbnds == 0
+                for j = i+1:n-1
+                    fprintf(fid, "%d 0 %d %d -0.5\n", conscnt, j, i);
+                    cnt = cnt + 1;
+                    conscnt = conscnt + 1;
+                end
             end
         end
     end
 
     % add coupling constraints z_j - X_{ij} >= 0
     for i = 0:n-1
-        % case i > j
-        for j = 0:i-1
-            fprintf(fid, "%d 0 %d %d -0.5\n", conscnt, i, j);
+        if boundver == 0
+            fprintf(fid, "%d 0 %d %d -1.0\n", conscnt, i, i);
             cnt = cnt + 1;
             conscnt = conscnt + 1;
-        end
-        % case i == j
-        fprintf(fid, "%d 0 %d %d -1.0\n", conscnt, i, i);
-        cnt = cnt + 1;
-        conscnt = conscnt + 1;
-        % case i < j
-        for j = i+1:n-1
-            fprintf(fid, "%d 0 %d %d -0.5\n", conscnt, j, i);
+        else
+            % case i > j
+            for j = 0:i-1
+                fprintf(fid, "%d 0 %d %d -0.5\n", conscnt, i, j);
+                cnt = cnt + 1;
+                conscnt = conscnt + 1;
+            end
+            % case i == j
+            fprintf(fid, "%d 0 %d %d -1.0\n", conscnt, i, i);
             cnt = cnt + 1;
             conscnt = conscnt + 1;
+            % case i < j
+            for j = i+1:n-1
+                fprintf(fid, "%d 0 %d %d -0.5\n", conscnt, j, i);
+                cnt = cnt + 1;
+                conscnt = conscnt + 1;
+            end
         end
     end
 
@@ -236,7 +282,11 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds,nobnds)
 
     %% ACOORD
     fprintf(fid, "ACOORD\n");
-    nACOORD = 2*n^2+2*n + socp*(2*n) - strgbnds*(n^2);
+    if boundver == 0
+        nACOORD = 4*n + socp*(2*n) - strgbnds*n;
+    else
+        nACOORD = 2*n^2+2*n + socp*(2*n) - strgbnds*(n^2);
+    end
     fprintf(fid, "%d\n", nACOORD);
     cnt = 0;
     conscnt = 0;
@@ -268,30 +318,46 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds,nobnds)
     % changes to -X_{ij} <= 0, so that nothing needs to be specified here)
     if strgbnds == 0
         for i = 0:n-1
-            for j = 0:n-1
-                if ( i ~= j && nobnds == 0 )
-                    fprintf(fid, "%d %d -0.5\n", conscnt, j);
-                else
-                    fprintf(fid, "%d %d -1.0\n", conscnt, j);
-                end
-                conscnt = conscnt + 1;
+            if boundver == 0
+                fprintf(fid, "%d %d -1.0\n", conscnt, i);
                 cnt = cnt + 1;
+                conscnt = conscnt + 1;
+            else
+                for j = 0:n-1
+                    if ( i ~= j && boundver == 2 )
+                        fprintf(fid, "%d %d -0.5\n", conscnt, j);
+                    else
+                        fprintf(fid, "%d %d -1.0\n", conscnt, j);
+                    end
+                    conscnt = conscnt + 1;
+                    cnt = cnt + 1;
+                end
             end
         end
     else
-        conscnt = conscnt + 0.5*n*(n+1);
+        if boundver == 0
+            conscnt = conscnt + n;
+        else
+            conscnt = conscnt + 0.5*n*(n+1);
+        end
     end
     
     % add coupling constraints z_j - X_{ij} >= 0
     for i = 0:n-1
-        for j = 0:n-1
-            if ( i ~= j && nobnds == 0 )
-                fprintf(fid, "%d %d 0.5\n", conscnt, j);
-            else
-                fprintf(fid, "%d %d 1.0\n", conscnt, j);
-            end
-            conscnt = conscnt + 1;
+        if boundver == 0
+            fprintf(fid, "%d %d 1.0\n", conscnt, i);
             cnt = cnt + 1;
+            conscnt = conscnt + 1;
+        else
+            for j = 0:n-1
+                if ( i ~= j && boundver == 2 )
+                    fprintf(fid, "%d %d 0.5\n", conscnt, j);
+                else
+                    fprintf(fid, "%d %d 1.0\n", conscnt, j);
+                end
+                conscnt = conscnt + 1;
+                cnt = cnt + 1;
+            end
         end
     end
 
@@ -341,13 +407,17 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds,nobnds)
 
     % nothing to add for coupling constraints -z_j - X_{ij} <= 0
     for i = 0:n-1
-        if strgbnds == 0
-            for j = 0:n-1
-                conscnt = conscnt + 1;
-            end
-        else   
-            for j = 0:i
-                conscnt = conscnt + 1;
+        if boundver == 0
+            conscnt = conscnt + 1;
+        else
+            if strgbnds == 0
+                for j = 0:n-1
+                    conscnt = conscnt + 1;
+                end
+            else   
+                for j = 0:i
+                    conscnt = conscnt + 1;
+                end
             end
         end
     end
@@ -355,8 +425,12 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds,nobnds)
         
     % nothing to add for coupling constraints z_j - X_{ij} >= 0
     for i = 0:n-1
-        for j = 0:n-1
+        if boundver == 0
             conscnt = conscnt + 1;
+        else
+            for j = 0:n-1
+                conscnt = conscnt + 1;
+            end
         end
     end
 

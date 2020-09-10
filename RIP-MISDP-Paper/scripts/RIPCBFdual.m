@@ -1,4 +1,4 @@
-function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds,nobnds)
+function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, boundver)
 % schreibt SDP-File für ganzzahlige RIP-SDP-Relaxierung in dualer Form
 % (mit Skalarvariablen) für Matrix A, Ordnung k, schreibt in 'file' 
 % side ='l' für linke Seite/alpha_k, side='r' für rechte Seite/beta_k
@@ -6,8 +6,12 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds,nobnds)
 % socp = 1 für zusätzliche gültige SOCP-Ungleichung von Li/Xie, sonst = 0
 % strgbnds = 1 falls für nichtnegative Matrizen A die Schranke 0 <= X_{ij}
 % statt -z_j <= X_{ij} für alle i,j benutzt werden soll, sonst = 0
-% nobnds = 1 für -z_j <= X_{ij} <= z_j statt -0.5*z_j <= X_{ij} <= 0.5*z_j
-% für i ~= j, sonst 0
+% trineq = 1 falls trace(X) <= 1 (rechte Seite) bzw trace(X) >= 1 (linke
+% Seite) statt trace(X) == 1 geschrieben werden soll, sonst 0.
+% boundver = Version der Constraints -z_j <= X_{ij} <= z_j, i,j = 1,...,n
+%            0: -z_i <= X_{ii} <= z_i, i = 1,...,n (schwächste Variante)
+%            1: Standard, -z_j <= X_{ij} <= z_j, i,j = 1,...,n
+%            2: -0.5*z_j <= X_{ij} <= 0.5*z_j, i ~= j (stärkste Variante)
 % ACHTUNG: Schreibt untere Dreiecksmatrizen!
 
     fid = fopen(file, 'w');
@@ -15,7 +19,7 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds,nobnds)
     n=length(A(1,:));
     
     % check if A is entrywise nonnegative
-    if strgbnds == 1 && ~all(A >= 0, 'all')
+    if strgbnds == 1 && ~all(A(:) >= 0)
         strgbnds = 0;
         fprintf("Setting strgbnds = 0, since matrix A is not nonnegative!\n");
     elseif strgbnds == 1 && ~side == 'r'
@@ -28,7 +32,12 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds,nobnds)
         socp = 0;
         fprintf("Setting socp = 0, since this only works for right side of RIP!\n");
     end
-        
+    
+    % check boundver parameter
+    if boundver ~= 0 && boundver ~= 1 && boundver ~= 2
+        error("Error: Option <%s> for parameter boundver not valid!\n", boundver);
+    end
+    
     % compute B = A^T A
     B = transpose(A)*A;
 
@@ -120,22 +129,48 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds,nobnds)
     % ------------------------------------------
     % constraints
     fprintf(fid, "CON\n");
-    ncons = 2*n^2+n+2 - strgbnds*n^2;
+    if boundver == 0
+        ncons = 3*n+2 - strgbnds*n;
+    else
+        ncons = 2*n^2+n+2 - strgbnds*n^2;
+    end
     ncones = 5 - strgbnds;
     fprintf(fid, "%d %d\n", ncons,ncones);
     fprintf(fid, "L+ %d\n", n);                % -z_j + 1 >= 0
     if strgbnds == 0
-        fprintf(fid, "L- %d\n", n^2);           % -z_j - X_{ij} <= 0
+        if boundver == 0
+            fprintf(fid, "L- %d\n", n);        % -z_i - X_{ii} <= 0
+        else
+            fprintf(fid, "L- %d\n", n^2);      % -z_j - X_{ij} <= 0
+        end
     end
-    fprintf(fid, "L+ %d\n", n^2);               % z_j - X_{ij} >= 0
-    fprintf(fid, "L= 1\n");                    % \sum_j X_{jj} == 1
+    if boundver == 0
+        fprintf(fid, "L+ %d\n", n);            % z_i - X_{ii} >= 0
+    else
+        fprintf(fid, "L+ %d\n", n^2);          % z_j - X_{ij} >= 0
+    end
+    if trineq == 0
+        fprintf(fid, "L= 1\n");                % \sum_j X_{jj} == 1
+    elseif trineq == 1
+        if side == 'l'
+            fprintf(fid, "L+ 1\n");            % \sum_j X_{jj} >= 1
+        else
+            fprintf(fid, "L- 1\n");            % \sum_j X_{jj} <= 1
+        end
+    else
+        error("Error: Option <%s> for parameter trineq not valid!\n", trineq);
+    end          
     fprintf(fid, "L- 1\n");                    % \sum_j z_j <= k
     fprintf(fid, "\n");
     
     
     % write ACOORD
     fprintf(fid, "ACOORD\n");
-    nACOORD = 4*n^2+3*n - strgbnds*2*n^2;
+    if boundver == 0
+        nACOORD = 7*n - strgbnds*2*n^2;
+    else
+        nACOORD = 4*n^2+3*n - strgbnds*2*n^2;
+    end
     fprintf(fid, "%d\n", nACOORD);
     cnt = 0;       % counts number of specified entries
     conscnt = 0;   % counts number of specified constraints 
@@ -150,64 +185,78 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds,nobnds)
     % add coupling constraints -z_j - X_{ij} <= 0 (only if strgbnds = 0)
     if strgbnds == 0
         for i = 0:n-1
-            % case i > j
-            for j = 0:i-1
-                if nobnds == 0
-                    fprintf(fid, "%d %d -0.5\n", conscnt, j);
-                else
-                    fprintf(fid, "%d %d -1.0\n", conscnt, j);
-                end
-                fprintf(fid, "%d %d -1.0\n", conscnt, n+0.5*i*(i+1)+j);
+            if boundver == 0
+                fprintf(fid, "%d %d -1.0\n", conscnt, i);
+                fprintf(fid, "%d %d -1.0\n", conscnt, n+0.5*i*(i+1)+i);
                 cnt = cnt + 2;
                 conscnt = conscnt + 1;
-            end
-            % case i == j
-            fprintf(fid, "%d %d -1.0\n", conscnt, i);
-            fprintf(fid, "%d %d -1.0\n", conscnt, n+0.5*i*(i+1)+i);
-            cnt = cnt + 2;
-            conscnt = conscnt + 1;
-            % case i < j
-            for j = i+1:n-1
-                if nobnds == 0
-                    fprintf(fid, "%d %d -0.5\n", conscnt, j);
-                else
-                    fprintf(fid, "%d %d -1.0\n", conscnt, j);
+            else
+                % case i > j
+                for j = 0:i-1
+                    if boundver == 2
+                        fprintf(fid, "%d %d -0.5\n", conscnt, j);
+                    else
+                        fprintf(fid, "%d %d -1.0\n", conscnt, j);
+                    end
+                    fprintf(fid, "%d %d -1.0\n", conscnt, n+0.5*i*(i+1)+j);
+                    cnt = cnt + 2;
+                    conscnt = conscnt + 1;
                 end
-                fprintf(fid, "%d %d -1.0\n", conscnt, n+0.5*j*(j+1)+i);
+                % case i == j
+                fprintf(fid, "%d %d -1.0\n", conscnt, i);
+                fprintf(fid, "%d %d -1.0\n", conscnt, n+0.5*i*(i+1)+i);
                 cnt = cnt + 2;
                 conscnt = conscnt + 1;
+                % case i < j
+                for j = i+1:n-1
+                    if boundver == 2
+                        fprintf(fid, "%d %d -0.5\n", conscnt, j);
+                    else
+                        fprintf(fid, "%d %d -1.0\n", conscnt, j);
+                    end
+                    fprintf(fid, "%d %d -1.0\n", conscnt, n+0.5*j*(j+1)+i);
+                    cnt = cnt + 2;
+                    conscnt = conscnt + 1;
+                end
             end
         end
     end
     
     % add coupling constraints z_j - X_{ij} >= 0
     for i = 0:n-1
-        % case i > j
-        for j = 0:i-1
-            if nobnds == 0
-                fprintf(fid, "%d %d 0.5\n", conscnt, j);
-            else
-                fprintf(fid, "%d %d 1.0\n", conscnt, j);
-            end
-            fprintf(fid, "%d %d -1.0\n", conscnt, n+0.5*i*(i+1)+j);
+        if boundver == 0
+            fprintf(fid, "%d %d 1.0\n", conscnt, i);
+            fprintf(fid, "%d %d -1.0\n", conscnt, n+0.5*i*(i+1)+i);
             cnt = cnt + 2;
             conscnt = conscnt + 1;
-        end
-        % case i == j
-        fprintf(fid, "%d %d 1.0\n", conscnt, i);
-        fprintf(fid, "%d %d -1.0\n", conscnt, n+0.5*i*(i+1)+i);
-        cnt = cnt + 2;
-        conscnt = conscnt + 1;       
-        % case i < j
-        for j = i+1:n-1
-            if nobnds == 0
-                fprintf(fid, "%d %d 0.5\n", conscnt, j);
-            else
-                fprintf(fid, "%d %d 1.0\n", conscnt, j);
+        else
+            % case i > j
+            for j = 0:i-1
+                if boundver == 2
+                    fprintf(fid, "%d %d 0.5\n", conscnt, j);
+                else
+                    fprintf(fid, "%d %d 1.0\n", conscnt, j);
+                end
+                fprintf(fid, "%d %d -1.0\n", conscnt, n+0.5*i*(i+1)+j);
+                cnt = cnt + 2;
+                conscnt = conscnt + 1;
             end
-            fprintf(fid, "%d %d -1.0\n", conscnt, n+0.5*j*(j+1)+i);
+            % case i == j
+            fprintf(fid, "%d %d 1.0\n", conscnt, i);
+            fprintf(fid, "%d %d -1.0\n", conscnt, n+0.5*i*(i+1)+i);
             cnt = cnt + 2;
-            conscnt = conscnt + 1;
+            conscnt = conscnt + 1;       
+            % case i < j
+            for j = i+1:n-1
+                if boundver == 2
+                    fprintf(fid, "%d %d 0.5\n", conscnt, j);
+                else
+                    fprintf(fid, "%d %d 1.0\n", conscnt, j);
+                end
+                fprintf(fid, "%d %d -1.0\n", conscnt, n+0.5*j*(j+1)+i);
+                cnt = cnt + 2;
+                conscnt = conscnt + 1;
+            end
         end
     end
 
@@ -249,8 +298,12 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds,nobnds)
     % strgbnds = 0)
     if strgbnds == 0
         for i = 0:n-1
-            for j = 0:n-1
+            if boundver == 0
                 conscnt = conscnt + 1;
+            else
+                for j = 0:n-1
+                    conscnt = conscnt + 1;
+                end
             end
         end
     end
@@ -258,8 +311,12 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds,nobnds)
     
     % nothing to add for coupling constraints z_j - X_{ij} >= 0
     for i = 0:n-1
-        for j = 0:n-1
+        if boundver == 0
             conscnt = conscnt + 1;
+        else
+            for j = 0:n-1
+                conscnt = conscnt + 1;
+            end
         end
     end
 

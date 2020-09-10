@@ -17,7 +17,7 @@ function [] = generateRIPA(m,n,k,seed,instances,type,bandwidth)
 % Output:
 % Matrizen werden nach 'Matrices/type.m.n.k' geschrieben
 % Kodierung der erzeugten Probleminstanzen im Ordner MISDP:
-% type.m.n.k_MISDP.side.pd.rank.socp.strgbnds, wobei
+% type.m.n.k_MISDP.side.pd.rank.socp.strgbnds.trineq.boundver, wobei
 % type, m, n, k : wie oben
 % side          : l (linke Seite/alpha_k), r (rechte Seite/beta_k)
 % pd            : p (primal, Matrixvariablen), d (dual, Skalarvariablen)
@@ -25,6 +25,12 @@ function [] = generateRIPA(m,n,k,seed,instances,type,bandwidth)
 % socp          : 1 (mit gültiger SOCP-Ungleichung von Li/Xie), 0 (ohne)
 % strgbnds      : 1 (mit verstärkter unterer Schranke falls A
 %                 nichtnegativ), 0 (ohne)
+% trineq        : 1 (trace(X) <= 1 für rechte Seite) bzw. trace(X) >= 1 für 
+%                 linke Seite), 0 (trace(X) == 1)
+% boundver      : 0 (-z_i <= X_{ii} <= z_i, i = 1,...,n)
+%               : 1 (-z_j <= X_{ij} <= z_j, i,j = 1,...,n)
+%               : 2 (wie 1, zusätzlich -0.5*z_j <= X_{ij} <= 0.5*z_j, i ~= j) 
+
 
 for instance=1:instances
     file = sprintf('%s%d%d%d%s',type,m,n,k,char(instance+64));
@@ -111,64 +117,51 @@ for instance=1:instances
     RIPSDPA(A,k,'l',strcat('MISDP/',file,'_MISDPl.dat-s'),0);
     RIPSDPA(A,k,'r',strcat('MISDP/',file,'_MISDPr.dat-s'),0);
     
-    % 2. CBF primal
-    RIPCBFprimal(A,k,'l',strcat('MISDP/',file,'_MISDPlp000.cbf'),0,0,0,0);
-    RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp000.cbf'),0,0,0,0);
-    RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp010.cbf'),0,1,0,0);
-    RIPCBFprimal(A,k,'l',strcat('MISDP/',file,'_MISDPlp100.cbf'),1,0,0,0);
-    RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp100.cbf'),1,0,0,0);
-    RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp110.cbf'),1,1,0,0);
-    if all(A >= 0, 'all')
-        RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp001.cbf'),0,0,1,0);
-        RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp011.cbf'),0,1,1,0);
-        RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp101.cbf'),1,0,1,0);
-        RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp111.cbf'),1,1,1,0);
-    end
-
-    % 3. CBF dual
-    RIPCBFdual(A,k,'l',strcat('MISDP/',file,'_MISDPld000.cbf'),0,0,0,0);
-    RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd000.cbf'),0,0,0,0);
-    RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd010.cbf'),0,1,0,0);
-    RIPCBFdual(A,k,'l',strcat('MISDP/',file,'_MISDPld100.cbf'),1,0,0,0);
-    RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd100.cbf'),1,0,0,0);
-    RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd110.cbf'),1,1,0,0);
-    if all(A >= 0, 'all')
-        RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd001.cbf'),0,0,1,0);
-        RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd011.cbf'),0,1,1,0);
-        RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd101.cbf'),1,0,1,0);
-        RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd111.cbf'),1,1,1,0);
+    % 2. CBF
+    rank = [0,1];
+    socp = [0,1];
+    usestrgbnds = true;
+    primaldual = "pd";
+    trineq = [0,1];
+    boundver = [0,1,2];
+    for r = rank
+        for t = trineq
+            for b = boundver
+                if primaldual == "p" || primaldual == "pd"
+                    name = strcat('MISDP/',file,'_MISDPlp',string(r),"0","0",...
+                        string(t),string(b),'.cbf');
+                    RIPCBFprimal(A,k,'l',name,r,0,0,t,b);
+                elseif primaldual == "d" || primaldual == "pd"
+                    name = strcat('MISDP/',file,'_MISDPld',string(r),"0","0",...
+                        string(t),string(b),'.cbf');
+                    RIPCBFdual(A,k,'l',name,r,0,0,t,b);
+                end
+                for so = socp
+                    if primaldual == "p" || primaldual == "pd"
+                        name = strcat('MISDP/',file,'_MISDPrp',string(r),...
+                            string(so),"0",string(t),string(b),'.cbf');
+                        RIPCBFprimal(A,k,'r',name,r,so,0,t,b);
+                    elseif primaldual == "d" || primaldual == "pd"
+                        name = strcat('MISDP/',file,'_MISDPrd',string(r),...
+                            string(so),"0",string(t),string(b),'.cbf');
+                        RIPCBFdual(A,k,'r',name,r,so,0,t,b);
+                    end
+                    if all(A(:) >= 0) && usestrgbnds
+                        if primaldual == "p" || primaldual == "pd"
+                            name = strcat('MISDP/',file,'_MISDPrp',string(r),...
+                                string(so),"1",string(t),string(b),'.cbf');
+                            RIPCBFprimal(A,k,'r',name,r,so,1,t,b);
+                        elseif primaldual == "d" || primaldual == "pd"
+                            name = strcat('MISDP/',file,'_MISDPrd',string(r),...
+                                string(so),"1",string(t),string(b),'.cbf');
+                            RIPCBFdual(A,k,'r',name,r,so,1,t,b);
+                        end
+                    end
+                end
+            end
+        end
     end
     
-    % 4. Both options with nobnds = 1
-    % 4.1 CBF primal
-    RIPCBFprimal(A,k,'l',strcat('MISDP/',file,'_MISDPlp000nb.cbf'),0,0,0,1);
-    RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp000nb.cbf'),0,0,0,1);
-    RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp010nb.cbf'),0,1,0,1);
-    RIPCBFprimal(A,k,'l',strcat('MISDP/',file,'_MISDPlp100nb.cbf'),1,0,0,1);
-    RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp100nb.cbf'),1,0,0,1);
-    RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp110nb.cbf'),1,1,0,1);
-    if all(A >= 0, 'all')
-        RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp001nb.cbf'),0,0,1,1);
-        RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp011nb.cbf'),0,1,1,1);
-        RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp101nb.cbf'),1,0,1,1);
-        RIPCBFprimal(A,k,'r',strcat('MISDP/',file,'_MISDPrp111nb.cbf'),1,1,1,1);
-    end
-
-    % 4.2 CBF dual
-    RIPCBFdual(A,k,'l',strcat('MISDP/',file,'_MISDPld000nb.cbf'),0,0,0,1);
-    RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd000nb.cbf'),0,0,0,1);
-    RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd010nb.cbf'),0,1,0,1);
-    RIPCBFdual(A,k,'l',strcat('MISDP/',file,'_MISDPld100nb.cbf'),1,0,0,1);
-    RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd100nb.cbf'),1,0,0,1);
-    RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd110nb.cbf'),1,1,0,1);
-    if all(A >= 0, 'all')
-        RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd001nb.cbf'),0,0,1,1);
-        RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd011nb.cbf'),0,1,1,1);
-        RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd101nb.cbf'),1,0,1,1);
-        RIPCBFdual(A,k,'r',strcat('MISDP/',file,'_MISDPrd111nb.cbf'),1,1,1,1);
-    end
-
-
 %     % generate SDPA-file of SDP-Relaxation from d'Aspremont 2007
 %     Aspr07SDPA(A,k,'l',strcat('Asp07/',file,'_Asp07l.dat-s'),0);
 %     Aspr07SDPA(A,k,'r',strcat('Asp07/',file,'_Asp07r.dat-s'),0);
