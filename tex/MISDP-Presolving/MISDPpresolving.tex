@@ -82,7 +82,7 @@
 % title
 \title{Presolving for\\ Mixed-Integer Semidefinite Optimization}
 \author{Marc E. Pfetsch\thanks{Department of Mathematics, TU Darmstadt, Germany}}
-\date{\today}
+\date{September 2020}
 
 % -------------------------------------------------------------------------
 % -------------------------------------------------------------------------
@@ -169,7 +169,7 @@ This has the following two implications (see, e.g., Observation 1.1.5 and
 \subsection{Implied Linear Inequalities}
 
 The following inequalities are known from the literature, see
-Gally~\cite{Gal19}, and can be added as linear inequalities w.r.t.\
+Mars~\cite{Mar13} and  Gally~\cite{Gal19}, and can be added as linear inequalities w.r.t.\
 \eqref{MISDP}:
 \begin{itemize}
 \item Any feasible $y \in \R^m$ satisfies $A(y) \succeq 0$, which implies
@@ -185,6 +185,7 @@ Gally~\cite{Gal19}, and can be added as linear inequalities w.r.t.\
   \[
     \sum_{\substack{k \in \mathcal{I}:\\ A^k_{ii} > 0}} y_k \geq 1.
   \]
+  Note that the conditions imply that $A^0$ is not psd.
 \item For all $X \succeq 0$, we have
   \[
     X_{ii} + X_{jj} - 2\, X_{ij} \geq 0,\qquad
@@ -201,7 +202,7 @@ Gally~\cite{Gal19}, and can be added as linear inequalities w.r.t.\
   \end{align*}
 \end{itemize}
 
-All the above methods are implemented and help for some instances.
+All the above methods are implemented and seem to help for some instances.
 
 
 % -------------------------------------------------------------------------
@@ -224,12 +225,16 @@ All the above methods are implemented and help for some instances.
     X_{ij}^2 \leq X_{ii} X_{jj}.
   \]
   Moreover, since the diagonal terms of $X$ are nonnegative, we have
-  $U_{ii} \geq L_{ii} \geq 0$ for all $i \in [n]$. Upper bounding via
+  $U_{ii} \geq L_{ii} \geq 0$ for all $i \in [n]$. Thus,
+
+  Upper bounding via
   McCormick inequalities yields:
   \begin{align*}
     X_{ii} X_{jj} & \leq \min \{L_{jj}\, X_{ii} + U_{ii}\, X_{jj} - U_{ii}\, L_{jj},\;
                     U_{jj}\, X_{ii} + L_{ii}\, X_{jj} - L_{ii}\, U_{jj}\}  \\
-    & \leq U_{ii}\, U_{jj}.
+    & \leq \min \{L_{jj}\, U_{ii} + U_{ii}\, U_{jj} - U_{ii}\, L_{jj},\;
+                    U_{jj}\, U_{ii} + L_{ii}\, U_{jj} - L_{ii}\, U_{jj}\}  \\
+    & = \min \{U_{ii}\, U_{jj},\;  U_{jj}\, U_{ii}\} = U_{ii}\, U_{jj}.
   \end{align*}
   Taking the square root gives the claim.
 \end{proof}
@@ -321,14 +326,14 @@ instances if the bounds have not been tightened before.
 For a linear constraint, coefficient tightening can be explained by the
 following example: Consider two binary variables~$x$ and $y$ and the
 constraint $x + 2\, y \geq 1$. Then the coefficient of $y$ can be tightened
-to $1$ yielding $x + y \geq 1$.
+to $1$, yielding $x + y \geq 1$.
 
 Assume that all matrices $A^k$, $k \in [m]$, are psd and $y_k$ is binary
 for $k \in [m]$. Then we can compute
-\[
+\begin{equation}\label{eq:ComputeHatMu}
   \hat{\mu}_k = \min\, \{ \mu \geq 0 \suchthat \mu A^k - A^0 \succeq 0\}
-\]
-adn define $\mu_k \define \min\, \{\hat{\mu}_k, 1\}$. Note that $\mu_k = 1$ if
+\end{equation}
+and define $\mu_k \define \min\, \{\hat{\mu}_k, 1\}$. Note that $\mu_k = 1$ if
 $\hat{\mu}_k = \infty$, i.e., if the above optimization problem is infeasible.
 
 \begin{lemma}\label{lem:Tightening1}
@@ -416,7 +421,7 @@ We now turn to the computation of $\mu_k$.
     Gantmacher~\cite[Ch.~IV, Thm.~3]{Gan59I}. We here use
     $g(t) = \mu - t = \mu\, t^0 - t^1$. (Alternatively, $(\mu I - B)v =
     \lambda v \Leftrightarrow Bv = (\mu - \lambda)v$, so $v$ is an
-    eigenvector for eigenvalue $\mu - \lambda$.)}  thus, to make
+    eigenvector for the eigenvalue $\mu - \lambda$.)}  Thus, to make
   $\mu\, I - V^{-\top} A^0 V^{-1}$ psd, we need
   $\mu \geq \lambda_{\max}(V^{-\top} A^0 V^{-1})$.
 \end{proof}
@@ -458,6 +463,21 @@ There are at least three choices to compute $\mu_k$:
   we can apply Lemma~\ref{lem:TightenPosDef}. Otherwise, one can use the
   technique described in~\cite{Str16,HigSS16}. 
 \end{itemize}
+
+Note that~\eqref{eq:ComputeHatMu} might be infeasible, e.g., if $A^0$ is
+not negative definite and $A^k$ is psd with minimal eigenvalue 0. An
+extreme example is if $A^k = 0$, but $A^0 \neq 0$. Thus, the implementation
+of these methods have to be safe-guarded against infeasibility.
+
+\begin{question}
+  Is there an easy way to determine whether~\eqref{eq:ComputeHatMu} is
+  infeasible, e.g., by computing eigenvalues once?  \footnote{For example
+    is the following true: If $\mu A^k - A^0$ is not psd for
+    $\mu \geq \lambda_{\max}(A^0)/\lambda_{\max}(A^k)$ then~\eqref{eq:ComputeHatMu} is
+    infeasible? This would require that $\mu A^k - A^0 \succeq 0$ for all
+    $\mu \geq \lambda_{\max}(A^0) / \lambda_{\max}(A^k)$, e.g., if $A^0$ is
+    psd and if there exists any $\mu'$ such that $\mu' A^k - A^0 \succeq 0$.}
+\end{question}
 
 According to~\cite{Str16,HigSS16}, solving the generalized eigenvalue
 problem is fastest, followed by bisection, and then Newton's method. But
@@ -650,7 +670,7 @@ with a positive definite $C \succ 0$. Then $D \succeq 0$ if and only if
 $S = A - B\T C^{-1} B \succeq 0$ and $A \succeq 0$\footnote{Note that the
   condition $A \succeq 0$ is missing in~\cite{BoyV09}.}. For $D = \tilde{X}$, we
 get: $\tilde{X} \succeq 0$ if and only if $t \geq 0$, $t - x\T x \geq
-0$. The latter is equivalent to $(x,t) \in L_{n+!}$.
+0$. The latter is equivalent to $(x,t) \in L_{n+1}$.
 
 Now consider a more general matrix
 \begin{equation}\label{eq:GeneralPSD}
@@ -818,15 +838,16 @@ Thus, one can restrict $X \geq 0$ and write
 \]
 instead of~\eqref{eq:SPCAcouple}.
 
-\paragraph{A Valid SOCP Constraint}
+\paragraph{Two Valid SOCP Constraint}
 
 Li and Xie~\cite{LiX20} show that the following inequalitiy is valid for
 sparse PCA:
 \[
   \sum_{j \in [n]} X_{ij}^2 \leq X_{ii}\, z_i \quad\text{for all } i \in [n].
 \]
-This holds, since in this case $X = x x\T$ and $\sum_{j=1}^m x_j^2 =
-1$. Thus,
+This holds, since in this case on can assume that $X = x x\T$ and $\sum_{j=1}^m x_j^2 =
+1$.\footnote{Note that this might cut off optimal solutions that do not
+  have rank 1.} Thus,
 \[
   \sum_{j \in [n]} X_{ij}^2 \leq \sum_{j \in [n]} x_i^2\, x_j^2 = x_i^2
   \leq z_i\, X_{ii}.
@@ -836,8 +857,6 @@ from both sides to yield
 \[
   \sum_{\substack{j \in [n]\\ j \neq i}} X_{ij}^2 \leq z_i\, (X_{ii} - X_{ii}^2).
 \]
-
-
 
 
 These inequalities are SOCP representable as
@@ -890,6 +909,33 @@ $\sum_{j=1}^n X_{ij}^2 \leq z_i^2$, which is equivalent to
   Is there any inequality that exploits the fact that $z_i^2 = z_i$ for
   feasible solutions?
 \end{question}
+
+A second type of inequality of Li and Xie~\cite{LiX20} is
+\[
+  \bigg(\sum_{j \in [n]} \abs{X_{ij}}\bigg)^2 \leq k\, X_{ii}\, z_i\quad
+  \forall\, i \in [n].
+\]
+These inequalities seem to be nontrivial
+\footnote{Note that the inequality $\sum_{j \in [n]} \abs{X_{ij}} \leq k$ is trivial,
+since $\abs{X_{ij}} \leq z_j$ and thus
+\[
+  \sum_{j \in [n]} \abs{X_{ij}} \leq \sum_{j \in [n]} z_j \leq k.
+\]
+Similarly, $\sum_{j \in [n]} \abs{X_{ij}} \leq z_i$ holds, but it seems
+that $\sum_{j \in [n]} \abs{X_{ij}} \leq X_{ii}\, z_i$ does not hold in general.}
+and follow, because
+\[
+  \sum_{j \in [n]} \abs{X_{ij}} = \sum_{j \in [n]} \abs{x_i} \abs{x_j} =
+  \abs{x_i} \sum_{j \in [n]} \abs{x_j} \leq \abs{x_i} \sqrt{k},
+\]
+where we used that $\norm{x}_1 \leq \sqrt{k}$ if $\norm{x}_2 = 1$ and
+$\norm{x}_0 \leq k$. Moreover, $\abs{x_i} = \sqrt{X_{ii}} = \sqrt{X_{ii}
+  z_i}$, because if $z_i = 0$ then $X_{ii} = 0$.
+
+These inequalities are SOC representable, but one needs to express the
+absolute values in $\sum_{j \in [n]} \abs{X_{ij}}$, e.g., by variable
+splitting.
+
 
 \subsection{Minimization Variant}
 
