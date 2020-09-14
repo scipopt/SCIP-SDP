@@ -5338,15 +5338,15 @@ SCIP_RETCODE SCIPcreateConsSdp(
       }
       else
       {
-         for (i = 0; i < constnnonz; i++)
+         for (j = 0; j < constnnonz; j++)
          {
             assert( 0 <= constrow[j] && constrow[j] < blocksize );
             assert( 0 <= constcol[j] && constcol[j] < blocksize );
             assert( constrow[j] >= constcol[j] );
 
-            consdata->constrow[i] = constrow[i];
-            consdata->constcol[i] = constcol[i];
-            consdata->constval[i] = constval[i];
+            consdata->constrow[j] = constrow[j];
+            consdata->constcol[j] = constcol[j];
+            consdata->constval[j] = constval[j];
          }
       }
    }
@@ -5559,15 +5559,15 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
       }
       else
       {
-         for (i = 0; i < constnnonz; i++)
+         for (j = 0; j < constnnonz; j++)
          {
             assert( 0 <= constrow[j] && constrow[j] < blocksize );
             assert( 0 <= constcol[j] && constcol[j] < blocksize );
             assert( constrow[j] >= constcol[j] );
 
-            consdata->constrow[i] = constrow[i];
-            consdata->constcol[i] = constcol[i];
-            consdata->constval[i] = constval[i];
+            consdata->constrow[j] = constrow[j];
+            consdata->constcol[j] = constcol[j];
+            consdata->constval[j] = constval[j];
          }
       }
    }
