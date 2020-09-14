@@ -51,8 +51,8 @@
 #include "sorttpllex.c" /*lint !e451*/
 
 
-/** sort the given row, col and val arrays first by non-decreasing row-indices, then for those with identical
- *  row-indices by non-decreasing col-indices
+/** sort the given row, col and val arrays lexicographically, that is, sort them first by non-decreasing row-indices,
+ *  then for those with identical row-indices by non-decreasing col-indices
  */
 void SCIPsdpVarfixerSortRowCol(
    int*                  row,                /**< row indices */
