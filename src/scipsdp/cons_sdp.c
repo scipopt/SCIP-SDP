@@ -2581,13 +2581,13 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
       if ( conshdlrdata->sdpconshdlrdata->upgradekeepquad )
       {
          SCIP_CALL( SCIPcreateConsSdp(scip, &conshdlrdata->sdpconshdlrdata->sdpcons, "QuadraticSDPcons", nvarscnt, nvarscnt, 1 + nsdpvars, nvarnonz,
-               cols, rows, vals, vars, 1, &constcol, &constrow, &constval) );
+               cols, rows, vals, vars, 1, &constcol, &constrow, &constval, FALSE) );
          SCIP_CALL( SCIPaddCons(scip, conshdlrdata->sdpconshdlrdata->sdpcons) );
       }
       else
       {
          SCIP_CALL( SCIPcreateConsSdpRank1(scip, &conshdlrdata->sdpconshdlrdata->sdpcons, "QuadraticSDPrank1cons", nvarscnt, nvarscnt, 1 + nsdpvars, nvarnonz,
-               cols, rows, vals, vars, 1, &constcol, &constrow, &constval) );
+               cols, rows, vals, vars, 1, &constcol, &constrow, &constval, FALSE) );
          SCIP_CALL( SCIPaddCons(scip, conshdlrdata->sdpconshdlrdata->sdpcons) );
       }
 
@@ -3998,13 +3998,13 @@ SCIP_DECL_CONSCOPY(consCopySdp)
    {
       SCIP_CALL( SCIPcreateConsSdp(scip, cons, copyname, sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize, sourcedata->nvarnonz,
             sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
-            sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
+            sourcedata->constcol, sourcedata->constrow, sourcedata->constval, FALSE) );
    }
    else
    {
       SCIP_CALL( SCIPcreateConsSdpRank1(scip, cons, copyname, sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize, sourcedata->nvarnonz,
             sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
-            sourcedata->constcol, sourcedata->constrow, sourcedata->constval) );
+            sourcedata->constcol, sourcedata->constrow, sourcedata->constval, FALSE) );
    }
 
    SCIPfreeBufferArray(scip, &targetvars);
@@ -5164,7 +5164,10 @@ SCIP_Bool SCIPconsSdpAddedQuadCons(
    return consdata->addedquadcons;
 }
 
-/** creates an SDP-constraint */
+/** creates an SDP-constraint
+ *
+ *  The matrices should be lower triangular.
+ */
 SCIP_RETCODE SCIPcreateConsSdp(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
@@ -5176,11 +5179,12 @@ SCIP_RETCODE SCIPcreateConsSdp(
    int**                 col,                /**< pointer to column indices of the nonzeros for each variable */
    int**                 row,                /**< pointer to row indices of the nonzeros for each variable */
    SCIP_Real**           val,                /**< pointer to values of the nonzeros for each variable */
-   SCIP_VAR**            vars,               /**< SCIP_VARiables present in this SDP constraint that correspond to the indices in col/row/val */
+   SCIP_VAR**            vars,               /**< variables present in this SDP constraint that correspond to the indices in col/row/val */
    int                   constnnonz,         /**< number of nonzeros in the constant part of this SDP constraint */
    int*                  constcol,           /**< column indices of the constant nonzeros */
    int*                  constrow,           /**< row indices of the constant nonzeros */
-   SCIP_Real*            constval            /**< values of the constant nonzeros */
+   SCIP_Real*            constval,           /**< values of the constant nonzeros */
+   SCIP_Bool             removeduplicates    /**< Should duplicate matrix entries be removed (then order of col/row/val might change)? */
    )
 {
    SCIP_CONSHDLR* conshdlr;
@@ -5236,24 +5240,121 @@ SCIP_RETCODE SCIPcreateConsSdp(
    {
       consdata->nvarnonz[i] = nvarnonz[i];
 
-      for (j = 0; j < nvarnonz[i]; j++)
+      if ( nvarnonz[i] > 0 )
       {
-         assert( col[i][j] >= 0 );
-         assert( col[i][j] < blocksize );
-         assert( row[i][j] >= 0 );
-         assert( row[i][j] < blocksize );
+         /* if duplicate matrix entries should be removed */
+         if ( removeduplicates )
+         {
+            int cnt = 0;
+            int c = 0;
 
-         consdata->col[i][j] = col[i][j];
-         consdata->row[i][j] = row[i][j];
-         consdata->val[i][j] = val[i][j];
+            /* sort by rows, then columns */
+            SCIPsdpVarfixerSortRowCol(row[i], col[i], val[i], nvarnonz[i]);
+
+            while ( cnt < nvarnonz[i] )
+            {
+               assert( 0 <= row[i][cnt] && row[i][cnt] < blocksize );
+               assert( 0 <= col[i][cnt] && col[i][cnt] < blocksize );
+               assert( row[i][cnt] >= col[i][cnt] );
+
+               while ( cnt < nvarnonz[i] - 1 && row[i][cnt] == row[i][cnt+1] && col[i][cnt] == col[i][cnt+1] )
+               {
+                  if ( ! SCIPisEQ(scip, val[i][cnt], val[i][cnt+1]) )
+                  {
+                     SCIPerrorMessage("Duplicate matrix entry (%d,%d) with different value (%g vs. %g).\n", row[i][cnt], col[i][cnt], val[i][cnt], val[i][cnt+1]);
+                     return SCIP_INVALIDDATA;
+                  }
+                  ++cnt;
+               }
+
+               consdata->row[i][c] = row[i][cnt];
+               consdata->col[i][c] = col[i][cnt];
+               consdata->val[i][c] = val[i][cnt];
+               ++cnt;
+               ++c;
+            }
+
+            /* possibly correct size; a reallocation should happen rarely */
+            if ( c < nvarnonz[i] )
+            {
+               SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->col[i], nvarnonz[i], c));
+               SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->row[i], nvarnonz[i], c));
+               SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->val[i], nvarnonz[i], c));
+               consdata->nvarnonz[i] = c;
+            }
+         }
+         else
+         {
+            for (j = 0; j < nvarnonz[i]; j++)
+            {
+               assert( 0 <= row[i][j] && row[i][j] < blocksize );
+               assert( 0 <= col[i][j] && col[i][j] < blocksize );
+               assert( row[i][j] >= col[i][j] );
+
+               consdata->row[i][j] = row[i][j];
+               consdata->col[i][j] = col[i][j];
+               consdata->val[i][j] = val[i][j];
+            }
+         }
       }
    }
 
-   for (i = 0; i < constnnonz; i++)
+   if ( constnnonz > 0 )
    {
-      consdata->constcol[i] = constcol[i];
-      consdata->constrow[i] = constrow[i];
-      consdata->constval[i] = constval[i];
+      /* if duplicate matrix entries should be removed */
+      if ( removeduplicates )
+      {
+         int cnt = 0;
+         int c = 0;
+
+         /* sort by rows, then columns */
+         SCIPsdpVarfixerSortRowCol(constrow, constcol, constval, constnnonz);
+
+         while ( cnt < constnnonz )
+         {
+            while ( cnt < constnnonz - 1 && constrow[cnt] == constrow[cnt+1] && constcol[cnt] == constcol[cnt+1] )
+            {
+               if ( ! SCIPisEQ(scip, constval[cnt], constval[cnt+1]) )
+               {
+                  SCIPerrorMessage("Duplicate entry (%d,%d) with different value (%g vs. %g) in constant matrix.\n", constrow[cnt], constcol[cnt], constval[cnt], constval[cnt+1]);
+                  return SCIP_INVALIDDATA;
+               }
+               ++cnt;
+            }
+
+            assert( 0 <= constrow[cnt] && constrow[cnt] < blocksize );
+            assert( 0 <= constcol[cnt] && constcol[cnt] < blocksize );
+            assert( constrow[cnt] >= constcol[cnt] );
+
+            consdata->constrow[c] = constrow[cnt];
+            consdata->constcol[c] = constcol[cnt];
+            consdata->constval[c] = constval[cnt];
+            ++cnt;
+            ++c;
+         }
+
+         /* possibly correct size; a reallocation should happen rarely */
+         if ( c < constnnonz )
+         {
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->constcol, constnnonz, c) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->constrow, constnnonz, c) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->constval, constnnonz, c) );
+            consdata->constnnonz = c;
+         }
+      }
+      else
+      {
+         for (j = 0; j < constnnonz; j++)
+         {
+            assert( 0 <= constrow[j] && constrow[j] < blocksize );
+            assert( 0 <= constcol[j] && constcol[j] < blocksize );
+            assert( constrow[j] >= constcol[j] );
+
+            consdata->constrow[j] = constrow[j];
+            consdata->constcol[j] = constcol[j];
+            consdata->constval[j] = constval[j];
+         }
+      }
    }
 
    for (i = 0; i < nvars; i++)
@@ -5283,7 +5384,10 @@ SCIP_RETCODE SCIPcreateConsSdp(
 }
 
 
-/** creates a rank 1 SDP-constraint */
+/** creates a rank 1 SDP-constraint
+ *
+ *  The matrices should be lower triangular.
+ */
 SCIP_RETCODE SCIPcreateConsSdpRank1(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
@@ -5295,11 +5399,12 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
    int**                 col,                /**< pointer to column indices of the nonzeros for each variable */
    int**                 row,                /**< pointer to row indices of the nonzeros for each variable */
    SCIP_Real**           val,                /**< pointer to values of the nonzeros for each variable */
-   SCIP_VAR**            vars,               /**< SCIP_VARiables present in this SDP constraint that correspond to the indices in col/row/val */
+   SCIP_VAR**            vars,               /**< variables present in this SDP constraint that correspond to the indices in col/row/val */
    int                   constnnonz,         /**< number of nonzeros in the constant part of this SDP constraint */
    int*                  constcol,           /**< column indices of the constant nonzeros */
    int*                  constrow,           /**< row indices of the constant nonzeros */
-   SCIP_Real*            constval            /**< values of the constant nonzeros */
+   SCIP_Real*            constval,           /**< values of the constant nonzeros */
+   SCIP_Bool             removeduplicates    /**< Should duplicate matrix entries be removed (then order of col/row/val might change)? */
    )
 {
    SCIP_CONSHDLR* conshdlr;
@@ -5355,24 +5460,121 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
    {
       consdata->nvarnonz[i] = nvarnonz[i];
 
-      for (j = 0; j < nvarnonz[i]; j++)
+      if ( nvarnonz[i] > 0 )
       {
-         assert( col[i][j] >= 0 );
-         assert( col[i][j] < blocksize );
-         assert( row[i][j] >= 0 );
-         assert( row[i][j] < blocksize );
+         /* if duplicate matrix entries should be removed */
+         if ( removeduplicates )
+         {
+            int cnt = 0;
+            int c = 0;
 
-         consdata->col[i][j] = col[i][j];
-         consdata->row[i][j] = row[i][j];
-         consdata->val[i][j] = val[i][j];
+            /* sort by rows, then columns */
+            SCIPsdpVarfixerSortRowCol(row[i], col[i], val[i], nvarnonz[i]);
+
+            while ( cnt < nvarnonz[i] )
+            {
+               assert( 0 <= row[i][cnt] && row[i][cnt] < blocksize );
+               assert( 0 <= col[i][cnt] && col[i][cnt] < blocksize );
+               assert( row[i][cnt] >= col[i][cnt] );
+
+               while ( cnt < nvarnonz[i] - 1 && row[i][cnt] == row[i][cnt+1] && col[i][cnt] == col[i][cnt+1] )
+               {
+                  if ( ! SCIPisEQ(scip, val[i][cnt], val[i][cnt+1]) )
+                  {
+                     SCIPerrorMessage("Duplicate matrix entry (%d,%d) with different value (%g vs. %g).\n", row[i][cnt], col[i][cnt], val[i][cnt], val[i][cnt+1]);
+                     return SCIP_INVALIDDATA;
+                  }
+                  ++cnt;
+               }
+
+               consdata->row[i][c] = row[i][cnt];
+               consdata->col[i][c] = col[i][cnt];
+               consdata->val[i][c] = val[i][cnt];
+               ++cnt;
+               ++c;
+            }
+
+            /* possibly correct size; a reallocation should happen rarely */
+            if ( c < nvarnonz[i] )
+            {
+               SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->col[i], nvarnonz[i], c));
+               SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->row[i], nvarnonz[i], c));
+               SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->val[i], nvarnonz[i], c));
+               consdata->nvarnonz[i] = c;
+            }
+         }
+         else
+         {
+            for (j = 0; j < nvarnonz[i]; j++)
+            {
+               assert( 0 <= row[i][j] && row[i][j] < blocksize );
+               assert( 0 <= col[i][j] && col[i][j] < blocksize );
+               assert( row[i][j] >= col[i][j] );
+
+               consdata->row[i][j] = row[i][j];
+               consdata->col[i][j] = col[i][j];
+               consdata->val[i][j] = val[i][j];
+            }
+         }
       }
    }
 
-   for (i = 0; i < constnnonz; i++)
+   if ( constnnonz > 0 )
    {
-      consdata->constcol[i] = constcol[i];
-      consdata->constrow[i] = constrow[i];
-      consdata->constval[i] = constval[i];
+      /* if duplicate matrix entries should be removed */
+      if ( removeduplicates )
+      {
+         int cnt = 0;
+         int c = 0;
+
+         /* sort by rows, then columns */
+         SCIPsdpVarfixerSortRowCol(constrow, constcol, constval, constnnonz);
+
+         while ( cnt < constnnonz )
+         {
+            while ( cnt < constnnonz - 1 && constrow[cnt] == constrow[cnt+1] && constcol[cnt] == constcol[cnt+1] )
+            {
+               if ( ! SCIPisEQ(scip, constval[cnt], constval[cnt+1]) )
+               {
+                  SCIPerrorMessage("Duplicate entry (%d,%d) with different value (%g vs. %g) in constant matrix.\n", constrow[cnt], constcol[cnt], constval[cnt], constval[cnt+1]);
+                  return SCIP_INVALIDDATA;
+               }
+               ++cnt;
+            }
+
+            assert( 0 <= constrow[cnt] && constrow[cnt] < blocksize );
+            assert( 0 <= constcol[cnt] && constcol[cnt] < blocksize );
+            assert( constrow[cnt] >= constcol[cnt] );
+
+            consdata->constrow[c] = constrow[cnt];
+            consdata->constcol[c] = constcol[cnt];
+            consdata->constval[c] = constval[cnt];
+            ++cnt;
+            ++c;
+         }
+
+         /* possibly correct size; a reallocation should happen rarely */
+         if ( c < constnnonz )
+         {
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->constcol, constnnonz, c) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->constrow, constnnonz, c) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->constval, constnnonz, c) );
+            consdata->constnnonz = c;
+         }
+      }
+      else
+      {
+         for (j = 0; j < constnnonz; j++)
+         {
+            assert( 0 <= constrow[j] && constrow[j] < blocksize );
+            assert( 0 <= constcol[j] && constcol[j] < blocksize );
+            assert( constrow[j] >= constcol[j] );
+
+            consdata->constrow[j] = constrow[j];
+            consdata->constcol[j] = constcol[j];
+            consdata->constval[j] = constval[j];
+         }
+      }
    }
 
    for (i = 0; i < nvars; i++)

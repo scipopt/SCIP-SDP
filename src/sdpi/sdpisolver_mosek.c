@@ -216,7 +216,7 @@ struct SCIP_SDPiSolver
                          if (!(sdpisolver->solved))                                                          \
                          {                                                                                   \
                             SCIPerrorMessage("Tried to access solution information for SDP %d ahead of solving!\n", sdpisolver->sdpcounter);  \
-                            assert( 0 );                                                                     \
+                            SCIPABORT();                                                                     \
                             return FALSE;                                                                    \
                          }                                                                                   \
                       }                                                                                      \
