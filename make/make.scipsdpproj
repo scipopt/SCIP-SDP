@@ -206,6 +206,8 @@ endif
 # SCIPSDP Library
 #-----------------------------------------------------------------------------
 
+FLAGS			+=	-I$(SCIPSDPREALPATH)/src
+
 SCIPSDPLIBSHORTNAME 	= 	scipsdp
 SCIPSDPLIB 		= 	$(SCIPSDPLIBSHORTNAME)-$(SCIPSDPVERSION).$(SDPS).$(BASE)
 SCIPSDPLIBFILE 		= 	$(SCIPSDPLIBDIR)/$(LIBTYPE)/lib$(SCIPSDPLIB).$(LIBEXT)
