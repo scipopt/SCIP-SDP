@@ -342,7 +342,7 @@ namespace scip
 
             SCIP_CALL( testDigit(&file) );
             file >> var_index;
-            SCIP_CALL( checkIndex("variable", var_index, 0, numvars) );
+            SCIP_CALL( checkIndex("variable", var_index, -numvars, numvars) ); /* negative variable indices refer to indicator variables */
             SCIP_CALL( dropSpaceNewlineError(file) );
 
             SCIP_CALL( testDigit(&file) );
