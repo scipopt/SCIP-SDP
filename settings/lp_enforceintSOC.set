@@ -1,4 +1,5 @@
 relaxing/SDP/freq = -1
 lp/solvefreq = 1
 constraints/SDP/sepafreq = -1
+constraints/SDP/enforcesdp = true
 constraints/SDP/addsocrelax = true
