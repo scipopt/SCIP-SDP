@@ -9,7 +9,7 @@ cd MISDP/
 fileSDPA=RIPSDPA.test
 for x in `ls *.dat-s`;
 do
-    printf "MISDP/RIPtest/%s\n" $x >> $fileSDPA;
+    printf "RIPtest/%s\n" $x >> $fileSDPA;
 done;
 
 cnt_type=0;
@@ -49,11 +49,20 @@ do
 			type=$pd$r$so$st$t$b;
 			for x in `eval $cmd`
 			do
+			    oldname="${x/.cbf/}"
 			    newname="${x/$type.cbf/}"
-			    grep $newname ../MISDP_backup/RIPSDPA.solu >> $solufile;
-			    grep $newname ../MISDP_backup/RIPSDPA.solu >> $solufileAll;
-			    printf "MISDP/RIPtest/%s\n" $x >> $testfile;
-			    printf "MISDP/RIPtest/%s\n" $x >> $testfileAll;
+			    tmp=$(grep $newname ../MISDP_backup/RIPSDPA.solu)
+			    if [[ $tmp =~ "MISDPr" ]]; then
+				arr=($tmp)
+				result=$(bc -l <<<"${arr[2]}*(-1)")
+				printf "%s %s %s\n" ${arr[0]} ${arr[1]/$newname/$oldname} $result >> $solufile;
+				printf "%s %s %s\n" ${arr[0]} ${arr[1]/$newname/$oldname} $result >> $solufileAll;
+			    else
+				echo "${tmp/$newname/$oldname}" >> $solufile;
+				echo "${tmp/$newname/$oldname}" >> $solufileAll;
+			    fi
+			    printf "RIPtest/%s\n" $x >> $testfile;
+			    printf "RIPtest/%s\n" $x >> $testfileAll;
 			    ((cnt_instance+=1));
 			done
 			((cnt_type+=1))
