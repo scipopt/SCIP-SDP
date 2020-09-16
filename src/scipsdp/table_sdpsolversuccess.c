@@ -47,7 +47,7 @@
 
 #define TABLE_NAME              "sdpsolversuccess"
 #define TABLE_DESC              "SDP solver success statistics table"
-#define TABLE_POSITION          16100              /**< the position of the statistics table */
+#define TABLE_POSITION          17100              /**< the position of the statistics table */
 #define TABLE_EARLIEST_STAGE    SCIP_STAGE_SOLVING /**< output of the statistics table is only printed from this stage onwards */
 
 
@@ -133,49 +133,49 @@ SCIP_DECL_TABLEOUTPUT(tableOutputSdpSolverSuccess)
 
    if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0 )
    {
-      SCIPinfoMessage(scip, file, "    SDP-Solvers    :       Fast     Medium     Stable    Penalty    Unsolved\n");
+      SCIPinfoMessage(scip, file, "    SDP-Solvers    :       Time    Fast     Medium     Stable    Penalty    Unsolved\n");
       if ( tabledata->absolute )
       {
-         SCIPinfoMessage(scip, file, "     %-14.14s: %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " "
-               "%10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT "\n",
-               SCIPsdpiGetSolverName(),
-               SCIPrelaxSdpGetNSdpFast(relaxsdp), SCIPrelaxSdpGetNSdpMedium(relaxsdp), SCIPrelaxSdpGetNSdpStable(relaxsdp), SCIPrelaxSdpGetNSdpPenalty(relaxsdp),
-               SCIPrelaxSdpGetNSdpUnsolved(relaxsdp));
+         SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " "
+            "%10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT "\n",
+            SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp),
+            SCIPrelaxSdpGetNSdpFast(relaxsdp), SCIPrelaxSdpGetNSdpMedium(relaxsdp), SCIPrelaxSdpGetNSdpStable(relaxsdp), SCIPrelaxSdpGetNSdpPenalty(relaxsdp),
+            SCIPrelaxSdpGetNSdpUnsolved(relaxsdp));
       }
       else
       {
-         SCIPinfoMessage(scip, file, "     %-14.14s: %8.2f %% %8.2f %% %8.2f %% %8.2f %% %8.2f %%\n",
-               SCIPsdpiGetSolverName(),
-               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpFast(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
-               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpMedium(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
-               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpStable(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
-               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpPenalty(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
-               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpUnsolved(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp));
+         SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %8.2f %% %8.2f %% %8.2f %% %8.2f %% %8.2f %%\n",
+            SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp),
+            100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpFast(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
+            100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpMedium(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
+            100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpStable(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
+            100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpPenalty(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
+            100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpUnsolved(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp));
       }
    }
    else
    {
-      SCIPinfoMessage(scip, file, "    SDP-Solvers    :    Default    Penalty    Unsolved\n");
+      SCIPinfoMessage(scip, file, "    SDP-Solvers    :       Time    Default    Penalty   Unsolved\n");
       if ( tabledata->absolute )
       {
-         SCIPinfoMessage(scip, file, "     %-14.14s: %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " "
-               "%10" SCIP_LONGINT_FORMAT "\n",
-               SCIPsdpiGetSolverName(),
-               SCIPrelaxSdpGetNSdpFast(relaxsdp), SCIPrelaxSdpGetNSdpPenalty(relaxsdp), SCIPrelaxSdpGetNSdpUnsolved(relaxsdp));
+         SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " "
+            "%10" SCIP_LONGINT_FORMAT "\n",
+            SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp),
+            SCIPrelaxSdpGetNSdpFast(relaxsdp), SCIPrelaxSdpGetNSdpPenalty(relaxsdp), SCIPrelaxSdpGetNSdpUnsolved(relaxsdp));
       }
       else
       {
          if ( SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp) > 0 )
          {
-            SCIPinfoMessage(scip, file, "     %-14.14s: %8.2f %% %8.2f %% %8.2f %%\n",
-               SCIPsdpiGetSolverName(),
+            SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %8.2f %% %8.2f %% %8.2f %%\n",
+               SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp),
                100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpFast(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
                100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpPenalty(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
                100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpUnsolved(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp));
          }
          else
          {
-            SCIPinfoMessage(scip, file, "     %-14.14s:   %8s   %8s   %8s\n", SCIPsdpiGetSolverName(), "-", "-", "-");
+            SCIPinfoMessage(scip, file, "     %-14.14s:   %10s %8s   %8s   %8s\n", SCIPsdpiGetSolverName(), "-", "-", "-", "-");
          }
       }
    }
