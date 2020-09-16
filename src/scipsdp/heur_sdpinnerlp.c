@@ -67,7 +67,7 @@
 #define HEUR_DESC             "inner approximation LP heuristic for SDPs"
 #define HEUR_DISPCHAR         '!'
 #define HEUR_PRIORITY         -1001000
-#define HEUR_FREQ             0
+#define HEUR_FREQ             -1
 #define HEUR_FREQOFS          0
 #define HEUR_MAXDEPTH         -1
 #define HEUR_TIMING           SCIP_HEURTIMING_BEFOREPRESOL
