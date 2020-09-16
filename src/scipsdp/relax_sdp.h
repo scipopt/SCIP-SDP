@@ -331,6 +331,13 @@ int SCIPrelaxSdpGetNSlaterInfeasibleUnsolved(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
    );
 
+/** returns solving time in SDP solver */
+SCIP_EXPORT
+SCIP_Real SCIPrelaxSdpGetSolvingTime(
+   SCIP*                 scip,               /**< SCIP pointer */
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get timer for */
+   );
+
 #ifdef __cplusplus
 }
 #endif
