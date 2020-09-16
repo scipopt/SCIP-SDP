@@ -352,14 +352,6 @@ SCIP_RETCODE CBFreadPsdVar(
    assert( linecount != NULL );
    assert( data != NULL );
 
-   /* PSDVAR need to be in front of PSDCON! */
-   if ( data->nsdpblocks > -1 )
-   {
-      SCIPerrorMessage("Need to have 'PSDVAR' section before 'PSDCON' section!\n");
-      SCIPABORT();
-      return SCIP_READERROR; /*lint !e527*/
-   }
-
    SCIP_CALL( CBFfgets(pfile, linecount) );
 
    if ( sscanf(CBF_LINE_BUFFER, "%i", &(data->npsdvars)) != 1 )
@@ -379,6 +371,14 @@ SCIP_RETCODE CBFreadPsdVar(
    /* if no psd variables exist, then exit */
    if ( data->npsdvars == 0 )
       return SCIP_OKAY;
+
+   /* PSDVAR need to be in front of PSDCON! */
+   if ( data->nsdpblocks > -1 )
+   {
+      SCIPerrorMessage("Need to have 'PSDVAR' section before 'PSDCON' section!\n");
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
 
    assert( data->npsdvars > 0 );
 
@@ -767,6 +767,15 @@ SCIP_RETCODE CBFreadPsdCon(
       return SCIP_READERROR; /*lint !e527*/
    }
 
+   /* if no psd constraints are specified, then exit */
+   if ( ncbfsdpblocks == 0 )
+   {
+      data->noorigsdpcons = TRUE;
+      data->nsdpblocks = 0;
+      return SCIP_OKAY;
+   }
+   assert( ncbfsdpblocks > 0 );
+
    /* increase number of sdp blocks by number of psd variables that need to be transformed into a psd constraint
     * with scalar variables */
    if ( data->npsdvars > 0 )
@@ -774,12 +783,6 @@ SCIP_RETCODE CBFreadPsdCon(
    else
       data->nsdpblocks = ncbfsdpblocks;
 
-   /* if no psd constraints exist, then exit */
-   if ( data->nsdpblocks == 0 )
-   {
-      data->noorigsdpcons = TRUE;
-      return SCIP_OKAY;
-   }
    assert( data->nsdpblocks > 0 );
 
    data->noorigsdpcons = FALSE;
@@ -2188,6 +2191,13 @@ SCIP_DECL_READERREAD(readerReadCbf)
       }
    }
 
+   /* If there were no sections PSDCON or PSDVAR, then set data->npsdvars and data->nsdpblocks to 0 */
+   if ( data->nsdpblocks < 0 )
+      data->nsdpblocks = 0;
+
+   if ( data->npsdvars < 0 )
+      data->npsdvars = 0;
+
    /* Psd vars are created using scalar vars and a corresponding psd constraint that gets created in the function
     * CBFreadPsdCon. If there are no psd cons in the original problem, then the psd constraint for the reformulation of the
     * original psd vars needs to be created at this point! */
@@ -2199,10 +2209,10 @@ SCIP_DECL_READERREAD(readerReadCbf)
       int col;
       int val;
 
-      assert( data->nsdpblocks == -1 );
+      assert( data->nsdpblocks == 0 );
       assert( data->createdpsdvars != NULL );
       assert( data->psdvarrank1 != NULL );
-      assert( data->npsdvars >= 0 );
+      assert( data->npsdvars > 0 );
 
       data->noorigsdpcons = TRUE;
 
@@ -2263,6 +2273,8 @@ SCIP_DECL_READERREAD(readerReadCbf)
          assert( varidx == nauxvars );
       }
    }
+
+   assert( data->npsdvars == data->nsdpblocks || ! data->noorigsdpcons );
 
    if ( ! objread )
    {
