@@ -78,14 +78,15 @@
  * Default parameter settings
  */
 
-#define DEFAULT_STALLNODELIMIT          100L      /* limit on number of nodes since last improving incumbent solutions */
-
+#define DEFAULT_STALLNODELIMIT          100L      /**< limit on number of nodes since last improving incumbent solutions */
+#define DEFAULT_MAXSIZE                10000      /**< maximal size of the inner problem */
 
 
 /* locally defined heuristic data */
 struct SCIP_HeurData
 {
-   SCIP_Longint          stallnodelimit;     /* limit on number of nodes since last improving incumbent solutions */
+   SCIP_Longint          stallnodelimit;     /**< limit on number of nodes since last improving incumbent solutions */
+   int                   maxsize;            /**< maximal size of the inner problem */
 };
 
 
@@ -141,6 +142,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpInnerlp)
    SCIP_Real timelimit;
    SCIP_SOL** subsols;
    SCIP* subscip;
+   int totalsize = 0;
    int nsubsols;
    int nconss;
    int nvars;
@@ -172,6 +174,33 @@ SCIP_DECL_HEUREXEC(heurExecSdpInnerlp)
    /* get heuristic data */
    heurdata = SCIPheurGetData(heur);
    assert( heurdata != NULL );
+
+   /* estimate size of problem */
+   nconss = SCIPgetNConss(scip);
+   conss = SCIPgetConss(scip);
+   /* find SDP constraint handler */
+   conshdlrsdp = SCIPfindConshdlr(scip, "SDP");
+   if ( conshdlrsdp == NULL )
+      return SCIP_OKAY;
+
+   for (c = 0; c < nconss && totalsize < heurdata->maxsize; ++c)
+   {
+      int blocksize;
+
+      /* skip non-SDP constraints */
+      assert( conss[c] != NULL );
+      if ( SCIPconsGetHdlr(conss[c]) != conshdlrsdp )
+         continue;
+
+      blocksize = SCIPconsSdpGetBlocksize(subscip, conss[c]);
+      totalsize += (blocksize * (blocksize - 1))/2;
+   }
+
+   if ( totalsize >= heurdata->maxsize )
+   {
+      SCIPdebugMsg(scip, "Skipping <%s>, because size would be too large.\n", SCIPheurGetName(heur));
+      return SCIP_OKAY;
+   }
 
    /* get original variable data */
    SCIP_CALL( SCIPgetVarsData(scip, &vars, &nvars, NULL, NULL, NULL, NULL) );
@@ -426,8 +455,8 @@ SCIP_DECL_HEUREXEC(heurExecSdpInnerlp)
 
    SCIP_CALL( SCIPfree(&subscip) );
 
-   SCIPfreeBufferArray(scip, &conss);
    SCIPfreeBufferArray(scip, &subvars);
+   SCIPfreeBufferArray(scip, &conss);
 
    return SCIP_OKAY;
 }
@@ -462,6 +491,10 @@ SCIP_RETCODE SCIPincludeHeurSdpInnerlp(
    SCIP_CALL( SCIPaddLongintParam(scip, "heuristics/" HEUR_NAME "/stallnodelimit",
          "limit on number of nodes since last improving incumbent solutions",
          &heurdata->stallnodelimit, FALSE, DEFAULT_STALLNODELIMIT, -1, SCIP_LONGINT_MAX, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddIntParam(scip, "heuristics/" HEUR_NAME "/maxsize",
+         "maximal size of the inner problem",
+         &heurdata->maxsize, FALSE, DEFAULT_MAXSIZE, -1, INT_MAX, NULL, NULL) );
 
    return SCIP_OKAY;
 }
