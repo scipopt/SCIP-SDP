@@ -212,7 +212,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpInnerlp)
    SCIP_CALL( SCIPhashmapCreate(&varmapfw, SCIPblkmem(subscip), nvars) );
 
    /* create a problem copy as sub SCIP */
-   SCIP_CALL( SCIPcopyLargeNeighborhoodSearch(scip, subscip, varmapfw, "rens", NULL, NULL, 0, FALSE,
+   SCIP_CALL( SCIPcopyLargeNeighborhoodSearch(scip, subscip, varmapfw, "sdpinnerlp", NULL, NULL, 0, FALSE,
          FALSE, &success, NULL) );
 
    /* find SDP constraint handler */
