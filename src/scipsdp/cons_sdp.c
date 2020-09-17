@@ -4276,7 +4276,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
                         if ( SCIPvarGetLbLocal(var) + 0.5 < SCIPvarGetUbLocal(var) )
                         {
                            val = SCIPgetRelaxSolVal(scip, var);
-                           if ( val < 0.5 )
+                           if ( val < SCIPfeasFloor(scip, val) + 0.5 )
                            {
                               SCIP_CALL( SCIPchgVarUbProbing(scip, var, SCIPfeasFloor(scip, val)) );
                            }
