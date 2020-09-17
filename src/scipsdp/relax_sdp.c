@@ -137,6 +137,7 @@ struct SCIP_RelaxData
 
    int                   sdpcalls;           /**< number of solved SDPs (used to compute average SDP iterations), different settings tried are counted as multiple calls */
    int                   sdpinterfacecalls;  /**< number of times the SDP interfaces was called (used to compute slater statistics) */
+   SCIP_Real             sdpopttime;         /**< time used in optimization calls of solver */
    int                   sdpiterations;      /**< saves the total number of sdp-iterations */
    int                   ntightenedrows;     /**< number of tightened rows */
    int                   solvedfast;         /**< number of SDPs solved with fast settings */
@@ -283,6 +284,7 @@ SCIP_RETCODE updateSDPStatistics(
    SCIP_SDPSLATER primalslater = SCIP_SDPSLATER_NOINFO;
    SCIP_SDPSLATER dualslater = SCIP_SDPSLATER_NOINFO;
    SCIP_SDPSLATERSETTING slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+   SCIP_Real addedopttime;
    int naddedsdpcalls;
    int naddediters;
 
@@ -297,6 +299,10 @@ SCIP_RETCODE updateSDPStatistics(
       return SCIP_OKAY;
 
    relaxdata->sdpcalls += naddedsdpcalls;
+
+   /* update time */
+   SCIP_CALL( SCIPsdpiGetTime(relaxdata->sdpi, &addedopttime) );
+   relaxdata->sdpopttime += addedopttime;
 
    /* update number of iterations */
    SCIP_CALL( SCIPsdpiGetIterations(relaxdata->sdpi, &naddediters) );
@@ -3997,6 +4003,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    relaxdata->probingsolved = FALSE;
    relaxdata->sdpcalls = 0;
    relaxdata->sdpinterfacecalls = 0;
+   relaxdata->sdpopttime = 0.0;
    relaxdata->sdpiterations = 0;
    relaxdata->ntightenedrows = 0;
    relaxdata->solvedfast = 0;
@@ -4631,6 +4638,7 @@ SCIP_DECL_RELAXEXITSOL(relaxExitSolSdp)
    relaxdata->origsolved = FALSE;
    relaxdata->probingsolved = FALSE;
    relaxdata->feasible = FALSE;
+   relaxdata->sdpopttime = 0.0;
    relaxdata->sdpiterations = 0;
    relaxdata->sdpcalls = 0;
    relaxdata->sdpinterfacecalls = 0;
@@ -5431,6 +5439,17 @@ SCIP_Bool SCIPrelaxSdpIsUnbounded(
    assert( relaxdata->sdpi != NULL );
 
    return SCIPsdpiIsDualUnbounded(relaxdata->sdpi);
+}
+
+/** returns time in optimization of solver */
+SCIP_Real SCIPrelaxSdpGetOptTime(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get the iterations for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return SCIPrelaxGetData(relax)->sdpopttime;
 }
 
 /** returns total number of SDP-iterations */

@@ -133,19 +133,19 @@ SCIP_DECL_TABLEOUTPUT(tableOutputSdpSolverSuccess)
 
    if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0 )
    {
-      SCIPinfoMessage(scip, file, "    SDP-Solvers    :       Time    Fast     Medium     Stable    Penalty    Unsolved\n");
+      SCIPinfoMessage(scip, file, "    SDP-Solvers    :       Time    Opttime Fast     Medium     Stable    Penalty    Unsolved\n");
       if ( tabledata->absolute )
       {
-         SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " "
+         SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " "
             "%10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT "\n",
-            SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp),
+            SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
             SCIPrelaxSdpGetNSdpFast(relaxsdp), SCIPrelaxSdpGetNSdpMedium(relaxsdp), SCIPrelaxSdpGetNSdpStable(relaxsdp), SCIPrelaxSdpGetNSdpPenalty(relaxsdp),
             SCIPrelaxSdpGetNSdpUnsolved(relaxsdp));
       }
       else
       {
-         SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %8.2f %% %8.2f %% %8.2f %% %8.2f %% %8.2f %%\n",
-            SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp),
+         SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %8.2f %% %8.2f %% %8.2f %% %8.2f %% %8.2f %%\n",
+            SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
             100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpFast(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
             100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpMedium(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
             100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpStable(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
@@ -155,27 +155,27 @@ SCIP_DECL_TABLEOUTPUT(tableOutputSdpSolverSuccess)
    }
    else
    {
-      SCIPinfoMessage(scip, file, "    SDP-Solvers    :       Time    Default    Penalty   Unsolved\n");
+      SCIPinfoMessage(scip, file, "    SDP-Solvers    :       Time    Opttime Default    Penalty   Unsolved\n");
       if ( tabledata->absolute )
       {
-         SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " "
+         SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " "
             "%10" SCIP_LONGINT_FORMAT "\n",
-            SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp),
+            SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
             SCIPrelaxSdpGetNSdpFast(relaxsdp), SCIPrelaxSdpGetNSdpPenalty(relaxsdp), SCIPrelaxSdpGetNSdpUnsolved(relaxsdp));
       }
       else
       {
          if ( SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp) > 0 )
          {
-            SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %8.2f %% %8.2f %% %8.2f %%\n",
-               SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp),
+            SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %8.2f %% %8.2f %% %8.2f %%\n",
+               SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
                100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpFast(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
                100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpPenalty(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
                100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpUnsolved(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp));
          }
          else
          {
-            SCIPinfoMessage(scip, file, "     %-14.14s:   %10s %8s   %8s   %8s\n", SCIPsdpiGetSolverName(), "-", "-", "-", "-");
+            SCIPinfoMessage(scip, file, "     %-14.14s:   %10s %10s %8s   %8s   %8s\n", SCIPsdpiGetSolverName(), "-", "-", "-", "-", "-");
          }
       }
    }
