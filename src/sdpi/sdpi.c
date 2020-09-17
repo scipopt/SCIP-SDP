@@ -185,6 +185,7 @@ struct SCIP_SDPi
    int                   slatercheck;        /**< should the Slater condition for the dual problem be checked ahead of each solving process */
    int                   sdpid;              /**< counter for the number of SDPs solved */
    int                   niterations;        /**< number of iterations since the last solve call */
+   SCIP_Real             opttime;            /**< time for the last SDP optimization call of solver */
    int                   nsdpcalls;          /**< number of calls to the SDP-Solver since the last solve call */
    SCIP_Bool             solved;             /**< was the problem solved since the last change */
    SCIP_Bool             penalty;            /**< was the last solved problem a penalty formulation */
@@ -1464,6 +1465,7 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->bufmem = bufmem;
    (*sdpi)->sdpid = 1;
    (*sdpi)->niterations = 0;
+   (*sdpi)->opttime = 0.0;
    (*sdpi)->nsdpcalls = 0;
    (*sdpi)->nvars = 0;
    (*sdpi)->nsdpblocks = 0;
@@ -1908,6 +1910,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    sdpi->allfixed = FALSE;
    sdpi->nsdpcalls = 0;
    sdpi->niterations = 0;
+   sdpi->opttime = 0.0;
 
    return SCIP_OKAY;
 }
@@ -1976,6 +1979,7 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
    sdpi->infeasible = FALSE;
    sdpi->nsdpcalls = 0;
    sdpi->niterations = 0;
+   sdpi->opttime = 0.0;
 
    return SCIP_OKAY;
 }
@@ -2023,6 +2027,7 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
       sdpi->allfixed = FALSE;
       sdpi->nsdpcalls = 0;
       sdpi->niterations = 0;
+      sdpi->opttime = 0.0;
 
       return SCIP_OKAY;
    }
@@ -2086,6 +2091,7 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
    sdpi->allfixed = FALSE;
    sdpi->nsdpcalls = 0;
    sdpi->niterations = 0;
+   sdpi->opttime = 0.0;
 
    return SCIP_OKAY;
 }
@@ -2128,6 +2134,7 @@ SCIP_RETCODE SCIPsdpiDelLPRowset(
    sdpi->allfixed = FALSE;
    sdpi->nsdpcalls = 0;
    sdpi->niterations = 0;
+   sdpi->opttime = 0.0;
 
    return SCIP_OKAY;
 }
@@ -2173,6 +2180,7 @@ SCIP_RETCODE SCIPsdpiChgObj(
    sdpi->solved = FALSE;
    sdpi->nsdpcalls = 0;
    sdpi->niterations = 0;
+   sdpi->opttime = 0.0;
 
    return SCIP_OKAY;
 }
@@ -2207,6 +2215,7 @@ SCIP_RETCODE SCIPsdpiChgBounds(
    sdpi->allfixed = FALSE;
    sdpi->nsdpcalls = 0;
    sdpi->niterations = 0;
+   sdpi->opttime = 0.0;
 
    return SCIP_OKAY;
 }
@@ -2243,6 +2252,7 @@ SCIP_RETCODE SCIPsdpiChgLPLhRhSides(
    sdpi->allfixed = FALSE;
    sdpi->nsdpcalls = 0;
    sdpi->niterations = 0;
+   sdpi->opttime = 0.0;
 
    return SCIP_OKAY;
 }
@@ -2486,6 +2496,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    SCIP_Real* lplhsafterfix;
    SCIP_Real* lprhsafterfix;
    SCIP_Real solvertimelimit;
+   SCIP_Real addedopttime;
    SCIP_Bool fixingfound;
    clock_t starttime;
    clock_t currenttime;
@@ -2509,6 +2520,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    sdpi->solved = FALSE;
    sdpi->nsdpcalls = 0;
    sdpi->niterations = 0;
+   sdpi->opttime = 0.0;
 
    /* allocate memory for computing the constant matrix after fixings and finding empty rows and columns, this is as much as might possibly be
     * needed, this will be shrinked again before solving */
@@ -2615,7 +2627,10 @@ SCIP_RETCODE SCIPsdpiSolve(
 
       sdpi->solved = TRUE;
 
-      /* add iterations and sdpcalls */
+      /* add time, iterations and sdpcalls */
+      addedopttime = 0.0;
+      SCIP_CALL( SCIPsdpiSolverGetTime(sdpi->sdpisolver, &addedopttime) );
+      sdpi->opttime += addedopttime;
       naddediterations = 0;
       SCIP_CALL( SCIPsdpiSolverGetIterations(sdpi->sdpisolver, &naddediterations) );
       sdpi->niterations += naddediterations;
@@ -2660,7 +2675,10 @@ SCIP_RETCODE SCIPsdpiSolve(
                rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, starty, startZnblocknonz, startZrow, startZcol, startZval,
                startXnblocknonz, startXrow, startXcol, startXval, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit, &feasorig, &penaltybound) );
 
-         /* add iterations and sdpcalls */
+         /* add time, iterations and sdpcalls */
+         addedopttime = 0.0;
+         SCIP_CALL( SCIPsdpiSolverGetTime(sdpi->sdpisolver, &addedopttime) );
+         sdpi->opttime += addedopttime;
          naddediterations = 0;
          SCIP_CALL( SCIPsdpiSolverGetIterations(sdpi->sdpisolver, &naddediterations) );
          sdpi->niterations += naddediterations;
@@ -2731,7 +2749,10 @@ SCIP_RETCODE SCIPsdpiSolve(
                      rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, starty, startZnblocknonz, startZrow, startZcol, startZval,
                      startXnblocknonz, startXrow, startXcol, startXval, startsettings, solvertimelimit, &feasorig, &penaltybound) );
 
-               /* add iterations and sdpcalls */
+               /* add time, iterations and sdpcalls */
+               addedopttime = 0.0;
+               SCIP_CALL( SCIPsdpiSolverGetTime(sdpi->sdpisolver, &addedopttime) );
+               sdpi->opttime += addedopttime;
                naddediterations = 0;
                SCIP_CALL( SCIPsdpiSolverGetIterations(sdpi->sdpisolver, &naddediterations) );
                sdpi->niterations += naddediterations;
@@ -3586,6 +3607,20 @@ SCIP_Real SCIPsdpiGetMaxPrimalEntry(
    assert( sdpi != NULL );
 
    return SCIPsdpiSolverGetMaxPrimalEntry( sdpi->sdpisolver );
+}
+
+/** gets the time for the last SDP optimization call of solver */
+SCIP_RETCODE SCIPsdpiGetTime(
+   SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
+   SCIP_Real*            opttime             /**< pointer to store the time for optimization of the solver */
+   )
+{
+   assert( sdpi != NULL );
+   assert( opttime != NULL );
+
+   *opttime = sdpi->opttime;
+
+   return SCIP_OKAY;
 }
 
 /** gets the number of SDP-iterations of the last solve call */

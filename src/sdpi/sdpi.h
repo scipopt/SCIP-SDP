@@ -658,6 +658,13 @@ SCIP_Real SCIPsdpiGetMaxPrimalEntry(
    SCIP_SDPI*            sdpi                /**< pointer to an SDP-interface structure */
    );
 
+/** gets the time for the last SDP optimization call of solver */
+SCIP_EXPORT
+SCIP_RETCODE SCIPsdpiGetTime(
+   SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
+   SCIP_Real*            opttime             /**< pointer to store the time for optimization of the solver */
+   );
+
 /** gets the number of SDP-iterations of the last solve call */
 SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiGetIterations(
