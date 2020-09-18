@@ -1,0 +1,7 @@
+relaxing/SDP/freq = -1
+lp/solvefreq = 1
+constraints/SDP/sepafreq = -1
+constraints/SDP/addsocrelax = true
+constraints/SDP/twominorlinconss = true
+constraints/SDP/twominorprodconss = true
+heuristics/sdpinnerlp/freq = 0
