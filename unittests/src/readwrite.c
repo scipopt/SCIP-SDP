@@ -84,14 +84,417 @@ Test(readwrite, readSDPAwriteCBF)
    obj1 = SCIPgetDualbound(scipsdp);
 
    /* write problem in CBF format */
-   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "example_small.cbf", "cbf", FALSE) );
+   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "test1.cbf", "cbf", FALSE) );
 
    /* read problem again */
-   SCIP_CALL( SCIPreadProb(scipsdp, "example_small.cbf", NULL) );
+   SCIP_CALL( SCIPreadProb(scipsdp, "test1.cbf", NULL) );
 
    SCIP_CALL( SCIPsolve(scipsdp) );
 
    obj2 = SCIPgetDualbound(scipsdp);
 
    cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (SDPA) != %g (CBF)\n", obj1, obj2);
+}
+
+/** Test 2 */
+Test(readwrite, short2)
+{
+   SCIP_Real obj1;
+   SCIP_Real obj2;
+
+   /* read problem and solve it */
+   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_small_cbf.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj1 = SCIPgetDualbound(scipsdp);
+
+   /* write problem in CBF format */
+   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "test2.cbf", "cbf", FALSE) );
+
+   /* read problem again */
+   SCIP_CALL( SCIPreadProb(scipsdp, "test2.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj2 = SCIPgetDualbound(scipsdp);
+
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
+}
+
+
+/** Test 3 */
+Test(readwrite, short3)
+{
+   SCIP_Real obj1;
+   SCIP_Real obj2;
+
+   /* read problem and solve it */
+   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_inf.dat-s", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj1 = SCIPgetDualbound(scipsdp);
+
+   /* write problem in CBF format */
+   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "test3.cbf", "cbf", FALSE) );
+
+   /* read problem again */
+   SCIP_CALL( SCIPreadProb(scipsdp, "test3.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj2 = SCIPgetDualbound(scipsdp);
+
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
+}
+
+/** Test 4 */
+Test(readwrite, short4)
+{
+   SCIP_Real obj1;
+   SCIP_Real obj2;
+
+   /* read problem and solve it */
+   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_TT.dat-s.gz", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj1 = SCIPgetDualbound(scipsdp);
+
+   /* write problem in CBF format */
+   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "test4.cbf", "cbf", FALSE) );
+
+   /* read problem again */
+   SCIP_CALL( SCIPreadProb(scipsdp, "test4.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj2 = SCIPgetDualbound(scipsdp);
+
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
+}
+
+
+/** Test 5 */
+Test(readwrite, short5)
+{
+   SCIP_Real obj1;
+   SCIP_Real obj2;
+
+   /* read problem and solve it */
+   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_CLS.dat-s.gz", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj1 = SCIPgetDualbound(scipsdp);
+
+   /* write problem in CBF format */
+   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "test5.cbf", "cbf", FALSE) );
+
+   /* read problem again */
+   SCIP_CALL( SCIPreadProb(scipsdp, "test5.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj2 = SCIPgetDualbound(scipsdp);
+
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
+}
+
+
+/** Test 6 */
+Test(readwrite, short6)
+{
+   SCIP_Real obj1;
+   SCIP_Real obj2;
+
+   /* read problem and solve it */
+   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_MkP.dat-s.gz", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj1 = SCIPgetDualbound(scipsdp);
+
+   /* write problem in CBF format */
+   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "test6.cbf", "cbf", FALSE) );
+
+   /* read problem again */
+   SCIP_CALL( SCIPreadProb(scipsdp, "test6.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj2 = SCIPgetDualbound(scipsdp);
+
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
+}
+
+
+/** Test 7 */
+Test(readwrite, short7)
+{
+   SCIP_Real obj1;
+   SCIP_Real obj2;
+
+   /* read problem and solve it */
+   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_cbf_primal.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj1 = SCIPgetDualbound(scipsdp);
+
+   /* write problem in CBF format */
+   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "test7.cbf", "cbf", FALSE) );
+
+   /* read problem again */
+   SCIP_CALL( SCIPreadProb(scipsdp, "test7.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj2 = SCIPgetDualbound(scipsdp);
+
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
+}
+
+
+/** Test 8 */
+Test(readwrite, short8)
+{
+   SCIP_Real obj1;
+   SCIP_Real obj2;
+
+   /* read problem and solve it */
+   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_cbf_mix.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj1 = SCIPgetDualbound(scipsdp);
+
+   /* write problem in CBF format */
+   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "test8.cbf", "cbf", FALSE) );
+
+   /* read problem again */
+   SCIP_CALL( SCIPreadProb(scipsdp, "test8.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj2 = SCIPgetDualbound(scipsdp);
+
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
+}
+
+
+/** Test 9 */
+Test(readwrite, short9)
+{
+   SCIP_Real obj1;
+   SCIP_Real obj2;
+
+   /* read problem and solve it */
+   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_cbf_dual.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj1 = SCIPgetDualbound(scipsdp);
+
+   /* write problem in CBF format */
+   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "test9.cbf", "cbf", FALSE) );
+
+   /* read problem again */
+   SCIP_CALL( SCIPreadProb(scipsdp, "test9.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj2 = SCIPgetDualbound(scipsdp);
+
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
+}
+
+
+/** Test 10 */
+Test(readwrite, short10)
+{
+   SCIP_Real obj1;
+   SCIP_Real obj2;
+
+   /* read problem and solve it */
+   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_multaggr.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj1 = SCIPgetDualbound(scipsdp);
+
+   /* write problem in CBF format */
+   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "test10.cbf", "cbf", FALSE) );
+
+   /* read problem again */
+   SCIP_CALL( SCIPreadProb(scipsdp, "test10.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj2 = SCIPgetDualbound(scipsdp);
+
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
+}
+
+
+/** Test 11 */
+Test(readwrite, short11)
+{
+   SCIP_Real obj1;
+   SCIP_Real obj2;
+
+   /* read problem and solve it */
+   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_rank1_primal.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj1 = SCIPgetDualbound(scipsdp);
+
+   /* write problem in CBF format */
+   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "test11.cbf", "cbf", FALSE) );
+
+   /* read problem again */
+   SCIP_CALL( SCIPreadProb(scipsdp, "test11.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj2 = SCIPgetDualbound(scipsdp);
+
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
+}
+
+
+/** Test 12 */
+Test(readwrite, short12)
+{
+   SCIP_Real obj1;
+   SCIP_Real obj2;
+
+   /* read problem and solve it */
+   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_rank1_dual.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj1 = SCIPgetDualbound(scipsdp);
+
+   /* write problem in CBF format */
+   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "test12.cbf", "cbf", FALSE) );
+
+   /* read problem again */
+   SCIP_CALL( SCIPreadProb(scipsdp, "test12.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj2 = SCIPgetDualbound(scipsdp);
+
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
+}
+
+
+/** Test 13 */
+Test(readwrite, short13)
+{
+   SCIP_Real obj1;
+   SCIP_Real obj2;
+
+   /* read problem and solve it */
+   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_diagzeroimpl.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj1 = SCIPgetDualbound(scipsdp);
+
+   /* write problem in CBF format */
+   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "test13.cbf", "cbf", FALSE) );
+
+   /* read problem again */
+   SCIP_CALL( SCIPreadProb(scipsdp, "test13.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj2 = SCIPgetDualbound(scipsdp);
+
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
+}
+
+
+/** Test 14 */
+Test(readwrite, nolinconsdual)
+{
+   SCIP_Real obj1;
+   SCIP_Real obj2;
+
+   /* read problem and solve it */
+   SCIP_CALL( SCIPreadProb(scipsdp, "nolincons_dual.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj1 = SCIPgetDualbound(scipsdp);
+
+   /* write problem in CBF format */
+   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "test14.cbf", "cbf", FALSE) );
+
+   /* read problem again */
+   SCIP_CALL( SCIPreadProb(scipsdp, "test14.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj2 = SCIPgetDualbound(scipsdp);
+
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
+}
+
+/** Test 15 */
+Test(readwrite, nolinconsprimal)
+{
+   SCIP_Real obj1;
+   SCIP_Real obj2;
+
+   /* read problem and solve it */
+   SCIP_CALL( SCIPreadProb(scipsdp, "nolincons_primal.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj1 = SCIPgetDualbound(scipsdp);
+
+   /* write problem in CBF format */
+   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "test15.cbf", "cbf", FALSE) );
+
+   /* read problem again */
+   SCIP_CALL( SCIPreadProb(scipsdp, "test15.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj2 = SCIPgetDualbound(scipsdp);
+
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
+}
+
+
+
+/** Test 16 */
+Test(readwrite, nopsdcons)
+{
+   SCIP_Real obj1;
+   SCIP_Real obj2;
+
+   /* read problem and solve it */
+   SCIP_CALL( SCIPreadProb(scipsdp, "nopsdcons.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj1 = SCIPgetDualbound(scipsdp);
+
+   /* write problem in CBF format */
+   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "test16.cbf", "cbf", FALSE) );
+
+   /* read problem again */
+   SCIP_CALL( SCIPreadProb(scipsdp, "test16.cbf", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj2 = SCIPgetDualbound(scipsdp);
+
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
 }
