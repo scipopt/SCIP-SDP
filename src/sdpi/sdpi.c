@@ -174,9 +174,11 @@ struct SCIP_SDPi
 
    /* lp data: */
    int                   nlpcons;            /**< number of LP-constraints */
+   int                   maxnlpcons;         /**< maximal number of LP-constraints */
    SCIP_Real*            lplhs;              /**< left hand sides of LP rows */
    SCIP_Real*            lprhs;              /**< right hand sides of LP rows */
    int                   lpnnonz;            /**< number of nonzero elements in the LP-constraint matrix */
+   int                   maxlpnnonz;         /**< maximal number of nonzero elements in the LP-constraint matrix */
    int*                  lprow;              /**< row-index for each entry in lpval-array */
    int*                  lpcol;              /**< column-index for each entry in lpval-array */
    SCIP_Real*            lpval;              /**< values of LP-constraint matrix entries */
@@ -252,6 +254,75 @@ SCIP_Bool isFixed(
 #else
 #define isFixed(sdpi, v) (sdpi->ub[v] - sdpi->lb[v] <= sdpi->epsilon)
 #endif
+
+/** calculate memory size for dynamically allocated arrays */
+static
+int calcGrowSize(
+   int                   initsize,           /**< initial size of array */
+   int                   num                 /**< minimum number of entries to store */
+    )
+{
+   int oldsize;
+   int size;
+
+   assert( initsize >= 0 );
+   assert( num >= 0 );
+
+   /* calculate the size with loop, such that the resulting numbers are always the same (-> block memory) */
+   initsize = MAX(initsize, SCIP_DEFAULT_MEM_ARRAYGROWINIT);
+   size = initsize;
+   oldsize = size - 1;
+
+   /* second condition checks against overflow */
+   while ( size < num && size > oldsize )
+   {
+      oldsize = size;
+      size = (int)(SCIP_DEFAULT_MEM_ARRAYGROWFAC * size + initsize);
+   }
+
+   /* if an overflow happened, set the correct value */
+   if ( size <= oldsize )
+      size = num;
+
+   assert( size >= initsize );
+   assert( size >= num );
+
+   return size;
+}
+
+/** ensure size of LP data */
+static
+SCIP_RETCODE ensureLPDataMemory(
+   SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
+   int                   nlpcons,            /**< number of required LP constraints */
+   int                   nlpnonz             /**< number of required LP nonzeros */
+   )
+{
+   int newsize;
+
+   assert( sdpi != NULL );
+
+   if ( nlpcons > sdpi->maxnlpcons )
+   {
+      newsize = calcGrowSize(sdpi->maxnlpcons, nlpcons);
+
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->maxnlpcons, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lplhs), sdpi->maxnlpcons, newsize) );
+      sdpi->maxnlpcons = newsize;
+   }
+
+   if ( nlpnonz > sdpi->maxlpnnonz )
+   {
+      newsize = calcGrowSize(sdpi->maxlpnnonz, nlpnonz);
+
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->maxlpnnonz, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->maxlpnnonz, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->maxlpnnonz, newsize) );
+      sdpi->maxlpnnonz = newsize;
+   }
+
+   return SCIP_OKAY;
+}
 
 /** Computes the constant matrix after all variables with lb=ub have been fixed and their nonzeros were moved to the constant part. The five variables
  *  other than sdpi are used to return the matrix.
@@ -1470,7 +1541,9 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->sdpconstnnonz = 0;
    (*sdpi)->sdpnnonz = 0;
    (*sdpi)->nlpcons = 0;
+   (*sdpi)->maxnlpcons = 0;
    (*sdpi)->lpnnonz = 0;
+   (*sdpi)->maxlpnnonz = 0;
    (*sdpi)->slatercheck = 0;
    (*sdpi)->solved = FALSE;
    (*sdpi)->penalty = FALSE;
@@ -1523,11 +1596,13 @@ SCIP_RETCODE SCIPsdpiFree(
    assert ( *sdpi != NULL );
 
    /* free the LP part */
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lpval), (*sdpi)->lpnnonz);
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lpcol), (*sdpi)->lpnnonz);
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lprow), (*sdpi)->lpnnonz);
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lprhs), (*sdpi)->nlpcons);
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lplhs), (*sdpi)->nlpcons);
+   assert( 0 <= (*sdpi)->lpnnonz && (*sdpi)->lpnnonz <= (*sdpi)->maxlpnnonz );
+   assert( 0 <= (*sdpi)->nlpcons && (*sdpi)->nlpcons <= (*sdpi)->maxnlpcons );
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lpval), (*sdpi)->maxlpnnonz);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lpcol), (*sdpi)->maxlpnnonz);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lprow), (*sdpi)->maxlpnnonz);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lprhs), (*sdpi)->maxnlpcons);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lplhs), (*sdpi)->maxnlpcons);
 
    /* free the individual nonzeros */
    for (i = 0; i < (*sdpi)->nsdpblocks; i++)
@@ -1658,11 +1733,13 @@ SCIP_RETCODE SCIPsdpiClone(
 
    /* LP data */
    newsdpi->nlpcons = oldsdpi->nlpcons;
+   newsdpi->maxnlpcons = oldsdpi->nlpcons;
 
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->lplhs), oldsdpi->lplhs, oldsdpi->nlpcons) );
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->lprhs), oldsdpi->lprhs, oldsdpi->nlpcons) );
 
    newsdpi->lpnnonz = lpnnonz;
+   newsdpi->maxlpnnonz = lpnnonz;
 
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->lprow), oldsdpi->lprow, lpnnonz) );
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->lpcol), oldsdpi->lpcol, lpnnonz) );
@@ -1880,11 +1957,11 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    }
 
    /* free old and duplicate new arrays for the LP part */
-   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz);
-   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz);
-   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz);
-   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons);
-   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lplhs), sdpi->nlpcons);
+   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lpval), sdpi->maxlpnnonz);
+   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lpcol), sdpi->maxlpnnonz);
+   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lprow), sdpi->maxlpnnonz);
+   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lprhs), sdpi->maxnlpcons);
+   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lplhs), sdpi->maxnlpcons);
 
    DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->lplhs), lplhs, nlpcons);
    DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->lprhs), lprhs, nlpcons);
@@ -1944,8 +2021,7 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
    assert ( col != NULL );
    assert ( val != NULL );
 
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lplhs), sdpi->nlpcons, sdpi->nlpcons + nrows) ); /*lint !e776*/
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons, sdpi->nlpcons + nrows) ); /*lint !e776*/
+   SCIP_CALL( ensureLPDataMemory(sdpi, sdpi->nlpcons + nrows, sdpi->lpnnonz + nnonz) );
 
    for (i = 0; i < nrows; i++)
    {
@@ -1953,13 +2029,10 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
       sdpi->lprhs[sdpi->nlpcons + i] = rhs[i]; /*lint !e679*/
    }
 
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz, sdpi->lpnnonz + nnonz) ); /*lint !e776*/
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz, sdpi->lpnnonz + nnonz) ); /*lint !e776*/
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, sdpi->lpnnonz + nnonz) ); /*lint !e776*/
-
    for (i = 0; i < nnonz; i++)
    {
       assert ( 0 <= row[i] && row[i] < nrows );
+
       /* the new rows are added at the end, so the row indices are increased by the old number of LP-constraints */
       sdpi->lprow[sdpi->lpnnonz + i] = row[i] + sdpi->nlpcons; /*lint !e679*/
 
@@ -2003,18 +2076,6 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
    /* shorten the procedure if the whole LP-part is to be deleted */
    if (firstrow == 0 && lastrow == sdpi->nlpcons - 1)
    {
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz);/*lint !e737*/
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz);/*lint !e737*/
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz);/*lint !e737*/
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons);/*lint !e737*/
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpi->lplhs), sdpi->nlpcons);/*lint !e737*/
-
-      sdpi->lplhs = NULL;
-      sdpi->lprhs = NULL;
-      sdpi->lpcol = NULL;
-      sdpi->lprow = NULL;
-      sdpi->lpval = NULL;
-
       sdpi->nlpcons = 0;
       sdpi->lpnnonz = 0;
 
@@ -2036,14 +2097,12 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
       sdpi->lplhs[i - deletedrows] = sdpi->lplhs[i]; /*lint !e679*/
       sdpi->lprhs[i - deletedrows] = sdpi->lprhs[i]; /*lint !e679*/
    }
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lplhs), sdpi->nlpcons, sdpi->nlpcons - deletedrows) ); /*lint !e776*/
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->nlpcons, sdpi->nlpcons - deletedrows) ); /*lint !e776*/
 
    /* for deleting and reordering the lpnonzeroes, the arrays first have to be sorted to have the rows to be deleted together */
    SCIPsortIntIntReal(sdpi->lprow, sdpi->lpcol, sdpi->lpval, sdpi->lpnnonz); /* sort all arrays by non-decreasing row indices */
 
    firstrowind = -1;
-   /*iterate over the lprowind array to find the first index belonging to a row that should be deleted */
+   /* iterate over the lprowind array to find the first index belonging to a row that should be deleted */
    for (i = 0; i < sdpi->lpnnonz; i++)
    {
       if (sdpi->lprow[i] >= firstrow && sdpi->lprow[i] <= lastrow) /* the and part makes sure that there actually were some nonzeroes in these rows */
@@ -2055,7 +2114,7 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
       }
    }
 
-   if (firstrowind > -1) /* if this is still 0 there are no nonzeroes for the given rows */
+   if ( firstrowind > -1 ) /* if this is still 0 there are no nonzeroes for the given rows */
    {
       /* now find the last occurence of one of the rows (as these are sorted all in between also belong to deleted rows and will be removed) */
       while (i < sdpi->lpnnonz && sdpi->lprow[i] <= lastrow)
@@ -2075,9 +2134,6 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
       }
    }
 
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->lpnnonz, sdpi->lpnnonz - deletednonz) ); /*lint !e776*/
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->lpnnonz, sdpi->lpnnonz - deletednonz) ); /*lint !e776*/
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->lpnnonz, sdpi->lpnnonz - deletednonz) ); /*lint !e776*/
    sdpi->nlpcons = sdpi->nlpcons - deletedrows;
    sdpi->lpnnonz = sdpi->lpnnonz - deletednonz;
 
