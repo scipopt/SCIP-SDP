@@ -133,7 +133,7 @@ SCIP_DECL_TABLEOUTPUT(tableOutputSdpSolverSuccess)
 
    if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0 )
    {
-      SCIPinfoMessage(scip, file, "    SDP-Solvers    :       Time    Opttime Fast     Medium     Stable    Penalty    Unsolved\n");
+      SCIPinfoMessage(scip, file, "    SDP-Solvers    :       Time    Opttime    Fast     Medium     Stable    Penalty    Unsolved\n");
       if ( tabledata->absolute )
       {
          SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " "
@@ -155,7 +155,7 @@ SCIP_DECL_TABLEOUTPUT(tableOutputSdpSolverSuccess)
    }
    else
    {
-      SCIPinfoMessage(scip, file, "    SDP-Solvers    :       Time    Opttime Default    Penalty   Unsolved\n");
+      SCIPinfoMessage(scip, file, "    SDP-Solvers    :       Time    Opttime    Default    Penalty   Unsolved\n");
       if ( tabledata->absolute )
       {
          SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " "
