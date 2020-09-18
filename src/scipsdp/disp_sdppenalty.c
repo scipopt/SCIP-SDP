@@ -164,7 +164,7 @@ SCIP_RETCODE SCIPincludeDispSdppenalty(
    SCIP_CALL( SCIPallocMemory(scip, &dispdata) );
 
    /* include display column */
-   SCIP_CALL( SCIPincludeDisp(scip, DISP_NAME, DISP_DESC, DISP_HEADER, SCIP_DISPSTATUS_AUTO,
+   SCIP_CALL( SCIPincludeDisp(scip, DISP_NAME, DISP_DESC, DISP_HEADER, SCIP_DISPSTATUS_OFF,
          dispCopySdppenalty,
          dispFreeSdppenalty, NULL, NULL,
          dispInitsolSdppenalty, NULL, dispOutputSdppenalty,
