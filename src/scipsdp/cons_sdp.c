@@ -4218,48 +4218,11 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
                   SCIP_CALL( SCIPcreateSol(scip, &enfosol, NULL) );
                   SCIP_CALL( SCIPlinkRelaxSol(scip, enfosol) );
 
-                  /* Check solution to SCIP: check all constraints, including integrality */
+                  /* Check solution to SCIP: check all constraints, including integrality. Since there is an integral
+                     constraint handler, integrality gets checkd by SCIPcheckSol as well, so we don't need to do this
+                     manually */
                   SCIP_CALL( SCIPcheckSol(scip, enfosol, FALSE, TRUE, TRUE, TRUE, TRUE, &feasible) );
 
-                  /* If the solution is feasible, we check whether it is also integer feasible. */
-                  if ( feasible )
-                  {
-                     if ( nfixed == nintvars )
-                     {
-                        /* tell trysol heuristic about solution */
-                        SCIP_CALL( SCIPheurPassSolTrySol(scip, conshdlrdata->heurtrysol, enfosol) );
-                        /* SCIP_CALL( SCIPtrySol(scip, enfosol, FALSE, FALSE, FALSE, FALSE, FALSE, &stored) ); */
-
-                        /* SCIP knows the solution, so we can cut off the node */
-                        *result = SCIP_CUTOFF;
-                     }
-                     else
-                     {
-                        /* If not all integer variables are fixed, we have to check whether all integer variables attain integer values */
-                        for (v = 0; v < nintvars; ++v)
-                        {
-                           SCIP_Real val;
-                           SCIP_VAR* var;
-
-                           var = vars[v];
-                           assert( SCIPvarIsIntegral(var) );
-
-                           val = SCIPgetRelaxSolVal(scip, var);
-                           if ( ! SCIPisFeasIntegral(scip, val) )
-                              break;
-                        }
-
-                        /* if all integer variables are integer, we can cut off the node */
-                        if ( v == nintvars )
-                        {
-                           /* tell SCIP about solution */
-                           SCIP_CALL( SCIPheurPassSolTrySol(scip, conshdlrdata->heurtrysol, enfosol) );
-                           /* SCIP_CALL( SCIPtrySol(scip, enfosol, FALSE, FALSE, FALSE, FALSE, FALSE, &stored) ); */
-
-                           *result = SCIP_CUTOFF;
-                        }
-                     }
-                  }
 
                   /* if we do not obtain a feasible solution, we try to round it */
                   if ( *result != SCIP_CUTOFF && nfixed < nintvars )
