@@ -1760,10 +1760,13 @@ SCIP_RETCODE SCIPsdpiFree(
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lplhs), (*sdpi)->maxnlpcons);
 
    /* free the individual SDP nonzeros */
+   assert( 0 <= (*sdpi)->nsdpblocks && (*sdpi)->nsdpblocks <= (*sdpi)->maxnsdpblocks );
    for (i = 0; i < (*sdpi)->maxnsdpblocks; i++)
    {
+      assert( 0 <= (*sdpi)->sdpnblockvars[i] && (*sdpi)->sdpnblockvars[i] <= (*sdpi)->maxsdpnblockvars[i] );
       for (j = 0; j < (*sdpi)->maxsdpnblockvars[i]; j++)
       {
+         assert( 0 <= (*sdpi)->sdpnblockvarnonz[i][j] && (*sdpi)->sdpnblockvarnonz[i][j] <= (*sdpi)->maxsdpnblockvarnonz[i][j] );
          BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpval[i][j]), (*sdpi)->maxsdpnblockvarnonz[i][j]);
          BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdprow[i][j]), (*sdpi)->maxsdpnblockvarnonz[i][j]);
          BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpcol[i][j]), (*sdpi)->maxsdpnblockvarnonz[i][j]);
@@ -1795,6 +1798,7 @@ SCIP_RETCODE SCIPsdpiFree(
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->maxsdpnblockvars), (*sdpi)->maxnsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpblocksizes), (*sdpi)->maxnsdpblocks);
 
+   assert( 0 <= (*sdpi)->nvars && (*sdpi)->nvars <= (*sdpi)->maxnvars );
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->ub), (*sdpi)->maxnvars);/*lint !e737*/
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lb), (*sdpi)->maxnvars);/*lint !e737*/
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->obj), (*sdpi)->maxnvars);/*lint !e737*/
@@ -1842,6 +1846,7 @@ SCIP_RETCODE SCIPsdpiClone(
    newsdpi->nvars = nvars;
    newsdpi->maxnvars = nvars;
 
+   assert( 0 <= oldsdpi->nvars && oldsdpi->nvars <= oldsdpi->maxnvars );
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->obj), oldsdpi->obj, nvars) );
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->lb), oldsdpi->lb, nvars) );
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->ub), oldsdpi->ub, nvars) );
@@ -1849,6 +1854,7 @@ SCIP_RETCODE SCIPsdpiClone(
    newsdpi->nsdpblocks = nsdpblocks;
    newsdpi->maxnsdpblocks = nsdpblocks;
 
+   assert( 0 <= oldsdpi->nsdpblocks && oldsdpi->nsdpblocks <= oldsdpi->maxnsdpblocks );
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpblocksizes), oldsdpi->sdpblocksizes, nsdpblocks) );
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpnblockvars), oldsdpi->sdpnblockvars, nsdpblocks) );
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->maxsdpnblockvars), oldsdpi->sdpnblockvars, nsdpblocks) );
@@ -1881,6 +1887,7 @@ SCIP_RETCODE SCIPsdpiClone(
 
    for (b = 0; b < nsdpblocks; b++)
    {
+      assert( 0 <= oldsdpi->sdpnblockvars[b] && oldsdpi->sdpnblockvars[b] <= oldsdpi->maxsdpnblockvars[b] );
       BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpnblockvarnonz[b]), oldsdpi->sdpnblockvarnonz[b], oldsdpi->sdpnblockvars[b]) );
       BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->maxsdpnblockvarnonz[b]), oldsdpi->sdpnblockvarnonz[b], oldsdpi->sdpnblockvars[b]) );
       BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpvar[b]), oldsdpi->sdpvar[b], oldsdpi->sdpnblockvars[b]) );
@@ -1891,6 +1898,7 @@ SCIP_RETCODE SCIPsdpiClone(
 
       for (v = 0; v < oldsdpi->sdpnblockvars[b]; v++)
       {
+         assert( 0 <= oldsdpi->sdpnblockvarnonz[b][v] && oldsdpi->sdpnblockvarnonz[b][v] <= oldsdpi->maxsdpnblockvarnonz[b][v] );
          BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdprow[b][v]), oldsdpi->sdprow[b][v], oldsdpi->sdpnblockvarnonz[b][v]) );
          BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpcol[b][v]), oldsdpi->sdpcol[b][v], oldsdpi->sdpnblockvarnonz[b][v]) );
          BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpval[b][v]), oldsdpi->sdpval[b][v], oldsdpi->sdpnblockvarnonz[b][v]) );
