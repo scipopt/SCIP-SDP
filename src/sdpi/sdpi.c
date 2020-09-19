@@ -146,17 +146,21 @@ struct SCIP_SDPi
    BMS_BLKMEM*           blkmem;             /**< block memory */
    BMS_BUFMEM*           bufmem;             /**< buffer memory */
    int                   nvars;              /**< number of variables */
+   int                   maxnvars;           /**< maximal number of variables */
    SCIP_Real*            obj;                /**< objective function values of variables */
    SCIP_Real*            lb;                 /**< lower bounds of variables */
    SCIP_Real*            ub;                 /**< upper bounds of variables */
    int                   nsdpblocks;         /**< number of SDP-blocks */
+   int                   maxnsdpblocks;      /**< maximal number of required SDP blocks */
    int*                  sdpblocksizes;      /**< sizes of the SDP-blocks */
    int*                  sdpnblockvars;      /**< number of variables in each SDP-block */
+   int*                  maxsdpnblockvars;   /**< maximal number of block variables */
 
    /* constant SDP data: */
    int                   sdpconstnnonz;      /**< number of nonzero elements in the constant matrices of the SDP-Blocks */
    int*                  sdpconstnblocknonz; /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
                                               *   number of entries  of sdpconst row/col/val [i] */
+   int*                  maxsdpconstnblocknonz; /**< maximal number of nonzeros in constant matrix */
    int**                 sdpconstrow;        /**< pointers to row-indices for each block */
    int**                 sdpconstcol;        /**< pointers to column-indices for each block */
    SCIP_Real**           sdpconstval;        /**< pointers to the values of the nonzeros for each block */
@@ -165,6 +169,7 @@ struct SCIP_SDPi
    int                   sdpnnonz;           /**< number of nonzero elements in the SDP-constraint matrices */
    int**                 sdpnblockvarnonz;   /**< sdpnblockvarnonz[i][j] gives the number of nonzeros for the j-th variable (not necessarly
                                               *   variable j) in the i-th block, this is also the length of row/col/val[i][j] */
+   int**                 maxsdpnblockvarnonz;/**< maximal number of nonzeros in each matrix */
    int**                 sdpvar;             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
                                               *   in the i-th block */
    int***                sdprow;             /**< pointer to the row-indices for each block and variable in this block, so row[i][j][k] gives
@@ -290,6 +295,30 @@ int calcGrowSize(
    return size;
 }
 
+/** ensure size of bound data */
+static
+SCIP_RETCODE ensureBoundDataMemory(
+   SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
+   int                   nvars               /**< number of variables */
+   )
+{
+   int newsize;
+
+   assert( sdpi != NULL );
+
+   if ( nvars > sdpi->maxnvars )
+   {
+      newsize = calcGrowSize(sdpi->maxnvars, nvars);
+
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), sdpi->maxnvars, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), sdpi->maxnvars, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), sdpi->maxnvars, newsize) );
+      sdpi->maxnvars = newsize;
+   }
+
+   return SCIP_OKAY;
+}
+
 /** ensure size of LP data */
 static
 SCIP_RETCODE ensureLPDataMemory(
@@ -323,6 +352,121 @@ SCIP_RETCODE ensureLPDataMemory(
 
    return SCIP_OKAY;
 }
+
+/** ensure size of SDP data */
+static
+SCIP_RETCODE ensureSDPDataMemory(
+   SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
+   int                   nsdpblocks,         /**< number of required SDP blocks */
+   int*                  sdpnblockvars,      /**< number of block variables */
+   int**                 sdpnblockvarnonz,   /**< number of nonzeros in each matrix */
+   int*                  sdpconstnblocknonz  /**< number of nonzeros in constant matrix */
+   )
+{
+   int newsize;
+   int b;
+   int v;
+
+   assert( sdpi != NULL );
+   assert( sdpnblockvars != NULL );
+   assert( sdpnblockvarnonz != NULL );
+   assert( sdpconstnblocknonz != NULL );
+
+   if ( nsdpblocks > sdpi->maxnsdpblocks )
+   {
+      newsize = calcGrowSize(sdpi->maxnsdpblocks, nsdpblocks);
+
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpi->maxnsdpblocks, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvars), sdpi->maxnsdpblocks, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->maxsdpnblockvars), sdpi->maxnsdpblocks, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstnblocknonz), sdpi->maxnsdpblocks, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->maxsdpconstnblocknonz), sdpi->maxnsdpblocks, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz), sdpi->maxnsdpblocks, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->maxsdpnblockvarnonz), sdpi->maxnsdpblocks, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol), sdpi->maxnsdpblocks, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow), sdpi->maxnsdpblocks, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval), sdpi->maxnsdpblocks, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpvar), sdpi->maxnsdpblocks, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol), sdpi->maxnsdpblocks, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow), sdpi->maxnsdpblocks, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpi->maxnsdpblocks, newsize) );
+
+      /* make sure sizes are initialized */
+      for (b = sdpi->maxnsdpblocks; b < newsize; ++b)
+      {
+         sdpi->sdpblocksizes[b] = 0;
+         sdpi->sdpnblockvars[b] = 0;
+         sdpi->maxsdpnblockvars[b] = 0;
+         sdpi->sdpconstnblocknonz[b] = 0;
+         sdpi->maxsdpconstnblocknonz[b] = 0;
+         sdpi->sdpnblockvarnonz[b] = 0;
+         sdpi->maxsdpnblockvarnonz[b] = NULL;
+         sdpi->sdpconstcol[b] = NULL;
+         sdpi->sdpconstrow[b] = NULL;
+         sdpi->sdpconstval[b] = NULL;
+         sdpi->sdpvar[b] = NULL;
+         sdpi->sdpcol[b] = NULL;
+         sdpi->sdprow[b] = NULL;
+         sdpi->sdpval[b] = NULL;
+      }
+      sdpi->maxnsdpblocks = newsize;
+   }
+
+   for (b = 0; b < nsdpblocks; ++b)
+   {
+      if ( sdpnblockvars[b] > sdpi->maxsdpnblockvars[b] )
+      {
+         newsize = calcGrowSize(sdpi->maxsdpnblockvars[b], sdpnblockvars[b]);
+
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz[b]), sdpi->maxsdpnblockvars[b], newsize) );
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->maxsdpnblockvarnonz[b]), sdpi->maxsdpnblockvars[b], newsize) );
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpvar[b]), sdpi->maxsdpnblockvars[b], newsize) );
+
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[b]), sdpi->maxsdpnblockvars[b], newsize) );
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[b]), sdpi->maxsdpnblockvars[b], newsize) );
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[b]), sdpi->maxsdpnblockvars[b], newsize) );
+
+         /* make sure sizes are initialized */
+         for (v = sdpi->maxsdpnblockvars[b]; v < newsize; ++v)
+         {
+            sdpi->sdpnblockvarnonz[b][v] = 0;
+            sdpi->maxsdpnblockvarnonz[b][v] = 0;
+            sdpi->sdpvar[b][v] = 0;
+            sdpi->sdprow[b][v] = NULL;
+            sdpi->sdpcol[b][v] = NULL;
+            sdpi->sdpval[b][v] = NULL;
+         }
+         sdpi->maxsdpnblockvars[b] = newsize;
+      }
+
+      if ( sdpconstnblocknonz[b] > sdpi->maxsdpconstnblocknonz[b] )
+      {
+         newsize = calcGrowSize(sdpi->maxsdpconstnblocknonz[b], sdpconstnblocknonz[b]);
+
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol[b]), sdpi->maxsdpconstnblocknonz[b], sdpconstnblocknonz[b]) );
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow[b]), sdpi->maxsdpconstnblocknonz[b], sdpconstnblocknonz[b]) );
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval[b]), sdpi->maxsdpconstnblocknonz[b], sdpconstnblocknonz[b]) );
+
+         sdpi->maxsdpconstnblocknonz[b] = newsize;
+      }
+
+      for (v = 0; v < sdpnblockvars[b]; ++v)
+      {
+         if ( sdpnblockvarnonz[b][v] > sdpi->maxsdpnblockvarnonz[b][v] )
+         {
+            newsize = calcGrowSize(sdpi->maxsdpnblockvarnonz[b][v], sdpnblockvarnonz[b][v]);
+
+            BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[b][v]), sdpi->maxsdpnblockvarnonz[b][v], newsize) );
+            BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[b][v]), sdpi->maxsdpnblockvarnonz[b][v], newsize) );
+            BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[b][v]), sdpi->maxsdpnblockvarnonz[b][v], newsize) );
+            sdpi->maxsdpnblockvarnonz[b][v] = newsize;
+         }
+      }
+   }
+
+   return SCIP_OKAY;
+}
+
 
 /** Computes the constant matrix after all variables with lb=ub have been fixed and their nonzeros were moved to the constant part. The five variables
  *  other than sdpi are used to return the matrix.
@@ -1538,6 +1682,7 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->nsdpcalls = 0;
    (*sdpi)->nvars = 0;
    (*sdpi)->nsdpblocks = 0;
+   (*sdpi)->maxnsdpblocks = 0;
    (*sdpi)->sdpconstnnonz = 0;
    (*sdpi)->sdpnnonz = 0;
    (*sdpi)->nlpcons = 0;
@@ -1555,11 +1700,14 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->ub = NULL;
    (*sdpi)->sdpblocksizes = NULL;
    (*sdpi)->sdpnblockvars = NULL;
+   (*sdpi)->maxsdpnblockvars = NULL;
    (*sdpi)->sdpconstnblocknonz = NULL;
+   (*sdpi)->maxsdpconstnblocknonz = NULL;
    (*sdpi)->sdpconstrow = NULL;
    (*sdpi)->sdpconstcol = NULL;
    (*sdpi)->sdpconstval = NULL;
    (*sdpi)->sdpnblockvarnonz = NULL;
+   (*sdpi)->maxsdpnblockvarnonz = NULL;
    (*sdpi)->sdpvar = NULL;
    (*sdpi)->sdprow = NULL;
    (*sdpi)->sdpcol = NULL;
@@ -1604,37 +1752,42 @@ SCIP_RETCODE SCIPsdpiFree(
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lprhs), (*sdpi)->maxnlpcons);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lplhs), (*sdpi)->maxnlpcons);
 
-   /* free the individual nonzeros */
-   for (i = 0; i < (*sdpi)->nsdpblocks; i++)
+   /* free the individual SDP nonzeros */
+   for (i = 0; i < (*sdpi)->maxnsdpblocks; i++)
    {
-      for (j = 0; j < (*sdpi)->sdpnblockvars[i]; j++)
+      for (j = 0; j < (*sdpi)->maxsdpnblockvars[i]; j++)
       {
-         BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpval[i][j]), (*sdpi)->sdpnblockvarnonz[i][j]);
-         BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdprow[i][j]), (*sdpi)->sdpnblockvarnonz[i][j]);
-         BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpcol[i][j]), (*sdpi)->sdpnblockvarnonz[i][j]);
+         BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpval[i][j]), (*sdpi)->maxsdpnblockvarnonz[i][j]);
+         BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdprow[i][j]), (*sdpi)->maxsdpnblockvarnonz[i][j]);
+         BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpcol[i][j]), (*sdpi)->maxsdpnblockvarnonz[i][j]);
       }
-      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpval[i]), (*sdpi)->sdpnblockvars[i]);
-      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdprow[i]), (*sdpi)->sdpnblockvars[i]);
-      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpcol[i]), (*sdpi)->sdpnblockvars[i]);
-      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpvar[i]), (*sdpi)->sdpnblockvars[i]);
-      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpnblockvarnonz[i]), (*sdpi)->sdpnblockvars[i]);
-      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstval[i]), (*sdpi)->sdpconstnblocknonz[i]);
-      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstrow[i]), (*sdpi)->sdpconstnblocknonz[i]);
-      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstcol[i]), (*sdpi)->sdpconstnblocknonz[i]);
+      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpval[i]), (*sdpi)->maxsdpnblockvars[i]);
+      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdprow[i]), (*sdpi)->maxsdpnblockvars[i]);
+      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpcol[i]), (*sdpi)->maxsdpnblockvars[i]);
+      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpvar[i]), (*sdpi)->maxsdpnblockvars[i]);
+      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpnblockvarnonz[i]), (*sdpi)->maxsdpnblockvars[i]);
+      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->maxsdpnblockvarnonz[i]), (*sdpi)->maxsdpnblockvars[i]);
+      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstval[i]), (*sdpi)->maxsdpconstnblocknonz[i]);
+      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstrow[i]), (*sdpi)->maxsdpconstnblocknonz[i]);
+      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstcol[i]), (*sdpi)->maxsdpconstnblocknonz[i]);
    }
 
    /* free the rest */
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpnblockvarnonz), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstnblocknonz), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpval), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpcol), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdprow), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpvar), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstval), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstcol), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstrow), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpnblockvars), (*sdpi)->nsdpblocks);
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpblocksizes), (*sdpi)->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpnblockvarnonz), (*sdpi)->maxnsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->maxsdpnblockvarnonz), (*sdpi)->maxnsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstnblocknonz), (*sdpi)->maxnsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->maxsdpconstnblocknonz), (*sdpi)->maxnsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpval), (*sdpi)->maxnsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpcol), (*sdpi)->maxnsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdprow), (*sdpi)->maxnsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpvar), (*sdpi)->maxnsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstval), (*sdpi)->maxnsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstcol), (*sdpi)->maxnsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstrow), (*sdpi)->maxnsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpnblockvars), (*sdpi)->maxnsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->maxsdpnblockvars), (*sdpi)->maxnsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpblocksizes), (*sdpi)->maxnsdpblocks);
+
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->ub), (*sdpi)->nvars);/*lint !e737*/
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lb), (*sdpi)->nvars);/*lint !e737*/
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->obj), (*sdpi)->nvars);/*lint !e737*/
@@ -1686,13 +1839,16 @@ SCIP_RETCODE SCIPsdpiClone(
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->ub), oldsdpi->ub, nvars) );
 
    newsdpi->nsdpblocks = nsdpblocks;
+   newsdpi->maxnsdpblocks = nsdpblocks;
 
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpblocksizes), oldsdpi->sdpblocksizes, nsdpblocks) );
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpnblockvars), oldsdpi->sdpnblockvars, nsdpblocks) );
+   BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->maxsdpnblockvars), oldsdpi->sdpnblockvars, nsdpblocks) );
 
    /* constant SDP data */
    newsdpi->sdpconstnnonz = oldsdpi->sdpconstnnonz;
 
+   BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpconstnblocknonz), oldsdpi->sdpconstnblocknonz, nsdpblocks) );
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpconstnblocknonz), oldsdpi->sdpconstnblocknonz, nsdpblocks) );
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpconstrow), nsdpblocks) );
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpconstcol), nsdpblocks) );
@@ -1709,6 +1865,7 @@ SCIP_RETCODE SCIPsdpiClone(
    newsdpi->sdpnnonz = oldsdpi->sdpnnonz;
 
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpnblockvarnonz), nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->maxsdpnblockvarnonz), nsdpblocks) );
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpvar), nsdpblocks) );
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdprow), nsdpblocks) );
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpcol), nsdpblocks) );
@@ -1717,6 +1874,7 @@ SCIP_RETCODE SCIPsdpiClone(
    for (b = 0; b < nsdpblocks; b++)
    {
       BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpnblockvarnonz[b]), oldsdpi->sdpnblockvarnonz[b], oldsdpi->sdpnblockvars[b]) );
+      BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->maxsdpnblockvarnonz[b]), oldsdpi->sdpnblockvarnonz[b], oldsdpi->sdpnblockvars[b]) );
       BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpvar[b]), oldsdpi->sdpvar[b], oldsdpi->sdpnblockvars[b]) );
 
       BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdprow[b]), oldsdpi->sdpnblockvars[b]) );
@@ -1810,9 +1968,9 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
 {
    int i;
    int v;
-   int block;
+   int b;
 
-   SCIPdebugMessage("Calling SCIPsdpiLoadSDP (%d)\n",sdpi->sdpid);
+SCIPdebugMessage("Calling SCIPsdpiLoadSDP (%d)\n",sdpi->sdpid);
 
    assert ( sdpi != NULL );
    assert ( nvars > 0 );
@@ -1821,7 +1979,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    assert ( ub != NULL );
 
 #ifdef SCIP_DEBUG
-   if (sdpconstnnonz > 0 || sdpnnonz > 0 || nsdpblocks > 0)
+   if ( sdpconstnnonz > 0 || sdpnnonz > 0 || nsdpblocks > 0 )
    {
       assert ( sdpblocksizes != NULL );
       assert ( sdpnblockvars != NULL );
@@ -1837,7 +1995,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
 
          for (i = 0; i < nsdpblocks; i++)
          {
-            if (sdpconstnblocknonz[i] > 0)
+            if ( sdpconstnblocknonz[i] > 0 )
             {
                assert ( sdpconstrow[i] != NULL );
                assert ( sdpconstcol[i] != NULL );
@@ -1846,7 +2004,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
          }
       }
 
-      if (sdpnnonz > 0)
+      if ( sdpnnonz > 0 )
       {
          assert ( sdprow != NULL );
          assert ( sdpcol != NULL );
@@ -1860,7 +2018,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
 
             for ( v = 0; v < sdpnblockvars[i]; v++)
             {
-               if (sdpnblockvarnonz[i][v] > 0)
+               if ( sdpnblockvarnonz[i][v] > 0 )
                {
                   assert ( sdpcol[i][v] != NULL );
                   assert ( sdprow[i][v] != NULL );
@@ -1878,96 +2036,52 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    assert ( lpnnonz == 0 || lpcol != NULL );
    assert ( lpnnonz == 0 || lpval != NULL );
 
-   /* memory allocation */
+   /* clear problem */
+   SCIP_CALL( SCIPsdpiClear(sdpi) );
 
-   /* first free the old arrays */
-   for (block = sdpi->nsdpblocks - 1; block >= 0; block--)
+   /* ensure memory */
+   SCIP_CALL( ensureBoundDataMemory(sdpi, nvars) );
+   SCIP_CALL( ensureLPDataMemory(sdpi, nlpcons, lpnnonz) );
+   SCIP_CALL( ensureSDPDataMemory(sdpi, nsdpblocks, sdpnblockvars, sdpnblockvarnonz, sdpconstnblocknonz) );
+
+   /* copy data in arrays */
+   BMScopyMemoryArray(sdpi->obj, obj, nvars);
+   BMScopyMemoryArray(sdpi->lb, lb, nvars);
+   BMScopyMemoryArray(sdpi->ub, ub, nvars);
+   BMScopyMemoryArray(sdpi->sdpblocksizes, sdpblocksizes, nsdpblocks);
+   BMScopyMemoryArray(sdpi->sdpnblockvars, sdpnblockvars, nsdpblocks);
+   BMScopyMemoryArray(sdpi->sdpconstnblocknonz, sdpconstnblocknonz, nsdpblocks);
+
+   for (b = 0; b < nsdpblocks; ++b)
    {
-      for (v = sdpi->sdpnblockvars[block] - 1; v >= 0; v--)
-      {
-         BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpval[block][v]), sdpi->sdpnblockvarnonz[block][v]);
-         BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdprow[block][v]), sdpi->sdpnblockvarnonz[block][v]);
-         BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpcol[block][v]), sdpi->sdpnblockvarnonz[block][v]);
-      }
-
-      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpval[block]), sdpi->sdpnblockvars[block]);
-      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdprow[block]), sdpi->sdpnblockvars[block]);
-      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpcol[block]), sdpi->sdpnblockvars[block]);
-      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpconstval[block]), sdpi->sdpconstnblocknonz[block]);
-      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpconstrow[block]), sdpi->sdpconstnblocknonz[block]);
-      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpconstcol[block]), sdpi->sdpconstnblocknonz[block]);
-      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpnblockvarnonz[block]), sdpi->sdpnblockvars[block]);
-      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpvar[block]), sdpi->sdpnblockvars[block]);
-   }
-
-   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->ub), sdpi->nvars);
-   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lb), sdpi->nvars);
-   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->obj), sdpi->nvars);
-
-   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpi->nsdpblocks);
-   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpnblockvars), sdpi->nsdpblocks);
-   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->sdpconstnblocknonz), sdpi->nsdpblocks);
-
-   /* duplicate some arrays */
-   BMS_CALL( BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), obj, nvars) );
-   BMS_CALL( BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), lb, nvars) );
-   BMS_CALL( BMSduplicateBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), ub, nvars) );
-   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpblocksizes, nsdpblocks);
-   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpnblockvars), sdpnblockvars, nsdpblocks);
-   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpconstnblocknonz), sdpconstnblocknonz, nsdpblocks);
-
-   /* allocate memory for the sdp arrays & duplicate them */
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz), sdpi->nsdpblocks, nsdpblocks) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol), sdpi->nsdpblocks, nsdpblocks) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow), sdpi->nsdpblocks, nsdpblocks) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval), sdpi->nsdpblocks, nsdpblocks) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpvar), sdpi->nsdpblocks, nsdpblocks) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol), sdpi->nsdpblocks, nsdpblocks) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow), sdpi->nsdpblocks, nsdpblocks) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpi->nsdpblocks, nsdpblocks) );
-
-   for (block = 0; block < nsdpblocks; block++)
-   {
-      DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpnblockvarnonz[block]), sdpnblockvarnonz[block], sdpnblockvars[block]);
-
-      DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpconstcol[block]), sdpconstcol[block], sdpconstnblocknonz[block]);
-      DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpconstrow[block]), sdpconstrow[block], sdpconstnblocknonz[block]);
-      DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpconstval[block]), sdpconstval[block], sdpconstnblocknonz[block]);
+      BMScopyMemoryArray(sdpi->sdpnblockvarnonz[b], sdpnblockvarnonz[b], sdpnblockvars[b]);
+      BMScopyMemoryArray(sdpi->sdpconstcol[b], sdpconstcol[b], sdpconstnblocknonz[b]);
+      BMScopyMemoryArray(sdpi->sdpconstrow[b], sdpconstrow[b], sdpconstnblocknonz[b]);
+      BMScopyMemoryArray(sdpi->sdpconstval[b], sdpconstval[b], sdpconstnblocknonz[b]);
 
       /* make sure that we have a lower triangular matrix */
-      for (i = 0; i < sdpi->sdpconstnblocknonz[block]; ++i)
-         ensureLowerTriangular(&(sdpconstrow[block][i]), &(sdpconstcol[block][i]));
+      for (i = 0; i < sdpi->sdpconstnblocknonz[b]; ++i)
+         ensureLowerTriangular(&(sdpconstrow[b][i]), &(sdpconstcol[b][i]));
 
-      DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpvar[block]), sdpvar[block], sdpnblockvars[block]);
+      BMScopyMemoryArray(sdpi->sdpvar[b], sdpvar[b], sdpnblockvars[b]);
 
-      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[block]), sdpnblockvars[block]) );
-      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[block]), sdpnblockvars[block]) );
-      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[block]), sdpnblockvars[block]) );
-
-      for (v = 0; v < sdpi->sdpnblockvars[block]; v++)
+      for (v = 0; v < sdpi->sdpnblockvars[b]; v++)
       {
-         DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpcol[block][v]), sdpcol[block][v], sdpnblockvarnonz[block][v]);
-         DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdprow[block][v]), sdprow[block][v], sdpnblockvarnonz[block][v]);
-         DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->sdpval[block][v]), sdpval[block][v], sdpnblockvarnonz[block][v]);
+         BMScopyMemoryArray(sdpi->sdpcol[b][v], sdpcol[b][v], sdpnblockvarnonz[b][v]);
+         BMScopyMemoryArray(sdpi->sdprow[b][v], sdprow[b][v], sdpnblockvarnonz[b][v]);
+         BMScopyMemoryArray(sdpi->sdpval[b][v], sdpval[b][v], sdpnblockvarnonz[b][v]);
 
          /* make sure that we have a lower triangular matrix */
-         for (i = 0; i < sdpi->sdpnblockvarnonz[block][v]; ++i)
-            ensureLowerTriangular(&(sdprow[block][v][i]), &(sdpcol[block][v][i]));
+         for (i = 0; i < sdpi->sdpnblockvarnonz[b][v]; ++i)
+            ensureLowerTriangular(&(sdprow[b][v][i]), &(sdpcol[b][v][i]));
       }
    }
 
-   /* free old and duplicate new arrays for the LP part */
-   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lpval), sdpi->maxlpnnonz);
-   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lpcol), sdpi->maxlpnnonz);
-   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lprow), sdpi->maxlpnnonz);
-   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lprhs), sdpi->maxnlpcons);
-   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(sdpi->lplhs), sdpi->maxnlpcons);
-
-   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->lplhs), lplhs, nlpcons);
-   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->lprhs), lprhs, nlpcons);
-   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->lprow), lprow, lpnnonz);
-   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->lpcol), lpcol, lpnnonz);
-   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &(sdpi->lpval), lpval, lpnnonz);
+   BMScopyMemoryArray(sdpi->lplhs, lplhs, nlpcons);
+   BMScopyMemoryArray(sdpi->lprhs, lprhs, nlpcons);
+   BMScopyMemoryArray(sdpi->lprow, lprow, lpnnonz);
+   BMScopyMemoryArray(sdpi->lpcol, lpcol, lpnnonz);
+   BMScopyMemoryArray(sdpi->lpval, lpval, lpnnonz);
 
    /* set the general information */
    sdpi->nvars = nvars;
@@ -2038,7 +2152,6 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
 
       assert ( 0 <= col[i] && col[i] < sdpi->nvars ); /* only existing vars should be added to the LP-constraints */
       sdpi->lpcol[sdpi->lpnnonz + i] = col[i]; /*lint !e679*/
-
       sdpi->lpval[sdpi->lpnnonz + i] = val[i]; /*lint !e679*/
    }
 
@@ -2193,9 +2306,28 @@ SCIP_RETCODE SCIPsdpiClear(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    )
 {
+   int b;
+   int v;
+
    assert( sdpi != NULL );
 
    SCIPdebugMessage("Called SCIPsdpiClear in SDP %d.\n", sdpi->sdpid);
+
+   /* reset all counters */
+   sdpi->nlpcons = 0;
+   sdpi->lpnnonz = 0;
+
+   for (b = 0; b < sdpi->nsdpblocks; ++b)
+   {
+      for (v = 0; v < sdpi->sdpnblockvars[b]; ++v)
+         sdpi->sdpnblockvarnonz[b][v] = 0;
+      sdpi->sdpnblockvars[b] = 0;
+   }
+   sdpi->sdpconstnblocknonz = 0;
+   sdpi->sdpconstnnonz = 0;
+
+   sdpi->nsdpblocks = 0;
+   sdpi->nvars = 0;
 
    /* we reset all counters */
    sdpi->sdpid = 1;
