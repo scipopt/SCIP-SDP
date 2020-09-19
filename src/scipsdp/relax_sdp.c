@@ -110,6 +110,7 @@ struct SCIP_RelaxData
    SCIP_SDPI*            sdpi;               /**< general SDP Interface that is given the data to presolve the SDP and give it so a solver specific interface */
    SCIP_LPI*             lpi;                /**< LP interface; used for rounding problems */
    SdpVarmapper*         varmapper;          /**< maps SCIP variables to their global SDP indices and vice versa */
+   SCIP_CLOCK*           sdpsolvingtime;     /**< time for solving SDPs */
 
    SCIP_Real             objval;             /**< objective value of the last SDP-relaxation */
    SCIP_Bool             origsolved;         /**< solved original problem to optimality (not only a penalty or probing formulation) */
@@ -136,6 +137,7 @@ struct SCIP_RelaxData
 
    int                   sdpcalls;           /**< number of solved SDPs (used to compute average SDP iterations), different settings tried are counted as multiple calls */
    int                   sdpinterfacecalls;  /**< number of times the SDP interfaces was called (used to compute slater statistics) */
+   SCIP_Real             sdpopttime;         /**< time used in optimization calls of solver */
    int                   sdpiterations;      /**< saves the total number of sdp-iterations */
    int                   ntightenedrows;     /**< number of tightened rows */
    int                   solvedfast;         /**< number of SDPs solved with fast settings */
@@ -282,6 +284,7 @@ SCIP_RETCODE updateSDPStatistics(
    SCIP_SDPSLATER primalslater = SCIP_SDPSLATER_NOINFO;
    SCIP_SDPSLATER dualslater = SCIP_SDPSLATER_NOINFO;
    SCIP_SDPSLATERSETTING slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+   SCIP_Real addedopttime;
    int naddedsdpcalls;
    int naddediters;
 
@@ -296,6 +299,10 @@ SCIP_RETCODE updateSDPStatistics(
       return SCIP_OKAY;
 
    relaxdata->sdpcalls += naddedsdpcalls;
+
+   /* update time */
+   SCIP_CALL( SCIPsdpiGetTime(relaxdata->sdpi, &addedopttime) );
+   relaxdata->sdpopttime += addedopttime;
 
    /* update number of iterations */
    SCIP_CALL( SCIPsdpiGetIterations(relaxdata->sdpi, &naddediters) );
@@ -1307,7 +1314,9 @@ SCIP_RETCODE calcRelax(
    if ( ( ! SCIPnodeGetParent(SCIPgetCurrentNode(scip))) || ( ! relaxdata->warmstart ) || ((relaxdata->warmstartiptype == 2) &&
          SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) && ((SCIPsdpiDoesWarmstartNeedPrimal() && ! relaxdata->ipXexists) || (! relaxdata->ipZexists))) )
    {
+      SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
       SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit) );
+      SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
    }
    else if ( relaxdata->warmstart && (relaxdata->warmstartprimaltype != 2) && (relaxdata->warmstartiptype == 2) && SCIPisEQ(scip, relaxdata->warmstartipfactor, 1.0) )
    {
@@ -1344,8 +1353,10 @@ SCIP_RETCODE calcRelax(
       }
 #endif
 
+      SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
       SCIP_CALL( SCIPsdpiSolve(sdpi, ipy, relaxdata->ipZnblocknonz, relaxdata->ipZrow, relaxdata->ipZcol, relaxdata->ipZval, relaxdata->ipXnblocknonz,
             relaxdata->ipXrow, relaxdata->ipXcol, relaxdata->ipXval, startsetting, enforceslater, timelimit) );
+      SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
 
       SCIPfreeBufferArray(scip, &ipy);
    }
@@ -1391,7 +1402,9 @@ SCIP_RETCODE calcRelax(
       if ( parentconsind < 0 )
       {
          SCIPdebugMsg(scip, "Starting SDP-Solving from scratch since no warmstart information available for node %lld\n", parentnodenumber);
+         SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
          SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit) );
+         SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
       }
       else
       {
@@ -2287,7 +2300,10 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArrayNull(scip, &sdpblocks);
                   SCIPfreeBufferArray(scip, &starty);
 
+                  SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
                   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit) );
+                  SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
+
                   goto solved;
                }
                else if ( ! SCIPlpiIsOptimal(lpi) )
@@ -2324,7 +2340,10 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArrayNull(scip, &sdpblocks);
                   SCIPfreeBufferArray(scip, &starty);
 
+                  SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
                   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit) );
+                  SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
+
                   goto solved;
                }
                else
@@ -2678,7 +2697,9 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArray(scip, &starty);
 
                   /* since warmstart computation failed, we solve without warmstart, free memory and skip the remaining warmstarting code */
+                  SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
                   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit) );
+                  SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
 
                   goto solved;
                }
@@ -3361,8 +3382,10 @@ SCIP_RETCODE calcRelax(
 #endif
 
          /* solve with given starting point */
+         SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
          SCIP_CALL( SCIPsdpiSolve(sdpi, starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow,
                startXcol, startXval, startsetting, enforceslater, timelimit) );
+         SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
 
          if ( SCIPsdpiDoesWarmstartNeedPrimal() )
          {
@@ -3941,6 +3964,21 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    return SCIP_OKAY;
 }
 
+/** initialization method of relaxator (called after problem was transformed) */
+static
+SCIP_DECL_RELAXINIT(relaxInitSdp)
+{
+   SCIP_RELAXDATA* relaxdata;
+
+   assert( relax != NULL );
+
+   relaxdata = SCIPrelaxGetData(relax);
+   assert( relaxdata != NULL );
+
+   SCIP_CALL( SCIPcreateClock(scip, &relaxdata->sdpsolvingtime) );
+
+   return SCIP_OKAY;
+}
 
 /** this method is called after presolving is finished, at this point the varmapper is prepared and the SDP Interface is initialized and gets
  *  the SDP information from the constraints */
@@ -3965,6 +4003,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    relaxdata->probingsolved = FALSE;
    relaxdata->sdpcalls = 0;
    relaxdata->sdpinterfacecalls = 0;
+   relaxdata->sdpopttime = 0.0;
    relaxdata->sdpiterations = 0;
    relaxdata->ntightenedrows = 0;
    relaxdata->solvedfast = 0;
@@ -4599,6 +4638,7 @@ SCIP_DECL_RELAXEXITSOL(relaxExitSolSdp)
    relaxdata->origsolved = FALSE;
    relaxdata->probingsolved = FALSE;
    relaxdata->feasible = FALSE;
+   relaxdata->sdpopttime = 0.0;
    relaxdata->sdpiterations = 0;
    relaxdata->sdpcalls = 0;
    relaxdata->sdpinterfacecalls = 0;
@@ -4645,6 +4685,10 @@ SCIP_DECL_RELAXFREE(relaxFreeSdp)
    {
       SCIP_CALL( SCIPlpiFree(&(relaxdata->lpi)) );
    }
+   if ( relaxdata->sdpsolvingtime != NULL )
+   {
+      SCIP_CALL( SCIPfreeClock(scip, &relaxdata->sdpsolvingtime) );
+   }
 
    SCIPfreeMemory(scip, &relaxdata);
 
@@ -4672,6 +4716,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
 
    relaxdata->sdpi = sdpi;
    relaxdata->lpi = lpi;
+   relaxdata->sdpsolvingtime = NULL;
    relaxdata->lastsdpnode = -1;
    relaxdata->nblocks = 0;
    relaxdata->varmapper = NULL;
@@ -4684,6 +4729,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    assert( relax != NULL );
 
    /* include additional callbacks */
+   SCIP_CALL( SCIPsetRelaxInit(scip, relax, relaxInitSdp) );
    SCIP_CALL( SCIPsetRelaxInitsol(scip, relax, relaxInitSolSdp) );
    SCIP_CALL( SCIPsetRelaxExitsol(scip, relax, relaxExitSolSdp) );
    SCIP_CALL( SCIPsetRelaxExit(scip, relax, relaxExitSdp) );
@@ -4897,7 +4943,9 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
       }
 
       /* TODO: might want to add an additional parameter to solve to disable penalty, since we cannot use that here anyways */
+      SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
       SCIP_CALL( SCIPsdpiSolve(relaxdata->sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, timelimit) );
+      SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
 
       /* update calls, iterations and stability numbers (only if the SDP-solver was actually called) */
       SCIP_CALL( updateSDPStatistics(relaxdata) );
@@ -5028,7 +5076,9 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
    }
 
    /* TODO: might want to add an additional parameter to solve to disable penalty, since we cannot use that here anyways */
+   SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
    SCIP_CALL( SCIPsdpiSolve(relaxdata->sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, timelimit) );
+   SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
 
    /* update calls, iterations and stability numbers (only if the SDP-solver was actually called) */
    SCIP_CALL( updateSDPStatistics(relaxdata) );
@@ -5391,6 +5441,17 @@ SCIP_Bool SCIPrelaxSdpIsUnbounded(
    return SCIPsdpiIsDualUnbounded(relaxdata->sdpi);
 }
 
+/** returns time in optimization of solver */
+SCIP_Real SCIPrelaxSdpGetOptTime(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get the iterations for */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   return SCIPrelaxGetData(relax)->sdpopttime;
+}
+
 /** returns total number of SDP-iterations */
 int SCIPrelaxSdpGetNIterations(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get the iterations for */
@@ -5741,4 +5802,23 @@ int SCIPrelaxSdpGetNSlaterInfeasibleUnsolved(
    assert( SCIPrelaxGetData(relax) != NULL );
 
    return ( SCIPrelaxGetData(relax)->unsolvedinfeasible );
+}
+
+/** returns solving time in SDP solver */
+SCIP_Real SCIPrelaxSdpGetSolvingTime(
+   SCIP*                 scip,               /**< SCIP pointer */
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get timer for */
+   )
+{
+   SCIP_CLOCK* sdpsolvingtime;
+
+   assert( scip != NULL );
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   sdpsolvingtime = SCIPrelaxGetData(relax)->sdpsolvingtime;
+   if ( sdpsolvingtime != NULL )
+      return SCIPgetClockTime(scip, sdpsolvingtime);
+
+   return 0.0;
 }
