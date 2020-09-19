@@ -37,6 +37,8 @@
  * @brief  General interface methods for SDP-preprocessing (mainly fixing variables and removing empty rows/cols)
  * @author Tristan Gally
  * @author Marc Pfetsch
+ *
+ * We always minimize.
  */
 
 #include <assert.h>
@@ -3465,7 +3467,7 @@ SCIP_RETCODE SCIPsdpiGetObjval(
 
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, no objective value available.\n");
+      *objval = SCIPsdpiInfinity(sdpi); /* we are minimizing */
       return SCIP_OKAY;
    }
 
