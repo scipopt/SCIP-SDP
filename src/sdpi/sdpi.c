@@ -36,7 +36,9 @@
 /**@file   sdpi.c
  * @brief  General interface methods for SDP-preprocessing (mainly fixing variables and removing empty rows/cols)
  * @author Tristan Gally
+ * @author Marc Pfetsch
  */
+
 #include <assert.h>
 #include <time.h>
 
@@ -245,10 +247,10 @@ SCIP_Bool isFixed(
    SCIP_Real lb;
    SCIP_Real ub;
 
-   assert ( sdpi != NULL );
-   assert ( v < sdpi->nvars );
-   assert ( sdpi->lb != NULL );
-   assert ( sdpi->ub != NULL );
+   assert( sdpi != NULL );
+   assert( v < sdpi->nvars );
+   assert( sdpi->lb != NULL );
+   assert( sdpi->ub != NULL );
 
    lb = sdpi->lb[v];
    ub = sdpi->ub[v];
@@ -495,18 +497,18 @@ SCIP_RETCODE compConstMatAfterFixings(
    int** fixedcols;
    SCIP_Real** fixedvals;
 
-   assert ( sdpi != NULL );
-   assert ( sdpconstnnonz != NULL );
-   assert ( sdpconstnblocknonz != NULL );
-   assert ( sdpconstrow != NULL );
-   assert ( sdpconstcol != NULL );
-   assert ( sdpconstval != NULL );
+   assert( sdpi != NULL );
+   assert( sdpconstnnonz != NULL );
+   assert( sdpconstnblocknonz != NULL );
+   assert( sdpconstrow != NULL );
+   assert( sdpconstcol != NULL );
+   assert( sdpconstval != NULL );
 #ifndef NDEBUG
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
-      assert ( sdpconstrow[block] != NULL );
-      assert ( sdpconstcol[block] != NULL );
-      assert ( sdpconstval[block] != NULL );
+      assert( sdpconstrow[block] != NULL );
+      assert( sdpconstcol[block] != NULL );
+      assert( sdpconstval[block] != NULL );
    }
 #endif
 
@@ -642,7 +644,7 @@ SCIP_RETCODE findEmptyRowColsSDP(
          {
             for (i = 0; i < sdpi->sdpnblockvarnonz[block][v]; i++)
             {
-               assert ( REALABS(sdpi->sdpval[block][v][i]) > sdpi->epsilon); /* this should really be a nonzero */
+               assert( REALABS(sdpi->sdpval[block][v][i]) > sdpi->epsilon); /* this should really be a nonzero */
                if ( indchanges[block][sdpi->sdprow[block][v][i]] == -1 )
                {
                   indchanges[block][sdpi->sdprow[block][v][i]] = 1;
@@ -666,7 +668,7 @@ SCIP_RETCODE findEmptyRowColsSDP(
          /* if some indices haven't been found yet, look in the constant part for them */
          for (i = 0; i < sdpconstnblocknonz[block]; i++)
          {
-            assert ( REALABS(sdpconstval[block][i]) > sdpi->epsilon); /* this should really be a nonzero */
+            assert( REALABS(sdpconstval[block][i]) > sdpi->epsilon); /* this should really be a nonzero */
             if ( indchanges[block][sdpconstrow[block][i]] == -1 )
             {
                indchanges[block][sdpconstrow[block][i]] = 1;
@@ -1666,8 +1668,8 @@ SCIP_RETCODE SCIPsdpiCreate(
    BMS_BUFMEM*           bufmem              /**< buffer memory */
    )
 {
-   assert ( sdpi != NULL );
-   assert ( blkmem != NULL );
+   assert( sdpi != NULL );
+   assert( blkmem != NULL );
 
    SCIPdebugMessage("Calling SCIPsdpiCreate\n");
 
@@ -1743,8 +1745,8 @@ SCIP_RETCODE SCIPsdpiFree(
    int j;
 
    SCIPdebugMessage("Calling SCIPsdpiFree \n");
-   assert ( sdpi != NULL );
-   assert ( *sdpi != NULL );
+   assert( sdpi != NULL );
+   assert( *sdpi != NULL );
 
    /* free the LP part */
    assert( 0 <= (*sdpi)->lpnnonz && (*sdpi)->lpnnonz <= (*sdpi)->maxlpnnonz );
@@ -1974,59 +1976,59 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    int v;
    int b;
 
-SCIPdebugMessage("Calling SCIPsdpiLoadSDP (%d)\n",sdpi->sdpid);
+   SCIPdebugMessage("Calling SCIPsdpiLoadSDP (%d) ...\n", sdpi->sdpid);
 
-   assert ( sdpi != NULL );
-   assert ( nvars > 0 );
-   assert ( obj != NULL );
-   assert ( lb != NULL );
-   assert ( ub != NULL );
+   assert( sdpi != NULL );
+   assert( nvars > 0 );
+   assert( obj != NULL );
+   assert( lb != NULL );
+   assert( ub != NULL );
 
 #ifdef SCIP_DEBUG
    if ( sdpconstnnonz > 0 || sdpnnonz > 0 || nsdpblocks > 0 )
    {
-      assert ( sdpblocksizes != NULL );
-      assert ( sdpnblockvars != NULL );
-      assert ( nsdpblocks > 0 );
-      assert ( sdpconstnblocknonz != NULL );
-      assert ( sdpnblockvarnonz != NULL );
+      assert( sdpblocksizes != NULL );
+      assert( sdpnblockvars != NULL );
+      assert( nsdpblocks > 0 );
+      assert( sdpconstnblocknonz != NULL );
+      assert( sdpnblockvarnonz != NULL );
 
-      if (sdpconstnnonz > 0)
+      if ( sdpconstnnonz > 0 )
       {
-         assert ( sdpconstrow != NULL );
-         assert ( sdpconstcol != NULL );
-         assert ( sdpconstval != NULL );
+         assert( sdpconstrow != NULL );
+         assert( sdpconstcol != NULL );
+         assert( sdpconstval != NULL );
 
          for (i = 0; i < nsdpblocks; i++)
          {
             if ( sdpconstnblocknonz[i] > 0 )
             {
-               assert ( sdpconstrow[i] != NULL );
-               assert ( sdpconstcol[i] != NULL );
-               assert ( sdpconstval[i] != NULL );
+               assert( sdpconstrow[i] != NULL );
+               assert( sdpconstcol[i] != NULL );
+               assert( sdpconstval[i] != NULL );
             }
          }
       }
 
       if ( sdpnnonz > 0 )
       {
-         assert ( sdprow != NULL );
-         assert ( sdpcol != NULL );
-         assert ( sdpval != NULL );
+         assert( sdprow != NULL );
+         assert( sdpcol != NULL );
+         assert( sdpval != NULL );
 
-         for ( i = 0; i < nsdpblocks; i++ )
+         for (i = 0; i < nsdpblocks; i++)
          {
-            assert ( sdpcol[i] != NULL );
-            assert ( sdprow[i] != NULL );
-            assert ( sdpval[i] != NULL );
+            assert( sdpcol[i] != NULL );
+            assert( sdprow[i] != NULL );
+            assert( sdpval[i] != NULL );
 
-            for ( v = 0; v < sdpnblockvars[i]; v++)
+            for (v = 0; v < sdpnblockvars[i]; v++)
             {
                if ( sdpnblockvarnonz[i][v] > 0 )
                {
-                  assert ( sdpcol[i][v] != NULL );
-                  assert ( sdprow[i][v] != NULL );
-                  assert ( sdpval[i][v] != NULL );
+                  assert( sdpcol[i][v] != NULL );
+                  assert( sdprow[i][v] != NULL );
+                  assert( sdpval[i][v] != NULL );
                }
             }
          }
@@ -2034,11 +2036,11 @@ SCIPdebugMessage("Calling SCIPsdpiLoadSDP (%d)\n",sdpi->sdpid);
    }
 #endif
 
-   assert ( nlpcons == 0 || lplhs != NULL );
-   assert ( nlpcons == 0 || lprhs != NULL );
-   assert ( lpnnonz == 0 || lprow != NULL );
-   assert ( lpnnonz == 0 || lpcol != NULL );
-   assert ( lpnnonz == 0 || lpval != NULL );
+   assert( nlpcons == 0 || lplhs != NULL );
+   assert( nlpcons == 0 || lprhs != NULL );
+   assert( lpnnonz == 0 || lprow != NULL );
+   assert( lpnnonz == 0 || lpcol != NULL );
+   assert( lpnnonz == 0 || lpval != NULL );
 
    /* clear problem */
    SCIP_CALL( SCIPsdpiClear(sdpi) );
@@ -2128,17 +2130,17 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
 
    SCIPdebugMessage("Adding %d LP-Constraints to SDP %d.\n", nrows, sdpi->sdpid);
 
-   assert ( sdpi != NULL );
+   assert( sdpi != NULL );
 
    if ( nrows == 0 )
       return SCIP_OKAY; /* nothing to do in this case */
 
-   assert ( lhs != NULL );
-   assert ( rhs != NULL );
-   assert ( nnonz >= 0 );
-   assert ( row != NULL );
-   assert ( col != NULL );
-   assert ( val != NULL );
+   assert( lhs != NULL );
+   assert( rhs != NULL );
+   assert( nnonz >= 0 );
+   assert( row != NULL );
+   assert( col != NULL );
+   assert( val != NULL );
 
    SCIP_CALL( ensureLPDataMemory(sdpi, sdpi->nlpcons + nrows, sdpi->lpnnonz + nnonz) );
 
@@ -2150,12 +2152,12 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
 
    for (i = 0; i < nnonz; i++)
    {
-      assert ( 0 <= row[i] && row[i] < nrows );
+      assert( 0 <= row[i] && row[i] < nrows );
 
       /* the new rows are added at the end, so the row indices are increased by the old number of LP-constraints */
       sdpi->lprow[sdpi->lpnnonz + i] = row[i] + sdpi->nlpcons; /*lint !e679*/
 
-      assert ( 0 <= col[i] && col[i] < sdpi->nvars ); /* only existing vars should be added to the LP-constraints */
+      assert( 0 <= col[i] && col[i] < sdpi->nvars ); /* only existing vars should be added to the LP-constraints */
       sdpi->lpcol[sdpi->lpnnonz + i] = col[i]; /*lint !e679*/
       sdpi->lpval[sdpi->lpnnonz + i] = val[i]; /*lint !e679*/
    }
@@ -2187,10 +2189,10 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
 
    SCIPdebugMessage("Deleting rows %d to %d from SDP %d.\n", firstrow, lastrow, sdpi->sdpid);
 
-   assert ( sdpi != NULL );
-   assert ( firstrow >= 0 );
-   assert ( firstrow <= lastrow );
-   assert ( lastrow < sdpi->nlpcons );
+   assert( sdpi != NULL );
+   assert( firstrow >= 0 );
+   assert( firstrow <= lastrow );
+   assert( lastrow < sdpi->nlpcons );
 
    /* shorten the procedure if the whole LP-part is to be deleted */
    if (firstrow == 0 && lastrow == sdpi->nlpcons - 1)
@@ -2281,15 +2283,15 @@ SCIP_RETCODE SCIPsdpiDelLPRowset(
 
    SCIPdebugMessage("Calling SCIPsdpiDelLPRowset for SDP %d.\n", sdpi->sdpid);
 
-   assert ( sdpi != NULL );
-   assert ( dstat != NULL );
+   assert( sdpi != NULL );
+   assert( dstat != NULL );
 
    oldnlpcons = sdpi->nlpcons;
    deletedrows = 0;
 
    for (i = 0; i < oldnlpcons; i++)
    {
-      if (dstat[i] == 1)
+      if ( dstat[i] == 1 )
       {
          /* delete this row, it is shifted by - deletedrows, because in this problem the earlier rows have already been deleted */
          SCIP_CALL( SCIPsdpiDelLPRows(sdpi, i - deletedrows, i - deletedrows) );
@@ -2431,8 +2433,8 @@ SCIP_RETCODE SCIPsdpiChgLPLhRhSides(
 
    for (i = 0; i < nrows; i++)
    {
-      assert ( ind[i] >= 0 );
-      assert ( ind[i] < sdpi->nlpcons );
+      assert( ind[i] >= 0 );
+      assert( ind[i] < sdpi->nlpcons );
       sdpi->lplhs[ind[i]] = lhs[i];
       sdpi->lprhs[ind[i]] = rhs[i];
    }
@@ -2586,6 +2588,7 @@ SCIP_RETCODE SCIPsdpiGetBounds(
       if (ubs != NULL)
          ubs[i] = sdpi->ub[firstvar + i]; /*lint !e679*/
    }
+
    return SCIP_OKAY;
 }
 
@@ -2755,7 +2758,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    /* shrink the constant arrays after the number of fixed nonzeros is known */
    for (block = 0; block < sdpi->nsdpblocks; block++)
    {
-      assert ( sdpconstnblocknonz[block] <= sdpi->sdpnnonz + sdpi->sdpconstnnonz ); /* otherwise the memory wasn't sufficient,
+      assert( sdpconstnblocknonz[block] <= sdpi->sdpnnonz + sdpi->sdpconstnnonz ); /* otherwise the memory wasn't sufficient,
                                                                                      * but we allocated more than enough */
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) ); /*lint !e776*/
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) ); /*lint !e776*/
@@ -3457,6 +3460,7 @@ SCIP_RETCODE SCIPsdpiGetObjval(
 {
    assert( sdpi != NULL );
    assert( objval != NULL );
+
    CHECK_IF_SOLVED(sdpi);
 
    if ( sdpi->infeasible )
@@ -3517,6 +3521,7 @@ SCIP_RETCODE SCIPsdpiGetLowerObjbound(
       }
 
       SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, objlb) );
+
       return SCIP_OKAY;
    }
 
@@ -3528,8 +3533,8 @@ SCIP_RETCODE SCIPsdpiGetLowerObjbound(
    }
 
    /* if we could not solve it and did not use the penalty formulation (e.g. because the time limit was reached), we have no information */
-
    *objlb = -SCIPsdpiInfinity(sdpi);
+
    return SCIP_OKAY;
 }
 
@@ -3712,6 +3717,7 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    assert( ubvars != NULL );
    assert( arraylength != NULL );
    assert( *arraylength >= 0 );
+
    CHECK_IF_SOLVED(sdpi);
 
    if ( sdpi->infeasible )
@@ -3796,7 +3802,7 @@ SCIP_Real SCIPsdpiGetMaxPrimalEntry(
 {
    assert( sdpi != NULL );
 
-   return SCIPsdpiSolverGetMaxPrimalEntry( sdpi->sdpisolver );
+   return SCIPsdpiSolverGetMaxPrimalEntry(sdpi->sdpisolver);
 }
 
 /** gets the time for the last SDP optimization call of solver */
@@ -4201,7 +4207,7 @@ SCIP_RETCODE SCIPsdpiSlater(
       return SCIP_OKAY;
    }
 
-   if (sdpi->allfixed )
+   if ( sdpi->allfixed )
    {
       *primalslater = SCIP_SDPSLATER_NOINFO;
       *dualslater = SCIP_SDPSLATER_NOINFO;
@@ -4477,8 +4483,9 @@ SCIP_RETCODE SCIPsdpiReadSDP(
    assert( sdpi != NULL );
    assert( fname != NULL );
 
-   SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_LPERROR;
+   SCIPerrorMessage("Not implemented yet.\n");
+
+   return SCIP_NOTIMPLEMENTED;
 }
 
 /** writes SDP to a file */
@@ -4490,8 +4497,9 @@ SCIP_RETCODE SCIPsdpiWriteSDP(
    assert( sdpi != NULL );
    assert( fname != NULL );
 
-   SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_LPERROR;
+   SCIPerrorMessage("Not implemented yet.\n");
+
+   return SCIP_NOTIMPLEMENTED;
 }
 
 /**@} */
