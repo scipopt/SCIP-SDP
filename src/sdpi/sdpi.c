@@ -448,9 +448,9 @@ SCIP_RETCODE ensureSDPDataMemory(
       {
          newsize = calcGrowSize(sdpi->maxsdpconstnblocknonz[b], sdpconstnblocknonz[b]);
 
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol[b]), sdpi->maxsdpconstnblocknonz[b], sdpconstnblocknonz[b]) );
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow[b]), sdpi->maxsdpconstnblocknonz[b], sdpconstnblocknonz[b]) );
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval[b]), sdpi->maxsdpconstnblocknonz[b], sdpconstnblocknonz[b]) );
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol[b]), sdpi->maxsdpconstnblocknonz[b], newsize) );
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow[b]), sdpi->maxsdpconstnblocknonz[b], newsize) );
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval[b]), sdpi->maxsdpconstnblocknonz[b], newsize) );
 
          sdpi->maxsdpconstnblocknonz[b] = newsize;
       }
