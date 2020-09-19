@@ -1795,9 +1795,9 @@ SCIP_RETCODE SCIPsdpiFree(
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->maxsdpnblockvars), (*sdpi)->maxnsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpblocksizes), (*sdpi)->maxnsdpblocks);
 
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->ub), (*sdpi)->nvars);/*lint !e737*/
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lb), (*sdpi)->nvars);/*lint !e737*/
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->obj), (*sdpi)->nvars);/*lint !e737*/
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->ub), (*sdpi)->maxnvars);/*lint !e737*/
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lb), (*sdpi)->maxnvars);/*lint !e737*/
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->obj), (*sdpi)->maxnvars);/*lint !e737*/
 
    /* free the solver */
    SCIP_CALL( SCIPsdpiSolverFree(&((*sdpi)->sdpisolver)) );
