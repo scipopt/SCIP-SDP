@@ -377,9 +377,10 @@ SCIP_RETCODE ensureSDPDataMemory(
    assert( sdpnblockvarnonz != NULL );
    assert( sdpconstnblocknonz != NULL );
 
+   /* we assume that the size for SDP constraint only change seldomly, so we do not use a grow factor */
    if ( nsdpblocks > sdpi->maxnsdpblocks )
    {
-      newsize = calcGrowSize(sdpi->maxnsdpblocks, nsdpblocks);
+      newsize = nsdpblocks;
 
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpi->maxnsdpblocks, newsize) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvars), sdpi->maxnsdpblocks, newsize) );
@@ -421,7 +422,7 @@ SCIP_RETCODE ensureSDPDataMemory(
    {
       if ( sdpnblockvars[b] > sdpi->maxsdpnblockvars[b] )
       {
-         newsize = calcGrowSize(sdpi->maxsdpnblockvars[b], sdpnblockvars[b]);
+         newsize = sdpnblockvars[b];
 
          BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz[b]), sdpi->maxsdpnblockvars[b], newsize) );
          BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->maxsdpnblockvarnonz[b]), sdpi->maxsdpnblockvars[b], newsize) );
@@ -446,7 +447,7 @@ SCIP_RETCODE ensureSDPDataMemory(
 
       if ( sdpconstnblocknonz[b] > sdpi->maxsdpconstnblocknonz[b] )
       {
-         newsize = calcGrowSize(sdpi->maxsdpconstnblocknonz[b], sdpconstnblocknonz[b]);
+         newsize = sdpconstnblocknonz[b];
 
          BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol[b]), sdpi->maxsdpconstnblocknonz[b], newsize) );
          BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow[b]), sdpi->maxsdpconstnblocknonz[b], newsize) );
@@ -459,7 +460,7 @@ SCIP_RETCODE ensureSDPDataMemory(
       {
          if ( sdpnblockvarnonz[b][v] > sdpi->maxsdpnblockvarnonz[b][v] )
          {
-            newsize = calcGrowSize(sdpi->maxsdpnblockvarnonz[b][v], sdpnblockvarnonz[b][v]);
+            newsize = sdpnblockvarnonz[b][v];
 
             BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[b][v]), sdpi->maxsdpnblockvarnonz[b][v], newsize) );
             BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[b][v]), sdpi->maxsdpnblockvarnonz[b][v], newsize) );
