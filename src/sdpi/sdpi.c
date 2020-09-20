@@ -1965,7 +1965,6 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    SCIP_Real*            lpval               /**< values of LP-constraint matrix entries (may be NULL if lpnnonz = 0) */
    )
 {
-   int i;
    int v;
    int b;
 
@@ -2053,30 +2052,32 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
 
    for (b = 0; b < nsdpblocks; ++b)
    {
+#ifndef NDEBUG
+      /* make sure that we have a lower triangular matrix */
+      for (v = 0; v < sdpi->sdpconstnblocknonz[b]; ++v)
+         assert( sdpconstrow[b][v] >= sdpconstcol[b][v] );
+#endif
+
       BMScopyMemoryArray(sdpi->sdpnblockvarnonz[b], sdpnblockvarnonz[b], sdpnblockvars[b]);
       BMScopyMemoryArray(sdpi->sdpconstcol[b], sdpconstcol[b], sdpconstnblocknonz[b]);
       BMScopyMemoryArray(sdpi->sdpconstrow[b], sdpconstrow[b], sdpconstnblocknonz[b]);
       BMScopyMemoryArray(sdpi->sdpconstval[b], sdpconstval[b], sdpconstnblocknonz[b]);
 
-#ifndef NDEBUG
-      /* make sure that we have a lower triangular matrix */
-      for (i = 0; i < sdpi->sdpconstnblocknonz[b]; ++i)
-         assert( sdpi->sdpconstrow[b][i] >= sdpi->sdpconstcol[b][i] );
-#endif
-
       BMScopyMemoryArray(sdpi->sdpvar[b], sdpvar[b], sdpnblockvars[b]);
 
       for (v = 0; v < sdpi->sdpnblockvars[b]; v++)
       {
+#ifndef NDEBUG
+         int i;
+
+         /* make sure that we have a lower triangular matrix */
+         for (i = 0; i < sdpi->sdpnblockvarnonz[b][v]; ++i)
+            assert( sdprow[b][v][i] >= sdpcol[b][v][i] );
+#endif
+
          BMScopyMemoryArray(sdpi->sdpcol[b][v], sdpcol[b][v], sdpnblockvarnonz[b][v]);
          BMScopyMemoryArray(sdpi->sdprow[b][v], sdprow[b][v], sdpnblockvarnonz[b][v]);
          BMScopyMemoryArray(sdpi->sdpval[b][v], sdpval[b][v], sdpnblockvarnonz[b][v]);
-
-#ifndef NDEBUG
-         /* make sure that we have a lower triangular matrix */
-         for (i = 0; i < sdpi->sdpnblockvarnonz[b][v]; ++i)
-            assert( sdpi->sdprow[b][v][i] >= sdpi->sdpcol[b][v][i] );
-#endif
       }
    }
 
