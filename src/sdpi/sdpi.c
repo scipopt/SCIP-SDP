@@ -219,25 +219,6 @@ struct SCIP_SDPi
  * Local Functions
  */
 
-/** For given row and column (i,j) checks if i >= j, so that i and j give a position in the lower
- *  triangular part, otherwise i and j will be switched. This function will be called whenever a position in a symmetric matrix
- *  is given, to prevent problems if position (i,j) is given but later (j,i) should be changed.
- */
-static
-void ensureLowerTriangular(
-   int*                  i,                  /**< row index */
-   int*                  j                   /**< column index */
-   )
-{
-   if ( *i < *j )
-   {
-      int temp;
-      temp = *i;
-      *i = *j;
-      *j = temp;
-   }
-}
-
 #ifndef NDEBUG
 /** tests if for a given variable the lower bound is in an epsilon neighborhood of the upper bound */
 static
@@ -1945,7 +1926,8 @@ SCIP_RETCODE SCIPsdpiClone(
 
 /** copies SDP data into SDP-solver
  *
- *  @note As the SDP-constraint-matrices are symmetric, only the upper triangular part of them must be specified.
+ *  @note As the SDP-constraint-matrices are symmetric, only the lower triangular part of them must be specified.
+  * @note It is assumed that the matrices are in lower triangular form.
  *  @note There must be at least one variable, the SDP- and/or LP-part may be empty.
  */
 SCIP_RETCODE SCIPsdpiLoadSDP(
@@ -2076,9 +2058,11 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
       BMScopyMemoryArray(sdpi->sdpconstrow[b], sdpconstrow[b], sdpconstnblocknonz[b]);
       BMScopyMemoryArray(sdpi->sdpconstval[b], sdpconstval[b], sdpconstnblocknonz[b]);
 
+#ifndef NDEBUG
       /* make sure that we have a lower triangular matrix */
       for (i = 0; i < sdpi->sdpconstnblocknonz[b]; ++i)
-         ensureLowerTriangular(&(sdpconstrow[b][i]), &(sdpconstcol[b][i]));
+         assert( sdpi->sdpconstrow[b][i] >= sdpi->sdpconstcol[b][i] );
+#endif
 
       BMScopyMemoryArray(sdpi->sdpvar[b], sdpvar[b], sdpnblockvars[b]);
 
@@ -2088,9 +2072,11 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
          BMScopyMemoryArray(sdpi->sdprow[b][v], sdprow[b][v], sdpnblockvarnonz[b][v]);
          BMScopyMemoryArray(sdpi->sdpval[b][v], sdpval[b][v], sdpnblockvarnonz[b][v]);
 
+#ifndef NDEBUG
          /* make sure that we have a lower triangular matrix */
          for (i = 0; i < sdpi->sdpnblockvarnonz[b][v]; ++i)
-            ensureLowerTriangular(&(sdprow[b][v][i]), &(sdpcol[b][v][i]));
+            assert( sdpi->sdprow[b][v][i] >= sdpi->sdpcol[b][v][i] );
+#endif
       }
    }
 

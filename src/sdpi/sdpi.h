@@ -171,7 +171,8 @@ SCIP_RETCODE SCIPsdpiClone(
 
 /** copies SDP data into SDP-solver
  *
- *  @note As the SDP-constraint-matrices are symmetric, only the upper triangular part of them must be specified.
+ *  @note As the SDP-constraint-matrices are symmetric, only the lower triangular part of them must be specified.
+ * @note It is assumed that the matrices are in lower triangular form.
  *  @note There must be at least one variable, the SDP- and/or LP-part may be empty.
  */
 SCIP_EXPORT
