@@ -349,7 +349,7 @@ SCIP_RETCODE ensureSDPDataMemory(
    int*                  sdpconstnblocknonz  /**< number of nonzeros in constant matrix */
    )
 {
-   int newsize;
+   int oldnsdpblocks;
    int b;
    int v;
 
@@ -361,93 +361,102 @@ SCIP_RETCODE ensureSDPDataMemory(
    /* we assume that the size for SDP constraint only change seldomly, so we do not use a grow factor */
    if ( nsdpblocks > sdpi->maxnsdpblocks )
    {
-      newsize = nsdpblocks;
+      oldnsdpblocks = sdpi->maxnsdpblocks;
 
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpi->maxnsdpblocks, newsize) );
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvars), sdpi->maxnsdpblocks, newsize) );
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->maxsdpnblockvars), sdpi->maxnsdpblocks, newsize) );
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstnblocknonz), sdpi->maxnsdpblocks, newsize) );
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->maxsdpconstnblocknonz), sdpi->maxnsdpblocks, newsize) );
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz), sdpi->maxnsdpblocks, newsize) );
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->maxsdpnblockvarnonz), sdpi->maxnsdpblocks, newsize) );
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol), sdpi->maxnsdpblocks, newsize) );
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow), sdpi->maxnsdpblocks, newsize) );
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval), sdpi->maxnsdpblocks, newsize) );
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpvar), sdpi->maxnsdpblocks, newsize) );
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol), sdpi->maxnsdpblocks, newsize) );
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow), sdpi->maxnsdpblocks, newsize) );
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpi->maxnsdpblocks, newsize) );
-
-      /* make sure sizes are initialized */
-      for (b = sdpi->maxnsdpblocks; b < newsize; ++b)
-      {
-         sdpi->sdpblocksizes[b] = 0;
-         sdpi->sdpnblockvars[b] = 0;
-         sdpi->maxsdpnblockvars[b] = 0;
-         sdpi->sdpconstnblocknonz[b] = 0;
-         sdpi->maxsdpconstnblocknonz[b] = 0;
-         sdpi->sdpnblockvarnonz[b] = 0;
-         sdpi->maxsdpnblockvarnonz[b] = NULL;
-         sdpi->sdpconstcol[b] = NULL;
-         sdpi->sdpconstrow[b] = NULL;
-         sdpi->sdpconstval[b] = NULL;
-         sdpi->sdpvar[b] = NULL;
-         sdpi->sdpcol[b] = NULL;
-         sdpi->sdprow[b] = NULL;
-         sdpi->sdpval[b] = NULL;
-      }
-      sdpi->maxnsdpblocks = newsize;
+      /* the following array pointers are all initialized (possibly with NULL) */
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpi->maxnsdpblocks, nsdpblocks) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvars), sdpi->maxnsdpblocks, nsdpblocks) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->maxsdpnblockvars), sdpi->maxnsdpblocks, nsdpblocks) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstnblocknonz), sdpi->maxnsdpblocks, nsdpblocks) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->maxsdpconstnblocknonz), sdpi->maxnsdpblocks, nsdpblocks) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz), sdpi->maxnsdpblocks, nsdpblocks) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->maxsdpnblockvarnonz), sdpi->maxnsdpblocks, nsdpblocks) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol), sdpi->maxnsdpblocks, nsdpblocks) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow), sdpi->maxnsdpblocks, nsdpblocks) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval), sdpi->maxnsdpblocks, nsdpblocks) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpvar), sdpi->maxnsdpblocks, nsdpblocks) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol), sdpi->maxnsdpblocks, nsdpblocks) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow), sdpi->maxnsdpblocks, nsdpblocks) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpi->maxnsdpblocks, nsdpblocks) );
+      sdpi->maxnsdpblocks = nsdpblocks;
    }
+   else
+      oldnsdpblocks = nsdpblocks;
 
-   for (b = 0; b < nsdpblocks; ++b)
+   /* loop through previously existing blocks */
+   for (b = 0; b < oldnsdpblocks; ++b)
    {
-      if ( sdpnblockvars[b] > sdpi->maxsdpnblockvars[b] )
-      {
-         newsize = sdpnblockvars[b];
+      int oldsdpnblockvars;
 
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz[b]), sdpi->maxsdpnblockvars[b], newsize) );
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->maxsdpnblockvarnonz[b]), sdpi->maxsdpnblockvars[b], newsize) );
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpvar[b]), sdpi->maxsdpnblockvars[b], newsize) );
-
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[b]), sdpi->maxsdpnblockvars[b], newsize) );
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[b]), sdpi->maxsdpnblockvars[b], newsize) );
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[b]), sdpi->maxsdpnblockvars[b], newsize) );
-
-         /* make sure sizes are initialized */
-         for (v = sdpi->maxsdpnblockvars[b]; v < newsize; ++v)
-         {
-            sdpi->sdpnblockvarnonz[b][v] = 0;
-            sdpi->maxsdpnblockvarnonz[b][v] = 0;
-            sdpi->sdpvar[b][v] = 0;
-            sdpi->sdprow[b][v] = NULL;
-            sdpi->sdpcol[b][v] = NULL;
-            sdpi->sdpval[b][v] = NULL;
-         }
-         sdpi->maxsdpnblockvars[b] = newsize;
-      }
-
+      /* the following array pointers should be initialized */
       if ( sdpconstnblocknonz[b] > sdpi->maxsdpconstnblocknonz[b] )
       {
-         newsize = sdpconstnblocknonz[b];
-
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol[b]), sdpi->maxsdpconstnblocknonz[b], newsize) );
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow[b]), sdpi->maxsdpconstnblocknonz[b], newsize) );
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval[b]), sdpi->maxsdpconstnblocknonz[b], newsize) );
-
-         sdpi->maxsdpconstnblocknonz[b] = newsize;
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol[b]), sdpi->maxsdpconstnblocknonz[b], sdpconstnblocknonz[b]) );
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow[b]), sdpi->maxsdpconstnblocknonz[b], sdpconstnblocknonz[b]) );
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval[b]), sdpi->maxsdpconstnblocknonz[b], sdpconstnblocknonz[b]) );
+         sdpi->maxsdpconstnblocknonz[b] = sdpconstnblocknonz[b];
       }
 
-      for (v = 0; v < sdpnblockvars[b]; ++v)
+      if ( sdpnblockvars[b] > sdpi->maxsdpnblockvars[b] )
+      {
+         oldsdpnblockvars = sdpi->maxsdpnblockvars[b];
+         assert( sdpi->sdpnblockvarnonz[b] != NULL );
+         assert( sdpi->maxsdpnblockvarnonz[b] != NULL );
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz[b]), sdpi->maxsdpnblockvars[b], sdpnblockvars[b]) );
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->maxsdpnblockvarnonz[b]), sdpi->maxsdpnblockvars[b], sdpnblockvars[b]) );
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpvar[b]), sdpi->maxsdpnblockvars[b], sdpnblockvars[b]) );
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[b]), sdpi->maxsdpnblockvars[b], sdpnblockvars[b]) );
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[b]), sdpi->maxsdpnblockvars[b], sdpnblockvars[b]) );
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[b]), sdpi->maxsdpnblockvars[b], sdpnblockvars[b]) );
+         sdpi->maxsdpnblockvars[b] = sdpnblockvars[b];
+      }
+      else
+         oldsdpnblockvars = sdpnblockvars[b];
+
+      /* loop through previously existing variables */
+      for (v = 0; v < oldsdpnblockvars; ++v)
       {
          if ( sdpnblockvarnonz[b][v] > sdpi->maxsdpnblockvarnonz[b][v] )
          {
-            newsize = sdpnblockvarnonz[b][v];
-
-            BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[b][v]), sdpi->maxsdpnblockvarnonz[b][v], newsize) );
-            BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[b][v]), sdpi->maxsdpnblockvarnonz[b][v], newsize) );
-            BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[b][v]), sdpi->maxsdpnblockvarnonz[b][v], newsize) );
-            sdpi->maxsdpnblockvarnonz[b][v] = newsize;
+            BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[b][v]), sdpi->maxsdpnblockvarnonz[b][v], sdpnblockvarnonz[b][v]) );
+            BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[b][v]), sdpi->maxsdpnblockvarnonz[b][v], sdpnblockvarnonz[b][v]) );
+            BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[b][v]), sdpi->maxsdpnblockvarnonz[b][v], sdpnblockvarnonz[b][v]) );
+            sdpi->maxsdpnblockvarnonz[b][v] = sdpnblockvarnonz[b][v];
          }
+      }
+
+      /* loop through new variables */
+      for (v = oldsdpnblockvars; v < sdpnblockvars[b]; ++v)
+      {
+         BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[b][v]), sdpnblockvarnonz[b][v]) );
+         BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[b][v]), sdpnblockvarnonz[b][v]) );
+         BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[b][v]), sdpnblockvarnonz[b][v]) );
+         sdpi->maxsdpnblockvarnonz[b][v] = sdpnblockvarnonz[b][v];
+      }
+   }
+
+   /* loop through new blocks */
+   for (b = oldnsdpblocks; b < nsdpblocks; ++b)
+   {
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz[b]), sdpnblockvars[b]) );
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->maxsdpnblockvarnonz[b]), sdpnblockvars[b]) );
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpvar[b]), sdpnblockvars[b]) );
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[b]), sdpnblockvars[b]) );
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[b]), sdpnblockvars[b]) );
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[b]), sdpnblockvars[b]) );
+      sdpi->maxsdpnblockvars[b] = sdpnblockvars[b];
+
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol[b]), sdpconstnblocknonz[b]) );
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow[b]), sdpconstnblocknonz[b]) );
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval[b]), sdpconstnblocknonz[b]) );
+      sdpi->maxsdpconstnblocknonz[b] = sdpconstnblocknonz[b];
+
+      for (v = 0; v < sdpnblockvars[b]; ++v)
+      {
+         BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[b][v]), sdpnblockvarnonz[b][v]) );
+         BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[b][v]), sdpnblockvarnonz[b][v]) );
+         BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[b][v]), sdpnblockvarnonz[b][v]) );
+         sdpi->maxsdpnblockvarnonz[b][v] = sdpnblockvarnonz[b][v];
       }
    }
 
