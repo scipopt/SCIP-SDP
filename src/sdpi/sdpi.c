@@ -2047,9 +2047,6 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    assert( lpnnonz == 0 || lpcol != NULL );
    assert( lpnnonz == 0 || lpval != NULL );
 
-   /* clear problem */
-   SCIP_CALL( SCIPsdpiClear(sdpi) );
-
    /* ensure memory */
    SCIP_CALL( ensureBoundDataMemory(sdpi, nvars) );
    SCIP_CALL( ensureLPDataMemory(sdpi, nlpcons, lpnnonz) );
