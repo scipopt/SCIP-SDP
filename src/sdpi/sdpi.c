@@ -1737,7 +1737,8 @@ SCIP_RETCODE SCIPsdpiFree(
    int i;
    int j;
 
-   SCIPdebugMessage("Calling SCIPsdpiFree \n");
+   SCIPdebugMessage("Calling SCIPsdpiFree ...\n");
+
    assert( sdpi != NULL );
    assert( *sdpi != NULL );
 
@@ -1976,6 +1977,9 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
 {
    int v;
    int b;
+#ifdef SCIP_DEBUG
+   int i;
+#endif
 
    SCIPdebugMessage("Calling SCIPsdpiLoadSDP (%d) ...\n", sdpi->sdpid);
 
@@ -2077,11 +2081,11 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
       for (v = 0; v < sdpi->sdpnblockvars[b]; v++)
       {
 #ifndef NDEBUG
-         int i;
+         int j;
 
          /* make sure that we have a lower triangular matrix */
-         for (i = 0; i < sdpi->sdpnblockvarnonz[b][v]; ++i)
-            assert( sdprow[b][v][i] >= sdpcol[b][v][i] );
+         for (j = 0; j < sdpi->sdpnblockvarnonz[b][v]; ++j)
+            assert( sdprow[b][v][j] >= sdpcol[b][v][j] );
 #endif
 
          BMScopyMemoryArray(sdpi->sdpcol[b][v], sdpcol[b][v], sdpnblockvarnonz[b][v]);
@@ -2329,7 +2333,7 @@ SCIP_RETCODE SCIPsdpiClear(
 
    assert( sdpi != NULL );
 
-   SCIPdebugMessage("Called SCIPsdpiClear in SDP %d.\n", sdpi->sdpid);
+   SCIPdebugMessage("SCIPsdpiClear in SDP %d.\n", sdpi->sdpid);
 
    /* reset all counters */
    sdpi->nlpcons = 0;
