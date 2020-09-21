@@ -1057,8 +1057,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
    }
 
-   BMSfreeBufferMemoryArray(sdpisolver->bufmem, &mosekvarbounds);
-
    /* set objective sense (since we want to minimize in the dual, we maximize in the primal) */
    MOSEK_CALL( MSK_putobjsense(sdpisolver->msktask, MSK_OBJECTIVE_SENSE_MAXIMIZE) );/*lint !e641*/
 
@@ -1538,12 +1536,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
    /* free memory */
-   BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &mosekblocksizes);
+   BMSfreeBufferMemoryArray(sdpisolver->bufmem, &mosekblocksizes);
    if ( nlpcons > 0 )
    {
-      BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &vartolhsrhsmapper);
-      BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &vartorowmapper);
+      BMSfreeBufferMemoryArray(sdpisolver->bufmem, &vartolhsrhsmapper);
+      BMSfreeBufferMemoryArray(sdpisolver->bufmem, &vartorowmapper);
    }
+   BMSfreeBufferMemoryArray(sdpisolver->bufmem, &mosekvarbounds);
 
    return SCIP_OKAY;
 }
