@@ -296,9 +296,9 @@ SCIP_RETCODE ensureBoundDataMemory(
    {
       newsize = calcGrowSize(sdpi->maxnvars, nvars);
 
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), sdpi->maxnvars, newsize) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), sdpi->maxnvars, newsize) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), sdpi->maxnvars, newsize) );
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), sdpi->maxnvars, newsize) );
       sdpi->maxnvars = newsize;
    }
 
@@ -321,8 +321,8 @@ SCIP_RETCODE ensureLPDataMemory(
    {
       newsize = calcGrowSize(sdpi->maxnlpcons, nlpcons);
 
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->maxnlpcons, newsize) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lplhs), sdpi->maxnlpcons, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprhs), sdpi->maxnlpcons, newsize) );
       sdpi->maxnlpcons = newsize;
    }
 
@@ -330,9 +330,9 @@ SCIP_RETCODE ensureLPDataMemory(
    {
       newsize = calcGrowSize(sdpi->maxlpnnonz, nlpnonz);
 
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->maxlpnnonz, newsize) );
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->maxlpnnonz, newsize) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lprow), sdpi->maxlpnnonz, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpcol), sdpi->maxlpnnonz, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpval), sdpi->maxlpnnonz, newsize) );
       sdpi->maxlpnnonz = newsize;
    }
 
@@ -2069,11 +2069,11 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
 #endif
 
       BMScopyMemoryArray(sdpi->sdpnblockvarnonz[b], sdpnblockvarnonz[b], sdpnblockvars[b]);
+      BMScopyMemoryArray(sdpi->sdpvar[b], sdpvar[b], sdpnblockvars[b]);
+
+      BMScopyMemoryArray(sdpi->sdpconstval[b], sdpconstval[b], sdpconstnblocknonz[b]);
       BMScopyMemoryArray(sdpi->sdpconstcol[b], sdpconstcol[b], sdpconstnblocknonz[b]);
       BMScopyMemoryArray(sdpi->sdpconstrow[b], sdpconstrow[b], sdpconstnblocknonz[b]);
-      BMScopyMemoryArray(sdpi->sdpconstval[b], sdpconstval[b], sdpconstnblocknonz[b]);
-
-      BMScopyMemoryArray(sdpi->sdpvar[b], sdpvar[b], sdpnblockvars[b]);
 
       for (v = 0; v < sdpi->sdpnblockvars[b]; v++)
       {
@@ -2085,17 +2085,20 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
             assert( sdprow[b][v][j] >= sdpcol[b][v][j] );
 #endif
 
+         BMScopyMemoryArray(sdpi->sdpval[b][v], sdpval[b][v], sdpnblockvarnonz[b][v]);
          BMScopyMemoryArray(sdpi->sdpcol[b][v], sdpcol[b][v], sdpnblockvarnonz[b][v]);
          BMScopyMemoryArray(sdpi->sdprow[b][v], sdprow[b][v], sdpnblockvarnonz[b][v]);
-         BMScopyMemoryArray(sdpi->sdpval[b][v], sdpval[b][v], sdpnblockvarnonz[b][v]);
       }
    }
 
-   BMScopyMemoryArray(sdpi->lplhs, lplhs, nlpcons);
-   BMScopyMemoryArray(sdpi->lprhs, lprhs, nlpcons);
-   BMScopyMemoryArray(sdpi->lprow, lprow, lpnnonz);
-   BMScopyMemoryArray(sdpi->lpcol, lpcol, lpnnonz);
-   BMScopyMemoryArray(sdpi->lpval, lpval, lpnnonz);
+   if ( nlpcons > 0 )
+   {
+      BMScopyMemoryArray(sdpi->lplhs, lplhs, nlpcons);
+      BMScopyMemoryArray(sdpi->lprhs, lprhs, nlpcons);
+      BMScopyMemoryArray(sdpi->lprow, lprow, lpnnonz);
+      BMScopyMemoryArray(sdpi->lpcol, lpcol, lpnnonz);
+      BMScopyMemoryArray(sdpi->lpval, lpval, lpnnonz);
+   }
 
    /* set the general information */
    sdpi->nvars = nvars;
@@ -2151,12 +2154,8 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
    assert( val != NULL );
 
    SCIP_CALL( ensureLPDataMemory(sdpi, sdpi->nlpcons + nrows, sdpi->lpnnonz + nnonz) );
-
-   for (i = 0; i < nrows; i++)
-   {
-      sdpi->lplhs[sdpi->nlpcons + i] = lhs[i]; /*lint !e679*/
-      sdpi->lprhs[sdpi->nlpcons + i] = rhs[i]; /*lint !e679*/
-   }
+   BMScopyMemoryArray(&(sdpi->lplhs[sdpi->nlpcons]), lhs, nrows);
+   BMScopyMemoryArray(&(sdpi->lprhs[sdpi->nlpcons]), rhs, nrows);
 
    for (i = 0; i < nnonz; i++)
    {
