@@ -682,9 +682,9 @@ static
 SCIP_RETCODE computeLpLhsRhsAfterFixings(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
    int*                  nactivelpcons,      /**< pointer to store the number of active LP-constraints */
-   SCIP_Real*            lplhsafterfix,      /**< pointer to store lhs of active lp-constraints after fixing variables */
-   SCIP_Real*            lprhsafterfix,      /**< pointer to store rhs of active lp-constraints after fixing variables */
-   int*                  rownactivevars,     /**< pointer to store number of active variables for every row */
+   SCIP_Real*            lplhsafterfix,      /**< array to store lhs of active lp-constraints after fixing variables */
+   SCIP_Real*            lprhsafterfix,      /**< array to store rhs of active lp-constraints after fixing variables */
+   int*                  rownactivevars,     /**< array to store number of active variables for every row */
    SCIP_Bool*            fixingsfound        /**< pointer to store whether a variable was fixed during this function call */
    )
 {
