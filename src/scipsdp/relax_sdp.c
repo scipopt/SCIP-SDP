@@ -581,8 +581,8 @@ SCIP_RETCODE putSdpDataInInterface(
    SCIP_CALL( SCIPallocBufferArray(scip, &sdpblocksizes, nsdpblocks) );
    SCIP_CALL( SCIPallocBufferArray(scip, &nblockvarnonz, nsdpblocks) );
    SCIP_CALL( SCIPallocBufferArray(scip, &nconstblocknonz, nsdpblocks) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &col, nsdpblocks) );
    SCIP_CALL( SCIPallocBufferArray(scip, &row, nsdpblocks) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &col, nsdpblocks) );
    SCIP_CALL( SCIPallocBufferArray(scip, &val, nsdpblocks) );
    SCIP_CALL( SCIPallocBufferArray(scip, &constcol, nsdpblocks) );
    SCIP_CALL( SCIPallocBufferArray(scip, &constrow, nsdpblocks) );
@@ -592,9 +592,9 @@ SCIP_RETCODE putSdpDataInInterface(
 
    for (i = 0; i < nsdpblocks; i++)
    {
-      SCIP_CALL( SCIPallocBufferArray(scip, &(nblockvarnonz[i]), nvarspen) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &col[i], nvarspen) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &nblockvarnonz[i], nvarspen) );
       SCIP_CALL( SCIPallocBufferArray(scip, &row[i], nvarspen) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &col[i], nvarspen) );
       SCIP_CALL( SCIPallocBufferArray(scip, &val[i], nvarspen) );
    }
 
@@ -618,8 +618,8 @@ SCIP_RETCODE putSdpDataInInterface(
          /* allocate memory for the constant nonzeros */
          SCIP_CALL( SCIPconsSdpGetNNonz(scip, conss[i], NULL, &constlength) );
          nconstblocknonz[ind] = constlength;
-         SCIP_CALL( SCIPallocBufferArray(scip, &(constcol[ind]), constlength) );
          SCIP_CALL( SCIPallocBufferArray(scip, &(constrow[ind]), constlength) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &(constcol[ind]), constlength) );
          SCIP_CALL( SCIPallocBufferArray(scip, &(constval[ind]), constlength) );
 
          /* get the data */
@@ -632,7 +632,7 @@ SCIP_RETCODE putSdpDataInInterface(
          assert( nblockvars[ind] <= nvars );
          assert( nconstblocknonz[ind] <= constlength );
 
-         SCIP_CALL( SCIPallocBufferArray(scip, &(sdpvar[ind]), boundprimal ? nblockvars[ind] + 1 : nblockvars[ind]) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &sdpvar[ind], boundprimal ? nblockvars[ind] + 1 : nblockvars[ind]) );
 
          /* get global variable indices */
          for (j = 0; j < nblockvars[ind]; j++)
@@ -645,14 +645,14 @@ SCIP_RETCODE putSdpDataInInterface(
             nblockvarnonz[ind][nblockvars[ind]] = sdpblocksizes[ind];
 
             /* add identity matrix times penalty variable */
-            SCIP_CALL( SCIPallocBufferArray(scip, &col[ind][nblockvars[ind]], sdpblocksizes[ind]) );
             SCIP_CALL( SCIPallocBufferArray(scip, &row[ind][nblockvars[ind]], sdpblocksizes[ind]) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &col[ind][nblockvars[ind]], sdpblocksizes[ind]) );
             SCIP_CALL( SCIPallocBufferArray(scip, &val[ind][nblockvars[ind]], sdpblocksizes[ind]) );
 
             for (j = 0; j < sdpblocksizes[ind]; j++)
             {
-               col[ind][nblockvars[ind]][j] = j;
                row[ind][nblockvars[ind]][j] = j;
+               col[ind][nblockvars[ind]][j] = j;
                val[ind][nblockvars[ind]][j] = 1.0;
             }
             nblockvars[ind]++;
@@ -661,9 +661,6 @@ SCIP_RETCODE putSdpDataInInterface(
          ind++;
       }
    }
-
-   /* free the memory that is no longer needed */
-   SCIPfreeBufferArray(scip, &blockvars);
 
    /* load data into SDPI */
    if ( primalobj )
@@ -684,22 +681,28 @@ SCIP_RETCODE putSdpDataInInterface(
    }
 
    /* free the remaining memory */
-   for (i = 0; i < nsdpblocks; i++)
+   for (i = nsdpblocks - 1; i >= 0; --i)
    {
       if ( boundprimal )
       {
          SCIPfreeBufferArrayNull(scip, &val[i][nblockvars[i] - 1]);
-         SCIPfreeBufferArrayNull(scip, &row[i][nblockvars[i] - 1]);
          SCIPfreeBufferArrayNull(scip, &col[i][nblockvars[i] - 1]);
+         SCIPfreeBufferArrayNull(scip, &row[i][nblockvars[i] - 1]);
       }
-      SCIPfreeBufferArrayNull(scip, &(sdpvar[i]));
-      SCIPfreeBufferArrayNull(scip, &val[i]);
-      SCIPfreeBufferArrayNull(scip, &row[i]);
-      SCIPfreeBufferArrayNull(scip, &col[i]);
-      SCIPfreeBufferArrayNull(scip, &(nblockvarnonz[i]));
+      SCIPfreeBufferArrayNull(scip, &sdpvar[i]);
       SCIPfreeBufferArrayNull(scip, &(constval[i]));
-      SCIPfreeBufferArrayNull(scip, &(constrow[i]));
       SCIPfreeBufferArrayNull(scip, &(constcol[i]));
+      SCIPfreeBufferArrayNull(scip, &(constrow[i]));
+   }
+   SCIPfreeBufferArray(scip, &blockvars);
+
+   /* we need a separate loop because of the allocation above */
+   for (i = nsdpblocks - 1; i >= 0; --i)
+   {
+      SCIPfreeBufferArrayNull(scip, &val[i]);
+      SCIPfreeBufferArrayNull(scip, &col[i]);
+      SCIPfreeBufferArrayNull(scip, &row[i]);
+      SCIPfreeBufferArrayNull(scip, &nblockvarnonz[i]);
    }
 
    SCIPfreeBufferArrayNull(scip, &sdpvar);
@@ -708,8 +711,8 @@ SCIP_RETCODE putSdpDataInInterface(
    SCIPfreeBufferArrayNull(scip, &constrow);
    SCIPfreeBufferArrayNull(scip, &constcol);
    SCIPfreeBufferArrayNull(scip, &val);
-   SCIPfreeBufferArrayNull(scip, &row);
    SCIPfreeBufferArrayNull(scip, &col);
+   SCIPfreeBufferArrayNull(scip, &row);
    SCIPfreeBufferArrayNull(scip, &nconstblocknonz);
    SCIPfreeBufferArrayNull(scip, &nblockvarnonz);
    SCIPfreeBufferArrayNull(scip, &sdpblocksizes);
