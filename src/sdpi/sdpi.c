@@ -2119,24 +2119,49 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
    assert( col != NULL );
    assert( val != NULL );
 
-   SCIP_CALL( ensureLPDataMemory(sdpi, sdpi->nlpcons + nrows, sdpi->lpnnonz + nnonz) );
-   BMScopyMemoryArray(&(sdpi->lplhs[sdpi->nlpcons]), lhs, nrows);
-   BMScopyMemoryArray(&(sdpi->lprhs[sdpi->nlpcons]), rhs, nrows);
-
-   for (i = 0; i < nnonz; i++)
+   /* speed up things if LP part is emtpy */
+   if ( sdpi->nlpcons == 0 )
    {
-      assert( 0 <= row[i] && row[i] < nrows );
+      assert( sdpi->lpnnonz == 0 );
 
-      /* the new rows are added at the end, so the row indices are increased by the old number of LP-constraints */
-      sdpi->lprow[sdpi->lpnnonz + i] = row[i] + sdpi->nlpcons; /*lint !e679*/
+      SCIP_CALL( ensureLPDataMemory(sdpi, nrows, nnonz) );
+      BMScopyMemoryArray(sdpi->lplhs, lhs, nrows);
+      BMScopyMemoryArray(sdpi->lprhs, rhs, nrows);
+      BMScopyMemoryArray(sdpi->lprow, row, nnonz);
+      BMScopyMemoryArray(sdpi->lpcol, col, nnonz);
+      BMScopyMemoryArray(sdpi->lpval, val, nnonz);
+      sdpi->nlpcons = nrows;
+      sdpi->lpnnonz = nnonz;
 
-      assert( 0 <= col[i] && col[i] < sdpi->nvars ); /* only existing vars should be added to the LP-constraints */
-      sdpi->lpcol[sdpi->lpnnonz + i] = col[i]; /*lint !e679*/
-      sdpi->lpval[sdpi->lpnnonz + i] = val[i]; /*lint !e679*/
+#ifndef NDEBUG
+      for (i = 0; i < nnonz; i++)
+      {
+         assert( 0 <= row[i] && row[i] < nrows );
+         assert( 0 <= col[i] && col[i] < sdpi->nvars );
+      }
+#endif
    }
+   else
+   {
+      SCIP_CALL( ensureLPDataMemory(sdpi, sdpi->nlpcons + nrows, sdpi->lpnnonz + nnonz) );
+      BMScopyMemoryArray(&(sdpi->lplhs[sdpi->nlpcons]), lhs, nrows);
+      BMScopyMemoryArray(&(sdpi->lprhs[sdpi->nlpcons]), rhs, nrows);
 
-   sdpi->nlpcons = sdpi->nlpcons + nrows;
-   sdpi->lpnnonz = sdpi->lpnnonz + nnonz;
+      for (i = 0; i < nnonz; i++)
+      {
+         assert( 0 <= row[i] && row[i] < nrows );
+
+         /* the new rows are added at the end, so the row indices are increased by the old number of LP-constraints */
+         sdpi->lprow[sdpi->lpnnonz + i] = row[i] + sdpi->nlpcons; /*lint !e679*/
+
+         assert( 0 <= col[i] && col[i] < sdpi->nvars ); /* only existing vars should be added to the LP-constraints */
+         sdpi->lpcol[sdpi->lpnnonz + i] = col[i]; /*lint !e679*/
+         sdpi->lpval[sdpi->lpnnonz + i] = val[i]; /*lint !e679*/
+      }
+
+      sdpi->nlpcons = sdpi->nlpcons + nrows;
+      sdpi->lpnnonz = sdpi->lpnnonz + nnonz;
+   }
 
    sdpi->solved = FALSE;
    sdpi->infeasible = FALSE;
