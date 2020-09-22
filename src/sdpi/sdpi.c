@@ -358,7 +358,7 @@ SCIP_RETCODE ensureSDPDataMemory(
    assert( sdpnblockvarnonz != NULL );
    assert( sdpconstnblocknonz != NULL );
 
-   /* we assume that the size for SDP constraint only change seldomly, so we do not use a grow factor */
+   /* we assume that the sizes for SDP constraints only change seldomly, so we do not use a grow factor */
    if ( nsdpblocks > sdpi->maxnsdpblocks )
    {
       oldnsdpblocks = sdpi->maxnsdpblocks;
