@@ -464,8 +464,7 @@ SCIP_RETCODE ensureSDPDataMemory(
 }
 
 
-/** Computes the constant matrix after all variables with lb=ub have been fixed and their nonzeros were moved to the constant part. The five variables
- *  other than sdpi are used to return the matrix.
+/** Computes the constant matrix after all variables with lb=ub have been fixed and their nonzeros were moved to the constant matrix.
  *
  *  The size of sdpconstnblocknonz and the first pointers of sdpconst row/col/val should be equal to sdpi->nsdpblocks,
  *  the size of sdpconst row/col/val [i], which is given in sdpconstblocknnonz, needs to be sufficient, otherwise the
@@ -474,9 +473,8 @@ SCIP_RETCODE ensureSDPDataMemory(
 static
 SCIP_RETCODE compConstMatAfterFixings(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
-   int*                  sdpconstnnonz,      /**< pointer to store number of nonzero elements in the constant matrices of the SDP-blocks */
-   int*                  sdpconstnblocknonz, /**< pointer to store number of nonzeros for each variable in the constant part, also the i-th entry gives the
-                                              *   number of entries  of sdpconst row/col/val [i] */
+   int*                  sdpconstnnonz,      /**< pointer to store the total number of nonzero elements in the constant matrices of the SDP-blocks */
+   int*                  sdpconstnblocknonz, /**< pointer to store number of nonzeros for each variable in the constant matrices */
    int**                 sdpconstrow,        /**< pointer to store row-indices for each block */
    int**                 sdpconstcol,        /**< pointer to store column-indices for each block */
    SCIP_Real**           sdpconstval         /**< pointer to store the values of the nonzeros for each block */
@@ -484,11 +482,10 @@ SCIP_RETCODE compConstMatAfterFixings(
 {
    int i;
    int v;
-   int block;
-   int* nfixednonz;
-   int** fixedrows;
-   int** fixedcols;
-   SCIP_Real** fixedvals;
+   int b;
+   int* fixedrows;
+   int* fixedcols;
+   SCIP_Real* fixedvals;
 
    assert( sdpi != NULL );
    assert( sdpconstnnonz != NULL );
@@ -496,88 +493,48 @@ SCIP_RETCODE compConstMatAfterFixings(
    assert( sdpconstrow != NULL );
    assert( sdpconstcol != NULL );
    assert( sdpconstval != NULL );
-#ifndef NDEBUG
-   for (block = 0; block < sdpi->nsdpblocks; block++)
-   {
-      assert( sdpconstrow[block] != NULL );
-      assert( sdpconstcol[block] != NULL );
-      assert( sdpconstval[block] != NULL );
-   }
-#endif
 
-   fixedrows = NULL;
-   fixedcols = NULL;
-   fixedvals = NULL;
+   *sdpconstnnonz = 0;
 
-   /* allocate memory for the nonzeros that need to be fixed, as this is only temporarly needed, we allocate as much as theoretically possible */
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &nfixednonz, sdpi->nsdpblocks) );
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &fixedrows, sdpi->nsdpblocks) );
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &fixedcols, sdpi->nsdpblocks) );
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &fixedvals, sdpi->nsdpblocks) );
-
-   for (block = 0; block < sdpi->nsdpblocks; block++)
-   {
-      /* compute the number of fixed nonzeros in this block */
-      nfixednonz[block] = 0;
-      for (v = 0; v < sdpi->sdpnblockvars[block]; v++)
-      {
-         if (isFixed(sdpi, sdpi->sdpvar[block][v]))
-            nfixednonz[block] += sdpi->sdpnblockvarnonz[block][v];
-      }
-
-      fixedrows[block] = NULL;
-      fixedcols[block] = NULL;
-      fixedvals[block] = NULL;
-
-      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(fixedrows[block]), nfixednonz[block]) );
-      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(fixedcols[block]), nfixednonz[block]) );
-      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(fixedvals[block]), nfixednonz[block]) );
-
-      /* set nfixednonz to 0 to use it for indexing later (at the end of the next for-block it will again have the same value) */
-      nfixednonz[block] = 0;
-   }
+   /* allocate memory for the nonzeros that need to be fixed */
+   BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &fixedrows, sdpi->sdpnnonz) );
+   BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &fixedcols, sdpi->sdpnnonz) );
+   BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &fixedvals, sdpi->sdpnnonz) );
 
    /* iterate over all variables, saving the nonzeros of the fixed ones */
-   for (block = 0; block < sdpi->nsdpblocks; block++)
+   for (b = 0; b < sdpi->nsdpblocks; ++b)
    {
-      for (v = 0; v < sdpi->sdpnblockvars[block]; v++)
+      int nfixednonz = 0;
+      int varidx;
+
+      for (v = 0; v < sdpi->sdpnblockvars[b]; ++v)
       {
-         if (isFixed(sdpi, sdpi->sdpvar[block][v]))
+         varidx = sdpi->sdpvar[b][v];
+         if ( isFixed(sdpi, varidx) && REALABS(sdpi->lb[varidx]) > sdpi->epsilon )
          {
-            for (i = 0; i < sdpi->sdpnblockvarnonz[block][v]; i++)
+            for (i = 0; i < sdpi->sdpnblockvarnonz[b][v]; ++i)
             {
-               fixedrows[block][nfixednonz[block]] = sdpi->sdprow[block][v][i];
-               fixedcols[block][nfixednonz[block]] = sdpi->sdpcol[block][v][i];
+               fixedrows[nfixednonz] = sdpi->sdprow[b][v][i];
+               fixedcols[nfixednonz] = sdpi->sdpcol[b][v][i];
                /* this is the final value to add, so we no longer have to remember, from which variable this nonzero comes,
                 * the -1 comes from +y_iA_i but -A_0 */
-               fixedvals[block][nfixednonz[block]] = - sdpi->sdpval[block][v][i] * sdpi->lb[sdpi->sdpvar[block][v]];
-               nfixednonz[block]++;
+               fixedvals[nfixednonz] = - sdpi->sdpval[b][v][i] * sdpi->lb[varidx];
+               ++nfixednonz;
             }
          }
       }
+
+      SCIP_CALL( SCIPsdpVarfixerMergeArraysIntoNew(sdpi->blkmem, sdpi->epsilon,
+            sdpi->sdpconstrow[b], sdpi->sdpconstcol[b], sdpi->sdpconstval[b], sdpi->sdpconstnblocknonz[b],
+            fixedrows, fixedcols, fixedvals, nfixednonz,
+            sdpconstrow[b], sdpconstcol[b], sdpconstval[b], &sdpconstnblocknonz[b]) );
+      *sdpconstnnonz += sdpconstnblocknonz[b];
    }
 
-   /* compute the constant matrix */
-   *sdpconstnnonz = 0;
-   for (block = 0; block < sdpi->nsdpblocks; block++)
-   {
-      SCIP_CALL( SCIPsdpVarfixerMergeArraysIntoNew(sdpi->blkmem, sdpi->epsilon, sdpi->sdpconstrow[block], sdpi->sdpconstcol[block], sdpi->sdpconstval[block],
-            sdpi->sdpconstnblocknonz[block], fixedrows[block], fixedcols[block], fixedvals[block], nfixednonz[block],
-            sdpconstrow[block], sdpconstcol[block], sdpconstval[block], &sdpconstnblocknonz[block]) );
-      *sdpconstnnonz += sdpconstnblocknonz[block];
-   }
-
-   /* free all memory */
-   for (block = 0; block < sdpi->nsdpblocks; block++)
-   {
-      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(fixedvals[block]), nfixednonz[block]);
-      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(fixedcols[block]), nfixednonz[block]);
-      BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &(fixedrows[block]), nfixednonz[block]);
-   }
-   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &fixedvals, sdpi->nsdpblocks);
-   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &fixedcols, sdpi->nsdpblocks);
-   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &fixedrows, sdpi->nsdpblocks);
-   BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &nfixednonz, sdpi->nsdpblocks);
+   /* free memory */
+   BMSfreeBufferMemoryArray(sdpi->bufmem, &fixedvals);
+   BMSfreeBufferMemoryArray(sdpi->bufmem, &fixedcols);
+   BMSfreeBufferMemoryArray(sdpi->bufmem, &fixedrows);
 
    return SCIP_OKAY;
 }
@@ -2745,6 +2702,7 @@ SCIP_RETCODE SCIPsdpiSolve(
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) ); /*lint !e776*/
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) ); /*lint !e776*/
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) ); /*lint !e776*/
+      sdpconstnblocknonz[block] = sdpi->sdpnnonz + sdpi->sdpconstnnonz;
    }
 
    /* compute the lplphss and lprhss, detect empty rows and check for additional variable fixings caused by boundchanges from
@@ -2755,10 +2713,6 @@ SCIP_RETCODE SCIPsdpiSolve(
       SCIP_CALL( computeLpLhsRhsAfterFixings(sdpi, &nactivelpcons, lplhsafterfix, lprhsafterfix, rowsnactivevars, &fixingfound) );
    }
    while ( fixingfound );
-
-   /* initialize sdpconstnblocknonz */
-   for (block = 0; block < sdpi->nsdpblocks; block++)
-      sdpconstnblocknonz[block] = sdpi->sdpnnonz + sdpi->sdpconstnnonz;
 
    SCIP_CALL( compConstMatAfterFixings(sdpi, &sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval) );
 
