@@ -2651,6 +2651,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    )
 {
    int* sdpconstnblocknonz = NULL;
+   int* maxsdpconstnblocknonz = NULL;
    int** sdpconstrow = NULL;
    int** sdpconstcol = NULL;
    SCIP_Real** sdpconstval = NULL;
@@ -2668,9 +2669,9 @@ SCIP_RETCODE SCIPsdpiSolve(
    int sdpconstnnonz;
    int nactivelpcons;
    int nremovedblocks = 0;
-   int block;
    int naddediterations;
    int naddedsdpcalls;
+   int b;
 
    assert( sdpi != NULL );
 
@@ -2681,35 +2682,15 @@ SCIP_RETCODE SCIPsdpiSolve(
    sdpi->penalty = FALSE;
    sdpi->bestbound = -SCIPsdpiSolverInfinity(sdpi->sdpisolver);
    sdpi->solved = FALSE;
+   sdpi->infeasible = FALSE;
    sdpi->nsdpcalls = 0;
    sdpi->niterations = 0;
    sdpi->opttime = 0.0;
 
-   /* allocate memory for computing the constant matrix after fixings and finding empty rows and columns, this is as much as might possibly be
-    * needed, this will be shrinked again before solving */
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstnblocknonz, sdpi->nsdpblocks) );
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstrow, sdpi->nsdpblocks) );
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstcol, sdpi->nsdpblocks) );
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstval, sdpi->nsdpblocks) );
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &indchanges, sdpi->nsdpblocks) );
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &nremovedinds, sdpi->nsdpblocks) );
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &blockindchanges, sdpi->nsdpblocks) );
+   /* preform some preprocessing with LP rows */
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &lplhsafterfix, sdpi->nlpcons) );
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &lprhsafterfix, sdpi->nlpcons) );
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &rowsnactivevars, sdpi->nlpcons) );
-
-   for (block = 0; block < sdpi->nsdpblocks; block++)
-   {
-      sdpconstrow[block] = NULL;
-      sdpconstcol[block] = NULL;
-      sdpconstval[block] = NULL;
-      indchanges[block] = NULL;
-      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(indchanges[block]), sdpi->sdpblocksizes[block]) );
-      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) ); /*lint !e776*/
-      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) ); /*lint !e776*/
-      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz) ); /*lint !e776*/
-      sdpconstnblocknonz[block] = sdpi->sdpnnonz + sdpi->sdpconstnnonz;
-   }
 
    /* Compute the lplphs and lprhs, detect empty rows and check for additional variable fixings caused by boundchanges from
     * lp rows with a single active variable. Note that this changes sdpi->lb and sdpi->ub. */
@@ -2719,18 +2700,31 @@ SCIP_RETCODE SCIPsdpiSolve(
    }
    while ( fixingfound );
 
-   SCIP_CALL( compConstMatAfterFixings(sdpi, &sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval) );
+   /* allocate memory for computing the constant matrix after fixings and finding empty rows and columns */
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstnblocknonz, sdpi->nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &maxsdpconstnblocknonz, sdpi->nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstrow, sdpi->nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstcol, sdpi->nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstval, sdpi->nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &indchanges, sdpi->nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &nremovedinds, sdpi->nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &blockindchanges, sdpi->nsdpblocks) );
 
-   /* shrink the constant arrays after the number of fixed nonzeros is known */
-   for (block = 0; block < sdpi->nsdpblocks; block++)
+   for (b = 0; b < sdpi->nsdpblocks; ++b)
    {
-      assert( sdpconstnblocknonz[block] <= sdpi->sdpnnonz + sdpi->sdpconstnnonz ); /* otherwise the memory wasn't sufficient,
-                                                                                     * but we allocated more than enough */
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) ); /*lint !e776*/
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) ); /*lint !e776*/
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpconstnblocknonz[block]) ); /*lint !e776*/
+      maxsdpconstnblocknonz[b] = MIN(sdpi->sdpnnonz + sdpi->sdpconstnnonz, sdpi->sdpblocksizes[b] * (sdpi->sdpblocksizes[b] + 1) / 2);
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[b]), maxsdpconstnblocknonz[b]) ); /*lint !e776*/
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[b]), maxsdpconstnblocknonz[b]) ); /*lint !e776*/
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[b]), maxsdpconstnblocknonz[b]) ); /*lint !e776*/
+      sdpconstnblocknonz[b] = maxsdpconstnblocknonz[b];
+
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(indchanges[b]), sdpi->sdpblocksizes[b]) );
    }
 
+   /* compute constant matrix after fixings */
+   SCIP_CALL( compConstMatAfterFixings(sdpi, &sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval) );
+
+   /* remove empty rows and columns */
    SCIP_CALL( findEmptyRowColsSDP(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges, nremovedinds, blockindchanges, &nremovedblocks) );
 
    /* check if all variables are fixed, if this is the case, check if the remaining solution if feasible (we only need to check the SDP-constraint,
@@ -2998,12 +2992,12 @@ SCIP_RETCODE SCIPsdpiSolve(
    }
 
    /* empty the memory allocated here */
-   for (block = 0; block < sdpi->nsdpblocks; block++)
+   for (b = sdpi->nsdpblocks - 1; b >= 0; --b)
    {
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstval[block]), sdpconstnblocknonz[block]);/*lint !e737*/
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[block]), sdpconstnblocknonz[block]);/*lint !e737*/
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[block]), sdpconstnblocknonz[block]);/*lint !e737*/
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(indchanges[block]), sdpi->sdpblocksizes[block]);/*lint !e737*/
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(indchanges[b]), sdpi->sdpblocksizes[b]);/*lint !e737*/
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstval[b]), maxsdpconstnblocknonz[b]);/*lint !e737*/
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[b]), maxsdpconstnblocknonz[b]);/*lint !e737*/
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[b]), maxsdpconstnblocknonz[b]);/*lint !e737*/
    }
    BMSfreeBlockMemoryArray(sdpi->blkmem, &rowsnactivevars, sdpi->nlpcons);/*lint !e737*/
    BMSfreeBlockMemoryArray(sdpi->blkmem, &lprhsafterfix, sdpi->nlpcons);/*lint !e737*/
@@ -3014,6 +3008,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstval, sdpi->nsdpblocks);/*lint !e737*/
    BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstcol, sdpi->nsdpblocks);/*lint !e737*/
    BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstrow, sdpi->nsdpblocks);/*lint !e737*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &maxsdpconstnblocknonz, sdpi->nsdpblocks);/*lint !e737*/
    BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstnblocknonz, sdpi->nsdpblocks);/*lint !e737*/
 
    sdpi->sdpid++;
