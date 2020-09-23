@@ -1564,7 +1564,7 @@ SCIP_RETCODE addTwoMinorSOCConstraints(
             else
             {
                /* create matrix variable */
-               (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "M%d#%d", s, t);
+               (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "M%d#%d#%d", c, s, t);
                SCIP_CALL( SCIPcreateVarBasic(scip, &matrixvar, name, -SCIPinfinity(scip), SCIPinfinity(scip), 0.0, SCIP_VARTYPE_CONTINUOUS) );
                SCIP_CALL( SCIPaddVar(scip, matrixvar) );
 
@@ -1575,7 +1575,7 @@ SCIP_RETCODE addTwoMinorSOCConstraints(
                lhs = constmatrix[s * blocksize + t];
 
                /* create linear constraint */
-               (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "C%d#%d", s, t);
+               (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "C%d#%d#%d", c, s, t);
                SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, lhs, lhs,
                      TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
                SCIP_CALL( SCIPaddCons(scip, cons) );
@@ -1595,7 +1595,7 @@ SCIP_RETCODE addTwoMinorSOCConstraints(
                continue;
 
             /* create variable for sum of two matrix variables (note they they are nonnegative) */
-            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "sum%d#%d", s, t);
+            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "sum%d#%d#%d", c, s, t);
             SCIP_CALL( SCIPcreateVarBasic(scip, &matrixsumvar, name, 0.0, SCIPinfinity(scip), 0.0, SCIP_VARTYPE_CONTINUOUS) );
             SCIP_CALL( SCIPaddVar(scip, matrixsumvar) );
 
@@ -1608,14 +1608,14 @@ SCIP_RETCODE addTwoMinorSOCConstraints(
             consvals[2] = -1.0;
 
             /* create linear constraint */
-            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "Sum%d#%d", s, t);
+            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "Sum%d#%d#%d", c, s, t);
             SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, 3, consvars, consvals, 0.0, 0.0,
                   TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
             SCIP_CALL( SCIPaddCons(scip, cons) );
             SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
             /* create variable for difference of two matrix variablees */
-            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "diff%d#%d", s, t);
+            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "diff%d#%d#%d", c, s, t);
             SCIP_CALL( SCIPcreateVarBasic(scip, &matrixdiffvar, name, -SCIPinfinity(scip), SCIPinfinity(scip), 0.0, SCIP_VARTYPE_CONTINUOUS) );
             SCIP_CALL( SCIPaddVar(scip, matrixdiffvar) );
 
@@ -1628,7 +1628,7 @@ SCIP_RETCODE addTwoMinorSOCConstraints(
             consvals[2] = -1.0;
 
             /* create linear constraint */
-            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "Diff%d#%d", s, t);
+            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "Diff%d#%d#%d", c, s, t);
             SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, 3, consvars, consvals, 0.0, 0.0,
                   TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
             SCIP_CALL( SCIPaddCons(scip, cons) );
@@ -1642,7 +1642,7 @@ SCIP_RETCODE addTwoMinorSOCConstraints(
             consvals[1] = 1.0;
 
             /* add SOC constraint (only propagate) */
-            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "2x2minorSOC#%d#%d", s, t);
+            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "2x2minorSOC#%d#%d#%d", c, s, t);
 
             SCIP_CALL( SCIPcreateConsSOC(scip, &cons, name, 2, consvars, consvals, NULL, 0.0, matrixsumvar, 1.0, 0.0,
                   TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE) );
