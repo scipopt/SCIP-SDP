@@ -765,6 +765,20 @@ SCIP_Real SCIPsdpiSolverGetMaxPrimalEntry(
    return 0.0;
 }
 
+/** gets the time for the last SDP optimization call of solver */
+SCIP_RETCODE SCIPsdpiSolverGetTime(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
+   SCIP_Real*            opttime             /**< pointer to store the time for optimization of the solver */
+   )
+{
+   assert( sdpisolver != NULL );
+   assert( opttime != NULL );
+
+   *opttime = 0.0;
+
+   return SCIP_OKAY;
+}
+
 /** gets the number of SDP iterations of the last solve call */
 SCIP_RETCODE SCIPsdpiSolverGetIterations(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */

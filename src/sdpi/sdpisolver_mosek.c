@@ -102,6 +102,7 @@ struct SCIP_SDPiSolver
    BMS_BUFMEM*           bufmem;             /**< buffer memory */
    MSKenv_t              mskenv;             /**< MOSEK environement */
    MSKtask_t             msktask;            /**< MOSEK task */
+   SCIP_Real             opttime;            /**< time spend in optimziation */
    int                   nvars;              /**< number of input variables */
    int                   nactivevars;        /**< number of variables present in the dual problem in MOSEK (nvars minus the number of variables with lb = ub) */
    int*                  inputtomosekmapper; /**< entry i gives the index of input variable i in MOSEK (starting from 0) or
@@ -396,6 +397,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
 
    /* this will be properly initialized then calling solve */
    (*sdpisolver)->msktask = NULL;
+   (*sdpisolver)->opttime = 0.0;
 
    (*sdpisolver)->nvars = 0;
    (*sdpisolver)->nactivevars = 0;
@@ -1347,6 +1349,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       /* solve the problem */
       MOSEK_CALL( MSK_optimizetrm(sdpisolver->msktask, &(sdpisolver->terminationcode)) );/*lint !e641*/
+      MOSEK_CALL( MSK_getdouinf(sdpisolver->msktask, MSK_DINF_OPTIMIZER_TIME, &sdpisolver->opttime) );
 
       if ( sdpisolver->sdpinfo )
       {
@@ -1418,6 +1421,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
                /* solve the problem */
                MOSEK_CALL( MSK_optimizetrm(sdpisolver->msktask, &(sdpisolver->terminationcode)) );/*lint !e641*/
+               {
+                  SCIP_Real opttime;
+                  MOSEK_CALL( MSK_getdouinf(sdpisolver->msktask, MSK_DINF_OPTIMIZER_TIME, &opttime) );
+                  sdpisolver->opttime += opttime;
+               }
 
                if ( sdpisolver->sdpinfo )
                {
@@ -2272,12 +2280,29 @@ SCIP_Real SCIPsdpiSolverGetMaxPrimalEntry(
    return SCIP_INVALID;
 }
 
+/** gets the time for the last SDP optimization call of solver */
+SCIP_RETCODE SCIPsdpiSolverGetTime(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
+   SCIP_Real*            opttime             /**< pointer to store the time for optimization of the solver */
+   )
+{
+   assert( sdpisolver != NULL );
+   assert( opttime != NULL );
+
+   *opttime = sdpisolver->opttime;
+
+   return SCIP_OKAY;
+}
+
 /** gets the number of SDP iterations of the last solve call */
 SCIP_RETCODE SCIPsdpiSolverGetIterations(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
    int*                  iterations          /**< pointer to store the number of iterations of the last solve call */
    )
 {
+   assert( sdpisolver != NULL );
+   assert( iterations != NULL );
+
    if ( sdpisolver->timelimitinitial )
       *iterations = 0;
    else

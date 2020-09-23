@@ -139,6 +139,12 @@ SCIP_Bool SCIPrelaxSdpIsUnbounded(
    SCIP_RELAX*           relax               /**< SDP-relaxator to check for unboundedness */
    );
 
+/** returns time in optimization of solver */
+SCIP_EXPORT
+SCIP_Real SCIPrelaxSdpGetOptTime(
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get the iterations for */
+   );
+
 /** returns total number of SDP-iterations */
 SCIP_EXPORT
 int SCIPrelaxSdpGetNIterations(
@@ -329,6 +335,13 @@ int SCIPrelaxSdpGetNSlaterInfeasibleBounded(
 SCIP_EXPORT
 int SCIPrelaxSdpGetNSlaterInfeasibleUnsolved(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get number for */
+   );
+
+/** returns solving time in SDP solver */
+SCIP_EXPORT
+SCIP_Real SCIPrelaxSdpGetSolvingTime(
+   SCIP*                 scip,               /**< SCIP pointer */
+   SCIP_RELAX*           relax               /**< SDP-relaxator to get timer for */
    );
 
 #ifdef __cplusplus
