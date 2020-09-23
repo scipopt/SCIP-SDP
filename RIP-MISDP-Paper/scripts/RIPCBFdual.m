@@ -3,7 +3,10 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
 % (mit Skalarvariablen) für Matrix A, Ordnung k, schreibt in 'file' 
 % side ='l' für linke Seite/alpha_k, side='r' für rechte Seite/beta_k
 % Rank = 1 für zusätzliche Rang-NB, sonst Rank = 0
-% socp = 1 für zusätzliche gültige SOCP-Ungleichung von Li/Xie, sonst = 0
+% socp = Variante der zusätzlichen gültigen SOCP-Ungleichungen von Li/Xie
+%        0: keine zusätzlichen gültigen SOCP-Ungleichungen
+%        1: gültige SOCP-Ungleichungen als SDP-Constraint
+%        2: gültige SOCP-Ungleichungen als SOCP-Constraint
 % strgbnds = 1 falls für nichtnegative Matrizen A die Schranke 0 <= X_{ij}
 % statt -z_j <= X_{ij} für alle i,j benutzt werden soll, sonst = 0
 % trineq = 1 falls trace(X) <= 1 (rechte Seite) bzw trace(X) >= 1 (linke
@@ -28,7 +31,7 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
     end
     
     % SOCP-inequality is only valid for right side of the RIP
-    if socp == 1 && ~side == 'r'
+    if socp >= 1 && ~side == 'r'
         socp = 0;
         fprintf("Setting socp = 0, since this only works for right side of RIP!\n");
     end
@@ -54,7 +57,7 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
         error("Error: Option <%s> for parameter side not valid!\n", side);
     end
 
-    % add scalar variables z and X_{ij}
+    %% add scalar variables z and X_{ij}
     fprintf(fid, "VAR\n");
     fprintf(fid, "%d 2\n", n+0.5*n*(n+1));
     fprintf(fid, "L+ %d\n", n);
@@ -68,7 +71,7 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
     fprintf(fid, "\n");
 
 
-    % objective
+    %% objective
     fprintf(fid, "OBJACOORD\n");
     fprintf(fid, "%d\n", 0.5*n*(n+1));
     cnt = 0;
@@ -92,7 +95,7 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
         error("Error while writing OBJACOORD!");
     end
 
-    % all scalar variables z are binary
+    %% all scalar variables z are binary
     fprintf(fid, "INT\n");
     fprintf(fid, "%d\n", n);
     for j = 0:n-1
@@ -100,9 +103,9 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
     end
     fprintf(fid, "\n");
 
-    % add psd constraints
+    %% add psd constraints
     fprintf(fid, "PSDCON\n");
-    if socp == 0
+    if socp == 0 || socp == 2
         fprintf(fid, "1\n");
         fprintf(fid, "%d\n", n);
     elseif socp == 1
@@ -117,7 +120,7 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
     fprintf(fid, "\n");
 
 
-    % add rank1-constraint
+    %% add rank1-constraint
     if ( Rank == 1 )
         fprintf(fid, "PSDCONRANK1\n");
         fprintf(fid, "1\n");
@@ -125,16 +128,21 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
         fprintf(fid, "\n");
     end
 
-
-    % ------------------------------------------
-    % constraints
+    %% constraints
     fprintf(fid, "CON\n");
-    if boundver == 0
-        ncons = 3*n+2 - strgbnds*n;
+    if socp == 2
+        ncons = n*(n+2);
+        ncones = n;
     else
-        ncons = 2*n^2+n+2 - strgbnds*n^2;
+        ncons = 0;
+        ncones = 0;
     end
-    ncones = 5 - strgbnds;
+    if boundver == 0
+        ncons = ncons + 3*n+2 - strgbnds*n;
+    else
+        ncons = ncons + 2*n^2+n+2 - strgbnds*n^2;
+    end
+    ncones = ncones + 5 - strgbnds;
     fprintf(fid, "%d %d\n", ncons,ncones);
     fprintf(fid, "L+ %d\n", n);                % -z_j + 1 >= 0
     if strgbnds == 0
@@ -161,15 +169,26 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
         error("Error: Option <%s> for parameter trineq not valid!\n", trineq);
     end          
     fprintf(fid, "L- 1\n");                    % \sum_j z_j <= k
+    % SOCP constraints (as SOCP cons) are the last constraints
+    if socp == 2
+        for i = 0:n-1
+            fprintf(fid, "Q %d\n", n+2);       % \sum_j x_{ij}^2 <= X_{ii}z_i
+        end
+    end
     fprintf(fid, "\n");
     
     
-    % write ACOORD
+    %% write ACOORD
     fprintf(fid, "ACOORD\n");
-    if boundver == 0
-        nACOORD = 7*n - strgbnds*2*n;
+    if socp == 2
+        nACOORD = n*(n+4);
     else
-        nACOORD = 4*n^2+3*n - strgbnds*2*n^2;
+        nACOORD = 0;
+    end
+    if boundver == 0
+        nACOORD = nACOORD + 7*n - strgbnds*2*n;
+    else
+        nACOORD = nACOORD + 4*n^2+3*n - strgbnds*2*n^2;
     end
     fprintf(fid, "%d\n", nACOORD);
     cnt = 0;       % counts number of specified entries
@@ -273,6 +292,29 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
         cnt = cnt + 1;
     end
     conscnt = conscnt + 1;
+    
+    % SOCP constraints
+    if socp == 2
+        for i = 0:n-1
+            fprintf(fid, "%d %d 0.5\n", conscnt, n+0.5*i*(i+1)+i);
+            fprintf(fid, "%d %d 0.5\n", conscnt, i);
+            conscnt = conscnt + 1;
+            cnt = cnt + 2;
+            for j = 0:n-1
+                if i >= j
+                    fprintf(fid, "%d %d 1.0\n", conscnt, n+0.5*i*(i+1)+j);
+                else
+                    fprintf(fid, "%d %d 1.0\n", conscnt, n+0.5*j*(j+1)+i);
+                end
+                conscnt = conscnt + 1;
+                cnt = cnt + 1;
+            end
+            fprintf(fid, "%d %d 0.5\n", conscnt, n+0.5*i*(i+1)+i);
+            fprintf(fid, "%d %d -0.5\n", conscnt, i);
+            conscnt = conscnt + 1;
+            cnt = cnt + 2;
+        end
+    end
 
     fprintf(fid, "\n");
     if (cnt ~= nACOORD || conscnt ~= ncons)
@@ -281,7 +323,7 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
         error("Error: Something went wrong when writing ACOORD!\n");
     end
 
-    % write BCOORD
+    %% write BCOORD
     fprintf(fid, "BCOORD\n");
     fprintf(fid, "%d\n", n+2);
     conscnt = 0;
@@ -331,6 +373,11 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
     conscnt = conscnt + 1;
 
     fprintf(fid, "\n");
+    
+    % nothing to add for SOCP constraint
+    if socp == 2
+        conscnt = conscnt + n*(n+2);
+    end
 
     if ( conscnt ~= ncons || cnt ~= n+2 )
         fprintf("conscnt is = %d, should be %d\n",conscnt, ncons);
@@ -339,9 +386,14 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
     end
 
 
-    % write HCOORD
+    %% write HCOORD
     fprintf(fid, "HCOORD\n");
-    nHCOORD = 0.5*n*(n+1) + socp*(4*n+n^2);
+    if socp == 1
+        nHCOORD = 4*n+n^2;
+    else
+        nHCOORD = 0;
+    end
+    nHCOORD = nHCOORD + 0.5*n*(n+1);
     fprintf(fid, "%d\n", nHCOORD);
 
     cnt = 0;       % counts number of specified entries
@@ -375,7 +427,7 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
         error("Error: Something went wrong when writing HCOORD!\n");
     end
 
-    % write DCOORD
+    %% write DCOORD
     if socp == 1
         fprintf(fid, "DCOORD\n");
         fprintf(fid, "%d\n", n*(n+1));
@@ -392,6 +444,6 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
     end
 
 
-    % close file
+    %% close file
     fclose(fid);    
 end

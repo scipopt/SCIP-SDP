@@ -3,7 +3,10 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
 % (mit PSD-Variablen) für Matrix A, Ordnung k, schreibt in 'file' 
 % side ='l' für linke Seite/alpha_k, side='r' für rechte Seite/beta_k
 % Rank = 1 für zusätzliche Rang-NB, sonst Rank = 0
-% socp = 1 für zusätzliche gültige SOCP-Ungleichung von Li/Xie, sonst = 0
+% socp = Variante der zusätzlichen gültigen SOCP-Ungleichungen von Li/Xie
+%        0: keine zusätzlichen gültigen SOCP-Ungleichungen
+%        1: gültige SOCP-Ungleichungen als SDP-Constraint
+%        2: gültige SOCP-Ungleichungen als SOCP-Constraint
 % strgbnds = 1 falls für nichtnegative Matrizen A die Schranke 0 <= X_{ij}
 % statt -z_j <= X_{ij} für alle i,j benutzt werden soll, sonst = 0
 % trineq = 1 falls trace(X) <= 1 (rechte Seite) bzw trace(X) >= 1 (linke
@@ -28,7 +31,7 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
     end
     
     % SOCP-inequality is only valid for right side of the RIP
-    if socp == 1 && ~side == 'r'
+    if socp >= 1 && ~side == 'r'
         socp = 0;
         fprintf("Setting socp = 0, since this only works for right side of RIP!\n");
     end
@@ -62,7 +65,7 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
 
     %% add Matrix variables X
     fprintf(fid, "PSDVAR\n");
-    if socp == 0
+    if socp == 0 || socp == 2
         fprintf(fid, "1\n");
         fprintf(fid, "%d\n", n);
     elseif socp == 1
@@ -114,15 +117,25 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
 
     fprintf(fid, "CON\n");
     nsocpcons = 0.5*n*(n+3)*(n+2);
-    if boundver == 0
-        ncons = 3*n+2 + socp*nsocpcons;
+    if socp == 2
+        ncons = n*(n+2);
+        ncones = n;
+    elseif socp == 1
+        ncons = nsocpcons;
+        ncones = 1;
     else
-        ncons = 2*n^2+n+2 + socp*nsocpcons - strgbnds*0.5*n*(n-1);
+        ncons = 0;
+        ncones = 0;
     end
-    ncones = 5 + socp;
+    if boundver == 0
+        ncons = ncons + 3*n+2;
+    else
+        ncons = ncons + 2*n^2+n+2 - strgbnds*0.5*n*(n-1);
+    end
+    ncones = ncones + 5;
     fprintf(fid, "%d %d\n", ncons, ncones);
     if socp == 1
-        % SOCP constraint is the first constraint
+        % SOCP constraint (as PSD cons) is the first constraint
         fprintf(fid, "L= %d\n", nsocpcons);    % \sum_j X_{ij}^2 <= X_{ii}z_i
     end
     fprintf(fid, "L+ %d\n", n);                % -z_j + 1 >= 0
@@ -146,14 +159,27 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
         error("Error: Option <%s> for parameter trineq not valid!\n", trineq);
     end              
     fprintf(fid, "L- 1\n");                    % \sum_j z_j <= k
+    % SOCP constraints (as SOCP cons) are the last constraints
+    if socp == 2
+        for i = 0:n-1
+            fprintf(fid, "Q %d\n", n+2);       % \sum_j x_{ij}^2 <= X_{ii}z_i
+        end
+    end
     fprintf(fid, "\n");
 
     %% write FCOORD
     fprintf(fid, "FCOORD\n");
-    if boundver == 0
-        nFCOORD = 3*n + socp*(n*(3*n+5+0.5*n*(n+1)));
+    if socp == 2
+        nFCOORD = n*(n+2);
+    elseif socp == 1
+        nFCOORD = n*(3*n+5+0.5*n*(n+1));
     else
-        nFCOORD = 2*n^2+n + socp*(n*(3*n+5+0.5*n*(n+1))) - strgbnds*0.5*n*(n-1);
+        nFCOORD = 0;
+    end
+    if boundver == 0
+        nFCOORD = nFCOORD + 3*n;
+    else
+        nFCOORD = nFCOORD + 2*n^2+n - strgbnds*0.5*n*(n-1);
     end
     fprintf(fid, "%d\n", nFCOORD);
     cnt = 0;
@@ -197,11 +223,11 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
                 end
             end
         end
-    end
-    if ( conscnt ~= socp*nsocpcons || cnt ~= socp*(n*(3*n+5+0.5*n*(n+1))) )
-        fprintf("conscnt is = %d, should be = %d\n",conscnt, socp*nsocpcons);
-        fprintf("cnt is = %d, should be = %d\n",cnt,socp*(n*(3*n+5+0.5*n*(n+1))));
-        error("Error while writing FCOORD for SOCP constraint!\n");
+        if ( conscnt ~= nsocpcons || cnt ~= n*(3*n+5+0.5*n*(n+1)) )
+            fprintf("conscnt is = %d, should be = %d\n", conscnt, nsocpcons);
+            fprintf("cnt is = %d, should be = %d\n", cnt, n*(3*n+5+0.5*n*(n+1)) );
+            error("Error while writing FCOORD for SOCP constraint!\n");
+        end
     end
 
     % no FCOORD for -z_j + 1 >= 0
@@ -271,6 +297,27 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
 
     % no FCOORD for sparsity constraint
     conscnt = conscnt + 1;
+    
+    % SOCP constraints
+    if socp == 2
+        for i = 0:n-1
+            fprintf(fid, "%d 0 %d %d 0.5\n", conscnt, i, i);
+            conscnt = conscnt + 1;
+            cnt = cnt + 1;
+            for j = 0:n-1
+                if i >= j
+                    fprintf(fid, "%d 0 %d %d 1.0\n", conscnt, i, j);
+                else
+                    fprintf(fid, "%d 0 %d %d 1.0\n", conscnt, j, i);
+                end
+                conscnt = conscnt + 1;
+                cnt = cnt + 1;
+            end
+            fprintf(fid, "%d 0 %d %d 0.5\n", conscnt, i, i);
+            conscnt = conscnt + 1;
+            cnt = cnt + 1;
+        end
+    end
 
     fprintf(fid, "\n");
 
@@ -282,14 +329,18 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
 
     %% ACOORD
     fprintf(fid, "ACOORD\n");
-    if boundver == 0
-        nACOORD = 4*n + socp*(2*n) - strgbnds*n;
+    if socp == 1 || socp == 2
+        nACOORD = 2*n;
     else
-        nACOORD = 2*n^2+2*n + socp*(2*n) - strgbnds*(n^2);
+        nACOORD = 0;
+    end
+    if boundver == 0
+        nACOORD = nACOORD + 4*n - strgbnds*n;
+    else
+        nACOORD = nACOORD + 2*n^2+2*n - strgbnds*(n^2);
     end
     fprintf(fid, "%d\n", nACOORD);
     cnt = 0;
-    conscnt = 0;
 
     % SOCP constraint
     if socp == 1
@@ -299,13 +350,17 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
             cnt = cnt + 1;
             fprintf(fid, "%d %d 0.5\n",pos+2*n+2,i);
             cnt = cnt + 1;
-        end        
+        end
+        if cnt ~= 2*n
+            error("Error while writing ACOORD for SOCP constraint!\n");
+        end
     end
 
-    conscnt = socp*nsocpcons;
-    if cnt ~= socp*(2*n)
-        error("Error while writing ACOORD for SOCP constraint!\n");
-    end  
+    if socp == 1
+        conscnt = nsocpcons;
+    else
+        conscnt = 0;
+    end
     
     % add upper strgbnds on z
     for j = 0:n-1
@@ -370,17 +425,36 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
         cnt = cnt + 1;
     end
     conscnt = conscnt + 1;
+    
+    % SOCP constraints
+    if socp == 2
+        for i = 0:n-1
+            fprintf(fid, "%d %d 0.5\n", conscnt, i);
+            conscnt = conscnt +1;
+            for j = 0:n-1
+                conscnt = conscnt + 1;
+            end
+            fprintf(fid, "%d %d -0.5\n", conscnt, i);
+            cnt = cnt + 2;
+            conscnt = conscnt + 1;
+        end
+    end
 
     fprintf(fid, "\n");
     if ( conscnt ~= ncons || cnt ~= nACOORD )
+        fprintf("conscnt is = %d, should be = %d\n", conscnt, ncons);
+        fprintf("cnt is = %d, should be = %d\n", cnt, nACOORD);
         error("Error: Something went wrong when writing ACOORD!\n");
     end
 
     %% write BCOORD
     fprintf(fid, "BCOORD\n");
-    nBCOORD = n+2 + socp*(n*(n+1));
+    if socp == 1
+        nBCOORD = n+2 + n*(n+1);
+    else
+        nBCOORD = n+2;
+    end
     fprintf(fid, "%d\n", nBCOORD);
-    conscnt = 0;
     cnt = 0;
 
     % SOCP constraint
@@ -392,11 +466,15 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
                 cnt = cnt + 1;
             end
         end
+        if cnt ~= n*(n+1)
+            error("Error while writing BCOORD for SOCP constraint!\n");        
+        end
     end
-    if cnt ~= socp*n*(n+1)
-        error("Error while writing BCOORD for SOCP constraint!\n");
-    end        
-    conscnt = socp*nsocpcons;
+    if socp == 1
+        conscnt = nsocpcons;
+    else
+        conscnt = 0;
+    end
     
     % z < = 1
     for j = 0:n-1
@@ -445,10 +523,15 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
     conscnt = conscnt + 1;
     cnt = cnt + 1;
 
+    % nothing to add for SOCP constraint
+    if socp == 2
+        conscnt = conscnt + n*(n+2);
+    end
+    
     fprintf(fid, "\n");
     if ( conscnt ~= ncons || cnt ~= nBCOORD )
-        fprintf("conscnt is = %d, should be = %d\n",conscnt, ncons);
-        fprintf("cnt is = %d, should be = %d\n",cnt,nBCOORD);
+        fprintf("conscnt is = %d, should be = %d\n", conscnt, ncons);
+        fprintf("cnt is = %d, should be = %d\n", cnt, nBCOORD);
         error("Error: Something went wrong when writing BCOORD!\n");
     end
 

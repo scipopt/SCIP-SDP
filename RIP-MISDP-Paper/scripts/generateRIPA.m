@@ -119,7 +119,7 @@ for instance=1:instances
     
     % 2. CBF
     rank = [0,1];
-    socp = [0,1];
+    socp = [0,1,2];
     usestrgbnds = true;
     primaldual = "pd";
     trineq = [0,1];
