@@ -171,15 +171,16 @@ struct SCIP_SDPi
 
    /* non-constant SDP data: */
    int                   sdpnnonz;           /**< number of nonzero elements in the SDP-constraint matrices */
-   int**                 sdpnblockvarnonz;   /**< sdpnblockvarnonz[i][j] gives the number of nonzeros for the j-th variable (not necessarly
-                                              *   variable j) in the i-th block, this is also the length of row/col/val[i][j] */
-   int**                 maxsdpnblockvarnonz;/**< maximal number of nonzeros in each matrix */
-   int**                 sdpvar;             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
-                                              *   in the i-th block */
-   int***                sdprow;             /**< pointer to the row-indices for each block and variable in this block, so row[i][j][k] gives
-                                              *   the k-th nonzero of the j-th variable (not necessarly variable j) in the i-th block */
-   int***                sdpcol;             /**< pointer to the column-indices for each block and variable in this block */
-   SCIP_Real***          sdpval;             /**< pointer to the values of the nonzeros for each block and variable in this block */
+   int**                 sdpnblockvarnonz;   /**< sdpnblockvarnonz[i][j] = nonzeros of j-th variable in i-th block (length of row/col/val[i][j]) */
+   int**                 sdpvar;             /**< sdpvar[b][j] = sdp-index of j-th variable in block b */
+   int***                sdprow;             /**< sdprow[b][v][j] = row of j-th nonzero of variable v in block b */
+   int***                sdpcol;             /**< sdprow[b][v][j] = column of j-th nonzero of variable v in block b */
+   SCIP_Real***          sdpval;             /**< sdpval[i][j][k] = value of j-th nonzero of variable v in block b */
+
+   int                   maxsdpstore;        /**< size of the storage arrays */
+   int*                  sdprowstore;        /**< array to store all rows */
+   int*                  sdpcolstore;        /**< array to store all columns */
+   SCIP_Real*            sdpvalstore;        /**< array to store all nonzeros */
 
    /* lp data: */
    int                   nlpcons;            /**< number of LP-constraints */
@@ -346,10 +347,12 @@ SCIP_RETCODE ensureSDPDataMemory(
    int                   nsdpblocks,         /**< number of required SDP blocks */
    int*                  sdpnblockvars,      /**< number of block variables */
    int**                 sdpnblockvarnonz,   /**< number of nonzeros in each matrix */
-   int*                  sdpconstnblocknonz  /**< number of nonzeros in constant matrix */
+   int*                  sdpconstnblocknonz, /**< number of nonzeros in constant matrix */
+   int                   sdpnnonz            /**< total number of nonzeros */
    )
 {
    int oldnsdpblocks;
+   int cnt = 0;
    int b;
    int v;
 
@@ -357,6 +360,15 @@ SCIP_RETCODE ensureSDPDataMemory(
    assert( sdpnblockvars != NULL );
    assert( sdpnblockvarnonz != NULL );
    assert( sdpconstnblocknonz != NULL );
+
+   if ( sdpnnonz > sdpi->maxsdpstore )
+   {
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprowstore), sdpi->maxsdpstore, sdpnnonz) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcolstore), sdpi->maxsdpstore, sdpnnonz) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpvalstore), sdpi->maxsdpstore, sdpnnonz) );
+      sdpi->maxsdpstore = sdpnnonz;
+   }
+   sdpi->sdpnnonz = sdpnnonz;
 
    /* we assume that the sizes for SDP constraints only change seldomly, so we do not use a grow factor */
    if ( nsdpblocks > sdpi->maxnsdpblocks )
@@ -370,7 +382,6 @@ SCIP_RETCODE ensureSDPDataMemory(
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstnblocknonz), sdpi->maxnsdpblocks, nsdpblocks) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->maxsdpconstnblocknonz), sdpi->maxnsdpblocks, nsdpblocks) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz), sdpi->maxnsdpblocks, nsdpblocks) );
-      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->maxsdpnblockvarnonz), sdpi->maxnsdpblocks, nsdpblocks) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstcol), sdpi->maxnsdpblocks, nsdpblocks) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstrow), sdpi->maxnsdpblocks, nsdpblocks) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval), sdpi->maxnsdpblocks, nsdpblocks) );
@@ -386,8 +397,6 @@ SCIP_RETCODE ensureSDPDataMemory(
    /* loop through previously existing blocks */
    for (b = 0; b < oldnsdpblocks; ++b)
    {
-      int oldsdpnblockvars;
-
       /* the following array pointers should be initialized */
       if ( sdpconstnblocknonz[b] > sdpi->maxsdpconstnblocknonz[b] )
       {
@@ -399,47 +408,30 @@ SCIP_RETCODE ensureSDPDataMemory(
 
       if ( sdpnblockvars[b] > sdpi->maxsdpnblockvars[b] )
       {
-         oldsdpnblockvars = sdpi->maxsdpnblockvars[b];
          assert( sdpi->sdpnblockvarnonz[b] != NULL );
-         assert( sdpi->maxsdpnblockvarnonz[b] != NULL );
          BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz[b]), sdpi->maxsdpnblockvars[b], sdpnblockvars[b]) );
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->maxsdpnblockvarnonz[b]), sdpi->maxsdpnblockvars[b], sdpnblockvars[b]) );
          BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpvar[b]), sdpi->maxsdpnblockvars[b], sdpnblockvars[b]) );
          BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[b]), sdpi->maxsdpnblockvars[b], sdpnblockvars[b]) );
          BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[b]), sdpi->maxsdpnblockvars[b], sdpnblockvars[b]) );
          BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[b]), sdpi->maxsdpnblockvars[b], sdpnblockvars[b]) );
          sdpi->maxsdpnblockvars[b] = sdpnblockvars[b];
       }
-      else
-         oldsdpnblockvars = sdpnblockvars[b];
 
-      /* loop through previously existing variables */
-      for (v = 0; v < oldsdpnblockvars; ++v)
+      /* set pointers into storage */
+      for (v = 0; v < sdpnblockvars[b]; ++v)
       {
-         if ( sdpnblockvarnonz[b][v] > sdpi->maxsdpnblockvarnonz[b][v] )
-         {
-            BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[b][v]), sdpi->maxsdpnblockvarnonz[b][v], sdpnblockvarnonz[b][v]) );
-            BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[b][v]), sdpi->maxsdpnblockvarnonz[b][v], sdpnblockvarnonz[b][v]) );
-            BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[b][v]), sdpi->maxsdpnblockvarnonz[b][v], sdpnblockvarnonz[b][v]) );
-            sdpi->maxsdpnblockvarnonz[b][v] = sdpnblockvarnonz[b][v];
-         }
+         sdpi->sdprow[b][v] = &sdpi->sdprowstore[cnt];
+         sdpi->sdpcol[b][v] = &sdpi->sdpcolstore[cnt];
+         sdpi->sdpval[b][v] = &sdpi->sdpvalstore[cnt];
+         cnt += sdpnblockvarnonz[b][v];
       }
-
-      /* loop through new variables */
-      for (v = oldsdpnblockvars; v < sdpnblockvars[b]; ++v)
-      {
-         BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[b][v]), sdpnblockvarnonz[b][v]) );
-         BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[b][v]), sdpnblockvarnonz[b][v]) );
-         BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[b][v]), sdpnblockvarnonz[b][v]) );
-         sdpi->maxsdpnblockvarnonz[b][v] = sdpnblockvarnonz[b][v];
-      }
+      assert( cnt <= sdpi->maxsdpstore );
    }
 
    /* loop through new blocks */
    for (b = oldnsdpblocks; b < nsdpblocks; ++b)
    {
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz[b]), sdpnblockvars[b]) );
-      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->maxsdpnblockvarnonz[b]), sdpnblockvars[b]) );
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpvar[b]), sdpnblockvars[b]) );
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[b]), sdpnblockvars[b]) );
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[b]), sdpnblockvars[b]) );
@@ -451,12 +443,13 @@ SCIP_RETCODE ensureSDPDataMemory(
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstval[b]), sdpconstnblocknonz[b]) );
       sdpi->maxsdpconstnblocknonz[b] = sdpconstnblocknonz[b];
 
+      /* set pointers into storage */
       for (v = 0; v < sdpnblockvars[b]; ++v)
       {
-         BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow[b][v]), sdpnblockvarnonz[b][v]) );
-         BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[b][v]), sdpnblockvarnonz[b][v]) );
-         BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[b][v]), sdpnblockvarnonz[b][v]) );
-         sdpi->maxsdpnblockvarnonz[b][v] = sdpnblockvarnonz[b][v];
+         sdpi->sdprow[b][v] = &sdpi->sdprowstore[cnt];
+         sdpi->sdpcol[b][v] = &sdpi->sdpcolstore[cnt];
+         sdpi->sdpval[b][v] = &sdpi->sdpvalstore[cnt];
+         cnt += sdpnblockvarnonz[b][v];
       }
    }
 
@@ -1671,11 +1664,15 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->sdpconstcol = NULL;
    (*sdpi)->sdpconstval = NULL;
    (*sdpi)->sdpnblockvarnonz = NULL;
-   (*sdpi)->maxsdpnblockvarnonz = NULL;
    (*sdpi)->sdpvar = NULL;
    (*sdpi)->sdprow = NULL;
    (*sdpi)->sdpcol = NULL;
    (*sdpi)->sdpval = NULL;
+   (*sdpi)->maxsdpstore = 0;
+   (*sdpi)->sdprowstore = NULL;
+   (*sdpi)->sdpcolstore = NULL;
+   (*sdpi)->sdpvalstore = NULL;
+
    (*sdpi)->lplhs = NULL;
    (*sdpi)->lprhs = NULL;
    (*sdpi)->lprow = NULL;
@@ -1701,7 +1698,6 @@ SCIP_RETCODE SCIPsdpiFree(
    )
 {
    int i;
-   int j;
 
    SCIPdebugMessage("Calling SCIPsdpiFree ...\n");
 
@@ -1722,19 +1718,11 @@ SCIP_RETCODE SCIPsdpiFree(
    for (i = 0; i < (*sdpi)->maxnsdpblocks; i++)
    {
       assert( 0 <= (*sdpi)->sdpnblockvars[i] && (*sdpi)->sdpnblockvars[i] <= (*sdpi)->maxsdpnblockvars[i] );
-      for (j = 0; j < (*sdpi)->maxsdpnblockvars[i]; j++)
-      {
-         assert( 0 <= (*sdpi)->sdpnblockvarnonz[i][j] && (*sdpi)->sdpnblockvarnonz[i][j] <= (*sdpi)->maxsdpnblockvarnonz[i][j] );
-         BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpval[i][j]), (*sdpi)->maxsdpnblockvarnonz[i][j]);
-         BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdprow[i][j]), (*sdpi)->maxsdpnblockvarnonz[i][j]);
-         BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpcol[i][j]), (*sdpi)->maxsdpnblockvarnonz[i][j]);
-      }
       BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpval[i]), (*sdpi)->maxsdpnblockvars[i]);
       BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdprow[i]), (*sdpi)->maxsdpnblockvars[i]);
       BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpcol[i]), (*sdpi)->maxsdpnblockvars[i]);
       BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpvar[i]), (*sdpi)->maxsdpnblockvars[i]);
       BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpnblockvarnonz[i]), (*sdpi)->maxsdpnblockvars[i]);
-      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->maxsdpnblockvarnonz[i]), (*sdpi)->maxsdpnblockvars[i]);
       BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstval[i]), (*sdpi)->maxsdpconstnblocknonz[i]);
       BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstrow[i]), (*sdpi)->maxsdpconstnblocknonz[i]);
       BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstcol[i]), (*sdpi)->maxsdpconstnblocknonz[i]);
@@ -1742,7 +1730,6 @@ SCIP_RETCODE SCIPsdpiFree(
 
    /* free the rest */
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpnblockvarnonz), (*sdpi)->maxnsdpblocks);
-   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->maxsdpnblockvarnonz), (*sdpi)->maxnsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstnblocknonz), (*sdpi)->maxnsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->maxsdpconstnblocknonz), (*sdpi)->maxnsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpval), (*sdpi)->maxnsdpblocks);
@@ -1755,6 +1742,10 @@ SCIP_RETCODE SCIPsdpiFree(
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpnblockvars), (*sdpi)->maxnsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->maxsdpnblockvars), (*sdpi)->maxnsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpblocksizes), (*sdpi)->maxnsdpblocks);
+
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &(*sdpi)->sdpvalstore, (*sdpi)->maxsdpstore);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &(*sdpi)->sdpcolstore, (*sdpi)->maxsdpstore);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &(*sdpi)->sdprowstore, (*sdpi)->maxsdpstore);
 
    assert( 0 <= (*sdpi)->nvars && (*sdpi)->nvars <= (*sdpi)->maxnvars );
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->ub), (*sdpi)->maxnvars);/*lint !e737*/
@@ -1782,6 +1773,7 @@ SCIP_RETCODE SCIPsdpiClone(
    int nvars;
    int nsdpblocks;
    int lpnnonz;
+   int cnt = 0;
    int b;
    int v;
 
@@ -1835,32 +1827,37 @@ SCIP_RETCODE SCIPsdpiClone(
 
    /* SDP data */
    newsdpi->sdpnnonz = oldsdpi->sdpnnonz;
+   newsdpi->maxsdpstore = oldsdpi->sdpnnonz;
 
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpnblockvarnonz), nsdpblocks) );
-   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->maxsdpnblockvarnonz), nsdpblocks) );
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpvar), nsdpblocks) );
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdprow), nsdpblocks) );
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpcol), nsdpblocks) );
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpval), nsdpblocks) );
 
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdprowstore), newsdpi->maxsdpstore) );
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpcolstore), newsdpi->maxsdpstore) );
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpvalstore), newsdpi->maxsdpstore) );
+
    for (b = 0; b < nsdpblocks; b++)
    {
       assert( 0 <= oldsdpi->sdpnblockvars[b] && oldsdpi->sdpnblockvars[b] <= oldsdpi->maxsdpnblockvars[b] );
       BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpnblockvarnonz[b]), oldsdpi->sdpnblockvarnonz[b], oldsdpi->sdpnblockvars[b]) );
-      BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->maxsdpnblockvarnonz[b]), oldsdpi->sdpnblockvarnonz[b], oldsdpi->sdpnblockvars[b]) );
       BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpvar[b]), oldsdpi->sdpvar[b], oldsdpi->sdpnblockvars[b]) );
 
       BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdprow[b]), oldsdpi->sdpnblockvars[b]) );
       BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpcol[b]), oldsdpi->sdpnblockvars[b]) );
       BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpval[b]), oldsdpi->sdpnblockvars[b]) );
 
-      for (v = 0; v < oldsdpi->sdpnblockvars[b]; v++)
+      /* set pointers into storage */
+      for (v = 0; v < newsdpi->sdpnblockvars[b]; ++v)
       {
-         assert( 0 <= oldsdpi->sdpnblockvarnonz[b][v] && oldsdpi->sdpnblockvarnonz[b][v] <= oldsdpi->maxsdpnblockvarnonz[b][v] );
-         BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdprow[b][v]), oldsdpi->sdprow[b][v], oldsdpi->sdpnblockvarnonz[b][v]) );
-         BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpcol[b][v]), oldsdpi->sdpcol[b][v], oldsdpi->sdpnblockvarnonz[b][v]) );
-         BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpval[b][v]), oldsdpi->sdpval[b][v], oldsdpi->sdpnblockvarnonz[b][v]) );
+         newsdpi->sdprow[b][v] = &newsdpi->sdprowstore[cnt];
+         newsdpi->sdpcol[b][v] = &newsdpi->sdpcolstore[cnt];
+         newsdpi->sdpval[b][v] = &newsdpi->sdpvalstore[cnt];
+         cnt += newsdpi->sdpnblockvarnonz[b][v];
       }
+      assert( cnt <= newsdpi->maxsdpstore );
    }
 
    /* LP data */
@@ -1941,6 +1938,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    SCIP_Real*            lpval               /**< values of LP-constraint matrix entries (may be NULL if lpnnonz = 0) */
    )
 {
+   int cnt = 0;
    int v;
    int b;
 #ifdef SCIP_DEBUG
@@ -2016,7 +2014,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    /* ensure memory */
    SCIP_CALL( ensureBoundDataMemory(sdpi, nvars) );
    SCIP_CALL( ensureLPDataMemory(sdpi, nlpcons, lpnnonz) );
-   SCIP_CALL( ensureSDPDataMemory(sdpi, nsdpblocks, sdpnblockvars, sdpnblockvarnonz, sdpconstnblocknonz) );
+   SCIP_CALL( ensureSDPDataMemory(sdpi, nsdpblocks, sdpnblockvars, sdpnblockvarnonz, sdpconstnblocknonz, sdpnnonz) );
 
    /* copy data in arrays */
    BMScopyMemoryArray(sdpi->obj, obj, nvars);
@@ -2051,9 +2049,10 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
             assert( sdprow[b][v][j] >= sdpcol[b][v][j] );
 #endif
 
-         BMScopyMemoryArray(sdpi->sdpval[b][v], sdpval[b][v], sdpnblockvarnonz[b][v]);
-         BMScopyMemoryArray(sdpi->sdpcol[b][v], sdpcol[b][v], sdpnblockvarnonz[b][v]);
-         BMScopyMemoryArray(sdpi->sdprow[b][v], sdprow[b][v], sdpnblockvarnonz[b][v]);
+         BMScopyMemoryArray(&sdpi->sdpvalstore[cnt], sdpval[b][v], sdpnblockvarnonz[b][v]);
+         BMScopyMemoryArray(&sdpi->sdpcolstore[cnt], sdpcol[b][v], sdpnblockvarnonz[b][v]);
+         BMScopyMemoryArray(&sdpi->sdprowstore[cnt], sdprow[b][v], sdpnblockvarnonz[b][v]);
+         cnt += sdpnblockvarnonz[b][v];
       }
    }
 
