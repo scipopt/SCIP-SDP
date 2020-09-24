@@ -45,6 +45,7 @@
 
 #define TABLE_NAME              "relaxsdp"
 #define TABLE_DESC              "advanced SDP relaxator statistics table"
+#define TABLE_ACTIVE            FALSE
 #define TABLE_POSITION          16000              /**< the position of the statistics table */
 #define TABLE_EARLIEST_STAGE    SCIP_STAGE_SOLVING /**< output of the statistics table is only printed from this stage onwards */
 
@@ -163,7 +164,7 @@ SCIP_RETCODE SCIPincludeTableRelaxSdp(
    SCIP_CALL( SCIPallocMemory(scip, &tabledata) );
 
    /* include statistics table */
-   SCIP_CALL( SCIPincludeTable(scip, TABLE_NAME, TABLE_DESC, TRUE,
+   SCIP_CALL( SCIPincludeTable(scip, TABLE_NAME, TABLE_DESC, TABLE_ACTIVE,
          tableCopyRelaxSdp, tableFreeRelaxSdp, NULL, NULL,
          tableInitsolRelaxSdp, NULL, tableOutputRelaxSdp,
          tabledata, TABLE_POSITION, TABLE_EARLIEST_STAGE) );

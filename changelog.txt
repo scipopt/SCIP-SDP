@@ -2,13 +2,18 @@ fixed bugs:
 - fixed the output of the line number when reading CBF files
 - fixed one memory bug and one missing check in diagZeroImpl()
 - fixed bug in multiaggrVar() with negative coefficients and locking
+- fixed bug in multiaggrVar() and revised implementation
+- fixed bug in reading problems with indicator constraints
 
 features:
 - The relaxator strengthened the rows of the LP corresponding to variable bounds before adding them to the current SDP.
   This has been extended by a full coefficient tightening procedure.
+- Use lexicographic sorting to sort matrix entries
+- SCIPcreateConsSdp() and SCIPcreateConsSdpRank1() allow to remove duplicates in matrices
 
 parameters:
 - Rename parameter relaxing/SDP/tightenvb to relaxing/SDP/tightenrows.
+- New parameter misc/solvesdps to choose between SDP and LP solving
 
 SCIP-SDP version 3.2.0
 ======================

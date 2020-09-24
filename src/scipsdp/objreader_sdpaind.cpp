@@ -342,7 +342,7 @@ namespace scip
 
             SCIP_CALL( testDigit(&file) );
             file >> var_index;
-            SCIP_CALL( checkIndex("variable", var_index, 0, numvars) );
+            SCIP_CALL( checkIndex("variable", var_index, -numvars, numvars) ); /* negative variable indices refer to indicator variables */
             SCIP_CALL( dropSpaceNewlineError(file) );
 
             SCIP_CALL( testDigit(&file) );
@@ -607,7 +607,7 @@ namespace scip
             (void) SCIPsnprintf(sdpcon_name, SCIP_MAXSTRLEN, "SDP-Constraint-%d", bindex);
 #endif
             SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcon, sdpcon_name, nvars, nnonz, blocksize, nvarnonz, colpointer,
-                  rowpointer, valpointer, vars, constnnonz, constcol, constrow, constval) );
+                  rowpointer, valpointer, vars, constnnonz, constcol, constrow, constval, TRUE) );
 
 #ifdef SCIP_MORE_DEBUG
             SCIP_CALL( SCIPprintCons(scip, sdpcon, NULL) );

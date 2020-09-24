@@ -261,14 +261,14 @@ ifeq ($(FILES),)
 	$(SHELL) -ec 'for i in $^; \
 			do \
 				echo $$i; \
-				$(LINT) -I$(SCIPDIR) lint/main-gcc.lnt +os\(lint.out\) -u -zero \
+				$(LINT) -I$(SCIPREALPATH) lint/main-gcc.lnt +os\(lint.out\) -u -zero \
 				$(USRFLAGS) $(FLAGS) $(SDPIINC) -I/usr/include -UNDEBUG -USCIP_WITH_READLINE -USCIP_ROUNDING_FE -D_BSD_SOURCE $$i; \
 			done'
 else
 		$(SHELL) -ec  'for i in $(FILES); \
 			do \
 				echo $$i; \
-				$(LINT) -I$(SCIPDIR) lint/main-gcc.lnt +os\(lint.out\) -u -zero \
+				$(LINT) -I$(SCIPREALPATH) lint/main-gcc.lnt +os\(lint.out\) -u -zero \
 				$(USRFLAGS) $(FLAGS) $(SDPIINC) -I/usr/include -UNDEBUG -USCIP_WITH_READLINE -USCIP_ROUNDING_FE -D_BSD_SOURCE $$i; \
 			done'
 endif
@@ -281,7 +281,7 @@ ifeq ($(FILES),)
 			for i in $^; \
 			do \
 				echo $$i; \
-				$(PCLINT) -I$(SCIPDIR) -I$(SCIPDIR)/pclint pclint/main-gcc.lnt +os\(pclint.out\) -b -u -zero \
+				$(PCLINT) -I$(SCIPREALPATH) -I$(SCIPREALPATH)/pclint main-gcc.lnt +os\(pclint.out\) -b -u -zero \
 				$(USRFLAGS) $(FLAGS) $(SDPIINC) -uNDEBUG -uSCIP_WITH_READLINE -uSCIP_ROUNDING_FE -D_BSD_SOURCE $$i; \
 			done'
 else
@@ -289,7 +289,7 @@ else
 			for i in $(FILES); \
 			do \
 				echo $$i; \
-				$(PCLINT) -I$(SCIPDIR) -I$(SCIPDIR)/pclint pclint/main-gcc.lnt +os\(pclint.out\) -b -u -zero \
+				$(PCLINT) -I$(SCIPREALPATH) -I$(SCIPREALPATH)/pclint main-gcc.lnt +os\(pclint.out\) -b -u -zero \
 				$(USRFLAGS) $(FLAGS) $(SDPIINC) -uNDEBUG -uSCIP_WITH_READLINE -uSCIP_ROUNDING_FE -D_BSD_SOURCE $$i; \
 			done'
 endif
