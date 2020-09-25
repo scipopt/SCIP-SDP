@@ -347,7 +347,7 @@ SCIP_RETCODE SDPAreadNVars(
       return SCIP_READERROR; /*lint !e527*/
    }
 
-   assert( data->nvars >= 0 ); //TODO: wird doppelt abgefragt
+   assert( data->nvars >= 0 );
 
    /* loop through different variable types */
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdvars), data->nvars) );
@@ -428,17 +428,13 @@ SCIP_RETCODE SDPAreadBlockSize(
    int nsdpblocks = 0;
    int* blockVals;
    int nblocks;
-   int* blockValsLp;
    int* blockValsPsd;
-   SCIP_Real rhs = SCIPinfinity(scip);
-   SCIP_Real lhs = 0.0;
 
 #ifndef NDEBUG
    int snprintfreturn;
 #endif
 
    SCIP_CALL( SCIPallocBufferArray(scip, &blockVals, data->nsdpaconstblock) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &blockValsLp, data->nsdpaconstblock) );
    SCIP_CALL( SCIPallocBufferArray(scip, &blockValsPsd, data->nsdpaconstblock) );
 
    assert( scip != NULL );
@@ -521,7 +517,8 @@ SCIP_RETCODE SDPAreadBlockSize(
 #else
       (void)SCIPsnprintf(consname, SCIP_MAXSTRLEN, "linear_%d", cnt);
 #endif
-      SCIP_CALL( SCIPcreateConsLinear(scip, &cons, consname, 0, NULL, NULL, lhs, rhs, TRUE, TRUE, TRUE, TRUE, TRUE,
+      /* linear constraints are specified as 0 <= cons <= SCIPinfinity(scip) */
+      SCIP_CALL( SCIPcreateConsLinear(scip, &cons, consname, 0, NULL, NULL, 0.0, SCIPinfinity(scip), TRUE, TRUE, TRUE, TRUE, TRUE,
             FALSE, FALSE, FALSE, FALSE, FALSE) );
 
       SCIP_CALL( SCIPaddCons(scip, cons) );
@@ -534,7 +531,6 @@ SCIP_RETCODE SDPAreadBlockSize(
    assert( cnt == data->nlinconss );
 
    SCIPfreeBufferArray(scip, &blockValsPsd);
-   SCIPfreeBufferArray(scip, &blockValsLp);
    SCIPfreeBufferArray(scip, &blockVals);
 
    return SCIP_OKAY;
@@ -668,9 +664,6 @@ SCIP_RETCODE SDPAreadBlocks(
       return SCIP_READERROR; /*lint !e527*/
    }
 
-   /* get number of sdp blocks specified by PSDCON (without auxiliary sdp blocks for reformulating matrix variables
-    * using scalar variables), save number of nonzeros needed for the auxiliary sdp blocks in nauxnonz */
-   /* TODO: noch aktuell? Nein, kann entfernt werden */
    nsdpblocks = data->nsdpblocks;
 
    if ( data->createdconss == NULL )
@@ -1157,7 +1150,6 @@ SCIP_RETCODE SDPAreadRank1(
    )
 {  /*lint --e{818}*/
    int v;
-   SCIP_Bool infeasible;
 
    assert( scip != NULL );
    assert( pfile != NULL );
@@ -1210,9 +1202,8 @@ SCIP_RETCODE SDPAfreeData(
    SDPA_DATA*            data                /**< data pointer to save the results in */
    )
 {
-   SCIP_Bool allocated = FALSE;
    int b = 0;
-   int ncbfsdpblocks;
+   int nsdpblocks;
 
    assert( scip != NULL );
    assert( data != NULL );
@@ -1232,15 +1223,12 @@ SCIP_RETCODE SDPAfreeData(
    SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstnblocknonz, data->nsdpblocks);
    SCIPfreeBlockMemoryArrayNull(scip, &data->memorysizescon, data->nsdpblocks);
 
-   /* get number of sdp blocks specified by PSDCON (without auxiliary sdp blocks for reformulating matrix variables
-    * using scalar variables), save number of nonzeros needed for the auxiliary sdp blocks in nauxnonz */
-   ncbfsdpblocks = data->nsdpblocks;
+   nsdpblocks = data->nsdpblocks;
 
-   /* some SDP constraints specified in the SDPA file! */
-   assert( ncbfsdpblocks > 0 );
+   assert( nsdpblocks > 0 );
    assert( data->nvars > 0 );
 
-   for (b = 0; b < ncbfsdpblocks; b++)
+   for (b = 0; b < nsdpblocks; b++)
    {
       assert( data->memorysizessdp[b] > 0);
 
