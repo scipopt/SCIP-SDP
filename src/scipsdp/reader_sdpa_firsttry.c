@@ -472,6 +472,7 @@ SCIP_RETCODE SDPAreadBlockSize(
       }
       else
       {
+         /* TODO: If blockVals[i] == 0: return SCIP_READERROR with error message */
          *(blockValsPsd + nsdpblocks) = *(blockVals + i);
          nsdpblocks ++;
       }
@@ -666,6 +667,7 @@ SCIP_RETCODE SDPAreadBlocks(
 
    nsdpblocks = data->nsdpblocks;
 
+   /* TODO: If there are no linear constraints, then data->createdconss == NULL at this point. I think the correct check would be data->sdpblocksizes == NULL */
    if ( data->createdconss == NULL )
    {
       SCIPerrorMessage("Sizes of the SDP blocks need to be specified before entries of the blocks!\n");
@@ -673,6 +675,8 @@ SCIP_RETCODE SDPAreadBlocks(
       return SCIP_READERROR; /*lint !e527*/
    }
    assert( data->nlinconss >= 0 );
+
+   /* TODO: only allocate memory and aexecute the parts below if data->nsdpblocks > 0 */
 
    /* initialize sdpnblocknonz with 0 */
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpnblocknonz), data->nsdpblocks) );
@@ -935,6 +939,9 @@ SCIP_RETCODE SDPAreadBlocks(
       }
    }
 
+   /* TODO: Check if for all blocks (LP and SDP) some nonzero entries have been specified, otherwise return READ_ERROR
+      and error message. */
+
    SCIPfreeBufferArray(scip, &currentEntriesCon);
    SCIPfreeBufferArray(scip, &currentEntriesSdp);
 
@@ -1166,6 +1173,7 @@ SCIP_RETCODE SDPAreadRank1(
    assert( linecount != NULL );
    assert( data != NULL );
 
+   /* TODO: SDP blocks need to be specified before rank-1 section, I think the correct check would be data->sdpblocksizes == NULL */
    if ( data->createdvars == NULL )
    {
       SCIPerrorMessage("SDP blocks need to be specified before rank-1 section!\n");
@@ -1218,6 +1226,8 @@ SCIP_RETCODE SDPAfreeData(
    assert( scip != NULL );
    assert( data != NULL );
 
+   /* TODO: Check if any SDP blocks and any nonzeros in the SDP blocks exist at all (if not, then nothing needs to be
+      freed) */
    for (b = 0; b < data->nsdpblocks; b++)
    {
       assert( data->memorysizescon[b] > 0);
