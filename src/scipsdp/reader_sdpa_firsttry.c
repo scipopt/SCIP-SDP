@@ -1567,12 +1567,12 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
       
             needed_lin_cons[v] = -1;
       
-         }
-         
+         }   
+      }
+      
       /* count number of linear constraints */
       i=i+ abs(needed_lin_cons[v]);
       
-      }
    }
 
    /* check if all constraints are either linear or SDP*/
@@ -1868,7 +1868,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    if ( nrank1sdpblocks > 0 )
    {
       consind = 0;
-      SCIPinfoMessage(scip, file, "*Rank1\n");
+      SCIPinfoMessage(scip, file, "*RANK1\n");
       for (c = 0; c < nconss; c++)
       {
          if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") == 0 )
@@ -1883,8 +1883,6 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
             SCIPinfoMessage(scip, file, "*%d\n", consind);
          }
       }
-
-      SCIPinfoMessage(scip, file, "\n");
    }
    
 
