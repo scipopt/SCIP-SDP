@@ -1396,13 +1396,13 @@ SCIP_DECL_READERREAD(readerReadSdpa)
          {
             SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcons, sdpconname, data->sdpnblockvars[b], data->sdpnblocknonz[b],
                   data->sdpblocksizes[b], data->nvarnonz[b], data->colpointer[b], data->rowpointer[b],
-                  data->valpointer[b], data->sdpblockvars[b], 0, NULL, NULL, NULL) );
+                  data->valpointer[b], data->sdpblockvars[b], 0, NULL, NULL, NULL, TRUE) );
          }
          else
          {
             SCIP_CALL( SCIPcreateConsSdpRank1(scip, &sdpcons, sdpconname, data->sdpnblockvars[b], data->sdpnblocknonz[b],
                   data->sdpblocksizes[b], data->nvarnonz[b], data->colpointer[b], data->rowpointer[b],
-                  data->valpointer[b], data->sdpblockvars[b], 0, NULL, NULL, NULL) );
+                  data->valpointer[b], data->sdpblockvars[b], 0, NULL, NULL, NULL, TRUE) );
          }
       }
       else
@@ -1412,14 +1412,14 @@ SCIP_DECL_READERREAD(readerReadSdpa)
             SCIP_CALL( SCIPcreateConsSdp(scip, &sdpcons, sdpconname, data->sdpnblockvars[b],data->sdpnblocknonz[b],
                   data->sdpblocksizes[b], data->nvarnonz[b], data->colpointer[b],data->rowpointer[b], data->valpointer[b],
                   data->sdpblockvars[b], data->sdpconstnblocknonz[b],data->sdpconstcol[b], data->sdpconstrow[b],
-                  data->sdpconstval[b]) );
+                  data->sdpconstval[b], TRUE) );
          }
          else
          {
             SCIP_CALL( SCIPcreateConsSdpRank1(scip, &sdpcons, sdpconname, data->sdpnblockvars[b], data->sdpnblocknonz[b],
                   data->sdpblocksizes[b], data->nvarnonz[b], data->colpointer[b], data->rowpointer[b], data->valpointer[b],
                   data->sdpblockvars[b], data->sdpconstnblocknonz[b], data->sdpconstcol[b], data->sdpconstrow[b],
-                  data->sdpconstval[b]) );
+                  data->sdpconstval[b], TRUE) );
          }
       }
 #ifdef SCIP_MORE_DEBUG
