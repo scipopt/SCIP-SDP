@@ -1464,6 +1464,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    int* sdpconstrow;
    int* sdpnvarnonz;
    int* varsenses;
+   int* consssenses;
    int nsdpconss = 0;
    int sdpnvars;
    int sdpnnonz;
@@ -1474,7 +1475,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    int sdpconstnnonz;
    int consind;
    int c;
-   int i = 0; //TODO: besseren Namen finden 
+   int i;
    int v;
    SCIP_Real val;
    SCIP_Real lhs;
@@ -1483,9 +1484,10 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    int const_sign = 1;
    int nChangedConstraints = 0;
    int lincon_adjusted = 1; //TODO: besseren Namen finden
-   int* needed_lin_cons; //TODO: besseren Namen finden		
-   int nrank1sdpblocks = 0; 
-
+   int nvarbndslinconss = 0;
+   int nlinconss = 0;
+   int nrank1sdpblocks = 0;
+   int objcoeff;
 
    assert( scip != NULL );
    assert( result != NULL );
@@ -1525,33 +1527,39 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
       ub = SCIPvarGetUbOriginal(vars[v]);
 
       varsenses[v] = 0;
-
-      needed_lin_cons[v] = 0; 
-
-      if ( ! SCIPisInfinity(scip, - lb)  )  //TODO: abfragen, dass die Bound auch wirklich null ist
+      if ( SCIPisZero(scip, lb) )
       {
-         needed_lin_cons[v] = 1;
+         varsenses[v] = 1;
+         nvarbndslinconss++;
       }
-
-      if ( ! SCIPisInfinity(scip, ub) )
+      else
       {
-         if(needed_lin_cons[v] == 1)
+         if ( ! SCIPisInfinity(scip, -lb) )
          {
-            needed_lin_cons[v] = 2;
-      
+            SCIPerrorMessage("Can only handle variables with lower bound 0 or minus infinity.\n");
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
          }
-         else
-         {
-      
-            needed_lin_cons[v] = -1;
-      
-         }   
       }
-      
-      /* count number of linear constraints */
-      i=i+ abs(needed_lin_cons[v]);
-      
+
+      if ( SCIPisZero(scip, ub) )
+      {
+         varsenses[v] = -1;
+         nvarbndslinconss++;
+      }
+      else
+      {
+         if ( ! SCIPisInfinity(scip, ub) )
+         {
+            SCIPerrorMessage("Can only handle variables with upper bound 0 or infinity.\n");
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+      }
    }
+
+   /* collect different constraint senses */
+   SCIP_CALL( SCIPallocBufferArray(scip, &consssenses, nconss) );
 
    /* check if all constraints are either linear or SDP*/
    for (c = 0; c < nconss; c++)
@@ -1576,26 +1584,39 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
          lhs = SCIPgetLhsLinear(scip, conss[c]);
          rhs = SCIPgetRhsLinear(scip, conss[c]);
 
-         if ( ! SCIPisInfinity(scip, -lhs) && ! SCIPisInfinity(scip, rhs) && !SCIPisEQ(scip, lhs, rhs) )
-         {   
-            SCIPerrorMessage("Cannot handle ranged rows.\n");
-            SCIPABORT();
-            return SCIP_READERROR; /*lint !e527*/
-         }  
-        
-         
-         if(!SCIPisEQ(scip, lhs, rhs))
+         if ( SCIPisEQ(scip, lhs, rhs) )
          {
-            ++i;
+            assert( ! SCIPisInfinity(scip, -lhs) && ! SCIPisInfinity(scip, rhs) );
+            nlinconss += 2;
+            consssenses[c] = 0;
          }
          else
          {
-            i=i+2;
-         }    
+            if ( ! SCIPisInfinity(scip, -lhs) && ! SCIPisInfinity(scip, rhs) )
+            {
+               SCIPerrorMessage("Cannot handle ranged rows.\n");
+               SCIPABORT();
+               return SCIP_READERROR; /*lint !e527*/
+            }
+            else
+            {
+               assert( SCIPisInfinity(scip, -lhs) || SCIPisInfinity(scip, rhs) );
+
+               if ( ! SCIPisInfinity(scip, -lhs) )
+                  consssenses[c] = 1;
+               else if ( ! SCIPisInfinity(scip, rhs) )
+                  consssenses[c] = -1;
+
+               nlinconss++;
+            }
+         }
       }
       else
       {
-      /* count number of SDP constraints (conshdlrGetNConss doesn't seem to work before transformation) */
+         assert( (strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0) ||
+            (strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") != 0) );
+
+         /* count number of SDP constraints (conshdlrGetNConss doesn't seem to work before transformation) */
          ++nsdpconss;
 
          /* count SDP nonzeros */
@@ -1606,7 +1627,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    }
 
    blocks = nsdpconss;
-   if ( i > 0 )
+   if ( nvarbndslinconss + nlinconss > 0 )
       blocks++;
 
    /* write number of blocks */
@@ -1621,8 +1642,8 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
       SCIPinfoMessage(scip, file, "%d ", SCIPconsSdpGetBlocksize(scip, conss[c]));
    }
 
-   if ( i > 0 )
-      SCIPinfoMessage(scip, file, "-%d \n", i);
+   if ( nvarbndslinconss + nlinconss > 0 )
+      SCIPinfoMessage(scip, file, "-%d \n", nvarbndslinconss + nlinconss);
    else
       SCIPinfoMessage(scip, file, "\n");
 
@@ -1716,34 +1737,20 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    /* write linear constraint block */
    for (c = 0; c < nvars; c++)
    {
+      assert(varsenses[c] == 0 || varsenses[c] == -1 || varsenses[c] == 1 );
 
-      assert(needed_lin_cons[c] == 0 || needed_lin_cons[c] == -1 || needed_lin_cons[c] == 1 || needed_lin_cons[c] == 2);
-
-      if(needed_lin_cons[c] == 0)
+      if(varsenses[c] == 0)
          continue;
-   
-      if(needed_lin_cons[c] == -1)
+
+      if(varsenses[c] == -1)
       {
-         SCIPinfoMessage(scip, file, "%d %d %d %d %0.4f\n", c + 1, consind + 1, lincon_adjusted, lincon_adjusted, -1.0);
-   
+         SCIPinfoMessage(scip, file, "%d %d %d %d -1.0\n", c + 1, consind + 1, lincon_adjusted, lincon_adjusted);
          ++lincon_adjusted;
       }
       else
       {
-         if(needed_lin_cons[c] == 1)
-         {
-            SCIPinfoMessage(scip, file, "%d %d %d %d %0.4f\n", c + 1, consind + 1, lincon_adjusted, lincon_adjusted, 1.0);
-            ++lincon_adjusted;
-   
-         }
-         else
-         {
-            SCIPinfoMessage(scip, file, "%d %d %d %d %0.4f\n", c + 1, consind + 1, lincon_adjusted, lincon_adjusted, 1.0);
-            ++lincon_adjusted;	 
-
-            SCIPinfoMessage(scip, file, "%d %d %d %d %0.4f\n", c + 1, consind + 1, lincon_adjusted, lincon_adjusted, -1.0);
-            ++lincon_adjusted;
-         }
+         SCIPinfoMessage(scip, file, "%d %d %d %d 1.0\n", c + 1, consind + 1, lincon_adjusted, lincon_adjusted);
+         ++lincon_adjusted;
       }
    }
 
@@ -1873,6 +1880,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    SCIPfreeBufferArray(scip, &sdprow);
    SCIPfreeBufferArray(scip, &sdpcol);
    SCIPfreeBufferArray(scip, &sdpnvarnonz);
+   SCIPfreeBufferArray(scip, &consssenses);
    SCIPfreeBufferArray(scip, &varsenses);
 
    *result = SCIP_SUCCESS;
