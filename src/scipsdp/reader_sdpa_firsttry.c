@@ -131,7 +131,6 @@ SCIP_RETCODE fIntgets(
    /* Find first non-commentary line */
    while ( SCIPfgets(SDPA_LINE_BUFFER, (int) sizeof(SDPA_LINE_BUFFER), pFile) != NULL )
    {
-  
       ++(*linecount);
       return SCIP_OKAY;
    }
@@ -238,7 +237,7 @@ int readLineDouble(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pfile,              /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
-   int                   nvars,              /**< number of variables to read */
+   int                   nvals,              /**< number of values to read */
    SCIP_Real*            values              /**< values that have been read */
    )
 {
@@ -257,13 +256,13 @@ int readLineDouble(
          SCIPstrToRealValue(token, &val, &nonconstendptr);
          *(values + i) = val;
          i = i + 1;
-         if ( i >= nvars )
+         if ( i >= nvals )
             break;
       }
    }
-   while ( i < nvars );
+   while ( i < nvals );
 
-   assert(i == nvars );
+   assert( i == nvals );
 
    return i;
 }
@@ -275,7 +274,7 @@ int readLineInt(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pfile,              /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
-   int                   nvars,              /**< number of variables to read */
+   int                   nvals,              /**< number of values to read */
    int*                  values              /**< values that have been read */
    )
 {
@@ -294,13 +293,13 @@ int readLineInt(
          SCIPstrToIntValue(token, &val, &nonconstendptr);
          *(values + i) = val;
          i = i + 1;
-         if ( i >= nvars )
+         if ( i >= nvals )
             break;
       }
    }
-   while ( i < nvars );
+   while ( i < nvals );
 
-   assert(i == nvars );
+   assert( i == nvals );
 
    return i;
 }
@@ -472,7 +471,7 @@ SCIP_RETCODE SDPAreadBlockSize(
             *linecount);
             SCIPABORT();
             return SCIP_READERROR; /*lint !e527*/
-         }  
+         }
          data->nlinconss = *(blockVals + i) * - 1;
       }
       else
@@ -1139,10 +1138,9 @@ SCIP_RETCODE SDPAreadInt(
    /* read to end of file */
    while ( fIntgets(pfile, linecount) == SCIP_OKAY )
    {
-   
       if (strncmp(SDPA_LINE_BUFFER, "*RANK1", 5) == 0 )
          break;
-   
+
       char* ps = SDPA_LINE_BUFFER + 1;
       if ( sscanf(ps, "%i", &v) != 1 )
       {
@@ -1223,8 +1221,8 @@ SCIP_RETCODE SDPAreadRank1(
 
       v -= 1;
 
-      data->sdpblockrank1[v] = TRUE;     
-      ++data->nsdpblocksrank1;     
+      data->sdpblockrank1[v] = TRUE;
+      ++data->nsdpblocksrank1;
    }
 
    return SCIP_OKAY;
@@ -1245,7 +1243,7 @@ SCIP_RETCODE SDPAfreeData(
 
    assert( scip != NULL );
    assert( data != NULL );
-   
+
    for (b = 0; b < data->nsdpblocks; b++)
    {
       assert( data->memorysizescon[b] > 0);
@@ -1531,13 +1529,12 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
 #endif
    /* NVARS */
 
-   /* write variable senses */
+   /* write number of variables */
    SCIPinfoMessage(scip, file, "%d\n", nvars);
 
    /* collect different variable senses */
    SCIP_CALL( SCIPallocBufferArray(scip, &varsenses, nvars) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &needed_lin_cons, nvars) );
-   
+
    for (v = 0; v < nvars; v++)
    {
       SCIP_Real lb;
@@ -1586,11 +1583,10 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
          SCIPABORT();
          return SCIP_READERROR; /*lint !e527*/
       }
-      
+
       /* count number of rank1 sdp blocks */
       if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") == 0 )
          ++nrank1sdpblocks;
-     
 
       /* only check linear constraints */
       if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") == 0 )
@@ -1620,13 +1616,12 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
       {
       /* count number of SDP constraints (conshdlrGetNConss doesn't seem to work before transformation) */
          ++nsdpconss;
-            
-         /* count SDP nonzeros */      
+
+         /* count SDP nonzeros */
          SCIP_CALL( SCIPconsSdpGetNNonz(scip, conss[c], &sdpnnonz, &sdpconstnnonz) );
          totalsdpnnonz += sdpnnonz;
-         totalsdpconstnnonz += sdpconstnnonz;      
-            
-      }                  
+         totalsdpconstnnonz += sdpconstnnonz;
+      }
    }
 
    blocks = nsdpconss;
@@ -1664,7 +1659,6 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    }
    SCIPinfoMessage(scip, file, "\n");
 
-   
    /* allocate memory for SDPdata */
    SCIP_CALL( SCIPallocBufferArray(scip, &sdpnvarnonz, nvars) );
    SCIP_CALL( SCIPallocBufferArray(scip, &sdpcol, totalsdpnnonz) );
@@ -1697,7 +1691,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
          sdpconstnnonz = totalsdpconstnnonz;
 
          SCIP_CALL( SCIPconsSdpGetData(scip, conss[c], &sdpnvars, &sdpnnonz, &sdpblocksize, &sdparraylength,
-               sdpnvarnonz, sdprow,sdpcol, sdpval, sdpvars, &sdpconstnnonz,  sdpconstrow,sdpconstcol,
+               sdpnvarnonz, sdprow, sdpcol, sdpval, sdpvars, &sdpconstnnonz,  sdpconstrow, sdpconstcol,
                sdpconstval, NULL, NULL, NULL) );
 
          assert( sdpconstnnonz <= totalsdpconstnnonz );
@@ -1733,8 +1727,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    }
 
    /* write linear constraint block */
-   
-   for (c = 0; c<nvars; c++)
+   for (c = 0; c < nvars; c++)
    {
 
       assert(needed_lin_cons[c] == 0 || needed_lin_cons[c] == -1 || needed_lin_cons[c] == 1 || needed_lin_cons[c] == 2);
@@ -1766,7 +1759,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
          }
       }
    }
-   
+
    for (c = 0; c < nconss; c++)
    {
 
@@ -1778,7 +1771,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
       const_sign = 1;
 
       /* in case of unconstrained left side and constrained right side swap the inequality by multipling with -1 */
-      if ( ! SCIPisInfinity(scip, rhs) && SCIPisInfinity(scip, -lhs) ) 
+      if ( ! SCIPisInfinity(scip, rhs) && SCIPisInfinity(scip, -lhs) )
       {
       	  const_sign = -1;
       	  nChangedConstraints++;
@@ -1863,8 +1856,8 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
          SCIPinfoMessage(scip, file, "*%d\n", v + 1);
       }
    }
-   
-    /* write rank-1 SDP constraints (if existing) */
+
+   /* write rank-1 SDP constraints (if existing) */
    if ( nrank1sdpblocks > 0 )
    {
       consind = 0;
@@ -1878,13 +1871,12 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
 	    consind++;
 
 	 if(strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") == 0)
-	 {	
+	 {
             assert( SCIPconsSdpShouldBeRankOne(conss[c]) );
             SCIPinfoMessage(scip, file, "*%d\n", consind);
          }
       }
    }
-   
 
    SCIPfreeBufferArray(scip, &sdpconstval);
    SCIPfreeBufferArray(scip, &sdpconstrow);
