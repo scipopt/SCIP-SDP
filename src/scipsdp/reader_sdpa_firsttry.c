@@ -876,7 +876,17 @@ SCIP_RETCODE SDPAreadBlocks(
          /* check if this entry belongs to the constant part of the LP block (v = -1) or not (v >= 0) */
          if ( v >= 0 )
          {
-            c = row; /* number of constraints can be read from the row count*/
+            /* linear constraints are specified on the diagonal of the LP block */
+            if ( row != col )
+            {
+               SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT " is not located on the diagonal!\n",
+                  *linecount);
+               SCIPABORT();
+               return SCIP_READERROR; /*lint !e527*/
+            }
+
+            assert( row == col );
+            c = row;
 
             if ( c < 0 || c >= data->nlinconss )
             {
