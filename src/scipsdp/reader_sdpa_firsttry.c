@@ -493,14 +493,7 @@ SCIP_RETCODE SDPAreadBlockSize(
    }
 
    assert( data->nlinconss >= 0 );
-
-   if ( nsdpblocks < 0 )
-   {
-      SCIPerrorMessage("Number of SDP-blocks %d in line %" SCIP_LONGINT_FORMAT " should be non-negative!\n", nsdpblocks,
-         *linecount);
-      SCIPABORT();
-      return SCIP_READERROR; /*lint !e527*/
-   }
+   assert( nsdpblocks >= 0 );
 
    data->nsdpblocks = nsdpblocks;
 
@@ -511,14 +504,9 @@ SCIP_RETCODE SDPAreadBlockSize(
 
    for (b = 0; b < nsdpblocks; b++)
    {
+      assert( blockValsPsd[b] > 0 );
       data->sdpblocksizes[b] = *(blockValsPsd + b);
-      if ( data->sdpblocksizes[b] <= 0 )
-      {
-         SCIPerrorMessage("Size %d of SDP-block %d in line %" SCIP_LONGINT_FORMAT " should be positive! \n",
-            data->sdpblocksizes[b], b, *linecount );
-         SCIPABORT();
-         return SCIP_READERROR; /*lint !e527*/
-      }
+
       /* initialize rank-1 information to FALSE, will eventually be changed in PSDCONRANK1 */
       data->sdpblockrank1[b] = FALSE;
    }
@@ -543,13 +531,7 @@ SCIP_RETCODE SDPAreadBlockSize(
       SCIP_CALL( SCIPreleaseCons(scip, &cons) );
    }
 
-   if ( cnt != data->nlinconss )
-   {
-      SCIPerrorMessage("Total number of constraints for different cone types not equal to total number of constraints!\n");
-      SCIPABORT();
-      return SCIP_READERROR; /*lint !e527*/
-   }
-
+   assert( cnt == data->nlinconss );
 
    SCIPfreeBufferArray(scip, &blockValsPsd);
    SCIPfreeBufferArray(scip, &blockValsLp);
@@ -940,20 +922,11 @@ SCIP_RETCODE SDPAreadBlocks(
                ++nzerocoef;
             else
             {
-               /* check type */
-               if ( ! SCIPisInfinity(scip, - SCIPgetLhsLinear(scip, data->createdconss[c])) )
-               {
-                  /* greater or equal constraint->left-hand side*/
-                  SCIP_CALL( SCIPchgLhsLinear(scip, data->createdconss[c], val) );
-               }
+               assert( ! SCIPisInfinity(scip, - SCIPgetLhsLinear(scip, data->createdconss[c])) );
+               assert( SCIPisInfinity(scip, SCIPgetRhsLinear(scip, data->createdconss[c])) );
 
-
-               /*Das hier sollte immer falsch sein!*/
-               if ( ! SCIPisInfinity(scip, SCIPgetRhsLinear(scip, data->createdconss[c])) )
-               {
-                  SCIPerrorMessage("Constraint %d has a non infinite right hand side which should not be possible!\n", c);
-                  SCIPABORT();
-               }
+               /* All linear constraints are greater or equal constraints */
+               SCIP_CALL( SCIPchgLhsLinear(scip, data->createdconss[c], val) );
             }
          }
       }
