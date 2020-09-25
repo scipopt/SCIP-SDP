@@ -1627,6 +1627,12 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
       SCIPinfoMessage(scip, file, "\n");
 
    /* write the objective values */
+   /* If objsense = maximize, multiply objective values with -1 */
+   if ( objsense == SCIP_OBJSENSE_MAXIMIZE )
+      objcoeff = -1;
+   else
+      objcoeff = 1;
+
    for (v = 0; v < nvars; v++)
    {
       SCIP_Real obj;
@@ -1634,7 +1640,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
       obj = SCIPvarGetObj(vars[v]);
 
       if ( ! SCIPisZero(scip, obj) )
-         SCIPinfoMessage(scip, file, "%.15g ", obj);
+         SCIPinfoMessage(scip, file, "%.15g ", obj * objcoeff);
       else
          SCIPinfoMessage(scip, file, "%.15g ", 0.0);
    }
