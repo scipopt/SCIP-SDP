@@ -4221,14 +4221,17 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
                         /* fix all unfixed variables */
                         if ( SCIPvarGetLbLocal(var) + 0.5 < SCIPvarGetUbLocal(var) )
                         {
-                           val = SCIPgetRelaxSolVal(scip, var);
-                           if ( val < SCIPfeasFloor(scip, val) + 0.5 )
+                           /* round relaxation value to next integer value */
+                           val = SCIPfeasFloor(scip, SCIPgetRelaxSolVal(scip, var) + 0.5);
+
+                           if ( ! SCIPisEQ(scip, val, SCIPvarGetUbLocal(var)) )
                            {
-                              SCIP_CALL( SCIPchgVarUbProbing(scip, var, SCIPfeasFloor(scip, val)) );
+                              SCIP_CALL( SCIPchgVarUbProbing(scip, var, val) );
                            }
-                           else
+
+                           if ( ! SCIPisEQ(scip, val, SCIPvarGetLbLocal(var)) )
                            {
-                              SCIP_CALL( SCIPchgVarLbProbing(scip, var, SCIPfeasCeil(scip, val)) );
+                              SCIP_CALL( SCIPchgVarLbProbing(scip, var, val) );
                            }
                         }
                      }
