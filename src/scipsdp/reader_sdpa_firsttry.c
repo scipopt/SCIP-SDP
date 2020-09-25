@@ -394,14 +394,14 @@ SCIP_RETCODE SDPAreadNBlocks(
 
    if ( sscanf(SDPA_LINE_BUFFER, "%i", &(data->nsdpaconstblock)) != 1 )
    {
-      SCIPerrorMessage("Could not read number of scalar constraints in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
+      SCIPerrorMessage("Could not read number of SDP blocks in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
       SCIPABORT();
       return SCIP_READERROR;
    }
 
    if ( data->nsdpaconstblock < 0 )
    {
-      SCIPerrorMessage("Number of scalar constraints %d in line %" SCIP_LONGINT_FORMAT " should be non-negative!\n",
+      SCIPerrorMessage("Number of SDP blocks %d in line %" SCIP_LONGINT_FORMAT " should be non-negative!\n",
          data->nsdpaconstblock, *linecount);
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
@@ -451,7 +451,7 @@ SCIP_RETCODE SDPAreadBlockSize(
    if ( data->nsdpaconstblock != nblocks )
    {
       SCIPerrorMessage("Number of blocks returned by readLineInt in line %" SCIP_LONGINT_FORMAT
-         " should equal data->nsdpaconstblock. Expected: %i, got: %i\n", *linecount, data->nsdpaconstblock, data->nlinconss);
+         " should equal data->nsdpaconstblock. Expected: %i, got: %i\n", *linecount, data->nsdpaconstblock, nblocks);
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
@@ -486,7 +486,7 @@ SCIP_RETCODE SDPAreadBlockSize(
 
    if ( data->nlinconss < 0 )
    {
-      SCIPerrorMessage("Number of scalar constraints %d in line %" SCIP_LONGINT_FORMAT " should be non-negative!\n",
+      SCIPerrorMessage("Number of linear constraints %d in line %" SCIP_LONGINT_FORMAT " should be non-negative!\n",
          data->nlinconss, *linecount);
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
@@ -693,7 +693,7 @@ SCIP_RETCODE SDPAreadBlocks(
 
    if ( data->createdconss == NULL )
    {
-      SCIPerrorMessage("Need to have 'CON' section before 'BCOORD' section!\n");
+      SCIPerrorMessage("Sizes of the SDP blocks need to be specified before entries of the blocks!\n");
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
@@ -1193,7 +1193,7 @@ SCIP_RETCODE SDPAreadRank1(
 
    if ( data->createdvars == NULL )
    {
-      SCIPerrorMessage("Number of variables needs to be specified before integer section!\n");
+      SCIPerrorMessage("SDP blocks need to be specified before rank-1 section!\n");
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
@@ -1206,14 +1206,14 @@ SCIP_RETCODE SDPAreadRank1(
       char* ps = SDPA_LINE_BUFFER + 1;
       if ( sscanf(ps, "%i", &v) != 1 )
       {
-         SCIPerrorMessage("Could not read variable index in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
+         SCIPerrorMessage("Could not read SDP block index in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
          SCIPABORT();
          return SCIP_READERROR; /*lint !e527*/
       }
 
       if ( v < 1 || v > data-> nsdpblocks)
       {
-         SCIPerrorMessage("Given rank1 in line %" SCIP_LONGINT_FORMAT " for sdp block %d which does not exist!\n",
+         SCIPerrorMessage("Given rank1 in line %" SCIP_LONGINT_FORMAT " for SDP block %d which does not exist!\n",
             *linecount, v);
          SCIPABORT();
          return SCIP_READERROR;
@@ -1579,7 +1579,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
          && (strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0) &&
           (strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") != 0))
       {
-         SCIPerrorMessage("SDPA reader currently only supports linear and SDP constraints!\n");
+         SCIPerrorMessage("SDPA reader currently only supports linear, SDP and SDPrank1 constraints!\n");
          SCIPABORT();
          return SCIP_READERROR; /*lint !e527*/
       }
