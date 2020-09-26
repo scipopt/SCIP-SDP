@@ -795,11 +795,11 @@ $A_S\T A_S^{\phantom{T}}$.
 \end{question}
 
 We apply the Perron-Frobenius theorem. To this end, we define a matrix $A$ to
-be reducible if there exists a permutation matrix $P$ such that
+be \emph{reducible} if there exists a permutation matrix $P$ such that
 \[
   P\T A P = \begin{pmatrix} B & C \\ 0 & D \end{pmatrix}.
 \]
-Otherwise it is \emph{irreducble}. We have the following:
+Otherwise it is \emph{irreducible}. We have the following:
 
 \begin{theorem}[{Frobenius Theorem, see Gantmacher~\cite[Chapter 2, Thm.~2]{Gan59II}}]\label{thm:PerronFrobenius}
   An irreducible nonnegative matrix $A$ has a positive maximal eigenvalue
@@ -838,7 +838,7 @@ Thus, one can restrict $X \geq 0$ and write
 \]
 instead of~\eqref{eq:SPCAcouple}.
 
-\paragraph{Two Valid SOCP Constraint}
+\paragraph{Two Valid SOCP Constraints}
 
 Li and Xie~\cite{LiX20} show that the following inequalitiy is valid for
 sparse PCA:
