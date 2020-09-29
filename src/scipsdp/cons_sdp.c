@@ -796,6 +796,15 @@ SCIP_RETCODE separateSol(
             continue;
          }
       }
+      else
+      {
+         /* to avoid numerical trouble, we eliminate small entries in absolute value */
+         for (j = 0; j < consdata->blocksize; ++j)
+         {
+            if ( SCIPisFeasZero(scip, eigenvector[j]) )
+               eigenvector[j] = 0.0;
+         }
+      }
 
       /* multiply eigenvector with constant matrix to get lhs (after multiplying again with eigenvector from the left) */
       SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullconstmatrix, eigenvector, vector) );
