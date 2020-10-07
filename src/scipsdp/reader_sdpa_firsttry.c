@@ -30,8 +30,8 @@
 /*									     */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* #define SCIP_MORE_DEBUG */
-/* #define SCIP_DEBUG */
+ #define SCIP_MORE_DEBUG 
+ #define SCIP_DEBUG 
 
 /**@file   reader_sdpa_firsttry.c
  * @brief  file reader for mixed-integer semidefinite programs in SDPA format
@@ -628,6 +628,9 @@ SCIP_RETCODE SDPAreadBlocks(
    int** sdpconstrow_local;        /**< pointers to row-indices for each block */
    int** sdpconstcol_local;        /**< pointers to column-indices for each block */
    SCIP_Real **sdpconstval_local;
+   SCIP_VAR* indvar = 0;
+   SCIP_Bool infeasible;
+   int nindcons = 0;
 
    assert( scip != NULL );
    assert( pfile != NULL );
@@ -877,9 +880,10 @@ SCIP_RETCODE SDPAreadBlocks(
       }
       else /* LP block */
       {
-         /* check if this entry belongs to the constant part of the LP block (v = -1) or not (v >= 0) */
+         /* check if this entry belongs to the constant part of the LP block (v = -1) or not (v >= 0 || v < -1) the later for indicator variables  */
          if ( v >= 0 )
          {
+               SCIPerrorMessage("variable part\n");
             /* linear constraints are specified on the diagonal of the LP block */
             if ( row != col )
             {
@@ -915,29 +919,65 @@ SCIP_RETCODE SDPAreadBlocks(
          }
          else /* constant part*/
          {
-            c = row;
-
-            if ( c < 0 || c >= data->nlinconss )
+            if( v < -1 )  /* indicator constraint*/
             {
-               SCIPerrorMessage("Given constant part in line %" SCIP_LONGINT_FORMAT
-                  " for scalar constraint %d which does not exist!\n", *linecount, c);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
+               v = -v - 2;  /* adjust variable index to be positive */
+               SCIP_CONS* indcons;
+               SCIP_VAR* slackvar = 0;
+               char indconsname[SCIP_MAXSTRLEN];
+               char slackvarname[SCIP_MAXSTRLEN];
+               
+               (void) SCIPsnprintf(slackvarname, SCIP_MAXSTRLEN, "s_%d", nindcons);
+               (void) SCIPsnprintf(indconsname, SCIP_MAXSTRLEN, "cons_indicator_%d", nindcons);
+               
+               /* create slack variable and add it to the constraint */
+               SCIP_CALL( SCIPcreateVar(scip, &slackvar, slackvarname, 0.0, SCIPinfinity(scip), 0.0, 
+                  SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, 0, 0, 0, 0, 0)); //TODO: find good var name 
+               SCIP_CALL( SCIPaddVar(scip, slackvar) ); 
+               
+               SCIP_CALL( SCIPaddCoefLinear(scip,data->createdconss[c] , slackvar, +1.0) );/*lint !e732*//*lint !e747*/
+               
+               indvar= data->createdvars[v];	
+               SCIP_CALL( SCIPchgVarLbGlobal(scip, indvar, 0.0) );
+               SCIP_CALL( SCIPchgVarUbGlobal(scip, indvar, 1.0) );
+               SCIP_CALL( SCIPchgVarType(scip, indvar, SCIP_VARTYPE_BINARY, &infeasible) );
+               SCIP_CALL( SCIPcreateConsIndicatorLinCons( scip, &indcons, indconsname, indvar,data->createdconss[c], slackvar,
+                           TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE) ); 
+               SCIP_CALL( SCIPaddCons(scip, indcons) );
+               
+               /* release both conss and the slackvar */
+               SCIP_CALL( SCIPreleaseCons(scip, &indcons) );
+               SCIP_CALL( SCIPreleaseVar(scip, &slackvar) );
+               
+               nindcons++;
             }
-
-            if ( SCIPisZero(scip, val) )
-               ++nzerocoef;
             else
             {
-               assert( ! SCIPisInfinity(scip, - SCIPgetLhsLinear(scip, data->createdconss[c])) );
-               assert( SCIPisInfinity(scip, SCIPgetRhsLinear(scip, data->createdconss[c])) );
+                           SCIPerrorMessage("const part\n");
+               c = row;
 
-               /* All linear constraints are greater or equal constraints */
-               SCIP_CALL( SCIPchgLhsLinear(scip, data->createdconss[c], val) );
+               if ( c < 0 || c >= data->nlinconss )
+               {
+                  SCIPerrorMessage("Given constant part in line %" SCIP_LONGINT_FORMAT
+                     " for scalar constraint %d which does not exist!\n", *linecount, c);
+                  SCIPABORT();
+                  return SCIP_READERROR; /*lint !e527*/
+               }
+
+               if ( SCIPisZero(scip, val) )
+                  ++nzerocoef;
+               else
+               {
+                  assert( ! SCIPisInfinity(scip, - SCIPgetLhsLinear(scip, data->createdconss[c])) );
+                  assert( SCIPisInfinity(scip, SCIPgetRhsLinear(scip, data->createdconss[c])) );
+
+                  /* All linear constraints are greater or equal constraints */
+                  SCIP_CALL( SCIPchgLhsLinear(scip, data->createdconss[c], val) );
+               }
+               }
             }
          }
       }
-   }
 
    /* TODO: Check if for all blocks (LP and SDP) some nonzero entries have been specified, otherwise return READ_ERROR
       and error message. */
@@ -1085,7 +1125,7 @@ SCIP_RETCODE SDPAreadBlocks(
    SCIPfreeBufferArray(scip, &(sdpconstval_local));
    SCIPfreeBufferArray(scip, &(sdpconstcol_local));
    SCIPfreeBufferArray(scip, &(sdpconstrow_local));
-
+   
    return SCIP_OKAY;
 }
 
@@ -1124,8 +1164,7 @@ SCIP_RETCODE SDPAreadInt(
       if (strncmp(SDPA_LINE_BUFFER, "*RANK1", 5) == 0 )
          break;
 
-      char* ps = SDPA_LINE_BUFFER + 1;
-      if ( sscanf(ps, "%i", &v) != 1 )
+      if ( sscanf(SDPA_LINE_BUFFER + 1, "%i", &v) != 1 ) /* move the index by one to ignor the first character of the line */
       {
          SCIPerrorMessage("Could not read variable index in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
          SCIPABORT();
@@ -1141,9 +1180,11 @@ SCIP_RETCODE SDPAreadInt(
       }
 
       v -= 1;
-
-      SCIP_CALL( SCIPchgVarType(scip, data->createdvars[v], SCIP_VARTYPE_INTEGER, &infeasible) );
-
+      
+      if( SCIPvarGetType(data->createdvars[v]) != SCIP_VARTYPE_BINARY )
+      { 
+         SCIP_CALL( SCIPchgVarType(scip, data->createdvars[v], SCIP_VARTYPE_INTEGER, &infeasible) );
+      }
       if ( infeasible )
       {
          SCIPerrorMessage("Infeasibility detected because of integrality of variable %s!\n",
@@ -1701,7 +1742,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    }
   
    /* write SDP nonzeros */
-   //if ( totalsdpnnonz > 0 )
+   //if ( totalsdpnnonz > 0 ) //TODO: hierfür wieder testen (sollte aber eigentlich automatisch passieren)
 //   {
    
 
@@ -1831,7 +1872,6 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
          if ( ! SCIPisZero(scip, val) )
             SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", 0, consmax + 1, linconsind, linconsind, val * const_sign*(-1));       
       }
-      
       
       }
       }
