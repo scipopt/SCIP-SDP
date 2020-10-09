@@ -681,12 +681,10 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
    SCIP_Bool*            fixingsfound        /**< pointer to store whether a variable was fixed during this function call */
    )
 {
+   SCIP_Real rowconst = 0.0;
+   int nrownonz = 0;
+   int currentrow;
    int i;
-   int c;
-   int lastrow = -1;
-   int nonzind = -1;
-   int nonzcol = -1;
-   SCIP_Real nonzval;
 
    assert( sdpi != NULL );
    assert( sdpi->nlpcons == 0 || lplhsafterfix != NULL );
@@ -702,311 +700,188 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
    if ( sdpi->nlpcons == 0 || sdpi->lpnnonz == 0 )
       return SCIP_OKAY;
 
-   /* initialize rownactivevars */
-   for (c = 0; c < sdpi->nlpcons; ++c)
-      rownactivevars[c] = 0;
-
+   currentrow = sdpi->lprow[0];
    for (i = 0; i < sdpi->lpnnonz; ++i)
    {
-      assert( i == 0 || sdpi->lprow[i-1] <= sdpi->lprow[i] );
+      assert( i == 0 || sdpi->lprow[i-1] <= sdpi->lprow[i] );  /* rows should be sorted */
 
-      /* we reached a new row */
-      if ( sdpi->lprow[i] > lastrow )
+      /* count number of contained active variables */
+      if ( ! isFixed(sdpi, sdpi->lpcol[i]) )
+         ++nrownonz;
+      else
+         rowconst += sdpi->lpval[i] * sdpi->lb[sdpi->lpcol[i]];  /* contribution of the fixed variables */
+      assert( ! SCIPsdpiIsInfinity(sdpi, rowconst) );
+
+      /* we finished a new row */
+      if ( i == sdpi->lpnnonz - 1 || sdpi->lprow[i+1] > currentrow )
       {
+         SCIP_Real lhs;
+         SCIP_Real rhs;
+
+         rownactivevars[currentrow] = nrownonz;
+
+         if ( sdpi->lplhs[currentrow] > - SCIPsdpiInfinity(sdpi) )
+            lhs = sdpi->lplhs[currentrow] - rowconst;
+         else
+            lhs = - SCIPsdpiInfinity(sdpi);
+
+         if ( sdpi->lprhs[currentrow] < SCIPsdpiInfinity(sdpi) )
+            rhs = sdpi->lprhs[currentrow] - rowconst;
+         else
+            rhs = SCIPsdpiInfinity(sdpi);
+
          /* if the last row had at least two active variables, we keep the lhs- and rhs-value */
-         if ( lastrow >= 0 && rownactivevars[lastrow] > 1 )
-            ++(*nactivelpcons);
-         else if ( lastrow >= 0 && rownactivevars[lastrow] == 1 )
+         if ( nrownonz >= 2 )
          {
-            assert( 0 <= nonzind && nonzind < sdpi->lpnnonz );
+            lplhsafterfix[*nactivelpcons] = lhs;
+            lprhsafterfix[*nactivelpcons] = rhs;
+            ++(*nactivelpcons);
+         }
+         else if ( nrownonz == 1 )
+         {
+            SCIP_Real lpval;
+            int lpcol;
 
-            nonzcol = sdpi->lpcol[nonzind];
-            assert( 0 <= nonzcol && nonzcol < sdpi->nvars );
+            /* check whether the row leads to an improvement in the variables bounds */
+            lpcol = sdpi->lpcol[i];
+            assert( 0 <= lpcol && lpcol < sdpi->nvars );
 
-            nonzval = sdpi->lpval[nonzind];
-            assert( REALABS(nonzval) > sdpi->epsilon );
+            lpval = sdpi->lpval[i];
+            assert( REALABS(lpval) > sdpi->epsilon );
 
-            /* we have to check whether this is an improvement of the current bound */
-            if ( nonzval < 0.0 ) /* we have to compare with the upper bound for lhs and lower bound for rhs */
+            if ( lhs > - SCIPsdpiInfinity(sdpi) )
             {
-               /* check for the left-hand-side */
-               if ( (lplhsafterfix[*nactivelpcons] > - SCIPsdpiInfinity(sdpi)) &&
-                  ( (lplhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->epsilon) )
+               if ( lpval < 0.0 ) /* we have to compare with the upper bound for lhs and lower bound for rhs */
                {
-                  /* this bound is sharper than the original one */
-                  SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
-                     "(originally %f)\n", lastrow, sdpi->sdpid, nonzcol, lplhsafterfix[*nactivelpcons] / nonzval, sdpi->ub[nonzcol]);
-                  sdpi->ub[nonzcol] = lplhsafterfix[*nactivelpcons] / nonzval;
-
-                  /* check whether this leads to a fixing of this variable */
-                  if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->epsilon )
+                  /* check for the left-hand-side */
+                  if ( lhs / lpval < sdpi->ub[lpcol] - sdpi->epsilon )
                   {
-                     *fixingsfound = TRUE;
-                     SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d.\n",
-                        nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
-                  }
+                     /* this bound is sharper than the original one */
+                     SCIPdebugMessage("Empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
+                        "(originally %f)\n", currentrow, sdpi->sdpid, lpcol, lhs / lpval, sdpi->ub[lpcol]);
+                     sdpi->ub[lpcol] = lhs / lpval;
 
-                  /* check whether this makes the problem infeasible */
-                  if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
-                  {
-                     sdpi->infeasible = TRUE;
-                     SCIPdebugMessage("We found an upper bound %f that is lower than the lower bound %f for variable %d, so the problem is infeasible!\n",
-                        sdpi->ub[nonzcol], sdpi->lb[nonzcol], nonzcol);
-                     return SCIP_OKAY;
+                     /* check whether this leads to a fixing of this variable */
+                     if ( REALABS(sdpi->lb[lpcol] - sdpi->ub[lpcol]) < sdpi->epsilon )
+                     {
+                        SCIPdebugMessage("Fixed variable %d to value %f in SDP %d.\n", lpcol, sdpi->lb[lpcol], sdpi->sdpid);
+                        *fixingsfound = TRUE;
+                     }
+
+                     /* check whether this makes the problem infeasible */
+                     if ( sdpi->ub[lpcol] < sdpi->lb[lpcol] - sdpi->feastol )
+                     {
+                        SCIPdebugMessage("Found upper bound %f < lower bound %f for variable %d -> infeasible!\n",
+                           sdpi->ub[lpcol], sdpi->lb[lpcol], lpcol);
+                        sdpi->infeasible = TRUE;
+                        return SCIP_OKAY;
+                     }
                   }
                }
-
-               /* check for the right-hand-side */
-               if ( (lprhsafterfix[*nactivelpcons] < SCIPsdpiInfinity(sdpi)) &&
-                  ( (lprhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] + sdpi->epsilon) )
+               else
                {
-                  /* this bound is sharper than the original one */
-                  SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
-                     "(originally %f)\n", lastrow, sdpi->sdpid, nonzcol, lprhsafterfix[*nactivelpcons] / nonzval, sdpi->lb[nonzcol]);
-                  sdpi->lb[nonzcol] = lprhsafterfix[*nactivelpcons] / nonzval;
+                  assert( lpval > 0.0 );
 
-                  /* check if this leads to a fixing of this variable */
-                  if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->epsilon )
+                  /* check for the left-hand-side */
+                  if ( lhs / lpval > sdpi->lb[lpcol] + sdpi->epsilon )
                   {
-                     *fixingsfound = TRUE;
-                     SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d.\n",
-                        nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
-                  }
+                     /* this bound is sharper than the original one */
+                     SCIPdebugMessage("Empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
+                        "(originally %f)\n", currentrow, sdpi->sdpid, lpcol, lhs / lpval, sdpi->lb[lpcol]);
+                     sdpi->lb[lpcol] = lhs / lpval;
 
-                  /* check if this makes the problem infeasible */
-                  if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
-                  {
-                     sdpi->infeasible = TRUE;
-                     SCIPdebugMessage("We found an upper bound %f that is lower than the lower bound %f for variable %d, so the problem is infeasible!\n",
-                        sdpi->ub[nonzcol], sdpi->lb[nonzcol], nonzcol);
-                     return SCIP_OKAY;
+                     /* check if this leads to a fixing of this variable */
+                     if ( REALABS(sdpi->lb[lpcol] - sdpi->ub[lpcol]) < sdpi->epsilon )
+                     {
+                        SCIPdebugMessage("Fixed variable %d to value %f in SDP %d.\n", lpcol, sdpi->lb[lpcol], sdpi->sdpid);
+                        *fixingsfound = TRUE;
+                     }
+
+                     /* check if this makes the problem infeasible */
+                     if ( sdpi->ub[lpcol] < sdpi->lb[lpcol] - sdpi->feastol )
+                     {
+                        SCIPdebugMessage("Found upper bound %f < lower bound %f for variable %d -> infeasible!\n",
+                           sdpi->ub[lpcol], sdpi->lb[lpcol], lpcol);
+                        sdpi->infeasible = TRUE;
+                        return SCIP_OKAY;
+                     }
                   }
                }
             }
-            else	/* we compare with the lower bound for lhs and upper bound for rhs */
+
+            if ( rhs < SCIPsdpiInfinity(sdpi) )
             {
-               /* check for the left-hand-side */
-               if ( (lplhsafterfix[*nactivelpcons] < SCIPsdpiInfinity(sdpi)) &&
-                  ( (lplhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] + sdpi->epsilon) )
+               if ( lpval < 0.0 ) /* we have to compare with the upper bound for lhs and lower bound for rhs */
                {
-                  /* this bound is sharper than the original one */
-                  SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
-                     "(originally %f)\n", lastrow, sdpi->sdpid, nonzcol, lplhsafterfix[*nactivelpcons] / nonzval, sdpi->lb[nonzcol]);
-                  sdpi->lb[nonzcol] = lplhsafterfix[*nactivelpcons] / nonzval;
-
-                  /* check if this leads to a fixing of this variable */
-                  if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->epsilon )
+                  if ( rhs / lpval > sdpi->lb[lpcol] + sdpi->epsilon )
                   {
-                     *fixingsfound = TRUE;
-                     SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d.\n",
-                        nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
-                  }
+                     /* this bound is sharper than the original one */
+                     SCIPdebugMessage("Empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
+                        "(originally %f)\n", currentrow, sdpi->sdpid, lpcol, rhs / lpval, sdpi->lb[lpcol]);
+                     sdpi->lb[lpcol] = rhs / lpval;
 
-                  /* check if this makes the problem infeasible */
-                  if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
-                  {
-                     sdpi->infeasible = TRUE;
-                     SCIPdebugMessage("We found an upper bound %f that is lower than the lower bound %f for variable %d, so the problem is infeasible!\n",
-                        sdpi->ub[nonzcol], sdpi->lb[nonzcol], nonzcol);
-                     return SCIP_OKAY;
+                     /* check if this leads to a fixing of this variable */
+                     if ( REALABS(sdpi->lb[lpcol] - sdpi->ub[lpcol]) < sdpi->epsilon )
+                     {
+                        SCIPdebugMessage("Fixed variable %d to value %f in SDP %d.\n", lpcol, sdpi->lb[lpcol], sdpi->sdpid);
+                        *fixingsfound = TRUE;
+                     }
+
+                     /* check if this makes the problem infeasible */
+                     if ( sdpi->ub[lpcol] < sdpi->lb[lpcol] - sdpi->feastol )
+                     {
+                        SCIPdebugMessage("Found upper bound %f < lower bound %f for variable %d -> infeasible!\n",
+                           sdpi->ub[lpcol], sdpi->lb[lpcol], lpcol);
+                        sdpi->infeasible = TRUE;
+                        return SCIP_OKAY;
+                     }
                   }
                }
-               /* check for the right-hand-side */
-               if ( (lprhsafterfix[*nactivelpcons] > - SCIPsdpiInfinity(sdpi)) &&
-                  ( (lprhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->epsilon) )
+               else
                {
-                  /* this bound is sharper than the original one */
-                  SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
-                     "(originally %f)\n", lastrow, sdpi->sdpid, nonzcol, lprhsafterfix[*nactivelpcons] / nonzval, sdpi->ub[nonzcol]);
-                  sdpi->ub[nonzcol] = lprhsafterfix[*nactivelpcons] / nonzval;
-
-                  /* check if this leads to a fixing of this variable */
-                  if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->epsilon )
+                  if ( rhs / lpval < sdpi->ub[lpcol] - sdpi->epsilon )
                   {
-                     *fixingsfound = TRUE;
-                     SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d.\n",
-                        nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
-                  }
+                     /* this bound is sharper than the original one */
+                     SCIPdebugMessage("Empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
+                        "(originally %f)\n", currentrow, sdpi->sdpid, lpcol, rhs / lpval, sdpi->ub[lpcol]);
+                     sdpi->ub[lpcol] = rhs / lpval;
 
-                  /* check if this makes the problem infeasible */
-                  if (sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol)
-                  {
-                     sdpi->infeasible = TRUE;
-                     SCIPdebugMessage("We found an upper bound %f that is lower than the lower bound %f for variable %d, so the problem is infeasible!\n",
-                        sdpi->ub[nonzcol], sdpi->lb[nonzcol], nonzcol);
-                     return SCIP_OKAY;
+                     /* check if this leads to a fixing of this variable */
+                     if ( REALABS(sdpi->lb[lpcol] - sdpi->ub[lpcol]) < sdpi->epsilon )
+                     {
+                        SCIPdebugMessage("Fixed variable %d to value %f in SDP %d.\n", lpcol, sdpi->lb[lpcol], sdpi->sdpid);
+                        *fixingsfound = TRUE;
+                     }
+
+                     /* check if this makes the problem infeasible */
+                     if ( sdpi->ub[lpcol] < sdpi->lb[lpcol] - sdpi->feastol )
+                     {
+                        SCIPdebugMessage("Found upper bound %f < lower bound %f for variable %d -> infeasible!\n",
+                           sdpi->ub[lpcol], sdpi->lb[lpcol], lpcol);
+                        sdpi->infeasible = TRUE;
+                        return SCIP_OKAY;
+                     }
                   }
                }
             }
          }
-         else if ( lastrow >= 0 ) /* because of earlier ifs we have rownactivevars = 0 */
+         else  /* because of earlier ifs we have rownactivevars = 0 */
          {
-            assert( lastrow == -1 || rownactivevars[lastrow] == 0 );
+            assert( nrownonz == 0 );
 
             /* we have a constraint lhs <= 0 <= rhs, so lhs should be non-positive and rhs non-negative, otherwise the problem is infeasible */
-            if ( lplhsafterfix[*nactivelpcons] > sdpi->feastol || lprhsafterfix[*nactivelpcons] < -sdpi->feastol )
+            if ( lhs > sdpi->feastol || rhs < -sdpi->feastol )
             {
+               SCIPdebugMessage("Found constraint  %f <= 0 <= %f after fixings -> infeasible!\n", lhs, rhs );
                sdpi->infeasible = TRUE;
-               SCIPdebugMessage("We found a constraint which with given fixings reads %f <= 0 <= %f, so the current problem is infeasible!\n",
-                  lplhsafterfix[*nactivelpcons], lprhsafterfix[*nactivelpcons] );
                return SCIP_OKAY;
             }
          }
 
-         /* update lastrow for new row */
-         lastrow = sdpi->lprow[i];
-
-         /* start the next lhr & rhs with the original value */
-         lplhsafterfix[*nactivelpcons] = sdpi->lplhs[lastrow];
-         lprhsafterfix[*nactivelpcons] = sdpi->lprhs[lastrow];
-      }
-
-      /* if the variable is active, we increase rownactivevars */
-      if ( ! isFixed(sdpi, sdpi->lpcol[i]) )
-      {
-         rownactivevars[lastrow]++;
-         nonzind = i;
-      }
-      else
-      {
-         /* otherwise we add the value (coefficient * value of fixed variable) to the lhs and rhs, the minus comes from +A_i but -A_0 */
-         lplhsafterfix[*nactivelpcons] -= sdpi->lpval[i] * sdpi->lb[sdpi->lpcol[i]];
-         lprhsafterfix[*nactivelpcons] -= sdpi->lpval[i] * sdpi->lb[sdpi->lpcol[i]];
-      }
-   }
-
-   /* for the last row of the lp we have to check if it is active, as in the above for-queue we only do so when the next row start */
-   if ( rownactivevars[lastrow] > 1 )
-      ++(*nactivelpcons);
-   else if ( rownactivevars[lastrow] == 1 )
-   {
-      assert( 0 <= nonzind && nonzind < sdpi->lpnnonz );
-
-      nonzcol = sdpi->lpcol[nonzind];
-      assert( 0 <= nonzcol && nonzcol < sdpi->nvars );
-
-      nonzval = sdpi->lpval[nonzind];
-      assert( REALABS(nonzval) > sdpi->epsilon );
-
-      /* we have to check if this is an improvement of the current bound */
-      if ( nonzval < 0.0 ) /* we have to compare with the upper bound for lhs and lower bound for rhs */
-      {
-         /* check for the left-hand-side */
-         if ( (lplhsafterfix[*nactivelpcons] > SCIPsdpiInfinity(sdpi)) &&
-            ( (lplhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->epsilon) )
-         {
-            /* this bound is sharper than the original one */
-            SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
-               "(originally %f)\n", lastrow, sdpi->sdpid, nonzcol, lplhsafterfix[*nactivelpcons] / nonzval, sdpi->ub[nonzcol]);
-            sdpi->ub[nonzcol] = lplhsafterfix[*nactivelpcons] / nonzval;
-
-            /* check if this leads to a fixing of this variable */
-            if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->epsilon )
-            {
-               *fixingsfound = TRUE;
-               SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d.\n",
-                  nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
-            }
-
-            /* check if this makes the problem infeasible */
-            if ( sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol )
-            {
-               sdpi->infeasible = TRUE;
-               SCIPdebugMessage("We found an upper bound that is lower than the lower bound, so the problem is infeasible!\n");
-               return SCIP_OKAY;
-            }
-         }
-         /* check for the right-hand-side */
-         if ( (lprhsafterfix[*nactivelpcons] < SCIPsdpiInfinity(sdpi)) &&
-            ( (lprhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] - sdpi->epsilon) )
-         {
-            /* this bound is sharper than the original one */
-            SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
-               "(originally %f)\n", lastrow, sdpi->sdpid, nonzcol, lprhsafterfix[*nactivelpcons] / nonzval, sdpi->lb[nonzcol]);
-            sdpi->lb[nonzcol] = lprhsafterfix[*nactivelpcons] / nonzval;
-
-            /* check if this leads to a fixing of this variable */
-            if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->epsilon )
-            {
-               *fixingsfound = TRUE;
-               SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d.\n",
-                  nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
-            }
-
-            /* check if this makes the problem infeasible */
-            if ( sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol )
-            {
-               sdpi->infeasible = TRUE;
-               SCIPdebugMessage("We found an upper bound that is lower than the lower bound, so the problem is infeasible!\n");
-               return SCIP_OKAY;
-            }
-         }
-      }
-      else  /* we compare with the lower bound for lhs and upper bound for rhs */
-      {
-         /* check for the left-hand-side */
-         if ( (lplhsafterfix[*nactivelpcons] < SCIPsdpiInfinity(sdpi)) &&
-            ( (lplhsafterfix[*nactivelpcons] / nonzval) > sdpi->lb[nonzcol] + sdpi->epsilon) )
-         {
-            /* this bound is sharper than the original one */
-            SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been sharpened to %f "
-               "(originally %f)\n", lastrow, sdpi->sdpid, nonzcol, lplhsafterfix[*nactivelpcons] / nonzval, sdpi->lb[nonzcol]);
-            sdpi->lb[nonzcol] = lplhsafterfix[*nactivelpcons] / nonzval;
-
-            /* check if this leads to a fixing of this variable */
-            if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->epsilon )
-            {
-               *fixingsfound = TRUE;
-               SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d.\n",
-                  nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
-            }
-
-            /* check if this makes the problem infeasible */
-            if ( sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol )
-            {
-               sdpi->infeasible = TRUE;
-               SCIPdebugMessage("We found a lower bound that is bigger than the upper bound, so the problem is infeasible!\n");
-               return SCIP_OKAY;
-            }
-         }
-         /* check for the right-hand-side */
-         if ( (lprhsafterfix[*nactivelpcons] > SCIPsdpiInfinity(sdpi)) &&
-            ( (lprhsafterfix[*nactivelpcons] / nonzval) < sdpi->ub[nonzcol] - sdpi->epsilon) )
-         {
-            /* this bound is sharper than the original one */
-            SCIPdebugMessage("empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been sharpened to %f "
-               "(originally %f)\n", lastrow, sdpi->sdpid, nonzcol, lprhsafterfix[*nactivelpcons] / nonzval, sdpi->ub[nonzcol]);
-            sdpi->ub[nonzcol] = lplhsafterfix[*nactivelpcons] / nonzval;
-
-            /* check if this leads to a fixing of this variable */
-            if ( REALABS(sdpi->lb[nonzcol] - sdpi->ub[nonzcol]) < sdpi->epsilon )
-            {
-               *fixingsfound = TRUE;
-               SCIPdebugMessage("computeLpLhsRhsAfterFixings fixed variable %d to value %f in SDP %d.\n",
-                  nonzcol, sdpi->lb[nonzcol], sdpi->sdpid);
-            }
-
-            /* check if this makes the problem infeasible */
-            if ( sdpi->ub[nonzcol] < sdpi->lb[nonzcol] - sdpi->feastol )
-            {
-               sdpi->infeasible = TRUE;
-               SCIPdebugMessage("We found an upper bound that is lower than the lower bound, so the problem is infeasible!\n");
-               return SCIP_OKAY;
-            }
-         }
-      }
-   }
-   else
-   {
-      assert( lastrow == -1 || rownactivevars[lastrow] == 0 );
-
-      /* we have a constraint lhs <= 0 <= rhs, so lhs should be non-positive and rhs non-negative, otherwise the problem is infeasible */
-      if ( lplhsafterfix[*nactivelpcons] > sdpi->feastol || lprhsafterfix[*nactivelpcons] < -sdpi->feastol )
-      {
-         sdpi->infeasible = TRUE;
-         SCIPdebugMessage("We found a constraint which with given fixings reads %f <= 0 <= %f, so the current problem is infeasible!\n",
-               lplhsafterfix[*nactivelpcons], lprhsafterfix[*nactivelpcons] );
-         return SCIP_OKAY;
+         /* reset variables for next row */
+         rowconst = 0.0;
+         if ( i < sdpi->lpnnonz )
+            currentrow = sdpi->lprow[i+1];
       }
    }
 
