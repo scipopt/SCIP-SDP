@@ -1039,8 +1039,8 @@ static
 SCIP_RETCODE putLpDataInInterface(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_RELAXDATA*       relaxdata,          /**< relaxator data */
-   SCIP_Bool             primalobj,          /**< should the primal objective coefficients (lhs/rhs of LP-constraints) be used ? */
-   SCIP_Bool             dualobj             /**< should the dual objective coefficients be used ? */
+   SCIP_Bool             primalobj,          /**< Should the primal objective coefficients (lhs/rhs of LP-constraints) be used? */
+   SCIP_Bool             dualobj             /**< Should the dual objective coefficients be used? */
    )
 {
    SCIP_VAR** vars;
@@ -1052,7 +1052,6 @@ SCIP_RETCODE putLpDataInInterface(
    SCIP_Real* ub;
    SCIP_Real* val;
    int* inds;
-   int* objinds;
    int* rowind;
    int* colind;
    int nrowssdpi;
@@ -1134,13 +1133,31 @@ SCIP_RETCODE putLpDataInInterface(
             {
                assert( SCIPcolGetVar(rowcols[j]) != NULL );
                colind[nnonz] = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[j]));
+               assert( 0 <= colind[nnonz] && colind[nnonz] < nvars );
                rowind[nnonz] = nconss;
                val[nnonz] = rowvals[j];
                nnonz++;
             }
          }
-         lhs[nconss] = primalobj ? rowlhs : (SCIPisInfinity(scip, -rowlhs) ? -rowlhs : 0.0);
-         rhs[nconss] = primalobj ? rowrhs : (SCIPisInfinity(scip, rowrhs) ? rowrhs : 0.0);
+
+         /* for primal objective use original lhs and rhs */
+         if ( primalobj )
+         {
+            lhs[nconss] = rowlhs;
+            rhs[nconss] = rowrhs;
+         }
+         else
+         {
+            if ( SCIPisInfinity(scip, -rowlhs) )
+               lhs[nconss] = - SCIPinfinity(scip);
+            else
+               lhs[nconss] = 0.0;
+
+            if ( SCIPisInfinity(scip, rowrhs) )
+               rhs[nconss] = SCIPinfinity(scip);
+            else
+               rhs[nconss] = 0.0;
+         }
          nconss++;
       }
 
@@ -1150,6 +1167,7 @@ SCIP_RETCODE putLpDataInInterface(
          SCIPfreeBufferArray(scip, &rowvals);
       }
    }
+   assert( nnonz == scipnnonz );
 
    /* delete the old LP-block from the sdpi */
    SCIP_CALL( SCIPsdpiGetNLPRows(relaxdata->sdpi, &nrowssdpi) );
@@ -1179,25 +1197,44 @@ SCIP_RETCODE putLpDataInInterface(
    SCIP_CALL( SCIPallocBufferArray(scip, &ub, nvars) );
    SCIP_CALL( SCIPallocBufferArray(scip, &inds, nvars) );
    SCIP_CALL( SCIPallocBufferArray(scip, &obj, nvars) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &objinds, nvars) );
 
    /* get new bounds and objective coefficients */
    for (i = 0; i < nvars; i++)
    {
       assert( vars[i] != NULL );
-      lb[i] = primalobj ? SCIPvarGetLbLocal(vars[i]) : (SCIPisInfinity(scip, -SCIPvarGetLbLocal(vars[i])) ? SCIPvarGetLbLocal(vars[i]) : 0.0);
-      ub[i] = primalobj ? SCIPvarGetUbLocal(vars[i]) : (SCIPisInfinity(scip, SCIPvarGetUbLocal(vars[i])) ? SCIPvarGetUbLocal(vars[i]) : 0.0);
-      inds[i] = i; /* we want to change all bounds, so all indices are included in inds */
-      obj[i] = dualobj ? SCIPvarGetObj(vars[i]) : 0.0;
-      objinds[i] = i;
+
+      /* for primal objective use original lb and ub */
+      if ( primalobj )
+      {
+         lb[i] = SCIPvarGetLbLocal(vars[i]);
+         ub[i] = SCIPvarGetUbLocal(vars[i]);
+      }
+      else
+      {
+         if ( SCIPisInfinity(scip, -SCIPvarGetLbLocal(vars[i])) )
+            lb[i] = -SCIPinfinity(scip);
+         else
+            lb[i] = 0.0;
+
+         if ( SCIPisInfinity(scip, SCIPvarGetUbLocal(vars[i])) )
+            ub[i] = SCIPinfinity(scip);
+         else
+            ub[i] = 0.0;
+      }
+
+      if ( dualobj )
+         obj[i] = SCIPvarGetObj(vars[i]);
+      else
+         obj[i] = 0.0;
+
+      inds[i] = i; /* we want to change all bounds and objective coefficients, so all indices are included in inds */
    }
 
    /* inform interface */
    SCIP_CALL( SCIPsdpiChgBounds(relaxdata->sdpi, nvars, inds, lb, ub) );
-   SCIP_CALL( SCIPsdpiChgObj(relaxdata->sdpi, nvars, objinds, obj) );
+   SCIP_CALL( SCIPsdpiChgObj(relaxdata->sdpi, nvars, inds, obj) );
 
    /* free the bounds-arrays */
-   SCIPfreeBufferArray(scip, &objinds);
    SCIPfreeBufferArray(scip, &obj);
    SCIPfreeBufferArray(scip, &inds);
    SCIPfreeBufferArray(scip, &ub);
