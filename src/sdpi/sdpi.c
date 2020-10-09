@@ -1006,7 +1006,7 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
       SCIP_CALL( SCIPlapackComputeIthEigenvalue(sdpi->bufmem, FALSE, size, fullmatrix, 1, &eigenvalue, NULL) );
 
       /* check if the eigenvalue is negative */
-      if ( eigenvalue < -1 * sdpi->feastol )
+      if ( eigenvalue < - sdpi->feastol )
       {
          sdpi->infeasible = TRUE;
          SCIPdebugMessage("Detected infeasibility for SDP %d with all fixed variables!\n", sdpi->sdpid);
