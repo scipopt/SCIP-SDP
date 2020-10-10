@@ -504,7 +504,7 @@ SCIP_RETCODE SDPAreadBlockSize(
 
    for (b = 0; b < nsdpblocks; b++)
    {
-      assert( blockValsPsd[b] > 0 );    //TODO: eine instance ohne sdp block failed hier
+      assert( blockValsPsd[b] > 0 );    
       data->sdpblocksizes[b] = *(blockValsPsd + b);
 
       /* initialize rank-1 information to FALSE, will eventually be changed in PSDCONRANK1 */
@@ -677,7 +677,6 @@ SCIP_RETCODE SDPAreadBlocks(
 
       nsdpblocks = data->nsdpblocks;
 
-      /* TODO: funktioniert ohne lincons aber failed ohne sdp cons, soll das so? */
       if ( data->sdpblocksizes == NULL ) 
       {
          SCIPerrorMessage("Sizes of the SDP blocks need to be specified before entries of the blocks!\n");
@@ -685,8 +684,6 @@ SCIP_RETCODE SDPAreadBlocks(
          return SCIP_READERROR; /*lint !e527*/
       }
       assert( data->nlinconss >= 0 );
-
-      /* TODO: only allocate memory and aexecute the parts below if data->nsdpblocks > 0 */
 
       /* initialize sdpnblocknonz with 0 */
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpnblocknonz), data->nsdpblocks) ); 
@@ -1681,6 +1678,14 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    }
 
    blocks = nsdpconss;
+   
+   if(blocks > 0 && totalsdpnnonz == 0)
+   {
+      SCIPerrorMessage("Specified %d SDP blocks but no SDP values. \n", blocks); //TODO: bessere bezeichnung finden
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+   
    if ( nvarbndslinconss + nlinconss > 0 )
       blocks++;
 
@@ -1719,19 +1724,23 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    }
    SCIPinfoMessage(scip, file, "\n");
 
-   /* allocate memory for SDPdata */
-   SCIP_CALL( SCIPallocBufferArray(scip, &sdpnvarnonz, nvars) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &sdpcol, totalsdpnnonz) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &sdprow, totalsdpnnonz) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &sdpval, totalsdpnnonz) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &sdpvars, nvars) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &sdpconstcol, totalsdpconstnnonz) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &sdpconstrow, totalsdpconstnnonz) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &sdpconstval, totalsdpconstnnonz) );
+   
+   if( nsdpconss > 0 )
+   {
+      /* allocate memory for SDPdata */
+      SCIP_CALL( SCIPallocBufferArray(scip, &sdpnvarnonz, nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &sdpcol, totalsdpnnonz) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &sdprow, totalsdpnnonz) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &sdpval, totalsdpnnonz) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &sdpvars, nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &sdpconstcol, totalsdpconstnnonz) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &sdpconstrow, totalsdpconstnnonz) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &sdpconstval, totalsdpconstnnonz) );
 
-   sdparraylength = totalsdpnnonz;
-   sdpconstnnonz = totalsdpconstnnonz;
-
+      sdparraylength = totalsdpnnonz;
+      sdpconstnnonz = totalsdpconstnnonz;
+   }
+   
    /* write variable bounds as linear constraints */	
    for (c = 0; c < nvars; c++)
    {
@@ -1756,53 +1765,54 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    //if ( totalsdpnnonz > 0 ) //TODO: hierfür wieder testen (sollte aber eigentlich automatisch passieren)
 //   {
    
-
-
       /* write SDP constraint blocks */
       for (c = 0; c < nconss; c++)
       {
          if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") == 0 ||
             strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") == 0 ){
 
-         /* coefficient matrices */
+         if ( totalsdpnnonz > 0 )
+         { 	
+            /* coefficient matrices */
 
-         /* initialization for SDPconsSDPGetData-call */
-         sdparraylength = totalsdpnnonz;
-         sdpconstnnonz = totalsdpconstnnonz;
+            /* initialization for SDPconsSDPGetData-call */
+            sdparraylength = totalsdpnnonz;
+            sdpconstnnonz = totalsdpconstnnonz;
 
-         SCIP_CALL( SCIPconsSdpGetData(scip, conss[c], &sdpnvars, &sdpnnonz, &sdpblocksize, &sdparraylength,
-               sdpnvarnonz, sdprow, sdpcol, sdpval, sdpvars, &sdpconstnnonz,  sdpconstrow, sdpconstcol,
-               sdpconstval, NULL, NULL, NULL) );
+            SCIP_CALL( SCIPconsSdpGetData(scip, conss[c], &sdpnvars, &sdpnnonz, &sdpblocksize, &sdparraylength,
+                  sdpnvarnonz, sdprow, sdpcol, sdpval, sdpvars, &sdpconstnnonz,  sdpconstrow, sdpconstcol,
+                  sdpconstval, NULL, NULL, NULL) );
 
-         assert( sdpconstnnonz <= totalsdpconstnnonz );
-         assert( sdparraylength <= totalsdpnnonz );
+            assert( sdpconstnnonz <= totalsdpconstnnonz );
+            assert( sdparraylength <= totalsdpnnonz );
 
-         for (v = 0; v < sdpnvars; v++)
-         {
-            for (i = 0; i < sdpnvarnonz[v]; i++)
+            for (v = 0; v < sdpnvars; v++)
             {
-               int ind;
-               ind = SCIPvarGetProbindex(sdpvars[v]);
-               assert( 0 <= ind && ind < nvars );
-               SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n",  ind + 1, consind + 1, sdprow[v][i]+ 1 , sdpcol[v][i] + 1,
-                  sdpval[v][i]);
+               for (i = 0; i < sdpnvarnonz[v]; i++)
+               {
+                  int ind;
+                  ind = SCIPvarGetProbindex(sdpvars[v]);
+                  assert( 0 <= ind && ind < nvars );
+                  SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n",  ind + 1, consind + 1, sdprow[v][i]+ 1 , sdpcol[v][i] + 1,
+                     sdpval[v][i]);
+               }
             }
+
+            /* constant matrix */
+
+            /* initialization for SDPconsSDPGetData-call */
+            sdparraylength = totalsdpnnonz;
+
+            assert( sdpconstnnonz <= totalsdpconstnnonz );
+            assert( sdparraylength <= totalsdpnnonz );
+
+            for (i = 0; i < sdpconstnnonz; i++)
+            {
+               SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n",0, consind + 1, sdpconstrow[i] + 1, sdpconstcol[i] + 1,
+                  sdpconstval[i]);
+            }
+            consind++;           
          }
-
-         /* constant matrix */
-
-         /* initialization for SDPconsSDPGetData-call */
-         sdparraylength = totalsdpnnonz;
-
-         assert( sdpconstnnonz <= totalsdpconstnnonz );
-         assert( sdparraylength <= totalsdpnnonz );
-
-         for (i = 0; i < sdpconstnnonz; i++)
-         {
-            SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n",0, consind + 1, sdpconstrow[i] + 1, sdpconstcol[i] + 1,
-               sdpconstval[i]);
-         }
-         consind++;           
       }
       else
       {
@@ -1924,14 +1934,17 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
       }
    }
 
-   SCIPfreeBufferArray(scip, &sdpconstval);
-   SCIPfreeBufferArray(scip, &sdpconstrow);
-   SCIPfreeBufferArray(scip, &sdpconstcol);
-   SCIPfreeBufferArray(scip, &sdpvars);
-   SCIPfreeBufferArray(scip, &sdpval);
-   SCIPfreeBufferArray(scip, &sdprow);
-   SCIPfreeBufferArray(scip, &sdpcol);
-   SCIPfreeBufferArray(scip, &sdpnvarnonz);
+   if( nsdpconss > 0 )
+   {
+      SCIPfreeBufferArray(scip, &sdpconstval);
+      SCIPfreeBufferArray(scip, &sdpconstrow);
+      SCIPfreeBufferArray(scip, &sdpconstcol);
+      SCIPfreeBufferArray(scip, &sdpvars);
+      SCIPfreeBufferArray(scip, &sdpval);
+      SCIPfreeBufferArray(scip, &sdprow);
+      SCIPfreeBufferArray(scip, &sdpcol);
+      SCIPfreeBufferArray(scip, &sdpnvarnonz);
+   }   
    SCIPfreeBufferArray(scip, &consssenses);
    SCIPfreeBufferArray(scip, &varsenses);
 
