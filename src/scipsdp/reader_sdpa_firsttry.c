@@ -1761,16 +1761,14 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
       }
    }
   
-   /* write SDP nonzeros */
-   //if ( totalsdpnnonz > 0 ) //TODO: hierfür wieder testen (sollte aber eigentlich automatisch passieren)
-//   {
-   
-      /* write SDP constraint blocks */
-      for (c = 0; c < nconss; c++)
+   /* write SDP constraint blocks */
+   for (c = 0; c < nconss; c++)
+   {
+      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") == 0 ||
+         strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") == 0 )
       {
-         if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") == 0 ||
-            strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") == 0 ){
 
+         /* write SDP nonzeros */
          if ( totalsdpnnonz > 0 )
          { 	
             /* coefficient matrices */
@@ -1795,7 +1793,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
                   assert( 0 <= ind && ind < nvars );
                   SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n",  ind + 1, consind + 1, sdprow[v][i]+ 1 , sdpcol[v][i] + 1,
                      sdpval[v][i]);
-               }
+               } 
             }
 
             /* constant matrix */
@@ -1815,88 +1813,85 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
          }
       }
       else
-      {
+      {  
+         linconsind++;
       
-      linconsind++;
-      
-      lhs = SCIPgetLhsLinear(scip, conss[c]);
-      rhs = SCIPgetRhsLinear(scip, conss[c]);
-      const_sign = 1;
+         lhs = SCIPgetLhsLinear(scip, conss[c]);
+         rhs = SCIPgetRhsLinear(scip, conss[c]);
+         const_sign = 1;
 
-      /* in case of unconstrained left side and constrained right side swap the inequality by multipling with -1 */
-      if ( ! SCIPisInfinity(scip, rhs) && SCIPisInfinity(scip, -lhs) )
-      {
-      	  const_sign = -1;
-      	  nChangedConstraints++;
-      }
-
-      linvars = SCIPgetVarsLinear(scip, conss[c]);
-      linvals = SCIPgetValsLinear(scip, conss[c]);
-
-      if(!SCIPisEQ(scip, lhs, rhs))
-      {
-
-         for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
+         /* in case of unconstrained left side and constrained right side swap the inequality by multipling with -1 */
+         if ( ! SCIPisInfinity(scip, rhs) && SCIPisInfinity(scip, -lhs) )
          {
-            i = SCIPvarGetProbindex(linvars[v]);
-            assert( 0 <= i && i < nvars );
-            SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", i + 1, consmax + 1, linconsind, linconsind, linvals[v] * const_sign);
+      	     const_sign = -1;
+      	     nChangedConstraints++;
          }
 
-         /* write the constant part of the LP block */
+         linvars = SCIPgetVarsLinear(scip, conss[c]);
+         linvals = SCIPgetValsLinear(scip, conss[c]);
 
-         if ( const_sign < 0 )
-            val = SCIPgetRhsLinear(scip, conss[c]);
-         else
-            val = SCIPgetLhsLinear(scip, conss[c]);
+         if(!SCIPisEQ(scip, lhs, rhs))
+         {
 
-         if ( ! SCIPisZero(scip, val) )
-            SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", 0, consmax + 1, linconsind, linconsind, val * const_sign);
-      }
-      else    /* write linear constraint block */
-      {
+            for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
+            {
+               i = SCIPvarGetProbindex(linvars[v]);
+               assert( 0 <= i && i < nvars );
+               SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", i + 1, consmax + 1, linconsind, linconsind, linvals[v] * const_sign);
+            }
+
+            /* write the constant part of the LP block */
+
+            if ( const_sign < 0 )
+               val = SCIPgetRhsLinear(scip, conss[c]);
+            else
+               val = SCIPgetLhsLinear(scip, conss[c]);
+
+            if ( ! SCIPisZero(scip, val) )
+               SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", 0, consmax + 1, linconsind, linconsind, val * const_sign);
+         }
+         else    /* write linear constraint block */
+         {
    
-         for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
-         {  
-            i = SCIPvarGetProbindex(linvars[v]);
-            assert( 0 <= i && i < nvars );
-            SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", i + 1, consmax + 1, linconsind,linconsind, linvals[v] * const_sign);
-         }
-
-      /* write the constant part of the LP block */
-
-         if ( const_sign < 0 )
-            val = SCIPgetRhsLinear(scip, conss[c]);
-         else
-            val = SCIPgetLhsLinear(scip, conss[c]);
-
-         if ( ! SCIPisZero(scip, val) )
-            SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", 0, consmax + 1, linconsind, linconsind, val * const_sign);
-         
-         
-         ++linconsind;  
-         
-         for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
-         {
-            i = SCIPvarGetProbindex(linvars[v]);
-            assert( 0 <= i && i < nvars );
-            SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", i + 1, consmax + 1, linconsind,linconsind, linvals[v] * const_sign*(-1));
-         }
+            for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
+            {  
+               i = SCIPvarGetProbindex(linvars[v]);
+               assert( 0 <= i && i < nvars );
+               SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", i + 1, consmax + 1, linconsind,linconsind, linvals[v] * const_sign);
+            }
 
          /* write the constant part of the LP block */
 
-         if ( const_sign < 0 )
-            val = SCIPgetRhsLinear(scip, conss[c]);
-         else
-            val = SCIPgetLhsLinear(scip, conss[c]);
+            if ( const_sign < 0 )
+               val = SCIPgetRhsLinear(scip, conss[c]);
+            else
+               val = SCIPgetLhsLinear(scip, conss[c]);
 
-         if ( ! SCIPisZero(scip, val) )
-            SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", 0, consmax + 1, linconsind, linconsind, val * const_sign*(-1));       
+            if ( ! SCIPisZero(scip, val) )
+               SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", 0, consmax + 1, linconsind, linconsind, val * const_sign);
+         
+         
+            ++linconsind;  
+         
+            for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
+            {
+               i = SCIPvarGetProbindex(linvars[v]);
+               assert( 0 <= i && i < nvars );
+               SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", i + 1, consmax + 1, linconsind,linconsind, linvals[v] * const_sign*(-1));
+            }
+
+            /* write the constant part of the LP block */
+
+            if ( const_sign < 0 )
+               val = SCIPgetRhsLinear(scip, conss[c]);
+            else
+               val = SCIPgetLhsLinear(scip, conss[c]);
+
+            if ( ! SCIPisZero(scip, val) )
+               SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", 0, consmax + 1, linconsind, linconsind, val * const_sign*(-1));       
+         }   
       }
-      
-      }
-      }
-  // }
+   }
    
    
    if ( nChangedConstraints > 0 )
