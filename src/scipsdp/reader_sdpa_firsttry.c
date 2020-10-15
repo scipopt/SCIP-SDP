@@ -475,7 +475,13 @@ SCIP_RETCODE SDPAreadBlockSize(
       }
       else
       {
-         /* TODO: If blockVals[i] == 0: return SCIP_READERROR with error message */
+         if ( *(blockVals + i) == 0 )
+         {
+         SCIPerrorMessage("The SDP blocks defined in line %" SCIP_LONGINT_FORMAT " can not be defined with size zero.\n",
+            *linecount);
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
          *(blockValsPsd + nsdpblocks) = *(blockVals + i);
          nsdpblocks ++;
       }
@@ -622,8 +628,12 @@ SCIP_RETCODE SDPAreadBlocks(
    int nzerocoef = 0;
    int nsdpblocks;          /* TODO: find number of nonzeros in each auxiliary sdp block for reformulating matrix variables using scalar variables */
 
+   int emptySdpBlocks = 0;
+   int emptyConBlocks = 0;
+
    int* currentEntriesSdp;
    int* currentEntriesCon;
+   int* currentEntriesLinCon;
    int** sdprow_local;             /**< array of all row indices for each SDP block */
    int** sdpcol_local;             /**< array of all column indices for each SDP block */
    SCIP_Real** sdpval_local;       /**< array of all values of SDP nonzeros for each SDP block */
@@ -657,6 +667,7 @@ SCIP_RETCODE SDPAreadBlocks(
 
       SCIP_CALL( SCIPallocBufferArray(scip, &currentEntriesSdp, data->nsdpblocks) );
       SCIP_CALL( SCIPallocBufferArray(scip, &currentEntriesCon, data->nsdpblocks) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &currentEntriesLinCon, data->nlinconss) );
 
 
       /* set initial memory size*/
@@ -667,6 +678,12 @@ SCIP_RETCODE SDPAreadBlocks(
          currentEntriesCon[b] = 0;
          currentEntriesSdp[b] = 0;
       }
+
+      for (c = 0; c < data->nlinconss ; c++)
+      {
+         currentEntriesLinCon[c] = 0;
+      }
+
 
       if ( data->nsdpblocks < 0 )
       {
@@ -889,7 +906,6 @@ SCIP_RETCODE SDPAreadBlocks(
          /* check if this entry belongs to the constant part of the LP block (v = -1) or not (v >= 0 || v < -1) the later for indicator variables  */
          if ( v >= 0 )
          {
-               SCIPerrorMessage("variable part\n");
             /* linear constraints are specified on the diagonal of the LP block */
             if ( row != col )
             {
@@ -919,9 +935,14 @@ SCIP_RETCODE SDPAreadBlocks(
             }
 
             if ( SCIPisZero(scip, val) )
+            {
                ++nzerocoef;
+            }
             else
+            {
                SCIP_CALL( SCIPaddCoefLinear(scip, data->createdconss[c], data->createdvars[v],val) );/*lint !e732*//*lint !e747*/
+               currentEntriesLinCon[c]++;
+            }         
          }
          else /* constant part*/
          {
@@ -959,7 +980,6 @@ SCIP_RETCODE SDPAreadBlocks(
             }
             else
             {
-                           SCIPerrorMessage("const part\n");
                c = row;
 
                if ( c < 0 || c >= data->nlinconss )
@@ -985,8 +1005,40 @@ SCIP_RETCODE SDPAreadBlocks(
          }
       }
 
-   /* TODO: Check if for all blocks (LP and SDP) some nonzero entries have been specified, otherwise return READ_ERROR
-      and error message. */
+   for (b = 0; b < data->nsdpblocks; b++)
+   {
+      if ( b != data->locationConBlock )
+      { 
+         if(currentEntriesSdp[b] == 0) //location con Block beachten
+         {
+            SCIPerrorMessage("SDP block number %d does not contain nonzero entries!\n", b+1);      
+            emptySdpBlocks++;
+         }
+      }
+   }
+
+   if (emptySdpBlocks > 0)
+   {
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+
+   for (c = 0; c < data->nlinconss; c++)
+   {
+      if(currentEntriesLinCon[c] == 0) 
+      {
+         SCIPerrorMessage("Linear constraint number %d does not contain nonzero entries!\n", c+1);      
+         emptyConBlocks++;
+      }
+   }
+   
+   if (emptyConBlocks > 0)
+   {
+      SCIPABORT();
+      return SCIP_READERROR; /*lint !e527*/
+   }
+
+   SCIPfreeBufferArray(scip, &currentEntriesLinCon);
 
    if(data->nsdpblocks > 0)
    {
