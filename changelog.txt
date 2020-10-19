@@ -4,6 +4,7 @@ fixed bugs:
 - fixed bug in multiaggrVar() with negative coefficients and locking
 - fixed bug in multiaggrVar() and revised implementation
 - fixed bug in reading problems with indicator constraints
+- fixed minor bug to allow copying of original problem
 
 features:
 - The relaxator strengthened the rows of the LP corresponding to variable bounds before adding them to the current SDP.

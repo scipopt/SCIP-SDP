@@ -3919,9 +3919,10 @@ SCIP_DECL_CONSCOPY(consCopySdp)
 
    *valid = TRUE;
 
-   /* as we can only map active variables, we have to make sure, that the constraint contains no fixed or (multi-)aggregated vars, after
-    * exitpresolve (stage 6) this should always be the case, earlier than that we need to call fixAndAggrVars */
-   if ( SCIPgetStage(sourcescip) <= SCIP_STAGE_EXITPRESOLVE )
+   /* As we can only map active variables, we have to make sure, that the constraint contains no fixed or
+    * (multi-)aggregated vars, before presolving and after presolving this should always be the case,
+    * earlier than that we need to call fixAndAggrVars. */
+   if ( SCIPgetStage(sourcescip) >= SCIP_STAGE_INITPRESOLVE && SCIPgetStage(sourcescip) <= SCIP_STAGE_EXITPRESOLVE )
    {
       SCIP_CALL( fixAndAggrVars(sourcescip, &sourcecons, 1, TRUE) );
    }
