@@ -3,6 +3,7 @@ fixed bugs:
 - fixed one memory bug and one missing check in diagZeroImpl()
 - fixed bug in multiaggrVar() with negative coefficients and locking
 - fixed bug in multiaggrVar() and revised implementation
+- fixed bug in fixAndAggrVars() if the multiaggregation reduces to 0 variables
 - fixed bug in reading problems with indicator constraints
 - fixed minor bug to allow copying of original problem
 
