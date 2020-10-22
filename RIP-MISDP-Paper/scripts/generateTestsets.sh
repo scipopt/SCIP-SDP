@@ -22,6 +22,8 @@ cnt_type=0;
 cnt_instance=0;
 testfileAll=RIPCBFall.test;
 solufileAll=RIPCBFall.solu;
+testfileAllwoSOC=RIPCBFall_woSOC.test
+solufileAllwoSOC=RIPCBFall_woSOC.solu
 
 # options:
 arr_rank1=(0 1);
@@ -58,6 +60,15 @@ do
 			    oldname="${x/.cbf/}"
 			    newname="${x/$type.cbf/}"
 			    tmp=$(grep $newname ../MISDP_backup/RIPSDPA.solu)
+			    if [[ $so -ne 2 ]]; then
+				if [[ $tmp =~ "MISDPr" ]]; then
+				    arr=($tmp)
+				    result=$(bc -l <<<"${arr[2]}*(-1)")
+				    printf "%s %s %s\n" ${arr[0]} ${arr[1]/$newname/$oldname} $result >> $solufileAllwoSOC;
+				else
+				    echo "${tmp/$newname/$oldname}" >> $solufileAllwoSOC;
+				fi
+			    fi
 			    if [[ $tmp =~ "MISDPr" ]]; then
 				arr=($tmp)
 				result=$(bc -l <<<"${arr[2]}*(-1)")
@@ -66,6 +77,9 @@ do
 			    else
 				echo "${tmp/$newname/$oldname}" >> $solufile;
 				echo "${tmp/$newname/$oldname}" >> $solufileAll;
+			    fi
+			    if [[ $so -ne 2 ]]; then
+				printf "RIPtest/%s\n" $x >> $testfileAllwoSOC;
 			    fi
 			    printf "RIPtest/%s\n" $x >> $testfile;
 			    printf "RIPtest/%s\n" $x >> $testfileAll;
@@ -108,6 +122,8 @@ cnt_type=0;
 cnt_instance=0;
 testfileAll=RIPCBFSMALLall.test;
 solufileAll=RIPCBFSMALLall.solu;
+testfileAllwoSOC=RIPCBFSMALLall_woSOC.test
+solufileAllwoSOC=RIPCBFSMALLall_woSOC.solu
 
 # options:
 arr_rank1=(0 1);
@@ -144,6 +160,15 @@ do
 			    oldname="${x/.cbf/}"
 			    newname="${x/$type.cbf/}"
 			    tmp=$(grep $newname ../MISDP_backup/RIPSDPASMALL.solu)
+			    if [[ $so -ne 2 ]]; then
+				if [[ $tmp =~ "MISDPr" ]]; then
+				    arr=($tmp)
+				    result=$(bc -l <<<"${arr[2]}*(-1)")
+				    printf "%s %s %s\n" ${arr[0]} ${arr[1]/$newname/$oldname} $result >> $solufileAllwoSOC;
+				else
+				    echo "${tmp/$newname/$oldname}" >> $solufileAllwoSOC;
+				fi
+			    fi
 			    if [[ $tmp =~ "MISDPr" ]]; then
 				arr=($tmp)
 				result=$(bc -l <<<"${arr[2]}*(-1)")
@@ -152,6 +177,9 @@ do
 			    else
 				echo "${tmp/$newname/$oldname}" >> $solufile;
 				echo "${tmp/$newname/$oldname}" >> $solufileAll;
+			    fi
+			    if [[ $so -ne 2 ]]; then
+				printf "RIPtest/%s\n" $x >> $testfileAllwoSOC;
 			    fi
 			    printf "RIPtest/%s\n" $x >> $testfile;
 			    printf "RIPtest/%s\n" $x >> $testfileAll;
