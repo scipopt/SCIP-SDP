@@ -321,8 +321,6 @@ SCIP_RETCODE SDPAreadNVars(
    char varname[SCIP_MAXSTRLEN];
    SCIP_VAR* var;
    int cnt = 0;
-   SCIP_Real lb = -SCIPinfinity(scip);
-   SCIP_Real ub = SCIPinfinity(scip);
    int v;
 #ifndef NDEBUG
    int snprintfreturn;
@@ -365,7 +363,7 @@ SCIP_RETCODE SDPAreadNVars(
       (void)SCIPsnprintf(varname, SCIP_MAXSTRLEN, "x_%d", cnt);
 #endif
 
-      SCIP_CALL( SCIPcreateVar(scip, &var, varname, lb, ub, 0.0, SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, NULL, NULL, NULL,
+      SCIP_CALL( SCIPcreateVar(scip, &var, varname, -SCIPinfinity(scip), SCIPinfinity(scip), 0.0, SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, NULL, NULL, NULL,
             NULL, NULL) );
 
       SCIP_CALL( SCIPaddVar(scip, var) );
@@ -513,7 +511,7 @@ SCIP_RETCODE SDPAreadBlockSize(
       assert( blockValsPsd[b] > 0 );    
       data->sdpblocksizes[b] = *(blockValsPsd + b);
 
-      /* initialize rank-1 information to FALSE, will eventually be changed in PSDCONRANK1 */
+      /* initialize rank-1 information to FALSE, will eventually be changed in PSDCONRANK1 *///TODO: Kommentar noch passend?
       data->sdpblockrank1[b] = FALSE;
    }
 
@@ -581,14 +579,6 @@ SCIP_RETCODE SDPAreadObjVals(
 
    for (v = 0; v < data->nvars; v++)
    {
-      /* if ( v < 0 || v >= data->nvars ) */
-      /* { */
-      /*    SCIPerrorMessage("Given objective coefficient in line %" SCIP_LONGINT_FORMAT */
-      /*       " for scalar variable %d which does not exist!\n", *linecount, v); */
-      /*    SCIPABORT(); */
-      /*    return SCIP_READERROR; /\*lint !e527*\/ */
-      /* } */
-
       if ( SCIPisZero(scip, *(objVals + v)) )
          ++nzerocoef;
       else
@@ -613,7 +603,7 @@ SCIP_RETCODE SDPAreadBlocks(
    SCIP_FILE*            pfile,              /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
    SDPA_DATA*            data,               /**< data pointer to save the results in */
-   const char*           filename   	     /**< name of the file that is currently read*/
+   const char*           filename   	      /**< name of the file that is currently read*/
    )
 {
    SCIP_Real val;
@@ -661,7 +651,6 @@ SCIP_RETCODE SDPAreadBlocks(
    
    if(data->nsdpblocks > 0)
    {
-
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->memorysizessdp), data->nsdpblocks) ); 
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->memorysizescon), data->nsdpblocks) ); 
 
@@ -737,8 +726,7 @@ SCIP_RETCODE SDPAreadBlocks(
          SCIP_CALL( SCIPallocBufferArray(scip, &(sdpconstrow_local[b]), data->memorysizescon[b]) );
          SCIP_CALL( SCIPallocBufferArray(scip, &(sdpconstcol_local[b]), data->memorysizescon[b]) );
          SCIP_CALL( SCIPallocBufferArray(scip, &(sdpconstval_local[b]), data->memorysizescon[b]) );
-      }
-   
+      }  
    }
 
    while ( SDPAfgets(scip, pfile, linecount,1) == SCIP_OKAY )
@@ -944,7 +932,7 @@ SCIP_RETCODE SDPAreadBlocks(
                currentEntriesLinCon[c]++;
             }         
          }
-         else /* constant part*/
+         else /* constant part or indicator constraint*/
          {
             if( v < -1 )  /* indicator constraint*/
             {
@@ -978,7 +966,7 @@ SCIP_RETCODE SDPAreadBlocks(
                
                nindcons++;
             }
-            else
+            else /* constant part */
             {
                c = row;
 
@@ -1000,16 +988,16 @@ SCIP_RETCODE SDPAreadBlocks(
                   /* All linear constraints are greater or equal constraints */
                   SCIP_CALL( SCIPchgLhsLinear(scip, data->createdconss[c], val) );
                }
-               }
             }
          }
       }
+   }
 
    for (b = 0; b < data->nsdpblocks; b++)
    {
       if ( b != data->locationConBlock )
       { 
-         if(currentEntriesSdp[b] == 0) //location con Block beachten
+         if(currentEntriesSdp[b] == 0) 
          {
             SCIPerrorMessage("SDP block number %d does not contain nonzero entries!\n", b+1);      
             emptySdpBlocks++;
@@ -1326,8 +1314,8 @@ SCIP_RETCODE SDPAfreeData(
    assert( data != NULL );
    if(data->nsdpblocks > 0){
 
-   /* TODO: Check if any SDP blocks and any nonzeros in the SDP blocks exist at all (if not, then nothing needs to be
-      freed) */
+   /* TODO: Check if any nonzeros in the SDP blocks exist at all (if not, then nothing needs to be
+      freed) => jeder sdp block muss etwas enthalten sonst error => müsste eigentlich reichen */
       for (b = 0; b < data->nsdpblocks; b++)
       {
          assert( data->memorysizescon[b] > 0);
@@ -1483,7 +1471,7 @@ SCIP_DECL_READERREAD(readerReadSdpa)
    }
 #endif
 
-/* create SDP-constraints */
+   /* create SDP-constraints */
    for (b = 0; b < data->nsdpblocks; b++)
    {
       SCIP_CONS *sdpcons;
@@ -1760,9 +1748,9 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
 
    /* write the objective values */
    /* If objsense = maximize, multiply objective values with -1 */
-   if ( objsense == SCIP_OBJSENSE_MAXIMIZE )
+   if ( objsense == SCIP_OBJSENSE_MAXIMIZE)
       objcoeff = -1;
-
+      
    for (v = 0; v < nvars; v++)
    {
       SCIP_Real obj;
@@ -1902,7 +1890,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
             if ( ! SCIPisZero(scip, val) )
                SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", 0, consmax + 1, linconsind, linconsind, val * const_sign);
          }
-         else    /* write linear constraint block */
+         else  /* write linear constraint block */
          {
    
             for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
@@ -1912,7 +1900,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
                SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", i + 1, consmax + 1, linconsind,linconsind, linvals[v] * const_sign);
             }
 
-         /* write the constant part of the LP block */
+            /* write the constant part of the LP block */
 
             if ( const_sign < 0 )
                val = SCIPgetRhsLinear(scip, conss[c]);
@@ -1964,6 +1952,12 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    if ( nrank1sdpblocks > 0 )
    {
       consind = 0;
+      
+      if ( objsense == SCIP_OBJSENSE_MAXIMIZE )
+      {
+         SCIPinfoMessage(scip, NULL, "WARNING: A maximisation problem with rank one constraint is writen. Maximisation is changed to minimisation without adjusting the objective function. The objetive value will have the wrong sign. \n");
+      }
+      
       SCIPinfoMessage(scip, file, "*RANK1\n");
       for (c = 0; c < nconss; c++)
       {
