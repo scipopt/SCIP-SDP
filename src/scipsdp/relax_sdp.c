@@ -3813,6 +3813,28 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    relaxdata->origsolved = FALSE;
    relaxdata->probingsolved = FALSE;
 
+   /* check whether we need to update the variables and SDP constraints */
+   if ( nvars != SCIPsdpVarmapperGetNVars(relaxdata->varmapper) )
+   {
+      SCIP_VAR** newvars;
+      int nnewvars = 0;
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &newvars, nvars) );
+      for (i = 0; i < nvars; ++i)
+      {
+         if ( ! SCIPsdpVarmapperExistsSCIPvar(relaxdata->varmapper, vars[i]) )
+            newvars[nnewvars++] = vars[i];
+      }
+      assert( 0 < nnewvars && nnewvars <= nvars );
+
+      SCIPdebugMsg(scip, "Number of variables changed, adding %d variables.\n", nnewvars);
+      SCIP_CALL( SCIPsdpVarmapperAddVars(scip, relaxdata->varmapper, nnewvars, newvars) );
+      SCIPfreeBufferArray(scip, &newvars);
+
+      /* make sure that SDPs are updated as well */
+      SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE, FALSE) );
+   }
+
    /* don't run again if we already solved the current node (except during probing), and we solved the correct problem */
    if ( (relaxdata->lastsdpnode == SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) && ( ! SCIPinProbing(scip) ) ) && relaxdata->origsolved && ! relaxdata->resolve )
    {
