@@ -3881,6 +3881,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
    SCIP_CONSHDLRDATA* conshdlrdata;
    SCIP_Bool infeasible;
    int nprop;
+   int c;
 
    assert( conshdlr != NULL );
    assert( result != NULL );
@@ -3889,6 +3890,56 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
    assert( conshdlrdata != NULL );
 
    *result = SCIP_DIDNOTRUN;
+
+   /* if some variables have been fixed or aggregated */
+   if ( nnewfixedvars + nnewaggrvars > 0 )
+   {
+      /* check whether some fixed or aggregated variables can be removed from constraint */
+      SCIP_CALL( fixAndAggrVars(scip, conss, nconss, TRUE) );
+   }
+
+   /* check for empty constraints */
+   for (c = 0; c < nconss && *result != SCIP_CUTOFF; ++c)
+   {
+      SCIP_CONSDATA* consdata;
+
+      assert( conss[c] != NULL );
+      consdata = SCIPconsGetData(conss[c]);
+      assert( consdata != NULL );
+
+      /* for empty constraint check whether constant matrix is not infeasible */
+      if ( consdata->nvars <= 0 )
+      {
+         SCIP_Real* constmatrix;
+         SCIP_Real eigenvalue;
+         int blocksize;
+
+         blocksize = consdata->blocksize;
+         SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, blocksize * blocksize) );
+         SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, conss[c], constmatrix) );
+         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, constmatrix, 1, &eigenvalue, NULL) );
+
+         /* if eigenvalue is positive then minus the constant matrix is not psd and we are infeasible */
+         if ( SCIPisFeasPositive(scip, eigenvalue) )
+         {
+            SCIPdebugMsg(scip, "Feasible constraint <%s> containts no variable, removing.\n", SCIPconsGetName(conss[c]));
+            *result = SCIP_CUTOFF;
+         }
+         else
+         {
+            SCIPdebugMsg(scip, "Feasible constraint <%s> containts no variable, removing.\n", SCIPconsGetName(conss[c]));
+            SCIP_CALL( SCIPdelConsLocal(scip, conss[c]) );
+            ++(ndelconss);
+            *result = SCIP_SUCCESS;
+         }
+         SCIPfreeBufferArray(scip, &constmatrix);
+      }
+      else if ( *result == SCIP_DIDNOTRUN )
+         *result = SCIP_DIDNOTFIND;
+   }
+
+   if ( *result == SCIP_CUTOFF )
+      return SCIP_OKAY;
 
    /* call propagation */
    if ( conshdlrdata->sdpconshdlrdata->proppresol )
