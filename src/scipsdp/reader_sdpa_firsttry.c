@@ -1748,8 +1748,12 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    /* write the objective values */
    /* If objsense = maximize, multiply objective values with -1 */
    if ( objsense == SCIP_OBJSENSE_MAXIMIZE)
+   {
       objcoeff = -1;
+      SCIPinfoMessage(scip, NULL, "WARNING: Transforming original maximization problem to a minimization problem by multiplying all objective coefficients by -1. \n");
+   }
       
+  
    for (v = 0; v < nvars; v++)
    {
       SCIP_Real obj;
@@ -1951,12 +1955,6 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    if ( nrank1sdpblocks > 0 )
    {
       consind = 0;
-      
-      if ( objsense == SCIP_OBJSENSE_MAXIMIZE )
-      {
-         SCIPinfoMessage(scip, NULL, "WARNING: A maximisation problem with rank one constraint is writen. Maximisation is changed to minimisation without adjusting the objective function. The objetive value will have the wrong sign. \n");
-      }
-      
       SCIPinfoMessage(scip, file, "*RANK1\n");
       for (c = 0; c < nconss; c++)
       {
