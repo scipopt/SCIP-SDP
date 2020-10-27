@@ -648,7 +648,10 @@ SCIP_RETCODE SDPAreadBlocks(
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
-   
+
+   if ( data->nlinconss > 0 )
+      SCIP_CALL( SCIPallocBufferArray(scip, &currentEntriesLinCon, data->nlinconss) );
+
    if(data->nsdpblocks > 0)
    {
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->memorysizessdp), data->nsdpblocks) ); 
@@ -656,8 +659,6 @@ SCIP_RETCODE SDPAreadBlocks(
 
       SCIP_CALL( SCIPallocBufferArray(scip, &currentEntriesSdp, data->nsdpblocks) );
       SCIP_CALL( SCIPallocBufferArray(scip, &currentEntriesCon, data->nsdpblocks) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &currentEntriesLinCon, data->nlinconss) );
-
 
       /* set initial memory size*/
       for (b = 0; b < data->nsdpblocks; b++) 
@@ -1025,7 +1026,8 @@ SCIP_RETCODE SDPAreadBlocks(
       return SCIP_READERROR; /*lint !e527*/
    }
 
-   SCIPfreeBufferArray(scip, &currentEntriesLinCon);
+   if ( data->nlinconss > 0 )
+      SCIPfreeBufferArray(scip, &currentEntriesLinCon);
 
    if(data->nsdpblocks > 0)
    {
@@ -1357,10 +1359,10 @@ SCIP_RETCODE SDPAfreeData(
       SCIPfreeBlockMemoryArrayNull(scip, &data->nvarnonz, data->nsdpblocks);
       SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblockvars, data->nsdpblocks);
       SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblocknonz, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblockrank1, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblocksizes, data->nsdpblocks); 
    }
 
+   SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblockrank1, data->nsdpblocks);
+   SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblocksizes, data->nsdpblocks);
    SCIPfreeBlockMemoryArrayNull(scip, &data->createdconss, data->nlinconss);
    SCIPfreeBlockMemoryArrayNull(scip, &data->createdvars, data->nvars);
 
