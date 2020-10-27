@@ -512,7 +512,7 @@ SCIP_RETCODE SDPAreadBlockSize(
       assert( blockValsPsd[b] > 0 );    
       data->sdpblocksizes[b] = *(blockValsPsd + b);
 
-      /* initialize rank-1 information to FALSE, will eventually be changed in PSDCONRANK1 *///TODO: Kommentar noch passend?
+      /* initialize rank-1 information to FALSE, will eventually be changed in SDPAreadRank1 */
       data->sdpblockrank1[b] = FALSE;
    }
 
@@ -617,7 +617,6 @@ SCIP_RETCODE SDPAreadBlocks(
    int firstindforvar;
    int nextindaftervar;
    int nzerocoef = 0;
-   int nsdpblocks;          /* TODO: find number of nonzeros in each auxiliary sdp block for reformulating matrix variables using scalar variables */
 
    int emptySdpBlocks = 0;
    int emptyConBlocks = 0;
@@ -681,8 +680,6 @@ SCIP_RETCODE SDPAreadBlocks(
          SCIPABORT();
          return SCIP_READERROR; /*lint !e527*/
       }
-
-      nsdpblocks = data->nsdpblocks;
 
       if ( data->sdpblocksizes == NULL ) 
       {
@@ -766,7 +763,7 @@ SCIP_RETCODE SDPAreadBlocks(
          /* check if this entry belongs to the constant part of the SDP block (v = -1) or not (v >= 0) */
          if ( v >= 0 )
          {
-            if ( b < 0 || b >= nsdpblocks )
+            if ( b < 0 || b >= data->nsdpblocks )
             {
                SCIPerrorMessage("Given SDP-coefficient in line %" SCIP_LONGINT_FORMAT
                   " for SDP-constraint %d which does not exist!\n", *linecount, b);
@@ -892,7 +889,7 @@ SCIP_RETCODE SDPAreadBlocks(
       }
       else /* LP block */
       {
-         /* check if this entry belongs to the constant part of the LP block (v = -1) or not (v >= 0 || v < -1) the later for indicator variables  */
+         /* check if this entry belongs to the constant part of the LP block (v = -1) or not (v >= 0 || v < -1) the latter for indicator variables  */
          if ( v >= 0 )
          {
             /* linear constraints are specified on the diagonal of the LP block */
@@ -1102,7 +1099,7 @@ SCIP_RETCODE SDPAreadBlocks(
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->valpointer), data->nsdpblocks) );
 
       /* sdp blocks as specified in sdpa file */
-      for (b = 0; b < nsdpblocks; b++)
+      for (b = 0; b < data->nsdpblocks; b++)
       {
          /* sort the nonzeroes by non-decreasing variable indices */
          SCIPsortIntIntIntReal(sdpvar[b], data->sdprow[b], data->sdpcol[b], data->sdpval[b], data->sdpnblocknonz[b]);
@@ -1314,10 +1311,8 @@ SCIP_RETCODE SDPAfreeData(
 
    assert( scip != NULL );
    assert( data != NULL );
-   if(data->nsdpblocks > 0){
-
-   /* TODO: Check if any nonzeros in the SDP blocks exist at all (if not, then nothing needs to be
-      freed) => jeder sdp block muss etwas enthalten sonst error => müsste eigentlich reichen */
+   if(data->nsdpblocks > 0)
+   {
       for (b = 0; b < data->nsdpblocks; b++)
       {
          assert( data->memorysizescon[b] > 0);
@@ -1723,7 +1718,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    
    if(blocks > 0 && totalsdpnnonz == 0)
    {
-      SCIPerrorMessage("Specified %d SDP blocks but no SDP values. \n", blocks); //TODO: bessere bezeichnung finden
+      SCIPerrorMessage("There are %d SDP blocks but no nonzero coefficients. \n", blocks);
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
