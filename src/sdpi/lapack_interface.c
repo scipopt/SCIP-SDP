@@ -293,7 +293,7 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorsNegative(
    M = -1;
 
    /* interval of allowed values */
-   VL = -1e20;
+   VL = -1e30;
    VU = -tol;
 
    /* standard LAPACK workspace query, to get the amount of needed memory */
