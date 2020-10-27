@@ -30,8 +30,8 @@
 /*									     */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
- #define SCIP_MORE_DEBUG 
- #define SCIP_DEBUG 
+/* #define SCIP_MORE_DEBUG */
+/* #define SCIP_DEBUG */
 
 /**@file   reader_sdpa_firsttry.c
  * @brief  file reader for mixed-integer semidefinite programs in SDPA format
@@ -53,6 +53,7 @@
 #include "scipsdp/reader_sdpa_firsttry.h"
 #include "scipsdp/cons_sdp.h"
 #include "scip/cons_linear.h"
+#include "scip/cons_indicator.h" /* for SCIPcreateConsIndicatorLinCons */
 
 #undef SCIPABORT
 #define SCIPABORT() {}
@@ -936,12 +937,13 @@ SCIP_RETCODE SDPAreadBlocks(
          {
             if( v < -1 )  /* indicator constraint*/
             {
-               v = -v - 2;  /* adjust variable index to be positive */
                SCIP_CONS* indcons;
                SCIP_VAR* slackvar = 0;
                char indconsname[SCIP_MAXSTRLEN];
                char slackvarname[SCIP_MAXSTRLEN];
-               
+
+               v = -v - 2;  /* adjust variable index to be positive */
+
                (void) SCIPsnprintf(slackvarname, SCIP_MAXSTRLEN, "s_%d", nindcons);
                (void) SCIPsnprintf(indconsname, SCIP_MAXSTRLEN, "cons_indicator_%d", nindcons);
                
