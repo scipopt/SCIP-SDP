@@ -3827,12 +3827,33 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       }
       assert( 0 < nnewvars && nnewvars <= nvars );
 
-      SCIPdebugMsg(scip, "Number of variables changed, adding %d variables.\n", nnewvars);
+      SCIPdebugMsg(scip, "Number of variables changed, new: %d  (old: %d).\n", nvars, SCIPsdpVarmapperGetNVars(relaxdata->varmapper));
       SCIP_CALL( SCIPsdpVarmapperAddVars(scip, relaxdata->varmapper, nnewvars, newvars) );
       SCIPfreeBufferArray(scip, &newvars);
 
-      /* make sure that SDPs are updated as well */
+      /* make sure that SDPs and number of variables in SDPI are updated as well */
       SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE, FALSE) );
+   }
+   else
+   {
+      int nsdpconss;
+      int nsdpblocks;
+
+      /* compute number of SDP constraints */
+      assert( SCIPgetStage(scip) == SCIP_STAGE_SOLVING );
+      assert( relaxdata->sdpconshdlr != NULL );
+      nsdpconss = SCIPconshdlrGetNActiveConss(relaxdata->sdpconshdlr);
+
+      assert( relaxdata->sdprank1conshdlr != NULL );
+      nsdpconss += SCIPconshdlrGetNActiveConss(relaxdata->sdprank1conshdlr);
+
+      /* update if number changed */
+      SCIP_CALL( SCIPsdpiGetNSDPBlocks(relaxdata->sdpi, &nsdpblocks) );
+      if ( nsdpblocks != nsdpconss )
+      {
+         SCIPdebugMsg(scip, "Number of SDP constraints changed, new: %d  (old: %d).\n", nsdpconss, nsdpblocks);
+         SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE, FALSE) );
+      }
    }
 
    /* don't run again if we already solved the current node (except during probing), and we solved the correct problem */
