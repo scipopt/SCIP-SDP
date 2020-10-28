@@ -1309,7 +1309,6 @@ SCIP_RETCODE SDPAfreeData(
    )
 {
    int b = 0;
-   int nsdpblocks;
 
    assert( scip != NULL );
    assert( data != NULL );
@@ -1330,12 +1329,9 @@ SCIP_RETCODE SDPAfreeData(
       SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstnblocknonz, data->nsdpblocks);
       SCIPfreeBlockMemoryArrayNull(scip, &data->memorysizescon, data->nsdpblocks);
 
-      nsdpblocks = data->nsdpblocks;
-
-      assert( nsdpblocks > 0 );
       assert( data->nvars > 0 );
 
-      for (b = 0; b < nsdpblocks; b++) 
+      for (b = 0; b < data->nsdpblocks; b++) 
       {
          assert( data->memorysizessdp[b] > 0);
 
