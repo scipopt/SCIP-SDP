@@ -4164,7 +4164,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
          assert( SCIPisFeasIntegral(scip, SCIPvarGetLbLocal(var)) );
          assert( SCIPisFeasIntegral(scip, SCIPvarGetUbLocal(var)) );
 
-         if ( SCIPvarGetLbLocal(var) + 0.5 < SCIPvarGetUbLocal(var) )
+         if ( SCIPvarGetLbLocal(var) + 0.5 > SCIPvarGetUbLocal(var) )
             ++nfixed;
       }
 
