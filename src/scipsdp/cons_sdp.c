@@ -113,6 +113,7 @@
 #define DEFAULT_ENFORCESDP        FALSE /**< Solve SDP if we do lp-solving and have an integral solution in enforcing? */
 #define DEFAULT_ONLYFIXEDINTSSDP  FALSE /**< Should solving an SDP only be applied if all integral variables are fixed (instead of having integral values)? */
 #define DEFAULT_ADDSOCRELAX       FALSE /**< Should a relaxation of SOC constraints be added */
+#define DEFAULT_USEDIMACSFEASTOL  FALSE /**< Should a feasibility tolerance based on the DIMACS be used for computing negative eigenvalues? */
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
 #endif
@@ -176,6 +177,8 @@ struct SCIP_ConshdlrData
    SCIP_RANDNUMGEN*      randnumgen;         /**< random number generator (for sparsifyCut) */
    SCIP_RELAX*           relaxsdp;           /**< SDP relaxator */
    SCIP_HEUR*            heurtrysol;         /**< Trysol heuristic */
+   SCIP_Bool             usedimacsfeastol;   /**< Should a feasibility tolerance based on the DIMACS be used for computing negative eigenvalues? */
+   SCIP_Real             dimacsfeastol;      /**< feasibility tolerance for computing negative eigenvalues based on the DIMACS error */
 };
 
 /** generates matrix in colum-first format (needed by LAPACK) from matrix given in full row-first format (SCIP-SDP
@@ -733,10 +736,18 @@ SCIP_RETCODE separateSol(
    SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
 
    /* determine tolerance */
-   if ( enforce )
-      tol = SCIPfeastol(scip);
+   if ( conshdlrdata->usedimacsfeastol )
+   {
+      assert( conshdlrdata->dimacsfeastol != SCIP_INVALID );
+      tol = conshdlrdata->dimacsfeastol;
+   }
    else
-      tol = SCIPgetSepaMinEfficacy(scip);
+   {
+      if ( enforce )
+         tol = SCIPfeastol(scip);
+      else
+         tol = SCIPgetSepaMinEfficacy(scip);
+   }
 
    /* compute eigenvector(s) */
    if ( conshdlrdata->sdpconshdlrdata->separateonecut )
@@ -3258,6 +3269,20 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
       SCIP_CALL( SCIPcreateRandom(scip, &conshdlrdata->randnumgen, 64293, FALSE) );
    }
 
+   if ( conshdlrdata->usedimacsfeastol )
+   {
+      SCIP_VAR** vars;
+      SCIP_Real sum = 0.0;
+      int nvars;
+      int v;
+
+      nvars = SCIPgetNVars(scip);
+      vars = SCIPgetVars(scip);
+      for ( v = 0; v < nvars; v++ )
+         sum += REALABS( SCIPvarGetObj(vars[v]) );
+      conshdlrdata->dimacsfeastol = 1e-5 * (1 + sum);
+   }
+
    conshdlrdata->relaxsdp = SCIPfindRelax(scip, "SDP");
    conshdlrdata->heurtrysol = SCIPfindHeur(scip, "trysol");
 
@@ -3448,6 +3473,7 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
       }
       consdata->addedquadcons = TRUE;
    }
+
    return SCIP_OKAY;
 }
 
@@ -4966,6 +4992,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    conshdlrdata->relaxsdp = NULL;
    conshdlrdata->heurtrysol = NULL;
    conshdlrdata->sdpconshdlrdata = conshdlrdata;  /* set this to itself to simplify access of parameters */
+   conshdlrdata->dimacsfeastol = SCIP_INVALID;
 
    /* include constraint handler */
    SCIP_CALL( SCIPincludeConshdlrBasic(scip, &conshdlr, CONSHDLR_NAME, CONSHDLR_DESC,
@@ -5061,6 +5088,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          "Should the heuristic that computes the best rank-1 approximation for a given solution be executed?",
          &(conshdlrdata->rank1approxheur), TRUE, DEFAULT_RANK1APPROXHEUR, NULL, NULL) );
 
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/usedimacsfeastol",
+         "Should a feasibility tolerance based on the DIMACS be used for computing negative eigenvalues?",
+         &(conshdlrdata->usedimacsfeastol), TRUE, DEFAULT_USEDIMACSFEASTOL, NULL, NULL) );
+
    return SCIP_OKAY;
 }
 
@@ -5106,6 +5137,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->randnumgen = NULL;
    conshdlrdata->relaxsdp = NULL;
    conshdlrdata->heurtrysol = NULL;
+   conshdlrdata->dimacsfeastol = SCIP_INVALID;
 
    /* include constraint handler */
    SCIP_CALL( SCIPincludeConshdlrBasic(scip, &conshdlr, CONSHDLRRANK1_NAME, CONSHDLRRANK1_DESC,

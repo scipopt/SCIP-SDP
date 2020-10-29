@@ -15,6 +15,7 @@ parameters:
 - new parameter <constraints/SDP/cutstopool> to add cuts to the pool (default: TRUE)
 - new parameter <constraints/SDP/addsocrelax> to add SOC relaxation (default: FALSE)
 - new parameter <heuristics/sdpfracdiving/runforlp> and <heuristics/sdprand/runforlp> to use heuristics starting from LP solution (default: FALSE)
+- new parameter <constraints/SDP/usedimacsfeastol> for using a feasbility tolerance based on the DIMACS error for computing negative eigenvalues
 
 fixed bugs:
 - fixed the output of the line number when reading CBF files
