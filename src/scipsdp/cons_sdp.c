@@ -316,10 +316,75 @@ SCIP_RETCODE computeSdpMatrix(
    return SCIP_OKAY;
 }
 
+/** checks feasibility for a single SDP constraint */
+static
+SCIP_RETCODE SCIPconsSdpCheckSdpCons(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONSHDLRDATA*    conshdlrdata,       /**< constraint handler data */
+   SCIP_CONS*            cons,               /**< the constraint the solution should be checked for */
+   SCIP_SOL*             sol,                /**< the solution to check feasibility for */
+   SCIP_Bool             printreason,        /**< should the reason for the violation be printed? */
+   SCIP_RESULT*          result              /**< pointer to store the result of the feasibility checking call */
+   )
+{  /*lint --e{715}*/
+   SCIP_CONSDATA* consdata;
+   SCIP_Real* matrix = NULL;
+   SCIP_Real* fullmatrix = NULL;
+   SCIP_Real eigenvalue;
+   SCIP_Real tol;
+   int blocksize;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+   assert( result != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+   assert( consdata->rankone || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(cons)), CONSHDLR_NAME) == 0 );
+   assert( ! consdata->rankone || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(cons)), CONSHDLRRANK1_NAME) == 0 );
+   blocksize = consdata->blocksize;
+
+   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1)) / 2) ); /*lint !e647*/
+   SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize) ); /*lint !e647*/
+   SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix) );
+   SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
+
+   SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, fullmatrix, 1, &eigenvalue, NULL) );
+
+   if ( conshdlrdata->sdpconshdlrdata->usedimacsfeastol )
+   {
+      assert( conshdlrdata->dimacsfeastol != SCIP_INVALID );
+      tol = conshdlrdata->dimacsfeastol;
+   }
+   else
+      tol = SCIPfeastol(scip);
+
+   if ( eigenvalue >= -tol )
+      *result = SCIP_FEASIBLE;
+   else
+   {
+      *result = SCIP_INFEASIBLE;
+      if ( printreason )
+      {
+         SCIPinfoMessage(scip, NULL, "SDP-constraint <%s> violated: non psd matrix (eigenvalue %f).\n", SCIPconsGetName(cons), eigenvalue);
+         SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
+      }
+   }
+
+   if ( sol != NULL )
+      SCIPupdateSolConsViolation(scip, sol, -eigenvalue, (-eigenvalue) / (1.0 + consdata->maxrhsentry));
+
+   SCIPfreeBufferArray(scip, &fullmatrix);
+   SCIPfreeBufferArray(scip, &matrix);
+
+   return SCIP_OKAY;
+}
+
 /** Check whether current matrix is rank one, if not so, sets maxevsubmat */
 static
 SCIP_RETCODE isMatrixRankOne(
    SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONSHDLRDATA*    conshdlrdata,       /**< constraint handler data */
    SCIP_CONS*            cons,               /**< the SDP constraint to check the rank for */
    SCIP_SOL*             sol,                /**< solution to check for rank one */
    SCIP_Bool*            result              /**< result pointer to return whether matrix is rank one */
@@ -348,7 +413,7 @@ SCIP_RETCODE isMatrixRankOne(
 
    resultSDPtest = SCIP_INFEASIBLE;
 
-   SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, cons, sol, FALSE, &resultSDPtest) );
+   SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conshdlrdata, cons, sol, FALSE, &resultSDPtest) );
 
    if ( resultSDPtest == SCIP_INFEASIBLE )
    {
@@ -480,68 +545,6 @@ SCIP_RETCODE setMaxRhsEntry(
    }
 
    consdata->maxrhsentry = max;
-
-   return SCIP_OKAY;
-}
-
-/** checks feasibility for a single SDP constraint */
-SCIP_RETCODE SCIPconsSdpCheckSdpCons(
-   SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< the constraint the solution should be checked for */
-   SCIP_SOL*             sol,                /**< the solution to check feasibility for */
-   SCIP_Bool             printreason,        /**< should the reason for the violation be printed? */
-   SCIP_RESULT*          result              /**< pointer to store the result of the feasibility checking call */
-   )
-{  /*lint --e{715}*/
-   SCIP_CONSDATA* consdata;
-   int blocksize;
-   SCIP_Real check_value;
-   SCIP_Real eigenvalue;
-   SCIP_Real* matrix = NULL;
-   SCIP_Real* fullmatrix = NULL;
-
-   assert( scip != NULL );
-   assert( cons != NULL );
-   assert( result != NULL );
-
-   consdata = SCIPconsGetData(cons);
-   assert( consdata != NULL );
-   assert( consdata->rankone || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(cons)), CONSHDLR_NAME) == 0 );
-   assert( ! consdata->rankone || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(cons)), CONSHDLRRANK1_NAME) == 0 );
-   blocksize = consdata->blocksize;
-
-   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1)) / 2) ); /*lint !e647*/
-   SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize) ); /*lint !e647*/
-   SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix) );
-   SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
-
-   SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, fullmatrix, 1, &eigenvalue, NULL) );
-
-   /* This enables checking the second DIMACS Error Norm: err=max{0, -lambda_min(x)/(1+maximumentry of rhs)}, in that case it also needs
-    * to be changed in the sdpi (and implemented there first), when checking feasibility of problems where all variables are fixed */
-#ifdef DIMACS
-   check_value = (-eigenvalue) / (1.0 + consdata->maxrhsentry);
-#else
-   check_value = -eigenvalue;
-#endif
-
-   if ( SCIPisFeasLE(scip, check_value, 0.0) )
-      *result = SCIP_FEASIBLE;
-   else
-   {
-      *result = SCIP_INFEASIBLE;
-      if ( printreason )
-      {
-         SCIPinfoMessage(scip, NULL, "SDP-constraint <%s> violated: non psd matrix (eigenvalue %f, dimacs error norm = %f).\n", SCIPconsGetName(cons), eigenvalue, check_value);
-         SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
-      }
-   }
-
-   if ( sol != NULL )
-      SCIPupdateSolConsViolation(scip, sol, -eigenvalue, (-eigenvalue) / (1.0 + consdata->maxrhsentry));
-
-   SCIPfreeBufferArray(scip, &fullmatrix);
-   SCIPfreeBufferArray(scip, &matrix);
 
    return SCIP_OKAY;
 }
@@ -736,7 +739,7 @@ SCIP_RETCODE separateSol(
    SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
 
    /* determine tolerance */
-   if ( conshdlrdata->usedimacsfeastol )
+   if ( conshdlrdata->sdpconshdlrdata->usedimacsfeastol )
    {
       assert( conshdlrdata->dimacsfeastol != SCIP_INVALID );
       tol = conshdlrdata->dimacsfeastol;
@@ -754,7 +757,7 @@ SCIP_RETCODE separateSol(
    {
       /* compute smallest eigenvalue */
       SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, blocksize, fullmatrix, 1, eigenvalues, eigenvectors) );
-      if ( SCIPisFeasNegative(scip, eigenvalues[0]) )
+      if ( eigenvalues[0] < -tol )
          neigenvalues = 1;
       else
          neigenvalues = 0;
@@ -3269,20 +3272,6 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
       SCIP_CALL( SCIPcreateRandom(scip, &conshdlrdata->randnumgen, 64293, FALSE) );
    }
 
-   if ( conshdlrdata->usedimacsfeastol )
-   {
-      SCIP_VAR** vars;
-      SCIP_Real sum = 0.0;
-      int nvars;
-      int v;
-
-      nvars = SCIPgetNVars(scip);
-      vars = SCIPgetVars(scip);
-      for ( v = 0; v < nvars; v++ )
-         sum += REALABS( SCIPvarGetObj(vars[v]) );
-      conshdlrdata->dimacsfeastol = 1e-5 * (1 + sum);
-   }
-
    conshdlrdata->relaxsdp = SCIPfindRelax(scip, "SDP");
    conshdlrdata->heurtrysol = SCIPfindHeur(scip, "trysol");
 
@@ -3569,9 +3558,7 @@ SCIP_DECL_CONSTRANS(consTransSdp)
 {/*lint --e{715}*/
    SCIP_CONSDATA* sourcedata;
    SCIP_CONSDATA* targetdata;
-#ifdef OMP
    SCIP_CONSHDLRDATA* conshdlrdata;
-#endif
 #ifndef NDEBUG
    int snprintfreturn; /* used to check the return code of snprintf */
 #endif
@@ -3583,8 +3570,9 @@ SCIP_DECL_CONSTRANS(consTransSdp)
 
   SCIPdebugMsg(scip, "Transforming constraint <%s>\n", SCIPconsGetName(sourcecons));
 
+  conshdlrdata = SCIPconshdlrGetData(conshdlr);
+
 #ifdef OMP
-   conshdlrdata = SCIPconshdlrGetData(conshdlr);
    SCIPdebugMsg(scip, "Setting number of threads to %d via OpenMP in Openblas.\n", conshdlrdata->nthreads);
    omp_set_num_threads(conshdlrdata->nthreads);
 #endif
@@ -3667,6 +3655,21 @@ SCIP_DECL_CONSTRANS(consTransSdp)
          SCIPconsIsModifiable(sourcecons), SCIPconsIsDynamic(sourcecons), SCIPconsIsRemovable(sourcecons),
          SCIPconsIsStickingAtNode(sourcecons)) );
 
+   /* we need to compute the DIMACS tolerance (if required) at this point, because it is needed in CONSCHECK */
+   if ( conshdlrdata->sdpconshdlrdata->usedimacsfeastol )
+   {
+      SCIP_VAR** vars;
+      SCIP_Real sum = 0.0;
+      int nvars;
+      int v;
+
+      nvars = SCIPgetNOrigVars(scip);
+      vars = SCIPgetOrigVars(scip);
+      for ( v = 0; v < nvars; v++ )
+         sum += REALABS( SCIPvarGetObj(vars[v]) );
+      conshdlrdata->dimacsfeastol = 1e-5 * (1 + sum);
+   }
+
    return SCIP_OKAY;
 }
 
@@ -3715,13 +3718,14 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
    int nsdpvars;
    int* rank1considx;
    int* indviolrank1conss;
-
    SCIP_VAR** rank1consvars;
-
 
    assert( scip != NULL );
    assert( result != NULL );
    assert( conss != NULL );
+
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert( conshdlrdata != NULL );
 
    *result = SCIP_FEASIBLE;
 
@@ -3732,7 +3736,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
    /* check positive semidefiniteness */
    for (i = 0; i < nconss; ++i)
    {
-      SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], sol, printreason, result) );
+      SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conshdlrdata, conss[i], sol, printreason, result) );
 #ifdef PRINTMATRICES
       SCIPinfoMessage(scip, NULL, "Solution is %d for constraint %s.\n", *result, SCIPconsGetName(conss[i]) );
 #endif
@@ -3741,8 +3745,6 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
    }
 
    /* check if heuristic should be executed */
-   conshdlrdata = SCIPconshdlrGetData(conshdlr);
-   assert( conshdlrdata != NULL );
    if ( ! conshdlrdata->sdpconshdlrdata->rank1approxheur )
    {
       return SCIP_OKAY;
@@ -3763,7 +3765,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
 
       if ( consdata->rankone )
       {
-         SCIP_CALL( isMatrixRankOne(scip, conss[i], sol, &rank1result) );
+         SCIP_CALL( isMatrixRankOne(scip, conshdlrdata, conss[i], sol, &rank1result) );
          if ( ! rank1result )
          {
             /* save index of violated rank-1 constraint */
@@ -4106,7 +4108,11 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
 static
 SCIP_DECL_CONSENFOPS(consEnfopsSdp)
 {/*lint --e{715}*/
+   SCIP_CONSHDLRDATA* conshdlrdata;
    int i;
+
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert( conshdlrdata != NULL );
 
    assert( scip != NULL );
    assert( result != NULL );
@@ -4122,7 +4128,7 @@ SCIP_DECL_CONSENFOPS(consEnfopsSdp)
 
    for (i = 0; i < nconss; ++i)
    {
-      SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conss[i], NULL, FALSE, result) );
+      SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conshdlrdata, conss[i], NULL, FALSE, result) );
 
       if (*result == SCIP_INFEASIBLE)
       {
@@ -5136,6 +5142,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->quadconsrank1 = FALSE;
    conshdlrdata->rank1approxheur = FALSE;
    conshdlrdata->maxnvarsquadupgd = 0;
+   conshdlrdata->usedimacsfeastol = FALSE;
 
    /* parameters are retrieved through the SDP constraint handler */
    sdpconshdlr = SCIPfindConshdlr(scip, CONSHDLR_NAME);
