@@ -997,6 +997,7 @@ SCIP_RETCODE diagGEzero(
    SCIP_CONSHDLR*        conshdlr,           /**< constraint handler */
    SCIP_CONS**           conss,              /**< array of constraints to add cuts for */
    int                   nconss,             /**< number of constraints to add cuts for */
+   int                   solvesdps,          /**< are we solving SDPs (1) or LPs (0)? */
    int*                  naddconss,          /**< pointer to store how many constraints were added */
    int*                  nchgbds,            /**< pointer to store how many bounds were changed */
    SCIP_Bool*            infeasible          /**< pointer to store whether infeasibility was detected */
@@ -1129,8 +1130,13 @@ SCIP_RETCODE diagGEzero(
          {
             (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "diag_ge_zero_%d", ++(conshdlrdata->ndiaggezerocuts));
 
-            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, cutname, cnt, consvars, consvals, lhs, SCIPinfinity(scip),
-                  TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) ); /*lint !e679*/
+            /* Only separate if solving LPs */
+            if ( solvesdps == 1 )
+               SCIP_CALL( SCIPcreateConsLinear(scip, &cons, cutname, cnt, consvars, consvals, lhs, SCIPinfinity(scip),
+                     TRUE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) ); /*lint !e679*/
+            else
+               SCIP_CALL( SCIPcreateConsLinear(scip, &cons, cutname, cnt, consvars, consvals, lhs, SCIPinfinity(scip),
+                     TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) ); /*lint !e679*/
 
             SCIP_CALL( SCIPaddCons(scip, cons) );
 #ifdef SCIP_MORE_DEBUG
@@ -1419,6 +1425,7 @@ SCIP_RETCODE addTwoMinorLinConstraints(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           conss,              /**< array of constraints */
    int                   nconss,             /**< number of constraints */
+   int                   solvesdps,          /**< are we solving SDPs (1) or LPs (0)? */
    int*                  naddconss           /**< pointer to store how many constraints were added */
    )
 {
@@ -1540,10 +1547,15 @@ SCIP_RETCODE addTwoMinorLinConstraints(
             if ( SCIPisGE(scip, activitylb, lhs) )
                continue;
 
-            /* add linear constraint (only propagate) */
+            /* add linear constraint (only separate if solving LPs) */
             (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "2x2minorlin#%d#%d", s, t);
-            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, lhs, SCIPinfinity(scip),
-                  TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+            if ( solvesdps == 1 )
+               SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, lhs, SCIPinfinity(scip),
+                     TRUE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+            else
+               SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, lhs, SCIPinfinity(scip),
+                     TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+
             SCIP_CALL( SCIPaddCons(scip, cons) );
 #ifdef SCIP_MORE_DEBUG
             SCIPinfoMessage(scip, NULL, "Added 2x2 minor linear constraint: ");
@@ -1577,6 +1589,7 @@ SCIP_RETCODE addTwoMinorProdConstraints(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           conss,              /**< array of constraints */
    int                   nconss,             /**< number of constraints */
+   int                   solvesdps,          /**< are we solving SDPs (1) or LPs (0)? */
    int*                  naddconss           /**< pointer to store how many constraints were added */
    )
 {
@@ -1682,10 +1695,15 @@ SCIP_RETCODE addTwoMinorProdConstraints(
             if ( SCIPisGE(scip, activitylb, lhs) )
                continue;
 
-            /* add linear constraint (only propagate) */
+            /* add linear constraint (only separate if solving LPs) */
             (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "2x2minorprod#%d#%d", s, t);
-            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, lhs, SCIPinfinity(scip),
-                  TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+            if ( solvesdps == 1)
+               SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, lhs, SCIPinfinity(scip),
+                     TRUE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+            else
+               SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, lhs, SCIPinfinity(scip),
+                     TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+
             SCIP_CALL( SCIPaddCons(scip, cons) );
 #ifdef SCIP_MORE_DEBUG
             SCIPinfoMessage(scip, NULL, "Added 2x2 minor product constraint: ");
@@ -4023,12 +4041,16 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
        * only necessary in the main SCIP instance. */
       if ( SCIPgetSubscipDepth(scip) == 0 && ! conshdlrdata->sdpconshdlrdata->triedlinearconss )
       {
+         int solvesdps;
+
+         SCIP_CALL( SCIPgetIntParam(scip, "misc/solvesdps", &solvesdps) );
+
          conshdlrdata->sdpconshdlrdata->triedlinearconss = TRUE;
          if ( conshdlrdata->sdpconshdlrdata->diaggezerocuts )
          {
             noldaddconss = *naddconss;
             noldchgbds = *nchgbds;
-            SCIP_CALL( diagGEzero(scip, conshdlr, conss, nconss, naddconss, nchgbds, &infeasible) );
+            SCIP_CALL( diagGEzero(scip, conshdlr, conss, nconss, solvesdps, naddconss, nchgbds, &infeasible) );
             SCIPdebugMsg(scip, "Diagonal entries: added %d cuts and changed %d bounds.\n", *naddconss - noldaddconss, *nchgbds - noldchgbds);
 
             if ( infeasible )
@@ -4060,7 +4082,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
          if ( *result != SCIP_CUTOFF && conshdlrdata->sdpconshdlrdata->twominorlinconss )
          {
             noldaddconss = *naddconss;
-            SCIP_CALL( addTwoMinorLinConstraints(scip, conss, nconss, naddconss) );
+            SCIP_CALL( addTwoMinorLinConstraints(scip, conss, nconss, solvesdps, naddconss) );
             SCIPdebugMsg(scip, "Added %d linear constraints for 2 by 2 minors.\n", *naddconss - noldaddconss);
             if ( noldaddconss != *naddconss )
             {
@@ -4072,7 +4094,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
          if ( *result != SCIP_CUTOFF && conshdlrdata->sdpconshdlrdata->twominorprodconss )
          {
             noldaddconss = *naddconss;
-            SCIP_CALL( addTwoMinorProdConstraints(scip, conss, nconss, naddconss) );
+            SCIP_CALL( addTwoMinorProdConstraints(scip, conss, nconss, solvesdps, naddconss) );
             SCIPdebugMsg(scip, "Added %d linear constraints for products of 2 by 2 minors.\n", *naddconss - noldaddconss);
             if ( noldaddconss != *naddconss )
             {
