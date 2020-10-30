@@ -9,6 +9,7 @@ features:
 - heur_sdpfracdiving and heur_sdprand now can also run for problems in which LPs are solved
 - new functions SCIPconsSdpGetNVars and SCIPconsSdpGetVars in cons_sdp.c
 - new heuristic heur_sdpinnerlp that tries to find a diagonally dominant solution
+- the display rows now switch from SDP to LP output depending on misc/solvesdps
 
 parameters:
 - new parameter <constraints/SDP/separateonecut> to separate only one cut for the smallest eigenvalue (default: FALSE)
