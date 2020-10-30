@@ -4156,6 +4156,17 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
 
+   /* Below, we enforce integral solutions. If the LP is unbounded, this might not be guaranteed due to the integrality
+    * constraint handler. In this case, we separate eigenvector cuts. */
+   if ( SCIPgetLPSolstat(scip) == SCIP_LPSOLSTAT_UNBOUNDEDRAY )
+   {
+      for (c = 0; c < nconss; ++c)
+      {
+         SCIP_CALL( separateSol(scip, conshdlr, conss[c], NULL, TRUE, result) );
+      }
+      return SCIP_OKAY;
+   }
+
    *result = SCIP_FEASIBLE;
 
    /* if all integer variables have integral values, then possibly solve SDP */
