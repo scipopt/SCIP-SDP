@@ -4188,7 +4188,10 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
       /* do normal separation if no SDP relaxator is present */
       if ( conshdlrdata->relaxsdp == NULL )
       {
-         SCIP_CALL( separateSol(scip, conshdlr, conss[c], NULL, TRUE, result) );
+         for (c = 0; c < nconss; ++c)
+         {
+            SCIP_CALL( separateSol(scip, conshdlr, conss[c], NULL, TRUE, result) );
+         }
          return SCIP_OKAY;
       }
 
