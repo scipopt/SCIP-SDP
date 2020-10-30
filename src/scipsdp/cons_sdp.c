@@ -870,7 +870,7 @@ SCIP_RETCODE tightenMatrices(
          {
             int j;
 
-            SCIPinfoMessage(scip, NULL, "Tightened coefficent matrix of variable <%s> with tightening factor %g.\n", SCIPvarGetName(consdata->vars[i]), factor);
+            SCIPdebugMsg(scip, "Tightened coefficent matrix of variable <%s> with tightening factor %g.\n", SCIPvarGetName(consdata->vars[i]), factor);
 
             /* tighten matrix */
             for (j = 0; j < consdata->nvarnonz[i]; j++)
@@ -975,7 +975,7 @@ SCIP_RETCODE tightenBounds(
 
             if ( tightened )
             {
-               SCIPinfoMessage(scip, NULL, "Tightened upper bound of variable <%s> to %g.\n", SCIPvarGetName(consdata->vars[i]), factor);
+               SCIPdebugMsg(scip, "Tightened upper bound of variable <%s> to %g.\n", SCIPvarGetName(consdata->vars[i]), factor);
                ++(*nchgbds);
             }
          }
@@ -2591,7 +2591,7 @@ SCIP_RETCODE analyzeConflict(
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
 
-   SCIPinfoMessage(scip, NULL, "Analyzing a conflict during propagation\n");
+   SCIPdebugMsg(scip, "Analyzing a conflict during propagation\n");
 
    /* conflict analysis can only be applied in solving stage and if it is applicable */
    if ( (SCIPgetStage(scip) != SCIP_STAGE_SOLVING && ! SCIPinProbing(scip)) || ! SCIPisConflictAnalysisApplicable(scip) )
@@ -2629,7 +2629,7 @@ SCIP_RETCODE analyzeConflict(
    SCIP_CALL( SCIPanalyzeConflictCons(scip, cons, &success) );
 
    if ( success )
-      SCIPinfoMessage(scip, NULL, "Succesfully analyzed and resolved conflict!\n");
+      SCIPdebugMsg(scip, "Succesfully analyzed and resolved conflict!\n");
 
    return SCIP_OKAY;
 }
@@ -2736,7 +2736,7 @@ SCIP_RETCODE propConstraints(
          SCIPfreeBufferArray(scip, &matrices);
 
          if ( SCIPgetSubscipDepth(scip) == 0 )
-            SCIPinfoMessage(scip, NULL, "Number of entries depending on a single variable: %d.\n", consdata->nsingle);
+            SCIPdebugMsg(scip, "Number of entries depending on a single variable: %d.\n", consdata->nsingle);
       }
       assert( consdata->matrixvar != NULL );
       assert( consdata->matrixval != NULL );
@@ -2902,13 +2902,13 @@ SCIP_RETCODE propConstraints(
                   SCIP_CALL( SCIPinferVarUbCons(scip, varst, bound, conss[c], s * blocksize + t, FALSE, infeasible, &tightened) );
                   if ( *infeasible )
                   {
-                     SCIPinfoMessage(scip, NULL, "Propagation detected infeasibility, call analyzeConfilct.\n");
+                     SCIPdebugMsg(scip, "Propagation detected infeasibility, call analyzeConfilct.\n");
                      SCIP_CALL( analyzeConflict(scip, conss[c], diags, diagt, pos, TRUE, TRUE) );
                      return SCIP_OKAY;
                   }
                   if ( tightened )
                   {
-                     SCIPinfoMessage(scip, NULL, "Propagation successfully tightened a bound.\n");
+                     SCIPdebugMsg(scip, "Propagation successfully tightened a bound.\n");
                      ++(*nprop);
                   }
                }
@@ -2931,13 +2931,13 @@ SCIP_RETCODE propConstraints(
                   SCIP_CALL( SCIPinferVarLbCons(scip, varst, bound, conss[c], s * blocksize + t, FALSE, infeasible, &tightened) );
                   if ( *infeasible )
                   {
-                     SCIPinfoMessage(scip, NULL, "Propagation detected infeasibility, call analyzeConfilct.\n");
+                     SCIPdebugMsg(scip, "Propagation detected infeasibility, call analyzeConfilct.\n");
                      SCIP_CALL( analyzeConflict(scip, conss[c], diags, diagt, pos, FALSE, TRUE) );
                      return SCIP_OKAY;
                   }
                   if ( tightened )
                   {
-                     SCIPinfoMessage(scip, NULL, "Propagation successfully tightened a bound.\n");
+                     SCIPdebugMsg(scip, "Propagation successfully tightened a bound.\n");
                      ++(*nprop);
                   }
                }
@@ -3825,7 +3825,7 @@ SCIP_DECL_CONSPROP(consPropSdp)
 
    if ( infeasible )
    {
-      SCIPinfoMessage(scip, NULL, "Propagation detected cutoff.\n");
+      SCIPdebugMsg(scip, "Propagation detected cutoff.\n");
       *result = SCIP_CUTOFF;
    }
    else
@@ -3833,7 +3833,7 @@ SCIP_DECL_CONSPROP(consPropSdp)
       SCIPdebugMsg(scip, "Propagated bounds: %d.\n", nprop);
       if ( nprop > 0 )
       {
-         SCIPinfoMessage(scip, NULL, "Propagation tightened %d bounds.\n", nprop);
+         SCIPdebugMsg(scip, "Propagation tightened %d bounds.\n", nprop);
          *result = SCIP_REDUCEDDOM;
       }
    }
@@ -3861,7 +3861,7 @@ SCIP_DECL_CONSRESPROP(consRespropSdp)
    assert( consdata->rankone || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(cons)), CONSHDLR_NAME) == 0 );
    assert( ! consdata->rankone || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(cons)), CONSHDLRRANK1_NAME) == 0 );
 
-   SCIPinfoMessage(scip, NULL, "Executing conflict resolving method of <%s> constraint handler.\n", SCIPconshdlrGetName(conshdlr));
+   SCIPdebugMsg(scip, "Executing conflict resolving method of <%s> constraint handler.\n", SCIPconshdlrGetName(conshdlr));
 
    s = inferinfo / consdata->blocksize;
    t = inferinfo % consdata->blocksize;
