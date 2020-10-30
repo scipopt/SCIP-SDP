@@ -4156,6 +4156,13 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
 
+   /* do not run if another constraint handler has declared the solution to be infeasible */
+   if ( solinfeasible )
+   {
+      *result = SCIP_FEASIBLE;
+      return SCIP_OKAY;
+   }
+
    /* Below, we enforce integral solutions. If the LP is unbounded, this might not be guaranteed due to the integrality
     * constraint handler. In this case, we separate eigenvector cuts. */
    if ( SCIPgetLPSolstat(scip) == SCIP_LPSOLSTAT_UNBOUNDEDRAY )
