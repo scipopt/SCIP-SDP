@@ -4258,10 +4258,9 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
                   SCIP_CALL( SCIPlinkRelaxSol(scip, enfosol) );
 
                   /* Check solution to SCIP: check all constraints, including integrality. Since there is an integral
-                     constraint handler, integrality gets checkd by SCIPcheckSol as well, so we don't need to do this
-                     manually */
+                   * constraint handler, integrality gets checked by SCIPcheckSol as well, so we don't need to do this
+                   * manually. */
                   SCIP_CALL( SCIPcheckSol(scip, enfosol, FALSE, TRUE, TRUE, TRUE, TRUE, &feasible) );
-
 
                   /* if we do not obtain a feasible solution, we try to round it */
                   if ( *result != SCIP_CUTOFF && nfixed < nintvars )
