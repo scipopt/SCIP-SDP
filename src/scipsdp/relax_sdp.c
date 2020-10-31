@@ -1049,7 +1049,6 @@ SCIP_RETCODE putLpDataInInterface(
    SCIP_Real* ub;
    SCIP_Real* val;
    int* inds;
-   int* objinds;
    int* rowind;
    int* colind;
    int nrowssdpi;
@@ -1176,7 +1175,6 @@ SCIP_RETCODE putLpDataInInterface(
    SCIP_CALL( SCIPallocBufferArray(scip, &ub, nvars) );
    SCIP_CALL( SCIPallocBufferArray(scip, &inds, nvars) );
    SCIP_CALL( SCIPallocBufferArray(scip, &obj, nvars) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &objinds, nvars) );
 
    /* get new bounds and objective coefficients */
    for (i = 0; i < nvars; i++)
@@ -1184,17 +1182,15 @@ SCIP_RETCODE putLpDataInInterface(
       assert( vars[i] != NULL );
       lb[i] = primalobj ? SCIPvarGetLbLocal(vars[i]) : (SCIPisInfinity(scip, -SCIPvarGetLbLocal(vars[i])) ? SCIPvarGetLbLocal(vars[i]) : 0.0);
       ub[i] = primalobj ? SCIPvarGetUbLocal(vars[i]) : (SCIPisInfinity(scip, SCIPvarGetUbLocal(vars[i])) ? SCIPvarGetUbLocal(vars[i]) : 0.0);
-      inds[i] = i; /* we want to change all bounds, so all indices are included in inds */
       obj[i] = dualobj ? SCIPvarGetObj(vars[i]) : 0.0;
-      objinds[i] = i;
+      inds[i] = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[i]);  /* we want to change all bounds, so all indices are included in inds and objinds */
    }
 
    /* inform interface */
    SCIP_CALL( SCIPsdpiChgBounds(relaxdata->sdpi, nvars, inds, lb, ub) );
-   SCIP_CALL( SCIPsdpiChgObj(relaxdata->sdpi, nvars, objinds, obj) );
+   SCIP_CALL( SCIPsdpiChgObj(relaxdata->sdpi, nvars, inds, obj) );
 
    /* free the bounds-arrays */
-   SCIPfreeBufferArray(scip, &objinds);
    SCIPfreeBufferArray(scip, &obj);
    SCIPfreeBufferArray(scip, &inds);
    SCIPfreeBufferArray(scip, &ub);
@@ -3480,7 +3476,7 @@ SCIP_RETCODE calcRelax(
          /* output solution */
          for (i = 0; i < nvars; ++i)
          {
-            SCIPdebugMsg(scip, "<%s> = %f\n", SCIPvarGetName(vars[i]), solforscip[i]);
+            SCIPdebugMsg(scip, "<%s> = %f\n", SCIPvarGetName(SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, i)), solforscip[i]);
          }
          SCIPfreeBufferArray(scip, &solforscip);
       }
@@ -3526,18 +3522,21 @@ SCIP_RETCODE calcRelax(
 
          /* create SCIP solution */
          SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
-         SCIP_CALL( SCIPsetSolVals(scip, scipsol, nvars, vars, solforscip) );
+         assert( nvars == SCIPsdpVarmapperGetNVars(relaxdata->varmapper) );
+         for (i = 0; i < nvars; ++i)
+         {
+            SCIP_CALL( SCIPsetSolVal(scip, scipsol, SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, i), solforscip[i]) );
+         }
 
          *lowerbound = objforscip;
          relaxdata->objval = objforscip;
 
          /* copy solution */
 #if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
-         SCIP_CALL( SCIPsetRelaxSolVals(scip, relax, nvars, vars, solforscip, TRUE) );
+         SCIP_CALL( SCIPsetRelaxSolValsSol(scip, relax, scipsol, TRUE) );
 #else
-         SCIP_CALL( SCIPsetRelaxSolVals(scip, nvars, vars, solforscip, TRUE) );
+         SCIP_CALL( SCIPsetRelaxSolValsSol(scip, scipsol, TRUE) );
 #endif
-
          relaxdata->feasible = TRUE;
          *result = SCIP_SUCCESS;
          preoptimalsolsuccess = FALSE;
