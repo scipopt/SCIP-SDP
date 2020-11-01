@@ -1167,7 +1167,7 @@ SCIP_RETCODE putLpDataInInterface(
          SCIPfreeBufferArray(scip, &rowvals);
       }
    }
-   assert( nnonz == scipnnonz );
+   assert( nnonz <= scipnnonz );  /* <= because rows might be redundant */
 
    /* delete the old LP-block from the sdpi */
    SCIP_CALL( SCIPsdpiGetNLPRows(relaxdata->sdpi, &nrowssdpi) );
