@@ -10,6 +10,8 @@ features:
   This has been extended by a full coefficient tightening procedure.
 - Use lexicographic sorting to sort matrix entries
 - SCIPcreateConsSdp() and SCIPcreateConsSdpRank1() allow to remove duplicates in matrices
+- The data structures in sdpi.c have been restructured to reduce reallocation. This reduces the memory footprint
+  produced by empty blocks in memory.
 
 parameters:
 - Rename parameter relaxing/SDP/tightenvb to relaxing/SDP/tightenrows.
