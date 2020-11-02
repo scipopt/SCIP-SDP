@@ -35,12 +35,9 @@
 
 /**@file   reader_sdpa_firsttry.c
  * @brief  file reader for mixed-integer semidefinite programs in SDPA format
- * @author Tristan Gally
- * @author Henrik A. Friberg
- * @author Marc Pfetsch
+ * @author Tim Schmidt
  * @author Frederic Matter
  *
- * @todo Allow to read SOC constraints in SDPA format.
  * @todo Allow to write varbounds other than -infinity/infinity as linear constraints.
  * @todo Allow to write a transformed problem.
  */
