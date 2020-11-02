@@ -1009,13 +1009,10 @@ SCIP_RETCODE SDPAreadBlocks(
 
    for (b = 0; b < data->nsdpblocks; b++)
    {
-      if ( b != data->locationConBlock )
-      { 
-         if(currentEntriesSdp[b] == 0) 
-         {
-            SCIPerrorMessage("SDP block number %d does not contain nonzero entries!\n", b+1);      
-            emptySdpBlocks++;
-         }
+      if ( currentEntriesSdp[b] == 0 )
+      {
+         SCIPerrorMessage("SDP block number %d does not contain any nonzero entries!\n", b+1);
+         emptySdpBlocks++;
       }
    }
 
