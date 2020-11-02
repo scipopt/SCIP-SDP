@@ -498,3 +498,30 @@ Test(readwrite, nopsdcons)
 
    cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
 }
+
+
+/** Test 17 */
+Test(readwrite, indicator)
+{
+   SCIP_Real obj1;
+   SCIP_Real obj2;
+
+   /* read problem and solve it */
+   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_small_ind.dat-s", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj1 = SCIPgetDualbound(scipsdp);
+
+   /* write problem in CIP format (cannot be written in CBF or SDPA format!) */
+   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "test17.cip", "cip", FALSE) );
+
+   /* read problem again */
+   SCIP_CALL( SCIPreadProb(scipsdp, "test17.cip", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj2 = SCIPgetDualbound(scipsdp);
+
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig SDPA) != %g (Read Written CIP)\n", obj1, obj2);
+}
