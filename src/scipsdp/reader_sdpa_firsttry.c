@@ -1593,7 +1593,6 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
       assert( SCIPvarGetStatus(vars[v]) == SCIP_VARSTATUS_ORIGINAL );
    }
 #endif
-   /* NVARS */
 
    /* write number of variables */
    SCIPinfoMessage(scip, file, "%d\n", nvars);
@@ -1747,7 +1746,6 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
       SCIPinfoMessage(scip, NULL, "WARNING: Transforming original maximization problem to a minimization problem by multiplying all objective coefficients by -1. \n");
    }
       
-  
    for (v = 0; v < nvars; v++)
    {
       SCIP_Real obj;
@@ -1778,26 +1776,29 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
       sdpconstnnonz = totalsdpconstnnonz;
    }
    
-   /* write variable bounds as linear constraints */	
-   for (c = 0; c < nvars; c++)
+   /* write variable bounds as linear constraints */
+   if ( nvarbndslinconss > 0 )
    {
-      assert(varsenses[c] == 0 || varsenses[c] == -1 || varsenses[c] == 1 );
-
-      if(varsenses[c] == 0)
-         continue;
-
-      if(varsenses[c] == -1)
+      for (c = 0; c < nvars; c++)
       {
-         ++linconsind;
-         SCIPinfoMessage(scip, file, "%d %d %d %d -1.0\n", c + 1, consmax + 1, linconsind, linconsind);
-      }
-      else
-      {
-         ++linconsind;
-         SCIPinfoMessage(scip, file, "%d %d %d %d 1.0\n", c + 1, consmax + 1, linconsind, linconsind);
+         assert(varsenses[c] == 0 || varsenses[c] == -1 || varsenses[c] == 1 );
+
+         if(varsenses[c] == 0)
+            continue;
+
+         if(varsenses[c] == -1)
+         {
+            ++linconsind;
+            SCIPinfoMessage(scip, file, "%d %d %d %d -1.0\n", c + 1, consmax + 1, linconsind, linconsind);
+         }
+         else
+         {
+            ++linconsind;
+            SCIPinfoMessage(scip, file, "%d %d %d %d 1.0\n", c + 1, consmax + 1, linconsind, linconsind);
+         }
       }
    }
-  
+
    /* write SDP constraint blocks */
    for (c = 0; c < nconss; c++)
    {
@@ -1850,7 +1851,9 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
          }
       }
       else
-      {  
+      {
+         assert( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") == 0 );
+
          linconsind++;
       
          lhs = SCIPgetLhsLinear(scip, conss[c]);
