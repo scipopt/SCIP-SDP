@@ -5332,25 +5332,46 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
  *  primal variable.
  */
 SCIP_RETCODE SCIPrelaxSdpGetPrimalBoundVars(
+   SCIP*                 scip,               /**< SCIP datastructure */
    SCIP_RELAX*           relax,              /**< SDP-relaxator to get information for */
+   SCIP_VAR**            vars,               /**< variables to get bounds for */
+   int                   nvars,              /**< number of variables */
    SCIP_Real*            lbvars,             /**< pointer to store the values of the variables corresponding to lower bounds in the dual problems */
-   SCIP_Real*            ubvars,             /**< pointer to store the values of the variables corresponding to upper bounds in the dual problems */
-   int*                  arraylength         /**< input: length of lbvars and ubvars <br>
-                                              *   output: number of elements inserted into lbvars/ubvars (or needed length if it wasn't sufficient) */
+   SCIP_Real*            ubvars              /**< pointer to store the values of the variables corresponding to upper bounds in the dual problems */
    )
 {
    SCIP_RELAXDATA* relaxdata;
+   SCIP_Real* lb;
+   SCIP_Real* ub;
+   int arraylength;
+   int j;
 
    assert( relax != NULL );
    assert( lbvars != NULL );
    assert( ubvars != NULL );
-   assert( arraylength != NULL );
-   assert( *arraylength >= 0 );
 
    relaxdata = SCIPrelaxGetData(relax);
    assert( relaxdata != NULL );
 
-   SCIP_CALL( SCIPsdpiGetPrimalBoundVars(relaxdata->sdpi, lbvars, ubvars, arraylength) );
+   assert( nvars <= SCIPsdpVarmapperGetNVars(relaxdata->varmapper) );
+
+   SCIP_CALL( SCIPallocBufferArray(scip, &lb, nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &ub, nvars) );
+
+   arraylength = nvars;
+   SCIP_CALL( SCIPsdpiGetPrimalBoundVars(relaxdata->sdpi, lb, ub, &arraylength) );
+   assert( arraylength == nvars );
+
+   for (j = 0; j < nvars; ++j)
+   {
+      int idx;
+
+      idx = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[j]);
+      lbvars[j] = lb[idx];
+      ubvars[j] = ub[idx];
+   }
+   SCIPfreeBufferArray(scip, &ub);
+   SCIPfreeBufferArray(scip, &lb);
 
    return SCIP_OKAY;
 }

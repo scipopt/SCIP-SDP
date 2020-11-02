@@ -294,7 +294,7 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
       SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &propdata->ubvarvals, propdata->nvars, nvars) );
       propdata->nvars = nvars;
    }
-   SCIP_CALL( SCIPrelaxSdpGetPrimalBoundVars(relax, propdata->lbvarvals, propdata->ubvarvals, &length) );
+   SCIP_CALL( SCIPrelaxSdpGetPrimalBoundVars(scip, relax, vars, nvars, propdata->lbvarvals, propdata->ubvarvals) );
 
    assert( length == nvars ); /* we should get exactly one value for lower and upper bound-variable per variable in scip */
 
