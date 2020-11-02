@@ -190,8 +190,7 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			sdpi/lapack_interface.o \
 			scipsdpgithash.o
 
-SCIPSDPCCOBJ 	=	scipsdp/objreader_sdpaind.o \
-			scipsdp/scipsdpdefplugins.o \
+SCIPSDPCCOBJ 	=	scipsdp/scipsdpdefplugins.o \
 			scipsdp/ScipStreamBuffer.o
 
 SCIPSDPCSRC	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCOBJ:.o=.c))
