@@ -939,18 +939,35 @@ SCIP_RETCODE SDPAreadBlocks(
                SCIP_VAR* slackvar = 0;
                char indconsname[SCIP_MAXSTRLEN];
                char slackvarname[SCIP_MAXSTRLEN];
+               char linearconsname[SCIP_MAXSTRLEN];
+#ifndef NDEBUG
+               int snprintfreturn;
+#endif
 
                v = -v - 2;  /* adjust variable index to be positive */
 
-               (void) SCIPsnprintf(slackvarname, SCIP_MAXSTRLEN, "s_%d", nindcons);
+#ifndef NDEBUG
+               snprintfreturn = SCIPsnprintf(indconsname, SCIP_MAXSTRLEN, "cons_indicator_%d", nindcons);
+               assert( snprintfreturn < SCIP_MAXSTRLEN);
+               snprintfreturn = SCIPsnprintf(slackvarname, SCIP_MAXSTRLEN, "indslack_%s", indconsname);
+               assert( snprintfreturn < SCIP_MAXSTRLEN);
+               snprintfreturn = SCIPsnprintf(linearconsname, SCIP_MAXSTRLEN, "indlin_%s", indconsname);
+               assert( snprintfreturn < SCIP_MAXSTRLEN);
+#else
                (void) SCIPsnprintf(indconsname, SCIP_MAXSTRLEN, "cons_indicator_%d", nindcons);
-               
+               (void) SCIPsnprintf(slackvarname, SCIP_MAXSTRLEN, "indslack_%s", indconsname);
+               (void) SCIPsnprintf(linearconsname, SCIP_MAXSTRLEN, "indlin_%s", indconsname);
+#endif
+
                /* create slack variable and add it to the constraint */
                SCIP_CALL( SCIPcreateVar(scip, &slackvar, slackvarname, 0.0, SCIPinfinity(scip), 0.0, 
                   SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, 0, 0, 0, 0, 0)); 
                SCIP_CALL( SCIPaddVar(scip, slackvar) ); 
                
                SCIP_CALL( SCIPaddCoefLinear(scip,data->createdconss[c] , slackvar, +1.0) );/*lint !e732*//*lint !e747*/
+
+               /* change name of the corresponding linear constraint */
+               SCIP_CALL( SCIPchgConsName(scip, data->createdconss[c], linearconsname) );
                
                indvar= data->createdvars[v];	
                SCIP_CALL( SCIPchgVarLbGlobal(scip, indvar, 0.0) );
