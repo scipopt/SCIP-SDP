@@ -752,8 +752,32 @@ SCIP_RETCODE SDPAreadBlocks(
 
          if ( v < - 1 || v >= data->nvars )
          {
-            SCIPerrorMessage("Given SDP-coefficient in line %" SCIP_LONGINT_FORMAT
+            SCIPerrorMessage("Given coefficient in line %" SCIP_LONGINT_FORMAT
                " for variable %d which does not exist!\n", *linecount, v+1);
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+
+         if ( b < 0 || b >= data->nsdpblocks )
+         {
+            SCIPerrorMessage("Given coefficient in line %" SCIP_LONGINT_FORMAT
+               " for SDP-constraint %d which does not exist!\n", *linecount, b + 1);
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+
+         if ( row < 0 || row >= data->sdpblocksizes[b] )
+         {
+            SCIPerrorMessage("Row index %d of given coefficient in line %" SCIP_LONGINT_FORMAT
+               " is negative or larger than blocksize %d!\n", row +1, *linecount, data->sdpblocksizes[b]);
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+
+         if ( col < 0 || col >= data->sdpblocksizes[b] )
+         {
+            SCIPerrorMessage("Column index %d of given coefficient in line %" SCIP_LONGINT_FORMAT
+               " is negative or larger than blocksize %d!\n", col + 1, *linecount, data->sdpblocksizes[b]);
             SCIPABORT();
             return SCIP_READERROR; /*lint !e527*/
          }
@@ -761,30 +785,6 @@ SCIP_RETCODE SDPAreadBlocks(
          /* check if this entry belongs to the constant part of the SDP block (v = -1) or not (v >= 0) */
          if ( v >= 0 )
          {
-            if ( b < 0 || b >= data->nsdpblocks )
-            {
-               SCIPerrorMessage("Given SDP-coefficient in line %" SCIP_LONGINT_FORMAT
-                  " for SDP-constraint %d which does not exist!\n", *linecount, b + 1);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
-
-            if ( row < 0 || row >= data->sdpblocksizes[b] )
-            {
-               SCIPerrorMessage("Row index %d of given SDP coefficient in line %" SCIP_LONGINT_FORMAT
-                  " is negative or larger than blocksize %d!\n", row +1, *linecount, data->sdpblocksizes[b]);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
-
-            if ( col < 0 || col >= data->sdpblocksizes[b] )
-            {
-               SCIPerrorMessage("Column index %d of given SDP coefficient in line %" SCIP_LONGINT_FORMAT
-                  " is negative or larger than blocksize %d!\n", col + 1, *linecount, data->sdpblocksizes[b]);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
-
             if ( SCIPisZero(scip, val) )
                ++nzerocoef;
             else
@@ -825,29 +825,7 @@ SCIP_RETCODE SDPAreadBlocks(
          }
          else /* constant part of SDP block*/
          {
-            if ( b < 0 || b >= data->nsdpblocks )
-            {
-               SCIPerrorMessage("Given constant entry in line %" SCIP_LONGINT_FORMAT
-                  " for SDP-constraint %d which does not exist!\n", *linecount, b + 1);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
-
-            if ( row < 0 || row >= data->sdpblocksizes[b] )
-            {
-               SCIPerrorMessage("Row index %d of given constant SDP-entry in line %" SCIP_LONGINT_FORMAT
-                  " is negative or larger than blocksize %d!\n", row + 1, *linecount, data->sdpblocksizes[b]);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
-
-            if ( col < 0 || col >= data->sdpblocksizes[b] )
-            {
-               SCIPerrorMessage("Column index %d of given constant SDP-entry in line %" SCIP_LONGINT_FORMAT
-                  " is negative or larger than blocksize %d!\n", col + 1, *linecount, data->sdpblocksizes[b]);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
+            assert( v == -1 );
 
             if ( SCIPisZero(scip, val) )
                ++nzerocoef;
@@ -868,64 +846,64 @@ SCIP_RETCODE SDPAreadBlocks(
 
                   data->memorysizescon[b] = newsize;
                }
-            }
 
-            /* make sure matrix is in lower triangular form */
-            if ( col > row )
-            {
-               sdpconstrow_local[b][data->sdpconstnblocknonz[b]] = col;
-               sdpconstcol_local[b][data->sdpconstnblocknonz[b]] = row;
+               /* make sure matrix is in lower triangular form */
+               if ( col > row )
+               {
+                  sdpconstrow_local[b][data->sdpconstnblocknonz[b]] = col;
+                  sdpconstcol_local[b][data->sdpconstnblocknonz[b]] = row;
+               }
+               else
+               {
+                  sdpconstrow_local[b][data->sdpconstnblocknonz[b]] = row;
+                  sdpconstcol_local[b][data->sdpconstnblocknonz[b]] = col;
+               }
+               sdpconstval_local[b][data->sdpconstnblocknonz[b]] = val;
+               data->sdpconstnblocknonz[b]++;
             }
-            else
-            {
-               sdpconstrow_local[b][data->sdpconstnblocknonz[b]] = row;
-               sdpconstcol_local[b][data->sdpconstnblocknonz[b]] = col;
-            }
-            sdpconstval_local[b][data->sdpconstnblocknonz[b]] = val;
-            data->sdpconstnblocknonz[b]++;
          }
       }
       else /* LP block */
       {
+         /* indicator variables have a negative variable index */
+         if ( v >= data->nvars )
+         {
+            SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT
+               " for variable %d which does not exist!\n", *linecount, v + 1);
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+
+         /* linear constraints are specified on the diagonal of the LP block */
+         if ( row != col )
+         {
+            SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT
+               " is not located on the diagonal!\n", *linecount);
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+
+         assert( row == col );
+
+         if ( row < 0 || row >= data->nlinconss )
+         {
+            SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT
+               " for linear constraint %d which does not exist!\n", *linecount, row + 1);
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+
          /* check if this entry belongs to the constant part of the LP block (v = -1) or not (v >= 0 || v < -1) the latter for indicator variables  */
          if ( v >= 0 )
          {
-            /* linear constraints are specified on the diagonal of the LP block */
-            if ( row != col )
-            {
-               SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT
-                  " is not located on the diagonal!\n", *linecount);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
-
-            assert( row == col );
-            c = row;
-
-            if ( c < 0 || c >= data->nlinconss )
-            {
-               SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT
-                  " for constraint %d which does not exist!\n", *linecount, c + 1);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
-
-            if ( v < 0 || v >= data->nvars )
-            {
-               SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT
-                  " for variable %d which does not exist!\n", *linecount, v + 1);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
-
             if ( SCIPisZero(scip, val) )
             {
                ++nzerocoef;
             }
             else
             {
-               SCIP_CALL( SCIPaddCoefLinear(scip, data->createdconss[c], data->createdvars[v],val) );/*lint !e732*//*lint !e747*/
-               currentEntriesLinCon[c]++;
+               SCIP_CALL( SCIPaddCoefLinear(scip, data->createdconss[row], data->createdvars[v],val) );/*lint !e732*//*lint !e747*/
+               currentEntriesLinCon[row]++;
             }         
          }
          else /* constant part or indicator constraint*/
@@ -961,16 +939,16 @@ SCIP_RETCODE SDPAreadBlocks(
                   SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, 0, 0, 0, 0, 0)); 
                SCIP_CALL( SCIPaddVar(scip, slackvar) ); 
                
-               SCIP_CALL( SCIPaddCoefLinear(scip,data->createdconss[c] , slackvar, +1.0) );/*lint !e732*//*lint !e747*/
+               SCIP_CALL( SCIPaddCoefLinear(scip,data->createdconss[row] , slackvar, +1.0) );/*lint !e732*//*lint !e747*/
 
                /* change name of the corresponding linear constraint */
-               SCIP_CALL( SCIPchgConsName(scip, data->createdconss[c], linearconsname) );
+               SCIP_CALL( SCIPchgConsName(scip, data->createdconss[row], linearconsname) );
                
                indvar= data->createdvars[v];	
                SCIP_CALL( SCIPchgVarLbGlobal(scip, indvar, 0.0) );
                SCIP_CALL( SCIPchgVarUbGlobal(scip, indvar, 1.0) );
                SCIP_CALL( SCIPchgVarType(scip, indvar, SCIP_VARTYPE_BINARY, &infeasible) );
-               SCIP_CALL( SCIPcreateConsIndicatorLinCons( scip, &indcons, indconsname, indvar,data->createdconss[c], slackvar,
+               SCIP_CALL( SCIPcreateConsIndicatorLinCons( scip, &indcons, indconsname, indvar,data->createdconss[row], slackvar,
                            TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE) ); 
                SCIP_CALL( SCIPaddCons(scip, indcons) );
                
@@ -982,25 +960,17 @@ SCIP_RETCODE SDPAreadBlocks(
             }
             else /* constant part */
             {
-               c = row;
-
-               if ( c < 0 || c >= data->nlinconss )
-               {
-                  SCIPerrorMessage("Given constant part in line %" SCIP_LONGINT_FORMAT
-                     " for scalar constraint %d which does not exist!\n", *linecount, c + 1);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
+               assert( v == -1 );
 
                if ( SCIPisZero(scip, val) )
                   ++nzerocoef;
                else
                {
-                  assert( ! SCIPisInfinity(scip, - SCIPgetLhsLinear(scip, data->createdconss[c])) );
-                  assert( SCIPisInfinity(scip, SCIPgetRhsLinear(scip, data->createdconss[c])) );
+                  assert( ! SCIPisInfinity(scip, - SCIPgetLhsLinear(scip, data->createdconss[row])) );
+                  assert( SCIPisInfinity(scip, SCIPgetRhsLinear(scip, data->createdconss[row])) );
 
                   /* All linear constraints are greater or equal constraints */
-                  SCIP_CALL( SCIPchgLhsLinear(scip, data->createdconss[c], val) );
+                  SCIP_CALL( SCIPchgLhsLinear(scip, data->createdconss[row], val) );
                }
             }
          }
