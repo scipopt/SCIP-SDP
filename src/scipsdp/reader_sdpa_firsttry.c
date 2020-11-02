@@ -1037,14 +1037,8 @@ SCIP_RETCODE SDPAreadBlocks(
       return SCIP_READERROR; /*lint !e527*/
    }
 
-   if ( data->nlinconss > 0 )
-      SCIPfreeBufferArray(scip, &currentEntriesLinCon);
-
    if(data->nsdpblocks > 0)
    {
-      SCIPfreeBufferArray(scip, &currentEntriesCon);
-      SCIPfreeBufferArray(scip, &currentEntriesSdp);
-
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdprow), data->nsdpblocks) ); 
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpcol), data->nsdpblocks) );
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpval), data->nsdpblocks) );
@@ -1161,30 +1155,30 @@ SCIP_RETCODE SDPAreadBlocks(
             "Found %d block coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
 
       /* free buffer memory */
-      for (b = 0; b < data->nsdpblocks; b++) 
-      {
-         SCIPfreeBufferArray(scip, &(sdpvar[b]));
-         SCIPfreeBufferArray(scip, &(sdprow_local[b]));
-         SCIPfreeBufferArray(scip, &(sdpcol_local[b]));
-         SCIPfreeBufferArray(scip, &(sdpval_local[b]));
-      }
-
-      SCIPfreeBufferArray(scip, &sdpvar); 
-      SCIPfreeBufferArray(scip, &(sdprow_local));
-      SCIPfreeBufferArray(scip, &(sdpcol_local)); 
-      SCIPfreeBufferArray(scip, &(sdpval_local));
-
-      for (b = 0; b < data->nsdpblocks; b++) 
+      for (b = 0; b < data->nsdpblocks; b++)
       {
          SCIPfreeBufferArray(scip, &(sdpconstval_local[b]));
          SCIPfreeBufferArray(scip, &(sdpconstcol_local[b]));
          SCIPfreeBufferArray(scip, &(sdpconstrow_local[b]));
+         SCIPfreeBufferArray(scip, &(sdpval_local[b]));
+         SCIPfreeBufferArray(scip, &(sdpcol_local[b]));
+         SCIPfreeBufferArray(scip, &(sdprow_local[b]));
+         SCIPfreeBufferArray(scip, &(sdpvar[b]));
       }
-
-      SCIPfreeBufferArray(scip, &(sdpconstval_local)); 
+      SCIPfreeBufferArray(scip, &(sdpconstval_local));
       SCIPfreeBufferArray(scip, &(sdpconstcol_local));
       SCIPfreeBufferArray(scip, &(sdpconstrow_local));
+      SCIPfreeBufferArray(scip, &(sdpval_local));
+      SCIPfreeBufferArray(scip, &(sdpcol_local));
+      SCIPfreeBufferArray(scip, &(sdprow_local));
+      SCIPfreeBufferArray(scip, &sdpvar);
+      SCIPfreeBufferArray(scip, &currentEntriesCon);
+      SCIPfreeBufferArray(scip, &currentEntriesSdp);
    }
+
+   if ( data->nlinconss > 0 )
+      SCIPfreeBufferArray(scip, &currentEntriesLinCon);
+
    return SCIP_OKAY;
 }
 
@@ -1325,52 +1319,45 @@ SCIP_RETCODE SDPAfreeData(
    assert( data != NULL );
    if(data->nsdpblocks > 0)
    {
+      assert( data->nvars > 0 );
+
       for (b = 0; b < data->nsdpblocks; b++)
       {
          assert( data->memorysizescon[b] > 0);
 
-         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstval[b]), data->memorysizescon[b]);
-         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstcol[b]), data->memorysizescon[b]);
-         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstrow[b]), data->memorysizescon[b]);
-      }
-
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstval, data->nsdpblocks); 
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstcol, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstrow, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstnblocknonz, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->memorysizescon, data->nsdpblocks);
-
-      assert( data->nvars > 0 );
-
-      for (b = 0; b < data->nsdpblocks; b++) 
-      {
-         assert( data->memorysizessdp[b] > 0);
-
          SCIPfreeBlockMemoryArrayNull(scip, &(data->valpointer[b]), data->nvars);
          SCIPfreeBlockMemoryArrayNull(scip, &(data->colpointer[b]), data->nvars);
          SCIPfreeBlockMemoryArrayNull(scip, &(data->rowpointer[b]), data->nvars);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->nvarnonz[b]), data->nvars);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpblockvars[b]), data->nvars);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstval[b]), data->memorysizescon[b]);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstcol[b]), data->memorysizescon[b]);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstrow[b]), data->memorysizescon[b]);
          SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpval[b]), data->memorysizessdp[b]);
          SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpcol[b]), data->memorysizessdp[b]);
          SCIPfreeBlockMemoryArrayNull(scip, &(data->sdprow[b]), data->memorysizessdp[b]);
-         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpblockvars[b]), data->nvars);
-         SCIPfreeBlockMemoryArrayNull(scip, &(data->nvarnonz[b]), data->nvars);
       }
-      SCIPfreeBlockMemoryArrayNull(scip, &data->memorysizessdp, data->nsdpblocks);
       SCIPfreeBlockMemoryArrayNull(scip, &data->valpointer, data->nsdpblocks);
       SCIPfreeBlockMemoryArrayNull(scip, &data->colpointer, data->nsdpblocks);
       SCIPfreeBlockMemoryArrayNull(scip, &data->rowpointer, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->nvarnonz, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblockvars, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblockvars, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstval, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstcol, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstrow, data->nsdpblocks);
       SCIPfreeBlockMemoryArrayNull(scip, &data->sdpval, data->nsdpblocks);
       SCIPfreeBlockMemoryArrayNull(scip, &data->sdpcol, data->nsdpblocks);
       SCIPfreeBlockMemoryArrayNull(scip, &data->sdprow, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblockvars, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->nvarnonz, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblockvars, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstnblocknonz, data->nsdpblocks);
       SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblocknonz, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->memorysizescon, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->memorysizessdp, data->nsdpblocks);
    }
 
+   SCIPfreeBlockMemoryArrayNull(scip, &data->createdconss, data->nlinconss);
    SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblockrank1, data->nsdpblocks);
    SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblocksizes, data->nsdpblocks);
-   SCIPfreeBlockMemoryArrayNull(scip, &data->createdconss, data->nlinconss);
    SCIPfreeBlockMemoryArrayNull(scip, &data->createdvars, data->nvars);
 
    return SCIP_OKAY;
