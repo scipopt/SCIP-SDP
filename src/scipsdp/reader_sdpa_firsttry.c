@@ -445,8 +445,8 @@ SCIP_RETCODE SDPAreadBlockSize(
 
    if ( data->nsdpaconstblock != nblocks )
    {
-      SCIPerrorMessage("Number of blocks returned by readLineInt in line %" SCIP_LONGINT_FORMAT
-         " should equal data->nsdpaconstblock. Expected: %i, got: %i\n", *linecount, data->nsdpaconstblock, nblocks);
+      SCIPerrorMessage("Number of specified blocksizes %d in line %" SCIP_LONGINT_FORMAT
+         " does not match number of blocks %d.\n", *linecount, nblocks, data->nsdpaconstblock);
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
@@ -462,8 +462,8 @@ SCIP_RETCODE SDPAreadBlockSize(
          }
          else
          {
-            SCIPerrorMessage("Only one LP can be defined in line %" SCIP_LONGINT_FORMAT " but at least two detected.",
-            *linecount);
+            SCIPerrorMessage("Only one LP block can be defined in line %" SCIP_LONGINT_FORMAT
+               " but at least two blocksizes are negative.\n", *linecount);
             SCIPABORT();
             return SCIP_READERROR; /*lint !e527*/
          }
@@ -473,7 +473,7 @@ SCIP_RETCODE SDPAreadBlockSize(
       {
          if ( *(blockVals + i) == 0 )
          {
-         SCIPerrorMessage("The SDP blocks defined in line %" SCIP_LONGINT_FORMAT " can not be defined with size zero.\n",
+         SCIPerrorMessage("Encountered a block size of 0 in line %" SCIP_LONGINT_FORMAT " which is not valid.\n",
             *linecount);
             SCIPABORT();
             return SCIP_READERROR; /*lint !e527*/
@@ -753,7 +753,7 @@ SCIP_RETCODE SDPAreadBlocks(
          if ( v < - 1 || v >= data->nvars )
          {
             SCIPerrorMessage("Given SDP-coefficient in line %" SCIP_LONGINT_FORMAT
-               " for variable %d which does not exist!\n", *linecount, v);
+               " for variable %d which does not exist!\n", *linecount, v+1);
             SCIPABORT();
             return SCIP_READERROR; /*lint !e527*/
          }
@@ -764,7 +764,7 @@ SCIP_RETCODE SDPAreadBlocks(
             if ( b < 0 || b >= data->nsdpblocks )
             {
                SCIPerrorMessage("Given SDP-coefficient in line %" SCIP_LONGINT_FORMAT
-                  " for SDP-constraint %d which does not exist!\n", *linecount, b);
+                  " for SDP-constraint %d which does not exist!\n", *linecount, b + 1);
                SCIPABORT();
                return SCIP_READERROR; /*lint !e527*/
             }
@@ -772,7 +772,7 @@ SCIP_RETCODE SDPAreadBlocks(
             if ( row < 0 || row >= data->sdpblocksizes[b] )
             {
                SCIPerrorMessage("Row index %d of given SDP coefficient in line %" SCIP_LONGINT_FORMAT
-                  " is negative or larger than blocksize %d!\n", row, *linecount, data->sdpblocksizes[b]);
+                  " is negative or larger than blocksize %d!\n", row +1, *linecount, data->sdpblocksizes[b]);
                SCIPABORT();
                return SCIP_READERROR; /*lint !e527*/
             }
@@ -780,7 +780,7 @@ SCIP_RETCODE SDPAreadBlocks(
             if ( col < 0 || col >= data->sdpblocksizes[b] )
             {
                SCIPerrorMessage("Column index %d of given SDP coefficient in line %" SCIP_LONGINT_FORMAT
-                  " is negative or larger than blocksize %d!\n", col, *linecount, data->sdpblocksizes[b]);
+                  " is negative or larger than blocksize %d!\n", col + 1, *linecount, data->sdpblocksizes[b]);
                SCIPABORT();
                return SCIP_READERROR; /*lint !e527*/
             }
@@ -828,7 +828,7 @@ SCIP_RETCODE SDPAreadBlocks(
             if ( b < 0 || b >= data->nsdpblocks )
             {
                SCIPerrorMessage("Given constant entry in line %" SCIP_LONGINT_FORMAT
-                  " for SDP-constraint %d which does not exist!\n", *linecount, b);
+                  " for SDP-constraint %d which does not exist!\n", *linecount, b + 1);
                SCIPABORT();
                return SCIP_READERROR; /*lint !e527*/
             }
@@ -836,7 +836,7 @@ SCIP_RETCODE SDPAreadBlocks(
             if ( row < 0 || row >= data->sdpblocksizes[b] )
             {
                SCIPerrorMessage("Row index %d of given constant SDP-entry in line %" SCIP_LONGINT_FORMAT
-                  " is negative or larger than blocksize %d!\n", row, *linecount, data->sdpblocksizes[b]);
+                  " is negative or larger than blocksize %d!\n", row + 1, *linecount, data->sdpblocksizes[b]);
                SCIPABORT();
                return SCIP_READERROR; /*lint !e527*/
             }
@@ -844,7 +844,7 @@ SCIP_RETCODE SDPAreadBlocks(
             if ( col < 0 || col >= data->sdpblocksizes[b] )
             {
                SCIPerrorMessage("Column index %d of given constant SDP-entry in line %" SCIP_LONGINT_FORMAT
-                  " is negative or larger than blocksize %d!\n", col, *linecount, data->sdpblocksizes[b]);
+                  " is negative or larger than blocksize %d!\n", col + 1, *linecount, data->sdpblocksizes[b]);
                SCIPABORT();
                return SCIP_READERROR; /*lint !e527*/
             }
@@ -893,8 +893,8 @@ SCIP_RETCODE SDPAreadBlocks(
             /* linear constraints are specified on the diagonal of the LP block */
             if ( row != col )
             {
-               SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT " is not located on the diagonal!\n",
-                  *linecount);
+               SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT
+                  " is not located on the diagonal!\n", *linecount);
                SCIPABORT();
                return SCIP_READERROR; /*lint !e527*/
             }
@@ -905,7 +905,7 @@ SCIP_RETCODE SDPAreadBlocks(
             if ( c < 0 || c >= data->nlinconss )
             {
                SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT
-                  " for constraint %d which does not exist!\n", *linecount, c);
+                  " for constraint %d which does not exist!\n", *linecount, c + 1);
                SCIPABORT();
                return SCIP_READERROR; /*lint !e527*/
             }
@@ -913,7 +913,7 @@ SCIP_RETCODE SDPAreadBlocks(
             if ( v < 0 || v >= data->nvars )
             {
                SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT
-                  " for variable %d which does not exist!\n", *linecount, v);
+                  " for variable %d which does not exist!\n", *linecount, v + 1);
                SCIPABORT();
                return SCIP_READERROR; /*lint !e527*/
             }
@@ -987,7 +987,7 @@ SCIP_RETCODE SDPAreadBlocks(
                if ( c < 0 || c >= data->nlinconss )
                {
                   SCIPerrorMessage("Given constant part in line %" SCIP_LONGINT_FORMAT
-                     " for scalar constraint %d which does not exist!\n", *linecount, c);
+                     " for scalar constraint %d which does not exist!\n", *linecount, c + 1);
                   SCIPABORT();
                   return SCIP_READERROR; /*lint !e527*/
                }
@@ -1011,7 +1011,7 @@ SCIP_RETCODE SDPAreadBlocks(
    {
       if ( currentEntriesSdp[b] == 0 )
       {
-         SCIPerrorMessage("SDP block number %d does not contain any nonzero entries!\n", b+1);
+         SCIPerrorMessage("SDP block number %d does not contain any nonzero entries!\n", b + 1);
          emptySdpBlocks++;
       }
    }
@@ -1026,7 +1026,7 @@ SCIP_RETCODE SDPAreadBlocks(
    {
       if(currentEntriesLinCon[c] == 0) 
       {
-         SCIPerrorMessage("Linear constraint number %d does not contain nonzero entries!\n", c+1);      
+         SCIPerrorMessage("Linear constraint number %d does not contain nonzero entries!\n", c + 1);
          emptyConBlocks++;
       }
    }
@@ -1223,7 +1223,7 @@ SCIP_RETCODE SDPAreadInt(
       if (strncmp(SDPA_LINE_BUFFER, "*RANK1", 5) == 0 )
          break;
 
-      if ( sscanf(SDPA_LINE_BUFFER + 1, "%i", &v) != 1 ) /* move the index by one to ignor the first character of the line */
+      if ( sscanf(SDPA_LINE_BUFFER + 1, "%i", &v) != 1 ) /* move the index by one to ignore the first character of the line */
       {
          SCIPerrorMessage("Could not read variable index in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
          SCIPABORT();
