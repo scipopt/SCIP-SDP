@@ -714,6 +714,7 @@ namespace scip
                      assert( indicator <= 1 );
 
                      //Create constraint
+                     (void) SCIPsnprintf(LPcon_name, SCIP_MAXSTRLEN, "indlin_%s", cons_name);
                      SCIP_CALL( SCIPcreateConsLinear(scip, &LPcon, LPcon_name, 0, 0, 0, LPlhs, SCIPinfinity(scip), TRUE, TRUE,
                            TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
 
@@ -729,10 +730,10 @@ namespace scip
                            char      var_name[SCIP_MAXSTRLEN];
                            SCIP_Bool infeasible;
 #ifndef NDEBUG
-                           snprintfreturn = SCIPsnprintf(var_name, SCIP_MAXSTRLEN, "s_%d", nindconss);
+                           snprintfreturn = SCIPsnprintf(var_name, SCIP_MAXSTRLEN, "indslack_%s", cons_name);
                            assert( snprintfreturn < SCIP_MAXSTRLEN);
 #else
-                           (void) SCIPsnprintf(var_name, SCIP_MAXSTRLEN, "s_%d", nindconss);
+                           (void) SCIPsnprintf(var_name, SCIP_MAXSTRLEN, "indslack_%s", cons_name);
 #endif
                            nindconss++;
 
