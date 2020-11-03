@@ -107,7 +107,6 @@ struct SDPA_Data{
    int*                  memorysizessdp;     /**< size of memory allocated for each sdp constraint */
    int*                  memorysizescon;     /**< size of memory allocated for each linear constraint */
    int                   locationConBlock;   /**< the index of the linear constraint description in the constraint block */
-
 };
 
 typedef struct SDPA_Data SDPA_DATA;
@@ -116,7 +115,7 @@ typedef struct SDPA_Data SDPA_DATA;
  * Local methods
  */
 
-/** find next line in the integer description */
+/** find next line in the integer and rank-1 section */
 static
 SCIP_RETCODE fIntgets(
    SCIP_FILE*            pFile,              /**< file to read from */
@@ -146,7 +145,7 @@ SCIP_RETCODE SDPAfgets(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pFile,              /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
-   int                   readLongLine        /**< zero in case of long line */
+   SCIP_Bool             checkbufferline     /**< Should it be checked if the line was too long for the buffer? */
    )
 {
    assert( pFile != NULL );
@@ -187,7 +186,7 @@ SCIP_RETCODE SDPAfgets(
          }
 
          /* if line is too long for our buffer correct the buffer and correct position in file */
-         if ( SDPA_LINE_BUFFER[SDPA_MAX_LINE - 2] != '\0' && readLongLine == 0 )
+         if ( SDPA_LINE_BUFFER[SDPA_MAX_LINE - 2] != '\0' && checkbufferline )
          {
             char* last;
 
@@ -250,7 +249,7 @@ int readLineDouble(
 
    do
    {
-      SCIP_CALL( SDPAfgets(scip, pfile, linecount, 0) );
+      SCIP_CALL( SDPAfgets(scip, pfile, linecount, TRUE) );
       rest = SDPA_LINE_BUFFER;
       while(( token = SCIPstrtok(rest, " ", &rest) ))
       {
@@ -287,7 +286,7 @@ int readLineInt(
 
    do
    {
-      SCIP_CALL( SDPAfgets(scip, pfile, linecount, 0) );
+      SCIP_CALL( SDPAfgets(scip, pfile, linecount, TRUE) );
       rest = SDPA_LINE_BUFFER;
       while(( token = SCIPstrtok(rest, " ", &rest) ))
       {
@@ -329,7 +328,7 @@ SCIP_RETCODE SDPAreadNVars(
    assert( linecount != NULL );
    assert( data != NULL );
 
-   SCIP_CALL( SDPAfgets(scip,pfile, linecount, 1) );
+   SCIP_CALL( SDPAfgets(scip,pfile, linecount, FALSE) );
 
    if ( sscanf(SDPA_LINE_BUFFER, "%i", &(data->nvars)) != 1 )
    {
@@ -389,7 +388,7 @@ SCIP_RETCODE SDPAreadNBlocks(
    assert( linecount != NULL );
    assert( data != NULL );
 
-   SCIP_CALL( SDPAfgets(scip, pfile, linecount, 1) );
+   SCIP_CALL( SDPAfgets(scip, pfile, linecount, FALSE) );
 
    if ( sscanf(SDPA_LINE_BUFFER, "%i", &(data->nsdpaconstblock)) != 1 )
    {
@@ -725,7 +724,7 @@ SCIP_RETCODE SDPAreadBlocks(
       }
    }
 
-   while ( SDPAfgets(scip, pfile, linecount,1) == SCIP_OKAY )
+   while ( SDPAfgets(scip, pfile, linecount, FALSE) == SCIP_OKAY )
    {
       if ( strncmp(SDPA_LINE_BUFFER, "*INTEGER", 8) == 0 || strncmp(SDPA_LINE_BUFFER, "*RANK1", 5) == 0 )
          break;
