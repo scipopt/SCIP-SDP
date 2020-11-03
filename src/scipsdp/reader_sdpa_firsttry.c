@@ -203,7 +203,7 @@ SCIP_RETCODE SDPAfgets(
             else
             {
                SCIPfseek(pFile, -(long) strlen(last), SEEK_CUR);
-               SCIPinfoMessage(scip, NULL, "correct buffer, reread the last %ld characters\n", (long) strlen(last));
+               SCIPdebugMsg(scip, NULL, "correct buffer, reread the last %ld characters\n", (long) strlen(last));
                *last = '\0';
             }
             return SCIP_OKAY;
@@ -242,27 +242,44 @@ int readLineDouble(
    )
 {
    int i = 0;
-   char* token;
+   char* tok;
    SCIP_Real val;
-   char* nonconstendptr;
+   char* endptr;
    char* rest;
+   SCIP_Bool allread = FALSE;
 
    do
    {
       SCIP_CALL( SDPAfgets(scip, pfile, linecount, TRUE) );
       rest = SDPA_LINE_BUFFER;
-      while(( token = SCIPstrtok(rest, " ", &rest) ))
+
+      /* get first token */
+      tok = SCIPstrtok(rest, " ", &rest);
+      while( tok != NULL )
       {
-         SCIPstrToRealValue(token, &val, &nonconstendptr);
-         *(values + i) = val;
-         i = i + 1;
-         if ( i >= nvals )
+         if ( SCIPstrToRealValue(tok, &val, &endptr) )
+         {
+            if ( i >= nvals  )
+               SCIPwarningMessage(scip, "Warning: Already read %d values, dropping the next token <%s> with value %f\n",
+                  nvals, tok, val);
+            else
+            {
+               values[i] = val;
+               i += 1;
+            }
+         }
+
+         if ( strstr(tok, "\n") != NULL )
+         {
+            allread = TRUE;
             break;
+         }
+
+         /* get next token */
+         tok = SCIPstrtok(rest, " ", &rest);
       }
    }
-   while ( i < nvals );
-
-   assert( i == nvals );
+   while ( ! allread );
 
    return i;
 }
@@ -279,32 +296,47 @@ int readLineInt(
    )
 {
    int i = 0;
-   char* token;
+   char* tok;
    int val;
-   char* nonconstendptr;
+   char* endptr;
    char* rest;
+   SCIP_Bool allread = FALSE;
 
    do
    {
       SCIP_CALL( SDPAfgets(scip, pfile, linecount, TRUE) );
       rest = SDPA_LINE_BUFFER;
-      while(( token = SCIPstrtok(rest, " ", &rest) ))
+
+      /* get first token */
+      tok = SCIPstrtok(rest, " ", &rest);
+      while( tok != NULL )
       {
-         SCIPstrToIntValue(token, &val, &nonconstendptr);
-         *(values + i) = val;
-         i = i + 1;
-         if ( i >= nvals )
+         if ( SCIPstrToIntValue(tok, &val, &endptr) )
+         {
+            if ( i >= nvals  )
+               SCIPwarningMessage(scip, "Warning: Already read %d values, dropping the next token <%s> with value %d\n",
+                  nvals, tok, val);
+            else
+            {
+               values[i] = val;
+               i += 1;
+            }
+         }
+
+         if ( strstr(tok, "\n") != NULL )
+         {
+            allread = TRUE;
             break;
+         }
+
+         /* get next token */
+         tok = SCIPstrtok(rest, " ", &rest);
       }
    }
-   while ( i < nvals );
-
-   assert( i == nvals );
+   while ( ! allread );
 
    return i;
 }
-
-
 
 /** reads the number of variables from given SDPA-file */
 static
@@ -450,6 +482,8 @@ SCIP_RETCODE SDPAreadBlockSize(
       return SCIP_READERROR; /*lint !e527*/
    }
 
+   assert( nblocks == data->nsdpaconstblock );
+
    for (int i = 0; i < nblocks; i++)
    {
    /* if the entry is less than zero it describes the LP blocks */
@@ -571,6 +605,14 @@ SCIP_RETCODE SDPAreadObjVals(
    assert( data->nvars >= 0 );
 
    nValsRead = readLineDouble(scip, pfile, linecount, data->nvars, objVals);
+
+   if ( nValsRead != data->nvars )
+   {
+      SCIPerrorMessage("Number of objective coefficients %i in line %" SCIP_LONGINT_FORMAT
+         " does not match the number of variables %d.\n", nValsRead, *linecount, data->nvars);
+      SCIPABORT();
+      return SCIP_READERROR;
+   }
 
    assert(data->nvars == nValsRead);
 
