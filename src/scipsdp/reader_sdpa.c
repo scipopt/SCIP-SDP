@@ -65,10 +65,6 @@
                                           /*  TODO: currently doesn't work for ranged rows (which are not created by sdpa
                                            *  reader) */
 
-/* Use SDPA_NAME_FORMAT instead of %s when parsing lines, to avoid buffer overflow. */
-#define MACRO_STR_EXPAND(tok) #tok
-#define MACRO_STR(tok) MACRO_STR_EXPAND(tok)
-#define SDPA_NAME_FORMAT "%" MACRO_STR(SDPA_MAX_NAME) "s"
 #define SDPA_MAX_LINE  512      /* Last 3 chars reserved for '\r\n\0' */
 #define SDPA_MAX_NAME  512
 
