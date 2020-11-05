@@ -2537,21 +2537,67 @@ SCIP_RETCODE fixAndAggrVars(
             assert( requiredsize <= globalnvars ); /* requiredsize is the number of empty spots in aggrvars needed, globalnvars is the number
                                                     * of spots we provided */
 
-            /* Debugmessages for the (multi-)aggregation */
-#ifdef SCIP_DEBUG
-            if ( SCIPvarGetStatus(consdata->vars[v]) == SCIP_VARSTATUS_AGGREGATED )
-               SCIPdebugMsg(scip, "aggregating variable %s to ", SCIPvarGetName(var));
+            /* in the unlikely event that the multiaggregation reduces to 0 variables, the original one is fixed */
+            if ( naggrvars == 0 )
+            {
+               assert( ! negated );
+               if ( ! SCIPisZero(scip, constant) )
+               {
+                  for (i = 0; i < consdata->nvarnonz[v]; i++)
+                  {
+                     savedcol[nfixednonz] = consdata->col[v][i];
+                     savedrow[nfixednonz] = consdata->row[v][i];
+
+                     /* this is the final value to add, we no longer have to remember from which variable this comes, minus because we have +A_i but -A_0 */
+                     savedval[nfixednonz] = consdata->val[v][i] * constant;
+
+                     nfixednonz++;
+                     consdata->nnonz--;
+                  }
+               }
+               else
+               {
+                  /* if the variable is fixed to zero, the nonzeros will just vanish, so we only reduce the number of nonzeros */
+                  consdata->nnonz -= consdata->nvarnonz[v];
+               }
+
+               /* free the memory of the corresponding entries in col/row/val */
+               SCIPfreeBlockMemoryArrayNull(scip, &(consdata->val[v]), consdata->nvarnonz[v]);
+               SCIPfreeBlockMemoryArrayNull(scip, &(consdata->row[v]), consdata->nvarnonz[v]);
+               SCIPfreeBlockMemoryArrayNull(scip, &(consdata->col[v]), consdata->nvarnonz[v]);
+
+               /* unlock variable */
+               SCIP_CALL( unlockVar(scip, consdata, v) );
+
+               /* as the variables don't need to be sorted, we just put the last variable into the empty spot and decrease sizes by one (at the end) */
+               SCIP_CALL( SCIPreleaseVar(scip, &(consdata->vars[v])) );
+               consdata->col[v] = consdata->col[consdata->nvars - 1];
+               consdata->row[v] = consdata->row[consdata->nvars - 1];
+               consdata->val[v] = consdata->val[consdata->nvars - 1];
+               consdata->nvarnonz[v] = consdata->nvarnonz[consdata->nvars - 1];
+               consdata->vars[v] = consdata->vars[consdata->nvars - 1];
+               consdata->locks[v] = consdata->locks[consdata->nvars - 1];
+               consdata->nvars--;
+               v--; /* we need to check again if the variable we just shifted to this position also needs to be fixed */
+            }
             else
-               SCIPdebugMsg(scip, "multiaggregating variable %s to ", SCIPvarGetName(var));
-            for (i = 0; i < naggrvars; i++)
-               SCIPdebugMessagePrint(scip, "+ %g %s ", scalars[i], SCIPvarGetName(aggrvars[i]));
-            SCIPdebugMessagePrint(scip, "+ %g.\n", constant);
+            {
+               /* Debugmessages for the (multi-)aggregation */
+#ifdef SCIP_DEBUG
+               if ( SCIPvarGetStatus(consdata->vars[v]) == SCIP_VARSTATUS_AGGREGATED )
+                  SCIPdebugMsg(scip, "aggregating variable %s to ", SCIPvarGetName(var));
+               else
+                  SCIPdebugMsg(scip, "multiaggregating variable %s to ", SCIPvarGetName(var));
+               for (i = 0; i < naggrvars; i++)
+                  SCIPdebugMessagePrint(scip, "+ %g %s ", scalars[i], SCIPvarGetName(aggrvars[i]));
+               SCIPdebugMessagePrint(scip, "+ %g.\n", constant);
 #endif
 
-            /* add the nonzeros to the saved-arrays for the constant part, remove the nonzeros for the old variables and add them to the variables this variable
-             * was (multi-)aggregated to */
-            SCIP_CALL( multiaggrVar(scip, conss[c], v, aggrvars, scalars, naggrvars, constant, savedcol, savedrow, savedval, &nfixednonz, &vararraylength) );
-            v--; /* we need to check again if the variable we just shifted to this position also needs to be fixed */
+               /* add the nonzeros to the saved-arrays for the constant part, remove the nonzeros for the old variables and add them to the variables this variable
+                * was (multi-)aggregated to */
+               SCIP_CALL( multiaggrVar(scip, conss[c], v, aggrvars, scalars, naggrvars, constant, savedcol, savedrow, savedval, &nfixednonz, &vararraylength) );
+               v--; /* we need to check again if the variable we just shifted to this position also needs to be fixed */
+            }
 
             SCIPfreeBufferArray(scip, &aggrvars);
             SCIPfreeBufferArray(scip, &scalars);
@@ -4518,9 +4564,10 @@ SCIP_DECL_CONSCOPY(consCopySdp)
 
    *valid = TRUE;
 
-   /* as we can only map active variables, we have to make sure, that the constraint contains no fixed or (multi-)aggregated vars, after
-    * exitpresolve (stage 6) this should always be the case, earlier than that we need to call fixAndAggrVars */
-   if ( SCIPgetStage(sourcescip) <= SCIP_STAGE_EXITPRESOLVE )
+   /* As we can only map active variables, we have to make sure, that the constraint contains no fixed or
+    * (multi-)aggregated vars, before presolving and after presolving this should always be the case,
+    * earlier than that we need to call fixAndAggrVars. */
+   if ( SCIPgetStage(sourcescip) >= SCIP_STAGE_INITPRESOLVE && SCIPgetStage(sourcescip) <= SCIP_STAGE_EXITPRESOLVE )
    {
       SCIP_CALL( fixAndAggrVars(sourcescip, &sourcecons, 1, TRUE) );
    }

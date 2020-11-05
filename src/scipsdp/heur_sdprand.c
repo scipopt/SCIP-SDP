@@ -109,6 +109,7 @@ SCIP_DECL_HEURFREE(heurFreeSdprand)
    /* free heuristic data */
    heurdata = SCIPheurGetData(heur);
    assert(heurdata != NULL);
+
    SCIPfreeBlockMemory(scip, &heurdata);
    SCIPheurSetData(heur, NULL);
 
@@ -212,7 +213,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
    }
 
    /* only run if there are no general integer variables or the corresponding parameter is set */
-   if ( (! heurdata->generalints) && SCIPgetNIntVars(scip) > 0 )
+   if ( ! heurdata->generalints && SCIPgetNIntVars(scip) > 0 )
       return SCIP_OKAY;
 
    /* get relaxator - exit if not found (use LP randomized rounding) */
@@ -269,9 +270,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
          sdpcands[v] = vars[v];
          sdpcandssol[v] = val;
          if ( SCIPvarIsIntegral(vars[v]) && ! SCIPisFeasIntegral(scip, val) )
-         {
             ++nsdpcands;
-         }
       }
    }
 
@@ -411,6 +410,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
 
                /* try to add solution to SCIP: check all constraints, including integrality */
                SCIP_CALL( SCIPtrySol(scip, heurdata->sol, FALSE, TRUE, TRUE, TRUE, TRUE, &success) );
+
                /* check, if solution was feasible and good enough */
                if ( success )
                {
