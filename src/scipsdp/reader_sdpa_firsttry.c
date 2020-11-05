@@ -671,6 +671,7 @@ SCIP_RETCODE SDPAreadBlocks(
    SCIP_VAR* indvar = 0;
    SCIP_Bool infeasible;
    int nindcons = 0;
+   int blockidxoffset = 0;
 
    assert( scip != NULL );
    assert( pfile != NULL );
@@ -783,12 +784,18 @@ SCIP_RETCODE SDPAreadBlocks(
       row -= 1;
       col -= 1;
 
+      /* reset LP block offset */
+      blockidxoffset = 0;
+
       /* check if this entry belongs to the LP block (FALSE) or to an SDP block (TRUE)*/
       if ( b != data->idxlinconsblock )
       {
-      	 /* check if the LP block was already read and adjust the counter */
+      	 /* check if the LP block was already read and adjust the counter as well as the offset for error messages */
          if ( b > data->idxlinconsblock && data->idxlinconsblock >= 0 )
+         {
             b = b - 1;
+            blockidxoffset = 1;
+         }
 
          if ( v < - 1 || v >= data->nvars )
          {
@@ -801,7 +808,7 @@ SCIP_RETCODE SDPAreadBlocks(
          if ( b < 0 || b >= data->nsdpblocks )
          {
             SCIPerrorMessage("Given coefficient in line %" SCIP_LONGINT_FORMAT
-               " for SDP-constraint %d which does not exist!\n", *linecount, b + 1);
+               " for SDP-constraint %d which does not exist!\n", *linecount, b + 1 + blockidxoffset);
             SCIPABORT();
             return SCIP_READERROR; /*lint !e527*/
          }
@@ -1017,12 +1024,19 @@ SCIP_RETCODE SDPAreadBlocks(
       }
    }
 
+   /* reset LP block offset */
+   blockidxoffset = 0;
+
    for (b = 0; b < data->nsdpblocks; b++)
    {
       if ( nentriessdp[b] == 0 )
       {
-         SCIPerrorMessage("SDP block number %d does not contain any nonzero entries!\n", b + 1);
          emptysdpblocks++;
+         /* account for a possible LP block */
+         if ( data->idxlinconsblock >= 0 && b >= data->idxlinconsblock )
+            blockidxoffset = 1;
+
+         SCIPerrorMessage("SDP block number %d does not contain any nonzero entries!\n", b + 1 + blockidxoffset);
       }
    }
 
@@ -1271,6 +1285,7 @@ SCIP_RETCODE SDPAreadRank1(
    )
 {  /*lint --e{818}*/
    int v;
+   int blockidxoffset = 0;
 
    assert( scip != NULL );
    assert( pfile != NULL );
@@ -1297,15 +1312,34 @@ SCIP_RETCODE SDPAreadRank1(
          return SCIP_READERROR; /*lint !e527*/
       }
 
-      if ( v < 1 || v > data-> nsdpblocks)
+      /* switch from sdpa counting (starting from 1) to scip counting (starting from 0) */
+      v -= 1;
+
+      /* reset LP block offset */
+      blockidxoffset = 0;
+
+      if ( v == data->idxlinconsblock )
+      {
+         SCIPerrorMessage("Given rank1 in line %" SCIP_LONGINT_FORMAT " for the LP block which is not valid.\n",
+            *linecount);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
+
+      /* check if the LP block was already read and adjust the counter as well as the offset for error messages */
+      if ( data->idxlinconsblock >= 0 && v > data->idxlinconsblock )
+      {
+         v -= 1;
+         blockidxoffset = 1;
+      }
+
+      if ( v < 0 || v >= data->nsdpblocks)
       {
          SCIPerrorMessage("Given rank1 in line %" SCIP_LONGINT_FORMAT " for SDP block %d which does not exist!\n",
-            *linecount, v);
+            *linecount, v + 1 + blockidxoffset);
          SCIPABORT();
          return SCIP_READERROR;
       }
-
-      v -= 1;
 
       data->sdpblockrank1[v] = TRUE;
       ++data->nsdpblocksrank1;
