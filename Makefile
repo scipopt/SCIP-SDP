@@ -483,7 +483,6 @@ test:
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_solufile.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_set.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_logfiles.sh);
-		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_tmpfile_setup_scip.sh configuration_tmpfile_setup_$(SCIPSDPNAME).sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/run.sh);
 		cd check; \
 		$(SHELL) ./check.sh $(TEST) $(SCIPSDPBIN) $(SETTINGS) $(notdir $(SCIPSDPBIN)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(DISPFREQ) \
@@ -509,7 +508,6 @@ testcluster:
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_cluster.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_set.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_logfiles.sh);
-		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_tmpfile_setup_scip.sh configuration_tmpfile_setup_$(SCIPSDPNAME).sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/run.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/testfiles.sh);
 		cd check; \
