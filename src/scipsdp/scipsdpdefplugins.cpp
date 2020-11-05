@@ -50,7 +50,7 @@
 #include "cons_savedsdpsettings.h"
 #include "relax_sdp.h"
 #include "reader_cbf.h"
-#include "reader_sdpa_firsttry.h"
+#include "reader_sdpa.h"
 #include "prop_sdpredcost.h"
 #include "disp_sdpiterations.h"
 #include "disp_sdpavgiterations.h"

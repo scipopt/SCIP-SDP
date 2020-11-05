@@ -34,9 +34,8 @@
  * @brief  unit test for checking reading and writing of MISDPs in SDPA format
  * @author Marc Pfetsch
  *
- *  @todo: In order for this test to pass correctly, the calls to SCIPABORT() in reader_sdpa_firsttry.c (and also
- *  reader_cbf.c) need to be removed. Otherwise SCIPABORT() breaks the program before the retcode SCIP_READERROR is
- *  returned.
+ *  @todo: In order for this test to pass correctly, the calls to SCIPABORT() in reader_sdpa.c (and also reader_cbf.c)
+ *  need to be removed. Otherwise SCIPABORT() breaks the program before the retcode SCIP_READERROR is returned.
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/

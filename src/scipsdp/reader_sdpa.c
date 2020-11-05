@@ -33,7 +33,7 @@
 /* #define SCIP_MORE_DEBUG */
 /* #define SCIP_DEBUG */
 
-/**@file   reader_sdpa_firsttry.c
+/**@file   reader_sdpa.c
  * @brief  file reader for mixed-integer semidefinite programs in SDPA format
  * @author Tim Schmidt
  * @author Frederic Matter
@@ -47,7 +47,7 @@
 #include <assert.h>
 #include <string.h>                      /* for strcmp */
 
-#include "scipsdp/reader_sdpa_firsttry.h"
+#include "scipsdp/reader_sdpa.h"
 #include "scipsdp/cons_sdp.h"
 #include "scip/cons_linear.h"
 #include "scip/cons_indicator.h" /* for SCIPcreateConsIndicatorLinCons */
@@ -802,7 +802,7 @@ SCIP_RETCODE SDPAreadBlocks(
          if ( b < 0 || b >= data->nsdpblocks )
          {
             SCIPerrorMessage("Given coefficient in line %" SCIP_LONGINT_FORMAT
-               " for SDP-constraint %d which does not exist!\n", *linecount, b + 1 + blockidxoffset);
+               " for SDP block %d which does not exist!\n", *linecount, b + 1 + blockidxoffset);
             SCIPABORT();
             return SCIP_READERROR; /*lint !e527*/
          }

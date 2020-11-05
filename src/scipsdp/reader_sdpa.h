@@ -30,11 +30,11 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   reader_sdpa_firsttry.h
+/**@file   reader_sdpa.h
  * @ingroup FILEREADERS
  * @brief  file reader for mixed-integer semidefinite programs in SDPA format
- * @author Tristan Gally
- * @author Henrik A. Friberg
+ * @author Tim Schmidt
+ * @author Frederic Matter
  *
  */
 
