@@ -1886,8 +1886,8 @@ SCIP_RETCODE multiaggrVar(
          for (i = 0; i < nvarnonz; i++)
          {
             /* if both scalar and savedval are small this might become too small */
-            if ( ! SCIPisZero(scip, scalars[i] * vals[i]) )
-               consdata->val[consdata->nvars][cnt++] = scalars[i] * vals[i];
+            if ( ! SCIPisZero(scip, scalars[aggrind] * vals[i]) )
+               consdata->val[consdata->nvars][cnt++] = scalars[aggrind] * vals[i];
          }
          consdata->nvarnonz[consdata->nvars] = cnt;
 
