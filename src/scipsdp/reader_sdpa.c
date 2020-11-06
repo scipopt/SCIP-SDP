@@ -59,12 +59,6 @@
 #define READER_DESC             "file reader and writer for MISDPs in sdpa format"
 #define READER_EXTENSION        "dat-s"
 
-#define SDPA_CHECK_NONNEG       TRUE      /**< when writing: check linear constraints and move nonnegativity(-positivity)
-                                           *  constraints to definition of variables (which are now defined in non-negative
-                                           *  orthant) */
-                                          /*  TODO: currently doesn't work for ranged rows (which are not created by sdpa
-                                           *  reader) */
-
 #define SDPA_MAX_LINE  512      /* Last 3 chars reserved for '\r\n\0' */
 #define SDPA_MAX_NAME  512
 
