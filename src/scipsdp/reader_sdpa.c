@@ -957,9 +957,7 @@ SCIP_RETCODE SDPAreadBlocks(
             {
                SCIP_CONS* indcons;
                SCIP_VAR* slackvar = 0;
-               char indconsname[SCIP_MAXSTRLEN];
-               char slackvarname[SCIP_MAXSTRLEN];
-               char linearconsname[SCIP_MAXSTRLEN];
+               char name[SCIP_MAXSTRLEN];
 #ifndef NDEBUG
                int snprintfreturn;
 #endif
@@ -967,33 +965,38 @@ SCIP_RETCODE SDPAreadBlocks(
                v = -v - 2;
 
 #ifndef NDEBUG
-               snprintfreturn = SCIPsnprintf(indconsname, SCIP_MAXSTRLEN, "cons_indicator_%d", nindcons);
-               assert( snprintfreturn < SCIP_MAXSTRLEN);
-               snprintfreturn = SCIPsnprintf(slackvarname, SCIP_MAXSTRLEN, "indslack_%s", indconsname);
-               assert( snprintfreturn < SCIP_MAXSTRLEN);
-               snprintfreturn = SCIPsnprintf(linearconsname, SCIP_MAXSTRLEN, "indlin_%s", indconsname);
+               snprintfreturn = SCIPsnprintf(name, SCIP_MAXSTRLEN, "indslack_cons_indicator_%d", nindcons);
                assert( snprintfreturn < SCIP_MAXSTRLEN);
 #else
-               (void) SCIPsnprintf(indconsname, SCIP_MAXSTRLEN, "cons_indicator_%d", nindcons);
-               (void) SCIPsnprintf(slackvarname, SCIP_MAXSTRLEN, "indslack_%s", indconsname);
-               (void) SCIPsnprintf(linearconsname, SCIP_MAXSTRLEN, "indlin_%s", indconsname);
+               (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "indslack_cons_indicator_%d", nindcons);
 #endif
-
                /* create slack variable and add it to the constraint */
-               SCIP_CALL( SCIPcreateVar(scip, &slackvar, slackvarname, 0.0, SCIPinfinity(scip), 0.0,
+               SCIP_CALL( SCIPcreateVar(scip, &slackvar, name, 0.0, SCIPinfinity(scip), 0.0,
                      SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, 0, 0, 0, 0, 0));
                SCIP_CALL( SCIPaddVar(scip, slackvar) );
 
                SCIP_CALL( SCIPaddCoefLinear(scip,data->createdconss[row] , slackvar, +1.0) );/*lint !e732*//*lint !e747*/
 
+#ifndef NDEBUG
+               snprintfreturn = SCIPsnprintf(name, SCIP_MAXSTRLEN, "indlin_cons_indicator_%d", nindcons);
+               assert( snprintfreturn < SCIP_MAXSTRLEN);
+#else
+               (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "indlin_cons_indicator_%d", nindcons);
+#endif
                /* change name of the corresponding linear constraint */
-               SCIP_CALL( SCIPchgConsName(scip, data->createdconss[row], linearconsname) );
+               SCIP_CALL( SCIPchgConsName(scip, data->createdconss[row], name) );
 
+#ifndef NDEBUG
+               snprintfreturn = SCIPsnprintf(name, SCIP_MAXSTRLEN, "cons_indicator_%d", nindcons);
+               assert( snprintfreturn < SCIP_MAXSTRLEN);
+#else
+               (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "cons_indicator_%d", nindcons);
+#endif
                indvar = data->createdvars[v];
                SCIP_CALL( SCIPchgVarLbGlobal(scip, indvar, 0.0) );
                SCIP_CALL( SCIPchgVarUbGlobal(scip, indvar, 1.0) );
                SCIP_CALL( SCIPchgVarType(scip, indvar, SCIP_VARTYPE_BINARY, &infeasible) );
-               SCIP_CALL( SCIPcreateConsIndicatorLinCons( scip, &indcons, indconsname, indvar,data->createdconss[row], slackvar,
+               SCIP_CALL( SCIPcreateConsIndicatorLinCons( scip, &indcons, name, indvar,data->createdconss[row], slackvar,
                      TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE) );
                SCIP_CALL( SCIPaddCons(scip, indcons) );
 
