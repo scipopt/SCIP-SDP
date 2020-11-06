@@ -160,7 +160,7 @@ SCIP_RETCODE SDPAfgets(
       if ( SDPA_LINE_BUFFER[0] != '*' && SDPA_LINE_BUFFER[0] != '"'&& SDPA_LINE_BUFFER[0] != '\n' && SDPA_IS_COMMENT == 0 )
       {
          /* set SDPA_IS_COMMENT if the line ends with a comment */
-         if ( strrchr(SDPA_LINE_BUFFER, '*') != NULL || strrchr(SDPA_LINE_BUFFER, '"') != NULL || strrchr(SDPA_LINE_BUFFER, '=') != NULL )
+         if ( strpbrk(SDPA_LINE_BUFFER, "*\"=") != NULL )
          {
             SDPA_IS_COMMENT = 1;
             ++(*linecount);
@@ -203,7 +203,7 @@ SCIP_RETCODE SDPAfgets(
       }
 
       /* set SDPA_IS_COMMENT if the line ends with a comment */
-      if ( (strrchr(SDPA_LINE_BUFFER, '*') != NULL || strrchr(SDPA_LINE_BUFFER, '"') != NULL || strrchr(SDPA_LINE_BUFFER, '=') != NULL) && SDPA_IS_COMMENT == 0 )
+      if ( strpbrk(SDPA_LINE_BUFFER, "*\"=") != NULL )
       {
          SDPA_IS_COMMENT = 1;
          ++(*linecount);
