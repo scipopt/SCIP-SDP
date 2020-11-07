@@ -37,6 +37,7 @@
  * @brief  file reader for mixed-integer semidefinite programs in SDPA format
  * @author Tim Schmidt
  * @author Frederic Matter
+ * @author Marc Pfetsch
  *
  * @todo Allow to write varbounds other than -infinity/infinity as linear constraints.
  * @todo Allow to write a transformed problem.
@@ -46,6 +47,7 @@
 
 #include <assert.h>
 #include <string.h>                      /* for strcmp */
+#include <ctype.h>                       /* for isspace/isdigit */
 
 #include "scipsdp/reader_sdpa.h"
 #include "scipsdp/cons_sdp.h"
@@ -61,14 +63,8 @@
 
 #define SDPA_MAX_LINE  512      /* Last 3 chars reserved for '\r\n\0' */
 #define SDPA_MAX_NAME  512
+#define SDPA_MIN_BUFFERLEN 65536   /* minimal size of buffer */
 
-
-/* global variables */
-char SDPA_LINE_BUFFER[SDPA_MAX_LINE];
-char SDPA_NAME_BUFFER[SDPA_MAX_NAME];
-double OBJ_VALUE_BUFFER[SDPA_MAX_LINE];
-int BLOCK_SIZE_BUFFER[SDPA_MAX_LINE];
-int SDPA_IS_COMMENT = 0;
 
 struct SDPA_Data
 {
@@ -99,6 +95,8 @@ struct SDPA_Data
    int*                  sdpmemsize;         /**< size of memory allocated for the nonconstant part of each SDP constraint */
    int*                  sdpconstmemsize;    /**< size of memory allocated for the constant part of each SDP constraint */
    int                   idxlinconsblock;    /**< the index of the linear constraint block */
+   char*                 buffer;             /**< input buffer */
+   int                   bufferlen;          /**< length of buffer */
 };
 
 typedef struct SDPA_Data SDPA_DATA;
@@ -107,224 +105,288 @@ typedef struct SDPA_Data SDPA_DATA;
  * Local methods
  */
 
-/** find next line in the integer and rank-1 section */
+/** reads the next line from the input file into the line buffer, possibly reallocating buffer */
 static
-SCIP_RETCODE fIntgets(
-   SCIP_FILE*            pFile,              /**< file to read from */
-   SCIP_Longint*         linecount           /**< current linecount */
+SCIP_RETCODE readLine(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_FILE*            file,               /**< file */
+   char**                buffer,             /**< buffer to read into */
+   int*                  bufferlen,          /**< buffer length */
+   SCIP_Bool*            success             /**< pointer to store whether reading was successful (no error or EOF occured) */
    )
 {
-   assert( pFile != NULL );
-   assert( linecount != NULL );
+   assert( scip != NULL );
+   assert( file != NULL );
+   assert( buffer != NULL );
+   assert( bufferlen != NULL );
+   assert( success != NULL );
 
-   /* find first non-commentary line */
-   while ( SCIPfgets(SDPA_LINE_BUFFER, (int) sizeof(SDPA_LINE_BUFFER), pFile) != NULL )
+   /* possibly allocate buffer space */
+   if ( *buffer == NULL )
    {
-      if ( SDPA_LINE_BUFFER[0] != '\n' )
-      {
-         ++(*linecount);
-         return SCIP_OKAY;
-      }
+      assert( *bufferlen == 0 );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, buffer, SDPA_MIN_BUFFERLEN) );
+      *bufferlen = SDPA_MIN_BUFFERLEN;
+   }
+   assert( *bufferlen >= 2 );
+
+   /* mark position near end (-2 because *bufferlen possibly will be \0) */
+   (*buffer)[*bufferlen-2] = '\0';
+
+   /* read line */
+   if ( SCIPfgets(*buffer, *bufferlen, file) == NULL )
+   {
+      *success = FALSE;
+      return SCIP_OKAY;
    }
 
-   return SCIP_READERROR;
+   /* while buffer is not large enough (this will happen rarely) */
+   while ( (*buffer)[*bufferlen-2] != '\0' )
+   {
+      int newsize;
+
+      assert( (*buffer)[*bufferlen-1] == '\0' );
+
+      /* increase size */
+      newsize = SCIPcalcMemGrowSize(scip, *bufferlen + 1);
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, buffer, *bufferlen, newsize) );
+      assert( newsize >= *bufferlen + 1 );
+
+      /* mark position near end */
+      (*buffer)[newsize-2] = '\0';
+
+      /* read next part into buffer following already read part; -1/+1, because \0 char at end can be used */
+      if ( SCIPfgets(*buffer + *bufferlen - 1, newsize - *bufferlen + 1, file) == NULL )
+      {
+         *success = FALSE;
+         return SCIP_OKAY;
+      }
+      *bufferlen = newsize;
+   }
+   *success = TRUE;
+
+   return SCIP_OKAY;
 }
 
 
-/** finds first non-commentary line in given file */
+/** reads next non-commentary line in given file */
 static
-SCIP_RETCODE SDPAfgets(
+SCIP_RETCODE readNextLine(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pFile,              /**< file to read from */
+   char**                buffer,             /**< buffer to read into */
+   int*                  bufferlen,          /**< buffer length */
    SCIP_Longint*         linecount,          /**< current linecount */
-   SCIP_Bool             checkbufferline     /**< Should it be checked if the line was too long for the buffer? */
+   SCIP_Bool*            success             /**< pointer to store whether reading was successful (no error or EOF occured) */
    )
 {
-   assert( pFile != NULL );
+   char* comment;
+
+   assert( buffer != NULL );
+   assert( bufferlen != NULL );
    assert( linecount != NULL );
+   assert( success != NULL );
 
-   /* set linebreak */
-   SDPA_LINE_BUFFER[SDPA_MAX_LINE-2] = '\0';
-
-   /* find first non-commentary line */
-   while ( SCIPfgets(SDPA_LINE_BUFFER, (int) sizeof(SDPA_LINE_BUFFER), pFile) != NULL )
+   do
    {
-      /* check for integer or rank1 section */
-      if ( strncmp(SDPA_LINE_BUFFER, "*INTEGER", 8) == 0 || strncmp(SDPA_LINE_BUFFER, "*RANK1", 5) == 0 )
-      {
-         ++(*linecount);
+      /* read next line */
+      SCIP_CALL( readLine(scip, pFile, buffer, bufferlen, success) );
+      if ( ! *success )
          return SCIP_OKAY;
-      }
+      ++(*linecount);
 
-      /* skip line if it is a comment */
-      if ( SDPA_LINE_BUFFER[0] != '*' && SDPA_LINE_BUFFER[0] != '"'&& SDPA_LINE_BUFFER[0] != '\n' && SDPA_IS_COMMENT == 0 )
-      {
-         /* set SDPA_IS_COMMENT if the line ends with a comment */
-         if ( strpbrk(SDPA_LINE_BUFFER, "*\"=") != NULL )
-         {
-            SDPA_IS_COMMENT = 1;
-            ++(*linecount);
-	  }
-
-         /* set SDPA_IS_COMMENT to zero if the line ends */
-         if ( strrchr(SDPA_LINE_BUFFER, '\n') != NULL )
-         {
-            if ( SDPA_IS_COMMENT == 0 )
-               ++(*linecount);
-
-            SDPA_IS_COMMENT = 0;
-         }
-
-         /* if line is too long for our buffer correct the buffer and correct position in file */
-         if ( SDPA_LINE_BUFFER[SDPA_MAX_LINE - 2] != '\0' && checkbufferline )
-         {
-            char* last;
-
-            /* buffer is full; erase last token since it might be incomplete */
-            last = strrchr(SDPA_LINE_BUFFER, ' ');
-
-            if ( last == NULL )
-            {
-               SCIPwarningMessage(scip, "we read %d characters from the file; this might indicate a corrupted input file!",
-                  SDPA_MAX_LINE - 2);
-               SDPA_LINE_BUFFER[SDPA_MAX_LINE - 2] = '\0';
-               SCIPdebugMsg(scip, "the buffer might be corrupted\n");
-            }
-            else
-            {
-               SCIPfseek(pFile, -(long) strlen(last), SEEK_CUR);
-               SCIPdebugMsg(scip, NULL, "correct buffer, reread the last %ld characters\n", (long) strlen(last));
-               *last = '\0';
-            }
-            return SCIP_OKAY;
-         }
-         else
-            return SCIP_OKAY;
-      }
-
-      /* set SDPA_IS_COMMENT if the line ends with a comment */
-      if ( strpbrk(SDPA_LINE_BUFFER, "*\"=") != NULL )
-      {
-         SDPA_IS_COMMENT = 1;
-         ++(*linecount);
-      }
-
-      /* set SDPA_IS_COMMENT to zero if the line ends */
-      if ( strrchr(SDPA_LINE_BUFFER, '\n') != NULL )
-         SDPA_IS_COMMENT = 0;
-      else
-         SDPA_LINE_BUFFER[SDPA_MAX_LINE - 2] = '\0';
+      /* special treatment of integer and rank1 section, because they are inside a comment */
+      if ( strncmp(*buffer, "*INTEGER", 8) == 0 || strncmp(*buffer, "*RANK1", 5) == 0 )
+         return SCIP_OKAY;
    }
+   while ( **buffer == '*' || **buffer == '"' || **buffer == '\n' );   /* repeat reading if the line is a comment line */
+   assert( *success );
 
-   return SCIP_READERROR;
+   /* remove comments */
+   comment = strpbrk(*buffer, "*\"=");
+   if ( comment != NULL )
+      *comment = '\0';
+
+   return SCIP_OKAY;
 }
 
 
-/** method for reading a line of double values with fixed length */
+/** reads next line in given file, each line starting with '*' */
 static
-int readLineDouble(
+SCIP_RETCODE readNextLineStar(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_FILE*            pFile,              /**< file to read from */
+   char**                buffer,             /**< buffer to read into */
+   int*                  bufferlen,          /**< buffer length */
+   SCIP_Longint*         linecount,          /**< current linecount */
+   SCIP_Bool*            success             /**< pointer to store whether reading was successful (no error or EOF occured) */
+   )
+{
+   assert( buffer != NULL );
+   assert( bufferlen != NULL );
+   assert( linecount != NULL );
+   assert( success != NULL );
+
+   do
+   {
+      /* read next line */
+      SCIP_CALL( readLine(scip, pFile, buffer, bufferlen, success) );
+      if ( ! *success )
+         return SCIP_OKAY;
+      ++(*linecount);
+
+      /* special treatment of integer and rank1 section, because they are inside a comment */
+      if ( strncmp(*buffer, "*INTEGER", 8) == 0 || strncmp(*buffer, "*RANK1", 5) == 0 )
+         return SCIP_OKAY;
+   }
+   while ( **buffer == '\n' );   /* repeat reading for empty lines */
+   assert( *success );
+
+   return SCIP_OKAY;
+}
+
+
+/** method for reading a given list of double numbers from file */
+static
+int readLineDoubles(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pfile,              /**< file to read from */
+   char**                buffer,             /**< pointer to buffer */
+   int*                  bufferlen,          /**< pointer to bufferlne */
    SCIP_Longint*         linecount,          /**< current linecount */
    int                   nvals,              /**< number of values to read */
    SCIP_Real*            values              /**< values that have been read */
    )
 {
    SCIP_Real val;
-   SCIP_Bool allread = FALSE;
+   SCIP_Bool success;
    char* endptr;
-   char* rest;
-   char* tok;
-   int i = 0;
+   char* str;
+   int cnt = 0;
 
-   do
+   SCIP_CALL( readLine(scip, pfile, buffer, bufferlen, &success) );
+   if ( ! success )
+      return 0;
+   ++(*linecount);
+
+   str = *buffer;
+   while ( *str != '\0' )
    {
-      SCIP_CALL( SDPAfgets(scip, pfile, linecount, TRUE) );
-      rest = SDPA_LINE_BUFFER;
+      /* skip whitespace */
+      while ( isspace(*str) )
+         ++str;
 
-      /* get first token */
-      tok = SCIPstrtok(rest, " ", &rest);
-      while ( tok != NULL )
+      /* if we reached a number */
+      if ( isdigit(*str) || *str == '-' || *str == '+' )
       {
-         if ( SCIPstrToRealValue(tok, &val, &endptr) )
+         if ( cnt >= nvals )
          {
-            if ( i >= nvals  )
-               SCIPwarningMessage(scip, "Warning: Already read %d values, dropping the next token <%s> with value %f\n",
-                  nvals, tok, val);
-            else
-            {
-               values[i] = val;
-               ++i;
-            }
-         }
-
-         if ( strstr(tok, "\n") != NULL )
-         {
-            allread = TRUE;
+            SCIPwarningMessage(scip, "Warning: Already read %d values in line %" SCIP_LONGINT_FORMAT ", dropping following numbers in the same line.\n", cnt, *linecount);
             break;
          }
 
-         /* get next token */
-         tok = SCIPstrtok(rest, " ", &rest);
+         /* read number itself */
+         val = strtod(str, &endptr);
+         if ( endptr == NULL )
+         {
+            SCIPerrorMessage("Could not read number in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
+            SCIPABORT();
+            return SCIP_READERROR;
+         }
+         values[cnt++] = val;
+         /* advance string to after number */
+         str = endptr;
+      }
+
+      /* stop or read next line if we reached a comment */
+      if ( *str == '*' || *str == '\"' || *str == '=' )
+      {
+         if ( cnt < nvals )
+         {
+            SCIP_CALL( readLine(scip, pfile, buffer, bufferlen, &success) );
+            if ( ! success )
+               return 0;
+            ++(*linecount);
+            str = *buffer;
+         }
+         else
+            break;
       }
    }
-   while ( ! allread );
 
-   return i;
+   return cnt;
 }
 
 
-/** method for reading a line of integer values with fixed length*/
+/** method for reading a list of integer numbers from a file */
 static
-int readLineInt(
+int readLineInts(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pfile,              /**< file to read from */
+   char**                buffer,             /**< pointer to buffer */
+   int*                  bufferlen,          /**< pointer to bufferlne */
    SCIP_Longint*         linecount,          /**< current linecount */
    int                   nvals,              /**< number of values to read */
    int*                  values              /**< values that have been read */
    )
 {
-   SCIP_Bool allread = FALSE;
-   char* tok;
+   SCIP_Bool success;
    char* endptr;
-   char* rest;
+   char* str;
+   int cnt = 0;
    int val;
-   int i = 0;
 
-   do
+   SCIP_CALL( readLine(scip, pfile, buffer, bufferlen, &success) );
+   if ( ! success )
+      return 0;
+   ++(*linecount);
+
+   str = *buffer;
+   while ( *str != '\0' )
    {
-      SCIP_CALL( SDPAfgets(scip, pfile, linecount, TRUE) );
-      rest = SDPA_LINE_BUFFER;
+      /* skip whitespace */
+      while ( isspace(*str) )
+         ++str;
 
-      /* get first token */
-      tok = SCIPstrtok(rest, " ", &rest);
-      while ( tok != NULL )
+      /* if we reached a number */
+      if ( isdigit(*str) || *str == '-' || *str == '+' )
       {
-         if ( SCIPstrToIntValue(tok, &val, &endptr) )
+         if ( cnt >= nvals )
          {
-            if ( i >= nvals  )
-               SCIPwarningMessage(scip, "Warning: Already read %d values, dropping the next token <%s> with value %d\n",
-                  nvals, tok, val);
-            else
-            {
-               values[i] = val;
-               ++i;
-            }
-         }
-
-         if ( strstr(tok, "\n") != NULL )
-         {
-            allread = TRUE;
+            SCIPwarningMessage(scip, "Warning: Already read %d values in line %" SCIP_LONGINT_FORMAT ", dropping following numbers in the same line.\n", cnt, *linecount);
             break;
          }
 
-         /* get next token */
-         tok = SCIPstrtok(rest, " ", &rest);
+         /* read number itself */
+         val = (int) strtol(str, &endptr, 10);
+         if ( endptr == NULL )
+         {
+            SCIPerrorMessage("Could not read number in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
+            SCIPABORT();
+            return SCIP_READERROR;
+         }
+         values[cnt++] = val;
+         /* advance string to after number */
+         str = endptr;
+      }
+
+      /* stop or read next line if we reached a comment */
+      if ( *str == '*' || *str == '\"' || *str == '=' )
+      {
+         if ( cnt < nvals )
+         {
+            SCIP_CALL( readLine(scip, pfile, buffer, bufferlen, &success) );
+            if ( ! success )
+               return 0;
+            ++(*linecount);
+            str = *buffer;
+         }
+         else
+            break;
       }
    }
-   while ( ! allread );
 
-   return i;
+   return cnt;
 }
 
 
@@ -338,6 +400,7 @@ SCIP_RETCODE SDPAreadNVars(
    )
 {
    SCIP_VAR* var;
+   SCIP_Bool success;
    char varname[SCIP_MAXSTRLEN];
    int cnt = 0;
    int v;
@@ -350,9 +413,15 @@ SCIP_RETCODE SDPAreadNVars(
    assert( linecount != NULL );
    assert( data != NULL );
 
-   SCIP_CALL( SDPAfgets(scip,pfile, linecount, FALSE) );
+   SCIP_CALL( readNextLine(scip, pfile, &data->buffer, &data->bufferlen, linecount, &success) );
+   if ( ! success )
+   {
+      SCIPerrorMessage("Unexpected end of file in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
+      SCIPABORT();
+      return SCIP_READERROR;
+   }
 
-   if ( sscanf(SDPA_LINE_BUFFER, "%i", &(data->nvars)) != 1 )
+   if ( sscanf(data->buffer, "%i", &data->nvars) != 1 )
    {
       SCIPerrorMessage("Could not read number of scalar variables in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
       SCIPABORT();
@@ -405,14 +474,22 @@ SCIP_RETCODE SDPAreadNBlocks(
    SDPA_DATA*            data                /**< data pointer to save the results in */
    )
 {
+   SCIP_Bool success;
+
    assert( scip != NULL );
    assert( pfile != NULL );
    assert( linecount != NULL );
    assert( data != NULL );
 
-   SCIP_CALL( SDPAfgets(scip, pfile, linecount, FALSE) );
+   SCIP_CALL( readNextLine(scip, pfile, &data->buffer, &data->bufferlen, linecount, &success) );
+   if ( ! success )
+   {
+      SCIPerrorMessage("Unexpected end of file in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
+      SCIPABORT();
+      return SCIP_READERROR;
+   }
 
-   if ( sscanf(SDPA_LINE_BUFFER, "%i", &(data->nconsblocks)) != 1 )
+   if ( sscanf(data->buffer, "%i", &data->nconsblocks) != 1 )
    {
       SCIPerrorMessage("Could not read number of SDP blocks in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
       SCIPABORT();
@@ -465,7 +542,7 @@ SCIP_RETCODE SDPAreadBlockSize(
    assert( linecount != NULL );
    assert( data != NULL );
 
-   nblocks = readLineInt(scip, pfile, linecount, data->nconsblocks, blocksizes);
+   nblocks = readLineInts(scip, pfile, &data->buffer, &data->bufferlen, linecount, data->nconsblocks, blocksizes);
 
    if ( data->nconsblocks != nblocks )
    {
@@ -595,7 +672,7 @@ SCIP_RETCODE SDPAreadObjVals(
    }
    assert( data->nvars >= 0 );
 
-   nreadvals = readLineDouble(scip, pfile, linecount, data->nvars, objvals);
+   nreadvals = readLineDoubles(scip, pfile, &data->buffer, &data->bufferlen, linecount, data->nvars, objvals);
 
    if ( nreadvals != data->nvars )
    {
@@ -645,6 +722,7 @@ SCIP_RETCODE SDPAreadBlocks(
    SCIP_Real **sdpconstval_local;
    SCIP_Real val;
    SCIP_Bool infeasible;
+   SCIP_Bool success;
    int** sdpvar;
    int* nentriessdp;
    int* nentriessdpconst;
@@ -750,12 +828,21 @@ SCIP_RETCODE SDPAreadBlocks(
       }
    }
 
-   while ( SDPAfgets(scip, pfile, linecount, FALSE) == SCIP_OKAY )
+   /* read data */
+   SCIP_CALL( readNextLine(scip, pfile, &data->buffer, &data->bufferlen, linecount, &success) );
+   if ( ! success )
    {
-      if ( strncmp(SDPA_LINE_BUFFER, "*INTEGER", 8) == 0 || strncmp(SDPA_LINE_BUFFER, "*RANK1", 5) == 0 )
+      SCIPerrorMessage("Unexpected end of file in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
+      SCIPABORT();
+      return SCIP_READERROR;
+   }
+
+   while ( success )
+   {
+      if ( strncmp(data->buffer, "*INTEGER", 8) == 0 || strncmp(data->buffer, "*RANK1", 5) == 0 )
          break;
 
-      if ( sscanf(SDPA_LINE_BUFFER, "%i %i %i %i %lf", &v, &b, &row, &col, &val) != 5 )
+      if ( sscanf(data->buffer, "%i %i %i %i %lf", &v, &b, &row, &col, &val) != 5 )
       {
          SCIPerrorMessage("Could not read block entry in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
          SCIPABORT();
@@ -783,16 +870,16 @@ SCIP_RETCODE SDPAreadBlocks(
 
          if ( v < - 1 || v >= data->nvars )
          {
-            SCIPerrorMessage("Given coefficient in line %" SCIP_LONGINT_FORMAT
-               " for variable %d which does not exist!\n", *linecount, v+1);
+            SCIPerrorMessage("Given coefficient in line %" SCIP_LONGINT_FORMAT " for variable %d which does not exist!\n",
+               *linecount, v+1);
             SCIPABORT();
             return SCIP_READERROR; /*lint !e527*/
          }
 
          if ( b < 0 || b >= data->nsdpblocks )
          {
-            SCIPerrorMessage("Given coefficient in line %" SCIP_LONGINT_FORMAT
-               " for SDP block %d which does not exist!\n", *linecount, b + 1 + blockidxoffset);
+            SCIPerrorMessage("Given coefficient in line %" SCIP_LONGINT_FORMAT " for SDP block %d which does not exist!\n",
+               *linecount, b + 1 + blockidxoffset);
             SCIPABORT();
             return SCIP_READERROR; /*lint !e527*/
          }
@@ -800,16 +887,16 @@ SCIP_RETCODE SDPAreadBlocks(
 
          if ( row < 0 || row >= data->sdpblocksizes[b] )
          {
-            SCIPerrorMessage("Row index %d of given coefficient in line %" SCIP_LONGINT_FORMAT
-               " is negative or larger than blocksize %d!\n", row +1, *linecount, data->sdpblocksizes[b]);
+            SCIPerrorMessage("Row index %d of given coefficient in line %" SCIP_LONGINT_FORMAT " is negative or larger than blocksize %d!\n",
+               row +1, *linecount, data->sdpblocksizes[b]);
             SCIPABORT();
             return SCIP_READERROR; /*lint !e527*/
          }
 
          if ( col < 0 || col >= data->sdpblocksizes[b] )
          {
-            SCIPerrorMessage("Column index %d of given coefficient in line %" SCIP_LONGINT_FORMAT
-               " is negative or larger than blocksize %d!\n", col + 1, *linecount, data->sdpblocksizes[b]);
+            SCIPerrorMessage("Column index %d of given coefficient in line %" SCIP_LONGINT_FORMAT " is negative or larger than blocksize %d!\n",
+               col + 1, *linecount, data->sdpblocksizes[b]);
             SCIPABORT();
             return SCIP_READERROR; /*lint !e527*/
          }
@@ -913,8 +1000,8 @@ SCIP_RETCODE SDPAreadBlocks(
          /* indicator variables have a negative variable index */
          if ( v >= data->nvars )
          {
-            SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT
-               " for variable %d which does not exist!\n", *linecount, v + 1);
+            SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT " for variable %d which does not exist!\n",
+               *linecount, v + 1);
             SCIPABORT();
             return SCIP_READERROR; /*lint !e527*/
          }
@@ -922,8 +1009,8 @@ SCIP_RETCODE SDPAreadBlocks(
          /* linear constraints are specified on the diagonal of the LP block */
          if ( row != col )
          {
-            SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT
-               " is not located on the diagonal!\n", *linecount);
+            SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT " is not located on the diagonal!\n",
+               *linecount);
             SCIPABORT();
             return SCIP_READERROR; /*lint !e527*/
          }
@@ -932,8 +1019,8 @@ SCIP_RETCODE SDPAreadBlocks(
 
          if ( row < 0 || row >= data->nlinconss )
          {
-            SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT
-               " for linear constraint %d which does not exist!\n", *linecount, row + 1);
+            SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT " for linear constraint %d which does not exist!\n",
+               *linecount, row + 1);
             SCIPABORT();
             return SCIP_READERROR; /*lint !e527*/
          }
@@ -1023,6 +1110,8 @@ SCIP_RETCODE SDPAreadBlocks(
             }
          }
       }
+
+      SCIP_CALL( readNextLine(scip, pfile, &data->buffer, &data->bufferlen, linecount, &success) );
    }
 
    /* reset LP block offset */
@@ -1216,6 +1305,7 @@ SCIP_RETCODE SDPAreadInt(
    SDPA_DATA*            data                /**< data pointer to save the results in */
    )
 {  /*lint --e{818}*/
+   SCIP_Bool success;
    int v;
 
    assert( scip != NULL );
@@ -1233,12 +1323,13 @@ SCIP_RETCODE SDPAreadInt(
    assert( data->nvars >= 0 );
 
    /* read to end of file */
-   while ( fIntgets(pfile, linecount) == SCIP_OKAY )
+   SCIP_CALL( readNextLineStar(scip, pfile, &data->buffer, &data->bufferlen, linecount, &success) );
+   while ( success )
    {
-      if (strncmp(SDPA_LINE_BUFFER, "*RANK1", 5) == 0 )
+      if ( strncmp(data->buffer, "*RANK1", 5) == 0 )
          break;
 
-      if ( sscanf(SDPA_LINE_BUFFER + 1, "%i", &v) != 1 ) /* move the index by one to ignore the first character of the line */
+      if ( sscanf(data->buffer + 1, "%i", &v) != 1 ) /* move the index by one to ignore the first character of the line */
       {
          SCIPerrorMessage("Could not read variable index in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
          SCIPABORT();
@@ -1269,6 +1360,9 @@ SCIP_RETCODE SDPAreadInt(
             return SCIP_READERROR; /*lint !e527*/
          }
       }
+
+      /* read next line */
+      SCIP_CALL( readNextLineStar(scip, pfile, &data->buffer, &data->bufferlen, linecount, &success) );
    }
 
    return SCIP_OKAY;
@@ -1284,8 +1378,9 @@ SCIP_RETCODE SDPAreadRank1(
    SDPA_DATA*            data                /**< data pointer to save the results in */
    )
 {  /*lint --e{818}*/
-   int v;
+   SCIP_Bool success;
    int blockidxoffset = 0;
+   int v;
 
    assert( scip != NULL );
    assert( pfile != NULL );
@@ -1302,9 +1397,12 @@ SCIP_RETCODE SDPAreadRank1(
    assert( data->nvars >= 0 );
 
    /* read to end of file */
-   while ( fIntgets(pfile, linecount) == SCIP_OKAY )
+   SCIP_CALL( readNextLineStar(scip, pfile, &data->buffer, &data->bufferlen, linecount, &success) );
+   while ( success )
    {
-      char* ps = SDPA_LINE_BUFFER + 1;
+      char* ps;
+
+      ps = data->buffer + 1;
       if ( sscanf(ps, "%i", &v) != 1 )
       {
          SCIPerrorMessage("Could not read SDP block index in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
@@ -1343,6 +1441,8 @@ SCIP_RETCODE SDPAreadRank1(
 
       data->sdpblockrank1[v] = TRUE;
       ++data->nsdpblocksrank1;
+
+      SCIP_CALL( readNextLineStar(scip, pfile, &data->buffer, &data->bufferlen, linecount, &success) );
    }
 
    return SCIP_OKAY;
@@ -1360,6 +1460,9 @@ SCIP_RETCODE SDPAfreeData(
 
    assert( scip != NULL );
    assert( data != NULL );
+
+   SCIPfreeBlockMemoryArrayNull(scip, &data->buffer, data->bufferlen);
+   data->bufferlen = 0;
 
    if ( data->nsdpblocks > 0 )
    {
@@ -1464,6 +1567,8 @@ SCIP_DECL_READERREAD(readerReadSdpa)
    data->sdpconstcol = NULL;
    data->sdpconstval = NULL;
    data->idxlinconsblock = -1;
+   data->buffer = NULL;
+   data->bufferlen = 0;
 
    /* create empty problem */
    SCIP_CALL( SCIPcreateProb(scip, filename, NULL, NULL, NULL, NULL, NULL, NULL, NULL) );
@@ -1486,7 +1591,7 @@ SCIP_DECL_READERREAD(readerReadSdpa)
    SCIPdebugMsg(scip, "Reading block entries\n");
    SCIP_CALL( SDPAreadBlocks(scip, scipfile, &linecount, data) );
 
-   if ( strncmp(SDPA_LINE_BUFFER, "*INTEGER", 8) == 0 )
+   if ( strncmp(data->buffer, "*INTEGER", 8) == 0 )
    {
       SCIPdebugMsg(scip, "Reading integer section\n");
       SCIP_CALL( SDPAreadInt(scip, scipfile, &linecount, data) );
@@ -1566,6 +1671,7 @@ SCIP_DECL_READERREAD(readerReadSdpa)
       SCIP_CALL( SCIPreleaseCons(scip, &sdpcons) );
    }
 
+   /* free space */
    SCIP_CALL( SDPAfreeData(scip, data) );
    SCIPfreeBufferNull(scip, &data);
 
