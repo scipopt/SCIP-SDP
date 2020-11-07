@@ -61,8 +61,6 @@
 #define READER_DESC             "file reader and writer for MISDPs in sdpa format"
 #define READER_EXTENSION        "dat-s"
 
-#define SDPA_MAX_LINE  512      /* Last 3 chars reserved for '\r\n\0' */
-#define SDPA_MAX_NAME  512
 #define SDPA_MIN_BUFFERLEN 65536   /* minimal size of buffer */
 
 
