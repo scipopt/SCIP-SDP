@@ -49,9 +49,8 @@
 #include "scipsdp/cons_savesdpsol.h"
 #include "cons_savedsdpsettings.h"
 #include "relax_sdp.h"
-#include "objreader_sdpaind.h"
 #include "reader_cbf.h"
-#include "reader_sdpa_firsttry.h"
+#include "reader_sdpa.h"
 #include "prop_sdpredcost.h"
 #include "disp_sdpiterations.h"
 #include "disp_sdpavgiterations.h"
@@ -185,7 +184,6 @@ SCIP_RETCODE SCIPSDPincludeDefaultPlugins(
    SCIP_CALL( SCIPSDPsetDefaultParams(scip) );
 
    /* include new plugins */
-   SCIP_CALL( SCIPincludeObjReader(scip, new ObjReaderSDPAind(scip), TRUE) );
    SCIP_CALL( SCIPincludeReaderCbf(scip) );
    SCIP_CALL( SCIPincludeReaderSdpa(scip) );
    SCIP_CALL( SCIPincludeConshdlrSdp(scip) );

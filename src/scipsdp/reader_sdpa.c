@@ -30,17 +30,14 @@
 /*									     */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
- #define SCIP_MORE_DEBUG 
- #define SCIP_DEBUG 
+/* #define SCIP_MORE_DEBUG */
+/* #define SCIP_DEBUG */
 
-/**@file   reader_sdpa_firsttry.c
+/**@file   reader_sdpa.c
  * @brief  file reader for mixed-integer semidefinite programs in SDPA format
- * @author Tristan Gally
- * @author Henrik A. Friberg
- * @author Marc Pfetsch
+ * @author Tim Schmidt
  * @author Frederic Matter
  *
- * @todo Allow to read SOC constraints in SDPA format.
  * @todo Allow to write varbounds other than -infinity/infinity as linear constraints.
  * @todo Allow to write a transformed problem.
  */
@@ -50,9 +47,10 @@
 #include <assert.h>
 #include <string.h>                      /* for strcmp */
 
-#include "scipsdp/reader_sdpa_firsttry.h"
+#include "scipsdp/reader_sdpa.h"
 #include "scipsdp/cons_sdp.h"
 #include "scip/cons_linear.h"
+#include "scip/cons_indicator.h" /* for SCIPcreateConsIndicatorLinCons */
 
 #undef SCIPABORT
 #define SCIPABORT() {}
@@ -61,27 +59,19 @@
 #define READER_DESC             "file reader and writer for MISDPs in sdpa format"
 #define READER_EXTENSION        "dat-s"
 
-#define SDPA_CHECK_NONNEG       TRUE      /**< when writing: check linear constraints and move nonnegativity(-positivity)
-                                           *  constraints to definition of variables (which are now defined in non-negative
-                                           *  orthant) */
-                                          /*  TODO: currently doesn't work for ranged rows (which are not created by sdpa
-                                           *  reader) */
-
-/* Use SDPA_NAME_FORMAT instead of %s when parsing lines, to avoid buffer overflow. */
-#define MACRO_STR_EXPAND(tok) #tok
-#define MACRO_STR(tok) MACRO_STR_EXPAND(tok)
-#define SDPA_NAME_FORMAT "%" MACRO_STR(SDPA_MAX_NAME) "s"
 #define SDPA_MAX_LINE  512      /* Last 3 chars reserved for '\r\n\0' */
-#define SDPA_MAX_NAME  512	/* Frage: sind die vielfachen von 2 wirklich nötig? (vorher 512) */
+#define SDPA_MAX_NAME  512
 
 
+/* global variables */
 char SDPA_LINE_BUFFER[SDPA_MAX_LINE];
 char SDPA_NAME_BUFFER[SDPA_MAX_NAME];
 double OBJ_VALUE_BUFFER[SDPA_MAX_LINE];
 int BLOCK_SIZE_BUFFER[SDPA_MAX_LINE];
 int SDPA_IS_COMMENT = 0;
 
-struct SDPA_Data{
+struct SDPA_Data
+{
    SCIP_Bool*            sdpblockrank1;      /**< rank-1 information for each SDP block (TRUE = should be rank 1) */
    int                   nsdpblocksrank1;    /**< number of SDP constraints/blocks that should be rank 1 */
    int                   nvars;              /**< number of variables and length of createdvars-array */
@@ -105,11 +95,10 @@ struct SDPA_Data{
    int**                 sdpconstrow;        /**< pointers to row-indices for each block */
    int**                 sdpconstcol;        /**< pointers to column-indices for each block */
    SCIP_Real**           sdpconstval;        /**< pointers to the values of the nonzeros for each block */
-   int                   nsdpaconstblock;    /**< number of constraint blocks specified by sdpa*/
-   int*                  memorysizessdp;     /**< size of memory allocated for each sdp constraint */
-   int*                  memorysizescon;     /**< size of memory allocated for each linear constraint */
-   int                   locationConBlock;   /**< the index of the linear constraint description in the constraint block */
-
+   int                   nconsblocks;        /**< number of constraint blocks specified in the input file */
+   int*                  sdpmemsize;         /**< size of memory allocated for the nonconstant part of each SDP constraint */
+   int*                  sdpconstmemsize;    /**< size of memory allocated for the constant part of each SDP constraint */
+   int                   idxlinconsblock;    /**< the index of the linear constraint block */
 };
 
 typedef struct SDPA_Data SDPA_DATA;
@@ -118,7 +107,7 @@ typedef struct SDPA_Data SDPA_DATA;
  * Local methods
  */
 
-/** find next line in the integer description */
+/** find next line in the integer and rank-1 section */
 static
 SCIP_RETCODE fIntgets(
    SCIP_FILE*            pFile,              /**< file to read from */
@@ -128,10 +117,10 @@ SCIP_RETCODE fIntgets(
    assert( pFile != NULL );
    assert( linecount != NULL );
 
-   /* Find first non-commentary line */
+   /* find first non-commentary line */
    while ( SCIPfgets(SDPA_LINE_BUFFER, (int) sizeof(SDPA_LINE_BUFFER), pFile) != NULL )
    {
-      if(SDPA_LINE_BUFFER[0] != '\n')
+      if ( SDPA_LINE_BUFFER[0] != '\n' )
       {
          ++(*linecount);
          return SCIP_OKAY;
@@ -148,7 +137,7 @@ SCIP_RETCODE SDPAfgets(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pFile,              /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
-   int                   readLongLine        /**< zero in case of long line */
+   SCIP_Bool             checkbufferline     /**< Should it be checked if the line was too long for the buffer? */
    )
 {
    assert( pFile != NULL );
@@ -160,9 +149,8 @@ SCIP_RETCODE SDPAfgets(
    /* find first non-commentary line */
    while ( SCIPfgets(SDPA_LINE_BUFFER, (int) sizeof(SDPA_LINE_BUFFER), pFile) != NULL )
    {
-
-      /*check for integer or rank1 section */
-      if ( strncmp(SDPA_LINE_BUFFER, "*INTEGER", 8) == 0 ||strncmp(SDPA_LINE_BUFFER, "*RANK1", 5) == 0)
+      /* check for integer or rank1 section */
+      if ( strncmp(SDPA_LINE_BUFFER, "*INTEGER", 8) == 0 || strncmp(SDPA_LINE_BUFFER, "*RANK1", 5) == 0 )
       {
          ++(*linecount);
          return SCIP_OKAY;
@@ -172,15 +160,14 @@ SCIP_RETCODE SDPAfgets(
       if ( SDPA_LINE_BUFFER[0] != '*' && SDPA_LINE_BUFFER[0] != '"'&& SDPA_LINE_BUFFER[0] != '\n' && SDPA_IS_COMMENT == 0 )
       {
          /* set SDPA_IS_COMMENT if the line ends with a comment */
-         if ( ! (strrchr(SDPA_LINE_BUFFER, '*') == NULL) || ! (strrchr(SDPA_LINE_BUFFER, '"') == NULL)
-            || ! (strrchr(SDPA_LINE_BUFFER, '=') == NULL) )
+         if ( strpbrk(SDPA_LINE_BUFFER, "*\"=") != NULL )
          {
             SDPA_IS_COMMENT = 1;
             ++(*linecount);
 	  }
 
          /* set SDPA_IS_COMMENT to zero if the line ends */
-         if ( ! (strrchr(SDPA_LINE_BUFFER, '\n') == NULL) )
+         if ( strrchr(SDPA_LINE_BUFFER, '\n') != NULL )
          {
             if ( SDPA_IS_COMMENT == 0 )
                ++(*linecount);
@@ -189,7 +176,7 @@ SCIP_RETCODE SDPAfgets(
          }
 
          /* if line is too long for our buffer correct the buffer and correct position in file */
-         if ( SDPA_LINE_BUFFER[SDPA_MAX_LINE - 2] != '\0' && readLongLine == 0 )
+         if ( SDPA_LINE_BUFFER[SDPA_MAX_LINE - 2] != '\0' && checkbufferline )
          {
             char* last;
 
@@ -206,7 +193,7 @@ SCIP_RETCODE SDPAfgets(
             else
             {
                SCIPfseek(pFile, -(long) strlen(last), SEEK_CUR);
-               SCIPinfoMessage(scip, NULL, "correct buffer, reread the last %ld characters\n", (long) strlen(last));
+               SCIPdebugMsg(scip, NULL, "correct buffer, reread the last %ld characters\n", (long) strlen(last));
                *last = '\0';
             }
             return SCIP_OKAY;
@@ -216,22 +203,21 @@ SCIP_RETCODE SDPAfgets(
       }
 
       /* set SDPA_IS_COMMENT if the line ends with a comment */
-      if ( (! (strrchr(SDPA_LINE_BUFFER, '*') == NULL) || ! (strrchr(SDPA_LINE_BUFFER, '"') == NULL)
-            || ! (strrchr(SDPA_LINE_BUFFER, '=') == NULL)) && SDPA_IS_COMMENT == 0 )
+      if ( strpbrk(SDPA_LINE_BUFFER, "*\"=") != NULL )
       {
          SDPA_IS_COMMENT = 1;
          ++(*linecount);
       }
 
       /* set SDPA_IS_COMMENT to zero if the line ends */
-      if ( ! (strrchr(SDPA_LINE_BUFFER, '\n') == NULL) )
+      if ( strrchr(SDPA_LINE_BUFFER, '\n') != NULL )
          SDPA_IS_COMMENT = 0;
       else
          SDPA_LINE_BUFFER[SDPA_MAX_LINE - 2] = '\0';
    }
+
    return SCIP_READERROR;
 }
-
 
 
 /** method for reading a line of double values with fixed length */
@@ -244,28 +230,45 @@ int readLineDouble(
    SCIP_Real*            values              /**< values that have been read */
    )
 {
-   int i = 0;
-   char* token;
    SCIP_Real val;
-   char* nonconstendptr;
+   SCIP_Bool allread = FALSE;
+   char* endptr;
    char* rest;
+   char* tok;
+   int i = 0;
 
    do
    {
-      SCIP_CALL( SDPAfgets(scip, pfile, linecount, 0) );
+      SCIP_CALL( SDPAfgets(scip, pfile, linecount, TRUE) );
       rest = SDPA_LINE_BUFFER;
-      while(( token = SCIPstrtok(rest, " ", &rest) ))
+
+      /* get first token */
+      tok = SCIPstrtok(rest, " ", &rest);
+      while ( tok != NULL )
       {
-         SCIPstrToRealValue(token, &val, &nonconstendptr);
-         *(values + i) = val;
-         i = i + 1;
-         if ( i >= nvals )
+         if ( SCIPstrToRealValue(tok, &val, &endptr) )
+         {
+            if ( i >= nvals  )
+               SCIPwarningMessage(scip, "Warning: Already read %d values, dropping the next token <%s> with value %f\n",
+                  nvals, tok, val);
+            else
+            {
+               values[i] = val;
+               ++i;
+            }
+         }
+
+         if ( strstr(tok, "\n") != NULL )
+         {
+            allread = TRUE;
             break;
+         }
+
+         /* get next token */
+         tok = SCIPstrtok(rest, " ", &rest);
       }
    }
-   while ( i < nvals );
-
-   assert( i == nvals );
+   while ( ! allread );
 
    return i;
 }
@@ -281,32 +284,48 @@ int readLineInt(
    int*                  values              /**< values that have been read */
    )
 {
-   int i = 0;
-   char* token;
-   int val;
-   char* nonconstendptr;
+   SCIP_Bool allread = FALSE;
+   char* tok;
+   char* endptr;
    char* rest;
+   int val;
+   int i = 0;
 
    do
    {
-      SCIP_CALL( SDPAfgets(scip, pfile, linecount, 0) );
+      SCIP_CALL( SDPAfgets(scip, pfile, linecount, TRUE) );
       rest = SDPA_LINE_BUFFER;
-      while(( token = SCIPstrtok(rest, " ", &rest) ))
+
+      /* get first token */
+      tok = SCIPstrtok(rest, " ", &rest);
+      while ( tok != NULL )
       {
-         SCIPstrToIntValue(token, &val, &nonconstendptr);
-         *(values + i) = val;
-         i = i + 1;
-         if ( i >= nvals )
+         if ( SCIPstrToIntValue(tok, &val, &endptr) )
+         {
+            if ( i >= nvals  )
+               SCIPwarningMessage(scip, "Warning: Already read %d values, dropping the next token <%s> with value %d\n",
+                  nvals, tok, val);
+            else
+            {
+               values[i] = val;
+               ++i;
+            }
+         }
+
+         if ( strstr(tok, "\n") != NULL )
+         {
+            allread = TRUE;
             break;
+         }
+
+         /* get next token */
+         tok = SCIPstrtok(rest, " ", &rest);
       }
    }
-   while ( i < nvals );
-
-   assert( i == nvals );
+   while ( ! allread );
 
    return i;
 }
-
 
 
 /** reads the number of variables from given SDPA-file */
@@ -318,8 +337,8 @@ SCIP_RETCODE SDPAreadNVars(
    SDPA_DATA*            data                /**< data pointer to save the results in */
    )
 {
-   char varname[SCIP_MAXSTRLEN];
    SCIP_VAR* var;
+   char varname[SCIP_MAXSTRLEN];
    int cnt = 0;
    int v;
 #ifndef NDEBUG
@@ -331,7 +350,7 @@ SCIP_RETCODE SDPAreadNVars(
    assert( linecount != NULL );
    assert( data != NULL );
 
-   SCIP_CALL( SDPAfgets(scip,pfile, linecount, 1) );
+   SCIP_CALL( SDPAfgets(scip,pfile, linecount, FALSE) );
 
    if ( sscanf(SDPA_LINE_BUFFER, "%i", &(data->nvars)) != 1 )
    {
@@ -391,24 +410,25 @@ SCIP_RETCODE SDPAreadNBlocks(
    assert( linecount != NULL );
    assert( data != NULL );
 
-   SCIP_CALL( SDPAfgets(scip, pfile, linecount, 1) );
+   SCIP_CALL( SDPAfgets(scip, pfile, linecount, FALSE) );
 
-   if ( sscanf(SDPA_LINE_BUFFER, "%i", &(data->nsdpaconstblock)) != 1 )
+   if ( sscanf(SDPA_LINE_BUFFER, "%i", &(data->nconsblocks)) != 1 )
    {
       SCIPerrorMessage("Could not read number of SDP blocks in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
       SCIPABORT();
       return SCIP_READERROR;
    }
 
-   if ( data->nsdpaconstblock < 0 )
+   if ( data->nconsblocks < 0 )
    {
       SCIPerrorMessage("Number of SDP blocks %d in line %" SCIP_LONGINT_FORMAT " should be non-negative!\n",
-         data->nsdpaconstblock, *linecount);
+         data->nconsblocks, *linecount);
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
 
-   assert( data->nsdpaconstblock >= 0 );
+   assert( data->nconsblocks >= 0 );
+
    return SCIP_OKAY;
 }
 
@@ -422,71 +442,73 @@ SCIP_RETCODE SDPAreadBlockSize(
    SDPA_DATA*            data                /**< data pointer to save the results in */
    )
 {
-   char consname[SCIP_MAXSTRLEN];
    SCIP_CONS* cons;
-   int b;
-   int cnt = 0;
+   char consname[SCIP_MAXSTRLEN];
+   int* sdpblocksizes;
+   int* blocksizes;
    int nsdpblocks = 0;
-   int* blockVals;
    int nblocks;
-   int* blockValsPsd;
+   int cnt = 0;
+   int b;
+   int c;
+   int i;
 
 #ifndef NDEBUG
    int snprintfreturn;
 #endif
 
-   SCIP_CALL( SCIPallocBufferArray(scip, &blockVals, data->nsdpaconstblock) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &blockValsPsd, data->nsdpaconstblock) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &blocksizes, data->nconsblocks) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &sdpblocksizes, data->nconsblocks) );
 
    assert( scip != NULL );
    assert( pfile != NULL );
    assert( linecount != NULL );
    assert( data != NULL );
 
-   nblocks = readLineInt(scip, pfile, linecount, data->nsdpaconstblock, blockVals);
+   nblocks = readLineInt(scip, pfile, linecount, data->nconsblocks, blocksizes);
 
-   if ( data->nsdpaconstblock != nblocks )
+   if ( data->nconsblocks != nblocks )
    {
-      SCIPerrorMessage("Number of blocks returned by readLineInt in line %" SCIP_LONGINT_FORMAT
-         " should equal data->nsdpaconstblock. Expected: %i, got: %i\n", *linecount, data->nsdpaconstblock, nblocks);
+      SCIPerrorMessage("Number of specified blocksizes %d in line %" SCIP_LONGINT_FORMAT
+         " does not match number of blocks %d.\n", *linecount, nblocks, data->nconsblocks);
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
 
-   for (int i = 0; i < nblocks; i++)
+   assert( nblocks == data->nconsblocks );
+
+   for (i = 0; i < nblocks; i++)
    {
-   /* if the entry is less than zero it describes the LP blocks */
-      if ( *(blockVals + i) < 0 )
+      /* if the entry is less than zero it describes the LP blocks */
+      if ( *(blocksizes + i) < 0 )
       {
-         if(data->locationConBlock == -1)
-         {
-            data->locationConBlock = i;
-         }
+         if ( data->idxlinconsblock == -1 )
+            data->idxlinconsblock = i;
          else
          {
-            SCIPerrorMessage("Only one LP can be defined in line %" SCIP_LONGINT_FORMAT " but at least two detected.",
-            *linecount);
+            SCIPerrorMessage("Only one LP block can be defined in line %" SCIP_LONGINT_FORMAT
+               " but at least two blocksizes are negative.\n", *linecount);
             SCIPABORT();
             return SCIP_READERROR; /*lint !e527*/
          }
-         data->nlinconss = *(blockVals + i) * - 1;
+         data->nlinconss = - *(blocksizes + i);
       }
       else
       {
-         if ( *(blockVals + i) == 0 )
+         if ( *(blocksizes + i) == 0 )
          {
-         SCIPerrorMessage("The SDP blocks defined in line %" SCIP_LONGINT_FORMAT " can not be defined with size zero.\n",
-            *linecount);
+            SCIPerrorMessage("Encountered a block size of 0 in line %" SCIP_LONGINT_FORMAT " which is not valid.\n",
+               *linecount);
             SCIPABORT();
             return SCIP_READERROR; /*lint !e527*/
          }
-         *(blockValsPsd + nsdpblocks) = *(blockVals + i);
-         nsdpblocks ++;
+         *(sdpblocksizes + nsdpblocks) = *(blocksizes + i);
+         ++nsdpblocks;
       }
    }
 
-   assert( data->locationConBlock < 0 || data->nlinconss > 0 );
-   assert( data->locationConBlock >= 0 || data->nlinconss == 0 );
+   assert( data->idxlinconsblock < 0 || data->nlinconss > 0 );
+   assert( data->idxlinconsblock >= 0 || data->nlinconss == 0 );
 
    if ( data->nlinconss < 0 )
    {
@@ -505,19 +527,18 @@ SCIP_RETCODE SDPAreadBlockSize(
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblockrank1), data->nsdpblocks) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdconss), data->nlinconss) );
 
-
    for (b = 0; b < nsdpblocks; b++)
    {
-      assert( blockValsPsd[b] > 0 );    
-      data->sdpblocksizes[b] = *(blockValsPsd + b);
+      assert( sdpblocksizes[b] > 0 );
 
-      /* initialize rank-1 information to FALSE, will eventually be changed in PSDCONRANK1 *///TODO: Kommentar noch passend?
+      data->sdpblocksizes[b] = *(sdpblocksizes + b);
+
+      /* initialize rank-1 information to FALSE, will eventually be changed in SDPAreadRank1 */
       data->sdpblockrank1[b] = FALSE;
    }
 
-
    /* create corresponding constraints */
-   for (int c = 0; c < data->nlinconss; c++)
+   for (c = 0; c < data->nlinconss; c++)
    {
 #ifndef NDEBUG
       snprintfreturn = SCIPsnprintf(consname, SCIP_MAXSTRLEN, "LP_%d", cnt);
@@ -538,11 +559,12 @@ SCIP_RETCODE SDPAreadBlockSize(
 
    assert( cnt == data->nlinconss );
 
-   SCIPfreeBufferArray(scip, &blockValsPsd);
-   SCIPfreeBufferArray(scip, &blockVals);
+   SCIPfreeBufferArray(scip, &sdpblocksizes);
+   SCIPfreeBufferArray(scip, &blocksizes);
 
    return SCIP_OKAY;
 }
+
 
 /** reads objective values for scalar variables from given SDPA-file */
 static
@@ -553,19 +575,19 @@ SCIP_RETCODE SDPAreadObjVals(
    SDPA_DATA*            data                /**< data pointer to save the results in */
    )
 {  /*lint --e{818}*/
-   int nzerocoef = 0;
+   SCIP_Real* objvals;
    int v;
-   int nValsRead = 0;
-   SCIP_Real* objVals;
+   int nreadvals;
+   int nzerocoef = 0;
 
    assert( scip != NULL );
    assert( pfile != NULL );
    assert( linecount != NULL );
    assert( data != NULL );
 
-   SCIP_CALL( SCIPallocBufferArray(scip, &objVals, data->nvars ) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &objvals, data->nvars ) );
 
-   if ( data->createdvars == NULL)
+   if ( data->createdvars == NULL )
    {
       SCIPerrorMessage("Number of variables needs to be specified before objective values!\n");
       SCIPABORT();
@@ -573,16 +595,24 @@ SCIP_RETCODE SDPAreadObjVals(
    }
    assert( data->nvars >= 0 );
 
-   nValsRead = readLineDouble(scip, pfile, linecount, data->nvars, objVals);
+   nreadvals = readLineDouble(scip, pfile, linecount, data->nvars, objvals);
 
-   assert(data->nvars == nValsRead);
+   if ( nreadvals != data->nvars )
+   {
+      SCIPerrorMessage("Number of objective coefficients %i in line %" SCIP_LONGINT_FORMAT
+         " does not match the number of variables %d.\n", nreadvals, *linecount, data->nvars);
+      SCIPABORT();
+      return SCIP_READERROR;
+   }
+
+   assert( data->nvars == nreadvals );
 
    for (v = 0; v < data->nvars; v++)
    {
-      if ( SCIPisZero(scip, *(objVals + v)) )
+      if ( SCIPisZero(scip, *(objvals + v)) )
          ++nzerocoef;
       else
-         SCIP_CALL( SCIPchgVarObj(scip, data->createdvars[v], *(objVals + v)) );
+         SCIP_CALL( SCIPchgVarObj(scip, data->createdvars[v], *(objvals + v)) );
    }
 
    if ( nzerocoef > 0 )
@@ -591,7 +621,8 @@ SCIP_RETCODE SDPAreadObjVals(
          nzerocoef, SCIPepsilon(scip));
    }
 
-   SCIPfreeBufferArray(scip, &objVals);
+   SCIPfreeBufferArray(scip, &objvals);
+
    return SCIP_OKAY;
 }
 
@@ -602,44 +633,40 @@ SCIP_RETCODE SDPAreadBlocks(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            pfile,              /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
-   SDPA_DATA*            data,               /**< data pointer to save the results in */
-   const char*           filename   	      /**< name of the file that is currently read*/
+   SDPA_DATA*            data                /**< data pointer to save the results in */
    )
 {
+   SCIP_VAR* indvar = 0;
+   int** sdprow_local;             /**< array of all row indices for each SDP block */
+   int** sdpcol_local;             /**< array of all column indices for each SDP block */
+   SCIP_Real** sdpval_local;       /**< array of all values of SDP nonzeros for each SDP block */
+   int** sdpconstrow_local;        /**< pointers to row-indices for each block */
+   int** sdpconstcol_local;        /**< pointers to column-indices for each block */
+   SCIP_Real **sdpconstval_local;
    SCIP_Real val;
+   SCIP_Bool infeasible;
    int** sdpvar;
+   int* nentriessdp;
+   int* nentriessdpconst;
+   int* nentrieslincon;
    int b; /** current block */
    int v; /** current variable */
-   int c; /** location of the linear constraint block */
+   int c; /** current linear constraint */
    int row;
    int col;
    int firstindforvar;
    int nextindaftervar;
    int nzerocoef = 0;
-   int nsdpblocks;          /* TODO: find number of nonzeros in each auxiliary sdp block for reformulating matrix variables using scalar variables */
-
-   int emptySdpBlocks = 0;
-   int emptyConBlocks = 0;
-
-   int* currentEntriesSdp;
-   int* currentEntriesCon;
-   int* currentEntriesLinCon;
-   int** sdprow_local;             /**< array of all row indices for each SDP block */
-   int** sdpcol_local;             /**< array of all column indices for each SDP block */
-   SCIP_Real** sdpval_local;       /**< array of all values of SDP nonzeros for each SDP block */
-                                   /**   number of entries of sdpconst row/col/val [i] */
-   int** sdpconstrow_local;        /**< pointers to row-indices for each block */
-   int** sdpconstcol_local;        /**< pointers to column-indices for each block */
-   SCIP_Real **sdpconstval_local;
-   SCIP_VAR* indvar = 0;
-   SCIP_Bool infeasible;
+   int emptysdpblocks = 0;
+   int emptylinconsblocks = 0;
    int nindcons = 0;
+   int blockidxoffset = 0;
 
    assert( scip != NULL );
    assert( pfile != NULL );
    assert( linecount != NULL );
    assert( data != NULL );
-   
+
    assert( data->nvars >= 0 );
 
    if ( data->nvars < 0 || data-> createdvars == NULL )
@@ -648,31 +675,28 @@ SCIP_RETCODE SDPAreadBlocks(
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
-   
-   if(data->nsdpblocks > 0)
+
+   SCIP_CALL( SCIPallocBufferArray(scip, &nentrieslincon, data->nlinconss) );
+
+   if ( data->nsdpblocks > 0 )
    {
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->memorysizessdp), data->nsdpblocks) ); 
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->memorysizescon), data->nsdpblocks) ); 
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpmemsize), data->nsdpblocks) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstmemsize), data->nsdpblocks) );
 
-      SCIP_CALL( SCIPallocBufferArray(scip, &currentEntriesSdp, data->nsdpblocks) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &currentEntriesCon, data->nsdpblocks) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &currentEntriesLinCon, data->nlinconss) );
-
+      SCIP_CALL( SCIPallocBufferArray(scip, &nentriessdp, data->nsdpblocks) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &nentriessdpconst, data->nsdpblocks) );
 
       /* set initial memory size*/
-      for (b = 0; b < data->nsdpblocks; b++) 
+      for (b = 0; b < data->nsdpblocks; b++)
       {
-         data->memorysizessdp[b] = 8; 
-         data->memorysizescon[b] = 8;
-         currentEntriesCon[b] = 0;
-         currentEntriesSdp[b] = 0;
+         data->sdpmemsize[b] = 8;
+         data->sdpconstmemsize[b] = 8;
+         nentriessdpconst[b] = 0;
+         nentriessdp[b] = 0;
       }
 
-      for (c = 0; c < data->nlinconss ; c++)
-      {
-         currentEntriesLinCon[c] = 0;
-      }
-
+      for (c = 0; c < data->nlinconss; c++)
+         nentrieslincon[c] = 0;
 
       if ( data->nsdpblocks < 0 )
       {
@@ -681,9 +705,7 @@ SCIP_RETCODE SDPAreadBlocks(
          return SCIP_READERROR; /*lint !e527*/
       }
 
-      nsdpblocks = data->nsdpblocks;
-
-      if ( data->sdpblocksizes == NULL ) 
+      if ( data->sdpblocksizes == NULL )
       {
          SCIPerrorMessage("Sizes of the SDP blocks need to be specified before entries of the blocks!\n");
          SCIPABORT();
@@ -692,22 +714,22 @@ SCIP_RETCODE SDPAreadBlocks(
       assert( data->nlinconss >= 0 );
 
       /* initialize sdpnblocknonz with 0 */
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpnblocknonz), data->nsdpblocks) ); 
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpnblocknonz), data->nsdpblocks) );
       for (b = 0; b < data->nsdpblocks; b++)
          data->sdpnblocknonz[b] = 0;
 
       /* allocate memory */
-      SCIP_CALL( SCIPallocBufferArray(scip, &(sdpvar), data->nsdpblocks) ); 
+      SCIP_CALL( SCIPallocBufferArray(scip, &(sdpvar), data->nsdpblocks) );
       SCIP_CALL( SCIPallocBufferArray(scip, &(sdprow_local), data->nsdpblocks) );
       SCIP_CALL( SCIPallocBufferArray(scip, &(sdpcol_local), data->nsdpblocks) );
       SCIP_CALL( SCIPallocBufferArray(scip, &(sdpval_local), data->nsdpblocks) );
 
-      for (b = 0; b < data->nsdpblocks; b++) 
+      for (b = 0; b < data->nsdpblocks; b++)
       {
-         SCIP_CALL( SCIPallocBufferArray(scip, &(sdpvar[b]), data->memorysizessdp[b]) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &(sdprow_local[b]), data->memorysizessdp[b]) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &(sdpcol_local[b]), data->memorysizessdp[b]) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &(sdpval_local[b]), data->memorysizessdp[b]) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &(sdpvar[b]), data->sdpmemsize[b]) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &(sdprow_local[b]), data->sdpmemsize[b]) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &(sdpcol_local[b]), data->sdpmemsize[b]) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &(sdpval_local[b]), data->sdpmemsize[b]) );
       }
 
       /* initialize sdpconstnblocknonz with 0 */
@@ -716,20 +738,19 @@ SCIP_RETCODE SDPAreadBlocks(
          data->sdpconstnblocknonz[b] = 0;
 
       /* allocate memory (constnnonz for each block, since we do not yet know the distribution) */
-      SCIP_CALL( SCIPallocBufferArray(scip, &(sdpconstrow_local), data->nsdpblocks) ); 
+      SCIP_CALL( SCIPallocBufferArray(scip, &(sdpconstrow_local), data->nsdpblocks) );
       SCIP_CALL( SCIPallocBufferArray(scip, &(sdpconstcol_local), data->nsdpblocks) );
       SCIP_CALL( SCIPallocBufferArray(scip, &(sdpconstval_local), data->nsdpblocks) );
 
-
-      for (b = 0; b < data->nsdpblocks; b++) 
+      for (b = 0; b < data->nsdpblocks; b++)
       {
-         SCIP_CALL( SCIPallocBufferArray(scip, &(sdpconstrow_local[b]), data->memorysizescon[b]) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &(sdpconstcol_local[b]), data->memorysizescon[b]) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &(sdpconstval_local[b]), data->memorysizescon[b]) );
-      }  
+         SCIP_CALL( SCIPallocBufferArray(scip, &(sdpconstrow_local[b]), data->sdpconstmemsize[b]) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &(sdpconstcol_local[b]), data->sdpconstmemsize[b]) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &(sdpconstval_local[b]), data->sdpconstmemsize[b]) );
+      }
    }
 
-   while ( SDPAfgets(scip, pfile, linecount,1) == SCIP_OKAY )
+   while ( SDPAfgets(scip, pfile, linecount, FALSE) == SCIP_OKAY )
    {
       if ( strncmp(SDPA_LINE_BUFFER, "*INTEGER", 8) == 0 || strncmp(SDPA_LINE_BUFFER, "*RANK1", 5) == 0 )
          break;
@@ -741,23 +762,54 @@ SCIP_RETCODE SDPAreadBlocks(
          return SCIP_READERROR;
       }
 
-      /* switch from sdpa counting (starting from 1) to scip counting (starting from 0) */
-      v -= 1;
-      b -= 1;
-      row -= 1;
-      col -= 1;
+      /* switch from SDPA counting (starting from 1) to SCIP counting (starting from 0) */
+      --v;
+      --b;
+      --row;
+      --col;
+
+      /* reset LP block offset */
+      blockidxoffset = 0;
 
       /* check if this entry belongs to the LP block (FALSE) or to an SDP block (TRUE)*/
-      if ( b != data->locationConBlock )
+      if ( b != data->idxlinconsblock )
       {
-      	 /* check if the LP block was already read and adjust the counter */
-         if ( b > data->locationConBlock && data->locationConBlock >= 0 )
-            b = b - 1;
+      	 /* check if the LP block was already read and adjust the counter as well as the offset for error messages */
+         if ( b > data->idxlinconsblock && data->idxlinconsblock >= 0 )
+         {
+            --b;
+            blockidxoffset = 1;
+         }
 
          if ( v < - 1 || v >= data->nvars )
          {
-            SCIPerrorMessage("Given SDP-coefficient in line %" SCIP_LONGINT_FORMAT
-               " for variable %d which does not exist!\n", *linecount, v);
+            SCIPerrorMessage("Given coefficient in line %" SCIP_LONGINT_FORMAT
+               " for variable %d which does not exist!\n", *linecount, v+1);
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+
+         if ( b < 0 || b >= data->nsdpblocks )
+         {
+            SCIPerrorMessage("Given coefficient in line %" SCIP_LONGINT_FORMAT
+               " for SDP block %d which does not exist!\n", *linecount, b + 1 + blockidxoffset);
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+         assert( 0 <= b && b < data->nsdpblocks );
+
+         if ( row < 0 || row >= data->sdpblocksizes[b] )
+         {
+            SCIPerrorMessage("Row index %d of given coefficient in line %" SCIP_LONGINT_FORMAT
+               " is negative or larger than blocksize %d!\n", row +1, *linecount, data->sdpblocksizes[b]);
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+
+         if ( col < 0 || col >= data->sdpblocksizes[b] )
+         {
+            SCIPerrorMessage("Column index %d of given coefficient in line %" SCIP_LONGINT_FORMAT
+               " is negative or larger than blocksize %d!\n", col + 1, *linecount, data->sdpblocksizes[b]);
             SCIPABORT();
             return SCIP_READERROR; /*lint !e527*/
          }
@@ -765,48 +817,31 @@ SCIP_RETCODE SDPAreadBlocks(
          /* check if this entry belongs to the constant part of the SDP block (v = -1) or not (v >= 0) */
          if ( v >= 0 )
          {
-            if ( b < 0 || b >= nsdpblocks )
-            {
-               SCIPerrorMessage("Given SDP-coefficient in line %" SCIP_LONGINT_FORMAT
-                  " for SDP-constraint %d which does not exist!\n", *linecount, b);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
-
-            if ( row < 0 || row >= data->sdpblocksizes[b] )
-            {
-               SCIPerrorMessage("Row index %d of given SDP coefficient in line %" SCIP_LONGINT_FORMAT
-                  " is negative or larger than blocksize %d!\n", row, *linecount, data->sdpblocksizes[b]);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
-
-            if ( col < 0 || col >= data->sdpblocksizes[b] )
-            {
-               SCIPerrorMessage("Column index %d of given SDP coefficient in line %" SCIP_LONGINT_FORMAT
-                  " is negative or larger than blocksize %d!\n", col, *linecount, data->sdpblocksizes[b]);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
-
             if ( SCIPisZero(scip, val) )
                ++nzerocoef;
             else
             {
-               currentEntriesSdp[b]++;
+               /* for lint: */
+               assert( nentriessdp != NULL );
+               assert( sdpvar != NULL );
+               assert( sdprow_local != NULL );
+               assert( sdpcol_local != NULL );
+               assert( sdpval_local != NULL );
+
+               nentriessdp[b]++;
 
                /* if the current memory is not sufficient reallocate*/
-               if ( currentEntriesSdp[b] >= data->memorysizessdp[b] )
+               if ( nentriessdp[b] >= data->sdpmemsize[b] )
                {
-                  int newsize = SCIPcalcMemGrowSize(scip, data->memorysizessdp[b] + 1);
-                  assert( newsize > data->memorysizessdp[b] );
-                  assert( newsize > currentEntriesSdp[b] );
+                  int newsize = SCIPcalcMemGrowSize(scip, data->sdpmemsize[b] + 1);
+                  assert( newsize > data->sdpmemsize[b] );
+                  assert( newsize > nentriessdp[b] );
 
                   SCIP_CALL( SCIPreallocBufferArray(scip, &(sdpvar[b]), newsize) );
                   SCIP_CALL( SCIPreallocBufferArray(scip, &(sdprow_local[b]), newsize) );
                   SCIP_CALL( SCIPreallocBufferArray(scip, &(sdpcol_local[b]), newsize) );
                   SCIP_CALL( SCIPreallocBufferArray(scip, &(sdpval_local[b]), newsize) );
-                  data->memorysizessdp[b] = newsize;
+                  data->sdpmemsize[b] = newsize;
                }
 
                sdpvar[b][data->sdpnblocknonz[b]] = v;
@@ -829,183 +864,185 @@ SCIP_RETCODE SDPAreadBlocks(
          }
          else /* constant part of SDP block*/
          {
-            if ( b < 0 || b >= data->nsdpblocks )
-            {
-               SCIPerrorMessage("Given constant entry in line %" SCIP_LONGINT_FORMAT
-                  " for SDP-constraint %d which does not exist!\n", *linecount, b);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
-
-            if ( row < 0 || row >= data->sdpblocksizes[b] )
-            {
-               SCIPerrorMessage("Row index %d of given constant SDP-entry in line %" SCIP_LONGINT_FORMAT
-                  " is negative or larger than blocksize %d!\n", row, *linecount, data->sdpblocksizes[b]);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
-
-            if ( col < 0 || col >= data->sdpblocksizes[b] )
-            {
-               SCIPerrorMessage("Column index %d of given constant SDP-entry in line %" SCIP_LONGINT_FORMAT
-                  " is negative or larger than blocksize %d!\n", col, *linecount, data->sdpblocksizes[b]);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
+            assert( v == -1 );
 
             if ( SCIPisZero(scip, val) )
                ++nzerocoef;
             else
             {
-               currentEntriesCon[b]++;
+               /* for lint: */
+               assert( nentriessdpconst != NULL );
+               assert( sdpconstrow_local != NULL );
+               assert( sdpconstcol_local != NULL );
+               assert( sdpconstval_local != NULL );
+
+               nentriessdpconst[b]++;
 
                /* if the current memory is not sufficient reallocate*/
-               if ( currentEntriesCon[b] >= data->memorysizescon[b] )
+               if ( nentriessdpconst[b] >= data->sdpconstmemsize[b] )
                {
-                  int newsize = SCIPcalcMemGrowSize(scip, data->memorysizescon[b] + 1);
-                  assert( newsize > data->memorysizescon[b] );
-                  assert( newsize > currentEntriesCon[b] );
+                  int newsize = SCIPcalcMemGrowSize(scip, data->sdpconstmemsize[b] + 1);
+                  assert( newsize > data->sdpconstmemsize[b] );
+                  assert( newsize > nentriessdpconst[b] );
 
                   SCIP_CALL( SCIPreallocBufferArray(scip, &(sdpconstrow_local[b]), newsize) );
                   SCIP_CALL( SCIPreallocBufferArray(scip, &(sdpconstcol_local[b]), newsize) );
                   SCIP_CALL( SCIPreallocBufferArray(scip, &(sdpconstval_local[b]), newsize) );
 
-                  data->memorysizescon[b] = newsize;
+                  data->sdpconstmemsize[b] = newsize;
                }
-            }
 
-            /* make sure matrix is in lower triangular form */
-            if ( col > row )
-            {
-               sdpconstrow_local[b][data->sdpconstnblocknonz[b]] = col;
-               sdpconstcol_local[b][data->sdpconstnblocknonz[b]] = row;
+               /* make sure matrix is in lower triangular form */
+               if ( col > row )
+               {
+                  sdpconstrow_local[b][data->sdpconstnblocknonz[b]] = col;
+                  sdpconstcol_local[b][data->sdpconstnblocknonz[b]] = row;
+               }
+               else
+               {
+                  sdpconstrow_local[b][data->sdpconstnblocknonz[b]] = row;
+                  sdpconstcol_local[b][data->sdpconstnblocknonz[b]] = col;
+               }
+               sdpconstval_local[b][data->sdpconstnblocknonz[b]] = val;
+               data->sdpconstnblocknonz[b]++;
             }
-            else
-            {
-               sdpconstrow_local[b][data->sdpconstnblocknonz[b]] = row;
-               sdpconstcol_local[b][data->sdpconstnblocknonz[b]] = col;
-            }
-            sdpconstval_local[b][data->sdpconstnblocknonz[b]] = val;
-            data->sdpconstnblocknonz[b]++;
          }
       }
       else /* LP block */
       {
-         /* check if this entry belongs to the constant part of the LP block (v = -1) or not (v >= 0 || v < -1) the later for indicator variables  */
+         /* indicator variables have a negative variable index */
+         if ( v >= data->nvars )
+         {
+            SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT
+               " for variable %d which does not exist!\n", *linecount, v + 1);
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+
+         /* linear constraints are specified on the diagonal of the LP block */
+         if ( row != col )
+         {
+            SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT
+               " is not located on the diagonal!\n", *linecount);
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+
+         assert( row == col );
+
+         if ( row < 0 || row >= data->nlinconss )
+         {
+            SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT
+               " for linear constraint %d which does not exist!\n", *linecount, row + 1);
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
+
+         /* check if this entry belongs to the constant part of the LP block (v = -1) or not (v >= 0 || v < -1) the latter for indicator variables  */
          if ( v >= 0 )
          {
-            /* linear constraints are specified on the diagonal of the LP block */
-            if ( row != col )
-            {
-               SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT " is not located on the diagonal!\n",
-                  *linecount);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
-
-            assert( row == col );
-            c = row;
-
-            if ( c < 0 || c >= data->nlinconss )
-            {
-               SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT
-                  " for constraint %d which does not exist!\n", *linecount, c);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
-
-            if ( v < 0 || v >= data->nvars )
-            {
-               SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT
-                  " for variable %d which does not exist!\n", *linecount, v);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
-            }
-
             if ( SCIPisZero(scip, val) )
             {
                ++nzerocoef;
             }
             else
             {
-               SCIP_CALL( SCIPaddCoefLinear(scip, data->createdconss[c], data->createdvars[v],val) );/*lint !e732*//*lint !e747*/
-               currentEntriesLinCon[c]++;
-            }         
+               SCIP_CALL( SCIPaddCoefLinear(scip, data->createdconss[row], data->createdvars[v],val) );/*lint !e732*//*lint !e747*/
+               nentrieslincon[row]++;
+            }
          }
          else /* constant part or indicator constraint*/
          {
-            if( v < -1 )  /* indicator constraint*/
+            if ( v < -1 )  /* indicator constraint*/
             {
-               v = -v - 2;  /* adjust variable index to be positive */
                SCIP_CONS* indcons;
                SCIP_VAR* slackvar = 0;
-               char indconsname[SCIP_MAXSTRLEN];
-               char slackvarname[SCIP_MAXSTRLEN];
-               
-               (void) SCIPsnprintf(slackvarname, SCIP_MAXSTRLEN, "s_%d", nindcons);
-               (void) SCIPsnprintf(indconsname, SCIP_MAXSTRLEN, "cons_indicator_%d", nindcons);
-               
+               char name[SCIP_MAXSTRLEN];
+#ifndef NDEBUG
+               int snprintfreturn;
+#endif
+               /* adjust variable index to be positive */
+               v = -v - 2;
+
+#ifndef NDEBUG
+               snprintfreturn = SCIPsnprintf(name, SCIP_MAXSTRLEN, "indslack_cons_indicator_%d", nindcons);
+               assert( snprintfreturn < SCIP_MAXSTRLEN);
+#else
+               (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "indslack_cons_indicator_%d", nindcons);
+#endif
                /* create slack variable and add it to the constraint */
-               SCIP_CALL( SCIPcreateVar(scip, &slackvar, slackvarname, 0.0, SCIPinfinity(scip), 0.0, 
-                  SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, 0, 0, 0, 0, 0)); 
-               SCIP_CALL( SCIPaddVar(scip, slackvar) ); 
-               
-               SCIP_CALL( SCIPaddCoefLinear(scip,data->createdconss[c] , slackvar, +1.0) );/*lint !e732*//*lint !e747*/
-               
-               indvar= data->createdvars[v];	
+               SCIP_CALL( SCIPcreateVar(scip, &slackvar, name, 0.0, SCIPinfinity(scip), 0.0,
+                     SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, 0, 0, 0, 0, 0));
+               SCIP_CALL( SCIPaddVar(scip, slackvar) );
+
+               SCIP_CALL( SCIPaddCoefLinear(scip,data->createdconss[row] , slackvar, +1.0) );/*lint !e732*//*lint !e747*/
+
+#ifndef NDEBUG
+               snprintfreturn = SCIPsnprintf(name, SCIP_MAXSTRLEN, "indlin_cons_indicator_%d", nindcons);
+               assert( snprintfreturn < SCIP_MAXSTRLEN);
+#else
+               (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "indlin_cons_indicator_%d", nindcons);
+#endif
+               /* change name of the corresponding linear constraint */
+               SCIP_CALL( SCIPchgConsName(scip, data->createdconss[row], name) );
+
+#ifndef NDEBUG
+               snprintfreturn = SCIPsnprintf(name, SCIP_MAXSTRLEN, "cons_indicator_%d", nindcons);
+               assert( snprintfreturn < SCIP_MAXSTRLEN);
+#else
+               (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "cons_indicator_%d", nindcons);
+#endif
+               indvar = data->createdvars[v];
                SCIP_CALL( SCIPchgVarLbGlobal(scip, indvar, 0.0) );
                SCIP_CALL( SCIPchgVarUbGlobal(scip, indvar, 1.0) );
                SCIP_CALL( SCIPchgVarType(scip, indvar, SCIP_VARTYPE_BINARY, &infeasible) );
-               SCIP_CALL( SCIPcreateConsIndicatorLinCons( scip, &indcons, indconsname, indvar,data->createdconss[c], slackvar,
-                           TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE) ); 
+               SCIP_CALL( SCIPcreateConsIndicatorLinCons( scip, &indcons, name, indvar,data->createdconss[row], slackvar,
+                     TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE) );
                SCIP_CALL( SCIPaddCons(scip, indcons) );
-               
+
                /* release both conss and the slackvar */
                SCIP_CALL( SCIPreleaseCons(scip, &indcons) );
                SCIP_CALL( SCIPreleaseVar(scip, &slackvar) );
-               
+
                nindcons++;
             }
             else /* constant part */
             {
-               c = row;
-
-               if ( c < 0 || c >= data->nlinconss )
-               {
-                  SCIPerrorMessage("Given constant part in line %" SCIP_LONGINT_FORMAT
-                     " for scalar constraint %d which does not exist!\n", *linecount, c);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
-               }
+               assert( v == -1 );
 
                if ( SCIPisZero(scip, val) )
                   ++nzerocoef;
                else
                {
-                  assert( ! SCIPisInfinity(scip, - SCIPgetLhsLinear(scip, data->createdconss[c])) );
-                  assert( SCIPisInfinity(scip, SCIPgetRhsLinear(scip, data->createdconss[c])) );
+                  assert( ! SCIPisInfinity(scip, - SCIPgetLhsLinear(scip, data->createdconss[row])) );
+                  assert( SCIPisInfinity(scip, SCIPgetRhsLinear(scip, data->createdconss[row])) );
 
-                  /* All linear constraints are greater or equal constraints */
-                  SCIP_CALL( SCIPchgLhsLinear(scip, data->createdconss[c], val) );
+                  /* all linear constraints are greater or equal constraints */
+                  SCIP_CALL( SCIPchgLhsLinear(scip, data->createdconss[row], val) );
                }
             }
          }
       }
    }
 
+   /* reset LP block offset */
+   blockidxoffset = 0;
+
    for (b = 0; b < data->nsdpblocks; b++)
    {
-      if ( b != data->locationConBlock )
-      { 
-         if(currentEntriesSdp[b] == 0) 
-         {
-            SCIPerrorMessage("SDP block number %d does not contain nonzero entries!\n", b+1);      
-            emptySdpBlocks++;
-         }
+      if ( nentriessdp[b] == 0 )
+      {
+         emptysdpblocks++;
+
+         /* account for a possible LP block */
+         if ( data->idxlinconsblock >= 0 && b >= data->idxlinconsblock )
+            blockidxoffset = 1;
+
+         SCIPerrorMessage("SDP block number %d does not contain any nonzero entries!\n", b + 1 + blockidxoffset);
       }
    }
 
-   if (emptySdpBlocks > 0)
+   if ( emptysdpblocks > 0 )
    {
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
@@ -1013,52 +1050,47 @@ SCIP_RETCODE SDPAreadBlocks(
 
    for (c = 0; c < data->nlinconss; c++)
    {
-      if(currentEntriesLinCon[c] == 0) 
+      if ( nentrieslincon[c] == 0 )
       {
-         SCIPerrorMessage("Linear constraint number %d does not contain nonzero entries!\n", c+1);      
-         emptyConBlocks++;
+         SCIPerrorMessage("Linear constraint number %d does not contain nonzero entries!\n", c + 1);
+         emptylinconsblocks++;
       }
    }
-   
-   if (emptyConBlocks > 0)
+
+   if ( emptylinconsblocks > 0 )
    {
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
 
-   SCIPfreeBufferArray(scip, &currentEntriesLinCon);
-
-   if(data->nsdpblocks > 0)
+   if ( data->nsdpblocks > 0 )
    {
-      SCIPfreeBufferArray(scip, &currentEntriesCon);
-      SCIPfreeBufferArray(scip, &currentEntriesSdp);
-
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdprow), data->nsdpblocks) ); 
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdprow), data->nsdpblocks) );
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpcol), data->nsdpblocks) );
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpval), data->nsdpblocks) );
 
-      for (b = 0; b < data->nsdpblocks; b++) 
+      for (b = 0; b < data->nsdpblocks; b++)
       {
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdprow[b]), data->memorysizessdp[b]) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpcol[b]), data->memorysizessdp[b]) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpval[b]), data->memorysizessdp[b]) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdprow[b]), data->sdpmemsize[b]) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpcol[b]), data->sdpmemsize[b]) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpval[b]), data->sdpmemsize[b]) );
       }
 
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstrow), data->nsdpblocks) ); 
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstrow), data->nsdpblocks) );
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstcol), data->nsdpblocks) );
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstval), data->nsdpblocks) );
 
-      for (b = 0; b < data->nsdpblocks; b++) 
+      for (b = 0; b < data->nsdpblocks; b++)
       {
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstrow[b]), data->memorysizescon[b]) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstcol[b]), data->memorysizescon[b]) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstval[b]), data->memorysizescon[b]) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstrow[b]), data->sdpconstmemsize[b]) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstcol[b]), data->sdpconstmemsize[b]) );
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpconstval[b]), data->sdpconstmemsize[b]) );
       }
 
       /* write the read blocks from buffer memory to the data object */
-      for (b = 0; b < data->nsdpblocks; b++) 
+      for (b = 0; b < data->nsdpblocks; b++)
       {
-         int nonz = 0;
+         int nonz;
 
          for (nonz = 0; nonz < data->sdpnblocknonz[b]; nonz++)
          {
@@ -1077,7 +1109,7 @@ SCIP_RETCODE SDPAreadBlocks(
 
          for (nonz = 0; nonz < data->sdpconstnblocknonz[b]; nonz++)
          {
-            if (  sdpconstcol_local[b][nonz] > sdpconstrow_local[b][nonz] )
+            if ( sdpconstcol_local[b][nonz] > sdpconstrow_local[b][nonz] )
             {
                data->sdpconstrow[b][nonz] = sdpconstcol_local[b][nonz];
                data->sdpconstcol[b][nonz] = sdpconstrow_local[b][nonz];
@@ -1092,7 +1124,7 @@ SCIP_RETCODE SDPAreadBlocks(
       }
 
       /* construct pointer arrays */
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpnblockvars), data->nsdpblocks) ); 
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpnblockvars), data->nsdpblocks) );
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblockvars), data->nsdpblocks) );
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->nvarnonz), data->nsdpblocks) );
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->rowpointer), data->nsdpblocks) );
@@ -1100,7 +1132,7 @@ SCIP_RETCODE SDPAreadBlocks(
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->valpointer), data->nsdpblocks) );
 
       /* sdp blocks as specified in sdpa file */
-      for (b = 0; b < nsdpblocks; b++)
+      for (b = 0; b < data->nsdpblocks; b++)
       {
          /* sort the nonzeroes by non-decreasing variable indices */
          SCIPsortIntIntIntReal(sdpvar[b], data->sdprow[b], data->sdpcol[b], data->sdpval[b], data->sdpnblocknonz[b]);
@@ -1116,8 +1148,7 @@ SCIP_RETCODE SDPAreadBlocks(
 
          for (v = 0; v < data->nvars; v++)
          {
-            SCIP_Bool varused;
-            varused = FALSE;
+            SCIP_Bool varused = FALSE;
 
             firstindforvar = nextindaftervar; /* this variable starts where the last one ended */
             data->nvarnonz[b][data->sdpnblockvars[b]] = 0;
@@ -1149,34 +1180,31 @@ SCIP_RETCODE SDPAreadBlocks(
             "Found %d block coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
 
       /* free buffer memory */
-      for (b = 0; b < data->nsdpblocks; b++) 
-      {
-         SCIPfreeBufferArray(scip, &(sdpvar[b]));
-         SCIPfreeBufferArray(scip, &(sdprow_local[b]));
-         SCIPfreeBufferArray(scip, &(sdpcol_local[b]));
-         SCIPfreeBufferArray(scip, &(sdpval_local[b]));
-      }
-
-      SCIPfreeBufferArray(scip, &sdpvar); 
-      SCIPfreeBufferArray(scip, &(sdprow_local));
-      SCIPfreeBufferArray(scip, &(sdpcol_local)); 
-      SCIPfreeBufferArray(scip, &(sdpval_local));
-
-      for (b = 0; b < data->nsdpblocks; b++) 
+      for (b = 0; b < data->nsdpblocks; b++)
       {
          SCIPfreeBufferArray(scip, &(sdpconstval_local[b]));
          SCIPfreeBufferArray(scip, &(sdpconstcol_local[b]));
          SCIPfreeBufferArray(scip, &(sdpconstrow_local[b]));
+         SCIPfreeBufferArray(scip, &(sdpval_local[b]));
+         SCIPfreeBufferArray(scip, &(sdpcol_local[b]));
+         SCIPfreeBufferArray(scip, &(sdprow_local[b]));
+         SCIPfreeBufferArray(scip, &(sdpvar[b]));
       }
-
-      SCIPfreeBufferArray(scip, &(sdpconstval_local)); 
+      SCIPfreeBufferArray(scip, &(sdpconstval_local));
       SCIPfreeBufferArray(scip, &(sdpconstcol_local));
       SCIPfreeBufferArray(scip, &(sdpconstrow_local));
+      SCIPfreeBufferArray(scip, &(sdpval_local));
+      SCIPfreeBufferArray(scip, &(sdpcol_local));
+      SCIPfreeBufferArray(scip, &(sdprow_local));
+      SCIPfreeBufferArray(scip, &sdpvar);
+      SCIPfreeBufferArray(scip, &nentriessdpconst);
+      SCIPfreeBufferArray(scip, &nentriessdp);
    }
+
+   SCIPfreeBufferArray(scip, &nentrieslincon);
+
    return SCIP_OKAY;
 }
-
-
 
 
 /** reads integrality conditions from given SDPA-file */
@@ -1189,7 +1217,6 @@ SCIP_RETCODE SDPAreadInt(
    )
 {  /*lint --e{818}*/
    int v;
-   SCIP_Bool infeasible;
 
    assert( scip != NULL );
    assert( pfile != NULL );
@@ -1211,7 +1238,7 @@ SCIP_RETCODE SDPAreadInt(
       if (strncmp(SDPA_LINE_BUFFER, "*RANK1", 5) == 0 )
          break;
 
-      if ( sscanf(SDPA_LINE_BUFFER + 1, "%i", &v) != 1 ) /* move the index by one to ignor the first character of the line */
+      if ( sscanf(SDPA_LINE_BUFFER + 1, "%i", &v) != 1 ) /* move the index by one to ignore the first character of the line */
       {
          SCIPerrorMessage("Could not read variable index in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
          SCIPABORT();
@@ -1226,18 +1253,21 @@ SCIP_RETCODE SDPAreadInt(
          return SCIP_READERROR;
       }
 
-      v -= 1;
-      
-      if( SCIPvarGetType(data->createdvars[v]) != SCIP_VARTYPE_BINARY )
-      { 
-         SCIP_CALL( SCIPchgVarType(scip, data->createdvars[v], SCIP_VARTYPE_INTEGER, &infeasible) );
-      }
-      if ( infeasible )
+      --v;
+
+      if ( SCIPvarGetType(data->createdvars[v]) != SCIP_VARTYPE_BINARY )
       {
-         SCIPerrorMessage("Infeasibility detected because of integrality of variable %s!\n",
-            SCIPvarGetName(data->createdvars[v]));
-         SCIPABORT();
-         return SCIP_READERROR; /*lint !e527*/
+         SCIP_Bool infeasible;
+
+         SCIP_CALL( SCIPchgVarType(scip, data->createdvars[v], SCIP_VARTYPE_INTEGER, &infeasible) );
+
+         if ( infeasible )
+         {
+            SCIPerrorMessage("Infeasibility detected because of integrality of variable %s!\n",
+               SCIPvarGetName(data->createdvars[v]));
+            SCIPABORT();
+            return SCIP_READERROR; /*lint !e527*/
+         }
       }
    }
 
@@ -1255,6 +1285,7 @@ SCIP_RETCODE SDPAreadRank1(
    )
 {  /*lint --e{818}*/
    int v;
+   int blockidxoffset = 0;
 
    assert( scip != NULL );
    assert( pfile != NULL );
@@ -1281,15 +1312,34 @@ SCIP_RETCODE SDPAreadRank1(
          return SCIP_READERROR; /*lint !e527*/
       }
 
-      if ( v < 1 || v > data-> nsdpblocks)
+      /* switch from SDPA counting (starting from 1) to SCIP counting (starting from 0) */
+      --v;
+
+      /* reset LP block offset */
+      blockidxoffset = 0;
+
+      if ( v == data->idxlinconsblock )
+      {
+         SCIPerrorMessage("Given rank1 in line %" SCIP_LONGINT_FORMAT " for the LP block which is not valid.\n",
+            *linecount);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
+
+      /* check if the LP block was already read and adjust the counter as well as the offset for error messages */
+      if ( data->idxlinconsblock >= 0 && v > data->idxlinconsblock )
+      {
+         v -= 1;
+         blockidxoffset = 1;
+      }
+
+      if ( v < 0 || v >= data->nsdpblocks )
       {
          SCIPerrorMessage("Given rank1 in line %" SCIP_LONGINT_FORMAT " for SDP block %d which does not exist!\n",
-            *linecount, v);
+            *linecount, v + 1 + blockidxoffset);
          SCIPABORT();
          return SCIP_READERROR;
       }
-
-      v -= 1;
 
       data->sdpblockrank1[v] = TRUE;
       ++data->nsdpblocksrank1;
@@ -1297,7 +1347,6 @@ SCIP_RETCODE SDPAreadRank1(
 
    return SCIP_OKAY;
 }
-
 
 
 /** frees all data allocated for the SDPA-data-struct */
@@ -1308,63 +1357,51 @@ SCIP_RETCODE SDPAfreeData(
    )
 {
    int b = 0;
-   int nsdpblocks;
 
    assert( scip != NULL );
    assert( data != NULL );
-   if(data->nsdpblocks > 0){
 
-   /* TODO: Check if any nonzeros in the SDP blocks exist at all (if not, then nothing needs to be
-      freed) => jeder sdp block muss etwas enthalten sonst error => müsste eigentlich reichen */
-      for (b = 0; b < data->nsdpblocks; b++)
-      {
-         assert( data->memorysizescon[b] > 0);
-
-         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstval[b]), data->memorysizescon[b]);
-         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstcol[b]), data->memorysizescon[b]);
-         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstrow[b]), data->memorysizescon[b]);
-      }
-
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstval, data->nsdpblocks); 
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstcol, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstrow, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstnblocknonz, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->memorysizescon, data->nsdpblocks);
-
-      nsdpblocks = data->nsdpblocks;
-
-      assert( nsdpblocks > 0 );
+   if ( data->nsdpblocks > 0 )
+   {
       assert( data->nvars > 0 );
 
-      for (b = 0; b < nsdpblocks; b++) 
+      for (b = 0; b < data->nsdpblocks; b++)
       {
-         assert( data->memorysizessdp[b] > 0);
+         assert( data->sdpconstmemsize[b] > 0);
 
          SCIPfreeBlockMemoryArrayNull(scip, &(data->valpointer[b]), data->nvars);
          SCIPfreeBlockMemoryArrayNull(scip, &(data->colpointer[b]), data->nvars);
          SCIPfreeBlockMemoryArrayNull(scip, &(data->rowpointer[b]), data->nvars);
-         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpval[b]), data->memorysizessdp[b]);
-         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpcol[b]), data->memorysizessdp[b]);
-         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdprow[b]), data->memorysizessdp[b]);
-         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpblockvars[b]), data->nvars);
          SCIPfreeBlockMemoryArrayNull(scip, &(data->nvarnonz[b]), data->nvars);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpblockvars[b]), data->nvars);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstval[b]), data->sdpconstmemsize[b]);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstcol[b]), data->sdpconstmemsize[b]);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpconstrow[b]), data->sdpconstmemsize[b]);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpval[b]), data->sdpmemsize[b]);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdpcol[b]), data->sdpmemsize[b]);
+         SCIPfreeBlockMemoryArrayNull(scip, &(data->sdprow[b]), data->sdpmemsize[b]);
       }
-      SCIPfreeBlockMemoryArrayNull(scip, &data->memorysizessdp, data->nsdpblocks);
       SCIPfreeBlockMemoryArrayNull(scip, &data->valpointer, data->nsdpblocks);
       SCIPfreeBlockMemoryArrayNull(scip, &data->colpointer, data->nsdpblocks);
       SCIPfreeBlockMemoryArrayNull(scip, &data->rowpointer, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->nvarnonz, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblockvars, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblockvars, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstval, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstcol, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstrow, data->nsdpblocks);
       SCIPfreeBlockMemoryArrayNull(scip, &data->sdpval, data->nsdpblocks);
       SCIPfreeBlockMemoryArrayNull(scip, &data->sdpcol, data->nsdpblocks);
       SCIPfreeBlockMemoryArrayNull(scip, &data->sdprow, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblockvars, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->nvarnonz, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblockvars, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstnblocknonz, data->nsdpblocks);
       SCIPfreeBlockMemoryArrayNull(scip, &data->sdpnblocknonz, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblockrank1, data->nsdpblocks);
-      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblocksizes, data->nsdpblocks); 
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpconstmemsize, data->nsdpblocks);
+      SCIPfreeBlockMemoryArrayNull(scip, &data->sdpmemsize, data->nsdpblocks);
    }
 
    SCIPfreeBlockMemoryArrayNull(scip, &data->createdconss, data->nlinconss);
+   SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblockrank1, data->nsdpblocks);
+   SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblocksizes, data->nsdpblocks);
    SCIPfreeBlockMemoryArrayNull(scip, &data->createdvars, data->nvars);
 
    return SCIP_OKAY;
@@ -1426,7 +1463,7 @@ SCIP_DECL_READERREAD(readerReadSdpa)
    data->sdpconstrow = NULL;
    data->sdpconstcol = NULL;
    data->sdpconstval = NULL;
-   data->locationConBlock = -1;
+   data->idxlinconsblock = -1;
 
    /* create empty problem */
    SCIP_CALL( SCIPcreateProb(scip, filename, NULL, NULL, NULL, NULL, NULL, NULL, NULL) );
@@ -1447,7 +1484,7 @@ SCIP_DECL_READERREAD(readerReadSdpa)
    SCIP_CALL( SDPAreadObjVals(scip, scipfile, &linecount, data) );
 
    SCIPdebugMsg(scip, "Reading block entries\n");
-   SCIP_CALL( SDPAreadBlocks(scip, scipfile, &linecount, data, filename) );
+   SCIP_CALL( SDPAreadBlocks(scip, scipfile, &linecount, data) );
 
    if ( strncmp(SDPA_LINE_BUFFER, "*INTEGER", 8) == 0 )
    {
@@ -1547,6 +1584,9 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    SCIP_VAR** sdpvars;
    SCIP_Real** sdpval;
    SCIP_Real* sdpconstval;
+   SCIP_Real val;
+   SCIP_Real lhs;
+   SCIP_Real rhs;
    int** sdpcol;
    int** sdprow;
    int* sdpconstcol;
@@ -1564,20 +1604,16 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    int sdpconstnnonz;
    int consind = 0;
    int linconsind = 0;
-   int consmax = 0;
-   int c;
-   int i;
-   int v;
-   SCIP_Real val;
-   SCIP_Real lhs;
-   SCIP_Real rhs;
-   int blocks;
-   int const_sign = 1;
-   int nChangedConstraints = 0;
+   int nblocks;
+   int conssign = 1;
+   int nchangedconss = 0;
    int nvarbndslinconss = 0;
    int nlinconss = 0;
    int nrank1sdpblocks = 0;
    int objcoeff = 1;
+   int c;
+   int i;
+   int v;
 
    assert( scip != NULL );
    assert( result != NULL );
@@ -1596,11 +1632,8 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
 
 #ifndef NDEBUG
    for (v = 0; v < nvars; v++)
-   {
       assert( SCIPvarGetStatus(vars[v]) == SCIP_VARSTATUS_ORIGINAL );
-   }
 #endif
-   /* NVARS */
 
    /* write number of variables */
    SCIPinfoMessage(scip, file, "%d\n", nvars);
@@ -1655,8 +1688,8 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    for (c = 0; c < nconss; c++)
    {
       if ( (strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0)
-         && (strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0) &&
-          (strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") != 0))
+         && (strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0)
+         && (strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") != 0))
       {
          SCIPerrorMessage("SDPA reader currently only supports linear, SDP and SDPrank1 constraints!\n");
          SCIPABORT();
@@ -1703,12 +1736,11 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
       }
       else
       {
-         assert( (strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0) ||
-            (strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") != 0) );
+         assert( (strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") != 0)
+            || (strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") != 0) );
 
          /* count number of SDP constraints (conshdlrGetNConss doesn't seem to work before transformation) */
          ++nsdpconss;
-         ++consmax;
 
          /* count SDP nonzeros */
          SCIP_CALL( SCIPconsSdpGetNNonz(scip, conss[c], &sdpnnonz, &sdpconstnnonz) );
@@ -1717,20 +1749,20 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
       }
    }
 
-   blocks = nsdpconss;
-   
-   if(blocks > 0 && totalsdpnnonz == 0)
+   nblocks = nsdpconss;
+
+   if ( nblocks > 0 && totalsdpnnonz == 0 )
    {
-      SCIPerrorMessage("Specified %d SDP blocks but no SDP values. \n", blocks); //TODO: bessere bezeichnung finden
+      SCIPerrorMessage("There are %d SDP blocks but no nonzero coefficients. \n", nblocks);
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
-   
+
    if ( nvarbndslinconss + nlinconss > 0 )
-      blocks++;
+      nblocks++;
 
    /* write number of blocks */
-   SCIPinfoMessage(scip, file, "%d\n", blocks);
+   SCIPinfoMessage(scip, file, "%d\n", nblocks);
 
    /* write sizes of the SDP blocks and number of linear constraints */
    for (c = 0; c < nconss; c++)
@@ -1748,9 +1780,12 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
 
    /* write the objective values */
    /* If objsense = maximize, multiply objective values with -1 */
-   if ( objsense == SCIP_OBJSENSE_MAXIMIZE)
+   if ( objsense == SCIP_OBJSENSE_MAXIMIZE )
+   {
       objcoeff = -1;
-      
+      SCIPinfoMessage(scip, NULL, "WARNING: Transforming original maximization problem to a minimization problem by multiplying all objective coefficients by -1. \n");
+   }
+
    for (v = 0; v < nvars; v++)
    {
       SCIP_Real obj;
@@ -1764,8 +1799,31 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    }
    SCIPinfoMessage(scip, file, "\n");
 
-   
-   if( nsdpconss > 0 )
+   /* write variable bounds as linear constraints */
+   if ( nvarbndslinconss > 0 )
+   {
+      for (c = 0; c < nvars; c++)
+      {
+         assert(varsenses[c] == 0 || varsenses[c] == -1 || varsenses[c] == 1 );
+
+         if (varsenses[c] == 0 )
+            continue;
+
+         if ( varsenses[c] == -1 )
+         {
+            ++linconsind;
+            SCIPinfoMessage(scip, file, "%d %d %d %d -1.0\n", c + 1, nsdpconss + 1, linconsind, linconsind);
+         }
+         else
+         {
+            ++linconsind;
+            SCIPinfoMessage(scip, file, "%d %d %d %d 1.0\n", c + 1, nsdpconss + 1, linconsind, linconsind);
+         }
+      }
+   }
+
+   /* write SDP constraint blocks */
+   if ( nsdpconss > 0 )
    {
       /* allocate memory for SDPdata */
       SCIP_CALL( SCIPallocBufferArray(scip, &sdpnvarnonz, nvars) );
@@ -1779,163 +1837,136 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
 
       sdparraylength = totalsdpnnonz;
       sdpconstnnonz = totalsdpconstnnonz;
-   }
-   
-   /* write variable bounds as linear constraints */	
-   for (c = 0; c < nvars; c++)
-   {
-      assert(varsenses[c] == 0 || varsenses[c] == -1 || varsenses[c] == 1 );
 
-      if(varsenses[c] == 0)
-         continue;
-
-      if(varsenses[c] == -1)
+      for (c = 0; c < nconss; c++)
       {
-         ++linconsind;
-         SCIPinfoMessage(scip, file, "%d %d %d %d -1.0\n", c + 1, consmax + 1, linconsind, linconsind);
-      }
-      else
-      {
-         ++linconsind;
-         SCIPinfoMessage(scip, file, "%d %d %d %d 1.0\n", c + 1, consmax + 1, linconsind, linconsind);
-      }
-   }
-  
-   /* write SDP constraint blocks */
-   for (c = 0; c < nconss; c++)
-   {
-      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") == 0 ||
-         strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") == 0 )
-      {
-
-         /* write SDP nonzeros */
-         if ( totalsdpnnonz > 0 )
-         { 	
-            /* coefficient matrices */
-
-            /* initialization for SDPconsSDPGetData-call */
-            sdparraylength = totalsdpnnonz;
-            sdpconstnnonz = totalsdpconstnnonz;
-
-            SCIP_CALL( SCIPconsSdpGetData(scip, conss[c], &sdpnvars, &sdpnnonz, &sdpblocksize, &sdparraylength,
-                  sdpnvarnonz, sdprow, sdpcol, sdpval, sdpvars, &sdpconstnnonz,  sdpconstrow, sdpconstcol,
-                  sdpconstval, NULL, NULL, NULL) );
-
-            assert( sdpconstnnonz <= totalsdpconstnnonz );
-            assert( sdparraylength <= totalsdpnnonz );
-
-            for (v = 0; v < sdpnvars; v++)
+         if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") == 0
+            || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") == 0 )
+         {
+            /* write SDP nonzeros */
+            if ( totalsdpnnonz > 0 )
             {
-               for (i = 0; i < sdpnvarnonz[v]; i++)
+               /* coefficient matrices */
+
+               /* initialization for SDPconsSDPGetData-call */
+               sdparraylength = totalsdpnnonz;
+               sdpconstnnonz = totalsdpconstnnonz;
+
+               SCIP_CALL( SCIPconsSdpGetData(scip, conss[c], &sdpnvars, &sdpnnonz, &sdpblocksize, &sdparraylength,
+                     sdpnvarnonz, sdprow, sdpcol, sdpval, sdpvars, &sdpconstnnonz,  sdpconstrow, sdpconstcol,
+                     sdpconstval, NULL, NULL, NULL) );
+
+               assert( sdpconstnnonz <= totalsdpconstnnonz );
+               assert( sdparraylength <= totalsdpnnonz );
+
+               for (v = 0; v < sdpnvars; v++)
                {
-                  int ind;
-                  ind = SCIPvarGetProbindex(sdpvars[v]);
-                  assert( 0 <= ind && ind < nvars );
-                  SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n",  ind + 1, consind + 1, sdprow[v][i]+ 1 , sdpcol[v][i] + 1,
-                     sdpval[v][i]);
-               } 
+                  for (i = 0; i < sdpnvarnonz[v]; i++)
+                  {
+                     int ind;
+                     ind = SCIPvarGetProbindex(sdpvars[v]);
+                     assert( 0 <= ind && ind < nvars );
+                     SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", ind + 1, consind + 1, sdprow[v][i]+ 1, sdpcol[v][i] + 1,
+                        sdpval[v][i]);
+                  }
+               }
+
+               /* constant matrix */
+
+               /* initialization for SDPconsSDPGetData-call */
+               sdparraylength = totalsdpnnonz;
+
+               assert( sdpconstnnonz <= totalsdpconstnnonz );
+               assert( sdparraylength <= totalsdpnnonz );
+
+               for (i = 0; i < sdpconstnnonz; i++)
+               {
+                  SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", 0, consind + 1, sdpconstrow[i] + 1, sdpconstcol[i] + 1,
+                     sdpconstval[i]);
+               }
+               consind++;
             }
-
-            /* constant matrix */
-
-            /* initialization for SDPconsSDPGetData-call */
-            sdparraylength = totalsdpnnonz;
-
-            assert( sdpconstnnonz <= totalsdpconstnnonz );
-            assert( sdparraylength <= totalsdpnnonz );
-
-            for (i = 0; i < sdpconstnnonz; i++)
-            {
-               SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n",0, consind + 1, sdpconstrow[i] + 1, sdpconstcol[i] + 1,
-                  sdpconstval[i]);
-            }
-            consind++;           
          }
-      }
-      else
-      {  
-         linconsind++;
-      
-         lhs = SCIPgetLhsLinear(scip, conss[c]);
-         rhs = SCIPgetRhsLinear(scip, conss[c]);
-         const_sign = 1;
-
-         /* in case of unconstrained left side and constrained right side swap the inequality by multipling with -1 */
-         if ( ! SCIPisInfinity(scip, rhs) && SCIPisInfinity(scip, -lhs) )
+         else
          {
-      	     const_sign = -1;
-      	     nChangedConstraints++;
-         }
+            assert( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") == 0 );
 
-         linvars = SCIPgetVarsLinear(scip, conss[c]);
-         linvals = SCIPgetValsLinear(scip, conss[c]);
+            linconsind++;
 
-         if(!SCIPisEQ(scip, lhs, rhs))
-         {
+            lhs = SCIPgetLhsLinear(scip, conss[c]);
+            rhs = SCIPgetRhsLinear(scip, conss[c]);
+            conssign = 1;
 
-            for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
+            /* in case of unconstrained left side and constrained right side swap the inequality by multipling with -1 */
+            if ( ! SCIPisInfinity(scip, rhs) && SCIPisInfinity(scip, -lhs) )
             {
-               i = SCIPvarGetProbindex(linvars[v]);
-               assert( 0 <= i && i < nvars );
-               SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", i + 1, consmax + 1, linconsind, linconsind, linvals[v] * const_sign);
+      	     conssign = -1;
+      	     nchangedconss++;
             }
 
-            /* write the constant part of the LP block */
+            linvars = SCIPgetVarsLinear(scip, conss[c]);
+            linvals = SCIPgetValsLinear(scip, conss[c]);
 
-            if ( const_sign < 0 )
-               val = SCIPgetRhsLinear(scip, conss[c]);
-            else
-               val = SCIPgetLhsLinear(scip, conss[c]);
-
-            if ( ! SCIPisZero(scip, val) )
-               SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", 0, consmax + 1, linconsind, linconsind, val * const_sign);
-         }
-         else  /* write linear constraint block */
-         {
-   
-            for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
-            {  
-               i = SCIPvarGetProbindex(linvars[v]);
-               assert( 0 <= i && i < nvars );
-               SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", i + 1, consmax + 1, linconsind,linconsind, linvals[v] * const_sign);
-            }
-
-            /* write the constant part of the LP block */
-
-            if ( const_sign < 0 )
-               val = SCIPgetRhsLinear(scip, conss[c]);
-            else
-               val = SCIPgetLhsLinear(scip, conss[c]);
-
-            if ( ! SCIPisZero(scip, val) )
-               SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", 0, consmax + 1, linconsind, linconsind, val * const_sign);
-         
-         
-            ++linconsind;  
-         
-            for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
+            if ( ! SCIPisEQ(scip, lhs, rhs) )
             {
-               i = SCIPvarGetProbindex(linvars[v]);
-               assert( 0 <= i && i < nvars );
-               SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", i + 1, consmax + 1, linconsind,linconsind, linvals[v] * const_sign*(-1));
+               for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
+               {
+                  i = SCIPvarGetProbindex(linvars[v]);
+                  assert( 0 <= i && i < nvars );
+                  SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", i + 1, nsdpconss + 1, linconsind, linconsind, linvals[v] * conssign);
+               }
+
+               /* write the constant part of the LP block */
+               if ( conssign < 0 )
+                  val = SCIPgetRhsLinear(scip, conss[c]);
+               else
+                  val = SCIPgetLhsLinear(scip, conss[c]);
+
+               if ( ! SCIPisZero(scip, val) )
+                  SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", 0, nsdpconss + 1, linconsind, linconsind, val * conssign);
             }
+            else  /* write linear constraint block */
+            {
+               for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
+               {
+                  i = SCIPvarGetProbindex(linvars[v]);
+                  assert( 0 <= i && i < nvars );
+                  SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", i + 1, nsdpconss + 1, linconsind,linconsind, linvals[v] * conssign);
+               }
 
-            /* write the constant part of the LP block */
+               /* write the constant part of the LP block */
+               if ( conssign < 0 )
+                  val = SCIPgetRhsLinear(scip, conss[c]);
+               else
+                  val = SCIPgetLhsLinear(scip, conss[c]);
 
-            if ( const_sign < 0 )
-               val = SCIPgetRhsLinear(scip, conss[c]);
-            else
-               val = SCIPgetLhsLinear(scip, conss[c]);
+               if ( ! SCIPisZero(scip, val) )
+                  SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", 0, nsdpconss + 1, linconsind, linconsind, val * conssign);
 
-            if ( ! SCIPisZero(scip, val) )
-               SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", 0, consmax + 1, linconsind, linconsind, val * const_sign*(-1));       
-         }   
+               ++linconsind;
+
+               for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
+               {
+                  i = SCIPvarGetProbindex(linvars[v]);
+                  assert( 0 <= i && i < nvars );
+                  SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", i + 1, nsdpconss + 1, linconsind,linconsind, linvals[v] * conssign*(-1));
+               }
+
+               /* write the constant part of the LP block */
+               if ( conssign < 0 )
+                  val = SCIPgetRhsLinear(scip, conss[c]);
+               else
+                  val = SCIPgetLhsLinear(scip, conss[c]);
+
+               if ( ! SCIPisZero(scip, val) )
+                  SCIPinfoMessage(scip, file, "%d %d %d %d %.15g\n", 0, nsdpconss + 1, linconsind, linconsind, val * conssign*(-1));
+            }
+         }
       }
    }
-   
-   
-   if ( nChangedConstraints > 0 )
-   	SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Changed the sign of %d constraints. \n", nChangedConstraints);
+
+   if ( nchangedconss > 0 )
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Changed the sign of %d constraints. \n", nchangedconss);
 
    /* write integrality constraints */
    if ( nbinvars + nintvars > 0 )
@@ -1952,22 +1983,17 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
    if ( nrank1sdpblocks > 0 )
    {
       consind = 0;
-      
-      if ( objsense == SCIP_OBJSENSE_MAXIMIZE )
-      {
-         SCIPinfoMessage(scip, NULL, "WARNING: A maximisation problem with rank one constraint is writen. Maximisation is changed to minimisation without adjusting the objective function. The objetive value will have the wrong sign. \n");
-      }
-      
       SCIPinfoMessage(scip, file, "*RANK1\n");
       for (c = 0; c < nconss; c++)
       {
          if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") == 0 )
             continue;
 
-	 if(strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") == 0 || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") == 0)
+	 if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") == 0
+            || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") == 0 )
 	    consind++;
 
-	 if(strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") == 0)
+	 if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") == 0 )
 	 {
             assert( SCIPconsSdpShouldBeRankOne(conss[c]) );
             SCIPinfoMessage(scip, file, "*%d\n", consind);
@@ -1975,7 +2001,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
       }
    }
 
-   if( nsdpconss > 0 )
+   if ( nsdpconss > 0 )
    {
       SCIPfreeBufferArray(scip, &sdpconstval);
       SCIPfreeBufferArray(scip, &sdpconstrow);
@@ -1985,7 +2011,7 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
       SCIPfreeBufferArray(scip, &sdprow);
       SCIPfreeBufferArray(scip, &sdpcol);
       SCIPfreeBufferArray(scip, &sdpnvarnonz);
-   }   
+   }
    SCIPfreeBufferArray(scip, &consssenses);
    SCIPfreeBufferArray(scip, &varsenses);
 
