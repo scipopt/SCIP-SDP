@@ -173,7 +173,7 @@ SCIP_RETCODE readLine(
 static
 SCIP_RETCODE readNextLine(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_FILE*            pFile,              /**< file to read from */
+   SCIP_FILE*            file,               /**< file to read from */
    char**                buffer,             /**< buffer to read into */
    int*                  bufferlen,          /**< buffer length */
    SCIP_Longint*         linecount,          /**< current linecount */
@@ -190,7 +190,7 @@ SCIP_RETCODE readNextLine(
    do
    {
       /* read next line */
-      SCIP_CALL( readLine(scip, pFile, buffer, bufferlen, success) );
+      SCIP_CALL( readLine(scip, file, buffer, bufferlen, success) );
       if ( ! *success )
          return SCIP_OKAY;
       ++(*linecount);
@@ -215,7 +215,7 @@ SCIP_RETCODE readNextLine(
 static
 SCIP_RETCODE readNextLineStar(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_FILE*            pFile,              /**< file to read from */
+   SCIP_FILE*            file,               /**< file to read from */
    char**                buffer,             /**< buffer to read into */
    int*                  bufferlen,          /**< buffer length */
    SCIP_Longint*         linecount,          /**< current linecount */
@@ -230,7 +230,7 @@ SCIP_RETCODE readNextLineStar(
    do
    {
       /* read next line */
-      SCIP_CALL( readLine(scip, pFile, buffer, bufferlen, success) );
+      SCIP_CALL( readLine(scip, file, buffer, bufferlen, success) );
       if ( ! *success )
          return SCIP_OKAY;
       ++(*linecount);
@@ -250,7 +250,7 @@ SCIP_RETCODE readNextLineStar(
 static
 int readLineDoubles(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_FILE*            pfile,              /**< file to read from */
+   SCIP_FILE*            file,               /**< file to read from */
    char**                buffer,             /**< pointer to buffer */
    int*                  bufferlen,          /**< pointer to bufferlne */
    SCIP_Longint*         linecount,          /**< current linecount */
@@ -264,7 +264,7 @@ int readLineDoubles(
    char* str;
    int cnt = 0;
 
-   SCIP_CALL( readLine(scip, pfile, buffer, bufferlen, &success) );
+   SCIP_CALL( readLine(scip, file, buffer, bufferlen, &success) );
    if ( ! success )
       return 0;
    ++(*linecount);
@@ -303,7 +303,7 @@ int readLineDoubles(
       {
          if ( cnt < nvals )
          {
-            SCIP_CALL( readLine(scip, pfile, buffer, bufferlen, &success) );
+            SCIP_CALL( readLine(scip, file, buffer, bufferlen, &success) );
             if ( ! success )
                return 0;
             ++(*linecount);
@@ -322,7 +322,7 @@ int readLineDoubles(
 static
 int readLineInts(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_FILE*            pfile,              /**< file to read from */
+   SCIP_FILE*            file,               /**< file to read from */
    char**                buffer,             /**< pointer to buffer */
    int*                  bufferlen,          /**< pointer to bufferlne */
    SCIP_Longint*         linecount,          /**< current linecount */
@@ -336,7 +336,7 @@ int readLineInts(
    int cnt = 0;
    int val;
 
-   SCIP_CALL( readLine(scip, pfile, buffer, bufferlen, &success) );
+   SCIP_CALL( readLine(scip, file, buffer, bufferlen, &success) );
    if ( ! success )
       return 0;
    ++(*linecount);
@@ -375,7 +375,7 @@ int readLineInts(
       {
          if ( cnt < nvals )
          {
-            SCIP_CALL( readLine(scip, pfile, buffer, bufferlen, &success) );
+            SCIP_CALL( readLine(scip, file, buffer, bufferlen, &success) );
             if ( ! success )
                return 0;
             ++(*linecount);
@@ -394,7 +394,7 @@ int readLineInts(
 static
 SCIP_RETCODE SDPAreadNVars(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_FILE*            pfile,              /**< file to read from */
+   SCIP_FILE*            file,               /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
    SDPA_DATA*            data                /**< data pointer to save the results in */
    )
@@ -409,11 +409,11 @@ SCIP_RETCODE SDPAreadNVars(
 #endif
 
    assert( scip != NULL );
-   assert( pfile != NULL );
+   assert( file != NULL );
    assert( linecount != NULL );
    assert( data != NULL );
 
-   SCIP_CALL( readNextLine(scip, pfile, &data->buffer, &data->bufferlen, linecount, &success) );
+   SCIP_CALL( readNextLine(scip, file, &data->buffer, &data->bufferlen, linecount, &success) );
    if ( ! success )
    {
       SCIPerrorMessage("Unexpected end of file in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
@@ -469,7 +469,7 @@ SCIP_RETCODE SDPAreadNVars(
 static
 SCIP_RETCODE SDPAreadNBlocks(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_FILE*            pfile,              /**< file to read from */
+   SCIP_FILE*            file,               /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
    SDPA_DATA*            data                /**< data pointer to save the results in */
    )
@@ -477,11 +477,11 @@ SCIP_RETCODE SDPAreadNBlocks(
    SCIP_Bool success;
 
    assert( scip != NULL );
-   assert( pfile != NULL );
+   assert( file != NULL );
    assert( linecount != NULL );
    assert( data != NULL );
 
-   SCIP_CALL( readNextLine(scip, pfile, &data->buffer, &data->bufferlen, linecount, &success) );
+   SCIP_CALL( readNextLine(scip, file, &data->buffer, &data->bufferlen, linecount, &success) );
    if ( ! success )
    {
       SCIPerrorMessage("Unexpected end of file in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
@@ -514,7 +514,7 @@ SCIP_RETCODE SDPAreadNBlocks(
 static
 SCIP_RETCODE SDPAreadBlockSize(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_FILE*            pfile,              /**< file to read from */
+   SCIP_FILE*            file,               /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
    SDPA_DATA*            data                /**< data pointer to save the results in */
    )
@@ -538,11 +538,11 @@ SCIP_RETCODE SDPAreadBlockSize(
    SCIP_CALL( SCIPallocBufferArray(scip, &sdpblocksizes, data->nconsblocks) );
 
    assert( scip != NULL );
-   assert( pfile != NULL );
+   assert( file != NULL );
    assert( linecount != NULL );
    assert( data != NULL );
 
-   nblocks = readLineInts(scip, pfile, &data->buffer, &data->bufferlen, linecount, data->nconsblocks, blocksizes);
+   nblocks = readLineInts(scip, file, &data->buffer, &data->bufferlen, linecount, data->nconsblocks, blocksizes);
 
    if ( data->nconsblocks != nblocks )
    {
@@ -647,7 +647,7 @@ SCIP_RETCODE SDPAreadBlockSize(
 static
 SCIP_RETCODE SDPAreadObjVals(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_FILE*            pfile,              /**< file to read from */
+   SCIP_FILE*            file,               /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
    SDPA_DATA*            data                /**< data pointer to save the results in */
    )
@@ -658,7 +658,7 @@ SCIP_RETCODE SDPAreadObjVals(
    int nzerocoef = 0;
 
    assert( scip != NULL );
-   assert( pfile != NULL );
+   assert( file != NULL );
    assert( linecount != NULL );
    assert( data != NULL );
 
@@ -672,7 +672,7 @@ SCIP_RETCODE SDPAreadObjVals(
    }
    assert( data->nvars >= 0 );
 
-   nreadvals = readLineDoubles(scip, pfile, &data->buffer, &data->bufferlen, linecount, data->nvars, objvals);
+   nreadvals = readLineDoubles(scip, file, &data->buffer, &data->bufferlen, linecount, data->nvars, objvals);
 
    if ( nreadvals != data->nvars )
    {
@@ -708,7 +708,7 @@ SCIP_RETCODE SDPAreadObjVals(
 static
 SCIP_RETCODE SDPAreadBlocks(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_FILE*            pfile,              /**< file to read from */
+   SCIP_FILE*            file,               /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
    SDPA_DATA*            data                /**< data pointer to save the results in */
    )
@@ -741,7 +741,7 @@ SCIP_RETCODE SDPAreadBlocks(
    int blockidxoffset = 0;
 
    assert( scip != NULL );
-   assert( pfile != NULL );
+   assert( file != NULL );
    assert( linecount != NULL );
    assert( data != NULL );
 
@@ -829,7 +829,7 @@ SCIP_RETCODE SDPAreadBlocks(
    }
 
    /* read data */
-   SCIP_CALL( readNextLine(scip, pfile, &data->buffer, &data->bufferlen, linecount, &success) );
+   SCIP_CALL( readNextLine(scip, file, &data->buffer, &data->bufferlen, linecount, &success) );
    if ( ! success )
    {
       SCIPerrorMessage("Unexpected end of file in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
@@ -1111,7 +1111,7 @@ SCIP_RETCODE SDPAreadBlocks(
          }
       }
 
-      SCIP_CALL( readNextLine(scip, pfile, &data->buffer, &data->bufferlen, linecount, &success) );
+      SCIP_CALL( readNextLine(scip, file, &data->buffer, &data->bufferlen, linecount, &success) );
    }
 
    /* reset LP block offset */
@@ -1300,7 +1300,7 @@ SCIP_RETCODE SDPAreadBlocks(
 static
 SCIP_RETCODE SDPAreadInt(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_FILE*            pfile,              /**< file to read from */
+   SCIP_FILE*            file,               /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
    SDPA_DATA*            data                /**< data pointer to save the results in */
    )
@@ -1309,7 +1309,7 @@ SCIP_RETCODE SDPAreadInt(
    int v;
 
    assert( scip != NULL );
-   assert( pfile != NULL );
+   assert( file != NULL );
    assert( linecount != NULL );
    assert( data != NULL );
 
@@ -1323,7 +1323,7 @@ SCIP_RETCODE SDPAreadInt(
    assert( data->nvars >= 0 );
 
    /* read to end of file */
-   SCIP_CALL( readNextLineStar(scip, pfile, &data->buffer, &data->bufferlen, linecount, &success) );
+   SCIP_CALL( readNextLineStar(scip, file, &data->buffer, &data->bufferlen, linecount, &success) );
    while ( success )
    {
       if ( strncmp(data->buffer, "*RANK1", 5) == 0 )
@@ -1362,7 +1362,7 @@ SCIP_RETCODE SDPAreadInt(
       }
 
       /* read next line */
-      SCIP_CALL( readNextLineStar(scip, pfile, &data->buffer, &data->bufferlen, linecount, &success) );
+      SCIP_CALL( readNextLineStar(scip, file, &data->buffer, &data->bufferlen, linecount, &success) );
    }
 
    return SCIP_OKAY;
@@ -1373,7 +1373,7 @@ SCIP_RETCODE SDPAreadInt(
 static
 SCIP_RETCODE SDPAreadRank1(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_FILE*            pfile,              /**< file to read from */
+   SCIP_FILE*            file,               /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
    SDPA_DATA*            data                /**< data pointer to save the results in */
    )
@@ -1383,7 +1383,7 @@ SCIP_RETCODE SDPAreadRank1(
    int v;
 
    assert( scip != NULL );
-   assert( pfile != NULL );
+   assert( file != NULL );
    assert( linecount != NULL );
    assert( data != NULL );
 
@@ -1397,7 +1397,7 @@ SCIP_RETCODE SDPAreadRank1(
    assert( data->nvars >= 0 );
 
    /* read to end of file */
-   SCIP_CALL( readNextLineStar(scip, pfile, &data->buffer, &data->bufferlen, linecount, &success) );
+   SCIP_CALL( readNextLineStar(scip, file, &data->buffer, &data->bufferlen, linecount, &success) );
    while ( success )
    {
       char* ps;
@@ -1442,7 +1442,7 @@ SCIP_RETCODE SDPAreadRank1(
       data->sdpblockrank1[v] = TRUE;
       ++data->nsdpblocksrank1;
 
-      SCIP_CALL( readNextLineStar(scip, pfile, &data->buffer, &data->bufferlen, linecount, &success) );
+      SCIP_CALL( readNextLineStar(scip, file, &data->buffer, &data->bufferlen, linecount, &success) );
    }
 
    return SCIP_OKAY;
@@ -1532,7 +1532,7 @@ SCIP_DECL_READERCOPY(readerCopySdpa)
 static
 SCIP_DECL_READERREAD(readerReadSdpa)
 {  /*lint --e{715,818}*/
-   SCIP_FILE* scipfile;
+   SCIP_FILE* file;
    SCIP_Longint linecount = 0;
    SDPA_DATA* data;
    int b;
@@ -1543,9 +1543,9 @@ SCIP_DECL_READERREAD(readerReadSdpa)
 
    SCIPdebugMsg(scip, "Reading file %s ...\n", filename);
 
-   scipfile = SCIPfopen(filename, "r");
+   file = SCIPfopen(filename, "r");
 
-   if ( ! scipfile )
+   if ( ! file )
       return SCIP_READERROR;
 
    SCIP_CALL( SCIPallocBuffer(scip, &data) );
@@ -1577,32 +1577,32 @@ SCIP_DECL_READERREAD(readerReadSdpa)
 
    /* read the file */
    SCIPdebugMsg(scip, "Reading number of variables\n");
-   SCIP_CALL( SDPAreadNVars(scip, scipfile, &linecount, data) );
+   SCIP_CALL( SDPAreadNVars(scip, file, &linecount, data) );
 
    SCIPdebugMsg(scip, "Reading number of blocks\n");
-   SCIP_CALL( SDPAreadNBlocks(scip, scipfile, &linecount, data) );
+   SCIP_CALL( SDPAreadNBlocks(scip, file, &linecount, data) );
 
    SCIPdebugMsg(scip, "Reading blocksizes\n");
-   SCIP_CALL( SDPAreadBlockSize(scip, scipfile, &linecount, data) );
+   SCIP_CALL( SDPAreadBlockSize(scip, file, &linecount, data) );
 
    SCIPdebugMsg(scip, "Reading objective values\n");
-   SCIP_CALL( SDPAreadObjVals(scip, scipfile, &linecount, data) );
+   SCIP_CALL( SDPAreadObjVals(scip, file, &linecount, data) );
 
    SCIPdebugMsg(scip, "Reading block entries\n");
-   SCIP_CALL( SDPAreadBlocks(scip, scipfile, &linecount, data) );
+   SCIP_CALL( SDPAreadBlocks(scip, file, &linecount, data) );
 
    if ( strncmp(data->buffer, "*INTEGER", 8) == 0 )
    {
       SCIPdebugMsg(scip, "Reading integer section\n");
-      SCIP_CALL( SDPAreadInt(scip, scipfile, &linecount, data) );
+      SCIP_CALL( SDPAreadInt(scip, file, &linecount, data) );
    }
 
    SCIPdebugMsg(scip, "Reading rank1 section\n");
-   SCIP_CALL( SDPAreadRank1(scip, scipfile, &linecount, data) );
+   SCIP_CALL( SDPAreadRank1(scip, file, &linecount, data) );
 
 
    /* close the file (and make sure SCIPfclose returns 0) */
-   if ( SCIPfclose(scipfile) )
+   if ( SCIPfclose(file) )
       return SCIP_READERROR;
 
 #ifdef SCIP_MORE_DEBUG
