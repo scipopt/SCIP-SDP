@@ -4081,7 +4081,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
             noldaddconss = *naddconss;
             noldchgbds = *nchgbds;
             SCIP_CALL( diagGEzero(scip, conshdlr, conss, nconss, solvesdps, naddconss, nchgbds, &infeasible) );
-            SCIPdebugMsg(scip, "Diagonal entries: added %d cuts and changed %d bounds.\n", *naddconss - noldaddconss, *nchgbds - noldchgbds);
+            SCIPdebugMsg(scip, "Diagonal entries: added %d constraints and changed %d bounds.\n", *naddconss - noldaddconss, *nchgbds - noldchgbds);
 
             if ( infeasible )
             {
@@ -4092,7 +4092,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 
             if ( noldaddconss != *naddconss || noldchgbds != *nchgbds )
             {
-               SCIPinfoMessage(scip, NULL, "Diaggezero added %d cuts and changed %d bounds.\n", *naddconss - noldaddconss, *nchgbds - noldchgbds);
+               SCIPinfoMessage(scip, NULL, "Diaggezero added %d constraints and changed %d bounds.\n", *naddconss - noldaddconss, *nchgbds - noldchgbds);
                *result = SCIP_SUCCESS;
             }
          }
@@ -4101,10 +4101,10 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
          {
             noldaddconss = *naddconss;
             SCIP_CALL( diagZeroImpl(scip, conss, nconss, naddconss) );
-            SCIPdebugMsg(scip, "Added %d cuts for implication from 0 diagonal.\n", *naddconss - noldaddconss);
+            SCIPdebugMsg(scip, "Added %d constraints for implication from 0 diagonal.\n", *naddconss - noldaddconss);
             if ( noldaddconss != *naddconss )
             {
-               SCIPinfoMessage(scip, NULL, "Diagzeroimpl added %d cuts.\n", *naddconss - noldaddconss);
+               SCIPinfoMessage(scip, NULL, "Diagzeroimpl added %d constraints.\n", *naddconss - noldaddconss);
                *result = SCIP_SUCCESS;
             }
          }
@@ -4116,7 +4116,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
             SCIPdebugMsg(scip, "Added %d linear constraints for 2 by 2 minors.\n", *naddconss - noldaddconss);
             if ( noldaddconss != *naddconss )
             {
-               SCIPinfoMessage(scip, NULL, "Twominorlinconss added %d cuts.\n", *naddconss - noldaddconss);
+               SCIPinfoMessage(scip, NULL, "Twominorlinconss added %d constraints.\n", *naddconss - noldaddconss);
                *result = SCIP_SUCCESS;
             }
          }
@@ -4128,7 +4128,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
             SCIPdebugMsg(scip, "Added %d linear constraints for products of 2 by 2 minors.\n", *naddconss - noldaddconss);
             if ( noldaddconss != *naddconss )
             {
-               SCIPinfoMessage(scip, NULL, "Twominorprodconss added %d cuts.\n", *naddconss - noldaddconss);
+               SCIPinfoMessage(scip, NULL, "Twominorprodconss added %d constraints.\n", *naddconss - noldaddconss);
                *result = SCIP_SUCCESS;
             }
          }
