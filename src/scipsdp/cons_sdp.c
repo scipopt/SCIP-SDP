@@ -1555,7 +1555,7 @@ SCIP_RETCODE addTwoMinorLinConstraints(
          }
       }
 
-      for (i = 0; i < nvars; ++i)
+      for (i = nvars-1; i >= 0; --i)
          SCIPfreeBufferArray(scip, &matrices[i]);
       SCIPfreeBufferArray(scip, &matrices);
       SCIPfreeBufferArray(scip, &constmatrix);
