@@ -1479,10 +1479,6 @@ SCIP_RETCODE addTwoMinorLinConstraints(
             int nconsvars = 0;
             int cnt = 0;
 
-            /* skip diagonal entries */
-            if ( s == t )
-               continue;
-
             /* collect coefficients */
             BMSclearMemoryArray(coef, nvars);
             for (i = 0; i < nvars; ++i)
