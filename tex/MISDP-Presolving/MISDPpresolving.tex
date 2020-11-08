@@ -556,6 +556,42 @@ If for some $k \in [m]$ the matrix $A^k$ is psd and disjoint from the rest
 (i.e., $A^k$ has no common nonzero with the other matrices), depending on
 the objective coefficient one can fix $y_k$ to its upper bound.
 
+\paragraph{Bounds for Rank 1 Motivated Structures}
+
+If the constraints contain
+\[
+  \begin{pmatrix}
+    1 & x\T \\
+    x & X
+  \end{pmatrix}
+  \succeq 0,
+  \quad
+  \ell \leq x \leq u,
+\]
+then Nohra et al.~\cite{NohRS20} propose the following inequalities for all
+$i \in [n]$:
+\begin{align*}
+  X_{ii} & \geq 2\, \ell_i x_i - \ell_i^2,\\ 
+  X_{ii} & \geq 2\, u_i x_i - u_i^2.
+\end{align*}
+For example, the validity of the first type can be seen as follows:
+\[
+  (x_i - \ell_i)^2 \geq 0 \quad\Leftrightarrow\quad x_i^2 \geq 2\,
+  \ell_i x_i - \ell_i^2.
+\]
+Combining with the $2 \times 2$-minor inequality $X_{ii} - x_i^2 \geq 0$
+yields the inequality. The inequality $X_{ii} \geq 2\, u_i x_i - u_i^2$
+arises similarly.
+
+The given inequalities are not yet implemented, but the results
+in~\cite{NohRS20} suggest that they might be usefull if the LP-relaxation
+is solved.
+
+The above structure arises from relaxing quadratic problems. In this case,
+additionally $X = x x\T$ and the rank of $X$ has to be 1. Then additional
+inequalities have to hold, for example McCormick inequalities.
+
+
 
 % -------------------------------------------------------------------------
 % -------------------------------------------------------------------------
