@@ -1938,12 +1938,17 @@ SCIP_RETCODE updateVarLocks(
    /* compute new lock as in consLockSdp */
    SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, 1, &eigenvalue, NULL) );
    if ( SCIPisNegative(scip, eigenvalue) )
+   {
       newlock = 1;  /* up-lock */
+      consdata->allmatricespsd = FALSE;
+   }
 
+   /* @todo check whether one can set allmatrices to true */
    if ( SCIPisPositive(scip, eigenvalue) )
       newlock = -1; /* down-lock */
    else
    {
+      consdata->allmatricespsd = FALSE;
       SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, blocksize, &eigenvalue, NULL) );
       if ( SCIPisPositive(scip, eigenvalue) )
       {
