@@ -3959,12 +3959,12 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
          blocksize = consdata->blocksize;
          SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, blocksize * blocksize) );
          SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, conss[c], constmatrix) );
-         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, constmatrix, 1, &eigenvalue, NULL) );
+         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, constmatrix, blocksize, &eigenvalue, NULL) );
 
-         /* if eigenvalue is positive then minus the constant matrix is not psd and we are infeasible */
+         /* if largest eigenvalue is positive then minus the constant matrix is not psd and we are infeasible */
          if ( SCIPisFeasPositive(scip, eigenvalue) )
          {
-            SCIPdebugMsg(scip, "Feasible constraint <%s> containts no variable, removing.\n", SCIPconsGetName(conss[c]));
+            SCIPdebugMsg(scip, "Infeasible constraint <%s> containts no variable.\n", SCIPconsGetName(conss[c]));
             *result = SCIP_CUTOFF;
          }
          else
