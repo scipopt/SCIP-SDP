@@ -1441,7 +1441,6 @@ SCIP_RETCODE addTwoMinorLinConstraints(
       SCIP_CONSDATA* consdata;
       SCIP_Real** matrices = NULL;
       SCIP_Real* constmatrix;
-      SCIP_Real* coef;
       int s;
       int t;
 
@@ -1454,7 +1453,6 @@ SCIP_RETCODE addTwoMinorLinConstraints(
 
       SCIP_CALL( SCIPallocBufferArray(scip, &consvars, nvars) );
       SCIP_CALL( SCIPallocBufferArray(scip, &consvals, nvars) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &coef, nvars) );
 
       /* get matrices */
       SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, blocksize * blocksize) );
@@ -1480,56 +1478,42 @@ SCIP_RETCODE addTwoMinorLinConstraints(
             int cnt = 0;
 
             /* collect coefficients */
-            BMSclearMemoryArray(coef, nvars);
             for (i = 0; i < nvars; ++i)
             {
+               SCIP_Real coef = 0.0;
+
                val = matrices[i][s * blocksize + t];
                if ( ! SCIPisZero(scip, val) )
                {
-                  coef[i] = -2.0 * val;
+                  coef = -2.0 * val;
                   ++cnt;
                }
-            }
 
-            /* only proceed if off-diagonal is nonempty */
-            if ( cnt == 0 )
-               continue;
-
-            /* add diagonal entries for s */
-            for (i = 0; i < nvars; ++i)
-            {
+               /* add diagonal entries for s and t */
                val = matrices[i][s * blocksize + s];
                if ( ! SCIPisZero(scip, val) )
-                  coef[i] += val;
-            }
+                  coef += val;
 
-            /* add diagonal entries for t */
-            for (i = 0; i < nvars; ++i)
-            {
                val = matrices[i][t * blocksize + t];
                if ( ! SCIPisZero(scip, val) )
-                  coef[i] += val;
-            }
+                  coef += val;
 
-            /* get constraint */
-            for (i = 0; i < nvars; ++i)
-            {
-               if ( ! SCIPisZero(scip, coef[i]) )
+               if ( ! SCIPisZero(scip, coef) )
                {
-                  consvals[nconsvars] = coef[i];
+                  consvals[nconsvars] = coef;
                   consvars[nconsvars] = consdata->vars[i];
                   ++nconsvars;
 
                   /* compute lower bound on activity */
-                  if ( coef[i] > 0 )
-                     activitylb += coef[i] * SCIPvarGetLbGlobal(consdata->vars[i]);
+                  if ( coef > 0 )
+                     activitylb += coef * SCIPvarGetLbGlobal(consdata->vars[i]);
                   else
-                     activitylb += coef[i] * SCIPvarGetUbGlobal(consdata->vars[i]);
+                     activitylb += coef * SCIPvarGetUbGlobal(consdata->vars[i]);
                }
             }
 
-            /* only proceed if cut is nontrivial */
-            if ( nconsvars <= 0 )
+            /* only proceed if off-diagonal is nonzero and cut is nontrivial */
+            if ( cnt <= 0 || nconsvars <= 0 )
                continue;
 
             /* compute rhs */
@@ -1559,7 +1543,6 @@ SCIP_RETCODE addTwoMinorLinConstraints(
          SCIPfreeBufferArray(scip, &matrices[i]);
       SCIPfreeBufferArray(scip, &matrices);
       SCIPfreeBufferArray(scip, &constmatrix);
-      SCIPfreeBufferArray(scip, &coef);
       SCIPfreeBufferArray(scip, &consvals);
       SCIPfreeBufferArray(scip, &consvars);
    }
