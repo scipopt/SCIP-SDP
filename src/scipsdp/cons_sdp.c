@@ -2280,7 +2280,7 @@ SCIP_RETCODE fixAndAggrVars(
             assert( SCIPisEQ(scip, SCIPvarGetLbGlobal(var), SCIPvarGetUbGlobal(var)) );
 
 #ifdef SCIP_MORE_DEBUG
-            SCIPdebugMsg(scip, "Treating globally fixed variable %s with value %f!\n", SCIPvarGetName(var), SCIPvarGetLbGlobal(var));
+            SCIPdebugMsg(scip, "<%s>: Treating globally fixed variable %s with value %f!\n", SCIPconsGetName(conss[c]), SCIPvarGetName(var), SCIPvarGetLbGlobal(var));
 #endif
 
             if ( (! negated && ! SCIPisEQ(scip, SCIPvarGetLbGlobal(var), 0.0)) || (negated && SCIPisEQ(scip, SCIPvarGetLbGlobal(var), 0.0)) )
