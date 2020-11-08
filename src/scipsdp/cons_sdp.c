@@ -2319,12 +2319,15 @@ SCIP_RETCODE fixAndAggrVars(
 
             /* as the variables don't need to be sorted, we just put the last variable into the empty spot and decrease sizes by one (at the end) */
             SCIP_CALL( SCIPreleaseVar(scip, &(consdata->vars[v])) );
-            consdata->col[v] = consdata->col[consdata->nvars - 1];
-            consdata->row[v] = consdata->row[consdata->nvars - 1];
-            consdata->val[v] = consdata->val[consdata->nvars - 1];
-            consdata->nvarnonz[v] = consdata->nvarnonz[consdata->nvars - 1];
-            consdata->vars[v] = consdata->vars[consdata->nvars - 1];
-            consdata->locks[v] = consdata->locks[consdata->nvars - 1];
+            if ( v < consdata->nvars -1 )
+            {
+               consdata->col[v] = consdata->col[consdata->nvars - 1];
+               consdata->row[v] = consdata->row[consdata->nvars - 1];
+               consdata->val[v] = consdata->val[consdata->nvars - 1];
+               consdata->nvarnonz[v] = consdata->nvarnonz[consdata->nvars - 1];
+               consdata->vars[v] = consdata->vars[consdata->nvars - 1];
+               consdata->locks[v] = consdata->locks[consdata->nvars - 1];
+            }
             consdata->nvars--;
             v--; /* we need to check again if the variable we just shifted to this position also needs to be fixed */
          }
@@ -2389,12 +2392,15 @@ SCIP_RETCODE fixAndAggrVars(
 
                /* as the variables don't need to be sorted, we just put the last variable into the empty spot and decrease sizes by one (at the end) */
                SCIP_CALL( SCIPreleaseVar(scip, &(consdata->vars[v])) );
-               consdata->col[v] = consdata->col[consdata->nvars - 1];
-               consdata->row[v] = consdata->row[consdata->nvars - 1];
-               consdata->val[v] = consdata->val[consdata->nvars - 1];
-               consdata->nvarnonz[v] = consdata->nvarnonz[consdata->nvars - 1];
-               consdata->vars[v] = consdata->vars[consdata->nvars - 1];
-               consdata->locks[v] = consdata->locks[consdata->nvars - 1];
+               if ( v < consdata->nvars -1 )
+               {
+                  consdata->col[v] = consdata->col[consdata->nvars - 1];
+                  consdata->row[v] = consdata->row[consdata->nvars - 1];
+                  consdata->val[v] = consdata->val[consdata->nvars - 1];
+                  consdata->nvarnonz[v] = consdata->nvarnonz[consdata->nvars - 1];
+                  consdata->vars[v] = consdata->vars[consdata->nvars - 1];
+                  consdata->locks[v] = consdata->locks[consdata->nvars - 1];
+               }
                consdata->nvars--;
                v--; /* we need to check again if the variable we just shifted to this position also needs to be fixed */
             }
