@@ -1539,7 +1539,7 @@ SCIP_RETCODE addTwoMinorLinConstraints(
          }
       }
 
-      for (i = nvars-1; i >= 0; --i)
+      for (i = nvars - 1; i >= 0; --i)
          SCIPfreeBufferArray(scip, &matrices[i]);
       SCIPfreeBufferArray(scip, &matrices);
       SCIPfreeBufferArray(scip, &constmatrix);
@@ -1684,7 +1684,7 @@ SCIP_RETCODE addTwoMinorProdConstraints(
 
       if ( matrices != NULL )
       {
-         for (i = 0; i < nvars; ++i)
+         for (i = nvars - 1; i >= 0; --i)
             SCIPfreeBufferArray(scip, &matrices[i]);
          SCIPfreeBufferArray(scip, &matrices);
       }
@@ -2749,7 +2749,7 @@ SCIP_RETCODE propConstraints(
          assert( cnt == blocksize * (blocksize + 1)/2 );
 
          SCIPfreeBufferArray(scip, &constmatrix);
-         for (i = consdata->nvars -1; i >= 0; --i)
+         for (i = consdata->nvars - 1; i >= 0; --i)
             SCIPfreeBufferArray(scip, &matrices[i]);
          SCIPfreeBufferArray(scip, &matrices);
 
@@ -3791,16 +3791,16 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
             }
          }
 
-         for (i = 0; i < blocksize; ++i)
+         for (i = blocksize - 1; i >= 0; --i)
          {
-            for (j = 0; j <= i; ++j)
+            for (j = i; j >= 0; --j)
                SCIPfreeBufferArray(scip, &nonzvars[SCIPconsSdpCompLowerTriangPos(i,j)]);
          }
 
          SCIPfreeBufferArray(scip, &nonzvars);
          SCIPfreeBufferArray(scip, &nnonzvars);
 
-         for (i = 0; i < consdata->nvars; ++i)
+         for (i = consdata->nvars - 1; i >= 0; --i)
             SCIPfreeBufferArray(scip, &matrixAk[i]);
 
          SCIPfreeBufferArray(scip, &matrixAk);
