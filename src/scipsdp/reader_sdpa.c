@@ -54,9 +54,6 @@
 #include "scip/cons_linear.h"
 #include "scip/cons_indicator.h" /* for SCIPcreateConsIndicatorLinCons */
 
-#undef SCIPABORT
-#define SCIPABORT() {}
-
 #define READER_NAME             "sdpareader"
 #define READER_DESC             "file reader and writer for MISDPs in sdpa format"
 #define READER_EXTENSION        "dat-s"
