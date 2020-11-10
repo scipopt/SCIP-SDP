@@ -1324,6 +1324,15 @@ SCIP_RETCODE SDPAreadInt(
       if ( strncmp(data->buffer, "*RANK1", 5) == 0 )
          break;
 
+      /* check that line starts with '*' */
+      if ( strncmp(data->buffer, "*", 1) != 0 )
+      {
+         SCIPerrorMessage("Expected '*' at the beginning of line %" SCIP_LONGINT_FORMAT " in the INT-section.\n",
+            *linecount);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
+
       if ( sscanf(data->buffer + 1, "%i", &v) != 1 ) /* move the index by one to ignore the first character of the line */
       {
          SCIPerrorMessage("Could not read variable index in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
@@ -1397,6 +1406,15 @@ SCIP_RETCODE SDPAreadRank1(
    {
       char* ps;
 
+      /* check that line starts with '*' */
+      if ( strncmp(data->buffer, "*", 1) != 0 )
+      {
+         SCIPerrorMessage("Expected '*' at the beginning of line %" SCIP_LONGINT_FORMAT " in the RANK1-section.\n", *linecount);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
+
+      /* move the index by one to ignore the first character of the line */
       ps = data->buffer + 1;
       if ( sscanf(ps, "%i", &v) != 1 )
       {
