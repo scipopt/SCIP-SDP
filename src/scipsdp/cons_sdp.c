@@ -2882,7 +2882,7 @@ SCIP_RETCODE propConstraints(
 
                pos = s * (s + 1)/2 + t;
                varst = consdata->matrixvar[pos];
-               if ( varst == NULL )
+               if ( varst == NULL || ! SCIPvarIsActive(varst) )
                   continue;
 
                diagt = t * (t + 1)/2 + t;
