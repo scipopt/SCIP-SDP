@@ -129,6 +129,9 @@ SCIP_RETCODE SCIPSDPsetDefaultParams(
    /* The function SCIPparamSetDefaultReal() does not yet exist. We therefore just set the parameter */
    SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight", 0.0) );
 
+   /* oneopt might run into an infinite loop during SDP-solving */
+   SCIP_CALL( SCIPsetIntParam(scip, "heuristics/oneopt/freq", -1) );
+
    return SCIP_OKAY;
 }
 
@@ -145,6 +148,7 @@ SCIP_DECL_PARAMCHGD(SCIPparamChgdSolvesdps)
       SCIP_CALL( SCIPsetIntParam(scip, "lp/solvefreq", -1) );
       SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprows", FALSE) );
       SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprowsroot", FALSE) );
+      SCIP_CALL( SCIPsetIntParam(scip, "heuristics/oneopt/freq", -1) );
       SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Turning on SDP solving, turning off LP solving, cleanuprows(root) = FALSE.\n");
    }
    else
@@ -154,6 +158,7 @@ SCIP_DECL_PARAMCHGD(SCIPparamChgdSolvesdps)
       SCIP_CALL( SCIPsetIntParam(scip, "lp/solvefreq", 1) );
       SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprows", TRUE) );
       SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprowsroot", TRUE) );
+      SCIP_CALL( SCIPresetParam(scip, "heuristics/oneopt/freq") );
       SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Turning on LP solving, turning off SDP solving, cleanuprows(root) = TRUE.\n");
    }
 
