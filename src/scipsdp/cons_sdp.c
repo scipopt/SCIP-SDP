@@ -2624,25 +2624,31 @@ SCIP_RETCODE analyzeConflict(
    /* initialize conflict analysis, and add all variables of infeasible constraint to conflict candidate queue */
    SCIP_CALL( SCIPinitConflictAnalysis(scip, SCIP_CONFTYPE_PROPAGATION, FALSE) );
 
-   assert( consdata->matrixvar[diags] != NULL );
-   assert( consdata->matrixvar[diagt] != NULL );
-   assert( ! usepos || consdata->matrixvar[pos] != NULL);
-   assert( consdata->matrixval[diags] != SCIP_INVALID );
-   assert( consdata->matrixval[diagt] != SCIP_INVALID );
-   assert( ! usepos || consdata->matrixval[pos] != SCIP_INVALID);
+   if ( consdata->matrixvar[diags] != NULL )
+   {
+      assert( consdata->matrixval[diags] != SCIP_INVALID );
 
-   if ( consdata->matrixval[diags] > 0.0 )
-      SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diags], NULL) );
-   else
-      SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diags], NULL) );
+      if ( consdata->matrixval[diags] > 0.0 )
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diags], NULL) );
+      else
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diags], NULL) );
+   }
 
-   if ( consdata->matrixval[diagt] > 0.0 )
-      SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diagt], NULL) );
-   else
-      SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diagt], NULL) );
+   if ( consdata->matrixvar[diagt] != NULL )
+   {
+      assert( consdata->matrixval[diagt] != SCIP_INVALID );
+
+      if ( consdata->matrixval[diagt] > 0.0 )
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diagt], NULL) );
+      else
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diagt], NULL) );
+   }
 
    if ( usepos )
    {
+      assert( consdata->matrixvar[pos] != NULL);
+      assert( consdata->matrixval[pos] != SCIP_INVALID);
+
       if ( upperbound )
          SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[pos], NULL) );
       else
