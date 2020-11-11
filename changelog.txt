@@ -7,6 +7,7 @@ fixed bugs:
 - fixed bug in reading problems with indicator constraints
 - fixed bug in presolving which sometimes avoided the addition of linear constraints
 - fixed minor bug to allow copying of original problem
+- disable oneopt heuristic when solving SDPs to avoid an infinite loop
 
 features:
 - add possibility to tighten matrices if all matrices are positive semidefinite
@@ -16,6 +17,8 @@ features:
 - Use lexicographic sorting to sort matrix entries
 - SCIPcreateConsSdp() and SCIPcreateConsSdpRank1() allow to remove duplicates in matrices
 - empty SDP constraints are presolved and possibly removed
+- Make prop_sdpredcost numerically more stable by disallowing to update bounds that
+  are too large or too small.
 
 parameters:
 - Rename parameter relaxing/SDP/tightenvb to relaxing/SDP/tightenrows.

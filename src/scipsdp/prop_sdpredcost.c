@@ -33,6 +33,7 @@
 /**@file   prop_sdpredcost.c
  * @brief  reduced cost / dual fixing for SDPs
  * @author Tristan Gally
+ * @author Marc Pfetsch
  */
 
 /*#define SCIP_DEBUG*/
@@ -62,8 +63,10 @@
 #define PROP_PRIORITY               +1000000 /**< propagator priority */
 #define PROP_FREQ                   1        /**< propagator frequency */
 #define PROP_DELAY                  FALSE    /**< Should propagation method be delayed, if other propagators found reductions? */
+
 #define DEFAULT_SDPRCBIN            TRUE     /**< Should sdp reduced cost fixing be executed for binary variables? */
 #define DEFAULT_SDPRCINTCONT        TRUE     /**< Should sdp reduced cost fixing be executed for integer and continuous variables? */
+#define DEFAULT_MAXABSBOUND         1e6      /**< maximal absolute value for bounds to be added to avoid numerical issues */
 
 /**@} */
 
@@ -76,6 +79,7 @@ struct SCIP_PropData
    int                   nvars;              /**< number of variables and therefore also length of lbvarvals and ubvarvals */
    SCIP_Bool             forbins;            /**< should sdp reduced cost fixing be executed for binary variables? */
    SCIP_Bool             forintconts;        /**< should sdp reduced cost fixing be executed for integer and continuous variables? */
+   SCIP_Real             maxabsbound;        /**< maximal absolute value for bounds to be added to avoid numerical issues */
 };
 
 /** reduced cost fixing for binary variables
@@ -150,6 +154,7 @@ static
 SCIP_RETCODE sdpRedcostFixingIntCont(
    SCIP*                 scip,               /**< pointer to SCIP data structure */
    SCIP_VAR*             var,                /**< variable to propagate */
+   SCIP_Real             maxabsbound,        /**< maximal absolute value for bounds to be added to avoid numerical issues */
    SCIP_Real             primallbval,        /**< value of the primal variable corresponding to the lower bound */
    SCIP_Real             primalubval,        /**< value of the primal variable corresponding to the upper bound */
    SCIP_Real             cutoffbound,        /**< current cutoffbound in SCIP */
@@ -169,6 +174,10 @@ SCIP_RETCODE sdpRedcostFixingIntCont(
    /* compute the new lower and upper bound, if we divide by zero (checking > 0 is sufficient, as the variabls are non-negative), the bounds are infinity */
    ub = SCIPisGT(scip, primallbval, 0.0) ? SCIPvarGetLbLocal(var) + (cutoffbound - relaxval) / primallbval : SCIPinfinity(scip);
    lb = SCIPisGT(scip, primalubval, 0.0) ? SCIPvarGetUbLocal(var) - (cutoffbound - relaxval) / primalubval : -SCIPinfinity(scip);
+
+   /* avoid bounds that are larger than maxabsbound, because they often rely on inaccurate numerics */
+   if ( REALABS(lb) > maxabsbound || REALABS(ub) > maxabsbound )
+      return SCIP_OKAY;
 
    /* if either bound is infinite, we set it to the corresponding SCIP value */
    if ( SCIPisInfinity(scip, ub) )
@@ -302,7 +311,7 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
       }
       else if ( (! SCIPvarIsBinary(vars[v])) && propdata->forintconts )
       {
-         SCIP_CALL( sdpRedcostFixingIntCont(scip, vars[v], propdata->lbvarvals[v], propdata->ubvarvals[v], cutoffbound, relaxval, &varresult) );
+         SCIP_CALL( sdpRedcostFixingIntCont(scip, vars[v], propdata->maxabsbound, propdata->lbvarvals[v], propdata->ubvarvals[v], cutoffbound, relaxval, &varresult) );
 
          if ( varresult == SCIP_REDUCEDDOM )
             *result = SCIP_REDUCEDDOM;
@@ -398,10 +407,14 @@ SCIP_RETCODE SCIPincludePropSdpredcost(
    SCIP_CALL( SCIPsetPropFree(scip, prop, propFreeSdpredcost) );
 
    /* add additional parameters */
-   SCIP_CALL( SCIPaddBoolParam(scip, "propagating/sdpredcost/forbins", "Should SDP reduced cost fixing be executed for binary variables?",
+   SCIP_CALL( SCIPaddBoolParam(scip, "propagating/" PROP_NAME "/forbins", "Should SDP reduced cost fixing be executed for binary variables?",
          &(propdata->forbins), TRUE, DEFAULT_SDPRCBIN, NULL, NULL) );
-   SCIP_CALL( SCIPaddBoolParam(scip, "propagating/sdpredcost/forintconts", "Should SDP reduced cost fixing be executed for integer and continuous variables?",
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "propagating/" PROP_NAME "/forintconts", "Should SDP reduced cost fixing be executed for integer and continuous variables?",
          &(propdata->forintconts), TRUE, DEFAULT_SDPRCINTCONT, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddRealParam(scip, "propagating/" PROP_NAME "/maxabsbound", "maximal absolute value for bounds to be added to avoid numerical issues",
+         &(propdata->maxabsbound), TRUE, DEFAULT_MAXABSBOUND, 0.0, SCIP_REAL_MAX, NULL, NULL) );
 
    return SCIP_OKAY;
 }
