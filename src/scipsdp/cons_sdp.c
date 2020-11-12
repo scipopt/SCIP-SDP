@@ -505,8 +505,8 @@ SCIP_RETCODE computeScalingFactor(
    assert( A != NULL );
    assert( Aconst != NULL );
    assert( factor != NULL );
-   assert( SCIPisLE(scip, lb, ub) );
-   assert( SCIPisGE(scip, lb, 0.0) );
+   assert( SCIPisLE(scip, lower, upper) );
+   assert( SCIPisGE(scip, upper, 0.0) );
 
    *factor = upper;
    lb = lower;
