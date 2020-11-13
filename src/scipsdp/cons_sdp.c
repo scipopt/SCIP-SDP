@@ -1309,7 +1309,7 @@ SCIP_RETCODE diagZeroImpl(
             /* get the corresponding SCIP variables and set all coefficients to 1 */
             for (v = 0; v < ndiagvars[rowidx]; ++v)
             {
-               assert( 0 < diagvars[rowidx][v] && diagvars[rowidx][v] < nvars );
+               assert( 0 <= diagvars[rowidx][v] && diagvars[rowidx][v] < nvars );
                vars[v] = consdata->vars[diagvars[rowidx][v]];
                vals[v] = 1.0;
             }
@@ -1336,7 +1336,7 @@ SCIP_RETCODE diagZeroImpl(
             /* get the corresponding SCIP variables and set all coefficients to 1 */
             for (v = 0; v < ndiagvars[colidx]; ++v)
             {
-               assert( 0 < diagvars[colidx][v] && diagvars[colidx][v] < nvars );
+               assert( 0 <= diagvars[colidx][v] && diagvars[colidx][v] < nvars );
                vars[v] = consdata->vars[diagvars[colidx][v]];
                vals[v] = 1.0;
             }
