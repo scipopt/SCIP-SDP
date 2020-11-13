@@ -1178,7 +1178,7 @@ SCIP_RETCODE diagZeroImpl(
 
    for (c = 0; c < nconss; ++c)
    {
-      SCIP_Shortbool* nonzeroenries;
+      SCIP_Shortbool* nonzeroentries;
       SCIP_Shortbool* diagnonzero;
       SCIP_VAR** vars;
       SCIP_Real* vals;
@@ -1203,7 +1203,7 @@ SCIP_RETCODE diagZeroImpl(
       /* allocate storage */
       SCIP_CALL( SCIPallocBufferArray(scip, &vars, nvars) );
       SCIP_CALL( SCIPallocBufferArray(scip, &vals, nvars) );
-      SCIP_CALL( SCIPallocClearBufferArray(scip, &nonzeroenries, blocksize * (blocksize+1) / 2) );
+      SCIP_CALL( SCIPallocClearBufferArray(scip, &nonzeroentries, blocksize * (blocksize+1) / 2) );
       SCIP_CALL( SCIPallocClearBufferArray(scip, &diagnonzero, blocksize) );
       SCIP_CALL( SCIPallocClearBufferArray(scip, &ndiagvars, blocksize) );
       SCIP_CALL( SCIPallocBufferArray(scip, &diagvars, blocksize) );
@@ -1224,16 +1224,16 @@ SCIP_RETCODE diagZeroImpl(
             assert( ! SCIPisZero(scip, consdata->val[v][j]) );
 
             pos = rowidx * (rowidx + 1)/2 + colidx;
-            nonzeroenries[pos] = TRUE;
+            nonzeroentries[pos] = TRUE;
 
             /* treat diagonal entries */
             if ( rowidx == colidx )
             {
-               /* collect variables for positive diagnal entries */
+               /* collect variables for positive diagonal entries */
                if ( SCIPisPositive(scip, consdata->val[v][j]) )
                   diagvars[rowidx][ndiagvars[rowidx]++] = v;
 
-               /* mark nonzero entrie for non-integral variables */
+               /* mark nonzero entries for non-integral variables */
                if ( ! SCIPvarIsIntegral(consdata->vars[v]) )
                {
                   if ( ! diagnonzero[rowidx] )
@@ -1276,7 +1276,7 @@ SCIP_RETCODE diagZeroImpl(
          SCIPfreeBufferArray(scip, &diagvars);
          SCIPfreeBufferArray(scip, &ndiagvars);
          SCIPfreeBufferArray(scip, &diagnonzero);
-         SCIPfreeBufferArray(scip, &nonzeroenries);
+         SCIPfreeBufferArray(scip, &nonzeroentries);
          SCIPfreeBufferArray(scip, &vals);
          SCIPfreeBufferArray(scip, &vars);
          continue;
@@ -1300,7 +1300,7 @@ SCIP_RETCODE diagZeroImpl(
          pos = rowidx * (rowidx + 1)/2 + colidx;
 
          /* skip entry if it is non-zero in some non-constant matrix */
-         if ( nonzeroenries[pos] )
+         if ( nonzeroentries[pos] )
             continue;
 
          /* if all continuous variables have a zero diagonal entry and the constant matrix is 0 as well */
@@ -1330,7 +1330,7 @@ SCIP_RETCODE diagZeroImpl(
             diagnonzero[rowidx] = TRUE;
          }
 
-         /* some possibility for column index */
+         /* same possibility for column index */
          if ( ! diagnonzero[colidx] && ndiagvars[colidx] > 0 )
          {
             /* get the corresponding SCIP variables and set all coefficients to 1 */
@@ -1366,7 +1366,7 @@ SCIP_RETCODE diagZeroImpl(
       SCIPfreeBufferArray(scip, &diagvars);
       SCIPfreeBufferArray(scip, &ndiagvars);
       SCIPfreeBufferArray(scip, &diagnonzero);
-      SCIPfreeBufferArray(scip, &nonzeroenries);
+      SCIPfreeBufferArray(scip, &nonzeroentries);
       SCIPfreeBufferArray(scip, &vals);
       SCIPfreeBufferArray(scip, &vars);
    }
