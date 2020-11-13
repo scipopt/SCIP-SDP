@@ -542,7 +542,7 @@ SCIP_RETCODE SDPAreadBlockSize(
    if ( data->nconsblocks != nblocks )
    {
       SCIPerrorMessage("Number of specified blocksizes %d in line %" SCIP_LONGINT_FORMAT
-         " does not match number of blocks %d.\n", *linecount, nblocks, data->nconsblocks);
+         " does not match number of blocks %d.\n", nblocks, *linecount, data->nconsblocks);
       SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
