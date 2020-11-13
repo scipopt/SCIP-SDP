@@ -292,10 +292,9 @@ int readLineDoubles(
          /* advance string to after number */
          str = endptr;
       }
-
-      /* stop or read next line if we reached a comment */
-      if ( *str == '*' || *str == '\"' || *str == '=' )
+      else if ( *str == '*' || *str == '\"' || *str == '=' )
       {
+         /* stop or read next line if we reached a comment */
          if ( cnt < nvals )
          {
             SCIP_CALL( readLine(scip, file, buffer, bufferlen, &success) );
@@ -306,6 +305,15 @@ int readLineDoubles(
          }
          else
             break;
+      }
+      else
+      {
+         if ( *str != '\0' )
+         {
+            SCIPerrorMessage("Found invalid symbol in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
+            SCIPABORT();
+            return SCIP_READERROR;
+         }
       }
    }
 
@@ -364,10 +372,9 @@ int readLineInts(
          /* advance string to after number */
          str = endptr;
       }
-
-      /* stop or read next line if we reached a comment */
-      if ( *str == '*' || *str == '\"' || *str == '=' )
+      else if ( *str == '*' || *str == '\"' || *str == '=' )
       {
+         /* stop or read next line if we reached a comment */
          if ( cnt < nvals )
          {
             SCIP_CALL( readLine(scip, file, buffer, bufferlen, &success) );
@@ -378,6 +385,15 @@ int readLineInts(
          }
          else
             break;
+      }
+      else
+      {
+         if ( *str != '\0' )
+         {
+            SCIPerrorMessage("Found invalid symbol in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
+            SCIPABORT();
+            return SCIP_READERROR;
+         }
       }
    }
 
