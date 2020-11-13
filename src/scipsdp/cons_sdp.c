@@ -4314,9 +4314,23 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
                    * manually. */
                   SCIP_CALL( SCIPcheckSol(scip, enfosol, FALSE, TRUE, TRUE, TRUE, TRUE, &feasible) );
 
-                  /* if we do not obtain a feasible solution, we try to round it */
-                  if ( *result != SCIP_CUTOFF && nfixed < nintvars )
+                  if ( feasible )
                   {
+                     /* tell trysol heuristic about solution */
+                     SCIP_CALL( SCIPheurPassSolTrySol(scip, conshdlrdata->heurtrysol, enfosol) );
+
+                     if ( nintvars == nfixedvars )
+                     {
+                        /* SCIP knows the solution, so we can cut off the node */
+                        *result = SCIP_CUTOFF;
+                     }
+                  }
+
+                  /* if we do not obtain a feasible solution, we try to round it */
+                  if ( nfixed < nintvars )
+                  {
+                     assert( *result != SCIP_CUTOFF );
+
                      for (v = 0; v < nintvars; ++v)
                      {
                         SCIP_Real val;
@@ -4363,7 +4377,6 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
                            {
                               SCIP_CALL( SCIPheurPassSolTrySol(scip, conshdlrdata->heurtrysol, enfosol) );
                            }
-                           /* SCIP_CALL( SCIPtrySol(scip, enfosol, FALSE, TRUE, TRUE, TRUE, TRUE, &feasible) ); */
                         }
                      }
                   }
