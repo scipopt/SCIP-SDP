@@ -142,7 +142,7 @@ Test(readwrite, short2)
 
    obj3 = SCIPgetDualbound(scipsdp);
 
-   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA)\n", obj1, obj3);
+   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA Written)\n", obj1, obj3);
    cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
 }
 
@@ -181,7 +181,7 @@ Test(readwrite, short3)
 
    obj3 = SCIPgetDualbound(scipsdp);
 
-   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA)\n", obj1, obj3);
+   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA Written)\n", obj1, obj3);
    cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
 }
 
@@ -219,7 +219,7 @@ Test(readwrite, short4)
 
    obj3 = SCIPgetDualbound(scipsdp);
 
-   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA)\n", obj1, obj3);
+   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA Written)\n", obj1, obj3);
    cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
 }
 
@@ -258,7 +258,7 @@ Test(readwrite, short5)
 
    obj3 = SCIPgetDualbound(scipsdp);
 
-   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA)\n", obj1, obj3);
+   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA Written)\n", obj1, obj3);
    cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
 }
 
@@ -297,7 +297,7 @@ Test(readwrite, short6)
 
    obj3 = SCIPgetDualbound(scipsdp);
 
-   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA)\n", obj1, obj3);
+   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA Written)\n", obj1, obj3);
    cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
 }
 
@@ -336,7 +336,7 @@ Test(readwrite, short7)
 
    obj3 = SCIPgetDualbound(scipsdp);
 
-   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA)\n", obj1, obj3);
+   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA Written)\n", obj1, obj3);
    cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
 }
 
@@ -375,7 +375,7 @@ Test(readwrite, short8)
 
    obj3 = SCIPgetDualbound(scipsdp);
 
-   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA)\n", obj1, obj3);
+   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA Written)\n", obj1, obj3);
    cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
 }
 
@@ -414,7 +414,7 @@ Test(readwrite, short9)
 
    obj3 = SCIPgetDualbound(scipsdp);
 
-   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA)\n", obj1, obj3);
+   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA Written)\n", obj1, obj3);
    cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
 }
 
@@ -453,7 +453,7 @@ Test(readwrite, short10)
 
    obj3 = SCIPgetDualbound(scipsdp);
 
-   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA)\n", obj1, obj3);
+   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA Written)\n", obj1, obj3);
    cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
 }
 
@@ -492,7 +492,7 @@ Test(readwrite, short11)
 
    obj3 = SCIPgetDualbound(scipsdp);
 
-   cr_assert_float_eq(obj1, -obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA)\n", obj1, obj3);
+   cr_assert_float_eq(obj1, -obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA Written)\n", obj1, obj3);
    cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
 }
 
@@ -531,7 +531,7 @@ Test(readwrite, short12)
 
    obj3 = SCIPgetDualbound(scipsdp);
 
-   cr_assert_float_eq(obj1, -obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA)\n", obj1, obj3);
+   cr_assert_float_eq(obj1, -obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA Written)\n", obj1, obj3);
    cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
 }
 
@@ -570,7 +570,7 @@ Test(readwrite, short13)
 
    obj3 = SCIPgetDualbound(scipsdp);
 
-   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA)\n", obj1, obj3);
+   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA Written)\n", obj1, obj3);
    cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
 }
 
@@ -609,7 +609,7 @@ Test(readwrite, nolinconsdual)
 
    obj3 = SCIPgetDualbound(scipsdp);
 
-   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA)\n", obj1, obj3);
+   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA Written)\n", obj1, obj3);
    cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
 }
 
@@ -647,7 +647,7 @@ Test(readwrite, nolinconsprimal)
 
    obj3 = SCIPgetDualbound(scipsdp);
 
-   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA)\n", obj1, obj3);
+   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA Written)\n", obj1, obj3);
    cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
 }
 
@@ -687,7 +687,7 @@ Test(readwrite, nopsdcons)
 
    obj3 = SCIPgetDualbound(scipsdp);
 
-   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA)\n", obj1, obj3);
+   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (Read Orig) != %g (SDPA Written)\n", obj1, obj3);
    cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (Read Orig) != %g (Read Written)\n", obj1, obj2);
 }
 
