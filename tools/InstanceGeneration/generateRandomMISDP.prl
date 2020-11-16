@@ -111,11 +111,12 @@ for (my $l = 1; $l <= $k; ++$l)
 
    printf(OUTFILE "VER\n1\n\n");
 
-   printf(OUTFILE "OBJSENSE\nMIN\n\n");
+   printf(OUTFILE "OBJSENSE\nMAX\n\n");
 
    printf(OUTFILE "VAR\n");
-   printf(OUTFILE "%d 1\n", $m);
-   printf(OUTFILE "L+ %d\n", $m);
+   printf(OUTFILE "%d 2\n", $m);
+   printf(OUTFILE "L+ %d\n", $mb);
+   printf(OUTFILE "F %d\n", $mc);
    printf(OUTFILE "\n");
 
    printf(OUTFILE "INT\n");
@@ -128,21 +129,21 @@ for (my $l = 1; $l <= $k; ++$l)
 
    # add upper bounds
    printf(OUTFILE "CON\n");
-   printf(OUTFILE "%d 1\n", $m);
-   printf(OUTFILE "L- %d\n", $m);
+   printf(OUTFILE "%d 1\n", $mb);
+   printf(OUTFILE "L- %d\n", $mb);
    printf(OUTFILE "\n");
 
    printf(OUTFILE "ACOORD\n");
-   printf(OUTFILE "%d\n", $m);
-   for (my $j = 0; $j < $m; ++$j)
+   printf(OUTFILE "%d\n", $mb);
+   for (my $j = 0; $j < $mb; ++$j)
    {
       printf(OUTFILE "%d %d 1\n", $j, $j);
    }
    printf(OUTFILE "\n");
 
    printf(OUTFILE "BCOORD\n");
-   printf(OUTFILE "%d\n", $m);
-   for (my $j = 0; $j < $m; ++$j)
+   printf(OUTFILE "%d\n", $mb);
+   for (my $j = 0; $j < $mb; ++$j)
    {
       printf(OUTFILE "%d -1.0\n", $j);
    }
