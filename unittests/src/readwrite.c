@@ -31,7 +31,9 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   readwrite.cpp
- * @brief  unit test for checking reading and writing of MISDPs
+ * @brief  unit test for checking reading and writing of MISDPs in CBF and SDPA format
+ * @author Tim Schmidt
+ * @author Frederic Matter
  * @author Marc Pfetsch
  */
 
