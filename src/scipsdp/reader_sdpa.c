@@ -1422,6 +1422,14 @@ SCIP_RETCODE SDPAreadRank1(
    {
       char* ps;
 
+      if ( strncmp(data->buffer, "*INTEGER", 8) == 0 )
+      {
+         SCIPerrorMessage("Integer section in line %" SCIP_LONGINT_FORMAT " needs to be in front of rank1 section.\n",
+            *linecount);
+         SCIPABORT();
+         return SCIP_READERROR; /*lint !e527*/
+      }
+
       /* check that line starts with '*' */
       if ( strncmp(data->buffer, "*", 1) != 0 )
       {
