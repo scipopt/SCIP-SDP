@@ -1634,8 +1634,11 @@ SCIP_DECL_READERREAD(readerReadSdpa)
       SCIP_CALL( SDPAreadInt(scip, file, &linecount, data) );
    }
 
-   SCIPdebugMsg(scip, "Reading rank1 section\n");
-   SCIP_CALL( SDPAreadRank1(scip, file, &linecount, data) );
+   if ( strncmp(data->buffer, "*RANK1", 5) == 0 )
+   {
+      SCIPdebugMsg(scip, "Reading rank1 section\n");
+      SCIP_CALL( SDPAreadRank1(scip, file, &linecount, data) );
+   }
 
 
    /* close the file (and make sure SCIPfclose returns 0) */
