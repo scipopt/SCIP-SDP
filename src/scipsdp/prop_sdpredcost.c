@@ -33,6 +33,7 @@
 /**@file   prop_sdpredcost.c
  * @brief  reduced cost / dual fixing for SDPs
  * @author Tristan Gally
+ * @author Marc Pfetsch
  */
 
 /*#define SCIP_DEBUG*/
@@ -80,9 +81,9 @@ struct SCIP_PropData
 
 /** reduced cost fixing for binary variables
  *
- *  If the corresponding primal variable for the lower bound is bigger than the cutoff bound minus the
- *  current relaxation value, then the variable can be fixed to zero, if the primal variable for the upper bound is bigger than this value, then it
- *  can be fixed to one.
+ *  If the corresponding primal variable for the lower bound is bigger than the cutoff bound minus the current
+ *  relaxation value, then the variable can be fixed to zero, if the primal variable for the upper bound is bigger than
+ *  this value, then it can be fixed to one.
  */
 static
 SCIP_RETCODE sdpRedcostFixingBinary(
@@ -98,26 +99,26 @@ SCIP_RETCODE sdpRedcostFixingBinary(
    assert( scip != NULL );
    assert( var != NULL );
    assert( result != NULL );
+   assert( ! SCIPisInfinity(scip, REALABS(cutoffbound)) );
+   assert( ! SCIPisInfinity(scip, REALABS(relaxval)) );
+   assert( SCIPisGE(scip, cutoffbound, relaxval) );
 
-   /* skip binary variable if it is locally fixed */
-   if (SCIPvarGetLbLocal(var) > 0.5 || SCIPvarGetUbLocal(var) < 0.5)
-   {
-      *result = SCIP_DIDNOTRUN;
+   *result = SCIP_DIDNOTFIND;
+
+   /* skip fixed binary variables */
+   if ( SCIPvarGetLbLocal(var) > 0.5 || SCIPvarGetUbLocal(var) < 0.5 )
       return SCIP_OKAY;
-   }
 
    /* check if variable can be fixed to zero */
    if ( SCIPisGT(scip, primallbval, cutoffbound - relaxval) )
    {
+      SCIPdebugMsg(scip, "Variable <%s> fixed to zero.\n", SCIPvarGetName(var));
       SCIP_CALL( SCIPchgVarUb(scip, var, 0.0) );
-      SCIPdebugMsg(scip, "Variable %s fixed to zero by reduced cost fixing ! \n", SCIPvarGetName(var));
       *result = SCIP_REDUCEDDOM;
 
       /* check if we would also have to fix the variable to one, in that case, we can cut the node off, as there can't be a new optimal solution */
       if ( SCIPisGT(scip, primalubval, cutoffbound - relaxval) )
-      {
          *result = SCIP_CUTOFF;
-      }
 
       return SCIP_OKAY;
    }
@@ -125,13 +126,12 @@ SCIP_RETCODE sdpRedcostFixingBinary(
    /* check if variable can be fixed to one */
    if ( SCIPisGT(scip, primalubval, cutoffbound - relaxval) )
    {
+      SCIPdebugMsg(scip, "Variable <%s> fixed to one.\n", SCIPvarGetName(var));
       SCIP_CALL( SCIPchgVarLb(scip, var, 1.0) );
-      SCIPdebugMsg(scip, "Variable %s fixed to one by reduced cost fixing ! \n", SCIPvarGetName(var));
       *result = SCIP_REDUCEDDOM;
       return SCIP_OKAY;
    }
 
-   *result = SCIP_DIDNOTFIND;
    return SCIP_OKAY;
 }
 
@@ -144,7 +144,7 @@ SCIP_RETCODE sdpRedcostFixingBinary(
  *  \f$ y_j \geq u_j - \frac{v_{CO} - \bar{v}}{\bar{X}_{n+j,n+j}} \f$
  *
  *  where \f$\bar{v}\f$ is the value of the current relaxation, \f$v_{CO}\f$ is the cutoffbound and \f$\bar{X}_{n+m+j,n+m+j}\f$ the value of the
- *  corresponding primal solution
+ *  corresponding primal solution.
  */
 static
 SCIP_RETCODE sdpRedcostFixingIntCont(
@@ -253,6 +253,8 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    assert( prop != NULL );
    assert( result != NULL );
 
+   *result = SCIP_DIDNOTRUN;
+
    /* do not run if propagation w.r.t. objective is not allowed */
 #if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
    if( ! SCIPallowWeakDualReds(scip) )
@@ -262,12 +264,13 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
       return SCIP_OKAY;
 #endif
 
+   /* we can't run before the relaxator is properly initialized */
    if ( SCIPgetStage(scip) == SCIP_STAGE_PRESOLVING )
-   {
-      /* we can't run before the relaxator is properly initialized */
-      *result = SCIP_DIDNOTRUN;
       return SCIP_OKAY;
-   }
+
+  cutoffbound = SCIPgetCutoffbound(scip);
+  if ( SCIPisInfinity(scip, cutoffbound) )
+     return SCIP_OKAY;
 
    relax = SCIPfindRelax(scip, "SDP"); /* get SDP relaxation handler */
    assert( relax != NULL );
@@ -275,26 +278,27 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    /* we can only propagate for the last node for which the SDP was solved */
    if ( SCIPrelaxSdpGetSdpNode(relax) != SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) )
    {
-      SCIPdebugMsg(scip, "Stopped propExecRedcost because current SDP-relaxation doesn't belong to the node the propagator was called for!\n");
-      *result = SCIP_DIDNOTRUN;
+      SCIPdebugMsg(scip, "Do not run propgagation because SDP-relaxation does not match current node.\n");
       return SCIP_OKAY;
    }
 
-   /* we can only propagate if the SDP in the last node was solved in its original formulation */
+   /* we can only propagate if the SDP was solved in its original formulation */
    if ( ! SCIPrelaxSdpSolvedOrig(relax) )
    {
-      SCIPdebugMsg(scip, "Stopped propExecRedcost because current SDP-relaxation was solved using a penalty formulation!\n");
-      *result = SCIP_DIDNOTRUN;
+      SCIPdebugMsg(scip, "Do not run propagation because SDP-relaxation was solved using a penalty formulation!\n");
       return SCIP_OKAY;
    }
 
    SCIP_CALL( SCIPrelaxSdpRelaxVal(relax, &sdpsolved, &relaxval) );
    if ( ! sdpsolved )
    {
-      SCIPdebugMsg(scip, "Stopped propExecRedcost because SDP-relaxation wasn't properly solved!\n");
-      *result = SCIP_DIDNOTRUN;
+      SCIPdebugMsg(scip, "Do not run propagation because SDP-relaxation was not solved properly.\n");
       return SCIP_OKAY;
    }
+
+   /* avoid infinite relaxation objective values */
+   if ( SCIPisInfinity(scip, REALABS(relaxval)) )
+      return SCIP_OKAY;
 
    propdata = SCIPpropGetData(prop);
    assert( propdata != NULL );
@@ -303,13 +307,9 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
 
    nvars = SCIPgetNVars(scip);
    vars = SCIPgetVars(scip);
-
-   cutoffbound = SCIPgetCutoffbound(scip);
-
    length = nvars;
 
    SCIP_CALL( SCIPrelaxSdpGetPrimalBoundVars(relax, propdata->lbvarvals, propdata->ubvarvals, &length) );
-
    assert( length == nvars ); /* we should get exactly one value for lower and upper bound-variable per variable in scip */
 
    for (v = 0; v < nvars; v++)
@@ -321,7 +321,7 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
          if ( varresult == SCIP_REDUCEDDOM )
             *result = SCIP_REDUCEDDOM;
       }
-      else if ( (! SCIPvarIsBinary(vars[v])) && propdata->forintconts )
+      else if ( ! SCIPvarIsBinary(vars[v]) && propdata->forintconts )
       {
          SCIP_CALL( sdpRedcostFixingIntCont(scip, vars[v], propdata->lbvarvals[v], propdata->ubvarvals[v], cutoffbound, relaxval, &varresult) );
 
@@ -341,7 +341,7 @@ SCIP_DECL_PROPFREE(propFreeSdpredcost)
 
    propdata = SCIPpropGetData(prop);
    assert( propdata != NULL );
-   SCIPfreeMemory(scip, &propdata);
+   SCIPfreeBlockMemory(scip, &propdata);
 
    SCIPpropSetData(prop, NULL);
 
@@ -402,7 +402,7 @@ SCIP_RETCODE SCIPincludePropSdpredcost(
    SCIP_PROP* prop;
 
    /* create propagator data */
-   SCIP_CALL( SCIPallocMemory(scip, &propdata) );
+   SCIP_CALL( SCIPallocBlockMemory(scip, &propdata) );
    propdata->nvars = 0;
    propdata->lbvarvals = NULL;
    propdata->ubvarvals = NULL;
@@ -420,9 +420,10 @@ SCIP_RETCODE SCIPincludePropSdpredcost(
 
    /* add additional parameters */
    SCIP_CALL( SCIPaddBoolParam(scip, "propagating/sdpredcost/forbins", "Should SDP reduced cost fixing be executed for binary variables?",
-         &(propdata->forbins), TRUE, DEFAULT_SDPRCBIN, NULL, NULL) );
+         &propdata->forbins, TRUE, DEFAULT_SDPRCBIN, NULL, NULL) );
+
    SCIP_CALL( SCIPaddBoolParam(scip, "propagating/sdpredcost/forintconts", "Should SDP reduced cost fixing be executed for integer and continuous variables?",
-         &(propdata->forintconts), TRUE, DEFAULT_SDPRCINTCONT, NULL, NULL) );
+         &propdata->forintconts, TRUE, DEFAULT_SDPRCINTCONT, NULL, NULL) );
 
    return SCIP_OKAY;
 }

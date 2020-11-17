@@ -12,6 +12,7 @@ features:
   This has been extended by a full coefficient tightening procedure.
 - Use lexicographic sorting to sort matrix entries
 - SCIPcreateConsSdp() and SCIPcreateConsSdpRank1() allow to remove duplicates in matrices
+- prop_sdpredcost has been revised, avoiding numerical troubles at several places
 
 parameters:
 - Rename parameter relaxing/SDP/tightenvb to relaxing/SDP/tightenrows.
