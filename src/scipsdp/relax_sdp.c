@@ -535,9 +535,10 @@ SCIP_RETCODE putSdpDataInInterface(
 
    for (i = 0; i < nvars; i++)
    {
-      obj[i] = SCIPvarGetObj(vars[i]);
-      lb[i] = SCIPvarGetLbLocal(vars[i]);
-      ub[i] = SCIPvarGetUbLocal(vars[i]);
+      int idx = SCIPsdpVarmapperGetSdpIndex(varmapper, vars[i]);
+      obj[idx] = SCIPvarGetObj(vars[i]);
+      lb[idx] = SCIPvarGetLbLocal(vars[i]);
+      ub[idx] = SCIPvarGetUbLocal(vars[i]);
    }
 
    if ( boundprimal )
