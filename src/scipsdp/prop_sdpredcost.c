@@ -312,10 +312,6 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
 
    nvars = SCIPgetNVars(scip);
    vars = SCIPgetVars(scip);
-<<<<<<< HEAD
-
-=======
->>>>>>> master
    length = nvars;
 
    SCIP_CALL( SCIPrelaxSdpGetPrimalBoundVars(relax, propdata->lbvarvals, propdata->ubvarvals, &length) );
@@ -428,19 +424,11 @@ SCIP_RETCODE SCIPincludePropSdpredcost(
    SCIP_CALL( SCIPsetPropFree(scip, prop, propFreeSdpredcost) );
 
    /* add additional parameters */
-<<<<<<< HEAD
    SCIP_CALL( SCIPaddBoolParam(scip, "propagating/" PROP_NAME "/forbins", "Should SDP reduced cost fixing be executed for binary variables?",
          &(propdata->forbins), TRUE, DEFAULT_SDPRCBIN, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "propagating/" PROP_NAME "/forintconts", "Should SDP reduced cost fixing be executed for integer and continuous variables?",
          &(propdata->forintconts), TRUE, DEFAULT_SDPRCINTCONT, NULL, NULL) );
-=======
-   SCIP_CALL( SCIPaddBoolParam(scip, "propagating/sdpredcost/forbins", "Should SDP reduced cost fixing be executed for binary variables?",
-         &propdata->forbins, TRUE, DEFAULT_SDPRCBIN, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddBoolParam(scip, "propagating/sdpredcost/forintconts", "Should SDP reduced cost fixing be executed for integer and continuous variables?",
-         &propdata->forintconts, TRUE, DEFAULT_SDPRCINTCONT, NULL, NULL) );
->>>>>>> master
 
    return SCIP_OKAY;
 }
