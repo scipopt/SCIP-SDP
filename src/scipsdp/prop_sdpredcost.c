@@ -166,9 +166,29 @@ SCIP_RETCODE sdpRedcostFixingIntCont(
 
    *result = SCIP_DIDNOTFIND;
 
-   /* compute the new lower and upper bound, if we divide by zero (checking > 0 is sufficient, as the variabls are non-negative), the bounds are infinity */
-   ub = SCIPisGT(scip, primallbval, 0.0) ? SCIPvarGetLbLocal(var) + (cutoffbound - relaxval) / primallbval : SCIPinfinity(scip);
-   lb = SCIPisGT(scip, primalubval, 0.0) ? SCIPvarGetUbLocal(var) - (cutoffbound - relaxval) / primalubval : -SCIPinfinity(scip);
+
+   /* compute the new lower and upper bound, if we divide by zero (checking > 0
+      is sufficient, as the variables are non-negative), the bounds are infinity.
+      The bounds do not apply if the variable is free into the opposite
+      direction (happens, e.g. when free variables are added during solving,
+      scip does not update variable bounds but the sdp interface finds
+      bounds). */
+   if ( !SCIPisInfinity(scip, -SCIPvarGetLbLocal(var)) && SCIPisFeasGT(scip, primallbval, 0.0) )
+   {
+      ub = SCIPvarGetLbLocal(var) + (cutoffbound - relaxval) / primallbval;
+   }
+   else
+   {
+      ub = SCIPinfinity(scip);
+   }
+   if ( !SCIPisInfinity(scip, SCIPvarGetUbLocal(var)) && SCIPisFeasGT(scip, primalubval, 0.0) )
+   {
+      lb = SCIPvarGetUbLocal(var) - (cutoffbound - relaxval) / primalubval;
+   }
+   else
+   {
+      lb = -SCIPinfinity(scip);
+   }
 
    /* if either bound is infinite, we set it to the corresponding SCIP value */
    if ( SCIPisInfinity(scip, ub) )
