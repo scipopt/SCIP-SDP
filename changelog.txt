@@ -17,7 +17,7 @@ features:
 - Use lexicographic sorting to sort matrix entries
 - SCIPcreateConsSdp() and SCIPcreateConsSdpRank1() allow to remove duplicates in matrices
 - empty SDP constraints are presolved and possibly removed
-- Make prop_sdpredcost numerically more stable by avoiding update bounds with very large values.
+- prop_sdpredcost has been revised, avoiding numerical troubles at several places
 
 parameters:
 - Rename parameter relaxing/SDP/tightenvb to relaxing/SDP/tightenrows.
