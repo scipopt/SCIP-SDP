@@ -157,55 +157,76 @@ SCIP_RETCODE sdpRedcostFixingIntCont(
    SCIP_RESULT*          result              /**< pointer to return result */
    )
 {
-   SCIP_Real lb;
-   SCIP_Real ub;
+   SCIP_Real oldlb;
+   SCIP_Real oldub;
+   SCIP_Real newlb;
+   SCIP_Real newub;
 
    assert( scip != NULL );
    assert( var != NULL );
    assert( result != NULL );
+   assert( ! SCIPisInfinity(scip, REALABS(cutoffbound)) );
+   assert( ! SCIPisInfinity(scip, REALABS(relaxval)) );
+   assert( SCIPisGE(scip, cutoffbound, relaxval) );
 
    *result = SCIP_DIDNOTFIND;
 
-   /* compute the new lower and upper bound, if we divide by zero (checking > 0 is sufficient, as the variabls are non-negative), the bounds are infinity */
-   ub = SCIPisGT(scip, primallbval, 0.0) ? SCIPvarGetLbLocal(var) + (cutoffbound - relaxval) / primallbval : SCIPinfinity(scip);
-   lb = SCIPisGT(scip, primalubval, 0.0) ? SCIPvarGetUbLocal(var) - (cutoffbound - relaxval) / primalubval : -SCIPinfinity(scip);
+   oldlb = SCIPvarGetLbLocal(var);
+   oldub = SCIPvarGetUbLocal(var);
+   assert( SCIPisLE(scip, oldlb, oldub) );
 
-   /* if either bound is infinite, we set it to the corresponding SCIP value */
-   if ( SCIPisInfinity(scip, ub) )
-      ub = SCIPinfinity(scip);
-   else if ( SCIPisInfinity(scip, -ub) )
-      ub = -SCIPinfinity(scip);
-   if ( SCIPisInfinity(scip, lb) )
-      lb = SCIPinfinity(scip);
-   else if ( SCIPisInfinity(scip, -lb) )
-      lb = -SCIPinfinity(scip);
+   /* avoid fixed variables */
+   if ( SCIPisFeasEQ(scip, oldlb, oldub) )
+      return SCIP_OKAY;
 
-   /* if after propagation the upper bound is less than the lower bound, the current node is infeasible */
-   if ( SCIPisFeasLT(scip, ub, lb) || SCIPisFeasLT(scip, ub, SCIPvarGetLbLocal(var)) || SCIPisFeasLT(scip, SCIPvarGetUbLocal(var), lb) )
+   /* Compute new lower bound. Avoid division by 0 (checking > 0 is sufficient, as the variables are non-negative). The
+    * new lower bound is only valid if the old upper bound is finite. */
+   if ( ! SCIPisInfinity(scip, oldub) && SCIPisFeasPositive(scip, primalubval) )
    {
-      SCIPdebugMsg(scip, "Infeasibility of current node detected by prop_sdpredcost! Updated bounds for variable %s: lb = %f > %f = ub !\n",
-         SCIPvarGetName(var), SCIPisFeasGT(scip, lb, SCIPvarGetLbLocal(var))? lb : SCIPvarGetLbLocal(var),
-         SCIPisFeasLT(scip, ub, SCIPvarGetLbLocal(var)) ? ub : SCIPvarGetUbLocal(var) );
+      newlb = oldub - (cutoffbound - relaxval) / primalubval;
+
+      /* take the better value */
+      newlb = MAX(oldlb, newlb);
+      assert( ! SCIPisInfinity(scip, newlb) );
+   }
+   else
+      newlb = oldlb;
+
+   /* Compute new upper bound. Avoid division by 0 (checking > 0 is sufficient, as the variables are non-negative). The
+    * new upper bound is only valid if the old lower bound is finite. */
+   if ( ! SCIPisInfinity(scip, -oldlb) && SCIPisFeasPositive(scip, primallbval) )
+   {
+      newub = oldlb + (cutoffbound - relaxval) / primallbval;
+
+      /* take the better value */
+      newub = MIN(oldub, newub);
+      assert( ! SCIPisInfinity(scip, -newub) );
+   }
+   else
+      newub = oldub;
+
+   /* check for infeasibility */
+   if ( SCIPisFeasGT(scip, newlb, newub) )
+   {
+      SCIPdebugMsg(scip, "Node is infeasible. New bounds for variable <%s>: [%g, %g]!\n", SCIPvarGetName(var), newlb, newub);
       *result = SCIP_CUTOFF;
       return SCIP_OKAY;
    }
 
-   /* if the new upper bound is an enhancement, update it */
-   if ( SCIPisFeasLT(scip, ub, SCIPvarGetUbLocal(var)) )
+   /* try to tighten lower bound */
+   if ( ! SCIPisInfinity(scip, -newlb) && SCIPisFeasGT(scip, newlb, oldlb) )
    {
-      SCIPdebugMsg(scip, "Changing upper bound of variable %s from %f to %f because of prop_sdpredcost \n",
-         SCIPvarGetName(var), SCIPvarGetUbLocal(var), ub);
-      SCIP_CALL( SCIPchgVarUb(scip, var, ub) );
-      *result =  SCIP_REDUCEDDOM;
+      SCIPdebugMsg(scip, "Changing lower bound of variable <%s> from %g to %g.\n", SCIPvarGetName(var), oldlb, newlb);
+      SCIP_CALL( SCIPchgVarLb(scip, var, newlb) );
+      *result = SCIP_REDUCEDDOM;
    }
 
-   /* if the new lower bound is an enhancement, update it */
-   if ( SCIPisFeasGT(scip, lb, SCIPvarGetLbLocal(var)) )
+   /* try to tighten upper bound */
+   if ( ! SCIPisInfinity(scip, newub) && SCIPisFeasLT(scip, newub, oldub) )
    {
-      SCIPdebugMsg(scip, "Changing lower bound of variable %s from %f to %f because of prop_sdpredcost \n",
-         SCIPvarGetName(var), SCIPvarGetLbLocal(var), lb);
-      SCIP_CALL( SCIPchgVarLb(scip, var, lb) );
-      *result =  SCIP_REDUCEDDOM;
+      SCIPdebugMsg(scip, "Changing upper bound of variable <%s> from %g to %g.\n", SCIPvarGetName(var), oldub, newub);
+      SCIP_CALL( SCIPchgVarUb(scip, var, newub) );
+      *result = SCIP_REDUCEDDOM;
    }
 
    return SCIP_OKAY;
