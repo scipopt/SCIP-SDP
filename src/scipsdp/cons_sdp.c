@@ -4207,45 +4207,34 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
 
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
-
-   /* do not run if another constraint handler has declared the solution to be infeasible */
-   if ( solinfeasible )
-   {
-      *result = SCIP_FEASIBLE;
-      return SCIP_OKAY;
-   }
-
-   /* Below, we enforce integral solutions. If the LP is unbounded, this might not be guaranteed due to the integrality
-    * constraint handler. In this case, we separate eigenvector cuts. */
-   if ( SCIPgetLPSolstat(scip) == SCIP_LPSOLSTAT_UNBOUNDEDRAY )
-   {
-      for (c = 0; c < nconss; ++c)
-      {
-         SCIP_CALL( separateSol(scip, conshdlr, conss[c], NULL, TRUE, result) );
-      }
-      return SCIP_OKAY;
-   }
+   assert( conshdlrdata->solvelp );
 
    *result = SCIP_FEASIBLE;
 
-   /* if all integer variables have integral values, then possibly solve SDP */
-   if ( conshdlrdata->enforcesdp && conshdlrdata->solvelp )
+   /* do not run if another constraint handler has declared the solution to be infeasible */
+   if ( solinfeasible )
+      return SCIP_OKAY;
+
+   /* we first check whether the LP solution if feasible */
+   for (c = 0; c < nconss; ++c)
+   {
+      SCIP_CALL( separateSol(scip, conshdlr, conss[c], NULL, TRUE, result) );
+   }
+   assert( *result == SCIP_FEASIBLE || *result == SCIP_CUTOFF || *result == SCIP_SEPARATED );
+
+   /* Below, we enforce integral solutions. If the LP is unbounded, this might not be guaranteed due to the integrality
+    * constraint handler. In this case, we exit. The same happens if no relaxation is available or if we reached a cutoff. */
+   if ( SCIPgetLPSolstat(scip) == SCIP_LPSOLSTAT_UNBOUNDEDRAY || conshdlrdata->relaxsdp == NULL || *result == SCIP_CUTOFF )
+      return SCIP_OKAY;
+
+   /* if all integer variables have integral values, then possibly solve SDP in addtion to separation */
+   if ( conshdlrdata->enforcesdp && *result == SCIP_SEPARATED )
    {
       SCIP_Bool cutoff;
       SCIP_VAR** vars;
       int nfixed = 0;
       int nintvars;
       int v;
-
-      /* do normal separation if no SDP relaxator is present */
-      if ( conshdlrdata->relaxsdp == NULL )
-      {
-         for (c = 0; c < nconss; ++c)
-         {
-            SCIP_CALL( separateSol(scip, conshdlr, conss[c], NULL, TRUE, result) );
-         }
-         return SCIP_OKAY;
-      }
 
       /* all integer variables should have integer values, because enforcing is called after the integrality constraint handler */
       vars = SCIPgetVars(scip);
@@ -4319,7 +4308,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
                      /* tell trysol heuristic about solution */
                      SCIP_CALL( SCIPheurPassSolTrySol(scip, conshdlrdata->heurtrysol, enfosol) );
 
-                     if ( nintvars == nfixedvars )
+                     if ( nintvars == nfixed )
                      {
                         /* SCIP knows the solution, so we can cut off the node */
                         *result = SCIP_CUTOFF;
@@ -4390,14 +4379,6 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
 
          /* free local problem */
          SCIP_CALL( SCIPendProbing(scip) );
-      }
-   }
-
-   if ( *result == SCIP_FEASIBLE )
-   {
-      for (c = 0; c < nconss; ++c)
-      {
-         SCIP_CALL( separateSol(scip, conshdlr, conss[c], NULL, TRUE, result) );
       }
    }
 
