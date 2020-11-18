@@ -309,7 +309,6 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    vars = SCIPgetVars(scip);
    length = nvars;
 
-<<<<<<< HEAD
    /* make sure that data arrays have the right size */
    if ( nvars != propdata->nvars )
    {
@@ -319,9 +318,6 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    }
    SCIP_CALL( SCIPrelaxSdpGetPrimalBoundVars(scip, relax, vars, nvars, propdata->lbvarvals, propdata->ubvarvals) );
 
-=======
-   SCIP_CALL( SCIPrelaxSdpGetPrimalBoundVars(relax, propdata->lbvarvals, propdata->ubvarvals, &length) );
->>>>>>> master
    assert( length == nvars ); /* we should get exactly one value for lower and upper bound-variable per variable in scip */
 
    for (v = 0; v < nvars; v++)
