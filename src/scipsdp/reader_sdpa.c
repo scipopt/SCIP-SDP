@@ -725,24 +725,19 @@ SCIP_RETCODE SDPAreadBlocks(
    )
 {
    SCIP_VAR* indvar = 0;
-   int** sdprow_local;             /**< array of all row indices for each SDP block */
-   int** sdpcol_local;             /**< array of all column indices for each SDP block */
-   SCIP_Real** sdpval_local;       /**< array of all values of SDP nonzeros for each SDP block */
-   int** sdpconstrow_local;        /**< pointers to row-indices for each block */
-   int** sdpconstcol_local;        /**< pointers to column-indices for each block */
-   SCIP_Real **sdpconstval_local;
+   SCIP_Real** sdpval_local = NULL;          /**< array of all values of SDP nonzeros for each SDP block */
+   SCIP_Real** sdpconstval_local = NULL;
    SCIP_Real val;
    SCIP_Bool infeasible;
    SCIP_Bool success;
-   int** sdpvar;
-   int* nentriessdp;
-   int* nentriessdpconst;
-   int* nentrieslincon;
-   int b; /** current block */
-   int v; /** current variable */
-   int c; /** current linear constraint */
-   int row;
-   int col;
+   int** sdprow_local = NULL;                /**< array of all row indices for each SDP block */
+   int** sdpcol_local = NULL;                /**< array of all column indices for each SDP block */
+   int** sdpconstrow_local = NULL;           /**< pointers to row-indices for each block */
+   int** sdpconstcol_local = NULL;           /**< pointers to column-indices for each block */
+   int** sdpvar = NULL;
+   int* nentriessdp = NULL;
+   int* nentriessdpconst = NULL;
+   int* nentrieslincon = NULL;
    int firstindforvar;
    int nextindaftervar;
    int nzerocoef = 0;
@@ -750,6 +745,11 @@ SCIP_RETCODE SDPAreadBlocks(
    int emptylinconsblocks = 0;
    int nindcons = 0;
    int blockidxoffset = 0;
+   int row;
+   int col;
+   int b;                                    /** current block */
+   int v;                                    /** current variable */
+   int c;                                    /** current linear constraint */
 
    assert( scip != NULL );
    assert( file != NULL );
@@ -1590,22 +1590,31 @@ SCIP_DECL_READERREAD(readerReadSdpa)
    data->nsdpblocksrank1 = 0;
    data->nlinconss = 0;
    data->nvars = -1;
-
+   data->nconsblocks = -1;
+   data->idxlinconsblock = -1;
+   data->bufferlen = 0;
    data->sdpblockrank1 = NULL;
+   data->createdvars = NULL;
+   data->createdconss = NULL;
    data->sdpblocksizes = NULL;
    data->sdpnblocknonz = NULL;
    data->sdpnblockvars = NULL;
+   data->nvarnonz = NULL;
    data->sdpblockvars = NULL;
    data->sdprow = NULL;
    data->sdpcol = NULL;
    data->sdpval = NULL;
+   data->rowpointer = NULL;
+   data->colpointer = NULL;
+   data->valpointer = NULL;
    data->sdpconstnblocknonz = NULL;
    data->sdpconstrow = NULL;
    data->sdpconstcol = NULL;
    data->sdpconstval = NULL;
-   data->idxlinconsblock = -1;
+   data->sdpmemsize = NULL;
+   data->sdpconstmemsize = NULL;
    data->buffer = NULL;
-   data->bufferlen = 0;
+
 
    /* create empty problem */
    SCIP_CALL( SCIPcreateProb(scip, filename, NULL, NULL, NULL, NULL, NULL, NULL, NULL) );
