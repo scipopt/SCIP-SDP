@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   readwrite_test_fail.c
+/**@file   readerrors.c
  * @brief  unit test for checking error while reading MISDPs in SDPA format
  * @author Tim Schmidt
  * @author Frederic Matter
