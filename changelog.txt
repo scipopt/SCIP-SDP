@@ -14,6 +14,7 @@ features:
 - SCIPcreateConsSdp() and SCIPcreateConsSdpRank1() allow to remove duplicates in matrices
 - The data structures in sdpi.c have been restructured to reduce reallocation. This reduces the memory footprint
   produced by empty blocks in memory.
+- prop_sdpredcost has been revised, avoiding numerical troubles at several places
 
 parameters:
 - Rename parameter relaxing/SDP/tightenvb to relaxing/SDP/tightenrows.
