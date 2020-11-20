@@ -687,10 +687,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_Real elapsedtime;
    MSKsolstae solstat;
 #ifdef SCIP_MORE_DEBUG
-   int nmosekconss;
-   int nmosekvars;
-   int nmosekcones;
-   char varname[SCIP_MAXSTRLEN];
+   char name[SCIP_MAXSTRLEN];
 #endif
 #if CONVERT_ABSOLUTE_TOLERANCES
    SCIP_Real maxrhscoef; /* MOSEK uses a relative feasibility tolerance, the largest rhs-coefficient is needed for converting the absolute tolerance */
@@ -771,12 +768,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
 
 #ifdef SCIP_MORE_DEBUG
-   MOSEK_CALL( MSK_linkfunctotaskstream (sdpisolver->msktask, MSK_STREAM_LOG, NULL, printstr) ); /* output to console */
+   MOSEK_CALL( MSK_linkfunctotaskstream(sdpisolver->msktask, MSK_STREAM_LOG, NULL, printstr) ); /* output to console */
 #else
    /* if sdpinfo is true, redirect output to console */
    if ( sdpisolver->sdpinfo )
    {
-      MOSEK_CALL( MSK_linkfunctotaskstream (sdpisolver->msktask, MSK_STREAM_LOG, NULL, printstr) );/*lint !e641*/
+      MOSEK_CALL( MSK_linkfunctotaskstream(sdpisolver->msktask, MSK_STREAM_LOG, NULL, printstr) );/*lint !e641*/
    }
 #endif
 
@@ -1020,8 +1017,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          MOSEK_CALL( MSK_putcj(sdpisolver->msktask, i, - lprhs[vartolhsrhsmapper[i]]) );/*lint !e641, !e644*/
 #ifdef SCIP_MORE_DEBUG
          /* give the variable a meaningful name for debug output */
-         (void) SCIPsnprintf(varname, SCIP_MAXSTRLEN, "rhs-%d", vartorowmapper[i] - 1);
-         MOSEK_CALL( MSK_putvarname ( sdpisolver->msktask, i, varname) );
+         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "rhs#%d", vartorowmapper[i] - 1);
+         MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, i, name) );
 #endif
       }
       else /* left-hand side */
@@ -1030,8 +1027,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          MOSEK_CALL( MSK_putcj(sdpisolver->msktask, i, lplhs[vartolhsrhsmapper[i]]) );/*lint !e641*/
 #ifdef SCIP_MORE_DEBUG
          /* give the variable a meaningful name for debug output */
-         (void) SCIPsnprintf(varname, SCIP_MAXSTRLEN, "lhs-%d", -1 * vartorowmapper[i] - 1);
-         MOSEK_CALL( MSK_putvarname ( sdpisolver->msktask, i, varname) );
+         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lhs#%d", -1 * vartorowmapper[i] - 1);
+         MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, i, name) );
 #endif
       }
    }
@@ -1044,15 +1041,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       if ( sdpisolver->varboundpos[i] < 0 ) /* lower bound */
       {
          /* give the variable a meaningful name for debug output */
-         (void) SCIPsnprintf(varname, SCIP_MAXSTRLEN, "lb-%d", sdpisolver->mosektoinputmapper[-1 * sdpisolver->varboundpos[i] - 1]);
-         MOSEK_CALL( MSK_putvarname ( sdpisolver->msktask, nlpvars + i, varname) );
+         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lb#%d", sdpisolver->mosektoinputmapper[-1 * sdpisolver->varboundpos[i] - 1]);
+         MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, nlpvars + i, name) );
       }
       else /* upper bound */
       {
          assert( sdpisolver->varboundpos[i] > 0 ); /* we should not have value 0 so that we can clearly differentiate between positive and negative */
          /* give the variable a meaningful name for debug output */
-         (void) SCIPsnprintf(varname, SCIP_MAXSTRLEN, "ub-%d", sdpisolver->mosektoinputmapper[sdpisolver->varboundpos[i] - 1]);
-         MOSEK_CALL( MSK_putvarname ( sdpisolver->msktask, nlpvars + i, varname) );
+         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "ub#%d", sdpisolver->mosektoinputmapper[sdpisolver->varboundpos[i] - 1]);
+         MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, nlpvars + i, name) );
       }
 #endif
    }
@@ -1267,10 +1264,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, i, MSK_BK_FX, 0.0, 0.0) );/*lint !e641*/
       }
+
 #ifdef SCIP_MORE_DEBUG
-         /* give the constraint a meaningful name for debug output */
-         (void) SCIPsnprintf(varname, SCIP_MAXSTRLEN, "var-%d", sdpisolver->mosektoinputmapper[i]);
-         MOSEK_CALL( MSK_putconname ( sdpisolver->msktask, i, varname) );
+      /* give the constraint a meaningful name for debug output */
+      (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "var#%d", sdpisolver->mosektoinputmapper[i]);
+      MOSEK_CALL( MSK_putconname(sdpisolver->msktask, i, name) );
 #endif
    }
 
