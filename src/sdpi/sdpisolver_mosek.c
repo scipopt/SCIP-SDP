@@ -1283,6 +1283,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, sdpisolver->nactivevars, MSK_BK_FX, penaltyparam, penaltyparam) );/*lint !e641*/
       }
+#ifdef SCIP_MORE_DEBUG
+      /* give the constraint a meaningful name for debug output */
+      (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "penality");
+      MOSEK_CALL( MSK_putconname(sdpisolver->msktask, i, name) );
+#endif
    }
 
    /* write to file if asked to */
