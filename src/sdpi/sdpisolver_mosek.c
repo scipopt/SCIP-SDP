@@ -263,7 +263,7 @@ SCIP_Bool isFixed(
 /**@name Miscellaneous Methods */
 /**@{ */
 
-char name[SCIP_MAXSTRLEN];
+char solvername[SCIP_MAXSTRLEN];
 
 /** gets name and version (if available) of SDP-solver */
 const char* SCIPsdpiSolverGetSolverName(
@@ -291,21 +291,21 @@ const char* SCIPsdpiSolverGetSolverName(
       return "MOSEK";
 
 #ifndef NDEBUG
- #if MSK_VERSION_MAJOR < 9
-   snprintfreturn = SCIPsnprintf(name, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d.%d", majorver, minorver, build, revision);/*lint !e123*/
- #else
-   snprintfreturn = SCIPsnprintf(name, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d", majorver, minorver, revision);/*lint !e123*/
- #endif
+#if MSK_VERSION_MAJOR < 9
+   snprintfreturn = SCIPsnprintf(solvername, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d.%d", majorver, minorver, build, revision);/*lint !e123*/
+#else
+   snprintfreturn = SCIPsnprintf(solvername, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d", majorver, minorver, revision);/*lint !e123*/
+#endif
    assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
 #else
- #if MSK_VERSION_MAJOR < 9
-   (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d.%d", majorver, minorver, build, revision);
- #else
-   (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d", majorver, minorver, revision);
- #endif
+#if MSK_VERSION_MAJOR < 9
+   (void) SCIPsnprintf(solvername, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d.%d", majorver, minorver, build, revision);
+#else
+   (void) SCIPsnprintf(solvername, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d", majorver, minorver, revision);
+#endif
 #endif
 
-   return name;
+   return solvername;
 }
 
 /** gets description of SDP-solver (developer, webpage, ...) */
