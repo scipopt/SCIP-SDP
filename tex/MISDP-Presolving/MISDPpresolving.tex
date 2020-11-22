@@ -434,7 +434,8 @@ $f(\mu) = \lambda_{\min}(\mu\, A^k - A^0)$.
 The following is inspired by~\cite{Str16,HigSS16} and only stated here for completeness.
 
 \begin{lemma}
-  $f(\mu)$ is concave.
+  For any two symmetric matrices $A^k$, $A^0 \in \R^{n \times n}$, the function
+  $f(\mu) = \lambda_{\min}(\mu\, A^k - A^0)$ is concave.
 \end{lemma}
 
 \begin{proof}
@@ -445,9 +446,19 @@ The following is inspired by~\cite{Str16,HigSS16} and only stated here for compl
     & = \lambda_{\min}\big(\alpha (\mu_1\, A^k - A^0) + (1 - \alpha) (\mu_2\, A^k - A^0)\big)\\
     & \geq \lambda_{\min}\big(\alpha (\mu_1\, A^k - A^0)\big) + \lambda_{\min}\big((1 - \alpha) (\mu_2\, A^k - A^0)\big)\\
     & = \alpha\, \lambda_{\min}\big(\mu_1\, A^k - A^0\big) + (1 - \alpha)\, \lambda_{\min}\big(\mu_2\, A^k - A^0\big)\\
-    & = \alpha\, f(\mu_1) + (1 - \alpha)\, f(\mu_2),
+    & = \alpha\, f(\mu_1) + (1 - \alpha)\, f(\mu_2).
   \end{align*}
-  which shows the claim.
+  The inequality follows because for a symmetric matrix~$C \in \R^{n \times n}$:
+  \[
+    \lambda_{\min}(C) = \min_{\norm{x} = 1} x\T C x.
+  \]
+  Thus, for a symmetric matrix $D \in \R^{n \times n}$
+  \begin{align*}
+    \lambda_{\min}(C + D) & = \min_{\norm{x} = 1} x\T (C + D) x\\
+    & \geq \min_{\norm{x} = 1} x\T C  x + \min_{\norm{x} = 1} x\T D x =
+    \lambda_{\min}(C) + \lambda_{\min}(D),
+  \end{align*}
+  which shows the inequality.
 \end{proof}
 
 \noindent
