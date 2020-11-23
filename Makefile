@@ -179,6 +179,7 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/heur_sdpfracdiving.o \
 			scipsdp/heur_sdprand.o \
 			scipsdp/reader_cbf.o \
+			scipsdp/reader_sdpa.o \
 			scipsdp/prop_sdpobbt.o \
 			scipsdp/prop_companalcent.o \
 			scipsdp/table_relaxsdp.o \
@@ -189,9 +190,7 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			sdpi/lapack_interface.o \
 			scipsdpgithash.o
 
-SCIPSDPCCOBJ 	=	scipsdp/objreader_sdpa.o \
-			scipsdp/objreader_sdpaind.o \
-			scipsdp/scipsdpdefplugins.o \
+SCIPSDPCCOBJ 	=	scipsdp/scipsdpdefplugins.o \
 			scipsdp/ScipStreamBuffer.o
 
 SCIPSDPCSRC	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCOBJ:.o=.c))
