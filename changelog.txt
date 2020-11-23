@@ -12,6 +12,7 @@ features:
   This has been extended by a full coefficient tightening procedure.
 - Use lexicographic sorting to sort matrix entries
 - SCIPcreateConsSdp() and SCIPcreateConsSdpRank1() allow to remove duplicates in matrices
+- prop_sdpredcost has been revised, avoiding numerical troubles at several places
 - The SDPA reader has been rewritten in C.
 - The SDPA reader supports a new optional section '*RANK1' that allows to specifiy rank-1-constraints. See 'sdpa-format.txt' for a description.
 
