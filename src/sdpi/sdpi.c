@@ -460,7 +460,7 @@ SCIP_RETCODE ensureSDPDataMemory(
 /** Computes the constant matrix after all variables with lb=ub have been fixed and their nonzeros were moved to the constant matrix.
  *
  *  The size of sdpconstnblocknonz and the first pointers of sdpconst row/col/val should be equal to sdpi->nsdpblocks,
- *  the size of sdpconst row/col/val [i], which is given in sdpconstblocknnonz, needs to be sufficient, otherwise the
+ *  the size of sdpconst row/col/val [i], which is given in sdpconstnblocknonz, needs to be sufficient, otherwise the
  *  needed length will be returned in sdpconstnblocknonz and a debug message will be thrown.
  */
 static
@@ -641,7 +641,7 @@ SCIP_RETCODE findEmptyRowColsSDP(
          if ( indchanges[b][i] == -1 )
          {
             SCIPdebugMessage("empty row and col %d were removed from block %d of SDP %d.\n", i, b, sdpi->sdpid);
-            /* this index wasn't found (indchanges was initialized with 0), so it can be removed */
+            /* this index wasn't found (indchanges was initialized with -1), so it can be removed */
             ++nremovedinds[b];
          }
          else
@@ -1745,7 +1745,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
                                               *   in the i-th block */
    int***                sdprow,             /**< pointer to the row-indices for each block and variable in this block, so row[i][j][k] gives
                                               *   the k-th nonzero of the j-th variable (not necessarly variable j) in the i-th block
-                                              *   (may be NULL if sdptnnonz = 0)*/
+                                              *   (may be NULL if sdpnnonz = 0)*/
    int***                sdpcol,             /**< pointer to the column-indices for each block and variable in this block (may be NULL if sdpnnonz = 0)*/
    SCIP_Real***          sdpval,             /**< pointer to the values of the nonzeros for each block and variable in this
                                               *   block (may be NULL if sdpnnonz = 0)*/
@@ -2053,7 +2053,7 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
       }
    }
 
-   if ( firstrowind > -1 ) /* if this is still 0 there are no nonzeroes for the given rows */
+   if ( firstrowind > -1 ) /* if this is still -1 there are no nonzeroes for the given rows */
    {
       /* now find the last occurence of one of the rows (as these are sorted all in between also belong to deleted rows and will be removed) */
       while (i < sdpi->lpnnonz && sdpi->lprow[i] <= lastrow)
@@ -2156,8 +2156,6 @@ SCIP_RETCODE SCIPsdpiClear(
 
    sdpi->nsdpblocks = 0;
    sdpi->nvars = 0;
-
-   /* we reset all counters */
    sdpi->sdpid = 1;
    SCIP_CALL( SCIPsdpiSolverResetCounter(sdpi->sdpisolver) );
 
