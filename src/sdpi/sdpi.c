@@ -2149,8 +2149,10 @@ SCIP_RETCODE SCIPsdpiClear(
          sdpi->sdpnblockvarnonz[b][v] = 0;
       sdpi->sdpnblockvars[b] = 0;
       sdpi->sdpconstnblocknonz[b] = 0;
+      sdpi->sdpblocksizes[b] = 0;
    }
    sdpi->sdpconstnnonz = 0;
+   sdpi->sdpnnonz = 0;
 
    sdpi->nsdpblocks = 0;
    sdpi->nvars = 0;
