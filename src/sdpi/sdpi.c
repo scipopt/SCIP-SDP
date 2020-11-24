@@ -509,9 +509,7 @@ SCIP_RETCODE compConstMatAfterFixings(
             {
                fixedrows[nfixednonz] = sdpi->sdprow[b][v][i];
                fixedcols[nfixednonz] = sdpi->sdpcol[b][v][i];
-               /* this is the final value to add, so we no longer have to remember, from which variable this nonzero comes,
-                * the -1 comes from +y_iA_i but -A_0 */
-               fixedvals[nfixednonz] = - sdpi->sdpval[b][v][i] * sdpi->lb[varidx];
+               fixedvals[nfixednonz] = - sdpi->sdpval[b][v][i] * sdpi->lb[varidx]; /* the -1 comes from +y_i A_i but -A_0 */
                ++nfixednonz;
             }
          }
