@@ -115,7 +115,7 @@
 #define DEFAULT_ONLYFIXEDINTSSDP  FALSE /**< Should solving an SDP only be applied if all integral variables are fixed (instead of having integral values)? */
 #define DEFAULT_ADDSOCRELAX       FALSE /**< Should a relaxation of SOC constraints be added */
 #define DEFAULT_USEDIMACSFEASTOL  FALSE /**< Should a feasibility tolerance based on the DIMACS be used for computing negative eigenvalues? */
-#define DEFAULT_GENERATEROWS      FALSE /**< Should rows be generated (constraints otherwise)? */
+#define DEFAULT_GENERATEROWS       TRUE /**< Should rows be generated (constraints otherwise)? */
 
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
