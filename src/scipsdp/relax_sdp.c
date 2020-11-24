@@ -125,7 +125,7 @@ struct SCIP_RelaxData
    SCIP_Real             lambdastar;         /**< the parameter lambda star used by SDPA to set the initial point */
    int                   npenaltyincr;       /**< maximum number of times the penalty parameter will be increased if penalty formulation failed */
    SCIP_Real             peninfeasadjust;    /**< gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation */
-   int                   slatercheck;        /**< Should the Slater condition for the dual problem be check ahead of solving every SDP ? */
+   int                   slatercheck;        /**< Should the Slater condition for the dual problem be checked ahead of solving every SDP ? */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             displaystat;        /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
    SCIP_Bool             objlimit;           /**< Should an objective limit be given to the SDP solver? */
@@ -1186,7 +1186,7 @@ SCIP_RETCODE putLpDataInInterface(
    SCIPfreeBufferArray(scip, &rhs);
    SCIPfreeBufferArray(scip, &lhs);
 
-   /* update bounds */
+   /* update bounds and objective coefficients of variables in the sdpi */
 
    /* get the variables */
    vars = SCIPgetVars(scip);

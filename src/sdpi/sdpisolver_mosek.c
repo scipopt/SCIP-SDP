@@ -788,7 +788,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if ( penaltyparam < sdpisolver->epsilon )
       SCIPdebugMessage("Inserting Data into MOSEK for SDP (%d) \n", ++sdpisolver->sdpcounter);
    else
-      SCIPdebugMessage("Inserting Data again into MOSEK for SDP (%d) \n", sdpisolver->sdpcounter);
+      SCIPdebugMessage("Inserting Data again into MOSEK for penalty formulation of SDP (%d) \n", sdpisolver->sdpcounter);
 
    /* set the penalty and rbound flags accordingly */
    sdpisolver->penalty = (penaltyparam < sdpisolver->epsilon) ? FALSE : TRUE;
