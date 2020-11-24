@@ -67,6 +67,7 @@
 #include "scip/cons_linear.h"           /* for SCIPcreateConsLinear */
 #include "scip/cons_quadratic.h"        /* for SCIPcreateConsBasicQuadratic */
 #include "scip/cons_soc.h"              /* for SCIPcreateConsSOC */
+#include "scip/cons_linear.h"           /* for separateSol() */
 #include "scip/scip_cons.h"             /* for SCIPgetConsVars */
 #include "scip/scip.h"                  /* for SCIPallocBufferArray, etc */
 #include "scip/def.h"
@@ -114,6 +115,8 @@
 #define DEFAULT_ONLYFIXEDINTSSDP  FALSE /**< Should solving an SDP only be applied if all integral variables are fixed (instead of having integral values)? */
 #define DEFAULT_ADDSOCRELAX       FALSE /**< Should a relaxation of SOC constraints be added */
 #define DEFAULT_USEDIMACSFEASTOL  FALSE /**< Should a feasibility tolerance based on the DIMACS be used for computing negative eigenvalues? */
+#define DEFAULT_GENERATEROWS      FALSE /**< Should rows be generated (constraints otherwise)? */
+
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
 #endif
@@ -163,6 +166,7 @@ struct SCIP_ConshdlrData
    int                   maxnvarsquadupgd;   /**< maximal number of quadratic constraints and appearing variables so that the QUADCONSUPGD is performed */
    SCIP_Bool             triedlinearconss;   /**< Have we tried to add linear constraints? */
    SCIP_Bool             rank1approxheur;    /**< Should the heuristic that computes the best rank-1 approximation for a given solution be executed? */
+   SCIP_Bool             generaterows;       /**< Should rows be generated (constraints otherwise)? */
 #ifdef OMP
    int                   nthreads;           /**< number of threads used for OpenBLAS */
 #endif
@@ -568,13 +572,12 @@ SCIP_RETCODE sparsifyCut(
    SCIP_Real*            vector,             /**< temporary workspace (length blocksize) */
    SCIP_VAR**            vars,               /**< temporary workspace */
    SCIP_Real*            vals,               /**< temporary workspace */
-   SCIP_Bool*            infeasible,         /**< pointer to store whether cut proved infeasibility */
-   SCIP_Bool*            success             /**< pointer to store whether we produced a sparsified cut */
+   SCIP_Bool*            success,            /**< pointer to store whether we have produced a cut/constraint */ 
+   SCIP_RESULT*          result              /**< pointer to store the result of the separation call */
    )
 {
    char cutname[SCIP_MAXSTRLEN];
    SCIP_CONSHDLRDATA* conshdlrdata;
-   SCIP_ROW* row;
    SCIP_Real* ev;
    SCIP_Real norm = 0.0;
    SCIP_Real lhs = 0.0;
@@ -590,6 +593,8 @@ SCIP_RETCODE sparsifyCut(
    assert( eigenvector != NULL );
    assert( vector != NULL );
    assert( success != NULL );
+   assert( result != NULL );
+   assert( *result != SCIP_CUTOFF );
 
    *success = FALSE;
 
@@ -648,30 +653,55 @@ SCIP_RETCODE sparsifyCut(
    }
 
    (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
-#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
-   SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
-#else
-   SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
-#endif
-
-   SCIP_CALL( SCIPaddVarsToRow(scip, row, cnt, vars, vals) );
-
-   /* if we are enforcing, we take any of the cuts, otherwise only efficacious cuts */
-   if ( SCIPisCutEfficacious(scip, sol, row) )
+   if ( conshdlrdata->generaterows )
    {
-#ifdef SCIP_MORE_DEBUG
-      SCIP_CALL( SCIPprintRow(scip, row, NULL) );
-#endif
-      SCIP_CALL( SCIPaddRow(scip, row, FALSE, infeasible) );
-      SCIP_CALL( SCIPresetConsAge(scip, cons) );
-      *success = TRUE;
+      SCIP_Bool infeasible;
+      SCIP_ROW* row;
 
-      if ( conshdlrdata->cutstopool )
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
+      SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
+#else
+      SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
+#endif
+
+      SCIP_CALL( SCIPaddVarsToRow(scip, row, cnt, vars, vals) );
+
+      /* if we are enforcing, we take any of the cuts, otherwise only efficacious cuts */
+      if ( SCIPisCutEfficacious(scip, sol, row) )
       {
-         SCIP_CALL( SCIPaddPoolCut(scip, row) );
+#ifdef SCIP_MORE_DEBUG
+         SCIP_CALL( SCIPprintRow(scip, row, NULL) );
+#endif
+         SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
+         SCIP_CALL( SCIPresetConsAge(scip, cons) );
+
+         if ( conshdlrdata->cutstopool )
+         {
+            SCIP_CALL( SCIPaddPoolCut(scip, row) );
+         }
+
+         assert( *result != SCIP_CONSADDED );
+         if ( infeasible )
+            *result = SCIP_CUTOFF;
+         else
+            *result = SCIP_SEPARATED;
+         *success = TRUE;
       }
+      SCIP_CALL( SCIPreleaseRow(scip, &row) );
    }
-   SCIP_CALL( SCIPreleaseRow(scip, &row) );
+   else
+   {
+      SCIP_CONS* newcons;
+
+      SCIP_CALL( SCIPcreateConsLinear(scip, &newcons, cutname, cnt, vars, vals, lhs, SCIPinfinity(scip),
+            TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE) );
+      SCIP_CALL( SCIPaddCons(scip, newcons) );
+      SCIP_CALL( SCIPreleaseCons(scip, &newcons) );
+
+      assert( *result != SCIP_SEPARATED );
+      *result = SCIP_CONSADDED;
+      *success = TRUE;
+   }
 
    SCIPfreeBufferArray(scip, &ev);
    SCIPfreeBufferArray(scip, &idx);
@@ -693,7 +723,6 @@ SCIP_RETCODE separateSol(
    char cutname[SCIP_MAXSTRLEN];
    SCIP_CONSDATA* consdata;
    SCIP_CONSHDLRDATA* conshdlrdata;
-   SCIP_ROW* row;
    SCIP_VAR** vars;
    SCIP_Real* vals;
    SCIP_Real* eigenvectors;
@@ -787,7 +816,6 @@ SCIP_RETCODE separateSol(
       SCIP_Real* eigenvector;
       SCIP_Real lhs = 0.0;
       SCIP_Bool success;
-      SCIP_Bool infeasible = FALSE;
       int cnt = 0;
 
       /* get pointer to current eigenvector */
@@ -796,19 +824,10 @@ SCIP_RETCODE separateSol(
       /* if we want to sparsify the cut */
       if ( ! enforce && conshdlrdata->sparsifycut )
       {
-         SCIP_CALL( sparsifyCut(scip, conshdlr, cons, consdata, sol, blocksize, fullconstmatrix, eigenvector, vector, vars, vals, &infeasible, &success) );
-
-         if ( infeasible )
-         {
-            *result = SCIP_CUTOFF;
-            continue;
-         }
+         SCIP_CALL( sparsifyCut(scip, conshdlr, cons, consdata, sol, blocksize, fullconstmatrix, eigenvector, vector, vars, vals, &success, result) );
 
          if ( success )
-         {
-            *result = SCIP_SEPARATED;
             continue;
-         }
       }
       else
       {
@@ -841,35 +860,52 @@ SCIP_RETCODE separateSol(
       }
 
       (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
-#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
-      SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
-#else
-      SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
-#endif
-
-      SCIP_CALL( SCIPaddVarsToRow(scip, row, cnt, vars, vals) );
-
-      /* if we are enforcing, we take any of the cuts, otherwise only efficacious cuts */
-      if ( enforce || SCIPisCutEfficacious(scip, sol, row) )
+      if ( conshdlrdata->generaterows )
       {
-#ifdef SCIP_MORE_DEBUG
-         SCIP_CALL( SCIPprintRow(scip, row, NULL) );
-#endif
-         SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
-         if ( infeasible )
-            *result = SCIP_CUTOFF;
-         else
-            *result = SCIP_SEPARATED;
-         SCIP_CALL( SCIPresetConsAge(scip, cons) );
+         SCIP_Bool infeasible;
+         SCIP_ROW* row;
 
-         if ( conshdlrdata->cutstopool )
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
+         SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
+#else
+         SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
+#endif
+
+         SCIP_CALL( SCIPaddVarsToRow(scip, row, cnt, vars, vals) );
+
+         /* if we are enforcing, we take any of the cuts, otherwise only efficacious cuts */
+         if ( enforce || SCIPisCutEfficacious(scip, sol, row) )
          {
-            SCIP_CALL( SCIPaddPoolCut(scip, row) );
+#ifdef SCIP_MORE_DEBUG
+            SCIP_CALL( SCIPprintRow(scip, row, NULL) );
+#endif
+            SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
+            if ( infeasible )
+               *result = SCIP_CUTOFF;
+            else
+               *result = SCIP_SEPARATED;
+            SCIP_CALL( SCIPresetConsAge(scip, cons) );
+
+            if ( conshdlrdata->cutstopool )
+            {
+               SCIP_CALL( SCIPaddPoolCut(scip, row) );
+            }
+            ++ngen;
          }
+
+         SCIP_CALL( SCIPreleaseRow(scip, &row) );
+      }
+      else
+      {
+         SCIP_CONS* newcons;
+
+         SCIP_CALL( SCIPcreateConsLinear(scip, &newcons, cutname, cnt, vars, vals, lhs, SCIPinfinity(scip),
+               TRUE, TRUE, enforce, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE) );
+         SCIP_CALL( SCIPaddCons(scip, newcons) );
+         SCIP_CALL( SCIPreleaseCons(scip, &newcons) );
+         *result = SCIP_CONSADDED;
          ++ngen;
       }
-
-      SCIP_CALL( SCIPreleaseRow(scip, &row) );
    }
    SCIPdebugMsg(scip, "<%s>: Separated cuts = %d.\n", SCIPconsGetName(cons), ngen);
 
@@ -4220,7 +4256,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
    {
       SCIP_CALL( separateSol(scip, conshdlr, conss[c], NULL, TRUE, result) );
    }
-   assert( *result == SCIP_FEASIBLE || *result == SCIP_CUTOFF || *result == SCIP_SEPARATED );
+   assert( *result == SCIP_FEASIBLE || *result == SCIP_CUTOFF || *result == SCIP_SEPARATED || *result == SCIP_CONSADDED );
 
    /* Below, we enforce integral solutions. If the LP is unbounded, this might not be guaranteed due to the integrality
     * constraint handler. In this case, we exit. The same happens if no relaxation is available or if we reached a cutoff. */
@@ -4228,7 +4264,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
       return SCIP_OKAY;
 
    /* if all integer variables have integral values, then possibly solve SDP in addtion to separation */
-   if ( conshdlrdata->enforcesdp && *result == SCIP_SEPARATED )
+   if ( conshdlrdata->enforcesdp && (*result == SCIP_SEPARATED || *result == SCIP_CONSADDED) )
    {
       SCIP_Bool cutoff;
       SCIP_VAR** vars;
@@ -5158,6 +5194,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/usedimacsfeastol",
          "Should a feasibility tolerance based on the DIMACS be used for computing negative eigenvalues?",
          &(conshdlrdata->usedimacsfeastol), TRUE, DEFAULT_USEDIMACSFEASTOL, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/generaterows",
+         "Should rows be generated (constraints otherwise)?",
+         &(conshdlrdata->generaterows), TRUE, DEFAULT_GENERATEROWS, NULL, NULL) );
 
    return SCIP_OKAY;
 }
