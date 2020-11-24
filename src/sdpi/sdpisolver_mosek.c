@@ -1290,31 +1290,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
    }
 
-   /* write to file if asked to */
-#ifdef SCIP_DEBUG_PRINTTOFILE
-   SCIP_CALL( SCIPsdpiSolverWriteSDP(sdpisolver, "mosek.task") );
-#endif
-
-   /* print whole problem and parameters if asked to */
-#ifdef SCIP_MORE_DEBUG
-#if MSK_VERSION_MAJOR < 9
-   {
-      int nmosekconss;
-      int nmosekvars;
-      int nmosekcones;
-
-      MOSEK_CALL( MSK_getnumcon (sdpisolver->msktask, &nmosekconss) );
-      MOSEK_CALL( MSK_getnumvar (sdpisolver->msktask, &nmosekvars) );
-      MOSEK_CALL( MSK_getnumcone (sdpisolver->msktask, &nmosekcones) );
-
-      MOSEK_CALL( MSK_printdata(sdpisolver->msktask, MSK_STREAM_LOG, 0, nmosekconss, 0, nmosekvars, 0, nmosekcones, 1, 1, 1, 1, 1, 1, 1, 1) );
-#ifdef SCIP_PRINT_PARAMETERS
-      MOSEK_CALL( MSK_printparam (sdpisolver->msktask) );
-   }
-#endif
-#endif
-#endif
-
    /* set the time limit */
    startseconds = (SCIP_Real) starttime.tv_sec + (SCIP_Real) starttime.tv_usec / 1e6;
 
@@ -1358,6 +1333,31 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_UPPER_OBJ_CUT, sdpisolver->objlimit) );/*lint !e641*/
       }
+
+      /* write to file if asked to */
+#ifdef SCIP_DEBUG_PRINTTOFILE
+      SCIP_CALL( SCIPsdpiSolverWriteSDP(sdpisolver, "mosek.task") );
+#endif
+
+      /* print whole problem (only for MOSEK < 9) and parameters if asked to */
+#ifdef SCIP_MORE_DEBUG
+#if MSK_VERSION_MAJOR < 9
+      {
+         int nmosekconss;
+         int nmosekvars;
+         int nmosekcones;
+
+         MOSEK_CALL( MSK_getnumcon (sdpisolver->msktask, &nmosekconss) );
+         MOSEK_CALL( MSK_getnumvar (sdpisolver->msktask, &nmosekvars) );
+         MOSEK_CALL( MSK_getnumcone (sdpisolver->msktask, &nmosekcones) );
+
+         MOSEK_CALL( MSK_printdata(sdpisolver->msktask, MSK_STREAM_LOG, 0, nmosekconss, 0, nmosekvars, 0, nmosekcones, 1, 1, 1, 1, 1, 1, 1, 1) );
+      }
+#endif
+#ifdef SCIP_PRINT_PARAMETERS
+      MOSEK_CALL( MSK_printparam (sdpisolver->msktask) );
+#endif
+#endif
 
       /* solve the problem */
       MOSEK_CALL( MSK_optimizetrm(sdpisolver->msktask, &(sdpisolver->terminationcode)) );/*lint !e641*/
