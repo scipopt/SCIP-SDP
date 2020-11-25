@@ -683,6 +683,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
 {
    SCIP_Real rowconst = 0.0;
    int nrownonz = 0;
+   int nonzind = -1;
    int currentrow;
    int i;
 
@@ -707,7 +708,10 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
 
       /* count number of contained active variables */
       if ( ! isFixed(sdpi, sdpi->lpcol[i]) )
+      {
          ++nrownonz;
+         nonzind = i;
+      }
       else
          rowconst += sdpi->lpval[i] * sdpi->lb[sdpi->lpcol[i]];  /* contribution of the fixed variables */
       assert( ! SCIPsdpiIsInfinity(sdpi, rowconst) );
@@ -744,11 +748,13 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
             SCIP_Real ub;
             int lpcol;
 
+            assert( 0 <= nonzind && nonzind < sdpi->lpnnonz );
+
             /* check whether the row leads to an improvement in the variables bounds */
-            lpcol = sdpi->lpcol[i];
+            lpcol = sdpi->lpcol[nonzind];
             assert( 0 <= lpcol && lpcol < sdpi->nvars );
 
-            lpval = sdpi->lpval[i];
+            lpval = sdpi->lpval[nonzind];
             assert( REALABS(lpval) > sdpi->epsilon );
 
             /* compute new lower and upper bounds */
@@ -825,6 +831,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
 
          /* reset variables for next row */
          rowconst = 0.0;
+         nrownonz = 0;
          if ( i < sdpi->lpnnonz )
             currentrow = sdpi->lprow[i+1];
       }
