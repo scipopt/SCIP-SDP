@@ -2851,9 +2851,6 @@ SCIP_RETCODE SCIPsdpiSolve(
       BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[b]), maxsdpconstnblocknonz[b]);/*lint !e737*/
       BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[b]), maxsdpconstnblocknonz[b]);/*lint !e737*/
    }
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &rowsnactivevars, sdpi->nlpcons);/*lint !e737*/
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &lprhsafterfix, sdpi->nlpcons);/*lint !e737*/
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &lplhsafterfix, sdpi->nlpcons);/*lint !e737*/
    BMSfreeBlockMemoryArray(sdpi->blkmem, &blockindchanges, sdpi->nsdpblocks);/*lint !e737*/
    BMSfreeBlockMemoryArray(sdpi->blkmem, &nremovedinds, sdpi->nsdpblocks);/*lint !e737*/
    BMSfreeBlockMemoryArray(sdpi->blkmem, &indchanges, sdpi->nsdpblocks);/*lint !e737*/
@@ -2862,6 +2859,9 @@ SCIP_RETCODE SCIPsdpiSolve(
    BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstrow, sdpi->nsdpblocks);/*lint !e737*/
    BMSfreeBlockMemoryArray(sdpi->blkmem, &maxsdpconstnblocknonz, sdpi->nsdpblocks);/*lint !e737*/
    BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstnblocknonz, sdpi->nsdpblocks);/*lint !e737*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &rowsnactivevars, sdpi->nlpcons);/*lint !e737*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &lprhsafterfix, sdpi->nlpcons);/*lint !e737*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &lplhsafterfix, sdpi->nlpcons);/*lint !e737*/
 
    sdpi->sdpid++;
 
