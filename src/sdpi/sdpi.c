@@ -787,7 +787,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
             if ( lb > sdpi->lb[lpcol] + sdpi->epsilon )
             {
                /* this bound is stronger than the original one */
-               SCIPdebugMessage("Empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been strenghened to %g "
+               SCIPdebugMessage("Empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been strenghened to %g "
                   "(originally %g)\n", currentrow, sdpi->sdpid, lpcol, lb, sdpi->lb[lpcol]);
                sdpi->lb[lpcol] = lb;
             }
