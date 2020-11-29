@@ -1067,7 +1067,7 @@ SCIP_RETCODE putLpDataInInterface(
    assert( relaxdata != NULL );
 
    nvars = SCIPgetNVars(scip);
-   assert( nvars > 0 );
+   assert( nvars >= 0 );
 
    SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
 
@@ -1281,7 +1281,7 @@ SCIP_RETCODE calcRelax(
    assert( relaxdata != NULL );
 
    nvars = SCIPgetNVars(scip);
-   assert( nvars > 0 );
+   assert( nvars >= 0 );
    vars = SCIPgetVars (scip);
 
    sdpi = relaxdata->sdpi;
