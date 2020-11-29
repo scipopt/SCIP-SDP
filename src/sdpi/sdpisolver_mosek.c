@@ -1486,15 +1486,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       *feasorig = (moseksol[sdpisolver->nactivevars] < sdpisolver->feastol); /*lint !e413*/
 
-      /* only set sdpisolver->feasorig to true if we solved with objective, because only in this case we want to compute
-       * the objective value by hand since it is numerically more stable then the result returned by MOSEK */
+      /* Only set sdpisolver->feasorig to true if we solved with objective, because only in this case we want to compute
+       * the objective value by hand, since it is numerically more stable than the result returned by MOSEK. */
       if ( withobj )
          sdpisolver->feasorig = *feasorig;
 
       /* if r > 0 also check the primal bound */
       if ( ! *feasorig && penaltybound != NULL )
       {
-
          SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", moseksol[sdpisolver->nactivevars]);
 
          /* compute Tr(X) */
@@ -1509,7 +1508,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
                size = sdpblocksizes[b] - nremovedinds[b];
 
-               BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &X, 0.5 * size * (size + 1)) );
+               BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &X, size * (size + 1)/2) );
                MOSEK_CALL( MSK_getbarxj(sdpisolver->msktask, MSK_SOL_ITR, b - blockindchanges[b], X) );/*lint !e641*/
 
                /* iterate over all diagonal entries */
@@ -1517,7 +1516,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                {
                   /* get index in the lower triangular part */
                   ind = i * (i + 3) / 2;/*lint !e776*/ /*  i*(i+1)/2 + i  */
-                  assert( ind < 0.5 * size * (size + 1) );
+                  assert( ind < size * (size + 1)/2 );
                   trace += X[ind];
                }
 
@@ -1536,9 +1535,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &x);
 
          /* if the relative gap is smaller than the tolerance, we return equality */
+         assert( penaltybound != NULL );
          if ( (penaltyparam - trace) / penaltyparam < PENALTYBOUNDTOL )/*lint !e414*/
          {
-            assert( penaltybound != NULL );
             *penaltybound = TRUE;
             SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible\n",
                trace, penaltyparam);
