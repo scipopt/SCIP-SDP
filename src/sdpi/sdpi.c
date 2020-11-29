@@ -2535,6 +2535,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    sdpi->bestbound = -SCIPsdpiSolverInfinity(sdpi->sdpisolver);
    sdpi->solved = FALSE;
    sdpi->infeasible = FALSE;
+   sdpi->allfixed = FALSE;
    sdpi->nsdpcalls = 0;
    sdpi->niterations = 0;
    sdpi->opttime = 0.0;
@@ -3522,7 +3523,8 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    SCIP_Real*            lbvars,             /**< pointer to store the values of the variables corresponding to lower bounds in the dual problems */
    SCIP_Real*            ubvars,             /**< pointer to store the values of the variables corresponding to upper bounds in the dual problems */
    int*                  arraylength         /**< input: length of lbvars and ubvars<br>
-                                              *   output: number of elements inserted into lbvars/ubvars (or needed length if it was not sufficient) */
+                                              *   output: number of elements inserted into lbvars/ubvars (or needed length if it was not sufficient,
+                                              *           -1 if infeasible or all variables are fixed) */
    )
 {
    assert( sdpi != NULL );
@@ -3536,11 +3538,13 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Problem was found infeasible during preprocessing, no primal variables available.\n");
+      *arraylength = -1;
       return SCIP_OKAY;
    }
    else if ( sdpi->allfixed )
    {
       SCIPdebugMessage("All variables fixed during preprocessing, no primal variables available.\n");
+      *arraylength = -1;
       return SCIP_OKAY;
    }
 

@@ -624,7 +624,8 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    SCIP_Real*            lbvars,             /**< pointer to store the optimal values of the variables corresponding to lower bounds in the dual problems */
    SCIP_Real*            ubvars,             /**< pointer to store the optimal values of the variables corresponding to upper bounds in the dual problems */
    int*                  arraylength         /**< input: length of lbvars and ubvars<br>
-                                              *   output: number of elements inserted into lbvars/ubvars (or needed length if it was not sufficient) */
+                                              *   output: number of elements inserted into lbvars/ubvars (or needed length if it was not sufficient,
+                                              *           -1 if infeasible or all variables are fixed) */
    );
 
 /** return number of nonzeros for each block of the primal solution matrix X */
