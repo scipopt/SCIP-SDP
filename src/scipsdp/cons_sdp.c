@@ -4329,25 +4329,30 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
                else
                {
                   SCIP_SOL* enfosol;
-                  SCIP_Bool success;
+                  SCIP_Bool feasible;
 
                   /* if we are feasible, we check whether the solution is valid */
                   SCIP_CALL( SCIPcreateSol(scip, &enfosol, NULL) );
                   SCIP_CALL( SCIPlinkRelaxSol(scip, enfosol) );
 
-                  /* Pass solution to SCIP: check all constraints, including integrality. Since there is an integral
-                   * constraint handler, integrality gets checked as well, so we don't need to do this manually. */
-                  SCIP_CALL( SCIPtrySol(scip, enfosol, FALSE, TRUE, TRUE, TRUE, TRUE, &success) );
+                  /* check all constraints, including integrality. Since there is an integral constraint handler,
+                   * integrality gets checked as well, so we don't need to do this manually. */
+                  SCIP_CALL( SCIPcheckSol(scip, enfosol, FALSE, TRUE, TRUE, TRUE, TRUE, &feasible) );
 
-                  if ( success && nintvars == nfixed )
+                  if ( feasible )
                   {
-                     /* SCIP knows the solution, so we can cut off the node */
-                     *result = SCIP_CUTOFF;
+                     if ( nintvars == nfixed )
+                     {
+                        SCIP_Bool stored;
+
+                        /* pass solution to SCIP, so we can cut off the node */
+                        SCIP_CALL( SCIPaddSol(scip, enfosol, &stored) );
+                        *result = SCIP_CUTOFF;
+                     }
                   }
-
-                  /* if we do not obtain a feasible solution, we try to round it */
-                  if ( nfixed < nintvars )
+                  else if ( nfixed < nintvars )
                   {
+                     /* if we have not obtained a feasible solution, we try to round it */
                      assert( *result != SCIP_CUTOFF );
 
                      for (v = 0; v < nintvars; ++v)
@@ -4392,7 +4397,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
 
                            /* Pass solution to SCIP: check all constraints, including integrality. Since there is an integral
                             * constraint handler, integrality gets checked as well, so we don't need to do this manually. */
-                           SCIP_CALL( SCIPtrySol(scip, enfosol, FALSE, TRUE, TRUE, TRUE, TRUE, &success) );
+                           SCIP_CALL( SCIPtrySol(scip, enfosol, FALSE, TRUE, TRUE, TRUE, TRUE, &feasible) );
                         }
                      }
                   }
