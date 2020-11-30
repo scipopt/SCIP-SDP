@@ -611,7 +611,7 @@ SCIP_RETCODE sparsifyCut(
    SCIPrandomPermuteIntArray(conshdlrdata->randnumgen, idx, 0, blocksize);
 
    /* compute target size */
-   size = MAX(10, (int) conshdlrdata->sparsifyfactor * consdata->nvars);
+   size = MAX(10, (int) conshdlrdata->sdpconshdlrdata->sparsifyfactor * consdata->nvars);
 
    /* take random subset of eigenvector - the remaining entries are 0 */
    SCIP_CALL( SCIPallocClearBufferArray(scip, &ev, blocksize) );
@@ -653,7 +653,7 @@ SCIP_RETCODE sparsifyCut(
    }
 
    (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
-   if ( conshdlrdata->generaterows )
+   if ( conshdlrdata->sdpconshdlrdata->generaterows )
    {
       SCIP_Bool infeasible;
       SCIP_ROW* row;
@@ -675,7 +675,7 @@ SCIP_RETCODE sparsifyCut(
          SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
          SCIP_CALL( SCIPresetConsAge(scip, cons) );
 
-         if ( conshdlrdata->cutstopool )
+         if ( conshdlrdata->sdpconshdlrdata->cutstopool )
          {
             SCIP_CALL( SCIPaddPoolCut(scip, row) );
          }
@@ -822,7 +822,7 @@ SCIP_RETCODE separateSol(
       eigenvector = &(eigenvectors[i * blocksize]);
 
       /* if we want to sparsify the cut */
-      if ( ! enforce && conshdlrdata->sparsifycut )
+      if ( ! enforce && conshdlrdata->sdpconshdlrdata->sparsifycut )
       {
          SCIP_CALL( sparsifyCut(scip, conshdlr, cons, consdata, sol, blocksize, fullconstmatrix, eigenvector, vector, vars, vals, &success, result) );
 
@@ -860,7 +860,7 @@ SCIP_RETCODE separateSol(
       }
 
       (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
-      if ( conshdlrdata->generaterows )
+      if ( conshdlrdata->sdpconshdlrdata->generaterows )
       {
          SCIP_Bool infeasible;
          SCIP_ROW* row;
@@ -886,7 +886,7 @@ SCIP_RETCODE separateSol(
                *result = SCIP_SEPARATED;
             SCIP_CALL( SCIPresetConsAge(scip, cons) );
 
-            if ( conshdlrdata->cutstopool )
+            if ( conshdlrdata->sdpconshdlrdata->cutstopool )
             {
                SCIP_CALL( SCIPaddPoolCut(scip, row) );
             }
@@ -3349,7 +3349,7 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
 
-   if ( conshdlrdata->sparsifycut && conshdlrdata->randnumgen == NULL )
+   if ( conshdlrdata->sdpconshdlrdata->sparsifycut && conshdlrdata->randnumgen == NULL )
    {
       SCIP_CALL( SCIPcreateRandom(scip, &conshdlrdata->randnumgen, 64293, FALSE) );
    }
@@ -3655,8 +3655,8 @@ SCIP_DECL_CONSTRANS(consTransSdp)
   conshdlrdata = SCIPconshdlrGetData(conshdlr);
 
 #ifdef OMP
-   SCIPdebugMsg(scip, "Setting number of threads to %d via OpenMP in Openblas.\n", conshdlrdata->nthreads);
-   omp_set_num_threads(conshdlrdata->nthreads);
+   SCIPdebugMsg(scip, "Setting number of threads to %d via OpenMP in Openblas.\n", conshdlrdata->sdpconshdlrdata->nthreads);
+   omp_set_num_threads(conshdlrdata->sdpconshdlrdata->nthreads);
 #endif
 
    SCIP_CALL( SCIPallocBlockMemory(scip, &targetdata) );
@@ -4264,7 +4264,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
       return SCIP_OKAY;
 
    /* if all integer variables have integral values, then possibly solve SDP in addtion to separation */
-   if ( conshdlrdata->enforcesdp && (*result == SCIP_SEPARATED || *result == SCIP_CONSADDED) )
+   if ( conshdlrdata->sdpconshdlrdata->enforcesdp && (*result == SCIP_SEPARATED || *result == SCIP_CONSADDED) )
    {
       SCIP_Bool cutoff;
       SCIP_VAR** vars;
@@ -4293,7 +4293,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
       }
 
       /* solve SPD if either all integer variables are fixed or if required */
-      if ( ! conshdlrdata->onlyfixedintssdp || nfixed == nintvars )
+      if ( ! conshdlrdata->sdpconshdlrdata->onlyfixedintssdp || nfixed == nintvars )
       {
          /* start probing */
          SCIP_CALL( SCIPstartProbing(scip) );
@@ -5080,9 +5080,6 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
 
    /* allocate memory for the conshdlrdata */
    SCIP_CALL( SCIPallocMemory(scip, &conshdlrdata) );
-   conshdlrdata->quadconsrank1 = FALSE;
-   conshdlrdata->upgradquadconss = FALSE;
-   conshdlrdata->upgradekeepquad = FALSE;
    conshdlrdata->quadconsidx = NULL;
    conshdlrdata->quadconsvars = NULL;
    conshdlrdata->nquadconsidx = 0;
@@ -5219,10 +5216,25 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    /* only use one parameter */
    conshdlrdata->diaggezerocuts = FALSE;
    conshdlrdata->diagzeroimplcuts = FALSE;
-   conshdlrdata->triedlinearconss = FALSE;
+   conshdlrdata->twominorlinconss = FALSE;
+   conshdlrdata->twominorprodconss = FALSE;
    conshdlrdata->quadconsrank1 = FALSE;
-   conshdlrdata->rank1approxheur = FALSE;
+   conshdlrdata->upgradquadconss = FALSE;
+   conshdlrdata->upgradekeepquad = FALSE;
+   conshdlrdata->separateonecut = FALSE;
+   conshdlrdata->cutstopool = FALSE;
+   conshdlrdata->sparsifycut = FALSE;
+   conshdlrdata->sparsifyfactor = SCIP_INVALID;
+   conshdlrdata->enforcesdp = FALSE;
+   conshdlrdata->onlyfixedintssdp = FALSE;
+   conshdlrdata->addsocrelax = FALSE;
    conshdlrdata->maxnvarsquadupgd = 0;
+   conshdlrdata->triedlinearconss = FALSE;
+   conshdlrdata->rank1approxheur = FALSE;
+   conshdlrdata->generaterows = FALSE;
+#ifdef OMP
+   conshdlrdata->nthreads = 0;
+#endif
    conshdlrdata->usedimacsfeastol = FALSE;
 
    /* parameters are retrieved through the SDP constraint handler */
