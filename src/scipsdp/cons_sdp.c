@@ -63,7 +63,6 @@
 #include "scipsdp/SdpVarmapper.h"
 #include "scipsdp/SdpVarfixer.h"
 
-#include "scip/heur_trysol.h"
 #include "scip/cons_linear.h"           /* for SCIPcreateConsLinear */
 #include "scip/cons_quadratic.h"        /* for SCIPcreateConsBasicQuadratic */
 #include "scip/cons_soc.h"              /* for SCIPcreateConsSOC */
@@ -180,7 +179,6 @@ struct SCIP_ConshdlrData
    SCIP_Bool             solvelp;            /**< Are LPs solved? */
    SCIP_RANDNUMGEN*      randnumgen;         /**< random number generator (for sparsifyCut) */
    SCIP_RELAX*           relaxsdp;           /**< SDP relaxator */
-   SCIP_HEUR*            heurtrysol;         /**< Trysol heuristic */
    SCIP_Bool             usedimacsfeastol;   /**< Should a feasibility tolerance based on the DIMACS be used for computing negative eigenvalues? */
    SCIP_Real             dimacsfeastol;      /**< feasibility tolerance for computing negative eigenvalues based on the DIMACS error */
 };
@@ -3359,7 +3357,6 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
    }
 
    conshdlrdata->relaxsdp = SCIPfindRelax(scip, "SDP");
-   conshdlrdata->heurtrysol = SCIPfindHeur(scip, "trysol");
 
    if ( SCIPgetSubscipDepth(scip) > 0 || ! conshdlrdata->sdpconshdlrdata->quadconsrank1 )
       return SCIP_OKAY;
@@ -4332,27 +4329,20 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
                else
                {
                   SCIP_SOL* enfosol;
-                  SCIP_Bool feasible;
+                  SCIP_Bool success;
 
                   /* if we are feasible, we check whether the solution is valid */
                   SCIP_CALL( SCIPcreateSol(scip, &enfosol, NULL) );
                   SCIP_CALL( SCIPlinkRelaxSol(scip, enfosol) );
 
-                  /* Check solution to SCIP: check all constraints, including integrality. Since there is an integral
-                   * constraint handler, integrality gets checked by SCIPcheckSol as well, so we don't need to do this
-                   * manually. */
-                  SCIP_CALL( SCIPcheckSol(scip, enfosol, FALSE, TRUE, TRUE, TRUE, TRUE, &feasible) );
+                  /* Pass solution to SCIP: check all constraints, including integrality. Since there is an integral
+                   * constraint handler, integrality gets checked as well, so we don't need to do this manually. */
+                  SCIP_CALL( SCIPtrySol(scip, enfosol, FALSE, TRUE, TRUE, TRUE, TRUE, &success) );
 
-                  if ( feasible )
+                  if ( success && nintvars == nfixed )
                   {
-                     /* tell trysol heuristic about solution */
-                     SCIP_CALL( SCIPheurPassSolTrySol(scip, conshdlrdata->heurtrysol, enfosol) );
-
-                     if ( nintvars == nfixed )
-                     {
-                        /* SCIP knows the solution, so we can cut off the node */
-                        *result = SCIP_CUTOFF;
-                     }
+                     /* SCIP knows the solution, so we can cut off the node */
+                     *result = SCIP_CUTOFF;
                   }
 
                   /* if we do not obtain a feasible solution, we try to round it */
@@ -4400,12 +4390,9 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
                            assert( enfosol != NULL );
                            SCIP_CALL( SCIPlinkRelaxSol(scip, enfosol) );
 
-                           /* Check solution to SCIP: check all constraints, including integrality */
-                           SCIP_CALL( SCIPcheckSol(scip, enfosol, FALSE, TRUE, TRUE, TRUE, TRUE, &feasible) );
-                           if ( feasible )
-                           {
-                              SCIP_CALL( SCIPheurPassSolTrySol(scip, conshdlrdata->heurtrysol, enfosol) );
-                           }
+                           /* Pass solution to SCIP: check all constraints, including integrality. Since there is an integral
+                            * constraint handler, integrality gets checked as well, so we don't need to do this manually. */
+                           SCIP_CALL( SCIPtrySol(scip, enfosol, FALSE, TRUE, TRUE, TRUE, TRUE, &success) );
                         }
                      }
                   }
@@ -5094,7 +5081,6 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    conshdlrdata->solvelp = FALSE;
    conshdlrdata->randnumgen = NULL;
    conshdlrdata->relaxsdp = NULL;
-   conshdlrdata->heurtrysol = NULL;
    conshdlrdata->sdpconshdlrdata = conshdlrdata;  /* set this to itself to simplify access of parameters */
    conshdlrdata->dimacsfeastol = SCIP_INVALID;
 
@@ -5260,7 +5246,6 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->solvelp = FALSE;
    conshdlrdata->randnumgen = NULL;
    conshdlrdata->relaxsdp = NULL;
-   conshdlrdata->heurtrysol = NULL;
    conshdlrdata->dimacsfeastol = SCIP_INVALID;
 
    /* include constraint handler */
