@@ -452,49 +452,37 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
    SCIP_Bool*            dualfeasible        /**< pointer to store the dual feasibility status */
    );
 
-/** returns TRUE iff SDP is proven to be primal unbounded;
- *  returns FALSE with a debug-message if the solver could not determine feasibility
- */
+/** returns TRUE iff SDP is proven to be primal unbounded */
 SCIP_EXPORT
 SCIP_Bool SCIPsdpiIsPrimalUnbounded(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    );
 
-/** returns TRUE iff SDP is proven to be primal infeasible;
- *  returns FALSE with a debug-message if the solver could not determine feasibility
- */
+/** returns TRUE iff SDP is proven to be primal infeasible */
 SCIP_EXPORT
 SCIP_Bool SCIPsdpiIsPrimalInfeasible(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    );
 
-/** returns TRUE iff SDP is proven to be primal feasible;
- *  returns FALSE with a debug-message if the solver could not determine feasibility
- */
+/** returns TRUE iff SDP is proven to be primal feasible */
 SCIP_EXPORT
 SCIP_Bool SCIPsdpiIsPrimalFeasible(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    );
 
-/** returns TRUE iff SDP is proven to be dual unbounded;
- *  returns FALSE with a debug-message if the solver could not determine feasibility
- */
+/** returns TRUE iff SDP is proven to be dual unbounded */
 SCIP_EXPORT
 SCIP_Bool SCIPsdpiIsDualUnbounded(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    );
 
-/** returns TRUE iff SDP is proven to be dual infeasible;
- *  returns FALSE with a debug-message if the solver could not determine feasibility
- */
+/** returns TRUE iff SDP is proven to be dual infeasible */
 SCIP_EXPORT
 SCIP_Bool SCIPsdpiIsDualInfeasible(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    );
 
-/** returns TRUE iff SDP is proven to be dual feasible;
- *  returns FALSE with a debug-message if the solver could not determine feasibility
- */
+/** returns TRUE iff SDP is proven to be dual feasible */
 SCIP_EXPORT
 SCIP_Bool SCIPsdpiIsDualFeasible(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */

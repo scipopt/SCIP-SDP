@@ -2928,13 +2928,15 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
 
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, primal feasibility not available\n");
+      /* infeasibility was detected while preparing problem */
+      *primalfeasible = FALSE;
       *dualfeasible = FALSE;
       return SCIP_OKAY;
    }
    else if ( sdpi->allfixed )
    {
-      SCIPdebugMessage("All variables were fixed during preprocessing, dual problem is feasible, primal feasibility not available\n");
+      /* all variables are fixed and problem is feasible */
+      *primalfeasible = TRUE;
       *dualfeasible = TRUE;
       return SCIP_OKAY;
    }
@@ -2944,9 +2946,7 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
    return SCIP_OKAY;
 }
 
-/** returns TRUE iff SDP is proven to be primal unbounded;
- *  returns FALSE with a debug-message if the solver could not determine feasibility
- */
+/** returns TRUE iff SDP is proven to be primal unbounded */
 SCIP_Bool SCIPsdpiIsPrimalUnbounded(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    )
@@ -2956,21 +2956,19 @@ SCIP_Bool SCIPsdpiIsPrimalUnbounded(
 
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, primal unboundedness not available\n");
+      /* infeasibility was detected while preparing problem */
       return FALSE;
    }
    else if ( sdpi->allfixed )
    {
-      SCIPdebugMessage("All variables were fixed during preprocessing, primal unboundedness not available\n");
+      /* all variables are fixed and problem is feasible */
       return FALSE;
    }
 
    return SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver);
 }
 
-/** returns TRUE iff SDP is proven to be primal infeasible;
- *  returns FALSE with a debug-message if the solver could not determine feasibility
- */
+/** returns TRUE iff SDP is proven to be primal infeasible */
 SCIP_Bool SCIPsdpiIsPrimalInfeasible(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    )
@@ -2980,21 +2978,19 @@ SCIP_Bool SCIPsdpiIsPrimalInfeasible(
 
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, primal feasibility not available\n");
-      return FALSE;
+      /* infeasibility was detected while preparing problem */
+      return TRUE;
    }
    else if ( sdpi->allfixed )
    {
-      SCIPdebugMessage("All variables were fixed during preprocessing, primal feasibility not available\n");
+      /* all variables are fixed and problem is feasible */
       return FALSE;
    }
 
    return SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver);
 }
 
-/** returns TRUE iff SDP is proven to be primal feasible;
- *  returns FALSE with a debug-message if the solver could not determine feasibility
- */
+/** returns TRUE iff SDP is proven to be primal feasible */
 SCIP_Bool SCIPsdpiIsPrimalFeasible(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    )
@@ -3004,21 +3000,19 @@ SCIP_Bool SCIPsdpiIsPrimalFeasible(
 
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, primal feasibility not available\n");
+      /* infeasibility was detected while preparing problem */
       return FALSE;
    }
    else if ( sdpi->allfixed )
    {
-      SCIPdebugMessage("All variables fixed during preprocessing, primal feasibility not available\n");
-      return FALSE;
+      /* all variables are fixed and problem is feasible */
+      return TRUE;
    }
 
    return SCIPsdpiSolverIsPrimalFeasible(sdpi->sdpisolver);
 }
 
-/** returns TRUE iff SDP is proven to be dual unbounded;
- *  returns FALSE with a debug-message if the solver could not determine feasibility
- */
+/** returns TRUE iff SDP is proven to be dual unbounded */
 SCIP_Bool SCIPsdpiIsDualUnbounded(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    )
@@ -3028,21 +3022,19 @@ SCIP_Bool SCIPsdpiIsDualUnbounded(
 
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, therefore is not unbounded\n");
+      /* infeasibility was detected while preparing problem */
       return FALSE;
    }
    else if ( sdpi->allfixed )
    {
-      SCIPdebugMessage("All variables were fixed during preprocessing, therefore the problem is not unbounded\n");
+      /* all variables are fixed and problem is feasible */
       return FALSE;
    }
 
    return SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver);
 }
 
-/** returns TRUE iff SDP is proven to be dual infeasible;
- *  returns FALSE with a debug-message if the solver could not determine feasibility
- */
+/** returns TRUE iff SDP is proven to be dual infeasible */
 SCIP_Bool SCIPsdpiIsDualInfeasible(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    )
@@ -3052,21 +3044,19 @@ SCIP_Bool SCIPsdpiIsDualInfeasible(
 
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing\n");
-      return TRUE;
+      /* infeasibility was detected while preparing problem */
+      return FALSE;
    }
    else if ( sdpi->allfixed )
    {
-      SCIPdebugMessage("All variables were fixed during preprocessing, solution is feasible\n");
+      /* all variables are fixed and problem is feasible */
       return FALSE;
    }
 
    return SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver);
 }
 
-/** returns TRUE iff SDP is proven to be dual feasible;
- *  returns FALSE with a debug-message if the solver could not determine feasibility
- */
+/** returns TRUE iff SDP is proven to be dual feasible */
 SCIP_Bool SCIPsdpiIsDualFeasible(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    )
@@ -3076,12 +3066,12 @@ SCIP_Bool SCIPsdpiIsDualFeasible(
 
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing\n");
+      /* infeasibility was detected while preparing problem */
       return FALSE;
    }
    else if ( sdpi->allfixed )
    {
-      SCIPdebugMessage("All variables fixed during preprocessing, solution is feasible\n");
+      /* all variables are fixed and problem is feasible */
       return TRUE;
    }
 
@@ -3098,12 +3088,12 @@ SCIP_Bool SCIPsdpiIsConverged(
 
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, this counts as converged.\n");
+      /* infeasibility was detected while preparing problem - this counts as converged */
       return TRUE;
    }
    else if ( sdpi->allfixed )
    {
-      SCIPdebugMessage("All variables were fixed during preprocessing, this counts as converged.\n");
+      /* all variables are fixed and problem is feasible - this counts as converged */
       return TRUE;
    }
 
@@ -3120,12 +3110,12 @@ SCIP_Bool SCIPsdpiIsObjlimExc(
 
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, no objective limit available.\n");
+      /* infeasibility was detected while preparing problem - objective limit was not reached */
       return FALSE;
    }
    else if ( sdpi->allfixed )
    {
-      SCIPdebugMessage("All variables were fixed during preprocessing, no objective limit available.\n");
+      /* all variables are fixed and problem is feasible - objective limit was not reached */
       return FALSE;
    }
 
@@ -3142,12 +3132,12 @@ SCIP_Bool SCIPsdpiIsIterlimExc(
 
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, no iteration limit available.\n");
+      /* infeasibility was detected while preparing problem - iteration limit was not reached */
       return FALSE;
    }
    else if ( sdpi->allfixed )
    {
-      SCIPdebugMessage("All variables were fixed during preprocessing, no iteration limit available.\n");
+      /* all variables are fixed and problem is feasible - iteration limit was not reached */
       return FALSE;
    }
 
@@ -3163,12 +3153,12 @@ SCIP_Bool SCIPsdpiIsTimelimExc(
 
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, no time limit available.\n");
+      /* infeasibility was detected while preparing problem - time limit was not reached */
       return FALSE;
    }
    else if ( sdpi->allfixed )
    {
-      SCIPdebugMessage("All variables were fixed during preprocessing, no time limit available.\n");
+      /* all variables are fixed and problem is feasible - time limit was not reached */
       return FALSE;
    }
    else if ( ! sdpi->solved )
@@ -3204,12 +3194,12 @@ int SCIPsdpiGetInternalStatus(
    }
    else if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, no internal status available.\n");
+      SCIPdebugMessage("Infeasibility was detected while preparing problem, no internal status available.\n");
       return 0;
    }
    else if ( sdpi->allfixed )
    {
-      SCIPdebugMessage("All variables were fixed during preprocessing, no internal status available.\n");
+      SCIPdebugMessage("All variables are fixed, no internal status available.\n");
       return 0;
    }
 
@@ -3226,13 +3216,13 @@ SCIP_Bool SCIPsdpiIsOptimal(
 
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, therefore there is no optimal solution.\n");
+      /* infeasibility was detected while preparing problem */
       return FALSE;
    }
    else if ( sdpi->allfixed )
    {
-      SCIPdebugMessage("All variables were fixed during preprocessing, therefore there is no optimal solution.\n");
-      return FALSE;
+      /* all variables are fixed and problem is feasible */
+      return TRUE;
    }
 
    return SCIPsdpiSolverIsOptimal(sdpi->sdpisolver);
@@ -3249,12 +3239,12 @@ SCIP_Bool SCIPsdpiIsAcceptable(
 
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, this is acceptable in a B&B context.\n");
+      /* infeasibility was detected while preparing problem - this is acceptable */
       return TRUE;
    }
    else if ( sdpi->allfixed )
    {
-      SCIPdebugMessage("All variables fixed during preprocessing, this is acceptable in a B&B context.\n");
+      /* all variables are fixed and problem is feasible - this is acceptable */
       return TRUE;
    }
    else if ( ! sdpi->solved )
@@ -3278,12 +3268,8 @@ SCIP_RETCODE SCIPsdpiGetObjval(
    CHECK_IF_SOLVED(sdpi);
 
    if ( sdpi->infeasible )
-   {
       *objval = SCIPsdpiInfinity(sdpi); /* we are minimizing */
-      return SCIP_OKAY;
-   }
-
-   if ( sdpi->allfixed )
+   else if ( sdpi->allfixed )
    {
       int v;
 
@@ -3292,11 +3278,11 @@ SCIP_RETCODE SCIPsdpiGetObjval(
 
       for (v = 0; v < sdpi->nvars; v++)
          *objval += sdpi->lb[v] * sdpi->obj[v];
-
-      return SCIP_OKAY;
    }
-
-   SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, objval) );
+   else
+   {
+      SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, objval) );
+   }
 
    return SCIP_OKAY;
 }
@@ -3316,25 +3302,21 @@ SCIP_RETCODE SCIPsdpiGetLowerObjbound(
    if ( sdpi->solved )
    {
       if ( sdpi->infeasible )
-      {
-         SCIPdebugMessage("Problem was found infeasible during preprocessing, no objective value available.\n");
-         return SCIP_OKAY;
-      }
-
-      if ( sdpi->allfixed )
+         *objlb = SCIPsdpiInfinity(sdpi); /* we are minimizing */
+      else if ( sdpi->allfixed )
       {
          int v;
 
-         /* As all variables were fixed during preprocessing, we have to compute it ourselves here */
+         /* As all variables were fixed during preprocessing, we have to compute bound ourselves here. */
          *objlb = 0;
 
          for (v = 0; v < sdpi->nvars; v++)
             *objlb += sdpi->lb[v] * sdpi->obj[v];
-
-         return SCIP_OKAY;
       }
-
-      SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, objlb) );
+      else
+      {
+         SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, objlb) );
+      }
 
       return SCIP_OKAY;
    }
@@ -3370,8 +3352,7 @@ SCIP_RETCODE SCIPsdpiGetSol(
 
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, no solution available.\n");
-      return SCIP_OKAY;
+      SCIPdebugMessage("Infeasibility was detected while preparing problem, no solution available.\n");
    }
    else if ( sdpi->allfixed )
    {
@@ -3379,6 +3360,7 @@ SCIP_RETCODE SCIPsdpiGetSol(
       {
          SCIP_CALL( SCIPsdpiGetObjval(sdpi, objval) );
       }
+
       if ( *dualsollength > 0 )
       {
          int v;
@@ -3395,12 +3377,12 @@ SCIP_RETCODE SCIPsdpiGetSol(
          /* we give the fixed values as the solution */
          for (v = 0; v < sdpi->nvars; v++)
             dualsol[v] = sdpi->lb[v];
-
-         return SCIP_OKAY;
       }
    }
-
-   SCIP_CALL( SCIPsdpiSolverGetSol(sdpi->sdpisolver, objval, dualsol, dualsollength) );
+   else
+   {
+      SCIP_CALL( SCIPsdpiSolverGetSol(sdpi->sdpisolver, objval, dualsol, dualsollength) );
+   }
 
    return SCIP_OKAY;
 }
@@ -3419,20 +3401,18 @@ SCIP_RETCODE SCIPsdpiGetPreoptimalPrimalNonzeros(
 
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, no preoptimal solution available.\n");
+      SCIPdebugMessage("Infeasibility was detected while preparing problem, no preoptimal solution available.\n");
       startXnblocknonz[0] = -1;
-
-      return SCIP_OKAY;
    }
    else if ( sdpi->allfixed )
    {
-      SCIPdebugMessage("No primal solution available, as problem was solved during preprocessing\n");
+      SCIPdebugMessage("All variables are fixed, no solution available.\n");
       startXnblocknonz[0] = -1;
-
-      return SCIP_OKAY;
    }
-
-   SCIP_CALL( SCIPsdpiSolverGetPreoptimalPrimalNonzeros(sdpi->sdpisolver, nblocks, startXnblocknonz) );
+   else
+   {
+      SCIP_CALL( SCIPsdpiSolverGetPreoptimalPrimalNonzeros(sdpi->sdpisolver, nblocks, startXnblocknonz) );
+   }
 
    return SCIP_OKAY;
 }
@@ -3471,11 +3451,9 @@ SCIP_RETCODE SCIPsdpiGetPreoptimalSol(
    if ( sdpi->infeasible )
    {
       *success = FALSE;
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, no preoptimal solution available.\n");
+      SCIPdebugMessage("Infeasibility was detected while preparing problem, no preoptimal solution available.\n");
       assert( startXnblocknonz != NULL );
       startXnblocknonz[0] = -1;
-
-      return SCIP_OKAY;
    }
    else if ( sdpi->allfixed )
    {
@@ -3506,9 +3484,11 @@ SCIP_RETCODE SCIPsdpiGetPreoptimalSol(
 
       return SCIP_OKAY;
    }
-
-   SCIP_CALL( SCIPsdpiSolverGetPreoptimalSol(sdpi->sdpisolver, success, dualsol, dualsollength, nblocks, startXnblocknonz,
-         startXrow, startXcol, startXval) );
+   else
+   {
+      SCIP_CALL( SCIPsdpiSolverGetPreoptimalSol(sdpi->sdpisolver, success, dualsol, dualsollength, nblocks, startXnblocknonz,
+            startXrow, startXcol, startXval) );
+   }
 
    return SCIP_OKAY;
 }
@@ -3537,18 +3517,18 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
 
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, no primal variables available.\n");
+      SCIPdebugMessage("Infeasibility was detected while preparing problem, no primal variables available.\n");
       *arraylength = -1;
-      return SCIP_OKAY;
    }
    else if ( sdpi->allfixed )
    {
       SCIPdebugMessage("All variables fixed during preprocessing, no primal variables available.\n");
       *arraylength = -1;
-      return SCIP_OKAY;
    }
-
-   SCIP_CALL( SCIPsdpiSolverGetPrimalBoundVars(sdpi->sdpisolver, lbvars, ubvars, arraylength) );
+   else
+   {
+      SCIP_CALL( SCIPsdpiSolverGetPrimalBoundVars(sdpi->sdpisolver, lbvars, ubvars, arraylength) );
+   }
 
    return SCIP_OKAY;
 }
@@ -3564,16 +3544,16 @@ SCIP_RETCODE SCIPsdpiGetPrimalNonzeros(
 
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, no primal solution available.\n");
-      return SCIP_OKAY;
+      SCIPdebugMessage("Infeasibility was detected while preparing problem, no primal solution available.\n");
    }
    else if ( sdpi->allfixed )
    {
       SCIPdebugMessage("All variables fixed during preprocessing, no primal solution available.\n");
-      return SCIP_OKAY;
    }
-
-   SCIP_CALL( SCIPsdpiSolverGetPrimalNonzeros(sdpi->sdpisolver, nblocks, startXnblocknonz) );
+   else
+   {
+      SCIP_CALL( SCIPsdpiSolverGetPrimalNonzeros(sdpi->sdpisolver, nblocks, startXnblocknonz) );
+   }
 
    return SCIP_OKAY;
 }
@@ -3598,16 +3578,16 @@ SCIP_RETCODE SCIPsdpiGetPrimalMatrix(
 
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, no primal solution available.\n");
-      return SCIP_OKAY;
+      SCIPdebugMessage("Infeasibility was detected while preparing problem, no primal solution available.\n");
    }
    else if ( sdpi->allfixed )
    {
       SCIPdebugMessage("All variables fixed during preprocessing, no primal solution available.\n");
-      return SCIP_OKAY;
    }
-
-   SCIP_CALL( SCIPsdpiSolverGetPrimalMatrix(sdpi->sdpisolver, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
+   else
+   {
+      SCIP_CALL( SCIPsdpiSolverGetPrimalMatrix(sdpi->sdpisolver, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
+   }
 
    return SCIP_OKAY;
 }
@@ -3677,27 +3657,26 @@ SCIP_RETCODE SCIPsdpiSettingsUsed(
    {
       SCIPdebugMessage("Problem was not solved successfully.\n");
       *usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
-      return SCIP_OKAY;
    }
    else if ( sdpi->infeasible && ! sdpi->penalty ) /* if we solved the penalty formulation, we may also set infeasible if it is infeasible for the original problem */
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, no settings used.\n");
+      SCIPdebugMessage("Infeasibility was detected while preparing the problem, no settings used.\n");
       *usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
-      return SCIP_OKAY;
    }
    else if ( sdpi->allfixed )
    {
       SCIPdebugMessage("All varialbes fixed during preprocessing, no settings used.\n");
       *usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
-      return SCIP_OKAY;
    }
    else if ( sdpi->penalty )
    {
       *usedsetting = SCIP_SDPSOLVERSETTING_PENALTY;
-      return SCIP_OKAY;
+   }
+   else
+   {
+      SCIP_CALL( SCIPsdpiSolverSettingsUsed(sdpi->sdpisolver, usedsetting) );
    }
 
-   SCIP_CALL( SCIPsdpiSolverSettingsUsed(sdpi->sdpisolver, usedsetting) );
    return SCIP_OKAY;
 }
 
@@ -3801,7 +3780,7 @@ SCIP_RETCODE SCIPsdpiSlaterSettings(
    }
    else if ( sdpi->infeasible && ( ! sdpi->penalty ) ) /* if we solved the penalty formulation, we may also set infeasible if it is infeasible for the original problem */
    {
-      SCIPdebugMessage("Problem was found infeasible during preprocessing, no settings used.\n");
+      SCIPdebugMessage("Infeasibility was detected while preparing problem, no settings used.\n");
       *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
       return SCIP_OKAY;
    }
