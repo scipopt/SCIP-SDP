@@ -1539,6 +1539,7 @@ SCIP_RETCODE addTwoMinorSOCConstraints(
    )
 {
    char name[SCIP_MAXSTRLEN];
+   SCIP_CONSHDLRDATA* conshdlrdata;
    SCIP_VAR*** matrixvars;
    SCIP_VAR** consvars;
    SCIP_Real* consvals;
@@ -1550,6 +1551,9 @@ SCIP_RETCODE addTwoMinorSOCConstraints(
    assert( scip != NULL );
    assert( conshdlr != NULL );
    assert( naddconss != NULL );
+
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert( conshdlrdata != NULL );
 
    for (c = 0; c < nconss; ++c)
    {
@@ -1728,7 +1732,7 @@ SCIP_RETCODE addTwoMinorSOCConstraints(
             (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "2x2minorSOC#%d#%d#%d", c, s, t);
 
             SCIP_CALL( SCIPcreateConsSOC(scip, &cons, name, 2, consvars, consvals, NULL, 0.0, matrixsumvar, 1.0, 0.0,
-                  TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE) );
+                  TRUE, TRUE, conshdlrdata->solvelp, conshdlrdata->solvelp, TRUE, FALSE, FALSE, TRUE, TRUE) );
             SCIP_CALL( SCIPaddCons(scip, cons) );
 
 #ifdef SCIP_MORE_DEBUG
