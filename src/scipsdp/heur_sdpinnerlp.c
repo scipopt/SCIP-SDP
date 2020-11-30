@@ -377,7 +377,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpInnerlp)
                }
             }
 
-            /* add linear constraint (only propagate) */
+            /* add linear constraint */
             (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lin%d#%d", s, t);
             SCIP_CALL( SCIPcreateConsLinear(subscip, &cons, name, cnt, consvars, consvals, constmatrix[s * blocksize + t], constmatrix[s * blocksize + t],
                   TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
