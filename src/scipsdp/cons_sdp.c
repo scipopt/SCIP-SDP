@@ -4341,14 +4341,14 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
 
                   if ( feasible )
                   {
-                     if ( nintvars == nfixed )
-                     {
-                        SCIP_Bool stored;
+                     SCIP_Bool stored;
 
-                        /* pass solution to SCIP, so we can cut off the node */
-                        SCIP_CALL( SCIPaddSol(scip, enfosol, &stored) );
+                     /* pass solution to SCIP */
+                     SCIP_CALL( SCIPaddSol(scip, enfosol, &stored) );
+
+                     /* if all integer variables are fixed, we can cut off the node, since this should be the final solution of this node */
+                     if ( stored && nintvars == nfixed )
                         *result = SCIP_CUTOFF;
-                     }
                   }
                   else if ( nfixed < nintvars )
                   {
