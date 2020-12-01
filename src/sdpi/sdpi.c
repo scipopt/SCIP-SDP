@@ -2929,7 +2929,7 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
    if ( sdpi->infeasible )
    {
       /* infeasibility was detected while preparing problem */
-      *primalfeasible = FALSE;
+      *primalfeasible = TRUE;
       *dualfeasible = FALSE;
       return SCIP_OKAY;
    }
@@ -2957,7 +2957,7 @@ SCIP_Bool SCIPsdpiIsPrimalUnbounded(
    if ( sdpi->infeasible )
    {
       /* infeasibility was detected while preparing problem */
-      return FALSE;
+      return TRUE;
    }
    else if ( sdpi->allfixed )
    {
@@ -2979,7 +2979,7 @@ SCIP_Bool SCIPsdpiIsPrimalInfeasible(
    if ( sdpi->infeasible )
    {
       /* infeasibility was detected while preparing problem */
-      return TRUE;
+      return FALSE;
    }
    else if ( sdpi->allfixed )
    {
@@ -3001,7 +3001,7 @@ SCIP_Bool SCIPsdpiIsPrimalFeasible(
    if ( sdpi->infeasible )
    {
       /* infeasibility was detected while preparing problem */
-      return FALSE;
+      return TRUE;
    }
    else if ( sdpi->allfixed )
    {
@@ -3045,7 +3045,7 @@ SCIP_Bool SCIPsdpiIsDualInfeasible(
    if ( sdpi->infeasible )
    {
       /* infeasibility was detected while preparing problem */
-      return FALSE;
+      return TRUE;
    }
    else if ( sdpi->allfixed )
    {
