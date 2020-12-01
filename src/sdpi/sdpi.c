@@ -63,6 +63,9 @@
  *
  * @section prep Preparation
  *
+ * The interface performs some preprocessing on the current problem and can sometimes determine whether the dual and/or
+ * primal is feasible or infeasible.
+ *
  * @subsection fixed All variables are fixed
  *
  * This interface prepares the problem and checks whether all variables are fixed.
@@ -72,14 +75,13 @@
  *    \mbox{s.t.}\quad & - A_0^{(k)} \succeq 0 && \forall \ k \in K, \\
  *     & 0 \geq c_i && \forall \ i \in I,
  * \f}
- * which is feasible if \f$c \leq 0\f$ and \f$A_0^{(k)} \preceq 0\f$ for all \f$k\f$. If this is the case, then @p allfixed is true
- * and the primal is feasible and bounded:
+ * which is feasible if \f$c \leq 0\f$ and \f$A_0^{(k)} \preceq 0\f$ for all \f$k\f$. If this is the case, the primal is feasible and bounded:
  * \f{eqnarray*}{
  *    \max & & \sum_{k \in K} A_0^{(k)} \bullet X^{(k)} + \sum_{i \in I} c_i\, x_i \\
  *    \mbox{s.t.} & & X^{(k)} \succeq 0 \quad \forall \ k \in K, \\
  *      & & x_j \geq 0 \qquad \forall \ i \in I.\\
  * \f}
- * Otherwise the dual is infeasible, the primal is unbounded and @p infeasible is true.
+ * Otherwise the dual is infeasible and the primal is unbounded (and feasible).
  *
  * @subsection infeas Infeasibility
  *
