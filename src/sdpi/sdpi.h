@@ -36,14 +36,15 @@
  *
  * This file specifies a generic SDP-solver interface used by SCIP to create, modify, and solve semidefinite programs of
  * the (dual) form
- *
- *   \f{eqnarray*}{
- *   	  \min & & b^T y \\
- *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i \succeq 0 \quad \forall i \leq m \\
- *      & & Dy \geq d \\
- *      & & \ell \leq y \leq u
- *   \f}
- * for symmetric matrices \f$ A_j^i \in S_{k_i} \f$ and a matrix \f$ D \in \mathbb{R}^{k_0 \times n} \f$ and query information about the solution.
+ * \f{align*}{
+ *    \min\quad & b^T y \\
+ *    \mbox{s.t.} & \sum_{j \in J} A_j^{(k)} y_i - A_0^{(k)} \succeq 0 & \forall \ k \in K, \\
+ *     & \sum_{j \in J} d_{ij}\, y_j \geq c_i & \forall \ i \in I, \\
+ *     & \ell_j \leq y_j \leq u_j & \forall \ j \in J,
+ * \f}
+ * for symmetric matrices \f$ A_i^{(k)} \in S_{n_k} \f$ and a matrix \f$ D \in \mathbb{R}^{I \times J} \f$ and query
+ * information about the solution.
+ * The code refers to this problem as the @em dual.
  *
  * All indexing (rows, columns, blocks and variables) starts at 0.
  *

@@ -38,7 +38,58 @@
  * @author Tristan Gally
  * @author Marc Pfetsch
  *
- * We always minimize.
+ * This file specifies a generic SDP-solver interface used by SCIP to create, modify, and solve semidefinite programs of
+ * the (dual) form
+ * \f{align*}{
+ *    \min\quad & b^T y \\
+ *    \mbox{s.t.}\quad & \sum_{j \in J} A_j^{(k)} y_i - A_0^{(k)} \succeq 0 && \forall \ k \in K, \\
+ *     & \sum_{j \in J} d_{ij}\, y_j \geq c_i && \forall \ i \in I, \\
+ *     & \ell_j \leq y_j \leq u_j && \forall \ j \in J,
+ * \f}
+ * for symmetric matrices \f$ A_i^{(k)} \in S_{n_k} \f$ and a matrix \f$ D \in \mathbb{R}^{I \times J} \f$ and query
+ * information about the solution.
+ * The code refers to this problem as the @em dual.
+ *
+ * In comparison the @em primal is
+ * \f{eqnarray*}{
+ *    \max & & \sum_{k \in K} A_0^{(k)} \bullet X^{(k)} + \sum_{i \in I} c_i\, x_i - \sum_{j \in J_u} u_j\, v_j + \sum_{j \in J_\ell} \ell_j\, w_j \\
+ *    \mbox{s.t.} & & \sum_{k \in K} A_j^{(k)} \bullet X^{(k)} + \sum_{i \in I} d_{ij}\, x_i - 1_{\{u_j < \infty\}}\, v_j + 1_{\{\ell_j > -\infty\}}\, w_j = b_j \quad \forall \ j \in J,\\
+ *      & & X^{(k)} \succeq 0 \quad \forall \ k \in K, \\
+ *      & & x_j \geq 0 \qquad \forall \ i \in I,\\
+ *      & & v_j \geq 0 \qquad \forall \ j \in J_u,\\
+ *      & & w_j \geq 0 \qquad \forall \ j \in J_\ell,
+ * \f}
+ * where \f$J_\ell := \{j \in J: \ell_i > -\infty\}\f$ and \f$J_u := \{j \in J: u_j < \infty\}\f$.
+ *
+ * @section prep Preparation
+ *
+ * @subsection fixed All variables are fixed
+ *
+ * This interface prepares the problem and checks whether all variables are fixed.
+ * In this case, the influence of the fixed variables is transformed to the constant parts and the dual looks as follows:
+ * \f{align*}{
+ *    \min\quad & 0 \\
+ *    \mbox{s.t.}\quad & - A_0^{(k)} \succeq 0 && \forall \ k \in K, \\
+ *     & 0 \geq c_i && \forall \ i \in I,
+ * \f}
+ * which is feasible if \f$c \leq 0\f$ and \f$A_0^{(k)} \preceq 0\f$ for all \f$k\f$. If this is the case, then @p allfixed is true
+ * and the primal is feasible and bounded:
+ * \f{eqnarray*}{
+ *    \max & & \sum_{k \in K} A_0^{(k)} \bullet X^{(k)} + \sum_{i \in I} c_i\, x_i \\
+ *    \mbox{s.t.} & & X^{(k)} \succeq 0 \quad \forall \ k \in K, \\
+ *      & & x_j \geq 0 \qquad \forall \ i \in I.\\
+ * \f}
+ * Otherwise the dual is infeasible, the primal is unbounded and @p infeasible is true.
+ *
+ * @subsection infeas Infeasibility
+ *
+ * The interface can determine infeasibility in the case in which all variables are fixed or if variable bounds are
+ * conflicting; in either case, @p infeasible is true. In the latter case, the primal is unbounded: Assume that
+ * \f$\ell_j > u_j\f$. Then one can produce a ray as follows: Set all \f$X^{(k)} = 0\f$, \f$x = 0\f$, \f$v_r = w_r =
+ * 0\f$ for all \f$r \in J\setminus \{j\}\f$. Furthermore, let \f$\gamma = v_j = w_j\f$ tend to infinity, then the objective is
+ * \f$(\ell_j - u_j) \gamma \to \infty\f$.
+ *
+ * Feasibility of the primal depends on the problem.
  */
 
 #include <assert.h>
