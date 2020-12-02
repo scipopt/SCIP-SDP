@@ -38,7 +38,7 @@
  * the (dual) form
  * \f{align*}{
  *    \min\quad & b^T y \\
- *    \mbox{s.t.} & \sum_{j \in J} A_j^{(k)} y_i - A_0^{(k)} \succeq 0 & \forall \ k \in K, \\
+ *    \mbox{s.t.} & \sum_{j \in J} A_j^{(k)} y_j - A_0^{(k)} \succeq 0 & \forall \ k \in K, \\
  *     & \sum_{j \in J} d_{ij}\, y_j \geq c_i & \forall \ i \in I, \\
  *     & \ell_j \leq y_j \leq u_j & \forall \ j \in J,
  * \f}

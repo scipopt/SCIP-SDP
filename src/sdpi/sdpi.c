@@ -42,7 +42,7 @@
  * the (dual) form
  * \f{align*}{
  *    \min\quad & b^T y \\
- *    \mbox{s.t.}\quad & \sum_{j \in J} A_j^{(k)} y_i - A_0^{(k)} \succeq 0 && \forall \ k \in K, \\
+ *    \mbox{s.t.}\quad & \sum_{j \in J} A_j^{(k)} y_j - A_0^{(k)} \succeq 0 && \forall \ k \in K, \\
  *     & \sum_{j \in J} d_{ij}\, y_j \geq c_i && \forall \ i \in I, \\
  *     & \ell_j \leq y_j \leq u_j && \forall \ j \in J,
  * \f}
@@ -55,11 +55,11 @@
  *    \max & & \sum_{k \in K} A_0^{(k)} \bullet X^{(k)} + \sum_{i \in I} c_i\, x_i - \sum_{j \in J_u} u_j\, v_j + \sum_{j \in J_\ell} \ell_j\, w_j \\
  *    \mbox{s.t.} & & \sum_{k \in K} A_j^{(k)} \bullet X^{(k)} + \sum_{i \in I} d_{ij}\, x_i - 1_{\{u_j < \infty\}}\, v_j + 1_{\{\ell_j > -\infty\}}\, w_j = b_j \quad \forall \ j \in J,\\
  *      & & X^{(k)} \succeq 0 \quad \forall \ k \in K, \\
- *      & & x_j \geq 0 \qquad \forall \ i \in I,\\
+ *      & & x_i \geq 0 \qquad \forall \ i \in I,\\
  *      & & v_j \geq 0 \qquad \forall \ j \in J_u,\\
  *      & & w_j \geq 0 \qquad \forall \ j \in J_\ell,
  * \f}
- * where \f$J_\ell := \{j \in J: \ell_i > -\infty\}\f$ and \f$J_u := \{j \in J: u_j < \infty\}\f$.
+ * where \f$J_\ell := \{j \in J: \ell_j > -\infty\}\f$ and \f$J_u := \{j \in J: u_j < \infty\}\f$.
  *
  * @section prep Preparation
  *
@@ -79,7 +79,7 @@
  * \f{eqnarray*}{
  *    \max & & \sum_{k \in K} A_0^{(k)} \bullet X^{(k)} + \sum_{i \in I} c_i\, x_i \\
  *    \mbox{s.t.} & & X^{(k)} \succeq 0 \quad \forall \ k \in K, \\
- *      & & x_j \geq 0 \qquad \forall \ i \in I.\\
+ *      & & x_i \geq 0 \qquad \forall \ i \in I.\\
  * \f}
  * Otherwise the dual is infeasible and the primal is unbounded (and feasible).
  *
