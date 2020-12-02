@@ -2986,7 +2986,7 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
    if ( sdpi->infeasible )
    {
       /* infeasibility was detected while preparing dual problem, primal problem is feasible if all variables are fixed,
-         otherwise primal feasibility status cannot be determined */
+       * otherwise primal feasibility status cannot be determined */
       if ( sdpi->allfixed )
          *primalfeasible = TRUE;
       else
@@ -3018,7 +3018,7 @@ SCIP_Bool SCIPsdpiIsPrimalUnbounded(
    if ( sdpi->infeasible )
    {
       /* infeasibility was detected while preparing dual problem, primal problem is always unbounded (but not
-         necessarily feasible) */
+       * necessarily feasible) */
       return TRUE;
    }
    else if ( sdpi->allfixed )
@@ -3041,7 +3041,7 @@ SCIP_Bool SCIPsdpiIsPrimalInfeasible(
    if ( sdpi->infeasible )
    {
       /* infeasibility was detected while preparing dual problem, primal status is feasible if all variables are fixed
-         and unknown else */
+       * and unknown else */
       return FALSE;
    }
    else if ( sdpi->allfixed )
@@ -3064,7 +3064,7 @@ SCIP_Bool SCIPsdpiIsPrimalFeasible(
    if ( sdpi->infeasible )
    {
       /* infeasibility was detected while preparing dual problem, primal status is feasible if all variables are fixed
-         and unknown else */
+       * and unknown else */
       if ( sdpi->allfixed )
          return TRUE;
       else
