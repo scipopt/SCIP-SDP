@@ -91,6 +91,10 @@
  * 0\f$ for all \f$r \in J\setminus \{j\}\f$. Furthermore, let \f$\gamma = v_j = w_j\f$ tend to infinity, then the objective is
  * \f$(\ell_j - u_j) \gamma \to \infty\f$.
  *
+ * Note that @p infeasible is also true if the (dual) penalty formulation without the objective function has a strictly
+ * positive optimal objective value. Since we solved the penalty formulation, @p allfixed is false. Thus, the dual
+ * problem is infeasible and the ray defined above shows that the primal problem is unbounded.
+ *
  * Feasibility of the primal depends on the problem.
  */
 
