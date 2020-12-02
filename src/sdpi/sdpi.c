@@ -2981,14 +2981,18 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
 
    if ( sdpi->infeasible )
    {
-      /* infeasibility was detected while preparing problem */
-      *primalfeasible = TRUE;
+      /* infeasibility was detected while preparing dual problem, primal problem is feasible if all variables are fixed,
+         otherwise primal feasibility status cannot be determined */
+      if ( sdpi->allfixed )
+         *primalfeasible = TRUE;
+      else
+         *primalfeasible = FALSE;
       *dualfeasible = FALSE;
       return SCIP_OKAY;
    }
    else if ( sdpi->allfixed )
    {
-      /* all variables are fixed and problem is feasible */
+      /* all variables are fixed and dual problem is feasible, primal problem is feasible as well */
       *primalfeasible = TRUE;
       *dualfeasible = TRUE;
       return SCIP_OKAY;
@@ -3009,12 +3013,13 @@ SCIP_Bool SCIPsdpiIsPrimalUnbounded(
 
    if ( sdpi->infeasible )
    {
-      /* infeasibility was detected while preparing problem */
+      /* infeasibility was detected while preparing dual problem, primal problem is always unbounded (but not
+         necessarily feasible) */
       return TRUE;
    }
    else if ( sdpi->allfixed )
    {
-      /* all variables are fixed and problem is feasible */
+      /* all variables are fixed and dual problem is feasible, primal problem is feasible and bounded */
       return FALSE;
    }
 
@@ -3031,12 +3036,13 @@ SCIP_Bool SCIPsdpiIsPrimalInfeasible(
 
    if ( sdpi->infeasible )
    {
-      /* infeasibility was detected while preparing problem */
+      /* infeasibility was detected while preparing dual problem, primal status is feasible if all variables are fixed
+         and unknown else */
       return FALSE;
    }
    else if ( sdpi->allfixed )
    {
-      /* all variables are fixed and problem is feasible */
+      /* all variables are fixed and dual problem is feasible, primal problem is feasible as well */
       return FALSE;
    }
 
@@ -3053,12 +3059,16 @@ SCIP_Bool SCIPsdpiIsPrimalFeasible(
 
    if ( sdpi->infeasible )
    {
-      /* infeasibility was detected while preparing problem */
-      return TRUE;
+      /* infeasibility was detected while preparing dual problem, primal status is feasible if all variables are fixed
+         and unknown else */
+      if ( sdpi->allfixed )
+         return TRUE;
+      else
+         return FALSE;
    }
    else if ( sdpi->allfixed )
    {
-      /* all variables are fixed and problem is feasible */
+      /* all variables are fixed and dual problem is feasible, primal problem is feasible as well */
       return TRUE;
    }
 
@@ -3075,12 +3085,12 @@ SCIP_Bool SCIPsdpiIsDualUnbounded(
 
    if ( sdpi->infeasible )
    {
-      /* infeasibility was detected while preparing problem */
+      /* infeasibility was detected while preparing dual problem */
       return FALSE;
    }
    else if ( sdpi->allfixed )
    {
-      /* all variables are fixed and problem is feasible */
+      /* all variables are fixed and dual problem is feasible */
       return FALSE;
    }
 
@@ -3097,12 +3107,12 @@ SCIP_Bool SCIPsdpiIsDualInfeasible(
 
    if ( sdpi->infeasible )
    {
-      /* infeasibility was detected while preparing problem */
+      /* infeasibility was detected while preparing dual problem */
       return TRUE;
    }
    else if ( sdpi->allfixed )
    {
-      /* all variables are fixed and problem is feasible */
+      /* all variables are fixed and dual problem is feasible */
       return FALSE;
    }
 
@@ -3119,12 +3129,12 @@ SCIP_Bool SCIPsdpiIsDualFeasible(
 
    if ( sdpi->infeasible )
    {
-      /* infeasibility was detected while preparing problem */
+      /* infeasibility was detected while preparing dual problem */
       return FALSE;
    }
    else if ( sdpi->allfixed )
    {
-      /* all variables are fixed and problem is feasible */
+      /* all variables are fixed and dual problem is feasible */
       return TRUE;
    }
 
@@ -3141,12 +3151,12 @@ SCIP_Bool SCIPsdpiIsConverged(
 
    if ( sdpi->infeasible )
    {
-      /* infeasibility was detected while preparing problem - this counts as converged */
+      /* infeasibility was detected while preparing dual problem - this counts as converged */
       return TRUE;
    }
    else if ( sdpi->allfixed )
    {
-      /* all variables are fixed and problem is feasible - this counts as converged */
+      /* all variables are fixed and dual problem is feasible - this counts as converged */
       return TRUE;
    }
 
@@ -3163,12 +3173,12 @@ SCIP_Bool SCIPsdpiIsObjlimExc(
 
    if ( sdpi->infeasible )
    {
-      /* infeasibility was detected while preparing problem - objective limit was not reached */
+      /* infeasibility was detected while preparing dual problem - objective limit was not reached */
       return FALSE;
    }
    else if ( sdpi->allfixed )
    {
-      /* all variables are fixed and problem is feasible - objective limit was not reached */
+      /* all variables are fixed and dual problem is feasible - objective limit was not reached */
       return FALSE;
    }
 
