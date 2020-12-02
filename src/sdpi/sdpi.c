@@ -2973,11 +2973,11 @@ SCIP_Bool SCIPsdpiFeasibilityKnown(
    return SCIPsdpiSolverFeasibilityKnown(sdpi->sdpisolver);
 }
 
-/** gets information about primal and dual feasibility of the current SDP-solution */
+/** gets information about proven primal and dual feasibility of the current SDP-solution */
 SCIP_RETCODE SCIPsdpiGetSolFeasibility(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
-   SCIP_Bool*            primalfeasible,     /**< pointer to store the primal feasibility status */
-   SCIP_Bool*            dualfeasible        /**< pointer to store the dual feasibility status */
+   SCIP_Bool*            primalfeasible,     /**< pointer to store the proven primal feasibility status */
+   SCIP_Bool*            dualfeasible        /**< pointer to store the proven dual feasibility status */
    )
 {
    assert( sdpi != NULL );
