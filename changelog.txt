@@ -10,18 +10,24 @@ fixed bugs:
 - disable oneopt heuristic when solving SDPs to avoid an infinite loop
 
 features:
-- add possibility to tighten matrices if all matrices are positive semidefinite
-- add possibility to tighten bounds if all matrices are positive semidefinite
+- add possibility to tighten matrices if all matrices are positive semidefinite (turned off by default)
+- add possibility to tighten bounds if all matrices are positive semidefinite (turned off by default)
+- add propagation routine for 2-by-2 minors
 - The relaxator strengthened the rows of the LP corresponding to variable bounds before adding them to the current SDP.
   This has been extended by a full coefficient tightening procedure.
 - Use lexicographic sorting to sort matrix entries
 - SCIPcreateConsSdp() and SCIPcreateConsSdpRank1() allow to remove duplicates in matrices
 - empty SDP constraints are presolved and possibly removed
 - prop_sdpredcost has been revised, avoiding numerical troubles at several places
+- Revised the functions diagZeroImpl(), addTwoMinorLinConstraints()
 
 parameters:
 - Rename parameter relaxing/SDP/tightenvb to relaxing/SDP/tightenrows.
 - New parameter misc/solvesdps to choose between SDP and LP solving
+- New parameter constraints/SDP/propagate
+- New parameter constraints/SDP/proppresol
+- New parameter constraints/SDP/tightenmatrices
+- New parameter constraints/SDP/tightenbounds
 
 SCIP-SDP version 3.2.0
 ======================
