@@ -50,8 +50,9 @@
 enum SCIPfeasStatus
 {
    SCIPfeas      = 0,    /**< the problem is feasible */
-   SCIPunbounded = 1,    /**< the problem is unbounded */
-   SCIPinfeas    = 2     /**< the problem is infeasible */
+   SCIPunbounded = 1,    /**< the problem is unbounded (and feasible) */
+   SCIPray       = 2,    /**< there exists a ray, but it is not necessarily feasible */
+   SCIPinfeas    = 3     /**< the problem is infeasible */
 };
 typedef enum SCIPfeasStatus SCIPFEASSTATUS;
 
@@ -119,7 +120,6 @@ SCIP_RETCODE solveTest(
 {
    /* solution data */
    SCIP_Real objval;
-   SCIP_Real* primsol;
    SCIP_Real* dualsol;
 
    /* auxiliary data */
@@ -135,7 +135,7 @@ SCIP_RETCODE solveTest(
    cr_assert( nrows == ntmprows );
    cr_assert( ncols == ntmpcols );
 
-   /* solve problem */
+   /* solve problem: no Slater-check, no time limit */
    SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, 1e20) );
 
    /* check status */
@@ -151,6 +151,14 @@ SCIP_RETCODE solveTest(
    if ( exp_primalfeas == SCIPfeas && exp_dualfeas == SCIPfeas )
    {
       cr_assert( SCIPsdpiIsOptimal(sdpi) );
+
+      cr_assert( SCIPsdpiIsDualFeasible(sdpi) );
+      cr_assert( ! SCIPsdpiIsDualInfeasible(sdpi) );
+      cr_assert( ! SCIPsdpiIsDualUnbounded(sdpi) );
+
+      cr_assert( SCIPsdpiIsPrimalFeasible(sdpi) );
+      cr_assert( ! SCIPsdpiIsPrimalInfeasible(sdpi) );
+      cr_assert( ! SCIPsdpiIsPrimalUnbounded(sdpi) );
    }
 
    /* check more primal statuses */
@@ -158,18 +166,31 @@ SCIP_RETCODE solveTest(
    {
    case SCIPfeas:
       cr_assert( primalfeasible );
-      cr_assert( ! SCIPsdpiIsPrimalUnbounded(sdpi) );
-      cr_assert( ! SCIPsdpiIsPrimalInfeasible(sdpi) );
       cr_assert( SCIPsdpiIsPrimalFeasible(sdpi) );
+      cr_assert( ! SCIPsdpiIsPrimalInfeasible(sdpi) );
+
+      cr_assert( ! SCIPsdpiIsDualUnbounded(sdpi) );
       break;
 
    case SCIPunbounded:
-      cr_assert( primalfeasible == SCIPsdpiIsPrimalFeasible(sdpi) );
+      cr_assert( SCIPsdpiIsPrimalFeasible(sdpi) );
+      cr_assert( ! SCIPsdpiIsPrimalInfeasible(sdpi) );
+      /* cr_assert( SCIPsdpiIsPrimalUnbounded(sdpi) ); */ /* we do not know whether we can prove unboundedness in the primal */
+
+      cr_assert( ! SCIPsdpiIsDualFeasible(sdpi) );
+      cr_assert( SCIPsdpiIsDualInfeasible(sdpi) );
+      break;
+
+   case SCIPray:
+      cr_assert( ! SCIPsdpiIsDualFeasible(sdpi) );
+      cr_assert( SCIPsdpiIsDualInfeasible(sdpi) );
       break;
 
    case SCIPinfeas:
       cr_assert( ! primalfeasible );
       cr_assert( ! SCIPsdpiIsPrimalFeasible(sdpi) );
+      /* cr_assert( SCIPsdpiIsPrimalInfeasible(sdpi) ); */ /* we do not know whether we can determine primal infeasibility in the primal */
+      cr_assert( ! SCIPsdpiIsPrimalUnbounded(sdpi) );
       break;
 
    default:
@@ -181,20 +202,31 @@ SCIP_RETCODE solveTest(
    {
    case SCIPfeas:
       cr_assert( dualfeasible );
-      cr_assert( ! SCIPsdpiIsDualUnbounded(sdpi) );
-      cr_assert( ! SCIPsdpiIsDualInfeasible(sdpi) );
       cr_assert( SCIPsdpiIsDualFeasible(sdpi) );
+      cr_assert( ! SCIPsdpiIsDualInfeasible(sdpi) );
+
+      cr_assert( ! SCIPsdpiIsPrimalUnbounded(sdpi) );
       break;
 
    case SCIPunbounded:
-      cr_assert( dualfeasible == SCIPsdpiIsDualFeasible(sdpi) );
+      cr_assert( SCIPsdpiIsDualFeasible(sdpi) );
       cr_assert( ! SCIPsdpiIsDualInfeasible(sdpi) );
+      cr_assert( SCIPsdpiIsDualUnbounded(sdpi) );
+
+      cr_assert( ! SCIPsdpiIsPrimalFeasible(sdpi) );
+      cr_assert( SCIPsdpiIsPrimalInfeasible(sdpi) );
+      break;
+
+   case SCIPray:
+      cr_assert( ! SCIPsdpiIsPrimalFeasible(sdpi) );
+      cr_assert( SCIPsdpiIsPrimalInfeasible(sdpi) );
       break;
 
    case SCIPinfeas:
       cr_assert( ! dualfeasible );
-      cr_assert( ! SCIPsdpiIsDualUnbounded(sdpi) );
       cr_assert( ! SCIPsdpiIsDualFeasible(sdpi) );
+      cr_assert( SCIPsdpiIsDualInfeasible(sdpi) );
+      cr_assert( ! SCIPsdpiIsDualUnbounded(sdpi) );
       break;
 
    default:
@@ -202,7 +234,6 @@ SCIP_RETCODE solveTest(
    }
 
    /* allocate storage for solution */
-   BMSallocMemoryArray(&primsol, ncols);
    BMSallocMemoryArray(&dualsol, nrows);
 
    if ( exp_dualfeas == SCIPfeas )
@@ -435,6 +466,148 @@ Test(solve, test3)
    ub[1] = SCIPsdpiInfinity(sdpi);
 
    SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPunbounded,  SCIPinfeas, NULL) );
+
+   /* check that data stored in sdpi is still the same */
+   SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
+}
+
+/** Test 4
+ *
+ * min -x1 - x2
+ *      x1 - x2 <= 0
+ *    - x1 + x2 <= -1
+ *      x1,  x2 free
+ *
+ * which primal and dual infeasible.
+ */
+Test(solve, test4)
+{
+   /* data with fixed values: */
+   SCIP_Real obj[2] = {-1, -1};
+   SCIP_Real rhs[2] = {0, -1};
+   int row[4] = {0, 0, 1, 1};
+   int col[4] = {0, 1, 0, 1};
+   SCIP_Real val[4] = {1, -1, -1, 1};
+
+   /* data to be filled */
+   SCIP_Real lhs[2];
+   SCIP_Real lb[2];
+   SCIP_Real ub[2];
+
+   /* fill variable data */
+   lb[0] = -SCIPsdpiInfinity(sdpi);
+   lb[1] = -SCIPsdpiInfinity(sdpi);
+   ub[0] = SCIPsdpiInfinity(sdpi);
+   ub[1] = SCIPsdpiInfinity(sdpi);
+   lhs[0] = -SCIPsdpiInfinity(sdpi);
+   lhs[1] = -SCIPsdpiInfinity(sdpi);
+
+   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPinfeas,  SCIPinfeas, NULL) );
+
+   /* check that data stored in sdpi is still the same */
+   SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
+}
+
+/** Test 5
+ *
+ * min -3 x1 -  x2
+ *      2 x1 +   x2 <= 10
+ *        x1 + 3 x2 <= 15
+ *      0 <= x1 <= 0
+ *      0 <= x2 <= 0
+ *
+ * with fixed variables, which is feasible.
+ */
+Test(solve, test5)
+{
+   /* data with fixed values: */
+   SCIP_Real obj[2] = {-3, -1};
+   SCIP_Real lb[2] = {0, 0};
+   SCIP_Real ub[2] = {0, 0};
+   SCIP_Real rhs[2] = {10, 15};
+   int row[4] = {0, 0, 1, 1};
+   int col[4] = {0, 1, 0, 1};
+   SCIP_Real val[4] = {2, 1, 1, 3};
+
+   /* data to be filled */
+   SCIP_Real lhs[2];
+
+   /* expected solutions */
+   SCIP_Real exp_dualsol[2] = {0, 0};
+
+   /* fill data */
+   lhs[0] = -SCIPsdpiInfinity(sdpi);
+   lhs[1] = -SCIPsdpiInfinity(sdpi);
+
+   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPfeas, SCIPfeas, exp_dualsol) );
+
+   /* check that data stored in sdpi is still the same */
+   SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
+}
+
+/** Test 6
+ *
+ * min -3 x1 -  x2
+ *      2 x1 +   x2 <= 10
+ *        x1 + 3 x2 <= 15
+ *      4 <= x1 <= 4
+ *      3 <= x2 <= 3
+ *
+ * with fixed variables, which is infeasible.
+ */
+Test(solve, test6)
+{
+   /* data with fixed values: */
+   SCIP_Real obj[2] = {-3, -1};
+   SCIP_Real lb[2] = {4, 3};
+   SCIP_Real ub[2] = {4, 3};
+   SCIP_Real rhs[2] = {10, 15};
+   int row[4] = {0, 0, 1, 1};
+   int col[4] = {0, 1, 0, 1};
+   SCIP_Real val[4] = {2, 1, 1, 3};
+
+   /* data to be filled */
+   SCIP_Real lhs[2];
+
+   /* fill data */
+   lhs[0] = -SCIPsdpiInfinity(sdpi);
+   lhs[1] = -SCIPsdpiInfinity(sdpi);
+
+   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPunbounded, SCIPinfeas, NULL) );
+
+   /* check that data stored in sdpi is still the same */
+   SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
+}
+
+/** Test 7
+ *
+ * min -3 x1 -  x2
+ *      2 x1 +   x2 <= 10
+ *        x1 + 3 x2 <= 15
+ *      1 <= x1 <= 0
+ *      0 <= x2 <= 10
+ *
+ * with conflicting bounds (infeasible)
+ */
+Test(solve, test7)
+{
+   /* data with fixed values: */
+   SCIP_Real obj[2] = {-3, -1};
+   SCIP_Real lb[2] = {1, 0};
+   SCIP_Real ub[2] = {0, 10};
+   SCIP_Real rhs[2] = {10, 15};
+   int row[4] = {0, 0, 1, 1};
+   int col[4] = {0, 1, 0, 1};
+   SCIP_Real val[4] = {2, 1, 1, 3};
+
+   /* data to be filled */
+   SCIP_Real lhs[2];
+
+   /* fill data */
+   lhs[0] = -SCIPsdpiInfinity(sdpi);
+   lhs[1] = -SCIPsdpiInfinity(sdpi);
+
+   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPunbounded, SCIPinfeas, NULL) );
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
