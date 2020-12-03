@@ -1389,6 +1389,9 @@ SCIP_RETCODE diagZeroImpl(
  *  \quad\Leftrightarrow\quad
  *  \sum_{i=1}^m \Big((A_i)_{ss} + (A_i)_{tt} - 2\, (A_i)_{st}\Big)\, y_i \geq (A_0)_{ss} + (A_0)_{tt} - 2 (A_0)_{st}.
  *  \f]
+ *
+ *  @todo The cut \f$X_{ss} + X_{tt} - 2\, X_{st} \geq 0\f$ is a special form of an Eigenvector cut. Try out other
+ *  Eigenvector cuts such as \f$X_{ss} + X_{tt} + 2\, X_{st} \geq 0\f$.
  */
 static
 SCIP_RETCODE addTwoMinorLinConstraints(
