@@ -3492,7 +3492,7 @@ SCIP_DECL_CONSLOCK(consLockSdp)
       {
          consdata->allmatricespsd = TRUE;
          if ( SCIPgetSubscipDepth(scip) == 0 )
-            SCIPinfoMessage(scip, NULL, "All matrices are positive semidefinite (minimial eigenvalue: %g).\n", mineigenvalue);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "All matrices are positive semidefinite (minimial eigenvalue: %g).\n", mineigenvalue);
       }
 
       SCIPfreeBufferArray(scip, &Aj);
@@ -3973,7 +3973,6 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 
       if ( infeasible )
       {
-         SCIPinfoMessage(scip, NULL, "Propagation during presolving detected cutoff.\n");
          SCIPdebugMsg(scip, "Presolving detected cutoff.\n");
          *result = SCIP_CUTOFF;
          return SCIP_OKAY;
@@ -3983,7 +3982,6 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
          SCIPdebugMsg(scip, "Propagated bounds: %d.\n", nprop);
          if ( nprop > 0 )
          {
-            SCIPinfoMessage(scip, NULL, "Propagation during presolving successfully propagated %d bounds.\n", nprop);
             *nchgbds += nprop;
             *result = SCIP_SUCCESS;
          }
@@ -4021,7 +4019,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
          SCIP_CALL( tightenMatrices(scip, conss, nconss, nchgcoefs) );
          if ( noldchgcoefs != *nchgcoefs )
          {
-            SCIPinfoMessage(scip, NULL, "TightenMatrices successfully tightened %d coefficient matrices.\n", *nchgcoefs - noldchgcoefs);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Tightened %d SDP coefficient matrices.\n", *nchgcoefs - noldchgcoefs);
             *result = SCIP_SUCCESS;
          }
       }
@@ -4032,14 +4030,13 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
          SCIP_CALL( tightenBounds(scip, conss, nconss, nchgbds, &infeasible) );
          if ( infeasible )
          {
-            SCIPinfoMessage(scip, NULL, "TightenBounds detected infeasiblity during presolving.\n");
             *result = SCIP_CUTOFF;
             return SCIP_OKAY;
          }
 
          if ( noldchgbds != *nchgbds )
          {
-            SCIPinfoMessage(scip, NULL, "TightenBounds successfully tightened %d bounds.\n", *nchgbds - noldchgbds);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Tightened %d bounds using SDP constraints.\n", *nchgbds - noldchgbds);
             *result = SCIP_SUCCESS;
          }
       }
@@ -4068,14 +4065,13 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 
             if ( infeasible )
             {
-               SCIPinfoMessage(scip, NULL, "Diaggezero detected infeasibility during presolving.\n");
                *result = SCIP_CUTOFF;
                return SCIP_OKAY;
             }
 
             if ( noldaddconss != *naddconss || noldchgbds != *nchgbds )
             {
-               SCIPinfoMessage(scip, NULL, "Diaggezero added %d constraints and changed %d bounds.\n", *naddconss - noldaddconss, *nchgbds - noldchgbds);
+               SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Added %d constraints for SDP diagonals to be nonnegative and changed %d bounds.\n", *naddconss - noldaddconss, *nchgbds - noldchgbds);
                *result = SCIP_SUCCESS;
             }
          }
@@ -4087,7 +4083,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
             SCIPdebugMsg(scip, "Added %d constraints for implication from 0 diagonal.\n", *naddconss - noldaddconss);
             if ( noldaddconss != *naddconss )
             {
-               SCIPinfoMessage(scip, NULL, "Diagzeroimpl added %d constraints.\n", *naddconss - noldaddconss);
+               SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Added %d constraints for implications on SDP diagonals.\n", *naddconss - noldaddconss);
                *result = SCIP_SUCCESS;
             }
          }
@@ -4099,7 +4095,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
             SCIPdebugMsg(scip, "Added %d linear constraints for 2 by 2 minors.\n", *naddconss - noldaddconss);
             if ( noldaddconss != *naddconss )
             {
-               SCIPinfoMessage(scip, NULL, "Twominorlinconss added %d constraints.\n", *naddconss - noldaddconss);
+               SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Added %d linear constraints based on 2 x 2 SDP-minors.\n", *naddconss - noldaddconss);
                *result = SCIP_SUCCESS;
             }
          }
@@ -4111,7 +4107,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
             SCIPdebugMsg(scip, "Added %d linear constraints for products of 2 by 2 minors.\n", *naddconss - noldaddconss);
             if ( noldaddconss != *naddconss )
             {
-               SCIPinfoMessage(scip, NULL, "Twominorprodconss added %d constraints.\n", *naddconss - noldaddconss);
+               SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Added %d linear constraints based on produces of 2 x 2 SDP-minors.\n", *naddconss - noldaddconss);
                *result = SCIP_SUCCESS;
             }
          }
