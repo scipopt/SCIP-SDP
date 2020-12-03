@@ -18,6 +18,8 @@ features:
 - Use lexicographic sorting to sort matrix entries
 - SCIPcreateConsSdp() and SCIPcreateConsSdpRank1() allow to remove duplicates in matrices
 - empty SDP constraints are presolved and possibly removed
+- The data structures in sdpi.c have been restructured to reduce reallocation. This reduces the memory footprint
+  produced by empty blocks in memory.
 - prop_sdpredcost has been revised, avoiding numerical troubles at several places
 - Revised the functions diagZeroImpl(), addTwoMinorLinConstraints()
 - The SDPA reader has been rewritten in C.
