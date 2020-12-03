@@ -97,10 +97,10 @@
 
 #define PARSE_STARTSIZE               1 /**< initial size of the consdata-arrays when parsing a problem */
 #define PARSE_SIZEFACTOR             10 /**< size of consdata-arrays is increased by this factor when parsing a problem */
-#define DEFAULT_PROPAGATE         FALSE /**< Should we perform propagation? */
-#define DEFAULT_PROPPRESOL        FALSE /**< Should we perform propagation in presolving? */
-#define DEFAULT_TIGHTENMATRICES    TRUE /**< If all matrices are psd, should the matrices be tightened if possible? */
-#define DEFAULT_TIGHTENBOUNDS      TRUE /**< If all matrices are psd, should the bounds be tightened if possible? */
+#define DEFAULT_PROPAGATE          TRUE /**< Should we perform propagation? */
+#define DEFAULT_PROPPRESOL         TRUE /**< Should we perform propagation in presolving? */
+#define DEFAULT_TIGHTENMATRICES   FALSE /**< If all matrices are psd, should the matrices be tightened if possible? */
+#define DEFAULT_TIGHTENBOUNDS     FALSE /**< If all matrices are psd, should the bounds be tightened if possible? */
 #define DEFAULT_DIAGGEZEROCUTS     TRUE /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
 #define DEFAULT_DIAGZEROIMPLCUTS   TRUE /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
 #define DEFAULT_TWOMINORLINCONSS  FALSE /**< Should linear cuts corresponding to 2 by 2 minors be added? */
