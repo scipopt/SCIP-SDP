@@ -46,6 +46,8 @@
  * information about the solution.
  * The code refers to this problem as the @em dual.
  *
+ * We consider a problem (primal or dual) to be unbounded if there exists a ray and it is feasible.
+ *
  * All indexing (rows, columns, blocks and variables) starts at 0.
  *
  * Although it includes a few SCIP header files, e.g., because it uses SCIP's return codes, it can be used independently of

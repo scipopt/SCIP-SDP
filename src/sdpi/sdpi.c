@@ -64,7 +64,8 @@
  * @section prep Preparation
  *
  * The interface performs some preprocessing on the current problem and can sometimes determine whether the dual and/or
- * primal is feasible or infeasible.
+ * primal is feasible or infeasible. The primal or dual is considered to be unbounded if there exists a ray and it is
+ * feasible.
  *
  * @subsection fixed All variables are fixed
  *
@@ -81,19 +82,19 @@
  *    \mbox{s.t.} & & X^{(k)} \succeq 0 \quad \forall \ k \in K, \\
  *      & & x_i \geq 0 \qquad \forall \ i \in I.\\
  * \f}
- * Otherwise the dual is infeasible and the primal is unbounded (and feasible).
+ * Otherwise the dual is infeasible and the primal is unbounded (there exists a ray and it is feasible).
  *
  * @subsection infeas Infeasibility
  *
  * The interface can determine infeasibility in the case in which all variables are fixed or if variable bounds are
- * conflicting; in either case, @p infeasible is true. In the latter case, the primal is unbounded: Assume that
- * \f$\ell_j > u_j\f$. Then one can produce a ray as follows: Set all \f$X^{(k)} = 0\f$, \f$x = 0\f$, \f$v_r = w_r =
- * 0\f$ for all \f$r \in J\setminus \{j\}\f$. Furthermore, let \f$\gamma = v_j = w_j\f$ tend to infinity, then the objective is
- * \f$(\ell_j - u_j) \gamma \to \infty\f$.
+ * conflicting; in either case, @p infeasible is true. In the latter case, assume that \f$\ell_j > u_j\f$. Then one can
+ * produce a ray for the primal as follows: Set all \f$X^{(k)} = 0\f$, \f$x = 0\f$, \f$v_r = w_r = 0\f$ for all \f$r \in
+ * J\setminus \{j\}\f$. Furthermore, let \f$\gamma = v_j = w_j\f$ tend to infinity, then the objective is \f$(\ell_j -
+ * u_j) \gamma \to \infty\f$.
  *
  * Note that @p infeasible is also true if the (dual) penalty formulation without the objective function has a strictly
  * positive optimal objective value. Since we solved the penalty formulation, @p allfixed is false. Thus, the dual
- * problem is infeasible and the ray defined above shows that the primal problem is unbounded.
+ * problem is infeasible and the ray defined above is valid for the primal problem.
  *
  * Feasibility of the primal depends on the problem.
  */
@@ -3017,9 +3018,12 @@ SCIP_Bool SCIPsdpiIsPrimalUnbounded(
 
    if ( sdpi->infeasible )
    {
-      /* infeasibility was detected while preparing dual problem, primal problem is always unbounded (but not
-       * necessarily feasible) */
-      return TRUE;
+      /* infeasibility was detected while preparing dual problem, primal problem always has a ray and is feasible if all
+       * variables are fixed (else it is not necessarily feasible) */
+      if ( sdpi->allfixed )
+         return TRUE;
+      else
+         return FALSE;
    }
    else if ( sdpi->allfixed )
    {
