@@ -20,6 +20,8 @@ features:
 - empty SDP constraints are presolved and possibly removed
 - prop_sdpredcost has been revised, avoiding numerical troubles at several places
 - Revised the functions diagZeroImpl(), addTwoMinorLinConstraints()
+- The SDPA reader has been rewritten in C.
+- The SDPA reader supports a new optional section '*RANK1' that allows to specifiy rank-1-constraints. See 'sdpa-format.txt' for a description.
 
 parameters:
 - Rename parameter relaxing/SDP/tightenvb to relaxing/SDP/tightenrows.

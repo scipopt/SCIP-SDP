@@ -5132,8 +5132,6 @@ SCIP_DECL_CONSPARSE(consParseSdp)
       parsesuccess = SCIPstrToIntValue(pos, &rankoneint, &pos);
       consdata->rankone = (SCIP_Bool) rankoneint;
       *success = *success && parsesuccess;
-
-      printf("rank-1? %d\n", rankoneint);
    }
 
    /* skip whitespace */

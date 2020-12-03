@@ -40,16 +40,25 @@ http://euler.nmt.edu/~brian/sdplib/FORMAT.
 All matrices must be symmetric, so only the upper or the lower triangle of a 
 matrix should be given. Only one entry per variable and position is allowed.
 
-*-------------*
-*  EXTENSION  *
-*-------------*
-Our extension starts with '*INTEGER'. This signals a new section in the 
+*--------------*
+*  EXTENSIONS  *
+*--------------*
+
+Our first extension starts with '*INTEGER'. This signals a new section in the 
 sdpa-file. Afterwards there is one line per integer variable, beginning with 
 a '*'. Be careful as the format is 1-based. If your variables are binary, you  
 have to model the bounds on the variables in an lp-block, i.e. x_i >=0 and  
 -x_i>=-1. Lines beginning with '*' are treated as comments by common  
 SDPA-readers, so most should have no problem with our files. Our extension will be
 ignored.
+
+Our second extension starts with '*RANK1'. This signals a new section in the
+sdpa-file. Afterwards there is one line per SDP block that is required to have
+rank 1, beginning with a '*'. This section needs to be specified after the integer
+section, if present. Be careful as the format is 1-based. Note that the LP-block
+cannot be required to have rank 1. Lines beginning with '*' are treated as
+comments by common SDPA-readers, so most should have no problem with our
+files. Our extension will be ignored.
 
 ________________________________________________________________________________
 References:

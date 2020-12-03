@@ -13,5 +13,5 @@
 ../instances/example_rank1_primal.cbf
 ../instances/example_rank1_dual.cbf
 ../instances/example_diagzeroimpl.cbf
-../instances/example_small_ind.dat-s-ind
+../instances/example_small_ind.dat-s
 ../instances/example_indicator.cip.gz
