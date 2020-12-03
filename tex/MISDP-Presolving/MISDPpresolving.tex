@@ -166,7 +166,7 @@ This has the following two implications (see, e.g., Observation 1.1.5 and
 
 
 % -------------------------------------------------------------------------
-\subsection{Implied Linear Inequalities}
+\subsection{Implied Linear Inequalities}\label{sec:ImpliedLinEqs}
 
 The following inequalities are known from the literature, see
 Mars~\cite{Mar13} and  Gally~\cite{Gal19}, and can be added as linear inequalities w.r.t.\
@@ -247,7 +247,7 @@ This result can partly be translated to the matrix pencil format by defining
 Thus for any $y \in [\ell,u]$ we have $A(y)_{ij} \leq \tilde{U}_{ij}$. This
 directly yields:
 
-\begin{lemma}
+\begin{lemma}\label{lem:Propagation}
   For any solution $y \in \R^m$ of~\eqref{MISDP}, we have
   \[
     -\sqrt{\tilde{U}_{ii}\,\tilde{U}_{jj}} \leq A(y)_{ij} \leq \sqrt{\tilde{U}_{ii}\,\tilde{U}_{jj}}
@@ -268,6 +268,17 @@ In this case, we have
 \]
 Unfortunately, this has no effect on our test instances, i.e., the bounds
 could never be strengthened across the large testset.
+
+\begin{remark}
+  Note that in the pure form, the propagated inequalities from
+  Lemma~\ref{lem:Propagation} dominate the inequalities given in
+  Section~\ref{sec:ImpliedLinEqs}:
+  \begin{align*}
+    X_{st} \leq \sqrt{U_{ss} \cdot U_{tt}} \leq \frac{1}{2}\big( U_{ss} + U_{tt}\big),
+  \end{align*}
+  because of the inequality between the arithmetic and geometric mean. Does
+  this also hold in the general case of a (dual) LMI?
+\end{remark}
 
 \begin{question}
   Can this be effective on some instance? Should this be applied
