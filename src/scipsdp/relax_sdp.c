@@ -3517,10 +3517,11 @@ SCIP_RETCODE calcRelax(
             SCIPdebugMsg(scip, "The solver could not determine feasibility ! ");
          }
 
-         /* output solution */
-         for (i = 0; i < nvars; ++i)
+         /* output solution (if not infeasible) */
+         if ( objforscip < SCIPsdpiInfinity(sdpi) )
          {
-            SCIPdebugMsg(scip, "<%s> = %f\n", SCIPvarGetName(vars[i]), solforscip[i]);
+            for (i = 0; i < nvars; ++i)
+               SCIPdebugMsg(scip, "<%s> = %f\n", SCIPvarGetName(vars[i]), solforscip[i]);
          }
          SCIPfreeBufferArray(scip, &solforscip);
       }
