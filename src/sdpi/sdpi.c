@@ -415,6 +415,10 @@ SCIP_RETCODE ensureSDPDataMemory(
    int v;
 
    assert( sdpi != NULL );
+
+   if ( nsdpblocks <= 0 )
+      return SCIP_OKAY;
+
    assert( sdpnblockvars != NULL );
    assert( sdpnblockvarnonz != NULL );
    assert( sdpconstnblocknonz != NULL );
