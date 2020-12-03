@@ -3420,6 +3420,7 @@ SCIP_RETCODE SCIPsdpiGetSol(
    if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Infeasibility was detected while preparing problem, no solution available.\n");
+      *objval = SCIPsdpiInfinity(sdpi); /* we are minimizing */
    }
    else if ( sdpi->allfixed )
    {
