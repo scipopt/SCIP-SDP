@@ -3803,37 +3803,12 @@ SCIP_RETCODE calcRelax(
    return SCIP_OKAY;
 }
 
-/** checks whether all variables are fixed */
-static
-SCIP_Bool allVarsFixed(
-   SCIP*                 scip                /**< SCIP data structure */
-   )
-{
-   SCIP_VAR** vars;
-   int i;
-
-   assert( scip != NULL );
-
-   vars = SCIPgetVars(scip);
-
-   /* try to find a variable that is not fixed */
-   for (i = 0; i < SCIPgetNVars(scip); i++)
-   {
-      if ( SCIPisLT(scip, SCIPvarGetLbLocal(vars[i]), SCIPvarGetUbLocal(vars[i])) )
-         return FALSE;
-   }
-
-   /* if no variable with lower bound strictly lower than upper bound has been found, all variables are fixed */
-   return TRUE;
-}
-
 /** execution method of relaxator */
 static
 SCIP_DECL_RELAXEXEC(relaxExecSdp)
 {
    SCIP_RELAXDATA* relaxdata;
    SCIP_VAR** vars;
-   SCIP_Real* ubs;
    SCIP_Bool cutoff;
    SCIP_SOL* scipsol; /* TODO: eliminate this */
    int nconss;
@@ -3945,55 +3920,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       /* if there are no constraints, there is nothing to do */
       relaxdata->feasible = TRUE;
       *result = SCIP_DIDNOTRUN;
-      return SCIP_OKAY;
-   }
-
-   if ( allVarsFixed(scip) )
-   {
-      SCIP_Bool feasible;
-
-      /* if all variables, really all, are fixed, we give this fixed solution to SCIP */
-
-      SCIP_CALL( SCIPallocBufferArray(scip, &ubs, nvars) );
-
-      *lowerbound = 0.0;
-      for (i = 0; i < nvars; i++)
-      {
-         ubs[i] = SCIPvarGetUbLocal(vars[i]);
-         *lowerbound += SCIPvarGetObj(vars[i]) * ubs[i];
-         assert( SCIPisFeasEQ(scip, SCIPvarGetUbLocal(vars[i]), SCIPvarGetLbLocal(vars[i])));
-      }
-
-      SCIPdebugMsg(scip, "EVERYTHING IS FIXED, objective value = %f\n", *lowerbound);
-
-      SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
-      SCIP_CALL( SCIPsetSolVals(scip, scipsol, nvars, vars, ubs) );
-
-      /* set the relaxation solution */
-      for (i = 0; i < nvars; i++)
-      {
-#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
-         SCIP_CALL( SCIPsetRelaxSolVal(scip, relax, vars[i], SCIPvarGetLbLocal(vars[i])) );
-#else
-         SCIP_CALL( SCIPsetRelaxSolVal(scip, vars[i], SCIPvarGetLbLocal(vars[i])) );
-#endif
-      }
-#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
-      SCIP_CALL( SCIPmarkRelaxSolValid(scip, relax, TRUE) );
-#else
-      SCIP_CALL( SCIPmarkRelaxSolValid(scip, TRUE) );
-#endif
-
-      /* check if the solution really is feasible */
-      SCIP_CALL( SCIPcheckSol(scip, scipsol, FALSE, TRUE, TRUE, TRUE, TRUE, &feasible) );
-
-      relaxdata->feasible = feasible;
-
-      SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
-
-      SCIPfreeBufferArray(scip, &ubs);
-
-      *result = SCIP_SUCCESS;
       return SCIP_OKAY;
    }
 
