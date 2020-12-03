@@ -310,6 +310,8 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    length = nvars;
 
    SCIP_CALL( SCIPrelaxSdpGetPrimalBoundVars(relax, propdata->lbvarvals, propdata->ubvarvals, &length) );
+   if ( length < 0 )
+      return SCIP_OKAY;
    assert( length == nvars ); /* we should get exactly one value for lower and upper bound-variable per variable in scip */
 
    for (v = 0; v < nvars; v++)

@@ -263,7 +263,7 @@ SCIP_Bool isFixed(
 /**@name Miscellaneous Methods */
 /**@{ */
 
-char name[SCIP_MAXSTRLEN];
+char solvername[SCIP_MAXSTRLEN];
 
 /** gets name and version (if available) of SDP-solver */
 const char* SCIPsdpiSolverGetSolverName(
@@ -291,21 +291,21 @@ const char* SCIPsdpiSolverGetSolverName(
       return "MOSEK";
 
 #ifndef NDEBUG
- #if MSK_VERSION_MAJOR < 9
-   snprintfreturn = SCIPsnprintf(name, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d.%d", majorver, minorver, build, revision);/*lint !e123*/
- #else
-   snprintfreturn = SCIPsnprintf(name, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d", majorver, minorver, revision);/*lint !e123*/
- #endif
+#if MSK_VERSION_MAJOR < 9
+   snprintfreturn = SCIPsnprintf(solvername, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d.%d", majorver, minorver, build, revision);/*lint !e123*/
+#else
+   snprintfreturn = SCIPsnprintf(solvername, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d", majorver, minorver, revision);/*lint !e123*/
+#endif
    assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether the name fits into the string */
 #else
- #if MSK_VERSION_MAJOR < 9
-   (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d.%d", majorver, minorver, build, revision);
- #else
-   (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d", majorver, minorver, revision);
- #endif
+#if MSK_VERSION_MAJOR < 9
+   (void) SCIPsnprintf(solvername, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d.%d", majorver, minorver, build, revision);
+#else
+   (void) SCIPsnprintf(solvername, SCIP_MAXSTRLEN, "MOSEK %d.%d.%d", majorver, minorver, revision);
+#endif
 #endif
 
-   return name;
+   return solvername;
 }
 
 /** gets description of SDP-solver (developer, webpage, ...) */
@@ -673,9 +673,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int* vartorowmapper; /* maps the lpvars to the corresponding left- and right-hand-sides of the LP constraints */
    int* vartolhsrhsmapper; /* maps the lpvars to the corresponding entries in lplhs and lprhs */
    int nlpvars;
-   int pos;
-   int newpos;
-   int* mosekblocksizes;
+   int* mosekblocksizes = NULL;
    SCIP_Real one; /* MOSEK always wants a pointer to factors for a sum of matrices, we always use a single matrix with factor one */
    int* mosekrow;
    int* mosekcol;
@@ -689,10 +687,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_Real elapsedtime;
    MSKsolstae solstat;
 #ifdef SCIP_MORE_DEBUG
-   int nmosekconss;
-   int nmosekvars;
-   int nmosekcones;
-   char varname[SCIP_MAXSTRLEN];
+   char name[SCIP_MAXSTRLEN];
 #endif
 #if CONVERT_ABSOLUTE_TOLERANCES
    SCIP_Real maxrhscoef; /* MOSEK uses a relative feasibility tolerance, the largest rhs-coefficient is needed for converting the absolute tolerance */
@@ -773,12 +768,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
 
 #ifdef SCIP_MORE_DEBUG
-   MOSEK_CALL( MSK_linkfunctotaskstream (sdpisolver->msktask, MSK_STREAM_LOG, NULL, printstr) ); /* output to console */
+   MOSEK_CALL( MSK_linkfunctotaskstream(sdpisolver->msktask, MSK_STREAM_LOG, NULL, printstr) ); /* output to console */
 #else
    /* if sdpinfo is true, redirect output to console */
    if ( sdpisolver->sdpinfo )
    {
-      MOSEK_CALL( MSK_linkfunctotaskstream (sdpisolver->msktask, MSK_STREAM_LOG, NULL, printstr) );/*lint !e641*/
+      MOSEK_CALL( MSK_linkfunctotaskstream(sdpisolver->msktask, MSK_STREAM_LOG, NULL, printstr) );/*lint !e641*/
    }
 #endif
 
@@ -793,7 +788,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if ( penaltyparam < sdpisolver->epsilon )
       SCIPdebugMessage("Inserting Data into MOSEK for SDP (%d) \n", ++sdpisolver->sdpcounter);
    else
-      SCIPdebugMessage("Inserting Data again into MOSEK for SDP (%d) \n", sdpisolver->sdpcounter);
+      SCIPdebugMessage("Inserting Data again into MOSEK for penalty formulation of SDP (%d) \n", sdpisolver->sdpcounter);
 
    /* set the penalty and rbound flags accordingly */
    sdpisolver->penalty = (penaltyparam < sdpisolver->epsilon) ? FALSE : TRUE;
@@ -846,7 +841,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->mosektoinputmapper), nvars, sdpisolver->nactivevars) );
 
    /* compute number of variable bounds and save them in mosekvarbounds */
-   sdpisolver->nvarbounds = 0;
    BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekvarbounds, 2 * sdpisolver->nactivevars) ); /*lint !e647*/
 
    if ( sdpisolver->nactivevars != oldnactivevars )
@@ -862,6 +856,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
    assert( sdpisolver->varboundpos != NULL );
 
+   sdpisolver->nvarbounds = 0;
    for (i = 0; i < sdpisolver->nactivevars; i++)
    {
       assert( 0 <= sdpisolver->mosektoinputmapper[i] && sdpisolver->mosektoinputmapper[i] < nvars );
@@ -873,7 +868,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
       if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, ub[sdpisolver->mosektoinputmapper[i]]) )
       {
-         mosekvarbounds[sdpisolver->nvarbounds] = -1 * ub[sdpisolver->mosektoinputmapper[i]]; /* we give the upper bounds a negative sign for the objective */
+         mosekvarbounds[sdpisolver->nvarbounds] = - ub[sdpisolver->mosektoinputmapper[i]]; /* we give the upper bounds a negative sign for the objective */
          sdpisolver->varboundpos[sdpisolver->nvarbounds] = +(i + 1); /* positive sign means upper bound */
          (sdpisolver->nvarbounds)++;
       }
@@ -881,6 +876,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    if ( nlpcons > 0 )
    {
+      int pos = 0;
+      int newpos = 0; /* the position in the lhs and rhs arrays */
+
       /* allocate memory to save which lpvariable corresponds to which lp constraint, negative signs correspond to left-hand-sides of lp constraints,
        * entry i or -i corresponds to the constraint in position |i|-1, as we have to add +1 to make the entries strictly positive or strictly negative */
       BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &vartorowmapper, 2*noldlpcons) ); /*lint !e647*/ /*lint !e530*/
@@ -888,8 +886,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &vartolhsrhsmapper, 2*noldlpcons) ); /*lint !e647*/ /*lint !e530*/
 
       /* compute the number of LP constraints after splitting the ranged rows and compute the rowtovarmapper */
-      pos = 0;
-      newpos = 0; /* the position in the lhs and rhs arrays */
       for (i = 0; i < noldlpcons; i++)
       {
          assert( newpos <= nlpcons );
@@ -908,6 +904,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
 
             }
+
             if ( lprhs[newpos] < SCIPsdpiSolverInfinity(sdpisolver) )
             {
                vartorowmapper[pos] = i+1;
@@ -924,7 +921,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          }
       }
       nlpvars = pos;
-      assert( nlpvars <= 2*nlpcons ); /* *2 comes from left- and right-hand-sides */
+      assert( nlpvars <= 2*nlpcons ); /* factor 2 comes from left- and right-hand-sides */
    }
    else
       nlpvars = 0;
@@ -1017,11 +1014,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       assert( vartolhsrhsmapper != NULL ); /* for lint */
       if ( vartorowmapper[i] > 0 )/*lint !e644*/ /* right-hand side */
       {
-         MOSEK_CALL( MSK_putcj(sdpisolver->msktask, i, -1 * lprhs[vartolhsrhsmapper[i]]) );/*lint !e641, !e644*/
+         MOSEK_CALL( MSK_putcj(sdpisolver->msktask, i, - lprhs[vartolhsrhsmapper[i]]) );/*lint !e641, !e644*/
 #ifdef SCIP_MORE_DEBUG
          /* give the variable a meaningful name for debug output */
-         (void) SCIPsnprintf(varname, SCIP_MAXSTRLEN, "rhs-%d", vartorowmapper[i] - 1);
-         MOSEK_CALL( MSK_putvarname ( sdpisolver->msktask, i, varname) );
+         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "rhs#%d", vartorowmapper[i] - 1);
+         MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, i, name) );
 #endif
       }
       else /* left-hand side */
@@ -1030,8 +1027,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          MOSEK_CALL( MSK_putcj(sdpisolver->msktask, i, lplhs[vartolhsrhsmapper[i]]) );/*lint !e641*/
 #ifdef SCIP_MORE_DEBUG
          /* give the variable a meaningful name for debug output */
-         (void) SCIPsnprintf(varname, SCIP_MAXSTRLEN, "lhs-%d", -1 * vartorowmapper[i] - 1);
-         MOSEK_CALL( MSK_putvarname ( sdpisolver->msktask, i, varname) );
+         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lhs#%d", -1 * vartorowmapper[i] - 1);
+         MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, i, name) );
 #endif
       }
    }
@@ -1044,20 +1041,18 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       if ( sdpisolver->varboundpos[i] < 0 ) /* lower bound */
       {
          /* give the variable a meaningful name for debug output */
-         (void) SCIPsnprintf(varname, SCIP_MAXSTRLEN, "lb-%d", sdpisolver->mosektoinputmapper[-1 * sdpisolver->varboundpos[i] - 1]);
-         MOSEK_CALL( MSK_putvarname ( sdpisolver->msktask, nlpvars + i, varname) );
+         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lb#%d", sdpisolver->mosektoinputmapper[-1 * sdpisolver->varboundpos[i] - 1]);
+         MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, nlpvars + i, name) );
       }
       else /* upper bound */
       {
          assert( sdpisolver->varboundpos[i] > 0 ); /* we should not have value 0 so that we can clearly differentiate between positive and negative */
          /* give the variable a meaningful name for debug output */
-         (void) SCIPsnprintf(varname, SCIP_MAXSTRLEN, "ub-%d", sdpisolver->mosektoinputmapper[sdpisolver->varboundpos[i] - 1]);
-         MOSEK_CALL( MSK_putvarname ( sdpisolver->msktask, nlpvars + i, varname) );
+         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "ub#%d", sdpisolver->mosektoinputmapper[sdpisolver->varboundpos[i] - 1]);
+         MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, nlpvars + i, name) );
       }
 #endif
    }
-
-   BMSfreeBufferMemoryArray(sdpisolver->bufmem, &mosekvarbounds);
 
    /* set objective sense (since we want to minimize in the dual, we maximize in the primal) */
    MOSEK_CALL( MSK_putobjsense(sdpisolver->msktask, MSK_OBJECTIVE_SENSE_MAXIMIZE) );/*lint !e641*/
@@ -1155,6 +1150,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekval, lpnnonz + 1) );/*lint !e776*/
    }
 
+   /* enter LP rows */
    ind = 0;
    for (i = 0; i < nlpvars; i++)
    {
@@ -1162,15 +1158,17 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       if ( vartorowmapper[i] < 0 ) /* left-hand side */
       {
          mosekind = 0;
+
          /* find the first lp-entry belonging to this variable (those in between have to belong to constraints with less than two active variables and
           * will therefore not be used) */
-         while (ind < lpnnonz && lprow[ind] < -1 * vartorowmapper[i] - 1)
+         while ( ind < lpnnonz && lprow[ind] < - vartorowmapper[i] - 1 )
             ind++;
+
          /* iterate over all nonzeros to input them to the array given to MOSEK */
-         while (ind < lpnnonz && lprow[ind] == -1 * vartorowmapper[i] - 1) /* they should already be sorted by rows in the sdpi */
+         while ( ind < lpnnonz && lprow[ind] == - vartorowmapper[i] - 1 ) /* they should already be sorted by rows in the sdpi */
          {
             v = sdpisolver->inputtomosekmapper[lpcol[ind]];
-            if ( v > -1 )
+            if ( v >= 0 )
             {
                mosekrow[mosekind] = v;
                mosekval[mosekind] = lpval[ind];
@@ -1184,28 +1182,30 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          assert( vartorowmapper[i] > 0 ); /* we should not have value 0 so that we can clearly differentiate between positive and negative */
 
-         if ( i > 0 && vartorowmapper[i] == -1 * vartorowmapper[i - 1] )
+         if ( i > 0 && vartorowmapper[i] == - vartorowmapper[i - 1] )
          {
             /* we already iterated over this constraint in the lp-arrays, so we keep the current ind position and as we currenlty have
              * the corresponding entries in the mosek-arrays, we iterate over them again just changing the signs (except for the penalty-entry) */
             for (j = 0; j < (penaltyparam < sdpisolver->epsilon ? mosekind : mosekind - 1); j++)/*lint !e644*/
-               mosekval[j] *= -1;
+               mosekval[j] *= -1.0;
          }
          else
          {
-            /* no left hand side for this constraint exists, so we didnot yet iterate over this constraint in the lp arrays */
+            /* no left hand side for this constraint exists, so we did not yet iterate over this constraint in the lp arrays */
             mosekind = 0;
+
             /* find the first lp-entry belonging to this variable (those in between have to belong to constraints with less than two active variables and
              * will therefore not be used) */
-            while (lprow[ind] < vartorowmapper[i] - 1)
+            while ( ind < lpnnonz && lprow[ind] < vartorowmapper[i] - 1 )
                ind++;
-            while (ind < lpnnonz && lprow[ind] == vartorowmapper[i] - 1)
+
+            while ( ind < lpnnonz && lprow[ind] == vartorowmapper[i] - 1 )
             {
                v = sdpisolver->inputtomosekmapper[lpcol[ind]];
-               if ( v > -1 )
+               if ( v >= 0 )
                {
                   mosekrow[mosekind] = v;
-                  mosekval[mosekind] = -1 * lpval[ind]; /* because we need to change the <= to a >= constraint */
+                  mosekval[mosekind] = - lpval[ind]; /* because we need to change the <= to a >= constraint */
                   mosekind++;
                }
                ind++;
@@ -1219,7 +1219,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          /* check if we reset mosekind, in case we did not and just "copied" the lhs-entries for the rhs, we do not need to reset the extra entry,
           * since it is already there */
-         if ( ! (i > 0 && vartorowmapper[i] == -1 * vartorowmapper[i - 1] ))
+         if ( ! (i > 0 && vartorowmapper[i] == -1 * vartorowmapper[i - 1]) )
          {
             mosekrow[mosekind] = sdpisolver->nactivevars;
             mosekval[mosekind] = 1.0;
@@ -1240,7 +1240,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       if ( sdpisolver->varboundpos[i] < 0 )
       {
          /* lower bound */
-         row =-1 * sdpisolver->varboundpos[i] - 1; /* minus one because we added one to get strictly positive/negative values */
+         row = - sdpisolver->varboundpos[i] - 1; /* minus one because we added one to get strictly positive/negative values */
          val = 1.0;
       }
       else
@@ -1264,10 +1264,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, i, MSK_BK_FX, 0.0, 0.0) );/*lint !e641*/
       }
+
 #ifdef SCIP_MORE_DEBUG
-         /* give the constraint a meaningful name for debug output */
-         (void) SCIPsnprintf(varname, SCIP_MAXSTRLEN, "var-%d", sdpisolver->mosektoinputmapper[i]);
-         MOSEK_CALL( MSK_putconname ( sdpisolver->msktask, i, varname) );
+      /* give the constraint a meaningful name for debug output */
+      (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "var#%d", sdpisolver->mosektoinputmapper[i]);
+      MOSEK_CALL( MSK_putconname(sdpisolver->msktask, i, name) );
 #endif
    }
 
@@ -1282,26 +1283,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, sdpisolver->nactivevars, MSK_BK_FX, penaltyparam, penaltyparam) );/*lint !e641*/
       }
-   }
-
-   /* write to file if asked to */
-#ifdef SCIP_DEBUG_PRINTTOFILE
-   SCIP_CALL( SCIPsdpiSolverWriteSDP(sdpisolver, "mosek.task") );
-#endif
-
-   /* print whole problem and parameters if asked to */
 #ifdef SCIP_MORE_DEBUG
-#if MSK_VERSION_MAJOR < 9
-   MOSEK_CALL( MSK_getnumcon (sdpisolver->msktask, &nmosekconss) );
-   MOSEK_CALL( MSK_getnumvar (sdpisolver->msktask, &nmosekvars) );
-   MOSEK_CALL( MSK_getnumcone (sdpisolver->msktask, &nmosekcones) );
-
-   MOSEK_CALL( MSK_printdata (sdpisolver->msktask, MSK_STREAM_LOG, 0, nmosekconss, 0, nmosekvars, 0, nmosekcones, 1, 1, 1, 1, 1, 1, 1, 1) );
-#ifdef SCIP_PRINT_PARAMETERS
-   MOSEK_CALL( MSK_printparam (sdpisolver->msktask) );
+      /* give the constraint a meaningful name for debug output */
+      (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "penality");
+      MOSEK_CALL( MSK_putconname(sdpisolver->msktask, i, name) );
 #endif
-#endif
-#endif
+   }
 
    /* set the time limit */
    startseconds = (SCIP_Real) starttime.tv_sec + (SCIP_Real) starttime.tv_usec / 1e6;
@@ -1346,6 +1333,31 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_UPPER_OBJ_CUT, sdpisolver->objlimit) );/*lint !e641*/
       }
+
+      /* write to file if asked to */
+#ifdef SCIP_DEBUG_PRINTTOFILE
+      SCIP_CALL( SCIPsdpiSolverWriteSDP(sdpisolver, "mosek.task") );
+#endif
+
+      /* print whole problem (only for MOSEK < 9) and parameters if asked to */
+#ifdef SCIP_MORE_DEBUG
+#if MSK_VERSION_MAJOR < 9
+      {
+         int nmosekconss;
+         int nmosekvars;
+         int nmosekcones;
+
+         MOSEK_CALL( MSK_getnumcon (sdpisolver->msktask, &nmosekconss) );
+         MOSEK_CALL( MSK_getnumvar (sdpisolver->msktask, &nmosekvars) );
+         MOSEK_CALL( MSK_getnumcone (sdpisolver->msktask, &nmosekcones) );
+
+         MOSEK_CALL( MSK_printdata(sdpisolver->msktask, MSK_STREAM_LOG, 0, nmosekconss, 0, nmosekvars, 0, nmosekcones, 1, 1, 1, 1, 1, 1, 1, 1) );
+      }
+#endif
+#ifdef SCIP_PRINT_PARAMETERS
+      MOSEK_CALL( MSK_printparam (sdpisolver->msktask) );
+#endif
+#endif
 
       /* solve the problem */
       MOSEK_CALL( MSK_optimizetrm(sdpisolver->msktask, &(sdpisolver->terminationcode)) );/*lint !e641*/
@@ -1474,15 +1486,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       *feasorig = (moseksol[sdpisolver->nactivevars] < sdpisolver->feastol); /*lint !e413*/
 
-      /* only set sdpisolver->feasorig to true if we solved with objective, because only in this case we want to compute
-       * the objective value by hand since it is numerically more stable then the result returned by MOSEK */
+      /* Only set sdpisolver->feasorig to true if we solved with objective, because only in this case we want to compute
+       * the objective value by hand, since it is numerically more stable than the result returned by MOSEK. */
       if ( withobj )
          sdpisolver->feasorig = *feasorig;
 
       /* if r > 0 also check the primal bound */
       if ( ! *feasorig && penaltybound != NULL )
       {
-
          SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", moseksol[sdpisolver->nactivevars]);
 
          /* compute Tr(X) */
@@ -1497,7 +1508,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
                size = sdpblocksizes[b] - nremovedinds[b];
 
-               BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &X, 0.5 * size * (size + 1)) );
+               BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &X, size * (size + 1)/2) );
                MOSEK_CALL( MSK_getbarxj(sdpisolver->msktask, MSK_SOL_ITR, b - blockindchanges[b], X) );/*lint !e641*/
 
                /* iterate over all diagonal entries */
@@ -1505,7 +1516,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                {
                   /* get index in the lower triangular part */
                   ind = i * (i + 3) / 2;/*lint !e776*/ /*  i*(i+1)/2 + i  */
-                  assert( ind < 0.5 * size * (size + 1) );
+                  assert( ind < size * (size + 1)/2 );
                   trace += X[ind];
                }
 
@@ -1524,9 +1535,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &x);
 
          /* if the relative gap is smaller than the tolerance, we return equality */
+         assert( penaltybound != NULL );
          if ( (penaltyparam - trace) / penaltyparam < PENALTYBOUNDTOL )/*lint !e414*/
          {
-            assert( penaltybound != NULL );
             *penaltybound = TRUE;
             SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible\n",
                trace, penaltyparam);
@@ -1538,12 +1549,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
    /* free memory */
-   BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &mosekblocksizes);
+   BMSfreeBufferMemoryArray(sdpisolver->bufmem, &mosekblocksizes);
    if ( nlpcons > 0 )
    {
-      BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &vartolhsrhsmapper);
-      BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &vartorowmapper);
+      BMSfreeBufferMemoryArray(sdpisolver->bufmem, &vartolhsrhsmapper);
+      BMSfreeBufferMemoryArray(sdpisolver->bufmem, &vartorowmapper);
    }
+   BMSfreeBufferMemoryArray(sdpisolver->bufmem, &mosekvarbounds);
 
    return SCIP_OKAY;
 }
