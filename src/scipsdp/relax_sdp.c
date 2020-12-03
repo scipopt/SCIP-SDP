@@ -1293,12 +1293,13 @@ SCIP_RETCODE calcRelax(
       assert( SCIPgetUpperbound(scip) > -SCIPsdpiInfinity(sdpi) );
       SCIP_CALL( SCIPsdpiSetRealpar(sdpi, SCIP_SDPPAR_OBJLIMIT, SCIPgetUpperbound(scip)) );
    }
+
    /* if this is the root node and we cannot solve the problem, we want to check for the Slater condition independent from the SCIP parameter */
-   rootnode = ! SCIPnodeGetParent(SCIPgetCurrentNode(scip));
+   rootnode = SCIPgetDepth(scip) == 0 ? TRUE : FALSE;
 
    /* find settings to use for this relaxation */
-   if ( rootnode || (SCIPnodeGetDepth(SCIPgetCurrentNode(scip)) == relaxdata->settingsresetofs) ||
-      ( relaxdata->settingsresetfreq > 0 && ((SCIPnodeGetDepth(SCIPgetCurrentNode(scip)) - relaxdata->settingsresetofs) % relaxdata->settingsresetfreq == 0)) ||
+   if ( rootnode || (SCIPgetDepth(scip) == relaxdata->settingsresetofs) ||
+      ( relaxdata->settingsresetfreq > 0 && ((SCIPgetDepth(scip) - relaxdata->settingsresetofs) % relaxdata->settingsresetfreq == 0)) ||
       ( strcmp(SCIPsdpiGetSolverName(), "DSDP") == 0) || (strstr(SCIPsdpiGetSolverName(), "Mosek") != NULL) )
    {
       startsetting = SCIP_SDPSOLVERSETTING_UNSOLVED; /* in the root node we have no information, at each multiple of resetfreq we reset */
@@ -1351,7 +1352,7 @@ SCIP_RETCODE calcRelax(
    enforceslater = SCIPisInfinity(scip, -1 * SCIPnodeGetLowerbound(SCIPgetCurrentNode(scip)));
 
    /* solve the problem (using warmstarts if parameter is true and we are not in the root node and all neccessary data is available) */
-   if ( ( ! SCIPnodeGetParent(SCIPgetCurrentNode(scip))) || ( ! relaxdata->warmstart ) || ((relaxdata->warmstartiptype == 2) &&
+   if ( rootnode || ! relaxdata->warmstart || ((relaxdata->warmstartiptype == 2) &&
          SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) && ((SCIPsdpiDoesWarmstartNeedPrimal() && ! relaxdata->ipXexists) || (! relaxdata->ipZexists))) )
    {
       SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );

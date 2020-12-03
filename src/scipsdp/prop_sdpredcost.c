@@ -63,6 +63,7 @@
 #define PROP_PRIORITY               +1000000 /**< propagator priority */
 #define PROP_FREQ                   1        /**< propagator frequency */
 #define PROP_DELAY                  FALSE    /**< Should propagation method be delayed, if other propagators found reductions? */
+
 #define DEFAULT_SDPRCBIN            TRUE     /**< Should sdp reduced cost fixing be executed for binary variables? */
 #define DEFAULT_SDPRCINTCONT        TRUE     /**< Should sdp reduced cost fixing be executed for integer and continuous variables? */
 
@@ -272,6 +273,10 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
   if ( SCIPisInfinity(scip, cutoffbound) )
      return SCIP_OKAY;
 
+   cutoffbound = SCIPgetCutoffbound(scip);
+   if ( SCIPisInfinity(scip, cutoffbound) )
+      return SCIP_OKAY;
+
    relax = SCIPfindRelax(scip, "SDP"); /* get SDP relaxation handler */
    assert( relax != NULL );
 
@@ -421,11 +426,11 @@ SCIP_RETCODE SCIPincludePropSdpredcost(
    SCIP_CALL( SCIPsetPropFree(scip, prop, propFreeSdpredcost) );
 
    /* add additional parameters */
-   SCIP_CALL( SCIPaddBoolParam(scip, "propagating/sdpredcost/forbins", "Should SDP reduced cost fixing be executed for binary variables?",
-         &propdata->forbins, TRUE, DEFAULT_SDPRCBIN, NULL, NULL) );
+   SCIP_CALL( SCIPaddBoolParam(scip, "propagating/" PROP_NAME "/forbins", "Should SDP reduced cost fixing be executed for binary variables?",
+         &(propdata->forbins), TRUE, DEFAULT_SDPRCBIN, NULL, NULL) );
 
-   SCIP_CALL( SCIPaddBoolParam(scip, "propagating/sdpredcost/forintconts", "Should SDP reduced cost fixing be executed for integer and continuous variables?",
-         &propdata->forintconts, TRUE, DEFAULT_SDPRCINTCONT, NULL, NULL) );
+   SCIP_CALL( SCIPaddBoolParam(scip, "propagating/" PROP_NAME "/forintconts", "Should SDP reduced cost fixing be executed for integer and continuous variables?",
+         &(propdata->forintconts), TRUE, DEFAULT_SDPRCINTCONT, NULL, NULL) );
 
    return SCIP_OKAY;
 }

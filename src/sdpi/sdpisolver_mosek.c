@@ -673,8 +673,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int* vartorowmapper; /* maps the lpvars to the corresponding left- and right-hand-sides of the LP constraints */
    int* vartolhsrhsmapper; /* maps the lpvars to the corresponding entries in lplhs and lprhs */
    int nlpvars;
-   int* mosekblocksizes = NULL;
-   SCIP_Real one; /* MOSEK always wants a pointer to factors for a sum of matrices, we always use a single matrix with factor one */
+   int* mosekblocksizes;
+   SCIP_Real one = 1.0; /* MOSEK always wants a pointer to factors for a sum of matrices, we always use a single matrix with factor one */
    int* mosekrow;
    int* mosekcol;
    SCIP_Real* mosekval;
@@ -690,7 +690,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    char name[SCIP_MAXSTRLEN];
 #endif
 #if CONVERT_ABSOLUTE_TOLERANCES
-   SCIP_Real maxrhscoef; /* MOSEK uses a relative feasibility tolerance, the largest rhs-coefficient is needed for converting the absolute tolerance */
+   SCIP_Real maxrhscoef = 0.0; /* MOSEK uses a relative feasibility tolerance, the largest rhs-coefficient is needed for converting the absolute tolerance */
 #endif
 
    assert( sdpisolver != NULL );
@@ -744,23 +744,18 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* start the timing */
    TIMEOFDAY_CALL( gettimeofday(&starttime, NULL) );/*lint !e438, !e550, !e641 */
 
-   one = 1.0;
-#if CONVERT_ABSOLUTE_TOLERANCES
-   maxrhscoef = 0.0;
-#endif
-
    /* create an empty task (second and third argument are guesses for maximum number of constraints and variables), if there already is one, delete it */
-   if ((sdpisolver->msktask) != NULL)
+   if ( sdpisolver->msktask != NULL )
    {
-      MOSEK_CALL( MSK_deletetask(&(sdpisolver->msktask)) );/*lint !e641*/
+      MOSEK_CALL( MSK_deletetask(&sdpisolver->msktask) );/*lint !e641*/
    }
    if ( penaltyparam < sdpisolver->epsilon )
    {
-      MOSEK_CALLM( MSK_maketask(sdpisolver->mskenv, nvars, nsdpblocks - nremovedblocks + nlpcons + 2 * nvars, &(sdpisolver->msktask)) );/*lint !e641*/
+      MOSEK_CALLM( MSK_maketask(sdpisolver->mskenv, nvars, nsdpblocks - nremovedblocks + nlpcons + 2 * nvars, &sdpisolver->msktask) );/*lint !e641*/
    }
    else
    {
-      MOSEK_CALLM( MSK_maketask(sdpisolver->mskenv, nvars + 1, nsdpblocks - nremovedblocks + nlpcons + 2 * nvars, &(sdpisolver->msktask)) );/*lint !e641*/
+      MOSEK_CALLM( MSK_maketask(sdpisolver->mskenv, nvars + 1, nsdpblocks - nremovedblocks + nlpcons + 2 * nvars, &sdpisolver->msktask) );/*lint !e641*/
    }
 
 #if MSK_VERSION_MAJOR >= 9
@@ -786,7 +781,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* only increase the counter if we don't use the penalty formulation to stay in line with the numbers in the general interface (where this is still the
     * same SDP) */
    if ( penaltyparam < sdpisolver->epsilon )
-      SCIPdebugMessage("Inserting Data into MOSEK for SDP (%d) \n", ++sdpisolver->sdpcounter);
+      SCIPdebugMessage("Inserting data into MOSEK for SDP (%d) \n", ++sdpisolver->sdpcounter);
    else
       SCIPdebugMessage("Inserting Data again into MOSEK for penalty formulation of SDP (%d) \n", sdpisolver->sdpcounter);
 
@@ -863,21 +858,19 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, lb[sdpisolver->mosektoinputmapper[i]]) )
       {
          mosekvarbounds[sdpisolver->nvarbounds] = lb[sdpisolver->mosektoinputmapper[i]];
-         sdpisolver->varboundpos[sdpisolver->nvarbounds] = -(i + 1); /* negative sign means lower bound */
-         (sdpisolver->nvarbounds)++;
+         sdpisolver->varboundpos[sdpisolver->nvarbounds++] = -(i + 1); /* negative sign means lower bound */
       }
       if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, ub[sdpisolver->mosektoinputmapper[i]]) )
       {
          mosekvarbounds[sdpisolver->nvarbounds] = - ub[sdpisolver->mosektoinputmapper[i]]; /* we give the upper bounds a negative sign for the objective */
-         sdpisolver->varboundpos[sdpisolver->nvarbounds] = +(i + 1); /* positive sign means upper bound */
-         (sdpisolver->nvarbounds)++;
+         sdpisolver->varboundpos[sdpisolver->nvarbounds++] = +(i + 1); /* positive sign means upper bound */
       }
    }
 
    if ( nlpcons > 0 )
    {
-      int pos = 0;
       int newpos = 0; /* the position in the lhs and rhs arrays */
+      int pos = 0;
 
       /* allocate memory to save which lpvariable corresponds to which lp constraint, negative signs correspond to left-hand-sides of lp constraints,
        * entry i or -i corresponds to the constraint in position |i|-1, as we have to add +1 to make the entries strictly positive or strictly negative */
@@ -894,8 +887,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             if ( lplhs[newpos] > - SCIPsdpiSolverInfinity(sdpisolver) )
             {
                vartorowmapper[pos] = -(i+1);
-               vartolhsrhsmapper[pos] = newpos;
-               pos++;
+               vartolhsrhsmapper[pos++] = newpos;
 
 #if CONVERT_ABSOLUTE_TOLERANCES
                /* update largest rhs-entry */
@@ -908,8 +900,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             if ( lprhs[newpos] < SCIPsdpiSolverInfinity(sdpisolver) )
             {
                vartorowmapper[pos] = i+1;
-               vartolhsrhsmapper[pos] = newpos;
-               pos++;
+               vartolhsrhsmapper[pos++] = newpos;
 
 #if CONVERT_ABSOLUTE_TOLERANCES
                /* update largest rhs-entry */
@@ -1205,8 +1196,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                if ( v >= 0 )
                {
                   mosekrow[mosekind] = v;
-                  mosekval[mosekind] = - lpval[ind]; /* because we need to change the <= to a >= constraint */
-                  mosekind++;
+                  mosekval[mosekind++] = - lpval[ind]; /* because we need to change the <= to a >= constraint */
                }
                ind++;
             }
@@ -1222,8 +1212,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          if ( ! (i > 0 && vartorowmapper[i] == -1 * vartorowmapper[i - 1]) )
          {
             mosekrow[mosekind] = sdpisolver->nactivevars;
-            mosekval[mosekind] = 1.0;
-            mosekind++;
+            mosekval[mosekind++] = 1.0;
          }
          assert( mosekind <= lpnnonz + 1 );
       }
@@ -1430,122 +1419,121 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                   sdpisolver->timelimit = TRUE;
                   sdpisolver->solved = FALSE;
                }
-
-               /* solve the problem */
-               MOSEK_CALL( MSK_optimizetrm(sdpisolver->msktask, &(sdpisolver->terminationcode)) );/*lint !e641*/
+               else
                {
-                  SCIP_Real opttime;
-                  MOSEK_CALL( MSK_getdouinf(sdpisolver->msktask, MSK_DINF_OPTIMIZER_TIME, &opttime) );
-                  sdpisolver->opttime += opttime;
-               }
+                  /* solve the problem */
+                  MOSEK_CALL( MSK_optimizetrm(sdpisolver->msktask, &(sdpisolver->terminationcode)) );/*lint !e641*/
 
-               if ( sdpisolver->sdpinfo )
-               {
-                  MOSEK_CALL( MSK_optimizersummary(sdpisolver->msktask, MSK_STREAM_LOG) );/*lint !e641*/
-                  MOSEK_CALL( MSK_analyzesolution(sdpisolver->msktask, MSK_STREAM_LOG, MSK_SOL_ITR) );/*lint !e641*/
-               }
+                  if ( sdpisolver->sdpinfo )
+                  {
+                     MOSEK_CALL( MSK_optimizersummary(sdpisolver->msktask, MSK_STREAM_LOG) );/*lint !e641*/
+                     MOSEK_CALL( MSK_analyzesolution(sdpisolver->msktask, MSK_STREAM_LOG, MSK_SOL_ITR) );/*lint !e641*/
+                  }
 
-               /* update number of SDP-iterations and -calls */
-               sdpisolver->nsdpcalls++;
-               MOSEK_CALL( MSK_getnaintinf(sdpisolver->msktask, "MSK_IINF_INTPNT_ITER", &newiterations) );/*lint !e641*/
-               sdpisolver->niterations += newiterations;
+                  /* update number of SDP-iterations and -calls */
+                  sdpisolver->nsdpcalls++;
+                  MOSEK_CALL( MSK_getnaintinf(sdpisolver->msktask, "MSK_IINF_INTPNT_ITER", &newiterations) );/*lint !e641*/
+                  sdpisolver->niterations += newiterations;
+               }
             }
             else
             {
                sdpisolver->solved = FALSE;
-               SCIPmessagePrintInfo(sdpisolver->messagehdlr, "MOSEK failed to reach required feasibility tolerance! \n");
+               SCIPmessagePrintInfo(sdpisolver->messagehdlr, "MOSEK failed to reach required feasibility tolerance!\n");
             }
          }
          else
             break;
       }
-   }
 
-
-   /* if using a penalty formulation, check if the solution is feasible for the original problem
-    * we should always count it as infeasible if the penalty problem was unbounded */
-   MOSEK_CALL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-   if ( penaltyparam >= sdpisolver->epsilon && (solstat == MSK_SOL_STA_PRIM_INFEAS_CER) )
-   {
-      assert( feasorig != NULL );
-      *feasorig = FALSE;
-      SCIPdebugMessage("Penalty Problem unbounded!\n");
-   }
-   else if ( penaltyparam >= sdpisolver->epsilon && ( ! sdpisolver->timelimit ) && ( sdpisolver->terminationcode != MSK_RES_TRM_MAX_TIME ) )
-   {
-      SCIP_Real* moseksol;
-      SCIP_Real trace = 0.0;
-      SCIP_Real* x;
-
-      assert( feasorig != NULL );
-
-      /* get the r variable in the dual problem */
-      BMSallocBufferMemoryArray(sdpisolver->bufmem, &moseksol, sdpisolver->nactivevars + 1);/*lint !e776*/
-
-      MOSEK_CALL( MSK_gety(sdpisolver->msktask, MSK_SOL_ITR, moseksol) );/*lint !e641*/
-
-      *feasorig = (moseksol[sdpisolver->nactivevars] < sdpisolver->feastol); /*lint !e413*/
-
-      /* Only set sdpisolver->feasorig to true if we solved with objective, because only in this case we want to compute
-       * the objective value by hand, since it is numerically more stable than the result returned by MOSEK. */
-      if ( withobj )
-         sdpisolver->feasorig = *feasorig;
-
-      /* if r > 0 also check the primal bound */
-      if ( ! *feasorig && penaltybound != NULL )
+      if ( sdpisolver->solved )
       {
-         SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", moseksol[sdpisolver->nactivevars]);
-
-         /* compute Tr(X) */
-
-         /* start with the diagonal entries of the primal semidefinite variables */
-         for (b = 0; b < nsdpblocks; b++)
+         /* if using a penalty formulation, check if the solution is feasible for the original problem
+          * we should always count it as infeasible if the penalty problem was unbounded */
+         MOSEK_CALL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
+         if ( penaltyparam >= sdpisolver->epsilon && (solstat == MSK_SOL_STA_PRIM_INFEAS_CER) )
          {
-            if ( blockindchanges[b] > -1 )
+            assert( feasorig != NULL );
+            *feasorig = FALSE;
+            SCIPdebugMessage("Penalty Problem unbounded!\n");
+         }
+         else if ( penaltyparam >= sdpisolver->epsilon && ( ! sdpisolver->timelimit ) && ( sdpisolver->terminationcode != MSK_RES_TRM_MAX_TIME ) )
+         {
+            SCIP_Real* moseksol;
+            SCIP_Real trace = 0.0;
+            SCIP_Real* x;
+
+            assert( feasorig != NULL );
+
+            /* get the r variable in the dual problem */
+            BMSallocBufferMemoryArray(sdpisolver->bufmem, &moseksol, sdpisolver->nactivevars + 1);/*lint !e776*/
+
+            MOSEK_CALL( MSK_gety(sdpisolver->msktask, MSK_SOL_ITR, moseksol) );/*lint !e641*/
+
+            *feasorig = (moseksol[sdpisolver->nactivevars] < sdpisolver->feastol); /*lint !e413*/
+
+            /* only set sdpisolver->feasorig to true if we solved with objective, because only in this case we want to compute
+             * the objective value by hand since it is numerically more stable then the result returned by MOSEK */
+            if ( withobj )
+               sdpisolver->feasorig = *feasorig;
+
+            /* if r > 0 also check the primal bound */
+            if ( ! *feasorig && penaltybound != NULL )
             {
-               SCIP_Real* X; /* the upper triangular entries of matrix X */
-               int size;
+               SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", moseksol[sdpisolver->nactivevars]);
 
-               size = sdpblocksizes[b] - nremovedinds[b];
+               /* compute Tr(X) */
 
-               BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &X, size * (size + 1)/2) );
-               MOSEK_CALL( MSK_getbarxj(sdpisolver->msktask, MSK_SOL_ITR, b - blockindchanges[b], X) );/*lint !e641*/
-
-               /* iterate over all diagonal entries */
-               for (i = 0; i < size; i++)
+               /* start with the diagonal entries of the primal semidefinite variables */
+               for (b = 0; b < nsdpblocks; b++)
                {
-                  /* get index in the lower triangular part */
-                  ind = i * (i + 3) / 2;/*lint !e776*/ /*  i*(i+1)/2 + i  */
-                  assert( ind < size * (size + 1)/2 );
-                  trace += X[ind];
+                  if ( blockindchanges[b] > -1 )
+                  {
+                     SCIP_Real* X; /* the upper triangular entries of matrix X */
+                     int size;
+
+                     size = sdpblocksizes[b] - nremovedinds[b];
+
+                     BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &X, size * (size + 1) / 2) );
+                     MOSEK_CALL( MSK_getbarxj(sdpisolver->msktask, MSK_SOL_ITR, b - blockindchanges[b], X) );/*lint !e641*/
+
+                     /* iterate over all diagonal entries */
+                     for (i = 0; i < size; i++)
+                     {
+                        /* get index in the lower triangular part */
+                        ind = i * (i + 3) / 2;/*lint !e776*/ /*  i*(i+1)/2 + i  */
+                        assert( ind < size * (size + 1) / 2 );
+                        trace += X[ind];
+                     }
+
+                     BMSfreeBufferMemoryArray(sdpisolver->bufmem, &X);
+                  }
                }
 
-               BMSfreeBufferMemoryArray(sdpisolver->bufmem, &X);
+               /* add primal lp-variables */
+               BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &x, nlpvars + sdpisolver->nvarbounds) );
+
+               MOSEK_CALL( MSK_getxx(sdpisolver->msktask, MSK_SOL_ITR, x) );/*lint !e641*/
+
+               for (i = 0; i < nlpvars; i++)
+                  trace += x[i];
+
+               BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &x);
+
+               /* if the relative gap is smaller than the tolerance, we return equality */
+               if ( (penaltyparam - trace) / penaltyparam < PENALTYBOUNDTOL )/*lint !e414*/
+               {
+                  assert( penaltybound != NULL );
+                  *penaltybound = TRUE;
+                  SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible\n",
+                     trace, penaltyparam);
+               }
+               else
+                  *penaltybound = FALSE;
             }
+            BMSfreeBufferMemoryArray(sdpisolver->bufmem, &moseksol);
          }
-
-         /* add primal lp-variables */
-         BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &x, nlpvars + sdpisolver->nvarbounds) );
-
-         MOSEK_CALL( MSK_getxx(sdpisolver->msktask, MSK_SOL_ITR, x) );/*lint !e641*/
-
-         for (i = 0; i < nlpvars; i++)
-            trace += x[i];
-
-         BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &x);
-
-         /* if the relative gap is smaller than the tolerance, we return equality */
-         assert( penaltybound != NULL );
-         if ( (penaltyparam - trace) / penaltyparam < PENALTYBOUNDTOL )/*lint !e414*/
-         {
-            *penaltybound = TRUE;
-            SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible\n",
-               trace, penaltyparam);
-         }
-         else
-            *penaltybound = FALSE;
       }
-      BMSfreeBufferMemoryArray(sdpisolver->bufmem, &moseksol);
    }
 
    /* free memory */
