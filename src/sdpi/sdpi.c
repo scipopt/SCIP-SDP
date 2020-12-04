@@ -2948,7 +2948,7 @@ SCIP_Bool SCIPsdpiWasSolved(
 {
    assert( sdpi != NULL );
 
-   return ( sdpi->solved && SCIPsdpiSolverWasSolved(sdpi->sdpisolver) );
+   return sdpi->solved;
 }
 
 /** returns whether the original problem was solved, if SCIPsdpiWasSolved = true and SCIPsdpiSolvedOrig = false, then a penalty formulation was solved */
