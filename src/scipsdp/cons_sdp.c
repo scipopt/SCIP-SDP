@@ -4516,16 +4516,16 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
                *result = SCIP_SUCCESS;
             }
          }
-      }
 
-      /* add SOCP-approximation if required */
-      if ( *result != SCIP_CUTOFF && conshdlrdata->sdpconshdlrdata->addsocrelax )
-      {
-         noldaddconss = *naddconss;
-         SCIP_CALL( addTwoMinorSOCConstraints(scip, conshdlr, conss, nconss, naddconss) );
-         SCIPdebugMsg(scip, "Added %d SOC constraints for 2 by 2 minors.\n", *naddconss - noldaddconss);
-         if ( noldaddconss != *naddconss )
-            *result = SCIP_SUCCESS;
+         /* add SOCP-approximation if required */
+         if ( *result != SCIP_CUTOFF && conshdlrdata->sdpconshdlrdata->addsocrelax )
+         {
+            noldaddconss = *naddconss;
+            SCIP_CALL( addTwoMinorSOCConstraints(scip, conss, nconss, solvesdps, naddconss) );
+            SCIPdebugMsg(scip, "Added %d SOC constraints for 2 by 2 minors.\n", *naddconss - noldaddconss);
+            if ( noldaddconss != *naddconss )
+               *result = SCIP_SUCCESS;
+         }
       }
    }
 
