@@ -282,7 +282,7 @@ struct SCIP_SDPi
 /** tests if for a given variable the lower bound is in an epsilon neighborhood of the upper bound */
 static
 SCIP_Bool isFixed(
-   SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
+   const SCIP_SDPI*      sdpi,               /**< pointer to an SDP-interface structure */
    int                   v                   /**< global index of the variable to check this for */
    )
 {
@@ -296,8 +296,6 @@ SCIP_Bool isFixed(
 
    lb = sdpi->lb[v];
    ub = sdpi->ub[v];
-
-   assert( lb < ub + sdpi->feastol || sdpi->infeasible );
 
    return ( ub-lb <= sdpi->epsilon );
 }
@@ -900,32 +898,6 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
    return SCIP_OKAY;
 }
 
-/** checks whether all variables are fixed (lb=ub), in that case changes the sdpi->allfixed pointer accordingly */
-static
-SCIP_RETCODE checkAllFixed(
-   SCIP_SDPI*            sdpi                /**< pointer to an SDP-interface structure */
-   )
-{
-   int v;
-
-   /* check all variables until we find an unfixed one */
-   for (v = 0; v < sdpi->nvars; v++)
-   {
-      if ( ! isFixed(sdpi, v) )
-      {
-         sdpi->allfixed = FALSE;
-
-         return SCIP_OKAY;
-      }
-   }
-
-   /* we did not find an unfixed variable, so all are fixed */
-   SCIPdebugMessage("Detected that all variables in SDP %d are fixed.\n", sdpi->sdpid);
-   sdpi->allfixed = TRUE;
-
-   return SCIP_OKAY;
-}
-
 /** If all variables are fixed, check whether the remaining solution is feasible for the SDP-constraints (LP-constraints should be checked
  *  already when computing the rhs after fixing)
  */
@@ -936,13 +908,7 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
                                               *   number of entries  of sdpconst row/col/val [i] */
    int**                 sdpconstrow,        /**< pointers to row-indices for each block */
    int**                 sdpconstcol,        /**< pointers to column-indices for each block */
-   SCIP_Real**           sdpconstval,        /**< pointers to the values of the nonzeros for each block */
-   int**                 indchanges,         /**< pointer to store the changes needed to be done to the indices, if indchanges[block][nonz]=-1, then
-                                              *   the index can be removed, otherwise it gives the number of indices removed before this, i.e.
-                                              *   the value to decrease this index by, this array should have memory allocated in the size
-                                              *   sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
-   int*                  nremovedinds,       /**< pointer to store the number of rows/cols to be fixed for each block */
-   int*                  blockindchanges     /**< pointer to store index change for each block, system is the same as for indchanges */
+   SCIP_Real**           sdpconstval         /**< pointers to the values of the nonzeros for each block */
    )
 {
    SCIP_Real* fullmatrix; /* we need to give the full matrix to LAPACK */
@@ -956,8 +922,8 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
    /* as we don't want to allocate memory newly for every SDP-block, we allocate memory according to the size of the largest block */
    for (b = 0; b < sdpi->nsdpblocks; b++)
    {
-      if ( sdpi->sdpblocksizes[b] - nremovedinds[b] > maxsize )
-         maxsize = sdpi->sdpblocksizes[b] - nremovedinds[b];
+      if ( sdpi->sdpblocksizes[b] > maxsize )
+         maxsize = sdpi->sdpblocksizes[b];
    }
 
    /* allocate memory */
@@ -972,11 +938,7 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
       int r;
       int c;
 
-      /* if the block is removed, we don't need to do anything, otherwise build the full matrix */
-      if ( blockindchanges[b] == -1 )
-         continue;
-
-      size = sdpi->sdpblocksizes[b] - nremovedinds[b];
+      size = sdpi->sdpblocksizes[b];
 
       /* initialize the matrix with zero */
       for (i = 0; i < size * size; i++)
@@ -988,9 +950,9 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
          r = sdpconstrow[b][i];
          c = sdpconstcol[b][i];
 
-         assert( 0 <= r - indchanges[b][r] && r - indchanges[b][r] < size );
-         assert( 0 <= c - indchanges[b][c] && c - indchanges[b][c] < size );
-         fullmatrix[(r - indchanges[b][r]) * size + c - indchanges[b][c]] = - sdpconstval[b][i]; /*lint !e679*/
+         assert( 0 <= r && r < size );
+         assert( 0 <= c && c < size );
+         fullmatrix[r * size + c] = - sdpconstval[b][i]; /*lint !e679*/
       }
 
       /* add the contributions of the fixed variables */
@@ -1008,9 +970,9 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
             r = sdpi->sdprow[b][v][i];
             c = sdpi->sdpcol[b][v][i];
 
-            assert( 0 <= r - indchanges[b][r] && r - indchanges[b][r] < size );
-            assert( 0 <= c - indchanges[b][c] && c - indchanges[b][c] < size );
-            fullmatrix[(r - indchanges[b][r]) * size + c - indchanges[b][c]] += fixedval * sdpi->sdpval[b][v][i]; /*lint !e679*/
+            assert( 0 <= r && r < size );
+            assert( 0 <= c && c < size );
+            fullmatrix[r * size + c] += fixedval * sdpi->sdpval[b][v][i]; /*lint !e679*/
          }
       }
 
@@ -2586,6 +2548,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    int naddediterations;
    int naddedsdpcalls;
    int b;
+   int v;
 
    assert( sdpi != NULL );
 
@@ -2597,7 +2560,6 @@ SCIP_RETCODE SCIPsdpiSolve(
    sdpi->bestbound = -SCIPsdpiSolverInfinity(sdpi->sdpisolver);
    sdpi->solved = FALSE;
    sdpi->infeasible = FALSE;
-   sdpi->allfixed = FALSE;
    sdpi->nsdpcalls = 0;
    sdpi->niterations = 0;
    sdpi->opttime = 0.0;
@@ -2614,6 +2576,38 @@ SCIP_RETCODE SCIPsdpiSolve(
       SCIP_CALL( computeLpLhsRhsAfterFixings(sdpi, &nactivelpcons, lplhsafterfix, lprhsafterfix, rowsnactivevars, &fixingfound) );
    }
    while ( fixingfound );
+
+   /* checks whether there are conflicting bounds and whether all variables are fixed */
+   sdpi->allfixed = TRUE;
+   for (v = 0; v < sdpi->nvars && ! sdpi->infeasible; v++)
+   {
+      if ( sdpi->ub[v] < sdpi->lb[v] - sdpi->feastol )
+         sdpi->infeasible = TRUE;
+
+      if ( ! isFixed(sdpi, v) )
+         sdpi->allfixed = FALSE;
+   }
+
+   /* exit if infeasible */
+   if ( sdpi->infeasible )
+   {
+      SCIPdebugMessage("SDP %d not given to solver, as infeasibility was detected during problem preparation!\n", sdpi->sdpid++);
+      SCIP_CALL( SCIPsdpiSolverIncreaseCounter(sdpi->sdpisolver) );
+
+      sdpi->solved = TRUE;
+      sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
+      sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
+
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &rowsnactivevars, sdpi->nlpcons);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &lprhsafterfix, sdpi->nlpcons);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &lplhsafterfix, sdpi->nlpcons);
+
+      return SCIP_OKAY;
+   }
+
+   /* check if all variables are fixed, if this is the case, check if the remaining solution for feasibility */
+   if ( sdpi->allfixed )
+      SCIPdebugMessage("Detected that all variables in SDP %d are fixed.\n", sdpi->sdpid);
 
    /* allocate memory for computing the constant matrix after fixings and finding empty rows and columns */
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstnblocknonz, sdpi->nsdpblocks) );
@@ -2639,15 +2633,10 @@ SCIP_RETCODE SCIPsdpiSolve(
    /* compute constant matrix after fixings */
    SCIP_CALL( compConstMatAfterFixings(sdpi, &sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval) );
 
-   /* remove empty rows and columns */
-   SCIP_CALL( findEmptyRowColsSDP(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges, nremovedinds, blockindchanges, &nremovedblocks) );
-
-   /* check if all variables are fixed, if this is the case, check if the remaining solution if feasible (we only need to check the SDP-constraint,
-    * the linear constraints were already checked in computeLpLhsRhsAfterFixings) */
-   SCIP_CALL( checkAllFixed(sdpi) );
    if ( sdpi->allfixed && ! sdpi->infeasible )
    {
-      SCIP_CALL( checkFixedFeasibilitySdp(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges, nremovedinds, blockindchanges) );
+      /* check feasibility of SDP constraints - LP constraints have been checked in computeLpLhsRhsAfterFixings() */
+      SCIP_CALL( checkFixedFeasibilitySdp(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval) );
    }
 
    if ( sdpi->infeasible )
@@ -2670,6 +2659,9 @@ SCIP_RETCODE SCIPsdpiSolve(
    }
    else
    {
+      /* remove empty rows and columns */
+      SCIP_CALL( findEmptyRowColsSDP(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges, nremovedinds, blockindchanges, &nremovedblocks) );
+
       if ( sdpi->slatercheck )
       {
          SCIP_CALL( checkSlaterCondition(sdpi, timelimit, starttime, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges,
