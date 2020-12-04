@@ -24,7 +24,14 @@ parameters:
 - new parameter <constraints/SDP/addsocrelax> to add SOC relaxation (default: FALSE)
 - new parameter <constraints/SDP/usedimacsfeastol> for using a feasbility tolerance based on the DIMACS error for computing negative eigenvalues (default: FALSE)
 - new parameter <constraints/SDP/generaterows> to determine if rows or constraints should be generated (default: TRUE)
+- new parameter <constraints/SDP/propagate> (default: TRUE)
+- new parameter <constraints/SDP/proppresol> (default: TRUE)
+- new parameter <constraints/SDP/tightenmatrices> (default: FALSE)
+- new parameter <constraints/SDP/tightenbounds> (default: FALSE)
 - new parameter <heuristics/sdpfracdiving/runforlp> and <heuristics/sdprand/runforlp> to use heuristics starting from LP solution (default: FALSE)
+- new parameter <misc/solvesdps> to choose between SDP (1) and LP (0) solving (default: 1)
+- rename parameter <relaxing/SDP/tightenvb> to <relaxing/SDP/tightenrows>.
+
 
 fixed bugs:
 - fixed the output of the line number when reading CBF files
@@ -52,14 +59,6 @@ features:
 - Revised the functions diagZeroImpl(), addTwoMinorLinConstraints()
 - The SDPA reader has been rewritten in C.
 - The SDPA reader supports a new optional section '*RANK1' that allows to specifiy rank-1-constraints. See 'sdpa-format.txt' for a description.
-
-parameters:
-- Rename parameter relaxing/SDP/tightenvb to relaxing/SDP/tightenrows.
-- New parameter misc/solvesdps to choose between SDP and LP solving
-- New parameter constraints/SDP/propagate
-- New parameter constraints/SDP/proppresol
-- New parameter constraints/SDP/tightenmatrices
-- New parameter constraints/SDP/tightenbounds
 
 SCIP-SDP version 3.2.0
 ======================
