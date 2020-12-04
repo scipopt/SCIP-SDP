@@ -173,7 +173,7 @@ SCIP_RETCODE solveTest(
       break;
 
    case SCIPunbounded:
-      cr_assert( SCIPsdpiIsPrimalFeasible(sdpi) );
+      /* cr_assert( SCIPsdpiIsPrimalFeasible(sdpi) ); */ /* we do not know whether we can prove primal feasibility */
       cr_assert( ! SCIPsdpiIsPrimalInfeasible(sdpi) );
       /* cr_assert( SCIPsdpiIsPrimalUnbounded(sdpi) ); */ /* we do not know whether we can prove unboundedness in the primal */
 
