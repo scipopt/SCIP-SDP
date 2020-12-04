@@ -163,6 +163,20 @@ SCIP_RETCODE SCIPconsSdpGetNNonz(
    int*                  constnnonz          /**< pointer to store the number of nonzeros in the constant part of this SDP constraint */
    );
 
+/** gets the number of variables of the SDP constraint */
+SCIP_EXPORT
+int SCIPconsSdpGetNVars(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< SDP constraint to get number of variables for */
+   );
+
+/** gets the variables of the SDP constraint */
+SCIP_EXPORT
+SCIP_VAR** SCIPconsSdpGetVars(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< SDP constraint to get variables for */
+   );
+
 /** gets the blocksize of the SDP constraint */
 SCIP_EXPORT
 int SCIPconsSdpGetBlocksize(
@@ -193,16 +207,6 @@ SCIP_RETCODE SCIPconsSdpGetLowerTriangConstMatrix(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< SDP constraint to get matrix for */
    SCIP_Real*            mat                 /**< pointer to store the lower triangular part of the constant matrix */
-   );
-
-/** checks feasibility for a single SDP constraint */
-SCIP_EXPORT
-SCIP_RETCODE SCIPconsSdpCheckSdpCons(
-   SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< the constraint the solution should be checked for */
-   SCIP_SOL*             sol,                /**< the solution to check feasibility for */
-   SCIP_Bool             printreason,        /**< should the reason for the violation be printed? */
-   SCIP_RESULT*          result              /**< pointer to store the result of the feasibility checking call */
    );
 
 /** Compute a heuristic guess for a good starting solution \f$ \lambda ^* \cdot I \f$.

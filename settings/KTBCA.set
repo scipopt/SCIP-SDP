@@ -1,0 +1,14 @@
+misc/solvesdps = 0
+constraints/SDP/diaggezerocuts = true
+constraints/SDP/diagzeroimplcuts = false
+constraints/SDP/twominorlinconss = false
+constraints/SDP/twominorprodconss = false
+constraints/SDP/separateonecut = true
+constraints/SDP/sparsifycut = false
+constraints/SDP/cutstopool = false
+constraints/SDP/enforcesdp = false
+constraints/SDP/onlyfixedintssdp = false
+constraints/SDP/addsocrelax = false
+constraints/SDP/sepafreq = -1
+constraints/SDPrank1/sepafreq = -1
+constraints/SDP/usedimacsfeastol = true

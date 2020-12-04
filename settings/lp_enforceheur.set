@@ -1,3 +1,5 @@
 misc/solvesdps = 0
+constraints/SDP/sepafreq = -1
 constraints/SDP/twominorlinconss = true
 constraints/SDP/twominorprodconss = true
+heuristics/sdpinnerlp/freq = 0

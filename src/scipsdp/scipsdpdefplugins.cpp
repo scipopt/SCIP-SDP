@@ -62,6 +62,7 @@
 #include "branch_sdpobjective.h"
 #include "branch_sdpinfobjective.h"
 #include "heur_sdpfracdiving.h"
+#include "heur_sdpinnerlp.h"
 #include "heur_sdprand.h"
 #include "prop_sdpobbt.h"
 #include "prop_companalcent.h"
@@ -95,22 +96,6 @@ SCIP_RETCODE SCIPSDPsetDefaultParams(
    param = SCIPgetParam(scip, "lp/cleanuprowsroot");
    SCIPparamSetDefaultBool(param, FALSE);
 
-   /* change default display */
-   param = SCIPgetParam(scip, "display/lpiterations/active");
-   SCIPparamSetDefaultInt(param, 0);
-
-   param = SCIPgetParam(scip, "display/lpavgiterations/active");
-   SCIPparamSetDefaultInt(param, 0);
-
-   param = SCIPgetParam(scip, "display/nfrac/active");
-   SCIPparamSetDefaultInt(param, 0);
-
-   param = SCIPgetParam(scip, "display/curcols/active");
-   SCIPparamSetDefaultInt(param, 0);
-
-   param = SCIPgetParam(scip, "display/strongbranchs/active");
-   SCIPparamSetDefaultInt(param, 0);
-
    /* Because in the SDP-world there are no warmstarts as for LPs, the main advantage for DFS (that the change in the
     * problem is minimal and therefore the Simplex can continue with the current Basis) is lost and best first search, which
     * provably needs the least number of nodes (see the Dissertation of Tobias Achterberg, the node selection rule with
@@ -127,6 +112,13 @@ SCIP_RETCODE SCIPSDPsetDefaultParams(
 
    /* The function SCIPparamSetDefaultReal() does not yet exist. We therefore just set the parameter */
    SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight", 0.0) );
+
+   /* change display */
+   SCIP_CALL( SCIPsetIntParam(scip, "display/lpiterations/active", 0) );
+   SCIP_CALL( SCIPsetIntParam(scip, "display/lpavgiterations/active", 0) );
+   SCIP_CALL( SCIPsetIntParam(scip, "display/nfrac/active", 0) );
+   SCIP_CALL( SCIPsetIntParam(scip, "display/curcols/active", 0) );
+   SCIP_CALL( SCIPsetIntParam(scip, "display/strongbranchs/active", 0) );
 
    /* oneopt might run into an infinite loop during SDP-solving */
    SCIP_CALL( SCIPsetIntParam(scip, "heuristics/oneopt/freq", -1) );
@@ -147,7 +139,22 @@ SCIP_DECL_PARAMCHGD(SCIPparamChgdSolvesdps)
       SCIP_CALL( SCIPsetIntParam(scip, "lp/solvefreq", -1) );
       SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprows", FALSE) );
       SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprowsroot", FALSE) );
+
+      /* change display */
+      SCIP_CALL( SCIPsetIntParam(scip, "display/lpiterations/active", 0) );
+      SCIP_CALL( SCIPsetIntParam(scip, "display/lpavgiterations/active", 0) );
+      SCIP_CALL( SCIPsetIntParam(scip, "display/nfrac/active", 0) );
+      SCIP_CALL( SCIPsetIntParam(scip, "display/curcols/active", 0) );
+      SCIP_CALL( SCIPsetIntParam(scip, "display/strongbranchs/active", 0) );
+
+      SCIP_CALL( SCIPresetParam(scip, "display/sdpavgiterations/active") );
+      SCIP_CALL( SCIPresetParam(scip, "display/sdpiterations/active") );
+      SCIP_CALL( SCIPresetParam(scip, "display/sdpunsolved/active") );
+      SCIP_CALL( SCIPresetParam(scip, "display/sdpfastsettings/active") );
+      SCIP_CALL( SCIPresetParam(scip, "display/sdppenalty/active") );
+
       SCIP_CALL( SCIPsetIntParam(scip, "heuristics/oneopt/freq", -1) );
+
       SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Turning on SDP solving, turning off LP solving, cleanuprows(root) = FALSE.\n");
    }
    else
@@ -157,7 +164,22 @@ SCIP_DECL_PARAMCHGD(SCIPparamChgdSolvesdps)
       SCIP_CALL( SCIPsetIntParam(scip, "lp/solvefreq", 1) );
       SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprows", TRUE) );
       SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprowsroot", TRUE) );
+
+      /* change display */
+      SCIP_CALL( SCIPresetParam(scip, "display/lpiterations/active") );
+      SCIP_CALL( SCIPresetParam(scip, "display/lpavgiterations/active") );
+      SCIP_CALL( SCIPresetParam(scip, "display/nfrac/active") );
+      SCIP_CALL( SCIPresetParam(scip, "display/curcols/active") );
+      SCIP_CALL( SCIPresetParam(scip, "display/strongbranchs/active") );
+
+      SCIP_CALL( SCIPsetIntParam(scip, "display/sdpavgiterations/active", 0) );
+      SCIP_CALL( SCIPsetIntParam(scip, "display/sdpiterations/active", 0) );
+      SCIP_CALL( SCIPsetIntParam(scip, "display/sdpunsolved/active", 0) );
+      SCIP_CALL( SCIPsetIntParam(scip, "display/sdpfastsettings/active", 0) );
+      SCIP_CALL( SCIPsetIntParam(scip, "display/sdppenalty/active", 0) );
+
       SCIP_CALL( SCIPresetParam(scip, "heuristics/oneopt/freq") );
+
       SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Turning on LP solving, turning off SDP solving, cleanuprows(root) = TRUE.\n");
    }
 
@@ -202,6 +224,7 @@ SCIP_RETCODE SCIPSDPincludeDefaultPlugins(
    SCIP_CALL( SCIPincludeBranchruleSdpobjective(scip) );
    SCIP_CALL( SCIPincludeBranchruleSdpinfobjective(scip) );
    SCIP_CALL( SCIPincludeHeurSdpFracdiving(scip) );
+   SCIP_CALL( SCIPincludeHeurSdpInnerlp(scip) );
    SCIP_CALL( SCIPincludeHeurSdpRand(scip) );
    SCIP_CALL( SCIPincludePropSdpObbt(scip) );
    SCIP_CALL( SCIPincludePropCompAnalCent(scip) );

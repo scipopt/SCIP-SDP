@@ -17,16 +17,16 @@ T=[(n+1)*n*0.5+n 2 n -1*(2+2*n^2+2*n)]; %Anzahl Variablen, Blöcke und Blockgrö
 S= '%-9.0f\n%-9.0f\n%-9.0f%-9.0f\n';
 %% Zielfunktionswerte
 Z=zeros(n);
-B=transpose(A)*A
+B=transpose(A)*A;
 if side=='l'
     for i=1:1:n
         for j=i:1:n
             if i==j
                 T=[T B(j,i)];
-                S= [S '%-9.5g '];  
+                S= [S '%-.15g '];  
             else
                 T=[T B(j,i)+B(i,j)];
-                S= [S '%-9.5g '];  
+                S= [S '%-.15g '];  
             end
         end
     end
@@ -35,49 +35,49 @@ else
         for j=i:1:n
             if i==j
                 T=[T -1*B(j,i)];
-                S= [S '%-9.5g '];  
+                S= [S '%-.15g '];  
             else
                 T=[T -1*(B(j,i)+B(i,j))];
-                S= [S '%-9.5g '];  
+                S= [S '%-.15g '];  
             end
         end
     end
 end
 for j=1:1:n
     T = [T 0];
-     S= [S '%-9.2g '];
+     S= [S '%-.15g '];
 end
 %% X positiv semidefinit
 for i=1:1:n 
     for j=i:1:n
     T=[T RIPPos(n,i,j) 1 i j 1];
-    S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];
+    S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
     end
 end
 %% Spur von X >=1
 if side=='l' %sonst durch Maximierung sichergestellt
 T=[T 0 2 1 1 1];
-S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];
+S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
 for i=1:1:n
     T=[T RIPPos(n,i,i) 2 1 1 1];
-    S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];
+    S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
 end
 end
 %% Spur von -X >=-1
 if side=='r' %sonst durch Minimierung sichergestellt
 T=[T 0 2 1 1 -1];
-S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];
+S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
 for i=1:1:n
     T=[T RIPPos(n,i,i) 2 1 1 -1];
-    S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];
+    S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
 end
 end
 %% -Summe z_j >= -k
 T=[T 0 2 2 2 -k];
-S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];
+S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
 for j=1:1:n
     T=[T (n+1)*n*0.5+j 2 2 2 -1];
-    S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];
+    S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
 end
 %% X(i,j) >= -z_j & -X(i,j) >= -z_j
 z=1;
@@ -85,35 +85,35 @@ for i=1:1:n
     for j=i:1:n
         if i==j
             T=[T RIPPos(n,i,j) 2 2+z 2+z 1];
-            S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];
+            S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
             T=[T (n+1)*n*0.5+j 2 2+z 2+z 1];
-            S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];
+            S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
             z=z+1;
             T=[T RIPPos(n,i,j) 2 2+z 2+z -1];               
-            S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];
+            S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
             T=[T (n+1)*n*0.5+j 2 2+z 2+z 1];
-            S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];    
+            S= [S '\n%.15g %.15g %.15g %.15g %.15g'];    
             z=z+1;
         else
             T=[T RIPPos(n,i,j) 2 2+z 2+z 1];
-            S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];
+            S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
             T=[T (n+1)*n*0.5+j 2 2+z 2+z 1];
-            S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];
+            S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
             z=z+1;
             T=[T RIPPos(n,i,j) 2 2+z 2+z -1];
-            S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];
+            S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
             T=[T (n+1)*n*0.5+j 2 2+z 2+z 1];
-            S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];    
+            S= [S '\n%.15g %.15g %.15g %.15g %.15g'];    
             z=z+1;
             T=[T RIPPos(n,i,j) 2 2+z 2+z 1];                 %%% Bedingungen für Einträge unterhalb der Diagonalen
-            S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];
+            S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
             T=[T (n+1)*n*0.5+i 2 2+z 2+z 1];
-            S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];
+            S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
             z=z+1;
             T=[T RIPPos(n,i,j) 2 2+z 2+z -1];
-            S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];
+            S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
             T=[T (n+1)*n*0.5+i 2 2+z 2+z 1];
-            S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];    
+            S= [S '\n%.15g %.15g %.15g %.15g %.15g'];    
             z=z+1;
         end
     end
@@ -121,12 +121,12 @@ end
 %% 0 <=z_j<=1
 for j=1:1:n
     T=[T (n+1)*n*0.5+j 2 2+z 2+z 1];
-    S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];
+    S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
     z=z+1;
     T=[T 0 2 2+z 2+z -1];
-    S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];
+    S= [S '\n%.15g %.15g %.15g %.15g %.15g'];
     T=[T (n+1)*n*0.5+j 2 2+z 2+z -1];
-    S= [S '\n%9.8g %9.8g %9.8g %9.8g %9.8g'];    
+    S= [S '\n%.15g %.15g %.15g %.15g %.15g'];    
     z=z+1;
 end
 %% Ganzzahligkeit
