@@ -3651,9 +3651,9 @@ SCIP_DECL_CONSTRANS(consTransSdp)
    sourcedata = SCIPconsGetData(sourcecons);
    assert( sourcedata != NULL );
 
-  SCIPdebugMsg(scip, "Transforming constraint <%s>\n", SCIPconsGetName(sourcecons));
+   SCIPdebugMsg(scip, "Transforming constraint <%s>\n", SCIPconsGetName(sourcecons));
 
-  conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
 
 #ifdef OMP
    SCIPdebugMsg(scip, "Setting number of threads to %d via OpenMP in Openblas.\n", conshdlrdata->sdpconshdlrdata->nthreads);
