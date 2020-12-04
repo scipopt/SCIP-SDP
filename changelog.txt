@@ -11,13 +11,20 @@ features:
 - new heuristic heur_sdpinnerlp that tries to find a diagonally dominant solution
 - the display rows now switch from SDP to LP output depending on misc/solvesdps
 - the function SCIPconsSdpCheckSdpCons() is now a static local function and no longer a global function
+- add option to sparsify an eigenvector cut
+- add option to solve an SDP when solving LPs, if there is an integer solution in enforcing. If the SDP is not feasible and not all integer variables are already fixed, add rounding step for all integer variables and solve SDP again.
 
 parameters:
 - new parameter <constraints/SDP/separateonecut> to separate only one cut for the smallest eigenvalue (default: FALSE)
 - new parameter <constraints/SDP/cutstopool> to add cuts to the pool (default: TRUE)
+- new parameter <constraints/SDP/sparsifycut> to sparsify eigenvector cuts (default: FALSE)
+- new parameter <constraints/SDP/sparsifyfactor> to determine target size for sparsifying eigenvector cuts (default: 0.1)
+- new parameter <constraints/SDP/enforcesdp> to solve an SDP when solving LPs and there is an integral solution in enforcing (default: FALSE)
+- new parameter <constraints/SDP/onlyfixedintssdp> to only solve SDP in enforcing if all integer variables are fixed (default: FALSE)
 - new parameter <constraints/SDP/addsocrelax> to add SOC relaxation (default: FALSE)
+- new parameter <constraints/SDP/usedimacsfeastol> for using a feasbility tolerance based on the DIMACS error for computing negative eigenvalues (default: FALSE)
+- new parameter <constraints/SDP/generaterows> to determine if rows or constraints should be generated (default: TRUE)
 - new parameter <heuristics/sdpfracdiving/runforlp> and <heuristics/sdprand/runforlp> to use heuristics starting from LP solution (default: FALSE)
-- new parameter <constraints/SDP/usedimacsfeastol> for using a feasbility tolerance based on the DIMACS error for computing negative eigenvalues
 
 fixed bugs:
 - fixed the output of the line number when reading CBF files
