@@ -33,17 +33,33 @@ fixed bugs:
 - fixed bug in multiaggrVar() and revised implementation
 - fixed bug in fixAndAggrVars() if the multiaggregation reduces to 0 variables
 - fixed bug in reading problems with indicator constraints
+- fixed bug in presolving which sometimes avoided the addition of linear constraints
 - fixed minor bug to allow copying of original problem
+- disable oneopt heuristic when solving SDPs to avoid an infinite loop
 
 features:
+- add possibility to tighten matrices if all matrices are positive semidefinite (turned off by default)
+- add possibility to tighten bounds if all matrices are positive semidefinite (turned off by default)
+- add propagation routine for 2-by-2 minors
 - The relaxator strengthened the rows of the LP corresponding to variable bounds before adding them to the current SDP.
   This has been extended by a full coefficient tightening procedure.
 - Use lexicographic sorting to sort matrix entries
 - SCIPcreateConsSdp() and SCIPcreateConsSdpRank1() allow to remove duplicates in matrices
+- empty SDP constraints are presolved and possibly removed
+- The data structures in sdpi.c have been restructured to reduce reallocation. This reduces the memory footprint
+  produced by empty blocks in memory.
+- prop_sdpredcost has been revised, avoiding numerical troubles at several places
+- Revised the functions diagZeroImpl(), addTwoMinorLinConstraints()
+- The SDPA reader has been rewritten in C.
+- The SDPA reader supports a new optional section '*RANK1' that allows to specifiy rank-1-constraints. See 'sdpa-format.txt' for a description.
 
 parameters:
 - Rename parameter relaxing/SDP/tightenvb to relaxing/SDP/tightenrows.
 - New parameter misc/solvesdps to choose between SDP and LP solving
+- New parameter constraints/SDP/propagate
+- New parameter constraints/SDP/proppresol
+- New parameter constraints/SDP/tightenmatrices
+- New parameter constraints/SDP/tightenbounds
 
 SCIP-SDP version 3.2.0
 ======================

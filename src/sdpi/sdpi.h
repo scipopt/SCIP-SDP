@@ -36,14 +36,17 @@
  *
  * This file specifies a generic SDP-solver interface used by SCIP to create, modify, and solve semidefinite programs of
  * the (dual) form
+ * \f{align*}{
+ *    \min\quad & b^T y \\
+ *    \mbox{s.t.} & \sum_{j \in J} A_j^{(k)} y_j - A_0^{(k)} \succeq 0 & \forall \ k \in K, \\
+ *     & \sum_{j \in J} d_{ij}\, y_j \geq c_i & \forall \ i \in I, \\
+ *     & \ell_j \leq y_j \leq u_j & \forall \ j \in J,
+ * \f}
+ * for symmetric matrices \f$ A_i^{(k)} \in S_{n_k} \f$ and a matrix \f$ D \in \mathbb{R}^{I \times J} \f$ and query
+ * information about the solution.
+ * The code refers to this problem as the @em dual.
  *
- *   \f{eqnarray*}{
- *   	  \min & & b^T y \\
- *      \mbox{s.t.} & & \sum_{j=1}^n A_j^i y_j - A_0^i \succeq 0 \quad \forall i \leq m \\
- *      & & Dy \geq d \\
- *      & & \ell \leq y \leq u
- *   \f}
- * for symmetric matrices \f$ A_j^i \in S_{k_i} \f$ and a matrix \f$ D \in \mathbb{R}^{k_0 \times n} \f$ and query information about the solution.
+ * We consider a problem (primal or dual) to be unbounded if there exists a ray and it is feasible.
  *
  * All indexing (rows, columns, blocks and variables) starts at 0.
  *
@@ -171,7 +174,8 @@ SCIP_RETCODE SCIPsdpiClone(
 
 /** copies SDP data into SDP-solver
  *
- *  @note As the SDP-constraint-matrices are symmetric, only the upper triangular part of them must be specified.
+ *  @note As the SDP-constraint-matrices are symmetric, only the lower triangular part of them must be specified.
+ * @note It is assumed that the matrices are in lower triangular form.
  *  @note There must be at least one variable, the SDP- and/or LP-part may be empty.
  */
 SCIP_EXPORT
@@ -443,57 +447,45 @@ SCIP_Bool SCIPsdpiFeasibilityKnown(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    );
 
-/** gets information about primal and dual feasibility of the current SDP-solution */
+/** gets information about proven primal and dual feasibility of the current SDP-solution */
 SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiGetSolFeasibility(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
-   SCIP_Bool*            primalfeasible,     /**< pointer to store the primal feasibility status */
-   SCIP_Bool*            dualfeasible        /**< pointer to store the dual feasibility status */
+   SCIP_Bool*            primalfeasible,     /**< pointer to store the proven primal feasibility status */
+   SCIP_Bool*            dualfeasible        /**< pointer to store the proven dual feasibility status */
    );
 
-/** returns TRUE iff SDP is proven to be primal unbounded;
- *  returns FALSE with a debug-message if the solver could not determine feasibility
- */
+/** returns TRUE iff SDP is proven to be primal unbounded */
 SCIP_EXPORT
 SCIP_Bool SCIPsdpiIsPrimalUnbounded(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    );
 
-/** returns TRUE iff SDP is proven to be primal infeasible;
- *  returns FALSE with a debug-message if the solver could not determine feasibility
- */
+/** returns TRUE iff SDP is proven to be primal infeasible */
 SCIP_EXPORT
 SCIP_Bool SCIPsdpiIsPrimalInfeasible(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    );
 
-/** returns TRUE iff SDP is proven to be primal feasible;
- *  returns FALSE with a debug-message if the solver could not determine feasibility
- */
+/** returns TRUE iff SDP is proven to be primal feasible */
 SCIP_EXPORT
 SCIP_Bool SCIPsdpiIsPrimalFeasible(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    );
 
-/** returns TRUE iff SDP is proven to be dual unbounded;
- *  returns FALSE with a debug-message if the solver could not determine feasibility
- */
+/** returns TRUE iff SDP is proven to be dual unbounded */
 SCIP_EXPORT
 SCIP_Bool SCIPsdpiIsDualUnbounded(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    );
 
-/** returns TRUE iff SDP is proven to be dual infeasible;
- *  returns FALSE with a debug-message if the solver could not determine feasibility
- */
+/** returns TRUE iff SDP is proven to be dual infeasible */
 SCIP_EXPORT
 SCIP_Bool SCIPsdpiIsDualInfeasible(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    );
 
-/** returns TRUE iff SDP is proven to be dual feasible;
- *  returns FALSE with a debug-message if the solver could not determine feasibility
- */
+/** returns TRUE iff SDP is proven to be dual feasible */
 SCIP_EXPORT
 SCIP_Bool SCIPsdpiIsDualFeasible(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
@@ -623,7 +615,8 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    SCIP_Real*            lbvars,             /**< pointer to store the optimal values of the variables corresponding to lower bounds in the dual problems */
    SCIP_Real*            ubvars,             /**< pointer to store the optimal values of the variables corresponding to upper bounds in the dual problems */
    int*                  arraylength         /**< input: length of lbvars and ubvars<br>
-                                              *   output: number of elements inserted into lbvars/ubvars (or needed length if it was not sufficient) */
+                                              *   output: number of elements inserted into lbvars/ubvars (or needed length if it was not sufficient,
+                                              *           -1 if infeasible or all variables are fixed) */
    );
 
 /** return number of nonzeros for each block of the primal solution matrix X */

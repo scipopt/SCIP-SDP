@@ -49,9 +49,8 @@
 #include "scipsdp/cons_savesdpsol.h"
 #include "cons_savedsdpsettings.h"
 #include "relax_sdp.h"
-#include "objreader_sdpa.h"
-#include "objreader_sdpaind.h"
 #include "reader_cbf.h"
+#include "reader_sdpa.h"
 #include "prop_sdpredcost.h"
 #include "disp_sdpiterations.h"
 #include "disp_sdpavgiterations.h"
@@ -121,6 +120,9 @@ SCIP_RETCODE SCIPSDPsetDefaultParams(
    SCIP_CALL( SCIPsetIntParam(scip, "display/curcols/active", 0) );
    SCIP_CALL( SCIPsetIntParam(scip, "display/strongbranchs/active", 0) );
 
+   /* oneopt might run into an infinite loop during SDP-solving */
+   SCIP_CALL( SCIPsetIntParam(scip, "heuristics/oneopt/freq", -1) );
+
    return SCIP_OKAY;
 }
 
@@ -151,6 +153,8 @@ SCIP_DECL_PARAMCHGD(SCIPparamChgdSolvesdps)
       SCIP_CALL( SCIPresetParam(scip, "display/sdpfastsettings/active") );
       SCIP_CALL( SCIPresetParam(scip, "display/sdppenalty/active") );
 
+      SCIP_CALL( SCIPsetIntParam(scip, "heuristics/oneopt/freq", -1) );
+
       SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Turning on SDP solving, turning off LP solving, cleanuprows(root) = FALSE.\n");
    }
    else
@@ -173,6 +177,8 @@ SCIP_DECL_PARAMCHGD(SCIPparamChgdSolvesdps)
       SCIP_CALL( SCIPsetIntParam(scip, "display/sdpunsolved/active", 0) );
       SCIP_CALL( SCIPsetIntParam(scip, "display/sdpfastsettings/active", 0) );
       SCIP_CALL( SCIPsetIntParam(scip, "display/sdppenalty/active", 0) );
+
+      SCIP_CALL( SCIPresetParam(scip, "heuristics/oneopt/freq") );
 
       SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Turning on LP solving, turning off SDP solving, cleanuprows(root) = TRUE.\n");
    }
@@ -205,9 +211,8 @@ SCIP_RETCODE SCIPSDPincludeDefaultPlugins(
    SCIP_CALL( SCIPSDPsetDefaultParams(scip) );
 
    /* include new plugins */
-   SCIP_CALL( SCIPincludeObjReader(scip, new ObjReaderSDPAind(scip), TRUE) );
-   SCIP_CALL( SCIPincludeObjReader(scip, new ObjReaderSDPA(scip), TRUE) );
    SCIP_CALL( SCIPincludeReaderCbf(scip) );
+   SCIP_CALL( SCIPincludeReaderSdpa(scip) );
    SCIP_CALL( SCIPincludeConshdlrSdp(scip) );
    SCIP_CALL( SCIPincludeConshdlrSdpRank1(scip) );
    SCIP_CALL( SCIPincludeConshdlrSavesdpsol(scip) );
