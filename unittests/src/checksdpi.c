@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   solve.c
+/**@file   checksdpi.c
  * @brief  unit test for checking SDPI
  * @author Marc Pfetsch
  *
@@ -104,7 +104,7 @@ void teardown(void)
    cr_assert_eq(BMSgetMemoryUsed(), 0, "There is a memory leak!");
 }
 
-TestSuite(solve, .init = setup, .fini = teardown);
+TestSuite(checksdpi, .init = setup, .fini = teardown);
 
 /* local functions */
 
@@ -370,7 +370,7 @@ SCIP_RETCODE checkData(
  *
  * with optimal solution (5, 0).
  */
-Test(solve, test1)
+Test(checksdpi, test1)
 {
    /* data with fixed values: */
    SCIP_Real obj[2] = {-3, -1};
@@ -408,7 +408,7 @@ Test(solve, test1)
  *
  * which is unbounded.
  */
-Test(solve, test2)
+Test(checksdpi, test2)
 {
    /* data with fixed values: */
    SCIP_Real obj[2] = {-3, -1};
@@ -447,7 +447,7 @@ Test(solve, test2)
  *
  * Then use rhs (1, 1) with primal optimal solution (0.4,0.2), dual optimal solution (3, 4), activity (0, 0), and redcost (0, 0).
  */
-Test(solve, test3)
+Test(checksdpi, test3)
 {
    /* data with fixed values: */
    SCIP_Real obj[2] = {10, 15};
@@ -480,7 +480,7 @@ Test(solve, test3)
  *
  * which primal and dual infeasible.
  */
-Test(solve, test4)
+Test(checksdpi, test4)
 {
    /* data with fixed values: */
    SCIP_Real obj[2] = {-1, -1};
@@ -518,7 +518,7 @@ Test(solve, test4)
  *
  * with fixed variables, which is feasible.
  */
-Test(solve, test5)
+Test(checksdpi, test5)
 {
    /* data with fixed values: */
    SCIP_Real obj[2] = {-3, -1};
@@ -555,7 +555,7 @@ Test(solve, test5)
  *
  * with fixed variables, which is infeasible.
  */
-Test(solve, test6)
+Test(checksdpi, test6)
 {
    /* data with fixed values: */
    SCIP_Real obj[2] = {-3, -1};
@@ -589,7 +589,7 @@ Test(solve, test6)
  *
  * with conflicting bounds (infeasible)
  */
-Test(solve, test7)
+Test(checksdpi, test7)
 {
    /* data with fixed values: */
    SCIP_Real obj[2] = {-3, -1};
