@@ -212,6 +212,8 @@ struct SCIP_SDPi
    SCIP_Real*            obj;                /**< objective function values of variables */
    SCIP_Real*            lb;                 /**< lower bounds of variables */
    SCIP_Real*            ub;                 /**< upper bounds of variables */
+   SCIP_Real*            sdpilb;             /**< copy for lower bounds of variables */
+   SCIP_Real*            sdpiub;             /**< copy for upper bounds of variables */
    int                   nsdpblocks;         /**< number of SDP-blocks */
    int                   maxnsdpblocks;      /**< maximal number of required SDP blocks */
    int*                  sdpblocksizes;      /**< sizes of the SDP-blocks */
@@ -279,28 +281,29 @@ struct SCIP_SDPi
  */
 
 #ifndef NDEBUG
-/** tests if for a given variable the lower bound is in an epsilon neighborhood of the upper bound */
+/** tests whether the lower bound is an epsilon away from the upper bound */
 static
 SCIP_Bool isFixed(
    const SCIP_SDPI*      sdpi,               /**< pointer to an SDP-interface structure */
-   int                   v                   /**< global index of the variable to check this for */
+   int                   v                   /**< variable index */
    )
 {
    SCIP_Real lb;
    SCIP_Real ub;
 
    assert( sdpi != NULL );
-   assert( v < sdpi->nvars );
-   assert( sdpi->lb != NULL );
-   assert( sdpi->ub != NULL );
+   assert( sdpi->sdpilb != NULL );
+   assert( sdpi->sdpiub != NULL );
+   assert( 0 <= v && v < sdpi->nvars );
 
-   lb = sdpi->lb[v];
-   ub = sdpi->ub[v];
+   lb = sdpi->sdpilb[v];
+   ub = sdpi->sdpiub[v];
+   assert( lb <= ub + sdpi->epsilon );
 
-   return ( ub-lb <= sdpi->epsilon );
+   return ( ub - lb <= sdpi->epsilon );
 }
 #else
-#define isFixed(sdpi, v) (sdpi->ub[v] - sdpi->lb[v] <= sdpi->epsilon)
+#define isFixed(sdpi, v) (sdpi->sdpiub[v] - sdpi->sdpilb[v] <= sdpi->epsilon)
 #endif
 
 /** calculate memory size for dynamically allocated arrays */
@@ -356,6 +359,8 @@ SCIP_RETCODE ensureBoundDataMemory(
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), sdpi->maxnvars, newsize) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), sdpi->maxnvars, newsize) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), sdpi->maxnvars, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpilb), sdpi->maxnvars, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpiub), sdpi->maxnvars, newsize) );
       sdpi->maxnvars = newsize;
    }
 
@@ -525,7 +530,9 @@ SCIP_RETCODE ensureSDPDataMemory(
  */
 static
 SCIP_RETCODE compConstMatAfterFixings(
-   SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
+   const SCIP_SDPI*      sdpi,               /**< pointer to an SDP-interface structure */
+   const SCIP_Real*      sdpilb,             /**< array of lower bounds */
+   const SCIP_Real*      sdpiub,             /**< array of upper bounds */
    int*                  sdpconstnnonz,      /**< pointer to store the total number of nonzero elements in the constant matrices of the SDP-blocks */
    int*                  sdpconstnblocknonz, /**< pointer to store number of nonzeros for each variable in the constant matrices */
    int**                 sdpconstrow,        /**< pointer to store row-indices for each block */
@@ -541,6 +548,8 @@ SCIP_RETCODE compConstMatAfterFixings(
    SCIP_Real* fixedvals;
 
    assert( sdpi != NULL );
+   assert( sdpilb != NULL );
+   assert( sdpiub != NULL );
    assert( sdpconstnnonz != NULL );
    assert( sdpconstnblocknonz != NULL );
    assert( sdpconstrow != NULL );
@@ -563,13 +572,13 @@ SCIP_RETCODE compConstMatAfterFixings(
       for (v = 0; v < sdpi->sdpnblockvars[b]; ++v)
       {
          varidx = sdpi->sdpvar[b][v];
-         if ( isFixed(sdpi, varidx) && REALABS(sdpi->lb[varidx]) > sdpi->epsilon )
+         if ( isFixed(sdpi, varidx) && REALABS(sdpilb[varidx]) > sdpi->epsilon )
          {
             for (i = 0; i < sdpi->sdpnblockvarnonz[b][v]; ++i)
             {
                fixedrows[nfixednonz] = sdpi->sdprow[b][v][i];
                fixedcols[nfixednonz] = sdpi->sdpcol[b][v][i];
-               fixedvals[nfixednonz] = - sdpi->sdpval[b][v][i] * sdpi->lb[varidx]; /* the -1 comes from +y_i A_i but -A_0 */
+               fixedvals[nfixednonz] = - sdpi->sdpval[b][v][i] * sdpilb[varidx]; /* the -1 comes from +y_i A_i but -A_0 */
                ++nfixednonz;
             }
          }
@@ -732,6 +741,8 @@ SCIP_RETCODE findEmptyRowColsSDP(
 static
 SCIP_RETCODE computeLpLhsRhsAfterFixings(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
+   SCIP_Real*            sdpilb,             /**< array of lower bounds (possibly strengthened here) */
+   SCIP_Real*            sdpiub,             /**< array of upper bounds (possibly strengthened here) */
    int*                  nactivelpcons,      /**< pointer to store the number of active LP-constraints */
    SCIP_Real*            lplhsafterfix,      /**< array to store lhs of active lp-constraints after fixing variables */
    SCIP_Real*            lprhsafterfix,      /**< array to store rhs of active lp-constraints after fixing variables */
@@ -746,6 +757,8 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
    int i;
 
    assert( sdpi != NULL );
+   assert( sdpilb != NULL );
+   assert( sdpiub != NULL );
    assert( sdpi->nlpcons == 0 || lplhsafterfix != NULL );
    assert( sdpi->nlpcons == 0 || lprhsafterfix != NULL );
    assert( sdpi->nlpcons == 0 || rownactivevars != NULL );
@@ -771,7 +784,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
          nonzind = i;
       }
       else
-         rowconst += sdpi->lpval[i] * sdpi->lb[sdpi->lpcol[i]];  /* contribution of the fixed variables */
+         rowconst += sdpi->lpval[i] * sdpilb[sdpi->lpcol[i]];  /* contribution of the fixed variables */
       assert( ! SCIPsdpiIsInfinity(sdpi, rowconst) );
 
       /* we finished a new row */
@@ -842,35 +855,30 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
             }
 
             /* check whether lower bound is stronger */
-            if ( lb > sdpi->lb[lpcol] + sdpi->epsilon )
+            if ( lb > sdpilb[lpcol] + sdpi->epsilon )
             {
                /* this bound is stronger than the original one */
                SCIPdebugMessage("Empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been strenghened to %g "
-                  "(originally %g)\n", currentrow, sdpi->sdpid, lpcol, lb, sdpi->lb[lpcol]);
-               sdpi->lb[lpcol] = lb;
+                  "(originally %g)\n", currentrow, sdpi->sdpid, lpcol, lb, sdpilb[lpcol]);
+               sdpilb[lpcol] = lb;
             }
 
             /* check whether upper bound is stronger */
-            if ( ub < sdpi->ub[lpcol] - sdpi->epsilon )
+            if ( ub < sdpiub[lpcol] - sdpi->epsilon )
             {
                /* this bound is stronger than the original one */
                SCIPdebugMessage("Empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been strenghened to %g "
-                  "(originally %g)\n", currentrow, sdpi->sdpid, lpcol, ub, sdpi->ub[lpcol]);
-               sdpi->ub[lpcol] = ub;
+                  "(originally %g)\n", currentrow, sdpi->sdpid, lpcol, ub, sdpiub[lpcol]);
+               sdpiub[lpcol] = ub;
             }
 
             /* check whether this makes the problem infeasible */
-            if ( sdpi->ub[lpcol] < sdpi->lb[lpcol] - sdpi->feastol )
-            {
-               SCIPdebugMessage("Found upper bound %g < lower bound %g for variable %d -> infeasible!\n", ub, lb, lpcol);
-               sdpi->infeasible = TRUE;
-               return SCIP_OKAY;
-            }
+            assert( sdpiub[lpcol] >= sdpilb[lpcol] - sdpi->epsilon );
 
             /* check if this leads to a fixing of this variable */
-            if ( REALABS(sdpi->lb[lpcol] - sdpi->ub[lpcol]) < sdpi->epsilon )
+            if ( REALABS(sdpilb[lpcol] - sdpiub[lpcol]) < sdpi->epsilon )
             {
-               SCIPdebugMessage("Fixed variable %d to value %g in SDP %d.\n", lpcol, sdpi->lb[lpcol], sdpi->sdpid);
+               SCIPdebugMessage("Fixed variable %d to value %g in SDP %d.\n", lpcol, sdpilb[lpcol], sdpi->sdpid);
                *fixingsfound = TRUE;
             }
          }
@@ -904,6 +912,8 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
 static
 SCIP_RETCODE checkFixedFeasibilitySdp(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
+   SCIP_Real*            sdpilb,             /**< array of lower bounds */
+   SCIP_Real*            sdpiub,             /**< array of upper bounds */
    int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
                                               *   number of entries  of sdpconst row/col/val [i] */
    int**                 sdpconstrow,        /**< pointers to row-indices for each block */
@@ -958,7 +968,8 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
       /* add the contributions of the fixed variables */
       for (v = 0; v < sdpi->sdpnblockvars[b]; v++)
       {
-         fixedval = sdpi->lb[sdpi->sdpvar[b][v]];
+         fixedval = sdpilb[sdpi->sdpvar[b][v]];
+         assert( REALABS(fixedval - sdpiub[sdpi->sdpvar[b][v]]) <= sdpi->epsilon );
 
          /* if the variable is fixed to zero, we can ignore its contributions */
          if ( REALABS(fixedval) < sdpi->epsilon )
@@ -1006,6 +1017,8 @@ SCIP_RETCODE checkSlaterCondition(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP) */
    clock_t               starttime,          /**< currenttime - starttime will be substracted from the timelimit given to the solver */
+   SCIP_Real*            sdpilb,             /**< array of lower bounds */
+   SCIP_Real*            sdpiub,             /**< array of upper bounds */
    int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
                                               *   number of entries  of sdpconst row/col/val [i] (may be NULL if sdpconstnnonz = 0) */
    int**                 sdpconstrow,        /**< pointer to row-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
@@ -1070,7 +1083,7 @@ SCIP_RETCODE checkSlaterCondition(
 
    /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if we are
     * still feasible for r > feastol, then we have an interior point with smallest eigenvalue > feastol, otherwise the Slater condition is harmed */
-   SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
+   SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpilb, sdpiub,
          sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
          sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
          sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
@@ -1251,15 +1264,15 @@ SCIP_RETCODE checkSlaterCondition(
    slaterrowsnactivevars[sdpi->nlpcons] = 0;
    for (v = 0; v < sdpi->nvars; v++)
    {
-      if ( ! (isFixed(sdpi, v)) )
+      if ( ! isFixed(sdpi, v) )
          slaterrowsnactivevars[sdpi->nlpcons]++;
    }
 
    slaternactivelpcons = (slaterrowsnactivevars[sdpi->nlpcons] > 1) ? nactivelpcons + 1 : nactivelpcons;
 
    /* copy the varbound arrays to change all finite varbounds to zero */
-   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &slaterlb, sdpi->lb, sdpi->nvars);
-   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &slaterub, sdpi->ub, sdpi->nvars);
+   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &slaterlb, sdpilb, sdpi->nvars);
+   DUPLICATE_ARRAY_NULL(sdpi->blkmem, &slaterub, sdpiub, sdpi->nvars);
 
    /* set all finite varbounds to zero */
    slaternremovedvarbounds = 0;
@@ -1504,6 +1517,8 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->obj = NULL;
    (*sdpi)->lb = NULL;
    (*sdpi)->ub = NULL;
+   (*sdpi)->sdpilb = NULL;
+   (*sdpi)->sdpiub = NULL;
    (*sdpi)->sdpblocksizes = NULL;
    (*sdpi)->sdpnblockvars = NULL;
    (*sdpi)->maxsdpnblockvars = NULL;
@@ -1597,6 +1612,8 @@ SCIP_RETCODE SCIPsdpiFree(
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &(*sdpi)->sdprowstore, (*sdpi)->maxsdpstore);
 
    assert( 0 <= (*sdpi)->nvars && (*sdpi)->nvars <= (*sdpi)->maxnvars );
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpiub), (*sdpi)->maxnvars);/*lint !e737*/
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpilb), (*sdpi)->maxnvars);/*lint !e737*/
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->ub), (*sdpi)->maxnvars);/*lint !e737*/
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lb), (*sdpi)->maxnvars);/*lint !e737*/
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->obj), (*sdpi)->maxnvars);/*lint !e737*/
@@ -1649,6 +1666,8 @@ SCIP_RETCODE SCIPsdpiClone(
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->obj), oldsdpi->obj, nvars) );
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->lb), oldsdpi->lb, nvars) );
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->ub), oldsdpi->ub, nvars) );
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpilb), nvars) );
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpiub), nvars) );
 
    newsdpi->nsdpblocks = nsdpblocks;
    newsdpi->maxnsdpblocks = nsdpblocks;
@@ -2564,28 +2583,13 @@ SCIP_RETCODE SCIPsdpiSolve(
    sdpi->niterations = 0;
    sdpi->opttime = 0.0;
 
-   /* preform some preprocessing with LP rows */
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &lplhsafterfix, sdpi->nlpcons) );
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &lprhsafterfix, sdpi->nlpcons) );
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &rowsnactivevars, sdpi->nlpcons) );
-
-   /* Compute the lplphs and lprhs, detect empty rows and check for additional variable fixings caused by boundchanges from
-    * lp rows with a single active variable. Note that this changes sdpi->lb and sdpi->ub. */
-   do
-   {
-      SCIP_CALL( computeLpLhsRhsAfterFixings(sdpi, &nactivelpcons, lplhsafterfix, lprhsafterfix, rowsnactivevars, &fixingfound) );
-   }
-   while ( fixingfound );
-
-   /* checks whether there are conflicting bounds and whether all variables are fixed */
-   sdpi->allfixed = TRUE;
+   /* copy bounds */
    for (v = 0; v < sdpi->nvars && ! sdpi->infeasible; v++)
    {
-      if ( sdpi->ub[v] < sdpi->lb[v] - sdpi->feastol )
+      sdpi->sdpilb[v] = sdpi->lb[v];
+      sdpi->sdpiub[v] = sdpi->ub[v];
+      if ( sdpi->sdpiub[v] < sdpi->sdpilb[v] - sdpi->feastol )
          sdpi->infeasible = TRUE;
-
-      if ( ! isFixed(sdpi, v) )
-         sdpi->allfixed = FALSE;
    }
 
    /* exit if infeasible */
@@ -2598,11 +2602,28 @@ SCIP_RETCODE SCIPsdpiSolve(
       sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
       sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
 
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &rowsnactivevars, sdpi->nlpcons);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &lprhsafterfix, sdpi->nlpcons);
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &lplhsafterfix, sdpi->nlpcons);
-
       return SCIP_OKAY;
+   }
+
+   /* preform some preprocessing with LP rows */
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &lplhsafterfix, sdpi->nlpcons) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &lprhsafterfix, sdpi->nlpcons) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &rowsnactivevars, sdpi->nlpcons) );
+
+   /* Compute the lplphs and lprhs, detect empty rows and check for additional variable fixings caused by boundchanges from
+    * lp rows with a single active variable. Note that this changes sdpi->lb and sdpi->ub. */
+   do
+   {
+      SCIP_CALL( computeLpLhsRhsAfterFixings(sdpi, sdpi->sdpilb, sdpi->sdpiub, &nactivelpcons, lplhsafterfix, lprhsafterfix, rowsnactivevars, &fixingfound) );
+   }
+   while ( fixingfound );
+
+   /* checks whether there are conflicting bounds and whether all variables are fixed */
+   sdpi->allfixed = TRUE;
+   for (v = 0; v < sdpi->nvars && sdpi->allfixed; v++)
+   {
+      if ( ! isFixed(sdpi, v) )
+         sdpi->allfixed = FALSE;
    }
 
    /* check if all variables are fixed, if this is the case, check if the remaining solution for feasibility */
@@ -2631,12 +2652,12 @@ SCIP_RETCODE SCIPsdpiSolve(
    }
 
    /* compute constant matrix after fixings */
-   SCIP_CALL( compConstMatAfterFixings(sdpi, &sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval) );
+   SCIP_CALL( compConstMatAfterFixings(sdpi, sdpi->sdpilb, sdpi->sdpiub, &sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval) );
 
    if ( sdpi->allfixed && ! sdpi->infeasible )
    {
       /* check feasibility of SDP constraints - LP constraints have been checked in computeLpLhsRhsAfterFixings() */
-      SCIP_CALL( checkFixedFeasibilitySdp(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval) );
+      SCIP_CALL( checkFixedFeasibilitySdp(sdpi, sdpi->sdpilb, sdpi->sdpiub, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval) );
    }
 
    if ( sdpi->infeasible )
@@ -2664,8 +2685,8 @@ SCIP_RETCODE SCIPsdpiSolve(
 
       if ( sdpi->slatercheck )
       {
-         SCIP_CALL( checkSlaterCondition(sdpi, timelimit, starttime, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges,
-                  nremovedinds, lplhsafterfix, lprhsafterfix, rowsnactivevars, blockindchanges, sdpconstnnonz, nactivelpcons, nremovedblocks, FALSE) );
+         SCIP_CALL( checkSlaterCondition(sdpi, timelimit, starttime, sdpi->sdpilb, sdpi->sdpiub, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges,
+               nremovedinds, lplhsafterfix, lprhsafterfix, rowsnactivevars, blockindchanges, sdpconstnnonz, nactivelpcons, nremovedblocks, FALSE) );
       }
 
       /* compute the timit limit to set for the solver */
@@ -2677,7 +2698,7 @@ SCIP_RETCODE SCIPsdpiSolve(
       }
 
       /* try to solve the problem */
-      SCIP_CALL( SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
+      SCIP_CALL( SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, sdpi->sdpilb, sdpi->sdpiub,
             sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
             sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
@@ -2727,7 +2748,7 @@ SCIP_RETCODE SCIPsdpiSolve(
 
          /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if
           * the optimal objective is bigger than feastol, then we know that the problem is infeasible */
-         SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpi->lb, sdpi->ub,
+         SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpi->sdpilb, sdpi->sdpiub,
                sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
@@ -2802,7 +2823,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                }
 
                SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, penaltyparam, TRUE, TRUE, sdpi->nvars, sdpi->obj,
-                     sdpi->lb, sdpi->ub, sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
+                     sdpi->sdpilb, sdpi->sdpiub, sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
                      sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                      sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                      sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->nlpcons, lplhsafterfix, lprhsafterfix,
@@ -2883,8 +2904,8 @@ SCIP_RETCODE SCIPsdpiSolve(
             /* if we still didn't succeed and enforceslatercheck was set, we finally test for the Slater condition to give a reason for failure */
             if ( sdpi->solved == FALSE && enforceslatercheck)
             {
-               SCIP_CALL( checkSlaterCondition(sdpi, timelimit, starttime, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges,
-                                 nremovedinds, lplhsafterfix, lprhsafterfix, rowsnactivevars, blockindchanges, sdpconstnnonz, nactivelpcons, nremovedblocks, TRUE) );
+               SCIP_CALL( checkSlaterCondition(sdpi, timelimit, starttime, sdpi->sdpilb, sdpi->sdpiub, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges,
+                     nremovedinds, lplhsafterfix, lprhsafterfix, rowsnactivevars, blockindchanges, sdpconstnnonz, nactivelpcons, nremovedblocks, TRUE) );
             }
             else if ( sdpi->solved == FALSE )
             {
@@ -3344,7 +3365,7 @@ SCIP_RETCODE SCIPsdpiGetObjval(
       *objval = 0;
 
       for (v = 0; v < sdpi->nvars; v++)
-         *objval += sdpi->lb[v] * sdpi->obj[v];
+         *objval += sdpi->sdpilb[v] * sdpi->obj[v];
    }
    else
    {
@@ -3378,7 +3399,7 @@ SCIP_RETCODE SCIPsdpiGetLowerObjbound(
          *objlb = 0;
 
          for (v = 0; v < sdpi->nvars; v++)
-            *objlb += sdpi->lb[v] * sdpi->obj[v];
+            *objlb += sdpi->sdpilb[v] * sdpi->obj[v];
       }
       else
       {
@@ -3444,7 +3465,7 @@ SCIP_RETCODE SCIPsdpiGetSol(
 
          /* we give the fixed values as the solution */
          for (v = 0; v < sdpi->nvars; v++)
-            dualsol[v] = sdpi->lb[v];
+            dualsol[v] = sdpi->sdpilb[v];
       }
    }
    else
@@ -3541,7 +3562,7 @@ SCIP_RETCODE SCIPsdpiGetPreoptimalSol(
 
       /* we give the fixed values as the solution */
       for (v = 0; v < sdpi->nvars; v++)
-         dualsol[v] = sdpi->lb[v];
+         dualsol[v] = sdpi->sdpilb[v];
 
       if ( nblocks > -1 )
       {
