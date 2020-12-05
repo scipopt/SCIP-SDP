@@ -4140,7 +4140,7 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
 
                /* create quadratic constraint */
                SCIP_CALL( SCIPcreateConsQuadratic(scip, &quadcons, name, lincnt, linvars, lincoefs, quadcnt, quadvars1, quadvars2, quadcoefs, lhs, lhs,
-                     FALSE,     /* initial */
+                     TRUE,      /* initial */
                      TRUE,      /* separate */
                      TRUE,      /* enforce */
                      TRUE,      /* check */
