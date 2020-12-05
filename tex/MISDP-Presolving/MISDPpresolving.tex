@@ -708,7 +708,7 @@ an SDP, but possibly for more general cases.
 
 Indeed, SOCP is special case of SDP, because:
 \[
-  (x,t) \in L_{n+1} \quad\Leftrightarrow\quad
+  (x,\sqrt{t}) \in L_{n+1} \quad\Leftrightarrow\quad
   \tilde{X} \define
   \begin{pmatrix}
     t & x\T\\
@@ -728,7 +728,7 @@ with a positive definite $C \succ 0$. Then $D \succeq 0$ if and only if
 $S = A - B\T C^{-1} B \succeq 0$ and $A \succeq 0$\footnote{Note that the
   condition $A \succeq 0$ is missing in~\cite{BoyV09}.}. For $D = \tilde{X}$, we
 get: $\tilde{X} \succeq 0$ if and only if $t \geq 0$, $t - x\T x \geq
-0$. The latter is equivalent to $(x,t) \in L_{n+1}$.
+0$. The latter is equivalent to $(x,\sqrt{t}) \in L_{n+1}$.
 
 Now consider a more general matrix
 \begin{equation}\label{eq:GeneralPSD}
