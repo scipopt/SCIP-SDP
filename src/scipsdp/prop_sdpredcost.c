@@ -269,10 +269,6 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    if ( SCIPgetStage(scip) == SCIP_STAGE_PRESOLVING )
       return SCIP_OKAY;
 
-  cutoffbound = SCIPgetCutoffbound(scip);
-  if ( SCIPisInfinity(scip, cutoffbound) )
-     return SCIP_OKAY;
-
    cutoffbound = SCIPgetCutoffbound(scip);
    if ( SCIPisInfinity(scip, cutoffbound) )
       return SCIP_OKAY;
