@@ -3530,21 +3530,21 @@ SCIP_RETCODE calcRelax(
 
       if ( SCIPsdpiIsDualInfeasible(sdpi) )
       {
-         SCIPdebugMsg(scip, "Node cut off due to infeasibility.\n");
+         SCIPdebugMsg(scip, "Relaxation is infeasibility.\n");
          relaxdata->feasible = FALSE;
          *result = SCIP_CUTOFF;
          return SCIP_OKAY;
       }
       else if ( SCIPsdpiIsObjlimExc(sdpi) )
       {
-         SCIPdebugMsg(scip, "Node cut off due to objective limit.\n");
+         SCIPdebugMsg(scip, "Relaxation reached objective limit.\n");
          relaxdata->feasible = FALSE;
          *result = SCIP_CUTOFF;
          return SCIP_OKAY;
       }
       else if ( SCIPsdpiIsDualUnbounded(sdpi) )
       {
-         SCIPdebugMsg(scip, "Node unbounded.");
+         SCIPdebugMsg(scip, "Relaxation is unbounded.\n");
          relaxdata->feasible = TRUE;
          *result = SCIP_SUCCESS;
          *lowerbound = -SCIPinfinity(scip);
@@ -3565,6 +3565,8 @@ SCIP_RETCODE calcRelax(
 
          assert( slength == nvars ); /* If this isn't true any longer, the getSol-Call was unsuccessfull, because the given array wasn't long enough,
                                       * but this can't happen, because the array has enough space for all sdp variables. */
+
+         SCIPdebugMsg(scip, "Relaxation is solved optimally (objective: %g).\n", objforscip);
 
          /* create SCIP solution */
          SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
