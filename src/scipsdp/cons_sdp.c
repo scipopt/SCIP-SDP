@@ -4560,7 +4560,7 @@ SCIP_DECL_CONSTRANS(consTransSdp)
       SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->val[i]), sourcedata->val[i], sourcedata->nvarnonz[i]) );
    }
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->vars), sourcedata->nvars) );
-   if ( sourcedata->locks )
+   if ( sourcedata->locks != NULL )
    {
       SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->locks), sourcedata->locks, sourcedata->nvars) );
    }
@@ -5516,6 +5516,15 @@ SCIP_DECL_CONSCOPY(consCopySdp)
       SCIP_CALL( SCIPcreateConsSdpRank1(scip, cons, copyname, sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize, sourcedata->nvarnonz,
             sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
             sourcedata->constcol, sourcedata->constrow, sourcedata->constval, FALSE) );
+   }
+
+   /* copy lock information if available */
+   if ( sourcedata->locks != NULL )
+   {
+      SCIP_CONSDATA* targetdata;
+
+      targetdata = SCIPconsGetData(*cons);
+      SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->locks), sourcedata->locks, sourcedata->nvars) );
    }
 
    SCIPfreeBufferArray(scip, &targetvars);
