@@ -223,7 +223,7 @@ clean:
 tags:
 		rm -f TAGS; ctags -e src/*.c src/*.cpp src/*.h $(SCIPDIR)/src/scip/*.c $(SCIPDIR)/src/scip/*.h;
 
-$(BINDIR)/%$(BASESUFFIX): $(OBJDIR)/%.o $(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(TPILIBFILE)
+$(BINDIR)/%$(BASESUFFIX): $(OBJDIR)/%.o $(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) $(TPILIBFILE) $(SCIPSDPLIBFILE)
 		@echo "-> linking $@"
 		$(LINKCXX) $< $(LINKCXXSCIPSDPALL) \
 		$(addprefix $(LINKCXX_L),$(CR_LIBDIR)) $(LINKCXX_l)$(CR_LIB) $(addprefix $(LINKRPATH),$(realpath $(CR_LIBDIR))) \
