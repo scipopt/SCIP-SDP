@@ -3532,6 +3532,7 @@ SCIP_RETCODE calcRelax(
       {
          SCIPdebugMsg(scip, "Relaxation is infeasibility.\n");
          relaxdata->feasible = FALSE;
+         relaxdata->objval = SCIPinfinity(scip);
          *result = SCIP_CUTOFF;
          return SCIP_OKAY;
       }
@@ -3539,6 +3540,7 @@ SCIP_RETCODE calcRelax(
       {
          SCIPdebugMsg(scip, "Relaxation reached objective limit.\n");
          relaxdata->feasible = FALSE;
+         relaxdata->objval = SCIPgetUpperbound(scip);
          *result = SCIP_CUTOFF;
          return SCIP_OKAY;
       }
@@ -3546,6 +3548,7 @@ SCIP_RETCODE calcRelax(
       {
          SCIPdebugMsg(scip, "Relaxation is unbounded.\n");
          relaxdata->feasible = TRUE;
+         relaxdata->objval = -SCIPinfinity(scip);
          *result = SCIP_SUCCESS;
          *lowerbound = -SCIPinfinity(scip);
          return SCIP_OKAY;
