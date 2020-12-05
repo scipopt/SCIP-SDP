@@ -43,6 +43,7 @@ fixed bugs:
 - fixed bug in presolving which sometimes avoided the addition of linear constraints
 - fixed minor bug to allow copying of original problem
 - disable oneopt heuristic when solving SDPs to avoid an infinite loop
+- set objective value in relaxation even for infeasible or unbounded problems (this led to problems in prop_sdpredcost)
 
 features:
 - add possibility to tighten matrices if all matrices are positive semidefinite (turned off by default)
