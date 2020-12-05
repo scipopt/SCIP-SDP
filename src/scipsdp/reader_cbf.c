@@ -39,6 +39,8 @@
  * @author Marc Pfetsch
  * @author Frederic Matter
  *
+ * The CBF format is http://cblib.zib.de/.
+ *
  * As an extension of the original CBF format it is possible to specify the constraint that a psd variable and/or a
  * SDP-constraint has rank 1. This is done by using the two new keywords PSDCONRANK1 and PSDVARRANK1 with the following
  * structure:
