@@ -858,7 +858,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
             if ( lb > sdpilb[lpcol] + sdpi->epsilon )
             {
                /* this bound is stronger than the original one */
-               SCIPdebugMessage("Empty LP-row %d has been removed from SDP %d, lower bound of variable %d has been strenghened to %g "
+               SCIPdebugMessage("LP-row %d with one nonzero has been removed from SDP %d, lower bound of variable %d has been strenghened to %g "
                   "(originally %g)\n", currentrow, sdpi->sdpid, lpcol, lb, sdpilb[lpcol]);
                sdpilb[lpcol] = lb;
             }
@@ -867,7 +867,7 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
             if ( ub < sdpiub[lpcol] - sdpi->epsilon )
             {
                /* this bound is stronger than the original one */
-               SCIPdebugMessage("Empty LP-row %d has been removed from SDP %d, upper bound of variable %d has been strenghened to %g "
+               SCIPdebugMessage("LP-row %d with one nonzero has been removed from SDP %d, upper bound of variable %d has been strenghened to %g "
                   "(originally %g)\n", currentrow, sdpi->sdpid, lpcol, ub, sdpiub[lpcol]);
                sdpiub[lpcol] = ub;
             }
@@ -1871,6 +1871,11 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
          }
       }
    }
+   for (i = 0; i < nvars; ++i)
+   {
+      assert( lb[i] < SCIPsdpiInfinity(sdpi) );   /* lower bound should not be infinity */
+      assert( ub[i] > -SCIPsdpiInfinity(sdpi) );  /* upper bound should not be - infinity */
+   }
 #endif
 
    assert( nlpcons == 0 || lplhs != NULL );
@@ -1903,10 +1908,14 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
       BMScopyMemoryArray(sdpi->sdpnblockvarnonz[b], sdpnblockvarnonz[b], sdpnblockvars[b]);
       BMScopyMemoryArray(sdpi->sdpvar[b], sdpvar[b], sdpnblockvars[b]);
 
-      BMScopyMemoryArray(sdpi->sdpconstval[b], sdpconstval[b], sdpconstnblocknonz[b]);
-      BMScopyMemoryArray(sdpi->sdpconstcol[b], sdpconstcol[b], sdpconstnblocknonz[b]);
-      BMScopyMemoryArray(sdpi->sdpconstrow[b], sdpconstrow[b], sdpconstnblocknonz[b]);
+      if ( sdpconstnblocknonz[b] > 0 )
+      {
+         BMScopyMemoryArray(sdpi->sdpconstval[b], sdpconstval[b], sdpconstnblocknonz[b]);
+         BMScopyMemoryArray(sdpi->sdpconstcol[b], sdpconstcol[b], sdpconstnblocknonz[b]);
+         BMScopyMemoryArray(sdpi->sdpconstrow[b], sdpconstrow[b], sdpconstnblocknonz[b]);
+      }
 
+      assert( 0 <= sdpnblockvars[b] && sdpnblockvars[b] <= nvars );
       for (v = 0; v < sdpi->sdpnblockvars[b]; v++)
       {
 #ifndef NDEBUG
@@ -1916,11 +1925,17 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
          for (j = 0; j < sdpi->sdpnblockvarnonz[b][v]; ++j)
             assert( sdprow[b][v][j] >= sdpcol[b][v][j] );
 #endif
+         assert( 0 <= sdpvar[b][v] && sdpvar[b][v] < nvars );
+
+         assert( sdpi->sdpvalstore != NULL );
+         assert( sdpi->sdpcolstore != NULL );
+         assert( sdpi->sdprowstore != NULL );
 
          BMScopyMemoryArray(&sdpi->sdpvalstore[cnt], sdpval[b][v], sdpnblockvarnonz[b][v]);
          BMScopyMemoryArray(&sdpi->sdpcolstore[cnt], sdpcol[b][v], sdpnblockvarnonz[b][v]);
          BMScopyMemoryArray(&sdpi->sdprowstore[cnt], sdprow[b][v], sdpnblockvarnonz[b][v]);
          cnt += sdpnblockvarnonz[b][v];
+         assert( cnt <= sdpnnonz );
       }
    }
 
