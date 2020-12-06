@@ -5525,6 +5525,7 @@ SCIP_DECL_CONSCOPY(consCopySdp)
 
       targetdata = SCIPconsGetData(*cons);
       SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->locks), sourcedata->locks, sourcedata->nvars) );
+      targetdata->allmatricespsd = sourcedata->allmatricespsd;
    }
 
    SCIPfreeBufferArray(scip, &targetvars);
