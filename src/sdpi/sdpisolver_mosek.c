@@ -406,12 +406,12 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    if ( reusemskenv == NULL )
    {
       assert(numsdp == 0);
-      MOSEK_CALLM( MSK_makeenv(&reusemskenv, NULL) );
+      MOSEK_CALL( MSK_makeenv(&reusemskenv, NULL) );
    }
    (*sdpisolver)->mskenv = reusemskenv;
    ++numsdp;
 #else
-   MOSEK_CALLM( MSK_makeenv(&((*sdpisolver)->mskenv), NULL) );/*lint !e641*/ /* the NULL-argument is a debug file, but setting this will spam the whole folder */
+   MOSEK_CALL( MSK_makeenv(&((*sdpisolver)->mskenv), NULL) );/*lint !e641*/ /* the NULL-argument is a debug file, but setting this will spam the whole folder */
 #endif
 
    /* this will be properly initialized then calling solve */
