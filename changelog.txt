@@ -54,6 +54,8 @@ parameters:
 - new parameter <heuristics/sdpfracdiving/runforlp> and <heuristics/sdprand/runforlp> to use heuristics starting from LP solution (default: FALSE)
 - new parameter <misc/solvesdps> to choose between SDP (1) and LP (0) solving (default: 1)
 - rename parameter <relaxing/SDP/tightenvb> to <relaxing/SDP/tightenrows>.
+- set default value for <relaxing/SDP/sdpsolverthreads> to 1, since this usually improves running time
+  (set to -1 for an automatic choice, e.g., for larger SDP blocks)
 
 
 fixed bugs:
