@@ -183,6 +183,7 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/reader_sdpa.o \
 			scipsdp/prop_sdpobbt.o \
 			scipsdp/prop_companalcent.o \
+			scipsdp/scipsdpdefplugins.o \
 			scipsdp/table_relaxsdp.o \
 			scipsdp/table_slater.o \
 			scipsdp/table_sdpsolversuccess.o \
@@ -191,8 +192,7 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			sdpi/lapack_interface.o \
 			scipsdpgithash.o
 
-SCIPSDPCCOBJ 	=	scipsdp/scipsdpdefplugins.o \
-			scipsdp/ScipStreamBuffer.o
+SCIPSDPCCOBJ 	=	scipsdp/ScipStreamBuffer.o
 
 SCIPSDPCSRC	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCOBJ:.o=.c))
 SCIPSDPCCSRC 	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCCOBJ:.o=.cpp))

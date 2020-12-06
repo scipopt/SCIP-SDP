@@ -37,7 +37,7 @@ set(scipsdpsources
     scipsdp/table_relaxsdp.c
     scipsdp/table_slater.c
     scipsdp/table_sdpsolversuccess.c
-    scipsdp/scipsdpdefplugins.cpp
+    scipsdp/scipsdpdefplugins.c
     sdpi/sdpi.c
     sdpi/sdpsolchecker.c
     sdpi/lapack_interface.c
