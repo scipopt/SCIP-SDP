@@ -30,6 +30,7 @@ features:
 - SDPI now copies lower and upper bounds before possible strengthening
 - copy locking information to sub-SCIPSDPs (this avoids recomputing eigenvalues)
 - reuse the mosek environment in each thread if possible
+- sdpisolver_mosek now uses the SCIP message handler for output
 
 API changes:
 - new functions SCIPconsSdpGetNVars and SCIPconsSdpGetVars in cons_sdp.c

@@ -232,19 +232,28 @@ struct SCIP_SDPiSolver
                       }                                                                                      \
                       while( FALSE )
 
-/** prints MOSEK output to the console */
+/** print string using message handler of SCIP */
 static
 void MSKAPI printstr(
-   void*                 handle,             /**< A user-defined handle which is passed to the user-defined function */
 #if MSK_VERSION_MAJOR >= 9
-   const char            str[]               /**< String to print */
+   MSKuserhandle_t       handler,            /**< error handler */
+   const char*           str                 /**< string to print */
 #else
-   MSKCONST char         str[]          /**< String to print */
+   void*                 handler,            /**< error handler */
+   MSKCONST char         str[]               /**< string to print */
 #endif
    )
-{ /*lint --e{715}*/
-  printf("%s",str);
+{  /*lint --e{715}*/
+#if 0
+   char errstr[32];
+   snprintf(errstr, 32, "MOSEK Error %d", MSK_RES_ERR_DUP_NAME);
+   if ( strncmp(errstr, str, strlen(errstr)) == 0 )
+      return;
+#endif
+
+   SCIPmessagePrintInfo((SCIP_MESSAGEHDLR *) handler, "MOSEK: %s", str);
 }
+
 
 #ifndef NDEBUG
 /** Test if a lower bound lb is not smaller than an upper bound ub, meaning that lb > ub - epsilon */
@@ -791,13 +800,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_NEAR_REL, NEAR_REL_TOLERANCE) );
 #endif
 
+   /* redirect output to SCIP message handler */
 #ifdef SCIP_MORE_DEBUG
-   MOSEK_CALL( MSK_linkfunctotaskstream(sdpisolver->msktask, MSK_STREAM_LOG, NULL, printstr) ); /* output to console */
+   MOSEK_CALL( MSK_linkfunctotaskstream(sdpisolver->msktask, MSK_STREAM_LOG, (MSKuserhandle_t) sdpisolver->messagehdlr, printstr) );
 #else
-   /* if sdpinfo is true, redirect output to console */
    if ( sdpisolver->sdpinfo )
    {
-      MOSEK_CALL( MSK_linkfunctotaskstream(sdpisolver->msktask, MSK_STREAM_LOG, NULL, printstr) );/*lint !e641*/
+      MOSEK_CALL( MSK_linkfunctotaskstream(sdpisolver->msktask, MSK_STREAM_LOG, (MSKuserhandle_t) sdpisolver->messagehdlr, printstr) );/*lint !e641*/
    }
 #endif
 
