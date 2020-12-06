@@ -45,8 +45,6 @@ set(scipsdpsources
 )
 
 set(objscipsdpsources
-    scipsdp/objreader_sdpa.cpp
-    scipsdp/objreader_sdpaind.cpp
     scipsdp/ScipStreamBuffer.cpp
 )
 
@@ -62,8 +60,6 @@ set(sdpiheaders
 )
 
 set(objscipsdpheaders
-    scipsdp/objreader_sdpa.h
-    scipsdp/objreader_sdpaind.h
     scipsdp/ScipStreamBuffer.h
 )
 
