@@ -29,9 +29,11 @@ set(scipsdpsources
     scipsdp/branch_sdpmostinf.c
     scipsdp/branch_sdpobjective.c
     scipsdp/branch_sdpinfobjective.c
+    scipsdp/heur_sdpinnerlp.c
     scipsdp/heur_sdpfracdiving.c
     scipsdp/heur_sdprand.c
     scipsdp/reader_cbf.c
+    scipsdp/reader_sdpa.c
     scipsdp/prop_sdpobbt.c
     scipsdp/prop_companalcent.c
     scipsdp/table_relaxsdp.c
@@ -79,9 +81,11 @@ set(scipsdpheaders
     scipsdp/branch_sdpmostinf.h
     scipsdp/branch_sdpobjective.h
     scipsdp/branch_sdpinfobjective.h
+    scipsdp/heur_sdpinnerlp.h
     scipsdp/heur_sdpfracdiving.h
     scipsdp/heur_sdprand.h
     scipsdp/reader_cbf.h
+    scipsdp/reader_sdpa.h
     scipsdp/prop_sdpobbt.h
     scipsdp/prop_companalcent.h
     scipsdp/table_relaxsdp.h
@@ -109,11 +113,11 @@ setLibProperties(libscipsdp "scipsdp")
 #put binary in bin directory
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 if(SHARED)
-    target_link_libraries(libscipsdp PRIVATE ${ZIMPL_PIC_LIBRARIES} ${SDPS_PIC_LIBRARIES} ${LAPACK_LIBRARY} ${BLAS_LIBRARY})
+    target_link_libraries(libscipsdp PRIVATE ${ZIMPL_PIC_LIBRARIES} ${SDPS_PIC_LIBRARIES} ${LAPACK_LIBRARY} ${BLAS_LIBRARY} m)
     add_executable(scipsdp scipsdp/main.c ${scipsdpsources} ${objscipsdpsources} ${sdpisources})
     target_link_libraries(scipsdp ${ZLIB_LIBRARIES} ${Readline_LIBRARY} ${GMP_LIBRARIES} ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES} ${SCIP_LIBRARIES})
 else()
-    target_link_libraries(libscipsdp PRIVATE ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES} ${LAPACK_LIBRARY} ${BLAS_LIBRARY})
+    target_link_libraries(libscipsdp PRIVATE ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES} ${LAPACK_LIBRARY} ${BLAS_LIBRARY} m)
     add_executable(scipsdp scipsdp/main.c ${scipsdpsources} ${objscipsdpsources} ${sdpisources})
     target_link_libraries(scipsdp libscipsdp ${SCIP_LIBRARIES})
 endif()

@@ -101,6 +101,7 @@
 
 #include <assert.h>
 #include <time.h>
+#include <math.h>
 
 #include "sdpi/sdpisolver.h"
 #include "sdpi/sdpi.h"
