@@ -931,3 +931,5 @@ LAYOUT_FILE            = ./layout.xml
 # Load the math fonts for mathbb
 
 EXTRA_PACKAGES = amsmath xr amsfonts
+
+USE_MATHJAX = YES
