@@ -873,9 +873,9 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
             }
 
             /* check whether this makes the problem infeasible */
-            if ( sdpi->ub[lpcol] < sdpi->lb[lpcol] - sdpi->epsilon )
+            if ( sdpi->sdpiub[lpcol] < sdpi->sdpilb[lpcol] - sdpi->epsilon )
             {
-               SCIPdebugMessage("Found upper bound %g < lower bound %g for variable %d -> infeasible!\n", ub, lb, lpcol);
+               SCIPdebugMessage("Found upper bound %g < lower bound %g for variable %d -> infeasible!\n", sdpi->sdpiub[lpcol], sdpi->sdpilb[lpcol], lpcol);
                sdpi->infeasible = TRUE;
                return SCIP_OKAY;
             }
