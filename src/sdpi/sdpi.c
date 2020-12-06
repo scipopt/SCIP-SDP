@@ -873,7 +873,12 @@ SCIP_RETCODE computeLpLhsRhsAfterFixings(
             }
 
             /* check whether this makes the problem infeasible */
-            assert( sdpiub[lpcol] >= sdpilb[lpcol] - sdpi->epsilon );
+            if ( sdpi->ub[lpcol] < sdpi->lb[lpcol] - sdpi->epsilon )
+            {
+               SCIPdebugMessage("Found upper bound %g < lower bound %g for variable %d -> infeasible!\n", ub, lb, lpcol);
+               sdpi->infeasible = TRUE;
+               return SCIP_OKAY;
+            }
 
             /* check if this leads to a fixing of this variable */
             if ( REALABS(sdpilb[lpcol] - sdpiub[lpcol]) < sdpi->epsilon )
@@ -2619,6 +2624,7 @@ SCIP_RETCODE SCIPsdpiSolve(
 
       return SCIP_OKAY;
    }
+   assert( ! sdpi->infeasible );
 
    /* preform some preprocessing with LP rows */
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &lplhsafterfix, sdpi->nlpcons) );
@@ -2632,6 +2638,24 @@ SCIP_RETCODE SCIPsdpiSolve(
       SCIP_CALL( computeLpLhsRhsAfterFixings(sdpi, sdpi->sdpilb, sdpi->sdpiub, &nactivelpcons, lplhsafterfix, lprhsafterfix, rowsnactivevars, &fixingfound) );
    }
    while ( fixingfound );
+
+   /* exit if infeasible */
+   if ( sdpi->infeasible )
+   {
+      SCIPdebugMessage("SDP %d not given to solver, as infeasibility was detected during problem preparation!\n", sdpi->sdpid++);
+      SCIP_CALL( SCIPsdpiSolverIncreaseCounter(sdpi->sdpisolver) );
+
+      sdpi->solved = TRUE;
+      sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
+      sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
+
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &rowsnactivevars, sdpi->nlpcons);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &lprhsafterfix, sdpi->nlpcons);
+      BMSfreeBlockMemoryArray(sdpi->blkmem, &lplhsafterfix, sdpi->nlpcons);
+
+      return SCIP_OKAY;
+   }
+   assert( ! sdpi->infeasible );
 
    /* checks whether there are conflicting bounds and whether all variables are fixed */
    sdpi->allfixed = TRUE;
