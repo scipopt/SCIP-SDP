@@ -13,6 +13,7 @@ features:
 - the function SCIPconsSdpCheckSdpCons() is now a static local function and no longer a global function
 - add option to sparsify an eigenvector cut
 - add option to solve an SDP when solving LPs, if there is an integer solution in enforcing. If the SDP is not feasible and not all integer variables are already fixed, add rounding step for all integer variables and solve SDP again.
+- we now reuse the mosek environment for each thread if possible
 
 parameters:
 - new parameter <constraints/SDP/separateonecut> to separate only one cut for the smallest eigenvalue (default: FALSE)

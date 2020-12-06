@@ -68,10 +68,11 @@
 
 #include "blockmemshell/memory.h"            /* for memory allocation */
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
-#include "scip/pub_misc.h"                   /* for sorting */
+#include "scip/pub_misc.h"                   /* for SCIPsnprintf() */
 #include "mosek.h"                           /* for MOSEK routines */
 #include "sdpi/sdpsolchecker.h"              /* to check solution with regards to feasibility tolerance */
 #include "scip/pub_message.h"                /* for debug and error message */
+#include "tinycthread/tinycthread.h"         /* for thread local environments */
 
 /* @todo Use MSK_putexitfunc to catch errors.
  * @todo Think about what to do with near optimality etc. (If MOSEK cannot compute a solution that has the prescribed accuracy, then it will
@@ -93,6 +94,14 @@
 #if MSK_VERSION_MAJOR >= 9
 #define NEAR_REL_TOLERANCE           1.0     /**< MOSEK will multiply all tolerances with this factor after stalling */
 #endif
+
+/* Use thread local environment in order to not create a new environment for each new SDP. */
+#if defined(_Thread_local)
+_Thread_local MSKenv_t reusemskenv = NULL;
+_Thread_local int numsdp           = 0;
+#define SCIP_REUSEENV
+#endif
+
 
 /** data used for SDP interface */
 struct SCIP_SDPiSolver
@@ -393,7 +402,17 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->blkmem = blkmem;
    (*sdpisolver)->bufmem = bufmem;
 
+#ifdef SCIP_REUSEENV
+   if ( reusemskenv == NULL )
+   {
+      assert(numsdp == 0);
+      MOSEK_CALLM( MSK_makeenv(&reusemskenv, NULL) );
+   }
+   (*sdpisolver)->mskenv = reusemskenv;
+   ++numsdp;
+#else
    MOSEK_CALLM( MSK_makeenv(&((*sdpisolver)->mskenv), NULL) );/*lint !e641*/ /* the NULL-argument is a debug file, but setting this will spam the whole folder */
+#endif
 
    /* this will be properly initialized then calling solve */
    (*sdpisolver)->msktask = NULL;
@@ -441,7 +460,17 @@ SCIP_RETCODE SCIPsdpiSolverFree(
 
    if ( (*sdpisolver)->mskenv != NULL )
    {
+#ifdef SCIP_REUSEENV
+      assert( numsdp > 0 );
+      --numsdp;
+      if ( numsdp == 0 )
+      {
+         MOSEK_CALL( MSK_deleteenv(&reusemskenv) );
+         reusemskenv = NULL;
+      }
+#else
       MOSEK_CALL( MSK_deleteenv(&((*sdpisolver)->mskenv)) );/*lint !e641*/
+#endif
    }
 
    BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->varboundpos, 2 * (*sdpisolver)->nactivevars);
