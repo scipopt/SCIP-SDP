@@ -4364,20 +4364,18 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       SCIP_CALL( retcode );
    }
 
-   /* only try to set nthreads if the value differs from the default to prevent unnecessary warning messages for unknown parameter */
-   if ( relaxdata->sdpsolverthreads != DEFAULT_SDPSOLVERTHREADS )
+   /* set numer of threads */
+   retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_NTHREADS, relaxdata->sdpsolverthreads);
+   if ( retcode == SCIP_PARAMETERUNKNOWN && relaxdata->sdpsolverthreads != DEFAULT_SDPSOLVERTHREADS )
    {
-      retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_NTHREADS, relaxdata->sdpsolverthreads);
-      if ( retcode == SCIP_PARAMETERUNKNOWN )
-      {
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-            "SDP Solver <%s>: nthreads setting not available -- SCIP parameter has no effect.\n",
-            SCIPsdpiGetSolverName());
-      }
-      else
-      {
-         SCIP_CALL( retcode );
-      }
+      /* avoid warning if we are at the default value */
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
+         "SDP Solver <%s>: nthreads setting not available -- SCIP parameter has no effect.\n",
+         SCIPsdpiGetSolverName());
+   }
+   else
+   {
+      SCIP_CALL( retcode );
    }
 
    retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_SLATERCHECK, relaxdata->slatercheck);
