@@ -2633,7 +2633,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &rowsnactivevars, sdpi->nlpcons) );
 
    /* Compute the lplphs and lprhs, detect empty rows and check for additional variable fixings caused by boundchanges from
-    * lp rows with a single active variable. Note that this changes sdpi->lb and sdpi->ub. */
+    * lp rows with a single active variable. Note that this changes sdpi->sdpilb and sdpi->sdpiub, but not sdpi->lb and sdpi->ub. */
    do
    {
       SCIP_CALL( computeLpLhsRhsAfterFixings(sdpi, sdpi->sdpilb, sdpi->sdpiub, &nactivelpcons, lplhsafterfix, lprhsafterfix, rowsnactivevars, &fixingfound) );
