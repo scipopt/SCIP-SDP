@@ -197,6 +197,8 @@ Mars~\cite{Mar13} and  Gally~\cite{Gal19}, and can be added as linear inequaliti
   This follows by using a 2 by 2 minor and multiplying from left
   and right by the all-ones vector and $[1,-1]$, respectively. It also
   follows from~\eqref{eq:TwoByTwoMinorInequality}.
+  Note that an additional rank-1 constraint on the matrix~$X$ does not lead
+  to stronger inequalities.
 \item The previous inequalities translated to the matrix pencil are:
   \begin{equation}\label{eq:2minorlinD}
     \begin{aligned}
@@ -236,7 +238,21 @@ Mars~\cite{Mar13} and  Gally~\cite{Gal19}, and can be added as linear inequaliti
   These constraints can be added directly as SOC-constraints.
 \end{itemize}
 
-All the above methods are implemented and seem to help for some instances.
+All the above methods are implemented and seem to help for some
+instances.
+
+\begin{remark}
+  The assumptions under which inequalities~\eqref{eq:diagzeroimpl} are
+  applicable can be weakened. These inequalities are also valid
+  if~$A^0_{ii} > 0$, since, under the remaining assumptions,
+  \begin{align*}
+    0 \leq A(y)_{ii} \cdot A(y)_{jj} - (A^0_{ij})^2 \quad &\implies \quad
+    0 < A(y)_{ii} = \sum_{k} A^k_{ii}y_k - A^0_{ii}, \\
+    &\implies \quad 0 < \sum_{k} A^k_{ii}y_k
+  \end{align*}
+  and thus~$0 < \sum_{k} A^k_{ii}y_k$ has to hold. This implies the
+  validity of~\eqref{eq:diagzeroimpl}.
+\end{remark}
 
 % -------------------------------------------------------------------------
 \subsection{Presolving for $\boldsymbol{2 \times 2}$-minors}
@@ -271,6 +287,8 @@ All the above methods are implemented and seem to help for some instances.
   \end{align*}
   Taking the square root gives the claim.
 \end{proof}
+Note that these bounds are tight, even for a rank-1 matrix~$X$: Consider
+the all-ones matrix, which clearly has rank~1.
 
 This result can partly be translated to the matrix pencil format by defining
 \[
@@ -653,6 +671,22 @@ The above structure arises from relaxing quadratic problems. In this case,
 additionally $X = x x\T$ and the rank of $X$ has to be 1. Then additional
 inequalities have to hold, for example McCormick inequalities.
 
+\begin{remark}
+  Most likely this can be generalized to the more interesting case of a
+  constraint of the form
+  \[
+  \begin{pmatrix}
+    t & x\T \\
+    x & X
+  \end{pmatrix}
+  \succeq 0,
+  \quad
+  \ell \leq (x,t) \leq u,
+\]
+where~$t$ is a scalar variable. Since constraints of this particular form
+appear in truss topology design and cardinality least-squares problems, we
+should check whether this helps for such instances.
+\end{remark}
 
 
 % -------------------------------------------------------------------------
