@@ -358,7 +358,6 @@ SCIP_RETCODE CBFreadObjsense(
    {
       SCIPerrorMessage("Could not read OBJSENSE in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
       SCIP_CALL( CBFfreeData(scip, pfile, data) );
-      /* SCIPABORT(); */
       return SCIP_READERROR;
    }
 
@@ -374,7 +373,6 @@ SCIP_RETCODE CBFreadObjsense(
    {
       SCIPerrorMessage("OBJSENSE in line %" SCIP_LONGINT_FORMAT " should be either MIN or MAX.\n", *linecount);
       SCIP_CALL( CBFfreeData(scip, pfile, data) );
-      /* SCIPABORT(); */
       return SCIP_READERROR; /*lint !e527*/
    }
 
@@ -523,7 +521,6 @@ SCIP_RETCODE CBFreadPsdVar(
    int i;
    int j;
    int t;
-   int sizepsdvar;
 #ifndef NDEBUG
    int snprintfreturn;
 #endif
@@ -572,6 +569,7 @@ SCIP_RETCODE CBFreadPsdVar(
    {
       SCIP_Real lb;
       SCIP_Real ub;
+      int sizepsdvar;
       int cnt = 0;
 
       /* initialize psdvarsizes with -1 to simplify freeing memory */
@@ -1867,19 +1865,11 @@ SCIP_RETCODE CBFreadHcoord(
       }
    }
 
-   /* free SDP-var array which is no longer needed */
-   for (b = 0; b < data->nsdpblocks; b++)
-      SCIPfreeBlockMemoryArray(scip, &(sdpvar[b]), data->nnonz);
-
-   SCIPfreeBlockMemoryArray(scip, &sdpvar, data->nsdpblocks);
-
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
          "HCOORD: Found %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
    }
-
-   return SCIP_OKAY;
 
  TERMINATE:
    /* free SDP-var array which is no longer needed */
