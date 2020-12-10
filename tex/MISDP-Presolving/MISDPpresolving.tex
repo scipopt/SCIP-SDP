@@ -90,6 +90,9 @@
 
 \maketitle
 
+\todo[inline]{FM: We should argue that alle the inequalities and bounds are
+  as strong as possible.}
+
 \section{Introduction}
 
 We consider mixed-integer semidefinite programs (MISDP) of the following
@@ -413,6 +416,10 @@ $\hat{\mu}_k = \infty$, i.e., if the above optimization problem is infeasible.
   where we define $\mu_k = 1$ for $i \notin I$.
 \end{lemma}
 
+\todo[inline]{FM: If we tighten the coefficients, we need to scale the
+  linear constraints (for example, a trace constraint on~$A(y)$)
+  accordingly.}
+
 \begin{proof}
   First assume that
   $\sum_{k=1}^m \mu_k\, A^k\, y_k - A^0 \succeq 0$. Then for every
@@ -561,6 +568,9 @@ are psd, but $y_k$ does not need to be binary. We need the following:
   \]
   where $\alpha = \min\,\{y_{\ell},\hat{\mu}_{\ell}\}$.
 \end{lemma}
+
+\todo[inline]{FM: If we tighten the bounds of a variable~$y_k$, we need to
+  scale the linear constraints accordingly.}
 
 \begin{proof}
   Observe that if $\alpha = y_{\ell}$, then the statement is trivially
