@@ -175,35 +175,65 @@ Mars~\cite{Mar13} and  Gally~\cite{Gal19}, and can be added as linear inequaliti
 \item Any feasible $y \in \R^m$ satisfies $A(y) \succeq 0$, which implies
   that the diagonal entries of $A(y)$ are nonnegative, i.e., for all
   $i \in [n]$:
-  \[
+  \begin{align}\label{eq:diaggezero}
     \sum_{k = 1}^m (A^k)_{ii}\, y_k - (A^0)_{ii} \geq 0.
-  \]
+  \end{align}
 \item If for some $i$, $j \in [n]$, $A^0_{ij} \neq 0$, and $A^0_{ii} = 0$,
   $A^k_{ij} = 0$ for all $k \in [m]$, $A^k_{ii} = 0$ for all continuous
   variables and $\ell_i \geq 0$ for all integer variables,
   the following inequality is valid:
-  \[
-    \sum_{\substack{k \in \mathcal{I}:\\ A^k_{ii} > 0}} y_k \geq 1.
-  \]
+  \begin{align}\label{eq:diagzeroimpl}
+    \sum_{\substack{k \in \mathcal{I}:\\ A^k_{ii} > 0}} y_k \geq1.
+  \end{align}
   Note that the conditions imply that $A^0$ is not psd.
 \item For all $X \succeq 0$, we have
-  \[
+  \begin{align}\label{eq:2minorlinP}
     X_{ii} + X_{jj} - 2\, X_{ij} \geq 0,\qquad
     X_{ii} + X_{jj} + 2\, X_{ij} \geq 0.
-  \]
+  \end{align}
   This follows by using a 2 by 2 minor and multiplying from left
   and right by the all-ones vector and $[1,-1]$, respectively. It also
   follows from~\eqref{eq:TwoByTwoMinorInequality}.
 \item The previous inequalities translated to the matrix pencil are:
+  \begin{equation}\label{eq:2minorlinD}
+    \begin{aligned}
+      & \sum_{k=1}^m A^k_{ii}\, y_k - A^0_{ii} + \sum_{k=1}^m A^k_{jj}\, y_k - A^0_{jj} - 2 \Big(\sum_{k=1}^m A^k_{ij}\, y_k - A^0_{ij}\Big) \geq 0\\
+      \quad\Leftrightarrow\quad& \sum_{k=1}^m \Big(A ^k_{ii} + A^k_{jj} -
+      2\, A^k_{ij}\Big)\, y_k \geq A^0_{ii} + A^0_{jj} - 2 A^0_{ij}.
+    \end{aligned}
+  \end{equation}
+\item If $A^k_{ii} = A^k_{jj} = 0$ for all~$k \in [m]$
+  and~$A^0_{ii}A^0_{jj} \geq 0$ for some $i \neq j \in [n]$, then the
+  following inequality is valid:
+  \begin{align}\label{eq:2minorprodD}
+    \sum_{k=1}^m A^k_{ij} y_k \geq A^0 - \sqrt{A^0_{ii}A^0_{jj}}.
+  \end{align}
+  Furhtermore, if exactly one~$A^k_{ij} \neq 0$, then this yields upper or
+  lower bounds for the corresponding variable~$y_k$, depending on the sign
+  of~$A^k_{ij}$.
+\item For a positive semidefinite matrix $X$ the following quadratic
+  inequality holds by using the 2 by 2 minor:
+  $X_{st}^2 \leq X_{ss} X_{tt}$. This constraint is SOC representable:
   \begin{align*}
-    & \sum_{k=1}^m A^k_{ii}\, y_k - A^0_{ii} + \sum_{k=1}^m A^k_{jj}\, y_k - A^0_{jj} - 2 \Big(\sum_{k=1}^m A^k_{ij}\, y_k - A^0_{ij}\Big) \geq 0\\
-    \quad\Leftrightarrow\quad&
-    \sum_{k=1}^m \Big(A ^k_{ii} + A^k_{jj} - 2\, A^k_{ij}\Big)\, y_k \geq A^0_{ii} + A^0_{jj} - 2 A^0_{ij}.
+    \left\|\binom{2\,X_{st}}{X_{ss} - X_{tt}}\right\| &\leq X_{ss} +
+                                                        X_{tt}. \\
+    \quad\Leftrightarrow\quad 4\, X_{st}^2 + (X_{ss}^2 - 2\,X_{ss}\, X_{tt}
+    + X_{tt}^2) & \leq X_{ss}^2 + 2\, X_{ss}\,X_{tt} + X_{tt}^2.
   \end{align*}
+  Translated to the matrix pencil notation the cut looks as follows:
+  \begin{equation}\label{eq:2minorSOC}
+    \begin{aligned}
+      &\left\|\binom{2\, \sum_{i=1}^m (A_i)_{st}\, y_i - 2\, (A_0)_{st}}{ q
+          \sum_{i=1}^m (A_i)_{ss}\, y_i - (A_0)_{ss} - \sum_{i=1}^m
+          (A_i)_{tt}\, y_i + (A_0)_{tt}}\right\| \\ &\leq \sum_{i=1}^m
+      (A_i)_{ss}\, y_i - (A_0)_{ss} + \sum_{i=1}^m (A_i)_{tt}\, y_i -
+      (A_0)_{tt}.
+    \end{aligned}
+  \end{equation}
+  These constraints can be added directly as SOC-constraints.
 \end{itemize}
 
 All the above methods are implemented and seem to help for some instances.
-
 
 % -------------------------------------------------------------------------
 \subsection{Presolving for $\boldsymbol{2 \times 2}$-minors}
@@ -271,8 +301,8 @@ could never be strengthened across the large testset.
 
 \begin{remark}
   Note that in the pure form, the propagated inequalities from
-  Lemma~\ref{lem:Propagation} dominate the inequalities given in
-  Section~\ref{sec:ImpliedLinEqs}:
+  Lemma~\ref{lem:Propagation} dominate the inequalities
+  in~\eqref{eq:2minorlinP}:
   \begin{align*}
     X_{st} \leq \sqrt{U_{ss} \cdot U_{tt}} \leq \frac{1}{2}\big( U_{ss} + U_{tt}\big),
   \end{align*}
