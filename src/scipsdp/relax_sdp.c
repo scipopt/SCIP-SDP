@@ -89,7 +89,7 @@
 #define DEFAULT_DISPLAYSTAT         FALSE    /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
 #define DEFAULT_SETTINGSRESETFREQ   -1       /**< frequency for resetting parameters in SDP solver and trying again with fastest settings */
 #define DEFAULT_SETTINGSRESETOFS    0        /**< frequency offset for resetting parameters in SDP solver and trying again with fastest settings */
-#define DEFAULT_SDPSOLVERTHREADS    -1       /**< number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores) */
+#define DEFAULT_SDPSOLVERTHREADS    1        /**< number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores) */
 #define DEFAULT_PENINFEASADJUST     10.0     /**< gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation */
 
 #define WARMSTART_MINVAL            0.01     /**< if we get a value less than this when warmstarting (currently only for the linear part when combining with analytic center), the value is set to this */
@@ -3530,22 +3530,25 @@ SCIP_RETCODE calcRelax(
 
       if ( SCIPsdpiIsDualInfeasible(sdpi) )
       {
-         SCIPdebugMsg(scip, "Node cut off due to infeasibility.\n");
+         SCIPdebugMsg(scip, "Relaxation is infeasibility.\n");
          relaxdata->feasible = FALSE;
+         relaxdata->objval = SCIPinfinity(scip);
          *result = SCIP_CUTOFF;
          return SCIP_OKAY;
       }
       else if ( SCIPsdpiIsObjlimExc(sdpi) )
       {
-         SCIPdebugMsg(scip, "Node cut off due to objective limit.\n");
+         SCIPdebugMsg(scip, "Relaxation reached objective limit.\n");
          relaxdata->feasible = FALSE;
+         relaxdata->objval = SCIPgetUpperbound(scip);
          *result = SCIP_CUTOFF;
          return SCIP_OKAY;
       }
       else if ( SCIPsdpiIsDualUnbounded(sdpi) )
       {
-         SCIPdebugMsg(scip, "Node unbounded.");
+         SCIPdebugMsg(scip, "Relaxation is unbounded.\n");
          relaxdata->feasible = TRUE;
+         relaxdata->objval = -SCIPinfinity(scip);
          *result = SCIP_SUCCESS;
          *lowerbound = -SCIPinfinity(scip);
          return SCIP_OKAY;
@@ -3565,6 +3568,8 @@ SCIP_RETCODE calcRelax(
 
          assert( slength == nvars ); /* If this isn't true any longer, the getSol-Call was unsuccessfull, because the given array wasn't long enough,
                                       * but this can't happen, because the array has enough space for all sdp variables. */
+
+         SCIPdebugMsg(scip, "Relaxation is solved optimally (objective: %g).\n", objforscip);
 
          /* create SCIP solution */
          SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
@@ -4359,20 +4364,18 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       SCIP_CALL( retcode );
    }
 
-   /* only try to set nthreads if the value differs from the default to prevent unnecessary warning messages for unknown parameter */
-   if ( relaxdata->sdpsolverthreads != DEFAULT_SDPSOLVERTHREADS )
+   /* set numer of threads */
+   retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_NTHREADS, relaxdata->sdpsolverthreads);
+   if ( retcode == SCIP_PARAMETERUNKNOWN && relaxdata->sdpsolverthreads != DEFAULT_SDPSOLVERTHREADS )
    {
-      retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_NTHREADS, relaxdata->sdpsolverthreads);
-      if ( retcode == SCIP_PARAMETERUNKNOWN )
-      {
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-            "SDP Solver <%s>: nthreads setting not available -- SCIP parameter has no effect.\n",
-            SCIPsdpiGetSolverName());
-      }
-      else
-      {
-         SCIP_CALL( retcode );
-      }
+      /* avoid warning if we are at the default value */
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
+         "SDP Solver <%s>: nthreads setting not available -- SCIP parameter has no effect.\n",
+         SCIPsdpiGetSolverName());
+   }
+   else
+   {
+      SCIP_CALL( retcode );
    }
 
    retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_SLATERCHECK, relaxdata->slatercheck);

@@ -30,8 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   scipsdpdefplugins.cpp
- * @brief  default SCIP-SCP plugins
+/**@file   scipsdpdefplugins.c
+ * @brief  default SCIP-SDP plugins
  * @author Marc Pfetsch
  */
 
@@ -42,8 +42,6 @@
 
 #include "scipsdp/scipsdpdefplugins.h"
 #include "scip/scipdefplugins.h"
-
-#include "objscip/objscipdefplugins.h"
 
 #include "cons_sdp.h"
 #include "scipsdp/cons_savesdpsol.h"
@@ -77,9 +75,8 @@
 /* hack to change default parameter values */
 #include <scip/paramset.h>
 
-using namespace scip;
-
 /** reset some default parameter values */
+static
 SCIP_RETCODE SCIPSDPsetDefaultParams(
    SCIP*                 scip                /**< SCIP data structure */
    )
@@ -127,6 +124,7 @@ SCIP_RETCODE SCIPSDPsetDefaultParams(
 }
 
 /** callback function to adapt further parameters once changed */
+static
 SCIP_DECL_PARAMCHGD(SCIPparamChgdSolvesdps)
 {
    int value;

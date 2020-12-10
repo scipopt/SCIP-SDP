@@ -1028,6 +1028,51 @@ SCIP_RETCODE separateSol(
    return SCIP_OKAY;
 }
 
+/** check whether all matrices are psd
+ *
+ *  Only needs to be called by rank-1 constraints to check whether all matrices are psd.
+ */
+static
+SCIP_RETCODE computeAllmatricespsd(
+   SCIP*                 scip,               /**< SCIP pointer */
+   SCIP_CONS*            cons                /**< constraint */
+   )
+{
+   SCIP_CONSDATA* consdata;
+   SCIP_Real* Aj;
+   int blocksize;
+   int v;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+   assert( consdata->rankone );
+   assert( consdata->allmatricespsd == FALSE );
+
+   blocksize = consdata->blocksize;
+   SCIP_CALL( SCIPallocBufferArray(scip, &Aj, blocksize * blocksize) );
+
+   SCIPdebugMsg(scip, "Computing allmatricespsd for constraint <%s>.\n", SCIPconsGetName(cons));
+
+   consdata->allmatricespsd = TRUE;
+   for (v = 0; v < consdata->nvars && consdata->allmatricespsd; ++v)
+   {
+      SCIP_Real eigenvalue;
+
+      SCIP_CALL( SCIPconsSdpGetFullAj(scip, cons, v, Aj) );
+
+      /* compute minimal eigenvalue */
+      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, 1, &eigenvalue, NULL) );
+      if ( SCIPisNegative(scip, eigenvalue) )
+         consdata->allmatricespsd = FALSE;
+   }
+
+   SCIPfreeBufferArray(scip, &Aj);
+
+   return SCIP_OKAY;
+}
+
 /** try to tighten matrices if all matrices are psd */
 static
 SCIP_RETCODE tightenMatrices(
@@ -1059,6 +1104,12 @@ SCIP_RETCODE tightenMatrices(
       assert( consdata != NULL );
       assert( consdata->rankone || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), CONSHDLR_NAME) == 0 );
       assert( ! consdata->rankone || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), CONSHDLRRANK1_NAME) == 0 );
+
+      /* compute allmatricespsd for rank-1 constraints */
+      if ( consdata->rankone )
+      {
+         SCIP_CALL( computeAllmatricespsd(scip, conss[c]) );
+      }
 
       /* skip constraints in which not all matrices are psd */
       if ( ! consdata->allmatricespsd )
@@ -1150,6 +1201,12 @@ SCIP_RETCODE tightenBounds(
       assert( consdata != NULL );
       assert( consdata->rankone || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), CONSHDLR_NAME) == 0 );
       assert( ! consdata->rankone || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), CONSHDLRRANK1_NAME) == 0 );
+
+      /* compute allmatricespsd for rank-1 constraints */
+      if ( consdata->rankone )
+      {
+         SCIP_CALL( computeAllmatricespsd(scip, conss[c]) );
+      }
 
       /* skip constraints in which not all matrices are psd */
       if ( ! consdata->allmatricespsd )
@@ -3790,7 +3847,7 @@ SCIP_DECL_CONSLOCK(consLockSdp)
    SCIPdebugMsg(scip, "locking method of <%s>.\n", SCIPconsGetName(cons));
 
    /* rank-1 constraints are always up- and down-locked */
-   /* TODO: consdata->allmatricespsd is not set in this case */
+   /* allmatricespsd is computed if needed in tightenBounds() or tightenMatrices() */
    if ( consdata->rankone )
    {
       if ( consdata->locks == NULL )
@@ -4140,7 +4197,7 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
 
                /* create quadratic constraint */
                SCIP_CALL( SCIPcreateConsQuadratic(scip, &quadcons, name, lincnt, linvars, lincoefs, quadcnt, quadvars1, quadvars2, quadcoefs, lhs, lhs,
-                     FALSE,     /* initial */
+                     TRUE,      /* initial */
                      TRUE,      /* separate */
                      TRUE,      /* enforce */
                      TRUE,      /* check */
@@ -4560,7 +4617,7 @@ SCIP_DECL_CONSTRANS(consTransSdp)
       SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->val[i]), sourcedata->val[i], sourcedata->nvarnonz[i]) );
    }
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(targetdata->vars), sourcedata->nvars) );
-   if ( sourcedata->locks )
+   if ( sourcedata->locks != NULL )
    {
       SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->locks), sourcedata->locks, sourcedata->nvars) );
    }
@@ -5516,6 +5573,16 @@ SCIP_DECL_CONSCOPY(consCopySdp)
       SCIP_CALL( SCIPcreateConsSdpRank1(scip, cons, copyname, sourcedata->nvars, sourcedata->nnonz, sourcedata->blocksize, sourcedata->nvarnonz,
             sourcedata->col, sourcedata->row, sourcedata->val, targetvars, sourcedata->constnnonz,
             sourcedata->constcol, sourcedata->constrow, sourcedata->constval, FALSE) );
+   }
+
+   /* copy lock information if available */
+   if ( sourcedata->locks != NULL )
+   {
+      SCIP_CONSDATA* targetdata;
+
+      targetdata = SCIPconsGetData(*cons);
+      SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->locks), sourcedata->locks, sourcedata->nvars) );
+      targetdata->allmatricespsd = sourcedata->allmatricespsd;
    }
 
    SCIPfreeBufferArray(scip, &targetvars);

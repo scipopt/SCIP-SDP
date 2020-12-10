@@ -2338,8 +2338,8 @@ SCIP_DECL_READERREAD(readerReadCbf)
    /* check if any nonzeros were specified in HCOORD */
    if ( data->sdpnblocknonz == NULL && data->nsdpblocks > 0 )
    {
-      SCIPerrorMessage("No nonconstant nonzeros have been specified for any SDP block, please remove all SDP blocks!\n", b);
-      SCIP_CALL( CBFfreeData(scip, scipfile, data) );
+      SCIPerrorMessage("No nonconstant nonzeros have been specified for any SDP block, please remove all SDP blocks!\n");
+      SCIPABORT();
       return SCIP_READERROR; /*lint !e527*/
    }
 

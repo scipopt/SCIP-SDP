@@ -90,6 +90,9 @@
 
 \maketitle
 
+\todo[inline]{FM: We should argue that alle the inequalities and bounds are
+  as strong as possible.}
+
 \section{Introduction}
 
 We consider mixed-integer semidefinite programs (MISDP) of the following
@@ -175,35 +178,81 @@ Mars~\cite{Mar13} and  Gally~\cite{Gal19}, and can be added as linear inequaliti
 \item Any feasible $y \in \R^m$ satisfies $A(y) \succeq 0$, which implies
   that the diagonal entries of $A(y)$ are nonnegative, i.e., for all
   $i \in [n]$:
-  \[
+  \begin{align}\label{eq:diaggezero}
     \sum_{k = 1}^m (A^k)_{ii}\, y_k - (A^0)_{ii} \geq 0.
-  \]
+  \end{align}
 \item If for some $i$, $j \in [n]$, $A^0_{ij} \neq 0$, and $A^0_{ii} = 0$,
   $A^k_{ij} = 0$ for all $k \in [m]$, $A^k_{ii} = 0$ for all continuous
   variables and $\ell_i \geq 0$ for all integer variables,
   the following inequality is valid:
-  \[
-    \sum_{\substack{k \in \mathcal{I}:\\ A^k_{ii} > 0}} y_k \geq 1.
-  \]
+  \begin{align}\label{eq:diagzeroimpl}
+    \sum_{\substack{k \in \mathcal{I}:\\ A^k_{ii} > 0}} y_k \geq1.
+  \end{align}
   Note that the conditions imply that $A^0$ is not psd.
 \item For all $X \succeq 0$, we have
-  \[
+  \begin{align}\label{eq:2minorlinP}
     X_{ii} + X_{jj} - 2\, X_{ij} \geq 0,\qquad
     X_{ii} + X_{jj} + 2\, X_{ij} \geq 0.
-  \]
+  \end{align}
   This follows by using a 2 by 2 minor and multiplying from left
   and right by the all-ones vector and $[1,-1]$, respectively. It also
   follows from~\eqref{eq:TwoByTwoMinorInequality}.
+  Note that an additional rank-1 constraint on the matrix~$X$ does not lead
+  to stronger inequalities.
 \item The previous inequalities translated to the matrix pencil are:
+  \begin{equation}\label{eq:2minorlinD}
+    \begin{aligned}
+      & \sum_{k=1}^m A^k_{ii}\, y_k - A^0_{ii} + \sum_{k=1}^m A^k_{jj}\, y_k - A^0_{jj} - 2 \Big(\sum_{k=1}^m A^k_{ij}\, y_k - A^0_{ij}\Big) \geq 0\\
+      \quad\Leftrightarrow\quad& \sum_{k=1}^m \Big(A ^k_{ii} + A^k_{jj} -
+      2\, A^k_{ij}\Big)\, y_k \geq A^0_{ii} + A^0_{jj} - 2 A^0_{ij}.
+    \end{aligned}
+  \end{equation}
+\item If $A^k_{ii} = A^k_{jj} = 0$ for all~$k \in [m]$
+  and~$A^0_{ii}A^0_{jj} \geq 0$ for some $i \neq j \in [n]$, then the
+  following inequality is valid:
+  \begin{align}\label{eq:2minorprodD}
+    \sum_{k=1}^m A^k_{ij} y_k \geq A^0 - \sqrt{A^0_{ii}A^0_{jj}}.
+  \end{align}
+  Furhtermore, if exactly one~$A^k_{ij} \neq 0$, then this yields upper or
+  lower bounds for the corresponding variable~$y_k$, depending on the sign
+  of~$A^k_{ij}$.
+\item For a positive semidefinite matrix $X$ the following quadratic
+  inequality holds by using the 2 by 2 minor:
+  $X_{st}^2 \leq X_{ss} X_{tt}$. This constraint is SOC representable:
   \begin{align*}
-    & \sum_{k=1}^m A^k_{ii}\, y_k - A^0_{ii} + \sum_{k=1}^m A^k_{jj}\, y_k - A^0_{jj} - 2 \Big(\sum_{k=1}^m A^k_{ij}\, y_k - A^0_{ij}\Big) \geq 0\\
-    \quad\Leftrightarrow\quad&
-    \sum_{k=1}^m \Big(A ^k_{ii} + A^k_{jj} - 2\, A^k_{ij}\Big)\, y_k \geq A^0_{ii} + A^0_{jj} - 2 A^0_{ij}.
+    \left\|\binom{2\,X_{st}}{X_{ss} - X_{tt}}\right\| &\leq X_{ss} +
+                                                        X_{tt}. \\
+    \quad\Leftrightarrow\quad 4\, X_{st}^2 + (X_{ss}^2 - 2\,X_{ss}\, X_{tt}
+    + X_{tt}^2) & \leq X_{ss}^2 + 2\, X_{ss}\,X_{tt} + X_{tt}^2.
   \end{align*}
+  Translated to the matrix pencil notation the cut looks as follows:
+  \begin{equation}\label{eq:2minorSOC}
+    \begin{aligned}
+      &\left\|\binom{2\, \sum_{i=1}^m (A_i)_{st}\, y_i - 2\, (A_0)_{st}}{ q
+          \sum_{i=1}^m (A_i)_{ss}\, y_i - (A_0)_{ss} - \sum_{i=1}^m
+          (A_i)_{tt}\, y_i + (A_0)_{tt}}\right\| \\ &\leq \sum_{i=1}^m
+      (A_i)_{ss}\, y_i - (A_0)_{ss} + \sum_{i=1}^m (A_i)_{tt}\, y_i -
+      (A_0)_{tt}.
+    \end{aligned}
+  \end{equation}
+  These constraints can be added directly as SOC-constraints.
 \end{itemize}
 
-All the above methods are implemented and seem to help for some instances.
+All the above methods are implemented and seem to help for some
+instances.
 
+\begin{remark}
+  The assumptions under which inequalities~\eqref{eq:diagzeroimpl} are
+  applicable can be weakened. These inequalities are also valid
+  if~$A^0_{ii} > 0$, since, under the remaining assumptions,
+  \begin{align*}
+    0 \leq A(y)_{ii} \cdot A(y)_{jj} - (A^0_{ij})^2 \quad &\implies \quad
+    0 < A(y)_{ii} = \sum_{k} A^k_{ii}y_k - A^0_{ii}, \\
+    &\implies \quad 0 < \sum_{k} A^k_{ii}y_k
+  \end{align*}
+  and thus~$0 < \sum_{k} A^k_{ii}y_k$ has to hold. This implies the
+  validity of~\eqref{eq:diagzeroimpl}.
+\end{remark}
 
 % -------------------------------------------------------------------------
 \subsection{Presolving for $\boldsymbol{2 \times 2}$-minors}
@@ -238,6 +287,8 @@ All the above methods are implemented and seem to help for some instances.
   \end{align*}
   Taking the square root gives the claim.
 \end{proof}
+Note that these bounds are tight, even for a rank-1 matrix~$X$: Consider
+the all-ones matrix, which clearly has rank~1.
 
 This result can partly be translated to the matrix pencil format by defining
 \[
@@ -271,8 +322,8 @@ could never be strengthened across the large testset.
 
 \begin{remark}
   Note that in the pure form, the propagated inequalities from
-  Lemma~\ref{lem:Propagation} dominate the inequalities given in
-  Section~\ref{sec:ImpliedLinEqs}:
+  Lemma~\ref{lem:Propagation} dominate the inequalities
+  in~\eqref{eq:2minorlinP}:
   \begin{align*}
     X_{st} \leq \sqrt{U_{ss} \cdot U_{tt}} \leq \frac{1}{2}\big( U_{ss} + U_{tt}\big),
   \end{align*}
@@ -382,6 +433,10 @@ $\hat{\mu}_k = \infty$, i.e., if the above optimization problem is infeasible.
   \]
   where we define $\mu_k = 1$ for $i \notin I$.
 \end{lemma}
+
+\todo[inline]{FM: If we tighten the coefficients, we need to scale the
+  linear constraints (for example, a trace constraint on~$A(y)$)
+  accordingly.}
 
 \begin{proof}
   First assume that
@@ -532,6 +587,9 @@ are psd, but $y_k$ does not need to be binary. We need the following:
   where $\alpha = \min\,\{y_{\ell},\hat{\mu}_{\ell}\}$.
 \end{lemma}
 
+\todo[inline]{FM: If we tighten the bounds of a variable~$y_k$, we need to
+  scale the linear constraints accordingly.}
+
 \begin{proof}
   Observe that if $\alpha = y_{\ell}$, then the statement is trivially
   true. Thus, let $\alpha = \hat{\mu}_k < y_{\ell}$.
@@ -613,6 +671,22 @@ The above structure arises from relaxing quadratic problems. In this case,
 additionally $X = x x\T$ and the rank of $X$ has to be 1. Then additional
 inequalities have to hold, for example McCormick inequalities.
 
+\begin{remark}
+  Most likely this can be generalized to the more interesting case of a
+  constraint of the form
+  \[
+  \begin{pmatrix}
+    t & x\T \\
+    x & X
+  \end{pmatrix}
+  \succeq 0,
+  \quad
+  \ell \leq (x,t) \leq u,
+\]
+where~$t$ is a scalar variable. Since constraints of this particular form
+appear in truss topology design and cardinality least-squares problems, we
+should check whether this helps for such instances.
+\end{remark}
 
 
 % -------------------------------------------------------------------------
@@ -708,7 +782,7 @@ an SDP, but possibly for more general cases.
 
 Indeed, SOCP is special case of SDP, because:
 \[
-  (x,t) \in L_{n+1} \quad\Leftrightarrow\quad
+  (x,\sqrt{t}) \in L_{n+1} \quad\Leftrightarrow\quad
   \tilde{X} \define
   \begin{pmatrix}
     t & x\T\\
@@ -728,7 +802,7 @@ with a positive definite $C \succ 0$. Then $D \succeq 0$ if and only if
 $S = A - B\T C^{-1} B \succeq 0$ and $A \succeq 0$\footnote{Note that the
   condition $A \succeq 0$ is missing in~\cite{BoyV09}.}. For $D = \tilde{X}$, we
 get: $\tilde{X} \succeq 0$ if and only if $t \geq 0$, $t - x\T x \geq
-0$. The latter is equivalent to $(x,t) \in L_{n+1}$.
+0$. The latter is equivalent to $(x,\sqrt{t}) \in L_{n+1}$.
 
 Now consider a more general matrix
 \begin{equation}\label{eq:GeneralPSD}

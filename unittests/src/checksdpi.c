@@ -283,6 +283,57 @@ SCIP_RETCODE performLPTest(
    return SCIP_OKAY;
 }
 
+/** perform basic test for the given SDP problem */
+static
+SCIP_RETCODE performSDPTest(
+   int                   ncols,              /**< number of columns */
+   SCIP_Real*            obj,                /**< objective function values of columns */
+   SCIP_Real*            lb,                 /**< lower bounds of columns */
+   SCIP_Real*            ub,                 /**< upper bounds of columns */
+   int                   nsdpblocks,         /**< number of SDP-blocks */
+   int*                  sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
+   int*                  sdpnblockvars,      /**< number of variables in each SDP-block (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
+   int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-blocks */
+   int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
+                                              *   number of entries  of sdpconst row/col/val [i] */
+   int**                 sdpconstrow,        /**< pointer to row-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
+   int**                 sdpconstcol,        /**< pointer to column-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
+   SCIP_Real**           sdpconstval,        /**< pointer to values of entries of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
+   int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint-matrices */
+   int**                 sdpnblockvarnonz,   /**< sdpnblockvarnonz[i][j] gives the number of nonzeros for the j-th variable (not necessarly
+                                              *   variable j) in the i-th block, this is also the length of row/col/val[i][j] */
+   int**                 sdpvar,             /**< sdpvar[i][j] gives the global index of the j-th variable (according to the sorting for row/col/val)
+                                              *   in the i-th block */
+   int***                sdprow,             /**< pointer to the row-indices for each block and variable in this block, so row[i][j][k] gives
+                                              *   the k-th nonzero of the j-th variable (not necessarly variable j) in the i-th block
+                                              *   (may be NULL if sdpnnonz = 0)*/
+   int***                sdpcol,             /**< pointer to the column-indices for each block and variable in this block (may be NULL if sdpnnonz = 0)*/
+   SCIP_Real***          sdpval,             /**< pointer to the values of the nonzeros for each block and variable in this
+                                              *   block (may be NULL if sdpnnonz = 0)*/
+   int                   nrows,              /**< number of rows */
+   SCIP_Real*            lhs,                /**< left hand sides of rows */
+   SCIP_Real*            rhs,                /**< right hand sides of rows */
+   int                   nnonz,              /**< number of nonzero elements in the constraint matrix */
+   int*                  row,                /**< row-indices of constraint-matrix entries */
+   int*                  col,                /**< column-indices of constraint-matrix entries */
+   SCIP_Real*            val,                /**< values of constraint-matrix entries */
+   SCIPFEASSTATUS        exp_primalfeas,     /**< expected primal feasibility status */
+   SCIPFEASSTATUS        exp_dualfeas,       /**< expected primal feasibility status */
+   SCIP_Real*            exp_dualsol         /**< expected dual optimal solution or dual ray if dual is unbounded or NULL */
+   )
+{
+   /* load LP data, but leave SDP block empty */
+   SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
+         sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, nrows, lhs, rhs, nnonz, row, col, val) );
+
+   cr_assert( ! SCIPsdpiWasSolved(sdpi) );
+
+   /* solve problem */
+   SCIP_CALL( solveTest(ncols, nrows, exp_primalfeas, exp_dualfeas, exp_dualsol) );
+
+   return SCIP_OKAY;
+}
+
 /** check whether data in LP solver aggrees with original data */
 static
 SCIP_RETCODE checkData(
@@ -611,4 +662,102 @@ Test(checksdpi, test7)
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
+}
+
+/** Test 8
+ *
+ *  The following example is motived by an example of Fridberg:
+ *  inf   x3
+ *        x1 + x2 <= 0        [y1]
+ *        x3      >= -1       [y2]
+ *        [x1, x2, x3]
+ *        [x2, x1,  0]  >= 0  [X]
+ *        [x3,  0, x1]
+ *
+ *  An optimal solution is x = (t, -t, 0) with value 0: Indeed the SDP constraint implies:
+ *  - x1 >= 0
+ *  - x1^3 - x1 x3^2 - x1 x2^2 >= 0    <=>  x1 (x1^2 - x3^2 - x2^2) >= 0
+ *  - x1^2 - x2^2 >= 0
+ *  - x1^2 - x3^2 >= 0
+ *  Write x2 = -x1 - s for t >= 0. Then x1^2 >= (-x1 - s)^2, which is only possible for s = 0.
+ *  Thus, x2 = -x1. Moreover, x1^2 >= x2^2 + x3^2 = x1^2 + x3^2, which implies x3 = 0.
+ *  Note, however, that there is a whole line that is optimal.
+ *
+ *  The dual is (see the brackets above for the dual variables):
+ *  sub  -y2
+ *       -y1 + X_11 + X_22 + X_33 == 0
+ *       -y1 + X_21 == 0
+ *        y2 + X_31 == 1
+ *       X psd, y1, y2 >= 0.
+ *  This problem is feasible, since y2 = 1, y2 = 0, X = 0 is feasible.
+ */
+Test(checksdpi, test8)
+{
+   /* data with fixed values: */
+   SCIP_Real obj[3] = {0, 0, 1};
+   int row[3] = {0, 0, 1};
+   int col[3] = {0, 1, 2};
+   SCIP_Real val[3] = {1, 1, 1};
+   int nsdpblocks = 1;
+   int sdpblocksizes[1] = {3};
+   int sdpnblockvars[1] = {3};
+   int sdpconstnblocknonz[1] = {0};
+   int sdpnnonz = 5;
+   int* sdpnblockvarnonz;
+   int* sdpvar;
+   int** sdprow;
+   int** sdpcol;
+   SCIP_Real** sdpval;
+
+   int sdpnblockvarnonzs[3] = {3, 1, 1};
+   int sdpvars[3] = {0, 1, 2};
+   int sdprowss[5] = {0, 1, 2, 1, 2};
+   int sdpcolss[5] = {0, 1, 2, 0, 0};
+   SCIP_Real sdpvalss[5] = {1.0, 1.0, 1.0, 1.0, 1.0};
+
+   /* data to be filled */
+   int* sdprows[3];
+   int* sdpcols[3];
+   SCIP_Real* sdpvals[3];
+   SCIP_Real lhs[2];
+   SCIP_Real rhs[2];
+   SCIP_Real lb[3];
+   SCIP_Real ub[3];
+
+   /* expected solutions */
+   SCIP_Real exp_dualsol[3] = {0, 0, 0};
+
+   sdpnblockvarnonz = &sdpnblockvarnonzs[0];
+   sdpvar = &sdpvars[0];
+   sdprow = &sdprows[0];
+   sdpcol = &sdpcols[0];
+   sdpval = &sdpvals[0];
+   sdprows[0] = &sdprowss[0];
+   sdprows[1] = &sdprowss[3];
+   sdprows[2] = &sdprowss[4];
+   sdpcols[0] = &sdpcolss[0];
+   sdpcols[1] = &sdpcolss[3];
+   sdpcols[2] = &sdpcolss[4];
+   sdpvals[0] = &sdpvalss[0];
+   sdpvals[1] = &sdpvalss[3];
+   sdpvals[2] = &sdpvalss[4];
+
+   /* fill data */
+   lhs[0] = -SCIPsdpiInfinity(sdpi);
+   rhs[0] = 0.0;
+   lhs[1] = -1.0;
+   rhs[1] = SCIPsdpiInfinity(sdpi);
+   lb[0] = -SCIPsdpiInfinity(sdpi);
+   lb[1] = -SCIPsdpiInfinity(sdpi);
+   lb[2] = -SCIPsdpiInfinity(sdpi);
+   ub[0] = SCIPsdpiInfinity(sdpi);
+   ub[1] = SCIPsdpiInfinity(sdpi);
+   ub[2] = SCIPsdpiInfinity(sdpi);
+
+   SCIP_CALL( performSDPTest(3, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, 0, sdpconstnblocknonz,
+         NULL, NULL, NULL, sdpnnonz, &sdpnblockvarnonz, &sdpvar, &sdprow, &sdpcol, &sdpval,
+         2, lhs, rhs, 3, row, col, val, SCIPfeas, SCIPfeas, exp_dualsol) );
+
+   /* check that data stored in sdpi is still the same */
+   SCIP_CALL( checkData(3, obj, lb, ub, 2, lhs, rhs, 5) );
 }

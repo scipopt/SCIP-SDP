@@ -68,10 +68,11 @@
 
 #include "blockmemshell/memory.h"            /* for memory allocation */
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
-#include "scip/pub_misc.h"                   /* for sorting */
+#include "scip/pub_misc.h"                   /* for SCIPsnprintf() */
 #include "mosek.h"                           /* for MOSEK routines */
 #include "sdpi/sdpsolchecker.h"              /* to check solution with regards to feasibility tolerance */
 #include "scip/pub_message.h"                /* for debug and error message */
+#include "tinycthread/tinycthread.h"         /* for thread local environments */
 
 /* @todo Use MSK_putexitfunc to catch errors.
  * @todo Think about what to do with near optimality etc. (If MOSEK cannot compute a solution that has the prescribed accuracy, then it will
@@ -93,6 +94,14 @@
 #if MSK_VERSION_MAJOR >= 9
 #define NEAR_REL_TOLERANCE           1.0     /**< MOSEK will multiply all tolerances with this factor after stalling */
 #endif
+
+/* Use thread local environment in order to not create a new environment for each new SDP. */
+#if defined(_Thread_local)
+_Thread_local MSKenv_t reusemskenv = NULL;
+_Thread_local int numsdp           = 0;
+#define SCIP_REUSEENV
+#endif
+
 
 /** data used for SDP interface */
 struct SCIP_SDPiSolver
@@ -223,19 +232,28 @@ struct SCIP_SDPiSolver
                       }                                                                                      \
                       while( FALSE )
 
-/** prints MOSEK output to the console */
+/** print string using message handler of SCIP */
 static
 void MSKAPI printstr(
-   void*                 handle,             /**< A user-defined handle which is passed to the user-defined function */
 #if MSK_VERSION_MAJOR >= 9
-   const char            str[]               /**< String to print */
+   MSKuserhandle_t       handler,            /**< error handler */
+   const char*           str                 /**< string to print */
 #else
-   MSKCONST char         str[]          /**< String to print */
+   void*                 handler,            /**< error handler */
+   MSKCONST char         str[]               /**< string to print */
 #endif
    )
-{ /*lint --e{715}*/
-  printf("%s",str);
+{  /*lint --e{715}*/
+#if 0
+   char errstr[32];
+   snprintf(errstr, 32, "MOSEK Error %d", MSK_RES_ERR_DUP_NAME);
+   if ( strncmp(errstr, str, strlen(errstr)) == 0 )
+      return;
+#endif
+
+   SCIPmessagePrintInfo((SCIP_MESSAGEHDLR *) handler, "MOSEK: %s", str);
 }
+
 
 #ifndef NDEBUG
 /** Test if a lower bound lb is not smaller than an upper bound ub, meaning that lb > ub - epsilon */
@@ -393,7 +411,17 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->blkmem = blkmem;
    (*sdpisolver)->bufmem = bufmem;
 
-   MOSEK_CALLM( MSK_makeenv(&((*sdpisolver)->mskenv), NULL) );/*lint !e641*/ /* the NULL-argument is a debug file, but setting this will spam the whole folder */
+#ifdef SCIP_REUSEENV
+   if ( reusemskenv == NULL )
+   {
+      assert(numsdp == 0);
+      MOSEK_CALL( MSK_makeenv(&reusemskenv, NULL) );
+   }
+   (*sdpisolver)->mskenv = reusemskenv;
+   ++numsdp;
+#else
+   MOSEK_CALL( MSK_makeenv(&((*sdpisolver)->mskenv), NULL) );/*lint !e641*/ /* the NULL-argument is a debug file, but setting this will spam the whole folder */
+#endif
 
    /* this will be properly initialized then calling solve */
    (*sdpisolver)->msktask = NULL;
@@ -441,7 +469,17 @@ SCIP_RETCODE SCIPsdpiSolverFree(
 
    if ( (*sdpisolver)->mskenv != NULL )
    {
+#ifdef SCIP_REUSEENV
+      assert( numsdp > 0 );
+      --numsdp;
+      if ( numsdp == 0 )
+      {
+         MOSEK_CALL( MSK_deleteenv(&reusemskenv) );
+         reusemskenv = NULL;
+      }
+#else
       MOSEK_CALL( MSK_deleteenv(&((*sdpisolver)->mskenv)) );/*lint !e641*/
+#endif
    }
 
    BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->varboundpos, 2 * (*sdpisolver)->nactivevars);
@@ -762,13 +800,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_NEAR_REL, NEAR_REL_TOLERANCE) );
 #endif
 
+   /* redirect output to SCIP message handler */
 #ifdef SCIP_MORE_DEBUG
-   MOSEK_CALL( MSK_linkfunctotaskstream(sdpisolver->msktask, MSK_STREAM_LOG, NULL, printstr) ); /* output to console */
+   MOSEK_CALL( MSK_linkfunctotaskstream(sdpisolver->msktask, MSK_STREAM_LOG, (MSKuserhandle_t) sdpisolver->messagehdlr, printstr) );
 #else
-   /* if sdpinfo is true, redirect output to console */
    if ( sdpisolver->sdpinfo )
    {
-      MOSEK_CALL( MSK_linkfunctotaskstream(sdpisolver->msktask, MSK_STREAM_LOG, NULL, printstr) );/*lint !e641*/
+      MOSEK_CALL( MSK_linkfunctotaskstream(sdpisolver->msktask, MSK_STREAM_LOG, (MSKuserhandle_t) sdpisolver->messagehdlr, printstr) );/*lint !e641*/
    }
 #endif
 

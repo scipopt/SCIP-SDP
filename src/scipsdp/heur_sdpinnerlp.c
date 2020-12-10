@@ -192,7 +192,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpInnerlp)
       if ( SCIPconsGetHdlr(conss[c]) != conshdlrsdp )
          continue;
 
-      blocksize = SCIPconsSdpGetBlocksize(subscip, conss[c]);
+      blocksize = SCIPconsSdpGetBlocksize(scip, conss[c]);
       totalsize += (blocksize * (blocksize - 1))/2;
    }
 

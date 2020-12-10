@@ -701,7 +701,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
    SCIPfreeBufferArray(scip, &sdpcandssol);
    SCIPfreeBufferArray(scip, &sdpcands);
 
-   return SCIP_OKAY;
+   return SCIP_OKAY; /*lint !e438*/
 
 #else
    *result = SCIP_DIDNOTRUN;
