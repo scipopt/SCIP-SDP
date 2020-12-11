@@ -772,7 +772,7 @@ $\sqrt{x_1^2 + \dots + x_n^2} \leq t$ with bounds $\ell \leq x \leq u$
 yields for some $k \in [n]$:
 \begin{equation}\label{eq:SOCPpre}
   x_k^2 \leq t^2 - \sum_{\substack{i=1\\ i \neq k}}^n x_i^2 \leq t^2 -
-  \sum_{\substack{i=1\\ i \neq k}} \gamma_i \leq t^2,\qquad
+  \sum_{\substack{i=1\\ i \neq k}}^n \gamma_i \leq t^2,\qquad
   \gamma_i \define \min_{\gamma \in [\ell_i, u_i]} \gamma^2.
 \end{equation}
 Note that $\ell_i < 0 < u_i$ is possible. One main application is the case
@@ -827,7 +827,10 @@ $x_i \leq \sqrt{\bar{t}}$, which only provides the weakest upper bound
 in~\eqref{eq:SOCPpre}.
 
 Thus, one question is whether one can derive strengthened bounds. This is
-currently unclear. As one idea, one can consider generalized Schur
+currently unclear, but it does not seem to be possible.
+
+\paragraph*{Some Ideas}
+As one idea, one can consider generalized Schur
 polynomials (since $X$ is not necessarily positive definite, one needs the
 generalization), which we adapt from~\cite[Section~A.5.5]{BoyV09}: Consider
 again the matrix $D$ from above. Then
