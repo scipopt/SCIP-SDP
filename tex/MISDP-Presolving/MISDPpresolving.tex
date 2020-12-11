@@ -929,6 +929,64 @@ $A_S\T A_S^{\phantom{T}}$.
   process?
 \end{question}
 
+\begin{question}
+  One idea is to perform spatial branching on the diagonal entries
+  $X_ii$. Does this help to solve the problem?
+\end{question}
+
+
+\subsubsection{Complete Description of Feasible Set}
+
+One interesting question is whether one can describe the convex hull of the
+feasible set. For this define
+\begin{align*}
+  S = \Big\{(X,z) \in S^n_+ \times [0,1]^n \suchthat & \tr(X) = 1,\; \sum_{i=1}^n z_i \leq k,\;     0 \leq X_{ii} \leq z_j \;\forall\, i \in [n],\\
+                                                     & -\tfrac{1}{2} z_j \leq X_{ij} \leq \tfrac{1}{2} z_j \;\forall\, i \neq j \in [n] \Big\},
+\end{align*}
+which is the strongest relaxation that we currently have. Its integer hull is
+\begin{align*}
+  S_I \define \conv \Big\{& (X,z) \in S^n_+ \times \{0,1\}^n \suchthat \tr(X) =
+                1,\; \sum_{i=1}^n z_i \leq k,\; 0 \leq X_{ii} \leq z_j \;\forall\, i \in [n] \Big\}.
+\end{align*}
+In general, we have $S \neq S_I$: If $k = 1$, then all off-diagonals have
+to be zero in $S_I$, but not necessarily in~$S$. Moreover, consider
+$2 \leq k \leq n$. Then for
+\[
+  z = \begin{pmatrix}
+    \tfrac{1}{k} \\
+    \vdots\\
+    \tfrac{1}{k}
+  \end{pmatrix},\quad
+  X \define
+  \begin{pmatrix}
+    \tfrac{1}{k} & \dots, & \tfrac{1}{k}\\
+    \vdots & \ddots & \vdots\\
+    \tfrac{1}{k} & \dots & \tfrac{1}{k}
+  \end{pmatrix},
+\]
+we have $(X,z) \in S$, but $(X,z) \notin S_I$.
+
+\paragraph{Linear Case}
+
+It might be instrumential to look at the linear analogue:
+\[
+  S \define \{(x,z) \in \R_+^n \times [0,1]^n \suchthat \sum_{i=1}^n x_i =
+  1,\; \sum_{i=1}^n z_i \leq k,\; 0 \leq x_i \leq z_i \;\forall\, i \in [n]\}.
+\]
+This is related to the \emph{hypersimplex}
+\[
+  \Delta_{n,k} \define \conv \{z \in \{0,1\}^n \suchthat \sum_{i=1}^n z_i = k\},
+\]
+for which complete linear descriptions are available, see
+Ziegler~\cite{Zie95}.
+
+\begin{question}
+  Does this give a linear description of $S$ and can this be extended to
+  the SDP case?
+\end{question}
+
+\subsubsection{Nonnegativity by the Perron-Frobenius Theorem}
+
 We apply the Perron-Frobenius theorem. To this end, we define a matrix $A$ to
 be \emph{reducible} if there exists a permutation matrix $P$ such that
 \[
@@ -973,7 +1031,7 @@ Thus, one can restrict $X \geq 0$ and write
 \]
 instead of~\eqref{eq:SPCAcouple}.
 
-\paragraph{Two Valid SOCP Constraints}
+\subsubsection{Two Valid SOCP Constraints}
 
 Li and Xie~\cite{LiX20} show that the following inequalitiy is valid for
 sparse PCA:
@@ -1070,7 +1128,6 @@ $\norm{x}_0 \leq k$. Moreover, $\abs{x_i} = \sqrt{X_{ii}} = \sqrt{X_{ii}
 These inequalities are SOC representable, but one needs to express the
 absolute values in $\sum_{j \in [n]} \abs{X_{ij}}$, e.g., by variable
 splitting.
-
 
 \subsection{Minimization Variant}
 
