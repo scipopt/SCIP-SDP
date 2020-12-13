@@ -703,8 +703,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int blockvar;
    int v;
    int k;
-   long long ind;
+   long long mosekindex;
    int mosekind = 0;
+   int ind;
    SCIP_Real* mosekvarbounds;
    int nfixedvars;
    int oldnactivevars;
@@ -1019,7 +1020,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                }
 
                MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], sdpconstnblocknonz[b],
-                     moseksdpconstrow, moseksdpconstcol, sdpconstval[b], &ind) );/*lint !e641, !e679, !e747*/
+                     moseksdpconstrow, moseksdpconstcol, sdpconstval[b], &mosekindex) );/*lint !e641, !e679, !e747*/
 
                BMSfreeBufferMemoryArray(sdpisolver->bufmem, &moseksdpconstcol);
                BMSfreeBufferMemoryArray(sdpisolver->bufmem, &moseksdpconstrow);
@@ -1027,9 +1028,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             else
             {
                MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], sdpconstnblocknonz[b],
-                     sdpconstrow[b], sdpconstcol[b], sdpconstval[b], &ind) );/*lint !e641, !e679, !e747*/
+                     sdpconstrow[b], sdpconstcol[b], sdpconstval[b], &mosekindex) );/*lint !e641, !e679, !e747*/
             }
-            MOSEK_CALL( MSK_putbarcj(sdpisolver->msktask, i, 1, &ind, &one) );/*lint !e641, !e747*/
+            MOSEK_CALL( MSK_putbarcj(sdpisolver->msktask, i, 1, &mosekindex, &one) );/*lint !e641, !e747*/
             i++;
          }
       }
@@ -1121,7 +1122,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                   }
 
                   MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], (long long) sdpnblockvarnonz[b][blockvar],
-                        mosekrow, mosekcol, sdpval[b][blockvar], &ind) );/*lint !e641, !e679*/
+                        mosekrow, mosekcol, sdpval[b][blockvar], &mosekindex) );/*lint !e641, !e679*/
 
                   BMSfreeBufferMemoryArray(sdpisolver->bufmem, &mosekcol);
                   BMSfreeBufferMemoryArray(sdpisolver->bufmem, &mosekrow);
@@ -1129,10 +1130,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                else
                {
                   MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], (long long) sdpnblockvarnonz[b][blockvar],
-                        sdprow[b][blockvar], sdpcol[b][blockvar], sdpval[b][blockvar], &ind) );/*lint !e641, !e679*/
+                        sdprow[b][blockvar], sdpcol[b][blockvar], sdpval[b][blockvar], &mosekindex) );/*lint !e641, !e679*/
                }
 
-               MOSEK_CALL( MSK_putbaraij(sdpisolver->msktask, v, b - blockindchanges[b], (long long) 1, &ind, &one) );/*lint !e641*/
+               MOSEK_CALL( MSK_putbaraij(sdpisolver->msktask, v, b - blockindchanges[b], (long long) 1, &mosekindex, &one) );/*lint !e641*/
             }
          }
       }
@@ -1157,8 +1158,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                identityvalues[i] = 1.0;
             }
             MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], (long long) mosekblocksizes[b - blockindchanges[b]],
-                                    identityindices, identityindices, identityvalues, &ind) );/*lint !e641, !e679*/
-            MOSEK_CALL( MSK_putbaraij(sdpisolver->msktask, sdpisolver->nactivevars, b - blockindchanges[b], (long long) 1, &ind, &one) );/*lint !e641, !e679*/
+                                    identityindices, identityindices, identityvalues, &mosekindex) );/*lint !e641, !e679*/
+            MOSEK_CALL( MSK_putbaraij(sdpisolver->msktask, sdpisolver->nactivevars, b - blockindchanges[b], (long long) 1, &mosekindex, &one) );/*lint !e641, !e679*/
 
             BMSfreeBufferMemoryArray(sdpisolver->bufmem, &identityvalues);
             BMSfreeBufferMemoryArray(sdpisolver->bufmem, &identityindices);
