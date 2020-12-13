@@ -706,6 +706,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    long long mosekindex;
    int mosekind = 0;
    int ind;
+   int nnonz;
    SCIP_Real* mosekvarbounds;
    int nfixedvars;
    int oldnactivevars;
@@ -911,7 +912,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       int newpos = 0; /* the position in the lhs and rhs arrays */
       int pos = 0;
 
-      /* allocate memory to save which lpvariable corresponds to which lp constraint, negative signs correspond to left-hand-sides of lp constraints,
+      /* allocate memory to save which lpvariable corresponds to which original lp constraint, negative signs correspond to left-hand-sides of lp constraints,
        * entry i or -i corresponds to the constraint in position |i|-1, as we have to add +1 to make the entries strictly positive or strictly negative */
       BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &vartorowmapper, 2*noldlpcons) ); /*lint !e647*/ /*lint !e530*/
       /* allocate memory to save at which indices the corresponding lhss and rhss of the lpvars are saved */
@@ -951,6 +952,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          }
       }
       nlpvars = pos;
+      assert( newpos == nlpcons );
       assert( nlpvars <= 2*nlpcons ); /* factor 2 comes from left- and right-hand-sides */
    }
    else
@@ -1042,6 +1044,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    for (i = 0; i < nlpvars; i++)
    {
       assert( vartolhsrhsmapper != NULL ); /* for lint */
+      assert( vartorowmapper[i] != 0 );
+      assert( 0 <= vartolhsrhsmapper[i] && vartolhsrhsmapper[i] < nlpcons );
+
       if ( vartorowmapper[i] > 0 )/*lint !e644*/ /* right-hand side */
       {
          MOSEK_CALL( MSK_putcj(sdpisolver->msktask, i, - lprhs[vartolhsrhsmapper[i]]) );/*lint !e641, !e644*/
@@ -1053,11 +1058,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
       else /* left-hand side */
       {
-         assert( vartorowmapper[i] < 0 ); /* we should not have value 0 so that we can clearly differentiate between positive and negative */
          MOSEK_CALL( MSK_putcj(sdpisolver->msktask, i, lplhs[vartolhsrhsmapper[i]]) );/*lint !e641*/
 #ifdef SCIP_MORE_DEBUG
          /* give the variable a meaningful name for debug output */
-         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lhs#%d", -1 * vartorowmapper[i] - 1);
+         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lhs#%d", - vartorowmapper[i] - 1);
          MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, i, name) );
 #endif
       }
@@ -1181,7 +1185,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
    /* enter LP rows */
-   ind = 0;
+   nnonz = 0;
    for (i = 0; i < nlpvars; i++)
    {
       assert( vartorowmapper != NULL ); /* for lint */
@@ -1191,20 +1195,20 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
          /* find the first lp-entry belonging to this variable (those in between have to belong to constraints with less than two active variables and
           * will therefore not be used) */
-         while ( ind < lpnnonz && lprow[ind] < - vartorowmapper[i] - 1 )
-            ind++;
+         while ( nnonz < lpnnonz && lprow[nnonz] < - vartorowmapper[i] - 1 )
+            ++nnonz;
 
          /* iterate over all nonzeros to input them to the array given to MOSEK */
-         while ( ind < lpnnonz && lprow[ind] == - vartorowmapper[i] - 1 ) /* they should already be sorted by rows in the sdpi */
+         while ( nnonz < lpnnonz && lprow[nnonz] == - vartorowmapper[i] - 1 ) /* they should already be sorted by rows in the sdpi */
          {
-            v = sdpisolver->inputtomosekmapper[lpcol[ind]];
+            v = sdpisolver->inputtomosekmapper[lpcol[nnonz]];
             if ( v >= 0 )
             {
                mosekrow[mosekind] = v;
-               mosekval[mosekind] = lpval[ind];
+               mosekval[mosekind] = lpval[nnonz];
                mosekind++;
             }
-            ind++;
+            ++nnonz;
          }
          assert( mosekind <= lpnnonz );
       }
@@ -1226,18 +1230,18 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
             /* find the first lp-entry belonging to this variable (those in between have to belong to constraints with less than two active variables and
              * will therefore not be used) */
-            while ( ind < lpnnonz && lprow[ind] < vartorowmapper[i] - 1 )
-               ind++;
+            while ( nnonz < lpnnonz && lprow[nnonz] < vartorowmapper[i] - 1 )
+               ++nnonz;
 
-            while ( ind < lpnnonz && lprow[ind] == vartorowmapper[i] - 1 )
+            while ( nnonz < lpnnonz && lprow[nnonz] == vartorowmapper[i] - 1 )
             {
-               v = sdpisolver->inputtomosekmapper[lpcol[ind]];
+               v = sdpisolver->inputtomosekmapper[lpcol[nnonz]];
                if ( v >= 0 )
                {
                   mosekrow[mosekind] = v;
-                  mosekval[mosekind++] = - lpval[ind]; /* because we need to change the <= to a >= constraint */
+                  mosekval[mosekind++] = - lpval[nnonz]; /* because we need to change the <= to a >= constraint */
                }
-               ind++;
+               ++nnonz;
             }
             assert( mosekind <= lpnnonz );
          }
