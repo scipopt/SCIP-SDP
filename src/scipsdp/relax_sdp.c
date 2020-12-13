@@ -4366,7 +4366,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
 
    /* set numer of threads */
    retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_NTHREADS, relaxdata->sdpsolverthreads);
-   if ( retcode == SCIP_PARAMETERUNKNOWN && relaxdata->sdpsolverthreads != DEFAULT_SDPSOLVERTHREADS )
+   if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       /* avoid warning if we are at the default value */
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
