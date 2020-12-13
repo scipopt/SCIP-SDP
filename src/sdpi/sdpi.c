@@ -2637,6 +2637,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    do
    {
       SCIP_CALL( computeLpLhsRhsAfterFixings(sdpi, sdpi->sdpilb, sdpi->sdpiub, &nactivelpcons, lplhsafterfix, lprhsafterfix, rowsnactivevars, &fixingfound) );
+      SCIPdebugMessage("Number of active LP constraints: %d (original: %d).\n", nactivelpcons, sdpi->nlpcons);
    }
    while ( fixingfound );
 
