@@ -802,13 +802,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* redirect output to SCIP message handler */
 #ifdef SCIP_MORE_DEBUG
-   MOSEK_CALL( MSK_linkfunctotaskstream(sdpisolver->msktask, MSK_STREAM_LOG, (MSKuserhandle_t) sdpisolver->messagehdlr, printstr) );
-#else
+   sdpisolver->sdpinfo = TRUE;
+#endif
+
    if ( sdpisolver->sdpinfo )
    {
       MOSEK_CALL( MSK_linkfunctotaskstream(sdpisolver->msktask, MSK_STREAM_LOG, (MSKuserhandle_t) sdpisolver->messagehdlr, printstr) );/*lint !e641*/
    }
-#endif
 
    /* set number of threads */
    if ( sdpisolver->nthreads > 0 )
