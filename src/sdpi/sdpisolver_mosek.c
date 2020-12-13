@@ -1396,6 +1396,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
 #endif
 
+      /* to avoid a bug in Mosek, we disable presolving */
+      MOSEK_CALL( MSK_putintparam(sdpisolver->msktask, MSK_IPAR_PRESOLVE_USE, MSK_PRESOLVE_MODE_OFF) );
+
       /* solve the problem */
       MOSEK_CALL( MSK_optimizetrm(sdpisolver->msktask, &(sdpisolver->terminationcode)) );/*lint !e641*/
       MOSEK_CALL( MSK_getdouinf(sdpisolver->msktask, MSK_DINF_OPTIMIZER_TIME, &sdpisolver->opttime) );
