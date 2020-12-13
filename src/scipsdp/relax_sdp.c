@@ -3530,7 +3530,7 @@ SCIP_RETCODE calcRelax(
 
       if ( SCIPsdpiIsDualInfeasible(sdpi) )
       {
-         SCIPdebugMsg(scip, "Relaxation is infeasibility.\n");
+         SCIPdebugMsg(scip, "Relaxation is infeasible.\n");
          relaxdata->feasible = FALSE;
          relaxdata->objval = SCIPinfinity(scip);
          *result = SCIP_CUTOFF;
