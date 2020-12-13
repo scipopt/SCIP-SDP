@@ -4868,24 +4868,22 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
    assert( relax != NULL );
    assert( SCIPgetStage(scip) == SCIP_STAGE_SOLVING );
 
-   SCIPdebugMsg(scip, "computing analytic centers for warmstarting\n");
-
    relaxdata = SCIPrelaxGetData(relax);
    assert( relaxdata != NULL );
 
    /* this function should only be executed once */
    if ( relaxdata->ipXexists || relaxdata->ipZexists )
    {
-      SCIPdebugMsg(scip, "aborting SCIPrelaxSdpComputeAnalyticCenters since analytic centers have already been computed\n");
+      SCIPdebugMsg(scip, "Analytic centers have already been computed.\n");
       return SCIP_OKAY;
    }
 
-   /* nothing to be done without variables */
-   if ( SCIPgetNVars(scip) == 0 )
+   /* exit if no warmstart is required or we do not need the analytic centers */
+   if ( ! relaxdata->warmstart || relaxdata->warmstartiptype != 2 || SCIPisLE(scip, relaxdata->warmstartipfactor, 0.0) )
       return SCIP_OKAY;
 
-   /* exit if not warmstart is required or not we do not need the analytic centers */
-   if ( ! relaxdata->warmstart || relaxdata->warmstartiptype != 2 || SCIPisLE(scip, relaxdata->warmstartipfactor, 0.0) )
+   /* nothing to be done without variables */
+   if ( SCIPgetNVars(scip) == 0 )
       return SCIP_OKAY;
 
    /* exit if no SDP and rows are present */
@@ -4895,6 +4893,8 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
    nrank1blocks = SCIPconshdlrGetNConss(sdprank1conshdlr);
    if ( nsdpblocks + nrank1blocks + SCIPgetNLPRows(scip) <= 0 )
       return SCIP_OKAY;
+
+   SCIPdebugMsg(scip, "computing analytic centers for warmstarting\n");
 
    relaxdata->nblocks = SCIPgetNLPRows(scip) + SCIPgetNVars(scip) > 0 ? nsdpblocks + nrank1blocks + 1 : SCIPconshdlrGetNConss(sdpconshdlr) + SCIPconshdlrGetNConss(sdprank1conshdlr);
 
