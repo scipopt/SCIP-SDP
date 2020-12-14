@@ -1023,6 +1023,7 @@ SCIP_RETCODE CBFreadPsdConRank1(
    int c;
    int i;
    int nrank1sdpblocks;
+   int ncbfsdpblocks;
 
    assert( scip != NULL );
    assert( data != NULL );
@@ -1062,6 +1063,11 @@ SCIP_RETCODE CBFreadPsdConRank1(
 
    data->nsdpblocksrank1 += nrank1sdpblocks;
 
+   if ( data->npsdvars > 0 )
+      ncbfsdpblocks = data->nsdpblocks - data->npsdvars;
+   else
+      ncbfsdpblocks = data->nsdpblocks;
+
    for (i = 0; i < nrank1sdpblocks; i++)
    {
       SCIP_CALL( CBFfgets(scip, data, pfile, linecount, TRUE) );
@@ -1072,7 +1078,7 @@ SCIP_RETCODE CBFreadPsdConRank1(
          return SCIP_READERROR;
       }
 
-      if ( c < 0 || c >= data->nsdpblocks )
+      if ( c < 0 || c >= ncbfsdpblocks )
       {
          SCIPerrorMessage("Given rank-1 constraint in line %" SCIP_LONGINT_FORMAT " for sdp constraint %d which does not exist!\n", *linecount, c);
          SCIP_CALL( CBFfreeData(scip, pfile, data) );
