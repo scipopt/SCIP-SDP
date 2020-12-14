@@ -2139,7 +2139,11 @@ SCIP_DECL_READERREAD(readerReadCbf)
                      versionread = TRUE;
                }
                else
+               {
+                  SCIPerrorMessage("Could not read version number in line %" SCIP_LONGINT_FORMAT ".\n", linecount);
+                  SCIP_CALL( CBFfreeData(scip, scipfile, data) );
                   return SCIP_READERROR;
+               }
             }
             else
             {
