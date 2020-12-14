@@ -703,8 +703,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int blockvar;
    int v;
    int k;
-   long long ind;
+   long long mosekindex;
    int mosekind = 0;
+   int ind;
+   int nnonz;
    SCIP_Real* mosekvarbounds;
    int nfixedvars;
    int oldnactivevars;
@@ -802,13 +804,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* redirect output to SCIP message handler */
 #ifdef SCIP_MORE_DEBUG
-   MOSEK_CALL( MSK_linkfunctotaskstream(sdpisolver->msktask, MSK_STREAM_LOG, (MSKuserhandle_t) sdpisolver->messagehdlr, printstr) );
-#else
+   sdpisolver->sdpinfo = TRUE;
+#endif
+
    if ( sdpisolver->sdpinfo )
    {
       MOSEK_CALL( MSK_linkfunctotaskstream(sdpisolver->msktask, MSK_STREAM_LOG, (MSKuserhandle_t) sdpisolver->messagehdlr, printstr) );/*lint !e641*/
    }
-#endif
 
    /* set number of threads */
    if ( sdpisolver->nthreads > 0 )
@@ -910,7 +912,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       int newpos = 0; /* the position in the lhs and rhs arrays */
       int pos = 0;
 
-      /* allocate memory to save which lpvariable corresponds to which lp constraint, negative signs correspond to left-hand-sides of lp constraints,
+      /* allocate memory to save which lpvariable corresponds to which original lp constraint, negative signs correspond to left-hand-sides of lp constraints,
        * entry i or -i corresponds to the constraint in position |i|-1, as we have to add +1 to make the entries strictly positive or strictly negative */
       BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &vartorowmapper, 2*noldlpcons) ); /*lint !e647*/ /*lint !e530*/
       /* allocate memory to save at which indices the corresponding lhss and rhss of the lpvars are saved */
@@ -950,6 +952,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          }
       }
       nlpvars = pos;
+      assert( newpos == nlpcons );
       assert( nlpvars <= 2*nlpcons ); /* factor 2 comes from left- and right-hand-sides */
    }
    else
@@ -1019,7 +1022,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                }
 
                MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], sdpconstnblocknonz[b],
-                     moseksdpconstrow, moseksdpconstcol, sdpconstval[b], &ind) );/*lint !e641, !e679, !e747*/
+                     moseksdpconstrow, moseksdpconstcol, sdpconstval[b], &mosekindex) );/*lint !e641, !e679, !e747*/
 
                BMSfreeBufferMemoryArray(sdpisolver->bufmem, &moseksdpconstcol);
                BMSfreeBufferMemoryArray(sdpisolver->bufmem, &moseksdpconstrow);
@@ -1027,9 +1030,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             else
             {
                MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], sdpconstnblocknonz[b],
-                     sdpconstrow[b], sdpconstcol[b], sdpconstval[b], &ind) );/*lint !e641, !e679, !e747*/
+                     sdpconstrow[b], sdpconstcol[b], sdpconstval[b], &mosekindex) );/*lint !e641, !e679, !e747*/
             }
-            MOSEK_CALL( MSK_putbarcj(sdpisolver->msktask, i, 1, &ind, &one) );/*lint !e641, !e747*/
+            MOSEK_CALL( MSK_putbarcj(sdpisolver->msktask, i, 1, &mosekindex, &one) );/*lint !e641, !e747*/
             i++;
          }
       }
@@ -1041,6 +1044,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    for (i = 0; i < nlpvars; i++)
    {
       assert( vartolhsrhsmapper != NULL ); /* for lint */
+      assert( vartorowmapper[i] != 0 );
+      assert( 0 <= vartolhsrhsmapper[i] && vartolhsrhsmapper[i] < nlpcons );
+
       if ( vartorowmapper[i] > 0 )/*lint !e644*/ /* right-hand side */
       {
          MOSEK_CALL( MSK_putcj(sdpisolver->msktask, i, - lprhs[vartolhsrhsmapper[i]]) );/*lint !e641, !e644*/
@@ -1052,11 +1058,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
       else /* left-hand side */
       {
-         assert( vartorowmapper[i] < 0 ); /* we should not have value 0 so that we can clearly differentiate between positive and negative */
          MOSEK_CALL( MSK_putcj(sdpisolver->msktask, i, lplhs[vartolhsrhsmapper[i]]) );/*lint !e641*/
 #ifdef SCIP_MORE_DEBUG
          /* give the variable a meaningful name for debug output */
-         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lhs#%d", -1 * vartorowmapper[i] - 1);
+         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lhs#%d", - vartorowmapper[i] - 1);
          MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, i, name) );
 #endif
       }
@@ -1121,7 +1126,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                   }
 
                   MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], (long long) sdpnblockvarnonz[b][blockvar],
-                        mosekrow, mosekcol, sdpval[b][blockvar], &ind) );/*lint !e641, !e679*/
+                        mosekrow, mosekcol, sdpval[b][blockvar], &mosekindex) );/*lint !e641, !e679*/
 
                   BMSfreeBufferMemoryArray(sdpisolver->bufmem, &mosekcol);
                   BMSfreeBufferMemoryArray(sdpisolver->bufmem, &mosekrow);
@@ -1129,10 +1134,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                else
                {
                   MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], (long long) sdpnblockvarnonz[b][blockvar],
-                        sdprow[b][blockvar], sdpcol[b][blockvar], sdpval[b][blockvar], &ind) );/*lint !e641, !e679*/
+                        sdprow[b][blockvar], sdpcol[b][blockvar], sdpval[b][blockvar], &mosekindex) );/*lint !e641, !e679*/
                }
 
-               MOSEK_CALL( MSK_putbaraij(sdpisolver->msktask, v, b - blockindchanges[b], (long long) 1, &ind, &one) );/*lint !e641*/
+               MOSEK_CALL( MSK_putbaraij(sdpisolver->msktask, v, b - blockindchanges[b], (long long) 1, &mosekindex, &one) );/*lint !e641*/
             }
          }
       }
@@ -1157,8 +1162,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                identityvalues[i] = 1.0;
             }
             MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], (long long) mosekblocksizes[b - blockindchanges[b]],
-                                    identityindices, identityindices, identityvalues, &ind) );/*lint !e641, !e679*/
-            MOSEK_CALL( MSK_putbaraij(sdpisolver->msktask, sdpisolver->nactivevars, b - blockindchanges[b], (long long) 1, &ind, &one) );/*lint !e641, !e679*/
+                                    identityindices, identityindices, identityvalues, &mosekindex) );/*lint !e641, !e679*/
+            MOSEK_CALL( MSK_putbaraij(sdpisolver->msktask, sdpisolver->nactivevars, b - blockindchanges[b], (long long) 1, &mosekindex, &one) );/*lint !e641, !e679*/
 
             BMSfreeBufferMemoryArray(sdpisolver->bufmem, &identityvalues);
             BMSfreeBufferMemoryArray(sdpisolver->bufmem, &identityindices);
@@ -1180,37 +1185,39 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
    /* enter LP rows */
-   ind = 0;
+   nnonz = 0;
    for (i = 0; i < nlpvars; i++)
    {
       assert( vartorowmapper != NULL ); /* for lint */
+      assert( vartorowmapper[i] != 0 );
+
       if ( vartorowmapper[i] < 0 ) /* left-hand side */
       {
          mosekind = 0;
 
+         ind = - vartorowmapper[i] - 1;
+         assert( 0 <= ind && ind < nlpcons );
+
          /* find the first lp-entry belonging to this variable (those in between have to belong to constraints with less than two active variables and
           * will therefore not be used) */
-         while ( ind < lpnnonz && lprow[ind] < - vartorowmapper[i] - 1 )
-            ind++;
+         while ( nnonz < lpnnonz && lprow[nnonz] < ind )
+            ++nnonz;
 
          /* iterate over all nonzeros to input them to the array given to MOSEK */
-         while ( ind < lpnnonz && lprow[ind] == - vartorowmapper[i] - 1 ) /* they should already be sorted by rows in the sdpi */
+         while ( nnonz < lpnnonz && lprow[nnonz] == ind ) /* they should already be sorted by rows in the sdpi */
          {
-            v = sdpisolver->inputtomosekmapper[lpcol[ind]];
+            v = sdpisolver->inputtomosekmapper[lpcol[nnonz]];
             if ( v >= 0 )
             {
                mosekrow[mosekind] = v;
-               mosekval[mosekind] = lpval[ind];
-               mosekind++;
+               mosekval[mosekind++] = lpval[nnonz];
             }
-            ind++;
+            ++nnonz;
          }
          assert( mosekind <= lpnnonz );
       }
       else /* right-hand side */
       {
-         assert( vartorowmapper[i] > 0 ); /* we should not have value 0 so that we can clearly differentiate between positive and negative */
-
          if ( i > 0 && vartorowmapper[i] == - vartorowmapper[i - 1] )
          {
             /* we already iterated over this constraint in the lp-arrays, so we keep the current ind position and as we currenlty have
@@ -1223,20 +1230,23 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             /* no left hand side for this constraint exists, so we did not yet iterate over this constraint in the lp arrays */
             mosekind = 0;
 
+            ind = vartorowmapper[i] - 1;
+            assert( 0 <= ind && ind < nlpcons );
+
             /* find the first lp-entry belonging to this variable (those in between have to belong to constraints with less than two active variables and
              * will therefore not be used) */
-            while ( ind < lpnnonz && lprow[ind] < vartorowmapper[i] - 1 )
-               ind++;
+            while ( nnonz < lpnnonz && lprow[nnonz] < ind )
+               ++nnonz;
 
-            while ( ind < lpnnonz && lprow[ind] == vartorowmapper[i] - 1 )
+            while ( nnonz < lpnnonz && lprow[nnonz] == ind )
             {
-               v = sdpisolver->inputtomosekmapper[lpcol[ind]];
+               v = sdpisolver->inputtomosekmapper[lpcol[nnonz]];
                if ( v >= 0 )
                {
                   mosekrow[mosekind] = v;
-                  mosekval[mosekind++] = - lpval[ind]; /* because we need to change the <= to a >= constraint */
+                  mosekval[mosekind++] = - lpval[nnonz]; /* because we need to change the <= to a >= constraint */
                }
-               ind++;
+               ++nnonz;
             }
             assert( mosekind <= lpnnonz );
          }
@@ -1247,7 +1257,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          /* check if we reset mosekind, in case we did not and just "copied" the lhs-entries for the rhs, we do not need to reset the extra entry,
           * since it is already there */
-         if ( ! (i > 0 && vartorowmapper[i] == -1 * vartorowmapper[i - 1]) )
+         if ( ! (i > 0 && vartorowmapper[i] == - vartorowmapper[i - 1]) )
          {
             mosekrow[mosekind] = sdpisolver->nactivevars;
             mosekval[mosekind++] = 1.0;
@@ -1385,6 +1395,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       MOSEK_CALL( MSK_printparam (sdpisolver->msktask) );
 #endif
 #endif
+
+      /* to avoid a bug in Mosek, we disable presolving */
+      MOSEK_CALL( MSK_putintparam(sdpisolver->msktask, MSK_IPAR_PRESOLVE_USE, MSK_PRESOLVE_MODE_OFF) );
 
       /* solve the problem */
       MOSEK_CALL( MSK_optimizetrm(sdpisolver->msktask, &(sdpisolver->terminationcode)) );/*lint !e641*/

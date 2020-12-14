@@ -248,8 +248,6 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    SCIP_PROPDATA* propdata;
    int length;
 
-   SCIPdebugMsg(scip, "Calling propExecSdpredcost \n");
-
    assert( scip != NULL );
    assert( prop != NULL );
    assert( result != NULL );
@@ -276,19 +274,13 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    relax = SCIPfindRelax(scip, "SDP"); /* get SDP relaxation handler */
    assert( relax != NULL );
 
-   /* we can only propagate for the last node for which the SDP was solved */
-   if ( SCIPrelaxSdpGetSdpNode(relax) != SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) )
-   {
-      SCIPdebugMsg(scip, "Do not run propgagation because SDP-relaxation does not match current node.\n");
-      return SCIP_OKAY;
-   }
-
    /* we can only propagate if the SDP was solved in its original formulation */
    if ( ! SCIPrelaxSdpSolvedOrig(relax) )
-   {
-      SCIPdebugMsg(scip, "Do not run propagation because SDP-relaxation was solved using a penalty formulation!\n");
       return SCIP_OKAY;
-   }
+
+   /* we can only propagate for the last node for which the SDP was solved */
+   if ( SCIPrelaxSdpGetSdpNode(relax) != SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) )
+      return SCIP_OKAY;
 
    SCIP_CALL( SCIPrelaxSdpRelaxVal(relax, &sdpsolved, &relaxval) );
    if ( ! sdpsolved )
@@ -304,6 +296,7 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    propdata = SCIPpropGetData(prop);
    assert( propdata != NULL );
 
+   SCIPdebugMsg(scip, "Running propExecSdpredcost ...\n");
    *result = SCIP_DIDNOTFIND;
 
    nvars = SCIPgetNVars(scip);
