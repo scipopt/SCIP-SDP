@@ -973,8 +973,29 @@ $A_S\T A_S^{\phantom{T}}$.
 
 \begin{question}
   One idea is to perform spatial branching on the diagonal entries
-  $X_ii$. Does this help to solve the problem?
+  $X_{ii}$. Does this help to solve the problem?
 \end{question}
+
+\begin{remark}
+  For the case of~$k=2$, an optimal solution~$X$ consists of a single 2 by
+  2 nonzero submatrix, and all other entries are 0. Let
+  \begin{align*}
+    \tilde{X} =  \begin{pmatrix}
+      X_{11} & X_{21} \\
+      X_{21} & X_{22}
+    \end{pmatrix}
+  \end{align*}
+  be a 2 by 2 submatrix of~$X$. The trace constraint then
+  reads~$X_{11} + X_{22} = 1$, and the psd constraint~$X \succeq 0$
+  simplifies to~$X_{11},\, X_{22} \geq 0$, and $X_{11}X_{22}\geq
+  X_{21}^2$. If~$X_{21} = 0$, then either~$X_{11} = 1$ or~$X_{22} = 1$,
+  depending on their coefficients in the objective function.
+  If~$X_{21} \neq 0$, aggregate~$X_{22} = 1 - X_{11}$. In this case, the
+  solution set is given by a disc centered at $(1/2,\,0)$ with
+  radius~$1/2$, where~$X_{11}$ is the first coordinate and~$X_{21}$ the
+  second. Optimizing in direction of the objective function yields an
+  optimal solution.
+\end{remark}
 
 
 \subsubsection{Complete Description of Feasible Set}
