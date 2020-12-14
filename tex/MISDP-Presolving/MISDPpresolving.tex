@@ -1029,6 +1029,9 @@ $2 \leq k \leq n$. Then for
 \]
 we have $(X,z) \in S$, but $(X,z) \notin S_I$.
 
+Indeed, it is NP-hard to optimize over $S_I$ -- this is goal of the
+RIP-problem.
+
 \paragraph{Linear Case}
 
 It might be instrumential to look at the linear analogue:
@@ -1036,17 +1039,16 @@ It might be instrumential to look at the linear analogue:
   S \define \{(x,z) \in \R_+^n \times [0,1]^n \suchthat \sum_{i=1}^n x_i =
   1,\; \sum_{i=1}^n z_i \leq k,\; 0 \leq x_i \leq z_i \;\forall\, i \in [n]\}.
 \]
-This is related to the \emph{hypersimplex}
-\[
-  \Delta_{n,k} \define \conv \{z \in \{0,1\}^n \suchthat \sum_{i=1}^n z_i = k\},
-\]
-for which complete linear descriptions are available, see
-Ziegler~\cite{Zie95}.
+Both the polytopes
+$\{x \in \R^n \suchthat \ones\T x = 1,\; 0 \leq x \leq z\}$ for fixed
+$z \in \{0,1\}^n$ and
+$\{z \in \R^n \suchthat \ones\T z \leq k,\; x \leq z\}$ for fixed
+$x \in \{0,1\}^n$ are integral.
 
 \begin{question}
-  Does this give a linear description of $S$ and can this be extended to
-  the SDP case?
+  Is the above description integral?
 \end{question}
+
 
 \subsubsection{Nonnegativity by the Perron-Frobenius Theorem}
 
