@@ -1864,12 +1864,19 @@ SCIP_RETCODE CBFreadHcoord(
          assert( varidx == data->sdpnblocknonz[b] );
       }
    }
+   /* free SDP-var array which is no longer needed */
+   for (b = 0; b < data->nsdpblocks; b++)
+      SCIPfreeBlockMemoryArray(scip, &(sdpvar[b]), data->nnonz);
+
+   SCIPfreeBlockMemoryArray(scip, &sdpvar, data->nsdpblocks);
 
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
          "HCOORD: Found %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
    }
+
+   return SCIP_OKAY;
 
  TERMINATE:
    /* free SDP-var array which is no longer needed */
@@ -2339,7 +2346,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
    if ( data->sdpnblocknonz == NULL && data->nsdpblocks > 0 )
    {
       SCIPerrorMessage("No nonconstant nonzeros have been specified for any SDP block, please remove all SDP blocks!\n");
-      SCIPABORT();
+      SCIP_CALL( CBFfreeData(scip, scipfile, data) );
       return SCIP_READERROR; /*lint !e527*/
    }
 
