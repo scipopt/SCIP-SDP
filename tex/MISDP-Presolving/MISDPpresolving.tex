@@ -672,7 +672,7 @@ additionally $X = x x\T$ and the rank of $X$ has to be 1. Then additional
 inequalities have to hold, for example McCormick inequalities.
 
 \begin{remark}
-  Most likely this can be generalized to the more interesting case of a
+  This can be generalized to the more interesting case of a
   constraint of the form
   \[
   \begin{pmatrix}
@@ -681,11 +681,29 @@ inequalities have to hold, for example McCormick inequalities.
   \end{pmatrix}
   \succeq 0,
   \quad
-  \ell \leq (x,t) \leq u,
+  \ell \leq x \leq u,\quad \ell_t \leq t \leq u_t,
 \]
-where~$t$ is a scalar variable. Since constraints of this particular form
-appear in truss topology design and cardinality least-squares problems, we
-should check whether this helps for such instances.
+where~$t$ is a scalar variable. Constraints of this particular form
+appear, e.g., in truss topology design and cardinality least-squares
+problems. The same argument as above yields the two inequalities
+\begin{align*}
+  X_{ii} &\geq \frac{2 \ell_i x_i - \ell_i^2}{u_t} \\
+  X_{ii} &\geq \frac{2 u_i x_i - u_i^2}{u_t}
+\end{align*}
+Assume that~$\ell_i < 0$ and ~$u_i > 0$. Then, these inequalities can be
+non-trivial, that is, the right-hand-side is nonnegative,
+if~$x_i \leq \ell_i/2$ and~$x_i \geq u_i/2$, respectively. Additionally, by
+replacing~$x_i$ by its lower bound~$\ell_i$, the first inequality can be
+used for propagation:
+\begin{align*}
+  X_{ii} &\geq \frac{2 \ell_i u_i - \ell_i^2}{u_t},
+\end{align*}
+where the right-hand-side is strictly positive, if $\ell_i > u_i/2$, $u_t >
+0$ and either~$u_i > 0$ or~$\ell_i$, $u_i < 0$.
+
+These inequalities are currently not implemented, but it may be worth
+testing them on different types of problems with LP- or SDP-solving to see
+if they have any impact.
 \end{remark}
 
 
