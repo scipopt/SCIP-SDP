@@ -1196,7 +1196,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          mosekind = 0;
 
          ind = - vartorowmapper[i] - 1;
-         assert( 0 <= ind && ind < nlpcons );
+         assert( 0 <= ind && ind < noldlpcons );
 
          /* find the first lp-entry belonging to this variable (those in between have to belong to constraints with less than two active variables and
           * will therefore not be used) */
@@ -1231,7 +1231,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             mosekind = 0;
 
             ind = vartorowmapper[i] - 1;
-            assert( 0 <= ind && ind < nlpcons );
+            assert( 0 <= ind && ind < noldlpcons );
 
             /* find the first lp-entry belonging to this variable (those in between have to belong to constraints with less than two active variables and
              * will therefore not be used) */
