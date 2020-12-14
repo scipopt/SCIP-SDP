@@ -773,6 +773,30 @@ But since we need to have $A(y)_{ii} \geq 0$ for all $y$ with
 $A(y) \succeq 0$, the above condition is always fulfilled: The center
 points of the circles are always in the nonnegative complex halfplane.
 
+\begin{remark}
+  This idea can be used to detect a cut off for an SDP-constraint that
+  should have rank 1. Recall that a positive semidefinite matrix has rank 1
+  if and only if all of its 2 by 2 minors are zero. This implies that the
+  smallest eigenvalue of each 2 by 2 submatrix needs to be 0. Thus, if
+  there exist two indices~$i$, $k$, so that
+  \begin{align*}
+    0 \notin D_i,\quad 0 \notin D_k, \quad D_i \cap D_k = \varnothing,
+  \end{align*}
+  then the current node can be cut off, since a minimal eigenvalue of 0 is
+  not obtainable for the 2 by 2 submatrix indexed by~$(i,k)$.
+
+  In the case of a dual SDP-constraint~$A(y) \geq 0$, the Gershgorin
+  discs~$D_i$, $D_k$ do not contain 0, if the lower bounds~$\ell_i$,
+  $\ell_k$ of the entries~$A(y)_{ii}$ and~$A(y)_{kk}$ are strictly
+  positive, and if the radius of the discs is strictly smaller
+  than~$\ell_i$, $\ell_k$, i.e.,
+  \begin{align*}
+    \ell_i > 0,\quad \ell_k > 0, \qquad \sum_{j\neq i} \abs{A(y)_{jj}} <
+    \ell_i, \quad \sum_{j\neq k} \abs{A(y)_{jj}} < \ell_k.
+  \end{align*}
+  Currently, this is not implemented for SDP-constraints with an additional
+  rank-1 constraint.
+\end{remark}
 
 % -------------------------------------------------------------------------
 
