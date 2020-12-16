@@ -1913,40 +1913,30 @@ SCIP_RETCODE addTwoMinorSOCConstraints(
             if ( nconsvars == 0 )
                continue;
 
-            /* if only one variable is involved */
-            if ( nconsvars == 1 )
-            {
-               matrixvar = consvars[0];
-               SCIP_CALL( SCIPcaptureVar(scip, matrixvar) );
-            }
-            else
-            {
-               /* create matrix variable */
-               (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "M%d#%d#%d", c, s, t);
-               SCIP_CALL( SCIPcreateVarBasic(scip, &matrixvar, name, -SCIPinfinity(scip), SCIPinfinity(scip), 0.0, SCIP_VARTYPE_CONTINUOUS) );
-               SCIP_CALL( SCIPaddVar(scip, matrixvar) );
-               SCIPdebugMsg(scip, "Added new matrix variable <%s>\n", name );
+            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "M%d#%d#%d", c, s, t);
+            SCIP_CALL( SCIPcreateVarBasic(scip, &matrixvar, name, -SCIPinfinity(scip), SCIPinfinity(scip), 0.0, SCIP_VARTYPE_CONTINUOUS) );
+            SCIP_CALL( SCIPaddVar(scip, matrixvar) );
+            SCIPdebugMsg(scip, "Added new matrix variable <%s>\n", name );
 
-               consvals[nconsvars] = -1.0;
-               consvars[nconsvars++] = matrixvar;
+            consvals[nconsvars] = -1.0;
+            consvars[nconsvars++] = matrixvar;
 
-               /* compute lhs and rhs */
-               lhs = constmatrix[s * blocksize + t];
+            /* compute lhs and rhs */
+            lhs = constmatrix[s * blocksize + t];
 
-               /* create linear constraint */
-               (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "C%d#%d#%d", c, s, t);
-               SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, lhs, lhs,
-                     TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
-               SCIP_CALL( SCIPaddCons(scip, cons) );
+            /* create linear constraint */
+            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "C%d#%d#%d", c, s, t);
+            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, lhs, lhs,
+                  TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+            SCIP_CALL( SCIPaddCons(scip, cons) );
 
 #ifdef SCIP_MORE_DEBUG
-               SCIPinfoMessage(scip, NULL, "Added linear constraint for coupling the new matrix variable: ");
-               SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
-               SCIPinfoMessage(scip, NULL, "\n");
+            SCIPinfoMessage(scip, NULL, "Added linear constraint for coupling the new matrix variable: ");
+            SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
+            SCIPinfoMessage(scip, NULL, "\n");
 #endif
 
-               SCIP_CALL( SCIPreleaseCons(scip, &cons) );
-            }
+            SCIP_CALL( SCIPreleaseCons(scip, &cons) );
             assert( matrixvar != NULL );
 
             /* store variable (variable is captured) */
