@@ -997,7 +997,7 @@ $A_S\T A_S^{\phantom{T}}$.
   optimal solution.
 \end{remark}
 
-
+% -------------------------------------------------------------------------
 \subsubsection{Complete Description of Feasible Set}
 
 One interesting question is whether one can describe the convex hull of the
@@ -1032,23 +1032,102 @@ we have $(X,z) \in S$, but $(X,z) \notin S_I$.
 Indeed, it is NP-hard to optimize over $S_I$ -- this is goal of the
 RIP-problem.
 
+
+% -------------------------------------------------------------------------
 \paragraph{Linear Case}
 
-It might be instrumential to look at the linear analogue:
+It might be instrumential to look at the following linear analogue:
 \[
-  S \define \{(x,z) \in \R_+^n \times [0,1]^n \suchthat \sum_{i=1}^n x_i =
-  1,\; \sum_{i=1}^n z_i \leq k,\; 0 \leq x_i \leq z_i \;\forall\, i \in [n]\}.
+S^k \define \{(x,z) \in \R_+^n \times [0,1]^n \suchthat \sum_{i=1}^n x_i =
+1,\; \sum_{i=1}^n z_i = k,\; 0 \leq x_i \leq z_i \;\forall\, i \in [n]\}.
 \]
-Both the polytopes
-$\{x \in \R^n \suchthat \ones\T x = 1,\; 0 \leq x \leq z\}$ for fixed
-$z \in \{0,1\}^n$ and
-$\{z \in \R^n \suchthat \ones\T z \leq k,\; x \leq z\}$ for fixed
-$x \in \{0,1\}^n$ are integral.
+As before, $S^k_I$ denotes the integer hull
+$S^k_I \define \conv\big(S^k \cap (\R^n \times \{0,1\}^n)\big)$.
 
-\begin{question}
-  Is the above description integral?
-\end{question}
+\begin{theorem}
+  $S^k = S^k_I$, i.e., $S^k$ is integral.
+\end{theorem}
 
+\begin{proof}
+  The constraint matrix of $S^k$ with respect to the equations and the
+  inequalities $x - z \leq 0$ can be written as follows:
+  \[
+    M \define
+    \begin{pmatrix}
+      1 & \dots & 1 & 0 & \dots & 0 \\
+      0 & \dots & 0 & 1 & \dots & 1 \\
+      1 &       &   & -1 &      &   \\
+        & \ddots&   &    & \ddots & \\
+      0 &       & 1 & 0 &      & -1
+    \end{pmatrix}.
+  \]
+  This matrix is totally unimodular. This can be seen by multiplying the
+  first row with $-1$. Then we have exactly one $+1$ and $-1$ in each
+  column. Thus, $M$ is the node-arc indicence matrix of a directed graph
+  and hence TU. To take care of the variables bounds, one would add
+  identity matrices to $M$, which do not change the property of being TU.
+\end{proof}
+
+As a consequence, when solving
+\[
+  \min\, \{ c\T x + d\T z \suchthat (x,z) \in S^k \}
+\]
+one can even chose the $x$-variables to be integral, i.e., in 0 or 1, in an
+optimal solution.
+
+\begin{remark}
+  Aghezzaf and Wolsey~\cite{AghW92} show the following: Let
+  $T \subseteq \R^p_+ \times \{0,1\}^n$, $P = \conv(T)$, and
+  \[
+  P_k \define \{ (x,z) \in P \suchthat \sum_{i=1}^n z_i = k\}.
+  \]
+  For $k = 0, \dots, n$ define
+  \[
+  g_k \define \min\,\{c\T x + d\T z \suchthat (x,z) \in P_k,\; z \in
+  \{0,1\}^n\}.
+  \]
+  Then they show that
+  \[
+  \min\,\{c\T x + d\T z \suchthat (x,z) \in P_k\}
+  \]
+  has an optimal solution in $T$ if and only if $g_{k+1} - g_k$ is
+  non-decreasing for $k = 1, \dots, n - 1$.
+  % Alternatively, if for some $\mu$
+  % \[
+  % \min\, \{c\T x + d\T z - \mu \sum_{i=1}^n z_i \suchthat (x,z) \in P\}
+  % \]
+  % has integral optimal solutions $(x^1,z^1)$ and $(x^2,z^2)$ with
+  % $\ones\T z^1 = k_1$ and $\ones\T z^2 = k_2$ with $k_1 \leq k_2 - 2$, then
+  % there exists an alternative integral optimal solution with $\ones\T z = k$ and
+  % $k_1 < k < k_2$. Note that one can integrate the $\mu$-term into $d$.
+
+  In our situation we have
+  \[
+  T = \{(x,z) \in \R_+^n \times \{0,1\}^n \suchthat \sum_{i=1}^n x_i = 1,\;
+  0 \leq x_i \leq z_i \;\forall\, i \in [n]\}.
+  \]
+  The convex hull of $T$ is simply obtained by relaxing $z$ to be in $[0,1]^n$:
+  \[
+  P = \{(x,z) \in \R_+^n \times [0,1]^n \suchthat \sum_{i=1}^n x_i = 1,\;
+  0 \leq x_i \leq z_i \;\forall\, i \in [n]\}.
+  \]
+  Thus, $P_k = S^k$.
+
+  Then Aghezzaf and Wolsey consider lot sizing problems for given demands $D_1,
+  \dots, D_n$:
+  \begin{align*}
+    \min\quad & c\T x + d\T z\\
+    & \sum_{i=1}^t x_i \geq \sum_{i=1}^t D_i\quad \forall i = 1, \dots, n - 1,\\
+    & \sum_{i=1}^n x_i = \sum_{i=1}^n D_i,\\
+    & 0 \leq x \leq M z,\\
+    & z \in \{0,1\}^n.
+  \end{align*}
+  If $D_i = 0$, $i = 1, \dots, n-1$, $D_i = 1$, and $M = 1$, we obtain our problem.
+
+  Aghezzaf and Wolsey show that the optimum is attained in an integral
+  point for each $k$ if $c_1 \geq c_2 \geq \dots \geq c_n$. But the proof
+  is not completely clear.
+\end{remark}
 
 \subsubsection{Nonnegativity by the Perron-Frobenius Theorem}
 
