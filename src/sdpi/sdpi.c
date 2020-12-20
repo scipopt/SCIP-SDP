@@ -1138,29 +1138,7 @@ SCIP_RETCODE checkSlaterCondition(
          SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit, &origfeas, &penaltybound) );
 
    /* analyze result */
-   if ( SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
-   {
-      if ( rootnodefailed )
-      {
-         SCIPmessagePrintInfo(sdpi->messagehdlr, "Aborting: Failed to solve root node relaxation; Slater condition for dual problem holds (problem unbounded).\n");
-      }
-      else
-      {
-         SCIPdebugMessage("Slater condition for dual problem for SDP %d fullfilled.\n", sdpi->sdpid);/*lint !e687*/
-      }
-      sdpi->dualslater = SCIP_SDPSLATER_HOLDS;
-   }
-   else if ( SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) )
-   {
-      if ( rootnodefailed )
-      {
-         SCIPmessagePrintInfo(sdpi->messagehdlr, "Aborting: Faild to solve root node relaxation; Slater condition for dual problem does not hold (problem infeasible).\n");
-      }
-      else if ( sdpi->slatercheck == 2 )
-         SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for dual problem for SDP %d not fulfilled (problem infeasible).\n", sdpi->sdpid);
-      sdpi->dualslater = SCIP_SDPSLATER_NOT;
-   }
-   else if ( SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) )
+   if ( SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) )
    {
       SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
 
@@ -1195,6 +1173,28 @@ SCIP_RETCODE checkSlaterCondition(
          }
          sdpi->dualslater = SCIP_SDPSLATER_INF;
       }
+   }
+   else if ( SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
+   {
+      if ( rootnodefailed )
+      {
+         SCIPmessagePrintInfo(sdpi->messagehdlr, "Aborting: Failed to solve root node relaxation; Slater condition for dual problem holds (problem unbounded).\n");
+      }
+      else
+      {
+         SCIPdebugMessage("Slater condition for dual problem for SDP %d fullfilled.\n", sdpi->sdpid);/*lint !e687*/
+      }
+      sdpi->dualslater = SCIP_SDPSLATER_HOLDS;
+   }
+   else if ( SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) )
+   {
+      if ( rootnodefailed )
+      {
+         SCIPmessagePrintInfo(sdpi->messagehdlr, "Aborting: Faild to solve root node relaxation; Slater condition for dual problem does not hold (problem infeasible).\n");
+      }
+      else if ( sdpi->slatercheck == 2 )
+         SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for dual problem for SDP %d not fulfilled (problem infeasible).\n", sdpi->sdpid);
+      sdpi->dualslater = SCIP_SDPSLATER_NOT;
    }
    else
    {
@@ -1361,31 +1361,7 @@ SCIP_RETCODE checkSlaterCondition(
             NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit) );
 
       /* analyze result */
-      if ( SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
-      {
-         if ( rootnodefailed )
-         {
-            SCIPmessagePrintInfo(sdpi->messagehdlr, "Primal Slater condition shows infeasibility.\\n");
-         }
-         else if ( sdpi->slatercheck == 2 )
-         {
-            SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problem for SDP %d not fulfilled "
-                  "(smallest eigenvalue has to be negative, so primal problem is infeasible; if the dual slater condition holds,"
-                  "this means, that the original (dual) problem is unbounded).\n", sdpi->sdpid);
-         }
-         sdpi->primalslater = SCIP_SDPSLATER_NOT;
-      }
-      else if ( SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver) )
-      {
-         if ( rootnodefailed )
-         {
-            SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problems holds sunce smallest eigenvalue maximization problem is unbounded.\n");
-         }
-         else
-            SCIPdebugMessage("Slater condition for primal problem for SDP %d fulfilled, smallest eigenvalue maximization problem unbounded.\n", sdpi->sdpid);/*lint !e687*/
-         sdpi->primalslater = SCIP_SDPSLATER_HOLDS;
-      }
-      else if ( SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) )
+      if ( SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) )
       {
          SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
 
@@ -1412,6 +1388,30 @@ SCIP_RETCODE checkSlaterCondition(
                SCIPdebugMessage("Slater condition for primal problem of SDP %d is fulfilled (smallest eigenvalue %f).\n", sdpi->sdpid, - objval);/*lint !e687*/
             sdpi->primalslater = SCIP_SDPSLATER_HOLDS;
          }
+      }
+      else if ( SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver) )
+      {
+         if ( rootnodefailed )
+         {
+            SCIPmessagePrintInfo(sdpi->messagehdlr, "Primal Slater condition shows infeasibility.\\n");
+         }
+         else if ( sdpi->slatercheck == 2 )
+         {
+            SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problem for SDP %d not fulfilled "
+                  "(smallest eigenvalue has to be negative, so primal problem is infeasible; if the dual slater condition holds,"
+                  "this means, that the original (dual) problem is unbounded).\n", sdpi->sdpid);
+         }
+         sdpi->primalslater = SCIP_SDPSLATER_NOT;
+      }
+      else if ( SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver) )
+      {
+         if ( rootnodefailed )
+         {
+            SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problems holds sunce smallest eigenvalue maximization problem is unbounded.\n");
+         }
+         else
+            SCIPdebugMessage("Slater condition for primal problem for SDP %d fulfilled, smallest eigenvalue maximization problem unbounded.\n", sdpi->sdpid);/*lint !e687*/
+         sdpi->primalslater = SCIP_SDPSLATER_HOLDS;
       }
       else
       {
