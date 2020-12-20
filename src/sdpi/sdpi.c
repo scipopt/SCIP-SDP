@@ -1182,7 +1182,7 @@ SCIP_RETCODE checkSlaterCondition(
       }
       else
       {
-         SCIPdebugMessage("Slater condition for dual problem for SDP %d fullfilled.\n", sdpi->sdpid);/*lint !e687*/
+         SCIPdebugMessage("Slater condition for dual problem for SDP %d fulfilled.\n", sdpi->sdpid);/*lint !e687*/
       }
       sdpi->dualslater = SCIP_SDPSLATER_HOLDS;
    }
@@ -2702,7 +2702,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    /* exit if infeasible */
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("SDP %d not given to solver, as infeasibility was detected during problem preparation!\n", sdpi->sdpid++);
+      SCIPdebugMessage("SDP %d not given to solver, snce infeasibility was detected during problem preparation!\n", sdpi->sdpid++);
       SCIP_CALL( SCIPsdpiSolverIncreaseCounter(sdpi->sdpisolver) );
 
       sdpi->solved = TRUE;
@@ -3866,7 +3866,7 @@ SCIP_RETCODE SCIPsdpiSettingsUsed(
    return SCIP_OKAY;
 }
 
-/** returns which settings the SDP-solver used in the last solve call and whether primal and dual Slater condition were fullfilled */
+/** returns which settings the SDP-solver used in the last solve call and whether primal and dual Slater condition were fulfilled */
 SCIP_RETCODE SCIPsdpiSlaterSettings(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
    SCIP_SDPSLATERSETTING* slatersetting      /**< the combination of Slater conditions and successfull settings */
