@@ -903,7 +903,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    if ( nlpcons > 0 )
    {
-      int newpos = 0; /* the position in the lhs and rhs arrays */
       int pos = 0;
 
       /* allocate memory to save which lpvariable corresponds to which original lp constraint, negative signs correspond to left-hand-sides of lp constraints,
@@ -915,36 +914,33 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* compute the number of LP constraints after splitting the ranged rows and compute the rowtovarmapper */
       for (i = 0; i < nlpcons; i++)
       {
-         assert( newpos <= nlpcons );
-         if ( lplhs[newpos] > - SCIPsdpiSolverInfinity(sdpisolver) )
+         if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
          {
             vartorowmapper[pos] = -(i+1);
-            vartolhsrhsmapper[pos++] = newpos;
+            vartolhsrhsmapper[pos++] = i;
 
 #if CONVERT_ABSOLUTE_TOLERANCES
             /* update largest rhs-entry */
-            if ( REALABS(lplhs[newpos]) > maxrhscoef )
-               maxrhscoef = REALABS(lplhs[newpos]);
+            if ( REALABS(lplhs[i]) > maxrhscoef )
+               maxrhscoef = REALABS(lplhs[i]);
 #endif
 
          }
 
-         if ( lprhs[newpos] < SCIPsdpiSolverInfinity(sdpisolver) )
+         if ( lprhs[i] < SCIPsdpiSolverInfinity(sdpisolver) )
          {
             vartorowmapper[pos] = i+1;
-            vartolhsrhsmapper[pos++] = newpos;
+            vartolhsrhsmapper[pos++] = i;
 
 #if CONVERT_ABSOLUTE_TOLERANCES
             /* update largest rhs-entry */
-            if ( REALABS(lprhs[newpos]) > maxrhscoef )
-               maxrhscoef = REALABS(lprhs[newpos]);
+            if ( REALABS(lprhs[i]) > maxrhscoef )
+               maxrhscoef = REALABS(lprhs[i]);
 #endif
          }
-         newpos++;
       }
       nlpvars = pos;
-      assert( newpos == nlpcons );
-      assert( nlpvars <= 2*nlpcons ); /* factor 2 comes from left- and right-hand-sides */
+      assert( nlpvars <= 2 * nlpcons ); /* factor 2 comes from left- and right-hand-sides */
    }
    else
       nlpvars = 0;
@@ -1176,87 +1172,61 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
 
    /* enter LP rows */
-   nnonz = 0;
-   for (i = 0; i < nlpvars; i++)
+   if ( lpnnonz > 0 )
    {
-      assert( vartorowmapper != NULL ); /* for lint */
-      assert( vartorowmapper[i] != 0 );
+      int currentrow;
+      int varcnt = 0;
 
-      if ( vartorowmapper[i] < 0 ) /* left-hand side */
+      currentrow = lprow[0];
+      mosekind = 0;
+      for (nnonz = 0; nnonz < lpnnonz; ++nnonz)
       {
-         mosekind = 0;
+         assert( nnonz == 0 || lprow[nnonz-1] <= lprow[nnonz] );  /* rows should be sorted */
 
-         ind = - vartorowmapper[i] - 1;
-         assert( 0 <= ind && ind < nlpcons );
-
-         /* find the first lp-entry belonging to this variable (those in between have to belong to constraints with less than two active variables and
-          * will therefore not be used) */
-         while ( nnonz < lpnnonz && lprow[nnonz] < ind )
-            ++nnonz;
-
-         /* iterate over all nonzeros to input them to the array given to MOSEK */
-         while ( nnonz < lpnnonz && lprow[nnonz] == ind ) /* they should already be sorted by rows in the sdpi */
+         v = sdpisolver->inputtomosekmapper[lpcol[nnonz]];
+         if ( v >= 0 )
          {
-            v = sdpisolver->inputtomosekmapper[lpcol[nnonz]];
-            if ( v >= 0 )
+            mosekrow[mosekind] = v;
+            mosekval[mosekind++] = lpval[nnonz];
+         }
+
+         /* we finished a row */
+         if ( nnonz == lpnnonz - 1 || lprow[nnonz + 1] > currentrow )
+         {
+            /* all rows with at most one nonzero should have been sorted out */
+            assert( mosekind >= 2 );
+
+            /* add the additional entry for the penalty constraint Trace = Gamma */
+            if ( penaltyparam >= sdpisolver->epsilon )
             {
-               mosekrow[mosekind] = v;
-               mosekval[mosekind++] = lpval[nnonz];
+               mosekrow[mosekind] = sdpisolver->nactivevars;
+               mosekval[mosekind++] = 1.0;
             }
-            ++nnonz;
-         }
-         assert( mosekind <= lpnnonz );
-      }
-      else /* right-hand side */
-      {
-         if ( i > 0 && vartorowmapper[i] == - vartorowmapper[i - 1] )
-         {
-            /* we already iterated over this constraint in the lp-arrays, so we keep the current ind position and as we currenlty have
-             * the corresponding entries in the mosek-arrays, we iterate over them again just changing the signs (except for the penalty-entry) */
-            for (j = 0; j < (penaltyparam < sdpisolver->epsilon ? mosekind : mosekind - 1); j++)/*lint !e644*/
-               mosekval[j] *= -1.0;
-         }
-         else
-         {
-            /* no left hand side for this constraint exists, so we did not yet iterate over this constraint in the lp arrays */
+            assert( mosekind <= lpnnonz + 1 );
+
+            /* treat left hand side */
+            if ( lplhs[currentrow] > - SCIPsdpiSolverInfinity(sdpisolver) )
+            {
+               MOSEK_CALL( MSK_putacol(sdpisolver->msktask, varcnt++, mosekind, mosekrow, mosekval) );/*lint !e641*/
+            }
+
+            /* treat right hand side */
+            if ( lprhs[currentrow] < SCIPsdpiSolverInfinity(sdpisolver) )
+            {
+               /* multiply column by -1 */
+               for (j = 0; j < (penaltyparam < sdpisolver->epsilon ? mosekind : mosekind - 1); j++)/*lint !e644*/
+                  mosekval[j] *= -1.0;
+
+               MOSEK_CALL( MSK_putacol(sdpisolver->msktask, varcnt++, mosekind, mosekrow, mosekval) );/*lint !e641*/
+            }
+
+            /* reset counters */
             mosekind = 0;
-
-            ind = vartorowmapper[i] - 1;
-            assert( 0 <= ind && ind < nlpcons );
-
-            /* find the first lp-entry belonging to this variable (those in between have to belong to constraints with less than two active variables and
-             * will therefore not be used) */
-            while ( nnonz < lpnnonz && lprow[nnonz] < ind )
-               ++nnonz;
-
-            while ( nnonz < lpnnonz && lprow[nnonz] == ind )
-            {
-               v = sdpisolver->inputtomosekmapper[lpcol[nnonz]];
-               if ( v >= 0 )
-               {
-                  mosekrow[mosekind] = v;
-                  mosekval[mosekind++] = - lpval[nnonz]; /* because we need to change the <= to a >= constraint */
-               }
-               ++nnonz;
-            }
-            assert( mosekind <= lpnnonz );
+            if ( nnonz < lpnnonz )
+               currentrow = lprow[nnonz+1];
          }
       }
-
-      /* add the additional entry for the penalty constraint Trace = Gamma */
-      if ( penaltyparam >= sdpisolver->epsilon )
-      {
-         /* check if we reset mosekind, in case we did not and just "copied" the lhs-entries for the rhs, we do not need to reset the extra entry,
-          * since it is already there */
-         if ( ! (i > 0 && vartorowmapper[i] == - vartorowmapper[i - 1]) )
-         {
-            mosekrow[mosekind] = sdpisolver->nactivevars;
-            mosekval[mosekind++] = 1.0;
-         }
-         assert( mosekind <= lpnnonz + 1 );
-      }
-
-      MOSEK_CALL( MSK_putacol(sdpisolver->msktask, i, mosekind, mosekrow, mosekval) );/*lint !e641*/
+      assert( varcnt == nlpvars );
    }
 
    BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &mosekval);
