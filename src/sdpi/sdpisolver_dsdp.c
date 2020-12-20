@@ -1123,7 +1123,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       int nextcol;
       int* rowmapper; /* maps the lhs- and rhs-inequalities of the old LP-cons to their constraint numbers in DSDP */
       int pos;
-      int newpos;
       int nlpineqs;
 
       assert( lprhs != NULL );
@@ -1136,10 +1135,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       /* compute the rowmapper and the number of inequalities we have to add to DSDP (as we have to split the ranged rows) */
       pos = 0;
-      newpos = 0; /* the position in the lhs and rhs arrays */
       for (i = 0; i < nlpcons; i++)
       {
-         if ( lplhs[newpos] > - SCIPsdpiSolverInfinity(sdpisolver) )
+         if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
          {
             rowmapper[2*i] = pos; /*lint !e679*/
             pos++;
@@ -1147,15 +1145,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          else
             rowmapper[2*i] = -1; /*lint !e679*/
 
-         if ( lprhs[newpos] < SCIPsdpiSolverInfinity(sdpisolver) )
+         if ( lprhs[i] < SCIPsdpiSolverInfinity(sdpisolver) )
          {
             rowmapper[2*i + 1] = pos; /*lint !e679*/
             pos++;
          }
          else
             rowmapper[2*i + 1] = -1; /*lint !e679*/
-
-         newpos++;
       }
       nlpineqs = pos;
       assert( nlpineqs <= 2*nlpcons ); /* *2 comes from left- and right-hand-sides */
@@ -1239,14 +1235,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
          {
-    	      if ( REALABS(lplhs[i]) > sdpisolver->epsilon )
-    	      {
-    		      dsdplprow[dsdpnlpnonz] = pos;
-    		      dsdplpval[dsdpnlpnonz] = -lplhs[i]; /* we multiply by -1 because DSDP wants <= instead of >= */
-    		      dsdpnlpnonz++;
-    	      }
-    	      pos++;
+            if ( REALABS(lplhs[i]) > sdpisolver->epsilon )
+            {
+               dsdplprow[dsdpnlpnonz] = pos;
+               dsdplpval[dsdpnlpnonz] = -lplhs[i]; /* we multiply by -1 because DSDP wants <= instead of >= */
+               dsdpnlpnonz++;
+            }
+            pos++;
          }
+
          if ( lprhs[i] < SCIPsdpiSolverInfinity(sdpisolver) )
          {
             if ( REALABS(lprhs[i]) > sdpisolver->epsilon )
