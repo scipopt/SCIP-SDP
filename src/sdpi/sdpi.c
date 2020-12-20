@@ -1113,7 +1113,7 @@ SCIP_RETCODE checkSlaterCondition(
    assert( sdpi->nsdpblocks == 0 || nremovedinds != NULL );
    assert( nactivelpcons == 0 || sdpilplhs != NULL );
    assert( nactivelpcons == 0 || sdpilprhs != NULL );
-   assert( sdpi->nlpcons == 0 || rowsnactivevars != NULL );
+   assert( nactivelpcons == 0 || rowsnactivevars != NULL );
    assert( sdpi->nsdpblocks == 0 || blockindchanges != NULL );
 
    /* first check the Slater condition for the dual problem */
@@ -1243,7 +1243,7 @@ SCIP_RETCODE checkSlaterCondition(
    /* add the new entries sum_j [(A_i)_jj], for this we have to iterate over the whole sdp-matrices (for all blocks), adding all diagonal entries */
    for (v = 0; v < sdpi->nvars; v++)
    {
-      slaterlprow[sdpilpnnonz + v] = sdpi->nlpcons;/*lint !e679*/
+      slaterlprow[sdpilpnnonz + v] = nactivelpcons;/*lint !e679*/
       slaterlpcol[sdpilpnnonz + v] = v;/*lint !e679*/
       slaterlpval[sdpilpnnonz + v] = 0.0;/*lint !e679*/
    }
@@ -1297,21 +1297,21 @@ SCIP_RETCODE checkSlaterCondition(
    slaterlprhs[nactivelpcons] = SCIPsdpiSolverInfinity(sdpi->sdpisolver);
 
    /* allocate memory for rowsnactivevars to update it for the added row */
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterrowsnactivevars, sdpi->nlpcons + 1) );/*lint !e776*/
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterrowsnactivevars, nactivelpcons + 1) );/*lint !e776*/
 
    /* copy the old entries */
-   for (i = 0; i < sdpi->nlpcons; i++)
+   for (i = 0; i < nactivelpcons; i++)
       slaterrowsnactivevars[i] = rowsnactivevars[i];
 
    /* add the new entry (this equals the number of active variables) */
-   slaterrowsnactivevars[sdpi->nlpcons] = 0;
+   slaterrowsnactivevars[nactivelpcons] = 0;
    for (v = 0; v < sdpi->nvars; v++)
    {
       if ( ! isFixed(sdpi, v) )
-         slaterrowsnactivevars[sdpi->nlpcons]++;
+         slaterrowsnactivevars[nactivelpcons]++;
    }
 
-   slaternactivelpcons = (slaterrowsnactivevars[sdpi->nlpcons] > 1) ? nactivelpcons + 1 : nactivelpcons;
+   slaternactivelpcons = (slaterrowsnactivevars[nactivelpcons] > 1) ? nactivelpcons + 1 : nactivelpcons;
 
    /* copy the varbound arrays to change all finite varbounds to zero */
    DUPLICATE_ARRAY_NULL(sdpi->blkmem, &slaterlb, sdpilb, sdpi->nvars);
@@ -1356,7 +1356,7 @@ SCIP_RETCODE checkSlaterCondition(
       SCIP_CALL( SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, slaterlb, slaterub,
             sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, 0, NULL, NULL, NULL, NULL,
             sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-            sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, slaternactivelpcons, sdpi->nlpcons + 1, slaterlplhs, slaterlprhs,
+            sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, slaternactivelpcons, slaternactivelpcons, slaterlplhs, slaterlprhs,
             slaterrowsnactivevars, sdpilpnnonz + sdpi->nvars - nremovedslaterlpinds, slaterlprow, slaterlpcol, slaterlpval, NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit) );
 
@@ -1430,7 +1430,7 @@ SCIP_RETCODE checkSlaterCondition(
    /* free all memory */
    BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterub, sdpi->nvars);/*lint !e737*/
    BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlb, sdpi->nvars);/*lint !e737*/
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterrowsnactivevars, sdpi->nlpcons + 1);/*lint !e737*//*lint !e776*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterrowsnactivevars, nactivelpcons + 1);/*lint !e737*//*lint !e776*/
    BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlprhs, nactivelpcons + 1);/*lint !e737*//*lint !e776*/
    BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlplhs, nactivelpcons + 1);/*lint !e737*//*lint !e776*/
    BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlpval, sdpilpnnonz + sdpi->nvars);/*lint !e737*//*lint !e776*/
