@@ -575,7 +575,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lplhs,              /**< left hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
-   int*                  rownactivevars,     /**< number of active variables for each LP constraint */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
@@ -604,7 +603,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 {
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, FALSE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
-               nremovedinds, blockindchanges, nremovedblocks, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol, lpval,
+               nremovedinds, blockindchanges, nremovedblocks, nlpcons, noldlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
                starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval, startsettings,
                timelimit, NULL, NULL);
 }
@@ -666,7 +665,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lplhs,              /**< left hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
-   int*                  rownactivevars,     /**< number of active variables for each LP constraint */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
@@ -763,7 +761,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( noldlpcons >= nlpcons );
    assert( nlpcons == 0 || lplhs != NULL );
    assert( nlpcons == 0 || lprhs != NULL );
-   assert( nlpcons == 0 || rownactivevars != NULL );
    assert( lpnnonz >= 0 );
    assert( nlpcons == 0 || lprow != NULL );
    assert( nlpcons == 0 || lpcol != NULL );
@@ -922,34 +919,31 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       for (i = 0; i < noldlpcons; i++)
       {
          assert( newpos <= nlpcons );
-         if ( rownactivevars[i] >= 2 )
+         if ( lplhs[newpos] > - SCIPsdpiSolverInfinity(sdpisolver) )
          {
-            if ( lplhs[newpos] > - SCIPsdpiSolverInfinity(sdpisolver) )
-            {
-               vartorowmapper[pos] = -(i+1);
-               vartolhsrhsmapper[pos++] = newpos;
+            vartorowmapper[pos] = -(i+1);
+            vartolhsrhsmapper[pos++] = newpos;
 
 #if CONVERT_ABSOLUTE_TOLERANCES
-               /* update largest rhs-entry */
-               if ( REALABS(lplhs[newpos]) > maxrhscoef )
-                  maxrhscoef = REALABS(lplhs[newpos]);
+            /* update largest rhs-entry */
+            if ( REALABS(lplhs[newpos]) > maxrhscoef )
+               maxrhscoef = REALABS(lplhs[newpos]);
 #endif
 
-            }
-
-            if ( lprhs[newpos] < SCIPsdpiSolverInfinity(sdpisolver) )
-            {
-               vartorowmapper[pos] = i+1;
-               vartolhsrhsmapper[pos++] = newpos;
-
-#if CONVERT_ABSOLUTE_TOLERANCES
-               /* update largest rhs-entry */
-               if ( REALABS(lprhs[newpos]) > maxrhscoef )
-                  maxrhscoef = REALABS(lprhs[newpos]);
-#endif
-            }
-            newpos++;
          }
+
+         if ( lprhs[newpos] < SCIPsdpiSolverInfinity(sdpisolver) )
+         {
+            vartorowmapper[pos] = i+1;
+            vartolhsrhsmapper[pos++] = newpos;
+
+#if CONVERT_ABSOLUTE_TOLERANCES
+            /* update largest rhs-entry */
+            if ( REALABS(lprhs[newpos]) > maxrhscoef )
+               maxrhscoef = REALABS(lprhs[newpos]);
+#endif
+         }
+         newpos++;
       }
       nlpvars = pos;
       assert( newpos == nlpcons );
@@ -1440,7 +1434,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          /* check the solution for feasibility with regards to our tolerance */
          SCIP_CALL( SCIPsdpSolcheckerCheck(sdpisolver->bufmem, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
-               indchanges, nremovedinds, blockindchanges, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol, lpval,
+               indchanges, nremovedinds, blockindchanges, nlpcons, noldlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
                solvector, sdpisolver->feastol, sdpisolver->epsilon, &infeasible) );
 
          BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solvector);
