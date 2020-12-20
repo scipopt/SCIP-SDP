@@ -1221,16 +1221,16 @@ SCIP_RETCODE checkSlaterCondition(
     * (D) min sum_i [c_i x_i] s.t. sum_i [A_i x_i] psd, sum_i[(sum_j [(A_i)_jj]) x_i] >= 1
     *
     * where we also set all finite lhs/rhs of all lp-constraints and varbounds to zero.
-    * If the objective is strictly positive, than we now that there exists some r > 0 such that
+    * If the objective is strictly positive, then we know that there exists some r > 0 such that
     * Y is psd and Y+rI is feasible for the equality constraints in our original primal problem,
     * so Y+rI is also feasible for the original primal problem and is strictly positive definite
-    * so the primal Slater condition holds
+    * so the primal Slater condition holds.
     */
 
-   /* allocate the LP-arrays, as we have to add the additional LP-constraint, because we want to add extra entries, we cannot use BMSduplicate... */
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlprow, sdpi->lpnnonz + sdpi->nvars) );/*lint !e776*/
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlpcol, sdpi->lpnnonz + sdpi->nvars) );/*lint !e776*/
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlpval, sdpi->lpnnonz + sdpi->nvars) );/*lint !e776*/
+   /* allocate the LP-arrays, as we have to add the additional LP-constraint. Because we want to add extra entries, we cannot use BMSduplicate... */
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlprow, sdpilpnnonz + sdpi->nvars) );/*lint !e776*/
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlpcol, sdpilpnnonz + sdpi->nvars) );/*lint !e776*/
+   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &slaterlpval, sdpilpnnonz + sdpi->nvars) );/*lint !e776*/
 
    /* copy all old LP-entries */
    for (i = 0; i < sdpilpnnonz; i++)
@@ -1243,9 +1243,9 @@ SCIP_RETCODE checkSlaterCondition(
    /* add the new entries sum_j [(A_i)_jj], for this we have to iterate over the whole sdp-matrices (for all blocks), adding all diagonal entries */
    for (v = 0; v < sdpi->nvars; v++)
    {
-      slaterlprow[sdpi->lpnnonz + v] = sdpi->nlpcons;/*lint !e679*/
-      slaterlpcol[sdpi->lpnnonz + v] = v;/*lint !e679*/
-      slaterlpval[sdpi->lpnnonz + v] = 0.0;/*lint !e679*/
+      slaterlprow[sdpilpnnonz + v] = sdpi->nlpcons;/*lint !e679*/
+      slaterlpcol[sdpilpnnonz + v] = v;/*lint !e679*/
+      slaterlpval[sdpilpnnonz + v] = 0.0;/*lint !e679*/
    }
    for (b = 0; b < sdpi->nsdpblocks; b++)
    {
@@ -1254,7 +1254,7 @@ SCIP_RETCODE checkSlaterCondition(
          for (i = 0; i < sdpi->sdpnblockvarnonz[b][v]; i++)
          {
             if ( sdpi->sdprow[b][v][i] == sdpi->sdpcol[b][v][i] ) /* it is a diagonal entry */
-               slaterlpval[sdpi->lpnnonz + sdpi->sdpvar[b][v]] += sdpi->sdpval[b][v][i];/*lint !e679*/
+               slaterlpval[sdpilpnnonz + sdpi->sdpvar[b][v]] += sdpi->sdpval[b][v][i];/*lint !e679*/
          }
       }
    }
@@ -1263,14 +1263,14 @@ SCIP_RETCODE checkSlaterCondition(
    nremovedslaterlpinds = 0;
    for (v = 0; v < sdpi->nvars; v++)
    {
-      if ( REALABS(slaterlpval[sdpi->lpnnonz + v]) <= sdpi->epsilon )/*lint !e679*/
+      if ( REALABS(slaterlpval[sdpilpnnonz + v]) <= sdpi->epsilon )/*lint !e679*/
          nremovedslaterlpinds++;
       else
       {
          /* shift the entries */
-         slaterlprow[sdpi->lpnnonz + v - nremovedslaterlpinds] = slaterlprow[sdpi->lpnnonz + v];/*lint !e679*/
-         slaterlpcol[sdpi->lpnnonz + v - nremovedslaterlpinds] = slaterlpcol[sdpi->lpnnonz + v];/*lint !e679*/
-         slaterlpval[sdpi->lpnnonz + v - nremovedslaterlpinds] = slaterlpval[sdpi->lpnnonz + v];/*lint !e679*/
+         slaterlprow[sdpilpnnonz + v - nremovedslaterlpinds] = slaterlprow[sdpilpnnonz + v];/*lint !e679*/
+         slaterlpcol[sdpilpnnonz + v - nremovedslaterlpinds] = slaterlpcol[sdpilpnnonz + v];/*lint !e679*/
+         slaterlpval[sdpilpnnonz + v - nremovedslaterlpinds] = slaterlpval[sdpilpnnonz + v];/*lint !e679*/
       }
    }
 
@@ -1357,7 +1357,7 @@ SCIP_RETCODE checkSlaterCondition(
             sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, 0, NULL, NULL, NULL, NULL,
             sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
             sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, slaternactivelpcons, sdpi->nlpcons + 1, slaterlplhs, slaterlprhs,
-            slaterrowsnactivevars, sdpi->lpnnonz + sdpi->nvars - nremovedslaterlpinds, slaterlprow, slaterlpcol, slaterlpval, NULL, NULL, NULL, NULL,
+            slaterrowsnactivevars, sdpilpnnonz + sdpi->nvars - nremovedslaterlpinds, slaterlprow, slaterlpcol, slaterlpval, NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit) );
 
       /* analyze result */
@@ -1433,9 +1433,9 @@ SCIP_RETCODE checkSlaterCondition(
    BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterrowsnactivevars, sdpi->nlpcons + 1);/*lint !e737*//*lint !e776*/
    BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlprhs, nactivelpcons + 1);/*lint !e737*//*lint !e776*/
    BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlplhs, nactivelpcons + 1);/*lint !e737*//*lint !e776*/
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlpval, sdpi->lpnnonz + sdpi->nvars);/*lint !e737*//*lint !e776*/
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlpcol, sdpi->lpnnonz + sdpi->nvars);/*lint !e737*//*lint !e776*/
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlprow, sdpi->lpnnonz + sdpi->nvars);/*lint !e737*//*lint !e776*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlpval, sdpilpnnonz + sdpi->nvars);/*lint !e737*//*lint !e776*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlpcol, sdpilpnnonz + sdpi->nvars);/*lint !e737*//*lint !e776*/
+   BMSfreeBlockMemoryArray(sdpi->blkmem, &slaterlprow, sdpilpnnonz + sdpi->nvars);/*lint !e737*//*lint !e776*/
 
    return SCIP_OKAY;
 }
