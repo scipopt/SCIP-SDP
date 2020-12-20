@@ -1068,8 +1068,8 @@ SCIP_RETCODE checkSlaterCondition(
    int**                 indchanges,         /**< index changes for each variable in each block; variable v is removed in block b if indchanges[b][v] = -1,
                                               *   otherwise it gives the number of removed variables with smaller indices (may be NULL if sdpi->nsdpblocks = 0)*/
    int*                  nremovedinds,       /**< number of removed variables for each block (may be NULL if sdpi->nsdpblocks = 0) */
-   SCIP_Real*            lplhsafterfix,      /**< left-hand sides of LP-constraints after fixing variables (may be NULL if nactivelpcons = 0) */
-   SCIP_Real*            lprhsafterfix,      /**< right-hand sides of LP-constraints after fixing variables (may be NULL if nactivelpcons = 0) */
+   SCIP_Real*            sdpilplhs,          /**< left-hand sides of LP-constraints after fixing variables (may be NULL if nactivelpcons = 0) */
+   SCIP_Real*            sdpilprhs,          /**< right-hand sides of LP-constraints after fixing variables (may be NULL if nactivelpcons = 0) */
    int*                  rowsnactivevars,    /**< number of active variables for each LP-constraint (may be NULL if sdpi->nlpcons = 0) */
    int*                  blockindchanges,    /**< index changes for SDP-blocks; blockindchanges[b] = -1 if SDP-block b should be removed
                                               *   (may be NULL if sdpi->nsdpblocks = 0) */
@@ -1107,8 +1107,8 @@ SCIP_RETCODE checkSlaterCondition(
    assert( sdpconstnnonz == 0 || sdpconstval != NULL );
    assert( sdpi->nsdpblocks == 0 || indchanges != NULL );
    assert( sdpi->nsdpblocks == 0 || nremovedinds != NULL );
-   assert( nactivelpcons == 0 || lplhsafterfix != NULL );
-   assert( nactivelpcons == 0 || lprhsafterfix != NULL );
+   assert( nactivelpcons == 0 || sdpilplhs != NULL );
+   assert( nactivelpcons == 0 || sdpilprhs != NULL );
    assert( sdpi->nlpcons == 0 || rowsnactivevars != NULL );
    assert( sdpi->nsdpblocks == 0 || blockindchanges != NULL );
 
@@ -1128,7 +1128,7 @@ SCIP_RETCODE checkSlaterCondition(
          sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
          sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
          sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-         sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, nactivelpcons, lplhsafterfix, lprhsafterfix,
+         sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, nactivelpcons, sdpilplhs, sdpilprhs,
          rowsnactivevars, sdpi->lpnnonz, sdpi->lprow, sdpi->lpcol, sdpi->lpval, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
          SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit, &origfeas, &penaltybound) );
 
@@ -1279,13 +1279,13 @@ SCIP_RETCODE checkSlaterCondition(
    /* set the old entries to zero (if existing), as A_0 (including the LP-part) is removed because of the changed primal objective */
    for (i = 0; i < nactivelpcons; i++)
    {
-      if ( SCIPsdpiSolverIsInfinity(sdpi->sdpisolver, lplhsafterfix[i]) )
-         slaterlplhs[i] = lplhsafterfix[i];
+      if ( SCIPsdpiSolverIsInfinity(sdpi->sdpisolver, sdpilplhs[i]) )
+         slaterlplhs[i] = sdpilplhs[i];
       else
          slaterlplhs[i] = 0.0;
 
-      if ( SCIPsdpiSolverIsInfinity(sdpi->sdpisolver, lprhsafterfix[i]) )
-         slaterlprhs[i] = lprhsafterfix[i];
+      if ( SCIPsdpiSolverIsInfinity(sdpi->sdpisolver, sdpilprhs[i]) )
+         slaterlprhs[i] = sdpilprhs[i];
       else
          slaterlprhs[i] = 0.0;
    }
