@@ -1062,12 +1062,14 @@ SCIP_RETCODE checkSlaterCondition(
    SCIP_Real*            sdpiub,             /**< array of upper bounds */
    int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
                                               *   number of entries  of sdpconst row/col/val [i] (may be NULL if sdpconstnnonz = 0) */
+   int                   sdpconstnnonz,      /**< total number of nonzeros in the constant SDP part */
    int**                 sdpconstrow,        /**< pointer to row-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
    int**                 sdpconstcol,        /**< pointer to column-indices of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
    SCIP_Real**           sdpconstval,        /**< pointer to values of constant matrix for each block (may be NULL if sdpconstnnonz = 0) */
    int**                 indchanges,         /**< index changes for each variable in each block; variable v is removed in block b if indchanges[b][v] = -1,
                                               *   otherwise it gives the number of removed variables with smaller indices (may be NULL if sdpi->nsdpblocks = 0)*/
    int*                  nremovedinds,       /**< number of removed variables for each block (may be NULL if sdpi->nsdpblocks = 0) */
+   int                   nactivelpcons,      /**< number of active LP-constraints */
    SCIP_Real*            sdpilplhs,          /**< prepared array LP-constraints after fixing variables */
    SCIP_Real*            sdpilprhs,          /**< prepared array of LP-constraints after fixing variables */
    int*                  rowsnactivevars,      /**<  temporary */
@@ -1077,8 +1079,6 @@ SCIP_RETCODE checkSlaterCondition(
    SCIP_Real*            sdpilpval,          /**< prepared array of nonzero values */
    int*                  blockindchanges,    /**< index changes for SDP-blocks; blockindchanges[b] = -1 if SDP-block b should be removed
                                               *   (may be NULL if sdpi->nsdpblocks = 0) */
-   int                   sdpconstnnonz,      /**< total number of nonzeros in the constant SDP part */
-   int                   nactivelpcons,      /**< number of active LP-constraints */
    int                   nremovedblocks,     /**< number of removed SDP-blocks */
    SCIP_Bool             rootnodefailed      /**< if TRUE we will output a message that the root node could not be solved and whether this was due
                                               *   to the Slater condition, otherwise we will print depending on sdpi->slatercheck */
@@ -2782,9 +2782,9 @@ SCIP_RETCODE SCIPsdpiSolve(
 
       if ( sdpi->slatercheck )
       {
-         SCIP_CALL( checkSlaterCondition(sdpi, timelimit, starttime, sdpi->sdpilb, sdpi->sdpiub, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges,
-               nremovedinds, sdpi->sdpilplhs, sdpi->sdpilprhs, rowsnactivevars, sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval,
-               blockindchanges, sdpconstnnonz, nactivelpcons, nremovedblocks, FALSE) );
+         SCIP_CALL( checkSlaterCondition(sdpi, timelimit, starttime, sdpi->sdpilb, sdpi->sdpiub, sdpconstnblocknonz, sdpconstnnonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges,
+               nremovedinds, nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs, rowsnactivevars, sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval,
+               blockindchanges, nremovedblocks, FALSE) );
       }
 
       /* compute the timit limit to set for the solver */
@@ -3002,9 +3002,9 @@ SCIP_RETCODE SCIPsdpiSolve(
             /* if we still didn't succeed and enforceslatercheck was set, we finally test for the Slater condition to give a reason for failure */
             if ( sdpi->solved == FALSE && enforceslatercheck)
             {
-               SCIP_CALL( checkSlaterCondition(sdpi, timelimit, starttime, sdpi->sdpilb, sdpi->sdpiub, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges,
-                     nremovedinds, sdpi->sdpilplhs, sdpi->sdpilprhs, rowsnactivevars, sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval,
-                     blockindchanges, sdpconstnnonz, nactivelpcons, nremovedblocks, TRUE) );
+               SCIP_CALL( checkSlaterCondition(sdpi, timelimit, starttime, sdpi->sdpilb, sdpi->sdpiub, sdpconstnblocknonz, sdpconstnnonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges,
+                     nremovedinds, nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs, rowsnactivevars, sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval,
+                     blockindchanges, nremovedblocks, TRUE) );
             }
             else if ( sdpi->solved == FALSE )
             {
