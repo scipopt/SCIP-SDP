@@ -216,7 +216,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
-   int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
@@ -300,7 +299,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
-   int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */

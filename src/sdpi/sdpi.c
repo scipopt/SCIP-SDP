@@ -1128,7 +1128,7 @@ SCIP_RETCODE checkSlaterCondition(
          sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
          sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol, sdpi->sdpval,
          indchanges, nremovedinds, blockindchanges, nremovedblocks,
-         nactivelpcons, nactivelpcons, sdpilplhs, sdpilprhs, sdpilpnnonz, sdpilprow, sdpilpcol, sdpilpval,
+         nactivelpcons, sdpilplhs, sdpilprhs, sdpilpnnonz, sdpilprow, sdpilpcol, sdpilpval,
          NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
          SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit, &origfeas, &penaltybound) );
 
@@ -1343,7 +1343,7 @@ SCIP_RETCODE checkSlaterCondition(
       SCIP_CALL( SCIPsdpiSolverLoadAndSolve(sdpi->sdpisolver, sdpi->nvars, sdpi->obj, slaterlb, slaterub,
             sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, 0, NULL, NULL, NULL, NULL,
             sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-            sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, slaternactivelpcons, slaternactivelpcons, slaterlplhs, slaterlprhs,
+            sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, slaternactivelpcons, slaterlplhs, slaterlprhs,
             sdpilpnnonz + sdpi->nvars - nremovedslaterlpinds, slaterlprow, slaterlpcol, slaterlpval, NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit) );
 
@@ -2782,7 +2782,7 @@ SCIP_RETCODE SCIPsdpiSolve(
             sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
             sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-            sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs,
+            sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs,
             sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval, starty, startZnblocknonz, startZrow, startZcol, startZval,
             startXnblocknonz, startXrow, startXcol, startXval, startsettings, solvertimelimit) );
 
@@ -2832,7 +2832,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-               sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs,
+               sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs,
                sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval, starty, startZnblocknonz, startZrow, startZcol, startZval,
                startXnblocknonz, startXrow, startXcol, startXval, SCIP_SDPSOLVERSETTING_UNSOLVED, solvertimelimit, &feasorig, &penaltybound) );
 
@@ -2906,7 +2906,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                      sdpi->sdpilb, sdpi->sdpiub, sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
                      sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                      sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-                     sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs,
+                     sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs,
                      sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval, starty, startZnblocknonz, startZrow, startZcol, startZval,
                      startXnblocknonz, startXrow, startXcol, startXval, startsettings, solvertimelimit, &feasorig, &penaltybound) );
 

@@ -602,7 +602,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
-   int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
@@ -633,7 +632,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 {
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, TRUE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars,
            sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
-           indchanges, nremovedinds, blockindchanges, nremovedblocks, nlpcons, noldlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol,
+           indchanges, nremovedinds, blockindchanges, nremovedblocks, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol,
            lpval, starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval, startsettings,
            timelimit, NULL, NULL);
 }
@@ -692,7 +691,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
-   int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
@@ -774,7 +772,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( nsdpblocks == 0 || blockindchanges != NULL );
    assert( 0 <= nremovedblocks && nremovedblocks <= nsdpblocks );
    assert( nlpcons >= 0 );
-   assert( noldlpcons >= nlpcons );
    assert( nlpcons == 0 || lplhs != NULL );
    assert( nlpcons == 0 || lprhs != NULL );
    assert( lpnnonz >= 0 );
@@ -1129,19 +1126,18 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       int newpos;
       int nlpineqs;
 
-      assert( noldlpcons > 0 );
       assert( lprhs != NULL );
       assert( lpcol != NULL );
       assert( lprow != NULL );
       assert( lpval != NULL );
 
       /* allocate memory to save which lpconstraints are mapped to which index, entry 2i corresponds to the left hand side of row i, 2i+1 to the rhs */
-      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &rowmapper, 2*noldlpcons) ); /*lint !e647*/
+      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &rowmapper, 2 * nlpcons) ); /*lint !e647*/
 
       /* compute the rowmapper and the number of inequalities we have to add to DSDP (as we have to split the ranged rows) */
       pos = 0;
       newpos = 0; /* the position in the lhs and rhs arrays */
-      for (i = 0; i < noldlpcons; i++)
+      for (i = 0; i < nlpcons; i++)
       {
          if ( lplhs[newpos] > - SCIPsdpiSolverInfinity(sdpisolver) )
          {
@@ -1490,7 +1486,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* check the solution for feasibility with regards to our tolerance */
       SCIP_CALL( SCIPsdpSolcheckerCheck(sdpisolver->bufmem, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
-            indchanges, nremovedinds, blockindchanges, nlpcons, noldlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
+            indchanges, nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
             solvector, sdpisolver->feastol, sdpisolver->epsilon, &infeasible) );
 
       BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solvector);
