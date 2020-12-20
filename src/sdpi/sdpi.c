@@ -2782,8 +2782,10 @@ SCIP_RETCODE SCIPsdpiSolve(
 
       if ( sdpi->slatercheck )
       {
-         SCIP_CALL( checkSlaterCondition(sdpi, timelimit, starttime, sdpi->sdpilb, sdpi->sdpiub, sdpconstnblocknonz, sdpconstnnonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges,
-               nremovedinds, nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs, rowsnactivevars, sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval,
+         SCIP_CALL( checkSlaterCondition(sdpi, timelimit, starttime, sdpi->sdpilb, sdpi->sdpiub,
+               sdpconstnblocknonz, sdpconstnnonz, sdpconstrow, sdpconstcol, sdpconstval,
+               indchanges, nremovedinds, nactivelpcons,
+               sdpi->sdpilplhs, sdpi->sdpilprhs, rowsnactivevars, sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval,
                blockindchanges, nremovedblocks, FALSE) );
       }
 
@@ -3002,8 +3004,10 @@ SCIP_RETCODE SCIPsdpiSolve(
             /* if we still didn't succeed and enforceslatercheck was set, we finally test for the Slater condition to give a reason for failure */
             if ( sdpi->solved == FALSE && enforceslatercheck)
             {
-               SCIP_CALL( checkSlaterCondition(sdpi, timelimit, starttime, sdpi->sdpilb, sdpi->sdpiub, sdpconstnblocknonz, sdpconstnnonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges,
-                     nremovedinds, nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs, rowsnactivevars, sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval,
+               SCIP_CALL( checkSlaterCondition(sdpi, timelimit, starttime, sdpi->sdpilb, sdpi->sdpiub,
+                     sdpconstnblocknonz, sdpconstnnonz, sdpconstrow, sdpconstcol, sdpconstval,
+                     indchanges, nremovedinds, nactivelpcons,
+                     sdpi->sdpilplhs, sdpi->sdpilprhs, rowsnactivevars, sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval,
                      blockindchanges, nremovedblocks, TRUE) );
             }
             else if ( sdpi->solved == FALSE )
