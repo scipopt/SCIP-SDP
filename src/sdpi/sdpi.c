@@ -317,7 +317,7 @@ static
 int calcGrowSize(
    int                   initsize,           /**< initial size of array */
    int                   num                 /**< minimum number of entries to store */
-    )
+   )
 {
    int oldsize;
    int size;
@@ -2674,6 +2674,7 @@ SCIP_RETCODE SCIPsdpiSolve(
     * lp rows with a single active variable. Note that this changes sdpi->sdpilb and sdpi->sdpiub, but not sdpi->lb and sdpi->ub. */
    do
    {
+      /* we expect that additional fixings are only found seldomly, so this function is usually called only once per solve */
       SCIP_CALL( prepareLPData(sdpi, sdpi->sdpilb, sdpi->sdpiub, &nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs, &sdpilpnnonz,
             sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval, &fixingfound) );
 
@@ -2695,7 +2696,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    }
    assert( ! sdpi->infeasible );
 
-   /* checks whether there are conflicting bounds and whether all variables are fixed */
+   /* Checks whether all variables are fixed; this cannot be done in prepareLPData() because not all variables need to be contained in LP-constraints. */
    sdpi->allfixed = TRUE;
    for (v = 0; v < sdpi->nvars && sdpi->allfixed; v++)
    {
