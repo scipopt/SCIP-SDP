@@ -888,12 +888,19 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* ensure memory for varboundpos, inputtomosekmapper, mosektoinputmapper and the fixed and active variable information */
    SCIP_CALL( ensureMappingDataMemory(sdpisolver, nvars) );
+   BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekvarbounds, 2 * nvars) ); /*lint !e647*/
 
    sdpisolver->nvars = nvars;
    sdpisolver->nactivevars = 0;
+   sdpisolver->nvarbounds = 0;
    nfixedvars = 0;
 
-   /* find the fixed variables */
+   for (i = 0; i < sdpisolver->nactivevars; i++)
+   {
+      assert( 0 <= sdpisolver->mosektoinputmapper[i] && sdpisolver->mosektoinputmapper[i] < nvars );
+   }
+
+   /* find fixed variables */
    sdpisolver->fixedvarsobjcontr = 0.0;
    for (i = 0; i < nvars; i++)
    {
@@ -903,17 +910,31 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          sdpisolver->fixedvarsval[nfixedvars] = lb[i]; /* if lb=ub, then this is the value the variable will have in every solution */
          nfixedvars++;
          sdpisolver->inputtomosekmapper[i] = -nfixedvars;
-         SCIPdebugMessage("Fixing variable %d locally to %f for SDP %d in MOSEK\n", i, lb[i], sdpisolver->sdpcounter);
+         SCIPdebugMessage("Fixing variable %d locally to %f for SDP %d in MOSEK.\n", i, lb[i], sdpisolver->sdpcounter);
       }
       else
       {
+#ifdef SCIP_MORE_DEBUG
+         SCIPdebugMessage("Variable %d becomes variable %d for SDP %d in MOSEK.\n", i, sdpisolver->inputtomosekmapper[i], sdpisolver->sdpcounter);
+#endif
+
          sdpisolver->mosektoinputmapper[sdpisolver->nactivevars] = i;
          sdpisolver->inputtomosekmapper[i] = sdpisolver->nactivevars;
          sdpisolver->objcoefs[sdpisolver->nactivevars] = obj[i];
+
+         if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, lb[i]) )
+         {
+            mosekvarbounds[sdpisolver->nvarbounds] = lb[i];
+            sdpisolver->varboundpos[sdpisolver->nvarbounds++] = -(sdpisolver->nactivevars + 1); /* negative sign means lower bound */
+         }
+
+         if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, ub[i]) )
+         {
+            mosekvarbounds[sdpisolver->nvarbounds] = - ub[i]; /* we give the upper bounds a negative sign for the objective */
+            sdpisolver->varboundpos[sdpisolver->nvarbounds++] = +(sdpisolver->nactivevars + 1); /* positive sign means upper bound */
+         }
+
          sdpisolver->nactivevars++;
-#ifdef SCIP_MORE_DEBUG
-         SCIPdebugMessage("Variable %d becomes variable %d for SDP %d in MOSEK\n", i, sdpisolver->inputtomosekmapper[i], sdpisolver->sdpcounter);
-#endif
       }
    }
    assert( sdpisolver->nactivevars + nfixedvars == sdpisolver->nvars );
@@ -921,25 +942,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* if we want to solve without objective, we reset fixedvarsobjcontr */
    if ( ! withobj )
       sdpisolver->fixedvarsobjcontr = 0.0;
-
-   /* compute number of variable bounds and save them in mosekvarbounds */
-   BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekvarbounds, 2 * sdpisolver->nactivevars) ); /*lint !e647*/
-
-   sdpisolver->nvarbounds = 0;
-   for (i = 0; i < sdpisolver->nactivevars; i++)
-   {
-      assert( 0 <= sdpisolver->mosektoinputmapper[i] && sdpisolver->mosektoinputmapper[i] < nvars );
-      if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, lb[sdpisolver->mosektoinputmapper[i]]) )
-      {
-         mosekvarbounds[sdpisolver->nvarbounds] = lb[sdpisolver->mosektoinputmapper[i]];
-         sdpisolver->varboundpos[sdpisolver->nvarbounds++] = -(i + 1); /* negative sign means lower bound */
-      }
-      if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, ub[sdpisolver->mosektoinputmapper[i]]) )
-      {
-         mosekvarbounds[sdpisolver->nvarbounds] = - ub[sdpisolver->mosektoinputmapper[i]]; /* we give the upper bounds a negative sign for the objective */
-         sdpisolver->varboundpos[sdpisolver->nvarbounds++] = +(i + 1); /* positive sign means upper bound */
-      }
-   }
 
    if ( nlpcons > 0 )
    {
