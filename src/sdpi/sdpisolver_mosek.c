@@ -1383,15 +1383,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          int nmosekvars;
          int nmosekcones;
 
-         MOSEK_CALL( MSK_getnumcon (sdpisolver->msktask, &nmosekconss) );
-         MOSEK_CALL( MSK_getnumvar (sdpisolver->msktask, &nmosekvars) );
-         MOSEK_CALL( MSK_getnumcone (sdpisolver->msktask, &nmosekcones) );
+         MOSEK_CALL( MSK_getnumcon(sdpisolver->msktask, &nmosekconss) );
+         MOSEK_CALL( MSK_getnumvar(sdpisolver->msktask, &nmosekvars) );
+         MOSEK_CALL( MSK_getnumcone(sdpisolver->msktask, &nmosekcones) );
 
          MOSEK_CALL( MSK_printdata(sdpisolver->msktask, MSK_STREAM_LOG, 0, nmosekconss, 0, nmosekvars, 0, nmosekcones, 1, 1, 1, 1, 1, 1, 1, 1) );
       }
 #endif
 #ifdef SCIP_PRINT_PARAMETERS
-      MOSEK_CALL( MSK_printparam (sdpisolver->msktask) );
+      MOSEK_CALL( MSK_printparam(sdpisolver->msktask) );
 #endif
 #endif
 
@@ -1408,7 +1408,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          MOSEK_CALL( MSK_analyzesolution(sdpisolver->msktask, MSK_STREAM_LOG, MSK_SOL_ITR) );/*lint !e641*/
       }
 
-      SCIPdebugMessage("Solving problem using MOSEK, return code %d\n", sdpisolver->terminationcode);
+      SCIPdebugMessage("Solved problem using MOSEK, return code %d.\n", sdpisolver->terminationcode);
 
       sdpisolver->solved = TRUE;
 
@@ -1446,8 +1446,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
          if ( infeasible )
          {
-            SCIPdebugMessage("Solution feasible for MOSEK but outside feasibility tolerance, changing MOSEK feasibility tolerance from %f to %f\n",
-                  feastol, feastol * INFEASFEASTOLCHANGE);
+            SCIPdebugMessage("Solution outside feasibility tolerance, changing MOSEK feasibility tolerance from %f to %f.\n",
+               feastol, feastol * INFEASFEASTOLCHANGE);
             feastol *= INFEASFEASTOLCHANGE;
 
             if ( feastol >= INFEASMINFEASTOL )
@@ -2351,9 +2351,7 @@ SCIP_RETCODE SCIPsdpiSolverGetIterations(
    if ( sdpisolver->timelimitinitial )
       *iterations = 0;
    else
-   {
       *iterations = sdpisolver->niterations;
-   }
 
    return SCIP_OKAY;
 }
@@ -2435,8 +2433,8 @@ SCIP_RETCODE SCIPsdpiSolverGetRealpar(
       *dval = sdpisolver->epsilon;
       break;
    case SCIP_SDPPAR_GAPTOL:
-         *dval = sdpisolver->gaptol;
-         break;
+      *dval = sdpisolver->gaptol;
+      break;
    case SCIP_SDPPAR_FEASTOL:
       *dval = sdpisolver->feastol;
       break;
@@ -2584,6 +2582,7 @@ SCIP_RETCODE SCIPsdpiSolverComputePenaltyparam(
       SCIPdebugMessage("Setting penaltyparameter to %f.\n", compval);
       *penaltyparam = compval;
    }
+
    return SCIP_OKAY;
 }
 
