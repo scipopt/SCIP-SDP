@@ -64,7 +64,6 @@ set(objscipsdpheaders
 )
 
 set(scipsdpheaders
-    scipsdp/BlockMemoryAllocator.h
     scipsdp/SdpVarmapper.h
     scipsdp/SdpVarfixer.h
     scipsdp/cons_sdp.h
