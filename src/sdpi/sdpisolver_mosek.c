@@ -1197,24 +1197,23 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
    }
 
-   /* now add the entries corresponding to the lp-constraints in the dual problem */
-   if ( penaltyparam < sdpisolver->epsilon )
-   {
-      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekrow, lpnnonz) );
-      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekval, lpnnonz) );
-   }
-   else
-   {
-      /* one extra entry for the penalty-constraint Trace = Gamma */
-      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekrow, lpnnonz + 1) );/*lint !e776*/
-      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekval, lpnnonz + 1) );/*lint !e776*/
-   }
-
-   /* enter LP rows */
+   /* add the entries corresponding to the lp-constraints in the dual problem */
    if ( lpnnonz > 0 )
    {
       int currentrow;
       int varcnt = 0;
+
+      if ( penaltyparam < sdpisolver->epsilon )
+      {
+         BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekrow, lpnnonz) );
+         BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekval, lpnnonz) );
+      }
+      else
+      {
+         /* one extra entry for the penalty-constraint Trace = Gamma */
+         BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekrow, lpnnonz + 1) );/*lint !e776*/
+         BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekval, lpnnonz + 1) );/*lint !e776*/
+      }
 
       currentrow = lprow[0];
       mosekind = 0;
@@ -1266,10 +1265,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          }
       }
       assert( varcnt == nlpvars );
-   }
 
-   BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &mosekval);
-   BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &mosekrow);
+      BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &mosekval);
+      BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &mosekrow);
+   }
 
    /* finally add the entries corresponding to varbounds in the dual problem, we get exactly one entry per variable */
    for (i = 0; i < sdpisolver->nvarbounds; i++)
