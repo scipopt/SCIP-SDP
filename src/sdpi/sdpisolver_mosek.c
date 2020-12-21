@@ -886,7 +886,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->penalty = (penaltyparam < sdpisolver->epsilon) ? FALSE : TRUE;
    sdpisolver->rbound = rbound;
 
-   /* ensure memory for inputtomosekmapper, mosektoinputmapper and the fixed and active variable information */
+   /* ensure memory for varboundpos, inputtomosekmapper, mosektoinputmapper and the fixed and active variable information */
    SCIP_CALL( ensureMappingDataMemory(sdpisolver, nvars) );
 
    sdpisolver->nvars = nvars;
