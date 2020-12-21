@@ -466,7 +466,6 @@ SCIP_RETCODE SDPAfreeData(
    if ( SCIPfclose(file) )
       return SCIP_READERROR;
 
-
    return SCIP_OKAY;
 }
 
@@ -809,15 +808,15 @@ SCIP_RETCODE SDPAreadBlocks(
    )
 {
    SCIP_VAR* indvar = 0;
-   SCIP_Real** sdpval_local = NULL;          /**< array of all values of SDP nonzeros for each SDP block */
+   SCIP_Real** sdpval_local = NULL;          /* array of all values of SDP nonzeros for each SDP block */
    SCIP_Real** sdpconstval_local = NULL;
    SCIP_Real val;
    SCIP_Bool infeasible;
    SCIP_Bool success;
-   int** sdprow_local = NULL;                /**< array of all row indices for each SDP block */
-   int** sdpcol_local = NULL;                /**< array of all column indices for each SDP block */
-   int** sdpconstrow_local = NULL;           /**< pointers to row-indices for each block */
-   int** sdpconstcol_local = NULL;           /**< pointers to column-indices for each block */
+   int** sdprow_local = NULL;                /* array of all row indices for each SDP block */
+   int** sdpcol_local = NULL;                /* array of all column indices for each SDP block */
+   int** sdpconstrow_local = NULL;           /* pointers to row-indices for each block */
+   int** sdpconstcol_local = NULL;           /* pointers to column-indices for each block */
    int** sdpvar = NULL;
    int* nentriessdp = NULL;
    int* nentriessdpconst = NULL;
@@ -831,9 +830,9 @@ SCIP_RETCODE SDPAreadBlocks(
    int blockidxoffset = 0;
    int row;
    int col;
-   int b;                                    /** current block */
-   int v;                                    /** current variable */
-   int c;                                    /** current linear constraint */
+   int b;                                    /* current block */
+   int v;                                    /* current variable */
+   int c;                                    /* current linear constraint */
 
    assert( scip != NULL );
    assert( file != NULL );
@@ -1649,7 +1648,6 @@ SCIP_DECL_READERREAD(readerReadSdpa)
    data->sdpconstmemsize = NULL;
    data->buffer = NULL;
 
-
    /* create empty problem */
    SCIP_CALL( SCIPcreateProb(scip, filename, NULL, NULL, NULL, NULL, NULL, NULL, NULL) );
 
@@ -1886,7 +1884,6 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
       /* only check linear constraints */
       if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") == 0 )
       {
-
          lhs = SCIPgetLhsLinear(scip, conss[c]);
          rhs = SCIPgetRhsLinear(scip, conss[c]);
 

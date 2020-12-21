@@ -337,7 +337,6 @@ SCIP_RETCODE CBFfgets(
          return SCIP_OKAY;
    }
 
-
    if ( printerror )
    {
       SCIPerrorMessage("Could not read content of line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
@@ -1957,7 +1956,6 @@ SCIP_RETCODE CBFreadDcoord(
    /*    SCIPABORT(); */
    /*    return SCIP_READERROR; /\*lint !e527*\/ */
    /* } */
-
 
    data->constnnonz = constnnonz;
    assert( constnnonz > 0 );
