@@ -769,8 +769,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int nnonz;
    SCIP_Real* mosekvarbounds;
    int nfixedvars;
-   int* vartorowmapper; /* maps the lpvars to the corresponding left- and right-hand-sides of the LP constraints */
-   int* vartolhsrhsmapper; /* maps the lpvars to the corresponding entries in lplhs and lprhs */
    int nlpvars;
    int* mosekblocksizes;
    SCIP_Real one = 1.0; /* MOSEK always wants a pointer to factors for a sum of matrices, we always use a single matrix with factor one */
@@ -943,41 +941,30 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if ( ! withobj )
       sdpisolver->fixedvarsobjcontr = 0.0;
 
-   /* determine mapping between variables and columns in LP-constraints */
+   /* determine total number of sides in LP-constraints */
    nlpvars = 0;
    if ( nlpcons > 0 )
    {
-      /* allocate memory to save which LP-variable corresponds to which original lp constraint, negative signs correspond to left-hand-sides of LP-constraints,
-       * entry i or -i corresponds to the constraint in position |i|-1, as we have to add +1 to make the entries strictly positive or strictly negative */
-      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &vartorowmapper, 2 * nlpcons) ); /*lint !e647*/ /*lint !e530*/
-      /* allocate memory to save at which indices the corresponding lhss and rhss of the lpvars are saved */
-      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &vartolhsrhsmapper, 2 * nlpcons) ); /*lint !e647*/ /*lint !e530*/
-
-      /* compute the number of LP constraints after splitting the ranged rows and compute the rowtovarmapper */
       for (i = 0; i < nlpcons; i++)
       {
          if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
          {
-            vartorowmapper[nlpvars] = -(i+1);
-            vartolhsrhsmapper[nlpvars++] = i;
-
 #if CONVERT_ABSOLUTE_TOLERANCES
             /* update largest rhs-entry */
             if ( REALABS(lplhs[i]) > maxrhscoef )
                maxrhscoef = REALABS(lplhs[i]);
 #endif
+            ++nlpvars;
          }
 
          if ( lprhs[i] < SCIPsdpiSolverInfinity(sdpisolver) )
          {
-            vartorowmapper[nlpvars] = i+1;
-            vartolhsrhsmapper[nlpvars++] = i;
-
 #if CONVERT_ABSOLUTE_TOLERANCES
             /* update largest rhs-entry */
             if ( REALABS(lprhs[i]) > maxrhscoef )
                maxrhscoef = REALABS(lprhs[i]);
 #endif
+            ++nlpvars;
          }
       }
       assert( nlpvars <= 2 * nlpcons ); /* factor 2 comes from left- and right-hand-sides */
@@ -1066,31 +1053,34 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* set objective values for the scalar variables */
    /* TODO: check for equality constraints */
    /* first for those corresponding to LP constraints in the dual */
-   for (i = 0; i < nlpvars; i++)
+   ind = 0;
+   for (i = 0; i < nlpcons; i++)
    {
-      assert( vartolhsrhsmapper != NULL ); /* for lint */
-      assert( vartorowmapper[i] != 0 );
-      assert( 0 <= vartolhsrhsmapper[i] && vartolhsrhsmapper[i] < nlpcons );
-
-      if ( vartorowmapper[i] > 0 )/*lint !e644*/ /* right-hand side */
+      /* left hand side */
+      if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
       {
-         MOSEK_CALL( MSK_putcj(sdpisolver->msktask, i, - lprhs[vartolhsrhsmapper[i]]) );/*lint !e641, !e644*/
+         MOSEK_CALL( MSK_putcj(sdpisolver->msktask, ind, lplhs[i]) );/*lint !e641*/
 #ifdef SCIP_MORE_DEBUG
          /* give the variable a meaningful name for debug output */
-         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "rhs#%d", vartorowmapper[i] - 1);
-         MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, i, name) );
+         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lhs#%d", i);
+         MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, ind, name) );
 #endif
+         ++ind;
       }
-      else /* left-hand side */
+
+      /* right hand side */
+      if ( lprhs[i] < SCIPsdpiSolverInfinity(sdpisolver) )
       {
-         MOSEK_CALL( MSK_putcj(sdpisolver->msktask, i, lplhs[vartolhsrhsmapper[i]]) );/*lint !e641*/
+         MOSEK_CALL( MSK_putcj(sdpisolver->msktask, ind, - lprhs[i]) );/*lint !e641, !e644*/
 #ifdef SCIP_MORE_DEBUG
          /* give the variable a meaningful name for debug output */
-         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lhs#%d", - vartorowmapper[i] - 1);
-         MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, i, name) );
+         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "rhs#%d", i - 1);
+         MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, ind, name) );
 #endif
+         ++ind;
       }
    }
+   assert( ind == nlpvars );
 
    /* finally for those corresponding to variable bounds in the dual */
    for (i = 0; i < sdpisolver->nvarbounds; i++)
@@ -1187,7 +1177,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                identityvalues[i] = 1.0;
             }
             MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], (long long) mosekblocksizes[b - blockindchanges[b]],
-                                    identityindices, identityindices, identityvalues, &mosekindex) );/*lint !e641, !e679*/
+                  identityindices, identityindices, identityvalues, &mosekindex) );/*lint !e641, !e679*/
             MOSEK_CALL( MSK_putbaraij(sdpisolver->msktask, sdpisolver->nactivevars, b - blockindchanges[b], (long long) 1, &mosekindex, &one) );/*lint !e641, !e679*/
 
             BMSfreeBufferMemoryArray(sdpisolver->bufmem, &identityvalues);
@@ -1588,11 +1578,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* free memory */
    BMSfreeBufferMemoryArray(sdpisolver->bufmem, &mosekblocksizes);
-   if ( nlpcons > 0 )
-   {
-      BMSfreeBufferMemoryArray(sdpisolver->bufmem, &vartolhsrhsmapper);
-      BMSfreeBufferMemoryArray(sdpisolver->bufmem, &vartorowmapper);
-   }
    BMSfreeBufferMemoryArray(sdpisolver->bufmem, &mosekvarbounds);
 
    return SCIP_OKAY;
