@@ -37,6 +37,7 @@
 /**@file   sdpisolver_mosek.c
  * @brief  interface for MOSEK
  * @author Tristan Gally
+ * @author Marc Pfetsch
  *
  * As MOSEK solves the primal instead of the dual problem, for solving the problem
  *
@@ -114,6 +115,7 @@ struct SCIP_SDPiSolver
    SCIP_Real             opttime;            /**< time spend in optimziation */
    int                   nvars;              /**< number of input variables */
    int                   nactivevars;        /**< number of variables present in the dual problem in MOSEK (nvars minus the number of variables with lb = ub) */
+   int                   maxnvars;           /**< size of the arrays inputtomosekmapper, mosektoinputmapper, fixedvarsval, andxs objcoefs */
    int*                  inputtomosekmapper; /**< entry i gives the index of input variable i in MOSEK (starting from 0) or
                                               *   -j (j=1, 2, ..., nvars - nactivevars) if the variable is fixed, the value and objective value of
                                               *   this fixed variable can be found in entry j-1 of fixedval/obj */
@@ -272,6 +274,67 @@ SCIP_Bool isFixed(
 #else
 #define isFixed(sdpisolver,lb,ub) (ub-lb <= sdpisolver->epsilon)
 #endif
+
+/** calculate memory size for dynamically allocated arrays */
+static
+int calcGrowSize(
+   int                   initsize,           /**< initial size of array */
+   int                   num                 /**< minimum number of entries to store */
+   )
+{
+   int oldsize;
+   int size;
+
+   assert( initsize >= 0 );
+   assert( num >= 0 );
+
+   /* calculate the size with loop, such that the resulting numbers are always the same (-> block memory) */
+   initsize = MAX(initsize, SCIP_DEFAULT_MEM_ARRAYGROWINIT);
+   size = initsize;
+   oldsize = size - 1;
+
+   /* second condition checks against overflow */
+   while ( size < num && size > oldsize )
+   {
+      oldsize = size;
+      size = (int)(SCIP_DEFAULT_MEM_ARRAYGROWFAC * size + initsize);
+   }
+
+   /* if an overflow happened, set the correct value */
+   if ( size <= oldsize )
+      size = num;
+
+   assert( size >= initsize );
+   assert( size >= num );
+
+   return size;
+}
+
+/** ensure size of mapping data */
+static
+SCIP_RETCODE ensureMappingDataMemory(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver structure */
+   int                   nvars               /**< number of variables */
+   )
+{
+   int newsize;
+
+   assert( sdpisolver != NULL );
+
+   if ( nvars > sdpisolver->maxnvars )
+   {
+      newsize = calcGrowSize(sdpisolver->maxnvars, nvars);
+
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->varboundpos), 2 * sdpisolver->maxnvars, 2 * newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtomosekmapper), sdpisolver->maxnvars, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->mosektoinputmapper), sdpisolver->maxnvars, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), sdpisolver->maxnvars, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->objcoefs), sdpisolver->maxnvars, newsize) );
+      sdpisolver->maxnvars = newsize;
+   }
+
+   return SCIP_OKAY;
+}
 
 
 /*
@@ -434,6 +497,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->fixedvarsval = NULL;
    (*sdpisolver)->fixedvarsobjcontr = 0.0;
    (*sdpisolver)->objcoefs = NULL;
+   (*sdpisolver)->maxnvars = 0;
    (*sdpisolver)->nvarbounds = 0;
    (*sdpisolver)->varboundpos = NULL;
    (*sdpisolver)->solved = FALSE;
@@ -482,11 +546,11 @@ SCIP_RETCODE SCIPsdpiSolverFree(
 #endif
    }
 
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->varboundpos, 2 * (*sdpisolver)->nactivevars);
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->inputtomosekmapper, (*sdpisolver)->nvars);
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->mosektoinputmapper, (*sdpisolver)->nactivevars);
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->fixedvarsval, (*sdpisolver)->nvars - (*sdpisolver)->nactivevars);
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->objcoefs, (*sdpisolver)->nactivevars);
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->varboundpos, 2 * (*sdpisolver)->maxnvars);
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->inputtomosekmapper, (*sdpisolver)->maxnvars);
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->mosektoinputmapper, (*sdpisolver)->maxnvars);
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->fixedvarsval, (*sdpisolver)->maxnvars);
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->objcoefs, (*sdpisolver)->maxnvars);
 
    BMSfreeBlockMemory((*sdpisolver)->blkmem, sdpisolver);
 
@@ -705,7 +769,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int nnonz;
    SCIP_Real* mosekvarbounds;
    int nfixedvars;
-   int oldnactivevars;
    int* vartorowmapper; /* maps the lpvars to the corresponding left- and right-hand-sides of the LP constraints */
    int* vartolhsrhsmapper; /* maps the lpvars to the corresponding entries in lplhs and lprhs */
    int nlpvars;
@@ -823,14 +886,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->penalty = (penaltyparam < sdpisolver->epsilon) ? FALSE : TRUE;
    sdpisolver->rbound = rbound;
 
-   /* allocate memory for inputtomosekmapper, mosektoinputmapper and the fixed and active variable information, for the latter this will
-    * later be shrinked if the needed size is known */
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtomosekmapper), sdpisolver->nvars, nvars) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->mosektoinputmapper), sdpisolver->nactivevars, nvars) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), sdpisolver->nvars - sdpisolver->nactivevars, nvars) ); /*lint !e776*/
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->objcoefs), sdpisolver->nactivevars, nvars) ); /*lint !e776*/
+   /* ensure memory for inputtomosekmapper, mosektoinputmapper and the fixed and active variable information */
+   SCIP_CALL( ensureMappingDataMemory(sdpisolver, nvars) );
 
-   oldnactivevars = sdpisolver->nactivevars; /* we need to save this to realloc the varboundpos-array if needed */
    sdpisolver->nvars = nvars;
    sdpisolver->nactivevars = 0;
    nfixedvars = 0;
@@ -864,26 +922,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if ( ! withobj )
       sdpisolver->fixedvarsobjcontr = 0.0;
 
-   /* shrink the fixedvars, objcoefs and mosektoinputmapper arrays to the right size */
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->objcoefs), nvars, sdpisolver->nactivevars) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), nvars, nfixedvars) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->mosektoinputmapper), nvars, sdpisolver->nactivevars) );
-
    /* compute number of variable bounds and save them in mosekvarbounds */
    BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekvarbounds, 2 * sdpisolver->nactivevars) ); /*lint !e647*/
-
-   if ( sdpisolver->nactivevars != oldnactivevars )
-   {
-      if ( sdpisolver->varboundpos == NULL )
-      {
-         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->varboundpos), 2 * sdpisolver->nactivevars) ); /*lint !e647*/
-      }
-      else
-      {
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->varboundpos), 2 * oldnactivevars, 2 * sdpisolver->nactivevars) ); /*lint !e647*/
-      }
-   }
-   assert( sdpisolver->varboundpos != NULL );
 
    sdpisolver->nvarbounds = 0;
    for (i = 0; i < sdpisolver->nactivevars; i++)
