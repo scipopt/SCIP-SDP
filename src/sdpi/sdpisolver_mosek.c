@@ -943,11 +943,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if ( ! withobj )
       sdpisolver->fixedvarsobjcontr = 0.0;
 
+   /* determine mapping between variables and columns in LP-constraints */
+   nlpvars = 0;
    if ( nlpcons > 0 )
    {
-      int pos = 0;
-
-      /* allocate memory to save which lpvariable corresponds to which original lp constraint, negative signs correspond to left-hand-sides of lp constraints,
+      /* allocate memory to save which LP-variable corresponds to which original lp constraint, negative signs correspond to left-hand-sides of LP-constraints,
        * entry i or -i corresponds to the constraint in position |i|-1, as we have to add +1 to make the entries strictly positive or strictly negative */
       BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &vartorowmapper, 2 * nlpcons) ); /*lint !e647*/ /*lint !e530*/
       /* allocate memory to save at which indices the corresponding lhss and rhss of the lpvars are saved */
@@ -958,21 +958,20 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
          {
-            vartorowmapper[pos] = -(i+1);
-            vartolhsrhsmapper[pos++] = i;
+            vartorowmapper[nlpvars] = -(i+1);
+            vartolhsrhsmapper[nlpvars++] = i;
 
 #if CONVERT_ABSOLUTE_TOLERANCES
             /* update largest rhs-entry */
             if ( REALABS(lplhs[i]) > maxrhscoef )
                maxrhscoef = REALABS(lplhs[i]);
 #endif
-
          }
 
          if ( lprhs[i] < SCIPsdpiSolverInfinity(sdpisolver) )
          {
-            vartorowmapper[pos] = i+1;
-            vartolhsrhsmapper[pos++] = i;
+            vartorowmapper[nlpvars] = i+1;
+            vartolhsrhsmapper[nlpvars++] = i;
 
 #if CONVERT_ABSOLUTE_TOLERANCES
             /* update largest rhs-entry */
@@ -981,11 +980,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
          }
       }
-      nlpvars = pos;
       assert( nlpvars <= 2 * nlpcons ); /* factor 2 comes from left- and right-hand-sides */
    }
-   else
-      nlpvars = 0;
 
    /* create matrix variables */
    BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekblocksizes, nsdpblocks - nremovedblocks) ); /*lint !e679 !e776*/
