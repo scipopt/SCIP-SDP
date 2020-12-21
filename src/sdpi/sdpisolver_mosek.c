@@ -1085,7 +1085,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* finally for those corresponding to variable bounds in the dual */
    for (i = 0; i < sdpisolver->nvarbounds; i++)
    {
-      MOSEK_CALL( MSK_putcj(sdpisolver->msktask, nlpvars + i, mosekvarbounds[i]) );/*lint !e641*/ /* for the ub's we already added a negative sign in mosekvarbounds*/
+      MOSEK_CALL( MSK_putcj(sdpisolver->msktask, nlpvars + i, mosekvarbounds[i]) );/*lint !e641*/ /* for the ub's we already added a negative sign in mosekvarbounds */
 #ifdef SCIP_MORE_DEBUG
       if ( sdpisolver->varboundpos[i] < 0 ) /* lower bound */
       {
@@ -1113,6 +1113,18 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    {
       if ( blockindchanges[b] > -1 )
       {
+         /* prepare memory */
+         if ( nremovedinds[b] > 0 )
+         {
+            BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekrow, sdpnnonz) );
+            BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekcol, sdpnnonz) );
+         }
+         else
+         {
+            mosekrow = NULL;
+            mosekcol = NULL;
+         }
+
          for (blockvar = 0; blockvar < sdpnblockvars[b]; blockvar++)
          {
             v = sdpisolver->inputtomosekmapper[sdpvar[b][blockvar]];
@@ -1121,17 +1133,16 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             if ( v > -1 )
             {
                assert( v < sdpisolver->nactivevars );
+
                /* if there are removed indices, we have to adjust the column and row indices accordingly */
                if ( nremovedinds[b] > 0 )
                {
-                  BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekrow, sdpnblockvarnonz[b][blockvar]) );
-                  BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekcol, sdpnblockvarnonz[b][blockvar]) );
-
+                  assert( sdpnblockvarnonz[b][blockvar] <= sdpnnonz );
                   for (k = 0; k < sdpnblockvarnonz[b][blockvar]; k++)
                   {
                      /* rows and cols with active nonzeros should not be removed */
-                     assert( -1 < indchanges[b][sdprow[b][blockvar][k]] && indchanges[b][sdprow[b][blockvar][k]] <= sdprow[b][blockvar][k] );
-                     assert( -1 < indchanges[b][sdpcol[b][blockvar][k]] && indchanges[b][sdpcol[b][blockvar][k]] <= sdpcol[b][blockvar][k] );
+                     assert( 0 <= indchanges[b][sdprow[b][blockvar][k]] && indchanges[b][sdprow[b][blockvar][k]] <= sdprow[b][blockvar][k] );
+                     assert( 0 <= indchanges[b][sdpcol[b][blockvar][k]] && indchanges[b][sdpcol[b][blockvar][k]] <= sdpcol[b][blockvar][k] );
 
                      assert( 0 <= sdprow[b][blockvar][k] && sdprow[b][blockvar][k] < sdpblocksizes[b] );
                      assert( 0 <= sdpcol[b][blockvar][k] && sdpcol[b][blockvar][k] < sdpblocksizes[b] );
@@ -1139,12 +1150,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                      mosekrow[k] = sdprow[b][blockvar][k] - indchanges[b][sdprow[b][blockvar][k]];
                      mosekcol[k] = sdpcol[b][blockvar][k] - indchanges[b][sdpcol[b][blockvar][k]];
                   }
+                  assert( k == sdpnblockvarnonz[b][blockvar] );
 
-                  MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], (long long) sdpnblockvarnonz[b][blockvar],
+                  MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], (long long) k,
                         mosekrow, mosekcol, sdpval[b][blockvar], &mosekindex) );/*lint !e641, !e679*/
-
-                  BMSfreeBufferMemoryArray(sdpisolver->bufmem, &mosekcol);
-                  BMSfreeBufferMemoryArray(sdpisolver->bufmem, &mosekrow);
                }
                else
                {
@@ -1155,6 +1164,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                MOSEK_CALL( MSK_putbaraij(sdpisolver->msktask, v, b - blockindchanges[b], (long long) 1, &mosekindex, &one) );/*lint !e641*/
             }
          }
+         BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &mosekcol);
+         BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &mosekrow);
       }
    }
 
