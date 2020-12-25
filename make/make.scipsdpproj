@@ -194,7 +194,11 @@ endif
 ifeq ($(SDPS),msk)
 BITEXT     	=  	$(word 2, $(subst _, ,$(ARCH)))
 # mosek is only available as a shared library
+ifeq ($(SHARED),true)
 SDPILIB		= 	-m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -Wl,-rpath,$(dir $(realpath $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) -llapack -lblas -pthread -lc -lm
+else
+SDPILIB		= 	-m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -llapack -lblas -pthread -lc -lm
+endif
 endif
 
 #-----------------------------------------------------------------------------
@@ -218,7 +222,7 @@ SCIPSDPLIBFILE 		= 	$(SCIPSDPLIBDIR)/$(LIBTYPE)/lib$(SCIPSDPLIB).$(LIBEXT)
 #-----------------------------------------------------------------------------
 
 # link SCIPSDP for C++ projects
-LINKCXXSCIPSDPALL	=	$(LINKCXX_L)$(SCIPSDPDIR)/lib/$(LIBTYPE) $(LINKCXX_l)$(SCIPSDPLIB)$(LINKLIBSUFFIX) $(LINKCXXSCIPALL)
+LINKCXXSCIPSDPALL	=	$(LINKCXX_L)$(SCIPSDPDIR)/lib/$(LIBTYPE) $(LINKCXX_l)$(SCIPSDPLIB)$(LINKLIBSUFFIX) $(SDPILIB) $(LINKCXXSCIPALL)
 
 # link SCIP for C projects (including libobjscip)
-LINKCCSCIPSDPALL	=	$(LINKCXX_L)$(SCIPSDPDIR)/lib/$(LIBTYPE) $(LINKCXX_l)$(SCIPSDPLIB)$(LINKLIBSUFFIX) $(LINKCCSCIPALL)
+LINKCCSCIPSDPALL	=	$(LINKCXX_L)$(SCIPSDPDIR)/lib/$(LIBTYPE) $(LINKCXX_l)$(SCIPSDPLIB)$(LINKLIBSUFFIX) $(SDPILIB) $(LINKCCSCIPALL)

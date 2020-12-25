@@ -350,11 +350,14 @@ $(BINDIR):
 libscipsdp:	preprocess
 		@$(MAKE) $(SCIPSDPLIBFILE) $(SCIPSDPLIBLINK) $(SCIPSDPLIBSHORTLINK)
 
+
+# We usually can not include the SDP libraries in the static libraries, e.g., because they are shared.
+# In the shared library, we include the SDP libraries.
 $(SCIPSDPLIBFILE):	$(SCIPSDPLIBOBJFILES) | $(SCIPSDPLIBDIR)/$(LIBTYPE)
 		@echo "-> generating library $@"
 		-rm -f $@
 ifeq ($(SHARED),false)
-		$(LIBBUILD) $(LIBBUILDFLAGS) $(LIBBUILD_o)$@ $(SCIPSDPLIBOBJFILES) $(SDPILIB)
+		$(LIBBUILD) $(LIBBUILDFLAGS) $(LIBBUILD_o)$@ $(SCIPSDPLIBOBJFILES)
 ifneq ($(RANLIB),)
 		$(RANLIB) $@
 endif
