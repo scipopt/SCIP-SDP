@@ -32,6 +32,7 @@ features:
 - reuse the mosek environment in each thread if possible
 - sdpisolver_mosek now uses the SCIP message handler for output
 - new file scipsdpdef.h which contains the SCIPSDP version
+- the makefile now produces various links to libscipsdp... and scipsdp...
 
 API changes:
 - new functions SCIPconsSdpGetNVars and SCIPconsSdpGetVars in cons_sdp.c
