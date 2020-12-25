@@ -160,7 +160,6 @@ endif
 # SCIPSDP
 #-----------------------------------------------------------------------------
 
-SCIPSDPNAME	=	scipsdp
 SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/SdpVarfixer.o \
 			scipsdp/cons_sdp.o \
@@ -201,9 +200,6 @@ SCIPSDPDEP 	=	$(SRCDIR)/depend.cppmain.$(OPT)
 
 SCIPSDPGITHASHFILE	= 	$(SRCDIR)/scipsdpgithash.c
 
-# @todo possibly add LPS
-SCIPSDPBIN		=	$(BINDIR)/$(SCIPSDPNAME).$(BASE).$(SDPS)$(EXEEXTENSION)
-SCIPSDPSHORTLINK	=	$(BINDIR)/$(SCIPSDPNAME)
 SCIPSDPCOBJFILES	=	$(addprefix $(OBJDIR)/,$(SCIPSDPCOBJ))
 SCIPSDPCCOBJFILES	=	$(addprefix $(OBJDIR)/,$(SCIPSDPCCOBJ))
 
@@ -219,13 +215,21 @@ SCIPSDPLIBOBJFILES	=	$(addprefix $(OBJDIR)/,$(SCIPSDPCOBJ))
 SCIPSDPLIBOBJFILES	+=	$(addprefix $(OBJDIR)/,$(SCIPSDPCCOBJ))
 SCIPSDPLIBOBJFILES	+=	$(SDPIOBJ)
 
-SCIPSDPLIBSHORTNAME=	scipsdp
-SCIPSDPLIBNAME	=	$(SCIPSDPLIBSHORTNAME)-$(SCIPSDPVERSION)
+# binary targets
+SCIPSDPBINSHORTNAME 	=	scipsdp
+SCIPSDPBINNAME		=	$(SCIPSDPBINSHORTNAME)-$(SCIPSDPVERSION)
+SCIPSDPBINFILE		=	$(BINDIR)/$(SCIPSDPBINNAME).$(BASE).$(SDPS)$(EXEEXTENSION)
+SCIPSDPBINLINK		=	$(BINDIR)/$(SCIPSDPBINSHORTNAME).$(BASE).$(SDPS)$(EXEEXTENSION)
+SCIPSDPBINSHORTLINK	=	$(BINDIR)/$(SCIPSDPBINSHORTNAME)
 
-SCIPSDPLIB	=	$(SCIPSDPLIBNAME).$(BASE).$(SDPS)
-SCIPSDPLIBFILE	=	$(LIBDIR)/$(LIBTYPE)/lib$(SCIPSDPLIB).$(LIBEXT)
-SCIPSDPLIBLINK =	$(LIBDIR)/$(LIBTYPE)/lib$(SCIPSDPLIBSHORTNAME).$(BASE).$(SDPS).$(LIBEXT)
-SCIPSDPLIBSHORTLINK =	$(LIBDIR)/$(LIBTYPE)/lib$(SCIPSDPLIBSHORTNAME).$(LIBEXT)
+# libary targets
+SCIPSDPLIBSHORTNAME 	=	scipsdp
+SCIPSDPLIBNAME		=	$(SCIPSDPLIBSHORTNAME)-$(SCIPSDPVERSION)
+
+SCIPSDPLIB		=	$(SCIPSDPLIBNAME).$(BASE).$(SDPS)
+SCIPSDPLIBFILE		=	$(LIBDIR)/$(LIBTYPE)/lib$(SCIPSDPLIBNAME).$(BASE).$(SDPS).$(LIBEXT)
+SCIPSDPLIBLINK 		=	$(LIBDIR)/$(LIBTYPE)/lib$(SCIPSDPLIBSHORTNAME).$(BASE).$(SDPS).$(LIBEXT)
+SCIPSDPLIBSHORTLINK 	=	$(LIBDIR)/$(LIBTYPE)/lib$(SCIPSDPLIBSHORTNAME).$(LIBEXT)
 
 #-----------------------------------------------------------------------------
 # rules
@@ -238,7 +242,7 @@ MAKE		+= -s
 endif
 
 .PHONY: all
-all:            $(SCIPDIR) $(SCIPSDPBIN) $(SCIPSDPSHORTLINK)
+all:            $(SCIPDIR) $(SCIPSDPBINFILE) $(SCIPSDPBINLINK) $(SCIPSDPBINSHORTLINK)
 
 .PHONY: checkdefines
 checkdefines:
@@ -310,9 +314,15 @@ endif
 doc:
 		cd doc; $(DOXY) $(SCIPSDPNAME).dxy
 
-$(SCIPSDPSHORTLINK): $(SCIPSDPBIN)
+$(SCIPSDPBINLINK): $(SCIPSDPBINFILE)
 		@rm -f $@
-		cd $(dir $@) && ln -s $(notdir $(SCIPSDPBIN)) $(notdir $@)
+		cd $(dir $@) && ln -s $(notdir $(SCIPSDPBINFILE)) $(notdir $@)
+
+# the short link targets should be phony such that they are always updated and point to the files with last make options, even if nothing needed to be rebuilt
+.PHONY: $(SCIPSDPBINSHORTLINK)
+$(SCIPSDPBINSHORTLINK): $(SCIPSDPBINFILE)
+		@rm -f $@
+		cd $(dir $@) && ln -s $(notdir $(SCIPSDPBINFILE)) $(notdir $@)
 
 $(SCIPSDPLIBLINK): $(SCIPSDPLIBFILE)
 		@rm -f $@
@@ -558,7 +568,7 @@ depend:		$(SCIPDIR)
 
 -include	$(SCIPSDPDEP)
 
-$(SCIPSDPBIN):	$(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) libscipsdp $(MAINOBJFILES) | $(SDPOBJSUBDIRS) $(BINDIR)
+$(SCIPSDPBINFILE): $(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) libscipsdp $(MAINOBJFILES) | $(SDPOBJSUBDIRS) $(BINDIR)
 		@echo "-> linking $@"
 		$(LINKCXX) $(MAINOBJFILES) -L$(SCIPSDPLIBDIR)/$(LIBTYPE) -l$(SCIPSDPLIB) $(SDPILIB) $(LINKCXXSCIPALL) $(LINKCXX_o)$@
 
