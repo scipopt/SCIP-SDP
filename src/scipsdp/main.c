@@ -37,6 +37,7 @@
  */
 
 #include "scipsdp/scipsdpdefplugins.h"
+#include "scip/scipshell.h"
 
 /** run scip and set some parameters */
 static
