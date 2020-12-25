@@ -345,6 +345,7 @@ $(BINDIR):
 		echo "-> Creating $(BINDIR) directory"; \
 		mkdir -p $(BINDIR); }
 
+# SCIP-SDP libfile
 .PHONY: libscipsdp
 libscipsdp:	preprocess
 		@$(MAKE) $(SCIPSDPLIBFILE) $(SCIPSDPLIBLINK) $(SCIPSDPLIBSHORTLINK)
@@ -352,9 +353,13 @@ libscipsdp:	preprocess
 $(SCIPSDPLIBFILE):	$(SCIPSDPLIBOBJFILES) | $(SCIPSDPLIBDIR)/$(LIBTYPE)
 		@echo "-> generating library $@"
 		-rm -f $@
-		$(LIBBUILD) $(LIBBUILDFLAGS) $(LIBBUILD_o)$@ $(SCIPSDPLIBOBJFILES)
+ifeq ($(SHARED),false)
+		$(LIBBUILD) $(LIBBUILDFLAGS) $(LIBBUILD_o)$@ $(SCIPSDPLIBOBJFILES) $(SDPILIB)
 ifneq ($(RANLIB),)
 		$(RANLIB) $@
+endif
+else
+		$(LIBBUILD) $(LIBBUILDFLAGS) $(LIBBUILD_o)$@ $(SCIPSDPLIBOBJFILES) $(SDPILIB)
 endif
 
 .PHONY: clean
