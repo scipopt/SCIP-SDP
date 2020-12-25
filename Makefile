@@ -128,7 +128,6 @@ endif
 # no solver
 SDPIOPTIONS	+=	none
 ifeq ($(SDPS),none)
-SDPILIB		= 	-L$(SCIPSDPLIBDIR) -llapack -lblas
 SDPICSRC 	= 	src/sdpi/sdpisolver_none.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_none.o
 SETTINGS	= 	lp_approx
