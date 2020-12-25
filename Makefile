@@ -46,6 +46,8 @@ SCIPREALPATH	=	$(realpath $(SCIPDIR))
 # overwrite flags for dependencies
 DFLAGS		=       -MM
 
+SCIPSDPVERSION	= 3.2.0
+
 #-----------------------------------------------------------------------------
 # DSDP solver
 SDPIOPTIONS	=	dsdp
@@ -217,6 +219,14 @@ SCIPSDPLIBOBJFILES	=	$(addprefix $(OBJDIR)/,$(SCIPSDPCOBJ))
 SCIPSDPLIBOBJFILES	+=	$(addprefix $(OBJDIR)/,$(SCIPSDPCCOBJ))
 SCIPSDPLIBOBJFILES	+=	$(SDPIOBJ)
 
+SCIPSDPLIBSHORTNAME=	scipsdp
+SCIPSDPLIBNAME	=	$(SCIPSDPLIBSHORTNAME)-$(SCIPSDPVERSION)
+
+SCIPSDPLIB	=	$(SCIPSDPLIBNAME).$(BASE).$(SDPS)
+SCIPSDPLIBFILE	=	$(LIBDIR)/$(LIBTYPE)/lib$(SCIPSDPLIB).$(LIBEXT)
+SCIPSDPLIBLINK =	$(LIBDIR)/$(LIBTYPE)/lib$(SCIPSDPLIBSHORTNAME).$(BASE).$(SDPS).$(LIBEXT)
+SCIPSDPLIBSHORTLINK =	$(LIBDIR)/$(LIBTYPE)/lib$(SCIPSDPLIBSHORTNAME).$(LIBEXT)
+
 #-----------------------------------------------------------------------------
 # rules
 #-----------------------------------------------------------------------------
@@ -301,6 +311,16 @@ doc:
 $(SCIPSDPSHORTLINK): $(SCIPSDPBIN)
 		@rm -f $@
 		cd $(dir $@) && ln -s $(notdir $(SCIPSDPBIN)) $(notdir $@)
+
+$(SCIPSDPLIBLINK): $(SCIPSDPLIBFILE)
+		@rm -f $@
+		cd $(dir $@) && $(LN_s) $(notdir $(SCIPSDPLIBFILE)) $(notdir $@)
+
+# the short link targets should be phony such that they are always updated and point to the files with last make options, even if nothing needed to be rebuilt
+.PHONY: $(SCIPSDPLIBSHORTLINK)
+$(SCIPSDPLIBSHORTLINK): $(SCIPSDPLIBFILE)
+		@rm -f $@
+		cd $(dir $@) && $(LN_s) $(notdir $(SCIPSDPLIBFILE)) $(notdir $@)
 
 $(OBJDIR):
 		@mkdir -p $(OBJDIR);
