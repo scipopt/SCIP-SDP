@@ -37,11 +37,12 @@
 
 /*--+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
-#define SCIPSDPVERSION              "3.2.0"
+#include "scipsdp/scipsdpdef.h"
 
 
 #include "scipsdp/scipsdpdefplugins.h"
 #include "scip/scipdefplugins.h"
+#include "scip/scipshell.h"
 
 #include "cons_sdp.h"
 #include "scipsdp/cons_savesdpsol.h"
@@ -194,7 +195,7 @@ SCIP_RETCODE SCIPSDPincludeDefaultPlugins(
    SCIP_DIALOG* dialog;
 
    /* add description */
-   (void) SCIPsnprintf(scipsdpname, SCIP_MAXSTRLEN, "SCIP-SDP %s", SCIPSDPVERSION);
+   (void) SCIPsnprintf(scipsdpname, SCIP_MAXSTRLEN, "SCIP-SDP %d.%d.%d", SCIPSDPmajorVersion, SCIPSDPminorVersion, SCIPSDPtechVersion);
    (void) SCIPsnprintf(scipsdpdesc, SCIP_MAXSTRLEN, "Mixed Integer Semidefinite Programming Plugin for SCIP "
          "[GitHash: %s] (www.opt.tu-darmstadt.de/scipsdp/)", SCIPSDP_GITHASH);
    SCIP_CALL( SCIPincludeExternalCodeInformation(scip, scipsdpname, scipsdpdesc) );
