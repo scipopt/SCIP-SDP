@@ -141,8 +141,10 @@ override DEBUGTOOL   =   none
 # settings for SDP solver
 #-----------------------------------------------------------------------------
 
-ifeq ($(SHARED),true)
+ifeq ($(SANITIZE),true)
 LDFLAGS 	+= -lubsan
+endif
+ifeq ($(SHARED),true)
 ifneq ($(LINKRPATH),)
 ifneq ($(SCIPSDPINTERNAL),true)
 # If this makefile is used to build an external project, we use SCIPREALPATH.
