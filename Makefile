@@ -388,7 +388,7 @@ ifneq ($(OBJDIR),)
 	 	@-rmdir $(OBJDIR)/sdpi
 		@-rmdir $(OBJDIR)
 endif
-		-rm -f $(SCIPSDPBIN)
+		-rm -f $(SCIPSDPBINFILE)
 
 #-----------------------------------------------------------------------------
 -include $(LASTSETTINGS)
@@ -524,7 +524,7 @@ test:
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_logfiles.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/run.sh);
 		cd check; \
-		$(SHELL) ./check.sh $(TEST) $(SCIPSDPBIN) $(SETTINGS) $(notdir $(SCIPSDPBIN)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(DISPFREQ) \
+		$(SHELL) ./check.sh $(TEST) $(SCIPSDPBINFILE) $(SETTINGS) $(notdir $(SCIPSDPBINFILE)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(DISPFREQ) \
 			$(CONTINUE) $(LOCK) $(SCIPSDPVERSION) $(SDPS) $(DEBUGTOOL) $(CLIENTTMPDIR) $(REOPT) $(OPTCOMMAND) $(SETCUTOFF) $(MAXJOBS) $(VISUALIZE) \
 			$(PERMUTE) $(SEEDS) $(GLBSEEDSHIFT) $(STARTPERM);
 
