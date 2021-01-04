@@ -212,7 +212,7 @@ endif
 FLAGS			+=	-I$(SCIPSDPREALPATH)/src
 
 SCIPSDPLIBSHORTNAME 	= 	scipsdp
-SCIPSDPLIB 		= 	$(SCIPSDPLIBSHORTNAME)-$(SCIPSDPVERSION).$(SDPS).$(BASE)
+SCIPSDPLIB 		= 	$(SCIPSDPLIBSHORTNAME)-$(SCIPSDPVERSION).$(BASE).$(SDPS)
 SCIPSDPLIBFILE 		= 	$(SCIPSDPLIBDIR)/$(LIBTYPE)/lib$(SCIPSDPLIB).$(LIBEXT)
 
 #-----------------------------------------------------------------------------
