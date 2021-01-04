@@ -196,11 +196,7 @@ endif
 ifeq ($(SDPS),msk)
 BITEXT     	=  	$(word 2, $(subst _, ,$(ARCH)))
 # mosek is only available as a shared library
-ifeq ($(SHARED),true)
 SDPILIB		= 	-m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -Wl,-rpath,$(dir $(realpath $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) -llapack -lblas -pthread -lc -lm
-else
-SDPILIB		= 	-m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -llapack -lblas -pthread -lc -lm
-endif
 endif
 
 #-----------------------------------------------------------------------------
