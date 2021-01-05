@@ -86,6 +86,7 @@ OMP		=	false
 OPENBLAS	=	true
 LAPACKLONGINT	=	false
 MUMPSSEQ	=	true
+STATICLAPACK	=	false
 
 #-----------------------------------------------------------------------------
 # include default project Makefile from SCIP
@@ -195,8 +196,13 @@ endif
 # MOSEK solver
 ifeq ($(SDPS),msk)
 BITEXT     	=  	$(word 2, $(subst _, ,$(ARCH)))
-# mosek is only available as a shared library
-SDPILIB		= 	-m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -Wl,-rpath,$(dir $(realpath $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) -llapack -lblas -pthread -lc -lm
+ifeq ($(SHARED),true)
+ifeq ($(STATICLAPACK),true)
+BSTATIC		= -Wl,-Bstatic
+BDYNAMIC	= -Wl,-Bdynamic
+endif
+endif
+SDPILIB		=       -m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -Wl,-rpath,$(dir $(realpath $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) $(BSTATIC) -llapack -lblas -lc $(BDYNAMIC) -lquadmath -pthread -lgfortran -lm
 endif
 
 #-----------------------------------------------------------------------------
