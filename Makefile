@@ -151,11 +151,6 @@ ifeq ($(OMP),true)
 OMPFLAGS += -DOMP
 endif
 
-# handle long long int option
-ifeq ($(LAPACKLONGINT),true)
-CFLAGS		+=	-DLAPACK_LONGLONGINT
-endif
-
 #-----------------------------------------------------------------------------
 # SCIPSDP
 #-----------------------------------------------------------------------------
@@ -595,6 +590,5 @@ help:
 		@echo "      none: no SDP-solver"
 		@echo "  - OPENBLAS={true|false}: use openblas"
 		@echo "  - OMP={true|false}: use OMP"
-		@echo "  - LAPACKLONGINT={true|false}: use long long ints for lapack (e.g., with SDPA 7.4.0 and openblas)"
 
 #---- EOF --------------------------------------------------------------------
