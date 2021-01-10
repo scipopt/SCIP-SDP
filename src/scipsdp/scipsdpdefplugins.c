@@ -73,8 +73,40 @@
 /* hack to allow to change the name of the dialog without needing to copy everything */
 #include "scip/struct_dialog.h"
 
-/* hack to change default parameter values */
-#include <scip/paramset.h>
+/* hack to change default parameter values*/
+#include "scip/struct_paramset.h"
+
+/* The functions SCIPparamSetDefaultBool() and SCIPparamSetDefaultInt() are internal functions of SCIP. To nevertheless
+ * change the default parameters, we add our own locate methods below. */
+
+/** local function to change default value of SCIP_Bool parameter */
+static
+void paramSetDefaultBool(
+   SCIP_PARAM*           param,              /**< parameter */
+   SCIP_Bool             defaultvalue        /**< new default value */
+   )
+{
+   assert(param != NULL);
+   assert(param->paramtype == SCIP_PARAMTYPE_BOOL);
+
+   param->data.boolparam.defaultvalue = defaultvalue;
+}
+
+/** local function to change default value of int parameter */
+static
+void paramSetDefaultInt(
+   SCIP_PARAM*           param,              /**< parameter */
+   int                   defaultvalue        /**< new default value */
+   )
+{
+   assert(param != NULL);
+   assert(param->paramtype == SCIP_PARAMTYPE_INT);
+
+   assert(param->data.intparam.minvalue <= defaultvalue && param->data.intparam.maxvalue >= defaultvalue);
+
+   param->data.intparam.defaultvalue = defaultvalue;
+}
+
 
 /** reset some default parameter values */
 static
@@ -86,13 +118,13 @@ SCIP_RETCODE SCIPSDPsetDefaultParams(
 
    /* turn off LP solving - note that the SDP relaxator is on by default */
    param = SCIPgetParam(scip, "lp/solvefreq");
-   SCIPparamSetDefaultInt(param, -1);
+   paramSetDefaultInt(param, -1);
 
    param = SCIPgetParam(scip, "lp/cleanuprows");
-   SCIPparamSetDefaultBool(param, FALSE);
+   paramSetDefaultBool(param, FALSE);
 
    param = SCIPgetParam(scip, "lp/cleanuprowsroot");
-   SCIPparamSetDefaultBool(param, FALSE);
+   paramSetDefaultBool(param, FALSE);
 
    /* Because in the SDP-world there are no warmstarts as for LPs, the main advantage for DFS (that the change in the
     * problem is minimal and therefore the Simplex can continue with the current Basis) is lost and best first search, which
@@ -100,10 +132,10 @@ SCIP_RETCODE SCIPSDPsetDefaultParams(
     * the least number of nodes, allways has to be a best first search), is the optimal choice
     */
    param = SCIPgetParam(scip, "nodeselection/hybridestim/stdpriority");
-   SCIPparamSetDefaultInt(param, 1000000);
+   paramSetDefaultInt(param, 1000000);
 
    param = SCIPgetParam(scip, "nodeselection/hybridestim/maxplungedepth");
-   SCIPparamSetDefaultInt(param, 0);
+   paramSetDefaultInt(param, 0);
 
    /* now set parameters to their default value */
    SCIP_CALL( SCIPresetParams(scip) );
