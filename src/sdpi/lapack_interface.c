@@ -40,9 +40,10 @@
  * This file is used to call the LAPACK routine DSYEVR (double-symmetric-eigenvector computation) and the
  * BLAS routine DGEMV (double-general-matrix-vector multiplication).
  *
- * If a version of openblas/lapack with 64 bit integers is used in connection with SDPA, then one should define
- * LAPACK_LONGLONGINT. Note that one cannot detect the precision with which openblas/lapack is compiled, so this
- * define is essential for correct functioning (resulting in a segmentation fault otherwise).
+ * LAPACK can be build with 32- or 64-bit integers, which is not visible to the outside. This interface tries to work
+ * around this issue. Since the Fortran routines are called by reference, they only get a pointer. We use always use
+ * 64-bit integers on input, but reduce the output to 32-bit integers. We assume that al sizes can be represented in
+ * 32-bit integers.
  */
 
 /* #define PRINTMATRICES     /\* Should all matrices appearing in best rank-1 approximation heuristic be printed? *\/ */
@@ -61,12 +62,8 @@
 /*lint --e{788,818}*/
 
 
-/* if we use 64 bit integers then use long long int, otherwise int */
-#ifdef LAPACK_LONGLONGINT
+/* we use 64 bit integers as the base type */
 typedef long long int LAPACKINTTYPE;
-#else
-typedef int LAPACKINTTYPE;
-#endif
 
 
 /** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMORY */
@@ -80,7 +77,7 @@ typedef int LAPACKINTTYPE;
                       }                                                                                       \
                       while( FALSE )
 
-/** transforms a SCIP_Real (that should be integer, but might be off by some numerical error) to an integer by adding an epsilon and rounding down */
+/** transforms a SCIP_Real (that should be integer, but might be off by some numerical error) to an integer by adding 0.5 and rounding down */
 #define SCIP_RealTOINT(x) ((LAPACKINTTYPE) (x + 0.5))
 
 /*
@@ -91,15 +88,14 @@ typedef int LAPACKINTTYPE;
 /**@{ */
 
 /** LAPACK Fortran subroutine DSYEVR */
-void F77_FUNC(dsyevr, DSYEVR)(
-   char* JOBZ, char* RANGE, char* UPLO,
+void F77_FUNC(dsyevr, DSYEVR)(char* JOBZ, char* RANGE, char* UPLO,
    LAPACKINTTYPE* N, SCIP_Real* A, LAPACKINTTYPE* LDA,
    SCIP_Real* VL, SCIP_Real* VU,
    LAPACKINTTYPE* IL, LAPACKINTTYPE* IU,
    SCIP_Real* ABSTOL, LAPACKINTTYPE* M, SCIP_Real* W, SCIP_Real* Z,
    LAPACKINTTYPE* LDZ, LAPACKINTTYPE* ISUPPZ, SCIP_Real* WORK,
    LAPACKINTTYPE* LWORK, LAPACKINTTYPE* IWORK, LAPACKINTTYPE* LIWORK,
-   int* INFO);
+   LAPACKINTTYPE* INFO);
 
 
 /** BLAS Fortran subroutine DGEMV */
@@ -110,15 +106,53 @@ void F77_FUNC(dgemv, DGEMV)(char* TRANS, LAPACKINTTYPE* M,
 
 /** BLAS Fortran subroutine DGEMM */
 void F77_FUNC(dgemm, DGEMM)(char* TRANSA, char* TRANSB, LAPACKINTTYPE* M, LAPACKINTTYPE* N, LAPACKINTTYPE* K, SCIP_Real* ALPHA,
-      SCIP_Real* A, LAPACKINTTYPE* LDA, SCIP_Real* B, LAPACKINTTYPE* LDB, SCIP_Real* BETA, SCIP_Real* C, LAPACKINTTYPE* LDC );
+      SCIP_Real* A, LAPACKINTTYPE* LDA, SCIP_Real* B, LAPACKINTTYPE* LDB, SCIP_Real* BETA, SCIP_Real* C, LAPACKINTTYPE* LDC);
 
 /* LAPACK Fortran subroutine DGELSD */
-void F77_FUNC(dgelsd, DGELSD)(int* M, int* N, int* NRHS,
-      SCIP_Real* A, int* LDA, SCIP_Real* b, int* LDB, SCIP_Real* S, SCIP_Real* RCOND, int* RANK,
-      SCIP_Real* WORK, int* LWORK, int* IWORK, int* INFO );
-
+void F77_FUNC(dgelsd, DGELSD)(LAPACKINTTYPE* M, LAPACKINTTYPE* N, LAPACKINTTYPE* NRHS,
+      SCIP_Real* A, LAPACKINTTYPE* LDA, SCIP_Real* b, LAPACKINTTYPE* LDB, SCIP_Real* S, SCIP_Real* RCOND, LAPACKINTTYPE* RANK,
+      SCIP_Real* WORK, LAPACKINTTYPE* LWORK, LAPACKINTTYPE* IWORK, LAPACKINTTYPE* INFO);
 
 /**@} */
+
+/** converts a nunber stored in a long long int to an int, depending on big- or little endian machines
+ *
+ *  We assume that the number actually fits into an int. Thus, if more bits are used, we assume that the number is
+ *  negative.
+ */
+static
+int convertToInt(
+   long long int         num                 /**< number to be converted */
+   )
+{
+   long long int work;
+   int checkval = 1;
+
+   assert(sizeof(work) > sizeof(checkval));
+
+   /* if we have a little-endian machine (e.g, x86), the sought value is in the bottom part */
+   if ( *(int8_t*)&checkval != 0 )
+   {
+      /* if the top part is nonzero, we assume that the number is negative */
+      if ( *((int8_t*)&num + 4) != 0 )
+      {
+         work = -num;
+         return -(*((int*)&work));
+      }
+      return *((int*)&num);
+   }
+
+   /* otherwise we have a big-endian machine (e.g., PowerPC); the sought value is in the top part */
+   assert( *(int8_t*)&checkval == 0 );
+
+   /* if the bottom part is nonzero, we assume that the number is negative */
+   if ( *(int8_t*)&num != 0 )
+   {
+      work = -num;
+      return -(*((int*)&work + 4));
+   }
+   return *((int*)&num + 4);
+}
 
 
 /*
@@ -199,9 +233,9 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
       &INFO);
 
    /* for some reason this code seems to be called with INFO=0 within UG */
-   if ( INFO != 0 )
+   if ( convertToInt(INFO) != 0 )
    {
-      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %lld.\n", INFO);
+      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d.\n", convertToInt(INFO));
       return SCIP_ERROR;
    }
 
@@ -225,11 +259,11 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
       &ABSTOL, &M, WTMP, eigenvector,
       &LDZ, ISUPPZ, WORK,
       &LWORK, IWORK, &LIWORK,
-      &INFO );
+      &INFO);
 
-   if ( INFO != 0 )
+   if ( convertToInt(INFO) != 0 )
    {
-      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d.\n", INFO);
+      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d.\n", convertToInt(INFO));
       return SCIP_ERROR;
    }
 
@@ -316,9 +350,9 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorsNegative(
       &INFO);
 
    /* for some reason this code seems to be called with INFO=0 within UG */
-   if ( INFO != 0 )
+   if ( convertToInt(INFO) != 0 )
    {
-      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %lld.\n", INFO);
+      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d.\n", convertToInt(INFO));
       return SCIP_ERROR;
    }
 
@@ -338,15 +372,15 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorsNegative(
       &ABSTOL, &M, eigenvalues, eigenvectors,
       &LDZ, ISUPPZ, WORK,
       &LWORK, IWORK, &LIWORK,
-      &INFO );
+      &INFO);
 
-   if ( INFO != 0 )
+   if ( convertToInt(INFO) != 0 )
    {
-      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d.\n", INFO);
+      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d.\n", convertToInt(INFO));
       return SCIP_ERROR;
    }
 
-   *neigenvalues = (int) M;
+   *neigenvalues = convertToInt(M);
 
    /* free memory */
    BMSfreeBufferMemoryArray(bufmem, &ISUPPZ);
@@ -416,11 +450,11 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorDecomposition(
       &ABSTOL, &M, NULL, NULL,
       &LDZ, NULL, &WSIZE,
       &LWORK, &WISIZE, &LIWORK,
-      &INFO );
+      &INFO);
 
-   if ( INFO != 0 )
+   if ( convertToInt(INFO) != 0 )
    {
-      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d.\n", INFO);
+      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d.\n", convertToInt(INFO));
       return SCIP_ERROR;
    }
 
@@ -443,11 +477,11 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorDecomposition(
       &ABSTOL, &M, eigenvalues, eigenvectors,
       &LDZ, ISUPPZ, WORK,
       &LWORK, IWORK, &LIWORK,
-      &INFO );
+      &INFO);
 
-   if ( INFO != 0 )
+   if ( convertToInt(INFO) != 0 )
    {
-      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d.\n", INFO);
+      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d.\n", convertToInt(INFO));
       return SCIP_ERROR;
    }
 
@@ -555,21 +589,21 @@ SCIP_RETCODE SCIPlapackLinearSolve(
    )
 {
    int i;
-   int M;
-   int N;
-   int NRHS;
-   int LDA;
-   int LDB;
+   LAPACKINTTYPE M;
+   LAPACKINTTYPE N;
+   LAPACKINTTYPE NRHS;
+   LAPACKINTTYPE LDA;
+   LAPACKINTTYPE LDB;
    SCIP_Real* S;
    SCIP_Real RCOND;
-   int RANK;
+   LAPACKINTTYPE RANK;
    SCIP_Real* WORK;
-   int LWORK;
-   int LIWORK;
-   int* IWORK;
-   int INFO;
+   LAPACKINTTYPE LWORK;
+   LAPACKINTTYPE LIWORK;
+   LAPACKINTTYPE* IWORK;
+   LAPACKINTTYPE INFO;
    SCIP_Real WSIZE;
-   int WISIZE;
+   LAPACKINTTYPE WISIZE;
 #ifdef PRINTMATRICES
    SCIP_Real residual = 0.0;
 #endif
@@ -597,11 +631,11 @@ SCIP_RETCODE SCIPlapackLinearSolve(
    F77_FUNC(dgelsd, DGELSD)( &M, &N, &NRHS,
       NULL, &LDA, NULL, &LDB, NULL,
       &RCOND, &RANK, &WSIZE, &LWORK,
-      &WISIZE, &INFO );
+      &WISIZE, &INFO);
 
-   if ( INFO != 0 )
+   if ( convertToInt(INFO) != 0 )
    {
-      SCIPerrorMessage("There was an error when calling DGELSD. INFO = %d\n", INFO);
+      SCIPerrorMessage("There was an error when calling DGELSD. INFO = %d\n", convertToInt(INFO));
       return SCIP_ERROR;
    }
 
@@ -615,7 +649,7 @@ SCIP_RETCODE SCIPlapackLinearSolve(
    /* call the function */
    F77_FUNC(dgelsd, DGELSD)( &M, &N, &NRHS,
       A, &LDA, b, &LDB, S, &RCOND, &RANK,
-      WORK, &LWORK, IWORK, &INFO );
+      WORK, &LWORK, IWORK, &INFO);
 
 #ifdef PRINTMATRICES
    printf("LWORK = %d\n", LWORK);
@@ -637,9 +671,9 @@ SCIP_RETCODE SCIPlapackLinearSolve(
    printf("Residual sum-of-squares for the solution is %f\n", residual);
 #endif
 
-   if ( INFO != 0 )
+   if ( convertToInt(INFO) != 0 )
    {
-      SCIPerrorMessage("There was an error when calling DGELSD. INFO = %d\n", INFO);
+      SCIPerrorMessage("There was an error when calling DGELSD. INFO = %d\n", convertToInt(INFO));
       return SCIP_ERROR;
    }
 
@@ -656,4 +690,3 @@ SCIP_RETCODE SCIPlapackLinearSolve(
 }
 
 /**@} */
-
