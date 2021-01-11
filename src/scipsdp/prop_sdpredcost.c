@@ -63,6 +63,7 @@
 #define PROP_PRIORITY               +1000000 /**< propagator priority */
 #define PROP_FREQ                   1        /**< propagator frequency */
 #define PROP_DELAY                  FALSE    /**< Should propagation method be delayed, if other propagators found reductions? */
+
 #define DEFAULT_SDPRCBIN            TRUE     /**< Should sdp reduced cost fixing be executed for binary variables? */
 #define DEFAULT_SDPRCINTCONT        TRUE     /**< Should sdp reduced cost fixing be executed for integer and continuous variables? */
 
@@ -247,8 +248,6 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    SCIP_PROPDATA* propdata;
    int length;
 
-   SCIPdebugMsg(scip, "Calling propExecSdpredcost \n");
-
    assert( scip != NULL );
    assert( prop != NULL );
    assert( result != NULL );
@@ -268,26 +267,20 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    if ( SCIPgetStage(scip) == SCIP_STAGE_PRESOLVING )
       return SCIP_OKAY;
 
-  cutoffbound = SCIPgetCutoffbound(scip);
-  if ( SCIPisInfinity(scip, cutoffbound) )
-     return SCIP_OKAY;
+   cutoffbound = SCIPgetCutoffbound(scip);
+   if ( SCIPisInfinity(scip, cutoffbound) )
+      return SCIP_OKAY;
 
    relax = SCIPfindRelax(scip, "SDP"); /* get SDP relaxation handler */
    assert( relax != NULL );
 
-   /* we can only propagate for the last node for which the SDP was solved */
-   if ( SCIPrelaxSdpGetSdpNode(relax) != SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) )
-   {
-      SCIPdebugMsg(scip, "Do not run propgagation because SDP-relaxation does not match current node.\n");
-      return SCIP_OKAY;
-   }
-
    /* we can only propagate if the SDP was solved in its original formulation */
    if ( ! SCIPrelaxSdpSolvedOrig(relax) )
-   {
-      SCIPdebugMsg(scip, "Do not run propagation because SDP-relaxation was solved using a penalty formulation!\n");
       return SCIP_OKAY;
-   }
+
+   /* we can only propagate for the last node for which the SDP was solved */
+   if ( SCIPrelaxSdpGetSdpNode(relax) != SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) )
+      return SCIP_OKAY;
 
    SCIP_CALL( SCIPrelaxSdpRelaxVal(relax, &sdpsolved, &relaxval) );
    if ( ! sdpsolved )
@@ -303,6 +296,7 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    propdata = SCIPpropGetData(prop);
    assert( propdata != NULL );
 
+   SCIPdebugMsg(scip, "Running propExecSdpredcost ...\n");
    *result = SCIP_DIDNOTFIND;
 
    nvars = SCIPgetNVars(scip);
@@ -316,7 +310,9 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
       SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &propdata->ubvarvals, propdata->nvars, nvars) );
       propdata->nvars = nvars;
    }
-   SCIP_CALL( SCIPrelaxSdpGetPrimalBoundVars(scip, relax, vars, nvars, propdata->lbvarvals, propdata->ubvarvals) );
+   SCIP_CALL( SCIPrelaxSdpGetPrimalBoundVars(relax, propdata->lbvarvals, propdata->ubvarvals, &length) );
+   if ( length < 0 )
+      return SCIP_OKAY;
 
    assert( length == nvars ); /* we should get exactly one value for lower and upper bound-variable per variable in scip */
 
@@ -427,11 +423,11 @@ SCIP_RETCODE SCIPincludePropSdpredcost(
    SCIP_CALL( SCIPsetPropFree(scip, prop, propFreeSdpredcost) );
 
    /* add additional parameters */
-   SCIP_CALL( SCIPaddBoolParam(scip, "propagating/sdpredcost/forbins", "Should SDP reduced cost fixing be executed for binary variables?",
-         &propdata->forbins, TRUE, DEFAULT_SDPRCBIN, NULL, NULL) );
+   SCIP_CALL( SCIPaddBoolParam(scip, "propagating/" PROP_NAME "/forbins", "Should SDP reduced cost fixing be executed for binary variables?",
+         &(propdata->forbins), TRUE, DEFAULT_SDPRCBIN, NULL, NULL) );
 
-   SCIP_CALL( SCIPaddBoolParam(scip, "propagating/sdpredcost/forintconts", "Should SDP reduced cost fixing be executed for integer and continuous variables?",
-         &propdata->forintconts, TRUE, DEFAULT_SDPRCINTCONT, NULL, NULL) );
+   SCIP_CALL( SCIPaddBoolParam(scip, "propagating/" PROP_NAME "/forintconts", "Should SDP reduced cost fixing be executed for integer and continuous variables?",
+         &(propdata->forintconts), TRUE, DEFAULT_SDPRCINTCONT, NULL, NULL) );
 
    return SCIP_OKAY;
 }

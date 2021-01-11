@@ -177,9 +177,7 @@ SCIP_DECL_TABLEOUTPUT(tableOutputSlater)
             100.0 * (SCIP_Real) SCIPrelaxSdpGetNprimalSlaterUnknown(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp));
    }
 
-
    /* Slater solved statistics */
-
    if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0 )
    {
       SCIPinfoMessage(scip, file, "    Slater Solves  :       Fast     Stable    Penalty    Bounded    Unsolved\n");

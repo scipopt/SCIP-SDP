@@ -243,13 +243,13 @@ SCIP_RETCODE createConsSavesdpsol(
    SCIP_Real             maxprimalentry,     /**< maximum absolute value of primal matrix */
    int                   nblocks,            /**< number of blocks INCLUDING lp-block */
    int*                  startXnblocknonz,   /**< primal matrix X as starting point for the solver: number of nonzeros for each block,
-                                               *  also length of corresponding row/col/val-arrays; or NULL if nblocks = 0 */
+                                              *   also length of corresponding row/col/val-arrays; or NULL if nblocks = 0 */
    int**                 startXrow,          /**< primal matrix X as starting point for the solver: row indices for each block;
-                                               *  or NULL if nblocks = 0 */
+                                              *   or NULL if nblocks = 0 */
    int**                 startXcol,          /**< primal matrix X as starting point for the solver: column indices for each block;
-                                               *  or NULL if nblocks = 0 */
+                                              *   or NULL if nblocks = 0 */
    SCIP_Real**           startXval           /**< primal matrix X as starting point for the solver: values for each block;
-                                               *  or NULL if nblocks = 0 */
+                                              *   or NULL if nblocks = 0 */
    )
 {
    SCIP_CONSDATA* consdata = NULL;
@@ -372,7 +372,7 @@ SCIP_RETCODE SCIPconsSavesdpsolGetPrimalMatrixNonzeros(
    SCIP_CONS*            cons,               /**< constraint to get maximum primal entry for */
    int                   nblocks,            /**< number of blocks INCLUDING lp-block */
    int*                  startXnblocknonz    /**< input: allocated memory for startXrow/col/val
-                                               *  output: length of startXrow/col/val */
+                                              *   output: length of startXrow/col/val */
    )
 {
    SCIP_CONSDATA* consdata;
@@ -403,7 +403,7 @@ SCIP_RETCODE SCIPconsSavesdpsolGetPrimalMatrix(
    SCIP_CONS*            cons,               /**< constraint to get maximum primal entry for */
    int                   nblocks,            /**< number of blocks INCLUDING lp-block */
    int*                  startXnblocknonz,   /**< input: allocated memory for startXrow/col/val
-                                               *  output: length of startXrow/col/val */
+                                              *   output: length of startXrow/col/val */
    int**                 startXrow,          /**< pointer to store pointer to row indices of X */
    int**                 startXcol,          /**< pointer to store pointer to column indices of X */
    SCIP_Real**           startXval           /**< pointer to store pointer to values of X */

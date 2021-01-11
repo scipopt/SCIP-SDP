@@ -86,6 +86,7 @@ OMP		=	false
 OPENBLAS	=	true
 LAPACKLONGINT	=	false
 MUMPSSEQ	=	true
+STATICLAPACK	=	false
 
 #-----------------------------------------------------------------------------
 # include default project Makefile from SCIP
@@ -141,8 +142,10 @@ override DEBUGTOOL   =   none
 # settings for SDP solver
 #-----------------------------------------------------------------------------
 
-ifeq ($(SHARED),true)
+ifeq ($(SANITIZE),true)
 LDFLAGS 	+= -lubsan
+endif
+ifeq ($(SHARED),true)
 ifneq ($(LINKRPATH),)
 ifneq ($(SCIPSDPINTERNAL),true)
 # If this makefile is used to build an external project, we use SCIPREALPATH.
@@ -185,7 +188,7 @@ MUMPSLIB	=	-ldmumps_seq -lmumps_common_seq
 SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(MUMPSLIB) $(BLASLIB) -Wl,-rpath,$(SCIPSDPLIBDIR)/shared -lgfortran
 else
 MUMPSLIB	=	-ldmumps -lmumps_common -lpord -lgomp -lmpiseq
-SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(MUMPSLIB) $(BLASLIB) -lpthread -Wl,-rpath,$(SCIPSDPLIBDIR)/shared -lgfortran   # pthread after (open=blas
+SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(MUMPSLIB) $(BLASLIB) -lpthread -Wl,-rpath,$(SCIPSDPLIBDIR)/shared -lgfortran   # pthread after (openblas)
 endif
 endif
 
@@ -193,7 +196,13 @@ endif
 # MOSEK solver
 ifeq ($(SDPS),msk)
 BITEXT     	=  	$(word 2, $(subst _, ,$(ARCH)))
-SDPILIB		= 	-m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -Wl,-rpath,$(dir $(realpath $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) -llapack -lblas -pthread -lc -lm
+ifeq ($(SHARED),true)
+ifeq ($(STATICLAPACK),true)
+BSTATIC		= -Wl,-Bstatic
+BDYNAMIC	= -Wl,-Bdynamic
+endif
+endif
+SDPILIB		=       -m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -Wl,-rpath,$(dir $(realpath $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) $(BSTATIC) -llapack -lblas -lc $(BDYNAMIC) -lquadmath -pthread -lgfortran -lm
 endif
 
 #-----------------------------------------------------------------------------
@@ -209,7 +218,7 @@ endif
 FLAGS			+=	-I$(SCIPSDPREALPATH)/src
 
 SCIPSDPLIBSHORTNAME 	= 	scipsdp
-SCIPSDPLIB 		= 	$(SCIPSDPLIBSHORTNAME)-$(SCIPSDPVERSION).$(SDPS).$(BASE)
+SCIPSDPLIB 		= 	$(SCIPSDPLIBSHORTNAME)-$(SCIPSDPVERSION).$(BASE).$(SDPS)
 SCIPSDPLIBFILE 		= 	$(SCIPSDPLIBDIR)/$(LIBTYPE)/lib$(SCIPSDPLIB).$(LIBEXT)
 
 #-----------------------------------------------------------------------------
@@ -217,9 +226,7 @@ SCIPSDPLIBFILE 		= 	$(SCIPSDPLIBDIR)/$(LIBTYPE)/lib$(SCIPSDPLIB).$(LIBEXT)
 #-----------------------------------------------------------------------------
 
 # link SCIPSDP for C++ projects
-LINKCXXSCIPSDPALL	=	$(LINKCXX_L)$(SCIPSDPDIR)/lib/$(LIBTYPE) $(LINKCXX_l)$(SCIPSDPLIB)$(LINKLIBSUFFIX) \
-				$(SDPILIB) $(LINKCXXSCIPALL)
+LINKCXXSCIPSDPALL	=	$(LINKCXX_L)$(SCIPSDPDIR)/lib/$(LIBTYPE) $(LINKCXX_l)$(SCIPSDPLIB)$(LINKLIBSUFFIX) $(SDPILIB) $(LINKCXXSCIPALL)
 
 # link SCIP for C projects (including libobjscip)
-LINKCCSCIPSDPALL	=	$(LINKCXX_L)$(SCIPSDPDIR)/lib/$(LIBTYPE) $(LINKCXX_l)$(SCIPSDPLIB)$(LINKLIBSUFFIX) \
-				$(SDPILIB) $(LINKCCSCIPALL)
+LINKCCSCIPSDPALL	=	$(LINKCXX_L)$(SCIPSDPDIR)/lib/$(LIBTYPE) $(LINKCXX_l)$(SCIPSDPLIB)$(LINKLIBSUFFIX) $(SDPILIB) $(LINKCCSCIPALL)

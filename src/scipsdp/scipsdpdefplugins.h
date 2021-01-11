@@ -41,7 +41,6 @@
 #define __SCIP_SCIPSDPDEFPLUGINS_H__
 
 #include "scip/scip.h"
-#include "scip/scipshell.h"
 
 #ifdef __cplusplus
 extern "C" {

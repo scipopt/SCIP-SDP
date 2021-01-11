@@ -29,15 +29,17 @@ set(scipsdpsources
     scipsdp/branch_sdpmostinf.c
     scipsdp/branch_sdpobjective.c
     scipsdp/branch_sdpinfobjective.c
+    scipsdp/heur_sdpinnerlp.c
     scipsdp/heur_sdpfracdiving.c
     scipsdp/heur_sdprand.c
     scipsdp/reader_cbf.c
+    scipsdp/reader_sdpa.c
     scipsdp/prop_sdpobbt.c
     scipsdp/prop_companalcent.c
     scipsdp/table_relaxsdp.c
     scipsdp/table_slater.c
     scipsdp/table_sdpsolversuccess.c
-    scipsdp/scipsdpdefplugins.cpp
+    scipsdp/scipsdpdefplugins.c
     sdpi/sdpi.c
     sdpi/sdpsolchecker.c
     sdpi/lapack_interface.c
@@ -45,9 +47,6 @@ set(scipsdpsources
 )
 
 set(objscipsdpsources
-    scipsdp/objreader_sdpa.cpp
-    scipsdp/objreader_sdpaind.cpp
-    scipsdp/ScipStreamBuffer.cpp
 )
 
 set(sdpisources
@@ -62,13 +61,9 @@ set(sdpiheaders
 )
 
 set(objscipsdpheaders
-    scipsdp/objreader_sdpa.h
-    scipsdp/objreader_sdpaind.h
-    scipsdp/ScipStreamBuffer.h
 )
 
 set(scipsdpheaders
-    scipsdp/BlockMemoryAllocator.h
     scipsdp/SdpVarmapper.h
     scipsdp/SdpVarfixer.h
     scipsdp/cons_sdp.h
@@ -85,9 +80,11 @@ set(scipsdpheaders
     scipsdp/branch_sdpmostinf.h
     scipsdp/branch_sdpobjective.h
     scipsdp/branch_sdpinfobjective.h
+    scipsdp/heur_sdpinnerlp.h
     scipsdp/heur_sdpfracdiving.h
     scipsdp/heur_sdprand.h
     scipsdp/reader_cbf.h
+    scipsdp/reader_sdpa.h
     scipsdp/prop_sdpobbt.h
     scipsdp/prop_companalcent.h
     scipsdp/table_relaxsdp.h
@@ -115,11 +112,11 @@ setLibProperties(libscipsdp "scipsdp")
 #put binary in bin directory
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 if(SHARED)
-    target_link_libraries(libscipsdp PRIVATE ${ZIMPL_PIC_LIBRARIES} ${SDPS_PIC_LIBRARIES} ${LAPACK_LIBRARY} ${BLAS_LIBRARY})
+    target_link_libraries(libscipsdp PRIVATE ${ZIMPL_PIC_LIBRARIES} ${SDPS_PIC_LIBRARIES} ${LAPACK_LIBRARY} ${BLAS_LIBRARY} m)
     add_executable(scipsdp scipsdp/main.c ${scipsdpsources} ${objscipsdpsources} ${sdpisources})
     target_link_libraries(scipsdp ${ZLIB_LIBRARIES} ${Readline_LIBRARY} ${GMP_LIBRARIES} ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES} ${SCIP_LIBRARIES})
 else()
-    target_link_libraries(libscipsdp PRIVATE ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES} ${LAPACK_LIBRARY} ${BLAS_LIBRARY})
+    target_link_libraries(libscipsdp PRIVATE ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES} ${LAPACK_LIBRARY} ${BLAS_LIBRARY} m)
     add_executable(scipsdp scipsdp/main.c ${scipsdpsources} ${objscipsdpsources} ${sdpisources})
     target_link_libraries(scipsdp libscipsdp ${SCIP_LIBRARIES})
 endif()

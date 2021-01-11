@@ -73,6 +73,7 @@
 #define DEFAULT_MAXDIVEUBQUOTNOSOL  0.1 /**< maximal UBQUOT when no solution was found yet (0.0: no limit) */
 #define DEFAULT_MAXDIVEAVGQUOTNOSOL 0.0 /**< maximal AVGQUOT when no solution was found yet (0.0: no limit) */
 #define DEFAULT_BACKTRACK          TRUE /**< use one level of backtracking if infeasibility is encountered? */
+#define DEFAULT_RUNFORLP          FALSE /**< Should the diving heuristic be applied if we are solving LPs? */
 
 
 /* locally defined heuristic data */
@@ -88,6 +89,7 @@ struct SCIP_HeurData
    SCIP_Real             maxdiveubquotnosol; /**< maximal UBQUOT when no solution was found yet (0.0: no limit) */
    SCIP_Real             maxdiveavgquotnosol;/**< maximal AVGQUOT when no solution was found yet (0.0: no limit) */
    SCIP_Bool             backtrack;          /**< use one level of backtracking if infeasibility is encountered? */
+   SCIP_Bool             runforlp;           /**< Should the diving heuristic be applied if we are solving LPs? */
    int                   nsuccess;           /**< number of runs that produced at least one feasible solution */
 };
 
@@ -122,7 +124,7 @@ SCIP_DECL_HEURFREE(heurFreeSdpFracdiving)
    /* free heuristic data */
    heurdata = SCIPheurGetData(heur);
    assert(heurdata != NULL);
-   SCIPfreeMemory(scip, &heurdata);
+   SCIPfreeBlockMemory(scip, &heurdata);
    SCIPheurSetData(heur, NULL);
 
    return SCIP_OKAY;
@@ -179,6 +181,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
    /* the current bugfix branch (3.2.1) does not have SCIPsolveProbingRelax() -> do nothing */
 #if ( (SCIP_VERSION > 321 || SCIP_SUBVERSION > 0) )
    SCIP_HEURDATA* heurdata;
+   SCIP_CONSHDLR* conshdlrsdp;
    SCIP_RELAX* relaxsdp;
    SCIP_VAR** vars;
    SCIP_VAR* var;
@@ -192,6 +195,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
    SCIP_Bool roundup;
    SCIP_Bool backtracked;
    SCIP_Bool backtrack;
+   SCIP_Bool usesdp = TRUE;
    SCIP_Real* sdpcandssol;
    SCIP_Real* sdpcandsfrac;
    SCIP_Real searchubbound;
@@ -204,6 +208,8 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
    SCIP_Real bestobjgain;
    SCIP_Real frac;
    SCIP_Real bestfrac;
+   SCIP_SOL* relaxsol = NULL;
+   int freq = -1;
    int nvars;
    int nsdpcands;
    int startnsdpcands;
@@ -222,25 +228,55 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
 
    *result = SCIP_DELAYED;
 
-   relaxsdp = SCIPfindRelax(scip, "SDP");
-
-   /* do not run if relaxation solution is not available */
-   if ( ! SCIPisRelaxSolValid(scip) || SCIPrelaxSdpSolvedProbing(relaxsdp) )
-      return SCIP_OKAY;
-
    /* do not call heuristic if node was already detected to be infeasible */
    if ( nodeinfeasible )
       return SCIP_OKAY;
+
+   *result = SCIP_DIDNOTRUN;
 
    /* don't dive two times at the same node */
    if ( SCIPgetLastDivenode(scip) == SCIPgetNNodes(scip) && SCIPgetDepth(scip) > 0 )
       return SCIP_OKAY;
 
-   *result = SCIP_DIDNOTRUN;
-
    /* get heuristic's data */
    heurdata = SCIPheurGetData(heur);
    assert( heurdata != NULL );
+
+   /* do not run if relaxation solution is not available and we do not want to run for LPs or no LP solution is available */
+   if ( ! SCIPisRelaxSolValid(scip) )
+   {
+      /* exit if we do not want to run for LPs */
+      if ( ! heurdata->runforlp )
+         return SCIP_OKAY;
+
+      /* exit if LP is not solved */
+      if ( SCIPgetLPSolstat(scip) != SCIP_LPSOLSTAT_OPTIMAL )
+         return SCIP_OKAY;
+
+      /* avoid solving for sub-SCIPs */
+      if ( SCIPgetSubscipDepth(scip) > 0 )
+         return SCIP_OKAY;
+
+      usesdp = FALSE;
+   }
+
+   relaxsdp = SCIPfindRelax(scip, "SDP");
+   if ( relaxsdp == NULL )
+      return SCIP_OKAY;
+
+   conshdlrsdp = SCIPfindConshdlr(scip, "SDP");
+   if ( conshdlrsdp == NULL )
+      return SCIP_OKAY;
+
+   /* exit if there are no SDP constraints */
+   if ( SCIPconshdlrGetNConss(conshdlrsdp) <= 0 )
+      return SCIP_OKAY;
+
+   /* decide with solution to use */
+   if ( usesdp )
+   {
+      SCIP_CALL( SCIPcreateRelaxSol(scip, &relaxsol, heur) );
+   }
 
    /* only try to dive, if we are in the correct part of the tree, given by minreldepth and maxreldepth */
    depth = SCIPgetDepth(scip);
@@ -261,7 +297,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
    {
       SCIP_Real val;
 
-      val = SCIPgetRelaxSolVal(scip, vars[v]);
+      val = SCIPgetSolVal(scip, relaxsol, vars[v]);
       frac = SCIPfeasFrac(scip, val);
 
       if ( SCIPvarIsIntegral(vars[v]) && ( ! SCIPisFeasZero(scip, frac) ) )
@@ -271,6 +307,15 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
          sdpcandsfrac[nsdpcands] = frac;
          ++nsdpcands;
       }
+   }
+
+   /* get SDP objective value*/
+   objval = SCIPgetSolTransObj(scip, relaxsol);
+
+   /* possibly free relaxtion (LP or SDP) solution */
+   if ( relaxsol != NULL )
+   {
+      SCIP_CALL( SCIPfreeSol(scip, &relaxsol) );
    }
 
    /* don't try to dive, if there are no fractional variables */
@@ -322,9 +367,6 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
    /* enables collection of variable statistics during probing */
    SCIPenableVarHistory(scip);
 
-   /* get SDP objective value*/
-   objval = SCIPgetRelaxSolObj(scip);
-
    SCIPdebugMsg(scip, "(node %"SCIP_LONGINT_FORMAT") executing SDP fracdiving heuristic: depth=%d, %d fractionals, dualbound=%g, searchbound=%g\n",
       SCIPgetNNodes(scip), SCIPgetDepth(scip), nsdpcands, SCIPgetDualbound(scip), SCIPretransformObj(scip, searchbound));
 
@@ -338,6 +380,13 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
    bestcandmayroundup = FALSE;
    startnsdpcands = nsdpcands;
    roundup = FALSE;
+
+   if ( ! usesdp )
+   {
+      /* temporarily change relaxator frequency, since otherwise relaxation will not be solved */
+      freq = SCIPrelaxGetFreq(relaxsdp);
+      SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", 1) );
+   }
 
    while ( ! cutoff && nsdpcands > 0
       && ( divedepth < 10
@@ -539,6 +588,12 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
                *result = SCIP_DIDNOTRUN;
                SCIP_CALL( SCIPendProbing(scip) );
 
+               /* reset frequency of relaxator */
+               if ( ! usesdp )
+               {
+                  SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", freq) );
+               }
+
                return SCIP_OKAY;
             }
 
@@ -628,8 +683,17 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
    /* end diving */
    SCIP_CALL( SCIPendProbing(scip) );
 
+   /* reset frequency of relaxator */
+   if ( ! usesdp )
+   {
+      SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", freq) );
+   }
+
    if ( *result == SCIP_FOUNDSOL )
       heurdata->nsuccess++;
+
+   /* We have to invalidate the relaxation solution, because SCIP will otherwise not check the relaxation solution for feasibility. */
+   SCIP_CALL( SCIPmarkRelaxSolInvalid(scip) );
 
    SCIPdebugMsg(scip, "SDP fracdiving heuristic finished\n");
 
@@ -637,7 +701,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
    SCIPfreeBufferArray(scip, &sdpcandssol);
    SCIPfreeBufferArray(scip, &sdpcands);
 
-   return SCIP_OKAY;
+   return SCIP_OKAY; /*lint !e438*/
 
 #else
    *result = SCIP_DIDNOTRUN;
@@ -660,7 +724,7 @@ SCIP_RETCODE SCIPincludeHeurSdpFracdiving(
    SCIP_HEUR* heur;
 
    /* create Fracdiving primal heuristic data */
-   SCIP_CALL( SCIPallocMemory(scip, &heurdata) );
+   SCIP_CALL( SCIPallocBlockMemory(scip, &heurdata) );
 
    /* include primal heuristic */
    SCIP_CALL( SCIPincludeHeurBasic(scip, &heur,
@@ -704,6 +768,10 @@ SCIP_RETCODE SCIPincludeHeurSdpFracdiving(
          "heuristics/sdpfracdiving/backtrack",
          "use one level of backtracking if infeasibility is encountered?",
          &heurdata->backtrack, FALSE, DEFAULT_BACKTRACK, NULL, NULL) );
+   SCIP_CALL( SCIPaddBoolParam(scip,
+         "heuristics/sdpfracdiving/runforlp",
+         "Should the diving heuristic be applied if we are solving LPs?",
+         &heurdata->runforlp, FALSE, DEFAULT_RUNFORLP, NULL, NULL) );
 
    return SCIP_OKAY;
 }

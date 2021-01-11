@@ -234,10 +234,13 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
             }
 
             /* add constant matrix */
-            for (i = 0; i < sdpconstnblocknonz[b]; i++)
+            if ( sdpconstnblocknonz != NULL )
             {
-               fullsdpmatrix[((sdpconstrow[b][i] - indchanges[b][sdpconstrow[b][i]]) * (sdpblocksizes[b] - nremovedinds[b])) +
-                             sdpconstcol[b][i] - indchanges[b][sdpconstcol[b][i]]] -= sdpconstval[b][i];/*lint !e679*/
+               for (i = 0; i < sdpconstnblocknonz[b]; i++)
+               {
+                  fullsdpmatrix[((sdpconstrow[b][i] - indchanges[b][sdpconstrow[b][i]]) * (sdpblocksizes[b] - nremovedinds[b])) +
+                     sdpconstcol[b][i] - indchanges[b][sdpconstcol[b][i]]] -= sdpconstval[b][i];/*lint !e679*/
+               }
             }
 
             /* extend to full symmetric matrix for LAPACK */

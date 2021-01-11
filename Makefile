@@ -46,6 +46,8 @@ SCIPREALPATH	=	$(realpath $(SCIPDIR))
 # overwrite flags for dependencies
 DFLAGS		=       -MM
 
+SCIPSDPVERSION	= 3.2.0
+
 #-----------------------------------------------------------------------------
 # DSDP solver
 SDPIOPTIONS	=	dsdp
@@ -128,7 +130,6 @@ endif
 # no solver
 SDPIOPTIONS	+=	none
 ifeq ($(SDPS),none)
-SDPILIB		= 	-L$(SCIPSDPLIBDIR) -llapack -lblas
 SDPICSRC 	= 	src/sdpi/sdpisolver_none.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_none.o
 SETTINGS	= 	lp_approx
@@ -159,7 +160,6 @@ endif
 # SCIPSDP
 #-----------------------------------------------------------------------------
 
-SCIPSDPNAME	=	scipsdp
 SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/SdpVarfixer.o \
 			scipsdp/cons_sdp.o \
@@ -177,10 +177,13 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/branch_sdpobjective.o \
 			scipsdp/branch_sdpinfobjective.o \
 			scipsdp/heur_sdpfracdiving.o \
+			scipsdp/heur_sdpinnerlp.o \
 			scipsdp/heur_sdprand.o \
 			scipsdp/reader_cbf.o \
+			scipsdp/reader_sdpa.o \
 			scipsdp/prop_sdpobbt.o \
 			scipsdp/prop_companalcent.o \
+			scipsdp/scipsdpdefplugins.o \
 			scipsdp/table_relaxsdp.o \
 			scipsdp/table_slater.o \
 			scipsdp/table_sdpsolversuccess.o \
@@ -189,10 +192,7 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			sdpi/lapack_interface.o \
 			scipsdpgithash.o
 
-SCIPSDPCCOBJ 	=	scipsdp/objreader_sdpa.o \
-			scipsdp/objreader_sdpaind.o \
-			scipsdp/scipsdpdefplugins.o \
-			scipsdp/ScipStreamBuffer.o
+SCIPSDPCCOBJ 	=	
 
 SCIPSDPCSRC	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCOBJ:.o=.c))
 SCIPSDPCCSRC 	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCCOBJ:.o=.cpp))
@@ -200,9 +200,6 @@ SCIPSDPDEP 	=	$(SRCDIR)/depend.cppmain.$(OPT)
 
 SCIPSDPGITHASHFILE	= 	$(SRCDIR)/scipsdpgithash.c
 
-# @todo possibly add LPS
-SCIPSDPBIN		=	$(BINDIR)/$(SCIPSDPNAME).$(BASE).$(SDPS)$(EXEEXTENSION)
-SCIPSDPSHORTLINK	=	$(BINDIR)/$(SCIPSDPNAME)
 SCIPSDPCOBJFILES	=	$(addprefix $(OBJDIR)/,$(SCIPSDPCOBJ))
 SCIPSDPCCOBJFILES	=	$(addprefix $(OBJDIR)/,$(SCIPSDPCCOBJ))
 
@@ -218,16 +215,34 @@ SCIPSDPLIBOBJFILES	=	$(addprefix $(OBJDIR)/,$(SCIPSDPCOBJ))
 SCIPSDPLIBOBJFILES	+=	$(addprefix $(OBJDIR)/,$(SCIPSDPCCOBJ))
 SCIPSDPLIBOBJFILES	+=	$(SDPIOBJ)
 
+# binary targets
+SCIPSDPBINSHORTNAME 	=	scipsdp
+SCIPSDPBINNAME		=	$(SCIPSDPBINSHORTNAME)-$(SCIPSDPVERSION)
+SCIPSDPBINFILE		=	$(BINDIR)/$(SCIPSDPBINNAME).$(BASE).$(SDPS)$(EXEEXTENSION)
+SCIPSDPBINLINK		=	$(BINDIR)/$(SCIPSDPBINSHORTNAME).$(BASE).$(SDPS)$(EXEEXTENSION)
+SCIPSDPBINSHORTLINK	=	$(BINDIR)/$(SCIPSDPBINSHORTNAME)
+
+# libary targets
+SCIPSDPLIBSHORTNAME 	=	scipsdp
+SCIPSDPLIBNAME		=	$(SCIPSDPLIBSHORTNAME)-$(SCIPSDPVERSION)
+
+SCIPSDPLIB		=	$(SCIPSDPLIBNAME).$(BASE).$(SDPS)
+SCIPSDPLIBFILE		=	$(LIBDIR)/$(LIBTYPE)/lib$(SCIPSDPLIBNAME).$(BASE).$(SDPS).$(LIBEXT)
+SCIPSDPLIBLINK 		=	$(LIBDIR)/$(LIBTYPE)/lib$(SCIPSDPLIBSHORTNAME).$(BASE).$(SDPS).$(LIBEXT)
+SCIPSDPLIBSHORTLINK 	=	$(LIBDIR)/$(LIBTYPE)/lib$(SCIPSDPLIBSHORTNAME).$(LIBEXT)
+
 #-----------------------------------------------------------------------------
 # rules
 #-----------------------------------------------------------------------------
 
 ifeq ($(VERBOSE),false)
-.SILENT:	$(SCIPSDPBIN) $(SCIPSDPCOBJFILES) $(SCIPSDPCCOBJFILES) $(MAINOBJFILES) $(SCIPSDPLIBFILE) $(SDPIOBJ) $(SCIPSDPSHORTLINK)
+.SILENT:	$(SCIPSDPBINFILE) $(SCIPSDPCOBJFILES) $(SCIPSDPCCOBJFILES) $(MAINOBJFILES) $(SCIPSDPLIBFILE) $(SDPIOBJ) \
+		$(SCIPSDPBINLINK) $(SCIPSDPLIBLINK) $(SCIPSDPBINSHORTLINK) $(SCIPSDPLIBSHORTLINK)
+MAKE		+= -s
 endif
 
 .PHONY: all
-all:            $(SCIPDIR) $(SCIPSDPBIN) $(SCIPSDPSHORTLINK)
+all:            $(SCIPDIR) $(SCIPSDPBINFILE) $(SCIPSDPBINLINK) $(SCIPSDPBINSHORTLINK)
 
 .PHONY: checkdefines
 checkdefines:
@@ -299,9 +314,25 @@ endif
 doc:
 		cd doc; $(DOXY) $(SCIPSDPNAME).dxy
 
-$(SCIPSDPSHORTLINK): $(SCIPSDPBIN)
+$(SCIPSDPBINLINK): $(SCIPSDPBINFILE)
 		@rm -f $@
-		cd $(dir $@) && ln -s $(notdir $(SCIPSDPBIN)) $(notdir $@)
+		cd $(dir $@) && ln -s $(notdir $(SCIPSDPBINFILE)) $(notdir $@)
+
+# the short link targets should be phony such that they are always updated and point to the files with last make options, even if nothing needed to be rebuilt
+.PHONY: $(SCIPSDPBINSHORTLINK)
+$(SCIPSDPBINSHORTLINK): $(SCIPSDPBINFILE)
+		@rm -f $@
+		cd $(dir $@) && ln -s $(notdir $(SCIPSDPBINFILE)) $(notdir $@)
+
+$(SCIPSDPLIBLINK): $(SCIPSDPLIBFILE)
+		@rm -f $@
+		cd $(dir $@) && $(LN_s) $(notdir $(SCIPSDPLIBFILE)) $(notdir $@)
+
+# the short link targets should be phony such that they are always updated and point to the files with last make options, even if nothing needed to be rebuilt
+.PHONY: $(SCIPSDPLIBSHORTLINK)
+$(SCIPSDPLIBSHORTLINK): $(SCIPSDPLIBFILE)
+		@rm -f $@
+		cd $(dir $@) && $(LN_s) $(notdir $(SCIPSDPLIBFILE)) $(notdir $@)
 
 $(OBJDIR):
 		@mkdir -p $(OBJDIR);
@@ -326,16 +357,24 @@ $(BINDIR):
 		echo "-> Creating $(BINDIR) directory"; \
 		mkdir -p $(BINDIR); }
 
+# SCIP-SDP libfile
 .PHONY: libscipsdp
 libscipsdp:	preprocess
 		@$(MAKE) $(SCIPSDPLIBFILE) $(SCIPSDPLIBLINK) $(SCIPSDPLIBSHORTLINK)
 
+
+# We usually can not include the SDP libraries in the static libraries, e.g., because they are shared.
+# In the shared library, we include the SDP libraries.
 $(SCIPSDPLIBFILE):	$(SCIPSDPLIBOBJFILES) | $(SCIPSDPLIBDIR)/$(LIBTYPE)
 		@echo "-> generating library $@"
 		-rm -f $@
+ifeq ($(SHARED),false)
 		$(LIBBUILD) $(LIBBUILDFLAGS) $(LIBBUILD_o)$@ $(SCIPSDPLIBOBJFILES)
 ifneq ($(RANLIB),)
 		$(RANLIB) $@
+endif
+else
+		$(LIBBUILD) $(LIBBUILDFLAGS) $(LIBBUILD_o)$@ $(SCIPSDPLIBOBJFILES) $(SDPILIB)
 endif
 
 .PHONY: clean
@@ -349,7 +388,7 @@ ifneq ($(OBJDIR),)
 	 	@-rmdir $(OBJDIR)/sdpi
 		@-rmdir $(OBJDIR)
 endif
-		-rm -f $(SCIPSDPBIN)
+		-rm -f $(SCIPSDPBINFILE)
 
 #-----------------------------------------------------------------------------
 -include $(LASTSETTINGS)
@@ -485,7 +524,7 @@ test:
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_logfiles.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/run.sh);
 		cd check; \
-		$(SHELL) ./check.sh $(TEST) $(SCIPSDPBIN) $(SETTINGS) $(notdir $(SCIPSDPBIN)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(DISPFREQ) \
+		$(SHELL) ./check.sh $(TEST) $(SCIPSDPBINFILE) $(SETTINGS) $(notdir $(SCIPSDPBINFILE)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(DISPFREQ) \
 			$(CONTINUE) $(LOCK) $(SCIPSDPVERSION) $(SDPS) $(DEBUGTOOL) $(CLIENTTMPDIR) $(REOPT) $(OPTCOMMAND) $(SETCUTOFF) $(MAXJOBS) $(VISUALIZE) \
 			$(PERMUTE) $(SEEDS) $(GLBSEEDSHIFT) $(STARTPERM);
 
@@ -529,7 +568,7 @@ depend:		$(SCIPDIR)
 
 -include	$(SCIPSDPDEP)
 
-$(SCIPSDPBIN):	$(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) libscipsdp $(MAINOBJFILES) | $(SDPOBJSUBDIRS) $(BINDIR)
+$(SCIPSDPBINFILE): $(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) libscipsdp $(MAINOBJFILES) | $(SDPOBJSUBDIRS) $(BINDIR)
 		@echo "-> linking $@"
 		$(LINKCXX) $(MAINOBJFILES) -L$(SCIPSDPLIBDIR)/$(LIBTYPE) -l$(SCIPSDPLIB) $(SDPILIB) $(LINKCXXSCIPALL) $(LINKCXX_o)$@
 

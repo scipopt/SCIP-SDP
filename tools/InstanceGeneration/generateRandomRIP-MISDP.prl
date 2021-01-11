@@ -46,6 +46,32 @@ for (my $i = 0; $i < $m; ++$i)
    }
 }
 
+
+# write matrix to file
+if ( $binary == 1)
+{
+   my $matrixfilename = "perl_bina".$m..$n.$k.".cbf";
+   my $randstr = "randomization = uniformly in 0/1"
+}
+else
+{
+   my $matrixfilename = "perl_norm".$m..$n.$k.".cbf";
+   my $randstr = "randomization = N(0,1)"
+}
+
+open(OUTFILE, ">", $matrixfilename) or die $!;
+printf(OUTFILE "%s, seed = %s\n", $randstr, $randseedstr);
+
+for (my $i = 0; $i < $m; ++$i)
+{
+   for (my $j = 0; $j < $n; ++$j)
+   {
+      printf(OUTFILE "%d ", $A[$i * $m + $j]);
+   }
+   printf(OUTFILE "\n");
+}
+close(OUTFILE);
+
 # compute A^T A
 my $B;
 for (my $i = 0; $i < $n; ++$i)
