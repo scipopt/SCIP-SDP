@@ -40,10 +40,10 @@
  * This file is used to call the LAPACK routine DSYEVR (double-symmetric-eigenvector computation) and the
  * BLAS routine DGEMV (double-general-matrix-vector multiplication).
  *
- * LAPACK can be build with 32- or 64-bit integers, which is not visible to the outside. This interface tries to work
- * around this issue. Since the Fortran routines are called by reference, they only get a pointer. We use always use
- * 64-bit integers on input, but reduce the output to 32-bit integers. We assume that al sizes can be represented in
- * 32-bit integers.
+ * LAPACK can be built with 32- or 64-bit integers, which is not visible to the outside. This interface tries to work
+ * around this issue. Since the Fortran routines are called by reference, they only get a pointer. We always use 64-bit
+ * integers on input, but reduce the output to 32-bit integers. We assume that all sizes can be represented in 32-bit
+ * integers.
  */
 
 /* #define PRINTMATRICES     /\* Should all matrices appearing in best rank-1 approximation heuristic be printed? *\/ */
@@ -114,7 +114,7 @@ void F77_FUNC(dgelsd, DGELSD)(LAPACKINTTYPE* M, LAPACKINTTYPE* N, LAPACKINTTYPE*
 /**@} */
 
 
-/** converts a nunber stored in a long long int to an int, depending on big- or little endian machines
+/** converts a number stored in a long long int to an int, depending on big- or little endian machines
  *
  *  We assume that the number actually fits into an int. Thus, if more bits are used, we assume that the number is
  *  negative.
