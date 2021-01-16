@@ -307,7 +307,7 @@ endif
 
 .PHONY: doc
 doc:
-		cd doc; $(DOXY) $(SCIPSDPNAME).dxy
+		cd doc; $(DOXY) scipsdp.dxy
 
 $(SCIPSDPBINLINK): $(SCIPSDPBINFILE)
 		@rm -f $@
