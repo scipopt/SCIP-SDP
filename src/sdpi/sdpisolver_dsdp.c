@@ -613,7 +613,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
                                               *   may be NULL if startXnblocknonz = NULL */
    SCIP_Real**           startXval,          /**< primal matrix X as starting point for the solver: values for each block;
                                               *   may be NULL if startXnblocknonz = NULL */
-   SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP ans MOSEK, set this to
+   SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP and MOSEK, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
    SDPI_CLOCK*           usedsdpitime        /**< clock to measure how much time has been used for the current solve */
@@ -1487,7 +1487,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       if ( infeasible )
       {
-         SCIPdebugMessage("Solution feasible for DSDP but outside feasibility tolerance, changing SDPA feasibility tolerance from %f to %f\n",
+         SCIPdebugMessage("Solution feasible for DSDP but outside feasibility tolerance, changing DSDP feasibility tolerance from %f to %f\n",
                feastol, feastol * INFEASFEASTOLCHANGE);
          feastol *= INFEASFEASTOLCHANGE;
 
@@ -1519,7 +1519,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          else
          {
             sdpisolver->solved = FALSE;
-            SCIPmessagePrintInfo(sdpisolver->messagehdlr, "SDPA failed to reach required feasibility tolerance! \n");
+            SCIPmessagePrintInfo(sdpisolver->messagehdlr, "DSDP failed to reach required feasibility tolerance! \n");
          }
       }
       else

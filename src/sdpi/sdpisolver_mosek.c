@@ -115,7 +115,7 @@ struct SCIP_SDPiSolver
    SCIP_Real             opttime;            /**< time spend in optimziation */
    int                   nvars;              /**< number of input variables */
    int                   nactivevars;        /**< number of variables present in the dual problem in MOSEK (nvars minus the number of variables with lb = ub) */
-   int                   maxnvars;           /**< size of the arrays inputtomosekmapper, mosektoinputmapper, fixedvarsval, andxs objcoefs */
+   int                   maxnvars;           /**< size of the arrays inputtomosekmapper, mosektoinputmapper, fixedvarsval, and objcoefs */
    int*                  inputtomosekmapper; /**< entry i gives the index of input variable i in MOSEK (starting from 0) or
                                               *   -j (j=1, 2, ..., nvars - nactivevars) if the variable is fixed, the value and objective value of
                                               *   this fixed variable can be found in entry j-1 of fixedval/obj */

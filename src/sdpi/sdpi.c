@@ -249,7 +249,7 @@ struct SCIP_SDPi
    SCIP_Real*            lplhs;              /**< left hand sides of LP rows */
    SCIP_Real*            lprhs;              /**< right hand sides of LP rows */
    SCIP_Real*            sdpilplhs;          /**< working space for left hand sides of LP rows */
-   SCIP_Real*            sdpilprhs;          /**< working space right hand sides of LP rows */
+   SCIP_Real*            sdpilprhs;          /**< working space for right hand sides of LP rows */
    int                   lpnnonz;            /**< number of nonzero elements in the LP-constraint matrix */
    int                   maxlpnnonz;         /**< maximal number of nonzero elements in the LP-constraint matrix */
    int*                  lprow;              /**< row-index for each entry in lpval-array */
@@ -2678,7 +2678,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    /* exit if infeasible */
    if ( sdpi->infeasible )
    {
-      SCIPdebugMessage("SDP %d not given to solver, snce infeasibility was detected during problem preparation!\n", sdpi->sdpid++);
+      SCIPdebugMessage("SDP %d not given to solver, since infeasibility was detected during problem preparation!\n", sdpi->sdpid++);
       SCIP_CALL( SCIPsdpiSolverIncreaseCounter(sdpi->sdpisolver) );
 
       sdpi->solved = TRUE;
@@ -2729,7 +2729,7 @@ SCIP_RETCODE SCIPsdpiSolve(
 
    if ( sdpi->allfixed && ! sdpi->infeasible )
    {
-      /* check feasibility of SDP constraints - LP constraints have been checked in computeLpLhsRhsAfterFixings() */
+      /* check feasibility of SDP constraints - LP constraints have been checked in prepareLPData() */
       SCIP_CALL( checkFixedFeasibilitySdp(sdpi, sdpi->sdpilb, sdpi->sdpiub, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval) );
    }
 
