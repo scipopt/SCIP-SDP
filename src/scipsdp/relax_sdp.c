@@ -1264,6 +1264,7 @@ SCIP_RETCODE calcRelax(
    SCIP_Real timelimit;
    SCIP_Real objforscip;
    SCIP_Real* solforscip;
+   int clocktype;
    int nblocks;
    int nvars;
    int b;
@@ -1346,6 +1347,10 @@ SCIP_RETCODE calcRelax(
          return SCIP_OKAY;
       }
    }
+
+   /* set type of clock (CPU/Wall clock) */
+   SCIP_CALL( SCIPgetIntParam(scip, "timing/clocktype", &clocktype) );
+   SCIPsdpiClockSetType(sdpi, clocktype);
 
    /* if no dual bound is known (we are in the root node and not only repropagating), we will have to abort, so we want
     * to check the Slater condition in this case */
@@ -4854,6 +4859,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
    int arraylength;
    int nrows;
    int rownnonz;
+   int clocktype;
    int i;
    int r;
    int v;
@@ -4897,6 +4903,10 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
    SCIPdebugMsg(scip, "computing analytic centers for warmstarting\n");
 
    relaxdata->nblocks = SCIPgetNLPRows(scip) + SCIPgetNVars(scip) > 0 ? nsdpblocks + nrank1blocks + 1 : SCIPconshdlrGetNConss(sdpconshdlr) + SCIPconshdlrGetNConss(sdprank1conshdlr);
+
+   /* set type of clock (CPU/Wall clock) */
+   SCIP_CALL( SCIPgetIntParam(scip, "timing/clocktype", &clocktype) );
+   SCIPsdpiClockSetType(relaxdata->sdpi, clocktype);
 
    /* first solve SDP with primal objective (dual constant part) set to zero to compute analytic center of primal feasible set */
    if ( relaxdata->warmstartprimaltype != 2 && SCIPsdpiDoesWarmstartNeedPrimal() )

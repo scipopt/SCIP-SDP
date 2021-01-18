@@ -63,9 +63,9 @@
  */
 
 #include <assert.h>
-#include <sys/time.h>
 
 #include "sdpi/sdpisolver.h"
+#include "sdpi/sdpiclock.h"
 
 #include "blockmemshell/memory.h"            /* for memory allocation */
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
@@ -661,14 +661,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
                                               *   may be NULL if startXnblocknonz = NULL */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP and MOSEK, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
-   SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
+   SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
+   SDPI_CLOCK*           usedsdpitime        /**< clock to measure how much time has been used for the current solve */
    )
 {
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, FALSE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
-               sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
-               nremovedinds, blockindchanges, nremovedblocks, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
-               starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval, startsettings,
-               timelimit, NULL, NULL);
+      sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
+      nremovedinds, blockindchanges, nremovedblocks, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
+      starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval, startsettings,
+      timelimit, usedsdpitime, NULL, NULL);
 }
 
 /** loads and solves an SDP using a penalty formulation
@@ -751,6 +752,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP and MOSEK, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
+   SDPI_CLOCK*           usedsdpitime,       /**< clock to measure how much time has been used for the current solve */
    SCIP_Bool*            feasorig,           /**< pointer to store if the solution to the penalty-formulation is feasible for the original problem
                                               *   (may be NULL if penaltyparam = 0) */
    SCIP_Bool*            penaltybound        /**< pointer to store if the primal solution reached the bound Tr(X) <= penaltyparam in the primal problem,
@@ -777,12 +779,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_Real* mosekval;
    int row;
    SCIP_Real val;
-   struct timeval starttime;
-   struct timeval currenttime;
-   SCIP_Real startseconds;
-   SCIP_Real currentseconds;
-   SCIP_Real elapsedtime;
    MSKsolstae solstat;
+   SCIP_Real solvertimelimit;
 #ifdef SCIP_MORE_DEBUG
    char name[SCIP_MAXSTRLEN];
 #endif
@@ -824,8 +822,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( nlpcons == 0 || lpcol != NULL );
    assert( nlpcons == 0 || lpval != NULL );
 
+   /* compute the timit limit to set for the solver */
+   solvertimelimit = timelimit;
+   if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, solvertimelimit) )
+      solvertimelimit -= SDPIclockGetTime(usedsdpitime);
+
    /* check the timelimit */
-   if ( timelimit <= 0.0 )
+   if ( solvertimelimit <= 0.0 )
    {
       sdpisolver->timelimit = TRUE;
       sdpisolver->timelimitinitial = TRUE;
@@ -835,9 +838,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->timelimit = FALSE;
    sdpisolver->timelimitinitial = FALSE;
    sdpisolver->feasorig = FALSE;
-
-   /* start the timing */
-   TIMEOFDAY_CALL( gettimeofday(&starttime, NULL) );/*lint !e438, !e550, !e641 */
 
    /* create an empty task (second and third argument are guesses for maximum number of constraints and variables), if there already is one, delete it */
    if ( sdpisolver->msktask != NULL )
@@ -1326,15 +1326,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
    }
 
-   /* set the time limit */
-   startseconds = (SCIP_Real) starttime.tv_sec + (SCIP_Real) starttime.tv_usec / 1e6;
+   solvertimelimit = timelimit;
+   if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, solvertimelimit) )
+      solvertimelimit -= SDPIclockGetTime(usedsdpitime);
 
-   TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );/*lint !e438, !e550, !e641 */
-   currentseconds = (SCIP_Real) currenttime.tv_sec + (SCIP_Real) currenttime.tv_usec / 1e6;
-
-   elapsedtime = currentseconds - startseconds;
-
-   if ( timelimit <= elapsedtime )
+   if ( solvertimelimit <= 0.0 )
    {
       sdpisolver->timelimit = TRUE;
       sdpisolver->solved = FALSE;
@@ -1359,9 +1355,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_MU_RED, sdpisolver->gaptol) );/*lint !e641*/
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_REL_GAP, sdpisolver->gaptol) );/*lint !e641*/
 
-      if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, timelimit - elapsedtime) )
+      if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, solvertimelimit) )
       {
-         MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_OPTIMIZER_MAX_TIME, timelimit - elapsedtime) );/*lint !e641*/
+         MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_OPTIMIZER_MAX_TIME, solvertimelimit) );/*lint !e641*/
       }
 
       /* set objective cutoff */
@@ -1457,20 +1453,22 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_INFEAS, feastol) );/*lint !e641*/
 
                /* set the time limit */
-               startseconds = (SCIP_Real) starttime.tv_sec + (SCIP_Real) starttime.tv_usec / 1e6;
+               solvertimelimit = timelimit;
+               if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, solvertimelimit) )
+                  solvertimelimit -= SDPIclockGetTime(usedsdpitime);
 
-               TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );/*lint !e438, !e550, !e641 */
-               currentseconds = (SCIP_Real) currenttime.tv_sec + (SCIP_Real) currenttime.tv_usec / 1e6;
-
-               elapsedtime = currentseconds - startseconds;
-
-               if ( timelimit <= elapsedtime )
+               if ( solvertimelimit <= 0.0 )
                {
                   sdpisolver->timelimit = TRUE;
                   sdpisolver->solved = FALSE;
                }
                else
                {
+                  if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, solvertimelimit) )
+                  {
+                     MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_OPTIMIZER_MAX_TIME, solvertimelimit) );/*lint !e641*/
+                  }
+
                   /* solve the problem */
                   MOSEK_CALL( MSK_optimizetrm(sdpisolver->msktask, &(sdpisolver->terminationcode)) );/*lint !e641*/
 

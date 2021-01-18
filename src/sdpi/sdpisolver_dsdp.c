@@ -39,7 +39,6 @@
  */
 
 #include <assert.h>
-#include <sys/time.h>
 
 #include "sdpi/sdpisolver.h"
 
@@ -207,7 +206,7 @@ struct SCIP_SDPiSolver
 /** data used for checking the timelimit */
 typedef struct Timings
 {
-   struct timeval        starttime;          /**< time when solving started */
+   SDPI_CLOCK*           usedsdpitime;       /**< clock to measure how much time has been used for the current solve */
    SCIP_Real             timelimit;          /**< timelimit in seconds */
    SCIP_Bool             stopped;            /**< was the solver stopped because of the time limit? */
 } Timings;
@@ -285,24 +284,13 @@ int checkTimeLimitDSDP(
    )
 {
    Timings* timings;
-   struct timeval currenttime;
-   SCIP_Real startseconds;
-   SCIP_Real currentseconds;
-   SCIP_Real elapsedtime;
 
    assert( dsdp != NULL );
    assert( ctx != NULL );
 
    timings = (Timings*) ctx;
 
-   startseconds = (SCIP_Real) (timings->starttime).tv_sec + (SCIP_Real) (timings->starttime).tv_usec / 1e6;
-
-   TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );/*lint !e438, !e550, !e641 */
-   currentseconds = (SCIP_Real) currenttime.tv_sec + (SCIP_Real) currenttime.tv_usec / 1e6;
-
-   elapsedtime = currentseconds - startseconds;
-
-   if ( elapsedtime > timings->timelimit )
+   if ( SDPIclockGetTime(timings->usedsdpitime) > timings->timelimit )
    {
       DSDP_CALL( DSDPSetConvergenceFlag(dsdp, DSDP_USER_TERMINATION) );/*lint !e641 */
       timings->stopped = TRUE;
@@ -627,14 +615,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
                                               *   may be NULL if startXnblocknonz = NULL */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP ans MOSEK, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
-   SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
+   SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
+   SDPI_CLOCK*           usedsdpitime        /**< clock to measure how much time has been used for the current solve */
    )
 {
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, TRUE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars,
-           sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
-           indchanges, nremovedinds, blockindchanges, nremovedblocks, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol,
-           lpval, starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval, startsettings,
-           timelimit, NULL, NULL);
+      sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
+      indchanges, nremovedinds, blockindchanges, nremovedblocks, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol,
+      lpval, starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval, startsettings,
+      timelimit, usedsdpitime, NULL, NULL);
 }
 
 /** loads and solves an SDP using a penalty formulation
@@ -717,6 +706,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP and MOSEK, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
+   SDPI_CLOCK*           usedsdpitime,       /**< clock to measure how much time has been used for the current solve */
    SCIP_Bool*            feasorig,           /**< pointer to store if the solution to the penalty-formulation is feasible for the original problem
                                               *   (may be NULL if penaltyparam = 0) */
    SCIP_Bool*            penaltybound        /**< pointer to store if the primal solution reached the bound Tr(X) <= penaltyparam in the primal problem,
@@ -740,6 +730,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int nrnonz = 0;
    int oldnactivevars;
    SCIP_Real feastol;
+   SCIP_Real solvertimelimit;
    Timings timings;
 
 #ifdef SCIP_DEBUG
@@ -779,9 +770,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( nlpcons == 0 || lpcol != NULL );
    assert( nlpcons == 0 || lpval != NULL );
 
-   sdpisolver->penalty = penaltyparam > sdpisolver->epsilon;
+   /* compute the timit limit to set for the solver */
+   solvertimelimit = timelimit;
+   if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, solvertimelimit) )
+      solvertimelimit -= SDPIclockGetTime(usedsdpitime);
 
-   if ( timelimit <= 0.0 )
+   if ( solvertimelimit <= 0.0 )
    {
       sdpisolver->timelimit = TRUE;
       sdpisolver->timelimitinitial = TRUE;
@@ -792,9 +786,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->timelimitinitial = FALSE;
 
    sdpisolver->feasorig = FALSE;
+   sdpisolver->penalty = penaltyparam > sdpisolver->epsilon;
 
    /* start the timing */
-   TIMEOFDAY_CALL( gettimeofday(&(timings.starttime), NULL) );/*lint !e438, !e550, !e641 */
+   timings.usedsdpitime = usedsdpitime;
    timings.timelimit = timelimit;
    timings.stopped = FALSE;
 
@@ -1435,11 +1430,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* start the solving process */
    DSDP_CALLM( DSDPSetup(sdpisolver->dsdp) );
+
    /* if there is a timelimit, set the corresponding callback */
    if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, timelimit) )
    {
       DSDP_CALLM( DSDPSetMonitor(sdpisolver->dsdp, checkTimeLimitDSDP, (void*) &timings) );
    }
+
    /* if preoptimal solutions should be saved for warmstarting purposes, set the corresponding callback */
    if ( sdpisolver->preoptimalgap >= 0.0 )
    {

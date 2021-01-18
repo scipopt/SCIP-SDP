@@ -614,14 +614,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
                                               *   may be NULL if startXnblocknonz = NULL */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP and MOSEK, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
-   SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
+   SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
+   SDPI_CLOCK*           usedsdpitime        /**< clock to measure how much time has been used for the current solve */
    )
 {/*lint !e1784*/
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, FALSE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
-               sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
-               nremovedinds, blockindchanges, nremovedblocks, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
-               starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval, startsettings,
-               timelimit, NULL, NULL);
+      sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
+      nremovedinds, blockindchanges, nremovedblocks, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
+      starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval, startsettings,
+      timelimit, usedsdpitime, NULL, NULL);
 }
 
 /** loads and solves an SDP using a penalty formulation
@@ -704,6 +705,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP and MOSEK, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
+   SDPI_CLOCK*           usedsdpitime,       /**< clock to measure how much time has been used for the current solve */
    SCIP_Bool*            feasorig,           /**< pointer to store if the solution to the penalty-formulation is feasible for the original problem
                                               *   (may be NULL if penaltyparam = 0) */
    SCIP_Bool*            penaltybound        /**< pointer to store if the primal solution reached the bound Tr(X) <= penaltyparam in the primal problem,
@@ -778,8 +780,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->nsdpcalls = 0;
    sdpisolver->feasorig = FALSE;
 
-   /* immediately exit if the time limit is negative */
-   if ( timelimit <= 0.0 )
+   /* compute the timit limit to set for the solver */
+   solvertimelimit = timelimit;
+   if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, solvertimelimit) )
+      solvertimelimit -= SDPIclockGetTime(usedsdpitime);
+
+   if ( solvertimelimit <= 0.0 )
    {
       sdpisolver->solved = FALSE;
       sdpisolver->timelimit = TRUE;

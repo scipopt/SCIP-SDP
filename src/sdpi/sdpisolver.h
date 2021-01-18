@@ -62,6 +62,7 @@
 #include "blockmemshell/memory.h"
 #include "scip/type_retcode.h"
 #include "sdpi/type_sdpi.h"
+#include "sdpi/sdpiclock.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -241,7 +242,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
                                               *   may be NULL if startXnblocknonz = NULL */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
-   SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP) */
+   SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP) */
+   SDPI_CLOCK*           usedsdpitime        /**< clock to measure how much time has been used for the current solve */
 );
 
 /** loads and solves an SDP using a penalty formulation
@@ -325,6 +327,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP) */
+   SDPI_CLOCK*           usedsdpitime,       /**< clock to measure how much time has been used for the current solve */
    SCIP_Bool*            feasorig,           /**< pointer to store if the solution to the penalty-formulation is feasible for the original problem
                                               *   (may be NULL if penaltyparam = 0) */
    SCIP_Bool*            penaltybound        /**< pointer to store if the primal solution reached the bound Tr(X) <= penaltyparam in the primal problem,
