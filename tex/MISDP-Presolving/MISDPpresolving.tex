@@ -1119,12 +1119,12 @@ optimal solution.
   \dots, D_n$:
   \begin{align*}
     \min\quad & c\T x + d\T z\\
-    & \sum_{i=1}^t x_i \geq \sum_{i=1}^t D_i\quad \forall i = 1, \dots, n - 1,\\
+    & \sum_{i=1}^t x_i \geq \sum_{i=1}^t D_i\quad \forall \, t = 1, \dots, n - 1,\\
     & \sum_{i=1}^n x_i = \sum_{i=1}^n D_i,\\
     & 0 \leq x \leq M z,\\
     & z \in \{0,1\}^n.
   \end{align*}
-  If $D_i = 0$, $i = 1, \dots, n-1$, $D_i = 1$, and $M = 1$, we obtain our problem.
+  If $D_i = 0$, $i = 1, \dots, n-1$, $D_n = 1$, and $M = 1$, we obtain our problem.
 
   Aghezzaf and Wolsey show that the optimum is attained in an integral
   point for each $k$ if $c_1 \geq c_2 \geq \dots \geq c_n$. But the proof

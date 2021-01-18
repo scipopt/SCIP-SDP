@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2020 Discrete Optimization, TU Darmstadt               */
+/*               2014-2021 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or             */
@@ -24,7 +24,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2020 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2021 Zuse Institute Berlin                             */
 /* SCIP is distributed under the terms of the SCIP Academic Licence,         */
 /* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
@@ -336,7 +336,6 @@ SCIP_RETCODE CBFfgets(
       if ( data->linebuffer[0] != '#' )
          return SCIP_OKAY;
    }
-
 
    if ( printerror )
    {
@@ -1957,7 +1956,6 @@ SCIP_RETCODE CBFreadDcoord(
    /*    SCIPABORT(); */
    /*    return SCIP_READERROR; /\*lint !e527*\/ */
    /* } */
-
 
    data->constnnonz = constnnonz;
    assert( constnnonz > 0 );

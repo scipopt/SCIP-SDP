@@ -30,31 +30,29 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   reader_sdpa.h
- * @ingroup FILEREADERS
- * @brief  file reader for mixed-integer semidefinite programs in SDPA format
- * @author Tim Schmidt
- * @author Frederic Matter
- *
+/**@file   scipsdpdef.h
+ * @brief  main definitions for SCIP-SDP
+ * @author Marc Pfetsch
  */
 
-/*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
-
-#ifndef __SCIP_READER_SDPA_H__
-#define __SCIP_READER_SDPA_H__
-
+#ifndef __SCIPSDP_DEF_H__
+#define __SCIPSDP_DEF_H__
 
 #include "scip/scip.h"
+
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/** includes the CBF file reader in SCIP */
-SCIP_EXPORT
-SCIP_RETCODE SCIPincludeReaderSdpa(
-   SCIP*                 scip                /**< SCIP data structure */
-   );
+#define SCIPSDP_VERSION               320 /**< SCIP-SDP version number (multiplied by 100 to get integer number) */
+#define SCIPSDP_SUBVERSION              2 /**< SCIP-SDP sub version number */
+#define SCIPSDP_APIVERSION              0 /**< SCIP-SDP API version number */
+#define SCIPSDP_COPYRIGHT   "Copyright (C) 2011-2020 TU Darmstadt"
+
+#define SCIPSDPmajorVersion SCIPSDP_VERSION / 100
+#define SCIPSDPminorVersion (SCIPSDP_VERSION/10) % 10
+#define SCIPSDPtechVersion  SCIPSDP_VERSION % 10
 
 #ifdef __cplusplus
 }

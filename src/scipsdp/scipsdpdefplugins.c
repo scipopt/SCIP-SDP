@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2020 Discrete Optimization, TU Darmstadt               */
+/*               2014-2021 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or             */
@@ -24,7 +24,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2020 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2021 Zuse Institute Berlin                             */
 /* SCIP is distributed under the terms of the SCIP Academic Licence,         */
 /* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
@@ -37,11 +37,12 @@
 
 /*--+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
-#define SCIPSDPVERSION              "3.2.0"
+#include "scipsdp/scipsdpdef.h"
 
 
 #include "scipsdp/scipsdpdefplugins.h"
 #include "scip/scipdefplugins.h"
+#include "scip/scipshell.h"
 
 #include "cons_sdp.h"
 #include "scipsdp/cons_savesdpsol.h"
@@ -72,8 +73,40 @@
 /* hack to allow to change the name of the dialog without needing to copy everything */
 #include "scip/struct_dialog.h"
 
-/* hack to change default parameter values */
-#include <scip/paramset.h>
+/* hack to change default parameter values*/
+#include "scip/struct_paramset.h"
+
+/* The functions SCIPparamSetDefaultBool() and SCIPparamSetDefaultInt() are internal functions of SCIP. To nevertheless
+ * change the default parameters, we add our own locate methods below. */
+
+/** local function to change default value of SCIP_Bool parameter */
+static
+void paramSetDefaultBool(
+   SCIP_PARAM*           param,              /**< parameter */
+   SCIP_Bool             defaultvalue        /**< new default value */
+   )
+{
+   assert(param != NULL);
+   assert(param->paramtype == SCIP_PARAMTYPE_BOOL);
+
+   param->data.boolparam.defaultvalue = defaultvalue;
+}
+
+/** local function to change default value of int parameter */
+static
+void paramSetDefaultInt(
+   SCIP_PARAM*           param,              /**< parameter */
+   int                   defaultvalue        /**< new default value */
+   )
+{
+   assert(param != NULL);
+   assert(param->paramtype == SCIP_PARAMTYPE_INT);
+
+   assert(param->data.intparam.minvalue <= defaultvalue && param->data.intparam.maxvalue >= defaultvalue);
+
+   param->data.intparam.defaultvalue = defaultvalue;
+}
+
 
 /** reset some default parameter values */
 static
@@ -85,13 +118,13 @@ SCIP_RETCODE SCIPSDPsetDefaultParams(
 
    /* turn off LP solving - note that the SDP relaxator is on by default */
    param = SCIPgetParam(scip, "lp/solvefreq");
-   SCIPparamSetDefaultInt(param, -1);
+   paramSetDefaultInt(param, -1);
 
    param = SCIPgetParam(scip, "lp/cleanuprows");
-   SCIPparamSetDefaultBool(param, FALSE);
+   paramSetDefaultBool(param, FALSE);
 
    param = SCIPgetParam(scip, "lp/cleanuprowsroot");
-   SCIPparamSetDefaultBool(param, FALSE);
+   paramSetDefaultBool(param, FALSE);
 
    /* Because in the SDP-world there are no warmstarts as for LPs, the main advantage for DFS (that the change in the
     * problem is minimal and therefore the Simplex can continue with the current Basis) is lost and best first search, which
@@ -99,10 +132,10 @@ SCIP_RETCODE SCIPSDPsetDefaultParams(
     * the least number of nodes, allways has to be a best first search), is the optimal choice
     */
    param = SCIPgetParam(scip, "nodeselection/hybridestim/stdpriority");
-   SCIPparamSetDefaultInt(param, 1000000);
+   paramSetDefaultInt(param, 1000000);
 
    param = SCIPgetParam(scip, "nodeselection/hybridestim/maxplungedepth");
-   SCIPparamSetDefaultInt(param, 0);
+   paramSetDefaultInt(param, 0);
 
    /* now set parameters to their default value */
    SCIP_CALL( SCIPresetParams(scip) );
@@ -123,66 +156,6 @@ SCIP_RETCODE SCIPSDPsetDefaultParams(
    return SCIP_OKAY;
 }
 
-/** callback function to adapt further parameters once changed */
-static
-SCIP_DECL_PARAMCHGD(SCIPparamChgdSolvesdps)
-{
-   int value;
-
-   value = SCIPparamGetInt(param);
-   if ( value == 1 )
-   {
-      /* turn on SDP solving, turn off LP solving */
-      SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", 1) );
-      SCIP_CALL( SCIPsetIntParam(scip, "lp/solvefreq", -1) );
-      SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprows", FALSE) );
-      SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprowsroot", FALSE) );
-
-      /* change display */
-      SCIP_CALL( SCIPsetIntParam(scip, "display/lpiterations/active", 0) );
-      SCIP_CALL( SCIPsetIntParam(scip, "display/lpavgiterations/active", 0) );
-      SCIP_CALL( SCIPsetIntParam(scip, "display/nfrac/active", 0) );
-      SCIP_CALL( SCIPsetIntParam(scip, "display/curcols/active", 0) );
-      SCIP_CALL( SCIPsetIntParam(scip, "display/strongbranchs/active", 0) );
-
-      SCIP_CALL( SCIPresetParam(scip, "display/sdpavgiterations/active") );
-      SCIP_CALL( SCIPresetParam(scip, "display/sdpiterations/active") );
-      SCIP_CALL( SCIPresetParam(scip, "display/sdpunsolved/active") );
-      SCIP_CALL( SCIPresetParam(scip, "display/sdpfastsettings/active") );
-      SCIP_CALL( SCIPresetParam(scip, "display/sdppenalty/active") );
-
-      SCIP_CALL( SCIPsetIntParam(scip, "heuristics/oneopt/freq", -1) );
-
-      SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Turning on SDP solving, turning off LP solving, cleanuprows(root) = FALSE.\n");
-   }
-   else
-   {
-      /* turn off SDP solving, turn on LP solving */
-      SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", -1) );
-      SCIP_CALL( SCIPsetIntParam(scip, "lp/solvefreq", 1) );
-      SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprows", TRUE) );
-      SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprowsroot", TRUE) );
-
-      /* change display */
-      SCIP_CALL( SCIPresetParam(scip, "display/lpiterations/active") );
-      SCIP_CALL( SCIPresetParam(scip, "display/lpavgiterations/active") );
-      SCIP_CALL( SCIPresetParam(scip, "display/nfrac/active") );
-      SCIP_CALL( SCIPresetParam(scip, "display/curcols/active") );
-      SCIP_CALL( SCIPresetParam(scip, "display/strongbranchs/active") );
-
-      SCIP_CALL( SCIPsetIntParam(scip, "display/sdpavgiterations/active", 0) );
-      SCIP_CALL( SCIPsetIntParam(scip, "display/sdpiterations/active", 0) );
-      SCIP_CALL( SCIPsetIntParam(scip, "display/sdpunsolved/active", 0) );
-      SCIP_CALL( SCIPsetIntParam(scip, "display/sdpfastsettings/active", 0) );
-      SCIP_CALL( SCIPsetIntParam(scip, "display/sdppenalty/active", 0) );
-
-      SCIP_CALL( SCIPresetParam(scip, "heuristics/oneopt/freq") );
-
-      SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Turning on LP solving, turning off SDP solving, cleanuprows(root) = TRUE.\n");
-   }
-
-   return SCIP_OKAY;
-}
 
 /** includes default SCIP-SDP plugins */
 SCIP_RETCODE SCIPSDPincludeDefaultPlugins(
@@ -194,16 +167,13 @@ SCIP_RETCODE SCIPSDPincludeDefaultPlugins(
    SCIP_DIALOG* dialog;
 
    /* add description */
-   (void) SCIPsnprintf(scipsdpname, SCIP_MAXSTRLEN, "SCIP-SDP %s", SCIPSDPVERSION);
+   (void) SCIPsnprintf(scipsdpname, SCIP_MAXSTRLEN, "SCIP-SDP %d.%d.%d", SCIPSDPmajorVersion, SCIPSDPminorVersion, SCIPSDPtechVersion);
    (void) SCIPsnprintf(scipsdpdesc, SCIP_MAXSTRLEN, "Mixed Integer Semidefinite Programming Plugin for SCIP "
          "[GitHash: %s] (www.opt.tu-darmstadt.de/scipsdp/)", SCIPSDP_GITHASH);
    SCIP_CALL( SCIPincludeExternalCodeInformation(scip, scipsdpname, scipsdpdesc) );
 
    /* include default SCIP plugins */
    SCIP_CALL( SCIPincludeDefaultPlugins(scip) );
-
-   /* add parameter to decide whether SDPs or LPs are solved */
-   SCIP_CALL( SCIPaddIntParam(scip, "misc/solvesdps", "solve SDPs (1) or LPs (0)", NULL, FALSE, 1, 0, 1, SCIPparamChgdSolvesdps, NULL) );
 
    /* change default parameter settings */
    SCIP_CALL( SCIPSDPsetDefaultParams(scip) );

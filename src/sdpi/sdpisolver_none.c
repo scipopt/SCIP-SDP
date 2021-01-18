@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2020 Discrete Optimization, TU Darmstadt               */
+/*               2014-2021 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or             */
@@ -24,7 +24,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2020 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2021 Zuse Institute Berlin                             */
 /* SCIP is distributed under the terms of the SCIP Academic Licence,         */
 /* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
@@ -83,24 +83,14 @@ struct SCIP_SDPiSolver
 
 /** error handling method */
 static
-void errorMessageAbort(
+SCIP_RETCODE errorMessageAbort(
    void
    )
 {
-   SCIPerrorMessage("No SDP-solver available (SDP=none).\n");
-   SCIPerrorMessage("Ensure <relaxing/SDP/freq = -1>.\n");
-   SCIPABORT();
+   SCIPerrorMessage("No SDP-solver available (SDP=none). Ensure <relaxing/SDP/freq = -1>.\n");
+   return SCIP_ERROR;
 }
 
-/** error handling method */
-static
-void errorMessage(
-   void
-   )
-{
-   SCIPerrorMessage("No SDP-solver available (SDP=none).\n");
-   SCIPerrorMessage("Ensure <relaxing/SDP/freq = -1>.\n");
-}
 
 /*
  * Miscellaneous Methods
@@ -322,7 +312,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    SDPI_CLOCK*           usedsdpitime        /**< clock to measure how much time has been used for the current solve */
    )
 {
-   errorMessage();
+   SCIP_CALL( errorMessageAbort() );
 
    return SCIP_OKAY;
 }
@@ -414,7 +404,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                                               *   this is also an indication of the penalty parameter being to small (may be NULL if not needed) */
    )
 {
-   errorMessage();
+   SCIP_CALL( errorMessageAbort() );
 
    return SCIP_OKAY;
 }
@@ -435,7 +425,7 @@ SCIP_Bool SCIPsdpiSolverWasSolved(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return FALSE;
 }
@@ -450,7 +440,7 @@ SCIP_Bool SCIPsdpiSolverFeasibilityKnown(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return FALSE;
 }
@@ -462,7 +452,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
    SCIP_Bool*            dualfeasible        /**< stores dual feasibility status */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return SCIP_PLUGINNOTFOUND;
 }
@@ -474,7 +464,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return FALSE;
 }
@@ -486,7 +476,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return FALSE;
 }
@@ -498,7 +488,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return FALSE;
 }
@@ -510,7 +500,7 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return FALSE;
 }
@@ -522,7 +512,7 @@ SCIP_Bool SCIPsdpiSolverIsDualInfeasible(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return FALSE;
 }
@@ -534,7 +524,7 @@ SCIP_Bool SCIPsdpiSolverIsDualFeasible(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return FALSE;
 }
@@ -544,7 +534,7 @@ SCIP_Bool SCIPsdpiSolverIsConverged(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return FALSE;
 }
@@ -554,7 +544,7 @@ SCIP_Bool SCIPsdpiSolverIsObjlimExc(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return FALSE;
 }
@@ -564,7 +554,7 @@ SCIP_Bool SCIPsdpiSolverIsIterlimExc(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return FALSE;
 }
@@ -574,7 +564,7 @@ SCIP_Bool SCIPsdpiSolverIsTimelimExc(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return FALSE;
 }
@@ -594,7 +584,7 @@ int SCIPsdpiSolverGetInternalStatus(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return -2;
 }
@@ -604,7 +594,7 @@ SCIP_Bool SCIPsdpiSolverIsOptimal(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return FALSE;
 }
@@ -616,7 +606,7 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return FALSE;
 }
@@ -627,7 +617,7 @@ SCIP_RETCODE SCIPsdpiSolverIgnoreInstability(
    SCIP_Bool*            success             /**< pointer to store, whether the instability could be ignored */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return SCIP_PLUGINNOTFOUND;
 }
@@ -638,7 +628,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    SCIP_Real*            objval              /**< pointer to store the objective value */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return SCIP_PLUGINNOTFOUND;
 }
@@ -655,7 +645,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
                                               *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return SCIP_PLUGINNOTFOUND;
 }
@@ -669,7 +659,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
                                               *   or first entry -1 if no primal solution is available */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return SCIP_PLUGINNOTFOUND;
 }
@@ -695,7 +685,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
    SCIP_Real**           startXval           /**< pointer to store values of X (or NULL if nblocks = -1) */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return SCIP_PLUGINNOTFOUND;
 }
@@ -715,7 +705,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
                                               *   output: number of elements inserted into lbvars/ubvars (or needed length if it wasn't sufficient) */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return SCIP_PLUGINNOTFOUND;
 }
@@ -727,7 +717,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
    int*                  startXnblocknonz    /**< pointer to store number of nonzeros for row/col/val-arrays in each block */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return SCIP_PLUGINNOTFOUND;
 }
@@ -748,7 +738,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    SCIP_Real**           startXval           /**< pointer to store values of X */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return SCIP_PLUGINNOTFOUND;
 }
@@ -758,7 +748,7 @@ SCIP_Real SCIPsdpiSolverGetMaxPrimalEntry(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to an SDP-solver interface */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return 0.0;
 }
@@ -783,7 +773,7 @@ SCIP_RETCODE SCIPsdpiSolverGetIterations(
    int*                  iterations          /**< pointer to store the number of iterations of the last solve call */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return SCIP_PLUGINNOTFOUND;
 }
@@ -794,7 +784,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSdpCalls(
    int*                  calls               /**< pointer to store the number of calls to the SDP-solver for the last solve call */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return SCIP_PLUGINNOTFOUND;
 }
@@ -805,7 +795,7 @@ SCIP_RETCODE SCIPsdpiSolverSettingsUsed(
    SCIP_SDPSOLVERSETTING* usedsetting        /**< the setting used by the SDP-solver */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return SCIP_PLUGINNOTFOUND;
 }
@@ -1012,7 +1002,7 @@ SCIP_RETCODE SCIPsdpiSolverReadSDP(
    const char*           fname               /**< file name */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return SCIP_PLUGINNOTFOUND;
 }
@@ -1023,7 +1013,7 @@ SCIP_RETCODE SCIPsdpiSolverWriteSDP(
    const char*           fname               /**< file name */
    )
 {
-   errorMessageAbort();
+   SCIP_CALL( errorMessageAbort() );
 
    return SCIP_PLUGINNOTFOUND;
 }
