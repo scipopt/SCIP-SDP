@@ -1122,7 +1122,7 @@ SCIP_RETCODE checkSlaterCondition(
    }
 
    /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if we are
-    * still feasible for r > feastol, then we have an interior point with smallest eigenvalue > feastol, otherwise the Slater condition is not fulfilled */
+    * still feasible for r < - feastol, then we have an interior point with smallest eigenvalue > feastol, otherwise the Slater condition is not fulfilled */
    SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpilb, sdpiub,
          sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
          sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
