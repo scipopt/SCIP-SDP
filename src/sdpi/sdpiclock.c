@@ -167,7 +167,7 @@ void SDPIclockStart(
       clck->data.wallclock.sec = - time(NULL);
 #else
       gettimeofday(&tp, NULL);
-      if( tp.tv_usec > clck->data.wallclock.usec ) /*lint !e115 !e40*/
+      if( tp.tv_usec > 0 ) /*lint !e115 !e40*/
       {
          clck->data.wallclock.sec = - (tp.tv_sec + 1); /*lint !e115 !e40*/
          clck->data.wallclock.usec = (1000000 - tp.tv_usec); /*lint !e115 !e40*/
