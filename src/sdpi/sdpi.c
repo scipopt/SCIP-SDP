@@ -1093,7 +1093,6 @@ SCIP_RETCODE checkSlaterCondition(
    SCIP_Real* slaterlb;
    SCIP_Real* slaterub;
    int slaternremovedvarbounds;
-   int nactivevars = 0;
    int i;
    int v;
    int b;
@@ -1226,28 +1225,33 @@ SCIP_RETCODE checkSlaterCondition(
    /* add the new entries sum_j [(A_i)_jj], for this we have to iterate over the whole sdp-matrices (for all blocks), adding all diagonal entries */
    for (v = 0; v < sdpi->nvars; v++)
    {
+      /* fill in all variables - filter out fixed variables below */
       slaterlprow[sdpilpnnonz + v] = nactivelpcons;/*lint !e679*/
       slaterlpcol[sdpilpnnonz + v] = v;/*lint !e679*/
       slaterlpval[sdpilpnnonz + v] = 0.0;/*lint !e679*/
    }
+
    for (b = 0; b < sdpi->nsdpblocks; b++)
    {
       for (v = 0; v < sdpi->sdpnblockvars[b]; v++)
       {
-         for (i = 0; i < sdpi->sdpnblockvarnonz[b][v]; i++)
+         if ( ! isFixed(sdpi, v) )
          {
-            if ( sdpi->sdprow[b][v][i] == sdpi->sdpcol[b][v][i] ) /* it is a diagonal entry */
-               slaterlpval[sdpilpnnonz + sdpi->sdpvar[b][v]] += sdpi->sdpval[b][v][i];/*lint !e679*/
+            for (i = 0; i < sdpi->sdpnblockvarnonz[b][v]; i++)
+            {
+               if ( sdpi->sdprow[b][v][i] == sdpi->sdpcol[b][v][i] ) /* it is a diagonal entry */
+                  slaterlpval[sdpilpnnonz + sdpi->sdpvar[b][v]] += sdpi->sdpval[b][v][i];/*lint !e679*/
+            }
          }
       }
    }
 
-   /* iterate over all added LP-entries and remove all zeros (by shifting further variables) */
+   /* iterate over all added LP-entries and remove all zeros or fixed variables (by shifting further variables) */
    nremovedslaterlpinds = 0;
    for (v = 0; v < sdpi->nvars; v++)
    {
-      if ( REALABS(slaterlpval[sdpilpnnonz + v]) <= sdpi->epsilon )/*lint !e679*/
-         nremovedslaterlpinds++;
+      if ( isFixed(sdpi, v) || REALABS(slaterlpval[sdpilpnnonz + v]) <= sdpi->epsilon )/*lint !e679*/
+         ++nremovedslaterlpinds;
       else
       {
          /* shift the entries */
@@ -1279,14 +1283,11 @@ SCIP_RETCODE checkSlaterCondition(
    slaterlplhs[nactivelpcons] = 1.0;
    slaterlprhs[nactivelpcons] = SCIPsdpiSolverInfinity(sdpi->sdpisolver);
 
-   /* compute number of active variables */
-   for (v = 0; v < sdpi->nvars; v++)
-   {
-      if ( ! isFixed(sdpi, v) )
-         ++nactivevars;
-   }
-
-   slaternactivelpcons = (nactivevars > 1) ? nactivelpcons + 1 : nactivelpcons;
+   /* determine number of LP constraints */
+   if ( nremovedslaterlpinds < sdpi->nvars )
+      slaternactivelpcons = nactivelpcons + 1;
+   else
+      slaternactivelpcons = nactivelpcons; /* in this case there are no entries in the last row, so we skip it */
 
    /* copy the varbound arrays to change all finite varbounds to zero */
    DUPLICATE_ARRAY_NULL(sdpi->blkmem, &slaterlb, sdpilb, sdpi->nvars);
@@ -2950,7 +2951,7 @@ SCIP_RETCODE SCIPsdpiSolve(
             }
 
             /* if we still didn't succeed and enforceslatercheck was set, we finally test for the Slater condition to give a reason for failure */
-            if ( sdpi->solved == FALSE && enforceslatercheck)
+            if ( sdpi->solved == FALSE && enforceslatercheck )
             {
                SCIP_CALL( checkSlaterCondition(sdpi, timelimit, sdpi->sdpilb, sdpi->sdpiub,
                      sdpconstnblocknonz, sdpconstnnonz, sdpconstrow, sdpconstcol, sdpconstval,
