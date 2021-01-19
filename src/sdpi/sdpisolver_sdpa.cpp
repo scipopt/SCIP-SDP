@@ -2207,7 +2207,7 @@ SCIP_Bool SCIPsdpiSolverIsDualInfeasible(
 
    if ( phasetype == SDPA::noINFO || phasetype == SDPA::pFEAS || phasetype == SDPA::pdINF )
    {
-      SCIPdebugMessage("SDPA doesn't know if dual problem is infeasible");
+      SCIPdebugMessage("SDPA doesn't know if dual problem is infeasible.\n");
       return FALSE;
    }
    else if ( phasetype ==  SDPA::pFEAS_dINF )
@@ -2439,7 +2439,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
       if ( gap > sdpisolver->gaptol )
       {
          SCIPdebugMessage("Attention: got objective value (before adding values of fixed variables) of %f in SCIPsdpiSolverGetSol, "
-            "but primal objective is %f with duality gap %f!\n", *objval, primalval, gap );
+            "but primal objective is %g with duality gap %g!\n", *objval, primalval, gap );
       }
 #endif
    }
