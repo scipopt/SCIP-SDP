@@ -780,7 +780,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->nsdpcalls = 0;
    sdpisolver->feasorig = FALSE;
 
-   /* compute the timit limit to set for the solver */
+   /* compute the time limit to set for the solver */
    solvertimelimit = timelimit;
    if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, solvertimelimit) )
       solvertimelimit -= SDPIclockGetTime(usedsdpitime);
