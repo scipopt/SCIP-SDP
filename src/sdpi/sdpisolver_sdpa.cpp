@@ -732,6 +732,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int blockind;
    int nsdpasdpblocks;
    SCIP_Bool newlyallocated;
+   SCIP_Real solvertimelimit;
 
 #ifdef SCIP_DEBUG
    char phase_string[15];
