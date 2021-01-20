@@ -214,6 +214,7 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    IU = i;
    M = 1;
    LDZ = n;
+   INFO = 0LL;
 
    /* standard LAPACK workspace query, to get the amount of needed memory */
    LWORK = -1LL;
@@ -319,6 +320,7 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorsNegative(
    ABSTOL = 0.0;
    LDZ = n;
    M = -1;
+   INFO = 0LL;
 
    /* interval of allowed values */
    VL = -1e30;
@@ -425,6 +427,7 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorDecomposition(
    LDZ = n;
    VL = -1e20;
    VU = 1e20;
+   INFO = 0LL;
 
    /* standard LAPACK workspace query, to get the amount of needed memory */
    LWORK = -1LL;
@@ -626,6 +629,7 @@ SCIP_RETCODE SCIPlapackLinearSolve(
    LDA = m;
    LDB = MAX(M,N);
    RCOND = 0.0;
+   INFO = 0LL;
 
    BMS_CALL( BMSallocBufferMemoryArray(bufmem, &S, MIN(m,n)) );
 

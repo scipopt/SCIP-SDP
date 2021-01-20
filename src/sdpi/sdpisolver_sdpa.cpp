@@ -1126,8 +1126,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          {
             BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->rowtoinputmapper), 2 * sdpisolver->nsdpalpcons, 2 * nlpcons) );
          }
+         assert( sdpisolver->rowtoinputmapper != NULL );
       }
-      assert( sdpisolver->rowtoinputmapper != NULL );
 
       sdpisolver->ninputlpcons = nlpcons;
       sdpisolver->nsdpalpcons = nlpcons;
