@@ -15,9 +15,10 @@ INT
 1
 
 CON
-2 2
+3 3
 L+ 1
 L- 1
+L+ 1
 
 PSDCON
 1
@@ -28,14 +29,16 @@ OBJACOORD
 0 1.000000
 
 ACOORD
-2
+3
 0 0 1.0
 1 1 1.0
+2 0 -1.0
 
 BCOORD
-2
+3
 0 1.0
 1 -1.0
+2 10.0
 
 HCOORD
 4
