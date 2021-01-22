@@ -2734,105 +2734,105 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
 
                   if ( REALABS(sdpisolver->preoptimalsolx[sdpablock - 1][sdpaind]) > sdpisolver->epsilon )
                   {
-                        if ( blocknnonz < startXnblocknonz[b] )
-                        {
-                           startXrow[b][blocknnonz] = sdpisolver->blockindmapper[b][c];
-                           startXcol[b][blocknnonz] = sdpisolver->blockindmapper[b][r];
-                           startXval[b][blocknnonz] = sdpisolver->preoptimalsolx[sdpablock - 1][sdpaind]; /* -1 because sdpa starts counting at 1 */
-                           blocknnonz++;
-                        }
-                        else
-                        {
-                           if ( ! msgthrown )
-                           {
-                              SCIPdebugMessage("Unsufficient arraylength %d for block %d in SCIPsdpiSolverGetPrimalMatrix!\n", startXnblocknonz[b], b);
-                              msgthrown = TRUE;
-                           }
-                        }
-                     }
-                  }
-               }
-
-               startXnblocknonz[b] = blocknnonz;
-            }
-            else
-               startXnblocknonz[b] = 0;
-         }
-
-         /* compute entries for the LP-block */
-         blocknnonz = 0;
-
-         /* since we reset the preoptimalsolution for every solve, the number of blocks should have stayed the same */
-         sdpablock = sdpisolver->sdpa->getBlockNumber();
-
-         if ( sdpisolver->sdpa->getBlockType(sdpablock) == SDPA::LP )
-         {
-            int i;
-
-            /* since we reset the preoptimalsolution for every solve, the blocksize should have stayed the same */
-            blocksize = sdpisolver->sdpa->getBlockSize(sdpablock);
-
-            /* iterate over LP constraints */
-            for (i = 0; i < blocksize - sdpisolver->nvarbounds; i++)
-            {
-               if ( REALABS(sdpisolver->preoptimalsolx[sdpablock - 1][i]) > sdpisolver->epsilon )
-               {
-                  if ( blocknnonz < startXnblocknonz[b] )
-                  {
-                     startXrow[b][blocknnonz] = sdpisolver->rowtoinputmapper[i];
-                     startXcol[b][blocknnonz] = sdpisolver->rowtoinputmapper[i];
-                     startXval[b][blocknnonz] = sdpisolver->preoptimalsolx[sdpablock - 1][i]; /* -1 because sdpa starts counting at 1 */
-                     blocknnonz++;
-                  }
-                  else
-                  {
-                     blocknnonz++;
-                     if ( ! msgthrown )
+                     if ( blocknnonz < startXnblocknonz[b] )
                      {
-                        SCIPdebugMessage("Unsufficient arraylength %d for LP block in SCIPsdpiSolverGetPrimalMatrix!\n", startXnblocknonz[b]);
-                        msgthrown = TRUE;
+                        startXrow[b][blocknnonz] = sdpisolver->blockindmapper[b][c];
+                        startXcol[b][blocknnonz] = sdpisolver->blockindmapper[b][r];
+                        startXval[b][blocknnonz] = sdpisolver->preoptimalsolx[sdpablock - 1][sdpaind]; /* -1 because sdpa starts counting at 1 */
+                        blocknnonz++;
                      }
-                  }
-               }
-            }
-
-            /* iterate over varbounds */
-            for (i = blocksize - sdpisolver->nvarbounds; i < blocksize; i++)
-            {
-               if ( REALABS(sdpisolver->preoptimalsolx[sdpablock - 1][i]) > sdpisolver->epsilon )
-               {
-                  if ( blocknnonz < startXnblocknonz[b] )
-                  {
-                     int inputpos;
-                     int vbpos;
-
-                     vbpos = i - (blocksize - sdpisolver->nvarbounds); /* position in varboundpos array */
-
-                     /* inputpos is 2 * nlprows (for lhs and rhs) + 2 * inputvar for lb and 2 * inputvar + 1 for ub */
-                     if ( sdpisolver->varboundpos[vbpos] > 0 ) /* rhs */
-                        inputpos = 2 * sdpisolver->ninputlpcons + 2 * sdpisolver->sdpatoinputmapper[sdpisolver->varboundpos[vbpos] - 1] + 1;
                      else
-                        inputpos = 2 * sdpisolver->ninputlpcons + 2 * sdpisolver->sdpatoinputmapper[-1 * sdpisolver->varboundpos[vbpos] - 1];
-                     startXrow[b][blocknnonz] = inputpos;
-                     startXcol[b][blocknnonz] = inputpos;
-                     startXval[b][blocknnonz] = sdpisolver->preoptimalsolx[sdpablock - 1][i]; /* -1 because sdpa starts counting at 1 */
-                     blocknnonz++;
-                  }
-                  else
-                  {
-                     blocknnonz++;
-                     if ( ! msgthrown )
                      {
-                        SCIPdebugMessage("Insufficient arraylength %d for LP block & varbounds in SCIPsdpiSolverGetPrimalMatrix!\n", startXnblocknonz[b]);
-                        msgthrown = TRUE;
+                        if ( ! msgthrown )
+                        {
+                           SCIPdebugMessage("Unsufficient arraylength %d for block %d in SCIPsdpiSolverGetPrimalMatrix!\n", startXnblocknonz[b], b);
+                           msgthrown = TRUE;
+                        }
                      }
                   }
                }
             }
+
             startXnblocknonz[b] = blocknnonz;
          }
          else
             startXnblocknonz[b] = 0;
+      }
+
+      /* compute entries for the LP-block */
+      blocknnonz = 0;
+
+      /* since we reset the preoptimalsolution for every solve, the number of blocks should have stayed the same */
+      sdpablock = sdpisolver->sdpa->getBlockNumber();
+
+      if ( sdpisolver->sdpa->getBlockType(sdpablock) == SDPA::LP )
+      {
+         int i;
+
+         /* since we reset the preoptimalsolution for every solve, the blocksize should have stayed the same */
+         blocksize = sdpisolver->sdpa->getBlockSize(sdpablock);
+
+         /* iterate over LP constraints */
+         for (i = 0; i < blocksize - sdpisolver->nvarbounds; i++)
+         {
+            if ( REALABS(sdpisolver->preoptimalsolx[sdpablock - 1][i]) > sdpisolver->epsilon )
+            {
+               if ( blocknnonz < startXnblocknonz[b] )
+               {
+                  startXrow[b][blocknnonz] = sdpisolver->rowtoinputmapper[i];
+                  startXcol[b][blocknnonz] = sdpisolver->rowtoinputmapper[i];
+                  startXval[b][blocknnonz] = sdpisolver->preoptimalsolx[sdpablock - 1][i]; /* -1 because sdpa starts counting at 1 */
+                  blocknnonz++;
+               }
+               else
+               {
+                  blocknnonz++;
+                  if ( ! msgthrown )
+                  {
+                     SCIPdebugMessage("Unsufficient arraylength %d for LP block in SCIPsdpiSolverGetPrimalMatrix!\n", startXnblocknonz[b]);
+                     msgthrown = TRUE;
+                  }
+               }
+            }
+         }
+
+         /* iterate over varbounds */
+         for (i = blocksize - sdpisolver->nvarbounds; i < blocksize; i++)
+         {
+            if ( REALABS(sdpisolver->preoptimalsolx[sdpablock - 1][i]) > sdpisolver->epsilon )
+            {
+               if ( blocknnonz < startXnblocknonz[b] )
+               {
+                  int inputpos;
+                  int vbpos;
+
+                  vbpos = i - (blocksize - sdpisolver->nvarbounds); /* position in varboundpos array */
+
+                  /* inputpos is 2 * nlprows (for lhs and rhs) + 2 * inputvar for lb and 2 * inputvar + 1 for ub */
+                  if ( sdpisolver->varboundpos[vbpos] > 0 ) /* rhs */
+                     inputpos = 2 * sdpisolver->ninputlpcons + 2 * sdpisolver->sdpatoinputmapper[sdpisolver->varboundpos[vbpos] - 1] + 1;
+                  else
+                     inputpos = 2 * sdpisolver->ninputlpcons + 2 * sdpisolver->sdpatoinputmapper[-1 * sdpisolver->varboundpos[vbpos] - 1];
+                  startXrow[b][blocknnonz] = inputpos;
+                  startXcol[b][blocknnonz] = inputpos;
+                  startXval[b][blocknnonz] = sdpisolver->preoptimalsolx[sdpablock - 1][i]; /* -1 because sdpa starts counting at 1 */
+                  blocknnonz++;
+               }
+               else
+               {
+                  blocknnonz++;
+                  if ( ! msgthrown )
+                  {
+                     SCIPdebugMessage("Insufficient arraylength %d for LP block & varbounds in SCIPsdpiSolverGetPrimalMatrix!\n", startXnblocknonz[b]);
+                     msgthrown = TRUE;
+                  }
+               }
+            }
+         }
+         startXnblocknonz[b] = blocknnonz;
+      }
+      else
+         startXnblocknonz[b] = 0;
    }
 
    *success = TRUE;
