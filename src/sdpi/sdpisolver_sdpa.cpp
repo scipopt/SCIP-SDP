@@ -44,6 +44,9 @@
  */
 
 #include <assert.h>
+#ifdef OPENBLAS
+#include <cblas.h>
+#endif
 
 #include "sdpi/sdpisolver.h"
 
@@ -957,6 +960,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* set number of threads (do this early, since this might affect factorization) */
    if ( sdpisolver->nthreads > 0 )
    {
+#ifdef OPENBLAS
+      openblas_set_num_threads(sdpisolver->nthreads);
+#endif
       sdpisolver->sdpa->setNumThreads(sdpisolver->nthreads);
    }
 
