@@ -1673,7 +1673,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->sdpa->setParameterLambdaStar(sdpisolver->lambdastar);
 
 #ifdef SCIP_MORE_DEBUG
-   sdpisolver->sdpa->printParameters(stdout);
+      sdpisolver->sdpa->printParameters(stdout);
 #endif
       sdpisolver->sdpa->setInitPoint(false);
 #ifdef SDPA_RESETPARAMS
