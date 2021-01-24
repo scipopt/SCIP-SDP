@@ -143,7 +143,7 @@ struct SCIP_SDPiSolver
    MSKrescodee           terminationcode;    /**< reason for termination of the last call to the MOSEK-optimizer */
    SCIP_Bool             timelimit;          /**< was the solver stopped because of the time limit? */
    SCIP_Bool             timelimitinitial;   /**< was the problem not even given to the solver because of the time limit? */
-   int                   nthreads;           /**< number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores) */
+   int                   nthreads;           /**< number of threads the SDP solver should use, not supported by all solvers (-1 = number of cores) */
    int                   niterations;        /**< number of SDP-iterations since the last solve call */
    int                   nsdpcalls;          /**< number of SDP-calls since the last solve call */
 };

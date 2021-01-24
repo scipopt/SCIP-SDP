@@ -175,6 +175,7 @@ struct SCIP_SDPiSolver
    SCIP_Real*            preoptimalsolxlp;   /**< LP part of primal solution for first feasible solution with gap less or equal preoptimalgap */
    SCIP_Bool             preoptimalsolexists;/**< saved feasible solution with gap less or equal preoptimalgap */
    SCIP_Real             preoptimalgap;      /**< gap at which a preoptimal solution should be saved for warmstarting purposes */
+   int                   nthreads;           /**< number of threads the SDP solver should use */
 };
 
 
@@ -595,6 +596,8 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->preoptimalsolexists = FALSE;
    (*sdpisolver)->preoptimalgap = -1.0;
 
+   (*sdpisolver)->nthreads = -1;
+
    return SCIP_OKAY;
 }
 
@@ -950,6 +953,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
    sdpisolver->sdpa = new SDPA();
    assert( sdpisolver->sdpa != 0 );
+
+   /* set number of threads (do this early, since this might affect factorization) */
+   if ( sdpisolver->nthreads > 0 )
+   {
+      sdpisolver->sdpa->setNumThreads(sdpisolver->nthreads);
+   }
 
    /* set the penalty and rbound flags accordingly */
    sdpisolver->penalty = (penaltyparam < sdpisolver->epsilon) ? FALSE : TRUE;
@@ -3267,6 +3276,10 @@ SCIP_RETCODE SCIPsdpiSolverGetIntpar(
       *ival = (int) sdpisolver->sdpinfo;
       SCIPdebugMessage("Getting sdpisolver information output (%d).\n", *ival);
       break;
+   case SCIP_SDPPAR_NTHREADS:
+      *ival = sdpisolver->nthreads;
+      SCIPdebugMessage("Getting sdpisolver number of threads: %d.\n", *ival);
+      break;
    default:
       return SCIP_PARAMETERUNKNOWN;
    }
@@ -3288,6 +3301,10 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
    case SCIP_SDPPAR_SDPINFO:
       sdpisolver->sdpinfo = (SCIP_Bool) ival;
       SCIPdebugMessage("Setting sdpisolver information output (%d).\n", ival);
+      break;
+   case SCIP_SDPPAR_NTHREADS:
+      sdpisolver->nthreads = ival;
+      SCIPdebugMessage("Setting sdpisolver number of threads to %d.\n", ival);
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;

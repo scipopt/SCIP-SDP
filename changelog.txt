@@ -34,6 +34,7 @@ features:
 - use same time measurement within SDPI and SDPISOLVER as in SCIP
 - new file scipsdpdef.h which contains the SCIPSDP version
 - the makefile now produces various links to libscipsdp... and scipsdp...
+- The number of threads used is now used by the SDPA interface.
 
 API changes:
 - new functions SCIPconsSdpGetNVars and SCIPconsSdpGetVars in cons_sdp.c
