@@ -395,7 +395,7 @@ SCIP_RETCODE checkFeastolAndResolve(
       SCIP_Bool infeasible;
 
       /* get current solution */
-      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &solvector, nvars) );
+      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &solvector, nvars) ); /*lint !e530*/
       nvarspointer = nvars;
       SCIP_CALL( SCIPsdpiSolverGetSol(sdpisolver, NULL, solvector, &nvarspointer) );
       assert( nvarspointer == nvars );
@@ -1575,7 +1575,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          for (b = 0; b < sdpisolver->sdpa->getBlockNumber(); b++)
          {
             sdpasol = sdpisolver->sdpa->getResultYMat(b + 1);
-            sdpablocksize = sdpisolver->sdpa->getBlockSize(b + 1);
+            sdpablocksize = (int) sdpisolver->sdpa->getBlockSize(b + 1);
             assert( sdpablocksize <= 2 * (sdpisolver->maxnlpcons + sdpisolver->maxnvars) );
             if ( sdpisolver->sdpa->getBlockType(b + 1) == SDPA::LP )
             {
@@ -1764,7 +1764,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       /* we get r as the last variable in SDPA */
       assert( feasorig != NULL );
-      *feasorig = (sdpasol[sdpisolver->nactivevars] < sdpisolver->feastol); /*lint !e413*/
+      if ( sdpasol[sdpisolver->nactivevars] < sdpisolver->feastol )
+         *feasorig = TRUE;
+      else
+         *feasorig = FALSE;
 
       /* only set sdpisolver->feasorig to true if we solved with objective, because only in this case we want to compute
        * the objective value by hand since it is numerically more stable then the result returned by SDPA */
@@ -2342,17 +2345,17 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
 
    if ( objval != NULL )
    {
-      if ( sdpisolver->penalty && ( ! sdpisolver->feasorig ) )
+      if ( sdpisolver->penalty && ! sdpisolver->feasorig )
       {
          *objval = sdpisolver->sdpa->getPrimalObj();
 #ifndef NDEBUG
-      SCIP_Real primalval = sdpisolver->sdpa->getDualObj();
-      SCIP_Real gap = (REALABS(*objval - primalval) / (0.5 * (REALABS(primalval) + REALABS(*objval)))); /* duality gap used in SDPA */
-      if ( gap > sdpisolver->gaptol )
-      {
-         SCIPdebugMessage("Attention: got objective value (before adding values of fixed variables) of %f in SCIPsdpiSolverGetSol, "
-            "but primal objective is %f with duality gap %f!\n", *objval, primalval, gap );
-      }
+         SCIP_Real primalval = sdpisolver->sdpa->getDualObj();
+         SCIP_Real gap = (REALABS(*objval - primalval) / (0.5 * (REALABS(primalval) + REALABS(*objval)))); /* duality gap used in SDPA */
+         if ( gap > sdpisolver->gaptol )
+         {
+            SCIPdebugMessage("Attention: got objective value (before adding values of fixed variables) of %f in SCIPsdpiSolverGetSol, "
+               "but primal objective is %f with duality gap %f!\n", *objval, primalval, gap );
+         }
 #endif
       }
       else
@@ -2360,7 +2363,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
          /* since the objective value given by SDPA sometimes differs slightly from the correct value for the given solution,
           * we get the solution from SDPA and compute the correct objective value */
          assert( (sdpisolver->penalty && sdpisolver->nactivevars + 1 == sdpisolver->sdpa->getConstraintNumber()) || /*lint !e776*/
-                  sdpisolver->nactivevars == sdpisolver->sdpa->getConstraintNumber() ); /* in the second case we have r as an additional variable */
+            sdpisolver->nactivevars == sdpisolver->sdpa->getConstraintNumber() ); /* in the second case we have r as an additional variable */
          sdpasol = sdpisolver->sdpa->getResultXVec();
 
          *objval = 0.0;
@@ -2449,7 +2452,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
 
       if ( sdpablock != -1 )
       {
-         blocksize = sdpisolver->sdpa->getBlockSize(sdpablock);
+         blocksize = (int) sdpisolver->sdpa->getBlockSize(sdpablock);
 
          /* iterate once over the upper triangular part of the matrix (saving the corresponding entries in the lower triangular part for the SDPI) */
          for (r = 0; r < blocksize; r++)
@@ -2467,11 +2470,11 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
 
    /* compute the entry for the LP-block */
    startXnblocknonz[nblocks - 1] = 0;
-   sdpablock = sdpisolver->sdpa->getBlockNumber();
+   sdpablock = (int) sdpisolver->sdpa->getBlockNumber();
 
    if ( sdpisolver->sdpa->getBlockType(sdpablock) == SDPA::LP )
    {
-      blocksize = sdpisolver->sdpa->getBlockSize(sdpablock);
+      blocksize = (int) sdpisolver->sdpa->getBlockSize(sdpablock);
 
       for (i = 0; i < blocksize; i++)
       {
@@ -2577,7 +2580,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
          if ( sdpablock != -1 )
          {
             /* since we reset the preoptimalsolution for every solve, the blocksize should have stayed the same */
-            blocksize = sdpisolver->sdpa->getBlockSize(sdpablock);
+            blocksize = (int) sdpisolver->sdpa->getBlockSize(sdpablock);
             blocknnonz = 0;
 
             /* iterate once over the upper triangular part of the matrix (saving the corresponding entries in the lower triangular part for the SDPI) */
@@ -2618,14 +2621,14 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
       blocknnonz = 0;
 
       /* since we reset the preoptimalsolution for every solve, the number of blocks should have stayed the same */
-      sdpablock = sdpisolver->sdpa->getBlockNumber();
+      sdpablock = (int) sdpisolver->sdpa->getBlockNumber();
 
       if ( sdpisolver->sdpa->getBlockType(sdpablock) == SDPA::LP )
       {
          int i;
 
          /* since we reset the preoptimalsolution for every solve, the blocksize should have stayed the same */
-         blocksize = sdpisolver->sdpa->getBlockSize(sdpablock);
+         blocksize = (int) sdpisolver->sdpa->getBlockSize(sdpablock);
 
          /* iterate over LP constraints */
          for (i = 0; i < blocksize - sdpisolver->nvarbounds; i++)
@@ -2749,7 +2752,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    }
 
    /* get the block of primal solution matrix corresponding to the LP-part from sdpa */
-   lpblockind = sdpisolver->sdpa->getBlockNumber(); /* the LP block is the last one and sdpa counts from one */
+   lpblockind = (int) sdpisolver->sdpa->getBlockNumber(); /* the LP block is the last one and sdpa counts from one */
    if ( sdpisolver->sdpa->getBlockType(lpblockind) != SDPA::LP )
    {
       /* if the last block is not an LP-block, no variable bounds existed */
@@ -2831,7 +2834,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
       if ( sdpablock != -1 )
       {
          X = sdpisolver->sdpa->getResultXMat(sdpablock);
-         blocksize = sdpisolver->sdpa->getBlockSize(sdpablock);
+         blocksize = (int) sdpisolver->sdpa->getBlockSize(sdpablock);
 
          /* iterate once over the upper triangular part of the matrix (saving the corresponding entries in the lower triangular part for the SDPI) */
          for (r = 0; r < blocksize; r++)
@@ -2849,12 +2852,12 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
 
    /* compute the entry for the LP-block */
    startXnblocknonz[nblocks - 1] = 0;
-   sdpablock = sdpisolver->sdpa->getBlockNumber();
+   sdpablock = (int) sdpisolver->sdpa->getBlockNumber();
 
    if ( sdpisolver->sdpa->getBlockType(sdpablock) == SDPA::LP )
    {
       X = sdpisolver->sdpa->getResultXMat(sdpablock);
-      blocksize = sdpisolver->sdpa->getBlockSize(sdpablock);
+      blocksize = (int) sdpisolver->sdpa->getBlockSize(sdpablock);
 
       for (i = 0; i < blocksize; i++)
       {
@@ -2916,7 +2919,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
       if ( sdpablock != -1 )
       {
          X = sdpisolver->sdpa->getResultYMat(sdpablock);
-         blocksize = sdpisolver->sdpa->getBlockSize(sdpablock);
+         blocksize = (int) sdpisolver->sdpa->getBlockSize(sdpablock);
          blocknnonz = 0;
 
          /* iterate once over the upper triangular part of the matrix (saving the corresponding entries in the lower triangular part for the SDPI) */
@@ -2955,14 +2958,14 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
 
    /* compute entries for the LP-block */
    blocknnonz = 0;
-   sdpablock = sdpisolver->sdpa->getBlockNumber();
+   sdpablock = (int) sdpisolver->sdpa->getBlockNumber();
 
    if ( sdpisolver->sdpa->getBlockType(sdpablock) == SDPA::LP )
    {
       int i;
 
       X = sdpisolver->sdpa->getResultXMat(sdpablock);
-      blocksize = sdpisolver->sdpa->getBlockSize(sdpablock);
+      blocksize = (int) sdpisolver->sdpa->getBlockSize(sdpablock);
 
       /* iterate over LP constraints */
       for (i = 0; i < blocksize - sdpisolver->nvarbounds; i++)
