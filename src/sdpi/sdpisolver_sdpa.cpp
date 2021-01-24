@@ -30,9 +30,9 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* #define SCIP_DEBUG*/
-/* #define SCIP_MORE_DEBUG   *//* shows all added nonzero entries */
-/* #define SCIP_DEBUG_PRINTTOFILE  *//* prints each problem inserted into SDPA to the file sdpa.dat-s and the starting point to sdpa.ini-s */
+/* #define SCIP_DEBUG */
+/* #define SCIP_MORE_DEBUG */
+/* #define SCIP_DEBUG_PRINTTOFILE */ /* prints each problem inserted into SDPA to the file sdpa.dat-s and the starting point to sdpa.ini-s */
 
 /* #define SDPA_RESETPARAMS */ /* this can be used together with an update to the SDPA source code to prevent memory leaks when using SCIP-SDP with SDPA */
 
@@ -40,6 +40,7 @@
  * @brief  interface for SDPA
  * @author Tristan Gally
  * @author Ambros Gleixner
+ * @author Marc Pfetsch
  */
 
 #include <assert.h>
@@ -129,6 +130,7 @@ struct SCIP_SDPiSolver
    BMS_BUFMEM*           bufmem;             /**< buffer memory */
    SDPA*                 sdpa;               /**< solver-object */
    int                   nvars;              /**< number of input variables */
+   int                   maxnvars;           /**< size of the arrays inputtomosekmapper, mosektoinputmapper, fixedvarsval, and objcoefs */
    int                   nactivevars;        /**< number of variables present in SDPA (nvars minus the number of variables with lb = ub) */
    int*                  inputtosdpamapper;  /**< entry i gives the index of input variable i in sdpa (starting from 1) or
                                               *   -j (j=1, 2, ..., nvars - nactivevars) if the variable is fixed, the value and objective value of
@@ -142,9 +144,11 @@ struct SCIP_SDPiSolver
                                               *   of the corresponding variables, -n means lower bound of variable n, +n means upper bound */
    int*                  inputtovbmapper;    /**< maps lower and upper bounds of input variables to positions in varboundarray: entry 2i gives
                                               *   position of lower bound, entry 2i+1 gives position of upper bound */
-   int                   ninputlpcons;       /**< number of given lp ranged rows; half of length of rowmapper */
    int                   nsdpalpcons;        /**< number of ranged lp rows in SDPA (not counting varbounds); length of rowtoinputmapper and total number of rows in SDPA is twice than this */
    int                   nsdpblocks;         /**< number of given sdp blocks; length of inputtoblockmapper */
+   int                   maxnsdpblocks;      /**< maximal number of given sdp blocks */
+   int*                  maxsdpblocksizes;   /**< array of maximal block sizes */
+   int                   maxnlpcons;         /**< maximal number of LP constraints */
    int*                  rowmapper;          /**< entry 2i gives SDPA-index of left side of ranged row i, 2i+1 index of rhs */
    int*                  rowtoinputmapper;   /**< if rowtoinputmapper[i] = 2j, then i-th SDPA row corresponds to lhs of ranged row j, rhs if 2j + 1*/
    int*                  inputtoblockmapper; /**< entry i gives sdpa-index of i-th sdp-block (or -1 if removed); length is nsdpblocks */
@@ -168,6 +172,7 @@ struct SCIP_SDPiSolver
    SCIP_Real             lambdastar;         /**< lambda star parameter to give to SDPA for initial point */
    SCIP_Real*            preoptimalsol;      /**< first feasible solution with gap less or equal preoptimalgap */
    SCIP_Real**           preoptimalsolx;     /**< dense blockwise primal matrix for first feasible solution with gap less or equal preoptimalgap */
+   SCIP_Real*            preoptimalsolxlp;   /**< LP part of primal solution for first feasible solution with gap less or equal preoptimalgap */
    SCIP_Bool             preoptimalsolexists;/**< saved feasible solution with gap less or equal preoptimalgap */
    SCIP_Real             preoptimalgap;      /**< gap at which a preoptimal solution should be saved for warmstarting purposes */
 };
@@ -194,6 +199,147 @@ SCIP_Bool isFixed(
 #else
 #define isFixed(sdpisolver,lb,ub) (ub-lb <= sdpisolver->epsilon)
 #endif
+
+
+/** calculate memory size for dynamically allocated arrays */
+static
+int calcGrowSize(
+   int                   initsize,           /**< initial size of array */
+   int                   num                 /**< minimum number of entries to store */
+   )
+{
+   int oldsize;
+   int size;
+
+   assert( initsize >= 0 );
+   assert( num >= 0 );
+
+   /* calculate the size with loop, such that the resulting numbers are always the same (-> block memory) */
+   initsize = MAX(initsize, SCIP_DEFAULT_MEM_ARRAYGROWINIT);
+   size = initsize;
+   oldsize = size - 1;
+
+   /* second condition checks against overflow */
+   while ( size < num && size > oldsize )
+   {
+      oldsize = size;
+      size = (int)(SCIP_DEFAULT_MEM_ARRAYGROWFAC * size + initsize);
+   }
+
+   /* if an overflow happened, set the correct value */
+   if ( size <= oldsize )
+      size = num;
+
+   assert( size >= initsize );
+   assert( size >= num );
+
+   return size;
+}
+
+/** ensure size of mapping data */
+static
+SCIP_RETCODE ensureMappingDataMemory(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver structure */
+   int                   nvars,              /**< number of variables */
+   int                   nsdpblocks,         /**< number of SDP blocks */
+   int*                  sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
+   int                   nlpcons,            /**< number of LP constraints */
+   SCIP_Bool             usepreoptimalsol    /**< whether preoptimalsol(x) should be set up */
+   )
+{
+   int newsize;
+   int oldmaxnsdpblocks;
+   int oldmaxnlpcons;
+   int oldmaxnvars;
+   int blocksize;
+   int b;
+
+   assert( sdpisolver != NULL );
+
+   oldmaxnlpcons = sdpisolver->maxnlpcons;
+   oldmaxnvars = sdpisolver->maxnvars;
+
+   /* treat arrays for variables */
+   if ( nvars > sdpisolver->maxnvars )
+   {
+      newsize = calcGrowSize(sdpisolver->maxnvars, nvars);
+
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &sdpisolver->inputtosdpamapper, sdpisolver->maxnvars, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &sdpisolver->sdpatoinputmapper, sdpisolver->maxnvars, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &sdpisolver->fixedvarsval, sdpisolver->maxnvars, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &sdpisolver->objcoefs, sdpisolver->maxnvars, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &sdpisolver->inputtovbmapper, 2 * sdpisolver->maxnvars, 2 * newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &sdpisolver->varboundpos, 2 * sdpisolver->maxnvars, 2 * newsize) );
+
+      if ( usepreoptimalsol )
+      {
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &sdpisolver->preoptimalsol, sdpisolver->maxnvars, newsize) );
+      }
+
+      sdpisolver->maxnvars = newsize;
+   }
+
+   /* treat arrays for SDP constraints */
+   if ( nsdpblocks > sdpisolver->maxnsdpblocks )
+   {
+      oldmaxnsdpblocks = sdpisolver->maxnsdpblocks;
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &sdpisolver->inputtoblockmapper, sdpisolver->maxnsdpblocks, nsdpblocks) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &sdpisolver->blockindmapper, sdpisolver->maxnsdpblocks, nsdpblocks) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &sdpisolver->maxsdpblocksizes, sdpisolver->maxnsdpblocks, nsdpblocks) );
+      if ( usepreoptimalsol )
+      {
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &sdpisolver->preoptimalsolx, sdpisolver->maxnsdpblocks, nsdpblocks) );
+      }
+      sdpisolver->maxnsdpblocks = nsdpblocks;
+
+      for (b = 0; b < oldmaxnsdpblocks; ++b)
+      {
+         blocksize = sdpblocksizes[b];
+         if ( blocksize > sdpisolver->maxsdpblocksizes[b] )
+         {
+            BMSreallocBlockMemoryArray(sdpisolver->blkmem, &sdpisolver->blockindmapper[b], sdpisolver->maxsdpblocksizes[b], blocksize);
+
+            if ( usepreoptimalsol )
+            {
+               BMSreallocBlockMemoryArray(sdpisolver->blkmem, &sdpisolver->preoptimalsolx[b], sdpisolver->maxsdpblocksizes[b] * sdpisolver->maxsdpblocksizes[b], blocksize * blocksize);
+            }
+            sdpisolver->maxsdpblocksizes[b] = blocksize;
+         }
+      }
+
+      for (b = oldmaxnsdpblocks; b < nsdpblocks; ++b)
+      {
+         blocksize = sdpblocksizes[b];
+         BMSallocBlockMemoryArray(sdpisolver->blkmem, &sdpisolver->blockindmapper[b], blocksize);
+         if ( usepreoptimalsol )
+         {
+            BMSallocBlockMemoryArray(sdpisolver->blkmem, &sdpisolver->preoptimalsolx[b], blocksize * blocksize);
+         }
+         sdpisolver->maxsdpblocksizes[b] = blocksize;
+      }
+   }
+
+   /* treat arrays for LP constraints */
+   if ( nlpcons > sdpisolver->maxnlpcons )
+   {
+      newsize = calcGrowSize(sdpisolver->maxnlpcons, nlpcons);
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &sdpisolver->rowmapper, 2 * sdpisolver->maxnlpcons, 2 * newsize) ); /*lint !e647*/
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &sdpisolver->rowtoinputmapper, 2 * sdpisolver->maxnlpcons, 2 * newsize) );
+      sdpisolver->maxnlpcons = newsize;
+   }
+
+   /* special case: treat preoptimalsolxlp */
+   if ( usepreoptimalsol && ( nlpcons > oldmaxnlpcons || nvars > oldmaxnvars ) )
+   {
+      assert( nlpcons <= sdpisolver->maxnlpcons );
+      assert( nvars <= sdpisolver->maxnvars );
+
+      BMSreallocBlockMemoryArray(sdpisolver->blkmem, &sdpisolver->preoptimalsolxlp, 2 * (oldmaxnlpcons + oldmaxnvars), 2 * (sdpisolver->maxnlpcons + sdpisolver->maxnvars));
+   }
+
+   return SCIP_OKAY;
+}
+
 
 /** If the problem is feasible for SDPA but not within our feasibility tolerance, adjust feasibility tolerance in
  *  SDPA and resolve until feasibility in SDPA and feasibility with regards to our tolerance match
@@ -286,7 +432,7 @@ SCIP_RETCODE checkFeastolAndResolve(
 
             /* update number of SDP-iterations and -calls */
             sdpisolver->niterations += (int) sdpisolver->sdpa->getIteration();
-            sdpisolver->nsdpcalls += 1;
+            ++sdpisolver->nsdpcalls;
 
 #ifdef SCIP_DEBUG
             /* print the phase value , i.e. whether solving was successfull */
@@ -410,12 +556,16 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->sdpa = NULL;
 
    (*sdpisolver)->nvars = 0;
+   (*sdpisolver)->maxnvars = 0;
    (*sdpisolver)->nactivevars = 0;
    (*sdpisolver)->nsdpblocks = 0;
+   (*sdpisolver)->maxnsdpblocks = 0;
    (*sdpisolver)->inputtosdpamapper = NULL;
    (*sdpisolver)->sdpatoinputmapper = NULL;
    (*sdpisolver)->inputtoblockmapper = NULL;
    (*sdpisolver)->blockindmapper = NULL;
+   (*sdpisolver)->maxsdpblocksizes = NULL;
+   (*sdpisolver)->maxnlpcons = 0;
    (*sdpisolver)->rowmapper = NULL;
    (*sdpisolver)->rowtoinputmapper = NULL;
    (*sdpisolver)->fixedvarsval = NULL;
@@ -429,7 +579,6 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->sdpcounter = 0;
    (*sdpisolver)->niterations = 0;
    (*sdpisolver)->nsdpcalls = 0;
-   (*sdpisolver)->ninputlpcons = 0;
    (*sdpisolver)->nsdpalpcons = 0;
 
    (*sdpisolver)->epsilon = 1e-9;
@@ -440,6 +589,9 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->sdpinfo = FALSE;
    (*sdpisolver)->usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
 
+   (*sdpisolver)->preoptimalsol = NULL;
+   (*sdpisolver)->preoptimalsolx = NULL;
+   (*sdpisolver)->preoptimalsolxlp = NULL;
    (*sdpisolver)->preoptimalsolexists = FALSE;
    (*sdpisolver)->preoptimalgap = -1.0;
 
@@ -452,7 +604,6 @@ SCIP_RETCODE SCIPsdpiSolverFree(
    )
 {/*lint !e1784*/
    int b;
-   int nsdpblocks;
    int blocksize;
 
    assert( sdpisolver != NULL );
@@ -460,51 +611,42 @@ SCIP_RETCODE SCIPsdpiSolverFree(
 
    SCIPdebugMessage("Freeing SDPISolver\n");
 
-   if ( (*sdpisolver)->sdpa != NULL )
+   for (b = 0; b < (*sdpisolver)->maxnsdpblocks; b++)
    {
-      nsdpblocks = (*sdpisolver)->sdpa->getBlockType((*sdpisolver)->sdpa->getBlockNumber()) == SDPA::LP ?
-         (*sdpisolver)->sdpa->getBlockNumber() - 1 : (*sdpisolver)->sdpa->getBlockNumber();
+      blocksize = (*sdpisolver)->maxsdpblocksizes[b];
+      BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &((*sdpisolver)->blockindmapper[b]), blocksize);
 
-      for (b = 0; b < nsdpblocks; b++)
+      if ( (*sdpisolver)->preoptimalsolx != NULL )
       {
-         blocksize = (*sdpisolver)->sdpa->getBlockSize(b + 1);
-
-         BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &((*sdpisolver)->blockindmapper[b]), blocksize);
-
-         /* free the preoptimal solution X array TODO: there still some memory leaks in this case */
-         if ( (*sdpisolver)->preoptimalgap >= 0.0 )
-         {
-            BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &((*sdpisolver)->preoptimalsolx[b]), blocksize * blocksize);
-         }
+         BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &((*sdpisolver)->preoptimalsolx[b]), blocksize * blocksize);
       }
-      /* free LP block of preoptimal solution X array */
-      if ( (*sdpisolver)->preoptimalgap >= 0.0  )
-      {
-         BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &((*sdpisolver)->preoptimalsolx[nsdpblocks + 1]), 2 * (*sdpisolver)->nsdpalpcons + (*sdpisolver)->nvarbounds);
-         BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->preoptimalsolx, nsdpblocks + 1);
-      }
-      BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->blockindmapper, nsdpblocks);
    }
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->preoptimalsolxlp, 2 * ((*sdpisolver)->maxnlpcons + (*sdpisolver)->maxnvars));
+
+   /* free LP block of preoptimal solution X array */
+   if ( (*sdpisolver)->preoptimalsolx != NULL )
+   {
+      BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->preoptimalsolx, (*sdpisolver)->maxnsdpblocks);
+   }
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->blockindmapper, (*sdpisolver)->maxnsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->maxsdpblocksizes, (*sdpisolver)->maxnsdpblocks);
 
    /* free SDPA object using destructor and free memory via blockmemshell */
    if ( (*sdpisolver)->sdpa != NULL)
       delete (*sdpisolver)->sdpa;
 
-   if ( (*sdpisolver)->nactivevars > 0 && (*sdpisolver)->preoptimalgap > 0.0 )
-   {
-      BMSfreeBlockMemoryArray((*sdpisolver)->blkmem, &(*sdpisolver)->preoptimalsol, (*sdpisolver)->nactivevars);
-   } /* TODO: may use the same construct for the remaining arrays */
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->preoptimalsol, (*sdpisolver)->maxnvars);
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->inputtoblockmapper, (*sdpisolver)->maxnsdpblocks);
 
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->inputtoblockmapper, (*sdpisolver)->nsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->rowtoinputmapper, 2 * (*sdpisolver)->maxnlpcons);
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->rowmapper, 2 * (*sdpisolver)->maxnlpcons);
 
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->rowtoinputmapper, 2 * (*sdpisolver)->nsdpalpcons);
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->rowmapper, 2 * (*sdpisolver)->ninputlpcons);
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->varboundpos, 2 * (*sdpisolver)->nactivevars);
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->inputtovbmapper, 2 * (*sdpisolver)->nvars);
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->inputtosdpamapper, (*sdpisolver)->nvars);
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->sdpatoinputmapper, (*sdpisolver)->nactivevars);
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->fixedvarsval, (*sdpisolver)->nvars - (*sdpisolver)->nactivevars);
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->objcoefs, (*sdpisolver)->nactivevars);
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->varboundpos, 2 * (*sdpisolver)->maxnvars);
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->inputtovbmapper, 2 * (*sdpisolver)->maxnvars);
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->inputtosdpamapper, (*sdpisolver)->maxnvars);
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->sdpatoinputmapper, (*sdpisolver)->maxnvars);
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->fixedvarsval, (*sdpisolver)->maxnvars);
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->objcoefs, (*sdpisolver)->maxnvars);
    BMSfreeBlockMemory((*sdpisolver)->blkmem, sdpisolver);
 
    return SCIP_OKAY;
@@ -713,26 +855,16 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    )
 {/*lint !e1784*/
    SCIP_Real feastol;
-   SCIP_Real* sdpavarbounds;
+   SCIP_Real solvertimelimit;
+   SCIP_Bool usepreoptimalsol;
+   int nfixedvars;
+   bool checkinput; /* should the input be checked for consistency in SDPA? */
+   int nsdpablocks;
+   int nlpineqs;
+   int ind;
    int i;
    int k;
    int b;
-   int block;
-   int nfixedvars;
-   bool checkinput; /* should the input be checked for consistency in SDPA ? */
-   int lpconsind;
-   int lastrow;
-   int nlpineqs;
-   int pos;
-   int newpos;
-   int oldnvars;
-   int oldnactivevars;
-   int oldsdpalplength;
-   int ind;
-   int blockind;
-   int nsdpasdpblocks;
-   SCIP_Bool newlyallocated;
-   SCIP_Real solvertimelimit;
 
 #ifdef SCIP_DEBUG
    char phase_string[15];
@@ -795,10 +927,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    else
       sdpisolver->timelimit = FALSE;
 
-#ifndef SCIP_NDEBUG
-   checkinput = false;
-#else
+#ifndef NDEBUG
    checkinput = true;
+#else
+   checkinput = false;
 #endif
 
    sdpisolver->usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
@@ -810,25 +942,38 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    else
       SCIPdebugMessage("Inserting Data again into SDPA for SDP (%d) \n", sdpisolver->sdpcounter);
 
+   /* free old SDPA solver */
+   if ( sdpisolver->sdpa != 0 )
+   {
+      /* if the SDPA solver has already been created, clear the current problem instance */
+      delete sdpisolver->sdpa;
+   }
+   sdpisolver->sdpa = new SDPA();
+   assert( sdpisolver->sdpa != 0 );
+
    /* set the penalty and rbound flags accordingly */
    sdpisolver->penalty = (penaltyparam < sdpisolver->epsilon) ? FALSE : TRUE;
    sdpisolver->rbound = rbound;
 
-   /* allocate memory for inputtosdpamapper, sdpatoinputmapper and the fixed variable information, for the latter this will
-    * later be shrinked if the needed size is known */
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtosdpamapper), sdpisolver->nvars, nvars) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->sdpatoinputmapper), sdpisolver->nactivevars, nvars) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), sdpisolver->nvars - sdpisolver->nactivevars, nvars) ); /*lint !e776*/
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->objcoefs), sdpisolver->nactivevars, nvars) ); /*lint !e776*/
+   if ( sdpisolver->preoptimalgap >= 0.0 )
+      usepreoptimalsol = TRUE;
+   else
+      usepreoptimalsol = FALSE;
 
-   oldnvars = sdpisolver->nvars; /* we need to save these to realloc the inputtovbmapper and varboundpos-arrays if needed */
-   oldnactivevars = sdpisolver->nactivevars;
-   oldsdpalplength = 2 * sdpisolver->nsdpalpcons + sdpisolver->nvarbounds;
+   /* ensure memory for working space */
+   SCIP_CALL( ensureMappingDataMemory(sdpisolver, nvars, nsdpblocks, sdpblocksizes, nlpcons, usepreoptimalsol) );
+
+   assert( sdpisolver->nvars <= sdpisolver->maxnvars );
    sdpisolver->nvars = nvars;
    sdpisolver->nactivevars = 0;
+   sdpisolver->nvarbounds = 0;
+   sdpisolver->preoptimalsolexists = FALSE;
+   sdpisolver->nsdpblocks = nsdpblocks;
+   sdpisolver->nsdpalpcons = nlpcons;
+   nsdpablocks = nsdpblocks - nremovedblocks;
    nfixedvars = 0;
 
-   /* find the fixed variables */
+   /* find fixed variables and set up mapping functions */
    sdpisolver->fixedvarsobjcontr = 0.0;
    for (i = 0; i < nvars; i++)
    {
@@ -838,164 +983,403 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          sdpisolver->fixedvarsval[nfixedvars] = lb[i]; /* if lb=ub, than this is the value the variable will have in every solution */
          nfixedvars++;
          sdpisolver->inputtosdpamapper[i] = -nfixedvars;
-         SCIPdebugMessage("Fixing variable %d locally to %f for SDP %d in SDPA\n", i, lb[i], sdpisolver->sdpcounter);
+         SCIPdebugMessage("Fixing variable %d locally to %g in SDPA.\n", i, lb[i]);
+         sdpisolver->inputtovbmapper[2 * i] = -1;
+         sdpisolver->inputtovbmapper[2 * i + 1] = -1;
       }
       else
       {
-         sdpisolver->sdpatoinputmapper[sdpisolver->nactivevars] = i;
-         sdpisolver->objcoefs[sdpisolver->nactivevars] = obj[i];
-         sdpisolver->nactivevars++;
-         sdpisolver->inputtosdpamapper[i] = sdpisolver->nactivevars; /* sdpa starts counting at 1, so we do this after increasing nactivevars */
 #ifdef SCIP_MORE_DEBUG
-         SCIPdebugMessage("Variable %d becomes variable %d for SDP %d in SDPA\n", i, sdpisolver->inputtosdpamapper[i], sdpisolver->sdpcounter);
+         SCIPdebugMessage("Variable %d becomes variable %d in SDPA.\n", i, sdpisolver->nactivevars + 1);
 #endif
+         sdpisolver->sdpatoinputmapper[sdpisolver->nactivevars] = i;
+         sdpisolver->inputtosdpamapper[i] = sdpisolver->nactivevars + 1; /* sdpa starts counting at 1 */
+         sdpisolver->objcoefs[sdpisolver->nactivevars] = obj[i];
+
+         if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, lb[i]) )
+         {
+            sdpisolver->varboundpos[sdpisolver->nvarbounds] = -(sdpisolver->nactivevars + 1); /* negative sign means lower bound, +1 because of SDPA */
+            sdpisolver->inputtovbmapper[2 * i] = sdpisolver->nvarbounds++;
+         }
+
+         if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, ub[i]) )
+         {
+            sdpisolver->varboundpos[sdpisolver->nvarbounds] = +(sdpisolver->nactivevars + 1); /* positive sign means upper bound, +1 because of SDPA */
+            sdpisolver->inputtovbmapper[2 * i + 1] = sdpisolver->nvarbounds++;
+         }
+
+         sdpisolver->nactivevars++;
       }
    }
    assert( sdpisolver->nactivevars + nfixedvars == sdpisolver->nvars );
+   assert( sdpisolver->nvarbounds <= 2 * sdpisolver->nactivevars );
+
+   /* if we use a penalty formulation, we need the constraint r >= 0 */
+   if ( penaltyparam >= sdpisolver->epsilon && rbound )
+      sdpisolver->nvarbounds++;
 
    /* if we want to solve without objective, we reset fixedvarsobjcontr */
    if ( ! withobj )
       sdpisolver->fixedvarsobjcontr = 0.0;
 
-   /* shrink the fixedvars and sdpatoinputmapper arrays to the right size */
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->objcoefs), nvars, sdpisolver->nactivevars) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), nvars, nfixedvars) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->sdpatoinputmapper), nvars, sdpisolver->nactivevars) );
-
-   /* reallocate memory for blocktoinputmapper and blockindmapper*/
-   if ( nsdpblocks != sdpisolver->nsdpblocks )
+   /* determine total number of sides in LP-constraints */
+   nlpineqs = 0;
+   for (i = 0; i < nlpcons; i++)
    {
-      if ( sdpisolver->inputtoblockmapper == NULL )
+      assert( lplhs[i] < SCIPsdpiSolverInfinity(sdpisolver) );
+      if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
       {
-         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtoblockmapper), nsdpblocks) );
+         sdpisolver->rowmapper[2 * i] = nlpineqs + 1;
+         sdpisolver->rowtoinputmapper[nlpineqs] = 2 * i;
+         ++nlpineqs;
       }
       else
-      {
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtoblockmapper), sdpisolver->nsdpblocks, nsdpblocks) );
-      }
-   }
+         sdpisolver->rowmapper[2 * i] = -1;
 
-   /* adjust length of preoptimal solution array */
-   if ( sdpisolver->nactivevars != oldnactivevars && sdpisolver->preoptimalgap >= 0.0 )
-   {
-      if ( oldnactivevars == 0 )
+      assert( lprhs[i] > -SCIPsdpiSolverInfinity(sdpisolver) );
+      if ( lprhs[i] < SCIPsdpiSolverInfinity(sdpisolver) )
       {
-         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->preoptimalsol), sdpisolver->nactivevars) );
+         sdpisolver->rowmapper[2*i + 1] = nlpineqs + 1;
+         sdpisolver->rowtoinputmapper[nlpineqs] = 2 * i + 1;
+         ++nlpineqs;
       }
       else
-      {
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->preoptimalsol), oldnactivevars, sdpisolver->nactivevars) );
-      }
+         sdpisolver->rowmapper[2*i + 1] = -1;
    }
-   sdpisolver->preoptimalsolexists = FALSE;
+   assert( nlpineqs <= 2*nlpcons );
 
-   sdpisolver->nsdpblocks = nsdpblocks;
-
-   /* get number of blocks in sdpa for reallocating memory, for this first solve call this is 0 since no memory was allocated before */
-   if ( sdpisolver->sdpa == NULL )
-   {
-      nsdpasdpblocks = 0;
-   }
-   else
-   {
-      nsdpasdpblocks = (sdpisolver->sdpa->getBlockType(sdpisolver->sdpa->getBlockNumber()) == SDPA::LP ?
-               sdpisolver->sdpa->getBlockNumber() - 1 : sdpisolver->sdpa->getBlockNumber());
-   }
-
-   if ( nsdpblocks - nremovedblocks != nsdpasdpblocks )
-   {
-      if ( sdpisolver->blockindmapper == NULL )
-      {
-         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->blockindmapper), nsdpblocks - nremovedblocks) ); /*lint !e647*/
-         newlyallocated = TRUE;
-         if ( sdpisolver->preoptimalgap >= 0.0 )
-         {
-            /* allocate memory for preoptimal X array with length nsdpblocks + 1 (for LP block) */
-            BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->preoptimalsolx), nsdpblocks - nremovedblocks + 1) ); /*lint !e647*/
-         }
-      }
-      else
-      {
-         /* if the number of blocks decreased, we first need to free memory for those blocks before reallocating memory for the outer array */
-         for ( block = nsdpblocks - nremovedblocks; block < nsdpasdpblocks; block++ )
-         {
-            BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &(sdpisolver->blockindmapper[block]), sdpisolver->sdpa->getBlockSize(block + 1));
-         }
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->blockindmapper),
-               nsdpasdpblocks, nsdpblocks - nremovedblocks) ); /*lint !e647*/
-         newlyallocated = FALSE;
-
-         if ( sdpisolver->preoptimalgap >= 0.0 )
-         {
-            /* if the number of blocks decreased, we first need to free memory for those blocks before reallocating memory for the outer array */
-            for ( block = nsdpblocks - nremovedblocks; block < nsdpasdpblocks; block++ )
-            {
-               BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &(sdpisolver->preoptimalsolx[block]), sdpisolver->sdpa->getBlockSize(block + 1));
-            }
-            BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->preoptimalsolx),
-                  nsdpasdpblocks, nsdpblocks - nremovedblocks + 1) ); /*lint !e647*/
-         }
-      }
-   }
-   else
-      newlyallocated = FALSE;
-
-   /* compute blockmapper and blockindmapper (needs to be done before old sdpa is freed to have old memory length available to prevent unnecessary reallocs) */
+   /* compute blockmapper and blockindmapper */
    ind = 0;
-   for (block = 0; block < nsdpblocks; block++)
+   assert( nsdpblocks <= sdpisolver->maxnsdpblocks );
+   for (b = 0; b < nsdpblocks; ++b)
    {
-      if ( blockindchanges[block] > -1 )
+      if ( blockindchanges[b] >= 0 )
       {
-         sdpisolver->inputtoblockmapper[block] = ind + 1; /* +1 because SDPA start counting at one */
+         int blockind = 0;
 
-         /* realloc memory if necessary */
-         if ( newlyallocated )
-         {
-            BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->blockindmapper[ind]), sdpblocksizes[block] - nremovedinds[block]) ); /*lint !e647*/
-            if ( sdpisolver->preoptimalgap >= 0.0 )
-            {
-               BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->preoptimalsolx[ind]),
-                     (sdpblocksizes[block] - nremovedinds[block]) * (sdpblocksizes[block] - nremovedinds[block])) ); /*lint !e647*/
-            }
-         }
-         else if ( (long long) (sdpblocksizes[block] - nremovedinds[block]) != sdpisolver->sdpa->getBlockSize(ind + 1) )
-         {
-            BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->blockindmapper[ind]),
-                  (int) sdpisolver->sdpa->getBlockSize(ind + 1), sdpblocksizes[block] - nremovedinds[block]) ); /*lint !e647*/
-            if ( sdpisolver->preoptimalgap >= 0.0 )
-            {
-               BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->preoptimalsolx[ind]),
-                     (int) sdpisolver->sdpa->getBlockSize(ind + 1) * sdpisolver->sdpa->getBlockSize(ind + 1), (sdpblocksizes[block] - nremovedinds[block]) * (sdpblocksizes[block] - nremovedinds[block])) ); /*lint !e647*/
-            }
-         }
+         sdpisolver->inputtoblockmapper[b] = ind + 1; /* +1 because SDPA start counting at one */
 
-         blockind = 0;
-         for (i = 0; i < sdpblocksizes[block]; i++)
+         for (i = 0; i < sdpblocksizes[b]; i++)
          {
-            if ( indchanges[ind][i] > -1 )
+            if ( indchanges[b][i] >= 0 )
             {
+               assert( ind <= nsdpblocks );
                sdpisolver->blockindmapper[ind][blockind] = i;
-               assert( i - indchanges[ind][i] == blockind );
+               assert( i - indchanges[b][i] == blockind );
                blockind++;
             }
          }
-         assert( blockind == sdpblocksizes[block] - nremovedinds[block] );
+         assert( blockind == sdpblocksizes[b] - nremovedinds[b] );
          ind++;
       }
       else
-         sdpisolver->inputtoblockmapper[block] = -1;
+         sdpisolver->inputtoblockmapper[b] = -1;
    }
 
-   /* insert data */
-   if ( sdpisolver->sdpa != 0 )
-   {
-      /* if the SDPA solver has already been created, clear the current problem instance */
-      delete sdpisolver->sdpa;
-      sdpisolver->sdpa = new SDPA();
-   }
+   /* initialize blockstruct */
+   if ( penaltyparam < sdpisolver->epsilon ) /* we initialize this with an exact 0.0 in solve without penalty */
+      sdpisolver->sdpa->inputConstraintNumber((long long) sdpisolver->nactivevars);
    else
-      sdpisolver->sdpa = new SDPA();
-   assert( sdpisolver->sdpa != 0 );
+      sdpisolver->sdpa->inputConstraintNumber((long long) sdpisolver->nactivevars + 1); /* the additional variable is r for the penalty formulation */
+
+   /* if there are any LP-cons/variable-bounds, we get an extra block for those */
+   if ( nlpineqs + sdpisolver->nvarbounds > 0 )
+      sdpisolver->sdpa->inputBlockNumber((long long) (nsdpablocks + 1));
+   else
+      sdpisolver->sdpa->inputBlockNumber((long long) (nsdpablocks));
+
+   /* initialize SDP blocks */
+   for (b = 0; b < nsdpblocks; ++b)
+   {
+      if ( blockindchanges[b] >= 0 )
+      {
+         /* +1 because of SDPA counting */
+         SCIPdebugMessage("adding block %d to SDPA as block %d with size %d.\n", b, b - blockindchanges[b] + 1, sdpblocksizes[b] - nremovedinds[b]);
+         sdpisolver->sdpa->inputBlockSize((long long) (b - blockindchanges[b] + 1), (long long) (sdpblocksizes[b] - nremovedinds[b]));
+         sdpisolver->sdpa->inputBlockType((long long) (b - blockindchanges[b] + 1), SDPA::SDP);
+      }
+   }
+
+   /* initialize LP block */
+   if ( nlpineqs + sdpisolver->nvarbounds > 0 )
+   {
+      /* the last block is the LP block, the size has a negative sign */
+      SCIPdebugMessage("adding LP block to SDPA as block %d with size %d\n", nsdpablocks + 1, nlpineqs + sdpisolver->nvarbounds);
+      sdpisolver->sdpa->inputBlockSize((long long) (nsdpablocks + 1), (long long) -(nlpineqs + sdpisolver->nvarbounds));
+      sdpisolver->sdpa->inputBlockType((long long) (nsdpablocks + 1), SDPA::LP);
+   }
+
+   /* initialize space */
+   sdpisolver->sdpa->initializeUpperTriangleSpace();
+
+   /* set objective values */
+   if ( withobj )
+   {
+      for (i = 0; i < sdpisolver->nactivevars; i++)
+      {
+         /* insert objective value, SDPA counts from 1 to n instead of 0 to n-1 */
+         sdpisolver->sdpa->inputCVec((long long) (i + 1), obj[sdpisolver->sdpatoinputmapper[i]]);
+      }
+   }
+
+   if ( penaltyparam >= sdpisolver->epsilon )
+      sdpisolver->sdpa->inputCVec((long long) (sdpisolver->nactivevars + 1), penaltyparam); /* set the objective of the additional var to penaltyparam */
+
+   /* inserting non-constant SDP constraint matrices */
+   if ( sdpnnonz > 0 )
+   {
+      int blockvar;
+      int v;
+
+      assert( nsdpblocks > 0 );
+      assert( sdpnblockvarnonz != NULL );
+      assert( sdpnblockvars != NULL );
+      assert( sdpcol != NULL );
+      assert( sdprow != NULL );
+      assert( sdpval != NULL );
+      assert( sdpvar != NULL );
+      assert( indchanges != NULL );
+      assert( nremovedinds != NULL );
+
+      for (b = 0; b < nsdpblocks; ++b)
+      {
+         /* if the block has no entries, we skip it */
+         if ( blockindchanges[b] < 0 )
+            continue;
+
+         assert( b - blockindchanges[b] + 1 <= nsdpablocks );
+
+         /* iterate over all variables in this block */
+         for (blockvar = 0; blockvar < sdpnblockvars[b]; blockvar++)
+         {
+            v = sdpisolver->inputtosdpamapper[sdpvar[b][blockvar]];
+
+            /* check if the variable is active */
+            if ( v > 0 )
+            {
+               assert( v <= sdpisolver->nactivevars );
+
+               for (k = 0; k < sdpnblockvarnonz[b][blockvar]; k++)
+               {
+                  /* rows and cols with active nonzeros should not be removed */
+                  assert( 0 <= indchanges[b][sdprow[b][blockvar][k]] && indchanges[b][sdprow[b][blockvar][k]] <= sdprow[b][blockvar][k] );
+                  assert( 0 <= indchanges[b][sdpcol[b][blockvar][k]] && indchanges[b][sdpcol[b][blockvar][k]] <= sdpcol[b][blockvar][k] );
+
+                  assert( 0 <= sdprow[b][blockvar][k] && sdprow[b][blockvar][k] < sdpblocksizes[b] );
+                  assert( 0 <= sdpcol[b][blockvar][k] && sdpcol[b][blockvar][k] < sdpblocksizes[b] );
+
+                  /* rows and columns start with 1 in SDPA, so we have to add 1 to the indices */
+                  sdpisolver->sdpa->inputElement((long long) v, (long long) (b - blockindchanges[b] + 1),
+                     (long long) (sdpcol[b][blockvar][k] - indchanges[b][sdpcol[b][blockvar][k]] + 1),
+                     (long long) (sdprow[b][blockvar][k] - indchanges[b][sdprow[b][blockvar][k]] + 1),
+                     sdpval[b][blockvar][k], checkinput);
+               }
+            }
+         }
+
+         /* insert the identity matrix if we are using a penalty formulation */
+         if ( penaltyparam >= sdpisolver->epsilon )
+         {
+            for (i = 0; i < sdpblocksizes[b] - nremovedinds[b]; i++)
+            {
+               sdpisolver->sdpa->inputElement((long long) (sdpisolver->nactivevars + 1), (long long) (b - blockindchanges[b] + 1),
+                  (long long) (i + 1), (long long) (i + 1), 1.0, checkinput);
+            }
+         }
+      }
+   }
+
+   /* inserting constant matrix */
+   if ( sdpconstnnonz > 0 )
+   {
+      assert( nsdpblocks > 0 );
+      assert( sdpconstnblocknonz!= NULL );
+      assert( sdpconstcol != NULL );
+      assert( sdpconstrow != NULL );
+      assert( sdpconstval != NULL );
+
+      for (b = 0; b < nsdpblocks; ++b)
+      {
+         if ( blockindchanges[b] < 0 )
+            continue;
+
+         for (k = 0; k < sdpconstnblocknonz[b]; k++)
+         {
+            /* rows and cols with active nonzeros should not be removed */
+            assert( -1 < indchanges[b][sdpconstrow[b][k]] && indchanges[b][sdpconstrow[b][k]] <= sdpconstrow[b][k] );
+            assert( -1 < indchanges[b][sdpconstcol[b][k]] && indchanges[b][sdpconstcol[b][k]] <= sdpconstcol[b][k] );
+
+            assert( 0 <= sdpconstrow[b][k] && sdpconstrow[b][k] < sdpblocksizes[b] );
+            assert( 0 <= sdpconstcol[b][k] && sdpconstcol[b][k] < sdpblocksizes[b] );
+
+            sdpisolver->sdpa->inputElement((long long) 0, (long long) (b - blockindchanges[b] + 1),
+               (long long) (sdpconstcol[b][k] - indchanges[b][sdpconstcol[b][k]] + 1),
+               (long long) (sdpconstrow[b][k] - indchanges[b][sdpconstrow[b][k]] + 1),
+               sdpconstval[b][k], checkinput);
+         }
+      }
+   }
+
+   /* inserting LP nonzeros */
+   if ( lpnnonz > 0 )
+   {
+      SCIP_Bool lhspresent = FALSE;
+      SCIP_Bool rhspresent = FALSE;
+      long long lhsrhscnt = 1;   /* 1 because SDPA starts with 1 */
+      int lastrow = -1;
+      int v;
+
+      for (i = 0; i < lpnnonz; i++)
+      {
+         assert( i == 0 || lprow[i-1] <= lprow[i] );  /* rows should be sorted */
+         assert( 0 <= lprow[i] && lprow[i] < nlpcons );
+         assert( 0 <= lpcol[i] && lpcol[i] < nvars );
+         assert( REALABS(lpval[i]) > sdpisolver->epsilon );
+
+         /* if we found a new row */
+         if ( lprow[i] > lastrow )
+         {
+            /* move counter forward */
+            if ( lhspresent )
+            {
+               assert( 0 <= lastrow && lastrow < nlpcons );
+
+               /* LP constraints are added as diagonal entries of the last block, left-hand-side is added as variable zero */
+               sdpisolver->sdpa->inputElement(0LL, (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, lplhs[lastrow], checkinput);
+
+               /* if we use a penalty formulation, add the r * Identity entry */
+               if ( penaltyparam >= sdpisolver->epsilon )
+               {
+                  /* LP nonzeros are added as diagonal entries of the last block, the r-variable is variable nactivevars + 1 */
+                  sdpisolver->sdpa->inputElement((long long) (sdpisolver->nactivevars + 1), (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, 1.0, checkinput);
+               }
+               ++lhsrhscnt;
+            }
+
+            if ( rhspresent )
+            {
+               assert( 0 <= lastrow && lastrow < nlpcons );
+
+               /* LP constraints are added as diagonal entries of the last block, right-hand side is added as variable zero with negative value */
+               sdpisolver->sdpa->inputElement(0LL, (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, - lprhs[lastrow], checkinput);
+
+               /* if we use a penalty formulation, add the r * Identity entry */
+               if ( penaltyparam >= sdpisolver->epsilon )
+               {
+                  /* LP nonzeros are added as diagonal entries of the last block (coming after the last SDP-block, with
+                   * blocks starting at 1, as are rows), the r-variable is variable nactivevars + 1 */
+                  sdpisolver->sdpa->inputElement((long long) (sdpisolver->nactivevars + 1), (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, 1.0, checkinput);
+               }
+               ++lhsrhscnt;
+            }
+
+            lastrow = lprow[i];
+
+            /* determine presence of new lhs/rhs */
+            if ( lplhs[lastrow] > - SCIPsdpiSolverInfinity(sdpisolver) )
+               lhspresent = TRUE;
+            else
+               lhspresent = FALSE;
+
+            if ( lprhs[lastrow] < SCIPsdpiSolverInfinity(sdpisolver) )
+               rhspresent = TRUE;
+            else
+               rhspresent = FALSE;
+         }
+
+         /* if the variable is active */
+         v = sdpisolver->inputtosdpamapper[lpcol[i]];
+         if ( v > 0 )
+         {
+            /* add the LP-nonzero to the lhs-inequality if it exists: */
+            if ( lhspresent )
+            {
+               /* LP nonzeros are added as diagonal entries of the last block */
+               sdpisolver->sdpa->inputElement((long long) v, (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, lpval[i], checkinput);
+            }
+
+            /* add the LP-nonzero to the rhs-inequality if it exists: */
+            if ( rhspresent )
+            {
+               /* LP nonzeros are added as diagonal entries of the last block; negative value because this is a <=-constraint, while SDPA works with >= */
+               sdpisolver->sdpa->inputElement((long long) v, (long long) (nsdpablocks + 1), lhsrhscnt + lhspresent, lhsrhscnt + lhspresent, - lpval[i], checkinput);
+            }
+         }
+      }
+
+      /* take care of last row */
+      if ( lhspresent )
+      {
+         assert( 0 <= lastrow && lastrow < nlpcons );
+         sdpisolver->sdpa->inputElement(0LL, (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, lplhs[lastrow], checkinput);
+         if ( penaltyparam >= sdpisolver->epsilon )
+            sdpisolver->sdpa->inputElement((long long) (sdpisolver->nactivevars + 1), (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, 1.0, checkinput);
+         ++lhsrhscnt;
+      }
+
+      if ( rhspresent )
+      {
+         assert( 0 <= lastrow && lastrow < nlpcons );
+         sdpisolver->sdpa->inputElement(0LL, (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, - lprhs[lastrow], checkinput);
+         if ( penaltyparam >= sdpisolver->epsilon )
+            sdpisolver->sdpa->inputElement((long long) (sdpisolver->nactivevars + 1), (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, 1.0, checkinput);
+         ++lhsrhscnt;
+      }
+
+      assert( lhsrhscnt == (long long) nlpineqs + 1 );
+   }
+
+   /* inserting variable bounds */
+   if ( sdpisolver->nvarbounds > 0 )
+   {
+      long long varboundcnt;
+      int v;
+
+      varboundcnt = (long long) nlpineqs + 1;  /* +1 because of SDPA */
+
+      for (i = 0; i < nvars; i++)
+      {
+         v = sdpisolver->inputtosdpamapper[i];
+         if ( v > 0 )
+         {
+            assert( 0 < v && v <= sdpisolver->nactivevars );
+            if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, lb[i]) )
+            {
+               /* add bound as LP constraint for this variable */
+               sdpisolver->sdpa->inputElement((long long) v, (long long) (nsdpablocks + 1),  varboundcnt, varboundcnt, 1.0, checkinput);
+
+               if ( REALABS(lb[i]) > sdpisolver->epsilon )
+               {
+                  /* the bound is added as the rhs and therefore variable zero */
+                  sdpisolver->sdpa->inputElement(0LL, (long long) (nsdpablocks + 1), varboundcnt, varboundcnt, lb[i], checkinput);
+               }
+               ++varboundcnt;
+            }
+
+            if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, ub[i]) )
+            {
+               /* add bound as LP constraint for this variable; - because of <= */
+               sdpisolver->sdpa->inputElement((long long) v, (long long) (nsdpablocks + 1), varboundcnt, varboundcnt, -1.0, checkinput);
+
+               if ( REALABS(ub[i]) > sdpisolver->epsilon )
+               {
+                  /* the bound is added as the rhs and therefore variable zero, we multiply by -1 for <= */
+                  sdpisolver->sdpa->inputElement(0LL, (long long) (nsdpablocks + 1), varboundcnt, varboundcnt, -ub[i], checkinput);
+               }
+               ++varboundcnt;
+            }
+         }
+      }
+
+      if ( penaltyparam >= sdpisolver->epsilon && rbound )
+      {
+         /* we add the variable bound r >= 0 */
+         sdpisolver->sdpa->inputElement((long long) (sdpisolver->nactivevars + 1), (long long) (nsdpablocks + 1), varboundcnt, varboundcnt, 1.0, checkinput);
+         ++varboundcnt;
+      }
+      assert( varboundcnt == nlpineqs + 1 + sdpisolver->nvarbounds );
+   }
+
 
    /* initialize settings (this needs to be done before inserting the problem as the initial point depends on the settings) */
    if ( penaltyparam >= sdpisolver->epsilon || startsettings == SCIP_SDPSOLVERSETTING_STABLE || startsettings == SCIP_SDPSOLVERSETTING_PENALTY )
@@ -1005,9 +1389,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->sdpa->setParameterEpsilonStar(GAPTOLCHANGE * GAPTOLCHANGE * sdpisolver->gaptol);
       sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->sdpsolverfeastol);
       feastol = FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->sdpsolverfeastol;
-      SCIPdebugMessage("Start solving process with stable settings\n");
+      SCIPdebugMessage("Start solving process with stable settings ...\n");
    }
-   else if ( startsettings == SCIP_SDPSOLVERSETTING_UNSOLVED || startsettings == SCIP_SDPSOLVERSETTING_FAST)
+   else if ( startsettings == SCIP_SDPSOLVERSETTING_UNSOLVED || startsettings == SCIP_SDPSOLVERSETTING_FAST )
    {
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_UNSTABLE_BUT_FAST);
       sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->gaptol);
@@ -1022,13 +1406,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->sdpa->setParameterEpsilonStar(GAPTOLCHANGE * sdpisolver->gaptol);
       sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * sdpisolver->sdpsolverfeastol);
       feastol = FEASTOLCHANGE * sdpisolver->sdpsolverfeastol;
-      SCIPdebugMessage("Start solving process with medium settings\n");
+      SCIPdebugMessage("Start solving process with medium settings ...\n");
    }
    else
    {
       SCIPdebugMessage("Unknown setting for start-settings: %d!\n", startsettings);  \
       return SCIP_LPERROR;
    }
+
    sdpisolver->sdpa->setParameterLowerBound(-1e20);
 
    /* set the objective limit */
@@ -1046,126 +1431,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->sdpa->printParameters(stdout);
 #endif
 
-   /* compute number of variable bounds and save them in sdpavarbounds and inputtovbmapper */
-   sdpisolver->nvarbounds = 0;
-   BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &sdpavarbounds, 2 * sdpisolver->nactivevars) ); /*lint !e647*//*lint !e530*/
-
-   if ( sdpisolver->nvars != oldnvars )
-   {
-      if ( sdpisolver->inputtovbmapper == NULL )
-      {
-         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtovbmapper), 2 * sdpisolver->nvars) ); /*lint !e647*/
-      }
-      else
-      {
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtovbmapper), 2 * oldnvars, 2 * sdpisolver->nvars) ); /*lint !e647*/
-      }
-   }
-   assert( sdpisolver->inputtovbmapper != NULL );
-
-   /* initialize inputtovbmapper with -1 */
-   for (i = 0; i < 2 * sdpisolver->nvars; i++)
-      sdpisolver->inputtovbmapper[i] = -1;
-
-   if ( sdpisolver->nactivevars != oldnactivevars )
-   {
-      if ( sdpisolver->varboundpos == NULL )
-      {
-         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->varboundpos), 2 * sdpisolver->nactivevars) ); /*lint !e647*/
-      }
-      else
-      {
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->varboundpos), 2 * oldnactivevars, 2 * sdpisolver->nactivevars) ); /*lint !e647*/
-      }
-   }
-   assert( sdpisolver->varboundpos != NULL );
-
-   for (i = 0; i < sdpisolver->nactivevars; i++)
-   {
-      assert( 0 <= sdpisolver->sdpatoinputmapper[i] && sdpisolver->sdpatoinputmapper[i] < nvars );
-      if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, lb[sdpisolver->sdpatoinputmapper[i]]))
-      {
-         sdpavarbounds[sdpisolver->nvarbounds] = lb[sdpisolver->sdpatoinputmapper[i]];
-         sdpisolver->varboundpos[sdpisolver->nvarbounds] = -(i + 1); /* negative sign means lower bound, i + 1 because sdpa starts counting from one */
-         sdpisolver->inputtovbmapper[2 * sdpisolver->sdpatoinputmapper[i]] = sdpisolver->nvarbounds;
-         (sdpisolver->nvarbounds)++;
-      }
-      if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, ub[sdpisolver->sdpatoinputmapper[i]]) )
-      {
-         sdpavarbounds[sdpisolver->nvarbounds] = ub[sdpisolver->sdpatoinputmapper[i]];
-         sdpisolver->varboundpos[sdpisolver->nvarbounds] = +(i + 1); /* positive sign means upper bound, i + 1 because sdpa starts counting from one */
-         sdpisolver->inputtovbmapper[2 * sdpisolver->sdpatoinputmapper[i] + 1] = sdpisolver->nvarbounds;
-         (sdpisolver->nvarbounds)++;
-      }
-   }
-
-   if ( nlpcons > 0 )
-   {
-      /* allocate memory to save which lpconstraints are mapped to which index, entry 2i corresponds to the left hand side of row i, 2i+1 to the rhs */
-      if ( sdpisolver->ninputlpcons != nlpcons )
-      {
-         if ( sdpisolver->rowmapper == NULL )
-         {
-            BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->rowmapper), 2 * nlpcons) ); /*lint !e647*/
-         }
-         else
-         {
-            BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->rowmapper), 2 * sdpisolver->ninputlpcons, 2 * nlpcons) ); /*lint !e647*/
-         }
-      }
-      assert( sdpisolver->rowmapper != NULL );
-
-      /* allocate memory to save which sdpa lp constraints correspond to which input constraint, entry 2i indicates left hand side of ranged-row i, 2i+1 rhs */
-      if ( sdpisolver->nsdpalpcons != nlpcons )
-      {
-         if ( sdpisolver->rowtoinputmapper == NULL )
-         {
-            BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->rowtoinputmapper), 2 * nlpcons) );
-         }
-         else
-         {
-            BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->rowtoinputmapper), 2 * sdpisolver->nsdpalpcons, 2 * nlpcons) );
-         }
-         assert( sdpisolver->rowtoinputmapper != NULL );
-      }
-
-      sdpisolver->ninputlpcons = nlpcons;
-      sdpisolver->nsdpalpcons = nlpcons;
-
-      /* compute the number of LP constraints after splitting the ranged rows and compute the rowmapper */
-      pos = 1; /* SDPA starts counting the LP-inequalities at one */
-      newpos = 0; /* the position in the lhs and rhs arrays */
-      for (i = 0; i < nlpcons; i++)
-      {
-         if ( lplhs[newpos] > - SCIPsdpiSolverInfinity(sdpisolver) )
-         {
-            sdpisolver->rowmapper[2*i] = pos; /*lint !e679*/
-            sdpisolver->rowtoinputmapper[pos - 1] = 2*i;
-            pos++;
-         }
-         else
-            sdpisolver->rowmapper[2*i] = -1; /*lint !e679*/
-         if ( lprhs[newpos] < SCIPsdpiSolverInfinity(sdpisolver) )
-         {
-            sdpisolver->rowmapper[2*i + 1] = pos; /*lint !e679*/
-            sdpisolver->rowtoinputmapper[pos - 1] = 2*i + 1;
-            pos++;
-         }
-         else
-            sdpisolver->rowmapper[2*i + 1] = -1; /*lint !e679*/
-
-         newpos++;
-      }
-      nlpineqs = pos - 1; /* minus one because we started at one as SDPA wants them numbered one to nlpineqs */
-      assert( nlpineqs <= 2*nlpcons ); /* *2 comes from left- and right-hand-sides */
-   }
-   else
-      nlpineqs = 0;
-
-   /* if we use a penalty formulation, we need the constraint r >= 0 */
-   if ( penaltyparam >= sdpisolver->epsilon && rbound )
-      sdpisolver->nvarbounds++;
-
    if ( sdpisolver->sdpinfo )
       sdpisolver->sdpa->setDisplay(stdout);
    else
@@ -1178,428 +1443,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->sdpa->setResultFile(fpOut);
 #endif
 
-   /* (re)allocate memory for LP block of primal solution for preoptimal sol */
-   if ( sdpisolver->preoptimalgap >= 0.0 )
-   {
-      if ( newlyallocated )
-      {
-         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->preoptimalsolx[nsdpblocks - nremovedblocks]),
-               2 * sdpisolver->nsdpalpcons + sdpisolver->nvarbounds) );
-      }
-      else
-      {
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->preoptimalsolx[nsdpblocks - nremovedblocks]), oldsdpalplength,
-               2 * sdpisolver->nsdpalpcons + sdpisolver->nvarbounds) );
-      }
-   }
-
-   /* initialize blockstruct */
-   if ( penaltyparam < sdpisolver->epsilon ) /* we initialize this with an exact 0.0 in Solve without penalty */
-      sdpisolver->sdpa->inputConstraintNumber((long long) sdpisolver->nactivevars);/*lint !e747*/
-   else
-      sdpisolver->sdpa->inputConstraintNumber((long long) sdpisolver->nactivevars + 1);/*lint !e747*/ /* the additional variable is r for the penalty formulation */
-
-   /* if there are any lp-cons/variable-bounds, we get an extra block for those, lastrow - nshifts is the number of lp constraints added */
-   sdpisolver->sdpa->inputBlockNumber((long long) ((nlpineqs + sdpisolver->nvarbounds > 0) ?
-         nsdpblocks - nremovedblocks + 1 : nsdpblocks - nremovedblocks)); /*lint !e834 !e747 !e776*/
-
-   /* block+1 because SDPA starts counting at 1 */
-   for (block = 0; block < nsdpblocks; block++)
-   {
-      if ( blockindchanges[block] >= 0 )
-      {
-         SCIPdebugMessage("adding block %d to SDPA as block %d with size %d\n",
-               block, block - blockindchanges[block] + 1, sdpblocksizes[block] - nremovedinds[block]); /*lint !e834*/
-         sdpisolver->sdpa->inputBlockSize((long long) block - blockindchanges[block] + 1,/*lint !e747, !e834*/
-               (long long) sdpblocksizes[block] - nremovedinds[block]); /*lint !e834, !e776, !e747*/
-         sdpisolver->sdpa->inputBlockType((long long) block - blockindchanges[block] + 1, SDPA::SDP); /*lint !e834, !e776, !e747*/
-      }
-   }
-   if ( nlpineqs + sdpisolver->nvarbounds > 0 )
-   {
-      /* the last block is the lp block, the size has a negative sign */
-      sdpisolver->sdpa->inputBlockSize((long long) nsdpblocks - nremovedblocks + 1, (long long) -(nlpineqs + sdpisolver->nvarbounds)); /*lint !e834, !e776, !e747*/
-      sdpisolver->sdpa->inputBlockType((long long) nsdpblocks - nremovedblocks + 1, SDPA::LP); /*lint !e834, !e776, !e747*/
-      SCIPdebugMessage("adding LP block to SDPA as block %d with size %d\n", nsdpblocks - nremovedblocks + 1,/*lint !e834*/
-            -(nlpineqs + sdpisolver->nvarbounds)); /*lint !e834*/
-   }
-
-   sdpisolver->sdpa->initializeUpperTriangleSpace();
-
-   /* set objective values */
-   for (i = 0; i < sdpisolver->nactivevars; i++)
-   {
-      if ( withobj )
-      {
-         /* insert objective value, SDPA counts from 1 to n instead of 0 to n-1 */
-         sdpisolver->sdpa->inputCVec((long long) i + 1, obj[sdpisolver->sdpatoinputmapper[i]]);/*lint !e747*/
-#ifdef SCIP_MORE_DEBUG
-         SCIPdebugMessage("inserting objective %f for variable %d which became variable %d in SDPA\n", obj[sdpisolver->sdpatoinputmapper[i]],
-               sdpisolver->sdpatoinputmapper[i], i+1);
-#endif
-      }
-      if ( penaltyparam >= sdpisolver->epsilon )
-         sdpisolver->sdpa->inputCVec((long long) sdpisolver->nactivevars + 1, penaltyparam);/*lint !e747*/ /* set the objective of the additional var to penaltyparam */
-   }
-
    /* if we want to use a starting point we have to tell SDPA to allocate memory for it */
    if ( starty != NULL && startZnblocknonz != NULL && startXnblocknonz != NULL && penaltyparam < sdpisolver->epsilon )
       sdpisolver->sdpa->setInitPoint(true);
    else
       sdpisolver->sdpa->setInitPoint(false);
-
-   /* start inserting the non-constant SDP-Constraint-Matrices */
-   if ( sdpnnonz > 0 )
-   {
-      int v;
-      int blockvar;
-
-      assert( nsdpblocks > 0 );
-      assert( sdpnblockvarnonz != NULL );
-      assert( sdpnblockvars != NULL );
-      assert( sdpcol != NULL );
-      assert( sdprow != NULL );
-      assert( sdpval != NULL );
-      assert( sdpvar != NULL );
-      assert( indchanges != NULL );
-      assert( nremovedinds != NULL );
-
-      for (block = 0; block < nsdpblocks; block++)
-      {
-         /* if the block has no entries, we skip it */
-         if ( blockindchanges[block] == -1 )
-            continue;
-#ifdef SCIP_MORE_DEBUG
-         SCIPdebugMessage("   -> building block %d, which becomes block %d in SDPA (%d)\n", block, block - blockindchanges[block] + 1,sdpisolver->sdpcounter);
-#endif
-         /* iterate over all variables in this block */
-         for (blockvar = 0; blockvar < sdpnblockvars[block]; blockvar++)
-         {
-            v = sdpisolver->inputtosdpamapper[sdpvar[block][blockvar]];
-
-#ifdef SCIP_MORE_DEBUG
-            SCIPdebugMessage("      -> adding coefficient matrix for variable %d which becomes variable %d in SDPA (%d)\n",
-               sdpvar[block][blockvar], v, sdpisolver->sdpcounter);
-#endif
-
-            /* check if the variable is active */
-            if ( v > -1 )
-            {
-               for (k = 0; k < sdpnblockvarnonz[block][blockvar]; k++)
-               {
-                  /* rows and cols with active nonzeros should not be removed */
-                  assert( indchanges[block][sdprow[block][blockvar][k]] > -1 && indchanges[block][sdpcol[block][blockvar][k]] > -1 );
-
-                  assert( indchanges[block][sdprow[block][blockvar][k]] <= sdprow[block][blockvar][k]);
-                  assert( indchanges[block][sdpcol[block][blockvar][k]] <= sdpcol[block][blockvar][k]);
-
-                  assert( 0 <= sdprow[block][blockvar][k] && sdprow[block][blockvar][k] < sdpblocksizes[block] );
-                  assert( 0 <= sdpcol[block][blockvar][k] && sdpcol[block][blockvar][k] < sdpblocksizes[block] );
-
-                  /* rows and columns start with one in SDPA, so we have to add 1 to the indices */
-#ifdef SCIP_MORE_DEBUG
-                  SCIPdebugMessage("         -> adding nonzero %g at (%d,%d) (%d)\n",
-                        sdpval[block][blockvar][k],
-                        sdpcol[block][blockvar][k] - indchanges[block][sdpcol[block][blockvar][k]] + 1,
-                        sdprow[block][blockvar][k] - indchanges[block][sdprow[block][blockvar][k]] + 1,
-                        sdpisolver->sdpcounter);
-#endif
-
-                  sdpisolver->sdpa->inputElement((long long) v, (long long) block - blockindchanges[block] + 1, /*lint !e834, !e747*/
-                        (long long) sdpcol[block][blockvar][k] - indchanges[block][sdpcol[block][blockvar][k]] + 1, /*lint !e834, !e747*/
-                        (long long) sdprow[block][blockvar][k] - indchanges[block][sdprow[block][blockvar][k]] + 1, /*lint !e834, !e747*/
-                        sdpval[block][blockvar][k], checkinput); /*lint !e776 !e834*/
-               }
-            }
-         }
-         /* insert the identity matrix if we are using a penalty formulation */
-         if ( penaltyparam >= sdpisolver->epsilon )
-         {
-#ifdef SCIP_MORE_DEBUG
-            SCIPdebugMessage("      -> adding coefficient matrix for penalty variable r in SDPA (%d)\n", sdpisolver->sdpcounter);
-#endif
-            for (i = 0; i < sdpblocksizes[block] - nremovedinds[block]; i++)
-            {
-#ifdef SCIP_MORE_DEBUG
-                  SCIPdebugMessage("         -> adding nonzero 1.0 at (%d,%d) (%d)\n", i + 1, i + 1, sdpisolver->sdpcounter);
-#endif
-
-                  sdpisolver->sdpa->inputElement((long long) sdpisolver->nactivevars + 1, (long long) block - blockindchanges[block] + 1, /*lint !e747, !e776, !e834*/
-                        (long long) i + 1, (long long) i + 1, 1.0, checkinput);/*lint !e747*/
-            }
-         }
-      }
-   }
-
-   /* start inserting the constant matrix */
-   if ( sdpconstnnonz > 0 )
-   {
-      assert( nsdpblocks > 0 );
-      assert( sdpconstnblocknonz!= NULL );
-      assert( sdpconstcol != NULL );
-      assert( sdpconstrow != NULL );
-      assert( sdpconstval != NULL );
-
-      for (block = 0; block < nsdpblocks; block++)
-      {
-         if ( blockindchanges[block] == -1 )
-            continue;
-#ifdef SCIP_MORE_DEBUG
-         SCIPdebugMessage("   -> building block %d (%d)\n", block + 1, sdpisolver->sdpcounter);
-#endif
-         for (k = 0; k < sdpconstnblocknonz[block]; k++)
-         {
-            /* rows and cols with active nonzeros should not be removed */
-            assert( indchanges[block][sdpconstrow[block][k]] > -1 && indchanges[block][sdpconstcol[block][k]] > -1 );
-
-            assert( indchanges[block][sdpconstrow[block][k]] <= sdpconstrow[block][k]);
-            assert( indchanges[block][sdpconstcol[block][k]] <= sdpconstcol[block][k]);
-
-            assert (0 <= sdpconstrow[block][k] && sdpconstrow[block][k] < sdpblocksizes[block]);
-            assert (0 <= sdpconstcol[block][k] && sdpconstcol[block][k] < sdpblocksizes[block]);
-
-            /* rows and columns start with one in SDPA, so we have to add 1 to the indices, the constant matrix is given as variable 0 */
-#ifdef SCIP_MORE_DEBUG
-            SCIPdebugMessage("         -> adding constant nonzero %g at (%d,%d) (%d)\n", sdpconstval[block][k],
-               sdpconstcol[block][k] - indchanges[block][sdpconstcol[block][k]] + 1,
-               sdpconstrow[block][k] - indchanges[block][sdpconstrow[block][k]] + 1,
-               sdpisolver->sdpcounter);
-#endif
-            sdpisolver->sdpa->inputElement((long long) 0, (long long) block - blockindchanges[block] + 1, /*lint !e747, !e776, !e834*/
-               (long long) sdpconstcol[block][k] - indchanges[block][sdpconstcol[block][k]] + 1, /*lint !e747, !e776, !e834*/
-               (long long) sdpconstrow[block][k] - indchanges[block][sdpconstrow[block][k]] + 1, /*lint !e747, !e776, !e834*/
-               sdpconstval[block][k], checkinput);
-         }
-      }
-   }
-
-#ifdef SCIP_MORE_DEBUG
-         SCIPdebugMessage("   -> building LP-block %d (%d)\n", nsdpblocks - nremovedblocks + 1, sdpisolver->sdpcounter);
-#endif
-   /* inserting LP nonzeros */
-   lastrow = -1;
-   for (i = 0; i < lpnnonz; i++)
-   {
-      assert( 0 <= lprow[i] && lprow[i] < nlpcons );
-      assert( 0 <= lpcol[i] && lpcol[i] < nvars );
-      assert( REALABS(lpval[i]) > sdpisolver->epsilon );
-
-      /* if the variable is active and the constraint is more than a bound, we add it */
-      if ( sdpisolver->inputtosdpamapper[lpcol[i]] > 0 )
-      {
-         if ( lprow[i] > lastrow )  /* we update the lpcons-counter */
-         {
-            lastrow = lprow[i];
-
-            /* if we use a penalty formulation, add the r * Identity entry */
-            if ( penaltyparam >= sdpisolver->epsilon )
-            {
-               /* check for the lhs-inequality */
-               if ( sdpisolver->rowmapper[2*lastrow] > -1 ) /*lint !e679*/
-               {
-#ifdef SCIP_MORE_DEBUG
-                  SCIPdebugMessage("         -> adding nonzero 1.0 at (%d,%d) for penalty variable r in SDPA (%d)\n",
-                     sdpisolver->rowmapper[2*lastrow], sdpisolver->rowmapper[2*lastrow], sdpisolver->sdpcounter);
-#endif
-                  /* LP nonzeros are added as diagonal entries of the last block (coming after the last SDP-block, with
-                   * blocks starting at 1, as are rows), the r-variable is variable nactivevars + 1 */
-                  sdpisolver->sdpa->inputElement((long long) sdpisolver->nactivevars + 1, (long long) nsdpblocks - nremovedblocks + 1, /*lint !e747, !e776, !e834*/
-                     (long long) sdpisolver->rowmapper[2*lastrow], (long long) sdpisolver->rowmapper[2*lastrow], 1.0, checkinput); /*lint !e679, !e747, !e834*/
-               }
-
-               /* check for the rhs-inequality */
-               if ( sdpisolver->rowmapper[2*lastrow + 1] > -1 ) /*lint !e679*/
-               {
-#ifdef SCIP_MORE_DEBUG
-                  SCIPdebugMessage("         -> adding nonzero 1.0 at (%d,%d) for penalty variable r in SDPA (%d)\n",
-                     sdpisolver->rowmapper[2*lastrow + 1], sdpisolver->rowmapper[2*lastrow + 1], sdpisolver->sdpcounter);
-#endif
-                  /* LP nonzeros are added as diagonal entries of the last block (coming after the last SDP-block, with
-                   * blocks starting at 1, as are rows), the r-variable is variable nactivevars + 1 */
-                  sdpisolver->sdpa->inputElement((long long) sdpisolver->nactivevars + 1, (long long) nsdpblocks - nremovedblocks + 1, /*lint !e747, !e776, !e834*/
-                     (long long) sdpisolver->rowmapper[2*lastrow + 1], (long long) sdpisolver->rowmapper[2*lastrow + 1], 1.0, checkinput); /*lint !e679, !e747, !e834*/
-               }
-            }
-         }
-
-         /* add the lp-nonzero to the lhs-inequality if it exists: */
-         if ( sdpisolver->rowmapper[2*lastrow] > -1 ) /*lint !e679*/
-         {
-#ifdef SCIP_MORE_DEBUG
-            SCIPdebugMessage("         -> adding nonzero %g at (%d,%d) for variable %d which became variable %d in SDPA (%d)\n",
-               lpval[i], sdpisolver->rowmapper[2*lastrow], sdpisolver->rowmapper[2*lastrow], lpcol[i], sdpisolver->inputtosdpamapper[lpcol[i]], sdpisolver->sdpcounter);
-#endif
-            /* LP nonzeros are added as diagonal entries of the last block (coming after the last SDP-block, with blocks starting at 1, as are rows) */
-            sdpisolver->sdpa->inputElement((long long) sdpisolver->inputtosdpamapper[lpcol[i]], (long long) nsdpblocks - nremovedblocks + 1, /*lint !e747, !e776, !e834*/
-               (long long) sdpisolver->rowmapper[2*lastrow], (long long) sdpisolver->rowmapper[2*lastrow], lpval[i], checkinput); /*lint !e679, !e747, !e834*/
-         }
-
-         /* add the lp-nonzero to the rhs-inequality if it exists: */
-         if ( sdpisolver->rowmapper[2*lastrow + 1] > -1 ) /*lint !e679*/
-         {
-#ifdef SCIP_MORE_DEBUG
-            SCIPdebugMessage("         -> adding nonzero %g at (%d,%d) for variable %d which became variable %d in SDPA (%d)\n",
-               -1 * lpval[i], sdpisolver->rowmapper[2*lastrow + 1], sdpisolver->rowmapper[2*lastrow + 1], lpcol[i], sdpisolver->inputtosdpamapper[lpcol[i]], sdpisolver->sdpcounter);
-#endif
-            /* LP nonzeros are added as diagonal entries of the last block (coming after the last SDP-block, with blocks starting at 1, as are rows),
-             * the -1 comes from the fact that this is a <=-constraint, while SDPA works with >= */
-            sdpisolver->sdpa->inputElement((long long) sdpisolver->inputtosdpamapper[lpcol[i]], (long long) nsdpblocks - nremovedblocks + 1, /*lint !e747, !e776, !e834*/
-               (long long) sdpisolver->rowmapper[2*lastrow + 1], (long long) sdpisolver->rowmapper[2*lastrow + 1], -1 * lpval[i], checkinput); /*lint !e679, !e747, !e834*/
-         }
-      }
-   }
-
-   /* inserting LP left- and right-hand-sides for active constraints */
-   lpconsind = 1; /* this is the same order we used when computing the rowmapper, so we insert at the right positions */
-   for (i = 0; i < nlpcons; i++)
-   {
-      /* check for left-hand side */
-      if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
-      {
-#ifdef SCIP_MORE_DEBUG
-         SCIPdebugMessage("         -> adding lhs %g at (%d,%d) (%d)\n", lplhs[i], lpconsind, lpconsind, sdpisolver->sdpcounter);
-#endif
-         /* LP constraints are added as diagonal entries of the last block, left-hand-side is added as variable zero */
-         sdpisolver->sdpa->inputElement((long long) 0, (long long) nsdpblocks - nremovedblocks + 1, (long long) lpconsind, /*lint !e747, !e776, !e834*/
-               (long long) lpconsind, lplhs[i], checkinput);/*lint !e747*/
-         lpconsind++;
-      }
-
-      /* check for right-hand side */
-      if ( lprhs[i] < SCIPsdpiSolverInfinity(sdpisolver) )
-      {
-#ifdef SCIP_MORE_DEBUG
-         SCIPdebugMessage("         -> adding lhs (originally rhs) %g at (%d,%d) (%d)\n", -1 * lprhs[i], lpconsind, lpconsind, sdpisolver->sdpcounter);
-#endif
-         /* LP constraints are added as diagonal entries of the last block, right-hand side is added as variable zero, the -1 comes from
-          * the fact, that SDPA uses >=, while the rhs is a <=-constraint */
-         sdpisolver->sdpa->inputElement((long long) 0, (long long) nsdpblocks - nremovedblocks + 1, (long long) lpconsind, /*lint !e747, !e776, !e834*/
-               (long long) lpconsind, -1 * lprhs[i], checkinput);/*lint !e747*/
-         lpconsind++;
-      }
-   }
-
-   assert( lpconsind == nlpineqs + 1 ); /* plus one because we started at one as SDPA wants them numbered one to nlpineqs */
-
-   /* print each LP-constraint as one formatted constraint in addition to the single entries inserted into SDPA */
-#ifdef SCIP_MORE_DEBUG
-   lastrow = -1;
-   ind = -1; /* this is increased once before the first usage */
-   for (i = 0; i < lpnnonz; i++)
-   {
-      /* if the variable is active and the constraint is more than a bound, we added it */
-      if ( sdpisolver->inputtosdpamapper[lpcol[i]] > 0 )
-      {
-         if ( lprow[i] > lastrow )  /* we finished the old row */
-         {
-            if ( lastrow >= 0 )
-            {
-               if ( lprhs[ind] < SCIPsdpiSolverInfinity(sdpisolver) )
-                  SCIPmessagePrintInfo(sdpisolver->messagehdlr, " <= %f\n", lprhs[ind]);
-               else
-                  SCIPmessagePrintInfo(sdpisolver->messagehdlr, "\n");
-            }
-            lastrow = lprow[i];
-            ind++;
-            if ( lplhs[ind] > - SCIPsdpiSolverInfinity(sdpisolver) )
-               SCIPmessagePrintInfo(sdpisolver->messagehdlr, "%f <= ", lplhs[ind]);
-         }
-         SCIPmessagePrintInfo(sdpisolver->messagehdlr, "+ %f <x%d> ", lpval[i], lpcol[i]);
-      }
-   }
-   if ( lastrow >= 0 )
-   {
-      if ( lprhs[ind] < SCIPsdpiSolverInfinity(sdpisolver) )
-         SCIPmessagePrintInfo(sdpisolver->messagehdlr, " <= %f\n", lprhs[ind]);
-      else
-         SCIPmessagePrintInfo(sdpisolver->messagehdlr, "\n");
-   }
-   assert( ind == nlpcons - 1 ); /* -1 because we start indexing at zero and do not increase after the last row */
-#endif
-
-   /* insert variable bounds, these are also added as LP-constraints and therefore diagonal entries of the LP block
-    * if we work with the penalty formulation, we get an extra entry for r >= 0, but this we will add afterwards */
-   for (i = 0; i < ((penaltyparam < sdpisolver->epsilon) || (! rbound) ? sdpisolver->nvarbounds : sdpisolver->nvarbounds - 1); i++)
-   {
-      assert( 0 < abs(sdpisolver->varboundpos[i]) && abs(sdpisolver->varboundpos[i] <= sdpisolver->nactivevars) ); /* the indices are already those for SDPA */
-
-      /* for lower bound */
-      if ( sdpisolver->varboundpos[i] < 0 )
-      {
-         /* add it as an lp-constraint for this variable (- because we saved -n for the lower bound), at the position
-          * (nactivelpcons + 1) + varbound-index, because we have >= the variable has coefficient +1 */
-         sdpisolver->sdpa->inputElement((long long) -sdpisolver->varboundpos[i], (long long) nsdpblocks - nremovedblocks + 1, /*lint !e747, !e776, !e834*/
-               (long long) nlpineqs + 1 + i, (long long) nlpineqs + 1 + i, 1.0, checkinput);/*lint !e747*/
-
-         if ( REALABS(sdpavarbounds[i]) > sdpisolver->epsilon )
-         {
-            /* the bound is added as the rhs and therefore variable zero */
-#ifdef SCIP_MORE_DEBUG
-            SCIPdebugMessage("         -> adding lower bound %g at (%d,%d) for variable %d which became variable %d in SDPA (%d)\n",
-                  sdpavarbounds[i], nlpineqs + 1 + i, nlpineqs + 1 + i, sdpisolver->sdpatoinputmapper[-sdpisolver->varboundpos[i] - 1],
-                  -sdpisolver->varboundpos[i], sdpisolver->sdpcounter);
-#endif
-            sdpisolver->sdpa->inputElement((long long) 0, (long long) nsdpblocks - nremovedblocks + 1, (long long) nlpineqs + 1 + i, /*lint !e747, !e776, !e834*/
-                  (long long) nlpineqs + 1 + i, sdpavarbounds[i], checkinput);/*lint !e747*/
-         }
-         else
-         {
-            /* as the bound is zero, we don't need to add a right hand side */
-#ifdef SCIP_MORE_DEBUG
-            SCIPdebugMessage("         -> adding lower bound 0 at (%d,%d) for variable %d which became variable %d in SDPA (%d)\n",
-                  nlpineqs + 1 + i, nlpineqs + 1 + i, sdpisolver->sdpatoinputmapper[-sdpisolver->varboundpos[i] - 1],
-               -sdpisolver->varboundpos[i], sdpisolver->sdpcounter);
-#endif
-         }
-      }
-      else
-      {
-         /* this is an upper bound */
-
-         /* add it as an lp-constraint for this variable, at the position nactivelpcons + varbound-index, because we have >= but we
-          * want <= for the upper bound, we have to multiply by -1 and therefore the variable has coefficient -1 */
-         sdpisolver->sdpa->inputElement((long long) sdpisolver->varboundpos[i], (long long) nsdpblocks - nremovedblocks + 1, /*lint !e747, !e776, !e834*/
-               (long long) nlpineqs + 1 + i, (long long) nlpineqs + 1 + i, -1.0, checkinput);/*lint !e747*/
-
-         if ( REALABS(sdpavarbounds[i]) > sdpisolver->epsilon )
-         {
-            /* the bound is added as the rhs and therefore variable zero, we multiply by -1 for <= */
-#ifdef SCIP_MORE_DEBUG
-            SCIPdebugMessage("         -> adding upper bound %g at (%d,%d) for variable %d which became variable %d in SDPA (%d)\n",
-                  sdpavarbounds[i], nlpineqs + 1 + i, nlpineqs + 1 + i, sdpisolver->sdpatoinputmapper[sdpisolver->varboundpos[i] - 1],
-                  sdpisolver->varboundpos[i], sdpisolver->sdpcounter);
-#endif
-            sdpisolver->sdpa->inputElement((long long) 0, (long long) nsdpblocks - nremovedblocks + 1, (long long) nlpineqs + 1 + i, /*lint !e747, !e776, !e834*/
-                  (long long) nlpineqs + 1 + i, -sdpavarbounds[i], checkinput);/*lint !e747*/
-         }
-         else
-         {
-            /* as the bound is zero, we don't need to add a right hand side */
-#ifdef SCIP_MORE_DEBUG
-            SCIPdebugMessage("         -> adding upper bound 0 at (%d,%d) for variable %d which became variable %d in SDPA (%d)\n",
-                  0, nlpineqs + 1 + i, nlpineqs + 1 + i, sdpisolver->sdpatoinputmapper[sdpisolver->varboundpos[i] - 1],
-                  sdpisolver->varboundpos[i]);
-#endif
-         }
-      }
-   }
-
-   if ( penaltyparam >= sdpisolver->epsilon && rbound )
-   {
-      /* we add the variable bound r >= 0 */
-      sdpisolver->sdpa->inputElement((long long) sdpisolver->nactivevars + 1, (long long) nsdpblocks - nremovedblocks + 1, /*lint !e747, !e776, !e834*/
-            (long long) nlpineqs + 1 + i, (long long) nlpineqs + 1 + i, 1.0, checkinput);/*lint !e747*/
-#ifdef SCIP_MORE_DEBUG
-      SCIPdebugMessage("         -> adding lower bound r >= 0 at (%d,%d)  in SDPA (%d)\n", nlpineqs + 1 + i, nlpineqs + 1 + i, sdpisolver->sdpcounter);
-#endif
-   }
-
-   /* free the arrays used for counting and saving variable bounds and LP-right-hand-sides */
-   BMSfreeBufferMemoryArray(sdpisolver->bufmem, &sdpavarbounds); /*lint !e647, !e737*/
-
-   /* transform the matrices to a more efficient form */
-   sdpisolver->sdpa->initializeUpperTriangle();
-   sdpisolver->sdpa->initializeSolve();
 
    /* set the starting solution */
    if ( starty != NULL && startZnblocknonz != NULL && startXnblocknonz != NULL && penaltyparam < sdpisolver->epsilon )
@@ -1614,14 +1462,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* set SDP-blocks of dual matrix */
       for (b = 0; b < nsdpblocks; b++)
       {
-         if ( blockindchanges[b] > -1)
+         if ( blockindchanges[b] >= 0 )
          {
-            for (i = 0; i < startZnblocknonz[b];  i++)
+            for (i = 0; i < startZnblocknonz[b]; i++)
             {
                if ( indchanges[b][startZrow[b][i]] > -1 && indchanges[b][startZcol[b][i]] > -1 ) /* the row/col may have been fixed to zero in the meantime */
                {
                   sdpisolver->sdpa->inputInitXMat((long long) b + 1 - blockindchanges[b], (long long) startZrow[b][i] + 1 - indchanges[b][startZrow[b][i]],
-                                    (long long) startZcol[b][i] + 1 - indchanges[b][startZcol[b][i]], startZval[b][i]);
+                     (long long) startZcol[b][i] + 1 - indchanges[b][startZcol[b][i]], startZval[b][i]);
                }
             }
          }
@@ -1632,7 +1480,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          assert( startZrow[nsdpblocks][i] == startZcol[nsdpblocks][i] );
 
-         if ( startZrow[nsdpblocks][i] < 2 * sdpisolver->ninputlpcons ) /* linear constraint */
+         if ( startZrow[nsdpblocks][i] < 2 * sdpisolver->nsdpalpcons ) /* linear constraint */
          {
             sdpaind = sdpisolver->rowmapper[startZrow[nsdpblocks][i]];
             if ( sdpaind > -1 )
@@ -1640,26 +1488,26 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          }
          else /* varbound */
          {
-            varboundind = sdpisolver->inputtovbmapper[startZrow[nsdpblocks][i] - 2 * sdpisolver->ninputlpcons];
+            varboundind = sdpisolver->inputtovbmapper[startZrow[nsdpblocks][i] - 2 * sdpisolver->nsdpalpcons];
             if ( varboundind > -1 ) /* rhs */
             {
                sdpisolver->sdpa->inputInitXMat((long long) nsdpblocks + 1, nlpineqs + varboundind + 1,
-                     nlpineqs + varboundind + 1, startZval[nsdpblocks][i]);
+                  nlpineqs + varboundind + 1, startZval[nsdpblocks][i]);
             }
          }
       }
 
-      /*set SDP-blocks of primal matrix */
+      /* set SDP-blocks of primal matrix */
       for (b = 0; b < nsdpblocks; b++)
       {
-         if ( blockindchanges[b] > -1)
+         if ( blockindchanges[b] >= 0 )
          {
             for (i = 0; i < startXnblocknonz[b];  i++)
             {
                if ( indchanges[b][startXrow[b][i]] > -1 && indchanges[b][startXcol[b][i]] > -1 ) /* the row/col may have been fixed to zero in the meantime */
                {
                   sdpisolver->sdpa->inputInitYMat((long long) b + 1 - blockindchanges[b], (long long) startXrow[b][i] + 1 - indchanges[b][startXrow[b][i]],
-                        (long long) startXcol[b][i] + 1 - indchanges[b][startXcol[b][i]], startXval[b][i]);
+                     (long long) startXcol[b][i] + 1 - indchanges[b][startXcol[b][i]], startXval[b][i]);
                }
             }
          }
@@ -1670,7 +1518,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          assert( startXrow[nsdpblocks][i] == startXcol[nsdpblocks][i] );
 
-         if ( startXrow[nsdpblocks][i] < 2 * sdpisolver->ninputlpcons ) /* linear constraint */
+         if ( startXrow[nsdpblocks][i] < 2 * sdpisolver->nsdpalpcons ) /* linear constraint */
          {
             sdpaind = sdpisolver->rowmapper[startXrow[nsdpblocks][i]];
             if ( sdpaind > -1 )
@@ -1678,7 +1526,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          }
          else /* varbound */
          {
-            varboundind = sdpisolver->inputtovbmapper[startXrow[nsdpblocks][i] - 2 * sdpisolver->ninputlpcons];
+            varboundind = sdpisolver->inputtovbmapper[startXrow[nsdpblocks][i] - 2 * sdpisolver->nsdpalpcons];
             if ( varboundind > -1 ) /*lhs */
             {
                sdpisolver->sdpa->inputInitYMat((long long) nsdpblocks + 1, nlpineqs + varboundind + 1,
@@ -1688,7 +1536,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
    }
    else if ( penaltyparam >= sdpisolver->epsilon )
-      SCIPdebugMessage("Skipping insertion of starting point  for penalty formulation.\n");
+      SCIPdebugMessage("Skipping insertion of starting point for penalty formulation.\n");
+
+   /* transform the matrices to a more efficient form */
+   sdpisolver->sdpa->initializeUpperTriangle(checkinput);
+   sdpisolver->sdpa->initializeSolve();
 
 #ifdef SCIP_DEBUG_PRINTTOFILE
    /* if necessary, dump input data and initial point */
@@ -1696,10 +1548,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->sdpa->writeInitSparse(const_cast<char*>("sdpa.ini-s"), const_cast<char*>("%+8.3e"));
 #endif
 
-   SCIPdebugMessage("Calling SDPA solve (SDP: %d)\n", sdpisolver->sdpcounter);
+   SCIPdebugMessage("Calling SDPA solve (SDP: %d) ...\n", sdpisolver->sdpcounter);
 
    /* check if we want to save a preoptimal solution for warmstarting purposes */
-   if ( sdpisolver->preoptimalgap >= 0.0 && (startsettings == SCIP_SDPSOLVERSETTING_UNSOLVED || startsettings == SCIP_SDPSOLVERSETTING_FAST) )
+   if ( usepreoptimalsol && (startsettings == SCIP_SDPSOLVERSETTING_UNSOLVED || startsettings == SCIP_SDPSOLVERSETTING_FAST) )
    {
       SCIP_Real* sdpasol;
       int sdpablocksize;
@@ -1724,11 +1576,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          {
             sdpasol = sdpisolver->sdpa->getResultYMat(b + 1);
             sdpablocksize = sdpisolver->sdpa->getBlockSize(b + 1);
+            assert( sdpablocksize <= 2 * (sdpisolver->maxnlpcons + sdpisolver->maxnvars) );
             if ( sdpisolver->sdpa->getBlockType(b + 1) == SDPA::LP )
             {
                /* only the diagonal entries need to be saved */
                for (i = 0; i < sdpablocksize; i++)
-                  sdpisolver->preoptimalsolx[b][i] = sdpasol[i];
+                  sdpisolver->preoptimalsolxlp[i] = sdpasol[i];
             }
             else
             {
@@ -1762,7 +1615,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* update number of SDP-iterations and -calls */
    sdpisolver->niterations += (int) sdpisolver->sdpa->getIteration();
-   sdpisolver->nsdpcalls += 1;
+   ++sdpisolver->nsdpcalls;
 
 #ifdef SCIP_DEBUG
    /* print the phase value , i.e. whether solving was successfull */
@@ -1794,6 +1647,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->sdpa->setParameterEpsilonStar(GAPTOLCHANGE * sdpisolver->gaptol);
       sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * sdpisolver->sdpsolverfeastol);
       sdpisolver->sdpa->setParameterLowerBound(-1e20);
+
       /* set the objective limit */
       if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
          sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
@@ -1817,7 +1671,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       /* update number of SDP-iterations and -calls */
       sdpisolver->niterations += (int) sdpisolver->sdpa->getIteration();
-      sdpisolver->nsdpcalls += 1;
+      ++sdpisolver->nsdpcalls;
 
       /* remember setting */
       if ( SCIPsdpiSolverIsAcceptable(sdpisolver) )
@@ -1847,6 +1701,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->sdpa->setParameterEpsilonStar(GAPTOLCHANGE * GAPTOLCHANGE * sdpisolver->gaptol);
       sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->sdpsolverfeastol);
       sdpisolver->sdpa->setParameterLowerBound(-1e20);
+
       /* set the objective limit */
       if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
          sdpisolver->sdpa->setParameterUpperBound(sdpisolver->objlimit);
@@ -1857,7 +1712,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->sdpa->setParameterLambdaStar(sdpisolver->lambdastar);
 
 #ifdef SCIP_MORE_DEBUG
-sdpisolver->sdpa->printParameters(stdout);
+      sdpisolver->sdpa->printParameters(stdout);
 #endif
       sdpisolver->sdpa->setInitPoint(false);
 #ifdef SDPA_RESETPARAMS
@@ -1870,7 +1725,7 @@ sdpisolver->sdpa->printParameters(stdout);
 
       /* update number of SDP-iterations and -calls */
       sdpisolver->niterations += (int) sdpisolver->sdpa->getIteration();
-      sdpisolver->nsdpcalls += 1;
+      ++sdpisolver->nsdpcalls;
 
       /* remember setting */
       if ( SCIPsdpiSolverIsAcceptable(sdpisolver) )
@@ -1921,7 +1776,6 @@ sdpisolver->sdpa->printParameters(stdout);
       if ( ! *feasorig && penaltybound != NULL )
       {
 #endif
-
          SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", sdpasol[sdpisolver->nactivevars]);
 
          /* compute Tr(X) */
@@ -1955,8 +1809,9 @@ sdpisolver->sdpa->printParameters(stdout);
          {
             if ( penaltybound != NULL )
                *penaltybound = TRUE;
+
             SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible\n",
-                  trace, penaltyparam);
+               trace, penaltyparam);
          }
          else if ( penaltybound != NULL )
             *penaltybound = FALSE;
@@ -2605,7 +2460,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
 
                if ( REALABS(sdpisolver->preoptimalsolx[sdpablock - 1][sdpaind]) > sdpisolver->epsilon )
                   startXnblocknonz[b]++;
-            }
+               }
          }
       }
    }
@@ -2620,7 +2475,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
 
       for (i = 0; i < blocksize; i++)
       {
-         if ( REALABS(sdpisolver->preoptimalsolx[sdpablock - 1][i]) > sdpisolver->epsilon )
+         if ( REALABS(sdpisolver->preoptimalsolxlp[i]) > sdpisolver->epsilon )
             startXnblocknonz[b]++;
       }
    }
@@ -2775,13 +2630,13 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
          /* iterate over LP constraints */
          for (i = 0; i < blocksize - sdpisolver->nvarbounds; i++)
          {
-            if ( REALABS(sdpisolver->preoptimalsolx[sdpablock - 1][i]) > sdpisolver->epsilon )
+            if ( REALABS(sdpisolver->preoptimalsolxlp[i]) > sdpisolver->epsilon )
             {
                if ( blocknnonz < startXnblocknonz[b] )
                {
                   startXrow[b][blocknnonz] = sdpisolver->rowtoinputmapper[i];
                   startXcol[b][blocknnonz] = sdpisolver->rowtoinputmapper[i];
-                  startXval[b][blocknnonz] = sdpisolver->preoptimalsolx[sdpablock - 1][i]; /* -1 because sdpa starts counting at 1 */
+                  startXval[b][blocknnonz] = sdpisolver->preoptimalsolxlp[i]; /* -1 because sdpa starts counting at 1 */
                   blocknnonz++;
                }
                else
@@ -2799,7 +2654,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
          /* iterate over varbounds */
          for (i = blocksize - sdpisolver->nvarbounds; i < blocksize; i++)
          {
-            if ( REALABS(sdpisolver->preoptimalsolx[sdpablock - 1][i]) > sdpisolver->epsilon )
+            if ( REALABS(sdpisolver->preoptimalsolxlp[i]) > sdpisolver->epsilon )
             {
                if ( blocknnonz < startXnblocknonz[b] )
                {
@@ -2810,12 +2665,12 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
 
                   /* inputpos is 2 * nlprows (for lhs and rhs) + 2 * inputvar for lb and 2 * inputvar + 1 for ub */
                   if ( sdpisolver->varboundpos[vbpos] > 0 ) /* rhs */
-                     inputpos = 2 * sdpisolver->ninputlpcons + 2 * sdpisolver->sdpatoinputmapper[sdpisolver->varboundpos[vbpos] - 1] + 1;
+                     inputpos = 2 * sdpisolver->nsdpalpcons + 2 * sdpisolver->sdpatoinputmapper[sdpisolver->varboundpos[vbpos] - 1] + 1;
                   else
-                     inputpos = 2 * sdpisolver->ninputlpcons + 2 * sdpisolver->sdpatoinputmapper[-1 * sdpisolver->varboundpos[vbpos] - 1];
+                     inputpos = 2 * sdpisolver->nsdpalpcons + 2 * sdpisolver->sdpatoinputmapper[-1 * sdpisolver->varboundpos[vbpos] - 1];
                   startXrow[b][blocknnonz] = inputpos;
                   startXcol[b][blocknnonz] = inputpos;
-                  startXval[b][blocknnonz] = sdpisolver->preoptimalsolx[sdpablock - 1][i]; /* -1 because sdpa starts counting at 1 */
+                  startXval[b][blocknnonz] = sdpisolver->preoptimalsolxlp[i]; /* -1 because sdpa starts counting at 1 */
                   blocknnonz++;
                }
                else
@@ -2857,8 +2712,11 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
 {/*lint !e1784*/
    int i;
    SCIP_Real* X; /* block of primal solution matrix corresponding to the LP-part */
-   int lpblockind;
+   SDPA_INT lpblockind;
+   int penoffset = 0;
    int nlpcons;
+   int sdpapos;
+   int pos;
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL );
@@ -2886,40 +2744,50 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    /* if no variable bounds were added, we return the zero vector (we do this separately, because in this case there might be no LP-block) */
    if ( sdpisolver->nvarbounds == 0 )
    {
-      SCIPdebugMessage("Asked for PrimalBoundVars, but there were no variable bounds in sdpa, returning zero vector !");
+      SCIPdebugMessage("Asked for PrimalBoundVars, but there were no variable bounds in sdpa, returning zero vector!\n");
       return SCIP_OKAY;
    }
 
    /* get the block of primal solution matrix corresponding to the LP-part from sdpa */
-   lpblockind = (int) sdpisolver->sdpa->getBlockNumber(); /* the LP block is the last one and sdpa counts from one */
-   if ( ! (sdpisolver->sdpa->getBlockType((long long) lpblockind) == SDPA::LP) )/*lint !e747*/
+   lpblockind = sdpisolver->sdpa->getBlockNumber(); /* the LP block is the last one and sdpa counts from one */
+   if ( sdpisolver->sdpa->getBlockType(lpblockind) != SDPA::LP )
    {
       /* if the last block is not an LP-block, no variable bounds existed */
       *arraylength = 0;
 
       return SCIP_OKAY;
    }
-   nlpcons = (int) sdpisolver->sdpa->getBlockSize((long long) lpblockind);/*lint !e747*/
+   nlpcons = (int) sdpisolver->sdpa->getBlockSize(lpblockind);
    assert( nlpcons >= 0 );
 
-   X = sdpisolver->sdpa->getResultYMat((long long) lpblockind);/*lint !e747*/
+   X = sdpisolver->sdpa->getResultYMat(lpblockind);
 
    /* iterate over all variable bounds and insert the corresponding primal variables in the right positions of the return-arrays */
    assert( sdpisolver->nvarbounds <= 2 * sdpisolver->nvars || (sdpisolver->nvarbounds <= 2 * sdpisolver->nvars + 1 && sdpisolver->penalty ) );
+
    /* if we solved a penalty formulation, the last variable bound belongs to the penalty variable, which we aren't interested in here */
-   for (i = 0; i < ((sdpisolver->penalty) ? sdpisolver->nvarbounds - 1 : sdpisolver->nvarbounds); i++)
+   if ( sdpisolver->penalty )
+      penoffset = 1;
+   for (i = 0; i < sdpisolver->nvarbounds - penoffset; i++)
    {
+      /* if it is a lower bound */
       if ( sdpisolver->varboundpos[i] < 0 )
       {
-         /* this is a lower bound */
+         sdpapos = -sdpisolver->varboundpos[i] - 1;
+         assert( 0 <= sdpapos && sdpapos < sdpisolver->nactivevars );
+         pos = sdpisolver->sdpatoinputmapper[sdpapos];
+         assert( 0 <= pos && pos < sdpisolver->nvars );
          /* the last nvarbounds entries correspond to the varbounds */
-         lbvars[sdpisolver->sdpatoinputmapper[-1 * sdpisolver->varboundpos[i] -1]] = X[nlpcons - sdpisolver->nvarbounds + i]; /*lint !e679, !e834 */
+         lbvars[pos] = X[nlpcons - sdpisolver->nvarbounds + i];
       }
-      else
+      else /* if it is an upper bound */
       {
-         /* this is an upper bound */
+         sdpapos = sdpisolver->varboundpos[i] - 1;
+         assert( 0 <= sdpapos && sdpapos < sdpisolver->nactivevars );
+         pos = sdpisolver->sdpatoinputmapper[sdpapos];
+         assert( 0 <= pos && pos < sdpisolver->nvars );
          /* the last nvarbounds entries correspond to the varbounds */
-         ubvars[sdpisolver->sdpatoinputmapper[+1 * sdpisolver->varboundpos[i] - 1]] = X[nlpcons - sdpisolver->nvarbounds + i]; /*lint !e679, !e834 */
+         ubvars[pos] = X[nlpcons - sdpisolver->nvarbounds + i]; /*lint !e679, !e834 */
       }
    }
 
@@ -3134,9 +3002,9 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
 
                /* inputpos is 2 * nlprows (for lhs and rhs) + 2 * inputvar for lb and 2 * inputvar + 1 for ub */
                if ( sdpisolver->varboundpos[vbpos] > 0 ) /* rhs */
-                  inputpos = 2 * sdpisolver->ninputlpcons + 2 * sdpisolver->sdpatoinputmapper[sdpisolver->varboundpos[vbpos] - 1] + 1;
+                  inputpos = 2 * sdpisolver->nsdpalpcons + 2 * sdpisolver->sdpatoinputmapper[sdpisolver->varboundpos[vbpos] - 1] + 1;
                else
-                  inputpos = 2 * sdpisolver->ninputlpcons + 2 * sdpisolver->sdpatoinputmapper[-1 * sdpisolver->varboundpos[vbpos] - 1];
+                  inputpos = 2 * sdpisolver->nsdpalpcons + 2 * sdpisolver->sdpatoinputmapper[-1 * sdpisolver->varboundpos[vbpos] - 1];
                startXrow[b][blocknnonz] = inputpos;
                startXcol[b][blocknnonz] = inputpos;
                startXval[b][blocknnonz] = X[i];
