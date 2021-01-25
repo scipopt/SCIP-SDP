@@ -780,6 +780,13 @@ SCIP_RETCODE SCIPsdpiComputeMaxPenaltyparam(
    SCIP_Real*            maxpenaltyparam     /**< the computed maximum penalty parameter */
    );
 
+/** sets the type of the clock */
+SCIP_EXPORT
+void SCIPsdpiClockSetType(
+   SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
+   int                   clocktype           /**< type of clock (1 = CPU, 2 = Wall) */
+   );
+
 /**@} */
 
 

@@ -214,6 +214,11 @@ endif
 # SCIPSDP Library
 #-----------------------------------------------------------------------------
 
+ifeq ($(OPENBLAS),true)
+CFLAGS			+=	-DOPENBLAS
+CXXFLAGS		+=	-DOPENBLAS
+endif
+
 FLAGS			+=	-I$(SCIPSDPREALPATH)/src
 
 SCIPSDPLIBSHORTNAME 	= 	scipsdp

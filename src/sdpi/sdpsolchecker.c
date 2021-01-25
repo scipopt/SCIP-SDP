@@ -82,10 +82,8 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
-   int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
-   int*                  rownactivevars,     /**< number of active variables for each LP-constraint */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
@@ -123,10 +121,8 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
    assert( nsdpblocks == 0 || nremovedinds != NULL );
    assert( nsdpblocks == 0 || blockindchanges != NULL );
    assert( nlpcons >= 0 );
-   assert( noldlpcons >= nlpcons );
    assert( nlpcons == 0 || lplhs != NULL );
    assert( nlpcons == 0 || lprhs != NULL );
-   assert( nlpcons == 0 || rownactivevars != NULL );
    assert( lpnnonz >= 0 );
    assert( nlpcons == 0 || lprow != NULL );
    assert( nlpcons == 0 || lpcol != NULL );
@@ -152,10 +148,10 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
    {
       SCIP_Real* lpconsvals;
 
-      BMS_CALL( BMSallocBufferMemoryArray(bufmem, &lpconsvals, noldlpcons) );
+      BMS_CALL( BMSallocBufferMemoryArray(bufmem, &lpconsvals, nlpcons) );
 
       /* initialize all rows with zero */
-      for (i = 0; i < noldlpcons; i++)
+      for (i = 0; i < nlpcons; i++)
          lpconsvals[i] = 0;
 
       /* compute the values of all rows */
@@ -167,21 +163,18 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
 
       /* check all active constraints for feasibility */
       ind = 0; /* used to iterate over active constraints */
-      for (i = 0; i < noldlpcons; i++)
+      for (i = 0; i < nlpcons; i++)
       {
-         if ( rownactivevars[i] > 1 )
+         if ( lpconsvals[i] < lplhs[ind] - feastol || lpconsvals[i] > lprhs[ind] + feastol)
          {
-            if ( lpconsvals[i] < lplhs[ind] - feastol || lpconsvals[i] > lprhs[ind] + feastol)
-            {
-               SCIPdebugMessage("solution found infeasible (feastol=%f) for lp constraint: LP-%d = %f <|= [%f,%f]\n",
-                     feastol, i, lpconsvals[i], lplhs[ind], lprhs[ind]);
-               BMSfreeBufferMemoryArray(bufmem, &lpconsvals);
-               *infeasible = TRUE;
-               return SCIP_OKAY;
-            }
-
-            ind++;
+            SCIPdebugMessage("solution found infeasible (feastol=%f) for lp constraint: LP-%d = %f <|= [%f,%f]\n",
+               feastol, i, lpconsvals[i], lplhs[ind], lprhs[ind]);
+            BMSfreeBufferMemoryArray(bufmem, &lpconsvals);
+            *infeasible = TRUE;
+            return SCIP_OKAY;
          }
+
+         ind++;
       }
       BMSfreeBufferMemoryArray(bufmem, &lpconsvals);
    }

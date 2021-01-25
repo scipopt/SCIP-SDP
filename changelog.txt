@@ -31,8 +31,10 @@ features:
 - copy locking information to sub-SCIPSDPs (this avoids recomputing eigenvalues)
 - reuse the mosek environment in each thread if possible
 - sdpisolver_mosek now uses the SCIP message handler for output
+- use same time measurement within SDPI and SDPISOLVER as in SCIP
 - new file scipsdpdef.h which contains the SCIPSDP version
 - the makefile now produces various links to libscipsdp... and scipsdp...
+- The number of threads used is now used by the SDPA interface.
 
 API changes:
 - new functions SCIPconsSdpGetNVars and SCIPconsSdpGetVars in cons_sdp.c
