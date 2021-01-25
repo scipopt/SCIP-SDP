@@ -630,10 +630,7 @@ SCIP_RETCODE SCIPsdpiSolverFree(
    BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->preoptimalsolxlp, 2 * ((*sdpisolver)->maxnlpcons + (*sdpisolver)->maxnvars));
 
    /* free LP block of preoptimal solution X array */
-   if ( (*sdpisolver)->preoptimalsolx != NULL )
-   {
-      BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->preoptimalsolx, (*sdpisolver)->maxnsdpblocks);
-   }
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->preoptimalsolx, (*sdpisolver)->maxnsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->blockindmapper, (*sdpisolver)->maxnsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->maxsdpblocksizes, (*sdpisolver)->maxnsdpblocks);
 
@@ -1227,6 +1224,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             assert( 0 <= sdpconstrow[b][k] && sdpconstrow[b][k] < sdpblocksizes[b] );
             assert( 0 <= sdpconstcol[b][k] && sdpconstcol[b][k] < sdpblocksizes[b] );
 
+            /* rows and columns start with 1 in SDPA, so we have to add 1 to the indices, the constant matrix is given as variable 0 */
             sdpisolver->sdpa->inputElement((long long) 0, (long long) (b - blockindchanges[b] + 1),
                (long long) (sdpconstcol[b][k] - indchanges[b][sdpconstcol[b][k]] + 1),
                (long long) (sdpconstrow[b][k] - indchanges[b][sdpconstrow[b][k]] + 1),
