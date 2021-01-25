@@ -995,7 +995,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       if ( isFixed(sdpisolver, lb[i], ub[i]) )
       {
          sdpisolver->fixedvarsobjcontr += obj[i] * lb[i]; /* this is the value this fixed variable contributes to the objective */
-         sdpisolver->fixedvarsval[nfixedvars] = lb[i]; /* if lb=ub, than this is the value the variable will have in every solution */
+         sdpisolver->fixedvarsval[nfixedvars] = lb[i]; /* if lb=ub, then this is the value the variable will have in every solution */
          nfixedvars++;
          sdpisolver->inputtosdpamapper[i] = -nfixedvars;
          SCIPdebugMessage("Fixing variable %d locally to %g in SDPA.\n", i, lb[i]);
