@@ -5377,7 +5377,8 @@ SCIP_RETCODE SCIPrelaxSdpGetPrimalBoundVars(
    SCIP_VAR**            vars,               /**< variables to get bounds for */
    int                   nvars,              /**< number of variables */
    SCIP_Real*            lbvars,             /**< pointer to store the values of the variables corresponding to lower bounds in the dual problems */
-   SCIP_Real*            ubvars              /**< pointer to store the values of the variables corresponding to upper bounds in the dual problems */
+   SCIP_Real*            ubvars,             /**< pointer to store the values of the variables corresponding to upper bounds in the dual problems */
+   SCIP_Bool*            success             /**< pointer to store success (may fail if problem is infeasible or all variables are fixed) */
    )
 {
    SCIP_RELAXDATA* relaxdata;
@@ -5386,9 +5387,11 @@ SCIP_RETCODE SCIPrelaxSdpGetPrimalBoundVars(
    int arraylength;
    int j;
 
+   assert( scip != NULL );
    assert( relax != NULL );
    assert( lbvars != NULL );
    assert( ubvars != NULL );
+   assert( success != NULL );
 
    relaxdata = SCIPrelaxGetData(relax);
    assert( relaxdata != NULL );
@@ -5400,16 +5403,23 @@ SCIP_RETCODE SCIPrelaxSdpGetPrimalBoundVars(
 
    arraylength = nvars;
    SCIP_CALL( SCIPsdpiGetPrimalBoundVars(relaxdata->sdpi, lb, ub, &arraylength) );
-   assert( arraylength == nvars );
-
-   for (j = 0; j < nvars; ++j)
+   if ( arraylength >= 0 )
    {
-      int idx;
+      assert( arraylength == nvars );
 
-      idx = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[j]);
-      lbvars[j] = lb[idx];
-      ubvars[j] = ub[idx];
+      for (j = 0; j < nvars; ++j)
+      {
+         int idx;
+
+         idx = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[j]);
+         lbvars[j] = lb[idx];
+         ubvars[j] = ub[idx];
+      }
+      *success = TRUE;
    }
+   else
+      *success = FALSE;
+
    SCIPfreeBufferArray(scip, &ub);
    SCIPfreeBufferArray(scip, &lb);
 

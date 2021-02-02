@@ -88,7 +88,8 @@ SCIP_RETCODE SCIPrelaxSdpGetPrimalBoundVars(
    SCIP_VAR**            vars,               /**< variables to get bounds for */
    int                   nvars,              /**< number of variables */
    SCIP_Real*            lbvars,             /**< pointer to store the values of the variables corresponding to lower bounds in the dual problems */
-   SCIP_Real*            ubvars              /**< pointer to store the values of the variables corresponding to upper bounds in the dual problems */
+   SCIP_Real*            ubvars,             /**< pointer to store the values of the variables corresponding to upper bounds in the dual problems */
+   SCIP_Bool*            success             /**< pointer to store success (may fail if problem is infeasible or all variables are fixed) */
    );
 
 /** returns optimal objective value of the current SDP-relaxation if the last SDP-relaxation was successfully solved */
