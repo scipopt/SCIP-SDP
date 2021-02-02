@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2020 Discrete Optimization, TU Darmstadt               */
+/*               2014-2021 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or             */
@@ -24,7 +24,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2020 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2021 Zuse Institute Berlin                             */
 /* SCIP is distributed under the terms of the SCIP Academic Licence,         */
 /* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
@@ -121,6 +121,7 @@ SCIP_DECL_TABLEOUTPUT(tableOutputSdpSolverSuccess)
 {  /*lint --e{715}*/
    SCIP_TABLEDATA* tabledata;
    SCIP_RELAX* relaxsdp;
+   int ncalls;
 
    assert( scip != NULL );
    assert( table != NULL );
@@ -144,13 +145,23 @@ SCIP_DECL_TABLEOUTPUT(tableOutputSdpSolverSuccess)
       }
       else
       {
-         SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %8.2f %% %8.2f %% %8.2f %% %8.2f %% %8.2f %%\n",
-            SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
-            100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpFast(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
-            100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpMedium(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
-            100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpStable(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
-            100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpPenalty(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
-            100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpUnsolved(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp));
+         ncalls = SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp);
+         if ( ncalls > 0 )
+         {
+            SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %8.2f %% %8.2f %% %8.2f %% %8.2f %% %8.2f %%\n",
+               SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
+               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpFast(relaxsdp) / (SCIP_Real) ncalls,
+               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpMedium(relaxsdp) / (SCIP_Real) ncalls,
+               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpStable(relaxsdp) / (SCIP_Real) ncalls,
+               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpPenalty(relaxsdp) / (SCIP_Real) ncalls,
+               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpUnsolved(relaxsdp) / (SCIP_Real) ncalls);
+         }
+         else
+         {
+            SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %8s %% %8s %% %8s %% %8s %% %8s %%\n",
+               SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
+               "--", "--", "--", "--", "--");
+         }
       }
    }
    else
@@ -165,17 +176,18 @@ SCIP_DECL_TABLEOUTPUT(tableOutputSdpSolverSuccess)
       }
       else
       {
-         if ( SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp) > 0 )
+         ncalls = SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp);
+         if ( ncalls > 0 )
          {
             SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %8.2f %% %8.2f %% %8.2f %%\n",
                SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
-               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpFast(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
-               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpPenalty(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp),
-               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpUnsolved(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp));
+               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpFast(relaxsdp) / (SCIP_Real) ncalls,
+               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpPenalty(relaxsdp) / (SCIP_Real) ncalls,
+               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpUnsolved(relaxsdp) / (SCIP_Real) ncalls);
          }
          else
          {
-            SCIPinfoMessage(scip, file, "     %-14.14s:   %10s %10s %8s   %8s   %8s\n", SCIPsdpiGetSolverName(), "-", "-", "-", "-", "-");
+            SCIPinfoMessage(scip, file, "     %-14.14s:   %10s %10s %8s   %8s   %8s\n", SCIPsdpiGetSolverName(), "--", "--", "--", "--", "--");
          }
       }
    }

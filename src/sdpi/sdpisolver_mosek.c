@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2020 Discrete Optimization, TU Darmstadt               */
+/*               2014-2021 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or             */
@@ -24,7 +24,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2020 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2021 Zuse Institute Berlin                             */
 /* SCIP is distributed under the terms of the SCIP Academic Licence,         */
 /* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
@@ -37,6 +37,7 @@
 /**@file   sdpisolver_mosek.c
  * @brief  interface for MOSEK
  * @author Tristan Gally
+ * @author Marc Pfetsch
  *
  * As MOSEK solves the primal instead of the dual problem, for solving the problem
  *
@@ -62,9 +63,9 @@
  */
 
 #include <assert.h>
-#include <sys/time.h>
 
 #include "sdpi/sdpisolver.h"
+#include "sdpi/sdpiclock.h"
 
 #include "blockmemshell/memory.h"            /* for memory allocation */
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
@@ -114,6 +115,7 @@ struct SCIP_SDPiSolver
    SCIP_Real             opttime;            /**< time spend in optimziation */
    int                   nvars;              /**< number of input variables */
    int                   nactivevars;        /**< number of variables present in the dual problem in MOSEK (nvars minus the number of variables with lb = ub) */
+   int                   maxnvars;           /**< size of the arrays inputtomosekmapper, mosektoinputmapper, fixedvarsval, and objcoefs */
    int*                  inputtomosekmapper; /**< entry i gives the index of input variable i in MOSEK (starting from 0) or
                                               *   -j (j=1, 2, ..., nvars - nactivevars) if the variable is fixed, the value and objective value of
                                               *   this fixed variable can be found in entry j-1 of fixedval/obj */
@@ -141,7 +143,7 @@ struct SCIP_SDPiSolver
    MSKrescodee           terminationcode;    /**< reason for termination of the last call to the MOSEK-optimizer */
    SCIP_Bool             timelimit;          /**< was the solver stopped because of the time limit? */
    SCIP_Bool             timelimitinitial;   /**< was the problem not even given to the solver because of the time limit? */
-   int                   nthreads;           /**< number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores) */
+   int                   nthreads;           /**< number of threads the SDP solver should use, not supported by all solvers (-1 = number of cores) */
    int                   niterations;        /**< number of SDP-iterations since the last solve call */
    int                   nsdpcalls;          /**< number of SDP-calls since the last solve call */
 };
@@ -272,6 +274,67 @@ SCIP_Bool isFixed(
 #else
 #define isFixed(sdpisolver,lb,ub) (ub-lb <= sdpisolver->epsilon)
 #endif
+
+/** calculate memory size for dynamically allocated arrays */
+static
+int calcGrowSize(
+   int                   initsize,           /**< initial size of array */
+   int                   num                 /**< minimum number of entries to store */
+   )
+{
+   int oldsize;
+   int size;
+
+   assert( initsize >= 0 );
+   assert( num >= 0 );
+
+   /* calculate the size with loop, such that the resulting numbers are always the same (-> block memory) */
+   initsize = MAX(initsize, SCIP_DEFAULT_MEM_ARRAYGROWINIT);
+   size = initsize;
+   oldsize = size - 1;
+
+   /* second condition checks against overflow */
+   while ( size < num && size > oldsize )
+   {
+      oldsize = size;
+      size = (int)(SCIP_DEFAULT_MEM_ARRAYGROWFAC * size + initsize);
+   }
+
+   /* if an overflow happened, set the correct value */
+   if ( size <= oldsize )
+      size = num;
+
+   assert( size >= initsize );
+   assert( size >= num );
+
+   return size;
+}
+
+/** ensure size of mapping data */
+static
+SCIP_RETCODE ensureMappingDataMemory(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver structure */
+   int                   nvars               /**< number of variables */
+   )
+{
+   int newsize;
+
+   assert( sdpisolver != NULL );
+
+   if ( nvars > sdpisolver->maxnvars )
+   {
+      newsize = calcGrowSize(sdpisolver->maxnvars, nvars);
+
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->varboundpos), 2 * sdpisolver->maxnvars, 2 * newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtomosekmapper), sdpisolver->maxnvars, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->mosektoinputmapper), sdpisolver->maxnvars, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), sdpisolver->maxnvars, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->objcoefs), sdpisolver->maxnvars, newsize) );
+      sdpisolver->maxnvars = newsize;
+   }
+
+   return SCIP_OKAY;
+}
 
 
 /*
@@ -434,6 +497,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->fixedvarsval = NULL;
    (*sdpisolver)->fixedvarsobjcontr = 0.0;
    (*sdpisolver)->objcoefs = NULL;
+   (*sdpisolver)->maxnvars = 0;
    (*sdpisolver)->nvarbounds = 0;
    (*sdpisolver)->varboundpos = NULL;
    (*sdpisolver)->solved = FALSE;
@@ -482,11 +546,11 @@ SCIP_RETCODE SCIPsdpiSolverFree(
 #endif
    }
 
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->varboundpos, 2 * (*sdpisolver)->nactivevars);
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->inputtomosekmapper, (*sdpisolver)->nvars);
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->mosektoinputmapper, (*sdpisolver)->nactivevars);
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->fixedvarsval, (*sdpisolver)->nvars - (*sdpisolver)->nactivevars);
-   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->objcoefs, (*sdpisolver)->nactivevars);
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->varboundpos, 2 * (*sdpisolver)->maxnvars);
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->inputtomosekmapper, (*sdpisolver)->maxnvars);
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->mosektoinputmapper, (*sdpisolver)->maxnvars);
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->fixedvarsval, (*sdpisolver)->maxnvars);
+   BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->objcoefs, (*sdpisolver)->maxnvars);
 
    BMSfreeBlockMemory((*sdpisolver)->blkmem, sdpisolver);
 
@@ -572,10 +636,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
-   int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lplhs,              /**< left hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
-   int*                  rownactivevars,     /**< number of active variables for each LP constraint */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
@@ -599,14 +661,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
                                               *   may be NULL if startXnblocknonz = NULL */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP and MOSEK, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
-   SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
+   SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
+   SDPI_CLOCK*           usedsdpitime        /**< clock to measure how much time has been used for the current solve */
    )
 {
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, FALSE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
-               sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
-               nremovedinds, blockindchanges, nremovedblocks, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol, lpval,
-               starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval, startsettings,
-               timelimit, NULL, NULL);
+      sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
+      nremovedinds, blockindchanges, nremovedblocks, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
+      starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval, startsettings,
+      timelimit, usedsdpitime, NULL, NULL);
 }
 
 /** loads and solves an SDP using a penalty formulation
@@ -663,10 +726,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
-   int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lplhs,              /**< left hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
-   int*                  rownactivevars,     /**< number of active variables for each LP constraint */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
@@ -691,6 +752,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP and MOSEK, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
+   SDPI_CLOCK*           usedsdpitime,       /**< clock to measure how much time has been used for the current solve */
    SCIP_Bool*            feasorig,           /**< pointer to store if the solution to the penalty-formulation is feasible for the original problem
                                               *   (may be NULL if penaltyparam = 0) */
    SCIP_Bool*            penaltybound        /**< pointer to store if the primal solution reached the bound Tr(X) <= penaltyparam in the primal problem,
@@ -709,9 +771,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int nnonz;
    SCIP_Real* mosekvarbounds;
    int nfixedvars;
-   int oldnactivevars;
-   int* vartorowmapper; /* maps the lpvars to the corresponding left- and right-hand-sides of the LP constraints */
-   int* vartolhsrhsmapper; /* maps the lpvars to the corresponding entries in lplhs and lprhs */
    int nlpvars;
    int* mosekblocksizes;
    SCIP_Real one = 1.0; /* MOSEK always wants a pointer to factors for a sum of matrices, we always use a single matrix with factor one */
@@ -720,12 +779,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_Real* mosekval;
    int row;
    SCIP_Real val;
-   struct timeval starttime;
-   struct timeval currenttime;
-   SCIP_Real startseconds;
-   SCIP_Real currentseconds;
-   SCIP_Real elapsedtime;
    MSKsolstae solstat;
+   SCIP_Real solvertimelimit;
 #ifdef SCIP_MORE_DEBUG
    char name[SCIP_MAXSTRLEN];
 #endif
@@ -760,17 +815,20 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( nsdpblocks == 0 || blockindchanges != NULL );
    assert( 0 <= nremovedblocks && nremovedblocks <= nsdpblocks );
    assert( nlpcons >= 0 );
-   assert( noldlpcons >= nlpcons );
    assert( nlpcons == 0 || lplhs != NULL );
    assert( nlpcons == 0 || lprhs != NULL );
-   assert( nlpcons == 0 || rownactivevars != NULL );
    assert( lpnnonz >= 0 );
    assert( nlpcons == 0 || lprow != NULL );
    assert( nlpcons == 0 || lpcol != NULL );
    assert( nlpcons == 0 || lpval != NULL );
 
+   /* compute the time limit to set for the solver */
+   solvertimelimit = timelimit;
+   if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, solvertimelimit) )
+      solvertimelimit -= SDPIclockGetTime(usedsdpitime);
+
    /* check the timelimit */
-   if ( timelimit <= 0.0 )
+   if ( solvertimelimit <= 0.0 )
    {
       sdpisolver->timelimit = TRUE;
       sdpisolver->timelimitinitial = TRUE;
@@ -780,9 +838,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->timelimit = FALSE;
    sdpisolver->timelimitinitial = FALSE;
    sdpisolver->feasorig = FALSE;
-
-   /* start the timing */
-   TIMEOFDAY_CALL( gettimeofday(&starttime, NULL) );/*lint !e438, !e550, !e641 */
 
    /* create an empty task (second and third argument are guesses for maximum number of constraints and variables), if there already is one, delete it */
    if ( sdpisolver->msktask != NULL )
@@ -829,19 +884,21 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->penalty = (penaltyparam < sdpisolver->epsilon) ? FALSE : TRUE;
    sdpisolver->rbound = rbound;
 
-   /* allocate memory for inputtomosekmapper, mosektoinputmapper and the fixed and active variable information, for the latter this will
-    * later be shrinked if the needed size is known */
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->inputtomosekmapper), sdpisolver->nvars, nvars) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->mosektoinputmapper), sdpisolver->nactivevars, nvars) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), sdpisolver->nvars - sdpisolver->nactivevars, nvars) ); /*lint !e776*/
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->objcoefs), sdpisolver->nactivevars, nvars) ); /*lint !e776*/
+   /* ensure memory for varboundpos, inputtomosekmapper, mosektoinputmapper and the fixed and active variable information */
+   SCIP_CALL( ensureMappingDataMemory(sdpisolver, nvars) );
+   BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekvarbounds, 2 * nvars) ); /*lint !e647*/
 
-   oldnactivevars = sdpisolver->nactivevars; /* we need to save this to realloc the varboundpos-array if needed */
    sdpisolver->nvars = nvars;
    sdpisolver->nactivevars = 0;
+   sdpisolver->nvarbounds = 0;
    nfixedvars = 0;
 
-   /* find the fixed variables */
+   for (i = 0; i < sdpisolver->nactivevars; i++)
+   {
+      assert( 0 <= sdpisolver->mosektoinputmapper[i] && sdpisolver->mosektoinputmapper[i] < nvars );
+   }
+
+   /* find fixed variables */
    sdpisolver->fixedvarsobjcontr = 0.0;
    for (i = 0; i < nvars; i++)
    {
@@ -851,17 +908,31 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          sdpisolver->fixedvarsval[nfixedvars] = lb[i]; /* if lb=ub, then this is the value the variable will have in every solution */
          nfixedvars++;
          sdpisolver->inputtomosekmapper[i] = -nfixedvars;
-         SCIPdebugMessage("Fixing variable %d locally to %f for SDP %d in MOSEK\n", i, lb[i], sdpisolver->sdpcounter);
+         SCIPdebugMessage("Fixing variable %d locally to %f for SDP %d in MOSEK.\n", i, lb[i], sdpisolver->sdpcounter);
       }
       else
       {
+#ifdef SCIP_MORE_DEBUG
+         SCIPdebugMessage("Variable %d becomes variable %d for SDP %d in MOSEK.\n", i, sdpisolver->inputtomosekmapper[i], sdpisolver->sdpcounter);
+#endif
+
          sdpisolver->mosektoinputmapper[sdpisolver->nactivevars] = i;
          sdpisolver->inputtomosekmapper[i] = sdpisolver->nactivevars;
          sdpisolver->objcoefs[sdpisolver->nactivevars] = obj[i];
+
+         if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, lb[i]) )
+         {
+            mosekvarbounds[sdpisolver->nvarbounds] = lb[i];
+            sdpisolver->varboundpos[sdpisolver->nvarbounds++] = -(sdpisolver->nactivevars + 1); /* negative sign means lower bound */
+         }
+
+         if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, ub[i]) )
+         {
+            mosekvarbounds[sdpisolver->nvarbounds] = - ub[i]; /* we give the upper bounds a negative sign for the objective */
+            sdpisolver->varboundpos[sdpisolver->nvarbounds++] = +(sdpisolver->nactivevars + 1); /* positive sign means upper bound */
+         }
+
          sdpisolver->nactivevars++;
-#ifdef SCIP_MORE_DEBUG
-         SCIPdebugMessage("Variable %d becomes variable %d for SDP %d in MOSEK\n", i, sdpisolver->inputtomosekmapper[i], sdpisolver->sdpcounter);
-#endif
       }
    }
    assert( sdpisolver->nactivevars + nfixedvars == sdpisolver->nvars );
@@ -870,93 +941,34 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if ( ! withobj )
       sdpisolver->fixedvarsobjcontr = 0.0;
 
-   /* shrink the fixedvars, objcoefs and mosektoinputmapper arrays to the right size */
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->objcoefs), nvars, sdpisolver->nactivevars) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->fixedvarsval), nvars, nfixedvars) );
-   BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->mosektoinputmapper), nvars, sdpisolver->nactivevars) );
-
-   /* compute number of variable bounds and save them in mosekvarbounds */
-   BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekvarbounds, 2 * sdpisolver->nactivevars) ); /*lint !e647*/
-
-   if ( sdpisolver->nactivevars != oldnactivevars )
-   {
-      if ( sdpisolver->varboundpos == NULL )
-      {
-         BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->varboundpos), 2 * sdpisolver->nactivevars) ); /*lint !e647*/
-      }
-      else
-      {
-         BMS_CALL( BMSreallocBlockMemoryArray(sdpisolver->blkmem, &(sdpisolver->varboundpos), 2 * oldnactivevars, 2 * sdpisolver->nactivevars) ); /*lint !e647*/
-      }
-   }
-   assert( sdpisolver->varboundpos != NULL );
-
-   sdpisolver->nvarbounds = 0;
-   for (i = 0; i < sdpisolver->nactivevars; i++)
-   {
-      assert( 0 <= sdpisolver->mosektoinputmapper[i] && sdpisolver->mosektoinputmapper[i] < nvars );
-      if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, lb[sdpisolver->mosektoinputmapper[i]]) )
-      {
-         mosekvarbounds[sdpisolver->nvarbounds] = lb[sdpisolver->mosektoinputmapper[i]];
-         sdpisolver->varboundpos[sdpisolver->nvarbounds++] = -(i + 1); /* negative sign means lower bound */
-      }
-      if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, ub[sdpisolver->mosektoinputmapper[i]]) )
-      {
-         mosekvarbounds[sdpisolver->nvarbounds] = - ub[sdpisolver->mosektoinputmapper[i]]; /* we give the upper bounds a negative sign for the objective */
-         sdpisolver->varboundpos[sdpisolver->nvarbounds++] = +(i + 1); /* positive sign means upper bound */
-      }
-   }
-
+   /* determine total number of sides in LP-constraints */
+   nlpvars = 0;
    if ( nlpcons > 0 )
    {
-      int newpos = 0; /* the position in the lhs and rhs arrays */
-      int pos = 0;
-
-      /* allocate memory to save which lpvariable corresponds to which original lp constraint, negative signs correspond to left-hand-sides of lp constraints,
-       * entry i or -i corresponds to the constraint in position |i|-1, as we have to add +1 to make the entries strictly positive or strictly negative */
-      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &vartorowmapper, 2*noldlpcons) ); /*lint !e647*/ /*lint !e530*/
-      /* allocate memory to save at which indices the corresponding lhss and rhss of the lpvars are saved */
-      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &vartolhsrhsmapper, 2*noldlpcons) ); /*lint !e647*/ /*lint !e530*/
-
-      /* compute the number of LP constraints after splitting the ranged rows and compute the rowtovarmapper */
-      for (i = 0; i < noldlpcons; i++)
+      for (i = 0; i < nlpcons; i++)
       {
-         assert( newpos <= nlpcons );
-         if ( rownactivevars[i] >= 2 )
+         if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
          {
-            if ( lplhs[newpos] > - SCIPsdpiSolverInfinity(sdpisolver) )
-            {
-               vartorowmapper[pos] = -(i+1);
-               vartolhsrhsmapper[pos++] = newpos;
-
 #if CONVERT_ABSOLUTE_TOLERANCES
-               /* update largest rhs-entry */
-               if ( REALABS(lplhs[newpos]) > maxrhscoef )
-                  maxrhscoef = REALABS(lplhs[newpos]);
+            /* update largest rhs-entry */
+            if ( REALABS(lplhs[i]) > maxrhscoef )
+               maxrhscoef = REALABS(lplhs[i]);
 #endif
+            ++nlpvars;
+         }
 
-            }
-
-            if ( lprhs[newpos] < SCIPsdpiSolverInfinity(sdpisolver) )
-            {
-               vartorowmapper[pos] = i+1;
-               vartolhsrhsmapper[pos++] = newpos;
-
+         if ( lprhs[i] < SCIPsdpiSolverInfinity(sdpisolver) )
+         {
 #if CONVERT_ABSOLUTE_TOLERANCES
-               /* update largest rhs-entry */
-               if ( REALABS(lprhs[newpos]) > maxrhscoef )
-                  maxrhscoef = REALABS(lprhs[newpos]);
+            /* update largest rhs-entry */
+            if ( REALABS(lprhs[i]) > maxrhscoef )
+               maxrhscoef = REALABS(lprhs[i]);
 #endif
-            }
-            newpos++;
+            ++nlpvars;
          }
       }
-      nlpvars = pos;
-      assert( newpos == nlpcons );
-      assert( nlpvars <= 2*nlpcons ); /* factor 2 comes from left- and right-hand-sides */
+      assert( nlpvars <= 2 * nlpcons ); /* factor 2 comes from left- and right-hand-sides */
    }
-   else
-      nlpvars = 0;
 
    /* create matrix variables */
    BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekblocksizes, nsdpblocks - nremovedblocks) ); /*lint !e679 !e776*/
@@ -1041,36 +1053,39 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* set objective values for the scalar variables */
    /* TODO: check for equality constraints */
    /* first for those corresponding to LP constraints in the dual */
-   for (i = 0; i < nlpvars; i++)
+   ind = 0;
+   for (i = 0; i < nlpcons; i++)
    {
-      assert( vartolhsrhsmapper != NULL ); /* for lint */
-      assert( vartorowmapper[i] != 0 );
-      assert( 0 <= vartolhsrhsmapper[i] && vartolhsrhsmapper[i] < nlpcons );
-
-      if ( vartorowmapper[i] > 0 )/*lint !e644*/ /* right-hand side */
+      /* left hand side */
+      if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
       {
-         MOSEK_CALL( MSK_putcj(sdpisolver->msktask, i, - lprhs[vartolhsrhsmapper[i]]) );/*lint !e641, !e644*/
+         MOSEK_CALL( MSK_putcj(sdpisolver->msktask, ind, lplhs[i]) );/*lint !e641*/
 #ifdef SCIP_MORE_DEBUG
          /* give the variable a meaningful name for debug output */
-         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "rhs#%d", vartorowmapper[i] - 1);
-         MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, i, name) );
+         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lhs#%d", i);
+         MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, ind, name) );
 #endif
+         ++ind;
       }
-      else /* left-hand side */
+
+      /* right hand side */
+      if ( lprhs[i] < SCIPsdpiSolverInfinity(sdpisolver) )
       {
-         MOSEK_CALL( MSK_putcj(sdpisolver->msktask, i, lplhs[vartolhsrhsmapper[i]]) );/*lint !e641*/
+         MOSEK_CALL( MSK_putcj(sdpisolver->msktask, ind, - lprhs[i]) );/*lint !e641, !e644*/
 #ifdef SCIP_MORE_DEBUG
          /* give the variable a meaningful name for debug output */
-         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lhs#%d", - vartorowmapper[i] - 1);
-         MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, i, name) );
+         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "rhs#%d", i - 1);
+         MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, ind, name) );
 #endif
+         ++ind;
       }
    }
+   assert( ind == nlpvars );
 
    /* finally for those corresponding to variable bounds in the dual */
    for (i = 0; i < sdpisolver->nvarbounds; i++)
    {
-      MOSEK_CALL( MSK_putcj(sdpisolver->msktask, nlpvars + i, mosekvarbounds[i]) );/*lint !e641*/ /* for the ub's we already added a negative sign in mosekvarbounds*/
+      MOSEK_CALL( MSK_putcj(sdpisolver->msktask, nlpvars + i, mosekvarbounds[i]) );/*lint !e641*/ /* for the ub's we already added a negative sign in mosekvarbounds */
 #ifdef SCIP_MORE_DEBUG
       if ( sdpisolver->varboundpos[i] < 0 ) /* lower bound */
       {
@@ -1098,6 +1113,18 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    {
       if ( blockindchanges[b] > -1 )
       {
+         /* prepare memory */
+         if ( nremovedinds[b] > 0 )
+         {
+            BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekrow, sdpnnonz) );
+            BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekcol, sdpnnonz) );
+         }
+         else
+         {
+            mosekrow = NULL;
+            mosekcol = NULL;
+         }
+
          for (blockvar = 0; blockvar < sdpnblockvars[b]; blockvar++)
          {
             v = sdpisolver->inputtomosekmapper[sdpvar[b][blockvar]];
@@ -1106,17 +1133,16 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             if ( v > -1 )
             {
                assert( v < sdpisolver->nactivevars );
+
                /* if there are removed indices, we have to adjust the column and row indices accordingly */
                if ( nremovedinds[b] > 0 )
                {
-                  BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekrow, sdpnblockvarnonz[b][blockvar]) );
-                  BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekcol, sdpnblockvarnonz[b][blockvar]) );
-
+                  assert( sdpnblockvarnonz[b][blockvar] <= sdpnnonz );
                   for (k = 0; k < sdpnblockvarnonz[b][blockvar]; k++)
                   {
                      /* rows and cols with active nonzeros should not be removed */
-                     assert( -1 < indchanges[b][sdprow[b][blockvar][k]] && indchanges[b][sdprow[b][blockvar][k]] <= sdprow[b][blockvar][k] );
-                     assert( -1 < indchanges[b][sdpcol[b][blockvar][k]] && indchanges[b][sdpcol[b][blockvar][k]] <= sdpcol[b][blockvar][k] );
+                     assert( 0 <= indchanges[b][sdprow[b][blockvar][k]] && indchanges[b][sdprow[b][blockvar][k]] <= sdprow[b][blockvar][k] );
+                     assert( 0 <= indchanges[b][sdpcol[b][blockvar][k]] && indchanges[b][sdpcol[b][blockvar][k]] <= sdpcol[b][blockvar][k] );
 
                      assert( 0 <= sdprow[b][blockvar][k] && sdprow[b][blockvar][k] < sdpblocksizes[b] );
                      assert( 0 <= sdpcol[b][blockvar][k] && sdpcol[b][blockvar][k] < sdpblocksizes[b] );
@@ -1124,12 +1150,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                      mosekrow[k] = sdprow[b][blockvar][k] - indchanges[b][sdprow[b][blockvar][k]];
                      mosekcol[k] = sdpcol[b][blockvar][k] - indchanges[b][sdpcol[b][blockvar][k]];
                   }
+                  assert( k == sdpnblockvarnonz[b][blockvar] );
 
-                  MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], (long long) sdpnblockvarnonz[b][blockvar],
+                  MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], (long long) k,
                         mosekrow, mosekcol, sdpval[b][blockvar], &mosekindex) );/*lint !e641, !e679*/
-
-                  BMSfreeBufferMemoryArray(sdpisolver->bufmem, &mosekcol);
-                  BMSfreeBufferMemoryArray(sdpisolver->bufmem, &mosekrow);
                }
                else
                {
@@ -1140,6 +1164,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                MOSEK_CALL( MSK_putbaraij(sdpisolver->msktask, v, b - blockindchanges[b], (long long) 1, &mosekindex, &one) );/*lint !e641*/
             }
          }
+         BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &mosekcol);
+         BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &mosekrow);
       }
    }
 
@@ -1162,7 +1188,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                identityvalues[i] = 1.0;
             }
             MOSEK_CALL( MSK_appendsparsesymmat(sdpisolver->msktask, mosekblocksizes[b - blockindchanges[b]], (long long) mosekblocksizes[b - blockindchanges[b]],
-                                    identityindices, identityindices, identityvalues, &mosekindex) );/*lint !e641, !e679*/
+                  identityindices, identityindices, identityvalues, &mosekindex) );/*lint !e641, !e679*/
             MOSEK_CALL( MSK_putbaraij(sdpisolver->msktask, sdpisolver->nactivevars, b - blockindchanges[b], (long long) 1, &mosekindex, &one) );/*lint !e641, !e679*/
 
             BMSfreeBufferMemoryArray(sdpisolver->bufmem, &identityvalues);
@@ -1171,105 +1197,78 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
    }
 
-   /* now add the entries corresponding to the lp-constraints in the dual problem */
-   if ( penaltyparam < sdpisolver->epsilon )
+   /* add the entries corresponding to the lp-constraints in the dual problem */
+   if ( lpnnonz > 0 )
    {
-      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekrow, lpnnonz) );
-      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekval, lpnnonz) );
-   }
-   else
-   {
-      /* one extra entry for the penalty-constraint Trace = Gamma */
-      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekrow, lpnnonz + 1) );/*lint !e776*/
-      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekval, lpnnonz + 1) );/*lint !e776*/
-   }
+      int currentrow;
+      int varcnt = 0;
 
-   /* enter LP rows */
-   nnonz = 0;
-   for (i = 0; i < nlpvars; i++)
-   {
-      assert( vartorowmapper != NULL ); /* for lint */
-      assert( vartorowmapper[i] != 0 );
-
-      if ( vartorowmapper[i] < 0 ) /* left-hand side */
+      if ( penaltyparam < sdpisolver->epsilon )
       {
-         mosekind = 0;
-
-         ind = - vartorowmapper[i] - 1;
-         assert( 0 <= ind && ind < noldlpcons );
-
-         /* find the first lp-entry belonging to this variable (those in between have to belong to constraints with less than two active variables and
-          * will therefore not be used) */
-         while ( nnonz < lpnnonz && lprow[nnonz] < ind )
-            ++nnonz;
-
-         /* iterate over all nonzeros to input them to the array given to MOSEK */
-         while ( nnonz < lpnnonz && lprow[nnonz] == ind ) /* they should already be sorted by rows in the sdpi */
-         {
-            v = sdpisolver->inputtomosekmapper[lpcol[nnonz]];
-            if ( v >= 0 )
-            {
-               mosekrow[mosekind] = v;
-               mosekval[mosekind++] = lpval[nnonz];
-            }
-            ++nnonz;
-         }
-         assert( mosekind <= lpnnonz );
+         BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekrow, lpnnonz) );
+         BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekval, lpnnonz) );
       }
-      else /* right-hand side */
+      else
       {
-         if ( i > 0 && vartorowmapper[i] == - vartorowmapper[i - 1] )
+         /* one extra entry for the penalty-constraint Trace = Gamma */
+         BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekrow, lpnnonz + 1) );/*lint !e776*/
+         BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekval, lpnnonz + 1) );/*lint !e776*/
+      }
+
+      currentrow = lprow[0];
+      mosekind = 0;
+      for (nnonz = 0; nnonz < lpnnonz; ++nnonz)
+      {
+         assert( nnonz == 0 || lprow[nnonz-1] <= lprow[nnonz] );  /* rows should be sorted */
+
+         v = sdpisolver->inputtomosekmapper[lpcol[nnonz]];
+         if ( v >= 0 )
          {
-            /* we already iterated over this constraint in the lp-arrays, so we keep the current ind position and as we currenlty have
-             * the corresponding entries in the mosek-arrays, we iterate over them again just changing the signs (except for the penalty-entry) */
-            for (j = 0; j < (penaltyparam < sdpisolver->epsilon ? mosekind : mosekind - 1); j++)/*lint !e644*/
-               mosekval[j] *= -1.0;
+            mosekrow[mosekind] = v;
+            mosekval[mosekind++] = lpval[nnonz];
          }
-         else
+
+         /* we finished a row */
+         if ( nnonz == lpnnonz - 1 || lprow[nnonz + 1] > currentrow )
          {
-            /* no left hand side for this constraint exists, so we did not yet iterate over this constraint in the lp arrays */
+            /* all rows with at most one nonzero should have been sorted out */
+            assert( mosekind >= 2 );
+
+            /* add the additional entry for the penalty constraint Trace = Gamma */
+            if ( penaltyparam >= sdpisolver->epsilon )
+            {
+               mosekrow[mosekind] = sdpisolver->nactivevars;
+               mosekval[mosekind++] = 1.0;
+            }
+            assert( mosekind <= lpnnonz + 1 );
+
+            /* treat left hand side */
+            if ( lplhs[currentrow] > - SCIPsdpiSolverInfinity(sdpisolver) )
+            {
+               MOSEK_CALL( MSK_putacol(sdpisolver->msktask, varcnt++, mosekind, mosekrow, mosekval) );/*lint !e641*/
+            }
+
+            /* treat right hand side */
+            if ( lprhs[currentrow] < SCIPsdpiSolverInfinity(sdpisolver) )
+            {
+               /* multiply column by -1 */
+               for (j = 0; j < (penaltyparam < sdpisolver->epsilon ? mosekind : mosekind - 1); j++)/*lint !e644*/
+                  mosekval[j] *= -1.0;
+
+               MOSEK_CALL( MSK_putacol(sdpisolver->msktask, varcnt++, mosekind, mosekrow, mosekval) );/*lint !e641*/
+            }
+
+            /* reset counters */
             mosekind = 0;
-
-            ind = vartorowmapper[i] - 1;
-            assert( 0 <= ind && ind < noldlpcons );
-
-            /* find the first lp-entry belonging to this variable (those in between have to belong to constraints with less than two active variables and
-             * will therefore not be used) */
-            while ( nnonz < lpnnonz && lprow[nnonz] < ind )
-               ++nnonz;
-
-            while ( nnonz < lpnnonz && lprow[nnonz] == ind )
-            {
-               v = sdpisolver->inputtomosekmapper[lpcol[nnonz]];
-               if ( v >= 0 )
-               {
-                  mosekrow[mosekind] = v;
-                  mosekval[mosekind++] = - lpval[nnonz]; /* because we need to change the <= to a >= constraint */
-               }
-               ++nnonz;
-            }
-            assert( mosekind <= lpnnonz );
+            if ( nnonz < lpnnonz )
+               currentrow = lprow[nnonz+1];
          }
       }
+      assert( varcnt == nlpvars );
 
-      /* add the additional entry for the penalty constraint Trace = Gamma */
-      if ( penaltyparam >= sdpisolver->epsilon )
-      {
-         /* check if we reset mosekind, in case we did not and just "copied" the lhs-entries for the rhs, we do not need to reset the extra entry,
-          * since it is already there */
-         if ( ! (i > 0 && vartorowmapper[i] == - vartorowmapper[i - 1]) )
-         {
-            mosekrow[mosekind] = sdpisolver->nactivevars;
-            mosekval[mosekind++] = 1.0;
-         }
-         assert( mosekind <= lpnnonz + 1 );
-      }
-
-      MOSEK_CALL( MSK_putacol(sdpisolver->msktask, i, mosekind, mosekrow, mosekval) );/*lint !e641*/
+      BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &mosekval);
+      BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &mosekrow);
    }
-
-   BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &mosekval);
-   BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &mosekrow);
 
    /* finally add the entries corresponding to varbounds in the dual problem, we get exactly one entry per variable */
    for (i = 0; i < sdpisolver->nvarbounds; i++)
@@ -1327,15 +1326,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
    }
 
-   /* set the time limit */
-   startseconds = (SCIP_Real) starttime.tv_sec + (SCIP_Real) starttime.tv_usec / 1e6;
+   solvertimelimit = timelimit;
+   if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, solvertimelimit) )
+      solvertimelimit -= SDPIclockGetTime(usedsdpitime);
 
-   TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );/*lint !e438, !e550, !e641 */
-   currentseconds = (SCIP_Real) currenttime.tv_sec + (SCIP_Real) currenttime.tv_usec / 1e6;
-
-   elapsedtime = currentseconds - startseconds;
-
-   if ( timelimit <= elapsedtime )
+   if ( solvertimelimit <= 0.0 )
    {
       sdpisolver->timelimit = TRUE;
       sdpisolver->solved = FALSE;
@@ -1360,9 +1355,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_MU_RED, sdpisolver->gaptol) );/*lint !e641*/
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_REL_GAP, sdpisolver->gaptol) );/*lint !e641*/
 
-      if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, timelimit - elapsedtime) )
+      if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, solvertimelimit) )
       {
-         MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_OPTIMIZER_MAX_TIME, timelimit - elapsedtime) );/*lint !e641*/
+         MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_OPTIMIZER_MAX_TIME, solvertimelimit) );/*lint !e641*/
       }
 
       /* set objective cutoff */
@@ -1384,15 +1379,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          int nmosekvars;
          int nmosekcones;
 
-         MOSEK_CALL( MSK_getnumcon (sdpisolver->msktask, &nmosekconss) );
-         MOSEK_CALL( MSK_getnumvar (sdpisolver->msktask, &nmosekvars) );
-         MOSEK_CALL( MSK_getnumcone (sdpisolver->msktask, &nmosekcones) );
+         MOSEK_CALL( MSK_getnumcon(sdpisolver->msktask, &nmosekconss) );
+         MOSEK_CALL( MSK_getnumvar(sdpisolver->msktask, &nmosekvars) );
+         MOSEK_CALL( MSK_getnumcone(sdpisolver->msktask, &nmosekcones) );
 
          MOSEK_CALL( MSK_printdata(sdpisolver->msktask, MSK_STREAM_LOG, 0, nmosekconss, 0, nmosekvars, 0, nmosekcones, 1, 1, 1, 1, 1, 1, 1, 1) );
       }
 #endif
 #ifdef SCIP_PRINT_PARAMETERS
-      MOSEK_CALL( MSK_printparam (sdpisolver->msktask) );
+      MOSEK_CALL( MSK_printparam(sdpisolver->msktask) );
 #endif
 #endif
 
@@ -1409,7 +1404,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          MOSEK_CALL( MSK_analyzesolution(sdpisolver->msktask, MSK_STREAM_LOG, MSK_SOL_ITR) );/*lint !e641*/
       }
 
-      SCIPdebugMessage("Solving problem using MOSEK, return code %d\n", sdpisolver->terminationcode);
+      SCIPdebugMessage("Solved problem using MOSEK, return code %d.\n", sdpisolver->terminationcode);
 
       sdpisolver->solved = TRUE;
 
@@ -1440,15 +1435,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          /* check the solution for feasibility with regards to our tolerance */
          SCIP_CALL( SCIPsdpSolcheckerCheck(sdpisolver->bufmem, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
-               indchanges, nremovedinds, blockindchanges, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol, lpval,
+               indchanges, nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
                solvector, sdpisolver->feastol, sdpisolver->epsilon, &infeasible) );
 
          BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solvector);
 
          if ( infeasible )
          {
-            SCIPdebugMessage("Solution feasible for MOSEK but outside feasibility tolerance, changing MOSEK feasibility tolerance from %f to %f\n",
-                  feastol, feastol * INFEASFEASTOLCHANGE);
+            SCIPdebugMessage("Solution outside feasibility tolerance, changing MOSEK feasibility tolerance from %f to %f.\n",
+               feastol, feastol * INFEASFEASTOLCHANGE);
             feastol *= INFEASFEASTOLCHANGE;
 
             if ( feastol >= INFEASMINFEASTOL )
@@ -1458,20 +1453,22 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_INFEAS, feastol) );/*lint !e641*/
 
                /* set the time limit */
-               startseconds = (SCIP_Real) starttime.tv_sec + (SCIP_Real) starttime.tv_usec / 1e6;
+               solvertimelimit = timelimit;
+               if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, solvertimelimit) )
+                  solvertimelimit -= SDPIclockGetTime(usedsdpitime);
 
-               TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );/*lint !e438, !e550, !e641 */
-               currentseconds = (SCIP_Real) currenttime.tv_sec + (SCIP_Real) currenttime.tv_usec / 1e6;
-
-               elapsedtime = currentseconds - startseconds;
-
-               if ( timelimit <= elapsedtime )
+               if ( solvertimelimit <= 0.0 )
                {
                   sdpisolver->timelimit = TRUE;
                   sdpisolver->solved = FALSE;
                }
                else
                {
+                  if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, solvertimelimit) )
+                  {
+                     MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_OPTIMIZER_MAX_TIME, solvertimelimit) );/*lint !e641*/
+                  }
+
                   /* solve the problem */
                   MOSEK_CALL( MSK_optimizetrm(sdpisolver->msktask, &(sdpisolver->terminationcode)) );/*lint !e641*/
 
@@ -1589,11 +1586,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* free memory */
    BMSfreeBufferMemoryArray(sdpisolver->bufmem, &mosekblocksizes);
-   if ( nlpcons > 0 )
-   {
-      BMSfreeBufferMemoryArray(sdpisolver->bufmem, &vartolhsrhsmapper);
-      BMSfreeBufferMemoryArray(sdpisolver->bufmem, &vartorowmapper);
-   }
    BMSfreeBufferMemoryArray(sdpisolver->bufmem, &mosekvarbounds);
 
    return SCIP_OKAY;
@@ -2357,9 +2349,7 @@ SCIP_RETCODE SCIPsdpiSolverGetIterations(
    if ( sdpisolver->timelimitinitial )
       *iterations = 0;
    else
-   {
       *iterations = sdpisolver->niterations;
-   }
 
    return SCIP_OKAY;
 }
@@ -2441,8 +2431,8 @@ SCIP_RETCODE SCIPsdpiSolverGetRealpar(
       *dval = sdpisolver->epsilon;
       break;
    case SCIP_SDPPAR_GAPTOL:
-         *dval = sdpisolver->gaptol;
-         break;
+      *dval = sdpisolver->gaptol;
+      break;
    case SCIP_SDPPAR_FEASTOL:
       *dval = sdpisolver->feastol;
       break;
@@ -2590,6 +2580,7 @@ SCIP_RETCODE SCIPsdpiSolverComputePenaltyparam(
       SCIPdebugMessage("Setting penaltyparameter to %f.\n", compval);
       *penaltyparam = compval;
    }
+
    return SCIP_OKAY;
 }
 

@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2020 Discrete Optimization, TU Darmstadt               */
+/*               2014-2021 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or             */
@@ -24,7 +24,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2020 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2021 Zuse Institute Berlin                             */
 /* SCIP is distributed under the terms of the SCIP Academic Licence,         */
 /* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
@@ -778,6 +778,13 @@ SCIP_RETCODE SCIPsdpiComputeMaxPenaltyparam(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
    SCIP_Real             penaltyparam,       /**< the initial penalty parameter */
    SCIP_Real*            maxpenaltyparam     /**< the computed maximum penalty parameter */
+   );
+
+/** sets the type of the clock */
+SCIP_EXPORT
+void SCIPsdpiClockSetType(
+   SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
+   int                   clocktype           /**< type of clock (1 = CPU, 2 = Wall) */
    );
 
 /**@} */

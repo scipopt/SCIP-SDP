@@ -5,7 +5,7 @@
 #/*                                                                           */
 #/* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 #/*                         EDOM, FAU Erlangen-Nürnberg                       */
-#/*               2014-2018 Discrete Optimization, TU Darmstadt               */
+#/*               2014-2021 Discrete Optimization, TU Darmstadt               */
 #/*                                                                           */
 #/*                                                                           */
 #/* This program is free software; you can redistribute it and/or             */
@@ -24,7 +24,7 @@
 #/*                                                                           */
 #/*                                                                           */
 #/* Based on SCIP - Solving Constraint Integer Programs                       */
-#/* Copyright (C) 2002-2018 Zuse Institute Berlin                             */
+#/* Copyright (C) 2002-2021 Zuse Institute Berlin                             */
 #/* SCIP is distributed under the terms of the SCIP Academic Licence,         */
 #/* see file COPYING in the SCIP distribution.                                */
 #/*                                                                           */
@@ -151,11 +151,6 @@ ifeq ($(OMP),true)
 OMPFLAGS += -DOMP
 endif
 
-# handle long long int option
-ifeq ($(LAPACKLONGINT),true)
-CFLAGS		+=	-DLAPACK_LONGLONGINT
-endif
-
 #-----------------------------------------------------------------------------
 # SCIPSDP
 #-----------------------------------------------------------------------------
@@ -190,6 +185,7 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			sdpi/sdpi.o \
 			sdpi/sdpsolchecker.o \
 			sdpi/lapack_interface.o \
+			sdpi/sdpiclock.o \
 			scipsdpgithash.o
 
 SCIPSDPCCOBJ 	=	
@@ -312,7 +308,7 @@ endif
 
 .PHONY: doc
 doc:
-		cd doc; $(DOXY) $(SCIPSDPNAME).dxy
+		cd doc; $(DOXY) scipsdp.dxy
 
 $(SCIPSDPBINLINK): $(SCIPSDPBINFILE)
 		@rm -f $@
@@ -595,6 +591,5 @@ help:
 		@echo "      none: no SDP-solver"
 		@echo "  - OPENBLAS={true|false}: use openblas"
 		@echo "  - OMP={true|false}: use OMP"
-		@echo "  - LAPACKLONGINT={true|false}: use long long ints for lapack (e.g., with SDPA 7.4.0 and openblas)"
 
 #---- EOF --------------------------------------------------------------------

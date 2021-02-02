@@ -1,6 +1,6 @@
 2 = number of variables
-3 = number of blocks
-2 2 2 = blocksizes (negative sign for LP-block, size of LP-block equals the number of LP-constraints)
+4 = number of blocks
+2 2 2 -4= blocksizes (negative sign for LP-block, size of LP-block equals the number of LP-constraints)
 -1.0 0.0
 0 1 1 1 -1
 0 1 2 2 -2
@@ -11,6 +11,14 @@
 0 3 1 1 -2
 0 3 2 2 -1
 2 3 1 2 1
+1 4 1 1 1.0
+0 4 1 1 -5.0
+1 4 2 2 -1.0
+0 4 2 2 -5.0
+2 4 3 3 1.0
+0 4 3 3 -5.0
+2 4 4 4 -1.0
+0 4 4 4 -5.0
 *INTEGER
 *1
 *2

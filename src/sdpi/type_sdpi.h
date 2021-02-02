@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2020 Discrete Optimization, TU Darmstadt               */
+/*               2014-2021 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or             */
@@ -24,7 +24,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2020 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2021 Zuse Institute Berlin                             */
 /* SCIP is distributed under the terms of the SCIP Academic Licence,         */
 /* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
@@ -62,7 +62,7 @@ enum SCIP_SDPParam
    SCIP_SDPPAR_MAXPENALTYPARAM= 8,      /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP-solver did not converge */
    SCIP_SDPPAR_NPENALTYINCR   = 9,      /**< maximum number of times the penalty parameter will be increased if penalty formulation failed */
    SCIP_SDPPAR_LAMBDASTAR     = 10,     /**< the parameter lambda star used by SDPA to set the initial point */
-   SCIP_SDPPAR_NTHREADS       = 11,     /**< number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores) */
+   SCIP_SDPPAR_NTHREADS       = 11,     /**< number of threads the SDP solver should use, not supported by all solvers (-1 = number of cores) */
    SCIP_SDPPAR_WARMSTARTPOGAP = 12,     /**< gap at which a preoptimal solution should be saved for warmstarting purposes (currently only supported for DSDP) */
    SCIP_SDPPAR_PENINFEASADJUST= 13      /**< gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation */
 };
