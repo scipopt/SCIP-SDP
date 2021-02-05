@@ -1268,12 +1268,12 @@ SCIP_RETCODE CBFreadObjAcoord(
          return SCIP_READERROR; /*lint !e527*/
       }
 
-      if ( val ==  SCIP_DEFAULT_INFINITY || val ==  -SCIP_DEFAULT_INFINITY )
+      if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
       {
          SCIPerrorMessage("Value for variable %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not allowed. \n",
          v, *linecount);
-         SCIPABORT();
-         return SCIP_READERROR; /*lint !e527*/
+         SCIP_CALL( CBFfreeData(scip, pfile, data) );
+         return SCIP_READERROR;
       }
 
 
@@ -1504,12 +1504,12 @@ SCIP_RETCODE CBFreadAcoord(
          return SCIP_READERROR; /*lint !e527*/
       }
       
-      if ( val ==  SCIP_DEFAULT_INFINITY || val ==  -SCIP_DEFAULT_INFINITY )
+      if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
       {
          SCIPerrorMessage("Value for variable %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not allowed. \n",
          v, *linecount);
-         SCIPABORT();
-         return SCIP_READERROR; /*lint !e527*/
+         SCIP_CALL( CBFfreeData(scip, pfile, data) );
+         return SCIP_READERROR;
       }
 
       if ( SCIPisZero(scip, val) )
@@ -1596,11 +1596,11 @@ SCIP_RETCODE CBFreadBcoord(
          return SCIP_READERROR; /*lint !e527*/
       }
 
-      if ( val ==  SCIP_DEFAULT_INFINITY || val ==  -SCIP_DEFAULT_INFINITY )
+      if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
       {
          SCIPwarningMessage(scip, "Constant value of constraint %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not recommended. \n",
          c, *linecount);
-         SCIPABORT();
+         SCIP_CALL( CBFfreeData(scip, pfile, data) );
          return SCIP_READERROR; /*lint !e527*/
       }
 
@@ -1770,12 +1770,11 @@ SCIP_RETCODE CBFreadHcoord(
          goto TERMINATE;
       }
 
-      if ( val ==  SCIP_DEFAULT_INFINITY || val ==  -SCIP_DEFAULT_INFINITY )
+      if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
       {
          SCIPerrorMessage("Value for variable %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not allowed. \n",
          v, *linecount);
-         SCIPABORT();
-         return SCIP_READERROR; /*lint !e527*/
+         goto TERMINATE;
       }
 
       if ( SCIPisZero(scip, val) )
@@ -2043,11 +2042,11 @@ SCIP_RETCODE CBFreadDcoord(
          return SCIP_READERROR; /*lint !e527*/
       }
       
-      if ( val ==  SCIP_DEFAULT_INFINITY || val ==  -SCIP_DEFAULT_INFINITY )
+      if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
       {
          SCIPwarningMessage(scip, "Constant value of block %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not recommended. \n",
          b, *linecount);
-         SCIPABORT();
+         SCIP_CALL( CBFfreeData(scip, pfile, data) );
          return SCIP_READERROR; /*lint !e527*/
       }
 

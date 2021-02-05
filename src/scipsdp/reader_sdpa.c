@@ -288,12 +288,11 @@ int readLineDoubles(
             return -1;
          }
          
-         if ( val ==  SCIP_DEFAULT_INFINITY || val ==  -SCIP_DEFAULT_INFINITY )
+         if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
          {
             SCIPerrorMessage("Value for variable %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not allowed. \n",
             cnt+1, *linecount);
-            SCIPABORT();
-            return SCIP_READERROR; /*lint !e527*/
+            return -1;
          }
          
          values[cnt++] = val;
@@ -1009,12 +1008,11 @@ SCIP_RETCODE SDPAreadBlocks(
                assert( sdpcol_local != NULL );
                assert( sdpval_local != NULL );
 
-               if ( val ==  SCIP_DEFAULT_INFINITY || val ==  -SCIP_DEFAULT_INFINITY )
+               if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
                {
                   SCIPerrorMessage("Value for variable %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not allowed. \n",
                   v+1, *linecount);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
+                  goto TERMINATE;
                }
 
                nentriessdp[b]++;
@@ -1065,12 +1063,11 @@ SCIP_RETCODE SDPAreadBlocks(
                assert( sdpconstcol_local != NULL );
                assert( sdpconstval_local != NULL );
 
-               if ( val ==  SCIP_DEFAULT_INFINITY || val ==  -SCIP_DEFAULT_INFINITY )
+               if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
                {
                   SCIPwarningMessage(scip, "Constant value of block %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not recommended. \n",
                   b+1, *linecount);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
+                  goto TERMINATE;
                }
 
                nentriessdpconst[b]++;
@@ -1135,12 +1132,11 @@ SCIP_RETCODE SDPAreadBlocks(
          /* check if this entry belongs to the constant part of the LP block (v = -1) or not (v >= 0 || v < -1) the latter for indicator variables  */
          if ( v >= 0 )
          {
-            if ( val ==  SCIP_DEFAULT_INFINITY || val ==  -SCIP_DEFAULT_INFINITY )
+            if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
             {
                SCIPerrorMessage("Value for variable %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not allowed. \n",
                v+1, *linecount);
-               SCIPABORT();
-               return SCIP_READERROR; /*lint !e527*/
+               goto TERMINATE;
             }	
          
             if ( SCIPisZero(scip, val) )
@@ -1212,12 +1208,11 @@ SCIP_RETCODE SDPAreadBlocks(
             {
                assert( v == -1 );
 
-               if ( val ==  SCIP_DEFAULT_INFINITY || val ==  -SCIP_DEFAULT_INFINITY )
+               if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val))
                {
                   SCIPwarningMessage(scip, "Constant value of block %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not recommended. \n",
                   b+1, *linecount);
-                  SCIPABORT();
-                  return SCIP_READERROR; /*lint !e527*/
+                  goto TERMINATE;
                }
 
                if ( SCIPisZero(scip, val) )
