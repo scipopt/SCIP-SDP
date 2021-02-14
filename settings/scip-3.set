@@ -1,0 +1,3 @@
+misc/solvesdps = 0
+constraints/SDP/enforcesdp = true
+
