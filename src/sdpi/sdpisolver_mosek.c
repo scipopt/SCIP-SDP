@@ -1366,10 +1366,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_UPPER_OBJ_CUT, sdpisolver->objlimit) );/*lint !e641*/
       }
 
-      /* write to file if asked to */
-#ifdef SCIP_DEBUG_PRINTTOFILE
-      SCIP_CALL( SCIPsdpiSolverWriteSDP(sdpisolver, "mosek.task") );
-#endif
+      /* to avoid a bug in Mosek, we disable presolving */
+      MOSEK_CALL( MSK_putintparam(sdpisolver->msktask, MSK_IPAR_PRESOLVE_USE, MSK_PRESOLVE_MODE_OFF) );
 
       /* print whole problem (only for MOSEK < 9) and parameters if asked to */
 #ifdef SCIP_MORE_DEBUG
@@ -1391,8 +1389,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
 #endif
 
-      /* to avoid a bug in Mosek, we disable presolving */
-      MOSEK_CALL( MSK_putintparam(sdpisolver->msktask, MSK_IPAR_PRESOLVE_USE, MSK_PRESOLVE_MODE_OFF) );
+      /* write to file if asked to */
+#ifdef SCIP_DEBUG_PRINTTOFILE
+      SCIP_CALL( SCIPsdpiSolverWriteSDP(sdpisolver, "mosek.task") );
+#endif
 
       /* solve the problem */
       MOSEK_CALL( MSK_optimizetrm(sdpisolver->msktask, &(sdpisolver->terminationcode)) );/*lint !e641*/
