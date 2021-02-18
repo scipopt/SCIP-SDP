@@ -104,6 +104,7 @@ Test(newvars, addvars)
    vars[2] = newvar3;
 
    SCIP_CALL( SCIPcreateConsBasicLinear(scipsdp, &newcons, "newcons", 3, vars, vals, 1.0, 1.0) );
+   SCIP_CALL( SCIPaddCons(scipsdp, newcons) );
 
    SCIP_CALL( SCIPreleaseVar(scipsdp, &newvar3) );
    SCIP_CALL( SCIPreleaseVar(scipsdp, &newvar2) );
