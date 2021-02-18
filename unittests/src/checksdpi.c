@@ -41,6 +41,8 @@
 
 #include <scip/scip.h>
 #include <sdpi/sdpi.h>
+#include <scip/message.h>
+#include <scip/message_default.h>
 
 #include "include/scip_test.h"
 
@@ -60,6 +62,7 @@ typedef enum SCIPfeasStatus SCIPFEASSTATUS;
 static SCIP_SDPI* sdpi = NULL;
 static BMS_BLKMEM* blockmem = NULL;
 static BMS_BUFMEM* buffermem = NULL;
+static SCIP_MESSAGEHDLR* messagehdlr = NULL;
 
 
 /* macro for parameters */
@@ -83,8 +86,11 @@ void setup(void)
    cr_assert( blockmem != NULL );
    cr_assert( buffermem != NULL );
 
+   /* create message handler */
+   SCIP_CALL( SCIPcreateMessagehdlrDefault(&messagehdlr, TRUE, NULL, FALSE) );
+
    /* create SDPI */
-   SCIP_CALL( SCIPsdpiCreate(&sdpi, NULL, blockmem, buffermem) );
+   SCIP_CALL( SCIPsdpiCreate(&sdpi, messagehdlr, blockmem, buffermem) );
 
 #ifdef SCIP_DEBUG
    /* turn on output */
@@ -96,6 +102,9 @@ void setup(void)
 static
 void teardown(void)
 {
+   /* release message handler */
+   SCIP_CALL( SCIPmessagehdlrRelease(&messagehdlr) );
+
    SCIP_CALL( SCIPsdpiFree(&sdpi) );
 
    BMSdestroyBufferMemory(&buffermem);
