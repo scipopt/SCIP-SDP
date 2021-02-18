@@ -1671,10 +1671,10 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
       break;
    case MSK_SOL_STA_PRIM_INFEAS_CER:
       *primalfeasible = FALSE;
-      *dualfeasible = TRUE;
+      *dualfeasible = FALSE;
       break;
    case MSK_SOL_STA_DUAL_INFEAS_CER:
-      *primalfeasible = TRUE;
+      *primalfeasible = FALSE;
       *dualfeasible = FALSE;
       break;
    default:
@@ -1702,7 +1702,6 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
    switch ( solstat )
    {
    case MSK_SOL_STA_DUAL_INFEAS_CER:
-      return TRUE;
    case MSK_SOL_STA_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
    case MSK_SOL_STA_PRIM_INFEAS_CER:
@@ -1761,8 +1760,8 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
    {
    case MSK_SOL_STA_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
-   case MSK_SOL_STA_DUAL_INFEAS_CER:
       return TRUE;
+   case MSK_SOL_STA_DUAL_INFEAS_CER:
    case MSK_SOL_STA_PRIM_INFEAS_CER:
       break;
    default:
@@ -1789,7 +1788,6 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
    switch ( solstat )
    {
    case MSK_SOL_STA_PRIM_INFEAS_CER:
-      return TRUE;
    case MSK_SOL_STA_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
    case MSK_SOL_STA_DUAL_INFEAS_CER:
@@ -1848,8 +1846,8 @@ SCIP_Bool SCIPsdpiSolverIsDualFeasible(
    {
    case MSK_SOL_STA_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
-   case MSK_SOL_STA_PRIM_INFEAS_CER:
       return TRUE;
+   case MSK_SOL_STA_PRIM_INFEAS_CER:
    case MSK_SOL_STA_DUAL_INFEAS_CER:
       break;
    default:
