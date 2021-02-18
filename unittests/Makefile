@@ -81,7 +81,6 @@ override OSTYPE		:=$(shell echo "$(SCIPSDPVERSION)" | sed -e 's/.* OSTYPE=\([^@]
 override PARASCIP	:=$(shell echo "$(SCIPSDPVERSION)" | sed -e 's/.* PARASCIP=\([^@]*\).*/\1/')
 override READLINE	:=$(shell echo "$(SCIPSDPVERSION)" | sed -e 's/.* READLINE=\([^@]*\).*/\1/')
 override SANITIZE	:=$(shell echo "$(SCIPSDPVERSION)" | sed -e 's/.* SANITIZE=\([^@]*\).*/\1/')
-override SDPS		:=$(shell echo "$(SCIPSDPVERSION)" | sed -e 's/.* SDPS=\([^@]*\).*/\1/')
 override SHARED		:=$(shell echo "$(SCIPSDPVERSION)" | sed -e 's/.* SHARED=\([^@]*\).*/\1/')
 override USRARFLAGS	:=$(shell echo "$(SCIPSDPVERSION)" | sed -e 's/.* USRARFLAGS=\([^@]*\).*/\1/')
 override USRCFLAGS	:=$(shell echo "$(SCIPSDPVERSION)" | sed -e 's/.* USRCFLAGS=\([^@]*\).*/\1/')
@@ -112,7 +111,7 @@ BASESUFFIX	=	.$(BASE).$(SDPS)$(EXEEXTENSION)
 # Functions
 #-----------------------------------------------------------------------------
 
-src2obj		=	$(patsubst $(SRCDIR)%,$(OBJDIR)%,$(1:.cpp=.o))
+src2obj		=	$(patsubst $(SRCDIR)%,$(OBJDIR)%,$(1:.c=.o))
 
 #-----------------------------------------------------------------------------
 # Unit test definitions
