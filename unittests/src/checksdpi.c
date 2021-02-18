@@ -218,9 +218,15 @@ SCIP_RETCODE solveTest(
       break;
 
    case SCIPunbounded:
-      cr_assert( SCIPsdpiIsDualFeasible(sdpi) );
-      cr_assert( ! SCIPsdpiIsDualInfeasible(sdpi) );
-      cr_assert( SCIPsdpiIsDualUnbounded(sdpi) );
+      /* Since Mosek solves the primal problem instead of the dual problem and cannot detect unboundedness, we cannot
+       * determine the status of the dual problem purely based on the solution status returned by Mosek. We only know
+       * that the primal problem should be infeasible, since otherwise dual unboundedness is not possible due to weak
+       * duality.
+       */
+
+      /* cr_assert( SCIPsdpiIsDualFeasible(sdpi) ); */
+      /* cr_assert( ! SCIPsdpiIsDualInfeasible(sdpi) ); */
+      /* cr_assert( SCIPsdpiIsDualUnbounded(sdpi) ); */
 
       cr_assert( ! SCIPsdpiIsPrimalFeasible(sdpi) );
       cr_assert( SCIPsdpiIsPrimalInfeasible(sdpi) );
