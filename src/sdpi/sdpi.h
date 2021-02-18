@@ -289,6 +289,11 @@ SCIP_RETCODE SCIPsdpiChgLPLhRhSides(
 /**@name Data Accessing Methods */
 /**@{ */
 
+/** returns the currently installed sdpi message handler, or NULL if messages are currently suppressed */
+SCIP_MESSAGEHDLR* SCIPsdpiGetMessagehdlr(
+   SCIP_SDPI*            sdpi                /**< SDP-interface structure */
+   );
+
 /** gets the number of LP-rows in the SDP */
 SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiGetNLPRows(
