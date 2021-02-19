@@ -30,9 +30,12 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+/* #define SCIP_MORE_DEBUG         /\* enable full solver output and expected as well as actual feas status *\/ */
+
 /**@file   checksdpi.c
  * @brief  unit test for checking SDPI
  * @author Marc Pfetsch
+ * @author Frederic Matter
  *
  * We perform tests with solving several examples. They are inspired by the tests for the LPI in SCIP.
  */
@@ -138,6 +141,17 @@ SCIP_RETCODE solveTest(
    int ntmpcols;
    int j;
 
+#ifdef SCIP_MORE_DEBUG
+   int sdpinfo;
+
+   SCIPmessageFPrintInfo(messagehdlr, NULL, "Expected primal feas status: %d\n", exp_primalfeas);
+   SCIPmessageFPrintInfo(messagehdlr, NULL, "Expected dual feas status: %d\n", exp_dualfeas);
+
+   /* enable full output */
+   SCIP_CALL( SCIPsdpiSetIntpar(sdpi, 5, 1) );
+   SCIP_CALL( SCIPsdpiGetIntpar(sdpi, 5, &sdpinfo) );
+#endif
+
    /* check size */
    SCIP_CALL( SCIPsdpiGetNLPRows(sdpi, &ntmprows) );
    SCIP_CALL( SCIPsdpiGetNVars(sdpi, &ntmpcols) );
@@ -155,6 +169,11 @@ SCIP_RETCODE solveTest(
 
    /* check feasibility status */
    SCIP_CALL( SCIPsdpiGetSolFeasibility(sdpi, &primalfeasible, &dualfeasible) );
+
+#ifdef SCIP_MORE_DEBUG
+   SCIPmessageFPrintInfo(messagehdlr, NULL, "Primal feasible?: %d\n", primalfeasible);
+   SCIPmessageFPrintInfo(messagehdlr, NULL, "Dual feasible?: %d\n", dualfeasible);
+#endif
 
    /* if we are feasible, we should be optimal */
    if ( exp_primalfeas == SCIPfeas && exp_dualfeas == SCIPfeas )
