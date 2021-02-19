@@ -732,9 +732,9 @@ Test(checksdpi, test7)
  *       X psd, y1, y2 >= 0.
  *  This problem is feasible, since y2 = 1, y2 = 0, X = 0 is feasible.
  *
- *  Note: We expect this test to crash!
+ *  Note: We expect this test to not be able to solve to optimality.
  */
-Test(checksdpi, test8)
+Test(checksdpi, test8, .disabled=1)
 {
    /* data with fixed values: */
    SCIP_Real obj[3] = {0, 0, 1};
