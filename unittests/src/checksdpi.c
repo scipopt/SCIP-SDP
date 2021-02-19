@@ -564,6 +564,13 @@ Test(checksdpi, test3)
  *      x1,  x2 free
  *
  * which primal and dual infeasible.
+ *
+ * Note: This test crashes with DSDP, since DSDP has only four solution statuses (see dsdpbasictypes.h):
+ * DSDP_PDUNKNOWN  (0):  Not sure whether (D) or (P) is feasible,
+ * DSDP_PDFEASIBLE (1):  Both (D) and (P) are feasible and bounded,
+ * DSDP_UNBOUNDED  (3):  (D) is unbounded and (P) is infeasible,
+ * DSDP_INFEASIBLE (4):  (D) in infeasible and (P) is unbounded,
+ * so that it seems that DSDP cannot detect if both (P) and (D) are infeasible.
  */
 Test(checksdpi, test4)
 {

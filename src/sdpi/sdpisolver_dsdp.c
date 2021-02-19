@@ -1762,16 +1762,19 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
    switch ( pdfeasible )
    {
    case DSDP_PDFEASIBLE:
+      /* primal and dual feasible */
       *primalfeasible = TRUE;
       *dualfeasible = TRUE;
       break;
 
    case DSDP_UNBOUNDED:
+      /* dual unbounded and primal infeasible */
       *primalfeasible = FALSE;
       *dualfeasible = TRUE;
       break;
 
    case DSDP_INFEASIBLE:
+      /* dual infeasible and primal unbounded */
       *primalfeasible = TRUE;
       *dualfeasible = FALSE;
       break;
