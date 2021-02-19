@@ -2021,7 +2021,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
    }
    else if ( phasetype ==  SDPA::pFEAS_dINF || phasetype == SDPA::pdOPT || phasetype == SDPA::pFEAS  || phasetype == SDPA::pdFEAS )
       return TRUE;
-   else if ( phasetype == SDPA::dUNBD )
+   else if ( phasetype == SDPA::pUNBD )
    {
       SCIPdebugMessage("SDPA was stopped because dual objective became smaller than lower bound");
       return TRUE;
