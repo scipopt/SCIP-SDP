@@ -76,13 +76,14 @@
 #define INFEASFEASTOLCHANGE         0.1      /**< change feastol by this factor if the solution was found to be infeasible with regards to feastol */
 #define INFEASMINFEASTOL            1E-9     /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance */
 
-#define MIN_LAMBDASTAR              1e0      /**< if lambda star is to be computed, this is the minimum value it will take */
+#define MIN_LAMBDASTAR              1e-6     /**< if lambda star is to be computed, this is the minimum value it will take */
 #define MAX_LAMBDASTAR              1e8      /**< if lambda star is to be computed, this is the maximum value it will take */
 #define LAMBDASTAR_FACTOR           1e0      /**< if lambda star is to be computed, the biggest guess of the SDP blocks is multiplied by this value */
 #define LAMBDASTAR_TWOPOINTS        TRUE     /**< if lambda star is to be computed, should we use only a low and a high value or instead a continuous interval */
 #define LAMBDASTAR_THRESHOLD        1e1      /**< if lambda star is to be computed and LAMBDASTAR_TWOPOINTS=TRUE, then we distinguish between low and high using this */
 #define LAMBDASTAR_LOW              1.5      /**< if lambda star is to be computed and LAMBDASTAR_TWOPOINTS=TRUE, then this is the value for below the threshold */
 #define LAMBDASTAR_HIGH             1e5      /**< if lambda star is to be computed and LAMBDASTAR_TWOPOINTS=TRUE, then this is the value for above the threshold */
+#define LAMBDASTAR_DEFAULT          1e2      /**< default value of lambda star taken from SDPA fast settings */
 
 #define MIN_PENALTYPARAM            1e5      /**< if the penalty parameter is to be computed, this is the minimum value it will take */
 #define MAX_PENALTYPARAM            1e12     /**< if the penalty parameter is to be computed, this is the maximum value it will take */
@@ -592,6 +593,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
    (*sdpisolver)->sdpinfo = FALSE;
    (*sdpisolver)->usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
+   (*sdpisolver)->lambdastar = LAMBDASTAR_DEFAULT;
 
    (*sdpisolver)->preoptimalsol = NULL;
    (*sdpisolver)->preoptimalsolx = NULL;
