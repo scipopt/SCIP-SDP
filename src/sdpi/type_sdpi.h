@@ -71,11 +71,11 @@ typedef enum SCIP_SDPParam SCIP_SDPPARAM;
 /** SDP-solver settings used */
 enum SCIP_SDPSolverSetting
 {
-   SCIP_SDPSOLVERSETTING_UNSOLVED= -1,  /**< problem was not solved */
-   SCIP_SDPSOLVERSETTING_PENALTY = 0,   /**< penalty formulation */
-   SCIP_SDPSOLVERSETTING_FAST    = 1,   /**< fastest settings */
-   SCIP_SDPSOLVERSETTING_MEDIUM  = 2,   /**< medium settings */
-   SCIP_SDPSOLVERSETTING_STABLE  = 3    /**< most stable settings */
+   SCIP_SDPSOLVERSETTING_UNSOLVED = -1, /**< problem was not solved */
+   SCIP_SDPSOLVERSETTING_PENALTY  = 0,  /**< penalty formulation */
+   SCIP_SDPSOLVERSETTING_FAST     = 1,  /**< fastest settings */
+   SCIP_SDPSOLVERSETTING_MEDIUM   = 2,  /**< medium settings */
+   SCIP_SDPSOLVERSETTING_STABLE   = 3   /**< most stable settings */
 };
 typedef enum SCIP_SDPSolverSetting SCIP_SDPSOLVERSETTING;
 
