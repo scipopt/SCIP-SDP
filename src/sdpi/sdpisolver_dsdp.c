@@ -64,7 +64,7 @@
 #define MAX_MAXPENALTYPARAM         1e15     /**< if the maximum penaltyparameter is to be computed, this is the maximum value it will take */
 #define MAXPENALTYPARAM_FACTOR      1e6      /**< if the maximum penaltyparameter is to be computed, it will be set to penaltyparam * this */
 #define INFEASFEASTOLCHANGE         0.1      /**< change feastol by this factor if the solution was found to be infeasible with regards to feastol */
-#define INFEASMINFEASTOL            1E-9     /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance */
+#define INFEASMINFEASTOL            1e-15    /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance */
 
 
 /** Calls a DSDP-Function and transforms the return-code to a SCIP_LPERROR if needed. */
