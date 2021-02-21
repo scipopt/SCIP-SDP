@@ -30,7 +30,8 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* #define SCIP_MORE_DEBUG         /\* enable full solver output and expected as well as actual feas status *\/ */
+/* #define SCIP_DEBUG */
+/* #define SCIP_MORE_DEBUG */        /* enable full solver output and expected as well as actual feas status */
 
 /**@file   checksdpi.c
  * @brief  unit test for checking SDPI
@@ -94,6 +95,10 @@ void setup(void)
 
    /* create SDPI */
    SCIP_CALL( SCIPsdpiCreate(&sdpi, messagehdlr, blockmem, buffermem) );
+
+   /* set feasibility tolerance */
+   SCIP_CALL( SCIPsdpiSetRealpar(sdpi, SCIP_SDPPAR_SDPSOLVERFEASTOL, EPS) );
+   SCIP_CALL( SCIPsdpiSetRealpar(sdpi, SCIP_SDPPAR_GAPTOL, EPS) );
 
 #ifdef SCIP_DEBUG
    /* turn on output */
