@@ -51,9 +51,9 @@ extern "C" {
 enum SCIP_SDPParam
 {
    SCIP_SDPPAR_EPSILON        = 0,      /**< absolute tolerance */
-   SCIP_SDPPAR_GAPTOL         = 1,      /**< convergence tolerance */
-   SCIP_SDPPAR_FEASTOL        = 2,      /**< feasibility tolerance */
-   SCIP_SDPPAR_SDPSOLVERFEASTOL = 3,    /**< feasibility tolerance for SDP-solver */
+   SCIP_SDPPAR_GAPTOL         = 1,      /**< absolute objective convergence tolerance */
+   SCIP_SDPPAR_FEASTOL        = 2,      /**< absolute feasibility tolerance of calling program */
+   SCIP_SDPPAR_SDPSOLVERFEASTOL = 3,    /**< absolute feasibility tolerance for SDP-solver */
    SCIP_SDPPAR_OBJLIMIT       = 4,      /**< objective limit, if the SDP-solver computes a lower bound for the minimzation
                                          *   problem that is bigger than this, it may stop */
    SCIP_SDPPAR_SDPINFO        = 5,      /**< Should the SDP-solver output information to the screen? */
