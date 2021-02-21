@@ -1991,7 +1991,7 @@ SCIP_Bool SCIPsdpiSolverIsObjlimExc(
    )
 {  /*lint --e{715}*/
    SCIPdebugMessage("Method not implemented for DSDP, as objective limit is given as an ordinary LP-constraint, so in case the objective limit was "
-      "exceeded, the problem will be reported as infeasible ! \n");
+      "exceeded, the problem will be reported as infeasible !\n");
 
    return FALSE;
 }
@@ -2585,33 +2585,33 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    {
    case SCIP_SDPPAR_EPSILON:
       sdpisolver->epsilon = dval;
-      SCIPdebugMessage("Setting sdpisolver epsilon to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver epsilon to %g.\n", dval);
       break;
    case SCIP_SDPPAR_GAPTOL:
       sdpisolver->gaptol = dval;
-      SCIPdebugMessage("Setting sdpisolver gaptol to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver gaptol to %g.\n", dval);
       break;
    case SCIP_SDPPAR_FEASTOL:
       sdpisolver->feastol = dval;
-      SCIPdebugMessage("Setting sdpisolver feastol to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver feastol to %g.\n", dval);
       break;
    case SCIP_SDPPAR_SDPSOLVERFEASTOL:
       sdpisolver->sdpsolverfeastol = dval;
-      SCIPdebugMessage("Setting sdpisolver sdpsolverfeastol to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver sdpsolverfeastol to %g.\n", dval);
       break;
    case SCIP_SDPPAR_PENALTYPARAM:
       sdpisolver->penaltyparam = dval;
-      SCIPdebugMessage("Setting sdpisolver penaltyparameter to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver penaltyparameter to %g.\n", dval);
       break;
    case SCIP_SDPPAR_OBJLIMIT:
-      SCIPdebugMessage("Setting sdpisolver objlimit to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver objlimit to %g.\n", dval);
       sdpisolver->objlimit = dval;
       break;
    case SCIP_SDPPAR_LAMBDASTAR:
-      SCIPdebugMessage("Parameter SCIP_SDPPAR_LAMBDASTAR not used by DSDP"); /* this parameter is only used by SDPA */
+      SCIPdebugMessage("Parameter SCIP_SDPPAR_LAMBDASTAR not used by DSDP.\n"); /* this parameter is only used by SDPA */
       break;
    case SCIP_SDPPAR_WARMSTARTPOGAP:
-      SCIPdebugMessage("Setting sdpisolver preoptgap to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver preoptgap to %g.\n", dval);
       sdpisolver->preoptimalgap = dval;
       break;
    default:
