@@ -3220,8 +3220,8 @@ SCIP_RETCODE SCIPsdpiSolverGetRealpar(
       *dval = sdpisolver->epsilon;
       break;
    case SCIP_SDPPAR_GAPTOL:
-         *dval = sdpisolver->gaptol;
-         break;
+      *dval = sdpisolver->gaptol;
+      break;
    case SCIP_SDPPAR_FEASTOL:
       *dval = sdpisolver->feastol;
       break;
@@ -3264,9 +3264,9 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
       SCIPdebugMessage("Setting sdpisolver epsilon to %f.\n", dval);
       break;
    case SCIP_SDPPAR_GAPTOL:
-         sdpisolver->gaptol = dval;
-         SCIPdebugMessage("Setting sdpisolver gaptol to %f.\n", dval);
-         break;
+      sdpisolver->gaptol = dval;
+      SCIPdebugMessage("Setting sdpisolver gaptol to %f.\n", dval);
+      break;
    case SCIP_SDPPAR_FEASTOL:
       sdpisolver->feastol = dval;
       SCIPdebugMessage("Setting sdpisolver feastol to %f.\n", dval);
