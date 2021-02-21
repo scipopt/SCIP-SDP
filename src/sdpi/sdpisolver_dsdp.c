@@ -1403,7 +1403,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    DSDP_CALL( DSDPSetGapTolerance(sdpisolver->dsdp, sdpisolver->gaptol) );  /* set DSDP's tolerance for duality gap */
    DSDP_CALL( DSDPSetRTolerance(sdpisolver->dsdp, sdpisolver->sdpsolverfeastol) );    /* set DSDP's tolerance for the SDP-constraints */
-   if ( sdpisolver-> sdpinfo )
+#ifndef SCIP_DEBUG
+   if ( sdpisolver->sdpinfo )
+#endif
    {
       DSDP_CALL( DSDPSetStandardMonitor(sdpisolver->dsdp, 1) );   /* output DSDP information after every 1 iteration */
    }
