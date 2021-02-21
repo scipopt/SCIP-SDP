@@ -730,6 +730,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int nrnonz = 0;
    int oldnactivevars;
    SCIP_Real feastol;
+   SCIP_Real gaptol;
    SCIP_Real solvertimelimit;
    Timings timings;
 
@@ -1463,13 +1464,17 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* if the problem has been stably solved but did not reach the required feasibility tolerance, even though the solver
     * reports feasibility, resolve it with adjusted tolerance */
    feastol = sdpisolver->sdpsolverfeastol;
+   gaptol = sdpisolver->gaptol;
 
    while ( SCIPsdpiSolverIsAcceptable(sdpisolver) && SCIPsdpiSolverIsDualFeasible(sdpisolver) && penaltyparam < sdpisolver->epsilon && feastol >= INFEASMINFEASTOL )
    {
       SCIP_Real* solvector;
-      int nvarspointer;
+      SCIP_Real primalobj;
+      SCIP_Real dualobj;
       SCIP_Bool infeasible;
+      SCIP_Bool solveagain = FALSE;
       int newiterations;
+      int nvarspointer;
 
       /* get current solution */
       BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &solvector, nvars) );
@@ -1482,48 +1487,65 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
             indchanges, nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
             solvector, sdpisolver->feastol, sdpisolver->epsilon, &infeasible) );
-
       BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solvector);
 
       if ( infeasible )
       {
-         SCIPdebugMessage("Solution feasible for DSDP but outside feasibility tolerance, changing DSDP feasibility tolerance from %f to %f\n",
-               feastol, feastol * INFEASFEASTOLCHANGE);
          feastol *= INFEASFEASTOLCHANGE;
-
          if ( feastol >= INFEASMINFEASTOL )
          {
-            /* update settings */
+            SCIPdebugMessage("Solution feasible for DSDP but outside feasibility tolerance, changing DSDP feasibility tolerance to %g.\n", feastol);
             DSDP_CALL( DSDPSetRTolerance(sdpisolver->dsdp, feastol) );    /* set DSDP's tolerance for the SDP-constraints */
+            solveagain = TRUE;
+         }
+      }
 
-            DSDP_CALL( DSDPSolve(sdpisolver->dsdp) );
+      /* check whether duality gap is small enough */
+      DSDP_CALL( DSDPGetDObjective(sdpisolver->dsdp, &dualobj) );
+      DSDP_CALL( DSDPGetPObjective(sdpisolver->dsdp, &primalobj) );
+      if ( REALABS(dualobj - primalobj) >= sdpisolver->gaptol )
+      {
+         infeasible = TRUE;
+         gaptol *= INFEASFEASTOLCHANGE;
+         if ( gaptol >= INFEASMINFEASTOL )
+         {
+            SCIPdebugMessage("Solution feasible, but duality gap is too large, changing DSDP gap tolerance to %g.\n", gaptol);
+            DSDP_CALL( DSDPSetGapTolerance(sdpisolver->dsdp, gaptol) );  /* set DSDP's tolerance for duality gap */
+            solveagain = TRUE;
+         }
+      }
 
-            /* update number of SDP-iterations and -calls */
-            sdpisolver->nsdpcalls++;
-            DSDP_CALL( DSDPGetIts(sdpisolver->dsdp, &newiterations) );
-            sdpisolver->niterations += newiterations;
+      if ( solveagain )
+      {
+         DSDP_CALL( DSDPSolve(sdpisolver->dsdp) );
 
-            /* check if solving was stopped because of the time limit */
-            if ( timings.stopped )
-            {
-               sdpisolver->timelimit = TRUE;
-               sdpisolver->solved = FALSE;
-            }
-            else
-            {
-               sdpisolver->timelimit = FALSE;
-               DSDP_CALL( DSDPComputeX(sdpisolver->dsdp) ); /* computes X and determines feasibility and unboundedness of the solution */
-               sdpisolver->solved = TRUE;
-            }
+         /* update number of SDP-iterations and -calls */
+         sdpisolver->nsdpcalls++;
+         DSDP_CALL( DSDPGetIts(sdpisolver->dsdp, &newiterations) );
+         sdpisolver->niterations += newiterations;
+
+         /* check if solving was stopped because of the time limit */
+         if ( timings.stopped )
+         {
+            sdpisolver->timelimit = TRUE;
+            sdpisolver->solved = FALSE;
          }
          else
          {
-            sdpisolver->solved = FALSE;
-            SCIPmessagePrintInfo(sdpisolver->messagehdlr, "DSDP failed to reach required feasibility tolerance! \n");
+            sdpisolver->timelimit = FALSE;
+            DSDP_CALL( DSDPComputeX(sdpisolver->dsdp) ); /* computes X and determines feasibility and unboundedness of the solution */
+            sdpisolver->solved = TRUE;
          }
       }
       else
+      {
+         if ( infeasible )
+         {
+            sdpisolver->solved = FALSE;
+            SCIPmessagePrintInfo(sdpisolver->messagehdlr, "DSDP failed to reach required feasibility tolerance (feastol: %g, gaptol: %g)!\n", feastol, gaptol);
+         }
          break;
+      }
    }
 
    /*these arrays were used to give information to DSDP and were needed during solving and for computing X, so they may only be freed now*/
