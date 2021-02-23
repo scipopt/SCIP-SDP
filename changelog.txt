@@ -35,11 +35,13 @@ features:
 - new file scipsdpdef.h which contains the SCIPSDP version
 - the makefile now produces various links to libscipsdp... and scipsdp...
 - The number of threads used is now used by the SDPA interface.
+- All SDP solvers now use the same default tolerances (feasbility and gap).
 
 API changes:
 - new functions SCIPconsSdpGetNVars and SCIPconsSdpGetVars in cons_sdp.c
 - the function SCIPconsSdpCheckSdpCons() is now a static local function and no longer a global function
 - SCIPcreateConsSdp() and SCIPcreateConsSdpRank1() have a new paramter removeduplicates to remove duplicates in matrices
+- Remove the functions SCIPsdpiSolverGetDefaultSdpiSolverFeastol() and SCIPsdpiSolverGetDefaultSdpiSolverGaptol().
 
 parameters:
 - new parameter <constraints/SDP/separateonecut> to separate only one cut for the smallest eigenvalue (default: FALSE)
