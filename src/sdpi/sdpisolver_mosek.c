@@ -897,7 +897,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       else
       {
 #ifdef SCIP_MORE_DEBUG
-         SCIPdebugMessage("Variable %d becomes variable %d for SDP %d in MOSEK.\n", i, sdpisolver->inputtomosekmapper[i], sdpisolver->sdpcounter);
+         SCIPdebugMessage("Variable %d becomes variable %d for SDP %d in MOSEK.\n", i, sdpisolver->nactivevars, sdpisolver->sdpcounter);
 #endif
 
          sdpisolver->mosektoinputmapper[sdpisolver->nactivevars] = i;
