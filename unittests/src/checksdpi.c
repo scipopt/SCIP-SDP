@@ -579,30 +579,34 @@ Test(checksdpi, test3)
  */
 Test(checksdpi, test4)
 {
-   /* data with fixed values: */
-   SCIP_Real obj[2] = {-1, -1};
-   SCIP_Real rhs[2] = {0, -1};
-   int row[4] = {0, 0, 1, 1};
-   int col[4] = {0, 1, 0, 1};
-   SCIP_Real val[4] = {1, -1, -1, 1};
+   /* only execute test if solver is not DSDP */
+   if ( strcmp(SCIPsdpiGetSolverName(), "DSDP") != 0 )
+   {
+      /* data with fixed values: */
+      SCIP_Real obj[2] = {-1, -1};
+      SCIP_Real rhs[2] = {0, -1};
+      int row[4] = {0, 0, 1, 1};
+      int col[4] = {0, 1, 0, 1};
+      SCIP_Real val[4] = {1, -1, -1, 1};
 
-   /* data to be filled */
-   SCIP_Real lhs[2];
-   SCIP_Real lb[2];
-   SCIP_Real ub[2];
+      /* data to be filled */
+      SCIP_Real lhs[2];
+      SCIP_Real lb[2];
+      SCIP_Real ub[2];
 
-   /* fill variable data */
-   lb[0] = -SCIPsdpiInfinity(sdpi);
-   lb[1] = -SCIPsdpiInfinity(sdpi);
-   ub[0] = SCIPsdpiInfinity(sdpi);
-   ub[1] = SCIPsdpiInfinity(sdpi);
-   lhs[0] = -SCIPsdpiInfinity(sdpi);
-   lhs[1] = -SCIPsdpiInfinity(sdpi);
+      /* fill variable data */
+      lb[0] = -SCIPsdpiInfinity(sdpi);
+      lb[1] = -SCIPsdpiInfinity(sdpi);
+      ub[0] = SCIPsdpiInfinity(sdpi);
+      ub[1] = SCIPsdpiInfinity(sdpi);
+      lhs[0] = -SCIPsdpiInfinity(sdpi);
+      lhs[1] = -SCIPsdpiInfinity(sdpi);
 
-   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPinfeas,  SCIPinfeas, NULL) );
+      SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPinfeas,  SCIPinfeas, NULL) );
 
-   /* check that data stored in sdpi is still the same */
-   SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
+      /* check that data stored in sdpi is still the same */
+      SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
+   }
 }
 
 /** Test 5
