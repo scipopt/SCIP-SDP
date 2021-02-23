@@ -3245,33 +3245,33 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    {
    case SCIP_SDPPAR_EPSILON:
       sdpisolver->epsilon = dval;
-      SCIPdebugMessage("Setting sdpisolver epsilon to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver epsilon to %g.\n", dval);
       break;
    case SCIP_SDPPAR_GAPTOL:
       sdpisolver->gaptol = dval;
-      SCIPdebugMessage("Setting sdpisolver gaptol to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver gaptol to %g.\n", dval);
       break;
    case SCIP_SDPPAR_FEASTOL:
       sdpisolver->feastol = dval;
-      SCIPdebugMessage("Setting sdpisolver feastol to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver feastol to %g.\n", dval);
       break;
    case SCIP_SDPPAR_SDPSOLVERFEASTOL:
       sdpisolver->sdpsolverfeastol = dval;
-      SCIPdebugMessage("Setting sdpisolver sdpsolverfeastol to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver sdpsolverfeastol to %g.\n", dval);
       break;
    case SCIP_SDPPAR_PENALTYPARAM:
-      SCIPdebugMessage("Parameter SCIP_SDPPAR_PENALTYPARAM not used by SDPA"); /* this parameter is only used by DSDP */
+      SCIPdebugMessage("Parameter SCIP_SDPPAR_PENALTYPARAM not used by SDPA\n."); /* this parameter is only used by DSDP */
       break;
    case SCIP_SDPPAR_OBJLIMIT:
-      SCIPdebugMessage("Setting sdpisolver objlimit to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver objlimit to %g.\n", dval);
       sdpisolver->objlimit = dval;
       break;
    case SCIP_SDPPAR_LAMBDASTAR:
-      SCIPdebugMessage("Setting sdpisolver lambdastar parameter to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver lambdastar parameter to %g.\n", dval);
       sdpisolver->lambdastar = dval;
       break;
    case SCIP_SDPPAR_WARMSTARTPOGAP:
-      SCIPdebugMessage("Setting sdpisolver preoptgap to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver preoptgap to %g.\n", dval);
       sdpisolver->preoptimalgap = dval;
       break;
    default:
@@ -3358,17 +3358,17 @@ SCIP_RETCODE SCIPsdpiSolverComputeLambdastar(
    if ( compval < MIN_LAMBDASTAR )
    {
       sdpisolver->lambdastar = MIN_LAMBDASTAR;
-      SCIPdebugMessage("Setting lambdastar to %f.\n", MIN_LAMBDASTAR);
+      SCIPdebugMessage("Setting lambdastar to %g.\n", MIN_LAMBDASTAR);
    }
    else if ( compval > MAX_LAMBDASTAR )
    {
       sdpisolver->lambdastar = MAX_LAMBDASTAR;
-      SCIPdebugMessage("Setting lambdastar to %f.\n", MAX_LAMBDASTAR);
+      SCIPdebugMessage("Setting lambdastar to %g.\n", MAX_LAMBDASTAR);
    }
    else
    {
       sdpisolver->lambdastar = compval;
-      SCIPdebugMessage("Setting lambdastar to %f.\n", compval);
+      SCIPdebugMessage("Setting lambdastar to %g.\n", compval);
    }
 
    return SCIP_OKAY;
@@ -3390,17 +3390,17 @@ SCIP_RETCODE SCIPsdpiSolverComputePenaltyparam(
 
    if ( compval < MIN_PENALTYPARAM )
    {
-      SCIPdebugMessage("Setting penaltyparameter to %f.\n", MIN_PENALTYPARAM);
+      SCIPdebugMessage("Setting penalty parameter to %g.\n", MIN_PENALTYPARAM);
       *penaltyparam = MIN_PENALTYPARAM;
    }
    else if ( compval > MAX_PENALTYPARAM )
    {
-      SCIPdebugMessage("Setting penaltyparameter to %f.\n", MAX_PENALTYPARAM);
+      SCIPdebugMessage("Setting penalty parameter to %g.\n", MAX_PENALTYPARAM);
       *penaltyparam = MAX_PENALTYPARAM;
    }
    else
    {
-      SCIPdebugMessage("Setting penaltyparameter to %f.\n", compval);
+      SCIPdebugMessage("Setting penalty parameter to %g.\n", compval);
       *penaltyparam = compval;
    }
    return SCIP_OKAY;
@@ -3423,12 +3423,12 @@ SCIP_RETCODE SCIPsdpiSolverComputeMaxPenaltyparam(
    if ( compval < MAX_MAXPENALTYPARAM )
    {
       *maxpenaltyparam = compval;
-      SCIPdebugMessage("Setting maximum penaltyparameter to %f.\n", compval);
+      SCIPdebugMessage("Setting maximum penalty parameter to %g.\n", compval);
    }
    else
    {
       *maxpenaltyparam = MAX_MAXPENALTYPARAM;
-      SCIPdebugMessage("Setting penaltyparameter to %f.\n", MAX_MAXPENALTYPARAM);
+      SCIPdebugMessage("Setting penalty parameter to %g.\n", MAX_MAXPENALTYPARAM);
    }
 
    return SCIP_OKAY;
