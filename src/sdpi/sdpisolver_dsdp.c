@@ -448,7 +448,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->nsdpcalls = 0;
 
    (*sdpisolver)->epsilon = 1e-9;
-   (*sdpisolver)->gaptol = 1e-4;
+   (*sdpisolver)->gaptol = 1e-6;
    (*sdpisolver)->feastol = 1e-6;
    (*sdpisolver)->sdpsolverfeastol = 1e-6;
    (*sdpisolver)->penaltyparam = 1e5;
