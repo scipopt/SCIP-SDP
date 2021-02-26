@@ -5161,7 +5161,6 @@ static
 SCIP_DECL_CONSENFOLP(consEnfolpSdp)
 {/*lint --e{715}*/
    SCIP_CONSHDLRDATA* conshdlrdata;
-   SCIP_RESULT separesult;
    int c;
 
    assert( scip != NULL );
@@ -5181,6 +5180,8 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
    /* we first check whether the LP solution if feasible */
    for (c = 0; c < nconss && *result != SCIP_CUTOFF; ++c)
    {
+      SCIP_RESULT separesult = SCIP_FEASIBLE;
+
       SCIP_CALL( separateSol(scip, conshdlr, conss[c], NULL, TRUE, &separesult) );
       assert( separesult == SCIP_FEASIBLE || separesult == SCIP_CUTOFF || separesult == SCIP_SEPARATED || separesult == SCIP_CONSADDED );
 
@@ -5355,7 +5356,6 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
 static
 SCIP_DECL_CONSENFORELAX(consEnforelaxSdp)
 {/*lint --e{715}*/
-   SCIP_RESULT separesult = SCIP_FEASIBLE;
    int c;
 
    assert( scip != NULL );
@@ -5368,6 +5368,8 @@ SCIP_DECL_CONSENFORELAX(consEnforelaxSdp)
    /*****  Is this correct? Relaxation solutions should be feasible. */
    for (c = 0; c < nconss && *result != SCIP_CUTOFF; ++c)
    {
+      SCIP_RESULT separesult = SCIP_FEASIBLE;
+
       SCIP_CALL( separateSol(scip, conshdlr, conss[c], sol, TRUE, &separesult) );
       assert( separesult == SCIP_FEASIBLE || separesult == SCIP_CUTOFF || separesult == SCIP_SEPARATED || separesult == SCIP_CONSADDED );
 
@@ -5386,7 +5388,6 @@ SCIP_DECL_CONSENFORELAX(consEnforelaxSdp)
 static
 SCIP_DECL_CONSSEPASOL(consSepasolSdp)
 {/*lint --e{715}*/
-   SCIP_RESULT separesult;
    int i;
 
    assert( result != NULL );
@@ -5394,7 +5395,9 @@ SCIP_DECL_CONSSEPASOL(consSepasolSdp)
 
    for (i = 0; i < nusefulconss && *result != SCIP_CUTOFF; ++i)
    {
-      SCIP_CALL( separateSol(scip, conshdlr, conss[i], sol, FALSE, result) );
+      SCIP_RESULT separesult = SCIP_DIDNOTFIND;
+
+      SCIP_CALL( separateSol(scip, conshdlr, conss[i], sol, FALSE, &separesult) );
       assert( separesult == SCIP_DIDNOTFIND || separesult == SCIP_CUTOFF || separesult == SCIP_SEPARATED || separesult == SCIP_CONSADDED );
 
       if ( separesult == SCIP_CUTOFF )
@@ -5412,7 +5415,6 @@ SCIP_DECL_CONSSEPASOL(consSepasolSdp)
 static
 SCIP_DECL_CONSSEPALP(consSepalpSdp)
 {/*lint --e{715}*/
-   SCIP_RESULT separesult;
    int i;
 
    assert( result != NULL );
@@ -5420,7 +5422,9 @@ SCIP_DECL_CONSSEPALP(consSepalpSdp)
 
    for (i = 0; i < nusefulconss && *result != SCIP_CUTOFF; ++i)
    {
-      SCIP_CALL( separateSol(scip, conshdlr, conss[i], NULL, FALSE, result) );
+      SCIP_RESULT separesult = SCIP_DIDNOTFIND;
+
+      SCIP_CALL( separateSol(scip, conshdlr, conss[i], NULL, FALSE, separesult) );
 
       assert( separesult == SCIP_DIDNOTFIND || separesult == SCIP_CUTOFF || separesult == SCIP_SEPARATED || separesult == SCIP_CONSADDED );
 
