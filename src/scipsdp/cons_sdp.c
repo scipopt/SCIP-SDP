@@ -5424,7 +5424,7 @@ SCIP_DECL_CONSSEPALP(consSepalpSdp)
    {
       SCIP_RESULT separesult = SCIP_DIDNOTFIND;
 
-      SCIP_CALL( separateSol(scip, conshdlr, conss[i], NULL, FALSE, separesult) );
+      SCIP_CALL( separateSol(scip, conshdlr, conss[i], NULL, FALSE, &separesult) );
 
       assert( separesult == SCIP_DIDNOTFIND || separesult == SCIP_CUTOFF || separesult == SCIP_SEPARATED || separesult == SCIP_CONSADDED );
 
