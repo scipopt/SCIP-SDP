@@ -719,3 +719,38 @@ Test(readwrite, indicator)
 
    cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (SDPA original) != %g (CIP written)\n", obj1, obj2);
 }
+
+/** Test 18 */
+Test(readwrite, signs)
+{
+   SCIP_Real obj1;
+   SCIP_Real obj2;
+
+   /* read problem in CBF format with L+ */
+   SCIP_CALL( SCIPreadProb(scipsdp, "example_small_L-.cbf", NULL) );
+
+   /* write problem in SDPA format */
+   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "example_small_L-.dat-s", "dat-s", FALSE) );
+
+   /* read problem in CBF format with L- */
+   SCIP_CALL( SCIPreadProb(scipsdp, "example_small_L+.cbf", NULL) );
+
+   /* write problem in SDPA format */
+   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "example_small_L+.dat-s", "dat-s", FALSE) );
+
+   /* read problem with L- in SDPA format and solve it */
+   SCIP_CALL( SCIPreadProb(scipsdp, "example_small_L-.dat-s", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj1 = SCIPgetDualbound(scipsdp);
+
+   /* read problem with L+ in SDPA format and solve it */
+   SCIP_CALL( SCIPreadProb(scipsdp, "example_small_L+.dat-s", NULL) );
+
+   SCIP_CALL( SCIPsolve(scipsdp) );
+
+   obj2 = SCIPgetDualbound(scipsdp);
+
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (SDPA from CBF with L-) != %g (SDPA from CBF with L+)\n", obj1, obj2);
+}
