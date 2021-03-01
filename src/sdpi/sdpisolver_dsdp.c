@@ -1485,9 +1485,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          }
       }
 
-      /* check whether duality gap is small enough */
-      DSDP_CALL( DSDPGetDObjective(sdpisolver->dsdp, &dualobj) );
-      DSDP_CALL( DSDPGetPObjective(sdpisolver->dsdp, &primalobj) );
+      /* Check whether duality gap is small enough: We use (PP) and (DD), since these are the problems that are actually solved. */
+      DSDP_CALL( DSDPGetDDObjective(sdpisolver->dsdp, &dualobj) );
+      DSDP_CALL( DSDPGetPPObjective(sdpisolver->dsdp, &primalobj) );
       if ( REALABS(dualobj - primalobj) >= sdpisolver->gaptol )
       {
          infeasible = TRUE;
