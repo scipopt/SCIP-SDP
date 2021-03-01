@@ -5178,11 +5178,20 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
       return SCIP_OKAY;
 
    /* we first check whether the LP solution if feasible */
-   for (c = 0; c < nconss; ++c)
+   for (c = 0; c < nconss && *result != SCIP_CUTOFF; ++c)
    {
-      SCIP_CALL( separateSol(scip, conshdlr, conss[c], NULL, TRUE, result) );
+      SCIP_RESULT separesult = SCIP_FEASIBLE;
+
+      SCIP_CALL( separateSol(scip, conshdlr, conss[c], NULL, TRUE, &separesult) );
+      assert( separesult == SCIP_FEASIBLE || separesult == SCIP_CUTOFF || separesult == SCIP_SEPARATED || separesult == SCIP_CONSADDED );
+
+      if ( separesult == SCIP_CUTOFF )
+         *result = SCIP_CUTOFF;
+      else if ( separesult == SCIP_CONSADDED )
+         *result = SCIP_CONSADDED;
+      else if ( separesult == SCIP_SEPARATED )
+         *result = SCIP_SEPARATED;
    }
-   assert( *result == SCIP_FEASIBLE || *result == SCIP_CUTOFF || *result == SCIP_SEPARATED || *result == SCIP_CONSADDED );
 
    /* Below, we enforce integral solutions. If the LP is unbounded, this might not be guaranteed due to the integrality
     * constraint handler. In this case, we exit. The same happens if no relaxation is available or if we reached a cutoff. */
@@ -5357,9 +5366,19 @@ SCIP_DECL_CONSENFORELAX(consEnforelaxSdp)
    *result = SCIP_FEASIBLE;
 
    /*****  Is this correct? Relaxation solutions should be feasible. */
-   for (c = 0; c < nconss; ++c)
+   for (c = 0; c < nconss && *result != SCIP_CUTOFF; ++c)
    {
-      SCIP_CALL( separateSol(scip, conshdlr, conss[c], sol, TRUE, result) );
+      SCIP_RESULT separesult = SCIP_FEASIBLE;
+
+      SCIP_CALL( separateSol(scip, conshdlr, conss[c], sol, TRUE, &separesult) );
+      assert( separesult == SCIP_FEASIBLE || separesult == SCIP_CUTOFF || separesult == SCIP_SEPARATED || separesult == SCIP_CONSADDED );
+
+      if ( separesult == SCIP_CUTOFF )
+         *result = SCIP_CUTOFF;
+      else if ( separesult == SCIP_CONSADDED )
+         *result = SCIP_CONSADDED;
+      else if ( separesult == SCIP_SEPARATED )
+         *result = SCIP_SEPARATED;
    }
 
    return SCIP_OKAY;
@@ -5374,9 +5393,19 @@ SCIP_DECL_CONSSEPASOL(consSepasolSdp)
    assert( result != NULL );
    *result = SCIP_DIDNOTFIND;
 
-   for (i = 0; i < nusefulconss; ++i)
+   for (i = 0; i < nusefulconss && *result != SCIP_CUTOFF; ++i)
    {
-      SCIP_CALL( separateSol(scip, conshdlr, conss[i], sol, FALSE, result) );
+      SCIP_RESULT separesult = SCIP_DIDNOTFIND;
+
+      SCIP_CALL( separateSol(scip, conshdlr, conss[i], sol, FALSE, &separesult) );
+      assert( separesult == SCIP_DIDNOTFIND || separesult == SCIP_CUTOFF || separesult == SCIP_SEPARATED || separesult == SCIP_CONSADDED );
+
+      if ( separesult == SCIP_CUTOFF )
+         *result = SCIP_CUTOFF;
+      else if ( separesult == SCIP_CONSADDED )
+         *result = SCIP_CONSADDED;
+      else if ( separesult == SCIP_SEPARATED )
+         *result = SCIP_SEPARATED;
    }
 
    return SCIP_OKAY;
@@ -5391,10 +5420,21 @@ SCIP_DECL_CONSSEPALP(consSepalpSdp)
    assert( result != NULL );
    *result = SCIP_DIDNOTFIND;
 
-   for (i = 0; i < nusefulconss; ++i)
+   for (i = 0; i < nusefulconss && *result != SCIP_CUTOFF; ++i)
    {
-      SCIP_CALL( separateSol(scip, conshdlr, conss[i], NULL, FALSE, result) );
-   }
+      SCIP_RESULT separesult = SCIP_DIDNOTFIND;
+
+      SCIP_CALL( separateSol(scip, conshdlr, conss[i], NULL, FALSE, &separesult) );
+
+      assert( separesult == SCIP_DIDNOTFIND || separesult == SCIP_CUTOFF || separesult == SCIP_SEPARATED || separesult == SCIP_CONSADDED );
+
+      if ( separesult == SCIP_CUTOFF )
+         *result = SCIP_CUTOFF;
+      else if ( separesult == SCIP_CONSADDED )
+         *result = SCIP_CONSADDED;
+      else if ( separesult == SCIP_SEPARATED )
+         *result = SCIP_SEPARATED;
+  }
 
    return SCIP_OKAY;
 }
