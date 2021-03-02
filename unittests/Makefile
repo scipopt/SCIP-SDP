@@ -70,7 +70,8 @@ override GMP		:=$(shell echo "$(SCIPSDPVERSION)" | sed -e 's/.* GMP=\([^@]*\).*/
 override SYM		:=$(shell echo "$(SCIPSDPVERSION)" | sed -e 's/.* SYM=\([^@]*\).*/\1/')
 override IPOPT		:=$(shell echo "$(SCIPSDPVERSION)" | sed -e 's/.* IPOPT=\([^@]*\).*/\1/')
 override IPOPTOPT	:=$(shell echo "$(SCIPSDPVERSION)" | sed -e 's/.* IPOPTOPT=\([^@]*\).*/\1/')
-override LPS		:=$(shell echo "$(SCIPSDPVERSION)" | sed -e 's/.* LPS=\([^@]*\).*/\1/')
+# do not override LPI because it is determined by the compile flags from SCIP and we cannot influence this
+# override LPS		:=$(shell echo "$(SCIPSDPVERSION)" | sed -e 's/.* LPS=\([^@]*\).*/\1/')
 override LPSCHECK	:=$(shell echo "$(SCIPSDPVERSION)" | sed -e 's/.* LPSCHECK=\([^@]*\).*/\1/')
 override LPSOPT 	:=$(shell echo "$(SCIPSDPVERSION)" | sed -e 's/.* LPSOPT=\([^@]*\).*/\1/')
 override NOBLKBUFMEM	:=$(shell echo "$(SCIPSDPVERSION)" | sed -e 's/.* NOBLKBUFMEM=\([^@]*\).*/\1/')

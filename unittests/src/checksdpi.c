@@ -30,9 +30,13 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+/* #define SCIP_DEBUG */
+/* #define SCIP_MORE_DEBUG */        /* enable full solver output and expected as well as actual feas status */
+
 /**@file   checksdpi.c
  * @brief  unit test for checking SDPI
  * @author Marc Pfetsch
+ * @author Frederic Matter
  *
  * We perform tests with solving several examples. They are inspired by the tests for the LPI in SCIP.
  */
@@ -41,6 +45,8 @@
 
 #include <scip/scip.h>
 #include <sdpi/sdpi.h>
+#include <scip/message.h>
+#include <scip/message_default.h>
 
 #include "include/scip_test.h"
 
@@ -60,6 +66,7 @@ typedef enum SCIPfeasStatus SCIPFEASSTATUS;
 static SCIP_SDPI* sdpi = NULL;
 static BMS_BLKMEM* blockmem = NULL;
 static BMS_BUFMEM* buffermem = NULL;
+static SCIP_MESSAGEHDLR* messagehdlr = NULL;
 
 
 /* macro for parameters */
@@ -83,8 +90,15 @@ void setup(void)
    cr_assert( blockmem != NULL );
    cr_assert( buffermem != NULL );
 
+   /* create message handler */
+   SCIP_CALL( SCIPcreateMessagehdlrDefault(&messagehdlr, TRUE, NULL, FALSE) );
+
    /* create SDPI */
-   SCIP_CALL( SCIPsdpiCreate(&sdpi, NULL, blockmem, buffermem) );
+   SCIP_CALL( SCIPsdpiCreate(&sdpi, messagehdlr, blockmem, buffermem) );
+
+   /* set feasibility tolerance */
+   SCIP_CALL( SCIPsdpiSetRealpar(sdpi, SCIP_SDPPAR_SDPSOLVERFEASTOL, EPS) );
+   SCIP_CALL( SCIPsdpiSetRealpar(sdpi, SCIP_SDPPAR_GAPTOL, EPS) );
 
 #ifdef SCIP_DEBUG
    /* turn on output */
@@ -96,6 +110,9 @@ void setup(void)
 static
 void teardown(void)
 {
+   /* release message handler */
+   SCIP_CALL( SCIPmessagehdlrRelease(&messagehdlr) );
+
    SCIP_CALL( SCIPsdpiFree(&sdpi) );
 
    BMSdestroyBufferMemory(&buffermem);
@@ -129,6 +146,17 @@ SCIP_RETCODE solveTest(
    int ntmpcols;
    int j;
 
+#ifdef SCIP_MORE_DEBUG
+   int sdpinfo;
+
+   SCIPmessageFPrintInfo(messagehdlr, NULL, "Expected primal feas status: %d\n", exp_primalfeas);
+   SCIPmessageFPrintInfo(messagehdlr, NULL, "Expected dual feas status: %d\n", exp_dualfeas);
+
+   /* enable full output */
+   SCIP_CALL( SCIPsdpiSetIntpar(sdpi, 5, 1) );
+   SCIP_CALL( SCIPsdpiGetIntpar(sdpi, 5, &sdpinfo) );
+#endif
+
    /* check size */
    SCIP_CALL( SCIPsdpiGetNLPRows(sdpi, &ntmprows) );
    SCIP_CALL( SCIPsdpiGetNVars(sdpi, &ntmpcols) );
@@ -146,6 +174,11 @@ SCIP_RETCODE solveTest(
 
    /* check feasibility status */
    SCIP_CALL( SCIPsdpiGetSolFeasibility(sdpi, &primalfeasible, &dualfeasible) );
+
+#ifdef SCIP_MORE_DEBUG
+   SCIPmessageFPrintInfo(messagehdlr, NULL, "Primal feasible?: %d\n", primalfeasible);
+   SCIPmessageFPrintInfo(messagehdlr, NULL, "Dual feasible?: %d\n", dualfeasible);
+#endif
 
    /* if we are feasible, we should be optimal */
    if ( exp_primalfeas == SCIPfeas && exp_dualfeas == SCIPfeas )
@@ -209,9 +242,15 @@ SCIP_RETCODE solveTest(
       break;
 
    case SCIPunbounded:
-      cr_assert( SCIPsdpiIsDualFeasible(sdpi) );
-      cr_assert( ! SCIPsdpiIsDualInfeasible(sdpi) );
-      cr_assert( SCIPsdpiIsDualUnbounded(sdpi) );
+      /* Since Mosek solves the primal problem instead of the dual problem and cannot detect unboundedness, we cannot
+       * determine the status of the dual problem purely based on the solution status returned by Mosek. We only know
+       * that the primal problem should be infeasible, since otherwise dual unboundedness is not possible due to weak
+       * duality.
+       */
+
+      /* cr_assert( SCIPsdpiIsDualFeasible(sdpi) ); */
+      /* cr_assert( ! SCIPsdpiIsDualInfeasible(sdpi) ); */
+      /* cr_assert( SCIPsdpiIsDualUnbounded(sdpi) ); */
 
       cr_assert( ! SCIPsdpiIsPrimalFeasible(sdpi) );
       cr_assert( SCIPsdpiIsPrimalInfeasible(sdpi) );
@@ -530,33 +569,44 @@ Test(checksdpi, test3)
  *      x1,  x2 free
  *
  * which primal and dual infeasible.
+ *
+ * Note: This test crashes with DSDP, since DSDP has only four solution statuses (see dsdpbasictypes.h):
+ * DSDP_PDUNKNOWN  (0):  Not sure whether (D) or (P) is feasible,
+ * DSDP_PDFEASIBLE (1):  Both (D) and (P) are feasible and bounded,
+ * DSDP_UNBOUNDED  (3):  (D) is unbounded and (P) is infeasible,
+ * DSDP_INFEASIBLE (4):  (D) in infeasible and (P) is unbounded,
+ * so that it seems that DSDP cannot detect if both (P) and (D) are infeasible.
  */
 Test(checksdpi, test4)
 {
-   /* data with fixed values: */
-   SCIP_Real obj[2] = {-1, -1};
-   SCIP_Real rhs[2] = {0, -1};
-   int row[4] = {0, 0, 1, 1};
-   int col[4] = {0, 1, 0, 1};
-   SCIP_Real val[4] = {1, -1, -1, 1};
+   /* only execute test if solver is not DSDP */
+   if ( strcmp(SCIPsdpiGetSolverName(), "DSDP") != 0 )
+   {
+      /* data with fixed values: */
+      SCIP_Real obj[2] = {-1, -1};
+      SCIP_Real rhs[2] = {0, -1};
+      int row[4] = {0, 0, 1, 1};
+      int col[4] = {0, 1, 0, 1};
+      SCIP_Real val[4] = {1, -1, -1, 1};
 
-   /* data to be filled */
-   SCIP_Real lhs[2];
-   SCIP_Real lb[2];
-   SCIP_Real ub[2];
+      /* data to be filled */
+      SCIP_Real lhs[2];
+      SCIP_Real lb[2];
+      SCIP_Real ub[2];
 
-   /* fill variable data */
-   lb[0] = -SCIPsdpiInfinity(sdpi);
-   lb[1] = -SCIPsdpiInfinity(sdpi);
-   ub[0] = SCIPsdpiInfinity(sdpi);
-   ub[1] = SCIPsdpiInfinity(sdpi);
-   lhs[0] = -SCIPsdpiInfinity(sdpi);
-   lhs[1] = -SCIPsdpiInfinity(sdpi);
+      /* fill variable data */
+      lb[0] = -SCIPsdpiInfinity(sdpi);
+      lb[1] = -SCIPsdpiInfinity(sdpi);
+      ub[0] = SCIPsdpiInfinity(sdpi);
+      ub[1] = SCIPsdpiInfinity(sdpi);
+      lhs[0] = -SCIPsdpiInfinity(sdpi);
+      lhs[1] = -SCIPsdpiInfinity(sdpi);
 
-   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPinfeas,  SCIPinfeas, NULL) );
+      SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPinfeas,  SCIPinfeas, NULL) );
 
-   /* check that data stored in sdpi is still the same */
-   SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
+      /* check that data stored in sdpi is still the same */
+      SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
+   }
 }
 
 /** Test 5
@@ -684,14 +734,16 @@ Test(checksdpi, test7)
  *  Note, however, that there is a whole line that is optimal.
  *
  *  The dual is (see the brackets above for the dual variables):
- *  sub  -y2
+ *  sup  -y2
  *       -y1 + X_11 + X_22 + X_33 == 0
  *       -y1 + X_21 == 0
  *        y2 + X_31 == 1
  *       X psd, y1, y2 >= 0.
  *  This problem is feasible, since y2 = 1, y2 = 0, X = 0 is feasible.
+ *
+ *  Note: We expect this test to not be able to solve to optimality.
  */
-Test(checksdpi, test8)
+Test(checksdpi, test8, .disabled=1)
 {
    /* data with fixed values: */
    SCIP_Real obj[3] = {0, 0, 1};
@@ -760,4 +812,204 @@ Test(checksdpi, test8)
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(3, obj, lb, ub, 2, lhs, rhs, 5) );
+}
+
+/** Test 9
+ *
+ *  inf   -x1
+ *        x1 >= -1 [y1]
+ *        x1 <= 1  [y2]
+ *        x2 >= -1 [y3]
+ *        x2 <= 1  [y4]
+ *        [x1,      1]
+ *        [1, 0.75*x2]  >= 0  [X]
+ *
+ *  This problem is infeasible, since the SDP constraint implies
+ *  x1 * x2 >= 4/3, but x1 * x2 <= 1 due to the variable bounds.
+ *
+ *  The dual is (see the brackets above for the dual variables):
+ *  sup  -2*X21 - y2 - y4 - y1 - y3
+ *       y1 - y2 + X_11 == -1
+ *       y3 - y4 + 0.75*X_22 == 0
+ *       X psd, y1, y2, y3, y4 >= 0.
+ *
+ *  This problem is feasible, since X = 0, y1 = 0, y2 = 1, y3 = 0, y4 = 0
+ *  is feasible. Moreover, choosing
+ *  X = [t,     -t] >= 0
+ *      [-t, t + 1]
+ *  y1 = y3 = 0, y2 = t + 1, y4 = 0.75*(t + 1)
+ *  is also feasible and yields a solution value
+ *  0.25*t - 1.75
+ *  which shows that the problem is in fact unbounded.
+ */
+Test(checksdpi, test9)
+{
+   /* data with fixed values: */
+   SCIP_Real obj[2] = {-1, 0};
+   int row[4] = {0, 1, 2, 3};
+   int col[4] = {0, 0, 1, 1};
+   SCIP_Real val[4] = {1, -1, 1, -1};
+   int nsdpblocks = 1;
+   int sdpblocksizes[1] = {2};
+   int sdpnblockvars[1] = {2};
+   int sdpconstnblocknonz[1] = {1};
+   int sdpconstnnonz = 1;
+   int sdpnnonz = 2;
+   int* sdpnblockvarnonz;
+   int* sdpvar;
+   int** sdprow;
+   int** sdpcol;
+   SCIP_Real** sdpval;
+   int* sdpconstrow;
+   int* sdpconstcol;
+   SCIP_Real* sdpconstval;
+
+   int sdpnblockvarnonzs[2] = {1, 1};
+   int sdpvars[2] = {0, 1};
+   int sdprowss[2] = {0, 1};
+   int sdpcolss[2] = {0, 1};
+   int sdpconstrowss[1] = {1};
+   int sdpconstcolss[1] = {0};
+   SCIP_Real sdpconstvalss[1] = {-1.0};
+   SCIP_Real sdpvalss[2] = {1.0, 0.75};
+
+   /* data to be filled */
+   int* sdprows[2];
+   int* sdpcols[2];
+   SCIP_Real* sdpvals[2];
+   SCIP_Real lhs[4];
+   SCIP_Real rhs[4];
+   SCIP_Real lb[2];
+   SCIP_Real ub[2];
+
+   sdpnblockvarnonz = &sdpnblockvarnonzs[0];
+   sdpvar = &sdpvars[0];
+   sdprow = &sdprows[0];
+   sdpcol = &sdpcols[0];
+   sdpval = &sdpvals[0];
+   sdprows[0] = &sdprowss[0];
+   sdprows[1] = &sdprowss[1];
+   sdpcols[0] = &sdpcolss[0];
+   sdpcols[1] = &sdpcolss[1];
+   sdpvals[0] = &sdpvalss[0];
+   sdpvals[1] = &sdpvalss[1];
+
+   sdpconstrow = &sdpconstrowss[0];
+   sdpconstcol = &sdpconstcolss[0];
+   sdpconstval = &sdpconstvalss[0];
+
+   /* fill data */
+   lhs[0] = -1.0;
+   lhs[1] = -1.0;
+   lhs[2] = -1.0;
+   lhs[3] = -1.0;
+   rhs[0] = SCIPsdpiInfinity(sdpi);
+   rhs[1] = SCIPsdpiInfinity(sdpi);
+   rhs[2] = SCIPsdpiInfinity(sdpi);
+   rhs[3] = SCIPsdpiInfinity(sdpi);
+   lb[0] = -SCIPsdpiInfinity(sdpi);
+   lb[1] = -SCIPsdpiInfinity(sdpi);
+   ub[0] = SCIPsdpiInfinity(sdpi);
+   ub[1] = SCIPsdpiInfinity(sdpi);
+
+   SCIP_CALL( performSDPTest(2, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz, sdpconstnblocknonz,
+         &sdpconstrow, &sdpconstcol, &sdpconstval, sdpnnonz, &sdpnblockvarnonz, &sdpvar, &sdprow, &sdpcol, &sdpval,
+         4, lhs, rhs, 4, row, col, val, SCIPunbounded, SCIPinfeas, NULL) );
+
+   /* check that data stored in sdpi is still the same */
+   SCIP_CALL( checkData(2, obj, lb, ub, 4, lhs, rhs, 4) );
+}
+
+
+/** Test 10
+ *
+ *  inf   -x1 - x2
+ *        x1 >= -1 [y1]
+ *        x1 <= 1  [y2]
+ *        x2 >= -1 [y3]
+ *        x2 <= 1  [y4]
+ *        [x1,  0]
+ *        [0,  x2]  >= 0  [X]
+ *
+ *  This problem is feasible with optimal solution (x1,x2) = (1,1) and
+ *  optimal value -2.
+ *
+ *  The dual is (see the brackets above for the dual variables):
+ *  sup  -y2 - y4 - y1 - y3
+ *       y1 - y2 + X_11 == -1
+ *       y3 - y4 + X_22 == -1
+ *       X psd, y1, y2, y3, y4 >= 0.
+ *
+ *  This problem is also feasible with optimal solution X = 0, y1 = y3 = 0, y2 = y4 = 1,
+ *  and optimal value -2.
+ */
+Test(checksdpi, test10)
+{
+   /* data with fixed values: */
+   SCIP_Real obj[2] = {-1.0, -1.0};
+   int row[4] = {0, 1, 2, 3};
+   int col[4] = {0, 0, 1, 1};
+   SCIP_Real val[4] = {1, -1, 1, -1};
+   int nsdpblocks = 1;
+   int sdpblocksizes[1] = {2};
+   int sdpnblockvars[1] = {2};
+   int sdpconstnblocknonz[1] = {0};
+   int sdpconstnnonz = 0;
+   int sdpnnonz = 2;
+   int* sdpnblockvarnonz;
+   int* sdpvar;
+   int** sdprow;
+   int** sdpcol;
+   SCIP_Real** sdpval;
+
+   int sdpnblockvarnonzs[2] = {1, 1};
+   int sdpvars[2] = {0, 1};
+   int sdprowss[2] = {0, 1};
+   int sdpcolss[2] = {0, 1};
+   SCIP_Real sdpvalss[2] = {1.0, 1.0};
+
+   /* data to be filled */
+   int* sdprows[2];
+   int* sdpcols[2];
+   SCIP_Real* sdpvals[2];
+   SCIP_Real lhs[4];
+   SCIP_Real rhs[4];
+   SCIP_Real lb[2];
+   SCIP_Real ub[2];
+
+   /* expected solutions */
+   SCIP_Real exp_dualsol[2] = {1.0, 1.0};
+
+   sdpnblockvarnonz = &sdpnblockvarnonzs[0];
+   sdpvar = &sdpvars[0];
+   sdprow = &sdprows[0];
+   sdpcol = &sdpcols[0];
+   sdpval = &sdpvals[0];
+   sdprows[0] = &sdprowss[0];
+   sdprows[1] = &sdprowss[1];
+   sdpcols[0] = &sdpcolss[0];
+   sdpcols[1] = &sdpcolss[1];
+   sdpvals[0] = &sdpvalss[0];
+   sdpvals[1] = &sdpvalss[1];
+
+   /* fill data */
+   lhs[0] = -1.0;
+   lhs[1] = -1.0;
+   lhs[2] = -1.0;
+   lhs[3] = -1.0;
+   rhs[0] = SCIPsdpiInfinity(sdpi);
+   rhs[1] = SCIPsdpiInfinity(sdpi);
+   rhs[2] = SCIPsdpiInfinity(sdpi);
+   rhs[3] = SCIPsdpiInfinity(sdpi);
+   lb[0] = -SCIPsdpiInfinity(sdpi);
+   lb[1] = -SCIPsdpiInfinity(sdpi);
+   ub[0] = SCIPsdpiInfinity(sdpi);
+   ub[1] = SCIPsdpiInfinity(sdpi);
+
+   SCIP_CALL( performSDPTest(2, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz, sdpconstnblocknonz,
+         NULL, NULL, NULL, sdpnnonz, &sdpnblockvarnonz, &sdpvar, &sdprow, &sdpcol, &sdpval,
+         4, lhs, rhs, 4, row, col, val, SCIPfeas, SCIPfeas, exp_dualsol) );
+
+   /* check that data stored in sdpi is still the same */
+   SCIP_CALL( checkData(2, obj, lb, ub, 4, lhs, rhs, 4) );
 }

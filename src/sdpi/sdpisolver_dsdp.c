@@ -64,7 +64,7 @@
 #define MAX_MAXPENALTYPARAM         1e15     /**< if the maximum penaltyparameter is to be computed, this is the maximum value it will take */
 #define MAXPENALTYPARAM_FACTOR      1e6      /**< if the maximum penaltyparameter is to be computed, it will be set to penaltyparam * this */
 #define INFEASFEASTOLCHANGE         0.1      /**< change feastol by this factor if the solution was found to be infeasible with regards to feastol */
-#define INFEASMINFEASTOL            1E-9     /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance */
+#define INFEASMINFEASTOL            1e-15    /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance */
 
 
 /** Calls a DSDP-Function and transforms the return-code to a SCIP_LPERROR if needed. */
@@ -377,23 +377,6 @@ void* SCIPsdpiSolverGetSolverPointer(
    return (void*) sdpisolver->dsdp;
 }
 
-/** gets default feasibility tolerance for SDP-solver in SCIP-SDP */
-SCIP_Real SCIPsdpiSolverGetDefaultSdpiSolverFeastol(
-   void
-   )
-{
-   return 1E-6;
-}
-
-
-/** gets default duality gap tolerance for SDP-solver in SCIP-SDP */
-SCIP_Real SCIPsdpiSolverGetDefaultSdpiSolverGaptol(
-   void
-   )
-{
-   return 1E-4;
-}
-
 /** gets default number of increases of penalty parameter for SDP-solver in SCIP-SDP */
 int SCIPsdpiSolverGetDefaultSdpiSolverNpenaltyIncreases(
    void
@@ -465,7 +448,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->nsdpcalls = 0;
 
    (*sdpisolver)->epsilon = 1e-9;
-   (*sdpisolver)->gaptol = 1e-4;
+   (*sdpisolver)->gaptol = 1e-6;
    (*sdpisolver)->feastol = 1e-6;
    (*sdpisolver)->sdpsolverfeastol = 1e-6;
    (*sdpisolver)->penaltyparam = 1e5;
@@ -730,6 +713,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int nrnonz = 0;
    int oldnactivevars;
    SCIP_Real feastol;
+   SCIP_Real gaptol;
    SCIP_Real solvertimelimit;
    Timings timings;
 
@@ -1402,7 +1386,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    DSDP_CALL( DSDPSetGapTolerance(sdpisolver->dsdp, sdpisolver->gaptol) );  /* set DSDP's tolerance for duality gap */
    DSDP_CALL( DSDPSetRTolerance(sdpisolver->dsdp, sdpisolver->sdpsolverfeastol) );    /* set DSDP's tolerance for the SDP-constraints */
-   if ( sdpisolver-> sdpinfo )
+#ifndef SCIP_DEBUG
+   if ( sdpisolver->sdpinfo )
+#endif
    {
       DSDP_CALL( DSDPSetStandardMonitor(sdpisolver->dsdp, 1) );   /* output DSDP information after every 1 iteration */
    }
@@ -1463,13 +1449,17 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* if the problem has been stably solved but did not reach the required feasibility tolerance, even though the solver
     * reports feasibility, resolve it with adjusted tolerance */
    feastol = sdpisolver->sdpsolverfeastol;
+   gaptol = sdpisolver->gaptol;
 
    while ( SCIPsdpiSolverIsAcceptable(sdpisolver) && SCIPsdpiSolverIsDualFeasible(sdpisolver) && penaltyparam < sdpisolver->epsilon && feastol >= INFEASMINFEASTOL )
    {
       SCIP_Real* solvector;
-      int nvarspointer;
+      SCIP_Real primalobj;
+      SCIP_Real dualobj;
       SCIP_Bool infeasible;
+      SCIP_Bool solveagain = FALSE;
       int newiterations;
+      int nvarspointer;
 
       /* get current solution */
       BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &solvector, nvars) );
@@ -1482,48 +1472,65 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
             indchanges, nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
             solvector, sdpisolver->feastol, sdpisolver->epsilon, &infeasible) );
-
       BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solvector);
 
       if ( infeasible )
       {
-         SCIPdebugMessage("Solution feasible for DSDP but outside feasibility tolerance, changing DSDP feasibility tolerance from %f to %f\n",
-               feastol, feastol * INFEASFEASTOLCHANGE);
          feastol *= INFEASFEASTOLCHANGE;
-
          if ( feastol >= INFEASMINFEASTOL )
          {
-            /* update settings */
+            SCIPdebugMessage("Solution feasible for DSDP but outside feasibility tolerance, changing DSDP feasibility tolerance to %g.\n", feastol);
             DSDP_CALL( DSDPSetRTolerance(sdpisolver->dsdp, feastol) );    /* set DSDP's tolerance for the SDP-constraints */
+            solveagain = TRUE;
+         }
+      }
 
-            DSDP_CALL( DSDPSolve(sdpisolver->dsdp) );
+      /* Check whether duality gap is small enough: We use (PP) and (DD), since these are the problems that are actually solved. */
+      DSDP_CALL( DSDPGetDDObjective(sdpisolver->dsdp, &dualobj) );
+      DSDP_CALL( DSDPGetPPObjective(sdpisolver->dsdp, &primalobj) );
+      if ( REALABS(dualobj - primalobj) >= sdpisolver->gaptol )
+      {
+         infeasible = TRUE;
+         gaptol *= INFEASFEASTOLCHANGE;
+         if ( gaptol >= INFEASMINFEASTOL )
+         {
+            SCIPdebugMessage("Solution feasible, but duality gap is too large, changing DSDP gap tolerance to %g.\n", gaptol);
+            DSDP_CALL( DSDPSetGapTolerance(sdpisolver->dsdp, gaptol) );  /* set DSDP's tolerance for duality gap */
+            solveagain = TRUE;
+         }
+      }
 
-            /* update number of SDP-iterations and -calls */
-            sdpisolver->nsdpcalls++;
-            DSDP_CALL( DSDPGetIts(sdpisolver->dsdp, &newiterations) );
-            sdpisolver->niterations += newiterations;
+      if ( solveagain )
+      {
+         DSDP_CALL( DSDPSolve(sdpisolver->dsdp) );
 
-            /* check if solving was stopped because of the time limit */
-            if ( timings.stopped )
-            {
-               sdpisolver->timelimit = TRUE;
-               sdpisolver->solved = FALSE;
-            }
-            else
-            {
-               sdpisolver->timelimit = FALSE;
-               DSDP_CALL( DSDPComputeX(sdpisolver->dsdp) ); /* computes X and determines feasibility and unboundedness of the solution */
-               sdpisolver->solved = TRUE;
-            }
+         /* update number of SDP-iterations and -calls */
+         sdpisolver->nsdpcalls++;
+         DSDP_CALL( DSDPGetIts(sdpisolver->dsdp, &newiterations) );
+         sdpisolver->niterations += newiterations;
+
+         /* check if solving was stopped because of the time limit */
+         if ( timings.stopped )
+         {
+            sdpisolver->timelimit = TRUE;
+            sdpisolver->solved = FALSE;
          }
          else
          {
-            sdpisolver->solved = FALSE;
-            SCIPmessagePrintInfo(sdpisolver->messagehdlr, "DSDP failed to reach required feasibility tolerance! \n");
+            sdpisolver->timelimit = FALSE;
+            DSDP_CALL( DSDPComputeX(sdpisolver->dsdp) ); /* computes X and determines feasibility and unboundedness of the solution */
+            sdpisolver->solved = TRUE;
          }
       }
       else
+      {
+         if ( infeasible )
+         {
+            sdpisolver->solved = FALSE;
+            SCIPmessagePrintInfo(sdpisolver->messagehdlr, "DSDP failed to reach required feasibility tolerance (feastol: %g, gaptol: %g)!\n", feastol, gaptol);
+         }
          break;
+      }
    }
 
    /*these arrays were used to give information to DSDP and were needed during solving and for computing X, so they may only be freed now*/
@@ -1762,16 +1769,19 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
    switch ( pdfeasible )
    {
    case DSDP_PDFEASIBLE:
+      /* primal and dual feasible */
       *primalfeasible = TRUE;
       *dualfeasible = TRUE;
       break;
 
    case DSDP_UNBOUNDED:
+      /* dual unbounded and primal infeasible */
       *primalfeasible = FALSE;
       *dualfeasible = TRUE;
       break;
 
    case DSDP_INFEASIBLE:
+      /* dual infeasible and primal unbounded */
       *primalfeasible = TRUE;
       *dualfeasible = FALSE;
       break;
@@ -1964,7 +1974,7 @@ SCIP_Bool SCIPsdpiSolverIsObjlimExc(
    )
 {  /*lint --e{715}*/
    SCIPdebugMessage("Method not implemented for DSDP, as objective limit is given as an ordinary LP-constraint, so in case the objective limit was "
-      "exceeded, the problem will be reported as infeasible ! \n");
+      "exceeded, the problem will be reported as infeasible !\n");
 
    return FALSE;
 }
@@ -2558,33 +2568,33 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    {
    case SCIP_SDPPAR_EPSILON:
       sdpisolver->epsilon = dval;
-      SCIPdebugMessage("Setting sdpisolver epsilon to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver epsilon to %g.\n", dval);
       break;
    case SCIP_SDPPAR_GAPTOL:
       sdpisolver->gaptol = dval;
-      SCIPdebugMessage("Setting sdpisolver gaptol to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver gaptol to %g.\n", dval);
       break;
    case SCIP_SDPPAR_FEASTOL:
       sdpisolver->feastol = dval;
-      SCIPdebugMessage("Setting sdpisolver feastol to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver feastol to %g.\n", dval);
       break;
    case SCIP_SDPPAR_SDPSOLVERFEASTOL:
       sdpisolver->sdpsolverfeastol = dval;
-      SCIPdebugMessage("Setting sdpisolver sdpsolverfeastol to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver sdpsolverfeastol to %g.\n", dval);
       break;
    case SCIP_SDPPAR_PENALTYPARAM:
       sdpisolver->penaltyparam = dval;
-      SCIPdebugMessage("Setting sdpisolver penaltyparameter to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver penaltyparameter to %g.\n", dval);
       break;
    case SCIP_SDPPAR_OBJLIMIT:
-      SCIPdebugMessage("Setting sdpisolver objlimit to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver objlimit to %g.\n", dval);
       sdpisolver->objlimit = dval;
       break;
    case SCIP_SDPPAR_LAMBDASTAR:
-      SCIPdebugMessage("Parameter SCIP_SDPPAR_LAMBDASTAR not used by DSDP"); /* this parameter is only used by SDPA */
+      SCIPdebugMessage("Parameter SCIP_SDPPAR_LAMBDASTAR not used by DSDP.\n"); /* this parameter is only used by SDPA */
       break;
    case SCIP_SDPPAR_WARMSTARTPOGAP:
-      SCIPdebugMessage("Setting sdpisolver preoptgap to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver preoptgap to %g.\n", dval);
       sdpisolver->preoptimalgap = dval;
       break;
    default:

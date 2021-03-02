@@ -92,7 +92,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
    SCIP_Real             feastol,            /**< feasibility tolerance to check feasibility for */
    SCIP_Real             epsilon,            /**< tolerance used to check for fixed variables */
    SCIP_Bool*            infeasible          /**< pointer to store whether solution is feasible */
-)
+   )
 {/*lint --e{818}*/
    int i;
    int j;
