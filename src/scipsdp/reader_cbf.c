@@ -1172,6 +1172,14 @@ SCIP_RETCODE CBFreadObjFcoord(
          SCIP_CALL( CBFfreeData(scip, pfile, data) );
          return SCIP_READERROR; /*lint !e527*/
       }
+      
+      if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
+      {
+         SCIPerrorMessage("Value for variable %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not allowed. \n",
+         v, *linecount);
+         SCIP_CALL( CBFfreeData(scip, pfile, data) );
+         return SCIP_READERROR;
+      }
 
       if ( SCIPisZero(scip, val) )
       {
@@ -1393,6 +1401,14 @@ SCIP_RETCODE CBFreadFcoord(
             col, *linecount, v, c, data->psdvarsizes[v]);
          SCIP_CALL( CBFfreeData(scip, pfile, data) );
          return SCIP_READERROR; /*lint !e527*/
+      }
+
+      if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
+      {
+         SCIPerrorMessage("Value for variable %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not allowed. \n",
+         v, *linecount);
+         SCIP_CALL( CBFfreeData(scip, pfile, data) );
+         return SCIP_READERROR;
       }
 
       if ( SCIPisZero(scip, val) )
