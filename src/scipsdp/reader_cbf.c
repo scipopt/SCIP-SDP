@@ -1172,11 +1172,11 @@ SCIP_RETCODE CBFreadObjFcoord(
          SCIP_CALL( CBFfreeData(scip, pfile, data) );
          return SCIP_READERROR; /*lint !e527*/
       }
-      
+
       if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
       {
-         SCIPerrorMessage("Value for variable %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not allowed. \n",
-         v, *linecount);
+         SCIPerrorMessage("Given objective coefficient in line %" SCIP_LONGINT_FORMAT " for matrix variable %d is infinity, which is not allowed.\n",
+            *linecount, v);
          SCIP_CALL( CBFfreeData(scip, pfile, data) );
          return SCIP_READERROR;
       }
@@ -1278,12 +1278,11 @@ SCIP_RETCODE CBFreadObjAcoord(
 
       if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
       {
-         SCIPerrorMessage("Value for variable %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not allowed. \n",
-         v, *linecount);
+         SCIPerrorMessage("Given objective coefficient in line %" SCIP_LONGINT_FORMAT " for scalar variable %d is infinity, which is not allowed.\n",
+            *linecount, v);
          SCIP_CALL( CBFfreeData(scip, pfile, data) );
          return SCIP_READERROR;
       }
-
 
       if ( SCIPisZero(scip, val) )
       {
@@ -1405,8 +1404,8 @@ SCIP_RETCODE CBFreadFcoord(
 
       if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
       {
-         SCIPerrorMessage("Value for variable %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not allowed. \n",
-         v, *linecount);
+         SCIPerrorMessage("Given coefficient in line %" SCIP_LONGINT_FORMAT " for matrix variable %d is infinity, which is not allowed.\n",
+            *linecount, v);
          SCIP_CALL( CBFfreeData(scip, pfile, data) );
          return SCIP_READERROR;
       }
@@ -1519,11 +1518,11 @@ SCIP_RETCODE CBFreadAcoord(
          SCIP_CALL( CBFfreeData(scip, pfile, data) );
          return SCIP_READERROR; /*lint !e527*/
       }
-      
+
       if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
       {
-         SCIPerrorMessage("Value for variable %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not allowed. \n",
-         v, *linecount);
+         SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT " for variable %d is infinity, which is not allowed.\n",
+            *linecount, v);
          SCIP_CALL( CBFfreeData(scip, pfile, data) );
          return SCIP_READERROR;
       }
@@ -1614,8 +1613,8 @@ SCIP_RETCODE CBFreadBcoord(
 
       if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
       {
-         SCIPwarningMessage(scip, "Constant value of constraint %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not recommended. \n",
-         c, *linecount);
+         SCIPwarningMessage(scip, "Given constant part in line %" SCIP_LONGINT_FORMAT " of scalar constraint %d is infinity, which is not recommended.\n",
+            *linecount, c);
          SCIP_CALL( CBFfreeData(scip, pfile, data) );
          return SCIP_READERROR; /*lint !e527*/
       }
@@ -1788,8 +1787,8 @@ SCIP_RETCODE CBFreadHcoord(
 
       if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
       {
-         SCIPerrorMessage("Value for variable %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not allowed. \n",
-         v, *linecount);
+         SCIPerrorMessage("Given SDP-coefficient in line %" SCIP_LONGINT_FORMAT " for variable %d is infinity, which is not allowed.\n",
+            *linecount, v);
          goto TERMINATE;
       }
 
@@ -2057,11 +2056,11 @@ SCIP_RETCODE CBFreadDcoord(
          SCIP_CALL( CBFfreeData(scip, pfile, data) );
          return SCIP_READERROR; /*lint !e527*/
       }
-      
+
       if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
       {
-         SCIPwarningMessage(scip, "Constant value of block %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not recommended. \n",
-         b, *linecount);
+         SCIPwarningMessage(scip, "Given constant entry in line %" SCIP_LONGINT_FORMAT " for SDP constraint %d is infinity, which is not recommended.\n",
+            *linecount, b);
          SCIP_CALL( CBFfreeData(scip, pfile, data) );
          return SCIP_READERROR; /*lint !e527*/
       }

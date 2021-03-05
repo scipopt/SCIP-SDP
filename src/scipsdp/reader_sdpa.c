@@ -287,14 +287,14 @@ int readLineDoubles(
             SCIPerrorMessage("Could not read number in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
             return -1;
          }
-         
+
          if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
          {
-            SCIPerrorMessage("Value for variable %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not allowed. \n",
-            cnt+1, *linecount);
+            SCIPerrorMessage("Given value in line %" SCIP_LONGINT_FORMAT " for variable %d is infinity, which is not allowed.\n",
+               *linecount, cnt+1);
             return -1;
          }
-         
+
          values[cnt++] = val;
          /* advance string to after number */
          str = endptr;
@@ -1010,8 +1010,8 @@ SCIP_RETCODE SDPAreadBlocks(
 
                if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
                {
-                  SCIPerrorMessage("Value for variable %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not allowed. \n",
-                  v+1, *linecount);
+                  SCIPerrorMessage("Given coefficient in line %" SCIP_LONGINT_FORMAT " for variable %d is infinity, which is not allowed.\n",
+                     *linecount, v+1);
                   goto TERMINATE;
                }
 
@@ -1065,8 +1065,8 @@ SCIP_RETCODE SDPAreadBlocks(
 
                if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
                {
-                  SCIPwarningMessage(scip, "Constant value of block %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not recommended. \n",
-                  b+1, *linecount);
+                  SCIPwarningMessage(scip, "Given constant part in line %" SCIP_LONGINT_FORMAT " of block %d is infinity, which is not recommended.\n",
+                     *linecount, b+1);
                   goto TERMINATE;
                }
 
@@ -1134,11 +1134,11 @@ SCIP_RETCODE SDPAreadBlocks(
          {
             if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
             {
-               SCIPerrorMessage("Value for variable %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not allowed. \n",
-               v+1, *linecount);
+               SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT " for variable %d is infinity, which is not allowed.\n",
+                  *linecount, v+1);
                goto TERMINATE;
-            }	
-         
+            }
+
             if ( SCIPisZero(scip, val) )
             {
                ++nzerocoef;
@@ -1210,8 +1210,8 @@ SCIP_RETCODE SDPAreadBlocks(
 
                if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val))
                {
-                  SCIPwarningMessage(scip, "Constant value of block %d in line %" SCIP_LONGINT_FORMAT " is infinit, which is not recommended. \n",
-                  b+1, *linecount);
+                  SCIPwarningMessage(scip, "Given constant part in line %" SCIP_LONGINT_FORMAT " of block %d is infinity, which is not recommended.\n",
+                     *linecount, b+1);
                   goto TERMINATE;
                }
 
