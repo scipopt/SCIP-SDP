@@ -1065,7 +1065,7 @@ SCIP_RETCODE SDPAreadBlocks(
 
                if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
                {
-                  SCIPerrorMessage(scip, "Given constant part in line %" SCIP_LONGINT_FORMAT " of block %d is infinity, which is not allowed.\n",
+                  SCIPerrorMessage("Given constant part in line %" SCIP_LONGINT_FORMAT " of block %d is infinity, which is not allowed.\n",
                      *linecount, b+1);
                   goto TERMINATE;
                }
@@ -1210,7 +1210,7 @@ SCIP_RETCODE SDPAreadBlocks(
 
                if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val))
                {
-                  SCIPerrorMessage(scip, "Given constant part in line %" SCIP_LONGINT_FORMAT " of block %d is infinity, which is not allowed.\n",
+                  SCIPerrorMessage("Given constant part in line %" SCIP_LONGINT_FORMAT " of block %d is infinity, which is not allowed.\n",
                      *linecount, b+1);
                   goto TERMINATE;
                }

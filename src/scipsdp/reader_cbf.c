@@ -1613,7 +1613,7 @@ SCIP_RETCODE CBFreadBcoord(
 
       if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
       {
-         SCIPerrorMessage(scip, "Given constant part in line %" SCIP_LONGINT_FORMAT " of scalar constraint %d is infinity, which is not allowed.\n",
+         SCIPerrorMessage("Given constant part in line %" SCIP_LONGINT_FORMAT " of scalar constraint %d is infinity, which is not allowed.\n",
             *linecount, c);
          SCIP_CALL( CBFfreeData(scip, pfile, data) );
          return SCIP_READERROR; /*lint !e527*/
@@ -2059,7 +2059,7 @@ SCIP_RETCODE CBFreadDcoord(
 
       if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
       {
-         SCIPerrorMessage(scip, "Given constant entry in line %" SCIP_LONGINT_FORMAT " for SDP constraint %d is infinity, which is not allowed.\n",
+         SCIPerrorMessage("Given constant entry in line %" SCIP_LONGINT_FORMAT " for SDP constraint %d is infinity, which is not allowed.\n",
             *linecount, b);
          SCIP_CALL( CBFfreeData(scip, pfile, data) );
          return SCIP_READERROR; /*lint !e527*/
