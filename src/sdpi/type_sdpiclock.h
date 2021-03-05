@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2019 Discrete Optimization, TU Darmstadt               */
+/*               2014-2021 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or             */
@@ -24,83 +24,42 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2019 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2021 Zuse Institute Berlin                             */
 /* SCIP is distributed under the terms of the SCIP Academic Licence,         */
 /* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   readwrite_test_L-.c
- * @brief  unit test for checking reading and writing of MISDPs in CBF format using L+ and L-
+/**@file   type_sdpiclock.h
+ * @brief  type definitions for clocks and timing issues
+ * @author Tobias Achterberg
  * @author Marc Pfetsch
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
-#include "scipsdp/scipsdpdefplugins.h"
-#include "include/scip_test.h"
+#ifndef __TYPE_SDPICLOCK_H__
+#define __TYPE_SDPICLOCK_H__
 
-/* global SCIP data structure */
-SCIP* scipsdp;
+#include "scip/def.h"
 
-#define EPS  1e-6
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-/** setup of test suite */
-static
-void setup(void)
+enum SDPI_ClockType
 {
-   SCIP_CALL( SCIPcreate(&scipsdp) );
+   SDPI_CLOCKTYPE_CPU     = 1,          /**< use CPU clock */
+   SDPI_CLOCKTYPE_WALL    = 2           /**< use wall clock */
+};
+typedef enum SDPI_ClockType SDPI_CLOCKTYPE;       /**< clock type to use */
 
-   /* include default SCIP-SDP plugins */
-   SCIP_CALL( SCIPSDPincludeDefaultPlugins(scipsdp) );
+typedef struct SDPI_Clock SDPI_CLOCK;             /**< clock timer */
+typedef struct SDPI_CPUClock SDPI_CPUCLOCK;       /**< CPU clock counter */
+typedef struct SDPI_WallClock SDPI_WALLCLOCK;     /**< wall clock counter */
+
+#ifdef __cplusplus
 }
+#endif
 
-/** deinitialization method of test */
-static
-void teardown(void)
-{
-   /* deinitialization */
-   SCIP_CALL( SCIPfree(&scipsdp) );
-
-   cr_assert_eq(BMSgetMemoryUsed(), 0, "There is a memory leak!");
-}
-
-TestSuite(readwrite, .init = setup, .fini = teardown);
-
-
-/** TESTS **/
-
-/** Test 1 */
-Test(readwrite, readCBFwriteSDPA)
-{
-   SCIP_Real obj1;
-   SCIP_Real obj2;
-
-   /* read problem in CBF format with L+ */
-   SCIP_CALL( SCIPreadProb(scipsdp, "example_small_L-.cbf", NULL) );
-
-   /* write problem in SDPA format */
-   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "example_small_L-.dat-s", "dat-s", FALSE) );
-
-   /* read problem in CBF format with L- */
-   SCIP_CALL( SCIPreadProb(scipsdp, "example_small_L+.cbf", NULL) );
-
-   /* write problem in SDPA format */
-   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "example_small_L+.dat-s", "dat-s", FALSE) );
-
-   /* read problem with L- in SDPA format and solve it */
-   SCIP_CALL( SCIPreadProb(scipsdp, "example_small_L-.dat-s", NULL) );
-
-   SCIP_CALL( SCIPsolve(scipsdp) );
-
-   obj1 = SCIPgetDualbound(scipsdp);
-
-   /* read problem with L+ in SDPA format and solve it */
-   SCIP_CALL( SCIPreadProb(scipsdp, "example_small_L+.dat-s", NULL) );
-
-   SCIP_CALL( SCIPsolve(scipsdp) );
-
-   obj2 = SCIPgetDualbound(scipsdp);
-
-   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (SDPA from CBF with L-) != %g (SDPA from CBF with L+)\n", obj1, obj2);
-}
+#endif

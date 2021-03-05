@@ -289,6 +289,11 @@ SCIP_RETCODE SCIPsdpiChgLPLhRhSides(
 /**@name Data Accessing Methods */
 /**@{ */
 
+/** returns the currently installed sdpi message handler, or NULL if messages are currently suppressed */
+SCIP_MESSAGEHDLR* SCIPsdpiGetMessagehdlr(
+   SCIP_SDPI*            sdpi                /**< SDP-interface structure */
+   );
+
 /** gets the number of LP-rows in the SDP */
 SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiGetNLPRows(
@@ -778,6 +783,13 @@ SCIP_RETCODE SCIPsdpiComputeMaxPenaltyparam(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
    SCIP_Real             penaltyparam,       /**< the initial penalty parameter */
    SCIP_Real*            maxpenaltyparam     /**< the computed maximum penalty parameter */
+   );
+
+/** sets the type of the clock */
+SCIP_EXPORT
+void SCIPsdpiClockSetType(
+   SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
+   int                   clocktype           /**< type of clock (1 = CPU, 2 = Wall) */
    );
 
 /**@} */

@@ -109,7 +109,8 @@ include $(SCIPDIR)/make/make.project
 
 # check whether SCIP binary exists
 ifeq ("$(wildcard $(SCIPDIR)/bin/scip.$(BASE).$(LPS).$(TPI)$(EXEEXTENSION))","")
-$(error Please compile SCIP with options LPS=$(LPS) SUFFIX=$(LINKLIBSUFFIX) OSTYPE=$(OSTYPE) ARCH=$(ARCH) COMP=$(COMP))
+$(warning $(SCIPDIR)/bin/scip.$(BASE).$(LPS).$(TPI)$(EXEEXTENSION) not found)
+$(error Please compile SCIP with options LPS=$(LPS) SUFFIX=$(LINKLIBSUFFIX) OSTYPE=$(OSTYPE) ARCH=$(ARCH) COMP=$(COMP) TPI=$(TPI))
 endif
 
 SCIPVERSION		:=$(shell $(SCIPDIR)/bin/scip.$(BASE).$(LPS).$(TPI)$(EXEEXTENSION) -v | sed -e 's/$$/@/')
@@ -213,6 +214,11 @@ endif
 #-----------------------------------------------------------------------------
 # SCIPSDP Library
 #-----------------------------------------------------------------------------
+
+ifeq ($(OPENBLAS),true)
+CFLAGS			+=	-DOPENBLAS
+CXXFLAGS		+=	-DOPENBLAS
+endif
 
 FLAGS			+=	-I$(SCIPSDPREALPATH)/src
 

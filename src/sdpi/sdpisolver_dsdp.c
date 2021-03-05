@@ -39,7 +39,6 @@
  */
 
 #include <assert.h>
-#include <sys/time.h>
 
 #include "sdpi/sdpisolver.h"
 
@@ -65,7 +64,7 @@
 #define MAX_MAXPENALTYPARAM         1e15     /**< if the maximum penaltyparameter is to be computed, this is the maximum value it will take */
 #define MAXPENALTYPARAM_FACTOR      1e6      /**< if the maximum penaltyparameter is to be computed, it will be set to penaltyparam * this */
 #define INFEASFEASTOLCHANGE         0.1      /**< change feastol by this factor if the solution was found to be infeasible with regards to feastol */
-#define INFEASMINFEASTOL            1E-9     /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance */
+#define INFEASMINFEASTOL            1e-15    /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance */
 
 
 /** Calls a DSDP-Function and transforms the return-code to a SCIP_LPERROR if needed. */
@@ -207,7 +206,7 @@ struct SCIP_SDPiSolver
 /** data used for checking the timelimit */
 typedef struct Timings
 {
-   struct timeval        starttime;          /**< time when solving started */
+   SDPI_CLOCK*           usedsdpitime;       /**< clock to measure how much time has been used for the current solve */
    SCIP_Real             timelimit;          /**< timelimit in seconds */
    SCIP_Bool             stopped;            /**< was the solver stopped because of the time limit? */
 } Timings;
@@ -285,24 +284,13 @@ int checkTimeLimitDSDP(
    )
 {
    Timings* timings;
-   struct timeval currenttime;
-   SCIP_Real startseconds;
-   SCIP_Real currentseconds;
-   SCIP_Real elapsedtime;
 
    assert( dsdp != NULL );
    assert( ctx != NULL );
 
    timings = (Timings*) ctx;
 
-   startseconds = (SCIP_Real) (timings->starttime).tv_sec + (SCIP_Real) (timings->starttime).tv_usec / 1e6;
-
-   TIMEOFDAY_CALL( gettimeofday(&currenttime, NULL) );/*lint !e438, !e550, !e641 */
-   currentseconds = (SCIP_Real) currenttime.tv_sec + (SCIP_Real) currenttime.tv_usec / 1e6;
-
-   elapsedtime = currentseconds - startseconds;
-
-   if ( elapsedtime > timings->timelimit )
+   if ( SDPIclockGetTime(timings->usedsdpitime) > timings->timelimit )
    {
       DSDP_CALL( DSDPSetConvergenceFlag(dsdp, DSDP_USER_TERMINATION) );/*lint !e641 */
       timings->stopped = TRUE;
@@ -389,23 +377,6 @@ void* SCIPsdpiSolverGetSolverPointer(
    return (void*) sdpisolver->dsdp;
 }
 
-/** gets default feasibility tolerance for SDP-solver in SCIP-SDP */
-SCIP_Real SCIPsdpiSolverGetDefaultSdpiSolverFeastol(
-   void
-   )
-{
-   return 1E-6;
-}
-
-
-/** gets default duality gap tolerance for SDP-solver in SCIP-SDP */
-SCIP_Real SCIPsdpiSolverGetDefaultSdpiSolverGaptol(
-   void
-   )
-{
-   return 1E-4;
-}
-
 /** gets default number of increases of penalty parameter for SDP-solver in SCIP-SDP */
 int SCIPsdpiSolverGetDefaultSdpiSolverNpenaltyIncreases(
    void
@@ -477,7 +448,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->nsdpcalls = 0;
 
    (*sdpisolver)->epsilon = 1e-9;
-   (*sdpisolver)->gaptol = 1e-4;
+   (*sdpisolver)->gaptol = 1e-6;
    (*sdpisolver)->feastol = 1e-6;
    (*sdpisolver)->sdpsolverfeastol = 1e-6;
    (*sdpisolver)->penaltyparam = 1e5;
@@ -602,10 +573,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
-   int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
-   int*                  rownactivevars,     /**< number of active variables for each LP-constraint */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
@@ -627,16 +596,17 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
                                               *   may be NULL if startXnblocknonz = NULL */
    SCIP_Real**           startXval,          /**< primal matrix X as starting point for the solver: values for each block;
                                               *   may be NULL if startXnblocknonz = NULL */
-   SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP ans MOSEK, set this to
+   SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP and MOSEK, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
-   SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
+   SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
+   SDPI_CLOCK*           usedsdpitime        /**< clock to measure how much time has been used for the current solve */
    )
 {
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, TRUE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars,
-           sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
-           indchanges, nremovedinds, blockindchanges, nremovedblocks, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol,
-           lpval, starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval, startsettings,
-           timelimit, NULL, NULL);
+      sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
+      indchanges, nremovedinds, blockindchanges, nremovedblocks, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol,
+      lpval, starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval, startsettings,
+      timelimit, usedsdpitime, NULL, NULL);
 }
 
 /** loads and solves an SDP using a penalty formulation
@@ -693,10 +663,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
-   int                   noldlpcons,         /**< number of LP-constraints including those with less than two active nonzeros */
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
-   int*                  rownactivevars,     /**< number of active variables for each LP-constraint */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
@@ -721,6 +689,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP and MOSEK, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
+   SDPI_CLOCK*           usedsdpitime,       /**< clock to measure how much time has been used for the current solve */
    SCIP_Bool*            feasorig,           /**< pointer to store if the solution to the penalty-formulation is feasible for the original problem
                                               *   (may be NULL if penaltyparam = 0) */
    SCIP_Bool*            penaltybound        /**< pointer to store if the primal solution reached the bound Tr(X) <= penaltyparam in the primal problem,
@@ -744,6 +713,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int nrnonz = 0;
    int oldnactivevars;
    SCIP_Real feastol;
+   SCIP_Real gaptol;
+   SCIP_Real solvertimelimit;
    Timings timings;
 
 #ifdef SCIP_DEBUG
@@ -776,18 +747,19 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( nsdpblocks == 0 || blockindchanges != NULL );
    assert( 0 <= nremovedblocks && nremovedblocks <= nsdpblocks );
    assert( nlpcons >= 0 );
-   assert( noldlpcons >= nlpcons );
    assert( nlpcons == 0 || lplhs != NULL );
    assert( nlpcons == 0 || lprhs != NULL );
-   assert( nlpcons == 0 || rownactivevars != NULL );
    assert( lpnnonz >= 0 );
    assert( nlpcons == 0 || lprow != NULL );
    assert( nlpcons == 0 || lpcol != NULL );
    assert( nlpcons == 0 || lpval != NULL );
 
-   sdpisolver->penalty = penaltyparam > sdpisolver->epsilon;
+   /* compute the time limit to set for the solver */
+   solvertimelimit = timelimit;
+   if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, solvertimelimit) )
+      solvertimelimit -= SDPIclockGetTime(usedsdpitime);
 
-   if ( timelimit <= 0.0 )
+   if ( solvertimelimit <= 0.0 )
    {
       sdpisolver->timelimit = TRUE;
       sdpisolver->timelimitinitial = TRUE;
@@ -798,9 +770,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->timelimitinitial = FALSE;
 
    sdpisolver->feasorig = FALSE;
+   sdpisolver->penalty = penaltyparam > sdpisolver->epsilon;
 
    /* start the timing */
-   TIMEOFDAY_CALL( gettimeofday(&(timings.starttime), NULL) );/*lint !e438, !e550, !e641 */
+   timings.usedsdpitime = usedsdpitime;
    timings.timelimit = timelimit;
    timings.stopped = FALSE;
 
@@ -1129,48 +1102,35 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       int nextcol;
       int* rowmapper; /* maps the lhs- and rhs-inequalities of the old LP-cons to their constraint numbers in DSDP */
       int pos;
-      int newpos;
       int nlpineqs;
 
-      assert( noldlpcons > 0 );
       assert( lprhs != NULL );
       assert( lpcol != NULL );
       assert( lprow != NULL );
       assert( lpval != NULL );
 
       /* allocate memory to save which lpconstraints are mapped to which index, entry 2i corresponds to the left hand side of row i, 2i+1 to the rhs */
-      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &rowmapper, 2*noldlpcons) ); /*lint !e647*/
+      BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &rowmapper, 2 * nlpcons) ); /*lint !e647*/
 
       /* compute the rowmapper and the number of inequalities we have to add to DSDP (as we have to split the ranged rows) */
       pos = 0;
-      newpos = 0; /* the position in the lhs and rhs arrays */
-      for (i = 0; i < noldlpcons; i++)
+      for (i = 0; i < nlpcons; i++)
       {
-        if ( rownactivevars[i] >= 2 )
-        {
-           if ( lplhs[newpos] > - SCIPsdpiSolverInfinity(sdpisolver) )
-           {
-              rowmapper[2*i] = pos; /*lint !e679*/
-              pos++;
-           }
-           else
-              rowmapper[2*i] = -1; /*lint !e679*/
+         if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
+         {
+            rowmapper[2*i] = pos; /*lint !e679*/
+            pos++;
+         }
+         else
+            rowmapper[2*i] = -1; /*lint !e679*/
 
-           if ( lprhs[newpos] < SCIPsdpiSolverInfinity(sdpisolver) )
-           {
-              rowmapper[2*i + 1] = pos; /*lint !e679*/
-              pos++;
-           }
-           else
-              rowmapper[2*i + 1] = -1; /*lint !e679*/
-
-           newpos++;
-        }
-        else
-        {
-           rowmapper[2*i] = -1; /*lint !e679*/
-           rowmapper[2*i + 1] = -1; /*lint !e679*/
-        }
+         if ( lprhs[i] < SCIPsdpiSolverInfinity(sdpisolver) )
+         {
+            rowmapper[2*i + 1] = pos; /*lint !e679*/
+            pos++;
+         }
+         else
+            rowmapper[2*i + 1] = -1; /*lint !e679*/
       }
       nlpineqs = pos;
       assert( nlpineqs <= 2*nlpcons ); /* *2 comes from left- and right-hand-sides */
@@ -1254,14 +1214,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
          {
-    	      if ( REALABS(lplhs[i]) > sdpisolver->epsilon )
-    	      {
-    		      dsdplprow[dsdpnlpnonz] = pos;
-    		      dsdplpval[dsdpnlpnonz] = -lplhs[i]; /* we multiply by -1 because DSDP wants <= instead of >= */
-    		      dsdpnlpnonz++;
-    	      }
-    	      pos++;
+            if ( REALABS(lplhs[i]) > sdpisolver->epsilon )
+            {
+               dsdplprow[dsdpnlpnonz] = pos;
+               dsdplpval[dsdpnlpnonz] = -lplhs[i]; /* we multiply by -1 because DSDP wants <= instead of >= */
+               dsdpnlpnonz++;
+            }
+            pos++;
          }
+
          if ( lprhs[i] < SCIPsdpiSolverInfinity(sdpisolver) )
          {
             if ( REALABS(lprhs[i]) > sdpisolver->epsilon )
@@ -1343,11 +1304,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                dsdpnlpnonz++;
             }
          }
-#ifndef SCIP_NDEBUG
-         /* if this is an active nonzero for the row, it should have at least one active var */
-         else
-            assert( isFixed(sdpisolver, lb[lpcol[i]], ub[lpcol[i]]) || rownactivevars[lprow[i]] == 1 );
-#endif
       }
 
       /* set the begcol array for all remaining variables (that aren't part of the LP-part), and also set the objlimit-constraint-entries */
@@ -1430,7 +1386,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    DSDP_CALL( DSDPSetGapTolerance(sdpisolver->dsdp, sdpisolver->gaptol) );  /* set DSDP's tolerance for duality gap */
    DSDP_CALL( DSDPSetRTolerance(sdpisolver->dsdp, sdpisolver->sdpsolverfeastol) );    /* set DSDP's tolerance for the SDP-constraints */
-   if ( sdpisolver-> sdpinfo )
+#ifndef SCIP_DEBUG
+   if ( sdpisolver->sdpinfo )
+#endif
    {
       DSDP_CALL( DSDPSetStandardMonitor(sdpisolver->dsdp, 1) );   /* output DSDP information after every 1 iteration */
    }
@@ -1458,11 +1416,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* start the solving process */
    DSDP_CALLM( DSDPSetup(sdpisolver->dsdp) );
+
    /* if there is a timelimit, set the corresponding callback */
    if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, timelimit) )
    {
       DSDP_CALLM( DSDPSetMonitor(sdpisolver->dsdp, checkTimeLimitDSDP, (void*) &timings) );
    }
+
    /* if preoptimal solutions should be saved for warmstarting purposes, set the corresponding callback */
    if ( sdpisolver->preoptimalgap >= 0.0 )
    {
@@ -1489,13 +1449,17 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* if the problem has been stably solved but did not reach the required feasibility tolerance, even though the solver
     * reports feasibility, resolve it with adjusted tolerance */
    feastol = sdpisolver->sdpsolverfeastol;
+   gaptol = sdpisolver->gaptol;
 
    while ( SCIPsdpiSolverIsAcceptable(sdpisolver) && SCIPsdpiSolverIsDualFeasible(sdpisolver) && penaltyparam < sdpisolver->epsilon && feastol >= INFEASMINFEASTOL )
    {
       SCIP_Real* solvector;
-      int nvarspointer;
+      SCIP_Real primalobj;
+      SCIP_Real dualobj;
       SCIP_Bool infeasible;
+      SCIP_Bool solveagain = FALSE;
       int newiterations;
+      int nvarspointer;
 
       /* get current solution */
       BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &solvector, nvars) );
@@ -1506,50 +1470,67 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* check the solution for feasibility with regards to our tolerance */
       SCIP_CALL( SCIPsdpSolcheckerCheck(sdpisolver->bufmem, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
-            indchanges, nremovedinds, blockindchanges, nlpcons, noldlpcons, lplhs, lprhs, rownactivevars, lpnnonz, lprow, lpcol, lpval,
+            indchanges, nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
             solvector, sdpisolver->feastol, sdpisolver->epsilon, &infeasible) );
-
       BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solvector);
 
       if ( infeasible )
       {
-         SCIPdebugMessage("Solution feasible for DSDP but outside feasibility tolerance, changing SDPA feasibility tolerance from %f to %f\n",
-               feastol, feastol * INFEASFEASTOLCHANGE);
          feastol *= INFEASFEASTOLCHANGE;
-
          if ( feastol >= INFEASMINFEASTOL )
          {
-            /* update settings */
+            SCIPdebugMessage("Solution feasible for DSDP but outside feasibility tolerance, changing DSDP feasibility tolerance to %g.\n", feastol);
             DSDP_CALL( DSDPSetRTolerance(sdpisolver->dsdp, feastol) );    /* set DSDP's tolerance for the SDP-constraints */
+            solveagain = TRUE;
+         }
+      }
 
-            DSDP_CALL( DSDPSolve(sdpisolver->dsdp) );
+      /* Check whether duality gap is small enough: We use (PP) and (DD), since these are the problems that are actually solved. */
+      DSDP_CALL( DSDPGetDDObjective(sdpisolver->dsdp, &dualobj) );
+      DSDP_CALL( DSDPGetPPObjective(sdpisolver->dsdp, &primalobj) );
+      if ( REALABS(dualobj - primalobj) >= sdpisolver->gaptol )
+      {
+         infeasible = TRUE;
+         gaptol *= INFEASFEASTOLCHANGE;
+         if ( gaptol >= INFEASMINFEASTOL )
+         {
+            SCIPdebugMessage("Solution feasible, but duality gap is too large, changing DSDP gap tolerance to %g.\n", gaptol);
+            DSDP_CALL( DSDPSetGapTolerance(sdpisolver->dsdp, gaptol) );  /* set DSDP's tolerance for duality gap */
+            solveagain = TRUE;
+         }
+      }
 
-            /* update number of SDP-iterations and -calls */
-            sdpisolver->nsdpcalls++;
-            DSDP_CALL( DSDPGetIts(sdpisolver->dsdp, &newiterations) );
-            sdpisolver->niterations += newiterations;
+      if ( solveagain )
+      {
+         DSDP_CALL( DSDPSolve(sdpisolver->dsdp) );
 
-            /* check if solving was stopped because of the time limit */
-            if ( timings.stopped )
-            {
-               sdpisolver->timelimit = TRUE;
-               sdpisolver->solved = FALSE;
-            }
-            else
-            {
-               sdpisolver->timelimit = FALSE;
-               DSDP_CALL( DSDPComputeX(sdpisolver->dsdp) ); /* computes X and determines feasibility and unboundedness of the solution */
-               sdpisolver->solved = TRUE;
-            }
+         /* update number of SDP-iterations and -calls */
+         sdpisolver->nsdpcalls++;
+         DSDP_CALL( DSDPGetIts(sdpisolver->dsdp, &newiterations) );
+         sdpisolver->niterations += newiterations;
+
+         /* check if solving was stopped because of the time limit */
+         if ( timings.stopped )
+         {
+            sdpisolver->timelimit = TRUE;
+            sdpisolver->solved = FALSE;
          }
          else
          {
-            sdpisolver->solved = FALSE;
-            SCIPmessagePrintInfo(sdpisolver->messagehdlr, "SDPA failed to reach required feasibility tolerance! \n");
+            sdpisolver->timelimit = FALSE;
+            DSDP_CALL( DSDPComputeX(sdpisolver->dsdp) ); /* computes X and determines feasibility and unboundedness of the solution */
+            sdpisolver->solved = TRUE;
          }
       }
       else
+      {
+         if ( infeasible )
+         {
+            sdpisolver->solved = FALSE;
+            SCIPmessagePrintInfo(sdpisolver->messagehdlr, "DSDP failed to reach required feasibility tolerance (feastol: %g, gaptol: %g)!\n", feastol, gaptol);
+         }
          break;
+      }
    }
 
    /*these arrays were used to give information to DSDP and were needed during solving and for computing X, so they may only be freed now*/
@@ -1788,16 +1769,19 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
    switch ( pdfeasible )
    {
    case DSDP_PDFEASIBLE:
+      /* primal and dual feasible */
       *primalfeasible = TRUE;
       *dualfeasible = TRUE;
       break;
 
    case DSDP_UNBOUNDED:
+      /* dual unbounded and primal infeasible */
       *primalfeasible = FALSE;
       *dualfeasible = TRUE;
       break;
 
    case DSDP_INFEASIBLE:
+      /* dual infeasible and primal unbounded */
       *primalfeasible = TRUE;
       *dualfeasible = FALSE;
       break;
@@ -1990,7 +1974,7 @@ SCIP_Bool SCIPsdpiSolverIsObjlimExc(
    )
 {  /*lint --e{715}*/
    SCIPdebugMessage("Method not implemented for DSDP, as objective limit is given as an ordinary LP-constraint, so in case the objective limit was "
-      "exceeded, the problem will be reported as infeasible ! \n");
+      "exceeded, the problem will be reported as infeasible !\n");
 
    return FALSE;
 }
@@ -2584,33 +2568,33 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    {
    case SCIP_SDPPAR_EPSILON:
       sdpisolver->epsilon = dval;
-      SCIPdebugMessage("Setting sdpisolver epsilon to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver epsilon to %g.\n", dval);
       break;
    case SCIP_SDPPAR_GAPTOL:
       sdpisolver->gaptol = dval;
-      SCIPdebugMessage("Setting sdpisolver gaptol to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver gaptol to %g.\n", dval);
       break;
    case SCIP_SDPPAR_FEASTOL:
       sdpisolver->feastol = dval;
-      SCIPdebugMessage("Setting sdpisolver feastol to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver feastol to %g.\n", dval);
       break;
    case SCIP_SDPPAR_SDPSOLVERFEASTOL:
       sdpisolver->sdpsolverfeastol = dval;
-      SCIPdebugMessage("Setting sdpisolver sdpsolverfeastol to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver sdpsolverfeastol to %g.\n", dval);
       break;
    case SCIP_SDPPAR_PENALTYPARAM:
       sdpisolver->penaltyparam = dval;
-      SCIPdebugMessage("Setting sdpisolver penaltyparameter to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver penaltyparameter to %g.\n", dval);
       break;
    case SCIP_SDPPAR_OBJLIMIT:
-      SCIPdebugMessage("Setting sdpisolver objlimit to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver objlimit to %g.\n", dval);
       sdpisolver->objlimit = dval;
       break;
    case SCIP_SDPPAR_LAMBDASTAR:
-      SCIPdebugMessage("Parameter SCIP_SDPPAR_LAMBDASTAR not used by DSDP"); /* this parameter is only used by SDPA */
+      SCIPdebugMessage("Parameter SCIP_SDPPAR_LAMBDASTAR not used by DSDP.\n"); /* this parameter is only used by SDPA */
       break;
    case SCIP_SDPPAR_WARMSTARTPOGAP:
-      SCIPdebugMessage("Setting sdpisolver preoptgap to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver preoptgap to %g.\n", dval);
       sdpisolver->preoptimalgap = dval;
       break;
    default:

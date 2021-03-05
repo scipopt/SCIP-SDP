@@ -1,0 +1,4 @@
+concurrent/paramsetprefix = "../settings/"
+parallel/maxnthreads = 4
+parallel/mode = 0
+concurrent/changeseeds = false

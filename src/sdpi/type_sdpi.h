@@ -51,9 +51,9 @@ extern "C" {
 enum SCIP_SDPParam
 {
    SCIP_SDPPAR_EPSILON        = 0,      /**< absolute tolerance */
-   SCIP_SDPPAR_GAPTOL         = 1,      /**< convergence tolerance */
-   SCIP_SDPPAR_FEASTOL        = 2,      /**< feasibility tolerance */
-   SCIP_SDPPAR_SDPSOLVERFEASTOL = 3,    /**< feasibility tolerance for SDP-solver */
+   SCIP_SDPPAR_GAPTOL         = 1,      /**< absolute objective convergence tolerance */
+   SCIP_SDPPAR_FEASTOL        = 2,      /**< absolute feasibility tolerance of calling program */
+   SCIP_SDPPAR_SDPSOLVERFEASTOL = 3,    /**< absolute feasibility tolerance for SDP-solver */
    SCIP_SDPPAR_OBJLIMIT       = 4,      /**< objective limit, if the SDP-solver computes a lower bound for the minimzation
                                          *   problem that is bigger than this, it may stop */
    SCIP_SDPPAR_SDPINFO        = 5,      /**< Should the SDP-solver output information to the screen? */
@@ -62,7 +62,7 @@ enum SCIP_SDPParam
    SCIP_SDPPAR_MAXPENALTYPARAM= 8,      /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP-solver did not converge */
    SCIP_SDPPAR_NPENALTYINCR   = 9,      /**< maximum number of times the penalty parameter will be increased if penalty formulation failed */
    SCIP_SDPPAR_LAMBDASTAR     = 10,     /**< the parameter lambda star used by SDPA to set the initial point */
-   SCIP_SDPPAR_NTHREADS       = 11,     /**< number of threads the SDP solver should use, currently only supported for MOSEK (-1 = number of cores) */
+   SCIP_SDPPAR_NTHREADS       = 11,     /**< number of threads the SDP solver should use, not supported by all solvers (-1 = number of cores) */
    SCIP_SDPPAR_WARMSTARTPOGAP = 12,     /**< gap at which a preoptimal solution should be saved for warmstarting purposes (currently only supported for DSDP) */
    SCIP_SDPPAR_PENINFEASADJUST= 13      /**< gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation */
 };
@@ -71,11 +71,11 @@ typedef enum SCIP_SDPParam SCIP_SDPPARAM;
 /** SDP-solver settings used */
 enum SCIP_SDPSolverSetting
 {
-   SCIP_SDPSOLVERSETTING_UNSOLVED= -1,  /**< problem was not solved */
-   SCIP_SDPSOLVERSETTING_PENALTY = 0,   /**< penalty formulation */
-   SCIP_SDPSOLVERSETTING_FAST    = 1,   /**< fastest settings */
-   SCIP_SDPSOLVERSETTING_MEDIUM  = 2,   /**< medium settings */
-   SCIP_SDPSOLVERSETTING_STABLE  = 3    /**< most stable settings */
+   SCIP_SDPSOLVERSETTING_UNSOLVED = -1, /**< problem was not solved */
+   SCIP_SDPSOLVERSETTING_PENALTY  = 0,  /**< penalty formulation */
+   SCIP_SDPSOLVERSETTING_FAST     = 1,  /**< fastest settings */
+   SCIP_SDPSOLVERSETTING_MEDIUM   = 2,  /**< medium settings */
+   SCIP_SDPSOLVERSETTING_STABLE   = 3   /**< most stable settings */
 };
 typedef enum SCIP_SDPSolverSetting SCIP_SDPSOLVERSETTING;
 
