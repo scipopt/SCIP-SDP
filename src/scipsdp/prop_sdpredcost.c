@@ -102,7 +102,7 @@ SCIP_RETCODE sdpRedcostFixingBinary(
    assert( result != NULL );
    assert( ! SCIPisInfinity(scip, REALABS(cutoffbound)) );
    assert( ! SCIPisInfinity(scip, REALABS(relaxval)) );
-   assert( SCIPisGE(scip, cutoffbound, relaxval) );
+   assert( SCIPisFeasGE(scip, cutoffbound, relaxval) );
 
    *result = SCIP_DIDNOTFIND;
 
@@ -168,7 +168,7 @@ SCIP_RETCODE sdpRedcostFixingIntCont(
    assert( result != NULL );
    assert( ! SCIPisInfinity(scip, REALABS(cutoffbound)) );
    assert( ! SCIPisInfinity(scip, REALABS(relaxval)) );
-   assert( SCIPisGE(scip, cutoffbound, relaxval) );
+   assert( SCIPisFeasGE(scip, cutoffbound, relaxval) );
 
    *result = SCIP_DIDNOTFIND;
 

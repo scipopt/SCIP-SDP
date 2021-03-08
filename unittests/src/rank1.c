@@ -44,7 +44,7 @@
 /* global SCIP data structure */
 SCIP* scipsdp;
 
-#define EPS  1e-6
+#define EPS  1e-5
 
 /** setup of test suite */
 static

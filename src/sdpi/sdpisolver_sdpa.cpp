@@ -76,13 +76,14 @@
 #define INFEASFEASTOLCHANGE         0.1      /**< change feastol by this factor if the solution was found to be infeasible with regards to feastol */
 #define INFEASMINFEASTOL            1E-9     /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance */
 
-#define MIN_LAMBDASTAR              1e0      /**< if lambda star is to be computed, this is the minimum value it will take */
+#define MIN_LAMBDASTAR              1e-6     /**< if lambda star is to be computed, this is the minimum value it will take */
 #define MAX_LAMBDASTAR              1e8      /**< if lambda star is to be computed, this is the maximum value it will take */
 #define LAMBDASTAR_FACTOR           1e0      /**< if lambda star is to be computed, the biggest guess of the SDP blocks is multiplied by this value */
 #define LAMBDASTAR_TWOPOINTS        TRUE     /**< if lambda star is to be computed, should we use only a low and a high value or instead a continuous interval */
 #define LAMBDASTAR_THRESHOLD        1e1      /**< if lambda star is to be computed and LAMBDASTAR_TWOPOINTS=TRUE, then we distinguish between low and high using this */
 #define LAMBDASTAR_LOW              1.5      /**< if lambda star is to be computed and LAMBDASTAR_TWOPOINTS=TRUE, then this is the value for below the threshold */
 #define LAMBDASTAR_HIGH             1e5      /**< if lambda star is to be computed and LAMBDASTAR_TWOPOINTS=TRUE, then this is the value for above the threshold */
+#define LAMBDASTAR_DEFAULT          1e2      /**< default value of lambda star taken from SDPA fast settings */
 
 #define MIN_PENALTYPARAM            1e5      /**< if the penalty parameter is to be computed, this is the minimum value it will take */
 #define MAX_PENALTYPARAM            1e12     /**< if the penalty parameter is to be computed, this is the maximum value it will take */
@@ -383,7 +384,8 @@ SCIP_RETCODE checkFeastolAndResolve(
    int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
    SCIP_Real*            lpval,              /**< values of LP-constraint-matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            feastol             /**< current feasibility tolerance for SDPA */
+   SCIP_Real*            feastol,            /**< current feasibility tolerance for SDPA */
+   SCIP_Real*            gaptol              /**< current gap tolerance for SDPA */
    )
 {
 #ifdef SCIP_DEBUG
@@ -391,12 +393,19 @@ SCIP_RETCODE checkFeastolAndResolve(
 #endif
 
    assert( feastol != NULL );
+   assert( gaptol != NULL );
 
-   while ( SCIPsdpiSolverIsAcceptable(sdpisolver) && SCIPsdpiSolverIsDualFeasible(sdpisolver) && penaltyparam < sdpisolver->epsilon && *feastol >= INFEASMINFEASTOL )
+   if ( penaltyparam >= sdpisolver->epsilon )
+      return SCIP_OKAY;
+
+   while ( SCIPsdpiSolverIsAcceptable(sdpisolver) && SCIPsdpiSolverIsDualFeasible(sdpisolver) && *feastol >= INFEASMINFEASTOL && *gaptol >= INFEASMINFEASTOL )
    {
       SCIP_Real* solvector;
-      int nvarspointer;
+      SCIP_Real primalobj;
+      SCIP_Real dualobj;
       SCIP_Bool infeasible;
+      SCIP_Bool solveagain = FALSE;
+      int nvarspointer;
 
       /* get current solution */
       BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &solvector, nvars) ); /*lint !e530*/
@@ -409,50 +418,68 @@ SCIP_RETCODE checkFeastolAndResolve(
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
             indchanges, nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
             solvector, sdpisolver->feastol, sdpisolver->epsilon, &infeasible) );
-
       BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solvector);
 
       if ( infeasible )
       {
-         SCIPdebugMessage("Solution feasible for SDPA but outside feasibility tolerance, changing SDPA feasibility tolerance from %f to %f\n",
-               *feastol, *feastol * INFEASFEASTOLCHANGE);
          *feastol *= INFEASFEASTOLCHANGE;
-
          if ( *feastol >= INFEASMINFEASTOL )
          {
-            /* update settings */
+            SCIPdebugMessage("Solution feasible for SDPA but outside feasibility tolerance, changing SDPA feasibility tolerance to %g.\n", *feastol);
             sdpisolver->sdpa->setParameterEpsilonDash(*feastol);
-
-#ifdef SCIP_MORE_DEBUG
-            sdpisolver->sdpa->printParameters(stdout);
-#endif
-            sdpisolver->sdpa->setInitPoint(false);
-#ifdef SDPA_RESETPARAMS
-            sdpisolver->sdpa->resetParameters();
-#else
-            sdpisolver->sdpa->initializeSolve();
-#endif
-            sdpisolver->sdpa->solve();
-
-            /* update number of SDP-iterations and -calls */
-            sdpisolver->niterations += (int) sdpisolver->sdpa->getIteration();
-            ++sdpisolver->nsdpcalls;
-
-#ifdef SCIP_DEBUG
-            /* print the phase value , i.e. whether solving was successfull */
-            sdpisolver->sdpa->getPhaseString((char*)phase_string);
-            SCIPdebugMessage("SDPA solving finished with status %s (primal and dual here are switched in contrast to our formulation)\n", phase_string);
-#endif
-         }
-         else
-         {
-            sdpisolver->solved = FALSE;
-            SCIPmessagePrintInfo(sdpisolver->messagehdlr, "SDPA failed to reach required feasibility tolerance! \n");
+            solveagain = TRUE;
          }
       }
+
+      /* check whether duality gap is small enough */
+      dualobj = sdpisolver->sdpa->getPrimalObj();
+      primalobj = sdpisolver->sdpa->getDualObj();
+      if ( REALABS(dualobj - primalobj) >= sdpisolver->gaptol )
+      {
+         infeasible = TRUE;
+         *gaptol *= INFEASFEASTOLCHANGE;
+         if ( *gaptol >= INFEASMINFEASTOL )
+         {
+            SCIPdebugMessage("Solution feasible, but duality gap is too large, changing SDPA gap tolerance to %g.\n", *gaptol);
+            sdpisolver->sdpa->setParameterEpsilonStar(*gaptol);
+            solveagain = TRUE;
+         }
+      }
+
+      if ( solveagain )
+      {
+#ifdef SCIP_MORE_DEBUG
+         sdpisolver->sdpa->printParameters(stdout);
+#endif
+         sdpisolver->sdpa->setInitPoint(false);
+#ifdef SDPA_RESETPARAMS
+         sdpisolver->sdpa->resetParameters();
+#else
+         sdpisolver->sdpa->initializeSolve();
+#endif
+         sdpisolver->sdpa->solve();
+
+         /* update number of SDP-iterations and -calls */
+         sdpisolver->niterations += (int) sdpisolver->sdpa->getIteration();
+         ++sdpisolver->nsdpcalls;
+
+#ifdef SCIP_DEBUG
+         /* print the phase value , i.e. whether solving was successfull */
+         sdpisolver->sdpa->getPhaseString((char*)phase_string);
+         SCIPdebugMessage("SDPA solving finished with status %s (primal and dual here are switched in contrast to our formulation)\n", phase_string);
+#endif
+      }
       else
+      {
+         if ( infeasible )
+         {
+            sdpisolver->solved = FALSE;
+            SCIPmessagePrintInfo(sdpisolver->messagehdlr, "SDPA failed to reach required feasibility tolerance!\n");
+         }
          break;
+      }
    }
+
    return SCIP_OKAY;
 }
 
@@ -492,22 +519,6 @@ void* SCIPsdpiSolverGetSolverPointer(
 {/*lint !e1784*/
    assert( sdpisolver != NULL );
    return (void*) sdpisolver->sdpa;
-}
-
-/** gets default feasibility tolerance for SDP-solver in SCIP-SDP */
-SCIP_Real SCIPsdpiSolverGetDefaultSdpiSolverFeastol(
-   void
-   )
-{
-   return 1E-6;
-}
-
-/** gets default duality gap tolerance for SDP-solver in SCIP-SDP */
-SCIP_Real SCIPsdpiSolverGetDefaultSdpiSolverGaptol(
-   void
-   )
-{
-   return 1E-4;
 }
 
 /** gets default number of increases of penalty parameter for SDP-solver in SCIP-SDP */
@@ -586,12 +597,13 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->nsdpalpcons = 0;
 
    (*sdpisolver)->epsilon = 1e-9;
-   (*sdpisolver)->gaptol = 1e-4;
+   (*sdpisolver)->gaptol = 1e-6;
    (*sdpisolver)->feastol = 1e-6;
    (*sdpisolver)->sdpsolverfeastol = 1e-6;
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
    (*sdpisolver)->sdpinfo = FALSE;
    (*sdpisolver)->usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
+   (*sdpisolver)->lambdastar = LAMBDASTAR_DEFAULT;
 
    (*sdpisolver)->preoptimalsol = NULL;
    (*sdpisolver)->preoptimalsolx = NULL;
@@ -858,6 +870,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    )
 {/*lint !e1784*/
    SCIP_Real feastol;
+   SCIP_Real gaptol;
    SCIP_Real solvertimelimit;
    SCIP_Bool usepreoptimalsol;
    int nfixedvars;
@@ -1402,6 +1415,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->sdpa->setParameterEpsilonStar(GAPTOLCHANGE * GAPTOLCHANGE * sdpisolver->gaptol);
       sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->sdpsolverfeastol);
       feastol = FEASTOLCHANGE * FEASTOLCHANGE * sdpisolver->sdpsolverfeastol;
+      gaptol = sdpisolver->gaptol;
       SCIPdebugMessage("Start solving process with stable settings ...\n");
    }
    else if ( startsettings == SCIP_SDPSOLVERSETTING_UNSOLVED || startsettings == SCIP_SDPSOLVERSETTING_FAST )
@@ -1410,15 +1424,17 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->sdpa->setParameterEpsilonStar(sdpisolver->gaptol);
       sdpisolver->sdpa->setParameterEpsilonDash(sdpisolver->sdpsolverfeastol);
       feastol = sdpisolver->sdpsolverfeastol;
+      gaptol = sdpisolver->gaptol;
       SCIPdebugMessage("Start solving process with fast settings\n");
    }
    else if ( startsettings == SCIP_SDPSOLVERSETTING_MEDIUM )
    {
       sdpisolver->sdpa->setParameterType(SDPA::PARAMETER_DEFAULT);
-      /* as we want to solve with stable settings, we also update epsilon and the feasibility tolerance, as we skip the default settings, we multpy once */
+      /* as we want to solve with stable settings, we also update epsilon and the feasibility tolerance, as we skip the default settings, we multiply once */
       sdpisolver->sdpa->setParameterEpsilonStar(GAPTOLCHANGE * sdpisolver->gaptol);
       sdpisolver->sdpa->setParameterEpsilonDash(FEASTOLCHANGE * sdpisolver->sdpsolverfeastol);
       feastol = FEASTOLCHANGE * sdpisolver->sdpsolverfeastol;
+      gaptol = sdpisolver->gaptol;
       SCIPdebugMessage("Start solving process with medium settings ...\n");
    }
    else
@@ -1646,7 +1662,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
     * reports feasibility, resolve it with adjusted tolerance */
    SCIP_CALL( checkFeastolAndResolve(sdpisolver, penaltyparam, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
          sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
-         nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval, &feastol) );
+         nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval, &feastol, &gaptol) );
 
    /* check whether problem has been stably solved, if it wasn't and we didn't yet use the default parametersettings (for the penalty formulation we do so), try
     * again with more stable parameters */
@@ -1700,7 +1716,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
        * reports feasibility, resolve it with adjusted tolerance */
       SCIP_CALL( checkFeastolAndResolve(sdpisolver, penaltyparam, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
-            nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval, &feastol) );
+            nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval, &feastol, &gaptol) );
    }
 
    /* if we still didn't converge, and did not yet use the stable settings, set the parameters even more conservativly */
@@ -1754,7 +1770,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
        * reports feasibility, resolve it with adjusted tolerance */
       SCIP_CALL( checkFeastolAndResolve(sdpisolver, penaltyparam, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
-            nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval, &feastol) );
+            nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval, &feastol, &gaptol) );
    }
 
 #ifdef SCIP_MORE_DEBUG
@@ -2021,7 +2037,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
    }
    else if ( phasetype ==  SDPA::pFEAS_dINF || phasetype == SDPA::pdOPT || phasetype == SDPA::pFEAS  || phasetype == SDPA::pdFEAS )
       return TRUE;
-   else if ( phasetype == SDPA::dUNBD )
+   else if ( phasetype == SDPA::pUNBD )
    {
       SCIPdebugMessage("SDPA was stopped because dual objective became smaller than lower bound");
       return TRUE;
@@ -3188,8 +3204,8 @@ SCIP_RETCODE SCIPsdpiSolverGetRealpar(
       *dval = sdpisolver->epsilon;
       break;
    case SCIP_SDPPAR_GAPTOL:
-         *dval = sdpisolver->gaptol;
-         break;
+      *dval = sdpisolver->gaptol;
+      break;
    case SCIP_SDPPAR_FEASTOL:
       *dval = sdpisolver->feastol;
       break;
@@ -3229,33 +3245,33 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    {
    case SCIP_SDPPAR_EPSILON:
       sdpisolver->epsilon = dval;
-      SCIPdebugMessage("Setting sdpisolver epsilon to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver epsilon to %g.\n", dval);
       break;
    case SCIP_SDPPAR_GAPTOL:
-         sdpisolver->gaptol = dval;
-         SCIPdebugMessage("Setting sdpisolver gaptol to %f.\n", dval);
-         break;
+      sdpisolver->gaptol = dval;
+      SCIPdebugMessage("Setting sdpisolver gaptol to %g.\n", dval);
+      break;
    case SCIP_SDPPAR_FEASTOL:
       sdpisolver->feastol = dval;
-      SCIPdebugMessage("Setting sdpisolver feastol to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver feastol to %g.\n", dval);
       break;
    case SCIP_SDPPAR_SDPSOLVERFEASTOL:
       sdpisolver->sdpsolverfeastol = dval;
-      SCIPdebugMessage("Setting sdpisolver sdpsolverfeastol to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver sdpsolverfeastol to %g.\n", dval);
       break;
    case SCIP_SDPPAR_PENALTYPARAM:
-      SCIPdebugMessage("Parameter SCIP_SDPPAR_PENALTYPARAM not used by SDPA"); /* this parameter is only used by DSDP */
+      SCIPdebugMessage("Parameter SCIP_SDPPAR_PENALTYPARAM not used by SDPA\n."); /* this parameter is only used by DSDP */
       break;
    case SCIP_SDPPAR_OBJLIMIT:
-      SCIPdebugMessage("Setting sdpisolver objlimit to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver objlimit to %g.\n", dval);
       sdpisolver->objlimit = dval;
       break;
    case SCIP_SDPPAR_LAMBDASTAR:
-      SCIPdebugMessage("Setting sdpisolver lambdastar parameter to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver lambdastar parameter to %g.\n", dval);
       sdpisolver->lambdastar = dval;
       break;
    case SCIP_SDPPAR_WARMSTARTPOGAP:
-      SCIPdebugMessage("Setting sdpisolver preoptgap to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver preoptgap to %g.\n", dval);
       sdpisolver->preoptimalgap = dval;
       break;
    default:
@@ -3342,17 +3358,17 @@ SCIP_RETCODE SCIPsdpiSolverComputeLambdastar(
    if ( compval < MIN_LAMBDASTAR )
    {
       sdpisolver->lambdastar = MIN_LAMBDASTAR;
-      SCIPdebugMessage("Setting lambdastar to %f.\n", MIN_LAMBDASTAR);
+      SCIPdebugMessage("Setting lambdastar to %g.\n", MIN_LAMBDASTAR);
    }
    else if ( compval > MAX_LAMBDASTAR )
    {
       sdpisolver->lambdastar = MAX_LAMBDASTAR;
-      SCIPdebugMessage("Setting lambdastar to %f.\n", MAX_LAMBDASTAR);
+      SCIPdebugMessage("Setting lambdastar to %g.\n", MAX_LAMBDASTAR);
    }
    else
    {
       sdpisolver->lambdastar = compval;
-      SCIPdebugMessage("Setting lambdastar to %f.\n", compval);
+      SCIPdebugMessage("Setting lambdastar to %g.\n", compval);
    }
 
    return SCIP_OKAY;
@@ -3374,17 +3390,17 @@ SCIP_RETCODE SCIPsdpiSolverComputePenaltyparam(
 
    if ( compval < MIN_PENALTYPARAM )
    {
-      SCIPdebugMessage("Setting penaltyparameter to %f.\n", MIN_PENALTYPARAM);
+      SCIPdebugMessage("Setting penalty parameter to %g.\n", MIN_PENALTYPARAM);
       *penaltyparam = MIN_PENALTYPARAM;
    }
    else if ( compval > MAX_PENALTYPARAM )
    {
-      SCIPdebugMessage("Setting penaltyparameter to %f.\n", MAX_PENALTYPARAM);
+      SCIPdebugMessage("Setting penalty parameter to %g.\n", MAX_PENALTYPARAM);
       *penaltyparam = MAX_PENALTYPARAM;
    }
    else
    {
-      SCIPdebugMessage("Setting penaltyparameter to %f.\n", compval);
+      SCIPdebugMessage("Setting penalty parameter to %g.\n", compval);
       *penaltyparam = compval;
    }
    return SCIP_OKAY;
@@ -3407,12 +3423,12 @@ SCIP_RETCODE SCIPsdpiSolverComputeMaxPenaltyparam(
    if ( compval < MAX_MAXPENALTYPARAM )
    {
       *maxpenaltyparam = compval;
-      SCIPdebugMessage("Setting maximum penaltyparameter to %f.\n", compval);
+      SCIPdebugMessage("Setting maximum penalty parameter to %g.\n", compval);
    }
    else
    {
       *maxpenaltyparam = MAX_MAXPENALTYPARAM;
-      SCIPdebugMessage("Setting penaltyparameter to %f.\n", MAX_MAXPENALTYPARAM);
+      SCIPdebugMessage("Setting penalty parameter to %g.\n", MAX_MAXPENALTYPARAM);
    }
 
    return SCIP_OKAY;
