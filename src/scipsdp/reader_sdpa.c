@@ -287,6 +287,14 @@ int readLineDoubles(
             SCIPerrorMessage("Could not read number in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
             return -1;
          }
+
+         if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
+         {
+            SCIPerrorMessage("Given value in line %" SCIP_LONGINT_FORMAT " for variable %d is infinity, which is not allowed.\n",
+               *linecount, cnt+1);
+            return -1;
+         }
+
          values[cnt++] = val;
          /* advance string to after number */
          str = endptr;
@@ -1000,6 +1008,13 @@ SCIP_RETCODE SDPAreadBlocks(
                assert( sdpcol_local != NULL );
                assert( sdpval_local != NULL );
 
+               if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
+               {
+                  SCIPerrorMessage("Given coefficient in line %" SCIP_LONGINT_FORMAT " for variable %d is infinity, which is not allowed.\n",
+                     *linecount, v+1);
+                  goto TERMINATE;
+               }
+
                nentriessdp[b]++;
 
                /* if the current memory is not sufficient reallocate*/
@@ -1047,6 +1062,13 @@ SCIP_RETCODE SDPAreadBlocks(
                assert( sdpconstrow_local != NULL );
                assert( sdpconstcol_local != NULL );
                assert( sdpconstval_local != NULL );
+
+               if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
+               {
+                  SCIPerrorMessage("Given constant part in line %" SCIP_LONGINT_FORMAT " of block %d is infinity, which is not allowed.\n",
+                     *linecount, b+1);
+                  goto TERMINATE;
+               }
 
                nentriessdpconst[b]++;
 
@@ -1110,6 +1132,13 @@ SCIP_RETCODE SDPAreadBlocks(
          /* check if this entry belongs to the constant part of the LP block (v = -1) or not (v >= 0 || v < -1) the latter for indicator variables  */
          if ( v >= 0 )
          {
+            if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
+            {
+               SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT " for variable %d is infinity, which is not allowed.\n",
+                  *linecount, v+1);
+               goto TERMINATE;
+            }
+
             if ( SCIPisZero(scip, val) )
             {
                ++nzerocoef;
@@ -1178,6 +1207,13 @@ SCIP_RETCODE SDPAreadBlocks(
             else /* constant part */
             {
                assert( v == -1 );
+
+               if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val))
+               {
+                  SCIPerrorMessage("Given constant part in line %" SCIP_LONGINT_FORMAT " of block %d is infinity, which is not allowed.\n",
+                     *linecount, b+1);
+                  goto TERMINATE;
+               }
 
                if ( SCIPisZero(scip, val) )
                   ++nzerocoef;
