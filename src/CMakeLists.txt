@@ -42,6 +42,7 @@ set(scipsdpsources
     scipsdp/scipsdpdefplugins.c
     sdpi/sdpi.c
     sdpi/sdpsolchecker.c
+    sdpi/solveonevarsdp.c
     sdpi/lapack_interface.c
     sdpi/sdpiclock.c
     scipsdpgithash.c
@@ -64,6 +65,7 @@ set(sdpiheaders
     sdpi/type_sdpi.h
     sdpi/sdpi.h
     sdpi/sdpsolchecker.h
+    sdpi/solveonevarsdp.h
 )
 
 set(objscipsdpheaders
