@@ -107,6 +107,7 @@
 #include "scipsdp/SdpVarfixer.h"
 #include "sdpi/lapack_interface.h"           /* to check feasibility if all variables are fixed during preprocessing */
 #include "sdpi/sdpiclock.h"
+#include "sdpi/solveonevarsdp.h"
 
 #include "blockmemshell/memory.h"            /* for memory allocation */
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
@@ -2625,6 +2626,8 @@ SCIP_RETCODE SCIPsdpiSolve(
    int sdpconstnnonz;
    int sdpilpnnonz = 0;
    int nactivelpcons;
+   int nactivevars = 0;
+   int activevaridx = -1;
    int nremovedblocks = 0;
    int naddediterations;
    int naddedsdpcalls;
@@ -2639,6 +2642,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    sdpi->bestbound = -SCIPsdpiSolverInfinity(sdpi->sdpisolver);
    sdpi->solved = FALSE;
    sdpi->infeasible = FALSE;
+   sdpi->allfixed = FALSE;
    sdpi->nsdpcalls = 0;
    sdpi->niterations = 0;
    sdpi->opttime = 0.0;
@@ -2702,12 +2706,17 @@ SCIP_RETCODE SCIPsdpiSolve(
    assert( ! sdpi->infeasible );
 
    /* Checks whether all variables are fixed; this cannot be done in prepareLPData() because not all variables need to be contained in LP-constraints. */
-   sdpi->allfixed = TRUE;
-   for (v = 0; v < sdpi->nvars && sdpi->allfixed; v++)
+   for (v = 0; v < sdpi->nvars; v++)
    {
       if ( ! isFixed(sdpi, v) )
-         sdpi->allfixed = FALSE;
+      {
+         ++nactivevars;
+         activevaridx = v;
+      }
    }
+
+   if ( nactivevars == 0 )
+      sdpi->allfixed = TRUE;
 
    /* check if all variables are fixed, if this is the case, check if the remaining solution for feasibility */
    if ( sdpi->allfixed )
@@ -2761,7 +2770,37 @@ SCIP_RETCODE SCIPsdpiSolve(
       sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
       sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
    }
-   else
+   /* check whether problem contains one variable and one SDP block */
+   else if ( nactivevars == 1 && sdpi->nsdpblocks == 1 )
+   {
+      SCIP_Real objval;
+      SCIP_Real optval;
+
+      assert( 0 <= activevaridx && activevaridx < sdpi->nvars );
+
+      /* search for matrix index corresponding to active variable */
+      for (v = 0; v < sdpi->sdpnblockvars[0]; ++v)
+      {
+         if ( sdpi->sdpvar[0][v] == activevaridx )
+            break;
+      }
+
+      SCIP_CALL( SCIPsolveOneVarSDP(sdpi->bufmem, sdpi->obj[activevaridx], sdpi->sdpilb[activevaridx], sdpi->sdpiub[activevaridx], sdpi->sdpblocksizes[0],
+            sdpconstnblocknonz[0], sdpconstrow[0], sdpconstcol[0], sdpconstval[0],
+            sdpi->sdpnblockvarnonz[0][v], sdpi->sdprow[0][v], sdpi->sdpcol[0][v], sdpi->sdpval[0][v],
+            SCIPsdpiInfinity(sdpi), sdpi->feastol, &objval, &optval) );
+
+      if ( optval != SCIP_INVALID && optval >= SCIPsdpiInfinity(sdpi) )
+      {
+         sdpi->solved = TRUE;
+         sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
+         sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
+         sdpi->infeasible = TRUE;
+      }
+   }
+
+   /* solve SDP if not yet done */
+   if ( ! sdpi->solved )
    {
       /* remove empty rows and columns */
       SCIP_CALL( findEmptyRowColsSDP(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges, nremovedinds, blockindchanges, &nremovedblocks) );
@@ -2796,6 +2835,13 @@ SCIP_RETCODE SCIPsdpiSolve(
       naddedsdpcalls = 0;
       SCIP_CALL( SCIPsdpiSolverGetSdpCalls(sdpi->sdpisolver, &naddedsdpcalls) );
       sdpi->nsdpcalls += naddedsdpcalls;
+
+#if 0
+      if ( nactivevars == 1 && sdpi->nsdpblocks == 1 && SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) )
+      {
+         printf("optimal: %d   infeasible: %d\n", SCIPsdpiSolverIsOptimal(sdpi->sdpisolver), SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver));
+      }
+#endif
 
       /* if the solver didn't produce a satisfactory result, we have to try with a penalty formulation */
       if ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && ! SCIPsdpiSolverIsTimelimExc(sdpi->sdpisolver) )
