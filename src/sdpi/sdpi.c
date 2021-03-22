@@ -2683,7 +2683,7 @@ SCIP_RETCODE SCIPsdpiSolve(
 
       SCIPdebugMessage("Number of active LP constraints: %d (original: %d); %d nonzeros.\n", nactivelpcons, sdpi->nlpcons, sdpilpnnonz);
    }
-   while ( fixingfound );
+   while ( fixingfound && ! sdpi->infeasible );
 
    /* exit if infeasible */
    if ( sdpi->infeasible )
