@@ -573,9 +573,9 @@ the testset allows a tightening.
 % -------------------------------------------------------------------------
 \subsection{Bound Tightening}
 
-One can also use the methods in Section~\ref{sec:CoefficientTightening} to
-compute bounds on each $y_k$ variable. For this we only need that all $A^k$
-are psd, but $y_k$ does not need to be binary. We need the following:
+The methods in Section~\ref{sec:CoefficientTightening} cannot be used to
+tighten bounds on each $y_k$ variable. The following lemma is valid, bu it
+may cut off feasible solutions as shown in an example afterwards.
 
 \begin{lemma}
   Let $A^k \succeq 0$ for all $k \in [m]$ and $\ell \in [m]$. Then for
@@ -586,9 +586,6 @@ are psd, but $y_k$ does not need to be binary. We need the following:
   \]
   where $\alpha = \min\,\{y_{\ell},\hat{\mu}_{\ell}\}$.
 \end{lemma}
-
-\todo[inline]{FM: If we tighten the bounds of a variable~$y_k$, we need to
-  scale the linear constraints accordingly.}
 
 \begin{proof}
   Observe that if $\alpha = y_{\ell}$, then the statement is trivially
@@ -613,10 +610,82 @@ are psd, but $y_k$ does not need to be binary. We need the following:
   the property of being psd, which shows the claim.
 \end{proof}
 
-From the lemma, we conclude that one can tighten the upper bounds of all
-variables $y_{\ell}$ to $\min\, \{u_{\ell}, \hat{\mu}_{\ell}\}$. This is
-implemented, but has not tightened any bound in presolving.
+The following example shows that the lemma may indeed cut off feasible
+solutions.
 
+\begin{example}
+  Consider the problem
+  \begin{align*}
+    \min\; &-y_1 \\
+    \text{s.t.}\; &
+    \begin{pmatrix} 2 & 0 \\ 0 & 2 \end{pmatrix} y_1
+    + \begin{pmatrix} 3 & 0 \\ 0 & 3 \end{pmatrix} y_2
+    + \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix} y_3
+    - \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix} \succeq 0, \\
+    & y_1 \in \{0,1\},\quad y_2 \in \{0,1\}, \quad y_3 \in [0,3]_\Z,
+  \end{align*}
+  which has optimal value $-1$. The scaling factor for the first variable
+  is~$\mu_1 = \frac{1}{2}$, but changing the upper bound of~$y_1$
+  to~$\mu_1$, i.e., fixing~$y_1 = 0$ cuts off all optimal
+  solutions. However, the above lemma is not violated, since after
+  fixing~$y_1 = \mu_1$, there still exists a feasible solution.
+\end{example}
+
+In order to correctly tighten variable bounds, assume that no coefficient
+matrix~$A^k$ is indefinite, and that the variable
+bounds~$\ell_k \leq y_k \leq u_k$ satisfy~$\ell_k >-\infty$
+if~$A^k \preceq 0$ and~$u_k < \infty$ if~$A^k \succeq 0$ for
+all~$k \in [m]$ . For an index~$k \in [m]$, define
+\begin{align*}
+  P_k \define \{i \neq k \suchthat A^i \succeq 0\},\qquad N_k \define \{i
+  \neq k \suchthat A^i \preceq 0\},
+\end{align*}
+as well as
+\begin{align*}
+  \nu_k =
+  \begin{cases}
+    \min\, \{\nu \suchthat \nu A^k + \sum_{i\in P_k}A^i u_i + \sum_{j
+      \in N_k} A^j \ell_j - A^0 \succeq 0 \}, & \text{if } A^k \succeq 0 \\
+    \max\, \{\nu \suchthat \nu A^k + \sum_{i\in P_k}A^i u_i + \sum_{j
+      \in N_k} A^j \ell_j - A^0 \succeq 0 \}, & \text{if } A^k \preceq 0.
+  \end{cases}
+\end{align*}
+
+The following lemma shows that the lower or upper bounds of the variables
+can be tightened, according to the semidefiniteness of the coefficient
+matrices.
+\begin{lemma}
+  Let all~$A^k$, $k \in [m]$ be not indefinite, and let~$\ell_k >-\infty$
+  if~$A^k \preceq 0$ as well as~$u_k < \infty$ if~$A^k \succeq 0$ for
+  all~$k \in [m]$. Then, $\sum_{k=1}^m A^k y_k - A^0 \succeq 0$ implies
+  \begin{align*}
+    y_k
+    \begin{cases}
+      \geq \max \, \{\ell_k,\, \nu_k\}, & \text{if } A^k \succeq 0, \\
+      \leq \min \, \{u_k,\, \nu_k\}, & \text{if } A^k \preceq 0.
+    \end{cases}
+  \end{align*}
+\end{lemma}
+
+\begin{proof}
+  Let all~$A^k$, $k \in [m]$ be not indefinite, and let~$\ell_k >-\infty$
+  if~$A^k \preceq 0$ as well as~$u_k < \infty$ if~$A^k \succeq 0$ for
+  all~$k \in [m]$. Furthermore, let $\sum_{k=1}^m A^k y_k - A^0 \succeq 0$,
+  and let~$k \in [m]$ with (w.l.o.g.)~$A^k \succeq 0$ and~$\nu_k \geq \ell_k$. Suppose
+  that~$y_k < \nu_k$. Then, by definition of~$\nu_k$, there
+  exists~$x \in \R^n$ with
+  \begin{align*}
+    0 &> x\T \Big(y_kA^k + \sum_{i \in P_k}A^i u_i + \sum_{i\in N_k}A^i
+        \ell_i - A^0 \Big) x \\
+      &= y_k x\T A^k x + \sum_{i \in P_k} u_i \underbrace{x\T A^i x}_{\geq 0} + \sum_{i\in N_k}
+        \ell_i \underbrace{x\T A^i x}_{\leq 0} - x\T A^0 x \\
+      &\geq y_k x\T A^k x + \sum_{i \in P_k} y_i x\T A^i x + \sum_{i\in N_k}
+        y_i x\T A^i x - x\T A^0 x \\
+      &= x\T \Big(\sum_{i=1}^m A^i y_i - A^0\Big) x,
+  \end{align*}
+  which is a contradiction to~$\sum_{k=1}^m A^k y_k - A^0 \succeq
+  0$. Thus,~$y_k \geq \nu_k$.
+\end{proof}
 
 
 % -------------------------------------------------------------------------
