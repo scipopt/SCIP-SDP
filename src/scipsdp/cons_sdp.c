@@ -1467,6 +1467,7 @@ SCIP_RETCODE diagZeroImpl(
       SCIP_Shortbool* diagnonzero;
       SCIP_VAR** vars;
       SCIP_Real* vals;
+      SCIP_Bool negintvar =  FALSE;
       int** diagvars;
       int* ndiagvars;
       int ndiagnonzero = 0;
@@ -1500,6 +1501,12 @@ SCIP_RETCODE diagZeroImpl(
       /* collect nonzero entries of matrices */
       for (v = 0; v < nvars; ++v)
       {
+         if ( SCIPvarIsIntegral(consdata->vars[v]) && SCIPisNegative(scip, SCIPvarGetLbGlobal(consdata->vars[v])) )
+         {
+            negintvar = TRUE;
+            break;
+         }
+
          for (j = 0; j < consdata->nvarnonz[v]; j++)
          {
             rowidx = consdata->row[v][j];
@@ -1529,6 +1536,22 @@ SCIP_RETCODE diagZeroImpl(
                }
             }
          }
+      }
+
+      /* early termination if there is an integral variable with a negative lower bound */
+      if ( negintvar )
+      {
+         for (j = blocksize - 1; j >= 0; j--)
+         {
+            SCIPfreeBufferArray(scip, &diagvars[j]);
+         }
+         SCIPfreeBufferArray(scip, &diagvars);
+         SCIPfreeBufferArray(scip, &ndiagvars);
+         SCIPfreeBufferArray(scip, &diagnonzero);
+         SCIPfreeBufferArray(scip, &nonzeroentries);
+         SCIPfreeBufferArray(scip, &vals);
+         SCIPfreeBufferArray(scip, &vars);
+         continue;
       }
 
       /* add nonzero diagonal entries of constant matrix */
