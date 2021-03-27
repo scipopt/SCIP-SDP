@@ -181,7 +181,6 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/scipsdpdefplugins.o \
 			scipsdp/table_relaxsdp.o \
 			scipsdp/table_slater.o \
-			scipsdp/table_sdpsolversuccess.o \
 			sdpi/sdpi.o \
 			sdpi/sdpsolchecker.o \
 			sdpi/lapack_interface.o \

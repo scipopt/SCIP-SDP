@@ -67,7 +67,6 @@
 #include "prop_companalcent.h"
 #include "scipsdpgithash.c"
 #include "table_relaxsdp.h"
-#include "table_sdpsolversuccess.h"
 #include "table_slater.h"
 
 /* hack to allow to change the name of the dialog without needing to copy everything */
@@ -212,7 +211,6 @@ SCIP_RETCODE SCIPSDPincludeDefaultPlugins(
 
    /* include tables */
    SCIP_CALL( SCIPincludeTableRelaxSdp(scip) );
-   SCIP_CALL( SCIPincludeTableSdpSolverSuccess(scip) );
    SCIP_CALL( SCIPincludeTableSlater(scip) );
 
    return SCIP_OKAY;

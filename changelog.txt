@@ -36,6 +36,7 @@ features:
 - the makefile now produces various links to libscipsdp... and scipsdp...
 - The number of threads used is now used by the SDPA interface.
 - All SDP solvers now use the same default tolerances (feasbility and gap).
+- Remove table_sdpsolversuccess, output has been added to table_relaxsdp.
 
 API changes:
 - new functions SCIPconsSdpGetNVars and SCIPconsSdpGetVars in cons_sdp.c
