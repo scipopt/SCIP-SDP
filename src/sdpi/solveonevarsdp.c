@@ -170,7 +170,7 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    if ( ub >= infinity )
       return SCIP_OKAY;
 
-   /* can currently only treat nonnegative objectie functions */
+   /* can currently only treat nonnegative objective functions */
    if ( obj < 0.0 )
       return SCIP_OKAY;
 
@@ -203,7 +203,7 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, ub, feastol, &eigenvalueub, eigenvectorub) );
    SCIPdebugMessage("ub = %g, eigenvalue: %g\n", ub, eigenvalueub);
 
-   /* if combination is not psd */
+   /* if matrix is not psd */
    if ( eigenvalueub < -feastol )
    {
       /* compute supergradient value */
@@ -224,7 +224,7 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, lb, feastol, &eigenvaluelb, eigenvectorlb) );
    SCIPdebugMessage("lb = %g, eigenvalue: %g\n", lb, eigenvaluelb);
 
-   /* if combination is psd, then the lower bound is optimal */
+   /* if matrix is psd, then the lower bound is optimal */
    if ( eigenvaluelb >= -feastol )
    {
       SCIPdebugMessage("Lower bound is optimal.\n");
@@ -234,7 +234,7 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
       goto TERMINATE;
    }
 
-   /* depending on which eigenvalue is nearer: */
+   /* choose starting point depending on which eigenvalue is nearer to 0 */
    if ( REALABS(eigenvaluelb) < REALABS(eigenvalueub) )
    {
       mu = lb;
