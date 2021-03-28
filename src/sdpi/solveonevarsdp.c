@@ -240,17 +240,26 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
       mu = lb;
       eigenvector = eigenvectorlb;
       eigenvalue = eigenvaluelb;
+
+      /* compute supergradient value */
+      computeSupergradient(sdpnnonz, sdprow, sdpcol, sdpval, eigenvector, &supergradient);
    }
    else
    {
       mu = ub;
       eigenvector = eigenvectorub;
       eigenvalue = eigenvalueub;
+
+      if ( eigenvalueub < -feastol )
+         assert( supergradient != SCIP_INVALID ); /* supergradient has been computed already */
+      else
+      {
+         /* compute supergradient value */
+         computeSupergradient(sdpnnonz, sdprow, sdpcol, sdpval, eigenvector, &supergradient);
+      }
    }
    assert( eigenvector != NULL );
-
-   /* compute supergradient value */
-   computeSupergradient(sdpnnonz, sdprow, sdpcol, sdpval, eigenvector, &supergradient);
+   assert( supergradient != SCIP_INVALID );
 
    /* we now in the case in which the lower bound is not psd, but the upper bound is */
    while ( ub - lb > feastol )
