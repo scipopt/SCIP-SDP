@@ -57,13 +57,13 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    SCIP_Real             ub,                 /**< upper bound of variable */
    int                   blocksize,          /**< size of the SDP-block */
    int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrix of the SDP-block */
-   int*                  sdpconstrow,        /**< pointer to row-indices of constant matrix */
-   int*                  sdpconstcol,        /**< pointer to column-indices of constant matrix */
-   SCIP_Real*            sdpconstval,        /**< pointer to values of entries of constant matrix */
+   int*                  sdpconstrow,        /**< array of row-indices of constant matrix */
+   int*                  sdpconstcol,        /**< array of column-indices of constant matrix */
+   SCIP_Real*            sdpconstval,        /**< array of nonzero values of entries of constant matrix */
    int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint-matrix */
-   int*                  sdprow,             /**< pointer to the row-indices of nonzero matrix entries */
-   int*                  sdpcol,             /**< pointer to the column-indices of nonzero matrix entries */
-   SCIP_Real*            sdpval,             /**< pointer to the nonzero values */
+   int*                  sdprow,             /**< array of row-indices of nonzero matrix entries */
+   int*                  sdpcol,             /**< array of column-indices of nonzero matrix entries */
+   SCIP_Real*            sdpval,             /**< array of nonzero values */
    SCIP_Real             infinity,           /**< infinity value */
    SCIP_Real             feastol,            /**< feasibility tolerance */
    SCIP_Real*            objval,             /**< pointer to store optimal objective value */
