@@ -2621,6 +2621,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    int** indchanges = NULL;
    int* nremovedinds = NULL;
    SCIP_Real addedopttime;
+   SCIP_Real solveonevarsdpobjval = SCIP_INVALID;
    SCIP_Bool fixingfound;
    int* blockindchanges;
    int sdpconstnnonz;
@@ -2790,13 +2791,14 @@ SCIP_RETCODE SCIPsdpiSolve(
             sdpi->sdpnblockvarnonz[0][v], sdpi->sdprow[0][v], sdpi->sdpcol[0][v], sdpi->sdpval[0][v],
             SCIPsdpiInfinity(sdpi), sdpi->feastol, &objval, &optval) );
 
-      if ( optval != SCIP_INVALID && optval >= SCIPsdpiInfinity(sdpi) )
+      if ( objval != SCIP_INVALID && objval >= SCIPsdpiInfinity(sdpi) )
       {
          sdpi->solved = TRUE;
          sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
          sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
          sdpi->infeasible = TRUE;
       }
+      solveonevarsdpobjval = objval;
    }
 
    /* solve SDP if not yet done */
@@ -2842,6 +2844,13 @@ SCIP_RETCODE SCIPsdpiSolve(
          printf("optimal: %d   infeasible: %d\n", SCIPsdpiSolverIsOptimal(sdpi->sdpisolver), SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver));
       }
 #endif
+
+      if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && SCIPsdpiSolverWasSolved(sdpi->sdpisolver) && solveonevarsdpobjval != SCIP_INVALID )
+      {
+         SCIP_Real objval;
+         SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
+         assert( REALABS(objval - solveonevarsdpobjval) <= sdpi->feastol );
+      }
 
       /* if the solver didn't produce a satisfactory result, we have to try with a penalty formulation */
       if ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && ! SCIPsdpiSolverIsTimelimExc(sdpi->sdpisolver) )
