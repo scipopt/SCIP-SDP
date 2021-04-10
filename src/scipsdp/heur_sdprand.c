@@ -160,7 +160,7 @@ SCIP_DECL_HEUREXIT(heurExitSdprand)
 static
 SCIP_DECL_HEUREXEC(heurExecSdprand)
 {  /*lint --e{715}*/
-   /* the current bugfix branch (3.2.1) does not have SCIPsolveProbingRelax() -> do nothing */
+   /* older SCIP do not have SCIPsolveProbingRelax() -> do nothing */
 #if ( (SCIP_VERSION > 321 || SCIP_SUBVERSION > 0) )
    SCIP_HEURDATA* heurdata;
    SCIP_CONSHDLR* conshdlrsdp;
@@ -243,7 +243,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
    nvars = SCIPgetNVars(scip);
    SCIP_CALL( SCIPallocBufferArray(scip, &sdpcands, nvars) );
    SCIP_CALL( SCIPallocBufferArray(scip, &sdpcandssol, nvars) );
-   if ( ncontvars == 0)
+   if ( ncontvars == 0 )
    {
       /* in this case we do not need to solve an SDP again, so we only need to save the fractional values */
       for (v = 0; v < nvars; ++v)
