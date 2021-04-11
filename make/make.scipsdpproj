@@ -176,9 +176,6 @@ endif
 # SDPA solver version >= 7.3.8
 ifeq ($(SDPS),sdpa)
 ifeq ($(OPENBLAS),true)
-ifeq ($(LPS),cpx)
-$(warning "CPLEX might not work together with openblas, try OPENBLAS=false.")
-endif
 BLASLIB		=	-lopenblas
 else
 BLASLIB		=	-lblas -llapack
@@ -218,6 +215,7 @@ endif
 ifeq ($(OPENBLAS),true)
 CFLAGS			+=	-DOPENBLAS
 CXXFLAGS		+=	-DOPENBLAS
+LDFLAGS			+=	-Wl,--allow-multiple-definition   # this avoids errors for multiple symbols, e.g., in CPLEX and SDP-solvers
 endif
 
 FLAGS			+=	-I$(SCIPSDPREALPATH)/src
