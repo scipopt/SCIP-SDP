@@ -822,13 +822,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          sdpisolver->objcoefs[sdpisolver->nactivevars] = obj[i];
          sdpisolver->nactivevars++;
          sdpisolver->inputtodsdpmapper[i] = sdpisolver->nactivevars; /* dsdp starts counting at 1, so we do this after increasing nactivevars */
+#ifdef SCIP_MORE_DEBUG
          SCIPdebugMessage("Variable %d becomes variable %d for SDP %d in DSDP\n", i, sdpisolver->inputtodsdpmapper[i], sdpisolver->sdpcounter);
+#endif
       }
    }
    assert( sdpisolver->nactivevars + nfixedvars == sdpisolver->nvars );
    if ( penaltyparam > sdpisolver->epsilon && (! rbound) )
    {
-      SCIPdebugMessage("Variable %d is the slack variable for the explicit penalty formulation\n", sdpisolver->nactivevars + 1);
+      SCIPdebugMessage("Variable %d is the slack variable for the explicit penalty formulation.\n", sdpisolver->nactivevars + 1);
    }
 
    /* if we want to solve without objective, we reset fixedvarsobjcontr */
@@ -1494,7 +1496,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          gaptol *= INFEASFEASTOLCHANGE;
          if ( gaptol >= INFEASMINFEASTOL )
          {
-            SCIPdebugMessage("Solution feasible, but duality gap is too large, changing DSDP gap tolerance to %g.\n", gaptol);
+            SCIPdebugMessage("Solution feasible, but duality gap %g is too large, changing DSDP gap tolerance to %g.\n", REALABS(dualobj - primalobj), gaptol);
             DSDP_CALL( DSDPSetGapTolerance(sdpisolver->dsdp, gaptol) );  /* set DSDP's tolerance for duality gap */
             solveagain = TRUE;
          }
@@ -1639,7 +1641,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
             if ( penaltybound != NULL )
             {
-               SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", rval);
+               SCIPdebugMessage("Solution not feasible in original problem, r = %g.\n", rval);
 
                /* get the trace of X to compare it with the penalty parameter */
                DSDP_CALL( DSDPGetTraceX(sdpisolver->dsdp, &trace) );
@@ -1678,7 +1680,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
             if ( penaltybound != NULL )
             {
-               SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", dsdpsol[sdpisolver->nactivevars]);
+               SCIPdebugMessage("Solution not feasible in original problem, r = %g.\n", dsdpsol[sdpisolver->nactivevars]);
 
                /* get the trace of X to compare it with the penalty parameter */
                DSDP_CALL( DSDPGetTraceX(sdpisolver->dsdp, &trace) );
@@ -1974,7 +1976,7 @@ SCIP_Bool SCIPsdpiSolverIsObjlimExc(
    )
 {  /*lint --e{715}*/
    SCIPdebugMessage("Method not implemented for DSDP, as objective limit is given as an ordinary LP-constraint, so in case the objective limit was "
-      "exceeded, the problem will be reported as infeasible !\n");
+      "exceeded, the problem will be reported as infeasible!\n");
 
    return FALSE;
 }
