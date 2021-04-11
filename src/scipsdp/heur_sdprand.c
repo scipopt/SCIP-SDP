@@ -164,15 +164,17 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
    SCIP_CONSHDLR* conshdlrsdp;
    SCIP_RELAX* relaxsdp;
    SCIP_Real* sdpcandssol;
-   SCIP_VAR** sdpcands;
    SCIP_VAR** vars;
    SCIP_SOL* relaxsol = NULL;
    SCIP_Bool usesdp = TRUE;
+   SCIP_Bool cutoff = FALSE;
+   int* sdpcands;
    int nsdpcands = 0;
    int ncontvars;
    int freq = -1;
+   int nfixed = 0;
+   int nrounded = 0;
    int nvars;
-   int iter;
    int v;
 
    assert( heur != NULL );
@@ -226,45 +228,51 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
    /* get number of continuous variables */
    ncontvars = SCIPgetNContVars(scip) +  SCIPgetNImplVars(scip);
 
-   /* decide with solution to use */
+   /* decide which solution to use */
    if ( usesdp )
    {
       SCIP_CALL( SCIPcreateRelaxSol(scip, &relaxsol, heur) );
    }
 
-   /* save old SDP solution */
+   /* prepare probing mode */
+   SCIP_CALL( SCIPstartProbing(scip) );
+
+   /* get SDP/LP solution */
    vars = SCIPgetVars(scip);
    nvars = SCIPgetNVars(scip);
    SCIP_CALL( SCIPallocBufferArray(scip, &sdpcands, nvars) );
    SCIP_CALL( SCIPallocBufferArray(scip, &sdpcandssol, nvars) );
-   if ( ncontvars == 0 )
-   {
-      /* in this case we do not need to solve an SDP again, so we only need to save the fractional values */
-      for (v = 0; v < nvars; ++v)
-      {
-         SCIP_Real val;
 
-         val = SCIPgetSolVal(scip, relaxsol, vars[v]);
-         if ( SCIPvarIsIntegral(vars[v]) && ! SCIPisFeasIntegral(scip, val) )
+   /* collect fractional unfixed values */
+   for (v = 0; v < nvars; ++v)
+   {
+      SCIP_Real val;
+      SCIP_VAR* var;
+
+      var = vars[v];
+      val = SCIPgetSolVal(scip, relaxsol, var);
+      sdpcandssol[v] = val;
+      if ( SCIPvarIsIntegral(var) )
+      {
+         if ( ! SCIPisFeasIntegral(scip, val) )
+            sdpcands[nsdpcands++] = v;
+         else
          {
-            sdpcands[nsdpcands] = vars[v];
-            sdpcandssol[nsdpcands] = val;
-            ++nsdpcands;
-         }
-      }
-   }
-   else
-   {
-      /* if there are continuous variables, we need to save all values to later be able to fix all current integer values */
-      for (v = 0; v < nvars; ++v)
-      {
-         SCIP_Real val;
+            /* make sure value is really integral */
+            val = SCIPfeasRound(scip, val);
 
-         val = SCIPgetSolVal(scip, relaxsol, vars[v]);
-         sdpcands[v] = vars[v];
-         sdpcandssol[v] = val;
-         if ( SCIPvarIsIntegral(vars[v]) && ! SCIPisFeasIntegral(scip, val) )
-            ++nsdpcands;
+            /* fixing variable to integral value */
+            if ( SCIPisGT(scip, val, SCIPvarGetLbLocal(var)) )
+            {
+               SCIP_CALL( SCIPchgVarLbProbing(scip, var, val) );
+               ++nfixed;
+            }
+            if ( SCIPisLT(scip, val, SCIPvarGetUbLocal(var)) )
+            {
+               SCIP_CALL( SCIPchgVarUbProbing(scip, var, val) );
+               ++nfixed;
+            }
+         }
       }
    }
 
@@ -277,15 +285,19 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
    /* do not proceed, if there are no fractional variables */
    if ( nsdpcands == 0 )
    {
+      SCIP_CALL( SCIPendProbing(scip) );
+
       SCIPfreeBufferArray(scip, &sdpcandssol);
       SCIPfreeBufferArray(scip, &sdpcands);
+
       return SCIP_OKAY;
    }
 
    *result = SCIP_DIDNOTFIND;
 
-   SCIPdebugMsg(scip, "node %"SCIP_LONGINT_FORMAT" executing SDP randomized rounding heuristic: depth=%d, %d fractionals.\n",
+   SCIPdebugMsg(scip, "Node %"SCIP_LONGINT_FORMAT": executing SDP randomized rounding heuristic (depth %d, %d fractionals).\n",
       SCIPgetNNodes(scip), SCIPgetDepth(scip), nsdpcands);
+   SCIPdebugMsg(scip, "Fixed %d bounds of variables with integral values.\n", nfixed);
 
    if ( ! usesdp )
    {
@@ -294,40 +306,115 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
       SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", 1) );
    }
 
-   /* perform rounding rounds */
-   for (iter = 0; iter < heurdata->nrounds; ++iter)
+   /* permute variables */
+   SCIPrandomPermuteIntArray(heurdata->randnumgen, sdpcands, 0, nsdpcands);
+
+   /* prepare solution to be changed */
+   SCIP_CALL( SCIPlinkRelaxSol(scip, heurdata->sol) );
+
+   /* perform rounding loop */
+   nfixed = 0;
+   for (v = 0; v < nsdpcands && ! cutoff; ++v)
+   {
+      SCIP_Longint ndomreds;
+      SCIP_VAR* var;
+      SCIP_Real newval;
+      SCIP_Real val;
+      SCIP_Real ceilval;
+      SCIP_Real floorval;
+      SCIP_Real lb;
+      SCIP_Real ub;
+      SCIP_Real r;
+      SCIP_Bool lbadjust;
+      SCIP_Bool ubadjust;
+
+      /* get next variable from permuted candidate array */
+      assert( 0 <= sdpcands[v] && sdpcands[v] < nvars );
+      var = vars[sdpcands[v]];
+      val = sdpcandssol[sdpcands[v]];
+      lb = SCIPvarGetLbLocal(var);
+      ub = SCIPvarGetUbLocal(var);
+
+      assert( SCIPvarIsIntegral(var) );
+      assert( ! SCIPisFeasIntegral(scip, val) );
+
+      ceilval = SCIPfeasCeil(scip, val);
+      floorval = SCIPfeasFloor(scip, val);
+
+      /* Abort if rounded ceil and floor value lie outside the variable domain. Otherwise, check if bounds allow only
+       * one rounding direction, anyway */
+      if ( lb > ceilval + 0.5 || ub < floorval - 0.5 )
+      {
+         cutoff = TRUE;
+         break;
+      }
+      else if ( SCIPisFeasEQ(scip, lb, ceilval) )
+         newval = ceilval;
+      else if ( SCIPisFeasEQ(scip, ub, floorval) )
+         newval = floorval;
+      else
+      {
+         /* if the variable is not fixed and its value is fractional */
+         r = SCIPrandomGetReal(heurdata->randnumgen, 0.0, 1.0);
+
+         /* depending on random value, round variable up/down */
+         if ( SCIPfeasFrac(scip, val) <= r )
+            newval = floorval;
+         else
+            newval = ceilval;
+
+         ++nrounded;
+      }
+
+      lbadjust = SCIPisGT(scip, newval, lb);
+      ubadjust = SCIPisLT(scip, newval, ub);
+
+      if ( lbadjust || ubadjust )
+      {
+         SCIP_CALL( SCIPnewProbingNode(scip) );
+
+         /* tighten the bounds to fix the variable for the probing node */
+         if( lbadjust )
+         {
+            SCIP_CALL( SCIPchgVarLbProbing(scip, var, newval) );
+         }
+
+         if( ubadjust )
+         {
+            SCIP_CALL( SCIPchgVarUbProbing(scip, var, newval) );
+         }
+         ++nfixed;
+
+         /* call propagation routines for the reduced problem */
+         SCIP_CALL( SCIPpropagateProbing(scip, 1, &cutoff, &ndomreds) );
+      }
+
+      /* change solution value */
+      if ( ! cutoff )
+      {
+         SCIP_CALL( SCIPsetSolVal(scip, heurdata->sol, var, newval) );
+      }
+   }
+
+   /* check solution */
+   if ( ! cutoff )
    {
       SCIP_Bool success;
-      SCIP_Bool cutoff;
-      SCIP_VAR* var;
-      SCIP_Real r;
-      int cnt = 0;
 
-      /* if there are no continuous variables, we can simply try the solution */
+      SCIPdebugMsg(scip, "Rounded %d variables.\n", nrounded);
+
+      /* if there are no continuous variables, we can just try the solution */
       if ( ncontvars == 0 )
       {
-         SCIP_CALL( SCIPlinkRelaxSol(scip, heurdata->sol) );
-
-         /* set values */
-         for (v = 0; v < nsdpcands; ++v)
+         /* possibly clean up solution */
+         for (v = 0; v < nvars; ++v)
          {
-            var = sdpcands[v];
-            assert( SCIPvarIsIntegral(var) );
+            SCIP_Real val;
 
-            /* if the variable is not fixed and its value is fractional */
-            if ( SCIPvarGetLbLocal(var) < 0.5 && SCIPvarGetUbLocal(var) > 0.5 && ! SCIPisFeasIntegral(scip, sdpcandssol[v]) )
+            val = SCIPgetSolVal(scip, heurdata->sol, vars[v]);
+            if ( SCIPvarIsIntegral(vars[v]) && SCIPisFeasIntegral(scip, val) )
             {
-               r = SCIPrandomGetReal(heurdata->randnumgen, 0.0, 1.0);
-
-               /* depending on random value, set variable to 0 or 1 */
-               if ( SCIPfeasFrac(scip, sdpcandssol[v]) <= r )
-               {
-                  SCIP_CALL( SCIPsetSolVal(scip, heurdata->sol, var, SCIPfeasFloor(scip, sdpcandssol[v])) );
-               }
-               else
-               {
-                  SCIP_CALL( SCIPsetSolVal(scip, heurdata->sol, var, SCIPfeasCeil(scip, sdpcandssol[v])) );
-               }
+               SCIP_CALL( SCIPsetSolVal(scip, heurdata->sol, vars[v], SCIPfeasRound(scip, val)) );
             }
          }
 
@@ -335,94 +422,45 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
          SCIP_CALL( SCIPtrySol(scip, heurdata->sol, FALSE, FALSE, FALSE, FALSE, TRUE, &success) );
 
          if ( success )
-            SCIPdebugMsg(scip, "Iteration %d: found solution for full binary instance.\n", iter);
+         {
+            SCIPdebugMsg(scip, "Found solution for full integral instance.\n");
+            *result = SCIP_FOUNDSOL;
+         }
          else
-            SCIPdebugMsg(scip, "Iteration %d: solution not feasible for full binary instance.\n", iter);
+            SCIPdebugMsg(scip, "Solution not feasible for full integral instance.\n");
       }
-      else
+      else if ( nfixed > 0 )
       {
          /* if there are continuous variables, we need to solve a final SDP */
-         SCIP_CALL( SCIPstartProbing(scip) );
+         SCIP_CALL( SCIPsolveProbingRelax(scip, &cutoff) );
 
-         for (v = 0; v < nvars; ++v)
+         /* if solving was successfull */
+         if (SCIPrelaxSdpSolvedProbing(relaxsdp) && SCIPrelaxSdpIsFeasible(relaxsdp) )
          {
-            SCIP_Real val;
+            /* check solution */
+            SCIP_CALL( SCIPlinkRelaxSol(scip, heurdata->sol) );
 
-            var = vars[v];
-            val = sdpcandssol[v];
+            /* try to add solution to SCIP: check all constraints, including integrality */
+            SCIP_CALL( SCIPtrySol(scip, heurdata->sol, FALSE, TRUE, TRUE, TRUE, TRUE, &success) );
 
-            /* if the variable is not fixed and its value is fractional */
-            if ( SCIPvarGetLbLocal(var) < 0.5 && SCIPvarGetUbLocal(var) > 0.5 && SCIPvarIsIntegral(var) && ! SCIPisFeasIntegral(scip, val) )
+            /* check, if solution was feasible and good enough */
+            if ( success )
             {
-               r = SCIPrandomGetReal(heurdata->randnumgen, 0.0, 1.0);
-
-               /* depending on random value, fix variable to 0 or 1 */
-               if ( val <= r )
-               {
-                  SCIP_CALL( SCIPchgVarUbProbing(scip, var, 0.0) );
-               }
-               else
-               {
-                  SCIP_CALL( SCIPchgVarLbProbing(scip, var, 1.0) );
-               }
-               ++cnt;
+               SCIPdebugMsg(scip, "Solution was feasible and good enough.\n");
+               *result = SCIP_FOUNDSOL;
             }
-            else if ( SCIPvarIsIntegral(var) && SCIPisFeasIntegral(scip, val) && SCIPisFeasGT(scip, val, SCIPvarGetLbLocal(var)) )
-            {
-               /* if an integral variable already attained an integer value, we fix it */
-               SCIP_CALL( SCIPchgVarLbProbing(scip, var, val) );
-               ++cnt;
-            }
-            else if ( SCIPvarIsIntegral(var) && SCIPisFeasIntegral(scip, val) && SCIPisFeasLT(scip, val, SCIPvarGetUbLocal(var)) )
-            {
-               /* if an integral variable already attained an integer value, we fix it */
-               SCIP_CALL( SCIPchgVarUbProbing(scip, var, val) );
-               ++cnt;
-            }
+            else
+               SCIPdebugMsg(scip, "Solution was not feasible.\n");
          }
-
-         /* if no value was changed */
-         if ( cnt == 0 )
-         {
-            /* We can exit since there will be no chance to be successful in future runs. */
-            SCIPdebugMsg(scip, "Iteration %d: All variables were fixed or their values were integral -> exit.\n", iter);
-            break;
-         }
-
-         /* apply domain propagation (use parameter settings for maximal number of rounds) */
-         SCIP_CALL( SCIPpropagateProbing(scip, 0, &cutoff, NULL) );
-         if ( ! cutoff )
-         {
-            /* solve SDP */
-            SCIP_CALL( SCIPsolveProbingRelax(scip, &cutoff) );
-
-            /* if solving was successfull */
-            if (SCIPrelaxSdpSolvedProbing(relaxsdp) && SCIPrelaxSdpIsFeasible(relaxsdp) )
-            {
-               /* check solution */
-               SCIP_CALL( SCIPlinkRelaxSol(scip, heurdata->sol) );
-
-               /* try to add solution to SCIP: check all constraints, including integrality */
-               SCIP_CALL( SCIPtrySol(scip, heurdata->sol, FALSE, TRUE, TRUE, TRUE, TRUE, &success) );
-
-               /* check, if solution was feasible and good enough */
-               if ( success )
-               {
-                  SCIPdebugMsg(scip, "Iteration %d: solution was feasible and good enough.\n", iter);
-                  *result = SCIP_FOUNDSOL;
-               }
-               else
-                  SCIPdebugMsg(scip, "Iteration %d: solution was not feasible.\n", iter);
-            }
-         }
-
-         /* free local problem */
-         SCIP_CALL( SCIPendProbing(scip) );
-
-         if ( SCIPisStopped(scip) )
-            break;
       }
    }
+   else
+   {
+      SCIPdebugMsg(scip, "Reached cutoff after %d roundings.\n", nrounded);
+   }
+
+   /* free local problem */
+   SCIP_CALL( SCIPendProbing(scip) );
 
    /* reset frequency of relaxator */
    if ( ! usesdp )
@@ -433,7 +471,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
    SCIPfreeBufferArray(scip, &sdpcandssol);
    SCIPfreeBufferArray(scip, &sdpcands);
 
-   SCIPdebugMsg(scip, "finished randomized rounding heuristic.\n");
+   SCIPdebugMsg(scip, "Finished randomized rounding heuristic.\n");
 
    return SCIP_OKAY;
 
