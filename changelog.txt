@@ -63,6 +63,7 @@ parameters:
 - rename parameter <relaxing/SDP/tightenvb> to <relaxing/SDP/tightenrows>.
 - set default value for <relaxing/SDP/sdpsolverthreads> to 1, since this usually improves running time
   (set to -1 for an automatic choice, e.g., for larger SDP blocks)
+- removed parameter <heuristics/sdprand/generalints>
 
 
 fixed bugs:
