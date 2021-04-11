@@ -435,29 +435,34 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
          SCIP_CALL( SCIPsolveProbingRelax(scip, &cutoff) );
 
          /* if solving was successfull */
-         if (SCIPrelaxSdpSolvedProbing(relaxsdp) && SCIPrelaxSdpIsFeasible(relaxsdp) )
+         if (SCIPrelaxSdpSolvedProbing(relaxsdp) )
          {
-            /* check solution */
-            SCIP_CALL( SCIPlinkRelaxSol(scip, heurdata->sol) );
-
-            /* try to add solution to SCIP: check all constraints, including integrality */
-            SCIP_CALL( SCIPtrySol(scip, heurdata->sol, FALSE, TRUE, TRUE, TRUE, TRUE, &success) );
-
-            /* check, if solution was feasible and good enough */
-            if ( success )
+            if ( SCIPrelaxSdpIsFeasible(relaxsdp) )
             {
-               SCIPdebugMsg(scip, "Solution was feasible and good enough.\n");
-               *result = SCIP_FOUNDSOL;
+               /* check solution */
+               SCIP_CALL( SCIPlinkRelaxSol(scip, heurdata->sol) );
+
+               /* try to add solution to SCIP: check all constraints, including integrality */
+               SCIP_CALL( SCIPtrySol(scip, heurdata->sol, FALSE, TRUE, TRUE, TRUE, TRUE, &success) );
+
+               /* check, if solution was feasible and good enough */
+               if ( success )
+               {
+                  SCIPdebugMsg(scip, "Solution was feasible and good enough.\n");
+                  *result = SCIP_FOUNDSOL;
+               }
+               else
+                  SCIPdebugMsg(scip, "Solution was not feasible.\n");
             }
             else
-               SCIPdebugMsg(scip, "Solution was not feasible.\n");
+               SCIPdebugMsg(scip, "Problem was infeasible.\n");
          }
       }
+      else
+         SCIPdebugMsg(scip, "No fixings have been performed.\n");
    }
    else
-   {
       SCIPdebugMsg(scip, "Reached cutoff after %d roundings.\n", nrounded);
-   }
 
    /* free local problem */
    SCIP_CALL( SCIPendProbing(scip) );
