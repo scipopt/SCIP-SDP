@@ -47,6 +47,9 @@
 #include "dsdp5.h"                           /* for DSDPUsePenalty, etc */
 #pragma GCC diagnostic warning "-Wstrict-prototypes"
 
+#ifdef OPENBLAS
+#include <cblas.h>
+#endif
 
 #include "blockmemshell/memory.h"            /* for memory allocation */
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
@@ -189,6 +192,7 @@ struct SCIP_SDPiSolver
    SCIP_Real             penaltyparam;       /**< the penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
    SCIP_Real             objlimit;           /**< objective limit for SDP-solver */
    SCIP_Bool             sdpinfo;            /**< Should the SDP-solver output information to the screen? */
+   int                   nthreads;           /**< number of threads the SDP solver should use */
    SCIP_Bool             penalty;            /**< Did the last solve use a penalty formulation? */
    SCIP_Bool             penaltyworbound;    /**< Was a penalty formulation solved without bounding r? */
    SCIP_Bool             feasorig;           /**< was the last problem solved with a penalty formulation and with original objective coefficents
@@ -454,6 +458,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->penaltyparam = 1e5;
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
    (*sdpisolver)->sdpinfo = FALSE;
+   (*sdpisolver)->nthreads = -1;
    (*sdpisolver)->usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
    (*sdpisolver)->preoptimalsolexists = FALSE;
    (*sdpisolver)->preoptimalgap = -1.0;
@@ -1415,6 +1420,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          DSDP_CALL( DSDPSetY0(sdpisolver->dsdp, i + 1, starty[sdpisolver->dsdptoinputmapper[i]]) ); /* i+1 since DSDP uses indices 1 to n */
       }
    }
+
+#ifdef OPENBLAS
+   if ( sdpisolver->nthreads > 0 )
+      openblas_set_num_threads(sdpisolver->nthreads);
+#endif
 
    /* start the solving process */
    DSDP_CALLM( DSDPSetup(sdpisolver->dsdp) );
@@ -2613,6 +2623,10 @@ SCIP_RETCODE SCIPsdpiSolverGetIntpar(
       *ival = (int) sdpisolver->sdpinfo;
       SCIPdebugMessage("Getting sdpisolver information output (%d).\n", *ival);
       break;
+   case SCIP_SDPPAR_NTHREADS:
+      *ival = sdpisolver->nthreads;
+      SCIPdebugMessage("Getting sdpisolver number of threads: %d.\n", *ival);
+      break;
    default:
       return SCIP_PARAMETERUNKNOWN;
    }
@@ -2634,6 +2648,10 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
    case SCIP_SDPPAR_SDPINFO:
       sdpisolver->sdpinfo = (SCIP_Bool) ival;
       SCIPdebugMessage("Setting sdpisolver information output (%d).\n", ival);
+      break;
+   case SCIP_SDPPAR_NTHREADS:
+      sdpisolver->nthreads = ival;
+      SCIPdebugMessage("Setting sdpisolver number of threads to %d.\n", ival);
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;
