@@ -1635,10 +1635,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             sdpisolver->feasorig = *feasorig;
 
          /* if r > 0 or we are in debug mode, also check the primal bound */
-#ifdef NDEBUG
          if ( ! *feasorig )
          {
-#endif
             if ( penaltybound != NULL )
             {
                SCIPdebugMessage("Solution not feasible in original problem, r = %g.\n", rval);
@@ -1660,9 +1658,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                else
                   *penaltybound = FALSE;
             }
-#ifdef NDEBUG
          }
-#endif
       }
       else
       {
@@ -1674,10 +1670,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          DSDP_CALL( DSDPGetY(sdpisolver->dsdp, dsdpsol, sdpisolver->nactivevars + 1) );
 
          *feasorig = (dsdpsol[sdpisolver->nactivevars] < sdpisolver->feastol); /* r is the last variable in DSDP, so the last entry gives us the value */
-#ifdef NDEBUG
          if ( ! *feasorig )
          {
-#endif
             if ( penaltybound != NULL )
             {
                SCIPdebugMessage("Solution not feasible in original problem, r = %g.\n", dsdpsol[sdpisolver->nactivevars]);
@@ -1693,15 +1687,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                if ( (penaltyparam - trace) / penaltyparam < PENALTYBOUNDTOL )
                {
                   *penaltybound = TRUE;
-                  SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible\n",
+                  SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible.\n",
                         trace, penaltyparam);
                }
                else
                   *penaltybound = FALSE;
             }
-#ifdef NDEBUG
          }
-#endif
           BMSfreeBufferMemoryArray(sdpisolver->bufmem, &dsdpsol);
       }
    }
