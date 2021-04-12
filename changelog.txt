@@ -34,6 +34,7 @@ features:
 - use same time measurement within SDPI and SDPISOLVER as in SCIP
 - new file scipsdpdef.h which contains the SCIPSDP version
 - the makefile now produces various links to libscipsdp... and scipsdp...
+- possibly update number of variables and consider added SDP constraints
 - The number of threads used is now used by the SDPA interface.
 - All SDP solvers now use the same default tolerances (feasbility and gap).
 - Remove table_sdpsolversuccess, output has been added to table_relaxsdp.
