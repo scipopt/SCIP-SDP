@@ -5375,9 +5375,6 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
 
 /** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem
  *
- *  The last input should specify the length of the arrays. If this is less than the number of variables, the needed
- *  length will be returned and a debug message thrown.
- *
  *  @note If a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent
  *  primal variable.
  */
