@@ -404,17 +404,11 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
       /* if there are no continuous variables, we can just try the solution */
       if ( ncontvars == 0 )
       {
-         /* possibly clean up solution */
+ #ifndef NDEBUG
+         /* assert that solution is really integral */
          for (v = 0; v < nvars; ++v)
-         {
-            SCIP_Real val;
-
-            val = SCIPgetSolVal(scip, heurdata->sol, vars[v]);
-            if ( SCIPvarIsIntegral(vars[v]) && SCIPisFeasIntegral(scip, val) )
-            {
-               SCIP_CALL( SCIPsetSolVal(scip, heurdata->sol, vars[v], SCIPfeasRound(scip, val)) );
-            }
-         }
+            assert( ! SCIPvarIsIntegral(vars[v]) || SCIPisFeasIntegral(scip, SCIPgetSolVal(scip, heurdata->sol, vars[v])) );
+#endif
 
          /* try to add solution to SCIP - do not need to check integrality here */
          SCIP_CALL( SCIPtrySol(scip, heurdata->sol, FALSE, FALSE, FALSE, FALSE, TRUE, &success) );
