@@ -65,6 +65,7 @@ parameters:
 - set default value for <relaxing/SDP/sdpsolverthreads> to 1, since this usually improves running time
   (set to -1 for an automatic choice, e.g., for larger SDP blocks)
 - removed parameter <heuristics/sdprand/generalints>
+- removed parameter <heuristics/sdprand/nrounds>
 
 
 fixed bugs:

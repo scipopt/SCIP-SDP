@@ -62,7 +62,6 @@
  * Default parameter settings
  */
 
-#define DEFAULT_NROUNDS                 2    /**< default number of rounding rounds */
 #define DEFAULT_RANDSEED                211  /**< default random seed */
 #define DEFAULT_RUNFORLP                FALSE/**< Should randomized rounding be applied if we are solving LPs? */
 
@@ -70,7 +69,6 @@
 struct SCIP_HeurData
 {
    SCIP_SOL*             sol;                /**< working solution */
-   int                   nrounds;            /**< number of rounding rounds */
    SCIP_RANDNUMGEN*      randnumgen;         /**< random number generator */
    SCIP_Bool             runforlp;           /**< Should randomized rounding be applied if we are solving LPs? */
 };
@@ -517,11 +515,6 @@ SCIP_RETCODE SCIPincludeHeurSdpRand(
    SCIP_CALL( SCIPsetHeurExit(scip, heur, heurExitSdprand) );
 
    /* randomized rounding heuristic parameters */
-   SCIP_CALL( SCIPaddIntParam(scip,
-         "heuristics/sdprand/nrounds",
-         "number of rounding rounds",
-         &heurdata->nrounds, FALSE, DEFAULT_NROUNDS, 0, 10000, NULL, NULL) );
-
    SCIP_CALL( SCIPaddBoolParam(scip,
          "heuristics/sdprand/runforlp",
          "Should randomized rounding be applied if we are solving LPs?",
