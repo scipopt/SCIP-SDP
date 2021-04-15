@@ -38,6 +38,7 @@ features:
 - The number of threads used is now used by the SDPA interface.
 - All SDP solvers now use the same default tolerances (feasbility and gap).
 - Remove table_sdpsolversuccess, output has been added to table_relaxsdp.
+- Heuristics <sdprand> now uses propgatation to increase its success rate.
 
 API changes:
 - new functions SCIPconsSdpGetNVars and SCIPconsSdpGetVars in cons_sdp.c
@@ -64,6 +65,8 @@ parameters:
 - rename parameter <relaxing/SDP/tightenvb> to <relaxing/SDP/tightenrows>.
 - set default value for <relaxing/SDP/sdpsolverthreads> to 1, since this usually improves running time
   (set to -1 for an automatic choice, e.g., for larger SDP blocks)
+- removed parameter <heuristics/sdprand/generalints>
+- removed parameter <heuristics/sdprand/nrounds>
 
 
 fixed bugs:
