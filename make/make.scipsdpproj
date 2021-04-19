@@ -203,7 +203,11 @@ BSTATIC		= -Wl,-Bstatic
 BDYNAMIC	= -Wl,-Bdynamic
 endif
 endif
+ifeq ($(OPENBLAS),true)
+SDPILIB		=       -m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -Wl,-rpath,$(dir $(realpath $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) $(BSTATIC) -lopenblas -lc $(BDYNAMIC) -lquadmath -pthread -lgfortran -lm
+else
 SDPILIB		=       -m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -Wl,-rpath,$(dir $(realpath $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) $(BSTATIC) -llapack -lblas -lc $(BDYNAMIC) -lquadmath -pthread -lgfortran -lm
+endif
 endif
 
 #-----------------------------------------------------------------------------
