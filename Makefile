@@ -78,13 +78,6 @@ SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libmumps_common.$(STATICLIBEXT)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libpord.$(STATICLIBEXT)
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libmpiseq.$(STATICLIBEXT)
 endif
-ifeq ($(OPENBLAS),true)
-ifeq ($(SHARED),true)
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/shared/libopenblas.$(SHAREDLIBEXT).0
-else
-SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libopenblas.$(STATICLIBEXT)
-endif
-endif
 SDPIINSTMSG	=	" -> \"sdpainc\" is the path to the SDPA \"include\" directory, e.g., \"<SDPA-path>/include\".\n"
 SDPIINSTMSG	+=	" -> \"libsdpa.*\" is the path to the SDPA library, e.g., \"<SDPA-path>/lib/libsdpa.a\".\n"
 SDPIINSTMSG	+=	" -> \"mumpsinc\" is the path to the mumps \"include\" directory, e.g., \"<SDPA-path>/mumps/include\".\n"
@@ -92,13 +85,6 @@ SDPIINSTMSG	+=	" -> \"libdmumps.*\" is the path to the dmumps library, e.g., \"<
 SDPIINSTMSG	+=	" -> \"libdmumps_common.*\" is the path to the mumps_common library, e.g., \"<SDPA-path>/mumps/build/lib/libmumps_common.$(STATICLIBEXT)\".\n"
 SDPIINSTMSG	+=	" -> \"libpord.*\" is the path to the pord library, e.g., \"<SDPA-path>/mumps/build/lib/libpord.$(STATICLIBEXT)\".\n"
 SDPIINSTMSG	+=	" -> \"libmpiseq.*\" is the path to the mpiseq library, e.g., \"<SDPA-path>/mumps/build/libseq/libmpiseq.$(STATICLIBEXT)\".\n"
-ifeq ($(OPENBLAS),true)
-ifeq ($(SHARED),true)
-SDPIINSTMSG	+=	" -> \"libopenblas.$(SHAREDLIBEXT).0\" is the openblas library.\n"
-else
-SDPIINSTMSG	+=	" -> \"libopenblas.$(STATICLIBEXT)\" is the openblas library.\n"
-endif
-endif
 SDPIINC		=  	-I$(SCIPSDPLIBDIR)/include/sdpainc
 SDPIINC		+= 	-I$(SCIPSDPLIBDIR)/include/mumpsinc
 SDPICCSRC 	= 	src/sdpi/sdpisolver_sdpa.cpp
@@ -135,6 +121,20 @@ SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_none.o
 SETTINGS	= 	lp_approx
 endif
 
+
+# add links for openblas
+ifeq ($(OPENBLAS),true)
+ifeq ($(SHARED),true)
+SDPIINSTMSG	+=	" -> \"libopenblas.$(SHAREDLIBEXT).0\" is the openblas library.\n"
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/shared/libopenblas.$(SHAREDLIBEXT).0
+else
+SDPIINSTMSG	+=	" -> \"libopenblas.$(STATICLIBEXT)\" is the openblas library.\n"
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libopenblas.$(STATICLIBEXT)
+endif
+endif
+
+
+
 LINKSMARKERFILE	=	$(LIBDIR)/linkscreated.$(LPS)-$(LPSOPT).$(OSTYPE).$(ARCH).$(COMP)$(LINKLIBSUFFIX).$(ZIMPL)-$(ZIMPLOPT).$(IPOPT)-$(IPOPTOPT).$(GAMS)
 
 
@@ -144,7 +144,7 @@ SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
 			$(OBJDIR)/sdpi
 
 #-----------------------------------------------------------------------------
-# OMPSETTINGS (used to set number of threads for Openblas)
+# OMPSETTINGS (used to set number of threads for OMP)
 #-----------------------------------------------------------------------------
 
 ifeq ($(OMP),true)
