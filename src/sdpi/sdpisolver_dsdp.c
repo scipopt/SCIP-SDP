@@ -192,7 +192,7 @@ struct SCIP_SDPiSolver
    SCIP_Real             penaltyparam;       /**< the penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
    SCIP_Real             objlimit;           /**< objective limit for SDP-solver */
    SCIP_Bool             sdpinfo;            /**< Should the SDP-solver output information to the screen? */
-   int                   nthreads;           /**< number of threads the SDP solver should use */
+   int                   nthreads;           /**< number of threads the SDP solver should use (-1 = number of cores) */
    SCIP_Bool             penalty;            /**< Did the last solve use a penalty formulation? */
    SCIP_Bool             penaltyworbound;    /**< Was a penalty formulation solved without bounding r? */
    SCIP_Bool             feasorig;           /**< was the last problem solved with a penalty formulation and with original objective coefficents
