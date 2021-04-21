@@ -58,7 +58,7 @@ SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_dsdp.o
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/dsdpinc
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libdsdp.$(STATICLIBEXT)
 SDPIINSTMSG	=	" -> \"dsdpinc\" is the path to the DSDP \"include\" directory, e.g., \"<DSDP-path>/include\".\n"
-SDPIINSTMSG	+=	" -> \"libdsdp.*\" is the path to the DSDP library, e.g., \"<DSDP-path>/lib/libdsdp.$(STATICLIBEXT)\""
+SDPIINSTMSG	+=	" -> \"libdsdp.*\" is the path to the DSDP library, e.g., \"<DSDP-path>/lib/libdsdp.$(STATICLIBEXT)\".\n"
 endif
 
 #-----------------------------------------------------------------------------
@@ -131,6 +131,9 @@ else
 SDPIINSTMSG	+=	" -> \"libopenblas.$(STATICLIBEXT)\" is the openblas library.\n"
 SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libopenblas.$(STATICLIBEXT)
 endif
+SDPIINSTMSG	+=	" -> \"openblasinc\" is the path to the openblas \"include\" directory, e.g., \"<openblas-path>/include\".\n"
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/openblasinc
+SDPIINC		+= 	-I$(SCIPSDPLIBDIR)/include/openblasinc
 endif
 
 
