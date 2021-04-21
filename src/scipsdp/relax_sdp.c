@@ -535,9 +535,10 @@ SCIP_RETCODE putSdpDataInInterface(
 
    for (i = 0; i < nvars; i++)
    {
-      obj[i] = SCIPvarGetObj(vars[i]);
-      lb[i] = SCIPvarGetLbLocal(vars[i]);
-      ub[i] = SCIPvarGetUbLocal(vars[i]);
+      int idx = SCIPsdpVarmapperGetSdpIndex(varmapper, vars[i]);
+      obj[idx] = SCIPvarGetObj(vars[i]);
+      lb[idx] = SCIPvarGetLbLocal(vars[i]);
+      ub[idx] = SCIPvarGetUbLocal(vars[i]);
    }
 
    if ( boundprimal )
@@ -1227,7 +1228,7 @@ SCIP_RETCODE putLpDataInInterface(
       else
          obj[i] = 0.0;
 
-      inds[i] = i; /* we want to change all bounds and objective coefficients, so all indices are included in inds */
+      inds[i] = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[i]); /* we want to change all bounds and objective coefficients, so all indices are included in inds */
    }
 
    /* inform interface */
@@ -3527,7 +3528,7 @@ SCIP_RETCODE calcRelax(
          if ( objforscip < SCIPsdpiInfinity(sdpi) )
          {
             for (i = 0; i < nvars; ++i)
-               SCIPdebugMsg(scip, "<%s> = %f\n", SCIPvarGetName(vars[i]), solforscip[i]);
+               SCIPdebugMsg(scip, "<%s> = %f\n", SCIPvarGetName(SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, i)), solforscip[i]);
          }
          SCIPfreeBufferArray(scip, &solforscip);
       }
@@ -3578,18 +3579,21 @@ SCIP_RETCODE calcRelax(
 
          /* create SCIP solution */
          SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
-         SCIP_CALL( SCIPsetSolVals(scip, scipsol, nvars, vars, solforscip) );
+         assert( nvars == SCIPsdpVarmapperGetNVars(relaxdata->varmapper) );
+         for (i = 0; i < nvars; ++i)
+         {
+            SCIP_CALL( SCIPsetSolVal(scip, scipsol, SCIPsdpVarmapperGetSCIPvar(relaxdata->varmapper, i), solforscip[i]) );
+         }
 
          *lowerbound = objforscip;
          relaxdata->objval = objforscip;
 
          /* copy solution */
 #if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
-         SCIP_CALL( SCIPsetRelaxSolVals(scip, relax, nvars, vars, solforscip, TRUE) );
+         SCIP_CALL( SCIPsetRelaxSolValsSol(scip, relax, scipsol, TRUE) );
 #else
-         SCIP_CALL( SCIPsetRelaxSolVals(scip, nvars, vars, solforscip, TRUE) );
+         SCIP_CALL( SCIPsetRelaxSolValsSol(scip, scipsol, TRUE) );
 #endif
-
          relaxdata->feasible = TRUE;
          *result = SCIP_SUCCESS;
          preoptimalsolsuccess = FALSE;
@@ -3839,6 +3843,49 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    /* set the solved flags to false in case a timeout happens */
    relaxdata->origsolved = FALSE;
    relaxdata->probingsolved = FALSE;
+
+   /* check whether we need to update the variables and SDP constraints */
+   if ( nvars != SCIPsdpVarmapperGetNVars(relaxdata->varmapper) )
+   {
+      SCIP_VAR** newvars;
+      int nnewvars = 0;
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &newvars, nvars) );
+      for (i = 0; i < nvars; ++i)
+      {
+         if ( ! SCIPsdpVarmapperExistsSCIPvar(relaxdata->varmapper, vars[i]) )
+            newvars[nnewvars++] = vars[i];
+      }
+      assert( 0 < nnewvars && nnewvars <= nvars );
+
+      SCIPdebugMsg(scip, "Number of variables changed, new: %d  (old: %d).\n", nvars, SCIPsdpVarmapperGetNVars(relaxdata->varmapper));
+      SCIP_CALL( SCIPsdpVarmapperAddVars(scip, relaxdata->varmapper, nnewvars, newvars) );
+      SCIPfreeBufferArray(scip, &newvars);
+
+      /* make sure that SDPs and number of variables in SDPI are updated as well */
+      SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE, FALSE) );
+   }
+   else
+   {
+      int nsdpconss;
+      int nsdpblocks;
+
+      /* compute number of SDP constraints */
+      assert( SCIPgetStage(scip) == SCIP_STAGE_SOLVING );
+      assert( relaxdata->sdpconshdlr != NULL );
+      nsdpconss = SCIPconshdlrGetNActiveConss(relaxdata->sdpconshdlr);
+
+      assert( relaxdata->sdprank1conshdlr != NULL );
+      nsdpconss += SCIPconshdlrGetNActiveConss(relaxdata->sdprank1conshdlr);
+
+      /* update if number changed */
+      SCIP_CALL( SCIPsdpiGetNSDPBlocks(relaxdata->sdpi, &nsdpblocks) );
+      if ( nsdpblocks != nsdpconss )
+      {
+         SCIPdebugMsg(scip, "Number of SDP constraints changed, new: %d  (old: %d).\n", nsdpconss, nsdpblocks);
+         SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE, FALSE) );
+      }
+   }
 
    /* don't run again if we already solved the current node (except during probing), and we solved the correct problem */
    if ( (relaxdata->lastsdpnode == SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) && ( ! SCIPinProbing(scip) ) ) && relaxdata->origsolved && ! relaxdata->resolve )
@@ -5328,32 +5375,60 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
 
 /** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem
  *
- *  The last input should specify the length of the arrays. If this is less than the number of variables, the needed
- *  length will be returned and a debug message thrown.
- *
  *  @note If a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent
  *  primal variable.
  */
 SCIP_RETCODE SCIPrelaxSdpGetPrimalBoundVars(
+   SCIP*                 scip,               /**< SCIP datastructure */
    SCIP_RELAX*           relax,              /**< SDP-relaxator to get information for */
+   SCIP_VAR**            vars,               /**< variables to get bounds for */
+   int                   nvars,              /**< number of variables */
    SCIP_Real*            lbvars,             /**< pointer to store the values of the variables corresponding to lower bounds in the dual problems */
    SCIP_Real*            ubvars,             /**< pointer to store the values of the variables corresponding to upper bounds in the dual problems */
-   int*                  arraylength         /**< input: length of lbvars and ubvars <br>
-                                              *   output: number of elements inserted into lbvars/ubvars (or needed length if it wasn't sufficient) */
+   SCIP_Bool*            success             /**< pointer to store success (may fail if problem is infeasible or all variables are fixed) */
    )
 {
    SCIP_RELAXDATA* relaxdata;
+   SCIP_Real* lb;
+   SCIP_Real* ub;
+   int arraylength;
+   int j;
 
+   assert( scip != NULL );
    assert( relax != NULL );
    assert( lbvars != NULL );
    assert( ubvars != NULL );
-   assert( arraylength != NULL );
-   assert( *arraylength >= 0 );
+   assert( success != NULL );
 
    relaxdata = SCIPrelaxGetData(relax);
    assert( relaxdata != NULL );
 
-   SCIP_CALL( SCIPsdpiGetPrimalBoundVars(relaxdata->sdpi, lbvars, ubvars, arraylength) );
+   assert( nvars <= SCIPsdpVarmapperGetNVars(relaxdata->varmapper) );
+
+   SCIP_CALL( SCIPallocBufferArray(scip, &lb, nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &ub, nvars) );
+
+   arraylength = nvars;
+   SCIP_CALL( SCIPsdpiGetPrimalBoundVars(relaxdata->sdpi, lb, ub, &arraylength) );
+   if ( arraylength >= 0 )
+   {
+      assert( arraylength == nvars );
+
+      for (j = 0; j < nvars; ++j)
+      {
+         int idx;
+
+         idx = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[j]);
+         lbvars[j] = lb[idx];
+         ubvars[j] = ub[idx];
+      }
+      *success = TRUE;
+   }
+   else
+      *success = FALSE;
+
+   SCIPfreeBufferArray(scip, &ub);
+   SCIPfreeBufferArray(scip, &lb);
 
    return SCIP_OKAY;
 }

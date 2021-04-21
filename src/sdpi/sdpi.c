@@ -1860,7 +1860,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    SCIPdebugMessage("Calling SCIPsdpiLoadSDP (%d) ...\n", sdpi->sdpid);
 
    assert( sdpi != NULL );
-   assert( nvars > 0 );
+   assert( nvars >= 0 );
    assert( obj != NULL );
    assert( lb != NULL );
    assert( ub != NULL );
