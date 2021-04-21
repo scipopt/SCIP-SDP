@@ -170,7 +170,7 @@ SDPICCOBJ	=
 # DSDP solver
 ifeq ($(SDPS),dsdp)
 ifeq ($(OPENBLAS),true)
-SDPILIB		= 	$(SCIPSDPLIBDIR)/static/libdsdp.$(STATICLIBEXT) -lopenblas -lgfortran
+SDPILIB		= 	$(SCIPSDPLIBDIR)/static/libdsdp.$(STATICLIBEXT) -lopenblas -lgfortran -pthread
 else
 SDPILIB		= 	$(SCIPSDPLIBDIR)/static/libdsdp.$(STATICLIBEXT) -llapack -lblas
 endif
