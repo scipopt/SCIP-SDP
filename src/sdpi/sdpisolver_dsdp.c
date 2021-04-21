@@ -2093,7 +2093,18 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
 {
+   DSDPSolutionType pdfeasible;
+
    assert( sdpisolver != NULL );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
+
+   DSDP_CALL_BOOL(DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible));
+
+   if ( pdfeasible == DSDP_PDUNKNOWN )
+   {
+      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible\n");
+      return FALSE;
+   }
 
    return SCIPsdpiSolverIsConverged(sdpisolver);
 }
