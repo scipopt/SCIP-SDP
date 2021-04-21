@@ -169,16 +169,17 @@ SDPICCOBJ	=
 #-----------------------------------------------------------------------------
 # DSDP solver
 ifeq ($(SDPS),dsdp)
+ifeq ($(OPENBLAS),true)
+SDPILIB		= 	$(SCIPSDPLIBDIR)/static/libdsdp.$(STATICLIBEXT) -lopenblas -lgfortran -pthread
+else
 SDPILIB		= 	$(SCIPSDPLIBDIR)/static/libdsdp.$(STATICLIBEXT) -llapack -lblas
+endif
 endif
 
 #-----------------------------------------------------------------------------
 # SDPA solver version >= 7.3.8
 ifeq ($(SDPS),sdpa)
 ifeq ($(OPENBLAS),true)
-ifeq ($(LPS),cpx)
-$(warning "CPLEX might not work together with openblas, try OPENBLAS=false.")
-endif
 BLASLIB		=	-lopenblas
 else
 BLASLIB		=	-lblas -llapack
@@ -202,7 +203,11 @@ BSTATIC		= -Wl,-Bstatic
 BDYNAMIC	= -Wl,-Bdynamic
 endif
 endif
+ifeq ($(OPENBLAS),true)
+SDPILIB		=       -m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -Wl,-rpath,$(dir $(realpath $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) $(BSTATIC) -lopenblas -lc $(BDYNAMIC) -lquadmath -pthread -lgfortran -lm
+else
 SDPILIB		=       -m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -Wl,-rpath,$(dir $(realpath $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) $(BSTATIC) -llapack -lblas -lc $(BDYNAMIC) -lquadmath -pthread -lgfortran -lm
+endif
 endif
 
 #-----------------------------------------------------------------------------
@@ -218,6 +223,7 @@ endif
 ifeq ($(OPENBLAS),true)
 CFLAGS			+=	-DOPENBLAS
 CXXFLAGS		+=	-DOPENBLAS
+LDFLAGS			+=	-Wl,--allow-multiple-definition   # this avoids errors for multiple symbols, e.g., in CPLEX and SDP-solvers
 endif
 
 FLAGS			+=	-I$(SCIPSDPREALPATH)/src

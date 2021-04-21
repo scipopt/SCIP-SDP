@@ -179,7 +179,7 @@ struct SCIP_SDPiSolver
    SCIP_Real*            preoptimalsolxlp;   /**< LP part of primal solution for first feasible solution with gap less or equal preoptimalgap */
    SCIP_Bool             preoptimalsolexists;/**< saved feasible solution with gap less or equal preoptimalgap */
    SCIP_Real             preoptimalgap;      /**< gap at which a preoptimal solution should be saved for warmstarting purposes */
-   int                   nthreads;           /**< number of threads the SDP solver should use */
+   int                   nthreads;           /**< number of threads the SDP solver should use (-1 = number of cores) */
 };
 
 
