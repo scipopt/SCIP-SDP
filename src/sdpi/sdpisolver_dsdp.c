@@ -1816,7 +1816,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
 /*      SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible");
       SCIPABORT();
       return SCIP_LPERROR;*/
-      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible.");
+      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible.\n");
       return FALSE;
    }
    else if ( pdfeasible == DSDP_INFEASIBLE )
@@ -1843,7 +1843,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
 /*      SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible");
       SCIPABORT();
       return SCIP_LPERROR;*/
-      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible");
+      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible.\n");
       return FALSE;
    }
    else if ( pdfeasible == DSDP_UNBOUNDED )
@@ -1866,7 +1866,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
    DSDP_CALL_BOOL( DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible) );
    if ( pdfeasible == DSDP_PDUNKNOWN )
    {
-      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible");
+      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible.\n");
       return FALSE;
    }
    else if ( pdfeasible == DSDP_UNBOUNDED )
@@ -1890,7 +1890,7 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
    DSDP_CALL_BOOL( DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible) );
    if ( pdfeasible == DSDP_PDUNKNOWN )
    {
-      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible");
+      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible.\n");
       return FALSE;
    }
    else if ( pdfeasible == DSDP_UNBOUNDED )
@@ -1915,7 +1915,7 @@ SCIP_Bool SCIPsdpiSolverIsDualInfeasible(
 
    if ( pdfeasible == DSDP_PDUNKNOWN )
    {
-      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible");
+      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible.\n");
       return FALSE;
    }
    else if ( pdfeasible == DSDP_INFEASIBLE )
@@ -1940,7 +1940,7 @@ SCIP_Bool SCIPsdpiSolverIsDualFeasible(
 
    if ( pdfeasible == DSDP_PDUNKNOWN )
    {
-      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible");
+      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible.\n");
       return FALSE;
    }
    else if ( pdfeasible == DSDP_INFEASIBLE )
@@ -2102,7 +2102,7 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
 
    if ( pdfeasible == DSDP_PDUNKNOWN )
    {
-      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible\n");
+      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible.\n");
       return FALSE;
    }
 
@@ -2194,7 +2194,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
       assert( dualsol != NULL );
       if ( *dualsollength < sdpisolver->nvars )
       {
-         SCIPdebugMessage("The given array in SCIPsdpiSolverGetSol only had length %d, but %d was needed", *dualsollength, sdpisolver->nvars);
+         SCIPdebugMessage("The given array in SCIPsdpiSolverGetSol only had length %d, but %d was needed.\n", *dualsollength, sdpisolver->nvars);
          *dualsollength = sdpisolver->nvars;
 
          return SCIP_OKAY;
@@ -2677,7 +2677,7 @@ SCIP_RETCODE SCIPsdpiSolverComputeLambdastar(
    SCIP_Real             maxguess            /**< maximum guess for lambda star of all SDP-constraints */
    )
 {  /*lint --e{715}*/
-   SCIPdebugMessage("Lambdastar parameter not used by DSDP"); /* this parameter is only used by SDPA */
+   SCIPdebugMessage("Lambdastar parameter not used by DSDP.\n"); /* this parameter is only used by SDPA */
 
    return SCIP_OKAY;
 }
