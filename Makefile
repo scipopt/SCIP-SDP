@@ -46,7 +46,7 @@ SCIPREALPATH	=	$(realpath $(SCIPDIR))
 # overwrite flags for dependencies
 DFLAGS		=       -MM
 
-SCIPSDPVERSION	= 3.2.0
+SCIPSDPVERSION	= 3.3.0
 
 #-----------------------------------------------------------------------------
 # DSDP solver
