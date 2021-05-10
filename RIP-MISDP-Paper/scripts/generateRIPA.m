@@ -1,5 +1,5 @@
 function [] = generateRIPA(m,n,k,seed,instances,type,bandwidth)
-%generiert zufällige Matrizen zum Berechnen der RIP
+% generiert zufällige Matrizen zum Berechnen der RIP
 % Optionen:
 % m = Zeilen der zufälligen Matrix
 % n = Spalten der zufälligen Matrix
@@ -17,7 +17,10 @@ function [] = generateRIPA(m,n,k,seed,instances,type,bandwidth)
 % Output:
 % Matrizen werden nach 'Matrices/type.m.n.k' geschrieben
 % Kodierung der erzeugten Probleminstanzen im Ordner MISDP:
-% type.m.n.k_MISDP.side.pd.rank.socp.strgbnds.trineq.boundver, wobei
+% 
+% type.m.n.k_MISDP.side.pd.rank.socp.strgbnds.trineq.boundver.sumineq 
+% 
+% wobei
 % type, m, n, k : wie oben
 % side          : l (linke Seite/alpha_k), r (rechte Seite/beta_k)
 % pd            : p (primal, Matrixvariablen), d (dual, Skalarvariablen)
@@ -30,11 +33,13 @@ function [] = generateRIPA(m,n,k,seed,instances,type,bandwidth)
 % boundver      : 0 (-z_i <= X_{ii} <= z_i, i = 1,...,n)
 %               : 1 (-z_j <= X_{ij} <= z_j, i,j = 1,...,n)
 %               : 2 (wie 1, zusätzlich -0.5*z_j <= X_{ij} <= 0.5*z_j, i ~= j) 
-
+% sumineq       : 1 (mit sum_{i\neq j} X_{ij} \leq k-1), 0 (ohne)
 
 for instance=1:instances
+    matdir = 'Matrices_new/';
+    datadir = 'MISDP_new/';
     file = sprintf('%s%d%d%d%s',type,m,n,k,char(instance+64));
-    fid = fopen(strcat('Matrices/',file),'w');
+    fid = fopen(strcat(matdir,file),'w');
 
     % generate random matrix A depending on type
     switch type
@@ -114,50 +119,53 @@ for instance=1:instances
     
     % generate various variants of MISDP-formulation
     % 1. SDPA from Tristan:
-    RIPSDPA(A,k,'l',strcat('MISDP/',file,'_MISDPl.dat-s'),0);
-    RIPSDPA(A,k,'r',strcat('MISDP/',file,'_MISDPr.dat-s'),0);
+    RIPSDPA(A,k,'l',strcat(datadir,file,'_MISDPl.dat-s'),0);
+    RIPSDPA(A,k,'r',strcat(datadir,file,'_MISDPr.dat-s'),0);
     
     % 2. CBF
     rank = [0,1];
-    socp = [0,1,2];
+    socp = [0,1];
     usestrgbnds = true;
     primaldual = "pd";
     trineq = [0,1];
     boundver = [0,1,2];
+    sumineq = [0,1];
     for r = rank
         for t = trineq
             for b = boundver
-                if primaldual == "p" || primaldual == "pd"
-                    name = strcat('MISDP/',file,'_MISDPlp',string(r),"0","0",...
-                        string(t),string(b),'.cbf');
-                    RIPCBFprimal(A,k,'l',name,r,0,0,t,b);
-                end
-                if primaldual == "d" || primaldual == "pd"
-                    name = strcat('MISDP/',file,'_MISDPld',string(r),"0","0",...
-                        string(t),string(b),'.cbf');
-                    RIPCBFdual(A,k,'l',name,r,0,0,t,b);
-                end
-                for so = socp
+                for si = sumineq
                     if primaldual == "p" || primaldual == "pd"
-                        name = strcat('MISDP/',file,'_MISDPrp',string(r),...
-                            string(so),"0",string(t),string(b),'.cbf');
-                        RIPCBFprimal(A,k,'r',name,r,so,0,t,b);
+                        name = strcat(datadir,file,'_MISDPlp',string(r),"0","0",...
+                            string(t),string(b),string(si),'.cbf');
+                        RIPCBFprimal(A,k,'l',name,r,0,0,t,b,si);
                     end
                     if primaldual == "d" || primaldual == "pd"
-                        name = strcat('MISDP/',file,'_MISDPrd',string(r),...
-                            string(so),"0",string(t),string(b),'.cbf');
-                        RIPCBFdual(A,k,'r',name,r,so,0,t,b);
+                        name = strcat(datadir,file,'_MISDPld',string(r),"0","0",...
+                            string(t),string(b),string(si),'.cbf');
+                        RIPCBFdual(A,k,'l',name,r,0,0,t,b,si);
                     end
-                    if all(A(:) >= 0) && usestrgbnds
+                    for so = socp
                         if primaldual == "p" || primaldual == "pd"
-                            name = strcat('MISDP/',file,'_MISDPrp',string(r),...
-                                string(so),"1",string(t),string(b),'.cbf');
-                            RIPCBFprimal(A,k,'r',name,r,so,1,t,b);
+                            name = strcat(datadir,file,'_MISDPrp',string(r),...
+                                string(so),"0",string(t),string(b),string(si),'.cbf');
+                            RIPCBFprimal(A,k,'r',name,r,so,0,t,b,si);
                         end
                         if primaldual == "d" || primaldual == "pd"
-                            name = strcat('MISDP/',file,'_MISDPrd',string(r),...
-                                string(so),"1",string(t),string(b),'.cbf');
-                            RIPCBFdual(A,k,'r',name,r,so,1,t,b);
+                            name = strcat(datadir,file,'_MISDPrd',string(r),...
+                                string(so),"0",string(t),string(b),string(si),'.cbf');
+                            RIPCBFdual(A,k,'r',name,r,so,0,t,b,si);
+                        end
+                        if all(A(:) >= 0) && usestrgbnds
+                            if primaldual == "p" || primaldual == "pd"
+                                name = strcat(datadir,file,'_MISDPrp',string(r),...
+                                    string(so),"1",string(t),string(b),string(si),'.cbf');
+                                RIPCBFprimal(A,k,'r',name,r,so,1,t,b,si);
+                            end
+                            if primaldual == "d" || primaldual == "pd"
+                                name = strcat(datadir,file,'_MISDPrd',string(r),...
+                                    string(so),"1",string(t),string(b),string(si),'.cbf');
+                                RIPCBFdual(A,k,'r',name,r,so,1,t,b,si);
+                            end
                         end
                     end
                 end
