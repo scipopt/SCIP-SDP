@@ -3674,6 +3674,13 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
       SCIPdebugMessage("All variables fixed during preprocessing, no primal variables available.\n");
       *arraylength = -1;
    }
+   /* If the dual is infeasible, there is no feasible solution; If the primal is infeasible, the dual is unbounded or
+    * infeasible. In both cases we should not return the solution (rather a ray). */
+   else if ( SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) || SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver) )
+   {
+      SCIPdebugMessage("Problem infeasible.\n");
+      *arraylength = -1;
+   }
    else
    {
       SCIP_CALL( SCIPsdpiSolverGetPrimalBoundVars(sdpi->sdpisolver, lbvars, ubvars, arraylength) );
