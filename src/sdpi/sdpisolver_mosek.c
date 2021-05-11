@@ -2062,7 +2062,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    assert( objval != NULL );
 
    /* check for unboundedness */
-   if ( SCIPsdpiSolverIsDualUnbounded(sdpisolver) )
+   if ( SCIPsdpiSolverIsDualUnbounded(sdpisolver) || SCIPsdpiSolverIsPrimalInfeasible(sdpisolver) )
    {
       *objval = -SCIPsdpiSolverInfinity(sdpisolver);
       return SCIP_OKAY;
