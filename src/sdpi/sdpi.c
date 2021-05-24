@@ -3692,12 +3692,8 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
     * infeasible. In both cases we should not return the solution (rather a ray). */
    else if ( SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) || SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver) )
    {
-#ifdef SCIPSDPDecember
-      SCIP_CALL( SCIPsdpiSolverGetPrimalBoundVars(sdpi->sdpisolver, lbvars, ubvars, arraylength) );
-#else
       SCIPdebugMessage("Problem infeasible.\n");
       *arraylength = -1;
-#endif
    }
    else
    {

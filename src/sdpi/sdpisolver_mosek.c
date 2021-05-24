@@ -2138,19 +2138,11 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    assert( objval != NULL );
 
    /* check for unboundedness */
-#ifdef SCIPSDPDecember
-   if ( SCIPsdpiSolverIsDualUnbounded(sdpisolver) )
-   {
-      *objval = -SCIPsdpiSolverInfinity(sdpisolver);
-      return SCIP_OKAY;
-   }
-#else
    if ( SCIPsdpiSolverIsDualUnbounded(sdpisolver) || SCIPsdpiSolverIsPrimalInfeasible(sdpisolver) )
    {
       *objval = -SCIPsdpiSolverInfinity(sdpisolver);
       return SCIP_OKAY;
    }
-#endif
 
    if ( sdpisolver->penalty && ( ! sdpisolver->feasorig ) )
    {
