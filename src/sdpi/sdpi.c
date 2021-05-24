@@ -32,7 +32,8 @@
 
 /* #define SCIP_DEBUG*/
 /* #define SCIP_MORE_DEBUG*/
-#define SCIPSDPDecember         /* use settings from december version of SCIPSDP -- to track down performance issues */
+#define SCIPSDPDecemberTOLS         /* use settings concerning tolerances from december version of SCIPSDP -- to track down performance issues */
+#define SCIPSDPDecemberSTATUS       /* use settings concerning status functions from december version of SCIPSDP -- to track down performance issues */
 
 /**@file   sdpi.c
  * @brief  General interface methods for SDP-preprocessing (mainly fixing variables and removing empty rows/cols)
@@ -195,7 +196,7 @@
 /* #define PRINTSLATER */
 #define MIN_GAPTOL                  1e-10    /**< minimum gaptolerance for SDP-solver if decreasing it for a penalty formulation */
 
-#ifdef SCIPSDPDecember
+#ifdef SCIPSDPDecemberTOLS
 #define DEFAULT_SDPSOLVERGAPTOL     1e-4     /**< the stopping criterion for the duality gap the sdpsolver should use */
 #else
 #define DEFAULT_SDPSOLVERGAPTOL     1e-6     /**< the stopping criterion for the duality gap the sdpsolver should use */
@@ -1460,7 +1461,7 @@ SCIP_Real SCIPsdpiGetDefaultSdpiSolverFeastol(
    void
    )
 {
-#ifdef SCIPSDPDecember
+#ifdef SCIPSDPDecemberTOLS
    return SCIPsdpiSolverGetDefaultSdpiSolverFeastol();
 #else
    return DEFAULT_SDPSOLVERFEASTOL;
@@ -1472,7 +1473,7 @@ SCIP_Real SCIPsdpiGetDefaultSdpiSolverGaptol(
    void
    )
 {
-#ifdef SCIPSDPDecember
+#ifdef SCIPSDPDecemberTOLS
    return SCIPsdpiSolverGetDefaultSdpiSolverGaptol();
 #else
    return DEFAULT_SDPSOLVERGAPTOL;
