@@ -1460,7 +1460,7 @@ SCIP_Real SCIPsdpiGetDefaultSdpiSolverGaptol(
    void
    )
 {
-   return DEFAULT_SDPSOLVERGAPTOL;
+   return SCIPsdpiSolverGetDefaultSdpiSolverGaptol();
 }
 
 /** gets default number of increases of penalty parameter for SDP-solver in SCIP-SDP */
