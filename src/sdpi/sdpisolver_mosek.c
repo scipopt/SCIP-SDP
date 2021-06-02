@@ -34,9 +34,6 @@
 /*#define SCIP_MORE_DEBUG*/
 /*#define SCIP_DEBUG_PRINTTOFILE  *//* prints each problem inserted into MOSEK to the file mosek.task */
 
-#define SCIPSDPDecemberTOLS         /* use settings concerning tolerances from december version of SCIPSDP -- to track down performance issues */
-#define SCIPSDPDecemberSTATUS       /* use settings concerning status functions from december version of SCIPSDP -- to track down performance issues */
-
 /**@file   sdpisolver_mosek.c
  * @brief  interface for MOSEK
  * @author Tristan Gally
@@ -92,15 +89,8 @@
 #define PENALTYBOUNDTOL             1E-3     /**< if the relative gap between Tr(X) and penaltyparam for a primal solution of the penaltyformulation
                                               *   is bigger than this value, it will be reported to the sdpi */
 #define INFEASFEASTOLCHANGE         0.1      /**< change feastol by this factor if the solution was found to be infeasible with regards to feastol */
-
-#ifdef SCIPSDPDecemberTOLS
 #define INFEASMINFEASTOL            1E-9      /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance;
                                               *   @todo Think about doing this for absolute feastol */
-#else
-#define INFEASMINFEASTOL            1E-12     /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance;
-                                              *   @todo Think about doing this for absolute feastol */
-#endif
-
 #define CONVERT_ABSOLUTE_TOLERANCES TRUE     /**< should absolute tolerances be converted to relative tolerances for MOSEK */
 #if MSK_VERSION_MAJOR >= 9
 #define NEAR_REL_TOLERANCE           1.0     /**< MOSEK will multiply all tolerances with this factor after stalling */
@@ -422,7 +412,6 @@ void* SCIPsdpiSolverGetSolverPointer(
    return (void*) NULL;
 }
 
-#ifdef SCIPSDPDecemberTOLS
 /** gets default feasibility tolerance for SDP-solver in SCIP-SDP */
 SCIP_Real SCIPsdpiSolverGetDefaultSdpiSolverFeastol(
    void
@@ -438,7 +427,6 @@ SCIP_Real SCIPsdpiSolverGetDefaultSdpiSolverGaptol(
 {
    return 1E-5;
 }
-#endif
 
 /** gets default number of increases of penalty parameter for SDP-solver in SCIP-SDP */
 int SCIPsdpiSolverGetDefaultSdpiSolverNpenaltyIncreases(
@@ -516,13 +504,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->sdpcounter = 0;
 
    (*sdpisolver)->epsilon = 1e-9;
-
-#ifdef SCIPSDPDecemberTOLS
    (*sdpisolver)->gaptol = 1e-4;
-#else
-   (*sdpisolver)->gaptol = 1e-6;
-#endif
-
    (*sdpisolver)->feastol = 1e-6;
    (*sdpisolver)->sdpsolverfeastol = 1e-6;
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
@@ -1362,21 +1344,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
        * since MOSEK works with relative tolerance, we adjust our absolute tolerance accordingly, so that any solution satisfying the relative
        * tolerance in MOSEK satisfies our absolute tolerance) */
 #if CONVERT_ABSOLUTE_TOLERANCES
-#ifdef SCIPSDPDecemberTOLS
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_PFEAS, sdpisolver->gaptol) );
-#else
-      MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_PFEAS, sdpisolver->sdpsolverfeastol / (1.0 + maxrhscoef)) );
-#endif
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_DFEAS, sdpisolver->sdpsolverfeastol / (1.0 + maxrhscoef)) );
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_INFEAS, sdpisolver->sdpsolverfeastol / (1.0 + maxrhscoef)) );
       SCIPdebugMessage("Setting relative feasibility tolerance for MOSEK to %.10g / %g = %.12g\n", sdpisolver->sdpsolverfeastol,
             1.0 + maxrhscoef, sdpisolver->sdpsolverfeastol / (1.0 + maxrhscoef));
 #else
-#ifdef SCIPSDPDecemberTOLS
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_PFEAS, sdpisolver->gaptol) );
-#else
-      MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_PFEAS, sdpisolver->sdpsolverfeastol) );
-#endif
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_DFEAS, sdpisolver->sdpsolverfeastol) );
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_INFEAS, sdpisolver->sdpsolverfeastol) );
 #endif
@@ -1451,8 +1425,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       while ( SCIPsdpiSolverIsAcceptable(sdpisolver) && SCIPsdpiSolverIsDualFeasible(sdpisolver) && penaltyparam < sdpisolver->epsilon && feastol >= INFEASMINFEASTOL )
       {
          SCIP_Real* solvector;
-         SCIP_Real primalobj;
-         SCIP_Real dualobj;
          SCIP_Bool infeasible;
          SCIP_Bool solveagain = FALSE;
          int nvarspointer;
@@ -1477,35 +1449,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             if ( feastol >= INFEASMINFEASTOL )
             {
                SCIPdebugMessage("Solution feasible for Mosek but outside feasibility tolerance, changing Mosek feasibility tolerance to %g.\n", feastol);
-#ifdef SCIPSDPDecemberTOLS
                MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_DFEAS, feastol) );
                MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_INFEAS, feastol) );
-#else
-               MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_PFEAS, feastol / (1.0 + maxrhscoef)) );
-               MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_DFEAS, feastol / (1.0 + maxrhscoef)) );
-               MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_INFEAS, feastol / (1.0 + maxrhscoef)) );
-#endif
                solveagain = TRUE;
             }
          }
-
-#ifndef SCIPSDPDecemberTOLS
-         /* check whether duality gap is small enough */
-         MOSEK_CALL( MSK_getdualobj(sdpisolver->msktask, MSK_SOL_ITR, &dualobj) );
-         MOSEK_CALL( MSK_getprimalobj(sdpisolver->msktask, MSK_SOL_ITR, &primalobj) );
-         if ( REALABS(dualobj - primalobj) >= sdpisolver->gaptol )
-         {
-            infeasible = TRUE;
-            gaptol *= INFEASFEASTOLCHANGE;
-            if ( gaptol >= INFEASMINFEASTOL )
-            {
-               SCIPdebugMessage("Solution feasible, but duality gap is too large, changing Mosek gap tolerance to %g.\n", gaptol);
-               MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_REL_GAP, gaptol) );
-               MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_MU_RED, gaptol) );
-               solveagain = TRUE;
-            }
-         }
-#endif
 
          if ( solveagain )
          {
@@ -1729,18 +1677,10 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
       break;
    case MSK_SOL_STA_PRIM_INFEAS_CER:
       *primalfeasible = FALSE;
-#ifdef SCIPSDPDecemberSTATUS
-      *dualfeasible = TRUE;
-#else
       *dualfeasible = FALSE;
-#endif
       break;
    case MSK_SOL_STA_DUAL_INFEAS_CER:
-#ifdef SCIPSDPDecemberSTATUS
-      *primalfeasible = TRUE;
-#else
       *primalfeasible = FALSE;
-#endif
       *dualfeasible = FALSE;
       break;
    default:
@@ -1768,11 +1708,6 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
    switch ( solstat )
    {
    case MSK_SOL_STA_DUAL_INFEAS_CER:
-#ifdef SCIPSDPDecemberSTATUS
-      return TRUE;
-#else
-      break;
-#endif
    case MSK_SOL_STA_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
    case MSK_SOL_STA_PRIM_INFEAS_CER:
@@ -1833,11 +1768,6 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
       return TRUE;
    case MSK_SOL_STA_DUAL_INFEAS_CER:
-#ifdef SCIPSDPDecemberSTATUS
-      return TRUE;
-#else
-      break;
-#endif
    case MSK_SOL_STA_PRIM_INFEAS_CER:
       break;
    default:
@@ -1864,11 +1794,6 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
    switch ( solstat )
    {
    case MSK_SOL_STA_PRIM_INFEAS_CER:
-#ifdef SCIPSDPDecemberSTATUS
-      return TRUE;
-#else
-      break;
-#endif
    case MSK_SOL_STA_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
    case MSK_SOL_STA_DUAL_INFEAS_CER:
@@ -1929,11 +1854,6 @@ SCIP_Bool SCIPsdpiSolverIsDualFeasible(
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
       return TRUE;
    case MSK_SOL_STA_PRIM_INFEAS_CER:
-#ifdef SCIPSDPDecemberSTATUS
-      return TRUE;
-#else
-      break;
-#endif
    case MSK_SOL_STA_DUAL_INFEAS_CER:
       break;
    default:

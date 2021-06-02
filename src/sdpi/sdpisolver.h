@@ -30,9 +30,6 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#define SCIPSDPDecemberTOLS         /* use settings concerning tolerances from december version of SCIPSDP -- to track down performance issues */
-#define SCIPSDPDecemberSTATUS       /* use settings concerning status functions from december version of SCIPSDP -- to track down performance issues */
-
 /**@file   sdpisolver.h
  * @brief  interface methods for specific SDP-solvers
  * @author Marc Pfetsch
@@ -103,7 +100,6 @@ void* SCIPsdpiSolverGetSolverPointer(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
 
-#ifdef SCIPSDPDecemberTOLS
 /** gets default feasibility tolerance for SDP-solver in SCIP-SDP */
 SCIP_Real SCIPsdpiSolverGetDefaultSdpiSolverFeastol(
    void
@@ -113,7 +109,6 @@ SCIP_Real SCIPsdpiSolverGetDefaultSdpiSolverFeastol(
 SCIP_Real SCIPsdpiSolverGetDefaultSdpiSolverGaptol(
    void
    );
-#endif
 
 /** gets default number of increases of penalty parameter for SDP-solver in SCIP-SDP */
 SCIP_EXPORT
