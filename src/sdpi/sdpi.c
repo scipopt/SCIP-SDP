@@ -735,7 +735,7 @@ SCIP_RETCODE findEmptyRowColsSDP(
       /* check if the block became empty */
       if ( nremovedinds[b] == sdpi->sdpblocksizes[b] )
       {
-         SCIPdebugMessage("empty block %d detected in SDP %d, this will be removed.", b, sdpi->sdpid);
+         SCIPdebugMessage("empty block %d detected in SDP %d, this will be removed.\n", b, sdpi->sdpid);
          blockindchanges[b] = -1;
          ++(*nremovedblocks);
       }
