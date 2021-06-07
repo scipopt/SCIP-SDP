@@ -4173,14 +4173,13 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    }
    else
    {
-      SCIP_Real maxcoeff;
+      SCIP_Real maxcoeff = 0.0;
       int v;
 
       /* compute the maximum coefficient in the objective */
-      maxcoeff = 0.0;
       for (v = 0; v < nvars; v++)
       {
-         if ( SCIPisGT(scip, REALABS(SCIPvarGetObj(vars[v])), maxcoeff) )
+         if ( REALABS(SCIPvarGetObj(vars[v])) > maxcoeff )
             maxcoeff = REALABS(SCIPvarGetObj(vars[v]));
       }
 
