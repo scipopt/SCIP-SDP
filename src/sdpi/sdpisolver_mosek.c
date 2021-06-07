@@ -1372,7 +1372,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_UPPER_OBJ_CUT, sdpisolver->objlimit) );/*lint !e641*/
       }
 
-      /* to avoid a bug in Mosek, we disable presolving */
+      /* turn presolving on/off */
       if ( sdpisolver->usepresolving )
       {
          SCIPdebugMessage("Turning presolving on.\n");
