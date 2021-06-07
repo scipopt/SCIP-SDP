@@ -144,7 +144,6 @@ struct SCIP_SDPiSolver
    MSKrescodee           terminationcode;    /**< reason for termination of the last call to the MOSEK-optimizer */
    MSKsolstae            solstat;            /**< solution status of last call to MOSEK-optimizer */
    SCIP_Bool             timelimit;          /**< was the solver stopped because of the time limit? */
-   SCIP_Bool             timelimitinitial;   /**< was the problem not even given to the solver because of the time limit? */
    int                   nthreads;           /**< number of threads the SDP solver should use (-1 = number of cores) */
    int                   niterations;        /**< number of SDP-iterations since the last solve call */
    int                   nsdpcalls;          /**< number of SDP-calls since the last solve call */
@@ -516,7 +515,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->terminationcode = MSK_RES_OK;
    (*sdpisolver)->solstat = MSK_SOL_STA_UNKNOWN;
    (*sdpisolver)->timelimit = FALSE;
-   (*sdpisolver)->timelimitinitial = FALSE;
+   (*sdpisolver)->niterations = 0;
 
    return SCIP_OKAY;
 }
@@ -831,16 +830,17 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, solvertimelimit) )
       solvertimelimit -= SDPIclockGetTime(usedsdpitime);
 
+   sdpisolver->niterations = 0;
+   sdpisolver->nsdpcalls = 0;
+
    /* check the timelimit */
    if ( solvertimelimit <= 0.0 )
    {
       sdpisolver->timelimit = TRUE;
-      sdpisolver->timelimitinitial = TRUE;
       sdpisolver->solved = FALSE;
       return SCIP_OKAY;
    }
    sdpisolver->timelimit = FALSE;
-   sdpisolver->timelimitinitial = FALSE;
    sdpisolver->feasorig = FALSE;
 
    /* create an empty task (second and third argument are guesses for maximum number of constraints and variables), if there already is one, delete it */
@@ -1424,7 +1424,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       sdpisolver->solved = TRUE;
 
-      sdpisolver->nsdpcalls = 1;
+      /* update number of SDP-iterations and -calls */
+      ++sdpisolver->nsdpcalls;
       MOSEK_CALL( MSK_getnaintinf(sdpisolver->msktask, "MSK_IINF_INTPNT_ITER", &(sdpisolver->niterations)) );/*lint !e641*/
 
       /* possibly repair status */
@@ -1528,7 +1529,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                }
 
                /* update number of SDP-iterations and -calls */
-               sdpisolver->nsdpcalls++;
+               ++sdpisolver->nsdpcalls;
                MOSEK_CALL( MSK_getnaintinf(sdpisolver->msktask, "MSK_IINF_INTPNT_ITER", &newiterations) );/*lint !e641*/
                sdpisolver->niterations += newiterations;
 
@@ -2380,10 +2381,7 @@ SCIP_RETCODE SCIPsdpiSolverGetIterations(
    assert( sdpisolver != NULL );
    assert( iterations != NULL );
 
-   if ( sdpisolver->timelimitinitial )
-      *iterations = 0;
-   else
-      *iterations = sdpisolver->niterations;
+   *iterations = sdpisolver->niterations;
 
    return SCIP_OKAY;
 }
@@ -2394,9 +2392,10 @@ SCIP_RETCODE SCIPsdpiSolverGetSdpCalls(
    int*                  calls               /**< pointer to store the number of calls to the SDP-solver for the last solve call */
    )
 {/*lint --e{715,1784}*/
+   assert( sdpisolver != NULL );
    assert( calls != NULL );
 
-   *calls = sdpisolver->timelimitinitial ? 0 : sdpisolver->nsdpcalls;
+   *calls = sdpisolver->nsdpcalls;
 
    return SCIP_OKAY;
 }
