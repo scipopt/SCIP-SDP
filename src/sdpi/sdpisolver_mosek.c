@@ -1471,6 +1471,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          SCIP_Real* solvector;
          SCIP_Bool infeasible;
          SCIP_Bool solveagain = FALSE;
+         SCIP_Real opttime;
          int nvarspointer;
          int newiterations;
 
@@ -1521,6 +1522,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                /* solve the problem */
                MOSEK_CALL( MSK_optimizetrm(sdpisolver->msktask, &(sdpisolver->terminationcode)) );/*lint !e641*/
                MOSEK_CALL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &sdpisolver->solstat) );/*lint !e641*/
+               MOSEK_CALL( MSK_getdouinf(sdpisolver->msktask, MSK_DINF_OPTIMIZER_TIME, &opttime) );
+               sdpisolver->opttime += opttime;
 
                if ( sdpisolver->sdpinfo )
                {
