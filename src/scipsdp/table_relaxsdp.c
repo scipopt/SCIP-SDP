@@ -136,7 +136,7 @@ SCIP_DECL_TABLEOUTPUT(tableOutputRelaxSdp)
 
    if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0 )
    {
-      SCIPinfoMessage(scip, file, "    SDP-Solvers    :       Time    Opttime      Calls Iterations  Iter/call       Fast     Medium     Stable    Penalty   Unsolved\n");
+      SCIPinfoMessage(scip, file, "    SDP-Solvers    :       Time    Opttime     Solves Iterations  Iter/call       Fast     Medium     Stable    Penalty   Unsolved\n");
       if ( ncalls > 0 )
       {
          if ( tabledata->absolute )
@@ -144,7 +144,7 @@ SCIP_DECL_TABLEOUTPUT(tableOutputRelaxSdp)
             SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " %10.2f %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " "
                "%10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT "\n",
                SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
-               SCIPrelaxGetNCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
+               SCIPrelaxSdpGetNSdpCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
                (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpCalls(relaxsdp),
                SCIPrelaxSdpGetNSdpFast(relaxsdp), SCIPrelaxSdpGetNSdpMedium(relaxsdp), SCIPrelaxSdpGetNSdpStable(relaxsdp), SCIPrelaxSdpGetNSdpPenalty(relaxsdp),
                SCIPrelaxSdpGetNSdpUnsolved(relaxsdp));
@@ -153,7 +153,7 @@ SCIP_DECL_TABLEOUTPUT(tableOutputRelaxSdp)
          {
             SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " %10.2f %8.2f %% %8.2f %% %8.2f %% %8.2f %% %8.2f %%\n",
                SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
-               SCIPrelaxGetNCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
+               SCIPrelaxSdpGetNSdpCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
                (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpCalls(relaxsdp),
                100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpFast(relaxsdp) / (SCIP_Real) ncalls,
                100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpMedium(relaxsdp) / (SCIP_Real) ncalls,
@@ -171,7 +171,7 @@ SCIP_DECL_TABLEOUTPUT(tableOutputRelaxSdp)
    }
    else
    {
-      SCIPinfoMessage(scip, file, "    SDP-Solvers    :       Time    Opttime      Calls Iterations  Iter/call    Default    Penalty   Unsolved\n");
+      SCIPinfoMessage(scip, file, "    SDP-Solvers    :       Time    Opttime     Solves Iterations  Iter/call    Default    Penalty   Unsolved\n");
       if ( ncalls > 0 )
       {
          if ( tabledata->absolute )
@@ -179,7 +179,7 @@ SCIP_DECL_TABLEOUTPUT(tableOutputRelaxSdp)
             SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " %10.2f"
                " %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT "\n",
                SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
-               SCIPrelaxGetNCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
+               SCIPrelaxSdpGetNSdpCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
                (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpCalls(relaxsdp),
                SCIPrelaxSdpGetNSdpFast(relaxsdp), SCIPrelaxSdpGetNSdpPenalty(relaxsdp), SCIPrelaxSdpGetNSdpUnsolved(relaxsdp));
          }
@@ -187,7 +187,7 @@ SCIP_DECL_TABLEOUTPUT(tableOutputRelaxSdp)
          {
             SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " %10.2f %8.2f %% %8.2f %% %8.2f %%\n",
                SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
-               SCIPrelaxGetNCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
+               SCIPrelaxSdpGetNSdpCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
                (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpCalls(relaxsdp),
                100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpFast(relaxsdp) / (SCIP_Real) ncalls,
                100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpPenalty(relaxsdp) / (SCIP_Real) ncalls,
