@@ -2917,14 +2917,14 @@ SCIP_RETCODE SCIPsdpiSolve(
                   if ( penaltybound )
                   {
                      penaltyparam *= penaltyparamfact;
-                     SCIPdebugMessage("Penalty formulation produced a result which is infeasible for the original problem, increasing penaltyparameter\n");
+                     SCIPdebugMessage("Penalty formulation produced a result which is infeasible for the original problem, increasing penaltyparameter.\n");
                   }
                   else
                   {
                      gaptol *= gaptolfact;
                      SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, SCIP_SDPPAR_GAPTOL, gaptol) );
                      SCIPdebugMessage("Penalty formulation produced a result which is infeasible for the original problem, even though primal penalty "
-                           "bound was not reached, decreasing tolerance for duality gap in SDP-solver\n");
+                           "bound was not reached, decreasing tolerance for duality gap in SDP-solver.\n");
                   }
                }
             }
@@ -2944,7 +2944,7 @@ SCIP_RETCODE SCIPsdpiSolve(
 #if 0 /* we don't really know if it is infeasible or just ill-posed (no KKT-point) */
             else if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && ! feasorig )
             {
-               SCIPdebugMessage("Problem was found to be infeasible using a penalty formulation \n");
+               SCIPdebugMessage("Problem was found to be infeasible using a penalty formulation.\n");
                sdpi->infeasible = TRUE;
                sdpi->penalty = TRUE;
                sdpi->solved = TRUE;
@@ -2952,7 +2952,7 @@ SCIP_RETCODE SCIPsdpiSolve(
 #endif
             else
             {
-               SCIPdebugMessage("SDP-Solver could not solve the problem even after using a penalty formulation \n");
+               SCIPdebugMessage("SDP-Solver could not solve the problem even after using a penalty formulation.\n");
                sdpi->solved = FALSE;
                sdpi->penalty = TRUE;
             }
@@ -2969,9 +2969,9 @@ SCIP_RETCODE SCIPsdpiSolve(
             else if ( sdpi->solved == FALSE )
             {
 #if 0
-               SCIPmessagePrintInfo(sdpi->messagehdlr, "Numerical trouble\n");
+               SCIPmessagePrintInfo(sdpi->messagehdlr, "Numerical trouble.\n");
 #else
-               SCIPdebugMessage("SDP-Interface was unable to solve SDP %d\n", sdpi->sdpid);/*lint !e687*/
+               SCIPdebugMessage("SDP-Interface was unable to solve SDP %d.\n", sdpi->sdpid);/*lint !e687*/
 #endif
             }
          }
@@ -3847,10 +3847,10 @@ SCIP_RETCODE SCIPsdpiSlaterSettings(
 
    if ( ! sdpi->solved )
    {
-      SCIPdebugMessage("Problem was not solved successfully");
+      SCIPdebugMessage("Problem was not solved successfully.");
       if ( sdpi->bestbound > -SCIPsdpiSolverInfinity(sdpi->sdpisolver) )
       {
-         SCIPdebugMessage(", but we could at least compute a lower bound. \n");
+         SCIPdebugMessage("But we could at least compute a lower bound.\n");
          if ( sdpi->dualslater == SCIP_SDPSLATER_INF)
             *slatersetting = SCIP_SDPSLATERSETTING_BOUNDEDINFEASIBLE;
          else
