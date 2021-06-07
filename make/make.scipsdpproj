@@ -197,6 +197,7 @@ endif
 # MOSEK solver
 ifeq ($(SDPS),msk)
 BITEXT     	=  	$(word 2, $(subst _, ,$(ARCH)))
+OPENBLAS	=	false
 ifeq ($(SHARED),true)
 ifeq ($(STATICLAPACK),true)
 BSTATIC		= -Wl,-Bstatic
