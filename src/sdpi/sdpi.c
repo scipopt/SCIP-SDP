@@ -193,9 +193,7 @@
 
 /* #define PRINTSLATER */
 #define MIN_GAPTOL                  1e-10    /**< minimum gaptolerance for SDP-solver if decreasing it for a penalty formulation */
-
-#define DEFAULT_SDPSOLVERGAPTOL     1e-6     /**< the stopping criterion for the duality gap the sdpsolver should use */
-#define DEFAULT_SDPSOLVERFEASTOL    1e-6     /**< feasibility tolerance used in the sdpsolvers */
+#define DEFAULT_SDPSOLVERGAPTOL     1e-4     /**< the stopping criterion for the duality gap the sdpsolver should use */
 #define DEFAULT_FEASTOL             1e-6     /**< used to test for feasibility */
 #define DEFAULT_EPSILON             1e-9     /**< used to test whether given values are equal */
 #define DEFAULT_PENALTYPARAM        1e+5     /**< the starting penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
@@ -1454,7 +1452,7 @@ SCIP_Real SCIPsdpiGetDefaultSdpiSolverFeastol(
    void
    )
 {
-   return DEFAULT_SDPSOLVERFEASTOL;
+   return SCIPsdpiSolverGetDefaultSdpiSolverFeastol();
 }
 
 /** gets default duality gap tolerance for SDP-solver in SCIP-SDP */
@@ -1462,7 +1460,7 @@ SCIP_Real SCIPsdpiGetDefaultSdpiSolverGaptol(
    void
    )
 {
-   return DEFAULT_SDPSOLVERGAPTOL;
+   return SCIPsdpiSolverGetDefaultSdpiSolverGaptol();
 }
 
 /** gets default number of increases of penalty parameter for SDP-solver in SCIP-SDP */
@@ -3672,6 +3670,13 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    else if ( sdpi->allfixed )
    {
       SCIPdebugMessage("All variables fixed during preprocessing, no primal variables available.\n");
+      *arraylength = -1;
+   }
+   /* If the dual is infeasible, there is no feasible solution; If the primal is infeasible, the dual is unbounded or
+    * infeasible. In both cases we should not return the solution (rather a ray). */
+   else if ( SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) || SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver) )
+   {
+      SCIPdebugMessage("Problem infeasible.\n");
       *arraylength = -1;
    }
    else

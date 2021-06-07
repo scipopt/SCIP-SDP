@@ -89,7 +89,7 @@
 #define PENALTYBOUNDTOL             1E-3     /**< if the relative gap between Tr(X) and penaltyparam for a primal solution of the penaltyformulation
                                               *   is bigger than this value, it will be reported to the sdpi */
 #define INFEASFEASTOLCHANGE         0.1      /**< change feastol by this factor if the solution was found to be infeasible with regards to feastol */
-#define INFEASMINFEASTOL            1E-12     /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance;
+#define INFEASMINFEASTOL            1E-9      /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance;
                                               *   @todo Think about doing this for absolute feastol */
 #define CONVERT_ABSOLUTE_TOLERANCES TRUE     /**< should absolute tolerances be converted to relative tolerances for MOSEK */
 #if MSK_VERSION_MAJOR >= 9
@@ -412,6 +412,22 @@ void* SCIPsdpiSolverGetSolverPointer(
    return (void*) NULL;
 }
 
+/** gets default feasibility tolerance for SDP-solver in SCIP-SDP */
+SCIP_Real SCIPsdpiSolverGetDefaultSdpiSolverFeastol(
+   void
+   )
+{
+   return 1E-7;
+}
+
+/** gets default duality gap tolerance for SDP-solver in SCIP-SDP */
+SCIP_Real SCIPsdpiSolverGetDefaultSdpiSolverGaptol(
+   void
+   )
+{
+   return 1E-5;
+}
+
 /** gets default number of increases of penalty parameter for SDP-solver in SCIP-SDP */
 int SCIPsdpiSolverGetDefaultSdpiSolverNpenaltyIncreases(
    void
@@ -488,7 +504,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->sdpcounter = 0;
 
    (*sdpisolver)->epsilon = 1e-9;
-   (*sdpisolver)->gaptol = 1e-6;
+   (*sdpisolver)->gaptol = 1e-4;
    (*sdpisolver)->feastol = 1e-6;
    (*sdpisolver)->sdpsolverfeastol = 1e-6;
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
@@ -1328,13 +1344,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
        * since MOSEK works with relative tolerance, we adjust our absolute tolerance accordingly, so that any solution satisfying the relative
        * tolerance in MOSEK satisfies our absolute tolerance) */
 #if CONVERT_ABSOLUTE_TOLERANCES
-      MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_PFEAS, sdpisolver->sdpsolverfeastol / (1.0 + maxrhscoef)) );
+      MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_PFEAS, sdpisolver->gaptol) );
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_DFEAS, sdpisolver->sdpsolverfeastol / (1.0 + maxrhscoef)) );
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_INFEAS, sdpisolver->sdpsolverfeastol / (1.0 + maxrhscoef)) );
       SCIPdebugMessage("Setting relative feasibility tolerance for MOSEK to %.10g / %g = %.12g\n", sdpisolver->sdpsolverfeastol,
             1.0 + maxrhscoef, sdpisolver->sdpsolverfeastol / (1.0 + maxrhscoef));
 #else
-      MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_PFEAS, sdpisolver->sdpsolverfeastol) );
+      MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_PFEAS, sdpisolver->gaptol) );
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_DFEAS, sdpisolver->sdpsolverfeastol) );
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_INFEAS, sdpisolver->sdpsolverfeastol) );
 #endif
@@ -1409,8 +1425,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       while ( SCIPsdpiSolverIsAcceptable(sdpisolver) && SCIPsdpiSolverIsDualFeasible(sdpisolver) && penaltyparam < sdpisolver->epsilon && feastol >= INFEASMINFEASTOL )
       {
          SCIP_Real* solvector;
-         SCIP_Real primalobj;
-         SCIP_Real dualobj;
          SCIP_Bool infeasible;
          SCIP_Bool solveagain = FALSE;
          int nvarspointer;
@@ -1435,25 +1449,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             if ( feastol >= INFEASMINFEASTOL )
             {
                SCIPdebugMessage("Solution feasible for Mosek but outside feasibility tolerance, changing Mosek feasibility tolerance to %g.\n", feastol);
-               MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_PFEAS, feastol / (1.0 + maxrhscoef)) );
-               MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_DFEAS, feastol / (1.0 + maxrhscoef)) );
-               MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_INFEAS, feastol / (1.0 + maxrhscoef)) );
-               solveagain = TRUE;
-            }
-         }
-
-         /* check whether duality gap is small enough */
-         MOSEK_CALL( MSK_getdualobj(sdpisolver->msktask, MSK_SOL_ITR, &dualobj) );
-         MOSEK_CALL( MSK_getprimalobj(sdpisolver->msktask, MSK_SOL_ITR, &primalobj) );
-         if ( REALABS(dualobj - primalobj) >= sdpisolver->gaptol )
-         {
-            infeasible = TRUE;
-            gaptol *= INFEASFEASTOLCHANGE;
-            if ( gaptol >= INFEASMINFEASTOL )
-            {
-               SCIPdebugMessage("Solution feasible, but duality gap is too large, changing Mosek gap tolerance to %g.\n", gaptol);
-               MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_REL_GAP, gaptol) );
-               MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_MU_RED, gaptol) );
+               MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_DFEAS, feastol) );
+               MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_INFEAS, feastol) );
                solveagain = TRUE;
             }
          }
@@ -2062,7 +2059,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    assert( objval != NULL );
 
    /* check for unboundedness */
-   if ( SCIPsdpiSolverIsDualUnbounded(sdpisolver) )
+   if ( SCIPsdpiSolverIsDualUnbounded(sdpisolver) || SCIPsdpiSolverIsPrimalInfeasible(sdpisolver) )
    {
       *objval = -SCIPsdpiSolverInfinity(sdpisolver);
       return SCIP_OKAY;
