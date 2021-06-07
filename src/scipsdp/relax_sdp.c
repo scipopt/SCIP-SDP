@@ -4113,7 +4113,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-         "SDP Solver <%s>: gaptol setting not available -- SCIP parameter has no effect.\n",
+         "SDP Solver <%s>: gaptol parameter not available -- SCIP parameter has no effect.\n",
          SCIPsdpiGetSolverName());
    }
    else
@@ -4125,7 +4125,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-         "SDP Solver <%s>: sdpsolverfeastol setting not available -- SCIP parameter has no effect.\n",
+         "SDP Solver <%s>: sdpsolverfeastol parameter not available -- SCIP parameter has no effect.\n",
          SCIPsdpiGetSolverName());
    }
    else
@@ -4137,7 +4137,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-         "SDP Solver <%s>: epsilon setting not available -- SCIP parameter has no effect.\n",
+         "SDP Solver <%s>: epsilon parameter not available -- SCIP parameter has no effect.\n",
          SCIPsdpiGetSolverName());
    }
    else
@@ -4149,7 +4149,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-         "SDP Solver <%s>: feastol setting not available -- SCIP parameter has no effect.\n",
+         "SDP Solver <%s>: feastol parameter not available -- SCIP parameter has no effect.\n",
          SCIPsdpiGetSolverName());
    }
    else
@@ -4165,7 +4165,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       if ( retcode == SCIP_PARAMETERUNKNOWN )
       {
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-            "SDP Solver <%s>: penaltyparam setting not available -- SCIP parameter has no effect\n",
+            "SDP Solver <%s>: penaltyparam parameter not available -- SCIP parameter has no effect\n",
             SCIPsdpiGetSolverName());
       }
       else
@@ -4196,7 +4196,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       if ( retcode == SCIP_PARAMETERUNKNOWN )
       {
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-            "SDP Solver <%s>: maxpenaltyparam setting not available -- SCIP parameter has no effect.\n",
+            "SDP Solver <%s>: maxpenaltyparam parameter not available -- SCIP parameter has no effect.\n",
             SCIPsdpiGetSolverName());
       }
       else
@@ -4207,7 +4207,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       /* check if the starting value is not bigger than the maximum one, otherwise update it */
       if ( SCIPisLT(scip, givenpenaltyparam, relaxdata->maxpenaltyparam) )
       {
-         SCIPdebugMsg(scip, "Penalty parameter %f overwritten by maxpenaltyparam %f!\n", givenpenaltyparam, relaxdata->maxpenaltyparam);
+         SCIPdebugMsg(scip, "Penalty parameter %g overwritten by maxpenaltyparam %f!\n", givenpenaltyparam, relaxdata->maxpenaltyparam);
          SCIP_CALL( SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, relaxdata->maxpenaltyparam) );
       }
    }
@@ -4223,7 +4223,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-         "SDP Solver <%s>: npenaltyincr setting not available -- SCIP parameter has no effect.\n",
+         "SDP Solver <%s>: npenaltyincr parameter not available -- SCIP parameter has no effect.\n",
          SCIPsdpiGetSolverName());
    }
    else
@@ -4237,7 +4237,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-         "SDP Solver <%s>: peninfeasadjust setting not available -- SCIP parameter has no effect.\n",
+         "SDP Solver <%s>: peninfeasadjust parameter not available -- SCIP parameter has no effect.\n",
          SCIPsdpiGetSolverName());
    }
    else
