@@ -1375,10 +1375,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* to avoid a bug in Mosek, we disable presolving */
       if ( sdpisolver->usepresolving )
       {
+         SCIPdebugMessage("Turning presolving on.\n");
          MOSEK_CALL( MSK_putintparam(sdpisolver->msktask, MSK_IPAR_PRESOLVE_USE, MSK_PRESOLVE_MODE_ON) );
       }
       else
       {
+         SCIPdebugMessage("Turning presolving off.\n");
          MOSEK_CALL( MSK_putintparam(sdpisolver->msktask, MSK_IPAR_PRESOLVE_USE, MSK_PRESOLVE_MODE_OFF) );
       }
 
