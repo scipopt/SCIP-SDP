@@ -1534,7 +1534,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                sdpisolver->niterations += newiterations;
 
                /* possibly repair status */
-               if ( sdpisolver->terminationcode == MSK_RES_TRM_STALL || sdpisolver->solved == MSK_SOL_STA_UNKNOWN )
+               if ( sdpisolver->terminationcode == MSK_RES_TRM_STALL || sdpisolver->solstat == MSK_SOL_STA_UNKNOWN )
                {
                   SCIP_Real pobj;
                   SCIP_Real pviolcon;
