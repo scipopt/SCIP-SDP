@@ -1416,6 +1416,35 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->nsdpcalls = 1;
       MOSEK_CALL( MSK_getnaintinf(sdpisolver->msktask, "MSK_IINF_INTPNT_ITER", &(sdpisolver->niterations)) );/*lint !e641*/
 
+      /* possibly repair status */
+      if ( sdpisolver->terminationcode == MSK_RES_TRM_STALL || sdpisolver->solstat == MSK_SOL_STA_UNKNOWN )
+      {
+         SCIP_Real pobj;
+         SCIP_Real pviolcon;
+         SCIP_Real pviolvar;
+         SCIP_Real pviolbarvar;
+         SCIP_Real dobj;
+         SCIP_Real dviolcon;
+         SCIP_Real dviolvar;
+         SCIP_Real dviolbarvar;
+
+         MOSEK_CALL( MSK_getsolutioninfo(sdpisolver->msktask, MSK_SOL_ITR, &pobj, &pviolcon, &pviolvar, &pviolbarvar, NULL, NULL,
+               &dobj, &dviolcon, &dviolvar, &dviolbarvar, NULL) );
+
+         SCIPdebugMessage("Absolute primal violations: constraints: %g, variables: %g, SDP: %g.\n", pviolcon, pviolvar, pviolbarvar);
+         SCIPdebugMessage("Absolute dual violations: constraints: %g, variables: %g, SDP: %g.\n", dviolcon, dviolvar, dviolbarvar); 
+         if ( pviolcon <= sdpisolver->feastol && pviolvar <= sdpisolver->feastol && pviolbarvar <= sdpisolver->feastol
+            && dviolcon <= sdpisolver->feastol && dviolvar <= sdpisolver->feastol && dviolbarvar <= sdpisolver->feastol )
+         {
+            if ( REALABS(dobj - pobj) <= sdpisolver->feastol )
+            {
+               SCIPdebugMessage("Solution is actually feasible - reparing termination code and solution status.\n");
+               sdpisolver->terminationcode = MSK_RES_OK;
+               sdpisolver->solstat = MSK_SOL_STA_OPTIMAL;
+            }
+         }
+      }
+
       /* if the problem has been stably solved but did not reach the required feasibility tolerance, even though the solver
        * reports feasibility, resolve it with adjusted tolerance */
 #if CONVERT_ABSOLUTE_TOLERANCES
@@ -1491,6 +1520,35 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                sdpisolver->nsdpcalls++;
                MOSEK_CALL( MSK_getnaintinf(sdpisolver->msktask, "MSK_IINF_INTPNT_ITER", &newiterations) );/*lint !e641*/
                sdpisolver->niterations += newiterations;
+
+               /* possibly repair status */
+               if ( sdpisolver->terminationcode == MSK_RES_TRM_STALL || sdpisolver->solved == MSK_SOL_STA_UNKNOWN )
+               {
+                  SCIP_Real pobj;
+                  SCIP_Real pviolcon;
+                  SCIP_Real pviolvar;
+                  SCIP_Real pviolbarvar;
+                  SCIP_Real dobj;
+                  SCIP_Real dviolcon;
+                  SCIP_Real dviolvar;
+                  SCIP_Real dviolbarvar;
+
+                  MOSEK_CALL( MSK_getsolutioninfo(sdpisolver->msktask, MSK_SOL_ITR, &pobj, &pviolcon, &pviolvar, &pviolbarvar, NULL, NULL,
+                        &dobj, &dviolcon, &dviolvar, &dviolbarvar, NULL) );
+
+                  SCIPdebugMessage("Absolute primal violations: constraints: %g, variables: %g, SDP: %g.\n", pviolcon, pviolvar, pviolbarvar);
+                  SCIPdebugMessage("Absolute dual violations: constraints: %g, variables: %g, SDP: %g.\n", dviolcon, dviolvar, dviolbarvar);
+                  if ( pviolcon <= sdpisolver->feastol && pviolvar <= sdpisolver->feastol && pviolbarvar <= sdpisolver->feastol
+                     && dviolcon <= sdpisolver->feastol && dviolvar <= sdpisolver->feastol && dviolbarvar <= sdpisolver->feastol )
+                  {
+                     if ( REALABS(dobj - pobj) <= sdpisolver->feastol )
+                     {
+                        SCIPdebugMessage("Solution is actually feasible - reparing termination code and solution status.\n");
+                        sdpisolver->terminationcode = MSK_RES_OK;
+                        sdpisolver->solstat = MSK_SOL_STA_OPTIMAL;
+                     }
+                  }
+               }
             }
          }
          else
