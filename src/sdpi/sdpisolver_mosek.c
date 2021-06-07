@@ -2065,7 +2065,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
       return SCIP_OKAY;
    }
 
-   if ( sdpisolver->penalty && ( ! sdpisolver->feasorig ) )
+   if ( sdpisolver->penalty && ! sdpisolver->feasorig )
    {
       /* in this case we cannot really trust the solution given by MOSEK, since changes in the value of r much less than epsilon can
        * cause huge changes in the objective, so using the objective value given by MOSEK is numerically more stable */
@@ -2088,7 +2088,7 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    /* as we didn't add the fixed (lb = ub) variables to MOSEK, we have to add their contributions to the objective as well */
    *objval += sdpisolver->fixedvarsobjcontr;
 
-   if ( ( ! sdpisolver->penalty ) || sdpisolver->feasorig)
+   if ( ! sdpisolver->penalty || sdpisolver->feasorig )
    {
       BMSfreeBufferMemoryArray(sdpisolver->bufmem, &moseksol);
    }
@@ -2146,7 +2146,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
       /* if both solution and objective should be printed, we can use the solution to compute the objective */
       if ( objval != NULL )
       {
-         if ( sdpisolver->penalty && ( ! sdpisolver->feasorig ))
+         if ( sdpisolver->penalty && ! sdpisolver->feasorig )
          {
             /* in this case we cannot really trust the solution given by MOSEK, since changes in the value of r much less than epsilon can
              * cause huge changes in the objective, so using the objective value given by MOSEK is numerically more stable */
