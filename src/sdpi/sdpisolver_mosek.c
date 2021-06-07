@@ -954,6 +954,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
    assert( sdpisolver->nactivevars + nfixedvars == sdpisolver->nvars );
 
+   /* adjust maxabsrhscoef in penalty formulation */
+   if ( penaltyparam >= sdpisolver->epsilon )
+   {
+      if ( penaltyparam > maxabsobjcoef )
+         maxabsobjcoef = penaltyparam;
+   }
+
    /* if we want to solve without objective, we reset fixedvarsobjcontr */
    if ( ! withobj )
       sdpisolver->fixedvarsobjcontr = 0.0;
@@ -1347,13 +1354,16 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* the penalty constraint has right-hand side Gamma, it is a <=-inequality if r was bounded and an equality constraint otherwise */
    if ( penaltyparam >= sdpisolver->epsilon )
    {
+      SCIP_Real p;
+
+      p = penaltyparam / sdpisolver->objscalefactor;
       if ( rbound )
       {
-         MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, sdpisolver->nactivevars, MSK_BK_UP, (double) -1 * MSK_DPAR_DATA_TOL_BOUND_INF, penaltyparam) );/*lint !e641*/
+         MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, sdpisolver->nactivevars, MSK_BK_UP, (double) - MSK_DPAR_DATA_TOL_BOUND_INF, p) );/*lint !e641*/
       }
       else
       {
-         MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, sdpisolver->nactivevars, MSK_BK_FX, penaltyparam, penaltyparam) );/*lint !e641*/
+         MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, sdpisolver->nactivevars, MSK_BK_FX, p, p) );/*lint !e641*/
       }
 #ifdef SCIP_MORE_DEBUG
       /* give the constraint a meaningful name for debug output */
