@@ -1325,7 +1325,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
 #ifdef SCIP_MORE_DEBUG
       /* give the constraint a meaningful name for debug output */
-      (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "penality");
+      (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "penalty");
       MOSEK_CALL( MSK_putconname(sdpisolver->msktask, i, name) );
 #endif
    }
