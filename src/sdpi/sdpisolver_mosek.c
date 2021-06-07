@@ -908,7 +908,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          sdpisolver->fixedvarsval[nfixedvars] = lb[i]; /* if lb=ub, then this is the value the variable will have in every solution */
          nfixedvars++;
          sdpisolver->inputtomosekmapper[i] = -nfixedvars;
-         SCIPdebugMessage("Fixing variable %d locally to %f for SDP %d in MOSEK.\n", i, lb[i], sdpisolver->sdpcounter);
+         SCIPdebugMessage("Fixing variable %d locally to %g for SDP %d in MOSEK.\n", i, lb[i], sdpisolver->sdpcounter);
       }
       else
       {
@@ -1534,7 +1534,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             /* if r > 0 also check the primal bound */
             if ( ! *feasorig && penaltybound != NULL )
             {
-               SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", moseksol[sdpisolver->nactivevars]);
+               SCIPdebugMessage("Solution not feasible in original problem, r = %g.\n", moseksol[sdpisolver->nactivevars]);
 
                /* compute Tr(X) */
 
@@ -1579,7 +1579,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                {
                   assert( penaltybound != NULL );
                   *penaltybound = TRUE;
-                  SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible\n",
+                  SCIPdebugMessage("Tr(X) = %g == %g = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible.\n",
                      trace, penaltyparam);
                }
                else
@@ -2466,22 +2466,22 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    {
    case SCIP_SDPPAR_EPSILON:
       sdpisolver->epsilon = dval;
-      SCIPdebugMessage("Setting sdpisolver epsilon to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver epsilon to %g.\n", dval);
       break;
    case SCIP_SDPPAR_GAPTOL:
       sdpisolver->gaptol = dval;
-      SCIPdebugMessage("Setting sdpisolver gaptol to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver gaptol to %g.\n", dval);
       break;
    case SCIP_SDPPAR_FEASTOL:
       sdpisolver->feastol = dval;
-      SCIPdebugMessage("Setting sdpisolver feastol to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver feastol to %g.\n", dval);
       break;
    case SCIP_SDPPAR_SDPSOLVERFEASTOL:
       sdpisolver->sdpsolverfeastol = dval;
-      SCIPdebugMessage("Setting sdpisolver sdpsolverfeastol to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver sdpsolverfeastol to %g.\n", dval);
       break;
    case SCIP_SDPPAR_OBJLIMIT:
-      SCIPdebugMessage("Setting sdpisolver objlimit to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver objlimit to %g.\n", dval);
       sdpisolver->objlimit = dval;
       break;
    default:
@@ -2571,17 +2571,17 @@ SCIP_RETCODE SCIPsdpiSolverComputePenaltyparam(
 
    if ( compval < MIN_PENALTYPARAM )
    {
-      SCIPdebugMessage("Setting penaltyparameter to %f.\n", MIN_PENALTYPARAM);
+      SCIPdebugMessage("Setting penaltyparameter to %g.\n", MIN_PENALTYPARAM);
       *penaltyparam = MIN_PENALTYPARAM;
    }
    else if ( compval > MAX_PENALTYPARAM )
    {
-      SCIPdebugMessage("Setting penaltyparameter to %f.\n", MAX_PENALTYPARAM);
+      SCIPdebugMessage("Setting penaltyparameter to %g.\n", MAX_PENALTYPARAM);
       *penaltyparam = MAX_PENALTYPARAM;
    }
    else
    {
-      SCIPdebugMessage("Setting penaltyparameter to %f.\n", compval);
+      SCIPdebugMessage("Setting penaltyparameter to %g.\n", compval);
       *penaltyparam = compval;
    }
 
@@ -2605,12 +2605,12 @@ SCIP_RETCODE SCIPsdpiSolverComputeMaxPenaltyparam(
    if ( compval < MAX_MAXPENALTYPARAM )
    {
       *maxpenaltyparam = compval;
-      SCIPdebugMessage("Setting maximum penaltyparameter to %f.\n", compval);
+      SCIPdebugMessage("Setting maximum penaltyparameter to %g.\n", compval);
    }
    else
    {
       *maxpenaltyparam = MAX_MAXPENALTYPARAM;
-      SCIPdebugMessage("Setting penaltyparameter to %f.\n", MAX_MAXPENALTYPARAM);
+      SCIPdebugMessage("Setting penaltyparameter to %g.\n", MAX_MAXPENALTYPARAM);
    }
 
    return SCIP_OKAY;
