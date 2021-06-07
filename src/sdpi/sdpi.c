@@ -3847,7 +3847,7 @@ SCIP_RETCODE SCIPsdpiSlaterSettings(
 
    if ( ! sdpi->solved )
    {
-      SCIPdebugMessage("Problem was not solved successfully.");
+      SCIPdebugMessage("Problem was not solved successfully.\n");
       if ( sdpi->bestbound > -SCIPsdpiSolverInfinity(sdpi->sdpisolver) )
       {
          SCIPdebugMessage("But we could at least compute a lower bound.\n");
@@ -3891,7 +3891,6 @@ SCIP_RETCODE SCIPsdpiSlaterSettings(
       }
       else
       {
-         SCIPdebugMessage(".\n");
          if ( sdpi->dualslater == SCIP_SDPSLATER_INF)
             *slatersetting = SCIP_SDPSLATERSETTING_UNSOLVEDINFEASIBLE;
          else
