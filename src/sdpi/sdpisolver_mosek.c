@@ -147,6 +147,8 @@ struct SCIP_SDPiSolver
    int                   nthreads;           /**< number of threads the SDP solver should use (-1 = number of cores) */
    int                   niterations;        /**< number of SDP-iterations since the last solve call */
    int                   nsdpcalls;          /**< number of SDP-calls since the last solve call */
+   SCIP_Bool             scaleobj;           /**< whether the objective should be scaled */
+   SCIP_Real             objscalefactor;     /**< objective scaling factor */
 };
 
 
@@ -516,6 +518,8 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->solstat = MSK_SOL_STA_UNKNOWN;
    (*sdpisolver)->timelimit = FALSE;
    (*sdpisolver)->niterations = 0;
+   (*sdpisolver)->scaleobj = FALSE;
+   (*sdpisolver)->objscalefactor = 1.0;
 
    return SCIP_OKAY;
 }
@@ -790,6 +794,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #if CONVERT_ABSOLUTE_TOLERANCES
    SCIP_Real maxrhscoef = 0.0; /* MOSEK uses a relative feasibility tolerance, the largest rhs-coefficient is needed for converting the absolute tolerance */
 #endif
+   SCIP_Real maxabsobjcoef = 0.0;
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->mskenv != NULL );
@@ -832,6 +837,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    sdpisolver->niterations = 0;
    sdpisolver->nsdpcalls = 0;
+   sdpisolver->objscalefactor = 1.0;
 
    /* check the timelimit */
    if ( solvertimelimit <= 0.0 )
@@ -923,6 +929,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          sdpisolver->mosektoinputmapper[sdpisolver->nactivevars] = i;
          sdpisolver->inputtomosekmapper[i] = sdpisolver->nactivevars;
          sdpisolver->objcoefs[sdpisolver->nactivevars] = obj[i];
+
+         if ( withobj )
+         {
+            /* the objective moves to the rhs */
+            if ( REALABS(obj[i]) > maxabsobjcoef )
+               maxabsobjcoef = REALABS(obj[i]);
+         }
 
          if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, lb[i]) )
          {
@@ -1293,12 +1306,31 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       MOSEK_CALL( MSK_putacol(sdpisolver->msktask, nlpvars + i, 1, &row, &val) );/*lint !e641*/
    }
 
+   /* possibly scale objective */
+   if ( sdpisolver->scaleobj )
+   {
+      if ( REALABS(maxabsobjcoef) > 1.0 )
+      {
+         assert( withobj );
+         sdpisolver->objscalefactor = maxabsobjcoef;
+         SCIPdebugMessage("Scaling objective by %g.\n", 1.0 / sdpisolver->objscalefactor);
+         maxabsobjcoef = 1.0;  /* this is now 1 because of scaling */
+      }
+   }
+   else
+      assert( sdpisolver->objscalefactor == 1.0 );
+
    /* make all constraints equality constraints with right-hand side b_i (or 0 if we solve without objective) */
    for (i = 0; i < sdpisolver->nactivevars; i++)
    {
       if ( withobj )
       {
-         MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, i, MSK_BK_FX, obj[sdpisolver->mosektoinputmapper[i]], obj[sdpisolver->mosektoinputmapper[i]]) );/*lint !e641*/
+         SCIP_Real objcoef;
+
+         objcoef = sdpisolver->objcoefs[i];
+         assert( objcoef == obj[sdpisolver->mosektoinputmapper[i]] );
+         objcoef /= sdpisolver->objscalefactor;
+         MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, i, MSK_BK_FX, objcoef, objcoef) );/*lint !e641*/
       }
       else
       {
@@ -1369,7 +1401,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* set objective cutoff */
       if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
       {
-         MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_UPPER_OBJ_CUT, sdpisolver->objlimit) );/*lint !e641*/
+         MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_UPPER_OBJ_CUT, sdpisolver->objlimit / sdpisolver->objscalefactor) );
       }
 
       /* turn presolving on/off */
@@ -2107,6 +2139,9 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
       /* in this case we cannot really trust the solution given by MOSEK, since changes in the value of r much less than epsilon can
        * cause huge changes in the objective, so using the objective value given by MOSEK is numerically more stable */
       MOSEK_CALL( MSK_getdualobj(sdpisolver->msktask, MSK_SOL_ITR, objval) );
+
+      /* reverse scaling */
+      *objval *= sdpisolver->objscalefactor;
    }
    else
    {
@@ -2185,6 +2220,9 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
             /* in this case we cannot really trust the solution given by MOSEK, since changes in the value of r much less than epsilon can
              * cause huge changes in the objective, so using the objective value given by MOSEK is numerically more stable */
             MOSEK_CALL( MSK_getdualobj(sdpisolver->msktask, MSK_SOL_ITR, objval) );
+
+            /* reverse scaling */
+            *objval *= sdpisolver->objscalefactor;
          }
          else
          {
@@ -2302,17 +2340,17 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
       if ( sdpisolver->varboundpos[i] < 0 )
       {
          /* this is a lower bound */
-         /* the last nvarbounds entries correspond to the varbounds */
-         lbvars[sdpisolver->mosektoinputmapper[-1 * sdpisolver->varboundpos[i] -1]] = primalvars[nprimalvars - sdpisolver->nvarbounds + i]; /*lint !e679, !e834 */
+
+         /* the last nvarbounds entries correspond to the varbounds; we need to unscale these values */
+         lbvars[sdpisolver->mosektoinputmapper[-1 * sdpisolver->varboundpos[i] -1]] = primalvars[nprimalvars - sdpisolver->nvarbounds + i] * sdpisolver->objscalefactor;
       }
       else
       {
          /* this is an upper bound */
-
          assert( sdpisolver->varboundpos[i] > 0 );
 
-         /* the last nvarbounds entries correspond to the varbounds */
-         ubvars[sdpisolver->mosektoinputmapper[sdpisolver->varboundpos[i] - 1]] = primalvars[nprimalvars - sdpisolver->nvarbounds + i]; /*lint !e679, !e834 */
+         /* the last nvarbounds entries correspond to the varbounds; we need to unscale these values */
+         ubvars[sdpisolver->mosektoinputmapper[sdpisolver->varboundpos[i] - 1]] = primalvars[nprimalvars - sdpisolver->nvarbounds + i] * sdpisolver->objscalefactor;
       }
    }
 
@@ -2546,6 +2584,10 @@ SCIP_RETCODE SCIPsdpiSolverGetIntpar(
       *ival = (int) sdpisolver->usepresolving;
       SCIPdebugMessage("Getting usepresolving (%d).\n", *ival);
       break;
+   case SCIP_SDPPAR_SCALEOBJ:
+      *ival = (int) sdpisolver->scaleobj;
+      SCIPdebugMessage("Getting scaleobj (%d).\n", *ival);
+      break;
    default:
       return SCIP_PARAMETERUNKNOWN;
    }/*lint !e788*/
@@ -2577,6 +2619,11 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
       assert( 0 <= ival && ival <= 1 );
       sdpisolver->usepresolving = (SCIP_Bool) ival;
       SCIPdebugMessage("Setting usepresolving (%d).\n", ival);
+      break;
+   case SCIP_SDPPAR_SCALEOBJ:
+      assert( 0 <= ival && ival <= 1 );
+      sdpisolver->scaleobj = (SCIP_Bool) ival;
+      SCIPdebugMessage("Setting scaleobj (%d).\n", ival);
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;

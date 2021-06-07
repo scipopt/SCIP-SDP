@@ -68,6 +68,7 @@ parameters:
 - removed parameter <heuristics/sdprand/generalints>
 - removed parameter <heuristics/sdprand/nrounds>
 - new parameter <relaxing/SDP/usepresolving> to turn presolving of SDP-solver on
+- new parameter <relaxing/SDP/scaleobj> to turn scaling of objective in SDP-solver on
 
 fixed bugs:
 - fixed the output of the line number when reading CBF files
