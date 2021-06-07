@@ -2083,15 +2083,12 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
       *objval = 0.0;
       for (v = 0; v < sdpisolver->nactivevars; v++)
          *objval += moseksol[v] * sdpisolver->objcoefs[v];
+
+      BMSfreeBufferMemoryArray(sdpisolver->bufmem, &moseksol);
    }
 
    /* as we didn't add the fixed (lb = ub) variables to MOSEK, we have to add their contributions to the objective as well */
    *objval += sdpisolver->fixedvarsobjcontr;
-
-   if ( ! sdpisolver->penalty || sdpisolver->feasorig )
-   {
-      BMSfreeBufferMemoryArray(sdpisolver->bufmem, &moseksol);
-   }
 
    return SCIP_OKAY;
 }
