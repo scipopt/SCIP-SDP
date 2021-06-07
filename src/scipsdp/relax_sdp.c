@@ -3563,21 +3563,24 @@ SCIP_RETCODE calcRelax(
       }
       else if ( SCIPsdpiIsPrimalFeasible(sdpi) && SCIPsdpiIsDualFeasible(sdpi) )
       {
-         SCIP_SOL* scipsol; /* TODO: eliminate this from warmstart and save array instead */
+         SCIP_SOL* scipsol;
          SCIP_SOL* preoptimalsol = NULL;
          SCIP_CONS* savedcons;
+         SCIP_Bool preoptimalsolsuccess = FALSE;
          int slength;
-         SCIP_Bool preoptimalsolsuccess;
 
          /* get solution w.r.t. SCIP variables */
          SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
          slength = nvars;
          SCIP_CALL( SCIPsdpiGetSol(sdpi, &objforscip, solforscip, &slength) ); /* get both the objective and the solution from the SDP solver */
 
-         assert( slength == nvars ); /* If this isn't true any longer, the getSol-Call was unsuccessfull, because the given array wasn't long enough,
+         assert( slength == nvars ); /* If this isn't true any longer, the getSol-call was unsuccessfull, because the given array wasn't long enough,
                                       * but this can't happen, because the array has enough space for all sdp variables. */
 
-         SCIPdebugMsg(scip, "Relaxation is solved optimally (objective: %g).\n", objforscip);
+         if ( SCIPsdpiIsOptimal(sdpi) )
+            SCIPdebugMsg(scip, "Relaxation is solved optimally (objective: %g).\n", objforscip);
+         else
+            SCIPdebugMsg(scip, "Have feasible solution for dual of relaxation (objective: %g).\n", objforscip);
 
          /* create SCIP solution */
          SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
@@ -3598,7 +3601,6 @@ SCIP_RETCODE calcRelax(
 #endif
          relaxdata->feasible = TRUE;
          *result = SCIP_SUCCESS;
-         preoptimalsolsuccess = FALSE;
 
          /* save solution for warmstarts (only if we did not use the penalty formulation, since this would change the problem structure) */
          if ( relaxdata->warmstart && SCIPsdpiSolvedOrig(relaxdata->sdpi) )
