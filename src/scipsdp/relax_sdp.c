@@ -5560,7 +5560,7 @@ SCIP_Bool SCIPrelaxSdpIsFeasible(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->feasible );
+   return SCIPrelaxGetData(relax)->feasible;
 }
 
 /** returns whether the last solved problem was unbounded */
@@ -5610,7 +5610,7 @@ int SCIPrelaxSdpGetNSdpCalls(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->sdpcalls );
+   return SCIPrelaxGetData(relax)->sdpcalls;
 }
 
 /** returns number of solved SDP-relaxations */
@@ -5621,7 +5621,7 @@ int SCIPrelaxSdpGetNSdpInterfaceCalls(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->sdpinterfacecalls );
+   return SCIPrelaxGetData(relax)->sdpinterfacecalls;
 }
 
 /** returns number of SDP-relaxations solved with fastest settings */
@@ -5632,7 +5632,7 @@ int SCIPrelaxSdpGetNSdpFast(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->solvedfast );
+   return SCIPrelaxGetData(relax)->solvedfast;
 }
 
 /** returns number of SDP-relaxations solved with medium settings */
@@ -5643,7 +5643,7 @@ int SCIPrelaxSdpGetNSdpMedium(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->solvedmedium );
+   return SCIPrelaxGetData(relax)->solvedmedium;
 }
 
 /** returns number of SDP-relaxations solved with stable settings */
@@ -5654,7 +5654,7 @@ int SCIPrelaxSdpGetNSdpStable(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->solvedstable );
+   return SCIPrelaxGetData(relax)->solvedstable;
 }
 
 /** returns number of SDP-relaxations solved with penalty formulation */
@@ -5665,7 +5665,7 @@ int SCIPrelaxSdpGetNSdpPenalty(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->solvedpenalty );
+   return SCIPrelaxGetData(relax)->solvedpenalty;
 }
 
 /** returns number of SDP-relaxations unsolved even when using a penalty formulation */
@@ -5676,7 +5676,7 @@ int SCIPrelaxSdpGetNSdpUnsolved(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->unsolved );
+   return SCIPrelaxGetData(relax)->unsolved;
 }
 
 /** returns number of SDP-relaxations for which dual Slater condition held */
@@ -5687,7 +5687,7 @@ int SCIPrelaxSdpGetNdualSlaterHolds(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->ndslaterholds );
+   return SCIPrelaxGetData(relax)->ndslaterholds;
 }
 
 /** returns number of SDP-relaxations for which dual Slater condition failed */
@@ -5698,7 +5698,7 @@ int SCIPrelaxSdpGetNdualSlaterFails(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->ndnoslater );
+   return SCIPrelaxGetData(relax)->ndnoslater;
 }
 
 /** returns number of SDP-relaxations for which dual Slater condition showed infeasibility */
@@ -5709,7 +5709,7 @@ int SCIPrelaxSdpGetNdualSlaterInfeasible(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->nslaterinfeasible );
+   return SCIPrelaxGetData(relax)->nslaterinfeasible;
 }
 
 /** returns number of SDP-relaxations for which dual Slater condition could not be determined */
@@ -5720,7 +5720,7 @@ int SCIPrelaxSdpGetNdualSlaterUnknown(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->ndslatercheckfailed );
+   return SCIPrelaxGetData(relax)->ndslatercheckfailed;
 }
 
 /** returns number of SDP-relaxations for which primal Slater condition held */
@@ -5731,7 +5731,7 @@ int SCIPrelaxSdpGetNprimalSlaterHolds(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->npslaterholds );
+   return SCIPrelaxGetData(relax)->npslaterholds;
 }
 
 /** returns number of SDP-relaxations for which primal Slater condition failed */
@@ -5742,7 +5742,7 @@ int SCIPrelaxSdpGetNprimalSlaterFails(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->npnoslater );
+   return SCIPrelaxGetData(relax)->npnoslater;
 }
 
 /** returns number of SDP-relaxations for which primal Slater condition could not be determined */
@@ -5753,7 +5753,7 @@ int SCIPrelaxSdpGetNprimalSlaterUnknown(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->npslatercheckfailed );
+   return SCIPrelaxGetData(relax)->npslatercheckfailed;
 }
 
 /** returns number of SDP-relaxations with Slater condition holding for primal and dual */
@@ -5764,7 +5764,7 @@ int SCIPrelaxSdpGetNSlaterHolds(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->nslaterholds );
+   return SCIPrelaxGetData(relax)->nslaterholds;
 }
 
 /** returns number of SDP-relaxations with Slater condition holding for primal and dual, solved with fastest settings */
@@ -5775,7 +5775,7 @@ int SCIPrelaxSdpGetNSlaterHoldsFast(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->stablewslater );
+   return SCIPrelaxGetData(relax)->stablewslater;
 }
 
 /** returns number of SDP-relaxations with Slater condition holding for primal and dual, solved with stable settings */
@@ -5786,7 +5786,7 @@ int SCIPrelaxSdpGetNSlaterHoldsStable(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->unstablewslater );
+   return SCIPrelaxGetData(relax)->unstablewslater;
 }
 
 /** returns number of SDP-relaxations with Slater condition holding for primal and dual, solved with penalty formulation */
@@ -5797,7 +5797,7 @@ int SCIPrelaxSdpGetNSlaterHoldsPenalty(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->penaltywslater );
+   return SCIPrelaxGetData(relax)->penaltywslater;
 }
 
 /** returns number of SDP-relaxations with Slater condition holding for primal and dual, for which an infeasible lower bound could be computed */
@@ -5808,7 +5808,7 @@ int SCIPrelaxSdpGetNSlaterHoldsBounded(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->boundedwslater );
+   return SCIPrelaxGetData(relax)->boundedwslater;
 }
 
 /** returns number of SDP-relaxations with Slater condition holding for primal and dual, unsolved even when using a penalty formulation */
@@ -5819,7 +5819,7 @@ int SCIPrelaxSdpGetNSlaterHoldsUnsolved(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->unsolvedwslater );
+   return SCIPrelaxGetData(relax)->unsolvedwslater;
 }
 
 /** returns number of SDP-relaxations with Slater condition failing for primal or dual */
@@ -5830,7 +5830,7 @@ int SCIPrelaxSdpGetNSlaterFails(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->nnoslater );
+   return SCIPrelaxGetData(relax)->nnoslater;
 }
 
 /** returns number of SDP-relaxations with Slater condition failing for primal or dual, solved with fast settings */
@@ -5841,7 +5841,7 @@ int SCIPrelaxSdpGetNSlaterFailsFast(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->stablenoslater );
+   return SCIPrelaxGetData(relax)->stablenoslater;
 }
 
 /** returns number of SDP-relaxations with Slater condition failing for primal or dual, solved with stable settings */
@@ -5852,7 +5852,7 @@ int SCIPrelaxSdpGetNSlaterFailsStable(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->unstablenoslater );
+   return SCIPrelaxGetData(relax)->unstablenoslater;
 }
 
 /** returns number of SDP-relaxations with Slater condition failing for primal or dual, solved with penalty formulation */
@@ -5863,7 +5863,7 @@ int SCIPrelaxSdpGetNSlaterFailsPenalty(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->penaltynoslater );
+   return SCIPrelaxGetData(relax)->penaltynoslater;
 }
 
 /** returns number of SDP-relaxations with Slater condition failing for primal or dual, for which an infeasible lower bound could be computed */
@@ -5874,7 +5874,7 @@ int SCIPrelaxSdpGetNSlaterFailsBounded(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->boundednoslater );
+   return SCIPrelaxGetData(relax)->boundednoslater;
 }
 
 /** returns number of SDP-relaxations with Slater condition failing for primal or dual, unsolved even when using a penalty formulation */
@@ -5885,7 +5885,7 @@ int SCIPrelaxSdpGetNSlaterFailsUnsolved(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->unsolvednoslater );
+   return SCIPrelaxGetData(relax)->unsolvednoslater;
 }
 
 /** returns number of SDP-relaxations with Slatercheck showing infeasibility, solved with fast settings */
@@ -5896,7 +5896,7 @@ int SCIPrelaxSdpGetNSlaterInfeasibleFast(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->stableinfeasible );
+   return SCIPrelaxGetData(relax)->stableinfeasible;
 }
 
 /** returns number of SDP-relaxations with Slatercheck showing infeasibility, solved with stable settings */
@@ -5907,7 +5907,7 @@ int SCIPrelaxSdpGetNSlaterInfeasibleStable(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->unstableinfeasible );
+   return SCIPrelaxGetData(relax)->unstableinfeasible;
 }
 
 /** returns number of SDP-relaxations with Slatercheck showing infeasibility, solved with penalty formulation */
@@ -5918,7 +5918,7 @@ int SCIPrelaxSdpGetNSlaterInfeasiblePenalty(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->penaltyinfeasible );
+   return SCIPrelaxGetData(relax)->penaltyinfeasible;
 }
 
 /** returns number of SDP-relaxations with Slatercheck showing infeasibility, for which an infeasible lower bound could be computed */
@@ -5929,7 +5929,7 @@ int SCIPrelaxSdpGetNSlaterInfeasibleBounded(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->boundedinfeasible );
+   return SCIPrelaxGetData(relax)->boundedinfeasible;
 }
 
 /** returns number of SDP-relaxations with Slatercheck showing infeasibility, unsolved even when using a penalty formulation */
@@ -5940,7 +5940,7 @@ int SCIPrelaxSdpGetNSlaterInfeasibleUnsolved(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->unsolvedinfeasible );
+   return SCIPrelaxGetData(relax)->unsolvedinfeasible;
 }
 
 /** returns solving time in SDP solver */
