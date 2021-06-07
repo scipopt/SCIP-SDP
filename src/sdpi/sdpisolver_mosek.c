@@ -141,6 +141,7 @@ struct SCIP_SDPiSolver
                                               *   and the solution was feasible for the original problem? */
    SCIP_Bool             rbound;             /**< was the penalty parameter bounded during the last solve call */
    MSKrescodee           terminationcode;    /**< reason for termination of the last call to the MOSEK-optimizer */
+   MSKsolstae            solstat;            /**< solution status of last call to MOSEK-optimizer */
    SCIP_Bool             timelimit;          /**< was the solver stopped because of the time limit? */
    SCIP_Bool             timelimitinitial;   /**< was the problem not even given to the solver because of the time limit? */
    int                   nthreads;           /**< number of threads the SDP solver should use (-1 = number of cores) */
@@ -510,6 +511,8 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
    (*sdpisolver)->sdpinfo = FALSE;
    (*sdpisolver)->nthreads = -1;
+   (*sdpisolver)->terminationcode = MSK_RES_OK;
+   (*sdpisolver)->solstat = MSK_SOL_STA_UNKNOWN;
    (*sdpisolver)->timelimit = FALSE;
    (*sdpisolver)->timelimitinitial = FALSE;
 
@@ -779,7 +782,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_Real* mosekval;
    int row;
    SCIP_Real val;
-   MSKsolstae solstat;
    SCIP_Real solvertimelimit;
 #ifdef SCIP_MORE_DEBUG
    char name[SCIP_MAXSTRLEN];
@@ -1399,6 +1401,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* solve the problem */
       MOSEK_CALL( MSK_optimizetrm(sdpisolver->msktask, &(sdpisolver->terminationcode)) );/*lint !e641*/
       MOSEK_CALL( MSK_getdouinf(sdpisolver->msktask, MSK_DINF_OPTIMIZER_TIME, &sdpisolver->opttime) );
+      MOSEK_CALL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &sdpisolver->solstat) );/*lint !e641*/
 
       if ( sdpisolver->sdpinfo )
       {
@@ -1476,6 +1479,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
                /* solve the problem */
                MOSEK_CALL( MSK_optimizetrm(sdpisolver->msktask, &(sdpisolver->terminationcode)) );/*lint !e641*/
+               MOSEK_CALL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &sdpisolver->solstat) );/*lint !e641*/
 
                if ( sdpisolver->sdpinfo )
                {
@@ -1504,8 +1508,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          /* if using a penalty formulation, check if the solution is feasible for the original problem
           * we should always count it as infeasible if the penalty problem was unbounded */
-         MOSEK_CALL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-         if ( penaltyparam >= sdpisolver->epsilon && (solstat == MSK_SOL_STA_PRIM_INFEAS_CER) )
+         if ( penaltyparam >= sdpisolver->epsilon && (sdpisolver->solstat == MSK_SOL_STA_PRIM_INFEAS_CER) )
          {
             assert( feasorig != NULL );
             *feasorig = FALSE;
@@ -1628,14 +1631,10 @@ SCIP_Bool SCIPsdpiSolverFeasibilityKnown(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
 {
-   MSKsolstae solstat;
-
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
-   MOSEK_CALL_BOOL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-
-   switch ( solstat )
+   switch ( sdpisolver->solstat )
    {
    case MSK_SOL_STA_UNKNOWN:
    case MSK_SOL_STA_PRIM_FEAS:
@@ -1659,16 +1658,12 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
    SCIP_Bool*            dualfeasible        /**< stores dual feasibility status */
    )
 {
-   MSKsolstae solstat;
-
    assert( sdpisolver != NULL );
    assert( primalfeasible != NULL );
    assert( dualfeasible != NULL );
    CHECK_IF_SOLVED( sdpisolver );
 
-   MOSEK_CALL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-
-   switch ( solstat )
+   switch ( sdpisolver->solstat )
    {
    case MSK_SOL_STA_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
@@ -1698,14 +1693,10 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
    )
 {
-   MSKsolstae solstat;
-
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
-   MOSEK_CALL_BOOL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-
-   switch ( solstat )
+   switch ( sdpisolver->solstat )
    {
    case MSK_SOL_STA_DUAL_INFEAS_CER:
    case MSK_SOL_STA_OPTIMAL:
@@ -1726,14 +1717,10 @@ SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
 {
-   MSKsolstae solstat;
-
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
-   MOSEK_CALL_BOOL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-
-   switch ( solstat )
+   switch ( sdpisolver->solstat )
    {
    case MSK_SOL_STA_PRIM_INFEAS_CER:
       return TRUE;
@@ -1755,14 +1742,10 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
 {
-   MSKsolstae solstat;
-
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
-   MOSEK_CALL_BOOL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-
-   switch ( solstat )
+   switch ( sdpisolver->solstat )
    {
    case MSK_SOL_STA_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
@@ -1784,14 +1767,10 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
 {
-   MSKsolstae solstat;
-
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
-   MOSEK_CALL_BOOL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-
-   switch ( solstat )
+   switch ( sdpisolver->solstat )
    {
    case MSK_SOL_STA_PRIM_INFEAS_CER:
    case MSK_SOL_STA_OPTIMAL:
@@ -1812,14 +1791,10 @@ SCIP_Bool SCIPsdpiSolverIsDualInfeasible(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
 {
-   MSKsolstae solstat;
-
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
-   MOSEK_CALL_BOOL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-
-   switch ( solstat )
+   switch ( sdpisolver->solstat )
    {
    case MSK_SOL_STA_DUAL_INFEAS_CER:
       return TRUE;
@@ -1841,14 +1816,10 @@ SCIP_Bool SCIPsdpiSolverIsDualFeasible(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
 {
-   MSKsolstae solstat;
-
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
-   MOSEK_CALL_BOOL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-
-   switch ( solstat )
+   switch ( sdpisolver->solstat )
    {
    case MSK_SOL_STA_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
@@ -1878,15 +1849,12 @@ SCIP_Bool SCIPsdpiSolverIsConverged(
    /* check if Mosek stalled when it was already acceptable */
    if ( sdpisolver->terminationcode == MSK_RES_TRM_STALL )
    {
-      MSKsolstae solstat;
       SCIP_Real pobj;
       SCIP_Real dobj;
       SCIP_Real gapnormalization;
 
-      MOSEK_CALL_BOOL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );
-
       /* check the solution status */
-      switch ( solstat )
+      switch ( sdpisolver->solstat )
       {
       case MSK_SOL_STA_UNKNOWN:
       case MSK_SOL_STA_PRIM_FEAS:
@@ -1998,8 +1966,6 @@ SCIP_Bool SCIPsdpiSolverIsOptimal(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
 {
-   MSKsolstae solstat;
-
    assert( sdpisolver != NULL );
 
    if ( sdpisolver->timelimit )
@@ -2010,9 +1976,7 @@ SCIP_Bool SCIPsdpiSolverIsOptimal(
    if ( sdpisolver->terminationcode != MSK_RES_OK )
       return FALSE;
 
-   MOSEK_CALL_BOOL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-
-   if ( solstat != MSK_SOL_STA_OPTIMAL )
+   if ( sdpisolver->solstat != MSK_SOL_STA_OPTIMAL )
       return FALSE;
 
    return TRUE;
