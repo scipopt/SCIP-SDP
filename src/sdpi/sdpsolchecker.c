@@ -136,7 +136,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
    {
       if ( solvector[i] < lb[i] - feastol || solvector[i] > ub[i] + feastol )
       {
-         SCIPdebugMessage("solution found infeasible (feastol=%f) for variable bounds: x[%d] = %f <|= [%f, %f]\n",
+         SCIPdebugMessage("solution found infeasible (feastol=%g) for variable bounds: x[%d] = %g <|= [%g, %g]\n",
                feastol, i, solvector[i], lb[i], ub[i]);
          *infeasible = TRUE;
          return SCIP_OKAY;
@@ -167,7 +167,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
       {
          if ( lpconsvals[i] < lplhs[ind] - feastol || lpconsvals[i] > lprhs[ind] + feastol)
          {
-            SCIPdebugMessage("solution found infeasible (feastol=%f) for lp constraint: LP-%d = %f <|= [%f,%f]\n",
+            SCIPdebugMessage("solution found infeasible (feastol=%g) for lp constraint: LP-%d = %g <|= [%g,%g]\n",
                feastol, i, lpconsvals[i], lplhs[ind], lprhs[ind]);
             BMSfreeBufferMemoryArray(bufmem, &lpconsvals);
             *infeasible = TRUE;
@@ -250,7 +250,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
 
             if ( eigenvalue < - feastol )
             {
-               SCIPdebugMessage("solution found infeasible (feastol=%.10f) for sdp constraint %d, smallest eigenvector %.10f\n",
+               SCIPdebugMessage("solution found infeasible (feastol=%g) for sdp constraint %d, smallest eigenvector %.10g\n",
                      feastol, b, eigenvalue);
                BMSfreeBufferMemoryArray(bufmem, &fullsdpmatrix);
                *infeasible = TRUE;
