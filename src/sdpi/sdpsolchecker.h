@@ -74,7 +74,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
                                               *   in the i-th block */
    int***                sdprow,             /**< pointer to the row-indices for each block and variable */
    int***                sdpcol,             /**< pointer to the column-indices for each block and variable */
-   SCIP_Real***          sdpval,             /**< values of SDP-constraintmmatrix entries (may be NULL if sdpnnonz = 0) */
+   SCIP_Real***          sdpval,             /**< values of SDP-constraint mmatrix entries (may be NULL if sdpnnonz = 0) */
    int**                 indchanges,         /**< changes needed to be done to the indices, if indchanges[block][ind]=-1, then the index can
                                               *   be removed, otherwise it gives the number of indices removed before this */
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
