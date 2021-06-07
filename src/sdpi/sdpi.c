@@ -4320,6 +4320,7 @@ SCIP_RETCODE SCIPsdpiGetIntpar(
    {
    case SCIP_SDPPAR_SDPINFO:
    case SCIP_SDPPAR_NTHREADS:
+   case SCIP_SDPPAR_USEPRESOLVING:
       SCIP_CALL_PARAM( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, ival) );
       break;
    case SCIP_SDPPAR_SLATERCHECK:
@@ -4348,6 +4349,7 @@ SCIP_RETCODE SCIPsdpiSetIntpar(
    switch( type )/*lint --e{788}*/
    {
    case SCIP_SDPPAR_SDPINFO:
+   case SCIP_SDPPAR_USEPRESOLVING:
       assert( ival == 0 || ival == 1 ); /* this is a boolean parameter */
       SCIP_CALL_PARAM( SCIPsdpiSolverSetIntpar(sdpi->sdpisolver, type, ival) );
       break;
