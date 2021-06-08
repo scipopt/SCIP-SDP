@@ -33,6 +33,7 @@
 /*#define SCIP_DEBUG*/
 /*#define SCIP_MORE_DEBUG*/
 /*#define SCIP_DEBUG_PRINTTOFILE  *//* prints each problem inserted into MOSEK to the file mosek.task */
+/* #define SCIP_PRINT_SOLU        /\* prints each solution (primal and dual) reported from MOSEK to the screen *\/ */
 
 /**@file   sdpisolver_mosek.c
  * @brief  interface for MOSEK
@@ -92,6 +93,7 @@
 #define INFEASMINFEASTOL            1E-9      /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance;
                                               *   @todo Think about doing this for absolute feastol */
 #define CONVERT_ABSOLUTE_TOLERANCES TRUE     /**< should absolute tolerances be converted to relative tolerances for MOSEK */
+#define CHECKVIOLATIONS             0        /**< Should the violations reported from MOSEK should be checked? */
 #if MSK_VERSION_MAJOR >= 9
 #define NEAR_REL_TOLERANCE           1.0     /**< MOSEK will multiply all tolerances with this factor after stalling */
 #endif
@@ -1529,6 +1531,121 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                indchanges, nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
                solvector, sdpisolver->feastol, sdpisolver->epsilon, &infeasible) );
          BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solvector);
+
+#if CHECKVIOLATIONS == 1
+         {
+            /* The following code obtains the primal and dual solution reported from MOSEK and checks the violations of
+             * the variable bounds, and linear as well as SDP constraints. Since MOSEK seems to use a different LAPACK
+             * routine to compute the eigenvalues of a symmetric matrix, the violations of the SDP constraints in the
+             * primal and dual reported from MOSEK and computed by SCIP-SDP differ slightly. Apart from that, the primal
+             * violations (variables and linear constraints) SCIP-SDP computes the same violations as MOSEK. For the
+             * dual problem however, MOSEK uses slack variables to obtain equalities, whereas the original (dual)
+             * problem in SCIP-SDP may have inequalities. Thus, MOSEK reports violations in the dual with respect to the
+             * slack variables and the corresponding equalities, whereas SCIP-SDP computes violations with respect to
+             * the original inequalities. Thus, those violations differ. Moreover, the dual variable violations reported
+             * from MOSEK seem to be the violations of the constraints in the dual problem, and the dual constraint
+             * violations from MOSEK seem to be the violation of the variables in the dual problem, since the dual of
+             * the primal constraints are the dual variables.
+             */
+            SCIP_Real* solvectorprimal;
+            SCIP_Real** solmatrices;
+            SCIP_Real maxabsviolbndsd;
+            SCIP_Real sumabsviolbndsd;
+            SCIP_Real maxabsviolconsd;
+            SCIP_Real sumabsviolconsd;
+            SCIP_Real maxabsviolsdpd;
+            SCIP_Real sumabsviolsdpd;
+            SCIP_Real maxabsviolbndsp;
+            SCIP_Real sumabsviolbndsp;
+            SCIP_Real maxabsviolconsp;
+            SCIP_Real sumabsviolconsp;
+            SCIP_Real maxabsviolsdpp;
+            SCIP_Real sumabsviolsdpp;
+            SCIP_Bool checkinfeas;
+            SCIP_Real pobj;
+            SCIP_Real pviolcon;
+            SCIP_Real pviolvar;
+            SCIP_Real pviolbarvar;
+            SCIP_Real dobj;
+            SCIP_Real dviolcon;
+            SCIP_Real dviolvar;
+            SCIP_Real dviolbarvar;
+            int nprimalvars;
+            int nprimalmatrixvars;
+            int blocksize;
+
+            /* get violations from Mosek */
+            MOSEK_CALL( MSK_getsolutioninfo(sdpisolver->msktask, MSK_SOL_ITR, &pobj, &pviolcon, &pviolvar, &pviolbarvar, NULL, NULL,
+               &dobj, &dviolcon, &dviolvar, &dviolbarvar, NULL) );
+
+            nprimalvars = nlpvars + sdpisolver->nvarbounds;
+            nprimalmatrixvars = nsdpblocks - nremovedblocks;
+
+            /* get current solution */
+            BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &solvectorprimal, nprimalvars) );
+            BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &solmatrices, nprimalmatrixvars) );
+            for (i = 0; i < nprimalmatrixvars; i++)
+            {
+               blocksize = mosekblocksizes[i];
+               BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &solmatrices[i], blocksize) );
+            }
+
+            MOSEK_CALL( MSK_getxx(sdpisolver->msktask, MSK_SOL_ITR, solvectorprimal) );
+            for (i = 0; i < nprimalmatrixvars; i++)
+               MOSEK_CALL( MSK_getbarxj(sdpisolver->msktask, MSK_SOL_ITR, i, solmatrices[i]) );
+
+#ifdef SCIP_PRINT_SOLU
+            /* print primal and dual solution reported from MOSEK */
+            SCIPdebugMessage("Dual solution reported from MOSEK transformed to our problem:\n");
+            for (i = 0; i < nvars; i++)
+               SCIPdebugMessage("y[%d] = %.15g\n", i, solvector[i]);
+
+            SCIPdebugMessage("Primal solution reported from MOSEK:\n");
+            for (i = 0; i < nprimalvars; i++)
+               SCIPdebugMessage("x[%d] = %.15g\n", i, solvectorprimal[i]);
+
+            for (i = 0; i < nprimalmatrixvars; i++)
+            {
+               blocksize = mosekblocksizes[i];
+               for (j = 0; j <  blocksize * (blocksize + 1) / 2; j++)
+                  SCIPdebugMessage("X_%d[%d] = %.15g\n", i, j, solmatrices[i][j]);
+            }
+#endif
+
+            /* check violations reported from Mosek */
+            SCIP_CALL( SCIPsdpSolcheckerCheckAndGetViolDual(sdpisolver->bufmem, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
+                  sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
+                  indchanges, nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
+                  solvector, sdpisolver->feastol, sdpisolver->epsilon, &maxabsviolbndsd, &sumabsviolbndsd, &maxabsviolconsd, &sumabsviolconsd,
+                  &maxabsviolsdpd, &sumabsviolsdpd, &checkinfeas) );
+            if ( checkinfeas )
+               assert( infeasible );
+
+            SCIP_CALL( SCIPsdpSolcheckerCheckAndGetViolPrimal(sdpisolver->bufmem, nvars, obj, lb, ub, sdpisolver->inputtomosekmapper, nsdpblocks,
+                  sdpblocksizes, sdpnblockvars, sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz,
+                  sdpvar, sdprow, sdpcol, sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol,
+                  lpval, solvectorprimal, solmatrices, sdpisolver->feastol, sdpisolver->epsilon, &maxabsviolbndsp, &sumabsviolbndsp, &maxabsviolconsp,
+                  &sumabsviolconsp, &maxabsviolsdpp, &sumabsviolsdpp, &checkinfeas) );
+            if ( checkinfeas )
+               assert( infeasible );
+
+            /* dviolcon is the maximal violation of the dual variables, since they are the dual of the primal constraints */
+            SCIPdebugMessage("Maximal violations for the dual problem: vars: %g (Mosek), %g (SCIP-SDP); cons: %g (Mosek), %g (SCIP-SDP); SDP: %g (Mosek), %g (SCIP-SDP)\n",
+               dviolcon, maxabsviolbndsd, dviolvar, maxabsviolconsd, dviolbarvar, maxabsviolsdpd);
+            SCIPdebugMessage("Maximal violations for the primal problem: vars: %g (Mosek), %g (SCIP-SDP); cons: %g (Mosek), %g (SCIP-SDP); SDP: %g (Mosek), %g (SCIP-SDP)\n",
+               pviolvar, maxabsviolbndsp, pviolcon, maxabsviolconsp, pviolbarvar, maxabsviolsdpp);
+            SCIPdebugMessage("Sum of violations for the dual problem: vars: %g (SCIP-SDP); cons: %g (SCIP-SDP); SDP: %g (SCIP-SDP)\n",
+               sumabsviolbndsd, sumabsviolconsd, sumabsviolsdpd);
+            SCIPdebugMessage("Sum of violations for the primal problem: vars: %g (SCIP-SDP); cons: %g (SCIP-SDP); SDP: %g (SCIP-SDP)\n",
+               sumabsviolbndsp, sumabsviolconsp, sumabsviolsdpp);
+
+            for (i = 0; i < nprimalmatrixvars; i++)
+               BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solmatrices[i]);
+            BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solmatrices);
+            BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solvectorprimal);
+            BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solvector);
+         }
+#endif
 
          if ( infeasible )
          {
