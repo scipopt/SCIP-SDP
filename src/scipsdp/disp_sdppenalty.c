@@ -113,7 +113,6 @@ SCIP_DECL_DISPINITSOL(dispInitsolSdppenalty)
    assert( dispdata != NULL );
 
    dispdata->relaxSDP = SCIPfindRelax(scip, "SDP");
-   assert( dispdata->relaxSDP != NULL );
 
    return SCIP_OKAY;
 }
@@ -130,17 +129,19 @@ SCIP_DECL_DISPOUTPUT(dispOutputSdppenalty)
    dispdata = SCIPdispGetData(disp);
 
    assert( dispdata != NULL );
-   assert( dispdata->relaxSDP != NULL );
 
-   if ( SCIPrelaxSdpGetNSdpCalls(dispdata->relaxSDP) == 0 )
+   if ( dispdata->relaxSDP != NULL )
    {
-      SCIPinfoMessage(scip, file, "   --   ");
-   }
-   else
-   {
-      SCIP_Real penaltypercent;
-      penaltypercent = (SCIP_Real) SCIPrelaxSdpGetNSdpPenalty(dispdata->relaxSDP) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(dispdata->relaxSDP);
-      SCIPinfoMessage(scip, file, "%7.2f%%", 100.0 * penaltypercent);
+      if ( SCIPrelaxSdpGetNSdpCalls(dispdata->relaxSDP) == 0 )
+      {
+         SCIPinfoMessage(scip, file, "   --   ");
+      }
+      else
+      {
+         SCIP_Real penaltypercent;
+         penaltypercent = (SCIP_Real) SCIPrelaxSdpGetNSdpPenalty(dispdata->relaxSDP) / (SCIP_Real) SCIPrelaxSdpGetNSdpInterfaceCalls(dispdata->relaxSDP);
+         SCIPinfoMessage(scip, file, "%7.2f%%", 100.0 * penaltypercent);
+      }
    }
 
    return SCIP_OKAY;

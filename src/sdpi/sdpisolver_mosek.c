@@ -33,6 +33,7 @@
 /*#define SCIP_DEBUG*/
 /*#define SCIP_MORE_DEBUG*/
 /*#define SCIP_DEBUG_PRINTTOFILE  *//* prints each problem inserted into MOSEK to the file mosek.task */
+/* #define SCIP_PRINT_SOLU        /\* prints each solution (primal and dual) reported from MOSEK to the screen *\/ */
 
 /**@file   sdpisolver_mosek.c
  * @brief  interface for MOSEK
@@ -92,6 +93,7 @@
 #define INFEASMINFEASTOL            1E-9      /**< minimum value for feasibility tolerance when encountering problems with regards to tolerance;
                                               *   @todo Think about doing this for absolute feastol */
 #define CONVERT_ABSOLUTE_TOLERANCES TRUE     /**< should absolute tolerances be converted to relative tolerances for MOSEK */
+#define CHECKVIOLATIONS             0        /**< Should the violations reported from MOSEK should be checked? */
 #if MSK_VERSION_MAJOR >= 9
 #define NEAR_REL_TOLERANCE           1.0     /**< MOSEK will multiply all tolerances with this factor after stalling */
 #endif
@@ -136,16 +138,19 @@ struct SCIP_SDPiSolver
    SCIP_Real             sdpsolverfeastol;   /**< feasibility tolerance for the SDP-solver */
    SCIP_Real             objlimit;           /**< objective limit for SDP solver */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
+   SCIP_Bool             usepresolving;      /**< Should presolving be used? */
    SCIP_Bool             penalty;            /**< was the problem last solved using a penalty formulation */
    SCIP_Bool             feasorig;           /**< was the last problem solved with a penalty formulation and with original objective coefficents
                                               *   and the solution was feasible for the original problem? */
    SCIP_Bool             rbound;             /**< was the penalty parameter bounded during the last solve call */
    MSKrescodee           terminationcode;    /**< reason for termination of the last call to the MOSEK-optimizer */
+   MSKsolstae            solstat;            /**< solution status of last call to MOSEK-optimizer */
    SCIP_Bool             timelimit;          /**< was the solver stopped because of the time limit? */
-   SCIP_Bool             timelimitinitial;   /**< was the problem not even given to the solver because of the time limit? */
    int                   nthreads;           /**< number of threads the SDP solver should use (-1 = number of cores) */
    int                   niterations;        /**< number of SDP-iterations since the last solve call */
    int                   nsdpcalls;          /**< number of SDP-calls since the last solve call */
+   SCIP_Bool             scaleobj;           /**< whether the objective should be scaled */
+   SCIP_Real             objscalefactor;     /**< objective scaling factor */
 };
 
 
@@ -509,9 +514,14 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->sdpsolverfeastol = 1e-6;
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
    (*sdpisolver)->sdpinfo = FALSE;
+   (*sdpisolver)->usepresolving = TRUE;
    (*sdpisolver)->nthreads = -1;
+   (*sdpisolver)->terminationcode = MSK_RES_OK;
+   (*sdpisolver)->solstat = MSK_SOL_STA_UNKNOWN;
    (*sdpisolver)->timelimit = FALSE;
-   (*sdpisolver)->timelimitinitial = FALSE;
+   (*sdpisolver)->niterations = 0;
+   (*sdpisolver)->scaleobj = FALSE;
+   (*sdpisolver)->objscalefactor = 1.0;
 
    return SCIP_OKAY;
 }
@@ -779,7 +789,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_Real* mosekval;
    int row;
    SCIP_Real val;
-   MSKsolstae solstat;
    SCIP_Real solvertimelimit;
 #ifdef SCIP_MORE_DEBUG
    char name[SCIP_MAXSTRLEN];
@@ -787,6 +796,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #if CONVERT_ABSOLUTE_TOLERANCES
    SCIP_Real maxrhscoef = 0.0; /* MOSEK uses a relative feasibility tolerance, the largest rhs-coefficient is needed for converting the absolute tolerance */
 #endif
+   SCIP_Real maxabsobjcoef = 0.0;
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->mskenv != NULL );
@@ -827,16 +837,18 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, solvertimelimit) )
       solvertimelimit -= SDPIclockGetTime(usedsdpitime);
 
+   sdpisolver->niterations = 0;
+   sdpisolver->nsdpcalls = 0;
+   sdpisolver->objscalefactor = 1.0;
+
    /* check the timelimit */
    if ( solvertimelimit <= 0.0 )
    {
       sdpisolver->timelimit = TRUE;
-      sdpisolver->timelimitinitial = TRUE;
       sdpisolver->solved = FALSE;
       return SCIP_OKAY;
    }
    sdpisolver->timelimit = FALSE;
-   sdpisolver->timelimitinitial = FALSE;
    sdpisolver->feasorig = FALSE;
 
    /* create an empty task (second and third argument are guesses for maximum number of constraints and variables), if there already is one, delete it */
@@ -908,7 +920,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          sdpisolver->fixedvarsval[nfixedvars] = lb[i]; /* if lb=ub, then this is the value the variable will have in every solution */
          nfixedvars++;
          sdpisolver->inputtomosekmapper[i] = -nfixedvars;
-         SCIPdebugMessage("Fixing variable %d locally to %f for SDP %d in MOSEK.\n", i, lb[i], sdpisolver->sdpcounter);
+         SCIPdebugMessage("Fixing variable %d locally to %g for SDP %d in MOSEK.\n", i, lb[i], sdpisolver->sdpcounter);
       }
       else
       {
@@ -919,6 +931,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          sdpisolver->mosektoinputmapper[sdpisolver->nactivevars] = i;
          sdpisolver->inputtomosekmapper[i] = sdpisolver->nactivevars;
          sdpisolver->objcoefs[sdpisolver->nactivevars] = obj[i];
+
+         if ( withobj )
+         {
+            /* the objective moves to the rhs */
+            if ( REALABS(obj[i]) > maxabsobjcoef )
+               maxabsobjcoef = REALABS(obj[i]);
+         }
 
          if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, lb[i]) )
          {
@@ -936,6 +955,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
    }
    assert( sdpisolver->nactivevars + nfixedvars == sdpisolver->nvars );
+
+   /* adjust maxabsrhscoef in penalty formulation */
+   if ( penaltyparam >= sdpisolver->epsilon )
+   {
+      if ( penaltyparam > maxabsobjcoef )
+         maxabsobjcoef = penaltyparam;
+   }
 
    /* if we want to solve without objective, we reset fixedvarsobjcontr */
    if ( ! withobj )
@@ -1289,12 +1315,31 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       MOSEK_CALL( MSK_putacol(sdpisolver->msktask, nlpvars + i, 1, &row, &val) );/*lint !e641*/
    }
 
+   /* possibly scale objective */
+   if ( sdpisolver->scaleobj )
+   {
+      if ( REALABS(maxabsobjcoef) > 1.0 )
+      {
+         assert( withobj );
+         sdpisolver->objscalefactor = maxabsobjcoef;
+         SCIPdebugMessage("Scaling objective by %g.\n", 1.0 / sdpisolver->objscalefactor);
+         maxabsobjcoef = 1.0;  /* this is now 1 because of scaling */
+      }
+   }
+   else
+      assert( sdpisolver->objscalefactor == 1.0 );
+
    /* make all constraints equality constraints with right-hand side b_i (or 0 if we solve without objective) */
    for (i = 0; i < sdpisolver->nactivevars; i++)
    {
       if ( withobj )
       {
-         MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, i, MSK_BK_FX, obj[sdpisolver->mosektoinputmapper[i]], obj[sdpisolver->mosektoinputmapper[i]]) );/*lint !e641*/
+         SCIP_Real objcoef;
+
+         objcoef = sdpisolver->objcoefs[i];
+         assert( objcoef == obj[sdpisolver->mosektoinputmapper[i]] );
+         objcoef /= sdpisolver->objscalefactor;
+         MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, i, MSK_BK_FX, objcoef, objcoef) );/*lint !e641*/
       }
       else
       {
@@ -1311,17 +1356,20 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* the penalty constraint has right-hand side Gamma, it is a <=-inequality if r was bounded and an equality constraint otherwise */
    if ( penaltyparam >= sdpisolver->epsilon )
    {
+      SCIP_Real p;
+
+      p = penaltyparam / sdpisolver->objscalefactor;
       if ( rbound )
       {
-         MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, sdpisolver->nactivevars, MSK_BK_UP, (double) -1 * MSK_DPAR_DATA_TOL_BOUND_INF, penaltyparam) );/*lint !e641*/
+         MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, sdpisolver->nactivevars, MSK_BK_UP, (double) - MSK_DPAR_DATA_TOL_BOUND_INF, p) );/*lint !e641*/
       }
       else
       {
-         MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, sdpisolver->nactivevars, MSK_BK_FX, penaltyparam, penaltyparam) );/*lint !e641*/
+         MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, sdpisolver->nactivevars, MSK_BK_FX, p, p) );/*lint !e641*/
       }
 #ifdef SCIP_MORE_DEBUG
       /* give the constraint a meaningful name for debug output */
-      (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "penality");
+      (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "penalty");
       MOSEK_CALL( MSK_putconname(sdpisolver->msktask, i, name) );
 #endif
    }
@@ -1365,11 +1413,20 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* set objective cutoff */
       if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, sdpisolver->objlimit) )
       {
-         MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_UPPER_OBJ_CUT, sdpisolver->objlimit) );/*lint !e641*/
+         MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_UPPER_OBJ_CUT, sdpisolver->objlimit / sdpisolver->objscalefactor) );
       }
 
-      /* to avoid a bug in Mosek, we disable presolving */
-      MOSEK_CALL( MSK_putintparam(sdpisolver->msktask, MSK_IPAR_PRESOLVE_USE, MSK_PRESOLVE_MODE_OFF) );
+      /* turn presolving on/off */
+      if ( sdpisolver->usepresolving )
+      {
+         SCIPdebugMessage("Turning presolving on.\n");
+         MOSEK_CALL( MSK_putintparam(sdpisolver->msktask, MSK_IPAR_PRESOLVE_USE, MSK_PRESOLVE_MODE_ON) );
+      }
+      else
+      {
+         SCIPdebugMessage("Turning presolving off.\n");
+         MOSEK_CALL( MSK_putintparam(sdpisolver->msktask, MSK_IPAR_PRESOLVE_USE, MSK_PRESOLVE_MODE_OFF) );
+      }
 
       /* print whole problem (only for MOSEK < 9) and parameters if asked to */
 #ifdef SCIP_MORE_DEBUG
@@ -1399,6 +1456,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* solve the problem */
       MOSEK_CALL( MSK_optimizetrm(sdpisolver->msktask, &(sdpisolver->terminationcode)) );/*lint !e641*/
       MOSEK_CALL( MSK_getdouinf(sdpisolver->msktask, MSK_DINF_OPTIMIZER_TIME, &sdpisolver->opttime) );
+      MOSEK_CALL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &sdpisolver->solstat) );/*lint !e641*/
 
       if ( sdpisolver->sdpinfo )
       {
@@ -1410,8 +1468,38 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       sdpisolver->solved = TRUE;
 
-      sdpisolver->nsdpcalls = 1;
+      /* update number of SDP-iterations and -calls */
+      ++sdpisolver->nsdpcalls;
       MOSEK_CALL( MSK_getnaintinf(sdpisolver->msktask, "MSK_IINF_INTPNT_ITER", &(sdpisolver->niterations)) );/*lint !e641*/
+
+      /* possibly repair status */
+      if ( sdpisolver->terminationcode == MSK_RES_TRM_STALL || sdpisolver->solstat == MSK_SOL_STA_UNKNOWN )
+      {
+         SCIP_Real pobj;
+         SCIP_Real pviolcon;
+         SCIP_Real pviolvar;
+         SCIP_Real pviolbarvar;
+         SCIP_Real dobj;
+         SCIP_Real dviolcon;
+         SCIP_Real dviolvar;
+         SCIP_Real dviolbarvar;
+
+         MOSEK_CALL( MSK_getsolutioninfo(sdpisolver->msktask, MSK_SOL_ITR, &pobj, &pviolcon, &pviolvar, &pviolbarvar, NULL, NULL,
+               &dobj, &dviolcon, &dviolvar, &dviolbarvar, NULL) );
+
+         SCIPdebugMessage("Absolute primal violations: constraints: %g, variables: %g, SDP: %g.\n", pviolcon, pviolvar, pviolbarvar);
+         SCIPdebugMessage("Absolute dual violations: constraints: %g, variables: %g, SDP: %g.\n", dviolcon, dviolvar, dviolbarvar); 
+         if ( pviolcon <= sdpisolver->feastol && pviolvar <= sdpisolver->feastol && pviolbarvar <= sdpisolver->feastol
+            && dviolcon <= sdpisolver->feastol && dviolvar <= sdpisolver->feastol && dviolbarvar <= sdpisolver->feastol )
+         {
+            if ( REALABS(dobj - pobj) <= sdpisolver->gaptol )
+            {
+               sdpisolver->terminationcode = MSK_RES_OK;
+               sdpisolver->solstat = MSK_SOL_STA_OPTIMAL;
+               SCIPdebugMessage("Detected stalling - repairing termination code and solution status to 'optimal'.\n");
+            }
+         }
+      }
 
       /* if the problem has been stably solved but did not reach the required feasibility tolerance, even though the solver
        * reports feasibility, resolve it with adjusted tolerance */
@@ -1427,6 +1515,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          SCIP_Real* solvector;
          SCIP_Bool infeasible;
          SCIP_Bool solveagain = FALSE;
+         SCIP_Real opttime;
          int nvarspointer;
          int newiterations;
 
@@ -1442,6 +1531,121 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                indchanges, nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
                solvector, sdpisolver->feastol, sdpisolver->epsilon, &infeasible) );
          BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solvector);
+
+#if CHECKVIOLATIONS == 1
+         {
+            /* The following code obtains the primal and dual solution reported from MOSEK and checks the violations of
+             * the variable bounds, and linear as well as SDP constraints. Since MOSEK seems to use a different LAPACK
+             * routine to compute the eigenvalues of a symmetric matrix, the violations of the SDP constraints in the
+             * primal and dual reported from MOSEK and computed by SCIP-SDP differ slightly. Apart from that, the primal
+             * violations (variables and linear constraints) SCIP-SDP computes the same violations as MOSEK. For the
+             * dual problem however, MOSEK uses slack variables to obtain equalities, whereas the original (dual)
+             * problem in SCIP-SDP may have inequalities. Thus, MOSEK reports violations in the dual with respect to the
+             * slack variables and the corresponding equalities, whereas SCIP-SDP computes violations with respect to
+             * the original inequalities. Thus, those violations differ. Moreover, the dual variable violations reported
+             * from MOSEK seem to be the violations of the constraints in the dual problem, and the dual constraint
+             * violations from MOSEK seem to be the violation of the variables in the dual problem, since the dual of
+             * the primal constraints are the dual variables.
+             */
+            SCIP_Real* solvectorprimal;
+            SCIP_Real** solmatrices;
+            SCIP_Real maxabsviolbndsd;
+            SCIP_Real sumabsviolbndsd;
+            SCIP_Real maxabsviolconsd;
+            SCIP_Real sumabsviolconsd;
+            SCIP_Real maxabsviolsdpd;
+            SCIP_Real sumabsviolsdpd;
+            SCIP_Real maxabsviolbndsp;
+            SCIP_Real sumabsviolbndsp;
+            SCIP_Real maxabsviolconsp;
+            SCIP_Real sumabsviolconsp;
+            SCIP_Real maxabsviolsdpp;
+            SCIP_Real sumabsviolsdpp;
+            SCIP_Bool checkinfeas;
+            SCIP_Real pobj;
+            SCIP_Real pviolcon;
+            SCIP_Real pviolvar;
+            SCIP_Real pviolbarvar;
+            SCIP_Real dobj;
+            SCIP_Real dviolcon;
+            SCIP_Real dviolvar;
+            SCIP_Real dviolbarvar;
+            int nprimalvars;
+            int nprimalmatrixvars;
+            int blocksize;
+
+            /* get violations from Mosek */
+            MOSEK_CALL( MSK_getsolutioninfo(sdpisolver->msktask, MSK_SOL_ITR, &pobj, &pviolcon, &pviolvar, &pviolbarvar, NULL, NULL,
+               &dobj, &dviolcon, &dviolvar, &dviolbarvar, NULL) );
+
+            nprimalvars = nlpvars + sdpisolver->nvarbounds;
+            nprimalmatrixvars = nsdpblocks - nremovedblocks;
+
+            /* get current solution */
+            BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &solvectorprimal, nprimalvars) );
+            BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &solmatrices, nprimalmatrixvars) );
+            for (i = 0; i < nprimalmatrixvars; i++)
+            {
+               blocksize = mosekblocksizes[i];
+               BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &solmatrices[i], blocksize) );
+            }
+
+            MOSEK_CALL( MSK_getxx(sdpisolver->msktask, MSK_SOL_ITR, solvectorprimal) );
+            for (i = 0; i < nprimalmatrixvars; i++)
+               MOSEK_CALL( MSK_getbarxj(sdpisolver->msktask, MSK_SOL_ITR, i, solmatrices[i]) );
+
+#ifdef SCIP_PRINT_SOLU
+            /* print primal and dual solution reported from MOSEK */
+            SCIPdebugMessage("Dual solution reported from MOSEK transformed to our problem:\n");
+            for (i = 0; i < nvars; i++)
+               SCIPdebugMessage("y[%d] = %.15g\n", i, solvector[i]);
+
+            SCIPdebugMessage("Primal solution reported from MOSEK:\n");
+            for (i = 0; i < nprimalvars; i++)
+               SCIPdebugMessage("x[%d] = %.15g\n", i, solvectorprimal[i]);
+
+            for (i = 0; i < nprimalmatrixvars; i++)
+            {
+               blocksize = mosekblocksizes[i];
+               for (j = 0; j <  blocksize * (blocksize + 1) / 2; j++)
+                  SCIPdebugMessage("X_%d[%d] = %.15g\n", i, j, solmatrices[i][j]);
+            }
+#endif
+
+            /* check violations reported from Mosek */
+            SCIP_CALL( SCIPsdpSolcheckerCheckAndGetViolDual(sdpisolver->bufmem, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
+                  sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
+                  indchanges, nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
+                  solvector, sdpisolver->feastol, sdpisolver->epsilon, &maxabsviolbndsd, &sumabsviolbndsd, &maxabsviolconsd, &sumabsviolconsd,
+                  &maxabsviolsdpd, &sumabsviolsdpd, &checkinfeas) );
+            if ( checkinfeas )
+               assert( infeasible );
+
+            SCIP_CALL( SCIPsdpSolcheckerCheckAndGetViolPrimal(sdpisolver->bufmem, nvars, obj, lb, ub, sdpisolver->inputtomosekmapper, nsdpblocks,
+                  sdpblocksizes, sdpnblockvars, sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz,
+                  sdpvar, sdprow, sdpcol, sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol,
+                  lpval, solvectorprimal, solmatrices, sdpisolver->feastol, sdpisolver->epsilon, &maxabsviolbndsp, &sumabsviolbndsp, &maxabsviolconsp,
+                  &sumabsviolconsp, &maxabsviolsdpp, &sumabsviolsdpp, &checkinfeas) );
+            if ( checkinfeas )
+               assert( infeasible );
+
+            /* dviolcon is the maximal violation of the dual variables, since they are the dual of the primal constraints */
+            SCIPdebugMessage("Maximal violations for the dual problem: vars: %g (Mosek), %g (SCIP-SDP); cons: %g (Mosek), %g (SCIP-SDP); SDP: %g (Mosek), %g (SCIP-SDP)\n",
+               dviolcon, maxabsviolbndsd, dviolvar, maxabsviolconsd, dviolbarvar, maxabsviolsdpd);
+            SCIPdebugMessage("Maximal violations for the primal problem: vars: %g (Mosek), %g (SCIP-SDP); cons: %g (Mosek), %g (SCIP-SDP); SDP: %g (Mosek), %g (SCIP-SDP)\n",
+               pviolvar, maxabsviolbndsp, pviolcon, maxabsviolconsp, pviolbarvar, maxabsviolsdpp);
+            SCIPdebugMessage("Sum of violations for the dual problem: vars: %g (SCIP-SDP); cons: %g (SCIP-SDP); SDP: %g (SCIP-SDP)\n",
+               sumabsviolbndsd, sumabsviolconsd, sumabsviolsdpd);
+            SCIPdebugMessage("Sum of violations for the primal problem: vars: %g (SCIP-SDP); cons: %g (SCIP-SDP); SDP: %g (SCIP-SDP)\n",
+               sumabsviolbndsp, sumabsviolconsp, sumabsviolsdpp);
+
+            for (i = 0; i < nprimalmatrixvars; i++)
+               BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solmatrices[i]);
+            BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solmatrices);
+            BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solvectorprimal);
+            BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solvector);
+         }
+#endif
 
          if ( infeasible )
          {
@@ -1476,6 +1680,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
                /* solve the problem */
                MOSEK_CALL( MSK_optimizetrm(sdpisolver->msktask, &(sdpisolver->terminationcode)) );/*lint !e641*/
+               MOSEK_CALL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &sdpisolver->solstat) );/*lint !e641*/
+               MOSEK_CALL( MSK_getdouinf(sdpisolver->msktask, MSK_DINF_OPTIMIZER_TIME, &opttime) );
+               sdpisolver->opttime += opttime;
 
                if ( sdpisolver->sdpinfo )
                {
@@ -1484,9 +1691,38 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                }
 
                /* update number of SDP-iterations and -calls */
-               sdpisolver->nsdpcalls++;
+               ++sdpisolver->nsdpcalls;
                MOSEK_CALL( MSK_getnaintinf(sdpisolver->msktask, "MSK_IINF_INTPNT_ITER", &newiterations) );/*lint !e641*/
                sdpisolver->niterations += newiterations;
+
+               /* possibly repair status */
+               if ( sdpisolver->terminationcode == MSK_RES_TRM_STALL || sdpisolver->solstat == MSK_SOL_STA_UNKNOWN )
+               {
+                  SCIP_Real pobj;
+                  SCIP_Real pviolcon;
+                  SCIP_Real pviolvar;
+                  SCIP_Real pviolbarvar;
+                  SCIP_Real dobj;
+                  SCIP_Real dviolcon;
+                  SCIP_Real dviolvar;
+                  SCIP_Real dviolbarvar;
+
+                  MOSEK_CALL( MSK_getsolutioninfo(sdpisolver->msktask, MSK_SOL_ITR, &pobj, &pviolcon, &pviolvar, &pviolbarvar, NULL, NULL,
+                        &dobj, &dviolcon, &dviolvar, &dviolbarvar, NULL) );
+
+                  SCIPdebugMessage("Absolute primal violations: constraints: %g, variables: %g, SDP: %g.\n", pviolcon, pviolvar, pviolbarvar);
+                  SCIPdebugMessage("Absolute dual violations: constraints: %g, variables: %g, SDP: %g.\n", dviolcon, dviolvar, dviolbarvar);
+                  if ( pviolcon <= sdpisolver->feastol && pviolvar <= sdpisolver->feastol && pviolbarvar <= sdpisolver->feastol
+                     && dviolcon <= sdpisolver->feastol && dviolvar <= sdpisolver->feastol && dviolbarvar <= sdpisolver->feastol )
+                  {
+                     if ( REALABS(dobj - pobj) <= sdpisolver->gaptol )
+                     {
+                        sdpisolver->terminationcode = MSK_RES_OK;
+                        sdpisolver->solstat = MSK_SOL_STA_OPTIMAL;
+                        SCIPdebugMessage("Detected stalling - repairing termination code and solution status to 'optimal'.\n");
+                     }
+                  }
+               }
             }
          }
          else
@@ -1504,8 +1740,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          /* if using a penalty formulation, check if the solution is feasible for the original problem
           * we should always count it as infeasible if the penalty problem was unbounded */
-         MOSEK_CALL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-         if ( penaltyparam >= sdpisolver->epsilon && (solstat == MSK_SOL_STA_PRIM_INFEAS_CER) )
+         if ( penaltyparam >= sdpisolver->epsilon && (sdpisolver->solstat == MSK_SOL_STA_PRIM_INFEAS_CER) )
          {
             assert( feasorig != NULL );
             *feasorig = FALSE;
@@ -1534,7 +1769,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             /* if r > 0 also check the primal bound */
             if ( ! *feasorig && penaltybound != NULL )
             {
-               SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", moseksol[sdpisolver->nactivevars]);
+               SCIPdebugMessage("Solution not feasible in original problem, r = %g.\n", moseksol[sdpisolver->nactivevars]);
 
                /* compute Tr(X) */
 
@@ -1579,7 +1814,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                {
                   assert( penaltybound != NULL );
                   *penaltybound = TRUE;
-                  SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible\n",
+                  SCIPdebugMessage("Tr(X) = %g == %g = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible.\n",
                      trace, penaltyparam);
                }
                else
@@ -1628,14 +1863,10 @@ SCIP_Bool SCIPsdpiSolverFeasibilityKnown(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
 {
-   MSKsolstae solstat;
-
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
-   MOSEK_CALL_BOOL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-
-   switch ( solstat )
+   switch ( sdpisolver->solstat )
    {
    case MSK_SOL_STA_UNKNOWN:
    case MSK_SOL_STA_PRIM_FEAS:
@@ -1659,16 +1890,12 @@ SCIP_RETCODE SCIPsdpiSolverGetSolFeasibility(
    SCIP_Bool*            dualfeasible        /**< stores dual feasibility status */
    )
 {
-   MSKsolstae solstat;
-
    assert( sdpisolver != NULL );
    assert( primalfeasible != NULL );
    assert( dualfeasible != NULL );
    CHECK_IF_SOLVED( sdpisolver );
 
-   MOSEK_CALL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-
-   switch ( solstat )
+   switch ( sdpisolver->solstat )
    {
    case MSK_SOL_STA_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
@@ -1698,14 +1925,10 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
    )
 {
-   MSKsolstae solstat;
-
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
-   MOSEK_CALL_BOOL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-
-   switch ( solstat )
+   switch ( sdpisolver->solstat )
    {
    case MSK_SOL_STA_DUAL_INFEAS_CER:
    case MSK_SOL_STA_OPTIMAL:
@@ -1726,14 +1949,10 @@ SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
 {
-   MSKsolstae solstat;
-
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
-   MOSEK_CALL_BOOL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-
-   switch ( solstat )
+   switch ( sdpisolver->solstat )
    {
    case MSK_SOL_STA_PRIM_INFEAS_CER:
       return TRUE;
@@ -1755,14 +1974,10 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
 {
-   MSKsolstae solstat;
-
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
-   MOSEK_CALL_BOOL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-
-   switch ( solstat )
+   switch ( sdpisolver->solstat )
    {
    case MSK_SOL_STA_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
@@ -1784,14 +1999,10 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
 {
-   MSKsolstae solstat;
-
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
-   MOSEK_CALL_BOOL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-
-   switch ( solstat )
+   switch ( sdpisolver->solstat )
    {
    case MSK_SOL_STA_PRIM_INFEAS_CER:
    case MSK_SOL_STA_OPTIMAL:
@@ -1812,14 +2023,10 @@ SCIP_Bool SCIPsdpiSolverIsDualInfeasible(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
 {
-   MSKsolstae solstat;
-
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
-   MOSEK_CALL_BOOL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-
-   switch ( solstat )
+   switch ( sdpisolver->solstat )
    {
    case MSK_SOL_STA_DUAL_INFEAS_CER:
       return TRUE;
@@ -1841,14 +2048,10 @@ SCIP_Bool SCIPsdpiSolverIsDualFeasible(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
 {
-   MSKsolstae solstat;
-
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED_BOOL( sdpisolver );
 
-   MOSEK_CALL_BOOL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-
-   switch ( solstat )
+   switch ( sdpisolver->solstat )
    {
    case MSK_SOL_STA_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
@@ -1878,15 +2081,12 @@ SCIP_Bool SCIPsdpiSolverIsConverged(
    /* check if Mosek stalled when it was already acceptable */
    if ( sdpisolver->terminationcode == MSK_RES_TRM_STALL )
    {
-      MSKsolstae solstat;
       SCIP_Real pobj;
       SCIP_Real dobj;
       SCIP_Real gapnormalization;
 
-      MOSEK_CALL_BOOL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );
-
       /* check the solution status */
-      switch ( solstat )
+      switch ( sdpisolver->solstat )
       {
       case MSK_SOL_STA_UNKNOWN:
       case MSK_SOL_STA_PRIM_FEAS:
@@ -1998,8 +2198,6 @@ SCIP_Bool SCIPsdpiSolverIsOptimal(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP interface solver structure */
    )
 {
-   MSKsolstae solstat;
-
    assert( sdpisolver != NULL );
 
    if ( sdpisolver->timelimit )
@@ -2010,9 +2208,7 @@ SCIP_Bool SCIPsdpiSolverIsOptimal(
    if ( sdpisolver->terminationcode != MSK_RES_OK )
       return FALSE;
 
-   MOSEK_CALL_BOOL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &solstat) );/*lint !e641*/
-
-   if ( solstat != MSK_SOL_STA_OPTIMAL )
+   if ( sdpisolver->solstat != MSK_SOL_STA_OPTIMAL )
       return FALSE;
 
    return TRUE;
@@ -2065,11 +2261,14 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
       return SCIP_OKAY;
    }
 
-   if ( sdpisolver->penalty && ( ! sdpisolver->feasorig ) )
+   if ( sdpisolver->penalty && ! sdpisolver->feasorig )
    {
       /* in this case we cannot really trust the solution given by MOSEK, since changes in the value of r much less than epsilon can
        * cause huge changes in the objective, so using the objective value given by MOSEK is numerically more stable */
       MOSEK_CALL( MSK_getdualobj(sdpisolver->msktask, MSK_SOL_ITR, objval) );
+
+      /* reverse scaling */
+      *objval *= sdpisolver->objscalefactor;
    }
    else
    {
@@ -2083,15 +2282,12 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
       *objval = 0.0;
       for (v = 0; v < sdpisolver->nactivevars; v++)
          *objval += moseksol[v] * sdpisolver->objcoefs[v];
+
+      BMSfreeBufferMemoryArray(sdpisolver->bufmem, &moseksol);
    }
 
    /* as we didn't add the fixed (lb = ub) variables to MOSEK, we have to add their contributions to the objective as well */
    *objval += sdpisolver->fixedvarsobjcontr;
-
-   if ( ( ! sdpisolver->penalty ) || sdpisolver->feasorig)
-   {
-      BMSfreeBufferMemoryArray(sdpisolver->bufmem, &moseksol);
-   }
 
    return SCIP_OKAY;
 }
@@ -2146,11 +2342,14 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
       /* if both solution and objective should be printed, we can use the solution to compute the objective */
       if ( objval != NULL )
       {
-         if ( sdpisolver->penalty && ( ! sdpisolver->feasorig ))
+         if ( sdpisolver->penalty && ! sdpisolver->feasorig )
          {
             /* in this case we cannot really trust the solution given by MOSEK, since changes in the value of r much less than epsilon can
              * cause huge changes in the objective, so using the objective value given by MOSEK is numerically more stable */
             MOSEK_CALL( MSK_getdualobj(sdpisolver->msktask, MSK_SOL_ITR, objval) );
+
+            /* reverse scaling */
+            *objval *= sdpisolver->objscalefactor;
          }
          else
          {
@@ -2268,17 +2467,17 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
       if ( sdpisolver->varboundpos[i] < 0 )
       {
          /* this is a lower bound */
-         /* the last nvarbounds entries correspond to the varbounds */
-         lbvars[sdpisolver->mosektoinputmapper[-1 * sdpisolver->varboundpos[i] -1]] = primalvars[nprimalvars - sdpisolver->nvarbounds + i]; /*lint !e679, !e834 */
+
+         /* the last nvarbounds entries correspond to the varbounds; we need to unscale these values */
+         lbvars[sdpisolver->mosektoinputmapper[-1 * sdpisolver->varboundpos[i] -1]] = primalvars[nprimalvars - sdpisolver->nvarbounds + i] * sdpisolver->objscalefactor;
       }
       else
       {
          /* this is an upper bound */
-
          assert( sdpisolver->varboundpos[i] > 0 );
 
-         /* the last nvarbounds entries correspond to the varbounds */
-         ubvars[sdpisolver->mosektoinputmapper[sdpisolver->varboundpos[i] - 1]] = primalvars[nprimalvars - sdpisolver->nvarbounds + i]; /*lint !e679, !e834 */
+         /* the last nvarbounds entries correspond to the varbounds; we need to unscale these values */
+         ubvars[sdpisolver->mosektoinputmapper[sdpisolver->varboundpos[i] - 1]] = primalvars[nprimalvars - sdpisolver->nvarbounds + i] * sdpisolver->objscalefactor;
       }
    }
 
@@ -2350,10 +2549,7 @@ SCIP_RETCODE SCIPsdpiSolverGetIterations(
    assert( sdpisolver != NULL );
    assert( iterations != NULL );
 
-   if ( sdpisolver->timelimitinitial )
-      *iterations = 0;
-   else
-      *iterations = sdpisolver->niterations;
+   *iterations = sdpisolver->niterations;
 
    return SCIP_OKAY;
 }
@@ -2364,9 +2560,10 @@ SCIP_RETCODE SCIPsdpiSolverGetSdpCalls(
    int*                  calls               /**< pointer to store the number of calls to the SDP-solver for the last solve call */
    )
 {/*lint --e{715,1784}*/
+   assert( sdpisolver != NULL );
    assert( calls != NULL );
 
-   *calls = sdpisolver->timelimitinitial ? 0 : sdpisolver->nsdpcalls;
+   *calls = sdpisolver->nsdpcalls;
 
    return SCIP_OKAY;
 }
@@ -2466,22 +2663,22 @@ SCIP_RETCODE SCIPsdpiSolverSetRealpar(
    {
    case SCIP_SDPPAR_EPSILON:
       sdpisolver->epsilon = dval;
-      SCIPdebugMessage("Setting sdpisolver epsilon to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver epsilon to %g.\n", dval);
       break;
    case SCIP_SDPPAR_GAPTOL:
       sdpisolver->gaptol = dval;
-      SCIPdebugMessage("Setting sdpisolver gaptol to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver gaptol to %g.\n", dval);
       break;
    case SCIP_SDPPAR_FEASTOL:
       sdpisolver->feastol = dval;
-      SCIPdebugMessage("Setting sdpisolver feastol to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver feastol to %g.\n", dval);
       break;
    case SCIP_SDPPAR_SDPSOLVERFEASTOL:
       sdpisolver->sdpsolverfeastol = dval;
-      SCIPdebugMessage("Setting sdpisolver sdpsolverfeastol to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver sdpsolverfeastol to %g.\n", dval);
       break;
    case SCIP_SDPPAR_OBJLIMIT:
-      SCIPdebugMessage("Setting sdpisolver objlimit to %f.\n", dval);
+      SCIPdebugMessage("Setting sdpisolver objlimit to %g.\n", dval);
       sdpisolver->objlimit = dval;
       break;
    default:
@@ -2510,6 +2707,14 @@ SCIP_RETCODE SCIPsdpiSolverGetIntpar(
       *ival = sdpisolver->nthreads;
       SCIPdebugMessage("Getting sdpisolver number of threads: %d.\n", *ival);
       break;
+   case SCIP_SDPPAR_USEPRESOLVING:
+      *ival = (int) sdpisolver->usepresolving;
+      SCIPdebugMessage("Getting usepresolving (%d).\n", *ival);
+      break;
+   case SCIP_SDPPAR_SCALEOBJ:
+      *ival = (int) sdpisolver->scaleobj;
+      SCIPdebugMessage("Getting scaleobj (%d).\n", *ival);
+      break;
    default:
       return SCIP_PARAMETERUNKNOWN;
    }/*lint !e788*/
@@ -2536,6 +2741,16 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
       assert( 0 <= ival && ival <= 1 );
       sdpisolver->sdpinfo = (SCIP_Bool) ival;
       SCIPdebugMessage("Setting sdpisolver information output (%d).\n", ival);
+      break;
+   case SCIP_SDPPAR_USEPRESOLVING:
+      assert( 0 <= ival && ival <= 1 );
+      sdpisolver->usepresolving = (SCIP_Bool) ival;
+      SCIPdebugMessage("Setting usepresolving (%d).\n", ival);
+      break;
+   case SCIP_SDPPAR_SCALEOBJ:
+      assert( 0 <= ival && ival <= 1 );
+      sdpisolver->scaleobj = (SCIP_Bool) ival;
+      SCIPdebugMessage("Setting scaleobj (%d).\n", ival);
       break;
    default:
       return SCIP_PARAMETERUNKNOWN;
@@ -2571,17 +2786,17 @@ SCIP_RETCODE SCIPsdpiSolverComputePenaltyparam(
 
    if ( compval < MIN_PENALTYPARAM )
    {
-      SCIPdebugMessage("Setting penaltyparameter to %f.\n", MIN_PENALTYPARAM);
+      SCIPdebugMessage("Setting penaltyparameter to %g.\n", MIN_PENALTYPARAM);
       *penaltyparam = MIN_PENALTYPARAM;
    }
    else if ( compval > MAX_PENALTYPARAM )
    {
-      SCIPdebugMessage("Setting penaltyparameter to %f.\n", MAX_PENALTYPARAM);
+      SCIPdebugMessage("Setting penaltyparameter to %g.\n", MAX_PENALTYPARAM);
       *penaltyparam = MAX_PENALTYPARAM;
    }
    else
    {
-      SCIPdebugMessage("Setting penaltyparameter to %f.\n", compval);
+      SCIPdebugMessage("Setting penaltyparameter to %g.\n", compval);
       *penaltyparam = compval;
    }
 
@@ -2605,12 +2820,12 @@ SCIP_RETCODE SCIPsdpiSolverComputeMaxPenaltyparam(
    if ( compval < MAX_MAXPENALTYPARAM )
    {
       *maxpenaltyparam = compval;
-      SCIPdebugMessage("Setting maximum penaltyparameter to %f.\n", compval);
+      SCIPdebugMessage("Setting maximum penaltyparameter to %g.\n", compval);
    }
    else
    {
       *maxpenaltyparam = MAX_MAXPENALTYPARAM;
-      SCIPdebugMessage("Setting penaltyparameter to %f.\n", MAX_MAXPENALTYPARAM);
+      SCIPdebugMessage("Setting penaltyparameter to %g.\n", MAX_MAXPENALTYPARAM);
    }
 
    return SCIP_OKAY;

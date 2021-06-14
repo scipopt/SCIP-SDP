@@ -2206,7 +2206,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
       /* insert the entries into dualsol, for non-fixed vars we copy those from dsdp, the rest are the saved entries from inserting (they equal lb=ub) */
       for (v = 0; v < sdpisolver->nvars; v++)
       {
-         if (sdpisolver->inputtodsdpmapper[v] > -1)
+         if ( sdpisolver->inputtodsdpmapper[v] > -1 )
          {
             /* minus one because the inputtodsdpmapper gives the dsdp indices which start at one, but the array starts at 0 */
             dualsol[v] = dsdpsol[sdpisolver->inputtodsdpmapper[v] - 1];
@@ -2220,7 +2220,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
 
       if ( objval != NULL )
       {
-         if ( sdpisolver->penalty && ( ! sdpisolver->feasorig ))
+         if ( sdpisolver->penalty && ! sdpisolver->feasorig )
          {
             /* in this case we cannot really trust the solution given by DSDP, since changes in the value of r much less than epsilon can
              * cause huge changes in the objective, so using the objective value given by DSDP is numerically more stable */

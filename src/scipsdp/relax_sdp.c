@@ -91,6 +91,8 @@
 #define DEFAULT_SETTINGSRESETOFS    0        /**< frequency offset for resetting parameters in SDP solver and trying again with fastest settings */
 #define DEFAULT_SDPSOLVERTHREADS    1        /**< number of threads the SDP solver should use (-1 = number of cores) */
 #define DEFAULT_PENINFEASADJUST     10.0     /**< gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation */
+#define DEFAULT_USEPRESOLVING       FALSE    /**< whether presolving of SDP-solver should be used */
+#define DEFAULT_SCALEOBJ            FALSE    /**< whether the objective should be scaled in order to get a more stable behavior */
 
 #define WARMSTART_MINVAL            0.01     /**< if we get a value less than this when warmstarting (currently only for the linear part when combining with analytic center), the value is set to this */
 #define WARMSTART_PROJ_MINRHSOBJ    1        /**< minimum value for rhs/obj when computing minimum eigenvalue for warmstart-projection */
@@ -125,6 +127,8 @@ struct SCIP_RelaxData
    SCIP_Real             lambdastar;         /**< the parameter lambda star used by SDPA to set the initial point */
    int                   npenaltyincr;       /**< maximum number of times the penalty parameter will be increased if penalty formulation failed */
    SCIP_Real             peninfeasadjust;    /**< gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation */
+   SCIP_Bool             usepresolving;      /**< whether presolving of SDP-solver should be used */
+   SCIP_Bool             scaleobj;           /**< whether the objective should be scaled in order to get a more stable behavior */
    int                   slatercheck;        /**< Should the Slater condition for the dual problem be checked ahead of solving every SDP ? */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             displaystat;        /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
@@ -3561,21 +3565,24 @@ SCIP_RETCODE calcRelax(
       }
       else if ( SCIPsdpiIsPrimalFeasible(sdpi) && SCIPsdpiIsDualFeasible(sdpi) )
       {
-         SCIP_SOL* scipsol; /* TODO: eliminate this from warmstart and save array instead */
+         SCIP_SOL* scipsol;
          SCIP_SOL* preoptimalsol = NULL;
          SCIP_CONS* savedcons;
+         SCIP_Bool preoptimalsolsuccess = FALSE;
          int slength;
-         SCIP_Bool preoptimalsolsuccess;
 
          /* get solution w.r.t. SCIP variables */
          SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
          slength = nvars;
          SCIP_CALL( SCIPsdpiGetSol(sdpi, &objforscip, solforscip, &slength) ); /* get both the objective and the solution from the SDP solver */
 
-         assert( slength == nvars ); /* If this isn't true any longer, the getSol-Call was unsuccessfull, because the given array wasn't long enough,
+         assert( slength == nvars ); /* If this isn't true any longer, the getSol-call was unsuccessfull, because the given array wasn't long enough,
                                       * but this can't happen, because the array has enough space for all sdp variables. */
 
-         SCIPdebugMsg(scip, "Relaxation is solved optimally (objective: %g).\n", objforscip);
+         if ( SCIPsdpiIsOptimal(sdpi) )
+            SCIPdebugMsg(scip, "Relaxation is solved optimally (objective: %g).\n", objforscip);
+         else
+            SCIPdebugMsg(scip, "Have feasible solution for dual of relaxation (objective: %g).\n", objforscip);
 
          /* create SCIP solution */
          SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
@@ -3596,7 +3603,6 @@ SCIP_RETCODE calcRelax(
 #endif
          relaxdata->feasible = TRUE;
          *result = SCIP_SUCCESS;
-         preoptimalsolsuccess = FALSE;
 
          /* save solution for warmstarts (only if we did not use the penalty formulation, since this would change the problem structure) */
          if ( relaxdata->warmstart && SCIPsdpiSolvedOrig(relaxdata->sdpi) )
@@ -4111,7 +4117,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-         "SDP Solver <%s>: gaptol setting not available -- SCIP parameter has no effect.\n",
+         "SDP Solver <%s>: gaptol parameter not available -- SCIP parameter has no effect.\n",
          SCIPsdpiGetSolverName());
    }
    else
@@ -4123,7 +4129,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-         "SDP Solver <%s>: sdpsolverfeastol setting not available -- SCIP parameter has no effect.\n",
+         "SDP Solver <%s>: sdpsolverfeastol parameter not available -- SCIP parameter has no effect.\n",
          SCIPsdpiGetSolverName());
    }
    else
@@ -4135,7 +4141,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-         "SDP Solver <%s>: epsilon setting not available -- SCIP parameter has no effect.\n",
+         "SDP Solver <%s>: epsilon parameter not available -- SCIP parameter has no effect.\n",
          SCIPsdpiGetSolverName());
    }
    else
@@ -4147,7 +4153,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-         "SDP Solver <%s>: feastol setting not available -- SCIP parameter has no effect.\n",
+         "SDP Solver <%s>: feastol parameter not available -- SCIP parameter has no effect.\n",
          SCIPsdpiGetSolverName());
    }
    else
@@ -4163,7 +4169,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       if ( retcode == SCIP_PARAMETERUNKNOWN )
       {
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-            "SDP Solver <%s>: penaltyparam setting not available -- SCIP parameter has no effect\n",
+            "SDP Solver <%s>: penaltyparam parameter not available -- SCIP parameter has no effect\n",
             SCIPsdpiGetSolverName());
       }
       else
@@ -4173,14 +4179,13 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    }
    else
    {
-      SCIP_Real maxcoeff;
+      SCIP_Real maxcoeff = 0.0;
       int v;
 
       /* compute the maximum coefficient in the objective */
-      maxcoeff = 0.0;
       for (v = 0; v < nvars; v++)
       {
-         if ( SCIPisGT(scip, REALABS(SCIPvarGetObj(vars[v])), maxcoeff) )
+         if ( REALABS(SCIPvarGetObj(vars[v])) > maxcoeff )
             maxcoeff = REALABS(SCIPvarGetObj(vars[v]));
       }
 
@@ -4195,7 +4200,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       if ( retcode == SCIP_PARAMETERUNKNOWN )
       {
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-            "SDP Solver <%s>: maxpenaltyparam setting not available -- SCIP parameter has no effect.\n",
+            "SDP Solver <%s>: maxpenaltyparam parameter not available -- SCIP parameter has no effect.\n",
             SCIPsdpiGetSolverName());
       }
       else
@@ -4206,7 +4211,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       /* check if the starting value is not bigger than the maximum one, otherwise update it */
       if ( SCIPisLT(scip, givenpenaltyparam, relaxdata->maxpenaltyparam) )
       {
-         SCIPdebugMsg(scip, "Penalty parameter %f overwritten by maxpenaltyparam %f!\n", givenpenaltyparam, relaxdata->maxpenaltyparam);
+         SCIPdebugMsg(scip, "Penalty parameter %g overwritten by maxpenaltyparam %f!\n", givenpenaltyparam, relaxdata->maxpenaltyparam);
          SCIP_CALL( SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_PENALTYPARAM, relaxdata->maxpenaltyparam) );
       }
    }
@@ -4222,7 +4227,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-         "SDP Solver <%s>: npenaltyincr setting not available -- SCIP parameter has no effect.\n",
+         "SDP Solver <%s>: npenaltyincr parameter not available -- SCIP parameter has no effect.\n",
          SCIPsdpiGetSolverName());
    }
    else
@@ -4236,7 +4241,35 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
-         "SDP Solver <%s>: peninfeasadjust setting not available -- SCIP parameter has no effect.\n",
+         "SDP Solver <%s>: peninfeasadjust parameter not available -- SCIP parameter has no effect.\n",
+         SCIPsdpiGetSolverName());
+   }
+   else
+   {
+      SCIP_CALL( retcode );
+   }
+
+   /* set presolving parameter */
+   retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_USEPRESOLVING, relaxdata->usepresolving);
+
+   if ( retcode == SCIP_PARAMETERUNKNOWN )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
+         "SDP Solver <%s>: usepresolving parameter not available -- SCIP parameter has no effect.\n",
+         SCIPsdpiGetSolverName());
+   }
+   else
+   {
+      SCIP_CALL( retcode );
+   }
+
+   /* set scaleobj parameter */
+   retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_SCALEOBJ, relaxdata->scaleobj);
+
+   if ( retcode == SCIP_PARAMETERUNKNOWN )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
+         "SDP Solver <%s>: scaleobj parameter not available -- SCIP parameter has no effect.\n",
          SCIPsdpiGetSolverName());
    }
    else
@@ -4845,6 +4878,14 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/peninfeasadjust",
          "gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation",
          &(relaxdata->peninfeasadjust), TRUE, DEFAULT_PENINFEASADJUST, 0.0, 1e+20, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/usepresolving",
+         "whether presolving of SDP-solver should be used",
+         &(relaxdata->usepresolving), TRUE, DEFAULT_USEPRESOLVING, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/scaleobj",
+         "whether the objective should be scaled in order to get a more stable behavior",
+         &(relaxdata->scaleobj), TRUE, DEFAULT_SCALEOBJ, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartipfactor",
          "factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled",
@@ -5541,7 +5582,7 @@ SCIP_Bool SCIPrelaxSdpIsFeasible(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->feasible );
+   return SCIPrelaxGetData(relax)->feasible;
 }
 
 /** returns whether the last solved problem was unbounded */
@@ -5591,7 +5632,7 @@ int SCIPrelaxSdpGetNSdpCalls(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->sdpcalls );
+   return SCIPrelaxGetData(relax)->sdpcalls;
 }
 
 /** returns number of solved SDP-relaxations */
@@ -5602,7 +5643,7 @@ int SCIPrelaxSdpGetNSdpInterfaceCalls(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->sdpinterfacecalls );
+   return SCIPrelaxGetData(relax)->sdpinterfacecalls;
 }
 
 /** returns number of SDP-relaxations solved with fastest settings */
@@ -5613,7 +5654,7 @@ int SCIPrelaxSdpGetNSdpFast(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->solvedfast );
+   return SCIPrelaxGetData(relax)->solvedfast;
 }
 
 /** returns number of SDP-relaxations solved with medium settings */
@@ -5624,7 +5665,7 @@ int SCIPrelaxSdpGetNSdpMedium(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->solvedmedium );
+   return SCIPrelaxGetData(relax)->solvedmedium;
 }
 
 /** returns number of SDP-relaxations solved with stable settings */
@@ -5635,7 +5676,7 @@ int SCIPrelaxSdpGetNSdpStable(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->solvedstable );
+   return SCIPrelaxGetData(relax)->solvedstable;
 }
 
 /** returns number of SDP-relaxations solved with penalty formulation */
@@ -5646,7 +5687,7 @@ int SCIPrelaxSdpGetNSdpPenalty(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->solvedpenalty );
+   return SCIPrelaxGetData(relax)->solvedpenalty;
 }
 
 /** returns number of SDP-relaxations unsolved even when using a penalty formulation */
@@ -5657,7 +5698,7 @@ int SCIPrelaxSdpGetNSdpUnsolved(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->unsolved );
+   return SCIPrelaxGetData(relax)->unsolved;
 }
 
 /** returns number of SDP-relaxations for which dual Slater condition held */
@@ -5668,7 +5709,7 @@ int SCIPrelaxSdpGetNdualSlaterHolds(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->ndslaterholds );
+   return SCIPrelaxGetData(relax)->ndslaterholds;
 }
 
 /** returns number of SDP-relaxations for which dual Slater condition failed */
@@ -5679,7 +5720,7 @@ int SCIPrelaxSdpGetNdualSlaterFails(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->ndnoslater );
+   return SCIPrelaxGetData(relax)->ndnoslater;
 }
 
 /** returns number of SDP-relaxations for which dual Slater condition showed infeasibility */
@@ -5690,7 +5731,7 @@ int SCIPrelaxSdpGetNdualSlaterInfeasible(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->nslaterinfeasible );
+   return SCIPrelaxGetData(relax)->nslaterinfeasible;
 }
 
 /** returns number of SDP-relaxations for which dual Slater condition could not be determined */
@@ -5701,7 +5742,7 @@ int SCIPrelaxSdpGetNdualSlaterUnknown(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->ndslatercheckfailed );
+   return SCIPrelaxGetData(relax)->ndslatercheckfailed;
 }
 
 /** returns number of SDP-relaxations for which primal Slater condition held */
@@ -5712,7 +5753,7 @@ int SCIPrelaxSdpGetNprimalSlaterHolds(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->npslaterholds );
+   return SCIPrelaxGetData(relax)->npslaterholds;
 }
 
 /** returns number of SDP-relaxations for which primal Slater condition failed */
@@ -5723,7 +5764,7 @@ int SCIPrelaxSdpGetNprimalSlaterFails(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->npnoslater );
+   return SCIPrelaxGetData(relax)->npnoslater;
 }
 
 /** returns number of SDP-relaxations for which primal Slater condition could not be determined */
@@ -5734,7 +5775,7 @@ int SCIPrelaxSdpGetNprimalSlaterUnknown(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->npslatercheckfailed );
+   return SCIPrelaxGetData(relax)->npslatercheckfailed;
 }
 
 /** returns number of SDP-relaxations with Slater condition holding for primal and dual */
@@ -5745,7 +5786,7 @@ int SCIPrelaxSdpGetNSlaterHolds(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->nslaterholds );
+   return SCIPrelaxGetData(relax)->nslaterholds;
 }
 
 /** returns number of SDP-relaxations with Slater condition holding for primal and dual, solved with fastest settings */
@@ -5756,7 +5797,7 @@ int SCIPrelaxSdpGetNSlaterHoldsFast(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->stablewslater );
+   return SCIPrelaxGetData(relax)->stablewslater;
 }
 
 /** returns number of SDP-relaxations with Slater condition holding for primal and dual, solved with stable settings */
@@ -5767,7 +5808,7 @@ int SCIPrelaxSdpGetNSlaterHoldsStable(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->unstablewslater );
+   return SCIPrelaxGetData(relax)->unstablewslater;
 }
 
 /** returns number of SDP-relaxations with Slater condition holding for primal and dual, solved with penalty formulation */
@@ -5778,7 +5819,7 @@ int SCIPrelaxSdpGetNSlaterHoldsPenalty(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->penaltywslater );
+   return SCIPrelaxGetData(relax)->penaltywslater;
 }
 
 /** returns number of SDP-relaxations with Slater condition holding for primal and dual, for which an infeasible lower bound could be computed */
@@ -5789,7 +5830,7 @@ int SCIPrelaxSdpGetNSlaterHoldsBounded(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->boundedwslater );
+   return SCIPrelaxGetData(relax)->boundedwslater;
 }
 
 /** returns number of SDP-relaxations with Slater condition holding for primal and dual, unsolved even when using a penalty formulation */
@@ -5800,7 +5841,7 @@ int SCIPrelaxSdpGetNSlaterHoldsUnsolved(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->unsolvedwslater );
+   return SCIPrelaxGetData(relax)->unsolvedwslater;
 }
 
 /** returns number of SDP-relaxations with Slater condition failing for primal or dual */
@@ -5811,7 +5852,7 @@ int SCIPrelaxSdpGetNSlaterFails(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->nnoslater );
+   return SCIPrelaxGetData(relax)->nnoslater;
 }
 
 /** returns number of SDP-relaxations with Slater condition failing for primal or dual, solved with fast settings */
@@ -5822,7 +5863,7 @@ int SCIPrelaxSdpGetNSlaterFailsFast(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->stablenoslater );
+   return SCIPrelaxGetData(relax)->stablenoslater;
 }
 
 /** returns number of SDP-relaxations with Slater condition failing for primal or dual, solved with stable settings */
@@ -5833,7 +5874,7 @@ int SCIPrelaxSdpGetNSlaterFailsStable(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->unstablenoslater );
+   return SCIPrelaxGetData(relax)->unstablenoslater;
 }
 
 /** returns number of SDP-relaxations with Slater condition failing for primal or dual, solved with penalty formulation */
@@ -5844,7 +5885,7 @@ int SCIPrelaxSdpGetNSlaterFailsPenalty(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->penaltynoslater );
+   return SCIPrelaxGetData(relax)->penaltynoslater;
 }
 
 /** returns number of SDP-relaxations with Slater condition failing for primal or dual, for which an infeasible lower bound could be computed */
@@ -5855,7 +5896,7 @@ int SCIPrelaxSdpGetNSlaterFailsBounded(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->boundednoslater );
+   return SCIPrelaxGetData(relax)->boundednoslater;
 }
 
 /** returns number of SDP-relaxations with Slater condition failing for primal or dual, unsolved even when using a penalty formulation */
@@ -5866,7 +5907,7 @@ int SCIPrelaxSdpGetNSlaterFailsUnsolved(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->unsolvednoslater );
+   return SCIPrelaxGetData(relax)->unsolvednoslater;
 }
 
 /** returns number of SDP-relaxations with Slatercheck showing infeasibility, solved with fast settings */
@@ -5877,7 +5918,7 @@ int SCIPrelaxSdpGetNSlaterInfeasibleFast(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->stableinfeasible );
+   return SCIPrelaxGetData(relax)->stableinfeasible;
 }
 
 /** returns number of SDP-relaxations with Slatercheck showing infeasibility, solved with stable settings */
@@ -5888,7 +5929,7 @@ int SCIPrelaxSdpGetNSlaterInfeasibleStable(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->unstableinfeasible );
+   return SCIPrelaxGetData(relax)->unstableinfeasible;
 }
 
 /** returns number of SDP-relaxations with Slatercheck showing infeasibility, solved with penalty formulation */
@@ -5899,7 +5940,7 @@ int SCIPrelaxSdpGetNSlaterInfeasiblePenalty(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->penaltyinfeasible );
+   return SCIPrelaxGetData(relax)->penaltyinfeasible;
 }
 
 /** returns number of SDP-relaxations with Slatercheck showing infeasibility, for which an infeasible lower bound could be computed */
@@ -5910,7 +5951,7 @@ int SCIPrelaxSdpGetNSlaterInfeasibleBounded(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->boundedinfeasible );
+   return SCIPrelaxGetData(relax)->boundedinfeasible;
 }
 
 /** returns number of SDP-relaxations with Slatercheck showing infeasibility, unsolved even when using a penalty formulation */
@@ -5921,7 +5962,7 @@ int SCIPrelaxSdpGetNSlaterInfeasibleUnsolved(
    assert( relax != NULL );
    assert( SCIPrelaxGetData(relax) != NULL );
 
-   return ( SCIPrelaxGetData(relax)->unsolvedinfeasible );
+   return SCIPrelaxGetData(relax)->unsolvedinfeasible;
 }
 
 /** returns solving time in SDP solver */
