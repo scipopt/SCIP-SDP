@@ -150,14 +150,12 @@ SCIP_DECL_TABLEOUTPUT(tableOutputSlater)
    SCIPinfoMessage(scip, file, "    Slater         :      Holds      Fails Infeasible    Unknown\n");
    if ( tabledata->absolute )
    {
-      SCIPinfoMessage(scip, file, "     %-14.14s: %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " "
-            "%10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT "\n",
+      SCIPinfoMessage(scip, file, "     %-14.14s: %10d %10d %10d %10d\n",
             "Dual Slater",
             SCIPrelaxSdpGetNdualSlaterHolds(relaxsdp), SCIPrelaxSdpGetNdualSlaterFails(relaxsdp),
             SCIPrelaxSdpGetNdualSlaterInfeasible(relaxsdp), SCIPrelaxSdpGetNdualSlaterUnknown(relaxsdp));
 
-      SCIPinfoMessage(scip, file, "     %-14.14s: %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " "
-            "         - %10" SCIP_LONGINT_FORMAT "\n",
+      SCIPinfoMessage(scip, file, "     %-14.14s: %10d %10d          - %10d\n",
             "Primal Slater",
             SCIPrelaxSdpGetNprimalSlaterHolds(relaxsdp), SCIPrelaxSdpGetNprimalSlaterFails(relaxsdp), SCIPrelaxSdpGetNprimalSlaterUnknown(relaxsdp));
    }
@@ -183,20 +181,17 @@ SCIP_DECL_TABLEOUTPUT(tableOutputSlater)
       SCIPinfoMessage(scip, file, "    Slater Solves  :       Fast     Stable    Penalty    Bounded    Unsolved\n");
       if ( tabledata->absolute )
       {
-         SCIPinfoMessage(scip, file, "     %-14.14s: %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " "
-               "%10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT "\n",
+         SCIPinfoMessage(scip, file, "     %-14.14s: %10d %10d %10d %10d %10d\n",
                "Slater holds",
                SCIPrelaxSdpGetNSlaterHoldsFast(relaxsdp), SCIPrelaxSdpGetNSlaterHoldsStable(relaxsdp), SCIPrelaxSdpGetNSlaterHoldsPenalty(relaxsdp),
                SCIPrelaxSdpGetNSlaterHoldsBounded(relaxsdp), SCIPrelaxSdpGetNSlaterHoldsUnsolved(relaxsdp));
 
-         SCIPinfoMessage(scip, file, "     %-14.14s: %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " "
-               "%10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT "\n",
+         SCIPinfoMessage(scip, file, "     %-14.14s: %10d %10d %10d %10d %10d\n",
                "Slater fails",
                SCIPrelaxSdpGetNSlaterFailsFast(relaxsdp), SCIPrelaxSdpGetNSlaterFailsStable(relaxsdp), SCIPrelaxSdpGetNSlaterFailsPenalty(relaxsdp),
                SCIPrelaxSdpGetNSlaterFailsBounded(relaxsdp), SCIPrelaxSdpGetNSlaterFailsUnsolved(relaxsdp));
 
-         SCIPinfoMessage(scip, file, "     %-14.14s: %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " "
-               "%10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT "\n",
+         SCIPinfoMessage(scip, file, "     %-14.14s: %10d %10d %10d %10d %10d\n",
                "Infeasible",
                SCIPrelaxSdpGetNSlaterInfeasibleFast(relaxsdp), SCIPrelaxSdpGetNSlaterInfeasibleStable(relaxsdp), SCIPrelaxSdpGetNSlaterInfeasiblePenalty(relaxsdp),
                SCIPrelaxSdpGetNSlaterInfeasibleBounded(relaxsdp), SCIPrelaxSdpGetNSlaterInfeasibleUnsolved(relaxsdp));
@@ -242,20 +237,17 @@ SCIP_DECL_TABLEOUTPUT(tableOutputSlater)
       SCIPinfoMessage(scip, file, "    Slater         :       Fast    Penalty    Bounded    Unsolved\n");
       if ( tabledata->absolute )
       {
-         SCIPinfoMessage(scip, file, "     %-14.14s: %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " "
-               "%10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT "\n",
+         SCIPinfoMessage(scip, file, "     %-14.14s: %10d %10d %10d %10d\n",
                "Slater holds",
                SCIPrelaxSdpGetNSlaterHoldsFast(relaxsdp), SCIPrelaxSdpGetNSlaterHoldsPenalty(relaxsdp),
                SCIPrelaxSdpGetNSlaterHoldsBounded(relaxsdp), SCIPrelaxSdpGetNSlaterHoldsUnsolved(relaxsdp));
 
-         SCIPinfoMessage(scip, file, "     %-14.14s: %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " "
-               "%10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT "\n",
+         SCIPinfoMessage(scip, file, "     %-14.14s: %10d %10d %10d %10d\n",
                "Slater fails",
                SCIPrelaxSdpGetNSlaterFailsFast(relaxsdp), SCIPrelaxSdpGetNSlaterFailsPenalty(relaxsdp),
                SCIPrelaxSdpGetNSlaterFailsBounded(relaxsdp), SCIPrelaxSdpGetNSlaterFailsUnsolved(relaxsdp));
 
-         SCIPinfoMessage(scip, file, "     %-14.14s: %10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT " "
-               "%10" SCIP_LONGINT_FORMAT " %10" SCIP_LONGINT_FORMAT "\n",
+         SCIPinfoMessage(scip, file, "     %-14.14s: %10d %10d %10d %10d\n",
                "Infeasible",
                SCIPrelaxSdpGetNSlaterInfeasibleFast(relaxsdp), SCIPrelaxSdpGetNSlaterInfeasiblePenalty(relaxsdp),
                SCIPrelaxSdpGetNSlaterInfeasibleBounded(relaxsdp), SCIPrelaxSdpGetNSlaterInfeasibleUnsolved(relaxsdp));

@@ -281,7 +281,7 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
 
    if ( (SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) == propdata->lastnode) && (SCIPisEQ(scip, SCIPgetCutoffbound(scip), propdata->lastcufoffbound)) )
    {
-      SCIPdebugMsg(scip, "Not running again for node %lld with cutoffbound &f!\n", propdata->lastnode, propdata->lastcufoffbound);
+      SCIPdebugMsg(scip, "Not running again for node %" SCIP_LONGINT_FORMAT " with cutoffbound %g!\n", propdata->lastnode, propdata->lastcufoffbound);
       return SCIP_OKAY;
    }
    else
