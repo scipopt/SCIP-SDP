@@ -1447,22 +1447,6 @@ void* SCIPsdpiGetSolverPointer(
    return SCIPsdpiSolverGetSolverPointer(sdpi->sdpisolver);
 }
 
-/** gets default feasibility tolerance for SDP-solver in SCIP-SDP */
-SCIP_Real SCIPsdpiGetDefaultSdpiSolverFeastol(
-   void
-   )
-{
-   return SCIPsdpiSolverGetDefaultSdpiSolverFeastol();
-}
-
-/** gets default duality gap tolerance for SDP-solver in SCIP-SDP */
-SCIP_Real SCIPsdpiGetDefaultSdpiSolverGaptol(
-   void
-   )
-{
-   return SCIPsdpiSolverGetDefaultSdpiSolverGaptol();
-}
-
 /** gets default number of increases of penalty parameter for SDP-solver in SCIP-SDP */
 int SCIPsdpiGetDefaultSdpiSolverNpenaltyIncreases(
    void
