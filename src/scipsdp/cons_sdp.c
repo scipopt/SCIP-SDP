@@ -1188,6 +1188,7 @@ SCIP_RETCODE tightenBounds(
    {
       SCIP_CONSDATA* consdata;
       SCIP_Real* matrix;
+      SCIP_Real* othermatrix;
       SCIP_Real* constmatrix;
       SCIP_Real factor;
       int blocksize;
@@ -1212,11 +1213,11 @@ SCIP_RETCODE tightenBounds(
       if ( ! consdata->allmatricespsd )
          continue;
 
-      /* make sure that all lower bounds are nonnegative */
+      /* make sure that all upper bounds finite */
       nvars = consdata->nvars;
       for (i = 0; i < nvars; ++i)
       {
-         if ( SCIPisNegative(scip, SCIPvarGetLbGlobal(consdata->vars[i])) )
+         if ( SCIPisInfinity(scip, SCIPvarGetUbGlobal(consdata->vars[i])) )
             break;
       }
       if ( i < nvars )
@@ -1228,32 +1229,49 @@ SCIP_RETCODE tightenBounds(
       blocksize = consdata->blocksize;
       SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, blocksize * blocksize) );
       SCIP_CALL( SCIPallocBufferArray(scip, &matrix, blocksize * blocksize) );
-
-      SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, conss[c], constmatrix) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &othermatrix, blocksize * blocksize) );
 
       for (i = 0; i < nvars; ++i)
       {
          SCIP_Real lb;
          SCIP_Real ub;
-
-         SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrix) );
+         int k;
+         int l;
 
          /* skip fixed variables */
          lb = SCIPvarGetLbGlobal(consdata->vars[i]);
          ub = SCIPvarGetUbGlobal(consdata->vars[i]);
-         if ( SCIPisEQ(scip, lb, ub) )
+         if ( SCIPisEQ(scip, lb, ub) || SCIPisEQ(scip, ub, 1.0) )
             continue;
 
-         /* compute scaling factor */
+         /* get fresh copy of the constant matrix */
+         SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, conss[c], constmatrix) );
+
+         /* loop over other variables */
+         for (k = 0; k < nvars; ++k)
+         {
+            if ( k == i )
+               continue;
+
+            SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], k, othermatrix) );
+
+            /* subtract matrix times upper bound from constant matrix (because of minus const. matrix) */
+            for (l = 0; l < blocksize * blocksize; ++l)
+               constmatrix[l] -= othermatrix[l] * ub;
+         }
+
+         SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrix) );
+
+         /* compute smallest scaling factor */
          SCIP_CALL( computeScalingFactor(scip, blocksize, matrix, constmatrix, lb, ub, &factor) );
          if ( factor == SCIP_INVALID ) /*lint !e777*/
             continue;
 
-         if ( SCIPisLT(scip, factor, ub) )
+         if ( SCIPisGT(scip, factor, lb) )
          {
             SCIP_Bool tightened;
 
-            SCIP_CALL( SCIPtightenVarUb(scip, consdata->vars[i], factor, FALSE, infeasible, &tightened) );
+            SCIP_CALL( SCIPtightenVarLb(scip, consdata->vars[i], factor, FALSE, infeasible, &tightened) );
 
             if ( *infeasible )
                break;
@@ -1266,6 +1284,7 @@ SCIP_RETCODE tightenBounds(
          }
       }
 
+      SCIPfreeBufferArray(scip, &othermatrix);
       SCIPfreeBufferArray(scip, &matrix);
       SCIPfreeBufferArray(scip, &constmatrix);
    }
