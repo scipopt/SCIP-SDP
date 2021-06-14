@@ -141,7 +141,7 @@ SCIP_DECL_TABLEOUTPUT(tableOutputRelaxSdp)
       {
          if ( tabledata->absolute )
          {
-            SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10" SCIP_LONGINT_FORMAT " %10d %10.2f %10d %10d %10d %10d %10d\n",
+            SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10d %10d %10.2f %10d %10d %10d %10d %10d\n",
                SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
                SCIPrelaxSdpGetNSdpCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
                (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpCalls(relaxsdp),
@@ -150,7 +150,7 @@ SCIP_DECL_TABLEOUTPUT(tableOutputRelaxSdp)
          }
          else
          {
-            SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10" SCIP_LONGINT_FORMAT " %10d %10.2f %8.2f %% %8.2f %% %8.2f %% %8.2f %% %8.2f %%\n",
+            SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10d %10d %10.2f %8.2f %% %8.2f %% %8.2f %% %8.2f %% %8.2f %%\n",
                SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
                SCIPrelaxSdpGetNSdpCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
                (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpCalls(relaxsdp),
@@ -175,7 +175,7 @@ SCIP_DECL_TABLEOUTPUT(tableOutputRelaxSdp)
       {
          if ( tabledata->absolute )
          {
-            SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10" SCIP_LONGINT_FORMAT " %10d %10.2f %10d %10d %10d\n",
+            SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10d %10d %10.2f %10d %10d %10d\n",
                SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
                SCIPrelaxSdpGetNSdpCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
                (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpCalls(relaxsdp),
@@ -183,7 +183,7 @@ SCIP_DECL_TABLEOUTPUT(tableOutputRelaxSdp)
          }
          else
          {
-            SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10" SCIP_LONGINT_FORMAT " %10d %10.2f %8.2f %% %8.2f %% %8.2f %%\n",
+            SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10d %10d %10.2f %8.2f %% %8.2f %% %8.2f %%\n",
                SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
                SCIPrelaxSdpGetNSdpCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
                (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpCalls(relaxsdp),
