@@ -205,17 +205,6 @@ struct SCIP_SDPiSolver
                       }                                                                                      \
                       while( FALSE )
 
-/** Calls gettimeofday and transforms the return-code to a SCIP_ERROR if needed. */
-#define TIMEOFDAY_CALL(x)  do                                                                                \
-                      {                                                                                      \
-                         if ( (x) != 0 )                                                                     \
-                         {                                                                                   \
-                            SCIPerrorMessage("Error in gettimeofday! \n");                                   \
-                            return SCIP_ERROR;                                                               \
-                         }                                                                                   \
-                      }                                                                                      \
-                      while( FALSE )
-
 /** This will be called in all functions that want to access solution information to check if the problem was solved since the last change of the problem. */
 #define CHECK_IF_SOLVED(sdpisolver)  do                                                                      \
                       {                                                                                      \
