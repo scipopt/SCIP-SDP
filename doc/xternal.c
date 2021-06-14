@@ -39,9 +39,9 @@
 
 /**@mainpage Overview
  *
- * @version 3.2.0
+ * @version 3.3.0
  * @author Tristan Gally, Frederic Matter, Marc Pfetsch; Sonja Mars, Lars Schewe
- * @date 2011-2020
+ * @date 2011-2021
  *
  * SCIP-SDP is a plugin for SCIP to solve mixed integer semidefinite programs (MISDPs) of the form
  *

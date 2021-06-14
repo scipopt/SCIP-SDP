@@ -264,7 +264,7 @@ SCIP_RETCODE solveTest(
    case SCIPinfeas:
       cr_assert( ! dualfeasible );
       cr_assert( ! SCIPsdpiIsDualFeasible(sdpi) );
-      cr_assert( SCIPsdpiIsDualInfeasible(sdpi) );
+      /* cr_assert( SCIPsdpiIsDualInfeasible(sdpi) ); */ /* we do not know whether we can determine dual infeasibility in the dual in every case */
       cr_assert( ! SCIPsdpiIsDualUnbounded(sdpi) );
       break;
 

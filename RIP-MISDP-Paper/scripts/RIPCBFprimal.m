@@ -1,4 +1,4 @@
-function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, boundver)
+function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, boundver, sumineq)
 % schreibt SDP-File für ganzzahlige RIP-SDP-Relaxierung in primaler Form
 % (mit PSD-Variablen) für Matrix A, Ordnung k, schreibt in 'file' 
 % side ='l' für linke Seite/alpha_k, side='r' für rechte Seite/beta_k
@@ -15,13 +15,33 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
 %            0: -z_i <= X_{ii} <= z_i, i = 1,...,n (schwächste Variante)
 %            1: Standard, -z_j <= X_{ij} <= z_j, i,j = 1,...,n
 %            2: -0.5*z_j <= X_{ij} <= 0.5*z_j, i ~= j (stärkste Variante)
+% sumineq = 1 falls die gültige Ungleichung sum_{i\neq j} X_{ij} \leq k-1
+% hinzugefügt werden soll, sonst 0.
 % ACHTUNG: schreibt untere Dreiecksmatrizen!
 
     fid = fopen(file, 'w');
     m=length(A(:,1));
     n=length(A(1,:));
+    
+    %% check input parameters
+    if socp ~= 0 && socp ~= 1 && socp ~= 2
+        error("Error: Option <%s> for parameter <socp> not valid!\n", socp);
+    end
+    if strgbnds ~= 0 && strgbnds ~= 1
+        error("Error: Option <%s> for parameter <strgbnds> not valid!\n", strgbnds);
+    end
+    if trineq ~= 0 && trineq ~= 1
+        error("Error: Option <%s> for parameter <trineq> not valid!\n", trineq);
+    end
+    if boundver ~= 0 && boundver ~= 1 && boundver ~= 2
+        error("Error: Option <%s> for parameter <boundver> not valid!\n", boundver);
+    end
+    if sumineq ~= 0 && sumineq ~= 1
+        error("Error: Option <%s> for parameter <strgbnds> not valid!\n", sumineq);
+    end
 
-    % check if A is entrywise nonnegative:
+
+    %% check if A is entrywise nonnegative:
     if strgbnds == 1 && ~all(A(:) >= 0)
         strgbnds = 0;
         fprintf("Setting strgbnds = 0, since matrix A is not nonnegative!\n");
@@ -30,17 +50,13 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
         fprintf("Setting strgbnds = 0, since this only works for right side of RIP!\n");
     end
     
-    % SOCP-inequality is only valid for right side of the RIP
+    %% SOCP-inequality is only valid for right side of the RIP
     if socp >= 1 && ~side == 'r'
         socp = 0;
         fprintf("Setting socp = 0, since this only works for right side of RIP!\n");
     end
     
-    % check boundver parameter
-    if boundver ~= 0 && boundver ~= 1 && boundver ~= 2
-        error("Error: Option <%s> for parameter boundver not valid!\n", boundver);
-    end
-
+    %% prepare output
     % compute B = A^T A
     B = transpose(A)*A;
 
@@ -75,7 +91,7 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
             fprintf(fid, "%d\n", n+2);
         end
     else
-        error("Error: Option <%s> for parameter socp not valid!\n", socp);
+        error("Something went wrong!\n");
     end
     fprintf(fid, "\n");
 
@@ -111,10 +127,6 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
     end
 
     %% constraints
-    if strgbnds ~= 0 && strgbnds ~= 1
-        error("Error: Option <%s> for parameter strgbnds not valid!\n", strgbnds);
-    end
-
     fprintf(fid, "CON\n");
     nsocpcons = 0.5*n*(n+3)*(n+2);
     if socp == 2
@@ -132,7 +144,8 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
     else
         ncons = ncons + 2*n^2+n+2 - strgbnds*0.5*n*(n-1);
     end
-    ncones = ncones + 5;
+    ncons = ncons + sumineq;
+    ncones = ncones + 5 + sumineq;
     fprintf(fid, "%d %d\n", ncons, ncones);
     if socp == 1
         % SOCP constraint (as PSD cons) is the first constraint
@@ -159,6 +172,9 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
         error("Error: Option <%s> for parameter trineq not valid!\n", trineq);
     end              
     fprintf(fid, "L- 1\n");                    % \sum_j z_j <= k
+    if sumineq == 1
+        fprintf(fid, "L- 1\n");                % \sum_{i\neq j} X_{ij} <= k-1
+    end
     % SOCP constraints (as SOCP cons) are the last constraints
     if socp == 2
         for i = 0:n-1
@@ -181,6 +197,7 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
     else
         nFCOORD = nFCOORD + 2*n^2+n - strgbnds*0.5*n*(n-1);
     end
+    nFCOORD = nFCOORD + sumineq * (n*(n-1)/2);
     fprintf(fid, "%d\n", nFCOORD);
     cnt = 0;
     conscnt = 0;
@@ -297,6 +314,18 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
 
     % no FCOORD for sparsity constraint
     conscnt = conscnt + 1;
+    
+    % off-diagonal constraint
+    if sumineq == 1
+        for i = 0:n-1
+            for j = 0:i-1
+                fprintf(fid, "%d 0 %d %d 0.5\n", conscnt, i, j);
+                cnt = cnt + 1;
+            end
+        end
+        conscnt = conscnt + 1;
+    end
+
     
     % SOCP constraints
     if socp == 2
@@ -426,6 +455,11 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
     end
     conscnt = conscnt + 1;
     
+    % no ACOORD for off-diagonal constraint
+    if sumineq == 1
+        conscnt = conscnt + 1;
+    end
+    
     % SOCP constraints
     if socp == 2
         for i = 0:n-1
@@ -454,6 +488,7 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
     else
         nBCOORD = n+2;
     end
+    nBCOORD = nBCOORD + sumineq;
     fprintf(fid, "%d\n", nBCOORD);
     cnt = 0;
 
@@ -522,6 +557,13 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
     fprintf(fid, "%d %d\n", conscnt, -order);
     conscnt = conscnt + 1;
     cnt = cnt + 1;
+    
+    % off-diagonal constraint
+    if sumineq == 1
+       fprintf(fid, "%d %d\n", conscnt, -order + 1);
+       cnt = cnt + 1;
+       conscnt = conscnt + 1;
+    end
 
     % nothing to add for SOCP constraint
     if socp == 2

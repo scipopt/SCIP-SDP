@@ -67,7 +67,6 @@
 #include "prop_companalcent.h"
 #include "scipsdpgithash.c"
 #include "table_relaxsdp.h"
-#include "table_sdpsolversuccess.h"
 #include "table_slater.h"
 
 /* hack to allow to change the name of the dialog without needing to copy everything */
@@ -167,7 +166,7 @@ SCIP_RETCODE SCIPSDPincludeDefaultPlugins(
    SCIP_DIALOG* dialog;
 
    /* add description */
-   (void) SCIPsnprintf(scipsdpname, SCIP_MAXSTRLEN, "SCIP-SDP %d.%d.%d", SCIPSDPmajorVersion, SCIPSDPminorVersion, SCIPSDPtechVersion);
+   (void) SCIPsnprintf(scipsdpname, SCIP_MAXSTRLEN, "SCIP-SDP %d.%d.%d", SCIPSDPmajorVersion, SCIPSDPminorVersion, SCIPSDPtechVersion); /*lint !e169, !e778*/
    (void) SCIPsnprintf(scipsdpdesc, SCIP_MAXSTRLEN, "Mixed Integer Semidefinite Programming Plugin for SCIP "
          "[GitHash: %s] (www.opt.tu-darmstadt.de/scipsdp/)", SCIPSDP_GITHASH);
    SCIP_CALL( SCIPincludeExternalCodeInformation(scip, scipsdpname, scipsdpdesc) );
@@ -212,7 +211,6 @@ SCIP_RETCODE SCIPSDPincludeDefaultPlugins(
 
    /* include tables */
    SCIP_CALL( SCIPincludeTableRelaxSdp(scip) );
-   SCIP_CALL( SCIPincludeTableSdpSolverSuccess(scip) );
    SCIP_CALL( SCIPincludeTableSlater(scip) );
 
    return SCIP_OKAY;
