@@ -166,7 +166,7 @@ SCIP_RETCODE SCIPSDPincludeDefaultPlugins(
    SCIP_DIALOG* dialog;
 
    /* add description */
-   (void) SCIPsnprintf(scipsdpname, SCIP_MAXSTRLEN, "SCIP-SDP %d.%d.%d", SCIPSDPmajorVersion, SCIPSDPminorVersion, SCIPSDPtechVersion);
+   (void) SCIPsnprintf(scipsdpname, SCIP_MAXSTRLEN, "SCIP-SDP %d.%d.%d", SCIPSDPmajorVersion, SCIPSDPminorVersion, SCIPSDPtechVersion); /*lint !e169, !e778*/
    (void) SCIPsnprintf(scipsdpdesc, SCIP_MAXSTRLEN, "Mixed Integer Semidefinite Programming Plugin for SCIP "
          "[GitHash: %s] (www.opt.tu-darmstadt.de/scipsdp/)", SCIPSDP_GITHASH);
    SCIP_CALL( SCIPincludeExternalCodeInformation(scip, scipsdpname, scipsdpdesc) );

@@ -127,13 +127,13 @@ int convertToInt(
    long long int work;
    int checkval = 1;
 
-   assert(sizeof(work) > sizeof(checkval));
+   assert(sizeof(work) > sizeof(checkval)); /*lint !e506*/
 
    /* if we have a little-endian machine (e.g, x86), the sought value is in the bottom part */
-   if ( *(int8_t*)&checkval != 0 )
+   if ( *(int8_t*)&checkval != 0 ) /*lint !e774*/
    {
       /* if the top part is nonzero, we assume that the number is negative */
-      if ( *((int8_t*)&num + 4) != 0 )
+      if ( *((int8_t*)&num + 4) != 0 ) /*lint !e2662*/
       {
          work = -num;
          return -(*((int*)&work));
@@ -145,10 +145,10 @@ int convertToInt(
    assert( *(int8_t*)&checkval == 0 );
 
    /* if the bottom part is nonzero, we assume that the number is negative */
-   if ( *(int8_t*)&num != 0 )
+   if ( *(int8_t*)&num != 0 ) /*lint !e774*/
    {
       work = -num;
-      return -(*((int*)&work + 4));
+      return -(*((int*)&work + 4)); /*lint !e2662*/
    }
    return *((int*)&num + 4);
 }

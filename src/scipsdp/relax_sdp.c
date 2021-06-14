@@ -4250,7 +4250,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    }
 
    /* set presolving parameter */
-   retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_USEPRESOLVING, relaxdata->usepresolving);
+   retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_USEPRESOLVING, relaxdata->usepresolving ? 1 : 0);
 
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
@@ -4264,7 +4264,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    }
 
    /* set scaleobj parameter */
-   retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_SCALEOBJ, relaxdata->scaleobj);
+   retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_SCALEOBJ, relaxdata->scaleobj ? 1 : 0);
 
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {

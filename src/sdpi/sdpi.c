@@ -2153,7 +2153,7 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
       {
          firstrowind = i;
          lastrowind = i;
-         i++;
+         i++;  /*lint !e850*/
          break;
       }
    }
