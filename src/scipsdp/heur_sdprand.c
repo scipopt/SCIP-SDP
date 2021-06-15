@@ -241,11 +241,15 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
    SCIP_CALL( SCIPallocBufferArray(scip, &sdpcands, nvars) );
    SCIP_CALL( SCIPallocBufferArray(scip, &sdpcandssol, nvars) );
 
+   /* prepare solution to be changed */
+   SCIP_CALL( SCIPlinkRelaxSol(scip, heurdata->sol) );
+
    /* collect fractional unfixed values */
    for (v = 0; v < nvars; ++v)
    {
       SCIP_Real val;
       SCIP_VAR* var;
+      SCIP_Bool adjustedbound = FALSE;
 
       var = vars[v];
       val = SCIPgetSolVal(scip, relaxsol, var);
@@ -264,17 +268,22 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
             {
                SCIP_CALL( SCIPchgVarLbProbing(scip, var, val) );
                ++nfixed;
+               adjustedbound = TRUE;
             }
             if ( SCIPisLT(scip, val, SCIPvarGetUbLocal(var)) )
             {
                SCIP_CALL( SCIPchgVarUbProbing(scip, var, val) );
                ++nfixed;
+               adjustedbound = TRUE;
             }
+
+            /* to avoid numerical noise, make sure variable integral */
+            SCIP_CALL( SCIPsetSolVal(scip, heurdata->sol, var, val) );
          }
       }
    }
 
-   /* possibly free relaxtion (LP or SDP) solution */
+   /* possibly free relaxation (LP or SDP) solution */
    if ( relaxsol != NULL )
    {
       SCIP_CALL( SCIPfreeSol(scip, &relaxsol) );
@@ -306,9 +315,6 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
 
    /* permute variables */
    SCIPrandomPermuteIntArray(heurdata->randnumgen, sdpcands, 0, nsdpcands);
-
-   /* prepare solution to be changed */
-   SCIP_CALL( SCIPlinkRelaxSol(scip, heurdata->sol) );
 
    /* perform rounding loop */
    nfixed = 0;
@@ -372,12 +378,12 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
          SCIP_CALL( SCIPnewProbingNode(scip) );
 
          /* tighten the bounds to fix the variable for the probing node */
-         if( lbadjust )
+         if ( lbadjust )
          {
             SCIP_CALL( SCIPchgVarLbProbing(scip, var, newval) );
          }
 
-         if( ubadjust )
+         if ( ubadjust )
          {
             SCIP_CALL( SCIPchgVarUbProbing(scip, var, newval) );
          }
@@ -427,7 +433,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
          SCIP_CALL( SCIPsolveProbingRelax(scip, &cutoff) );
 
          /* if solving was successfull */
-         if (SCIPrelaxSdpSolvedProbing(relaxsdp) )
+         if ( SCIPrelaxSdpSolvedProbing(relaxsdp) )
          {
             if ( SCIPrelaxSdpIsFeasible(relaxsdp) )
             {
