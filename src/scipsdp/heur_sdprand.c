@@ -249,7 +249,6 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
    {
       SCIP_Real val;
       SCIP_VAR* var;
-      SCIP_Bool adjustedbound = FALSE;
 
       var = vars[v];
       val = SCIPgetSolVal(scip, relaxsol, var);
@@ -268,13 +267,11 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
             {
                SCIP_CALL( SCIPchgVarLbProbing(scip, var, val) );
                ++nfixed;
-               adjustedbound = TRUE;
             }
             if ( SCIPisLT(scip, val, SCIPvarGetUbLocal(var)) )
             {
                SCIP_CALL( SCIPchgVarUbProbing(scip, var, val) );
                ++nfixed;
-               adjustedbound = TRUE;
             }
 
             /* to avoid numerical noise, make sure variable integral */
