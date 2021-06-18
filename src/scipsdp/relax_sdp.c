@@ -117,7 +117,7 @@ struct SCIP_RelaxData
    SCIP_Real             objval;             /**< objective value of the last SDP-relaxation */
    SCIP_Bool             origsolved;         /**< solved original problem to optimality (not only a penalty or probing formulation) */
    SCIP_Bool             probingsolved;      /**< was the last probing SDP solved successfully? */
-   long int              lastsdpnode;        /**< number of the SCIP node the current SDP-solution belongs to */
+   SCIP_Longint          lastsdpnode;        /**< number of the SCIP node the current SDP-solution belongs to */
    SCIP_Bool             feasible;           /**< was the last solved SDP feasible */
 
    SCIP_Real             sdpsolvergaptol;    /**< the stopping criterion for the duality gap the sdpsolver should use */
@@ -3849,7 +3849,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       int ncols;
       int slength;
 
-      SCIPdebugMsg(scip, "Already solved SDP-relaxation for node %ld, returning with SCIP_SUCCESS so that no other relaxator is called.\n",
+      SCIPdebugMsg(scip, "Already solved SDP-relaxation for node %" SCIP_LONGINT_FORMAT ", returning with SCIP_SUCCESS so that no other relaxator is called.\n",
          SCIPrelaxGetData(relax)->lastsdpnode);
 
       if ( SCIPsdpiIsDualUnbounded(relaxdata->sdpi) )
@@ -4698,7 +4698,7 @@ SCIP_DECL_RELAXEXITSOL(relaxExitSolSdp)
    relaxdata->sdpiterations = 0;
    relaxdata->sdpcalls = 0;
    relaxdata->sdpinterfacecalls = 0;
-   relaxdata->lastsdpnode = 0;
+   relaxdata->lastsdpnode = 0LL;
    relaxdata->unsolved = 0;
    SCIP_CALL( SCIPsdpiClear(relaxdata->sdpi) );
 
@@ -4834,7 +4834,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    relaxdata->sdpi = sdpi;
    relaxdata->lpi = lpi;
    relaxdata->sdpsolvingtime = NULL;
-   relaxdata->lastsdpnode = -1;
+   relaxdata->lastsdpnode = -1LL;
    relaxdata->nblocks = 0;
    relaxdata->varmapper = NULL;
    relaxdata->roundingprobtime = NULL;
@@ -5530,7 +5530,7 @@ SCIP_RETCODE SCIPrelaxSdpGetRelaxSol(
 }
 
 /** get the number of the SCIP-node which the current SDP solution belongs to */
-long int SCIPrelaxSdpGetSdpNode(
+SCIP_Longint SCIPrelaxSdpGetSdpNode(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get solution for */
    )
 {
