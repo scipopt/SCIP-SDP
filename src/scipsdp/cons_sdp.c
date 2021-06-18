@@ -2212,6 +2212,233 @@ SCIP_RETCODE addTwoMinorProdConstraints(
    return SCIP_OKAY;
 }
 
+
+/** add quadratic constraints to enforce rank-1 condition */
+static
+SCIP_RETCODE addRank1QuadConss(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONSHDLR*        conshdlr,           /**< constraint handler */
+   SCIP_CONS**           conss,              /**< array of constraints to check */
+   int                   nconss,             /**< number of constraints to check */
+   int*                  naddconss           /**< pointer to store how many constraints were added */
+   )
+{
+   SCIP_CONSHDLRDATA* conshdlrdata;
+   int c;
+
+   assert( scip != NULL );
+   assert( conshdlr != NULL );
+   assert( naddconss != NULL );
+
+   if ( conss == NULL )
+      return SCIP_OKAY;
+
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert( conshdlrdata != NULL );
+
+   for (c = 0; c < nconss; ++c)
+   {
+      SCIP_CONSDATA* consdata;
+
+      consdata = SCIPconsGetData(conss[c]);
+      assert( consdata != NULL );
+
+      consdata->maxevsubmat[0] = -1;
+      consdata->maxevsubmat[1] = -1;
+
+      /* For each constraint, if it should be rank one, add all quadratic constraints given by the 2x2 principal
+       * minors. */
+      if ( consdata->rankone && ! consdata->addedquadcons )
+      {
+         SCIP_VAR** quadvars1;
+         SCIP_VAR** quadvars2;
+         SCIP_VAR** linvars;
+         SCIP_CONS* quadcons;
+         SCIP_Real* lincoefs;
+         SCIP_Real* quadcoefs;
+         SCIP_Real* constmatrix;
+         SCIP_Real** matrixAk;
+         SCIP_Real lhs;
+         SCIP_Real aiik;
+         SCIP_Real ajjk;
+         SCIP_Real aijk;
+         SCIP_Real aiil;
+         SCIP_Real ajjl;
+         SCIP_Real aijl;
+         SCIP_Real cii;
+         SCIP_Real cjj;
+         SCIP_Real cij;
+         char name[SCIP_MAXSTRLEN];
+         int* nnonzvars;
+         int** nonzvars;
+         int i;
+         int j;
+         int k;
+         int l;
+         int blocksize;
+         int varind1;
+         int varind2;
+
+         blocksize = consdata->blocksize;
+
+         SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, (blocksize * (blocksize + 1)) / 2) ); /*lint !e647*/
+         SCIP_CALL( SCIPconsSdpGetLowerTriangConstMatrix(scip, conss[c], constmatrix) );
+
+         SCIP_CALL( SCIPallocBufferArray(scip, &quadvars1, consdata->nvars * consdata->nvars) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &quadvars2, consdata->nvars * consdata->nvars) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &linvars, consdata->nvars) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &quadcoefs, consdata->nvars * consdata->nvars) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &lincoefs, consdata->nvars) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &matrixAk, consdata->nvars) );
+
+         for (i = 0; i < consdata->nvars; ++i)
+         {
+            SCIP_CALL( SCIPallocBufferArray(scip, &matrixAk[i], blocksize * blocksize) );
+            SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrixAk[i]) );
+         }
+
+         SCIP_CALL( SCIPallocBufferArray(scip, &nnonzvars, (blocksize * (blocksize + 1)) / 2) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &nonzvars, (blocksize * (blocksize + 1)) / 2) );
+
+         for (i = 0; i < blocksize; ++i)
+         {
+            for (j = 0; j <= i; ++j)
+            {
+               int varcnt = 0;
+
+               SCIP_CALL( SCIPallocBufferArray(scip, &nonzvars[SCIPconsSdpCompLowerTriangPos(i,j)], consdata->nvars) );
+
+               for (k = 0; k < consdata->nvars; ++k)
+               {
+                  if ( ! SCIPisZero(scip, matrixAk[k][i * blocksize + j]) || ! SCIPisZero(scip, matrixAk[k][i * blocksize + i]) || ! SCIPisZero(scip, matrixAk[k][j * blocksize + j]) )
+                  {
+                     nonzvars[SCIPconsSdpCompLowerTriangPos(i,j)][varcnt] = k;
+                     varcnt++;
+                  }
+               }
+               nnonzvars[SCIPconsSdpCompLowerTriangPos(i,j)] = varcnt;
+            }
+         }
+
+         for (i = 0; i < blocksize; ++i)
+         {
+            for (j = 0; j < i; ++j)
+            {
+               int lincnt = 0;
+               int quadcnt = 0;
+
+               cii = constmatrix[SCIPconsSdpCompLowerTriangPos(i,i)];
+               cjj = constmatrix[SCIPconsSdpCompLowerTriangPos(j,j)];
+               cij = constmatrix[SCIPconsSdpCompLowerTriangPos(i,j)];
+
+               for (k = 0; k < nnonzvars[SCIPconsSdpCompLowerTriangPos(i,j)]; ++k)
+               {
+                  varind1 = nonzvars[SCIPconsSdpCompLowerTriangPos(i,j)][k];
+                  ajjk = matrixAk[varind1][j * consdata->blocksize + j];
+                  aiik = matrixAk[varind1][i * consdata->blocksize + i];
+                  aijk = matrixAk[varind1][j * consdata->blocksize + i];
+
+                  if ( ! SCIPisZero(scip, -cii * ajjk - cjj * aiik + cij * aijk) )
+                  {
+                     linvars[lincnt] = consdata->vars[varind1];
+                     lincoefs[lincnt] = -cii * ajjk - cjj * aiik + cij * aijk;
+                     ++lincnt;
+                  }
+
+                  for (l = 0; l < k; ++l)
+                  {
+                     varind2 = nonzvars[SCIPconsSdpCompLowerTriangPos(i,j)][l];
+                     ajjl = matrixAk[varind2][j * consdata->blocksize + j];
+                     aiil = matrixAk[varind2][i * consdata->blocksize + i];
+                     aijl = matrixAk[varind2][j * consdata->blocksize + i];
+
+                     if ( ! SCIPisZero(scip, aiik * ajjl + ajjk * aiil - 2 * aijk * aijl) )
+                     {
+                        quadvars1[quadcnt] = consdata->vars[varind1];
+                        quadvars2[quadcnt] = consdata->vars[varind2];
+                        quadcoefs[quadcnt] = aiik * ajjl + ajjk * aiil - 2 * aijk * aijl;
+                        ++quadcnt;
+                     }
+                  }
+
+                  /* case l == k needs special treatment */
+                  if ( ! SCIPisZero(scip, aiik * ajjk - aijk * aijk) )
+                  {
+                     quadvars1[quadcnt] = consdata->vars[varind1];
+                     quadvars2[quadcnt] = consdata->vars[varind1];
+                     quadcoefs[quadcnt] = aiik * ajjk - aijk * aijk;
+                     ++quadcnt;
+                  }
+               }
+               assert( quadcnt <= consdata->nvars * consdata->nvars );
+               assert( lincnt <= consdata->nvars );
+
+               lhs = cij * cij - cii * cjj;
+
+               (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "quadcons#%d#%d#%d", i, j, c);
+
+               /* create quadratic constraint */
+#if ( SCIP_VERSION >= 800 || ( SCIP_VERSION < 800 && SCIP_APIVERSION >= 100 ) )
+               SCIP_CALL( SCIPcreateConsQuadraticNonlinear(scip, &quadcons, name, lincnt, linvars, lincoefs, quadcnt, quadvars1, quadvars2, quadcoefs, lhs, lhs,
+                     TRUE,      /* initial */
+                     TRUE,      /* separate */
+                     TRUE,      /* enforce */
+                     TRUE,      /* check */
+                     TRUE,      /* propagate */
+                     FALSE,     /* local */
+                     FALSE,     /* modifiable */
+                     FALSE,     /* dynamic */
+                     TRUE) );   /* removable */
+#else
+               SCIP_CALL( SCIPcreateConsQuadratic(scip, &quadcons, name, lincnt, linvars, lincoefs, quadcnt, quadvars1, quadvars2, quadcoefs, lhs, lhs,
+                     TRUE,      /* initial */
+                     TRUE,      /* separate */
+                     TRUE,      /* enforce */
+                     TRUE,      /* check */
+                     TRUE,      /* propagate */
+                     FALSE,     /* local */
+                     FALSE,     /* modifiable */
+                     FALSE,     /* dynamic */
+                     TRUE) );   /* removable */
+#endif
+
+#ifdef SCIP_MORE_DEBUG
+               SCIP_CALL( SCIPprintCons(scip, quadcons, NULL) );
+               SCIPinfoMessage(scip, NULL, "\n");
+#endif
+
+               SCIP_CALL( SCIPaddCons(scip, quadcons) );
+               SCIP_CALL( SCIPreleaseCons(scip, &quadcons) );
+            }
+         }
+
+         for (i = blocksize - 1; i >= 0; --i)
+         {
+            for (j = i; j >= 0; --j)
+               SCIPfreeBufferArray(scip, &nonzvars[SCIPconsSdpCompLowerTriangPos(i,j)]);
+         }
+
+         SCIPfreeBufferArray(scip, &nonzvars);
+         SCIPfreeBufferArray(scip, &nnonzvars);
+
+         for (i = consdata->nvars - 1; i >= 0; --i)
+            SCIPfreeBufferArray(scip, &matrixAk[i]);
+
+         SCIPfreeBufferArray(scip, &matrixAk);
+         SCIPfreeBufferArray(scip, &lincoefs);
+         SCIPfreeBufferArray(scip, &quadcoefs);
+         SCIPfreeBufferArray(scip, &linvars);
+         SCIPfreeBufferArray(scip, &quadvars2);
+         SCIPfreeBufferArray(scip, &quadvars1);
+         SCIPfreeBufferArray(scip, &constmatrix);
+      }
+      consdata->addedquadcons = TRUE;
+   }
+
+   return SCIP_OKAY;
+}
+
+
 /** detects if there are blocks with size one and transforms them to lp-rows */
 static
 SCIP_RETCODE move_1x1_blocks_to_lp(
@@ -4504,8 +4731,6 @@ static
 SCIP_DECL_CONSINITSOL(consInitsolSdp)
 {/*lint --e{715}*/
    SCIP_CONSHDLRDATA* conshdlrdata;
-   int c;
-   int i;
 
    assert( scip != NULL );
    assert( conshdlr != NULL );
@@ -4523,205 +4748,12 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
 
    conshdlrdata->relaxsdp = SCIPfindRelax(scip, "SDP");
 
-   if ( SCIPgetSubscipDepth(scip) > 0 || ! conshdlrdata->sdpconshdlrdata->quadconsrank1 )
-      return SCIP_OKAY;
-
-   for (c = 0; c < nconss; ++c)
+   /* make sure that quadratic constraints are added */
+   if ( SCIPgetSubscipDepth(scip) == 0 && conshdlrdata->sdpconshdlrdata->quadconsrank1 )
    {
-      SCIP_CONSDATA* consdata;
-
-      consdata = SCIPconsGetData(conss[c]);
-      assert( consdata != NULL );
-
-      consdata->maxevsubmat[0] = -1;
-      consdata->maxevsubmat[1] = -1;
-
-      /* For each constraint, if it should be rank one, add all quadratic constraints given by the 2x2 principal
-       * minors. */
-      if ( consdata->rankone && ! consdata->addedquadcons )
-      {
-         SCIP_VAR** quadvars1;
-         SCIP_VAR** quadvars2;
-         SCIP_VAR** linvars;
-         SCIP_CONS* quadcons;
-         SCIP_Real* lincoefs;
-         SCIP_Real* quadcoefs;
-         SCIP_Real* constmatrix;
-         SCIP_Real** matrixAk;
-         SCIP_Real lhs;
-         SCIP_Real aiik;
-         SCIP_Real ajjk;
-         SCIP_Real aijk;
-         SCIP_Real aiil;
-         SCIP_Real ajjl;
-         SCIP_Real aijl;
-         SCIP_Real cii;
-         SCIP_Real cjj;
-         SCIP_Real cij;
-         char name[SCIP_MAXSTRLEN];
-         int* nnonzvars;
-         int** nonzvars;
-         int j;
-         int k;
-         int l;
-         int blocksize;
-         int varind1;
-         int varind2;
-
-         blocksize = consdata->blocksize;
-
-         SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, (blocksize * (blocksize + 1)) / 2) ); /*lint !e647*/
-         SCIP_CALL( SCIPconsSdpGetLowerTriangConstMatrix(scip, conss[c], constmatrix) );
-
-         SCIP_CALL( SCIPallocBufferArray(scip, &quadvars1, consdata->nvars * consdata->nvars) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &quadvars2, consdata->nvars * consdata->nvars) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &linvars, consdata->nvars) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &quadcoefs, consdata->nvars * consdata->nvars) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &lincoefs, consdata->nvars) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &matrixAk, consdata->nvars) );
-
-         for (i = 0; i < consdata->nvars; ++i)
-         {
-            SCIP_CALL( SCIPallocBufferArray(scip, &matrixAk[i], blocksize * blocksize) );
-            SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrixAk[i]) );
-         }
-
-         SCIP_CALL( SCIPallocBufferArray(scip, &nnonzvars, (blocksize * (blocksize + 1)) / 2) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &nonzvars, (blocksize * (blocksize + 1)) / 2) );
-
-         for (i = 0; i < blocksize; ++i)
-         {
-            for (j = 0; j <= i; ++j)
-            {
-               int varcnt = 0;
-
-               SCIP_CALL( SCIPallocBufferArray(scip, &nonzvars[SCIPconsSdpCompLowerTriangPos(i,j)], consdata->nvars) );
-
-               for (k = 0; k < consdata->nvars; ++k)
-               {
-                  if ( ! SCIPisZero(scip, matrixAk[k][i * blocksize + j]) || ! SCIPisZero(scip, matrixAk[k][i * blocksize + i]) || ! SCIPisZero(scip, matrixAk[k][j * blocksize + j]) )
-                  {
-                     nonzvars[SCIPconsSdpCompLowerTriangPos(i,j)][varcnt] = k;
-                     varcnt++;
-                  }
-               }
-               nnonzvars[SCIPconsSdpCompLowerTriangPos(i,j)] = varcnt;
-            }
-         }
-
-         for (i = 0; i < blocksize; ++i)
-         {
-            for (j = 0; j < i; ++j)
-            {
-               int lincnt = 0;
-               int quadcnt = 0;
-
-               cii = constmatrix[SCIPconsSdpCompLowerTriangPos(i,i)];
-               cjj = constmatrix[SCIPconsSdpCompLowerTriangPos(j,j)];
-               cij = constmatrix[SCIPconsSdpCompLowerTriangPos(i,j)];
-
-               for (k = 0; k < nnonzvars[SCIPconsSdpCompLowerTriangPos(i,j)]; ++k)
-               {
-                  varind1 = nonzvars[SCIPconsSdpCompLowerTriangPos(i,j)][k];
-                  ajjk = matrixAk[varind1][j * consdata->blocksize + j];
-                  aiik = matrixAk[varind1][i * consdata->blocksize + i];
-                  aijk = matrixAk[varind1][j * consdata->blocksize + i];
-
-                  if ( ! SCIPisZero(scip, -cii * ajjk - cjj * aiik + cij * aijk) )
-                  {
-                     linvars[lincnt] = consdata->vars[varind1];
-                     lincoefs[lincnt] = -cii * ajjk - cjj * aiik + cij * aijk;
-                     ++lincnt;
-                  }
-
-                  for (l = 0; l < k; ++l)
-                  {
-                     varind2 = nonzvars[SCIPconsSdpCompLowerTriangPos(i,j)][l];
-                     ajjl = matrixAk[varind2][j * consdata->blocksize + j];
-                     aiil = matrixAk[varind2][i * consdata->blocksize + i];
-                     aijl = matrixAk[varind2][j * consdata->blocksize + i];
-
-                     if ( ! SCIPisZero(scip, aiik * ajjl + ajjk * aiil - 2 * aijk * aijl) )
-                     {
-                        quadvars1[quadcnt] = consdata->vars[varind1];
-                        quadvars2[quadcnt] = consdata->vars[varind2];
-                        quadcoefs[quadcnt] = aiik * ajjl + ajjk * aiil - 2 * aijk * aijl;
-                        ++quadcnt;
-                     }
-                  }
-
-                  /* case l == k needs special treatment */
-                  if ( ! SCIPisZero(scip, aiik * ajjk - aijk * aijk) )
-                  {
-                     quadvars1[quadcnt] = consdata->vars[varind1];
-                     quadvars2[quadcnt] = consdata->vars[varind1];
-                     quadcoefs[quadcnt] = aiik * ajjk - aijk * aijk;
-                     ++quadcnt;
-                  }
-               }
-               assert( quadcnt <= consdata->nvars * consdata->nvars );
-               assert( lincnt <= consdata->nvars );
-
-               lhs = cij * cij - cii * cjj;
-
-               (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "quadcons#%d#%d#%d", i, j, c);
-
-               /* create quadratic constraint */
-#if ( SCIP_VERSION >= 800 || ( SCIP_VERSION < 800 && SCIP_APIVERSION >= 100 ) )
-               SCIP_CALL( SCIPcreateConsQuadraticNonlinear(scip, &quadcons, name, lincnt, linvars, lincoefs, quadcnt, quadvars1, quadvars2, quadcoefs, lhs, lhs,
-                     TRUE,      /* initial */
-                     TRUE,      /* separate */
-                     TRUE,      /* enforce */
-                     TRUE,      /* check */
-                     TRUE,      /* propagate */
-                     FALSE,     /* local */
-                     FALSE,     /* modifiable */
-                     FALSE,     /* dynamic */
-                     TRUE) );   /* removable */
-#else
-               SCIP_CALL( SCIPcreateConsQuadratic(scip, &quadcons, name, lincnt, linvars, lincoefs, quadcnt, quadvars1, quadvars2, quadcoefs, lhs, lhs,
-                     TRUE,      /* initial */
-                     TRUE,      /* separate */
-                     TRUE,      /* enforce */
-                     TRUE,      /* check */
-                     TRUE,      /* propagate */
-                     FALSE,     /* local */
-                     FALSE,     /* modifiable */
-                     FALSE,     /* dynamic */
-                     TRUE) );   /* removable */
-#endif
-
-#ifdef SCIP_MORE_DEBUG
-               SCIP_CALL( SCIPprintCons(scip, quadcons, NULL) );
-               SCIPinfoMessage(scip, NULL, "\n");
-#endif
-
-               SCIP_CALL( SCIPaddCons(scip, quadcons) );
-               SCIP_CALL( SCIPreleaseCons(scip, &quadcons) );
-            }
-         }
-
-         for (i = blocksize - 1; i >= 0; --i)
-         {
-            for (j = i; j >= 0; --j)
-               SCIPfreeBufferArray(scip, &nonzvars[SCIPconsSdpCompLowerTriangPos(i,j)]);
-         }
-
-         SCIPfreeBufferArray(scip, &nonzvars);
-         SCIPfreeBufferArray(scip, &nnonzvars);
-
-         for (i = consdata->nvars - 1; i >= 0; --i)
-            SCIPfreeBufferArray(scip, &matrixAk[i]);
-
-         SCIPfreeBufferArray(scip, &matrixAk);
-         SCIPfreeBufferArray(scip, &lincoefs);
-         SCIPfreeBufferArray(scip, &quadcoefs);
-         SCIPfreeBufferArray(scip, &linvars);
-         SCIPfreeBufferArray(scip, &quadvars2);
-         SCIPfreeBufferArray(scip, &quadvars1);
-         SCIPfreeBufferArray(scip, &constmatrix);
-      }
-      consdata->addedquadcons = TRUE;
+      int naddconss;
+      SCIP_CALL( addRank1QuadConss(scip, conshdlr, conss, nconss, &naddconss) );
+      SCIPdebugMsg(scip, "Added %d quadratic constraints for rank 1 constraints.\n", naddconss);
    }
 
    return SCIP_OKAY;
@@ -5043,6 +5075,15 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
             if ( noldaddconss != *naddconss )
                *result = SCIP_SUCCESS;
          }
+      }
+
+      if ( SCIPgetSubscipDepth(scip) == 0 && *result != SCIP_CUTOFF && conshdlrdata->sdpconshdlrdata->quadconsrank1 )
+      {
+         noldaddconss = *naddconss;
+         SCIP_CALL( addRank1QuadConss(scip, conshdlr, conss, nconss, naddconss) );
+         SCIPdebugMsg(scip, "Added %d quadratic constraints for rank 1 constraints.\n", *naddconss - noldaddconss);
+         if ( noldaddconss != *naddconss )
+            *result = SCIP_SUCCESS;
       }
    }
 
