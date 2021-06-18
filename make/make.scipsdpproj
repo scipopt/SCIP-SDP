@@ -86,6 +86,7 @@ OMP		=	false
 OPENBLAS	=	true
 MUMPSSEQ	=	true
 STATICLAPACK	=	false
+PYTHON  	=   	none
 
 #-----------------------------------------------------------------------------
 # include default project Makefile from SCIP
