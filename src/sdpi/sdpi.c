@@ -2620,6 +2620,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    int* nremovedinds = NULL;
    SCIP_Real addedopttime;
    SCIP_Real solveonevarsdpobjval = SCIP_INVALID;
+   SCIP_Real fixedvarsobjcontr = 0.0;
    SCIP_Bool fixingfound;
    int* blockindchanges;
    int sdpconstnnonz;
@@ -2712,6 +2713,8 @@ SCIP_RETCODE SCIPsdpiSolve(
          ++nactivevars;
          activevaridx = v;
       }
+      else
+         fixedvarsobjcontr += sdpi->obj[v] * sdpi->sdpilb[v];
    }
 
    if ( nactivevars == 0 )
@@ -2796,7 +2799,7 @@ SCIP_RETCODE SCIPsdpiSolve(
          sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
          sdpi->infeasible = TRUE;
       }
-      solveonevarsdpobjval = objval;
+      solveonevarsdpobjval = objval + fixedvarsobjcontr;
    }
 
    /* solve SDP if not yet done */
