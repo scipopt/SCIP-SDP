@@ -194,9 +194,7 @@
 
 /* #define PRINTSLATER */
 #define MIN_GAPTOL                  1e-10    /**< minimum gaptolerance for SDP-solver if decreasing it for a penalty formulation */
-
-#define DEFAULT_SDPSOLVERGAPTOL     1e-6     /**< the stopping criterion for the duality gap the sdpsolver should use */
-#define DEFAULT_SDPSOLVERFEASTOL    1e-6     /**< feasibility tolerance used in the sdpsolvers */
+#define DEFAULT_SDPSOLVERGAPTOL     1e-4     /**< the stopping criterion for the duality gap the sdpsolver should use */
 #define DEFAULT_FEASTOL             1e-6     /**< used to test for feasibility */
 #define DEFAULT_EPSILON             1e-9     /**< used to test whether given values are equal */
 #define DEFAULT_PENALTYPARAM        1e+5     /**< the starting penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
@@ -738,7 +736,7 @@ SCIP_RETCODE findEmptyRowColsSDP(
       /* check if the block became empty */
       if ( nremovedinds[b] == sdpi->sdpblocksizes[b] )
       {
-         SCIPdebugMessage("empty block %d detected in SDP %d, this will be removed.", b, sdpi->sdpid);
+         SCIPdebugMessage("empty block %d detected in SDP %d, this will be removed.\n", b, sdpi->sdpid);
          blockindchanges[b] = -1;
          ++(*nremovedblocks);
       }
@@ -927,7 +925,7 @@ SCIP_RETCODE prepareLPData(
             /* we have a constraint lhs <= 0 <= rhs, so lhs should be non-positive and rhs non-negative, otherwise the problem is infeasible */
             if ( lhs > sdpi->feastol || rhs < -sdpi->feastol )
             {
-               SCIPdebugMessage("Found constraint  %f <= 0 <= %f after fixings -> infeasible!\n", lhs, rhs );
+               SCIPdebugMessage("Found constraint  %g <= 0 <= %g after fixings -> infeasible!\n", lhs, rhs );
                sdpi->infeasible = TRUE;
                return SCIP_OKAY;
             }
@@ -1130,21 +1128,21 @@ SCIP_RETCODE checkSlaterCondition(
       {
          if ( rootnodefailed )
          {
-            SCIPmessagePrintInfo(sdpi->messagehdlr, "Aborting: Failed to solve root node relaxation; Slater condition for dual problem holds (smallest eigenvalue %f).\n", - objval);
+            SCIPmessagePrintInfo(sdpi->messagehdlr, "Aborting: Failed to solve root node relaxation; Slater condition for dual problem holds (smallest eigenvalue %g).\n", - objval);
          }
          else
-            SCIPdebugMessage("Slater condition for SDP %d is fulfilled for dual problem with smallest eigenvalue %f.\n", sdpi->sdpid, -1.0 * objval);/*lint !e687*/
+            SCIPdebugMessage("Slater condition for SDP %d is fulfilled for dual problem with smallest eigenvalue %g.\n", sdpi->sdpid, -1.0 * objval);/*lint !e687*/
          sdpi->dualslater = SCIP_SDPSLATER_HOLDS;
       }
       else if ( objval < sdpi->feastol )
       {
          if ( rootnodefailed )
          {
-            SCIPmessagePrintInfo(sdpi->messagehdlr, "Aborting: Failed to solve root node relaxation; Slater condition for dual problem does not hold (smallest eigenvalue %f).\n", -objval);
+            SCIPmessagePrintInfo(sdpi->messagehdlr, "Aborting: Failed to solve root node relaxation; Slater condition for dual problem does not hold (smallest eigenvalue %g).\n", -objval);
          }
          else if ( sdpi->slatercheck == 2 )
          {
-            SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for SDP %d not fulfilled for dual problem (smallest eigenvalue %f) - expecting numerical trouble.\n",
+            SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for SDP %d not fulfilled for dual problem (smallest eigenvalue %g) - expecting numerical trouble.\n",
                sdpi->sdpid, - objval);
          }
          sdpi->dualslater = SCIP_SDPSLATER_NOT;
@@ -1153,7 +1151,7 @@ SCIP_RETCODE checkSlaterCondition(
       {
          if ( sdpi->slatercheck == 2 )
          {
-            SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for SDP %d not fulfilled for dual problem (smallest eigenvalue %f; problem infeasible).\n", sdpi->sdpid, -objval);
+            SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for SDP %d not fulfilled for dual problem (smallest eigenvalue %g; problem infeasible).\n", sdpi->sdpid, -objval);
          }
          sdpi->dualslater = SCIP_SDPSLATER_INF;
       }
@@ -1343,12 +1341,12 @@ SCIP_RETCODE checkSlaterCondition(
          {
             if ( rootnodefailed )
             {
-               SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problem not fulfilled (smallest eigenvalue %f).\n", - objval);
+               SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problem not fulfilled (smallest eigenvalue %g).\n", - objval);
             }
             else if ( sdpi->slatercheck == 2 )
             {
                SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problem for SDP %d not fulfilled "
-                        "(smallest eigenvalue %f) - expect numerical trouble or infeasible problem.\n",sdpi->sdpid, - objval);
+                        "(smallest eigenvalue %g) - expect numerical trouble or infeasible problem.\n",sdpi->sdpid, - objval);
             }
             sdpi->primalslater = SCIP_SDPSLATER_NOT;
          }
@@ -1356,10 +1354,10 @@ SCIP_RETCODE checkSlaterCondition(
          {
             if ( rootnodefailed )
             {
-               SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problem fulfilled (smallest eigenvalue %f).\n", - objval);
+               SCIPmessagePrintInfo(sdpi->messagehdlr, "Slater condition for primal problem fulfilled (smallest eigenvalue %g).\n", - objval);
             }
             else
-               SCIPdebugMessage("Slater condition for primal problem of SDP %d is fulfilled (smallest eigenvalue %f).\n", sdpi->sdpid, - objval);/*lint !e687*/
+               SCIPdebugMessage("Slater condition for primal problem of SDP %d is fulfilled (smallest eigenvalue %g).\n", sdpi->sdpid, - objval);/*lint !e687*/
             sdpi->primalslater = SCIP_SDPSLATER_HOLDS;
          }
       }
@@ -1455,7 +1453,7 @@ SCIP_Real SCIPsdpiGetDefaultSdpiSolverFeastol(
    void
    )
 {
-   return DEFAULT_SDPSOLVERFEASTOL;
+   return SCIPsdpiSolverGetDefaultSdpiSolverFeastol();
 }
 
 /** gets default duality gap tolerance for SDP-solver in SCIP-SDP */
@@ -1463,7 +1461,7 @@ SCIP_Real SCIPsdpiGetDefaultSdpiSolverGaptol(
    void
    )
 {
-   return DEFAULT_SDPSOLVERGAPTOL;
+   return SCIPsdpiSolverGetDefaultSdpiSolverGaptol();
 }
 
 /** gets default number of increases of penalty parameter for SDP-solver in SCIP-SDP */
@@ -1861,7 +1859,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    SCIPdebugMessage("Calling SCIPsdpiLoadSDP (%d) ...\n", sdpi->sdpid);
 
    assert( sdpi != NULL );
-   assert( nvars > 0 );
+   assert( nvars >= 0 );
    assert( obj != NULL );
    assert( lb != NULL );
    assert( ub != NULL );
@@ -2156,7 +2154,7 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
       {
          firstrowind = i;
          lastrowind = i;
-         i++;
+         i++;  /*lint !e850*/
          break;
       }
    }
@@ -2688,7 +2686,7 @@ SCIP_RETCODE SCIPsdpiSolve(
 
       SCIPdebugMessage("Number of active LP constraints: %d (original: %d); %d nonzeros.\n", nactivelpcons, sdpi->nlpcons, sdpilpnnonz);
    }
-   while ( fixingfound );
+   while ( fixingfound && ! sdpi->infeasible );
 
    /* exit if infeasible */
    if ( sdpi->infeasible )
@@ -2908,7 +2906,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                sdpi->peninfeasadjust * sdpi->feastol : sdpi->peninfeasadjust * sdpi->gaptol))) ||
                (SCIPsdpiSolverWasSolved(sdpi->sdpisolver) && SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver)) )
          {
-            SCIPdebugMessage("SDP %d found infeasible using penalty formulation, maximum of smallest eigenvalue is %f.\n", sdpi->sdpid, -1.0 * objval);
+            SCIPdebugMessage("SDP %d found infeasible using penalty formulation, maximum of smallest eigenvalue is %g.\n", sdpi->sdpid, -1.0 * objval);
             sdpi->penalty = TRUE;
             sdpi->infeasible = TRUE;
          }
@@ -2919,7 +2917,7 @@ SCIP_RETCODE SCIPsdpiSolve(
 
             penaltyparam = sdpi->penaltyparam;
 
-            SCIPdebugMessage("SDP %d not found infeasible using penalty formulation, maximum of smallest eigenvalue is %f.\n", sdpi->sdpid, -1.0 * objval);
+            SCIPdebugMessage("SDP %d not found infeasible using penalty formulation, maximum of smallest eigenvalue is %g.\n", sdpi->sdpid, -1.0 * objval);
 
             /* we compute the factor to increase with as n-th root of the total increase until the maximum, where n is the number of iterations
              * (for npenaltyincr = 0 we make sure that the parameter is too large after the first change)
@@ -2933,7 +2931,7 @@ SCIP_RETCODE SCIPsdpiSolve(
             while ( ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) || ! feasorig ) &&
                   ( penaltyparam < sdpi->maxpenaltyparam + sdpi->epsilon ) && ( gaptol > 0.99 * MIN_GAPTOL ) && ( ! SCIPsdpiSolverIsTimelimExc(sdpi->sdpisolver) ))
             {
-               SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penaltyparameter %f\n", sdpi->sdpid, penaltyparam);
+               SCIPdebugMessage("Solver did not produce an acceptable result, trying SDP %d again with penaltyparameter %g.\n", sdpi->sdpid, penaltyparam);
 
                SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, penaltyparam, TRUE, TRUE, sdpi->nvars, sdpi->obj,
                      sdpi->sdpilb, sdpi->sdpiub, sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
@@ -2974,14 +2972,14 @@ SCIP_RETCODE SCIPsdpiSolve(
                   if ( penaltybound )
                   {
                      penaltyparam *= penaltyparamfact;
-                     SCIPdebugMessage("Penalty formulation produced a result which is infeasible for the original problem, increasing penaltyparameter\n");
+                     SCIPdebugMessage("Penalty formulation produced a result which is infeasible for the original problem, increasing penaltyparameter.\n");
                   }
                   else
                   {
                      gaptol *= gaptolfact;
                      SCIP_CALL_PARAM( SCIPsdpiSolverSetRealpar(sdpi->sdpisolver, SCIP_SDPPAR_GAPTOL, gaptol) );
                      SCIPdebugMessage("Penalty formulation produced a result which is infeasible for the original problem, even though primal penalty "
-                           "bound was not reached, decreasing tolerance for duality gap in SDP-solver\n");
+                           "bound was not reached, decreasing tolerance for duality gap in SDP-solver.\n");
                   }
                }
             }
@@ -3001,7 +2999,7 @@ SCIP_RETCODE SCIPsdpiSolve(
 #if 0 /* we don't really know if it is infeasible or just ill-posed (no KKT-point) */
             else if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && ! feasorig )
             {
-               SCIPdebugMessage("Problem was found to be infeasible using a penalty formulation \n");
+               SCIPdebugMessage("Problem was found to be infeasible using a penalty formulation.\n");
                sdpi->infeasible = TRUE;
                sdpi->penalty = TRUE;
                sdpi->solved = TRUE;
@@ -3009,7 +3007,7 @@ SCIP_RETCODE SCIPsdpiSolve(
 #endif
             else
             {
-               SCIPdebugMessage("SDP-Solver could not solve the problem even after using a penalty formulation \n");
+               SCIPdebugMessage("SDP-Solver could not solve the problem even after using a penalty formulation.\n");
                sdpi->solved = FALSE;
                sdpi->penalty = TRUE;
             }
@@ -3026,9 +3024,9 @@ SCIP_RETCODE SCIPsdpiSolve(
             else if ( sdpi->solved == FALSE )
             {
 #if 0
-               SCIPmessagePrintInfo(sdpi->messagehdlr, "Numerical trouble\n");
+               SCIPmessagePrintInfo(sdpi->messagehdlr, "Numerical trouble.\n");
 #else
-               SCIPdebugMessage("SDP-Interface was unable to solve SDP %d\n", sdpi->sdpid);/*lint !e687*/
+               SCIPdebugMessage("SDP-Interface was unable to solve SDP %d.\n", sdpi->sdpid);/*lint !e687*/
 #endif
             }
          }
@@ -3729,6 +3727,13 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
       SCIPdebugMessage("All variables fixed during preprocessing, no primal variables available.\n");
       *arraylength = -1;
    }
+   /* If the dual is infeasible, there is no feasible solution; If the primal is infeasible, the dual is unbounded or
+    * infeasible. In both cases we should not return the solution (rather a ray). */
+   else if ( SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) || SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver) )
+   {
+      SCIPdebugMessage("Problem infeasible.\n");
+      *arraylength = -1;
+   }
    else
    {
       SCIP_CALL( SCIPsdpiSolverGetPrimalBoundVars(sdpi->sdpisolver, lbvars, ubvars, arraylength) );
@@ -3897,10 +3902,10 @@ SCIP_RETCODE SCIPsdpiSlaterSettings(
 
    if ( ! sdpi->solved )
    {
-      SCIPdebugMessage("Problem was not solved successfully");
+      SCIPdebugMessage("Problem was not solved successfully.\n");
       if ( sdpi->bestbound > -SCIPsdpiSolverInfinity(sdpi->sdpisolver) )
       {
-         SCIPdebugMessage(", but we could at least compute a lower bound. \n");
+         SCIPdebugMessage("But we could at least compute a lower bound.\n");
          if ( sdpi->dualslater == SCIP_SDPSLATER_INF)
             *slatersetting = SCIP_SDPSLATERSETTING_BOUNDEDINFEASIBLE;
          else
@@ -3941,7 +3946,6 @@ SCIP_RETCODE SCIPsdpiSlaterSettings(
       }
       else
       {
-         SCIPdebugMessage(".\n");
          if ( sdpi->dualslater == SCIP_SDPSLATER_INF)
             *slatersetting = SCIP_SDPSLATERSETTING_UNSOLVEDINFEASIBLE;
          else
@@ -4370,6 +4374,8 @@ SCIP_RETCODE SCIPsdpiGetIntpar(
    {
    case SCIP_SDPPAR_SDPINFO:
    case SCIP_SDPPAR_NTHREADS:
+   case SCIP_SDPPAR_USEPRESOLVING:
+   case SCIP_SDPPAR_SCALEOBJ:
       SCIP_CALL_PARAM( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, ival) );
       break;
    case SCIP_SDPPAR_SLATERCHECK:
@@ -4398,6 +4404,8 @@ SCIP_RETCODE SCIPsdpiSetIntpar(
    switch( type )/*lint --e{788}*/
    {
    case SCIP_SDPPAR_SDPINFO:
+   case SCIP_SDPPAR_USEPRESOLVING:
+   case SCIP_SDPPAR_SCALEOBJ:
       assert( ival == 0 || ival == 1 ); /* this is a boolean parameter */
       SCIP_CALL_PARAM( SCIPsdpiSolverSetIntpar(sdpi->sdpisolver, type, ival) );
       break;
@@ -4455,7 +4463,7 @@ SCIP_RETCODE SCIPsdpiComputeMaxPenaltyparam(
    /* if the maximum penalty parameter is smaller than the initial penalty paramater, we decrease the initial one correspondingly */
    if ( sdpi->penaltyparam > *maxpenaltyparam )
    {
-      SCIPdebugMessage("Decreasing penaltyparameter of %f to maximum penalty paramater of %f.\n", sdpi->penaltyparam, *maxpenaltyparam);
+      SCIPdebugMessage("Decreasing penaltyparameter of %g to maximum penalty paramater of %g.\n", sdpi->penaltyparam, *maxpenaltyparam);
       sdpi->penaltyparam = *maxpenaltyparam;
    }
 

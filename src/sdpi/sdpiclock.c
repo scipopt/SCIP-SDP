@@ -152,7 +152,7 @@ void SDPIclockStart(
 
    switch ( clck->clocktype )
    {
-   case SCIP_CLOCKTYPE_CPU:
+   case SDPI_CLOCKTYPE_CPU:
 #if defined(_WIN32) || defined(_WIN64)
       GetProcessTimes(GetCurrentProcess(), &creationtime, &exittime, &kerneltime, &usertime);
       clck->data.cpuclock.user = - usertime.dwHighDateTime * 42950 + usertime.dwLowDateTime / 100000L;
@@ -162,7 +162,7 @@ void SDPIclockStart(
 #endif
       break;
 
-   case SCIP_CLOCKTYPE_WALL:
+   case SDPI_CLOCKTYPE_WALL:
 #if defined(_WIN32) || defined(_WIN64)
       clck->data.wallclock.sec = - time(NULL);
 #else
@@ -212,7 +212,7 @@ void SDPIclockStop(
 
    switch ( clck->clocktype )
    {
-   case SCIP_CLOCKTYPE_CPU:
+   case SDPI_CLOCKTYPE_CPU:
 #if defined(_WIN32) || defined(_WIN64)
       GetProcessTimes(GetCurrentProcess(), &creationtime, &exittime, &kerneltime, &usertime);
       clck->data.cpuclock.user += usertime.dwHighDateTime * 42950 + usertime.dwLowDateTime / 100000L;
@@ -222,7 +222,7 @@ void SDPIclockStop(
 #endif
       break;
 
-   case SCIP_CLOCKTYPE_WALL:
+   case SDPI_CLOCKTYPE_WALL:
 #if defined(_WIN32) || defined(_WIN64)
       clck->data.wallclock.sec += time(NULL);
 #else
@@ -262,10 +262,10 @@ SCIP_Real SDPIclockGetTime(
       /* the clock is not running: convert the clocks timer into seconds */
       switch ( clck->clocktype )
       {
-      case SCIP_CLOCKTYPE_CPU:
+      case SDPI_CLOCKTYPE_CPU:
          result = cputime2sec(clck->data.cpuclock.user);
          break;
-      case SCIP_CLOCKTYPE_WALL:
+      case SDPI_CLOCKTYPE_WALL:
          result = walltime2sec(clck->data.wallclock.sec, clck->data.wallclock.usec);
          break;
       default:
@@ -288,7 +288,7 @@ SCIP_Real SDPIclockGetTime(
       /* the clock is currently running: we have to add the current time to the clocks timer */
       switch ( clck->clocktype )
       {
-      case SCIP_CLOCKTYPE_CPU:
+      case SDPI_CLOCKTYPE_CPU:
 #if defined(_WIN32) || defined(_WIN64)
          GetProcessTimes(GetCurrentProcess(), &creationtime, &exittime, &kerneltime, &usertime);
          result = cputime2sec(clck->data.cpuclock.user + usertime.dwHighDateTime * 42950 + usertime.dwLowDateTime / 100000L);
@@ -297,7 +297,8 @@ SCIP_Real SDPIclockGetTime(
          result = cputime2sec(clck->data.cpuclock.user + now.tms_utime);
 #endif
          break;
-      case SCIP_CLOCKTYPE_WALL:
+
+      case SDPI_CLOCKTYPE_WALL:
 #if defined(_WIN32) || defined(_WIN64)
          result = walltime2sec(clck->data.wallclock.sec + time(NULL), 0);
 #else
@@ -308,6 +309,7 @@ SCIP_Real SDPIclockGetTime(
             result = walltime2sec(clck->data.wallclock.sec + tp.tv_sec, clck->data.wallclock.usec + tp.tv_usec); /*lint !e115 !e40*/
 #endif
          break;
+
       default:
          SCIPerrorMessage("invalid clock type\n");
          SCIPABORT();

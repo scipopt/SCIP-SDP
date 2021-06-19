@@ -100,6 +100,16 @@ void* SCIPsdpiSolverGetSolverPointer(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
 
+/** gets default feasibility tolerance for SDP-solver in SCIP-SDP */
+SCIP_Real SCIPsdpiSolverGetDefaultSdpiSolverFeastol(
+   void
+   );
+
+/** gets default duality gap tolerance for SDP-solver in SCIP-SDP */
+SCIP_Real SCIPsdpiSolverGetDefaultSdpiSolverGaptol(
+   void
+   );
+
 /** gets default number of increases of penalty parameter for SDP-solver in SCIP-SDP */
 SCIP_EXPORT
 int SCIPsdpiSolverGetDefaultSdpiSolverNpenaltyIncreases(

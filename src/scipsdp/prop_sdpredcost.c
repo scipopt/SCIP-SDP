@@ -246,7 +246,7 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    SCIP_Real relaxval;
    SCIP_Bool sdpsolved;
    SCIP_PROPDATA* propdata;
-   int length;
+   SCIP_Bool success;
 
    assert( scip != NULL );
    assert( prop != NULL );
@@ -301,12 +301,17 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
 
    nvars = SCIPgetNVars(scip);
    vars = SCIPgetVars(scip);
-   length = nvars;
 
-   SCIP_CALL( SCIPrelaxSdpGetPrimalBoundVars(relax, propdata->lbvarvals, propdata->ubvarvals, &length) );
-   if ( length < 0 )
+   /* make sure that data arrays have the right size */
+   if ( nvars != propdata->nvars )
+   {
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &propdata->lbvarvals, propdata->nvars, nvars) );
+      SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &propdata->ubvarvals, propdata->nvars, nvars) );
+      propdata->nvars = nvars;
+   }
+   SCIP_CALL( SCIPrelaxSdpGetPrimalBoundVars(scip, relax, vars, nvars, propdata->lbvarvals, propdata->ubvarvals, &success) );
+   if ( ! success )
       return SCIP_OKAY;
-   assert( length == nvars ); /* we should get exactly one value for lower and upper bound-variable per variable in scip */
 
    for (v = 0; v < nvars; v++)
    {

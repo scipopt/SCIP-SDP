@@ -1142,7 +1142,7 @@ SCIP_RETCODE tightenMatrices(
          SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrix) );
 
          SCIP_CALL( computeScalingFactor(scip, blocksize, matrix, constmatrix, 0.0, 1.0, &factor) );
-         if ( factor == SCIP_INVALID )
+         if ( factor == SCIP_INVALID ) /*lint !e777*/
             continue;
 
          if ( ! SCIPisEQ(scip, factor, 1.0) )
@@ -1246,7 +1246,7 @@ SCIP_RETCODE tightenBounds(
 
          /* compute scaling factor */
          SCIP_CALL( computeScalingFactor(scip, blocksize, matrix, constmatrix, lb, ub, &factor) );
-         if ( factor == SCIP_INVALID )
+         if ( factor == SCIP_INVALID ) /*lint !e777*/
             continue;
 
          if ( SCIPisLT(scip, factor, ub) )
@@ -3247,7 +3247,7 @@ SCIP_RETCODE propConstraints(
             int diags;
 
             diags = s * (s + 1)/2 + s;
-            if ( consdata->matrixval[diags] == SCIP_INVALID )
+            if ( consdata->matrixval[diags] == SCIP_INVALID ) /*lint !e777*/
                continue;
 
             vars = consdata->matrixvar[diags];
@@ -3281,7 +3281,7 @@ SCIP_RETCODE propConstraints(
                   continue;
 
                diagt = t * (t + 1)/2 + t;
-               if ( consdata->matrixval[diagt] == SCIP_INVALID )
+               if ( consdata->matrixval[diagt] == SCIP_INVALID ) /*lint !e777*/
                   continue;
 
                vart = consdata->matrixvar[diagt];
@@ -5722,7 +5722,7 @@ SCIP_DECL_CONSPRINT(consPrintSdp)
    SCIPinfoMessage(scip, file, "%d\n", consdata->blocksize);
 
    /* print rank1 information */
-   SCIPinfoMessage(scip, file, "    rank-1? %d\n", consdata->rankone);
+   SCIPinfoMessage(scip, file, "    rank-1? %u\n", consdata->rankone);
 
    /* print A_0 if it exists */
    if ( consdata->constnnonz > 0 )

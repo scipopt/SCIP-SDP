@@ -47,6 +47,9 @@
 #include "dsdp5.h"                           /* for DSDPUsePenalty, etc */
 #pragma GCC diagnostic warning "-Wstrict-prototypes"
 
+#ifdef OPENBLAS
+#include <cblas.h>
+#endif
 
 #include "blockmemshell/memory.h"            /* for memory allocation */
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
@@ -189,6 +192,7 @@ struct SCIP_SDPiSolver
    SCIP_Real             penaltyparam;       /**< the penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
    SCIP_Real             objlimit;           /**< objective limit for SDP-solver */
    SCIP_Bool             sdpinfo;            /**< Should the SDP-solver output information to the screen? */
+   int                   nthreads;           /**< number of threads the SDP solver should use (-1 = number of cores) */
    SCIP_Bool             penalty;            /**< Did the last solve use a penalty formulation? */
    SCIP_Bool             penaltyworbound;    /**< Was a penalty formulation solved without bounding r? */
    SCIP_Bool             feasorig;           /**< was the last problem solved with a penalty formulation and with original objective coefficents
@@ -454,6 +458,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->penaltyparam = 1e5;
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
    (*sdpisolver)->sdpinfo = FALSE;
+   (*sdpisolver)->nthreads = -1;
    (*sdpisolver)->usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
    (*sdpisolver)->preoptimalsolexists = FALSE;
    (*sdpisolver)->preoptimalgap = -1.0;
@@ -822,13 +827,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          sdpisolver->objcoefs[sdpisolver->nactivevars] = obj[i];
          sdpisolver->nactivevars++;
          sdpisolver->inputtodsdpmapper[i] = sdpisolver->nactivevars; /* dsdp starts counting at 1, so we do this after increasing nactivevars */
+#ifdef SCIP_MORE_DEBUG
          SCIPdebugMessage("Variable %d becomes variable %d for SDP %d in DSDP\n", i, sdpisolver->inputtodsdpmapper[i], sdpisolver->sdpcounter);
+#endif
       }
    }
    assert( sdpisolver->nactivevars + nfixedvars == sdpisolver->nvars );
    if ( penaltyparam > sdpisolver->epsilon && (! rbound) )
    {
-      SCIPdebugMessage("Variable %d is the slack variable for the explicit penalty formulation\n", sdpisolver->nactivevars + 1);
+      SCIPdebugMessage("Variable %d is the slack variable for the explicit penalty formulation.\n", sdpisolver->nactivevars + 1);
    }
 
    /* if we want to solve without objective, we reset fixedvarsobjcontr */
@@ -1414,6 +1421,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       }
    }
 
+#ifdef OPENBLAS
+   if ( sdpisolver->nthreads > 0 )
+      openblas_set_num_threads(sdpisolver->nthreads);
+#endif
+
    /* start the solving process */
    DSDP_CALLM( DSDPSetup(sdpisolver->dsdp) );
 
@@ -1494,7 +1506,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          gaptol *= INFEASFEASTOLCHANGE;
          if ( gaptol >= INFEASMINFEASTOL )
          {
-            SCIPdebugMessage("Solution feasible, but duality gap is too large, changing DSDP gap tolerance to %g.\n", gaptol);
+            SCIPdebugMessage("Solution feasible, but duality gap %g is too large, changing DSDP gap tolerance to %g.\n", REALABS(dualobj - primalobj), gaptol);
             DSDP_CALL( DSDPSetGapTolerance(sdpisolver->dsdp, gaptol) );  /* set DSDP's tolerance for duality gap */
             solveagain = TRUE;
          }
@@ -1633,13 +1645,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             sdpisolver->feasorig = *feasorig;
 
          /* if r > 0 or we are in debug mode, also check the primal bound */
-#ifdef NDEBUG
          if ( ! *feasorig )
          {
-#endif
             if ( penaltybound != NULL )
             {
-               SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", rval);
+               SCIPdebugMessage("Solution not feasible in original problem, r = %g.\n", rval);
 
                /* get the trace of X to compare it with the penalty parameter */
                DSDP_CALL( DSDPGetTraceX(sdpisolver->dsdp, &trace) );
@@ -1658,9 +1668,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                else
                   *penaltybound = FALSE;
             }
-#ifdef NDEBUG
          }
-#endif
       }
       else
       {
@@ -1672,13 +1680,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          DSDP_CALL( DSDPGetY(sdpisolver->dsdp, dsdpsol, sdpisolver->nactivevars + 1) );
 
          *feasorig = (dsdpsol[sdpisolver->nactivevars] < sdpisolver->feastol); /* r is the last variable in DSDP, so the last entry gives us the value */
-#ifdef NDEBUG
          if ( ! *feasorig )
          {
-#endif
             if ( penaltybound != NULL )
             {
-               SCIPdebugMessage("Solution not feasible in original problem, r = %f\n", dsdpsol[sdpisolver->nactivevars]);
+               SCIPdebugMessage("Solution not feasible in original problem, r = %g.\n", dsdpsol[sdpisolver->nactivevars]);
 
                /* get the trace of X to compare it with the penalty parameter */
                DSDP_CALL( DSDPGetTraceX(sdpisolver->dsdp, &trace) );
@@ -1691,15 +1697,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                if ( (penaltyparam - trace) / penaltyparam < PENALTYBOUNDTOL )
                {
                   *penaltybound = TRUE;
-                  SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible\n",
+                  SCIPdebugMessage("Tr(X) = %f == %f = Gamma, penalty formulation not exact, Gamma should be increased or problem is infeasible.\n",
                         trace, penaltyparam);
                }
                else
                   *penaltybound = FALSE;
             }
-#ifdef NDEBUG
          }
-#endif
           BMSfreeBufferMemoryArray(sdpisolver->bufmem, &dsdpsol);
       }
    }
@@ -1812,7 +1816,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
 /*      SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible");
       SCIPABORT();
       return SCIP_LPERROR;*/
-      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible.");
+      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible.\n");
       return FALSE;
    }
    else if ( pdfeasible == DSDP_INFEASIBLE )
@@ -1839,7 +1843,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalInfeasible(
 /*      SCIPerrorMessage("DSDP doesn't know if primal and dual solutions are feasible");
       SCIPABORT();
       return SCIP_LPERROR;*/
-      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible");
+      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible.\n");
       return FALSE;
    }
    else if ( pdfeasible == DSDP_UNBOUNDED )
@@ -1862,7 +1866,7 @@ SCIP_Bool SCIPsdpiSolverIsPrimalFeasible(
    DSDP_CALL_BOOL( DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible) );
    if ( pdfeasible == DSDP_PDUNKNOWN )
    {
-      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible");
+      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible.\n");
       return FALSE;
    }
    else if ( pdfeasible == DSDP_UNBOUNDED )
@@ -1886,7 +1890,7 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
    DSDP_CALL_BOOL( DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible) );
    if ( pdfeasible == DSDP_PDUNKNOWN )
    {
-      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible");
+      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible.\n");
       return FALSE;
    }
    else if ( pdfeasible == DSDP_UNBOUNDED )
@@ -1911,7 +1915,7 @@ SCIP_Bool SCIPsdpiSolverIsDualInfeasible(
 
    if ( pdfeasible == DSDP_PDUNKNOWN )
    {
-      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible");
+      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible.\n");
       return FALSE;
    }
    else if ( pdfeasible == DSDP_INFEASIBLE )
@@ -1936,7 +1940,7 @@ SCIP_Bool SCIPsdpiSolverIsDualFeasible(
 
    if ( pdfeasible == DSDP_PDUNKNOWN )
    {
-      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible");
+      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible.\n");
       return FALSE;
    }
    else if ( pdfeasible == DSDP_INFEASIBLE )
@@ -1974,7 +1978,7 @@ SCIP_Bool SCIPsdpiSolverIsObjlimExc(
    )
 {  /*lint --e{715}*/
    SCIPdebugMessage("Method not implemented for DSDP, as objective limit is given as an ordinary LP-constraint, so in case the objective limit was "
-      "exceeded, the problem will be reported as infeasible !\n");
+      "exceeded, the problem will be reported as infeasible!\n");
 
    return FALSE;
 }
@@ -2089,7 +2093,18 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
 {
+   DSDPSolutionType pdfeasible;
+
    assert( sdpisolver != NULL );
+   CHECK_IF_SOLVED_BOOL( sdpisolver );
+
+   DSDP_CALL_BOOL(DSDPGetSolutionType(sdpisolver->dsdp, &pdfeasible));
+
+   if ( pdfeasible == DSDP_PDUNKNOWN )
+   {
+      SCIPdebugMessage("DSDP doesn't know if primal and dual solutions are feasible.\n");
+      return FALSE;
+   }
 
    return SCIPsdpiSolverIsConverged(sdpisolver);
 }
@@ -2179,7 +2194,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
       assert( dualsol != NULL );
       if ( *dualsollength < sdpisolver->nvars )
       {
-         SCIPdebugMessage("The given array in SCIPsdpiSolverGetSol only had length %d, but %d was needed", *dualsollength, sdpisolver->nvars);
+         SCIPdebugMessage("The given array in SCIPsdpiSolverGetSol only had length %d, but %d was needed.\n", *dualsollength, sdpisolver->nvars);
          *dualsollength = sdpisolver->nvars;
 
          return SCIP_OKAY;
@@ -2191,7 +2206,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
       /* insert the entries into dualsol, for non-fixed vars we copy those from dsdp, the rest are the saved entries from inserting (they equal lb=ub) */
       for (v = 0; v < sdpisolver->nvars; v++)
       {
-         if (sdpisolver->inputtodsdpmapper[v] > -1)
+         if ( sdpisolver->inputtodsdpmapper[v] > -1 )
          {
             /* minus one because the inputtodsdpmapper gives the dsdp indices which start at one, but the array starts at 0 */
             dualsol[v] = dsdpsol[sdpisolver->inputtodsdpmapper[v] - 1];
@@ -2205,7 +2220,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
 
       if ( objval != NULL )
       {
-         if ( sdpisolver->penalty && ( ! sdpisolver->feasorig ))
+         if ( sdpisolver->penalty && ! sdpisolver->feasorig )
          {
             /* in this case we cannot really trust the solution given by DSDP, since changes in the value of r much less than epsilon can
              * cause huge changes in the objective, so using the objective value given by DSDP is numerically more stable */
@@ -2619,6 +2634,10 @@ SCIP_RETCODE SCIPsdpiSolverGetIntpar(
       *ival = (int) sdpisolver->sdpinfo;
       SCIPdebugMessage("Getting sdpisolver information output (%d).\n", *ival);
       break;
+   case SCIP_SDPPAR_NTHREADS:
+      *ival = sdpisolver->nthreads;
+      SCIPdebugMessage("Getting sdpisolver number of threads: %d.\n", *ival);
+      break;
    default:
       return SCIP_PARAMETERUNKNOWN;
    }
@@ -2641,6 +2660,10 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
       sdpisolver->sdpinfo = (SCIP_Bool) ival;
       SCIPdebugMessage("Setting sdpisolver information output (%d).\n", ival);
       break;
+   case SCIP_SDPPAR_NTHREADS:
+      sdpisolver->nthreads = ival;
+      SCIPdebugMessage("Setting sdpisolver number of threads to %d.\n", ival);
+      break;
    default:
       return SCIP_PARAMETERUNKNOWN;
    }
@@ -2654,7 +2677,7 @@ SCIP_RETCODE SCIPsdpiSolverComputeLambdastar(
    SCIP_Real             maxguess            /**< maximum guess for lambda star of all SDP-constraints */
    )
 {  /*lint --e{715}*/
-   SCIPdebugMessage("Lambdastar parameter not used by DSDP"); /* this parameter is only used by SDPA */
+   SCIPdebugMessage("Lambdastar parameter not used by DSDP.\n"); /* this parameter is only used by SDPA */
 
    return SCIP_OKAY;
 }

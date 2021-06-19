@@ -113,7 +113,6 @@ SCIP_DECL_DISPINITSOL(dispInitsolSdpiterations)
    assert( dispdata != NULL );
 
    dispdata->relaxSDP = SCIPfindRelax(scip, "SDP");
-   assert( dispdata->relaxSDP != NULL );
 
    return SCIP_OKAY;
 }
@@ -130,9 +129,9 @@ SCIP_DECL_DISPOUTPUT(dispOutputSdpiterations)
    dispdata = SCIPdispGetData(disp);
 
    assert( dispdata != NULL );
-   assert( dispdata->relaxSDP != NULL );
 
-   SCIPdispLongint(SCIPgetMessagehdlr(scip), file, (long long) SCIPrelaxSdpGetNIterations(dispdata->relaxSDP), DISP_WIDTH);
+   if ( dispdata->relaxSDP != NULL )
+      SCIPdispLongint(SCIPgetMessagehdlr(scip), file, (long long) SCIPrelaxSdpGetNIterations(dispdata->relaxSDP), DISP_WIDTH);
 
    return SCIP_OKAY;
 }

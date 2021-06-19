@@ -1,23 +1,19 @@
-% valsm = [15,25,30];
-% valsn = [30,35,40];
-% valsk = [5,4,3];
-% 
-valsm = [15];
-valsn = [30];
-valsk = [5];
-
+valsm = [15,25,30];
+valsn = [30,35,40];
+valsk = [5,4,3];
 
 seed = 1234;
-instances = 1; % number of instances per (type,m,n,k)
+instances = 3; % number of instances per (type,m,n,k)
 types = ['0+-1';'band';'bern';'bina';'norm';'rnk1';'wish'];
 
-mkdir Matrices
 % mkdir Asp07
-mkdir MISDP
 
 % initialize random number generator with given seed
 rng('default')
 rng(seed)
+
+matdir = 'Matrices_testset';
+datadir = 'MISDP_testset';
 
 for t=1:length(types(:,1))
     type = types(t,:);
@@ -34,6 +30,6 @@ for t=1:length(types(:,1))
         end
         n = valsn(i);
         k = valsk(i);
-        generateRIPA(m,n,k,seed,instances,type,bandwidth);
+        generateRIPA(m,n,k,seed,instances,type,bandwidth,matdir,datadir);
     end
 end

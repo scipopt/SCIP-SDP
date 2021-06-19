@@ -38,7 +38,6 @@ set(scipsdpsources
     scipsdp/prop_companalcent.c
     scipsdp/table_relaxsdp.c
     scipsdp/table_slater.c
-    scipsdp/table_sdpsolversuccess.c
     scipsdp/scipsdpdefplugins.c
     sdpi/sdpi.c
     sdpi/sdpsolchecker.c

@@ -58,7 +58,7 @@ SCIPSDPLIBDIR	=	$(SCIPSDPREALPATH)/lib
 # own variables
 #-----------------------------------------------------------------------------
 
-SCIPSDPVERSION	=	3.2.0
+SCIPSDPVERSION	=	3.3.0
 SCIPSDPGITHASH	=
 SDPS		=	none
 
@@ -169,16 +169,17 @@ SDPICCOBJ	=
 #-----------------------------------------------------------------------------
 # DSDP solver
 ifeq ($(SDPS),dsdp)
+ifeq ($(OPENBLAS),true)
+SDPILIB		= 	$(SCIPSDPLIBDIR)/static/libdsdp.$(STATICLIBEXT) -lopenblas -lgfortran -pthread
+else
 SDPILIB		= 	$(SCIPSDPLIBDIR)/static/libdsdp.$(STATICLIBEXT) -llapack -lblas
+endif
 endif
 
 #-----------------------------------------------------------------------------
 # SDPA solver version >= 7.3.8
 ifeq ($(SDPS),sdpa)
 ifeq ($(OPENBLAS),true)
-ifeq ($(LPS),cpx)
-$(warning "CPLEX might not work together with openblas, try OPENBLAS=false.")
-endif
 BLASLIB		=	-lopenblas
 else
 BLASLIB		=	-lblas -llapack
@@ -196,6 +197,7 @@ endif
 # MOSEK solver
 ifeq ($(SDPS),msk)
 BITEXT     	=  	$(word 2, $(subst _, ,$(ARCH)))
+OPENBLAS	=	false
 ifeq ($(SHARED),true)
 ifeq ($(STATICLAPACK),true)
 BSTATIC		= -Wl,-Bstatic
@@ -218,6 +220,7 @@ endif
 ifeq ($(OPENBLAS),true)
 CFLAGS			+=	-DOPENBLAS
 CXXFLAGS		+=	-DOPENBLAS
+LDFLAGS			+=	-Wl,--allow-multiple-definition   # this avoids errors for multiple symbols, e.g., in CPLEX and SDP-solvers
 endif
 
 FLAGS			+=	-I$(SCIPSDPREALPATH)/src
