@@ -211,7 +211,7 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
       computeSupergradient(sdpnnonz, sdprow, sdpcol, sdpval, eigenvectorub, &supergradient);
 
       /* if supergradient is positive, then the problem is infeasible, because the minimal eigenvalue is increasing and we are not psd */
-      if ( supergradient > feastol )
+      if ( supergradient > 0.0 )
       {
          SCIPdebugMessage("Problem is infeasible (eigenvalue: %g, supergradient = %g).\n", eigenvalueub, supergradient);
          *objval = infinity;
