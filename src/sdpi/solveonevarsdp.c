@@ -35,6 +35,7 @@
  * @author Marc Pfetsch
  */
 
+#include "scip/pub_misc.h"
 #include "sdpi/solveonevarsdp.h"
 #include "sdpi/lapack_interface.h"
 
@@ -59,7 +60,6 @@ SCIP_RETCODE SCIPoneVarFeasible(
    SCIP_Real*            fullconstmatrix,    /**< constant matrix */
    SCIP_Real*            fullmatrix,         /**< constant matrix */
    SCIP_Real             alpha,              /**< variable value to test */
-   SCIP_Real             feastol,            /**< feasibility tolerance */
    SCIP_Real*            eigenvalue,         /**< pointer to store eigenvalue */
    SCIP_Real*            eigenvector         /**< corresponding eigenvector */
    )
@@ -133,6 +133,7 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    SCIP_Real*            sdpval,             /**< array of nonzero values */
    SCIP_Real             infinity,           /**< infinity value */
    SCIP_Real             feastol,            /**< feasibility tolerance */
+   SCIP_Real             gaptol,             /**< gap tolerance */
    SCIP_Real*            objval,             /**< pointer to store optimal objective value */
    SCIP_Real*            optval              /**< pointer to store optimal value of variable */
    )
@@ -200,7 +201,7 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    }
 
    /* check finite upper bound */
-   SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, ub, feastol, &eigenvalueub, eigenvectorub) );
+   SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, ub, &eigenvalueub, eigenvectorub) );
    SCIPdebugMessage("ub = %g, eigenvalue: %g\n", ub, eigenvalueub);
 
    /* if matrix is not psd */
@@ -221,7 +222,7 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    }
 
    /* otherwise check lower bound */
-   SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, lb, feastol, &eigenvaluelb, eigenvectorlb) );
+   SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, lb, &eigenvaluelb, eigenvectorlb) );
    SCIPdebugMessage("lb = %g, eigenvalue: %g\n", lb, eigenvaluelb);
 
    /* if matrix is psd, then the lower bound is optimal */
@@ -261,10 +262,10 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    assert( eigenvector != NULL );
    assert( supergradient != SCIP_INVALID );
 
-   /* we now in the case in which the lower bound is not psd, but the upper bound is */
-   while ( ub - lb > feastol )
+   /* we are now in the case in which the lower bound is not psd, but the upper bound is */
+   while ( SCIPrelDiff(ub, lb) > gaptol )
    {
-      /* is supergradient is large enough */
+      /* if supergradient is large enough */
       if ( REALABS(supergradient) > feastol )
       {
          /* compute estimate based on where the supergradient would reach 0 */
@@ -280,15 +281,15 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
 #endif
       }
       else
-         mu = (lb + ub) / 2.0;
+         mu = (lb + ub) / 2.0; /* use bisection */
 
       /* compute eigenvalue and eigenvector */
-      SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, mu, feastol, &eigenvalue, eigenvector) );
+      SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, mu, &eigenvalue, eigenvector) );
 
       /* update supergradient */
       computeSupergradient(sdpnnonz, sdprow, sdpcol, sdpval, eigenvector, &supergradient);
 
-      SCIPdebugMessage("mu = %.15g in [%.15g, %.15g] (delta: %g), eigenvalue: %g, supergradient: %g\n", mu, lb, ub, ub - lb, eigenvalue, supergradient);
+      SCIPdebugMessage("mu = %.15g in [%.15g, %.15g] (delta: %g), eigenvalue: %g, supergradient: %g.\n", mu, lb, ub, ub - lb, eigenvalue, supergradient);
 
       /* check early termination */
       if ( REALABS(eigenvalue) <= feastol / 10.0 && REALABS(supergradient) > feastol )
@@ -299,7 +300,7 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
       else
          lb = mu;
    }
-   SCIPdebugMessage("Solution is %.15g in [%.15g, %.15g] (delta: %g), eigenvalue: %g, supergradient: %g\n", mu, lb, ub, ub - lb, eigenvalue, supergradient);
+   SCIPdebugMessage("Solution is %.15g in [%.15g, %.15g] (delta: %g), eigenvalue: %g, supergradient: %g.\n", mu, lb, ub, ub - lb, eigenvalue, supergradient);
 
    *objval = obj * mu;
    *optval = mu;

@@ -2787,7 +2787,7 @@ SCIP_RETCODE SCIPsdpiSolve(
       SCIP_CALL( SCIPsolveOneVarSDP(sdpi->bufmem, sdpi->obj[activevaridx], sdpi->sdpilb[activevaridx], sdpi->sdpiub[activevaridx], sdpi->sdpblocksizes[0],
             sdpconstnblocknonz[0], sdpconstrow[0], sdpconstcol[0], sdpconstval[0],
             sdpi->sdpnblockvarnonz[0][v], sdpi->sdprow[0][v], sdpi->sdpcol[0][v], sdpi->sdpval[0][v],
-            SCIPsdpiInfinity(sdpi), sdpi->feastol, &objval, &optval) );
+            SCIPsdpiInfinity(sdpi), sdpi->feastol, sdpi->gaptol, &objval, &optval) );
 
       if ( objval != SCIP_INVALID && objval >= SCIPsdpiInfinity(sdpi) )
       {
@@ -2847,7 +2847,7 @@ SCIP_RETCODE SCIPsdpiSolve(
       {
          SCIP_Real objval;
          SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
-         assert( REALABS(objval - solveonevarsdpobjval) <= sdpi->feastol );
+         assert( REALABS(objval - solveonevarsdpobjval)/MAX3(1.0, REALABS(objval), REALABS(solveonevarsdpobjval)) <= 2.0 * sdpi->gaptol );
       }
 
       /* if the solver didn't produce a satisfactory result, we have to try with a penalty formulation */
