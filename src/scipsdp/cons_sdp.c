@@ -4072,6 +4072,9 @@ SCIP_DECL_NONLINCONSUPGD(consQuadConsUpgdSdp)
       *nupgdconss = 0;          /* the original quadratic constraint should be kept in the problem */
    }
 
+   /* turn off upgrading in order to avoid a possibly infinite loop */
+   conshdlrdata->sdpconshdlrdata->upgradequadconss = FALSE;
+
    return SCIP_OKAY;
 }
 
@@ -4139,7 +4142,7 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
    assert( conshdlrdata != NULL );
 
    /* check whether upgrading should be performed */
-   if ( ! conshdlrdata->sdpconshdlrdata->upgradquadconss )
+   if ( ! conshdlrdata->sdpconshdlrdata->upgradequadconss )
       return SCIP_OKAY;
 
    /* we have to collect all variables appearing in quadratic constraints first */
@@ -4500,6 +4503,9 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
       /* todo: Check whether adding the linear constraints helps */
       *nupgdconss = 0;          /* the original quadratic constraint should be kept in the problem */
    }
+
+   /* turn off upgrading in order to avoid a possibly infinite loop */
+   conshdlrdata->sdpconshdlrdata->upgradequadconss = FALSE;
 
    return SCIP_OKAY;
 }
