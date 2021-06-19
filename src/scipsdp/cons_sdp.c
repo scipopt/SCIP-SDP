@@ -110,7 +110,7 @@
 #define DEFAULT_TWOMINORLINCONSS  FALSE /**< Should linear cuts corresponding to 2 by 2 minors be added? */
 #define DEFAULT_TWOMINORPRODCONSS FALSE /**< Should linear cuts corresponding to products of 2 by 2 minors be added? */
 #define DEFAULT_QUADCONSRANK1      TRUE /**< Should quadratic cons for 2x2 minors be added in the rank-1 case? */
-#define DEFAULT_UPGRADQUADCONSS   FALSE /**< Should quadratic constraints be upgraded to a rank 1 SDP? */
+#define DEFAULT_UPGRADEQUADCONSS   TRUE /**< Should quadratic constraints be upgraded to a rank 1 SDP? */
 #define DEFAULT_UPGRADEKEEPQUAD   FALSE /**< Should the quadratic constraints be kept in the problem after upgrading and the corresponding SDP constraint be added without the rank 1 constraint? */
 #define DEFAULT_MAXNVARSQUADUPGD   1000 /**< maximal number of quadratic constraints and appearing variables so that the QUADCONSUPGD is performed */
 #define DEFAULT_RANK1APPROXHEUR   FALSE /**< Should the heuristic that computes the best rank-1 approximation for a given solution be executed? */
@@ -172,7 +172,7 @@ struct SCIP_ConshdlrData
    SCIP_Bool             twominorlinconss;   /**< Should linear cuts corresponding to 2 by 2 minors be added? */
    SCIP_Bool             twominorprodconss;  /**< Should linear cuts corresponding to products of 2 by 2 minors be added? */
    SCIP_Bool             quadconsrank1;      /**< Should quadratic cons for 2x2 minors be added in the rank-1 case? */
-   SCIP_Bool             upgradquadconss;    /**< Should quadratic constraints be upgraded to a rank 1 SDP? */
+   SCIP_Bool             upgradequadconss;   /**< Should quadratic constraints be upgraded to a rank 1 SDP? */
    SCIP_Bool             upgradekeepquad;    /**< Should the quadratic constraints be kept in the problem after upgrading and the corresponding SDP constraint be added without the rank 1 constraint? */
    SCIP_Bool             separateonecut;     /**< Should only one cut corresponding to the most negative eigenvalue be separated? */
    SCIP_Bool             cutstopool;         /**< Should the cuts be added to the pool? */
@@ -2409,6 +2409,7 @@ SCIP_RETCODE addRank1QuadConss(
 
                SCIP_CALL( SCIPaddCons(scip, quadcons) );
                SCIP_CALL( SCIPreleaseCons(scip, &quadcons) );
+               ++(*naddconss);
             }
          }
 
@@ -3668,7 +3669,7 @@ SCIP_DECL_NONLINCONSUPGD(consQuadConsUpgdSdp)
    assert( conshdlrdata != NULL );
 
    /* check whether upgrading should be performed */
-   if ( ! conshdlrdata->sdpconshdlrdata->upgradquadconss )
+   if ( ! conshdlrdata->sdpconshdlrdata->upgradequadconss )
       return SCIP_OKAY;
 
    /* we have to collect all variables appearing in quadratic constraints first */
@@ -6674,9 +6675,9 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          "Should quadratic cons for 2x2 minors be added in the rank-1 case?",
          &(conshdlrdata->quadconsrank1), TRUE, DEFAULT_QUADCONSRANK1, NULL, NULL) );
 
-   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/upgradquadconss",
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/upgradequadconss",
          "Should quadratic constraints be upgraded to a rank 1 SDP?",
-         &(conshdlrdata->upgradquadconss), TRUE, DEFAULT_UPGRADQUADCONSS, NULL, NULL) );
+         &(conshdlrdata->upgradequadconss), TRUE, DEFAULT_UPGRADEQUADCONSS, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/upgradekeepquad",
          "Should the quadratic constraints be kept in the problem after upgrading and the corresponding SDP constraint be added without the rank 1 constraint?",
@@ -6753,7 +6754,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->twominorlinconss = FALSE;
    conshdlrdata->twominorprodconss = FALSE;
    conshdlrdata->quadconsrank1 = FALSE;
-   conshdlrdata->upgradquadconss = FALSE;
+   conshdlrdata->upgradequadconss = FALSE;
    conshdlrdata->upgradekeepquad = FALSE;
    conshdlrdata->separateonecut = FALSE;
    conshdlrdata->cutstopool = FALSE;
