@@ -346,6 +346,15 @@ SCIP_Real SCIPrelaxSdpGetSolvingTime(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get timer for */
    );
 
+/** gets some statistics for SDP-solving */
+SCIP_EXPORT
+SCIP_RETCODE SCIPrelaxSdpGetStatistics(
+   SCIP_RELAX*           relax,              /**< SDP-relaxator to get the statistics for */
+   int*                  ninfeasible,        /**< pointer to store the total number of times infeasibility was detected in presolving */
+   int*                  nallfixed,          /**< pointer to store the total number of times all variables were fixed */
+   int*                  nonevarsdp          /**< pointer to store the total number of times a one variable SDP was solved */
+   );
+
 #ifdef __cplusplus
 }
 #endif

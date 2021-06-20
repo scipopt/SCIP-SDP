@@ -269,6 +269,11 @@ struct SCIP_SDPi
    int*                  sdpilpcol;          /**< working space for column-index for each entry in lpval-array */
    SCIP_Real*            sdpilpval;          /**< working space for values of LP-constraint matrix entries */
 
+   /* statistics */
+   int                   ninfeasible;        /**< total number of times infeasibility was detected in presolving */
+   int                   nallfixed;          /**< total number of times all variables were fixed */
+   int                   nonevarsdp;         /**< total number of times a one variable SDP was solved */
+
    /* other data */
    int                   slatercheck;        /**< should the Slater condition for the dual problem be checked ahead of each solving process */
    int                   sdpid;              /**< counter for the number of SDPs solved */
@@ -1593,6 +1598,10 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->onevarsdpoptval = SCIP_INVALID;
    (*sdpi)->onevarsdpidx = -1;
 
+   (*sdpi)->nallfixed = 0;
+   (*sdpi)->ninfeasible = 0;
+   (*sdpi)->nonevarsdp = 0;
+
    SCIP_CALL( SDPIclockCreate(&(*sdpi)->usedsdpitime) );
 
    return SCIP_OKAY;
@@ -1810,6 +1819,15 @@ SCIP_RETCODE SCIPsdpiClone(
    newsdpi->epsilon = oldsdpi->epsilon;
    newsdpi->gaptol = oldsdpi->gaptol;
    newsdpi->feastol = oldsdpi->feastol;
+
+   newsdpi->solvedonevarsdp = SCIP_ONEVAR_UNSOLVED;
+   newsdpi->onevarsdpobjval = SCIP_INVALID;
+   newsdpi->onevarsdpoptval = SCIP_INVALID;
+   newsdpi->onevarsdpidx = -1;
+
+   newsdpi->nallfixed = 0;
+   newsdpi->ninfeasible = 0;
+   newsdpi->nonevarsdp = 0;
 
    SCIP_CALL( SDPIclockCreate(&newsdpi->usedsdpitime) );
 
@@ -2691,6 +2709,7 @@ SCIP_RETCODE SCIPsdpiSolve(
       sdpi->solved = TRUE;
       sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
       sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
+      ++sdpi->ninfeasible;
 
       SDPIclockStop(sdpi->usedsdpitime);
 
@@ -2719,6 +2738,7 @@ SCIP_RETCODE SCIPsdpiSolve(
       sdpi->solved = TRUE;
       sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
       sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
+      ++sdpi->ninfeasible;
 
       SDPIclockStop(sdpi->usedsdpitime);
 
@@ -2783,6 +2803,7 @@ SCIP_RETCODE SCIPsdpiSolve(
       sdpi->solved = TRUE;
       sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
       sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
+      ++sdpi->ninfeasible;
    }
    else if ( sdpi->allfixed )
    {
@@ -2792,6 +2813,7 @@ SCIP_RETCODE SCIPsdpiSolve(
       sdpi->solved = TRUE;
       sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
       sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
+      ++sdpi->nallfixed;
    }
    /* check whether problem contains one variable and one SDP block */
    else if ( nactivevars == 1 && sdpi->nsdpblocks == 1 )
@@ -2829,6 +2851,7 @@ SCIP_RETCODE SCIPsdpiSolve(
             sdpi->solvedonevarsdp = SCIP_ONEVAR_OPTIMAL;
             sdpi->onevarsdpobjval += fixedvarsobjcontr;
          }
+         ++sdpi->nonevarsdp;
       }
    }
 
@@ -4410,6 +4433,26 @@ SCIP_RETCODE SCIPsdpiSlater(
 
    *primalslater = sdpi->primalslater;
    *dualslater = sdpi->dualslater;
+
+   return SCIP_OKAY;
+}
+
+/** returns some statistcs */
+SCIP_RETCODE SCIPsdpiGetStatistics(
+   SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
+   int*                  ninfeasible,        /**< pointer to store the total number of times infeasibility was detected in presolving */
+   int*                  nallfixed,          /**< pointer to store the total number of times all variables were fixed */
+   int*                  nonevarsdp          /**< pointer to store the total number of times a one variable SDP was solved */
+   )
+{
+   assert( sdpi != NULL );
+   assert( ninfeasible != NULL );
+   assert( nallfixed != NULL );
+   assert( nonevarsdp != NULL );
+
+   *ninfeasible = sdpi->ninfeasible;
+   *nallfixed = sdpi->nallfixed;
+   *nonevarsdp = sdpi->nonevarsdp;
 
    return SCIP_OKAY;
 }
