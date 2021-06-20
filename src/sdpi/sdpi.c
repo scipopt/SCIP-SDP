@@ -201,6 +201,16 @@
 #define DEFAULT_MAXPENALTYPARAM     1e+10    /**< the maximum penalty parameter Gamma used for the penalty formulation if the SDP-solver didn't converge */
 #define DEFAULT_NPENALTYINCR        8        /**< maximum number of times the penalty parameter will be increased if penalty formulation failed */
 
+/** one variable SDP status */
+enum SCIP_Onevar_Status
+{
+   SCIP_ONEVAR_UNSOLVED       = 0,      /**< one variable SDP has not been solved */
+   SCIP_ONEVAR_OPTIMAL        = 1,      /**< one variable SDP has been solved to optimality */
+   SCIP_ONEVAR_INFEASIBLE     = 2       /**< one variable SDP has been detected to be infeasible */
+};
+typedef enum SCIP_Onevar_Status SCIP_ONEVAR_STATUS;
+
+
 /** data for SDPI */
 struct SCIP_SDPi
 {
@@ -280,6 +290,10 @@ struct SCIP_SDPi
    SCIP_SDPSLATER        primalslater;       /**< did the primal slater condition hold for the last problem */
    SCIP_SDPSLATER        dualslater;         /**< did the dual slater condition hold for the last problem */
    SDPI_CLOCK*           usedsdpitime;       /**< time needed for processing in SDPI */
+   SCIP_ONEVAR_STATUS    solvedonevarsdp;    /**< whether we solve a one variable SDP (= 0 no, = 1 optimally solved, = 2 infeasibility detected */
+   SCIP_Real             onevarsdpobjval;    /**< objective value of one variable SDP */
+   SCIP_Real             onevarsdpoptval;    /**< optimal value of one variable SDP */
+   int                   onevarsdpidx;       /**< index of variable for one variable SDP */
 };
 
 
@@ -1574,6 +1588,10 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->bestbound = -SCIPsdpiSolverInfinity((*sdpi)->sdpisolver);
    (*sdpi)->primalslater = SCIP_SDPSLATER_NOINFO;
    (*sdpi)->dualslater = SCIP_SDPSLATER_NOINFO;
+   (*sdpi)->solvedonevarsdp = SCIP_ONEVAR_UNSOLVED;
+   (*sdpi)->onevarsdpobjval = SCIP_INVALID;
+   (*sdpi)->onevarsdpoptval = SCIP_INVALID;
+   (*sdpi)->onevarsdpidx = -1;
 
    SCIP_CALL( SDPIclockCreate(&(*sdpi)->usedsdpitime) );
 
@@ -2619,7 +2637,6 @@ SCIP_RETCODE SCIPsdpiSolve(
    int** indchanges = NULL;
    int* nremovedinds = NULL;
    SCIP_Real addedopttime;
-   SCIP_Real solveonevarsdpobjval = SCIP_INVALID;
    SCIP_Real fixedvarsobjcontr = 0.0;
    SCIP_Bool fixingfound;
    int* blockindchanges;
@@ -2646,6 +2663,10 @@ SCIP_RETCODE SCIPsdpiSolve(
    sdpi->nsdpcalls = 0;
    sdpi->niterations = 0;
    sdpi->opttime = 0.0;
+   sdpi->solvedonevarsdp = SCIP_ONEVAR_UNSOLVED;
+   sdpi->onevarsdpobjval = SCIP_INVALID;
+   sdpi->onevarsdpoptval = SCIP_INVALID;
+   sdpi->onevarsdpidx = -1;
 
    if ( timelimit <= 0.0 )
       return SCIP_OKAY;
@@ -2792,15 +2813,23 @@ SCIP_RETCODE SCIPsdpiSolve(
             sdpi->sdpnblockvarnonz[0][v], sdpi->sdprow[0][v], sdpi->sdpcol[0][v], sdpi->sdpval[0][v],
             SCIPsdpiInfinity(sdpi), sdpi->feastol, sdpi->gaptol, &objval, &optval) );
 
-      if ( objval != SCIP_INVALID && objval >= SCIPsdpiInfinity(sdpi) )
+      if ( objval != SCIP_INVALID )
       {
          sdpi->solved = TRUE;
          sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
          sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
-         sdpi->infeasible = TRUE;
+         sdpi->onevarsdpobjval = objval;
+         sdpi->onevarsdpoptval = optval;
+         sdpi->onevarsdpidx = activevaridx;
+
+         if ( SCIPsdpiIsInfinity(sdpi, objval) )
+            sdpi->solvedonevarsdp = SCIP_ONEVAR_INFEASIBLE;
+         else
+         {
+            sdpi->solvedonevarsdp = SCIP_ONEVAR_OPTIMAL;
+            sdpi->onevarsdpobjval += fixedvarsobjcontr;
+         }
       }
-      else
-         solveonevarsdpobjval = objval + fixedvarsobjcontr;
    }
 
    /* solve SDP if not yet done */
@@ -2841,18 +2870,22 @@ SCIP_RETCODE SCIPsdpiSolve(
       sdpi->nsdpcalls += naddedsdpcalls;
 
 #if 0
-      if ( nactivevars == 1 && sdpi->nsdpblocks == 1 && SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) )
-      {
-         printf("optimal: %d   infeasible: %d\n", SCIPsdpiSolverIsOptimal(sdpi->sdpisolver), SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver));
-      }
-#endif
-
       if ( SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && SCIPsdpiSolverWasSolved(sdpi->sdpisolver) && solveonevarsdpobjval != SCIP_INVALID )
       {
          SCIP_Real objval;
-         SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) );
+         SCIP_Real* dualsol;
+         int dualsollength;
+
+         dualsollength = sdpi->nvars;
+         BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &dualsol, dualsollength) );
+         SCIP_CALL( SCIPsdpiGetSol(sdpi, &objval, dualsol, &dualsollength) );
+         printf("dual sol: %.15g\n", dualsol[activevaridx]);
+         BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &dualsol, dualsollength);
+
+         /* SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) ); */
          assert( REALABS(objval - solveonevarsdpobjval)/MAX3(1.0, REALABS(objval), REALABS(solveonevarsdpobjval)) <= 2.0 * sdpi->gaptol );
       }
+#endif
 
       /* if the solver didn't produce a satisfactory result, we have to try with a penalty formulation */
       if ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) && ! SCIPsdpiSolverIsTimelimExc(sdpi->sdpisolver) )
@@ -3102,7 +3135,7 @@ SCIP_Bool SCIPsdpiFeasibilityKnown(
    assert( sdpi != NULL );
    CHECK_IF_SOLVED_BOOL(sdpi);
 
-   if ( sdpi->infeasible || sdpi->allfixed )
+   if ( sdpi->infeasible || sdpi->allfixed || sdpi->onevarsdpobjval > SCIP_ONEVAR_UNSOLVED )
       return TRUE;
 
    return SCIPsdpiSolverFeasibilityKnown(sdpi->sdpisolver);
@@ -3136,6 +3169,16 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
       *dualfeasible = TRUE;
       return SCIP_OKAY;
    }
+   else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_OPTIMAL )
+   {
+      *dualfeasible = TRUE;
+      *primalfeasible = TRUE;
+   }
+   else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_INFEASIBLE )
+   {
+      *dualfeasible = FALSE;
+      *primalfeasible = TRUE; /* one variable SDP is only solved for bounded problems, for which the primal is feasible */
+   }
 
    SCIP_CALL( SCIPsdpiSolverGetSolFeasibility(sdpi->sdpisolver, primalfeasible, dualfeasible) );
 
@@ -3164,6 +3207,10 @@ SCIP_Bool SCIPsdpiIsPrimalUnbounded(
       /* all variables are fixed and dual problem is feasible, primal problem is feasible and bounded */
       return FALSE;
    }
+   else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_OPTIMAL )
+      return FALSE;
+   else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_INFEASIBLE )
+      return TRUE;   /* primal is always feasible, since dual is bounded */
 
    return SCIPsdpiSolverIsPrimalUnbounded(sdpi->sdpisolver);
 }
@@ -3187,6 +3234,8 @@ SCIP_Bool SCIPsdpiIsPrimalInfeasible(
       /* all variables are fixed and dual problem is feasible, primal problem is feasible as well */
       return FALSE;
    }
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+      return FALSE; /* primal is always feasible */
 
    return SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver);
 }
@@ -3213,6 +3262,8 @@ SCIP_Bool SCIPsdpiIsPrimalFeasible(
       /* all variables are fixed and dual problem is feasible, primal problem is feasible as well */
       return TRUE;
    }
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+      return FALSE; /* primal is always feasible */
 
    return SCIPsdpiSolverIsPrimalFeasible(sdpi->sdpisolver);
 }
@@ -3235,6 +3286,8 @@ SCIP_Bool SCIPsdpiIsDualUnbounded(
       /* all variables are fixed and dual problem is feasible */
       return FALSE;
    }
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+      return FALSE;
 
    return SCIPsdpiSolverIsDualUnbounded(sdpi->sdpisolver);
 }
@@ -3257,6 +3310,10 @@ SCIP_Bool SCIPsdpiIsDualInfeasible(
       /* all variables are fixed and dual problem is feasible */
       return FALSE;
    }
+   else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_OPTIMAL )
+      return FALSE;
+   else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_INFEASIBLE )
+      return TRUE;
 
    return SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver);
 }
@@ -3279,6 +3336,10 @@ SCIP_Bool SCIPsdpiIsDualFeasible(
       /* all variables are fixed and dual problem is feasible */
       return TRUE;
    }
+   else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_OPTIMAL )
+      return TRUE;
+   else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_INFEASIBLE )
+      return FALSE;
 
    return SCIPsdpiSolverIsDualFeasible(sdpi->sdpisolver);
 }
@@ -3301,6 +3362,8 @@ SCIP_Bool SCIPsdpiIsConverged(
       /* all variables are fixed and dual problem is feasible - this counts as converged */
       return TRUE;
    }
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+      return TRUE;
 
    return SCIPsdpiSolverIsConverged(sdpi->sdpisolver);
 }
@@ -3323,6 +3386,8 @@ SCIP_Bool SCIPsdpiIsObjlimExc(
       /* all variables are fixed and dual problem is feasible - objective limit was not reached */
       return FALSE;
    }
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+      return FALSE;
 
    return SCIPsdpiSolverIsObjlimExc(sdpi->sdpisolver);
 }
@@ -3345,6 +3410,8 @@ SCIP_Bool SCIPsdpiIsIterlimExc(
       /* all variables are fixed and problem is feasible - iteration limit was not reached */
       return FALSE;
    }
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+      return FALSE;
 
    return SCIPsdpiSolverIsIterlimExc(sdpi->sdpisolver);
 }
@@ -3371,6 +3438,8 @@ SCIP_Bool SCIPsdpiIsTimelimExc(
       SCIPdebugMessage("Problem was not solved, time limit not exceeded.\n");
       return FALSE;
    }
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+      return FALSE;
 
    return SCIPsdpiSolverIsTimelimExc(sdpi->sdpisolver);
 }
@@ -3407,6 +3476,11 @@ int SCIPsdpiGetInternalStatus(
       SCIPdebugMessage("All variables are fixed, no internal status available.\n");
       return 0;
    }
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+   {
+      SCIPdebugMessage("Solved one variable SDP, no internal status available.\n");
+      return 0;
+   }
 
    return SCIPsdpiSolverGetInternalStatus(sdpi->sdpisolver);
 }
@@ -3429,6 +3503,10 @@ SCIP_Bool SCIPsdpiIsOptimal(
       /* all variables are fixed and problem is feasible */
       return TRUE;
    }
+   else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_OPTIMAL )
+      return TRUE;
+   else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_INFEASIBLE )
+      return FALSE;
 
    return SCIPsdpiSolverIsOptimal(sdpi->sdpisolver);
 }
@@ -3457,6 +3535,8 @@ SCIP_Bool SCIPsdpiIsAcceptable(
       SCIPdebugMessage("Problem not solved succesfully, this is not acceptable in a B&B context.\n");
       return FALSE;
    }
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+      return TRUE;
 
    return SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver);
 }
@@ -3483,6 +3563,11 @@ SCIP_RETCODE SCIPsdpiGetObjval(
 
       for (v = 0; v < sdpi->nvars; v++)
          *objval += sdpi->sdpilb[v] * sdpi->obj[v];
+   }
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+   {
+      assert( sdpi->onevarsdpobjval != SCIP_INVALID );
+      return sdpi->onevarsdpobjval;
    }
    else
    {
@@ -3517,6 +3602,11 @@ SCIP_RETCODE SCIPsdpiGetLowerObjbound(
 
          for (v = 0; v < sdpi->nvars; v++)
             *objlb += sdpi->sdpilb[v] * sdpi->obj[v];
+      }
+      else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+      {
+         assert( sdpi->onevarsdpobjval != SCIP_INVALID );
+         return sdpi->onevarsdpobjval;
       }
       else
       {
@@ -3585,6 +3675,35 @@ SCIP_RETCODE SCIPsdpiGetSol(
             dualsol[v] = sdpi->sdpilb[v];
       }
    }
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+   {
+      if ( objval != NULL )
+      {
+         SCIP_CALL( SCIPsdpiGetObjval(sdpi, objval) );
+      }
+
+      if ( *dualsollength > 0 )
+      {
+         int v;
+
+         assert( dualsol != NULL );
+         if ( *dualsollength < sdpi->nvars )
+         {
+            SCIPdebugMessage("The given array in SCIPsdpiGetSol only had length %d, but %d was needed", *dualsollength, sdpi->nvars);
+            *dualsollength = sdpi->nvars;
+
+            return SCIP_OKAY;
+         }
+
+         /* we give the fixed values as the solution */
+         for (v = 0; v < sdpi->nvars; v++)
+            dualsol[v] = sdpi->sdpilb[v];
+
+         /* fill in value for one variable */
+         assert( 0 <= sdpi->onevarsdpidx && sdpi->onevarsdpidx < sdpi->nvars );
+         dualsol[sdpi->onevarsdpidx] = sdpi->onevarsdpoptval;
+      }
+   }
    else
    {
       SCIP_CALL( SCIPsdpiSolverGetSol(sdpi->sdpisolver, objval, dualsol, dualsollength) );
@@ -3613,6 +3732,11 @@ SCIP_RETCODE SCIPsdpiGetPreoptimalPrimalNonzeros(
    else if ( sdpi->allfixed )
    {
       SCIPdebugMessage("All variables are fixed, no solution available.\n");
+      startXnblocknonz[0] = -1;
+   }
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+   {
+      SCIPdebugMessage("One variable SDP solved, no solution available.\n");
       startXnblocknonz[0] = -1;
    }
    else
@@ -3690,6 +3814,39 @@ SCIP_RETCODE SCIPsdpiGetPreoptimalSol(
 
       return SCIP_OKAY;
    }
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+   {
+      int v;
+
+      assert( dualsol != NULL );
+
+      *success = FALSE;
+
+      if ( *dualsollength < sdpi->nvars )
+      {
+         SCIPdebugMessage("The given array in SCIPsdpiGetPreoptimalSol only had length %d, but %d was needed", *dualsollength, sdpi->nvars);
+         *dualsollength = sdpi->nvars;
+
+         return SCIP_OKAY;
+      }
+
+      /* we give the fixed values as the solution */
+      for (v = 0; v < sdpi->nvars; v++)
+         dualsol[v] = sdpi->sdpilb[v];
+
+      /* fill in value for one variable */
+      assert( 0 <= sdpi->onevarsdpidx && sdpi->onevarsdpidx < sdpi->nvars );
+      dualsol[sdpi->onevarsdpidx] = sdpi->onevarsdpoptval;
+
+      if ( nblocks > -1 )
+      {
+         SCIPdebugMessage("No primal solution available, since one variable SDP was solved.\n");
+         assert( startXnblocknonz != NULL );
+         startXnblocknonz[0] = -1;
+      }
+
+      return SCIP_OKAY;
+   }
    else
    {
       SCIP_CALL( SCIPsdpiSolverGetPreoptimalSol(sdpi->sdpisolver, success, dualsol, dualsollength, nblocks, startXnblocknonz,
@@ -3731,6 +3888,11 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
       SCIPdebugMessage("All variables fixed during preprocessing, no primal variables available.\n");
       *arraylength = -1;
    }
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+   {
+      SCIPdebugMessage("Solved one variable SDP, no primal variables available.\n");
+      *arraylength = -1;
+   }
    /* If the dual is infeasible, there is no feasible solution; If the primal is infeasible, the dual is unbounded or
     * infeasible. In both cases we should not return the solution (rather a ray). */
    else if ( SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) || SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver) )
@@ -3762,6 +3924,10 @@ SCIP_RETCODE SCIPsdpiGetPrimalNonzeros(
    else if ( sdpi->allfixed )
    {
       SCIPdebugMessage("All variables fixed during preprocessing, no primal solution available.\n");
+   }
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+   {
+      SCIPdebugMessage("Solved one variable SDP, no primal solution available.\n");
    }
    else
    {
@@ -3796,6 +3962,10 @@ SCIP_RETCODE SCIPsdpiGetPrimalMatrix(
    else if ( sdpi->allfixed )
    {
       SCIPdebugMessage("All variables fixed during preprocessing, no primal solution available.\n");
+   }
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+   {
+      SCIPdebugMessage("Solved one variable SDP, no primal solution available.\n");
    }
    else
    {
@@ -3879,6 +4049,11 @@ SCIP_RETCODE SCIPsdpiSettingsUsed(
    else if ( sdpi->allfixed )
    {
       SCIPdebugMessage("All varialbes fixed during preprocessing, no settings used.\n");
+      *usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
+   }
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+   {
+      SCIPdebugMessage("Solved one variable SDP, no settings used.\n");
       *usedsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
    }
    else if ( sdpi->penalty )
@@ -3999,6 +4174,12 @@ SCIP_RETCODE SCIPsdpiSlaterSettings(
    else if ( sdpi->allfixed )
    {
       SCIPdebugMessage("All varialbes fixed during preprocessing, no settings used.\n");
+      *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
+      return SCIP_OKAY;
+   }
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+   {
+      SCIPdebugMessage("Solved one variable SDP, no settings used.\n");
       *slatersetting = SCIP_SDPSLATERSETTING_NOINFO;
       return SCIP_OKAY;
    }
@@ -4214,8 +4395,13 @@ SCIP_RETCODE SCIPsdpiSlater(
       *dualslater = sdpi->dualslater;
       return SCIP_OKAY;
    }
-
-   if ( sdpi->allfixed )
+   else if ( sdpi->allfixed )
+   {
+      *primalslater = SCIP_SDPSLATER_NOINFO;
+      *dualslater = SCIP_SDPSLATER_NOINFO;
+      return SCIP_OKAY;
+   }
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
    {
       *primalslater = SCIP_SDPSLATER_NOINFO;
       *dualslater = SCIP_SDPSLATER_NOINFO;
