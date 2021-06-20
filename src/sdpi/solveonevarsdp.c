@@ -302,8 +302,17 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    }
    SCIPdebugMessage("Solution is %.15g in [%.15g, %.15g] (delta: %g), eigenvalue: %g, supergradient: %g.\n", mu, lb, ub, ub - lb, eigenvalue, supergradient);
 
-   *objval = obj * mu;
-   *optval = mu;
+   /* check whether we are infeasible */
+   if ( eigenvalue < -feastol )
+   {
+      *objval = infinity;
+      *optval = mu;
+   }
+   else
+   {
+      *objval = obj * mu;
+      *optval = mu;
+   }
 
  TERMINATE:
    BMSfreeBufferMemoryArray(bufmem, &eigenvectorub);
