@@ -2799,7 +2799,8 @@ SCIP_RETCODE SCIPsdpiSolve(
          sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
          sdpi->infeasible = TRUE;
       }
-      solveonevarsdpobjval = objval + fixedvarsobjcontr;
+      else
+         solveonevarsdpobjval = objval + fixedvarsobjcontr;
    }
 
    /* solve SDP if not yet done */
