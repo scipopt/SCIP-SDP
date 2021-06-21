@@ -3288,7 +3288,7 @@ SCIP_Bool SCIPsdpiIsPrimalFeasible(
       return TRUE;
    }
    else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
-      return FALSE; /* primal is always feasible */
+      return TRUE; /* primal is always feasible */
 
    return SCIPsdpiSolverIsPrimalFeasible(sdpi->sdpisolver);
 }
