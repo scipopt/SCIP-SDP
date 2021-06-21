@@ -148,6 +148,8 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    SCIP_Real eigenvaluelb;
    SCIP_Real eigenvalueub;
    SCIP_Real supergradient = SCIP_INVALID;
+   SCIP_Real supergradientlb = SCIP_INVALID;
+   SCIP_Real supergradientub = SCIP_INVALID;
    SCIP_Real mu;
    int r;
    int c;
@@ -208,12 +210,12 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    if ( eigenvalueub < -feastol )
    {
       /* compute supergradient value */
-      computeSupergradient(sdpnnonz, sdprow, sdpcol, sdpval, eigenvectorub, &supergradient);
+      computeSupergradient(sdpnnonz, sdprow, sdpcol, sdpval, eigenvectorub, &supergradientub);
 
       /* if supergradient is positive, then the problem is infeasible, because the minimal eigenvalue is increasing and we are not psd */
-      if ( supergradient > 0.0 )
+      if ( supergradientub > 0.0 )
       {
-         SCIPdebugMessage("Problem is infeasible (eigenvalue: %g, supergradient = %g).\n", eigenvalueub, supergradient);
+         SCIPdebugMessage("Problem is infeasible (eigenvalue: %g, supergradient = %g).\n", eigenvalueub, supergradientub);
          *objval = infinity;
          *optval = ub;
 
@@ -234,6 +236,21 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
 
       goto TERMINATE;
    }
+   else
+   {
+      /* compute supergradient value */
+      computeSupergradient(sdpnnonz, sdprow, sdpcol, sdpval, eigenvectorlb, &supergradientlb);
+
+      /* if supergradient not positive, then the problem is infeasible because the eigenvalue is decreasing and we are not psd */
+      if ( supergradientlb <= 0.0 )
+      {
+         SCIPdebugMessage("Problem is infeasible (eigenvalue: %g, supergradient = %g).\n", eigenvaluelb, supergradientlb);
+         *objval = infinity;
+         *optval = lb;
+
+         goto TERMINATE;
+      }
+   }
 
    /* choose starting point depending on which eigenvalue is nearer to 0 */
    if ( REALABS(eigenvaluelb) < REALABS(eigenvalueub) )
@@ -241,9 +258,7 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
       mu = lb;
       eigenvector = eigenvectorlb;
       eigenvalue = eigenvaluelb;
-
-      /* compute supergradient value */
-      computeSupergradient(sdpnnonz, sdprow, sdpcol, sdpval, eigenvector, &supergradient);
+      supergradient = supergradientlb;
    }
    else
    {
@@ -252,12 +267,13 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
       eigenvalue = eigenvalueub;
 
       if ( eigenvalueub < -feastol )
-         assert( supergradient != SCIP_INVALID ); /* supergradient has been computed already */
+         assert( supergradientub != SCIP_INVALID ); /* supergradient has been computed already */
       else
       {
          /* compute supergradient value */
-         computeSupergradient(sdpnnonz, sdprow, sdpcol, sdpval, eigenvector, &supergradient);
+         computeSupergradient(sdpnnonz, sdprow, sdpcol, sdpval, eigenvector, &supergradientub);
       }
+      supergradient = supergradientub;
    }
    assert( eigenvector != NULL );
    assert( supergradient != SCIP_INVALID );
