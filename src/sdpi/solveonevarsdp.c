@@ -308,7 +308,7 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
       SCIPdebugMessage("mu = %.15g in [%.15g, %.15g] (delta: %g), eigenvalue: %g, supergradient: %g.\n", mu, lb, ub, ub - lb, eigenvalue, supergradient);
 
       /* check early termination */
-      if ( REALABS(eigenvalue) <= feastol / 10.0 && REALABS(supergradient) > feastol )
+      if ( REALABS(eigenvalue) <= feastol && REALABS(supergradient) > feastol )
          break;
 
       if ( eigenvalue >= 0.0 )
