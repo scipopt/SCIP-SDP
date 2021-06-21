@@ -2763,7 +2763,9 @@ SCIP_RETCODE SCIPsdpiSolve(
 
    /* check if all variables are fixed, if this is the case, check if the remaining solution for feasibility */
    if ( sdpi->allfixed )
+   {
       SCIPdebugMessage("Detected that all variables in SDP %d are fixed.\n", sdpi->sdpid);
+   }
 
    /* allocate memory for computing the constant matrix after fixings and finding empty rows and columns */
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstnblocknonz, sdpi->nsdpblocks) );
