@@ -3592,7 +3592,7 @@ SCIP_RETCODE SCIPsdpiGetObjval(
    else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
    {
       assert( sdpi->onevarsdpobjval != SCIP_INVALID );
-      return sdpi->onevarsdpobjval;
+      *objval = sdpi->onevarsdpobjval;
    }
    else
    {
@@ -3631,7 +3631,7 @@ SCIP_RETCODE SCIPsdpiGetLowerObjbound(
       else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
       {
          assert( sdpi->onevarsdpobjval != SCIP_INVALID );
-         return sdpi->onevarsdpobjval;
+         *objlb = sdpi->onevarsdpobjval;
       }
       else
       {
