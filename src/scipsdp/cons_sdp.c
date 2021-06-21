@@ -102,8 +102,8 @@
 #define PARSE_SIZEFACTOR             10 /**< size of consdata-arrays is increased by this factor when parsing a problem */
 #define DEFAULT_PROPAGATE          TRUE /**< Should we perform propagation? */
 #define DEFAULT_PROPPRESOL         TRUE /**< Should we perform propagation in presolving? */
-#define DEFAULT_TIGHTENMATRICES   FALSE /**< If all matrices are psd, should the matrices be tightened if possible? */
-#define DEFAULT_TIGHTENBOUNDS     FALSE /**< If all matrices are psd, should the bounds be tightened if possible? */
+#define DEFAULT_TIGHTENMATRICES   TRUE /**< If all matrices are psd, should the matrices be tightened if possible? */
+#define DEFAULT_TIGHTENBOUNDS     TRUE /**< If all matrices are psd, should the bounds be tightened if possible? */
 #define DEFAULT_DIAGGEZEROCUTS     TRUE /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
 #define DEFAULT_DIAGZEROIMPLCUTS   TRUE /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
 #define DEFAULT_TWOMINORLINCONSS  FALSE /**< Should linear cuts corresponding to 2 by 2 minors be added? */
@@ -154,6 +154,7 @@ struct SCIP_ConsData
    int                   nsingle;            /**< number of matrix entries that depend on a single variable only */
    SCIP_Real             tracebound;         /**< possible bound on the trace */
    SCIP_Bool             allmatricespsd;     /**< true if all variables are positive semidefinite (excluding the constant matrix) */
+   SCIP_Bool             initallmatricespsd; /**< true if allmatricespsd has been initialized */
 };
 
 /** SDP constraint handler data */
@@ -1048,6 +1049,11 @@ SCIP_RETCODE computeAllmatricespsd(
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
    assert( consdata->rankone );
+
+   /* exit if allmatricespsd has been initialized already */
+   if ( consdata->initallmatricespsd )
+      return SCIP_OKAY;
+
    assert( consdata->allmatricespsd == FALSE );
 
    blocksize = consdata->blocksize;
@@ -1069,6 +1075,8 @@ SCIP_RETCODE computeAllmatricespsd(
    }
 
    SCIPfreeBufferArray(scip, &Aj);
+
+   consdata->initallmatricespsd = TRUE;
 
    return SCIP_OKAY;
 }
@@ -2455,6 +2463,7 @@ SCIP_RETCODE updateVarLocks(
       SCIP_CALL( unlockVar(scip, consdata, v) );
       consdata->locks[v] = 0;
       SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], SCIP_LOCKTYPE_MODEL, 1, 1) );
+      consdata->initallmatricespsd = FALSE; /* needs to be recomputed */
       return SCIP_OKAY;
    }
 
@@ -3879,7 +3888,6 @@ SCIP_DECL_CONSLOCK(consLockSdp)
    SCIPdebugMsg(scip, "locking method of <%s>.\n", SCIPconsGetName(cons));
 
    /* rank-1 constraints are always up- and down-locked */
-   /* allmatricespsd is computed if needed in tightenBounds() or tightenMatrices() */
    if ( consdata->rankone )
    {
       if ( consdata->locks == NULL )
@@ -3956,6 +3964,7 @@ SCIP_DECL_CONSLOCK(consLockSdp)
          if ( SCIPgetSubscipDepth(scip) == 0 )
             SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "All matrices are positive semidefinite (minimial eigenvalue: %g).\n", mineigenvalue);
       }
+      consdata->initallmatricespsd = TRUE;
 
       SCIPfreeBufferArray(scip, &Aj);
    }
@@ -4634,6 +4643,7 @@ SCIP_DECL_CONSTRANS(consTransSdp)
    targetdata->nsingle = 0;
    targetdata->tracebound = -2.0;
    targetdata->allmatricespsd = sourcedata->allmatricespsd;
+   targetdata->initallmatricespsd = sourcedata->initallmatricespsd;
 
    SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->nvarnonz), sourcedata->nvarnonz, sourcedata->nvars) );
 
@@ -5655,6 +5665,7 @@ SCIP_DECL_CONSCOPY(consCopySdp)
       targetdata = SCIPconsGetData(*cons);
       SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->locks), sourcedata->locks, sourcedata->nvars) );
       targetdata->allmatricespsd = sourcedata->allmatricespsd;
+      targetdata->initallmatricespsd = sourcedata->initallmatricespsd;
    }
 
    SCIPfreeBufferArray(scip, &targetvars);
@@ -5838,6 +5849,7 @@ SCIP_DECL_CONSPARSE(consParseSdp)
    consdata->nsingle = 0;
    consdata->tracebound = -2.0;
    consdata->allmatricespsd = FALSE;
+   consdata->initallmatricespsd = FALSE;
 
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->nvarnonz, nvars) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->col, nvars) );
@@ -7009,6 +7021,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
    consdata->nsingle = 0;
    consdata->tracebound = -2.0;
    consdata->allmatricespsd = FALSE;
+   consdata->initallmatricespsd = FALSE;
 
    for (i = 0; i < nvars; i++)
    {
@@ -7235,6 +7248,7 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
    consdata->nsingle = 0;
    consdata->tracebound = -2.0;
    consdata->allmatricespsd = FALSE;
+   consdata->initallmatricespsd = FALSE;
 
    for (i = 0; i < nvars; i++)
    {
