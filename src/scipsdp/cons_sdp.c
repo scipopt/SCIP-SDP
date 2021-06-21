@@ -1241,7 +1241,7 @@ SCIP_RETCODE tightenBounds(
          /* skip fixed variables */
          lb = SCIPvarGetLbGlobal(consdata->vars[i]);
          ub = SCIPvarGetUbGlobal(consdata->vars[i]);
-         if ( SCIPisEQ(scip, lb, ub) || SCIPisEQ(scip, ub, 1.0) )
+         if ( SCIPisEQ(scip, lb, ub) )
             continue;
 
          /* get fresh copy of the constant matrix */
