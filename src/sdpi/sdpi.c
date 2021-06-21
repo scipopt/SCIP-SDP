@@ -2837,7 +2837,7 @@ SCIP_RETCODE SCIPsdpiSolve(
             sdpi->sdpnblockvarnonz[0][v], sdpi->sdprow[0][v], sdpi->sdpcol[0][v], sdpi->sdpval[0][v],
             SCIPsdpiInfinity(sdpi), sdpi->feastol, sdpi->gaptol, &objval, &optval) );
 
-      if ( objval != SCIP_INVALID )
+      if ( objval != SCIP_INVALID )  /*lint !e777*/
       {
          sdpi->solved = TRUE;
          sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
