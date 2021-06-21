@@ -1278,7 +1278,7 @@ SCIP_RETCODE tightenBounds(
 
             if ( tightened )
             {
-               SCIPdebugMsg(scip, "Tightened upper bound of variable <%s> to %g.\n", SCIPvarGetName(consdata->vars[i]), factor);
+               SCIPdebugMsg(scip, "Tightened lower bound of variable <%s> to %g.\n", SCIPvarGetName(consdata->vars[i]), factor);
                ++(*nchgbds);
             }
          }
