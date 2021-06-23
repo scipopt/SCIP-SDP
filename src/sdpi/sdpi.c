@@ -3913,9 +3913,41 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
       SCIPdebugMessage("All variables fixed during preprocessing, no primal variables available.\n");
       *arraylength = -1;
    }
-   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+   else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_OPTIMAL )
    {
-      SCIPdebugMessage("Solved one variable SDP, no primal variables available.\n");
+      int i;
+
+      /* check if the arrays are long enough */
+      if ( *arraylength < sdpi->nvars )
+      {
+         *arraylength = sdpi->nvars;
+         SCIPdebugMessage("Insufficient length of array in SCIPsdpiGetPrimalBoundVars (gave %d, needed %d)\n", *arraylength, sdpi->nvars);
+         return SCIP_OKAY;
+      }
+
+      /* determine primal variables */
+      for (i = 0; i < sdpi->nvars; i++)
+      {
+         ubvars[i] = 0.0; /* upper variables are always 0.0 */
+         lbvars[i] = 0.0; /* most lower bound variables are 0.0 */
+
+         /* if the variable was being optimized */
+         if ( sdpi->onevarsdpidx == i )
+         {
+            /* if optimal value is equal to the lower bound */
+            if ( REALABS(sdpi->onevarsdpoptval - sdpi->sdpilb[i]) < sdpi->feastol )
+            {
+               /* the primal variable is equal to the objective */
+               lbvars[i] = sdpi->obj[i];
+            }
+         }
+         else
+            assert( isFixed(sdpi, i) );
+      }
+   }
+   else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_INFEASIBLE )
+   {
+      SCIPdebugMessage("Problem is infeasible, no primal variables available.\n");
       *arraylength = -1;
    }
    /* If the dual is infeasible, there is no feasible solution; If the primal is infeasible, the dual is unbounded or
