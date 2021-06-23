@@ -155,6 +155,7 @@ struct SCIP_ConsData
    int                   nsingle;            /**< number of matrix entries that depend on a single variable only */
    SCIP_Real             tracebound;         /**< possible bound on the trace */
    SCIP_Bool             allmatricespsd;     /**< true if all variables are positive semidefinite (excluding the constant matrix) */
+   SCIP_Bool             initallmatricespsd; /**< true if allmatricespsd has been initialized */
 };
 
 /** SDP constraint handler data */
@@ -1049,6 +1050,11 @@ SCIP_RETCODE computeAllmatricespsd(
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
    assert( consdata->rankone );
+
+   /* exit if allmatricespsd has been initialized already */
+   if ( consdata->initallmatricespsd )
+      return SCIP_OKAY;
+
    assert( consdata->allmatricespsd == FALSE );
 
    blocksize = consdata->blocksize;
@@ -1070,6 +1076,8 @@ SCIP_RETCODE computeAllmatricespsd(
    }
 
    SCIPfreeBufferArray(scip, &Aj);
+
+   consdata->initallmatricespsd = TRUE;
 
    return SCIP_OKAY;
 }
@@ -1189,6 +1197,7 @@ SCIP_RETCODE tightenBounds(
    {
       SCIP_CONSDATA* consdata;
       SCIP_Real* matrix;
+      SCIP_Real* othermatrix;
       SCIP_Real* constmatrix;
       SCIP_Real factor;
       int blocksize;
@@ -1213,11 +1222,11 @@ SCIP_RETCODE tightenBounds(
       if ( ! consdata->allmatricespsd )
          continue;
 
-      /* make sure that all lower bounds are nonnegative */
+      /* make sure that all upper bounds finite */
       nvars = consdata->nvars;
       for (i = 0; i < nvars; ++i)
       {
-         if ( SCIPisNegative(scip, SCIPvarGetLbGlobal(consdata->vars[i])) )
+         if ( SCIPisInfinity(scip, SCIPvarGetUbGlobal(consdata->vars[i])) )
             break;
       }
       if ( i < nvars )
@@ -1229,15 +1238,14 @@ SCIP_RETCODE tightenBounds(
       blocksize = consdata->blocksize;
       SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, blocksize * blocksize) );
       SCIP_CALL( SCIPallocBufferArray(scip, &matrix, blocksize * blocksize) );
-
-      SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, conss[c], constmatrix) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &othermatrix, blocksize * blocksize) );
 
       for (i = 0; i < nvars; ++i)
       {
          SCIP_Real lb;
          SCIP_Real ub;
-
-         SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrix) );
+         int k;
+         int l;
 
          /* skip fixed variables */
          lb = SCIPvarGetLbGlobal(consdata->vars[i]);
@@ -1245,28 +1253,47 @@ SCIP_RETCODE tightenBounds(
          if ( SCIPisEQ(scip, lb, ub) )
             continue;
 
-         /* compute scaling factor */
+         /* get fresh copy of the constant matrix */
+         SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, conss[c], constmatrix) );
+
+         /* loop over other variables */
+         for (k = 0; k < nvars; ++k)
+         {
+            if ( k == i )
+               continue;
+
+            SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], k, othermatrix) );
+
+            /* subtract matrix times upper bound from constant matrix (because of minus const. matrix) */
+            for (l = 0; l < blocksize * blocksize; ++l)
+               constmatrix[l] -= othermatrix[l] * ub;
+         }
+
+         SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrix) );
+
+         /* compute smallest scaling factor */
          SCIP_CALL( computeScalingFactor(scip, blocksize, matrix, constmatrix, lb, ub, &factor) );
          if ( factor == SCIP_INVALID ) /*lint !e777*/
             continue;
 
-         if ( SCIPisLT(scip, factor, ub) )
+         if ( SCIPisGT(scip, factor, lb) )
          {
             SCIP_Bool tightened;
 
-            SCIP_CALL( SCIPtightenVarUb(scip, consdata->vars[i], factor, FALSE, infeasible, &tightened) );
+            SCIP_CALL( SCIPtightenVarLb(scip, consdata->vars[i], factor, FALSE, infeasible, &tightened) );
 
             if ( *infeasible )
                break;
 
             if ( tightened )
             {
-               SCIPdebugMsg(scip, "Tightened upper bound of variable <%s> to %g.\n", SCIPvarGetName(consdata->vars[i]), factor);
+               SCIPdebugMsg(scip, "Tightened lower bound of variable <%s> to %g.\n", SCIPvarGetName(consdata->vars[i]), factor);
                ++(*nchgbds);
             }
          }
       }
 
+      SCIPfreeBufferArray(scip, &othermatrix);
       SCIPfreeBufferArray(scip, &matrix);
       SCIPfreeBufferArray(scip, &constmatrix);
    }
@@ -1468,6 +1495,7 @@ SCIP_RETCODE diagZeroImpl(
       SCIP_Shortbool* diagnonzero;
       SCIP_VAR** vars;
       SCIP_Real* vals;
+      SCIP_Bool negintvar =  FALSE;
       int** diagvars;
       int* ndiagvars;
       int ndiagnonzero = 0;
@@ -1501,6 +1529,12 @@ SCIP_RETCODE diagZeroImpl(
       /* collect nonzero entries of matrices */
       for (v = 0; v < nvars; ++v)
       {
+         if ( SCIPvarIsIntegral(consdata->vars[v]) && SCIPisNegative(scip, SCIPvarGetLbGlobal(consdata->vars[v])) )
+         {
+            negintvar = TRUE;
+            break;
+         }
+
          for (j = 0; j < consdata->nvarnonz[v]; j++)
          {
             rowidx = consdata->row[v][j];
@@ -1530,6 +1564,22 @@ SCIP_RETCODE diagZeroImpl(
                }
             }
          }
+      }
+
+      /* early termination if there is an integral variable with a negative lower bound */
+      if ( negintvar )
+      {
+         for (j = blocksize - 1; j >= 0; j--)
+         {
+            SCIPfreeBufferArray(scip, &diagvars[j]);
+         }
+         SCIPfreeBufferArray(scip, &diagvars);
+         SCIPfreeBufferArray(scip, &ndiagvars);
+         SCIPfreeBufferArray(scip, &diagnonzero);
+         SCIPfreeBufferArray(scip, &nonzeroentries);
+         SCIPfreeBufferArray(scip, &vals);
+         SCIPfreeBufferArray(scip, &vars);
+         continue;
       }
 
       /* add nonzero diagonal entries of constant matrix */
@@ -2422,6 +2472,7 @@ SCIP_RETCODE updateVarLocks(
       SCIP_CALL( unlockVar(scip, consdata, v) );
       consdata->locks[v] = 0;
       SCIP_CALL( SCIPaddVarLocksType(scip, consdata->vars[v], SCIP_LOCKTYPE_MODEL, 1, 1) );
+      consdata->initallmatricespsd = FALSE; /* needs to be recomputed */
       return SCIP_OKAY;
    }
 
@@ -4318,7 +4369,6 @@ SCIP_DECL_CONSLOCK(consLockSdp)
    SCIPdebugMsg(scip, "locking method of <%s>.\n", SCIPconsGetName(cons));
 
    /* rank-1 constraints are always up- and down-locked */
-   /* allmatricespsd is computed if needed in tightenBounds() or tightenMatrices() */
    if ( consdata->rankone )
    {
       if ( consdata->locks == NULL )
@@ -4395,6 +4445,7 @@ SCIP_DECL_CONSLOCK(consLockSdp)
          if ( SCIPgetSubscipDepth(scip) == 0 )
             SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "All matrices are positive semidefinite (minimial eigenvalue: %g).\n", mineigenvalue);
       }
+      consdata->initallmatricespsd = TRUE;
 
       SCIPfreeBufferArray(scip, &Aj);
    }
@@ -5086,6 +5137,7 @@ SCIP_DECL_CONSTRANS(consTransSdp)
    targetdata->nsingle = 0;
    targetdata->tracebound = -2.0;
    targetdata->allmatricespsd = sourcedata->allmatricespsd;
+   targetdata->initallmatricespsd = sourcedata->initallmatricespsd;
 
    SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->nvarnonz), sourcedata->nvarnonz, sourcedata->nvars) );
 
@@ -6107,6 +6159,7 @@ SCIP_DECL_CONSCOPY(consCopySdp)
       targetdata = SCIPconsGetData(*cons);
       SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->locks), sourcedata->locks, sourcedata->nvars) );
       targetdata->allmatricespsd = sourcedata->allmatricespsd;
+      targetdata->initallmatricespsd = sourcedata->initallmatricespsd;
    }
 
    SCIPfreeBufferArray(scip, &targetvars);
@@ -6290,6 +6343,7 @@ SCIP_DECL_CONSPARSE(consParseSdp)
    consdata->nsingle = 0;
    consdata->tracebound = -2.0;
    consdata->allmatricespsd = FALSE;
+   consdata->initallmatricespsd = FALSE;
 
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->nvarnonz, nvars) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->col, nvars) );
@@ -7465,6 +7519,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
    consdata->nsingle = 0;
    consdata->tracebound = -2.0;
    consdata->allmatricespsd = FALSE;
+   consdata->initallmatricespsd = FALSE;
 
    for (i = 0; i < nvars; i++)
    {
@@ -7691,6 +7746,7 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
    consdata->nsingle = 0;
    consdata->tracebound = -2.0;
    consdata->allmatricespsd = FALSE;
+   consdata->initallmatricespsd = FALSE;
 
    for (i = 0; i < nvars; i++)
    {
