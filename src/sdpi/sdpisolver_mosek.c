@@ -1274,7 +1274,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
             /* reset counters */
             mosekind = 0;
-            if ( nnonz < lpnnonz )
+            if ( nnonz < lpnnonz - 1 )
                currentrow = lprow[nnonz+1];
          }
       }
