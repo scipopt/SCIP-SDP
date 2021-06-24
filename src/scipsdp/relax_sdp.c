@@ -117,7 +117,7 @@ struct SCIP_RelaxData
    SCIP_Real             objval;             /**< objective value of the last SDP-relaxation */
    SCIP_Bool             origsolved;         /**< solved original problem to optimality (not only a penalty or probing formulation) */
    SCIP_Bool             probingsolved;      /**< was the last probing SDP solved successfully? */
-   long int              lastsdpnode;        /**< number of the SCIP node the current SDP-solution belongs to */
+   SCIP_Longint          lastsdpnode;        /**< number of the SCIP node the current SDP-solution belongs to */
    SCIP_Bool             feasible;           /**< was the last solved SDP feasible */
 
    SCIP_Real             sdpsolvergaptol;    /**< the stopping criterion for the duality gap the sdpsolver should use */
@@ -3831,20 +3831,114 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    SCIP_RELAXDATA* relaxdata;
    SCIP_VAR** vars;
    SCIP_Bool cutoff;
-   SCIP_SOL* scipsol; /* TODO: eliminate this */
    int nconss;
    int nvars;
    int i;
-#ifdef SCIP_EVEN_MORE_DEBUG
-   SCIP_VAR** varsfordebug = SCIPgetVars(scip);
-   const int nvarsfordebug = SCIPgetNVars(scip);
-#endif
 
    SCIPdebugMsg(scip, "Calling relaxExecSdp.\n");
 
    relaxdata = SCIPrelaxGetData(relax);
+
+   /* don't run again if we already solved the current node (except during probing), and we solved the correct problem */
+   if ( relaxdata->lastsdpnode == SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) && ! SCIPinProbing(scip) && relaxdata->origsolved && ! relaxdata->resolve )
+   {
+      SCIP_Real objforscip;
+      SCIP_Real* solforscip;
+      SCIP_SOL* scipsol;
+      SCIP_COL** cols;
+      int ncols;
+      int slength;
+
+      SCIPdebugMsg(scip, "Already solved SDP-relaxation for node %" SCIP_LONGINT_FORMAT ", returning with SCIP_SUCCESS so that no other relaxator is called.\n",
+         SCIPrelaxGetData(relax)->lastsdpnode);
+
+      if ( SCIPsdpiIsDualUnbounded(relaxdata->sdpi) )
+      {
+         relaxdata->feasible = TRUE;
+         *result = SCIP_SUCCESS;
+         *lowerbound = -SCIPinfinity(scip);
+         return SCIP_OKAY;
+      }
+
+      /* get solution w.r.t. SCIP variables */
+      vars = SCIPgetVars(scip);
+      nvars = SCIPgetNVars(scip);
+      SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
+      slength = nvars;
+      SCIP_CALL( SCIPsdpiGetSol(relaxdata->sdpi, &objforscip, solforscip, &slength) ); /* get both the objective and the solution from the SDP solver */
+
+      assert( slength == nvars ); /* If this isn't true any longer, the getSol-Call was unsuccessful, because the given array wasn't long enough,
+                                   * but this can't happen, because the array has enough space for all SDP variables. */
+
+      /* create SCIP solution */
+      SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
+      SCIP_CALL( SCIPsetRelaxSolVals(scip, relax, nvars, vars, solforscip, TRUE) );
+#else
+      SCIP_CALL( SCIPsetRelaxSolVals(scip, nvars, vars, solforscip, TRUE) );
+#endif
+      *lowerbound = objforscip;
+
+      /* copy solution */
+      SCIP_CALL( SCIPgetLPColsData(scip, &cols, &ncols) );
+      for (i = 0; i < ncols; i++)
+      {
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
+         SCIP_CALL( SCIPsetRelaxSolVal(scip, relax, SCIPcolGetVar(cols[i]), SCIPgetSolVal(scip, scipsol, SCIPcolGetVar(cols[i]))) );
+#else
+         SCIP_CALL( SCIPsetRelaxSolVal(scip, SCIPcolGetVar(cols[i]), SCIPgetSolVal(scip, scipsol, SCIPcolGetVar(cols[i]))) );
+#endif
+      }
+
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
+      SCIP_CALL( SCIPmarkRelaxSolValid(scip, relax, TRUE) );
+#else
+      SCIP_CALL( SCIPmarkRelaxSolValid(scip, TRUE) );
+#endif
+      *result = SCIP_SUCCESS;
+
+      SCIPfreeBufferArray(scip, &solforscip);
+      SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
+
+      *result = SCIP_SUCCESS;
+      return SCIP_OKAY;
+   }
+
+   /* construct the lp and make sure, that everything is where it should be */
+   SCIP_CALL( SCIPconstructLP(scip, &cutoff) );
+
+   if ( cutoff )
+   {
+      relaxdata->origsolved = TRUE;
+      relaxdata->feasible = FALSE;
+      *result = SCIP_CUTOFF;
+      return SCIP_OKAY;
+   }
+
+   /* very important to call flushLP */
+   SCIP_CALL( SCIPflushLP(scip) );
+
+   /* get problem data (might have changed in SCIPconstructLP/SCIPflushLP */
+   nconss = SCIPgetNConss(scip);
    vars = SCIPgetVars(scip);
    nvars = SCIPgetNVars(scip);
+
+#ifdef SCIP_EVEN_MORE_DEBUG
+   for (i = 0; i < nvars; ++i)
+   {
+      SCIPdebugMsg(scip, "variable <%s>: status = %u, integral = %u, bounds = [%g, %g]\n", SCIPvarGetName(vars[i]), SCIPvarGetStatus(vars[i]),
+         SCIPvarIsIntegral(vars[i]), SCIPvarGetLbLocal(vars[i]), SCIPvarGetUbLocal(vars[i]));
+   }
+#endif
+
+   /* if there are no constraints, there is nothing to do */
+   if ( nconss == 0 )
+   {
+      relaxdata->origsolved = TRUE;
+      relaxdata->feasible = TRUE;
+      *result = SCIP_DIDNOTRUN;
+      return SCIP_OKAY;
+   }
 
    /* set the solved flags to false in case a timeout happens */
    relaxdata->origsolved = FALSE;
@@ -3891,100 +3985,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
          SCIPdebugMsg(scip, "Number of SDP constraints changed, new: %d  (old: %d).\n", nsdpconss, nsdpblocks);
          SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE, FALSE) );
       }
-   }
-
-   /* don't run again if we already solved the current node (except during probing), and we solved the correct problem */
-   if ( (relaxdata->lastsdpnode == SCIPnodeGetNumber(SCIPgetCurrentNode(scip)) && ( ! SCIPinProbing(scip) ) ) && relaxdata->origsolved && ! relaxdata->resolve )
-   {
-      SCIP_COL** cols;
-      SCIP_Real objforscip;
-      SCIP_Real* solforscip;
-      int ncols;
-      int slength;
-
-      SCIPdebugMsg(scip, "Already solved SDP-relaxation for node %ld, returning with SCIP_SUCCESS so that no other relaxator is called.\n",
-         SCIPrelaxGetData(relax)->lastsdpnode);
-
-      if ( SCIPsdpiIsDualUnbounded(relaxdata->sdpi) )
-      {
-         relaxdata->feasible = TRUE;
-         *result = SCIP_SUCCESS;
-         *lowerbound = -SCIPinfinity(scip);
-         return SCIP_OKAY;
-      }
-
-      /* get solution w.r.t. SCIP variables */
-      SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
-      slength = nvars;
-      SCIP_CALL( SCIPsdpiGetSol(relaxdata->sdpi, &objforscip, solforscip, &slength) ); /* get both the objective and the solution from the SDP solver */
-
-      assert( slength == nvars ); /* If this isn't true any longer, the getSol-Call was unsuccessfull, because the given array wasn't long enough,
-                                   * but this can't happen, because the array has enough space for all sdp variables. */
-
-      /* create SCIP solution */
-      SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
-#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
-      SCIP_CALL( SCIPsetRelaxSolVals(scip, relax, nvars, vars, solforscip, TRUE) );
-#else
-      SCIP_CALL( SCIPsetRelaxSolVals(scip, nvars, vars, solforscip, TRUE) );
-#endif
-      *lowerbound = objforscip;
-
-      /* copy solution */
-      SCIP_CALL( SCIPgetLPColsData(scip, &cols, &ncols) );
-      for (i = 0; i < ncols; i++)
-      {
-#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
-         SCIP_CALL( SCIPsetRelaxSolVal(scip, relax, SCIPcolGetVar(cols[i]), SCIPgetSolVal(scip, scipsol, SCIPcolGetVar(cols[i]))) );
-#else
-         SCIP_CALL( SCIPsetRelaxSolVal(scip, SCIPcolGetVar(cols[i]), SCIPgetSolVal(scip, scipsol, SCIPcolGetVar(cols[i]))) );
-#endif
-      }
-
-#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
-      SCIP_CALL( SCIPmarkRelaxSolValid(scip, relax, TRUE) );
-#else
-      SCIP_CALL( SCIPmarkRelaxSolValid(scip, TRUE) );
-#endif
-      *result = SCIP_SUCCESS;
-
-      SCIPfreeBufferArray(scip, &solforscip);
-      SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
-
-      *result = SCIP_SUCCESS;
-      return SCIP_OKAY;
-   }
-
-   /* construct the lp and make sure, that everything is where it should be */
-   SCIP_CALL( SCIPconstructLP(scip, &cutoff) );
-
-   if ( cutoff )
-   {
-      relaxdata->feasible = FALSE;
-      *result = SCIP_CUTOFF;
-      return SCIP_OKAY;
-   }
-
-   /* very important to call flushLP */
-   SCIP_CALL( SCIPflushLP(scip) );
-
-   /* get varmapper */
-   nconss = SCIPgetNConss(scip);
-
-#ifdef SCIP_EVEN_MORE_DEBUG
-   for (i = 0; i < nvarsfordebug; i++)
-   {
-      SCIPdebugMsg(scip, "variable %s: status = %u, integral = %u, bounds = [%f, %f]\n", SCIPvarGetName(varsfordebug[i]), SCIPvarGetStatus(varsfordebug[i]),
-         SCIPvarIsIntegral(varsfordebug[i]), SCIPvarGetLbLocal(varsfordebug[i]), SCIPvarGetUbLocal(varsfordebug[i]));
-   }
-#endif
-
-   if ( nconss == 0 )
-   {
-      /* if there are no constraints, there is nothing to do */
-      relaxdata->feasible = TRUE;
-      *result = SCIP_DIDNOTRUN;
-      return SCIP_OKAY;
    }
 
    /* update LP Data in Interface */
@@ -4698,7 +4698,7 @@ SCIP_DECL_RELAXEXITSOL(relaxExitSolSdp)
    relaxdata->sdpiterations = 0;
    relaxdata->sdpcalls = 0;
    relaxdata->sdpinterfacecalls = 0;
-   relaxdata->lastsdpnode = 0;
+   relaxdata->lastsdpnode = 0LL;
    relaxdata->unsolved = 0;
    SCIP_CALL( SCIPsdpiClear(relaxdata->sdpi) );
 
@@ -4834,7 +4834,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    relaxdata->sdpi = sdpi;
    relaxdata->lpi = lpi;
    relaxdata->sdpsolvingtime = NULL;
-   relaxdata->lastsdpnode = -1;
+   relaxdata->lastsdpnode = -1LL;
    relaxdata->nblocks = 0;
    relaxdata->varmapper = NULL;
    relaxdata->roundingprobtime = NULL;
@@ -5530,7 +5530,7 @@ SCIP_RETCODE SCIPrelaxSdpGetRelaxSol(
 }
 
 /** get the number of the SCIP-node which the current SDP solution belongs to */
-long int SCIPrelaxSdpGetSdpNode(
+SCIP_Longint SCIPrelaxSdpGetSdpNode(
    SCIP_RELAX*           relax               /**< SDP-relaxator to get solution for */
    )
 {
