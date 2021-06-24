@@ -1085,6 +1085,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    for (i = 0; i < sdpisolver->nvarbounds; i++)
    {
       MOSEK_CALL( MSK_putcj(sdpisolver->msktask, nlpvars + i, mosekvarbounds[i]) );/*lint !e641*/ /* for the ub's we already added a negative sign in mosekvarbounds */
+
+#if CONVERT_ABSOLUTE_TOLERANCES
+      if ( REALABS(mosekvarbounds[i]) > maxrhscoef )
+         maxrhscoef = REALABS(mosekvarbounds[i]);
+#endif
+
 #ifdef SCIP_MORE_DEBUG
       if ( sdpisolver->varboundpos[i] < 0 ) /* lower bound */
       {
