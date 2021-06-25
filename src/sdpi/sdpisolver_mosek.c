@@ -139,6 +139,7 @@ struct SCIP_SDPiSolver
    SCIP_Real             objlimit;           /**< objective limit for SDP solver */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             usepresolving;      /**< Should presolving be used? */
+   SCIP_Bool             usescaling;         /**< Should the SDP-solver use scaling? */
    SCIP_Bool             penalty;            /**< was the problem last solved using a penalty formulation */
    SCIP_Bool             feasorig;           /**< was the last problem solved with a penalty formulation and with original objective coefficents
                                               *   and the solution was feasible for the original problem? */
@@ -488,6 +489,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->objlimit = SCIPsdpiSolverInfinity(*sdpisolver);
    (*sdpisolver)->sdpinfo = FALSE;
    (*sdpisolver)->usepresolving = TRUE;
+   (*sdpisolver)->usescaling = TRUE;
    (*sdpisolver)->nthreads = -1;
    (*sdpisolver)->terminationcode = MSK_RES_OK;
    (*sdpisolver)->solstat = MSK_SOL_STA_UNKNOWN;
@@ -1412,6 +1414,16 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          SCIPdebugMessage("Turning presolving off.\n");
          MOSEK_CALL( MSK_putintparam(sdpisolver->msktask, MSK_IPAR_PRESOLVE_USE, MSK_PRESOLVE_MODE_OFF) );
+      }
+
+      /* turn scaling on/off */
+      if ( sdpisolver->usescaling )
+      {
+         MOSEK_CALL( MSK_putintparam(sdpisolver->msktask, MSK_IPAR_INTPNT_SCALING, MSK_SCALING_FREE) );
+      }
+      else
+      {
+         MOSEK_CALL( MSK_putintparam(sdpisolver->msktask, MSK_IPAR_INTPNT_SCALING, MSK_SCALING_NONE) );
       }
 
       /* print whole problem (only for MOSEK < 9) and parameters if asked to */
@@ -2697,6 +2709,10 @@ SCIP_RETCODE SCIPsdpiSolverGetIntpar(
       *ival = (int) sdpisolver->usepresolving;
       SCIPdebugMessage("Getting usepresolving (%d).\n", *ival);
       break;
+   case SCIP_SDPPAR_USESCALING:
+      *ival = (int) sdpisolver->usescaling;
+      SCIPdebugMessage("Getting usescaling (%d).\n", *ival);
+      break;
    case SCIP_SDPPAR_SCALEOBJ:
       *ival = (int) sdpisolver->scaleobj;
       SCIPdebugMessage("Getting scaleobj (%d).\n", *ival);
@@ -2733,7 +2749,12 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
       sdpisolver->usepresolving = (SCIP_Bool) ival;
       SCIPdebugMessage("Setting usepresolving (%d).\n", ival);
       break;
-   case SCIP_SDPPAR_SCALEOBJ:
+   case SCIP_SDPPAR_USESCALING:
+      assert( 0 <= ival && ival <= 1 );
+      sdpisolver->usescaling = (SCIP_Bool) ival;
+      SCIPdebugMessage("Setting usescaling (%d).\n", ival);
+      break;
+  case SCIP_SDPPAR_SCALEOBJ:
       assert( 0 <= ival && ival <= 1 );
       sdpisolver->scaleobj = (SCIP_Bool) ival;
       SCIPdebugMessage("Setting scaleobj (%d).\n", ival);

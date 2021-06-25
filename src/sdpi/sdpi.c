@@ -4304,6 +4304,7 @@ SCIP_RETCODE SCIPsdpiGetIntpar(
    case SCIP_SDPPAR_SDPINFO:
    case SCIP_SDPPAR_NTHREADS:
    case SCIP_SDPPAR_USEPRESOLVING:
+   case SCIP_SDPPAR_USESCALING:
    case SCIP_SDPPAR_SCALEOBJ:
       SCIP_CALL_PARAM( SCIPsdpiSolverGetIntpar(sdpi->sdpisolver, type, ival) );
       break;
@@ -4334,6 +4335,7 @@ SCIP_RETCODE SCIPsdpiSetIntpar(
    {
    case SCIP_SDPPAR_SDPINFO:
    case SCIP_SDPPAR_USEPRESOLVING:
+   case SCIP_SDPPAR_USESCALING:
    case SCIP_SDPPAR_SCALEOBJ:
       assert( ival == 0 || ival == 1 ); /* this is a boolean parameter */
       SCIP_CALL_PARAM( SCIPsdpiSolverSetIntpar(sdpi->sdpisolver, type, ival) );

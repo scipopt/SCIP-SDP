@@ -95,6 +95,7 @@
 #define DEFAULT_SDPSOLVERTHREADS    1        /**< number of threads the SDP solver should use (-1 = number of cores) */
 #define DEFAULT_PENINFEASADJUST     10.0     /**< gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation */
 #define DEFAULT_USEPRESOLVING       FALSE    /**< whether presolving of SDP-solver should be used */
+#define DEFAULT_USESCALING          TRUE     /**< whether the SDP-solver should use scaling */
 #define DEFAULT_SCALEOBJ            FALSE    /**< whether the objective should be scaled in order to get a more stable behavior */
 
 #define WARMSTART_MINVAL            0.01     /**< if we get a value less than this when warmstarting (currently only for the linear part when combining with analytic center), the value is set to this */
@@ -131,6 +132,7 @@ struct SCIP_RelaxData
    int                   npenaltyincr;       /**< maximum number of times the penalty parameter will be increased if penalty formulation failed */
    SCIP_Real             peninfeasadjust;    /**< gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation */
    SCIP_Bool             usepresolving;      /**< whether presolving of SDP-solver should be used */
+   SCIP_Bool             usescaling;         /**< whether the SDP-solver should use scaling */
    SCIP_Bool             scaleobj;           /**< whether the objective should be scaled in order to get a more stable behavior */
    int                   slatercheck;        /**< Should the Slater condition for the dual problem be checked ahead of solving every SDP ? */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
@@ -4271,6 +4273,20 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       SCIP_CALL( retcode );
    }
 
+   /* set scaling parameter */
+   retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_USESCALING, relaxdata->usescaling ? 1 : 0);
+
+   if ( retcode == SCIP_PARAMETERUNKNOWN )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
+         "SDP Solver <%s>: usescaling parameter not available -- SCIP parameter has no effect.\n",
+         SCIPsdpiGetSolverName());
+   }
+   else
+   {
+      SCIP_CALL( retcode );
+   }
+
    /* set scaleobj parameter */
    retcode = SCIPsdpiSetIntpar(relaxdata->sdpi, SCIP_SDPPAR_SCALEOBJ, relaxdata->scaleobj ? 1 : 0);
 
@@ -4890,6 +4906,10 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/usepresolving",
          "whether presolving of SDP-solver should be used",
          &(relaxdata->usepresolving), TRUE, DEFAULT_USEPRESOLVING, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/usescaling",
+         "whether the SDP-solver should use scaling",
+         &(relaxdata->usescaling), TRUE, DEFAULT_USESCALING, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/scaleobj",
          "whether the objective should be scaled in order to get a more stable behavior",
