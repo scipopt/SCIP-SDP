@@ -512,7 +512,6 @@ test:
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/evalcheck.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/evalcheck_cluster.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/evaluate.sh);
-		@-(cd check && ln -fs $(SCIPREALPATH)/check/check.awk);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/cmpres.awk);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/getlastprob.awk);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_solufile.sh);

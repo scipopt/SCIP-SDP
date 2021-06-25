@@ -66,7 +66,8 @@ enum SCIP_SDPParam
    SCIP_SDPPAR_WARMSTARTPOGAP = 12,     /**< gap at which a preoptimal solution should be saved for warmstarting purposes (currently only supported for DSDP) */
    SCIP_SDPPAR_PENINFEASADJUST= 13,     /**< gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation */
    SCIP_SDPPAR_USEPRESOLVING  = 14,     /**< whether presolving should be used */
-   SCIP_SDPPAR_SCALEOBJ       = 15      /**< whether the objective should be scaled */
+   SCIP_SDPPAR_USESCALING     = 15,     /**< whether the the SDP-solver should use scaling */
+   SCIP_SDPPAR_SCALEOBJ       = 16      /**< whether the objective should be scaled */
 };
 typedef enum SCIP_SDPParam SCIP_SDPPARAM;
 

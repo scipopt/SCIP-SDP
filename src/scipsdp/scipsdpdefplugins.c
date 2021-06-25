@@ -106,6 +106,21 @@ void paramSetDefaultInt(
    param->data.intparam.defaultvalue = defaultvalue;
 }
 
+/** local function to change default value of real parameter */
+static
+void paramSetDefaultReal(
+   SCIP_PARAM*           param,              /**< parameter */
+   SCIP_Real             defaultvalue        /**< new default value */
+   )
+{
+   assert(param != NULL);
+   assert(param->paramtype == SCIP_PARAMTYPE_REAL);
+
+   assert(param->data.realparam.minvalue <= defaultvalue && param->data.realparam.maxvalue >= defaultvalue);
+
+   param->data.realparam.defaultvalue = defaultvalue;
+}
+
 
 /** reset some default parameter values */
 static
@@ -114,6 +129,13 @@ SCIP_RETCODE SCIPSDPsetDefaultParams(
    )
 {
    SCIP_PARAM* param;
+
+   /* change default feastol and dualfeastol */
+   param = SCIPgetParam(scip, "numerics/feastol");
+   paramSetDefaultReal(param, 1e-5);
+
+   param = SCIPgetParam(scip, "numerics/dualfeastol");
+   paramSetDefaultReal(param, 1e-5);
 
    /* turn off LP solving - note that the SDP relaxator is on by default */
    param = SCIPgetParam(scip, "lp/solvefreq");
