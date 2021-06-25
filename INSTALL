@@ -143,16 +143,16 @@ To use SCIP-SDP call
 ./bin/scipsdp
 
 to open a SCIP shell for solving MISDPs. There you can read a sparse SDPA-File with added
-integrality constraints (for details about the format see sdpa_format.txt) named 
+integrality constraints (for details about the format see sdpa_format.txt) named
 instancefile.dat-s by calling
 
 read instancefile.dat-s
 
-followed by 
+followed by
 
 optimize
 
-as in the usual SCIP shell (for more details about the SCIP shell please refer to the SCIP 
+as in the usual SCIP shell (for more details about the SCIP shell please refer to the SCIP
 documentation and FAQ). Alternatively, CBF-Files can be used as well. You can test this with
 the examples in the "instances"-subfolder.
 
@@ -172,15 +172,15 @@ the default for SDPS=sdpa). Then you can change the number of threads via SCIP-p
 set constraints SDP advanced threads n
 
 Parallelization for MOSEK
-------------------------
+-------------------------
 
 If you compiled SCIP-SDP with MOSEK, the SDP-solver of MOSEK can be run multithreaded using
 the parameter
 
 set relaxing SDP advanced sdpsolverthreads n
 
-By default this parameter is set to -1 to automatically detect the number of cores. Note that
-this will only parallelize the solution of the SDP-relaxations but not the eigenvalue
+By default this parameter is set to 1. The value -1 would automatically detect and use the number of
+cores. Note that this will only parallelize the solution of the SDP-relaxations but not the eigenvalue
 computations in SCIP-SDP, unlike the parallelization for OpenBLAS/SDPA.
 
 Parallelization using UG
@@ -199,9 +199,8 @@ beta version and far from bug free.
 Building SCIP-SDP via cmake
 ---------------------------
 
-Since version 3.1.1 it is also possible to build SCIP-SDP via cmake. Note that this is still
-in experimental state and not fully tested. In this case also SCIP must have been built with
-cmake.
+Since version 3.1.1 it is also possible to build SCIP-SDP via
+cmake. In this case also SCIP must have been built with cmake.
 
 CMake uses an out-of-source build, i.e., compiled binaries and object files are separated
 from the source tree and located in another directory, which you have to create. Usually this
