@@ -1,4 +1,4 @@
-function [] = generateRIPA(m,n,k,seed,instances,type,bandwidth,matdir,datadir)
+function [cnt] = generateRIPA(m,n,k,seed,instances,type,bandwidth,matdir,datadir,readmatrices)
 % generiert zufällige Matrizen zum Berechnen der RIP
 % Optionen:
 % m = Zeilen der zufälligen Matrix
@@ -18,8 +18,13 @@ function [] = generateRIPA(m,n,k,seed,instances,type,bandwidth,matdir,datadir)
 % existieren)
 % datadir = Ordner in dem die Instanzen gespeichert werden sollen (muss
 % nicht existieren)
+% readmatrices = Sollen schon erzeugte Matrizen aus dem Ordner matdir
+% gelesen werden statt neue Matrizen erzeugt werden? (true = Ja) ACHTUNG:
+% Wirft Fehler, falls eine Matrix für Größe/Typ/Instanzanzhal nicht
+% existiert im Ordner matdir!
 % Output:
-% Matrizen werden nach 'matdir/type.m.n.k' geschrieben
+% Matrizen werden nach 'matdir/type.m.n.k' geschrieben (falls readmatrices
+% = false)
 % Kodierung der erzeugten Probleminstanzen im Ordner 'datadir':
 % 
 % type.m.n.k_MISDP.side.pd.rank.socp.strgbnds.trineq.boundver.sumineq 
@@ -39,6 +44,9 @@ function [] = generateRIPA(m,n,k,seed,instances,type,bandwidth,matdir,datadir)
 %               : 2 (wie 1, zusätzlich -0.5*z_j <= X_{ij} <= 0.5*z_j, i ~= j) 
 % sumineq       : 1 (mit sum_{i\neq j} X_{ij} \leq k-1), 0 (ohne)
 
+% count number of created instances
+cnt = 0;
+
 if ~isfolder(matdir)
     eval(strcat("mkdir ",matdir))
 end
@@ -49,83 +57,93 @@ end
 
 for instance=1:instances    
     file = sprintf('%s%d%d%d%s',type,m,n,k,char(instance+64));
-    fid = fopen(strcat(matdir,'/',file),'w');
 
-    % generate random matrix A depending on type
-    switch type
-        case '0+-1'
-            fprintf(fid,'randomization = P(+sqrt(3/m))=1/6, P(0)=2/3, P(-sqrt(3/m))=1/6, seed = %d\n',seed);
-            A = randi([0 5],m,n);
-            for i=1:m
-                for j=1:n
-                    if A(i,j) < 4
-                        A(i,j) = 0.0;
-                    elseif A(i,j) == 4
-                        A(i,j) = sqrt(3/m);
-                    elseif A(i,j) == 5
-                        A(i,j) = -sqrt(3/m);
-                    else
-                        fclose(fid);
-                        error('Error: Unexpected Case!')
-                    end
-                end
-            end
-        case 'band'
-            if m~=n
-                fclose(fid);
-                error('Error: "type = band", but "m ~= n"')
-            end
-            if ~exist('bandwidth','var')
-                fclose(fid);
-                error('Error: "type=band", but no bandwidth specified!')
-            end
-            if mod(bandwidth,2) ~= 1
-                fclose(fid);
-                error('Error: "type=bandwidth", but bandwidth is no odd integer!')
-            end
-            fprintf(fid,'mxm band matrix with entries uniformly in {0,1}, bandwith= %d, seed = %d\n',bandwidth,seed);
-            A = randi([0 1],m,n);
-            for i=1:m
-                for j=1:n
-                    if j < i - (bandwidth - 1)/2 || j > i + (bandwidth - 1)/2
-                        A(i,j) = 0;
-                    end
-                end
-            end
-        case 'bern'
-            fprintf(fid,'randomization = uniformly in +/- 1/sqrt(m), seed = %d\n',seed);
-            A = randi([0 1],m,n) * 2/sqrt(m) - 1/sqrt(m);
-        case 'bina'
-            fprintf(fid,'randomization = uniformly in 0/1, seed = %d\n',seed);
-            A = randi([0 1],m,n);
-        case 'norm'
-            fprintf(fid,'randomization = N(0,1), seed = %d\n',seed);
-            A = randn(m,n);
-        case 'rnk1'
-            if m~=n
-                fclose(fid);
-                error('Error: "type = rnk1", but "m ~= n"')
-            end
-            fprintf(fid,'rank 1 Matrix aa^T, randomization for a = N(0,1), seed = %d\n',seed);
-            a = randn(m,1);
-            A = a*a';
-        case 'wish'
-            fprintf(fid,'randomization = N(0,1/m), seed = %d\n',seed);
-            A = 1/sqrt(m).*randn(m,n);
-        otherwise
-            fclose(fid);
-            error('Error: Input for "type" not recognized!')
-    end
-    
-    % write matrix A to file
-    fprintf(fid,'m = %d  n = %d  k = %d\n',m,n,k);
-    for i=1:m
-        for j=1:n-1
-            fprintf(fid,"%.15g ",A(i,j));
+    if readmatrices
+        % read random matrix
+        if isfile(strcat(matdir,'/',file))
+            A = readmatrix(strcat(matdir,'/',file),'NumHeaderLines',2);
+        else
+            error("ERROR: Matrix <%s> to be read does not exist!\n",strcat(matdir,'/',file));
         end
-        fprintf(fid,"%.15g\n",A(i,n));
+    else
+        % generate random matrix A depending on type
+        fid = fopen(strcat(matdir,'/',file),'w');
+
+        switch type
+            case '0+-1'
+                fprintf(fid,'randomization = P(+sqrt(3/m))=1/6, P(0)=2/3, P(-sqrt(3/m))=1/6, seed = %d\n',seed);
+                A = randi([0 5],m,n);
+                for i=1:m
+                    for j=1:n
+                        if A(i,j) < 4
+                            A(i,j) = 0.0;
+                        elseif A(i,j) == 4
+                            A(i,j) = sqrt(3/m);
+                        elseif A(i,j) == 5
+                            A(i,j) = -sqrt(3/m);
+                        else
+                            fclose(fid);
+                            error('Error: Unexpected Case!')
+                        end
+                    end
+                end
+            case 'band'
+                if m~=n
+                    fclose(fid);
+                    error('Error: "type = band", but "m ~= n"')
+                end
+                if ~exist('bandwidth','var')
+                    fclose(fid);
+                    error('Error: "type=band", but no bandwidth specified!')
+                end
+                if mod(bandwidth,2) ~= 1
+                    fclose(fid);
+                    error('Error: "type=bandwidth", but bandwidth is no odd integer!')
+                end
+                fprintf(fid,'mxm band matrix with entries uniformly in {0,1}, bandwith= %d, seed = %d\n',bandwidth,seed);
+                A = randi([0 1],m,n);
+                for i=1:m
+                    for j=1:n
+                        if j < i - (bandwidth - 1)/2 || j > i + (bandwidth - 1)/2
+                            A(i,j) = 0;
+                        end
+                    end
+                end
+            case 'bern'
+                fprintf(fid,'randomization = uniformly in +/- 1/sqrt(m), seed = %d\n',seed);
+                A = randi([0 1],m,n) * 2/sqrt(m) - 1/sqrt(m);
+            case 'bina'
+                fprintf(fid,'randomization = uniformly in 0/1, seed = %d\n',seed);
+                A = randi([0 1],m,n);
+            case 'norm'
+                fprintf(fid,'randomization = N(0,1), seed = %d\n',seed);
+                A = randn(m,n);
+            case 'rnk1'
+                if m~=n
+                    fclose(fid);
+                    error('Error: "type = rnk1", but "m ~= n"')
+                end
+                fprintf(fid,'rank 1 Matrix aa^T, randomization for a = N(0,1), seed = %d\n',seed);
+                a = randn(m,1);
+                A = a*a';
+            case 'wish'
+                fprintf(fid,'randomization = N(0,1/m), seed = %d\n',seed);
+                A = 1/sqrt(m).*randn(m,n);
+            otherwise
+                fclose(fid);
+                error('Error: Input for "type" not recognized!')
+        end
+
+        % write matrix A to file
+        fprintf(fid,'m = %d  n = %d  k = %d\n',m,n,k);
+        for i=1:m
+            for j=1:n-1
+                fprintf(fid,"%.15g ",A(i,j));
+            end
+            fprintf(fid,"%.15g\n",A(i,n));
+        end
+        fclose(fid);
     end
-    fclose(fid);
     
     % generate various variants of MISDP-formulation
     % 1. SDPA from Tristan:
@@ -133,7 +151,7 @@ for instance=1:instances
     RIPSDPA(A,k,'r',strcat(datadir,'/',file,'_MISDPr.dat-s'),0);
     
     % 2. CBF
-    % all possible options:
+%     % all possible options:
 %     rank = [0,1];
 %     socp = [0,1];
 %     usestrgbnds = true;
@@ -141,13 +159,13 @@ for instance=1:instances
 %     trineq = [0,1];
 %     boundver = [0,1,2];
 %     sumineq = [0,1];
-    % for a testset:
+    % standard variant:
     primaldual = "d";
     rank = [0];
     socp = [0];
     usestrgbnds = false;
     trineq = [0];
-    boundver = [2];
+    boundver = [1];
     sumineq = [0];
     for r = rank
         for t = trineq
@@ -157,33 +175,39 @@ for instance=1:instances
                         name = strcat(datadir,'/',file,'_MISDPlp',string(r),...
                             "0","0",string(t),string(b),string(si),'.cbf');
                         RIPCBFprimal(A,k,'l',name,r,0,0,t,b,si);
+                        cnt = cnt + 1;
                     end
                     if primaldual == "d" || primaldual == "pd"
                         name = strcat(datadir,'/',file,'_MISDPld',string(r),...
                             "0","0",string(t),string(b),string(si),'.cbf');
                         RIPCBFdual(A,k,'l',name,r,0,0,t,b,si);
+                        cnt = cnt + 1;
                     end
                     for so = socp
                         if primaldual == "p" || primaldual == "pd"
                             name = strcat(datadir,'/',file,'_MISDPrp',string(r),...
                                 string(so),"0",string(t),string(b),string(si),'.cbf');
                             RIPCBFprimal(A,k,'r',name,r,so,0,t,b,si);
+                            cnt = cnt + 1;
                         end
                         if primaldual == "d" || primaldual == "pd"
                             name = strcat(datadir,'/',file,'_MISDPrd',string(r),...
                                 string(so),"0",string(t),string(b),string(si),'.cbf');
                             RIPCBFdual(A,k,'r',name,r,so,0,t,b,si);
+                            cnt = cnt + 1;
                         end
                         if all(A(:) >= 0) && usestrgbnds
                             if primaldual == "p" || primaldual == "pd"
                                 name = strcat(datadir,'/',file,'_MISDPrp',string(r),...
                                     string(so),"1",string(t),string(b),string(si),'.cbf');
                                 RIPCBFprimal(A,k,'r',name,r,so,1,t,b,si);
+                                cnt = cnt + 1;
                             end
                             if primaldual == "d" || primaldual == "pd"
                                 name = strcat(datadir,'/',file,'_MISDPrd',string(r),...
                                     string(so),"1",string(t),string(b),string(si),'.cbf');
                                 RIPCBFdual(A,k,'r',name,r,so,1,t,b,si);
+                                cnt = cnt + 1;
                             end
                         end
                     end

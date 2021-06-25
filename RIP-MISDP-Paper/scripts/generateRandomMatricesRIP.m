@@ -3,7 +3,7 @@ valsn = [30,35,40];
 valsk = [5,4,3];
 
 seed = 1234;
-instances = 3; % number of instances per (type,m,n,k)
+instances = 5; % number of instances per (type,m,n,k)
 types = ['0+-1';'band';'bern';'bina';'norm';'rnk1';'wish'];
 
 % mkdir Asp07
@@ -12,9 +12,12 @@ types = ['0+-1';'band';'bern';'bina';'norm';'rnk1';'wish'];
 rng('default')
 rng(seed)
 
-matdir = 'Matrices_testset';
-datadir = 'MISDP_testset';
+matdir = 'RIP_EURO21_Standard_Matrices';
+datadir = 'RIP_EURO21_Standard_Instances';
+% Should pre-generated matrices be read?
+readmatrices = false;
 
+cnt = 0;
 for t=1:length(types(:,1))
     type = types(t,:);
     for i=1:length(valsm)
@@ -30,6 +33,9 @@ for t=1:length(types(:,1))
         end
         n = valsn(i);
         k = valsk(i);
-        generateRIPA(m,n,k,seed,instances,type,bandwidth,matdir,datadir);
+        tmp = generateRIPA(m,n,k,seed,instances,type,bandwidth,matdir,datadir,readmatrices);
+        cnt = cnt + tmp;
     end
 end
+
+fprintf("Number of created instances: %d\n", cnt);
