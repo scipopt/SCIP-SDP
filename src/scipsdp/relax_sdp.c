@@ -68,7 +68,7 @@
 #define RELAX_FREQ                  1
 
 /* default values for parameters: */
-#define DEFAULT_SDPSOLVERFEASTOL    1e-6     /**< default feasibility tolerance of SDP solver */
+#define DEFAULT_SDPSOLVERFEASTOL    1e-5     /**< default feasibility tolerance of SDP solver */
 #define DEFAULT_SDPSOLVERGAPTOL     1e-5     /**< default feasibility tolerance of SDP solver */
 
 #define DEFAULT_PENALTYPARAM        -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
@@ -4116,7 +4116,12 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    }
 
    /* set the parameters of the SDP-Solver */
-   retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_GAPTOL, relaxdata->sdpsolvergaptol);
+   /* for Mosek: tighten gap tolerance by one order of magnitude */
+   if ( strcmp(SCIPsdpiGetSolverName(), "MOSEK") == 0 )
+      retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_GAPTOL / 10.0, relaxdata->sdpsolvergaptol);
+   else
+      retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_GAPTOL, relaxdata->sdpsolvergaptol);
+
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
