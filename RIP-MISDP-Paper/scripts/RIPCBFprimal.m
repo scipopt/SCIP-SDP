@@ -15,7 +15,7 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
 %            0: -z_i <= X_{ii} <= z_i, i = 1,...,n (schwächste Variante)
 %            1: Standard, -z_j <= X_{ij} <= z_j, i,j = 1,...,n
 %            2: -0.5*z_j <= X_{ij} <= 0.5*z_j, i ~= j (stärkste Variante)
-% sumineq = 1 falls die gültige Ungleichung sum_{i\neq j} X_{ij} \leq k-1
+% sumineq = 1 falls gültige Ungleichung sum_{i\neq j} X_{ij} \leq \sqrt{k}-1
 % hinzugefügt werden soll, sonst 0.
 % ACHTUNG: schreibt untere Dreiecksmatrizen!
 
@@ -173,7 +173,7 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
     end              
     fprintf(fid, "L- 1\n");                    % \sum_j z_j <= k
     if sumineq == 1
-        fprintf(fid, "L- 1\n");                % \sum_{i\neq j} X_{ij} <= k-1
+        fprintf(fid, "L- 1\n");                % \sum_{i\neq j} X_{ij} <= \sqrt{k}-1
     end
     % SOCP constraints (as SOCP cons) are the last constraints
     if socp == 2
@@ -560,7 +560,7 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
     
     % off-diagonal constraint
     if sumineq == 1
-       fprintf(fid, "%d %d\n", conscnt, -order + 1);
+       fprintf(fid, "%d %.15g\n", conscnt, -sqrt(order) + 1);
        cnt = cnt + 1;
        conscnt = conscnt + 1;
     end
