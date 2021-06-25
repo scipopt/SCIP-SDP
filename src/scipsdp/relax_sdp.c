@@ -4117,11 +4117,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
 
    /* set the parameters of the SDP-Solver */
    /* for Mosek: tighten gap tolerance by one order of magnitude */
-   if ( strcmp(SCIPsdpiGetSolverName(), "MOSEK") == 0 )
-      retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_GAPTOL / 10.0, relaxdata->sdpsolvergaptol);
-   else
-      retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_GAPTOL, relaxdata->sdpsolvergaptol);
-
+   retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_GAPTOL, relaxdata->sdpsolvergaptol);
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
@@ -4133,7 +4129,11 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       SCIP_CALL( retcode );
    }
 
-   retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_SDPSOLVERFEASTOL, relaxdata->sdpsolverfeastol);
+   /* for Mosek: tighten feastol tolerance by one order of magnitude */
+   if ( SCIPstrAtStart(SCIPsdpiGetSolverName(), "MOSEK", 5) )
+      retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_SDPSOLVERFEASTOL, relaxdata->sdpsolverfeastol / 10.0);
+   else
+      retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_SDPSOLVERFEASTOL, relaxdata->sdpsolverfeastol);
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL,
