@@ -1086,9 +1086,16 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    {
       MOSEK_CALL( MSK_putcj(sdpisolver->msktask, nlpvars + i, mosekvarbounds[i]) );/*lint !e641*/ /* for the ub's we already added a negative sign in mosekvarbounds */
 
+#if 0
+      /* We currently do not include variable bounds in maxrhscoef, because it does not seem to be beneficial
+       * overall. The bounds are very relevant for cardinality least square instances in which all variables are binary,
+       * except for one continuous variable representing the objective value. The objective value can be
+       * large. Enlarging maxrhscoef will not particularly help in this context, since the objective values are measure
+       * relatively and the bounds are filtered out later anyway. */
 #if CONVERT_ABSOLUTE_TOLERANCES
       if ( REALABS(mosekvarbounds[i]) > maxrhscoef )
          maxrhscoef = REALABS(mosekvarbounds[i]);
+#endif
 #endif
 
 #ifdef SCIP_MORE_DEBUG
