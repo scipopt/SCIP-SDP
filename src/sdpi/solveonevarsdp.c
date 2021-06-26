@@ -182,9 +182,9 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    /* fill in full matrices */
    BMS_CALL( BMSallocClearBufferMemoryArray(bufmem, &fullconstmatrix, blocksize * blocksize) );
    BMS_CALL( BMSallocClearBufferMemoryArray(bufmem, &fullmatrix, blocksize * blocksize) );
-   BMS_CALL( BMSallocClearBufferMemoryArray(bufmem, &tmpmatrix, blocksize * blocksize) );
-   BMS_CALL( BMSallocClearBufferMemoryArray(bufmem, &eigenvectorlb, blocksize) );
-   BMS_CALL( BMSallocClearBufferMemoryArray(bufmem, &eigenvectorub, blocksize) );
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &tmpmatrix, blocksize * blocksize) );
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &eigenvectorlb, blocksize) );
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &eigenvectorub, blocksize) );
 
    for (i = 0; i < sdpconstnnonz; ++i)
    {
