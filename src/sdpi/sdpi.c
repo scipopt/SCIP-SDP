@@ -2802,7 +2802,7 @@ SCIP_RETCODE SCIPsdpiSolve(
       ++sdpi->nallfixed;
    }
    /* check whether problem contains one variable and one SDP block */
-   else if ( nactivevars == 1 && sdpi->nsdpblocks == 1 )
+   else if ( nactivevars == 1 && sdpi->nsdpblocks <= 1 )
    {
       SCIP_Real objval;
       SCIP_Real optval;
