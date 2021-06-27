@@ -3182,11 +3182,13 @@ SCIP_RETCODE SCIPsdpiGetSolFeasibility(
    {
       *dualfeasible = TRUE;
       *primalfeasible = TRUE;
+      return SCIP_OKAY;
    }
    else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_INFEASIBLE )
    {
       *dualfeasible = FALSE;
       *primalfeasible = TRUE; /* one variable SDP is only solved for bounded problems, for which the primal is feasible */
+      return SCIP_OKAY;
    }
 
    SCIP_CALL( SCIPsdpiSolverGetSolFeasibility(sdpi->sdpisolver, primalfeasible, dualfeasible) );
