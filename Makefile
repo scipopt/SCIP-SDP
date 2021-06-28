@@ -535,7 +535,6 @@ testcluster:
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/evalcheck_cluster.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/evaluate.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/check_cluster.sh);
-		@-(cd check && ln -fs $(SCIPREALPATH)/check/check.awk);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/cmpres.awk);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/getlastprob.awk);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_solufile.sh);
@@ -543,7 +542,6 @@ testcluster:
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_set.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_logfiles.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/run.sh);
-		@-(cd check && ln -fs $(SCIPREALPATH)/check/testfiles.sh);
 		cd check; \
 		$(SHELL) ./check_cluster.sh $(TEST) $(PWD)/$(SCIPSDPBINFILE) $(SETTINGS) $(notdir $(SCIPSDPBINFILE)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(SDPS) $(DISPFREQ) \
 			$(CONTINUE) $(QUEUETYPE) $(QUEUE) $(PPN) $(CLIENTTMPDIR) $(NOWAITCLUSTER) $(EXCLUSIVE) $(PERMUTE) $(SEEDS) $(GLBSEEDSHIFT) $(STARTPERM) $(DEBUGTOOL) $(REOPT) $(OPTCOMMAND) \
