@@ -201,6 +201,7 @@ struct SCIP_SDPiSolver
    SCIP_Bool             timelimit;          /**< was the solver stopped because of the time limit? */
    SCIP_Bool             timelimitinitial;   /**< was the problem not even given to the solver because of the time limit? */
    int                   niterations;        /**< number of SDP-iterations since the last solve call */
+   SCIP_Real             opttime;            /**< time spend in optimziation */
    int                   nsdpcalls;          /**< number of SDP-calls since the last solve call */
    SCIP_Real*            preoptimalsol;      /**< first feasible solution with gap less or equal preoptimalgap */
    SCIP_Bool             preoptimalsolexists;/**< saved feasible solution with gap less or equal preoptimalgap */
@@ -449,6 +450,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->feasorig = FALSE;
    (*sdpisolver)->sdpcounter = 0;
    (*sdpisolver)->niterations = 0;
+   (*sdpisolver)->opttime = 0.0;
    (*sdpisolver)->nsdpcalls = 0;
 
    (*sdpisolver)->epsilon = 1e-9;
@@ -720,6 +722,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_Real feastol;
    SCIP_Real gaptol;
    SCIP_Real solvertimelimit;
+   SCIP_Real oldsdpitime;
    Timings timings;
 
 #ifdef SCIP_DEBUG
@@ -1440,10 +1443,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    {
       DSDP_CALL( DSDPSetMonitor(sdpisolver->dsdp, checkGapSetPreoptimalSol, (void*) sdpisolver) );
    }
+   oldsdpitime = SDPIclockGetTime(usedsdpitime);
    DSDP_CALL( DSDPSolve(sdpisolver->dsdp) );
+   sdpisolver->opttime = SDPIclockGetTime(usedsdpitime) - oldsdpitime;
 
-   sdpisolver->nsdpcalls++;
    DSDP_CALL( DSDPGetIts(sdpisolver->dsdp, &(sdpisolver->niterations)) );
+   sdpisolver->nsdpcalls++;
 
    /* check if solving was stopped because of the time limit */
    if ( timings.stopped )
@@ -1514,7 +1519,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
       if ( solveagain )
       {
+         oldsdpitime = SDPIclockGetTime(usedsdpitime);
          DSDP_CALL( DSDPSolve(sdpisolver->dsdp) );
+         sdpisolver->opttime += SDPIclockGetTime(usedsdpitime) - oldsdpitime;
 
          /* update number of SDP-iterations and -calls */
          sdpisolver->nsdpcalls++;
@@ -2444,8 +2451,7 @@ SCIP_RETCODE SCIPsdpiSolverGetTime(
    assert( sdpisolver != NULL );
    assert( opttime != NULL );
 
-   /* not implemented */
-   *opttime = 0.0;
+   *opttime = sdpisolver->opttime;
 
    return SCIP_OKAY;
 }

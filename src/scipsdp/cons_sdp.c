@@ -2273,7 +2273,6 @@ SCIP_RETCODE addRank1QuadConss(
    int*                  naddconss           /**< pointer to store how many constraints were added */
    )
 {
-   SCIP_CONSHDLRDATA* conshdlrdata;
    int c;
 
    assert( scip != NULL );
@@ -2282,9 +2281,6 @@ SCIP_RETCODE addRank1QuadConss(
 
    if ( conss == NULL )
       return SCIP_OKAY;
-
-   conshdlrdata = SCIPconshdlrGetData(conshdlr);
-   assert( conshdlrdata != NULL );
 
    for (c = 0; c < nconss; ++c)
    {
