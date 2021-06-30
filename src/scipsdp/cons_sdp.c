@@ -118,6 +118,7 @@
 #define DEFAULT_CUTSTOPOOL         TRUE /**< Should the cuts be added to the pool? */
 #define DEFAULT_SPARSIFYCUT       FALSE /**< Should the eigenvector cuts be sparsified? */
 #define DEFAULT_SPARSIFYFACTOR      0.1 /**< target size for sparsification in relation to number of variables */
+#define DEFAULT_SPARSIFYTARGETSIZE   -1 /**< absolute target size for sparsification (-1: use sparsifyfactor instead) */
 #define DEFAULT_ENFORCESDP        FALSE /**< Solve SDP if we do lp-solving and have an integral solution in enforcing? */
 #define DEFAULT_ONLYFIXEDINTSSDP  FALSE /**< Should solving an SDP only be applied if all integral variables are fixed (instead of having integral values)? */
 #define DEFAULT_ADDSOCRELAX       FALSE /**< Should a relaxation of SOC constraints be added */
@@ -179,6 +180,7 @@ struct SCIP_ConshdlrData
    SCIP_Bool             cutstopool;         /**< Should the cuts be added to the pool? */
    SCIP_Bool             sparsifycut;        /**< Should the eigenvector cuts be sparsified? */
    SCIP_Real             sparsifyfactor;     /**< target size for sparsification in relation to number of variables */
+   int                   sparsifytargetsize; /**< absolute target size for sparsification (-1: use sparsifyfactor instead) */
    SCIP_Bool             enforcesdp;         /**< Solve SDP if we do lp-solving and have an integral solution in enforcing? */
    SCIP_Bool             onlyfixedintssdp;   /**< Should solving an SDP only be applied if all integral variables are fixed (instead of having integral values)? */
    SCIP_Bool             addsocrelax;        /**< Should a relaxation of SOC constraints be added */
@@ -718,8 +720,11 @@ SCIP_RETCODE sparsifyCut(
    assert( conshdlrdata->randnumgen != NULL );
    SCIPrandomPermuteIntArray(conshdlrdata->randnumgen, idx, 0, blocksize);
 
-   /* compute target size */
-   size = MAX(10, (int) conshdlrdata->sdpconshdlrdata->sparsifyfactor * consdata->nvars);
+   /* compute target size, use sparsifytargetsize if specified, and sparsifyfactor else */
+   if ( conshdlrdata->sdpconshdlrdata->sparsifytargetsize > 0 )
+      size = conshdlrdata->sdpconshdlrdata->sparsifytargetsize;
+   else
+      size = MAX(10, (int) conshdlrdata->sdpconshdlrdata->sparsifyfactor * consdata->nvars);
 
    /* take random subset of eigenvector - the remaining entries are 0 */
    SCIP_CALL( SCIPallocClearBufferArray(scip, &ev, blocksize) );
@@ -6761,6 +6766,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          "target size for sparsification in relation to number of variables",
          &(conshdlrdata->sparsifyfactor), TRUE, DEFAULT_SPARSIFYFACTOR, 0.0, 1.0, NULL, NULL) );
 
+   SCIP_CALL( SCIPaddIntParam(scip, "constraints/SDP/sparsifytargetsize",
+         "absolute target size for sparsification (-1: use sparsifyfactor instead)",
+         &(conshdlrdata->sparsifytargetsize), TRUE, DEFAULT_SPARSIFYTARGETSIZE, -1, INT_MAX, NULL, NULL) );
+
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/enforcesdp",
          "Solve SDP if we do lp-solving and have an integral solution in enforcing?",
          &(conshdlrdata->enforcesdp), TRUE, DEFAULT_ENFORCESDP, NULL, NULL) );
@@ -6822,6 +6831,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->cutstopool = FALSE;
    conshdlrdata->sparsifycut = FALSE;
    conshdlrdata->sparsifyfactor = SCIP_INVALID;
+   conshdlrdata->sparsifytargetsize = -1;
    conshdlrdata->enforcesdp = FALSE;
    conshdlrdata->onlyfixedintssdp = FALSE;
    conshdlrdata->addsocrelax = FALSE;
