@@ -37,6 +37,7 @@ RIP-MISDP-Paper/scripts/*.tex.backup
 check/results/*
 instances/*.dat-s_misdp.sol
 instances/cblib
+instances/moreinstances
 lib/*
 _backups/*
 CON
@@ -54,7 +55,10 @@ output.tmp
 RIP-MISDP-Paper/*
 !RIP-MISDP-Paper/tables
 !RIP-MISDP-Paper/IEEE_RIP-MISDP.tex
-!RIP-MISDP-Paper/scripts
+!RIP-MISDP-Paper/scripts/*.m
+!RIP-MISDP-Paper/scripts/*.tex
+!RIP-MISDP-Paper/scripts/*.bib
+!RIP-MISDP-Paper/scripts/*.sh
 settings/*
 !settings/lp_approx.set
 !settings/1thread.set
@@ -78,10 +82,18 @@ tex/MISDP-Presolving/*.bbl
 tex/MISDP-Presolving/*.blg
 tex/MISDP-Presolving/*.log
 tex/MISDP-Presolving/*.spl
+tex/MISDP-Presolving/*.out
+tex/MISDP-Presolving/*.pdf
 unittests/test*.cbf
+unittests/test*.dat-s
+unittests/test*.cip
 unittests/example*.cbf
+unittests/example*.dat-s
+unittests/src/primalcbf.cpp
 tools/InstanceGeneration/*.cbf.gz
 tools/InstanceGeneration/*.cbf
-
+rank1instances/*
+readerrorinstances/*
+*.patch
 
 
