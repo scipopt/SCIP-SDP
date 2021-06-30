@@ -726,6 +726,15 @@ SCIP_RETCODE sparsifyCut(
    else
       size = MAX(10, (int) conshdlrdata->sdpconshdlrdata->sparsifyfactor * consdata->nvars);
 
+   /* if size is larger than blocksize, trigger a debug message and set size to blocksize */
+   if ( size > blocksize )
+   {
+      SCIPdebugMsg(scip, "Eigenvector cut is not sparsified since desired sparsity %d is larger than SDP blocksize %d.\n", size, blocksize);
+      size = blocksize;
+   }
+
+   assert( size <= blocksize );
+
    /* take random subset of eigenvector - the remaining entries are 0 */
    SCIP_CALL( SCIPallocClearBufferArray(scip, &ev, blocksize) );
    for (j = 0; j < size; ++j)
