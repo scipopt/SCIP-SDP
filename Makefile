@@ -508,11 +508,9 @@ endif
 test:
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/check.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/allcmpres.sh);
-		@-(cd check && ln -fs $(SCIPREALPATH)/check/cmpres.awk);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/evalcheck.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/evalcheck_cluster.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/evaluate.sh);
-		@-(cd check && ln -fs $(SCIPREALPATH)/check/cmpres.awk);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/getlastprob.awk);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_solufile.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_set.sh);
@@ -530,12 +528,10 @@ test:
 testcluster:
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/check.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/allcmpres.sh);
-		@-(cd check && ln -fs $(SCIPREALPATH)/check/cmpres.awk);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/evalcheck.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/evalcheck_cluster.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/evaluate.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/check_cluster.sh);
-		@-(cd check && ln -fs $(SCIPREALPATH)/check/cmpres.awk);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/getlastprob.awk);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_solufile.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_cluster.sh);
