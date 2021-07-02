@@ -15,8 +15,10 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
 %            0: -z_i <= X_{ii} <= z_i, i = 1,...,n (schwächste Variante)
 %            1: Standard, -z_j <= X_{ij} <= z_j, i,j = 1,...,n
 %            2: -0.5*z_j <= X_{ij} <= 0.5*z_j, i ~= j (stärkste Variante)
-% sumineq = 1 falls gültige Ungleichung sum_{i\neq j} X_{ij} \leq \sqrt{k}-1
-% hinzugefügt werden soll, sonst 0.
+% sumineq = Gültige Ungleichung sum_{i\neq j} X_{ij} \leq
+%           0: nicht hinzugefügt
+%           1: sum_{i\neq j} X_{ij} \leq \sqrt{k}-1
+%           2: sum_{i\neq j} X_{ij} \leq k-1
 % ACHTUNG: Schreibt untere Dreiecksmatrizen!
 
     fid = fopen(file, 'w');
@@ -36,7 +38,7 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
     if boundver ~= 0 && boundver ~= 1 && boundver ~= 2
         error("Error: Option <%s> for parameter <boundver> not valid!\n", boundver);
     end
-    if sumineq ~= 0 && sumineq ~= 1
+    if sumineq ~= 0 && sumineq ~= 1 && sumineq ~= 2
         error("Error: Option <%s> for parameter <strgbnds> not valid!\n", sumineq);
     end
 
@@ -75,7 +77,7 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
     %% add scalar variables z and X_{ij}
     fprintf(fid, "VAR\n");
     fprintf(fid, "%d 2\n", n+0.5*n*(n+1));
-    fprintf(fid, "L+ %d\n", n);
+    fprintf(fid, "L+ %37d\n", n);
     if strgbnds == 0
         fprintf(fid, "F %d\n", 0.5*n*(n+1));
     elseif strgbnds == 1
@@ -157,8 +159,13 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
     else
         ncons = ncons + 2*n^2+n+2 - strgbnds*n^2;
     end
-    ncons = ncons + sumineq;
-    ncones = ncones + 5 - strgbnds + sumineq;
+    if sumineq > 0
+        ncons = ncons + 1;
+        ncones = ncones + 5 - strgbnds + 1;
+    else
+        ncons = ncons + 0;
+        ncones = ncones + 5 - strgbnds + 0;
+    end
     fprintf(fid, "%d %d\n", ncons,ncones);
     fprintf(fid, "L+ %d\n", n);                % -z_j + 1 >= 0
     if strgbnds == 0
@@ -185,7 +192,7 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
         error("Something went wrong\n");
     end
     fprintf(fid, "L- 1\n");                    % \sum_j z_j <= k
-    if sumineq == 1
+    if sumineq == 1 || sumineq == 2
         fprintf(fid, "L- 1\n");                % \sum_{i\neq j} X_{ij} <= \sqrt{k}-1
     end
     % SOCP constraints (as SOCP cons) are the last constraints
@@ -209,7 +216,11 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
     else
         nACOORD = nACOORD + 4*n^2+3*n - strgbnds*2*n^2;
     end
-    nACOORD = nACOORD + sumineq * (n*(n-1)/2);
+    if sumineq > 0
+        nACOORD = nACOORD + 1 * (n*(n-1)/2);
+    else
+        nACOORD = nACOORD + 0;
+    end
     fprintf(fid, "%d\n", nACOORD);
     cnt = 0;       % counts number of specified entries
     conscnt = 0;   % counts number of specified constraints 
@@ -314,7 +325,7 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
     conscnt = conscnt + 1;
     
     % off-diagonal constraint
-    if sumineq == 1
+    if sumineq == 1 || sumineq == 2
         for i = 0:n-1
             for j = 0:i-1
                 fprintf(fid, "%d %d 1.0\n", conscnt, n+0.5*i*(i+1)+j);
@@ -355,7 +366,11 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
     end
 
     %% write BCOORD
-    nBCOORD = n + 2 + sumineq;
+    if sumineq > 0
+        nBCOORD = n + 2 + 1;
+    else
+        nBCOORD = n + 2 + 0;
+    end
     fprintf(fid, "BCOORD\n");
     fprintf(fid, "%d\n", nBCOORD);
     conscnt = 0;
@@ -406,7 +421,11 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
     
     % off-diagonal constraint
     if sumineq == 1
-        fprintf(fid, "%d %.15g\n", conscnt, -sqrt(order)+ 1);
+        fprintf(fid, "%d %.15g\n", conscnt, -sqrt(order) + 1);
+        cnt = cnt + 1;
+        conscnt = conscnt + 1;
+    elseif sumineq == 2
+        fprintf(fid, "%d %.15g\n", conscnt, -order + 1);
         cnt = cnt + 1;
         conscnt = conscnt + 1;
     end

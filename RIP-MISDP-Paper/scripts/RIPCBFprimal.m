@@ -15,8 +15,10 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
 %            0: -z_i <= X_{ii} <= z_i, i = 1,...,n (schwächste Variante)
 %            1: Standard, -z_j <= X_{ij} <= z_j, i,j = 1,...,n
 %            2: -0.5*z_j <= X_{ij} <= 0.5*z_j, i ~= j (stärkste Variante)
-% sumineq = 1 falls gültige Ungleichung sum_{i\neq j} X_{ij} \leq \sqrt{k}-1
-% hinzugefügt werden soll, sonst 0.
+% sumineq = Gültige Ungleichung sum_{i\neq j} X_{ij} \leq
+%           0: nicht hinzugefügt
+%           1: sum_{i\neq j} X_{ij} \leq \sqrt{k}-1
+%           2: sum_{i\neq j} X_{ij} \leq k-1
 % ACHTUNG: schreibt untere Dreiecksmatrizen!
 
     fid = fopen(file, 'w');
@@ -36,7 +38,7 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
     if boundver ~= 0 && boundver ~= 1 && boundver ~= 2
         error("Error: Option <%s> for parameter <boundver> not valid!\n", boundver);
     end
-    if sumineq ~= 0 && sumineq ~= 1
+    if sumineq ~= 0 && sumineq ~= 1 && sumineq ~= 2
         error("Error: Option <%s> for parameter <strgbnds> not valid!\n", sumineq);
     end
 
@@ -144,8 +146,13 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
     else
         ncons = ncons + 2*n^2+n+2 - strgbnds*0.5*n*(n-1);
     end
-    ncons = ncons + sumineq;
-    ncones = ncones + 5 + sumineq;
+    if sumineq > 0
+        ncons = ncons + 1;
+        ncones = ncones + 5 + 1;
+    else
+        ncons = ncons + 0;
+        ncones = ncones + 5 + 0;
+    end        
     fprintf(fid, "%d %d\n", ncons, ncones);
     if socp == 1
         % SOCP constraint (as PSD cons) is the first constraint
@@ -172,7 +179,7 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
         error("Error: Option <%s> for parameter trineq not valid!\n", trineq);
     end              
     fprintf(fid, "L- 1\n");                    % \sum_j z_j <= k
-    if sumineq == 1
+    if sumineq == 1 || sumineq == 2
         fprintf(fid, "L- 1\n");                % \sum_{i\neq j} X_{ij} <= \sqrt{k}-1
     end
     % SOCP constraints (as SOCP cons) are the last constraints
@@ -197,7 +204,11 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
     else
         nFCOORD = nFCOORD + 2*n^2+n - strgbnds*0.5*n*(n-1);
     end
-    nFCOORD = nFCOORD + sumineq * (n*(n-1)/2);
+    if sumineq > 0
+        nFCOORD = nFCOORD + 1 * (n*(n-1)/2);
+    else
+        nFCOORD = nFCOORD + 0 * (n*(n-1)/2);
+    end
     fprintf(fid, "%d\n", nFCOORD);
     cnt = 0;
     conscnt = 0;
@@ -316,7 +327,7 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
     conscnt = conscnt + 1;
     
     % off-diagonal constraint
-    if sumineq == 1
+    if sumineq == 1 || sumineq == 2
         for i = 0:n-1
             for j = 0:i-1
                 fprintf(fid, "%d 0 %d %d 0.5\n", conscnt, i, j);
@@ -456,7 +467,7 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
     conscnt = conscnt + 1;
     
     % no ACOORD for off-diagonal constraint
-    if sumineq == 1
+    if sumineq == 1 || sumineq == 2
         conscnt = conscnt + 1;
     end
     
@@ -488,7 +499,11 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
     else
         nBCOORD = n+2;
     end
-    nBCOORD = nBCOORD + sumineq;
+    if sumineq > 0
+        nBCOORD = nBCOORD + 1;
+    else
+        nBCOORD = nBCOORD + 0;
+    end
     fprintf(fid, "%d\n", nBCOORD);
     cnt = 0;
 
@@ -561,6 +576,10 @@ function [] = RIPCBFprimal(A, order, side, file, Rank, socp, strgbnds, trineq, b
     % off-diagonal constraint
     if sumineq == 1
        fprintf(fid, "%d %.15g\n", conscnt, -sqrt(order) + 1);
+       cnt = cnt + 1;
+       conscnt = conscnt + 1;
+    elseif sumineq == 2
+       fprintf(fid, "%d %.15g\n", conscnt, -order + 1);
        cnt = cnt + 1;
        conscnt = conscnt + 1;
     end

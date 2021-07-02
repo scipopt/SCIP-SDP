@@ -147,68 +147,77 @@ for instance=1:instances
     
     % generate various variants of MISDP-formulation
     % 1. SDPA from Tristan:
-    RIPSDPA(A,k,'l',strcat(datadir,'/',file,'_MISDPl.dat-s'),0);
-    RIPSDPA(A,k,'r',strcat(datadir,'/',file,'_MISDPr.dat-s'),0);
+%     RIPSDPA(A,k,'l',strcat(datadir,'/',file,'_MISDPl.dat-s'),0);
+%     RIPSDPA(A,k,'r',strcat(datadir,'/',file,'_MISDPr.dat-s'),0);
     
     % 2. CBF
 %     % all possible options:
 %     rank = [0,1];
 %     socp = [0,1];
-%     usestrgbnds = true;
+%     usestrgbnds = [0,1];
 %     primaldual = "pd";
 %     trineq = [0,1];
 %     boundver = [0,1,2];
-%     sumineq = [0,1];
+%     sumineq = [0,1,2];
     % standard variant:
     primaldual = "d";
     rank = [0];
     socp = [0];
-    usestrgbnds = false;
+    usestrgbnds = [0];
     trineq = [0];
-    boundver = [1];
-    sumineq = [0];
+    boundver = [1,2];
+    sumineq = [2];
     for r = rank
         for t = trineq
             for b = boundver
                 for si = sumineq
-                    if primaldual == "p" || primaldual == "pd"
-                        name = strcat(datadir,'/',file,'_MISDPlp',string(r),...
-                            "0","0",string(t),string(b),string(si),'.cbf');
-                        RIPCBFprimal(A,k,'l',name,r,0,0,t,b,si);
-                        cnt = cnt + 1;
-                    end
-                    if primaldual == "d" || primaldual == "pd"
-                        name = strcat(datadir,'/',file,'_MISDPld',string(r),...
-                            "0","0",string(t),string(b),string(si),'.cbf');
-                        RIPCBFdual(A,k,'l',name,r,0,0,t,b,si);
-                        cnt = cnt + 1;
-                    end
-                    for so = socp
-                        if primaldual == "p" || primaldual == "pd"
-                            name = strcat(datadir,'/',file,'_MISDPrp',string(r),...
-                                string(so),"0",string(t),string(b),string(si),'.cbf');
-                            RIPCBFprimal(A,k,'r',name,r,so,0,t,b,si);
-                            cnt = cnt + 1;
-                        end
-                        if primaldual == "d" || primaldual == "pd"
-                            name = strcat(datadir,'/',file,'_MISDPrd',string(r),...
-                                string(so),"0",string(t),string(b),string(si),'.cbf');
-                            RIPCBFdual(A,k,'r',name,r,so,0,t,b,si);
-                            cnt = cnt + 1;
-                        end
-                        if all(A(:) >= 0) && usestrgbnds
+                    for u = usestrgbnds
+                        if u == 0
                             if primaldual == "p" || primaldual == "pd"
-                                name = strcat(datadir,'/',file,'_MISDPrp',string(r),...
-                                    string(so),"1",string(t),string(b),string(si),'.cbf');
-                                RIPCBFprimal(A,k,'r',name,r,so,1,t,b,si);
+                                name = strcat(datadir,'/',file,'_MISDPlp',string(r),...
+                                    "0","0",string(t),string(b),string(si),'.cbf');
+                                RIPCBFprimal(A,k,'l',name,r,0,0,t,b,si);
                                 cnt = cnt + 1;
                             end
                             if primaldual == "d" || primaldual == "pd"
-                                name = strcat(datadir,'/',file,'_MISDPrd',string(r),...
-                                    string(so),"1",string(t),string(b),string(si),'.cbf');
-                                RIPCBFdual(A,k,'r',name,r,so,1,t,b,si);
+                                name = strcat(datadir,'/',file,'_MISDPld',string(r),...
+                                    "0","0",string(t),string(b),string(si),'.cbf');
+                                RIPCBFdual(A,k,'l',name,r,0,0,t,b,si);
                                 cnt = cnt + 1;
                             end
+                            for so = socp
+                                if primaldual == "p" || primaldual == "pd"
+                                    name = strcat(datadir,'/',file,'_MISDPrp',string(r),...
+                                        string(so),"0",string(t),string(b),string(si),'.cbf');
+                                    RIPCBFprimal(A,k,'r',name,r,so,0,t,b,si);
+                                    cnt = cnt + 1;
+                                end
+                                if primaldual == "d" || primaldual == "pd"
+                                    name = strcat(datadir,'/',file,'_MISDPrd',string(r),...
+                                        string(so),"0",string(t),string(b),string(si),'.cbf');
+                                    RIPCBFdual(A,k,'r',name,r,so,0,t,b,si);
+                                    cnt = cnt + 1;
+                                end
+                            end
+                        elseif u == 1
+                            for so = socp
+                                if all(A(:) >= 0)
+                                    if primaldual == "p" || primaldual == "pd"
+                                        name = strcat(datadir,'/',file,'_MISDPrp',string(r),...
+                                            string(so),"1",string(t),string(b),string(si),'.cbf');
+                                        RIPCBFprimal(A,k,'r',name,r,so,1,t,b,si);
+                                        cnt = cnt + 1;
+                                    end
+                                    if primaldual == "d" || primaldual == "pd"
+                                        name = strcat(datadir,'/',file,'_MISDPrd',string(r),...
+                                            string(so),"1",string(t),string(b),string(si),'.cbf');
+                                        RIPCBFdual(A,k,'r',name,r,so,1,t,b,si);
+                                        cnt = cnt + 1;
+                                    end
+                                end
+                            end
+                        else
+                            error("Encountered invalid option for <usestrgbnds>\n");
                         end
                     end
                 end
