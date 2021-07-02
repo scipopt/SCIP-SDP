@@ -1,0 +1,4 @@
+constraints/SDP/multiplesparsecuts = TRUE
+constraints/SDP/maxnsparsecuts = 10
+misc/solvesdps = 0
+constraints/SDP/sparsifytargetsize = 3
