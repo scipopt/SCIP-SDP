@@ -942,6 +942,9 @@ SCIP_RETCODE addMultipleSparseCuts(
    if ( SCIPisFeasZero(scip, norm) )
    {
       SCIPfreeBufferArray(scip, &liftedev);
+      SCIPfreeBufferArray(scip, &support);
+      SCIPfreeBufferArray(scip, &sparseev);
+      SCIPfreeBufferArray(scip, &submatrix);
       SCIPfreeBufferArray(scip, &idx);
       return SCIP_OKAY;
    }
