@@ -981,10 +981,13 @@ SCIP_RETCODE addMultipleSparseCuts(
       cnt = 0;
       for (i = 0; i < blocksize; i++)
       {
-         for (j = 0; j < blocksize; j++)
+         if ( support[i] == 1 )
          {
-            if ( support[i] == 1 && support[j] == 1 )
-               submatrix[cnt++] = fullmatrix[i * blocksize + j];
+            for (j = 0; j < blocksize; j++)
+            {
+               if ( support[j] == 1 )
+                  submatrix[cnt++] = fullmatrix[i * blocksize + j];
+            }
          }
       }
       assert( cnt == size * size );
