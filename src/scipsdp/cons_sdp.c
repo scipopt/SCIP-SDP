@@ -119,8 +119,8 @@
 #define DEFAULT_SPARSIFYCUT       FALSE /**< Should the eigenvector cuts be sparsified? */
 #define DEFAULT_SPARSIFYFACTOR      0.1 /**< target size for sparsification in relation to number of variables */
 #define DEFAULT_SPARSIFYTARGETSIZE   -1 /**< absolute target size for sparsification (-1: use sparsifyfactor instead) */
-#define DEFAULT_MULTIPLESPARSECUTS FALSE /**< Should multiple spatsified eigenvector cuts be added? */
-#define DEFAULT_MAXNSPARSECUTS        0 /**< maximal number of sparse eigevector cuts that should be added (-1: no limit) */
+#define DEFAULT_MULTIPLESPARSECUTS FALSE /**< Should multiple sparsified eigenvector cuts be added? */
+#define DEFAULT_MAXNSPARSECUTS        0 /**< maximal number of sparse eigenvector cuts that should be added (-1: no limit) */
 #define DEFAULT_ENFORCESDP        FALSE /**< Solve SDP if we do lp-solving and have an integral solution in enforcing? */
 #define DEFAULT_ONLYFIXEDINTSSDP  FALSE /**< Should solving an SDP only be applied if all integral variables are fixed (instead of having integral values)? */
 #define DEFAULT_ADDSOCRELAX       FALSE /**< Should a relaxation of SOC constraints be added */
@@ -183,8 +183,8 @@ struct SCIP_ConshdlrData
    SCIP_Bool             sparsifycut;        /**< Should the eigenvector cuts be sparsified? */
    SCIP_Real             sparsifyfactor;     /**< target size for sparsification in relation to number of variables */
    int                   sparsifytargetsize; /**< absolute target size for sparsification (-1: use sparsifyfactor instead) */
-   SCIP_Bool             multiplesparsecuts; /**< Should multiple spatsified eigenvector cuts be added? */
-   int                   maxnsparsecuts;     /**< maximal number of sparse eigevector cuts that should be added (-1: no limit) */
+   SCIP_Bool             multiplesparsecuts; /**< Should multiple sparsified eigenvector cuts be added? */
+   int                   maxnsparsecuts;     /**< maximal number of sparse eigenvector cuts that should be added (-1: no limit) */
    SCIP_Bool             enforcesdp;         /**< Solve SDP if we do lp-solving and have an integral solution in enforcing? */
    SCIP_Bool             onlyfixedintssdp;   /**< Should solving an SDP only be applied if all integral variables are fixed (instead of having integral values)? */
    SCIP_Bool             addsocrelax;        /**< Should a relaxation of SOC constraints be added */
@@ -839,7 +839,7 @@ SCIP_RETCODE sparsifyCut(
  *
  *  We use Algorithm 1 from [Dey et al: Cutting Plan Generation Through Sparse Principal Component Analysis] to produce
  *  maxncuts many sparse eigenvector cuts. The initial eigenvector need to be sparse and the oracle is implemented by
- *  computing the eigenvector to the most negative eigenvalue and (randomly) sparsifying it with sparsifyCut.
+ *  computing an eigenvector to the most negative eigenvalue and (randomly) sparsifying it with sparsifyCut.
  *
  *  TODO: Use the Truncated Power Method as oracle instead.
  */
@@ -7108,11 +7108,11 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          &(conshdlrdata->sparsifytargetsize), TRUE, DEFAULT_SPARSIFYTARGETSIZE, -1, INT_MAX, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/multiplesparsecuts",
-         "Should multiple spatsified eigenvector cuts be added?",
+         "Should multiple sparsified eigenvector cuts be added?",
          &(conshdlrdata->multiplesparsecuts), TRUE, DEFAULT_MULTIPLESPARSECUTS, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "constraints/SDP/maxnsparsecuts",
-         "maximal number of sparse eigevector cuts that should be added (-1: no limit)",
+         "maximal number of sparse eigenvector cuts that should be added (-1: no limit)",
          &(conshdlrdata->maxnsparsecuts), TRUE, DEFAULT_MAXNSPARSECUTS, -1, INT_MAX, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/enforcesdp",
