@@ -1104,6 +1104,7 @@ SCIP_RETCODE addMultipleSparseCuts(
 
       /* sparsify it */
       SCIPrandomPermuteIntArray(conshdlrdata->randnumgen, idx, 0, blocksize);
+      norm = 0.0;
       for (j = 0; j < size; ++j)
       {
          liftedev[idx[j]] = eigenvector[j];
