@@ -987,7 +987,7 @@ SCIP_RETCODE addMultipleSparseCuts(
                submatrix[cnt++] = fullmatrix[i * blocksize + j];
          }
       }
-      assert( cnt == size*size );
+      assert( cnt == size * size );
 
       /* compute smallest eigenvalue \lambda_{min} and corresponding unit norm eigenvector w of A(y)_S */
       SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, size, submatrix, 1, &eigenvalue, sparseev) );
@@ -996,7 +996,7 @@ SCIP_RETCODE addMultipleSparseCuts(
          break;
 
       /* normalize sparse eigenvector */
-      norm = 0;
+      norm = 0.0;
       for (j = 0; j < size; j++)
          norm += sparseev[j] * sparseev[j];
 
@@ -1011,7 +1011,7 @@ SCIP_RETCODE addMultipleSparseCuts(
          if ( support[i] == 1 )
             liftedev[i] = sparseev[cnt++];
          else
-            liftedev[i] = 0;
+            liftedev[i] = 0.0;
       }
       assert( cnt == size );
 
@@ -1019,7 +1019,7 @@ SCIP_RETCODE addMultipleSparseCuts(
       /* multiply eigenvector with constant matrix to get lhs (after multiplying again with eigenvector from the left) */
       SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullconstmatrix, liftedev, vector) );
 
-      lhs = 0;
+      lhs = 0.0;
       for (j = 0; j < blocksize; ++j)
          lhs += liftedev[j] * vector[j];
 
@@ -1073,7 +1073,7 @@ SCIP_RETCODE addMultipleSparseCuts(
             else
             {
                *result = SCIP_SEPARATED;
-               ++*ncuts;
+               ++(*ncuts);
             }
          }
          SCIP_CALL( SCIPreleaseRow(scip, &row) );
@@ -1089,7 +1089,7 @@ SCIP_RETCODE addMultipleSparseCuts(
 
          assert( *result != SCIP_SEPARATED );
          *result = SCIP_CONSADDED;
-         ++*ncuts;
+         ++(*ncuts);
       }
 
       /* compute A(y) = A(y) - \lambda_{min} w w^T */
@@ -1123,10 +1123,9 @@ SCIP_RETCODE addMultipleSparseCuts(
 
       /* compute v^T A(y) v for the new sparse eigenvector */
       SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullmatrix, liftedev, vector) );
-      scalar = 0;
+      scalar = 0.0;
       for (j = 0; j < blocksize; ++j)
          scalar += eigenvector[j] * vector[j];
-
    }
 
    if ( *ncuts > 0 || *result == SCIP_CUTOFF )
@@ -1266,7 +1265,7 @@ SCIP_RETCODE separateSol(
 
          if ( success )
          {
-            ngen++;
+            ++ngen;
             continue;
          }
       }
