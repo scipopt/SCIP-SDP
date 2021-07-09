@@ -370,7 +370,7 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix) );
    SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
 
-   SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, fullmatrix, 1, &eigenvalue, NULL) );
+   SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, fullmatrix, 1, 0.0, &eigenvalue, NULL) );
 
    if ( conshdlrdata->sdpconshdlrdata->usedimacsfeastol )
    {
@@ -453,7 +453,7 @@ SCIP_RETCODE isMatrixRankOne(
    SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
 
    /* compute the second largest eigenvalue */
-   SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, fullmatrix, blocksize - 1, &eigenvalue, NULL) );
+   SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, fullmatrix, blocksize - 1, 0.0, &eigenvalue, NULL) );
 
    /* the matrix is rank 1 iff the second largest eigenvalue is zero (since the matrix is symmetric and psd) */
 
@@ -476,7 +476,7 @@ SCIP_RETCODE isMatrixRankOne(
             submatrix[2] = matrix[SCIPconsSdpCompLowerTriangPos(i,j)];
             submatrix[3] = matrix[SCIPconsSdpCompLowerTriangPos(j,j)];
 
-            SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, 2, submatrix, 1, &eigenvalue, NULL) );
+            SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, 2, submatrix, 1, 0.0, &eigenvalue, NULL) );
             /* TODO: Compute eigenvalues by solving quadratic constraint */
 
             if ( eigenvalue > largestminev )
@@ -624,7 +624,7 @@ SCIP_RETCODE computeScalingFactor(
       }
 
       /* compute smallest eigenvalue */
-      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, matrix, 1, &eigenvalue, NULL) );
+      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, matrix, 1, 0.0, &eigenvalue, NULL) );
 
       /* if the smallest eigenvalue is positive, we can decrease the value */
       if ( SCIPisFeasPositive(scip, eigenvalue) )
@@ -893,7 +893,7 @@ SCIP_RETCODE separateSol(
    if ( conshdlrdata->sdpconshdlrdata->separateonecut )
    {
       /* compute smallest eigenvalue */
-      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, blocksize, fullmatrix, 1, eigenvalues, eigenvectors) );
+      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, blocksize, fullmatrix, 1, 0.0, eigenvalues, eigenvectors) );
       if ( eigenvalues[0] < -tol )
          neigenvalues = 1;
       else
@@ -902,7 +902,7 @@ SCIP_RETCODE separateSol(
    else
    {
       /* compute all eigenvectors for negative eigenvalues */
-      SCIP_CALL( SCIPlapackComputeEigenvectorsNegative(SCIPbuffer(scip), blocksize, fullmatrix, tol, &neigenvalues, eigenvalues, eigenvectors) );
+      SCIP_CALL( SCIPlapackComputeEigenvectorsNegative(SCIPbuffer(scip), blocksize, fullmatrix, tol, 0.0, &neigenvalues, eigenvalues, eigenvectors) );
    }
 
    if ( neigenvalues > 0 )
@@ -1070,7 +1070,7 @@ SCIP_RETCODE computeAllmatricespsd(
       SCIP_CALL( SCIPconsSdpGetFullAj(scip, cons, v, Aj) );
 
       /* compute minimal eigenvalue */
-      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, 1, &eigenvalue, NULL) );
+      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, 1, 0.0, &eigenvalue, NULL) );
       if ( SCIPisNegative(scip, eigenvalue) )
          consdata->allmatricespsd = FALSE;
    }
@@ -2706,7 +2706,7 @@ SCIP_RETCODE updateVarLocks(
    SCIP_CALL( SCIPconsSdpGetFullAj(scip, cons, v, Aj) );
 
    /* compute new lock as in consLockSdp */
-   SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, 1, &eigenvalue, NULL) );
+   SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, 1, 0.0, &eigenvalue, NULL) );
    if ( SCIPisNegative(scip, eigenvalue) )
    {
       newlock = 1;  /* up-lock */
@@ -2719,7 +2719,7 @@ SCIP_RETCODE updateVarLocks(
    else
    {
       consdata->allmatricespsd = FALSE;
-      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, blocksize, &eigenvalue, NULL) );
+      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, blocksize, 0.0, &eigenvalue, NULL) );
       if ( SCIPisPositive(scip, eigenvalue) )
       {
          if ( newlock == 1 )
@@ -2795,7 +2795,7 @@ SCIP_RETCODE checkVarsLocks(
       SCIP_CALL( SCIPconsSdpGetFullAj(scip, cons, v, Aj) );
 
       /* compute new lock as in consLockSdp */
-      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, 1, &eigenvalue, NULL) );
+      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, 1, 0.0, &eigenvalue, NULL) );
       if ( SCIPisNegative(scip, eigenvalue) )
          newlock = 1;  /* up-lock */
 
@@ -2803,7 +2803,7 @@ SCIP_RETCODE checkVarsLocks(
          newlock = -1; /* down-lock */
       else
       {
-         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, blocksize, &eigenvalue, NULL) );
+         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, blocksize, 0.0, &eigenvalue, NULL) );
          if ( SCIPisPositive(scip, eigenvalue) )
          {
             if ( newlock == 1 )
@@ -4631,7 +4631,7 @@ SCIP_DECL_CONSLOCK(consLockSdp)
          consdata->locks[v] = -2;  /* unintitialized */
 
          /* compute the smallest eigenvalue */
-         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, 1, &eigenvalue, NULL) );
+         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, 1, 0.0, &eigenvalue, NULL) );
          if ( SCIPisNegative(scip, eigenvalue) )
          {
             /* as the lowest eigenvalue is negative, the matrix is not positive semidefinite, so adding more of it can remove positive
@@ -4653,7 +4653,7 @@ SCIP_DECL_CONSLOCK(consLockSdp)
          else
          {
             /* compute the biggest eigenvalue */
-            SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, blocksize, &eigenvalue, NULL) );
+            SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, Aj, blocksize, 0.0, &eigenvalue, NULL) );
             if ( SCIPisPositive(scip, eigenvalue) )
             {
                /* as the biggest eigenvalue is positive, the matrix is not negative semidefinite, so substracting more of it can remove positive
@@ -4953,7 +4953,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
          blocksize = consdata->blocksize;
          SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, blocksize * blocksize) );
          SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, conss[c], constmatrix) );
-         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, constmatrix, blocksize, &eigenvalue, NULL) );
+         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, constmatrix, blocksize, 0.0, &eigenvalue, NULL) );
 
          /* if largest eigenvalue is positive then minus the constant matrix is not psd and we are infeasible */
          if ( SCIPisFeasPositive(scip, eigenvalue) )

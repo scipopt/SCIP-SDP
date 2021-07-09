@@ -177,6 +177,7 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    int                   n,                  /**< size of matrix */
    SCIP_Real*            A,                  /**< matrix for which eigenvalues should be computed - will be destroyed! */
    int                   i,                  /**< index of eigenvalue to be computed */
+   SCIP_Real             tolerance,          /**< tolerance for eigenvalue convergence (0.0 for most accurate computation) */
    SCIP_Real*            eigenvalue,         /**< pointer to store eigenvalue */
    SCIP_Real*            eigenvector         /**< pointer to array to store eigenvector */
    )
@@ -210,13 +211,14 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    assert( 0 < i && i <= n );
    assert( eigenvalue != NULL );
    assert( ! geteigenvectors || eigenvector != NULL );
+   assert( tolerance >= 0 );
 
    N = n;
    JOBZ = geteigenvectors ? 'V' : 'N';
    RANGE = 'I';
    UPLO = 'L';
    LDA  = n;
-   ABSTOL = 0.0;
+   ABSTOL = tolerance;
    VL = -1e20;
    VU = 1e20;
    IL = i;
@@ -289,6 +291,7 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalueAlternative(
    int                   n,                  /**< size of matrix */
    SCIP_Real*            A,                  /**< matrix for which eigenvalues should be computed - will be destroyed! */
    int                   i,                  /**< index of eigenvalue to be computed */
+   SCIP_Real             tolerance,          /**< tolerance for eigenvalue convergence (0.0 for most accurate computation) */
    SCIP_Real*            eigenvalue,         /**< pointer to store eigenvalue */
    SCIP_Real*            eigenvector         /**< pointer to array to store eigenvector */
    )
@@ -320,13 +323,14 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalueAlternative(
    assert( 0 < i && i <= n );
    assert( eigenvalue != NULL );
    assert( ! geteigenvectors || eigenvector != NULL );
+   assert( tolerance >= 0 );
 
    N = n;
    JOBZ = geteigenvectors ? 'V' : 'N';
    RANGE = 'I';
    UPLO = 'L';
    LDA  = n;
-   ABSTOL = 0.0;
+   ABSTOL = tolerance;
    VL = -1e20;
    VU = 1e20;
    IL = i;
@@ -393,7 +397,8 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorsNegative(
    BMS_BUFMEM*           bufmem,             /**< buffer memory */
    int                   n,                  /**< size of matrix */
    SCIP_Real*            A,                  /**< matrix for which eigenvectors should be computed - will be destroyed! */
-   SCIP_Real             tol,                /**< tolerance; the eigenvalues will be in the interval (-1e20, -tol] */
+   SCIP_Real             negtol,             /**< the eigenvalues will be in the interval (-1e20, -negtol] */
+   SCIP_Real             tolerance,          /**< tolerance for eigenvalue convergence (0.0 for most accurate computation) */
    int*                  neigenvalues,       /**< pointer to store the number of negative eigenvalues */
    SCIP_Real*            eigenvalues,        /**< array for eigenvalues (should be length n) */
    SCIP_Real*            eigenvectors        /**< array for eigenvectors (should be length n*n), eigenvectors are given as rows  */
@@ -422,7 +427,8 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorsNegative(
    assert( n > 0 );
    assert( n < INT_MAX );
    assert( A != NULL );
-   assert( tol >= 0 );
+   assert( negtol >= 0 );
+   assert( tolerance >= 0 );
    assert( neigenvalues != NULL );
    assert( eigenvalues != NULL );
    assert( eigenvectors != NULL );
@@ -432,14 +438,14 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorsNegative(
    RANGE = 'V';
    UPLO = 'L';
    LDA  = n;
-   ABSTOL = 0.0;
+   ABSTOL = tolerance;
    LDZ = n;
    M = -1;
    INFO = 0LL;
 
    /* interval of allowed values */
    VL = -1e30;
-   VU = -tol;
+   VU = -negtol;
 
    /* standard LAPACK workspace query, to get the amount of needed memory */
    LWORK = -1LL;
