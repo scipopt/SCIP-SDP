@@ -1415,7 +1415,7 @@ SCIP_RETCODE separateSol(
             continue;
          }
       }
-      else if ( ! enforce && conshdlrdata->sdpconshdlrdata->multiplesparsecuts )
+      else if ( conshdlrdata->sdpconshdlrdata->multiplesparsecuts )
       {
          SCIPdebugMsg(scip, "Smallest eigenvalue: %.15g\n", eigenvalues[i]);
          SCIP_CALL( addMultipleSparseCuts(scip, conshdlr, cons, consdata, sol, blocksize, fullmatrix, fullconstmatrix,
