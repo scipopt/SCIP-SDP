@@ -261,8 +261,9 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
       assert( eigenvalue < -feastol );
       assert( supergradient > 0.0 );
 
-      /* compute estimate based on where the supergradient would reach 0 */
-      mu = mu - eigenvalue / supergradient;
+      /* compute estimate based on where the supergradient would reach -feastol/2.0 based on the supergradient inequality
+      *  f(mu) \leq f(muold) + (mu - muold) g. We use feastol/2.0 to avoid little rounding errors. */
+      mu = mu - (feastol / 2.0 + eigenvalue) / supergradient;
 
       /* compute eigenvalue and eigenvector */
       SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, mu, feastol / 10.0, &eigenvalue, eigenvector) );
