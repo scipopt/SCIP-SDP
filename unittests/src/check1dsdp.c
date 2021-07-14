@@ -320,11 +320,11 @@ Test(checksdpi, test4)
    SCIP_Real lb = 0.0;
    SCIP_Real ub = 2.0;
 
-   int sdpconstrow[3] = {0, 0, 1};
-   int sdpconstcol[3] = {0, 1, 1};
+   int sdpconstrow[3] = {0, 1, 1};
+   int sdpconstcol[3] = {0, 0, 1};
    SCIP_Real sdpconstval[3] = {0.89496, -0.44498, -0.88496};
-   int sdprow[3] = {0, 0, 1};
-   int sdpcol[3] = {0, 1, 1};
+   int sdprow[3] = {0, 1, 1};
+   int sdpcol[3] = {0, 0, 1};
    SCIP_Real sdpval[3] = {0.89443, -0.44721, -0.89443};
 
    /* checking result */
