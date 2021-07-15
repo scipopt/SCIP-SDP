@@ -726,15 +726,6 @@ SCIP_RETCODE truncatedPowerMethod(
 
       SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullmatrix, oldev, eigenvector) );
 
-      /* normalize new iterate */
-      norm = 0.0;
-      for (i = 0; i < blocksize; i++)
-         norm += eigenvector[i] * eigenvector[i];
-      norm = sqrt(norm);
-
-      for (i = 0; i < blocksize; i++)
-         eigenvector[i] /= norm;
-
       /* get indices of largest absolute values */
       for (i = 0; i < blocksize; i++)
       {
