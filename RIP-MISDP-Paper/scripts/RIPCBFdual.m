@@ -77,7 +77,7 @@ function [] = RIPCBFdual(A, order, side, file, Rank, socp, strgbnds, trineq, bou
     %% add scalar variables z and X_{ij}
     fprintf(fid, "VAR\n");
     fprintf(fid, "%d 2\n", n+0.5*n*(n+1));
-    fprintf(fid, "L+ %37d\n", n);
+    fprintf(fid, "L+ %d\n", n);
     if strgbnds == 0
         fprintf(fid, "F %d\n", 0.5*n*(n+1));
     elseif strgbnds == 1
