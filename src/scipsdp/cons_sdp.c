@@ -131,6 +131,11 @@
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
 #endif
 
+/* defines for sparsification of eigenvector cuts using TPower */
+#define RECOMPUTE_SPARSE_EV           0 /**< Should the sparse eigenvalue returned from TPower be recomputed exactly by using Lapack for the corresponding submatrix? */
+#define RECOMPUTE_INITIAL_VECTOR      0 /**< Should the inital vector for TPower be computed each time before calling TPower (instead of using the original smallest eigenvector)? */
+#define EXACT_TRANSFORMATION          0 /**< Should the matrix be transformed with the exact maximal eigenvalue before calling TPower (instead of using estimate)? */
+
 /** constraint data for sdp constraints */
 struct SCIP_ConsData
 {
@@ -976,9 +981,7 @@ SCIP_RETCODE addMultipleSparseCuts(
    SCIP_Real convergencetol;
    SCIP_Real eigenvalue;
    SCIP_Real maxeig;
-   SCIP_Real mineig;
    SCIP_Real scalar = 0.0;
-   SCIP_Real norm = 0.0;
    SCIP_Real lhs = 0.0;
    SCIP_Real coef;
    int* support;
@@ -986,6 +989,12 @@ SCIP_RETCODE addMultipleSparseCuts(
    int size;
    int i;
    int j;
+#if RECOMPUTE_INITIAL_VECTOR == 1
+   SCIP_Real mineig;
+#endif
+#if RECOMPUTE_SPARSE_EV == 1
+   SCIP_Real norm = 0.0;
+#endif
 
    assert( scip != NULL );
    assert( conshdlr != NULL );
@@ -1057,13 +1066,7 @@ SCIP_RETCODE addMultipleSparseCuts(
    SCIPdebugMsg(scip, "Smallest sparse eigenvalue computed by TPower: %.15g\n", maxeig - eigenvalue);
 
    /* instead of adding the sparse eigenvector, use it as initial point for adding many sparse eigenvectors */
-   /* compute v^T A(y) v  */
-
-   /* scalar should be equal to maxeig - eigenvalue, as computed by TPower */
-   /* SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullmatrix, sparseev, vector) ); */
-   /* for (j = 0; j < blocksize; ++j) */
-   /*    scalar += sparseev[j] * vector[j]; */
-
+   /* compute v^T A(y) v, which is equal to maxeig - eigenvalue */
    scalar = maxeig - eigenvalue;
 
    if ( ! SCIPisFeasNegative(scip, scalar) )
@@ -1076,9 +1079,10 @@ SCIP_RETCODE addMultipleSparseCuts(
 
    while ( SCIPisFeasNegative(scip, scalar) && *ncuts < maxncuts )
    {
-      /* Compute smallest eigenvalue \lambda_{min} and corresponding unit norm eigenvector w of principal submatrix
-       * A(y)_S, lift it to a full vector by adding zeros, and normalize.
-       * TODO: Can we directly use the results from truncatedPowerMethod with eigenvalue = maxeig - eigenvalue?
+#if RECOMPUTE_SPARSE_EV == 1
+      /* Recompute smallest eigenvalue \lambda_{min} and corresponding unit norm eigenvector w of principal submatrix
+       * A(y)_S, lift it to a full vector by adding zeros, and normalize, instead of using the eigenvector and
+       * eigenvalue returned from TPower.
        */
 
       cnt = 0;
@@ -1096,6 +1100,9 @@ SCIP_RETCODE addMultipleSparseCuts(
       assert( cnt == size * size );
 
       SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, size, submatrix, 1, &eigenvalue, sparseev) );
+
+      assert( SCIPisFeasEQ(scip, scalar, eigenvalue) );
+      assert( SCIPisFeasNegative(scip, eigenvalue) );
 
       if ( eigenvalue >= -tol )
          break;
@@ -1116,11 +1123,15 @@ SCIP_RETCODE addMultipleSparseCuts(
       for (i = 0; i < blocksize; i++)
       {
          if ( support[i] == 1 )
+         {
+            /* assert( SCIPisFeasEQ(scip, liftedev[i], sparseev[cnt]) ); */
             liftedev[i] = sparseev[cnt++];
+         }
          else
             liftedev[i] = 0.0;
       }
       assert( cnt == size );
+#endif
 
       /* check if cut obtained from new is efficacious and add cut/constraint */
       /* multiply eigenvector with constant matrix to get lhs (after multiplying again with eigenvector from the left) */
@@ -1215,11 +1226,17 @@ SCIP_RETCODE addMultipleSparseCuts(
       for (i = 0; i < blocksize * blocksize; i++)
          fullmatrixcopy[i] = fullmatrix[i];
 
-      /* compute smallest eigenvalue and corresponding eigenvector of A(y) */
+#if RECOMPUTE_INITIAL_VECTOR == 1
+      /* compute smallest eigenvalue and corresponding eigenvector of A(y) as initial vector for TPpower, instead of
+         using the eigenvector to the smallest eigenvalue of the original matrix */
       SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, blocksize, fullmatrixcopy, 1, &mineig, minev) );
 
       SCIPdebugMsg(scip, "Smallest eigenvalue: %.15g\n", mineig);
+#else
+      minev = eigenvector;
+#endif
 
+#if EXACT_TRANSFORMATION == 1
       /* we need to modify the matrix again in order to use the truncated power method */
       /* copy fullmatrix, since Lapack destroys it when computing eigenvalues! */
       for (i = 0; i < blocksize * blocksize; i++)
@@ -1228,6 +1245,10 @@ SCIP_RETCODE addMultipleSparseCuts(
       /* compute the largest eigenvalue of A(y), the eigenvector is not needed */
       SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, fullmatrixcopy, blocksize, &maxeig, NULL) );
       SCIPdebugMsg(scip, "Largest eigenvalue: %.15g\n", maxeig);
+#else
+      /* use estimate for largest eigenvalue of modified matrix: \lambda_{max}(A+B) \leq \lambda_{max}(A) + \lambda_{max}(B) */
+      maxeig -= eigenvalue;
+#endif
 
       /* compute the modified matrix \lambda_{max} I - A(y), where \lambda_{max} is the largest eigenvalue of A(y) */
       for (i = 0; i < blocksize; i++)
@@ -1246,14 +1267,7 @@ SCIP_RETCODE addMultipleSparseCuts(
 
       SCIPdebugMsg(scip, "Smallest sparse eigenvalue computed by TPower: %.15g\n", maxeig - eigenvalue);
 
-      /* compute v^T A(y) v for the new sparse eigenvector */
-
-      /* scalar should be equal to maxeig - eigenvalue, as computed by TPower */
-      /* SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullmatrix, liftedev, vector) ); */
-      /* scalar = 0.0; */
-      /* for (j = 0; j < blocksize; ++j) */
-      /*    scalar += liftedev[j] * vector[j]; */
-
+      /* compute v^T A(y) v for the new sparse eigenvector, which is equal to maxeig - eigenvalue, as computed by TPower */
       scalar = maxeig - eigenvalue;
    }
 
