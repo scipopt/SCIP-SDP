@@ -97,6 +97,15 @@ void F77_FUNC(dsyevr, DSYEVR)(char* JOBZ, char* RANGE, char* UPLO,
    LAPACKINTTYPE* LWORK, LAPACKINTTYPE* IWORK, LAPACKINTTYPE* LIWORK,
    LAPACKINTTYPE* INFO);
 
+/** Alternative LAPACK Fortran subroutine DSYEVR */
+void F77_FUNC(dsyevx, DSYEVX)(char* JOBZ, char* RANGE, char* UPLO,
+   LAPACKINTTYPE* N, SCIP_Real* A, LAPACKINTTYPE* LDA,
+   SCIP_Real* VL, SCIP_Real* VU,
+   LAPACKINTTYPE* IL, LAPACKINTTYPE* IU,
+   SCIP_Real* ABSTOL, LAPACKINTTYPE* M, SCIP_Real* W, SCIP_Real* Z,
+   LAPACKINTTYPE* LDZ, SCIP_Real* WORK, LAPACKINTTYPE* LWORK, LAPACKINTTYPE* IWORK,
+   LAPACKINTTYPE* IFAIL, LAPACKINTTYPE* INFO);
+
 /** BLAS Fortran subroutine DGEMV */
 void F77_FUNC(dgemv, DGEMV)(char* TRANS, LAPACKINTTYPE* M,
    LAPACKINTTYPE* N, SCIP_Real* ALPHA, SCIP_Real* A, LAPACKINTTYPE* LDA,
@@ -207,7 +216,7 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    RANGE = 'I';
    UPLO = 'L';
    LDA  = n;
-   ABSTOL = 0.0;
+   ABSTOL = 0.0; /* we use abstol = 0, since some lapack return an error otherwise */
    VL = -1e20;
    VU = 1e20;
    IL = i;
@@ -273,6 +282,112 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    return SCIP_OKAY;
 }
 
+/** computes i-th eigenvalue of a symmetric matrix using alternative algorithm in LAPACK, where 1 is the smallest and n the largest, matrix has to be given with all \f$n^2\f$ entries */
+SCIP_RETCODE SCIPlapackComputeIthEigenvalueAlternative(
+   BMS_BUFMEM*           bufmem,             /**< buffer memory */
+   SCIP_Bool             geteigenvectors,    /**< Should also the eigenvectors be computed? */
+   int                   n,                  /**< size of matrix */
+   SCIP_Real*            A,                  /**< matrix for which eigenvalues should be computed - will be destroyed! */
+   int                   i,                  /**< index of eigenvalue to be computed */
+   SCIP_Real*            eigenvalue,         /**< pointer to store eigenvalue */
+   SCIP_Real*            eigenvector         /**< pointer to array to store eigenvector */
+   )
+{
+   LAPACKINTTYPE* IWORK;
+   LAPACKINTTYPE* IFAIL;
+   LAPACKINTTYPE N;
+   LAPACKINTTYPE INFO;
+   LAPACKINTTYPE LDA;
+   LAPACKINTTYPE IL;
+   LAPACKINTTYPE IU;
+   LAPACKINTTYPE M;
+   LAPACKINTTYPE LDZ;
+   LAPACKINTTYPE LWORK;
+   SCIP_Real* WORK;
+   SCIP_Real* WTMP;
+   SCIP_Real WSIZE;
+   SCIP_Real ABSTOL;
+   SCIP_Real VL;
+   SCIP_Real VU;
+   char JOBZ;
+   char RANGE;
+   char UPLO;
+
+   assert( bufmem != NULL );
+   assert( n > 0 );
+   assert( n < INT_MAX );
+   assert( A != NULL );
+   assert( 0 < i && i <= n );
+   assert( eigenvalue != NULL );
+   assert( ! geteigenvectors || eigenvector != NULL );
+
+   N = n;
+   JOBZ = geteigenvectors ? 'V' : 'N';
+   RANGE = 'I';
+   UPLO = 'L';
+   LDA  = n;
+   ABSTOL = 0.0;  /* we use abstol = 0, since some lapack return an error otherwise */
+   VL = -1e20;
+   VU = 1e20;
+   IL = i;
+   IU = i;
+   M = 1;
+   LDZ = n;
+   INFO = 0LL;
+
+   /* standard LAPACK workspace query, to get the amount of needed memory */
+   LWORK = -1LL;
+
+   /* this computes the internally needed memory and returns this as (the first entries of [the 1x1 arrays]) WSIZE */
+   F77_FUNC(dsyevx, DSYEVX)( &JOBZ, &RANGE, &UPLO,
+      &N, NULL, &LDA,
+      NULL, NULL,
+      &IL, &IU,
+      &ABSTOL, &M, NULL, NULL,
+      &LDZ, &WSIZE, &LWORK, NULL, NULL,
+      &INFO);
+
+   if ( convertToInt(INFO) != 0 )
+   {
+      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d.\n", convertToInt(INFO));
+      return SCIP_ERROR;
+   }
+
+   /* allocate workspace */
+   LWORK = SCIP_RealTOINT(WSIZE);
+
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &WORK, (int) LWORK) );
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &IWORK, (int) 5 * N) );
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &WTMP, (int) N) );
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &IFAIL, (int) N) ); /*lint !e506*/
+
+   /* call the function */
+   F77_FUNC(dsyevx, DSYEVX)( &JOBZ, &RANGE, &UPLO,
+      &N, A, &LDA,
+      &VL, &VU,
+      &IL, &IU,
+      &ABSTOL, &M, WTMP, eigenvector,
+      &LDZ, WORK, &LWORK, IWORK, IFAIL,
+      &INFO);
+
+   if ( convertToInt(INFO) != 0 )
+   {
+      SCIPerrorMessage("There was an error when calling DSYEVX. INFO = %d.\n", convertToInt(INFO));
+      return SCIP_ERROR;
+   }
+
+   /* handle output */
+   *eigenvalue = WTMP[0];
+
+   /* free memory */
+   BMSfreeBufferMemoryArray(bufmem, &IFAIL);
+   BMSfreeBufferMemoryArray(bufmem, &WTMP);
+   BMSfreeBufferMemoryArray(bufmem, &IWORK);
+   BMSfreeBufferMemoryArray(bufmem, &WORK);
+
+   return SCIP_OKAY;
+}
+
 /** computes eigenvectors corresponding to negative eigenvalues of a symmetric matrix using LAPACK, matrix has to be given with all \f$n^2\f$ entries */
 SCIP_RETCODE SCIPlapackComputeEigenvectorsNegative(
    BMS_BUFMEM*           bufmem,             /**< buffer memory */
@@ -317,7 +432,7 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorsNegative(
    RANGE = 'V';
    UPLO = 'L';
    LDA  = n;
-   ABSTOL = 0.0;
+   ABSTOL = 0.0;  /* we use abstol = 0, since some lapack return an error otherwise */
    LDZ = n;
    M = -1;
    INFO = 0LL;
@@ -422,7 +537,7 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorDecomposition(
    RANGE = 'A';
    UPLO = 'L';
    LDA  = n;
-   ABSTOL = 0.0;
+   ABSTOL = 0.0;  /* we use abstol = 0, since some lapack return an error otherwise */
    M = n;
    LDZ = n;
    VL = -1e20;

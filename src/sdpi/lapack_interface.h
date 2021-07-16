@@ -61,6 +61,18 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    SCIP_Real*            eigenvector         /**< pointer to store eigenvector */
    );
 
+/** computes i-th eigenvalue of a symmetric matrix using alternative algorithm in LAPACK, where 1 is the smallest and n the largest, matrix has to be given with all \f$n^2\f$ entries */
+SCIP_EXPORT
+SCIP_RETCODE SCIPlapackComputeIthEigenvalueAlternative(
+   BMS_BUFMEM*           bufmem,             /**< buffer memory */
+   SCIP_Bool             geteigenvectors,    /**< Should also the eigenvectors be computed? */
+   int                   n,                  /**< size of matrix */
+   SCIP_Real*            A,                  /**< matrix for which eigenvalues should be computed - will be destroyed! */
+   int                   i,                  /**< index of eigenvalue to be computed */
+   SCIP_Real*            eigenvalue,         /**< pointer to store eigenvalue */
+   SCIP_Real*            eigenvector         /**< pointer to array to store eigenvector */
+   );
+
 /** computes eigenvectors corresponding to negative eigenvalues of a symmetric matrix using LAPACK, matrix has to be given with all \f$n^2\f$ entries */
 SCIP_EXPORT
 SCIP_RETCODE SCIPlapackComputeEigenvectorsNegative(
