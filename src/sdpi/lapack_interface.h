@@ -57,7 +57,6 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    int                   n,                  /**< size of matrix */
    SCIP_Real*            A,                  /**< matrix for which eigenvalues should be computed - will be destroyed! */
    int                   i,                  /**< index of eigenvalue to be computed */
-   SCIP_Real             tolerance,          /**< tolerance for eigenvalue convergence (0.0 for most accurate computation) */
    SCIP_Real*            eigenvalue,         /**< pointer to store eigenvalue */
    SCIP_Real*            eigenvector         /**< pointer to store eigenvector */
    );
@@ -70,7 +69,6 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalueAlternative(
    int                   n,                  /**< size of matrix */
    SCIP_Real*            A,                  /**< matrix for which eigenvalues should be computed - will be destroyed! */
    int                   i,                  /**< index of eigenvalue to be computed */
-   SCIP_Real             tolerance,          /**< tolerance for eigenvalue convergence (0.0 for most accurate computation) */
    SCIP_Real*            eigenvalue,         /**< pointer to store eigenvalue */
    SCIP_Real*            eigenvector         /**< pointer to array to store eigenvector */
    );
@@ -81,8 +79,7 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorsNegative(
    BMS_BUFMEM*           bufmem,             /**< buffer memory */
    int                   n,                  /**< size of matrix */
    SCIP_Real*            A,                  /**< matrix for which eigenvectors should be computed - will be destroyed! */
-   SCIP_Real             nettol,             /**< the eigenvalues will be in the interval (-1e20, -negtol] */
-   SCIP_Real             tolerance,          /**< tolerance for eigenvalue convergence (0.0 for most accurate computation) */
+   SCIP_Real             tol,                /**< tolerance; the eigenvalues will be in the interval (-1e20, -tol] */
    int*                  neigenvalues,       /**< pointer to store the number of negative eigenvalues */
    SCIP_Real*            eigenvalues,        /**< array for eigenvalues (should be length n) */
    SCIP_Real*            eigenvectors        /**< array for eigenvectors (should be length n*n), eigenvectors are given as rows  */

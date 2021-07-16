@@ -60,7 +60,6 @@ SCIP_RETCODE SCIPoneVarFeasible(
    SCIP_Real*            fullconstmatrix,    /**< constant matrix */
    SCIP_Real*            fullmatrix,         /**< constant matrix */
    SCIP_Real             alpha,              /**< variable value to test */
-   SCIP_Real             tolerance,          /**< tolerance for eigenvalues */
    SCIP_Real*            eigenvalue,         /**< pointer to store eigenvalue */
    SCIP_Real*            eigenvector         /**< corresponding eigenvector */
    )
@@ -77,11 +76,11 @@ SCIP_RETCODE SCIPoneVarFeasible(
 
    if ( eigenvector != NULL )
    {
-      SCIP_CALL( SCIPlapackComputeIthEigenvalue(bufmem, TRUE, blocksize, tmpmatrix, 1, tolerance, eigenvalue, eigenvector) );
+      SCIP_CALL( SCIPlapackComputeIthEigenvalue(bufmem, TRUE, blocksize, tmpmatrix, 1, eigenvalue, eigenvector) );
    }
    else
    {
-      SCIP_CALL( SCIPlapackComputeIthEigenvalue(bufmem, FALSE, blocksize, tmpmatrix, 1, tolerance, eigenvalue, NULL) );
+      SCIP_CALL( SCIPlapackComputeIthEigenvalue(bufmem, FALSE, blocksize, tmpmatrix, 1, eigenvalue, NULL) );
    }
 
    return SCIP_OKAY;
@@ -201,7 +200,7 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    }
 
    /* check upper bound */
-   SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, ub, 0.0, &eigenvalue, eigenvector) );
+   SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, ub, &eigenvalue, eigenvector) );
    SCIPdebugMessage("ub = %g, minimal eigenvalue: %g\n", ub, eigenvalue);
 
    /* if matrix is not psd */
@@ -222,7 +221,7 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    }
 
    /* otherwise check lower bound */
-   SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, lb, 0.0, &eigenvalue, eigenvector) );
+   SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, lb, &eigenvalue, eigenvector) );
 
    /* if matrix is psd, then the lower bound is optimal */
    if ( eigenvalue >= -feastol )
@@ -266,7 +265,7 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
       mu = mu - (feastol / 2.0 + eigenvalue) / supergradient;
 
       /* compute eigenvalue and eigenvector */
-      SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, mu, 0.0, &eigenvalue, eigenvector) );
+      SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, mu, &eigenvalue, eigenvector) );
 
       /* update supergradient */
       computeSupergradient(sdpnnonz, sdprow, sdpcol, sdpval, eigenvector, &supergradient);

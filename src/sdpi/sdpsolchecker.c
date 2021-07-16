@@ -251,7 +251,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
             }
 
             /* compute smallest eigenvalue using LAPACK */
-            SCIP_CALL( SCIPlapackComputeIthEigenvalue(bufmem, FALSE, sdpblocksizes[b] - nremovedinds[b], fullsdpmatrix, 1, 0.0, &eigenvalue, NULL) );
+            SCIP_CALL( SCIPlapackComputeIthEigenvalue(bufmem, FALSE, sdpblocksizes[b] - nremovedinds[b], fullsdpmatrix, 1, &eigenvalue, NULL) );
 
             if ( eigenvalue < - feastol )
             {
@@ -511,7 +511,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolDual(
             }
 
             /* compute smallest eigenvalue using LAPACK */
-            SCIP_CALL( SCIPlapackComputeIthEigenvalue(bufmem, FALSE, sdpblocksizes[b] - nremovedinds[b], fullsdpmatrix, 1, 0.0, &eigenvalue, NULL) );
+            SCIP_CALL( SCIPlapackComputeIthEigenvalue(bufmem, FALSE, sdpblocksizes[b] - nremovedinds[b], fullsdpmatrix, 1, &eigenvalue, NULL) );
 
             viol = MAX(-eigenvalue, 0.0);
             *sumabsviolsdp += viol;
@@ -958,7 +958,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolPrimal(
             }
 
             /* compute smallest eigenvalue using LAPACK */
-            SCIP_CALL( SCIPlapackComputeIthEigenvalue(bufmem, FALSE, blocksize, fullsdpmatrix, 1, 0.0, &eigenvalue, NULL) );
+            SCIP_CALL( SCIPlapackComputeIthEigenvalue(bufmem, FALSE, blocksize, fullsdpmatrix, 1, &eigenvalue, NULL) );
 
             viol = MAX(-eigenvalue, 0.0);
             *sumabsviolsdp += viol;
