@@ -216,7 +216,7 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
    RANGE = 'I';
    UPLO = 'L';
    LDA  = n;
-   ABSTOL = 0.0;
+   ABSTOL = 0.0; /* we use abstol = 0, since some lapack return an error otherwise */
    VL = -1e20;
    VU = 1e20;
    IL = i;
@@ -326,7 +326,7 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalueAlternative(
    RANGE = 'I';
    UPLO = 'L';
    LDA  = n;
-   ABSTOL = 0.0;
+   ABSTOL = 0.0;  /* we use abstol = 0, since some lapack return an error otherwise */
    VL = -1e20;
    VU = 1e20;
    IL = i;
@@ -432,7 +432,7 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorsNegative(
    RANGE = 'V';
    UPLO = 'L';
    LDA  = n;
-   ABSTOL = 0.0;
+   ABSTOL = 0.0;  /* we use abstol = 0, since some lapack return an error otherwise */
    LDZ = n;
    M = -1;
    INFO = 0LL;
@@ -537,7 +537,7 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorDecomposition(
    RANGE = 'A';
    UPLO = 'L';
    LDA  = n;
-   ABSTOL = 0.0;
+   ABSTOL = 0.0;  /* we use abstol = 0, since some lapack return an error otherwise */
    M = n;
    LDZ = n;
    VL = -1e20;
