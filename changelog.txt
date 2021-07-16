@@ -39,6 +39,7 @@ features:
 - All SDP solvers now use the same default tolerances (feasbility and gap).
 - Remove table_sdpsolversuccess, output has been added to table_relaxsdp.
 - Heuristics <sdprand> now uses propgatation to increase its success rate.
+- Solve SDPs with one variable by using a semi-smooth Newton approach.
 
 API changes:
 - new functions SCIPconsSdpGetNVars and SCIPconsSdpGetVars in cons_sdp.c
