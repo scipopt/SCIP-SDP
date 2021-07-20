@@ -186,6 +186,7 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			sdpi/sdpsolchecker.o \
 			sdpi/solveonevarsdp.o \
 			sdpi/lapack_interface.o \
+			sdpi/arpack_interface.o \
 			sdpi/sdpiclock.o \
 			scipsdpgithash.o
 
