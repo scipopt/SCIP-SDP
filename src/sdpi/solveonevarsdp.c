@@ -38,6 +38,7 @@
 #include "scip/pub_misc.h"
 #include "sdpi/solveonevarsdp.h"
 #include "sdpi/lapack_interface.h"
+#include "sdpi/arpack_interface.h"
 
 /** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMORY */
 #define BMS_CALL(x)   do                                                                                      \
@@ -74,6 +75,9 @@ SCIP_RETCODE SCIPoneVarFeasible(
    for (i = 0; i < blocksize * blocksize; ++i)
       tmpmatrix[i] = alpha * fullmatrix[i] - fullconstmatrix[i];
 
+#ifdef ARPACK
+   SCIP_CALL( SCIParpackComputeSmallestEigenvector(bufmem, blocksize, tmpmatrix, eigenvalue, eigenvector) );
+#else
    if ( eigenvector != NULL )
    {
       SCIP_CALL( SCIPlapackComputeIthEigenvalue(bufmem, TRUE, blocksize, tmpmatrix, 1, eigenvalue, eigenvector) );
@@ -82,6 +86,7 @@ SCIP_RETCODE SCIPoneVarFeasible(
    {
       SCIP_CALL( SCIPlapackComputeIthEigenvalue(bufmem, FALSE, blocksize, tmpmatrix, 1, eigenvalue, NULL) );
    }
+#endif
 
    return SCIP_OKAY;
 }
