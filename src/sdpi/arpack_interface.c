@@ -140,7 +140,7 @@ SCIP_RETCODE SCIParpackComputeSmallestEigenvector(
    NCV = 2;
    LDV = n;
    IPARAM[0] = 1;       /* exact shifts */
-   IPARAM[2] = 100000;  /* maximal number of iterations */
+   IPARAM[2] = INT_MAX; /* maximal number of iterations */
    IPARAM[6] = 1;       /* Mode 1: A*x = lambda*x, A symmetric, => OP = A  and  B = I. */
    LWORKL = NCV * (NCV + 8);  /* must be at least NCV**2 + 8*NCV */
    INFO = 0;          /* use random starting vector */
