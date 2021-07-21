@@ -12,7 +12,9 @@ linear programs (LPs). In addition to providing a constraint handler
 for SDP-constraints and a relaxator to solve continuous
 SDP-relaxations using interior-point solvers, SCIP-SDP adds several
 heuristics and propagators to SCIP. The MISDPs can be read in using
-either an extended SDPA-format or the CBF-format.
+either the CBF-format or an extended SDPA-format with support for
+integrality as well as rank-1 constraints. For a description of the
+extended SDPA-format see the file "sdpa_format.txt".
 
 To use the nonlinear branch-and-bound approach one of the following
 SDP-solvers needs to be installed: DSDP, SDPA, MOSEK. For more
