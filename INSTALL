@@ -219,20 +219,3 @@ mkdir build
 cd build
 cmake .. -DSCIP_DIR=/home/username/scipoptsuite-6.0.0/scip/build/ -DSDPS=msk -DMOSEK_DIR=/home/username/mosek/8/tools/platform/linux64x86/
 make
-
-Numerical Tolerances
---------------------
-
-SCIP-SDP sets the feasibility and gap tolerances to 1e-5, both for the
-SDP-solver and SCIP (default values for SCIP alone would be 1e-6 and
-1e-7). For Mosek the feasibility tolerances is always tightened by
-0.1, because this generated more reliable results.
-
-The default parameters are equivalent to the following SCIP parameters:
-relaxing/SDP/sdpsolverfeastol = 1e-5
-relaxing/SDP/sdpsolvergaptol = 1e-5
-numerics/feastol = 1e-5
-numerics/dualfeastol = 1e-5
-
-You can change these values, but the results might be quite sensitive
-to changes.
