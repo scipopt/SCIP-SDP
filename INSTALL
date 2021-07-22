@@ -3,7 +3,7 @@ Installing SCIP-SDP
 
 Additional Software
 ------------------------------------
-For using SCIP-SDP you need an installed and fully working version of SCIP 6.0.0
+For using SCIP-SDP you need an installed and fully working version of SCIP 7.0.2
 (http://scip.zib.de/) or higher. Additionally you may want to install at least one
 of the following SDP-Solvers:
 
