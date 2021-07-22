@@ -132,9 +132,9 @@
 #endif
 
 /* defines for sparsification of eigenvector cuts using TPower */
-#define RECOMPUTE_SPARSE_EV           0 /**< Should the sparse eigenvalue returned from TPower be recomputed exactly by using Lapack for the corresponding submatrix? */
-#define RECOMPUTE_INITIAL_VECTOR      0 /**< Should the inital vector for TPower be computed each time before calling TPower (instead of using the original smallest eigenvector)? */
-#define EXACT_TRANSFORMATION          0 /**< Should the matrix be transformed with the exact maximal eigenvalue before calling TPower (instead of using estimate)? */
+#define DEFAULT_RECOMPUTESPARSEEV FALSE /**< Should the sparse eigenvalue returned from TPower be recomputed exactly by using Lapack for the corresponding submatrix? */
+#define DEFAULT_RECOMPUTEINITIAL  FALSE /**< Should the inital vector for TPower be computed each time before calling TPower (instead of using the original smallest eigenvector)? */
+#define DEFAULT_EXACTTRANS        FALSE /**< Should the matrix be transformed with the exact maximal eigenvalue before calling TPower (instead of using estimate)? */
 
 /** constraint data for sdp constraints */
 struct SCIP_ConsData
@@ -211,6 +211,9 @@ struct SCIP_ConshdlrData
    SCIP_RELAX*           relaxsdp;           /**< SDP relaxator */
    SCIP_Bool             usedimacsfeastol;   /**< Should a feasibility tolerance based on the DIMACS be used for computing negative eigenvalues? */
    SCIP_Real             dimacsfeastol;      /**< feasibility tolerance for computing negative eigenvalues based on the DIMACS error */
+   SCIP_Bool             recomputesparseev;  /**< Should the sparse eigenvalue returned from TPower be recomputed exactly by using Lapack for the corresponding submatrix? */
+   SCIP_Bool             recomputeinitial;   /**< Should the inital vector for TPower be computed each time before calling TPower (instead of using the original smallest eigenvector)? */
+   SCIP_Bool             exacttrans;         /**< Should the matrix be transformed with the exact maximal eigenvalue before calling TPower (instead of using estimate)? */
 };
 
 /** generates matrix in colum-first format (needed by LAPACK) from matrix given in full row-first format (SCIP-SDP
@@ -989,12 +992,6 @@ SCIP_RETCODE addMultipleSparseCuts(
    int size;
    int i;
    int j;
-#if RECOMPUTE_INITIAL_VECTOR == 1
-   SCIP_Real mineig;
-#endif
-#if RECOMPUTE_SPARSE_EV == 1
-   SCIP_Real norm = 0.0;
-#endif
 
    assert( scip != NULL );
    assert( conshdlr != NULL );
@@ -1079,59 +1076,61 @@ SCIP_RETCODE addMultipleSparseCuts(
 
    while ( SCIPisFeasNegative(scip, scalar) && *ncuts < maxncuts )
    {
-#if RECOMPUTE_SPARSE_EV == 1
-      /* Recompute smallest eigenvalue \lambda_{min} and corresponding unit norm eigenvector w of principal submatrix
-       * A(y)_S, lift it to a full vector by adding zeros, and normalize, instead of using the eigenvector and
-       * eigenvalue returned from TPower.
-       */
-
-      cnt = 0;
-      for (i = 0; i < blocksize; i++)
+      if ( conshdlrdata->sdpconshdlrdata->recomputesparseev )
       {
-         if ( support[i] == 1 )
+         SCIP_Real norm = 0.0;
+         /* Recompute smallest eigenvalue \lambda_{min} and corresponding unit norm eigenvector w of principal submatrix
+          * A(y)_S, lift it to a full vector by adding zeros, and normalize, instead of using the eigenvector and
+          * eigenvalue returned from TPower.
+          */
+
+         cnt = 0;
+         for (i = 0; i < blocksize; i++)
          {
-            for (j = 0; j < blocksize; j++)
+            if ( support[i] == 1 )
             {
-               if ( support[j] == 1 )
-                  submatrix[cnt++] = fullmatrix[i * blocksize + j];
+               for (j = 0; j < blocksize; j++)
+               {
+                  if ( support[j] == 1 )
+                     submatrix[cnt++] = fullmatrix[i * blocksize + j];
+               }
             }
          }
-      }
-      assert( cnt == size * size );
+         assert( cnt == size * size );
 
-      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, size, submatrix, 1, &eigenvalue, sparseev) );
+         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, size, submatrix, 1, &eigenvalue, sparseev) );
 
-      assert( SCIPisFeasEQ(scip, scalar, eigenvalue) );
-      assert( SCIPisFeasNegative(scip, eigenvalue) );
+         assert( SCIPisFeasEQ(scip, scalar, eigenvalue) );
+         assert( SCIPisFeasNegative(scip, eigenvalue) );
 
-      if ( eigenvalue >= -tol )
-         break;
+         if ( eigenvalue >= -tol )
+            break;
 
-      SCIPdebugMsg(scip, "Smallest eigenvalue of principal submatrix: %.15g\n", eigenvalue);
+         SCIPdebugMsg(scip, "Smallest eigenvalue of principal submatrix: %.15g\n", eigenvalue);
 
-      /* normalize sparse eigenvector */
-      norm = 0.0;
-      for (j = 0; j < size; j++)
-         norm += sparseev[j] * sparseev[j];
+         /* normalize sparse eigenvector */
+         norm = 0.0;
+         for (j = 0; j < size; j++)
+            norm += sparseev[j] * sparseev[j];
 
-      norm = sqrt(norm);
-      for (j = 0; j < size; j++)
-         sparseev[j] /= norm;
+         norm = sqrt(norm);
+         for (j = 0; j < size; j++)
+            sparseev[j] /= norm;
 
-      /* lift eigenvector by setting all entries not in I to 0 */
-      cnt = 0;
-      for (i = 0; i < blocksize; i++)
-      {
-         if ( support[i] == 1 )
+         /* lift eigenvector by setting all entries not in I to 0 */
+         cnt = 0;
+         for (i = 0; i < blocksize; i++)
          {
-            /* assert( SCIPisFeasEQ(scip, liftedev[i], sparseev[cnt]) ); */
-            liftedev[i] = sparseev[cnt++];
+            if ( support[i] == 1 )
+            {
+               /* assert( SCIPisFeasEQ(scip, liftedev[i], sparseev[cnt]) ); */
+               liftedev[i] = sparseev[cnt++];
+            }
+            else
+               liftedev[i] = 0.0;
          }
-         else
-            liftedev[i] = 0.0;
+         assert( cnt == size );
       }
-      assert( cnt == size );
-#endif
 
       /* check if cut obtained from new is efficacious and add cut/constraint */
       /* multiply eigenvector with constant matrix to get lhs (after multiplying again with eigenvector from the left) */
@@ -1226,29 +1225,34 @@ SCIP_RETCODE addMultipleSparseCuts(
       for (i = 0; i < blocksize * blocksize; i++)
          fullmatrixcopy[i] = fullmatrix[i];
 
-#if RECOMPUTE_INITIAL_VECTOR == 1
-      /* compute smallest eigenvalue and corresponding eigenvector of A(y) as initial vector for TPpower, instead of
-         using the eigenvector to the smallest eigenvalue of the original matrix */
-      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, blocksize, fullmatrixcopy, 1, &mineig, minev) );
+      if ( conshdlrdata->sdpconshdlrdata->recomputeinitial )
+      {
+         SCIP_Real mineig;
+         /* compute smallest eigenvalue and corresponding eigenvector of A(y) as initial vector for TPpower, instead of
+            using the eigenvector to the smallest eigenvalue of the original matrix */
+         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, blocksize, fullmatrixcopy, 1, &mineig, minev) );
 
-      SCIPdebugMsg(scip, "Smallest eigenvalue: %.15g\n", mineig);
-#else
-      minev = eigenvector;
-#endif
+         SCIPdebugMsg(scip, "Smallest eigenvalue: %.15g\n", mineig);
+      }
+      else
+         minev = eigenvector;
 
-#if EXACT_TRANSFORMATION == 1
-      /* we need to modify the matrix again in order to use the truncated power method */
-      /* copy fullmatrix, since Lapack destroys it when computing eigenvalues! */
-      for (i = 0; i < blocksize * blocksize; i++)
-         fullmatrixcopy[i] = fullmatrix[i];
+      if ( conshdlrdata->sdpconshdlrdata->exacttrans )
+      {
+         /* we need to modify the matrix again in order to use the truncated power method */
+         /* copy fullmatrix, since Lapack destroys it when computing eigenvalues! */
+         for (i = 0; i < blocksize * blocksize; i++)
+            fullmatrixcopy[i] = fullmatrix[i];
 
-      /* compute the largest eigenvalue of A(y), the eigenvector is not needed */
-      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, fullmatrixcopy, blocksize, &maxeig, NULL) );
-      SCIPdebugMsg(scip, "Largest eigenvalue: %.15g\n", maxeig);
-#else
-      /* use estimate for largest eigenvalue of modified matrix: \lambda_{max}(A+B) \leq \lambda_{max}(A) + \lambda_{max}(B) */
-      maxeig -= eigenvalue;
-#endif
+         /* compute the largest eigenvalue of A(y), the eigenvector is not needed */
+         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, fullmatrixcopy, blocksize, &maxeig, NULL) );
+         SCIPdebugMsg(scip, "Largest eigenvalue: %.15g\n", maxeig);
+      }
+      else
+      {
+         /* use estimate for largest eigenvalue of modified matrix: \lambda_{max}(A+B) \leq \lambda_{max}(A) + \lambda_{max}(B) */
+         maxeig -= eigenvalue;
+      }
 
       /* compute the modified matrix \lambda_{max} I - A(y), where \lambda_{max} is the largest eigenvalue of A(y) */
       for (i = 0; i < blocksize; i++)
@@ -7298,6 +7302,18 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          "Should rows be generated (constraints otherwise)?",
          &(conshdlrdata->generaterows), TRUE, DEFAULT_GENERATEROWS, NULL, NULL) );
 
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/recomputesparseev",
+         "Should the sparse eigenvalue returned from TPower be recomputed exactly by using Lapack for the corresponding submatrix?",
+         &(conshdlrdata->recomputesparseev), TRUE, DEFAULT_RECOMPUTESPARSEEV, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/recomputeinitial",
+         "Should the inital vector for TPower be computed each time before calling TPower (instead of using the original smallest eigenvector)?",
+         &(conshdlrdata->recomputeinitial), TRUE, DEFAULT_RECOMPUTEINITIAL, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/exacttrans",
+         "Should the matrix be transformed with the exact maximal eigenvalue before calling TPower (instead of using estimate)?",
+         &(conshdlrdata->exacttrans), TRUE, DEFAULT_EXACTTRANS, NULL, NULL) );
+
    return SCIP_OKAY;
 }
 
@@ -7345,6 +7361,9 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->nthreads = 0;
 #endif
    conshdlrdata->usedimacsfeastol = FALSE;
+   conshdlrdata->recomputesparseev = FALSE;
+   conshdlrdata->recomputeinitial = FALSE;
+   conshdlrdata->exacttrans = FALSE;
 
    /* parameters are retrieved through the SDP constraint handler */
    sdpconshdlr = SCIPfindConshdlr(scip, CONSHDLR_NAME);
