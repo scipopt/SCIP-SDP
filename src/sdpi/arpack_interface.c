@@ -60,9 +60,6 @@
                       }                                                                                       \
                       while( FALSE )
 
-/** transforms a SCIP_Real (that should be integer, but might be off by some numerical error) to an integer by adding 0.5 and rounding down */
-#define SCIP_RealTOINT(x) ((int) (x + 0.5))
-
 /*
  * ARPACK Calls
  */
