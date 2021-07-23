@@ -311,9 +311,14 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
       assert( eigenvalue < -feastol );
       assert( supergradient > 0.0 );
 
-      /* compute estimate based on where the supergradient would reach -feastol/2.0 based on the supergradient inequality
+      /* Compute estimate based on where the supergradient would reach -feastol/2.0 based on the supergradient inequality
       *  f(mu) \leq f(muold) + (mu - muold) g. We use feastol/2.0 to avoid little rounding errors. */
       mu = mu - (feastol / 2.0 + eigenvalue) / supergradient;
+
+      /* Stop if we are larger than ub. In this case the problem is infeasible, since eigenvalue < -feastol by the while
+       * condition. Infeasibility is detected below. */
+      if ( mu > ub )
+         break;
 
       /* compute eigenvalue and eigenvector */
 #ifdef ARPACK
