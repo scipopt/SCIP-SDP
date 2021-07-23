@@ -1234,7 +1234,10 @@ SCIP_RETCODE addMultipleSparseCuts(
          SCIPdebugMsg(scip, "Smallest eigenvalue: %.15g\n", mineig);
       }
       else
-         minev = eigenvector;
+      {
+         for (i = 0; i < blocksize; i++)
+            minev[i] = eigenvector[i];
+      }
 
       if ( conshdlrdata->sdpconshdlrdata->exacttrans )
       {
