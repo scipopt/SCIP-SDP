@@ -137,7 +137,7 @@ SCIP_RETCODE SCIParpackComputeSmallestEigenvector(
    WHICH[1] = 'A';
    NEV = 1;
    TOL = 0.0;
-   NCV = 2;
+   NCV = MIN(n,4);
    LDV = n;
    IPARAM[0] = 1;       /* exact shifts */
    IPARAM[2] = 300;     /* maximal number of iterations */
