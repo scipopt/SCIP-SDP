@@ -81,7 +81,7 @@
 #define READER_DESC             "file reader and writer for MISDPs in cbf format"
 #define READER_EXTENSION        "cbf"
 
-#define CBF_VERSION_NR         2         /**< version number for CBF format */
+#define CBF_VERSION_NR         3         /**< version number for CBF format */
 #define CBF_CHECK_NONNEG       TRUE      /**< when writing: check linear constraints and move nonnegativity(-positivity)
                                            *  constraints to definition of variables (which are now defined in non-negative
                                            *  orthant) */
