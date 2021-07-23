@@ -980,6 +980,7 @@ SCIP_RETCODE addMultipleSparseCuts(
    SCIP_Real* submatrix;
    SCIP_Real* sparseev;
    SCIP_Real* liftedev;
+   SCIP_Real* minev;
    SCIP_Real convergencetol;
    SCIP_Real eigenvalue;
    SCIP_Real maxeig;
@@ -1053,6 +1054,7 @@ SCIP_RETCODE addMultipleSparseCuts(
    SCIP_CALL( SCIPallocBufferArray(scip, &liftedev, blocksize) );
    SCIP_CALL( SCIPallocBufferArray(scip, &support, blocksize) );
    SCIP_CALL( SCIPallocBufferArray(scip, &sparseev, size) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &minev, blocksize) );
 
    /* compute sparse eigenvector with the truncated power method for the modified matrix */
    convergencetol = 1e-6;
@@ -1098,7 +1100,7 @@ SCIP_RETCODE addMultipleSparseCuts(
 
          SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, size, submatrix, 1, &eigenvalue, sparseev) );
 
-         /* assert( SCIPisFeasEQ(scip, scalar, eigenvalue) ); */
+         assert( SCIPisFeasEQ(scip, scalar, eigenvalue) );
          assert( SCIPisFeasNegative(scip, eigenvalue) );
 
          if ( eigenvalue >= -tol )
@@ -1228,10 +1230,12 @@ SCIP_RETCODE addMultipleSparseCuts(
          SCIP_Real mineig;
          /* compute smallest eigenvalue and corresponding eigenvector of A(y) as initial vector for TPpower, instead of
             using the eigenvector to the smallest eigenvalue of the original matrix */
-         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, blocksize, fullmatrixcopy, 1, &mineig, eigenvector) );
+         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, blocksize, fullmatrixcopy, 1, &mineig, minev) );
 
          SCIPdebugMsg(scip, "Smallest eigenvalue: %.15g\n", mineig);
       }
+      else
+         minev = eigenvector;
 
       if ( conshdlrdata->sdpconshdlrdata->exacttrans )
       {
@@ -1263,7 +1267,7 @@ SCIP_RETCODE addMultipleSparseCuts(
       }
 
       /* compute smallest sparse eigenvalue and corresponding eigenvector of A(y) with the truncated power method */
-      SCIP_CALL( truncatedPowerMethod(scip, blocksize, modmatrix, eigenvector, size, convergencetol, liftedev, support, &eigenvalue) );
+      SCIP_CALL( truncatedPowerMethod(scip, blocksize, modmatrix, minev, size, convergencetol, liftedev, support, &eigenvalue) );
 
       SCIPdebugMsg(scip, "Smallest sparse eigenvalue computed by TPower: %.15g\n", maxeig - eigenvalue);
 
@@ -1278,6 +1282,7 @@ SCIP_RETCODE addMultipleSparseCuts(
    }
 
    /* free all memory */
+   SCIPfreeBufferArray(scip, &minev);
    SCIPfreeBufferArray(scip, &sparseev);
    SCIPfreeBufferArray(scip, &support);
    SCIPfreeBufferArray(scip, &liftedev);
