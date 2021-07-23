@@ -1225,15 +1225,17 @@ SCIP_RETCODE addMultipleSparseCuts(
             fullmatrix[i * blocksize + j] -= eigenvalue * liftedev[i] * liftedev[j];
       }
 
-      /* copy fullmatrix, since Lapack destroys it when computing eigenvalues! */
-      for (i = 0; i < blocksize * blocksize; i++)
-         fullmatrixcopy[i] = fullmatrix[i];
 
       if ( conshdlrdata->sdpconshdlrdata->recomputeinitial )
       {
          SCIP_Real mineig;
          /* compute smallest eigenvalue and corresponding eigenvector of A(y) as initial vector for TPpower, instead of
             using the eigenvector to the smallest eigenvalue of the original matrix */
+
+         /* copy fullmatrix, since Lapack destroys it when computing eigenvalues! */
+         for (i = 0; i < blocksize * blocksize; i++)
+            fullmatrixcopy[i] = fullmatrix[i];
+
          SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, blocksize, fullmatrixcopy, 1, &mineig, minev) );
 
          SCIPdebugMsg(scip, "Smallest eigenvalue: %.15g\n", mineig);
@@ -1247,6 +1249,7 @@ SCIP_RETCODE addMultipleSparseCuts(
       if ( conshdlrdata->sdpconshdlrdata->exacttrans )
       {
          /* we need to modify the matrix again in order to use the truncated power method */
+
          /* copy fullmatrix, since Lapack destroys it when computing eigenvalues! */
          for (i = 0; i < blocksize * blocksize; i++)
             fullmatrixcopy[i] = fullmatrix[i];
