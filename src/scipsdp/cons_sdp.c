@@ -1100,7 +1100,6 @@ SCIP_RETCODE addMultipleSparseCuts(
 
          SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, size, submatrix, 1, &eigenvalue, sparseev) );
 
-         assert( SCIPisFeasEQ(scip, scalar, eigenvalue) );
          assert( SCIPisFeasNegative(scip, eigenvalue) );
 
          if ( eigenvalue >= -tol )
