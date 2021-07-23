@@ -87,8 +87,6 @@ struct SCIP_PropData
  * Local methods
  */
 
-/* the current bugfix branch (3.2.1) does not have SCIPsolveProbingRelax() -> do nothing */
-#if ( (SCIP_VERSION > 321 || SCIP_SUBVERSION > 0) )
 static
 SCIP_RETCODE addObjCutoff(
    SCIP*                 scip                /**< SCIP data structure */
@@ -126,7 +124,6 @@ SCIP_RETCODE addObjCutoff(
 
    return SCIP_OKAY;
 }
-#endif
 
 /*
  * Callback methods of propagator
@@ -203,8 +200,6 @@ SCIP_DECL_PROPINITSOL(propInitsolSdpObbt)
 static
 SCIP_DECL_PROPEXEC(propExecSdpObbt)
 {  /*lint --e{715}*/
-   /* the current bugfix branch (3.2.1) does not have SCIPsolveProbingRelax() -> do nothing */
-#if ( (SCIP_VERSION > 321 || SCIP_SUBVERSION > 0) )
    int nvars;
    SCIP_VAR** vars;
    int v;
@@ -238,11 +233,7 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
    SCIPdebugMsg(scip, "Executing propExecSdpObbt! \n");
 
    /* do not run in: presolving, repropagation, probing mode, subscips, if no objective propagation is allowed */
-#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
    if ( SCIPgetStage(scip) != SCIP_STAGE_SOLVING || SCIPinRepropagation(scip) || SCIPinProbing(scip) || !SCIPallowWeakDualReds(scip) || (SCIPgetSubscipDepth(scip) > 0) )
-#else
-   if ( SCIPgetStage(scip) != SCIP_STAGE_SOLVING || SCIPinRepropagation(scip) || SCIPinProbing(scip) || !SCIPallowObjProp(scip) || (SCIPgetSubscipDepth(scip) > 0) )
-#endif
    {
       SCIPdebugMsg(scip, "Aborting propExecSdpObbt because we are in presolving, repropagation, probing mode, a subscip or no objective "
             "propagation is allowed!\n");
@@ -388,7 +379,7 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
                nnewbounds++;
                *result = SCIP_REDUCEDDOM;
             }
-   #ifdef SCIP_MORE_DEBUG
+#ifdef SCIP_MORE_DEBUG
             else
             {
                SCIPdebugMsg(scip, "Obbt-Sdp found lower bound of %f for variable %s, worse than old bound %f !\n",
@@ -458,7 +449,7 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
                newboundinds[nnewbounds] = v + 1;
                nnewbounds++;
             }
-   #ifdef SCIP_MORE_DEBUG
+#ifdef SCIP_MORE_DEBUG
             else
             {
                SCIPdebugMsg(scip, "Obbt-Sdp found upper bound of %f for variable %s, worse than old bound %f !\n",
@@ -519,12 +510,6 @@ SCIP_DECL_PROPEXEC(propExecSdpObbt)
    SCIPfreeBufferArray(scip, &newbounds);
 
    return SCIP_OKAY;
-
-#else
-   *result = SCIP_DIDNOTRUN;
-
-   return SCIP_OKAY;
-#endif
 }
 
 

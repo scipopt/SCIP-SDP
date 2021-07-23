@@ -157,7 +157,6 @@ static
 SCIP_DECL_HEUREXEC(heurExecSdprand)
 {  /*lint --e{715}*/
    /* older SCIP do not have SCIPsolveProbingRelax() -> do nothing */
-#if ( (SCIP_VERSION > 321 || SCIP_SUBVERSION > 0) )
    SCIP_HEURDATA* heurdata;
    SCIP_CONSHDLR* conshdlrsdp;
    SCIP_RELAX* relaxsdp;
@@ -407,7 +406,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
       /* if there are no continuous variables, we can just try the solution */
       if ( ncontvars == 0 )
       {
- #ifndef NDEBUG
+#ifndef NDEBUG
          /* assert that solution is really integral */
          for (v = 0; v < nvars; ++v)
             assert( ! SCIPvarIsIntegral(vars[v]) || SCIPisFeasIntegral(scip, SCIPgetSolVal(scip, heurdata->sol, vars[v])) );
@@ -474,12 +473,6 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
    SCIPdebugMsg(scip, "Finished randomized rounding heuristic.\n");
 
    return SCIP_OKAY;
-
-#else
-   *result = SCIP_DIDNOTRUN;
-
-   return SCIP_OKAY;
-#endif
 }
 
 

@@ -178,8 +178,6 @@ SCIP_DECL_HEUREXIT(heurExitSdpFracdiving)
 static
 SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
 {  /*lint --e{715}*/
-   /* the current bugfix branch (3.2.1) does not have SCIPsolveProbingRelax() -> do nothing */
-#if ( (SCIP_VERSION > 321 || SCIP_SUBVERSION > 0) )
    SCIP_HEURDATA* heurdata;
    SCIP_CONSHDLR* conshdlrsdp;
    SCIP_RELAX* relaxsdp;
@@ -702,12 +700,6 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
    SCIPfreeBufferArray(scip, &sdpcands);
 
    return SCIP_OKAY; /*lint !e438*/
-
-#else
-   *result = SCIP_DIDNOTRUN;
-
-   return SCIP_OKAY;
-#endif
 }
 
 
