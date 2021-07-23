@@ -1432,7 +1432,7 @@ SCIP_RETCODE separateSol(
 
          if ( success )
          {
-            SCIPinfoMessage(scip, NULL, "Successfully added %d sparse eigenvector cuts.\n", ncuts);
+            SCIPdebugMsg(scip, "Successfully added %d sparse eigenvector cuts.\n", ncuts);
             ngen += ncuts;
             continue;
          }
