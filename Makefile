@@ -426,6 +426,9 @@ endif
 ifneq ($(OMP),$(LAST_OMP))
 		@-touch -c $(SRCDIR)/scipsdp/cons_sdp.c
 endif
+ifneq ($(OMP),$(LAST_ARPACK))
+		@-touch -c $(SRCDIR)/sdpi/solveonevarsdp.c $(SRCDIR)/sdpi/arpack_interface.c
+endif
 ifneq ($(SCIPSDPGITHASH),$(LAST_SCIPSDPGITHASH))
 		@$(MAKE) githash
 endif
@@ -448,6 +451,7 @@ endif
 		@echo "LAST_NOBLKBUFMEM=$(NOBLKBUFMEM)" >> $(LASTSETTINGS)
 		@echo "LAST_SDPS=$(SDPS)" >> $(LASTSETTINGS)
 		@echo "LAST_OMP=$(OMP)" >> $(LASTSETTINGS)
+		@echo "LAST_ARPACK=$(ARPACK)" >> $(LASTSETTINGS)
 		@echo "LAST_SCIPSDPGITHASH=$(SCIPSDPGITHASH)" >> $(LASTSETTINGS)
 
 $(LINKSMARKERFILE):
