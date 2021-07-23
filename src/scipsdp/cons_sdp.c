@@ -1130,6 +1130,11 @@ SCIP_RETCODE addMultipleSparseCuts(
          }
          assert( cnt == size );
       }
+      else
+      {
+         /* scalar is the smallest sparse eigenvalue computed with TPower */
+         eigenvalue = scalar;
+      }
 
       /* check if cut obtained from new is efficacious and add cut/constraint */
       /* multiply eigenvector with constant matrix to get lhs (after multiplying again with eigenvector from the left) */
