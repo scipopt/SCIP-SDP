@@ -2819,7 +2819,7 @@ SCIP_RETCODE SCIPsdpiSolve(
       SCIP_CALL( SCIPsolveOneVarSDP(sdpi->bufmem, sdpi->obj[activevaridx], sdpi->sdpilb[activevaridx], sdpi->sdpiub[activevaridx], sdpi->sdpblocksizes[0],
             sdpconstnblocknonz[0], sdpconstrow[0], sdpconstcol[0], sdpconstval[0],
             sdpi->sdpnblockvarnonz[0][v], sdpi->sdprow[0][v], sdpi->sdpcol[0][v], sdpi->sdpval[0][v],
-            SCIPsdpiInfinity(sdpi), sdpi->feastol, sdpi->gaptol, &objval, &optval) );
+            SCIPsdpiInfinity(sdpi), sdpi->feastol, &objval, &optval) );
 
       if ( objval != SCIP_INVALID )  /*lint !e777*/
       {

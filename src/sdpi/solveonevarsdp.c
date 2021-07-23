@@ -169,7 +169,6 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    SCIP_Real*            sdpval,             /**< array of nonzero values */
    SCIP_Real             infinity,           /**< infinity value */
    SCIP_Real             feastol,            /**< feasibility tolerance */
-   SCIP_Real             gaptol,             /**< gap tolerance */
    SCIP_Real*            objval,             /**< pointer to store optimal objective value */
    SCIP_Real*            optval              /**< pointer to store optimal value of variable */
    )
