@@ -304,7 +304,7 @@ Test(checksdpi, test3)
    /* directly solve problem */
    SCIP_CALL( SCIPsolveOneVarSDP(buffermem, obj, lb, ub, 2, 2, sdpconstrow, sdpconstcol, sdpconstval, 2, sdprow, sdpcol, sdpval, 1e20, EPS, EPS, &objval, &dualsol) );
 
-   cr_assert(objval >= 1e20);
+   cr_assert( objval >= 1e20 );
 }
 
 /** Test 4
