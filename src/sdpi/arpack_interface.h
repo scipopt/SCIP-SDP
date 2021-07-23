@@ -58,6 +58,24 @@ SCIP_RETCODE SCIParpackComputeSmallestEigenvector(
    SCIP_Real*            eigenvector         /**< array for eigenvector */
    );
 
+/** computes an eigenvector for the smallest eigenvalue of a symmetric matrix using ARPACK; specialized sparse version for mu A + B */
+SCIP_EXPORT
+SCIP_RETCODE SCIParpackComputeSmallestEigenvectorOneVar(
+   BMS_BUFMEM*           bufmem,             /**< buffer memory */
+   int                   n,                  /**< size of matrix */
+   SCIP_Real             mu,                 /**< scaling factor for A matrix */
+   int                   annonz,             /**< number of nonzero elements in A */
+   int*                  arow,               /**< array of row-indices of A */
+   int*                  acol,               /**< array of column-indices of A */
+   SCIP_Real*            aval,               /**< array of nonzero values of entries of A */
+   int                   bnnonz,             /**< number of nonzero elements in B */
+   int*                  brow,               /**< array of row-indices of nonzero matrix entries in B */
+   int*                  bcol,               /**< array of column-indices of nonzero matrix entries in B*/
+   SCIP_Real*            bval,               /**< array of nonzero values in B */
+   SCIP_Real*            eigenvalue,         /**< pointer to store eigenvalue */
+   SCIP_Real*            eigenvector         /**< array for eigenvector */
+   );
+
 #ifdef __cplusplus
 }
 #endif

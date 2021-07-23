@@ -100,6 +100,7 @@ SCIP_RETCODE SCIParpackComputeSmallestEigenvector(
    SCIP_Real*            eigenvector         /**< array for eigenvector */
    )
 {
+#ifdef ARPACK
    int IPARAM[11];
    int IPNTR[11];
    int SELECT[2];
@@ -210,6 +211,165 @@ SCIP_RETCODE SCIParpackComputeSmallestEigenvector(
    BMSfreeBufferMemoryArray(bufmem, &WORKD);
    BMSfreeBufferMemoryArray(bufmem, &V);
    BMSfreeBufferMemoryArray(bufmem, &RESID);
+#endif
+
+   return SCIP_OKAY;
+}
+
+
+/** computes an eigenvector for the smallest eigenvalue of a symmetric matrix using ARPACK; specialized sparse version for mu A - B */
+SCIP_EXPORT
+SCIP_RETCODE SCIParpackComputeSmallestEigenvectorOneVar(
+   BMS_BUFMEM*           bufmem,             /**< buffer memory */
+   int                   n,                  /**< size of matrix */
+   SCIP_Real             mu,                 /**< scaling factor for A matrix */
+   int                   annonz,             /**< number of nonzero elements in A */
+   int*                  arow,               /**< array of row-indices of A */
+   int*                  acol,               /**< array of column-indices of A */
+   SCIP_Real*            aval,               /**< array of nonzero values of entries of A */
+   int                   bnnonz,             /**< number of nonzero elements in B */
+   int*                  brow,               /**< array of row-indices of nonzero matrix entries in B */
+   int*                  bcol,               /**< array of column-indices of nonzero matrix entries in B*/
+   SCIP_Real*            bval,               /**< array of nonzero values in B */
+   SCIP_Real*            eigenvalue,         /**< pointer to store eigenvalue */
+   SCIP_Real*            eigenvector         /**< array for eigenvector */
+   )
+{
+#ifdef ARPACK
+   int IPARAM[11];
+   int IPNTR[11];
+   int SELECT[2];
+   int IDO;
+   int N;
+   int NEV;
+   int NCV;
+   int LDV;
+   int LWORKL;
+   int INFO;
+   int RVEC;
+   SCIP_Real* RESID;
+   SCIP_Real* WORKD;
+   SCIP_Real* WORKL;
+   SCIP_Real* V;
+   SCIP_Real TOL;
+   SCIP_Real SIGMA;
+   char BMAT;
+   char WHICH[2];
+   char HOWMNY;
+   int i;
+
+   assert( bufmem != NULL );
+   assert( n > 0 );
+   assert( n < INT_MAX );
+   assert( arow != NULL );
+   assert( acol != NULL );
+   assert( aval != NULL );
+   assert( brow != NULL );
+   assert( bcol != NULL );
+   assert( bval != NULL );
+   assert( eigenvalue != NULL );
+   assert( eigenvector != NULL );
+
+   IDO = 0;
+   BMAT = 'I';
+   N = n;
+   WHICH[0] = 'S'; /* compute smallest algebraic eigenvalue */
+   WHICH[1] = 'A';
+   NEV = 1;
+   TOL = 0.0;
+   NCV = MIN(n,4);
+   LDV = n;
+   IPARAM[0] = 1;       /* exact shifts */
+   IPARAM[2] = 300;     /* maximal number of iterations */
+   IPARAM[6] = 1;       /* Mode 1: A*x = lambda*x, A symmetric, => OP = A  and  B = I. */
+   LWORKL = NCV * (NCV + 8);  /* must be at least NCV**2 + 8*NCV */
+   INFO = 0;            /* use random starting vector */
+
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &RESID, n) );
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &V, n * NCV) );
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &WORKD, 3 * n) );
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &WORKL, LWORKL) );
+
+   do
+   {
+      F77_FUNC(dsaupd, DSAUPD)(&IDO, &BMAT, &N, WHICH, &NEV, &TOL, RESID, &NCV, V, &LDV, IPARAM, IPNTR,
+         WORKD, WORKL, &LWORKL, &INFO);
+
+      /* if maximal number of iterations have been reached */
+      if ( INFO == 1 )
+         break;
+
+      if ( INFO != 0 )
+      {
+         SCIPerrorMessage("There was an error when calling DSAUPD. INFO = %d.\n", INFO);
+         return SCIP_ERROR;
+      }
+
+      if ( IDO == 1 || IDO == -1 )
+      {
+         SCIP_Real* x;
+         SCIP_Real* y;
+         int r;
+         int c;
+
+         x = &WORKD[IPNTR[0] - 1];
+         y = &WORKD[IPNTR[1] - 1];
+
+         /* perform matrix vector multiplication */
+         for (i = 0; i < n; ++i)
+            y[i] = 0.0;
+
+         for (i = 0; i < annonz; ++i)
+         {
+            r = arow[i];
+            c = acol[i];
+            assert( 0 <= r && r < n );
+            assert( 0 <= c && c < n );
+            y[r] += mu * aval[i] * x[c];
+            if ( r != c )
+               y[c] += mu * aval[i] * x[r];
+         }
+
+         for (i = 0; i < bnnonz; ++i)
+         {
+            r = brow[i];
+            c = bcol[i];
+            assert( 0 <= r && r < n );
+            assert( 0 <= c && c < n );
+            y[r] -= bval[i] * x[c];
+            if ( r != c )
+               y[c] -= bval[i] * x[r];
+         }
+      }
+   }
+   while ( IDO == -1 || IDO == 1 );
+
+   /* post process */
+   RVEC = 1;   /* compute eigenvectors */
+   HOWMNY = 'A';
+   SIGMA = 0.0;
+   INFO = 0;
+
+   F77_FUNC(dseupd, DSEUPD)(&RVEC, &HOWMNY, SELECT, eigenvalue, V, &LDV, &SIGMA,
+      &BMAT, &N, WHICH, &NEV, &TOL, RESID, &NCV, V, &LDV, IPARAM, IPNTR,
+      WORKD, WORKL, &LWORKL, &INFO);
+
+   if ( INFO != 0 )
+   {
+      SCIPerrorMessage("There was an error when calling DSEUPD. INFO = %d.\n", INFO);
+      return SCIP_ERROR;
+   }
+
+   /* copy handle output */
+   for (i = 0; i < n; ++i)
+      eigenvector[i] = V[i];
+
+   /* free memory */
+   BMSfreeBufferMemoryArray(bufmem, &WORKL);
+   BMSfreeBufferMemoryArray(bufmem, &WORKD);
+   BMSfreeBufferMemoryArray(bufmem, &V);
+   BMSfreeBufferMemoryArray(bufmem, &RESID);
+#endif
 
    return SCIP_OKAY;
 }
