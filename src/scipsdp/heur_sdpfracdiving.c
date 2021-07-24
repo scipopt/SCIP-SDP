@@ -232,6 +232,10 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
 
    *result = SCIP_DIDNOTRUN;
 
+   /* avoid solving for sub-SCIPs, since it is too expensive */
+   if ( SCIPgetSubscipDepth(scip) > 0 )
+      return SCIP_OKAY;
+
    /* don't dive two times at the same node */
    if ( SCIPgetLastDivenode(scip) == SCIPgetNNodes(scip) && SCIPgetDepth(scip) > 0 )
       return SCIP_OKAY;
@@ -249,10 +253,6 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
 
       /* exit if LP is not solved */
       if ( SCIPgetLPSolstat(scip) != SCIP_LPSOLSTAT_OPTIMAL )
-         return SCIP_OKAY;
-
-      /* avoid solving for sub-SCIPs */
-      if ( SCIPgetSubscipDepth(scip) > 0 )
          return SCIP_OKAY;
 
       usesdp = FALSE;
