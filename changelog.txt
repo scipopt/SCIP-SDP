@@ -40,6 +40,7 @@ features:
 - Remove table_sdpsolversuccess, output has been added to table_relaxsdp.
 - Heuristics <sdprand> now uses propgatation to increase its success rate.
 - Solve SDPs with one variable by using a semi-smooth Newton approach.
+- New fractional rounding heuristic with intermediate propagation.
 
 API changes:
 - new functions SCIPconsSdpGetNVars and SCIPconsSdpGetVars in cons_sdp.c

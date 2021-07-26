@@ -232,6 +232,10 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
 
    *result = SCIP_DIDNOTRUN;
 
+   /* avoid solving for sub-SCIPs, since it is too expensive */
+   if ( SCIPgetSubscipDepth(scip) > 0 )
+      return SCIP_OKAY;
+
    /* don't dive two times at the same node */
    if ( SCIPgetLastDivenode(scip) == SCIPgetNNodes(scip) && SCIPgetDepth(scip) > 0 )
       return SCIP_OKAY;
@@ -249,10 +253,6 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
 
       /* exit if LP is not solved */
       if ( SCIPgetLPSolstat(scip) != SCIP_LPSOLSTAT_OPTIMAL )
-         return SCIP_OKAY;
-
-      /* avoid solving for sub-SCIPs */
-      if ( SCIPgetSubscipDepth(scip) > 0 )
          return SCIP_OKAY;
 
       usesdp = FALSE;
@@ -280,7 +280,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
    depth = SCIPgetDepth(scip);
    maxdepth = SCIPgetMaxDepth(scip);
    maxdepth = MAX(maxdepth, 30);
-   if ( depth < heurdata->minreldepth*maxdepth || depth > heurdata->maxreldepth*maxdepth )
+   if ( depth < heurdata->minreldepth * maxdepth || depth > heurdata->maxreldepth * maxdepth )
       return SCIP_OKAY;
 
    /* get fractional variables that should be integral */
@@ -298,7 +298,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
       val = SCIPgetSolVal(scip, relaxsol, vars[v]);
       frac = SCIPfeasFrac(scip, val);
 
-      if ( SCIPvarIsIntegral(vars[v]) && ( ! SCIPisFeasZero(scip, frac) ) )
+      if ( SCIPvarIsIntegral(vars[v]) && ! SCIPisFeasZero(scip, frac) )
       {
          sdpcands[nsdpcands] = vars[v];
          sdpcandssol[nsdpcands] = val;
@@ -307,7 +307,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
       }
    }
 
-   /* get SDP objective value*/
+   /* get SDP objective value */
    objval = SCIPgetSolTransObj(scip, relaxsol);
 
    /* possibly free relaxtion (LP or SDP) solution */
@@ -332,6 +332,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
          searchubbound = SCIPgetLowerbound(scip) + heurdata->maxdiveubquotnosol * (SCIPgetCutoffbound(scip) - SCIPgetLowerbound(scip));
       else
          searchubbound = SCIPinfinity(scip);
+
       if ( heurdata->maxdiveavgquotnosol > 0.0 )
          searchavgbound = SCIPgetLowerbound(scip) + heurdata->maxdiveavgquotnosol * (SCIPgetAvgLowerbound(scip) - SCIPgetLowerbound(scip));
       else
@@ -343,6 +344,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
          searchubbound = SCIPgetLowerbound(scip) + heurdata->maxdiveubquot * (SCIPgetCutoffbound(scip) - SCIPgetLowerbound(scip));
       else
          searchubbound = SCIPinfinity(scip);
+
       if ( heurdata->maxdiveavgquot > 0.0 )
          searchavgbound = SCIPgetLowerbound(scip) + heurdata->maxdiveavgquot * (SCIPgetAvgLowerbound(scip) - SCIPgetLowerbound(scip));
       else
@@ -407,6 +409,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
       bestcandmayrounddown = TRUE;
       bestcandmayroundup = TRUE;
       bestcandroundup = FALSE;
+
       for (c = 0; c < nsdpcands; ++c)
       {
          var = sdpcands[c];
@@ -414,6 +417,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
          mayroundup = SCIPvarMayRoundUp(var);
          frac = sdpcandsfrac[c];
          obj = SCIPvarGetObj(var);
+
          if ( mayrounddown || mayroundup )
          {
             /* the candidate may be rounded: choose this candidate only, if the best candidate may also be rounded */
@@ -432,17 +436,17 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
                if ( roundup )
                {
                   frac = 1.0 - frac;
-                  objgain = frac*obj;
+                  objgain = frac * obj;
                }
                else
-                  objgain = -frac*obj;
+                  objgain = - frac * obj;
 
                /* penalize too small fractions */
                if ( frac < 0.01 )
                   objgain *= 1000.0;
 
                /* prefer decisions on binary variables */
-               if ( !SCIPvarIsBinary(var) )
+               if ( ! SCIPvarIsBinary(var) )
                   objgain *= 1000.0;
 
                /* check, if candidate is new best candidate */
@@ -473,10 +477,10 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
                frac += 10.0;
 
             /* prefer decisions on binary variables */
-            if ( !SCIPvarIsBinary(var) )
+            if ( ! SCIPvarIsBinary(var) )
                frac *= 1000.0;
 
-            /* check, if candidate is new best candidate: prefer unroundable candidates in any case */
+            /* check if candidate is new best candidate: prefer roundable candidates in any case */
             if ( bestcandmayrounddown || bestcandmayroundup || frac < bestfrac )
             {
                bestcand = c;
@@ -521,9 +525,9 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
       do
       {
          backtrack = FALSE;
-         /* if the variable is already fixed or if the solution value is outside the domain, numerical troubles may have
-          * occured or variable was fixed by propagation while backtracking => Abort diving!
-          */
+
+         /* If the variable is already fixed or if the solution value is outside the domain, numerical troubles may have
+          * occured or variable was fixed by propagation while backtracking => abort diving! */
          if ( SCIPvarGetLbLocal(var) >= SCIPvarGetUbLocal(var) - 0.5 )
          {
             SCIPdebugMsg(scip, "Selected variable <%s> already fixed to [%g,%g] (solval: %.9f), diving aborted \n",
@@ -531,6 +535,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
             cutoff = TRUE;
             break;
          }
+
          if ( SCIPisFeasLT(scip, sdpcandssol[bestcand], SCIPvarGetLbLocal(var)) || SCIPisFeasGT(scip, sdpcandssol[bestcand], SCIPvarGetUbLocal(var)) )
          {
             SCIPdebugMsg(scip, "selected variable's <%s> solution value is outside the domain [%g,%g] (solval: %.9f), diving aborted\n",
@@ -569,13 +574,13 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
 
          /* apply domain propagation */
          SCIP_CALL( SCIPpropagateProbing(scip, 0, &cutoff, NULL) );
-         if ( !cutoff )
+         if ( ! cutoff )
          {
             /* resolve the diving SDP */
             SCIP_CALL( SCIPsolveProbingRelax(scip, &cutoff) );
 
-            /* as cutoff doesn't work for relax sdp, we have to check ourselves, if we didn't manage to solve successfully, we abort diving */
-            if (! SCIPrelaxSdpSolvedProbing(relaxsdp))
+            /* make sure that we solved the SDP successfully */
+            if ( ! SCIPrelaxSdpSolvedProbing(relaxsdp) )
             {
                SCIPdebugMsg(scip, "SDP fracdiving heuristic aborted, as we could not solve one of the diving SDPs.\n");
 
@@ -614,7 +619,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
       }
       while ( backtrack );
 
-      if ( !cutoff )
+      if ( ! cutoff )
       {
          /* get new objective value */
          oldobjval = objval;
@@ -659,7 +664,7 @@ SCIP_DECL_HEUREXEC(heurExecSdpFracdiving)
    }
 
    /* check if a solution has been found */
-   if ( nsdpcands == 0 && !cutoff )
+   if ( nsdpcands == 0 && ! cutoff )
    {
       SCIP_Bool success;
 
@@ -733,35 +738,42 @@ SCIP_RETCODE SCIPincludeHeurSdpFracdiving(
 
    /* fracdiving heuristic parameters */
    SCIP_CALL( SCIPaddRealParam(scip,
-         "heuristics/sdpfracdiving/minreldepth",
+         "heuristics/" HEUR_NAME "/minreldepth",
          "minimal relative depth to start diving",
          &heurdata->minreldepth, TRUE, DEFAULT_MINRELDEPTH, 0.0, 1.0, NULL, NULL) );
+
    SCIP_CALL( SCIPaddRealParam(scip,
-         "heuristics/sdpfracdiving/maxreldepth",
+         "heuristics/" HEUR_NAME "/maxreldepth",
          "maximal relative depth to start diving",
          &heurdata->maxreldepth, TRUE, DEFAULT_MAXRELDEPTH, 0.0, 1.0, NULL, NULL) );
+
    SCIP_CALL( SCIPaddRealParam(scip,
-         "heuristics/sdpfracdiving/maxdiveubquot",
+         "heuristics/" HEUR_NAME "/maxdiveubquot",
          "maximal quotient (curlowerbound - lowerbound)/(cutoffbound - lowerbound) where diving is performed (0.0: no limit)",
          &heurdata->maxdiveubquot, TRUE, DEFAULT_MAXDIVEUBQUOT, 0.0, 1.0, NULL, NULL) );
+
    SCIP_CALL( SCIPaddRealParam(scip,
-         "heuristics/sdpfracdiving/maxdiveavgquot",
+         "heuristics/" HEUR_NAME "/maxdiveavgquot",
          "maximal quotient (curlowerbound - lowerbound)/(avglowerbound - lowerbound) where diving is performed (0.0: no limit)",
          &heurdata->maxdiveavgquot, TRUE, DEFAULT_MAXDIVEAVGQUOT, 0.0, SCIP_REAL_MAX, NULL, NULL) );
+
    SCIP_CALL( SCIPaddRealParam(scip,
-         "heuristics/sdpfracdiving/maxdiveubquotnosol",
+         "heuristics/" HEUR_NAME "/maxdiveubquotnosol",
          "maximal UBQUOT when no solution was found yet (0.0: no limit)",
          &heurdata->maxdiveubquotnosol, TRUE, DEFAULT_MAXDIVEUBQUOTNOSOL, 0.0, 1.0, NULL, NULL) );
+
    SCIP_CALL( SCIPaddRealParam(scip,
-         "heuristics/sdpfracdiving/maxdiveavgquotnosol",
+         "heuristics/" HEUR_NAME "/maxdiveavgquotnosol",
          "maximal AVGQUOT when no solution was found yet (0.0: no limit)",
          &heurdata->maxdiveavgquotnosol, TRUE, DEFAULT_MAXDIVEAVGQUOTNOSOL, 0.0, SCIP_REAL_MAX, NULL, NULL) );
+
    SCIP_CALL( SCIPaddBoolParam(scip,
-         "heuristics/sdpfracdiving/backtrack",
+         "heuristics/" HEUR_NAME "/backtrack",
          "use one level of backtracking if infeasibility is encountered?",
          &heurdata->backtrack, FALSE, DEFAULT_BACKTRACK, NULL, NULL) );
+
    SCIP_CALL( SCIPaddBoolParam(scip,
-         "heuristics/sdpfracdiving/runforlp",
+         "heuristics/" HEUR_NAME "/runforlp",
          "Should the diving heuristic be applied if we are solving LPs?",
          &heurdata->runforlp, FALSE, DEFAULT_RUNFORLP, NULL, NULL) );
 
