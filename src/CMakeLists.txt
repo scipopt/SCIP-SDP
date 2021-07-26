@@ -29,6 +29,7 @@ set(scipsdpsources
     scipsdp/branch_sdpmostinf.c
     scipsdp/branch_sdpobjective.c
     scipsdp/branch_sdpinfobjective.c
+    scipsdp/heur_sdpfracround.c
     scipsdp/heur_sdpinnerlp.c
     scipsdp/heur_sdpfracdiving.c
     scipsdp/heur_sdprand.c
@@ -87,6 +88,7 @@ set(scipsdpheaders
     scipsdp/branch_sdpmostinf.h
     scipsdp/branch_sdpobjective.h
     scipsdp/branch_sdpinfobjective.h
+    scipsdp/heur_sdpfracround.h
     scipsdp/heur_sdpinnerlp.h
     scipsdp/heur_sdpfracdiving.h
     scipsdp/heur_sdprand.h

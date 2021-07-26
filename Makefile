@@ -173,6 +173,7 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/branch_sdpobjective.o \
 			scipsdp/branch_sdpinfobjective.o \
 			scipsdp/heur_sdpfracdiving.o \
+			scipsdp/heur_sdpfracround.o \
 			scipsdp/heur_sdpinnerlp.o \
 			scipsdp/heur_sdprand.o \
 			scipsdp/reader_cbf.o \
@@ -190,7 +191,7 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			sdpi/sdpiclock.o \
 			scipsdpgithash.o
 
-SCIPSDPCCOBJ 	=	
+SCIPSDPCCOBJ 	=
 
 SCIPSDPCSRC	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCOBJ:.o=.c))
 SCIPSDPCCSRC 	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCCOBJ:.o=.cpp))

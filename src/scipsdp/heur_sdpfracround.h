@@ -30,21 +30,20 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   heur_sdprand.h
+/**@file heur_sdpfracround.h
  * @ingroup PRIMALHEURISTICS
- * @brief  randomized rounding heuristic for SDPs
+ * @brief  fractional rounding heuristic for SDPs
  * @author Marc Pfetsch
- * @author Tristan Gally
  *
- * Randomized Rounding heuristic for SDPs. Takes the solution of the SDP-relaxation and randomly rounds all integer
- * variables. They are rounded up with probability equal to the fractional part and down otherwise. If the SDP includes
- * continuous variables, the remaining SDP after the fixings is solved again.
+ * Fractional rounding heuristic for SDPs: Takes the solution of the SDP-relaxation and iteratively rounds all integer
+ * variables. After each rounding the problem is propagated. If the SDP includes continuous variables, the remaining SDP
+ * after the fixings is solved again.
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
-#ifndef __SCIP_HEUR_SDPRAND_H__
-#define __SCIP_HEUR_SDPRAND_H__
+#ifndef __SCIP_HEUR_SDPFRACROUND_H__
+#define __SCIP_HEUR_SDPFRACROUND_H__
 
 
 #include "scip/scip.h"
@@ -53,9 +52,9 @@
 extern "C" {
 #endif
 
-/** creates the randomized rounding heuristic for SDPs and includes it in SCIP */
+/** creates the fractional rounding heuristic for SDPs and includes it in SCIP */
 SCIP_EXPORT
-SCIP_RETCODE SCIPincludeHeurSdpRand(
+SCIP_RETCODE SCIPincludeHeurSdpFracround(
    SCIP*                 scip                /**< SCIP data structure */
    );
 
