@@ -145,7 +145,7 @@ SCIP_DECL_HEUREXIT(heurExitSdprand)
    heurdata = SCIPheurGetData(heur);
    assert( heurdata != NULL );
 
-   /* free working solution and random number generator*/
+   /* free working solution and random number generator */
    SCIP_CALL( SCIPfreeSol(scip, &heurdata->sol) );
    SCIPfreeRandom(scip, &(heurdata->randnumgen));
 

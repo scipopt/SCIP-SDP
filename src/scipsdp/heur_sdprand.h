@@ -38,8 +38,7 @@
  *
  * Randomized Rounding heuristic for SDPs. Takes the solution of the SDP-relaxation and randomly rounds all integer
  * variables. They are rounded up with probability equal to the fractional part and down otherwise. If the SDP includes
- * continuous variables, the remaining SDP after the fixings is solved again. This process is repeated up to the number
- * of rounds.
+ * continuous variables, the remaining SDP after the fixings is solved again.
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
