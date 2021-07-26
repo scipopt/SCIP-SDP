@@ -156,7 +156,6 @@ SCIP_DECL_HEUREXIT(heurExitSdprand)
 static
 SCIP_DECL_HEUREXEC(heurExecSdprand)
 {  /*lint --e{715}*/
-   /* older SCIP do not have SCIPsolveProbingRelax() -> do nothing */
    SCIP_HEURDATA* heurdata;
    SCIP_CONSHDLR* conshdlrsdp;
    SCIP_RELAX* relaxsdp;
