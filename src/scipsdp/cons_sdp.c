@@ -780,12 +780,7 @@ SCIP_RETCODE sparsifyCut(
       SCIP_Bool infeasible;
       SCIP_ROW* row;
 
-#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
       SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
-#else
-      SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
-#endif
-
       SCIP_CALL( SCIPaddVarsToRow(scip, row, cnt, vars, vals) );
 
       /* if we are enforcing, we take any of the cuts, otherwise only efficacious cuts */
@@ -987,12 +982,7 @@ SCIP_RETCODE separateSol(
          SCIP_Bool infeasible;
          SCIP_ROW* row;
 
-#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
          SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
-#else
-         SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
-#endif
-
          SCIP_CALL( SCIPaddVarsToRow(scip, row, cnt, vars, vals) );
 
          /* if we are enforcing, we take any of the cuts, otherwise only efficacious cuts */
