@@ -60,6 +60,8 @@ features:
 - Heuristic sdprand fixes variables that are close to being integral to integral values. This avoids many
   numerical issues.
 - New fractional rounding heuristic with intermediate propagation.
+- Add possibility to use ARPACK for eigenvalue computations with SDPs with one variable. For this just
+  set ARPACK=true in the makefile.
 
 API changes:
 - new functions SCIPconsSdpGetNVars() and SCIPconsSdpGetVars() in cons_sdp.c
