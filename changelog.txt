@@ -61,7 +61,7 @@ features:
   numerical issues.
 - New fractional rounding heuristic with intermediate propagation.
 - Add possibility to use ARPACK for eigenvalue computations with SDPs with one variable. For this just
-  set ARPACK=true in the makefile.
+  set ARPACK=true in the makefile. Note that using ARPACK is usually slower than using LAPACK.
 
 API changes:
 - new functions SCIPconsSdpGetNVars() and SCIPconsSdpGetVars() in cons_sdp.c
