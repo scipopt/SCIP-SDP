@@ -72,6 +72,7 @@ void F77_FUNC(dsaupd, DSAUPD)(int* IDO, char* BMAT, int* N, char* WHICH, int* NE
    SCIP_Real* RESID, int* NCV, SCIP_Real* V, int* LDV, int* IPARAM, int* IPNTR,
    SCIP_Real* WORKD, SCIP_Real* WORKL, int* LWORKL, int* INFO);
 
+/** ARPACK Fortran subroutine dseupd */
 void F77_FUNC(dseupd, DSEUPD)(int* RVEC, char* HOWMNY, int* SELECT, SCIP_Real* D, SCIP_Real* Z,
    int* LDZ, SCIP_Real* SIGMA, char* BMAT, int* N, char* WHICH, int* NEV, SCIP_Real* TOL,
    SCIP_Real* RESID, int* NCV, SCIP_Real* V, int* LDV, int* IPARAM, int* IPNTR,
@@ -141,19 +142,20 @@ SCIP_RETCODE SCIParpackComputeSmallestEigenvector(
    IPARAM[2] = 300;     /* maximal number of iterations */
    IPARAM[6] = 1;       /* Mode 1: A*x = lambda*x, A symmetric, => OP = A  and  B = I. */
    LWORKL = NCV * (NCV + 8);  /* must be at least NCV**2 + 8*NCV */
-   INFO = 0;          /* use random starting vector */
+   INFO = 0;            /* use random starting vector */
 
    BMS_CALL( BMSallocBufferMemoryArray(bufmem, &RESID, n) );
    BMS_CALL( BMSallocBufferMemoryArray(bufmem, &V, n * NCV) );
    BMS_CALL( BMSallocBufferMemoryArray(bufmem, &WORKD, 3 * n) );
    BMS_CALL( BMSallocBufferMemoryArray(bufmem, &WORKL, LWORKL) );
 
+   /* enter loop with "reverse communication interface" */
    do
    {
       F77_FUNC(dsaupd, DSAUPD)(&IDO, &BMAT, &N, WHICH, &NEV, &TOL, RESID, &NCV, V, &LDV, IPARAM, IPNTR,
          WORKD, WORKL, &LWORKL, &INFO);
 
-      /* if maximal number of iterations have been reached */
+      /* if maximal number of iterations have been reached - still try to extract eigenvalue/eigenvector */
       if ( INFO == 1 )
          break;
 
@@ -168,8 +170,8 @@ SCIP_RETCODE SCIParpackComputeSmallestEigenvector(
          SCIP_Real* x;
          SCIP_Real* y;
 
-         x = &WORKD[IPNTR[0] - 1];
-         y = &WORKD[IPNTR[1] - 1];
+         x = &WORKD[IPNTR[0] - 1];   /* input vector */
+         y = &WORKD[IPNTR[1] - 1];   /* output vector */
 
          /* perform matrix vector multiplication */
          for (i = 0; i < n; ++i)
@@ -287,12 +289,13 @@ SCIP_RETCODE SCIParpackComputeSmallestEigenvectorOneVar(
    BMS_CALL( BMSallocBufferMemoryArray(bufmem, &WORKD, 3 * n) );
    BMS_CALL( BMSallocBufferMemoryArray(bufmem, &WORKL, LWORKL) );
 
+   /* enter loop with "reverse communication interface" */
    do
    {
       F77_FUNC(dsaupd, DSAUPD)(&IDO, &BMAT, &N, WHICH, &NEV, &TOL, RESID, &NCV, V, &LDV, IPARAM, IPNTR,
          WORKD, WORKL, &LWORKL, &INFO);
 
-      /* if maximal number of iterations have been reached */
+      /* if maximal number of iterations have been reached - still try to extract eigenvalue/eigenvector */
       if ( INFO == 1 )
          break;
 
@@ -309,8 +312,8 @@ SCIP_RETCODE SCIParpackComputeSmallestEigenvectorOneVar(
          int r;
          int c;
 
-         x = &WORKD[IPNTR[0] - 1];
-         y = &WORKD[IPNTR[1] - 1];
+         x = &WORKD[IPNTR[0] - 1];   /* input vector */
+         y = &WORKD[IPNTR[1] - 1];   /* output vector */
 
          /* perform matrix vector multiplication */
          for (i = 0; i < n; ++i)
