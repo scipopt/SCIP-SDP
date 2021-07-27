@@ -68,7 +68,7 @@ API changes:
 - Remove the functions SCIPsdpiSolverGetDefaultSdpiSolverFeastol() and SCIPsdpiSolverGetDefaultSdpiSolverGaptol(). The
   tolerances are now set by relax_sdp.c.
 - new function SCIPsdpiGetMessagehdlr() in SDPI
-- new function SCIPsdpSolcheckerCheckAndGetViolDual() for checking solution
+- new functions SCIPsdpSolcheckerCheckAndGetViolDual() and SCIPsdpSolcheckerCheckAndGetViolPrimal() for checking solutions
 
 parameters:
 - new parameter <constraints/SDP/separateonecut> to separate only one cut for the smallest eigenvalue (default: FALSE)
