@@ -52,7 +52,7 @@ features:
 - The documentation now uses MathJax to render math formulas.
 - The LAPACK interface works with 32- and 64-bit library versions, since one cannot detect this at runtime.
   This also avoids problem with MATLAB replacing LAPACK by a 64-bit MKL.
-- The output of the statics has been extended and corrected at several places. In particular, more information is
+- The output of the statistics has been extended and corrected at several places. In particular, more information is
   output for SDP solves.
 - SCIP-SDP can now run concurrently. For this just call "concurrentopt" in the interactive shell.
 - sdpisolver_dsdp now uses the objective values of the penalty formulation for a feasibility check.
@@ -122,7 +122,7 @@ fixed bugs:
 - Fixed linking of ubsan and clean/test targets in Makefile.
 - SCIP-SDP can now be compiled with TPIs (for concurrent optimization).
 - Avoid multiple symbols when linking LAPACK with CPLEX.
-- weakened tolerances in cmprs.awk
+- weakened tolerances in cmprs.awk and check.awk
 
 
 SCIP-SDP version 3.2.0
