@@ -26,6 +26,7 @@ features:
 - Revised the functions diagZeroImpl(), addTwoMinorLinConstraints().
 - The SDPA reader has been rewritten in C.
 - The SDPA reader supports a new optional section '*RANK1' that allows to specify rank-1-constraints. See 'sdpa-format.txt' for a description.
+- added a check for infinity in the CBF and SDPA reader
 - added more documentation to sdpi.c
 - revised handling of problems in which all variables are fixed or the SDPI detects infeasibility
 - SDPI now copies lower and upper bounds before possible strengthening.
@@ -36,7 +37,8 @@ features:
 - new file scipsdpdef.h which contains the SCIPSDP version
 - possibly update number of variables and consider added SDP constraints
 - The number of threads used is now used by the SDPA interface.
-- All SDP solvers now use the same default tolerances (feasibility and gap).
+- All SDP solvers now use the same default tolerances (feasibility and gap), and for Mosek the feasibility tolerance (<sdpsolverfeastol>)
+  is tightened by 0.1.
 - Remove table_sdpsolversuccess; its output has been added to table_relaxsdp.
 - Heuristics <sdprand> now uses propagation to increase its success rate.
 - Solve SDPs with one variable by using a semi-smooth Newton approach.
