@@ -1,5 +1,5 @@
-constraints/SDP/propagate = false
-constraints/SDP/proppresol = true
+constraints/SDP/propupperbounds = false
+constraints/SDP/propubpresol = true
 constraints/SDP/diaggezerocuts = false
 constraints/SDP/diagzeroimplcuts = false
 constraints/SDP/tightenbounds = false

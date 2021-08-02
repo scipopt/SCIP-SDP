@@ -101,8 +101,9 @@
 
 #define PARSE_STARTSIZE               1 /**< initial size of the consdata-arrays when parsing a problem */
 #define PARSE_SIZEFACTOR             10 /**< size of consdata-arrays is increased by this factor when parsing a problem */
-#define DEFAULT_PROPAGATE          TRUE /**< Should we perform propagation? */
-#define DEFAULT_PROPPRESOL         TRUE /**< Should we perform propagation in presolving? */
+
+#define DEFAULT_PROPUPPERBOUNDS    TRUE /**< Should upper bounds be propagated? */
+#define DEFAULT_PROPUBPRESOL       TRUE /**< Should upper bounds be propagated in presolving? */
 #define DEFAULT_TIGHTENMATRICES   FALSE /**< If all matrices are psd, should the matrices be tightened if possible? */
 #define DEFAULT_TIGHTENBOUNDS     FALSE /**< If all matrices are psd, should the bounds be tightened if possible? */
 #define DEFAULT_DIAGGEZEROCUTS     TRUE /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
@@ -166,8 +167,8 @@ struct SCIP_ConshdlrData
    SCIP_Bool             diaggezerocuts;     /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
    int                   ndiaggezerocuts;    /**< this is used to give the diagGEzero-cuts distinguishable names */
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
-   SCIP_Bool             propagate;          /**< Should we perform propagation? */
-   SCIP_Bool             proppresol;         /**< Should we perform propagation in presolving? */
+   SCIP_Bool             propupperbounds;    /**< Should upper bounds be propagated? */
+   SCIP_Bool             propubpresol;       /**< Should upper bounds be propagated in presolving? */
    SCIP_Bool             tightenmatrices;    /**< If all matrices are psd, should the matrices be tightened if possible? */
    SCIP_Bool             tightenbounds;      /**< If all matrices are psd, should the bounds be tightened if possible? */
    SCIP_Bool             diagzeroimplcuts;   /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
@@ -3347,9 +3348,9 @@ SCIP_RETCODE analyzeConflict(
    return SCIP_OKAY;
 }
 
-/** propagates SDP constraints */
+/** propagates upper bounds */
 static
-SCIP_RETCODE propConstraints(
+SCIP_RETCODE propagateUpperBounds(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           conss,              /**< constraints to process */
    int                   nconss,             /**< number of constraints */
@@ -4836,27 +4837,27 @@ SCIP_DECL_CONSPROP(consPropSdp)
 
    *result = SCIP_DIDNOTRUN;
 
-   if ( ! conshdlrdata->sdpconshdlrdata->propagate )
-      return SCIP_OKAY;
-
-   *result = SCIP_DIDNOTFIND;
-
-   SCIPdebugMsg(scip, "propagation method of conshdlr <%s> ...\n", SCIPconshdlrGetName(conshdlr));
-
-   SCIP_CALL( propConstraints(scip, conss, nconss, &infeasible, &nprop) );
-
-   if ( infeasible )
+   if ( conshdlrdata->sdpconshdlrdata->propupperbounds )
    {
-      SCIPdebugMsg(scip, "Propagation detected cutoff.\n");
-      *result = SCIP_CUTOFF;
-   }
-   else
-   {
-      SCIPdebugMsg(scip, "Propagated bounds: %d.\n", nprop);
-      if ( nprop > 0 )
+      *result = SCIP_DIDNOTFIND;
+
+      SCIPdebugMsg(scip, "propagate upper bounds of conshdlr <%s> ...\n", SCIPconshdlrGetName(conshdlr));
+
+      SCIP_CALL( propagateUpperBounds(scip, conss, nconss, &infeasible, &nprop) );
+
+      if ( infeasible )
       {
-         SCIPdebugMsg(scip, "Propagation tightened %d bounds.\n", nprop);
-         *result = SCIP_REDUCEDDOM;
+         SCIPdebugMsg(scip, "Propagation detected cutoff.\n");
+         *result = SCIP_CUTOFF;
+      }
+      else
+      {
+         SCIPdebugMsg(scip, "Propagated upper bounds: %d.\n", nprop);
+         if ( nprop > 0 )
+         {
+            SCIPdebugMsg(scip, "Propagation tightened %d bounds.\n", nprop);
+            *result = SCIP_REDUCEDDOM;
+         }
       }
    }
 
@@ -4982,9 +4983,9 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       return SCIP_OKAY;
 
    /* call propagation */
-   if ( conshdlrdata->sdpconshdlrdata->proppresol )
+   if ( conshdlrdata->sdpconshdlrdata->propubpresol )
    {
-      SCIP_CALL( propConstraints(scip, conss, nconss, &infeasible, &nprop) );
+      SCIP_CALL( propagateUpperBounds(scip, conss, nconss, &infeasible, &nprop) );
 
       if ( infeasible )
       {
@@ -4994,7 +4995,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       }
       else
       {
-         SCIPdebugMsg(scip, "Propagated bounds: %d.\n", nprop);
+         SCIPdebugMsg(scip, "Propagated upper bounds: %d.\n", nprop);
          if ( nprop > 0 )
          {
             *nchgbds += nprop;
@@ -6705,13 +6706,13 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          &(conshdlrdata->nthreads), TRUE, DEFAULT_NTHREADS, 1, INT_MAX, NULL, NULL) );
 #endif
 
-   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/propagate",
-         "Should we perform propagation?",
-         &(conshdlrdata->propagate), TRUE, DEFAULT_PROPAGATE, NULL, NULL) );
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/propupperbounds",
+         "Should upper bounds be propagated?",
+         &(conshdlrdata->propupperbounds), TRUE, DEFAULT_PROPUPPERBOUNDS, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/proppresol",
-         "Should we perform propagation in presolving?",
-         &(conshdlrdata->proppresol), TRUE, DEFAULT_PROPPRESOL, NULL, NULL) );
+         "Should upper bounds be propagated in presolving?",
+         &(conshdlrdata->propubpresol), TRUE, DEFAULT_PROPUBPRESOL, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/tightenmatrices",
          "If all matrices are psd, should the matrices be tightened if possible?",
@@ -6816,8 +6817,8 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
 
    /* only use one parameter */
    conshdlrdata->diaggezerocuts = FALSE;
-   conshdlrdata->propagate = FALSE;
-   conshdlrdata->proppresol = FALSE;
+   conshdlrdata->propupperbounds = FALSE;
+   conshdlrdata->propubpresol = FALSE;
    conshdlrdata->tightenmatrices = FALSE;
    conshdlrdata->tightenbounds = FALSE;
    conshdlrdata->diagzeroimplcuts = FALSE;
