@@ -300,3 +300,171 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
 
    return SCIP_OKAY;
 }
+
+
+/** solves SDP with one variable and one SDP block - variant for dense constant matrix */
+SCIP_RETCODE SCIPsolveOneVarSDPDense(
+   BMS_BUFMEM*           bufmem,             /**< buffer memory */
+   SCIP_Real             obj,                /**< objective coefficient of variable */
+   SCIP_Real             lb,                 /**< lower bound of variable */
+   SCIP_Real             ub,                 /**< upper bound of variable */
+   int                   blocksize,          /**< size of the SDP-block */
+   SCIP_Real*            fullconstmatrix,    /**< dense full constant matrix */
+   int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint-matrix */
+   int*                  sdprow,             /**< array of row-indices of nonzero matrix entries */
+   int*                  sdpcol,             /**< array of column-indices of nonzero matrix entries */
+   SCIP_Real*            sdpval,             /**< array of nonzero values */
+   SCIP_Real             infinity,           /**< infinity value */
+   SCIP_Real             feastol,            /**< feasibility tolerance */
+   SCIP_Real             gaptol,             /**< gap tolerance */
+   SCIP_Real*            objval,             /**< pointer to store optimal objective value */
+   SCIP_Real*            optval              /**< pointer to store optimal value of variable */
+   )
+{
+   SCIP_Real* fullmatrix;
+   SCIP_Real* tmpmatrix;
+   SCIP_Real* eigenvector = NULL;
+   SCIP_Real eigenvalue;
+   SCIP_Real supergradient = SCIP_INVALID;
+   SCIP_Real mu;
+   int r;
+   int c;
+   int i;
+
+   assert( fullconstmatrix != NULL );
+   assert( sdpnnonz == 0 || sdprow != NULL );
+   assert( sdpnnonz == 0 || sdpcol != NULL );
+   assert( sdpnnonz == 0 || sdpval != NULL );
+   assert( objval != NULL );
+   assert( optval != NULL );
+
+   *objval = SCIP_INVALID;
+   *optval = SCIP_INVALID;
+
+   /* can currently only treat the case with finite lower and upper bounds */
+   if ( lb <= -infinity )
+      return SCIP_OKAY;
+   if ( ub >= infinity )
+      return SCIP_OKAY;
+
+   /* can currently only treat nonnegative objective functions */
+   if ( obj < 0.0 )
+      return SCIP_OKAY;
+
+   SCIPdebugMessage("Solve SDP with one variable (obj = %g, lb = %g, ub = %g).\n", obj, lb, ub);
+
+   /* fill in full matrices */
+   BMS_CALL( BMSallocClearBufferMemoryArray(bufmem, &fullmatrix, blocksize * blocksize) );
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &tmpmatrix, blocksize * blocksize) );
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &eigenvector, blocksize) );
+
+   for (i = 0; i < sdpnnonz; ++i)
+   {
+      r = sdprow[i];
+      c = sdpcol[i];
+      assert( fullmatrix[r * blocksize + c] == 0.0 );
+      assert( fullmatrix[c * blocksize + r] == 0.0 );
+      fullmatrix[r * blocksize + c] = sdpval[i];
+      fullmatrix[c * blocksize + r] = sdpval[i];
+   }
+
+   /* check upper bound */
+   SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, ub, &eigenvalue, eigenvector) );
+   SCIPdebugMessage("ub = %g, minimal eigenvalue: %g\n", ub, eigenvalue);
+
+   /* if matrix is not psd */
+   if ( eigenvalue < -feastol )
+   {
+      /* compute supergradient value */
+      computeSupergradient(sdpnnonz, sdprow, sdpcol, sdpval, eigenvector, &supergradient);
+
+      /* if supergradient is positive, then the problem is infeasible, because the minimal eigenvalue is increasing and we are not psd */
+      if ( supergradient > 0.0 )
+      {
+         SCIPdebugMessage("Problem is infeasible (minimal eigenvalue: %g, supergradient = %g).\n", eigenvalue, supergradient);
+         *objval = infinity;
+         *optval = ub;
+
+         goto TERMINATE;
+      }
+   }
+
+   /* otherwise check lower bound */
+   SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, lb, &eigenvalue, eigenvector) );
+
+   /* if matrix is psd, then the lower bound is optimal */
+   if ( eigenvalue >= -feastol )
+   {
+      SCIPdebugMessage("Lower bound is optimal.\n");
+      *objval = obj * lb;
+      *optval = lb;
+
+      goto TERMINATE;
+   }
+   else
+   {
+      /* compute supergradient value */
+      computeSupergradient(sdpnnonz, sdprow, sdpcol, sdpval, eigenvector, &supergradient);
+
+      /* if supergradient not positive, then the problem is infeasible because the eigenvalue is decreasing and we are not psd */
+      if ( supergradient <= 0.0 )
+      {
+         SCIPdebugMessage("Problem is infeasible (minimal eigenvalue: %g, supergradient: %g).\n", eigenvalue, supergradient);
+         *objval = infinity;
+         *optval = lb;
+
+         goto TERMINATE;
+      }
+   }
+   assert( supergradient != SCIP_INVALID );
+   SCIPdebugMessage("lb = %g, minimal eigenvalue: %g, supergradient: %g\n", lb, eigenvalue, supergradient);
+
+   /* Invariant of the loop: the lower bound is not psd and the supergradient is positive */
+   assert( eigenvector != NULL );
+   assert( eigenvalue < -feastol );
+   assert( supergradient > 0.0 );
+   mu = lb;
+   while ( eigenvalue < -feastol && supergradient > 0.0 )
+   {
+      assert( eigenvalue < -feastol );
+      assert( supergradient > 0.0 );
+
+      /* Compute estimate based on where the supergradient would reach -feastol/2.0 based on the supergradient inequality
+      *  f(mu) \leq f(muold) + (mu - muold) g. We use feastol/2.0 to avoid little rounding errors. */
+      mu = mu - (feastol / 2.0 + eigenvalue) / supergradient;
+
+      /* Stop if we are larger than ub. In this case the problem is infeasible, since eigenvalue < -feastol by the while
+       * condition. Infeasibility is detected below. */
+      if ( mu > ub )
+         break;
+
+      /* compute eigenvalue and eigenvector */
+      SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, mu, &eigenvalue, eigenvector) );
+
+      /* update supergradient */
+      computeSupergradient(sdpnnonz, sdprow, sdpcol, sdpval, eigenvector, &supergradient);
+
+      SCIPdebugMessage("mu = %.15g in [%.15g, %.15g], minimal eigenvalue: %g, supergradient: %g.\n", mu, lb, ub, eigenvalue, supergradient);
+   }
+
+   /* check whether we are infeasible */
+   if ( eigenvalue < -feastol )
+   {
+      SCIPdebugMessage("Problem infeasible; detected at %.15g in [%.15g, %.15g], minimal eigenvalue: %g, supergradient: %g.\n", mu, lb, ub, eigenvalue, supergradient);
+      *objval = infinity;
+      *optval = mu;
+   }
+   else
+   {
+      SCIPdebugMessage("Solution is %.15g in [%.15g, %.15g], minimal eigenvalue: %g, supergradient: %g.\n", mu, lb, ub, eigenvalue, supergradient);
+      *objval = obj * mu;
+      *optval = mu;
+   }
+
+ TERMINATE:
+   BMSfreeBufferMemoryArray(bufmem, &eigenvector);
+   BMSfreeBufferMemoryArray(bufmem, &tmpmatrix);
+   BMSfreeBufferMemoryArray(bufmem, &fullmatrix);
+
+   return SCIP_OKAY;
+}

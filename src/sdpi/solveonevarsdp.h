@@ -71,6 +71,26 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    SCIP_Real*            optval              /**< pointer to store optimal value of variable */
    );
 
+/** solves SDP with one variable and one SDP block - variant for dense constant matrix */
+SCIP_EXPORT
+SCIP_RETCODE SCIPsolveOneVarSDPDense(
+   BMS_BUFMEM*           bufmem,             /**< buffer memory */
+   SCIP_Real             obj,                /**< objective coefficient of variable */
+   SCIP_Real             lb,                 /**< lower bound of variable */
+   SCIP_Real             ub,                 /**< upper bound of variable */
+   int                   blocksize,          /**< size of the SDP-block */
+   SCIP_Real*            fullconstmatrix,    /**< dense full constant matrix */
+   int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint-matrix */
+   int*                  sdprow,             /**< array of row-indices of nonzero matrix entries */
+   int*                  sdpcol,             /**< array of column-indices of nonzero matrix entries */
+   SCIP_Real*            sdpval,             /**< array of nonzero values */
+   SCIP_Real             infinity,           /**< infinity value */
+   SCIP_Real             feastol,            /**< feasibility tolerance */
+   SCIP_Real             gaptol,             /**< gap tolerance */
+   SCIP_Real*            objval,             /**< pointer to store optimal objective value */
+   SCIP_Real*            optval              /**< pointer to store optimal value of variable */
+   );
+
 #ifdef __cplusplus
 }
 #endif
