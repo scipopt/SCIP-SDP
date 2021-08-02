@@ -1231,7 +1231,7 @@ SCIP_RETCODE tightenBounds(
       nvars = consdata->nvars;
       for (i = 0; i < nvars; ++i)
       {
-         if ( SCIPisInfinity(scip, SCIPvarGetUbGlobal(consdata->vars[i])) )
+         if ( SCIPisInfinity(scip, SCIPvarGetUbLocal(consdata->vars[i])) )
             break;
       }
       if ( i < nvars )
@@ -1254,8 +1254,8 @@ SCIP_RETCODE tightenBounds(
          int l;
 
          /* skip fixed variables */
-         lb = SCIPvarGetLbGlobal(consdata->vars[i]);
-         ub = SCIPvarGetUbGlobal(consdata->vars[i]);
+         lb = SCIPvarGetLbLocal(consdata->vars[i]);
+         ub = SCIPvarGetUbLocal(consdata->vars[i]);
          if ( SCIPisEQ(scip, lb, ub) )
             continue;
 
