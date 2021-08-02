@@ -58,6 +58,7 @@
 #include <ctype.h>                      /* for isspace */
 #include <math.h>
 #include "sdpi/lapack_interface.h"
+#include "sdpi/solveonevarsdp.h"
 #include "relax_sdp.h"
 
 #include "scipsdp/SdpVarmapper.h"
@@ -1278,10 +1279,15 @@ SCIP_RETCODE tightenBounds(
                constmatrix[l] -= othermatrix[l] * ubk;
          }
 
-         SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrix) );
-
+#if 0
          /* compute smallest scaling factor */
+         SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrix) );
          SCIP_CALL( computeScalingFactor(scip, blocksize, matrix, constmatrix, lb, ub, &factor) );
+#else
+         /* solve 1d SDP - reuse ubk */
+         SCIP_CALL( SCIPsolveOneVarSDPDense(SCIPbuffer(scip), 1.0, lb, ub, blocksize, constmatrix, consdata->nvarnonz[i], consdata->row[i], consdata->col[i], consdata->val[i],
+               SCIPinfinity(scip), SCIPfeastol(scip), 1e-6, &ubk, &factor) );
+#endif
          if ( factor == SCIP_INVALID ) /*lint !e777*/
             continue;
 
