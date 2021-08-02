@@ -1249,6 +1249,7 @@ SCIP_RETCODE tightenBounds(
       {
          SCIP_Real lb;
          SCIP_Real ub;
+         SCIP_Real ubk;
          int k;
          int l;
 
@@ -1268,10 +1269,11 @@ SCIP_RETCODE tightenBounds(
                continue;
 
             SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], k, othermatrix) );
+            ubk = SCIPvarGetUbLocal(consdata->vars[k]);
 
             /* subtract matrix times upper bound from constant matrix (because of minus const. matrix) */
             for (l = 0; l < blocksize * blocksize; ++l)
-               constmatrix[l] -= othermatrix[l] * ub;
+               constmatrix[l] -= othermatrix[l] * ubk;
          }
 
          SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrix) );
