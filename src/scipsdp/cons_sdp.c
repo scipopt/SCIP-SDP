@@ -328,8 +328,11 @@ SCIP_RETCODE computeSdpMatrix(
    for (i = 0; i < nvars; i++)
    {
       yval = SCIPgetSolVal(scip, y, consdata->vars[i]);
-      for (ind = 0; ind < consdata->nvarnonz[i]; ind++)
-         matrix[SCIPconsSdpCompLowerTriangPos(consdata->row[i][ind], consdata->col[i][ind])] += yval * consdata->val[i][ind];
+      if ( ! SCIPisZero(scip, yval) )
+      {
+         for (ind = 0; ind < consdata->nvarnonz[i]; ind++)
+            matrix[SCIPconsSdpCompLowerTriangPos(consdata->row[i][ind], consdata->col[i][ind])] += yval * consdata->val[i][ind];
+      }
    }
 
    /* substract the constant part */
@@ -5964,6 +5967,9 @@ SCIP_DECL_CONSENFORELAX(consEnforelaxSdp)
    assert( result != NULL );
 
    *result = SCIP_FEASIBLE;
+
+   if ( solinfeasible )
+      return SCIP_OKAY;
 
    /*****  Is this correct? Relaxation solutions should be feasible. */
    for (c = 0; c < nconss && *result != SCIP_CUTOFF; ++c)
