@@ -5968,6 +5968,9 @@ SCIP_DECL_CONSENFORELAX(consEnforelaxSdp)
 
    *result = SCIP_FEASIBLE;
 
+   if ( solinfeasible )
+      return SCIP_OKAY;
+
    /*****  Is this correct? Relaxation solutions should be feasible. */
    for (c = 0; c < nconss && *result != SCIP_CUTOFF; ++c)
    {
