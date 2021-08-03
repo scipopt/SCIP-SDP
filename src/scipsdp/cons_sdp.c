@@ -328,8 +328,11 @@ SCIP_RETCODE computeSdpMatrix(
    for (i = 0; i < nvars; i++)
    {
       yval = SCIPgetSolVal(scip, y, consdata->vars[i]);
-      for (ind = 0; ind < consdata->nvarnonz[i]; ind++)
-         matrix[SCIPconsSdpCompLowerTriangPos(consdata->row[i][ind], consdata->col[i][ind])] += yval * consdata->val[i][ind];
+      if ( ! SCIPisZero(scip, yval) )
+      {
+         for (ind = 0; ind < consdata->nvarnonz[i]; ind++)
+            matrix[SCIPconsSdpCompLowerTriangPos(consdata->row[i][ind], consdata->col[i][ind])] += yval * consdata->val[i][ind];
+      }
    }
 
    /* substract the constant part */
