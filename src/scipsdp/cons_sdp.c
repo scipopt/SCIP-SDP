@@ -1253,6 +1253,7 @@ SCIP_RETCODE tightenBounds(
          SCIP_Real lb;
          SCIP_Real ub;
          SCIP_Real ubk;
+         SCIP_Real objval;
          int k;
          int l;
 
@@ -1284,10 +1285,17 @@ SCIP_RETCODE tightenBounds(
          SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrix) );
          SCIP_CALL( computeScalingFactor(scip, blocksize, matrix, constmatrix, lb, ub, &factor) );
 #else
-         /* solve 1d SDP - reuse ubk */
+         /* solve 1d SDP */
          SCIP_CALL( SCIPsolveOneVarSDPDense(SCIPbuffer(scip), 1.0, lb, ub, blocksize, constmatrix, consdata->nvarnonz[i], consdata->row[i], consdata->col[i], consdata->val[i],
-               SCIPinfinity(scip), SCIPfeastol(scip), 1e-6, &ubk, &factor) );
+               SCIPinfinity(scip), SCIPfeastol(scip), 1e-6, &objval, &factor) );
 #endif
+         /* if problem is infeasible */
+         if ( SCIPisInfinity(scip, objval) )
+         {
+            *infeasible = TRUE;
+            break;
+         }
+
          if ( factor == SCIP_INVALID ) /*lint !e777*/
             continue;
 
