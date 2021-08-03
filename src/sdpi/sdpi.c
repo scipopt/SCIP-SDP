@@ -971,12 +971,7 @@ static
 SCIP_RETCODE checkFixedFeasibilitySdp(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
    SCIP_Real*            sdpilb,             /**< array of lower bounds */
-   SCIP_Real*            sdpiub,             /**< array of upper bounds */
-   int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
-                                              *   number of entries  of sdpconst row/col/val [i] */
-   int**                 sdpconstrow,        /**< pointers to row-indices for each block */
-   int**                 sdpconstcol,        /**< pointers to column-indices for each block */
-   SCIP_Real**           sdpconstval         /**< pointers to the values of the nonzeros for each block */
+   SCIP_Real*            sdpiub              /**< array of upper bounds */
    )
 {
    SCIP_Real* fullmatrix; /* we need to give the full matrix to LAPACK */
@@ -986,6 +981,7 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
    int v;
 
    assert( sdpi->allfixed );
+   assert( ! sdpi->infeasible );
 
    /* as we don't want to allocate memory newly for every SDP-block, we allocate memory according to the size of the largest block */
    for (b = 0; b < sdpi->nsdpblocks; b++)
@@ -993,6 +989,8 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
       if ( sdpi->sdpblocksizes[b] > maxsize )
          maxsize = sdpi->sdpblocksizes[b];
    }
+   if ( maxsize < 0 )
+      return SCIP_OKAY;
 
    /* allocate memory */
    BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &fullmatrix, maxsize * maxsize) ); /*lint !e647*/
@@ -1007,20 +1005,23 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
       int c;
 
       size = sdpi->sdpblocksizes[b];
+      assert( size <= maxsize );
 
       /* initialize the matrix with zero */
       for (i = 0; i < size * size; i++)
          fullmatrix[i] = 0.0;
 
       /* add the constant matrix (with negative sign) */
-      for (i = 0; i < sdpconstnblocknonz[b]; i++)
+      for (i = 0; i < sdpi->sdpconstnblocknonz[b]; i++)
       {
-         r = sdpconstrow[b][i];
-         c = sdpconstcol[b][i];
+         r = sdpi->sdpconstrow[b][i];
+         c = sdpi->sdpconstcol[b][i];
 
          assert( 0 <= r && r < size );
          assert( 0 <= c && c < size );
-         fullmatrix[r * size + c] = - sdpconstval[b][i]; /*lint !e679*/
+         fullmatrix[r * size + c] = - sdpi->sdpconstval[b][i]; /*lint !e679*/
+         if ( r != c )
+            fullmatrix[c * size + r] = - sdpi->sdpconstval[b][i]; /*lint !e679*/
       }
 
       /* add the contributions of the fixed variables */
@@ -1042,6 +1043,8 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
             assert( 0 <= r && r < size );
             assert( 0 <= c && c < size );
             fullmatrix[r * size + c] += fixedval * sdpi->sdpval[b][v][i]; /*lint !e679*/
+            if ( r != c )
+               fullmatrix[c * size + r] += fixedval * sdpi->sdpval[b][v][i]; /*lint !e679*/
          }
       }
 
@@ -1052,17 +1055,13 @@ SCIP_RETCODE checkFixedFeasibilitySdp(
       if ( eigenvalue < - sdpi->feastol )
       {
          sdpi->infeasible = TRUE;
-         SCIPdebugMessage("Detected infeasibility for SDP %d with all fixed variables!\n", sdpi->sdpid);
+         SCIPdebugMessage("Detected infeasibility for SDP %d with all variables fixed (minimal eigenvalue: %g)!\n", sdpi->sdpid, eigenvalue);
          break;
       }
    }
 
    /* free memory */
    BMSfreeBufferMemoryArray(sdpi->bufmem, &fullmatrix);
-
-   /* if we didn't find an SDP-block with negative eigenvalue, the solution is feasible */
-   sdpi->infeasible = FALSE;
-   SCIPdebugMessage("Unique solution for SDP %d with all fixed variables is feasible!\n", sdpi->sdpid);
 
    return SCIP_OKAY;
 }
