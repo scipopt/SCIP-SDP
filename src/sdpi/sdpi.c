@@ -2747,8 +2747,22 @@ SCIP_RETCODE SCIPsdpiSolve(
    /* check if all variables are fixed, if this is the case, check if the remaining solution for feasibility */
    if ( sdpi->allfixed )
    {
-      SCIPdebugMessage("Detected that all variables in SDP %d are fixed.\n", sdpi->sdpid);
+      /* check feasibility of SDP constraints - LP constraints have been checked in prepareLPData() */
+      SCIP_CALL( checkFixedFeasibilitySdp(sdpi, sdpi->sdpilb, sdpi->sdpiub) );
+
+      SCIPdebugMessage("SDP %d not given to solver, since all variables are fixed; problem is %sfeasible!\n", sdpi->sdpid++, sdpi->infeasible ? "in" : "");
+
+      SCIP_CALL( SCIPsdpiSolverIncreaseCounter(sdpi->sdpisolver) );
+      sdpi->solved = TRUE;
+      sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
+      sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
+      ++sdpi->nallfixed;
+      SDPIclockStop(sdpi->usedsdpitime);
+
+      return SCIP_OKAY;
    }
+   assert( ! sdpi->allfixed );
+   assert( ! sdpi->infeasible );
 
    /* allocate memory for computing the constant matrix after fixings and finding empty rows and columns */
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstnblocknonz, sdpi->nsdpblocks) );
@@ -2773,35 +2787,11 @@ SCIP_RETCODE SCIPsdpiSolve(
 
    /* compute constant matrix after fixings */
    SCIP_CALL( compConstMatAfterFixings(sdpi, sdpi->sdpilb, sdpi->sdpiub, &sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval) );
+   assert( ! sdpi->allfixed );
+   assert( ! sdpi->infeasible );
 
-   if ( sdpi->allfixed && ! sdpi->infeasible )
-   {
-      /* check feasibility of SDP constraints - LP constraints have been checked in prepareLPData() */
-      SCIP_CALL( checkFixedFeasibilitySdp(sdpi, sdpi->sdpilb, sdpi->sdpiub, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval) );
-   }
-
-   if ( sdpi->infeasible )
-   {
-      SCIPdebugMessage("SDP %d not given to solver, as infeasibility was detected during presolving!\n", sdpi->sdpid++);
-      SCIP_CALL( SCIPsdpiSolverIncreaseCounter(sdpi->sdpisolver) );
-
-      sdpi->solved = TRUE;
-      sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
-      sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
-      ++sdpi->ninfeasible;
-   }
-   else if ( sdpi->allfixed )
-   {
-      SCIPdebugMessage("SDP %d not given to solver, as all variables were fixed during presolving (the solution was feasible)!\n", sdpi->sdpid++);
-      SCIP_CALL( SCIPsdpiSolverIncreaseCounter(sdpi->sdpisolver) );
-
-      sdpi->solved = TRUE;
-      sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
-      sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
-      ++sdpi->nallfixed;
-   }
    /* check whether problem contains one variable and one SDP block */
-   else if ( nactivevars == 1 && sdpi->nsdpblocks <= 1 )
+   if ( nactivevars == 1 && sdpi->nsdpblocks <= 1 )
    {
       SCIP_Real objval;
       SCIP_Real optval;
