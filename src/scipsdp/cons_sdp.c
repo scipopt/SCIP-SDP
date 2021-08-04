@@ -3310,6 +3310,8 @@ SCIP_RETCODE analyzeConflict(
    /* initialize conflict analysis, and add all variables of infeasible constraint to conflict candidate queue */
    SCIP_CALL( SCIPinitConflictAnalysis(scip, SCIP_CONFTYPE_PROPAGATION, FALSE) );
 
+   assert( consdata->matrixvar != NULL );
+   assert( consdata->matrixval != NULL );
    if ( consdata->matrixvar[diags] != NULL )
    {
       assert( consdata->matrixval[diags] != SCIP_INVALID );
@@ -3350,6 +3352,100 @@ SCIP_RETCODE analyzeConflict(
    return SCIP_OKAY;
 }
 
+/** build matrixvar data */
+static
+SCIP_RETCODE constructMatrixvar(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons,               /**< constraint */
+   SCIP_CONSDATA*        consdata            /**< constraint data */
+   )
+{
+   SCIP_Real* constmatrix;
+   SCIP_Real** matrices;
+   int blocksize;
+   int cnt = 0;
+   int s;
+   int t;
+   int i;
+
+   assert( scip != NULL );
+   assert( consdata != NULL );
+
+   if ( consdata->matrixvar != NULL )
+      return SCIP_OKAY;
+
+   consdata->nsingle = 0;
+   blocksize = consdata->blocksize;
+
+   /* allocate matrices */
+   SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, blocksize * blocksize) );
+   SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, cons, constmatrix) );
+
+   SCIP_CALL( SCIPallocBufferArray(scip, &matrices, consdata->nvars) );
+   for (i = 0; i < consdata->nvars; ++i)
+   {
+      SCIP_CALL( SCIPallocBufferArray(scip, &matrices[i], blocksize * blocksize) );
+      SCIP_CALL( SCIPconsSdpGetFullAj(scip, cons, i, matrices[i]) );
+   }
+
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->matrixvar, blocksize * (blocksize+1)/2) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->matrixval, blocksize * (blocksize+1)/2) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->matrixconst, blocksize * (blocksize+1)/2) );
+
+   for (s = 0; s < blocksize; ++s)
+   {
+      for (t = 0; t <= s; ++t)
+      {
+         SCIP_VAR* var = NULL;
+         SCIP_Real val = 0.0;
+         int pos;
+
+         pos = s * blocksize + t;
+
+         for (i = 0; i < consdata->nvars; ++i)
+         {
+            if ( ! SCIPisZero(scip, matrices[i][pos]) )
+            {
+               if ( var == NULL )
+               {
+                  var = consdata->vars[i];
+                  val = matrices[i][pos];
+               }
+               else
+                  break;
+            }
+         }
+
+         /* if exactly one entry was found */
+         if ( i >= consdata->nvars )
+         {
+            consdata->matrixvar[cnt] = var;  /* note that var == NULL is possible */
+            consdata->matrixval[cnt] = val;
+            consdata->matrixconst[cnt] = constmatrix[pos];
+            ++consdata->nsingle;
+         }
+         else
+         {
+            consdata->matrixvar[cnt] = NULL;
+            consdata->matrixval[cnt] = SCIP_INVALID;
+            consdata->matrixconst[cnt] = SCIP_INVALID;
+         }
+         ++cnt;
+      }
+   }
+   assert( cnt == blocksize * (blocksize + 1)/2 );
+
+   SCIPfreeBufferArray(scip, &constmatrix);
+   for (i = consdata->nvars - 1; i >= 0; --i)
+      SCIPfreeBufferArray(scip, &matrices[i]);
+   SCIPfreeBufferArray(scip, &matrices);
+
+   if ( SCIPgetSubscipDepth(scip) == 0 )
+      SCIPdebugMsg(scip, "Number of entries depending on a single variable: %d.\n", consdata->nsingle);
+
+   return SCIP_OKAY;
+}
+
 /** propagates SDP constraints */
 static
 SCIP_RETCODE propConstraints(
@@ -3371,89 +3467,15 @@ SCIP_RETCODE propConstraints(
    for (c = 0; c < nconss; ++c)
    {
       SCIP_CONSDATA* consdata;
-      SCIP_Real* constmatrix;
-      SCIP_Real** matrices;
       int blocksize;
-      int cnt = 0;
       int i;
-      int s;
-      int t;
 
       assert( conss[c] != NULL );
       consdata = SCIPconsGetData(conss[c]);
       blocksize = consdata->blocksize;
 
       /* build matrix if not yet done */
-      if ( consdata->matrixvar == NULL )
-      {
-         consdata->nsingle = 0;
-
-         /* get matrices */
-         SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, blocksize * blocksize) );
-         SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, conss[c], constmatrix) );
-
-         SCIP_CALL( SCIPallocBufferArray(scip, &matrices, consdata->nvars) );
-         for (i = 0; i < consdata->nvars; ++i)
-         {
-            SCIP_CALL( SCIPallocBufferArray(scip, &matrices[i], blocksize * blocksize) );
-            SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrices[i]) );
-         }
-
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->matrixvar, blocksize * (blocksize+1)/2) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->matrixval, blocksize * (blocksize+1)/2) );
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->matrixconst, blocksize * (blocksize+1)/2) );
-
-         for (s = 0; s < blocksize; ++s)
-         {
-            for (t = 0; t <= s; ++t)
-            {
-               SCIP_VAR* var = NULL;
-               SCIP_Real val = 0.0;
-               int pos;
-
-               pos = s * blocksize + t;
-
-               for (i = 0; i < consdata->nvars; ++i)
-               {
-                  if ( ! SCIPisZero(scip, matrices[i][pos]) )
-                  {
-                     if ( var == NULL )
-                     {
-                        var = consdata->vars[i];
-                        val = matrices[i][pos];
-                     }
-                     else
-                        break;
-                  }
-               }
-
-               /* if exactly one entry was found */
-               if ( i >= consdata->nvars )
-               {
-                  consdata->matrixvar[cnt] = var;  /* note that var == NULL is possible */
-                  consdata->matrixval[cnt] = val;
-                  consdata->matrixconst[cnt] = constmatrix[pos];
-                  ++consdata->nsingle;
-               }
-               else
-               {
-                  consdata->matrixvar[cnt] = NULL;
-                  consdata->matrixval[cnt] = SCIP_INVALID;
-                  consdata->matrixconst[cnt] = SCIP_INVALID;
-               }
-               ++cnt;
-            }
-         }
-         assert( cnt == blocksize * (blocksize + 1)/2 );
-
-         SCIPfreeBufferArray(scip, &constmatrix);
-         for (i = consdata->nvars - 1; i >= 0; --i)
-            SCIPfreeBufferArray(scip, &matrices[i]);
-         SCIPfreeBufferArray(scip, &matrices);
-
-         if ( SCIPgetSubscipDepth(scip) == 0 )
-            SCIPdebugMsg(scip, "Number of entries depending on a single variable: %d.\n", consdata->nsingle);
-      }
+      SCIP_CALL( constructMatrixvar(scip, conss[c], consdata) );
       assert( consdata->matrixvar != NULL );
       assert( consdata->matrixval != NULL );
       assert( consdata->matrixconst != NULL );
@@ -3530,6 +3552,9 @@ SCIP_RETCODE propConstraints(
       /* if there is at least one entry that only depends on a single variable */
       if ( consdata->nsingle > 0 )
       {
+         int s;
+         int t;
+
          /* check all off-diagonal positions */
          for (s = 0; s < blocksize; ++s)
          {
