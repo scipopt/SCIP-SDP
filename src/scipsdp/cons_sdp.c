@@ -106,6 +106,7 @@
 #define DEFAULT_PROPUPPERBOUNDS    TRUE /**< Should upper bounds be propagated? */
 #define DEFAULT_PROPUBPRESOL       TRUE /**< Should upper bounds be propagated in presolving? */
 #define DEFAULT_PROPTIGHTENBOUNDS FALSE /**< Should tighten bounds be propagated? */
+#define DEFAULT_PROPTBPROBING     FALSE /**< Should tighten bounds be propagated in probing? */
 #define DEFAULT_TIGHTENMATRICES   FALSE /**< If all matrices are psd, should the matrices be tightened if possible? */
 #define DEFAULT_TIGHTENBOUNDS     FALSE /**< If all matrices are psd, should the bounds be tightened if possible? */
 #define DEFAULT_DIAGGEZEROCUTS     TRUE /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
@@ -172,6 +173,7 @@ struct SCIP_ConshdlrData
    SCIP_Bool             propupperbounds;    /**< Should upper bounds be propagated? */
    SCIP_Bool             propubpresol;       /**< Should upper bounds be propagated in presolving? */
    SCIP_Bool             proptightenbounds;  /**< Should tighten bounds be propagated? */
+   SCIP_Bool             proptbprobing;      /**< Should tighten bounds be propagated in probing? */
    SCIP_Bool             tightenmatrices;    /**< If all matrices are psd, should the matrices be tightened if possible? */
    SCIP_Bool             tightenbounds;      /**< If all matrices are psd, should the bounds be tightened if possible? */
    SCIP_Bool             diagzeroimplcuts;   /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
@@ -4885,25 +4887,29 @@ SCIP_DECL_CONSPROP(consPropSdp)
    /* if we want to propagate upper bounds */
    if ( conshdlrdata->sdpconshdlrdata->proptightenbounds )
    {
-      if ( *result == SCIP_DIDNOTRUN )
-         *result = SCIP_DIDNOTFIND;
-
-      SCIPdebugMsg(scip, "Propagate tighten bounds of conshdlr <%s> ...\n", SCIPconshdlrGetName(conshdlr));
-
-      nprop = 0;
-      SCIP_CALL( tightenBounds(scip, conss, nconss, &nprop, &infeasible) );
-
-      if ( infeasible )
+      /* possibly avoid propagation in probing */
+      if ( conshdlrdata->proptbprobing || ! SCIPinProbing(scip) )
       {
-         SCIPdebugMsg(scip, "Propagation detected cutoff.\n");
-         *result = SCIP_CUTOFF;
-      }
-      else
-      {
-         if ( nprop > 0 )
+         if ( *result == SCIP_DIDNOTRUN )
+            *result = SCIP_DIDNOTFIND;
+
+         SCIPdebugMsg(scip, "Propagate tighten bounds of conshdlr <%s> ...\n", SCIPconshdlrGetName(conshdlr));
+
+         nprop = 0;
+         SCIP_CALL( tightenBounds(scip, conss, nconss, &nprop, &infeasible) );
+
+         if ( infeasible )
          {
-            SCIPdebugMsg(scip, "Propagation tightened %d bounds.\n", nprop);
-            *result = SCIP_REDUCEDDOM;
+            SCIPdebugMsg(scip, "Propagation detected cutoff.\n");
+            *result = SCIP_CUTOFF;
+         }
+         else
+         {
+            if ( nprop > 0 )
+            {
+               SCIPdebugMsg(scip, "Propagation tightened %d bounds.\n", nprop);
+               *result = SCIP_REDUCEDDOM;
+            }
          }
       }
    }
@@ -6769,6 +6775,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/proptightenbounds",
          "Should tighten bounds be propagated?",
          &(conshdlrdata->proptightenbounds), TRUE, DEFAULT_PROPTIGHTENBOUNDS, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/proptbprobing",
+         "Should tighten bounds be propagated in probing?",
+         &(conshdlrdata->proptbprobing), TRUE, DEFAULT_PROPTBPROBING, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/tightenmatrices",
          "If all matrices are psd, should the matrices be tightened if possible?",
