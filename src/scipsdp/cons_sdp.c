@@ -2367,11 +2367,9 @@ SCIP_RETCODE addTwoMinorProdConstraints(
 
 /** add variable bounds based on 2 by 2 minors
  *
- *  If \f$A(y)_{st}\f$ only depends on the single variable \f$y_p\f$ and \f$A(y)_{ss}\f$ only depends on \f$y_q\f$, the inequality is
+ *  We generate inequalities of the following form:
  *  \f[
- *      2\, \tilde{U}_{st} A^p_{st}\, y_p - \tilde{U}_{tt} A^q_{ss}\,
- *      y_q \leq \tilde{U}_{st}^2 + 2 \tilde{U}_{st}\, A^0_{st}
- *       + \tilde{U}_{tt} A^0_{ss}.
+ *      2\, \tilde{U}_{st} A(y)_{st} - \tilde{U}_{tt} A(y)_{ss} \leq \tilde{U}_{st}^2.
  *  \f]
  */
 static
@@ -2383,9 +2381,6 @@ SCIP_RETCODE addTwoMinorVarBounds(
    int*                  naddconss           /**< pointer to store how many constraints were added */
    )
 {
-   char name[SCIP_MAXSTRLEN];
-   SCIP_VAR* consvars[2];
-   SCIP_Real consvals[2];
    int c;
 
    assert( scip != NULL );
@@ -2393,174 +2388,204 @@ SCIP_RETCODE addTwoMinorVarBounds(
 
    for (c = 0; c < nconss; ++c)
    {
+      char name[SCIP_MAXSTRLEN];
+      SCIP_VAR** consvars;
+      SCIP_Real* consvals;
       SCIP_CONSDATA* consdata;
+      SCIP_Real* constmatrix;
+      SCIP_Real** matrices;
+      int blocksize;
+      int nvars;
+      int s;
+      int t;
+      int i;
 
       assert( conss[c] != NULL );
       consdata = SCIPconsGetData(conss[c]);
+      assert( consdata != NULL );
 
-      /* build matrix if not yet done */
-      SCIP_CALL( constructMatrixvar(scip, conss[c], consdata) );
-      assert( consdata->matrixvar != NULL );
-      assert( consdata->matrixval != NULL );
-      assert( consdata->matrixconst != NULL );
+      blocksize = consdata->blocksize;
+      nvars = consdata->nvars;
 
-      /* if there is at least one entry that only depends on a single variable */
-      if ( consdata->nsingle > 0 )
+      SCIP_CALL( SCIPallocBufferArray(scip, &consvars, 2 * nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &consvals, 2 * nvars) );
+
+      /* get matrices */
+      SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, blocksize * blocksize) );
+      SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, conss[c], constmatrix) );
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &matrices, nvars) );
+      for (i = 0; i < nvars; ++i)
       {
-         int blocksize;
-         int s;
-         int t;
+         SCIP_CALL( SCIPallocBufferArray(scip, &matrices[i], blocksize * blocksize) );
+         SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrices[i]) );
+      }
 
-         blocksize = consdata->blocksize;
+      /* loop over all possible entries */
+      for (s = 1; s < blocksize; ++s)
+      {
+         SCIP_Real ubs = 0.0;
+         SCIP_Real val;
+         int pos;
 
-         /* check all off-diagonal positions */
-         for (s = 1; s < blocksize; ++s)
+         /* compute upper bound */
+         pos = s * blocksize + s;
+         for (i = 0; i < nvars; ++i)
          {
-            SCIP_VAR* vars;
-            SCIP_Real ubs = 0.0;
-            int diags;
+            val = matrices[i][pos];
+            if ( ! SCIPisZero(scip, val) )
+            {
+               if ( val > 0.0 )
+                  ubs += val * SCIPvarGetUbLocal(consdata->vars[i]);
+               else
+                  ubs += val * SCIPvarGetLbLocal(consdata->vars[i]);
+            }
+         }
+         ubs -= constmatrix[pos];
 
-            diags = s * (s + 1)/2 + s;
-            if ( consdata->matrixval[diags] == SCIP_INVALID ) /*lint !e777*/
+         /* loop over all other entries */
+         for (t = s-1; t >= 0; --t)
+         {
+            SCIP_CONS* cons;
+            SCIP_Real ubt = 0.0;
+            SCIP_Real ubst = 0.0;
+
+            /* compute upper bound for off-diagonal */
+            pos = s * blocksize + t;
+            for (i = 0; i < nvars; ++i)
+            {
+               val = matrices[i][pos];
+               if ( ! SCIPisZero(scip, val) )
+               {
+                  if ( val > 0.0 )
+                     ubst += val * SCIPvarGetUbLocal(consdata->vars[i]);
+                  else
+                     ubst += val * SCIPvarGetLbLocal(consdata->vars[i]);
+               }
+            }
+            ubst -= constmatrix[pos];
+
+            /* if the bound is zero, no interesting inequality arises */
+            if ( SCIPisZero(scip, ubst) )
                continue;
 
-            vars = consdata->matrixvar[diags];
-            if ( vars != NULL )
+            /* compute upper bound for diagonal */
+            pos = t * blocksize + t;
+            for (i = 0; i < nvars; ++i)
             {
-               assert( consdata->matrixval[diags] != SCIP_INVALID ); /*lint !e777*/
-               if ( consdata->matrixval[diags] > 0.0 )
-                  ubs = consdata->matrixval[diags] * SCIPvarGetUbLocal(vars);
-               else
-                  ubs = consdata->matrixval[diags] * SCIPvarGetLbLocal(vars);
+               val = matrices[i][pos];
+               if ( ! SCIPisZero(scip, val) )
+               {
+                  if ( val > 0.0 )
+                     ubt += val * SCIPvarGetUbLocal(consdata->vars[i]);
+                  else
+                     ubt += val * SCIPvarGetLbLocal(consdata->vars[i]);
+               }
             }
+            ubt -= constmatrix[pos];
 
-            if ( ! SCIPisInfinity(scip, ubs) )
-            {
-               assert( consdata->matrixconst[diags] != SCIP_INVALID ); /*lint !e777*/
-               ubs -= consdata->matrixconst[diags];
-            }
+            assert( ! SCIPisZero(scip, ubst) );
 
-            /* loop through second value */
-            for (t = 0; t < s; ++t)
+            /* first type of constraint */
+            if ( ! SCIPisZero(scip, ubt) && ! SCIPisInfinity(scip, ubst) && ! SCIPisInfinity(scip, ubt) )
             {
-               SCIP_CONS* cons;
-               SCIP_VAR* vart;
-               SCIP_VAR* varst;
-               SCIP_Real ubst = 0.0;
-               SCIP_Real ubt = 0.0;
                SCIP_Real rhs;
-               int cnt = 0;
-               int diagt;
-               int pos;
+               int nconsvars = 0;
 
-               diagt = t * (t + 1)/2 + t;
-               if ( consdata->matrixval[diagt] == SCIP_INVALID ) /*lint !e777*/
-                  continue;
+               rhs = ubst * ubst;
 
-               vart = consdata->matrixvar[diagt];
-               if ( vart != NULL )
+               for (i = 0; i < nvars; ++i)
                {
-                  assert( consdata->matrixval[diagt] != SCIP_INVALID ); /*lint !e777*/
-                  if ( consdata->matrixval[diagt] > 0.0 )
-                     ubt = consdata->matrixval[diagt] * SCIPvarGetUbLocal(vart);
-                  else
-                     ubt = consdata->matrixval[diagt] * SCIPvarGetLbLocal(vart);
-               }
-
-               if ( ! SCIPisInfinity(scip, ubt) )
-               {
-                  assert( consdata->matrixconst[diagt] != SCIP_INVALID ); /*lint !e777*/
-                  ubt -= consdata->matrixconst[diagt];
-               }
-
-               pos = s * (s + 1)/2 + t;
-               varst = consdata->matrixvar[pos];
-               if ( varst != NULL )
-               {
-                  assert( consdata->matrixval[pos] != SCIP_INVALID ); /*lint !e777*/
-                  if ( consdata->matrixval[pos] > 0.0 )
-                     ubst = consdata->matrixval[pos] * SCIPvarGetUbLocal(varst);
-                  else
-                     ubst = consdata->matrixval[pos] * SCIPvarGetLbLocal(varst);
-               }
-
-               if ( ! SCIPisInfinity(scip, ubst) )
-               {
-                  assert( consdata->matrixconst[pos] != SCIP_INVALID );
-                  ubst -= consdata->matrixconst[pos];
-               }
-
-               /* first inequality */
-               if ( ! SCIPisInfinity(scip, ubst) && ! SCIPisInfinity(scip, ubt) )
-               {
-                  if ( varst != NULL )
+                  val = matrices[i][s * blocksize + t];
+                  if ( ! SCIPisZero(scip, val) )
                   {
-                     consvals[cnt] = 2 * ubst * consdata->matrixval[pos];
-                     consvars[cnt++] = varst;
+                     consvals[nconsvars] = 2.0 * ubst * val;
+                     consvars[nconsvars++] = consdata->vars[i];
                   }
-                  if ( vars != NULL )
+               }
+               rhs += 2.0 * ubst * constmatrix[s * blocksize + t];
+
+               for (i = 0; i < nvars; ++i)
+               {
+                  val = matrices[i][s * blocksize + s];
+                  if ( ! SCIPisZero(scip, val) )
                   {
-                     consvals[cnt] = - ubt * consdata->matrixval[diags];
-                     consvars[cnt++] = vars;
+                     consvals[nconsvars] = - ubt * val;
+                     consvars[nconsvars++] = consdata->vars[i];
                   }
+               }
+               rhs -= ubt * constmatrix[s * blocksize + s];
 
-                  rhs = ubst * ubst + 2 * ubst * consdata->matrixval[pos] + ubt * consdata->matrixval[diags];
-
-                  /* only add constraints that use two variables, since the other ones are likely to be redundant */
-                  if ( cnt == 2 )
-                  {
-                     /* add linear constraint (if not solving LPs only propagate) */
-                     (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "twominorvarbounda#%d#%d", s, t);
-                     SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, cnt, consvars, consvals, -SCIPinfinity(scip), rhs,
-                           TRUE, ! solvesdps, ! solvesdps, ! solvesdps, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
-                     SCIP_CALL( SCIPaddCons(scip, cons) );
+               if ( nconsvars >= 2 )
+               {
+                  /* add linear constraint (if not solving LPs only propagate) */
+                  (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "twominorvarbounda#%d#%d", s, t);
+                  SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, -SCIPinfinity(scip), rhs,
+                        TRUE, ! solvesdps, ! solvesdps, ! solvesdps, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+                  SCIP_CALL( SCIPaddCons(scip, cons) );
 #ifdef SCIP_MORE_DEBUG
-                     SCIPinfoMessage(scip, NULL, "Added 2x2 minor var bound constraint: ");
-                     SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
-                     SCIPinfoMessage(scip, NULL, "\n");
+                  SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
+                  SCIPinfoMessage(scip, NULL, "\n");
 #endif
-                     SCIP_CALL( SCIPreleaseCons(scip, &cons) );
-                     ++(*naddconss);
+                  SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+                  ++(*naddconss);
+               }
+            }
+
+            /* second type of constraint */
+            if ( ! SCIPisZero(scip, ubs) && ! SCIPisInfinity(scip, ubst) && ! SCIPisInfinity(scip, ubs) )
+            {
+               SCIP_Real rhs;
+               int nconsvars = 0;
+
+               rhs = ubst * ubst;
+
+               for (i = 0; i < nvars; ++i)
+               {
+                  val = matrices[i][s * blocksize + t];
+                  if ( ! SCIPisZero(scip, val) )
+                  {
+                     consvals[nconsvars] = 2.0 * ubst * val;
+                     consvars[nconsvars++] = consdata->vars[i];
                   }
                }
+               rhs += 2.0 * ubst * constmatrix[s * blocksize + t];
 
-               /* second inequality: exchange s and t */
-               if ( ! SCIPisInfinity(scip, ubst) && ! SCIPisInfinity(scip, ubs) )
+               for (i = 0; i < nvars; ++i)
                {
-                  cnt = 0;
-                  if ( varst != NULL )
+                  val = matrices[i][t * blocksize + t];
+                  if ( ! SCIPisZero(scip, val) )
                   {
-                     consvals[cnt] = 2 * ubst * consdata->matrixval[pos];
-                     consvars[cnt++] = varst;
+                     consvals[nconsvars] = - ubs * val;
+                     consvars[nconsvars++] = consdata->vars[i];
                   }
-                  if ( vart != NULL )
-                  {
-                     consvals[cnt] = - ubs * consdata->matrixval[diagt];
-                     consvars[cnt++] = vart;
-                  }
+               }
+               rhs -= ubs * constmatrix[s * blocksize + s];
 
-                  rhs = ubst * ubst + 2 * ubst * consdata->matrixval[pos] + ubs * consdata->matrixval[diagt];
-
-                  /* only add constraints that use two variables, since the other ones are likely to be redundant */
-                  if ( cnt == 2 )
-                  {
-                     /* add linear constraint (if not solving LPs only propagate) */
-                     (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "twominorvarboundb#%d#%d", s, t);
-                     SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, cnt, consvars, consvals, -SCIPinfinity(scip), rhs,
-                           TRUE, ! solvesdps, ! solvesdps, ! solvesdps, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
-                     SCIP_CALL( SCIPaddCons(scip, cons) );
+               if ( nconsvars >= 2 )
+               {
+                  /* add linear constraint (if not solving LPs only propagate) */
+                  (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "twominorvarboundb#%d#%d", s, t);
+                  SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, -SCIPinfinity(scip), rhs,
+                        TRUE, ! solvesdps, ! solvesdps, ! solvesdps, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+                  SCIP_CALL( SCIPaddCons(scip, cons) );
 #ifdef SCIP_MORE_DEBUG
-                     SCIPinfoMessage(scip, NULL, "Added 2x2 minor var bound constraint: ");
-                     SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
-                     SCIPinfoMessage(scip, NULL, "\n");
+                  SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
+                  SCIPinfoMessage(scip, NULL, "\n");
 #endif
-                     SCIP_CALL( SCIPreleaseCons(scip, &cons) );
-                     ++(*naddconss);
-                  }
+                  SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+                  ++(*naddconss);
                }
             }
          }
       }
+
+      for (i = nvars - 1; i >= 0; --i)
+         SCIPfreeBufferArray(scip, &matrices[i]);
+      SCIPfreeBufferArray(scip, &matrices);
+      SCIPfreeBufferArray(scip, &constmatrix);
+      SCIPfreeBufferArray(scip, &consvals);
+      SCIPfreeBufferArray(scip, &consvars);
    }
 
    return SCIP_OKAY;
@@ -5039,7 +5064,7 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
    /* make sure that quadratic constraints are added */
    if ( SCIPgetSubscipDepth(scip) == 0 && conshdlrdata->sdpconshdlrdata->quadconsrank1 )
    {
-      int naddconss;
+      int naddconss = 0;
       SCIP_CALL( addRank1QuadConss(scip, conshdlr, conss, nconss, &naddconss) );
       SCIPdebugMsg(scip, "Added %d quadratic constraints for rank 1 constraints.\n", naddconss);
 
