@@ -415,10 +415,6 @@ SCIP_RETCODE constructMatrixvar(
             consdata->matrixval[cnt] = val;
             consdata->matrixconst[cnt] = constmatrix[pos];
             ++consdata->nsingle;
-            if ( var != NULL )
-               printf("single entry: (%d,%d) -> %s, %g\n", s, t, SCIPvarGetName(var), val);
-            else
-               printf("single entry: (%d,%d) -> --, %g\n", s, t, val);
          }
          else
          {
