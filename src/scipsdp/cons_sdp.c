@@ -109,7 +109,7 @@
 #define DEFAULT_DIAGZEROIMPLCUTS   TRUE /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
 #define DEFAULT_TWOMINORLINCONSS  FALSE /**< Should linear cuts corresponding to 2 by 2 minors be added? */
 #define DEFAULT_TWOMINORPRODCONSS FALSE /**< Should linear cuts corresponding to products of 2 by 2 minors be added? */
-#define DEFAULT_TWOMINORVARBOUNDS TRUE /**< Should linear cuts corresponding to variable bounds for 2 by 2 minors be added? */
+#define DEFAULT_TWOMINORVARBOUNDS FALSE /**< Should linear cuts corresponding to variable bounds for 2 by 2 minors be added? */
 #define DEFAULT_QUADCONSRANK1      TRUE /**< Should quadratic cons for 2x2 minors be added in the rank-1 case? */
 #define DEFAULT_UPGRADEQUADCONSS  FALSE /**< Should quadratic constraints be upgraded to a rank 1 SDP? */
 #define DEFAULT_UPGRADEKEEPQUAD   FALSE /**< Should the quadratic constraints be kept in the problem after upgrading and the corresponding SDP constraint be added without the rank 1 constraint? */
