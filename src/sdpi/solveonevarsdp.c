@@ -30,7 +30,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   solveonvarsdp.h
+/**@file   solveonevarsdp.c
  * @brief  Solve SDP with one variable
  * @author Marc Pfetsch
  */
