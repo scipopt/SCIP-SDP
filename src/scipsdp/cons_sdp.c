@@ -188,6 +188,7 @@ struct SCIP_ConshdlrData
    SCIP_Bool             addsocrelax;        /**< Should a relaxation of SOC constraints be added */
    int                   maxnvarsquadupgd;   /**< maximal number of quadratic constraints and appearing variables so that the QUADCONSUPGD is performed */
    SCIP_Bool             triedlinearconss;   /**< Have we tried to add linear constraints? */
+   SCIP_Bool             triedvarbounds;     /**< Have we tried to add variable bounds based on 2x2 minors */
    SCIP_Bool             rank1approxheur;    /**< Should the heuristic that computes the best rank-1 approximation for a given solution be executed? */
    SCIP_Bool             generaterows;       /**< Should rows be generated (constraints otherwise)? */
 #ifdef OMP
@@ -5017,6 +5018,7 @@ SCIP_DECL_CONSEXIT(consExitSdp)
 
    /* reset parameter triedlinearconss */
    conshdlrdata->sdpconshdlrdata->triedlinearconss = FALSE;
+   conshdlrdata->sdpconshdlrdata->triedvarbounds = FALSE;
 
    return SCIP_OKAY;
 }
@@ -5418,18 +5420,6 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
             }
          }
 
-         if ( *result != SCIP_CUTOFF && conshdlrdata->sdpconshdlrdata->twominorvarbounds )
-         {
-            noldaddconss = *naddconss;
-            SCIP_CALL( addTwoMinorVarBounds(scip, conss, nconss, solvesdps, naddconss) );
-            SCIPdebugMsg(scip, "Added %d linear constraints for variables bounds from 2 by 2 minors.\n", *naddconss - noldaddconss);
-            if ( noldaddconss != *naddconss )
-            {
-               SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Added %d linear constraints based on variables bounds from 2 x 2 SDP-minors.\n", *naddconss - noldaddconss);
-               *result = SCIP_SUCCESS;
-            }
-         }
-
          /* add SOCP-approximation if required */
          if ( *result != SCIP_CUTOFF && conshdlrdata->sdpconshdlrdata->addsocrelax )
          {
@@ -5451,6 +5441,34 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 
          /* turn off upgrading in order to avoid upgrading to a rank-1 constraint again */
          conshdlrdata->sdpconshdlrdata->upgradequadconss = FALSE;
+      }
+   }
+
+   /* add variable bounds based on 2x2 minors in final round */
+   if ( presoltiming == SCIP_PRESOLTIMING_FINAL && conshdlrdata->sdpconshdlrdata->twominorvarbounds && ! conshdlrdata->sdpconshdlrdata->triedvarbounds )
+   {
+      if ( SCIPgetSubscipDepth(scip) == 0 && *result != SCIP_CUTOFF )
+      {
+         int noldaddconss;
+         int solvesdpsparam;
+         SCIP_Bool solvesdps;
+
+         SCIP_CALL( SCIPgetIntParam(scip, "misc/solvesdps", &solvesdpsparam) );
+
+         if ( solvesdpsparam == 1 )
+            solvesdps = TRUE;
+         else
+            solvesdps = FALSE;
+
+         noldaddconss = *naddconss;
+         SCIP_CALL( addTwoMinorVarBounds(scip, conss, nconss, solvesdps, naddconss) );
+         SCIPdebugMsg(scip, "Added %d linear constraints for variables bounds from 2 by 2 minors.\n", *naddconss - noldaddconss);
+         if ( noldaddconss != *naddconss )
+         {
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Added %d linear constraints based on variables bounds from 2 x 2 SDP-minors.\n", *naddconss - noldaddconss);
+            *result = SCIP_SUCCESS;
+         }
+         conshdlrdata->sdpconshdlrdata->triedvarbounds = TRUE;
       }
    }
 
@@ -6973,6 +6991,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    conshdlrdata->nsdpvars = 0;
    conshdlrdata->sdpcons = NULL;
    conshdlrdata->triedlinearconss = FALSE;
+   conshdlrdata->triedvarbounds = FALSE;
    conshdlrdata->randnumgen = NULL;
    conshdlrdata->relaxsdp = NULL;
    conshdlrdata->sdpconshdlrdata = conshdlrdata;  /* set this to itself to simplify access of parameters */
@@ -7147,6 +7166,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->addsocrelax = FALSE;
    conshdlrdata->maxnvarsquadupgd = 0;
    conshdlrdata->triedlinearconss = FALSE;
+   conshdlrdata->triedvarbounds = FALSE;
    conshdlrdata->rank1approxheur = FALSE;
    conshdlrdata->generaterows = FALSE;
 #ifdef OMP
