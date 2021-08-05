@@ -1112,9 +1112,7 @@ SCIP_RETCODE tightenMatrices(
    for (c = 0; c < nconss; ++c)
    {
       SCIP_CONSDATA* consdata;
-      SCIP_Real* matrix;
       SCIP_Real* constmatrix;
-      SCIP_Real factor;
       int blocksize;
       int nvars;
       int i;
@@ -1152,22 +1150,40 @@ SCIP_RETCODE tightenMatrices(
       /* get matrices */
       blocksize = consdata->blocksize;
       SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, blocksize * blocksize) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &matrix, blocksize * blocksize) );
 
       SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, conss[c], constmatrix) );
 
       for (i = 0; i < nvars; ++i)
       {
+         SCIP_Real objval;
+         SCIP_Real factor;
+         SCIP_Real lb;
+         SCIP_Real ub;
+
+         /* only treat binary variables */
          if ( ! SCIPvarIsBinary(consdata->vars[i]) )
             continue;
 
-         SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrix) );
+         /* skip fixed variables (will be removed anyway */
+         lb = SCIPvarGetLbLocal(consdata->vars[i]);
+         ub = SCIPvarGetLbLocal(consdata->vars[i]);
+         if ( SCIPisEQ(scip, lb, ub) )
+            continue;
 
-         SCIP_CALL( computeScalingFactor(scip, blocksize, matrix, constmatrix, 0.0, 1.0, &factor) );
+         assert( SCIPisEQ(scip, lb, 0.0) );
+         assert( SCIPisEQ(scip, ub, 1.0) );
+
+         /* solve 1d SDP */
+         SCIP_CALL( SCIPsolveOneVarSDPDense(SCIPbuffer(scip), 1.0, 0.0, 1.0, blocksize, constmatrix, consdata->nvarnonz[i], consdata->row[i], consdata->col[i], consdata->val[i],
+               SCIPinfinity(scip), SCIPfeastol(scip), 1e-6, &objval, &factor) );
+
+         if ( SCIPisInfinity(scip, objval) )
+            continue;
+
          if ( factor == SCIP_INVALID ) /*lint !e777*/
             continue;
 
-         if ( ! SCIPisEQ(scip, factor, 1.0) )
+         if ( ! SCIPisFeasEQ(scip, factor, 1.0) )
          {
             int j;
 
@@ -1181,7 +1197,6 @@ SCIP_RETCODE tightenMatrices(
          }
       }
 
-      SCIPfreeBufferArray(scip, &matrix);
       SCIPfreeBufferArray(scip, &constmatrix);
    }
 
