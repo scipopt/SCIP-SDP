@@ -6010,8 +6010,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
    return SCIP_OKAY;
 }
 
-/** Enforce relaxation solution; if some block is not psd, an eigenvector cut is added.
- */
+/** Enforce relaxation solution; if some block is not psd, an eigenvector cut is added. */
 static
 SCIP_DECL_CONSENFORELAX(consEnforelaxSdp)
 {/*lint --e{715}*/
@@ -6027,7 +6026,8 @@ SCIP_DECL_CONSENFORELAX(consEnforelaxSdp)
    if ( solinfeasible )
       return SCIP_OKAY;
 
-   /*****  Is this correct? Relaxation solutions should be feasible. */
+   /* Rounding errors might lead to infeasible relaxation solutions. We therefore perform a separation round in the hopt
+    * that this can resolve the problem. */
    for (c = 0; c < nconss && *result != SCIP_CUTOFF; ++c)
    {
       SCIP_RESULT separesult = SCIP_FEASIBLE;
