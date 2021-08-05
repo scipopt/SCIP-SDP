@@ -295,49 +295,47 @@ SCIP_RETCODE expandSymMatrix(
    return SCIP_OKAY;
 }
 
-/** For a given vector \f$ y \f$ computes the (length of y) * (length of y + 1) /2 -long array of the lower-triangular part
- *  of the SDP-Matrix \f$ \sum_{j=1}^m A_j y_j - A_0 \f$ for this SDP block, indexed by SCIPconsSdpCompLowerTriangPos.
+/** For a vector \f$y\f$ given by @sol, computes the (length of y) * (length of y + 1) /2 -long array of the lower-triangular part
+ *  of the matrix \f$ \sum_{j=1}^m A_j y_j - A_0 \f$ for this SDP block, indexed by SCIPconsSdpCompLowerTriangPos().
  */
 static
 SCIP_RETCODE computeSdpMatrix(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< the constraint for which the Matrix should be assembled */
-   SCIP_SOL*             y,                  /**< solution to separate */
+   SCIP_CONSDATA*        consdata,           /**< constraint data */
+   SCIP_SOL*             sol,                /**< solution to separate */
    SCIP_Real*            matrix              /**< pointer to store the SDP-Matrix */
    )
 {
-   SCIP_CONSDATA* consdata;
    SCIP_Real yval;
    int blocksize;
    int nvars;
-   int ind;
    int i;
+   int j;
 
-   assert( cons != NULL );
+   assert( consdata != NULL );
    assert( matrix != NULL );
 
-   consdata = SCIPconsGetData(cons);
    nvars = consdata->nvars;
    blocksize = consdata->blocksize;
 
    /* initialize the matrix with 0 */
-   for (i = 0; i < (blocksize * (blocksize + 1))/2; i++)
+   for (i = 0; i < (blocksize * (blocksize + 1))/2; ++i)
       matrix[i] = 0.0;
 
    /* add the non-constant-part */
    for (i = 0; i < nvars; i++)
    {
-      yval = SCIPgetSolVal(scip, y, consdata->vars[i]);
+      yval = SCIPgetSolVal(scip, sol, consdata->vars[i]);
       if ( ! SCIPisZero(scip, yval) )
       {
-         for (ind = 0; ind < consdata->nvarnonz[i]; ind++)
-            matrix[SCIPconsSdpCompLowerTriangPos(consdata->row[i][ind], consdata->col[i][ind])] += yval * consdata->val[i][ind];
+         for (j = 0; j < consdata->nvarnonz[i]; ++j)
+            matrix[SCIPconsSdpCompLowerTriangPos(consdata->row[i][j], consdata->col[i][j])] += yval * consdata->val[i][j];
       }
    }
 
    /* substract the constant part */
-   for (ind = 0; ind < consdata->constnnonz; ind++)
-      matrix[SCIPconsSdpCompLowerTriangPos(consdata->constrow[ind], consdata->constcol[ind])] -= consdata->constval[ind];
+   for (j = 0; j < consdata->constnnonz; ++j)
+      matrix[SCIPconsSdpCompLowerTriangPos(consdata->constrow[j], consdata->constcol[j])] -= consdata->constval[j];
 
    return SCIP_OKAY;
 }
@@ -521,7 +519,7 @@ SCIP_RETCODE isMatrixRankOne(
    SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize ) );
 
    /* compute the matrix \f$ \sum_j A_j y_j - A_0 \f$ - we need an undestroyed version in matrix below */
-   SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix) );
+   SCIP_CALL( computeSdpMatrix(scip, consdata, sol, matrix) );
 
    /* expand it because LAPACK wants the full matrix instead of the lower triangular part */
    SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
