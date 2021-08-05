@@ -5445,7 +5445,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
    }
 
    /* add variable bounds based on 2x2 minors in final round */
-   if ( presoltiming == SCIP_PRESOLTIMING_FINAL && conshdlrdata->sdpconshdlrdata->twominorvarbounds && ! conshdlrdata->sdpconshdlrdata->triedvarbounds )
+   if ( SCIPisPresolveFinished(scip) && conshdlrdata->sdpconshdlrdata->twominorvarbounds && ! conshdlrdata->sdpconshdlrdata->triedvarbounds )
    {
       if ( SCIPgetSubscipDepth(scip) == 0 && *result != SCIP_CUTOFF )
       {
