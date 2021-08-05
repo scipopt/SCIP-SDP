@@ -2426,6 +2426,7 @@ SCIP_RETCODE addTwoMinorVarBounds(
       {
          SCIP_Real ubs = 0.0;
          SCIP_Real val;
+         SCIP_Real bound;
          int pos;
 
          /* compute upper bound */
@@ -2436,12 +2437,22 @@ SCIP_RETCODE addTwoMinorVarBounds(
             if ( ! SCIPisZero(scip, val) )
             {
                if ( val > 0.0 )
-                  ubs += val * SCIPvarGetUbLocal(consdata->vars[i]);
+                  bound = SCIPvarGetUbLocal(consdata->vars[i]);
                else
-                  ubs += val * SCIPvarGetLbLocal(consdata->vars[i]);
+                  bound = SCIPvarGetLbLocal(consdata->vars[i]);
+
+               if ( SCIPisInfinity(scip, REALABS(bound)) )
+               {
+                  ubs = SCIPinfinity(scip);
+                  break;
+               }
+
+               ubs += val * bound;
             }
+            assert( ! SCIPisInfinity(scip, ubs) );
          }
-         ubs -= constmatrix[pos];
+         if ( ! SCIPisInfinity(scip, ubs) )
+            ubs -= constmatrix[pos];
 
          /* loop over all other entries */
          for (t = s-1; t >= 0; --t)
@@ -2458,15 +2469,29 @@ SCIP_RETCODE addTwoMinorVarBounds(
                if ( ! SCIPisZero(scip, val) )
                {
                   if ( val > 0.0 )
-                     ubst += val * SCIPvarGetUbLocal(consdata->vars[i]);
+                     bound = SCIPvarGetUbLocal(consdata->vars[i]);
                   else
-                     ubst += val * SCIPvarGetLbLocal(consdata->vars[i]);
+                     bound = SCIPvarGetLbLocal(consdata->vars[i]);
+
+                  if ( SCIPisInfinity(scip, REALABS(bound)) )
+                  {
+                     ubst = SCIPinfinity(scip);
+                     break;
+                  }
+
+                  ubst += val * bound;
                }
+               assert( ! SCIPisInfinity(scip, ubst) );
             }
-            ubst -= constmatrix[pos];
+            if ( ! SCIPisInfinity(scip, ubst) )
+               ubst -= constmatrix[pos];
 
             /* if the bound is zero, no interesting inequality arises */
             if ( SCIPisZero(scip, ubst) )
+               continue;
+
+            /* we need a finite bound on the off-diagonal */
+            if ( SCIPisInfinity(scip, ubst) )
                continue;
 
             /* compute upper bound for diagonal */
@@ -2477,17 +2502,28 @@ SCIP_RETCODE addTwoMinorVarBounds(
                if ( ! SCIPisZero(scip, val) )
                {
                   if ( val > 0.0 )
-                     ubt += val * SCIPvarGetUbLocal(consdata->vars[i]);
+                     bound = SCIPvarGetUbLocal(consdata->vars[i]);
                   else
-                     ubt += val * SCIPvarGetLbLocal(consdata->vars[i]);
+                     bound = SCIPvarGetLbLocal(consdata->vars[i]);
+
+                  if ( SCIPisInfinity(scip, REALABS(bound)) )
+                  {
+                     ubt = SCIPinfinity(scip);
+                     break;
+                  }
+
+                  ubt += val * bound;
                }
+               assert( ! SCIPisInfinity(scip, ubt) );
             }
-            ubt -= constmatrix[pos];
+            if ( ! SCIPisInfinity(scip, ubt) )
+               ubt -= constmatrix[pos];
 
             assert( ! SCIPisZero(scip, ubst) );
+            assert( ! SCIPisInfinity(scip, ubst) );
 
             /* first type of constraint */
-            if ( ! SCIPisZero(scip, ubt) && ! SCIPisInfinity(scip, ubst) && ! SCIPisInfinity(scip, ubt) )
+            if ( ! SCIPisZero(scip, ubt) && ! SCIPisInfinity(scip, ubt) )
             {
                SCIP_Real rhs;
                int nconsvars = 0;
@@ -2533,7 +2569,7 @@ SCIP_RETCODE addTwoMinorVarBounds(
             }
 
             /* second type of constraint */
-            if ( ! SCIPisZero(scip, ubs) && ! SCIPisInfinity(scip, ubst) && ! SCIPisInfinity(scip, ubs) )
+            if ( ! SCIPisZero(scip, ubs) && ! SCIPisInfinity(scip, ubs) )
             {
                SCIP_Real rhs;
                int nconsvars = 0;
