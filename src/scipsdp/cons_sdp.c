@@ -3566,14 +3566,17 @@ SCIP_RETCODE propagateUpperBounds(
             if ( vars != NULL )
             {
                if ( consdata->matrixval[diags] > 0.0 )
-                  ubs = consdata->matrixval[diags] * SCIPvarGetUbLocal(vars);
+                  ubs = SCIPvarGetUbLocal(vars);
                else
-                  ubs = consdata->matrixval[diags] * SCIPvarGetLbLocal(vars);
+                  ubs = SCIPvarGetLbLocal(vars);
+
+               if ( SCIPisInfinity(scip, ubs) )
+                  continue;
+
+               ubs *= consdata->matrixval[diags];
             }
             assert( consdata->matrixconst[diags] != SCIP_INVALID );
-
-            if ( SCIPisInfinity(scip, ubs) )
-               continue;
+            assert( ! SCIPisInfinity(scip, ubs) );
 
             ubs -= consdata->matrixconst[diags];
 
@@ -3600,14 +3603,17 @@ SCIP_RETCODE propagateUpperBounds(
                if ( vart != NULL )
                {
                   if ( consdata->matrixval[diagt] > 0.0 )
-                     ubt = consdata->matrixval[diagt] * SCIPvarGetUbLocal(vart);
+                     ubt = SCIPvarGetUbLocal(vart);
                   else
-                     ubt = consdata->matrixval[diagt] * SCIPvarGetLbLocal(vart);
+                     ubt = SCIPvarGetLbLocal(vart);
+
+                  if ( SCIPisInfinity(scip, ubt) )
+                     continue;
+
+                  ubt *= consdata->matrixval[diagt];
                }
                assert( consdata->matrixconst[diagt] != SCIP_INVALID );
-
-               if ( SCIPisInfinity(scip, ubt) )
-                  continue;
+               assert( ! SCIPisInfinity(scip, ubt) );
 
                ubt -= consdata->matrixconst[diagt];
 
