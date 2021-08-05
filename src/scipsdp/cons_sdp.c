@@ -1285,15 +1285,10 @@ SCIP_RETCODE tightenBounds(
                constmatrix[l] -= othermatrix[l] * ubk;
          }
 
-#if 0
-         /* compute smallest scaling factor */
-         SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrix) );
-         SCIP_CALL( computeScalingFactor(scip, blocksize, matrix, constmatrix, lb, ub, &factor) );
-#else
          /* solve 1d SDP */
          SCIP_CALL( SCIPsolveOneVarSDPDense(SCIPbuffer(scip), 1.0, lb, ub, blocksize, constmatrix, consdata->nvarnonz[i], consdata->row[i], consdata->col[i], consdata->val[i],
                SCIPinfinity(scip), SCIPfeastol(scip), 1e-6, &objval, &factor) );
-#endif
+
          /* if problem is infeasible */
          if ( SCIPisInfinity(scip, objval) )
          {
