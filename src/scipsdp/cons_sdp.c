@@ -532,7 +532,7 @@ SCIP_RETCODE isMatrixRankOne(
    /* changed eigenvalue to 0.1*eigenvalue here, since here seems to be a problem with optimal solutions not satisfying
       SCIPisFeasEQ(scip, 0.1*eigenvalue, 0.0), even if they are feasible for all other constraints, including the
       quadratic 2x2 principal minor constraints. */
-   if ( SCIPisFeasEQ(scip, 0.1*eigenvalue, 0.0) )
+   if ( SCIPisFeasEQ(scip, 0.1 * eigenvalue, 0.0) )
       *result = TRUE;
    else
    {
@@ -584,6 +584,9 @@ SCIP_RETCODE multiplyConstraintMatrix(
    )
 {
    SCIP_CONSDATA* consdata;
+   SCIP_Real s = 0.0;
+   int r;
+   int c;
    int i;
 
    assert( cons != NULL );
@@ -595,19 +598,20 @@ SCIP_RETCODE multiplyConstraintMatrix(
 
    assert( j < consdata->nvars );
 
-   /* initialize the product with 0 */
-   *vAv = 0.0;
-
    for (i = 0; i < consdata->nvarnonz[j]; i++)
    {
-      if (consdata->col[j][i] == consdata->row[j][i])
-         *vAv += v[consdata->col[j][i]] * consdata->val[j][i] * v[consdata->row[j][i]];
+      r = consdata->row[j][i];
+      c = consdata->col[j][i];
+      if ( r == c )
+         s += v[c] * consdata->val[j][i] * v[r];
       else
       {
          /* Multiply by 2, because the matrix is symmetric and there is one identical contribution each from lower and upper triangular part. */
-         *vAv += 2.0 * v[consdata->col[j][i]] * consdata->val[j][i] * v[consdata->row[j][i]];
+         s += 2.0 * v[c] * consdata->val[j][i] * v[r];
       }
    }
+
+   *vAv = s;
 
    return SCIP_OKAY;
 }
@@ -621,14 +625,11 @@ SCIP_RETCODE setMaxRhsEntry(
    )
 {
    SCIP_CONSDATA* consdata;
-   SCIP_Real max;
+   SCIP_Real max = 0.0;    /* initialize max with zero (this is used if there is no constant-matrix) */
    int i;
 
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
-
-   /* initialize max with zero (this is used if there is no constant-matrix) */
-   max = 0.0;
 
    /* iterate over the entries of the constant matrix, updating max if a higher absolute value is found */
    for (i = 0; i < consdata->constnnonz; i++)
@@ -1457,6 +1458,7 @@ SCIP_RETCODE diagGEzero(
                var = consdata->vars[j];
                consvals[cnt] = val;
                consvars[cnt++] = var;
+
                /* compute lower bound on activity */
                if ( val > 0 )
                   activitylb += val * SCIPvarGetLbGlobal(var);
@@ -2619,8 +2621,7 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
                if ( ! SCIPisZero(scip, consdata->val[v][j]) )
                {
                   coeffs[cnt] = consdata->val[v][j];
-                  vars[cnt] = consdata->vars[v];
-                  ++cnt;
+                  vars[cnt++] = consdata->vars[v];
                }
             }
          }
@@ -2646,7 +2647,7 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
 
             SCIP_CALL( SCIPaddCons(scip, cons) );
 #ifdef SCIP_MORE_DEBUG
-            SCIPinfoMessage(scip, NULL, "Added lp-constraint: ");
+            SCIPinfoMessage(scip, NULL, "Added lp-constraint:\n");
             SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
             SCIPinfoMessage(scip, NULL, "\n");
 #endif
