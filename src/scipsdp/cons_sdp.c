@@ -3489,7 +3489,7 @@ SCIP_RETCODE propagateUpperBounds(
                else
                   ubs = SCIPvarGetLbLocal(vars);
 
-               if ( SCIPisInfinity(scip, ubs) )
+               if ( SCIPisInfinity(scip, REALABS(ubs)) )
                   continue;
 
                ubs *= consdata->matrixval[diags];
@@ -3526,7 +3526,7 @@ SCIP_RETCODE propagateUpperBounds(
                   else
                      ubt = SCIPvarGetLbLocal(vart);
 
-                  if ( SCIPisInfinity(scip, ubt) )
+                  if ( SCIPisInfinity(scip, REALABS(ubt)) )
                      continue;
 
                   ubt *= consdata->matrixval[diagt];
