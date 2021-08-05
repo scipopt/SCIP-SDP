@@ -1231,7 +1231,7 @@ SCIP_RETCODE tightenBounds(
          {
             SCIP_Bool tightened;
 
-            SCIP_CALL( SCIPtightenVarLb(scip, consdata->vars[i], factor, FALSE, infeasible, &tightened) );
+            SCIP_CALL( SCIPinferVarLbCons(scip, consdata->vars[i], factor, conss[c], -(i+1), FALSE, infeasible, &tightened) );
 
             if ( *infeasible )
                break;
@@ -4868,31 +4868,54 @@ SCIP_DECL_CONSRESPROP(consRespropSdp)
 
    SCIPdebugMsg(scip, "Executing conflict resolving method of <%s> constraint handler.\n", SCIPconshdlrGetName(conshdlr));
 
-   s = inferinfo / consdata->blocksize;
-   t = inferinfo % consdata->blocksize;
-   assert( 0 <= s && s < consdata->blocksize );
-   assert( 0 <= t && t < consdata->blocksize );
-   assert( consdata->matrixvar[s * (s + 1)/2 + t] == infervar );
+   /* if inferinfo is >=, the bound change came from propagateUpperBounds() */
+   if ( inferinfo >= 0 )
+   {
+      s = inferinfo / consdata->blocksize;
+      t = inferinfo % consdata->blocksize;
+      assert( 0 <= s && s < consdata->blocksize );
+      assert( 0 <= t && t < consdata->blocksize );
+      assert( consdata->matrixvar[s * (s + 1)/2 + t] == infervar );
 
-   diags = s * (s + 1)/2 + s;
-   diagt = t * (t + 1)/2 + t;
+      diags = s * (s + 1)/2 + s;
+      diagt = t * (t + 1)/2 + t;
 
-   assert( consdata->matrixvar[diags] != NULL );
-   assert( consdata->matrixvar[diagt] != NULL );
-   assert( consdata->matrixval[diags] != SCIP_INVALID );
-   assert( consdata->matrixval[diagt] != SCIP_INVALID );
+      assert( consdata->matrixvar[diags] != NULL );
+      assert( consdata->matrixvar[diagt] != NULL );
+      assert( consdata->matrixval[diags] != SCIP_INVALID );
+      assert( consdata->matrixval[diagt] != SCIP_INVALID );
 
-   if ( consdata->matrixval[diags] > 0.0 )
-      SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diags], bdchgidx) );
+      if ( consdata->matrixval[diags] > 0.0 )
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diags], bdchgidx) );
+      else
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diags], bdchgidx) );
+
+      if ( consdata->matrixval[diagt] > 0.0 )
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diagt], bdchgidx) );
+      else
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diagt], bdchgidx) );
+
+      *result = SCIP_SUCCESS;
+   }
    else
-      SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diags], bdchgidx) );
+   {
+      int i;
+      int k;
 
-   if ( consdata->matrixval[diagt] > 0.0 )
-      SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diagt], bdchgidx) );
-   else
-      SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diagt], bdchgidx) );
+      /* otherwise the bound change came from tightenbounds() */
+      i = -inferinfo - 1;
+      assert( 0 <= i && i < consdata->nvars );
 
-   *result = SCIP_SUCCESS;
+      /* the upper bounds of all other variables are responsible */
+      for (k = 0; k < consdata->nvars; ++k)
+      {
+         if ( k == i )
+            continue;
+
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->vars[k], bdchgidx) );
+      }
+      *result = SCIP_SUCCESS;
+   }
 
    return SCIP_OKAY;
 }
