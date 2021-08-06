@@ -5465,7 +5465,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
          SCIPdebugMsg(scip, "Added %d linear constraints for variables bounds from 2 by 2 minors.\n", *naddconss - noldaddconss);
          if ( noldaddconss != *naddconss )
          {
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Added %d linear constraints based on variables bounds from 2 x 2 SDP-minors.\n", *naddconss - noldaddconss);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Added %d linear constraints based on variable bounds from 2 x 2 SDP-minors.\n", *naddconss - noldaddconss);
             *result = SCIP_SUCCESS;
          }
          conshdlrdata->sdpconshdlrdata->triedvarbounds = TRUE;
