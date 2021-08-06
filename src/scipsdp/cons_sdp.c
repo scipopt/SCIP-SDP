@@ -5002,7 +5002,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       }
       else
       {
-         SCIPdebugMsg(scip, "Propagated upper bounds: %d.\n", nprop);
+         SCIPdebugMsg(scip, "Presolving upper bounds: %d.\n", nprop);
          if ( nprop > 0 )
          {
             *nchgbds += nprop;
