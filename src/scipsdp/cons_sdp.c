@@ -4827,7 +4827,7 @@ SCIP_DECL_CONSPROP(consPropSdp)
    if ( conshdlrdata->sdpconshdlrdata->proptightenbounds )
    {
       /* possibly avoid propagation in probing */
-      if ( conshdlrdata->proptbprobing || ! SCIPinProbing(scip) )
+      if ( conshdlrdata->sdpconshdlrdata->proptbprobing || ! SCIPinProbing(scip) )
       {
          if ( *result == SCIP_DIDNOTRUN )
             *result = SCIP_DIDNOTFIND;
@@ -6851,6 +6851,8 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->diaggezerocuts = FALSE;
    conshdlrdata->propupperbounds = FALSE;
    conshdlrdata->propubpresol = FALSE;
+   conshdlrdata->proptbprobing = FALSE;
+   conshdlrdata->tightenboundscont = FALSE;
    conshdlrdata->tightenmatrices = FALSE;
    conshdlrdata->tightenbounds = FALSE;
    conshdlrdata->diagzeroimplcuts = FALSE;
