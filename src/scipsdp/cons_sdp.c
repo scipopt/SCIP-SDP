@@ -107,6 +107,7 @@
 #define DEFAULT_PROPUBPRESOL       TRUE /**< Should upper bounds be propagated in presolving? */
 #define DEFAULT_PROPTIGHTENBOUNDS FALSE /**< Should tighten bounds be propagated? */
 #define DEFAULT_PROPTBPROBING     FALSE /**< Should tighten bounds be propagated in probing? */
+#define DEFAULT_TIGHTENBOUNDSCONT  TRUE /**< Should bounds be tightend for continuous variables? */
 #define DEFAULT_TIGHTENMATRICES   FALSE /**< If all matrices are psd, should the matrices be tightened if possible? */
 #define DEFAULT_TIGHTENBOUNDS     FALSE /**< If all matrices are psd, should the bounds be tightened if possible? */
 #define DEFAULT_DIAGGEZEROCUTS     TRUE /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
@@ -172,6 +173,7 @@ struct SCIP_ConshdlrData
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
    SCIP_Bool             propupperbounds;    /**< Should upper bounds be propagated? */
    SCIP_Bool             propubpresol;       /**< Should upper bounds be propagated in presolving? */
+   SCIP_Bool             tightenboundscont;  /**< Should bounds be tightend for continuous variables? */
    SCIP_Bool             proptightenbounds;  /**< Should tighten bounds be propagated? */
    SCIP_Bool             proptbprobing;      /**< Should tighten bounds be propagated in probing? */
    SCIP_Bool             tightenmatrices;    /**< If all matrices are psd, should the matrices be tightened if possible? */
@@ -1118,6 +1120,7 @@ SCIP_RETCODE tightenBounds(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           conss,              /**< array of constraints to add cuts for */
    int                   nconss,             /**< number of constraints to add cuts for */
+   SCIP_Bool             tightencont,        /**< Should continuous variables be tightened? */
    int*                  nchgbds,            /**< pointer to store how many bounds were tightened */
    SCIP_Bool*            infeasible          /**< pointer to store whether infeasibility was detected */
    )
@@ -1185,6 +1188,10 @@ SCIP_RETCODE tightenBounds(
          SCIP_Real objval;
          int k;
          int l;
+
+         /* possibly restrict tightening to integer variables */
+         if ( ! SCIPvarIsIntegral(consdata->vars[i]) && ! tightencont )
+            continue;
 
          /* skip fixed variables */
          lb = SCIPvarGetLbLocal(consdata->vars[i]);
@@ -4828,7 +4835,7 @@ SCIP_DECL_CONSPROP(consPropSdp)
          SCIPdebugMsg(scip, "Propagate tighten bounds of conshdlr <%s> ...\n", SCIPconshdlrGetName(conshdlr));
 
          nprop = 0;
-         SCIP_CALL( tightenBounds(scip, conss, nconss, &nprop, &infeasible) );
+         SCIP_CALL( tightenBounds(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->tightenboundscont, &nprop, &infeasible) );
 
          if ( infeasible )
          {
@@ -5053,7 +5060,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       /* possibly tighten bounds, do not run if we are active in propagation */
       if ( conshdlrdata->sdpconshdlrdata->tightenbounds )
       {
-         SCIP_CALL( tightenBounds(scip, conss, nconss, nchgbds, &infeasible) );
+         SCIP_CALL( tightenBounds(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->tightenboundscont, nchgbds, &infeasible) );
          if ( infeasible )
          {
             *result = SCIP_CUTOFF;
@@ -6734,6 +6741,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/proptbprobing",
          "Should tighten bounds be propagated in probing?",
          &(conshdlrdata->proptbprobing), TRUE, DEFAULT_PROPTBPROBING, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/tightenboundscont",
+         "Should bounds be tightend for continuous variables?",
+         &(conshdlrdata->tightenboundscont), TRUE, DEFAULT_TIGHTENBOUNDSCONT, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/tightenmatrices",
          "If all matrices are psd, should the matrices be tightened if possible?",
