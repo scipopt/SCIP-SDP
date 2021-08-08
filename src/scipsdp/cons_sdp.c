@@ -107,7 +107,7 @@
 #define DEFAULT_PROPUBPRESOL       TRUE /**< Should upper bounds be propagated in presolving? */
 #define DEFAULT_PROPTIGHTENBOUNDS FALSE /**< Should tighten bounds be propagated? */
 #define DEFAULT_PROPTBPROBING     FALSE /**< Should tighten bounds be propagated in probing? */
-#define DEFAULT_TIGHTENBOUNDSCONT  TRUE /**< Should bounds be tightend for continuous variables? */
+#define DEFAULT_TIGHTENBOUNDSCONT FALSE /**< Should only bounds be tightend for continuous variables? */
 #define DEFAULT_TIGHTENMATRICES   FALSE /**< If all matrices are psd, should the matrices be tightened if possible? */
 #define DEFAULT_TIGHTENBOUNDS     FALSE /**< If all matrices are psd, should the bounds be tightened if possible? */
 #define DEFAULT_DIAGGEZEROCUTS     TRUE /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
@@ -173,7 +173,7 @@ struct SCIP_ConshdlrData
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
    SCIP_Bool             propupperbounds;    /**< Should upper bounds be propagated? */
    SCIP_Bool             propubpresol;       /**< Should upper bounds be propagated in presolving? */
-   SCIP_Bool             tightenboundscont;  /**< Should bounds be tightend for continuous variables? */
+   SCIP_Bool             tightenboundscont;  /**< Should only bounds be tightend for continuous variables? */
    SCIP_Bool             proptightenbounds;  /**< Should tighten bounds be propagated? */
    SCIP_Bool             proptbprobing;      /**< Should tighten bounds be propagated in probing? */
    SCIP_Bool             tightenmatrices;    /**< If all matrices are psd, should the matrices be tightened if possible? */
@@ -1120,7 +1120,7 @@ SCIP_RETCODE tightenBounds(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           conss,              /**< array of constraints to add cuts for */
    int                   nconss,             /**< number of constraints to add cuts for */
-   SCIP_Bool             tightencont,        /**< Should continuous variables be tightened? */
+   SCIP_Bool             tightenboundscont,  /**< Should only continuous variables be tightened? */
    int*                  nchgbds,            /**< pointer to store how many bounds were tightened */
    SCIP_Bool*            infeasible          /**< pointer to store whether infeasibility was detected */
    )
@@ -1189,8 +1189,8 @@ SCIP_RETCODE tightenBounds(
          int k;
          int l;
 
-         /* possibly restrict tightening to integer variables */
-         if ( ! SCIPvarIsIntegral(consdata->vars[i]) && ! tightencont )
+         /* possibly restrict tightening to continuous variables */
+         if ( tightenboundscont && SCIPvarIsIntegral(consdata->vars[i]) )
             continue;
 
          /* skip fixed variables */
@@ -6743,7 +6743,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          &(conshdlrdata->proptbprobing), TRUE, DEFAULT_PROPTBPROBING, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/tightenboundscont",
-         "Should bounds be tightend for continuous variables?",
+         "Should only bounds be tightend for continuous variables?",
          &(conshdlrdata->tightenboundscont), TRUE, DEFAULT_TIGHTENBOUNDSCONT, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/tightenmatrices",
