@@ -1205,12 +1205,15 @@ SCIP_RETCODE tightenBounds(
             if ( k == i )
                continue;
 
-            SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], k, othermatrix) );
             ubk = SCIPvarGetUbLocal(consdata->vars[k]);
 
             /* subtract matrix times upper bound from constant matrix (because of minus const. matrix) */
-            for (l = 0; l < blocksize * blocksize; ++l)
-               constmatrix[l] -= othermatrix[l] * ubk;
+            if ( ! SCIPisZero(scip, ubk) )
+            {
+               SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], k, othermatrix) );
+               for (l = 0; l < blocksize * blocksize; ++l)
+                  constmatrix[l] -= othermatrix[l] * ubk;
+            }
          }
 
          /* solve 1d SDP */
