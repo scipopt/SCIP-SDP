@@ -1230,6 +1230,8 @@ SCIP_RETCODE tightenBounds(
 
             /* compute eigenvalue; note that constmatrix is destroyed */
             SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, constmatrix, 1, &eigenvalue, NULL) );
+            /* take minus sign into account */
+            eigenvalue = -eigenvalue;
 
             /* if constant matrix is psd, then the lower bound is feasible -> cannot tighten */
             if ( SCIPisFeasGE(scip, eigenvalue, 0.0) )
