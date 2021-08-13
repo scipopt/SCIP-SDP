@@ -1223,19 +1223,38 @@ SCIP_RETCODE tightenBounds(
             }
          }
 
-         /* solve 1d SDP */
-         SCIP_CALL( SCIPsolveOneVarSDPDense(SCIPbuffer(scip), 1.0, lb, ub, blocksize, constmatrix, consdata->nvarnonz[i], consdata->row[i], consdata->col[i], consdata->val[i],
-               SCIPinfinity(scip), SCIPfeastol(scip), 1e-6, &objval, &factor) );
-
-         /* if problem is infeasible */
-         if ( SCIPisInfinity(scip, objval) )
+         /* special handling of binary variables */
+         if ( SCIPvarIsBinary(consdata->vars[i]) )
          {
-            *infeasible = TRUE;
-            break;
-         }
+            SCIP_Real eigenvalue;
 
-         if ( factor == SCIP_INVALID ) /*lint !e777*/
-            continue;
+            /* compute eigenvalue; note that constmatrix is destroyed */
+            SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, constmatrix, 1, &eigenvalue, NULL) );
+
+            /* if constant matrix is psd, then the lower bound is feasible -> cannot tighten */
+            if ( SCIPisFeasGE(scip, eigenvalue, 0.0) )
+               continue;
+            assert( SCIPisFeasNegative(scip, eigenvalue) );
+
+            /* otherwise, we need at least the matrix for variable i to become feasible -> can tighten variable to 1 */
+            factor = 0.5;
+         }
+         else
+         {
+            /* solve 1d SDP */
+            SCIP_CALL( SCIPsolveOneVarSDPDense(SCIPbuffer(scip), 1.0, lb, ub, blocksize, constmatrix, consdata->nvarnonz[i], consdata->row[i], consdata->col[i], consdata->val[i],
+                  SCIPinfinity(scip), SCIPfeastol(scip), 1e-6, &objval, &factor) );
+
+            /* if problem is infeasible */
+            if ( SCIPisInfinity(scip, objval) )
+            {
+               *infeasible = TRUE;
+               break;
+            }
+
+            if ( factor == SCIP_INVALID ) /*lint !e777*/
+               continue;
+         }
 
          if ( SCIPisGT(scip, factor, lb) )
          {
