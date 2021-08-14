@@ -1137,7 +1137,6 @@ SCIP_RETCODE tightenBounds(
    {
       SCIP_CONSDATA* consdata;
       SCIP_Real* matrix = NULL;
-      SCIP_Real* othermatrix;
       SCIP_Real* constmatrix;
       SCIP_Real factor;
       SCIP_Bool havebinaryvar = FALSE;
@@ -1181,7 +1180,6 @@ SCIP_RETCODE tightenBounds(
       /* get matrices */
       blocksize = consdata->blocksize;
       SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, blocksize * blocksize) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &othermatrix, blocksize * blocksize) );
       if ( havebinaryvar )
       {
          SCIP_CALL( SCIPallocBufferArray(scip, &matrix, blocksize * blocksize) );
@@ -1189,10 +1187,16 @@ SCIP_RETCODE tightenBounds(
 
       for (i = 0; i < nvars; ++i)
       {
+         SCIP_Real* sdpval;
          SCIP_Real lb;
          SCIP_Real ub;
          SCIP_Real ubk;
          SCIP_Real objval;
+         int* sdprow;
+         int* sdpcol;
+         int sdpnnonz;
+         int row;
+         int col;
          int k;
          int l;
 
@@ -1224,9 +1228,17 @@ SCIP_RETCODE tightenBounds(
             /* subtract matrix times upper bound from constant matrix (because of minus const. matrix) */
             if ( ! SCIPisZero(scip, ubk) )
             {
-               SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], k, othermatrix) );
-               for (l = 0; l < blocksize * blocksize; ++l)
-                  constmatrix[l] -= othermatrix[l] * ubk;
+               sdprow = consdata->row[k];
+               sdpcol = consdata->col[k];
+               sdpval = consdata->val[k];
+               sdpnnonz = consdata->nvarnonz[k];
+               for (l = 0; l < sdpnnonz; ++l)
+               {
+                  row = sdprow[l];
+                  col = sdpcol[l];
+                  constmatrix[row * blocksize + col] -= sdpval[l] * ubk;
+                  constmatrix[col * blocksize + row] -= sdpval[l] * ubk;
+               }
             }
          }
 
@@ -1234,12 +1246,6 @@ SCIP_RETCODE tightenBounds(
          if ( SCIPvarIsBinary(consdata->vars[i]) )
          {
             SCIP_Real eigenvalue;
-            SCIP_Real* sdpval;
-            int* sdprow;
-            int* sdpcol;
-            int sdpnnonz;
-            int row;
-            int col;
 
             assert( matrix != NULL );
 
@@ -1321,7 +1327,6 @@ SCIP_RETCODE tightenBounds(
       }
 
       SCIPfreeBufferArrayNull(scip, &matrix);
-      SCIPfreeBufferArray(scip, &othermatrix);
       SCIPfreeBufferArray(scip, &constmatrix);
    }
 
