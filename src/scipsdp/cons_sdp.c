@@ -1136,10 +1136,11 @@ SCIP_RETCODE tightenBounds(
    for (c = 0; c < nconss && !(*infeasible); ++c)
    {
       SCIP_CONSDATA* consdata;
-      SCIP_Real* matrix;
+      SCIP_Real* matrix = NULL;
       SCIP_Real* othermatrix;
       SCIP_Real* constmatrix;
       SCIP_Real factor;
+      SCIP_Bool havebinaryvar = FALSE;
       int blocksize;
       int nvars;
       int i;
@@ -1168,6 +1169,9 @@ SCIP_RETCODE tightenBounds(
       {
          if ( SCIPisInfinity(scip, SCIPvarGetUbLocal(consdata->vars[i])) )
             break;
+
+         if ( SCIPvarIsBinary(consdata->vars[i]) )
+            havebinaryvar = TRUE;
       }
       if ( i < nvars )
          continue;
@@ -1177,8 +1181,11 @@ SCIP_RETCODE tightenBounds(
       /* get matrices */
       blocksize = consdata->blocksize;
       SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, blocksize * blocksize) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &matrix, blocksize * blocksize) );
       SCIP_CALL( SCIPallocBufferArray(scip, &othermatrix, blocksize * blocksize) );
+      if ( havebinaryvar )
+      {
+         SCIP_CALL( SCIPallocBufferArray(scip, &matrix, blocksize * blocksize) );
+      }
 
       for (i = 0; i < nvars; ++i)
       {
@@ -1227,16 +1234,54 @@ SCIP_RETCODE tightenBounds(
          if ( SCIPvarIsBinary(consdata->vars[i]) )
          {
             SCIP_Real eigenvalue;
+            SCIP_Real* sdpval;
+            int* sdprow;
+            int* sdpcol;
+            int sdpnnonz;
+            int row;
+            int col;
 
-            /* compute eigenvalue; note that constmatrix is destroyed */
+            assert( matrix != NULL );
+
+            /* first copy constant matrix (possibly needed later) */
+            for (l = 0; l < blocksize * blocksize; ++l)
+               matrix[l] = - constmatrix[l];
+
+            /* compute minimal eigenvalue; this corresponds to checking the lower bound; constmatrix is destroyed. */
             SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, constmatrix, 1, &eigenvalue, NULL) );
+
             /* take minus sign into account */
             eigenvalue = -eigenvalue;
 
-            /* if constant matrix is psd, then the lower bound is feasible -> cannot tighten */
+            /* if the negative of the constant matrix is psd, then the lower bound (= 0) is feasible -> cannot tighten */
             if ( SCIPisFeasGE(scip, eigenvalue, 0.0) )
                continue;
             assert( SCIPisFeasNegative(scip, eigenvalue) );
+
+            /* otherwise, we check whether the upper bound is feasible */
+
+            /* add matrix i for evaluating upper bound */
+            sdprow = consdata->row[i];
+            sdpcol = consdata->col[i];
+            sdpval = consdata->val[i];
+            sdpnnonz = consdata->nvarnonz[i];
+            for (l = 0; l < sdpnnonz; ++l)
+            {
+               row = sdprow[l];
+               col = sdpcol[l];
+               matrix[row * blocksize + col] += sdpval[l];
+               matrix[col * blocksize + row] += sdpval[l];
+            }
+
+            /* compute minimal eigenvalue; matrix is destroyed */
+            SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, matrix, 1, &eigenvalue, NULL) );
+
+            /* if matrix is not psd, we are infeasible */
+            if ( SCIPisFeasNegative(scip, eigenvalue) )
+            {
+               *infeasible = TRUE;
+               break;
+            }
 
             /* otherwise, we need at least the matrix for variable i to become feasible -> can tighten variable to 1 */
             factor = 0.5;
@@ -1275,8 +1320,8 @@ SCIP_RETCODE tightenBounds(
          }
       }
 
+      SCIPfreeBufferArrayNull(scip, &matrix);
       SCIPfreeBufferArray(scip, &othermatrix);
-      SCIPfreeBufferArray(scip, &matrix);
       SCIPfreeBufferArray(scip, &constmatrix);
    }
 
