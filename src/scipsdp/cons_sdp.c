@@ -2597,7 +2597,7 @@ SCIP_RETCODE addTwoMinorVarBounds(
                      consvars[nconsvars++] = consdata->vars[i];
                   }
                }
-               rhs -= ubs * constmatrix[s * blocksize + s];
+               rhs -= ubs * constmatrix[t * blocksize + t];
 
                if ( nconsvars >= 2 )
                {
