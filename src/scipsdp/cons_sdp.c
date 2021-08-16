@@ -6924,6 +6924,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->diaggezerocuts = FALSE;
    conshdlrdata->propupperbounds = FALSE;
    conshdlrdata->propubpresol = FALSE;
+   conshdlrdata->proptightenbounds = FALSE;
    conshdlrdata->proptbprobing = FALSE;
    conshdlrdata->tightenboundscont = FALSE;
    conshdlrdata->tightenmatrices = FALSE;
