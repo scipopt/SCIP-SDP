@@ -1287,12 +1287,14 @@ SCIP_RETCODE tightenBounds(
             /* if matrix is not psd, we are infeasible */
             if ( SCIPisFeasNegative(scip, eigenvalue) )
             {
+               SCIPdebugMsg(scip, "Binary variable <%s> yields infeasibility.\n", SCIPvarGetName(consdata->vars[i]));
                *infeasible = TRUE;
                break;
             }
 
             /* otherwise, we need at least the matrix for variable i to become feasible -> can tighten variable to 1 */
             factor = 0.5;
+            SCIPdebugMsg(scip, "Tighten lower bound for binary variable <%s> to 1.\n", SCIPvarGetName(consdata->vars[i]));
          }
          else
          {
@@ -1303,6 +1305,7 @@ SCIP_RETCODE tightenBounds(
             /* if problem is infeasible */
             if ( SCIPisInfinity(scip, objval) )
             {
+               SCIPdebugMsg(scip, "Variable <%s> yields infeasibility.\n", SCIPvarGetName(consdata->vars[i]));
                *infeasible = TRUE;
                break;
             }
