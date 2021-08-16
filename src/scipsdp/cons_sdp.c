@@ -1237,7 +1237,8 @@ SCIP_RETCODE tightenBounds(
                   row = sdprow[l];
                   col = sdpcol[l];
                   constmatrix[row * blocksize + col] -= sdpval[l] * ubk;
-                  constmatrix[col * blocksize + row] -= sdpval[l] * ubk;
+                  if ( row != col )
+                     constmatrix[col * blocksize + row] -= sdpval[l] * ubk;
                }
             }
          }
@@ -1276,7 +1277,8 @@ SCIP_RETCODE tightenBounds(
                row = sdprow[l];
                col = sdpcol[l];
                matrix[row * blocksize + col] += sdpval[l];
-               matrix[col * blocksize + row] += sdpval[l];
+               if ( row != col )
+                  matrix[col * blocksize + row] += sdpval[l];
             }
 
             /* compute minimal eigenvalue; matrix is destroyed */
