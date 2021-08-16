@@ -1210,8 +1210,9 @@ SCIP_RETCODE tightenBounds(
          if ( SCIPisEQ(scip, lb, ub) )
             continue;
 
-         /* skip infinite bounds (cannot currently deal with this in SCIPsolveOneVarSDPDense() */
-         if ( SCIPisInfinity(scip, -lb) || SCIPisInfinity(scip, ub) )
+         /* skip infinite lower bound (cannot currently deal with this in SCIPsolveOneVarSDPDense()) */
+         assert( ! SCIPisInfinity(scip, ub) );
+         if ( SCIPisInfinity(scip, -lb) )
             continue;
 
          /* get fresh copy of the constant matrix */
