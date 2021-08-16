@@ -295,49 +295,119 @@ SCIP_RETCODE expandSymMatrix(
    return SCIP_OKAY;
 }
 
-/** For a given vector \f$ y \f$ computes the (length of y) * (length of y + 1) /2 -long array of the lower-triangular part
- *  of the SDP-Matrix \f$ \sum_{j=1}^m A_j y_j - A_0 \f$ for this SDP block, indexed by SCIPconsSdpCompLowerTriangPos.
+/** For a vector \f$y\f$ given by @sol, computes the (length of y) * (length of y + 1) /2 -long array of the lower-triangular part
+ *  of the matrix \f$ \sum_{j=1}^m A_j y_j - A_0 \f$ for this SDP block, indexed by SCIPconsSdpCompLowerTriangPos().
  */
 static
 SCIP_RETCODE computeSdpMatrix(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< the constraint for which the Matrix should be assembled */
-   SCIP_SOL*             y,                  /**< solution to separate */
+   SCIP_CONSDATA*        consdata,           /**< constraint data */
+   SCIP_SOL*             sol,                /**< solution to separate */
    SCIP_Real*            matrix              /**< pointer to store the SDP-Matrix */
    )
 {
-   SCIP_CONSDATA* consdata;
    SCIP_Real yval;
    int blocksize;
    int nvars;
-   int ind;
    int i;
+   int j;
 
-   assert( cons != NULL );
+   assert( consdata != NULL );
    assert( matrix != NULL );
 
-   consdata = SCIPconsGetData(cons);
    nvars = consdata->nvars;
    blocksize = consdata->blocksize;
 
    /* initialize the matrix with 0 */
-   for (i = 0; i < (blocksize * (blocksize + 1))/2; i++)
+   for (i = 0; i < (blocksize * (blocksize + 1))/2; ++i)
       matrix[i] = 0.0;
 
    /* add the non-constant-part */
    for (i = 0; i < nvars; i++)
    {
-      yval = SCIPgetSolVal(scip, y, consdata->vars[i]);
+      yval = SCIPgetSolVal(scip, sol, consdata->vars[i]);
       if ( ! SCIPisZero(scip, yval) )
       {
-         for (ind = 0; ind < consdata->nvarnonz[i]; ind++)
-            matrix[SCIPconsSdpCompLowerTriangPos(consdata->row[i][ind], consdata->col[i][ind])] += yval * consdata->val[i][ind];
+         for (j = 0; j < consdata->nvarnonz[i]; ++j)
+            matrix[SCIPconsSdpCompLowerTriangPos(consdata->row[i][j], consdata->col[i][j])] += yval * consdata->val[i][j];
       }
    }
 
    /* substract the constant part */
-   for (ind = 0; ind < consdata->constnnonz; ind++)
-      matrix[SCIPconsSdpCompLowerTriangPos(consdata->constrow[ind], consdata->constcol[ind])] -= consdata->constval[ind];
+   for (j = 0; j < consdata->constnnonz; ++j)
+      matrix[SCIPconsSdpCompLowerTriangPos(consdata->constrow[j], consdata->constcol[j])] -= consdata->constval[j];
+
+   return SCIP_OKAY;
+}
+
+/** for a vector \f$y\f$ given by @p sol, computes the full matrix \f$ \sum_{j=1}^m A_j y_j - A_0 \f$ */
+static
+SCIP_RETCODE computeFullSdpMatrix(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONSDATA*        consdata,           /**< constraint data */
+   SCIP_SOL*             sol,                /**< solution to separate */
+   SCIP_Real*            fullmatrix          /**< array for full matrix */
+   )
+{
+   SCIP_Real aval;
+   int blocksize;
+   int nvars;
+   int r;
+   int c;
+   int i;
+   int j;
+
+   assert( scip != NULL );
+   assert( consdata != NULL );
+   assert( fullmatrix != NULL );
+
+   nvars = consdata->nvars;
+   blocksize = consdata->blocksize;
+
+   /* initialize the matrix with 0 */
+   for (i = 0; i < blocksize * blocksize; ++i)
+      fullmatrix[i] = 0.0;
+
+   /* add the non-constant-part */
+   for (i = 0; i < nvars; i++)
+   {
+      SCIP_Real yval;
+
+      yval = SCIPgetSolVal(scip, sol, consdata->vars[i]);
+      if ( ! SCIPisZero(scip, yval) )
+      {
+         for (j = 0; j < consdata->nvarnonz[i]; ++j)
+         {
+            r = consdata->row[i][j];
+            c = consdata->col[i][j];
+            aval = consdata->val[i][j];
+
+            if ( r == c )
+               fullmatrix[r * blocksize + c] += yval * aval;
+            else
+            {
+               fullmatrix[r * blocksize + c] += yval * aval;
+               fullmatrix[c * blocksize + r] += yval * aval;
+            }
+         }
+      }
+   }
+
+   /* substract the constant part */
+   for (j = 0; j < consdata->constnnonz; ++j)
+   {
+      r = consdata->constrow[j];
+      c = consdata->constcol[j];
+      aval = consdata->constval[j];
+
+      if ( r == c )
+         fullmatrix[r * blocksize + c] -= aval;
+      else
+      {
+         fullmatrix[r * blocksize + c] -= aval;
+         fullmatrix[c * blocksize + r] -= aval;
+      }
+   }
 
    return SCIP_OKAY;
 }
@@ -354,7 +424,6 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    )
 {  /*lint --e{715}*/
    SCIP_CONSDATA* consdata;
-   SCIP_Real* matrix = NULL;
    SCIP_Real* fullmatrix = NULL;
    SCIP_Real eigenvalue;
    SCIP_Real tol;
@@ -370,10 +439,9 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
    assert( ! consdata->rankone || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(cons)), CONSHDLRRANK1_NAME) == 0 );
    blocksize = consdata->blocksize;
 
-   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1)) / 2) ); /*lint !e647*/
    SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize) ); /*lint !e647*/
-   SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix) );
-   SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
+
+   SCIP_CALL( computeFullSdpMatrix(scip, consdata, sol, fullmatrix) );
 
    SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, fullmatrix, 1, &eigenvalue, NULL) );
 
@@ -401,7 +469,6 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
       SCIPupdateSolConsViolation(scip, sol, -eigenvalue, (-eigenvalue) / (1.0 + consdata->maxrhsentry));
 
    SCIPfreeBufferArray(scip, &fullmatrix);
-   SCIPfreeBufferArray(scip, &matrix);
 
    return SCIP_OKAY;
 }
@@ -451,8 +518,8 @@ SCIP_RETCODE isMatrixRankOne(
    SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1))/2 ) );
    SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize ) );
 
-   /* compute the matrix \f$ \sum_j A_j y_j - A_0 \f$ */
-   SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix) );
+   /* compute the matrix \f$ \sum_j A_j y_j - A_0 \f$ - we need an undestroyed version in matrix below */
+   SCIP_CALL( computeSdpMatrix(scip, consdata, sol, matrix) );
 
    /* expand it because LAPACK wants the full matrix instead of the lower triangular part */
    SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
@@ -465,7 +532,7 @@ SCIP_RETCODE isMatrixRankOne(
    /* changed eigenvalue to 0.1*eigenvalue here, since here seems to be a problem with optimal solutions not satisfying
       SCIPisFeasEQ(scip, 0.1*eigenvalue, 0.0), even if they are feasible for all other constraints, including the
       quadratic 2x2 principal minor constraints. */
-   if ( SCIPisFeasEQ(scip, 0.1*eigenvalue, 0.0) )
+   if ( SCIPisFeasEQ(scip, 0.1 * eigenvalue, 0.0) )
       *result = TRUE;
    else
    {
@@ -517,6 +584,9 @@ SCIP_RETCODE multiplyConstraintMatrix(
    )
 {
    SCIP_CONSDATA* consdata;
+   SCIP_Real s = 0.0;
+   int r;
+   int c;
    int i;
 
    assert( cons != NULL );
@@ -528,19 +598,20 @@ SCIP_RETCODE multiplyConstraintMatrix(
 
    assert( j < consdata->nvars );
 
-   /* initialize the product with 0 */
-   *vAv = 0.0;
-
    for (i = 0; i < consdata->nvarnonz[j]; i++)
    {
-      if (consdata->col[j][i] == consdata->row[j][i])
-         *vAv += v[consdata->col[j][i]] * consdata->val[j][i] * v[consdata->row[j][i]];
+      r = consdata->row[j][i];
+      c = consdata->col[j][i];
+      if ( r == c )
+         s += v[c] * consdata->val[j][i] * v[r];
       else
       {
          /* Multiply by 2, because the matrix is symmetric and there is one identical contribution each from lower and upper triangular part. */
-         *vAv += 2.0 * v[consdata->col[j][i]] * consdata->val[j][i] * v[consdata->row[j][i]];
+         s += 2.0 * v[c] * consdata->val[j][i] * v[r];
       }
    }
+
+   *vAv = s;
 
    return SCIP_OKAY;
 }
@@ -554,14 +625,11 @@ SCIP_RETCODE setMaxRhsEntry(
    )
 {
    SCIP_CONSDATA* consdata;
-   SCIP_Real max;
+   SCIP_Real max = 0.0;    /* initialize max with zero (this is used if there is no constant-matrix) */
    int i;
 
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
-
-   /* initialize max with zero (this is used if there is no constant-matrix) */
-   max = 0.0;
 
    /* iterate over the entries of the constant matrix, updating max if a higher absolute value is found */
    for (i = 0; i < consdata->constnnonz; i++)
@@ -847,7 +915,6 @@ SCIP_RETCODE separateSol(
    SCIP_Real* vals;
    SCIP_Real* eigenvectors;
    SCIP_Real* vector;
-   SCIP_Real* matrix;
    SCIP_Real* fullmatrix;
    SCIP_Real* fullconstmatrix = NULL;
    SCIP_Real* eigenvalues;
@@ -875,17 +942,13 @@ SCIP_RETCODE separateSol(
    SCIP_CALL( SCIPallocBufferArray(scip, &vars, nvars ) );
    SCIP_CALL( SCIPallocBufferArray(scip, &vals, nvars ) );
 
-   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1))/2 ) );
    SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize ) );
    SCIP_CALL( SCIPallocBufferArray(scip, &eigenvectors, blocksize * blocksize) );
    SCIP_CALL( SCIPallocBufferArray(scip, &eigenvalues, blocksize) );
    SCIP_CALL( SCIPallocBufferArray(scip, &vector, blocksize) );
 
    /* compute the matrix \f$ \sum_j A_j y_j - A_0 \f$ */
-   SCIP_CALL( computeSdpMatrix(scip, cons, sol, matrix) );
-
-   /* expand it because LAPACK wants the full matrix instead of the lower triangular part */
-   SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
+   SCIP_CALL( computeFullSdpMatrix(scip, consdata, sol, fullmatrix) );
 
    /* determine tolerance */
    if ( conshdlrdata->sdpconshdlrdata->usedimacsfeastol )
@@ -1029,7 +1092,6 @@ SCIP_RETCODE separateSol(
    SCIPfreeBufferArray(scip, &eigenvalues);
    SCIPfreeBufferArray(scip, &eigenvectors);
    SCIPfreeBufferArray(scip, &fullmatrix);
-   SCIPfreeBufferArray(scip, &matrix);
 
    SCIPfreeBufferArray(scip, &vals);
    SCIPfreeBufferArray(scip, &vars);
@@ -1396,6 +1458,7 @@ SCIP_RETCODE diagGEzero(
                var = consdata->vars[j];
                consvals[cnt] = val;
                consvars[cnt++] = var;
+
                /* compute lower bound on activity */
                if ( val > 0 )
                   activitylb += val * SCIPvarGetLbGlobal(var);
@@ -2558,8 +2621,7 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
                if ( ! SCIPisZero(scip, consdata->val[v][j]) )
                {
                   coeffs[cnt] = consdata->val[v][j];
-                  vars[cnt] = consdata->vars[v];
-                  ++cnt;
+                  vars[cnt++] = consdata->vars[v];
                }
             }
          }
@@ -2585,7 +2647,7 @@ SCIP_RETCODE move_1x1_blocks_to_lp(
 
             SCIP_CALL( SCIPaddCons(scip, cons) );
 #ifdef SCIP_MORE_DEBUG
-            SCIPinfoMessage(scip, NULL, "Added lp-constraint: ");
+            SCIPinfoMessage(scip, NULL, "Added lp-constraint:\n");
             SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
             SCIPinfoMessage(scip, NULL, "\n");
 #endif
@@ -5285,7 +5347,7 @@ SCIP_DECL_CONSTRANS(consTransSdp)
    return SCIP_OKAY;
 }
 
-/** checks feasiblity of constraint, e.g. the positive semidefiniteness */
+/** checks feasiblity of constraint, e.g., positive semidefiniteness */
 static
 SCIP_DECL_CONSCHECK(consCheckSdp)
 {/*lint --e{715}*/
@@ -5295,7 +5357,6 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
    SCIP_VAR** linvars;
    SCIP_VAR*  var;
    SCIP_SOL* bestrank1approx;
-   SCIP_Real* matrix;
    SCIP_Real* fullmatrix;
    SCIP_Real* eigenvalues;
    SCIP_Real* eigenvectors;
@@ -5448,7 +5509,6 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
       SCIPdebugMsg(scip, "\n Start with violated rank-1 constraint %s, is %d out of %d violated rank-1 constraints.\n\n", SCIPconsGetName(violcons), i + 1, nviolrank1);
 
       /* allocate memory to store full matrix */
-      SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1))/2 ) );
       SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize ) );
       SCIP_CALL( SCIPallocBufferArray(scip, &eigenvalues, blocksize) );
       SCIP_CALL( SCIPallocBufferArray(scip, &eigenvectors, blocksize * blocksize) );
@@ -5458,10 +5518,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
       SCIP_CALL( SCIPallocBufferArray(scip, &linvals, consdata->nvars) );
 
       /* compute the matrix \f$ \sum_j A_j y_j - A_0 \f$ */
-      SCIP_CALL( computeSdpMatrix(scip, violcons, sol, matrix) );
-
-      /* expand it because LAPACK wants the full matrix instead of the lower triangular part */
-      SCIP_CALL( expandSymMatrix(blocksize, matrix, fullmatrix) );
+      SCIP_CALL( computeFullSdpMatrix(scip, consdata, sol, fullmatrix) );
 
 #ifdef PRINTMATRICES
       /* SCIPSDP uses row-first format! */
@@ -5628,7 +5685,6 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
       SCIPfreeBufferArray(scip, &eigenvectors);
       SCIPfreeBufferArray(scip, &eigenvalues);
       SCIPfreeBufferArray(scip, &fullmatrix);
-      SCIPfreeBufferArray(scip, &matrix);
    }
 
    assert( lincnt == linrows );
@@ -5954,8 +6010,7 @@ SCIP_DECL_CONSENFOLP(consEnfolpSdp)
    return SCIP_OKAY;
 }
 
-/** Enforce relaxation solution; if some block is not psd, an eigenvector cut is added.
- */
+/** Enforce relaxation solution; if some block is not psd, an eigenvector cut is added. */
 static
 SCIP_DECL_CONSENFORELAX(consEnforelaxSdp)
 {/*lint --e{715}*/
@@ -5971,7 +6026,8 @@ SCIP_DECL_CONSENFORELAX(consEnforelaxSdp)
    if ( solinfeasible )
       return SCIP_OKAY;
 
-   /*****  Is this correct? Relaxation solutions should be feasible. */
+   /* Rounding errors might lead to infeasible relaxation solutions. We therefore perform a separation round in the hope
+    * that this can resolve the problem. */
    for (c = 0; c < nconss && *result != SCIP_CUTOFF; ++c)
    {
       SCIP_RESULT separesult = SCIP_FEASIBLE;
