@@ -1255,8 +1255,8 @@ SCIP_RETCODE tightenBounds(
             for (l = 0; l < blocksize * blocksize; ++l)
                matrix[l] = - constmatrix[l];
 
-            /* compute minimal eigenvalue; this corresponds to checking the lower bound; constmatrix is destroyed. */
-            SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, constmatrix, 1, &eigenvalue, NULL) );
+            /* compute maximal eigenvalue; this corresponds to checking the lower bound because of minus sign; constmatrix is destroyed. */
+            SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, constmatrix, blocksize, &eigenvalue, NULL) );
 
             /* take minus sign into account */
             eigenvalue = -eigenvalue;
