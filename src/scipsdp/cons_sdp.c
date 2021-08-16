@@ -6026,7 +6026,7 @@ SCIP_DECL_CONSENFORELAX(consEnforelaxSdp)
    if ( solinfeasible )
       return SCIP_OKAY;
 
-   /* Rounding errors might lead to infeasible relaxation solutions. We therefore perform a separation round in the hopt
+   /* Rounding errors might lead to infeasible relaxation solutions. We therefore perform a separation round in the hope
     * that this can resolve the problem. */
    for (c = 0; c < nconss && *result != SCIP_CUTOFF; ++c)
    {
