@@ -5134,7 +5134,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
          }
       }
 
-      /* possibly tighten bounds, do not run if we are active in propagation */
+      /* possibly tighten bounds */
       if ( conshdlrdata->sdpconshdlrdata->tightenbounds )
       {
          SCIP_CALL( tightenBounds(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->tightenboundscont, nchgbds, &infeasible) );
