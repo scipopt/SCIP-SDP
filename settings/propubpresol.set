@@ -1,6 +1,6 @@
 constraints/SDP/propupperbounds = false
-constraints/SDP/propubpresol = false
-constraints/SDP/diaggezerocuts = true
+constraints/SDP/propubpresol = true
+constraints/SDP/diaggezerocuts = false
 constraints/SDP/diagzeroimplcuts = false
 constraints/SDP/tightenbounds = false
 constraints/SDP/tightenmatrices = false

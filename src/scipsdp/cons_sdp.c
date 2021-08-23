@@ -58,6 +58,7 @@
 #include <ctype.h>                      /* for isspace */
 #include <math.h>
 #include "sdpi/lapack_interface.h"
+#include "sdpi/solveonevarsdp.h"
 #include "relax_sdp.h"
 
 #include "scipsdp/SdpVarmapper.h"
@@ -101,8 +102,12 @@
 
 #define PARSE_STARTSIZE               1 /**< initial size of the consdata-arrays when parsing a problem */
 #define PARSE_SIZEFACTOR             10 /**< size of consdata-arrays is increased by this factor when parsing a problem */
-#define DEFAULT_PROPAGATE          TRUE /**< Should we perform propagation? */
-#define DEFAULT_PROPPRESOL         TRUE /**< Should we perform propagation in presolving? */
+
+#define DEFAULT_PROPUPPERBOUNDS    TRUE /**< Should upper bounds be propagated? */
+#define DEFAULT_PROPUBPRESOL       TRUE /**< Should upper bounds be propagated in presolving? */
+#define DEFAULT_PROPTIGHTENBOUNDS FALSE /**< Should tighten bounds be propagated? */
+#define DEFAULT_PROPTBPROBING     FALSE /**< Should tighten bounds be propagated in probing? */
+#define DEFAULT_TIGHTENBOUNDSCONT FALSE /**< Should only bounds be tightend for continuous variables? */
 #define DEFAULT_TIGHTENMATRICES   FALSE /**< If all matrices are psd, should the matrices be tightened if possible? */
 #define DEFAULT_TIGHTENBOUNDS     FALSE /**< If all matrices are psd, should the bounds be tightened if possible? */
 #define DEFAULT_DIAGGEZEROCUTS     TRUE /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
@@ -166,8 +171,11 @@ struct SCIP_ConshdlrData
    SCIP_Bool             diaggezerocuts;     /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
    int                   ndiaggezerocuts;    /**< this is used to give the diagGEzero-cuts distinguishable names */
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
-   SCIP_Bool             propagate;          /**< Should we perform propagation? */
-   SCIP_Bool             proppresol;         /**< Should we perform propagation in presolving? */
+   SCIP_Bool             propupperbounds;    /**< Should upper bounds be propagated? */
+   SCIP_Bool             propubpresol;       /**< Should upper bounds be propagated in presolving? */
+   SCIP_Bool             tightenboundscont;  /**< Should only bounds be tightend for continuous variables? */
+   SCIP_Bool             proptightenbounds;  /**< Should tighten bounds be propagated? */
+   SCIP_Bool             proptbprobing;      /**< Should tighten bounds be propagated in probing? */
    SCIP_Bool             tightenmatrices;    /**< If all matrices are psd, should the matrices be tightened if possible? */
    SCIP_Bool             tightenbounds;      /**< If all matrices are psd, should the bounds be tightened if possible? */
    SCIP_Bool             diagzeroimplcuts;   /**< Should linear cuts enforcing the implications of diagonal entries of zero in SDP-matrices be added? */
@@ -643,97 +651,6 @@ SCIP_RETCODE setMaxRhsEntry(
    return SCIP_OKAY;
 }
 
-/** compute scaling factor that makes the matrix A minus Aconst psd via bisection */
-static
-SCIP_RETCODE computeScalingFactor(
-   SCIP*                 scip,               /**< SCIP data structure */
-   int                   blocksize,          /**< size of block */
-   SCIP_Real*            A,                  /**< matrix for which the factor should be computed */
-   SCIP_Real*            Aconst,             /**< the constant matrix */
-   SCIP_Real             lower,              /**< lower bound on factor */
-   SCIP_Real             upper,              /**< upper bound on factor */
-   SCIP_Real*            factor              /**< pointer to store the factor */
-   )
-{
-   SCIP_Real* matrix;
-   SCIP_Real eigenvalue;
-   SCIP_Real lb;
-   SCIP_Real ub;
-   SCIP_Real scalar = 1.0;
-   SCIP_Real tol;
-   const int maxiter = 50;
-   int iter = 0;
-
-   assert( scip != NULL );
-   assert( blocksize > 0 );
-   assert( A != NULL );
-   assert( Aconst != NULL );
-   assert( factor != NULL );
-   assert( SCIPisLE(scip, lower, upper) );
-   assert( SCIPisGE(scip, upper, 0.0) );
-
-   *factor = upper;
-   lb = lower;
-   ub = upper;
-
-   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, blocksize * blocksize) );
-
-   /* bisection loop */
-   tol = SCIPfeastol(scip);
-   while ( ub - lb > tol )
-   {
-      int pos;
-      int i;
-      int j;
-
-      /* fill in matrix */
-      for (i = 0; i < blocksize; ++i)
-      {
-         for (j = 0; j < blocksize; ++j)
-         {
-            pos = i * blocksize + j;
-            matrix[pos] = scalar * A[pos] - Aconst[pos];
-         }
-      }
-
-      /* compute smallest eigenvalue */
-      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, matrix, 1, &eigenvalue, NULL) );
-
-      /* if the smallest eigenvalue is positive, we can decrease the value */
-      if ( SCIPisFeasPositive(scip, eigenvalue) )
-      {
-         ub = scalar;
-         scalar = (ub + lb) / 2.0;
-      }
-      else
-      {
-         /* in the space case in which the scalar is equal to its upper bound, we exit */
-         if ( SCIPisEQ(scip, scalar, upper) )
-            break;
-
-         lb = scalar;
-         if ( SCIPisInfinity(scip, ub) )
-            scalar *= 2.0;
-         else
-            scalar = (ub + lb) / 2.0;
-      }
-
-      /* stop if unsuccessful, e.g., if matrix has minimal eigenvalue 0 and cannot compensate constant part */
-      ++iter;
-      if ( iter >= maxiter )
-         break;
-   }
-
-   SCIPfreeBufferArray(scip, &matrix);
-
-   if ( iter >= maxiter )
-      *factor = SCIP_INVALID;
-   else
-      *factor = scalar;
-
-   return SCIP_OKAY;
-}
-
 /** try to sparsify cut
  *
  *  We currently take a small subset of the components of a given eigenvector and check whether the cut is
@@ -1168,9 +1085,7 @@ SCIP_RETCODE tightenMatrices(
    for (c = 0; c < nconss; ++c)
    {
       SCIP_CONSDATA* consdata;
-      SCIP_Real* matrix;
       SCIP_Real* constmatrix;
-      SCIP_Real factor;
       int blocksize;
       int nvars;
       int i;
@@ -1208,22 +1123,40 @@ SCIP_RETCODE tightenMatrices(
       /* get matrices */
       blocksize = consdata->blocksize;
       SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, blocksize * blocksize) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &matrix, blocksize * blocksize) );
 
       SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, conss[c], constmatrix) );
 
       for (i = 0; i < nvars; ++i)
       {
+         SCIP_Real objval;
+         SCIP_Real factor;
+         SCIP_Real lb;
+         SCIP_Real ub;
+
+         /* only treat binary variables */
          if ( ! SCIPvarIsBinary(consdata->vars[i]) )
             continue;
 
-         SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrix) );
+         /* skip fixed variables (will be removed anyway */
+         lb = SCIPvarGetLbLocal(consdata->vars[i]);
+         ub = SCIPvarGetLbLocal(consdata->vars[i]);
+         if ( SCIPisEQ(scip, lb, ub) )
+            continue;
 
-         SCIP_CALL( computeScalingFactor(scip, blocksize, matrix, constmatrix, 0.0, 1.0, &factor) );
+         assert( SCIPisEQ(scip, lb, 0.0) );
+         assert( SCIPisEQ(scip, ub, 1.0) );
+
+         /* solve 1d SDP */
+         SCIP_CALL( SCIPsolveOneVarSDPDense(SCIPbuffer(scip), 1.0, 0.0, 1.0, blocksize, constmatrix, consdata->nvarnonz[i], consdata->row[i], consdata->col[i], consdata->val[i],
+               SCIPinfinity(scip), SCIPfeastol(scip), 1e-6, &objval, &factor) );
+
+         if ( SCIPisInfinity(scip, objval) )
+            continue;
+
          if ( factor == SCIP_INVALID ) /*lint !e777*/
             continue;
 
-         if ( ! SCIPisEQ(scip, factor, 1.0) )
+         if ( ! SCIPisFeasEQ(scip, factor, 1.0) )
          {
             int j;
 
@@ -1237,7 +1170,6 @@ SCIP_RETCODE tightenMatrices(
          }
       }
 
-      SCIPfreeBufferArray(scip, &matrix);
       SCIPfreeBufferArray(scip, &constmatrix);
    }
 
@@ -1250,6 +1182,7 @@ SCIP_RETCODE tightenBounds(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           conss,              /**< array of constraints to add cuts for */
    int                   nconss,             /**< number of constraints to add cuts for */
+   SCIP_Bool             tightenboundscont,  /**< Should only continuous variables be tightened? */
    int*                  nchgbds,            /**< pointer to store how many bounds were tightened */
    SCIP_Bool*            infeasible          /**< pointer to store whether infeasibility was detected */
    )
@@ -1265,10 +1198,10 @@ SCIP_RETCODE tightenBounds(
    for (c = 0; c < nconss && !(*infeasible); ++c)
    {
       SCIP_CONSDATA* consdata;
-      SCIP_Real* matrix;
-      SCIP_Real* othermatrix;
+      SCIP_Real* matrix = NULL;
       SCIP_Real* constmatrix;
       SCIP_Real factor;
+      SCIP_Bool havebinaryvar = FALSE;
       int blocksize;
       int nvars;
       int i;
@@ -1295,8 +1228,11 @@ SCIP_RETCODE tightenBounds(
       nvars = consdata->nvars;
       for (i = 0; i < nvars; ++i)
       {
-         if ( SCIPisInfinity(scip, SCIPvarGetUbGlobal(consdata->vars[i])) )
+         if ( SCIPisInfinity(scip, SCIPvarGetUbLocal(consdata->vars[i])) )
             break;
+
+         if ( SCIPvarIsBinary(consdata->vars[i]) )
+            havebinaryvar = TRUE;
       }
       if ( i < nvars )
          continue;
@@ -1306,20 +1242,39 @@ SCIP_RETCODE tightenBounds(
       /* get matrices */
       blocksize = consdata->blocksize;
       SCIP_CALL( SCIPallocBufferArray(scip, &constmatrix, blocksize * blocksize) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &matrix, blocksize * blocksize) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &othermatrix, blocksize * blocksize) );
+      if ( havebinaryvar )
+      {
+         SCIP_CALL( SCIPallocBufferArray(scip, &matrix, blocksize * blocksize) );
+      }
 
       for (i = 0; i < nvars; ++i)
       {
+         SCIP_Real* sdpval;
          SCIP_Real lb;
          SCIP_Real ub;
+         SCIP_Real ubk;
+         SCIP_Real objval;
+         int* sdprow;
+         int* sdpcol;
+         int sdpnnonz;
+         int row;
+         int col;
          int k;
          int l;
 
+         /* possibly restrict tightening to continuous variables */
+         if ( tightenboundscont && SCIPvarIsIntegral(consdata->vars[i]) )
+            continue;
+
          /* skip fixed variables */
-         lb = SCIPvarGetLbGlobal(consdata->vars[i]);
-         ub = SCIPvarGetUbGlobal(consdata->vars[i]);
+         lb = SCIPvarGetLbLocal(consdata->vars[i]);
+         ub = SCIPvarGetUbLocal(consdata->vars[i]);
          if ( SCIPisEQ(scip, lb, ub) )
+            continue;
+
+         /* skip infinite lower bound (cannot currently deal with this in SCIPsolveOneVarSDPDense()) */
+         assert( ! SCIPisInfinity(scip, ub) );
+         if ( SCIPisInfinity(scip, -lb) )
             continue;
 
          /* get fresh copy of the constant matrix */
@@ -1331,39 +1286,115 @@ SCIP_RETCODE tightenBounds(
             if ( k == i )
                continue;
 
-            SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], k, othermatrix) );
+            ubk = SCIPvarGetUbLocal(consdata->vars[k]);
 
             /* subtract matrix times upper bound from constant matrix (because of minus const. matrix) */
-            for (l = 0; l < blocksize * blocksize; ++l)
-               constmatrix[l] -= othermatrix[l] * ub;
+            if ( ! SCIPisZero(scip, ubk) )
+            {
+               sdprow = consdata->row[k];
+               sdpcol = consdata->col[k];
+               sdpval = consdata->val[k];
+               sdpnnonz = consdata->nvarnonz[k];
+               for (l = 0; l < sdpnnonz; ++l)
+               {
+                  row = sdprow[l];
+                  col = sdpcol[l];
+                  constmatrix[row * blocksize + col] -= sdpval[l] * ubk;
+                  if ( row != col )
+                     constmatrix[col * blocksize + row] -= sdpval[l] * ubk;
+               }
+            }
          }
 
-         SCIP_CALL( SCIPconsSdpGetFullAj(scip, conss[c], i, matrix) );
+         /* special handling of binary variables */
+         if ( SCIPvarIsBinary(consdata->vars[i]) )
+         {
+            SCIP_Real eigenvalue;
 
-         /* compute smallest scaling factor */
-         SCIP_CALL( computeScalingFactor(scip, blocksize, matrix, constmatrix, lb, ub, &factor) );
-         if ( factor == SCIP_INVALID ) /*lint !e777*/
-            continue;
+            assert( matrix != NULL );
+
+            /* first copy constant matrix (possibly needed later) */
+            for (l = 0; l < blocksize * blocksize; ++l)
+               matrix[l] = - constmatrix[l];
+
+            /* compute maximal eigenvalue; this corresponds to checking the lower bound because of minus sign; constmatrix is destroyed. */
+            SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, constmatrix, blocksize, &eigenvalue, NULL) );
+
+            /* take minus sign into account */
+            eigenvalue = -eigenvalue;
+
+            /* if the negative of the constant matrix is psd, then the lower bound (= 0) is feasible -> cannot tighten */
+            if ( SCIPisFeasGE(scip, eigenvalue, 0.0) )
+               continue;
+            assert( SCIPisFeasNegative(scip, eigenvalue) );
+
+            /* otherwise, we check whether the upper bound is feasible */
+
+            /* add matrix i for evaluating upper bound */
+            sdprow = consdata->row[i];
+            sdpcol = consdata->col[i];
+            sdpval = consdata->val[i];
+            sdpnnonz = consdata->nvarnonz[i];
+            for (l = 0; l < sdpnnonz; ++l)
+            {
+               row = sdprow[l];
+               col = sdpcol[l];
+               matrix[row * blocksize + col] += sdpval[l];
+               if ( row != col )
+                  matrix[col * blocksize + row] += sdpval[l];
+            }
+
+            /* compute minimal eigenvalue; matrix is destroyed */
+            SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, matrix, 1, &eigenvalue, NULL) );
+
+            /* if matrix is not psd, we are infeasible */
+            if ( SCIPisFeasNegative(scip, eigenvalue) )
+            {
+               SCIPdebugMsg(scip, "Binary variable <%s> yields infeasibility.\n", SCIPvarGetName(consdata->vars[i]));
+               *infeasible = TRUE;
+               break;
+            }
+
+            /* otherwise, we need at least the matrix for variable i to become feasible -> can tighten variable to 1 */
+            factor = 0.5;
+            SCIPdebugMsg(scip, "Tighten lower bound for binary variable <%s> to 1.\n", SCIPvarGetName(consdata->vars[i]));
+         }
+         else
+         {
+            /* solve 1d SDP */
+            SCIP_CALL( SCIPsolveOneVarSDPDense(SCIPbuffer(scip), 1.0, lb, ub, blocksize, constmatrix, consdata->nvarnonz[i], consdata->row[i], consdata->col[i], consdata->val[i],
+                  SCIPinfinity(scip), SCIPfeastol(scip), 1e-6, &objval, &factor) );
+
+            /* if problem is infeasible */
+            if ( SCIPisInfinity(scip, objval) )
+            {
+               SCIPdebugMsg(scip, "Variable <%s> yields infeasibility.\n", SCIPvarGetName(consdata->vars[i]));
+               *infeasible = TRUE;
+               break;
+            }
+
+            if ( factor == SCIP_INVALID ) /*lint !e777*/
+               continue;
+         }
 
          if ( SCIPisGT(scip, factor, lb) )
          {
             SCIP_Bool tightened;
 
-            SCIP_CALL( SCIPtightenVarLb(scip, consdata->vars[i], factor, FALSE, infeasible, &tightened) );
+            SCIP_CALL( SCIPinferVarLbCons(scip, consdata->vars[i], factor, conss[c], -(i+1), FALSE, infeasible, &tightened) );
 
             if ( *infeasible )
                break;
 
             if ( tightened )
             {
-               SCIPdebugMsg(scip, "Tightened lower bound of variable <%s> to %g.\n", SCIPvarGetName(consdata->vars[i]), factor);
+               SCIPdebugMsg(scip, "%sTightened lower bound of variable <%s> from %g to %g.\n", SCIPinProbing(scip) ? "In probing: " : "", SCIPvarGetName(consdata->vars[i]), lb, factor);
                ++(*nchgbds);
             }
          }
       }
 
-      SCIPfreeBufferArray(scip, &othermatrix);
-      SCIPfreeBufferArray(scip, &matrix);
+      SCIPfreeBufferArrayNull(scip, &matrix);
       SCIPfreeBufferArray(scip, &constmatrix);
    }
 
@@ -3412,9 +3443,9 @@ SCIP_RETCODE analyzeConflict(
    return SCIP_OKAY;
 }
 
-/** propagates SDP constraints */
+/** propagates upper bounds */
 static
-SCIP_RETCODE propConstraints(
+SCIP_RETCODE propagateUpperBounds(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           conss,              /**< constraints to process */
    int                   nconss,             /**< number of constraints */
@@ -3607,14 +3638,17 @@ SCIP_RETCODE propConstraints(
             if ( vars != NULL )
             {
                if ( consdata->matrixval[diags] > 0.0 )
-                  ubs = consdata->matrixval[diags] * SCIPvarGetUbLocal(vars);
+                  ubs = SCIPvarGetUbLocal(vars);
                else
-                  ubs = consdata->matrixval[diags] * SCIPvarGetLbLocal(vars);
+                  ubs = SCIPvarGetLbLocal(vars);
+
+               if ( SCIPisInfinity(scip, REALABS(ubs)) )
+                  continue;
+
+               ubs *= consdata->matrixval[diags];
             }
             assert( consdata->matrixconst[diags] != SCIP_INVALID );
-
-            if ( SCIPisInfinity(scip, ubs) )
-               continue;
+            assert( ! SCIPisInfinity(scip, ubs) );
 
             ubs -= consdata->matrixconst[diags];
 
@@ -3641,14 +3675,17 @@ SCIP_RETCODE propConstraints(
                if ( vart != NULL )
                {
                   if ( consdata->matrixval[diagt] > 0.0 )
-                     ubt = consdata->matrixval[diagt] * SCIPvarGetUbLocal(vart);
+                     ubt = SCIPvarGetUbLocal(vart);
                   else
-                     ubt = consdata->matrixval[diagt] * SCIPvarGetLbLocal(vart);
+                     ubt = SCIPvarGetLbLocal(vart);
+
+                  if ( SCIPisInfinity(scip, REALABS(ubt)) )
+                     continue;
+
+                  ubt *= consdata->matrixval[diagt];
                }
                assert( consdata->matrixconst[diagt] != SCIP_INVALID );
-
-               if ( SCIPisInfinity(scip, ubt) )
-                  continue;
+               assert( ! SCIPisInfinity(scip, ubt) );
 
                ubt -= consdata->matrixconst[diagt];
 
@@ -4901,27 +4938,57 @@ SCIP_DECL_CONSPROP(consPropSdp)
 
    *result = SCIP_DIDNOTRUN;
 
-   if ( ! conshdlrdata->sdpconshdlrdata->propagate )
-      return SCIP_OKAY;
-
-   *result = SCIP_DIDNOTFIND;
-
-   SCIPdebugMsg(scip, "propagation method of conshdlr <%s> ...\n", SCIPconshdlrGetName(conshdlr));
-
-   SCIP_CALL( propConstraints(scip, conss, nconss, &infeasible, &nprop) );
-
-   if ( infeasible )
+   /* if we want to propagate upper bounds */
+   if ( conshdlrdata->sdpconshdlrdata->propupperbounds )
    {
-      SCIPdebugMsg(scip, "Propagation detected cutoff.\n");
-      *result = SCIP_CUTOFF;
-   }
-   else
-   {
-      SCIPdebugMsg(scip, "Propagated bounds: %d.\n", nprop);
-      if ( nprop > 0 )
+      *result = SCIP_DIDNOTFIND;
+
+      SCIPdebugMsg(scip, "Propagate upper bounds of conshdlr <%s> ...\n", SCIPconshdlrGetName(conshdlr));
+
+      SCIP_CALL( propagateUpperBounds(scip, conss, nconss, &infeasible, &nprop) );
+
+      if ( infeasible )
       {
-         SCIPdebugMsg(scip, "Propagation tightened %d bounds.\n", nprop);
-         *result = SCIP_REDUCEDDOM;
+         SCIPdebugMsg(scip, "Propagation detected cutoff.\n");
+         *result = SCIP_CUTOFF;
+      }
+      else
+      {
+         if ( nprop > 0 )
+         {
+            SCIPdebugMsg(scip, "Propagation tightened %d bounds.\n", nprop);
+            *result = SCIP_REDUCEDDOM;
+         }
+      }
+   }
+
+   /* if we want to propagate upper bounds */
+   if ( conshdlrdata->sdpconshdlrdata->proptightenbounds )
+   {
+      /* possibly avoid propagation in probing */
+      if ( conshdlrdata->sdpconshdlrdata->proptbprobing || ! SCIPinProbing(scip) )
+      {
+         if ( *result == SCIP_DIDNOTRUN )
+            *result = SCIP_DIDNOTFIND;
+
+         SCIPdebugMsg(scip, "Propagate tighten bounds of conshdlr <%s> ...\n", SCIPconshdlrGetName(conshdlr));
+
+         nprop = 0;
+         SCIP_CALL( tightenBounds(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->tightenboundscont, &nprop, &infeasible) );
+
+         if ( infeasible )
+         {
+            SCIPdebugMsg(scip, "Propagation detected cutoff.\n");
+            *result = SCIP_CUTOFF;
+         }
+         else
+         {
+            if ( nprop > 0 )
+            {
+               SCIPdebugMsg(scip, "Propagation tightened %d bounds.\n", nprop);
+               *result = SCIP_REDUCEDDOM;
+            }
+         }
       }
    }
 
@@ -4950,31 +5017,54 @@ SCIP_DECL_CONSRESPROP(consRespropSdp)
 
    SCIPdebugMsg(scip, "Executing conflict resolving method of <%s> constraint handler.\n", SCIPconshdlrGetName(conshdlr));
 
-   s = inferinfo / consdata->blocksize;
-   t = inferinfo % consdata->blocksize;
-   assert( 0 <= s && s < consdata->blocksize );
-   assert( 0 <= t && t < consdata->blocksize );
-   assert( consdata->matrixvar[s * (s + 1)/2 + t] == infervar );
+   /* if inferinfo is >=, the bound change came from propagateUpperBounds() */
+   if ( inferinfo >= 0 )
+   {
+      s = inferinfo / consdata->blocksize;
+      t = inferinfo % consdata->blocksize;
+      assert( 0 <= s && s < consdata->blocksize );
+      assert( 0 <= t && t < consdata->blocksize );
+      assert( consdata->matrixvar[s * (s + 1)/2 + t] == infervar );
 
-   diags = s * (s + 1)/2 + s;
-   diagt = t * (t + 1)/2 + t;
+      diags = s * (s + 1)/2 + s;
+      diagt = t * (t + 1)/2 + t;
 
-   assert( consdata->matrixvar[diags] != NULL );
-   assert( consdata->matrixvar[diagt] != NULL );
-   assert( consdata->matrixval[diags] != SCIP_INVALID );
-   assert( consdata->matrixval[diagt] != SCIP_INVALID );
+      assert( consdata->matrixvar[diags] != NULL );
+      assert( consdata->matrixvar[diagt] != NULL );
+      assert( consdata->matrixval[diags] != SCIP_INVALID );
+      assert( consdata->matrixval[diagt] != SCIP_INVALID );
 
-   if ( consdata->matrixval[diags] > 0.0 )
-      SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diags], bdchgidx) );
+      if ( consdata->matrixval[diags] > 0.0 )
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diags], bdchgidx) );
+      else
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diags], bdchgidx) );
+
+      if ( consdata->matrixval[diagt] > 0.0 )
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diagt], bdchgidx) );
+      else
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diagt], bdchgidx) );
+
+      *result = SCIP_SUCCESS;
+   }
    else
-      SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diags], bdchgidx) );
+   {
+      int i;
+      int k;
 
-   if ( consdata->matrixval[diagt] > 0.0 )
-      SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diagt], bdchgidx) );
-   else
-      SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diagt], bdchgidx) );
+      /* otherwise the bound change came from tightenbounds() */
+      i = -inferinfo - 1;
+      assert( 0 <= i && i < consdata->nvars );
 
-   *result = SCIP_SUCCESS;
+      /* the upper bounds of all other variables are responsible */
+      for (k = 0; k < consdata->nvars; ++k)
+      {
+         if ( k == i )
+            continue;
+
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->vars[k], bdchgidx) );
+      }
+      *result = SCIP_SUCCESS;
+   }
 
    return SCIP_OKAY;
 }
@@ -5047,9 +5137,11 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       return SCIP_OKAY;
 
    /* call propagation */
-   if ( conshdlrdata->sdpconshdlrdata->proppresol )
+   if ( conshdlrdata->sdpconshdlrdata->propubpresol )
    {
-      SCIP_CALL( propConstraints(scip, conss, nconss, &infeasible, &nprop) );
+      SCIPdebugMsg(scip, "Propagate upper bounds of conshdlr <%s> ...\n", SCIPconshdlrGetName(conshdlr));
+
+      SCIP_CALL( propagateUpperBounds(scip, conss, nconss, &infeasible, &nprop) );
 
       if ( infeasible )
       {
@@ -5059,7 +5151,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       }
       else
       {
-         SCIPdebugMsg(scip, "Propagated bounds: %d.\n", nprop);
+         SCIPdebugMsg(scip, "Presolving upper bounds: %d.\n", nprop);
          if ( nprop > 0 )
          {
             *nchgbds += nprop;
@@ -5107,7 +5199,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       /* possibly tighten bounds */
       if ( conshdlrdata->sdpconshdlrdata->tightenbounds )
       {
-         SCIP_CALL( tightenBounds(scip, conss, nconss, nchgbds, &infeasible) );
+         SCIP_CALL( tightenBounds(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->tightenboundscont, nchgbds, &infeasible) );
          if ( infeasible )
          {
             *result = SCIP_CUTOFF;
@@ -6767,13 +6859,25 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          &(conshdlrdata->nthreads), TRUE, DEFAULT_NTHREADS, 1, INT_MAX, NULL, NULL) );
 #endif
 
-   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/propagate",
-         "Should we perform propagation?",
-         &(conshdlrdata->propagate), TRUE, DEFAULT_PROPAGATE, NULL, NULL) );
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/propupperbounds",
+         "Should upper bounds be propagated?",
+         &(conshdlrdata->propupperbounds), TRUE, DEFAULT_PROPUPPERBOUNDS, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/proppresol",
-         "Should we perform propagation in presolving?",
-         &(conshdlrdata->proppresol), TRUE, DEFAULT_PROPPRESOL, NULL, NULL) );
+         "Should upper bounds be propagated in presolving?",
+         &(conshdlrdata->propubpresol), TRUE, DEFAULT_PROPUBPRESOL, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/proptightenbounds",
+         "Should tighten bounds be propagated?",
+         &(conshdlrdata->proptightenbounds), TRUE, DEFAULT_PROPTIGHTENBOUNDS, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/proptbprobing",
+         "Should tighten bounds be propagated in probing?",
+         &(conshdlrdata->proptbprobing), TRUE, DEFAULT_PROPTBPROBING, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/tightenboundscont",
+         "Should only bounds be tightend for continuous variables?",
+         &(conshdlrdata->tightenboundscont), TRUE, DEFAULT_TIGHTENBOUNDSCONT, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/tightenmatrices",
          "If all matrices are psd, should the matrices be tightened if possible?",
@@ -6878,8 +6982,11 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
 
    /* only use one parameter */
    conshdlrdata->diaggezerocuts = FALSE;
-   conshdlrdata->propagate = FALSE;
-   conshdlrdata->proppresol = FALSE;
+   conshdlrdata->propupperbounds = FALSE;
+   conshdlrdata->propubpresol = FALSE;
+   conshdlrdata->proptightenbounds = FALSE;
+   conshdlrdata->proptbprobing = FALSE;
+   conshdlrdata->tightenboundscont = FALSE;
    conshdlrdata->tightenmatrices = FALSE;
    conshdlrdata->tightenbounds = FALSE;
    conshdlrdata->diagzeroimplcuts = FALSE;

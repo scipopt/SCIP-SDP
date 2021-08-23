@@ -13,8 +13,8 @@ features:
 - Add option to solve an SDP when solving LPs if there is an integer solution in enforcing. If the SDP is not feasible
   and not all integer variables are already fixed, add rounding step for all integer variables and solve SDP again.
 - add possibility to tighten matrices if all matrices are positive semidefinite (turned off by default)
-- add possibility to tighten bounds if all matrices are positive semidefinite (turned off by default)
-- add propagation routine for 2-by-2 minors
+- add possibility to tighten bounds in presolving and propagation if all matrices are positive semidefinite (turned off by default)
+- add propagation routine for upper bounds based on 2-by-2 minors
 - The relaxator strengthened the rows of the LP corresponding to variable bounds before adding them to the current SDP.
   This has been extended by a full coefficient tightening procedure.
 - use lexicographic sorting to sort matrix entries in SDPI
@@ -71,6 +71,7 @@ API changes:
   tolerances are now set by relax_sdp.c.
 - new function SCIPsdpiGetMessagehdlr() in SDPI
 - new functions SCIPsdpSolcheckerCheckAndGetViolDual() and SCIPsdpSolcheckerCheckAndGetViolPrimal() for checking solutions
+- new functions SCIPsolveOneVarSDP() and SCIPsolveOneVarSDPDense() to solve SDPs with one variable by using a semi-smooth Newton approach
 
 parameters:
 - new parameter <constraints/SDP/separateonecut> to separate only one cut for the smallest eigenvalue (default: FALSE)
@@ -82,10 +83,13 @@ parameters:
 - new parameter <constraints/SDP/addsocrelax> to add SOC relaxation (default: FALSE)
 - new parameter <constraints/SDP/usedimacsfeastol> for using a feasibility tolerance based on the DIMACS error for computing negative eigenvalues (default: FALSE)
 - new parameter <constraints/SDP/generaterows> to determine if rows or constraints should be generated (default: TRUE)
-- new parameter <constraints/SDP/propagate> to turn on propagation (default: TRUE)
-- new parameter <constraints/SDP/proppresol> to turn on propagation in presolving (default: TRUE)
+- new parameter <constraints/SDP/propupperbounds> to turn on propagation of upper bounds (default: TRUE)
+- new parameter <constraints/SDP/propubpresol> to turn on propagation of upper bounds in presolving (default: TRUE)
+- new parameter <constraints/SDP/tightenboundscont> to only propagate upper bounds of continuous variables (default: FALSE)
 - new parameter <constraints/SDP/tightenmatrices> to tighten (scale) matrices (default: FALSE)
 - new parameter <constraints/SDP/tightenbounds> to tighten bounds based on eigenvalues (default: FALSE)
+- new parameter <constraints/SDP/proptightenbounds> to turn on propagation of bound tightening (default: FALSE)
+- new parameter <constraints/SDP/proptbprobing> to turn on propagation of bound tightening in probing (default: FALSE)
 - new parameter <heuristics/sdpfracdiving/runforlp> and <heuristics/sdprand/runforlp> to use heuristics starting from LP solution (default: FALSE)
 - new parameter <misc/solvesdps> to choose between SDP (1) and LP (0) solving (default: 1)
 - rename parameter <relaxing/SDP/tightenvb> to <relaxing/SDP/tightenrows>.
