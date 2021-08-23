@@ -62,6 +62,8 @@ features:
 - Heuristic sdprand fixes variables that are close to being integral to integral values. This avoids many
   numerical issues.
 - New fractional rounding heuristic with intermediate propagation.
+- new presolving routine that add linear inequalities based on variable bounds for 2 by 2 minors
+  (applied with parameter "constraints/SDP/twominorvarbounds")
 
 API changes:
 - new functions SCIPconsSdpGetNVars() and SCIPconsSdpGetVars() in cons_sdp.c
@@ -95,6 +97,7 @@ parameters:
 - removed parameter <heuristics/sdprand/nrounds>
 - new parameter <relaxing/SDP/usepresolving> to turn presolving of SDP-solver on
 - new parameter <relaxing/SDP/scaleobj> to turn scaling of objective in SDP-solver on
+- new parameter <constraints/SDP/twominorvarbounds> to add linear inequalities based on variable bounds for 2 by 2 minors during presolving
 
 fixed bugs:
 - fixed the output of the line number when reading CBF files
