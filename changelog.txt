@@ -61,8 +61,8 @@ features:
 - try to repair solution status in sdpisolver_mosek.c if Mosek stalled
 - Heuristic sdprand fixes variables that are close to being integral to integral values. This avoids many
   numerical issues.
-- New fractional rounding heuristic with intermediate propagation.
-- new presolving routine that add linear inequalities based on variable bounds for 2 by 2 minors
+- new fractional rounding heuristic with intermediate propagation
+- new presolving routine that adds linear inequalities based on variable bounds for 2 by 2 minors
   (applied with parameter "constraints/SDP/twominorvarbounds")
 
 API changes:
