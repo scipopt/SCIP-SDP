@@ -2559,7 +2559,7 @@ SCIP_RETCODE addTwoMinorVarBounds(
                   rhs -= ubt * constmatrix[s * blocksize + s];
                }
 
-               if ( nconsvars >= 2 )
+               if ( nconsvars >= 1 )
                {
                   /* add linear constraint (if not solving LPs only propagate) */
                   (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "twominorvarbounda#%d#%d", s, t);
@@ -2611,7 +2611,7 @@ SCIP_RETCODE addTwoMinorVarBounds(
                   rhs -= ubs * constmatrix[t * blocksize + t];
                }
 
-               if ( nconsvars >= 2 )
+               if ( nconsvars >= 1 )
                {
                   /* add linear constraint (if not solving LPs only propagate) */
                   (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "twominorvarboundb#%d#%d", s, t);
