@@ -2524,7 +2524,7 @@ SCIP_RETCODE addTwoMinorVarBounds(
             assert( ! SCIPisInfinity(scip, ubst) );
 
             /* first type of constraint */
-            if ( ! SCIPisZero(scip, ubt) && ! SCIPisInfinity(scip, ubt) )
+            if ( ! SCIPisInfinity(scip, ubt) )
             {
                SCIP_Real rhs;
                int nconsvars = 0;
@@ -2576,7 +2576,7 @@ SCIP_RETCODE addTwoMinorVarBounds(
             }
 
             /* second type of constraint */
-            if ( ! SCIPisZero(scip, ubs) && ! SCIPisInfinity(scip, ubs) )
+            if ( ! SCIPisInfinity(scip, ubs) )
             {
                SCIP_Real rhs;
                int nconsvars = 0;
