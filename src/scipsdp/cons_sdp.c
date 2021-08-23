@@ -2531,27 +2531,33 @@ SCIP_RETCODE addTwoMinorVarBounds(
 
                rhs = ubst * ubst;
 
-               for (i = 0; i < nvars; ++i)
+               if ( ! SCIPisZero(scip, ubst) )
                {
-                  val = matrices[i][s * blocksize + t];
-                  if ( ! SCIPisZero(scip, val) )
+                  for (i = 0; i < nvars; ++i)
                   {
-                     consvals[nconsvars] = 2.0 * ubst * val;
-                     consvars[nconsvars++] = consdata->vars[i];
+                     val = matrices[i][s * blocksize + t];
+                     if ( ! SCIPisZero(scip, val) )
+                     {
+                        consvals[nconsvars] = 2.0 * ubst * val;
+                        consvars[nconsvars++] = consdata->vars[i];
+                     }
                   }
+                  rhs += 2.0 * ubst * constmatrix[s * blocksize + t];
                }
-               rhs += 2.0 * ubst * constmatrix[s * blocksize + t];
 
-               for (i = 0; i < nvars; ++i)
+               if ( ! SCIPisZero(scip, ubt) )
                {
-                  val = matrices[i][s * blocksize + s];
-                  if ( ! SCIPisZero(scip, val) )
+                  for (i = 0; i < nvars; ++i)
                   {
-                     consvals[nconsvars] = - ubt * val;
-                     consvars[nconsvars++] = consdata->vars[i];
+                     val = matrices[i][s * blocksize + s];
+                     if ( ! SCIPisZero(scip, val) )
+                     {
+                        consvals[nconsvars] = - ubt * val;
+                        consvars[nconsvars++] = consdata->vars[i];
+                     }
                   }
+                  rhs -= ubt * constmatrix[s * blocksize + s];
                }
-               rhs -= ubt * constmatrix[s * blocksize + s];
 
                if ( nconsvars >= 2 )
                {
@@ -2577,27 +2583,33 @@ SCIP_RETCODE addTwoMinorVarBounds(
 
                rhs = ubst * ubst;
 
-               for (i = 0; i < nvars; ++i)
+               if ( ! SCIPisZero(scip, ubst) )
                {
-                  val = matrices[i][s * blocksize + t];
-                  if ( ! SCIPisZero(scip, val) )
+                  for (i = 0; i < nvars; ++i)
                   {
-                     consvals[nconsvars] = 2.0 * ubst * val;
-                     consvars[nconsvars++] = consdata->vars[i];
+                     val = matrices[i][s * blocksize + t];
+                     if ( ! SCIPisZero(scip, val) )
+                     {
+                        consvals[nconsvars] = 2.0 * ubst * val;
+                        consvars[nconsvars++] = consdata->vars[i];
+                     }
                   }
+                  rhs += 2.0 * ubst * constmatrix[s * blocksize + t];
                }
-               rhs += 2.0 * ubst * constmatrix[s * blocksize + t];
 
-               for (i = 0; i < nvars; ++i)
+               if ( ! SCIPisZero(scip, ubs) )
                {
-                  val = matrices[i][t * blocksize + t];
-                  if ( ! SCIPisZero(scip, val) )
+                  for (i = 0; i < nvars; ++i)
                   {
-                     consvals[nconsvars] = - ubs * val;
-                     consvars[nconsvars++] = consdata->vars[i];
+                     val = matrices[i][t * blocksize + t];
+                     if ( ! SCIPisZero(scip, val) )
+                     {
+                        consvals[nconsvars] = - ubs * val;
+                        consvars[nconsvars++] = consdata->vars[i];
+                     }
                   }
+                  rhs -= ubs * constmatrix[t * blocksize + t];
                }
-               rhs -= ubs * constmatrix[t * blocksize + t];
 
                if ( nconsvars >= 2 )
                {
