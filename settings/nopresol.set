@@ -1,4 +1,4 @@
-constraints/SDP/diaggezerocuts = true
+constraints/SDP/diaggezerocuts = false
 constraints/SDP/diagzeroimplcuts = false
 constraints/SDP/tightenbounds = false
 constraints/SDP/tightenboundscont = false
