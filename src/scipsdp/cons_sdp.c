@@ -7194,7 +7194,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          "Should upper bounds be propagated?",
          &(conshdlrdata->propupperbounds), TRUE, DEFAULT_PROPUPPERBOUNDS, NULL, NULL) );
 
-   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/proppresol",
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/propubpresol",
          "Should upper bounds be propagated in presolving?",
          &(conshdlrdata->propubpresol), TRUE, DEFAULT_PROPUBPRESOL, NULL, NULL) );
 
