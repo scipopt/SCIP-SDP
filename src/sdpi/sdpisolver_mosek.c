@@ -1475,7 +1475,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       MOSEK_CALL( MSK_getnaintinf(sdpisolver->msktask, "MSK_IINF_INTPNT_ITER", &(sdpisolver->niterations)) );/*lint !e641*/
 
       /* possibly repair status */
-      if ( sdpisolver->terminationcode == MSK_RES_TRM_STALL || sdpisolver->solstat == MSK_SOL_STA_UNKNOWN )
+      if ( sdpisolver->terminationcode == MSK_RES_TRM_STALL || (sdpisolver->solstat == MSK_SOL_STA_UNKNOWN && sdpisolver->terminationcode != MSK_RES_TRM_MAX_TIME) )
       {
          SCIP_Real pobj;
          SCIP_Real pviolcon;
