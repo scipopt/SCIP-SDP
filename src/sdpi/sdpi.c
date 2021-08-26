@@ -2796,37 +2796,68 @@ SCIP_RETCODE SCIPsdpiSolve(
       SCIP_Real objval;
       SCIP_Real optval;
 
+      assert( nactivelpcons == 0 ); /* all LP constraints should have been converted to variable bounds in preprocessing */
       assert( 0 <= activevaridx && activevaridx < sdpi->nvars );
 
-      /* search for matrix index corresponding to active variable */
-      for (v = 0; v < sdpi->sdpnblockvars[0]; ++v)
+      /* treat LPs */
+      if ( sdpi->nsdpblocks == 0 )
       {
-         if ( sdpi->sdpvar[0][v] == activevaridx )
-            break;
-      }
-
-      SCIP_CALL( SCIPsolveOneVarSDP(sdpi->bufmem, sdpi->obj[activevaridx], sdpi->sdpilb[activevaridx], sdpi->sdpiub[activevaridx], sdpi->sdpblocksizes[0],
-            sdpconstnblocknonz[0], sdpconstrow[0], sdpconstcol[0], sdpconstval[0],
-            sdpi->sdpnblockvarnonz[0][v], sdpi->sdprow[0][v], sdpi->sdpcol[0][v], sdpi->sdpval[0][v],
-            SCIPsdpiInfinity(sdpi), sdpi->feastol, sdpi->gaptol, &objval, &optval) );
-
-      if ( objval != SCIP_INVALID )  /*lint !e777*/
-      {
-         sdpi->solved = TRUE;
-         sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
-         sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
-         sdpi->onevarsdpobjval = objval;
-         sdpi->onevarsdpoptval = optval;
-         sdpi->onevarsdpidx = activevaridx;
-
-         if ( SCIPsdpiIsInfinity(sdpi, objval) )
-            sdpi->solvedonevarsdp = SCIP_ONEVAR_INFEASIBLE;
-         else
+         /* If there are no SDP constraints, we have an LP with one variable. Preprocessing above has reduced the
+          * problem to a variable and its corresponding bounds and no further constraints. */
+         if ( ! SCIPsdpiIsInfinity(sdpi, sdpi->sdpilb[activevaridx]) && ! SCIPsdpiIsInfinity(sdpi, sdpi->sdpiub[activevaridx]) )
          {
+            if ( sdpi->obj[activevaridx] >= 0.0 )
+            {
+               sdpi->onevarsdpoptval = sdpi->sdpilb[activevaridx];
+               sdpi->onevarsdpobjval = sdpi->obj[activevaridx] * sdpi->sdpilb[activevaridx];
+            }
+            else
+            {
+               sdpi->onevarsdpoptval = sdpi->sdpiub[activevaridx];
+               sdpi->onevarsdpobjval = sdpi->obj[activevaridx] * sdpi->sdpiub[activevaridx];
+            }
+
+            sdpi->solved = TRUE;
+            sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
+            sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
+            sdpi->onevarsdpidx = activevaridx;
             sdpi->solvedonevarsdp = SCIP_ONEVAR_OPTIMAL;
             sdpi->onevarsdpobjval += fixedvarsobjcontr;
+            ++sdpi->nonevarsdp;
          }
-         ++sdpi->nonevarsdp;
+      }
+      else
+      {
+         /* search for matrix index corresponding to active variable */
+         for (v = 0; v < sdpi->sdpnblockvars[0]; ++v)
+         {
+            if ( sdpi->sdpvar[0][v] == activevaridx )
+               break;
+         }
+
+         SCIP_CALL( SCIPsolveOneVarSDP(sdpi->bufmem, sdpi->obj[activevaridx], sdpi->sdpilb[activevaridx], sdpi->sdpiub[activevaridx], sdpi->sdpblocksizes[0],
+               sdpconstnblocknonz[0], sdpconstrow[0], sdpconstcol[0], sdpconstval[0],
+               sdpi->sdpnblockvarnonz[0][v], sdpi->sdprow[0][v], sdpi->sdpcol[0][v], sdpi->sdpval[0][v],
+               SCIPsdpiInfinity(sdpi), sdpi->feastol, sdpi->gaptol, &objval, &optval) );
+
+         if ( objval != SCIP_INVALID )  /*lint !e777*/
+         {
+            sdpi->solved = TRUE;
+            sdpi->dualslater = SCIP_SDPSLATER_NOINFO;
+            sdpi->primalslater = SCIP_SDPSLATER_NOINFO;
+            sdpi->onevarsdpobjval = objval;
+            sdpi->onevarsdpoptval = optval;
+            sdpi->onevarsdpidx = activevaridx;
+
+            if ( SCIPsdpiIsInfinity(sdpi, objval) )
+               sdpi->solvedonevarsdp = SCIP_ONEVAR_INFEASIBLE;
+            else
+            {
+               sdpi->solvedonevarsdp = SCIP_ONEVAR_OPTIMAL;
+               sdpi->onevarsdpobjval += fixedvarsobjcontr;
+            }
+            ++sdpi->nonevarsdp;
+         }
       }
    }
 
