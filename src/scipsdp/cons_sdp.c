@@ -925,6 +925,7 @@ SCIP_RETCODE separateSol(
    char cutname[SCIP_MAXSTRLEN];
    SCIP_CONSDATA* consdata;
    SCIP_CONSHDLRDATA* conshdlrdata;
+   SCIP_RETCODE retcode;
    SCIP_VAR** vars;
    SCIP_Real* vals;
    SCIP_Real* eigenvectors;
@@ -982,16 +983,39 @@ SCIP_RETCODE separateSol(
    if ( conshdlrdata->sdpconshdlrdata->separateonecut )
    {
       /* compute smallest eigenvalue */
-      SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, blocksize, fullmatrix, 1, eigenvalues, eigenvectors) );
-      if ( eigenvalues[0] < -tol )
-         neigenvalues = 1;
-      else
-         neigenvalues = 0;
+      retcode = SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, blocksize, fullmatrix, 1, eigenvalues, eigenvectors);
+      if ( retcode == SCIP_OKAY )
+      {
+         if ( eigenvalues[0] < -tol )
+            neigenvalues = 1;
+         else
+            neigenvalues = 0;
+      }
    }
    else
    {
       /* compute all eigenvectors for negative eigenvalues */
-      SCIP_CALL( SCIPlapackComputeEigenvectorsNegative(SCIPbuffer(scip), blocksize, fullmatrix, tol, &neigenvalues, eigenvalues, eigenvectors) );
+      retcode = SCIPlapackComputeEigenvectorsNegative(SCIPbuffer(scip), blocksize, fullmatrix, tol, &neigenvalues, eigenvalues, eigenvectors);
+   }
+
+   /* treat possible error */
+   if ( retcode != SCIP_OKAY )
+   {
+      SCIPfreeBufferArray(scip, &vector);
+      SCIPfreeBufferArray(scip, &eigenvalues);
+      SCIPfreeBufferArray(scip, &eigenvectors);
+      SCIPfreeBufferArray(scip, &fullmatrix);
+
+      SCIPfreeBufferArray(scip, &vals);
+      SCIPfreeBufferArray(scip, &vars);
+
+      /* if we are enforcing, generate error */
+      if ( enforce )
+      {
+         SCIP_CALL( retcode );
+      }
+      else
+         return SCIP_OKAY;  /* in separation just exit */
    }
 
    if ( neigenvalues > 0 )
