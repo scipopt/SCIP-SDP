@@ -264,20 +264,21 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
       &LWORK, IWORK, &LIWORK,
       &INFO);
 
-   if ( convertToInt(INFO) != 0 )
-   {
-      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d.\n", convertToInt(INFO));
-      return SCIP_ERROR;
-   }
-
    /* handle output */
-   *eigenvalue = WTMP[0];
+   if ( convertToInt(INFO) == 0 )
+     *eigenvalue = WTMP[0];
 
    /* free memory */
    BMSfreeBufferMemoryArray(bufmem, &ISUPPZ);
    BMSfreeBufferMemoryArray(bufmem, &WTMP);
    BMSfreeBufferMemoryArray(bufmem, &IWORK);
    BMSfreeBufferMemoryArray(bufmem, &WORK);
+
+   if ( convertToInt(INFO) != 0 )
+   {
+      SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d.\n", convertToInt(INFO));
+      return SCIP_ERROR;
+   }
 
    return SCIP_OKAY;
 }
@@ -370,20 +371,21 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalueAlternative(
       &LDZ, WORK, &LWORK, IWORK, IFAIL,
       &INFO);
 
-   if ( convertToInt(INFO) != 0 )
-   {
-      SCIPerrorMessage("There was an error when calling DSYEVX. INFO = %d.\n", convertToInt(INFO));
-      return SCIP_ERROR;
-   }
-
    /* handle output */
-   *eigenvalue = WTMP[0];
+   if ( convertToInt(INFO) == 0 )
+     *eigenvalue = WTMP[0];
 
    /* free memory */
    BMSfreeBufferMemoryArray(bufmem, &IFAIL);
    BMSfreeBufferMemoryArray(bufmem, &WTMP);
    BMSfreeBufferMemoryArray(bufmem, &IWORK);
    BMSfreeBufferMemoryArray(bufmem, &WORK);
+
+   if ( convertToInt(INFO) != 0 )
+   {
+      SCIPerrorMessage("There was an error when calling DSYEVX. INFO = %d.\n", convertToInt(INFO));
+      return SCIP_ERROR;
+   }
 
    return SCIP_OKAY;
 }
@@ -480,6 +482,11 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorsNegative(
       &LWORK, IWORK, &LIWORK,
       &INFO);
 
+   /* free memory */
+   BMSfreeBufferMemoryArray(bufmem, &ISUPPZ);
+   BMSfreeBufferMemoryArray(bufmem, &IWORK);
+   BMSfreeBufferMemoryArray(bufmem, &WORK);
+
    if ( convertToInt(INFO) != 0 )
    {
       SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d.\n", convertToInt(INFO));
@@ -487,11 +494,6 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorsNegative(
    }
 
    *neigenvalues = convertToInt(M);
-
-   /* free memory */
-   BMSfreeBufferMemoryArray(bufmem, &ISUPPZ);
-   BMSfreeBufferMemoryArray(bufmem, &IWORK);
-   BMSfreeBufferMemoryArray(bufmem, &WORK);
 
    return SCIP_OKAY;
 }
@@ -582,16 +584,16 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorDecomposition(
       &LWORK, IWORK, &LIWORK,
       &INFO);
 
+   /* free memory */
+   BMSfreeBufferMemoryArray(bufmem, &ISUPPZ);
+   BMSfreeBufferMemoryArray(bufmem, &IWORK);
+   BMSfreeBufferMemoryArray(bufmem, &WORK);
+
    if ( convertToInt(INFO) != 0 )
    {
       SCIPerrorMessage("There was an error when calling DSYEVR. INFO = %d.\n", convertToInt(INFO));
       return SCIP_ERROR;
    }
-
-   /* free memory */
-   BMSfreeBufferMemoryArray(bufmem, &ISUPPZ);
-   BMSfreeBufferMemoryArray(bufmem, &IWORK);
-   BMSfreeBufferMemoryArray(bufmem, &WORK);
 
    return SCIP_OKAY;
 }
@@ -795,6 +797,11 @@ SCIP_RETCODE SCIPlapackLinearSolve(
    }
 #endif
 
+   /* free memory */
+   BMSfreeBufferMemoryArray(bufmem, &IWORK);
+   BMSfreeBufferMemoryArray(bufmem, &WORK);
+   BMSfreeBufferMemoryArray(bufmem, &S);
+
    if ( convertToInt(INFO) != 0 )
    {
       SCIPerrorMessage("There was an error when calling DGELSD. INFO = %d\n", convertToInt(INFO));
@@ -804,11 +811,6 @@ SCIP_RETCODE SCIPlapackLinearSolve(
    /* LAPACK overwrites the right-hand side with the result */
    for (i = 0; i < n; ++i)
       x[i] = b[i];
-
-   /* free memory */
-   BMSfreeBufferMemoryArray(bufmem, &IWORK);
-   BMSfreeBufferMemoryArray(bufmem, &WORK);
-   BMSfreeBufferMemoryArray(bufmem, &S);
 
    return SCIP_OKAY;
 }
