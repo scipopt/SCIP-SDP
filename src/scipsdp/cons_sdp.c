@@ -1667,7 +1667,7 @@ SCIP_RETCODE diagGEzero(
 
             /* Only separate if solving LPs */
             SCIP_CALL( SCIPcreateConsLinear(scip, &cons, cutname, cnt, consvars, consvals, lhs, SCIPinfinity(scip),
-                  TRUE, ! solvesdps, ! solvesdps, ! solvesdps, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) ); /*lint !e679*/
+                  FALSE, ! solvesdps, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) ); /*lint !e679*/
 
             SCIP_CALL( SCIPaddCons(scip, cons) );
 #ifdef SCIP_MORE_DEBUG
@@ -2061,7 +2061,7 @@ SCIP_RETCODE addTwoMinorLinConstraints(
             /* add linear constraint (if not solving LPs only propagate) */
             (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "2x2minorlin#%d#%d", s, t);
             SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, lhs, SCIPinfinity(scip),
-                  TRUE, ! solvesdps, ! solvesdps, ! solvesdps, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+                  FALSE, ! solvesdps, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
             SCIP_CALL( SCIPaddCons(scip, cons) );
 #ifdef SCIP_MORE_DEBUG
             SCIPinfoMessage(scip, NULL, "Added 2x2 minor linear constraint: ");
@@ -2458,7 +2458,7 @@ SCIP_RETCODE addTwoMinorProdConstraints(
             /* add linear constraint (if not solving LPs only propagate) */
             (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "2x2minorprod#%d#%d", s, t);
             SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, lhs, SCIPinfinity(scip),
-                  TRUE, ! solvesdps, ! solvesdps, ! solvesdps, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+                  FALSE, ! solvesdps, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
             SCIP_CALL( SCIPaddCons(scip, cons) );
 #ifdef SCIP_MORE_DEBUG
             SCIPinfoMessage(scip, NULL, "Added 2x2 minor product constraint: ");
@@ -2682,7 +2682,7 @@ SCIP_RETCODE addTwoMinorVarBounds(
                   /* add linear constraint (if not solving LPs only propagate) */
                   (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "twominorvarbounda#%d#%d", s, t);
                   SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, -SCIPinfinity(scip), rhs,
-                        TRUE, ! solvesdps, ! solvesdps, ! solvesdps, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+                        FALSE, ! solvesdps, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
                   SCIP_CALL( SCIPaddCons(scip, cons) );
 #ifdef SCIP_MORE_DEBUG
                   SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
@@ -2734,7 +2734,7 @@ SCIP_RETCODE addTwoMinorVarBounds(
                   /* add linear constraint (if not solving LPs only propagate) */
                   (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "twominorvarboundb#%d#%d", s, t);
                   SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, nconsvars, consvars, consvals, -SCIPinfinity(scip), rhs,
-                        TRUE, ! solvesdps, ! solvesdps, ! solvesdps, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+                        FALSE, ! solvesdps, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
                   SCIP_CALL( SCIPaddCons(scip, cons) );
 #ifdef SCIP_MORE_DEBUG
                   SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
