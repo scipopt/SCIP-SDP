@@ -5539,8 +5539,12 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
          }
       }
 
-      /* In the following, we add linear constraints to be propagated. This is needed only once. We assume that this is
-       * only necessary in the main SCIP instance. */
+      /* In the following, we add linear constraints. This is needed only once. We assume that this is only necessary in
+       * the main SCIP instance. The diagzeroimpl-cuts are added as basic linear constraints which are initial, as well
+       * as separated, enforced, checked and propagated. All other linear constraints that are added below are redundant
+       * for the SDP-constraint, and thus they are neither checked nor enforced and also not initial, so that they do
+       * not appear in the SDP or LP relaxation. If LPs are solved, these linear constraints are separated and
+       * propagated; if SDPs are solved, they are only propagated. */
       if ( SCIPgetSubscipDepth(scip) == 0 && ! conshdlrdata->sdpconshdlrdata->triedlinearconss )
       {
          int solvesdpsparam;
