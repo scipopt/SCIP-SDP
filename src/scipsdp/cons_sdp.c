@@ -950,7 +950,6 @@ SCIP_RETCODE sparsifyCut(
  *
  *  We use Algorithm 1 from [Dey et al: Cutting Plan Generation Through Sparse Principal Component Analysis] to produce
  *  maxncuts many sparse eigenvector cuts.
- *  TODO: Use the Truncated Power Method as oracle instead.
  */
 static
 SCIP_RETCODE addMultipleSparseCuts(
