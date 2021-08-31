@@ -1045,7 +1045,7 @@ SCIP_RETCODE addMultipleSparseCuts(
          if ( i == j )
             modmatrix[i * blocksize + j] = maxeig - fullmatrix[i * blocksize + j];
          else
-            modmatrix[i * blocksize + j] = -fullmatrix[i * blocksize +j];
+            modmatrix[i * blocksize + j] = -fullmatrix[i * blocksize + j];
       }
    }
 
