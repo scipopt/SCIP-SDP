@@ -1189,6 +1189,7 @@ SCIP_RETCODE addMultipleSparseCuts(
             {
                *result = SCIP_CUTOFF;
                SCIPdebugMsg(scip, "Detected infeasibility.\n");
+               SCIP_CALL( SCIPreleaseRow(scip, &row) );
                break;
             }
             else
