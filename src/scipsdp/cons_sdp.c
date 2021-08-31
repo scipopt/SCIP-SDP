@@ -1116,7 +1116,7 @@ SCIP_RETCODE addMultipleSparseCuts(
          for (j = 0; j < size; j++)
             sparseev[j] /= norm;
 
-         /* lift eigenvector by setting all entries not in I to 0 */
+         /* lift eigenvector by setting all entries not in the support to 0 */
          cnt = 0;
          for (i = 0; i < blocksize; i++)
          {
