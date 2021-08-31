@@ -612,8 +612,8 @@ SCIP_RETCODE isMatrixRankOne(
 
    resultSDPtest = SCIP_INFEASIBLE;
 
+   /* TODO: do we need to check for psd again? */
    SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conshdlrdata, cons, sol, FALSE, &resultSDPtest) );
-
    if ( resultSDPtest == SCIP_INFEASIBLE )
    {
       SCIPerrorMessage("Try to check for a matrix to be rank 1 even if the matrix is not psd.\n");
@@ -639,6 +639,7 @@ SCIP_RETCODE isMatrixRankOne(
       SCIPisFeasEQ(scip, 0.1*eigenvalue, 0.0), even if they are feasible for all other constraints, including the
       quadratic 2x2 principal minor constraints. */
    if ( SCIPisFeasEQ(scip, 0.1 * eigenvalue, 0.0) )
+   /* TODO: use DIMACS feastol if desired? */
       *result = TRUE;
    else
    {
@@ -681,6 +682,8 @@ SCIP_RETCODE isMatrixRankOne(
 
    SCIPfreeBufferArray(scip, &fullmatrix);
    SCIPfreeBufferArray(scip, &matrix);
+
+   /* TODO: do we need to update the SolConsViolation? */
 
    return SCIP_OKAY;
 }
