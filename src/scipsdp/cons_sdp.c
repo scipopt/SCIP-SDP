@@ -2989,6 +2989,101 @@ SCIP_RETCODE addRank1QuadConss(
    return SCIP_OKAY;
 }
 
+/** checks quadratic constraints that will be added for a single rank-1 constraint  */
+static
+SCIP_RETCODE checkRank1QuadConss(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONSHDLRDATA*    conshdlrdata,       /**< constraint handler */
+   SCIP_CONS*            cons,               /**< the SDP constraint to check the rank for */
+   SCIP_SOL*             sol,                /**< solution to check for rank one */
+   SCIP_Bool             printreason,        /**< should the reason for the violation be printed? */
+   SCIP_Bool*            result              /**< result pointer to return whether matrix is rank one */
+   )
+{
+   SCIP_CONSDATA* consdata;
+   SCIP_RESULT resultSDPtest;
+   SCIP_Real* matrix;
+   SCIP_Real submatrix[3];
+   SCIP_Real minor;
+   SCIP_Real tol;
+   int blocksize;
+   int i;
+   int j;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+   assert( sol != NULL );
+   assert( result != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+   assert( consdata->rankone );
+   assert( ! consdata->addedquadcons );
+   assert( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(cons)), CONSHDLRRANK1_NAME) == 0 );
+   assert( conshdlrdata->sdpconshdlrdata->quadconsrank1 );
+
+   blocksize = consdata->blocksize;
+
+   resultSDPtest = SCIP_INFEASIBLE;
+
+   /* TODO: do we need to check for psd again? */
+   SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conshdlrdata, cons, sol, FALSE, &resultSDPtest) );
+   if ( resultSDPtest == SCIP_INFEASIBLE )
+   {
+      SCIPerrorMessage("Try to check for a matrix to be rank 1 even if the matrix is not psd.\n");
+      return SCIP_ERROR;
+   }
+
+   if ( conshdlrdata->sdpconshdlrdata->usedimacsfeastol )
+   {
+      assert( conshdlrdata->dimacsfeastol != SCIP_INVALID );
+      tol = conshdlrdata->dimacsfeastol;
+   }
+   else
+      tol = SCIPfeastol(scip);
+
+   /* check quadratic constraints that will be added later */
+
+   SCIP_CALL( SCIPallocBufferArray(scip, &matrix, blocksize * (blocksize + 1)/2) ); /*lint !e647*/
+   SCIP_CALL( computeSdpMatrix(scip, consdata, sol, matrix) );
+
+   *result = SCIP_FEASIBLE;
+
+   for (i = 0; i < blocksize; ++i)
+   {
+      for (j = 0; j < i; ++j)
+      {
+         submatrix[0] = matrix[SCIPconsSdpCompLowerTriangPos(i,i)];
+         submatrix[1] = matrix[SCIPconsSdpCompLowerTriangPos(i,j)];
+         submatrix[2] = matrix[SCIPconsSdpCompLowerTriangPos(j,j)];
+
+         minor = submatrix[0] * submatrix[2] - submatrix[1] * submatrix[1];
+
+         if ( minor < -tol || minor > tol )
+         {
+            *result = SCIP_INFEASIBLE;
+            if ( printreason )
+            {
+               SCIPinfoMessage(scip, NULL, "SDPrank1-constraint <%s> is not rank1 (quadratic 2x2 minor for (%d,%d): %f).\n", SCIPconsGetName(cons), i, j, minor);
+               SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
+            }
+
+            SCIPfreeBufferArray(scip, &matrix);
+
+            /* TODO: do we need to update the SolConsViolation? */
+
+            return SCIP_OKAY;
+         }
+      }
+   }
+
+   SCIPfreeBufferArray(scip, &matrix);
+
+   /* TODO: do we need to update the SolConsViolation? */
+
+   return SCIP_OKAY;
+}
+
 
 /** detects if there are blocks with size one and transforms them to lp-rows */
 static
