@@ -634,12 +634,8 @@ SCIP_RETCODE isMatrixRankOne(
    SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, fullmatrix, blocksize - 1, &eigenvalue, NULL) );
 
    /* the matrix is rank 1 iff the second largest eigenvalue is zero (since the matrix is symmetric and psd) */
-
-   /* changed eigenvalue to 0.1*eigenvalue here, since here seems to be a problem with optimal solutions not satisfying
-      SCIPisFeasEQ(scip, 0.1*eigenvalue, 0.0), even if they are feasible for all other constraints, including the
-      quadratic 2x2 principal minor constraints. */
-   if ( SCIPisFeasEQ(scip, 0.1 * eigenvalue, 0.0) )
    /* TODO: use DIMACS feastol if desired? */
+   if ( SCIPisFeasEQ(scip, eigenvalue, 0.0) )
       *result = TRUE;
    else
    {
@@ -5971,20 +5967,9 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
          return SCIP_OKAY;
    }
 
-   /* check if heuristic should be executed */
-   if ( ! conshdlrdata->sdpconshdlrdata->rank1approxheur )
-   {
-      return SCIP_OKAY;
-   }
-
-   /* do not run in sub-SCIPs to avoid recursive reformulations due to rank 1 constraints */
-   if ( SCIPgetSubscipDepth(scip) > 0 )
-      return SCIP_OKAY;
-
+   /* check for rank-1 if necessary */
    SCIP_CALL( SCIPallocBufferArray(scip, &indviolrank1conss, nconss) );
 
-   /* check for rank-1 if necessary */
-   SCIPdebugMsg(scip, "Check rank-1 constraints if there are any.\n");
    for (i = 0; i < nconss; ++i)
    {
       consdata = SCIPconsGetData(conss[i]);
@@ -5992,7 +5977,26 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
 
       if ( consdata->rankone )
       {
-         SCIP_CALL( isMatrixRankOne(scip, conshdlrdata, conss[i], sol, &rank1result) );
+         /* If the quadratic constraints are not yet added, we need to check them manually. Otherwise, they are checked
+          * by the quadratic constraint handler, and we do not need to check for rank-1 separately. */
+         if ( conshdlrdata->sdpconshdlrdata->quadconsrank1 && ! consdata->addedquadcons )
+         {
+            /* check quadratic constraints manually */
+            checkRank1QuadConss(scip, conshdlrdata, conss[i], sol, printreason, &rank1result);
+
+#ifdef PRINTMATRICES
+         SCIPinfoMessage(scip, NULL, "Solution is %d for rank-1 part of constraint %s.\n", rank1result, SCIPconsGetName(conss[i]) );
+#endif
+         }
+         else if ( ! conshdlrdata->sdpconshdlrdata->quadconsrank1 )
+         {
+            /* We need to check for rank-1 */
+            SCIP_CALL( isMatrixRankOne(scip, conshdlrdata, conss[i], sol, printreason, &rank1result) );
+#ifdef PRINTMATRICES
+            SCIPinfoMessage(scip, NULL, "Solution is %d for rank-1 part of constraint %s.\n", rank1result, SCIPconsGetName(conss[i]) );
+#endif
+         }
+
          if ( ! rank1result )
          {
             /* save index of violated rank-1 constraint */
@@ -6002,11 +6006,25 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
       }
    }
 
+   if ( nviolrank1 > 0 )
+      *result = SCIP_INFEASIBLE;
+
+   /* check if heuristic should be executed and do not run in sub-SCIPs to avoid recursive reformulations due to rank 1
+    * constraints */
+   if ( ! conshdlrdata->sdpconshdlrdata->rank1approxheur || SCIPgetSubscipDepth(scip) > 0 )
+   {
+      assert( nviolrank1 == 0 || *result == SCIP_INFEASIBLE );
+      assert( nviolrank1 > 0 || *result == SCIP_FEASIBLE );
+      SCIPfreeBufferArray(scip, &indviolrank1conss);
+      return SCIP_OKAY;
+   }
+
    /* if there are no (violated) rank-1 constraint, we are finished. Otherwise, try to compute a feasible primal
       solution by computing the best rank-1 approximation for each violated rank-1 constraint and solve an LP to find a
       solution for the appearing variables */
    if ( nviolrank1 == 0 )
    {
+      assert( *result == SCIP_FEASIBLE );
       SCIPdebugMsg(scip, "Found no violated rank-1 constraints.\n");
       SCIPfreeBufferArray(scip, &indviolrank1conss);
       return SCIP_OKAY;
