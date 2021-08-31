@@ -2789,11 +2789,7 @@ SCIP_RETCODE calcRelax(
                      relaxdata->objval = dualroundobj;
 
                      /* copy solution */
-#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
                      SCIP_CALL( SCIPsetRelaxSolValsSol(scip, relax, scipsol, TRUE) );
-#else
-                     SCIP_CALL( SCIPsetRelaxSolValsSol(scip, scipsol, TRUE) );
-#endif
 
                      relaxdata->feasible = TRUE;
                      *result = SCIP_SUCCESS;
@@ -3601,11 +3597,7 @@ SCIP_RETCODE calcRelax(
          relaxdata->objval = objforscip;
 
          /* copy solution */
-#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
          SCIP_CALL( SCIPsetRelaxSolValsSol(scip, relax, scipsol, TRUE) );
-#else
-         SCIP_CALL( SCIPsetRelaxSolValsSol(scip, scipsol, TRUE) );
-#endif
          relaxdata->feasible = TRUE;
          *result = SCIP_SUCCESS;
 
@@ -3877,29 +3869,17 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
 
       /* create SCIP solution */
       SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
-#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
       SCIP_CALL( SCIPsetRelaxSolVals(scip, relax, nvars, vars, solforscip, TRUE) );
-#else
-      SCIP_CALL( SCIPsetRelaxSolVals(scip, nvars, vars, solforscip, TRUE) );
-#endif
       *lowerbound = objforscip;
 
       /* copy solution */
       SCIP_CALL( SCIPgetLPColsData(scip, &cols, &ncols) );
       for (i = 0; i < ncols; i++)
       {
-#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
          SCIP_CALL( SCIPsetRelaxSolVal(scip, relax, SCIPcolGetVar(cols[i]), SCIPgetSolVal(scip, scipsol, SCIPcolGetVar(cols[i]))) );
-#else
-         SCIP_CALL( SCIPsetRelaxSolVal(scip, SCIPcolGetVar(cols[i]), SCIPgetSolVal(scip, scipsol, SCIPcolGetVar(cols[i]))) );
-#endif
       }
 
-#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
       SCIP_CALL( SCIPmarkRelaxSolValid(scip, relax, TRUE) );
-#else
-      SCIP_CALL( SCIPmarkRelaxSolValid(scip, TRUE) );
-#endif
       *result = SCIP_SUCCESS;
 
       SCIPfreeBufferArray(scip, &solforscip);
@@ -6010,4 +5990,20 @@ SCIP_Real SCIPrelaxSdpGetSolvingTime(
       return SCIPgetClockTime(scip, sdpsolvingtime);
 
    return 0.0;
+}
+
+/** gets some statistics for SDP-solving */
+SCIP_RETCODE SCIPrelaxSdpGetStatistics(
+   SCIP_RELAX*           relax,              /**< SDP-relaxator to get the statistics for */
+   int*                  ninfeasible,        /**< pointer to store the total number of times infeasibility was detected in presolving */
+   int*                  nallfixed,          /**< pointer to store the total number of times all variables were fixed */
+   int*                  nonevarsdp          /**< pointer to store the total number of times a one variable SDP was solved */
+   )
+{
+   assert( relax != NULL );
+   assert( SCIPrelaxGetData(relax) != NULL );
+
+   SCIP_CALL( SCIPsdpiGetStatistics(SCIPrelaxGetData(relax)->sdpi, ninfeasible, nallfixed, nonevarsdp) );
+
+   return SCIP_OKAY;
 }

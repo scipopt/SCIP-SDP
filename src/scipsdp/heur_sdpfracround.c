@@ -30,10 +30,9 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   heur_sdprand.c
- * @brief  randomized rounding heuristic for SDPs
+/**@file   heur_sdpfracround.c
+ * @brief  fractional rounding heuristic for SDPs
  * @author Marc Pfetsch
- * @author Tristan Gally
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
@@ -41,16 +40,16 @@
 #include <assert.h>
 #include <string.h>
 
-#include "heur_sdprand.h"
+#include "heur_sdpfracround.h"
 #include "relax_sdp.h"
 
 /* turn off lint warnings for whole file: */
 /*lint --e{788,818}*/
 
-#define HEUR_NAME             "sdprand"
-#define HEUR_DESC             "randomized rounding heuristic for SDPs"
-#define HEUR_DISPCHAR         '~'
-#define HEUR_PRIORITY         -1001000
+#define HEUR_NAME             "sdpfracround"
+#define HEUR_DESC             "fractional rounding heuristic for SDPs"
+#define HEUR_DISPCHAR         '^'
+#define HEUR_PRIORITY         -1000500
 #define HEUR_FREQ             1
 #define HEUR_FREQOFS          0
 #define HEUR_MAXDEPTH         -1
@@ -62,15 +61,13 @@
  * Default parameter settings
  */
 
-#define DEFAULT_RANDSEED                211  /**< default random seed */
-#define DEFAULT_RUNFORLP                FALSE/**< Should randomized rounding be applied if we are solving LPs? */
+#define DEFAULT_RUNFORLP              FALSE  /**< Should fractional rounding be applied if we are solving LPs? */
 
 /* locally defined heuristic data */
 struct SCIP_HeurData
 {
    SCIP_SOL*             sol;                /**< working solution */
-   SCIP_RANDNUMGEN*      randnumgen;         /**< random number generator */
-   SCIP_Bool             runforlp;           /**< Should randomized rounding be applied if we are solving LPs? */
+   SCIP_Bool             runforlp;           /**< Should fractional rounding be applied if we are solving LPs? */
 };
 
 
@@ -80,21 +77,21 @@ struct SCIP_HeurData
 
 /** copy method for primal heuristic plugins (called when SCIP copies plugins) */
 static
-SCIP_DECL_HEURCOPY(heurCopySdprand)
+SCIP_DECL_HEURCOPY(heurCopySdpfracround)
 {  /*lint --e{715}*/
    assert( scip != NULL );
    assert( heur != NULL );
    assert( strcmp(SCIPheurGetName(heur), HEUR_NAME) == 0 );
 
    /* call inclusion method of primal heuristic */
-   SCIP_CALL( SCIPincludeHeurSdpRand(scip) );
+   SCIP_CALL( SCIPincludeHeurSdpFracround(scip) );
 
    return SCIP_OKAY;
 }
 
 /** destructor of primal heuristic to free user data (called when SCIP is exiting) */
 static
-SCIP_DECL_HEURFREE(heurFreeSdprand)
+SCIP_DECL_HEURFREE(heurFreeSdpfracround)
 {  /*lint --e{715}*/
    SCIP_HEURDATA* heurdata;
 
@@ -114,7 +111,7 @@ SCIP_DECL_HEURFREE(heurFreeSdprand)
 
 /** initialization method of primal heuristic (called after problem was transformed) */
 static
-SCIP_DECL_HEURINIT(heurInitSdprand)
+SCIP_DECL_HEURINIT(heurInitSdpfracround)
 {  /*lint --e{715}*/
    SCIP_HEURDATA* heurdata;
 
@@ -125,16 +122,15 @@ SCIP_DECL_HEURINIT(heurInitSdprand)
    heurdata = SCIPheurGetData(heur);
    assert( heurdata != NULL );
 
-   /* create working solution and random number generator */
+   /* create working solution */
    SCIP_CALL( SCIPcreateSol(scip, &heurdata->sol, heur) );
-   SCIP_CALL( SCIPcreateRandom(scip, &(heurdata->randnumgen), SCIPinitializeRandomSeed(scip, DEFAULT_RANDSEED), TRUE) );
 
    return SCIP_OKAY;
 }
 
 /** deinitialization method of primal heuristic (called before transformed problem is freed) */
 static
-SCIP_DECL_HEUREXIT(heurExitSdprand)
+SCIP_DECL_HEUREXIT(heurExitSdpfracround)
 {  /*lint --e{715}*/
    SCIP_HEURDATA* heurdata;
 
@@ -145,26 +141,26 @@ SCIP_DECL_HEUREXIT(heurExitSdprand)
    heurdata = SCIPheurGetData(heur);
    assert( heurdata != NULL );
 
-   /* free working solution and random number generator */
+   /* free working solution */
    SCIP_CALL( SCIPfreeSol(scip, &heurdata->sol) );
-   SCIPfreeRandom(scip, &(heurdata->randnumgen));
 
    return SCIP_OKAY;
 }
 
 /** execution method of primal heuristic */
 static
-SCIP_DECL_HEUREXEC(heurExecSdprand)
+SCIP_DECL_HEUREXEC(heurExecSdpfracround)
 {  /*lint --e{715}*/
    SCIP_HEURDATA* heurdata;
    SCIP_CONSHDLR* conshdlrsdp;
    SCIP_RELAX* relaxsdp;
    SCIP_Real* sdpcandssol;
+   SCIP_Real* sdpcandsfrac;
    SCIP_VAR** vars;
+   SCIP_VAR** sdpcands;
    SCIP_SOL* relaxsol = NULL;
    SCIP_Bool usesdp = TRUE;
    SCIP_Bool cutoff = FALSE;
-   int* sdpcands;
    int nsdpcands = 0;
    int ncontvars;
    int freq = -1;
@@ -208,7 +204,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
       usesdp = FALSE;
    }
 
-   /* get relaxator - exit if not found (use LP randomized rounding) */
+   /* get relaxator - exit if not found */
    relaxsdp = SCIPfindRelax(scip, "SDP");
    if ( relaxsdp == NULL )
       return SCIP_OKAY;
@@ -238,6 +234,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
    nvars = SCIPgetNVars(scip);
    SCIP_CALL( SCIPallocBufferArray(scip, &sdpcands, nvars) );
    SCIP_CALL( SCIPallocBufferArray(scip, &sdpcandssol, nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &sdpcandsfrac, nvars) );
 
    /* prepare solution to be changed */
    SCIP_CALL( SCIPlinkRelaxSol(scip, heurdata->sol) );
@@ -249,12 +246,15 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
       SCIP_VAR* var;
 
       var = vars[v];
-      val = SCIPgetSolVal(scip, relaxsol, var);
-      sdpcandssol[v] = val;
       if ( SCIPvarIsIntegral(var) )
       {
+         val = SCIPgetSolVal(scip, relaxsol, var);
          if ( ! SCIPisFeasIntegral(scip, val) )
-            sdpcands[nsdpcands++] = v;
+         {
+            sdpcandssol[nsdpcands] = val;
+            sdpcandsfrac[nsdpcands] = SCIPfeasFrac(scip, val);
+            sdpcands[nsdpcands++] = var;
+         }
          else
          {
             /* make sure value is really integral */
@@ -289,6 +289,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
    {
       SCIP_CALL( SCIPendProbing(scip) );
 
+      SCIPfreeBufferArray(scip, &sdpcandsfrac);
       SCIPfreeBufferArray(scip, &sdpcandssol);
       SCIPfreeBufferArray(scip, &sdpcands);
 
@@ -297,7 +298,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
 
    *result = SCIP_DIDNOTFIND;
 
-   SCIPdebugMsg(scip, "Node %"SCIP_LONGINT_FORMAT": executing SDP randomized rounding heuristic (depth %d, %d fractionals).\n",
+   SCIPdebugMsg(scip, "Node %"SCIP_LONGINT_FORMAT": executing SDP fractional rounding heuristic (depth %d, %d fractionals).\n",
       SCIPgetNNodes(scip), SCIPgetDepth(scip), nsdpcands);
    SCIPdebugMsg(scip, "Fixed %d bounds of variables with integral values.\n", nfixed);
 
@@ -308,8 +309,8 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
       SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", 1) );
    }
 
-   /* permute variables */
-   SCIPrandomPermuteIntArray(heurdata->randnumgen, sdpcands, 0, nsdpcands);
+   /* sort according to increasing fractinal parts */
+   SCIPsortRealRealPtr(sdpcandsfrac, sdpcandssol, (void*) sdpcands, nsdpcands);
 
    /* perform rounding loop */
    nfixed = 0;
@@ -323,14 +324,12 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
       SCIP_Real floorval;
       SCIP_Real lb;
       SCIP_Real ub;
-      SCIP_Real r;
       SCIP_Bool lbadjust;
       SCIP_Bool ubadjust;
 
       /* get next variable from permuted candidate array */
-      assert( 0 <= sdpcands[v] && sdpcands[v] < nvars );
-      var = vars[sdpcands[v]];
-      val = sdpcandssol[sdpcands[v]];
+      var = sdpcands[v];
+      val = sdpcandssol[v];
       lb = SCIPvarGetLbLocal(var);
       ub = SCIPvarGetUbLocal(var);
 
@@ -353,15 +352,7 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
          newval = floorval;
       else
       {
-         /* if the variable is not fixed and its value is fractional */
-         r = SCIPrandomGetReal(heurdata->randnumgen, 0.0, 1.0);
-
-         /* depending on random value, round variable up/down */
-         if ( SCIPfeasFrac(scip, val) <= r )
-            newval = floorval;
-         else
-            newval = ceilval;
-
+         newval = SCIPfeasRound(scip, val);
          ++nrounded;
       }
 
@@ -466,10 +457,11 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
       SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", freq) );
    }
 
+   SCIPfreeBufferArray(scip, &sdpcandsfrac);
    SCIPfreeBufferArray(scip, &sdpcandssol);
    SCIPfreeBufferArray(scip, &sdpcands);
 
-   SCIPdebugMsg(scip, "Finished randomized rounding heuristic.\n");
+   SCIPdebugMsg(scip, "Finished fractional rounding heuristic.\n");
 
    return SCIP_OKAY;
 }
@@ -479,34 +471,34 @@ SCIP_DECL_HEUREXEC(heurExecSdprand)
  * heuristic specific interface methods
  */
 
-/** creates the randomized rounding heuristic for SDPs and includes it in SCIP */
-SCIP_RETCODE SCIPincludeHeurSdpRand(
+/** creates the fractional rounding heuristic for SDPs and includes it in SCIP */
+SCIP_RETCODE SCIPincludeHeurSdpFracround(
    SCIP*                 scip                /**< SCIP data structure */
    )
 {
    SCIP_HEURDATA* heurdata;
    SCIP_HEUR* heur;
 
-   /* create randomized rounding primal heuristic data */
+   /* create fractional rounding primal heuristic data */
    SCIP_CALL( SCIPallocBlockMemory(scip, &heurdata) );
 
    /* include primal heuristic */
    SCIP_CALL( SCIPincludeHeurBasic(scip, &heur,
          HEUR_NAME, HEUR_DESC, HEUR_DISPCHAR, HEUR_PRIORITY, HEUR_FREQ, HEUR_FREQOFS,
-         HEUR_MAXDEPTH, HEUR_TIMING, HEUR_USESSUBSCIP, heurExecSdprand, heurdata) );
+         HEUR_MAXDEPTH, HEUR_TIMING, HEUR_USESSUBSCIP, heurExecSdpfracround, heurdata) );
 
    assert( heur != NULL );
 
    /* set non-NULL pointers to callback methods */
-   SCIP_CALL( SCIPsetHeurCopy(scip, heur, heurCopySdprand) );
-   SCIP_CALL( SCIPsetHeurFree(scip, heur, heurFreeSdprand) );
-   SCIP_CALL( SCIPsetHeurInit(scip, heur, heurInitSdprand) );
-   SCIP_CALL( SCIPsetHeurExit(scip, heur, heurExitSdprand) );
+   SCIP_CALL( SCIPsetHeurCopy(scip, heur, heurCopySdpfracround) );
+   SCIP_CALL( SCIPsetHeurFree(scip, heur, heurFreeSdpfracround) );
+   SCIP_CALL( SCIPsetHeurInit(scip, heur, heurInitSdpfracround) );
+   SCIP_CALL( SCIPsetHeurExit(scip, heur, heurExitSdpfracround) );
 
-   /* randomized rounding heuristic parameters */
+   /* fractional rounding heuristic parameters */
    SCIP_CALL( SCIPaddBoolParam(scip,
-         "heuristics/sdprand/runforlp",
-         "Should randomized rounding be applied if we are solving LPs?",
+         "heuristics/sdpfracround/runforlp",
+         "Should fractional rounding be applied if we are solving LPs?",
          &heurdata->runforlp, FALSE, DEFAULT_RUNFORLP, NULL, NULL) );
 
    return SCIP_OKAY;

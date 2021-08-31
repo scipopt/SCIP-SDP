@@ -863,9 +863,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* only increase the counter if we don't use the penalty formulation to stay in line with the numbers in the general interface (where this is still the
     * same SDP) */
    if ( penaltyparam < sdpisolver->epsilon )
+   {
       SCIPdebugMessage("Inserting data into MOSEK for SDP (%d) \n", ++sdpisolver->sdpcounter);
+   }
    else
+   {
       SCIPdebugMessage("Inserting Data again into MOSEK for penalty formulation of SDP (%d) \n", sdpisolver->sdpcounter);
+   }
 
    /* set the penalty and rbound flags accordingly */
    sdpisolver->penalty = (penaltyparam < sdpisolver->epsilon) ? FALSE : TRUE;
@@ -1471,7 +1475,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       MOSEK_CALL( MSK_getnaintinf(sdpisolver->msktask, "MSK_IINF_INTPNT_ITER", &(sdpisolver->niterations)) );/*lint !e641*/
 
       /* possibly repair status */
-      if ( sdpisolver->terminationcode == MSK_RES_TRM_STALL || sdpisolver->solstat == MSK_SOL_STA_UNKNOWN )
+      if ( sdpisolver->terminationcode == MSK_RES_TRM_STALL || (sdpisolver->solstat == MSK_SOL_STA_UNKNOWN && sdpisolver->terminationcode != MSK_RES_TRM_MAX_TIME) )
       {
          SCIP_Real pobj;
          SCIP_Real pviolcon;

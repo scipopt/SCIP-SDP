@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2021 Discrete Optimization, TU Darmstadt               */
+/*               2014-2019 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or             */
@@ -24,43 +24,100 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2021 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2019 Zuse Institute Berlin                             */
 /* SCIP is distributed under the terms of the SCIP Academic Licence,         */
 /* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   heur_sdprand.h
- * @ingroup PRIMALHEURISTICS
- * @brief  randomized rounding heuristic for SDPs
- * @author Marc Pfetsch
- * @author Tristan Gally
- *
- * Randomized Rounding heuristic for SDPs. Takes the solution of the SDP-relaxation and randomly rounds all integer
- * variables. They are rounded up with probability equal to the fractional part and down otherwise. If the SDP includes
- * continuous variables, the remaining SDP after the fixings is solved again.
+/**@file   checklapack.c
+ * @brief  unit test for checking Lapack routines
+ * @author Frederic Matter
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
-#ifndef __SCIP_HEUR_SDPRAND_H__
-#define __SCIP_HEUR_SDPRAND_H__
+#include <scip/scip.h>
+#include "include/scip_test.h"
+#include "scipsdp/scipsdpdefplugins.h"
+#include "sdpi/lapack_interface.h"
+
+/* global SCIP data structure */
+SCIP* scipsdp;
+
+#define EPS  1e-6
 
 
-#include "scip/scip.h"
+/** setup of test suite */
+static
+void setup(void)
+{
+   SCIP_CALL( SCIPcreate(&scipsdp) );
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/** creates the randomized rounding heuristic for SDPs and includes it in SCIP */
-SCIP_EXPORT
-SCIP_RETCODE SCIPincludeHeurSdpRand(
-   SCIP*                 scip                /**< SCIP data structure */
-   );
-
-#ifdef __cplusplus
+   /* include default SCIP-SDP plugins */
+   SCIP_CALL( SCIPSDPincludeDefaultPlugins(scipsdp) );
 }
-#endif
 
-#endif
+/** deinitialization method of test */
+static
+void teardown(void)
+{
+   SCIP_CALL( SCIPfree(&scipsdp) );
+
+   cr_assert_eq(BMSgetMemoryUsed(), 0, "There is a memory leak!");
+}
+
+TestSuite(checklapack, .init = setup, .fini = teardown);
+
+
+
+/** TESTS **/
+
+/** Test 1
+ *
+ * Check matrix matrix multiplication:
+ *
+ * [1.0 3.0] * [5.0 7.0]^T = [26.0 30.0]
+ * [2.0 4.0]   [6.0 8.0]     [38.0 44.0]
+ *
+ */
+Test(checklapack, test1)
+{
+   /* data with fixed values: */
+   int blocksize = 2;
+   SCIP_Real* matrixA;
+   SCIP_Real* matrixB;
+   SCIP_Real* matrixC;
+
+   SCIP_CALL( SCIPallocBufferArray(scipsdp, &matrixA, blocksize * blocksize) );
+   SCIP_CALL( SCIPallocBufferArray(scipsdp, &matrixB, blocksize * blocksize) );
+   SCIP_CALL( SCIPallocBufferArray(scipsdp, &matrixC, blocksize * blocksize) );
+
+   /* Note: Lapack uses column-first format! */
+   matrixA[0] = 1.0;
+   matrixA[1] = 2.0;
+   matrixA[2] = 3.0;
+   matrixA[3] = 4.0;
+
+   matrixB[0] = 5.0;
+   matrixB[1] = 6.0;
+   matrixB[2] = 7.0;
+   matrixB[3] = 8.0;
+
+   matrixC[0] = 1.0;
+   matrixC[1] = 1.0;
+   matrixC[2] = 1.0;
+   matrixC[3] = 1.0;
+
+   SCIP_CALL( SCIPlapackMatrixMatrixMult(blocksize, blocksize, matrixA, FALSE, blocksize, blocksize, matrixB,
+         TRUE, matrixC) );
+
+   cr_assert_float_eq(matrixC[0], 26.0, EPS, "C[0]: %g != %g\n", matrixC[0], 26.0);
+   cr_assert_float_eq(matrixC[1], 38.0, EPS, "C[0]: %g != %g\n", matrixC[1], 38.0);
+   cr_assert_float_eq(matrixC[2], 30.0, EPS, "C[0]: %g != %g\n", matrixC[2], 30.0);
+   cr_assert_float_eq(matrixC[3], 44.0, EPS, "C[0]: %g != %g\n", matrixC[3], 44.0);
+
+   SCIPfreeBufferArray(scipsdp, &matrixA);
+   SCIPfreeBufferArray(scipsdp, &matrixB);
+   SCIPfreeBufferArray(scipsdp, &matrixC);
+}

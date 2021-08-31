@@ -687,6 +687,15 @@ SCIP_RETCODE SCIPsdpiSlater(
    SCIP_SDPSLATER*       dualslater          /**< pointer to save whether dual Slater condition held */
    );
 
+/** returns some statistcs */
+SCIP_EXPORT
+SCIP_RETCODE SCIPsdpiGetStatistics(
+   SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
+   int*                  ninfeasible,        /**< pointer to store the total number of times infeasibility was detected in presolving */
+   int*                  nallfixed,          /**< pointer to store the total number of times all variables were fixed */
+   int*                  nonevarsdp          /**< pointer to store the total number of times a one variable SDP was solved */
+   );
+
 /**@} */
 
 

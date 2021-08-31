@@ -255,13 +255,8 @@ SCIP_DECL_PROPEXEC(propExecSdpredcost)
    *result = SCIP_DIDNOTRUN;
 
    /* do not run if propagation w.r.t. objective is not allowed */
-#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
    if( ! SCIPallowWeakDualReds(scip) )
       return SCIP_OKAY;
-#else
-   if( ! SCIPallowObjProp(scip) )
-      return SCIP_OKAY;
-#endif
 
    /* we can't run before the relaxator is properly initialized */
    if ( SCIPgetStage(scip) == SCIP_STAGE_PRESOLVING )

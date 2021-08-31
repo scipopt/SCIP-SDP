@@ -127,7 +127,7 @@ open(OUTFILE, ">", $filename) or die $!;
 
 printf(OUTFILE "VER\n1\n\n");
 
-printf(OUTFILE "OBJSENSE\nMAX\n\n");
+printf(OUTFILE "OBJSENSE\nMIN\n\n");
 
 printf(OUTFILE "VAR\n");
 printf(OUTFILE "%d 2\n", $m);
