@@ -125,6 +125,8 @@
 #define DEFAULT_SPARSIFYCUT       FALSE /**< Should the eigenvector cuts be sparsified? */
 #define DEFAULT_SPARSIFYFACTOR      0.1 /**< target size for sparsification in relation to number of variables */
 #define DEFAULT_SPARSIFYTARGETSIZE   -1 /**< absolute target size for sparsification (-1: use sparsifyfactor instead) */
+#define DEFAULT_MULTIPLESPARSECUTS FALSE /**< Should multiple sparsified eigenvector cuts be added? */
+#define DEFAULT_MAXNSPARSECUTS        0 /**< maximal number of sparse eigenvector cuts that should be added (-1: no limit) */
 #define DEFAULT_ENFORCESDP        FALSE /**< Solve SDP if we do lp-solving and have an integral solution in enforcing? */
 #define DEFAULT_ONLYFIXEDINTSSDP  FALSE /**< Should solving an SDP only be applied if all integral variables are fixed (instead of having integral values)? */
 #define DEFAULT_ADDSOCRELAX       FALSE /**< Should a relaxation of SOC constraints be added */
@@ -134,6 +136,11 @@
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
 #endif
+
+/* defines for sparsification of eigenvector cuts using TPower */
+#define DEFAULT_RECOMPUTESPARSEEV FALSE /**< Should the sparse eigenvalue returned from TPower be recomputed exactly by using Lapack for the corresponding submatrix? */
+#define DEFAULT_RECOMPUTEINITIAL  FALSE /**< Should the inital vector for TPower be computed each time before calling TPower (instead of using the original smallest eigenvector)? */
+#define DEFAULT_EXACTTRANS        FALSE /**< Should the matrix be transformed with the exact maximal eigenvalue before calling TPower (instead of using estimate)? */
 
 /** constraint data for sdp constraints */
 struct SCIP_ConsData
@@ -191,6 +198,8 @@ struct SCIP_ConshdlrData
    SCIP_Bool             sparsifycut;        /**< Should the eigenvector cuts be sparsified? */
    SCIP_Real             sparsifyfactor;     /**< target size for sparsification in relation to number of variables */
    int                   sparsifytargetsize; /**< absolute target size for sparsification (-1: use sparsifyfactor instead) */
+   SCIP_Bool             multiplesparsecuts; /**< Should multiple sparsified eigenvector cuts be added? */
+   int                   maxnsparsecuts;     /**< maximal number of sparse eigenvector cuts that should be added (-1: no limit) */
    SCIP_Bool             enforcesdp;         /**< Solve SDP if we do lp-solving and have an integral solution in enforcing? */
    SCIP_Bool             onlyfixedintssdp;   /**< Should solving an SDP only be applied if all integral variables are fixed (instead of having integral values)? */
    SCIP_Bool             addsocrelax;        /**< Should a relaxation of SOC constraints be added */
@@ -213,6 +222,9 @@ struct SCIP_ConshdlrData
    SCIP_RELAX*           relaxsdp;           /**< SDP relaxator */
    SCIP_Bool             usedimacsfeastol;   /**< Should a feasibility tolerance based on the DIMACS be used for computing negative eigenvalues? */
    SCIP_Real             dimacsfeastol;      /**< feasibility tolerance for computing negative eigenvalues based on the DIMACS error */
+   SCIP_Bool             recomputesparseev;  /**< Should the sparse eigenvalue returned from TPower be recomputed exactly by using Lapack for the corresponding submatrix? */
+   SCIP_Bool             recomputeinitial;   /**< Should the inital vector for TPower be computed each time before calling TPower (instead of using the original smallest eigenvector)? */
+   SCIP_Bool             exacttrans;         /**< Should the matrix be transformed with the exact maximal eigenvalue before calling TPower (instead of using estimate)? */
 };
 
 /** generates matrix in colum-first format (needed by LAPACK) from matrix given in full row-first format (SCIP-SDP
@@ -748,6 +760,109 @@ SCIP_RETCODE setMaxRhsEntry(
    return SCIP_OKAY;
 }
 
+/** compute largest sparse eigenvalue for a given sparsity level and corresponding eigenvector of a given matrix
+ *
+ *  The truncated power method works like the ordinary power method to compute the largest eigenvalue of a matrix, but
+ *  truncates the iterates in each step to the k largest entries in absolute value, if k is the sparsity level. See
+ *  [Yuan, Zhang: Truncated Power Method for Sparse Eigenvalue Problems].
+ */
+static
+SCIP_RETCODE truncatedPowerMethod(
+   SCIP*                 scip,               /**< SCIP data structure */
+   int                   blocksize,          /**< size of matrix */
+   SCIP_Real*            fullmatrix,         /**< matrix for which the smallest sparse eigenvalue and eigenvector should
+                                              *   be computed, need to be given with all blocksze * blocksize entries */
+   SCIP_Real*            vector,             /**< initial vector for starting the truncated power method */
+   int                   sparsity,           /**< sparsity level of eigenvalue and eigenvector */
+   SCIP_Real             convergencetol,     /**< tolerance to be used to detect convergence */
+   SCIP_Real*            eigenvector,        /**< pointer to store computed eigenvector */
+   int*                  support,            /**< pointer to store support of the computed eigenvector */
+   SCIP_Real*            eigenvalue          /**< pointer to store computed eigenvalue */
+   )
+{
+   SCIP_Real* sortedev;
+   SCIP_Real* oldev;
+   SCIP_Real oldeig;
+   SCIP_Real neweig;
+   SCIP_Real norm;
+   int* indices;
+   int i;
+
+   assert( scip != NULL );
+   assert( blocksize > 0 );
+   assert( fullmatrix != NULL );
+   assert( vector != NULL );
+   assert( sparsity > 0 && sparsity <= blocksize );
+   assert( eigenvector != NULL );
+   assert( eigenvalue != NULL );
+
+   SCIPdebugMsg(scip, "Executing truncatedPowerMethod\n");
+
+   SCIP_CALL( SCIPallocBufferArray(scip, &indices, blocksize) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &sortedev, blocksize) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &oldev, blocksize) );
+
+   neweig = -1.0;
+   oldeig = -2.0;
+
+   for (i = 0; i < blocksize; i++)
+      eigenvector[i] = vector[i];
+
+   while ( neweig - oldeig > convergencetol )
+   {
+      /* reset eigenvector and eigenvalue */
+      oldeig = neweig;
+      neweig = 0.0;
+
+      for (i = 0; i < blocksize; i++)
+         oldev[i] = eigenvector[i];
+
+      SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullmatrix, oldev, eigenvector) );
+
+      /* get indices of largest absolute values */
+      for (i = 0; i < blocksize; i++)
+      {
+         indices[i] = i;
+         sortedev[i] = REALABS(eigenvector[i]);
+      }
+
+      SCIPsortDownRealInt(sortedev, indices, blocksize);
+
+      /* truncate iterate to entries with largest absolute value and save support */
+      for (i = sparsity; i < blocksize; i++)
+      {
+         eigenvector[indices[i]] = 0.0;
+         support[indices[i]] = 0;
+      }
+
+      /* normalize iterate */
+      norm = 0.0;
+      for (i = 0; i < sparsity; i++)
+      {
+         norm += eigenvector[indices[i]] * eigenvector[indices[i]];
+         support[indices[i]] = 1;
+      }
+      norm = sqrt(norm);
+
+      for (i = 0; i < sparsity; i++)
+         eigenvector[indices[i]] /= norm;
+
+      /* compute iterate^T * fullmatrix * iterate */
+      SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullmatrix, eigenvector, oldev) );
+
+      for (i = 0; i < blocksize; i++)
+         neweig += eigenvector[i] * oldev[i];
+   }
+
+   SCIPfreeBufferArray(scip, &oldev);
+   SCIPfreeBufferArray(scip, &sortedev);
+   SCIPfreeBufferArray(scip, &indices);
+
+   *eigenvalue = neweig;
+
+   return SCIP_OKAY;
+}
+
 /** try to sparsify cut
  *
  *  We currently take a small subset of the components of a given eigenvector and check whether the cut is
@@ -767,7 +882,7 @@ SCIP_RETCODE sparsifyCut(
    SCIP_Real*            vector,             /**< temporary workspace (length blocksize) */
    SCIP_VAR**            vars,               /**< temporary workspace */
    SCIP_Real*            vals,               /**< temporary workspace */
-   SCIP_Bool*            success,            /**< pointer to store whether we have produced a cut/constraint */ 
+   SCIP_Bool*            success,            /**< pointer to store whether we have produced a cut/constraint */
    SCIP_RESULT*          result              /**< pointer to store the result of the separation call */
    )
 {
@@ -868,7 +983,7 @@ SCIP_RETCODE sparsifyCut(
       SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
       SCIP_CALL( SCIPaddVarsToRow(scip, row, cnt, vars, vals) );
 
-      /* if we are enforcing, we take any of the cuts, otherwise only efficacious cuts */
+      /* since the sparsified cut need not separate the current solution, we take only efficacious cuts */
       if ( SCIPisCutEfficacious(scip, sol, row) )
       {
 #ifdef SCIP_MORE_DEBUG
@@ -911,6 +1026,364 @@ SCIP_RETCODE sparsifyCut(
    return SCIP_OKAY;
 }
 
+/** add multiple sparse eigenvector cuts
+ *
+ *  We use Algorithm 1 from [Dey et al: Cutting Plan Generation Through Sparse Principal Component Analysis] to produce
+ *  maxncuts many sparse eigenvector cuts.
+ */
+static
+SCIP_RETCODE addMultipleSparseCuts(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONSHDLR*        conshdlr,           /**< the constraint handler itself */
+   SCIP_CONS*            cons,               /**< constraint */
+   SCIP_CONSDATA*        consdata,           /**< constraint data */
+   SCIP_SOL*             sol,                /**< primal solution that should be separated */
+   int                   blocksize,          /**< size of block */
+   SCIP_Real*            fullmatrix,         /**< precomputed full matrix \f$ \sum_j A_j y_j - A_0 \f$ */
+   SCIP_Real*            fullconstmatrix,    /**< precomputed full constant matrix */
+   SCIP_Real*            eigenvector,        /**< original eigenvector */
+   SCIP_Real             tol,                /**< tolerance to be used when computing eigenvectors  */
+   int                   maxncuts,           /**< maximal number of cuts to be produced */
+   SCIP_Real*            vector,             /**< temporary workspace (length blocksize) */
+   SCIP_VAR**            vars,               /**< temporary workspace */
+   SCIP_Real*            vals,               /**< temporary workspace */
+   int*                  ncuts,              /**< pointer to store the number of produced cuts/constrains */
+   SCIP_Bool*            success,            /**< pointer to store whether we have produced a cut/constraint */
+   SCIP_RESULT*          result              /**< pointer to store the result of the separation call */
+   )
+{
+   char cutname[SCIP_MAXSTRLEN];
+   SCIP_CONSHDLRDATA* conshdlrdata;
+   SCIP_Real* fullmatrixcopy;
+   SCIP_Real* modmatrix;
+   SCIP_Real* submatrix;
+   SCIP_Real* sparseev;
+   SCIP_Real* liftedev;
+   SCIP_Real* minev;
+   SCIP_Real convergencetol;
+   SCIP_Real eigenvalue;
+   SCIP_Real maxeig;
+   SCIP_Real scalar = 0.0;
+   SCIP_Real lhs = 0.0;
+   SCIP_Real coef;
+   int* support;
+   int cnt = 0;
+   int size;
+   int i;
+   int j;
+
+   assert( scip != NULL );
+   assert( conshdlr != NULL );
+   assert( fullmatrix != NULL );
+   assert( fullconstmatrix != NULL );
+   assert( eigenvector != NULL );
+   assert( maxncuts > 0 );
+   assert( vector != NULL );
+   assert( ncuts != NULL );
+   assert( result != NULL );
+   assert( *result != SCIP_CUTOFF );
+
+   *ncuts = 0;
+   *success = FALSE;
+
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert( conshdlrdata != NULL );
+
+   SCIPdebugMsg(scip, "Executing addMultipleSparseCuts.\n");
+
+   /* compute target size, use sparsifytargetsize if specified, and sparsifyfactor else */
+   if ( conshdlrdata->sdpconshdlrdata->sparsifytargetsize > 0 )
+      size = conshdlrdata->sdpconshdlrdata->sparsifytargetsize;
+   else
+      size = MAX(10, (int) conshdlrdata->sdpconshdlrdata->sparsifyfactor * consdata->nvars);
+
+   /* if size is larger than blocksize, trigger a debug message and set size to blocksize */
+   if ( size > blocksize )
+   {
+      SCIPdebugMsg(scip, "No sparse eigenvector cuts produced since desired sparsity %d is larger than SDP blocksize %d.\n", size, blocksize);
+      return SCIP_OKAY;
+   }
+
+   assert( size <= blocksize );
+
+   /* copy fullmatrix, since Lapack destroys it when computing eigenvalues! */
+   SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrixcopy, blocksize * blocksize) );
+   for (i = 0; i < blocksize * blocksize; i++)
+      fullmatrixcopy[i] = fullmatrix[i];
+
+   /* compute the largest eigenvalue of A(y), the eigenvector is not needed */
+   SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, fullmatrixcopy, blocksize, &maxeig, NULL) );
+   SCIPdebugMsg(scip, "Largest eigenvalue of A(y): %.15g\n", maxeig);
+
+   /* compute the modified matrix \lambda_{max} I - A(y), where \lambda_{max} is the largest eigenvalue of A(y) */
+   SCIP_CALL( SCIPallocBufferArray(scip, &modmatrix, blocksize * blocksize) );
+   for (i = 0; i < blocksize; i++)
+   {
+      for (j = 0; j < blocksize; j++)
+      {
+         if ( i == j )
+            modmatrix[i * blocksize + j] = maxeig - fullmatrix[i * blocksize + j];
+         else
+            modmatrix[i * blocksize + j] = -fullmatrix[i * blocksize + j];
+      }
+   }
+
+   /* allocate necessary memory */
+   SCIP_CALL( SCIPallocBufferArray(scip, &submatrix, size * size) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &liftedev, blocksize) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &support, blocksize) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &sparseev, size) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &minev, blocksize) );
+
+   /* compute sparse eigenvector with the truncated power method for the modified matrix */
+   convergencetol = 1e-6;
+   SCIP_CALL( truncatedPowerMethod(scip, blocksize, modmatrix, eigenvector, size, convergencetol, liftedev, support, &eigenvalue) );
+
+   SCIPdebugMsg(scip, "Smallest sparse eigenvalue computed by TPower: %.15g\n", maxeig - eigenvalue);
+
+   /* instead of adding the sparse eigenvector, use it as initial point for adding many sparse eigenvectors */
+   /* compute v^T A(y) v, which is equal to maxeig - eigenvalue */
+   scalar = maxeig - eigenvalue;
+
+   if ( ! SCIPisFeasNegative(scip, scalar) )
+   {
+      SCIPdebugMsg(scip, "Did not add any sparse eigenvector cuts, since sparsified initial eigenvector cut does not cut off the solution!\n");
+   }
+
+   if ( maxncuts < 0 )
+      maxncuts = INT_MAX;
+
+   while ( SCIPisFeasNegative(scip, scalar) && *ncuts < maxncuts )
+   {
+      if ( conshdlrdata->sdpconshdlrdata->recomputesparseev )
+      {
+         SCIP_Real norm = 0.0;
+         /* Recompute smallest eigenvalue \lambda_{min} and corresponding unit norm eigenvector w of principal submatrix
+          * A(y)_S, lift it to a full vector by adding zeros, and normalize, instead of using the eigenvector and
+          * eigenvalue returned from TPower.
+          */
+
+         cnt = 0;
+         for (i = 0; i < blocksize; i++)
+         {
+            if ( support[i] == 1 )
+            {
+               for (j = 0; j < blocksize; j++)
+               {
+                  if ( support[j] == 1 )
+                     submatrix[cnt++] = fullmatrix[i * blocksize + j];
+               }
+            }
+         }
+         assert( cnt == size * size );
+
+         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, size, submatrix, 1, &eigenvalue, sparseev) );
+
+         assert( SCIPisFeasNegative(scip, eigenvalue) );
+
+         if ( eigenvalue >= -tol )
+            break;
+
+         SCIPdebugMsg(scip, "Smallest eigenvalue of principal submatrix: %.15g\n", eigenvalue);
+
+         /* normalize sparse eigenvector */
+         norm = 0.0;
+         for (j = 0; j < size; j++)
+            norm += sparseev[j] * sparseev[j];
+
+         norm = sqrt(norm);
+         for (j = 0; j < size; j++)
+            sparseev[j] /= norm;
+
+         /* lift eigenvector by setting all entries not in the support to 0 */
+         cnt = 0;
+         for (i = 0; i < blocksize; i++)
+         {
+            if ( support[i] == 1 )
+            {
+               /* assert( SCIPisFeasEQ(scip, liftedev[i], sparseev[cnt]) ); */
+               liftedev[i] = sparseev[cnt++];
+            }
+            else
+               liftedev[i] = 0.0;
+         }
+         assert( cnt == size );
+      }
+      else
+      {
+         /* scalar is the smallest sparse eigenvalue computed with TPower */
+         eigenvalue = scalar;
+      }
+
+      /* check if cut obtained from new eigenvector is efficacious and add cut/constraint */
+      /* multiply eigenvector with constant matrix to get lhs (after multiplying again with eigenvector from the left) */
+      SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullconstmatrix, liftedev, vector) );
+
+      lhs = 0.0;
+      for (j = 0; j < blocksize; ++j)
+         lhs += liftedev[j] * vector[j];
+
+      /* compute \f$ v^T A_j v \f$ for eigenvector v and each matrix \f$ A_j \f$ to get the coefficients of the LP cut */
+      cnt = 0;
+      for (j = 0; j < consdata->nvars; ++j)
+      {
+         SCIP_CALL( multiplyConstraintMatrix(cons, j, liftedev, &coef) );
+
+         if ( SCIPisFeasZero(scip, coef) )
+            continue;
+
+         vars[cnt] = consdata->vars[j];
+         vals[cnt++] = coef;
+      }
+
+      (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
+      if ( conshdlrdata->sdpconshdlrdata->generaterows )
+      {
+         SCIP_Bool infeasible;
+         SCIP_ROW* row;
+
+#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
+         SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
+#else
+         SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
+#endif
+
+         SCIP_CALL( SCIPaddVarsToRow(scip, row, cnt, vars, vals) );
+
+         /* since the sparsified cut need not separate the current solution, we take only efficacious cuts */
+         if ( SCIPisCutEfficacious(scip, sol, row) )
+         {
+#ifdef SCIP_MORE_DEBUG
+            SCIP_CALL( SCIPprintRow(scip, row, NULL) );
+#endif
+            SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
+            SCIP_CALL( SCIPresetConsAge(scip, cons) );
+
+            if ( conshdlrdata->sdpconshdlrdata->cutstopool )
+            {
+               SCIP_CALL( SCIPaddPoolCut(scip, row) );
+            }
+
+            assert( *result != SCIP_CONSADDED );
+            if ( infeasible )
+            {
+               *result = SCIP_CUTOFF;
+               SCIPdebugMsg(scip, "Detected infeasibility.\n");
+               SCIP_CALL( SCIPreleaseRow(scip, &row) );
+               break;
+            }
+            else
+            {
+               *result = SCIP_SEPARATED;
+               ++(*ncuts);
+               SCIPdebugMsg(scip, "Successfully added sparse eigenvector cut.\n");
+            }
+         }
+         else
+            SCIPdebugMsg(scip, "Cut is not efficacious!\n");
+         SCIP_CALL( SCIPreleaseRow(scip, &row) );
+      }
+      else
+      {
+         SCIP_CONS* newcons;
+
+         SCIP_CALL( SCIPcreateConsLinear(scip, &newcons, cutname, cnt, vars, vals, lhs, SCIPinfinity(scip),
+               TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE) );
+         SCIP_CALL( SCIPaddCons(scip, newcons) );
+         SCIP_CALL( SCIPreleaseCons(scip, &newcons) );
+
+         assert( *result != SCIP_SEPARATED );
+         *result = SCIP_CONSADDED;
+         ++(*ncuts);
+         SCIPdebugMsg(scip, "Successfully added sparse eigenvector cut.\n");
+      }
+
+      /* compute A(y) = A(y) - \lambda_{min} w w^T */
+      for (i = 0; i < blocksize; i++)
+      {
+         for (j = 0; j < blocksize; j++)
+            fullmatrix[i * blocksize + j] -= eigenvalue * liftedev[i] * liftedev[j];
+      }
+
+
+      if ( conshdlrdata->sdpconshdlrdata->recomputeinitial )
+      {
+         SCIP_Real mineig;
+         /* compute smallest eigenvalue and corresponding eigenvector of A(y) as initial vector for TPpower, instead of
+            using the eigenvector to the smallest eigenvalue of the original matrix */
+
+         /* copy fullmatrix, since Lapack destroys it when computing eigenvalues! */
+         for (i = 0; i < blocksize * blocksize; i++)
+            fullmatrixcopy[i] = fullmatrix[i];
+
+         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, blocksize, fullmatrixcopy, 1, &mineig, minev) );
+
+         SCIPdebugMsg(scip, "Smallest eigenvalue: %.15g\n", mineig);
+      }
+      else
+      {
+         for (i = 0; i < blocksize; i++)
+            minev[i] = eigenvector[i];
+      }
+
+      if ( conshdlrdata->sdpconshdlrdata->exacttrans )
+      {
+         /* we need to modify the matrix again in order to use the truncated power method */
+
+         /* copy fullmatrix, since Lapack destroys it when computing eigenvalues! */
+         for (i = 0; i < blocksize * blocksize; i++)
+            fullmatrixcopy[i] = fullmatrix[i];
+
+         /* compute the largest eigenvalue of A(y), the eigenvector is not needed */
+         SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, fullmatrixcopy, blocksize, &maxeig, NULL) );
+         SCIPdebugMsg(scip, "Largest eigenvalue: %.15g\n", maxeig);
+      }
+      else
+      {
+         /* use estimate for largest eigenvalue of modified matrix: \lambda_{max}(A+B) \leq \lambda_{max}(A) + \lambda_{max}(B) */
+         maxeig -= eigenvalue;
+      }
+
+      /* compute the modified matrix \lambda_{max} I - A(y), where \lambda_{max} is the largest eigenvalue of A(y) */
+      for (i = 0; i < blocksize; i++)
+      {
+         for (j = 0; j < blocksize; j++)
+         {
+            if ( i == j )
+               modmatrix[i * blocksize + j] = maxeig - fullmatrix[i * blocksize +j];
+            else
+               modmatrix[i * blocksize + j] = -fullmatrix[i * blocksize +j];
+         }
+      }
+
+      /* compute smallest sparse eigenvalue and corresponding eigenvector of A(y) with the truncated power method */
+      SCIP_CALL( truncatedPowerMethod(scip, blocksize, modmatrix, minev, size, convergencetol, liftedev, support, &eigenvalue) );
+
+      SCIPdebugMsg(scip, "Smallest sparse eigenvalue computed by TPower: %.15g\n", maxeig - eigenvalue);
+
+      /* compute v^T A(y) v for the new sparse eigenvector, which is equal to maxeig - eigenvalue, as computed by TPower */
+      scalar = maxeig - eigenvalue;
+   }
+
+   if ( *ncuts > 0 || *result == SCIP_CUTOFF )
+   {
+      *success = TRUE;
+      SCIPdebugMsg(scip, "Added %d sparse eigenvector cuts\n", *ncuts);
+   }
+
+   /* free all memory */
+   SCIPfreeBufferArray(scip, &minev);
+   SCIPfreeBufferArray(scip, &sparseev);
+   SCIPfreeBufferArray(scip, &support);
+   SCIPfreeBufferArray(scip, &liftedev);
+   SCIPfreeBufferArray(scip, &submatrix);
+   SCIPfreeBufferArray(scip, &modmatrix);
+   SCIPfreeBufferArray(scip, &fullmatrixcopy);
+
+   return SCIP_OKAY;
+}
+
+
 /** separate current solution with a cut using the eigenvectors and -values of the solution matrix */
 static
 SCIP_RETCODE separateSol(
@@ -931,6 +1404,7 @@ SCIP_RETCODE separateSol(
    SCIP_Real* eigenvectors;
    SCIP_Real* vector;
    SCIP_Real* fullmatrix;
+   SCIP_Real* fullmatrixcopy;
    SCIP_Real* fullconstmatrix = NULL;
    SCIP_Real* eigenvalues;
    SCIP_Real tol;
@@ -958,12 +1432,17 @@ SCIP_RETCODE separateSol(
    SCIP_CALL( SCIPallocBufferArray(scip, &vals, nvars ) );
 
    SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize ) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrixcopy, blocksize * blocksize ) );
    SCIP_CALL( SCIPallocBufferArray(scip, &eigenvectors, blocksize * blocksize) );
    SCIP_CALL( SCIPallocBufferArray(scip, &eigenvalues, blocksize) );
    SCIP_CALL( SCIPallocBufferArray(scip, &vector, blocksize) );
 
    /* compute the matrix \f$ \sum_j A_j y_j - A_0 \f$ */
    SCIP_CALL( computeFullSdpMatrix(scip, consdata, sol, fullmatrix) );
+
+   /* copy fullmatrix, since Lapack destroys it when computing eigenvalues! */
+   for (i = 0; i < blocksize * blocksize; i++)
+      fullmatrixcopy[i] = fullmatrix[i];
 
    /* determine tolerance */
    if ( conshdlrdata->sdpconshdlrdata->usedimacsfeastol )
@@ -980,10 +1459,10 @@ SCIP_RETCODE separateSol(
    }
 
    /* compute eigenvector(s) */
-   if ( conshdlrdata->sdpconshdlrdata->separateonecut )
+   if ( conshdlrdata->sdpconshdlrdata->separateonecut || conshdlrdata->sdpconshdlrdata->multiplesparsecuts )
    {
       /* compute smallest eigenvalue */
-      retcode = SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, blocksize, fullmatrix, 1, eigenvalues, eigenvectors);
+      retcode = SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), TRUE, blocksize, fullmatrixcopy, 1, eigenvalues, eigenvectors);
       if ( retcode == SCIP_OKAY )
       {
          if ( eigenvalues[0] < -tol )
@@ -995,7 +1474,7 @@ SCIP_RETCODE separateSol(
    else
    {
       /* compute all eigenvectors for negative eigenvalues */
-      retcode = SCIPlapackComputeEigenvectorsNegative(SCIPbuffer(scip), blocksize, fullmatrix, tol, &neigenvalues, eigenvalues, eigenvectors);
+      retcode = SCIPlapackComputeEigenvectorsNegative(SCIPbuffer(scip), blocksize, fullmatrixcopy, tol, &neigenvalues, eigenvalues, eigenvectors);
    }
 
    /* treat possible error */
@@ -1038,6 +1517,7 @@ SCIP_RETCODE separateSol(
       SCIP_Real lhs = 0.0;
       SCIP_Bool success;
       int cnt = 0;
+      int ncuts;
 
       /* get pointer to current eigenvector */
       eigenvector = &(eigenvectors[i * blocksize]);
@@ -1048,7 +1528,23 @@ SCIP_RETCODE separateSol(
          SCIP_CALL( sparsifyCut(scip, conshdlr, cons, consdata, sol, blocksize, fullconstmatrix, eigenvector, vector, vars, vals, &success, result) );
 
          if ( success )
+         {
+            ++ngen;
             continue;
+         }
+      }
+      else if ( conshdlrdata->sdpconshdlrdata->multiplesparsecuts )
+      {
+         SCIPdebugMsg(scip, "Smallest eigenvalue: %.15g\n", eigenvalues[i]);
+         SCIP_CALL( addMultipleSparseCuts(scip, conshdlr, cons, consdata, sol, blocksize, fullmatrix, fullconstmatrix,
+               eigenvector, tol, conshdlrdata->sdpconshdlrdata->maxnsparsecuts, vector, vars, vals, &ncuts, &success, result) );
+
+         if ( success )
+         {
+            SCIPdebugMsg(scip, "Successfully added %d sparse eigenvector cuts.\n", ncuts);
+            ngen += ncuts;
+            continue;
+         }
       }
       else
       {
@@ -1129,6 +1625,7 @@ SCIP_RETCODE separateSol(
    SCIPfreeBufferArray(scip, &vector);
    SCIPfreeBufferArray(scip, &eigenvalues);
    SCIPfreeBufferArray(scip, &eigenvectors);
+   SCIPfreeBufferArray(scip, &fullmatrixcopy);
    SCIPfreeBufferArray(scip, &fullmatrix);
 
    SCIPfreeBufferArray(scip, &vals);
@@ -5227,7 +5724,7 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
 
-   if ( conshdlrdata->sdpconshdlrdata->sparsifycut && conshdlrdata->randnumgen == NULL )
+   if ( (conshdlrdata->sdpconshdlrdata->sparsifycut || conshdlrdata->sdpconshdlrdata->multiplesparsecuts) && conshdlrdata->randnumgen == NULL )
    {
       SCIP_CALL( SCIPcreateRandom(scip, &conshdlrdata->randnumgen, 64293, FALSE) );
    }
@@ -7298,6 +7795,14 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          "absolute target size for sparsification (-1: use sparsifyfactor instead)",
          &(conshdlrdata->sparsifytargetsize), TRUE, DEFAULT_SPARSIFYTARGETSIZE, -1, INT_MAX, NULL, NULL) );
 
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/multiplesparsecuts",
+         "Should multiple sparsified eigenvector cuts be added?",
+         &(conshdlrdata->multiplesparsecuts), TRUE, DEFAULT_MULTIPLESPARSECUTS, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddIntParam(scip, "constraints/SDP/maxnsparsecuts",
+         "maximal number of sparse eigenvector cuts that should be added (-1: no limit)",
+         &(conshdlrdata->maxnsparsecuts), TRUE, DEFAULT_MAXNSPARSECUTS, -1, INT_MAX, NULL, NULL) );
+
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/enforcesdp",
          "Solve SDP if we do lp-solving and have an integral solution in enforcing?",
          &(conshdlrdata->enforcesdp), TRUE, DEFAULT_ENFORCESDP, NULL, NULL) );
@@ -7325,6 +7830,18 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/generaterows",
          "Should rows be generated (constraints otherwise)?",
          &(conshdlrdata->generaterows), TRUE, DEFAULT_GENERATEROWS, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/recomputesparseev",
+         "Should the sparse eigenvalue returned from TPower be recomputed exactly by using Lapack for the corresponding submatrix?",
+         &(conshdlrdata->recomputesparseev), TRUE, DEFAULT_RECOMPUTESPARSEEV, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/recomputeinitial",
+         "Should the inital vector for TPower be computed each time before calling TPower (instead of using the original smallest eigenvector)?",
+         &(conshdlrdata->recomputeinitial), TRUE, DEFAULT_RECOMPUTEINITIAL, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/exacttrans",
+         "Should the matrix be transformed with the exact maximal eigenvalue before calling TPower (instead of using estimate)?",
+         &(conshdlrdata->exacttrans), TRUE, DEFAULT_EXACTTRANS, NULL, NULL) );
 
    return SCIP_OKAY;
 }
@@ -7364,6 +7881,8 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->sparsifycut = FALSE;
    conshdlrdata->sparsifyfactor = SCIP_INVALID;
    conshdlrdata->sparsifytargetsize = -1;
+   conshdlrdata->multiplesparsecuts = FALSE;
+   conshdlrdata->maxnsparsecuts = 0;
    conshdlrdata->enforcesdp = FALSE;
    conshdlrdata->onlyfixedintssdp = FALSE;
    conshdlrdata->addsocrelax = FALSE;
@@ -7376,6 +7895,9 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->nthreads = 0;
 #endif
    conshdlrdata->usedimacsfeastol = FALSE;
+   conshdlrdata->recomputesparseev = FALSE;
+   conshdlrdata->recomputeinitial = FALSE;
+   conshdlrdata->exacttrans = FALSE;
 
    /* parameters are retrieved through the SDP constraint handler */
    sdpconshdlr = SCIPfindConshdlr(scip, CONSHDLR_NAME);
