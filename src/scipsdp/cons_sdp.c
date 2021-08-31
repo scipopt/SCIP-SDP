@@ -1136,7 +1136,7 @@ SCIP_RETCODE addMultipleSparseCuts(
          eigenvalue = scalar;
       }
 
-      /* check if cut obtained from new is efficacious and add cut/constraint */
+      /* check if cut obtained from new eigenvector is efficacious and add cut/constraint */
       /* multiply eigenvector with constant matrix to get lhs (after multiplying again with eigenvector from the left) */
       SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullconstmatrix, liftedev, vector) );
 
