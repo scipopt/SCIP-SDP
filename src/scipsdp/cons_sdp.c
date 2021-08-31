@@ -585,6 +585,7 @@ SCIP_RETCODE isMatrixRankOne(
    SCIP_CONSHDLRDATA*    conshdlrdata,       /**< constraint handler data */
    SCIP_CONS*            cons,               /**< the SDP constraint to check the rank for */
    SCIP_SOL*             sol,                /**< solution to check for rank one */
+   SCIP_Bool             printreason,        /**< should the reason for the violation be printed? */
    SCIP_Bool*            result              /**< result pointer to return whether matrix is rank one */
    )
 {
@@ -642,6 +643,11 @@ SCIP_RETCODE isMatrixRankOne(
    else
    {
       *result = FALSE;
+      if ( printreason )
+      {
+         SCIPinfoMessage(scip, NULL, "SDPrank1-constraint <%s> is not rank1 (second largest eigenvalue %f).\n", SCIPconsGetName(cons), eigenvalue);
+         SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
+      }
 
       /* if the matrix is not rank 1, compute minimal eigenvalues of 2x2 minors */
       for (i = 0; i < blocksize; ++i)
