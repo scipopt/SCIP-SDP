@@ -1483,6 +1483,7 @@ SCIP_RETCODE separateSol(
       SCIPfreeBufferArray(scip, &vector);
       SCIPfreeBufferArray(scip, &eigenvalues);
       SCIPfreeBufferArray(scip, &eigenvectors);
+      SCIPfreeBufferArray(scip, &fullmatrixcopy);
       SCIPfreeBufferArray(scip, &fullmatrix);
 
       SCIPfreeBufferArray(scip, &vals);
