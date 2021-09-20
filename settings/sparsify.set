@@ -1,0 +1,4 @@
+misc/solvesdps = 0
+constraints/SDP/sparsifycut = TRUE
+constraints/SDP/sparsifytargetsize = -1
+constraints/SDP/sparsifyfactor = 0.1
