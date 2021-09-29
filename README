@@ -84,7 +84,7 @@ Documentation
 -------------
 
 - A doxygen documentation is given at
-  https://wwwopt.mathematik.tu-darmstadt.de/scipsdp/doc-3.2.0/html/
+  https://wwwopt.mathematik.tu-darmstadt.de/scipsdp/doc-4.0.0/html/
 
 - The SCIP reports listed at https://www.scipopt.org/index.php#cite
   each contain a part on the developments in SCIP-SDP.
