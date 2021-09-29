@@ -4785,6 +4785,12 @@ SCIP_DECL_PARAMCHGD(SCIPparamChgdSolvesdps)
       SCIP_CALL( SCIPresetParam(scip, "display/sdpfastsettings/active") );
       SCIP_CALL( SCIPresetParam(scip, "display/sdppenalty/active") );
 
+      /* change default parameters */
+      SCIP_CALL( SCIPsetBoolParam(scip, "constraints/SDP/diaggezerocuts", FALSE) );
+      SCIP_CALL( SCIPsetBoolParam(scip, "constraints/SDP/twominorvarbounds", TRUE) );
+      SCIP_CALL( SCIPsetBoolParam(scip, "constraints/SDP/tightenbounds", TRUE) );
+      SCIP_CALL( SCIPsetBoolParam(scip, "constraints/SDP/proptightenbounds", TRUE) );
+
       SCIP_CALL( SCIPsetIntParam(scip, "heuristics/oneopt/freq", -1) );
 
       SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Turning on SDP solving, turning off LP solving, cleanuprows(root) = FALSE.\n");
@@ -4809,6 +4815,12 @@ SCIP_DECL_PARAMCHGD(SCIPparamChgdSolvesdps)
       SCIP_CALL( SCIPsetIntParam(scip, "display/sdpunsolved/active", 0) );
       SCIP_CALL( SCIPsetIntParam(scip, "display/sdpfastsettings/active", 0) );
       SCIP_CALL( SCIPsetIntParam(scip, "display/sdppenalty/active", 0) );
+
+      /* change default parameters */
+      SCIP_CALL( SCIPsetBoolParam(scip, "constraints/SDP/diaggezerocuts", TRUE) );
+      SCIP_CALL( SCIPsetBoolParam(scip, "constraints/SDP/twominorvarbounds", FALSE) );
+      SCIP_CALL( SCIPsetBoolParam(scip, "constraints/SDP/tightenbounds", FALSE) );
+      SCIP_CALL( SCIPsetBoolParam(scip, "constraints/SDP/proptightenbounds", FALSE) );
 
       SCIP_CALL( SCIPresetParam(scip, "heuristics/oneopt/freq") );
 

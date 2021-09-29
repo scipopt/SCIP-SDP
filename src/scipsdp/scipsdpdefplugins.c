@@ -159,6 +159,10 @@ SCIP_RETCODE SCIPSDPsetDefaultParams(
    param = SCIPgetParam(scip, "nodeselection/hybridestim/maxplungedepth");
    paramSetDefaultInt(param, 0);
 
+   /* deactivate conflict analysis by default, since it has no effect for SDP solving and a negative influence on LP-solving */
+   param = SCIPgetParam(scip, "conflict/enable");
+   paramSetDefaultBool(param, FALSE);
+
    /* now set parameters to their default value */
    SCIP_CALL( SCIPresetParams(scip) );
 
