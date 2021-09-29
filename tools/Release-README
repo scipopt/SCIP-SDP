@@ -1,5 +1,6 @@
-- Versionsnummern in scipsdpdefplugins.cpp, changelog, doc/xternal.c, doc/scipsdp.dxy, make/make.scipsdpproj und tools/makerelease.sh anpassen
+- Versionsnummern in changelog.txt, doc/xternal.c, doc/scipsdp.dxy, make/make.scipsdpproj und tools/makerelease.sh anpassen
 - gegebenenfalls Jahreszahlen bei Lizenz (und in allen Dateien) anpassen
+  Schaue auch in unittests/src/*
 - im git einen Tag setzen, z.B. git tag -a v3.2.0 -m 'version 3.2.0'; dann git push origin --tags
 - tools/makerelease.sh ausführen
 - testen ob alles funktioniert hat
