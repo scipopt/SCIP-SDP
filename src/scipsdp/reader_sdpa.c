@@ -243,14 +243,15 @@ SCIP_RETCODE readNextLineStar(
 
 /** method for reading a given list of double numbers from file */
 static
-int readLineDoubles(
+SCIP_RETCODE readLineDoubles(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            file,               /**< file to read from */
    char**                buffer,             /**< pointer to buffer */
    int*                  bufferlen,          /**< pointer to bufferlne */
    SCIP_Longint*         linecount,          /**< current linecount */
    int                   nvals,              /**< number of values to read */
-   SCIP_Real*            values              /**< values that have been read */
+   SCIP_Real*            values,             /**< values that have been read */
+   int*                  nread               /**< pointer to store the number of read doubles */
    )
 {
    SCIP_Real val;
@@ -259,9 +260,12 @@ int readLineDoubles(
    char* str;
    int cnt = 0;
 
+   assert( nread != NULL );
+   *nread = 0;
+
    SCIP_CALL( readLine(scip, file, buffer, bufferlen, &success) );
    if ( ! success )
-      return 0;
+      return SCIP_OKAY;
    ++(*linecount);
 
    str = *buffer;
@@ -285,14 +289,16 @@ int readLineDoubles(
          if ( endptr == NULL )
          {
             SCIPerrorMessage("Could not read number in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
-            return -1;
+            *nread = -1;
+            return SCIP_READERROR;
          }
 
-         if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
+         if ( SCIPisInfinity(scip, val) || SCIPisInfinity(scip, -val) )
          {
             SCIPerrorMessage("Given value in line %" SCIP_LONGINT_FORMAT " for variable %d is infinity, which is not allowed.\n",
                *linecount, cnt+1);
-            return -1;
+            *nread = -1;
+            return SCIP_READERROR;
          }
 
          values[cnt++] = val;
@@ -306,7 +312,7 @@ int readLineDoubles(
          {
             SCIP_CALL( readLine(scip, file, buffer, bufferlen, &success) );
             if ( ! success )
-               return 0;
+               return SCIP_OKAY;
             ++(*linecount);
             str = *buffer;
          }
@@ -318,25 +324,28 @@ int readLineDoubles(
          if ( *str != '\0' )
          {
             SCIPerrorMessage("Found invalid symbol in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
-            return -1;
+            *nread = -1;
+            return SCIP_READERROR;
          }
       }
    }
 
-   return cnt;
+   *nread = cnt;
+   return SCIP_OKAY;
 }
 
 
 /** method for reading a list of integer numbers from a file */
 static
-int readLineInts(
+SCIP_RETCODE readLineInts(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_FILE*            file,               /**< file to read from */
    char**                buffer,             /**< pointer to buffer */
    int*                  bufferlen,          /**< pointer to bufferlne */
    SCIP_Longint*         linecount,          /**< current linecount */
    int                   nvals,              /**< number of values to read */
-   int*                  values              /**< values that have been read */
+   int*                  values,             /**< values that have been read */
+   int*                  nread               /**< pointer to store the number of read ints */
    )
 {
    SCIP_Bool success;
@@ -345,9 +354,12 @@ int readLineInts(
    int cnt = 0;
    int val;
 
+   assert( nread != NULL );
+   *nread = 0;
+
    SCIP_CALL( readLine(scip, file, buffer, bufferlen, &success) );
    if ( ! success )
-      return 0;
+      return SCIP_OKAY;
    ++(*linecount);
 
    str = *buffer;
@@ -371,7 +383,8 @@ int readLineInts(
          if ( endptr == NULL )
          {
             SCIPerrorMessage("Could not read number in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
-            return -1;
+            *nread = -1;
+            return SCIP_READERROR;
          }
          values[cnt++] = val;
          /* advance string to after number */
@@ -384,7 +397,7 @@ int readLineInts(
          {
             SCIP_CALL( readLine(scip, file, buffer, bufferlen, &success) );
             if ( ! success )
-               return 0;
+               return SCIP_OKAY;
             ++(*linecount);
             str = *buffer;
          }
@@ -396,12 +409,14 @@ int readLineInts(
          if ( *str != '\0' )
          {
             SCIPerrorMessage("Found invalid symbol in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
-            return -1;
+            *nread = -1;
+            return SCIP_READERROR;
          }
       }
    }
 
-   return cnt;
+   *nread = cnt;
+   return SCIP_OKAY;
 }
 
 
@@ -632,7 +647,7 @@ SCIP_RETCODE SDPAreadBlockSize(
    assert( linecount != NULL );
    assert( data != NULL );
 
-   nblocks = readLineInts(scip, file, &data->buffer, &data->bufferlen, linecount, data->nconsblocks, blocksizes);
+   SCIP_CALL( readLineInts(scip, file, &data->buffer, &data->bufferlen, linecount, data->nconsblocks, blocksizes, &nblocks) );
 
    if ( nblocks == -1 )
       goto TERMINATE;
@@ -766,7 +781,7 @@ SCIP_RETCODE SDPAreadObjVals(
    }
    assert( data->nvars >= 0 );
 
-   nreadvals = readLineDoubles(scip, file, &data->buffer, &data->bufferlen, linecount, data->nvars, objvals);
+   SCIP_CALL( readLineDoubles(scip, file, &data->buffer, &data->bufferlen, linecount, data->nvars, objvals, &nreadvals) );
 
    if ( nreadvals == -1 )
       goto TERMINATE;
