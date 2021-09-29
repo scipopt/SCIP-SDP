@@ -2758,7 +2758,7 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
       sdpisolver->usescaling = (SCIP_Bool) ival;
       SCIPdebugMessage("Setting usescaling (%d).\n", ival);
       break;
-  case SCIP_SDPPAR_SCALEOBJ:
+   case SCIP_SDPPAR_SCALEOBJ:
       assert( 0 <= ival && ival <= 1 );
       sdpisolver->scaleobj = (SCIP_Bool) ival;
       SCIPdebugMessage("Setting scaleobj (%d).\n", ival);
