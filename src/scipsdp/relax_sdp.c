@@ -4769,15 +4769,15 @@ SCIP_DECL_PARAMCHGD(SCIPparamChgdSolvesdps)
       /* turn on SDP solving, turn off LP solving */
       SCIP_CALL( SCIPsetIntParam(scip, "relaxing/SDP/freq", 1) );
       SCIP_CALL( SCIPsetIntParam(scip, "lp/solvefreq", -1) );
-      SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprows", FALSE) );
-      SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprowsroot", FALSE) );
+      SCIP_CALL( SCIPresetParam(scip, "lp/cleanuprows") );
+      SCIP_CALL( SCIPresetParam(scip, "lp/cleanuprowsroot") );
 
       /* change display */
-      SCIP_CALL( SCIPsetIntParam(scip, "display/lpiterations/active", 0) );
-      SCIP_CALL( SCIPsetIntParam(scip, "display/lpavgiterations/active", 0) );
-      SCIP_CALL( SCIPsetIntParam(scip, "display/nfrac/active", 0) );
-      SCIP_CALL( SCIPsetIntParam(scip, "display/curcols/active", 0) );
-      SCIP_CALL( SCIPsetIntParam(scip, "display/strongbranchs/active", 0) );
+      SCIP_CALL( SCIPresetParam(scip, "display/lpiterations/active") );
+      SCIP_CALL( SCIPresetParam(scip, "display/lpavgiterations/active") );
+      SCIP_CALL( SCIPresetParam(scip, "display/nfrac/active") );
+      SCIP_CALL( SCIPresetParam(scip, "display/curcols/active") );
+      SCIP_CALL( SCIPresetParam(scip, "display/strongbranchs/active") );
 
       SCIP_CALL( SCIPresetParam(scip, "display/sdpavgiterations/active") );
       SCIP_CALL( SCIPresetParam(scip, "display/sdpiterations/active") );
@@ -4785,13 +4785,13 @@ SCIP_DECL_PARAMCHGD(SCIPparamChgdSolvesdps)
       SCIP_CALL( SCIPresetParam(scip, "display/sdpfastsettings/active") );
       SCIP_CALL( SCIPresetParam(scip, "display/sdppenalty/active") );
 
-      /* change default parameters */
-      SCIP_CALL( SCIPsetBoolParam(scip, "constraints/SDP/diaggezerocuts", FALSE) );
-      SCIP_CALL( SCIPsetBoolParam(scip, "constraints/SDP/twominorvarbounds", TRUE) );
-      SCIP_CALL( SCIPsetBoolParam(scip, "constraints/SDP/tightenbounds", TRUE) );
-      SCIP_CALL( SCIPsetBoolParam(scip, "constraints/SDP/proptightenbounds", TRUE) );
+      /* reset default parameters */
+      SCIP_CALL( SCIPresetParam(scip, "constraints/SDP/diaggezerocuts") );
+      SCIP_CALL( SCIPresetParam(scip, "constraints/SDP/twominorvarbounds") );
+      SCIP_CALL( SCIPresetParam(scip, "constraints/SDP/tightenbounds") );
+      SCIP_CALL( SCIPresetParam(scip, "constraints/SDP/proptightenbounds") );
 
-      SCIP_CALL( SCIPsetIntParam(scip, "heuristics/oneopt/freq", -1) );
+      SCIP_CALL( SCIPresetParam(scip, "heuristics/oneopt/freq") );
 
       SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Turning on SDP solving, turning off LP solving, cleanuprows(root) = FALSE.\n");
    }
@@ -4804,11 +4804,11 @@ SCIP_DECL_PARAMCHGD(SCIPparamChgdSolvesdps)
       SCIP_CALL( SCIPsetBoolParam(scip, "lp/cleanuprowsroot", TRUE) );
 
       /* change display */
-      SCIP_CALL( SCIPresetParam(scip, "display/lpiterations/active") );
-      SCIP_CALL( SCIPresetParam(scip, "display/lpavgiterations/active") );
-      SCIP_CALL( SCIPresetParam(scip, "display/nfrac/active") );
-      SCIP_CALL( SCIPresetParam(scip, "display/curcols/active") );
-      SCIP_CALL( SCIPresetParam(scip, "display/strongbranchs/active") );
+      SCIP_CALL( SCIPsetIntParam(scip, "display/lpiterations/active", 1) );
+      SCIP_CALL( SCIPsetIntParam(scip, "display/lpavgiterations/active", 1) );
+      SCIP_CALL( SCIPsetIntParam(scip, "display/nfrac/active", 1) );
+      SCIP_CALL( SCIPsetIntParam(scip, "display/curcols/active", 1) );
+      SCIP_CALL( SCIPsetIntParam(scip, "display/strongbranchs/active", 1) );
 
       SCIP_CALL( SCIPsetIntParam(scip, "display/sdpavgiterations/active", 0) );
       SCIP_CALL( SCIPsetIntParam(scip, "display/sdpiterations/active", 0) );
@@ -4822,7 +4822,7 @@ SCIP_DECL_PARAMCHGD(SCIPparamChgdSolvesdps)
       SCIP_CALL( SCIPsetBoolParam(scip, "constraints/SDP/tightenbounds", FALSE) );
       SCIP_CALL( SCIPsetBoolParam(scip, "constraints/SDP/proptightenbounds", FALSE) );
 
-      SCIP_CALL( SCIPresetParam(scip, "heuristics/oneopt/freq") );
+      SCIP_CALL( SCIPsetIntParam(scip, "heuristics/oneopt/freq", 1) );
 
       SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Turning on LP solving, turning off SDP solving, cleanuprows(root) = TRUE.\n");
    }

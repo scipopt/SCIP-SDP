@@ -159,25 +159,35 @@ SCIP_RETCODE SCIPSDPsetDefaultParams(
    param = SCIPgetParam(scip, "nodeselection/hybridestim/maxplungedepth");
    paramSetDefaultInt(param, 0);
 
+   param = SCIPgetParam(scip, "nodeselection/hybridestim/estimweight");
+   paramSetDefaultReal(param, 0.0);
+
+   /* change display */
+   param = SCIPgetParam(scip, "display/lpiterations/active");
+   paramSetDefaultInt(param, 0);
+
+   param = SCIPgetParam(scip, "display/lpavgiterations/active");
+   paramSetDefaultInt(param, 0);
+
+   param = SCIPgetParam(scip, "display/nfrac/active");
+   paramSetDefaultInt(param, 0);
+
+   param = SCIPgetParam(scip, "display/curcols/active");
+   paramSetDefaultInt(param, 0);
+
+   param = SCIPgetParam(scip, "display/strongbranchs/active");
+   paramSetDefaultInt(param, 0);
+
+   /* oneopt might run into an infinite loop during SDP-solving */
+   param = SCIPgetParam(scip, "heuristics/oneopt/freq");
+   paramSetDefaultInt(param, -1);
+
    /* deactivate conflict analysis by default, since it has no effect for SDP solving and a negative influence on LP-solving */
    param = SCIPgetParam(scip, "conflict/enable");
    paramSetDefaultBool(param, FALSE);
 
    /* now set parameters to their default value */
    SCIP_CALL( SCIPresetParams(scip) );
-
-   /* The function SCIPparamSetDefaultReal() does not yet exist. We therefore just set the parameter */
-   SCIP_CALL( SCIPsetRealParam(scip, "nodeselection/hybridestim/estimweight", 0.0) );
-
-   /* change display */
-   SCIP_CALL( SCIPsetIntParam(scip, "display/lpiterations/active", 0) );
-   SCIP_CALL( SCIPsetIntParam(scip, "display/lpavgiterations/active", 0) );
-   SCIP_CALL( SCIPsetIntParam(scip, "display/nfrac/active", 0) );
-   SCIP_CALL( SCIPsetIntParam(scip, "display/curcols/active", 0) );
-   SCIP_CALL( SCIPsetIntParam(scip, "display/strongbranchs/active", 0) );
-
-   /* oneopt might run into an infinite loop during SDP-solving */
-   SCIP_CALL( SCIPsetIntParam(scip, "heuristics/oneopt/freq", -1) );
 
    return SCIP_OKAY;
 }
