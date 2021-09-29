@@ -931,4 +931,8 @@ LAYOUT_FILE            = ./layout.xml
 
 USE_MATHJAX = YES
 
+MATHJAX_RELPATH        = https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_CHTML
+
+MATHJAX_FORMAT         = HTML-CSS
+
 MATHJAX_EXTENSIONS = TeX/AMSmath TeX/AMSsymbols
