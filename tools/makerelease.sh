@@ -29,6 +29,9 @@ tar --no-recursion --ignore-failed-read -cvzhf $NAME.tgz \
     $NAME/src/scipsdpgithash.c \
     $NAME/check/testset/short.test \
     $NAME/check/testset/short.solu \
+    $NAME/check/configuration_tmpfile_setup_scip.sh \
+    $NAME/check/check.awk \
+    $NAME/check/cmpres.awk \
     $NAME/settings/lp_approx.set \
     $NAME/CMakeLists.txt \
     $NAME/src/CMakeLists.txt \
