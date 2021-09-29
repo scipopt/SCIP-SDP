@@ -1,4 +1,4 @@
-SCIP-SDP version NEXT
+SCIP-SDP version 4.0.0
 ======================
 
 features:
@@ -91,8 +91,8 @@ parameters:
 - new parameter <constraints/SDP/propubpresol> to turn on propagation of upper bounds in presolving (default: TRUE)
 - new parameter <constraints/SDP/tightenboundscont> to only propagate upper bounds of continuous variables (default: FALSE)
 - new parameter <constraints/SDP/tightenmatrices> to tighten (scale) matrices (default: FALSE)
-- new parameter <constraints/SDP/tightenbounds> to tighten bounds based on eigenvalues (default: FALSE)
-- new parameter <constraints/SDP/proptightenbounds> to turn on propagation of bound tightening (default: FALSE)
+- new parameter <constraints/SDP/tightenbounds> to tighten bounds based on eigenvalues (default: TRUE when solving SDPs, FALSE when solving LPs)
+- new parameter <constraints/SDP/proptightenbounds> to turn on propagation of bound tightening (default: TRUE when solving SDPs, FALSE when solving LPs)
 - new parameter <constraints/SDP/proptbprobing> to turn on propagation of bound tightening in probing (default: FALSE)
 - new parameter <heuristics/sdpfracdiving/runforlp>, <heuristics/sdprand/runforlp> and <heuristics/sdpfracround/runforlp> to use heuristics starting from LP solution (default: FALSE)
 - new parameter <misc/solvesdps> to choose between SDP (1) and LP (0) solving (default: 1)
@@ -103,12 +103,14 @@ parameters:
 - removed parameter <heuristics/sdprand/nrounds>
 - new parameter <relaxing/SDP/usepresolving> to turn presolving of SDP-solver on (default: FALSE)
 - new parameter <relaxing/SDP/scaleobj> to turn scaling of objective in SDP-solver on (default: FALSE)
-- new parameter <constraints/SDP/twominorvarbounds> to add linear inequalities based on variable bounds for 2 by 2 minors during presolving (default: FALSE)
+- new parameter <constraints/SDP/twominorvarbounds> to add linear inequalities based on variable bounds for 2 by 2 minors during presolving (default: TRUE when solving SDPs, FALSE when solving LPs)
 - new parameter <constraints/SDP/multiplesparsecuts> to add multiple sparse eigenvector cuts (default: FALSE)
 - new parameter <constraints/SDP/maxnsparsecuts> to determine maximal number of sparse eigenvector cuts to add (default: 0)
 - new parameter <constraints/SDP/recomputesparseev> to recompute sparse eigenvalues returned from TPower exactly (default: FALSE)
 - new parameter <constraints/SDP/recomputeinitial> to recompute the initial vector for TPower every time (default: FALSE)
 - new parameter <constraints/SDP/exacttrans> to exactly transform the matrix before calling TPower (default: FALSE)
+- Set default value for <constraints/SDP/diaggezerocuts> to FALSE when solving SDPs, and to TRUE when solving LPs.
+- Disable conflict analysis by default, i.e., set default value for <conflict/enable> to FALSE since this has no effect when solving SDPs and a negative influence when solving LPs.
 
 fixed bugs:
 - fixed the output of the line number when reading CBF files
