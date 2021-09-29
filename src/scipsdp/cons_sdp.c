@@ -318,7 +318,7 @@ SCIP_RETCODE expandSymMatrix(
    return SCIP_OKAY;
 }
 
-/** For a vector \f$y\f$ given by @sol, computes the (length of y) * (length of y + 1) /2 -long array of the lower-triangular part
+/** For a vector \f$y\f$ given by @p sol, computes the (length of y) * (length of y + 1) /2 -long array of the lower-triangular part
  *  of the matrix \f$ \sum_{j=1}^m A_j y_j - A_0 \f$ for this SDP block, indexed by SCIPconsSdpCompLowerTriangPos().
  */
 static
