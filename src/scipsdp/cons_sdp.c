@@ -1063,7 +1063,7 @@ SCIP_RETCODE addMultipleSparseCuts(
    SCIP_Real convergencetol;
    SCIP_Real eigenvalue;
    SCIP_Real maxeig;
-   SCIP_Real scalar = 0.0;
+   SCIP_Real scalar;
    SCIP_Real lhs = 0.0;
    SCIP_Real coef;
    int* support;
@@ -1157,7 +1157,8 @@ SCIP_RETCODE addMultipleSparseCuts(
    {
       if ( conshdlrdata->sdpconshdlrdata->recomputesparseev )
       {
-         SCIP_Real norm = 0.0;
+         SCIP_Real norm;
+
          /* Recompute smallest eigenvalue \lambda_{min} and corresponding unit norm eigenvector w of principal submatrix
           * A(y)_S, lift it to a full vector by adding zeros, and normalize, instead of using the eigenvector and
           * eigenvalue returned from TPower.
@@ -7044,7 +7045,7 @@ SCIP_DECL_CONSSEPALP(consSepalpSdp)
          *result = SCIP_CONSADDED;
       else if ( separesult == SCIP_SEPARATED )
          *result = SCIP_SEPARATED;
-  }
+   }
 
    return SCIP_OKAY;
 }
