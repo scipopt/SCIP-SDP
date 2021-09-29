@@ -1768,7 +1768,7 @@ SCIP_RETCODE tightenMatrices(
 
          /* solve 1d SDP */
          SCIP_CALL( SCIPsolveOneVarSDPDense(SCIPbuffer(scip), 1.0, 0.0, 1.0, blocksize, constmatrix, consdata->nvarnonz[i], consdata->row[i], consdata->col[i], consdata->val[i],
-               SCIPinfinity(scip), SCIPfeastol(scip), 1e-6, &objval, &factor) );
+               SCIPinfinity(scip), SCIPfeastol(scip), &objval, &factor) );
 
          if ( SCIPisInfinity(scip, objval) )
             continue;
@@ -1983,7 +1983,7 @@ SCIP_RETCODE tightenBounds(
          {
             /* solve 1d SDP */
             SCIP_CALL( SCIPsolveOneVarSDPDense(SCIPbuffer(scip), 1.0, lb, ub, blocksize, constmatrix, consdata->nvarnonz[i], consdata->row[i], consdata->col[i], consdata->val[i],
-                  SCIPinfinity(scip), SCIPfeastol(scip), 1e-6, &objval, &factor) );
+                  SCIPinfinity(scip), SCIPfeastol(scip), &objval, &factor) );
 
             /* if problem is infeasible */
             if ( SCIPisInfinity(scip, objval) )
