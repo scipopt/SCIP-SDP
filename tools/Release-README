@@ -11,5 +11,5 @@
 - in www/header.inc neue Dokumentation in Liste eintragen
 - doc Unterordner in "doc-VERSIONSNUMMER" umbenennen und nach USER@wwwopt:/www/webpages/opt/scipsdp/ kopieren
 - tarfile nach USER@wwwopt:/www/webpages/opt/scipsdp/downloads/ kopieren
-- alle veränderten www/xy.inc Dateien nach USER@wwwopt:/www/webpages/optimierung/scipsdp/ kopieren
-- irgendjemand am ZIB (default Benny) Bescheid sagen, dass SCIP-SDP Release fertig ist und gebenenfalls im git-issue einen Satz schreiben, der in der Release Email zu SCIP-SDP gesagt werden kann
+- alle veränderten www/xy.inc Dateien nach USER@wwwopt:/www/webpages/opt/scipsdp/ kopieren
+[- irgendjemand am ZIB (default Benny) Bescheid sagen, dass SCIP-SDP Release fertig ist und gebenenfalls im git-issue einen Satz schreiben, der in der Release Email zu SCIP-SDP gesagt werden kann]
