@@ -5401,8 +5401,6 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
       for (r = 0; r < nrank1blocks; ++r)
          sdpblocks[nsdpblocks + r] = sdprank1blocks[r];
 
-      nsdpblocks += nrank1blocks;
-
       for (b = 0; b < relaxdata->nblocks; b++)
       {
          if ( b < relaxdata->nblocks - 1 )
