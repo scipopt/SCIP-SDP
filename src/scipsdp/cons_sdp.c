@@ -526,7 +526,7 @@ SCIP_RETCODE constructMatrixvar(
    SCIPfreeBufferArray(scip, &matrices);
 
    if ( SCIPgetSubscipDepth(scip) == 0 )
-      SCIPdebugMsg(scip, "Number of entries depending on a single variable: %d.\n", consdata->nsingle);
+      SCIPdebugMsg(scip, "Total number of matrix entries that only depend on a single variable: %d.\n", consdata->nsingle);
 
    return SCIP_OKAY;
 }
@@ -5812,7 +5812,7 @@ SCIP_DECL_CONSPROP(consPropSdp)
    {
       *result = SCIP_DIDNOTFIND;
 
-      SCIPdebugMsg(scip, "Propagate upper bounds of conshdlr <%s> ...\n", SCIPconshdlrGetName(conshdlr));
+      SCIPdebugMsg(scip, "Propagate upper bounds of conshdlr <%s> %s...\n", SCIPconshdlrGetName(conshdlr), SCIPinProbing(scip) ? "(in probing) " : "");
 
       SCIP_CALL( propagateUpperBounds(scip, conss, nconss, &infeasible, &nprop) );
 
