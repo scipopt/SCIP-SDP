@@ -4737,7 +4737,7 @@ SCIP_RETCODE propagate3Minors(
                   continue;
 
                /* check off-diagonal entry */
-               posrs = r * (s + 1)/2 + s;
+               posrs = r * (r + 1)/2 + s;
                varrs = consdata->matrixvar[posrs];
                if ( varrs == NULL )
                   continue;
