@@ -4653,6 +4653,7 @@ SCIP_RETCODE propagate3Minors(
    *infeasible = FALSE;
    *nprop = 0;
 
+   /* do not run in probing (too expensive) */
    if ( SCIPinProbing(scip) )
       return SCIP_OKAY;
 
@@ -4700,14 +4701,16 @@ SCIP_RETCODE propagate3Minors(
                if ( ! SCIPisEQ(scip, consdata->matrixval[diagr], 1.0) || ! SCIPisZero(scip, consdata->matrixconst[diagr]) )
                   continue;
 
-               assert( SCIPisEQ(scip, consdata->matrixconst[diagr], 1.0) );
+               assert( SCIPvarGetLbLocal(varr) > 0.5 );
+               assert( SCIPisEQ(scip, consdata->matrixval[diagr], 1.0) );
                assert( SCIPisZero(scip, consdata->matrixconst[diagr]) );
             }
             else if ( ! SCIPisEQ(scip, consdata->matrixconst[diagr], -1.0) )
                continue;
+            assert( varr != NULL || (SCIPisZero(scip, consdata->matrixval[diagr]) && SCIPisEQ(scip, consdata->matrixconst[diagr], -1.0)) );
 
             /* check next position */
-            for (s = r+1; s < blocksize; ++s)
+            for (s = r + 1; s < blocksize; ++s)
             {
                SCIP_VAR* vars;
                SCIP_VAR* varrs;
@@ -4730,11 +4733,13 @@ SCIP_RETCODE propagate3Minors(
                   if ( ! SCIPisEQ(scip, consdata->matrixval[diags], 1.0) || ! SCIPisZero(scip, consdata->matrixconst[diags]) )
                      continue;
 
+                  assert( SCIPvarGetLbLocal(vars) > 0.5 );
                   assert( SCIPisEQ(scip, consdata->matrixconst[diags], 1.0) );
                   assert( SCIPisZero(scip, consdata->matrixconst[diags]) );
                }
                else if ( ! SCIPisEQ(scip, consdata->matrixconst[diags], -1.0) )
                   continue;
+               assert( vars != NULL || (SCIPisZero(scip, consdata->matrixval[diags]) && SCIPisEQ(scip, consdata->matrixconst[diags], -1.0)) );
 
                /* check off-diagonal entry */
                posrs = r * (r + 1)/2 + s;
@@ -4749,12 +4754,12 @@ SCIP_RETCODE propagate3Minors(
                if ( SCIPvarGetLbLocal(varrs) < 0.5 )
                   continue;
 
-               /* for the moment, we only allow value 1 if variable is fixed */
+               /* for the moment, we only allow fixed variables which yield value 1 */
                if ( ! SCIPisFeasEQ(scip, consdata->matrixval[posrs] - consdata->matrixconst[posrs], 1.0) )
                   continue;
 
                /* check third position */
-               for (t = s+1; t < blocksize; ++t)
+               for (t = s + 1; t < blocksize; ++t)
                {
                   SCIP_Bool tightened;
                   SCIP_VAR* varrt;
@@ -4780,11 +4785,13 @@ SCIP_RETCODE propagate3Minors(
                       if ( ! SCIPisEQ(scip, consdata->matrixval[diagt], 1.0) || ! SCIPisZero(scip, consdata->matrixconst[diagt]) )
                          continue;
 
+                      assert( SCIPvarGetLbLocal(vart) > 0.5 );
                       assert( SCIPisEQ(scip, consdata->matrixconst[diagt], 1.0) );
                       assert( SCIPisZero(scip, consdata->matrixconst[diagt]) );
                   }
                   else if ( ! SCIPisEQ(scip, consdata->matrixconst[diagt], -1.0) )
                      continue;
+                  assert( vart != NULL || (SCIPisZero(scip, consdata->matrixval[diagt]) && SCIPisEQ(scip, consdata->matrixconst[diagt], -1.0)) );
 
                   /* check off-diagonal entry */
                   posrt = r * (r + 1)/2 + t;
@@ -4799,7 +4806,7 @@ SCIP_RETCODE propagate3Minors(
                   if ( SCIPvarGetLbLocal(varrt) < 0.5 )
                      continue;
 
-                  /* for the moment, we only allow value 1 if variable is fixed */
+                  /* for the moment, we only allow fixed variables which yield value 1 */
                   if ( ! SCIPisFeasEQ(scip, consdata->matrixval[posrt] - consdata->matrixconst[posrt], 1.0) )
                      continue;
 
