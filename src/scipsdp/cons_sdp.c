@@ -4742,7 +4742,7 @@ SCIP_RETCODE propagate3Minors(
                assert( vars != NULL || (SCIPisZero(scip, consdata->matrixval[diags]) && SCIPisEQ(scip, consdata->matrixconst[diags], -1.0)) );
 
                /* check off-diagonal entry */
-               posrs = r * (r + 1)/2 + s;
+               posrs = s * (s + 1)/2 + r;
                varrs = consdata->matrixvar[posrs];
                if ( varrs == NULL )
                   continue;
@@ -4794,7 +4794,7 @@ SCIP_RETCODE propagate3Minors(
                   assert( vart != NULL || (SCIPisZero(scip, consdata->matrixval[diagt]) && SCIPisEQ(scip, consdata->matrixconst[diagt], -1.0)) );
 
                   /* check off-diagonal entry */
-                  posrt = r * (r + 1)/2 + t;
+                  posrt = t * (t + 1)/2 + r;
                   varrt = consdata->matrixvar[posrt];
                   if ( varrt == NULL )
                      continue;
@@ -4811,7 +4811,7 @@ SCIP_RETCODE propagate3Minors(
                      continue;
 
                   /* third off-diagonal entry */
-                  posst = s * (s + 1)/2 + t;
+                  posst = t * (t + 1)/2 + s;
                   varst = consdata->matrixvar[posst];
                   if ( varst == NULL )
                      continue;
