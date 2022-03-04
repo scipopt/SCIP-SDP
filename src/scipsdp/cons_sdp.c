@@ -4639,6 +4639,127 @@ SCIP_RETCODE propagateUpperBounds(
    return SCIP_OKAY;
 }
 
+/** analyzes conflicting assignment on given constraint from 3x3 minor propagation, and adds conflict constraint to problem */
+static
+SCIP_RETCODE analyzeConflict3Minor(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons,               /**< SDP constraint */
+   int                   diagr,              /**< index for diagonal entry corresponding to r */
+   int                   diags,              /**< index for diagonal entry corresponding to s */
+   int                   diagt,              /**< index for diagonal entry corresponding to t */
+   int                   posrs,              /**< index for off-diagonal entry corresponding to (r,s) */
+   int                   posrt,              /**< index for off-diagonal entry corresponding to (r,t) */
+   int                   posst               /**< index for off-diagonal entry corresponding to (s,t) */
+   )
+{
+   SCIP_CONSDATA* consdata;
+   SCIP_Bool success;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+
+   /* conflict analysis can only be applied in solving stage and if it is applicable */
+   if ( (SCIPgetStage(scip) != SCIP_STAGE_SOLVING && ! SCIPinProbing(scip)) || ! SCIPisConflictAnalysisApplicable(scip) )
+      return SCIP_OKAY;
+
+   SCIPdebugMsg(scip, "Analyzing a conflict during propagation of 3x3 minors ...\n");
+
+   /* initialize conflict analysis, and add all variables of infeasible constraint to conflict candidate queue */
+   SCIP_CALL( SCIPinitConflictAnalysis(scip, SCIP_CONFTYPE_PROPAGATION, FALSE) );
+
+   assert( consdata->matrixvar != NULL );
+   assert( consdata->matrixval != NULL );
+
+   if ( consdata->matrixvar[diagr] != NULL )
+   {
+      assert( SCIPisEQ(scip, consdata->matrixval[diagr] * SCIPvarGetLbLocal(consdata->matrixvar[diagr]) + consdata->matrixconst[diagr], 1.0) );
+      if ( SCIPvarGetLbLocal(consdata->matrixvar[diagr]) > 0.5 )
+      {
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diagr], NULL) );
+      }
+      else
+      {
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diagr], NULL) );
+      }
+   }
+
+   if ( consdata->matrixvar[diags] != NULL )
+   {
+      assert( SCIPisEQ(scip, consdata->matrixval[diags] * SCIPvarGetLbLocal(consdata->matrixvar[diags]) + consdata->matrixconst[diags], 1.0) );
+      if ( SCIPvarGetLbLocal(consdata->matrixvar[diags]) > 0.5 )
+      {
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diags], NULL) );
+      }
+      else
+      {
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diags], NULL) );
+      }
+   }
+
+   if ( consdata->matrixvar[diagt] != NULL )
+   {
+      assert( SCIPisEQ(scip, consdata->matrixval[diagt] * SCIPvarGetLbLocal(consdata->matrixvar[diagt]) + consdata->matrixconst[diagt], 1.0) );
+      if ( SCIPvarGetLbLocal(consdata->matrixvar[diagt]) > 0.5 )
+      {
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diagt], NULL) );
+      }
+      else
+      {
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diagt], NULL) );
+      }
+   }
+
+   if ( consdata->matrixvar[posrs] != NULL )
+   {
+      assert( SCIPisEQ(scip, consdata->matrixval[posrs] * SCIPvarGetLbLocal(consdata->matrixvar[posrs]) + consdata->matrixconst[posrs], 1.0) );
+      if ( SCIPvarGetLbLocal(consdata->matrixvar[posrs]) > 0.5 )
+      {
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[posrs], NULL) );
+      }
+      else
+      {
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[posrs], NULL) );
+      }
+   }
+
+   if ( consdata->matrixvar[posrt] != NULL )
+   {
+      assert( SCIPisEQ(scip, consdata->matrixval[posrt] * SCIPvarGetLbLocal(consdata->matrixvar[posrt]) + consdata->matrixconst[posrt], 1.0) );
+      if ( SCIPvarGetLbLocal(consdata->matrixvar[posrt]) > 0.5 )
+      {
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[posrt], NULL) );
+      }
+      else
+      {
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[posrt], NULL) );
+      }
+   }
+
+   if ( consdata->matrixvar[posst] != NULL )
+   {
+      assert( SCIPisEQ(scip, consdata->matrixval[posst] * SCIPvarGetLbLocal(consdata->matrixvar[posst]) + consdata->matrixconst[posst], 1.0) );
+      if ( SCIPvarGetLbLocal(consdata->matrixvar[posst]) > 0.5 )
+      {
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[posst], NULL) );
+      }
+      else
+      {
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[posst], NULL) );
+      }
+   }
+
+   /* analyze the conflict */
+   SCIP_CALL( SCIPanalyzeConflictCons(scip, cons, &success) );
+
+   if ( success )
+      SCIPdebugMsg(scip, "Succesfully analyzed and resolved conflict!\n");
+
+   return SCIP_OKAY;
+}
+
 
 /** propagates 3x3 minors */
 static
@@ -4688,31 +4809,27 @@ SCIP_RETCODE propagate3Minors(
          for (r = 0; r < blocksize; ++r)
          {
             SCIP_VAR* varr;
+            SCIP_Real val;
             int diagr;
 
             diagr = r * (r + 1)/2 + r;
 
+            /* treat diagonal variable */
             varr = consdata->matrixvar[diagr];
             if ( varr != NULL )
             {
-               if ( ! SCIPvarIsBinary(varr) )
+               /* skip unfixed variable */
+               if ( ! SCIPisEQ(scip, SCIPvarGetLbLocal(varr), SCIPvarGetUbLocal(varr)) )
                   continue;
 
-               /* skip variables that are not fixed to 1 */
-               if ( SCIPvarGetLbLocal(varr) < 0.5 )
-                  continue;
-
-               /* for the moment, we only allow 1 coefficients and 0 constants */
-               if ( ! SCIPisEQ(scip, consdata->matrixval[diagr], 1.0) || ! SCIPisZero(scip, consdata->matrixconst[diagr]) )
-                  continue;
-
-               assert( SCIPvarGetLbLocal(varr) > 0.5 );
-               assert( SCIPisEQ(scip, consdata->matrixval[diagr], 1.0) );
-               assert( SCIPisZero(scip, consdata->matrixconst[diagr]) );
+               val = SCIPvarGetLbLocal(varr); /* fixed value */
             }
-            else if ( ! SCIPisEQ(scip, consdata->matrixconst[diagr], -1.0) )
+            else
+               val = 0.0;
+
+            /* the result should be equal to 1 */
+            if ( ! SCIPisEQ(scip, consdata->matrixval[diagr] * val - consdata->matrixconst[diagr], 1.0) )
                continue;
-            assert( varr != NULL || (SCIPisZero(scip, consdata->matrixval[diagr]) && SCIPisEQ(scip, consdata->matrixconst[diagr], -1.0)) );
 
             /* check next position */
             for (s = r + 1; s < blocksize; ++s)
@@ -4724,43 +4841,41 @@ SCIP_RETCODE propagate3Minors(
 
                diags = s * (s + 1)/2 + s;
 
+               /* treat variable */
                vars = consdata->matrixvar[diags];
                if ( vars != NULL )
                {
-                  if ( ! SCIPvarIsBinary(vars) )
+                  /* skip unfixed variable */
+                  if ( ! SCIPisEQ(scip, SCIPvarGetLbLocal(vars), SCIPvarGetUbLocal(vars)) )
                      continue;
 
-                  /* skip variables that are not fixed to 1 */
-                  if ( SCIPvarGetLbLocal(vars) < 0.5 )
-                     continue;
-
-                  /* for the moment, we only allow 1 coefficients and 0 constants */
-                  if ( ! SCIPisEQ(scip, consdata->matrixval[diags], 1.0) || ! SCIPisZero(scip, consdata->matrixconst[diags]) )
-                     continue;
-
-                  assert( SCIPvarGetLbLocal(vars) > 0.5 );
-                  assert( SCIPisEQ(scip, consdata->matrixconst[diags], 1.0) );
-                  assert( SCIPisZero(scip, consdata->matrixconst[diags]) );
+                  val = SCIPvarGetLbLocal(vars); /* fixed value */
                }
-               else if ( ! SCIPisEQ(scip, consdata->matrixconst[diags], -1.0) )
+               else
+                  val = 0.0;
+
+               /* the result should be equal to 1 */
+               if ( ! SCIPisEQ(scip, consdata->matrixval[diags] * val - consdata->matrixconst[diags], 1.0) )
                   continue;
-               assert( vars != NULL || (SCIPisZero(scip, consdata->matrixval[diags]) && SCIPisEQ(scip, consdata->matrixconst[diags], -1.0)) );
 
                /* check off-diagonal entry */
                posrs = s * (s + 1)/2 + r;
+
+               /* treat off-diagonal variable */
                varrs = consdata->matrixvar[posrs];
-               if ( varrs == NULL )
-                  continue;
+               if ( varrs != NULL )
+               {
+                  /* skip unfixed variables */
+                  if ( ! SCIPisEQ(scip, SCIPvarGetLbLocal(varrs), SCIPvarGetUbLocal(varrs)) )
+                     continue;
 
-               if ( ! SCIPvarIsBinary(varrs) )
-                  continue;
+                  val = SCIPvarGetLbLocal(varrs); /* fixed value */
+               }
+               else
+                  val = 0.0;
 
-               /* skip variables that are not fixed to 1 */
-               if ( SCIPvarGetLbLocal(varrs) < 0.5 )
-                  continue;
-
-               /* for the moment, we only allow fixed variables which yield value 1 */
-               if ( ! SCIPisFeasEQ(scip, consdata->matrixval[posrs] - consdata->matrixconst[posrs], 1.0) )
+               /* the result should be equal to 1 */
+               if ( ! SCIPisFeasEQ(scip, consdata->matrixval[posrs] * val - consdata->matrixconst[posrs], 1.0) )
                   continue;
 
                /* check third position */
@@ -4776,74 +4891,76 @@ SCIP_RETCODE propagate3Minors(
 
                   diagt = t * (t + 1)/2 + t;
 
+                  /* treat diagonal variable */
                   vart = consdata->matrixvar[diagt];
                   if ( vart != NULL )
                   {
-                      if ( ! SCIPvarIsBinary(vart) )
-                         continue;
+                     /* skip unfixed variable */
+                     if ( ! SCIPisEQ(scip, SCIPvarGetLbLocal(vart), SCIPvarGetUbLocal(vart)) )
+                        continue;
 
-                      /* skip variables that are not fixed to 1 */
-                      if ( SCIPvarGetLbLocal(vart) < 0.5 )
-                         continue;
-
-                      /* for the moment, we only allow 1 coefficients and 0 constants */
-                      if ( ! SCIPisEQ(scip, consdata->matrixval[diagt], 1.0) || ! SCIPisZero(scip, consdata->matrixconst[diagt]) )
-                         continue;
-
-                      assert( SCIPvarGetLbLocal(vart) > 0.5 );
-                      assert( SCIPisEQ(scip, consdata->matrixconst[diagt], 1.0) );
-                      assert( SCIPisZero(scip, consdata->matrixconst[diagt]) );
+                     val = SCIPvarGetLbLocal(vart); /* fixed value */
                   }
-                  else if ( ! SCIPisEQ(scip, consdata->matrixconst[diagt], -1.0) )
+                  else
+                     val = 0.0;
+
+                  /* the result should be equal to 1 */
+                  if ( ! SCIPisFeasEQ(scip, consdata->matrixval[diagt] * val - consdata->matrixconst[diagt], 1.0) )
                      continue;
-                  assert( vart != NULL || (SCIPisZero(scip, consdata->matrixval[diagt]) && SCIPisEQ(scip, consdata->matrixconst[diagt], -1.0)) );
+
 
                   /* check off-diagonal entry */
                   posrt = t * (t + 1)/2 + r;
+
+                  /* treat off-diagonal variable */
                   varrt = consdata->matrixvar[posrt];
-                  if ( varrt == NULL )
-                     continue;
+                  if ( varrt != NULL )
+                  {
+                     /* skip unfixed variables */
+                     if ( ! SCIPisEQ(scip, SCIPvarGetLbLocal(varrt), SCIPvarGetUbLocal(varrt)) )
+                        continue;
 
-                  if ( ! SCIPvarIsBinary(varrt) )
-                     continue;
+                     val = SCIPvarGetLbLocal(varrt); /* fixed value */
+                  }
+                  else
+                     val = 0.0;
 
-                  /* skip variables that are not fixed to 1 */
-                  if ( SCIPvarGetLbLocal(varrt) < 0.5 )
-                     continue;
-
-                  /* for the moment, we only allow fixed variables which yield value 1 */
-                  if ( ! SCIPisFeasEQ(scip, consdata->matrixval[posrt] - consdata->matrixconst[posrt], 1.0) )
+                  /* the result should be equal to 1 */
+                  if ( ! SCIPisFeasEQ(scip, consdata->matrixval[posrt] * val - consdata->matrixconst[posrt], 1.0) )
                      continue;
 
                   /* third off-diagonal entry */
                   posst = t * (t + 1)/2 + s;
                   varst = consdata->matrixvar[posst];
+
                   if ( varst == NULL )
                      continue;
 
                   if ( ! SCIPvarIsBinary(varst) )
                      continue;
 
-                  /* if variable is already fixed to 0, we are infeasible */
+                  /* the result when fixing to upper bound should be equal to 1 */
+                  if ( ! SCIPisFeasEQ(scip, consdata->matrixval[posrt] * SCIPvarGetUbLocal(varst) - consdata->matrixconst[posrt], 1.0) )
+                     continue;
+
+                  /* if variable is fixed to 0, we are infeasible */
                   if ( SCIPvarGetUbLocal(varst) < 0.5 )
                   {
+                     printf("Propagation detected infeasibility, call analyzeConflict.\n");
                      *infeasible = TRUE;
-                     /* todo ... */
-                     /* SCIP_CALL( analyzeConflict(scip, conss[c], diags, diagt, pos, TRUE, FALSE) ); */
+                     SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, posrt, posst) );
                      return SCIP_OKAY;
                   }
-
                   /* if variable is not yet fixed to 1, do it */
-                  if ( SCIPvarGetLbLocal(varst) < 0.5 )
+                  else if ( SCIPvarGetLbLocal(varst) < 0.5 )
                   {
-                     SCIPdebugMsg(scip, "Found minor (%d, %d, %d) ...\n", r, s, t);
-
-                     SCIP_CALL( SCIPinferVarLbCons(scip, varst, 1.0, conss[c], s * blocksize + t, FALSE, infeasible, &tightened) );
+                     SCIP_CALL( SCIPtightenVarLb(scip, varst, 1.0, FALSE, infeasible, &tightened) );
+                     /* SCIP_CALL( SCIPinferVarLbCons(scip, varst, 1.0, conss[c], INT_MAX, FALSE, infeasible, &tightened) ); */
                      if ( *infeasible )
                      {
-                        SCIPdebugMsg(scip, "Propagation detected infeasibility, call analyzeConfilct.\n");
-                        /* todo ... */
-                        /* SCIP_CALL( analyzeConflict(scip, conss[c], diags, diagt, pos, TRUE, TRUE) ); */
+                        SCIPdebugMsg(scip, "Propagation detected infeasibility, call analyzeConflict.\n");
+                        *infeasible = TRUE;
+                        SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, posrt, posst) );
                         return SCIP_OKAY;
                      }
                      if ( tightened )
