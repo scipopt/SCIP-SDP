@@ -6011,7 +6011,7 @@ SCIP_DECL_CONSEXIT(consExitSdp)
    assert(conshdlrdata != NULL);
 
    /* possibly output more statistics */
-   if ( conshdlrdata->additionalstats )
+   if ( conshdlrdata->sdpconshdlrdata->additionalstats )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of propagations through upper bounds: %d\n", conshdlrdata->npropub);
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of tightened bounds in propagation:   %d\n", conshdlrdata->nproptb);
@@ -8286,6 +8286,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->diaggezerocuts = FALSE;
    conshdlrdata->propupperbounds = FALSE;
    conshdlrdata->propubpresol = FALSE;
+   conshdlrdata->prop3minors = FALSE;
    conshdlrdata->proptightenbounds = FALSE;
    conshdlrdata->proptbprobing = FALSE;
    conshdlrdata->tightenboundscont = FALSE;
@@ -8321,6 +8322,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->recomputeinitial = FALSE;
    conshdlrdata->exacttrans = FALSE;
    conshdlrdata->presollinconssparam = 0;
+   conshdlrdata->additionalstats = FALSE;
 
    /* parameters are retrieved through the SDP constraint handler */
    sdpconshdlr = SCIPfindConshdlr(scip, CONSHDLR_NAME);
