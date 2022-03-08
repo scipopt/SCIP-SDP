@@ -4648,7 +4648,8 @@ SCIP_RETCODE analyzeConflict3Minor(
    int                   diags,              /**< index for diagonal entry corresponding to s */
    int                   diagt,              /**< index for diagonal entry corresponding to t */
    int                   posrs,              /**< index for off-diagonal entry corresponding to (r,s) */
-   int                   pos                 /**< index for off-diagonal entry corresponding to fixed variable */
+   int                   pos1,               /**< index for one off-diagonal entry corresponding to fixed variable (or -1) */
+   int                   pos2                /**< index for one off-diagonal entry corresponding to fixed variable (or -1) */
    )
 {
    SCIP_CONSDATA* consdata;
@@ -4675,11 +4676,13 @@ SCIP_RETCODE analyzeConflict3Minor(
    if ( consdata->matrixvar[diagr] != NULL )
    {
       assert( SCIPisFeasEQ(scip, consdata->matrixval[diagr] * SCIPvarGetLbLocal(consdata->matrixvar[diagr]) + consdata->matrixconst[diagr], 1.0) );
-      if ( SCIPvarGetLbLocal(consdata->matrixvar[diagr]) > 0.5 )
+      assert( SCIPisEQ(scip, SCIPvarGetLbLocal(consdata->matrixvar[diagr]), SCIPvarGetUbLocal(consdata->matrixvar[diagr])) );
+
+      if ( SCIPisGT(scip, SCIPvarGetLbLocal(consdata->matrixvar[diagr]), SCIPvarGetLbOriginal(consdata->matrixvar[diagr])) )
       {
          SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diagr], NULL) );
       }
-      else
+      if ( SCIPisLT(scip, SCIPvarGetUbLocal(consdata->matrixvar[diagr]), SCIPvarGetUbOriginal(consdata->matrixvar[diagr])) )
       {
          SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diagr], NULL) );
       }
@@ -4687,12 +4690,14 @@ SCIP_RETCODE analyzeConflict3Minor(
 
    if ( consdata->matrixvar[diags] != NULL )
    {
-      assert( SCIPisEQ(scip, consdata->matrixval[diags] * SCIPvarGetLbLocal(consdata->matrixvar[diags]) + consdata->matrixconst[diags], 1.0) );
-      if ( SCIPvarGetLbLocal(consdata->matrixvar[diags]) > 0.5 )
+      assert( SCIPisFeasEQ(scip, consdata->matrixval[diags] * SCIPvarGetLbLocal(consdata->matrixvar[diags]) + consdata->matrixconst[diags], 1.0) );
+      assert( SCIPisEQ(scip, SCIPvarGetLbLocal(consdata->matrixvar[diags]), SCIPvarGetUbLocal(consdata->matrixvar[diags])) );
+
+      if ( SCIPisGT(scip, SCIPvarGetLbLocal(consdata->matrixvar[diags]), SCIPvarGetLbOriginal(consdata->matrixvar[diags])) )
       {
          SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diags], NULL) );
       }
-      else
+      if ( SCIPisLT(scip, SCIPvarGetUbLocal(consdata->matrixvar[diags]), SCIPvarGetUbOriginal(consdata->matrixvar[diags])) )
       {
          SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diags], NULL) );
       }
@@ -4701,11 +4706,13 @@ SCIP_RETCODE analyzeConflict3Minor(
    if ( consdata->matrixvar[diagt] != NULL )
    {
       assert( SCIPisFeasEQ(scip, consdata->matrixval[diagt] * SCIPvarGetLbLocal(consdata->matrixvar[diagt]) + consdata->matrixconst[diagt], 1.0) );
-      if ( SCIPvarGetLbLocal(consdata->matrixvar[diagt]) > 0.5 )
+      assert( SCIPisEQ(scip, SCIPvarGetLbLocal(consdata->matrixvar[diagt]), SCIPvarGetUbLocal(consdata->matrixvar[diagt])) );
+
+      if ( SCIPisGT(scip, SCIPvarGetLbLocal(consdata->matrixvar[diagt]), SCIPvarGetLbOriginal(consdata->matrixvar[diagt])) )
       {
          SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diagt], NULL) );
       }
-      else
+      if ( SCIPisLT(scip, SCIPvarGetUbLocal(consdata->matrixvar[diagt]), SCIPvarGetUbOriginal(consdata->matrixvar[diagt])) )
       {
          SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diagt], NULL) );
       }
@@ -4714,25 +4721,39 @@ SCIP_RETCODE analyzeConflict3Minor(
    if ( consdata->matrixvar[posrs] != NULL )
    {
       assert( SCIPisFeasEQ(scip, consdata->matrixval[posrs] * SCIPvarGetLbLocal(consdata->matrixvar[posrs]) + consdata->matrixconst[posrs], 1.0) );
-      if ( SCIPvarGetLbLocal(consdata->matrixvar[posrs]) > 0.5 )
+      assert( SCIPisEQ(scip, SCIPvarGetLbLocal(consdata->matrixvar[posrs]), SCIPvarGetUbLocal(consdata->matrixvar[posrs])) );
+
+      if ( SCIPisGT(scip, SCIPvarGetLbLocal(consdata->matrixvar[posrs]), SCIPvarGetLbOriginal(consdata->matrixvar[posrs])) )
       {
          SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[posrs], NULL) );
       }
-      else
+      if ( SCIPisLT(scip, SCIPvarGetUbLocal(consdata->matrixvar[posrs]), SCIPvarGetUbOriginal(consdata->matrixvar[posrs])) )
       {
          SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[posrs], NULL) );
       }
    }
 
-   if ( consdata->matrixvar[pos] != NULL )
+   if ( pos1 >= 0 && consdata->matrixvar[pos1] != NULL )
    {
-      if ( SCIPvarGetLbLocal(consdata->matrixvar[pos]) > 0.5 )
+      if ( SCIPisGT(scip, SCIPvarGetLbLocal(consdata->matrixvar[pos1]), SCIPvarGetLbOriginal(consdata->matrixvar[pos1])) )
       {
-         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[pos], NULL) );
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[pos1], NULL) );
       }
-      else
+      if ( SCIPisLT(scip, SCIPvarGetUbLocal(consdata->matrixvar[pos1]), SCIPvarGetUbOriginal(consdata->matrixvar[pos1])) )
       {
-         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[pos], NULL) );
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[pos1], NULL) );
+      }
+   }
+
+   if ( pos2 >= 0 && consdata->matrixvar[pos2] != NULL )
+   {
+      if ( SCIPisGT(scip, SCIPvarGetLbLocal(consdata->matrixvar[pos2]), SCIPvarGetLbOriginal(consdata->matrixvar[pos2])) )
+      {
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[pos2], NULL) );
+      }
+      if ( SCIPisLT(scip, SCIPvarGetUbLocal(consdata->matrixvar[pos2]), SCIPvarGetUbOriginal(consdata->matrixvar[pos2])) )
+      {
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[pos2], NULL) );
       }
    }
 
@@ -4911,7 +4932,7 @@ SCIP_RETCODE propagate3Minors(
                            SCIPdebugMsg(scip, "Detected infeasibility for (%d, %d, %d) <%s>, <%s>.\n", r, s, t,
                               SCIPvarGetName(var1), SCIPvarGetName(var2));
                            *infeasible = TRUE;
-                           SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, pos1) );
+                           SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, pos1, pos2) );
                            return SCIP_OKAY;
                         }
                      }
@@ -4926,7 +4947,7 @@ SCIP_RETCODE propagate3Minors(
                         {
                            SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) <%s>, <%s> detected infeasibility.\n", r, s, t,
                               SCIPvarGetName(var1), SCIPvarGetName(var2));
-                           SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, pos1) );
+                           SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, pos1, -1) );
                            return SCIP_OKAY;
                         }
                         if ( tightened )
@@ -4951,7 +4972,7 @@ SCIP_RETCODE propagate3Minors(
                         {
                            SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) <%s>, <%s> detected infeasibility.\n", r, s, t,
                               SCIPvarGetName(var1), SCIPvarGetName(var2));
-                           SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, pos1) );
+                           SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, -1, pos2) );
                            return SCIP_OKAY;
                         }
                         if ( tightened )
