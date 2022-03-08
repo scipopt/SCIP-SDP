@@ -4904,7 +4904,7 @@ SCIP_RETCODE propagate3Minors(
                   if ( ! SCIPisFeasEQ(scip, consdata->matrixval[diagt] * val - consdata->matrixconst[diagt], 1.0) )
                      continue;
 
-                  /* at this place the positions (r,t) and (s,t) are equal */
+                  /* at this place the positions (r,t) and (s,t) need to be equal due to the 3x3 minor */
 
                   /* check off-diagonal entries */
                   pos1 = t * (t + 1)/2 + s;
