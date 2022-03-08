@@ -134,7 +134,7 @@
 #define DEFAULT_USEDIMACSFEASTOL  FALSE /**< Should a feasibility tolerance based on the DIMACS be used for computing negative eigenvalues? */
 #define DEFAULT_GENERATEROWS       TRUE /**< Should rows be generated (constraints otherwise)? */
 #define DEFAULT_PRESOLLINCONSSPARAM   0 /**< Parameters for linear constraints added during presolving: (0) propagate, if solving LPs also separate (1) initial and propagate, if solving LPs also separate, enforce and check */
-#define DEFAULT_ADDITIONALSTATS    TRUE /**< Should additional statistics should be output at the end? */
+#define DEFAULT_ADDITIONALSTATS    TRUE /**< Should additional statistics be output at the end? */
 
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
@@ -230,9 +230,9 @@ struct SCIP_ConshdlrData
    SCIP_Bool             recomputeinitial;   /**< Should the inital vector for TPower be computed each time before calling TPower (instead of using the original smallest eigenvector)? */
    SCIP_Bool             exacttrans;         /**< Should the matrix be transformed with the exact maximal eigenvalue before calling TPower (instead of using estimate)? */
    int                   presollinconssparam; /**< Parameters for linear constraints added during presolving: (0) propagate, if solving LPs also separate (1) initial and propagate, if solving LPs also separate, enforce and check */
-   SCIP_Bool             additionalstats;    /**< Should additional statistics should be output at the end? */
+   SCIP_Bool             additionalstats;    /**< Should additional statistics be output at the end? */
    int                   npropub;            /**< Number of propagations through upper bounds */
-   int                   nproptb;            /**< Number of tightened bounds */
+   int                   nproptb;            /**< Number of tightened bounds in propagation */
    int                   nprop3minor;        /**< Number of propagations through 3x3 minors */
 };
 
@@ -8262,7 +8262,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          &(conshdlrdata->presollinconssparam), TRUE, DEFAULT_PRESOLLINCONSSPARAM, 0, 1, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/additionalstats",
-         "Should additional statistics should be output at the end?",
+         "Should additional statistics be output at the end?",
          &(conshdlrdata->additionalstats), TRUE, DEFAULT_ADDITIONALSTATS, NULL, NULL) );
 
    return SCIP_OKAY;
