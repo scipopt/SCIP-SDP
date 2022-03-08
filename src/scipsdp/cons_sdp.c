@@ -232,7 +232,7 @@ struct SCIP_ConshdlrData
    int                   presollinconssparam; /**< Parameters for linear constraints added during presolving: (0) propagate, if solving LPs also separate (1) initial and propagate, if solving LPs also separate, enforce and check */
    SCIP_Bool             additionalstats;    /**< Should additional statistics should be output at the end? */
    int                   npropub;            /**< Number of propagations through upper bounds */
-   int                   nproptb;            /**< Number of tightended bounds */
+   int                   nproptb;            /**< Number of tightened bounds */
    int                   nprop3minor;        /**< Number of propagations through 3x3 minors */
 };
 
@@ -4849,7 +4849,7 @@ SCIP_RETCODE propagate3Minors(
                else
                   val = 0.0;
 
-               /* wheck whether off-diagonal (r,s) is 1 */
+               /* check whether off-diagonal (r,s) is 1 */
                if ( ! SCIPisFeasEQ(scip, consdata->matrixval[posrs] * val - consdata->matrixconst[posrs], 1.0) )
                   continue;
 
@@ -6160,7 +6160,7 @@ SCIP_DECL_CONSPROP(consPropSdp)
       }
    }
 
-   /* if we want to propagate upper bounds */
+   /* if we want to propagate bound tightening */
    if ( conshdlrdata->sdpconshdlrdata->proptightenbounds )
    {
       /* possibly avoid propagation in probing */
