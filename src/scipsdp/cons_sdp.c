@@ -8000,6 +8000,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->triedvarbounds = FALSE;
    conshdlrdata->rank1approxheur = FALSE;
    conshdlrdata->generaterows = FALSE;
+   conshdlrdata->generatecmir = FALSE;
 #ifdef OMP
    conshdlrdata->nthreads = 0;
 #endif
