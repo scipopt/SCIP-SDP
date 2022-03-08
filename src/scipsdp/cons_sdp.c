@@ -4899,24 +4899,19 @@ SCIP_RETCODE propagate3Minors(
                   if ( var2 == NULL )
                      continue;
 
-                  /* if var2 is not fixed, switch variables */
-                  if ( ! SCIPisEQ(scip, SCIPvarGetLbLocal(var2), SCIPvarGetUbLocal(var2)) )
+                  /* if var1 is fixed */
+                  if ( SCIPisEQ(scip, SCIPvarGetLbLocal(var1), SCIPvarGetUbLocal(var1)) )
                   {
-                     SCIPswapPointers((void**) &var1, (void**) &var2);
-                     SCIPswapInts(&pos1, &pos2);
-                  }
-
-                  /* if var2 is fixed */
-                  if ( SCIPisEQ(scip, SCIPvarGetLbLocal(var2), SCIPvarGetUbLocal(var2)) )
-                  {
-                     if ( SCIPisEQ(scip, SCIPvarGetLbLocal(var1), SCIPvarGetUbLocal(var1)) )
+                     /* if var2 is also fixed */
+                     if ( SCIPisEQ(scip, SCIPvarGetLbLocal(var2), SCIPvarGetUbLocal(var2)) )
                      {
                         /* if the variables are fixed to different values, we are infeasible */
                         if ( ! SCIPisEQ(scip, SCIPvarGetLbLocal(var1), SCIPvarGetLbLocal(var2)) )
                         {
-                           SCIPdebugMsg(scip, "Detected infeasibility for (%d, %d, %d).\n", r, s, t);
+                           SCIPdebugMsg(scip, "Detected infeasibility for (%d, %d, %d) <%s>, <%s>.\n", r, s, t,
+                              SCIPvarGetName(var1), SCIPvarGetName(var2));
                            *infeasible = TRUE;
-                           SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, pos2) );
+                           SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, pos1) );
                            return SCIP_OKAY;
                         }
                      }
@@ -4924,17 +4919,45 @@ SCIP_RETCODE propagate3Minors(
                      {
                         SCIP_Bool tightened;
 
-                        /* currently reverse propagation does not work for this case */
-                        SCIP_CALL( SCIPinferVarFixCons(scip, var1, SCIPvarGetLbLocal(var2), conss[c], INT_MAX, FALSE, infeasible, &tightened) );
+                        /* fix var2 to the same value of var1 */
+                        /* currently reverse propagation does not work for this case: use INT_MAX as inferinfo */
+                        SCIP_CALL( SCIPinferVarFixCons(scip, var2, SCIPvarGetLbLocal(var1), conss[c], INT_MAX, FALSE, infeasible, &tightened) );
                         if ( *infeasible )
                         {
-                           SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) detected infeasibility, call analyzeConflict.\n", r, s, t);
-                           SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, pos2) );
+                           SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) <%s>, <%s> detected infeasibility.\n", r, s, t,
+                              SCIPvarGetName(var1), SCIPvarGetName(var2));
+                           SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, pos1) );
                            return SCIP_OKAY;
                         }
                         if ( tightened )
                         {
-                           SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) successfully tightened a bound to %f.\n", r, s, t, SCIPvarGetLbLocal(var1));
+                           SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) successfully tightened a bound of <%s> to %f.\n",
+                              r, s, t, SCIPvarGetName(var2), SCIPvarGetLbLocal(var1));
+                           ++(*nprop);
+                        }
+                     }
+                  }
+                  else
+                  {
+                     /* if var2 is fixed (var1 is not fixed) */
+                     if ( SCIPisEQ(scip, SCIPvarGetLbLocal(var2), SCIPvarGetUbLocal(var2)) )
+                     {
+                        SCIP_Bool tightened;
+
+                        /* fix var1 to the same value of var2 */
+                        /* currently reverse propagation does not work for this case: use INT_MAX as inferinfo */
+                        SCIP_CALL( SCIPinferVarFixCons(scip, var1, SCIPvarGetLbLocal(var2), conss[c], INT_MAX, FALSE, infeasible, &tightened) );
+                        if ( *infeasible )
+                        {
+                           SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) <%s>, <%s> detected infeasibility.\n", r, s, t,
+                              SCIPvarGetName(var1), SCIPvarGetName(var2));
+                           SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, pos1) );
+                           return SCIP_OKAY;
+                        }
+                        if ( tightened )
+                        {
+                           SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) successfully tightened a bound of <%s> to %f.\n",
+                              r, s, t, SCIPvarGetName(var1), SCIPvarGetLbLocal(var2));
                            ++(*nprop);
                         }
                      }
