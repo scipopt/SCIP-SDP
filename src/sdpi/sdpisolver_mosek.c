@@ -389,8 +389,7 @@ const char* SCIPsdpiSolverGetSolverDesc(
    void
    )
 {
-   return "Homogeneous and self-dual interior-point solver for semidefinite programming developed by MOSEK ApS"
-         "(http://www.mosek.com)";
+   return "Homogeneous, self-dual interior-point solver for semidefinite programming developed by MOSEK ApS (http://www.mosek.com)";
 }
 
 /** gets pointer to SDP-solver - use only with great care

@@ -13,7 +13,7 @@ set(SRC src)
 set(DOC doc)
 set(CMAKE cmake)
 
-option(SHARED "Build shared libraries" off)
+option(SHARED "Build shared libraries" on)
 set(BUILD_SHARED_LIBS ${SHARED})
 message(STATUS "Build shared libraries: " ${SHARED})
 

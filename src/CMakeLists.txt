@@ -98,9 +98,7 @@ set(scipsdpheaders
     scipsdp/prop_companalcent.h
     scipsdp/table_relaxsdp.h
     scipsdp/table_slater.h
-    scipsdp/table_sdpsolversuccess.h
     scipsdp/scipsdpdefplugins.h
-    scipsdpgithash.h
 )
 
 # all source files should be compiled with a c++ compiler
