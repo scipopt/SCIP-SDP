@@ -305,13 +305,13 @@ SCIP_DECL_HEUREXEC(heurExecSdpInnerlp)
             if ( nonzero || s == t )
             {
                (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "ray%d#%d", s, t);
-               SCIP_CALL( SCIPcreateVarBasic(subscip, &rayvars[s * blocksize + t], name, 0, SCIPinfinity(subscip), 0.0, SCIP_VARTYPE_CONTINUOUS) );
+               SCIP_CALL( SCIPcreateVarBasic(subscip, &rayvars[s * blocksize + t], name, 0.0, SCIPinfinity(subscip), 0.0, SCIP_VARTYPE_CONTINUOUS) );
                SCIP_CALL( SCIPaddVar(subscip, rayvars[s * blocksize + t]) );
 
                if ( s != t )
                {
                   (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "ray%d#%d", t, s);
-                  SCIP_CALL( SCIPcreateVarBasic(subscip, &rayvars[t * blocksize + s], name, 0, SCIPinfinity(subscip), 0.0, SCIP_VARTYPE_CONTINUOUS) );
+                  SCIP_CALL( SCIPcreateVarBasic(subscip, &rayvars[t * blocksize + s], name, 0.0, SCIPinfinity(subscip), 0.0, SCIP_VARTYPE_CONTINUOUS) );
                   SCIP_CALL( SCIPaddVar(subscip, rayvars[t * blocksize + s]) );
                }
             }
@@ -490,7 +490,7 @@ SCIP_RETCODE SCIPincludeHeurSdpInnerlp(
 
    SCIP_CALL( SCIPaddLongintParam(scip, "heuristics/" HEUR_NAME "/stallnodelimit",
          "limit on number of nodes since last improving incumbent solutions",
-         &heurdata->stallnodelimit, FALSE, DEFAULT_STALLNODELIMIT, -1, SCIP_LONGINT_MAX, NULL, NULL) );
+         &heurdata->stallnodelimit, FALSE, DEFAULT_STALLNODELIMIT, -1LL, SCIP_LONGINT_MAX, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "heuristics/" HEUR_NAME "/maxsize",
          "maximal size of the inner problem",

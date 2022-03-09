@@ -389,8 +389,7 @@ const char* SCIPsdpiSolverGetSolverDesc(
    void
    )
 {
-   return "Homogeneous and self-dual interior-point solver for semidefinite programming developed by MOSEK ApS"
-         "(http://www.mosek.com)";
+   return "Homogeneous, self-dual interior-point solver for semidefinite programming developed by MOSEK ApS (http://www.mosek.com)";
 }
 
 /** gets pointer to SDP-solver - use only with great care
@@ -1475,7 +1474,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       MOSEK_CALL( MSK_getnaintinf(sdpisolver->msktask, "MSK_IINF_INTPNT_ITER", &(sdpisolver->niterations)) );/*lint !e641*/
 
       /* possibly repair status */
-      if ( sdpisolver->terminationcode == MSK_RES_TRM_STALL || sdpisolver->solstat == MSK_SOL_STA_UNKNOWN )
+      if ( sdpisolver->terminationcode == MSK_RES_TRM_STALL || (sdpisolver->solstat == MSK_SOL_STA_UNKNOWN && sdpisolver->terminationcode != MSK_RES_TRM_MAX_TIME) )
       {
          SCIP_Real pobj;
          SCIP_Real pviolcon;
@@ -2758,7 +2757,7 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
       sdpisolver->usescaling = (SCIP_Bool) ival;
       SCIPdebugMessage("Setting usescaling (%d).\n", ival);
       break;
-  case SCIP_SDPPAR_SCALEOBJ:
+   case SCIP_SDPPAR_SCALEOBJ:
       assert( 0 <= ival && ival <= 1 );
       sdpisolver->scaleobj = (SCIP_Bool) ival;
       SCIPdebugMessage("Setting scaleobj (%d).\n", ival);

@@ -98,9 +98,7 @@ set(scipsdpheaders
     scipsdp/prop_companalcent.h
     scipsdp/table_relaxsdp.h
     scipsdp/table_slater.h
-    scipsdp/table_sdpsolversuccess.h
     scipsdp/scipsdpdefplugins.h
-    scipsdpgithash.h
 )
 
 # all source files should be compiled with a c++ compiler
@@ -121,7 +119,7 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 if(SHARED)
     target_link_libraries(libscipsdp PRIVATE ${ZIMPL_PIC_LIBRARIES} ${SDPS_PIC_LIBRARIES} ${LAPACK_LIBRARY} ${BLAS_LIBRARY} m)
     add_executable(scipsdp scipsdp/main.c ${scipsdpsources} ${objscipsdpsources} ${sdpisources})
-    target_link_libraries(scipsdp ${ZLIB_LIBRARIES} ${Readline_LIBRARY} ${GMP_LIBRARIES} ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES} ${SCIP_LIBRARIES})
+    target_link_libraries(scipsdp ${ZLIB_LIBRARIES} ${Readline_LIBRARY} ${GMP_LIBRARIES} ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES} ${SCIP_LIBRARIES} ${LAPACK_LIBRARY} ${BLAS_LIBRARY} m)
 else()
     target_link_libraries(libscipsdp PRIVATE ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES} ${LAPACK_LIBRARY} ${BLAS_LIBRARY} m)
     add_executable(scipsdp scipsdp/main.c ${scipsdpsources} ${objscipsdpsources} ${sdpisources})

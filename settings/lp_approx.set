@@ -1,3 +1,1 @@
 misc/solvesdps = 0
-constraints/SDP/twominorlinconss = true
-constraints/SDP/twominorprodconss = true

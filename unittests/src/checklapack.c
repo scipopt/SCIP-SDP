@@ -30,21 +30,23 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   rank1.c
- * @brief  unit test for checking reading of rank1-information in CBF-files
- * @author Marc Pfetsch
+/**@file   checklapack.c
+ * @brief  unit test for checking Lapack routines
  * @author Frederic Matter
  */
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
-#include "scipsdp/scipsdpdefplugins.h"
+#include <scip/scip.h>
 #include "include/scip_test.h"
+#include "scipsdp/scipsdpdefplugins.h"
+#include "sdpi/lapack_interface.h"
 
 /* global SCIP data structure */
 SCIP* scipsdp;
 
-#define EPS  1e-5
+#define EPS  1e-6
+
 
 /** setup of test suite */
 static
@@ -60,88 +62,62 @@ void setup(void)
 static
 void teardown(void)
 {
-   /* deinitialization */
    SCIP_CALL( SCIPfree(&scipsdp) );
 
    cr_assert_eq(BMSgetMemoryUsed(), 0, "There is a memory leak!");
 }
 
-TestSuite(rank1, .init = setup, .fini = teardown);
+TestSuite(checklapack, .init = setup, .fini = teardown);
+
 
 
 /** TESTS **/
 
-/** Test 1 */
-Test(rank1, readPrimalDualRank1)
+/** Test 1
+ *
+ * Check matrix matrix multiplication:
+ *
+ * [1.0 3.0] * [5.0 7.0]^T = [26.0 30.0]
+ * [2.0 4.0]   [6.0 8.0]     [38.0 44.0]
+ *
+ */
+Test(checklapack, test1)
 {
-   SCIP_Real obj1;
-   SCIP_Real obj2;
+   /* data with fixed values: */
+   int blocksize = 2;
+   SCIP_Real* matrixA;
+   SCIP_Real* matrixB;
+   SCIP_Real* matrixC;
 
-   /* read problem in primal form and solve it */
-   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_rank1_primal.cbf", NULL) );
+   SCIP_CALL( SCIPallocBufferArray(scipsdp, &matrixA, blocksize * blocksize) );
+   SCIP_CALL( SCIPallocBufferArray(scipsdp, &matrixB, blocksize * blocksize) );
+   SCIP_CALL( SCIPallocBufferArray(scipsdp, &matrixC, blocksize * blocksize) );
 
-   SCIP_CALL( SCIPsolve(scipsdp) );
+   /* Note: Lapack uses column-first format! */
+   matrixA[0] = 1.0;
+   matrixA[1] = 2.0;
+   matrixA[2] = 3.0;
+   matrixA[3] = 4.0;
 
-   obj1 = SCIPgetDualbound(scipsdp);
+   matrixB[0] = 5.0;
+   matrixB[1] = 6.0;
+   matrixB[2] = 7.0;
+   matrixB[3] = 8.0;
 
-   /* read problem in dual form and solve it again */
-   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_rank1_dual.cbf", NULL) );
+   matrixC[0] = 1.0;
+   matrixC[1] = 1.0;
+   matrixC[2] = 1.0;
+   matrixC[3] = 1.0;
 
-   SCIP_CALL( SCIPsolve(scipsdp) );
+   SCIP_CALL( SCIPlapackMatrixMatrixMult(blocksize, blocksize, matrixA, FALSE, blocksize, blocksize, matrixB,
+         TRUE, matrixC) );
 
-   obj2 = SCIPgetDualbound(scipsdp);
+   cr_assert_float_eq(matrixC[0], 26.0, EPS, "C[0]: %g != %g\n", matrixC[0], 26.0);
+   cr_assert_float_eq(matrixC[1], 38.0, EPS, "C[0]: %g != %g\n", matrixC[1], 38.0);
+   cr_assert_float_eq(matrixC[2], 30.0, EPS, "C[0]: %g != %g\n", matrixC[2], 30.0);
+   cr_assert_float_eq(matrixC[3], 44.0, EPS, "C[0]: %g != %g\n", matrixC[3], 44.0);
 
-   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (CBF primal) != %g (CBF dual)\n", obj1, obj2);
-}
-
-/** Test 2 */
-Test(rank1, readWritePrimalRank)
-{
-   SCIP_Real obj1;
-   SCIP_Real obj2;
-
-   /* read problem in primal form and solve it */
-   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_rank1_primal.cbf", NULL) );
-
-   SCIP_CALL( SCIPsolve(scipsdp) );
-
-   obj1 = SCIPgetDualbound(scipsdp);
-
-   /* write problem in CBF format */
-   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "example_rank1.cbf", "cbf", FALSE) );
-
-   /* read problem again */
-   SCIP_CALL( SCIPreadProb(scipsdp, "example_rank1.cbf", NULL) );
-
-   SCIP_CALL( SCIPsolve(scipsdp) );
-
-   obj2 = SCIPgetDualbound(scipsdp);
-
-   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (CBF primal original) != %g (CBF primal after writing)\n", obj1, obj2);
-}
-
-/** Test 3 */
-Test(rank1, readWriteDualRank)
-{
-   SCIP_Real obj1;
-   SCIP_Real obj2;
-
-   /* read problem in dual form and solve it */
-   SCIP_CALL( SCIPreadProb(scipsdp, "../instances/example_rank1_dual.cbf", NULL) );
-
-   SCIP_CALL( SCIPsolve(scipsdp) );
-
-   obj1 = SCIPgetDualbound(scipsdp);
-
-   /* write problem in CBF format */
-   SCIP_CALL( SCIPwriteOrigProblem(scipsdp, "example_rank1.cbf", "cbf", FALSE) );
-
-   /* read problem again */
-   SCIP_CALL( SCIPreadProb(scipsdp, "example_rank1.cbf", NULL) );
-
-   SCIP_CALL( SCIPsolve(scipsdp) );
-
-   obj2 = SCIPgetDualbound(scipsdp);
-
-   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (CBF dual original) != %g (CBF dual after writing)\n", obj1, obj2);
+   SCIPfreeBufferArray(scipsdp, &matrixA);
+   SCIPfreeBufferArray(scipsdp, &matrixB);
+   SCIPfreeBufferArray(scipsdp, &matrixC);
 }

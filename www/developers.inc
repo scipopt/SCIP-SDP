@@ -38,4 +38,7 @@
    <tr>
       <td>Jakob Schelbert</td>
    </tr>
+   <tr>
+      <td>Tim Schmidt (reader_sdpa)</td>
+   </tr>
 </table>

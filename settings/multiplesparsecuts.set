@@ -1,0 +1,8 @@
+misc/solvesdps = 0
+constraints/SDP/multiplesparsecuts = TRUE
+constraints/SDP/maxnsparsecuts = 100
+constraints/SDP/sparsifytargetsize = -1
+constraints/SDP/sparsifyfactor = 0.1
+constraints/SDP/exacttrans = FALSE
+constraints/SDP/recomputeinitial = FALSE
+constraints/SDP/recomputesparseev = FALSE

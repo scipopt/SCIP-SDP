@@ -50,7 +50,7 @@
 #define HEUR_DESC             "fractional rounding heuristic for SDPs"
 #define HEUR_DISPCHAR         '^'
 #define HEUR_PRIORITY         -1000500
-#define HEUR_FREQ             -1
+#define HEUR_FREQ             1
 #define HEUR_FREQOFS          0
 #define HEUR_MAXDEPTH         -1
 #define HEUR_TIMING           SCIP_HEURTIMING_AFTERNODE
