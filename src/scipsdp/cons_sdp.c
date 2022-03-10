@@ -5913,6 +5913,9 @@ SCIP_DECL_CONSINITPRE(consInitpreSdp)
    conshdlrdata->neigveccuts = 0; /* this is used to give the eigenvector-cuts distinguishable names */
    conshdlrdata->ndiaggezerocuts = 0; /* this is used to give the diagGEzero-cuts distinguishable names */
    conshdlrdata->n1x1blocks = 0; /* this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
+   conshdlrdata->npropub = 0;    /* reset numbers; called for both the rank1 and ordinary constraint handler */
+   conshdlrdata->nproptb = 0;
+   conshdlrdata->nprop3minor = 0;
 
    return SCIP_OKAY;
 }
@@ -6055,16 +6058,19 @@ SCIP_DECL_CONSEXIT(consExitSdp)
    assert(conshdlrdata != NULL);
 
    /* possibly output more statistics */
-   if ( conshdlrdata->sdpconshdlrdata->additionalstats )
+   if ( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 )
    {
-      SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of propagations through upper bounds: %d\n", conshdlrdata->npropub);
-      SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of tightened bounds in propagation:   %d\n", conshdlrdata->nproptb);
-      SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of propagations through 3x3 minors:   %d\n", conshdlrdata->nprop3minor);
+      if ( conshdlrdata->sdpconshdlrdata->additionalstats )
+      {
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of propagations through upper bounds: %d\n", conshdlrdata->npropub);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of tightened bounds in propagation:   %d\n", conshdlrdata->nproptb);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of propagations through 3x3 minors:   %d\n", conshdlrdata->nprop3minor);
+      }
+      /* reset counters */
+      conshdlrdata->npropub = 0;
+      conshdlrdata->nproptb = 0;
+      conshdlrdata->nprop3minor = 0;
    }
-   /* reset counters */
-   conshdlrdata->npropub = 0;
-   conshdlrdata->nproptb = 0;
-   conshdlrdata->nprop3minor = 0;
 
    /* reset parameter triedlinearconss */
    conshdlrdata->sdpconshdlrdata->triedlinearconss = FALSE;
@@ -6197,7 +6203,7 @@ SCIP_DECL_CONSPROP(consPropSdp)
       {
          if ( nprop > 0 )
          {
-            conshdlrdata->npropub += nprop;
+            conshdlrdata->sdpconshdlrdata->npropub += nprop;
             SCIPdebugMsg(scip, "Propagation of upper bounds tightened %d bounds.\n", nprop);
             *result = SCIP_REDUCEDDOM;
          }
@@ -6227,7 +6233,7 @@ SCIP_DECL_CONSPROP(consPropSdp)
          {
             if ( nprop > 0 )
             {
-               conshdlrdata->nproptb += nprop;
+               conshdlrdata->sdpconshdlrdata->nproptb += nprop;
                SCIPdebugMsg(scip, "Propagation of bound tightening tightened %d bounds.\n", nprop);
                *result = SCIP_REDUCEDDOM;
             }
@@ -6255,7 +6261,7 @@ SCIP_DECL_CONSPROP(consPropSdp)
       {
          if ( nprop > 0 )
          {
-            conshdlrdata->nprop3minor += nprop;
+            conshdlrdata->sdpconshdlrdata->nprop3minor += nprop;
             SCIPdebugMsg(scip, "Propagation of 3x3 minors tightened %d bounds.\n", nprop);
             *result = SCIP_REDUCEDDOM;
          }
@@ -8135,6 +8141,9 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    conshdlrdata->relaxsdp = NULL;
    conshdlrdata->sdpconshdlrdata = conshdlrdata;  /* set this to itself to simplify access of parameters */
    conshdlrdata->dimacsfeastol = SCIP_INVALID;
+   conshdlrdata->npropub = 0;
+   conshdlrdata->nproptb = 0;
+   conshdlrdata->nprop3minor = 0;
 
    /* include constraint handler */
    SCIP_CALL( SCIPincludeConshdlrBasic(scip, &conshdlr, CONSHDLR_NAME, CONSHDLR_DESC,
