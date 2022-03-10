@@ -132,6 +132,7 @@
 #define DEFAULT_ADDSOCRELAX       FALSE /**< Should a relaxation of SOC constraints be added */
 #define DEFAULT_USEDIMACSFEASTOL  FALSE /**< Should a feasibility tolerance based on the DIMACS be used for computing negative eigenvalues? */
 #define DEFAULT_GENERATEROWS       TRUE /**< Should rows be generated (constraints otherwise)? */
+#define DEFAULT_GENERATECMIR      FALSE /**< Should CMIR cuts be generated? */
 #define DEFAULT_PRESOLLINCONSSPARAM   0 /**< Parameters for linear constraints added during presolving: (0) propagate, if solving LPs also separate (1) initial and propagate, if solving LPs also separate, enforce and check */
 
 #ifdef OMP
@@ -142,6 +143,14 @@
 #define DEFAULT_RECOMPUTESPARSEEV FALSE /**< Should the sparse eigenvalue returned from TPower be recomputed exactly by using Lapack for the corresponding submatrix? */
 #define DEFAULT_RECOMPUTEINITIAL  FALSE /**< Should the inital vector for TPower be computed each time before calling TPower (instead of using the original smallest eigenvector)? */
 #define DEFAULT_EXACTTRANS        FALSE /**< Should the matrix be transformed with the exact maximal eigenvalue before calling TPower (instead of using estimate)? */
+
+/* default values for CMIR generation */
+#define BOUNDSWITCH                0.51 /**< threshold for bound switching - see cuts.c */
+#define POSTPROCESS               FALSE /**< apply postprocessing to the cut - see cuts.c */
+#define USEVBDS                   FALSE /**< use variable bounds - see cuts.c */
+#define ALLOWLOCAL                FALSE /**< allow to generate local cuts - see cuts. */
+#define MINFRAC                   0.05  /**< minimal fractionality of floor(rhs) - see cuts.c */
+#define MAXFRAC                   0.999 /**< maximal fractionality of floor(rhs) - see cuts.c */
 
 /** constraint data for sdp constraints */
 struct SCIP_ConsData
@@ -177,6 +186,7 @@ struct SCIP_ConsData
 struct SCIP_ConshdlrData
 {
    int                   neigveccuts;        /**< this is used to give the eigenvector-cuts distinguishable names */
+   int                   ncmir;              /**< number of cmir cuts generated */
    SCIP_Bool             diaggezerocuts;     /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
    int                   ndiaggezerocuts;    /**< this is used to give the diagGEzero-cuts distinguishable names */
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
@@ -209,6 +219,7 @@ struct SCIP_ConshdlrData
    SCIP_Bool             triedvarbounds;     /**< Have we tried to add variable bounds based on 2x2 minors */
    SCIP_Bool             rank1approxheur;    /**< Should the heuristic that computes the best rank-1 approximation for a given solution be executed? */
    SCIP_Bool             generaterows;       /**< Should rows be generated (constraints otherwise)? */
+   SCIP_Bool             generatecmir;       /**< Should CMIR cuts be generated? */
 #ifdef OMP
    int                   nthreads;           /**< number of threads used for OpenBLAS */
 #endif
@@ -1411,6 +1422,7 @@ SCIP_RETCODE separateSol(
    SCIP_Real* fullconstmatrix = NULL;
    SCIP_Real* eigenvalues;
    SCIP_Real tol;
+   int* inds;
    int neigenvalues;
    int blocksize;
    int nvars;
@@ -1433,6 +1445,7 @@ SCIP_RETCODE separateSol(
 
    SCIP_CALL( SCIPallocBufferArray(scip, &vars, nvars ) );
    SCIP_CALL( SCIPallocBufferArray(scip, &vals, nvars ) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &inds, nvars ) );
 
    SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize ) );
    SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrixcopy, blocksize * blocksize ) );
@@ -1489,6 +1502,7 @@ SCIP_RETCODE separateSol(
       SCIPfreeBufferArray(scip, &fullmatrixcopy);
       SCIPfreeBufferArray(scip, &fullmatrix);
 
+      SCIPfreeBufferArray(scip, &inds);
       SCIPfreeBufferArray(scip, &vals);
       SCIPfreeBufferArray(scip, &vars);
 
@@ -1576,7 +1590,8 @@ SCIP_RETCODE separateSol(
          if ( ! SCIPisFeasZero(scip, coef) )
          {
             vars[cnt] = consdata->vars[j];
-            vals[cnt++] = coef;
+            vals[cnt] = coef;
+            inds[cnt++] = SCIPvarGetProbindex(consdata->vars[j]);
          }
       }
 
@@ -1622,6 +1637,92 @@ SCIP_RETCODE separateSol(
          *result = SCIP_CONSADDED;
          ++ngen;
       }
+
+      if ( conshdlrdata->sdpconshdlrdata->generatecmir )
+      {
+         SCIP_AGGRROW* aggrrow;
+         SCIP_Real* cutcoefs;
+         SCIP_Real cutrhs;
+         SCIP_Real cutefficacy;
+         SCIP_Bool cutislocal;
+         int* cutinds;
+         int cutnnz;
+         int cutrank;
+
+         SCIP_CALL( SCIPallocBufferArray(scip, &cutcoefs, consdata->nvars) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &cutinds, consdata->nvars) );
+
+         SCIP_CALL( SCIPaggrRowCreate(scip, &aggrrow) );
+
+         /* switch row */
+         for (j = 0; j < cnt; ++j)
+            vals[j] *= -1.0;
+
+         /* add produced row as custom row: multiply with -1.0 to convert >= into <= row */
+         SCIP_CALL( SCIPaggrRowAddCustomCons(scip, aggrrow, inds, vals, cnt, -lhs, 1.0, 0, FALSE) );
+
+         /* try to generate CMIR inequality */
+         SCIP_CALL( SCIPcutGenerationHeuristicCMIR(scip, NULL, POSTPROCESS, BOUNDSWITCH, USEVBDS, ALLOWLOCAL, INT_MAX, NULL, NULL,
+               MINFRAC, MAXFRAC, aggrrow, cutcoefs, &cutrhs, cutinds, &cutnnz, &cutefficacy, &cutrank, &cutislocal, &success) );
+
+         if ( success && SCIPisEfficacious(scip, cutefficacy) )
+         {
+            SCIP_Bool infeasible;
+            SCIP_ROW* row;
+            SCIP_VAR** scipvars;
+
+            /* set name and create empty row */
+            (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_CMIR_%d", ++(conshdlrdata->ncmir));
+            SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, -SCIPinfinity(scip), cutrhs, cutislocal, FALSE, TRUE) );
+
+            /* get SCIP vars, because inds refers to these indices */
+            scipvars = SCIPgetVars(scip);
+
+            /* cache the row extension and only flush them if the cut gets added */
+            SCIP_CALL( SCIPcacheRowExtensions(scip, row) );
+
+            /* collect all non-zero coefficients */
+            for (j = 0; j < cutnnz; ++j)
+            {
+               SCIP_CALL( SCIPaddVarToRow(scip, row, scipvars[cutinds[j]], cutcoefs[j]) );
+            }
+
+            /* flush all changes before adding the cut */
+            SCIP_CALL( SCIPflushRowExtensions(scip, row) );
+
+            if ( SCIProwGetNNonz(row) == 0 )
+            {
+               assert( SCIPisFeasNegative(scip, cutrhs) );
+               *result = SCIP_CUTOFF;
+            }
+            else
+            {
+#ifdef SCIP_MORE_DEBUG
+               SCIP_CALL( SCIPprintRow(scip, row, NULL) );
+#endif
+               SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
+               if ( infeasible )
+                  *result = SCIP_CUTOFF;
+               else
+                  *result = SCIP_SEPARATED;
+               SCIP_CALL( SCIPresetConsAge(scip, cons) );
+
+               if ( conshdlrdata->sdpconshdlrdata->cutstopool )
+               {
+                  SCIP_CALL( SCIPaddPoolCut(scip, row) );
+               }
+               ++ngen;
+            }
+
+            /* release the row */
+            SCIP_CALL( SCIPreleaseRow(scip, &row) );
+         }
+
+         SCIPfreeBufferArray(scip, &cutinds);
+         SCIPfreeBufferArray(scip, &cutcoefs);
+
+         SCIPaggrRowFree(scip, &aggrrow);
+      }
    }
    SCIPdebugMsg(scip, "<%s>: Separated cuts = %d.\n", SCIPconsGetName(cons), ngen);
 
@@ -1632,6 +1733,7 @@ SCIP_RETCODE separateSol(
    SCIPfreeBufferArray(scip, &fullmatrixcopy);
    SCIPfreeBufferArray(scip, &fullmatrix);
 
+   SCIPfreeBufferArray(scip, &inds);
    SCIPfreeBufferArray(scip, &vals);
    SCIPfreeBufferArray(scip, &vars);
 
@@ -5551,6 +5653,7 @@ SCIP_DECL_CONSINITPRE(consInitpreSdp)
    assert( conshdlrdata != NULL );
 
    conshdlrdata->neigveccuts = 0; /* this is used to give the eigenvector-cuts distinguishable names */
+   conshdlrdata->ncmir = 0;
    conshdlrdata->ndiaggezerocuts = 0; /* this is used to give the diagGEzero-cuts distinguishable names */
    conshdlrdata->n1x1blocks = 0; /* this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
 
@@ -7877,6 +7980,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          "Should rows be generated (constraints otherwise)?",
          &(conshdlrdata->generaterows), TRUE, DEFAULT_GENERATEROWS, NULL, NULL) );
 
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/generatecmir",
+         "Should CMIR cuts be generated?",
+         &(conshdlrdata->generatecmir), TRUE, DEFAULT_GENERATECMIR, NULL, NULL) );
+
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/recomputesparseev",
          "Should the sparse eigenvalue returned from TPower be recomputed exactly by using Lapack for the corresponding submatrix?",
          &(conshdlrdata->recomputesparseev), TRUE, DEFAULT_RECOMPUTESPARSEEV, NULL, NULL) );
@@ -7941,6 +8048,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->triedvarbounds = FALSE;
    conshdlrdata->rank1approxheur = FALSE;
    conshdlrdata->generaterows = FALSE;
+   conshdlrdata->generatecmir = FALSE;
 #ifdef OMP
    conshdlrdata->nthreads = 0;
 #endif
