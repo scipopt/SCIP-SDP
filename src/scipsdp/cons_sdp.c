@@ -455,7 +455,13 @@ SCIP_RETCODE computeFullSdpMatrix(
    return SCIP_OKAY;
 }
 
-/** build matrixvar data */
+/** build matrixvar data
+ *
+ *  We have:
+ *  - matrixvar[i] is NULL if position i is not uniquely covered by a variable (either because there is no variable or at least two variables that cover the position).
+ *  - matrixval[i] == 0.0 if position i is not covered by any variable.
+ *  - matrixval[i] == SCIP_INVALID if position i is covered by at least two variables.
+ */
 static
 SCIP_RETCODE constructMatrixvar(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -4918,6 +4924,11 @@ SCIP_RETCODE propagate3Minors(
 
             /* make sure that we have 1s on the diagonal */
             diagr = r * (r + 1)/2 + r;
+
+            /* skip positions covered by at least two variables */
+            if ( consdata->matrixval[diagr] == SCIP_INVALID )
+               continue;
+
             var = consdata->matrixvar[diagr];
             if ( var != NULL )
             {
@@ -4942,6 +4953,11 @@ SCIP_RETCODE propagate3Minors(
 
                /* make sure that we have 1s on the diagonal */
                diags = s * (s + 1)/2 + s;
+
+               /* skip positions covered by at least two variables */
+               if ( consdata->matrixval[diags] == SCIP_INVALID )
+                  continue;
+
                var = consdata->matrixvar[diags];
                if ( var != NULL )
                {
@@ -4960,6 +4976,11 @@ SCIP_RETCODE propagate3Minors(
 
                /* check whether position (r,s) is 1 */
                posrs = r * (r + 1)/2 + s;
+
+               /* skip positions covered by at least two variables */
+               if ( consdata->matrixval[posrs] == SCIP_INVALID )
+                  continue;
+
                var = consdata->matrixvar[posrs];
                if ( var != NULL )
                {
@@ -4990,6 +5011,11 @@ SCIP_RETCODE propagate3Minors(
 
                   /* make sure that we have 1s on the diagonal */
                   diagt = t * (t + 1)/2 + t;
+
+                  /* skip positions covered by at least two variables */
+                  if ( consdata->matrixval[diagt] == SCIP_INVALID )
+                     continue;
+
                   var = consdata->matrixvar[diagt];
                   if ( var != NULL )
                   {
