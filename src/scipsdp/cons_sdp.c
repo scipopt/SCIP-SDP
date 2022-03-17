@@ -106,6 +106,7 @@
 #define DEFAULT_PROPUPPERBOUNDS    TRUE /**< Should upper bounds be propagated? */
 #define DEFAULT_PROPUBPRESOL       TRUE /**< Should upper bounds be propagated in presolving? */
 #define DEFAULT_PROP3MINORS       FALSE /**< Should 3x3 minors be propagated? */
+#define DEFAULT_NONCONST3MINORS   FALSE /**< Should 3x3 minors be propagated if the diagonal is not constant? */
 #define DEFAULT_PROPTIGHTENBOUNDS  TRUE /**< Should tighten bounds be propagated? */
 #define DEFAULT_PROPTBPROBING     FALSE /**< Should tighten bounds be propagated in probing? */
 #define DEFAULT_TIGHTENBOUNDSCONT FALSE /**< Should only bounds be tightend for continuous variables? */
@@ -196,6 +197,7 @@ struct SCIP_ConshdlrData
    SCIP_Bool             propupperbounds;    /**< Should upper bounds be propagated? */
    SCIP_Bool             propubpresol;       /**< Should upper bounds be propagated in presolving? */
    SCIP_Bool             prop3minors;        /**< Should 3x3 minors be propagated? */
+   SCIP_Bool             nonconst3minors;    /**< Should 3x3 minors be propagated if the diagonal is not constant? */
    SCIP_Bool             tightenboundscont;  /**< Should only bounds be tightend for continuous variables? */
    SCIP_Bool             proptightenbounds;  /**< Should tighten bounds be propagated? */
    SCIP_Bool             proptbprobing;      /**< Should tighten bounds be propagated in probing? */
@@ -4887,6 +4889,7 @@ SCIP_RETCODE propagate3Minors(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           conss,              /**< constraints to process */
    int                   nconss,             /**< number of constraints */
+   SCIP_Bool             nonconst3minors,    /**< Should 3x3 minors be propagated if the diagonal is not constant? */
    SCIP_Bool*            infeasible,         /**< pointer to store whether infeasibility was detected */
    int*                  nprop               /**< pointer to store the number of propagations performed */
    )
@@ -5061,7 +5064,7 @@ SCIP_RETCODE propagate3Minors(
                }
             }
          }
-         else
+         else if ( nonconst3minors )
          {
             /* extended version */
 
@@ -6528,7 +6531,7 @@ SCIP_DECL_CONSPROP(consPropSdp)
       SCIPdebugMsg(scip, "Propagate 3x3 minors of conshdlr <%s> ...\n", SCIPconshdlrGetName(conshdlr));
 
       nprop = 0;
-      SCIP_CALL( propagate3Minors(scip, conss, nconss, &infeasible, &nprop) );
+      SCIP_CALL( propagate3Minors(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->nonconst3minors, &infeasible, &nprop) );
 
       if ( infeasible )
       {
@@ -8469,6 +8472,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          "Should 3x3 minors be propagated?",
          &(conshdlrdata->prop3minors), TRUE, DEFAULT_PROP3MINORS, NULL, NULL) );
 
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/nonconst3minors",
+         "Should 3x3 minors be propagated if the diagonal is not constant?",
+         &(conshdlrdata->nonconst3minors), TRUE, DEFAULT_NONCONST3MINORS, NULL, NULL) );
+
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/proptightenbounds",
          "Should tighten bounds be propagated?",
          &(conshdlrdata->proptightenbounds), TRUE, DEFAULT_PROPTIGHTENBOUNDS, NULL, NULL) );
@@ -8623,6 +8630,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->propupperbounds = FALSE;
    conshdlrdata->propubpresol = FALSE;
    conshdlrdata->prop3minors = FALSE;
+   conshdlrdata->nonconst3minors = FALSE;
    conshdlrdata->proptightenbounds = FALSE;
    conshdlrdata->proptbprobing = FALSE;
    conshdlrdata->tightenboundscont = FALSE;
