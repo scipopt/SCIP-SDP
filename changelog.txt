@@ -1,9 +1,14 @@
 SCIP-SDP version next
 
 features:
+- new propagation routine based on 3 by 3 minors
+  (applied with parameter "constraints/SDP/prop3minors")
 - can now create CMIR inequalities from eigenvector cuts
 
 parameters:
+- new parameter <constraints/SDP/prop3minors> to propagate 3 by 3 minors (default: FALSE)
+- new parameter <constraints/SDP/nonconst3minors> to propagate 3 by 3 minors even if the diagonals are not constant (default: FALSE)
+- new parameter <constraints/SDP/additionalstats> to show the number of propagations (default: FALSE)
 - new parameter <constraints/SDP/generatecmir> to separate CMIR from eigenvalue cuts (default: FALSE)
 
 

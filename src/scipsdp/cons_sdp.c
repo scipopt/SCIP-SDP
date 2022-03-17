@@ -105,6 +105,8 @@
 
 #define DEFAULT_PROPUPPERBOUNDS    TRUE /**< Should upper bounds be propagated? */
 #define DEFAULT_PROPUBPRESOL       TRUE /**< Should upper bounds be propagated in presolving? */
+#define DEFAULT_PROP3MINORS       FALSE /**< Should 3x3 minors be propagated? */
+#define DEFAULT_NONCONST3MINORS   FALSE /**< Should 3x3 minors be propagated if the diagonal is not constant? */
 #define DEFAULT_PROPTIGHTENBOUNDS  TRUE /**< Should tighten bounds be propagated? */
 #define DEFAULT_PROPTBPROBING     FALSE /**< Should tighten bounds be propagated in probing? */
 #define DEFAULT_TIGHTENBOUNDSCONT FALSE /**< Should only bounds be tightend for continuous variables? */
@@ -134,6 +136,7 @@
 #define DEFAULT_GENERATEROWS       TRUE /**< Should rows be generated (constraints otherwise)? */
 #define DEFAULT_GENERATECMIR      FALSE /**< Should CMIR cuts be generated? */
 #define DEFAULT_PRESOLLINCONSSPARAM   0 /**< Parameters for linear constraints added during presolving: (0) propagate, if solving LPs also separate (1) initial and propagate, if solving LPs also separate, enforce and check */
+#define DEFAULT_ADDITIONALSTATS    TRUE /**< Should additional statistics be output at the end? */
 
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
@@ -177,6 +180,7 @@ struct SCIP_ConsData
    SCIP_Real*            matrixval;          /**< value at given position of unique covering variable */
    SCIP_Real*            matrixconst;        /**< value of constant matrix */
    int                   nsingle;            /**< number of matrix entries that depend on a single variable only */
+   SCIP_Bool             diagconstantone;    /**< true if all diagonal entries are fixed to be 1 (used for speeding-up propagate3minors() */
    SCIP_Real             tracebound;         /**< possible bound on the trace */
    SCIP_Bool             allmatricespsd;     /**< true if all variables are positive semidefinite (excluding the constant matrix) */
    SCIP_Bool             initallmatricespsd; /**< true if allmatricespsd has been initialized */
@@ -192,6 +196,8 @@ struct SCIP_ConshdlrData
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
    SCIP_Bool             propupperbounds;    /**< Should upper bounds be propagated? */
    SCIP_Bool             propubpresol;       /**< Should upper bounds be propagated in presolving? */
+   SCIP_Bool             prop3minors;        /**< Should 3x3 minors be propagated? */
+   SCIP_Bool             nonconst3minors;    /**< Should 3x3 minors be propagated if the diagonal is not constant? */
    SCIP_Bool             tightenboundscont;  /**< Should only bounds be tightend for continuous variables? */
    SCIP_Bool             proptightenbounds;  /**< Should tighten bounds be propagated? */
    SCIP_Bool             proptbprobing;      /**< Should tighten bounds be propagated in probing? */
@@ -238,6 +244,10 @@ struct SCIP_ConshdlrData
    SCIP_Bool             recomputeinitial;   /**< Should the inital vector for TPower be computed each time before calling TPower (instead of using the original smallest eigenvector)? */
    SCIP_Bool             exacttrans;         /**< Should the matrix be transformed with the exact maximal eigenvalue before calling TPower (instead of using estimate)? */
    int                   presollinconssparam; /**< Parameters for linear constraints added during presolving: (0) propagate, if solving LPs also separate (1) initial and propagate, if solving LPs also separate, enforce and check */
+   SCIP_Bool             additionalstats;    /**< Should additional statistics be output at the end? */
+   int                   npropub;            /**< Number of propagations through upper bounds */
+   int                   nproptb;            /**< Number of tightened bounds in propagation */
+   int                   nprop3minor;        /**< Number of propagations through 3x3 minors */
 };
 
 /** generates matrix in colum-first format (needed by LAPACK) from matrix given in full row-first format (SCIP-SDP
@@ -448,7 +458,13 @@ SCIP_RETCODE computeFullSdpMatrix(
    return SCIP_OKAY;
 }
 
-/** build matrixvar data */
+/** build matrixvar data
+ *
+ *  We have:
+ *  - matrixvar[i] is NULL if position i is not uniquely covered by a variable (either because there is no variable or at least two variables that cover the position).
+ *  - matrixval[i] == 0.0 if position i is not covered by any variable.
+ *  - matrixval[i] == SCIP_INVALID if position i is covered by at least two variables.
+ */
 static
 SCIP_RETCODE constructMatrixvar(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -488,6 +504,7 @@ SCIP_RETCODE constructMatrixvar(
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->matrixval, blocksize * (blocksize+1)/2) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->matrixconst, blocksize * (blocksize+1)/2) );
 
+   consdata->diagconstantone = TRUE;
    for (s = 0; s < blocksize; ++s)
    {
       for (t = 0; t <= s; ++t)
@@ -519,12 +536,16 @@ SCIP_RETCODE constructMatrixvar(
             consdata->matrixval[cnt] = val;
             consdata->matrixconst[cnt] = constmatrix[pos];
             ++consdata->nsingle;
+            if ( s == t && (var != NULL || ! SCIPisZero(scip, val) || ! SCIPisEQ(scip, constmatrix[pos], -1.0)) )
+               consdata->diagconstantone = FALSE;
          }
          else
          {
             consdata->matrixvar[cnt] = NULL;
             consdata->matrixval[cnt] = SCIP_INVALID;
             consdata->matrixconst[cnt] = SCIP_INVALID;
+            if ( s == t )
+               consdata->diagconstantone = FALSE;
          }
          ++cnt;
       }
@@ -4734,6 +4755,523 @@ SCIP_RETCODE propagateUpperBounds(
    return SCIP_OKAY;
 }
 
+/** analyzes conflicting assignment on given constraint from 3x3 minor propagation, and adds conflict constraint to problem */
+static
+SCIP_RETCODE analyzeConflict3Minor(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons,               /**< SDP constraint */
+   int                   diagr,              /**< index for diagonal entry corresponding to r */
+   int                   diags,              /**< index for diagonal entry corresponding to s */
+   int                   diagt,              /**< index for diagonal entry corresponding to t */
+   int                   posrs,              /**< index for off-diagonal entry corresponding to (r,s) */
+   int                   pos1,               /**< index for one off-diagonal entry corresponding to fixed variable (or -1) */
+   int                   pos2                /**< index for one off-diagonal entry corresponding to fixed variable (or -1) */
+   )
+{
+   SCIP_CONSDATA* consdata;
+   SCIP_Bool success;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+
+   /* conflict analysis can only be applied in solving stage and if it is applicable */
+   if ( (SCIPgetStage(scip) != SCIP_STAGE_SOLVING && ! SCIPinProbing(scip)) || ! SCIPisConflictAnalysisApplicable(scip) )
+      return SCIP_OKAY;
+
+   SCIPdebugMsg(scip, "Analyzing a conflict during propagation of 3x3 minors ...\n");
+
+   /* initialize conflict analysis, and add all variables of infeasible constraint to conflict candidate queue */
+   SCIP_CALL( SCIPinitConflictAnalysis(scip, SCIP_CONFTYPE_PROPAGATION, FALSE) );
+
+   assert( consdata->matrixvar != NULL );
+   assert( consdata->matrixval != NULL );
+
+   if ( consdata->matrixvar[diagr] != NULL )
+   {
+      assert( SCIPisFeasEQ(scip, consdata->matrixval[diagr] * SCIPvarGetLbLocal(consdata->matrixvar[diagr]) + consdata->matrixconst[diagr], 1.0) );
+      assert( SCIPisEQ(scip, SCIPvarGetLbLocal(consdata->matrixvar[diagr]), SCIPvarGetUbLocal(consdata->matrixvar[diagr])) );
+
+      if ( SCIPisGT(scip, SCIPvarGetLbLocal(consdata->matrixvar[diagr]), SCIPvarGetLbOriginal(consdata->matrixvar[diagr])) )
+      {
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diagr], NULL) );
+      }
+      if ( SCIPisLT(scip, SCIPvarGetUbLocal(consdata->matrixvar[diagr]), SCIPvarGetUbOriginal(consdata->matrixvar[diagr])) )
+      {
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diagr], NULL) );
+      }
+   }
+
+   if ( consdata->matrixvar[diags] != NULL )
+   {
+      assert( SCIPisFeasEQ(scip, consdata->matrixval[diags] * SCIPvarGetLbLocal(consdata->matrixvar[diags]) + consdata->matrixconst[diags], 1.0) );
+      assert( SCIPisEQ(scip, SCIPvarGetLbLocal(consdata->matrixvar[diags]), SCIPvarGetUbLocal(consdata->matrixvar[diags])) );
+
+      if ( SCIPisGT(scip, SCIPvarGetLbLocal(consdata->matrixvar[diags]), SCIPvarGetLbOriginal(consdata->matrixvar[diags])) )
+      {
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diags], NULL) );
+      }
+      if ( SCIPisLT(scip, SCIPvarGetUbLocal(consdata->matrixvar[diags]), SCIPvarGetUbOriginal(consdata->matrixvar[diags])) )
+      {
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diags], NULL) );
+      }
+   }
+
+   if ( consdata->matrixvar[diagt] != NULL )
+   {
+      assert( SCIPisFeasEQ(scip, consdata->matrixval[diagt] * SCIPvarGetLbLocal(consdata->matrixvar[diagt]) + consdata->matrixconst[diagt], 1.0) );
+      assert( SCIPisEQ(scip, SCIPvarGetLbLocal(consdata->matrixvar[diagt]), SCIPvarGetUbLocal(consdata->matrixvar[diagt])) );
+
+      if ( SCIPisGT(scip, SCIPvarGetLbLocal(consdata->matrixvar[diagt]), SCIPvarGetLbOriginal(consdata->matrixvar[diagt])) )
+      {
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diagt], NULL) );
+      }
+      if ( SCIPisLT(scip, SCIPvarGetUbLocal(consdata->matrixvar[diagt]), SCIPvarGetUbOriginal(consdata->matrixvar[diagt])) )
+      {
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diagt], NULL) );
+      }
+   }
+
+   if ( consdata->matrixvar[posrs] != NULL )
+   {
+      assert( SCIPisFeasEQ(scip, consdata->matrixval[posrs] * SCIPvarGetLbLocal(consdata->matrixvar[posrs]) + consdata->matrixconst[posrs], 1.0) );
+      assert( SCIPisEQ(scip, SCIPvarGetLbLocal(consdata->matrixvar[posrs]), SCIPvarGetUbLocal(consdata->matrixvar[posrs])) );
+
+      if ( SCIPisGT(scip, SCIPvarGetLbLocal(consdata->matrixvar[posrs]), SCIPvarGetLbOriginal(consdata->matrixvar[posrs])) )
+      {
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[posrs], NULL) );
+      }
+      if ( SCIPisLT(scip, SCIPvarGetUbLocal(consdata->matrixvar[posrs]), SCIPvarGetUbOriginal(consdata->matrixvar[posrs])) )
+      {
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[posrs], NULL) );
+      }
+   }
+
+   if ( pos1 >= 0 && consdata->matrixvar[pos1] != NULL )
+   {
+      if ( SCIPisGT(scip, SCIPvarGetLbLocal(consdata->matrixvar[pos1]), SCIPvarGetLbOriginal(consdata->matrixvar[pos1])) )
+      {
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[pos1], NULL) );
+      }
+      if ( SCIPisLT(scip, SCIPvarGetUbLocal(consdata->matrixvar[pos1]), SCIPvarGetUbOriginal(consdata->matrixvar[pos1])) )
+      {
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[pos1], NULL) );
+      }
+   }
+
+   if ( pos2 >= 0 && consdata->matrixvar[pos2] != NULL )
+   {
+      if ( SCIPisGT(scip, SCIPvarGetLbLocal(consdata->matrixvar[pos2]), SCIPvarGetLbOriginal(consdata->matrixvar[pos2])) )
+      {
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[pos2], NULL) );
+      }
+      if ( SCIPisLT(scip, SCIPvarGetUbLocal(consdata->matrixvar[pos2]), SCIPvarGetUbOriginal(consdata->matrixvar[pos2])) )
+      {
+         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[pos2], NULL) );
+      }
+   }
+
+   /* analyze the conflict */
+   SCIP_CALL( SCIPanalyzeConflictCons(scip, cons, &success) );
+
+   if ( success )
+      SCIPdebugMsg(scip, "Succesfully analyzed and resolved conflict!\n");
+
+   return SCIP_OKAY;
+}
+
+
+/** propagates 3x3 minors */
+static
+SCIP_RETCODE propagate3Minors(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS**           conss,              /**< constraints to process */
+   int                   nconss,             /**< number of constraints */
+   SCIP_Bool             nonconst3minors,    /**< Should 3x3 minors be propagated if the diagonal is not constant? */
+   SCIP_Bool*            infeasible,         /**< pointer to store whether infeasibility was detected */
+   int*                  nprop               /**< pointer to store the number of propagations performed */
+   )
+{
+   int c;
+
+   assert( infeasible != NULL );
+   assert( nprop != NULL );
+
+   *infeasible = FALSE;
+   *nprop = 0;
+
+   for (c = 0; c < nconss; ++c)
+   {
+      SCIP_CONSDATA* consdata;
+      int blocksize;
+
+      assert( conss[c] != NULL );
+      consdata = SCIPconsGetData(conss[c]);
+      blocksize = consdata->blocksize;
+
+      /* build matrix if not yet done */
+      SCIP_CALL( constructMatrixvar(scip, conss[c], consdata) );
+      assert( consdata->matrixvar != NULL );
+      assert( consdata->matrixval != NULL );
+      assert( consdata->matrixconst != NULL );
+
+      /* if there is at least one entry that only depends on a single variable */
+      if ( consdata->nsingle > 0 )
+      {
+         SCIP_VAR* var;
+         SCIP_Real val;
+         int r;
+         int s;
+         int t;
+
+         /* streamlined version if we know that the diagonals are fixed to be 1 */
+         if ( consdata->diagconstantone )
+         {
+            /* check rows */
+            for (r = 1; r < blocksize; ++r)
+            {
+               int diagr;
+
+               diagr = r * (r + 1)/2 + r;
+
+               /* check column */
+               for (s = 0; s < r; ++s)
+               {
+                  int diags;
+                  int posrs;
+
+                  diags = s * (s + 1)/2 + s;
+
+                  /* check whether position (r,s) is 1 */
+                  posrs = r * (r + 1)/2 + s;
+
+                  /* skip positions covered by at least two variables */
+                  if ( consdata->matrixval[posrs] == SCIP_INVALID )
+                     continue;
+
+                  var = consdata->matrixvar[posrs];
+                  if ( var != NULL )
+                  {
+                     /* skip unfixed variable */
+                     if ( ! SCIPisEQ(scip, SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var)) )
+                        continue;
+
+                     val = SCIPvarGetLbLocal(var); /* fixed value */
+                  }
+                  else
+                     val = 0.0;
+
+                  /* check whether off-diagonal (r,s) is 1 */
+                  if ( ! SCIPisFeasEQ(scip, consdata->matrixval[posrs] * val - consdata->matrixconst[posrs], 1.0) )
+                     continue;
+
+                  /* now check all other columns */
+                  for (t = s+1; t < blocksize; ++t)
+                  {
+                     SCIP_VAR* var1;
+                     SCIP_VAR* var2;
+                     int diagt;
+                     int pos1;
+                     int pos2;
+
+                     if ( t == r )
+                        continue;
+
+                     diagt = t * (t + 1)/2 + t;
+
+                     /* at this place the positions (r,t) and (s,t) need to be equal due to the 3x3 minor */
+
+                     /* check off-diagonal entries */
+                     pos1 = t * (t + 1)/2 + s;
+                     var1 = consdata->matrixvar[pos1];
+                     if ( var1 == NULL )
+                        continue;
+
+                     if ( t > r )
+                        pos2 = t * (t + 1)/2 + r;
+                     else
+                        pos2 = r * (r + 1)/2 + t;
+                     var2 = consdata->matrixvar[pos2];
+                     if ( var2 == NULL )
+                        continue;
+
+                     /* if var1 is fixed */
+                     if ( SCIPisEQ(scip, SCIPvarGetLbLocal(var1), SCIPvarGetUbLocal(var1)) )
+                     {
+                        /* if var2 is also fixed */
+                        if ( SCIPisEQ(scip, SCIPvarGetLbLocal(var2), SCIPvarGetUbLocal(var2)) )
+                        {
+                           /* if the variables are fixed to different values, we are infeasible */
+                           if ( ! SCIPisEQ(scip, SCIPvarGetLbLocal(var1), SCIPvarGetLbLocal(var2)) )
+                           {
+                              SCIPdebugMsg(scip, "Detected infeasibility for (%d, %d, %d) <%s>, <%s>.\n", r, s, t,
+                                 SCIPvarGetName(var1), SCIPvarGetName(var2));
+                              *infeasible = TRUE;
+                              SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, pos1, pos2) );
+                              return SCIP_OKAY;
+                           }
+                        }
+                        else
+                        {
+                           SCIP_Bool tightened;
+
+                           /* fix var2 to the same value of var1 */
+                           /* currently reverse propagation does not work for this case: use INT_MAX as inferinfo */
+                           SCIP_CALL( SCIPinferVarFixCons(scip, var2, SCIPvarGetLbLocal(var1), conss[c], INT_MAX, FALSE, infeasible, &tightened) );
+                           if ( *infeasible )
+                           {
+                              SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) <%s>, <%s> detected infeasibility.\n", r, s, t,
+                                 SCIPvarGetName(var1), SCIPvarGetName(var2));
+                              SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, pos1, -1) );
+                              return SCIP_OKAY;
+                           }
+                           if ( tightened )
+                           {
+                              SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) successfully tightened a bound of <%s> to %f.\n",
+                                 r, s, t, SCIPvarGetName(var2), SCIPvarGetLbLocal(var1));
+                              ++(*nprop);
+                           }
+                        }
+                     }
+                     else
+                     {
+                        /* if var2 is fixed (var1 is not fixed) */
+                        if ( SCIPisEQ(scip, SCIPvarGetLbLocal(var2), SCIPvarGetUbLocal(var2)) )
+                        {
+                           SCIP_Bool tightened;
+
+                           /* fix var1 to the same value of var2 */
+                           /* currently reverse propagation does not work for this case: use INT_MAX as inferinfo */
+                           SCIP_CALL( SCIPinferVarFixCons(scip, var1, SCIPvarGetLbLocal(var2), conss[c], INT_MAX, FALSE, infeasible, &tightened) );
+                           if ( *infeasible )
+                           {
+                              SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) <%s>, <%s> detected infeasibility.\n", r, s, t,
+                                 SCIPvarGetName(var1), SCIPvarGetName(var2));
+                              SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, -1, pos2) );
+                              return SCIP_OKAY;
+                           }
+                           if ( tightened )
+                           {
+                              SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) successfully tightened a bound of <%s> to %f.\n",
+                                 r, s, t, SCIPvarGetName(var1), SCIPvarGetLbLocal(var2));
+                              ++(*nprop);
+                           }
+                        }
+                     }
+                  }
+               }
+            }
+         }
+         else if ( nonconst3minors )
+         {
+            /* extended version */
+
+            /* check rows */
+            for (r = 1; r < blocksize; ++r)
+            {
+               int diagr;
+
+               /* make sure that we have 1s on the diagonal */
+               diagr = r * (r + 1)/2 + r;
+
+               /* skip positions covered by at least two variables */
+               if ( consdata->matrixval[diagr] == SCIP_INVALID )
+                  continue;
+
+               var = consdata->matrixvar[diagr];
+               if ( var != NULL )
+               {
+                  /* skip unfixed variable */
+                  if ( ! SCIPisEQ(scip, SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var)) )
+                     continue;
+
+                  val = SCIPvarGetLbLocal(var); /* fixed value */
+               }
+               else
+                  val = 0.0;
+
+               /* the result should be equal to 1 */
+               if ( ! SCIPisFeasEQ(scip, consdata->matrixval[diagr] * val - consdata->matrixconst[diagr], 1.0) )
+                  continue;
+
+               /* check column */
+               for (s = 0; s < r; ++s)
+               {
+                  int diags;
+                  int posrs;
+
+                  /* make sure that we have 1s on the diagonal */
+                  diags = s * (s + 1)/2 + s;
+
+                  /* skip positions covered by at least two variables */
+                  if ( consdata->matrixval[diags] == SCIP_INVALID )
+                     continue;
+
+                  var = consdata->matrixvar[diags];
+                  if ( var != NULL )
+                  {
+                     /* skip unfixed variable */
+                     if ( ! SCIPisEQ(scip, SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var)) )
+                        continue;
+
+                     val = SCIPvarGetLbLocal(var); /* fixed value */
+                  }
+                  else
+                     val = 0.0;
+
+                  /* the result should be equal to 1 */
+                  if ( ! SCIPisFeasEQ(scip, consdata->matrixval[diags] * val - consdata->matrixconst[diags], 1.0) )
+                     continue;
+
+                  /* check whether position (r,s) is 1 */
+                  posrs = r * (r + 1)/2 + s;
+
+                  /* skip positions covered by at least two variables */
+                  if ( consdata->matrixval[posrs] == SCIP_INVALID )
+                     continue;
+
+                  var = consdata->matrixvar[posrs];
+                  if ( var != NULL )
+                  {
+                     /* skip unfixed variable */
+                     if ( ! SCIPisEQ(scip, SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var)) )
+                        continue;
+
+                     val = SCIPvarGetLbLocal(var); /* fixed value */
+                  }
+                  else
+                     val = 0.0;
+
+                  /* check whether off-diagonal (r,s) is 1 */
+                  if ( ! SCIPisFeasEQ(scip, consdata->matrixval[posrs] * val - consdata->matrixconst[posrs], 1.0) )
+                     continue;
+
+                  /* now check all other columns */
+                  for (t = s+1; t < blocksize; ++t)
+                  {
+                     SCIP_VAR* var1;
+                     SCIP_VAR* var2;
+                     int diagt;
+                     int pos1;
+                     int pos2;
+
+                     if ( t == r )
+                        continue;
+
+                     /* make sure that we have 1s on the diagonal */
+                     diagt = t * (t + 1)/2 + t;
+
+                     /* skip positions covered by at least two variables */
+                     if ( consdata->matrixval[diagt] == SCIP_INVALID )
+                        continue;
+
+                     var = consdata->matrixvar[diagt];
+                     if ( var != NULL )
+                     {
+                        /* skip unfixed variable */
+                        if ( ! SCIPisEQ(scip, SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var)) )
+                           continue;
+
+                        val = SCIPvarGetLbLocal(var); /* fixed value */
+                     }
+                     else
+                        val = 0.0;
+
+                     /* the result should be equal to 1 */
+                     if ( ! SCIPisFeasEQ(scip, consdata->matrixval[diagt] * val - consdata->matrixconst[diagt], 1.0) )
+                        continue;
+
+                     /* at this place the positions (r,t) and (s,t) need to be equal due to the 3x3 minor */
+
+                     /* check off-diagonal entries */
+                     pos1 = t * (t + 1)/2 + s;
+                     var1 = consdata->matrixvar[pos1];
+                     if ( var1 == NULL )
+                        continue;
+
+                     if ( t > r )
+                        pos2 = t * (t + 1)/2 + r;
+                     else
+                        pos2 = r * (r + 1)/2 + t;
+                     var2 = consdata->matrixvar[pos2];
+                     if ( var2 == NULL )
+                        continue;
+
+                     /* if var1 is fixed */
+                     if ( SCIPisEQ(scip, SCIPvarGetLbLocal(var1), SCIPvarGetUbLocal(var1)) )
+                     {
+                        /* if var2 is also fixed */
+                        if ( SCIPisEQ(scip, SCIPvarGetLbLocal(var2), SCIPvarGetUbLocal(var2)) )
+                        {
+                           /* if the variables are fixed to different values, we are infeasible */
+                           if ( ! SCIPisEQ(scip, SCIPvarGetLbLocal(var1), SCIPvarGetLbLocal(var2)) )
+                           {
+                              SCIPdebugMsg(scip, "Detected infeasibility for (%d, %d, %d) <%s>, <%s>.\n", r, s, t,
+                                 SCIPvarGetName(var1), SCIPvarGetName(var2));
+                              *infeasible = TRUE;
+                              SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, pos1, pos2) );
+                              return SCIP_OKAY;
+                           }
+                        }
+                        else
+                        {
+                           SCIP_Bool tightened;
+
+                           /* fix var2 to the same value of var1 */
+                           /* currently reverse propagation does not work for this case: use INT_MAX as inferinfo */
+                           SCIP_CALL( SCIPinferVarFixCons(scip, var2, SCIPvarGetLbLocal(var1), conss[c], INT_MAX, FALSE, infeasible, &tightened) );
+                           if ( *infeasible )
+                           {
+                              SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) <%s>, <%s> detected infeasibility.\n", r, s, t,
+                                 SCIPvarGetName(var1), SCIPvarGetName(var2));
+                              SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, pos1, -1) );
+                              return SCIP_OKAY;
+                           }
+                           if ( tightened )
+                           {
+                              SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) successfully tightened a bound of <%s> to %f.\n",
+                                 r, s, t, SCIPvarGetName(var2), SCIPvarGetLbLocal(var1));
+                              ++(*nprop);
+                           }
+                        }
+                     }
+                     else
+                     {
+                        /* if var2 is fixed (var1 is not fixed) */
+                        if ( SCIPisEQ(scip, SCIPvarGetLbLocal(var2), SCIPvarGetUbLocal(var2)) )
+                        {
+                           SCIP_Bool tightened;
+
+                           /* fix var1 to the same value of var2 */
+                           /* currently reverse propagation does not work for this case: use INT_MAX as inferinfo */
+                           SCIP_CALL( SCIPinferVarFixCons(scip, var1, SCIPvarGetLbLocal(var2), conss[c], INT_MAX, FALSE, infeasible, &tightened) );
+                           if ( *infeasible )
+                           {
+                              SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) <%s>, <%s> detected infeasibility.\n", r, s, t,
+                                 SCIPvarGetName(var1), SCIPvarGetName(var2));
+                              SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, -1, pos2) );
+                              return SCIP_OKAY;
+                           }
+                           if ( tightened )
+                           {
+                              SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) successfully tightened a bound of <%s> to %f.\n",
+                                 r, s, t, SCIPvarGetName(var1), SCIPvarGetLbLocal(var2));
+                              ++(*nprop);
+                           }
+                        }
+                     }
+                  }
+               }
+            }
+         }
+      }
+   }
+
+   return SCIP_OKAY;
+}
+
 
 #if ( SCIP_VERSION >= 800 || ( SCIP_VERSION < 800 && SCIP_APIVERSION >= 100 ) )
 
@@ -5656,6 +6194,9 @@ SCIP_DECL_CONSINITPRE(consInitpreSdp)
    conshdlrdata->ncmir = 0;
    conshdlrdata->ndiaggezerocuts = 0; /* this is used to give the diagGEzero-cuts distinguishable names */
    conshdlrdata->n1x1blocks = 0; /* this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
+   conshdlrdata->npropub = 0;    /* reset numbers; called for both the rank1 and ordinary constraint handler */
+   conshdlrdata->nproptb = 0;
+   conshdlrdata->nprop3minor = 0;
 
    return SCIP_OKAY;
 }
@@ -5797,6 +6338,21 @@ SCIP_DECL_CONSEXIT(consExitSdp)
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert(conshdlrdata != NULL);
 
+   /* possibly output more statistics */
+   if ( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 )
+   {
+      if ( conshdlrdata->sdpconshdlrdata->additionalstats )
+      {
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of propagations through upper bounds: %d\n", conshdlrdata->npropub);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of tightened bounds in propagation:   %d\n", conshdlrdata->nproptb);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of propagations through 3x3 minors:   %d\n", conshdlrdata->nprop3minor);
+      }
+      /* reset counters */
+      conshdlrdata->npropub = 0;
+      conshdlrdata->nproptb = 0;
+      conshdlrdata->nprop3minor = 0;
+   }
+
    /* reset parameter triedlinearconss */
    conshdlrdata->sdpconshdlrdata->triedlinearconss = FALSE;
    conshdlrdata->sdpconshdlrdata->triedvarbounds = FALSE;
@@ -5921,20 +6477,21 @@ SCIP_DECL_CONSPROP(consPropSdp)
 
       if ( infeasible )
       {
-         SCIPdebugMsg(scip, "Propagation detected cutoff.\n");
+         SCIPdebugMsg(scip, "Propagation of upper bounds detected cutoff.\n");
          *result = SCIP_CUTOFF;
       }
       else
       {
          if ( nprop > 0 )
          {
-            SCIPdebugMsg(scip, "Propagation tightened %d bounds.\n", nprop);
+            conshdlrdata->sdpconshdlrdata->npropub += nprop;
+            SCIPdebugMsg(scip, "Propagation of upper bounds tightened %d bounds.\n", nprop);
             *result = SCIP_REDUCEDDOM;
          }
       }
    }
 
-   /* if we want to propagate upper bounds */
+   /* if we want to propagate bound tightening */
    if ( conshdlrdata->sdpconshdlrdata->proptightenbounds )
    {
       /* possibly avoid propagation in probing */
@@ -5950,16 +6507,44 @@ SCIP_DECL_CONSPROP(consPropSdp)
 
          if ( infeasible )
          {
-            SCIPdebugMsg(scip, "Propagation detected cutoff.\n");
+            SCIPdebugMsg(scip, "Propagation of bound tightening detected cutoff.\n");
             *result = SCIP_CUTOFF;
          }
          else
          {
             if ( nprop > 0 )
             {
-               SCIPdebugMsg(scip, "Propagation tightened %d bounds.\n", nprop);
+               conshdlrdata->sdpconshdlrdata->nproptb += nprop;
+               SCIPdebugMsg(scip, "Propagation of bound tightening tightened %d bounds.\n", nprop);
                *result = SCIP_REDUCEDDOM;
             }
+         }
+      }
+   }
+
+   /* if we want to propagate 3x3 minors and we are not in probing */
+   if ( conshdlrdata->sdpconshdlrdata->prop3minors && ! SCIPinProbing(scip) )
+   {
+      if ( *result == SCIP_DIDNOTRUN )
+         *result = SCIP_DIDNOTFIND;
+
+      SCIPdebugMsg(scip, "Propagate 3x3 minors of conshdlr <%s> ...\n", SCIPconshdlrGetName(conshdlr));
+
+      nprop = 0;
+      SCIP_CALL( propagate3Minors(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->nonconst3minors, &infeasible, &nprop) );
+
+      if ( infeasible )
+      {
+         SCIPdebugMsg(scip, "Propagation of 3x3 minors detected cutoff.\n");
+         *result = SCIP_CUTOFF;
+      }
+      else
+      {
+         if ( nprop > 0 )
+         {
+            conshdlrdata->sdpconshdlrdata->nprop3minor += nprop;
+            SCIPdebugMsg(scip, "Propagation of 3x3 minors tightened %d bounds.\n", nprop);
+            *result = SCIP_REDUCEDDOM;
          }
       }
    }
@@ -5988,6 +6573,13 @@ SCIP_DECL_CONSRESPROP(consRespropSdp)
    assert( ! consdata->rankone || strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(cons)), CONSHDLRRANK1_NAME) == 0 );
 
    SCIPdebugMsg(scip, "Executing conflict resolving method of <%s> constraint handler.\n", SCIPconshdlrGetName(conshdlr));
+
+   /* skip unresolvable cases */
+   if ( inferinfo == INT_MAX )
+   {
+      *result = SCIP_DIDNOTFIND;
+      return SCIP_OKAY;
+   }
 
    /* if inferinfo is >=, the bound change came from propagateUpperBounds() */
    if ( inferinfo >= 0 )
@@ -7553,6 +8145,7 @@ SCIP_DECL_CONSPARSE(consParseSdp)
    consdata->matrixval = NULL;
    consdata->matrixconst = NULL;
    consdata->nsingle = 0;
+   consdata->diagconstantone = FALSE;
    consdata->tracebound = -2.0;
    consdata->allmatricespsd = FALSE;
    consdata->initallmatricespsd = FALSE;
@@ -7830,6 +8423,9 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    conshdlrdata->relaxsdp = NULL;
    conshdlrdata->sdpconshdlrdata = conshdlrdata;  /* set this to itself to simplify access of parameters */
    conshdlrdata->dimacsfeastol = SCIP_INVALID;
+   conshdlrdata->npropub = 0;
+   conshdlrdata->nproptb = 0;
+   conshdlrdata->nprop3minor = 0;
 
    /* include constraint handler */
    SCIP_CALL( SCIPincludeConshdlrBasic(scip, &conshdlr, CONSHDLR_NAME, CONSHDLR_DESC,
@@ -7871,6 +8467,14 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/propubpresol",
          "Should upper bounds be propagated in presolving?",
          &(conshdlrdata->propubpresol), TRUE, DEFAULT_PROPUBPRESOL, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/prop3minors",
+         "Should 3x3 minors be propagated?",
+         &(conshdlrdata->prop3minors), TRUE, DEFAULT_PROP3MINORS, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/nonconst3minors",
+         "Should 3x3 minors be propagated if the diagonal is not constant?",
+         &(conshdlrdata->nonconst3minors), TRUE, DEFAULT_NONCONST3MINORS, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/proptightenbounds",
          "Should tighten bounds be propagated?",
@@ -8000,6 +8604,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          "Parameters for linear constraints added during presolving: (0) propagate, if solving LPs also separate (1) initial and propagate, if solving LPs also separate, enforce and check",
          &(conshdlrdata->presollinconssparam), TRUE, DEFAULT_PRESOLLINCONSSPARAM, 0, 1, NULL, NULL) );
 
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/additionalstats",
+         "Should additional statistics be output at the end?",
+         &(conshdlrdata->additionalstats), TRUE, DEFAULT_ADDITIONALSTATS, NULL, NULL) );
+
    return SCIP_OKAY;
 }
 
@@ -8021,6 +8629,8 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->diaggezerocuts = FALSE;
    conshdlrdata->propupperbounds = FALSE;
    conshdlrdata->propubpresol = FALSE;
+   conshdlrdata->prop3minors = FALSE;
+   conshdlrdata->nonconst3minors = FALSE;
    conshdlrdata->proptightenbounds = FALSE;
    conshdlrdata->proptbprobing = FALSE;
    conshdlrdata->tightenboundscont = FALSE;
@@ -8057,6 +8667,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->recomputeinitial = FALSE;
    conshdlrdata->exacttrans = FALSE;
    conshdlrdata->presollinconssparam = 0;
+   conshdlrdata->additionalstats = FALSE;
 
    /* parameters are retrieved through the SDP constraint handler */
    sdpconshdlr = SCIPfindConshdlr(scip, CONSHDLR_NAME);
@@ -8077,6 +8688,9 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->randnumgen = NULL;
    conshdlrdata->relaxsdp = NULL;
    conshdlrdata->dimacsfeastol = SCIP_INVALID;
+   conshdlrdata->npropub = 0;
+   conshdlrdata->nproptb = 0;
+   conshdlrdata->nprop3minor = 0;
 
    /* include constraint handler */
    SCIP_CALL( SCIPincludeConshdlrBasic(scip, &conshdlr, CONSHDLRRANK1_NAME, CONSHDLRRANK1_DESC,
@@ -8791,6 +9405,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
    consdata->matrixval = NULL;
    consdata->matrixconst = NULL;
    consdata->nsingle = 0;
+   consdata->diagconstantone = FALSE;
    consdata->tracebound = -2.0;
    consdata->allmatricespsd = FALSE;
    consdata->initallmatricespsd = FALSE;
@@ -9018,6 +9633,7 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
    consdata->matrixval = NULL;
    consdata->matrixconst = NULL;
    consdata->nsingle = 0;
+   consdata->diagconstantone = FALSE;
    consdata->tracebound = -2.0;
    consdata->allmatricespsd = FALSE;
    consdata->initallmatricespsd = FALSE;
