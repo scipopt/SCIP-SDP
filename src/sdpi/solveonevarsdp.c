@@ -55,7 +55,7 @@
 
 /** determine whether linear combination with value alpha is feasible */
 static
-SCIP_RETCODE SCIPoneVarFeasibleSparse(
+SCIP_RETCODE SCIPoneVarFeasibleArpackSparse(
    BMS_BUFMEM*           bufmem,             /**< buffer memory */
    int                   blocksize,          /**< size of the SDP-block */
    SCIP_Real             alpha,              /**< variable value to test */
@@ -84,7 +84,7 @@ SCIP_RETCODE SCIPoneVarFeasibleSparse(
    return SCIP_OKAY;
 }
 
-#else
+#endif
 
 /** determine whether linear combination with value alpha is feasible */
 static
@@ -109,6 +109,9 @@ SCIP_RETCODE SCIPoneVarFeasible(
    for (i = 0; i < blocksize * blocksize; ++i)
       tmpmatrix[i] = alpha * fullmatrix[i] - fullconstmatrix[i];
 
+#ifdef ARPACK
+   SCIP_CALL( SCIParpackComputeSmallestEigenvector(bufmem, blocksize, tmpmatrix, eigenvalue, eigenvector) );
+#else
    if ( eigenvector != NULL )
    {
       SCIP_CALL( SCIPlapackComputeIthEigenvalue(bufmem, TRUE, blocksize, tmpmatrix, 1, eigenvalue, eigenvector) );
@@ -117,11 +120,11 @@ SCIP_RETCODE SCIPoneVarFeasible(
    {
       SCIP_CALL( SCIPlapackComputeIthEigenvalue(bufmem, FALSE, blocksize, tmpmatrix, 1, eigenvalue, NULL) );
    }
+#endif
 
    return SCIP_OKAY;
 }
 
-#endif
 
 /** compute supergradient */
 static
@@ -241,7 +244,7 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
 
    /* check upper bound */
 #ifdef ARPACK
-   SCIP_CALL( SCIPoneVarFeasibleSparse(bufmem, blocksize, ub, sdpnnonz, sdprow, sdpcol, sdpval, sdpconstnnonz, sdpconstrow, sdpconstcol, sdpconstval, &eigenvalue, eigenvector) );
+   SCIP_CALL( SCIPoneVarFeasibleArpackSparse(bufmem, blocksize, ub, sdpnnonz, sdprow, sdpcol, sdpval, sdpconstnnonz, sdpconstrow, sdpconstcol, sdpconstval, &eigenvalue, eigenvector) );
 #else
    SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, ub, &eigenvalue, eigenvector) );
 #endif
@@ -268,7 +271,7 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
 
    /* otherwise check lower bound */
 #ifdef ARPACK
-   SCIP_CALL( SCIPoneVarFeasibleSparse(bufmem, blocksize, lb, sdpnnonz, sdprow, sdpcol, sdpval, sdpconstnnonz, sdpconstrow, sdpconstcol, sdpconstval, &eigenvalue, eigenvector) );
+   SCIP_CALL( SCIPoneVarFeasibleArpackSparse(bufmem, blocksize, lb, sdpnnonz, sdprow, sdpcol, sdpval, sdpconstnnonz, sdpconstrow, sdpconstcol, sdpconstval, &eigenvalue, eigenvector) );
 #else
    SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, lb, &eigenvalue, eigenvector) );
 #endif
@@ -321,7 +324,7 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
 
       /* compute eigenvalue and eigenvector */
 #ifdef ARPACK
-      SCIP_CALL( SCIPoneVarFeasibleSparse(bufmem, blocksize, mu, sdpnnonz, sdprow, sdpcol, sdpval, sdpconstnnonz, sdpconstrow, sdpconstcol, sdpconstval, &eigenvalue, eigenvector) );
+      SCIP_CALL( SCIPoneVarFeasibleArpackSparse(bufmem, blocksize, mu, sdpnnonz, sdprow, sdpcol, sdpval, sdpconstnnonz, sdpconstrow, sdpconstcol, sdpconstval, &eigenvalue, eigenvector) );
 #else
       SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, mu, &eigenvalue, eigenvector) );
 #endif
