@@ -136,7 +136,7 @@
 #define DEFAULT_GENERATEROWS       TRUE /**< Should rows be generated (constraints otherwise)? */
 #define DEFAULT_GENERATECMIR      FALSE /**< Should CMIR cuts be generated? */
 #define DEFAULT_PRESOLLINCONSSPARAM   0 /**< Parameters for linear constraints added during presolving: (0) propagate, if solving LPs also separate (1) initial and propagate, if solving LPs also separate, enforce and check */
-#define DEFAULT_ADDITIONALSTATS    TRUE /**< Should additional statistics be output at the end? */
+#define DEFAULT_ADDITIONALSTATS   FALSE /**< Should additional statistics be output at the end? */
 
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
