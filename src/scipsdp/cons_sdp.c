@@ -5980,7 +5980,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
             checkRank1QuadConss(scip, conshdlrdata, conss[i], sol, printreason, &rank1result);
 
 #ifdef PRINTMATRICES
-         SCIPinfoMessage(scip, NULL, "Solution is %d for rank-1 part of constraint %s.\n", rank1result, SCIPconsGetName(conss[i]) );
+            SCIPinfoMessage(scip, NULL, "Solution is %d for rank-1 part of constraint %s.\n", rank1result, SCIPconsGetName(conss[i]) );
 #endif
          }
          else if ( ! conshdlrdata->sdpconshdlrdata->quadconsrank1 )
