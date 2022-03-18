@@ -88,7 +88,7 @@ void F77_FUNC(dseupd, DSEUPD)(int* RVEC, char* HOWMNY, int* SELECT, SCIP_Real* D
 /**@name Functions */
 /**@{ */
 
-#define MAXITER 1000
+#define MAXITER 10000
 
 /** computes an eigenvector for the smallest eigenvalue of a symmetric matrix using ARPACK */
 SCIP_EXPORT
