@@ -586,7 +586,7 @@ SCIP_RETCODE isMatrixRankOne(
    SCIP_CONS*            cons,               /**< the SDP constraint to check the rank for */
    SCIP_SOL*             sol,                /**< solution to check for rank one */
    SCIP_Bool             printreason,        /**< should the reason for the violation be printed? */
-   SCIP_Bool*            result              /**< result pointer to return whether matrix is rank one */
+   SCIP_Bool*            isrankone           /**< pointer to return whether matrix is rank one */
    )
 {
    SCIP_CONSDATA* consdata;
@@ -594,7 +594,6 @@ SCIP_RETCODE isMatrixRankOne(
    SCIP_Real* fullmatrix = NULL;
    SCIP_Real eigenvalue;
    int blocksize;
-   SCIP_RESULT resultSDPtest;
    int i;
    int j;
    int ind1 = 0;
@@ -603,22 +602,13 @@ SCIP_RETCODE isMatrixRankOne(
    SCIP_Real largestminev = 0.0;
 
    assert( cons != NULL );
-   assert( result != NULL );
+   assert( isrankone != NULL );
 
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
 
    blocksize = consdata->blocksize;
-
-   resultSDPtest = SCIP_INFEASIBLE;
-
-   /* TODO: do we need to check for psd again? */
-   SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conshdlrdata, cons, sol, FALSE, &resultSDPtest) );
-   if ( resultSDPtest == SCIP_INFEASIBLE )
-   {
-      SCIPerrorMessage("Try to check for a matrix to be rank 1 even if the matrix is not psd.\n");
-      return SCIP_ERROR;
-   }
+   *isrankone = TRUE;
 
    /* allocate memory to store full matrix */
    SCIP_CALL( SCIPallocBufferArray(scip, &matrix, (blocksize * (blocksize+1))/2 ) );
@@ -634,12 +624,11 @@ SCIP_RETCODE isMatrixRankOne(
    SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, fullmatrix, blocksize - 1, &eigenvalue, NULL) );
 
    /* the matrix is rank 1 iff the second largest eigenvalue is zero (since the matrix is symmetric and psd) */
-   /* TODO: use DIMACS feastol if desired? */
    if ( SCIPisFeasEQ(scip, eigenvalue, 0.0) )
-      *result = TRUE;
+      *isrankone = TRUE;
    else
    {
-      *result = FALSE;
+      *isrankone = FALSE;
       if ( printreason )
       {
          SCIPinfoMessage(scip, NULL, "SDPrank1-constraint <%s> is not rank1 (second largest eigenvalue %f).\n", SCIPconsGetName(cons), eigenvalue);
@@ -657,7 +646,6 @@ SCIP_RETCODE isMatrixRankOne(
             submatrix[3] = matrix[SCIPconsSdpCompLowerTriangPos(j,j)];
 
             SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, 2, submatrix, 1, &eigenvalue, NULL) );
-            /* TODO: Compute eigenvalues by solving quadratic constraint */
 
             if ( eigenvalue > largestminev )
             {
@@ -678,8 +666,6 @@ SCIP_RETCODE isMatrixRankOne(
 
    SCIPfreeBufferArray(scip, &fullmatrix);
    SCIPfreeBufferArray(scip, &matrix);
-
-   /* TODO: do we need to update the SolConsViolation? */
 
    return SCIP_OKAY;
 }
@@ -2993,11 +2979,10 @@ SCIP_RETCODE checkRank1QuadConss(
    SCIP_CONS*            cons,               /**< the SDP constraint to check the rank for */
    SCIP_SOL*             sol,                /**< solution to check for rank one */
    SCIP_Bool             printreason,        /**< should the reason for the violation be printed? */
-   SCIP_Bool*            result              /**< result pointer to return whether matrix is rank one */
+   SCIP_Bool*            isrankone           /**< pointer to return whether matrix is rank one */
    )
 {
    SCIP_CONSDATA* consdata;
-   SCIP_RESULT resultSDPtest;
    SCIP_Real* matrix;
    SCIP_Real submatrix[3];
    SCIP_Real minor;
@@ -3006,10 +2991,12 @@ SCIP_RETCODE checkRank1QuadConss(
    int i;
    int j;
 
+   /* TODO: rename result to isrankone and initialize */
+
    assert( scip != NULL );
    assert( cons != NULL );
    assert( sol != NULL );
-   assert( result != NULL );
+   assert( isrankone != NULL );
 
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
@@ -3019,16 +3006,7 @@ SCIP_RETCODE checkRank1QuadConss(
    assert( conshdlrdata->sdpconshdlrdata->quadconsrank1 );
 
    blocksize = consdata->blocksize;
-
-   resultSDPtest = SCIP_INFEASIBLE;
-
-   /* TODO: do we need to check for psd again? */
-   SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conshdlrdata, cons, sol, FALSE, &resultSDPtest) );
-   if ( resultSDPtest == SCIP_INFEASIBLE )
-   {
-      SCIPerrorMessage("Try to check for a matrix to be rank 1 even if the matrix is not psd.\n");
-      return SCIP_ERROR;
-   }
+   *isrankone = TRUE;
 
    if ( conshdlrdata->sdpconshdlrdata->usedimacsfeastol )
    {
@@ -3043,11 +3021,9 @@ SCIP_RETCODE checkRank1QuadConss(
    SCIP_CALL( SCIPallocBufferArray(scip, &matrix, blocksize * (blocksize + 1)/2) ); /*lint !e647*/
    SCIP_CALL( computeSdpMatrix(scip, consdata, sol, matrix) );
 
-   *result = SCIP_FEASIBLE;
-
-   for (i = 0; i < blocksize && *result == SCIP_FEASIBLE; ++i)
+   for (i = 0; i < blocksize && *isrankone; ++i)
    {
-      for (j = 0; j < i && *result == SCIP_FEASIBLE; ++j)
+      for (j = 0; j < i && *isrankone; ++j)
       {
          submatrix[0] = matrix[SCIPconsSdpCompLowerTriangPos(i,i)];
          submatrix[1] = matrix[SCIPconsSdpCompLowerTriangPos(i,j)];
@@ -3057,20 +3033,17 @@ SCIP_RETCODE checkRank1QuadConss(
 
          if ( minor < -tol || minor > tol )
          {
-            *result = SCIP_INFEASIBLE;
+            *isrankone = FALSE;
             if ( printreason )
             {
                SCIPinfoMessage(scip, NULL, "SDPrank1-constraint <%s> is not rank1 (quadratic 2x2 minor for (%d,%d): %f).\n", SCIPconsGetName(cons), i, j, minor);
                SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
             }
-            /* TODO: do we need to update the SolConsViolation? */
          }
       }
    }
 
    SCIPfreeBufferArray(scip, &matrix);
-
-   /* TODO: do we need to update the SolConsViolation? */
 
    return SCIP_OKAY;
 }
@@ -5298,8 +5271,6 @@ SCIP_DECL_CONSEXITPRE(consExitpreSdp)
       SCIPdebugMsg(scip, "Releasing constraint %s from upgrading method\n", SCIPconsGetName(conshdlrdata->sdpconshdlrdata->sdpcons) );
       SCIP_CALL( SCIPreleaseCons(scip, &conshdlrdata->sdpconshdlrdata->sdpcons) );
    }
-
-   /* TODO: test if branching and/or separation of Chen et al. can be applied */
 
    return SCIP_OKAY;
 }
