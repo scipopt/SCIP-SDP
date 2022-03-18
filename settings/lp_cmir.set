@@ -1,0 +1,2 @@
+misc/solvesdps = 0
+constraints/SDP/generatecmir = TRUE
