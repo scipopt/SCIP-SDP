@@ -95,7 +95,7 @@ SCIP_EXPORT
 SCIP_RETCODE SCIParpackComputeSmallestEigenvector(
    BMS_BUFMEM*           bufmem,             /**< buffer memory */
    int                   n,                  /**< size of matrix */
-   SCIP_Real*            A,                  /**< matrix for which eigenvalues should be computed - will be destroyed! */
+   SCIP_Real*            A,                  /**< matrix for which eigenvalues should be computed in column-major form */
    SCIP_Real*            eigenvalue,         /**< pointer to store eigenvalue */
    SCIP_Real*            eigenvector         /**< array for eigenvector */
    )
