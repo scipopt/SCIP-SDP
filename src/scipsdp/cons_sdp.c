@@ -3045,9 +3045,9 @@ SCIP_RETCODE checkRank1QuadConss(
 
    *result = SCIP_FEASIBLE;
 
-   for (i = 0; i < blocksize; ++i)
+   for (i = 0; i < blocksize && *result == SCIP_FEASIBLE; ++i)
    {
-      for (j = 0; j < i; ++j)
+      for (j = 0; j < i && *result == SCIP_FEASIBLE; ++j)
       {
          submatrix[0] = matrix[SCIPconsSdpCompLowerTriangPos(i,i)];
          submatrix[1] = matrix[SCIPconsSdpCompLowerTriangPos(i,j)];
@@ -3063,12 +3063,7 @@ SCIP_RETCODE checkRank1QuadConss(
                SCIPinfoMessage(scip, NULL, "SDPrank1-constraint <%s> is not rank1 (quadratic 2x2 minor for (%d,%d): %f).\n", SCIPconsGetName(cons), i, j, minor);
                SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
             }
-
-            SCIPfreeBufferArray(scip, &matrix);
-
             /* TODO: do we need to update the SolConsViolation? */
-
-            return SCIP_OKAY;
          }
       }
    }
