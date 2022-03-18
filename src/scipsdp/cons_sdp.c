@@ -5951,409 +5951,395 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
    SCIP_CALL( SCIPprintSol(scip, sol, NULL, FALSE) );
 #endif
 
-   if ( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 )
+   /* check positive semidefiniteness */
+   for (i = 0; i < nconss && *result == SCIP_FEASIBLE; ++i)
    {
-      /* check positive semidefiniteness */
-      for (i = 0; i < nconss && *result == SCIP_FEASIBLE; ++i)
-      {
-         SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conshdlrdata, conss[i], sol, printreason, result) );
+      SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conshdlrdata, conss[i], sol, printreason, result) );
 #ifdef PRINTMATRICES
-         SCIPinfoMessage(scip, NULL, "Solution is %d for constraint %s.\n", *result, SCIPconsGetName(conss[i]) );
+      SCIPinfoMessage(scip, NULL, "Solution is %d for constraint %s.\n", *result, SCIPconsGetName(conss[i]) );
+#endif
+   }
+
+   /* if the SDP-constraint handler is the current constraint handler or we are already infeasible, we do not need to
+    * check the rank1-part (if present) */
+   if ( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLR_NAME) == 0 || *result == SCIP_INFEASIBLE )
+      return SCIP_OKAY;
+
+   /* otherwise, we need to check for rank1 */
+   assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLRRANK1_NAME) == 0 && *result == SCIP_FEASIBLE );
+
+   /* early termination */
+   if ( nconss == 0 )
+      return SCIP_OKAY;
+
+   SCIP_CALL( SCIPallocBufferArray(scip, &indviolrank1conss, nconss) );
+
+   for (i = 0; i < nconss; ++i)
+   {
+      consdata = SCIPconsGetData(conss[i]);
+      assert( consdata != NULL );
+      assert( consdata->rankone );
+
+      /* If the quadratic constraints are not yet added, we need to check them manually. Otherwise, they are checked
+       * by the quadratic constraint handler, and we do not need to check for rank-1 separately. */
+      if ( conshdlrdata->sdpconshdlrdata->quadconsrank1 && ! consdata->addedquadcons )
+      {
+         /* check quadratic constraints manually */
+         checkRank1QuadConss(scip, conshdlrdata, conss[i], sol, printreason, &rank1result);
+
+#ifdef PRINTMATRICES
+         SCIPinfoMessage(scip, NULL, "Solution is %d for rank-1 part of constraint %s.\n", rank1result, SCIPconsGetName(conss[i]) );
+#endif
+      }
+      else if ( ! conshdlrdata->sdpconshdlrdata->quadconsrank1 )
+      {
+         /* We need to check for rank-1 */
+         SCIP_CALL( isMatrixRankOne(scip, conshdlrdata, conss[i], sol, printreason, &rank1result) );
+#ifdef PRINTMATRICES
+         SCIPinfoMessage(scip, NULL, "Solution is %d for rank-1 part of constraint %s.\n", rank1result, SCIPconsGetName(conss[i]) );
 #endif
       }
 
+      if ( ! rank1result )
+      {
+         /* save index of violated rank-1 constraint */
+         indviolrank1conss[nviolrank1] = i;
+         ++nviolrank1;
+      }
+   }
+
+   /* if there are no (violated) rank-1 constraints, we are finished. Otherwise, try to compute a feasible primal
+    * solution by computing the best rank-1 approximation for each violated rank-1 constraint and solve an LP to find a
+    * solution for the appearing variables */
+   if ( nviolrank1 == 0 )
+   {
+      assert( *result == SCIP_FEASIBLE );
+      SCIPdebugMsg(scip, "Found no violated rank-1 constraints.\n");
+      SCIPfreeBufferArray(scip, &indviolrank1conss);
       return SCIP_OKAY;
    }
    else
    {
-      assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLRRANK1_NAME) == 0 );
-
-      if ( nconss == 0 )
-         return SCIP_OKAY;
-
-      /* check positive semidefiniteness */
-      for (i = 0; i < nconss; ++i)
-      {
-         SCIP_CALL( SCIPconsSdpCheckSdpCons(scip, conshdlrdata, conss[i], sol, printreason, result) );
-#ifdef PRINTMATRICES
-         SCIPinfoMessage(scip, NULL, "Solution is %d for constraint %s.\n", *result, SCIPconsGetName(conss[i]) );
-#endif
-         if ( *result == SCIP_INFEASIBLE )
-            return SCIP_OKAY;
-      }
-
-      assert( *result == SCIP_FEASIBLE );
-
-      /* check for rank-1 */
-      SCIP_CALL( SCIPallocBufferArray(scip, &indviolrank1conss, nconss) );
-
-      for (i = 0; i < nconss; ++i)
-      {
-         consdata = SCIPconsGetData(conss[i]);
-         assert( consdata != NULL );
-         assert( consdata->rankone );
-
-         /* If the quadratic constraints are not yet added, we need to check them manually. Otherwise, they are checked
-          * by the quadratic constraint handler, and we do not need to check for rank-1 separately. */
-         if ( conshdlrdata->sdpconshdlrdata->quadconsrank1 && ! consdata->addedquadcons )
-         {
-            /* check quadratic constraints manually */
-            checkRank1QuadConss(scip, conshdlrdata, conss[i], sol, printreason, &rank1result);
-
-#ifdef PRINTMATRICES
-            SCIPinfoMessage(scip, NULL, "Solution is %d for rank-1 part of constraint %s.\n", rank1result, SCIPconsGetName(conss[i]) );
-#endif
-         }
-         else if ( ! conshdlrdata->sdpconshdlrdata->quadconsrank1 )
-         {
-            /* We need to check for rank-1 */
-            SCIP_CALL( isMatrixRankOne(scip, conshdlrdata, conss[i], sol, printreason, &rank1result) );
-#ifdef PRINTMATRICES
-            SCIPinfoMessage(scip, NULL, "Solution is %d for rank-1 part of constraint %s.\n", rank1result, SCIPconsGetName(conss[i]) );
-#endif
-         }
-
-         if ( ! rank1result )
-         {
-            /* save index of violated rank-1 constraint */
-            indviolrank1conss[nviolrank1] = i;
-            ++nviolrank1;
-         }
-      }
-
-      /* if there are no (violated) rank-1 constraints, we are finished. Otherwise, try to compute a feasible primal
-       * solution by computing the best rank-1 approximation for each violated rank-1 constraint and solve an LP to find a
-       * solution for the appearing variables */
-      if ( nviolrank1 == 0 )
-      {
-         assert( *result == SCIP_FEASIBLE );
-         SCIPdebugMsg(scip, "Found no violated rank-1 constraints.\n");
-         SCIPfreeBufferArray(scip, &indviolrank1conss);
-         return SCIP_OKAY;
-      }
-      else
-      {
-         assert( nviolrank1 > 0 );
-         *result = SCIP_INFEASIBLE;
-      }
-
-      /* check if heuristic should be executed and do not run in sub-SCIPs to avoid recursive reformulations due to rank 1
-       * constraints */
-      if ( ! conshdlrdata->sdpconshdlrdata->rank1approxheur || SCIPgetSubscipDepth(scip) > 0 )
-      {
-         assert( nviolrank1 > 0 && *result == SCIP_INFEASIBLE );
-         SCIPfreeBufferArray(scip, &indviolrank1conss);
-         return SCIP_OKAY;
-      }
-
-      SCIPdebugMsg(scip, "Found %d violated rank-1 constraints, thus apply rank-1 approximation heuristic!\n", nviolrank1);
-
-      /* we have to collect all variables appearing in violated SDPrank1-constraints first */
-      nvars = SCIPgetNVars(scip);
-      SCIP_CALL( SCIPallocBufferArray(scip, &rank1considx, nvars) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &rank1consvars, nvars) );
-
-      for (j = 0; j < nvars; ++j)
-         rank1considx[j] = -1;
-
-      for (c = 0; c < nviolrank1; ++c)
-      {
-         assert( conss[indviolrank1conss[c]] != NULL );
-
-         /* todo: write function to only get number of variables and variables of an SDP constraint */
-         consdata = SCIPconsGetData(conss[indviolrank1conss[c]]);
-         assert( consdata != NULL );
-
-         nsdpvars = consdata->nvars;
-         linrows += consdata->blocksize * (consdata->blocksize + 1) / 2;
-
-         for (i = 0; i < nsdpvars; ++i)
-         {
-            var = consdata->vars[i];
-            idx = SCIPvarGetProbindex(var);
-            assert( 0 <= idx && idx < nvars );
-            if ( rank1considx[idx] < 0 )
-            {
-               rank1consvars[nrank1vars] = var;
-               rank1considx[idx] = nrank1vars++;
-            }
-         }
-      }
-
-      /* initialize matrix of linear equation system */
-      SCIP_CALL( SCIPallocClearBufferArray(scip, &linmatrix, linrows * nrank1vars) );
-      SCIP_CALL( SCIPallocClearBufferArray(scip, &rhsmatrix, MAX(linrows,nrank1vars)) );
-
-      for (i = 0; i < nviolrank1; ++i)
-      {
-         /* get violated rank-1 constraint */
-         violcons = conss[indviolrank1conss[i]];
-         consdata = SCIPconsGetData(violcons);
-
-         assert( consdata != NULL );
-
-         blocksize = consdata->blocksize;
-
-         SCIPdebugMsg(scip, "\n Start with violated rank-1 constraint %s, is %d out of %d violated rank-1 constraints.\n\n", SCIPconsGetName(violcons), i + 1, nviolrank1);
-
-         /* allocate memory to store full matrix */
-         SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize ) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &eigenvalues, blocksize) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &eigenvectors, blocksize * blocksize) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &matrixC, blocksize * blocksize) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &matrixAj, blocksize * blocksize) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &linvars, consdata->nvars) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &linvals, consdata->nvars) );
-
-         /* compute the matrix \f$ \sum_j A_j y_j - A_0 \f$ */
-         SCIP_CALL( computeFullSdpMatrix(scip, consdata, sol, fullmatrix) );
-
-#ifdef PRINTMATRICES
-         /* SCIPSDP uses row-first format! */
-         printf("Full SDP-constraint matrix Z: \n");
-         for (j = 0; j < blocksize; ++j)
-         {
-            for (k = 0; k < blocksize; ++k)
-               printf("%.5f  ", fullmatrix[j*blocksize + k]);
-            printf("\n");
-         }
-
-         /* Double-check that fullmatrix is in row-first format */
-         printf("Full SDP-constraint matrix Z in row-first format: \n");
-         for (j = 0; j < blocksize * blocksize; ++j)
-            printf("%.5f  ", fullmatrix[j]);
-         printf("\n");
-#endif
-
-         /* compute EVD */
-         SCIP_CALL( SCIPlapackComputeEigenvectorDecomposition(SCIPbuffer(scip), blocksize, fullmatrix, eigenvalues, eigenvectors) );
-
-#ifdef PRINTMATRICES
-         /* caution: LAPACK uses column-first format! */
-         printf("Eigenvectors of Z: \n");
-         for (j = 0; j < blocksize; ++j)
-         {
-            for (k = 0; k < blocksize; ++k)
-               printf("%.5f  ", eigenvectors[k*blocksize + j]);
-            printf("\n");
-         }
-
-         /* Double-check that eigenvectors is in column-first format */
-         printf("Eigenvectors of Z in column-first format: \n");
-         for (j = 0; j < blocksize * blocksize; ++j)
-            printf("%.5f  ", eigenvectors[j]);
-         printf("\n");
-
-         printf("Eigenvalues of Z: \n");
-         for (j = 0; j < blocksize; ++j)
-            printf("%.5f ", eigenvalues[j]);
-         printf("\n");
-#endif
-
-         /* duplicate memory of eigenvectors to compute diag(0,...,0,lambda_max) * U^T */
-         SCIP_CALL( SCIPduplicateBufferArray(scip, &scaledeigenvectors, eigenvectors, blocksize*blocksize) );
-
-         /* set all eigenvalues except the largest to zero (using the property that LAPACK returns them in ascending
-            order) */
-         for (j = 0; j < blocksize-1; ++j)
-         {
-            assert( ! SCIPisFeasNegative(scip, eigenvalues[j]) ); /* otherwise constraint is not psd */
-            eigenvalues[j] = 0.0;
-         }
-
-         /* compute diag(0,...,0,lambda_max) * U^T. Note that scaledeigenvectors on entry is U in column-first format,
-            i.e., U^T in row-first format. Thus, on exit, scaledeigenvectors contains diag(0,...,0,lambda_max) * U^T in
-            row-first format. */
-         SCIP_CALL( scaleRowsMatrix(blocksize, scaledeigenvectors, eigenvalues) );
-
-#ifdef PRINTMATRICES
-         printf("Scaled eigenvectors of Z (only keep largest eigenvalue and corresponding eigenvector) : \n");
-         for (j = 0; j < blocksize; ++j)
-         {
-            for (k = 0; k < blocksize; ++k)
-            {
-               printf("%.5f  ", scaledeigenvectors[j*blocksize + k]);
-            }
-            printf("\n");
-         }
-
-         /* Double-check that scaledeigenvectors is in row-first format */
-         printf("Scaled eigenvectors of Z in row-first format: \n");
-         for (j = 0; j < blocksize * blocksize; ++j)
-            printf("%.5f  ", scaledeigenvectors[j]);
-         printf("\n");
-#endif
-
-         /* compute U * [diag(0,...,0,lambda_max) * U^T]: Since eigenvectors, which contains U, already comes in LAPACK's
-            column-first format, eigenvectors does not need to be transposed! scaledeigenvectors models
-            [diag(0,...,0,lambda_max) * U^T in SCIPSDP's row-first format, so that scaledeigenvectors needs to be
-            transposed for LAPACK! */
-         SCIP_CALL( SCIPlapackMatrixMatrixMult(blocksize, blocksize, eigenvectors, FALSE, blocksize, blocksize, scaledeigenvectors,
-               TRUE, fullmatrix) );
-
-#ifdef PRINTMATRICES
-         printf("Best rank-1 approximation of Z: \n");
-         for (j = 0; j < blocksize; ++j)
-         {
-            for (k = 0; k < blocksize; ++k)
-               printf("%.5f  ", fullmatrix[j*blocksize + k]);
-            printf("\n");
-         }
-
-         /* Double-check that fullmatrix (best rank-1 approximation) is in row-first format */
-         printf("Best rank-1 approximation of Z in row-first format: \n");
-         for (j = 0; j < blocksize * blocksize; ++j)
-            printf("%.5f  ", fullmatrix[j]);
-         printf("\n");
-#endif
-
-         /* update linear equation system */
-
-         /* compute constant matrix A_0 in row-first format*/
-         SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, violcons, matrixC) );
-
-#ifdef PRINTMATRICES
-         printf("Constant matrix A_0 of SDP-constraint: \n");
-         for (j = 0; j < blocksize; ++j)
-         {
-            for (k = 0; k < blocksize; ++k)
-               printf("%.5f  ", matrixC[j*blocksize + k]);
-            printf("\n");
-         }
-
-         /* Double-check that matrixA0 is in row-first format */
-         printf("Constant matrix A_0 of SDP-constraint in row-first format: \n");
-         for (j = 0; j < blocksize * blocksize; ++j)
-            printf("%.5f  ", matrixC[j]);
-         printf("\n");
-#endif
-
-         for (j = 0; j < blocksize; ++j)
-         {
-            for (k = 0; k <= j; ++k)
-            {
-               for (l = 0; l < consdata->nvars; ++l)
-               {
-                  /* compute matrix A_j in row-first format */
-                  SCIP_CALL( SCIPconsSdpGetFullAj(scip, violcons, l, matrixAj) );
-
-#ifdef PRINTMATRICES
-                  printf("Coefficient matrix A_%d of SDP-constraint: \n", l+1);
-                  for (r = 0; r < blocksize; ++r)
-                  {
-                     for (s = 0; s < blocksize; ++s)
-                        printf("%.5f  ", matrixAj[r*blocksize + s]);
-                     printf("\n");
-                  }
-
-                  /* Double-check that matrixAj is in row-first format */
-                  printf("Constant matrix A_0 of SDP-constraint in row-first format: \n");
-                  for (r = 0; r < blocksize * blocksize; ++r)
-                     printf("%.5f  ", matrixAj[r]);
-                  printf("\n");
-#endif
-
-                  idx = SCIPvarGetProbindex(consdata->vars[l]);
-                  idx = rank1considx[idx];
-                  assert( 0 <= idx && idx < nrank1vars );
-                  assert( lincnt <= linrows );
-                  linmatrix[lincnt * nrank1vars + idx] = matrixAj[j * blocksize + k];
-               }
-               rhsmatrix[lincnt] = matrixC[j * blocksize + k] + fullmatrix[j * blocksize + k];
-               ++lincnt;
-            }
-         }
-
-         /* free memory for full matrix, eigenvalues and eigenvectors */
-         SCIPfreeBufferArray(scip, &linvals);
-         SCIPfreeBufferArray(scip, &linvars);
-         SCIPfreeBufferArray(scip, &matrixAj);
-         SCIPfreeBufferArray(scip, &matrixC);
-         SCIPfreeBufferArray(scip, &scaledeigenvectors);
-         SCIPfreeBufferArray(scip, &eigenvectors);
-         SCIPfreeBufferArray(scip, &eigenvalues);
-         SCIPfreeBufferArray(scip, &fullmatrix);
-      }
-
-      assert( lincnt == linrows );
-
-#ifdef PRINTMATRICES
-      printf("Matrix for linear equation system, in row-first format:\n");
-      for (j = 0; j < linrows; ++j)
-      {
-         for (k = 0; k < nrank1vars; ++k)
-         {
-            printf("%.5f  ", linmatrix[j * nrank1vars + k]);
-         }
-         printf("\n");
-      }
-
-      /* Double-check that linmatrix is in row-first format */
-      printf("Matrix for linear equation system in row-first format: \n");
-      for (r = 0; r < linrows * nrank1vars; ++r)
-         printf("%.5f  ", linmatrix[r]);
-      printf("\n");
-
-      printf("Right-hand for linear equation system:\n");
-      for (j = 0; j < nrank1vars; ++j)
-      {
-         printf("%.5f  ", rhsmatrix[j]);
-      }
-      printf("\n");
-#endif
-
-      /* solve linear equation system with LAPACK */
-      SCIP_CALL( SCIPallocBufferArray(scip, &lssolu, nrank1vars) );
-
-      /* caution: LAPACK wants matrices in columns-first format, but SCIPSDP represents matrices in row-first format */
-      SCIP_CALL( SCIPallocBufferArray(scip, &colmatrix, linrows * nrank1vars ) );
-
-      SCIP_CALL( convertRowToColFormatFullMatrix(linrows, nrank1vars, linmatrix, colmatrix) );
-
-#ifdef PRINTMATRICES
-      printf("Matrix for linear equation system, in col-first format:\n");
-      for (j = 0; j < linrows; ++j)
-      {
-         for (l = 0; l < nrank1vars; ++l)
-         {
-            printf("%.5f  ", colmatrix[l * linrows + j]);
-         }
-         printf("\n");
-      }
-
-      /* Double-check that colmatrix is in col-first format */
-      printf("Matrix for linear equation system in col-first format: \n");
-      for (r = 0; r < linrows * nrank1vars; ++r)
-         printf("%.5f  ", colmatrix[r]);
-      printf("\n");
-#endif
-
-      SCIP_CALL( SCIPlapackLinearSolve( SCIPbuffer(scip), linrows, nrank1vars, colmatrix, rhsmatrix, lssolu) );
-
-      /* copy current solution */
-      SCIP_CALL( SCIPcreateSolCopy(scip, &bestrank1approx, sol) );
-
-      /* update solution with values from linear equations system solution from LAPACK */
-      for (i = 0; i < nrank1vars; ++i)
-      {
-         var = rank1consvars[i];
-         SCIP_CALL( SCIPsetSolVal(scip, bestrank1approx, var, lssolu[i]) );
-      }
-
-      SCIP_CALL( SCIPtrySolFree(scip, &bestrank1approx, FALSE, TRUE, TRUE, TRUE, TRUE, &stored) );
-      if ( stored )
-         SCIPdebugMsg(scip, "Best Rank-1 Approximation Heuristic found feasible primal solution\n");
-      else
-         SCIPdebugMsg(scip, "Primal solution found by Best Rank-1 Approximation Heuristic is not feasible!\n");
-
-      SCIPfreeBufferArray(scip, &colmatrix);
-      SCIPfreeBufferArray(scip, &lssolu);
-      SCIPfreeBufferArray(scip, &rhsmatrix);
-      SCIPfreeBufferArray(scip, &linmatrix);
-      SCIPfreeBufferArray(scip, &rank1consvars);
-      SCIPfreeBufferArray(scip, &rank1considx);
-      SCIPfreeBufferArray(scip, &indviolrank1conss);
+      assert( nviolrank1 > 0 );
+      *result = SCIP_INFEASIBLE;
    }
+
+   /* check if heuristic should be executed and do not run in sub-SCIPs to avoid recursive reformulations due to rank 1
+    * constraints */
+   if ( ! conshdlrdata->sdpconshdlrdata->rank1approxheur || SCIPgetSubscipDepth(scip) > 0 )
+   {
+      assert( nviolrank1 > 0 && *result == SCIP_INFEASIBLE );
+      SCIPfreeBufferArray(scip, &indviolrank1conss);
+      return SCIP_OKAY;
+   }
+
+   SCIPdebugMsg(scip, "Found %d violated rank-1 constraints, thus apply rank-1 approximation heuristic!\n", nviolrank1);
+
+   /* we have to collect all variables appearing in violated SDPrank1-constraints first */
+   nvars = SCIPgetNVars(scip);
+   SCIP_CALL( SCIPallocBufferArray(scip, &rank1considx, nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &rank1consvars, nvars) );
+
+   for (j = 0; j < nvars; ++j)
+      rank1considx[j] = -1;
+
+   for (c = 0; c < nviolrank1; ++c)
+   {
+      assert( conss[indviolrank1conss[c]] != NULL );
+
+      /* todo: write function to only get number of variables and variables of an SDP constraint */
+      consdata = SCIPconsGetData(conss[indviolrank1conss[c]]);
+      assert( consdata != NULL );
+
+      nsdpvars = consdata->nvars;
+      linrows += consdata->blocksize * (consdata->blocksize + 1) / 2;
+
+      for (i = 0; i < nsdpvars; ++i)
+      {
+         var = consdata->vars[i];
+         idx = SCIPvarGetProbindex(var);
+         assert( 0 <= idx && idx < nvars );
+         if ( rank1considx[idx] < 0 )
+         {
+            rank1consvars[nrank1vars] = var;
+            rank1considx[idx] = nrank1vars++;
+         }
+      }
+   }
+
+   /* initialize matrix of linear equation system */
+   SCIP_CALL( SCIPallocClearBufferArray(scip, &linmatrix, linrows * nrank1vars) );
+   SCIP_CALL( SCIPallocClearBufferArray(scip, &rhsmatrix, MAX(linrows,nrank1vars)) );
+
+   for (i = 0; i < nviolrank1; ++i)
+   {
+      /* get violated rank-1 constraint */
+      violcons = conss[indviolrank1conss[i]];
+      consdata = SCIPconsGetData(violcons);
+
+      assert( consdata != NULL );
+
+      blocksize = consdata->blocksize;
+
+      SCIPdebugMsg(scip, "\n Start with violated rank-1 constraint %s, is %d out of %d violated rank-1 constraints.\n\n", SCIPconsGetName(violcons), i + 1, nviolrank1);
+
+      /* allocate memory to store full matrix */
+      SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize ) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &eigenvalues, blocksize) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &eigenvectors, blocksize * blocksize) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &matrixC, blocksize * blocksize) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &matrixAj, blocksize * blocksize) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &linvars, consdata->nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &linvals, consdata->nvars) );
+
+      /* compute the matrix \f$ \sum_j A_j y_j - A_0 \f$ */
+      SCIP_CALL( computeFullSdpMatrix(scip, consdata, sol, fullmatrix) );
+
+#ifdef PRINTMATRICES
+      /* SCIPSDP uses row-first format! */
+      printf("Full SDP-constraint matrix Z: \n");
+      for (j = 0; j < blocksize; ++j)
+      {
+         for (k = 0; k < blocksize; ++k)
+            printf("%.5f  ", fullmatrix[j*blocksize + k]);
+         printf("\n");
+      }
+
+      /* Double-check that fullmatrix is in row-first format */
+      printf("Full SDP-constraint matrix Z in row-first format: \n");
+      for (j = 0; j < blocksize * blocksize; ++j)
+         printf("%.5f  ", fullmatrix[j]);
+      printf("\n");
+#endif
+
+      /* compute EVD */
+      SCIP_CALL( SCIPlapackComputeEigenvectorDecomposition(SCIPbuffer(scip), blocksize, fullmatrix, eigenvalues, eigenvectors) );
+
+#ifdef PRINTMATRICES
+      /* caution: LAPACK uses column-first format! */
+      printf("Eigenvectors of Z: \n");
+      for (j = 0; j < blocksize; ++j)
+      {
+         for (k = 0; k < blocksize; ++k)
+            printf("%.5f  ", eigenvectors[k*blocksize + j]);
+         printf("\n");
+      }
+
+      /* Double-check that eigenvectors is in column-first format */
+      printf("Eigenvectors of Z in column-first format: \n");
+      for (j = 0; j < blocksize * blocksize; ++j)
+         printf("%.5f  ", eigenvectors[j]);
+      printf("\n");
+
+      printf("Eigenvalues of Z: \n");
+      for (j = 0; j < blocksize; ++j)
+         printf("%.5f ", eigenvalues[j]);
+      printf("\n");
+#endif
+
+      /* duplicate memory of eigenvectors to compute diag(0,...,0,lambda_max) * U^T */
+      SCIP_CALL( SCIPduplicateBufferArray(scip, &scaledeigenvectors, eigenvectors, blocksize*blocksize) );
+
+      /* set all eigenvalues except the largest to zero (using the property that LAPACK returns them in ascending
+         order) */
+      for (j = 0; j < blocksize-1; ++j)
+      {
+         assert( ! SCIPisFeasNegative(scip, eigenvalues[j]) ); /* otherwise constraint is not psd */
+         eigenvalues[j] = 0.0;
+      }
+
+      /* compute diag(0,...,0,lambda_max) * U^T. Note that scaledeigenvectors on entry is U in column-first format,
+         i.e., U^T in row-first format. Thus, on exit, scaledeigenvectors contains diag(0,...,0,lambda_max) * U^T in
+         row-first format. */
+      SCIP_CALL( scaleRowsMatrix(blocksize, scaledeigenvectors, eigenvalues) );
+
+#ifdef PRINTMATRICES
+      printf("Scaled eigenvectors of Z (only keep largest eigenvalue and corresponding eigenvector) : \n");
+      for (j = 0; j < blocksize; ++j)
+      {
+         for (k = 0; k < blocksize; ++k)
+         {
+            printf("%.5f  ", scaledeigenvectors[j*blocksize + k]);
+         }
+         printf("\n");
+      }
+
+      /* Double-check that scaledeigenvectors is in row-first format */
+      printf("Scaled eigenvectors of Z in row-first format: \n");
+      for (j = 0; j < blocksize * blocksize; ++j)
+         printf("%.5f  ", scaledeigenvectors[j]);
+      printf("\n");
+#endif
+
+      /* compute U * [diag(0,...,0,lambda_max) * U^T]: Since eigenvectors, which contains U, already comes in LAPACK's
+         column-first format, eigenvectors does not need to be transposed! scaledeigenvectors models
+         [diag(0,...,0,lambda_max) * U^T in SCIPSDP's row-first format, so that scaledeigenvectors needs to be
+         transposed for LAPACK! */
+      SCIP_CALL( SCIPlapackMatrixMatrixMult(blocksize, blocksize, eigenvectors, FALSE, blocksize, blocksize, scaledeigenvectors,
+            TRUE, fullmatrix) );
+
+#ifdef PRINTMATRICES
+      printf("Best rank-1 approximation of Z: \n");
+      for (j = 0; j < blocksize; ++j)
+      {
+         for (k = 0; k < blocksize; ++k)
+            printf("%.5f  ", fullmatrix[j*blocksize + k]);
+         printf("\n");
+      }
+
+      /* Double-check that fullmatrix (best rank-1 approximation) is in row-first format */
+      printf("Best rank-1 approximation of Z in row-first format: \n");
+      for (j = 0; j < blocksize * blocksize; ++j)
+         printf("%.5f  ", fullmatrix[j]);
+      printf("\n");
+#endif
+
+      /* update linear equation system */
+
+      /* compute constant matrix A_0 in row-first format*/
+      SCIP_CALL( SCIPconsSdpGetFullConstMatrix(scip, violcons, matrixC) );
+
+#ifdef PRINTMATRICES
+      printf("Constant matrix A_0 of SDP-constraint: \n");
+      for (j = 0; j < blocksize; ++j)
+      {
+         for (k = 0; k < blocksize; ++k)
+            printf("%.5f  ", matrixC[j*blocksize + k]);
+         printf("\n");
+      }
+
+      /* Double-check that matrixA0 is in row-first format */
+      printf("Constant matrix A_0 of SDP-constraint in row-first format: \n");
+      for (j = 0; j < blocksize * blocksize; ++j)
+         printf("%.5f  ", matrixC[j]);
+      printf("\n");
+#endif
+
+      for (j = 0; j < blocksize; ++j)
+      {
+         for (k = 0; k <= j; ++k)
+         {
+            for (l = 0; l < consdata->nvars; ++l)
+            {
+               /* compute matrix A_j in row-first format */
+               SCIP_CALL( SCIPconsSdpGetFullAj(scip, violcons, l, matrixAj) );
+
+#ifdef PRINTMATRICES
+               printf("Coefficient matrix A_%d of SDP-constraint: \n", l+1);
+               for (r = 0; r < blocksize; ++r)
+               {
+                  for (s = 0; s < blocksize; ++s)
+                     printf("%.5f  ", matrixAj[r*blocksize + s]);
+                  printf("\n");
+               }
+
+               /* Double-check that matrixAj is in row-first format */
+               printf("Constant matrix A_0 of SDP-constraint in row-first format: \n");
+               for (r = 0; r < blocksize * blocksize; ++r)
+                  printf("%.5f  ", matrixAj[r]);
+               printf("\n");
+#endif
+
+               idx = SCIPvarGetProbindex(consdata->vars[l]);
+               idx = rank1considx[idx];
+               assert( 0 <= idx && idx < nrank1vars );
+               assert( lincnt <= linrows );
+               linmatrix[lincnt * nrank1vars + idx] = matrixAj[j * blocksize + k];
+            }
+            rhsmatrix[lincnt] = matrixC[j * blocksize + k] + fullmatrix[j * blocksize + k];
+            ++lincnt;
+         }
+      }
+
+      /* free memory for full matrix, eigenvalues and eigenvectors */
+      SCIPfreeBufferArray(scip, &linvals);
+      SCIPfreeBufferArray(scip, &linvars);
+      SCIPfreeBufferArray(scip, &matrixAj);
+      SCIPfreeBufferArray(scip, &matrixC);
+      SCIPfreeBufferArray(scip, &scaledeigenvectors);
+      SCIPfreeBufferArray(scip, &eigenvectors);
+      SCIPfreeBufferArray(scip, &eigenvalues);
+      SCIPfreeBufferArray(scip, &fullmatrix);
+   }
+
+   assert( lincnt == linrows );
+
+#ifdef PRINTMATRICES
+   printf("Matrix for linear equation system, in row-first format:\n");
+   for (j = 0; j < linrows; ++j)
+   {
+      for (k = 0; k < nrank1vars; ++k)
+      {
+         printf("%.5f  ", linmatrix[j * nrank1vars + k]);
+      }
+      printf("\n");
+   }
+
+   /* Double-check that linmatrix is in row-first format */
+   printf("Matrix for linear equation system in row-first format: \n");
+   for (r = 0; r < linrows * nrank1vars; ++r)
+      printf("%.5f  ", linmatrix[r]);
+   printf("\n");
+
+   printf("Right-hand for linear equation system:\n");
+   for (j = 0; j < nrank1vars; ++j)
+   {
+      printf("%.5f  ", rhsmatrix[j]);
+   }
+   printf("\n");
+#endif
+
+   /* solve linear equation system with LAPACK */
+   SCIP_CALL( SCIPallocBufferArray(scip, &lssolu, nrank1vars) );
+
+   /* caution: LAPACK wants matrices in columns-first format, but SCIPSDP represents matrices in row-first format */
+   SCIP_CALL( SCIPallocBufferArray(scip, &colmatrix, linrows * nrank1vars ) );
+
+   SCIP_CALL( convertRowToColFormatFullMatrix(linrows, nrank1vars, linmatrix, colmatrix) );
+
+#ifdef PRINTMATRICES
+   printf("Matrix for linear equation system, in col-first format:\n");
+   for (j = 0; j < linrows; ++j)
+   {
+      for (l = 0; l < nrank1vars; ++l)
+      {
+         printf("%.5f  ", colmatrix[l * linrows + j]);
+      }
+      printf("\n");
+   }
+
+   /* Double-check that colmatrix is in col-first format */
+   printf("Matrix for linear equation system in col-first format: \n");
+   for (r = 0; r < linrows * nrank1vars; ++r)
+      printf("%.5f  ", colmatrix[r]);
+   printf("\n");
+#endif
+
+   SCIP_CALL( SCIPlapackLinearSolve( SCIPbuffer(scip), linrows, nrank1vars, colmatrix, rhsmatrix, lssolu) );
+
+   /* copy current solution */
+   SCIP_CALL( SCIPcreateSolCopy(scip, &bestrank1approx, sol) );
+
+   /* update solution with values from linear equations system solution from LAPACK */
+   for (i = 0; i < nrank1vars; ++i)
+   {
+      var = rank1consvars[i];
+      SCIP_CALL( SCIPsetSolVal(scip, bestrank1approx, var, lssolu[i]) );
+   }
+
+   SCIP_CALL( SCIPtrySolFree(scip, &bestrank1approx, FALSE, TRUE, TRUE, TRUE, TRUE, &stored) );
+   if ( stored )
+      SCIPdebugMsg(scip, "Best Rank-1 Approximation Heuristic found feasible primal solution\n");
+   else
+      SCIPdebugMsg(scip, "Primal solution found by Best Rank-1 Approximation Heuristic is not feasible!\n");
+
+   SCIPfreeBufferArray(scip, &colmatrix);
+   SCIPfreeBufferArray(scip, &lssolu);
+   SCIPfreeBufferArray(scip, &rhsmatrix);
+   SCIPfreeBufferArray(scip, &linmatrix);
+   SCIPfreeBufferArray(scip, &rank1consvars);
+   SCIPfreeBufferArray(scip, &rank1considx);
+   SCIPfreeBufferArray(scip, &indviolrank1conss);
 
    return SCIP_OKAY;
 }
