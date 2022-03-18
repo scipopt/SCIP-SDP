@@ -427,7 +427,7 @@ endif
 ifneq ($(OMP),$(LAST_OMP))
 		@-touch -c $(SRCDIR)/scipsdp/cons_sdp.c
 endif
-ifneq ($(OMP),$(LAST_ARPACK))
+ifneq ($(ARPACK),$(LAST_ARPACK))
 		@-touch -c $(SRCDIR)/sdpi/solveonevarsdp.c $(SRCDIR)/sdpi/arpack_interface.c
 endif
 ifneq ($(SCIPSDPGITHASH),$(LAST_SCIPSDPGITHASH))
