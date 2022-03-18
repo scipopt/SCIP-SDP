@@ -6015,8 +6015,8 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
    }
 
    /* if there are no (violated) rank-1 constraints, we are finished. Otherwise, try to compute a feasible primal
-      solution by computing the best rank-1 approximation for each violated rank-1 constraint and solve an LP to find a
-      solution for the appearing variables */
+    * solution by computing the best rank-1 approximation for each violated rank-1 constraint and solve an LP to find a
+    * solution for the appearing variables */
    if ( nviolrank1 == 0 )
    {
       assert( *result == SCIP_FEASIBLE );
