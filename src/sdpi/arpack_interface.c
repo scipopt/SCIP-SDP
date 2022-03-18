@@ -88,6 +88,8 @@ void F77_FUNC(dseupd, DSEUPD)(int* RVEC, char* HOWMNY, int* SELECT, SCIP_Real* D
 /**@name Functions */
 /**@{ */
 
+#define MAXITER 1000
+
 /** computes an eigenvector for the smallest eigenvalue of a symmetric matrix using ARPACK */
 SCIP_EXPORT
 SCIP_RETCODE SCIParpackComputeSmallestEigenvector(
@@ -139,7 +141,7 @@ SCIP_RETCODE SCIParpackComputeSmallestEigenvector(
    NCV = MIN(n,4);
    LDV = n;
    IPARAM[0] = 1;       /* exact shifts */
-   IPARAM[2] = 300;     /* maximal number of iterations */
+   IPARAM[2] = MAXITER; /* maximal number of iterations */
    IPARAM[6] = 1;       /* Mode 1: A*x = lambda*x, A symmetric, => OP = A  and  B = I. */
    LWORKL = NCV * (NCV + 8);  /* must be at least NCV**2 + 8*NCV */
    INFO = 0;            /* use random starting vector */
@@ -184,6 +186,19 @@ SCIP_RETCODE SCIParpackComputeSmallestEigenvector(
       }
    }
    while ( IDO == -1 || IDO == 1 );
+
+   /* treat possible errors */
+   if ( IPARAM[2] > MAXITER )
+   {
+      SCIPerrorMessage("Reached iteration limit %d in ARPACK.\n", IPARAM[2]);
+      return SCIP_ERROR;
+   }
+
+   if ( IPARAM[4] <= 0 )
+   {
+      SCIPerrorMessage("No Ritz vectors have been computed with ARPACK.\n");
+      return SCIP_ERROR;
+   }
 
    /* post process */
    RVEC = 1;   /* compute eigenvectors */
@@ -279,7 +294,7 @@ SCIP_RETCODE SCIParpackComputeSmallestEigenvectorOneVar(
    NCV = MIN(n,4);
    LDV = n;
    IPARAM[0] = 1;       /* exact shifts */
-   IPARAM[2] = 300;     /* maximal number of iterations */
+   IPARAM[2] = MAXITER; /* maximal number of iterations */
    IPARAM[6] = 1;       /* Mode 1: A*x = lambda*x, A symmetric, => OP = A  and  B = I. */
    LWORKL = NCV * (NCV + 8);  /* must be at least NCV**2 + 8*NCV */
    INFO = 0;            /* use random starting vector */
@@ -343,6 +358,19 @@ SCIP_RETCODE SCIParpackComputeSmallestEigenvectorOneVar(
       }
    }
    while ( IDO == -1 || IDO == 1 );
+
+   /* treat possible errors */
+   if ( IPARAM[2] > MAXITER )
+   {
+      SCIPerrorMessage("Reached iteration limit %d in ARPACK.\n", IPARAM[2]);
+      return SCIP_ERROR;
+   }
+
+   if ( IPARAM[4] <= 0 )
+   {
+      SCIPerrorMessage("No Ritz vectors have been computed with ARPACK.\n");
+      return SCIP_ERROR;
+   }
 
    /* post process */
    RVEC = 1;   /* compute eigenvectors */
