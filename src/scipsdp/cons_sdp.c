@@ -2991,8 +2991,6 @@ SCIP_RETCODE checkRank1QuadConss(
    int i;
    int j;
 
-   /* TODO: rename result to isrankone and initialize */
-
    assert( scip != NULL );
    assert( cons != NULL );
    assert( sol != NULL );
