@@ -87,6 +87,7 @@ OPENBLAS	=	true
 MUMPSSEQ	=	true
 STATICLAPACK	=	false
 PYTHON  	=   	none
+ARPACK		=	false
 
 #-----------------------------------------------------------------------------
 # include default project Makefile from SCIP
@@ -222,6 +223,11 @@ ifeq ($(OPENBLAS),true)
 CFLAGS			+=	-DOPENBLAS
 CXXFLAGS		+=	-DOPENBLAS
 LDFLAGS			+=	-Wl,--allow-multiple-definition   # this avoids errors for multiple symbols, e.g., in CPLEX and SDP-solvers
+endif
+
+ifeq ($(ARPACK),true)
+CFLAGS			+=	-DARPACK
+LDFLAGS			+=	-larpack
 endif
 
 FLAGS			+=	-I$(SCIPSDPREALPATH)/src

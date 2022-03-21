@@ -187,6 +187,7 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			sdpi/sdpsolchecker.o \
 			sdpi/solveonevarsdp.o \
 			sdpi/lapack_interface.o \
+			sdpi/arpack_interface.o \
 			sdpi/sdpiclock.o \
 			scipsdpgithash.o
 
@@ -295,7 +296,7 @@ ifeq ($(FILES),)
 			do \
 				echo $$i; \
 				$(PCLINT) -I$(SCIPREALPATH) -I$(SCIPREALPATH)/pclint main-gcc.lnt +os\(pclint.out\) -b -u -zero \
-				$(USRFLAGS) $(FLAGS) $(SDPIINC) -uNDEBUG -uSCIP_WITH_READLINE -uSCIP_ROUNDING_FE -D_BSD_SOURCE $$i; \
+				$(USRFLAGS) $(FLAGS) $(CFLAGS) $(SDPIINC) -uNDEBUG -uSCIP_WITH_READLINE -uSCIP_ROUNDING_FE -D_BSD_SOURCE $$i; \
 			done'
 else
 		@$(SHELL) -ec  'echo "-> running pclint on specified files ..."; \
@@ -303,7 +304,7 @@ else
 			do \
 				echo $$i; \
 				$(PCLINT) -I$(SCIPREALPATH) -I$(SCIPREALPATH)/pclint main-gcc.lnt +os\(pclint.out\) -b -u -zero \
-				$(USRFLAGS) $(FLAGS) $(SDPIINC) -uNDEBUG -uSCIP_WITH_READLINE -uSCIP_ROUNDING_FE -D_BSD_SOURCE $$i; \
+				$(USRFLAGS) $(FLAGS) $(CFLAGS) $(SDPIINC) -uNDEBUG -uSCIP_WITH_READLINE -uSCIP_ROUNDING_FE -D_BSD_SOURCE $$i; \
 			done'
 endif
 
@@ -426,6 +427,9 @@ endif
 ifneq ($(OMP),$(LAST_OMP))
 		@-touch -c $(SRCDIR)/scipsdp/cons_sdp.c
 endif
+ifneq ($(ARPACK),$(LAST_ARPACK))
+		@-touch -c $(SRCDIR)/sdpi/solveonevarsdp.c $(SRCDIR)/sdpi/arpack_interface.c
+endif
 ifneq ($(SCIPSDPGITHASH),$(LAST_SCIPSDPGITHASH))
 		@$(MAKE) githash
 endif
@@ -448,6 +452,7 @@ endif
 		@echo "LAST_NOBLKBUFMEM=$(NOBLKBUFMEM)" >> $(LASTSETTINGS)
 		@echo "LAST_SDPS=$(SDPS)" >> $(LASTSETTINGS)
 		@echo "LAST_OMP=$(OMP)" >> $(LASTSETTINGS)
+		@echo "LAST_ARPACK=$(ARPACK)" >> $(LASTSETTINGS)
 		@echo "LAST_SCIPSDPGITHASH=$(SCIPSDPGITHASH)" >> $(LASTSETTINGS)
 
 $(LINKSMARKERFILE):
@@ -549,9 +554,6 @@ testcluster:
 
 .PHONY: depend
 depend:		$(SCIPDIR)
-		$(SHELL) -ec '$(DCXX) $(DFLAGS) $(FLAGS) $(SDPIINC) $(DFLAGS) $(SCIPSDPCCSRC) $(SDPICCSRC) \
-		| sed '\''s|^\([0-9A-Za-z\_]\{1,\}\)\.o *: *$(SRCDIR)/scipsdp/\([0-9A-Za-z\_]*\).cpp|$$\(OBJDIR\)/\2.o: $(SRCDIR)/scipsdp/\2.cpp|g'\'' \
-		>$(SCIPSDPDEP)'
 		$(SHELL) -ec '$(DCXX) $(DFLAGS) $(FLAGS) $(SDPIINC) $(DFLAGS) $(SCIPSDPCSRC) $(SDPICSRC) \
 		| sed '\''s|^\([0-9A-Za-z\_]\{1,\}\)\.o *: *$(SRCDIR)/scipsdp/\([0-9A-Za-z\_]*\).c|$$\(OBJDIR\)/\2.o: $(SRCDIR)/scipsdp/\2.c|g'\'' \
 		| sed '\''s|^\([0-9A-Za-z\_]\{1,\}\)\.o *: *$(SRCDIR)/sdpi/\([0-9A-Za-z\_]*\).c|$$\(OBJDIR\)/\2.o: $(SRCDIR)/sdpi/\2.c|g'\'' \
@@ -561,7 +563,7 @@ depend:		$(SCIPDIR)
 
 $(SCIPSDPBINFILE): $(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) libscipsdp $(MAINOBJFILES) | $(SDPOBJSUBDIRS) $(BINDIR)
 		@echo "-> linking $@"
-		$(LINKCXX) $(MAINOBJFILES) -L$(SCIPSDPLIBDIR)/$(LIBTYPE) -l$(SCIPSDPLIB) $(SDPILIB) $(LINKCXXSCIPALL) $(LINKCXX_o)$@
+		$(LINKCXX) $(MAINOBJFILES) $(LINKCXXSCIPSDPALL) $(LINKCXX_o)$@
 
 $(OBJDIR)/%.o:	$(SRCDIR)/%.c | $(SDPOBJSUBDIRS)
 		@echo "-> compiling $@"
