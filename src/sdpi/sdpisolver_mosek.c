@@ -389,8 +389,7 @@ const char* SCIPsdpiSolverGetSolverDesc(
    void
    )
 {
-   return "Homogeneous and self-dual interior-point solver for semidefinite programming developed by MOSEK ApS"
-         "(http://www.mosek.com)";
+   return "Homogeneous, self-dual interior-point solver for semidefinite programming developed by MOSEK ApS (http://www.mosek.com)";
 }
 
 /** gets pointer to SDP-solver - use only with great care
@@ -2758,7 +2757,7 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
       sdpisolver->usescaling = (SCIP_Bool) ival;
       SCIPdebugMessage("Setting usescaling (%d).\n", ival);
       break;
-  case SCIP_SDPPAR_SCALEOBJ:
+   case SCIP_SDPPAR_SCALEOBJ:
       assert( 0 <= ival && ival <= 1 );
       sdpisolver->scaleobj = (SCIP_Bool) ival;
       SCIPdebugMessage("Setting scaleobj (%d).\n", ival);

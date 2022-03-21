@@ -1,5 +1,6 @@
-- Versionsnummern in scipsdpdefplugins.cpp, changelog, doc/xternal.c, doc/scipsdp.dxy, make/make.scipsdpproj und tools/makerelease.sh anpassen
+- Versionsnummern in changelog.txt, doc/xternal.c, doc/scipsdp.dxy, make/make.scipsdpproj und tools/makerelease.sh anpassen
 - gegebenenfalls Jahreszahlen bei Lizenz (und in allen Dateien) anpassen
+  Schaue auch in unittests/src/*
 - im git einen Tag setzen, z.B. git tag -a v3.2.0 -m 'version 3.2.0'; dann git push origin --tags
 - tools/makerelease.sh ausführen
 - testen ob alles funktioniert hat
@@ -10,5 +11,6 @@
 - in www/header.inc neue Dokumentation in Liste eintragen
 - doc Unterordner in "doc-VERSIONSNUMMER" umbenennen und nach USER@wwwopt:/www/webpages/opt/scipsdp/ kopieren
 - tarfile nach USER@wwwopt:/www/webpages/opt/scipsdp/downloads/ kopieren
-- alle veränderten www/xy.inc Dateien nach USER@wwwopt:/www/webpages/optimierung/scipsdp/ kopieren
-- irgendjemand am ZIB (default Benny) Bescheid sagen, dass SCIP-SDP Release fertig ist und gebenenfalls im git-issue einen Satz schreiben, der in der Release Email zu SCIP-SDP gesagt werden kann
+- bei Bedarf: INSTALL nach USER@wwwopt:/www/webpages/opt/scipsdp/downloads/ kopieren
+- alle veränderten www/xy.inc Dateien nach USER@wwwopt:/www/webpages/opt/scipsdp/ kopieren
+[- irgendjemand am ZIB (default Benny) Bescheid sagen, dass SCIP-SDP Release fertig ist und gebenenfalls im git-issue einen Satz schreiben, der in der Release Email zu SCIP-SDP gesagt werden kann]

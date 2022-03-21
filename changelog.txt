@@ -1,4 +1,21 @@
-SCIP-SDP version NEXT
+SCIP-SDP version next
+
+features:
+- Add possibility to use ARPACK for eigenvalue computations with SDPs with one variable. For this just
+  set ARPACK=true in the makefile. Note that using ARPACK is usually slower than using LAPACK.
+- new propagation routine based on 3 by 3 minors
+  (applied with parameter "constraints/SDP/prop3minors")
+- can now create CMIR inequalities from eigenvector cuts
+
+parameters:
+- new parameter <constraints/SDP/prop3minors> to propagate 3 by 3 minors (default: FALSE)
+- new parameter <constraints/SDP/nonconst3minors> to propagate 3 by 3 minors even if the diagonals are not constant (default: FALSE)
+- new parameter <constraints/SDP/additionalstats> to show the number of propagations (default: FALSE)
+- new parameter <constraints/SDP/generatecmir> to separate CMIR from eigenvalue cuts (default: FALSE)
+
+
+
+SCIP-SDP version 4.0.0
 ======================
 
 features:
@@ -10,6 +27,7 @@ features:
 - new heuristic heur_sdpinnerlp that tries to find a diagonally dominant solution using an LP
 - The display rows now switches from SDP to LP output depending on misc/solvesdps.
 - add possibility to sparsify an eigenvector cut
+- add possibility to add multiple sparse eigenvector cuts using the truncated power method (TPower)
 - Add option to solve an SDP when solving LPs if there is an integer solution in enforcing. If the SDP is not feasible
   and not all integer variables are already fixed, add rounding step for all integer variables and solve SDP again.
 - add possibility to tighten matrices if all matrices are positive semidefinite (turned off by default)
@@ -42,6 +60,7 @@ features:
 - Remove table_sdpsolversuccess; its output has been added to table_relaxsdp.
 - Heuristics <sdprand> now uses propagation to increase its success rate.
 - Solve SDPs with one variable by using a semi-smooth Newton approach.
+- Explicitly solve LPs with one variable.
 - At several places, now block or buffer memory is used instead of malloc.
 - The SDPI for Mosek allows to scale the problem (relaxing/SDP/scaleobj).
 - SCIP-SDP redefines the default values of several parameters in SCIPSDPincludeDefaultPlugins(). Resetting parameters therefore
@@ -89,19 +108,26 @@ parameters:
 - new parameter <constraints/SDP/propubpresol> to turn on propagation of upper bounds in presolving (default: TRUE)
 - new parameter <constraints/SDP/tightenboundscont> to only propagate upper bounds of continuous variables (default: FALSE)
 - new parameter <constraints/SDP/tightenmatrices> to tighten (scale) matrices (default: FALSE)
-- new parameter <constraints/SDP/tightenbounds> to tighten bounds based on eigenvalues (default: FALSE)
-- new parameter <constraints/SDP/proptightenbounds> to turn on propagation of bound tightening (default: FALSE)
+- new parameter <constraints/SDP/tightenbounds> to tighten bounds based on eigenvalues (default: TRUE when solving SDPs, FALSE when solving LPs)
+- new parameter <constraints/SDP/proptightenbounds> to turn on propagation of bound tightening (default: TRUE when solving SDPs, FALSE when solving LPs)
 - new parameter <constraints/SDP/proptbprobing> to turn on propagation of bound tightening in probing (default: FALSE)
-- new parameter <heuristics/sdpfracdiving/runforlp> and <heuristics/sdprand/runforlp> to use heuristics starting from LP solution (default: FALSE)
+- new parameter <heuristics/sdpfracdiving/runforlp>, <heuristics/sdprand/runforlp> and <heuristics/sdpfracround/runforlp> to use heuristics starting from LP solution (default: FALSE)
 - new parameter <misc/solvesdps> to choose between SDP (1) and LP (0) solving (default: 1)
 - rename parameter <relaxing/SDP/tightenvb> to <relaxing/SDP/tightenrows>.
 - Set default value for <relaxing/SDP/sdpsolverthreads> to 1, since this usually improves running time
   (set to -1 for an automatic choice, e.g., for larger SDP blocks).
 - removed parameter <heuristics/sdprand/generalints>
 - removed parameter <heuristics/sdprand/nrounds>
-- new parameter <relaxing/SDP/usepresolving> to turn presolving of SDP-solver on
-- new parameter <relaxing/SDP/scaleobj> to turn scaling of objective in SDP-solver on
-- new parameter <constraints/SDP/twominorvarbounds> to add linear inequalities based on variable bounds for 2 by 2 minors during presolving
+- new parameter <relaxing/SDP/usepresolving> to turn presolving of SDP-solver on (default: FALSE)
+- new parameter <relaxing/SDP/scaleobj> to turn scaling of objective in SDP-solver on (default: FALSE)
+- new parameter <constraints/SDP/twominorvarbounds> to add linear inequalities based on variable bounds for 2 by 2 minors during presolving (default: TRUE when solving SDPs, FALSE when solving LPs)
+- new parameter <constraints/SDP/multiplesparsecuts> to add multiple sparse eigenvector cuts (default: FALSE)
+- new parameter <constraints/SDP/maxnsparsecuts> to determine maximal number of sparse eigenvector cuts to add (default: 0)
+- new parameter <constraints/SDP/recomputesparseev> to recompute sparse eigenvalues returned from TPower exactly (default: FALSE)
+- new parameter <constraints/SDP/recomputeinitial> to recompute the initial vector for TPower every time (default: FALSE)
+- new parameter <constraints/SDP/exacttrans> to exactly transform the matrix before calling TPower (default: FALSE)
+- Set default value for <constraints/SDP/diaggezerocuts> to FALSE when solving SDPs, and to TRUE when solving LPs.
+- Disable conflict analysis by default, i.e., set default value for <conflict/enable> to FALSE since this has no effect when solving SDPs and a negative influence when solving LPs.
 
 fixed bugs:
 - fixed the output of the line number when reading CBF files
@@ -122,6 +148,8 @@ fixed bugs:
 - treat unknown solution status in sdpisolver_dsdp.c
 - fixed bug in relax_sdp with new variables that might be added
 - avoid infinite loop with upgrading quadratic problems
+- linear constraints added during presolving are not initial and are neither enforced nor checked
+- fixed one bug when accessing solution statistics from Mosek for problems that have run into the timelimit in Mosek
 
 (make)files:
 - The makefile now produces various links to libscipsdp... and scipsdp...

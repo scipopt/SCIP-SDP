@@ -1,5 +1,3 @@
 misc/solvesdps = 0
 constraints/SDP/sepafreq = -1
 constraints/SDP/addsocrelax = true
-constraints/SDP/twominorlinconss = true
-constraints/SDP/twominorprodconss = true

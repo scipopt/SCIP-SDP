@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION="3.2.0"
+VERSION="4.0.0"
 NAME="scipsdp-$VERSION"
 rm -f $NAME
 
@@ -29,6 +29,9 @@ tar --no-recursion --ignore-failed-read -cvzhf $NAME.tgz \
     $NAME/src/scipsdpgithash.c \
     $NAME/check/testset/short.test \
     $NAME/check/testset/short.solu \
+    $NAME/check/configuration_tmpfile_setup_scip.sh \
+    $NAME/check/check.awk \
+    $NAME/check/cmpres.awk \
     $NAME/settings/lp_approx.set \
     $NAME/CMakeLists.txt \
     $NAME/src/CMakeLists.txt \

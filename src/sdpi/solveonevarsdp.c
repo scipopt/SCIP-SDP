@@ -38,6 +38,7 @@
 #include "scip/pub_misc.h"
 #include "sdpi/solveonevarsdp.h"
 #include "sdpi/lapack_interface.h"
+#include "sdpi/arpack_interface.h"
 
 /** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMORY */
 #define BMS_CALL(x)   do                                                                                      \
@@ -50,6 +51,40 @@
                       }                                                                                       \
                       while( FALSE )
 
+#ifdef ARPACK
+
+/** determine whether linear combination with value alpha is feasible */
+static
+SCIP_RETCODE SCIPoneVarFeasibleArpackSparse(
+   BMS_BUFMEM*           bufmem,             /**< buffer memory */
+   int                   blocksize,          /**< size of the SDP-block */
+   SCIP_Real             alpha,              /**< variable value to test */
+   int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint-matrix */
+   int*                  sdprow,             /**< array of row-indices of nonzero matrix entries */
+   int*                  sdpcol,             /**< array of column-indices of nonzero matrix entries */
+   SCIP_Real*            sdpval,             /**< array of nonzero values */
+   int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrix of the SDP-block */
+   int*                  sdpconstrow,        /**< array of row-indices of constant matrix */
+   int*                  sdpconstcol,        /**< array of column-indices of constant matrix */
+   SCIP_Real*            sdpconstval,        /**< array of nonzero values of entries of constant matrix */
+   SCIP_Real*            eigenvalue,         /**< pointer to store eigenvalue */
+   SCIP_Real*            eigenvector         /**< corresponding eigenvector */
+   )
+{
+   assert( sdpconstnnonz == 0 || sdpconstrow != NULL );
+   assert( sdpconstnnonz == 0 || sdpconstcol != NULL );
+   assert( sdpconstnnonz == 0 || sdpconstval != NULL );
+   assert( sdpnnonz == 0 || sdprow != NULL );
+   assert( sdpnnonz == 0 || sdpcol != NULL );
+   assert( sdpnnonz == 0 || sdpval != NULL );
+   assert( eigenvalue != NULL );
+
+   SCIP_CALL( SCIParpackComputeSmallestEigenvectorOneVar(bufmem, blocksize, alpha, sdpnnonz, sdprow, sdpcol, sdpval, sdpconstnnonz, sdpconstrow, sdpconstcol, sdpconstval, eigenvalue, eigenvector) );
+
+   return SCIP_OKAY;
+}
+
+#endif
 
 /** determine whether linear combination with value alpha is feasible */
 static
@@ -74,6 +109,9 @@ SCIP_RETCODE SCIPoneVarFeasible(
    for (i = 0; i < blocksize * blocksize; ++i)
       tmpmatrix[i] = alpha * fullmatrix[i] - fullconstmatrix[i];
 
+#ifdef ARPACK
+   SCIP_CALL( SCIParpackComputeSmallestEigenvector(bufmem, blocksize, tmpmatrix, eigenvalue, eigenvector) );
+#else
    if ( eigenvector != NULL )
    {
       SCIP_CALL( SCIPlapackComputeIthEigenvalue(bufmem, TRUE, blocksize, tmpmatrix, 1, eigenvalue, eigenvector) );
@@ -82,6 +120,7 @@ SCIP_RETCODE SCIPoneVarFeasible(
    {
       SCIP_CALL( SCIPlapackComputeIthEigenvalue(bufmem, FALSE, blocksize, tmpmatrix, 1, eigenvalue, NULL) );
    }
+#endif
 
    return SCIP_OKAY;
 }
@@ -133,21 +172,22 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    SCIP_Real*            sdpval,             /**< array of nonzero values */
    SCIP_Real             infinity,           /**< infinity value */
    SCIP_Real             feastol,            /**< feasibility tolerance */
-   SCIP_Real             gaptol,             /**< gap tolerance */
    SCIP_Real*            objval,             /**< pointer to store optimal objective value */
    SCIP_Real*            optval              /**< pointer to store optimal value of variable */
    )
 {
-   SCIP_Real* fullconstmatrix;
-   SCIP_Real* fullmatrix;
-   SCIP_Real* tmpmatrix;
+   SCIP_Real* fullconstmatrix = NULL;
+   SCIP_Real* fullmatrix = NULL;
+   SCIP_Real* tmpmatrix = NULL;
    SCIP_Real* eigenvector = NULL;
    SCIP_Real eigenvalue;
    SCIP_Real supergradient = SCIP_INVALID;
    SCIP_Real mu;
+#ifndef ARPACK
    int r;
    int c;
    int i;
+#endif
 
    assert( sdpconstnnonz == 0 || sdpconstrow != NULL );
    assert( sdpconstnnonz == 0 || sdpconstcol != NULL );
@@ -173,11 +213,13 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
 
    SCIPdebugMessage("Solve SDP with one variable (obj = %g, lb = %g, ub = %g).\n", obj, lb, ub);
 
+   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &eigenvector, blocksize) );
+
    /* fill in full matrices */
+#ifndef ARPACK
    BMS_CALL( BMSallocClearBufferMemoryArray(bufmem, &fullconstmatrix, blocksize * blocksize) );
    BMS_CALL( BMSallocClearBufferMemoryArray(bufmem, &fullmatrix, blocksize * blocksize) );
    BMS_CALL( BMSallocBufferMemoryArray(bufmem, &tmpmatrix, blocksize * blocksize) );
-   BMS_CALL( BMSallocBufferMemoryArray(bufmem, &eigenvector, blocksize) );
 
    for (i = 0; i < sdpconstnnonz; ++i)
    {
@@ -198,9 +240,15 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
       fullmatrix[r * blocksize + c] = sdpval[i];
       fullmatrix[c * blocksize + r] = sdpval[i];
    }
+#endif
 
    /* check upper bound */
+#ifdef ARPACK
+   SCIP_CALL( SCIPoneVarFeasibleArpackSparse(bufmem, blocksize, ub, sdpnnonz, sdprow, sdpcol, sdpval, sdpconstnnonz, sdpconstrow, sdpconstcol, sdpconstval, &eigenvalue, eigenvector) );
+#else
    SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, ub, &eigenvalue, eigenvector) );
+#endif
+
    SCIPdebugMessage("ub = %g, minimal eigenvalue: %g\n", ub, eigenvalue);
 
    /* if matrix is not psd */
@@ -208,6 +256,7 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    {
       /* compute supergradient value */
       computeSupergradient(sdpnnonz, sdprow, sdpcol, sdpval, eigenvector, &supergradient);
+      SCIPdebugMessage(" -> supergradient: %g\n", supergradient);
 
       /* if supergradient is positive, then the problem is infeasible, because the minimal eigenvalue is increasing and we are not psd */
       if ( supergradient > 0.0 )
@@ -221,7 +270,11 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    }
 
    /* otherwise check lower bound */
+#ifdef ARPACK
+   SCIP_CALL( SCIPoneVarFeasibleArpackSparse(bufmem, blocksize, lb, sdpnnonz, sdprow, sdpcol, sdpval, sdpconstnnonz, sdpconstrow, sdpconstcol, sdpconstval, &eigenvalue, eigenvector) );
+#else
    SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, lb, &eigenvalue, eigenvector) );
+#endif
 
    /* if matrix is psd, then the lower bound is optimal */
    if ( eigenvalue >= -feastol )
@@ -270,7 +323,11 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
          break;
 
       /* compute eigenvalue and eigenvector */
+#ifdef ARPACK
+      SCIP_CALL( SCIPoneVarFeasibleArpackSparse(bufmem, blocksize, mu, sdpnnonz, sdprow, sdpcol, sdpval, sdpconstnnonz, sdpconstrow, sdpconstcol, sdpconstval, &eigenvalue, eigenvector) );
+#else
       SCIP_CALL( SCIPoneVarFeasible(bufmem, blocksize, tmpmatrix, fullconstmatrix, fullmatrix, mu, &eigenvalue, eigenvector) );
+#endif
 
       /* update supergradient */
       computeSupergradient(sdpnnonz, sdprow, sdpcol, sdpval, eigenvector, &supergradient);
@@ -293,10 +350,10 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    }
 
  TERMINATE:
+   BMSfreeBufferMemoryArrayNull(bufmem, &tmpmatrix);
+   BMSfreeBufferMemoryArrayNull(bufmem, &fullmatrix);
+   BMSfreeBufferMemoryArrayNull(bufmem, &fullconstmatrix);
    BMSfreeBufferMemoryArray(bufmem, &eigenvector);
-   BMSfreeBufferMemoryArray(bufmem, &tmpmatrix);
-   BMSfreeBufferMemoryArray(bufmem, &fullmatrix);
-   BMSfreeBufferMemoryArray(bufmem, &fullconstmatrix);
 
    return SCIP_OKAY;
 }
@@ -316,7 +373,6 @@ SCIP_RETCODE SCIPsolveOneVarSDPDense(
    SCIP_Real*            sdpval,             /**< array of nonzero values */
    SCIP_Real             infinity,           /**< infinity value */
    SCIP_Real             feastol,            /**< feasibility tolerance */
-   SCIP_Real             gaptol,             /**< gap tolerance */
    SCIP_Real*            objval,             /**< pointer to store optimal objective value */
    SCIP_Real*            optval              /**< pointer to store optimal value of variable */
    )

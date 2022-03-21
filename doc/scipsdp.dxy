@@ -23,7 +23,7 @@ PROJECT_NAME           = SCIP-SDP
 # This could be handy for archiving the generated documentation or
 # if some version control system is used.
 
-PROJECT_NUMBER         = 3.3.0
+PROJECT_NUMBER         = 4.0.0
 
 # The OUTPUT_DIRECTORY tag is used to specify the (relative or absolute)
 # base path where the generated documentation will be put.
@@ -930,5 +930,9 @@ SHOW_NAMESPACES        = NO
 LAYOUT_FILE            = ./layout.xml
 
 USE_MATHJAX = YES
+
+MATHJAX_RELPATH        = https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_CHTML
+
+MATHJAX_FORMAT         = HTML-CSS
 
 MATHJAX_EXTENSIONS = TeX/AMSmath TeX/AMSsymbols
