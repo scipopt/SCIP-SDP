@@ -664,6 +664,9 @@ SCIP_RETCODE isMatrixRankOne(
       consdata->maxevsubmat[1] = ind2;
    }
 
+   if ( sol != NULL )
+      SCIPupdateSolConsViolation(scip, sol, -largestminev, (-largestminev) / (1.0 + consdata->maxrhsentry));
+
    SCIPfreeBufferArray(scip, &fullmatrix);
    SCIPfreeBufferArray(scip, &matrix);
 
@@ -3039,6 +3042,14 @@ SCIP_RETCODE checkRank1QuadConss(
             }
          }
       }
+   }
+
+   if ( sol != NULL )
+   {
+      if ( minor < -tol )
+         SCIPupdateSolConsViolation(scip, sol, -minor, (-minor) / (1.0 + consdata->maxrhsentry));
+      else
+         SCIPupdateSolConsViolation(scip, sol, minor, (minor) / (1.0 + consdata->maxrhsentry));
    }
 
    SCIPfreeBufferArray(scip, &matrix);
