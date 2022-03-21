@@ -5918,6 +5918,10 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
 
    *result = SCIP_FEASIBLE;
 
+   /* early termination */
+   if ( nconss == 0 )
+      return SCIP_OKAY;
+
 #ifdef PRINTMATRICES
    SCIP_CALL( SCIPprintSol(scip, sol, NULL, FALSE) );
 #endif
@@ -5938,10 +5942,6 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
 
    /* otherwise, we need to check for rank1 */
    assert( strcmp(SCIPconshdlrGetName(conshdlr), CONSHDLRRANK1_NAME) == 0 && *result == SCIP_FEASIBLE );
-
-   /* early termination */
-   if ( nconss == 0 )
-      return SCIP_OKAY;
 
    SCIP_CALL( SCIPallocBufferArray(scip, &indviolrank1conss, nconss) );
 
@@ -5964,7 +5964,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
       }
       else if ( ! conshdlrdata->sdpconshdlrdata->quadconsrank1 )
       {
-         /* We need to check for rank-1 */
+         /* We need to check for rank-1. */
          SCIP_CALL( isMatrixRankOne(scip, conshdlrdata, conss[i], sol, printreason, &rank1result) );
 #ifdef PRINTMATRICES
          SCIPinfoMessage(scip, NULL, "Solution is %d for rank-1 part of constraint %s.\n", rank1result, SCIPconsGetName(conss[i]) );
@@ -5979,9 +5979,9 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
       }
    }
 
-   /* if there are no (violated) rank-1 constraints, we are finished. Otherwise, try to compute a feasible primal
+   /* If there are no (violated) rank-1 constraints, we are finished. Otherwise, try to compute a feasible primal
     * solution by computing the best rank-1 approximation for each violated rank-1 constraint and solve an LP to find a
-    * solution for the appearing variables */
+    * solution for the appearing variables. */
    if ( nviolrank1 == 0 )
    {
       assert( *result == SCIP_FEASIBLE );
