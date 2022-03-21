@@ -44,6 +44,11 @@
  *
  * This file also contains a separate constraint handler for handling rank 1 SDP constraints. The callback functions are
  * essentially the same, but some quadratic constraints are added to enforce the rank 1 condition.
+ *
+ * Many techniques used in this constraint handler are described in the paper
+ * Presolving for Mixed-Integer Semidefinite Optimization @p
+ * Frederic Matter and Marc E. Pfetsch@p
+ * Optimization Online.
  */
 
 /* #define SCIP_DEBUG */
@@ -1813,7 +1818,11 @@ SCIP_RETCODE computeAllmatricespsd(
    return SCIP_OKAY;
 }
 
-/** try to tighten matrices if all matrices are psd */
+/** try to tighten matrices if all matrices are psd
+ *
+ *  Try to scale matrices without changing feasible solutions. The details are explained in the presolving paper (see
+ *  the top of the file).
+ */
 static
 SCIP_RETCODE tightenMatrices(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -1921,7 +1930,11 @@ SCIP_RETCODE tightenMatrices(
    return SCIP_OKAY;
 }
 
-/** try to tighten bounds if all matrices are psd */
+/** try to tighten bounds if all matrices are psd
+ *
+ *  Try to compute tighter variable bounds by solving one-variable SDPs. The details are explained in the presolving
+ *  paper (see the top of the file).
+ */
 static
 SCIP_RETCODE tightenBounds(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -2148,6 +2161,8 @@ SCIP_RETCODE tightenBounds(
 
 /** approximates the sdpcone using the fact that every diagonal entry must be non-negative, so it adds the LP-cut
  *  \f$ \sum_{j = 1}^m (A_j)_{kk} y_j - (A_0)_{kk} \geq 0 \quad \forall k \leq n \f$
+ *
+ *  For a context, see also the presolving paper (mentioned at the top of the file).
  */
 static
 SCIP_RETCODE diagGEzero(
@@ -2323,6 +2338,8 @@ SCIP_RETCODE diagGEzero(
  *  More precisely, if \f$ (A_0)_{k\ell} \neq 0\f$, \f$ (A_0)_{kk} = 0\f$, \f$ (A_i)_{k\ell} = 0\f$ for all \f$ i \leq m\f$,
  *  \f$ (A_i)_{kk} = 0\f$ for all continuous variables and \f$ \ell_i \geq 0\f$ for all integer variables, we add the cut
  *  \f$ \sum_{\substack{i \in \mathcal{I}:\\ (A_i)_{kk} > 0}} y_i \geq 1.\f$
+ *
+ *  The details are explained in the presolving paper (see the top of the file).
  */
 static
 SCIP_RETCODE diagZeroImpl(
@@ -2578,6 +2595,8 @@ SCIP_RETCODE diagZeroImpl(
  *
  *  @todo The cut \f$X_{ss} + X_{tt} - 2\, X_{st} \geq 0\f$ is a special form of an Eigenvector cut. Try out other
  *  Eigenvector cuts such as \f$X_{ss} + X_{tt} + 2\, X_{st} \geq 0\f$.
+ *
+ *  For more details, see the presolving paper (mentioned at the top of the file).
  */
 static
 SCIP_RETCODE addTwoMinorLinConstraints(
@@ -3139,6 +3158,8 @@ SCIP_RETCODE addTwoMinorProdConstraints(
  *  \f[
  *      2\, \tilde{U}_{st} A(y)_{st} - \tilde{U}_{tt} A(y)_{ss} \leq \tilde{U}_{st}^2.
  *  \f]
+ *
+ *  The details are explained in the presolving paper (see the top of the file).
  */
 static
 SCIP_RETCODE addTwoMinorVarBounds(
@@ -4505,7 +4526,10 @@ SCIP_RETCODE analyzeConflict(
    return SCIP_OKAY;
 }
 
-/** propagates upper bounds */
+/** propagates upper bounds
+ *
+ *  The details are explained in the presolving paper (see the top of the file).
+ */
 static
 SCIP_RETCODE propagateUpperBounds(
    SCIP*                 scip,               /**< SCIP data structure */
@@ -4883,7 +4907,19 @@ SCIP_RETCODE analyzeConflict3Minor(
 }
 
 
-/** propagates 3x3 minors */
+/** propagates 3x3 minors
+ *
+ *  The idea is the following. If the diagonal entries of a 3x3 minor are fixed to 1 and one further entry is fixed to
+ *  1, then the other two entries must be the same. For instance, assume the current 3x3 minor looks as follows:
+ *  [1 1 a]
+ *  [1 1 b]
+ *  [a b 1]
+ *  Its determinant is 1 + 2 ab - a^2 - b^2 - 1 = - (a - b)^2. Since this determinant must be nonnegative for the
+ *  complete matrix to be positive semidefinite, a = b follows.
+ *
+ *  The idea is motivated by the Masters Thesis "Facial Reduction on Binary Semidefinite Programs" by Jeremy Jany, TU
+ *  Darmstadt, 2021.
+ */
 static
 SCIP_RETCODE propagate3Minors(
    SCIP*                 scip,               /**< SCIP data structure */
