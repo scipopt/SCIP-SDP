@@ -1248,8 +1248,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          /* we finished a row */
          if ( nnonz == lpnnonz - 1 || lprow[nnonz + 1] > currentrow )
          {
-            /* all rows with at most one nonzero should have been sorted out */
-            assert( mosekind >= 2 );
+            /* all rows with at most one nonzero should have been sorted out, except when checking the Slater condition */
+            assert( mosekind >= 1 );
 
             /* add the additional entry for the penalty constraint Trace = Gamma */
             if ( penaltyparam >= sdpisolver->epsilon )
