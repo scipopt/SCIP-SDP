@@ -6631,7 +6631,7 @@ SCIP_DECL_CONSPROP(consPropSdp)
 
       if ( infeasible )
       {
-         conshdlrdata->sdpconshdlrdata->npropcutoffub ++;
+         ++conshdlrdata->sdpconshdlrdata->npropcutoffub;
          SCIPdebugMsg(scip, "Propagation of upper bounds detected cutoff.\n");
          *result = SCIP_CUTOFF;
       }
@@ -6670,7 +6670,7 @@ SCIP_DECL_CONSPROP(consPropSdp)
 
          if ( infeasible )
          {
-            conshdlrdata->sdpconshdlrdata->npropcutofftb += 1;
+            ++conshdlrdata->sdpconshdlrdata->npropcutofftb;
             SCIPdebugMsg(scip, "Propagation of bound tightening detected cutoff.\n");
             *result = SCIP_CUTOFF;
          }
@@ -6707,7 +6707,7 @@ SCIP_DECL_CONSPROP(consPropSdp)
 
       if ( infeasible )
       {
-         conshdlrdata->sdpconshdlrdata->npropcutoff3m += 1;
+         ++conshdlrdata->sdpconshdlrdata->npropcutoff3m;
          SCIPdebugMsg(scip, "Propagation of 3x3 minors detected cutoff.\n");
          *result = SCIP_CUTOFF;
       }
