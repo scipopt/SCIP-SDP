@@ -253,6 +253,20 @@ struct SCIP_ConshdlrData
    int                   npropub;            /**< Number of propagations through upper bounds */
    int                   nproptb;            /**< Number of tightened bounds in propagation */
    int                   nprop3minor;        /**< Number of propagations through 3x3 minors */
+   int                   npropcutoffub;      /**< Number of cutoffs in propagation through upper bounds */
+   int                   npropcutofftb;      /**< Number of cutoffs in propagation of bound tightening */
+   int                   npropcutoff3m;      /**< Number of cutoffs in propagation through 3x3 minors */
+   int                   npropintrndub;      /**< Number of rounded bounds of integer variables in propagation through upper bounds */
+   int                   npropintrndtb;      /**< Number of rounded bounds of integer variables in propagation of bound tightening */
+   int                   npropintrnd3m;      /**< Number of rounded bounds of integer variables in propagation through 3x3 minors */
+   int                   nproppreub;         /**< Number of propagations through upper bounds in presolving */
+   int                   nproppretb;         /**< Number of tightened bounds in propagation in presolving */
+   int                   nproppre3m;         /**< Number of propagations through 3x3 minors in presolving */
+   int                   nproppreintrndub;   /**< Number of rounded bounds of integer variables in propagation through upper bounds in presolving */
+   int                   nproppreintrndtb;   /**< Number of rounded bounds of integer variables in propagation of bound tightening in presolving */
+   int                   nproppreintrnd3m;   /**< Number of rounded bounds of integer variables in propagation through 3x3 minors in presolving */
+   int                   npropprobub;        /**< Number of propagations through upper bounds in probing */
+   int                   npropprobtb;        /**< Number of tightened bounds in propagation in probing */
 };
 
 /** generates matrix in colum-first format (needed by LAPACK) from matrix given in full row-first format (SCIP-SDP
@@ -1942,6 +1956,7 @@ SCIP_RETCODE tightenBounds(
    int                   nconss,             /**< number of constraints to add cuts for */
    SCIP_Bool             tightenboundscont,  /**< Should only continuous variables be tightened? */
    int*                  nchgbds,            /**< pointer to store how many bounds were tightened */
+   int*                  nintrnd,            /**< pointer to store how many tightened bounds of integer variables were rounded to be integral */
    SCIP_Bool*            infeasible          /**< pointer to store whether infeasibility was detected */
    )
 {
@@ -1949,8 +1964,11 @@ SCIP_RETCODE tightenBounds(
 
    assert( scip != NULL );
    assert( nchgbds != NULL );
+   assert( nintrnd != NULL );
    assert( infeasible != NULL );
 
+   *nchgbds = 0;
+   *nintrnd = 0;
    *infeasible = FALSE;
 
    for (c = 0; c < nconss && !(*infeasible); ++c)
@@ -2148,6 +2166,13 @@ SCIP_RETCODE tightenBounds(
             {
                SCIPdebugMsg(scip, "%sTightened lower bound of variable <%s> from %g to %g.\n", SCIPinProbing(scip) ? "In probing: " : "", SCIPvarGetName(consdata->vars[i]), lb, factor);
                ++(*nchgbds);
+
+               /*  if variable is integral, the bound change should automatically produce an integer bound */
+               if ( SCIPvarIsIntegral(consdata->vars[i]) && ! SCIPisFeasIntegral(scip, factor) )
+               {
+                  assert( SCIPisFeasIntegral(scip, SCIPvarGetLbLocal(consdata->vars[i])) );
+                  ++(*nintrnd);
+               }
             }
          }
       }
@@ -4536,16 +4561,19 @@ SCIP_RETCODE propagateUpperBounds(
    SCIP_CONS**           conss,              /**< constraints to process */
    int                   nconss,             /**< number of constraints */
    SCIP_Bool*            infeasible,         /**< pointer to store whether infeasibility was detected */
-   int*                  nprop               /**< pointer to store the number of propagations performed */
+   int*                  nprop,              /**< pointer to store the number of propagations performed */
+   int*                  nintrnd             /**< pointer to store how many propagations of integer variables were rounded to be integral */
    )
 {
    int c;
 
    assert( infeasible != NULL );
    assert( nprop != NULL );
+   assert( nintrnd != NULL );
 
    *infeasible = FALSE;
    *nprop = 0;
+   *nintrnd = 0;
 
    for (c = 0; c < nconss; ++c)
    {
@@ -4740,6 +4768,13 @@ SCIP_RETCODE propagateUpperBounds(
                   {
                      SCIPdebugMsg(scip, "Propagation successfully tightened a bound.\n");
                      ++(*nprop);
+
+                     /*  if variable is integral, the bound change should automatically produce an integer bound */
+                     if ( SCIPvarIsIntegral(varst) && ! SCIPisFeasIntegral(scip, bound) )
+                     {
+                        assert( SCIPisFeasIntegral(scip, SCIPvarGetUbLocal(varst)) );
+                        ++(*nintrnd);
+                     }
                   }
                }
 
@@ -4769,6 +4804,13 @@ SCIP_RETCODE propagateUpperBounds(
                   {
                      SCIPdebugMsg(scip, "Propagation successfully tightened a bound.\n");
                      ++(*nprop);
+
+                     /*  if variable is integral, the bound change should automatically produce an integer bound */
+                     if ( SCIPvarIsIntegral(varst) && ! SCIPisFeasIntegral(scip, bound) )
+                     {
+                        assert( SCIPisFeasIntegral(scip, SCIPvarGetLbLocal(varst)) );
+                        ++(*nintrnd);
+                     }
                   }
                }
             }
@@ -4927,16 +4969,19 @@ SCIP_RETCODE propagate3Minors(
    int                   nconss,             /**< number of constraints */
    SCIP_Bool             nonconst3minors,    /**< Should 3x3 minors be propagated if the diagonal is not constant? */
    SCIP_Bool*            infeasible,         /**< pointer to store whether infeasibility was detected */
-   int*                  nprop               /**< pointer to store the number of propagations performed */
+   int*                  nprop,              /**< pointer to store the number of propagations performed */
+   int*                  nintrnd             /**< pointer to store how many propagations of integer variables were rounded to be integral */
    )
 {
    int c;
 
    assert( infeasible != NULL );
    assert( nprop != NULL );
+   assert( nintrnd != NULL );
 
    *infeasible = FALSE;
    *nprop = 0;
+   *nintrnd = 0;
 
    for (c = 0; c < nconss; ++c)
    {
@@ -5068,6 +5113,13 @@ SCIP_RETCODE propagate3Minors(
                               SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) successfully tightened a bound of <%s> to %f.\n",
                                  r, s, t, SCIPvarGetName(var2), SCIPvarGetLbLocal(var1));
                               ++(*nprop);
+
+                              /*  if variable is integral, the bound change should automatically produce an integer bound */
+                              if ( SCIPvarIsIntegral(var2) && ! SCIPisFeasIntegral(scip, SCIPvarGetLbLocal(var1)) )
+                              {
+                                 assert( SCIPisFeasIntegral(scip, SCIPvarGetLbLocal(var2)) );
+                                 ++(*nintrnd);
+                              }
                            }
                         }
                      }
@@ -5093,6 +5145,13 @@ SCIP_RETCODE propagate3Minors(
                               SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) successfully tightened a bound of <%s> to %f.\n",
                                  r, s, t, SCIPvarGetName(var1), SCIPvarGetLbLocal(var2));
                               ++(*nprop);
+
+                              /*  if variable is integral, the bound change should automatically produce an integer bound */
+                              if ( SCIPvarIsIntegral(var1) && ! SCIPisFeasIntegral(scip, SCIPvarGetLbLocal(var2)) )
+                              {
+                                 assert( SCIPisFeasIntegral(scip, SCIPvarGetLbLocal(var1)) );
+                                 ++(*nintrnd);
+                              }
                            }
                         }
                      }
@@ -5270,6 +5329,13 @@ SCIP_RETCODE propagate3Minors(
                               SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) successfully tightened a bound of <%s> to %f.\n",
                                  r, s, t, SCIPvarGetName(var2), SCIPvarGetLbLocal(var1));
                               ++(*nprop);
+
+                              /*  if variable is integral, the bound change should automatically produce an integer bound */
+                              if ( SCIPvarIsIntegral(var2) && ! SCIPisFeasIntegral(scip, SCIPvarGetLbLocal(var1)) )
+                              {
+                                 assert( SCIPisFeasIntegral(scip, SCIPvarGetLbLocal(var2)) );
+                                 ++(*nintrnd);
+                              }
                            }
                         }
                      }
@@ -5295,6 +5361,13 @@ SCIP_RETCODE propagate3Minors(
                               SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) successfully tightened a bound of <%s> to %f.\n",
                                  r, s, t, SCIPvarGetName(var1), SCIPvarGetLbLocal(var2));
                               ++(*nprop);
+
+                              /*  if variable is integral, the bound change should automatically produce an integer bound */
+                              if ( SCIPvarIsIntegral(var1) && ! SCIPisFeasIntegral(scip, SCIPvarGetLbLocal(var2)) )
+                              {
+                                 assert( SCIPisFeasIntegral(scip, SCIPvarGetLbLocal(var1)) );
+                                 ++(*nintrnd);
+                              }
                            }
                         }
                      }
@@ -6233,6 +6306,20 @@ SCIP_DECL_CONSINITPRE(consInitpreSdp)
    conshdlrdata->npropub = 0;    /* reset numbers; called for both the rank1 and ordinary constraint handler */
    conshdlrdata->nproptb = 0;
    conshdlrdata->nprop3minor = 0;
+   conshdlrdata->npropcutoffub = 0;
+   conshdlrdata->npropcutofftb = 0;
+   conshdlrdata->npropcutoff3m = 0;
+   conshdlrdata->npropintrndub = 0;
+   conshdlrdata->npropintrndtb = 0;
+   conshdlrdata->npropintrnd3m = 0;
+   conshdlrdata->nproppreub = 0;
+   conshdlrdata->nproppretb = 0;
+   conshdlrdata->nproppre3m = 0;
+   conshdlrdata->nproppreintrndub = 0;
+   conshdlrdata->nproppreintrndtb = 0;
+   conshdlrdata->nproppreintrnd3m = 0;
+   conshdlrdata->npropprobub = 0;
+   conshdlrdata->npropprobtb = 0;
 
    return SCIP_OKAY;
 }
@@ -6382,11 +6469,41 @@ SCIP_DECL_CONSEXIT(consExitSdp)
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of propagations through upper bounds: %d\n", conshdlrdata->npropub);
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of tightened bounds in propagation:   %d\n", conshdlrdata->nproptb);
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of propagations through 3x3 minors:   %d\n", conshdlrdata->nprop3minor);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of cutoffs in propagation through upper bounds: %d\n", conshdlrdata->npropcutoffub);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of cutoffs in propagation of bound tightening:  %d\n", conshdlrdata->npropcutofftb);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of cutoffs in propagation through 3x3 minors:   %d\n", conshdlrdata->npropcutoff3m);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of rounded bounds of integer variables in propagation through upper bounds: %d\n", conshdlrdata->npropintrndub);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of rounded bounds of integer variables in propagation of bound tightening:  %d\n", conshdlrdata->npropintrndtb);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of rounded bounds of integer variables in propagation through 3x3 minors:   %d\n", conshdlrdata->npropintrnd3m);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of propagations through upper bounds in presolving: %d\n", conshdlrdata->nproppreub);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of tightened bounds in propagation in presolving:   %d\n", conshdlrdata->nproppretb);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of propagations through 3x3 minors in presolving:   %d\n", conshdlrdata->nproppre3m);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of rounded bounds of integer variables in propagation through upper bounds in presolving: %d\n", conshdlrdata->nproppreintrndub);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of rounded bounds of integer variables in propagation of bound tightening in presolving:  %d\n", conshdlrdata->nproppreintrndtb);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of rounded bounds of integer variables in propagation through 3x3 minors in presolving:   %d\n", conshdlrdata->nproppreintrnd3m);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number propagations through upper bounds in probing:  %d\n", conshdlrdata->npropprobub);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of tightened bounds in propagation in probing: %d\n", conshdlrdata->npropprobtb);
       }
+
       /* reset counters */
       conshdlrdata->npropub = 0;
       conshdlrdata->nproptb = 0;
       conshdlrdata->nprop3minor = 0;
+      conshdlrdata->npropcutoffub = 0;
+      conshdlrdata->npropcutofftb = 0;
+      conshdlrdata->npropcutoff3m = 0;
+      conshdlrdata->npropintrndub = 0;
+      conshdlrdata->npropintrndtb = 0;
+      conshdlrdata->npropintrnd3m = 0;
+      conshdlrdata->nproppreub = 0;
+      conshdlrdata->nproppretb = 0;
+      conshdlrdata->nproppre3m = 0;
+      conshdlrdata->nproppreintrndub = 0;
+      conshdlrdata->nproppreintrndtb = 0;
+      conshdlrdata->nproppreintrnd3m = 0;
+      conshdlrdata->npropprobub = 0;
+      conshdlrdata->npropprobtb = 0;
+
    }
 
    /* reset parameter triedlinearconss */
@@ -6493,6 +6610,7 @@ SCIP_DECL_CONSPROP(consPropSdp)
    SCIP_CONSHDLRDATA* conshdlrdata;
    SCIP_Bool infeasible;
    int nprop = 0;
+   int nintrnd = 0;
 
    assert( conshdlr != NULL );
    assert( result != NULL );
@@ -6509,10 +6627,11 @@ SCIP_DECL_CONSPROP(consPropSdp)
 
       SCIPdebugMsg(scip, "Propagate upper bounds of conshdlr <%s> %s...\n", SCIPconshdlrGetName(conshdlr), SCIPinProbing(scip) ? "(in probing) " : "");
 
-      SCIP_CALL( propagateUpperBounds(scip, conss, nconss, &infeasible, &nprop) );
+      SCIP_CALL( propagateUpperBounds(scip, conss, nconss, &infeasible, &nprop, &nintrnd) );
 
       if ( infeasible )
       {
+         conshdlrdata->sdpconshdlrdata->npropcutoffub ++;
          SCIPdebugMsg(scip, "Propagation of upper bounds detected cutoff.\n");
          *result = SCIP_CUTOFF;
       }
@@ -6520,7 +6639,14 @@ SCIP_DECL_CONSPROP(consPropSdp)
       {
          if ( nprop > 0 )
          {
-            conshdlrdata->sdpconshdlrdata->npropub += nprop;
+            if ( ! SCIPinProbing(scip) )
+            {
+               conshdlrdata->sdpconshdlrdata->npropub += nprop;
+               conshdlrdata->sdpconshdlrdata->npropintrndub += nintrnd;
+            }
+            else
+               conshdlrdata->sdpconshdlrdata->npropprobub += nprop;
+
             SCIPdebugMsg(scip, "Propagation of upper bounds tightened %d bounds.\n", nprop);
             *result = SCIP_REDUCEDDOM;
          }
@@ -6539,10 +6665,12 @@ SCIP_DECL_CONSPROP(consPropSdp)
          SCIPdebugMsg(scip, "Propagate tighten bounds of conshdlr <%s> ...\n", SCIPconshdlrGetName(conshdlr));
 
          nprop = 0;
-         SCIP_CALL( tightenBounds(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->tightenboundscont, &nprop, &infeasible) );
+         nintrnd = 0;
+         SCIP_CALL( tightenBounds(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->tightenboundscont, &nprop, &nintrnd, &infeasible) );
 
          if ( infeasible )
          {
+            conshdlrdata->sdpconshdlrdata->npropcutofftb += 1;
             SCIPdebugMsg(scip, "Propagation of bound tightening detected cutoff.\n");
             *result = SCIP_CUTOFF;
          }
@@ -6550,7 +6678,14 @@ SCIP_DECL_CONSPROP(consPropSdp)
          {
             if ( nprop > 0 )
             {
-               conshdlrdata->sdpconshdlrdata->nproptb += nprop;
+               if ( ! SCIPinProbing(scip) )
+               {
+                  conshdlrdata->sdpconshdlrdata->nproptb += nprop;
+                  conshdlrdata->sdpconshdlrdata->npropintrndtb += nintrnd;
+               }
+               else
+                  conshdlrdata->sdpconshdlrdata->npropprobtb += nprop;
+
                SCIPdebugMsg(scip, "Propagation of bound tightening tightened %d bounds.\n", nprop);
                *result = SCIP_REDUCEDDOM;
             }
@@ -6567,10 +6702,12 @@ SCIP_DECL_CONSPROP(consPropSdp)
       SCIPdebugMsg(scip, "Propagate 3x3 minors of conshdlr <%s> ...\n", SCIPconshdlrGetName(conshdlr));
 
       nprop = 0;
-      SCIP_CALL( propagate3Minors(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->nonconst3minors, &infeasible, &nprop) );
+      nintrnd = 0;
+      SCIP_CALL( propagate3Minors(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->nonconst3minors, &infeasible, &nprop, &nintrnd) );
 
       if ( infeasible )
       {
+         conshdlrdata->sdpconshdlrdata->npropcutoff3m += 1;
          SCIPdebugMsg(scip, "Propagation of 3x3 minors detected cutoff.\n");
          *result = SCIP_CUTOFF;
       }
@@ -6578,7 +6715,10 @@ SCIP_DECL_CONSPROP(consPropSdp)
       {
          if ( nprop > 0 )
          {
+            assert( ! SCIPinProbing(scip) );
             conshdlrdata->sdpconshdlrdata->nprop3minor += nprop;
+            conshdlrdata->sdpconshdlrdata->npropintrnd3m += nintrnd;
+
             SCIPdebugMsg(scip, "Propagation of 3x3 minors tightened %d bounds.\n", nprop);
             *result = SCIP_REDUCEDDOM;
          }
@@ -6675,7 +6815,8 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
 {/*lint --e{715}*/
    SCIP_CONSHDLRDATA* conshdlrdata;
    SCIP_Bool infeasible;
-   int nprop;
+   int nprop = 0;
+   int nintrnd = 0;
    int c;
 
    assert( conshdlr != NULL );
@@ -6741,7 +6882,7 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
    {
       SCIPdebugMsg(scip, "Propagate upper bounds of conshdlr <%s> ...\n", SCIPconshdlrGetName(conshdlr));
 
-      SCIP_CALL( propagateUpperBounds(scip, conss, nconss, &infeasible, &nprop) );
+      SCIP_CALL( propagateUpperBounds(scip, conss, nconss, &infeasible, &nprop, &nintrnd) );
 
       if ( infeasible )
       {
@@ -6755,6 +6896,8 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
          if ( nprop > 0 )
          {
             *nchgbds += nprop;
+            conshdlrdata->sdpconshdlrdata->nproppreub += nprop;
+            conshdlrdata->sdpconshdlrdata->nproppreintrndub += nintrnd;
             *result = SCIP_SUCCESS;
          }
       }
@@ -6799,18 +6942,25 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
       /* possibly tighten bounds */
       if ( conshdlrdata->sdpconshdlrdata->tightenbounds )
       {
-         SCIP_CALL( tightenBounds(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->tightenboundscont, nchgbds, &infeasible) );
+         nprop = 0;
+         nintrnd = 0;
+         SCIP_CALL( tightenBounds(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->tightenboundscont, &nprop, &nintrnd, &infeasible) );
          if ( infeasible )
          {
             *result = SCIP_CUTOFF;
             return SCIP_OKAY;
          }
 
-         if ( noldchgbds != *nchgbds )
+         if ( nprop > 0 )
          {
-            SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Tightened %d bounds using SDP constraints.\n", *nchgbds - noldchgbds);
+            *nchgbds += nprop;
+            conshdlrdata->sdpconshdlrdata->nproppretb += nprop;
+            conshdlrdata->sdpconshdlrdata->nproppreintrndtb += nintrnd;
+
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Tightened %d bounds using SDP constraints.\n", nprop);
             *result = SCIP_SUCCESS;
          }
+
       }
 
       /* In the following, we add linear constraints. This is needed only once. We assume that this is only necessary in
@@ -8462,6 +8612,21 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    conshdlrdata->npropub = 0;
    conshdlrdata->nproptb = 0;
    conshdlrdata->nprop3minor = 0;
+   conshdlrdata->npropcutoffub = 0;
+   conshdlrdata->npropcutofftb = 0;
+   conshdlrdata->npropcutoff3m = 0;
+   conshdlrdata->npropintrndub = 0;
+   conshdlrdata->npropintrndtb = 0;
+   conshdlrdata->npropintrnd3m = 0;
+   conshdlrdata->nproppreub = 0;
+   conshdlrdata->nproppretb = 0;
+   conshdlrdata->nproppre3m = 0;
+   conshdlrdata->nproppreintrndub = 0;
+   conshdlrdata->nproppreintrndtb = 0;
+   conshdlrdata->nproppreintrnd3m = 0;
+   conshdlrdata->npropprobub = 0;
+   conshdlrdata->npropprobtb = 0;
+
 
    /* include constraint handler */
    SCIP_CALL( SCIPincludeConshdlrBasic(scip, &conshdlr, CONSHDLR_NAME, CONSHDLR_DESC,
@@ -8727,6 +8892,20 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->npropub = 0;
    conshdlrdata->nproptb = 0;
    conshdlrdata->nprop3minor = 0;
+   conshdlrdata->npropcutoffub = 0;
+   conshdlrdata->npropcutofftb = 0;
+   conshdlrdata->npropcutoff3m = 0;
+   conshdlrdata->npropintrndub = 0;
+   conshdlrdata->npropintrndtb = 0;
+   conshdlrdata->npropintrnd3m = 0;
+   conshdlrdata->nproppreub = 0;
+   conshdlrdata->nproppretb = 0;
+   conshdlrdata->nproppre3m = 0;
+   conshdlrdata->nproppreintrndub = 0;
+   conshdlrdata->nproppreintrndtb = 0;
+   conshdlrdata->nproppreintrnd3m = 0;
+   conshdlrdata->npropprobub = 0;
+   conshdlrdata->npropprobtb = 0;
 
    /* include constraint handler */
    SCIP_CALL( SCIPincludeConshdlrBasic(scip, &conshdlr, CONSHDLRRANK1_NAME, CONSHDLRRANK1_DESC,
@@ -9405,7 +9584,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
    assert( nnonz == 0 || (nvarnonz != NULL && col != NULL && row != NULL && val != NULL ));
    assert( constnnonz == 0 || (constcol != NULL && constrow != NULL && constval != NULL ));
 
-   conshdlr = SCIPfindConshdlr(scip, "SDP");
+   conshdlr = SCIPfindConshdlr(scip, CONSHDLR_NAME);
    if ( conshdlr == NULL )
    {
       SCIPerrorMessage("SDP constraint handler not found\n");
