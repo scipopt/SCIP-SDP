@@ -136,7 +136,7 @@ SCIP_DECL_TABLEOUTPUT(tableOutputRelaxSdp)
    assert( relaxsdp != NULL );
 
    SCIP_CALL( SCIPrelaxSdpGetStatistics(relaxsdp, &ninfeasible, &nallfixed, &nonevarsdp) );
-   ncalls = SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp);
+   ncalls = SCIPrelaxSdpGetNSdpCalls(relaxsdp); /* alternative: SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp) */
 
    if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0 )
    {
@@ -147,8 +147,8 @@ SCIP_DECL_TABLEOUTPUT(tableOutputRelaxSdp)
          {
             SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10d %10d %10.2f %10d %10d %10d %10d %10d %10d %10d %10d\n",
                SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
-               SCIPrelaxSdpGetNSdpCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
-               (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpCalls(relaxsdp),
+               ncalls, SCIPrelaxSdpGetNIterations(relaxsdp),
+               (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) ncalls,
                SCIPrelaxSdpGetNSdpFast(relaxsdp), SCIPrelaxSdpGetNSdpMedium(relaxsdp), SCIPrelaxSdpGetNSdpStable(relaxsdp), SCIPrelaxSdpGetNSdpPenalty(relaxsdp),
                SCIPrelaxSdpGetNSdpUnsolved(relaxsdp), ninfeasible, nallfixed, nonevarsdp);
          }
@@ -156,8 +156,8 @@ SCIP_DECL_TABLEOUTPUT(tableOutputRelaxSdp)
          {
             SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10d %10d %10.2f %8.2f %% %8.2f %% %8.2f %% %8.2f %% %8.2f %% %10d %10d %10d\n",
                SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
-               SCIPrelaxSdpGetNSdpCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
-               (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpCalls(relaxsdp),
+               ncalls, SCIPrelaxSdpGetNIterations(relaxsdp),
+               (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) ncalls,
                100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpFast(relaxsdp) / (SCIP_Real) ncalls,
                100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpMedium(relaxsdp) / (SCIP_Real) ncalls,
                100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpStable(relaxsdp) / (SCIP_Real) ncalls,
@@ -182,8 +182,8 @@ SCIP_DECL_TABLEOUTPUT(tableOutputRelaxSdp)
          {
             SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10d %10d %10.2f %10d %10d %10d %10d %10d %10d\n",
                SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
-               SCIPrelaxSdpGetNSdpCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
-               (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpCalls(relaxsdp),
+               ncalls, SCIPrelaxSdpGetNIterations(relaxsdp),
+               (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) ncalls,
                SCIPrelaxSdpGetNSdpFast(relaxsdp), SCIPrelaxSdpGetNSdpPenalty(relaxsdp), SCIPrelaxSdpGetNSdpUnsolved(relaxsdp),
                ninfeasible, nallfixed, nonevarsdp);
          }
@@ -191,8 +191,8 @@ SCIP_DECL_TABLEOUTPUT(tableOutputRelaxSdp)
          {
             SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10d %10d %10.2f %8.2f %% %8.2f %% %8.2f %% %10d %10d %10d\n",
                SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
-               SCIPrelaxSdpGetNSdpCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
-               (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpCalls(relaxsdp),
+               ncalls, SCIPrelaxSdpGetNIterations(relaxsdp),
+               (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) ncalls,
                100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpFast(relaxsdp) / (SCIP_Real) ncalls,
                100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpPenalty(relaxsdp) / (SCIP_Real) ncalls,
                100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpUnsolved(relaxsdp) / (SCIP_Real) ncalls,
