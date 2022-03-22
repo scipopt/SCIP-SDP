@@ -681,7 +681,7 @@ SCIP_RETCODE isMatrixRankOne(
          SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
       }
 
-      /* if the matrix is not rank 1, compute minimal eigenvalues of 2x2 minors */
+      /* if the matrix is not rank 1, compute minimal eigenvalues of 2x2 minors and save the largest of these minimal eigenvalues */
       for (i = 0; i < blocksize; ++i)
       {
          for (j = 0; j < i; ++j)
@@ -711,7 +711,7 @@ SCIP_RETCODE isMatrixRankOne(
    }
 
    if ( sol != NULL )
-      SCIPupdateSolConsViolation(scip, sol, -largestminev, (-largestminev) / (1.0 + consdata->maxrhsentry));
+      SCIPupdateSolConsViolation(scip, sol, largestminev, (largestminev) / (1.0 + consdata->maxrhsentry));
 
    SCIPfreeBufferArray(scip, &fullmatrix);
    SCIPfreeBufferArray(scip, &matrix);
@@ -3711,12 +3711,7 @@ SCIP_RETCODE checkRank1QuadConss(
    }
 
    if ( sol != NULL )
-   {
-      if ( minor < -tol )
-         SCIPupdateSolConsViolation(scip, sol, -minor, (-minor) / (1.0 + consdata->maxrhsentry));
-      else
-         SCIPupdateSolConsViolation(scip, sol, minor, (minor) / (1.0 + consdata->maxrhsentry));
-   }
+      SCIPupdateSolConsViolation(scip, sol, REALABS(minor), REALABS(minor) / (1.0 + consdata->maxrhsentry));
 
    SCIPfreeBufferArray(scip, &matrix);
 
