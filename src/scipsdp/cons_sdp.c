@@ -1893,7 +1893,7 @@ SCIP_RETCODE tightenMatrices(
 
          /* skip fixed variables (will be removed anyway */
          lb = SCIPvarGetLbLocal(consdata->vars[i]);
-         ub = SCIPvarGetLbLocal(consdata->vars[i]);
+         ub = SCIPvarGetUbLocal(consdata->vars[i]);
          if ( SCIPisEQ(scip, lb, ub) )
             continue;
 
