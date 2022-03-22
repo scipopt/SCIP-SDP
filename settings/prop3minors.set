@@ -11,4 +11,3 @@ constraints/SDP/propupperbounds = false
 constraints/SDP/proptbprobing = false
 constraints/SDP/proptightenbounds = false
 constraints/SDP/prop3minors = true
-
