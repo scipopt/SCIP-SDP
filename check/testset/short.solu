@@ -15,3 +15,4 @@
 =opt= example_rank1_dual 0.6537946
 =opt= example_diagzeroimpl -1.0
 =opt= example_indicator +6.56155281280000e+05
+=opt= example_tightenmatrices -9.0
