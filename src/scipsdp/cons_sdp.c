@@ -110,7 +110,7 @@
 
 #define DEFAULT_PROPUPPERBOUNDS    TRUE /**< Should upper bounds be propagated? */
 #define DEFAULT_PROPUBPRESOL       TRUE /**< Should upper bounds be propagated in presolving? */
-#define DEFAULT_PROP3MINORS       FALSE /**< Should 3x3 minors be propagated? */
+#define DEFAULT_PROP3MINORS        TRUE /**< Should 3x3 minors be propagated? */
 #define DEFAULT_NONCONST3MINORS   FALSE /**< Should 3x3 minors be propagated if the diagonal is not constant? */
 #define DEFAULT_PROPTIGHTENBOUNDS  TRUE /**< Should tighten bounds be propagated? */
 #define DEFAULT_PROPTBPROBING     FALSE /**< Should tighten bounds be propagated in probing? */
