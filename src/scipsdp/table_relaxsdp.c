@@ -121,7 +121,8 @@ SCIP_DECL_TABLEOUTPUT(tableOutputRelaxSdp)
 {  /*lint --e{715}*/
    SCIP_TABLEDATA* tabledata;
    SCIP_RELAX* relaxsdp;
-   int ncalls;
+   int nsdpcalls;
+   int nintercalls;
    int ninfeasible;
    int nallfixed;
    int nonevarsdp;
@@ -136,34 +137,60 @@ SCIP_DECL_TABLEOUTPUT(tableOutputRelaxSdp)
    assert( relaxsdp != NULL );
 
    SCIP_CALL( SCIPrelaxSdpGetStatistics(relaxsdp, &ninfeasible, &nallfixed, &nonevarsdp) );
-   ncalls = SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp);
+   nintercalls = SCIPrelaxSdpGetNSdpInterfaceCalls(relaxsdp);
+   nsdpcalls = SCIPrelaxSdpGetNSdpCalls(relaxsdp);
 
    if ( strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0 )
    {
       SCIPinfoMessage(scip, file, "    SDP-Solvers    :       Time    Opttime     Solves Iterations  Iter/call       Fast     Medium     Stable    Penalty   Unsolved     Infeas   Allfixed  OnevarSDP\n");
-      if ( ncalls > 0 )
+      if ( nintercalls > 0 )
       {
          if ( tabledata->absolute )
          {
-            SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10d %10d %10.2f %10d %10d %10d %10d %10d %10d %10d %10d\n",
-               SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
-               SCIPrelaxSdpGetNSdpCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
-               (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpCalls(relaxsdp),
-               SCIPrelaxSdpGetNSdpFast(relaxsdp), SCIPrelaxSdpGetNSdpMedium(relaxsdp), SCIPrelaxSdpGetNSdpStable(relaxsdp), SCIPrelaxSdpGetNSdpPenalty(relaxsdp),
-               SCIPrelaxSdpGetNSdpUnsolved(relaxsdp), ninfeasible, nallfixed, nonevarsdp);
+            if ( nsdpcalls > 0 )
+            {
+               SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10d %10d %10.2f %10d %10d %10d %10d %10d %10d %10d %10d\n",
+                  SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
+                  nsdpcalls, SCIPrelaxSdpGetNIterations(relaxsdp), (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) nsdpcalls,
+                  SCIPrelaxSdpGetNSdpFast(relaxsdp), SCIPrelaxSdpGetNSdpMedium(relaxsdp), SCIPrelaxSdpGetNSdpStable(relaxsdp), SCIPrelaxSdpGetNSdpPenalty(relaxsdp),
+                  SCIPrelaxSdpGetNSdpUnsolved(relaxsdp), ninfeasible, nallfixed, nonevarsdp);
+            }
+            else
+            {
+               SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10d %10d %10s %10d %10d %10d %10d %10d %10d %10d %10d\n",
+                  SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
+                  nsdpcalls, SCIPrelaxSdpGetNIterations(relaxsdp), "-",
+                  SCIPrelaxSdpGetNSdpFast(relaxsdp), SCIPrelaxSdpGetNSdpMedium(relaxsdp), SCIPrelaxSdpGetNSdpStable(relaxsdp), SCIPrelaxSdpGetNSdpPenalty(relaxsdp),
+                  SCIPrelaxSdpGetNSdpUnsolved(relaxsdp), ninfeasible, nallfixed, nonevarsdp);
+            }
          }
          else
          {
-            SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10d %10d %10.2f %8.2f %% %8.2f %% %8.2f %% %8.2f %% %8.2f %% %10d %10d %10d\n",
-               SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
-               SCIPrelaxSdpGetNSdpCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
-               (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpCalls(relaxsdp),
-               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpFast(relaxsdp) / (SCIP_Real) ncalls,
-               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpMedium(relaxsdp) / (SCIP_Real) ncalls,
-               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpStable(relaxsdp) / (SCIP_Real) ncalls,
-               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpPenalty(relaxsdp) / (SCIP_Real) ncalls,
-               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpUnsolved(relaxsdp) / (SCIP_Real) ncalls,
-               ninfeasible, nallfixed, nonevarsdp);
+            if ( nsdpcalls > 0 )
+            {
+               SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10d %10d %10.2f %8.2f %% %8.2f %% %8.2f %% %8.2f %% %8.2f %% %10d %10d %10d\n",
+                  SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
+                  nsdpcalls, SCIPrelaxSdpGetNIterations(relaxsdp), (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) nsdpcalls,
+                  100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpFast(relaxsdp) / (SCIP_Real) nintercalls,
+                  100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpMedium(relaxsdp) / (SCIP_Real) nintercalls,
+                  100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpStable(relaxsdp) / (SCIP_Real) nintercalls,
+                  100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpPenalty(relaxsdp) / (SCIP_Real) nintercalls,
+                  100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpUnsolved(relaxsdp) / (SCIP_Real) nintercalls,
+                  ninfeasible, nallfixed, nonevarsdp);
+            }
+            else
+            {
+               SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10d %10d %10s %8.2f %% %8.2f %% %8.2f %% %8.2f %% %8.2f %% %10d %10d %10d\n",
+                  SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
+                  nsdpcalls, SCIPrelaxSdpGetNIterations(relaxsdp), "-",
+                  100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpFast(relaxsdp) / (SCIP_Real) nintercalls,
+                  100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpMedium(relaxsdp) / (SCIP_Real) nintercalls,
+                  100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpStable(relaxsdp) / (SCIP_Real) nintercalls,
+                  100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpPenalty(relaxsdp) / (SCIP_Real) nintercalls,
+                  100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpUnsolved(relaxsdp) / (SCIP_Real) nintercalls,
+                  ninfeasible, nallfixed, nonevarsdp);
+
+            }
          }
       }
       else
@@ -176,27 +203,49 @@ SCIP_DECL_TABLEOUTPUT(tableOutputRelaxSdp)
    else
    {
       SCIPinfoMessage(scip, file, "    SDP-Solvers    :       Time    Opttime     Solves Iterations  Iter/call    Default    Penalty   Unsolved     Infeas   Allfixed  OnevarSDP\n");
-      if ( ncalls > 0 )
+      if ( nintercalls > 0 )
       {
          if ( tabledata->absolute )
          {
-            SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10d %10d %10.2f %10d %10d %10d %10d %10d %10d\n",
-               SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
-               SCIPrelaxSdpGetNSdpCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
-               (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpCalls(relaxsdp),
-               SCIPrelaxSdpGetNSdpFast(relaxsdp), SCIPrelaxSdpGetNSdpPenalty(relaxsdp), SCIPrelaxSdpGetNSdpUnsolved(relaxsdp),
-               ninfeasible, nallfixed, nonevarsdp);
+            if ( nsdpcalls > 0 )
+            {
+               SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10d %10d %10.2f %10d %10d %10d %10d %10d %10d\n",
+                  SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
+                  nsdpcalls, SCIPrelaxSdpGetNIterations(relaxsdp), (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) nsdpcalls,
+                  SCIPrelaxSdpGetNSdpFast(relaxsdp), SCIPrelaxSdpGetNSdpPenalty(relaxsdp), SCIPrelaxSdpGetNSdpUnsolved(relaxsdp),
+                  ninfeasible, nallfixed, nonevarsdp);
+            }
+            else
+            {
+               SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10d %10d %10s %10d %10d %10d %10d %10d %10d\n",
+                  SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
+                  nsdpcalls, SCIPrelaxSdpGetNIterations(relaxsdp), "-",
+                  SCIPrelaxSdpGetNSdpFast(relaxsdp), SCIPrelaxSdpGetNSdpPenalty(relaxsdp), SCIPrelaxSdpGetNSdpUnsolved(relaxsdp),
+                  ninfeasible, nallfixed, nonevarsdp);
+            }
          }
          else
          {
-            SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10d %10d %10.2f %8.2f %% %8.2f %% %8.2f %% %10d %10d %10d\n",
-               SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
-               SCIPrelaxSdpGetNSdpCalls(relaxsdp), SCIPrelaxSdpGetNIterations(relaxsdp),
-               (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) SCIPrelaxSdpGetNSdpCalls(relaxsdp),
-               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpFast(relaxsdp) / (SCIP_Real) ncalls,
-               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpPenalty(relaxsdp) / (SCIP_Real) ncalls,
-               100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpUnsolved(relaxsdp) / (SCIP_Real) ncalls,
-               ninfeasible, nallfixed, nonevarsdp);
+            if ( nsdpcalls > 0 )
+            {
+               SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10d %10d %10.2f %8.2f %% %8.2f %% %8.2f %% %10d %10d %10d\n",
+                  SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
+                  nsdpcalls, SCIPrelaxSdpGetNIterations(relaxsdp), (SCIP_Real) SCIPrelaxSdpGetNIterations(relaxsdp) / (SCIP_Real) nsdpcalls,
+                  100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpFast(relaxsdp) / (SCIP_Real) nintercalls,
+                  100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpPenalty(relaxsdp) / (SCIP_Real) nintercalls,
+                  100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpUnsolved(relaxsdp) / (SCIP_Real) nintercalls,
+                  ninfeasible, nallfixed, nonevarsdp);
+            }
+            else
+            {
+               SCIPinfoMessage(scip, file, "     %-14.14s: %10.2f %10.2f %10d %10d %10s %8.2f %% %8.2f %% %8.2f %% %10d %10d %10d\n",
+                  SCIPsdpiGetSolverName(), SCIPrelaxSdpGetSolvingTime(scip, relaxsdp), SCIPrelaxSdpGetOptTime(relaxsdp),
+                  nsdpcalls, SCIPrelaxSdpGetNIterations(relaxsdp), "-",
+                  100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpFast(relaxsdp) / (SCIP_Real) nintercalls,
+                  100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpPenalty(relaxsdp) / (SCIP_Real) nintercalls,
+                  100.0 * (SCIP_Real) SCIPrelaxSdpGetNSdpUnsolved(relaxsdp) / (SCIP_Real) nintercalls,
+                  ninfeasible, nallfixed, nonevarsdp);
+            }
          }
       }
       else
