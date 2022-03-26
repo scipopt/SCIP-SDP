@@ -4831,13 +4831,13 @@ SCIP_RETCODE propagateUpperBounds(
                   SCIP_CALL( SCIPinferVarUbCons(scip, varst, bound, conss[c], s * blocksize + t, FALSE, infeasible, &tightened) );
                   if ( *infeasible )
                   {
-                     SCIPdebugMsg(scip, "Propagation detected infeasibility, call analyzeConfilct.\n");
+                     SCIPdebugMsg(scip, "Upper bound propagation detected infeasibility, call analyzeConfilct.\n");
                      SCIP_CALL( analyzeConflict(scip, conss[c], diags, diagt, pos, TRUE, TRUE) );
                      return SCIP_OKAY;
                   }
                   if ( tightened )
                   {
-                     SCIPdebugMsg(scip, "Propagation successfully tightened a bound.\n");
+                     SCIPdebugMsg(scip, "Upper bound propagation tightened bound of <%s> to %g.\n", SCIPvarGetName(varst), bound);
                      ++(*nprop);
 
                      /*  if variable is integral, the bound change should automatically produce an integer bound */
@@ -4867,13 +4867,13 @@ SCIP_RETCODE propagateUpperBounds(
                   SCIP_CALL( SCIPinferVarLbCons(scip, varst, bound, conss[c], s * blocksize + t, FALSE, infeasible, &tightened) );
                   if ( *infeasible )
                   {
-                     SCIPdebugMsg(scip, "Propagation detected infeasibility, call analyzeConfilct.\n");
+                     SCIPdebugMsg(scip, "Upper bound propagation detected infeasibility, call analyzeConfilct.\n");
                      SCIP_CALL( analyzeConflict(scip, conss[c], diags, diagt, pos, FALSE, TRUE) );
                      return SCIP_OKAY;
                   }
                   if ( tightened )
                   {
-                     SCIPdebugMsg(scip, "Propagation successfully tightened a bound.\n");
+                     SCIPdebugMsg(scip, "Upper bound propagation tightened bound of <%s> to %g.\n", SCIPvarGetName(varst), bound);
                      ++(*nprop);
 
                      /*  if variable is integral, the bound change should automatically produce an integer bound */
