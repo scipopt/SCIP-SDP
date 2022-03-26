@@ -4928,7 +4928,7 @@ SCIP_RETCODE analyzeConflict3Minor(
 
    if ( consdata->matrixvar[diagr] != NULL )
    {
-      assert( SCIPisFeasEQ(scip, consdata->matrixval[diagr] * SCIPvarGetLbLocal(consdata->matrixvar[diagr]) + consdata->matrixconst[diagr], 1.0) );
+      assert( SCIPisFeasEQ(scip, consdata->matrixval[diagr] * SCIPvarGetLbLocal(consdata->matrixvar[diagr]) - consdata->matrixconst[diagr], 1.0) );
       assert( SCIPisEQ(scip, SCIPvarGetLbLocal(consdata->matrixvar[diagr]), SCIPvarGetUbLocal(consdata->matrixvar[diagr])) );
 
       if ( SCIPisGT(scip, SCIPvarGetLbLocal(consdata->matrixvar[diagr]), SCIPvarGetLbOriginal(consdata->matrixvar[diagr])) )
@@ -4943,7 +4943,7 @@ SCIP_RETCODE analyzeConflict3Minor(
 
    if ( consdata->matrixvar[diags] != NULL )
    {
-      assert( SCIPisFeasEQ(scip, consdata->matrixval[diags] * SCIPvarGetLbLocal(consdata->matrixvar[diags]) + consdata->matrixconst[diags], 1.0) );
+      assert( SCIPisFeasEQ(scip, consdata->matrixval[diags] * SCIPvarGetLbLocal(consdata->matrixvar[diags]) - consdata->matrixconst[diags], 1.0) );
       assert( SCIPisEQ(scip, SCIPvarGetLbLocal(consdata->matrixvar[diags]), SCIPvarGetUbLocal(consdata->matrixvar[diags])) );
 
       if ( SCIPisGT(scip, SCIPvarGetLbLocal(consdata->matrixvar[diags]), SCIPvarGetLbOriginal(consdata->matrixvar[diags])) )
@@ -4958,7 +4958,7 @@ SCIP_RETCODE analyzeConflict3Minor(
 
    if ( consdata->matrixvar[diagt] != NULL )
    {
-      assert( SCIPisFeasEQ(scip, consdata->matrixval[diagt] * SCIPvarGetLbLocal(consdata->matrixvar[diagt]) + consdata->matrixconst[diagt], 1.0) );
+      assert( SCIPisFeasEQ(scip, consdata->matrixval[diagt] * SCIPvarGetLbLocal(consdata->matrixvar[diagt]) - consdata->matrixconst[diagt], 1.0) );
       assert( SCIPisEQ(scip, SCIPvarGetLbLocal(consdata->matrixvar[diagt]), SCIPvarGetUbLocal(consdata->matrixvar[diagt])) );
 
       if ( SCIPisGT(scip, SCIPvarGetLbLocal(consdata->matrixvar[diagt]), SCIPvarGetLbOriginal(consdata->matrixvar[diagt])) )
@@ -4973,39 +4973,45 @@ SCIP_RETCODE analyzeConflict3Minor(
 
    if ( consdata->matrixvar[posrs] != NULL )
    {
-      assert( SCIPisFeasEQ(scip, consdata->matrixval[posrs] * SCIPvarGetLbLocal(consdata->matrixvar[posrs]) + consdata->matrixconst[posrs], 1.0) );
+      assert( SCIPisFeasEQ(scip, consdata->matrixval[posrs] * SCIPvarGetLbLocal(consdata->matrixvar[posrs]) - consdata->matrixconst[posrs], 1.0) );
       assert( SCIPisEQ(scip, SCIPvarGetLbLocal(consdata->matrixvar[posrs]), SCIPvarGetUbLocal(consdata->matrixvar[posrs])) );
 
-      if ( SCIPisGT(scip, SCIPvarGetLbLocal(consdata->matrixvar[posrs]), SCIPvarGetLbOriginal(consdata->matrixvar[posrs])) )
+      if ( SCIPvarIsBinary(consdata->matrixvar[posrs]) )
       {
-         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[posrs], NULL) );
+         SCIP_CALL( SCIPaddConflictBinvar(scip, consdata->matrixvar[posrs]) );
       }
-      if ( SCIPisLT(scip, SCIPvarGetUbLocal(consdata->matrixvar[posrs]), SCIPvarGetUbOriginal(consdata->matrixvar[posrs])) )
+      else
       {
+         /* add both bounds, because we do not know which bound cause the fixing */
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[posrs], NULL) );
          SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[posrs], NULL) );
       }
    }
 
    if ( pos1 >= 0 && consdata->matrixvar[pos1] != NULL )
    {
-      if ( SCIPisGT(scip, SCIPvarGetLbLocal(consdata->matrixvar[pos1]), SCIPvarGetLbOriginal(consdata->matrixvar[pos1])) )
+      if ( SCIPvarIsBinary(consdata->matrixvar[pos1]) )
       {
-         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[pos1], NULL) );
+         SCIP_CALL( SCIPaddConflictBinvar(scip, consdata->matrixvar[pos1]) );
       }
-      if ( SCIPisLT(scip, SCIPvarGetUbLocal(consdata->matrixvar[pos1]), SCIPvarGetUbOriginal(consdata->matrixvar[pos1])) )
+      else
       {
+         /* add both bounds, because we do not know which bound cause the fixing */
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[pos1], NULL) );
          SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[pos1], NULL) );
       }
    }
 
    if ( pos2 >= 0 && consdata->matrixvar[pos2] != NULL )
    {
-      if ( SCIPisGT(scip, SCIPvarGetLbLocal(consdata->matrixvar[pos2]), SCIPvarGetLbOriginal(consdata->matrixvar[pos2])) )
+      if ( SCIPvarIsBinary(consdata->matrixvar[pos2]) )
       {
-         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[pos2], NULL) );
+         SCIP_CALL( SCIPaddConflictBinvar(scip, consdata->matrixvar[pos2]) );
       }
-      if ( SCIPisLT(scip, SCIPvarGetUbLocal(consdata->matrixvar[pos2]), SCIPvarGetUbOriginal(consdata->matrixvar[pos2])) )
+      else
       {
+         /* add both bounds, because we do not know which bound cause the fixing */
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[pos2], NULL) );
          SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[pos2], NULL) );
       }
    }
