@@ -4931,12 +4931,14 @@ SCIP_RETCODE analyzeConflict3Minor(
       assert( SCIPisFeasEQ(scip, consdata->matrixval[diagr] * SCIPvarGetLbLocal(consdata->matrixvar[diagr]) - consdata->matrixconst[diagr], 1.0) );
       assert( SCIPisEQ(scip, SCIPvarGetLbLocal(consdata->matrixvar[diagr]), SCIPvarGetUbLocal(consdata->matrixvar[diagr])) );
 
-      if ( SCIPisGT(scip, SCIPvarGetLbLocal(consdata->matrixvar[diagr]), SCIPvarGetLbOriginal(consdata->matrixvar[diagr])) )
+      if ( SCIPvarIsBinary(consdata->matrixvar[diagr]) )
       {
-         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diagr], NULL) );
+         SCIP_CALL( SCIPaddConflictBinvar(scip, consdata->matrixvar[diagr]) );
       }
-      if ( SCIPisLT(scip, SCIPvarGetUbLocal(consdata->matrixvar[diagr]), SCIPvarGetUbOriginal(consdata->matrixvar[diagr])) )
+      else
       {
+         /* add both bounds, because we do not know which bound cause the fixing */
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diagr], NULL) );
          SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diagr], NULL) );
       }
    }
@@ -4946,12 +4948,14 @@ SCIP_RETCODE analyzeConflict3Minor(
       assert( SCIPisFeasEQ(scip, consdata->matrixval[diags] * SCIPvarGetLbLocal(consdata->matrixvar[diags]) - consdata->matrixconst[diags], 1.0) );
       assert( SCIPisEQ(scip, SCIPvarGetLbLocal(consdata->matrixvar[diags]), SCIPvarGetUbLocal(consdata->matrixvar[diags])) );
 
-      if ( SCIPisGT(scip, SCIPvarGetLbLocal(consdata->matrixvar[diags]), SCIPvarGetLbOriginal(consdata->matrixvar[diags])) )
+      if ( SCIPvarIsBinary(consdata->matrixvar[diags]) )
       {
-         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diags], NULL) );
+         SCIP_CALL( SCIPaddConflictBinvar(scip, consdata->matrixvar[diags]) );
       }
-      if ( SCIPisLT(scip, SCIPvarGetUbLocal(consdata->matrixvar[diags]), SCIPvarGetUbOriginal(consdata->matrixvar[diags])) )
+      else
       {
+         /* add both bounds, because we do not know which bound cause the fixing */
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diags], NULL) );
          SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diags], NULL) );
       }
    }
@@ -4961,12 +4965,14 @@ SCIP_RETCODE analyzeConflict3Minor(
       assert( SCIPisFeasEQ(scip, consdata->matrixval[diagt] * SCIPvarGetLbLocal(consdata->matrixvar[diagt]) - consdata->matrixconst[diagt], 1.0) );
       assert( SCIPisEQ(scip, SCIPvarGetLbLocal(consdata->matrixvar[diagt]), SCIPvarGetUbLocal(consdata->matrixvar[diagt])) );
 
-      if ( SCIPisGT(scip, SCIPvarGetLbLocal(consdata->matrixvar[diagt]), SCIPvarGetLbOriginal(consdata->matrixvar[diagt])) )
+      if ( SCIPvarIsBinary(consdata->matrixvar[diagt]) )
       {
-         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diagt], NULL) );
+         SCIP_CALL( SCIPaddConflictBinvar(scip, consdata->matrixvar[diagt]) );
       }
-      if ( SCIPisLT(scip, SCIPvarGetUbLocal(consdata->matrixvar[diagt]), SCIPvarGetUbOriginal(consdata->matrixvar[diagt])) )
+      else
       {
+         /* add both bounds, because we do not know which bound cause the fixing */
+         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diagt], NULL) );
          SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diagt], NULL) );
       }
    }
