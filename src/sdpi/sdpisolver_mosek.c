@@ -749,7 +749,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int blockvar;
    int v;
    int k;
-   long long mosekindex;
+   MSKint64t mosekindex;
    int mosekind = 0;
    int ind;
    int nnonz;
