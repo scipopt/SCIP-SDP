@@ -3539,6 +3539,9 @@ SCIP_RETCODE calcRelax(
       }
 #endif
 
+      if ( SCIPsdpiIsPrimalInfeasible(sdpi) && ! SCIPsdpiIsDualUnbounded(sdpi) )
+         SCIPwarningMessage("SDP is primal feasible, but not dual unbounded.\n");
+
       if ( SCIPsdpiIsDualInfeasible(sdpi) )
       {
          SCIPdebugMsg(scip, "Relaxation is infeasible.\n");
