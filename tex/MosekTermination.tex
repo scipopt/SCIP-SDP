@@ -1,0 +1,396 @@
+\documentclass[10pt, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[american]{babel}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{dsfont}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage[lined,ruled,noend,linesnumbered]{algorithm2e}
+\usepackage[color=red!50!blue!50,textsize=footnotesize,textwidth=4cm]{todonotes}
+\usepackage[breaklinks,colorlinks,citecolor=blue,linkcolor=blue]{hyperref}
+% \usepackage[tmargin=2.5cm,bmargin=2.5cm,lmargin=2.8cm,rmargin=2.8cm]{geometry}
+\usepackage{cleveref}
+\usepackage{xspace}
+
+% operators
+\DeclareMathOperator{\conv}{conv}
+\DeclareMathOperator{\cone}{cone}
+\DeclareMathOperator{\aff}{aff}
+\DeclareMathOperator{\lin}{lin}
+\DeclareMathOperator*{\argmin}{argmin}
+\DeclareMathOperator*{\argmax}{argmax}
+\DeclareMathOperator{\supp}{supp}
+\DeclareMathOperator{\relint}{relint}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\Diag}{Diag}
+\DeclareMathOperator{\sgn}{sgn}
+\DeclareMathOperator{\tr}{tr}
+\renewcommand{\Re}{\text{Re}}
+
+% macros
+\newcommand{\suchthat}{\,:\,}
+\newcommand{\abs}[1]{\lvert{#1}\rvert}
+\newcommand{\card}[1]{\lvert{#1}\rvert}
+\newcommand{\ceil}[1]{\lceil{#1}\rceil}
+\newcommand{\floor}[1]{\lfloor{#1}\rfloor}
+\newcommand{\define}{\coloneqq}
+\newcommand{\enifed}{\eqqcolon}
+\newcommand{\norm}[1]{\lVert{#1}\rVert}
+\newcommand{\Norm}[2]{\lVert{#1}\rVert_{#2}}
+\newcommand{\skal}[2]{\langle{#1},{#2}\rangle}
+\newcommand{\order}[1]{O\left({#1}\right)}
+\newcommand{\T}{^{\top}}
+
+% sets
+\newcommand{\R}{\mathds{R}}
+\newcommand{\Z}{\mathds{Z}}
+\newcommand{\Q}{\mathds{Q}}
+\newcommand{\N}{\mathds{N}}
+\newcommand{\C}{\mathds{C}}
+\newcommand{\E}{\mathds{E}}
+\newcommand{\ones}{\mathds{1}}
+\renewcommand{\P}{\mathds{P}}
+\renewcommand{\E}{\mathds{E}}
+
+% environments
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{question}[theorem]{Question}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% adjust itemize
+\setlist[itemize]{topsep=0.5ex,partopsep=0ex,parsep=0ex,itemsep=0.5ex}
+
+% other defines
+\newcommand{\MP}[1]{\todo{#1}}
+\newcommand{\MPin}[1]{\todo[inline]{#1}}
+
+
+% title
+\title{Mosek Termination Criteria for SDPs}
+\author{Marc E. Pfetsch\thanks{Department of Mathematics, TU Darmstadt, Germany}}
+\date{April 2022}
+
+% -------------------------------------------------------------------------
+% -------------------------------------------------------------------------
+\begin{document}
+
+\maketitle
+
+\noindent
+The following is largely based on the Mosek documentation.
+
+% -------------------------------------------------------------------------
+\section{Introduction}
+
+Our goal is to solve the following \emph{dual} SDP problem:
+\begin{equation}\label{SDP-D}
+  \begin{aligned}
+    \inf \quad & b\T y \\
+    \text{s.t.} \quad & \sum_{j=1}^m A^j\, y_j - A^0 \succeq 0, \\
+  \end{aligned}
+\end{equation}
+with symmetric matrices $A^j \in \R^{n \times n}$ for
+$j \in [m]_0 \define \{0, \dots, m\}$ and $b \in \R^m$.
+
+In Mosek, we solve the corresponding dual problem, which we call \emph{primal}
+form in the following:
+\begin{equation}\label{SDP-P}
+  \begin{aligned}
+     \sup \quad & \skal{A^0}{X} \\
+     \mbox{s.t.} \quad & \skal{A^j}{X} = b_j && \forall \, j \in [m],\\
+     & X \succeq 0.
+  \end{aligned}
+\end{equation}
+
+% -------------------------------------------------------------------------
+\section{Homogeneous Problem}
+
+Mosek rewrites~\eqref{SDP-D} as
+\begin{equation}\label{SDP-D2}
+  \begin{aligned}
+    \inf \quad & b\T y \\
+    \text{s.t.} \quad & \sum_{j=1}^m A^j\, y_j - S = A^0, \\
+    & S \succeq 0.
+  \end{aligned}
+\end{equation}
+It then sets up a homogeneous model as
+\begin{equation}\label{HOM}
+  \begin{aligned}
+    & \skal{A^j}{X} - b_j\,\tau = 0 && \forall \, j \in [m],\\
+    & \sum_{j=1}^m A^j\, y_j - S - A^0\, \tau = 0, \\
+    & \skal{A^0}{X} - b\T y - \kappa = 0,\\
+    & X,\; S \succeq 0,\; \tau,\; \kappa \geq 0.
+  \end{aligned}
+\end{equation}
+This problem is always feasible (all variables equal to 0 is feasible).
+
+Any solution $(X,S,y,\kappa,\tau)$ satisfies
+\[
+\skal{X}{S} + \tau\, \kappa = 0,
+\]
+because
+\begin{align*}
+  \skal{X}{S} = \sum_{j=1}^m \skal{X}{A^j}\, y_j - \skal{X}{A^0} \tau = b\T y\,\tau - b\T y\,\tau - \kappa \tau.
+\end{align*}
+Thus, $\skal{X}{S} + \kappa\, \tau = 0$. Since $\skal{X}{S} \geq 0$,
+$\kappa \, \tau = 0$ follows. Therefore either $\kappa = 0$ or $\tau = 0$.
+A solution $(\hat{X},\hat{S},\hat{y},\hat{\kappa},\hat{\tau})$
+of~\eqref{HOM} with $\hat{\tau} > 0$ (and thus $\hat{\kappa} = 0$) yields
+an optimal solution
+$(\frac{\hat{X}}{\hat{\tau}}, \frac{\hat{S}}{\hat{\tau}},
+\frac{\hat{y}}{\hat{\tau}})$ of~\eqref{SDP-D} and~\eqref{SDP-P}:
+\begin{align*}
+  & \skal{A^j}{\tfrac{\hat{X}}{\hat{\tau}}} = b_j && \forall \, j \in [m],\\
+  & \sum_{j=1}^m A^j\, \tfrac{\hat{y}_j}{\hat{\tau}} -
+    A^0 = \tfrac{\hat{S}}{\hat{\tau}} \succeq 0, \\
+  & \skal{A^0}{\tfrac{\hat{X}}{\hat{\tau}}} = b\T \tfrac{\hat{y}}{\hat{\tau}}.
+\end{align*}
+
+If $\hat{\tau} > 0$ (and hence $\hat{\kappa} = 0$), we have
+$\skal{A^0}{\hat{X}} - b\T \hat{y} > 0$ and therefore
+$\skal{A^0}{\hat{X}} > 0$ or $b\T \hat{y} < 0$. In the first case,
+$\hat{X}$ the Mosek documentation claims that this is a ``certificate of
+dual infeasibility'': Indeed, if the primal~\eqref{SDP-P} would have a
+feasible solution $\tilde{X}$, then $\tilde{X} + \lambda\, \hat{X}$ is
+feasible for any $\lambda \geq 0$ and
+$\skal{A^0}{\tilde{X} + \lambda\, \hat{X}} = \skal{A^0}{\tilde{X}} +
+\lambda\, \skal{A^0}{\hat{X}} \to \infty$
+for $\lambda \to \infty$. However, the primal~\eqref{SDP-P} could also be
+infeasible and the dual~\eqref{SDP-D2} unbounded \dots
+
+
+
+
+% -------------------------------------------------------------------------
+\section{Termination Criteria}
+
+\paragraph{Feasibility}
+
+Primal feasibility of a point
+$(\hat{X},\hat{S},\hat{y},\hat{\kappa},\hat{\tau})$ is measured by Mosek as
+\[
+\abs{\skal{A^j}{\tfrac{\hat{X}}{\hat{\tau}}} - b_j}
+\leq \varepsilon_p (1 + \norm{b}_\infty)
+\]
+for all $j \in [m]$. Similarly, dual feasibility holds if
+\[
+\Big\lvert\sum_{j=1}^m A^j\, \tfrac{\hat{y}_j}{\hat{\tau}} - \tfrac{\hat{S}}{\hat{\tau}} - A^0\Big\rvert
+\leq \varepsilon_d (1 + \norm{A^0}_\infty).
+\]
+
+\paragraph{Optimality}
+
+The optimality criterion is
+\[
+\min\Big( \skal{\tfrac{\hat{X}}{\hat{\tau}}}{\tfrac{\hat{S}}{\hat{\tau}}},
+\abs{b\T \tfrac{\hat{y}}{\hat{\tau}} - \skal{A^0}{\tfrac{\hat{X}}{\hat{\tau}}}}\Big)
+\leq \varepsilon_g \max\Big(1,
+\min(\abs{\skal{A^0}{\tfrac{\hat{X}}{\hat{\tau}}}}, \abs{b\T
+  \tfrac{\hat{y}}{\hat{\tau}}})\Big).
+\]
+In fact, the Mosek API suggests that there are two tolerances for each term
+on the left. So probably, a solution is claimed to be optimal if
+\[
+\skal{\tfrac{\hat{X}}{\hat{\tau}}}{\tfrac{\hat{S}}{\hat{\tau}}} \leq
+\varepsilon_g' G
+\quad\text{or}\quad
+\abs{b\T \tfrac{\hat{y}}{\hat{\tau}} - \skal{A^0}{\tfrac{\hat{X}}{\hat{\tau}}}}
+\leq \varepsilon_g'' G,
+\]
+with
+\[
+G \define \max\big(1, \min(\abs{\skal{A^0}{\tfrac{\hat{X}}{\hat{\tau}}}},
+\abs{b\T \tfrac{\hat{y}}{\hat{\tau}}})\big).
+\]
+
+\paragraph{Primal Infeasibility}
+
+Primal infeasibility is detected if
+\[
+\Big\lVert \sum_{j=1}^m A^j\, \hat{y}_j + \hat{S} \Big\rVert_{\infty} \leq -\varepsilon_i\, b\T \hat{y}
+\quad\text{and}\quad b\T \hat{y} < 0.
+\]
+In this case, we have for $\bar{y} = \frac{\hat{y}}{\alpha}$, $\bar{S}
+= \frac{\hat{S}}{\alpha}$ with $\alpha \define -b\T \hat{y}$:
+\[
+\Big\lVert \sum_{j=1}^m A^j\, \bar{y}_j + \bar{S}\Big\rVert_{\infty} \leq \varepsilon_i
+\quad\text{and}\quad b\T \bar{y} = -1.
+\]
+This means that $(\bar{y},\bar{S})$ is (approximately) feasible for the
+recession cone $\{(y,S) \suchthat \sum_{j=1}^m A^j\, y + S = 0,\; S \succeq 0\}$ (note that
+$A^0 = 0$ in this case, so the above dual feasibility check applies).
+
+Then $(\hat{y} + \lambda\, \bar{y}, \hat{S} + \lambda\, \bar{S})$ is
+``approximately'' dual feasible for any $\lambda \geq 0$, because
+\begin{align*}
+  & \Big\lVert \sum_{j=1}^m A^j\, (\hat{y}_j + \lambda\, \bar{y}_j) + \hat{S} + \lambda\,
+    \bar{S} - A^0 \Big\rVert_{\infty}\\
+  =\; & \Big\lVert \sum_{j=1}^m A^j\, \hat{y}_j + \hat{S} - A^0 + \lambda\, \Big(\sum_{j=1}^m
+    A^j \bar{y}_j + \bar{S}\Big)\Big\rVert_{\infty}\\
+  \leq\; & \varepsilon_d (1 + \norm{A^0}_\infty) + \lambda\, \varepsilon_i.
+\end{align*}
+Moreover
+$b\T (\hat{y} + \lambda\, \bar{y}) = b\T \hat{y} - \lambda \to -\infty$ for
+$\lambda \to \infty$.
+
+\paragraph{Dual Infeasibility}
+
+Similarly, dual infeasibility is detected if
+\[
+\abs{\skal{A^j}{\hat{X}}} \leq \varepsilon_i\, \skal{A^0}{\hat{X}}
+\quad\text{and}\quad \skal{A^0}{\hat{X}} > 0.
+\]
+In this case, we have for $\bar{X} = \frac{\hat{X}}{\gamma}$ with
+$\gamma \define \skal{A^0}{\hat{X}}$:
+\[
+\abs{\skal{A^j}{\bar{X}}} \leq \varepsilon_i
+\quad\text{and}\quad \skal{A^0}{\hat{X}} = 1.
+\]
+This means that $\bar{X}$ is (approximately) feasible for the recession
+cone $\{X \suchthat \skal{A^j}{X} = 0\; \forall j \in [m],\; X \succeq 0\}$
+(note that $A^0 = 0$ in this case, so the above primal feasibility check
+applies).
+
+Then $\hat{X} + \lambda\, \bar{X}$ is ``approximately'' primal feasible
+for any $\lambda \geq 0$, because
+\begin{align*}
+  \abs{\skal{A^j}{\hat{X} + \lambda\, \bar{X}} - b_j} =
+  \abs{\skal{A^j}{\hat{X}} - b_j + \lambda\, \skal{A^j}{\bar{X}}}
+  \leq \varepsilon_p (1 + \norm{b}_{\infty}) + \lambda\, \varepsilon_i.
+\end{align*}
+Moreover
+$\skal{A^0}{\hat{X} + \lambda\, \bar{X}} = \skal{A^0}{\hat{X}} + \lambda \to \infty$ for
+$\lambda \to \infty$.
+
+% -------------------------------------------------------------------------
+\section{Scaling}
+
+Assume that $b$ in~\eqref{SDP-D} (or \eqref{SDP-D2}) is replaced by
+$\tilde{b} = \beta\, b$ for some $\beta > 0$. Then the set of optimal
+solutions to these problems is the same. In fact, if
+$(\hat{X},\hat{y},\hat{S})$ is a primal/dual optimal point, then
+$(\hat{y},\hat{S})$ remains feasible for~\eqref{SDP-D2} and $\beta\, \hat{X}$ is
+feasible for~\eqref{SDP-P} with $\tilde{b}$ instead of $b$:
+\[
+\skal{A^j}{\beta\, \hat{X}} = \beta\, \skal{A^j}{\hat{X}} = \beta\,b_j = \tilde{b}_j.
+\]
+If $\beta < 1$, this solution is also numerically feasible:
+\[
+\abs{\skal{A^j}{\beta\, \hat{X}} - \tilde{b}_j}
+= \beta \abs{\skal{A^j}{\hat{X}} - b_j}
+\leq \beta \varepsilon_p (1 + \norm{b}_\infty)
+= \varepsilon_p (\beta + \norm{\tilde{b}}_\infty) \leq \varepsilon_p (1 + \norm{\tilde{b}}_\infty).
+\]
+Conversely, assume that $\tilde{X}$ is feasible for~\eqref{SDP-P} with
+$\tilde{b}$ instead of $b$. Then $\hat{X} = \tilde{X}/\beta$ is numerically
+feasible for the original~\eqref{SDP-P} if $\beta > 1$.
+\[
+\abs{\skal{A^j}{\hat{X}} - b_j}
+= \tfrac{1}{\beta} \abs{\skal{A^j}{\tilde{X}} - \tilde{b}_j}
+\leq \tfrac{1}{\beta} \varepsilon_p (1 + \norm{\tilde{b}}_\infty)
+= \varepsilon_p (\tfrac{1}{\beta} + \norm{b}_\infty) \leq \varepsilon_p (1 + \norm{b}_\infty).
+\]
+
+Unfortunately, the above considerations show that one cannot simply adjust
+$\varepsilon_i$ to have an equivalence between the original and the scaled
+problem (note that the norms $\norm{b}_{\infty}$ and
+$\norm{\tilde{b}}_{\infty}$ are computed by Mosek and we cannot control
+them).
+
+\end{document}
+
+
+% -------------------------------------------------------------------------
+\section{Introduction}
+
+Our goal is to solve the following dual SDP problem:
+\begin{equation}\label{SDP-D}
+  \begin{aligned}
+    \inf \quad & b\T y \\
+    \text{s.t.} \quad & \sum_{j=1}^m A^j\, y_j - A^0 \succeq 0, \\
+    & D\, y \geq d,\\
+    & \ell \leq y \leq u.
+  \end{aligned}
+\end{equation}
+with symmetric matrices $A^j \in \R^{n \times n}$ for
+$j \in [m]_0 \define \{0, \dots, m\}$, $b$, $\ell$, $u \in \R^m$. Moreover,
+$D \in \R^{r \times m}$, $d \in \R^r$. Note that we assume that the bounds
+are finite for simplicity. The formulas below can be easily modified if
+they are infinite.
+
+In Mosek, we solve the corresponding dual problem, which we call ``primal''
+form in the following:
+\begin{equation}\label{SDP-P}
+  \begin{aligned}
+     \sup \quad & \skal{A^0}{X} + d\T x - u\T v + \ell\T w \\
+     \mbox{s.t.} \quad & \skal{A^j}{X} + D_j\T x - v_j + w_j = b_j && \forall \, j \in [m],\\
+     & x, v, w \geq 0,\\
+     & X \succeq 0.\\
+  \end{aligned}
+\end{equation}
+
+% -------------------------------------------------------------------------
+\section{Homogeneous Problem}
+
+Mosek rewrites~\eqref{SDP-D} as
+\begin{equation}\label{SDP-D2}
+  \begin{aligned}
+    \inf \quad & b\T y \\
+    \text{s.t.} \quad & \sum_{j=1}^m A^j\, y_j - S = A^0, \\
+    & D\, y - d - s = 0,\\
+    & y - \ell - v = 0,\\
+    & u - y - w = 0,\\
+    & S \succeq 0,\; s, v, w \geq 0.
+  \end{aligned}
+\end{equation}
+Then the homogeneous model is
+\begin{equation}\label{HOM}
+  \begin{aligned}
+    & \skal{A^j}{X} + D_j\T x - v_j + w_j - b_j\,\tau = 0 && \forall \, j \in [m],\\
+    & \sum_{j=1}^m A^j\, y_j - S - A^0 \tau = 0, \\
+    & D\, y - s - d \tau = 0,\\
+    & y - v - \ell \tau = 0,\\
+    & y + w - u \tau = 0,\\
+    & \skal{A^0}{X} + d\T x - u\T v + \ell\T w - b\T y - \kappa = 0,\\
+    & X, S \succeq 0,\\
+    & s, v, w, \tau, \kappa \geq 0.
+  \end{aligned}
+\end{equation}
+Any solution $(X,S,s,x,y,v,w,\kappa,\tau)$ satisfies
+\[
+\skal{X}{S} + \tau\, \kappa = 0,
+\]
+because
+\begin{align*}
+  \skal{X}{S} & = \sum_{j=1}^m \skal{X}{A^j}\, y_j - \skal{X}{A^0} \tau\\
+  & = \sum_{j=1}^m (b_j\,\tau - w_j + v_j - D_j\T x)\, y_j + (d\T x - u\T v + \ell\T w - b\T y - \kappa) \tau\\
+  & = b\T y\,\tau - w\T y + v\T y - x\T D y + d\T x\,\tau - u\T v\,\tau +
+    \ell\T w\, \tau - b\T y\,\tau - \kappa \tau\\
+  & = - w\T y + v\T y - x\T D y + (D y - s)\T x - (y + w)\T v +
+    (y - v)\T w - \kappa \tau\\
+  & = - w\T y + v\T y - x\T D y + x\T D y - s\T x - y\T v  + w\T v +
+    y\T w - v\T w - \kappa \tau\\
+  & =   -s\T x - \kappa \tau.
+\end{align*}
+Thus, $\skal{X}{S} + s\T x + \kappa\, \tau = 0$. Since $\skal{X}{S} + s\T x
+\geq 0$, $\kappa \, \tau = 0$ follows.
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:
