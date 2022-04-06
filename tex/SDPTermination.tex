@@ -160,7 +160,7 @@ The following provides a proof of infeasibility of the primal problem~\eqref{SDP
 \end{lemma}
 
 \begin{proof}
-  Assume that $\sum_{j=1}^m A^j y_j = 0$, $b\T y < 0$ and there exists
+  Assume that $\sum_{j=1}^m A^j y_j = 0$, $b\T y \neq 0$ and there exists
   $X \succeq 0$ with $\skal{A^j}{X} = b_j$ for all $j \in [m]$. Then
   \[
   0 = \skal{\sum_{j=1}^m A^j y_j}{X} = \sum_{j=1}^m \skal{A^j}{X}\, y_j =
@@ -324,7 +324,7 @@ $(\hat{X},\hat{S},\hat{y},\hat{\kappa},\hat{\tau})$ is measured by Mosek as
 \]
 for all $j \in [m]$. Similarly, dual feasibility holds if
 \[
-\Big\lvert\sum_{j=1}^m A^j\, \tfrac{\hat{y}_j}{\hat{\tau}} - \tfrac{\hat{S}}{\hat{\tau}} - A^0\Big\rvert
+\Big\lVert\sum_{j=1}^m A^j\, \tfrac{\hat{y}_j}{\hat{\tau}} - \tfrac{\hat{S}}{\hat{\tau}} - A^0\Big\rVert_\infty
 \leq \varepsilon_d (1 + \norm{A^0}_\infty).
 \]
 In addition the fact that $\hat{X}$ and $\hat{S}$ are psd is checked by an
