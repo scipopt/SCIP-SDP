@@ -137,8 +137,9 @@ This problem is solved when using Mosek.
 The following provides a proof of infeasibility of the dual problem~\eqref{SDP-D}:
 
 \begin{lemma}\label{lemma:DualInfCertificate}
-  If there exists $X \succeq 0$ with $\skal{A^j}{X} = 0$, $j \in [m]$, and
-  $\skal{A^0}{X} > 0$, then there exists no $y$ with $A(y) \succeq 0$.
+  If there exists $X \succeq 0$ with $\skal{A^0}{X} > 0$ and
+  $\skal{A^j}{X} = 0$ for all $j \in [m]$, then there exists no $y$ with
+  $A(y) \succeq 0$.
 \end{lemma}
 
 \begin{proof}
@@ -172,9 +173,9 @@ The following provides a proof of infeasibility of the primal problem~\eqref{SDP
 We need the following variants:
 
 \begin{lemma}\label{lemma:DualInfCertificate2}
-  If there exists $X \succeq 0$ with $\skal{A^j}{X} = 0$, $j \in [m]$, and
-  $\skal{A^0}{X} > 0$, then there exists no $(S,y)$ with $A(y) - S = 0$,
-  $S \succeq 0$.
+  If there exists $X \succeq 0$ with $\skal{A^0}{X} > 0$ and
+  $\skal{A^j}{X} = 0$ for all $j \in [m]$, then there exists no $(S,y)$
+  with $A(y) - S = 0$, $S \succeq 0$.
 \end{lemma}
 
 \begin{proof}
@@ -218,7 +219,7 @@ Primal feasibility of a point $\hat{X}$ is measured by SCIP-SDP as
 \]
 for all $j \in [m]$. Similarly, dual feasibility of $\hat{y}$ holds if
 \[
-\lambda_{\min}(A(y)) = \lambda_{\min}\Big(\sum_{j=1}^m A^j\, \hat{y}_j -
+\lambda_{\min}\big(A(\hat{y})\big) = \lambda_{\min}\Big(\sum_{j=1}^m A^j\, \hat{y}_j -
 A^0\Big) \geq - \varepsilon_d,
 \]
 i.e., $A(\hat{y})$ is psd.
@@ -251,7 +252,7 @@ Primal infeasibility is detected if there exists $\hat{y}$ with
 In this case, $\hat{y}$ approximately satisfies the conditions of
 Lemma~\ref{lemma:PrimalInfCertificate}.
 
-
+ Note that in the implementation $\varepsilon_i = \varepsilon_p = \varepsilon_d$.
 
 % -------------------------------------------------------------------------
 \section{Mosek}
