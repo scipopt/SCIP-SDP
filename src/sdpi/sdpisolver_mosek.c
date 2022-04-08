@@ -1385,12 +1385,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #if CONVERT_ABSOLUTE_TOLERANCES
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_PFEAS, sdpisolver->gaptol) );
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_DFEAS, sdpisolver->sdpsolverfeastol / (1.0 + maxrhscoef)) );
-      if ( maxrhscoef < sdpisolver->sdpsolverfeastol )
-         MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_INFEAS, 1e-15) );
-      else
-         MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_INFEAS, sdpisolver->sdpsolverfeastol / MAX(1.0, maxrhscoef)) );
-      SCIPdebugMessage("Setting relative feasibility tolerance for MOSEK to %.10g / %g = %.12g; gaptol = %.12g\n", sdpisolver->sdpsolverfeastol,
-         1.0 + maxrhscoef, sdpisolver->sdpsolverfeastol / (1.0 + maxrhscoef), sdpisolver->gaptol);
+      MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_INFEAS, sdpisolver->sdpsolverfeastol / MAX(1.0, maxabsobjcoef)) );
+      SCIPdebugMessage("Setting tolerances for MOSEK: feastol = %.12g (maxrhscoef = %.12g); gaptol = %.12g; infeastol = %.12g (maxobjcoef = %.12g)\n",
+         sdpisolver->sdpsolverfeastol / 1.0 + maxrhscoef, maxrhscoef, sdpisolver->gaptol, sdpisolver->sdpsolverfeastol / (1.0 + maxabsobjcoef), maxabsobjcoef);
 #else
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_PFEAS, sdpisolver->gaptol) );
       MOSEK_CALL( MSK_putdouparam(sdpisolver->msktask, MSK_DPAR_INTPNT_CO_TOL_DFEAS, sdpisolver->sdpsolverfeastol) );
