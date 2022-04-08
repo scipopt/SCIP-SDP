@@ -1432,21 +1432,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          MOSEK_CALL( MSK_putintparam(sdpisolver->msktask, MSK_IPAR_INTPNT_SCALING, MSK_SCALING_NONE) );
       }
 
-      /* print whole problem (only for MOSEK < 9) and parameters if asked to */
-#ifdef SCIP_MORE_DEBUG
-#if MSK_VERSION_MAJOR < 9
-      {
-         int nmosekconss;
-         int nmosekvars;
-         int nmosekcones;
-
-         MOSEK_CALL( MSK_getnumcon(sdpisolver->msktask, &nmosekconss) );
-         MOSEK_CALL( MSK_getnumvar(sdpisolver->msktask, &nmosekvars) );
-         MOSEK_CALL( MSK_getnumcone(sdpisolver->msktask, &nmosekcones) );
-
-         MOSEK_CALL( MSK_printdata(sdpisolver->msktask, MSK_STREAM_LOG, 0, nmosekconss, 0, nmosekvars, 0, nmosekcones, 1, 1, 1, 1, 1, 1, 1, 1) );
-      }
-#endif
+      /* print parameters if asked to */
 #ifdef SCIP_PRINT_PARAMETERS
       MOSEK_CALL( MSK_printparam(sdpisolver->msktask) );
 #endif
@@ -1458,7 +1444,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 #endif
 
       /* solve the problem */
-      MOSEK_CALL( MSK_optimizetrm(sdpisolver->msktask, &(sdpisolver->terminationcode)) );/*lint !e641*/
+      MOSEK_CALL( MSK_optimizetrm(sdpisolver->msktask, &sdpisolver->terminationcode) );/*lint !e641*/
       MOSEK_CALL( MSK_getdouinf(sdpisolver->msktask, MSK_DINF_OPTIMIZER_TIME, &sdpisolver->opttime) );
       MOSEK_CALL( MSK_getsolsta(sdpisolver->msktask, MSK_SOL_ITR, &sdpisolver->solstat) );/*lint !e641*/
 
