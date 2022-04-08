@@ -934,7 +934,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    }
    assert( sdpisolver->nactivevars + nfixedvars == sdpisolver->nvars );
 
-   /* adjust maxabsrhscoef in penalty formulation */
+   /* adjust maxabsobjcoef in penalty formulation */
    if ( penaltyparam >= sdpisolver->epsilon )
    {
       if ( penaltyparam > maxabsobjcoef )
@@ -1095,7 +1095,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* We currently do not include variable bounds in maxrhscoef, because it does not seem to be beneficial
        * overall. The bounds are very relevant for cardinality least square instances in which all variables are binary,
        * except for one continuous variable representing the objective value. The objective value can be
-       * large. Enlarging maxrhscoef will not particularly help in this context, since the objective values are measure
+       * large. Enlarging maxrhscoef will not particularly help in this context, since the objective values are measured
        * relatively and the bounds are filtered out later anyway. */
 #if CONVERT_ABSOLUTE_TOLERANCES
       if ( REALABS(mosekvarbounds[i]) > maxrhscoef )
@@ -1435,7 +1435,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* print parameters if asked to */
 #ifdef SCIP_PRINT_PARAMETERS
       MOSEK_CALL( MSK_printparam(sdpisolver->msktask) );
-#endif
 #endif
 
       /* write to file if asked to */
