@@ -6,13 +6,23 @@ features:
 - new propagation routine based on 3 by 3 minors
   (applied with parameter "constraints/SDP/prop3minors")
 - can now create CMIR inequalities from eigenvector cuts
+- revised and fixed checking routine for SDP rank 1 constraints
+- add example for tighten matrices
 
 parameters:
+- new parameter <constraints/SDP/presollinconssparam> to decide how linear constraints are handled during presolving
 - new parameter <constraints/SDP/prop3minors> to propagate 3 by 3 minors (default: FALSE)
 - new parameter <constraints/SDP/nonconst3minors> to propagate 3 by 3 minors even if the diagonals are not constant (default: FALSE)
 - new parameter <constraints/SDP/additionalstats> to show the number of propagations (default: FALSE)
 - new parameter <constraints/SDP/generatecmir> to separate CMIR from eigenvalue cuts (default: FALSE)
 
+fixed bugs:
+- fixed bug in tighten matrices (never ran previously)
+- fixed output of statistics, i.e., avoid division by 0 in certain cases
+
+(c)make:
+- remove some unused files from cmake configuration
+- shared libraries are built by default in cmake
 
 
 SCIP-SDP version 4.0.0
