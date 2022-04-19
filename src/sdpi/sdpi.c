@@ -2985,12 +2985,18 @@ SCIP_RETCODE SCIPsdpiSolve(
             SCIPdebugMessage("SDP %d not found infeasible using penalty formulation, maximum of smallest eigenvalue is %g.\n", sdpi->sdpid, -1.0 * objval);
 
             /* we compute the factor to increase with as n-th root of the total increase until the maximum, where n is the number of iterations
-             * (for npenaltyincr = 0 we make sure that the parameter is too large after the first change)
-             */
-            penaltyparamfact = sdpi->npenaltyincr > 0 ? pow((sdpi->maxpenaltyparam / sdpi->penaltyparam), 1.0/sdpi->npenaltyincr) :
-                  2*sdpi->maxpenaltyparam / sdpi->penaltyparam;
+             * (for npenaltyincr = 0 we make sure that the parameter is too large after the first change) */
             gaptol = sdpi->gaptol;
-            gaptolfact = sdpi->npenaltyincr > 0 ? pow((MIN_GAPTOL / sdpi->gaptol), 1.0/sdpi->npenaltyincr) : 0.5 * MIN_GAPTOL / sdpi->gaptol;
+            if ( sdpi->npenaltyincr > 0 )
+            {
+               penaltyparamfact = pow((sdpi->maxpenaltyparam / sdpi->penaltyparam), 1.0 / sdpi->npenaltyincr);
+               gaptolfact = pow((MIN_GAPTOL / sdpi->gaptol), 1.0 / sdpi->npenaltyincr);
+            }
+            else
+            {
+               penaltyparamfact = 2 * sdpi->maxpenaltyparam / sdpi->penaltyparam;
+               gaptolfact = 0.5 * MIN_GAPTOL / sdpi->gaptol;
+            }
 
             /* increase penalty-param and decrease feasibility tolerance until we find a feasible solution or reach the final bound for either one of them */
             while ( ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) || ! feasorig ) &&
