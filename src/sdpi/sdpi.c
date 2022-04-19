@@ -2966,7 +2966,7 @@ SCIP_RETCODE SCIPsdpiSolve(
          /* If the penalty formulation was successfully solved and has a strictly positive objective value, we know that
           * the problem is infeasible. Note that we need to check against the maximum of feastol and gaptol, since this
           * is the objective of an SDP which is only exact up to gaptol, and cutting a feasible node off is an error
-          * while continueing with an infeasible problem only takes additional time until we found out again later.
+          * while continuing with an infeasible problem only takes additional time until we found out again later.
           */
          if ( (SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && (objval > (sdpi->feastol > sdpi->gaptol ?
                sdpi->peninfeasadjust * sdpi->feastol : sdpi->peninfeasadjust * sdpi->gaptol))) ||
