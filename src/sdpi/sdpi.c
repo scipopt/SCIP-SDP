@@ -2934,8 +2934,8 @@ SCIP_RETCODE SCIPsdpiSolve(
          /* first check feasibility using the penalty approach */
          SCIPdebugMessage("SDP %d returned inacceptable result, trying penalty formulation.\n", sdpi->sdpid);
 
-         /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if
-          * the optimal objective is bigger than feastol, then we know that the problem is infeasible */
+         /* We solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if
+          * the optimal objective is bigger than feastol, then we know that the problem is infeasible; the original objective is set to 0. */
          SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpi->sdpilb, sdpi->sdpiub,
                sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
