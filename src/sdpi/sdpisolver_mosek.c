@@ -1726,13 +1726,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          /* if using a penalty formulation, check if the solution is feasible for the original problem
           * we should always count it as infeasible if the penalty problem was unbounded */
-         if ( penaltyparam >= sdpisolver->epsilon && (sdpisolver->solstat == MSK_SOL_STA_PRIM_INFEAS_CER) )
+         if ( penaltyparam >= sdpisolver->epsilon && sdpisolver->solstat == MSK_SOL_STA_PRIM_INFEAS_CER )
          {
             assert( feasorig != NULL );
             *feasorig = FALSE;
             SCIPdebugMessage("Penalty Problem unbounded!\n");
          }
-         else if ( penaltyparam >= sdpisolver->epsilon && ( ! sdpisolver->timelimit ) && ( sdpisolver->terminationcode != MSK_RES_TRM_MAX_TIME ) )
+         else if ( penaltyparam >= sdpisolver->epsilon && ! sdpisolver->timelimit && sdpisolver->terminationcode != MSK_RES_TRM_MAX_TIME )
          {
             SCIP_Real* moseksol;
             SCIP_Real trace = 0.0;
