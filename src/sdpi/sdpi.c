@@ -2923,13 +2923,9 @@ SCIP_RETCODE SCIPsdpiSolve(
          SCIP_Real penaltyparamfact;
          SCIP_Real gaptol;
          SCIP_Real gaptolfact;
-         SCIP_Bool feasorig;
-         SCIP_Bool penaltybound;
+         SCIP_Bool feasorig = FALSE;
          SCIP_Real objbound;
          SCIP_Real objval;
-
-         feasorig = FALSE;
-         penaltybound = TRUE;
 
          /* first check feasibility using the penalty approach */
          SCIPdebugMessage("SDP %d returned inacceptable result, trying penalty formulation.\n", sdpi->sdpid);
@@ -2942,7 +2938,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs,
                sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval, starty, startZnblocknonz, startZrow, startZcol, startZval,
-               startXnblocknonz, startXrow, startXcol, startXval, SCIP_SDPSOLVERSETTING_UNSOLVED, timelimit, sdpi->usedsdpitime, &feasorig, &penaltybound) );
+               startXnblocknonz, startXrow, startXcol, startXval, SCIP_SDPSOLVERSETTING_UNSOLVED, timelimit, sdpi->usedsdpitime, &feasorig, NULL) );
 
          /* add time, iterations and sdpcalls */
          addedopttime = 0.0;
@@ -2977,8 +2973,9 @@ SCIP_RETCODE SCIPsdpiSolve(
          }
          else
          {
+            SCIP_Bool penaltybound = TRUE;
+
             feasorig = FALSE;
-            penaltybound = TRUE;
 
             penaltyparam = sdpi->penaltyparam;
 
