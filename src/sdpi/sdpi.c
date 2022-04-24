@@ -2598,6 +2598,107 @@ SCIP_RETCODE SCIPsdpiGetRhSides(
 /**@name Solving Methods */
 /**@{ */
 
+/** computes dual cut: aggregate dual constraints using the primal information */
+static
+SCIP_RETCODE computeDualCut(
+   SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
+   int                   nsdpblocks,         /**< number of blocks */
+   int*                  sdpblocksizes,      /**< sizes of the blocks */
+   int**                 indchanges,         /**< changes needed to be done to the indices, if indchanges[block][nonz]=-1, then
+                                              *   the index can be removed, otherwise it gives the number of indices removed before this */
+   int*                  nremovedinds,       /**< pointer to store the number of rows/cols to be fixed for each block */
+   int*                  blockindchanges,    /**< pointer to store index change for each block, system is the same as for indchanges */
+   SCIP_Real*            dualcut,            /**< coefficients of cut */
+   SCIP_Real*            dualcutrhs          /**< rhs of cut */
+   )
+{
+   SCIP_Real** primalmatrices;
+   int b;
+   int j;
+
+   assert( sdpi != NULL );
+   assert( nsdpblocks == sdpi->nsdpblocks );
+   assert( sdpblocksizes != NULL );
+   assert( indchanges != NULL );
+   assert( nremovedinds != NULL );
+   assert( blockindchanges != NULL );
+   assert( dualcut != NULL );
+   assert( dualcutrhs != NULL );
+
+   /* get primal solution */
+   BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &primalmatrices, nsdpblocks) );
+   for (b = 0; b < nsdpblocks; ++b)
+   {
+      int size;
+
+      size = sdpi->sdpblocksizes[b] * sdpi->sdpblocksizes[b];
+      BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &primalmatrices[b], size * size) );
+   }
+   SCIP_CALL( SCIPsdpiSolverGetPrimalSolutionMatrix(sdpi->sdpisolver, nsdpblocks, sdpblocksizes, indchanges, nremovedinds, blockindchanges, primalmatrices) );
+
+   /* prepare cut */
+   *dualcutrhs = 0.0;
+   for (j = 0; j < sdpi->nvars; ++j)
+      dualcut[j] = 0.0;
+
+   /* loop through blocks and matrices */
+   for (b = 0; b < nsdpblocks; ++b)
+   {
+      SCIP_Real c = 0.0;
+      int row;
+      int col;
+      int size;
+      int v;
+      int k;
+
+      size = sdpi->sdpblocksizes[b] * sdpi->sdpblocksizes[b];
+      for (v = 0; v < sdpi->sdpnblockvars[b]; v++)
+      {
+         SCIP_Real p = 0.0;
+
+         /* compute inner product of primal matrix and constraint matrix */
+         for (k = 0; k < sdpi->sdpnblockvarnonz[b][v]; k++)
+         {
+            row = sdpi->sdprow[b][v][k];
+            col = sdpi->sdpcol[b][v][k];
+            assert( 0 <= row && row < size );
+            assert( 0 <= col && col < size );
+
+            if ( row == col )
+               p += sdpi->sdpval[b][v][k] * primalmatrices[b][row * size + col];
+            else
+               p += 2.0 * sdpi->sdpval[b][v][k] * primalmatrices[b][row * size + col];
+         }
+         dualcut[v] += p;
+      }
+
+      /* treat constant matrix */
+      for (k = 0; k < sdpi->sdpconstnblocknonz[b]; k++)
+      {
+         row = sdpi->sdpconstrow[b][k];
+         col = sdpi->sdpconstcol[b][k];
+         assert( 0 <= row && row < size );
+         assert( 0 <= col && col < size );
+
+         if ( row == col )
+            c += sdpi->sdpconstval[b][k] * primalmatrices[b][row * size + col];
+         else
+            c += 2.0 * sdpi->sdpconstval[b][k] * primalmatrices[b][row * size + col];
+      }
+      *dualcutrhs += c;
+   }
+
+   /* free memory */
+   for (b = 0; b < nsdpblocks; ++b)
+   {
+      BMSfreeBufferMemoryArray(sdpi->bufmem, &primalmatrices[b]);
+   }
+   BMSfreeBufferMemoryArray(sdpi->bufmem, &primalmatrices);
+
+   return SCIP_OKAY;
+}
+
+
 /** solves the SDP, as start optionally a starting point for the solver may be given, if it is NULL, the solver will start from scratch
  *
  *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
@@ -2627,7 +2728,9 @@ SCIP_RETCODE SCIPsdpiSolve(
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Bool             enforceslatercheck, /**< always check for Slater condition in case the problem could not be solved and printf the solution
                                               *   of this check */
-   SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
+   SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
+   SCIP_Real*            dualcut,            /**< coefficients of a dual cut */
+   SCIP_Real*            dualcutrhs          /**< rhs of cut */
    )
 {
    int* sdpconstnblocknonz = NULL;
@@ -3096,6 +3199,12 @@ SCIP_RETCODE SCIPsdpiSolve(
 #endif
             }
          }
+      }
+
+      /* possibly prepare dual cut */
+      if ( sdpi->solved && dualcut != NULL )
+      {
+         SCIP_CALL( computeDualCut(sdpi, sdpi->nsdpblocks, sdpi->sdpblocksizes, indchanges, nremovedinds, blockindchanges, dualcut, dualcutrhs) );
       }
    }
 
