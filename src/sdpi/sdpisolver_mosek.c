@@ -2503,6 +2503,84 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    return SCIP_LPERROR;
 }
 
+/** returns the primal solution matrix (without LP rows) */
+SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
+   int                   nsdpblocks,         /**< number of blocks */
+   int*                  sdpblocksizes,      /**< sizes of the blocks */
+   int**                 indchanges,         /**< changes needed to be done to the indices, if indchanges[block][nonz]=-1, then
+                                              *   the index can be removed, otherwise it gives the number of indices removed before this */
+   int*                  nremovedinds,       /**< pointer to store the number of rows/cols to be fixed for each block */
+   int*                  blockindchanges,    /**< pointer to store index change for each block, system is the same as for indchanges */
+   SCIP_Real**           primalmatrices      /**< pointer to store values of the primal matrix */
+   )
+{
+   int b;
+
+   assert( sdpisolver != NULL );
+   assert( sdpblocksizes != NULL );
+   assert( indchanges != NULL );
+   assert( nremovedinds != NULL );
+   assert( blockindchanges != NULL );
+   assert( primalmatrices != NULL );
+
+   /* collect primal solution */
+   for (b = 0; b < nsdpblocks; b++)
+   {
+      int size;
+      int j;
+
+      assert( primalmatrices[b] != NULL );
+
+      size = sdpblocksizes[b];
+
+      /* initialize solution matrix with 0s */
+      for (j = 0; j < size; ++j)
+         primalmatrices[b][j] = 0.0;
+
+      /* treat block that were not removed */
+      if ( blockindchanges[b] >= 0 )
+      {
+         SCIP_Real* X;   /* the upper triangular entries of matrix X */
+         SCIP_Real val;
+         int redsize;
+         int redrow;
+         int redcol;
+         int i;
+
+         redsize = sdpblocksizes[b] - nremovedinds[b];
+
+         BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &X, redsize * (redsize + 1) / 2) );
+         MOSEK_CALL( MSK_getbarxj(sdpisolver->msktask, MSK_SOL_ITR, b - blockindchanges[b], X) );/*lint !e641*/
+
+         /* fill in matrix */
+         for (i = 0; i < size; ++i)
+         {
+            if ( indchanges[b][i] >= 0 )
+            {
+               redrow = i - indchanges[b][i];
+               assert( 0 <= redrow && redrow < redsize );
+               for (j = 0; j <= i; ++j)
+               {
+                  if ( indchanges[b][j] >= 0 )
+                  {
+                     redcol = j - indchanges[b][j];
+                     assert( 0 <= redcol && redcol < redsize );
+                     val = X[redrow * redsize + redcol];
+                     primalmatrices[b][i * size + j] = val;
+                     primalmatrices[b][j * size + i] = val;
+                  }
+               }
+            }
+         }
+
+         BMSfreeBufferMemoryArray(sdpisolver->bufmem, &X);
+      }
+   }
+
+   return SCIP_OKAY;
+}
+
 /** return the maximum absolute value of the optimal primal matrix */
 SCIP_Real SCIPsdpiSolverGetMaxPrimalEntry(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to an SDP-solver interface */
