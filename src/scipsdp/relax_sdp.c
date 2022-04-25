@@ -1371,7 +1371,7 @@ SCIP_RETCODE calcRelax(
          SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) && ((SCIPsdpiDoesWarmstartNeedPrimal() && ! relaxdata->ipXexists) || (! relaxdata->ipZexists))) )
    {
       SCIP_Real* dualcut;
-      SCIP_Real* dualcutrhs;
+      SCIP_Real dualcutrhs;
 
       SCIP_CALL( SCIPallocBufferArray(scip, &dualcut, nvars) );
 
