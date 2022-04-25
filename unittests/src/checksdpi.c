@@ -164,7 +164,7 @@ SCIP_RETCODE solveTest(
    cr_assert( ncols == ntmpcols );
 
    /* solve problem: no Slater-check, no time limit */
-   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, 1e20) );
+   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, 1e20, NULL, NULL) );
 
    /* check status */
    cr_assert( SCIPsdpiWasSolved(sdpi) );
