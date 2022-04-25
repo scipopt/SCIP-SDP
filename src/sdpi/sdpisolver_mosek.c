@@ -2566,7 +2566,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
                   {
                      redcol = j - indchanges[b][j];
                      assert( 0 <= redcol && redcol < redsize );
-                     val = X[redrow * redsize + redcol];
+                     val = X[redcol * (redcol + 1)/2 + redrow];
                      primalmatrices[b][i * size + j] = val;
                      primalmatrices[b][j * size + i] = val;
                   }
