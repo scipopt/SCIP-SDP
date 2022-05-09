@@ -93,7 +93,7 @@
 #define DEFAULT_SETTINGSRESETFREQ   -1       /**< frequency for resetting parameters in SDP solver and trying again with fastest settings */
 #define DEFAULT_SETTINGSRESETOFS    0        /**< frequency offset for resetting parameters in SDP solver and trying again with fastest settings */
 #define DEFAULT_SDPSOLVERTHREADS    1        /**< number of threads the SDP solver should use (-1 = number of cores) */
-#define DEFAULT_PENINFEASADJUST     10.0     /**< gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation */
+#define DEFAULT_PENINFEASADJUST     1.1      /**< gap- or feastol will be multiplied by this before checking for infeasibility using the penalty formulation */
 #define DEFAULT_USEPRESOLVING       FALSE    /**< whether presolving of SDP-solver should be used */
 #define DEFAULT_USESCALING          TRUE     /**< whether the SDP-solver should use scaling */
 #define DEFAULT_SCALEOBJ            FALSE    /**< whether the objective should be scaled in order to get a more stable behavior */
