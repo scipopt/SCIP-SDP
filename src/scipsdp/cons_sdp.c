@@ -6751,7 +6751,7 @@ SCIP_DECL_CONSPROP(consPropSdp)
       if ( *result == SCIP_DIDNOTRUN )
          *result = SCIP_DIDNOTFIND;
 
-      if ( conshdlrdata->prop3mprobing || ! SCIPinProbing(scip) )
+      if ( conshdlrdata->sdpconshdlrdata->prop3mprobing || ! SCIPinProbing(scip) )
       {
          SCIPdebugMsg(scip, "Propagate 3x3 minors of conshdlr <%s> %s...\n", SCIPconshdlrGetName(conshdlr), SCIPinProbing(scip) ? "(in probing) " : "");
 
@@ -6768,7 +6768,7 @@ SCIP_DECL_CONSPROP(consPropSdp)
          {
             if ( nprop > 0 )
             {
-               assert( ! SCIPinProbing(scip) || conshdlrdata->prop3mprobing );
+               assert( ! SCIPinProbing(scip) || conshdlrdata->sdpconshdlrdata->prop3mprobing );
                if ( ! SCIPinProbing(scip) )
                   conshdlrdata->sdpconshdlrdata->nprop3minor += nprop;
                else
