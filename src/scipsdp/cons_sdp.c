@@ -6748,11 +6748,11 @@ SCIP_DECL_CONSPROP(consPropSdp)
    /* if we want to propagate 3x3 minors and we are not in probing */
    if ( conshdlrdata->sdpconshdlrdata->prop3minors )
    {
-      if ( *result == SCIP_DIDNOTRUN )
-         *result = SCIP_DIDNOTFIND;
-
       if ( conshdlrdata->sdpconshdlrdata->prop3mprobing || ! SCIPinProbing(scip) )
       {
+         if ( *result == SCIP_DIDNOTRUN )
+            *result = SCIP_DIDNOTFIND;
+
          SCIPdebugMsg(scip, "Propagate 3x3 minors of conshdlr <%s> %s...\n", SCIPconshdlrGetName(conshdlr), SCIPinProbing(scip) ? "(in probing) " : "");
 
          nprop = 0;
