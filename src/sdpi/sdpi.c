@@ -3985,14 +3985,17 @@ SCIP_RETCODE SCIPsdpiGetPrimalNonzeros(
    if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Infeasibility was detected while preparing problem, no primal solution available.\n");
+      startXnblocknonz[0] = -1;
    }
    else if ( sdpi->allfixed )
    {
       SCIPdebugMessage("All variables fixed during preprocessing, no primal solution available.\n");
+      startXnblocknonz[0] = -1;
    }
    else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
    {
       SCIPdebugMessage("Solved one variable SDP, no primal solution available.\n");
+      startXnblocknonz[0] = -1;
    }
    else
    {

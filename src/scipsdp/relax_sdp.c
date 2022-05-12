@@ -3458,21 +3458,24 @@ SCIP_RETCODE saveWarmstartInfo(
       {
          nblocks = SCIPconshdlrGetNConss(relaxdata->sdpconshdlr) + SCIPconshdlrGetNConss(relaxdata->sdprank1conshdlr) + 1; /* +1 for the LP part */
          SCIP_CALL( SCIPallocBufferArray(scip, &startXnblocknonz, nblocks) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startXrow, nblocks) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startXcol, nblocks) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &startXval, nblocks) );
 
          /* get amount of memory to allocate for row/col/val from sdpi */
          SCIP_CALL( SCIPsdpiGetPrimalNonzeros(relaxdata->sdpi, nblocks, startXnblocknonz) );
 
          /* allocate memory for different blocks in row/col/val */
-         for (b = 0; b < nblocks; b++)
+         if ( startXnblocknonz[0] >= 0 )
          {
-            SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], startXnblocknonz[b]) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], startXnblocknonz[b]) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], startXnblocknonz[b]) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &startXrow, nblocks) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &startXcol, nblocks) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &startXval, nblocks) );
+            for (b = 0; b < nblocks; b++)
+            {
+               SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], startXnblocknonz[b]) );
+               SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], startXnblocknonz[b]) );
+               SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], startXnblocknonz[b]) );
+            }
+            SCIP_CALL( SCIPsdpiGetPrimalMatrix(relaxdata->sdpi, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
          }
-         SCIP_CALL( SCIPsdpiGetPrimalMatrix(relaxdata->sdpi, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
       }
       else
       {
@@ -3490,7 +3493,7 @@ SCIP_RETCODE saveWarmstartInfo(
       savesol = scipsol;
 
    /* save solution */
-   if ( savesol != NULL )
+   if ( savesol != NULL && startXnblocknonz[0] >= 0 )
    {
       (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
       SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), savesol,
