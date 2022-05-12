@@ -3594,7 +3594,7 @@ SCIP_RETCODE calcRelax(
       SCIP_CALL( SCIPsdpiSetRealpar(sdpi, SCIP_SDPPAR_OBJLIMIT, SCIPgetUpperbound(scip)) );
    }
 
-   /* if this is the root node and we cannot solve the problem, we want to check for the Slater condition independent from the SCIP parameter */
+   /* determine whether we are in the root node */
    rootnode = SCIPgetDepth(scip) == 0 ? TRUE : FALSE;
 
    /* find settings to use for this relaxation */
@@ -3617,19 +3617,20 @@ SCIP_RETCODE calcRelax(
          return SCIP_PLUGINNOTFOUND;
       }
 
-      /* get startsettings of parent node, usually it will be the last active constraint of the corresponding constraint handler, so we iterate from
-       * the end of the list until we find the correct one */
+      /* Get startsettings of parent node; usually it will be the last active constraint of the corresponding constraint
+       * handler, so we iterate from the end of the list until we find the correct one. */
       conss = SCIPconshdlrGetConss(conshdlr);
       parentconsind = SCIPconshdlrGetNActiveConss(conshdlr) - 1;
       (void) SCIPsnprintf(saveconsname, SCIP_MAXSTRLEN, "savedsettings_node_%d", SCIPnodeGetNumber(SCIPnodeGetParent(SCIPgetCurrentNode(scip))));
 
       while ( parentconsind >= 0 && strcmp(saveconsname, SCIPconsGetName(conss[parentconsind])) )
          parentconsind--;
+
       if ( parentconsind >= 0 )
          startsetting = SCIPconsSavedsdpsettingsGetSettings(scip, conss[parentconsind]);
       else
       {
-         SCIPdebugMsg(scip, "Startsetting from parent node not found, restarting with fastest settings!\n");
+         SCIPdebugMsg(scip, "Startsetting from parent node not found, restarting settings!\n");
          startsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
       }
    }
