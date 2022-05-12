@@ -3664,7 +3664,7 @@ SCIP_RETCODE calcRelax(
             &startXnblocknonz, &startXrow, &startXcol, &startXval,
             &startsetting, lowerbound, result) );
 
-      if ( result == SCIP_CUTOFF )
+      if ( *result == SCIP_CUTOFF )
          return SCIP_OKAY;
    }
 
@@ -3733,15 +3733,16 @@ SCIP_RETCODE calcRelax(
       relaxdata->feasible = FALSE;
 
    if ( SCIPinProbing(scip) )
-      relaxdata->probingsolved = SCIPsdpiWasSolved(sdpi) && ( ! SCIPsdpiIsTimelimExc(sdpi) );
+      relaxdata->probingsolved = SCIPsdpiWasSolved(sdpi) && ! SCIPsdpiIsTimelimExc(sdpi);
    else
-      relaxdata->origsolved = SCIPsdpiSolvedOrig(sdpi) && ( ! SCIPsdpiIsTimelimExc(sdpi) );
+      relaxdata->origsolved = SCIPsdpiSolvedOrig(sdpi) && ! SCIPsdpiIsTimelimExc(sdpi);
 
    if ( SCIPsdpiIsAcceptable(sdpi) )
    {
 #ifdef SCIP_MORE_DEBUG /* print the optimal solution */
       {
          int sollength;
+
          SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
          sollength = nvars;
          SCIP_CALL( SCIPsdpiGetSol(sdpi, &objforscip, solforscip, &sollength) ); /* get both the objective and the solution from the SDP solver */
@@ -3751,12 +3752,12 @@ SCIP_RETCODE calcRelax(
 
          if ( SCIPsdpiFeasibilityKnown(sdpi) )
          {
-            SCIPdebugMsg(scip, "optimal solution: objective = %f, dual feasible: %u, primal feasible: %u.\n",
+            SCIPdebugMsg(scip, "optimal solution: objective = %g, dual feasible: %u, primal feasible: %u.\n",
                objforscip, SCIPsdpiIsDualFeasible(sdpi), SCIPsdpiIsPrimalFeasible(sdpi));
          }
          else
          {
-            SCIPdebugMsg(scip, "The solver could not determine feasibility ! ");
+            SCIPdebugMsg(scip, "The solver could not determine feasibility!\n");
          }
 
          /* output solution (if not infeasible) */
@@ -3860,7 +3861,7 @@ SCIP_RETCODE calcRelax(
          *lowerbound = objlb;
          SCIPdebugMsg(scip, "The relaxation could not be solved, using best computed bound from penalty formulation.\n");
       }
-      else if ( ! SCIPisInfinity(scip, -1 * SCIPnodeGetLowerbound(SCIPgetCurrentNode(scip))) )
+      else if ( ! SCIPisInfinity(scip, -SCIPnodeGetLowerbound(SCIPgetCurrentNode(scip))) )
       {
          *lowerbound = SCIPnodeGetLowerbound(SCIPgetCurrentNode(scip));
          SCIPdebugMsg(scip, "The relaxation could not be solved, keeping old bound.\n");
@@ -3868,12 +3869,11 @@ SCIP_RETCODE calcRelax(
       else
       {
          *result = SCIP_SUSPENDED;
-         SCIPerrorMessage("The relaxation of the root node could not be solved, so there is no hope to solve this instance.\n");
+         SCIPerrorMessage("The relaxation could not be solved; there is no hope to solve this instance.\n");
          return SCIP_ERROR;
       }
 
       *result = SCIP_SUCCESS;
-      return SCIP_OKAY;
    }
 
    return SCIP_OKAY;
