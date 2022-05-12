@@ -3663,6 +3663,9 @@ SCIP_RETCODE calcRelax(
             &startZnblocknonz, &startZrow, &startZcol, &startZval,
             &startXnblocknonz, &startXrow, &startXcol, &startXval,
             &startsetting, lowerbound, result) );
+
+      if ( result == SCIP_CUTOFF )
+         return SCIP_OKAY;
    }
 
    /* solve problem */
