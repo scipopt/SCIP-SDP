@@ -3359,6 +3359,7 @@ SCIP_RETCODE saveWarmstartInfo(
 {
    char consname[SCIP_MAXSTRLEN];
    SCIP_SOL* preoptimalsol = NULL;
+   SCIP_SOL* savesol = NULL;
    SCIP_CONS* savedcons;
    SCIP_VAR** vars;
    SCIP_Bool preoptimalsolsuccess = FALSE;
@@ -3479,23 +3480,20 @@ SCIP_RETCODE saveWarmstartInfo(
       }
    }
 
+   /* only create constraint if the preoptimal solution exists, otherwise we don't want to warmstart at all */
    if ( relaxdata->warmstartpreoptsol )
    {
-      /* only create constraint if the preoptimal solution exists, otherwise we don't want to warmstart at all */
       if ( preoptimalsolsuccess )
-      {
-         (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
-         SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), preoptimalsol,
-               maxprimalentry, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
-
-         SCIP_CALL( SCIPaddCons(scip, savedcons) );
-         SCIP_CALL( SCIPreleaseCons(scip, &savedcons) );
-      }
+         savesol = preoptimalsol;
    }
    else
+      savesol = scipsol;
+
+   /* save solution */
+   if ( savesol != NULL )
    {
       (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
-      SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), scipsol,
+      SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), savesol,
             maxprimalentry, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
 
       SCIP_CALL( SCIPaddCons(scip, savedcons) );
