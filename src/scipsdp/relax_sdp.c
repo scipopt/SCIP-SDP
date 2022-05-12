@@ -3349,6 +3349,213 @@ SCIP_RETCODE determineWarmStartInformation(
 }
 
 
+/** save warmstart information */
+static
+SCIP_RETCODE saveWarmstartInfo(
+   SCIP*                 scip,               /**< SCIP pointer */
+   SCIP_RELAX*           relax,              /**< relaxator */
+   SCIP_RELAXDATA*       relaxdata           /**< relaxator data */
+   )
+{
+   SCIP_Real maxprimalentry;
+   char consname[SCIP_MAXSTRLEN];
+#ifndef NDEBUG
+   int snprintfreturn; /* this is used to assert that the SCIP string concatenation works */
+#endif
+   int* startXnblocknonz = NULL;
+   int** startXrow = NULL;
+   int**  startXcol = NULL;
+   SCIP_Real** startXval = NULL;
+   SCIP_SOL* scipsol;
+   SCIP_SOL* preoptimalsol = NULL;
+   SCIP_CONS* savedcons;
+   SCIP_Bool preoptimalsolsuccess = FALSE;
+   SCIP_VAR** vars;
+   int nblocks;
+   int nvars;
+   int b;
+
+   nvars = SCIPgetNVars(scip);
+   assert( nvars >= 0 );
+   vars = SCIPgetVars(scip);
+
+   assert( scip != NULL );
+   assert( relax != NULL );
+   assert( relaxdata != NULL );
+
+   assert( relaxdata->warmstart );
+   assert( SCIPsdpiSolvedOrig(relaxdata->sdpi) );
+
+   /* use preoptimal solution if using DSDP and parameter is set accordingly */
+   if ( relaxdata->warmstartpreoptsol )
+   {
+      if ( strcmp(SCIPsdpiGetSolverName(), "DSDP") == 0 || strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0 )
+      {
+         SCIP_Real* preoptimalvec;
+         int nvarsgiven;
+
+         SCIP_CALL( SCIPallocBufferArray(scip, &preoptimalvec, nvars) );
+         nvarsgiven = nvars;
+
+         if ( SCIPsdpiDoesWarmstartNeedPrimal() )
+         {
+            maxprimalentry = 0.0;
+            if ( relaxdata->warmstartprimaltype == 3 )
+            {
+               nblocks = SCIPconshdlrGetNConss(relaxdata->sdpconshdlr) + SCIPconshdlrGetNConss(relaxdata->sdprank1conshdlr) + 1; /* +1 for the LP part */
+               SCIP_CALL( SCIPallocBufferArray(scip, &startXnblocknonz, nblocks) );
+
+               /* get amount of memory to allocate for row/col/val from sdpi */
+               SCIP_CALL( SCIPsdpiGetPreoptimalPrimalNonzeros(relaxdata->sdpi, nblocks, startXnblocknonz) );
+
+               /* check if the primal matrix exists, otherwise skip creation of the savedsol contraint */
+               if ( startXnblocknonz[0] > -1 )
+               {
+                  preoptimalsolsuccess = TRUE;
+
+                  SCIP_CALL( SCIPallocBufferArray(scip, &startXrow, nblocks) );
+                  SCIP_CALL( SCIPallocBufferArray(scip, &startXcol, nblocks) );
+                  SCIP_CALL( SCIPallocBufferArray(scip, &startXval, nblocks) );
+
+                  /* allocate memory for different blocks in row/col/val */
+                  for (b = 0; b < nblocks; b++)
+                  {
+                     SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], startXnblocknonz[b]) );
+                     SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], startXnblocknonz[b]) );
+                     SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], startXnblocknonz[b]) );
+                  }
+
+                  SCIP_CALL( SCIPsdpiGetPreoptimalSol(relaxdata->sdpi, &preoptimalsolsuccess, preoptimalvec, &nvarsgiven,
+                        nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
+               }
+               else
+                  preoptimalsolsuccess = FALSE;
+            }
+            else
+            {
+               nblocks = 0;
+               maxprimalentry = SCIPsdpiGetMaxPrimalEntry(relaxdata->sdpi);
+            }
+         }
+         else
+         {
+            maxprimalentry = 0.0;
+            SCIP_CALL( SCIPsdpiGetPreoptimalSol(relaxdata->sdpi, &preoptimalsolsuccess, preoptimalvec, &nvarsgiven,
+                  -1, NULL, NULL, NULL, NULL) );
+            nblocks = 0;
+         }
+
+         if ( preoptimalsolsuccess )
+         {
+            assert( nvarsgiven == nvars ); /* length of solution should be nvars */
+
+            /* create SCIP solution */
+            SCIP_CALL( SCIPcreateSol(scip, &preoptimalsol, NULL) );
+            SCIP_CALL( SCIPsetSolVals(scip, preoptimalsol, nvars, vars, preoptimalvec) );
+         }
+
+         SCIPfreeBufferArray(scip, &preoptimalvec);
+      }
+      else
+      {
+         SCIPerrorMessage("Warmstarting with preoptimal solutions currently only supported for DSDP and SDPA\n");
+         return SCIP_LPERROR;
+      }
+   }
+   else if ( SCIPsdpiDoesWarmstartNeedPrimal() )
+   {
+      maxprimalentry = 0.0;
+      if ( relaxdata->warmstartprimaltype == 3 )
+      {
+         nblocks = SCIPconshdlrGetNConss(relaxdata->sdpconshdlr) + SCIPconshdlrGetNConss(relaxdata->sdprank1conshdlr) + 1; /* +1 for the LP part */
+         SCIP_CALL( SCIPallocBufferArray(scip, &startXnblocknonz, nblocks) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &startXrow, nblocks) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &startXcol, nblocks) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &startXval, nblocks) );
+
+         /* get amount of memory to allocate for row/col/val from sdpi */
+         SCIP_CALL( SCIPsdpiGetPrimalNonzeros(relaxdata->sdpi, nblocks, startXnblocknonz) );
+
+         /* allocate memory for different blocks in row/col/val */
+         for (b = 0; b < nblocks; b++)
+         {
+            SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], startXnblocknonz[b]) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], startXnblocknonz[b]) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], startXnblocknonz[b]) );
+         }
+         SCIP_CALL( SCIPsdpiGetPrimalMatrix(relaxdata->sdpi, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
+      }
+      else
+      {
+         nblocks = 0;
+         maxprimalentry = SCIPsdpiGetMaxPrimalEntry(relaxdata->sdpi);
+      }
+   }
+   else
+   {
+      maxprimalentry = 0.0;
+      nblocks = 0;
+   }
+#ifndef NDEBUG
+   snprintfreturn = SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
+   assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether name fit into string */
+#else
+   (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
+#endif
+
+   if ( relaxdata->warmstartpreoptsol )
+   {
+      /* only create constraint if the preoptimal solution exists, otherwise we don't want to warmstart at all */
+      if ( preoptimalsolsuccess )
+      {
+         SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), preoptimalsol,
+               maxprimalentry, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
+
+         SCIP_CALL( SCIPaddCons(scip, savedcons) );
+         SCIP_CALL( SCIPreleaseCons(scip, &savedcons) );
+      }
+   }
+   else
+   {
+      SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), scipsol,
+            maxprimalentry, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
+
+      SCIP_CALL( SCIPaddCons(scip, savedcons) );
+      SCIP_CALL( SCIPreleaseCons(scip, &savedcons) );
+   }
+
+   if ( SCIPsdpiDoesWarmstartNeedPrimal() && relaxdata->warmstartprimaltype == 3 )
+   {
+      /* free memory for primal matrix */
+      assert( startXnblocknonz != NULL );
+      if ( startXnblocknonz[0] > 1 ) /* no memory was allocated if computation of preoptimal solution failed */
+      {
+         for (b = 0; b < nblocks; b++)
+         {
+            assert( startXval != NULL ); /* for lint */
+            assert( startXcol != NULL ); /* for lint */
+            assert( startXrow != NULL ); /* for lint */
+
+            SCIPfreeBufferArrayNull(scip, &startXval[b]);
+            SCIPfreeBufferArrayNull(scip, &startXcol[b]);
+            SCIPfreeBufferArrayNull(scip, &startXrow[b]);
+         }
+         SCIPfreeBufferArrayNull(scip, &startXval);
+         SCIPfreeBufferArrayNull(scip, &startXcol);
+         SCIPfreeBufferArrayNull(scip, &startXrow);
+      }
+      SCIPfreeBufferArrayNull(scip, &startXnblocknonz);
+   }
+
+   if ( preoptimalsolsuccess )
+   {
+      SCIP_CALL( SCIPfreeSol(scip, &preoptimalsol) );
+   }
+
+   return SCIP_OKAY;
+}
+
+
 /** calculate relaxation and process the relaxation results */
 static
 SCIP_RETCODE calcRelax(
@@ -3363,7 +3570,6 @@ SCIP_RETCODE calcRelax(
    SCIP_RELAXDATA* relaxdata;
    SCIP_CONS* savedsetting;
    SCIP_CONS** conss;
-   SCIP_VAR** vars;
    SCIP_SDPI* sdpi;
    SCIP_Bool rootnode;
    SCIP_Bool enforceslater;
@@ -3399,7 +3605,6 @@ SCIP_RETCODE calcRelax(
 
    nvars = SCIPgetNVars(scip);
    assert( nvars >= 0 );
-   vars = SCIPgetVars(scip);
 
    sdpi = relaxdata->sdpi;
    assert( sdpi != NULL );
@@ -3613,9 +3818,6 @@ SCIP_RETCODE calcRelax(
       else if ( SCIPsdpiIsPrimalFeasible(sdpi) && SCIPsdpiIsDualFeasible(sdpi) )
       {
          SCIP_SOL* scipsol;
-         SCIP_SOL* preoptimalsol = NULL;
-         SCIP_CONS* savedcons;
-         SCIP_Bool preoptimalsolsuccess = FALSE;
          int slength;
 
          /* get solution w.r.t. SCIP variables */
@@ -3650,179 +3852,11 @@ SCIP_RETCODE calcRelax(
          /* save solution for warmstarts (only if we did not use the penalty formulation, since this would change the problem structure) */
          if ( relaxdata->warmstart && SCIPsdpiSolvedOrig(relaxdata->sdpi) )
          {
-            SCIP_Real maxprimalentry;
-            char consname[SCIP_MAXSTRLEN];
-#ifndef NDEBUG
-            int snprintfreturn; /* this is used to assert that the SCIP string concatenation works */
-#endif
-
-            /* use preoptimal solution if using DSDP and parameter is set accordingly */
-            if ( relaxdata->warmstartpreoptsol )
-            {
-               if ( strcmp(SCIPsdpiGetSolverName(), "DSDP") == 0.0 || strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0.0 )
-               {
-                  SCIP_Real* preoptimalvec;
-                  int nvarsgiven;
-
-                  SCIP_CALL( SCIPallocBufferArray(scip, &preoptimalvec, nvars) );
-                  nvarsgiven = nvars;
-
-                  if ( SCIPsdpiDoesWarmstartNeedPrimal() )
-                  {
-                     maxprimalentry = 0.0;
-                     if ( relaxdata->warmstartprimaltype == 3 )
-                     {
-                        nblocks = SCIPconshdlrGetNConss(relaxdata->sdpconshdlr) + SCIPconshdlrGetNConss(relaxdata->sdprank1conshdlr) + 1; /* +1 for the LP part */
-                        SCIP_CALL( SCIPallocBufferArray(scip, &startXnblocknonz, nblocks) );
-
-                        /* get amount of memory to allocate for row/col/val from sdpi */
-                        SCIP_CALL( SCIPsdpiGetPreoptimalPrimalNonzeros(relaxdata->sdpi, nblocks, startXnblocknonz) );
-
-                        /* check if the primal matrix exists, otherwise skip creation of the savedsol contraint */
-                        if ( startXnblocknonz[0] > -1 )
-                        {
-                           preoptimalsolsuccess = TRUE;
-
-                           SCIP_CALL( SCIPallocBufferArray(scip, &startXrow, nblocks) );
-                           SCIP_CALL( SCIPallocBufferArray(scip, &startXcol, nblocks) );
-                           SCIP_CALL( SCIPallocBufferArray(scip, &startXval, nblocks) );
-
-                           /* allocate memory for different blocks in row/col/val */
-                           for (b = 0; b < nblocks; b++)
-                           {
-                              SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], startXnblocknonz[b]) );
-                              SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], startXnblocknonz[b]) );
-                              SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], startXnblocknonz[b]) );
-                           }
-
-                           SCIP_CALL( SCIPsdpiGetPreoptimalSol(relaxdata->sdpi, &preoptimalsolsuccess, preoptimalvec, &nvarsgiven,
-                                 nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
-                        }
-                        else
-                           preoptimalsolsuccess = FALSE;
-                     }
-                     else
-                     {
-                        nblocks = 0;
-                        maxprimalentry = SCIPsdpiGetMaxPrimalEntry(relaxdata->sdpi);
-                     }
-                  }
-                  else
-                  {
-                     maxprimalentry = 0.0;
-                     SCIP_CALL( SCIPsdpiGetPreoptimalSol(relaxdata->sdpi, &preoptimalsolsuccess, preoptimalvec, &nvarsgiven,
-                           -1, NULL, NULL, NULL, NULL) );
-                     nblocks = 0;
-                  }
-
-                  if ( preoptimalsolsuccess )
-                  {
-                     assert( nvarsgiven == nvars ); /* length of solution should be nvars */
-
-                     /* create SCIP solution */
-                     SCIP_CALL( SCIPcreateSol(scip, &preoptimalsol, NULL) );
-                     SCIP_CALL( SCIPsetSolVals(scip, preoptimalsol, nvars, vars, preoptimalvec) );
-                  }
-
-                  SCIPfreeBufferArray(scip, &preoptimalvec);
-               }
-               else
-               {
-                  SCIPerrorMessage("Warmstarting with preoptimal solutions currently only supported for DSDP and SDPA\n");
-                  return SCIP_LPERROR;
-               }
-            }
-            else if ( SCIPsdpiDoesWarmstartNeedPrimal() )
-            {
-               maxprimalentry = 0.0;
-               if ( relaxdata->warmstartprimaltype == 3 )
-               {
-                  nblocks = SCIPconshdlrGetNConss(relaxdata->sdpconshdlr) + SCIPconshdlrGetNConss(relaxdata->sdprank1conshdlr) + 1; /* +1 for the LP part */
-                  SCIP_CALL( SCIPallocBufferArray(scip, &startXnblocknonz, nblocks) );
-                  SCIP_CALL( SCIPallocBufferArray(scip, &startXrow, nblocks) );
-                  SCIP_CALL( SCIPallocBufferArray(scip, &startXcol, nblocks) );
-                  SCIP_CALL( SCIPallocBufferArray(scip, &startXval, nblocks) );
-
-                  /* get amount of memory to allocate for row/col/val from sdpi */
-                  SCIP_CALL( SCIPsdpiGetPrimalNonzeros(relaxdata->sdpi, nblocks, startXnblocknonz) );
-
-                  /* allocate memory for different blocks in row/col/val */
-                  for (b = 0; b < nblocks; b++)
-                  {
-                     SCIP_CALL( SCIPallocBufferArray(scip, &startXrow[b], startXnblocknonz[b]) );
-                     SCIP_CALL( SCIPallocBufferArray(scip, &startXcol[b], startXnblocknonz[b]) );
-                     SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], startXnblocknonz[b]) );
-                  }
-                  SCIP_CALL( SCIPsdpiGetPrimalMatrix(sdpi, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
-               }
-               else
-               {
-                  nblocks = 0;
-                  maxprimalentry = SCIPsdpiGetMaxPrimalEntry(relaxdata->sdpi);
-               }
-            }
-            else
-            {
-               maxprimalentry = 0.0;
-               nblocks = 0;
-            }
-#ifndef NDEBUG
-            snprintfreturn = SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
-            assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether name fit into string */
-#else
-            (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
-#endif
-            if ( relaxdata->warmstartpreoptsol )
-            {
-               /* only create constraint if the preoptimal solution exists, otherwise we don't want to warmstart at all */
-               if ( preoptimalsolsuccess )
-               {
-                  SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), preoptimalsol,
-                        maxprimalentry, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
-
-                  SCIP_CALL( SCIPaddCons(scip, savedcons) );
-                  SCIP_CALL( SCIPreleaseCons(scip, &savedcons) );
-               }
-            }
-            else
-            {
-               SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), scipsol,
-                     maxprimalentry, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
-
-               SCIP_CALL( SCIPaddCons(scip, savedcons) );
-               SCIP_CALL( SCIPreleaseCons(scip, &savedcons) );
-            }
-
-            if ( SCIPsdpiDoesWarmstartNeedPrimal() && relaxdata->warmstartprimaltype == 3 )
-            {
-               /* free memory for primal matrix */
-               assert( startXnblocknonz != NULL );
-               if ( startXnblocknonz[0] > 1 ) /* no memory was allocated if computation of preoptimal solution failed */
-               {
-                  for (b = 0; b < nblocks; b++)
-                  {
-                     assert( startXval != NULL ); /* for lint */
-                     assert( startXcol != NULL ); /* for lint */
-                     assert( startXrow != NULL ); /* for lint */
-
-                     SCIPfreeBufferArrayNull(scip, &startXval[b]);
-                     SCIPfreeBufferArrayNull(scip, &startXcol[b]);
-                     SCIPfreeBufferArrayNull(scip, &startXrow[b]);
-                  }
-                  SCIPfreeBufferArrayNull(scip, &startXval);
-                  SCIPfreeBufferArrayNull(scip, &startXcol);
-                  SCIPfreeBufferArrayNull(scip, &startXrow);
-               }
-               SCIPfreeBufferArrayNull(scip, &startXnblocknonz);
-            }
+            SCIP_CALL( saveWarmstartInfo(scip, relax, relaxdata) );
          }
 
          SCIPfreeBufferArray(scip, &solforscip);
          SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
-         if ( preoptimalsolsuccess )
-         {
-            SCIP_CALL( SCIPfreeSol(scip, &preoptimalsol) );
-         }
       }
    }
    else
