@@ -3353,11 +3353,11 @@ SCIP_RETCODE determineWarmStartInformation(
 static
 SCIP_RETCODE saveWarmstartInfo(
    SCIP*                 scip,               /**< SCIP pointer */
-   SCIP_RELAXDATA*       relaxdata           /**< relaxator data */
+   SCIP_RELAXDATA*       relaxdata,          /**< relaxator data */
+   SCIP_SOL*             scipsol             /**< solution for SCIP */
    )
 {
    char consname[SCIP_MAXSTRLEN];
-   SCIP_SOL* scipsol;
    SCIP_SOL* preoptimalsol = NULL;
    SCIP_CONS* savedcons;
    SCIP_VAR** vars;
@@ -3502,18 +3502,16 @@ SCIP_RETCODE saveWarmstartInfo(
       SCIP_CALL( SCIPreleaseCons(scip, &savedcons) );
    }
 
-   if ( SCIPsdpiDoesWarmstartNeedPrimal() && relaxdata->warmstartprimaltype == 3 )
+   if ( startXnblocknonz != NULL )
    {
       /* free memory for primal matrix */
       assert( startXnblocknonz != NULL );
-      if ( startXnblocknonz[0] > 1 ) /* no memory was allocated if computation of preoptimal solution failed */
+      if ( startXval != NULL )
       {
+         assert( startXcol != NULL ); /* for lint */
+         assert( startXrow != NULL ); /* for lint */
          for (b = 0; b < nblocks; b++)
          {
-            assert( startXval != NULL ); /* for lint */
-            assert( startXcol != NULL ); /* for lint */
-            assert( startXrow != NULL ); /* for lint */
-
             SCIPfreeBufferArrayNull(scip, &startXval[b]);
             SCIPfreeBufferArrayNull(scip, &startXcol[b]);
             SCIPfreeBufferArrayNull(scip, &startXrow[b]);
@@ -3524,11 +3522,13 @@ SCIP_RETCODE saveWarmstartInfo(
       }
       SCIPfreeBufferArrayNull(scip, &startXnblocknonz);
    }
+   assert( startXval == NULL );
 
    if ( preoptimalsolsuccess )
    {
       SCIP_CALL( SCIPfreeSol(scip, &preoptimalsol) );
    }
+   assert( preoptimalsol == NULL );
 
    return SCIP_OKAY;
 }
@@ -3671,7 +3671,7 @@ SCIP_RETCODE calcRelax(
 
    /* free warmstart information */
    SCIPfreeBufferArrayNull(scip, &starty);
-   if ( relaxdata->warmstart && SCIPsdpiDoesWarmstartNeedPrimal() )
+   if ( relaxdata->warmstart && SCIPsdpiDoesWarmstartNeedPrimal() && startXval != NULL )
    {
       SCIP_CONSHDLR* sdpconshdlr;
       SCIP_CONSHDLR* sdprank1conshdlr;
@@ -3830,11 +3830,11 @@ SCIP_RETCODE calcRelax(
          /* save solution for warmstarts (only if we did not use the penalty formulation, since this would change the problem structure) */
          if ( relaxdata->warmstart && SCIPsdpiSolvedOrig(relaxdata->sdpi) )
          {
-            SCIP_CALL( saveWarmstartInfo(scip, relaxdata) );
+            SCIP_CALL( saveWarmstartInfo(scip, relaxdata, scipsol) );
          }
 
-         SCIPfreeBufferArray(scip, &solforscip);
          SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
+         SCIPfreeBufferArray(scip, &solforscip);
       }
    }
    else
