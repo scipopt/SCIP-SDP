@@ -3486,8 +3486,9 @@ SCIP_RETCODE calcRelax(
    SCIP_CALL( SCIPsdpiSolve(sdpi, starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval, startsetting, enforceslater, timelimit) );
    SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
 
+   /* free warmstart information */
    SCIPfreeBufferArrayNull(scip, &starty);
-   if ( SCIPsdpiDoesWarmstartNeedPrimal() )
+   if ( relaxdata->warmstart && SCIPsdpiDoesWarmstartNeedPrimal() )
    {
       SCIP_CONSHDLR* sdpconshdlr;
       SCIP_CONSHDLR* sdprank1conshdlr;
