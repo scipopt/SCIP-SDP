@@ -3578,6 +3578,19 @@ SCIP_RETCODE calcRelax(
    assert( result != NULL );
    assert( lowerbound != NULL );
 
+   /* set time limit */
+   SCIP_CALL( SCIPgetRealParam(scip, "limits/time", &timelimit) );
+   if ( ! SCIPisInfinity(scip, timelimit) )
+   {
+      timelimit -= SCIPgetSolvingTime(scip);
+      if ( timelimit <= 0.0 )
+      {
+         SCIPdebugMsg(scip, "Time limit reached, not running relax SDP!\n");
+         *result = SCIP_DIDNOTRUN;
+         return SCIP_OKAY;
+      }
+   }
+
    relaxdata = SCIPrelaxGetData(relax);
    assert( relaxdata != NULL );
 
@@ -3598,7 +3611,7 @@ SCIP_RETCODE calcRelax(
    rootnode = SCIPgetDepth(scip) == 0 ? TRUE : FALSE;
 
    /* find settings to use for this relaxation */
-   if ( rootnode || (SCIPgetDepth(scip) == relaxdata->settingsresetofs) ||
+   if ( rootnode || SCIPgetDepth(scip) == relaxdata->settingsresetofs ||
       ( relaxdata->settingsresetfreq > 0 && ((SCIPgetDepth(scip) - relaxdata->settingsresetofs) % relaxdata->settingsresetfreq == 0)) ||
       ( strcmp(SCIPsdpiGetSolverName(), "DSDP") == 0) || (strstr(SCIPsdpiGetSolverName(), "Mosek") != NULL) )
    {
@@ -3632,19 +3645,6 @@ SCIP_RETCODE calcRelax(
       {
          SCIPdebugMsg(scip, "Startsetting from parent node not found, restarting settings!\n");
          startsetting = SCIP_SDPSOLVERSETTING_UNSOLVED;
-      }
-   }
-
-   /* set time limit */
-   SCIP_CALL( SCIPgetRealParam(scip, "limits/time", &timelimit) );
-   if ( ! SCIPisInfinity(scip, timelimit) )
-   {
-      timelimit -= SCIPgetSolvingTime(scip);
-      if ( timelimit <= 0.0 )
-      {
-         SCIPdebugMsg(scip, "Time limit reached, not running relax SDP!\n");
-         *result = SCIP_DIDNOTRUN;
-         return SCIP_OKAY;
       }
    }
 
