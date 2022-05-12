@@ -3675,7 +3675,7 @@ SCIP_RETCODE calcRelax(
 
    /* free warmstart information */
    SCIPfreeBufferArrayNull(scip, &starty);
-   if ( relaxdata->warmstart && SCIPsdpiDoesWarmstartNeedPrimal() && startXval != NULL )
+   if ( startXval != NULL )
    {
       SCIP_CONSHDLR* sdpconshdlr;
       SCIP_CONSHDLR* sdprank1conshdlr;
