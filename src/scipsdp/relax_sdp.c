@@ -1253,6 +1253,1126 @@ SCIP_RETCODE putLpDataInInterface(
    return SCIP_OKAY;
 }
 
+
+/** solve primal rounding problem to determine warm start information
+ *
+ * Solve the primal rounding problem
+ * \f{eqnarray*}{
+ *    \max & & \sum_{k \in K} A_0^{(k)} \bullet (V^{(k)} \text{diag}(\lambda^{(k)}) (V^{(k)})^T) + \sum_{j \in J} c_j x_j - \sum_{i \in I_u} u_i v_i + \sum_{i \in I_\ell} \ell_i w_i \ \
+ *    \mbox{s.t.} & & \sum_{k \in K} A_i^{(k)} \bullet (V^{(k)} \text{diag}(\lambda^{(k)}) (V^{(k)})^T) + \sum_{j \in J} d_{ij} x_j - 1_{\{u_i < \infty\}} v_i + 1_{\{\ell_i > -\infty\}} w_i = b_i \quad \forall \ i \in I,\ \
+ *    & & \lambda^{(k)}_i \geq 0 \quad \forall \ k \in K, i \leq n \    \
+ *    & & x_j \geq 0 \quad \forall \ j \in J,\                          \
+ *    & & v_i \geq 0 \quad \forall \ i \in I_u,\                        \
+ *    & & w_i \geq 0 \quad \forall \ i \in I_\ell,
+ * \f}
+ * where \f$ V^{(k)} \text{diag}(\bar{\lambda}^{(k)}) (V^{(k)})^T \f$ is an eigenvector decomposition of the optimal primal solution
+ * of the parent node, as well as the dual rounding problem
+ * \f{eqnarray*}{
+ *    \min & & b^T y \                                                  \
+ *    \mbox{s.t.} & & \sum_{i \in I} d_{ij} y_i \geq c_j \quad \forall \ j \in J, \ \
+ *    & & \sum_{i \in I} A_i^{(k)} y_i - A_0^{(k)} = V^{(k)} \text{diag}(\lambda^{(k)}) (V^{(k)})^T \quad \forall \ k \in K, \ \
+ *    & & \ell_i \leq y_i \leq u_i \quad \forall \ i \in I, \           \
+ *    & & \lambda^{(k)}_i \geq 0 \quad \forall \ k \in K, i \leq n \    \
+ * \f}
+ * where \f$ V^{(k)} \text{diag}(\bar{\lambda}^{(k)}) (V^{(k)})^T \f$ is now an eigenvector decomposition of the optimal solution
+ * of the parent node for the dual problem. The matrix equation is reformulated as blocksize * (blocksize + 1) /2 linear constraints
+ * over the lower triangular entries.
+ */
+static
+SCIP_RETCODE solvePrimalRoundingProblem(
+   SCIP*                 scip,               /**< SCIP pointer */
+   SCIP_RELAX*           relax,              /**< relaxator */
+   SCIP_RELAXDATA*       relaxdata,          /**< relaxator data */
+   int                   nblocks,            /**< number of blocks */
+   SCIP_CONS**           sdpblocks,          /**< SDP blocks */
+   int                   blocksize,          /**< dimension of current block */
+   SCIP_CONS*            cons,               /**< solution contraint */
+   SCIP_Real             maxprimalentry,     /**< maximal entry */
+   SCIP_Real**           starty,             /**< pointer to dual vector y as starting point for the solver */
+   int**                 startZnblocknonz,   /**< pointer to dual matrix Z = sum Ai yi as starting point for the solver: number of nonzeros for each block,
+                                              *   also length of corresponding row/col/val-arrays */
+   int***                startZrow,          /**< pointer to dual matrix Z = sum Ai yi as starting point for the solver: row indices for each block */
+   int***                startZcol,          /**< pointer to dual matrix Z = sum Ai yi as starting point for the solver: column indices for each block */
+   SCIP_Real***          startZval,          /**< pointer to dual matrix Z = sum Ai yi as starting point for the solver: values for each block */
+   int**                 startXnblocknonz,   /**< pointer to primal matrix X as starting point for the solver: number of nonzeros for each block,
+                                              *   also length of corresponding row/col/val-arrays */
+   int***                startXrow,          /**< pointer to primal matrix X as starting point for the solver: row indices for each block */
+   int***                startXcol,          /**< pointer to primal matrix X as starting point for the solver: column indices for each block */
+   SCIP_Real***          startXval,          /**< pointer to primal matrix X as starting point for the solver: values for each block */
+   SCIP_Real*            lowerbound,         /**< pointer to store lowerbound */
+   SCIP_RESULT*          result              /**< result pointer */
+   )
+{
+   SCIP_VAR** blockvars;
+   SCIP_LPI* lpi;
+   SCIP_ROW** rows;
+   SCIP_ROW* row;
+   SCIP_VAR** vars;
+   SCIP_COL** rowcols;
+   SCIP_Real** blockval;
+   SCIP_Real** blockeigenvalues;
+   SCIP_Real** blockeigenvectors;
+   SCIP_Real** blockrowvals;
+   SCIP_Real* obj;
+   SCIP_Real* lb;
+   SCIP_Real* ub;
+   SCIP_Real* lhs;
+   SCIP_Real* rhs;
+   SCIP_Real* val;
+   SCIP_Real* blockconstval;
+   SCIP_Real* scaledeigenvectors;
+   SCIP_Real* fullXmatrix;
+   SCIP_Real* fullZmatrix;
+   SCIP_Real* rowvals;
+   SCIP_Real rowlhs;
+   SCIP_Real rowrhs;
+   SCIP_Real varobj;
+   SCIP_Real epsilon;
+   SCIP_Real primalroundobj;
+   SCIP_Real dualroundobj;
+   int** blockcol;
+   int** blockrow;
+   int** blockrowcols;
+   int* beg;
+   int* ind;
+   int* blocknvarnonz;
+   int* blockconstcol;
+   int* blockconstrow;
+   int* blocksizes;
+   int* nblockrownonz;
+   int* rowinds;
+   int rownnonz;
+   int indpos;
+   int startpos;
+   int blocknvars;
+   int blocknnonz;
+   int arraylength;
+   int blockconstnnonz;
+   int varind;
+   int roundingvars;
+   int matrixsize;
+   int evind;
+   int matrixpos;
+   int nroundingrows;
+   int nremovedentries;
+   int nrows;
+   int nvars;
+   int pos;
+   int j;
+   int c;
+   int b;
+   int v;
+   int r;
+   int i;
+
+   assert( scip != NULL );
+   assert( relaxdata->warmstartproject == 4 );
+
+   /* since the main purpose of the rounding problem approach is detecting infeasibility through the restricted primal problem,
+    * it doesn't make sense to use this approach unless the whole primal solution is saved */
+   if ( relaxdata->warmstartprimaltype != 3 )
+   {
+      SCIPerrorMessage("Invalid parameter combination, use relax/warmstartproject = 4 only with relax/warmstartprimaltype = 3.\n");
+      return SCIP_PARAMETERWRONGVAL;
+   }
+
+   /* get some data */
+   nvars = SCIPgetNVars(scip);
+   assert( nvars >= 0 );
+   vars = SCIPgetVars(scip);
+   assert( vars != NULL );
+
+   SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
+
+   SCIP_CALL( SCIPstartClock(scip, relaxdata->roundingprobtime) );
+
+   /* since we cannot compute the number of nonzeros of the solution of the rounding problem beforehand, we allocate the maximum possible (blocksize * (blocksize + 1) / 2 */
+   for (b = 0; b < nblocks; b++)
+   {
+      matrixsize = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
+      matrixsize = (matrixsize * (matrixsize + 1)) / 2;
+      (*startXnblocknonz)[b] = matrixsize;
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &(*startXrow)[b], matrixsize) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &(*startXcol)[b], matrixsize) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &(*startXval)[b], matrixsize) );
+   }
+
+   /* allocate memory for LP and variable bound block of warmstart matrix (note that we need to allocate the maximum, since additional
+    * entries may be generated through the convex combination */
+   SCIP_CALL( SCIPallocBufferArray(scip, &(*startXrow)[nblocks], 2 * nvars + 2 * nrows) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &(*startXcol)[nblocks], 2 * nvars + 2 * nrows) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &(*startXval)[nblocks], 2 * nvars + 2 * nrows) );
+   (*startXnblocknonz)[nblocks] = 2 * nvars + 2 * nrows;
+
+   SCIP_CALL( SCIPconsSavesdpsolGetPrimalMatrix(scip, cons, nblocks + 1, (*startXnblocknonz), (*startXrow), (*startXcol), (*startXval)) );
+
+   lpi = relaxdata->lpi;
+
+   /* clear the old LP */
+   SCIP_CALL( SCIPlpiClear(lpi) );
+
+   /* we want to maximize for the primal rounding problem */
+   SCIP_CALL( SCIPlpiChgObjsen(lpi, SCIP_OBJSEN_MAXIMIZE) );
+
+   /* if the varmapper has a different number of variables than SCIP, we might get problems with empty spots in the obj/lb/ub arrays */
+   assert( SCIPsdpVarmapperGetNVars(relaxdata->varmapper) == nvars );
+
+   /* initialize the rows */
+   SCIP_CALL( SCIPallocBufferArray(scip, &lhs, nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &rhs, nvars) );
+   for (v = 0; v < nvars; v++)
+   {
+      varobj = SCIPvarGetObj(vars[v]);
+      lhs[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])] = varobj;
+      rhs[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])] = varobj;
+   }
+
+   /* this vector will be used to later map the solution to the correspoding blocks */
+   SCIP_CALL( SCIPallocBufferArray(scip, &blocksizes, nblocks + 2) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &blockeigenvalues, nblocks) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &blockeigenvectors, nblocks) );
+
+   /* initialize rows; columns will be added blockwise later (note that we reenter the whole problem each time
+    * and do not allow warmstarts, we could store the LP- and bound-constraints between nodes (TODO, but would
+    * need to check for added/removed cuts then), but warmstarting doesn't seem to make sense since the whole
+    * SDP part is changed, which should form the main difficulty when solving (MI)SDPs */
+   SCIP_CALL( SCIPlpiAddRows(lpi, nvars, lhs, rhs, NULL, 0, NULL, NULL, NULL) );
+
+   SCIPfreeBufferArray(scip, &rhs);
+   SCIPfreeBufferArray(scip, &lhs);
+
+   /* add columns corresponding to bound constraints (at most we get two entries [lb & ub] per variable) */
+   SCIP_CALL( SCIPallocBufferArray(scip, &obj, 2*nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &lb, 2*nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &ub, 2*nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &beg, 2*nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &ind, 2*nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &val, 2*nvars) );
+
+   /* iterate over all finite variable bounds and set the corresponding entries */
+   pos = 0;
+   for (v = 0; v < nvars; v++)
+   {
+      if ( ! SCIPisInfinity(scip, -SCIPvarGetLbLocal(vars[v])) )
+      {
+         obj[pos] = SCIPvarGetLbLocal(vars[v]);
+         lb[pos] = 0.0;
+         ub[pos] = SCIPlpiInfinity(lpi);
+         beg[pos] = pos;
+         ind[pos] = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v]);
+         val[pos] = 1.0;
+         pos++;
+      }
+
+      if ( ! SCIPisInfinity(scip, SCIPvarGetUbLocal(vars[v])) )
+      {
+         obj[pos] = -1 * SCIPvarGetUbLocal(vars[v]);
+         lb[pos] = 0.0;
+         ub[pos] = SCIPlpiInfinity(lpi);
+         beg[pos] = pos;
+         ind[pos] = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v]);
+         val[pos] = -1.0;
+         pos++;
+      }
+   }
+
+   SCIP_CALL( SCIPlpiAddCols(lpi, pos, obj, lb, ub, NULL, pos, beg, ind, val) );
+   blocksizes[0] = pos;
+   roundingvars = pos;
+
+   SCIPfreeBufferArray(scip, &val);
+   SCIPfreeBufferArray(scip, &ind);
+   SCIPfreeBufferArray(scip, &beg);
+   SCIPfreeBufferArray(scip, &ub);
+   SCIPfreeBufferArray(scip, &lb);
+   SCIPfreeBufferArray(scip, &obj);
+
+   /* add columns corresponding to linear constraints (at most we get two columns per ranged row) */
+   SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
+
+   SCIP_CALL( SCIPallocBufferArray(scip, &obj, 2 * nrows) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &lb, 2 * nrows) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &ub, 2 * nrows) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &beg, 2 * nrows) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &ind, 2 * nrows * nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &val, 2 * nrows * nvars) );
+
+   pos = 0;
+   indpos = 0;
+
+   /* iterate over all LP-ranged-rows and add corresponding entries if lhs and/or rhs is finite */
+   for (r = 0; r < nrows; r++)
+   {
+      row = rows[r];
+      assert( row != 0 );
+      rownnonz = SCIProwGetNNonz(row);
+
+      rowvals = SCIProwGetVals(row);
+      rowcols = SCIProwGetCols(row);
+      rowlhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
+      rowrhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
+
+      if ( ! SCIPisInfinity(scip, -rowlhs) )
+      {
+         obj[pos] = rowlhs;
+         lb[pos] = 0.0;
+         ub[pos] = SCIPlpiInfinity(lpi);
+         beg[pos] = indpos;
+         for (i = 0; i < rownnonz; i++)
+         {
+            ind[indpos] = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[i]));
+            val[indpos] = rowvals[i];
+            indpos++;
+         }
+         pos++;
+      }
+
+      /* since we assume >= constraints in the dual, we have to multiply all entries of <= constraints by -1 */
+      if ( ! SCIPisInfinity(scip, rowrhs) )
+      {
+         obj[pos] = -rowrhs;
+         lb[pos] = 0.0;
+         ub[pos] = SCIPlpiInfinity(lpi);
+         beg[pos] = indpos;
+         for (i = 0; i < rownnonz; i++)
+         {
+            ind[indpos] = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[i]));
+            val[indpos] = -rowvals[i];
+            indpos++;
+         }
+         pos++;
+      }
+   }
+
+   SCIP_CALL( SCIPlpiAddCols(lpi, pos, obj, lb, ub, NULL, indpos, beg, ind, val) );
+   blocksizes[1] = pos;
+   roundingvars += pos;
+
+   SCIPfreeBufferArray(scip, &val);
+   SCIPfreeBufferArray(scip, &ind);
+   SCIPfreeBufferArray(scip, &beg);
+   SCIPfreeBufferArray(scip, &ub);
+   SCIPfreeBufferArray(scip, &lb);
+   SCIPfreeBufferArray(scip, &obj);
+
+   /* finally add columns corresponding to SDP-constraints */
+   for (b = 0; b < nblocks; b++)
+   {
+      /* get data for this SDP block */
+      SCIP_CALL( SCIPconsSdpGetNNonz(scip, sdpblocks[b], NULL, &blockconstnnonz) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &blocknvarnonz, nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &blockcol, nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &blockrow, nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &blockval, nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &blockvars, nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &blockconstcol, blockconstnnonz) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &blockconstrow, blockconstnnonz) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &blockconstval, blockconstnnonz) );
+
+      arraylength = nvars;
+      SCIP_CALL( SCIPconsSdpGetData(scip, sdpblocks[b], &blocknvars, &blocknnonz, &blocksize, &arraylength, blocknvarnonz,
+            blockcol, blockrow, blockval, blockvars, &blockconstnnonz, blockconstcol, blockconstrow, blockconstval, NULL, NULL, NULL) );
+      assert( arraylength == nvars ); /* arraylength should alwys be sufficient */
+
+      matrixsize = blocksize * blocksize;
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &fullXmatrix, matrixsize) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &blockeigenvalues[b], blocksize) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &blockeigenvectors[b], matrixsize) );
+
+      SCIP_CALL( expandSparseMatrix((*startXnblocknonz)[b], blocksize, (*startXrow)[b], (*startXcol)[b], (*startXval)[b], fullXmatrix) );
+
+      SCIP_CALL( SCIPlapackComputeEigenvectorDecomposition(SCIPbuffer(scip), blocksize, fullXmatrix, blockeigenvalues[b], blockeigenvectors[b]) );
+
+      /* compute coefficients for rounding problems, we get blocksize many variables corresponding to the eigenvalues of X* */
+      SCIP_CALL( SCIPallocBufferArray(scip, &obj, blocksize) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &lb, blocksize) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &ub, blocksize) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &beg, blocksize) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &ind, blocksize*nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &val, blocksize*nvars) );
+
+      /* initialize arrays */
+      for (i = 0; i < blocksize; i++)
+      {
+         obj[i] = 0.0;
+         beg[i] = i * nvars;
+
+         for (v = 0; v < nvars; v++)
+         {
+            ind[i * nvars + v] = v;
+            val[i * nvars + v] = 0.0;
+         }
+
+         /* make all eigenvalues non-negative, so that matrix stays positive semidefinite */
+         lb[i] = 0.0;
+         ub[i] = SCIPlpiInfinity(lpi);
+      }
+
+      /* iterate over constant entries to compute objective coefficients */
+      for (i = 0; i < blockconstnnonz; i++)
+      {
+         /* for every constant matrix entry (k,l) and every eigenvector i, we get an entry A_kl * V_ki *V_li
+          * entry V_ki corresponds to entry k of the i-th eigenvector, which is given as the i-th row of the eigenvectors array
+          * note that we need to mulitply by two for non-diagonal entries to also account for entry (l,k) */
+         for (evind = 0; evind < blocksize; evind++)
+         {
+            if ( blockconstrow[i] == blockconstcol[i] )
+               obj[evind] += blockconstval[i] * blockeigenvectors[b][evind * blocksize + blockconstrow[i]] * blockeigenvectors[b][evind * blocksize + blockconstcol[i]];
+            else
+               obj[evind] += 2 * blockconstval[i] * blockeigenvectors[b][evind * blocksize + blockconstrow[i]] * blockeigenvectors[b][evind * blocksize + blockconstcol[i]];
+         }
+      }
+
+      SCIPfreeBufferArray(scip, &blockconstval);
+      SCIPfreeBufferArray(scip, &blockconstrow);
+      SCIPfreeBufferArray(scip, &blockconstcol);
+
+      /* compute constraint coefficients */
+      for (v = 0; v < blocknvars; v++)
+      {
+         varind = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, blockvars[v]);
+         for (i = 0; i < blocknvarnonz[v]; i++)
+         {
+            /* for every matrix entry (k,l) and every eigenvector i, we get an entry A_kl * V_kj *V_lj
+             * entry V_kj corresponds to entry k of the j-th eigenvector, which is given as the j-th row of the eigenvectors array
+             * note that we need to mulitply by two for non-diagonal entries to also account for entry (l,k) */
+            for (evind = 0; evind < blocksize; evind++)
+            {
+               if ( blockrow[v][i] == blockcol[v][i] )
+                  val[evind * nvars + varind] += blockval[v][i] * blockeigenvectors[b][evind * blocksize + blockrow[v][i]] * blockeigenvectors[b][evind * blocksize + blockcol[v][i]];
+               else
+                  val[evind * nvars + varind] += 2 * blockval[v][i] * blockeigenvectors[b][evind * blocksize + blockrow[v][i]] * blockeigenvectors[b][evind * blocksize + blockcol[v][i]];
+            }
+         }
+      }
+
+      SCIPfreeBufferArray(scip, &blockvars);
+      SCIPfreeBufferArray(scip, &blockval);
+      SCIPfreeBufferArray(scip, &blockrow);
+      SCIPfreeBufferArray(scip, &blockcol);
+      SCIPfreeBufferArray(scip, &blocknvarnonz);
+      SCIPfreeBufferArray(scip, &fullXmatrix);
+
+      /* remove zero entries */
+      nremovedentries = 0;
+      for (i = 0; i < blocksize; i++)
+      {
+         beg[i] = beg[i] - nremovedentries;
+         for (v = 0; v < nvars; v++)
+         {
+            if ( REALABS(val[i * nvars + v]) < SCIPepsilon(scip) )
+            {
+               nremovedentries++;
+            }
+            else
+            {
+               val[i * nvars + v - nremovedentries] = val[i * nvars + v];
+               ind[i * nvars + v - nremovedentries] = ind[i * nvars + v];
+            }
+         }
+      }
+
+      SCIP_CALL( SCIPlpiAddCols(lpi, blocksize, obj, lb, ub, NULL, blocksize*nvars - nremovedentries, beg, ind, val) );
+
+      blocksizes[2 + b] = blocksize;
+      roundingvars += blocksize;
+
+      SCIPfreeBufferArray(scip, &val);
+      SCIPfreeBufferArray(scip, &ind);
+      SCIPfreeBufferArray(scip, &beg);
+      SCIPfreeBufferArray(scip, &ub);
+      SCIPfreeBufferArray(scip, &lb);
+      SCIPfreeBufferArray(scip, &obj);
+   }
+
+   /* solve the problem (since we may encounter unboundedness, which sometimes causes trouble for the CPLEX interior-point solver,
+    * we use the dual Simplex solver) */
+   SCIP_CALL( SCIPlpiSolveDual(lpi) );
+
+   /* get optimal objective value of the primal rounding problem (will be -infinity if infeasible) */
+   SCIP_CALL( SCIPlpiGetObjval(lpi, &primalroundobj) );
+
+   SCIP_CALL( SCIPstopClock(scip, relaxdata->roundingprobtime) );
+
+   /* if the restricted primal problem is already dual infeasible, then the original primal has to be dual infeasible as
+    * well, so the dual we actually want to solve is infeasible and we can cut the node off
+    * the same is true by weak duality if the restricted primal already has a larger objective value than the current cutoff-bound */
+   if ( SCIPlpiIsDualInfeasible(lpi) || SCIPisGE(scip, primalroundobj, SCIPgetCutoffbound(scip)) )
+   {
+      if ( SCIPlpiIsDualInfeasible(lpi) )
+      {
+         SCIPdebugMsg(scip, "Infeasibility of node %lld detected through primal rounding problem during warmstarting\n",
+            SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
+
+         relaxdata->roundingprobinf++;
+      }
+      else if ( SCIPisGT(scip, primalroundobj, SCIPgetCutoffbound(scip)) )
+      {
+         SCIPdebugMsg(scip, "Suboptimality of node %lld detected through primal rounding problem during warmstarting:"
+            "lower bound = %f > %f = cutoffbound\n", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), primalroundobj, SCIPgetCutoffbound(scip));
+
+         relaxdata->roundingcutoff++;
+      }
+
+      /* free memory */
+      SCIPfreeBufferArrayNull(scip, &(*startXval)[nblocks]);
+      SCIPfreeBufferArrayNull(scip, &(*startXcol)[nblocks]);
+      SCIPfreeBufferArrayNull(scip, &(*startXrow)[nblocks]);
+      for (b = 0; b < nblocks; b++)
+      {
+         SCIPfreeBufferArrayNull(scip, &blockeigenvectors[b]);
+         SCIPfreeBufferArrayNull(scip, &blockeigenvalues[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startXval)[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startXcol)[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startXrow)[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startZval)[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startZcol)[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startZrow)[b]);
+      }
+      SCIPfreeBufferArray(scip, &blocksizes);
+      SCIPfreeBufferArray(scip, &blockeigenvectors);
+      SCIPfreeBufferArray(scip, &blockeigenvalues);
+      SCIPfreeBufferArrayNull(scip, &(*startXval));
+      SCIPfreeBufferArrayNull(scip, &(*startXcol));
+      SCIPfreeBufferArrayNull(scip, &(*startXrow));
+      SCIPfreeBufferArrayNull(scip, &startXnblocknonz);
+      SCIPfreeBufferArrayNull(scip, &(*startZval));
+      SCIPfreeBufferArrayNull(scip, &(*startZcol));
+      SCIPfreeBufferArrayNull(scip, &(*startZrow));
+      SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
+      SCIPfreeBufferArrayNull(scip, &sdpblocks);
+      SCIPfreeBufferArray(scip, &starty);
+
+      relaxdata->feasible = FALSE;
+      *result = SCIP_CUTOFF;
+      return SCIP_OKAY;
+   }
+   else if ( relaxdata->warmstartroundonlyinf )
+   {
+      /* in this case we only cared about checking infeasibility and coldstart now */
+      SCIPfreeBufferArrayNull(scip, &(*startXval)[nblocks]);
+      SCIPfreeBufferArrayNull(scip, &(*startXcol)[nblocks]);
+      SCIPfreeBufferArrayNull(scip, &(*startXrow)[nblocks]);
+      for (b = 0; b < nblocks; b++)
+      {
+         SCIPfreeBufferArrayNull(scip, &blockeigenvectors[b]);
+         SCIPfreeBufferArrayNull(scip, &blockeigenvalues[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startXval)[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startXcol)[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startXrow)[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startZval)[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startZcol)[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startZrow)[b]);
+      }
+      SCIPfreeBufferArray(scip, &blocksizes);
+      SCIPfreeBufferArray(scip, &blockeigenvectors);
+      SCIPfreeBufferArray(scip, &blockeigenvalues);
+      SCIPfreeBufferArrayNull(scip, &(*startXval));
+      SCIPfreeBufferArrayNull(scip, &(*startXcol));
+      SCIPfreeBufferArrayNull(scip, &(*startXrow));
+      SCIPfreeBufferArrayNull(scip, &(*startXnblocknonz));
+      SCIPfreeBufferArrayNull(scip, &(*startZval));
+      SCIPfreeBufferArrayNull(scip, &(*startZcol));
+      SCIPfreeBufferArrayNull(scip, &(*startZrow));
+      SCIPfreeBufferArrayNull(scip, &(*startZnblocknonz));
+      SCIPfreeBufferArrayNull(scip, &sdpblocks);
+      SCIPfreeBufferArray(scip, &(*starty));
+
+      return SCIP_OKAY;
+   }
+   else if ( ! SCIPlpiIsOptimal(lpi) )
+   {
+      SCIPdebugMsg(scip, "Solving without warmstart since solving of the primal rounding problem failed with status %d!\n", SCIPlpiGetInternalStatus(lpi));
+      relaxdata->primalroundfails++;
+
+      /* since warmstart computation failed, we solve without warmstart, free memory and skip the remaining warmstarting code */
+      SCIPfreeBufferArrayNull(scip, &(*startXval)[nblocks]);
+      SCIPfreeBufferArrayNull(scip, &(*startXcol)[nblocks]);
+      SCIPfreeBufferArrayNull(scip, &(*startXrow)[nblocks]);
+      for (b = 0; b < nblocks; b++)
+      {
+         SCIPfreeBufferArrayNull(scip, &blockeigenvectors[b]);
+         SCIPfreeBufferArrayNull(scip, &blockeigenvalues[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startXval)[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startXcol)[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startXrow)[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startZval)[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startZcol)[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startZrow)[b]);
+      }
+      SCIPfreeBufferArray(scip, &blocksizes);
+      SCIPfreeBufferArray(scip, &blockeigenvectors);
+      SCIPfreeBufferArray(scip, &blockeigenvalues);
+      SCIPfreeBufferArrayNull(scip, &(*startXval));
+      SCIPfreeBufferArrayNull(scip, &(*startXcol));
+      SCIPfreeBufferArrayNull(scip, &(*startXrow));
+      SCIPfreeBufferArrayNull(scip, &startXnblocknonz);
+      SCIPfreeBufferArrayNull(scip, &(*startZval));
+      SCIPfreeBufferArrayNull(scip, &(*startZcol));
+      SCIPfreeBufferArrayNull(scip, &(*startZrow));
+      SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
+      SCIPfreeBufferArrayNull(scip, &sdpblocks);
+      SCIPfreeBufferArray(scip, &(*starty));
+
+      return SCIP_OKAY;
+   }
+   else
+   {
+      SCIP_Real* optev;
+      int evpos;
+
+      /* the problem was solved to optimality: we construct the primal matrix using the computed eigenvalues */
+      SCIP_CALL( SCIPallocBufferArray(scip, &optev, roundingvars) );
+
+      SCIP_CALL( SCIPlpiGetSol(lpi, NULL, optev, NULL, NULL, NULL) );
+
+      /* build varbound block */
+      pos = blocksizes[1]; /* to save some sorting later, the startX arrays should start with the LP block */
+      evpos = 0;
+      for (v = 0; v < nvars; v++)
+      {
+         (*startXrow)[nblocks][pos] = 2 * nrows + 2 * v;
+         (*startXcol)[nblocks][pos] = 2 * nrows + 2 * v;
+         if ( ! SCIPisInfinity(scip, -1 * SCIPvarGetLbLocal(vars[v])) )
+         {
+            (*startXval)[nblocks][pos] = optev[evpos];
+            evpos++;
+         }
+         else
+            (*startXval)[nblocks][pos] = SCIPinfinity(scip);
+         pos++;
+
+         (*startXrow)[nblocks][pos] = 2 * nrows + 2 * v + 1;
+         (*startXcol)[nblocks][pos] = 2 * nrows + 2 * v + 1;
+         if ( ! SCIPisInfinity(scip, SCIPvarGetUbLocal(vars[v])) )
+         {
+            (*startXval)[nblocks][pos] = optev[evpos];
+            evpos++;
+         }
+         else
+            (*startXval)[nblocks][pos] = SCIPinfinity(scip);
+         pos++;
+      }
+      assert( evpos == blocksizes[0] );
+
+      /* build LP block */
+      pos = 0;
+      evpos = blocksizes[0];
+      for (r = 0; r < nrows; r++)
+      {
+         row = rows[r];
+
+         rowlhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
+         rowrhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
+
+         (*startXrow)[nblocks][pos] = 2 * r;
+         (*startXcol)[nblocks][pos] = 2 * r;
+         if ( ! SCIPisInfinity(scip, -1 * rowlhs) )
+         {
+            (*startXval)[nblocks][pos] = optev[evpos];
+            evpos++;
+         }
+         else
+            (*startXval)[nblocks][pos] = SCIPinfinity(scip);
+         pos++;
+
+         (*startXrow)[nblocks][pos] = 2 * r + 1;
+         (*startXcol)[nblocks][pos] = 2 * r + 1;
+         if ( ! SCIPisInfinity(scip, rowrhs) )
+         {
+            (*startXval)[nblocks][pos] = optev[evpos];
+            evpos++;
+         }
+         else
+            (*startXval)[nblocks][pos] = SCIPinfinity(scip);
+         pos++;
+      }
+      assert( evpos == blocksizes[0] + blocksizes[1] );
+
+      (*startXnblocknonz)[nblocks] = blocksizes[0] + blocksizes[1];
+
+      /* build SDP blocks */
+      pos = blocksizes[0] + blocksizes[1];
+      for (b = 0; b < nblocks; b++)
+      {
+         blocksize = blocksizes[2 + b];
+         matrixsize = blocksize * blocksize;
+
+         /* duplicate memory of eigenvectors to compute diag(lambda_i^*) * U^T */
+         SCIP_CALL( SCIPduplicateBufferArray(scip, &scaledeigenvectors, blockeigenvectors[b], matrixsize) );
+
+         /* compute diag(lambda_i_+) * U^T */
+         SCIP_CALL( scaleTransposedMatrix(blocksize, scaledeigenvectors, &(optev[pos])) );
+
+         /* allocate memory for full X matrix */
+         SCIP_CALL( SCIPallocBufferArray(scip, &fullXmatrix, matrixsize) );
+
+         /* compute U * [diag(lambda_i_+) * U^T] (note that transposes are switched because LAPACK/Fortran uses column-first-format) */
+         SCIP_CALL( SCIPlapackMatrixMatrixMult(blocksizes[2 + b], blocksizes[2 + b], blockeigenvectors[b], TRUE, blocksizes[2 + b], blocksizes[2 + b],
+               scaledeigenvectors, FALSE, fullXmatrix) );
+
+         /* extract sparse matrix */
+         (*startXnblocknonz)[b] = 0;
+         epsilon = SCIPepsilon(scip);
+         for (r = 0; r < blocksize; r++)
+         {
+            for (c = r; c < blocksize; c++)
+            {
+               matrixpos = r * blocksize + c;
+               if ( REALABS(fullXmatrix[matrixpos]) > epsilon )
+               {
+                  (*startXrow)[b][(*startXnblocknonz)[b]] = r;
+                  (*startXcol)[b][(*startXnblocknonz)[b]] = c;
+                  (*startXval)[b][(*startXnblocknonz)[b]] = fullXmatrix[matrixpos];
+                  (*startXnblocknonz)[b]++;
+               }
+            }
+         }
+         pos += blocksizes[2 + b];
+         SCIPfreeBufferArray(scip, &fullXmatrix);
+         SCIPfreeBufferArray(scip, &scaledeigenvectors);
+      }
+      SCIPfreeBufferArray(scip, &optev);
+   }
+
+   /* solve dual rounding problem */
+
+   /* allocate memory for LP and varbound-block (we take a worst-case guess here) */
+   matrixsize = 2 * nvars + 2 * nrows;
+   SCIP_CALL( SCIPallocBufferArray(scip, &(*startZrow)[nblocks], matrixsize) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &(*startZcol)[nblocks], matrixsize) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &(*startZval)[nblocks], matrixsize) );
+
+   /* clear the old LP */
+   SCIP_CALL( SCIPlpiClear(lpi) );
+
+   /* we want to maximize for the primal rounding problem */
+   SCIP_CALL( SCIPlpiChgObjsen(lpi, SCIP_OBJSEN_MINIMIZE) );
+
+   /* compute number of columns */
+   roundingvars = nvars;
+   for (b = 0; b < nblocks; b++)
+      roundingvars += blocksizes[2 + b];
+
+   SCIP_CALL( SCIPallocBufferArray(scip, &obj, roundingvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &lb, roundingvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &ub, roundingvars) );
+
+   for (v = 0; v < nvars; v++)
+   {
+      obj[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])] = SCIPvarGetObj(vars[v]);
+      lb[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])] = SCIPvarGetLbLocal(vars[v]);
+      ub[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])] = SCIPvarGetUbLocal(vars[v]);
+   }
+
+   /* the eigenvalue-variables should all be non-negative, but do not appear in the objective */
+   for (v = nvars; v < roundingvars; v++)
+   {
+      obj[v] = 0.0;
+      lb[v] = 0.0;
+      ub[v] = SCIPlpiInfinity(lpi);
+   }
+
+   /* initialize columns; rows will be added blockwise later (note that we reenter the whole problem each time
+    * and do not allow warmstarts, we could store the LP- and bound-constraints between nodes (TODO, but would
+    * need to check for added/removed cuts then), but warmstarting doesn't seem to make sense since the whole
+    * SDP part is changed, which should form the main difficulty when solving (MI)SDPs */
+   SCIP_CALL( SCIPlpiAddCols(lpi, roundingvars, obj, lb, ub, NULL, 0, NULL, NULL, NULL) );
+
+   SCIPfreeBufferArray(scip, &ub);
+   SCIPfreeBufferArray(scip, &lb);
+   SCIPfreeBufferArray(scip, &obj);
+
+   /* add LP rows */
+   SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
+
+   for (r = 0; r < nrows; r++)
+   {
+      row = rows[r];
+      assert( row != NULL );
+      rownnonz = SCIProwGetNNonz(row);
+
+      rowvals = SCIProwGetVals(row);
+      rowcols = SCIProwGetCols(row);
+      rowlhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
+      rowrhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &rowinds, rownnonz) );
+
+      /* iterate over rowcols and get corresponding indices */
+      for (i = 0; i < rownnonz; i++)
+         rowinds[i] = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[i]));
+
+      pos = 0;
+
+      SCIP_CALL( SCIPlpiAddRows(lpi, 1, &rowlhs, &rowrhs, NULL, rownnonz, &pos, rowinds, rowvals) );
+
+      SCIPfreeBufferArray(scip, &rowinds);
+   }
+
+   /* for each SDP-block add constraints linking y-variables to eigenvalues of Z matrix */
+   startpos = nvars;
+   for (b = 0; b < nblocks; b++)
+   {
+      /* get data for this SDP block */
+      SCIP_CALL( SCIPconsSdpGetNNonz(scip, sdpblocks[b], NULL, &blockconstnnonz) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &blocknvarnonz, nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &blockcol, nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &blockrow, nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &blockval, nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &blockvars, nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &blockconstcol, blockconstnnonz) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &blockconstrow, blockconstnnonz) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &blockconstval, blockconstnnonz) );
+      blocksize = blocksizes[2 + b];
+      matrixsize = blocksize * blocksize;
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &fullZmatrix, matrixsize) );
+
+      SCIP_CALL( expandSparseMatrix((*startZnblocknonz)[b], blocksize, (*startZrow)[b], (*startZcol)[b], (*startZval)[b], fullZmatrix) );
+
+      SCIP_CALL( SCIPlapackComputeEigenvectorDecomposition(SCIPbuffer(scip), blocksize, fullZmatrix, blockeigenvalues[b], blockeigenvectors[b]) );
+
+      arraylength = nvars;
+      SCIP_CALL( SCIPconsSdpGetData(scip, sdpblocks[b], &blocknvars, &blocknnonz, &blocksize, &arraylength, blocknvarnonz,
+            blockcol, blockrow, blockval, blockvars, &blockconstnnonz, blockconstcol, blockconstrow, blockconstval, NULL, NULL, NULL) );
+
+      nroundingrows = (blocksize * (blocksize + 1)) / 2;
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &lhs, nroundingrows) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &rhs, nroundingrows) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &nblockrownonz , nroundingrows) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &blockrowcols , nroundingrows) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &blockrowvals , nroundingrows) );
+
+      /* initialize lhs and rhs with 0 and allocate memory for nonzeros (we take the worst case of nvars y entries and blocksize lambda entries) */
+      for (i = 0; i < nroundingrows; i++)
+      {
+         lhs[i] = 0.0;
+         rhs[i] = 0.0;
+
+         nblockrownonz[i] = 0;
+         SCIP_CALL( SCIPallocBufferArray(scip, &blockrowcols[i], nvars + blocksize) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &blockrowvals[i], nvars + blocksize) );
+      }
+
+      /* iterate over constant matrix to compute right-hand sides of equality constraints */
+      for (i = 0; i < blockconstnnonz; i++)
+      {
+         assert( lhs[SCIPconsSdpCompLowerTriangPos(blockconstrow[i], blockconstcol[i])] == 0.0 ); /* there should only be a single entry per index-pair */
+         lhs[SCIPconsSdpCompLowerTriangPos(blockconstrow[i], blockconstcol[i])] = blockconstval[i];
+         rhs[SCIPconsSdpCompLowerTriangPos(blockconstrow[i], blockconstcol[i])] = blockconstval[i];
+      }
+
+      /* iterate over all nonzeros to add them to the roundingrows */
+      for (v = 0; v < blocknvars; v++)
+      {
+         varind = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, blockvars[v]);
+
+         for (i = 0; i < blocknvarnonz[v]; i++)
+         {
+            pos = SCIPconsSdpCompLowerTriangPos(blockrow[v][i], blockcol[v][i]);
+            blockrowcols[pos][nblockrownonz[pos]] = varind;
+            blockrowvals[pos][nblockrownonz[pos]] = blockval[v][i];
+            nblockrownonz[pos]++;
+         }
+      }
+
+      /* add entries corresponding to eigenvalues */
+      for (evind = 0; evind < blocksize; evind++)
+      {
+         for (i = 0; i < blocksize; i++)
+         {
+            for (j = 0; j <= i; j++)
+            {
+               /* for index (i,j) and every eigenvector v, we get an entry -V_iv *V_jv (we get the -1 by transferring this to the left-hand side of the equation)
+                * entry V_iv corresponds to entry i of the v-th eigenvector, which is given as the v-th row of the eigenvectors array */
+               if ( SCIPisGT(scip, REALABS(-1 * blockeigenvectors[b][evind * blocksize + i] * blockeigenvectors[b][evind * blocksize + j]), 0.0) )
+               {
+                  pos = SCIPconsSdpCompLowerTriangPos(i, j);
+                  blockrowcols[pos][nblockrownonz[pos]] = startpos + evind;
+                  blockrowvals[pos][nblockrownonz[pos]] = -1 * blockeigenvectors[b][evind * blocksize + i] * blockeigenvectors[b][evind * blocksize + j];
+                  nblockrownonz[pos]++;
+               }
+            }
+         }
+      }
+      startpos += blocksize;
+
+      pos = 0;
+      /* add the rows one by one */
+      for (r = 0; r < nroundingrows; r++)
+      {
+         SCIP_CALL( SCIPlpiAddRows(lpi, 1, &lhs[r], &rhs[r], NULL, nblockrownonz[r], &pos, blockrowcols[r], blockrowvals[r]) );
+         SCIPfreeBufferArray(scip, &blockrowvals[r]);
+         SCIPfreeBufferArray(scip, &blockrowcols[r]);
+      }
+
+      SCIPfreeBufferArray(scip, &blockrowvals);
+      SCIPfreeBufferArray(scip, &blockrowcols);
+      SCIPfreeBufferArray(scip, &nblockrownonz);
+      SCIPfreeBufferArray(scip, &rhs);
+      SCIPfreeBufferArray(scip, &lhs);
+      SCIPfreeBufferArray(scip, &fullZmatrix);
+      SCIPfreeBufferArray(scip, &blockconstval);
+      SCIPfreeBufferArray(scip, &blockconstrow);
+      SCIPfreeBufferArray(scip, &blockconstcol);
+      SCIPfreeBufferArray(scip, &blockvars);
+      SCIPfreeBufferArray(scip, &blockval);
+      SCIPfreeBufferArray(scip, &blockrow);
+      SCIPfreeBufferArray(scip, &blockcol);
+      SCIPfreeBufferArray(scip, &blocknvarnonz);
+   }
+
+   /* solve the problem (for some reason dual simplex seems to work better here) */
+   SCIP_CALL( SCIPstartClock(scip, relaxdata->roundingprobtime) );
+   SCIP_CALL( SCIPlpiSolveDual(lpi) );
+   SCIP_CALL( SCIPstopClock(scip, relaxdata->roundingprobtime) );
+
+   if ( ! SCIPlpiIsOptimal(lpi) )
+   {
+      SCIPdebugMsg(scip, "Solution of dual rounding problem failed with status %d, continuing without warmstart\n", SCIPlpiGetInternalStatus(lpi));
+      relaxdata->dualroundfails++;
+
+      /* free memory */
+      SCIPfreeBufferArrayNull(scip, &(*startZval)[nblocks]);
+      SCIPfreeBufferArrayNull(scip, &(*startZcol)[nblocks]);
+      SCIPfreeBufferArrayNull(scip, &startZrow[nblocks]);
+      SCIPfreeBufferArrayNull(scip, &(*startXval)[nblocks]);
+      SCIPfreeBufferArrayNull(scip, &(*startXcol)[nblocks]);
+      SCIPfreeBufferArrayNull(scip, &(*startXrow)[nblocks]);
+      for (b = 0; b < nblocks; b++)
+      {
+         SCIPfreeBufferArrayNull(scip, &blockeigenvectors[b]);
+         SCIPfreeBufferArrayNull(scip, &blockeigenvalues[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startZval)[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startZcol)[b]);
+         SCIPfreeBufferArrayNull(scip, &startZrow[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startXval)[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startXcol)[b]);
+         SCIPfreeBufferArrayNull(scip, &(*startXrow)[b]);
+      }
+      SCIPfreeBufferArray(scip, &blocksizes);
+      SCIPfreeBufferArray(scip, &blockeigenvectors);
+      SCIPfreeBufferArray(scip, &blockeigenvalues);
+      SCIPfreeBufferArrayNull(scip, &(*startXval));
+      SCIPfreeBufferArrayNull(scip, &(*startXcol));
+      SCIPfreeBufferArrayNull(scip, &(*startXrow));
+      SCIPfreeBufferArrayNull(scip, &startXnblocknonz);
+      SCIPfreeBufferArrayNull(scip, &(*startZval));
+      SCIPfreeBufferArrayNull(scip, &(*startZcol));
+      SCIPfreeBufferArrayNull(scip, &startZrow);
+      SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
+      SCIPfreeBufferArrayNull(scip, &sdpblocks);
+      SCIPfreeBufferArray(scip, &(*starty));
+
+      /* since warmstart computation failed, we solve without warmstart, free memory and skip the remaining warmstarting code */
+      return SCIP_OKAY;
+   }
+   else
+   {
+      SCIP_Real* optev;
+
+      relaxdata->roundstartsuccess++;
+
+      /* the problem was solved to optimality: we construct the dual vector and matrix using the computed eigenvalues */
+      SCIP_CALL( SCIPallocBufferArray(scip, &optev, nvars + roundingvars) );
+      SCIP_CALL( SCIPlpiGetSol(lpi, &dualroundobj, optev, NULL, NULL, NULL) );
+
+      /* if the objective values of the primal and dual rounding problem agree, the problem has been solved to optimality,
+       * since both of them are respective restrictions of the original primal and dual problem */
+      if ( SCIPisEQ(scip, primalroundobj, dualroundobj) )
+      {
+         SCIP_SOL* scipsol; /* TODO: eliminate this */
+         SCIP_CONS* savedcons;
+
+         SCIPdebugMsg(scip, "Node %lld solved to optimality through rounding problems with optimal objective %f\n",
+            SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), dualroundobj);
+
+         relaxdata->roundingoptimal++;
+
+         /* create SCIP solution (first nvars entries of optev correspond to y variables) */
+         SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
+         SCIP_CALL( SCIPsetSolVals(scip, scipsol, nvars, vars, optev) );
+
+         *lowerbound = dualroundobj;
+         relaxdata->objval = dualroundobj;
+
+         /* copy solution */
+         SCIP_CALL( SCIPsetRelaxSolValsSol(scip, relax, scipsol, TRUE) );
+
+         relaxdata->feasible = TRUE;
+         *result = SCIP_SUCCESS;
+
+         /* save solution for warmstarts */
+         if ( relaxdata->warmstart )
+         {
+            char consname[SCIP_MAXSTRLEN];
+#ifndef NDEBUG
+            int snprintfreturn; /* this is used to assert that the SCIP string concatenation works */
+#endif
+
+#ifndef NDEBUG
+            snprintfreturn = SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
+            assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether name fit into string */
+#else
+            (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
+#endif
+            SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), scipsol,
+                  maxprimalentry, nblocks + 1, (*startXnblocknonz), (*startXrow), (*startXcol), (*startXval)) );
+
+            SCIP_CALL( SCIPaddCons(scip, savedcons) );
+            SCIP_CALL( SCIPreleaseCons(scip, &savedcons) );
+         }
+
+         SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
+
+         /* free memory */
+         SCIPfreeBufferArray(scip, &optev);
+         SCIPfreeBufferArrayNull(scip, &(*startZval)[nblocks]);
+         SCIPfreeBufferArrayNull(scip, &(*startZcol)[nblocks]);
+         SCIPfreeBufferArrayNull(scip, &startZrow[nblocks]);
+         SCIPfreeBufferArrayNull(scip, &(*startXval)[nblocks]);
+         SCIPfreeBufferArrayNull(scip, &(*startXcol)[nblocks]);
+         SCIPfreeBufferArrayNull(scip, &(*startXrow)[nblocks]);
+         for (b = 0; b < nblocks; b++)
+         {
+            SCIPfreeBufferArrayNull(scip,&blockeigenvectors[b]);
+            SCIPfreeBufferArrayNull(scip,&blockeigenvalues[b]);
+            SCIPfreeBufferArrayNull(scip, &(*startXval)[b]);
+            SCIPfreeBufferArrayNull(scip, &(*startXcol)[b]);
+            SCIPfreeBufferArrayNull(scip, &(*startXrow)[b]);
+            SCIPfreeBufferArrayNull(scip, &(*startZval)[b]);
+            SCIPfreeBufferArrayNull(scip, &(*startZcol)[b]);
+            SCIPfreeBufferArrayNull(scip, &startZrow[b]);
+         }
+         SCIPfreeBufferArray(scip, &blocksizes);
+         SCIPfreeBufferArray(scip, &blockeigenvectors);
+         SCIPfreeBufferArray(scip, &blockeigenvalues);
+         SCIPfreeBufferArrayNull(scip, &(*startXval));
+         SCIPfreeBufferArrayNull(scip, &(*startXcol));
+         SCIPfreeBufferArrayNull(scip, &(*startXrow));
+         SCIPfreeBufferArrayNull(scip, &startXnblocknonz);
+         SCIPfreeBufferArrayNull(scip, &(*startZval));
+         SCIPfreeBufferArrayNull(scip, &(*startZcol));
+         SCIPfreeBufferArrayNull(scip, &startZrow);
+         SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
+         SCIPfreeBufferArrayNull(scip, &sdpblocks);
+         SCIPfreeBufferArray(scip, &(*starty));
+
+         return SCIP_OKAY;
+      }
+
+      /* adjust dual vector */
+      for (v = 0; v < nvars; v++)
+      {
+         if ( relaxdata->warmstartiptype == 1 )
+         {
+            /* we take a convex combination with 0, so we just scale */
+            (*starty)[v] = (1 - relaxdata->warmstartipfactor) * optev[v];
+         }
+         else if ( relaxdata->warmstartiptype == 2 )
+         {
+            /* take the convex combination with the saved analytic center */
+            (*starty)[v] = (1 - relaxdata->warmstartipfactor) * optev[v] + relaxdata->warmstartipfactor * SCIPgetSolVal(scip, relaxdata->ipy, vars[v]);
+         }
+      }
+
+      /* build Z matrix */
+      pos = nvars;
+      for (b = 0; b < nblocks; b++)
+      {
+         blocksize = blocksizes[2 + b];
+         matrixsize = blocksize * blocksize;
+
+         /* duplicate memory of eigenvectors to compute diag(lambda_i^*) * U^T */
+         SCIP_CALL( SCIPduplicateBufferArray(scip, &scaledeigenvectors, blockeigenvectors[b], matrixsize) );
+
+         /* compute diag(lambda_i_+) * U^T */
+         SCIP_CALL( scaleTransposedMatrix(blocksize, scaledeigenvectors, &(optev[pos])) );
+
+         /* allocate memory for full Z matrix */
+         SCIP_CALL( SCIPallocBufferArray(scip, &fullZmatrix, matrixsize) );
+
+         /* compute U * [diag(lambda_i_+) * U^T] (note that transposes are switched because LAPACK uses column-first-format) */
+         SCIP_CALL( SCIPlapackMatrixMatrixMult(blocksize, blocksize, blockeigenvectors[b], TRUE, blocksize, blocksize,
+               scaledeigenvectors, FALSE, fullZmatrix) );
+
+         /* extract sparse matrix */
+         (*startZnblocknonz)[b] = 0;
+         epsilon = SCIPepsilon(scip);
+         for (r = 0; r < blocksize; r++)
+         {
+            for (c = r; c < blocksize; c++)
+            {
+               matrixpos = r * blocksize + c;
+               if ( REALABS(fullZmatrix[matrixpos]) > epsilon )
+               {
+                  (*startZrow)[b][(*startZnblocknonz)[b]] = r;
+                  (*startZcol)[b][(*startZnblocknonz)[b]] = c;
+                  (*startZval)[b][(*startZnblocknonz)[b]] = fullZmatrix[matrixpos];
+                  (*startZnblocknonz)[b]++;
+               }
+            }
+         }
+         pos += blocksize;
+         SCIPfreeBufferArray(scip, &fullZmatrix);
+         SCIPfreeBufferArray(scip, &scaledeigenvectors);
+         SCIPfreeBufferArray(scip, &blockeigenvectors[b]);
+         SCIPfreeBufferArray(scip, &blockeigenvalues[b]);
+      }
+
+      SCIPfreeBufferArray(scip, &optev);
+      SCIPfreeBufferArray(scip, &blockeigenvectors);
+      SCIPfreeBufferArray(scip, &blockeigenvalues);
+      SCIPfreeBufferArray(scip, &blocksizes);
+
+      /* build LP and varbound block of Z matrix */
+
+      /* to get a positive definite matrix, all the entries need to be strictly positive */
+      (*startZnblocknonz)[b] = 2 * nrows + 2 * nvars;
+
+      /* fill LP-block */
+      for (r = 0; r < nrows; r++)
+      {
+         SCIP_Real rowval = 0.0;
+
+         /* compute row value for current solution */
+         rownnonz = SCIProwGetNNonz(rows[r]);
+         rowvals = SCIProwGetVals(rows[r]);
+         rowcols = SCIProwGetCols(rows[r]);
+
+         for (i = 0; i < rownnonz; i++)
+            rowval += (*starty)[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[i]))] * rowvals[i];
+
+         (*startZrow)[b][2*r] = 2*r;
+         (*startZcol)[b][2*r] = 2*r;
+         (*startZval)[b][2*r] = rowval - (SCIProwGetLhs(rows[r]) - SCIProwGetConstant(rows[r]));
+
+         (*startZrow)[b][2*r + 1] = 2*r + 1;
+         (*startZcol)[b][2*r + 1] = 2*r + 1;
+         (*startZval)[b][2*r + 1] = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
+      }
+
+      /* fill varbound block */
+      for (v = 0; v < nvars; v++)
+      {
+         (*startZrow)[b][2*nrows + 2*v] = 2*nrows + 2*v;
+         (*startZcol)[b][2*nrows + 2*v] = 2*nrows + 2*v;
+         (*startZval)[b][2*nrows + 2*v] = (*starty)[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])] - SCIPvarGetLbLocal(vars[v]);
+
+         (*startZrow)[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
+         (*startZcol)[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
+         (*startZval)[b][2*nrows + 2*v + 1] = SCIPvarGetUbLocal(vars[v]) - (*starty)[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])];
+      }
+   }
+
+   return SCIP_OKAY;
+}
+
+
 /** determine warm start informtion */
 static
 SCIP_RETCODE determineWarmStartInformation(
@@ -1791,1072 +2911,14 @@ SCIP_RETCODE determineWarmStartInformation(
             }
          }
 
-         /* Solve the primal rounding problem
-          * \f{eqnarray*}{
-          *    \max & & \sum_{k \in K} A_0^{(k)} \bullet (V^{(k)} \text{diag}(\lambda^{(k)}) (V^{(k)})^T) + \sum_{j \in J} c_j x_j - \sum_{i \in I_u} u_i v_i + \sum_{i \in I_\ell} \ell_i w_i \ \
-          *    \mbox{s.t.} & & \sum_{k \in K} A_i^{(k)} \bullet (V^{(k)} \text{diag}(\lambda^{(k)}) (V^{(k)})^T) + \sum_{j \in J} d_{ij} x_j - 1_{\{u_i < \infty\}} v_i + 1_{\{\ell_i > -\infty\}} w_i = b_i \quad \forall \ i \in I,\ \
-          *    & & \lambda^{(k)}_i \geq 0 \quad \forall \ k \in K, i \leq n \ \
-          *    & & x_j \geq 0 \quad \forall \ j \in J,\                 \
-          *    & & v_i \geq 0 \quad \forall \ i \in I_u,\               \
-          *    & & w_i \geq 0 \quad \forall \ i \in I_\ell,
-          * \f}
-          * where \f$ V^{(k)} \text{diag}(\bar{\lambda}^{(k)}) (V^{(k)})^T \f$ is an eigenvector decomposition of the optimal primal solution
-          * of the parent node, as well as the dual rounding problem
-          * \f{eqnarray*}{
-          *    \min & & b^T y \                                         \
-          *    \mbox{s.t.} & & \sum_{i \in I} d_{ij} y_i \geq c_j \quad \forall \ j \in J, \ \
-          *    & & \sum_{i \in I} A_i^{(k)} y_i - A_0^{(k)} = V^{(k)} \text{diag}(\lambda^{(k)}) (V^{(k)})^T \quad \forall \ k \in K, \ \
-          *    & & \ell_i \leq y_i \leq u_i \quad \forall \ i \in I, \  \
-          *    & & \lambda^{(k)}_i \geq 0 \quad \forall \ k \in K, i \leq n \ \
-          * \f}
-          * where \f$ V^{(k)} \text{diag}(\bar{\lambda}^{(k)}) (V^{(k)})^T \f$ is now an eigenvector decomposition of the optimal solution
-          * of the parent node for the dual problem. The matrix equation is reformulated as blocksize * (blocksize + 1) /2 linear constraints
-          * over the lower triangular entries.
-          */
+         /* solve primal rounding problem */
          if ( relaxdata->warmstartproject == 4 )
          {
-            SCIP_VAR** blockvars;
-            SCIP_LPI* lpi;
-            SCIP_ROW* row;
-            SCIP_Real** blockval;
-            SCIP_Real** blockeigenvalues;
-            SCIP_Real** blockeigenvectors;
-            SCIP_Real** blockrowvals;
-            SCIP_Real* obj;
-            SCIP_Real* lb;
-            SCIP_Real* ub;
-            SCIP_Real* lhs;
-            SCIP_Real* rhs;
-            SCIP_Real* val;
-            SCIP_Real* blockconstval;
-            SCIP_Real* scaledeigenvectors;
-            SCIP_Real* fullXmatrix;
-            SCIP_Real* fullZmatrix;
-            SCIP_Real rowlhs;
-            SCIP_Real rowrhs;
-            SCIP_Real varobj;
-            SCIP_Real epsilon;
-            SCIP_Real primalroundobj;
-            SCIP_Real dualroundobj;
-            int** blockcol;
-            int** blockrow;
-            int** blockrowcols;
-            int* beg;
-            int* ind;
-            int* blocknvarnonz;
-            int* blockconstcol;
-            int* blockconstrow;
-            int* blocksizes;
-            int* nblockrownonz;
-            int* rowinds;
-            int pos;
-            int indpos;
-            int startpos;
-            int blocknvars;
-            int blocknnonz;
-            int arraylength;
-            int blockconstnnonz;
-            int varind;
-            int roundingvars;
-            int matrixsize;
-            int evind;
-            int c;
-            int matrixpos;
-            int nroundingrows;
-            int j;
-            int nremovedentries;
-
-            /* since the main purpose of the rounding problem approach is detecting infeasibility through the restricted primal problem,
-             * it doesn't make sense to use this approach unless the whole primal solution is saved */
-            if ( relaxdata->warmstartprimaltype != 3 )
-            {
-               SCIPerrorMessage("Invalid parameter combination, use relax/warmstartproject = 4 only with relax/warmstartprimaltype = 3.\n");
-               return SCIP_PARAMETERWRONGVAL;
-            }
-
-            SCIP_CALL( SCIPstartClock(scip, relaxdata->roundingprobtime) );
-
-            /* since we cannot compute the number of nonzeros of the solution of the rounding problem beforehand, we allocate the maximum possible (blocksize * (blocksize + 1) / 2 */
-            for (b = 0; b < nblocks; b++)
-            {
-               matrixsize = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
-               matrixsize = (matrixsize * (matrixsize + 1)) / 2;
-               (*startXnblocknonz)[b] = matrixsize;
-
-               SCIP_CALL( SCIPallocBufferArray(scip, &(*startXrow)[b], matrixsize) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &(*startXcol)[b], matrixsize) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &(*startXval)[b], matrixsize) );
-            }
-
-            /* allocate memory for LP and variable bound block of warmstart matrix (note that we need to allocate the maximum, since additional
-             * entries may be generated through the convex combination */
-            SCIP_CALL( SCIPallocBufferArray(scip, &(*startXrow)[nblocks], 2 * nvars + 2 * nrows) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &(*startXcol)[nblocks], 2 * nvars + 2 * nrows) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &(*startXval)[nblocks], 2 * nvars + 2 * nrows) );
-            (*startXnblocknonz)[nblocks] = 2 * nvars + 2 * nrows;
-
-            SCIP_CALL( SCIPconsSavesdpsolGetPrimalMatrix(scip, conss[parentconsind], nblocks + 1, (*startXnblocknonz), (*startXrow), (*startXcol), (*startXval)) );
-
-            lpi = relaxdata->lpi;
-
-            /* clear the old LP */
-            SCIP_CALL( SCIPlpiClear(lpi) );
-
-            /* we want to maximize for the primal rounding problem */
-            SCIP_CALL( SCIPlpiChgObjsen(lpi, SCIP_OBJSEN_MAXIMIZE) );
-
-            /* if the varmapper has a different number of variables than SCIP, we might get problems with empty spots in the obj/lb/ub arrays */
-            assert( SCIPsdpVarmapperGetNVars(relaxdata->varmapper) == nvars );
-
-            /* initialize the rows */
-            SCIP_CALL( SCIPallocBufferArray(scip, &lhs, nvars) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &rhs, nvars) );
-            for (v = 0; v < nvars; v++)
-            {
-               varobj = SCIPvarGetObj(vars[v]);
-               lhs[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])] = varobj;
-               rhs[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])] = varobj;
-            }
-
-            /* this vector will be used to later map the solution to the correspoding blocks */
-            SCIP_CALL( SCIPallocBufferArray(scip, &blocksizes, nblocks + 2) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &blockeigenvalues, nblocks) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &blockeigenvectors, nblocks) );
-
-            /* initialize rows; columns will be added blockwise later (note that we reenter the whole problem each time
-             * and do not allow warmstarts, we could store the LP- and bound-constraints between nodes (TODO, but would
-             * need to check for added/removed cuts then), but warmstarting doesn't seem to make sense since the whole
-             * SDP part is changed, which should form the main difficulty when solving (MI)SDPs */
-            SCIP_CALL( SCIPlpiAddRows(lpi, nvars, lhs, rhs, NULL, 0, NULL, NULL, NULL) );
-
-            SCIPfreeBufferArray(scip, &rhs);
-            SCIPfreeBufferArray(scip, &lhs);
-
-            /* add columns corresponding to bound constraints (at most we get two entries [lb & ub] per variable) */
-            SCIP_CALL( SCIPallocBufferArray(scip, &obj, 2*nvars) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &lb, 2*nvars) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &ub, 2*nvars) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &beg, 2*nvars) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &ind, 2*nvars) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &val, 2*nvars) );
-
-            /* iterate over all finite variable bounds and set the corresponding entries */
-            pos = 0;
-            for (v = 0; v < nvars; v++)
-            {
-               if ( ! SCIPisInfinity(scip, -SCIPvarGetLbLocal(vars[v])) )
-               {
-                  obj[pos] = SCIPvarGetLbLocal(vars[v]);
-                  lb[pos] = 0.0;
-                  ub[pos] = SCIPlpiInfinity(lpi);
-                  beg[pos] = pos;
-                  ind[pos] = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v]);
-                  val[pos] = 1.0;
-                  pos++;
-               }
-
-               if ( ! SCIPisInfinity(scip, SCIPvarGetUbLocal(vars[v])) )
-               {
-                  obj[pos] = -1 * SCIPvarGetUbLocal(vars[v]);
-                  lb[pos] = 0.0;
-                  ub[pos] = SCIPlpiInfinity(lpi);
-                  beg[pos] = pos;
-                  ind[pos] = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v]);
-                  val[pos] = -1.0;
-                  pos++;
-               }
-            }
-
-            SCIP_CALL( SCIPlpiAddCols(lpi, pos, obj, lb, ub, NULL, pos, beg, ind, val) );
-            blocksizes[0] = pos;
-            roundingvars = pos;
-
-            SCIPfreeBufferArray(scip, &val);
-            SCIPfreeBufferArray(scip, &ind);
-            SCIPfreeBufferArray(scip, &beg);
-            SCIPfreeBufferArray(scip, &ub);
-            SCIPfreeBufferArray(scip, &lb);
-            SCIPfreeBufferArray(scip, &obj);
-
-            /* add columns corresponding to linear constraints (at most we get two columns per ranged row) */
-            SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
-
-            SCIP_CALL( SCIPallocBufferArray(scip, &obj, 2*nrows) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &lb, 2*nrows) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &ub, 2*nrows) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &beg, 2*nrows) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &ind, 2*nrows*nvars) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &val, 2*nrows*nvars) );
-
-            pos = 0;
-            indpos = 0;
-
-            /* iterate over all LP-ranged-rows and add corresponding entries if lhs and/or rhs is finite */
-            for (r = 0; r < nrows; r++)
-            {
-               row = rows[r];
-               assert( row != 0 );
-               rownnonz = SCIProwGetNNonz(row);
-
-               rowvals = SCIProwGetVals(row);
-               rowcols = SCIProwGetCols(row);
-               rowlhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
-               rowrhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
-
-               if ( ! SCIPisInfinity(scip, -rowlhs) )
-               {
-                  obj[pos] = rowlhs;
-                  lb[pos] = 0.0;
-                  ub[pos] = SCIPlpiInfinity(lpi);
-                  beg[pos] = indpos;
-                  for (i = 0; i < rownnonz; i++)
-                  {
-                     ind[indpos] = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[i]));
-                     val[indpos] = rowvals[i];
-                     indpos++;
-                  }
-                  pos++;
-               }
-
-               /* since we assume >= constraints in the dual, we have to multiply all entries of <= constraints by -1 */
-               if ( ! SCIPisInfinity(scip, rowrhs) )
-               {
-                  obj[pos] = -rowrhs;
-                  lb[pos] = 0.0;
-                  ub[pos] = SCIPlpiInfinity(lpi);
-                  beg[pos] = indpos;
-                  for (i = 0; i < rownnonz; i++)
-                  {
-                     ind[indpos] = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[i]));
-                     val[indpos] = -rowvals[i];
-                     indpos++;
-                  }
-                  pos++;
-               }
-            }
-
-            SCIP_CALL( SCIPlpiAddCols(lpi, pos, obj, lb, ub, NULL, indpos, beg, ind, val) );
-            blocksizes[1] = pos;
-            roundingvars += pos;
-
-            SCIPfreeBufferArray(scip, &val);
-            SCIPfreeBufferArray(scip, &ind);
-            SCIPfreeBufferArray(scip, &beg);
-            SCIPfreeBufferArray(scip, &ub);
-            SCIPfreeBufferArray(scip, &lb);
-            SCIPfreeBufferArray(scip, &obj);
-
-            /* finally add columns corresponding to SDP-constraints */
-            for (b = 0; b < nblocks; b++)
-            {
-               /* get data for this SDP block */
-               SCIP_CALL( SCIPconsSdpGetNNonz(scip, sdpblocks[b], NULL, &blockconstnnonz) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &blocknvarnonz, nvars) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &blockcol, nvars) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &blockrow, nvars) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &blockval, nvars) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &blockvars, nvars) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &blockconstcol, blockconstnnonz) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &blockconstrow, blockconstnnonz) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &blockconstval, blockconstnnonz) );
-
-               arraylength = nvars;
-               SCIP_CALL( SCIPconsSdpGetData(scip, sdpblocks[b], &blocknvars, &blocknnonz, &blocksize, &arraylength, blocknvarnonz,
-                     blockcol, blockrow, blockval, blockvars, &blockconstnnonz, blockconstcol, blockconstrow, blockconstval, NULL, NULL, NULL) );
-               assert( arraylength == nvars ); /* arraylength should alwys be sufficient */
-
-               matrixsize = blocksize * blocksize;
-
-               SCIP_CALL( SCIPallocBufferArray(scip, &fullXmatrix, matrixsize) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &blockeigenvalues[b], blocksize) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &blockeigenvectors[b], matrixsize) );
-
-               SCIP_CALL( expandSparseMatrix((*startXnblocknonz)[b], blocksize, (*startXrow)[b], (*startXcol)[b], (*startXval)[b], fullXmatrix) );
-
-               SCIP_CALL( SCIPlapackComputeEigenvectorDecomposition(SCIPbuffer(scip), blocksize, fullXmatrix, blockeigenvalues[b], blockeigenvectors[b]) );
-
-               /* compute coefficients for rounding problems, we get blocksize many variables corresponding to the eigenvalues of X* */
-               SCIP_CALL( SCIPallocBufferArray(scip, &obj, blocksize) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &lb, blocksize) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &ub, blocksize) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &beg, blocksize) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &ind, blocksize*nvars) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &val, blocksize*nvars) );
-
-               /* initialize arrays */
-               for (i = 0; i < blocksize; i++)
-               {
-                  obj[i] = 0.0;
-                  beg[i] = i * nvars;
-
-                  for (v = 0; v < nvars; v++)
-                  {
-                     ind[i * nvars + v] = v;
-                     val[i * nvars + v] = 0.0;
-                  }
-
-                  /* make all eigenvalues non-negative, so that matrix stays positive semidefinite */
-                  lb[i] = 0.0;
-                  ub[i] = SCIPlpiInfinity(lpi);
-               }
-
-               /* iterate over constant entries to compute objective coefficients */
-               for (i = 0; i < blockconstnnonz; i++)
-               {
-                  /* for every constant matrix entry (k,l) and every eigenvector i, we get an entry A_kl * V_ki *V_li
-                   * entry V_ki corresponds to entry k of the i-th eigenvector, which is given as the i-th row of the eigenvectors array
-                   * note that we need to mulitply by two for non-diagonal entries to also account for entry (l,k) */
-                  for (evind = 0; evind < blocksize; evind++)
-                  {
-                     if ( blockconstrow[i] == blockconstcol[i] )
-                        obj[evind] += blockconstval[i] * blockeigenvectors[b][evind * blocksize + blockconstrow[i]] * blockeigenvectors[b][evind * blocksize + blockconstcol[i]];
-                     else
-                        obj[evind] += 2 * blockconstval[i] * blockeigenvectors[b][evind * blocksize + blockconstrow[i]] * blockeigenvectors[b][evind * blocksize + blockconstcol[i]];
-                  }
-               }
-
-               SCIPfreeBufferArray(scip, &blockconstval);
-               SCIPfreeBufferArray(scip, &blockconstrow);
-               SCIPfreeBufferArray(scip, &blockconstcol);
-
-               /* compute constraint coefficients */
-               for (v = 0; v < blocknvars; v++)
-               {
-                  varind = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, blockvars[v]);
-                  for (i = 0; i < blocknvarnonz[v]; i++)
-                  {
-                     /* for every matrix entry (k,l) and every eigenvector i, we get an entry A_kl * V_kj *V_lj
-                      * entry V_kj corresponds to entry k of the j-th eigenvector, which is given as the j-th row of the eigenvectors array
-                      * note that we need to mulitply by two for non-diagonal entries to also account for entry (l,k) */
-                     for (evind = 0; evind < blocksize; evind++)
-                     {
-                        if ( blockrow[v][i] == blockcol[v][i] )
-                           val[evind * nvars + varind] += blockval[v][i] * blockeigenvectors[b][evind * blocksize + blockrow[v][i]] * blockeigenvectors[b][evind * blocksize + blockcol[v][i]];
-                        else
-                           val[evind * nvars + varind] += 2 * blockval[v][i] * blockeigenvectors[b][evind * blocksize + blockrow[v][i]] * blockeigenvectors[b][evind * blocksize + blockcol[v][i]];
-                     }
-                  }
-               }
-
-               SCIPfreeBufferArray(scip, &blockvars);
-               SCIPfreeBufferArray(scip, &blockval);
-               SCIPfreeBufferArray(scip, &blockrow);
-               SCIPfreeBufferArray(scip, &blockcol);
-               SCIPfreeBufferArray(scip, &blocknvarnonz);
-               SCIPfreeBufferArray(scip, &fullXmatrix);
-
-               /* remove zero entries */
-               nremovedentries = 0;
-               for (i = 0; i < blocksize; i++)
-               {
-                  beg[i] = beg[i] - nremovedentries;
-                  for (v = 0; v < nvars; v++)
-                  {
-                     if ( REALABS(val[i * nvars + v]) < SCIPepsilon(scip) )
-                     {
-                        nremovedentries++;
-                     }
-                     else
-                     {
-                        val[i * nvars + v - nremovedentries] = val[i * nvars + v];
-                        ind[i * nvars + v - nremovedentries] = ind[i * nvars + v];
-                     }
-                  }
-               }
-
-               SCIP_CALL( SCIPlpiAddCols(lpi, blocksize, obj, lb, ub, NULL, blocksize*nvars - nremovedentries, beg, ind, val) );
-
-               blocksizes[2 + b] = blocksize;
-               roundingvars += blocksize;
-
-               SCIPfreeBufferArray(scip, &val);
-               SCIPfreeBufferArray(scip, &ind);
-               SCIPfreeBufferArray(scip, &beg);
-               SCIPfreeBufferArray(scip, &ub);
-               SCIPfreeBufferArray(scip, &lb);
-               SCIPfreeBufferArray(scip, &obj);
-            }
-
-            /* solve the problem (since we may encounter unboundedness, which sometimes causes trouble for the CPLEX interior-point solver,
-             * we use the dual Simplex solver) */
-            SCIP_CALL( SCIPlpiSolveDual(lpi) );
-
-            /* get optimal objective value of the primal rounding problem (will be -infinity if infeasible) */
-            SCIP_CALL( SCIPlpiGetObjval(lpi, &primalroundobj) );
-
-            SCIP_CALL( SCIPstopClock(scip, relaxdata->roundingprobtime) );
-
-            /* if the restricted primal problem is already dual infeasible, then the original primal has to be dual infeasible as
-             * well, so the dual we actually want to solve is infeasible and we can cut the node off
-             * the same is true by weak duality if the restricted primal already has a larger objective value than the current cutoff-bound */
-            if ( SCIPlpiIsDualInfeasible(lpi) || SCIPisGE(scip, primalroundobj, SCIPgetCutoffbound(scip)) )
-            {
-               if ( SCIPlpiIsDualInfeasible(lpi) )
-               {
-                  SCIPdebugMsg(scip, "Infeasibility of node %lld detected through primal rounding problem during warmstarting\n",
-                     SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
-
-                  relaxdata->roundingprobinf++;
-               }
-               else if ( SCIPisGT(scip, primalroundobj, SCIPgetCutoffbound(scip)) )
-               {
-                  SCIPdebugMsg(scip, "Suboptimality of node %lld detected through primal rounding problem during warmstarting:"
-                     "lower bound = %f > %f = cutoffbound\n", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), primalroundobj, SCIPgetCutoffbound(scip));
-
-                  relaxdata->roundingcutoff++;
-               }
-
-               /* free memory */
-               SCIPfreeBufferArrayNull(scip, &(*startXval)[nblocks]);
-               SCIPfreeBufferArrayNull(scip, &(*startXcol)[nblocks]);
-               SCIPfreeBufferArrayNull(scip, &(*startXrow)[nblocks]);
-               for (b = 0; b < nblocks; b++)
-               {
-                  SCIPfreeBufferArrayNull(scip, &blockeigenvectors[b]);
-                  SCIPfreeBufferArrayNull(scip, &blockeigenvalues[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startXval)[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startXcol)[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startXrow)[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startZval)[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startZcol)[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startZrow)[b]);
-               }
-               SCIPfreeBufferArray(scip, &blocksizes);
-               SCIPfreeBufferArray(scip, &blockeigenvectors);
-               SCIPfreeBufferArray(scip, &blockeigenvalues);
-               SCIPfreeBufferArrayNull(scip, &(*startXval));
-               SCIPfreeBufferArrayNull(scip, &(*startXcol));
-               SCIPfreeBufferArrayNull(scip, &(*startXrow));
-               SCIPfreeBufferArrayNull(scip, &startXnblocknonz);
-               SCIPfreeBufferArrayNull(scip, &(*startZval));
-               SCIPfreeBufferArrayNull(scip, &(*startZcol));
-               SCIPfreeBufferArrayNull(scip, &(*startZrow));
-               SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
-               SCIPfreeBufferArrayNull(scip, &sdpblocks);
-               SCIPfreeBufferArray(scip, &starty);
-
-               relaxdata->feasible = FALSE;
-               *result = SCIP_CUTOFF;
-               return SCIP_OKAY;
-            }
-            else if ( relaxdata->warmstartroundonlyinf )
-            {
-               /* in this case we only cared about checking infeasibility and coldstart now */
-               SCIPfreeBufferArrayNull(scip, &(*startXval)[nblocks]);
-               SCIPfreeBufferArrayNull(scip, &(*startXcol)[nblocks]);
-               SCIPfreeBufferArrayNull(scip, &(*startXrow)[nblocks]);
-               for (b = 0; b < nblocks; b++)
-               {
-                  SCIPfreeBufferArrayNull(scip, &blockeigenvectors[b]);
-                  SCIPfreeBufferArrayNull(scip, &blockeigenvalues[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startXval)[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startXcol)[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startXrow)[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startZval)[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startZcol)[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startZrow)[b]);
-               }
-               SCIPfreeBufferArray(scip, &blocksizes);
-               SCIPfreeBufferArray(scip, &blockeigenvectors);
-               SCIPfreeBufferArray(scip, &blockeigenvalues);
-               SCIPfreeBufferArrayNull(scip, &(*startXval));
-               SCIPfreeBufferArrayNull(scip, &(*startXcol));
-               SCIPfreeBufferArrayNull(scip, &(*startXrow));
-               SCIPfreeBufferArrayNull(scip, &(*startXnblocknonz));
-               SCIPfreeBufferArrayNull(scip, &(*startZval));
-               SCIPfreeBufferArrayNull(scip, &(*startZcol));
-               SCIPfreeBufferArrayNull(scip, &(*startZrow));
-               SCIPfreeBufferArrayNull(scip, &(*startZnblocknonz));
-               SCIPfreeBufferArrayNull(scip, &sdpblocks);
-               SCIPfreeBufferArray(scip, &(*starty));
-
-               return SCIP_OKAY;
-            }
-            else if ( ! SCIPlpiIsOptimal(lpi) )
-            {
-               SCIPdebugMsg(scip, "Solving without warmstart since solving of the primal rounding problem failed with status %d!\n", SCIPlpiGetInternalStatus(lpi));
-               relaxdata->primalroundfails++;
-
-               /* since warmstart computation failed, we solve without warmstart, free memory and skip the remaining warmstarting code */
-               SCIPfreeBufferArrayNull(scip, &(*startXval)[nblocks]);
-               SCIPfreeBufferArrayNull(scip, &(*startXcol)[nblocks]);
-               SCIPfreeBufferArrayNull(scip, &(*startXrow)[nblocks]);
-               for (b = 0; b < nblocks; b++)
-               {
-                  SCIPfreeBufferArrayNull(scip, &blockeigenvectors[b]);
-                  SCIPfreeBufferArrayNull(scip, &blockeigenvalues[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startXval)[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startXcol)[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startXrow)[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startZval)[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startZcol)[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startZrow)[b]);
-               }
-               SCIPfreeBufferArray(scip, &blocksizes);
-               SCIPfreeBufferArray(scip, &blockeigenvectors);
-               SCIPfreeBufferArray(scip, &blockeigenvalues);
-               SCIPfreeBufferArrayNull(scip, &(*startXval));
-               SCIPfreeBufferArrayNull(scip, &(*startXcol));
-               SCIPfreeBufferArrayNull(scip, &(*startXrow));
-               SCIPfreeBufferArrayNull(scip, &startXnblocknonz);
-               SCIPfreeBufferArrayNull(scip, &(*startZval));
-               SCIPfreeBufferArrayNull(scip, &(*startZcol));
-               SCIPfreeBufferArrayNull(scip, &(*startZrow));
-               SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
-               SCIPfreeBufferArrayNull(scip, &sdpblocks);
-               SCIPfreeBufferArray(scip, &(*starty));
-
-               return SCIP_OKAY;
-            }
-            else
-            {
-               SCIP_Real* optev;
-               int evpos;
-
-               /* the problem was solved to optimality: we construct the primal matrix using the computed eigenvalues */
-               SCIP_CALL( SCIPallocBufferArray(scip, &optev, roundingvars) );
-
-               SCIP_CALL( SCIPlpiGetSol(lpi, NULL, optev, NULL, NULL, NULL) );
-
-               /* build varbound block */
-               pos = blocksizes[1]; /* to save some sorting later, the startX arrays should start with the LP block */
-               evpos = 0;
-               for (v = 0; v < nvars; v++)
-               {
-                  (*startXrow)[nblocks][pos] = 2 * nrows + 2 * v;
-                  (*startXcol)[nblocks][pos] = 2 * nrows + 2 * v;
-                  if ( ! SCIPisInfinity(scip, -1 * SCIPvarGetLbLocal(vars[v])) )
-                  {
-                     (*startXval)[nblocks][pos] = optev[evpos];
-                     evpos++;
-                  }
-                  else
-                     (*startXval)[nblocks][pos] = SCIPinfinity(scip);
-                  pos++;
-
-                  (*startXrow)[nblocks][pos] = 2 * nrows + 2 * v + 1;
-                  (*startXcol)[nblocks][pos] = 2 * nrows + 2 * v + 1;
-                  if ( ! SCIPisInfinity(scip, SCIPvarGetUbLocal(vars[v])) )
-                  {
-                     (*startXval)[nblocks][pos] = optev[evpos];
-                     evpos++;
-                  }
-                  else
-                     (*startXval)[nblocks][pos] = SCIPinfinity(scip);
-                  pos++;
-               }
-               assert( evpos == blocksizes[0] );
-
-               /* build LP block */
-               pos = 0;
-               evpos = blocksizes[0];
-               for (r = 0; r < nrows; r++)
-               {
-                  row = rows[r];
-
-                  rowlhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
-                  rowrhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
-
-                  (*startXrow)[nblocks][pos] = 2 * r;
-                  (*startXcol)[nblocks][pos] = 2 * r;
-                  if ( ! SCIPisInfinity(scip, -1 * rowlhs) )
-                  {
-                     (*startXval)[nblocks][pos] = optev[evpos];
-                     evpos++;
-                  }
-                  else
-                     (*startXval)[nblocks][pos] = SCIPinfinity(scip);
-                  pos++;
-
-                  (*startXrow)[nblocks][pos] = 2 * r + 1;
-                  (*startXcol)[nblocks][pos] = 2 * r + 1;
-                  if ( ! SCIPisInfinity(scip, rowrhs) )
-                  {
-                     (*startXval)[nblocks][pos] = optev[evpos];
-                     evpos++;
-                  }
-                  else
-                     (*startXval)[nblocks][pos] = SCIPinfinity(scip);
-                  pos++;
-               }
-               assert( evpos == blocksizes[0] + blocksizes[1] );
-
-               (*startXnblocknonz)[nblocks] = blocksizes[0] + blocksizes[1];
-
-               /* build SDP blocks */
-               pos = blocksizes[0] + blocksizes[1];
-               for (b = 0; b < nblocks; b++)
-               {
-                  blocksize = blocksizes[2 + b];
-                  matrixsize = blocksize * blocksize;
-
-                  /* duplicate memory of eigenvectors to compute diag(lambda_i^*) * U^T */
-                  SCIP_CALL( SCIPduplicateBufferArray(scip, &scaledeigenvectors, blockeigenvectors[b], matrixsize) );
-
-                  /* compute diag(lambda_i_+) * U^T */
-                  SCIP_CALL( scaleTransposedMatrix(blocksize, scaledeigenvectors, &(optev[pos])) );
-
-                  /* allocate memory for full X matrix */
-                  SCIP_CALL( SCIPallocBufferArray(scip, &fullXmatrix, matrixsize) );
-
-                  /* compute U * [diag(lambda_i_+) * U^T] (note that transposes are switched because LAPACK/Fortran uses column-first-format) */
-                  SCIP_CALL( SCIPlapackMatrixMatrixMult(blocksizes[2 + b], blocksizes[2 + b], blockeigenvectors[b], TRUE, blocksizes[2 + b], blocksizes[2 + b],
-                        scaledeigenvectors, FALSE, fullXmatrix) );
-
-                  /* extract sparse matrix */
-                  (*startXnblocknonz)[b] = 0;
-                  epsilon = SCIPepsilon(scip);
-                  for (r = 0; r < blocksize; r++)
-                  {
-                     for (c = r; c < blocksize; c++)
-                     {
-                        matrixpos = r * blocksize + c;
-                        if ( REALABS(fullXmatrix[matrixpos]) > epsilon )
-                        {
-                           (*startXrow)[b][(*startXnblocknonz)[b]] = r;
-                           (*startXcol)[b][(*startXnblocknonz)[b]] = c;
-                           (*startXval)[b][(*startXnblocknonz)[b]] = fullXmatrix[matrixpos];
-                           (*startXnblocknonz)[b]++;
-                        }
-                     }
-                  }
-                  pos += blocksizes[2 + b];
-                  SCIPfreeBufferArray(scip, &fullXmatrix);
-                  SCIPfreeBufferArray(scip, &scaledeigenvectors);
-               }
-               SCIPfreeBufferArray(scip, &optev);
-            }
-
-            /* solve dual rounding problem */
-
-            /* allocate memory for LP and varbound-block (we take a worst-case guess here) */
-            matrixsize = 2 * nvars + 2 * nrows;
-            SCIP_CALL( SCIPallocBufferArray(scip, &(*startZrow)[nblocks], matrixsize) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &(*startZcol)[nblocks], matrixsize) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &(*startZval)[nblocks], matrixsize) );
-
-            /* clear the old LP */
-            SCIP_CALL( SCIPlpiClear(lpi) );
-
-            /* we want to maximize for the primal rounding problem */
-            SCIP_CALL( SCIPlpiChgObjsen(lpi, SCIP_OBJSEN_MINIMIZE) );
-
-            /* compute number of columns */
-            roundingvars = nvars;
-            for (b = 0; b < nblocks; b++)
-               roundingvars += blocksizes[2 + b];
-
-            SCIP_CALL( SCIPallocBufferArray(scip, &obj, roundingvars) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &lb, roundingvars) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &ub, roundingvars) );
-
-            for (v = 0; v < nvars; v++)
-            {
-               obj[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])] = SCIPvarGetObj(vars[v]);
-               lb[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])] = SCIPvarGetLbLocal(vars[v]);
-               ub[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])] = SCIPvarGetUbLocal(vars[v]);
-            }
-
-            /* the eigenvalue-variables should all be non-negative, but do not appear in the objective */
-            for (v = nvars; v < roundingvars; v++)
-            {
-               obj[v] = 0.0;
-               lb[v] = 0.0;
-               ub[v] = SCIPlpiInfinity(lpi);
-            }
-
-            /* initialize columns; rows will be added blockwise later (note that we reenter the whole problem each time
-             * and do not allow warmstarts, we could store the LP- and bound-constraints between nodes (TODO, but would
-             * need to check for added/removed cuts then), but warmstarting doesn't seem to make sense since the whole
-             * SDP part is changed, which should form the main difficulty when solving (MI)SDPs */
-            SCIP_CALL( SCIPlpiAddCols(lpi, roundingvars, obj, lb, ub, NULL, 0, NULL, NULL, NULL) );
-
-            SCIPfreeBufferArray(scip, &ub);
-            SCIPfreeBufferArray(scip, &lb);
-            SCIPfreeBufferArray(scip, &obj);
-
-            /* add LP rows */
-            SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
-
-            for (r = 0; r < nrows; r++)
-            {
-               row = rows[r];
-               assert( row != NULL );
-               rownnonz = SCIProwGetNNonz(row);
-
-               rowvals = SCIProwGetVals(row);
-               rowcols = SCIProwGetCols(row);
-               rowlhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
-               rowrhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
-
-               SCIP_CALL( SCIPallocBufferArray(scip, &rowinds, rownnonz) );
-
-               /* iterate over rowcols and get corresponding indices */
-               for (i = 0; i < rownnonz; i++)
-                  rowinds[i] = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[i]));
-
-               pos = 0;
-
-               SCIP_CALL( SCIPlpiAddRows(lpi, 1, &rowlhs, &rowrhs, NULL, rownnonz, &pos, rowinds, rowvals) );
-
-               SCIPfreeBufferArray(scip, &rowinds);
-            }
-
-            /* for each SDP-block add constraints linking y-variables to eigenvalues of Z matrix */
-            startpos = nvars;
-            for (b = 0; b < nblocks; b++)
-            {
-               /* get data for this SDP block */
-               SCIP_CALL( SCIPconsSdpGetNNonz(scip, sdpblocks[b], NULL, &blockconstnnonz) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &blocknvarnonz, nvars) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &blockcol, nvars) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &blockrow, nvars) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &blockval, nvars) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &blockvars, nvars) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &blockconstcol, blockconstnnonz) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &blockconstrow, blockconstnnonz) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &blockconstval, blockconstnnonz) );
-               blocksize = blocksizes[2 + b];
-               matrixsize = blocksize * blocksize;
-
-               SCIP_CALL( SCIPallocBufferArray(scip, &fullZmatrix, matrixsize) );
-
-               SCIP_CALL( expandSparseMatrix((*startZnblocknonz)[b], blocksize, (*startZrow)[b], (*startZcol)[b], (*startZval)[b], fullZmatrix) );
-
-               SCIP_CALL( SCIPlapackComputeEigenvectorDecomposition(SCIPbuffer(scip), blocksize, fullZmatrix, blockeigenvalues[b], blockeigenvectors[b]) );
-
-               arraylength = nvars;
-               SCIP_CALL( SCIPconsSdpGetData(scip, sdpblocks[b], &blocknvars, &blocknnonz, &blocksize, &arraylength, blocknvarnonz,
-                     blockcol, blockrow, blockval, blockvars, &blockconstnnonz, blockconstcol, blockconstrow, blockconstval, NULL, NULL, NULL) );
-
-               nroundingrows = (blocksize * (blocksize + 1)) / 2;
-
-               SCIP_CALL( SCIPallocBufferArray(scip, &lhs, nroundingrows) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &rhs, nroundingrows) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &nblockrownonz , nroundingrows) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &blockrowcols , nroundingrows) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &blockrowvals , nroundingrows) );
-
-               /* initialize lhs and rhs with 0 and allocate memory for nonzeros (we take the worst case of nvars y entries and blocksize lambda entries) */
-               for (i = 0; i < nroundingrows; i++)
-               {
-                  lhs[i] = 0.0;
-                  rhs[i] = 0.0;
-
-                  nblockrownonz[i] = 0;
-                  SCIP_CALL( SCIPallocBufferArray(scip, &blockrowcols[i], nvars + blocksize) );
-                  SCIP_CALL( SCIPallocBufferArray(scip, &blockrowvals[i], nvars + blocksize) );
-               }
-
-               /* iterate over constant matrix to compute right-hand sides of equality constraints */
-               for (i = 0; i < blockconstnnonz; i++)
-               {
-                  assert( lhs[SCIPconsSdpCompLowerTriangPos(blockconstrow[i], blockconstcol[i])] == 0.0 ); /* there should only be a single entry per index-pair */
-                  lhs[SCIPconsSdpCompLowerTriangPos(blockconstrow[i], blockconstcol[i])] = blockconstval[i];
-                  rhs[SCIPconsSdpCompLowerTriangPos(blockconstrow[i], blockconstcol[i])] = blockconstval[i];
-               }
-
-               /* iterate over all nonzeros to add them to the roundingrows */
-               for (v = 0; v < blocknvars; v++)
-               {
-                  varind = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, blockvars[v]);
-
-                  for (i = 0; i < blocknvarnonz[v]; i++)
-                  {
-                     pos = SCIPconsSdpCompLowerTriangPos(blockrow[v][i], blockcol[v][i]);
-                     blockrowcols[pos][nblockrownonz[pos]] = varind;
-                     blockrowvals[pos][nblockrownonz[pos]] = blockval[v][i];
-                     nblockrownonz[pos]++;
-                  }
-               }
-
-               /* add entries corresponding to eigenvalues */
-               for (evind = 0; evind < blocksize; evind++)
-               {
-                  for (i = 0; i < blocksize; i++)
-                  {
-                     for (j = 0; j <= i; j++)
-                     {
-                        /* for index (i,j) and every eigenvector v, we get an entry -V_iv *V_jv (we get the -1 by transferring this to the left-hand side of the equation)
-                         * entry V_iv corresponds to entry i of the v-th eigenvector, which is given as the v-th row of the eigenvectors array */
-                        if ( SCIPisGT(scip, REALABS(-1 * blockeigenvectors[b][evind * blocksize + i] * blockeigenvectors[b][evind * blocksize + j]), 0.0) )
-                        {
-                           pos = SCIPconsSdpCompLowerTriangPos(i, j);
-                           blockrowcols[pos][nblockrownonz[pos]] = startpos + evind;
-                           blockrowvals[pos][nblockrownonz[pos]] = -1 * blockeigenvectors[b][evind * blocksize + i] * blockeigenvectors[b][evind * blocksize + j];
-                           nblockrownonz[pos]++;
-                        }
-                     }
-                  }
-               }
-               startpos += blocksize;
-
-               pos = 0;
-               /* add the rows one by one */
-               for (r = 0; r < nroundingrows; r++)
-               {
-                  SCIP_CALL( SCIPlpiAddRows(lpi, 1, &lhs[r], &rhs[r], NULL, nblockrownonz[r], &pos, blockrowcols[r], blockrowvals[r]) );
-                  SCIPfreeBufferArray(scip, &blockrowvals[r]);
-                  SCIPfreeBufferArray(scip, &blockrowcols[r]);
-               }
-
-               SCIPfreeBufferArray(scip, &blockrowvals);
-               SCIPfreeBufferArray(scip, &blockrowcols);
-               SCIPfreeBufferArray(scip, &nblockrownonz);
-               SCIPfreeBufferArray(scip, &rhs);
-               SCIPfreeBufferArray(scip, &lhs);
-               SCIPfreeBufferArray(scip, &fullZmatrix);
-               SCIPfreeBufferArray(scip, &blockconstval);
-               SCIPfreeBufferArray(scip, &blockconstrow);
-               SCIPfreeBufferArray(scip, &blockconstcol);
-               SCIPfreeBufferArray(scip, &blockvars);
-               SCIPfreeBufferArray(scip, &blockval);
-               SCIPfreeBufferArray(scip, &blockrow);
-               SCIPfreeBufferArray(scip, &blockcol);
-               SCIPfreeBufferArray(scip, &blocknvarnonz);
-            }
-
-            /* solve the problem (for some reason dual simplex seems to work better here) */
-            SCIP_CALL( SCIPstartClock(scip, relaxdata->roundingprobtime) );
-            SCIP_CALL( SCIPlpiSolveDual(lpi) );
-            SCIP_CALL( SCIPstopClock(scip, relaxdata->roundingprobtime) );
-
-            if ( ! SCIPlpiIsOptimal(lpi) )
-            {
-               SCIPdebugMsg(scip, "Solution of dual rounding problem failed with status %d, continuing without warmstart\n", SCIPlpiGetInternalStatus(lpi));
-               relaxdata->dualroundfails++;
-
-               /* free memory */
-               SCIPfreeBufferArrayNull(scip, &(*startZval)[nblocks]);
-               SCIPfreeBufferArrayNull(scip, &(*startZcol)[nblocks]);
-               SCIPfreeBufferArrayNull(scip, &startZrow[nblocks]);
-               SCIPfreeBufferArrayNull(scip, &(*startXval)[nblocks]);
-               SCIPfreeBufferArrayNull(scip, &(*startXcol)[nblocks]);
-               SCIPfreeBufferArrayNull(scip, &(*startXrow)[nblocks]);
-               for (b = 0; b < nblocks; b++)
-               {
-                  SCIPfreeBufferArrayNull(scip, &blockeigenvectors[b]);
-                  SCIPfreeBufferArrayNull(scip, &blockeigenvalues[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startZval)[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startZcol)[b]);
-                  SCIPfreeBufferArrayNull(scip, &startZrow[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startXval)[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startXcol)[b]);
-                  SCIPfreeBufferArrayNull(scip, &(*startXrow)[b]);
-               }
-               SCIPfreeBufferArray(scip, &blocksizes);
-               SCIPfreeBufferArray(scip, &blockeigenvectors);
-               SCIPfreeBufferArray(scip, &blockeigenvalues);
-               SCIPfreeBufferArrayNull(scip, &(*startXval));
-               SCIPfreeBufferArrayNull(scip, &(*startXcol));
-               SCIPfreeBufferArrayNull(scip, &(*startXrow));
-               SCIPfreeBufferArrayNull(scip, &startXnblocknonz);
-               SCIPfreeBufferArrayNull(scip, &(*startZval));
-               SCIPfreeBufferArrayNull(scip, &(*startZcol));
-               SCIPfreeBufferArrayNull(scip, &startZrow);
-               SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
-               SCIPfreeBufferArrayNull(scip, &sdpblocks);
-               SCIPfreeBufferArray(scip, &(*starty));
-
-               /* since warmstart computation failed, we solve without warmstart, free memory and skip the remaining warmstarting code */
-               return SCIP_OKAY;
-            }
-            else
-            {
-               SCIP_Real* optev;
-
-               relaxdata->roundstartsuccess++;
-
-               /* the problem was solved to optimality: we construct the dual vector and matrix using the computed eigenvalues */
-               SCIP_CALL( SCIPallocBufferArray(scip, &optev, nvars + roundingvars) );
-               SCIP_CALL( SCIPlpiGetSol(lpi, &dualroundobj, optev, NULL, NULL, NULL) );
-
-               /* if the objective values of the primal and dual rounding problem agree, the problem has been solved to optimality,
-                * since both of them are respective restrictions of the original primal and dual problem */
-               if ( SCIPisEQ(scip, primalroundobj, dualroundobj) )
-               {
-                  SCIP_SOL* scipsol; /* TODO: eliminate this */
-                  SCIP_CONS* savedcons;
-
-                  SCIPdebugMsg(scip, "Node %lld solved to optimality through rounding problems with optimal objective %f\n",
-                     SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), dualroundobj);
-
-                  relaxdata->roundingoptimal++;
-
-                  /* create SCIP solution (first nvars entries of optev correspond to y variables) */
-                  SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
-                  SCIP_CALL( SCIPsetSolVals(scip, scipsol, nvars, vars, optev) );
-
-                  *lowerbound = dualroundobj;
-                  relaxdata->objval = dualroundobj;
-
-                  /* copy solution */
-                  SCIP_CALL( SCIPsetRelaxSolValsSol(scip, relax, scipsol, TRUE) );
-
-                  relaxdata->feasible = TRUE;
-                  *result = SCIP_SUCCESS;
-
-                  /* save solution for warmstarts */
-                  if ( relaxdata->warmstart )
-                  {
-                     char consname[SCIP_MAXSTRLEN];
-#ifndef NDEBUG
-                     int snprintfreturn; /* this is used to assert that the SCIP string concatenation works */
-#endif
-
-#ifndef NDEBUG
-                     snprintfreturn = SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
-                     assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether name fit into string */
-#else
-                     (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
-#endif
-                     SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), scipsol,
-                           maxprimalentry, nblocks + 1, (*startXnblocknonz), (*startXrow), (*startXcol), (*startXval)) );
-
-                     SCIP_CALL( SCIPaddCons(scip, savedcons) );
-                     SCIP_CALL( SCIPreleaseCons(scip, &savedcons) );
-                  }
-
-                  SCIP_CALL( SCIPfreeSol(scip, &scipsol) );
-
-                  /* free memory */
-                  SCIPfreeBufferArray(scip, &optev);
-                  SCIPfreeBufferArrayNull(scip, &(*startZval)[nblocks]);
-                  SCIPfreeBufferArrayNull(scip, &(*startZcol)[nblocks]);
-                  SCIPfreeBufferArrayNull(scip, &startZrow[nblocks]);
-                  SCIPfreeBufferArrayNull(scip, &(*startXval)[nblocks]);
-                  SCIPfreeBufferArrayNull(scip, &(*startXcol)[nblocks]);
-                  SCIPfreeBufferArrayNull(scip, &(*startXrow)[nblocks]);
-                  for (b = 0; b < nblocks; b++)
-                  {
-                     SCIPfreeBufferArrayNull(scip,&blockeigenvectors[b]);
-                     SCIPfreeBufferArrayNull(scip,&blockeigenvalues[b]);
-                     SCIPfreeBufferArrayNull(scip, &(*startXval)[b]);
-                     SCIPfreeBufferArrayNull(scip, &(*startXcol)[b]);
-                     SCIPfreeBufferArrayNull(scip, &(*startXrow)[b]);
-                     SCIPfreeBufferArrayNull(scip, &(*startZval)[b]);
-                     SCIPfreeBufferArrayNull(scip, &(*startZcol)[b]);
-                     SCIPfreeBufferArrayNull(scip, &startZrow[b]);
-                  }
-                  SCIPfreeBufferArray(scip, &blocksizes);
-                  SCIPfreeBufferArray(scip, &blockeigenvectors);
-                  SCIPfreeBufferArray(scip, &blockeigenvalues);
-                  SCIPfreeBufferArrayNull(scip, &(*startXval));
-                  SCIPfreeBufferArrayNull(scip, &(*startXcol));
-                  SCIPfreeBufferArrayNull(scip, &(*startXrow));
-                  SCIPfreeBufferArrayNull(scip, &startXnblocknonz);
-                  SCIPfreeBufferArrayNull(scip, &(*startZval));
-                  SCIPfreeBufferArrayNull(scip, &(*startZcol));
-                  SCIPfreeBufferArrayNull(scip, &startZrow);
-                  SCIPfreeBufferArrayNull(scip, &startZnblocknonz);
-                  SCIPfreeBufferArrayNull(scip, &sdpblocks);
-                  SCIPfreeBufferArray(scip, &(*starty));
-
-                  return SCIP_OKAY;
-               }
-
-               /* adjust dual vector */
-               for (v = 0; v < nvars; v++)
-               {
-                  if ( relaxdata->warmstartiptype == 1 )
-                  {
-                     /* we take a convex combination with 0, so we just scale */
-                     (*starty)[v] = (1 - relaxdata->warmstartipfactor) * optev[v];
-                  }
-                  else if ( relaxdata->warmstartiptype == 2 )
-                  {
-                     /* take the convex combination with the saved analytic center */
-                     (*starty)[v] = (1 - relaxdata->warmstartipfactor) * optev[v] + relaxdata->warmstartipfactor * SCIPgetSolVal(scip, relaxdata->ipy, vars[v]);
-                  }
-               }
-
-               /* build Z matrix */
-               pos = nvars;
-               for (b = 0; b < nblocks; b++)
-               {
-                  blocksize = blocksizes[2 + b];
-                  matrixsize = blocksize * blocksize;
-
-                  /* duplicate memory of eigenvectors to compute diag(lambda_i^*) * U^T */
-                  SCIP_CALL( SCIPduplicateBufferArray(scip, &scaledeigenvectors, blockeigenvectors[b], matrixsize) );
-
-                  /* compute diag(lambda_i_+) * U^T */
-                  SCIP_CALL( scaleTransposedMatrix(blocksize, scaledeigenvectors, &(optev[pos])) );
-
-                  /* allocate memory for full Z matrix */
-                  SCIP_CALL( SCIPallocBufferArray(scip, &fullZmatrix, matrixsize) );
-
-                  /* compute U * [diag(lambda_i_+) * U^T] (note that transposes are switched because LAPACK uses column-first-format) */
-                  SCIP_CALL( SCIPlapackMatrixMatrixMult(blocksize, blocksize, blockeigenvectors[b], TRUE, blocksize, blocksize,
-                        scaledeigenvectors, FALSE, fullZmatrix) );
-
-                  /* extract sparse matrix */
-                  (*startZnblocknonz)[b] = 0;
-                  epsilon = SCIPepsilon(scip);
-                  for (r = 0; r < blocksize; r++)
-                  {
-                     for (c = r; c < blocksize; c++)
-                     {
-                        matrixpos = r * blocksize + c;
-                        if ( REALABS(fullZmatrix[matrixpos]) > epsilon )
-                        {
-                           (*startZrow)[b][(*startZnblocknonz)[b]] = r;
-                           (*startZcol)[b][(*startZnblocknonz)[b]] = c;
-                           (*startZval)[b][(*startZnblocknonz)[b]] = fullZmatrix[matrixpos];
-                           (*startZnblocknonz)[b]++;
-                        }
-                     }
-                  }
-                  pos += blocksize;
-                  SCIPfreeBufferArray(scip, &fullZmatrix);
-                  SCIPfreeBufferArray(scip, &scaledeigenvectors);
-                  SCIPfreeBufferArray(scip, &blockeigenvectors[b]);
-                  SCIPfreeBufferArray(scip, &blockeigenvalues[b]);
-               }
-
-               SCIPfreeBufferArray(scip, &optev);
-               SCIPfreeBufferArray(scip, &blockeigenvectors);
-               SCIPfreeBufferArray(scip, &blockeigenvalues);
-               SCIPfreeBufferArray(scip, &blocksizes);
-
-               /* build LP and varbound block of Z matrix */
-
-               /* to get a positive definite matrix, all the entries need to be strictly positive */
-               (*startZnblocknonz)[b] = 2 * nrows + 2 * nvars;
-
-               /* fill LP-block */
-               for (r = 0; r < nrows; r++)
-               {
-                  /* compute row value for current solution */
-                  rowval = 0.0;
-                  rownnonz = SCIProwGetNNonz(rows[r]);
-                  rowvals = SCIProwGetVals(rows[r]);
-                  rowcols = SCIProwGetCols(rows[r]);
-
-                  for (i = 0; i < rownnonz; i++)
-                     rowval += (*starty)[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[i]))] * rowvals[i];
-
-                  (*startZrow)[b][2*r] = 2*r;
-                  (*startZcol)[b][2*r] = 2*r;
-                  (*startZval)[b][2*r] = rowval - (SCIProwGetLhs(rows[r]) - SCIProwGetConstant(rows[r]));
-
-                  (*startZrow)[b][2*r + 1] = 2*r + 1;
-                  (*startZcol)[b][2*r + 1] = 2*r + 1;
-                  (*startZval)[b][2*r + 1] = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
-               }
-
-               /* fill varbound block */
-               for (v = 0; v < nvars; v++)
-               {
-                  (*startZrow)[b][2*nrows + 2*v] = 2*nrows + 2*v;
-                  (*startZcol)[b][2*nrows + 2*v] = 2*nrows + 2*v;
-                  (*startZval)[b][2*nrows + 2*v] = (*starty)[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])] - SCIPvarGetLbLocal(vars[v]);
-
-                  (*startZrow)[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
-                  (*startZcol)[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
-                  (*startZval)[b][2*nrows + 2*v + 1] = SCIPvarGetUbLocal(vars[v]) - (*starty)[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])];
-               }
-            }
+            SCIP_CALL( solvePrimalRoundingProblem(scip, relax, relaxdata,
+                  nblocks, sdpblocks, blocksize, conss[parentconsind], maxprimalentry,
+                  starty, startZnblocknonz, startZrow, startZcol, startZval,
+                  startXnblocknonz, startXrow, startXcol, startXval,
+                  lowerbound, result) );
          }
 
          /* if we saved the whole primal solution before, we can set it at once */
