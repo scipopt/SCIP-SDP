@@ -1030,12 +1030,16 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             sdpisolver->varboundpos[sdpisolver->nvarbounds] = -(sdpisolver->nactivevars + 1); /* negative sign means lower bound, +1 because of SDPA */
             sdpisolver->inputtovbmapper[2 * i] = sdpisolver->nvarbounds++;
          }
+         else
+            sdpisolver->inputtovbmapper[2 * i] = -1;
 
          if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, ub[i]) )
          {
             sdpisolver->varboundpos[sdpisolver->nvarbounds] = +(sdpisolver->nactivevars + 1); /* positive sign means upper bound, +1 because of SDPA */
             sdpisolver->inputtovbmapper[2 * i + 1] = sdpisolver->nvarbounds++;
          }
+         else
+            sdpisolver->inputtovbmapper[2 * i + 1] = -1;
 
          sdpisolver->nactivevars++;
       }
