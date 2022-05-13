@@ -41,6 +41,25 @@
  * @author Tristan Gally
  * @author Ambros Gleixner
  * @author Marc Pfetsch
+ *
+ *
+ * SDPA solve the dual problem as SCIP-SDP, but with a slightly changed notation:
+ *   \f{eqnarray*}{
+ *      \min & & c^T y \\
+ *      \mbox{s.t.} & & X^{(k)} = \sum_{i \in I} A_i^{(k)} x_i - A_0^{(k)} \succeq 0 \quad \forall \ k \in K, \\
+ *      & & \sum_{i \in I} d_{ij} x_i \geq b_j \quad \forall \ j \in J, \\
+ *      & & \ell_i \leq y_i \leq u_i \quad \forall \ i \in I
+ *   \f}
+ * The primal problem is then
+ *   \f{eqnarray*}{
+ *      \max & & \sum_{k \in K} A_0^{(k)} \bullet Y^{(k)} + \sum_{j \in J} b_j y_j - \sum_{i \in I_u} u_i v_i + \sum_{i \in I_\ell} \ell_i w_i \\
+ *      \mbox{s.t.} & & \sum_{k \in K} A_i^{(k)} \bullet Y^{(k)} + \sum_{j \in J} d_{ij} y_j - 1_{\{u_i < \infty\}} v_i + 1_{\{\ell_i > -\infty\}} w_i = c_i \quad \forall \ i \in I,\\
+ *      & & Y^{(k)} \succeq 0 \quad \forall \ k \in K, \\
+ *      & & y_j \geq 0 \quad \forall \ j \in J,\\
+ *      & & v_i \geq 0 \quad \forall \ i \in I_u,\\
+ *      & & w_i \geq 0 \quad \forall \ i \in I_\ell,
+ *   \f}
+ * In the code below, we use \f$X\f$ for the SDPA primal variable \f$Y\f$ and we use $\fZ\f$ for the SDPA dual variable \f$X\f$.
  */
 
 #include <assert.h>
