@@ -2889,7 +2889,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
 
       if ( sdpablock != -1 )
       {
-         X = sdpisolver->sdpa->getResultXMat(sdpablock);
+         X = sdpisolver->sdpa->getResultYMat(sdpablock);
          blocksize = (int) sdpisolver->sdpa->getBlockSize(sdpablock);
 
          /* iterate once over the upper triangular part of the matrix (saving the corresponding entries in the lower triangular part for the SDPI) */
@@ -2912,7 +2912,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
 
    if ( sdpisolver->sdpa->getBlockType(sdpablock) == SDPA::LP )
    {
-      X = sdpisolver->sdpa->getResultXMat(sdpablock);
+      X = sdpisolver->sdpa->getResultYMat(sdpablock);
       blocksize = (int) sdpisolver->sdpa->getBlockSize(sdpablock);
 
       for (i = 0; i < blocksize; i++)
@@ -3020,7 +3020,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    {
       int i;
 
-      X = sdpisolver->sdpa->getResultXMat(sdpablock);
+      X = sdpisolver->sdpa->getResultYMat(sdpablock);
       blocksize = (int) sdpisolver->sdpa->getBlockSize(sdpablock);
 
       /* iterate over LP constraints */
