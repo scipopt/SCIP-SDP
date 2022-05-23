@@ -452,6 +452,95 @@ problem (note that the norms $\norm{b}_{\infty}$ and
 $\norm{\tilde{b}}_{\infty}$ are computed by Mosek and we cannot control
 them).
 
+% -------------------------------------------------------------------------
+\section{Infeasibility Proof Analysis}
+
+In each node, we actually solve the following relaxations with local
+bounds:
+\begin{equation}\label{SDP-D}
+  \begin{aligned}
+    \inf \quad & b\T y \\
+    \text{s.t.} \quad & \sum_{j=1}^m A^j\, y_j - A^0 \succeq 0, \\
+    & \ell \leq y \leq u,
+  \end{aligned}
+\end{equation}
+where for simplicity of exposition, we assume that all entries of $\ell$
+and $u$ are finite.
+
+Let $X$ be the dual variables for the SDP-constraint $A(y) \succeq 0$ and
+$r^\ell$ and $r^u$ be the dual variables for the bound constraints
+$y \geq \ell$ and $-y \geq -u$, respectively. Then the corresponding primal
+problem is:
+\begin{equation}\label{SDP-P}
+  \begin{aligned}
+     \sup \quad & \skal{A^0}{X} + \ell\T r^\ell - u\T r^u\\
+     \mbox{s.t.} \quad & \skal{A^j}{X} + r^\ell_j - r^u_j = b_j && \forall \, j \in [m],\\
+     & X \succeq 0,\; r^\ell,\; r^u \geq 0.
+  \end{aligned}
+\end{equation}
+
+Assume that there exits a primal ray $(\hat{X}, \hat{r}^\ell, \hat{r}^u)$,
+i.e.,
+\begin{equation}\label{eq:ray}
+\begin{aligned}
+  & \skal{A^j}{\hat{X}} + \hat{r}^\ell_j - \hat{r}^u_j = 0 && \forall\; j \in [m],\\
+  & \skal{A^0}{\hat{X}} + \ell\T \hat{r}^\ell - u\T \hat{r}^u > 0.
+\end{aligned}
+\end{equation}
+If $\ell \leq u$ and~\eqref{eq:ray} has a feasible solution
+$(\tilde{X}, \tilde{r}^\ell, \tilde{r}^u)$, then
+$(\hat{X}, \hat{r}^\ell, \hat{r}^u)$ with $\hat{X} = \tilde{X}$ and
+$\hat{r}^\ell_j = - \min\,\{\skal{A^j}{\tilde{X}}, 0\} \geq 0$ and
+$\hat{r}^u_j = \max\,\{\skal{A^j}{\tilde{X}}, 0\} \geq 0$ is feasible
+for~\eqref{eq:ray}. Indeed, it is clear that the equations
+of~\eqref{eq:ray} are satisfied. Therefore consider the contribution to
+$\ell\T \hat{r}^\ell - u\T \hat{r}^u$ in component $j$:
+\begin{align*}
+  \ell_j \hat{r}^\ell_j - u_j \hat{r}^u_j & = - \ell_j\, \min\,\{\skal{A^j}{\tilde{X}}, 0\} - u_j\, \max\,\{\skal{A^j}{\tilde{X}}, 0\}\\
+  & = - \ell_j\, \min\,\{\tilde{r}^u_j - \tilde{r}^\ell_j, 0\} - u_j\, \max\,\{\tilde{r}^u_j - \tilde{r}^\ell_j, 0\}\\
+  & = \begin{cases}
+    - \ell_j\, (\tilde{r}^u_j - \tilde{r}^\ell_j) & \text{if } \tilde{r}^u_j - \tilde{r}^\ell_j < 0,\\
+    - u_j\, (\tilde{r}^u_j - \tilde{r}^\ell_j) & \text{if } \tilde{r}^u_j - \tilde{r}^\ell_j \geq 0,
+  \end{cases}\\
+  & = \begin{cases}
+    - \ell_j\, \tilde{r}^u_j + \ell_j \tilde{r}^\ell_j & \text{if } \tilde{r}^u_j - \tilde{r}^\ell_j < 0,\\
+    - u_j\, \tilde{r}^u_j + u_j \tilde{r}^\ell_j & \text{if } \tilde{r}^u_j - \tilde{r}^\ell_j \geq 0,
+  \end{cases}\\
+  & \geq \begin{cases}
+    - u_j\, \tilde{r}^u_j + \ell_j \tilde{r}^\ell_j & \text{if }  \tilde{r}^u_j - \tilde{r}^\ell_j < 0,\\
+    - u_j\, \tilde{r}^u_j + \ell_j \tilde{r}^\ell_j & \text{if } \tilde{r}^u_j - \tilde{r}^\ell_j \geq 0,
+  \end{cases}\\
+  & = \ell_j \tilde{r}^\ell_j - u_j \tilde{r}^u_j.
+\end{align*}
+Therefore the inequality in~\eqref{eq:ray} holds as well.
+
+This implies that
+\begin{align*}
+  0 & < \skal{A^0}{\hat{X}} + \ell\T \hat{r}^\ell - u\T \hat{r}^u\\
+  & = \skal{A^0}{\hat{X}} + \sum_{j=1}^m \ell_j \hat{r}^\ell_j -
+    \sum_{j=1}^m u_j \hat{r}^u_j\\
+  & = \skal{A^0}{\hat{X}} - \sum_{j: \skal{A^j}{\hat{X}} < 0} \ell_j \skal{A^j}{\hat{X}} -
+    \sum_{j: \skal{A^j}{\hat{X}} > 0} u_j \skal{A^j}{\hat{X}}.
+\end{align*}
+This implies
+\begin{align*}
+  \sum_{j: \skal{A^j}{\hat{X}} < 0} \ell_j \skal{A^j}{\hat{X}} +
+    \sum_{j: \skal{A^j}{\hat{X}} > 0} u_j \skal{A^j}{\hat{X}} < \skal{A^0}{\hat{X}}.
+\end{align*}
+However, any feasible solution $\hat{y}$ satisfies $A(\hat{y}) \succeq 0$ and $\ell
+\leq \hat{y} \leq u$ and therefore
+\begin{align*}
+  0 & \leq \skal{A(\hat{y})}{\hat{X}} =
+      \sum_{j=1}^m \skal{A^j}{\hat{X}}\, \hat{y}_j + \sum_{j=1}^m
+      \skal{A^j}{\hat{X}}\, \hat{y}_j - \skal{A^0}{\hat{X}}\\
+    & \leq \sum_{j: \skal{A^j}{\hat{X}} < 0} \skal{A^j}{\hat{X}}\, \ell_j +
+    \sum_{j: \skal{A^j}{\hat{X}} > 0} \skal{A^j}{\hat{X}} u_j -
+      \skal{A^0}{\hat{X}},
+\end{align*}
+a contradition. This implies that the valid linear inequality
+$\skal{A(\hat{y})}{\hat{X}} \geq 0$ shows infeasibility with respect to the
+local bounds.
+
 \end{document}
 
 

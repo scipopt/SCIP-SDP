@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2021 Discrete Optimization, TU Darmstadt               */
+/*               2014-2022 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* This program is free software; you can redistribute it and/or             */
@@ -24,7 +24,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2021 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2022 Zuse Institute Berlin                             */
 /* SCIP is distributed under the terms of the SCIP Academic Licence,         */
 /* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
@@ -2923,26 +2923,22 @@ SCIP_RETCODE SCIPsdpiSolve(
          SCIP_Real penaltyparamfact;
          SCIP_Real gaptol;
          SCIP_Real gaptolfact;
-         SCIP_Bool feasorig;
-         SCIP_Bool penaltybound;
+         SCIP_Bool feasorig = FALSE;
          SCIP_Real objbound;
          SCIP_Real objval;
-
-         feasorig = FALSE;
-         penaltybound = TRUE;
 
          /* first check feasibility using the penalty approach */
          SCIPdebugMessage("SDP %d returned inacceptable result, trying penalty formulation.\n", sdpi->sdpid);
 
-         /* we solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if
-          * the optimal objective is bigger than feastol, then we know that the problem is infeasible */
+         /* We solve the problem with a slack variable times identity added to the constraints and trying to minimize this slack variable r, if
+          * the optimal objective is bigger than feastol, then we know that the problem is infeasible; the original objective is set to 0. */
          SCIP_CALL( SCIPsdpiSolverLoadAndSolveWithPenalty(sdpi->sdpisolver, 1.0, FALSE, FALSE, sdpi->nvars, sdpi->obj, sdpi->sdpilb, sdpi->sdpiub,
                sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs,
                sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval, starty, startZnblocknonz, startZrow, startZcol, startZval,
-               startXnblocknonz, startXrow, startXcol, startXval, SCIP_SDPSOLVERSETTING_UNSOLVED, timelimit, sdpi->usedsdpitime, &feasorig, &penaltybound) );
+               startXnblocknonz, startXrow, startXcol, startXval, SCIP_SDPSOLVERSETTING_UNSOLVED, timelimit, sdpi->usedsdpitime, &feasorig, NULL) );
 
          /* add time, iterations and sdpcalls */
          addedopttime = 0.0;
@@ -2966,32 +2962,38 @@ SCIP_RETCODE SCIPsdpiSolve(
          /* If the penalty formulation was successfully solved and has a strictly positive objective value, we know that
           * the problem is infeasible. Note that we need to check against the maximum of feastol and gaptol, since this
           * is the objective of an SDP which is only exact up to gaptol, and cutting a feasible node off is an error
-          * while continueing with an infeasible problem only takes additional time until we found out again later.
+          * while continuing with an infeasible problem only takes additional time until we found out again later.
           */
-         if ( (SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && (objval > (sdpi->feastol > sdpi->gaptol ?
-               sdpi->peninfeasadjust * sdpi->feastol : sdpi->peninfeasadjust * sdpi->gaptol))) ||
-               (SCIPsdpiSolverWasSolved(sdpi->sdpisolver) && SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver)) )
+         if ( ( SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) && objval > sdpi->peninfeasadjust * MAX(sdpi->feastol, sdpi->gaptol) ) ||
+              ( SCIPsdpiSolverWasSolved(sdpi->sdpisolver) && SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) ) )
          {
-            SCIPdebugMessage("SDP %d found infeasible using penalty formulation, maximum of smallest eigenvalue is %g.\n", sdpi->sdpid, -1.0 * objval);
+            SCIPdebugMessage("SDP %d found infeasible using penalty formulation, maximum of smallest eigenvalue is %g.\n", sdpi->sdpid, -objval);
             sdpi->penalty = TRUE;
             sdpi->infeasible = TRUE;
          }
          else
          {
+            SCIP_Bool penaltybound = TRUE;
+
             feasorig = FALSE;
-            penaltybound = TRUE;
 
             penaltyparam = sdpi->penaltyparam;
 
             SCIPdebugMessage("SDP %d not found infeasible using penalty formulation, maximum of smallest eigenvalue is %g.\n", sdpi->sdpid, -1.0 * objval);
 
             /* we compute the factor to increase with as n-th root of the total increase until the maximum, where n is the number of iterations
-             * (for npenaltyincr = 0 we make sure that the parameter is too large after the first change)
-             */
-            penaltyparamfact = sdpi->npenaltyincr > 0 ? pow((sdpi->maxpenaltyparam / sdpi->penaltyparam), 1.0/sdpi->npenaltyincr) :
-                  2*sdpi->maxpenaltyparam / sdpi->penaltyparam;
+             * (for npenaltyincr = 0 we make sure that the parameter is too large after the first change) */
             gaptol = sdpi->gaptol;
-            gaptolfact = sdpi->npenaltyincr > 0 ? pow((MIN_GAPTOL / sdpi->gaptol), 1.0/sdpi->npenaltyincr) : 0.5 * MIN_GAPTOL / sdpi->gaptol;
+            if ( sdpi->npenaltyincr > 0 )
+            {
+               penaltyparamfact = pow((sdpi->maxpenaltyparam / sdpi->penaltyparam), 1.0 / sdpi->npenaltyincr);
+               gaptolfact = pow((MIN_GAPTOL / sdpi->gaptol), 1.0 / sdpi->npenaltyincr);
+            }
+            else
+            {
+               penaltyparamfact = 2 * sdpi->maxpenaltyparam / sdpi->penaltyparam;
+               gaptolfact = 0.5 * MIN_GAPTOL / sdpi->gaptol;
+            }
 
             /* increase penalty-param and decrease feasibility tolerance until we find a feasible solution or reach the final bound for either one of them */
             while ( ( ! SCIPsdpiSolverIsAcceptable(sdpi->sdpisolver) || ! feasorig ) &&
