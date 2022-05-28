@@ -4340,6 +4340,45 @@ SCIP_RETCODE SCIPsdpiGetPrimalMatrix(
    return SCIP_OKAY;
 }
 
+/** returns the primal solution matrix (without LP rows) */
+SCIP_RETCODE SCIPsdpiGetPrimalSolutionMatrix(
+   SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
+   int                   nsdpblocks,         /**< number of blocks */
+   int*                  sdpblocksizes,      /**< sizes of the blocks */
+   int**                 indchanges,         /**< changes needed to be done to the indices, if indchanges[block][nonz]=-1, then
+                                              *   the index can be removed, otherwise it gives the number of indices removed before this */
+   int*                  nremovedinds,       /**< pointer to store the number of rows/cols to be fixed for each block */
+   int*                  blockindchanges,    /**< pointer to store index change for each block, system is the same as for indchanges */
+   SCIP_Real**           primalmatrices,     /**< pointer to store values of the primal matrix */
+   SCIP_Bool*            success             /**< pointer to store whether the call was successfull */
+   )
+{
+   assert( success != NULL );
+
+   if ( sdpi->infeasible )
+   {
+      SCIPdebugMessage("Infeasibility was detected while preparing problem, no primal solution available.\n");
+      *success = FALSE;
+   }
+   else if ( sdpi->allfixed )
+   {
+      SCIPdebugMessage("All variables fixed during preprocessing, no primal solution available.\n");
+      *success = FALSE;
+   }
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+   {
+      SCIPdebugMessage("Solved one variable SDP, no primal solution available.\n");
+      *success = FALSE;
+   }
+   else
+   {
+      SCIP_CALL( SCIPsdpiSolverGetPrimalSolutionMatrix(sdpi->sdpisolver, nsdpblocks, sdpblocksizes, indchanges, nremovedinds, blockindchanges, primalmatrices) );
+      *success = TRUE;
+   }
+
+   return SCIP_OKAY;
+}
+
 /** return the maximum absolute value of the optimal primal matrix */
 SCIP_Real SCIPsdpiGetMaxPrimalEntry(
    SCIP_SDPI*            sdpi                /**< pointer to an SDP-interface structure */

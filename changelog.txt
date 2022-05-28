@@ -11,6 +11,7 @@ features:
 
 API changes:
 - new function SCIPsdpiSolverGetPrimalSolutionMatrix() to access primal matrix solutions
+- new function SCIPsdpiGetPrimalSolutionMatrix() to access primal matrix solutions
 - new function SCIPsdpiSolverGetPrimalLPSides() to access primal solutions for LP sides
 - new function SCIPsdpiGetPrimalLPSides() to access primal solutions for LP sides
 - function SCIPsdpiSolverGetPrimalBoundVars() uses a success pointer instead of arraylength
