@@ -962,7 +962,7 @@ SCIP_RETCODE prepareLPData(
          /* reset variables for next row */
          rowconst = 0.0;
          nrownonz = 0;
-         if ( i < sdpi->lpnnonz )
+         if ( i < sdpi->lpnnonz - 1 )
             currentrow = sdpi->lprow[i+1];
       }
    }
