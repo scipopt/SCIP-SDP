@@ -2642,75 +2642,167 @@ SCIP_RETCODE computeDualCut(
    assert( dualcut != NULL );
    assert( dualcutrhs != NULL );
 
-   /* get primal solution */
-   BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &primalmatrices, nsdpblocks) );
-   for (b = 0; b < nsdpblocks; ++b)
-   {
-      int size;
-
-      size = sdpi->sdpblocksizes[b] * sdpi->sdpblocksizes[b];
-      BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &primalmatrices[b], size * size) );
-   }
-   SCIP_CALL( SCIPsdpiSolverGetPrimalSolutionMatrix(sdpi->sdpisolver, nsdpblocks, sdpblocksizes, indchanges, nremovedinds, blockindchanges, primalmatrices) );
-
    /* prepare cut */
    *dualcutrhs = 0.0;
    for (j = 0; j < sdpi->nvars; ++j)
       dualcut[j] = 0.0;
 
-   /* loop through blocks and matrices */
-   for (b = 0; b < nsdpblocks; ++b)
+   /* get primal solution */
+   if ( nsdpblocks > 0 )
    {
-      SCIP_Real c = 0.0;
-      int row;
-      int col;
-      int size;
-      int v;
-      int k;
-
-      size = sdpi->sdpblocksizes[b] * sdpi->sdpblocksizes[b];
-      for (v = 0; v < sdpi->sdpnblockvars[b]; v++)
+      BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &primalmatrices, nsdpblocks) );
+      for (b = 0; b < nsdpblocks; ++b)
       {
-         SCIP_Real p = 0.0;
+         BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &primalmatrices[b], sdpi->sdpblocksizes[b] * sdpi->sdpblocksizes[b]) );
+      }
+      SCIP_CALL( SCIPsdpiSolverGetPrimalSolutionMatrix(sdpi->sdpisolver, nsdpblocks, sdpblocksizes, indchanges, nremovedinds, blockindchanges, primalmatrices) );
 
-         /* compute inner product of primal matrix and constraint matrix */
-         for (k = 0; k < sdpi->sdpnblockvarnonz[b][v]; k++)
+      /* loop through blocks and matrices */
+      for (b = 0; b < nsdpblocks; ++b)
+      {
+         SCIP_Real c = 0.0;
+         int row;
+         int col;
+         int blocksize;
+         int v;
+         int k;
+
+         blocksize = sdpi->sdpblocksizes[b];
+         for (v = 0; v < sdpi->sdpnblockvars[b]; v++)
          {
-            row = sdpi->sdprow[b][v][k];
-            col = sdpi->sdpcol[b][v][k];
-            assert( 0 <= row && row < size );
-            assert( 0 <= col && col < size );
+            SCIP_Real p = 0.0;
+
+            /* compute inner product of primal matrix and constraint matrix */
+            for (k = 0; k < sdpi->sdpnblockvarnonz[b][v]; k++)
+            {
+               row = sdpi->sdprow[b][v][k];
+               col = sdpi->sdpcol[b][v][k];
+               assert( 0 <= row && row < blocksize );
+               assert( 0 <= col && col < blocksize );
+
+               if ( row == col )
+                  p += sdpi->sdpval[b][v][k] * primalmatrices[b][row * blocksize + col];
+               else
+                  p += 2.0 * sdpi->sdpval[b][v][k] * primalmatrices[b][row * blocksize + col];
+            }
+            dualcut[v] += p;
+         }
+
+         /* treat constant matrix */
+         for (k = 0; k < sdpi->sdpconstnblocknonz[b]; k++)
+         {
+            row = sdpi->sdpconstrow[b][k];
+            col = sdpi->sdpconstcol[b][k];
+            assert( 0 <= row && row < blocksize );
+            assert( 0 <= col && col < blocksize );
 
             if ( row == col )
-               p += sdpi->sdpval[b][v][k] * primalmatrices[b][row * size + col];
+               c += sdpi->sdpconstval[b][k] * primalmatrices[b][row * blocksize + col];
             else
-               p += 2.0 * sdpi->sdpval[b][v][k] * primalmatrices[b][row * size + col];
+               c += 2.0 * sdpi->sdpconstval[b][k] * primalmatrices[b][row * blocksize + col];
          }
-         dualcut[v] += p;
+         *dualcutrhs += c;
       }
 
-      /* treat constant matrix */
-      for (k = 0; k < sdpi->sdpconstnblocknonz[b]; k++)
+      /* free memory */
+      for (b = 0; b < nsdpblocks; ++b)
       {
-         row = sdpi->sdpconstrow[b][k];
-         col = sdpi->sdpconstcol[b][k];
-         assert( 0 <= row && row < size );
-         assert( 0 <= col && col < size );
-
-         if ( row == col )
-            c += sdpi->sdpconstval[b][k] * primalmatrices[b][row * size + col];
-         else
-            c += 2.0 * sdpi->sdpconstval[b][k] * primalmatrices[b][row * size + col];
+         BMSfreeBufferMemoryArray(sdpi->bufmem, &primalmatrices[b]);
       }
-      *dualcutrhs += c;
+      BMSfreeBufferMemoryArray(sdpi->bufmem, &primalmatrices);
    }
 
-   /* free memory */
-   for (b = 0; b < nsdpblocks; ++b)
+   /* add LP rows */
+   if ( sdpi->nactivelpcons > 0 )
    {
-      BMSfreeBufferMemoryArray(sdpi->bufmem, &primalmatrices[b]);
+      SCIP_Real* lhsvals;
+      SCIP_Real* rhsvals;
+      SCIP_Bool success;
+      SCIP_Real duallhsval;
+      SCIP_Real dualrhsval;
+      int currentrow;
+      int i;
+
+      BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &lhsvals, sdpi->nlpcons) );
+      BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &rhsvals, sdpi->nlpcons) );
+
+      SCIP_CALL( SCIPsdpiGetPrimalLPSides(sdpi, lhsvals, rhsvals, &success) );
+
+      currentrow = sdpi->lprow[0];
+      assert( 0 <= currentrow && currentrow < sdpi->nlpcons );
+      duallhsval = lhsvals[currentrow];
+      dualrhsval = rhsvals[currentrow];
+      for (i = 0; i < sdpi->lpnnonz; ++i)
+      {
+         assert( i == 0 || sdpi->lprow[i-1] <= sdpi->lprow[i] );  /* rows should be sorted */
+
+         if ( REALABS(duallhsval) > sdpi->feastol )
+            dualcut[sdpi->lpcol[i]] -= sdpi->lpval[i] * duallhsval;
+
+         if ( REALABS(dualrhsval) > sdpi->feastol )
+            dualcut[sdpi->lpcol[i]] += sdpi->lpval[i] * dualrhsval;
+
+         /* we finished a new row */
+         if ( i == sdpi->lpnnonz - 1 || sdpi->lprow[i+1] > currentrow )
+         {
+            if ( sdpi->lplhs[currentrow] > - SCIPsdpiInfinity(sdpi) && REALABS(duallhsval) > sdpi->feastol )
+               *dualcutrhs -= sdpi->lplhs[currentrow] * duallhsval;
+
+            if ( sdpi->lprhs[currentrow] < SCIPsdpiInfinity(sdpi) && REALABS(dualrhsval) > sdpi->feastol )
+               *dualcutrhs += sdpi->lprhs[currentrow] * dualrhsval;
+
+            /* reset variables for next row */
+            if ( i < sdpi->lpnnonz - 1 )
+            {
+               currentrow = sdpi->lprow[i+1];
+               assert( 0 <= currentrow && currentrow < sdpi->nlpcons );
+               duallhsval = lhsvals[currentrow];
+               dualrhsval = rhsvals[currentrow];
+            }
+         }
+      }
+
+      BMSfreeBufferMemoryArray(sdpi->bufmem, &rhsvals);
+      BMSfreeBufferMemoryArray(sdpi->bufmem, &lhsvals);
    }
-   BMSfreeBufferMemoryArray(sdpi->bufmem, &primalmatrices);
+
+   /* add variable bounds */
+   if ( sdpi->nvars > 0 )
+   {
+      SCIP_Real* lbvals;
+      SCIP_Real* ubvals;
+      int arraylength;
+      int i;
+
+      BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &lbvals, sdpi->nvars) );
+      BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &ubvals, sdpi->nvars) );
+
+      arraylength = sdpi->nvars;
+      SCIP_CALL( SCIPsdpiGetPrimalBoundVars(sdpi, lbvals, ubvals, &arraylength) );
+
+      for (i = 0; i < sdpi->nvars; ++i)
+      {
+         SCIP_Real duallbval;
+         SCIP_Real dualubval;
+
+         duallbval = lbvals[i];
+         if ( REALABS(duallbval) > sdpi->feastol && sdpi->lb[i] > - SCIPsdpiInfinity(sdpi) )
+         {
+            dualcut[i] -= duallbval;
+            *dualcutrhs -= sdpi->lb[i] * duallbval;
+         }
+
+         dualubval = ubvals[i];
+         if ( REALABS(dualubval) > sdpi->feastol && sdpi->ub[i] > - SCIPsdpiInfinity(sdpi) )
+         {
+            dualcut[i] += dualubval;
+            *dualcutrhs += sdpi->ub[i] * dualubval;
+         }
+      }
+
+      BMSfreeBufferMemoryArray(sdpi->bufmem, &ubvals);
+      BMSfreeBufferMemoryArray(sdpi->bufmem, &lbvals);
+   }
 
    return SCIP_OKAY;
 }
@@ -4162,19 +4254,19 @@ SCIP_RETCODE SCIPsdpiGetPrimalLPSides(
 
       SCIP_CALL( SCIPsdpiSolverGetPrimalLPSides(sdpi->sdpisolver, sdpi->nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs, sdpilhsvals, sdpirhsvals) );
 
+      /* initialize values to 0.0 */
       for (i = 0; i < sdpi->nlpcons; ++i)
       {
-         if ( sdpi->sdpilpidx[i] < 0 )
-         {
-            lhsvals[i] = 0.0;
-            rhsvals[i] = 0.0;
-         }
-         else
-         {
-            assert( 0 <= sdpi->sdpilpidx[i] && sdpi->sdpilpidx[i] < sdpi->nactivelpcons );
-            lhsvals[i] = sdpilhsvals[sdpi->sdpilpidx[i]];
-            rhsvals[i] = sdpirhsvals[sdpi->sdpilpidx[i]];
-         }
+         lhsvals[i] = 0.0;
+         rhsvals[i] = 0.0;
+      }
+
+      /* fill in data */
+      for (i = 0; i < sdpi->nactivelpcons; ++i)
+      {
+         assert( 0 <= sdpi->sdpilpidx[i] && sdpi->sdpilpidx[i] < sdpi->nlpcons );
+         lhsvals[sdpi->sdpilpidx[i]] = sdpilhsvals[i];
+         rhsvals[sdpi->sdpilpidx[i]] = sdpirhsvals[i];
       }
       BMSfreeBufferMemoryArray(sdpi->bufmem, &sdpirhsvals);
       BMSfreeBufferMemoryArray(sdpi->bufmem, &sdpilhsvals);
