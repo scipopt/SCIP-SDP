@@ -4182,10 +4182,12 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
          else
             assert( isFixed(sdpi, i) );
       }
+      *success = TRUE;
    }
    else
    {
       SCIP_CALL( SCIPsdpiSolverGetPrimalBoundVars(sdpi->sdpisolver, lbvals, ubvals) );
+      *success = TRUE;
    }
 
    return SCIP_OKAY;
