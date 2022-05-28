@@ -2659,53 +2659,57 @@ SCIP_RETCODE computeDualCut(
       {
          BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &primalmatrices[b], sdpi->sdpblocksizes[b] * sdpi->sdpblocksizes[b]) );
       }
-      SCIP_CALL( SCIPsdpiSolverGetPrimalSolutionMatrix(sdpi->sdpisolver, nsdpblocks, sdpblocksizes, indchanges, nremovedinds, blockindchanges, primalmatrices) );
 
-      /* loop through blocks and matrices */
-      for (b = 0; b < nsdpblocks; ++b)
+      SCIP_CALL( SCIPsdpiGetPrimalSolutionMatrix(sdpi, nsdpblocks, sdpblocksizes, indchanges, nremovedinds, blockindchanges, primalmatrices, success) );
+
+      if ( *success )
       {
-         SCIP_Real c = 0.0;
-         int row;
-         int col;
-         int blocksize;
-         int v;
-         int k;
-
-         blocksize = sdpi->sdpblocksizes[b];
-         for (v = 0; v < sdpi->sdpnblockvars[b]; v++)
+         /* loop through blocks and matrices */
+         for (b = 0; b < nsdpblocks; ++b)
          {
-            SCIP_Real p = 0.0;
+            SCIP_Real c = 0.0;
+            int row;
+            int col;
+            int blocksize;
+            int v;
+            int k;
 
-            /* compute inner product of primal matrix and constraint matrix */
-            for (k = 0; k < sdpi->sdpnblockvarnonz[b][v]; k++)
+            blocksize = sdpi->sdpblocksizes[b];
+            for (v = 0; v < sdpi->sdpnblockvars[b]; v++)
             {
-               row = sdpi->sdprow[b][v][k];
-               col = sdpi->sdpcol[b][v][k];
+               SCIP_Real p = 0.0;
+
+               /* compute inner product of primal matrix and constraint matrix */
+               for (k = 0; k < sdpi->sdpnblockvarnonz[b][v]; k++)
+               {
+                  row = sdpi->sdprow[b][v][k];
+                  col = sdpi->sdpcol[b][v][k];
+                  assert( 0 <= row && row < blocksize );
+                  assert( 0 <= col && col < blocksize );
+
+                  if ( row == col )
+                     p += sdpi->sdpval[b][v][k] * primalmatrices[b][row * blocksize + col];
+                  else
+                     p += 2.0 * sdpi->sdpval[b][v][k] * primalmatrices[b][row * blocksize + col];
+               }
+               dualcut[v] += p;
+            }
+
+            /* treat constant matrix */
+            for (k = 0; k < sdpi->sdpconstnblocknonz[b]; k++)
+            {
+               row = sdpi->sdpconstrow[b][k];
+               col = sdpi->sdpconstcol[b][k];
                assert( 0 <= row && row < blocksize );
                assert( 0 <= col && col < blocksize );
 
                if ( row == col )
-                  p += sdpi->sdpval[b][v][k] * primalmatrices[b][row * blocksize + col];
+                  c += sdpi->sdpconstval[b][k] * primalmatrices[b][row * blocksize + col];
                else
-                  p += 2.0 * sdpi->sdpval[b][v][k] * primalmatrices[b][row * blocksize + col];
+                  c += 2.0 * sdpi->sdpconstval[b][k] * primalmatrices[b][row * blocksize + col];
             }
-            dualcut[v] += p;
+            *dualcutrhs += c;
          }
-
-         /* treat constant matrix */
-         for (k = 0; k < sdpi->sdpconstnblocknonz[b]; k++)
-         {
-            row = sdpi->sdpconstrow[b][k];
-            col = sdpi->sdpconstcol[b][k];
-            assert( 0 <= row && row < blocksize );
-            assert( 0 <= col && col < blocksize );
-
-            if ( row == col )
-               c += sdpi->sdpconstval[b][k] * primalmatrices[b][row * blocksize + col];
-            else
-               c += 2.0 * sdpi->sdpconstval[b][k] * primalmatrices[b][row * blocksize + col];
-         }
-         *dualcutrhs += c;
       }
 
       /* free memory */
