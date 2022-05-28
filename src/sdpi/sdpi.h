@@ -616,6 +616,19 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
                                               *           -1 if infeasible or all variables are fixed) */
    );
 
+/** gets the primal variables corresponding to the LP sidex
+ *
+ *  @note If an LP row was removed, we return a value of 0.0. This can happen if the row is redundant, e.g., all
+ *  involved variables are fixed, or it contains variable a single variable only.
+ */
+SCIP_EXPORT
+SCIP_RETCODE SCIPsdpiGetPrimalLPSides(
+   SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
+   SCIP_Real*            lhsvals,            /**< array to store the values of the variables corresponding to LP lhs */
+   SCIP_Real*            rhsvals,            /**< array to store the values of the variables corresponding to LP rhs */
+   SCIP_Bool*            success             /**< pointer to store whether values could be retrieved */
+   );
+
 /** return number of nonzeros for each block of the primal solution matrix X */
 SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiGetPrimalNonzeros(
