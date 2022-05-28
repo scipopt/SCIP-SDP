@@ -2337,28 +2337,28 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
    return SCIP_OKAY;
 }
 
-/** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem
+/** gets the solution corresponding to the lower and upper variable-bounds in the primal problem
  *
- *  The last input should specify the length of the arrays. If this is less than the number of variables, the needed
- *  length will be returned and a debug message thrown.
+ *  @p arraylength should specify the length of the arrays. If this is less than the number of variables, the needed
+ *  length will be returned.
  *
  *  @note If a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent primal variable.
  */
 SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
-   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
-   SCIP_Real*            lbvars,             /**< pointer to store the values of the variables corresponding to lower bounds in the dual problems */
-   SCIP_Real*            ubvars,             /**< pointer to store the values of the variables corresponding to upper bounds in the dual problems */
-   int*                  arraylength         /**< input: length of lbvars and ubvars <br>
-                                              *   output: number of elements inserted into lbvars/ubvars (or needed length if it wasn't sufficient) */
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_Real*            lbvals,             /**< array to store the values of the variables corresponding to lower bounds in the primal problems */
+   SCIP_Real*            ubvals,             /**< array to store the values of the variables corresponding to upper bounds in the primal problems */
+   int*                  arraylength         /**< input: length of lbvals and ubvals <br>
+                                              *   output: number of elements inserted into lbvals/ubvals (or needed length if it wasn't sufficient) */
    )
 {
-   SCIP_Real* lbvarsdsdp;
-   SCIP_Real* ubvarsdsdp;
+   SCIP_Real* lbvalsdsdp;
+   SCIP_Real* ubvalsdsdp;
    int i;
 
    assert( sdpisolver != NULL );
-   assert( lbvars != NULL );
-   assert( ubvars != NULL );
+   assert( lbvals != NULL );
+   assert( ubvals != NULL );
    assert( arraylength != NULL );
    assert( *arraylength >= 0 );
    CHECK_IF_SOLVED( sdpisolver );
@@ -2372,11 +2372,11 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    }
 
    /* allocate memory for the arrays given to DSDP */
-   BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &lbvarsdsdp, sdpisolver->nactivevars) );
-   BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &ubvarsdsdp, sdpisolver->nactivevars) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &lbvalsdsdp, sdpisolver->nactivevars) );
+   BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &ubvalsdsdp, sdpisolver->nactivevars) );
 
    /* get the values for the active variables from DSDP */
-   DSDP_CALL( BConeCopyX(sdpisolver->bcone, lbvarsdsdp, ubvarsdsdp, sdpisolver->nactivevars) );
+   DSDP_CALL( BConeCopyX(sdpisolver->bcone, lbvalsdsdp, ubvalsdsdp, sdpisolver->nactivevars) );
 
    /* copy them to the right spots of lbvars & ubvars */
    for (i = 0; i < sdpisolver->nvars; i++)
@@ -2385,19 +2385,19 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
       {
          /* if the variable was fixed, it didn't exist in the relaxation, so we set the value to 0
           * (as DSDP already uses this value for unbounded vars) */
-         lbvars[i] = 0;
-         ubvars[i] = 0;
+         lbvals[i] = 0;
+         ubvals[i] = 0;
       }
       else
       {
-         lbvars[i] = lbvarsdsdp[sdpisolver->inputtodsdpmapper[i] - 1];
-         ubvars[i] = ubvarsdsdp[sdpisolver->inputtodsdpmapper[i] - 1];
+         lbvals[i] = lbvalsdsdp[sdpisolver->inputtodsdpmapper[i] - 1];
+         ubvals[i] = ubvalsdsdp[sdpisolver->inputtodsdpmapper[i] - 1];
       }
    }
 
    /* free allocated memory */
-   BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &ubvarsdsdp, sdpisolver->nactivevars);
-   BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &lbvarsdsdp, sdpisolver->nactivevars);
+   BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &ubvalsdsdp, sdpisolver->nactivevars);
+   BMSfreeBlockMemoryArrayNull(sdpisolver->blkmem, &lbvalsdsdp, sdpisolver->nactivevars);
 
    return SCIP_OKAY;
 }

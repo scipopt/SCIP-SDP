@@ -2727,21 +2727,21 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
    return SCIP_OKAY;
 }
 
-/** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem
+/** gets the solution corresponding to the lower and upper variable-bounds in the primal problem
  *
- *  The last input should specify the length of the arrays. If this is less than the number of variables, the needed
- *  length will be returned and a debug message thrown.
+ *  @p arraylength should specify the length of the arrays. If this is less than the number of variables, the needed
+ *  length will be returned.
  *
  *  @note If a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent primal variable.
  */
 SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
-   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
-   SCIP_Real*            lbvars,             /**< pointer to store the values of the variables corresponding to lower bounds in the dual problems */
-   SCIP_Real*            ubvars,             /**< pointer to store the values of the variables corresponding to upper bounds in the dual problems */
-   int*                  arraylength         /**< input: length of lbvars and ubvars <br>
-                                              *   output: number of elements inserted into lbvars/ubvars (or needed length if it wasn't sufficient) */
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_Real*            lbvals,             /**< array to store the values of the variables corresponding to lower bounds in the primal problems */
+   SCIP_Real*            ubvals,             /**< array to store the values of the variables corresponding to upper bounds in the primal problems */
+   int*                  arraylength         /**< input: length of lbvals and ubvals <br>
+                                              *   output: number of elements inserted into lbvals/ubvals (or needed length if it wasn't sufficient) */
    )
-{/*lint !e1784*/
+{  /*lint !e1784*/
    int i;
    SCIP_Real* X; /* block of primal solution matrix corresponding to the LP-part */
    SDPA_INT lpblockind;
@@ -2752,8 +2752,8 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL );
-   assert( lbvars != NULL );
-   assert( ubvars != NULL );
+   assert( lbvals != NULL );
+   assert( ubvals != NULL );
    assert( arraylength != NULL );
    assert( *arraylength >= 0 );
    CHECK_IF_SOLVED( sdpisolver );
@@ -2769,14 +2769,14 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    /* initialize the return-arrays with zero */
    for (i = 0; i < sdpisolver->nvars; i++)
    {
-      lbvars[i] = 0.0;
-      ubvars[i] = 0.0;
+      lbvals[i] = 0.0;
+      ubvals[i] = 0.0;
    }
 
    /* if no variable bounds were added, we return the zero vector (we do this separately, because in this case there might be no LP-block) */
    if ( sdpisolver->nvarbounds == 0 )
    {
-      SCIPdebugMessage("Asked for PrimalBoundVars, but there were no variable bounds in sdpa, returning zero vector!\n");
+      SCIPdebugMessage("Asked for PrimalBoundVars, but there were no variable bounds in SDPA, returning zero vector!\n");
       return SCIP_OKAY;
    }
 
@@ -2810,7 +2810,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
          pos = sdpisolver->sdpatoinputmapper[sdpapos];
          assert( 0 <= pos && pos < sdpisolver->nvars );
          /* the last nvarbounds entries correspond to the varbounds */
-         lbvars[pos] = X[nlpcons - sdpisolver->nvarbounds + i];
+         lbvals[pos] = X[nlpcons - sdpisolver->nvarbounds + i];
       }
       else /* if it is an upper bound */
       {
@@ -2819,7 +2819,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
          pos = sdpisolver->sdpatoinputmapper[sdpapos];
          assert( 0 <= pos && pos < sdpisolver->nvars );
          /* the last nvarbounds entries correspond to the varbounds */
-         ubvars[pos] = X[nlpcons - sdpisolver->nvarbounds + i]; /*lint !e679, !e834 */
+         ubvals[pos] = X[nlpcons - sdpisolver->nvarbounds + i]; /*lint !e679, !e834 */
       }
    }
 

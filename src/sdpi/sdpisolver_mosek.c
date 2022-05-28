@@ -2398,30 +2398,30 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
    return SCIP_LPERROR;
 }/*lint !e715*/
 
-/** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem
+/** gets the solution corresponding to the lower and upper variable-bounds in the primal problem
  *
- *  The last input should specify the length of the arrays. If this is less than the number of variables, the needed
- *  length will be returned and a debug message thrown.
+ *  @p arraylength should specify the length of the arrays. If this is less than the number of variables, the needed
+ *  length will be returned.
  *
  *  @note If a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent primal variable.
  */
 SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
-   SCIP_Real*            lbvars,             /**< pointer to store the values of the variables corresponding to lower bounds in the dual problems */
-   SCIP_Real*            ubvars,             /**< pointer to store the values of the variables corresponding to upper bounds in the dual problems */
-   int*                  arraylength         /**< input: length of lbvars and ubvars <br>
-                                              *   output: number of elements inserted into lbvars/ubvars (or needed length if it wasn't sufficient) */
+   SCIP_Real*            lbvals,             /**< array to store the values of the variables corresponding to lower bounds in the primal problems */
+   SCIP_Real*            ubvals,             /**< array to store the values of the variables corresponding to upper bounds in the primal problems */
+   int*                  arraylength         /**< input: length of lbvals and ubvals <br>
+                                              *   output: number of elements inserted into lbvals/ubvals (or needed length if it wasn't sufficient) */
    )
 {
-   SCIP_Real* primalvars;
+   SCIP_Real* primalvals;
    int nprimalvars;
    int i;
 
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED( sdpisolver );
    assert( arraylength != NULL );
-   assert( lbvars != NULL );
-   assert( ubvars != NULL );
+   assert( lbvals != NULL );
+   assert( ubvals != NULL );
 
    /* check if the arrays are long enough */
    if ( *arraylength < sdpisolver->nvars )
@@ -2434,16 +2434,14 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    /* initialize the return-arrays with zero */
    for (i = 0; i < sdpisolver->nvars; i++)
    {
-      lbvars[i] = 0.0;
-      ubvars[i] = 0.0;
+      lbvals[i] = 0.0;
+      ubvals[i] = 0.0;
    }
 
-   /* get number of primal variables in MOSEK */
+   /* get primal solution from MOSEK */
    MOSEK_CALL( MSK_getnumvar(sdpisolver->msktask, &nprimalvars) );/*lint !e641*/
-
-   BMSallocBufferMemoryArray(sdpisolver->bufmem, &primalvars, nprimalvars);
-
-   MOSEK_CALL( MSK_getxx(sdpisolver->msktask, MSK_SOL_ITR, primalvars) );/*lint !e641*/
+   BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &primalvals, nprimalvars) );
+   MOSEK_CALL( MSK_getxx(sdpisolver->msktask, MSK_SOL_ITR, primalvals) );/*lint !e641*/
 
    /* iterate over all variable bounds and insert the corresponding primal variables in the right positions of the return-arrays */
    assert( sdpisolver->nvarbounds <= 2 * sdpisolver->nvars );
@@ -2455,7 +2453,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
          /* this is a lower bound */
 
          /* the last nvarbounds entries correspond to the varbounds; we need to unscale these values */
-         lbvars[sdpisolver->mosektoinputmapper[-1 * sdpisolver->varboundpos[i] -1]] = primalvars[nprimalvars - sdpisolver->nvarbounds + i] * sdpisolver->objscalefactor;
+         lbvals[sdpisolver->mosektoinputmapper[- sdpisolver->varboundpos[i] -1]] = primalvals[nprimalvars - sdpisolver->nvarbounds + i] * sdpisolver->objscalefactor;
       }
       else
       {
@@ -2463,11 +2461,11 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
          assert( sdpisolver->varboundpos[i] > 0 );
 
          /* the last nvarbounds entries correspond to the varbounds; we need to unscale these values */
-         ubvars[sdpisolver->mosektoinputmapper[sdpisolver->varboundpos[i] - 1]] = primalvars[nprimalvars - sdpisolver->nvarbounds + i] * sdpisolver->objscalefactor;
+         ubvals[sdpisolver->mosektoinputmapper[sdpisolver->varboundpos[i] - 1]] = primalvals[nprimalvars - sdpisolver->nvarbounds + i] * sdpisolver->objscalefactor;
       }
    }
 
-   BMSfreeBufferMemoryArray(sdpisolver->bufmem, &primalvars);
+   BMSfreeBufferMemoryArray(sdpisolver->bufmem, &primalvals);
 
    return SCIP_OKAY;
 }
