@@ -2635,7 +2635,7 @@ SCIP_RETCODE computeDualCut(
 
    assert( sdpi != NULL );
    assert( nsdpblocks == sdpi->nsdpblocks );
-   assert( sdpblocksizes != NULL );
+   assert( nsdpblocks == 0 || sdpblocksizes != NULL );
    assert( indchanges != NULL );
    assert( nremovedinds != NULL );
    assert( blockindchanges != NULL );

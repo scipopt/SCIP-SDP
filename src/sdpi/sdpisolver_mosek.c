@@ -2576,7 +2576,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
    int b;
 
    assert( sdpisolver != NULL );
-   assert( sdpblocksizes != NULL );
+   assert( nsdpblocks == 0 || sdpblocksizes != NULL );
    assert( indchanges != NULL );
    assert( nremovedinds != NULL );
    assert( blockindchanges != NULL );
