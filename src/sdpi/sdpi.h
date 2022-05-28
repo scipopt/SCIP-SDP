@@ -599,18 +599,20 @@ SCIP_RETCODE SCIPsdpiGetPreoptimalSol(
    SCIP_Real**           startXval           /**< pointer to store values of X (or NULL if nblocks = -1) */
    );
 
-/** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem, the last input should specify the length
- *  of the arrays, if this is less than the number of variables, the needed length will be returned and a debug-message thrown
+/** gets the primal solution corresponding to the lower and upper variable-bounds in the primal problem
+ *
+ *  @p arraylength should specify the length of the arrays. If this is less than the number of variables, the needed
+ *  length will be returned.
  *
  *  @note If a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent primal variable.
  */
 SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
-   SCIP_Real*            lbvars,             /**< pointer to store the optimal values of the variables corresponding to lower bounds in the dual problems */
-   SCIP_Real*            ubvars,             /**< pointer to store the optimal values of the variables corresponding to upper bounds in the dual problems */
-   int*                  arraylength         /**< input: length of lbvars and ubvars<br>
-                                              *   output: number of elements inserted into lbvars/ubvars (or needed length if it was not sufficient,
+   SCIP_Real*            lbvals,             /**< array to store the values of the variables corresponding to lower bounds in the primal problem */
+   SCIP_Real*            ubvals,             /**< array to store the values of the variables corresponding to upper bounds in the primal problem */
+   int*                  arraylength         /**< input: length of lbvals and ubvals<br>
+                                              *   output: number of elements inserted into lbvals/ubvals (or needed length if it was not sufficient,
                                               *           -1 if infeasible or all variables are fixed) */
    );
 
