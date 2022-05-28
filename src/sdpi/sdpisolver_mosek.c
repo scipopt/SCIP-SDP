@@ -2512,7 +2512,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
                                               *   the index can be removed, otherwise it gives the number of indices removed before this */
    int*                  nremovedinds,       /**< pointer to store the number of rows/cols to be fixed for each block */
    int*                  blockindchanges,    /**< pointer to store index change for each block, system is the same as for indchanges */
-   SCIP_Real**           primalmatrices      /**< pointer to store values of the primal matrix */
+   SCIP_Real**           primalmatrices      /**< pointer to store values of the primal matrices */
    )
 {
    int b;
@@ -2524,21 +2524,21 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
    assert( blockindchanges != NULL );
    assert( primalmatrices != NULL );
 
-   /* collect primal solution */
+   /* loop over all SDP blocks */
    for (b = 0; b < nsdpblocks; b++)
    {
-      int size;
+      int blocksize;
       int j;
 
       assert( primalmatrices[b] != NULL );
 
-      size = sdpblocksizes[b];
+      blocksize = sdpblocksizes[b];
 
       /* initialize solution matrix with 0s */
-      for (j = 0; j < size; ++j)
+      for (j = 0; j < blocksize; ++j)
          primalmatrices[b][j] = 0.0;
 
-      /* treat block that were not removed */
+      /* treat blocks that were not removed */
       if ( blockindchanges[b] >= 0 )
       {
          SCIP_Real* X;   /* the upper triangular entries of matrix X */
@@ -2548,13 +2548,13 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
          int redcol;
          int i;
 
-         redsize = sdpblocksizes[b] - nremovedinds[b];
+         redsize = blocksize - nremovedinds[b];
 
          BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &X, redsize * (redsize + 1) / 2) );
          MOSEK_CALL( MSK_getbarxj(sdpisolver->msktask, MSK_SOL_ITR, b - blockindchanges[b], X) );/*lint !e641*/
 
          /* fill in matrix */
-         for (i = 0; i < size; ++i)
+         for (i = 0; i < blocksize; ++i)
          {
             if ( indchanges[b][i] >= 0 )
             {
@@ -2567,8 +2567,8 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
                      redcol = j - indchanges[b][j];
                      assert( 0 <= redcol && redcol < redsize );
                      val = X[redcol * (redcol + 1)/2 + redrow];
-                     primalmatrices[b][i * size + j] = val;
-                     primalmatrices[b][j * size + i] = val;
+                     primalmatrices[b][i * blocksize + j] = val;
+                     primalmatrices[b][j * blocksize + i] = val;
                   }
                }
             }
