@@ -2447,6 +2447,22 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    return SCIP_LPERROR;
 }
 
+/** returns the primal solution matrix (without LP rows) */
+SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
+   int                   nsdpblocks,         /**< number of blocks */
+   int*                  sdpblocksizes,      /**< sizes of the blocks */
+   int**                 indchanges,         /**< changes needed to be done to the indices, if indchanges[block][nonz]=-1, then
+                                              *   the index can be removed, otherwise it gives the number of indices removed before this */
+   int*                  nremovedinds,       /**< pointer to store the number of rows/cols to be fixed for each block */
+   int*                  blockindchanges,    /**< pointer to store index change for each block, system is the same as for indchanges */
+   SCIP_Real**           primalmatrices      /**< pointer to store values of the primal matrix */
+   )
+{  /*lint --e{715}*/
+   SCIPdebugMessage("Not implemented yet\n");
+   return SCIP_INVALID;
+}
+
 /** return the maximum absolute value of the optimal primal matrix */
 SCIP_Real SCIPsdpiSolverGetMaxPrimalEntry(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to an SDP-solver interface */
