@@ -2771,32 +2771,34 @@ SCIP_RETCODE computeDualCut(
    {
       SCIP_Real* lbvals;
       SCIP_Real* ubvals;
-      int arraylength;
+      SCIP_Bool success;
       int i;
 
       BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &lbvals, sdpi->nvars) );
       BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &ubvals, sdpi->nvars) );
 
-      arraylength = sdpi->nvars;
-      SCIP_CALL( SCIPsdpiGetPrimalBoundVars(sdpi, lbvals, ubvals, &arraylength) );
+      SCIP_CALL( SCIPsdpiGetPrimalBoundVars(sdpi, lbvals, ubvals, &success) );
 
-      for (i = 0; i < sdpi->nvars; ++i)
+      if ( success )
       {
-         SCIP_Real duallbval;
-         SCIP_Real dualubval;
-
-         duallbval = lbvals[i];
-         if ( REALABS(duallbval) > sdpi->feastol && sdpi->lb[i] > - SCIPsdpiInfinity(sdpi) )
+         for (i = 0; i < sdpi->nvars; ++i)
          {
-            dualcut[i] -= duallbval;
-            *dualcutrhs -= sdpi->lb[i] * duallbval;
-         }
+            SCIP_Real duallbval;
+            SCIP_Real dualubval;
 
-         dualubval = ubvals[i];
-         if ( REALABS(dualubval) > sdpi->feastol && sdpi->ub[i] > - SCIPsdpiInfinity(sdpi) )
-         {
-            dualcut[i] += dualubval;
-            *dualcutrhs += sdpi->ub[i] * dualubval;
+            duallbval = lbvals[i];
+            if ( REALABS(duallbval) > sdpi->feastol && sdpi->lb[i] > - SCIPsdpiInfinity(sdpi) )
+            {
+               dualcut[i] -= duallbval;
+               *dualcutrhs -= sdpi->lb[i] * duallbval;
+            }
+
+            dualubval = ubvals[i];
+            if ( REALABS(dualubval) > sdpi->feastol && sdpi->ub[i] > - SCIPsdpiInfinity(sdpi) )
+            {
+               dualcut[i] += dualubval;
+               *dualcutrhs += sdpi->ub[i] * dualubval;
+            }
          }
       }
 
@@ -4106,8 +4108,7 @@ SCIP_RETCODE SCIPsdpiGetPreoptimalSol(
 
 /** gets the primal solution corresponding to the lower and upper variable-bounds in the primal problem
  *
- *  @p arraylength should specify the length of the arrays. If this is less than the number of variables, the needed
- *  length will be returned.
+ *  The arrays should have size nvars.
  *
  *  @note If a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent primal variable.
  */
@@ -4115,52 +4116,41 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
    SCIP_Real*            lbvals,             /**< array to store the values of the variables corresponding to lower bounds in the primal problem */
    SCIP_Real*            ubvals,             /**< array to store the values of the variables corresponding to upper bounds in the primal problem */
-   int*                  arraylength         /**< input: length of lbvals and ubvals<br>
-                                              *   output: number of elements inserted into lbvals/ubvals (or needed length if it was not sufficient,
-                                              *           -1 if infeasible or all variables are fixed) */
+   SCIP_Bool*            success             /**< pointer to store whether values could be retrieved */
    )
 {
    assert( sdpi != NULL );
    assert( lbvals != NULL );
    assert( ubvals != NULL );
-   assert( arraylength != NULL );
-   assert( *arraylength >= 0 );
+   assert( success != NULL );
 
    CHECK_IF_SOLVED(sdpi);
 
    if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Infeasibility was detected while preparing problem, no primal solution available.\n");
-      *arraylength = -1;
+      *success = FALSE;
    }
    else if ( sdpi->allfixed )
    {
       SCIPdebugMessage("All variables fixed during preprocessing, no primal solution available.\n");
-      *arraylength = -1;
+      *success = FALSE;
    }
    else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_INFEASIBLE )
    {
       SCIPdebugMessage("Problem is infeasible, no primal solution available.\n");
-      *arraylength = -1;
+      *success = FALSE;
    }
    /* If the dual is infeasible, there is no feasible solution; If the primal is infeasible, the dual is unbounded or
     * infeasible. In both cases we should not return the solution (rather a ray). */
    else if ( SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) || SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver) )
    {
       SCIPdebugMessage("Problem is infeasible, no primal solution available.\n");
-      *arraylength = -1;
+      *success = FALSE;
    }
    else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_OPTIMAL )
    {
       int i;
-
-      /* check if the arrays are long enough */
-      if ( *arraylength < sdpi->nvars )
-      {
-         *arraylength = sdpi->nvars;
-         SCIPdebugMessage("Insufficient length of array in SCIPsdpiGetPrimalBoundVars (gave %d, needed %d)\n", *arraylength, sdpi->nvars);
-         return SCIP_OKAY;
-      }
 
       /* determine primal values */
       for (i = 0; i < sdpi->nvars; i++)
@@ -4184,7 +4174,7 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    }
    else
    {
-      SCIP_CALL( SCIPsdpiSolverGetPrimalBoundVars(sdpi->sdpisolver, lbvals, ubvals, arraylength) );
+      SCIP_CALL( SCIPsdpiSolverGetPrimalBoundVars(sdpi->sdpisolver, lbvals, ubvals) );
    }
 
    return SCIP_OKAY;

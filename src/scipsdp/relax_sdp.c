@@ -5457,7 +5457,6 @@ SCIP_RETCODE SCIPrelaxSdpGetPrimalBoundVars(
    SCIP_RELAXDATA* relaxdata;
    SCIP_Real* lb;
    SCIP_Real* ub;
-   int arraylength;
    int j;
 
    assert( scip != NULL );
@@ -5474,12 +5473,9 @@ SCIP_RETCODE SCIPrelaxSdpGetPrimalBoundVars(
    SCIP_CALL( SCIPallocBufferArray(scip, &lb, nvars) );
    SCIP_CALL( SCIPallocBufferArray(scip, &ub, nvars) );
 
-   arraylength = nvars;
-   SCIP_CALL( SCIPsdpiGetPrimalBoundVars(relaxdata->sdpi, lb, ub, &arraylength) );
-   if ( arraylength >= 0 )
+   SCIP_CALL( SCIPsdpiGetPrimalBoundVars(relaxdata->sdpi, lb, ub, success) );
+   if ( *success )
    {
-      assert( arraylength == nvars );
-
       for (j = 0; j < nvars; ++j)
       {
          int idx;
@@ -5488,10 +5484,7 @@ SCIP_RETCODE SCIPrelaxSdpGetPrimalBoundVars(
          lbvars[j] = lb[idx];
          ubvars[j] = ub[idx];
       }
-      *success = TRUE;
    }
-   else
-      *success = FALSE;
 
    SCIPfreeBufferArray(scip, &ub);
    SCIPfreeBufferArray(scip, &lb);

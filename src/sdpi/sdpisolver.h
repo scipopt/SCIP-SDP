@@ -526,8 +526,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
 
 /** gets the solution corresponding to the lower and upper variable-bounds in the primal problem
  *
- *  @p arraylength should specify the length of the arrays. If this is less than the number of variables, the needed
- *  length will be returned.
+ *  The arrays need to have size nvars.
  *
  *  @note If a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent primal variable.
  */
@@ -535,9 +534,7 @@ SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
    SCIP_Real*            lbvals,             /**< array to store the values of the variables corresponding to lower bounds in the primal problems */
-   SCIP_Real*            ubvals,             /**< array to store the values of the variables corresponding to upper bounds in the primal problems */
-   int*                  arraylength         /**< input: length of lbvals and ubvals <br>
-                                              *   output: number of elements inserted into lbvals/ubvals (or needed length if it wasn't sufficient) */
+   SCIP_Real*            ubvals              /**< array to store the values of the variables corresponding to upper bounds in the primal problems */
    );
 
 /** gets the primal solution corresponding to the LP row sides */
