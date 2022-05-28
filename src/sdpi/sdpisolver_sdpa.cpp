@@ -2826,6 +2826,20 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    return SCIP_OKAY;
 }
 
+/** gets the primal solution corresponding to the LP row sides */
+SCIP_RETCODE SCIPsdpiSolverGetPrimalLPSides(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   int                   nlpcons,            /**< number of LP rows */
+   SCIP_Real*            lplhs,              /**< lhs of LP rows */
+   SCIP_Real*            lprhs,              /**< rhs of LP rows */
+   SCIP_Real*            lhsvals,            /**< array to store the values of the variables corresponding to LP lhs */
+   SCIP_Real*            rhsvals             /**< array to store the values of the variables corresponding to LP rhs */
+   )
+{  /*lint --e{715}*/
+   SCIPdebugMessage("Not implemented yet\n");
+   return SCIP_LPERROR;
+}
+
 /** return number of nonzeros for each block of the primal solution matrix X (including lp block) */
 SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */

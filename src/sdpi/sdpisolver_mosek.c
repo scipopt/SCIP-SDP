@@ -2472,6 +2472,66 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    return SCIP_OKAY;
 }
 
+/** gets the primal solution corresponding to the LP row sides */
+SCIP_RETCODE SCIPsdpiSolverGetPrimalLPSides(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   int                   nlpcons,            /**< number of LP rows */
+   SCIP_Real*            lplhs,              /**< lhs of LP rows */
+   SCIP_Real*            lprhs,              /**< rhs of LP rows */
+   SCIP_Real*            lhsvals,            /**< array to store the values of the variables corresponding to LP lhs */
+   SCIP_Real*            rhsvals             /**< array to store the values of the variables corresponding to LP rhs */
+   )
+{
+   SCIP_Real* primalvars;
+   int nprimalvars;
+   int ind = 0;
+   int i;
+
+   assert( sdpisolver != NULL );
+   CHECK_IF_SOLVED( sdpisolver );
+   assert( lplhs != NULL );
+   assert( lprhs != NULL );
+   assert( lhsvals != NULL );
+   assert( rhsvals != NULL );
+
+   if ( nlpcons <= 0 )
+      return SCIP_OKAY;
+
+   /* get primal solution from Mosek */
+   MOSEK_CALL( MSK_getnumvar(sdpisolver->msktask, &nprimalvars) );/*lint !e641*/
+   BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &primalvars, nprimalvars) );
+   MOSEK_CALL( MSK_getxx(sdpisolver->msktask, MSK_SOL_ITR, primalvars) );/*lint !e641*/
+
+   /* loop through LP rows */
+   for (i = 0; i < nlpcons; i++)
+   {
+      SCIP_Real val;
+
+      if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
+      {
+         val = primalvars[ind] * sdpisolver->objscalefactor;
+         lhsvals[i] = val;
+         ++ind;
+      }
+      else
+         lhsvals[i] = 0.0;
+
+      if ( lprhs[i] < SCIPsdpiSolverInfinity(sdpisolver) )
+      {
+         val = primalvars[ind] * sdpisolver->objscalefactor;
+         rhsvals[i] = val;
+         ++ind;
+      }
+      else
+         rhsvals[i] = 0.0;
+
+      assert( ind <= nprimalvars );
+   }
+   BMSfreeBufferMemoryArray(sdpisolver->bufmem, &primalvars);
+
+   return SCIP_OKAY;
+}
+
 /** return number of nonzeros for each block of the primal solution matrix X (including lp block) */
 SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */

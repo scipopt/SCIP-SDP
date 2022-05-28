@@ -11,6 +11,7 @@ features:
 
 API changes:
 - new function SCIPsdpiSolverGetPrimalSolutionMatrix() to access primal matrix solutions
+- new function SCIPsdpiSolverGetPrimalLPSides() to access primal solutions for LP sides
 
 parameters:
 - new parameter <constraints/SDP/presollinconssparam> to decide how linear constraints are handled during presolving
