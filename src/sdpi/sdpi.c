@@ -2626,10 +2626,10 @@ SCIP_RETCODE computeDualCut(
    int*                  nremovedinds,       /**< pointer to store the number of rows/cols to be fixed for each block */
    int*                  blockindchanges,    /**< pointer to store index change for each block, system is the same as for indchanges */
    SCIP_Real*            dualcut,            /**< coefficients of cut */
-   SCIP_Real*            dualcutrhs,         /**< rhs of cut */
-   SCIP_Bool*            success             /**< pointer to return whether computation was successful */
+   SCIP_Real*            dualcutrhs          /**< rhs of cut (SCIP_INVALID if not cut could be computed) */
    )
 {
+   SCIP_Bool success = TRUE;
    int j;
 
    assert( sdpi != NULL );
@@ -2640,9 +2640,6 @@ SCIP_RETCODE computeDualCut(
    assert( blockindchanges != NULL );
    assert( dualcut != NULL );
    assert( dualcutrhs != NULL );
-   assert( success != NULL );
-
-   *success = TRUE;
 
    /* prepare cut */
    *dualcutrhs = 0.0;
@@ -2661,9 +2658,9 @@ SCIP_RETCODE computeDualCut(
          BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &primalmatrices[b], sdpi->sdpblocksizes[b] * sdpi->sdpblocksizes[b]) );
       }
 
-      SCIP_CALL( SCIPsdpiGetPrimalSolutionMatrix(sdpi, nsdpblocks, sdpblocksizes, indchanges, nremovedinds, blockindchanges, primalmatrices, success) );
+      SCIP_CALL( SCIPsdpiGetPrimalSolutionMatrix(sdpi, nsdpblocks, sdpblocksizes, indchanges, nremovedinds, blockindchanges, primalmatrices, &success) );
 
-      if ( *success )
+      if ( success )
       {
          /* loop through blocks and matrices */
          for (b = 0; b < nsdpblocks; ++b)
@@ -2722,7 +2719,7 @@ SCIP_RETCODE computeDualCut(
    }
 
    /* add LP rows */
-   if ( sdpi->nactivelpcons > 0 && *success )
+   if ( sdpi->nactivelpcons > 0 && success )
    {
       SCIP_Real* lhsvals;
       SCIP_Real* rhsvals;
@@ -2734,9 +2731,9 @@ SCIP_RETCODE computeDualCut(
       BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &lhsvals, sdpi->nlpcons) );
       BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &rhsvals, sdpi->nlpcons) );
 
-      SCIP_CALL( SCIPsdpiGetPrimalLPSides(sdpi, lhsvals, rhsvals, success) );
+      SCIP_CALL( SCIPsdpiGetPrimalLPSides(sdpi, lhsvals, rhsvals, &success) );
 
-      if ( *success )
+      if ( success )
       {
          currentrow = sdpi->lprow[0];
          assert( 0 <= currentrow && currentrow < sdpi->nlpcons );
@@ -2778,7 +2775,7 @@ SCIP_RETCODE computeDualCut(
    }
 
    /* add variable bounds */
-   if ( sdpi->nvars > 0 && *success )
+   if ( sdpi->nvars > 0 && success )
    {
       SCIP_Real* lbvals;
       SCIP_Real* ubvals;
@@ -2787,9 +2784,9 @@ SCIP_RETCODE computeDualCut(
       BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &lbvals, sdpi->nvars) );
       BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &ubvals, sdpi->nvars) );
 
-      SCIP_CALL( SCIPsdpiGetPrimalBoundVars(sdpi, lbvals, ubvals, success) );
+      SCIP_CALL( SCIPsdpiGetPrimalBoundVars(sdpi, lbvals, ubvals, &success) );
 
-      if ( *success )
+      if ( success )
       {
          for (i = 0; i < sdpi->nvars; ++i)
          {
@@ -2816,6 +2813,9 @@ SCIP_RETCODE computeDualCut(
       BMSfreeBufferMemoryArray(sdpi->bufmem, &ubvals);
       BMSfreeBufferMemoryArray(sdpi->bufmem, &lbvals);
    }
+
+   if ( ! success )
+      *dualcutrhs = SCIP_INVALID;
 
    return SCIP_OKAY;
 }
@@ -2852,7 +2852,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                                               *   of this check */
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
    SCIP_Real*            dualcut,            /**< coefficients of a dual cut */
-   SCIP_Real*            dualcutrhs          /**< rhs of cut */
+   SCIP_Real*            dualcutrhs          /**< rhs of cut (SCIP_INVALID if not cut could be computed) */
    )
 {
    int* sdpconstnblocknonz = NULL;
@@ -3325,9 +3325,7 @@ SCIP_RETCODE SCIPsdpiSolve(
       /* possibly prepare dual cut */
       if ( sdpi->solved && dualcut != NULL )
       {
-         SCIP_Bool success;
-
-         SCIP_CALL( computeDualCut(sdpi, sdpi->nsdpblocks, sdpi->sdpblocksizes, indchanges, nremovedinds, blockindchanges, dualcut, dualcutrhs, &success) );
+         SCIP_CALL( computeDualCut(sdpi, sdpi->nsdpblocks, sdpi->sdpblocksizes, indchanges, nremovedinds, blockindchanges, dualcut, dualcutrhs) );
       }
    }
 

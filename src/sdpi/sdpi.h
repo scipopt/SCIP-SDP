@@ -406,7 +406,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                                               *   of this check */
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
    SCIP_Real*            dualcut,            /**< coefficients of a dual cut */
-   SCIP_Real*            dualcutrhs          /**< rhs of cut */
+   SCIP_Real*            dualcutrhs          /**< rhs of cut (SCIP_INVALID if not cut could be computed) */
    );
 
 /**@} */
