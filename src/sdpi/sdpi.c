@@ -2615,7 +2615,7 @@ SCIP_RETCODE SCIPsdpiGetRhSides(
 /**@name Solving Methods */
 /**@{ */
 
-/** computes dual cut: aggregate dual constraints using the primal information */
+/** computes dual cut: aggregate dual constraints using primal information */
 static
 SCIP_RETCODE computeDualCut(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
@@ -2630,8 +2630,6 @@ SCIP_RETCODE computeDualCut(
    SCIP_Bool*            success             /**< pointer to return whether computation was successful */
    )
 {
-   SCIP_Real** primalmatrices;
-   int b;
    int j;
 
    assert( sdpi != NULL );
@@ -2654,6 +2652,9 @@ SCIP_RETCODE computeDualCut(
    /* get primal solution */
    if ( nsdpblocks > 0 )
    {
+      SCIP_Real** primalmatrices;
+      int b;
+
       BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &primalmatrices, nsdpblocks) );
       for (b = 0; b < nsdpblocks; ++b)
       {
@@ -2721,7 +2722,7 @@ SCIP_RETCODE computeDualCut(
    }
 
    /* add LP rows */
-   if ( sdpi->nactivelpcons > 0 )
+   if ( sdpi->nactivelpcons > 0 && *success )
    {
       SCIP_Real* lhsvals;
       SCIP_Real* rhsvals;
@@ -2754,10 +2755,10 @@ SCIP_RETCODE computeDualCut(
             /* we finished a new row */
             if ( i == sdpi->lpnnonz - 1 || sdpi->lprow[i+1] > currentrow )
             {
-               if ( sdpi->lplhs[currentrow] > - SCIPsdpiInfinity(sdpi) && REALABS(duallhsval) > sdpi->feastol )
+               if ( sdpi->lplhs[currentrow] > - SCIPsdpiInfinity(sdpi) && REALABS(duallhsval) > sdpi->feastol && REALABS(sdpi->lplhs[currentrow]) > sdpi->epsilon )
                   *dualcutrhs -= sdpi->lplhs[currentrow] * duallhsval;
 
-               if ( sdpi->lprhs[currentrow] < SCIPsdpiInfinity(sdpi) && REALABS(dualrhsval) > sdpi->feastol )
+               if ( sdpi->lprhs[currentrow] < SCIPsdpiInfinity(sdpi) && REALABS(dualrhsval) > sdpi->feastol && REALABS(sdpi->lprhs[currentrow]) > sdpi->epsilon )
                   *dualcutrhs += sdpi->lprhs[currentrow] * dualrhsval;
 
                /* reset variables for next row */
@@ -2777,7 +2778,7 @@ SCIP_RETCODE computeDualCut(
    }
 
    /* add variable bounds */
-   if ( sdpi->nvars > 0 )
+   if ( sdpi->nvars > 0 && *success )
    {
       SCIP_Real* lbvals;
       SCIP_Real* ubvals;
@@ -2792,21 +2793,22 @@ SCIP_RETCODE computeDualCut(
       {
          for (i = 0; i < sdpi->nvars; ++i)
          {
-            SCIP_Real duallbval;
-            SCIP_Real dualubval;
+            SCIP_Real dualval;
 
-            duallbval = lbvals[i];
-            if ( REALABS(duallbval) > sdpi->feastol && sdpi->lb[i] > - SCIPsdpiInfinity(sdpi) )
+            dualval = lbvals[i];
+            if ( REALABS(dualval) > sdpi->feastol && sdpi->lb[i] > - SCIPsdpiInfinity(sdpi) )
             {
-               dualcut[i] -= duallbval;
-               *dualcutrhs -= sdpi->lb[i] * duallbval;
+               dualcut[i] -= dualval;
+               if ( REALABS(sdpi->lb[i]) > sdpi->epsilon )
+                  *dualcutrhs -= sdpi->lb[i] * dualval;
             }
 
-            dualubval = ubvals[i];
-            if ( REALABS(dualubval) > sdpi->feastol && sdpi->ub[i] > - SCIPsdpiInfinity(sdpi) )
+            dualval = ubvals[i];
+            if ( REALABS(dualval) > sdpi->feastol && sdpi->ub[i] > - SCIPsdpiInfinity(sdpi) )
             {
-               dualcut[i] += dualubval;
-               *dualcutrhs += sdpi->ub[i] * dualubval;
+               dualcut[i] += dualval;
+               if ( REALABS(sdpi->ub[i]) > sdpi->epsilon )
+                  *dualcutrhs += sdpi->ub[i] * dualval;
             }
          }
       }
