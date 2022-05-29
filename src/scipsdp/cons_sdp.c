@@ -186,6 +186,7 @@ struct SCIP_ConsData
    SCIP_Real*            matrixval;          /**< value at given position of unique covering variable */
    SCIP_Real*            matrixconst;        /**< value of constant matrix */
    int                   nsingle;            /**< number of matrix entries that depend on a single variable only */
+   SCIP_Bool             propubpossible;     /**< whether the propagation of upper bounds is possible */
    SCIP_Bool             diagconstantone;    /**< true if all diagonal entries are fixed to be 1 (used for speeding-up propagate3minors() */
    SCIP_Real             tracebound;         /**< possible bound on the trace */
    SCIP_Bool             allmatricespsd;     /**< true if all variables are positive semidefinite (excluding the constant matrix) */
@@ -479,6 +480,63 @@ SCIP_RETCODE computeFullSdpMatrix(
    return SCIP_OKAY;
 }
 
+/** check whether propagation of upper bounds can be applied */
+static
+SCIP_RETCODE checkPropagateUpperbounds(
+   SCIP_CONS*            cons                /**< constraints to check */
+   )
+{
+   SCIP_CONSDATA* consdata;
+
+   assert( cons != NULL );
+   consdata = SCIPconsGetData(cons);
+   consdata->propubpossible = FALSE;
+
+   if ( consdata->nsingle > 0 )
+   {
+      int blocksize;
+      int s;
+      int t;
+
+      blocksize = consdata->blocksize;
+
+      /* check all off-diagonal positions */
+      for (s = 1; s < blocksize; ++s)
+      {
+         int diags;
+
+         diags = s * (s + 1)/2 + s;
+         if ( consdata->matrixval[diags] == SCIP_INVALID ) /*lint !e777*/
+            continue;
+
+         for (t = 0; t < s; ++t)
+         {
+            SCIP_VAR* varst;
+            int diagt;
+            int pos;
+
+            pos = s * (s + 1)/2 + t;
+            varst = consdata->matrixvar[pos];
+            if ( varst == NULL || ! SCIPvarIsActive(varst) )
+               continue;
+
+            diagt = t * (t + 1)/2 + t;
+            if ( consdata->matrixval[diagt] == SCIP_INVALID ) /*lint !e777*/
+               continue;
+
+            /* at this place propagation of upper bounds would be possible */
+            consdata->propubpossible = TRUE;
+            break;
+         }
+
+         if ( consdata->propubpossible )
+            break;
+      }
+   }
+
+   return SCIP_OKAY;
+}
+
 /** build matrixvar data
  *
  *  We have:
@@ -580,6 +638,9 @@ SCIP_RETCODE constructMatrixvar(
 
    if ( SCIPgetSubscipDepth(scip) == 0 )
       SCIPdebugMsg(scip, "Total number of matrix entries that only depend on a single variable: %d.\n", consdata->nsingle);
+
+   /* determine whether propagation of upper bounds is possible */
+   SCIP_CALL( checkPropagateUpperbounds(cons) );
 
    return SCIP_OKAY;
 }
@@ -4735,13 +4796,13 @@ SCIP_RETCODE propagateUpperBounds(
       }
 
       /* if there is at least one entry that only depends on a single variable */
-      if ( consdata->nsingle > 0 )
+      if ( consdata->propubpossible && consdata->nsingle > 0 )
       {
          int s;
          int t;
 
          /* check all off-diagonal positions */
-         for (s = 0; s < blocksize; ++s)
+         for (s = 1; s < blocksize; ++s)
          {
             SCIP_VAR* vars;
             SCIP_Real ubs = 0.0;
@@ -7184,6 +7245,7 @@ SCIP_DECL_CONSTRANS(consTransSdp)
    targetdata->matrixval = NULL;
    targetdata->matrixconst = NULL;
    targetdata->nsingle = 0;
+   targetdata->propubpossible = TRUE;
    targetdata->tracebound = -2.0;
    targetdata->allmatricespsd = sourcedata->allmatricespsd;
    targetdata->initallmatricespsd = sourcedata->initallmatricespsd;
@@ -8417,6 +8479,7 @@ SCIP_DECL_CONSPARSE(consParseSdp)
    consdata->matrixval = NULL;
    consdata->matrixconst = NULL;
    consdata->nsingle = 0;
+   consdata->propubpossible = TRUE;
    consdata->diagconstantone = FALSE;
    consdata->tracebound = -2.0;
    consdata->allmatricespsd = FALSE;
@@ -9709,6 +9772,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
    consdata->matrixval = NULL;
    consdata->matrixconst = NULL;
    consdata->nsingle = 0;
+   consdata->propubpossible = TRUE;
    consdata->diagconstantone = FALSE;
    consdata->tracebound = -2.0;
    consdata->allmatricespsd = FALSE;
@@ -9937,6 +10001,7 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
    consdata->matrixval = NULL;
    consdata->matrixconst = NULL;
    consdata->nsingle = 0;
+   consdata->propubpossible = TRUE;
    consdata->diagconstantone = FALSE;
    consdata->tracebound = -2.0;
    consdata->allmatricespsd = FALSE;
