@@ -59,6 +59,8 @@
 #include "scipsdp/cons_savesdpsol.h"
 #include "scipsdp/cons_savedsdpsettings.h"
 
+#include <scip/cons_linear.h>
+
 /* turn off lint warnings for whole file: */
 /*lint --e{788,818}*/
 
@@ -1378,6 +1380,43 @@ SCIP_RETCODE calcRelax(
       SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
       SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit, dualcut, &dualcutrhs) );
       SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
+
+      /* generate constraint if dual cut is valid */
+      if ( dualcutrhs != SCIP_INVALID && 0 )
+      {
+         char consname[SCIP_MAXSTRLEN];
+         SCIP_CONS* cons;
+         SCIP_VAR** consvars;
+         SCIP_Real* consvals;
+         int cnt = 0;
+
+         SCIP_CALL( SCIPallocBufferArray(scip, &consvars, nvars) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &consvals, nvars) );
+
+         for (i = 0; i < nvars; ++i)
+         {
+            if ( ! SCIPisZero(scip, dualcut[i]) )
+            {
+               consvars[cnt] = vars[i];
+               consvals[cnt++] = dualcut[i];
+            }
+         }
+         (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "dualcut#%d", SCIPrelaxGetNCalls(relax));
+         SCIP_CALL( SCIPcreateConsLinear(scip, &cons, consname, cnt, consvars, consvals, -SCIPinfinity(scip), dualcutrhs,
+               TRUE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+         SCIP_CALL( SCIPaddCons(scip, cons) );
+
+#ifdef SCIP_DEBUG
+         SCIPinfoMessage(scip, NULL, "Added dual cut:\n");
+         SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
+         SCIPinfoMessage(scip, NULL, "\n");
+#endif
+
+         SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+
+         SCIPfreeBufferArray(scip, &consvals);
+         SCIPfreeBufferArray(scip, &consvars);
+      }
 
       SCIPfreeBufferArray(scip, &dualcut);
    }
