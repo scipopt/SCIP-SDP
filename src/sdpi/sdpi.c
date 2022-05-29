@@ -225,6 +225,8 @@ struct SCIP_SDPi
    SCIP_Real*            ub;                 /**< upper bounds of variables */
    SCIP_Real*            sdpilb;             /**< copy for lower bounds of variables */
    SCIP_Real*            sdpiub;             /**< copy for upper bounds of variables */
+   int*                  sdpilbrowidx;       /**< index of row that provided this bound (or -1) */
+   int*                  sdpiubrowidx;       /**< index of row that provided this bound (or -1) */
    int                   nsdpblocks;         /**< number of SDP-blocks */
    int                   maxnsdpblocks;      /**< maximal number of required SDP blocks */
    int*                  sdpblocksizes;      /**< sizes of the SDP-blocks */
@@ -389,6 +391,8 @@ SCIP_RETCODE ensureBoundDataMemory(
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), sdpi->maxnvars, newsize) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpilb), sdpi->maxnvars, newsize) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpiub), sdpi->maxnvars, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpilbrowidx), sdpi->maxnvars, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpiubrowidx), sdpi->maxnvars, newsize) );
       sdpi->maxnvars = newsize;
    }
 
@@ -782,6 +786,8 @@ SCIP_RETCODE prepareLPData(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
    SCIP_Real*            sdpilb,             /**< prepared array of lower bounds */
    SCIP_Real*            sdpiub,             /**< prepared array of upper bounds */
+   int*                  sdpilbrowidx,       /**< index of row that provided this bound (or -1) */
+   int*                  sdpiubrowidx,       /**< index of row that provided this bound (or -1) */
    int*                  nsdpilpcons,        /**< pointer to store the number of resulting LP-constraints */
    SCIP_Real*            sdpilplhs,          /**< prepared array to store lhs of LP-constraints after fixing variables */
    SCIP_Real*            sdpilprhs,          /**< prepared array to store rhs of LP-constraints after fixing variables */
@@ -803,6 +809,8 @@ SCIP_RETCODE prepareLPData(
    assert( sdpi != NULL );
    assert( sdpilb != NULL );
    assert( sdpiub != NULL );
+   assert( sdpilbrowidx != NULL );
+   assert( sdpiubrowidx != NULL );
    assert( nsdpilpcons != NULL );
    assert( sdpi->nlpcons == 0 || sdpilplhs != NULL );
    assert( sdpi->nlpcons == 0 || sdpilprhs != NULL );
@@ -820,6 +828,13 @@ SCIP_RETCODE prepareLPData(
    /* if there is no LP-part, there is nothing to do */
    if ( sdpi->nlpcons == 0 || sdpi->lpnnonz == 0 )
       return SCIP_OKAY;
+
+   /* init row indices */
+   for (i = 0; i < sdpi->nvars; ++i)
+   {
+      sdpi->sdpilbrowidx[i] = -1;
+      sdpi->sdpiubrowidx[i] = -1;
+   }
 
    currentrow = sdpi->lprow[0];
    for (i = 0; i < sdpi->lpnnonz; ++i)
@@ -914,6 +929,11 @@ SCIP_RETCODE prepareLPData(
                SCIPdebugMessage("LP-row %d with one nonzero has been removed from SDP %d, lower bound of variable %d has been strenghened to %g "
                   "(originally %g)\n", currentrow, sdpi->sdpid, lpcol, lb, sdpilb[lpcol]);
                sdpilb[lpcol] = lb;
+
+               if ( lpval < 0.0 )
+                  sdpilbrowidx[lpcol] = currentrow + 1;  /* the rhs lead to a change in lb */
+               else
+                  sdpilbrowidx[lpcol] = - currentrow - 1;   /* the lhs lead to a change in lb */
             }
 
             /* check whether upper bound is stronger */
@@ -923,6 +943,11 @@ SCIP_RETCODE prepareLPData(
                SCIPdebugMessage("LP-row %d with one nonzero has been removed from SDP %d, upper bound of variable %d has been strenghened to %g "
                   "(originally %g)\n", currentrow, sdpi->sdpid, lpcol, ub, sdpiub[lpcol]);
                sdpiub[lpcol] = ub;
+
+               if ( lpval > 0.0 )
+                  sdpiubrowidx[lpcol] = currentrow + 1;  /* the rhs lead to a change in ub */
+               else
+                  sdpiubrowidx[lpcol] = - currentrow - 1;   /* the lhs lead to a change in ub */
             }
 
             /* check whether this makes the problem infeasible */
@@ -1544,6 +1569,8 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->ub = NULL;
    (*sdpi)->sdpilb = NULL;
    (*sdpi)->sdpiub = NULL;
+   (*sdpi)->sdpilbrowidx = NULL;
+   (*sdpi)->sdpiubrowidx = NULL;
    (*sdpi)->sdpblocksizes = NULL;
    (*sdpi)->sdpnblockvars = NULL;
    (*sdpi)->maxsdpnblockvars = NULL;
@@ -1667,6 +1694,8 @@ SCIP_RETCODE SCIPsdpiFree(
    assert( 0 <= (*sdpi)->nvars && (*sdpi)->nvars <= (*sdpi)->maxnvars );
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpiub), (*sdpi)->maxnvars);/*lint !e737*/
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpilb), (*sdpi)->maxnvars);/*lint !e737*/
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpiubrowidx), (*sdpi)->maxnvars);/*lint !e737*/
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpilbrowidx), (*sdpi)->maxnvars);/*lint !e737*/
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->ub), (*sdpi)->maxnvars);/*lint !e737*/
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lb), (*sdpi)->maxnvars);/*lint !e737*/
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->obj), (*sdpi)->maxnvars);/*lint !e737*/
@@ -1721,6 +1750,8 @@ SCIP_RETCODE SCIPsdpiClone(
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->ub), oldsdpi->ub, nvars) );
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpilb), nvars) );
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpiub), nvars) );
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpilbrowidx), nvars) );
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpiubrowidx), nvars) );
 
    newsdpi->nsdpblocks = nsdpblocks;
    newsdpi->maxnsdpblocks = nsdpblocks;
@@ -2748,6 +2779,9 @@ SCIP_RETCODE computeDualCut(
          assert( 0 <= currentrow && currentrow < sdpi->nlpcons );
          primallhsval = lhsvals[currentrow];
          primalrhsval = rhsvals[currentrow];
+         assert( REALABS(primallhsval) > - sdpi->feastol );
+         assert( REALABS(primalrhsval) > - sdpi->feastol );
+
          for (i = 0; i < sdpi->lpnnonz; ++i)
          {
             assert( i == 0 || sdpi->lprow[i-1] <= sdpi->lprow[i] );  /* rows should be sorted */
@@ -2802,6 +2836,7 @@ SCIP_RETCODE computeDualCut(
             SCIP_Real primalval;
 
             primalval = lbvals[i];
+            assert( REALABS(primalval) > - sdpi->feastol );
             if ( REALABS(primalval) > sdpi->feastol && sdpi->lb[i] > - SCIPsdpiInfinity(sdpi) )
             {
                dualcut[i] -= primalval;
@@ -2810,6 +2845,7 @@ SCIP_RETCODE computeDualCut(
             }
 
             primalval = ubvals[i];
+            assert( REALABS(primalval) > - sdpi->feastol );
             if ( REALABS(primalval) > sdpi->feastol && sdpi->ub[i] < SCIPsdpiInfinity(sdpi) )
             {
                dualcut[i] += primalval;
@@ -2938,8 +2974,8 @@ SCIP_RETCODE SCIPsdpiSolve(
    do
    {
       /* we expect that additional fixings are only found seldomly, so this function is usually called only once per solve */
-      SCIP_CALL( prepareLPData(sdpi, sdpi->sdpilb, sdpi->sdpiub, &sdpi->nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs, sdpi->sdpilpidx, &sdpilpnnonz,
-            sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval, &fixingfound) );
+      SCIP_CALL( prepareLPData(sdpi, sdpi->sdpilb, sdpi->sdpiub, sdpi->sdpilbrowidx, sdpi->sdpiubrowidx, &sdpi->nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs,
+            sdpi->sdpilpidx, &sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval, &fixingfound) );
 
       SCIPdebugMessage("Number of active LP constraints: %d (original: %d); %d nonzeros.\n", sdpi->nactivelpcons, sdpi->nlpcons, sdpilpnnonz);
    }
@@ -4259,18 +4295,50 @@ SCIP_RETCODE SCIPsdpiGetPrimalLPSides(
    {
       SCIP_Real* sdpilhsvals;
       SCIP_Real* sdpirhsvals;
+      SCIP_Real* sdpilbvals;
+      SCIP_Real* sdpiubvals;
 
       assert( 0 <= sdpi->nactivelpcons && sdpi->nactivelpcons <= sdpi->nlpcons );
       BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &sdpilhsvals, sdpi->nactivelpcons) );
       BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &sdpirhsvals, sdpi->nactivelpcons) );
+      BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &sdpilbvals, sdpi->nvars) );
+      BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &sdpiubvals, sdpi->nvars) );
 
       SCIP_CALL( SCIPsdpiSolverGetPrimalLPSides(sdpi->sdpisolver, sdpi->nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs, sdpilhsvals, sdpirhsvals) );
+
+      /* also get primal values for variables bounds to set values for LP rows that were replaced by variable bounds */
+      SCIP_CALL( SCIPsdpiSolverGetPrimalBoundVars(sdpi->sdpisolver, sdpilbvals, sdpiubvals) );
 
       /* initialize values to 0.0 */
       for (i = 0; i < sdpi->nlpcons; ++i)
       {
          lhsvals[i] = 0.0;
          rhsvals[i] = 0.0;
+      }
+
+      for (i = 0; i < sdpi->nvars; ++i)
+      {
+         int idx;
+
+         if ( sdpi->sdpilbrowidx[i] >= 0 )
+         {
+            idx = sdpi->sdpilbrowidx[i];
+            assert( -sdpi->nlpcons - 1 < idx && idx < sdpi->nlpcons + 1 );
+            if ( idx > 0 )
+               rhsvals[idx-1] = sdpilbvals[i];
+            else
+               lhsvals[-idx-1] = sdpilbvals[i];
+         }
+
+         if ( sdpi->sdpiubrowidx[i] >= 0 )
+         {
+            idx = sdpi->sdpiubrowidx[i];
+            assert( -sdpi->nlpcons - 1 < idx && idx < sdpi->nlpcons + 1 );
+            if ( idx > 0 )
+               rhsvals[idx-1] = sdpiubvals[i];
+            else
+               lhsvals[-idx-1] = sdpiubvals[i];
+         }
       }
 
       /* fill in data */
@@ -4280,6 +4348,8 @@ SCIP_RETCODE SCIPsdpiGetPrimalLPSides(
          lhsvals[sdpi->sdpilpidx[i]] = sdpilhsvals[i];
          rhsvals[sdpi->sdpilpidx[i]] = sdpirhsvals[i];
       }
+      BMSfreeBufferMemoryArray(sdpi->bufmem, &sdpiubvals);
+      BMSfreeBufferMemoryArray(sdpi->bufmem, &sdpilbvals);
       BMSfreeBufferMemoryArray(sdpi->bufmem, &sdpirhsvals);
       BMSfreeBufferMemoryArray(sdpi->bufmem, &sdpilhsvals);
       *success = TRUE;
