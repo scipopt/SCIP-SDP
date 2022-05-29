@@ -2666,6 +2666,7 @@ SCIP_RETCODE computeDualCut(
          for (b = 0; b < nsdpblocks; ++b)
          {
             SCIP_Real c = 0.0;
+            SCIP_Real primalval;
             int row;
             int col;
             int blocksize;
@@ -2685,10 +2686,14 @@ SCIP_RETCODE computeDualCut(
                   assert( 0 <= row && row < blocksize );
                   assert( 0 <= col && col < blocksize );
 
-                  if ( row == col )
-                     p += sdpi->sdpval[b][v][k] * primalmatrices[b][row * blocksize + col];
-                  else
-                     p += 2.0 * sdpi->sdpval[b][v][k] * primalmatrices[b][row * blocksize + col];
+                  primalval = primalmatrices[b][row * blocksize + col];
+                  if ( REALABS(primalval) > sdpi->feastol )
+                  {
+                     if ( row == col )
+                        p += sdpi->sdpval[b][v][k] * primalval;
+                     else
+                        p += 2.0 * sdpi->sdpval[b][v][k] * primalval;
+                  }
                }
                dualcut[v] += p;
             }
@@ -2701,10 +2706,14 @@ SCIP_RETCODE computeDualCut(
                assert( 0 <= row && row < blocksize );
                assert( 0 <= col && col < blocksize );
 
-               if ( row == col )
-                  c += sdpi->sdpconstval[b][k] * primalmatrices[b][row * blocksize + col];
-               else
-                  c += 2.0 * sdpi->sdpconstval[b][k] * primalmatrices[b][row * blocksize + col];
+               primalval = primalmatrices[b][row * blocksize + col];
+               if ( REALABS(primalval) > sdpi->feastol )
+               {
+                  if ( row == col )
+                     c += sdpi->sdpconstval[b][k] * primalval;
+                  else
+                     c += 2.0 * sdpi->sdpconstval[b][k] * primalval;
+               }
             }
             *dualcutrhs += c;
          }
