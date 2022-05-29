@@ -2732,8 +2732,8 @@ SCIP_RETCODE computeDualCut(
    {
       SCIP_Real* lhsvals;
       SCIP_Real* rhsvals;
-      SCIP_Real duallhsval;
-      SCIP_Real dualrhsval;
+      SCIP_Real primallhsval;
+      SCIP_Real primalrhsval;
       int currentrow;
       int i;
 
@@ -2746,34 +2746,34 @@ SCIP_RETCODE computeDualCut(
       {
          currentrow = sdpi->lprow[0];
          assert( 0 <= currentrow && currentrow < sdpi->nlpcons );
-         duallhsval = lhsvals[currentrow];
-         dualrhsval = rhsvals[currentrow];
+         primallhsval = lhsvals[currentrow];
+         primalrhsval = rhsvals[currentrow];
          for (i = 0; i < sdpi->lpnnonz; ++i)
          {
             assert( i == 0 || sdpi->lprow[i-1] <= sdpi->lprow[i] );  /* rows should be sorted */
 
-            if ( REALABS(duallhsval) > sdpi->feastol )
-               dualcut[sdpi->lpcol[i]] -= sdpi->lpval[i] * duallhsval;
+            if ( REALABS(primallhsval) > sdpi->feastol )
+               dualcut[sdpi->lpcol[i]] -= sdpi->lpval[i] * primallhsval;
 
-            if ( REALABS(dualrhsval) > sdpi->feastol )
-               dualcut[sdpi->lpcol[i]] += sdpi->lpval[i] * dualrhsval;
+            if ( REALABS(primalrhsval) > sdpi->feastol )
+               dualcut[sdpi->lpcol[i]] += sdpi->lpval[i] * primalrhsval;
 
             /* we finished a new row */
             if ( i == sdpi->lpnnonz - 1 || sdpi->lprow[i+1] > currentrow )
             {
-               if ( sdpi->lplhs[currentrow] > - SCIPsdpiInfinity(sdpi) && REALABS(duallhsval) > sdpi->feastol && REALABS(sdpi->lplhs[currentrow]) > sdpi->epsilon )
-                  *dualcutrhs -= sdpi->lplhs[currentrow] * duallhsval;
+               if ( sdpi->lplhs[currentrow] > - SCIPsdpiInfinity(sdpi) && REALABS(primallhsval) > sdpi->feastol && REALABS(sdpi->lplhs[currentrow]) > sdpi->epsilon )
+                  *dualcutrhs -= sdpi->lplhs[currentrow] * primallhsval;
 
-               if ( sdpi->lprhs[currentrow] < SCIPsdpiInfinity(sdpi) && REALABS(dualrhsval) > sdpi->feastol && REALABS(sdpi->lprhs[currentrow]) > sdpi->epsilon )
-                  *dualcutrhs += sdpi->lprhs[currentrow] * dualrhsval;
+               if ( sdpi->lprhs[currentrow] < SCIPsdpiInfinity(sdpi) && REALABS(primalrhsval) > sdpi->feastol && REALABS(sdpi->lprhs[currentrow]) > sdpi->epsilon )
+                  *dualcutrhs += sdpi->lprhs[currentrow] * primalrhsval;
 
                /* reset variables for next row */
                if ( i < sdpi->lpnnonz - 1 )
                {
                   currentrow = sdpi->lprow[i+1];
                   assert( 0 <= currentrow && currentrow < sdpi->nlpcons );
-                  duallhsval = lhsvals[currentrow];
-                  dualrhsval = rhsvals[currentrow];
+                  primallhsval = lhsvals[currentrow];
+                  primalrhsval = rhsvals[currentrow];
                }
             }
          }
@@ -2799,22 +2799,22 @@ SCIP_RETCODE computeDualCut(
       {
          for (i = 0; i < sdpi->nvars; ++i)
          {
-            SCIP_Real dualval;
+            SCIP_Real primalval;
 
-            dualval = lbvals[i];
-            if ( REALABS(dualval) > sdpi->feastol && sdpi->lb[i] > - SCIPsdpiInfinity(sdpi) )
+            primalval = lbvals[i];
+            if ( REALABS(primalval) > sdpi->feastol && sdpi->lb[i] > - SCIPsdpiInfinity(sdpi) )
             {
-               dualcut[i] -= dualval;
+               dualcut[i] -= primalval;
                if ( REALABS(sdpi->lb[i]) > sdpi->epsilon )
-                  *dualcutrhs -= sdpi->lb[i] * dualval;
+                  *dualcutrhs -= sdpi->lb[i] * primalval;
             }
 
-            dualval = ubvals[i];
-            if ( REALABS(dualval) > sdpi->feastol && sdpi->ub[i] > - SCIPsdpiInfinity(sdpi) )
+            primalval = ubvals[i];
+            if ( REALABS(primalval) > sdpi->feastol && sdpi->ub[i] > - SCIPsdpiInfinity(sdpi) )
             {
-               dualcut[i] += dualval;
+               dualcut[i] += primalval;
                if ( REALABS(sdpi->ub[i]) > sdpi->epsilon )
-                  *dualcutrhs += sdpi->ub[i] * dualval;
+                  *dualcutrhs += sdpi->ub[i] * primalval;
             }
          }
       }
