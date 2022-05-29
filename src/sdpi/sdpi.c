@@ -2728,7 +2728,7 @@ SCIP_RETCODE computeDualCut(
    }
 
    /* add LP rows */
-   if ( sdpi->nactivelpcons > 0 && success )
+   if ( sdpi->nlpcons > 0 && success )
    {
       SCIP_Real* lhsvals;
       SCIP_Real* rhsvals;
@@ -2810,7 +2810,7 @@ SCIP_RETCODE computeDualCut(
             }
 
             primalval = ubvals[i];
-            if ( REALABS(primalval) > sdpi->feastol && sdpi->ub[i] > - SCIPsdpiInfinity(sdpi) )
+            if ( REALABS(primalval) > sdpi->feastol && sdpi->ub[i] < SCIPsdpiInfinity(sdpi) )
             {
                dualcut[i] += primalval;
                if ( REALABS(sdpi->ub[i]) > sdpi->epsilon )
