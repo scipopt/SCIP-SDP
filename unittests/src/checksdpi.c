@@ -1008,8 +1008,8 @@ Test(checksdpi, test10)
 
    /* expected solutions */
    SCIP_Real exp_dualsol[2] = {1.0, 1.0};
-   SCIP_Real exp_dualcut[2] = {-1, -1};
-   SCIP_Real exp_dualcutrhs = -2.0;
+   SCIP_Real exp_dualcut[2] = {1, 1};
+   SCIP_Real exp_dualcutrhs = 2.0;
 
    sdpnblockvarnonz = &sdpnblockvarnonzs[0];
    sdpvar = &sdpvars[0];
