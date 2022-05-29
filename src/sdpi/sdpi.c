@@ -4320,7 +4320,7 @@ SCIP_RETCODE SCIPsdpiGetPrimalLPSides(
       {
          int idx;
 
-         if ( sdpi->sdpilbrowidx[i] >= 0 )
+         if ( sdpi->sdpilbrowidx[i] != 0 )
          {
             idx = sdpi->sdpilbrowidx[i];
             assert( -sdpi->nlpcons - 1 < idx && idx < sdpi->nlpcons + 1 );
@@ -4330,7 +4330,7 @@ SCIP_RETCODE SCIPsdpiGetPrimalLPSides(
                lhsvals[-idx-1] = sdpilbvals[i];
          }
 
-         if ( sdpi->sdpiubrowidx[i] >= 0 )
+         if ( sdpi->sdpiubrowidx[i] != 0 )
          {
             idx = sdpi->sdpiubrowidx[i];
             assert( -sdpi->nlpcons - 1 < idx && idx < sdpi->nlpcons + 1 );
