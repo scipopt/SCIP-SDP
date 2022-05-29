@@ -1008,6 +1008,8 @@ Test(checksdpi, test10)
 
    /* expected solutions */
    SCIP_Real exp_dualsol[2] = {1.0, 1.0};
+   SCIP_Real exp_dualcut[2] = {-1, -1};
+   SCIP_Real exp_dualcutrhs = -2.0;
 
    sdpnblockvarnonz = &sdpnblockvarnonzs[0];
    sdpvar = &sdpvars[0];
@@ -1037,7 +1039,7 @@ Test(checksdpi, test10)
 
    SCIP_CALL( performSDPTest(2, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz, sdpconstnblocknonz,
          NULL, NULL, NULL, sdpnnonz, &sdpnblockvarnonz, &sdpvar, &sdprow, &sdpcol, &sdpval,
-         4, lhs, rhs, 4, row, col, val, SCIPfeas, SCIPfeas, exp_dualsol, NULL, 0.0) );
+         4, lhs, rhs, 4, row, col, val, SCIPfeas, SCIPfeas, exp_dualsol, exp_dualcut, exp_dualcutrhs) );
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(2, obj, lb, ub, 4, lhs, rhs, 4) );
