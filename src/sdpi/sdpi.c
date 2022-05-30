@@ -4145,20 +4145,18 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
 
    CHECK_IF_SOLVED(sdpi);
 
+   *success = FALSE;
    if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Infeasibility was detected while preparing problem, no primal solution available.\n");
-      *success = FALSE;
    }
    else if ( sdpi->allfixed )
    {
       SCIPdebugMessage("All variables fixed during preprocessing, no primal solution available.\n");
-      *success = FALSE;
    }
    else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_INFEASIBLE )
    {
       SCIPdebugMessage("Problem is infeasible, no primal solution available.\n");
-      *success = FALSE;
    }
    /* If the dual is infeasible, there is no feasible solution; If the primal is infeasible, the dual is unbounded or
     * infeasible. In both cases we should not return the solution (rather a ray). */
@@ -4194,8 +4192,11 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    }
    else
    {
-      SCIP_CALL( SCIPsdpiSolverGetPrimalBoundVars(sdpi->sdpisolver, lbvals, ubvals) );
-      *success = TRUE;
+      SCIP_RETCODE retcode;
+
+      retcode = SCIPsdpiSolverGetPrimalBoundVars(sdpi->sdpisolver, lbvals, ubvals);
+      if ( retcode == SCIP_OKAY )
+         *success = TRUE;
    }
 
    return SCIP_OKAY;
@@ -4222,27 +4223,24 @@ SCIP_RETCODE SCIPsdpiGetPrimalLPSides(
 
    CHECK_IF_SOLVED(sdpi);
 
+   *success = FALSE;
    if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Infeasibility was detected while preparing problem, no primal solution available.\n");
-      *success = FALSE;
    }
    else if ( sdpi->allfixed )
    {
       SCIPdebugMessage("All variables fixed during preprocessing, no primal solution available.\n");
-      *success = FALSE;
    }
    else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_INFEASIBLE )
    {
       SCIPdebugMessage("Problem is infeasible, no primal solution available.\n");
-      *success = FALSE;
    }
    /* If the dual is infeasible, there is no feasible solution; If the primal is infeasible, the dual is unbounded or
     * infeasible. In both cases we should not return the solution (rather a ray). */
    else if ( SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) || SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver) )
    {
       SCIPdebugMessage("Problem is infeasible, no primal solution available.\n");
-      *success = FALSE;
    }
    else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_OPTIMAL )
    {
@@ -4258,30 +4256,34 @@ SCIP_RETCODE SCIPsdpiGetPrimalLPSides(
    {
       SCIP_Real* sdpilhsvals;
       SCIP_Real* sdpirhsvals;
+      SCIP_RETCODE retcode;
 
       assert( 0 <= sdpi->nactivelpcons && sdpi->nactivelpcons <= sdpi->nlpcons );
       BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &sdpilhsvals, sdpi->nactivelpcons) );
       BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &sdpirhsvals, sdpi->nactivelpcons) );
 
-      SCIP_CALL( SCIPsdpiSolverGetPrimalLPSides(sdpi->sdpisolver, sdpi->nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs, sdpilhsvals, sdpirhsvals) );
+      retcode = SCIPsdpiSolverGetPrimalLPSides(sdpi->sdpisolver, sdpi->nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs, sdpilhsvals, sdpirhsvals);
 
-      /* initialize values to 0.0 */
-      for (i = 0; i < sdpi->nlpcons; ++i)
+      if ( retcode == SCIP_OKAY )
       {
-         lhsvals[i] = 0.0;
-         rhsvals[i] = 0.0;
-      }
+         /* initialize values to 0.0 */
+         for (i = 0; i < sdpi->nlpcons; ++i)
+         {
+            lhsvals[i] = 0.0;
+            rhsvals[i] = 0.0;
+         }
 
-      /* fill in data */
-      for (i = 0; i < sdpi->nactivelpcons; ++i)
-      {
-         assert( 0 <= sdpi->sdpilpidx[i] && sdpi->sdpilpidx[i] < sdpi->nlpcons );
-         lhsvals[sdpi->sdpilpidx[i]] = sdpilhsvals[i];
-         rhsvals[sdpi->sdpilpidx[i]] = sdpirhsvals[i];
+         /* fill in data */
+         for (i = 0; i < sdpi->nactivelpcons; ++i)
+         {
+            assert( 0 <= sdpi->sdpilpidx[i] && sdpi->sdpilpidx[i] < sdpi->nlpcons );
+            lhsvals[sdpi->sdpilpidx[i]] = sdpilhsvals[i];
+            rhsvals[sdpi->sdpilpidx[i]] = sdpirhsvals[i];
+         }
+         *success = TRUE;
       }
       BMSfreeBufferMemoryArray(sdpi->bufmem, &sdpirhsvals);
       BMSfreeBufferMemoryArray(sdpi->bufmem, &sdpilhsvals);
-      *success = TRUE;
    }
 
    return SCIP_OKAY;
@@ -4363,30 +4365,30 @@ SCIP_RETCODE SCIPsdpiGetPrimalSolutionMatrix(
 {
    assert( success != NULL );
 
+   *success = FALSE;
    if ( ! sdpi->solved )
    {
       SCIPdebugMessage("Problem was not solved, no primal solution available.\n");
-      *success = FALSE;
    }
    else if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Infeasibility was detected while preparing problem, no primal solution available.\n");
-      *success = FALSE;
    }
    else if ( sdpi->allfixed )
    {
       SCIPdebugMessage("All variables fixed during preprocessing, no primal solution available.\n");
-      *success = FALSE;
    }
    else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
    {
       SCIPdebugMessage("Solved one variable SDP, no primal solution available.\n");
-      *success = FALSE;
    }
    else
    {
-      SCIP_CALL( SCIPsdpiSolverGetPrimalSolutionMatrix(sdpi->sdpisolver, sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->indchanges, sdpi->nremovedinds, sdpi->blockindchanges, primalmatrices) );
-      *success = TRUE;
+      SCIP_RETCODE retcode;
+
+      retcode = SCIPsdpiSolverGetPrimalSolutionMatrix(sdpi->sdpisolver, sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->indchanges, sdpi->nremovedinds, sdpi->blockindchanges, primalmatrices);
+      if ( retcode == SCIP_OKAY )
+         *success = TRUE;
    }
 
    return SCIP_OKAY;
