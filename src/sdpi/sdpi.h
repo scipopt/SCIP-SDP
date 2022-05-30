@@ -324,6 +324,23 @@ SCIP_RETCODE SCIPsdpiGetLPNNonz(
    int*                  nnonz               /**< pointer to store the number of nonzeros in the LP Matrix */
    );
 
+/** gets SDP data from SDP-interface */
+SCIP_EXPORT
+SCIP_RETCODE SCIPsdpiGetSDPdata(
+   SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
+   int**                 sdpblocksizes,      /**< sizes of the SDP-blocks */
+   int**                 sdpnblockvars,      /**< number of variables in each SDP-block */
+   int***                sdpnblockvarnonz,   /**< sdpnblockvarnonz[i][j] = nonzeros of j-th variable in i-th block (length of row/col/val[i][j]) */
+   int****               sdprow,             /**< sdprow[b][v][j] = row of j-th nonzero of variable v in block b */
+   int****               sdpcol,             /**< sdprow[b][v][j] = column of j-th nonzero of variable v in block b */
+   SCIP_Real****         sdpval,             /**< sdpval[i][j][k] = value of j-th nonzero of variable v in block b */
+   int**                 sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
+                                              *   number of entries  of sdpconst row/col/val [i] */
+   int***                sdpconstrow,        /**< pointers to row-indices for each block */
+   int***                sdpconstcol,        /**< pointers to column-indices for each block */
+   SCIP_Real***          sdpconstval         /**< pointers to the values of the nonzeros for each block */
+   );
+
 /** gets objective coefficients from SDP-interface */
 SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiGetObj(
