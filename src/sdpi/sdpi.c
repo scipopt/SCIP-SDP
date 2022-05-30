@@ -230,6 +230,7 @@ struct SCIP_SDPi
    int*                  sdpblocksizes;      /**< sizes of the SDP-blocks */
    int*                  sdpnblockvars;      /**< number of variables in each SDP-block */
    int*                  maxsdpnblockvars;   /**< maximal number of block variables */
+   int*                  maxsdpblocksizes;   /**< maximal blocksizes */
 
    /* constant SDP data: */
    int                   sdpconstnnonz;      /**< number of nonzero elements in the constant matrices of the SDP-Blocks */
@@ -252,6 +253,13 @@ struct SCIP_SDPi
    int*                  sdprowstore;        /**< array to store all rows */
    int*                  sdpcolstore;        /**< array to store all columns */
    SCIP_Real*            sdpvalstore;        /**< array to store all nonzeros */
+
+   /* preprocessing data: */
+   int**                 indchanges;         /**< changes needed to be done to the indices, if indchanges[block][nonz]=-1, then
+                                              *   the index can be removed, otherwise it gives the number of indices removed before this */
+   int*                  nremovedinds;       /**< pointer to store the number of rows/cols to be fixed for each block */
+   int*                  blockindchanges;    /**< pointer to store index change for each block, system is the same as for indchanges */
+   int                   nremovedblocks;     /**< pointer to store the number of blocks to be removed from the SDP */
 
    /* lp data: */
    int                   nlpcons;            /**< number of LP-constraints */
@@ -443,6 +451,7 @@ static
 SCIP_RETCODE ensureSDPDataMemory(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
    int                   nsdpblocks,         /**< number of required SDP blocks */
+   int*                  sdpblocksizes,      /**< sizes of SDP blocks */
    int*                  sdpnblockvars,      /**< number of block variables */
    int**                 sdpnblockvarnonz,   /**< number of nonzeros in each matrix */
    int*                  sdpconstnblocknonz, /**< number of nonzeros in constant matrix */
@@ -481,6 +490,7 @@ SCIP_RETCODE ensureSDPDataMemory(
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpblocksizes), sdpi->maxnsdpblocks, nsdpblocks) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvars), sdpi->maxnsdpblocks, nsdpblocks) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->maxsdpnblockvars), sdpi->maxnsdpblocks, nsdpblocks) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->maxsdpblocksizes), sdpi->maxnsdpblocks, nsdpblocks) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpconstnblocknonz), sdpi->maxnsdpblocks, nsdpblocks) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->maxsdpconstnblocknonz), sdpi->maxnsdpblocks, nsdpblocks) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpnblockvarnonz), sdpi->maxnsdpblocks, nsdpblocks) );
@@ -491,6 +501,9 @@ SCIP_RETCODE ensureSDPDataMemory(
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol), sdpi->maxnsdpblocks, nsdpblocks) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdprow), sdpi->maxnsdpblocks, nsdpblocks) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval), sdpi->maxnsdpblocks, nsdpblocks) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->indchanges), sdpi->maxnsdpblocks, nsdpblocks) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->nremovedinds), sdpi->maxnsdpblocks, nsdpblocks) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->blockindchanges), sdpi->maxnsdpblocks, nsdpblocks) );
       sdpi->maxnsdpblocks = nsdpblocks;
    }
    else
@@ -517,6 +530,12 @@ SCIP_RETCODE ensureSDPDataMemory(
          BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpcol[b]), sdpi->maxsdpnblockvars[b], sdpnblockvars[b]) );
          BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpval[b]), sdpi->maxsdpnblockvars[b], sdpnblockvars[b]) );
          sdpi->maxsdpnblockvars[b] = sdpnblockvars[b];
+      }
+
+      if ( sdpblocksizes[b] > sdpi->maxsdpblocksizes[b] )
+      {
+         BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->indchanges[b]), sdpi->maxsdpblocksizes[b], sdpblocksizes[b]) );
+         sdpi->maxsdpblocksizes[b] = sdpblocksizes[b];
       }
 
       /* set pointers into storage */
@@ -553,6 +572,8 @@ SCIP_RETCODE ensureSDPDataMemory(
          sdpi->sdpval[b][v] = &sdpi->sdpvalstore[cnt];
          cnt += sdpnblockvarnonz[b][v];
       }
+      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->indchanges[b]), sdpblocksizes[b]) );
+      sdpi->maxsdpblocksizes[b] = sdpblocksizes[b];
    }
 
    return SCIP_OKAY;
@@ -648,14 +669,7 @@ SCIP_RETCODE findEmptyRowColsSDP(
    int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant matrix */
    int**                 sdpconstrow,        /**< pointers to row-indices for each block */
    int**                 sdpconstcol,        /**< pointers to column-indices for each block */
-   SCIP_Real**           sdpconstval,        /**< pointers to the values of the nonzeros for each block */
-   int**                 indchanges,         /**< pointer to store the changes needed to be done to the indices, if indchange[block][nonz] = -1, then
-                                              *   the index can be removed, otherwise it gives the number of indices removed before this, i.e.,
-                                              *   the value to decrease this index by, this array should have memory allocated in the size
-                                              *   sdpi->nsdpblocks times sdpi->sdpblocksizes[block] */
-   int*                  nremovedinds,       /**< pointer to store the number of rows/cols to be fixed for each block */
-   int*                  blockindchanges,    /**< pointer to store index change for each block, system is the same as for indchanges */
-   int*                  nremovedblocks      /**< pointer to store the number of blocks to be removed from the SDP */
+   SCIP_Real**           sdpconstval         /**< pointers to the values of the nonzeros for each block */
    )
 {
    int b;
@@ -667,18 +681,18 @@ SCIP_RETCODE findEmptyRowColsSDP(
    assert( sdpconstrow != NULL );
    assert( sdpconstcol != NULL );
    assert( sdpconstval != NULL );
-   assert( indchanges != NULL );
-   assert( nremovedinds != NULL );
-   assert( blockindchanges != NULL );
-   assert( nremovedblocks != NULL );
+
+   assert( sdpi->indchanges != NULL );
+   assert( sdpi->nremovedinds != NULL );
+   assert( sdpi->blockindchanges != NULL );
 
    /* initialize indchanges with -1 */
    for (b = 0; b < sdpi->nsdpblocks; ++b)
    {
       for (i = 0; i < sdpi->sdpblocksizes[b]; i++)
-         indchanges[b][i] = -1;
+         sdpi->indchanges[b][i] = -1;
    }
-   *nremovedblocks = 0;
+   sdpi->nremovedblocks = 0;
 
    /* iterate over all active nonzeros, setting the values of indchange for their row and col to 1 (this is an intermediate value to save that the
     * index is still needed, it will later be set to the number of rows/cols deleted earlier) */
@@ -694,15 +708,15 @@ SCIP_RETCODE findEmptyRowColsSDP(
             {
                assert( REALABS(sdpi->sdpval[b][v][i]) > sdpi->epsilon ); /* this should really be a nonzero */
 
-               if ( indchanges[b][sdpi->sdprow[b][v][i]] == -1 )
+               if ( sdpi->indchanges[b][sdpi->sdprow[b][v][i]] == -1 )
                {
-                  indchanges[b][sdpi->sdprow[b][v][i]] = 1;
+                  sdpi->indchanges[b][sdpi->sdprow[b][v][i]] = 1;
                   ++nfoundinds;
                }
 
-               if ( indchanges[b][sdpi->sdpcol[b][v][i]] == -1 )
+               if ( sdpi->indchanges[b][sdpi->sdpcol[b][v][i]] == -1 )
                {
-                  indchanges[b][sdpi->sdpcol[b][v][i]] = 1;
+                  sdpi->indchanges[b][sdpi->sdpcol[b][v][i]] = 1;
                   ++nfoundinds;
                }
                if ( nfoundinds == sdpi->sdpblocksizes[b] )
@@ -721,15 +735,15 @@ SCIP_RETCODE findEmptyRowColsSDP(
          {
             assert( REALABS(sdpconstval[b][i]) > sdpi->epsilon ); /* this should really be a nonzero */
 
-            if ( indchanges[b][sdpconstrow[b][i]] == -1 )
+            if ( sdpi->indchanges[b][sdpconstrow[b][i]] == -1 )
             {
-               indchanges[b][sdpconstrow[b][i]] = 1;
+               sdpi->indchanges[b][sdpconstrow[b][i]] = 1;
                ++nfoundinds;
             }
 
-            if ( indchanges[b][sdpconstcol[b][i]] == -1 )
+            if ( sdpi->indchanges[b][sdpconstcol[b][i]] == -1 )
             {
-               indchanges[b][sdpconstcol[b][i]] = 1;
+               sdpi->indchanges[b][sdpconstcol[b][i]] = 1;
                ++nfoundinds;
             }
 
@@ -739,31 +753,31 @@ SCIP_RETCODE findEmptyRowColsSDP(
       }
 
       /* now iterate over all indices to compute the final values of indchanges, all 0 are set to -1, all 1 are changed to the number of -1 before it */
-      nremovedinds[b] = 0;
+      sdpi->nremovedinds[b] = 0;
       for (i = 0; i < sdpi->sdpblocksizes[b]; ++i)
       {
-         if ( indchanges[b][i] == -1 )
+         if ( sdpi->indchanges[b][i] == -1 )
          {
             SCIPdebugMessage("empty row and col %d were removed from block %d of SDP %d.\n", i, b, sdpi->sdpid);
             /* this index wasn't found (indchanges was initialized with -1), so it can be removed */
-            ++nremovedinds[b];
+            ++sdpi->nremovedinds[b];
          }
          else
          {
             /* this index has been found, so set the value to the number of removed inds before it */
-            indchanges[b][i] = nremovedinds[b];
+            sdpi->indchanges[b][i] = sdpi->nremovedinds[b];
          }
       }
 
       /* check if the block became empty */
-      if ( nremovedinds[b] == sdpi->sdpblocksizes[b] )
+      if ( sdpi->nremovedinds[b] == sdpi->sdpblocksizes[b] )
       {
          SCIPdebugMessage("empty block %d detected in SDP %d, this will be removed.\n", b, sdpi->sdpid);
-         blockindchanges[b] = -1;
-         ++(*nremovedblocks);
+         sdpi->blockindchanges[b] = -1;
+         ++sdpi->nremovedblocks;
       }
       else
-         blockindchanges[b] = *nremovedblocks;
+         sdpi->blockindchanges[b] = sdpi->nremovedblocks;
    }
 
    return SCIP_OKAY;
@@ -1547,6 +1561,7 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->sdpblocksizes = NULL;
    (*sdpi)->sdpnblockvars = NULL;
    (*sdpi)->maxsdpnblockvars = NULL;
+   (*sdpi)->maxsdpblocksizes = NULL;
    (*sdpi)->sdpconstnblocknonz = NULL;
    (*sdpi)->maxsdpconstnblocknonz = NULL;
    (*sdpi)->sdpconstrow = NULL;
@@ -1561,6 +1576,10 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->sdprowstore = NULL;
    (*sdpi)->sdpcolstore = NULL;
    (*sdpi)->sdpvalstore = NULL;
+   (*sdpi)->indchanges = NULL;
+   (*sdpi)->nremovedinds = NULL;
+   (*sdpi)->blockindchanges = NULL;
+   (*sdpi)->nremovedblocks = 0;
 
    (*sdpi)->lplhs = NULL;
    (*sdpi)->lprhs = NULL;
@@ -1643,9 +1662,13 @@ SCIP_RETCODE SCIPsdpiFree(
       BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstval[i]), (*sdpi)->maxsdpconstnblocknonz[i]);
       BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstrow[i]), (*sdpi)->maxsdpconstnblocknonz[i]);
       BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstcol[i]), (*sdpi)->maxsdpconstnblocknonz[i]);
+      BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->indchanges[i]), (*sdpi)->maxsdpblocksizes[i]);
    }
 
    /* free the rest */
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->blockindchanges), (*sdpi)->maxnsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->nremovedinds), (*sdpi)->maxnsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->indchanges), (*sdpi)->maxnsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpnblockvarnonz), (*sdpi)->maxnsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstnblocknonz), (*sdpi)->maxnsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->maxsdpconstnblocknonz), (*sdpi)->maxnsdpblocks);
@@ -1657,6 +1680,7 @@ SCIP_RETCODE SCIPsdpiFree(
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstcol), (*sdpi)->maxnsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpconstrow), (*sdpi)->maxnsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpnblockvars), (*sdpi)->maxnsdpblocks);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->maxsdpblocksizes), (*sdpi)->maxnsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->maxsdpnblockvars), (*sdpi)->maxnsdpblocks);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpblocksizes), (*sdpi)->maxnsdpblocks);
 
@@ -1729,6 +1753,7 @@ SCIP_RETCODE SCIPsdpiClone(
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpblocksizes), oldsdpi->sdpblocksizes, nsdpblocks) );
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->sdpnblockvars), oldsdpi->sdpnblockvars, nsdpblocks) );
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->maxsdpnblockvars), oldsdpi->sdpnblockvars, nsdpblocks) );
+   BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->maxsdpblocksizes), oldsdpi->sdpblocksizes, nsdpblocks) );
 
    /* constant SDP data */
    newsdpi->sdpconstnnonz = oldsdpi->sdpconstnnonz;
@@ -1760,6 +1785,11 @@ SCIP_RETCODE SCIPsdpiClone(
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpcolstore), newsdpi->maxsdpstore) );
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpvalstore), newsdpi->maxsdpstore) );
 
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->indchanges), nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->nremovedinds), nsdpblocks) );
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->blockindchanges), nsdpblocks) );
+   newsdpi->nremovedblocks = 0;
+
    for (b = 0; b < nsdpblocks; b++)
    {
       assert( 0 <= oldsdpi->sdpnblockvars[b] && oldsdpi->sdpnblockvars[b] <= oldsdpi->maxsdpnblockvars[b] );
@@ -1769,6 +1799,8 @@ SCIP_RETCODE SCIPsdpiClone(
       BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdprow[b]), oldsdpi->sdpnblockvars[b]) );
       BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpcol[b]), oldsdpi->sdpnblockvars[b]) );
       BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpval[b]), oldsdpi->sdpnblockvars[b]) );
+
+      BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->indchanges[b]), oldsdpi->sdpblocksizes[b]) );
 
       /* set pointers into storage */
       for (v = 0; v < newsdpi->sdpnblockvars[b]; ++v)
@@ -1960,7 +1992,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    /* ensure memory */
    SCIP_CALL( ensureBoundDataMemory(sdpi, nvars) );
    SCIP_CALL( ensureLPDataMemory(sdpi, nlpcons, lpnnonz) );
-   SCIP_CALL( ensureSDPDataMemory(sdpi, nsdpblocks, sdpnblockvars, sdpnblockvarnonz, sdpconstnblocknonz, sdpnnonz) );
+   SCIP_CALL( ensureSDPDataMemory(sdpi, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpnblockvarnonz, sdpconstnblocknonz, sdpnnonz) );
 
    /* copy data in arrays */
    BMScopyMemoryArray(sdpi->obj, obj, nvars);
@@ -2619,12 +2651,6 @@ SCIP_RETCODE SCIPsdpiGetRhSides(
 static
 SCIP_RETCODE computeDualCut(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
-   int                   nsdpblocks,         /**< number of blocks */
-   int*                  sdpblocksizes,      /**< sizes of the blocks */
-   int**                 indchanges,         /**< changes needed to be done to the indices, if indchanges[block][nonz]=-1, then
-                                              *   the index can be removed, otherwise it gives the number of indices removed before this */
-   int*                  nremovedinds,       /**< pointer to store the number of rows/cols to be fixed for each block */
-   int*                  blockindchanges,    /**< pointer to store index change for each block, system is the same as for indchanges */
    SCIP_Real*            dualcut,            /**< coefficients of cut */
    SCIP_Real*            dualcutrhs,         /**< rhs of cut */
    SCIP_Bool*            success             /**< pointer to return whether computation was successful */
@@ -2635,11 +2661,6 @@ SCIP_RETCODE computeDualCut(
    int j;
 
    assert( sdpi != NULL );
-   assert( nsdpblocks == sdpi->nsdpblocks );
-   assert( nsdpblocks == 0 || sdpblocksizes != NULL );
-   assert( indchanges != NULL );
-   assert( nremovedinds != NULL );
-   assert( blockindchanges != NULL );
    assert( dualcut != NULL );
    assert( dualcutrhs != NULL );
    assert( success != NULL );
@@ -2652,20 +2673,20 @@ SCIP_RETCODE computeDualCut(
       dualcut[j] = 0.0;
 
    /* get primal solution */
-   if ( nsdpblocks > 0 )
+   if ( sdpi->nsdpblocks > 0 )
    {
-      BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &primalmatrices, nsdpblocks) );
-      for (b = 0; b < nsdpblocks; ++b)
+      BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &primalmatrices, sdpi->nsdpblocks) );
+      for (b = 0; b < sdpi->nsdpblocks; ++b)
       {
          BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &primalmatrices[b], sdpi->sdpblocksizes[b] * sdpi->sdpblocksizes[b]) );
       }
 
-      SCIP_CALL( SCIPsdpiGetPrimalSolutionMatrix(sdpi, nsdpblocks, sdpblocksizes, indchanges, nremovedinds, blockindchanges, primalmatrices, success) );
+      SCIP_CALL( SCIPsdpiGetPrimalSolutionMatrix(sdpi, primalmatrices, success) );
 
       if ( *success )
       {
          /* loop through blocks and matrices */
-         for (b = 0; b < nsdpblocks; ++b)
+         for (b = 0; b < sdpi->nsdpblocks; ++b)
          {
             SCIP_Real c = 0.0;
             int row;
@@ -2713,7 +2734,7 @@ SCIP_RETCODE computeDualCut(
       }
 
       /* free memory */
-      for (b = 0; b < nsdpblocks; ++b)
+      for (b = 0; b < sdpi->nsdpblocks; ++b)
       {
          BMSfreeBufferMemoryArray(sdpi->bufmem, &primalmatrices[b]);
       }
@@ -2858,17 +2879,13 @@ SCIP_RETCODE SCIPsdpiSolve(
    int** sdpconstrow = NULL;
    int** sdpconstcol = NULL;
    SCIP_Real** sdpconstval = NULL;
-   int** indchanges = NULL;
-   int* nremovedinds = NULL;
    SCIP_Real addedopttime;
    SCIP_Real fixedvarsobjcontr = 0.0;
    SCIP_Bool fixingfound;
-   int* blockindchanges;
    int sdpconstnnonz;
    int sdpilpnnonz = 0;
    int nactivevars = 0;
    int activevaridx = -1;
-   int nremovedblocks = 0;
    int naddediterations;
    int naddedsdpcalls;
    int b;
@@ -2992,9 +3009,6 @@ SCIP_RETCODE SCIPsdpiSolve(
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstrow, sdpi->nsdpblocks) );
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstcol, sdpi->nsdpblocks) );
    BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &sdpconstval, sdpi->nsdpblocks) );
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &indchanges, sdpi->nsdpblocks) );
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &nremovedinds, sdpi->nsdpblocks) );
-   BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &blockindchanges, sdpi->nsdpblocks) );
 
    for (b = 0; b < sdpi->nsdpblocks; ++b)
    {
@@ -3003,8 +3017,6 @@ SCIP_RETCODE SCIPsdpiSolve(
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[b]), maxsdpconstnblocknonz[b]) ); /*lint !e776*/
       BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpconstval[b]), maxsdpconstnblocknonz[b]) ); /*lint !e776*/
       sdpconstnblocknonz[b] = maxsdpconstnblocknonz[b];
-
-      BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(indchanges[b]), sdpi->sdpblocksizes[b]) );
    }
 
    /* compute constant matrix after fixings */
@@ -3087,15 +3099,15 @@ SCIP_RETCODE SCIPsdpiSolve(
    if ( ! sdpi->solved )
    {
       /* remove empty rows and columns */
-      SCIP_CALL( findEmptyRowColsSDP(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, indchanges, nremovedinds, blockindchanges, &nremovedblocks) );
+      SCIP_CALL( findEmptyRowColsSDP(sdpi, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval) );
 
       if ( sdpi->slatercheck )
       {
          SCIP_CALL( checkSlaterCondition(sdpi, timelimit, sdpi->sdpilb, sdpi->sdpiub,
                sdpconstnblocknonz, sdpconstnnonz, sdpconstrow, sdpconstcol, sdpconstval,
-               indchanges, nremovedinds, sdpi->nactivelpcons,
+               sdpi->indchanges, sdpi->nremovedinds, sdpi->nactivelpcons,
                sdpi->sdpilplhs, sdpi->sdpilprhs, sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval,
-               blockindchanges, nremovedblocks, FALSE) );
+               sdpi->blockindchanges, sdpi->nremovedblocks, FALSE) );
       }
 
       /* try to solve the problem */
@@ -3103,7 +3115,7 @@ SCIP_RETCODE SCIPsdpiSolve(
             sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
             sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-            sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, sdpi->nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs,
+            sdpi->sdpval, sdpi->indchanges, sdpi->nremovedinds, sdpi->blockindchanges, sdpi->nremovedblocks, sdpi->nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs,
             sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval, starty, startZnblocknonz, startZrow, startZcol, startZval,
             startXnblocknonz, startXrow, startXcol, startXval, startsettings, timelimit, sdpi->usedsdpitime) );
 
@@ -3162,7 +3174,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-               sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, sdpi->nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs,
+               sdpi->sdpval, sdpi->indchanges, sdpi->nremovedinds, sdpi->blockindchanges, sdpi->nremovedblocks, sdpi->nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs,
                sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval, starty, startZnblocknonz, startZrow, startZcol, startZval,
                startXnblocknonz, startXrow, startXcol, startXval, SCIP_SDPSOLVERSETTING_UNSOLVED, timelimit, sdpi->usedsdpitime, &feasorig, &penaltybound) );
 
@@ -3225,7 +3237,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                      sdpi->sdpilb, sdpi->sdpiub, sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->sdpnblockvars, sdpconstnnonz,
                      sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
                      sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
-                     sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, sdpi->nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs,
+                     sdpi->sdpval, sdpi->indchanges, sdpi->nremovedinds, sdpi->blockindchanges, sdpi->nremovedblocks, sdpi->nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs,
                      sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval, starty, startZnblocknonz, startZrow, startZcol, startZval,
                      startXnblocknonz, startXrow, startXcol, startXval, startsettings, timelimit, sdpi->usedsdpitime, &feasorig, &penaltybound) );
 
@@ -3305,9 +3317,9 @@ SCIP_RETCODE SCIPsdpiSolve(
             {
                SCIP_CALL( checkSlaterCondition(sdpi, timelimit, sdpi->sdpilb, sdpi->sdpiub,
                      sdpconstnblocknonz, sdpconstnnonz, sdpconstrow, sdpconstcol, sdpconstval,
-                     indchanges, nremovedinds, sdpi->nactivelpcons,
+                     sdpi->indchanges, sdpi->nremovedinds, sdpi->nactivelpcons,
                      sdpi->sdpilplhs, sdpi->sdpilprhs, sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval,
-                     blockindchanges, nremovedblocks, TRUE) );
+                     sdpi->blockindchanges, sdpi->nremovedblocks, TRUE) );
             }
             else if ( sdpi->solved == FALSE )
             {
@@ -3325,21 +3337,17 @@ SCIP_RETCODE SCIPsdpiSolve(
       {
          SCIP_Bool success;
 
-         SCIP_CALL( computeDualCut(sdpi, sdpi->nsdpblocks, sdpi->sdpblocksizes, indchanges, nremovedinds, blockindchanges, dualcut, dualcutrhs, &success) );
+         SCIP_CALL( computeDualCut(sdpi, dualcut, dualcutrhs, &success) );
       }
    }
 
    /* empty the memory allocated here */
    for (b = sdpi->nsdpblocks - 1; b >= 0; --b)
    {
-      BMSfreeBlockMemoryArray(sdpi->blkmem, &(indchanges[b]), sdpi->sdpblocksizes[b]);/*lint !e737*/
       BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstval[b]), maxsdpconstnblocknonz[b]);/*lint !e737*/
       BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstcol[b]), maxsdpconstnblocknonz[b]);/*lint !e737*/
       BMSfreeBlockMemoryArray(sdpi->blkmem, &(sdpconstrow[b]), maxsdpconstnblocknonz[b]);/*lint !e737*/
    }
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &blockindchanges, sdpi->nsdpblocks);/*lint !e737*/
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &nremovedinds, sdpi->nsdpblocks);/*lint !e737*/
-   BMSfreeBlockMemoryArray(sdpi->blkmem, &indchanges, sdpi->nsdpblocks);/*lint !e737*/
    BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstval, sdpi->nsdpblocks);/*lint !e737*/
    BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstcol, sdpi->nsdpblocks);/*lint !e737*/
    BMSfreeBlockMemoryArray(sdpi->blkmem, &sdpconstrow, sdpi->nsdpblocks);/*lint !e737*/
@@ -4349,19 +4357,18 @@ SCIP_RETCODE SCIPsdpiGetPrimalMatrix(
 /** returns the primal solution matrix (without LP rows) */
 SCIP_RETCODE SCIPsdpiGetPrimalSolutionMatrix(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
-   int                   nsdpblocks,         /**< number of blocks */
-   int*                  sdpblocksizes,      /**< sizes of the blocks */
-   int**                 indchanges,         /**< changes needed to be done to the indices, if indchanges[block][nonz]=-1, then
-                                              *   the index can be removed, otherwise it gives the number of indices removed before this */
-   int*                  nremovedinds,       /**< pointer to store the number of rows/cols to be fixed for each block */
-   int*                  blockindchanges,    /**< pointer to store index change for each block, system is the same as for indchanges */
    SCIP_Real**           primalmatrices,     /**< pointer to store values of the primal matrix */
    SCIP_Bool*            success             /**< pointer to store whether the call was successfull */
    )
 {
    assert( success != NULL );
 
-   if ( sdpi->infeasible )
+   if ( ! sdpi->solved )
+   {
+      SCIPdebugMessage("Problem was not solved, no primal solution available.\n");
+      *success = FALSE;
+   }
+   else if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Infeasibility was detected while preparing problem, no primal solution available.\n");
       *success = FALSE;
@@ -4378,7 +4385,7 @@ SCIP_RETCODE SCIPsdpiGetPrimalSolutionMatrix(
    }
    else
    {
-      SCIP_CALL( SCIPsdpiSolverGetPrimalSolutionMatrix(sdpi->sdpisolver, nsdpblocks, sdpblocksizes, indchanges, nremovedinds, blockindchanges, primalmatrices) );
+      SCIP_CALL( SCIPsdpiSolverGetPrimalSolutionMatrix(sdpi->sdpisolver, sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->indchanges, sdpi->nremovedinds, sdpi->blockindchanges, primalmatrices) );
       *success = TRUE;
    }
 
