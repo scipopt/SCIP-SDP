@@ -2579,7 +2579,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
       blocksize = sdpblocksizes[b];
 
       /* initialize solution matrix with 0s */
-      for (j = 0; j < blocksize; ++j)
+      for (j = 0; j < blocksize * blocksize; ++j)
          primalmatrices[b][j] = 0.0;
 
       /* treat blocks that were not removed */
@@ -2604,13 +2604,16 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
             {
                redrow = i - indchanges[b][i];
                assert( 0 <= redrow && redrow < redsize );
-               for (j = 0; j <= i; ++j)
+               for (j = i; j < blocksize; ++j)
                {
                   if ( indchanges[b][j] >= 0 )
                   {
+                     int idx;
                      redcol = j - indchanges[b][j];
                      assert( 0 <= redcol && redcol < redsize );
-                     val = X[redcol * (redcol + 1)/2 + redrow];
+                     idx = redrow * (redsize - redrow - 1) + redcol;
+                     assert( 0 <= idx && idx < redsize * (redsize + 1)/2 );
+                     val = X[idx];
                      primalmatrices[b][i * blocksize + j] = val;
                      primalmatrices[b][j * blocksize + i] = val;
                   }
