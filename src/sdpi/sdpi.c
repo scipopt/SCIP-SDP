@@ -4017,10 +4017,12 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    assert( ubvals != NULL );
    assert( success != NULL );
 
-   CHECK_IF_SOLVED(sdpi);
-
    *success = FALSE;
-   if ( sdpi->infeasible )
+   if ( ! sdpi->solved )
+   {
+      SCIPdebugMessage("Problem not solved, no primal solution available.\n");
+   }
+   else if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Infeasibility was detected while preparing problem, no primal solution available.\n");
    }
@@ -4095,10 +4097,12 @@ SCIP_RETCODE SCIPsdpiGetPrimalLPSides(
    assert( rhsvals != NULL );
    assert( success != NULL );
 
-   CHECK_IF_SOLVED(sdpi);
-
    *success = FALSE;
-   if ( sdpi->infeasible )
+   if ( ! sdpi->solved )
+   {
+      SCIPdebugMessage("Problem not solved, no primal solution available.\n");
+   }
+   else if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Infeasibility was detected while preparing problem, no primal solution available.\n");
    }
