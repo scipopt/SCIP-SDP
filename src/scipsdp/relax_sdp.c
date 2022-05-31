@@ -1650,7 +1650,7 @@ SCIP_RETCODE calcRelax(
       SCIP_Bool success;
 
       SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
-      SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit, dualcut, &dualcutrhs) );
+      SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit) );
       SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
 
       SCIP_CALL( SCIPallocBufferArray(scip, &dualcut, nvars) );
@@ -1694,7 +1694,7 @@ SCIP_RETCODE calcRelax(
 
       SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
       SCIP_CALL( SCIPsdpiSolve(sdpi, ipy, relaxdata->ipZnblocknonz, relaxdata->ipZrow, relaxdata->ipZcol, relaxdata->ipZval, relaxdata->ipXnblocknonz,
-            relaxdata->ipXrow, relaxdata->ipXcol, relaxdata->ipXval, startsetting, enforceslater, timelimit, NULL, NULL) );
+            relaxdata->ipXrow, relaxdata->ipXcol, relaxdata->ipXval, startsetting, enforceslater, timelimit) );
       SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
 
       SCIPfreeBufferArray(scip, &ipy);
@@ -1742,7 +1742,7 @@ SCIP_RETCODE calcRelax(
       {
          SCIPdebugMsg(scip, "Starting SDP-Solving from scratch since no warmstart information available for node %lld\n", parentnodenumber);
          SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
-         SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit, NULL, NULL) );
+         SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit) );
          SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
       }
       else
@@ -2640,7 +2640,7 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArray(scip, &starty);
 
                   SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
-                  SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit, NULL, NULL) );
+                  SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit) );
                   SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
 
                   goto solved;
@@ -2680,7 +2680,7 @@ SCIP_RETCODE calcRelax(
                   SCIPfreeBufferArray(scip, &starty);
 
                   SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
-                  SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit, NULL, NULL) );
+                  SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit) );
                   SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
 
                   goto solved;
@@ -3037,7 +3037,7 @@ SCIP_RETCODE calcRelax(
 
                   /* since warmstart computation failed, we solve without warmstart, free memory and skip the remaining warmstarting code */
                   SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
-                  SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit, NULL, NULL) );
+                  SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit) );
                   SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
 
                   goto solved;
@@ -3719,7 +3719,7 @@ SCIP_RETCODE calcRelax(
          /* solve with given starting point */
          SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
          SCIP_CALL( SCIPsdpiSolve(sdpi, starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow,
-               startXcol, startXval, startsetting, enforceslater, timelimit, NULL, NULL) );
+               startXcol, startXval, startsetting, enforceslater, timelimit) );
          SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
 
          if ( SCIPsdpiDoesWarmstartNeedPrimal() )
@@ -5380,7 +5380,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
 
       /* TODO: might want to add an additional parameter to solve to disable penalty, since we cannot use that here anyways */
       SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
-      SCIP_CALL( SCIPsdpiSolve(relaxdata->sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, timelimit, NULL, NULL) );
+      SCIP_CALL( SCIPsdpiSolve(relaxdata->sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, timelimit) );
       SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
 
       /* update calls, iterations and stability numbers (only if the SDP-solver was actually called) */
@@ -5513,7 +5513,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
 
    /* TODO: might want to add an additional parameter to solve to disable penalty, since we cannot use that here anyways */
    SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
-   SCIP_CALL( SCIPsdpiSolve(relaxdata->sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, timelimit, NULL, NULL) );
+   SCIP_CALL( SCIPsdpiSolve(relaxdata->sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, timelimit) );
    SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
 
    /* update calls, iterations and stability numbers (only if the SDP-solver was actually called) */
