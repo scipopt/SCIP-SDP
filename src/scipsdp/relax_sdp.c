@@ -1437,8 +1437,11 @@ SCIP_RETCODE computeDualCut(
             {
                if ( ! SCIProwIsLocal(row) )
                {
-                  duallhsval = lhsvals[i];
-                  dualrhsval = rhsvals[i];
+                  /* make sure that the primal values are >= 0 */
+                  duallhsval = MAX(lhsvals[i], 0.0);
+                  dualrhsval = MAX(rhsvals[i], 0.0);
+                  assert( SCIPisFeasGE(scip, duallhsval, 0.0) );
+                  assert( SCIPisFeasGE(scip, dualrhsval, 0.0) );
 
                   if ( ! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, duallhsval) )
                      *dualcutrhs -= rowlhs * duallhsval;
@@ -1481,7 +1484,7 @@ SCIP_RETCODE computeDualCut(
    }
 
    /* add variable bounds */
-   if ( nvars > 0 )
+   if ( nvars > 0 && *success )
    {
       SCIP_VAR** vars;
       SCIP_Real* lbvals;
@@ -1507,14 +1510,16 @@ SCIP_RETCODE computeDualCut(
             lb = SCIPvarGetLbGlobal(vars[i]);
             ub = SCIPvarGetUbGlobal(vars[i]);
 
-            duallbval = lbvals[i];
+            duallbval = MAX(lbvals[i], 0.0); /* make sure value is >= 0 */
+            assert( SCIPisFeasGE(scip, duallbval, 0.0) );
             if ( ! SCIPisFeasZero(scip, duallbval) && ! SCIPisInfinity(scip, -lb) )
             {
                dualcut[i] -= duallbval;
                *dualcutrhs -= lb * duallbval;
             }
 
-            dualubval = ubvals[i];
+            dualubval = MAX(ubvals[i], 0.0); /* make sure value is >= 0 */
+            assert( SCIPisFeasGE(scip, dualubval, 0.0) );
             if ( ! SCIPisFeasZero(scip, dualubval) && ! SCIPisInfinity(scip, ub) )
             {
                dualcut[i] += dualubval;
@@ -1659,7 +1664,7 @@ SCIP_RETCODE calcRelax(
       SCIP_CALL( computeDualCut(scip, relaxdata->tightenrows, relaxdata->varmapper, relaxdata->sdpi, dualcut, &dualcutrhs, &success) );
 
       /* generate constraint if dual cut is valid */
-      if ( dualcutrhs != SCIP_INVALID && 0 )
+      if ( success )
       {
          char consname[SCIP_MAXSTRLEN];
          SCIP_CONS* cons;
@@ -1683,11 +1688,11 @@ SCIP_RETCODE calcRelax(
                TRUE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
          SCIP_CALL( SCIPaddCons(scip, cons) );
 
-#ifdef SCIP_DEBUG
+
          SCIPinfoMessage(scip, NULL, "Added dual cut:\n");
          SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
          SCIPinfoMessage(scip, NULL, "\n");
-#endif
+
 
          SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
