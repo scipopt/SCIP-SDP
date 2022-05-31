@@ -682,6 +682,9 @@ SCIP_RETCODE findEmptyRowColsSDP(
    assert( sdpconstcol != NULL );
    assert( sdpconstval != NULL );
 
+   if ( sdpi->nsdpblocks <= 0 )
+      return SCIP_OKAY;
+
    assert( sdpi->indchanges != NULL );
    assert( sdpi->nremovedinds != NULL );
    assert( sdpi->blockindchanges != NULL );
