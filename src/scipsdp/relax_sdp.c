@@ -1257,7 +1257,8 @@ SCIP_RETCODE putLpDataInInterface(
 static
 SCIP_RETCODE computeDualCut(
    SCIP*                 scip,               /**< SCIP pointer */
-   SCIP_RELAXDATA*       relaxdata,          /**< relaxation data */
+   SCIP_Bool             tightenrows,        /**< whether rows should be tightened */
+   SdpVarmapper*         varmapper,          /**< maps SCIP variables to their global SDP indices and vice versa */
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
    SCIP_Real*            dualcut,            /**< coefficients of cut */
    SCIP_Real*            dualcutrhs,         /**< rhs of cut */
@@ -1381,6 +1382,7 @@ SCIP_RETCODE computeDualCut(
       SCIP_Real duallhsval;
       SCIP_Real dualrhsval;
       int nactiverows = 0;
+      int ntightenedrows = 0;
       int nlpcons;
       int i;
 
@@ -1411,12 +1413,12 @@ SCIP_RETCODE computeDualCut(
             rowrhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
 
             /* try to tighten cut */
-            if ( relaxdata->tightenrows )
+            if ( tightenrows )
             {
                SCIP_CALL( SCIPduplicateBufferArray(scip, &rowvals, SCIProwGetVals(row), rownnonz) );
                SCIP_CALL( SCIPduplicateBufferArray(scip, &rowcols, SCIProwGetCols(row), rownnonz) );
 
-               SCIP_CALL( tightenRowCoefs(scip, rowvals, rowcols, &rownnonz, &rowlhs, &rowrhs, &lhsredundant, &rhsredundant, &relaxdata->ntightenedrows) );
+               SCIP_CALL( tightenRowCoefs(scip, rowvals, rowcols, &rownnonz, &rowlhs, &rowrhs, &lhsredundant, &rhsredundant, &ntightenedrows) );
             }
             else
             {
@@ -1442,7 +1444,7 @@ SCIP_RETCODE computeDualCut(
                      if ( ! SCIPisZero(scip, rowvals[j]) )
                      {
                         assert( SCIPcolGetVar(rowcols[j]) != NULL );
-                        colind = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[j]));
+                        colind = SCIPsdpVarmapperGetSdpIndex(varmapper, SCIPcolGetVar(rowcols[j]));
                         assert( 0 <= colind && colind < nvars );
 
                         if ( ! SCIPisFeasZero(scip, duallhsval) )
@@ -1456,7 +1458,7 @@ SCIP_RETCODE computeDualCut(
                ++nactiverows;
             }
 
-            if ( relaxdata->tightenrows )
+            if ( tightenrows )
             {
                SCIPfreeBufferArray(scip, &rowcols);
                SCIPfreeBufferArray(scip, &rowvals);
@@ -1647,7 +1649,7 @@ SCIP_RETCODE calcRelax(
       SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
 
       SCIP_CALL( SCIPallocBufferArray(scip, &dualcut, nvars) );
-      SCIP_CALL( computeDualCut(scip, relaxdata, relaxdata->sdpi, dualcut, &dualcutrhs, &success) );
+      SCIP_CALL( computeDualCut(scip, relaxdata->tightenrows, relaxdata->varmapper, relaxdata->sdpi, dualcut, &dualcutrhs, &success) );
       SCIPfreeBufferArray(scip, &dualcut);
    }
    else if ( relaxdata->warmstart && (relaxdata->warmstartprimaltype != 2) && (relaxdata->warmstartiptype == 2) && SCIPisEQ(scip, relaxdata->warmstartipfactor, 1.0) )
