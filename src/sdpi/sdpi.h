@@ -324,6 +324,23 @@ SCIP_RETCODE SCIPsdpiGetLPNNonz(
    int*                  nnonz               /**< pointer to store the number of nonzeros in the LP Matrix */
    );
 
+/** gets SDP data from SDP-interface */
+SCIP_EXPORT
+SCIP_RETCODE SCIPsdpiGetSDPdata(
+   SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
+   int**                 sdpblocksizes,      /**< sizes of the SDP-blocks */
+   int**                 sdpnblockvars,      /**< number of variables in each SDP-block */
+   int***                sdpnblockvarnonz,   /**< sdpnblockvarnonz[i][j] = nonzeros of j-th variable in i-th block (length of row/col/val[i][j]) */
+   int****               sdprow,             /**< sdprow[b][v][j] = row of j-th nonzero of variable v in block b */
+   int****               sdpcol,             /**< sdprow[b][v][j] = column of j-th nonzero of variable v in block b */
+   SCIP_Real****         sdpval,             /**< sdpval[i][j][k] = value of j-th nonzero of variable v in block b */
+   int**                 sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
+                                              *   number of entries  of sdpconst row/col/val [i] */
+   int***                sdpconstrow,        /**< pointers to row-indices for each block */
+   int***                sdpconstcol,        /**< pointers to column-indices for each block */
+   SCIP_Real***          sdpconstval         /**< pointers to the values of the nonzeros for each block */
+   );
+
 /** gets objective coefficients from SDP-interface */
 SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiGetObj(
@@ -404,9 +421,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Bool             enforceslatercheck, /**< always check for Slater condition in case the problem could not be solved and printf the solution
                                               *   of this check */
-   SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
-   SCIP_Real*            dualcut,            /**< coefficients of a dual cut */
-   SCIP_Real*            dualcutrhs          /**< rhs of cut (SCIP_INVALID if not cut could be computed) */
+   SCIP_Real             timelimit           /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
    );
 
 /**@} */
@@ -656,12 +671,6 @@ SCIP_RETCODE SCIPsdpiGetPrimalMatrix(
 SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiGetPrimalSolutionMatrix(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
-   int                   nsdpblocks,         /**< number of blocks */
-   int*                  sdpblocksizes,      /**< sizes of the blocks */
-   int**                 indchanges,         /**< changes needed to be done to the indices, if indchanges[block][nonz]=-1, then
-                                              *   the index can be removed, otherwise it gives the number of indices removed before this */
-   int*                  nremovedinds,       /**< pointer to store the number of rows/cols to be fixed for each block */
-   int*                  blockindchanges,    /**< pointer to store index change for each block, system is the same as for indchanges */
    SCIP_Real**           primalmatrices,     /**< pointer to store values of the primal matrix */
    SCIP_Bool*            success             /**< pointer to store whether the call was successfull */
    );
