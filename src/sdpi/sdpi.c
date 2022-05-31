@@ -4142,49 +4142,52 @@ SCIP_RETCODE SCIPsdpiGetPrimalLPSides(
 
       retcode = SCIPsdpiSolverGetPrimalLPSides(sdpi->sdpisolver, sdpi->nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs, sdpilhsvals, sdpirhsvals);
 
-      /* also get primal values for variables bounds to set values for LP rows that were replaced by variable bounds */
-      SCIP_CALL( SCIPsdpiSolverGetPrimalBoundVars(sdpi->sdpisolver, sdpilbvals, sdpiubvals) );
-
       if ( retcode == SCIP_OKAY )
       {
-         /* initialize values to 0.0 */
-         for (i = 0; i < sdpi->nlpcons; ++i)
-         {
-            lhsvals[i] = 0.0;
-            rhsvals[i] = 0.0;
-         }
+         /* also get primal values for variables bounds to set values for LP rows that were replaced by variable bounds */
+         retcode = SCIPsdpiSolverGetPrimalBoundVars(sdpi->sdpisolver, sdpilbvals, sdpiubvals);
 
-         for (i = 0; i < sdpi->nvars; ++i)
+         if ( retcode == SCIP_OKAY )
          {
-            int idx;
-
-            if ( sdpi->sdpilbrowidx[i] != 0 )
+            /* initialize values to 0.0 */
+            for (i = 0; i < sdpi->nlpcons; ++i)
             {
-               idx = sdpi->sdpilbrowidx[i];
-               assert( -sdpi->nlpcons - 1 < idx && idx < sdpi->nlpcons + 1 );
-               if ( idx > 0 )
-                  rhsvals[idx-1] = sdpilbvals[i];
-               else
-                  lhsvals[-idx-1] = sdpilbvals[i];
+               lhsvals[i] = 0.0;
+               rhsvals[i] = 0.0;
             }
 
-            if ( sdpi->sdpiubrowidx[i] != 0 )
+            for (i = 0; i < sdpi->nvars; ++i)
             {
-               idx = sdpi->sdpiubrowidx[i];
-               assert( -sdpi->nlpcons - 1 < idx && idx < sdpi->nlpcons + 1 );
-               if ( idx > 0 )
-                  rhsvals[idx-1] = sdpiubvals[i];
-               else
-                  lhsvals[-idx-1] = sdpiubvals[i];
-            }
-         }
+               int idx;
 
-         /* fill in data */
-         for (i = 0; i < sdpi->nactivelpcons; ++i)
-         {
-            assert( 0 <= sdpi->sdpilpidx[i] && sdpi->sdpilpidx[i] < sdpi->nlpcons );
-            lhsvals[sdpi->sdpilpidx[i]] = sdpilhsvals[i];
-            rhsvals[sdpi->sdpilpidx[i]] = sdpirhsvals[i];
+               if ( sdpi->sdpilbrowidx[i] != 0 )
+               {
+                  idx = sdpi->sdpilbrowidx[i];
+                  assert( -sdpi->nlpcons - 1 < idx && idx < sdpi->nlpcons + 1 );
+                  if ( idx > 0 )
+                     rhsvals[idx-1] = sdpilbvals[i];
+                  else
+                     lhsvals[-idx-1] = sdpilbvals[i];
+               }
+
+               if ( sdpi->sdpiubrowidx[i] != 0 )
+               {
+                  idx = sdpi->sdpiubrowidx[i];
+                  assert( -sdpi->nlpcons - 1 < idx && idx < sdpi->nlpcons + 1 );
+                  if ( idx > 0 )
+                     rhsvals[idx-1] = sdpiubvals[i];
+                  else
+                     lhsvals[-idx-1] = sdpiubvals[i];
+               }
+            }
+
+            /* fill in data */
+            for (i = 0; i < sdpi->nactivelpcons; ++i)
+            {
+               assert( 0 <= sdpi->sdpilpidx[i] && sdpi->sdpilpidx[i] < sdpi->nlpcons );
+               lhsvals[sdpi->sdpilpidx[i]] = sdpilhsvals[i];
+               rhsvals[sdpi->sdpilpidx[i]] = sdpirhsvals[i];
+            }
             *success = TRUE;
          }
       }
