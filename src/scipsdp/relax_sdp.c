@@ -1321,9 +1321,11 @@ SCIP_RETCODE computeDualCut(
          for (b = 0; b < nsdpblocks; ++b)
          {
             SCIP_Real c = 0.0;
+            SCIP_VAR* var;
             int row;
             int col;
             int blocksize;
+            int varidx;
             int v;
             int k;
 
@@ -1345,7 +1347,10 @@ SCIP_RETCODE computeDualCut(
                   else
                      p += 2.0 * sdpval[b][v][k] * primalmatrices[b][row * blocksize + col];
                }
-               dualcut[v] += p;
+               var = SCIPsdpVarmapperGetSCIPvar(varmapper, v);
+               varidx = SCIPvarGetProbindex(var);
+               assert( 0 <= varidx && varidx < nvars );
+               dualcut[varidx] += p;
             }
 
             /* treat constant matrix */
@@ -1403,7 +1408,7 @@ SCIP_RETCODE computeDualCut(
             SCIP_Bool lhsredundant = FALSE;
             SCIP_Bool rhsredundant = FALSE;
             int rownnonz;
-            int colind;
+            int varidx;
 
             row = rows[i];
             assert( row != 0 );
@@ -1444,14 +1449,14 @@ SCIP_RETCODE computeDualCut(
                      if ( ! SCIPisZero(scip, rowvals[j]) )
                      {
                         assert( SCIPcolGetVar(rowcols[j]) != NULL );
-                        colind = SCIPsdpVarmapperGetSdpIndex(varmapper, SCIPcolGetVar(rowcols[j]));
-                        assert( 0 <= colind && colind < nvars );
+                        varidx = SCIPvarGetProbindex(SCIPcolGetVar(rowcols[j]));
+                        assert( 0 <= varidx && varidx < nvars );
 
                         if ( ! SCIPisFeasZero(scip, duallhsval) )
-                           dualcut[colind] -= rowvals[j] * duallhsval;
+                           dualcut[varidx] -= rowvals[j] * duallhsval;
 
                         if ( ! SCIPisFeasZero(scip, dualrhsval) )
-                           dualcut[colind] += rowvals[j] * dualrhsval;
+                           dualcut[varidx] += rowvals[j] * dualrhsval;
                      }
                   }
                }
