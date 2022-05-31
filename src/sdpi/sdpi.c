@@ -3213,15 +3213,6 @@ SCIP_RETCODE SCIPsdpiSolve(
             }
          }
       }
-<<<<<<< HEAD
-
-      /* possibly prepare dual cut */
-      if ( sdpi->solved && dualcut != NULL )
-      {
-         SCIP_CALL( computeDualCut(sdpi, sdpi->nsdpblocks, sdpi->sdpblocksizes, indchanges, nremovedinds, blockindchanges, dualcut, dualcutrhs) );
-      }
-=======
->>>>>>> b90ace722b0c063c173be908baeb1baacd1fce27
    }
 
    /* empty the memory allocated here */
@@ -4139,12 +4130,9 @@ SCIP_RETCODE SCIPsdpiGetPrimalLPSides(
    {
       SCIP_Real* sdpilhsvals;
       SCIP_Real* sdpirhsvals;
-<<<<<<< HEAD
       SCIP_Real* sdpilbvals;
       SCIP_Real* sdpiubvals;
-=======
       SCIP_RETCODE retcode;
->>>>>>> b90ace722b0c063c173be908baeb1baacd1fce27
 
       assert( 0 <= sdpi->nactivelpcons && sdpi->nactivelpcons <= sdpi->nlpcons );
       BMS_CALL( BMSallocBufferMemoryArray(sdpi->bufmem, &sdpilhsvals, sdpi->nactivelpcons) );
@@ -4154,15 +4142,10 @@ SCIP_RETCODE SCIPsdpiGetPrimalLPSides(
 
       retcode = SCIPsdpiSolverGetPrimalLPSides(sdpi->sdpisolver, sdpi->nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs, sdpilhsvals, sdpirhsvals);
 
-<<<<<<< HEAD
       /* also get primal values for variables bounds to set values for LP rows that were replaced by variable bounds */
       SCIP_CALL( SCIPsdpiSolverGetPrimalBoundVars(sdpi->sdpisolver, sdpilbvals, sdpiubvals) );
 
-      /* initialize values to 0.0 */
-      for (i = 0; i < sdpi->nlpcons; ++i)
-=======
       if ( retcode == SCIP_OKAY )
->>>>>>> b90ace722b0c063c173be908baeb1baacd1fce27
       {
          /* initialize values to 0.0 */
          for (i = 0; i < sdpi->nlpcons; ++i)
@@ -4171,48 +4154,39 @@ SCIP_RETCODE SCIPsdpiGetPrimalLPSides(
             rhsvals[i] = 0.0;
          }
 
-<<<<<<< HEAD
-      for (i = 0; i < sdpi->nvars; ++i)
-      {
-         int idx;
-
-         if ( sdpi->sdpilbrowidx[i] != 0 )
+         for (i = 0; i < sdpi->nvars; ++i)
          {
-            idx = sdpi->sdpilbrowidx[i];
-            assert( -sdpi->nlpcons - 1 < idx && idx < sdpi->nlpcons + 1 );
-            if ( idx > 0 )
-               rhsvals[idx-1] = sdpilbvals[i];
-            else
-               lhsvals[-idx-1] = sdpilbvals[i];
+            int idx;
+
+            if ( sdpi->sdpilbrowidx[i] != 0 )
+            {
+               idx = sdpi->sdpilbrowidx[i];
+               assert( -sdpi->nlpcons - 1 < idx && idx < sdpi->nlpcons + 1 );
+               if ( idx > 0 )
+                  rhsvals[idx-1] = sdpilbvals[i];
+               else
+                  lhsvals[-idx-1] = sdpilbvals[i];
+            }
+
+            if ( sdpi->sdpiubrowidx[i] != 0 )
+            {
+               idx = sdpi->sdpiubrowidx[i];
+               assert( -sdpi->nlpcons - 1 < idx && idx < sdpi->nlpcons + 1 );
+               if ( idx > 0 )
+                  rhsvals[idx-1] = sdpiubvals[i];
+               else
+                  lhsvals[-idx-1] = sdpiubvals[i];
+            }
          }
 
-         if ( sdpi->sdpiubrowidx[i] != 0 )
-         {
-            idx = sdpi->sdpiubrowidx[i];
-            assert( -sdpi->nlpcons - 1 < idx && idx < sdpi->nlpcons + 1 );
-            if ( idx > 0 )
-               rhsvals[idx-1] = sdpiubvals[i];
-            else
-               lhsvals[-idx-1] = sdpiubvals[i];
-         }
-      }
-
-      /* fill in data */
-      for (i = 0; i < sdpi->nactivelpcons; ++i)
-      {
-         assert( 0 <= sdpi->sdpilpidx[i] && sdpi->sdpilpidx[i] < sdpi->nlpcons );
-         lhsvals[sdpi->sdpilpidx[i]] = sdpilhsvals[i];
-         rhsvals[sdpi->sdpilpidx[i]] = sdpirhsvals[i];
-=======
          /* fill in data */
          for (i = 0; i < sdpi->nactivelpcons; ++i)
          {
             assert( 0 <= sdpi->sdpilpidx[i] && sdpi->sdpilpidx[i] < sdpi->nlpcons );
             lhsvals[sdpi->sdpilpidx[i]] = sdpilhsvals[i];
             rhsvals[sdpi->sdpilpidx[i]] = sdpirhsvals[i];
+            *success = TRUE;
          }
-         *success = TRUE;
->>>>>>> b90ace722b0c063c173be908baeb1baacd1fce27
       }
       BMSfreeBufferMemoryArray(sdpi->bufmem, &sdpiubvals);
       BMSfreeBufferMemoryArray(sdpi->bufmem, &sdpilbvals);
