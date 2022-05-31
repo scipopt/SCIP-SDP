@@ -753,7 +753,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
 {
    SCIP_CALL( errorMessageAbort() );
 
-   return 0.0;
+   return SCIP_PLUGINNOTFOUND;
 }
 
 /** return the maximum absolute value of the optimal primal matrix */

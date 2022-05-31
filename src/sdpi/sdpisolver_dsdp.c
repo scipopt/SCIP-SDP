@@ -2447,7 +2447,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
    )
 {  /*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_INVALID;
+   return SCIP_LPERROR;
 }
 
 /** return the maximum absolute value of the optimal primal matrix */
@@ -2456,7 +2456,7 @@ SCIP_Real SCIPsdpiSolverGetMaxPrimalEntry(
    )
 {  /*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_INVALID;
+   return SCIP_LPERROR;
 }
 
 /** gets the time for the last SDP optimization call of solver */
