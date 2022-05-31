@@ -1386,8 +1386,8 @@ SCIP_RETCODE computeDualCut(
    {
       SCIP_Real* lhsvals;
       SCIP_Real* rhsvals;
-      SCIP_Real duallhsval;
-      SCIP_Real dualrhsval;
+      SCIP_Real primallhsval;
+      SCIP_Real primalrhsval;
       int nactiverows = 0;
       int ntightenedrows = 0;
       int nlpcons;
@@ -1438,16 +1438,16 @@ SCIP_RETCODE computeDualCut(
                if ( ! SCIProwIsLocal(row) )
                {
                   /* make sure that the primal values are >= 0 */
-                  duallhsval = MAX(lhsvals[i], 0.0);
-                  dualrhsval = MAX(rhsvals[i], 0.0);
-                  assert( SCIPisFeasGE(scip, duallhsval, 0.0) );
-                  assert( SCIPisFeasGE(scip, dualrhsval, 0.0) );
+                  primallhsval = MAX(lhsvals[i], 0.0);
+                  primalrhsval = MAX(rhsvals[i], 0.0);
+                  assert( SCIPisFeasGE(scip, primallhsval, 0.0) );
+                  assert( SCIPisFeasGE(scip, primalrhsval, 0.0) );
 
-                  if ( ! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, duallhsval) )
-                     *dualcutrhs -= rowlhs * duallhsval;
+                  if ( ! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, primallhsval) )
+                     *dualcutrhs -= rowlhs * primallhsval;
 
-                  if ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, dualrhsval) )
-                     *dualcutrhs += rowrhs * dualrhsval;
+                  if ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) )
+                     *dualcutrhs += rowrhs * primalrhsval;
 
                   for (j = 0; j < rownnonz; j++)
                   {
@@ -1457,11 +1457,11 @@ SCIP_RETCODE computeDualCut(
                         varidx = SCIPvarGetProbindex(SCIPcolGetVar(rowcols[j]));
                         assert( 0 <= varidx && varidx < nvars );
 
-                        if ( ! SCIPisFeasZero(scip, duallhsval) )
-                           dualcut[varidx] -= rowvals[j] * duallhsval;
+                        if ( ! SCIPisFeasZero(scip, primallhsval) )
+                           dualcut[varidx] -= rowvals[j] * primallhsval;
 
-                        if ( ! SCIPisFeasZero(scip, dualrhsval) )
-                           dualcut[varidx] += rowvals[j] * dualrhsval;
+                        if ( ! SCIPisFeasZero(scip, primalrhsval) )
+                           dualcut[varidx] += rowvals[j] * primalrhsval;
                      }
                   }
                }
@@ -1502,28 +1502,28 @@ SCIP_RETCODE computeDualCut(
       {
          for (i = 0; i < nvars; ++i)
          {
-            SCIP_Real duallbval;
-            SCIP_Real dualubval;
+            SCIP_Real primallbval;
+            SCIP_Real primalubval;
             SCIP_Real lb;
             SCIP_Real ub;
 
             lb = SCIPvarGetLbGlobal(vars[i]);
             ub = SCIPvarGetUbGlobal(vars[i]);
 
-            duallbval = MAX(lbvals[i], 0.0); /* make sure value is >= 0 */
-            assert( SCIPisFeasGE(scip, duallbval, 0.0) );
-            if ( ! SCIPisFeasZero(scip, duallbval) && ! SCIPisInfinity(scip, -lb) )
+            primallbval = MAX(lbvals[i], 0.0); /* make sure value is >= 0 */
+            assert( SCIPisFeasGE(scip, primallbval, 0.0) );
+            if ( ! SCIPisFeasZero(scip, primallbval) && ! SCIPisInfinity(scip, -lb) )
             {
-               dualcut[i] -= duallbval;
-               *dualcutrhs -= lb * duallbval;
+               dualcut[i] -= primallbval;
+               *dualcutrhs -= lb * primallbval;
             }
 
-            dualubval = MAX(ubvals[i], 0.0); /* make sure value is >= 0 */
-            assert( SCIPisFeasGE(scip, dualubval, 0.0) );
-            if ( ! SCIPisFeasZero(scip, dualubval) && ! SCIPisInfinity(scip, ub) )
+            primalubval = MAX(ubvals[i], 0.0); /* make sure value is >= 0 */
+            assert( SCIPisFeasGE(scip, primalubval, 0.0) );
+            if ( ! SCIPisFeasZero(scip, primalubval) && ! SCIPisInfinity(scip, ub) )
             {
-               dualcut[i] += dualubval;
-               *dualcutrhs += ub * dualubval;
+               dualcut[i] += primalubval;
+               *dualcutrhs += ub * primalubval;
             }
          }
       }
