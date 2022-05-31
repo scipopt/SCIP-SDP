@@ -158,7 +158,7 @@ Test(checksdpi, test1)
          nrows, &lhs, &rhs, nnonz, &row, &col, &val) );
 
    /* solve problem: no Slater-check, no time limit */
-   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, 1e20, NULL, NULL) );
+   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, 1e20) );
 
    /* check feasibility status */
    SCIP_CALL( SCIPsdpiGetSolFeasibility(sdpi, &primalfeasible, &dualfeasible) );
@@ -224,7 +224,7 @@ Test(checksdpi, test2)
          nrows, lhs, rhs, nnonz, row, col, val) );
 
    /* solve problem: no Slater-check, no time limit */
-   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, 1e20, NULL, NULL) );
+   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, 1e20) );
 
    /* check feasibility status */
    SCIP_CALL( SCIPsdpiGetSolFeasibility(sdpi, &primalfeasible, &dualfeasible) );
@@ -290,7 +290,7 @@ Test(checksdpi, test3)
          nrows, lhs, rhs, nnonz, row, col, val) );
 
    /* solve problem: no Slater-check, no time limit */
-   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, 1e20, NULL, NULL) );
+   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, 1e20) );
 
    /* check feasibility status */
    SCIP_CALL( SCIPsdpiGetSolFeasibility(sdpi, &primalfeasible, &dualfeasible) );
@@ -399,7 +399,7 @@ Test(checksdpi, test5)
          3, &sdpnblockvarnonzs, &sdpvars, &sdprowss, &sdpcolss, &sdpvalss, 0, NULL, NULL, 0, NULL, NULL, NULL) );
 
    /* solve problem: no Slater-check, no time limit */
-   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, 1e20, NULL, NULL) );
+   SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, 1e20) );
 
    /* check feasibility status */
    SCIP_CALL( SCIPsdpiGetSolFeasibility(sdpi, &primalfeasible, &dualfeasible) );
