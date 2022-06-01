@@ -1324,6 +1324,7 @@ SCIP_RETCODE computeDualCut(
          {
             SCIP_Real c = 0.0;
             SCIP_VAR* var;
+            SCIP_Real eigenvalue;
             int row;
             int col;
             int blocksize;
@@ -1369,6 +1370,14 @@ SCIP_RETCODE computeDualCut(
                   c += 2.0 * sdpconstval[b][k] * primalmatrices[b][row * blocksize + col];
             }
             *dualcutrhs += c;
+
+            /* compute minimal eigenvalue of primal matrix (matrix will be destroyed) */
+            SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, primalmatrices[b], 1, &eigenvalue, NULL) );
+
+            /* possibly correct the fact that the primal matrix might be psd only up to a certain precision */
+            SCIPdebugMsg(scip, "Correcting rhs of generated cut by %g.\n", MIN(eigenvalue, 0.0));
+            printf("Correcting rhs of generated cut by %g.\n", MIN(eigenvalue, 0.0));
+            *dualcutrhs += MIN(eigenvalue, 0.0);
          }
       }
 
