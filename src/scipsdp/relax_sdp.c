@@ -1693,7 +1693,7 @@ SCIP_RETCODE calcRelax(
          }
          (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "conflictcut#%d", SCIPrelaxGetNCalls(relax));
          SCIP_CALL( SCIPcreateConsLinear(scip, &cons, consname, cnt, consvars, consvals, conflictcutlhs, SCIPinfinity(scip),
-               TRUE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+               FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
          SCIP_CALL( SCIPaddCons(scip, cons) );
 
 #ifdef SCIP_DEBUG
